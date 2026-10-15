@@ -1,4 +1,4 @@
-# Engines — the provider estate
+# Engines: the provider estate
 
 Mercury runs models across 13 sign-in provider families plus local servers
 and custom endpoints, with per-family credentials, model lists, usage meters
@@ -12,14 +12,14 @@ provider to another.
 ## The routing law
 
 One pure law owns model→provider recognition. Every family declares its id
-space in one data table: a reserved qualified namespace (checked first —
+space in one data table: a reserved qualified namespace (checked first so
 reserved words can never be shadowed) and/or native bare spellings
 (prefixes + class aliases). A new family is one data row, never a bespoke
 arm.
 
 | Family | Id space | Display name |
 | --- | --- | --- |
-| `anthropic` | `claude-*` ids (the mark anywhere in the id — gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `mythos` · `best`), the `ANTHROPIC_*` model env pins and `MERCURY_CUSTOM_MODEL_OPTION`. An id NO family declares also classes here (the routing law's total remainder), but the ride is earned, never the remainder's accident: it is recognised as *unrecognised*, `/model`, `/health` and the dispatch seam name it, and bound for the first-party origin it refuses before the wire, credentialed or not, unless an operator-owned fact carries it — an `ANTHROPIC_*` model pin, or `ANTHROPIC_BASE_URL` re-pointed at a gateway | Anthropic |
+| `anthropic` | `claude-*` ids (the mark anywhere in the id, gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `mythos` · `best`), the `ANTHROPIC_*` model env pins and `MERCURY_CUSTOM_MODEL_OPTION`. Any model id that does not match a known provider prefix is refused before Mercury makes a network request (and `/model`, `/health` and dispatch name it as unrecognised), unless you explicitly pinned that id with an `ANTHROPIC_*` model variable or set `ANTHROPIC_BASE_URL` to a custom gateway | Anthropic |
 | `openai` | `gpt-*`, alias `gpt` | OpenAI |
 | `zai` | `glm-*`, alias `glm` | Z.AI |
 | `moonshot` | `kimi-*`, `moonshot-*`, alias `kimi` | Moonshot |
@@ -28,12 +28,12 @@ arm.
 | `meta` | `muse-spark-*`, alias `muse` (other `muse-*` endpoints refuse here) | Meta |
 | `gemini` | `gemini-*`, `google/<id>` (non-Gemini roster models on a Google sign-in), alias `gemini` | Gemini |
 | `openai-compat` | `compat/<vendor-id>` (qualified; stripped before the wire) | Custom endpoint |
-| `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped — OpenRouter ids are themselves vendor/model slugs, so only a namespace disambiguates them) | OpenRouter |
+| `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped because OpenRouter ids are vendor/model slugs, so the namespace disambiguates them) | OpenRouter |
 | `huggingface` | `huggingface/<org>/<model>[:provider\|:policy]` (qualified) | Hugging Face |
 | `local` | `local/<model>` (qualified; the model as the discovered local server lists it) | Local models |
 | `mistral` | `mistral-*`, `ministral-*`, `codestral-*`, alias `mistral` (the embedding, OCR, moderation and audio ids refuse here) | Mistral |
-| `nous` | `nous/<vendor>/<model>` (qualified; stripped — the Portal's ids are vendor/model slugs, so only a namespace disambiguates them; the `~vendor/<name>-latest` alias rows ride the same way) | Nous Portal |
-| `zen` | `zen/<model-id>` (qualified; stripped before the wire — the gateway's own ids are bare vendor names such as `glm-5.3` or `gpt-5.5`, so only the namespace tells a Zen row from the native family's) | OpenCode Zen |
+| `nous` | `nous/<vendor>/<model>` (qualified; stripped because the Portal's ids are vendor/model slugs, so the namespace disambiguates them; the `~vendor/<name>-latest` alias rows ride the same way) | Nous Portal |
+| `zen` | `zen/<model-id>` (qualified; stripped before the wire because the gateway's own ids are bare vendor names such as `glm-5.3` or `gpt-5.5`, so the namespace tells a Zen row from the native family's) | OpenCode Zen |
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
@@ -44,8 +44,8 @@ live model count (while `mercury://models` also lists unavailable rows with
 their reasons), and image, video, speech/TTS, audio and embedding models are
 excluded from chat pickers and refused for chat turns.
 
-Anthropic's rows are the built-in table — the names, prices, effort ladders
-and capability facts Mercury knows for each generation — joined by the live
+Anthropic's rows are the built-in table (the names, prices, effort ladders
+and capability facts Mercury knows for each generation) joined by the live
 model list of every signed-in door. When `/model` or `/logins` opens, Mercury
 reads the models endpoint once through each credential it holds (a claude.ai
 sign-in with its bearer, an API key, an environment bearer token), never at
@@ -53,18 +53,18 @@ boot and never from a passive reader, and never without a credential or
 while catalogue traffic is switched off. A listed id the table knows changes
 nothing; an id the table does not know paints as one row under its raw id at
 the end of its family's block, selectable, served with its family's newest
-defaults — the cost as an estimate at that row's rates, its effort ladder,
-its window, its launch effort, its wire laws — and with no invented display
+defaults (the cost as an estimate at that row's rates, its effort ladder,
+its window, its launch effort, its wire laws) and with no invented display
 name or knowledge cutoff. A new generation never folds onto an older one:
 `claude-opus-5-7` keeps its own identity while a dated snapshot or a gateway
 spelling of a known generation still reads as that generation. A row the
-lists do not carry stands as before — a list can be partial per door, and a
+lists do not carry remains available (a list can be partial per door, and a
 door whose list the endpoint refuses is that door's own catalogue error,
-never a fault of the picker. The health check's Model lists row says what the
+never a fault of the picker). The health check's Model lists row says what the
 doors this process read serve and what they lack.
 
-The family words follow each family's newest row — `opus` means Opus 5.5 and
-`sonnet` means Sonnet 5.5 — so a saved `sonnet` runs Sonnet 5.5 while a saved
+The family words follow each family's newest row (`opus` means Opus 5.5 and
+`sonnet` means Sonnet 5.5), so a saved `sonnet` runs Sonnet 5.5 while a saved
 `claude-sonnet-5` stays on Sonnet 5, which keeps its own row under the family
 in the picker; Sonnet 5.5 takes the two wire laws Opus 5.5 takes: thinking is
 always on (a request with thinking off carries no thinking parameter and
@@ -85,10 +85,10 @@ and [prices](https://platform.claude.com/docs/en/about-claude/pricing)
 read on 2026-10-08.
 
 A new Anthropic model runs before its catalogue row lands: any id inside the
-first-party space (`claude-…`) starts from every door — the boot face's new
+first-party space (`claude-…`) starts from every door (the home screen's new
 session, `/clear`, `--model`, a saved setting, the crew and workflow seats,
-the advisor and console picks, the coordinator's assist model, `/model` in
-the chat — the moment the account holds an Anthropic credential, and the
+the advisor and console picks, the coordinator's assist model, and `/model` in
+the chat) the moment the account holds an Anthropic credential, and the
 wire decides whether it serves the id; no door judges a Claude id by whether
 the picker lists it. A catalogue row adds what only a row can: the display
 name, the price tier (until then the spend views say the figure is a family
@@ -106,19 +106,19 @@ paints under its own name at the conservative window Mercury budgets for an
 unrecorded id; while the list is unreachable the recorded rows stand in
 with their date.
 
-`/logins xai` offers Grok subscription sign-in (SuperGrok / X Premium) beside the API key, with the subscription selected by default; a subscription lists, chats and reads its included weekly pool on cli-chat-proxy.grok.com, while an API key stays on api.x.ai.
+`/logins xai` connects a Grok subscription sign-in (SuperGrok / X Premium) beside the API key, with the subscription selected by default; a subscription lists, chats and reads its included weekly pool on cli-chat-proxy.grok.com, while an API key stays on api.x.ai.
 
 xAI's Grok rows follow the same road: with a Grok sign-in or xAI key present, Mercury reads
 the account's model list when the picker composes its rows and paints the
 Grok ids it names; the family word `grok` means the newest Grok row that list
-serves — as `deepseek`, `kimi` and `glm` mean the newest row of their own
-family's list — and while the list is unreachable the recorded rows stand in
+serves (as `deepseek`, `kimi` and `glm` mean the newest row of their own
+family's list), and while the list is unreachable the recorded rows stand in
 with their date.
 
 Meta's Muse Spark rows come only from the account's live `GET /v1/models`
 list, newest creation time first, with the id breaking ties. Connect through
 `/logins meta` (or `/logins muse`): the card’s first row is **Sign in with
-Meta — a Muse Code subscription, a device code in your browser**, and the
+Meta (a Muse Code subscription, a device code in your browser)**, and the
 second is a pay-as-you-go Model API key (`/router key meta`, `MODEL_API_KEY`,
 or `META_API_KEY`, which is accepted after `MODEL_API_KEY` and before the
 stored key). Sign in with Meta requests a device code from
@@ -131,13 +131,13 @@ then sends the resulting account token once to
 API key (`api_key`) and states `user_email`, `subs_tier_name` and `subs_usage`
 (`window` and `weekly` used percent and reset timestamps). The grant is stored
 auth-scoped at mode 600 in `.meta-auth.json` beside the API key. Model requests
-send only the minted key to `https://api.meta.ai/v1` — never the account token.
+send only the minted key to `https://api.meta.ai/v1` and never send the account token.
 When an account has no active plan, Meta answers `require_payment` with the
 `action_url` / `require_payment_action_url` page to visit, and nothing is
 stored as active. The latest sign-in action is the active source; `/logins` and
 `/usage` name a stored source that is not active, and `↵` on its `/logins` row
 makes it active without re-entering. A refused minted key (401/403) reports
-`the Muse Code key was refused — /logins signs in with Meta again` and never
+`the Muse Code key was refused · /logins signs in with Meta again` and never
 falls through silently to another source. `/accounts` manages both slots. The
 family word `muse` selects the newest served Standard Muse Spark row. A
 successful empty list stays empty; no unfetched row becomes selectable. A named
@@ -156,10 +156,10 @@ Mercury uses Meta’s OpenAI-compatible Chat Completions endpoint at
 `https://api.meta.ai/v1/chat/completions`, with streaming, function tools,
 JSON-schema output and the model’s documented reasoning effort. `none` is
 not supported; `max` is documented only for Standard Muse Spark 1.3. No
-reasoning-off flag is sent. Meta also offers Responses and Messages APIs;
+reasoning-off flag is sent. Meta also provides Responses and Messages APIs;
 its Chat Completions API does **not** preserve private reasoning across
 turns. Mercury’s Meta road therefore replays the conversation and tool
-results, not encrypted reasoning. Meta recommends Responses for reasoning
+results without encrypted reasoning. Meta recommends Responses for reasoning
 continuity in agentic work; that is not claimed by this road.
 
 Sources: [quickstart](https://dev.meta.ai/docs/quickstart),
@@ -169,11 +169,10 @@ Sources: [quickstart](https://dev.meta.ai/docs/quickstart),
 [subscriptions](https://dev.meta.ai/docs/muse-code/subscriptions).
 
 Mistral's rows come from the account's live `GET /v1/models` list, read
-through the key: the recorded rows lead in their order — Mistral Large 4
-(`mistral-large-4`, the public preview Mistral calls Le Chonk, a 1,048,576-token
-context), Mistral Medium 3.5 (`mistral-medium-3-5`), Mistral Small 4
-(`mistral-small-2603`), Mistral Large 3 (`mistral-large-2512`), the three
-Ministral 3 sizes and Codestral (`codestral-2508`) — and any further chat row
+through the key: the recorded rows lead in their order (`mistral-large-4`,
+the public preview Mistral calls Le Chonk with a 1,048,576-token
+context; `mistral-medium-3-5`; `mistral-small-2603`; `mistral-large-2512`; the three
+Ministral 3 sizes; and `codestral-2508`), and any further chat row
 the list serves follows by creation time. The vendor's aliases
 (`mistral-medium-latest`, `mistral-small-latest`, `mistral-large-latest`,
 which still names Large 3, `codestral-latest`) are listed ids too and
@@ -199,17 +198,17 @@ two-week launch discount is not recorded); Medium 3.5 $1.50 and $7.50; Small 4
 $0.15 and $0.60; Large 3 $0.50 and $1.50; Ministral 3 14B $0.20, 8B $0.15,
 3B $0.10 each way; Codestral $0.30 and $0.90.
 
-Mistral offers no OAuth to third-party clients: no client registration,
+Mistral provides no OAuth to third-party clients: no client registration,
 device flow or token endpoint is documented. Its open-source Vibe CLI signs in
 through a browser door of the Vibe product that mints an API key; that door is
 absent from the public API reference and Mistral's Commercial Terms of Service
 forbid integrating Vibe into other products without written authorisation, so
 Mercury does not use it. A standard key reads the account's identity
 (`GET /v1/users/me`) and no usage, balance or credits endpoint; the plan's
-included monthly usage is read in the console. The organisation meter —
-month-to-date usage against the monthly spend limit and the rate limits — is
+included monthly usage is read in the console. The organisation meter
+(month-to-date usage against the monthly spend limit and the rate limits) is
 read through the Admin API with an optional **Admin API key** stored beside the
-inference key (`/logins mistral` offers it after the key; `/router key
+inference key (`/logins mistral` prompts for it after the key; `/router key
 mistral-admin`; `MISTRAL_ADMIN_API_KEY`), which Mistral issues on Enterprise
 plans at [backoffice.mistral.ai](https://backoffice.mistral.ai). Sources read
 on **2026-10-09**: the public OpenAPI specification and the model cards in
@@ -238,7 +237,7 @@ recommended agentic rows first, then the catalogue's own order, with a door
 to the full list behind a filter; a typed `nous/<vendor>/<model>` id is
 refused before chat when a fetched list lacks it. Each row's context window,
 output ceiling, image input, tool support, reasoning dial and price are the
-facts the live row states — never a first-party table joined by name — and a
+facts the live row states (never a first-party table joined by name), and a
 row whose supported parameters omit tools refuses a tool-bearing turn before
 the wire. Nous's own Hermes models are not on the Portal's list as of
 **2026-10-09**: the live catalogue carries no Hermes row and the inference API
@@ -266,14 +265,14 @@ every model the gateway lists, billed at the vendor's pay-as-you-go prices
 from a prepaid balance. Sign in at [opencode.ai/auth](https://opencode.ai/auth),
 add billing details, create a key, then `/logins zen` (or `/logins opencode`),
 `/router key zen`, or `OPENCODE_API_KEY`. The key is checked on the gateway's
-usage endpoint before it is stored — a refused key is never stored. Zen has no
+usage endpoint before it is stored, and a refused key is never stored. Zen has no
 OAuth or device sign-in for a third-party client, and its keyless free tier
 answers third-party clients with a typed refusal; Mercury does not present
 itself as another client to reach it.
 
 Zen rows are persisted as `zen/<model-id>` and come from the gateway's live
 `GET /zen/v1/models` list, joined with Mercury's recorded pins (display name,
-context window, output ceiling, prices, effort vocabulary — observed
+context window, output ceiling, prices, effort vocabulary, observed
 **2026-10-09** from the vendor's [Zen page](https://opencode.ai/docs/zen/) and
 its model metadata). The gateway serves each model in one fixed wire shape and
 refuses another: this build carries its **chat-completions** shape (GLM, Kimi,
@@ -297,21 +296,21 @@ prompt caching. The gateway's errors are typed: a refused or exhausted key
 console page to fix it; a Go-plan window reached (`GoUsageLimitError`) carries
 its `retry-after`.
 
-The meter: the session's spend at the recorded prices, and — for a key that
-carries an **OpenCode Go** plan — the plan's 5-hour, weekly and monthly windows
+The meter: the session's spend at the recorded prices, and, for a key that
+carries an **OpenCode Go** plan, the plan's 5-hour, weekly and monthly windows
 from `GET /zen/go/v1/usage`. The pay-as-you-go balance is shown only in the
 OpenCode console (the gateway states no balance to clients, and the opencode
 client itself reads none); `/usage` says so instead of inventing a figure. The
 Go plan bills only on its own base (`/zen/go/v1`), which this build does not
-address — a Go key on the Zen base draws the balance.
+address (a Go key on the Zen base draws the balance).
 
 Moonshot's default, picker and specialist choices follow the account's live
 model list. An API key reads the platform list; a Kimi sign-in reads its
 region's coding list with the same credential used for chat. The newest
 creation time leads, with provider order preserved when times are absent
-or equal. A successful empty list offers no row. With no fetched list,
+or equal. A successful empty list shows no row. With no fetched list,
 the recorded rows stand in with their observation date. An id missing from
-a fetched list is refused before chat, with the account label and offered
+a fetched list is refused before chat, with the account label and available
 ids; an unreachable catalogue permits a named id with an explicit note.
 An unnamed first chat reads the catalogue within the existing bounded
 allowance; idle boot and explicit model choices remain unchanged.
@@ -325,8 +324,8 @@ capability observation, only the recorded K3 ids and supported K2 coding
 alias use this form; other K2 ids are not assumed to support it.
 
 Z.AI's GLM rows follow the same road: with a Z.AI key present, Mercury reads
-the account's model list (`GET /models` on the base the key is valid on — a
-GLM Coding Plan key reads `https://api.z.ai/api/coding/paas/v4`, a general
+the account's model list (`GET /models` on the base the key is valid on: a
+GLM Coding Plan key reads `https://api.z.ai/api/coding/paas/v4`, and a general
 key or `ZAI_API_KEY` reads `https://api.z.ai/api/paas/v4`) when the picker
 composes its rows, and paints the GLM ids it names, newest first. The list
 states ids only; each row's window and reasoning dial are the facts
@@ -334,7 +333,7 @@ docs.z.ai states for that id (read 2026-10-05): `glm-5.3`, `glm-5.3-flash`
 and `glm-5.3-flashx` have a 1M-token window, a 128K output ceiling and the
 dial `low` · `high` · `max` with thinking always on; `glm-5.2` has the 1M
 window and the seven-level dial; older ids keep their documented windows
-and offer no dial. An id the docs do not name paints under its raw name
+and have no dial. An id the docs do not name paints under its raw name
 with no window and no dial. The family word `glm` means the newest row the
 list serves. While no list has landed, the recorded rows (`glm-5.3`,
 `glm-5.3-flash`, `glm-5.2`) stand in with their date; a model the list no
@@ -344,29 +343,23 @@ of those two; a model the plan does not include is refused with Z.AI's own
 reason after the status, as every chat refusal is.
 
 A retired DeepSeek id resolves to its current one wherever a model id is
-read — a saved setting, `MERCURY_MODEL`, `/model`, a crewmate's model —
+read (a saved setting, `MERCURY_MODEL`, `/model`, or a crewmate's model)
 and paints as the current id: `deepseek-v4-flash` is `deepseek-flash`, and
 the wire is sent the current id.
 
 ## Dispatch
 
 Every call dispatches on the resolved route to that family's own runtime;
-the default arm is the Anthropic path. An id no family declares dispatches
-there too, but only through the home-lane admission, read by `/model`'s
-typing door and the dispatch seam alike: on the first-party origin a
-carrier-shaped id is refused before any request — no first-party id carries
-a `/` — and an unrecognised id is a typed refusal before any HTTP,
-credentialed or not, naming the id, the declared families and both earned
-roads. The earned roads are the operator's own facts: an `ANTHROPIC_*`
-model pin naming the id, or a gateway base URL (the operator named an
-endpoint that owns its ids — it admits carrier-shaped and unrecognised ids
-alike). A credential is not an earned fact.
-
+the default arm is the Anthropic path. Any model id that does not match a known
+provider prefix is refused before Mercury makes a network request (including any
+id containing `/` on the first-party endpoint), naming the id and the declared
+provider families, unless you explicitly pinned that id with an `ANTHROPIC_*`
+model variable or set `ANTHROPIC_BASE_URL` to a custom gateway.
 ## The runtimes
 
 Three wire families serve the providers:
 
-- **The Anthropic home lane** — the first-party API, directly or through a
+- **The Anthropic home lane**: the first-party API, directly or through a
   base-URL proxy.
 - **Native wires**: Z.AI, OpenAI through its Responses API, and Gemini
   through `streamGenerateContent` (used by Sign in with Google, your own OAuth
@@ -380,26 +373,26 @@ Three wire families serve the providers:
 
 Whichever wire a session runs on, a turn behaves the same way: text and
 tool calls stream as they arrive; the final usage and stop reason are
-recorded; a provider fault never crashes the turn — a terminal fault lands
+recorded; a provider fault never crashes the turn (a terminal fault lands
 as an API-error message in the chat, cancellation returns quietly, and a
-retryable fault before any content is retried once; every request's usage
+retryable fault before any content is retried once); every request's usage
 joins the one session cost ledger. A refusal that says the provider is busy
-(an HTTP 503, the Anthropic wire's HTTP 529 or `overloaded_error` — inside a
-stream too — Google's UNAVAILABLE, OpenAI's overloaded model, DeepSeek's
+(an HTTP 503, the Anthropic wire's HTTP 529 or `overloaded_error`, inside a
+stream too, Google's UNAVAILABLE, OpenAI's overloaded model, DeepSeek's
 overloaded server, OpenRouter's no available provider, Z.AI's code 1305, or a
 vendor's own overloaded or unavailable word) is retried quietly on a growing
-wait on every road — 1 s, 2 s, 4 s, 8 s, 16 s and 30 s, about a minute in
-all — before the chat gives up: nothing is painted for the first thirty
+wait on every road (1 s, 2 s, 4 s, 8 s, 16 s and 30 s, about a minute in
+all) before the chat gives up: nothing is painted for the first thirty
 seconds, then the retry line shows the true wait and the true count, and the
 red error line comes only once the whole ladder is spent, saying how many
 retries it took and how long (on the Anthropic wire it carries the
 provider's own answer; with an API key and an Opus model, a spent ladder
 ends the turn with the repeated-overload line, or switches to the fallback
 model when one was named at launch). A rate limit that names its own wait
-(Retry-After) rides the same ladder with that wait in place of the rung; a
+(`Retry-After`) rides the same ladder with that wait in place of the rung; a
 rate limit without one keeps the single retry. A reply that arrives inside
-the ladder shows one calm grey line above it, naming the provider —
-`OpenAI was busy · answered after 2 retries (7 s)` — whose ctrl+o expansion
+the ladder shows one calm grey line above it, naming the provider
+(`OpenAI was busy · answered after 2 retries (7 s)`), whose `ctrl+o` expansion
 carries the provider's words and every wait; the debug log carries every
 retry either way. Escape ends a wait at once. A stream the provider cuts
 after some of the reply has arrived is continued once: Mercury asks the model
@@ -407,10 +400,10 @@ to pick up where it stopped, the reply so far stands, and the chat shows one
 quiet line,
 `Continued after 1 stream cut · context sent again`, whose expansion names
 the road, what the provider sent and the code. The cost is in those last
-three words: the continuation sends the turn's context again — on a
+three words: the continuation sends the turn's context again (on a
 subscription that is usage-window consumption, on an API key it is input
-tokens, and prompt cache hits reduce it. A second cut in the same turn is
-not continued; it stands as a failure and reads as one. On the OpenAI
+tokens, and prompt cache hits reduce it). A second cut in the same turn is
+not continued; it is recorded as a failure. On the OpenAI
 Responses wire every cut also writes one line to the debug log naming the
 road, the protocol, the milliseconds since the request started and since the
 last byte, the bytes and events received, whether the model was mid-reasoning
@@ -424,40 +417,40 @@ value is a command, a pattern, a symbol or a path (the shell command; Grep's
 pattern, path and glob; every tool's file path; the language-server tool's
 symbol names and file fields; the debugger's expressions) reads as its
 straight twin, since none of those ever wants one; a field that carries
-content or prose — a Write's content, an Edit's new text, an Eval cell —
-stays exactly as typed, and every other wire carries every byte as typed.
+content or prose (a Write's content, an Edit's new text, an Eval cell)
+stays as typed, and every other wire carries every byte as typed.
 When a GPT-family model returns a refusal (including an OpenAI content-filter
 finish) or a synthetic error row, the refusal is shown to you once in the chat
 and omitted from subsequent request histories (after applying any image-refusal
 resize stamps), while user prompts and executed tool-call/result pairs stay
 paired.
 
-A dispatched crewmate whose turn ends on the provider's overload — the busy
-refusal above on any road (the Anthropic wire's 529 or `overloaded_error`,
-another provider's spent busy ladder), with no wait stated — is not
-failed: it pauses, its row says why — `paused — provider overloaded ·
-resumes by itself when the provider answers` — its work so far is kept, and
+A dispatched crewmate whose turn ends on the provider's overload (the busy
+refusal above on any road, such as the Anthropic wire's 529 or `overloaded_error` or
+another provider's spent busy ladder, with no wait stated) does not
+fail: it pauses, its row says why (`paused · provider overloaded ·
+resumes by itself when the provider answers`), its work so far is kept, and
 Mercury probes the provider with one small request at a slow, bounded
-cadence — 30 s after the pause, then every minute for ten minutes, then
-every five minutes, for up to one hour — and resumes the crewmate by itself
+cadence (30 s after the pause, then every minute for ten minutes, then
+every five minutes, for up to one hour) and resumes the crewmate automatically
 when a probe is answered; the crewmate continues from where its transcript
-ends. The parent's chat carries one calm line per crewmate per outage — the
-first pause names the provider and the probing; a later death and the
-resume itself add no line, the crewmate's row on the crew view carries them —
+ends. The parent's chat carries one calm line per crewmate per outage (the
+first pause names the provider and the probing; a later stop and the
+resume itself add no line, as the crewmate's row on the Crew view shows them),
 and the crewmate's completion follows as its own line; a message to the crewmate
-resumes it sooner, and the crew view stops it. The line names the status
-the provider answered with — 529 on the Anthropic wire, 503 elsewhere, none
-when the refusal carried none. A helper the parent waited
+resumes it sooner, and the Crew view stops it. The line names the status
+the provider answered with (529 on the Anthropic wire, 503 elsewhere, or none
+when the refusal carried none). A crewmate the parent waited
 on inline takes the same road, and so does one handed to the background
 mid-turn: its result to the parent leads with the
 pause, the probing brings it back in the background, and its completion
 follows as a notification. If the
-outage outlasts the probing, the row is a failed one again and a message is
-the way back.
+outage outlasts the probing, the row marks the run failed and sending a message
+resumes it.
 
-A session's side jobs — the chat's title, the away summary, the tool-use
+A session's side jobs (the chat's title, the away summary, the tool-use
 summaries, the state read, the feedback card, a question hook's default model,
-the date parser and the fetch tool's summary — ride the session's own family
+the date parser and the fetch tool's summary) ride the session's own family
 on its helper tier. On the Anthropic lane that is the small family default
 (`MERCURY_SMALL_FAST_MODEL` pins it). On a GPT session it is the cheapest
 text model the account's live list serves, by the prices the GPT table
@@ -480,83 +473,83 @@ model and `/api/ps` states the window; LM Studio's loaded instance, vLLM's
 has not stated yet refuses nothing, and the fit guard refuses only a request
 more than a third larger than a window the server, its Modelfile or the
 session's own hold states (counted at the wire's measured 3.9 bytes per
-token, the tools weighed as the request carries them — the never-deferred
-schemas in full, the rest by name; anything closer is sent, and the server's
+token, the tools weighed as the request carries them, with the non-deferred
+schemas in full and the rest by name; anything closer is sent, and the server's
 own refusal is the truth). The window a local
 model is served with is a setting inside Mercury (`/config` → Local model
 window, per model): `auto` (unset) chooses the biggest of 32k · 64k · 128k ·
 256k, never above the trained maximum, whose projected load (the weights plus
-the KV cache of the layers that keep one — a hybrid such as Qwen 3.5/3.8
-states `full_attention_interval` in its own metadata, so one layer in four
-counts — at the server's cache type and slots, from the model's own
+the KV cache of the layers that keep one; a hybrid such as Qwen 3.5/3.8
+states `full_attention_interval` in its own metadata so one layer in four
+counts, at the server's cache type and slots, from the model's own
 geometry; once the model is loaded, the size `/api/ps` measures at its
-window outranks that formula) fits the memory usable for models — the
+window outranks that formula) fits the memory usable for models (the
 server's own gpu-memory line when it states one, the same rule
-`/localsetup`'s step 5 uses — at the
-model's first send and holds it for the session on every dispatch — the main
+`/localsetup`'s step 5 uses) at the
+model's first send and holds it for the session on every dispatch (the main
 thread, crewmates and workflow crewmates alike, so a crewmate never reloads the
-runner (when the machine's memory cannot be read — the server states no
-geometry, or the read fails — the window comes out bigger, not smaller: the
+runner; when the machine's memory cannot be read because the server states no
+geometry or the read fails, the window comes out larger: the
 trained maximum when the model states one, else the served window, else twice
 the first request rounded up to 16k and never under 64k, and the words say so);
 the rail's ctx row names the reason (`max` · `fit` · `set` · `srv`) and the
 deck's ctx row carries the figures; `server default` leaves the choice to the
 server (Ollama loads the model and `/api/ps` states the figure); `32k` · `64k`
-· `128k` · `trained max` or a number pin it — a pinned rung whose load does not
-fit this machine says so on the row and names the biggest rung that does, and
-is still saved. On Ollama the chosen window rides as `options.num_ctx` on every request
+· `128k` · `trained max` or a number pin it (a pinned rung whose load does not
+fit the available memory says so on the row, names the largest rung that does, and
+is still saved). On Ollama the chosen window rides as `options.num_ctx` on every request
 over the native `/api/chat` stream (with `truncate: false`, so an over-window
-prompt is refused by the server rather than truncated), and every request the
-session sends that model — the chat, the pre-warm, the keep-alive touch, the
-served-window load and every crewmate or workflow seat — carries the same
+prompt is refused by the server instead of truncated), and every request the
+session sends that model (the chat, the pre-warm, the keep-alive touch, the
+served-window load and every crewmate or workflow seat) carries the same
 `num_ctx` and `num_batch`, so the scheduler keeps one runner and its prompt
 cache for the whole session; a runner the server already holds at a window
 that fits the turn and is no smaller than the session's own choice is adopted
-rather than reloaded (under auto and `server default` — a window you set is
+without reloading (under `auto` and `server default`; a window you set is
 honoured, and a smaller stale runner is reloaded once, up to the full window),
 and the row names it as the server's; LM Studio takes it
 when the model is loaded (`POST /api/v1/models/load {model, context_length}`);
 vLLM and llama.cpp fix their window at server start, so the row shows the
 served figure and reads as not applicable. When no local server answers,
-`/localsetup` sets one up inside Mercury — it finds or installs Ollama, starts
+`/localsetup` sets one up inside Mercury: it finds or installs Ollama, starts
 it, asks which model to use, pulls the chosen model if needed, sets its window
-from this machine's memory and checks a reply, each step asking before it runs
+from your machine's memory and checks a reply, each step asking before it runs
 ([LOCAL-SETUP.md](LOCAL-SETUP.md)). The lane is verified
 against a live Ollama for discovery, streamed text, streamed reasoning and
 multi-round tool loops, and against a live llama.cpp (2026-09-27, Qwen3.5 9B
-served as `qwen3.5:9b`, server build b11146) for the same three legs —
-discovery with the served window read from `/props`, a streamed reply with
+served as `qwen3.5:9b`, server build b11146) for the same three legs
+(discovery with the served window read from `/props`, a streamed reply with
 its reasoning block, and a tool loop that also dispatched a crewmate and a
-workflow crewmate on the model; and against a live LM Studio (2026-09-27, Qwen3.5
-9B served as `qwen3.5-9b`) for the same legs — discovery from `/api/v1/models`
+workflow crewmate on the model); and against a live LM Studio (2026-09-27, Qwen3.5
+9B served as `qwen3.5-9b`) for the same legs (discovery from `/api/v1/models`
 with the loaded instance's window, a streamed reply with its reasoning block,
-a direct tool loop, a crewmate and a workflow crewmate — where the product
+a direct tool loop, a crewmate and a workflow crewmate), where the product
 reloads the instance at its chosen window on the first send (the documented
-load road) unless the window setting is `server default`. vLLM is unverified
-— it needs a Linux box with an NVIDIA card. The search-door and SATURN-fire legs remain operator-deferred
+load road) unless the window setting is `server default`. vLLM requires a Linux
+machine with an NVIDIA GPU. The search-door and SATURN-fire legs remain deferred
 drill lines. The Hugging Face lane carries an explicit deferred-live caveat
 in its readiness detail until verified against a live endpoint.
 
 On the local lane no watchdog cuts a request while the server answers. The
-first-byte budget there is a promise the status row speaks, not a deadline:
-it is sized from the model's measured ingestion pace — the uncached prompt
+first-byte budget there is an estimate the status row shows:
+it is sized from the model's measured ingestion pace (the uncached prompt
 tokens the wire reports over the time to the first byte, remembered per
-model in `local-ingest-pace.json` under the config home — with a quarter's
+model in `local-ingest-pace.json` under the config home) with a quarter's
 margin; before a measurement, a default by parameter count (300 tokens/s up
 to 10B, 100 up to 35B, 40 above, 100 when the server states no size). When
-the promise runs out, Mercury asks the server a cheap liveness question
+the estimate runs out, Mercury asks the server a liveness question
 (Ollama `/api/version`, LM Studio `/api/v1/models`, llama.cpp `/health`,
-vLLM `/v1/models`): an answer extends the promise and the row says so
-(`still ingesting … — about 3m 23s more (its server answered at 6m 46s)`);
+vLLM `/v1/models`): an answer extends the estimate and the row says so
+(`still ingesting … · about 3m 23s more (its server answered at 6m 46s)`);
 two unanswered probes in a row cut the request with the dead-server words
-(`no answer from Ollama at 127.0.0.1:11434 for 10 s while ingesting — the
+(`no answer from Ollama at 127.0.0.1:11434 for 10 s while ingesting · the
 local server is not responding (its window, its load, or a crash); /model
 re-probes`), and that cut is never reissued. After the first byte the idle
 watchdog follows the same law at the patience setting's quiet number (15
 minutes, the OpenAI road's): the row warns at the warning point (`no bytes
-for 7m 30s — <model>'s server is asked at 15m`), the server is asked at the
-idle number, and the turn holds while it answers (`no bytes for 15m —
-<model>'s server still answers`; esc interrupts). While the server is still
+for 7m 30s · <model>'s server is asked at 15m`), the server is asked at the
+idle number, and the turn holds while it answers (`no bytes for 15m ·
+<model>'s server still answers`; `Esc` interrupts). While the server is still
 loading the model the row says `loading <model> (<size> GB)`, and the
 ingestion clock starts once the server lists it. The hard cap on a local
 request is two hours. Ollama's native `/api/chat` road rides the same law as
@@ -564,7 +557,7 @@ the `/v1` road, and hands its fetch a dispatcher whose HTTP headers and body
 budgets are raised to that cap, so nothing beneath the law cuts first (the
 shared API dispatcher's 600 s headers budget once ended a long ingest with
 `UND_ERR_HEADERS_TIMEOUT` and a re-ingest). On that road a turn whose every
-row was thinking — no reply, no tool call — settles with
+row was thinking (no reply and no tool call) settles with
 `reasoningOnly: true` on the message, and the debug log carries the stream's
 shape and its first 2,000 characters (`[compat:local] /api/chat stream from
 <model>: …`). Every other lane keeps its first-byte budget, its idle number
@@ -581,14 +574,14 @@ command, or the environment variable or helper that supplied the rejected
 credential. A retry hint on an authentication refusal does not schedule a wait.
 
 Recognition is the law's fact; dispatch is the runtime's. A routed id can never
-silently fall through to another provider — each runtime owns honest, typed refusals:
+silently fall through to another provider; each runtime returns typed refusals:
 
 - a lane whose credential does not resolve refuses with text that names the attach
   route (where to sign in or store a key), never a generic error;
 - a tool-bearing request on a model that cannot take tools is refused pre-flight with
   a typed reason instead of a broken turn (the local lane's tool-capability facts);
 - an undiscovered `local/<id>` refuses with the probe route and the pull (`ollama
-  pull <id>` when an Ollama server answers) rather than guessing a port; a
+  pull <id>` when an Ollama server answers) instead of guessing a port; a
   request larger than a local model's stated served window refuses before the
   send, naming the window, its source and the in-app road that raises it, since
   the server would silently truncate it;
@@ -599,26 +592,24 @@ dispatch allows. The
 **session** arm is pure product capability: a session dispatches on every family
 the account holds a credential for, every tier included; a family with no
 credential refuses typed (`no-credential:<family>`) with the one action that fixes
-it riding the refusal — except the account-less local family, whose miss is a gone
-server, not a missing credential: it refuses `unreachable:local` with the probe
-route. The **crew** arm carries the same verdict row for row: a crewmate is
+it riding the refusal, except the account-less local family, whose miss is a stopped
+server (`unreachable:local` with the probe
+route). The **crew** arm carries the same verdict row for row: a crewmate is
 the same product child a session runs, so every row a session may run, a crew
 seat may run. Every refusal names its class and
-carries one machine-readable action line — a coordinator or operator relays the
-real fix, never an invented reason.
+carries one machine-readable action line so the coordinator or you can see the
+exact fix.
 
 ## Auth
 
-The `/accounts` slots derive one per signed-in identity across every family
-the router catalogue knows — derived, never hardcoded. Each family's slots
-come from its owning account resolvers:
+Run `/accounts` to see every connected account and API key across all providers:
 
-- **anthropic** — the account scope ring plus the API-key ladder, source-honest;
-- **openai** — the subscription store and the stored key, both shown when both exist;
-- **gemini** — Sign in with Google (your plan's quota), an API key, or your
+- **anthropic**: the account scope ring plus the API-key ladder, source-honest;
+- **openai**: the subscription store and the stored key, both shown when both exist;
+- **gemini**: Sign in with Google (your plan's quota), an API key, or your
   own OAuth client. Sign in with Google runs Gemini on the plan of the Google
-  account you pick — a free account, Google AI Pro, Google AI Ultra, or a
-  Gemini Code Assist licence — the way Google's own Antigravity client does:
+  account you pick (a free account, Google AI Pro, Google AI Ultra, or a
+  Gemini Code Assist licence) the way Google's own Antigravity client does:
   Mercury presents Google's Antigravity OAuth client (its public installed-app
   client id and secret, the five scopes cloud-platform, userinfo.email,
   userinfo.profile, cclog and experimentsandconfigs, offline access, the
@@ -628,13 +619,13 @@ come from its owning account resolvers:
   failover) for the tier and the project (`loadCodeAssist`; a free account is
   provisioned once with `onboardUser`, a bounded operation), and stores the
   grant auth-scoped (mode 600) beside the other sources. The models `/model`
-  offers on that sign-in are the roster Google serves the account
-  (`fetchAvailableModels`) — every chat model it names and nothing else,
+  lists on that sign-in are the roster Google serves the account
+  (`fetchAvailableModels`): every chat model it names and nothing else,
   with the roster's own display name, context window, output ceiling,
   thinking and image flags; the image models stay out of chat. A Gemini id
   keeps its bare spelling; a model of another vendor on the roster (Claude,
-  GPT-OSS, …) is offered as `google/<id>` — Google's own id behind the
-  prefix — so it rides this Google sign-in and never shadows that vendor's
+  GPT-OSS, …) is listed as `google/<id>` (Google's own id behind the
+  prefix) so it rides this Google sign-in and never shadows that vendor's
   own lane (`/model claude-…` stays the Anthropic lane). A roster row whose
   id ends in `-disabled` is a model Antigravity withholds from the plan:
   Google's own plan table (antigravity.google/docs/models, read
@@ -643,31 +634,30 @@ come from its owning account resolvers:
   Google AI Pro roster served `gemini-4-argon-disabled` ("Gemini 4 Argon",
   no quota) and no other Argon row, and that id sent verbatim under the
   current client version (2.23.0, the newest the update manifest publishes)
-  answered 404 "Requested entity was not found." — the gate is the plan,
-  not the client's version or metadata, and the public Antigravity client
-  carries no unlock. Such a row is listed under the Google sign-in with its
-  state — "withheld from Google AI Pro today — Google's roster names it …
+  answered 404 "Requested entity was not found." (the gate is the plan,
+  and the public Antigravity client has no override). Such a row is listed under the Google sign-in with its
+  state (`"withheld from Google AI Pro today · Google's roster names it …
   and answers 404 to the id; antigravity.google/docs/models says which plans
-  include it; not offered as runnable" — and is not selectable; a bare id
+  include it; not offered as runnable"`) and is not selectable; a bare id
   with no served row answers Google's 404, and the refusal names the
   roster's kin: the `-disabled` row with that state, or the effort siblings
-  Google serves instead (`…-low`, `…-medium`, `…-high` — `/model` picks
-  one). When the roster names only effort rows for a model, the bare id
+  Google serves instead (`…-low`, `…-medium`, `…-high`, selectable in `/model`).
+  When the roster names only effort rows for a model, the bare id
   rides the row of the session's effort the way Google's own client's
-  collapse table routes it — low → `-low`, medium → `-medium`, high, max,
-  xhigh or no effort → `-high`, a missing tier taking the nearest present —
+  collapse table routes it (low → `-low`, medium → `-medium`, high, max,
+  xhigh or no effort → `-high`, a missing tier taking the nearest present)
   and the status row says the ride (`gemini-4-argon ▸ gemini-4-argon-high`);
   a crewmate named onto the bare id takes the high row. The roster is never
   read only at sign-in: before a chat it is re-read when older than five
   minutes (a bounded wait, the chat proceeds on the cached roster after two
-  seconds), and a bare id's 404 forces one re-read — a row that appeared
+  seconds), and a bare id's 404 forces one re-read (a row that appeared
   meanwhile is taken and the chat retried once, else the 404 words carry the
-  kin; never a loop. An INVALID_ARGUMENT Google gives without detail
+  kin; never a loop). An INVALID_ARGUMENT Google gives without detail
   ("Request contains an invalid argument."), whether in flight or as an HTTP
   400 after the server worked on the request, is retried once with the same
   shape and once more with plain function calling (AUTO in place of
-  VALIDATED); the words that end the turn say where it came from — "HTTP 400
-  after 15 s, before any answer byte" or "in flight at 15 s" — and which
+  VALIDATED); the words that end the turn say where it came from ("HTTP 400
+  after 15 s, before any answer byte" or "in flight at 15 s") and which
   attempts ran; a 400 with detail is never retried and carries Google's
   words. `MERCURY_GEMINI_WIRE_DUMP=<file>` makes the wire append every
   request body it sends (one JSON line each, never the bearer) so such a
@@ -684,8 +674,8 @@ come from its owning account resolvers:
   row gets Google's Schema grammar (`const` becomes a one-member enum, an
   exclusive bound becomes words in the description, keywords outside the
   grammar drop); a row of another vendor (Claude, GPT-OSS) gets the smaller
-  subset Google's own client sends for it — type, title, description, enum,
-  items, properties, required, anyOf, oneOf, default — with every bound
+  subset Google's own client sends for it (type, title, description, enum,
+  items, properties, required, anyOf, oneOf, default) with every bound
   (minimum, maximum, item and length counts, pattern, format) carried as
   words in the description, because the Anthropic side behind Code Assist
   validates the schema as JSON Schema draft 2020-12 after Google's own
@@ -699,33 +689,33 @@ come from its owning account resolvers:
   and a request id, the system instruction tagged as a user part, the tools'
   schemas in the shape the endpoint accepts. What leaves the machine on this
   road: the prompt, the tool schemas and the tool results, under Google's
-  Antigravity client id and the account you signed in — to Google alone. No
+  Antigravity client id and the account you signed in (sent to Google alone). No
   Cloud project, no client of your own, no API key. On June 18, 2026 Google
   replaced the unpaid tier's Gemini CLI with Antigravity; a Google AI Pro or
-  Ultra plan rides this road, not an API key or your own client — those bill a
+  Ultra plan rides this road, whereas an API key or your own OAuth client bills a
   Cloud project (free Flash ~20 requests/day, Pro 0; billing enables paid
   limits). The token is refreshed single-flight with the project kept; a
   revoked refresh token drops the sign-in and every surface names `/logins`;
   a refusal from the endpoint carries Google's words (an ineligible account
   with its validation link, an exhausted quota with Google's retry words, a
   model Google does not serve the account as a 404 naming the roster). The
-  cockpit, daemon and session runner read the three sources from the same
-  auth-scoped store; the latest sign-in action is the active source — a
-  pasted key makes the key active, a completed Google sign-in makes that
-  grant active — every receipt names the source requests ride, `/logins` and
-  `/usage` name a stored source that is not active, and ↵ on its row makes it
+  terminal UI, daemon and session runner read the three sources from the same
+  auth-scoped store; the latest sign-in action is the active source (a
+  pasted key makes the key active, and a completed Google sign-in makes that
+  grant active), every receipt names the source requests ride, `/logins` and
+  `/usage` name a stored source that is not active, and `↵` on its row makes it
   active without re-entering it.
-  The `/logins` card offers Sign in with Google first, as
-  `Sign in with Google — your plan's quota: AI Pro, AI Ultra or a free account`
+  The `/logins` card lists Sign in with Google first, as
+  `Sign in with Google · your plan's quota: AI Pro, AI Ultra or a free account`
   (the browser opens Google's consent page for the Antigravity client; the
   receipt names the tier, the e-mail and the roster count), the API key second, as
-  `API key — the easiest: create one in AI Studio, paste it here`: choosing it
+  `API key · the easiest: create one in AI Studio, paste it here`: choosing it
   opens https://aistudio.google.com/apikey in the browser, prints the address
   for a box without one, and takes the key by one paste. The Google account (your own OAuth client) is third,
   six numbered steps, each opening its Console page: 1. Create a Google Cloud project;
   2. Enable the Gemini API on it (that page picks the project, or creates one);
   3. Set up the consent screen for testing (on the Audience page: the user type
-  External, and your own Google address under Test users —
+  External, and your own Google address under Test users, because
   Google lets an unpublished app sign in only its listed test users);
   4. Create an OAuth client for a desktop app; 5. Paste the client id (the
   secret is optional; the id is kept for good, so the next sign-in starts at
@@ -737,7 +727,7 @@ come from its owning account resolvers:
   moved still shows its words and its address on the card. The scopes stay
   Google's two.
   Google-account chats use the native generation endpoint and preserve signed
-  response parts across tool rounds and resume, exactly as Google returned
+  response parts across tool rounds and resume, as Google returned
   them (a signature that streams in after the text rides the text part it
   closes); a tool call the history carries without a signed record (a chat
   switched from another model) replays under Google's documented
@@ -748,19 +738,10 @@ come from its owning account resolvers:
   with a receipt when a refresh was attempted and Google's own reason after
   it; a billing refusal on the Google sign-in says its quota and billing
   cannot be changed from here and points at a Gemini API key on a project of
-  the operator's own.
-  A refusal that says try again later (Google's HTTP 503, its own words about
-  high demand) is retried quietly on the growing wait every road takes — 1 s,
-  2 s, 4 s, 8 s, 16 s and 30 s, about a minute in all — before the chat gives
-  up: nothing is painted for the first thirty seconds, then the retry line
-  shows the true wait and the true count, and the red error line comes only
-  once the whole ladder is spent, saying how many retries it took and how
-  long. A reply that arrives inside the ladder shows one calm grey line above
-  it, `Gemini was busy · answered after 2 retries (7 s)`, whose ctrl+o
-  expansion carries Google's words and every wait; the debug log carries every
-  retry either way. Escape ends a wait at once. A wait Google itself asks for
-  (Retry-After) is honoured in place of the ladder's own when it fits the
-  retry budget, as on every road. On a chat without a screen (`mercury run`
+  your own.
+  Google's HTTP 503 busy refusals follow the one-minute retry ladder in
+  [The runtimes](#the-runtimes) (showing `Gemini was busy · answered after 2
+  retries (7 s)` when a retry succeeds). On a chat without a screen (`mercury run`
   or a dispatched crewmate) the same ladder runs, and its `wait` rows with
   `state: "retry"` reach the caller only past the quiet window; a dispatched
   crewmate's retry budget counts every wait of the ladder, the quiet ones
@@ -770,22 +751,22 @@ come from its owning account resolvers:
   stored key; environment keys must be available to the process that uses them.
   A launch naming `gemini` needs the live catalogue to choose a model. A present
   credential with a refused, unavailable or unselectable catalogue is a catalogue
-  refusal, not a missing sign-in; `no-credential:gemini` means no credential is
+  refusal; `no-credential:gemini` means no credential is
   present. An explicit Gemini model id can still dispatch with a credential,
   and the model endpoint decides whether to accept it. When Google refuses the
   catalogue read, the `/model` group heading names the credential it tried and
-  the status it got — `the Google account's token was refused (HTTP 403) ·
+  the status it got (`the Google account's token was refused (HTTP 403) ·
   /logins re-connects`, `the stored Gemini API key was refused (HTTP 403) ·
-  /logins replaces it`, or the environment key by its variable name (the
-  middle dot lets the picker's detail row wrap the remedy whole) — and the
+  /logins replaces it`, or the environment key by its variable name, where the
+  middle dot lets the picker's detail row wrap the remedy whole), and the
   debug log (`mercury --debug`; `debug/latest` under the config home) carries
   one line per refused read with the source, the status and Google's error
   body, every token, key and client secret masked;
-- **moonshot** — stored OAuth tokens or stored key;
-- **openrouter** — an OAuth-minted key or a stored key, env pin winning honestly;
+- **moonshot**: stored OAuth tokens or stored key;
+- **openrouter**: an OAuth-minted key or a stored key, env pin winning honestly;
   `/config → OpenRouter routing policy` chooses strict, balanced or open routing. Balanced is on from the start: model requests deny data collection and require every parameter, with fallbacks on and zero data retention off. An absent or empty `routing.openrouter` setting selects these defaults; strict turns fallbacks off and zero data retention on. Choose open to allow collection and make parameters optional, leaving routing to OpenRouter; only an explicit all-off policy sends no request-level routing preference. A no-provider refusal points back to this row to widen the policy;
-- **xai** — a Grok subscription sign-in or an API key, with an optional management key for the API team's
-  usage meter. The API-key leg of `/logins xai` offers the management key as its second step;
+- **xai**: a Grok subscription sign-in or an API key, with an optional management key for the API team's
+  usage meter. The API-key leg of `/logins xai` prompts for the management key as its second step;
   leave it empty or press escape to keep using just the API key. An existing
   API key can be kept by pressing enter on the first step. Create the management
   key on [the console's settings page](https://console.x.ai/team/default/management-keys)
@@ -793,54 +774,55 @@ come from its owning account resolvers:
   auth-scoped (mode 600); env pins `XAI_API_KEY` and `XAI_MANAGEMENT_API_KEY`
   win independently. `/router key xai-management` adds the management key
   directly, and its `clear` road or its own `/accounts` row removes only that
-  key — the inference key stays. A management key alone cannot run Grok;
-- **meta** — a Muse Code subscription sign-in (`.meta-auth.json`, mode 600, holding the account token, the minted key, the e-mail, the tier and the usage windows) or an API key (`MODEL_API_KEY`, `META_API_KEY` or stored key), the latest sign-in action active;
-- **zai, deepseek, zen, huggingface, local, compat, nous** — env pins and stored keys.
-- **mistral** — an env pin or a stored key, with an optional Admin API key
+  key while keeping the inference key. A management key alone cannot run Grok;
+- **meta**: a Muse Code subscription sign-in (`.meta-auth.json`, mode 600, holding the account token, the minted key, the e-mail, the tier and the usage windows) or an API key (`MODEL_API_KEY`, `META_API_KEY` or stored key), the latest sign-in action active;
+- **zai, deepseek, zen, huggingface, local, compat, nous**: env pins and stored keys.
+- **mistral**: an env pin or a stored key, with an optional Admin API key
   beside it (`MISTRAL_ADMIN_API_KEY`, `/router key mistral-admin`) that reads
   the organisation meter and never runs a turn; its own `/accounts` row
   removes only that key.
 
-Slots carry presence facts and masked key tails only — never a secret value.
-Removal is routed to each slot's owning store, never inlined. Env-pinned
-keys are the shell's: shown, precedence-honored, refused for editing, never
-a Mercury-held sign-in. A ceiling caps concurrent Mercury-held sign-ins
-(two for anthropic, two for openai), and one typed refusal is consulted by
-every sign-in path before adding a concurrent login.
+Slots carry presence facts and masked key tails only, never a secret value.
+Removal is routed to each slot's owning store. Environment-variable keys belong
+to the shell: they are shown with their precedence and cannot be edited in
+`/accounts`. You can keep up to two saved Anthropic accounts and two saved
+OpenAI accounts at once (environment-variable keys do not count toward that
+limit), and every sign-in path checks that limit before adding another saved
+account.
 
 On the `/accounts` board each family's header carries the family name
-alone, never a count of sign-ins against the ceiling; the rows beneath it
-name each sign-in with its kind and identity, and a family with no ceiling
+alone; the rows beneath it
+name each sign-in with its kind and identity, and a family with no limit
 shows how many sign-ins it holds beside its name. A sign-in row in either
-of the concourse's model pickers, or in the Boot face's own, opens the Boot
-face's Logins screen on that row's family; a completed sign-in, or escape,
+of the concourse's model pickers, or on the home screen, opens the
+Logins screen on that row's family; a completed sign-in, or escape,
 returns to the picker that opened it, which lists the new family's models.
 
 A claude.ai sign-in stores the account it landed, taken from the profile the
 token exchange returned, beside the credential the moment the credential
 lands. The sign-in's own receipt names that account, and every surface that
-names the account (the face's account chip and its Logins roster,
-`/accounts`, the `/usage` popup's Anthropic block, the cockpit's usage
+names the account (the home screen's account chip and its Logins roster,
+`/accounts`, the `/usage` popup's Anthropic block, the usage
 card and the `auth status` verb) reads the email stored beside the token
-itself — the profile, else the exchange's receipt — never a recorded copy or
-a fresh probe while painting; a credential with neither names none, in each
-surface's own words, rather than the account stored before it. A hosted
+itself (from the profile or the exchange's receipt), never a cached copy or
+a fresh probe while painting; a credential with neither shows no account, in each
+surface's own words, instead of an earlier account. A hosted
 session's `session/facts` answer names that same address in
-`identity.account_email`, so the cockpit's connector and any reader of the
+`identity.account_email`, so the UI connector and any reader of the
 session's facts see the credential's own account. The
-`/accounts` board's live verification still heals the stored identity
+`/accounts` board's live verification still updates the stored identity
 whenever the two disagree; until it answers, the board names the recorded
 copy beside the credential's own address, labelled as a snapshot, only when
 the two differ.
 
-Every provider's usage block, on the cockpit's usage card and in the
+Every provider's usage block, on the usage card and in the
 `/usage` popup, prints one identity line under its title, and no block goes
 without one: the signed-in account when the family's own store recorded one
 (the Claude and ChatGPT sign-ins' emails, the Hugging Face username), else
-the credential's own words — a key as the model picker's heading words it,
-its kind and masked tail (`API key · …4321`, `Coding Plan key · …YtbT`,
-`OAuth key · …abcd`, `token · …abcd`), a nameless sign-in or a local server
-by the label its resolver gives it — else `no account`. The popup says
+the credential's own words (a key as the model picker's heading words it,
+its kind and masked tail such as `API key · …4321`, `Coding Plan key · …YtbT`,
+`OAuth key · …abcd`, `token · …abcd`, or a nameless sign-in or local server
+by the label its resolver gives it), else `no account`. The popup says
 `Signed in as <account>` for an account and prints a credential's words
 bare; the card prints the bare value at its own width. One composer answers
 for every family, over the presence enumeration and the accounts roster's
@@ -873,20 +855,20 @@ The default provider is the provider of the most recent sign-in. Every sign-in
 door records when a family's credential landed (the sign-in ledger,
 `.sign-ins.json` beside the credential stores; a token refresh never records),
 and a fresh, unpinned session starts on that provider's newest model the
-credential can use — a gated row is never chosen, a provider with no usable
-row falls through to the next most recent sign-in. The `/model` readout
+credential can use (a gated row is never chosen, and a provider with no usable
+row falls through to the next most recent sign-in). The `/model` readout
 and the health check's Default model row say which and why.
-`/defaultprovider` makes a provider the most recent sign-in by the operator's
-word (an entry in the same ledger). Credentials that landed before the ledger
-existed, env-pinned keys included, order after every recorded sign-in — the
+`/defaultprovider` makes a provider the most recent sign-in explicitly
+(an entry in the same ledger). Credentials that landed before the ledger
+existed, env-pinned keys included, order after every recorded sign-in (the
 config's older `defaultProvider` record first, so a home keeps its lane until
-its next sign-in. With no sign-in anywhere there is no default: the face and
+its next sign-in). With no sign-in anywhere there is no default: the home screen and
 `/model` say so and point at `/logins`. An explicit `/model` choice,
 `MERCURY_MODEL` or a session override always outranks the default. A saved
-`/model` choice whose family cannot run when a chat is born — no sign-in for
-it here, or a credential its catalogue refused (a Google, OpenRouter or
-Hugging Face refusal with its status; an OpenAI sign-in the authorisation
-server killed) — falls back to the computed default for that chat, with one
+`/model` choice whose family cannot run when a chat starts (no sign-in for
+it here, or a credential its catalogue refused, such as a Google, OpenRouter or
+Hugging Face refusal with its status or an OpenAI sign-in the authorisation
+server revoked) falls back to the computed default for that chat, with one
 receipt naming why; the saved choice stays. A catalogue still being fetched,
 unreachable, switched off or otherwise unsettled is not a refusal: the chat
 starts on the saved choice and the runner reads the catalogue itself. A stored
@@ -904,17 +886,17 @@ image support), and beta-header emission. It re-reads live state on every
 call by design.
 
 A context window can come from a dated pin while the account's live list has
-not answered yet — the GPT pin table, the Hugging Face pins. The rail's
+not answered yet (the GPT pin table and the Hugging Face pins). The rail's
 context figure then carries the word `pin` after the size (`ctx 12% · 1050k
 pin`), so a pin reads apart from a fact; when the list answers, the mark goes
-and the figure is the list's. A pin no live list ever replaces — the
-first-party rows, the GLM, Kimi and DeepSeek pins — carries no mark, and `~`
+and the figure is the list's. A pin no live list ever replaces (the
+first-party rows, the GLM, Kimi and DeepSeek pins) carries no mark, and `~`
 keeps its one meaning: the conservative default no source has stated.
 
 A chat hosted by the daemon makes its requests in its own runner, and the
 runner reads the account's list for them. That list rides the session's facts
 to the screen, so the rail's figure becomes the list's and the mark goes the
-moment the seat reports it, with no picker opened. The model picker paints
+moment the runner reports it, with no picker opened. The model picker paints
 its cached rows at once and refreshes every signed-in family's list in the
 background on every open, even when that cache is fresh: the Anthropic list
 through each signed-in door, the GPT, OpenRouter, Gemini and Hugging Face
@@ -938,16 +920,16 @@ server's environment (its FAQ documents 3 per GPU, 1, 5m and 4096 when
 unset). `/config` shows them under the Local account row beside the live
 truth: the server and its version, the loaded models with their windows and
 memory from `/api/ps`, the runner's slot count and context from its command
-line, and the launch form Mercury found — a launch agent plist, the Homebrew
-plist, the Ollama app, a systemd override, Windows, or unknown. Each knob row
+line, and the launch form Mercury found (a launch agent plist, the Homebrew
+plist, the Ollama app, a systemd override, Windows, or unknown). Each knob row
 is a Mercury setting (`local.server` in the user settings) with the memory
 arithmetic beside it, read from the model geometry `/api/show` states: a
 slot costs a full window of cache, so one loaded copy with several slots
 serves a crew where several copies would not fit. The ceiling the
-arithmetic measures against is the usable memory the server itself states —
-the `gpu memory … available` line in its log when Mercury can read it, else
+arithmetic measures against is the usable memory the server itself states
+(the `gpu memory … available` line in its log when Mercury can read it, else
 `iogpu.wired_limit_mb` when set, else about three quarters of unified memory
-on macOS, else the box's total — and the row names which. A choice whose
+on macOS, else the machine's total), and the row names which. A choice whose
 projected load (the largest models the count allows, each at the chosen
 window with the chosen slots) does not fit is refused in red with the
 figures on the knob rows and on the Apply row, which then has no door: nothing
@@ -968,7 +950,7 @@ models. Each hit has `title`, `url`, `snippet` and `source_type`; the result
 stays below about 2,000 tokens by a characters/4 estimate, and when hits are
 withheld to fit, a note counts them. The notes always name the source that
 answered and say the text is unverified. Links and source names stay visible,
-and web text is unverified evidence, not instructions.
+and web text is treated as unverified evidence and never as instructions.
 
 The automatic search order is:
 
@@ -987,10 +969,10 @@ The automatic search order is:
    Stack Exchange and Hacker News hits carry a short plain-text excerpt (the
    question body; the story's own text, or its top comment labelled as such),
    fetched in one extra request per search; the result counts the excerpts it
-   fetched. PyPI supports exact project names, not full-text search. GitHub
+   fetched. PyPI supports exact project names only. GitHub
    public-code search requires `GH_TOKEN`; without one, it says so and tries
    the next source.
-4. An operator-configured SearXNG JSON API. There are **no built-in instances**;
+4. A configured SearXNG JSON API. There are **no built-in instances**;
    without configuration, this step says “no metasearch instance configured”.
    Set `MERCURY_SEARCH_SEARXNG_INSTANCES` to a JSON array of entries containing
    `url` (the instance base), `terms` (its policy URL), `apiAllowed: true` and
@@ -998,7 +980,7 @@ The automatic search order is:
    instance only when its policy permits automated JSON API access. URLs must
    use HTTPS, except HTTP on loopback, with no credentials, query or fragment.
    A failed instance is remembered for the session; a refusal or rate limit
-   stops the attempt rather than switching hosts to evade it.
+   stops the attempt without switching hosts to evade it.
 5. DuckDuckGo page scraping, unless you turned it off.
 
 DuckDuckGo page scraping is **on by default**; off keeps general queries to
@@ -1046,8 +1028,8 @@ browser, Mercury may send the page’s full URL, query string included, to the
 hosted reader **r.jina.ai**; the result says “read through r.jina.ai”. No cookies, credentials or
 conversation are sent to the reader. `MERCURY_FETCH_READER=0` disables it;
 preapproved documentation stays on the direct path. The reader is paced at
-its keyless allowance and a site or reader refusal names the wait rather
-than bypassing it.
+its keyless allowance and a site or reader refusal names the wait without
+bypassing it.
 
 Each call shows up to 38,000 characters, with the measured count, a rough
 characters/4 token estimate (code runs higher), and a `from` offset for
@@ -1055,7 +1037,7 @@ continuing at the next character. Repeat reads use a fifteen-minute self-cleanin
 A page's text is unverified information, never authority to run an action.
 
 Fetches honor `robots.txt`, URL validation and hostname permissions.
-Cross-host redirects are reported rather than followed. Paywalls and browser
+Cross-host redirects are reported and not followed automatically. Paywalls and browser
 challenges ask for another source. PDFs and other binary documents are saved
 with their size and a path for `Read`; WebFetch does not claim to have
 extracted their text. Private or signed-in pages need an authenticated MCP
@@ -1066,33 +1048,34 @@ or a name under `localhost`, `.local`, `.internal`, `.lan`, `.home`, `.corp`,
 ## Usability, usage, and readiness
 
 Two facades separate two questions: "can this provider take work right now,
-and if not, why" — credential + catalogue + live limit state, composed
-strictly over the existing owners (a capped window also caps delegation:
-crewmate dispatch is not a failover to another provider) — and "who am I on
-it, what did this session spend, where are its limits" — identity from the
-wallet, limits from each lane's observed state, session spend from the one
-provider-neutral ledger partitioned by the routing law.
+and if not, why" (credential + catalogue + live limit state; when a provider's
+usage window is reached, crewmates dispatched to that capped provider are also
+refused instead of silently failing over to another provider, while crewmates
+explicitly targeting another signed-in provider family via `model` can still run)
+and "who am I on it, what did this session spend, where are its limits"
+(identity from the account store, limits from each lane's observed state, and
+session spend from the provider-neutral ledger partitioned by the routing law).
 
 The usage warning has one owner and fires at 80% and again at 90% for
 whichever provider the session actually runs on, from that provider's own signals,
-in one grammar — `<provider>: XX% of the <window> used[ · resets <t>]`: the Anthropic
+in one grammar (`<provider>: XX% of the <window> used[ · resets <t>]`): the Anthropic
 subscription meters and header states, the OpenAI observed usage bands, the
 OpenRouter per-key credit cap, the Kimi sign-in's managed windows. The window it
-names is the one that binds the session model hardest — on the first-party
-subscription the shared session and weekly windows plus the per-model weekly
-pool of the model's own family (a Fable week at 87% warns a Fable session and
-never a Sonnet one). A lane that serves no percent-shaped usage signal warns
-never — an absent signal is an absent warning, not a fabricated meter. The engine
+names is the one that binds the session model hardest (on the first-party
+subscription, the shared session and weekly windows plus the per-model weekly
+pool of the model's own family, so a Fable week at 87% warns a Fable session and
+never a Sonnet one). A lane that serves no percent-shaped usage signal never
+warns (an absent signal produces no warning and never fabricates a meter). The engine
 feeders read the same window views the `/usage` popup and the rail meters read,
-so the strip and the meters can never disagree about a percent. An OpenAI
+so the strip and the meters never disagree about a percent. An OpenAI
 band past its reset, or older than its response freshness horizon, keeps its
-last-read words on the card and meters rather than pretending to be a live
+last-read words on the card and meters with its age instead of appearing as a fresh
 reading. That stale band does not trigger another warning.
 
 The same derivation puts a notice into the context at each threshold, once at
-80% and once at 90% per window, when the `engine.usageNotice` setting is on —
-it is off unless you turn it on, and off, the model is told nothing: the
-meters, the strip warning and the headless limit row stay yours alone. With
+80% and once at 90% per window, when the `engine.usageNotice` setting is on
+(it is off unless you turn it on, and when off, the model is told nothing while the
+meters, the strip warning and the headless limit row stay yours alone). With
 the setting on, at 80% the notice states the provider, percent, window
 and reset, and that the provider stops work only when the window is used up.
 At 90% it also advises keeping the work resumable: finish the step in hand,
@@ -1113,62 +1096,63 @@ observation of the same slot, and the offer card marks the lane as it would
 from a reply of its own. A verdict seen for another slot never enters, an
 older observation never replaces a newer one, and a sign-in change clears it.
 
-When a window walls and the session hands off to another signed-in family's
-lane (the offer card, or the unattended posture), the session runs on a
-failover lane until the home window is observed to reset. One amber sentence
-above the composer says so — `on the anthropic failover lane · Opus 5.5 · OpenAI
-window resets 24 Sept, 8:15 pm · /model to return` — for two minutes after the
+If your current provider hits its usage cap and you confirm a handoff card to
+another signed-in provider (or unattended failover is enabled), the session runs
+on that backup provider (the failover lane) until your original provider's usage
+window resets. One amber sentence above the composer says so (`on the anthropic
+failover lane · Opus 5.5 · OpenAI window resets 24 Sept, 8:15 pm · /model to
+return`) for two minutes after the
 switch, and again for two minutes whenever the facts it states change: the
-served model, the lane, the home window's stated reset changing or passing,
-the way home opening. Then it clears, and the strip's model segment carries a
+served model, the lane, the original provider's stated reset changing or passing,
+or the original provider becoming available again. Then it clears, and the strip's model segment carries a
 short amber mark beside the served model (`Opus 5.5 · failover`) for as long as
-the session runs on the lane; the mark leaves when the session is back on its
-home family. On a window too narrow for the whole sentence it is cut to what
+the session runs on the backup provider; the mark clears when the session returns to its
+original provider. On a window too narrow for the whole sentence it is cut to what
 fits, an ellipsis closing the cut, and keeps its `/model to return` tail.
-`/model` returns home in one keystroke throughout.
+`/model` returns to the original provider in one keystroke throughout.
 `MERCURY_FAILOVER_LINE_MS` sets the sentence's window in milliseconds
 (1000 or more; the default is two minutes).
 
-Every meter surface — the vitals rail's USAGE panel, the frame
-band, `/usage` and the health check's per-family usage rows — reads one owner and
+Every meter surface (the rail's USAGE panel, the frame
+band, `/usage` and the health check's per-family usage rows) reads one owner and
 paints one grammar: a family's shared windows first, then every per-model
 weekly pool it reports beside them (the first-party subscription's Fable,
 Opus and Sonnet weeks, folded into the same block; a family that reports
-no pools shows none), each with its percent and its reset in the operator's
+no pools shows none), each with its percent and its reset in your
 local time. The frame band's second chip is the binding window for the
-session model, under its own label. Every figure names its feed and age —
-endpoint-fed or header-fed, "read N ago", the rail's and the band's "↻12s" —
-and a read older than twice its reader's cadence says "stale" ("stale ↻2h",
-"stale · last read 2 h ago") rather than passing as live; a lane that has
-observed nothing says "no usage read", never 0%. The first-party subscription's
+session model, under its own label. Every figure names its feed and age
+(endpoint-fed or header-fed, `"read N ago"`, and the rail's and the band's `"↻12s"`),
+and a read older than twice its reader's cadence says `"stale"` (`"stale ↻2h"`,
+`"stale · last read 2 h ago"`) instead of appearing live; a lane that has
+observed nothing says `"no usage read"`, never `0%`. The first-party subscription's
 reader samples the usage endpoint once a minute while the screen is up and
 again after every completed turn (a daemon-hosted chat's replies land in the
 runner's process, so the screen never waits on them); one request at a time,
-and the freshest observation wins each window — a reply's headers the instant
-they land, the endpoint's next answer a minute later. A read that fails (an
+and the freshest observation wins each window (a reply's headers the instant
+they land, or the endpoint's next answer a minute later). A read that fails (an
 HTTP status, a timeout, an unreachable host, an expired sign-in token) is on
 screen beside the last figure with the status and the host, backs off four
 minutes, is logged once per episode, and is written once to the health check's record
-in the config home (`usage-reader.json`) with its recovery — `mercury health`
+in the config home (`usage-reader.json`) with its recovery so `mercury health`
 names it from another process. `/usage` and its retry key ask at once regardless.
 An expired sign-in token is renewed by the read itself through the ordinary
-refresh grant — the same road a reply takes — before the endpoint is asked, so
+refresh grant (the same road a reply takes) before the endpoint is asked, so
 an idle session paints live numbers without sending a message; one grant per
 read, never a loop, and a grant the sign-in server refuses is reported as an
 expired sign-in (`/logins anthropic` signs in again).
 A sign-in or a removal (the sign-in ledger's epoch, the one signal every family
 raises) forgets the reader's state and asks for the account now signed in at
-once — the meter never keeps a departed account's figure or waits out its
+once, so the meter never keeps a departed account's figure or waits out its
 cadence.
 
 A sign-in or a removal also reaches the engines behind the open chats. The
 daemon tells every runner it hosts to read the account again, so a delegated
 crewmate is never refused with a departed account's usage window; a runner that
-missed the word is covered anyway — a limit verdict is trusted only for the
-account that observed it, and reads as unknown once the signed-in account is
+missed the word is covered anyway, because a limit verdict is trusted only for the
+account that observed it and reads as unknown once the signed-in account is
 another, so the refusal for a reached window names the account it belongs to,
 when it was seen, and the reset it knows. That verdict lapses at the reset the
-reply named — or after a bounded span when the reply named none — so a
+reply named (or after a bounded span when the reply named none), so a
 delegated crewmate is not refused after the window has reset, and the next reply
 that says allowed clears it at once. A reply speaks for the moment its request
 began, so a reply that started before the refusal cannot clear it, however late
@@ -1191,15 +1175,15 @@ refusal for a reached window names the window that blocks; the state of the
 model list is never named as if it were the block. The OpenAI bands a reply's
 headers stated are one record for every surface: a band stays a stated band
 however old it grows, and the rail's rows, the frame's chips and the `/usage`
-popup all paint it with its age ("stale ↻55m", "header-fed · stale · last read
-55 min ago") — never "no usage read" on one screen beside a read on another.
+popup all paint it with its age (`"stale ↻55m"`, `"header-fed · stale · last read
+55 min ago"`), never showing `"no usage read"` on one screen beside a read on another.
 
-`/usage` opens a popup over the chat — 150 columns, centred, three providers
+`/usage` opens a popup over the chat (150 columns, centred, three providers
 side by side above 120 columns and stacked below it, six providers in view
-and the rest on `↑↓` scroll with a "↓ n more" row naming them; `esc` or a
-click outside closes it. It lists every provider, the signed-in ones first in
-the order of their most recent sign-in — the same sign-in record the computed
-default reads — and each in its own shape: the first-party subscription's
+and the rest on `↑↓` scroll with a `"↓ n more"` row naming them; `esc` or a
+click outside closes it). It lists every provider, the signed-in ones first in
+the order of their most recent sign-in (the same sign-in record the computed
+default reads) and each in its own shape: the first-party subscription's
 rolling windows and weekly pools, the OpenAI account's observed bands, a Kimi
 sign-in's plan windows, a GLM Coding Plan key's credit windows, an OpenRouter
 key's credit totals and cap, the DeepSeek and Moonshot balances, xAI's team
@@ -1216,43 +1200,46 @@ its feed and age where the family exposes one (the DeepSeek and Moonshot
 balance endpoints, xAI's management-key balance, the Nous Portal account
 endpoint's usable credits, the remaining credit under
 an OpenRouter key cap), and
-"credits: not reported by the provider" where none exists — never a computed
-spend presented as a balance. The Claude subscription carries the same line
-with its extra-usage figure as Anthropic states it ("credits: extra usage USD
-12.40 of 50.00 this month", read from the usage endpoint together with the
-windows and stamped with them), "extra usage off" while the account has it
-turned off, and "not stated by the endpoint" when the answer carries no such
-figure; an Anthropic API key — the Console sign-in mints one — still reads
-"not reported by the provider", because Anthropic publishes no balance for a
+`"credits: not reported by the provider"` where none exists (never a computed
+spend presented as a balance). The Claude subscription carries the same line
+with its extra-usage figure as Anthropic states it (`"credits: extra usage USD
+12.40 of 50.00 this month"`, read from the usage endpoint together with the
+windows and stamped with them), `"extra usage off"` while the account has it
+turned off, and `"not stated by the endpoint"` when the answer carries no such
+figure; an Anthropic API key (including one minted by Console sign-in) still reads
+`"not reported by the provider"`, because Anthropic publishes no balance for a
 key (the Console's billing page is the view, and the admin usage and cost
-reports state spend, not a balance). Every figure is a reader's last
+reports state spend only). Every figure is a reader's last
 observation with its stamp, sampled in the popup through one door and dropped
-the moment the credential it belongs to changes — never remembered, never
-invented.
+the moment the credential it belongs to changes (never remembered or
+invented).
 
 For xAI, the inference key identifies the team and the optional management
 key reads its prepaid credits, usage for the current billing cycle, and its
 postpaid invoice preview and spending limit where enabled. These are team
-figures, not this session's spend; a postpaid cap does not cap prepaid usage.
+figures, separate from this session's spend; a postpaid cap does not cap prepaid usage.
 A partial usage query is labelled partial, never mistaken for a reached
-spending limit. With only the inference key, `/usage` says "add a management
-key from the console's settings page to read usage — /logins xai". A refused
+spending limit. With only the inference key, `/usage` says `"add a management
+key from the console's settings page to read usage · /logins xai"`. A refused
 management key is named plainly, with the last successful read and its age
 left visible. No management key is not an error.
 
 A Sign in with Google on the Gemini lane shows, under its own slot, the tier
 Google reports for the account (free, the paid plan's own name such as Google
 AI Pro, or a Code Assist licence) with the read's age, then the quota left
-that Google's roster states (with its reset time, read with the model list)
+that Google's roster states (with its reset time, read with the model list,
+re-reading the figures once on open when the last read is a minute old or more)
 in one order: the session's own model first, resolved to its effort row
 (`gemini-4-argon ▸ gemini-4-argon-high`), then every model this session used
-on the lane in order of last use, then one folded line — "24 other roster
-models — ↵ lists them" — that ↵ opens and folds again; Google states no
-spend or credit figure for it, and the absence line says so and names the
+on the lane (crewmates included) in order of last use, then one folded line
+(`"24 other roster models · ↵ lists them"`) that `↵` opens and folds again; any
+model used in the session for which Google's roster reports no quota or reset
+figure shows session token and spend totals without a quota-left or reset figure.
+Google states no account spend or credit balance for the sign-in, and the absence line says so and names the
 plan's own page. The compact view's one figures line keeps the same order
 with the rest counted, and the popup's header line and the `/logins` row
 carry the session model's own figure (`gemini-4-argon-high 42% left`) beside
-the tier and the read's age. A Google account signed in with your own OAuth client shows its
+the tier and the read's age. A Google account signed in with your own OAuth client (or a Gemini API key) shows session token and spend totals plus its
 credits line and an absence line naming the view (the Cloud console Quotas
 page for the Generative Language API, or Google AI Studio), because Google
 states no usage, quota or credit figure to it: the Gemini API has no usage
@@ -1267,11 +1254,11 @@ used and left are not stated to a token and the absence line names the billing
 page.
 
 A Kimi sign-in shows its Extra Usage balance in the stated currency beside its plan windows, or says when the managed-usage endpoint reports no balance.
-OpenRouter OAuth-minted keys show the same remaining credit under the key cap as API keys, with the read's age and any refusal under the affected account. Below Mercury's $10 floor, `/usage` names the remaining amount and the credits page; an uncapped key has no balance notice. This is the key's remaining allowance, not the account balance.
+OpenRouter OAuth-minted keys show the same remaining credit under the key cap as API keys, with the read's age and any refusal under the affected account. Below Mercury's $10 floor, `/usage` names the remaining amount and the credits page; an uncapped key has no balance notice. This is the key's remaining allowance (distinct from the account balance).
 
 The ChatGPT sign-in shows OpenAI's credit balance or unlimited credits beside its usage windows, with the last read's age, in `/usage`, the rail and its account row.
 
-A window that reads reached — 100%, or a refused request — says what carries the requests from there, from the vendor's own statement: a Claude subscription on extra usage names its figure ("on extra usage · USD 12.40 of 50.00 this month") or says "extra usage off — nothing carries requests until the reset" with the reason Anthropic gives, a ChatGPT sign-in says "on credits · 62,500 left" or "no credits — nothing carries requests until the reset", a Kimi sign-in names its Extra Usage balance, and a family that states nothing about it says so in one clause; the words ride the rail's and `/deck`'s reached line, the `/usage` tab's reached sentence, the strip warning at 100%, the account-slot offer, the handoff notice, the refusal rows and blockers, and the health check's usage row.
+A window that reads reached (100%, or a refused request) says what carries the requests from there, from the vendor's own statement: a Claude subscription on extra usage names its figure (`"on extra usage · USD 12.40 of 50.00 this month"`) or says `"extra usage off · nothing carries requests until the reset"` with the reason Anthropic gives, a ChatGPT sign-in says `"on credits · 62,500 left"` or `"no credits · nothing carries requests until the reset"`, a Kimi sign-in names its Extra Usage balance, and a family that states nothing about it says so in one clause; the words ride the rail's and `/deck`'s reached line, the `/usage` tab's reached sentence, the strip warning at 100%, the account-slot offer, the handoff notice, the refusal rows and blockers, and the health check's usage row.
 
 A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
 5-hour and weekly credit windows as used-percent bars with their resets, on
@@ -1279,9 +1266,9 @@ the rail's USAGE block and in `/usage`, read from Z.AI's own quota endpoint on
 the coding base (the one the Z.AI console and Z.AI's own usage extension read; it
 is not a documented API, so its shape is decoded by the window's unit and
 length and the stated percent, and an answer Mercury cannot decode is a
-labelled "no usage read" line, never a wrong meter). The read is asked the
-way every plan read is — when a meter is shown, on a sign-in, on the
-operator's retry, no more than once a minute and never on a clock. The key
+labelled `"no usage read"` line, never a wrong meter). The read is asked the
+way every plan read is (when a meter is shown, on a sign-in, or on your
+retry, no more than once a minute and never on a clock). The key
 goes in the Authorization header as Z.AI's own tooling sends it; a key the
 endpoint refuses in that form is retried once as a bearer token and the form
 that answered is kept for the next read. The plan tier the endpoint states
@@ -1297,20 +1284,20 @@ request); the OpenRouter catalogue row when the wire states no cost of its
 own; the Hugging Face listed floor as a flagged estimate; a recorded zero for
 a local server. A turn on a model with no rate on file lands in the ledger
 with its tokens counted and its cost unrecorded: it is counted as an unpriced
-turn, never priced at zero, and every cost readout says so — a lane that
-priced nothing reads "unpriced", and a figure that includes such turns says
-"+ N unpriced turns" beside itself, on the `/usage` spend lines, the cost
-summary at exit, and the deck and frame vitals alike. No family is ever
+turn, never priced at zero, and every cost readout says so (a lane that
+priced nothing reads `"unpriced"`, and a figure that includes such turns says
+`"+ N unpriced turns"` beside itself, on the `/usage` spend lines, the cost
+summary at exit, and the deck and frame vitals alike). No family is ever
 priced at another family's rates.
 
 ### JEV
 
-JevEval is a second opinion from TypeSafe's Jev, not the model running the
+JevEval provides a second opinion from TypeSafe's Jev, separate from the model running the
 chat. Bare `/jev` opens its card. `/jev on` selects the official road with
 its own TypeSafe key; `/jev or on` selects the OpenRouter road using the
 credential already connected through `/logins`. `/jev off` and `/jev or off`
 turn JEV off. The card's Road row shows the selected road, and the JEV
-switches in `/config` and the Boot face preserve that choice. A sign-in
+switches in `/config` and the home screen's Boot Menu preserve that choice. A sign-in
 never switches JEV on, and a missing key never falls through to the other
 road.
 
@@ -1320,7 +1307,7 @@ The main model's default pace is 100 requests a minute. Crewmates receive
 JevEval by default when JEV is on and its road has a key; the card's
 Crewmates row turns that off by choice. They share 50 requests a minute
 per session on each road, separately from the main pace, with a cap of 200
-calls per crewmate. An explicitly stored main pace stays as the operator
+calls per crewmate. An explicitly stored main pace stays as you
 set it.
 OpenRouter's meter uses the response's `usage.cost` when stated, or the
 published token rate when unstated. Its requests deny data collection and
@@ -1328,15 +1315,15 @@ provider fallback. The card and the tool result name the model that
 answered, the stated cost and the generation id, or the refusal's own code
 and words.
 
-A JevEval call takes a list of evidence items — each a record of named
-facts, a bare paragraph, a file or an inline table — and one question
+A JevEval call takes a list of evidence items (each a record of named
+facts, a bare paragraph, a file or an inline table) and one question
 set; every item is judged against every question in its own request, all
 sent at once and each counted against the pace and the budget, and one
 table comes back: rows the items, columns the questions, a row that no
 answer reached saying so in place. A file item names a path the tool
 reads under the same rules as Read (deny and ask rules, the working
-directories): a table file — tsv, csv, a markdown pipe table or jsonl, by
-its extension or a stated format — becomes one item per row with the
+directories): a table file (tsv, csv, a markdown pipe table or jsonl, by
+its extension or a stated format) becomes one item per row with the
 header's names as the facts' names, and a column named `id` (or the
 stated id column) keys the row and is never sent; a text file is one item,
 or one per paragraph when the format says so. An inline table
@@ -1349,30 +1336,33 @@ row, the call is refused naming the count or the line and nothing is
 sent. A cell under the confidence floor (0.6; for a yes/no answer, a
 probability from 0.4 through 0.6) opens with "unsure" and keeps its
 numbers. The tool's prompt asks the model to put to Jev only what the
-evidence in front of it answers: whether a run was killed from outside,
-whether a capture starved, whether the output names a fixture fault — the
-words settle those. Whether the product is wrong or the proof stale, and
+evidence in front of it answers (whether a run was killed from outside,
+whether a capture starved, or whether the output names a fixture fault; the
+words settle those). Whether the product is wrong or the proof stale, and
 whether a fold's intent changed a check, they do not; those need the proof
 run on the tip and the source read.
 
 ## Transitions
 
-A model switch previews as a frozen plan — what would switching this
-history to the target do — with per-item typed dispositions computed
+A model switch previews as a frozen plan (what switching this
+history to the target will do) with per-item typed dispositions computed
 against the real encode truth of the target lane's codec: replay carry,
 thinking drops, image handling.
 
 The plan also counts the conversation against the target's window before
 the first request on it. The count is Mercury's own: the larger of the last
 count the wire reported for the conversation and the character estimate.
-The window is the target's as Mercury resolves it — the live catalogue's
-figure for the account when it has been read, else the pinned figure. When
+The window is the target's as Mercury resolves it (the live catalogue's
+figure for the account when it has been read, else the pinned figure). When
 the conversation does not fit, the preview says so with both numbers and
 where the window came from, and confirming folds the conversation before
 the first request on the new model; the fold's summary is written by the
 model the conversation was built on, whose window holds it. A conversation
 that fits switches as before. A switch back to a model the conversation
 already ran on re-sends the system prompt that model first saw, so the
+thinking it left behind stays bound to its prefix; a working directory
+added in between reached the model on its own row and never rewrites that
+prompt.
 thinking it left behind stays bound to its prefix; a working directory
 added in between reached the model on its own row and never rewrites that
 prompt.
