@@ -9,6 +9,7 @@ const HOME = pinScratchHome('mercury-vitals-rows-follow-the-turn')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 delete process.env.MERCURY_HOME
+for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'MERCURY_USAGE_SEED']) delete process.env[key]
 
 let failures = 0
 let checks = 0
