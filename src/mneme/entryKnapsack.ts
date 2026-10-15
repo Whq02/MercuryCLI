@@ -13,6 +13,7 @@ import { readPins, readUsage, startTextLimit, usageOf, type UsageRecord } from '
 import { factMemoryState, memoryStatusWords } from './memoryRefs.js'
 import { lineagePath } from './paths.js'
 import type { LedgerEntry } from './types.js'
+import { gradeLines, HANDOFF_GRADE, recordGrade } from './memoryEvidence.js'
 
 export const MEMORY_AT_START_HEADING = '# Memory at start'
 export const EARLIER_NOTE_HEADING = '## An earlier note left'
@@ -61,7 +62,7 @@ function _resetMemoryAtStartForTesting(): void {
 }
 
 function factCandidate(entry: MnemeEntry, doc: MnemeTopicDoc, dir: string, usage: Record<string, UsageRecord>): StartCandidate {
-  const block = `- ${entry.text} <seq=${entry.seq}>`
+  const block = `- ${recordGrade(`seq:${entry.seq}`, entry.source, dir)} ${entry.text} <seq=${entry.seq}>`
   return {
     id: `seq:${entry.seq}`,
     text: entry.text,
@@ -81,7 +82,7 @@ function factCandidate(entry: MnemeEntry, doc: MnemeTopicDoc, dir: string, usage
 
 function noteCandidate(entry: LedgerEntry, projectKey: string): StartCandidate | null {
   if (entry.handoff === null) return null
-  const block = `${EARLIER_NOTE_HEADING} (session ${entry.ordinal}, ${stampLocal(entry.handoff.at)})\n${entry.handoff.text}`
+  const block = `${EARLIER_NOTE_HEADING} (session ${entry.ordinal}, ${stampLocal(entry.handoff.at)})\n${gradeLines(entry.handoff.text, HANDOFF_GRADE)}`
   return {
     id: `note:${entry.ordinal}`,
     text: entry.handoff.text,

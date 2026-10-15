@@ -19,6 +19,8 @@ import {
   type RuleAuthority,
 } from '../../mneme/memoryVerbs.js'
 import { mnemeLibraryDir } from '../../mneme/mnemeGates.js'
+import { latestPinIntent } from '../../mneme/memoryPinIntent.js'
+import { gradeLines, MEMORY_EVIDENCE_CONTRACT, recordGrade } from '../../mneme/memoryEvidence.js'
 import { askedReplacements, askedRuleOf, askRuleCard, correctionChange, ruleCardAsk, ruleCardText } from './ruleCard.js'
 import { confirmCitedFacts, renderFootnotes } from '../../mneme/mnemeFootnotes.js'
 import { POINTER_DEFAULT_LIMIT, POINTER_LIMIT, limitCutLine, renderPointerLine, searchPointers, type PointerResult } from '../../mneme/mnemePointers.js'
@@ -142,6 +144,7 @@ export const RetainTool = buildTool({
       input.items,
       {
         session: safeSession(),
+        pinIntent: latestPinIntent(context.messages ?? [], context.agentId ? String(context.agentId) : undefined),
         ...(context.agentId ? { agent: String(context.agentId) } : {}),
         ...(verdict?.ok === true ? { authority: verdict.via } : {}),
       },
@@ -241,7 +244,7 @@ export const RecallTool = buildTool({
     if (output.kind === 'record') {
       const footnotes = output.footnotes ? renderFootnotes(output.footnotes) : ''
       const content = output.found
-        ? `${output.content ?? ''}${output.note ? `\n[${output.note}]` : ''}${footnotes ? `\n[footnotes: ${footnotes}]` : ''}`
+        ? `${output.renderedContent ?? output.content ?? ''}${output.note ? `\n[${output.note}]` : ''}${footnotes ? `\n[footnotes: ${footnotes}]` : ''}`
         : `not found: ${output.id}${output.note ? ` — ${output.note}` : ''}`
       return { tool_use_id: toolUseID, type: 'tool_result', content, ...(output.found ? {} : { is_error: true }) }
     }
@@ -324,13 +327,13 @@ export const ReflectTool = buildTool({
       if (hit.label === 'pending') {
         pendingIndex += 1
         citable.add(`pending ${pendingIndex}`)
-        sheetLines.push(`[pending ${pendingIndex}] ${hit.preview} <${hit.signature}>`)
+        sheetLines.push(`[pending ${pendingIndex}] ${recordGrade(hit.id, hit.signature)} ${hit.preview} <${hit.signature}>`)
         continue
       }
       const seqMatch = /^seq:(\d+)$/.exec(hit.id)
       if (seqMatch) {
         citable.add(`seq ${seqMatch[1]}`)
-        sheetLines.push(`[seq ${seqMatch[1]}] ${hit.preview} <${hit.signature}>`)
+        sheetLines.push(`[seq ${seqMatch[1]}] ${recordGrade(hit.id, hit.signature)} ${hit.preview} <${hit.signature}>`)
       }
     }
     if (sheetLines.length === 0) {
@@ -348,7 +351,7 @@ export const ReflectTool = buildTool({
       const answer = await oneShotCompletion({
         model: context.options.engineModel,
         system:
-          'You synthesize an answer STRICTLY from the memory records provided. Every claim-bearing sentence cites its record like [seq 12] or [pending 1]. If the records do not answer the question, say exactly that (still citing what you checked). Never invent a record id.',
+          'You synthesize an answer STRICTLY from the memory records provided. Every claim-bearing sentence cites its record like [seq 12] or [pending 1]. If the records do not answer the question, say exactly that (still citing what you checked). Never invent a record id. ' + MEMORY_EVIDENCE_CONTRACT,
         prompt: `Question: ${input.query}${input.context ? `\nFraming: ${input.context}` : ''}\n\nMemory records:\n${sheet}`,
         signal: context.abortController.signal,
       })
@@ -383,11 +386,11 @@ export const ReflectTool = buildTool({
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
-        content: `${output.answer}\n\n[cited: ${output.citedIds?.join(', ')}]`,
+        content: `${gradeLines(output.answer ?? '', '[memory synthesis · unverified]')}\n\n[cited: ${output.citedIds?.join(', ')}]`,
       }
     }
     const hits = output.recall.hits
-      .map(hit => `- [${hit.id}] (${hit.label}) ${hit.preview}`)
+      .map(hit => `- [${hit.id}] ${recordGrade(hit.id, hit.signature)} (${hit.label}) ${hit.preview}`)
       .join('\n')
     return {
       tool_use_id: toolUseID,

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { memoryRecallModeLine } from './embedModels.js'
+import { memoryGrade, MEMORY_EVIDENCE_CONTRACT } from './memoryEvidence.js'
 import { indexTopics, liveCount } from './mnemeArchive.js'
 import { listArchiveDocs, listTopicDocs, publishLibraryFile } from './mnemeLibrary.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
@@ -48,7 +49,7 @@ function clipLine(text: string, cap: number): string {
 }
 
 export function pinnedLine(entry: MnemeEntry, pin: PinRecord): string {
-  return `- ${entry.text} <seq=${entry.seq}${pin.asked ? ', asked for by the user' : ''}>`
+  return `- ${memoryGrade({ pin })} ${entry.text} <seq=${entry.seq}${pin.asked ? ', asked for by the user' : ''}>`
 }
 
 export interface IndexLine {
@@ -86,6 +87,7 @@ export function renderFrontPage(input: {
     `What Mercury remembers about this project lives in topic pages under ${dir}. The index below names each topic; Recall searches the pages (query) or reads one whole (read:"doc:<slug>"). ${MEMORY_WRITE_VERBS_SENTENCE} Memory is a record of what was learned, not a second copy of the project: never save what the code, the git history or the instruction files already hold.`,
     '',
     memoryRecallModeLine(dir),
+    MEMORY_EVIDENCE_CONTRACT,
     '',
     '## Index',
   ]
@@ -194,8 +196,6 @@ export function loadMemoryPrompt(opts: { verbs?: 'all' | 'read' } = {}): string 
   if (!mnemeEnabled()) return null
   const dir = mnemeLibraryDir()
   const verbs = opts.verbs ?? 'all'
-  const snapshot = readFrontPage(dir)
-  if (snapshot !== null) return forReader(snapshot, verbs)
   if (existsSync(dir)) {
     return forReader(renderFrontPage({ dir, topics: listTopicDocs(dir), archives: listArchiveDocs(dir), pins: readPins(dir), usage: readUsage(dir), now: new Date(0) }).text, verbs)
   }
