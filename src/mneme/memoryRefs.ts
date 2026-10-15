@@ -1,5 +1,6 @@
 
 import { existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { memoryGrade, recordGrade } from './memoryEvidence.js'
 import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
@@ -46,6 +47,9 @@ export interface MemoryRef {
   deref: string
   tier: number
   grade?: string
+  library?: string
+  identity?: string
+  witness?: string
 }
 
 const SUMMARY_CAP = 140
@@ -93,6 +97,8 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
     if (seen.has(r.refId)) return
     seen.add(r.refId)
     const id = r.kind === 'mneme-fact' ? r.refId.replace(/^mneme:/, 'seq:') : r.kind === 'mneme-pending' ? `pending:${r.capturedAt ?? ''}` : r.refId
+    r.library = opts.libraryDir ?? mnemeLibraryDir()
+    r.identity = id
     r.grade = r.kind === 'mneme-topic' ? memoryGrade({ kind: 'structure' }) : r.kind === 'mneme-session' ? memoryGrade({ kind: 'session' }) : recordGrade(id, r.source ?? '', opts.libraryDir)
     out.push(r)
   }
@@ -116,6 +122,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
         status: 'current',
         summary: cap(`${d.slug}: ${d.summary}`),
         capturedAt: d.updated,
+        witness: createHash('sha256').update(`${d.slug}\0${d.summary}\0${d.updated}`).digest('hex'),
         why: `topic matches '${hit.token}'`,
         deref: `Recall read:"doc:${d.slug}"`,
         tier: 1,
@@ -136,6 +143,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
         status: state.status,
         confirmedAt: state.confirmedAt,
         summary: cap(words),
+        witness: createHash('sha256').update(h.text).digest('hex'),
         capturedAt: h.entry?.time ?? sig?.[2]?.trim(),
         source: h.entry?.source ?? sig?.[3]?.trim(),
         why: `content matches '${t}'${h.entry?.supersededBy !== undefined ? ' · in history' : ''}`,
@@ -152,6 +160,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
         scope: 'project',
         status: 'unconsolidated',
         summary: cap(h.text.replace(/ \[unconsolidated.*$/, '')),
+        witness: createHash('sha256').update(h.text).digest('hex'),
         ...(stamp !== null ? { capturedAt: stamp[1], source: stamp[2] } : {}),
         why: `recent unconsolidated matches '${t}'`,
         deref: `Recall query:"${t}"`,
