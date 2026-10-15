@@ -50,8 +50,8 @@ check('the answer is pointers', search.data.kind === 'pointers', String(search.d
 const pointers = (search.data.pointers ?? []) as Array<Record<string, unknown>>
 check('three pointers for three matching records (two facts and the pending row)', pointers.length === 3, JSON.stringify(pointers.map(p => p.id)))
 check(
-  'every pointer is exactly {id, title, kind, footnotes}',
-  pointers.every(p => JSON.stringify(Object.keys(p).sort()) === JSON.stringify(['footnotes', 'id', 'kind', 'title'])),
+  'every pointer carries identity, title, footnotes, source and freshness',
+  pointers.every(p => JSON.stringify(Object.keys(p).sort()) === JSON.stringify(['footnotes', 'freshness', 'id', 'kind', 'source', 'title'])),
   JSON.stringify(pointers.map(p => Object.keys(p))),
 )
 check('the pointer kinds are fact pointers', pointers.every(p => p.kind === 'fact'), JSON.stringify(pointers.map(p => p.kind)))
