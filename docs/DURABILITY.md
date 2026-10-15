@@ -89,7 +89,7 @@ the main ones:
 - **Dead connection after the headers** (`MERCURY_SILENT_AFTER_HEADERS_MS`,
   default 30 s): a hosted provider that answers its response headers and then
   sends not one body byte for the window is cut with its reason (`"<model>
-  answered and then sent nothing for 30 s · not one byte after the headers on
+  answered and then sent nothing for 30 s — not one byte after the headers on
   a prompt of ~X tokens: a dead connection"`) and reissued once by the road's
   own retry ladder, before the idle budget. Any byte at all (a keep-alive comment, a ping, an
   empty delta) disarms it for good, so a model that is thinking is never

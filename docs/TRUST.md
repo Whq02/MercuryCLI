@@ -278,7 +278,7 @@ The verdicts are:
   was packaged. The launcher says nothing.
 - **unsigned**: the manifest carries no signature. 1.0.0-beta.2 shipped this
   way: the hosted workflow never held the key, and every interactive launch of
-  that release prints `mercury: provenance (unsigned)`. From 1.0.0-beta.3
+  that release prints `mercury: provenance — unsigned …`. From 1.0.0-beta.3
   the launcher says it on a bare interactive boot (a plain `mercury`, no verb
   or flag) once per install (a marker beside the version pointer of the
   managed layout records that it was said; an archive run in place says it

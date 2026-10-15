@@ -82,11 +82,11 @@ Permission behaviour splits on the blocker list:
 - No blockers: the tool asks "Begin the prototype build?" and the card shows
   three answers. Either yes answer completes the mode transition out of Apollo; the two yes
   tiers differ in permission breadth:
-  - **Yes, begin the build**: enters the build posture (flow when Flow is open,
+  - **Yes — begin the build**: enters the build posture (flow when Flow is open,
     implement otherwise); edit consent follows the mode.
-  - **Yes, ask me before each edit**: moves the mode to default; the build runs
+  - **Yes — but ask me before each edit**: moves the mode to default; the build runs
     and each edit asks for confirmation.
-  - **No, ask me more questions**: keeps the session in Apollo Mode. The session and drafts are
+  - **No — ask me more questions**: keeps the session in Apollo Mode. The session and drafts are
     preserved, and the tool result tells the agent to resume the interview and
     present the review afresh.
   Esc holds the review as a rejection, and the agent waits for your word.
