@@ -2,6 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -79,10 +80,10 @@ section('A. the vitest shim: the runner\'s own entry under js-debug, one test by
   const root = nodeProject('vitest', true)
   const shim = plans.buildNodeRunnerDebugShim('vitest', 'src/calc.test.mjs::calc adds two numbers', { from: root })
   check('A1 program is node_modules/vitest/vitest.mjs (the package\'s own bin, never the .bin shell link)', !('state' in shim) && shim.program === path.join(root, 'node_modules', 'vitest', 'vitest.mjs'), JSON.stringify(shim))
-  check('A2 args: run <file> -t ^name$ --no-file-parallelism --test-timeout=0 (vitest\'s own debugging flags)', !('state' in shim) && JSON.stringify(shim.args) === JSON.stringify(['run', 'src/calc.test.mjs', '-t', '^calc adds two numbers$', '--no-file-parallelism', '--test-timeout=0']), 'state' in shim ? shim.reason : JSON.stringify(shim.args))
+  check('A2 args: run <file> -t ^name$ --no-file-parallelism --test-timeout=0 (vitest\'s own debugging flags)', !('state' in shim) && JSON.stringify(shim.args) === JSON.stringify(['run', 'src/calc.test.mjs', '-t', '^calc(?: > | )adds two numbers$', '--no-file-parallelism', '--test-timeout=0']), 'state' in shim ? shim.reason : JSON.stringify(shim.args))
   check('A3 cwd is the runner root and the stop is the first line of the test body (line 7)', !('state' in shim) && shim.cwd === root && shim.stop?.file === path.join(root, 'src', 'calc.test.mjs') && shim.stop.line === 7, 'state' in shim ? shim.reason : JSON.stringify(shim.stop))
   const meta = plans.buildNodeRunnerDebugShim('vitest', 'src/calc.test.mjs::calc keeps zero (0+0)', { from: root })
-  check('A4 regex metacharacters in the name are escaped inside the anchors; a one-line test stops on its own line (10)', !('state' in meta) && meta.args[3] === '^calc keeps zero \\(0\\+0\\)$' && meta.stop?.line === 10, 'state' in meta ? meta.reason : JSON.stringify({ t: meta.args[3], stop: meta.stop }))
+  check('A4 regex metacharacters in the name are escaped inside the anchors; a one-line test stops on its own line (10)', !('state' in meta) && meta.args[3] === '^calc(?: > | )keeps zero \\(0\\+0\\)$' && meta.stop?.line === 10, 'state' in meta ? meta.reason : JSON.stringify({ t: meta.args[3], stop: meta.stop }))
   const spans = plans.buildNodeRunnerDebugShim('vitest', 'src/calc.test.mjs::calc spans lines', { from: root })
   check('A5 a title on its own line is found through the quoted-name fallback and the stop is the body\'s first line past the opening brace (14)', !('state' in spans) && spans.stop?.line === 14, 'state' in spans ? spans.reason : JSON.stringify(spans.stop))
   const unknown = plans.buildNodeRunnerDebugShim('vitest', 'src/calc.test.mjs::calc nowhere', { from: root })
@@ -155,13 +156,16 @@ async function liveNodeRunner(tag: string, runner: 'vitest' | 'jest', entry: str
   const dap = await import('../../src/services/dap/dapClient.ts')
   const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
   const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+  await runWithCwdOverride(root, () => TestTool.call({ op: 'run', framework: runner } as never, ctx))
+  const plain = spawnSync('node', [path.join(root, 'node_modules', runner, entry), ...(runner === 'vitest' ? ['run', `src/${testFile}`] : ['--runInBand', `src/${testFile}`])], { windowsHide: true, cwd: root, encoding: 'utf8' })
+  check(`${tag}0 the debug fixture runs outside the debugger`, plain.status === 1 && /adds two numbers/.test(plain.stdout + plain.stderr), JSON.stringify({ code: plain.status, output: plain.stdout + plain.stderr }))
   const bodyLine = source.split('\n').findIndex(l => l.includes('const result = add(2, 3)')) + 1
-  const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: `src/${testFile}::calc adds two numbers` } as never, ctx))) as { data: { result: string; outcome: string } }
+  const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: `src/${testFile}::adds two numbers` } as never, ctx))) as { data: { result: string; outcome: string } }
   check(`${tag}1 the tool reports a stop at a breakpoint`, out.data.outcome === 'succeeded' && /stopped in '.*' — reason breakpoint/.test(out.data.result), out.data.result.split('\n').slice(0, 3).join(' | '))
   const owner = ownerFromToolUseContext(ctx)
   const session = dap.getDapSession(owner, 'test')
   const stopped = session?.treeStopped() ?? null
-  check(`${tag}2 a session named test is live and a tree member holds the stop`, session !== undefined && stopped !== null, String(session?.treeSessions().map(s => s.label)))
+  check(`${tag}2 a session named test is live and a tree member holds the stop`, session !== undefined && stopped !== null, JSON.stringify({ sessions: session?.treeSessions().map(s => s.label), output: session?.output }))
   if (session && stopped && stopped.lastStopped) {
     const threadId = stopped.lastStopped.threadId ?? 1
     const stack = await stopped.request('stackTrace', { threadId, startFrame: 0, levels: 3 })

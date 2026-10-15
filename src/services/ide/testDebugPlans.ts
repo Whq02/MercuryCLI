@@ -6,6 +6,8 @@ import { getCwd } from '../../utils/cwd.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { lldbDapInstallHint, probeGdbDap, resolveLldbDap } from '../dap/dapClient.js'
 import { latestRun } from './pythonTests.js'
+import { loadTs, parseSource, resolveStructureTypescript } from '../structure/tsFacility.js'
+import { jsTestNamePattern } from './runnerReporters.js'
 import { discoverRunnerProfiles, findRunnerRoot, resolveRunnerBinary } from './projectRunners.js'
 
 export type DebugPlanRefusal = { state: 'unavailable'; reason: string; remedy: string }
@@ -261,37 +263,43 @@ function fileFromLatestRun(from: string, framework: string, name: string): strin
   return hit?.file ?? null
 }
 
-function bodyLine(lines: string[], index: number): number {
-  for (let i = index; i < Math.min(index + 4, lines.length); i++) {
-    const line = lines[i] ?? ''
-    if (/\{\s*$/.test(line)) return i + 2
-    if (line.includes('{')) return i + 1
+function sourceJsTest(file: string, name: string): { nameParts: string[]; line: number } | null {
+  const resolution = resolveStructureTypescript(path.dirname(file))
+  if (resolution.state !== 'ok') return null
+  const ts = loadTs(resolution.modulePath)
+  let text: string
+  try { text = readFileSync(file, 'utf8') } catch { return null }
+  const { sourceFile, parseErrors } = parseSource(ts, file, text)
+  if (parseErrors.length) return null
+  const tests: Array<{ nameParts: string[]; line: number }> = []
+  const walk = (node: import('typescript').Node, parents: string[]): void => {
+    if (ts.isCallExpression(node)) {
+      let callee = node.expression
+      while (ts.isPropertyAccessExpression(callee) || ts.isCallExpression(callee)) callee = callee.expression
+      const kind = ts.isIdentifier(callee) ? callee.text : ''
+      const title = node.arguments[0]
+      const callback = node.arguments.find(arg => ts.isArrowFunction(arg) || ts.isFunctionExpression(arg))
+      if (title && (ts.isStringLiteral(title) || ts.isNoSubstitutionTemplateLiteral(title)) && callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) {
+        const parts = [...parents, title.text]
+        if (kind === 'describe' || kind === 'suite') { walk(callback.body, parts); return }
+        if (kind === 'it' || kind === 'test' || kind === 'bench') {
+          const body = callback.body
+          const first = ts.isBlock(body) ? body.statements[0] ?? body : body
+          tests.push({ nameParts: parts, line: sourceFile.getLineAndCharacterOfPosition(first.getStart(sourceFile)).line + 1 })
+          return
+        }
+      }
+    }
+    ts.forEachChild(node, child => walk(child, parents))
   }
-  return index + 1
+  walk(sourceFile, [])
+  const exact = tests.filter(test => test.nameParts.join(' ') === name || test.nameParts.join(' > ') === name)
+  const matches = exact.length ? exact : tests.filter(test => test.nameParts.at(-1) === name)
+  return matches.length === 1 ? matches[0]! : null
 }
 
 export function locateJsTest(file: string, fullName: string): number | null {
-  let text: string
-  try {
-    text = readFileSync(file, 'utf8')
-  } catch {
-    return null
-  }
-  const lines = text.split('\n')
-  const words = fullName.trim().split(/\s+/)
-  for (let drop = 0; drop < words.length; drop++) {
-    const title = escapeRegExp(words.slice(drop).join(' '))
-    const call = new RegExp(`(?:^|[^\\w$.])(?:test|it|bench)(?:\\.\\w+)*\\s*\\(\\s*(['"\`])${title}\\1`)
-    const index = lines.findIndex(line => call.test(line))
-    if (index !== -1) return bodyLine(lines, index)
-  }
-  for (let drop = 0; drop < words.length; drop++) {
-    const title = escapeRegExp(words.slice(drop).join(' '))
-    const quoted = new RegExp(`(['"\`])${title}\\1\\s*,`)
-    const index = lines.findIndex(line => quoted.test(line))
-    if (index !== -1) return bodyLine(lines, index)
-  }
-  return null
+  return sourceJsTest(file, fullName)?.line ?? null
 }
 
 function runnerEntryScript(root: string, runner: 'vitest' | 'jest'): string | null {
@@ -345,8 +353,12 @@ export function buildNodeRunnerDebugShim(
       remedy: 'install the project dependencies with the declared package manager',
     }
   }
-  const anchored = `^${escapeRegExp(name)}$`
-  const line = locateJsTest(testFile, name)
+  const latest = latestRun(from)
+  const recorded = latest?.framework === runner ? latest.cases.filter(c => c.file && path.resolve(root, c.file) === testFile && (c.id === name || c.nameParts?.at(-1) === name)) : []
+  const hit = recorded.length === 1 ? recorded[0] : undefined
+  const source = sourceJsTest(testFile, hit?.id ?? name)
+  const anchored = jsTestNamePattern(runner, hit?.id ?? name, hit?.nameParts ?? source?.nameParts)
+  const line = source?.line ?? null
   const stop = line === null ? null : { file: testFile, line }
   const relativeFile = path.relative(root, testFile)
   const args =

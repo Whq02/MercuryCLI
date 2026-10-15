@@ -385,9 +385,9 @@ async function runOp(
               : 'still running (no stop within 20s) — inspect with the Debug tool'
         return {
           result:
-            `debugging ${input.node} (${plan.runner}) in Debug session '${sessionId}': ${state}\n${plan.note}\n` +
+            `debugging ${input.node} (${plan.runner}) in Debug session '${sessionId}': ${state}${stop.state === 'stopped' ? `\n${plan.note}` : ''}\n` +
             `continue with the Debug tool (op:"stack"/"scopes"/"variables"/"continue"; finish with op:"disconnect", session "${sessionId}")`,
-          outcome: 'succeeded',
+          outcome: stop.state === 'terminated' ? 'failed' : 'succeeded',
         }
       }
       if (debugLane.lane === 'runner' && (debugLane.profile.runner === 'vitest' || debugLane.profile.runner === 'jest')) {
