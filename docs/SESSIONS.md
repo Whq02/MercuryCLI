@@ -660,10 +660,8 @@ home screen (New Session is the entry point). A `--chat` launch
 opens on the home screen like a bare launch, and pressing `Enter` on New Session starts the chat.
 From the chat, `Shift+←` returns to the home screen directly and `Shift+→` moves nothing;
 the home screen's key-map row reads `"⇧→ chat"` while a session is focused and `"⇧→
-no chat open"` otherwise. As on every home screen, it also shows `m to select
-model-default` (unless `engine.sessionDefaults` in `settings.json` is `false`):
-pressing `m` opens the model and effort picker in place and saves the pick as
-the default for new sessions, while the Boot Menu stays on its own row.
+no chat open"` otherwise, alongside the same `m to select model-default` shortcut
+and the Boot Menu on its own row.
 `/concourse` still opens the live view of your sessions from the chat.
 
 ## `mercury --concourse-off`

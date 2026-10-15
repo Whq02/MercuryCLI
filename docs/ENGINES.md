@@ -19,7 +19,7 @@ arm.
 
 | Family | Id space | Display name |
 | --- | --- | --- |
-| `anthropic` | `claude-*` ids (the mark anywhere in the id, gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `mythos` · `best`), the `ANTHROPIC_*` model env pins and `MERCURY_CUSTOM_MODEL_OPTION`. Any model id that does not match a known provider prefix is refused before Mercury makes a network request (and `/model`, `/health` and dispatch name it as unrecognised), unless you explicitly pinned that id with an `ANTHROPIC_*` model variable or set `ANTHROPIC_BASE_URL` to a custom gateway | Anthropic |
+| `anthropic` | `claude-*` ids (the mark anywhere in the id, gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `mythos` · `best`), the `ANTHROPIC_*` model env pins and `MERCURY_CUSTOM_MODEL_OPTION`; see [Dispatch](#dispatch) for unrecognised model ids | Anthropic |
 | `openai` | `gpt-*`, alias `gpt` | OpenAI |
 | `zai` | `glm-*`, alias `glm` | Z.AI |
 | `moonshot` | `kimi-*`, `moonshot-*`, alias `kimi` | Moonshot |
