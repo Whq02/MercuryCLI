@@ -161,7 +161,10 @@ function compactUsageFence(
 
 export function contextFill(messages: readonly Message[], model?: string): ContextFill {
   const request = readRequestGauge(messages, model)
-  if (request) return { tokens: request.tokens, source: request.source }
+  return request ? { tokens: request.tokens, source: request.source } : messageContextFill(messages, model)
+}
+
+export function messageContextFill(messages: readonly Message[], model?: string): ContextFill {
   const fence = compactUsageFence(messages)
   let usageIndex = -1
   let usageTotal = 0

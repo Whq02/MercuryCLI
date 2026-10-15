@@ -73,6 +73,7 @@ import { projectRewoundWindows } from './checkpointRewind.js'
 import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt, SUMMARY_SECTION_TITLES } from './prompt.js'
 import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from './verbatimTail.js'
 import { selectOperatorMessages } from './operatorMessages.js'
+import { prepareFoldContext } from './foldTransaction.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
 import type { CompactProgressEvent } from '../../Tool.js'
 import {
@@ -1176,6 +1177,7 @@ function summarySaysNothing(body: string): boolean {
 }
 
 function validateSummary(response: AssistantMessage, logMissing: boolean): string {
+  if (response.message.stop_reason == null || response.message.stop_reason === 'max_tokens') throw new Error(ERROR_MESSAGE_INCOMPLETE_RESPONSE)
   const text = getAssistantMessageText(response)
   if (text === null || text === '') {
     if (logMissing) {
@@ -1365,6 +1367,8 @@ export async function compactConversation(
   overflow?: OverflowSignal,
   summaryModel?: string,
 ): Promise<CompactionResult> {
+  const transaction = prepareFoldContext(context)
+  context = transaction.context
   const ceiling = recompactionInfo?.autoCompactThreshold
   const summaryContext = summaryModel === undefined ? context : withEngineModel(context, summaryModel)
   const summaryCacheSafeParams =
@@ -1412,7 +1416,6 @@ export async function compactConversation(
 
     const ledgerBeforeFold = [...context.readFileState.entries()]
     const snapshot = snapshotAndClearReadState(context)
-    await releaseLspDocumentsForContext('compact_full')
     const postCompactFileAttachments = await assembleAttachments(snapshot, context, messagesToKeep ?? [], 'compact_full', ledgerBeforeFold)
 
     const lastMessage = messages[messages.length - 1] as Message
@@ -1477,6 +1480,15 @@ export async function compactConversation(
       }
     }
 
+    const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: boundaryTrigger, tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
+    partial = { ...partial, hookResults: [...beforeRows, ...afterRows] }
+    const completeFit = ceiling === undefined ? { result: partial, estimate: estimateContextTokens(buildPostCompactMessages(partial)) } : fitPostCompactUnderThreshold(partial, ceiling)
+    partial = completeFit.result
+    truePostCompactTokenCount = completeFit.estimate
+    if (ceiling !== undefined && truePostCompactTokenCount >= ceiling) throw new Error(postCompactOverThresholdMessage(truePostCompactTokenCount, ceiling))
+    if (context.abortController.signal.aborted) throw new APIUserAbortError()
+    await releaseLspDocumentsForContext('compact_full')
+    transaction.commit()
     advanceContextEpoch(owner, {
       kind: isAutoCompact ? 'auto-compact' : 'manual-compact',
       reason: isAutoCompact ? 'auto-compact threshold' : 'operator /compact',
@@ -1492,10 +1504,8 @@ export async function compactConversation(
 
     reAppendSessionMetadata()
 
-    const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: boundaryTrigger, tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
     return {
       ...partial,
-      hookResults: [...beforeRows, ...afterRows],
       truePostCompactTokenCount,
     }
   } catch (err) {
@@ -1519,6 +1529,8 @@ export async function partialCompactConversation(
   userFeedback?: string,
   direction: PartialCompactDirection = 'from',
 ): Promise<CompactionResult> {
+  const transaction = prepareFoldContext(context)
+  context = transaction.context
   try {
     const summarize = direction === 'from' ? allMessages.slice(pivotIndex) : allMessages.slice(0, pivotIndex)
     let kept: Message[]
@@ -1566,7 +1578,6 @@ export async function partialCompactConversation(
 
     const ledgerBeforeFold = [...context.readFileState.entries()]
     const snapshot = snapshotAndClearReadState(context)
-    await releaseLspDocumentsForContext('compact_partial')
     const attachments = await assembleAttachments(snapshot, context, kept, 'compact_partial', ledgerBeforeFold)
 
     let anchorUuid: UUID | undefined
@@ -1622,6 +1633,9 @@ export async function partialCompactConversation(
     }
     const truePostCompactTokenCount = estimateContextTokens(buildPostCompactMessages(partialResult))
     const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: 'manual', tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
+    if (context.abortController.signal.aborted) throw new APIUserAbortError()
+    await releaseLspDocumentsForContext('compact_partial')
+    transaction.commit()
     return {
       ...partialResult,
       hookResults: [...beforeRows, ...afterRows],
