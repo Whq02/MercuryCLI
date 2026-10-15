@@ -1283,6 +1283,12 @@ async function* queryModel(
       }
       clearStreamIdleTimers()
 
+      if (signal.aborted) {
+        yield* yieldAbortedPartialText()
+        releaseStreamResources()
+        return
+      }
+
       if (streamIdleAborted) {
         const exitDelayMs =
           streamWatchdogFiredAt !== null
