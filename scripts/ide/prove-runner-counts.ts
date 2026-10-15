@@ -108,7 +108,7 @@ section('C. the run road: the reporter file is written by the runner, read, pars
     check('C8 the record persisted in the one store', runWithCwdOverride(root, () => latestRun(root))?.framework === 'vitest')
     const rerun = await runners.rerunRunnerFailures(r, { from: root })
     const rerunArgv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
-    check('C9 rerunFailed selects by full name with the reporter flags still present', rerun.state === 'ok' && rerunArgv.includes('-t') && rerunArgv[rerunArgv.indexOf('-t') + 1] === 'calc adds two numbers' && rerunArgv.includes('--reporter=json') && rerunArgv.some(a => a.startsWith('--outputFile=')), JSON.stringify(rerunArgv))
+    check('C9 rerunFailed selects by full name with the reporter flags still present', rerun.state === 'ok' && rerunArgv.includes('-t') && rerunArgv[rerunArgv.indexOf('-t') + 1] === '^calc(?: > | )adds two numbers$' && rerunArgv.includes('--reporter=json') && rerunArgv.some(a => a.startsWith('--outputFile=')), JSON.stringify(rerunArgv))
     const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
     const report = (await runWithCwdOverride(root, () => TestTool.call({ op: 'report' } as never, { getAppState: () => ({}) } as never))) as { data: { result: string } }
     check('C10 the Test tool\'s report reads the counts and the typed failure', report.data.result.includes('1 passed · 1 failed · 1 skipped · 0 errored') && report.data.result.includes('calc adds two numbers (src/calc.test.mjs:8)') && !report.data.result.includes('counts not parsed'), report.data.result.split('\n').slice(0, 4).join(' | '))
@@ -211,7 +211,7 @@ section('F. jest: the argv, the run road and the rerun')
   if (run?.state === 'ok') {
     const rerun = await runners.rerunRunnerFailures(run.record, { from: root })
     const rerunArgv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
-    check('F7 rerunFailed selects by full name with --json still present', rerun.state === 'ok' && rerunArgv.includes('-t') && rerunArgv[rerunArgv.indexOf('-t') + 1] === 'calc adds two numbers' && rerunArgv.includes('--json'), JSON.stringify(rerunArgv))
+    check('F7 rerunFailed selects by full name with --json still present', rerun.state === 'ok' && rerunArgv.includes('-t') && rerunArgv[rerunArgv.indexOf('-t') + 1] === '^calc adds two numbers$' && rerunArgv.includes('--json'), JSON.stringify(rerunArgv))
   }
   rmSync(root, { recursive: true, force: true })
 }

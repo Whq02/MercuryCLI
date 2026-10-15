@@ -34,7 +34,10 @@ try {
     mkdirSync(path.dirname(entry), { recursive: true })
     writeFileSync(entry, `import { writeFileSync } from 'node:fs'; const output = process.argv.find(a => a.startsWith('--outputFile=')); writeFileSync(output.slice(13), JSON.stringify({numTotalTests:1,testResults:[{assertionResults:[{status:'passed'}]}]})); console.log(JSON.stringify(process.argv.slice(2)));`)
     const selection = 'literal & %NAME% ^ " >'
-    const run = await runRunnerProfile(discoverRunnerProfiles(root).profiles.find(p => p.runner === runner)!, { from: root, selection })
+    const running = runRunnerProfile(discoverRunnerProfiles(root).profiles.find(p => p.runner === runner)!, { from: root, selection })
+    Object.defineProperty(process, 'platform', platform)
+    const run = await running
+    Object.defineProperty(process, 'platform', { value: 'win32' })
     check(`${runner}: the cmd shim runs its JavaScript entry without a shell`, () => {
       assert.equal(run.state, 'ok')
       if (run.state === 'ok') {

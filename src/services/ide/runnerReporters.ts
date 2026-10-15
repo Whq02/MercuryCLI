@@ -102,6 +102,7 @@ export function parseJsonReporter(text: string, root: string): ReporterRead | nu
           const line = typeof a.location?.line === 'number' ? a.location.line : fileName ? lineOf(messages, fileName) : undefined
           rows.push({
             id,
+            ...(typeof a.title === 'string' && Array.isArray(a.ancestorTitles) ? { nameParts: [...a.ancestorTitles, a.title] } : {}),
             outcome: 'failed',
             ...(fileName ? { file: fileName } : {}),
             ...(line !== undefined ? { line } : {}),
@@ -227,4 +228,10 @@ export function parseGoTestJson(text: string, _root: string): ReporterRead | nul
 export function goRunPattern(failures: string[]): string {
   const tops = [...new Set(failures.map(f => /^[^/]+/.exec(f)?.[0] ?? '').filter(Boolean))]
   return `^(${tops.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})$`
+}
+
+export function jsTestNamePattern(runner: 'vitest' | 'jest', name: string, parts?: string[]): string {
+  const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const body = parts?.length ? parts.map(escape).join(runner === 'vitest' ? '(?: > | )' : ' ') : escape(name)
+  return `^${body}$`
 }

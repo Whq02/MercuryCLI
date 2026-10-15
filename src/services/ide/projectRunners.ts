@@ -16,7 +16,7 @@ import {
   type TestCaseResult,
   type TestRunRecord,
 } from './pythonTests.js'
-import { goRunPattern, parseGoTestJson, parseJsonReporter, type ReporterRead } from './runnerReporters.js'
+import { goRunPattern, jsTestNamePattern, parseGoTestJson, parseJsonReporter, type ReporterRead } from './runnerReporters.js'
 
 export type RunnerKind = 'test' | 'check' | 'build'
 
@@ -725,7 +725,9 @@ export async function runRunnerProfile(
 
   const exitOk = result.code === 0 && !result.errMsg
   const failedByCounts = parsed.counts !== null && parsed.counts.failed > 0
-  const verdictNotes: string[] = []
+  const emptyRerun = selectionLabel === 'rerun-failed' && parsed.counts !== null && parsed.counts.passed + parsed.counts.failed + parsed.counts.errored === 0
+  const emptyRerunReason = 'the rerun selected no test — the names in the recorded selection did not match a runnable test'
+  const verdictNotes: string[] = emptyRerun ? [emptyRerunReason] : []
   if (parsed.counts === null && profile.kind === 'test') {
     verdictNotes.push(`counts not parsed for ${profile.runner} — exit state is the only verdict`)
   }
@@ -782,6 +784,7 @@ export async function runRunnerProfile(
     ...(diagnosticsNote ? { diagnosticsNote } : {}),
   }
   await persistTestRun(profile.root, record)
+  if (emptyRerun) return { state: 'unavailable', reason: emptyRerunReason, remedy: `run the full profile to refresh its case names; record: mercury://test/run/${record.id}` }
   return { state: 'ok', record }
 }
 
@@ -835,7 +838,9 @@ export async function rerunRunnerFailures(
     return { state: 'stale-profile', reason: `no ${record.framework} test profile in the current discovery`, profiles }
   }
   const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const joined = record.failures.map(escape).join('|')
+  const joined = record.failures.map(name => profile.runner === 'vitest' || profile.runner === 'jest'
+    ? jsTestNamePattern(profile.runner, name, record.cases.find(c => c.id === name)?.nameParts)
+    : escape(name)).join('|')
   switch (profile.runner) {
     case 'vitest':
       return runRunnerProfile(profile, {
