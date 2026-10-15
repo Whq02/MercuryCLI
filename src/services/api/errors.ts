@@ -403,14 +403,13 @@ function signInWallAccount(model: string): string | undefined {
 
 function otherSignInWords(family: string): string | undefined {
   try {
+    const { otherSignInsLine } = require('../providers/providerIdentityLine.js') as typeof import('../providers/providerIdentityLine.js')
+    const others = otherSignInsLine(family)
+    if (others === undefined) return undefined
+    if (family === 'anthropic' || !accountIdentityShown()) return others
     const { familySignInRoster } = require('../providers/signInRoster.js') as typeof import('../providers/signInRoster.js')
-    const rows = familySignInRoster(family)
-    if (rows.length < 2) return undefined
-    const inUse = rows.find(row => row.inUse)
-    const others = rows.filter(row => row !== inUse)
-    if (!accountIdentityShown()) return 'another sign-in of this family is stored — /logins use <identity> spends it'
-    const named = inUse === undefined || family === 'anthropic' ? '' : `${inUse.identity} · `
-    return `${named}also signed in: ${others.map(row => row.identity).join(', ')} — /logins use ${others[0]?.identity ?? '<identity>'} spends it`
+    const inUse = familySignInRoster(family).find(row => row.inUse)
+    return inUse === undefined ? others : `${inUse.identity} · ${others}`
   } catch {
     return undefined
   }

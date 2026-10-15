@@ -104,3 +104,16 @@ export function shownIdentityWords(family: string, words: string, shown: boolean
   const carries = bare.includes('@') || (identity !== undefined && identity !== '' && bare.includes(identity))
   return carries ? (familyAccountWord(family) ?? 'signed in') : bare
 }
+
+export function otherSignInsLine(family: string, shown: boolean = accountIdentityShown()): string | undefined {
+  try {
+    const { familySignInRoster } = require('./signInRoster.js') as typeof import('./signInRoster.js')
+    const rows = familySignInRoster(family)
+    if (rows.length < 2) return undefined
+    const others = rows.filter(row => !row.inUse)
+    if (!shown) return 'another sign-in of this family is stored — /logins use <identity> spends it'
+    return `also signed in: ${others.map(row => row.identity).join(', ')} — /logins use ${others[0]?.identity ?? '<identity>'} spends it and reads its window`
+  } catch {
+    return undefined
+  }
+}
