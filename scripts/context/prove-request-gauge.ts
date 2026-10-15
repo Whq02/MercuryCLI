@@ -76,3 +76,9 @@ assert.ok(roughTokenCountEstimationForMessages([attachment]) > 0, 'attachment is
 const recorded = entryToRecord(second as never, { sessionId: asSessionId('gauge'), nextOrdinal: () => nextOrdinal(null), observedAt: second.timestamp, source: { kind: 'test' } } as never)
 assert.deepEqual(recordToEntry(recorded).contextGauge, second.contextGauge)
 console.log('PASS cold fixed material, independent tail learning, sibling streaming, restart, media, attachment, projected prune, route isolation and record round trip')
+
+const oldResponse = answer('unstamped', 150000)
+const oldHistory = [...history, oldResponse]
+assert.equal(gauge.bindRequestGauge(oldHistory, requestKey, 0, fixed).tokens, 150100)
+assert.equal(gauge.bindRequestGauge(oldHistory, requestKey, 1, fixed, true).source, 'estimate')
+console.log('PASS an unstamped settled input survives restart until an explicit projection rebases it')

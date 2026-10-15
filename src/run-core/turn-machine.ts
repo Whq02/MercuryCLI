@@ -61,8 +61,6 @@ import {
   requestSizeWarning,
   foldRemedyIsHeadless,
   splitCarriedOperatorTail,
-  sizePruneRequest,
-  sizePruneNotice,
   type OverflowEpisode,
   type OverflowRung,
 } from '../services/compact/overflowRecovery.js'
@@ -165,6 +163,7 @@ import { buildRequestContextPlan, reconcileAppliedPlanUsage, type RequestContext
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { bindRequestGauge, requestGaugeFixed, settleRequestGauge } from '../services/run/requestGauge.js'
 import { getContextEpoch } from '../services/run/contextEpochs.js'
+import { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } from '../services/compact/compact.js'
 import { toolToAPISchema } from '../utils/api.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
@@ -594,6 +593,7 @@ async function* streamModel(
           calibrationKeyFor(declaredRouteOf(iter.currentModel) ?? 'unrecognised', iter.currentModel),
           getContextEpoch(ownerFromToolUseContext(toolUseContext)).epoch,
           iter.requestPlan.gauge.fixed,
+          iter.requestPlan.gauge.rebase,
         )
         if (requestGauge !== undefined && requestGauge.digest === iter.requestPlan.gauge?.digest) requestGauge.sourceDigest = iter.requestPlan.gauge.sourceDigest
         for await (const message of run.deps.callModel({
@@ -951,10 +951,7 @@ async function* runEventMachine(
       querySource === 'sdk' ||
       querySource.startsWith('agent:') ||
       querySource.startsWith('main_thread')
-    const pruneModel = toolUseContext.options.engineModel
-    const proactivePrune = pendingOverflow === undefined
-      ? await sizePruneRequest(messages, pruneModel, querySource)
-      : undefined
+    const preserveBodies = pendingOverflow?.rung !== 'prune'
     const requestPlan = await buildRequestContextPlan(
       {
         messages,
@@ -973,6 +970,7 @@ async function* runEventMachine(
             .map(t => t.name),
         ),
         microcompact: deps.microcompact,
+        preserveBodies,
         readFileState: toolUseContext.readFileState,
         calibrationKey: (() => {
           const model = toolUseContext.options.engineModel
@@ -992,11 +990,7 @@ async function* runEventMachine(
           }))),
         }),
         harnessContextPolicy: null,
-        ...(pendingOverflow?.rung === 'prune'
-          ? { pressurePrune: true as const }
-          : proactivePrune !== undefined
-            ? { pressurePrune: { minimumTokensSaved: proactivePrune.estimatedTokens - proactivePrune.targetTokens } }
-            : {}),
+        ...(pendingOverflow?.rung === 'prune' ? { pressurePrune: true as const } : {}),
       },
       'apply',
     )
@@ -1023,12 +1017,6 @@ async function* runEventMachine(
         yield emit({ kind: 'attachment', message: record })
         deadThinkingRecords.push(record)
       }
-    }
-    if (proactivePrune !== undefined && requestPlan.reductions.pressurePruned !== undefined && requestPlan.reductions.timeBasedCleared === 0) {
-      yield emit({
-        kind: 'notice',
-        message: createSystemMessage(sizePruneNotice(proactivePrune, requestPlan.reductions.pressurePruned), 'warning'),
-      })
     }
     if (pendingOverflow?.rung === 'prune') {
       const pruned = requestPlan.reductions.pressurePruned
@@ -1065,7 +1053,7 @@ async function* runEventMachine(
       measuredRawTokenCount,
       refusal: compactionRefusal,
       paused: compactionPaused,
-    } = await deps.autocompact(
+    } = pendingOverflow?.rung === 'prune' ? { wasCompacted: false } as Awaited<ReturnType<typeof deps.autocompact>> : await deps.autocompact(
       foldSplit.head,
       toolUseContext,
       {
@@ -1095,6 +1083,21 @@ async function* runEventMachine(
     }
 
     if (forcedFold !== undefined && !compactionResult) {
+      if (!toolUseContext.abortController.signal.aborted && (forcedFold.source === 'provider' || compactionRefusal?.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD))) {
+        const saving = projectTimeBasedMicrocompact(messagesForQuery, querySource, { pressure: true, supersededOnly: true })?.tokensSaved ?? 0
+        const fallback = decideOverflowRecovery({ episode: overflowEpisode, gapTokens: overflowGapFor(forcedFold), pruneSavingTokens: saving, pruneAllowed: true, fold: { available: false, why: 'fold-failed' } })
+        if (fallback.kind === 'recover' && fallback.rung === 'prune') {
+          const next: TurnState = {
+            ...state, messages: messagesForQuery, toolUseContext, autoCompactTracking: tracking,
+            overflowEpisode: { folded: true, pruned: true },
+            pendingOverflow: { signal: forcedFold, rung: 'prune' },
+            transition: { reason: 'overflow_recovery', rung: 'prune', source: forcedFold.source },
+          }
+          yield emit({ kind: 'turn_settled', transition: next.transition! })
+          state = next
+          continue
+        }
+      }
       yield emit({
         kind: 'notice',
         message: createAssistantAPIErrorMessage({
@@ -1199,13 +1202,14 @@ async function* runEventMachine(
             limitTokens: blockingLimit,
           })
           const pruneSaving =
-            projectTimeBasedMicrocompact(messagesForQuery, querySource, { pressure: true })?.tokensSaved ?? 0
+            projectTimeBasedMicrocompact(messagesForQuery, querySource, { pressure: true, supersededOnly: true })?.tokensSaved ?? 0
           const headFoldFailed =
             (consecutiveFailures ?? 0) > (autoCompactTracking?.consecutiveFailures ?? 0)
           const decision = decideOverflowRecovery({
             episode: overflowEpisode,
             gapTokens: Math.max(1, estimatedTokens - blockingLimit),
             pruneSavingTokens: pruneSaving,
+            pruneAllowed: compactionRefusal?.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) === true,
             fold: foldAvailability({
               tracking,
               headFold: headFoldFailed ? 'failed' : isAutoCompactEnabled() ? 'did-not-land' : undefined,
@@ -1340,11 +1344,12 @@ async function* runEventMachine(
         const overflow = measureOverflow(overflowStamped, foldInput, toolUseContext.options.engineModel)
         const split = splitCarriedOperatorTail(foldInput)
         const pruneSaving =
-          projectTimeBasedMicrocompact(foldInput, querySource, { pressure: true })?.tokensSaved ?? 0
+          projectTimeBasedMicrocompact(foldInput, querySource, { pressure: true, supersededOnly: true })?.tokensSaved ?? 0
         const decision = decideOverflowRecovery({
           episode: overflowEpisode,
           gapTokens: overflowGapFor(overflow),
           pruneSavingTokens: pruneSaving,
+          pruneAllowed: true,
           fold: foldAvailability({ tracking, hasHistory: split.hasHistory }),
         })
         if (decision.kind === 'recover') {

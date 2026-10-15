@@ -30,6 +30,7 @@ const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessag
 const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
 const { AUTOCOMPACT_THRASH_MESSAGE } = await import('../../src/services/compact/autoCompact.ts')
+const { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/services/compact/compact.ts')
 const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/services/compact/microCompactDigest.ts')
 const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
@@ -245,11 +246,11 @@ function seedPlain(): unknown[] {
   const earlier = createAssistantMessage({ content: 'earlier reply' })
   return [createUserMessage({ content: 'earlier ask' }), earlier, createUserMessage({ content: OPERATOR_ASK })]
 }
-function seedWithReads(rounds: number, lastUsage?: number): unknown[] {
+function seedWithReads(rounds: number, lastUsage?: number, superseded = false): unknown[] {
   const out: unknown[] = [createUserMessage({ content: 'earlier ask' })]
   for (let i = 0; i < rounds; i++) {
     const asst = createAssistantMessage({
-      content: [{ type: 'tool_use', id: `toolu_read_${i}`, name: 'Read', input: { file_path: `/tmp/rig/file-${i}.txt` } }] as never,
+      content: [{ type: 'tool_use', id: `toolu_read_${i}`, name: 'Read', input: { file_path: `/tmp/rig/file-${superseded ? 0 : i}.txt` } }] as never,
       ...(lastUsage !== undefined && i === rounds - 1
         ? { usage: { input_tokens: lastUsage, output_tokens: 10, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } as never }
         : {}),
@@ -332,13 +333,14 @@ section('R2 the retry overflows again → the typed refusal, never the raw sente
   check('a foldable retained tail cannot reopen the same overflow episode', withTail.terminal.reason === 'prompt_too_long' && withTail.calls.length === 2 && withTail.compact.filter(call => call.forced !== undefined).length === 1, JSON.stringify({ terminal: withTail.terminal, calls: withTail.calls.length, folds: withTail.compact.filter(call => call.forced !== undefined).length }))
 }
 
-section('R3 the prune rung — superseded tool results cover the gap; no fold')
+section('R3 the emergency prune follows a summary that could not fit')
 {
   const gapSignal: Sig = { ...OPENAI_SIGNAL, actualTokens: 129_000, limitTokens: 128_000 }
-  const r = await run({ seed: seedWithReads(8), script: [[ping(), overflowError(gapSignal)], [ping(), asstText('pruned reply')]], ledger: true })
+  const r = await run({ seed: seedWithReads(8, undefined, true), script: [[ping(), overflowError(gapSignal)], [ping(), asstText('pruned reply')]], ledger: true, compact: makeCompact({ onForced: [{ wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD }] }) })
   check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
   check('two model calls', r.calls.length === 2, String(r.calls.length))
-  check('the compaction owner was NEVER forced (no fold)', r.compact.every(c => c.forced === undefined), JSON.stringify(r.compact.map(c => c.forced)))
+  const attempted = r.compact.filter(c => c.forced !== undefined)
+  check('one summary attempt saw all eight bodies before the fallback', attempted.length === 1 && toolResultsOf(attempted[0]!.messages).filter(x => !isPlaceholder(x.content)).length === 8, JSON.stringify(r.compact.map(c => c.forced)))
   check('no boundary event', !r.events.some(e => e.kind === 'compaction_boundary'))
   const retry = r.calls[1]!.messages
   const results = toolResultsOf(retry)
@@ -421,10 +423,10 @@ section('R7 mid-tool overflow — the follow-up call after a tool round')
 
 section('R8 the estimate side — the blocking preempt prunes or refuses typed')
 {
-  const seed = seedWithReads(8, 100_000)
+  const seed = seedWithReads(8, 100_000, true)
   const count = tokenCountWithEstimation(seed as never)
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(count - 800)
-  const r = await run({ seed, script: [[ping(), asstText('after the prune')]], ledger: true })
+  const r = await run({ seed, script: [[ping(), asstText('after the prune')]], ledger: true, compact: makeCompact({ onThreshold: [{ wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD }] }) })
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   check('the call proceeded after the prune (one call, terminal completed)', r.terminal.reason === 'completed' && r.calls.length === 1, `${JSON.stringify(r.terminal)} calls=${r.calls.length}`)
   check('the transition names the prune rung from the ESTIMATE', JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"estimate"'), JSON.stringify(settledTransitions(r.events)))

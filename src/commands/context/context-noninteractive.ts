@@ -47,6 +47,7 @@ export async function buildContextInspectionPlan(params: {
       contentReplacementState: params.contentReplacementState,
       skipToolNames: skipToolNamesFor(params.tools),
       harnessContextPolicy: null,
+      preserveBodies: true,
     },
     'inspect',
   )

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { roughTokenCountEstimationForMessages } from '../tokenEstimation.js'
+import { messageContextFill } from '../../utils/tokens.js'
 
 export type RequestGaugeFixed = { digest: string; tokens: number }
 export type RequestGaugeDensity = { ratio: number; samples: number; residuals: number[] }
@@ -10,6 +11,7 @@ export type RequestGaugeAnchor = {
   epoch: number
   digest: string
   sourceDigest?: string
+  rebase?: boolean
   rawTokens: number
   fixed: RequestGaugeFixed
   density: RequestGaugeDensity
@@ -20,6 +22,7 @@ export type RequestGaugeView = {
   epoch: number
   digest: string
   sourceDigest?: string
+  rebase?: boolean
   rawTokens: number
   fixed: RequestGaugeFixed
   density: RequestGaugeDensity
@@ -31,7 +34,7 @@ export type RequestGaugeView = {
   anchorTokens: number
 }
 
-const bindings = new WeakMap<readonly Message[], { key: string; epoch: number; fixed: RequestGaugeFixed }>()
+const bindings = new WeakMap<readonly Message[], { key: string; epoch: number; fixed: RequestGaugeFixed; rebase: boolean }>()
 const freshDensity = (): RequestGaugeDensity => ({ ratio: 1, samples: 0, residuals: [] })
 
 function hasMedia(value: unknown): boolean {
@@ -72,22 +75,27 @@ export function requestGaugeKey(messages: readonly Message[]): string | undefine
   return lastAnchor(messages)?.anchor.key
 }
 
-export function bindRequestGauge(messages: readonly Message[], key: string, epoch: number, fixed: RequestGaugeFixed): RequestGaugeView {
-  bindings.set(messages, { key, epoch, fixed })
-  return requestGaugeView(messages, key, epoch, fixed)
+export function bindRequestGauge(messages: readonly Message[], key: string, epoch: number, fixed: RequestGaugeFixed, rebase = false): RequestGaugeView {
+  bindings.set(messages, { key, epoch, fixed, rebase })
+  return requestGaugeView(messages, key, epoch, fixed, rebase)
 }
 
-export function requestGaugeView(messages: readonly Message[], key: string, epoch: number, fixed: RequestGaugeFixed): RequestGaugeView {
+export function requestGaugeView(messages: readonly Message[], key: string, epoch: number, fixed: RequestGaugeFixed, rebase = false): RequestGaugeView {
   const previous = lastAnchor(messages, key)
   const density = previous?.anchor.density ?? freshDensity()
   const rawTokens = roughTokenCountEstimationForMessages(messages as Message[])
   const digest = requestGaugeDigest(messages)
   const base: RequestGaugeView = {
-    key, epoch, fixed, rawTokens, digest, density,
+    key, epoch, fixed, rawTokens, digest, density, rebase,
     tokens: Math.ceil(fixed.tokens + rawTokens * (hasMedia(messages) ? 1 : density.ratio)), source: 'estimate',
     transition: previous ? 'rebased' : 'cold', tailTokens: 0, tailCalibratable: false, anchorTokens: 0,
   }
-  if (!previous) return base
+  if (rebase) return { ...base, transition: 'rebased' }
+  if (!previous) {
+    const model = key.slice(key.indexOf(':') + 1, key.lastIndexOf(':c'))
+    const unstamped = messageContextFill(messages, model)
+    return unstamped.source === 'usage' ? { ...base, tokens: unstamped.tokens, source: 'usage' } : base
+  }
   let first = previous.index
   for (let i = first - 1; i >= 0; i--) {
     const row = messages[i]
@@ -114,7 +122,7 @@ export function readRequestGauge(messages: readonly Message[], model?: string): 
   const epoch = bound?.epoch ?? previous?.anchor.epoch
   const fixed = bound?.fixed ?? previous?.anchor.fixed
   if (epoch === undefined || !fixed) return null
-  return requestGaugeView(messages, key, epoch, fixed)
+  return requestGaugeView(messages, key, epoch, fixed, bound?.rebase)
 }
 
 export function learnRequestGauge(density: RequestGaugeDensity, denominator: number, measured: number): RequestGaugeDensity {

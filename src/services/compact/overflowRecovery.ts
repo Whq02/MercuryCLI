@@ -61,18 +61,21 @@ export function decideOverflowRecovery(input: {
   episode: OverflowEpisode
   gapTokens: number | undefined
   pruneSavingTokens: number
+  pruneAllowed?: boolean
   fold: FoldAvailability
 }): OverflowDecision {
   const { episode, gapTokens, pruneSavingTokens, fold } = input
+  if (!episode.folded && fold.available) return { kind: 'recover', rung: 'fold' }
   if (
+    input.pruneAllowed === true &&
     !episode.pruned &&
+    (fold.available || fold.why !== 'compaction-off') &&
     gapTokens !== undefined &&
     pruneSavingTokens > 0 &&
     pruneSavingTokens >= gapTokens * PRUNE_COVER_MARGIN
   ) {
     return { kind: 'recover', rung: 'prune' }
   }
-  if (!episode.folded && fold.available) return { kind: 'recover', rung: 'fold' }
   if (episode.folded) return { kind: 'refuse', why: 'retry-overflowed' }
   if (fold.available) return { kind: 'refuse', why: 'retry-overflowed' }
   return { kind: 'refuse', why: fold.why, ...(fold.detail !== undefined ? { detail: fold.detail } : {}) }

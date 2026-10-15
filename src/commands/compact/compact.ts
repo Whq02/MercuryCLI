@@ -14,7 +14,6 @@ import {
 import { foldModelFor, getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { suppressCompactWarning } from '../../services/compact/compactWarningState.js'
-import { microcompactMessages } from '../../services/compact/microCompact.js'
 import { runPostCompactCleanup } from '../../services/compact/postCompactCleanup.js'
 import { shouldUseSessionMemoryCompaction, trySessionMemoryCompaction } from '../../services/compact/sessionMemoryCompact.js'
 import { setLastSummarizedMessageId } from '../../services/SessionMemory/sessionMemoryUtils.js'
@@ -135,7 +134,7 @@ export async function call(
   return withFoldStatus(context, scoped => callUnderFoldStatus(args, scoped), {
     trigger: 'manual',
     sessionMemory: args.trim() === '' && shouldUseSessionMemoryCompaction(),
-    microcompaction: true,
+    microcompaction: false,
   })
 }
 
@@ -168,17 +167,16 @@ async function callUnderFoldStatus(
     if (reactiveCompact !== null && reactiveCompact.isReactiveOnlyMode()) {
     }
 
-    context.onCompactProgress?.({ type: 'stage', stage: 'micro-compaction' })
-    const { messages: microcompacted } = await microcompactMessages(projected, context, 'compact')
-    const cacheSafeParams = await buildCompactCacheSafeParams(microcompacted, context)
-    const foldModel = foldModelFor(microcompacted, context.options.engineModel, { forced: false })
+    const summaryInput = projected
+    const cacheSafeParams = await buildCompactCacheSafeParams(summaryInput, context)
+    const foldModel = foldModelFor(summaryInput, context.options.engineModel, { forced: false })
     if (foldModel.source === 'history') {
       logForDebugging(
         `compact: the summary is written by ${foldModel.model} — the seated ${context.options.engineModel}'s window does not hold the history (about ${foldModel.count} tokens by Mercury's count)`,
       )
     }
     const result = await compactConversation(
-      microcompacted,
+      summaryInput,
       context,
       cacheSafeParams,
       false,
@@ -197,12 +195,12 @@ async function callUnderFoldStatus(
     getUserContext.cache?.clear?.()
     runPostCompactCleanup()
     if (shouldEnrichForLiveDisplay(context)) {
-      enrichSummaryForLiveDisplay(result, microcompacted.length, customInstructions)
+      enrichSummaryForLiveDisplay(result, summaryInput.length, customInstructions)
     }
     return {
       type: 'compact',
       compactionResult: result,
-      displayText: buildDisplayText(context, result, microcompacted.length),
+      displayText: buildDisplayText(context, result, summaryInput.length),
     }
   } catch (error) {
     if (context.abortController.signal.aborted || isAbortError(error)) {
