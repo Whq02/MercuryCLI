@@ -11,7 +11,7 @@ import type { MnemeTopicDoc } from './mnemeTopicDocs.js'
 
 export const INDEX_DIR = '.index'
 export const INDEX_FILE = 'embeddings.json'
-export const INDEX_VERSION = 2
+export const INDEX_VERSION = 3
 export const INDEX_BUILDING_WORDS = 'index building…'
 export const EMBED_IDLE_UNLOAD_MS = 5 * 60_000
 const VECTOR_DECIMALS = 5

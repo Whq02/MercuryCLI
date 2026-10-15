@@ -61,7 +61,7 @@ t.section(`§2 — the inline Chat keeps its input line at the floor (${COMPACT_
   )
   t.check(
     'the compact chat carries no shortcut hint rows (the sessions line closes the frame)',
-    !lines.some(l => l.includes('? for shortcuts') || l.includes('for commands + files')) && lines.some(l => /\d+ sessions? on · \d+ monitors? here · \d+ agents? here/.test(l)),
+    !lines.some(l => l.includes('? for shortcuts') || l.includes('for commands + files')) && lines.some(l => /\d+ sessions? on · \d+ monitors? here · \d+ crewmates? here/.test(l)),
     lines.find(l => l.includes('shortcuts') || /sessions? on/.test(l)) ?? '(no sessions line)',
   )
   const borderOnly = lines.some((l, i) => {

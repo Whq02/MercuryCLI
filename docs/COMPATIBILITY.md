@@ -106,8 +106,8 @@ on-device transcriber addons where they were built (the speech model is a
 one-time download into the config home, never in the archive). Every archive
 also bundles the `vendor/embed` addon built for its platform and the 118 MB
 `bge-base-en-v1.5` embedding model ([MNEME.md](MNEME.md)); on `linux-x64` and
-`windows-x64` this release runs the addon on the plain maths loop, about a
-second and a half per Recall by meaning, with a faster kernel to follow. The
+`windows-x64` the addon runs a vectorised maths kernel, about a tenth of a
+second per Recall by meaning (a few hundredths on macOS through Accelerate). The
 `windows-x64` archive bundles the `brush` shell engine, and the Windows
 recursive-delete ward
 enforces parity across drive roots, `Users`, system folders, share roots and
