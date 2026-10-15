@@ -370,17 +370,23 @@ export function scanMarkdownIntegrity(file: string, text: string, baseText?: str
       })
     }
     const words = stripped.toLowerCase().split(/\s+/).filter(Boolean)
-    for (let w = 0; w + 16 <= words.length; w++) {
+    let foundClauseRepeat = false
+    for (let w = 0; w + 16 <= words.length && !foundClauseRepeat; w++) {
       const runA = words.slice(w, w + 8).join(' ')
-      const runB = words.slice(w + 8, w + 16).join(' ')
-      if (runA.length >= 28 && runA === runB) {
-        hits.push({
-          file,
-          line: paraStart,
-          kind: 'repeated-line-or-clause',
-          excerpt: `repeated 8-word clause: "${runA}"`,
-        })
-        break
+      if (runA.length < 28) continue
+      const maxOffset = Math.min(words.length - 8, w + 40)
+      for (let w2 = w + 8; w2 <= maxOffset; w2++) {
+        const runB = words.slice(w2, w2 + 8).join(' ')
+        if (runA === runB) {
+          hits.push({
+            file,
+            line: paraStart,
+            kind: 'repeated-line-or-clause',
+            excerpt: `repeated 8-word clause: "${runA}"`,
+          })
+          foundClauseRepeat = true
+          break
+        }
       }
     }
     paraLines = []
@@ -432,6 +438,14 @@ function selfTest(): void {
   const dupTail = scanMarkdownIntegrity('fixture.md', '# Title\n\nMercury never updates Aseprite for you.\nfor you.\n')
   if (!dupTail.some(h => h.kind === 'repeated-line-or-clause')) {
     console.error('self-test FAILED: duplicate line tail was not caught')
+    process.exit(1)
+  }
+  const dupTenWords = scanMarkdownIntegrity(
+    'fixture.md',
+    '# Title\n\nA crewmate continues from where its transcript ends on disk and a crewmate continues from where its transcript ends on disk.\n',
+  )
+  if (!dupTenWords.some(h => h.kind === 'repeated-line-or-clause')) {
+    console.error('self-test FAILED: 10-word repeated clause was not caught')
     process.exit(1)
   }
   const cutParen = scanMarkdownIntegrity('fixture.md', '# Title\n\nPages (`Retain`, `Recall`,\nRecall fuses the model.\n')
