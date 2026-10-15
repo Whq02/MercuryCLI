@@ -57,5 +57,7 @@ while IFS= read -r name; do
   echo
 done < "$here/members.txt"
 
+__t=$SECONDS; __rc=0; "$BUN" run scripts/ui-pure-1/prove-filtered-picker-first-match.ts || { __rc=$?; fail=1; }; prover_mark scripts/ui-pure-1/prove-filtered-picker-first-match.ts "$__t" "$__rc"
+
 if [ "$fail" -eq 0 ]; then echo "✅ UI-PURE-1 SUITE GREEN"; else echo "❌ UI-PURE-1 SUITE RED"; fi
 exit "$fail"
