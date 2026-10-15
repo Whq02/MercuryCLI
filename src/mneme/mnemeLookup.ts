@@ -174,9 +174,12 @@ export function fuseRecallRankings(query: string, pool: readonly LookupCandidate
     .sort((a, b) => b.score - a.score || b.features.useCount - a.features.useCount || (b.seq ?? Number.MAX_SAFE_INTEGER) - (a.seq ?? Number.MAX_SAFE_INTEGER))
   const grep = [...new Set(grepIds)].filter(id => !opts.exclude?.has(id))
   const dir = opts.dir ?? mnemeLibraryDir()
-  const semantic = semanticHits(query, pool, dir).filter(hit => !opts.exclude?.has(hit.id))
+  const scores = new Map<string, number>()
+  const semantic = semanticHits(query, pool, dir, scores).filter(hit => !opts.exclude?.has(hit.id))
   const extra = semantic.length > 0 ? [{ order: semantic.map(hit => hit.id), tieKey: semanticTieKey(semantic) }] : []
-  return fuseSignalRanking([grep, lexical.map(hit => hit.id)], scored, dir, fuseRankings, extra)
+  const order = fuseSignalRanking([grep, lexical.map(hit => hit.id)], scored, dir, fuseRankings, extra)
+  if (scores.size === 0) return order
+  return [...order.slice(0, LOOKUP_LIMIT).sort((a, b) => (scores.get(b) ?? -1) - (scores.get(a) ?? -1)), ...order.slice(LOOKUP_LIMIT)]
 }
 
 interface SemanticHit {
@@ -184,12 +187,17 @@ interface SemanticHit {
   sim: number
 }
 
-function semanticHits(query: string, pool: readonly LookupCandidate[], dir: string): SemanticHit[] {
+function semanticHits(query: string, pool: readonly LookupCandidate[], dir: string, scores?: Map<string, number>): SemanticHit[] {
   const byKey = new Map<string, string>()
   for (const candidate of pool) byKey.set(candidate.seq !== undefined ? `seq:${candidate.seq}` : candidate.id, candidate.id)
   const index = readEmbedIndex(dir)
   if (index === null) return []
-  const hits = searchEmbedIndex(query, index, embedIndexEngineStatus(), SEMANTIC_POOL)
+  const all = searchEmbedIndex(query, index, embedIndexEngineStatus(), scores ? Infinity : SEMANTIC_POOL)
+  if (scores) for (const hit of all) {
+    const id = byKey.get(hit.key)
+    if (id !== undefined) scores.set(id, hit.sim)
+  }
+  const hits = all.slice(0, SEMANTIC_POOL)
   if (hits.length === 0) return []
   const mean = hits.reduce((s, x) => s + x.sim, 0) / hits.length
   const std = Math.sqrt(hits.reduce((s, x) => s + (x.sim - mean) ** 2, 0) / hits.length) || 1
