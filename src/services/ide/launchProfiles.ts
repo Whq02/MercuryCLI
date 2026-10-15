@@ -22,6 +22,7 @@ import {
   buildPythonProjectProfile,
 } from './pythonProject.js'
 import { latestRun, probePytest } from './pythonTests.js'
+import { hasPythonTestFiles } from './projectRunners.js'
 import { resolvePreLaunchTask, type PreLaunchTask } from './launchTasks.js'
 
 export function launchProfilesEnabled(): boolean {
@@ -393,7 +394,7 @@ export async function discoverLaunchProfiles(from: string = getCwd()): Promise<L
 
   try {
     const pyProfile = buildPythonProjectProfile(from)
-    if (pyProfile.interpreter.state === 'ok') {
+    if (pyProfile.interpreter.state === 'ok' && ((pyProfile.testFrameworks.pytest.detected && probePytest(from).available) || hasPythonTestFiles(pyProfile.projectRoot))) {
       const framework: 'pytest' | 'unittest' =
         pyProfile.testFrameworks.pytest.detected && probePytest(from).available ? 'pytest' : 'unittest'
       const runAll = { framework, selection: [] as string[], selectionLabel: 'all' }

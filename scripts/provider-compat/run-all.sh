@@ -7,6 +7,7 @@
 # gate-watch: src/services/providers/huggingface/** src/services/providers/local/**
 # gate-watch: src/services/providers/zai/glmPins* src/utils/router/providers/**
 # gate-watch: src/utils/model/modelOptions* src/utils/model/capabilities*
+# gate-watch: src/utils/crew/engineDispatch.ts src/utils/config.ts
 # gate-watch: scripts/lib/hermetic.ts
 # gate-watch: src/services/localServer/** src/utils/settings/types.ts scripts/settings/settings-schema.json
 # gate-watch: scripts/lib/fixtureApi.ts scripts/local-setup/fixtures/fake-ollama.ts
