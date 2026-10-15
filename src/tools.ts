@@ -2,6 +2,8 @@ import type { Tool, ToolPermissionContext, Tools } from './Tool.js'
 import { isEnvTruthy } from './utils/envUtils.js'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
+import { ruleSourceWords, ruleSpelling } from './utils/permissions/ruleReason.js'
+import type { PermissionRule } from './types/permissions.js'
 import { searchToolsAvailability } from './utils/ripgrep.js'
 import { isTaskToolsEnabled } from './utils/tasks.js'
 import { isWorktreeModeEnabled } from './utils/worktreeModeEnabled.js'
@@ -213,11 +215,38 @@ export function filterToolsByDenyRules<T extends { name: string; mcpInfo?: unkno
   tools: readonly T[],
   permissionContext: ToolPermissionContext,
 ): T[] {
-  return tools.filter(tool => {
-    const rule = getDenyRuleForTool(permissionContext, tool as never)
-    if (!rule) return true
-    return rule.ruleValue.ruleContent !== undefined && rule.ruleValue.ruleContent !== null
-  })
+  return tools.filter(tool => wholeToolDenyRuleFor(tool, permissionContext) === null)
+}
+
+function wholeToolDenyRuleFor(tool: { name: string; mcpInfo?: unknown }, permissionContext: ToolPermissionContext): PermissionRule | null {
+  const rule = getDenyRuleForTool(permissionContext, tool as never)
+  if (!rule) return null
+  return rule.ruleValue.ruleContent !== undefined && rule.ruleValue.ruleContent !== null ? null : rule
+}
+
+export type ToolWithheldByDeny = { tool: string; rule: string; source: string }
+
+export function toolsWithheldByDeny(
+  tools: readonly { name: string; mcpInfo?: unknown }[],
+  permissionContext: ToolPermissionContext,
+): Array<{ tool: string; rule: PermissionRule }> {
+  const out: Array<{ tool: string; rule: PermissionRule }> = []
+  for (const tool of tools) {
+    const rule = wholeToolDenyRuleFor(tool, permissionContext)
+    if (rule !== null) out.push({ tool: tool.name, rule })
+  }
+  return out
+}
+
+export function toolsWithheldByDenyFacts(
+  tools: readonly { name: string; mcpInfo?: unknown }[],
+  permissionContext: ToolPermissionContext,
+): ToolWithheldByDeny[] {
+  return toolsWithheldByDeny(tools, permissionContext).map(({ tool, rule }) => ({
+    tool,
+    rule: ruleSpelling(rule.ruleValue),
+    source: ruleSourceWords(rule.source),
+  }))
 }
 
 const SPECIAL_TOOL_NAMES = new Set([
