@@ -4,6 +4,7 @@ import { isMnemeEnabled } from '../../mneme/paths.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { logForDebugging } from '../debug.js'
 import type { Attachment } from './types.js'
+import { recordGrade } from '../../mneme/memoryEvidence.js'
 
 export function collectSurfacedMemories(messages: ReadonlyArray<Message>): {
   ids: Set<string>
@@ -40,7 +41,7 @@ function groupByPage(hits: readonly LookupHit[]): Attachment[] {
   const memories = [...groups.entries()].map(([path, rows]) => {
     const pending = rows[0]!.pending
     const slug = pending ? '(recent)' : rows[0]!.slug
-    const content = rows.map(r => `- ${r.text} ${r.signature}`).join('\n')
+    const content = rows.map(r => `- ${recordGrade(r.id, r.signature)} ${r.text} ${r.signature}`).join('\n')
     return {
       path,
       content,

@@ -1,5 +1,6 @@
 
 import { existsSync } from 'node:fs'
+import { memoryGrade, recordGrade } from './memoryEvidence.js'
 import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { escapeRegExp, lookupTokens } from './mnemeLookup.js'
@@ -44,6 +45,7 @@ export interface MemoryRef {
   why: string
   deref: string
   tier: number
+  grade?: string
 }
 
 const SUMMARY_CAP = 140
@@ -90,6 +92,8 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
   const push = (r: MemoryRef): void => {
     if (seen.has(r.refId)) return
     seen.add(r.refId)
+    const id = r.kind === 'mneme-fact' ? r.refId.replace(/^mneme:/, 'seq:') : r.kind === 'mneme-pending' ? `pending:${r.capturedAt ?? ''}` : r.refId
+    r.grade = r.kind === 'mneme-topic' ? memoryGrade({ kind: 'structure' }) : r.kind === 'mneme-session' ? memoryGrade({ kind: 'session' }) : recordGrade(id, r.source ?? '', opts.libraryDir)
     out.push(r)
   }
 
@@ -171,7 +175,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
 export function renderMemoryRefLine(r: MemoryRef): string {
   const words = memoryStatusWords(r)
   const status = r.status === 'current' ? '' : ` [${words}]`
-  return `${r.refId}${status} — ${r.summary} (${r.why})`
+  return `${r.refId}${status} — ${r.grade ?? memoryGrade({ source: r.source, pending: r.kind === 'mneme-pending', kind: r.kind === 'mneme-topic' ? 'structure' : r.kind === 'mneme-session' ? 'session' : 'fact' })} ${r.summary} (${r.why})`
 }
 
 export function memoryStatusWords(r: Pick<MemoryRef, 'status' | 'confirmedAt'>): string {

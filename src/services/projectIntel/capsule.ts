@@ -7,6 +7,7 @@ import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from 
 import { collectMemoryRefs, memoryStatusWords, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { lookupTokens } from '../../mneme/mnemeLookup.js'
 import { isMnemeEnabled } from '../../mneme/paths.js'
+import { memoryGrade } from '../../mneme/memoryEvidence.js'
 
 type CapsuleRole =
   | 'primary edit'
@@ -33,6 +34,7 @@ interface CapsuleMemoryRef {
   confirmedAt?: string
   summary: string
   why: string
+  grade?: string
 }
 
 interface ContextCapsule {
@@ -262,7 +264,7 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
         projectRoot: input.workspace,
       })
       if (collected.length > 0) {
-        memoryRefs = collected.map(r => ({ refId: r.refId, status: r.status, confirmedAt: r.confirmedAt, summary: r.summary, why: r.why }))
+        memoryRefs = collected.map(r => ({ refId: r.refId, status: r.status, confirmedAt: r.confirmedAt, summary: r.summary, why: r.why, grade: r.grade }))
       }
     }
   } catch {
@@ -330,7 +332,7 @@ export function renderCapsule(capsule: ContextCapsule): string {
     lines.push('Memory (task-scoped refs — dereference before relying; bodies stay in their stores):')
     for (const r of capsule.memoryRefs) {
       const status = r.status === 'current' ? '' : ` [${memoryStatusWords(r)}]`
-      lines.push(`- ${r.refId}${status} — ${r.summary} (${r.why})`)
+      lines.push(`- ${r.refId}${status} — ${r.grade ?? memoryGrade({ kind: 'fact' })} ${r.summary} (${r.why})`)
     }
   }
   return lines.join('\n')
