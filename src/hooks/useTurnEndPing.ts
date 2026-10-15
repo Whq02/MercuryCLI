@@ -22,7 +22,7 @@ export function pingEnabled(): boolean {
   return getInitialSettings().view?.ping !== false
 }
 
-export interface TurnEndFacts {
+interface TurnEndFacts {
   lastCompletedAt: number | null
   busy: boolean
 }

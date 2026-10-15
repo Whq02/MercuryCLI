@@ -18,13 +18,13 @@ import {
 import { METHODS, RUNNER_PROTOCOL, checkParams, checkResult, deadlineOf, isMethodName, type MethodName, type MethodScope, type MethodSpec, type ParamsOf, type ResultOf } from './methods.js'
 import { rowOf, RowSchemaMismatch } from '../../rows/read.js'
 
-export type RpcId = number
-export type RpcRequest = { jsonrpc: '2.0'; id: RpcId; method: string; params?: unknown }
-export type RpcNotification = { jsonrpc: '2.0'; method: string; params?: unknown }
-export type RpcResponse = { jsonrpc: '2.0'; id: RpcId | null; result?: unknown; error?: RpcErrorShape }
-export type RpcMessage = RpcRequest | RpcNotification | RpcResponse
+type RpcId = number
+type RpcRequest = { jsonrpc: '2.0'; id: RpcId; method: string; params?: unknown }
+type RpcNotification = { jsonrpc: '2.0'; method: string; params?: unknown }
+type RpcResponse = { jsonrpc: '2.0'; id: RpcId | null; result?: unknown; error?: RpcErrorShape }
+type RpcMessage = RpcRequest | RpcNotification | RpcResponse
 
-export type PeerSide = 'host' | 'runner'
+type PeerSide = 'host' | 'runner'
 
 export class PeerClosed extends Error {
   readonly method: string
@@ -48,7 +48,7 @@ export class PeerDeadline extends Error {
   }
 }
 
-export interface PeerOptions {
+interface PeerOptions {
   input: Readable
   output: Writable
   side: PeerSide
@@ -61,14 +61,14 @@ export interface PeerOptions {
   log?: (line: string) => void
 }
 
-export interface HandlerContext {
+interface HandlerContext {
   id: RpcId
   signal: AbortSignal
   peer: Peer
 }
 
-export type RequestHandler<M extends MethodName> = (params: ParamsOf<M>, ctx: HandlerContext) => ResultOf<M> | Promise<ResultOf<M>>
-export type NotificationHandler<M extends MethodName> = (params: ParamsOf<M>) => void | Promise<void>
+type RequestHandler<M extends MethodName> = (params: ParamsOf<M>, ctx: HandlerContext) => ResultOf<M> | Promise<ResultOf<M>>
+type NotificationHandler<M extends MethodName> = (params: ParamsOf<M>) => void | Promise<void>
 
 export interface RequestOptions {
   deadlineMs?: number | null

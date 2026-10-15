@@ -30,7 +30,7 @@ import { MAX_TRANSCRIPT_READ_BYTES, getTranscriptPath, readAgentMetadata } from 
 import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptReader.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
 
-export type RestartCarryPorts = {
+type RestartCarryPorts = {
   reason: RunnerRestartReason
   messages: readonly Message[]
   getAppState: () => AppState
@@ -41,9 +41,9 @@ export type RestartCarryPorts = {
   now?: number
 }
 
-export type RestartCarryOutcome = RestartCarryCounts & { requeued: number; recoveredCommandIds: string[]; row: string | null }
+type RestartCarryOutcome = RestartCarryCounts & { requeued: number; recoveredCommandIds: string[]; row: string | null }
 
-export function transcriptTailLines(path: string): string[] {
+function transcriptTailLines(path: string): string[] {
   try {
     const size = statSync(path).size
     const read = readTranscriptBytesAfter(path, { offset: Math.max(0, size - MAX_TRANSCRIPT_READ_BYTES), carry: '' })

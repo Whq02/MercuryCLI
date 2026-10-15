@@ -9,9 +9,9 @@ import { openSampleUrl } from '../../services/samples/open.js'
 export const MEMORY_PAGE_OFF_SENTENCE =
   "/memory page draws the library through Samples, which are off — MERCURY_SAMPLES=1 turns them on (the Boot Menu's Samples row saves it for new sessions)"
 
-export const MEMORY_PAGE_MEMORY_OFF_SENTENCE = 'memory is off (memory.enabled is false in settings) — there is no library to draw.'
+const MEMORY_PAGE_MEMORY_OFF_SENTENCE = 'memory is off (memory.enabled is false in settings) — there is no library to draw.'
 
-export interface MemoryPageOutcome {
+interface MemoryPageOutcome {
   line: string
   kept?: SampleItem
 }

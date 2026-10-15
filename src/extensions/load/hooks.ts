@@ -5,7 +5,7 @@ import { activeFor } from '../active.js'
 
 type Registered = NonNullable<ReturnType<typeof getRegisteredHooks>>
 
-export function collectExtensionHooks(): { record: Partial<Record<HookEvent, ExtensionHookMatcher[]>>; hookCount: number; extensionCount: number } {
+function collectExtensionHooks(): { record: Partial<Record<HookEvent, ExtensionHookMatcher[]>>; hookCount: number; extensionCount: number } {
   const record: Partial<Record<HookEvent, ExtensionHookMatcher[]>> = {}
   for (const event of HOOK_EVENTS) record[event] = []
   let hookCount = 0

@@ -8,7 +8,7 @@ import type { NamedSection } from './mercuryContract.js'
 
 export type { NamedSection }
 
-export interface ComposerDynamicSpec {
+interface ComposerDynamicSpec {
   name: string
   cacheBreak: boolean
 }

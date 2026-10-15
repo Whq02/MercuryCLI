@@ -1,11 +1,11 @@
 
-export interface FoldOutcome {
+interface FoldOutcome {
   readonly uuid: string
   readonly outcome: 'recorded' | 'refolded'
   readonly foldKey: string
 }
 
-export interface RecordFoldOptions {
+interface RecordFoldOptions {
   onRefold?: (foldKey: string, firstUuid: string, freshUuid: string) => void
 }
 

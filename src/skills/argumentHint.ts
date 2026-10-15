@@ -1,10 +1,10 @@
 import type { Command } from '../types/command.js'
 import { getCommandName } from '../types/command.js'
 
-export type BareSendKind = 'local' | 'local-jsx' | 'usage' | 'turn'
+type BareSendKind = 'local' | 'local-jsx' | 'usage' | 'turn'
 
 export const BARE_USAGE_ROW_COLUMNS = 178
-export const BARE_USAGE_DESCRIPTION_FLOOR = 40
+const BARE_USAGE_DESCRIPTION_FLOOR = 40
 
 export function argumentHintOf(command: Pick<Command, 'argumentHint'>): string | undefined {
   const hint = command.argumentHint

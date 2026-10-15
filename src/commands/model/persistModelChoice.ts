@@ -3,11 +3,11 @@ import type { ModelSetting } from '../../utils/model/model.js'
 import { displayConfigHome, getMercuryHome } from '../../utils/envUtils.js'
 import { getInitialSettings, getSettingsWriteFilePathForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 
-export type ModelChoiceOutcome = 'saved' | 'overridden' | 'refused' | 'cleared' | 'unchanged'
+type ModelChoiceOutcome = 'saved' | 'overridden' | 'refused' | 'cleared' | 'unchanged'
 
-export type PersistedModelChoice = { outcome: ModelChoiceOutcome; sentence: string; restore: () => void }
+type PersistedModelChoice = { outcome: ModelChoiceOutcome; sentence: string; restore: () => void }
 
-export type PersistedEffortChoice = { outcome: 'saved' | 'refused'; sentence: string }
+type PersistedEffortChoice = { outcome: 'saved' | 'refused'; sentence: string }
 
 function refusedSentence(error: Error): string {
   const path = getSettingsWriteFilePathForSource('userSettings')

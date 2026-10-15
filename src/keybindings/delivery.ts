@@ -1,5 +1,5 @@
 
-export type ChordDeliveryStatus = 'deliverable' | 'aliases-to' | 'unverified'
+type ChordDeliveryStatus = 'deliverable' | 'aliases-to' | 'unverified'
 
 export interface ChordDelivery {
   status: ChordDeliveryStatus

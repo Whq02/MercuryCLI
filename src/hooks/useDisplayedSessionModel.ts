@@ -10,7 +10,7 @@ import { geminiPlanRideWords } from '../services/providers/gemini/geminiCatalogu
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 
 
-export type DisplayedSessionModel = {
+type DisplayedSessionModel = {
   label: string
   compact: string
   pendingNext: string | null

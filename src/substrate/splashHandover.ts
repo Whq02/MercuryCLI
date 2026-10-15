@@ -14,7 +14,7 @@ export function consumeKitManagerDeepLink(): boolean {
 }
 
 export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents'
-export interface FaceDoorOpenerV1 {
+interface FaceDoorOpenerV1 {
   family?: string
   returnToOpener?: boolean
 }
@@ -37,7 +37,7 @@ export function consumeFaceDoorDeepLink(): FaceDoorDeepLink | null {
   return v
 }
 
-export type BootSurfaceIntent = 'concourse' | 'repl'
+type BootSurfaceIntent = 'concourse' | 'repl'
 let pendingBootSurfaceIntent: BootSurfaceIntent | null = null
 
 let explicitBootJourney = false
@@ -63,7 +63,7 @@ export function _setBootSurfaceIntentForTesting(v: BootSurfaceIntent | null): vo
 
 const FRESH_MS = 120_000
 
-export interface SplashReceiptDecision {
+interface SplashReceiptDecision {
   apply: { chdir?: string; spliceArg?: string } | null
   reason:
     | 'applied'

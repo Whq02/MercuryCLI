@@ -1,7 +1,7 @@
 
 import { updateConcourseWorkers } from './concourseWorkers.js'
 
-export interface SessionContractAmendmentV1 {
+interface SessionContractAmendmentV1 {
   text: string
   at: number
   by: string
@@ -15,14 +15,14 @@ export interface SessionContractV1 {
   amendments: SessionContractAmendmentV1[]
 }
 
-export type ContractOp = 'set' | 'ack' | 'amend' | 'close'
+type ContractOp = 'set' | 'ack' | 'amend' | 'close'
 
-export interface ContractOpRequestV1 {
+interface ContractOpRequestV1 {
   op: ContractOp
   text?: string
 }
 
-export type ContractOpOutcome = { outcome: 'applied' | 'noop' | 'refused'; detail?: string }
+type ContractOpOutcome = { outcome: 'applied' | 'noop' | 'refused'; detail?: string }
 
 export const CONTRACT_TEXT_CAP = 20_000
 

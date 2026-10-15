@@ -6,17 +6,17 @@ import { logForDebugging } from '../utils/debug.js'
 import { getErrnoCode } from '../utils/errors.js'
 import { safeParseJSON } from '../utils/json.js'
 
-export type LifecycleLane = 'mechanical-debris' | 'semantic-state' | 'daemon-reconciliation'
-export type LifecycleKind = 'semantic' | 'cache' | 'lock' | 'claim' | 'temp' | 'log'
-export type LifecycleAction = 'remove' | 'compact' | 'rotate' | 'retain' | 'reference'
+type LifecycleLane = 'mechanical-debris' | 'semantic-state' | 'daemon-reconciliation'
+type LifecycleKind = 'semantic' | 'cache' | 'lock' | 'claim' | 'temp' | 'log'
+type LifecycleAction = 'remove' | 'compact' | 'rotate' | 'retain' | 'reference'
 
-export interface LifecycleBudget {
+interface LifecycleBudget {
   deadlineMs: number
   removalsLeft: number
   now: () => number
 }
 
-export interface LifecycleClassReceipt {
+interface LifecycleClassReceipt {
   id: string
   visited: number
   removed: number
@@ -25,7 +25,7 @@ export interface LifecycleClassReceipt {
   done: boolean
 }
 
-export interface LifecyclePassReceipt {
+interface LifecyclePassReceipt {
   receipts: LifecycleClassReceipt[]
   cycleComplete: boolean
   cycleFailures: number
@@ -33,7 +33,7 @@ export interface LifecyclePassReceipt {
   budgetExhausted: boolean
 }
 
-export interface LifecycleClassDecl {
+interface LifecycleClassDecl {
   id: string
   lane: LifecycleLane
   owner: string
@@ -50,8 +50,8 @@ export interface LifecycleClassDecl {
 
 
 const DAY_MS = 24 * 60 * 60 * 1000
-export const SEMANTIC_RETENTION_MS = 30 * DAY_MS
-export const SKELETON_RETENTION_MS = 7 * DAY_MS
+const SEMANTIC_RETENTION_MS = 30 * DAY_MS
+const SKELETON_RETENTION_MS = 7 * DAY_MS
 
 const SIDECAR_RE = /\.(claim|restamp|reap)-(\d+)-[0-9a-f]{8}$/
 

@@ -4,7 +4,7 @@ import { getKeyName, matchesBinding } from './match.js'
 import { chordToDisplayString, chordToString, type DisplayPlatform } from './parser.js'
 import type { KeybindingContextName, ParsedBinding, ParsedKeystroke } from './types.js'
 
-export type ResolveResult =
+type ResolveResult =
   | { type: 'match'; action: string }
   | { type: 'none' }
   | { type: 'unbound' }

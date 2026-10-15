@@ -13,7 +13,7 @@ import {
 import { getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
 import { daemonRecordIdentity } from './verbs.js'
 
-export interface DaemonRecordsReconcile {
+interface DaemonRecordsReconcile {
   state: 'live' | 'clean' | 'reconciled'
   cleaned: string[]
   deadPid?: number

@@ -2,7 +2,7 @@ import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constan
 import { hasSuccessfulToolCall } from '../utils/messages.js'
 import { engageTurnGuard } from './guards.js'
 
-export const STRUCTURED_OUTPUT_GUARD_ID = 'structured-output'
+const STRUCTURED_OUTPUT_GUARD_ID = 'structured-output'
 
 export function registerStructuredOutputGuard(key: string): void {
   engageTurnGuard(key, {

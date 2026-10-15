@@ -142,7 +142,7 @@ interface FinalRect {
   height: number
 }
 
-export class CellLayoutNode implements LayoutNode {
+class CellLayoutNode implements LayoutNode {
   private children: CellLayoutNode[] = []
   private parent: CellLayoutNode | null = null
 

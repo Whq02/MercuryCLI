@@ -6,7 +6,7 @@ import { BEL, ESC, SEP } from './ansi.js'
 import type { Action, Color, TabStatusAction } from './display-types.js'
 
 const OSC_PREFIX = `${ESC}]`
-export const ST = `${ESC}\\`
+const ST = `${ESC}\\`
 
 function terminator(): string {
   return env.terminal === 'kitty' ? ST : BEL
@@ -75,7 +75,7 @@ export function getClipboardPath(): ClipboardPath {
   return 'osc52'
 }
 
-export type CopyReceipt = { text: string; detail?: string }
+type CopyReceipt = { text: string; detail?: string }
 
 const COPY_RECEIPT = 'Copied to clipboard'
 const ESCAPE_TRANSFER_DETAIL = "check the terminal's clipboard settings if pasting fails"

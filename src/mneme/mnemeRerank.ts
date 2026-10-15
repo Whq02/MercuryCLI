@@ -14,7 +14,7 @@ export interface SignalCandidate {
   features: SignalFeatures & { useCount?: number }
 }
 
-export interface SignalWeights {
+interface SignalWeights {
   version: 1
   digest: string
   samples: number
@@ -40,7 +40,7 @@ function digestOf(turns: readonly SignalTurn[]): string {
   return createHash('sha256').update(JSON.stringify(turns)).digest('hex')
 }
 
-export function fitSignalWeights(turns: readonly SignalTurn[]): SignalWeights {
+function fitSignalWeights(turns: readonly SignalTurn[]): SignalWeights {
   const examples: Array<{ x: number[]; y: number }> = []
   const history: Record<string, SignalCounts> = {}
   for (const turn of turns) {

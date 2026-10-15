@@ -17,19 +17,19 @@ import type { Socket } from 'node:net'
 const OWNER_PIPE_STDIO_INDEX = 3
 const ownerPipeEnds = new Set<Socket>()
 
-export function shouldReapAutoStartedDaemon(persistEnv: string | undefined): boolean {
+function shouldReapAutoStartedDaemon(persistEnv: string | undefined): boolean {
   return persistEnv !== '1'
 }
 
-export const OWNED_SPAWN_COOLDOWN_MS = 30_000
-export const OWNED_SPAWN_SESSION_CAP = 5
+const OWNED_SPAWN_COOLDOWN_MS = 30_000
+const OWNED_SPAWN_SESSION_CAP = 5
 
-export interface OwnedSpawnHistory {
+interface OwnedSpawnHistory {
   lastAt: number
   count: number
 }
 
-export function decideOwnedSpawn(
+function decideOwnedSpawn(
   history: OwnedSpawnHistory | undefined,
   now: number,
   cooldownMs = OWNED_SPAWN_COOLDOWN_MS,
@@ -93,7 +93,7 @@ export async function shutdownOwnedDaemonGracefully(
   return alive(pid) ? 'unsettled' : 'settled'
 }
 
-export const DAEMON_GRACEFUL_WAIT_MS = 1_500
+const DAEMON_GRACEFUL_WAIT_MS = 1_500
 
 export function anotherLiveCockpitHoldsDaemon(
   exceptPid: number,
@@ -192,7 +192,7 @@ export async function restartOwnedDaemonForFreshSignin(opts?: {
   return 'asked'
 }
 
-export function pokeDaemonSignIns(opts?: {
+function pokeDaemonSignIns(opts?: {
   rpc?: (req: { op: 'signIns'; refresh: true }, o: { timeoutMs: number }) => Promise<unknown>
 }): Promise<void> {
   const rpc =

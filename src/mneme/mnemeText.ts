@@ -37,7 +37,7 @@ function measure(word: string): number {
   return m
 }
 
-export function stem(raw: string): string {
+function stem(raw: string): string {
   const word = stemLookupToken(raw.toLowerCase())
   if (!word.endsWith('e') || word.length < 3 || /[^a-z]/.test(word)) return word
   const base = word.slice(0, -1)

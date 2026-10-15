@@ -17,7 +17,7 @@ function markUnstick(scroll: { stickyScroll?: boolean }): void {
   if (scroll.stickyScroll !== false) fluxMark('scroll:unstick')
 }
 
-export type ScrollBoxProps = PropsWithChildren<
+type ScrollBoxProps = PropsWithChildren<
   Omit<Styles, 'textWrap' | 'overflow' | 'overflowX' | 'overflowY'> & {
     readonly ref?: React.Ref<ScrollBoxHandle>
     readonly stickyScroll?: boolean

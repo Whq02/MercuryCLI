@@ -1,7 +1,7 @@
 
-export const SETTLE_WINDOW_MS = 120
+const SETTLE_WINDOW_MS = 120
 
-export type ResizeGateEvent =
+type ResizeGateEvent =
   | { kind: 'storm-entered' }
   | { kind: 'storm-continues' }
   | { kind: 'settle'; cols: number; rows: number }

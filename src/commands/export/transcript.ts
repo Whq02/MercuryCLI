@@ -1,10 +1,10 @@
 import type { Message } from '../../types/message.js'
 
-export const TOOL_RESULT_CHARACTER_LIMIT = 2000
+const TOOL_RESULT_CHARACTER_LIMIT = 2000
 
 type ExportTool = { name: string; input: unknown; result: string | null }
 type ExportMessage = { role: string; at: string; text: string; tools: ExportTool[] }
-export type TranscriptExport = {
+type TranscriptExport = {
   session: { id: string; started: string | null; cwd: string; models: string[] }
   messages: ExportMessage[]
 }

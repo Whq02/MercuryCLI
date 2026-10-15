@@ -1,6 +1,6 @@
 import { conversationIdHere } from '../../services/engine-connector/focusedConnector.js'
 
-export const TESTER_DOOR_URL = 'https://mercury-cli.ai/report'
+const TESTER_DOOR_URL = 'https://mercury-cli.ai/report'
 export const TESTER_DOOR_LINE = `Something broke? ${TESTER_DOOR_URL}`
 const shown = new Set<string>()
 

@@ -16,7 +16,7 @@ interface OpenSession {
 let open: OpenSession | null = null
 let seen: OpenSession | null = null
 
-export const SESSION_CLOSERS_BUDGET_MS = 1_500
+const SESSION_CLOSERS_BUDGET_MS = 1_500
 
 export function lineageKept(): boolean {
   return mnemeEnabled() && getInitialSettings().records?.retentionDays !== 0

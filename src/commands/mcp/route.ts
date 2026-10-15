@@ -1,7 +1,7 @@
 import type { KitDialReceiptV1, McpRosterEntryV1, McpRosterV1 } from '../../services/engine-connector/types.js'
 
 
-export type McpRouteArm = 'facts' | 'panel'
+type McpRouteArm = 'facts' | 'panel'
 
 export function mcpRouteArm(roster: McpRosterV1, screenClientCount: number): McpRouteArm {
   if (roster.clients.length > 0) return 'facts'
@@ -27,7 +27,7 @@ export function kitDialLine(receipt: KitDialReceiptV1, asked: string): string {
   }
 }
 
-export function mcpRosterRow(entry: McpRosterEntryV1): string {
+function mcpRosterRow(entry: McpRosterEntryV1): string {
   const state = `${entry.name} (${entry.type})`
   return entry.error !== undefined && entry.error !== '' ? `${state} — ${entry.error}` : state
 }

@@ -81,7 +81,7 @@ export function isPinned(seq: number, dir: string = mnemeLibraryDir()): boolean 
   return readPins(dir).some(p => p.seq === seq)
 }
 
-export type PinOutcome = { ok: true; pinned: number }
+type PinOutcome = { ok: true; pinned: number }
 
 export function pinFact(
   seq: number,

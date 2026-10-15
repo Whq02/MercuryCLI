@@ -61,7 +61,7 @@ export async function handleRewindFiles(
 }
 
 
-export interface RewindSessionContext {
+interface RewindSessionContext {
   messages: Message[]
   getAppState: () => AppState
   drift: RestoreDriftOracle

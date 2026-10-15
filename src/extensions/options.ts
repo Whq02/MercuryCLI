@@ -35,9 +35,9 @@ export function substituteOptionsInContent(
   })
 }
 
-export const OPTION_ENV_PREFIX = 'MERCURY_EXTENSION_OPTION_'
+const OPTION_ENV_PREFIX = 'MERCURY_EXTENSION_OPTION_'
 
-export function optionEnvName(key: string): string {
+function optionEnvName(key: string): string {
   return `${OPTION_ENV_PREFIX}${key.replace(/[^A-Za-z0-9_]/g, '_').toUpperCase()}`
 }
 

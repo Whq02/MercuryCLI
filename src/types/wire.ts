@@ -1,15 +1,15 @@
 
 
-export type TextCitation = { type: string }
+type TextCitation = { type: string }
 
-export type CitationLocation = { type: string }
+type CitationLocation = { type: string }
 
-export type ToolCaller = { type: string; tool_id?: string }
+type ToolCaller = { type: string; tool_id?: string }
 
 
 export type TextPhase = 'commentary' | 'final_answer'
 
-export type TextBlock = {
+type TextBlock = {
   type: 'text'
   text: string
   citations: Array<TextCitation> | null
@@ -35,7 +35,7 @@ export type ToolUseBlock = {
   caller?: ToolCaller
 }
 
-export type ServerToolUseBlock = {
+type ServerToolUseBlock = {
   type: 'server_tool_use'
   id: string
   name: string
@@ -43,21 +43,21 @@ export type ServerToolUseBlock = {
   caller?: ToolCaller
 }
 
-export type WebSearchResultItem = {
+type WebSearchResultItem = {
   type: string
   title: string
   url: string
   page_age?: string | null
 }
 
-export type WebSearchToolResultBlock = {
+type WebSearchToolResultBlock = {
   type: 'web_search_tool_result'
   tool_use_id: string
   content: Array<WebSearchResultItem> | { type: string; error_code: string }
   caller?: ToolCaller
 }
 
-export type WebFetchToolResultBlock = {
+type WebFetchToolResultBlock = {
   type: 'web_fetch_tool_result'
   tool_use_id: string
   content: unknown
@@ -70,31 +70,31 @@ type AdvisorToolResultBlock = {
   content: unknown
 }
 
-export type CodeExecutionToolResultBlock = {
+type CodeExecutionToolResultBlock = {
   type: 'code_execution_tool_result'
   tool_use_id: string
   content: unknown
 }
 
-export type BashCodeExecutionToolResultBlock = {
+type BashCodeExecutionToolResultBlock = {
   type: 'bash_code_execution_tool_result'
   tool_use_id: string
   content: unknown
 }
 
-export type TextEditorCodeExecutionToolResultBlock = {
+type TextEditorCodeExecutionToolResultBlock = {
   type: 'text_editor_code_execution_tool_result'
   tool_use_id: string
   content: unknown
 }
 
-export type ToolSearchToolResultBlock = {
+type ToolSearchToolResultBlock = {
   type: 'tool_search_tool_result'
   tool_use_id: string
   content: unknown
 }
 
-export type McpToolUseBlock = {
+type McpToolUseBlock = {
   type: 'mcp_tool_use'
   id: string
   name: string
@@ -102,25 +102,25 @@ export type McpToolUseBlock = {
   server_name: string
 }
 
-export type McpToolResultBlock = {
+type McpToolResultBlock = {
   type: 'mcp_tool_result'
   tool_use_id: string
   is_error: boolean
   content: string | Array<TextBlock>
 }
 
-export type ContainerUploadBlock = {
+type ContainerUploadBlock = {
   type: 'container_upload'
   file_id: string
 }
 
-export type CompactionBlock = {
+type CompactionBlock = {
   type: 'compaction'
   content: string | null
   encrypted_content: string | null
 }
 
-export type FallbackBlock = {
+type FallbackBlock = {
   type: 'fallback'
   from: { model: string }
   to: { model: string }
@@ -146,17 +146,17 @@ export type ContentBlock =
   | FallbackBlock
 
 
-export type CacheCreation = {
+type CacheCreation = {
   ephemeral_1h_input_tokens: number
   ephemeral_5m_input_tokens: number
 }
 
-export type ServerToolUsage = {
+type ServerToolUsage = {
   web_fetch_requests: number
   web_search_requests: number
 }
 
-export type OutputTokensDetails = { thinking_tokens: number }
+type OutputTokensDetails = { thinking_tokens: number }
 
 export type ApiUsage = {
   input_tokens: number
@@ -172,7 +172,7 @@ export type ApiUsage = {
   speed: 'standard' | 'fast' | null
 }
 
-export type StopReason =
+type StopReason =
   | 'end_turn'
   | 'max_tokens'
   | 'stop_sequence'
@@ -182,7 +182,7 @@ export type StopReason =
   | 'refusal'
   | 'model_context_window_exceeded'
 
-export type RefusalStopDetails = {
+type RefusalStopDetails = {
   type: 'refusal'
   category: 'cyber' | 'bio' | 'frontier_llm' | 'reasoning_extraction' | 'general_harms' | null
   explanation: string | null
@@ -214,16 +214,16 @@ export type InputTransformation = {
 }
 
 
-export type ApiTextDelta = { type: 'text_delta'; text: string }
-export type ApiInputJsonDelta = { type: 'input_json_delta'; partial_json: string }
-export type ApiCitationsDelta = { type: 'citations_delta'; citation: CitationLocation }
-export type ApiThinkingDelta = {
+type ApiTextDelta = { type: 'text_delta'; text: string }
+type ApiInputJsonDelta = { type: 'input_json_delta'; partial_json: string }
+type ApiCitationsDelta = { type: 'citations_delta'; citation: CitationLocation }
+type ApiThinkingDelta = {
   type: 'thinking_delta'
   thinking: string
   estimated_tokens?: number | null
 }
-export type ApiSignatureDelta = { type: 'signature_delta'; signature: string }
-export type ApiCompactionDelta = {
+type ApiSignatureDelta = { type: 'signature_delta'; signature: string }
+type ApiCompactionDelta = {
   type: 'compaction_delta'
   content: string | null
   encrypted_content: string | null
@@ -247,12 +247,12 @@ export type ApiMessageDeltaUsage = {
   server_tool_use: ServerToolUsage | null
 }
 
-export type ApiMessageStartEvent = {
+type ApiMessageStartEvent = {
   type: 'message_start'
   message: ApiMessage
 }
 
-export type ApiMessageDeltaEvent = {
+type ApiMessageDeltaEvent = {
   type: 'message_delta'
   delta: {
     stop_reason: StopReason | null
@@ -262,21 +262,21 @@ export type ApiMessageDeltaEvent = {
   context_management?: unknown | null
 }
 
-export type ApiMessageStopEvent = { type: 'message_stop' }
+type ApiMessageStopEvent = { type: 'message_stop' }
 
-export type ApiContentBlockStartEvent = {
+type ApiContentBlockStartEvent = {
   type: 'content_block_start'
   index: number
   content_block: ContentBlock
 }
 
-export type ApiContentBlockDeltaEvent = {
+type ApiContentBlockDeltaEvent = {
   type: 'content_block_delta'
   index: number
   delta: ApiContentBlockDelta
 }
 
-export type ApiContentBlockStopEvent = {
+type ApiContentBlockStopEvent = {
   type: 'content_block_stop'
   index: number
 }
@@ -290,12 +290,12 @@ export type ApiStreamEvent =
   | ApiContentBlockStopEvent
 
 
-export type CacheControlEphemeral = {
+type CacheControlEphemeral = {
   type: 'ephemeral'
   ttl?: '5m' | '1h'
 }
 
-export type CitationsConfigParam = { enabled?: boolean }
+type CitationsConfigParam = { enabled?: boolean }
 
 export type Base64ImageSource = {
   type: 'base64'
@@ -303,23 +303,23 @@ export type Base64ImageSource = {
   media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
 }
 
-export type URLImageSource = { type: 'url'; url: string }
+type URLImageSource = { type: 'url'; url: string }
 
-export type Base64PDFSource = {
+type Base64PDFSource = {
   type: 'base64'
   data: string
   media_type: 'application/pdf'
 }
 
-export type PlainTextSource = {
+type PlainTextSource = {
   type: 'text'
   data: string
   media_type: 'text/plain'
 }
 
-export type URLPDFSource = { type: 'url'; url: string }
+type URLPDFSource = { type: 'url'; url: string }
 
-export type ContentBlockSource = {
+type ContentBlockSource = {
   type: 'content'
   content: string | Array<TextBlockParam | ImageBlockParam>
 }
@@ -347,7 +347,7 @@ export type DocumentBlockParam = {
   title?: string | null
 }
 
-export type SearchResultBlockParam = {
+type SearchResultBlockParam = {
   type: 'search_result'
   content: Array<TextBlockParam>
   source: string
@@ -376,7 +376,7 @@ export type ToolUseBlockParam = {
   caller?: ToolCaller
 }
 
-export type ToolReferenceBlockParam = {
+type ToolReferenceBlockParam = {
   type: 'tool_reference'
   tool_name: string
   cache_control?: CacheControlEphemeral | null
@@ -398,7 +398,7 @@ export type ToolResultBlockParam = {
   is_error?: boolean
 }
 
-export type ServerToolUseBlockParam = {
+type ServerToolUseBlockParam = {
   type: 'server_tool_use'
   id: string
   name: string
@@ -407,7 +407,7 @@ export type ServerToolUseBlockParam = {
   caller?: ToolCaller
 }
 
-export type WebSearchToolResultBlockParam = {
+type WebSearchToolResultBlockParam = {
   type: 'web_search_tool_result'
   tool_use_id: string
   content: unknown
@@ -415,7 +415,7 @@ export type WebSearchToolResultBlockParam = {
   caller?: ToolCaller
 }
 
-export type WebFetchToolResultBlockParam = {
+type WebFetchToolResultBlockParam = {
   type: 'web_fetch_tool_result'
   tool_use_id: string
   content: unknown
@@ -423,41 +423,41 @@ export type WebFetchToolResultBlockParam = {
   caller?: ToolCaller
 }
 
-export type CodeExecutionToolResultBlockParam = {
+type CodeExecutionToolResultBlockParam = {
   type: 'code_execution_tool_result'
   tool_use_id: string
   content: unknown
   cache_control?: CacheControlEphemeral | null
 }
 
-export type BashCodeExecutionToolResultBlockParam = {
+type BashCodeExecutionToolResultBlockParam = {
   type: 'bash_code_execution_tool_result'
   tool_use_id: string
   content: unknown
   cache_control?: CacheControlEphemeral | null
 }
 
-export type TextEditorCodeExecutionToolResultBlockParam = {
+type TextEditorCodeExecutionToolResultBlockParam = {
   type: 'text_editor_code_execution_tool_result'
   tool_use_id: string
   content: unknown
   cache_control?: CacheControlEphemeral | null
 }
 
-export type ToolSearchToolResultBlockParam = {
+type ToolSearchToolResultBlockParam = {
   type: 'tool_search_tool_result'
   tool_use_id: string
   content: unknown
   cache_control?: CacheControlEphemeral | null
 }
 
-export type ContainerUploadBlockParam = {
+type ContainerUploadBlockParam = {
   type: 'container_upload'
   file_id: string
   cache_control?: CacheControlEphemeral | null
 }
 
-export type MidConversationSystemBlockParam = {
+type MidConversationSystemBlockParam = {
   type: 'mid_conv_system'
   content: Array<TextBlockParam>
   cache_control?: CacheControlEphemeral | null
@@ -515,7 +515,7 @@ export type ApiTool = {
   type?: 'custom' | null
 }
 
-export type ServerToolDescriptor = {
+type ServerToolDescriptor = {
   name: string
   type: string
   allowed_callers?: Array<string>

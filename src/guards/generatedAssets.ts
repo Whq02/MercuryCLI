@@ -43,7 +43,7 @@ export function repoPathsIn(text: string): string[] {
   return [...out]
 }
 
-export interface AssetVerdictInput {
+interface AssetVerdictInput {
   rows: readonly GeneratedAssetRow[]
   commitPaths: readonly string[]
   contentOf: (path: string) => string | null
@@ -52,7 +52,7 @@ export interface AssetVerdictInput {
   chainedVerifies: readonly string[]
 }
 
-export interface OwedAsset {
+interface OwedAsset {
   row: GeneratedAssetRow
   touched: { path: string; source: string }[]
 }
@@ -144,7 +144,7 @@ export function assetRowFor(path: string, rows: readonly GeneratedAssetRow[]): G
   return rows.find(row => row.assets.some(asset => pathMatches(path, asset))) ?? null
 }
 
-export interface UnregisteredGeneratedFile {
+interface UnregisteredGeneratedFile {
   path: string
   declares: string
 }

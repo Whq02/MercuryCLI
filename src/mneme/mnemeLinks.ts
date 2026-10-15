@@ -22,7 +22,7 @@ export function liftLinked(order: readonly string[], linked: ReadonlySet<string>
   return out
 }
 
-export function flowedUsage(docs: readonly MnemeTopicDoc[], usage: Readonly<Record<string, UsageRecord>>): Record<string, UsageRecord> {
+function flowedUsage(docs: readonly MnemeTopicDoc[], usage: Readonly<Record<string, UsageRecord>>): Record<string, UsageRecord> {
   const supersedesOf = new Map<number, string>()
   for (const doc of docs) {
     for (const entry of doc.history) if (entry.supersedes) supersedesOf.set(entry.seq, entry.supersedes)

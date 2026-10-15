@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 import type { PromptParts } from './composer.js'
 
-export type BehaviourGroup =
+type BehaviourGroup =
   | 'static'
   | 'boundary'
   | 'dynamic'
@@ -11,11 +11,11 @@ export type BehaviourGroup =
   | 'context'
   | 'segment'
 
-export type BehaviourScope = 'all' | 'anthropic-only' | 'openai-only'
+type BehaviourScope = 'all' | 'anthropic-only' | 'openai-only'
 
-export type BehaviourCacheClass = 'stable' | 'session' | 'turn'
+type BehaviourCacheClass = 'stable' | 'session' | 'turn'
 
-export interface BehaviourSection {
+interface BehaviourSection {
   group: BehaviourGroup
   name: string
   scope: BehaviourScope
@@ -62,7 +62,7 @@ const GROUP_OWNERS: Readonly<Record<BehaviourGroup, string>> = {
   segment: 'unresolved (raw decode)',
 }
 
-export function ownerFor(group: BehaviourGroup, name: string): string {
+function ownerFor(group: BehaviourGroup, name: string): string {
   return SECTION_OWNERS.get(`${group}:${name}`) ?? GROUP_OWNERS[group]
 }
 
@@ -237,7 +237,7 @@ export function __resetBehaviourContractRegistryForTest(): void {
 }
 
 
-export interface ModePackSection {
+interface ModePackSection {
   id: string
   kind: string
   text: string

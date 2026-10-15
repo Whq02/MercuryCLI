@@ -8,7 +8,7 @@ export const CHOKE_RETRY_MS = 10
 
 export type PaintKind = 'normal' | 'input' | 'holding' | 'settled'
 
-export interface SchedulerDeps {
+interface SchedulerDeps {
   paint(kind: PaintKind): number
   owedBytes(): number
   clock: EngineClock

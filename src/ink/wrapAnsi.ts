@@ -1,7 +1,7 @@
 
 import bundledWrapAnsi from 'wrap-ansi'
 
-export type WrapAnsiOptions = {
+type WrapAnsiOptions = {
   hard?: boolean
   wordWrap?: boolean
   trim?: boolean

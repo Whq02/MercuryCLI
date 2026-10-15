@@ -35,13 +35,13 @@ import {
 export type { PermissionApprovalSource, PermissionRejectionSource }
 
 
-export type PermissionQueueOps = {
+type PermissionQueueOps = {
   push(entry: ToolUseConfirm): void
   remove(toolUseID: string): void
   update(toolUseID: string, patch: Partial<ToolUseConfirm>): void
 }
 
-export type ResolveOnce<T> = {
+type ResolveOnce<T> = {
   resolve(value: T): void
   isResolved(): boolean
   claim(): boolean

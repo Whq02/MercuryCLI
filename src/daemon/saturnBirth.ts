@@ -2,7 +2,7 @@ import type { ConcourseAdmitRequest, ConcourseAdmitResult } from './concourseWor
 import { rowSaturnTickReceipt, type SaturnBirthSpecV1 } from './saturn.js'
 import type { SaturnTickerPortsV1 } from './saturnTicker.js'
 
-export interface SaturnBirthDoorsV1 {
+interface SaturnBirthDoorsV1 {
   dispatch(req: {
     clientMessageId: string
     prompt: string

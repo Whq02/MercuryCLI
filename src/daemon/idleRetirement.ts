@@ -29,7 +29,7 @@ export function concourseNewbornGraceMs(): number {
   )
 }
 
-export const DEFAULT_SESSION_PARK_DRAIN_MINUTES = 10
+const DEFAULT_SESSION_PARK_DRAIN_MINUTES = 10
 
 export function sessionParkDrainMs(): number {
   return minutesKnobToMs(flagEnv('MERCURY_SESSION_PARK_DRAIN_MINUTES'), DEFAULT_SESSION_PARK_DRAIN_MINUTES)
@@ -37,7 +37,7 @@ export function sessionParkDrainMs(): number {
 
 const CONVERSATION_PROBE_BYTES = 256 * 1024
 
-export type IdleRetirementFacts = {
+type IdleRetirementFacts = {
   rec: Pick<
     ConcourseWorkerRecordV1,
     | 'spawnedAt'
@@ -60,7 +60,7 @@ export type IdleRetirementFacts = {
   newbornGraceMs?: number
 }
 
-export type IdleRetirementDecision =
+type IdleRetirementDecision =
   | { retire: true; idleMs: number }
   | { retire: false; reason: 'disabled' | 'ended' | 'parked' | 'stopped' | 'not-live' | 'paused' | 'attached' | 'turn-in-flight' | 'newborn' | 'has-conversation' | 'pending-work' | 'not-idle-long-enough' }
 
@@ -137,7 +137,7 @@ export function transcriptHasConversation(rec: { sessionId: string; workspaceId:
   }
 }
 
-export function sessionHasPendingWork(sessionId: string, dir?: string): boolean {
+function sessionHasPendingWork(sessionId: string, dir?: string): boolean {
   for (const row of Object.values(readConcourseDispatches(dir))) {
     if (row.sessionId !== sessionId) continue
     if (row.deliveredAt !== undefined) continue
@@ -147,7 +147,7 @@ export function sessionHasPendingWork(sessionId: string, dir?: string): boolean 
   return false
 }
 
-export interface RetiredSession {
+interface RetiredSession {
   sessionId: string
   runnerId: string
   idleMs: number

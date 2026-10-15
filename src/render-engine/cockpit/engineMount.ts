@@ -11,7 +11,7 @@ import { MarkdownBlockBoundary } from './markdownBoundary.js'
 import { RecordFold } from './recordFold.js'
 import { bindTerminalDoor, terminalOwedBytes, unbindTerminalDoor } from './terminalOut.js'
 
-export interface CockpitEngineMetrics {
+interface CockpitEngineMetrics {
   paints: number
   inputPaints: number
   chokeDeferrals: number
@@ -61,11 +61,11 @@ export function cockpitEngine(): CockpitEngine | null {
   return mounted
 }
 
-export function engineAssertionsArmed(): boolean {
+function engineAssertionsArmed(): boolean {
   return process.env.MERCURY_ENGINE_ASSERT === '1'
 }
 
-export interface MountOptions {
+interface MountOptions {
   stdout: Writable & { isTTY?: boolean; fd?: number }
   columns: number
   syncOutputNow?: () => boolean

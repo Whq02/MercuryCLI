@@ -602,7 +602,7 @@ function toCell(atom: ParsedMouse): { col: number; row: number } {
   return { col: atom.col - 1, row: atom.row - 1 }
 }
 
-export function isDragMotion(atom: ParsedInput): boolean {
+function isDragMotion(atom: ParsedInput): boolean {
   return (
     atom.kind === 'mouse' &&
     atom.action === 'press' &&

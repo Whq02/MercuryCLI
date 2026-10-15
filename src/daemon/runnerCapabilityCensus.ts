@@ -3,7 +3,7 @@ import { liveBrowserSessionCensus } from '../services/browser/browserSession.js'
 import { liveServiceChildren } from '../services/projectServices/serviceManager.js'
 import { liveDapSessionCount } from '../services/dap/dapClient.js'
 
-export type CapabilityHold = { kind: string; count: number; external: boolean }
+type CapabilityHold = { kind: string; count: number; external: boolean }
 
 export function runnerCapabilityHolds(io?: { pendingControlRequestCount(): number }): CapabilityHold[] {
   const holds: CapabilityHold[] = []

@@ -6,7 +6,7 @@ export type EventTarget = {
   _eventHandlers?: Record<string, unknown>
 }
 
-export type EventPhase = 'none' | 'capturing' | 'at_target' | 'bubbling'
+type EventPhase = 'none' | 'capturing' | 'at_target' | 'bubbling'
 
 export class TerminalEvent extends Event {
   readonly type: string

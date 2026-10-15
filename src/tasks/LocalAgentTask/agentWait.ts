@@ -1,5 +1,5 @@
 
-export type AgentWaitPhase =
+type AgentWaitPhase =
   | 'request-sent'
   | 'first-byte'
   | 'retry'

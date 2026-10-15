@@ -15,7 +15,7 @@ export type BashProgress = {
   budgetMs?: number
 }
 
-export type TestProgress = {
+type TestProgress = {
   type: 'test_progress'
   line: string
   elapsedTimeSeconds: number

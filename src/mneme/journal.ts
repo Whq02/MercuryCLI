@@ -10,7 +10,7 @@ import { registerSessionCloseAsk, registerSessionCloser, type SessionCloseAsk, t
 import { JOURNAL_ENTRY_SHAPE, JOURNAL_TOOL_NAME } from '../tools/JournalTool/prompt.js'
 
 export const JOURNAL_ENTRY_CAP = 4000
-export const JOURNAL_FILE = 'journal.md'
+const JOURNAL_FILE = 'journal.md'
 
 const ENTRY_MARK = /^## (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))$/
 
@@ -98,9 +98,9 @@ export function appendJournalEntry(projectKey: string, text: string): JournalEnt
 const staged = new Map<string, string>()
 let closerInstalled: (() => void) | null = null
 
-export const EPHEMERAL_JOURNAL_REFUSAL = 'this run is ephemeral (--ephemeral): nothing of it is kept, the journal included'
+const EPHEMERAL_JOURNAL_REFUSAL = 'this run is ephemeral (--ephemeral): nothing of it is kept, the journal included'
 
-export function journalStageRefusal(text: string): string | null {
+function journalStageRefusal(text: string): string | null {
   if (!journalEnabled()) return 'the session journal is off (memory.journal in /config)'
   if (isSessionPersistenceDisabled()) return EPHEMERAL_JOURNAL_REFUSAL
   const body = text.trim()
@@ -123,7 +123,7 @@ export function stagedJournalEntry(sessionId: string): string | null {
   return staged.get(sessionId) ?? null
 }
 
-export async function journalCloser(ctx: SessionCloseContext): Promise<void> {
+async function journalCloser(ctx: SessionCloseContext): Promise<void> {
   const text = staged.get(ctx.sessionId)
   staged.delete(ctx.sessionId)
   if (text === undefined || !journalEnabled()) return
@@ -134,7 +134,7 @@ export async function journalCloser(ctx: SessionCloseContext): Promise<void> {
   }
 }
 
-export function installJournalCloser(): void {
+function installJournalCloser(): void {
   if (closerInstalled !== null) return
   closerInstalled = registerSessionCloser(journalCloser)
 }

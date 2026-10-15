@@ -8,7 +8,7 @@ export function stripGroundNote(raw: string): string {
   return cut >= 0 ? raw.slice(cut + 2) : ''
 }
 
-export interface IsolationFactV1 {
+interface IsolationFactV1 {
   isolation: 'exclusive' | 'shared' | 'worktree-isolated' | 'read-only'
   workspaceId: string
   branchName?: string

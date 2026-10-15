@@ -33,7 +33,7 @@ export { reloadExtensions }
 
 const RETIRED_FOLDER = ['plug', 'ins'].join('')
 
-export function reconcileRetiredState(home: string = getMercuryHome()): { removed: string | null } {
+function reconcileRetiredState(home: string = getMercuryHome()): { removed: string | null } {
   const retired = join(resolve(home), RETIRED_FOLDER)
   try {
     if (!existsSync(retired) || !statSync(retired).isDirectory()) return { removed: null }
@@ -90,7 +90,7 @@ export function installExtensionsChangeSubscription(): void {
 }
 
 
-export type ExtensionsHealthRow = HealthSummary & { problems: string[]; brokenReasons: Array<{ id: string; reason: string }> }
+type ExtensionsHealthRow = HealthSummary & { problems: string[]; brokenReasons: Array<{ id: string; reason: string }> }
 
 export function extensionsHealthRow(): ExtensionsHealthRow {
   const set = hasActiveSet() ? getActiveSet() : computeActiveSet()
@@ -102,7 +102,7 @@ export function extensionsHealthRow(): ExtensionsHealthRow {
   return { ...summary, problems: set.roster.problems, brokenReasons }
 }
 
-export type ReadinessRow = {
+type ReadinessRow = {
   id: string
   kind: 'extension'
   label: string

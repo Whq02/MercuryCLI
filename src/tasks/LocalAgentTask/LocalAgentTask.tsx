@@ -66,7 +66,7 @@ export type ToolActivity = {
   isRead?: boolean
 }
 
-export type AgentProgress = {
+type AgentProgress = {
   toolUseCount: number
   tokenCount: number
   totalTokens?: number
@@ -83,7 +83,7 @@ export type AgentProgress = {
   phase?: AgentWaitV1
 }
 
-export type AgentLedger = {
+type AgentLedger = {
   inputTokens: number
   outputTokens: number
   cacheReadTokens: number
@@ -323,7 +323,7 @@ export const AGENT_STOP_BY_OPERATOR = 'crew-stop'
 export const AGENT_INTERRUPT_BY_OPERATOR = 'operator-interrupt'
 export const AGENT_INTERRUPTED_STATUS_WORD = 'interrupted'
 export const AGENT_INTERRUPTED_WORDS = CREW_INTERRUPTED_BY_OPERATOR_WORDS
-export const AGENT_INTERRUPTED_NOTE = 'the operator cut it off on purpose — not a fault, not a loop stop'
+const AGENT_INTERRUPTED_NOTE = 'the operator cut it off on purpose — not a fault, not a loop stop'
 
 export function agentStopReasonOf(signalReason: unknown): string | undefined {
   if (signalReason === AGENT_STOP_BY_OPERATOR) return 'stopped from the crew view'
@@ -488,11 +488,11 @@ function resolveBackgroundSignal(taskId: string): void {
   }
 }
 
-export type AgentSiblingEnd = { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
+type AgentSiblingEnd = { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
 
 const siblingEnds = new Map<string, AgentSiblingEnd>()
 
-export function releaseForegroundSiblings(end: AgentSiblingEnd, setAppState: SetAppState): string[] {
+function releaseForegroundSiblings(end: AgentSiblingEnd, setAppState: SetAppState): string[] {
   const released: string[] = []
   for (const taskId of [...backgroundSignalResolvers.keys()]) {
     if (taskId === end.taskId) continue
@@ -988,7 +988,7 @@ export function appendMessageToLocalAgent(
 
 export const NOTIFICATION_RESULT_CAP_CHARS = 16_000
 
-export function landedWritesWords(paths: readonly string[]): string {
+function landedWritesWords(paths: readonly string[]): string {
   if (paths.length === 0) return 'no file writes landed'
   return `${paths.length} file write${paths.length === 1 ? '' : 's'} landed: ${paths.join(', ')}`
 }

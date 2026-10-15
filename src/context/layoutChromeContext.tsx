@@ -6,7 +6,7 @@ import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import { settingsRevision } from '../utils/settings/snapshot.js'
 import type { CompactFrameBudget } from '../components/mercury-ui/geometry.js'
 
-export type LayoutChromeState = Readonly<{
+type LayoutChromeState = Readonly<{
   realColumns: number
   realRows: number
   fullscreen: boolean

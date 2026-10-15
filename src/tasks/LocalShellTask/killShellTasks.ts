@@ -14,7 +14,7 @@ const KILL_SETTLEMENT_GRACE_MS = 3000
 
 const TREE_RECEIPT_BOUND_MS = 1500
 
-export type KillSettlement =
+type KillSettlement =
   | { settled: true; exitCode: number; interrupted: boolean; processesEnded?: number; processSurvivors?: number }
   | { settled: true; exitCode: undefined; reason: 'not-running' }
   | { settled: false; reason: 'settlement-grace-expired' }

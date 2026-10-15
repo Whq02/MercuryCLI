@@ -6,11 +6,11 @@ export type HostAskLiveness = {
   stop(): void
 }
 
-export function hostAskHeartbeatMs(limitMs: number): number {
+function hostAskHeartbeatMs(limitMs: number): number {
   return Math.max(1_000, Math.min(30_000, Math.floor(limitMs / 4)))
 }
 
-export function unansweredWithinLimitCause(limitMs: number): string {
+function unansweredWithinLimitCause(limitMs: number): string {
   return `nobody answered within ${formatLimit(limitMs)}, the turn's no-progress limit`
 }
 

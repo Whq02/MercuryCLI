@@ -7,7 +7,7 @@ import {
 
 type SectionValue = string | null
 
-export type SystemPromptSection = {
+type SystemPromptSection = {
   name: string
   compute: () => SectionValue | Promise<SectionValue>
   computeKey: (() => string | null) | null

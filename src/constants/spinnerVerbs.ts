@@ -2,7 +2,7 @@ import { randomInt } from 'node:crypto'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 
-export type QuicksilverMode = 'off' | 'mixed' | 'only'
+type QuicksilverMode = 'off' | 'mixed' | 'only'
 
 export function quicksilverMode(): QuicksilverMode {
   const raw = flagEnv('MERCURY_HIP')

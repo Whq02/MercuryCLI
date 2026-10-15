@@ -46,7 +46,7 @@ let lastRefreshAt = 0
 let lastIndexMtimeMs: number | null = null
 let indexKey: string | null = null
 
-export function fileSuggestionIndexKey(): string {
+function fileSuggestionIndexKey(): string {
   return `${getMercuryHome()}\u0000${getCwd()}`
 }
 const buildCompleteListeners = new Set<() => void>()
@@ -408,7 +408,7 @@ function topLevelListing(): SuggestionItem[] {
 
 const FILE_SUGGESTER_TIMEOUT_MS = 5000
 
-export async function fileSuggestionsFromCommand(command: string, query: string): Promise<string[]> {
+async function fileSuggestionsFromCommand(command: string, query: string): Promise<string[]> {
   if (hooksDisabled()) return []
   const sessionId = String(getSessionId())
   const payload: FileSuggestionCommandInput = { session_id: sessionId, transcript_path: getTranscriptPathForSession(sessionId), cwd: getCwd(), query }

@@ -50,11 +50,11 @@ export type RuleAuthority = 'card' | 'sovereign'
 
 export const SOVEREIGN_SOURCE_MARK = ' sovereign'
 
-export function authoritySource(source: string, authority: RuleAuthority | undefined): string {
+function authoritySource(source: string, authority: RuleAuthority | undefined): string {
   return authority === 'sovereign' ? `${source}${SOVEREIGN_SOURCE_MARK}` : source
 }
 
-export function replacementTarget(
+function replacementTarget(
   spec: string,
   dir: string,
   authority?: RuleAuthority,
@@ -74,7 +74,7 @@ export type RetainItemOutcome =
   | { index: number; status: 'already-staged'; id: string }
   | { index: number; status: 'refused'; reason: string; conflict?: ContradictionCandidate }
 
-export interface RetainGuard {
+interface RetainGuard {
   verdicts?: ReadonlyMap<number, readonly ContradictionVerdict[]>
   guard?: 'on' | 'off'
 }

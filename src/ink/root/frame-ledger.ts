@@ -1,7 +1,7 @@
 import { logForDebugging } from 'src/utils/debug.js'
 import { fluxCount } from '../../utils/flux/fluxProbe.js'
 
-export type ContaminationReason =
+type ContaminationReason =
   | 'selection-overlay'
   | 'search-overlay'
   | 'undelivered'

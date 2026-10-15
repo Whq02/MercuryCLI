@@ -28,16 +28,16 @@ import type { RosterEntry } from './types.js'
 import { validatePath } from './validate.js'
 import readmeTemplateText from '../../docs/templates/extension-source-README.md'
 
-export type CliIo = {
+type CliIo = {
   out: (line: string) => void
   err: (line: string) => void
   interactive: boolean
   ask?: (question: string) => Promise<boolean>
 }
 
-export type CliResult = { exit: number }
+type CliResult = { exit: number }
 
-export const defaultIo: CliIo = {
+const defaultIo: CliIo = {
   out: line => process.stdout.write(line + '\n'),
   err: line => process.stderr.write(line + '\n'),
   interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
@@ -79,7 +79,7 @@ function noteFor(entry: RosterEntry): string {
   return notes.join(' · ')
 }
 
-export type ListRow = {
+type ListRow = {
   id: string
   name: string
   version: string
@@ -125,7 +125,7 @@ export function listRows(): { rows: ListRow[]; problems: string[] } {
   return { rows, problems: set.roster.problems }
 }
 
-export type SourceJsonRow = {
+type SourceJsonRow = {
   label: string
   kind: string
   where: string
@@ -546,11 +546,11 @@ export async function validateVerb(path: string, options: { json?: boolean }, io
 }
 
 
-export function readmeTemplate(): string {
+function readmeTemplate(): string {
   return readmeTemplateText
 }
 
-export function fillReadmeTemplate(values: { name: string; url: string; extensions: string[]; needs: string[]; maintainer: string; license: string }): string {
+function fillReadmeTemplate(values: { name: string; url: string; extensions: string[]; needs: string[]; maintainer: string; license: string }): string {
   return readmeTemplate()
     .replaceAll('{{SOURCE_NAME}}', values.name)
     .replaceAll('{{SOURCE_URL}}', values.url)

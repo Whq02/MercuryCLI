@@ -13,10 +13,10 @@ import {
   type LayoutNode,
 } from './layout/node.js'
 
-export type RGBColor = `rgb(${string})`
+type RGBColor = `rgb(${string})`
 export type HexColor = `#${string}`
 type Ansi256Color = `ansi256(${string})`
-export type AnsiColor = `ansi:${string}`
+type AnsiColor = `ansi:${string}`
 export type Color = RGBColor | HexColor | Ansi256Color | AnsiColor
 
 export type TextStyles = {

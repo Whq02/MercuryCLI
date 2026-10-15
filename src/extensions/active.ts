@@ -27,7 +27,7 @@ export type ActiveSet = {
 let current: ActiveSet | null = null
 let runtimeFacts: RuntimeFacts = {}
 
-export function setRuntimeFacts(facts: RuntimeFacts): void {
+function setRuntimeFacts(facts: RuntimeFacts): void {
   runtimeFacts = facts
 }
 

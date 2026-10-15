@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { InputEvent, Key } from '../events/input-event.js'
 import useStdin from './use-stdin.js'
 
-export type InputHandler = (input: string, key: Key, event: InputEvent) => void
+type InputHandler = (input: string, key: Key, event: InputEvent) => void
 
 type Options = {
   isActive?: boolean

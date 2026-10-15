@@ -5,7 +5,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { fileNameFor, parseTopicDoc, serializeTopicDoc, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 
-export interface LibraryMeta {
+interface LibraryMeta {
   version: 1
   seqCounter: number
   lastConsolidatedAt: string | null

@@ -1,5 +1,5 @@
 
-export type AgentPauseWhy = 'usage limit' | 'provider busy' | 'provider overloaded'
+type AgentPauseWhy = 'usage limit' | 'provider busy' | 'provider overloaded'
 
 export type AgentPauseV1 = {
   why: AgentPauseWhy

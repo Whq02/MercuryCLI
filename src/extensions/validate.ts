@@ -5,7 +5,7 @@ import { resolveContributions, realProbes, type Probes } from './load/contributi
 import { contributionsHash, extensionId, readManifest, shortHash } from './manifest.js'
 import { CATALOGUE_FILE, MANIFEST_FILE } from './paths.js'
 
-export type ValidationReport = {
+type ValidationReport = {
   kind: 'extension' | 'source' | 'none'
   path: string
   ok: boolean

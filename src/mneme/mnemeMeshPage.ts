@@ -10,12 +10,12 @@ import type { LedgerEntry } from './types.js'
 
 export const MESH_PAGE_NAME = 'memory-mesh'
 export const MESH_PAGE_TITLE = 'Memory — the library as a page'
-export const MESH_FIRST_WORDS = 8
+const MESH_FIRST_WORDS = 8
 
-export type MeshNodeKind = 'fact' | 'ruling' | 'pending' | 'history' | 'session'
-export type MeshEdgeKind = 'supersedes' | 'ruling' | 'session'
+type MeshNodeKind = 'fact' | 'ruling' | 'pending' | 'history' | 'session'
+type MeshEdgeKind = 'supersedes' | 'ruling' | 'session'
 
-export interface MeshNode {
+interface MeshNode {
   id: string
   kind: MeshNodeKind
   firstWords: string
@@ -29,13 +29,13 @@ export interface MeshNode {
   counts: SignalCounts
 }
 
-export interface MeshEdge {
+interface MeshEdge {
   from: string
   to: string
   kind: MeshEdgeKind
 }
 
-export interface MemoryMesh {
+interface MemoryMesh {
   nodes: MeshNode[]
   edges: MeshEdge[]
   outside: number
@@ -43,7 +43,7 @@ export interface MemoryMesh {
   at: string
 }
 
-export function firstWords(text: string, n: number = MESH_FIRST_WORDS): string {
+function firstWords(text: string, n: number = MESH_FIRST_WORDS): string {
   const words = text.trim().split(/\s+/).filter(Boolean)
   return words.length <= n ? words.join(' ') : `${words.slice(0, n).join(' ')} …`
 }

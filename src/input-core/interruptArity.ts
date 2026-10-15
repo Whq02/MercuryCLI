@@ -1,17 +1,17 @@
 
-export interface InterruptArityDeclarationV1 {
+interface InterruptArityDeclarationV1 {
   arity: 1 | 2
   hint?: string
   windowMs?: number
 }
 
-export interface InterruptArityResolvedV1 {
+interface InterruptArityResolvedV1 {
   arity: 1 | 2
   hint: string
   windowMs: number
 }
 
-export type InterruptPressV1 =
+type InterruptPressV1 =
   | { fire: true }
   | { fire: false; hint: string; windowMs: number }
 

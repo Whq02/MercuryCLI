@@ -12,7 +12,7 @@ export function pageFileForSlug(slug: string): string {
   return slug.startsWith(ARCHIVE_PREFIX) ? archiveFileName(slug.slice(ARCHIVE_PREFIX.length)) : docFileName(slug)
 }
 
-export interface MnemeCatalogRow {
+interface MnemeCatalogRow {
   id: string
   slug: string
   summary: string
@@ -30,7 +30,7 @@ export function catalogDocs(dir: string = mnemeLibraryDir()): MnemeCatalogRow[] 
   }))
 }
 
-export interface MnemeGrepHit {
+interface MnemeGrepHit {
   slug: string
   line: number
   text: string
@@ -108,7 +108,7 @@ export function grepAll(pattern: string, opts: { maxHits?: number; dir?: string 
   return [...docHits, ...pending].slice(0, maxHits)
 }
 
-export interface MnemePendingSummary {
+interface MnemePendingSummary {
   count: number
   topics: string[]
   newest: string
@@ -130,7 +130,7 @@ export function grepDoc(slug: string, pattern: string, opts: { maxHits?: number;
   return out
 }
 
-export interface MnemeReadResult {
+interface MnemeReadResult {
   slug: string
   from: number
   to: number

@@ -19,9 +19,9 @@ import {
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
 
-export type MnemeMaintenanceTrigger = 'boot' | 'turn-end' | 'retain' | 'operator'
+type MnemeMaintenanceTrigger = 'boot' | 'turn-end' | 'retain' | 'operator'
 
-export interface MnemeStatus {
+interface MnemeStatus {
   enabled: boolean
   buffered: number
   pendingConsuming: number
@@ -35,7 +35,7 @@ export interface MnemeStatus {
   degraded: string[]
 }
 
-export interface MnemeMaintenanceOutcome {
+interface MnemeMaintenanceOutcome {
   ran: boolean
   trigger: MnemeMaintenanceTrigger
   reason: string

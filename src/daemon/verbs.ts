@@ -1,7 +1,7 @@
 import { isAbsolute } from 'node:path'
 import { statSync } from 'node:fs'
 
-export type DaemonVerb =
+type DaemonVerb =
   | { kind: 'run'; args: string[] }
   | { kind: 'status' }
   | { kind: 'stop' }
@@ -100,14 +100,14 @@ export function startTokenEpochMs(token: string): number | null {
 
 export const START_TOKEN_SKEW_MS = 5_000
 
-export type StaleStopVerdict = 'sweep-recycled' | 'alive-refuse' | 'unknown-refuse'
+type StaleStopVerdict = 'sweep-recycled' | 'alive-refuse' | 'unknown-refuse'
 
 export function staleStopVerdict(recordStartedAtMs: number, liveTokenEpochMs: number | null): StaleStopVerdict {
   if (liveTokenEpochMs === null) return 'unknown-refuse'
   return liveTokenEpochMs > recordStartedAtMs + START_TOKEN_SKEW_MS ? 'sweep-recycled' : 'alive-refuse'
 }
 
-export type DaemonIdentityVerdict = 'same-process' | 'not-recorded-process' | 'unknown'
+type DaemonIdentityVerdict = 'same-process' | 'not-recorded-process' | 'unknown'
 
 export function daemonRecordIdentity(
   rec: { startedAt: number; startToken?: string | null },

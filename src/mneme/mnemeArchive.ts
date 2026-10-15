@@ -6,7 +6,7 @@ export const INDEX_LIMIT = 40
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export interface TidyInput {
+interface TidyInput {
   topics: Map<string, MnemeTopicDoc>
   archives: Map<string, MnemeTopicDoc>
   pins: readonly PinRecord[]

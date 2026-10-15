@@ -39,7 +39,7 @@ function safeMemoryPrompt(verbs: 'all' | 'read'): string | null {
   }
 }
 
-export function memoryVerbsFor(agentDefinition: Pick<AgentDefinition, 'agentType'>, toolNames?: ReadonlySet<string>): 'all' | 'read' {
+function memoryVerbsFor(agentDefinition: Pick<AgentDefinition, 'agentType'>, toolNames?: ReadonlySet<string>): 'all' | 'read' {
   if (agentDefinition.agentType === MERCURY_SCOUT_AGENT.agentType) return 'read'
   if (toolNames !== undefined && !toolNames.has(RETAIN_TOOL_NAME)) return 'read'
   return 'all'

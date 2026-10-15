@@ -40,7 +40,7 @@ export const DAEMON_PROTO_SHAPE = 'sha256:951616021beb2b990b331bd575fe51e47ec3fd
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
-export type DaemonErrorCode =
+type DaemonErrorCode =
   | 'ENOCONN'
   | 'ETIMEOUT'
   | 'ESTARTING'

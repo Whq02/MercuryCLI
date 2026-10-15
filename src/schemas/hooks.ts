@@ -46,7 +46,7 @@ export function hookEntryName(entry: HookEntry): string {
   return hookEntryText(entry).split('\n')[0] ?? ''
 }
 
-export function hookEntryFaults(entry: HookEntry): string[] {
+function hookEntryFaults(entry: HookEntry): string[] {
   const faults: string[] = []
   const kinds = [entry.run, entry.question, entry.crewmate].filter(field => field !== undefined).length
   if (kinds !== 1) faults.push('a hook names exactly one of run, question or crewmate')
@@ -62,7 +62,7 @@ export function hookEntryFaults(entry: HookEntry): string[] {
   return faults
 }
 
-export function hookEntryEventFaults(event: HookEvent, entry: HookEntry): string[] {
+function hookEntryEventFaults(event: HookEvent, entry: HookEntry): string[] {
   const faults: string[] = []
   const row = hookEventTable[event]
   if (entry.match !== undefined && row.match === undefined) faults.push(`${event} has no match field; remove match`)
@@ -120,7 +120,7 @@ export const HooksSchema = lazySchema(() =>
 
 export type HooksSettings = Partial<Record<HookEvent, HookEntry[]>>
 
-export type HooksMapReading = { hooks: HooksSettings; faults: string[] }
+type HooksMapReading = { hooks: HooksSettings; faults: string[] }
 
 export function readHooksMap(raw: unknown): HooksMapReading {
   if (raw === undefined || raw === null) return { hooks: {}, faults: [] }

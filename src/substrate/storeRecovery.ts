@@ -9,7 +9,7 @@ const MAX_QUARANTINE_COPIES = 3
 
 const MAX_LEDGER_ROWS = 500
 
-export interface StoreRecoveryEvent {
+interface StoreRecoveryEvent {
   ts: string
   store: string
   path: string
@@ -19,7 +19,7 @@ export interface StoreRecoveryEvent {
   kind?: 'quarantine' | 'read-degrade' | 'refused'
 }
 
-export function storeRecoveryLedgerPath(): string {
+function storeRecoveryLedgerPath(): string {
   return join(getMercuryHome(), 'recovery', 'store-recovery.jsonl')
 }
 

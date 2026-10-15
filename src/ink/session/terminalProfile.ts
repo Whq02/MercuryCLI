@@ -13,9 +13,9 @@ import {
 
 export const TERMINAL_PROFILE_VERSION = 1
 
-export type ProfileRequirement = 'required' | 'recommended'
+type ProfileRequirement = 'required' | 'recommended'
 
-export interface ProfileCheckResult {
+interface ProfileCheckResult {
   id: string
   label: string
   requirement: ProfileRequirement
@@ -30,7 +30,7 @@ export interface TerminalProfileResolution {
   checks: ProfileCheckResult[]
 }
 
-export interface ProfileProbe {
+interface ProfileProbe {
   env?: Record<string, string | undefined>
   platform?: NodeJS.Platform
   isTTY?: boolean

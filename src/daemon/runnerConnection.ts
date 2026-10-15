@@ -6,13 +6,13 @@ import { createPeer, type Peer, type RequestOptions } from '../runner/wire/peer.
 import type { RpcError } from '../runner/wire/errors.js'
 import { MERCURY_VERSION } from '../constants/product.js'
 
-export const SLOW_BOOT_FIRST_MARK_MS = 10_000
+const SLOW_BOOT_FIRST_MARK_MS = 10_000
 
 export function slowBootMarkMs(marks: number): number {
   return SLOW_BOOT_FIRST_MARK_MS * 2 ** marks
 }
 
-export function slowBootLine(elapsedMs: number): string {
+function slowBootLine(elapsedMs: number): string {
   return `the runner has not answered initialize after ${Math.round(elapsedMs / 1000)} s — waiting while it lives`
 }
 
@@ -29,7 +29,7 @@ export type RunnerConnectionHooks = {
   log: (line: string) => void
 }
 
-export type RunnerEnds = { input: Readable; output: Writable }
+type RunnerEnds = { input: Readable; output: Writable }
 
 export interface RunnerDoor {
   readonly closed: boolean

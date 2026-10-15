@@ -1,12 +1,12 @@
 export type IssueKind = 'tester' | 'bug' | 'provider' | 'feature'
 
-export type IssueFieldSource =
+type IssueFieldSource =
   | 'auto'
   | 'words'
   | 'ask'
   | 'health'
 
-export interface IssueField {
+interface IssueField {
   id: string
   label: string
   source: IssueFieldSource
@@ -163,7 +163,7 @@ export const SECTION_HEADING = '### '
 export const RECENT_ERRORS_MAX = 20
 export const RECENT_ERROR_CHARS = 500
 
-export interface IssueBodyInput {
+interface IssueBodyInput {
   values: Readonly<Partial<Record<string, string>>>
   recentErrors: readonly { error: string; timestamp: string }[]
 }
@@ -216,7 +216,7 @@ export function issueSectionLabels(body: string): string[] {
 }
 
 
-export interface NoGhParagraphInput {
+interface NoGhParagraphInput {
   note: string
   remedy: string
   slug: string
@@ -237,7 +237,7 @@ export const ISSUE_FORM_URL_CAP = 7250
 
 export const URL_CUT_NOTE = ' … (cut to fit the link; the local draft has the rest)'
 
-export function percentSafeCut(encoded: string, budget: number): string {
+function percentSafeCut(encoded: string, budget: number): string {
   if (encoded.length <= budget) return encoded
   let cut = encoded.slice(0, Math.max(0, budget))
   const lastPercent = cut.lastIndexOf('%')
@@ -251,7 +251,7 @@ export function healthPointer(bodyPath: string | null): string {
     : 'paste the output of `mercury health --json` here'
 }
 
-export interface IssueFormUrlInput {
+interface IssueFormUrlInput {
   slug: string
   title: string
   values: Readonly<Partial<Record<string, string>>>

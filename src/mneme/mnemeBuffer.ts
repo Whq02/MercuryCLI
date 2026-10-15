@@ -17,14 +17,14 @@ export interface MnemeObservation {
   replaces?: number
 }
 
-export const OBSERVATION_TEXT_LIMIT = 2000
+const OBSERVATION_TEXT_LIMIT = 2000
 const CAP = { source: 60, topicHint: 60 } as const
 const clamp = (s: string, n: number): string => (s.length > n ? s.slice(0, n - 1) + '…' : s)
 const withThousands = (n: number): string => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 const oneLine = (s: string): string => s.replace(/[\r\n]+/g, ' ')
 const sigSafe = (s: string): string => s.replace(/[,<>\r\n]+/g, '-')
 
-export function observationText(text: string): string {
+function observationText(text: string): string {
   return oneLine(String(text ?? '')).trim()
 }
 

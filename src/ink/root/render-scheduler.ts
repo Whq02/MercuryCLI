@@ -19,7 +19,7 @@ const BOOT_COALESCE_MS = 100
 const PROBE_HOLD_STEP_MS = 16
 const PROBE_HOLD_BUDGET_MS = 64
 
-export type SchedulerState =
+type SchedulerState =
   | 'idle'
   | 'boot-hold'
   | 'window-open'

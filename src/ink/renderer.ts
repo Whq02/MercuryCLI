@@ -13,7 +13,7 @@ import { consumeAbsoluteRemovedFlag } from './node-cache.js'
 import { applyRecessPass } from './recessLayer.js'
 import { logForDebugging } from '../utils/debug.js'
 
-export type RenderOptions = {
+type RenderOptions = {
   frontFrame: Frame
   backFrame: Frame
   isTTY: boolean

@@ -2,7 +2,7 @@ import type { Command } from '../../commands.js'
 import { routerEnabled } from '../../utils/router/routerGates.js'
 
 
-export const routerCommand = {
+const routerCommand = {
   type: 'local-jsx',
   name: 'router',
   description:

@@ -12,13 +12,13 @@ export type PermissionDecisionArgs =
   | { decision: 'accept'; source: PermissionApprovalSource | 'config' }
   | { decision: 'reject'; source: PermissionRejectionSource | 'config' }
 
-export type RecordedPermissionDecision = {
+type RecordedPermissionDecision = {
   source: FlattenedDecisionSource
   decision: 'accept' | 'reject'
   timestampMs: number
 }
 
-export type FlattenedDecisionSource =
+type FlattenedDecisionSource =
   | 'hook'
   | 'user_permanent'
   | 'user_temporary'

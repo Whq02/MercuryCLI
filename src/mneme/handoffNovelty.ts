@@ -7,16 +7,16 @@ export const NOVELTY_SENTENCE_SHARE = 0.5
 export const NOVELTY_REASK_SHARE = 0.5
 export const NOVELTY_REASK_MIN_REPEATED = 2
 export const PREVIOUS_NOTE_LABEL = 'the previous note'
-export const NOTHING_NEW_HINT = 'if nothing is new, say so'
+const NOTHING_NEW_HINT = 'if nothing is new, say so'
 
-export interface RecordUnit {
+interface RecordUnit {
   label: string
   kind: RecordEntry['kind'] | 'note'
   seq?: number
   shingles: Set<string>
 }
 
-export interface NoveltyMeasure {
+interface NoveltyMeasure {
   sentences: number
   repeated: number
   sources: RecordUnit[]
@@ -27,12 +27,12 @@ function shinglesOf(text: string): Set<string> {
   return shingles(contentStems(wordsOf(text)), 2)
 }
 
-export function recordUnitOf(entry: RecordEntry): RecordUnit {
+function recordUnitOf(entry: RecordEntry): RecordUnit {
   const label = entry.kind === 'rule' ? (entry.seq === undefined ? 'a pinned rule' : `rule ${entry.seq}`) : entry.kind === 'fact' ? `fact ${entry.seq}` : 'a pending fact'
   return { label, kind: entry.kind, ...(entry.seq === undefined ? {} : { seq: entry.seq }), shingles: shinglesOf(entry.text) }
 }
 
-export function previousNote(projectKey: string, sessionId: string): string | null {
+function previousNote(projectKey: string, sessionId: string): string | null {
   const entries = readLedger(projectKey).filter(entry => entry.sessionId !== sessionId && entry.handoff !== null)
   const last = entries[entries.length - 1]
   return last?.handoff?.text ?? null
@@ -74,7 +74,7 @@ function listOf(items: readonly string[]): string {
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 }
 
-export function sourcesInWords(sources: readonly RecordUnit[]): string {
+function sourcesInWords(sources: readonly RecordUnit[]): string {
   const rules = sources.filter(unit => unit.kind === 'rule' && unit.seq !== undefined).map(unit => String(unit.seq))
   const facts = sources.filter(unit => unit.kind === 'fact' && unit.seq !== undefined).map(unit => String(unit.seq))
   const parts: string[] = []

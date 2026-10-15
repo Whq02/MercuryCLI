@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { voiceCheckoutRoot, voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../services/voice/voicePack.js'
 import { cpuFloorRefusal, probeCpuFloor, whisperCpuFloorWords } from '../services/voice/whisperPack.js'
 
-export const EMBED_PACK_SEGMENTS = ['vendor', 'embed'] as const
+const EMBED_PACK_SEGMENTS = ['vendor', 'embed'] as const
 export const EMBED_PACK_PATH = 'vendor/embed'
 export const EMBED_ADDON_FILE = 'mercury_embed.node'
 export const EMBED_PACK_MANIFEST_FILE = '.vendor-manifest.json'
@@ -114,7 +114,7 @@ export function readEmbedPackManifest(dir: string): EmbedPackManifest | null {
   }
 }
 
-export type EmbedPackCheck =
+type EmbedPackCheck =
   | { state: 'ok'; addonPath: string; manifest: EmbedPackManifest }
   | { state: 'absent'; note: string }
   | { state: 'mismatch'; note: string }
@@ -139,11 +139,11 @@ export function checkEmbedPackDir(dir: string, opts: { digest?: boolean; platfor
   return { state: 'ok', addonPath, manifest }
 }
 
-export type EmbedPackResolution =
+type EmbedPackResolution =
   | { state: 'ok'; dir: string; addonPath: string; manifest: EmbedPackManifest; source: 'override' | 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
 
-export function embedPackAbsentNote(checkoutRoot: string | null = voiceCheckoutRoot()): string {
+function embedPackAbsentNote(checkoutRoot: string | null = voiceCheckoutRoot()): string {
   return checkoutRoot !== null
     ? 'absent on this checkout — bun run scripts/vendor/build-embed.ts builds it (cargo)'
     : 'absent — this build shipped without it'
@@ -187,7 +187,7 @@ export function resolveEmbedPackDir(): EmbedPackResolution {
   }
 }
 
-export interface EmbedModelInfo {
+interface EmbedModelInfo {
   name: string
   architecture: string
   dimension: number
@@ -195,7 +195,7 @@ export interface EmbedModelInfo {
   pooling: string
 }
 
-export interface EmbedAddon {
+interface EmbedAddon {
   packVersion(): string
   engineVersion(): string
   systemInfo(): string
@@ -210,7 +210,7 @@ export interface EmbedAddon {
 
 export const EMBED_ADDON_EXPORTS = ['packVersion', 'engineVersion', 'systemInfo', 'cpuFloor', 'loadModel', 'modelInfo', 'embed', 'embedBatch', 'embedBatchAsync', 'unloadModel'] as const
 
-export type EmbedAddonLoad =
+type EmbedAddonLoad =
   | { state: 'ok'; addon: EmbedAddon; dir: string; manifest: EmbedPackManifest; source: 'override' | 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
 

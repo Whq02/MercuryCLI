@@ -229,7 +229,7 @@ export const BODY_SHAPE_KINDS = {
   notice: Object.keys(NOTICE_BODY_SHAPES),
 } as const
 
-export type ValidationIssue = {
+type ValidationIssue = {
   path: string
   message: string
 }
@@ -250,7 +250,7 @@ export function bodyShapeIssue(record: MercuryRecord): ValidationIssue | null {
   return { path: `${owner.name}${at}`, message: first?.message ?? 'body failed its shape' }
 }
 
-export type ValidationResult =
+type ValidationResult =
   | { ok: true; record: MercuryRecord }
   | { ok: false; issues: ValidationIssue[] }
 

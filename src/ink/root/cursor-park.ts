@@ -3,7 +3,7 @@ import { CURSOR_HOME, cursorMove, cursorPosition, ERASE_SCREEN } from '../termio
 
 export type CursorPoint = { x: number; y: number }
 
-export type CursorPlanInput = {
+type CursorPlanInput = {
   altScreen: boolean
   hasDiff: boolean
   needsErase: boolean
@@ -16,7 +16,7 @@ export type CursorPlanInput = {
   cols: number
 }
 
-export type CursorPlan = {
+type CursorPlan = {
   prelude: Patch[]
   postlude: Patch[]
   nextParked: CursorPoint | null

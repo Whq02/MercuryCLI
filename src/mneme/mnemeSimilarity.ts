@@ -5,7 +5,7 @@ import { sentencesOf } from './mnemeText.js'
 export const CONSOLIDATE_SIMILARITY_THRESHOLD = 0.8
 const PROTECTED_WINDOW = 4
 
-export function shingleTokens(text: string): string[] {
+function shingleTokens(text: string): string[] {
   return (text.toLowerCase().replace(/[’]/g, "'").match(/[\p{L}\p{N}]+(?:['./_-][\p{L}\p{N}]+)*/gu) ?? []).map(stemLookupToken)
 }
 

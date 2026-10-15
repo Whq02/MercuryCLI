@@ -34,7 +34,7 @@ const startTokenArgs = (pid: number): string[] => [
   `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CreationDate`,
 ]
 
-export function win32StartTokenVerdict(probe: {
+function win32StartTokenVerdict(probe: {
   ran: boolean
   exitCode: number | null
   stdout: string | null | undefined
@@ -138,7 +138,7 @@ export function getProcessStartTokenCachedOrRefresh(pid: number, maxAgeMs = 10_0
   return hit ? hit.token : null
 }
 
-export function ownerIdentityMatches(
+function ownerIdentityMatches(
   currentToken: string | null,
   baselineToken: string | null,
 ): boolean {
@@ -240,9 +240,9 @@ export function armOwnerPipe(fd: number, onClosed: () => void, log: (line: strin
 }
 
 
-export type OwnerGoneWhy = 'owner-gone' | 'owner-replaced' | 'owner-pipe-eof'
+type OwnerGoneWhy = 'owner-gone' | 'owner-replaced' | 'owner-pipe-eof'
 
-export interface OwnerWatchPortsV1 {
+interface OwnerWatchPortsV1 {
   ownerPid: number
   baselineToken: string | null
   onOrphan: (why: OwnerGoneWhy) => void
@@ -256,7 +256,7 @@ export interface OwnerWatchPortsV1 {
   schedule?: boolean
 }
 
-export interface OwnerWatchFactsV1 {
+interface OwnerWatchFactsV1 {
   deadStreak: number
   probes: number
   probeFailures: number

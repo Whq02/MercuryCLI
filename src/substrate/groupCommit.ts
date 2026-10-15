@@ -11,7 +11,7 @@ export interface GroupCommitLane<T> {
   submit: <R>(fn: (current: T) => Promise<{ next: T; result: R }>) => Promise<R>
 }
 
-export interface GroupCommitOptions<T, C = void> {
+interface GroupCommitOptions<T, C = void> {
   acquire: () => Promise<() => Promise<void>>
   read: () => Promise<{ value: T; context: C }>
   publish: (next: T, context: C) => Promise<void>

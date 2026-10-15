@@ -11,22 +11,22 @@ export type Size = {
 
 export type Rectangle = Point & Size
 
-export type Edges = {
+type Edges = {
   top: number
   right: number
   bottom: number
   left: number
 }
 
-export function edges(all: number): Edges
-export function edges(vertical: number, horizontal: number): Edges
-export function edges(
+function edges(all: number): Edges
+function edges(vertical: number, horizontal: number): Edges
+function edges(
   top: number,
   right: number,
   bottom: number,
   left: number,
 ): Edges
-export function edges(a: number, b?: number, c?: number, d?: number): Edges {
+function edges(a: number, b?: number, c?: number, d?: number): Edges {
   if (b === undefined) return { top: a, right: a, bottom: a, left: a }
   if (c === undefined || d === undefined) {
     return { top: a, right: b, bottom: a, left: b }

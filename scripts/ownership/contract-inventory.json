@@ -546,23 +546,16 @@
     "type:TurnOptions"
    ],
    "src/run-core/turn-machine.ts": [
-    "continuationAdded",
     "decideEmptyReplyRecovery",
-    "decideMaxOutputTokensRecovery",
     "decideReasoningOnlyRecovery",
     "decideStreamFaultRecovery",
     "decideToolCallRefusalRecovery",
-    "reasoningOnlyTurnOf",
     "runEventCore",
-    "type:QueryParams",
-    "withReasoningCutMarker"
+    "type:QueryParams"
    ],
    "src/run-core/events.ts": [
     "createEventMint",
-    "createSequencer",
-    "type:RunEvent",
-    "type:RunEventKind",
-    "type:UnsequencedRunEvent"
+    "type:RunEvent"
    ],
    "src/run-core/project-legacy.ts": [
     "legacyYieldsOf",
@@ -572,8 +565,7 @@
    "src/run-core/model-lane.ts": [
     "backfillCloneForYield",
     "isWithheldMaxOutputTokens",
-    "resetForRetry",
-    "type:TurnBatch"
+    "resetForRetry"
    ],
    "src/run-core/budget-guard.ts": [
     "BudgetGuard"
@@ -584,9 +576,7 @@
     "replyMarkOf",
     "selectDrainableCommands",
     "stampReply",
-    "type:DrainScope",
-    "type:DrainableCommand",
-    "type:DrainedRow"
+    "type:DrainScope"
    ]
   },
   "headless": {

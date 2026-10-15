@@ -1,7 +1,7 @@
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { logForDebugging } from '../utils/debug.js'
 
-export const RUNNER_AGENT_WATCH_ARM_DELAY_MS = 1500
+const RUNNER_AGENT_WATCH_ARM_DELAY_MS = 1500
 
 export function armRunnerAgentFreshness(args: {
   cwd: () => string

@@ -35,7 +35,7 @@ const TRANSITIONS: Readonly<Record<ConcourseSessionState, readonly ConcourseSess
   cancelled: [],
 }
 
-export type ConcourseEntryProof =
+type ConcourseEntryProof =
   | 'local-draft-identity'
   | 'durable-queue-receipt'
   | 'start-attempt-receipt'
@@ -46,7 +46,7 @@ export type ConcourseEntryProof =
   | 'pause-settlement-receipt'
   | 'settlement-receipt'
 
-export const ENTRY_PROOF_OF: Readonly<Record<ConcourseSessionState, ConcourseEntryProof>> = {
+const ENTRY_PROOF_OF: Readonly<Record<ConcourseSessionState, ConcourseEntryProof>> = {
   draft: 'local-draft-identity',
   queued: 'durable-queue-receipt',
   starting: 'start-attempt-receipt',
@@ -60,7 +60,7 @@ export const ENTRY_PROOF_OF: Readonly<Record<ConcourseSessionState, ConcourseEnt
   cancelled: 'settlement-receipt',
 }
 
-export type TransitionDecision =
+type TransitionDecision =
   | { legal: true; entryProof: ConcourseEntryProof }
   | { legal: false; reason: 'terminal-immutable' | 'illegal-transition' | 'idempotent-noop' }
 

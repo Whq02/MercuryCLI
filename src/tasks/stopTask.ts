@@ -20,7 +20,7 @@ export function resolveStopTargetId(raw: string, state: Pick<AppState, 'tasks' |
   return raw
 }
 
-export type StopTaskErrorCode = 'not_found' | 'not_running' | 'unsupported_type'
+type StopTaskErrorCode = 'not_found' | 'not_running' | 'unsupported_type'
 
 export class StopTaskError extends Error {
   code: StopTaskErrorCode
@@ -47,7 +47,7 @@ export type FinishedShell = {
   outputPath?: string
 }
 
-export type FinishedTaskOnDisk =
+type FinishedTaskOnDisk =
   | { kind: 'agent'; words: string }
   | { kind: 'shell'; words: string; shell: FinishedShell }
 
@@ -68,7 +68,7 @@ function endedWord(state: TaskOutcomeState): string {
   }
 }
 
-export function finishedShellFromOutcome(outcome: TaskOutcomeEnvelope): FinishedShell {
+function finishedShellFromOutcome(outcome: TaskOutcomeEnvelope): FinishedShell {
   return {
     taskId: outcome.taskId,
     command: outcome.command,

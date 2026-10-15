@@ -56,7 +56,7 @@ export function isWithheldMaxOutputTokens(
   return msg?.type === 'assistant' && msg.apiError === 'max_output_tokens'
 }
 
-export type TurnBatch = {
+type TurnBatch = {
   assistantMessages: unknown[]
   toolResults: unknown[]
   toolUseBlocks: ToolUseBlock[]

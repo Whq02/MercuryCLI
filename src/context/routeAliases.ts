@@ -3,7 +3,7 @@ import type { UiRouteAliasKind } from '../types/command.js'
 import { enterConcourse } from './surfaceRoute.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 
-export interface RouteAliasOutcome {
+interface RouteAliasOutcome {
   handled: true
   note?: string
 }

@@ -2,7 +2,7 @@ export const SESSIONLESS_EXIT_GRACE_MS = 30_000
 
 export const SESSIONLESS_EXIT_BEAT_MS = 5_000
 
-export interface SessionlessFactsV1 {
+interface SessionlessFactsV1 {
   live: number
   birthsInFlight: number
   superseded: boolean
@@ -12,12 +12,12 @@ export interface SessionlessFactsV1 {
   now: number
 }
 
-export interface SessionlessStateV1 {
+interface SessionlessStateV1 {
   hosted: boolean
   emptySince: number | null
 }
 
-export type SessionlessVerdictV1 = { exit: false; state: SessionlessStateV1; hold: string } | { exit: true; state: SessionlessStateV1; why: string }
+type SessionlessVerdictV1 = { exit: false; state: SessionlessStateV1; hold: string } | { exit: true; state: SessionlessStateV1; why: string }
 
 export function initialSessionlessState(): SessionlessStateV1 {
   return { hosted: false, emptySince: null }

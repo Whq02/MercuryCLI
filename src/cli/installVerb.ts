@@ -5,7 +5,7 @@ import { describeInstall, performInstall, type Progress } from 'src/services/pri
 import { jsonStringify } from 'src/utils/slowOperations.js'
 import { cliError, cliJsonError, cliOk } from './exit.js'
 
-export interface InstallCliOptions {
+interface InstallCliOptions {
   dryRun?: boolean
   uninstall?: boolean
   force?: boolean

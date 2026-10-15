@@ -2,7 +2,7 @@
 import { execFile } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 
-export type PresenceState = 'present' | 'missing' | 'unknown'
+type PresenceState = 'present' | 'missing' | 'unknown'
 
 export interface WindowsHostInventory {
   windowsTerminal: PresenceState
@@ -83,7 +83,7 @@ function whereExists(exe: string): Promise<PresenceState> {
   return cachedPresenceProbe(exe, rawWhereExists)
 }
 
-export interface HostInventoryProbe {
+interface HostInventoryProbe {
   platform?: NodeJS.Platform
   which?: (exe: string) => Promise<PresenceState>
 }

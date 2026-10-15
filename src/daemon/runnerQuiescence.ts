@@ -80,7 +80,7 @@ export class RunnerQuiescence {
   }
 }
 
-export type RetirementResult =
+type RetirementResult =
   | { outcome: 'parked' }
   | { outcome: 'refused'; reason: string; fenced: boolean }
 

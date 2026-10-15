@@ -1,7 +1,7 @@
 
 let observationCounter = 0
 
-export interface SourceObservation {
+interface SourceObservation {
   generation: number
   observedAt: number
 }
@@ -38,7 +38,7 @@ export function sourceStale<T>(value: T, reason: string): SourceState<T> {
   return { ...observe(), state: 'stale', value, reason }
 }
 
-export function sourceRecoverable(
+function sourceRecoverable(
   reason: string,
 ): SourceObservation & { state: 'recoverable'; reason: string } {
   return { ...observe(), state: 'recoverable', reason }
@@ -135,7 +135,7 @@ export function foldSourceState<T, R>(
   }
 }
 
-export type ReadFailure =
+type ReadFailure =
   | (SourceObservation & { state: 'empty' })
   | (SourceObservation & { state: 'unavailable'; reason: string; retryable: boolean })
 

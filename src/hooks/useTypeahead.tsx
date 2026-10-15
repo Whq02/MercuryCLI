@@ -91,7 +91,7 @@ export type SuggestionsState = {
   commandArgumentHint?: string
 }
 
-export type UseTypeaheadProps = {
+type UseTypeaheadProps = {
   input: string
   cursorOffset: number
   commands: Command[]
@@ -109,7 +109,7 @@ export type UseTypeaheadProps = {
   markAccepted?: () => void
 }
 
-export type UseTypeaheadResult = {
+type UseTypeaheadResult = {
   suggestions: Suggestion[]
   selectedSuggestion: number
   suggestionType: SuggestionType

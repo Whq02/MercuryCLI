@@ -20,7 +20,7 @@ export type SearchPositions = {
   currentIdx: number
 }
 
-export type OverlayPassInput = {
+type OverlayPassInput = {
   altScreen: boolean
   scrollTranslation: ScrollTranslation | null
   selection: SelectionState
@@ -33,7 +33,7 @@ export type OverlayPassInput = {
   record?: OverlayRecord
 }
 
-export type OverlayPassResult = { selActive: boolean; hlActive: boolean }
+type OverlayPassResult = { selActive: boolean; hlActive: boolean }
 
 export function applyOverlayPass(input: OverlayPassInput): OverlayPassResult {
   const { scrollTranslation, selection } = input

@@ -3,8 +3,8 @@ import { runCleanupFunctions } from '../utils/cleanupRegistry.js'
 
 export const WORKER_PARENT_PID_ENV = 'MERCURY_WORKER_PARENT_PID'
 
-export const WORKER_WATCH_INTERVAL_MS = 4000
-export const WORKER_WATCH_GRACE_CHECKS = 2
+const WORKER_WATCH_INTERVAL_MS = 4000
+const WORKER_WATCH_GRACE_CHECKS = 2
 
 export function parseWorkerParentPid(env: NodeJS.ProcessEnv = process.env): number | null {
   const raw = (env[WORKER_PARENT_PID_ENV] ?? env['MERCURY_WORKER_PARENT_PID'])?.trim()
@@ -13,7 +13,7 @@ export function parseWorkerParentPid(env: NodeJS.ProcessEnv = process.env): numb
   return Number.isInteger(pid) && pid > 0 ? pid : null
 }
 
-export const WORKER_ORPHAN_CLEANUP_CAP_MS = 1_500
+const WORKER_ORPHAN_CLEANUP_CAP_MS = 1_500
 
 async function orphanExit(opts: {
   exit: (code: number) => void

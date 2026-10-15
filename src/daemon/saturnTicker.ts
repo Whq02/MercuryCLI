@@ -53,7 +53,7 @@ export function isSaturnDisabled(): boolean {
 }
 
 
-export interface SaturnDeliveryV1 {
+interface SaturnDeliveryV1 {
   sessionId: string
   workspaceId: string
   prompt: string
@@ -63,13 +63,13 @@ export interface SaturnDeliveryV1 {
   origin?: SaturnOrigin
 }
 
-export interface SaturnFireFactsV1 {
+interface SaturnFireFactsV1 {
   schedule?: SaturnScheduleV1
   heldAt?: number
   heldReason?: HeldFireV1['reason']
 }
 
-export function saturnFireOrigin(envelope: SaturnFireEnvelopeV1, nowMs: number, facts: SaturnFireFactsV1): SaturnOrigin {
+function saturnFireOrigin(envelope: SaturnFireEnvelopeV1, nowMs: number, facts: SaturnFireFactsV1): SaturnOrigin {
   const when = facts.schedule?.when
   const spelling = when === undefined ? undefined : (when.spelling ?? describeWhen(when))
   const heldWhy = facts.heldReason === 'parked-queued' ? ('parked' as const) : facts.heldReason === 'rate-limited' ? ('window' as const) : undefined
@@ -187,7 +187,7 @@ const reasonClause = (schedule: SaturnScheduleV1 | undefined): string =>
   schedule?.note !== undefined && schedule.note.trim() !== '' ? ` · reason: ${schedule.note.replace(/[\r\n]+/g, ' ').trim()}` : ''
 
 
-export interface SaturnTickReportV1 {
+interface SaturnTickReportV1 {
   fired: number
   held: number
   missed: number
@@ -646,7 +646,7 @@ function loopChainOf(sessionId: string): LoopFireChainStateV1 {
 }
 
 
-export const SATURN_TICK_MS = 30_000
+const SATURN_TICK_MS = 30_000
 
 export function fileMoveStamp(path: string): string {
   try {

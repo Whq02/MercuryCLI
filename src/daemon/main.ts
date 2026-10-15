@@ -1577,7 +1577,7 @@ const FIRST_IDLE_SWEEP_MS = 1_000
 
 export const FREE_THE_PLANE_WORDS = '`mercury daemon stop` asks the daemon that holds this home to leave (it answers over the control pipe from any Mercury build); if it does not answer, end its pid by hand, then start again'
 
-export function planeHeldLine(holder: { pid: number; buildTree: string | null } | null, plane: string = controlSockPath(), stateFile: string = daemonStatePath()): string {
+function planeHeldLine(holder: { pid: number; buildTree: string | null } | null, plane: string = controlSockPath(), stateFile: string = daemonStatePath()): string {
   const door = process.platform === 'win32' ? 'control pipe' : 'control socket'
   if (holder !== null) {
     return `this daemon gives the home back and exits: pid ${holder.pid} (build ${holder.buildTree ?? 'unstamped'}) holds the ${door} ${plane} — ${FREE_THE_PLANE_WORDS}`
@@ -1621,14 +1621,14 @@ function installedWords(runtime: NonNullable<ReturnType<typeof deployedRuntime>>
   return runtime.version !== null && runtime.version !== currentVersion() ? `v${runtime.version}` : `tree ${runtime.buildTree ?? 'unstamped'}`
 }
 
-export function reopenDetail(installed: NonNullable<ReturnType<typeof deployedRuntime>>): string {
+function reopenDetail(installed: NonNullable<ReturnType<typeof deployedRuntime>>): string {
   if (installed.version !== null && installed.version !== currentVersion()) {
     return `${REOPEN_WORDS} — a newer Mercury (${installedWords(installed)}) is installed and this daemon already runs it`
   }
   return `this daemon runs the installed build (${installedWords(installed)}) and cannot become another build of the same version — ${OTHER_BUILD_WAY_OUT}`
 }
 
-export function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>, live: number): string {
+function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>, live: number): string {
   const leaves = live > 0 ? `this one leaves when its ${live} live worker(s) finish, re-executing nothing` : 'this one leaves now, re-executing nothing'
   return `another build (${installedWords(other)}) is installed — a Mercury of that build starts its own daemon; ${leaves}`
 }
@@ -1637,7 +1637,7 @@ function liveSessionWords(n: number): string {
   return `${n} live session${n === 1 ? '' : 's'}`
 }
 
-export function predecessorsStillHostingDetail(state: Pick<HandoverStateV1, 'predecessorPids' | 'heldRunners'>, own: { live: number; liveSessions: number }): string {
+function predecessorsStillHostingDetail(state: Pick<HandoverStateV1, 'predecessorPids' | 'heldRunners'>, own: { live: number; liveSessions: number }): string {
   const rows = state.predecessorPids().map(pid => ({ pid, held: state.heldRunners(pid).size }))
   const theirs = rows.reduce((n, row) => n + row.held, 0)
   const one = rows.length === 1

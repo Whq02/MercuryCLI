@@ -12,35 +12,35 @@ export type ToolCallUnderGuard = {
   toolRef?: Tool
 }
 
-export type ToolGuardVerdict =
+type ToolGuardVerdict =
   | { allow: true; note?: SystemInformationalMessage }
   | { allow: false; reason: string }
 
-export type ToolGuard = {
+type ToolGuard = {
   id: string
   tools?: readonly string[]
   timeoutMs?: number
   judge: (call: ToolCallUnderGuard, signal: AbortSignal) => Promise<ToolGuardVerdict> | ToolGuardVerdict
 }
 
-export type TurnUnderGuard = {
+type TurnUnderGuard = {
   messages: Message[]
 }
 
-export type TurnGuardVerdict = { hold: false } | { hold: true; words: string }
+type TurnGuardVerdict = { hold: false } | { hold: true; words: string }
 
-export type TurnGuard = {
+type TurnGuard = {
   id: string
   timeoutMs?: number
   silent?: boolean
   judge: (turn: TurnUnderGuard, signal: AbortSignal) => Promise<TurnGuardVerdict> | TurnGuardVerdict
 }
 
-export type ToolCallJudgement =
+type ToolCallJudgement =
   | { refused: false; notes: SystemInformationalMessage[] }
   | { refused: true; guard: string; reason: string; notes: SystemInformationalMessage[] }
 
-export type TurnHold = { guard: string; words: string; silent: boolean }
+type TurnHold = { guard: string; words: string; silent: boolean }
 
 const DEFAULT_GUARD_TIMEOUT_MS = 5_000
 
@@ -83,7 +83,7 @@ export function hasTurnGuard(key: string, id: string): boolean {
   return (turnGuards.get(key) ?? []).some(guard => guard.id === id)
 }
 
-export function hasToolGuard(key: string, id: string): boolean {
+function hasToolGuard(key: string, id: string): boolean {
   return (toolGuards.get(key) ?? []).some(guard => guard.id === id)
 }
 

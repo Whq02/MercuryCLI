@@ -1,7 +1,7 @@
 
 import type { LedgerAck, RowIdentity, SettledBatch, SettledRow } from './contracts.js'
 
-export interface LedgerOptions {
+interface LedgerOptions {
   onFlatnessViolation?: (identity: RowIdentity, seq: number) => void
 }
 

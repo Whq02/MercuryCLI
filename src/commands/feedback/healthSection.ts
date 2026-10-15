@@ -10,12 +10,12 @@ import {
 } from '../../utils/healthCertCore.js'
 import { lastCertPath, runHealthReport } from '../../utils/healthReport.js'
 
-export const HEALTH_DEADLINE_MS = 20_000
+const HEALTH_DEADLINE_MS = 20_000
 export const FRESH_CERT_MS = 10 * 60_000
 
 const ATTENTION: readonly HealthStatus[] = ['fail', 'stale', 'warn']
 
-export interface HealthSectionOptions {
+interface HealthSectionOptions {
   deadlineMs?: number
   nowMs?: number
   signal?: AbortSignal
@@ -30,12 +30,12 @@ function attentionRows(rows: Array<{ label: string; status: HealthStatus; eviden
   return rows.map(r => `- ${r.label}: ${r.status} — ${r.evidence}${r.fix ? ` · fix: ${r.fix}` : ''}`)
 }
 
-export function renderLastCertSection(summary: LastCertSummary): string {
+function renderLastCertSection(summary: LastCertSummary): string {
   const line = summaryLine(summary.counts, summary.verdict, `certificate recorded ${summary.ranAt} (v${summary.version})`)
   return [line, ...attentionRows(summary.attention)].join('\n')
 }
 
-export function renderCertSection(cert: HealthCertificate): string {
+function renderCertSection(cert: HealthCertificate): string {
   const checks = flattenChecks(cert)
   const rows: HealthCheck[] = []
   for (const sev of ATTENTION) for (const c of checks) if (c.status === sev) rows.push(c)
@@ -47,7 +47,7 @@ export function renderCertSection(cert: HealthCertificate): string {
   return [line, ...attentionRows(rows)].join('\n')
 }
 
-export function readFreshLastCert(nowMs: number, freshMs = FRESH_CERT_MS): LastCertSummary | null {
+function readFreshLastCert(nowMs: number, freshMs = FRESH_CERT_MS): LastCertSummary | null {
   try {
     const summary = decodeLastCertSummary(JSON.parse(readFileSync(lastCertPath(), 'utf8')))
     if (summary === null) return null

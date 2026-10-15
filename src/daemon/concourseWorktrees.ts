@@ -111,7 +111,7 @@ async function gitAsync(
   })
 }
 
-export type WorktreeEnsureResult =
+type WorktreeEnsureResult =
   | { ok: true; path: string; created: boolean; branchName?: string; base?: string }
   | {
       ok: false
@@ -279,7 +279,7 @@ export function initGitRepository(folder: string): { ok: boolean; error?: string
   return { ok: true }
 }
 
-export type WorktreeDirt =
+type WorktreeDirt =
   | { kind: 'clean' }
   | { kind: 'runtime-only'; files: string[] }
   | { kind: 'authored'; files: string[] }
@@ -340,7 +340,7 @@ function classifyStatusRows(status: { ok: boolean; stdout: string; stderr: strin
   return { kind: 'runtime-only', files: runtime }
 }
 
-export interface ForkCommitState {
+interface ForkCommitState {
   committedAhead: number | null
   dirt: WorktreeDirt | null
 }
@@ -369,7 +369,7 @@ export function describeForkCommitState(state: ForkCommitState): string {
   return parts.join(' · ')
 }
 
-export type WorktreeReapOutcome =
+type WorktreeReapOutcome =
   | { outcome: 'reaped' }
   | { outcome: 'noop' }
   | { outcome: 'retained'; files: string[]; committedAhead?: number }

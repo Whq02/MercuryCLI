@@ -117,7 +117,7 @@ function openingSlot(
   return preferred
 }
 
-export function focusedOpeningEffort(
+function focusedOpeningEffort(
   model: string,
   seatEffort: string | null,
   sentEffort: string | null | undefined,
@@ -492,5 +492,5 @@ function tierSummary(level: SliderLevel | undefined): string {
   }
 }
 
-export type EffortApplier = (value: EffortValue) => string | Promise<string>
+type EffortApplier = (value: EffortValue) => string | Promise<string>
 export const EffortApplyContext = React.createContext<EffortApplier>(() => '')

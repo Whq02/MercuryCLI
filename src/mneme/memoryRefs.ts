@@ -10,7 +10,7 @@ import type { MnemeEntry } from './mnemeTopicDocs.js'
 import { lastUsedMs, readPins, readUsage, type PinRecord, type UsageRecord } from './mnemeUsage.js'
 
 export const FACT_HALF_LIFE_DAYS = 30
-export const FACT_DECAY_LAMBDA = Math.LN2 / FACT_HALF_LIFE_DAYS
+const FACT_DECAY_LAMBDA = Math.LN2 / FACT_HALF_LIFE_DAYS
 export const FACT_STALE_FLOOR = 0.25
 
 export function factMemoryState(
@@ -28,7 +28,7 @@ export function factMemoryState(
   }
 }
 
-export type MemoryRefKind = 'mneme-fact' | 'mneme-topic' | 'mneme-pending' | 'mneme-session'
+type MemoryRefKind = 'mneme-fact' | 'mneme-topic' | 'mneme-pending' | 'mneme-session'
 
 export interface MemoryRef {
   refId: string
@@ -57,7 +57,7 @@ function pathFreshness(summary: string, projectRoot: string | null): 'current' |
   return existsSync(join(projectRoot, m[0])) ? 'current' : 'needs-review'
 }
 
-export interface CollectOpts {
+interface CollectOpts {
   maxRefs?: number
   libraryDir?: string
   projectRoot?: string | null
@@ -65,7 +65,7 @@ export interface CollectOpts {
   now?: Date
 }
 
-export function sessionRef(pointer: MemoryPointer): MemoryRef {
+function sessionRef(pointer: MemoryPointer): MemoryRef {
   const ordinal = pointer.footnotes.session ?? Number(pointer.id.slice('ledger:'.length))
   return {
     refId: `mneme-session:${ordinal}`,

@@ -2,7 +2,7 @@ import { DBP, DFE, DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, ESU, EXIT_A
 import { DISABLE_KITTY_KEYBOARD, DISABLE_MODIFY_OTHER_KEYS } from '../termio/csi.js'
 import { CLEAR_ITERM2_PROGRESS, CLEAR_TAB_STATUS, wrapForMultiplexer } from '../termio/osc.js'
 
-export type TeardownStep =
+type TeardownStep =
   | { kind: 'bytes'; when: 'alt-only' | 'always' | 'tab-status'; bytes: string; why: string }
   | { kind: 'pointer-reset'; why: string }
   | { kind: 'drain-stdin'; why: string }

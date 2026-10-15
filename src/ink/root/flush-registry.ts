@@ -1,5 +1,5 @@
 
-export type FlushProbe = {
+type FlushProbe = {
   name: string
   pending(): number
 }

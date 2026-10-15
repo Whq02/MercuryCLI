@@ -15,7 +15,7 @@ export type KeybindingContextName = string
 
 export type KeybindingAction = keyof ActionGraph
 
-export type KeybindingCommand = `command:${string}`
+type KeybindingCommand = `command:${string}`
 
 export type KeybindingValue = string | null
 

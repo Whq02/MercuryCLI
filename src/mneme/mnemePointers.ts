@@ -19,7 +19,7 @@ import { readPins } from './mnemeUsage.js'
 import { noteMemoryOffered } from './mnemeSignal.js'
 import type { LedgerEntry } from './types.js'
 
-export type PointerKind = 'fact' | 'ruling' | 'handoff' | 'session'
+type PointerKind = 'fact' | 'ruling' | 'handoff' | 'session'
 
 export interface MemoryPointer {
   id: string
