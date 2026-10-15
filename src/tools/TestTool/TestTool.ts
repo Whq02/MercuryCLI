@@ -609,7 +609,7 @@ A run whose exit code disagrees with its structured records says so (verdictNote
     return {
       data: output,
       effect: {
-        outcome: op.outcome,
+        outcome: op.record && op.record.exitCode !== null && op.record.counts.failed > 0 && op.record.counts.errored === 0 && !op.record.verdictNote ? 'succeeded' : op.outcome,
         operation: `test.${input.op}`,
         changedPaths: [],
         evidence: op.result.split('\n')[0]?.slice(0, 160) ?? '',

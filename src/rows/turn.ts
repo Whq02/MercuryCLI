@@ -674,6 +674,17 @@ export class Conversation {
     }
     const openCalls = new Map<string, string>()
     let recoveredUnansweredAsk = false
+    const containsUnansweredAsk = (callId: string): boolean => this.denials.slice(denialsBefore).some(denial => {
+      if (!this.unansweredAsks.has(denial.call_id)) return false
+      const seen = new Set<string>()
+      let parent = callScopes.get(denial.call_id)?.parent_call_id
+      while (parent !== undefined && !seen.has(parent)) {
+        if (parent === callId) return true
+        seen.add(parent)
+        parent = callScopes.get(parent)?.parent_call_id
+      }
+      return false
+    })
     const cutCalls: string[] = []
     const signal = this.abortController.signal
     const trackCalls = (rows: RowDraft[]): RowDraft[] => {
@@ -683,7 +694,7 @@ export class Conversation {
         if (call.type === 'tool_result' && call.call_id !== undefined) {
           const tool = openCalls.get(call.call_id)
           if (this.unansweredAsks.has(call.call_id)) recoveredUnansweredAsk = false
-          else if (call.status === 'ok' && tool !== undefined && tool !== 'ToolSearch') recoveredUnansweredAsk = true
+          else if (call.status === 'ok' && tool !== undefined && tool !== 'ToolSearch' && !containsUnansweredAsk(call.call_id)) recoveredUnansweredAsk = true
           if ((call.status === 'aborted' || signal.aborted) && tool !== undefined) cutCalls.push(tool)
           openCalls.delete(call.call_id)
         }

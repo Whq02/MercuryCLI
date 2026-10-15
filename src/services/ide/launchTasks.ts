@@ -109,7 +109,7 @@ type PreLaunchTaskOutcome = { ran: true; label: string; argv: string[]; matcherI
 
 export async function runPreLaunchTask(task: PreLaunchTask, signal?: AbortSignal): Promise<PreLaunchTaskOutcome> {
   if ('refused' in task) {
-    return { ran: false, label: task.label, reason: `preLaunchTask '${task.label}' cannot be run by Mercury: ${task.refused} — run it yourself, then launch again` }
+    return { ran: false, label: task.label, reason: `preLaunchTask '${task.label}' cannot be run by Mercury: ${task.refused}` }
   }
   const child = spawn(task.argv[0]!, task.argv.slice(1), {
     windowsHide: true,

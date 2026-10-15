@@ -800,6 +800,10 @@ export function hasPythonSignal(from: string = getCwd()): boolean {
   for (const f of ['pyproject.toml', 'setup.py', 'setup.cfg', 'conftest.py']) {
     if (existsSync(path.join(root, f))) return true
   }
+  return hasPythonTestFiles(root)
+}
+
+export function hasPythonTestFiles(root: string): boolean {
   return hasTestFiles(root, /(^test_.*|_test)\.py$/, ['tests', 'test', '.'])
 }
 
