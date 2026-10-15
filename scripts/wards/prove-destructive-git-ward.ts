@@ -60,6 +60,23 @@ const DISCARDS = [
   'sh -c "git clean -fd"',
   "bash -lc 'git checkout -- .'",
   "zsh -c 'git push --force origin main'",
+  'git branch -df topic',
+  'git branch -fd topic',
+  'git branch -Df topic',
+  'git push -fu origin topic',
+  'git push -nf origin topic',
+  'git reset "--hard"',
+  "git reset '--hard' HEAD~1",
+  'git checkout -- "."',
+  "git restore '.'",
+  'git restore "./"',
+  'git clean "-fd"',
+  'git branch "-D" topic',
+  'git push "--force" origin topic',
+  'git push "-f"',
+  "bash -c 'git branch -df topic'",
+  "bash -c 'git push -fu origin topic'",
+  "bash -c 'git reset \"--hard\"'",
 ]
 
 const KEPT_FREE = [
@@ -90,6 +107,17 @@ const KEPT_FREE = [
   "git commit -m 'git push --force stays with the operator'",
   'echo "git push --force is refused for crewmates"',
   'grep -rn "git checkout -- ." docs/',
+  'git log --grep "reset --hard"',
+  'git branch -dr origin/topic',
+  'git branch -f topic abc',
+  'git branch -m a b',
+  'git push -u origin topic',
+  'git push -q origin topic',
+  'git push -4 origin topic',
+  'git restore --staged "."',
+  'git restore "--staged" "."',
+  'git clean -n "-f"',
+  'git clean "-n" "-f"',
   'rm -rf node_modules',
 ]
 
@@ -97,7 +125,7 @@ try {
   setFlagEnv('MERCURY_SPAWNED_BY', 'proof:destructive-git#1')
   section('§1 a spawned session arms the autonomous wards')
   check('MERCURY_SPAWNED_BY set: the autonomous wards ride the session', deleteWardActive())
-  check('the destructive-git rule sits in the autonomous list, twice (the plain form and the inline-shell form)', AUTONOMOUS_WARDS.filter(rule => rule.name === RULE).length === 2)
+  check('the destructive-git rule sits in the autonomous list three times (the plain form, the inline-shell form, the quoted-flag form)', AUTONOMOUS_WARDS.filter(rule => rule.name === RULE).length === 3)
   check('the rule names its compliant alternative', AUTONOMOUS_WARDS.some(rule => rule.name === RULE && /explicit ask/.test(rule.teach) && /say so in your reply/.test(rule.teach)))
   check('the rule is data (JSON round-trips intact)', JSON.stringify(JSON.parse(JSON.stringify(AUTONOMOUS_WARDS))) === JSON.stringify(AUTONOMOUS_WARDS))
 
@@ -129,6 +157,10 @@ try {
     check('git reset --hard is refused by the guard, the rule named', typeof hard === 'string' && hard.includes(`Ward '${RULE}'`), shown(hard))
     const inline = await judge('git-ward-spawned', "bash -c 'cd /tmp/x && git clean -fd'")
     check('the inline-shell form is refused the same way', typeof inline === 'string' && inline.includes(`Ward '${RULE}'`), shown(inline))
+    const bundled = await judge('git-ward-spawned', 'git branch -df topic')
+    check('a bundled short-flag delete is refused through the guard', typeof bundled === 'string' && bundled.includes(`Ward '${RULE}'`), shown(bundled))
+    const quotedFlag = await judge('git-ward-spawned', 'git reset "--hard"')
+    check('a quoted flag is refused through the guard', typeof quotedFlag === 'string' && quotedFlag.includes(`Ward '${RULE}'`), shown(quotedFlag))
     const free = await judge('git-ward-spawned', 'git status')
     check('git status passes the guard', free === true, shown(free))
     const mention = await judge('git-ward-spawned', 'git commit -m "no git reset --hard here"')

@@ -264,17 +264,25 @@ const DESTRUCTIVE_GIT_TEACH =
   'Keep what matters by committing or stashing it and work on your own branch or worktree; if the ' +
   'discard is genuinely required, say so in your reply and let the operator run it.'
 
-function destructiveGitForms(span: string, end: string): string[] {
+const BARE_FLAG = { open: '', close: '\\b' }
+const QUOTED_FLAG = { open: '["\']', close: '["\']' }
+const FLAG_AS_WRITTEN = '["\']?'
+const FLAG_END_AS_WRITTEN = '(?:["\']|\\b)'
+
+function destructiveGitForms(span: string, end: string, flag: { open: string; close: string }): string[] {
   const git = '\\bgit\\b' + span + '\\b'
+  const dot = '\\s' + flag.open + '\\.\\/?' + flag.open + '\\s*' + end
+  const noStaged = '(?!(?=' + span + '\\s' + FLAG_AS_WRITTEN + '(?:--staged|-S)' + FLAG_END_AS_WRITTEN + ')(?!' + span + '\\s' + FLAG_AS_WRITTEN + '(?:--worktree|-W)' + FLAG_END_AS_WRITTEN + '))'
+  const noDryRun = '(?!' + span + '\\s' + FLAG_AS_WRITTEN + '(?:-[a-zA-Z]*n[a-zA-Z]*|--dry-run)' + FLAG_END_AS_WRITTEN + ')'
   return [
-    git + 'reset\\b' + span + '\\s--hard\\b',
-    git + 'checkout\\b' + span + '?\\s\\.\\/?\\s*' + end,
-    git + 'restore\\b(?!(?=' + span + '\\s(?:--staged|-S)\\b)(?!' + span + '\\s(?:--worktree|-W)\\b))' + span + '?\\s\\.\\/?\\s*' + end,
-    git + 'clean\\b(?=' + span + '\\s(?:-[a-zA-Z]*f[a-zA-Z]*|--force)\\b)(?!' + span + '\\s(?:-[a-zA-Z]*n[a-zA-Z]*|--dry-run)\\b)',
-    git + 'branch\\b(?=' + span + '\\s-D\\s+\\S)',
-    git + 'branch\\b(?=' + span + '\\s(?:--delete|-d)\\b)(?=' + span + '\\s(?:--force|-f)\\b)',
-    git + 'push\\b' + span + '\\s(?:--force(?:-with-lease|-if-includes)?(?:=\\S*)?|-f)\\b',
-    git + 'push\\b' + span + '\\s\\+[^\\s:]+',
+    git + 'reset\\b' + span + '\\s' + flag.open + '--hard' + flag.close,
+    git + 'checkout\\b' + span + '?' + dot,
+    git + 'restore\\b' + noStaged + span + '?' + dot,
+    git + 'clean\\b(?=' + span + '\\s' + flag.open + '(?:-[a-zA-Z]*f[a-zA-Z]*|--force)' + flag.close + ')' + noDryRun,
+    git + 'branch\\b(?=' + span + '\\s' + flag.open + '-[a-zA-Z]*(?:D|d[a-zA-Z]*f|f[a-zA-Z]*d)[a-zA-Z]*' + flag.open + '\\s+\\S)',
+    git + 'branch\\b(?=' + span + '\\s' + flag.open + '(?:--delete|-d)' + flag.close + ')(?=' + span + '\\s' + flag.open + '(?:--force|-f)' + flag.close + ')',
+    git + 'push\\b' + span + '\\s' + flag.open + '(?:--force(?:-with-lease|-if-includes)?(?:=\\S*)?|-[a-zA-Z]*f[a-zA-Z]*)' + flag.close,
+    git + 'push\\b' + span + '\\s' + flag.open + '\\+[^\\s:"\']+',
   ]
 }
 
@@ -303,7 +311,7 @@ export const AUTONOMOUS_WARDS: readonly WardRule[] = [
     teach: DESTRUCTIVE_GIT_TEACH,
     refusal: true,
     scope: 'bash',
-    patterns: destructiveGitForms(GIT_SEGMENT, '(?=[;&|\\n]|$)'),
+    patterns: destructiveGitForms(GIT_SEGMENT, '(?=[;&|\\n]|$)', BARE_FLAG),
     skipCommentLines: false,
     outsideQuotes: true,
   },
@@ -312,7 +320,15 @@ export const AUTONOMOUS_WARDS: readonly WardRule[] = [
     teach: DESTRUCTIVE_GIT_TEACH,
     refusal: true,
     scope: 'bash',
-    patterns: destructiveGitForms(QUOTED_RUN, '(?=[;&|"\']|$)').map(form => INLINE_SHELL_QUOTE + form),
+    patterns: destructiveGitForms(QUOTED_RUN, '(?=[;&|"\']|$)', BARE_FLAG).map(form => INLINE_SHELL_QUOTE + form),
+    skipCommentLines: false,
+  },
+  {
+    name: 'no-destructive-git-unattended',
+    teach: DESTRUCTIVE_GIT_TEACH,
+    refusal: true,
+    scope: 'bash',
+    patterns: destructiveGitForms(GIT_SEGMENT, '(?=[;&|\\n]|$)', QUOTED_FLAG),
     skipCommentLines: false,
   },
 ]
