@@ -110,8 +110,8 @@ section('R3 · the wiring reads the carried count first (source pins)')
     /const estimatedTokens =\s*compactionResult\?\.truePostCompactTokenCount \?\?\s*Math\.max\(\s*0,\s*\(measuredRawTokenCount \?\? tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.engineModel\)\) -\s*prunedTokensFreed,\s*\)[\s\S]{0,80}calculateTokenWarningState\(\s*estimatedTokens,/.test(tm),
   )
   check(
-    'the credit is the plan\'s own pressure-prune receipt, bound once per iteration beside the request plan and handed to the compaction gate as its freed count',
-    /const prunedTokensFreed = Math\.max\(0, requestPlan\.reductions\.pressurePruned\?\.tokensSaved \?\? 0\)/.test(tm) &&
+    'a projected request gauge needs no prune subtraction; an unstamped view keeps the receipt credit',
+    /const prunedTokensFreed = requestPlan\.gauge === undefined \? Math\.max\(0, requestPlan\.reductions\.pressurePruned\?\.tokensSaved \?\? 0\) : 0/.test(tm) &&
       /querySource,\s*tracking,\s*prunedTokensFreed,\s*forcedFold,\s*\)/.test(tm),
   )
   check(

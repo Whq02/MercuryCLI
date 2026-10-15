@@ -95,6 +95,7 @@ export type AssistantMessage = {
   uuid: UUID
   timestamp: string
   message: AssistantAPIMessage
+  contextGauge?: import('../services/run/requestGauge.js').RequestGaugeAnchor
   requestId: string | undefined
   error?: AssistantMessageError
   errorDetails?: string

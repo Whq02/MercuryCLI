@@ -163,6 +163,9 @@ import { flushSessionStorage, recordContentReplacement } from '../utils/sessionS
 import { handleStopHooks } from '../query/stopHooks.js'
 import { buildRequestContextPlan, reconcileAppliedPlanUsage, type RequestContextPlan } from '../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
+import { bindRequestGauge, requestGaugeFixed, settleRequestGauge } from '../services/run/requestGauge.js'
+import { getContextEpoch } from '../services/run/contextEpochs.js'
+import { toolToAPISchema } from '../utils/api.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
@@ -586,6 +589,13 @@ async function* streamModel(
         if (isTurnOwningQuerySource(run.querySource)) {
           recordSentRequest(String(rosterOwnerFromToolUseContext(toolUseContext)), requestMessages)
         }
+        const requestGauge = iter.requestPlan.gauge === undefined ? undefined : bindRequestGauge(
+          iter.messagesForQuery,
+          calibrationKeyFor(declaredRouteOf(iter.currentModel) ?? 'unrecognised', iter.currentModel),
+          getContextEpoch(ownerFromToolUseContext(toolUseContext)).epoch,
+          iter.requestPlan.gauge.fixed,
+        )
+        if (requestGauge !== undefined && requestGauge.digest === iter.requestPlan.gauge?.digest) requestGauge.sourceDigest = iter.requestPlan.gauge.sourceDigest
         for await (const message of run.deps.callModel({
           messages: requestMessages,
           systemPrompt: iter.fullSystemPrompt,
@@ -635,6 +645,7 @@ async function* streamModel(
 
             iter.needsFollowUp = resetForRetry(iter).needsFollowUp
           }
+          if (message.type === 'assistant' && requestGauge !== undefined) settleRequestGauge(requestGauge, message)
           const yieldMessage: typeof message = backfillCloneForYield(
             message,
             name => findToolByName(toolUseContext.options.tools, name),
@@ -719,7 +730,7 @@ async function* streamModel(
               )
               if (boundRecord !== null) yield emit({ kind: 'attachment', message: boundRecord })
             }
-            if (callId === `${iter.turnId}.c1`) {
+            if (callId === `${iter.turnId}.c1` && message.message.stop_reason != null) {
               const u = (message.message as { usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } }).usage
               const measured = (u?.input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0)
               if (measured > 0) {
@@ -969,6 +980,17 @@ async function* runEventMachine(
             ? calibrationKeyFor(declaredRouteOf(model) ?? 'unrecognised', model)
             : null
         })(),
+        fixedRequest: requestGaugeFixed({
+          system: appendSystemContext(systemPrompt, systemContext),
+          userContext: latestUserContextBody(messages) === null ? userContext : null,
+          tools: await Promise.all(toolUseContext.options.tools.map(tool => toolToAPISchema(tool, {
+            getToolPermissionContext: async () => toolUseContext.getAppState().toolPermissionContext,
+            tools: toolUseContext.options.tools,
+            agents: toolUseContext.options.agentDefinitions.activeAgents,
+            allowedAgentTypes: toolUseContext.options.agentDefinitions.allowedAgentTypes,
+            model: toolUseContext.options.engineModel,
+          }))),
+        }),
         harnessContextPolicy: null,
         ...(pendingOverflow?.rung === 'prune'
           ? { pressurePrune: true as const }
@@ -979,7 +1001,7 @@ async function* runEventMachine(
       'apply',
     )
     let messagesForQuery = requestPlan.messages
-    const prunedTokensFreed = Math.max(0, requestPlan.reductions.pressurePruned?.tokensSaved ?? 0)
+    const prunedTokensFreed = requestPlan.gauge === undefined ? Math.max(0, requestPlan.reductions.pressurePruned?.tokensSaved ?? 0) : 0
     const clearedByDigest = (requestPlan.reductions.pressurePruned?.cleared ?? 0) + requestPlan.reductions.timeBasedCleared
     if (clearedByDigest > 0) {
       const digested = await fireHooks(

@@ -288,7 +288,7 @@ function roughTokenCountEstimationForMessage(message: Message): number {
     return estimateContent(message.message.content)
   }
   if (message.type === 'attachment') {
-    const normalized = normalizeAttachmentForAPI(message as never) as unknown
+    const normalized = normalizeAttachmentForAPI(message.attachment as never) as unknown
     if (Array.isArray(normalized)) {
       let total = 0
       for (const entry of normalized) {
