@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 export const LICENCE_DOCUMENTS = ['LICENSE.md', 'TRADEMARKS.md', 'MERCURY-COMMUNITY-PRODUCTION-TERMS.md']
 export const LICENCE_FILE = 'LICENSE.md'
 export const TERMS_FILE = 'MERCURY-COMMUNITY-PRODUCTION-TERMS.md'
-export const CHANGE_DATE_YEARS = 3
+const CHANGE_DATE_YEARS = 3
 
 const VERSION_LINE = /^- \*\*Version:\*\* `([^`\n]*)`/m
 const RELEASE_LINE = /^- \*\*Version Release Date:\*\* (.+?) \(published at (\S+)\)/m
@@ -41,7 +41,7 @@ export function readLicenceParameters(text) {
   }
 }
 
-export function readTermsVersion(text) {
+function readTermsVersion(text) {
   const m = TERMS_VERSION_LINE.exec(text)
   return m ? m[1] : null
 }

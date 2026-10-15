@@ -59,7 +59,7 @@ const MODEL_TITLE = 'Mercury · model'
 const STILL_TICKS = 12
 const VOLATILE_TOKEN = '⟪·⟫'
 
-export const SUBSTITUTIONS: ReadonlyArray<readonly [string, string]> = [
+const SUBSTITUTIONS: ReadonlyArray<readonly [string, string]> = [
   ['/teammates', '/crewmates'],
   ['TeamBrief', 'LiveComms'],
   ['Teammates', 'Crewmates'],
@@ -72,7 +72,7 @@ export const SUBSTITUTIONS: ReadonlyArray<readonly [string, string]> = [
   ['team', 'crew'],
 ]
 
-export const VOLATILE: ReadonlyArray<readonly [string, RegExp]> = [
+const VOLATILE: ReadonlyArray<readonly [string, RegExp]> = [
   ['a duration', /\b(?:\d+h )?(?:\d+m )?\d+(?:\.\d)?s\b|\b\d+h(?: \d+m)?\b|\b\d+m\b/g],
   ['a relative age', /\b\d+[smhd] (?:ago|old)\b/g],
   ['a wall clock', /\b\d{1,2}:\d{2}(?::\d{2})?(?: ?[AP]M)?\b/g],
@@ -398,21 +398,21 @@ async function driveBundleOnce(dist: string, tag: string, cols: number, rows: nu
   return run
 }
 
-export function maskVolatile(row: string): string {
+function maskVolatile(row: string): string {
   let out = row
   for (const [, re] of VOLATILE) out = out.replace(re, VOLATILE_TOKEN)
   return out
 }
 
-export function volatileWidth(row: string): number {
+function volatileWidth(row: string): number {
   return volatileCells(row).filter(Boolean).length
 }
 
 const blankRuns = (row: string): string => row.replace(/ {2,}/g, ' ').replace(/ +$/, '')
 
-export type RowAgreement = 'same' | 'substituted' | 'volatile' | 'shifted' | null
+type RowAgreement = 'same' | 'substituted' | 'volatile' | 'shifted' | null
 
-export function rowAgrees(before: string, after: string): RowAgreement {
+function rowAgrees(before: string, after: string): RowAgreement {
   const b = before.replace(/ +$/, '')
   const a = after.replace(/ +$/, '')
   if (b === a) return 'same'
@@ -425,7 +425,7 @@ export function rowAgrees(before: string, after: string): RowAgreement {
   return null
 }
 
-export function volatileCells(row: string): boolean[] {
+function volatileCells(row: string): boolean[] {
   const cells = Array.from({ length: row.length }, () => false)
   for (const [, re] of VOLATILE) for (const m of row.matchAll(re)) for (let x = m.index!; x < m.index! + m[0].length; x++) cells[x] = true
   return cells
@@ -443,16 +443,16 @@ function firstMove(a: string[], b: string[]): { row: number; col: number; a: str
   return null
 }
 
-export type CellVerdict = 'same' | 'substitution' | 'volatile' | 'shifted' | 'different'
-export type RowVerdict = { before: string; after: string; cells: CellVerdict[]; firstDifferent: number | null; substituted: string }
+type CellVerdict = 'same' | 'substitution' | 'volatile' | 'shifted' | 'different'
+type RowVerdict = { before: string; after: string; cells: CellVerdict[]; firstDifferent: number | null; substituted: string }
 
-export function substitute(row: string): string {
+function substitute(row: string): string {
   let out = row
   for (const [from, to] of SUBSTITUTIONS) out = out.split(from).join(to)
   return out
 }
 
-export function compareRow(before: string, after: string): RowVerdict {
+function compareRow(before: string, after: string): RowVerdict {
   const width = Math.max(before.length, after.length)
   const b = before.padEnd(width)
   const a = after.padEnd(width)
@@ -482,7 +482,7 @@ export function compareRow(before: string, after: string): RowVerdict {
   return { before: b, after: a, cells, firstDifferent, substituted }
 }
 
-export function compareFrames(before: string[], after: string[]): RowVerdict[] {
+function compareFrames(before: string[], after: string[]): RowVerdict[] {
   const out: RowVerdict[] = []
   for (let y = 0; y < Math.max(before.length, after.length); y++) out.push(compareRow(before[y] ?? '', after[y] ?? ''))
   return out
@@ -563,7 +563,7 @@ function renderRow(text: string, cells: CellVerdict[]): string {
   return out
 }
 
-export function renderPage(verdicts: readonly SceneVerdict[], meta: { before: string; after: string; failures: number }): string {
+function renderPage(verdicts: readonly SceneVerdict[], meta: { before: string; after: string; failures: number }): string {
   const summary = verdicts.map(v => {
     const state = v.differences === 0 && v.faults.length === 0 ? 'same' : 'differs'
     return `<tr class="${state}"><td><a href="#${v.size}-${v.scene}">${escapeHtml(v.title)}</a></td><td>${v.size}</td><td>${state === 'same' ? 'the same cells but the words' : `${v.differences} row${v.differences === 1 ? '' : 's'} differ${v.faults.length > 0 ? ` · ${escapeHtml(v.faults.join(' · '))}` : ''}`}</td><td>${v.substitutions}</td><td>${v.volatile}</td></tr>`

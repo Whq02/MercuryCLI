@@ -10,15 +10,15 @@ import { argAfter, bootRunner, bound, childEnv, isOutcome, isSession, j, makeTal
 const { check, section, finish, failed } = makeTally('prove-one-shot-open-deliverables')
 const KEEP = argAfter('--keep')
 
-export const FILE_ASK = 'file the parser task and end the turn'
-export const TASK_SUBJECT = 'write the parser'
-export const FILED_END = 'done: the parser task is filed'
-export const CLOSED_END = 'done: the parser task is closed'
-export const REPROMPT_WORDS = 'work the open deliverable'
+const FILE_ASK = 'file the parser task and end the turn'
+const TASK_SUBJECT = 'write the parser'
+const FILED_END = 'done: the parser task is filed'
+const CLOSED_END = 'done: the parser task is closed'
+const REPROMPT_WORDS = 'work the open deliverable'
 
 type Block = { type?: string; text?: string; content?: unknown }
 type Item = { role?: string; content?: unknown }
-export type Hit = { ask: boolean; n: number; step: number; arm: string; reprompted: boolean; reprompts: number; tools: number; at: number }
+type Hit = { ask: boolean; n: number; step: number; arm: string; reprompted: boolean; reprompts: number; tools: number; at: number }
 
 function textParts(content: unknown): string[] {
   if (typeof content === 'string') return [content]
@@ -72,9 +72,9 @@ function answerTool(res: ServerResponse, n: number, model: string, id: string, n
   res.end(closeMessage('tool_use', 0))
 }
 
-export type TaskFixture = { port: number; hits: Hit[]; close: () => Promise<void> }
+type TaskFixture = { port: number; hits: Hit[]; close: () => Promise<void> }
 
-export async function startTaskFixture(): Promise<TaskFixture> {
+async function startTaskFixture(): Promise<TaskFixture> {
   const hits: Hit[] = []
   let calls = 0
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -124,7 +124,7 @@ export async function startTaskFixture(): Promise<TaskFixture> {
   return { port, hits, close: () => new Promise<void>(resolve => server.close(() => resolve())) }
 }
 
-export type RunRecord = {
+type RunRecord = {
   runId?: string
   lifecycle?: string
   phase?: string
@@ -133,7 +133,7 @@ export type RunRecord = {
   lastStopDecision?: { decision?: string; detail?: string } | null
   recentEvents?: Array<{ type?: string; decision?: string; detail?: string }>
 }
-export function runRecords(projectsDir: string): Array<{ file: string; run: RunRecord }> {
+function runRecords(projectsDir: string): Array<{ file: string; run: RunRecord }> {
   const out: Array<{ file: string; run: RunRecord }> = []
   if (!existsSync(projectsDir)) return out
   const walk = (dir: string): void => {

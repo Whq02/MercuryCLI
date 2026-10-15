@@ -7,7 +7,7 @@ export type GitResult =
   | { state: 'timeout' }
   | { state: 'malformed'; detail: string }
 
-export interface RunGitOptions {
+interface RunGitOptions {
   cwd?: string
   timeoutMs?: number
   maxBuffer?: number

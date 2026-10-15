@@ -385,14 +385,14 @@ async function replay(leg: Leg, payload: Payload | null): Promise<Frame[]> {
   return out.split('\n').filter(l => l.trim() !== '').map(l => JSON.parse(l) as Frame)
 }
 
-export type Event = { kind: 'REORDER' | 'REPEAT' | 'POP'; tick: number; frame: number; row: string; detail: string }
-export type Ledger = { reorder: number; repeat: number; pop: number; events: Event[]; frames: number }
+type Event = { kind: 'REORDER' | 'REPEAT' | 'POP'; tick: number; frame: number; row: string; detail: string }
+type Ledger = { reorder: number; repeat: number; pop: number; events: Event[]; frames: number }
 
 const collapse = (s: string): string => s.replace(/\s+/g, ' ').trim()
 const SUBSTANTIVE = /[A-Za-z0-9]{3,}/
 const substantive = (text: string): boolean => text.length >= 8 && SUBSTANTIVE.test(text)
 
-export function paneRows(lines: string[]): string[] {
+function paneRows(lines: string[]): string[] {
   let prompt = -1
   for (let y = lines.length - 1; y >= 0; y--) {
     if (/^│?❯/.test(lines[y]!.replace(/^[^│❯]*/, ''))) {
@@ -425,8 +425,8 @@ function normalizeRow(row: string): { text: string; starts: boolean } {
   return { text: collapse(undressed), starts }
 }
 
-export type Run = { text: string; y: number; rows: number }
-export function runsOf(rows: string[]): Run[] {
+type Run = { text: string; y: number; rows: number }
+function runsOf(rows: string[]): Run[] {
   const out: Run[] = []
   let current: Run | null = null
   rows.forEach((row, y) => {
@@ -447,7 +447,7 @@ export function runsOf(rows: string[]): Run[] {
   return out.filter(b => substantive(b.text))
 }
 
-export function continues(earlier: string, later: string): boolean {
+function continues(earlier: string, later: string): boolean {
   if (later.startsWith(earlier)) return true
   if (earlier.startsWith(later) && later.length >= Math.max(8, earlier.length * 0.6)) return true
   const trimmed = earlier.replace(/\s\S*$/, '')
@@ -455,7 +455,7 @@ export function continues(earlier: string, later: string): boolean {
 }
 
 const POP_TICKS = 5
-export function classify(frames: Frame[], sendTicks: number[], resizeTicks: number[]): Ledger {
+function classify(frames: Frame[], sendTicks: number[], resizeTicks: number[]): Ledger {
   const events: Event[] = []
   const quiet = (tick: number): boolean => !sendTicks.some(s => tick >= s - 1 && tick <= s + POP_TICKS) && !resizeTicks.some(r => Math.abs(tick - r) <= 2)
   const shots = frames.map(f => ({ f, blocks: runsOf(paneRows(f.lines)) }))

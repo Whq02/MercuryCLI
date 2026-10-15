@@ -15,7 +15,7 @@ export const argAfter = (flag: string): string | undefined => {
 }
 export const DIST = argAfter('--dist') ?? join(REPO, 'dist', 'mercury.mjs')
 export const FRAMES = argAfter('--frames')
-export const FIXTURE = join(import.meta.dir, 'dupline-fixture-server.ts')
+const FIXTURE = join(import.meta.dir, 'dupline-fixture-server.ts')
 export const WIN = process.platform === 'win32'
 export const BUN = process.env.BUN ?? process.execPath
 const VENDORED_NODE = join(DIST, '..', 'vendor', 'node', ...(WIN ? ['node.exe'] : ['bin', 'node']))
@@ -52,9 +52,9 @@ export function makeTally(name: string): { check: (label: string, cond: boolean,
   }
 }
 
-export type Rec = { recordId?: string; creationOrdinal?: string; occurredAt?: string; threadId?: string; annotations?: { uuid?: string }; payload?: { kind?: string; attachmentType?: string; metaKind?: string; content?: unknown; fields?: Record<string, unknown>; meta?: Record<string, unknown> } }
+type Rec = { recordId?: string; creationOrdinal?: string; occurredAt?: string; threadId?: string; annotations?: { uuid?: string }; payload?: { kind?: string; attachmentType?: string; metaKind?: string; content?: unknown; fields?: Record<string, unknown>; meta?: Record<string, unknown> } }
 export type Carrier = { file: string; kind: string; recordId: string; ordinal: string; occurredAt: string; sourceUuid: string; sentAt: string; deliveredAt: string; thread: string; agentId: string; uuid: string }
-export function textOfRecord(r: Rec): string {
+function textOfRecord(r: Rec): string {
   const p = r.payload ?? {}
   if (p.kind === 'input') {
     const c = p.content
@@ -155,7 +155,7 @@ export async function settledCarriers(projectsDir: string, line: string, timeout
     await sleep(100)
   }
 }
-export function agentTranscripts(projectsDir: string): Array<{ agentId: string; description: string; file: string }> {
+function agentTranscripts(projectsDir: string): Array<{ agentId: string; description: string; file: string }> {
   const out: Array<{ agentId: string; description: string; file: string }> = []
   for (const p of transcriptFiles(projectsDir)) {
     const m = /agent-([^/\\]+)\.jsonl$/.exec(p)

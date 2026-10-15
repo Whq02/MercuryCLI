@@ -9,11 +9,11 @@ if (!captureFile) {
 }
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
-export const GPT_REPLY = 'sol answers from the fixture'
-export const OPUS_REPLY = 'opus picked up cleanly'
-export const LONG_THINK_ASK = 'think long please'
+const GPT_REPLY = 'sol answers from the fixture'
+const OPUS_REPLY = 'opus picked up cleanly'
+const LONG_THINK_ASK = 'think long please'
 const LONG_THINK_CEILING_MS = 120_000
-export const SLOW_INGEST_ASK = 'ingest slowly please'
+const SLOW_INGEST_ASK = 'ingest slowly please'
 const SLOW_INGEST_HOLD_MS = Number.parseInt(process.env.FIXTURE_HOLD_MS ?? '5000', 10)
 
 function lastAskOf(body: Record<string, unknown>): string {

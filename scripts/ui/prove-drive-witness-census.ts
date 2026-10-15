@@ -6,7 +6,7 @@ import { census } from '../gate/prove-suite-class-census.ts'
 import { calleeName, declarationOf, importTarget, lineOf, stringText, unwrap, visit } from '../gate/sourceCensus.ts'
 
 type Kind = 'send' | 'sample' | 'resize' | 'wait' | 'stderr'
-export type Offender = { file: string; line: number; kind: Kind; fix: string; source: string }
+type Offender = { file: string; line: number; kind: Kind; fix: string; source: string }
 const ROOT = resolve(import.meta.dir, '..', '..')
 const BASELINE = join(import.meta.dir, 'drive-witness.baseline.json')
 const ALLOW: Readonly<Record<string, string>> = {}
@@ -65,7 +65,7 @@ function nonempty(e: ts.Expression | undefined): boolean {
   return stringText(x) !== '' && x.kind !== ts.SyntaxKind.FalseKeyword && x.kind !== ts.SyntaxKind.NullKeyword
 }
 
-export function inspect(source: string, file: string): Offender[] {
+function inspect(source: string, file: string): Offender[] {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
   const hits: Offender[] = []
   const programs: string[] = []
@@ -140,7 +140,7 @@ function sourceFiles(root: string): string[] {
   return out.sort()
 }
 
-export function driveCensus(root: string): { files: number; drives: number; suites: number; offenders: Offender[] } {
+function driveCensus(root: string): { files: number; drives: number; suites: number; offenders: Offender[] } {
   const suites = census(root).suites
   const reachable = new Set(suites.flatMap(s => s.cls === 'pty' ? s.executed : s.drivers).map(f => join(root, f)))
   const files = sourceFiles(root)
@@ -170,7 +170,7 @@ export function driveCensus(root: string): { files: number; drives: number; suit
   return { files: reachable.size, drives, suites: suites.filter(s => s.cls === 'pty' || s.drivers.length > 0).length, offenders }
 }
 
-export function baselineCounts(value: unknown): Readonly<Record<string, number>> {
+function baselineCounts(value: unknown): Readonly<Record<string, number>> {
   const files = value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>).files : undefined
   if (files === null || typeof files !== 'object' || Array.isArray(files)) throw new Error('drive witness baseline must contain a files object')
   for (const [file, count] of Object.entries(files)) {
@@ -181,7 +181,7 @@ export function baselineCounts(value: unknown): Readonly<Record<string, number>>
   return files as Readonly<Record<string, number>>
 }
 
-export function ratchet(offenders: readonly Offender[], pinned: Readonly<Record<string, number>>): { remaining: number; pinned: number; files: number; growing: Array<{ file: string; found: number; pinned: number }> } {
+function ratchet(offenders: readonly Offender[], pinned: Readonly<Record<string, number>>): { remaining: number; pinned: number; files: number; growing: Array<{ file: string; found: number; pinned: number }> } {
   const counts = new Map<string, number>()
   for (const h of offenders) counts.set(h.file, (counts.get(h.file) ?? 0) + 1)
   const growing = [...counts].filter(([file, found]) => found > (pinned[file] ?? 0)).sort(([a], [b]) => a.localeCompare(b)).map(([file, found]) => ({ file, found, pinned: pinned[file] ?? 0 }))

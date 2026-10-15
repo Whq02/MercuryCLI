@@ -25,7 +25,7 @@ export function parseId(id) {
 }
 `
 
-export const ID_STRUCTURED = `// Note ids are structured { ns, key } records; key is the six-digit base36
+const ID_STRUCTURED = `// Note ids are structured { ns, key } records; key is the six-digit base36
 // counter. idKey/idFromKey convert to and from the canonical string form.
 export function mintId(ns, seq) {
   if (!/^[a-z]+$/.test(ns)) throw new Error('bad namespace: ' + ns)
@@ -204,7 +204,7 @@ export function renderList(store) {
 
 const RENDER_ZERO_NUMBERING = RENDER_BASE.replace('let n = 1', 'let n = 0')
 
-export const RENDER_STRUCTURED = `import { getNote } from './store.js'
+const RENDER_STRUCTURED = `import { getNote } from './store.js'
 import { idKey } from './id.js'
 
 export function renderNote(store, id) {
@@ -256,7 +256,7 @@ const CLI_EXIT_ZERO = CLI_BASE.replace(
   "return { code: 0, out: 'unknown command: '",
 )
 
-export const CLI_STRUCTURED = `import { addNote, getNote } from './store.js'
+const CLI_STRUCTURED = `import { addNote, getNote } from './store.js'
 import { idFromKey, idKey } from './id.js'
 import { parseNote } from './parse.js'
 import { renderNote, renderList } from './render.js'
@@ -288,7 +288,7 @@ export function runCommand(store, argv) {
 }
 `
 
-export const STORE_STRUCTURED = `import { idKey, mintId } from './id.js'
+const STORE_STRUCTURED = `import { idKey, mintId } from './id.js'
 
 // Note bodies are stored newline-normalized: CRLF and bare CR both become LF
 // at the write boundary, so serialized stores are byte-stable across
@@ -693,7 +693,7 @@ test('cli archive command sets the flag', () => {
 })
 `
 
-export const STORE_FLAGS = STORE_BASE.replace(
+const STORE_FLAGS = STORE_BASE.replace(
   `export const NOTE_FIELDS = ['id', 'title', 'tags', 'body']`,
   `export const NOTE_FIELDS = ['id', 'title', 'tags', 'body', 'pinned', 'archived']`,
 ).replace(
@@ -721,7 +721,7 @@ export function setArchived(store, id, archived) {
 }
 `
 
-export const RENDER_FLAGS = `import { getNote } from './store.js'
+const RENDER_FLAGS = `import { getNote } from './store.js'
 
 export function renderNote(store, id) {
   const note = getNote(store, id)
@@ -746,7 +746,7 @@ export function renderList(store, options) {
 }
 `
 
-export const CLI_FLAGS = CLI_BASE.replace(
+const CLI_FLAGS = CLI_BASE.replace(
   `import { addNote, getNote } from './store.js'`,
   `import { addNote, getNote, setArchived, setPinned } from './store.js'`,
 ).replace(
@@ -779,14 +779,14 @@ const STORE_SERIALIZE_DROPS_SEQ = STORE_BASE.replace(
   `  store.seq = raw.seq ?? 0`,
 )
 
-export const STORE_TAGINDEX = STORE_BASE + `
+const STORE_TAGINDEX = STORE_BASE + `
 export function findByTag(store, tag) {
   const wanted = String(tag).toLowerCase()
   return store.notes.filter(n => n.tags.includes(wanted))
 }
 `
 
-export const CLI_TAGINDEX = CLI_BASE.replace(
+const CLI_TAGINDEX = CLI_BASE.replace(
   `import { addNote, getNote } from './store.js'`,
   `import { addNote, findByTag, getNote } from './store.js'`,
 ).replace(
@@ -802,7 +802,7 @@ export const CLI_TAGINDEX = CLI_BASE.replace(
   }`,
 )
 
-export const STORE_TAGINDEX_CASE_SENSITIVE = STORE_BASE + `
+const STORE_TAGINDEX_CASE_SENSITIVE = STORE_BASE + `
 export function findByTag(store, tag) {
   return store.notes.filter(n => n.tags.includes(String(tag)))
 }
@@ -847,7 +847,7 @@ test('cli plain list is unchanged', () => {
 })
 `
 
-export const RENDER_STATS = `import { getNote } from './store.js'
+const RENDER_STATS = `import { getNote } from './store.js'
 
 export function renderNote(store, id, options) {
   const note = getNote(store, id)

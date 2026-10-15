@@ -12,24 +12,24 @@ const ROW = {
   sources: 'mercury-skills/**',
 }
 
-export type Layout = { sourceRoot: string; dest: string }
-export const DEFAULT_LAYOUT: Layout = {
+type Layout = { sourceRoot: string; dest: string }
+const DEFAULT_LAYOUT: Layout = {
   sourceRoot: join(ROOT, 'mercury-skills'),
   dest: join(ROOT, 'src', 'skills', 'bundled'),
 }
 
 export const GENERATED_MARKER = "export const GENERATED_BY = 'scripts/skills/gen-bundled.ts'"
 
-export type DirEntry = { name: string; isDirectory(): boolean; isFile(): boolean }
-export type ListDir = (dir: string) => DirEntry[]
-export const listDir: ListDir = dir => readdirSync(dir, { withFileTypes: true })
+type DirEntry = { name: string; isDirectory(): boolean; isFile(): boolean }
+type ListDir = (dir: string) => DirEntry[]
+const listDir: ListDir = dir => readdirSync(dir, { withFileTypes: true })
 const byName = (a: DirEntry, b: DirEntry): number => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
 
 const SKIP_EXT = new Set(['.ttf', '.otf', '.woff', '.woff2', '.pyc', '.pdf', '.gz', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.ico', '.webp'])
 const LOADER_TEXT_EXT = new Set(['.md', '.txt', '.sh', '.py', '.html', '.xml', '.dot'])
 export const TEXT_LOADERS: Readonly<Record<string, 'text'>> = Object.fromEntries([...LOADER_TEXT_EXT].map(ext => [ext, 'text' as const]))
 
-export function isSkillName(name: string): boolean {
+function isSkillName(name: string): boolean {
   return /^[a-z0-9][a-z0-9_-]*$/.test(name)
 }
 
@@ -99,7 +99,7 @@ export function retiredSkills(layout: Layout = DEFAULT_LAYOUT): string[] {
   return [...out].sort()
 }
 
-export type Rendered = {
+type Rendered = {
   name: string
   mirror: Array<{ rel: string; bytes: Buffer }>
   contentTs: string
@@ -197,7 +197,7 @@ export function renderSkill(name: string, layout: Layout = DEFAULT_LAYOUT, list:
   }
 }
 
-export function writeSkill(rendered: Rendered, layout: Layout = DEFAULT_LAYOUT): void {
+function writeSkill(rendered: Rendered, layout: Layout = DEFAULT_LAYOUT): void {
   for (const file of [`${rendered.name}Content.ts`, `${rendered.name}.ts`]) {
     const p = join(layout.dest, file)
     if (existsSync(p) && !isGeneratedModule(p)) {
@@ -271,7 +271,7 @@ export function checkBundled(layout: Layout = DEFAULT_LAYOUT): { drift: string[]
   return { drift: names.flatMap(name => checkSkill(name, layout)), retired: retiredSkills(layout), invalid }
 }
 
-export type RunOptions = {
+type RunOptions = {
   layout?: Layout
   register?: boolean
   log?: (line: string) => void

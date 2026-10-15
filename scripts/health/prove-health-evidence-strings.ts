@@ -49,7 +49,7 @@ function hasObjectMember(checker: ts.TypeChecker, type: ts.Type, depth = 0): boo
 
 type Finding = { line: number; kind: 'interpolation' | 'join'; text: string; type: string }
 
-export function dishonestSpans(program: ts.Program, file: ts.SourceFile): Finding[] {
+function dishonestSpans(program: ts.Program, file: ts.SourceFile): Finding[] {
   const checker = program.getTypeChecker()
   const out: Finding[] = []
   const lineOf = (node: ts.Node): number => file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1

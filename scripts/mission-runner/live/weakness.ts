@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { decodeRows } from './aggregate.js'
 
-export interface WeaknessCluster {
+interface WeaknessCluster {
   kind: 'rejection' | 'incorrect-claim' | 'timeout' | 'reviewer-disagreement'
   family: number
   policyId: string
@@ -10,7 +10,7 @@ export interface WeaknessCluster {
   evidence: string[]
 }
 
-export function mineWeaknesses(rowsText: string, minCount = 2): WeaknessCluster[] {
+function mineWeaknesses(rowsText: string, minCount = 2): WeaknessCluster[] {
   const rows = decodeRows(rowsText).filter(r => r.status !== 'not-applicable')
   const clusters = new Map<string, WeaknessCluster>()
   const bump = (

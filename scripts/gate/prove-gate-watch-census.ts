@@ -10,7 +10,7 @@ import { calleeName, declarationOf, parseSource, slash, stringText, unwrap, visi
 const REAL_ROOT = resolve(import.meta.dir, '..', '..')
 const REPORT = process.argv.includes('--report')
 
-export const WHOLE_TREE: Record<string, string> = {
+const WHOLE_TREE: Record<string, string> = {
   accounts: 'prove-keychain-miss-is-quiet walks src (the keychain-miss law)',
   bash: 'prove-shell-engine-census walks scripts (the shell-engine compatibility census)',
   build: 'prove-boot-crash-surface and prove-win32-seam-ratchet walk src (boot modules, win32 seams)',
@@ -74,10 +74,10 @@ type ReadHow = 'import' | 'text' | 'runner'
 type Read = { path: string; kind: ReadKind; via: string; how: ReadHow }
 type Tree = { list: string[]; files: Set<string>; dirs: Set<string> }
 type FileReads = { imports: string[]; files: string[]; dirs: string[] }
-export type Miss = { suite: string; law: 1 | 2; text: string }
-export type Unwatched = { path: string; kind: ReadKind; via: string; files: string[] }
-export type SuiteRow = { suite: string; executed: string[]; reads: Read[]; misses: string[]; whole: string | null; unwatched: Unwatched[] }
-export type Census = { suites: SuiteRow[]; globs: number; misses: Miss[] }
+type Miss = { suite: string; law: 1 | 2; text: string }
+type Unwatched = { path: string; kind: ReadKind; via: string; files: string[] }
+type SuiteRow = { suite: string; executed: string[]; reads: Read[]; misses: string[]; whole: string | null; unwatched: Unwatched[] }
+type Census = { suites: SuiteRow[]; globs: number; misses: Miss[] }
 
 const globs = new Map<string, InstanceType<typeof Bun.Glob>>()
 function globOf(pattern: string): InstanceType<typeof Bun.Glob> {
@@ -103,7 +103,7 @@ function treeOf(list: string[]): Tree {
   return { list, files, dirs }
 }
 
-export function trackedOf(root: string): string[] {
+function trackedOf(root: string): string[] {
   return execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
     .split('\0')
     .filter(Boolean)
@@ -406,7 +406,7 @@ function membersOf(root: string, tree: Tree, suite: string): Members | null {
   return { parent, files }
 }
 
-export function census(root: string, tracked: string[], manifest: ImpactManifest, whole: Record<string, string>): Census {
+function census(root: string, tracked: string[], manifest: ImpactManifest, whole: Record<string, string>): Census {
   const tree = treeOf(tracked)
   const misses: Miss[] = []
   let globCount = 0

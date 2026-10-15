@@ -1,6 +1,6 @@
 import ts from 'typescript'
 
-export type CommentRange = { pos: number; end: number }
+type CommentRange = { pos: number; end: number }
 
 export const CODE_TEXT_FILE = /\.(ts|tsx|mts|cts|js|mjs|cjs|jsx)$/
 

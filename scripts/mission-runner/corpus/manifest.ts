@@ -36,7 +36,7 @@ export function corpusDigest(): string {
   return 'hc1-' + createHash('sha256').update(stableStringify(material)).digest('hex').slice(0, 24)
 }
 
-export function buildManifest(): Record<string, unknown> {
+function buildManifest(): Record<string, unknown> {
   const repoRoot = resolve(new URL('../../..', import.meta.url).pathname)
   const scratch = mkdtempSync(join(tmpdir(), 'helix-manifest-'))
   let seeded

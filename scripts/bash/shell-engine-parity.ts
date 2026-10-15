@@ -5,21 +5,21 @@ import { tmpdir } from 'node:os'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
 import { brushPackPlatform } from '../../src/utils/shell/brushPack.ts'
 
-export const ENGINES = ['system', 'brush'] as const
+const ENGINES = ['system', 'brush'] as const
 export type Engine = (typeof ENGINES)[number]
 export const ENGINE_ENV = 'MERCURY_SHELL_ENGINE'
 
 export const ROOT: string = resolve(import.meta.dir, '..', '..')
 const BUN = process.env.BUN ?? process.execPath
 
-export type CheckStatus = 'PASS' | 'FAIL' | 'SKIP'
-export interface Check {
+type CheckStatus = 'PASS' | 'FAIL' | 'SKIP'
+interface Check {
   status: CheckStatus
   label: string
   detail: string
   ordinal: number
 }
-export interface ProverRun {
+interface ProverRun {
   engine: Engine
   prover: string
   exit: number | null
@@ -29,10 +29,10 @@ export interface ProverRun {
   stderr: string
   checks: Check[]
 }
-export type SideStatus = CheckStatus | 'absent'
-export const LIVE_ENGINE_LINE = /the shell that answered: brush/
-export type EngineGrade = 'exercised' | 'control-only'
-export interface ParityRow {
+type SideStatus = CheckStatus | 'absent'
+const LIVE_ENGINE_LINE = /the shell that answered: brush/
+type EngineGrade = 'exercised' | 'control-only'
+interface ParityRow {
   key: string
   label: string
   system: SideStatus
@@ -41,7 +41,7 @@ export interface ParityRow {
   brushDetail: string
   verdict: 'same' | 'mismatch'
 }
-export interface ProverParity {
+interface ProverParity {
   prover: string
   runs: Record<Engine, ProverRun>
   rows: ParityRow[]
@@ -50,8 +50,8 @@ export interface ProverParity {
   verdict: 'same' | 'mismatch'
   grade: EngineGrade
 }
-export type LaneState = { state: 'wired' | 'unwired'; reason: string; pack: string | null }
-export interface ParityReport {
+type LaneState = { state: 'wired' | 'unwired'; reason: string; pack: string | null }
+interface ParityReport {
   lane: LaneState
   shell: string | null
   provers: ProverParity[]
@@ -59,7 +59,7 @@ export interface ParityReport {
   exercised: number
   reportPath: string | null
 }
-export interface RunOptions {
+interface RunOptions {
   shell?: string
   timeoutMs?: number
   cwd?: string
@@ -129,7 +129,7 @@ const BRACKETED = /^\s*\[(PASS|FAIL|SKIP)\]\s*(.*?)\s*$/
 const BARE = /^(PASS|FAIL|SKIP)\s{2,}(.*?)\s*$/
 const DETAIL_SEPARATOR = ' — '
 
-export function parseChecks(text: string): Check[] {
+function parseChecks(text: string): Check[] {
   const checks: Check[] = []
   const seen = new Map<string, number>()
   for (const line of text.split(/\r?\n/)) {
@@ -148,7 +148,7 @@ export function parseChecks(text: string): Check[] {
 }
 
 
-export function runProver(prover: string, engine: Engine, options: RunOptions = {}): ProverRun {
+function runProver(prover: string, engine: Engine, options: RunOptions = {}): ProverRun {
   const path = isAbsolute(prover) ? prover : join(ROOT, prover)
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -182,7 +182,7 @@ export function runProver(prover: string, engine: Engine, options: RunOptions = 
 
 const keyOf = (check: Check): string => `${check.label}#${check.ordinal}`
 
-export function pairRuns(system: ProverRun, brush: ProverRun): ParityRow[] {
+function pairRuns(system: ProverRun, brush: ProverRun): ParityRow[] {
   const bySystem = new Map(system.checks.map(check => [keyOf(check), check]))
   const byBrush = new Map(brush.checks.map(check => [keyOf(check), check]))
   const order: string[] = []
@@ -210,7 +210,7 @@ export function pairRuns(system: ProverRun, brush: ProverRun): ParityRow[] {
   })
 }
 
-export function compareProver(prover: string, options: RunOptions = {}): ProverParity {
+function compareProver(prover: string, options: RunOptions = {}): ProverParity {
   const system = runProver(prover, 'system', options)
   const brush = runProver(prover, 'brush', options)
   const rows = pairRuns(system, brush)

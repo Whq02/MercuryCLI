@@ -9,7 +9,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-export function extractWireShape(source: string): { ops: string[]; controlActions: string[] } {
+function extractWireShape(source: string): { ops: string[]; controlActions: string[] } {
   const opsStart = source.indexOf('export type DaemonOp =')
   const opsEnd = source.indexOf('\n\n', opsStart)
   const ops = Array.from(source.slice(opsStart, opsEnd).matchAll(/'([A-Za-z-]+)'/g), m => m[1]!)
@@ -21,7 +21,7 @@ export function extractWireShape(source: string): { ops: string[]; controlAction
   return { ops, controlActions }
 }
 
-export function wireShapeHash(shape: { ops: string[]; controlActions: string[] }): string {
+function wireShapeHash(shape: { ops: string[]; controlActions: string[] }): string {
   return 'sha256:' + createHash('sha256').update(JSON.stringify(shape)).digest('hex')
 }
 

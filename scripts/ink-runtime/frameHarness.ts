@@ -27,7 +27,7 @@ export type SceneNode = {
 
 const TEXT_STYLE_KEYS = ['color', 'backgroundColor', 'dim', 'bold', 'italic', 'underline', 'strikethrough', 'inverse'] as const
 
-export function splitTextStyles(style: (Styles & TextStyles) | undefined, textStyles: TextStyles | undefined): { layout: Styles; text: TextStyles } {
+function splitTextStyles(style: (Styles & TextStyles) | undefined, textStyles: TextStyles | undefined): { layout: Styles; text: TextStyles } {
   const layout: Record<string, unknown> = {}
   const text: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(style ?? {})) {

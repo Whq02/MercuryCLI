@@ -8,12 +8,12 @@ import type { Message } from '../../src/types/message.ts'
 
 setIsInteractive(true)
 
-export const PROOF_MODEL = 'claude-opus-5'
+const PROOF_MODEL = 'claude-opus-5'
 export const COMPUTER_ACTIONS = ['screenshot', 'click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold', 'wait', 'cursor', 'displays', 'frontmost'] as const
 export const COMPUTER_READS = ['screenshot', 'wait', 'cursor', 'displays', 'frontmost'] as const
 export const COMPUTER_ACTS = ['click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold'] as const
 
-export interface ContextOptions {
+interface ContextOptions {
   agentId?: string
   model?: string
   messages?: Message[]
@@ -68,7 +68,7 @@ export function toolResultTurn(block: unknown): Message {
 
 export const allowEverything = (async () => ({ behavior: 'allow' as const })) as never
 
-export interface ScreenshotInContext {
+interface ScreenshotInContext {
   context: ToolUseContext
   toolUseId: string
   result: string

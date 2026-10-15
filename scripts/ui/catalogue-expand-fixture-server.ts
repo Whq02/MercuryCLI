@@ -4,7 +4,7 @@ import { appendFileSync } from 'node:fs'
 
 const ledger = process.argv[2] ?? ''
 
-export const NEEDLE_INDEX = 27
+const NEEDLE_INDEX = 27
 
 const OPENROUTER_BODY = JSON.stringify({
   data: Array.from({ length: 30 }, (_, i) =>

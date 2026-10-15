@@ -4,25 +4,25 @@ import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-export const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.ts')
+const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.ts')
 type TurnDriverPorts = Parameters<typeof createTurnDriver>[0]
-export const { REOPEN_GRACE_MS, WALL_RECHECK_MS } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
-export type WatchWall = { closed: boolean; reopensAtMs?: number }
-export const wallModule = (await import('../../src/tools/MonitorTool/laneWall.ts')) as unknown as { sessionLaneWall: (nowMs?: number, reads?: unknown) => WatchWall }
+const { REOPEN_GRACE_MS, WALL_RECHECK_MS } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
+type WatchWall = { closed: boolean; reopensAtMs?: number }
+const wallModule = (await import('../../src/tools/MonitorTool/laneWall.ts')) as unknown as { sessionLaneWall: (nowMs?: number, reads?: unknown) => WatchWall }
 export type LimitWindow = { state: 'limited'; resetsAtMs: number; observedAtMs: number } | { state: 'clear' }
-export type LaneWindowLeaf = {
+type LaneWindowLeaf = {
   isLaneWindowFamily: (family: string) => boolean
   activeLaneWindow: (family: string, reads: unknown) => LimitWindow
   laneWindowFact: (family: string, reads: unknown) => { resetsAtMs: number; observedAtMs: number } | undefined
 }
-export const leaf = (await import('../../src/services/providers/laneWindowFact.ts').catch(() => undefined)) as unknown as LaneWindowLeaf | undefined
+const leaf = (await import('../../src/services/providers/laneWindowFact.ts').catch(() => undefined)) as unknown as LaneWindowLeaf | undefined
 
 let failures = 0
-export function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
   if (!cond) failures++
 }
-export function section(t: string): void {
+function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 export function finish(): never {
@@ -36,12 +36,12 @@ const watchdog = setTimeout(() => {
 }, 60_000)
 watchdog.unref?.()
 
-export const RESET = 30_000
-export const WINDOW = 1000
+const RESET = 30_000
+const WINDOW = 1000
 type Lane = { provider: string; credential: string; limit: string; usable: boolean; blockers: string[] }
 export const lane = (provider: string, limit: string): Lane => ({ provider, credential: 'api-key', limit, usable: limit !== 'rejected', blockers: [] })
 export type Fixture = { family: string; window: () => LimitWindow }
-export const readsFor = (fixture: Fixture, route: string | null, verdict: { status: string; lapsesAtMs?: number } = { status: 'unknown' }): unknown => ({
+const readsFor = (fixture: Fixture, route: string | null, verdict: { status: string; lapsesAtMs?: number } = { status: 'unknown' }): unknown => ({
   route: () => route,
   usability: () => ({
     anthropic: lane('anthropic', verdict.status === 'rejected' ? 'rejected' : 'unknown'),
@@ -91,10 +91,10 @@ const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
 async function settleTicks(n: number): Promise<void> {
   for (let i = 0; i < n; i++) await tick()
 }
-export type Turn = { at: number; blocks: string[]; mode: string }
+type Turn = { at: number; blocks: string[]; mode: string }
 type Sleep = { at: number; ms: number; resolve: () => void }
-export type Rig = { queue: QueuedCommand[]; turns: Turn[]; now: number; wallReads: number; sleeps: Sleep[]; ports: TurnDriverPorts }
-export function makeRig(reads: unknown): Rig {
+type Rig = { queue: QueuedCommand[]; turns: Turn[]; now: number; wallReads: number; sleeps: Sleep[]; ports: TurnDriverPorts }
+function makeRig(reads: unknown): Rig {
   const rig: Rig = { queue: [], turns: [], now: 0, wallReads: 0, sleeps: [], ports: null as never }
   rig.ports = {
     dequeue: () => rig.queue.shift(),
@@ -144,7 +144,7 @@ export function makeRig(reads: unknown): Rig {
   } as TurnDriverPorts
   return rig
 }
-export async function advance(rig: Rig, ms: number): Promise<void> {
+async function advance(rig: Rig, ms: number): Promise<void> {
   const target = rig.now + ms
   await settleTicks(4)
   for (;;) {
@@ -160,9 +160,9 @@ export async function advance(rig: Rig, ms: number): Promise<void> {
   await settleTicks(4)
 }
 let seq = 0
-export const notice = (id: string): QueuedCommand => ({ value: `<task-notification><task-id>${id}</task-id><status>completed</status><summary>Background command "${id}" completed</summary></task-notification>`, mode: 'task-notification', priority: 'next', queueId: `q${++seq}` }) as QueuedCommand
-export const idsOf = (turn: Turn): string[] => turn.blocks.map(b => /<task-id>(.*?)<\/task-id>/.exec(b)?.[1] ?? b)
-export const pendingTimers = (rig: Rig): Sleep[] => rig.sleeps.filter(s => s.ms > 100)
+const notice = (id: string): QueuedCommand => ({ value: `<task-notification><task-id>${id}</task-id><status>completed</status><summary>Background command "${id}" completed</summary></task-notification>`, mode: 'task-notification', priority: 'next', queueId: `q${++seq}` }) as QueuedCommand
+const idsOf = (turn: Turn): string[] => turn.blocks.map(b => /<task-id>(.*?)<\/task-id>/.exec(b)?.[1] ?? b)
+const pendingTimers = (rig: Rig): Sleep[] => rig.sleeps.filter(s => s.ms > 100)
 
 export async function proveHoldRoad(fixture: Fixture, label: string, setWindow: (w: LimitWindow) => void, noticeId: string): Promise<void> {
   section(`§2 the seat's hold road on a ${label} window: a completion waits, the re-check is armed at the window's reset, and the reopen delivers it once`)

@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-export interface LanguageFixture {
+interface LanguageFixture {
   lang: string
   file: string
   good: string

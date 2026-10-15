@@ -69,7 +69,7 @@ function table(title: string, schema: JsonSchema): string {
   return [`### ${title}`, '', '| field | shape | required | meaning |', '|---|---|---|---|', ...fieldRows(schema), ''].join('\n')
 }
 
-export function renderContract(): string {
+function renderContract(): string {
   const manifestSchema = z.toJSONSchema(manifestMod.ExtensionManifestSchema(), { io: 'input', unrepresentable: 'any' }) as JsonSchema
   const catalogueSchema = z.toJSONSchema(catalogueMod.CatalogueSchema(), { io: 'input', unrepresentable: 'any' }) as JsonSchema
   const lines: string[] = []

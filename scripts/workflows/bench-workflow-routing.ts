@@ -34,7 +34,7 @@ const getFlag = (name: string): string | undefined => {
 }
 const has = (name: string): boolean => argv.includes(`--${name}`)
 
-export function buildWorkflowScript(): string {
+function buildWorkflowScript(): string {
   return `export const meta = {
   name: 'bench-tier-routing',
   description: 'benchmark: three well-specified mechanical corpus tasks, one executor-tier agent each',
@@ -46,7 +46,7 @@ const results = await parallel(args.tasks.map(t => () =>
 return { done: results.filter(Boolean).length, of: args.tasks.length }`
 }
 
-export function buildChildPrompt(tasks: CorpusTask[]): string {
+function buildChildPrompt(tasks: CorpusTask[]): string {
   const script = buildWorkflowScript()
   const argsJson = JSON.stringify({
     tasks: tasks.map(t => ({ id: t.id, prompt: `${t.prompt}\n\n${WORKSPACE_CONTAINMENT}` })),

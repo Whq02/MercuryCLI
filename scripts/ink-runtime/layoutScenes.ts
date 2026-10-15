@@ -13,7 +13,7 @@ import type {
 } from '../../src/ink/layout/node.js'
 
 
-export type NodeSpec = {
+type NodeSpec = {
   width?: number | `${number}%` | 'auto'
   height?: number | `${number}%` | 'auto'
   minWidth?: number | `${number}%`
@@ -47,7 +47,7 @@ export type Scene = {
   mutate?: (handles: BuiltNode[], passIndex: number) => void
 }
 
-export type BuiltNode = {
+type BuiltNode = {
   node: LayoutNode
   spec: NodeSpec
   path: string
@@ -55,7 +55,7 @@ export type BuiltNode = {
 }
 
 
-export function fakeTextMeasure(
+function fakeTextMeasure(
   len: { value: number },
 ): (width: number, widthMode: LayoutMeasureMode) => { width: number; height: number } {
   return (width, widthMode) => {
@@ -83,7 +83,7 @@ function applyDimension(
   else fns.fixed(value)
 }
 
-export function buildScene(
+function buildScene(
   spec: NodeSpec,
   createNode: () => LayoutNode,
 ): BuiltNode[] {
@@ -184,7 +184,7 @@ export type SceneRects = Record<
 
 const r4 = (n: number) => Math.round(n * 10000) / 10000
 
-export function readRects(handles: BuiltNode[]): SceneRects {
+function readRects(handles: BuiltNode[]): SceneRects {
   const rects: SceneRects = {}
   for (const h of handles) {
     rects[h.path] = {
@@ -197,7 +197,7 @@ export function readRects(handles: BuiltNode[]): SceneRects {
   return rects
 }
 
-export function freeScene(handles: BuiltNode[]): void {
+function freeScene(handles: BuiltNode[]): void {
   handles[0]?.node.freeRecursive()
 }
 
@@ -267,7 +267,7 @@ function randomSpec(rnd: () => number, depth: number): NodeSpec {
 }
 
 
-export function curatedScenes(): Scene[] {
+function curatedScenes(): Scene[] {
   const scenes: Scene[] = []
   const std: Array<[number | undefined, number | undefined]> = [[80, undefined]]
 

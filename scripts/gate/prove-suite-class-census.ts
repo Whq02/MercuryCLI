@@ -209,7 +209,7 @@ function evidenceOf(lines: string[], ctx: LineCtx[], fileSpawns: boolean, engine
   return ev
 }
 
-export interface SuiteCensus {
+interface SuiteCensus {
   suite: string
   cls: string
   files: number

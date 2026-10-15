@@ -1,14 +1,14 @@
 
 import type { ActivityInput } from '../../src/services/crew/activity.ts'
 
-export interface CrewFixtureCounts {
+interface CrewFixtureCounts {
   agents: number
   conversations: number
   conversationEvents: number
   activityEvents: number
 }
 
-export interface CrewFixture {
+interface CrewFixture {
   seed: number
   counts: CrewFixtureCounts
   agentIds: string[]
@@ -16,7 +16,7 @@ export interface CrewFixture {
   activityStream: ActivityInput[]
 }
 
-export function mulberry32(seed: number): () => number {
+function mulberry32(seed: number): () => number {
   let a = seed >>> 0
   return () => {
     a |= 0

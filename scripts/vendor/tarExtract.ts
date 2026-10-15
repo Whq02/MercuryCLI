@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 
-export type TarPathApi = Pick<typeof path, 'basename' | 'dirname' | 'relative' | 'isAbsolute' | 'sep'>
+type TarPathApi = Pick<typeof path, 'basename' | 'dirname' | 'relative' | 'isAbsolute' | 'sep'>
 
-export type TarSpawnPlan = {
+type TarSpawnPlan = {
   args: string[]
   cwd: string
   forceLocal: boolean
@@ -36,7 +36,7 @@ export function planTarExtract(input: {
 
 let gnuProbe: boolean | null = null
 
-export function tarIsGnu(): boolean {
+function tarIsGnu(): boolean {
   if (gnuProbe === null) {
     const probe = spawnSync('tar', ['--version'], { encoding: 'utf8', env: process.env })
     gnuProbe = typeof probe.stdout === 'string' && probe.stdout.includes('GNU tar')

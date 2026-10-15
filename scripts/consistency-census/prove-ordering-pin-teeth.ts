@@ -20,7 +20,7 @@ const NEEDLE = String.raw`(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|\`(?:[^\`\\]|\\
 const OBJ = String.raw`[A-Za-z_$][\w$.\[\]?!]*`
 const COMPARE = new RegExp(String.raw`(${OBJ})\.indexOf\((${NEEDLE})\)\s*(<=?|>=?)\s*(${OBJ})\.indexOf\((${NEEDLE})\)`, 'g')
 
-export interface BareCompare {
+interface BareCompare {
   line: number
   text: string
   vulnerable: string
@@ -28,7 +28,7 @@ export interface BareCompare {
 
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-export function bareOrderingCompares(source: string): BareCompare[] {
+function bareOrderingCompares(source: string): BareCompare[] {
   const out: BareCompare[] = []
   const re = new RegExp(COMPARE.source, 'g')
   let m: RegExpExecArray | null

@@ -1,16 +1,16 @@
-export type Block = { type?: string; text?: unknown; id?: string; name?: string }
+type Block = { type?: string; text?: unknown; id?: string; name?: string }
 
-export const API_ERROR = /^API Error|\b(rate limit|too many requests|quota|budget|exhausted|insufficient|expired|unauthori[sz]ed|invalid api key|error code)\b|\b(?:error|status|http)\b[^\d\n]{0,20}\b(4\d\d|5\d\d)\b/i
+const API_ERROR = /^API Error|\b(rate limit|too many requests|quota|budget|exhausted|insufficient|expired|unauthori[sz]ed|invalid api key|error code)\b|\b(?:error|status|http)\b[^\d\n]{0,20}\b(4\d\d|5\d\d)\b/i
 
-export function textOf(blocks: Block[]): string {
+function textOf(blocks: Block[]): string {
   return blocks.filter(b => b.type === 'text').map(b => String(b.text)).join(' ')
 }
 
-export function errorLines(blocks: Block[]): string[] {
+function errorLines(blocks: Block[]): string[] {
   return blocks.filter(b => b.type === 'text' && API_ERROR.test(String(b.text))).map(b => String(b.text))
 }
 
-export type AgenticVerdict =
+type AgenticVerdict =
   | { ok: true; turns: number; reasoningReplayed: number }
   | { ok: false; reason: string }
 
@@ -30,7 +30,7 @@ export function agenticVerdict(input: {
   return { ok: true, turns: input.turnsUsed, reasoningReplayed: input.reasoningReplayedInLastRequest }
 }
 
-export type SimpleVerdict = { ok: true } | { ok: false; reason: string }
+type SimpleVerdict = { ok: true } | { ok: false; reason: string }
 
 export function carriesNumber(text: string, expected: string): boolean {
   const escaped = expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

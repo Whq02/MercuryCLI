@@ -8,11 +8,11 @@ if (!captureFile) {
   console.error('usage: compaction-hold-fixture-server.ts <captureFile> [foldPaceMs]')
   process.exit(2)
 }
-export const FOLD_MARKER = 'Write the running record of this conversation'
-export const FOLD_FIRST_DELTA_MS = Number(process.argv[3] ?? 2500)
-export const FOLD_DELTA_MS = 800
-export const TOOL_ASK = 'run a tool then fold'
-export const TOOL_TURN_INPUT_TOKENS = 190_000
+const FOLD_MARKER = 'Write the running record of this conversation'
+const FOLD_FIRST_DELTA_MS = Number(process.argv[3] ?? 2500)
+const FOLD_DELTA_MS = 800
+const TOOL_ASK = 'run a tool then fold'
+const TOOL_TURN_INPUT_TOKENS = 190_000
 const FOLD_DELTAS = [
   '<analysis>the walk</analysis>',
   '<summary>1. Operator Intent: ',

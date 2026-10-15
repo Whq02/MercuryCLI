@@ -11,20 +11,20 @@ export const CODE_TREE_EXCLUDED: readonly string[] = [LEDGER_PATH]
 export const CODE_TREE_EXCLUDED_PREFIXES: readonly string[] = ['docs/releases/']
 
 export const LEDGER_SCHEMA = 2 as const
-export type LedgerSchema = 1 | 2
+type LedgerSchema = 1 | 2
 
-export type ShardStatus = 'success' | 'failure' | 'missing' | 'duplicated'
+type ShardStatus = 'success' | 'failure' | 'missing' | 'duplicated'
 
-export type LedgerKind = 'local' | 'hosted' | 'hosted-drives' | 'windows-ui' | 'windows-functional' | 'windows-launcher'
-export const LEDGER_KINDS: readonly LedgerKind[] = ['local', 'hosted', 'hosted-drives', 'windows-ui', 'windows-functional', 'windows-launcher']
+type LedgerKind = 'local' | 'hosted' | 'hosted-drives' | 'windows-ui' | 'windows-functional' | 'windows-launcher'
+const LEDGER_KINDS: readonly LedgerKind[] = ['local', 'hosted', 'hosted-drives', 'windows-ui', 'windows-functional', 'windows-launcher']
 
 export const ADVISORY_KINDS: readonly LedgerKind[] = ['hosted-drives']
 export const isAdvisoryKind = (kind: string): boolean => (ADVISORY_KINDS as readonly string[]).includes(kind)
 
-export type VerdictScope = 'release' | 'drives' | 'all'
-export const VERDICT_SCOPES: readonly VerdictScope[] = ['release', 'drives', 'all']
+type VerdictScope = 'release' | 'drives' | 'all'
+const VERDICT_SCOPES: readonly VerdictScope[] = ['release', 'drives', 'all']
 
-export interface GateLedgerRow {
+interface GateLedgerRow {
   schema: LedgerSchema
   recordedAt: string
   commit: string
@@ -63,7 +63,7 @@ export function computeCodeTree(rev = 'HEAD', schema: LedgerSchema = LEDGER_SCHE
   return createHash('sha256').update(lines.join('\n')).digest('hex')
 }
 
-export function lockfileDigest(rev = 'HEAD'): string {
+function lockfileDigest(rev = 'HEAD'): string {
   try {
     const raw = execFileSync('git', ['show', `${rev}:bun.lock`], {
       cwd: ROOT,
@@ -97,7 +97,7 @@ export function declaredToolchain(rev = 'HEAD'): { node: string; bun: string } {
   return { node, bun }
 }
 
-export function ledgerFile(): string {
+function ledgerFile(): string {
   return join(ROOT, LEDGER_PATH)
 }
 
@@ -117,21 +117,21 @@ export function readLedger(): GateLedgerRow[] {
   return rows
 }
 
-export function appendRow(row: GateLedgerRow): void {
+function appendRow(row: GateLedgerRow): void {
   appendFileSync(ledgerFile(), `${JSON.stringify(row)}\n`)
 }
 
-export interface EligibilityQuery {
+interface EligibilityQuery {
   rev?: string
   kind?: LedgerKind | 'any'
   requireDeclaredToolchain?: boolean
 }
 
-export type EligibilityResult =
+type EligibilityResult =
   | { eligible: true; row: GateLedgerRow; codeTree: string }
   | { eligible: false; reason: string; codeTree: string }
 
-export function findVerdict(q: EligibilityQuery = {}): EligibilityResult {
+function findVerdict(q: EligibilityQuery = {}): EligibilityResult {
   const rev = q.rev ?? 'HEAD'
   const kind = q.kind ?? 'any'
   const codeTree = computeCodeTree(rev)
@@ -215,14 +215,14 @@ function shardsFrom(v: VerdictFile): GateLedgerRow['shardResults'] {
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-export interface RecordOptions {
+interface RecordOptions {
   verdictPath: string
   kind: LedgerKind
   runId?: string | null
   toolchain?: { node: string; bun: string }
 }
 
-export function rowFromVerdict(opts: RecordOptions): GateLedgerRow {
+function rowFromVerdict(opts: RecordOptions): GateLedgerRow {
   const v = JSON.parse(readFileSync(opts.verdictPath, 'utf8')) as VerdictFile
   if (v.ok !== true) throw new Error('gate ledger: refusing to record a verdict that is not green')
   const scope: VerdictScope = v.scope === undefined ? 'all' : (v.scope as VerdictScope)

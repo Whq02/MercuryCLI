@@ -13,15 +13,15 @@ const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
   return at < 0 ? undefined : process.argv[at + 1]
 }
-export const REPO = resolve(join(import.meta.dir, '..', '..'))
+const REPO = resolve(join(import.meta.dir, '..', '..'))
 export const DIST = resolve(arg('--dist') ?? join(REPO, 'dist', 'mercury.mjs'))
 const NODE = join(dirname(DIST), 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 
 export const EMPTY_REPLY_CASES_ASK = 'say what the readme holds, in one line'
 export const EMPTY_REPLY_CASES_END = 'the readme holds one heading'
 export const EMPTY_REPLY_CASES_MODEL = 'gpt-5.6-sol'
-export const CAP_REASONING_TOKENS = 127_900
-export const SILENCE_REASONING_TOKENS = 21
+const CAP_REASONING_TOKENS = 127_900
+const SILENCE_REASONING_TOKENS = 21
 
 export const SILENCE_WORDS = 'finished this response with nothing said'
 export const CAP_WORDS = 'stopped this response at its output cap'
@@ -37,10 +37,10 @@ export function lastRowIsUserCarrying(rows: unknown[], text: string): boolean {
 }
 
 export type EmptyReplyCase = 'silence-reasoning' | 'silence-empty-message' | 'cap' | 'empty'
-export const EMPTY_REPLY_CASES: readonly EmptyReplyCase[] = ['silence-reasoning', 'silence-empty-message', 'cap', 'empty']
+const EMPTY_REPLY_CASES: readonly EmptyReplyCase[] = ['silence-reasoning', 'silence-empty-message', 'cap', 'empty']
 
-export type Captured = { n: number; path: string; body: Record<string, unknown>; at: number }
-export type CasesFixture = { base: string; captured: Captured[]; close: () => Promise<void> }
+type Captured = { n: number; path: string; body: Record<string, unknown>; at: number }
+type CasesFixture = { base: string; captured: Captured[]; close: () => Promise<void> }
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 
@@ -75,7 +75,7 @@ const emptyMessageItem = (n: number) => ({
   content: [{ type: 'output_text', text: '', annotations: [] }],
 })
 
-export function responsesSseFor(kind: EmptyReplyCase, n: number, answerText?: string): string {
+function responsesSseFor(kind: EmptyReplyCase, n: number, answerText?: string): string {
   const id = `resp_${n}`
   const out: string[] = [sse({ type: 'response.created', response: { id } })]
   if (answerText !== undefined) {
@@ -230,9 +230,9 @@ function inputOf(c: Captured): unknown[] {
   return Array.isArray(b.input) ? (b.input as unknown[]) : []
 }
 
-export type CaseRun = { exit: number | null; frames: Frame[]; requests: Captured[]; notices: string[]; stderr: string; home: string }
+type CaseRun = { exit: number | null; frames: Frame[]; requests: Captured[]; notices: string[]; stderr: string; home: string }
 
-export async function runCase(kind: EmptyReplyCase, dist = DIST): Promise<CaseRun> {
+async function runCase(kind: EmptyReplyCase, dist = DIST): Promise<CaseRun> {
   const home = join(tmpdir(), `mercury-empty-reply-${kind}-${process.pid}`)
   rmSync(home, { recursive: true, force: true })
   const cwd = join(home, 'work')

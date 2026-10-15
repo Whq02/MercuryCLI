@@ -121,7 +121,7 @@ function saysCrew(text: string): boolean {
   return WORD.test(rest) || DOOR.test(rest)
 }
 
-export function scanSource(rel: string, source: string): Array<{ line: number; text: string }> {
+function scanSource(rel: string, source: string): Array<{ line: number; text: string }> {
   const sf = ts.createSourceFile(rel, source, ts.ScriptTarget.Latest, true, rel.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
   const out: Array<{ line: number; text: string }> = []
   const note = (node: ts.Node, text: string): void => {

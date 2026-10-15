@@ -9,29 +9,29 @@ if (!captureFile) {
   process.exit(2)
 }
 
-export const REPLY_TEXT = 'the reply stands here after its last item'
-export const HOLD_AFTER_SETTLE_ASK = 'hold after settle'
-export const CLOSE_AFTER_SETTLE_ASK = 'close after settle'
-export const HOLD_AFTER_END_ASK = 'hold after end'
-export const STREAM_SLOWLY_ASK = 'stream slowly'
-export const STREAM_NOTE_SLOWLY_ASK = 'stream a note slowly'
-export const SLOW_FIRST_DELTA_MS = 3_000
-export const SLOW_DELTA_MS = 1_500
-export const SLOW_REPLY_TEXTS = ['the first slow reply arrives a piece at a time', 'the second slow reply follows the queued words'] as const
+const REPLY_TEXT = 'the reply stands here after its last item'
+const HOLD_AFTER_SETTLE_ASK = 'hold after settle'
+const CLOSE_AFTER_SETTLE_ASK = 'close after settle'
+const HOLD_AFTER_END_ASK = 'hold after end'
+const STREAM_SLOWLY_ASK = 'stream slowly'
+const STREAM_NOTE_SLOWLY_ASK = 'stream a note slowly'
+const SLOW_FIRST_DELTA_MS = 3_000
+const SLOW_DELTA_MS = 1_500
+const SLOW_REPLY_TEXTS = ['the first slow reply arrives a piece at a time', 'the second slow reply follows the queued words'] as const
 const SLOW_DELTAS = [
   ['the first slow reply ', 'arrives a piece ', 'at a time'],
   ['the second slow reply ', 'follows the ', 'queued words'],
 ] as const
-export const READ_THREE_ASK = 'read three files'
-export const SLEEP_TOOL_ASK = 'run the long sleep'
-export const STUBBORN_SLEEP_ASK = 'run the stubborn sleep'
-export const READ_HOLD_MS = 6_000
-export const SLEEP_SECONDS = 40
-export const LAUNCH_AGENT_ASK = 'launch one agent'
-export const SEAT_HOLD_PROMPT = 'crew-seat: hold the headers'
-export const LAUNCH_SLEEP_ASK = 'launch an errand and sleep'
-export const ERRAND_PROMPT = 'a quick errand'
-export const ERRAND_SLEEP_SECONDS = 12
+const READ_THREE_ASK = 'read three files'
+const SLEEP_TOOL_ASK = 'run the long sleep'
+const STUBBORN_SLEEP_ASK = 'run the stubborn sleep'
+const READ_HOLD_MS = 6_000
+const SLEEP_SECONDS = 40
+const LAUNCH_AGENT_ASK = 'launch one agent'
+const SEAT_HOLD_PROMPT = 'crew-seat: hold the headers'
+const LAUNCH_SLEEP_ASK = 'launch an errand and sleep'
+const ERRAND_PROMPT = 'a quick errand'
+const ERRAND_SLEEP_SECONDS = 12
 
 type ToolArm = 'read-three' | 'sleep-tool' | 'stubborn-sleep' | 'launch-agent' | 'launch-and-sleep' | 'seat-hold'
 type Arm = 'hold-after-settle' | 'close-after-settle' | 'hold-after-end' | ToolArm | 'slow' | 'slow-note' | 'complete'
@@ -183,8 +183,8 @@ function carriesWords(body: Record<string, unknown>, words: string[]): string[] 
   const raw = JSON.stringify(body)
   return words.filter(w => raw.includes(w))
 }
-export const QUEUED_WORDS_WATCH = ['first queued words', 'second queued words']
-export const NOTICE_WATCH = 'A background crewmate completed a task:'
+const QUEUED_WORDS_WATCH = ['first queued words', 'second queued words']
+const NOTICE_WATCH = 'A background crewmate completed a task:'
 
 function orderOfWords(body: Record<string, unknown>, words: string[]): string[] {
   const raw = JSON.stringify(body)

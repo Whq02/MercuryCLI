@@ -23,11 +23,11 @@ import { compileWhenSpelling } from '../../src/services/saturn/whenSpelling.js'
 import { saturnFactsOf, type HeldFireV1, type SaturnScheduleV1 } from '../../src/daemon/saturn.js'
 import type { SessionReceiptEntry } from '../../src/services/switchboard/sessionReceipts.js'
 
-export const STILLS_DIR = join(import.meta.dir, 'fixtures', 'saturn-screen')
+const STILLS_DIR = join(import.meta.dir, 'fixtures', 'saturn-screen')
 
 const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
 
-export const STILL_ENVIRONMENT = {
+const STILL_ENVIRONMENT = {
   model: 'Opus 5',
   critter: 'Octopus',
   critterHue: '#B07BE0',
@@ -263,7 +263,7 @@ export const STILLS: Array<{ id: string; compose: () => string[] }> = [
   { id: 'saturn-120x40-form-held', compose: () => composeSaturnForm(120, 40, { preflight: EXPIRED_PREFLIGHT }) },
 ]
 
-export function stillPath(id: string): string {
+function stillPath(id: string): string {
   return join(STILLS_DIR, `${id}.txt`)
 }
 

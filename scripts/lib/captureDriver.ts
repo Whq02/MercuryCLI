@@ -8,7 +8,7 @@ if (configHomeIsReal()) {
   resolveProofHome([join(import.meta.dir, '..', '..')])
 }
 
-export type CaptureDriver =
+type CaptureDriver =
   | { kind: 'posix-pty'; python: string; tempRoot: string; engine: 'scripts/ui/vshot.py' }
   | { kind: 'windows-conpty'; python: string; tempRoot: string; engine: 'scripts/winreg' }
   | { kind: 'unavailable'; reason: string; remedy: string }

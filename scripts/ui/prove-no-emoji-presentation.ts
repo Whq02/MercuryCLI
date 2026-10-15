@@ -98,7 +98,7 @@ function worthParsing(text: string): boolean {
   return false
 }
 
-export function paintedFindingsOfSource(file: string, text: string): Finding[] {
+function paintedFindingsOfSource(file: string, text: string): Finding[] {
   if (!worthParsing(text)) return []
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, false, scriptKindOf(file))
   const findings: Finding[] = []

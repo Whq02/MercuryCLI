@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { seedFirstRun } from './firstRunSeed.ts'
 import { keepProofScratch } from './proofScratch.cjs'
 
-export interface ProofHomeOptions {
+interface ProofHomeOptions {
   keep?: boolean
 }
 

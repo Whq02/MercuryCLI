@@ -46,7 +46,7 @@ function newTotals(): PolicyTotals {
   return { costUnits: 0, readTokens: 0, writtenTokens: 0, coldRewrites: 0 }
 }
 
-export interface BenchmarkResult {
+interface BenchmarkResult {
   corpus: { sessions: number; requests: number; spanDays: number }
   costUnits: { baseline5m: number; clock: number; all1h: number }
   savingsPct: number

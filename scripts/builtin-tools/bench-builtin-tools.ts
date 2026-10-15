@@ -61,7 +61,7 @@ const { searchToolsWithKeywords } = await import(
 
 type OwnerKey = ReturnType<typeof processMainOwner>
 
-export interface TaskResult {
+interface TaskResult {
   id: string
   capability: string
   toolPath: 'tool-level'
@@ -802,7 +802,7 @@ export function cleanupBenchHomes(): void {
   rmSync(DAEMON_HOME, { recursive: true, force: true })
 }
 
-export interface StableRow {
+interface StableRow {
   id: string
   capability: string
   toolPath: 'tool-level'
@@ -820,7 +820,7 @@ export interface StableRow {
   cleanup: 'ok' | 'failed' | 'n/a'
 }
 
-export interface StableAnchor {
+interface StableAnchor {
   schema: 1
   corpus: string
   totalTasks: number
@@ -867,7 +867,7 @@ function bucket(ms: number): string {
   return '>5s'
 }
 
-export function renderResultsMd(tasks: TaskResult[], anchor: StableAnchor): string {
+function renderResultsMd(tasks: TaskResult[], anchor: StableAnchor): string {
   const done = anchor.completed
   const total = anchor.totalTasks
   const pct = (n: number, d: number): string => (d === 0 ? '100' : ((n / d) * 100).toFixed(0))

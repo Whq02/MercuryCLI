@@ -14,21 +14,21 @@ const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
   return at < 0 ? undefined : process.argv[at + 1]
 }
-export const REPO = resolve(join(import.meta.dir, '..', '..'))
+const REPO = resolve(join(import.meta.dir, '..', '..'))
 export const DIST = resolve(arg('--dist') ?? join(REPO, 'dist', 'mercury.mjs'))
 
 export const ZAI_CASES_ASK = 'say what the readme holds, in one line'
 export const ZAI_CASES_END = 'the readme holds one heading'
 export const ZAI_CASES_MODEL = 'glm-5.2'
-export const ZAI_CASES_PROMPT_TOKENS = 337_129
-export const ZAI_CASES_CAP_OUTPUT_TOKENS = 131_072
-export const NO_COUNT_WORDS = 'a reasoning token count the provider did not state'
+const ZAI_CASES_PROMPT_TOKENS = 337_129
+const ZAI_CASES_CAP_OUTPUT_TOKENS = 131_072
+const NO_COUNT_WORDS = 'a reasoning token count the provider did not state'
 
 export type ZaiEmptyReplyCase = 'silence' | 'cap' | 'empty' | 'no-finish'
-export const ZAI_EMPTY_REPLY_CASES: readonly ZaiEmptyReplyCase[] = ['silence', 'cap', 'empty', 'no-finish']
+const ZAI_EMPTY_REPLY_CASES: readonly ZaiEmptyReplyCase[] = ['silence', 'cap', 'empty', 'no-finish']
 
-export type Captured = { n: number; path: string; body: Record<string, unknown>; at: number }
-export type ZaiCasesFixture = { base: string; captured: Captured[]; close: () => Promise<void> }
+type Captured = { n: number; path: string; body: Record<string, unknown>; at: number }
+type ZaiCasesFixture = { base: string; captured: Captured[]; close: () => Promise<void> }
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const DONE = 'data: [DONE]\n\n'
@@ -49,7 +49,7 @@ const chunk = (n: number, delta: Record<string, unknown>, finish: string | null,
     ...(usage ? { usage } : {}),
   })
 
-export function chatSseFor(kind: ZaiEmptyReplyCase, n: number, answerText?: string): string {
+function chatSseFor(kind: ZaiEmptyReplyCase, n: number, answerText?: string): string {
   if (answerText !== undefined) {
     return chunk(n, { role: 'assistant', content: answerText }, null) + chunk(n, {}, 'stop', usageOf(6)) + DONE
   }
@@ -152,9 +152,9 @@ function messagesOf(c: Captured): unknown[] {
   return Array.isArray(b.messages) ? (b.messages as unknown[]) : []
 }
 
-export type CaseRun = { exit: number | null; frames: Frame[]; requests: Captured[]; notices: string[]; stderr: string; home: string }
+type CaseRun = { exit: number | null; frames: Frame[]; requests: Captured[]; notices: string[]; stderr: string; home: string }
 
-export async function runZaiCase(kind: ZaiEmptyReplyCase, dist = DIST): Promise<CaseRun> {
+async function runZaiCase(kind: ZaiEmptyReplyCase, dist = DIST): Promise<CaseRun> {
   const home = join(tmpdir(), `mercury-empty-reply-zai-${kind}-${process.pid}`)
   rmSync(home, { recursive: true, force: true })
   const cwd = join(home, 'work')

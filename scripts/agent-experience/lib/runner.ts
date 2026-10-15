@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { isSession, isOutcome, parseFrame } from '../../lib/rows.ts'
 
-export interface RunSpec {
+interface RunSpec {
   dist: string
   nodeBin: string
   cwd: string
@@ -16,7 +16,7 @@ export interface RunSpec {
   timeoutMs: number
 }
 
-export interface ToolUse {
+interface ToolUse {
   id: string
   name: string
   input: Record<string, unknown>
@@ -24,7 +24,7 @@ export interface ToolUse {
   parentToolUseId: string | null
 }
 
-export interface ToolResult {
+interface ToolResult {
   id: string
   text: string
   isError: boolean

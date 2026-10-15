@@ -14,7 +14,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-export function rawControlLines(source: Buffer): number[] {
+function rawControlLines(source: Buffer): number[] {
   const hits: number[] = []
   let line = 1
   for (let i = 0; i < source.length; i++) {

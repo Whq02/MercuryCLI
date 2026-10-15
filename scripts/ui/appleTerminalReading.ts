@@ -2,9 +2,9 @@ import { readFileSync, writeFileSync } from 'node:fs'
 
 const SGR = /\x1b\[([0-9;]*)m/g
 
-export type ColorSgr = { kind: '24-bit' | '256'; params: number[] }
+type ColorSgr = { kind: '24-bit' | '256'; params: number[] }
 
-export function readAppleTerminalParams(params: number[]): number[] {
+function readAppleTerminalParams(params: number[]): number[] {
   const out: number[] = []
   let i = 0
   while (i < params.length) {

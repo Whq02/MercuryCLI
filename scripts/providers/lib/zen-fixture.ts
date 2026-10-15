@@ -1,14 +1,14 @@
 import { strict as assert } from 'node:assert'
 
-export type ZenFixtureMode = 'text' | 'tools' | 'malformed' | 'auth' | 'credits' | 'monthly-limit' | 'go-limit' | 'truncated' | 'free-tier'
+type ZenFixtureMode = 'text' | 'tools' | 'malformed' | 'auth' | 'credits' | 'monthly-limit' | 'go-limit' | 'truncated' | 'free-tier'
 
-export interface ZenFixtureCapture {
+interface ZenFixtureCapture {
   path: string
   body: Record<string, any>
   headers: Record<string, string>
 }
 
-export interface ZenFixture {
+interface ZenFixture {
   base: string
   goBase: string
   key: string
@@ -24,7 +24,7 @@ const sse = (body: unknown): string => `data: ${JSON.stringify(body)}\n\n`
 const errorBody = (type: string, message: string, metadata?: Record<string, unknown>): string =>
   JSON.stringify({ type: 'error', error: { type, message }, ...(metadata ? { metadata } : {}) })
 
-export const ZEN_FIXTURE_LIVE_LIST: unknown[] = [
+const ZEN_FIXTURE_LIVE_LIST: unknown[] = [
   { id: 'claude-fable-5-1', object: 'model', created: 1791524681, owned_by: 'opencode' },
   { id: 'gemini-3.1-pro', object: 'model', created: 1791524682, owned_by: 'opencode' },
   { id: 'gpt-5.5', object: 'model', created: 1791524683, owned_by: 'opencode' },

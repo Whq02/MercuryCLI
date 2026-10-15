@@ -1,13 +1,13 @@
 import type { BranchOverlay } from '../contracts.js'
 
 
-export const MF_BANNER_BASE = `export const BANNER = 'notedeck v1'
+const MF_BANNER_BASE = `export const BANNER = 'notedeck v1'
 
 export function bannerLine() {
   return '== ' + BANNER + ' =='
 }
 `
-export const MF_ABOUT_BASE = `export function aboutText() {
+const MF_ABOUT_BASE = `export function aboutText() {
   return 'about: notedeck v1 - a tiny note store'
 }
 `
@@ -36,7 +36,7 @@ test('about text carries v2', () => {
 `
 
 
-export const MF_SLUG_BASE = `// Slugs: lowercase, every non-alphanumeric character becomes a dash.
+const MF_SLUG_BASE = `// Slugs: lowercase, every non-alphanumeric character becomes a dash.
 export function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, '-')
 }
@@ -46,7 +46,7 @@ export function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 }
 `
-export const MF_SLUG_SPEC_OLD = `import { test } from 'node:test'
+const MF_SLUG_SPEC_OLD = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { slugify } from '../src/slug.js'
 
@@ -84,17 +84,17 @@ test('punctuation runs collapse too', () => {
 `
 
 
-export const MF_FORMAT_LEGACY = `export function formatNote(note) {
+const MF_FORMAT_LEGACY = `export function formatNote(note) {
   return '[' + note.id + '] ' + note.title
 }
 `
-export const MF_FORMAT2 = `// The v2 formatter: an options bag with a lane tag.
+const MF_FORMAT2 = `// The v2 formatter: an options bag with a lane tag.
 export function formatNote(note, opts) {
   const tag = opts && opts.tag ? ' #' + opts.tag : ''
   return '[' + note.id + '] ' + note.title + tag
 }
 `
-export function mfViewLegacy(letter: string): string {
+function mfViewLegacy(letter: string): string {
   return `import { formatNote } from './format-legacy.js'
 
 export function view${letter.toUpperCase()}(note) {
@@ -137,7 +137,7 @@ test('view D rides format2 with its lane tag', () => {
 `
 
 
-export const MF_PIPELINE_BASE = `import { trim } from './stages/trim.js'
+const MF_PIPELINE_BASE = `import { trim } from './stages/trim.js'
 import { upper } from './stages/upper.js'
 
 // Ordered stage table - the cli --stages listing renders STAGE_NAMES, the
@@ -183,7 +183,7 @@ const MF_STAGE_UPPER = `export function upper(s) {
   return s.toUpperCase()
 }
 `
-export const MF_STAGE_DEDUPE_BASE = `// Collapse repeated whitespace runs to a single space.
+const MF_STAGE_DEDUPE_BASE = `// Collapse repeated whitespace runs to a single space.
 export function dedupe(s) {
   return s
 }
@@ -234,7 +234,7 @@ test('every limits module carries 250', () => {
 `
 
 
-export const MF_GREETING_BASE = `export function greeting(name) {
+const MF_GREETING_BASE = `export function greeting(name) {
   return 'hullo, ' + name
 }
 `

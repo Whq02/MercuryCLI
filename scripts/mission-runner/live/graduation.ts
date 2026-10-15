@@ -2,13 +2,13 @@ import { readFileSync } from 'node:fs'
 import type { HelixRunRow } from './runner.js'
 import { decodeRows } from './aggregate.js'
 
-export interface GraduationCriterion {
+interface GraduationCriterion {
   id: string
   status: 'pass' | 'fail' | 'not-applicable'
   note: string
 }
 
-export interface GraduationVerdict {
+interface GraduationVerdict {
   graduated: boolean
   headline: string
   criteria: GraduationCriterion[]

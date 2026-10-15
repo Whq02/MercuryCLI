@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { HelixRunRow } from './runner.js'
 
-export interface PolicyAggregate {
+interface PolicyAggregate {
   policyId: string
   runs: number
   accepted: number

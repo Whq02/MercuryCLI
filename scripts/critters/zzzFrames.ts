@@ -1,5 +1,5 @@
 
-export type ZzzFrame = {
+type ZzzFrame = {
   critter: string
   form: 'mini'
   state: 'awake' | 'z0' | 'z1' | 'z2'
@@ -9,7 +9,7 @@ export type ZzzFrame = {
   zTint: string
 }
 
-export type ZzzFixture = {
+type ZzzFixture = {
   base: string
   composedBy: string
   frames: ZzzFrame[]

@@ -1,7 +1,7 @@
 
 export type Dialect = 'anthropic' | 'responses' | 'chat'
 
-export interface ScriptedCall {
+interface ScriptedCall {
   name: string
   input: Record<string, unknown>
 }
@@ -18,7 +18,7 @@ function callId(prefix: string, i: number): string {
   return `${prefix}_${Date.now().toString(36)}_${nonce.toString(36)}_${i}`
 }
 
-export function anthropicSse(turn: ScriptedTurn, model = 'ax-fixture'): string {
+function anthropicSse(turn: ScriptedTurn, model = 'ax-fixture'): string {
   const usage = { input_tokens: 8, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 }
   const open = `event: message_start\n${sse({ type: 'message_start', message: { id: `msg_ax_${Date.now()}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage } })}`
   const parts: string[] = [open]
@@ -50,7 +50,7 @@ export function anthropicSse(turn: ScriptedTurn, model = 'ax-fixture'): string {
   return parts.join('')
 }
 
-export function responsesSse(turn: ScriptedTurn): string {
+function responsesSse(turn: ScriptedTurn): string {
   const parts: string[] = [sse({ type: 'response.created', response: { id: 'resp_ax' } })]
   const text = 'final' in turn ? turn.final : turn.pre
   if (text !== undefined) {
@@ -68,7 +68,7 @@ export function responsesSse(turn: ScriptedTurn): string {
   return parts.join('')
 }
 
-export function chatSse(turn: ScriptedTurn): string {
+function chatSse(turn: ScriptedTurn): string {
   const parts: string[] = []
   const text = 'final' in turn ? turn.final : turn.pre
   if (text !== undefined) {
@@ -186,7 +186,7 @@ export function refusedCallCount(body: Body, dialect: Dialect): number {
   return n
 }
 
-export function lastToolResultText(body: Body, dialect: Dialect): string {
+function lastToolResultText(body: Body, dialect: Dialect): string {
   if (dialect === 'anthropic') {
     let last = ''
     for (const m of Array.isArray(body.messages) ? body.messages : []) {
@@ -222,7 +222,7 @@ export function systemPromptText(body: Body, dialect: Dialect): string {
   return parts.join('\n')
 }
 
-export interface ToolRoster {
+interface ToolRoster {
   names: string[]
   schemaChars: number
 }
@@ -246,7 +246,7 @@ export function hasForcedToolChoice(body: Body): boolean {
   return false
 }
 
-export function assistantTurnCount(body: Body, dialect: Dialect): number {
+function assistantTurnCount(body: Body, dialect: Dialect): number {
   if (dialect === 'responses') {
     let n = 0
     for (const item of Array.isArray(body.input) ? body.input : []) if (item && item.role === 'assistant') n++

@@ -23,7 +23,7 @@ const API_KEY = 'fixture-key-000'
 const COMPOSER_READY_NEEDLE = 'Type a prompt'
 const COMPOSER_NOMINAL_MS = 4000
 
-export interface TeeWrite {
+interface TeeWrite {
   ts: number
   len?: number
   content?: string
@@ -35,7 +35,7 @@ export interface PtyRead {
   text: string
 }
 
-export interface ObservedSend {
+interface ObservedSend {
   awaitText: string | string[]
   awaitAbsent?: string | string[]
   afterPrevMs?: number
@@ -46,7 +46,7 @@ export interface ObservedSend {
   arrivedAbsent?: string
 }
 
-export interface SendRecord {
+interface SendRecord {
   step?: number
   awaitText?: string | string[]
   targetText?: string
@@ -61,13 +61,13 @@ export interface SendRecord {
   ceiling?: boolean
 }
 
-export interface ProbeMark {
+interface ProbeMark {
   t: number
   k: string
   v: number
 }
 
-export interface ProbeDump {
+interface ProbeDump {
   counters: Record<string, number>
   frames: { total: number; window: number; p50: number; p95: number; p99: number; maxMs: number }
   allMarks: ProbeMark[]
@@ -77,7 +77,7 @@ export interface ProbeDump {
 
 const FACE_READY_NEEDLE = '↑↓ choose'
 
-export interface ArenaOutcome {
+interface ArenaOutcome {
   exitCode: number | null
   signal: NodeJS.Signals | null
   killedByWall: boolean
@@ -87,7 +87,7 @@ export interface ArenaOutcome {
   reason: string | null
 }
 
-export interface DriverReport {
+interface DriverReport {
   raw_bytes: number
   raw_reads: number
   sends: number

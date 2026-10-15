@@ -12,14 +12,14 @@ import {
   type BlenderReportSeverity,
 } from '../../src/services/blender/bridgeProtocol.js'
 
-export type FakeBridgeMode =
+type FakeBridgeMode =
   | 'echo'
   | 'silent-after-hello'
   | 'drop-on-request'
   | 'no-pong'
   | 'oversize-on-request'
 
-export interface FakeBlenderBridgeOpts {
+interface FakeBlenderBridgeOpts {
   token?: string
   protocolVersion?: number
   helloResultVersion?: number
@@ -30,7 +30,7 @@ export interface FakeBlenderBridgeOpts {
   mode?: FakeBridgeMode
 }
 
-export interface FakeBlenderBridge {
+interface FakeBlenderBridge {
   port: number
   seenOps: string[]
   connectionCount: () => number

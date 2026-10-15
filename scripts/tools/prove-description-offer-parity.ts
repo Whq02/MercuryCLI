@@ -68,7 +68,7 @@ function singleMention(text: string, start: number, end: number): boolean {
   return false
 }
 
-export function mentionedToolNames(text: string): string[] {
+function mentionedToolNames(text: string): string[] {
   const found = new Set<string>()
   for (const name of multiWord) {
     if (new RegExp(`(?<![A-Za-z_])${name}(?![A-Za-z_])`).test(text)) found.add(name)

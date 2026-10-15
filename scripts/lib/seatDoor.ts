@@ -5,7 +5,7 @@ import { createPeer, type Peer } from '../../src/runner/wire/peer.ts'
 import { METHODS, methodsFrom, type Capabilities, type MethodName, type ParamsOf, type PermissionAnswer, type PermissionRequestParams, type ResultOf, type SessionAppliedParams } from '../../src/runner/wire/methods.ts'
 import { RPC_REFUSED, RpcError, cancelled } from '../../src/runner/wire/errors.ts'
 
-export type StandInRequest = {
+type StandInRequest = {
   id: number
   method: string
   params: unknown
@@ -16,7 +16,7 @@ export type StandInRequest = {
   refuse(code: number, message: string, data?: unknown): void
 }
 
-export type StandInRunner = {
+type StandInRunner = {
   connection: RunnerConnection
   runner: Peer
   requests: StandInRequest[]
@@ -34,7 +34,7 @@ export type StandInRunner = {
 const HOST_METHODS = methodsFrom('host', 'request').map(spec => spec.name as MethodName).filter(name => name !== 'initialize')
 
 export const LEAVE_PENDING: unique symbol = Symbol('the stand-in leaves this request pending')
-export type AutoAnswer = unknown | ((params: unknown) => unknown)
+type AutoAnswer = unknown | ((params: unknown) => unknown)
 const AUTO_ANSWERS: Partial<Record<MethodName, AutoAnswer>> = { 'schedule/roster': {} }
 
 export function standInRunner(opts: { capabilities?: Partial<Capabilities>; hooks?: Partial<RunnerConnectionHooks>; sessionId?: string | null; pid?: number; autoAnswer?: Partial<Record<MethodName, AutoAnswer>> | null } = {}): StandInRunner {
@@ -159,4 +159,4 @@ export function standInRunner(opts: { capabilities?: Partial<Capabilities>; hook
   }
 }
 
-export const methodTable = METHODS
+const methodTable = METHODS

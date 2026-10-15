@@ -9,7 +9,7 @@ const vendor = join(scripts, 'vendor')
 const bunMain = (globalThis as { Bun?: { main?: unknown } }).Bun?.main
 const entry = typeof bunMain === 'string' ? bunMain : process.argv[1] ?? ''
 
-export function entryTakesProofHome(path: string): boolean {
+function entryTakesProofHome(path: string): boolean {
   if (path !== scripts && !path.startsWith(scripts + sep)) return false
   return path !== vendor && !path.startsWith(vendor + sep)
 }

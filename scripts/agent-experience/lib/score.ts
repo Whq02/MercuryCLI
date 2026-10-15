@@ -1,6 +1,6 @@
 import type { RunRecord } from './runner.ts'
 
-export interface ErrorRow {
+interface ErrorRow {
   tool: string
   text: string
   namesFix: boolean

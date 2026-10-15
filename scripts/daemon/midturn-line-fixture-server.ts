@@ -8,16 +8,16 @@ if (!captureFile) {
   console.error('usage: midturn-line-fixture-server.ts <captureFile> [roundOneSleepSeconds] [foldFirstDeltaMs]')
   process.exit(2)
 }
-export const THREE_ROUNDS_ASK = 'three tool rounds'
-export const LONG_ROUND_ASK = 'one long tool round'
-export const ROUND_ONE_SLEEP_SECONDS = Number(process.argv[3] ?? 4)
-export const ROUND_TWO_SLEEP_SECONDS = 3
-export const ROUND_THREE_SLEEP_SECONDS = 2
-export const LONG_ROUND_SLEEP_SECONDS = 30
-export const FOLD_MARKER = 'Write the running record of this conversation'
-export const FOLD_FIRST_DELTA_MS = Number(process.argv[4] ?? 2500)
-export const FOLD_DELTA_MS = 800
-export const WATCHED_WORDS = [
+const THREE_ROUNDS_ASK = 'three tool rounds'
+const LONG_ROUND_ASK = 'one long tool round'
+const ROUND_ONE_SLEEP_SECONDS = Number(process.argv[3] ?? 4)
+const ROUND_TWO_SLEEP_SECONDS = 3
+const ROUND_THREE_SLEEP_SECONDS = 2
+const LONG_ROUND_SLEEP_SECONDS = 30
+const FOLD_MARKER = 'Write the running record of this conversation'
+const FOLD_FIRST_DELTA_MS = Number(process.argv[4] ?? 2500)
+const FOLD_DELTA_MS = 800
+const WATCHED_WORDS = [
   'the first mid-turn line',
   'the second mid-turn line',
   'the third mid-turn line',

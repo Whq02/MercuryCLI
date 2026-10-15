@@ -74,7 +74,7 @@ function extractTokens(hint: string): string[] {
   return [...tokens]
 }
 
-export function hasInputMechanism(text: string): boolean {
+function hasInputMechanism(text: string): boolean {
   return (
     /useInput\(/.test(text) ||
     /useSpecimenNav[<(]/.test(text) ||
@@ -86,7 +86,7 @@ export function hasInputMechanism(text: string): boolean {
   )
 }
 
-export function commandCenterBindsInput(text: string): boolean {
+function commandCenterBindsInput(text: string): boolean {
   let i = text.indexOf('<CommandCenter')
   while (i >= 0) {
     let depth = 0
@@ -104,7 +104,7 @@ export function commandCenterBindsInput(text: string): boolean {
   return false
 }
 
-export function selectBindsCancel(text: string): boolean {
+function selectBindsCancel(text: string): boolean {
   for (const tag of ['<Select', '<SelectMulti']) {
     let i = text.indexOf(tag)
     while (i >= 0) {

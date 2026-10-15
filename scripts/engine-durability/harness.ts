@@ -43,9 +43,9 @@ export async function waitUntil(
   return pred()
 }
 
-export const CHECKS_FAILED_EXIT = 3
+const CHECKS_FAILED_EXIT = 3
 
-export interface Checker {
+interface Checker {
   check(label: string, cond: boolean, detail?: string): void
   section(title: string): void
   failures(): number

@@ -14,14 +14,14 @@ const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
   return at < 0 ? undefined : process.argv[at + 1]
 }
-export const REPO = resolve(join(import.meta.dir, '..', '..'))
+const REPO = resolve(join(import.meta.dir, '..', '..'))
 export const DIST = resolve(arg('--dist') ?? join(REPO, 'dist', 'mercury.mjs'))
 const NODE = join(dirname(DIST), 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 
 export const EMPTY_REPLY_ASK = 'read the readme, then say what it holds'
 export const EMPTY_REPLY_END = 'done: the readme holds one heading'
-export const EMPTY_REPLY_NOTE_WORDS = 'returned an empty reply'
-export const ZAI_SILENCE_WORDS = 'finished this response with nothing said'
+const EMPTY_REPLY_NOTE_WORDS = 'returned an empty reply'
+const ZAI_SILENCE_WORDS = 'finished this response with nothing said'
 
 let failures = 0
 let checks = 0
@@ -34,9 +34,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-export type Dialect = 'responses' | 'chat'
-export type Captured = { n: number; dialect: Dialect; path: string; body: Record<string, unknown>; at: number }
-export type EmptyReplyFixture = { base: string; captured: Captured[]; close: () => Promise<void> }
+type Dialect = 'responses' | 'chat'
+type Captured = { n: number; dialect: Dialect; path: string; body: Record<string, unknown>; at: number }
+type EmptyReplyFixture = { base: string; captured: Captured[]; close: () => Promise<void> }
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 
@@ -168,7 +168,7 @@ export function routeEnv(base: string, home: string, config: string): NodeJS.Pro
   }
 }
 
-export const ROUTES: ReadonlyArray<{ route: string; model: string; dialect: Dialect }> = [
+const ROUTES: ReadonlyArray<{ route: string; model: string; dialect: Dialect }> = [
   { route: 'openai', model: 'gpt-5.6-sol', dialect: 'responses' },
   { route: 'zai', model: 'glm-5.2', dialect: 'chat' },
 ]

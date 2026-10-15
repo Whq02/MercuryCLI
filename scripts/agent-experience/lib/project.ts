@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const FIXTURE_PAGE_TITLE = 'Mercury AX Fixture Page'
-export const FIXTURE_PAGE_SENTENCE = 'The pelican count is 42.'
+const FIXTURE_PAGE_SENTENCE = 'The pelican count is 42.'
 export const FIXTURE_PAGE_HTML = `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>${FIXTURE_PAGE_TITLE}</title></head>
@@ -159,7 +159,7 @@ function lineOf(text: string, needle: string): number {
   return idx + 1
 }
 
-export function computeFacts(dir: string): ProjectFacts {
+function computeFacts(dir: string): ProjectFacts {
   const stats = readFileSync(join(dir, 'src', 'stats.js'), 'utf8')
   const records = readFileSync(join(dir, 'src', 'records.js'), 'utf8')
   const format = readFileSync(join(dir, 'src', 'format.js'), 'utf8')
@@ -194,7 +194,7 @@ export function createScratchProject(dir: string): ScratchProject {
   return { dir, facts: computeFacts(dir) }
 }
 
-export function fixedStatsSource(): string {
+function fixedStatsSource(): string {
   return STATS_JS_FIXED
 }
 

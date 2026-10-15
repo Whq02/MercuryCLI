@@ -12,7 +12,7 @@ import {
 
 export type FamilyId = 'anthropic' | 'openai' | 'chat' | 'openrouter'
 
-export interface FamilySpec {
+interface FamilySpec {
   id: FamilyId
   dialect: Dialect
   model: string
@@ -45,7 +45,7 @@ export interface FixtureHit {
   at: number
 }
 
-export interface ScriptBook {
+interface ScriptBook {
   main: Map<string, ScriptedTurn[]>
   seats: Map<string, ScriptedTurn[]>
 }

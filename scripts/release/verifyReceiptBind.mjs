@@ -5,12 +5,12 @@ import { join } from 'node:path'
 
 export const RECEIPT_SAFE_PREFIXES = ['docs/', 'scripts/gate/gate-ledger.jsonl', 'scripts/gate/duration-seed.tsv']
 
-export const isReceiptSafePath = (p) => RECEIPT_SAFE_PREFIXES.some((pre) => p.startsWith(pre))
+const isReceiptSafePath = (p) => RECEIPT_SAFE_PREFIXES.some((pre) => p.startsWith(pre))
 export const isReceiptSafeDiff = (paths) => paths.every(isReceiptSafePath)
 
 const short = (tree) => String(tree).slice(0, 12) + '…'
 
-export const ADVISORY_KINDS = ['hosted-drives']
+const ADVISORY_KINDS = ['hosted-drives']
 
 export function readLedgerRows(text) {
   return text

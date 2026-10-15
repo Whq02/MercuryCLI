@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path'
 
 export const ROOT = resolve(import.meta.dir, '..', '..')
 export const HOME = proofHome
-export const FIXTURES = join(import.meta.dir, 'fixtures')
+const FIXTURES = join(import.meta.dir, 'fixtures')
 export const TWO_DISPLAYS_SCENE = join(FIXTURES, 'two-displays.json')
 
 process.env.MERCURY_DAEMON_DIR = join(proofHome, 'daemon')
@@ -63,7 +63,7 @@ export function scratchDir(name: string): string {
   return dir
 }
 
-export const PNG_SIGNATURE_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const
+const PNG_SIGNATURE_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const
 
 export function isPng(bytes: Buffer): boolean {
   return bytes.length >= 8 && PNG_SIGNATURE_BYTES.every((b, i) => bytes[i] === b)

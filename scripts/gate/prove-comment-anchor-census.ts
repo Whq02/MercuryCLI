@@ -40,7 +40,7 @@ const PATH_CALLS = new Set(['join', 'resolve'])
 const COLLECTORS = new Set(['push', 'unshift', 'add', 'set', 'concat'])
 const STRIPPED_FILE = /\.(ts|tsx|mts|cts|js|mjs|cjs|jsx|cs|rs)$/
 
-export type AnchorHit = { file: string; line: number; method: string; anchor: string; receiver: string }
+type AnchorHit = { file: string; line: number; method: string; anchor: string; receiver: string }
 type Anchor = { text: string; regex: boolean }
 type Site = { call: ts.CallExpression; method: string; anchor: ts.Expression; receiver: ts.Expression }
 
@@ -433,7 +433,7 @@ function judge(src: Source, site: Site, prov: Provenance): AnchorHit[] {
   return [hitOf(src, site.call, site.method, anchor, site.receiver)]
 }
 
-export function census(root: string): { files: number; hits: AnchorHit[] } {
+function census(root: string): { files: number; hits: AnchorHit[] } {
   const modules = new ModuleCache(root)
   const hits: AnchorHit[] = []
   const files = walkProofs(root)

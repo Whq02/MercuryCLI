@@ -6,7 +6,7 @@ export type GateClass = 'pure' | 'cpu' | 'pty' | 'exclusive' | 'undeclared'
 
 export const DEFAULT_HUB_CEILING = 15
 export const DEFAULT_CLEARLY_UNDER_RATIO = 0.5
-export const DEFAULT_SUITE_SECONDS = 30
+const DEFAULT_SUITE_SECONDS = 30
 
 export interface SliceAnchor {
   treeSha: string
@@ -27,7 +27,7 @@ export interface SlicePlanInput {
   clearlyUnderRatio: number
 }
 
-export interface SliceLedger {
+interface SliceLedger {
   selection: ImpactSelection | null
   suites: string[]
   sliceEstimateS: number | null
@@ -35,7 +35,7 @@ export interface SliceLedger {
   hubs: Array<{ path: string; fanout: number }>
 }
 
-export type SlicePlan =
+type SlicePlan =
   | { kind: 'refuse'; reason: 'anchor-absent' | 'not-faster'; message: string; ledger: SliceLedger }
   | { kind: 'escalate'; reason: 'unclassified' | 'hub-fanout'; message: string; ledger: SliceLedger }
   | { kind: 'run'; suites: string[]; ledger: SliceLedger }

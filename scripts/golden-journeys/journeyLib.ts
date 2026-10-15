@@ -16,14 +16,14 @@ import { makeOwnerKey, type OwnerKey } from '../../src/services/run/ownerKey.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
-export const REPO = path.resolve(import.meta.dir, '../..')
+const REPO = path.resolve(import.meta.dir, '../..')
 export const DIST = path.join(REPO, 'dist/mercury.mjs')
 const VSHOT = path.join(REPO, 'scripts/ui/vshot.py')
 
 
 export const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-momentum-${process.pid}`)
 export const FIXTURE_CWD = path.join(RUN_HOME, 'fixture-repo')
-export const PROBE_KEY = 'sk-ant-momentum-journey-probe'
+const PROBE_KEY = 'sk-ant-momentum-journey-probe'
 
 export const SIDS = {
   J1: '00000000-aaaa-bbbb-eee1-000000000001',
@@ -94,7 +94,7 @@ export function cleanupWorld(): void {
 
 type Row = Record<string, unknown>
 
-export function rowBase(sid: string, extra: Row): Row {
+function rowBase(sid: string, extra: Row): Row {
   return {
     isSidechain: false,
     entrypoint: 'cli',
@@ -229,7 +229,7 @@ export function bashRound(command: string, description: string, stdout: string, 
 }
 
 
-export function ownerFor(sid: string): OwnerKey {
+function ownerFor(sid: string): OwnerKey {
   return makeOwnerKey({ workspace: FIXTURE_CWD, sessionId: sid, lane: 'main' })
 }
 
@@ -270,7 +270,7 @@ export function readRunSidecar(sid: string): { writeSeq: number; snapshot: RunSn
 }
 
 
-export interface SeedTask {
+interface SeedTask {
   id: string
   subject: string
   status: 'pending' | 'in_progress' | 'completed'
@@ -308,7 +308,7 @@ export interface Send {
   afterPrevTicks?: number
 }
 
-export interface CaptureOpts {
+interface CaptureOpts {
   sid: string
   tag: string
   sends?: Send[]
@@ -399,14 +399,14 @@ export function slashSends(cmd: string, extra: Send[] = []): Send[] {
 }
 
 
-export type Visibility = 'at-glance' | 'after-navigation' | 'not-visible'
+type Visibility = 'at-glance' | 'after-navigation' | 'not-visible'
 
-export interface NavRoute {
+interface NavRoute {
   cmd: string
   extra?: Send[]
 }
 
-export interface FactResult {
+interface FactResult {
   fact: string
   needle: string
   visibility: Visibility
@@ -460,7 +460,7 @@ export class JourneyWalker {
   }
 }
 
-export interface JourneyReport {
+interface JourneyReport {
   journey: string
   completed: boolean
   integrityFailures: string[]

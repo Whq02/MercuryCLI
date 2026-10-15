@@ -56,7 +56,7 @@ export class LineReader {
 export const isOutcome = (f: Frame | null | undefined): boolean => f?.type === 'outcome'
 export const isSession = (f: Frame | null | undefined): boolean => f?.type === 'session'
 export const isTurnOpen = (f: Frame | null | undefined): boolean => f?.type === 'turn' && f.state === 'started'
-export const isTurnWaiting = (f: Frame | null | undefined): boolean => f?.type === 'turn' && f.state === 'waiting'
+const isTurnWaiting = (f: Frame | null | undefined): boolean => f?.type === 'turn' && f.state === 'waiting'
 export const isText = (f: Frame | null | undefined): boolean => f?.type === 'text'
 export const isToolCall = (f: Frame | null | undefined): boolean => f?.type === 'tool_call'
 export const isToolResult = (f: Frame | null | undefined): boolean => f?.type === 'tool_result'
@@ -65,13 +65,13 @@ export const isMainThread = (f: Frame | null | undefined): boolean => f !== null
 export const isCompleted = (f: Frame | null | undefined): boolean => isOutcome(f) && f?.status === 'completed'
 export const outcomeError = (f: Frame | null | undefined): string | undefined => (isOutcome(f) ? ((f?.error as { message?: string } | undefined)?.message ?? undefined) : undefined)
 export const answerOf = (f: Frame | null | undefined): string => (isOutcome(f) && typeof f?.answer === 'string' ? f.answer : '')
-export const textOf = (frames: readonly Frame[]): string => frames.filter(f => isText(f) && isMainThread(f)).map(f => String(f.text ?? '')).join('')
+const textOf = (frames: readonly Frame[]): string => frames.filter(f => isText(f) && isMainThread(f)).map(f => String(f.text ?? '')).join('')
 
 export const outcomeCount = (stdout: string): number => frameLines(stdout).filter(isOutcome).length
 export const hasOutcome = (stdout: string): boolean => frameLines(stdout).some(isOutcome)
-export const outcomeLines = (lines: readonly string[]): string[] => lines.filter(line => isOutcome(parseFrame(line)))
+const outcomeLines = (lines: readonly string[]): string[] => lines.filter(line => isOutcome(parseFrame(line)))
 export const lastOutcome = (frames: readonly Frame[]): Frame | undefined => frames.filter(isOutcome).at(-1)
-export const completedAnswer = (stdout: string): string | undefined => {
+const completedAnswer = (stdout: string): string | undefined => {
   const outcome = lastOutcome(frameLines(stdout))
   return isCompleted(outcome) ? answerOf(outcome) : undefined
 }
@@ -79,13 +79,13 @@ export const answeredWith = (stdout: string, marker: string): boolean => (comple
 
 type InputStamp = Pick<PromptRow, 'id' | 'priority' | 'sent_at' | 'origin'>
 export const promptRow = (content: PromptRow['content'], stamp: InputStamp = {}): PromptRow => ({ type: 'prompt', content, ...stamp })
-export const shellRow = (command: string, stamp: InputStamp = {}): ShellRow => ({ type: 'shell', command, ...stamp })
-export const noteRow = (to: string, content: string, id?: string): NoteRow => ({ type: 'note', to, content, ...(id !== undefined ? { id } : {}) })
+const shellRow = (command: string, stamp: InputStamp = {}): ShellRow => ({ type: 'shell', command, ...stamp })
+const noteRow = (to: string, content: string, id?: string): NoteRow => ({ type: 'note', to, content, ...(id !== undefined ? { id } : {}) })
 export const inputLine = (row: InputRow): string => `${JSON.stringify(row)}\n`
 
 export type TurnRequest<M extends Parameters<HostedRunner['request']>[0] = Parameters<HostedRunner['request']>[0]> = { method: M; params: ParamsOf<M> }
-export type Turn = { prompt: string; before?: () => void; requests?: TurnRequest[] }
-export type TurnsRun = { exit: number | null; stdout: string; stderr: string; frames: Frame[]; answers: Array<{ method: string; result?: unknown; error?: string }> }
+type Turn = { prompt: string; before?: () => void; requests?: TurnRequest[] }
+type TurnsRun = { exit: number | null; stdout: string; stderr: string; frames: Frame[]; answers: Array<{ method: string; result?: unknown; error?: string }> }
 
 export function runTurns(opts: {
   node: string

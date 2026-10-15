@@ -5,23 +5,23 @@ export const NOUS_FIXTURE_NOW = Date.UTC(2026, 9, 9, 7, 30, 0)
 export const NOUS_FIXTURE_FILLER_ROWS = 28
 
 export const NOUS_FIXTURE_INVALID_KEY_MESSAGE = 'Your API key is invalid, blocked or out of funds. Please go visit the portal to sort that out: https://portal.nousresearch.com '
-export const NOUS_FIXTURE_RETIRED_MESSAGE = 'This model has been retired. Please select a different model to continue!'
-export const NOUS_FIXTURE_KEY_NOT_ACCOUNT = 'API key is not associated with a user account'
+const NOUS_FIXTURE_RETIRED_MESSAGE = 'This model has been retired. Please select a different model to continue!'
+const NOUS_FIXTURE_KEY_NOT_ACCOUNT = 'API key is not associated with a user account'
 export const NOUS_FIXTURE_CLIENT_ID = 'hermes-cli'
 export const NOUS_FIXTURE_SCOPE = 'inference:invoke'
-export const NOUS_FIXTURE_RELEASE_TAG = `v${NOUS_CLIENT_CONTRACT_RELEASE}`
+const NOUS_FIXTURE_RELEASE_TAG = `v${NOUS_CLIENT_CONTRACT_RELEASE}`
 export const NOUS_FIXTURE_USER_CODE = 'FIXT-CODE'
-export const NOUS_FIXTURE_DEVICE_CODE = 'device-fixture-0123456789'
+const NOUS_FIXTURE_DEVICE_CODE = 'device-fixture-0123456789'
 
 function b64url(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString('base64url')
 }
 
-export function nousFixtureAccessToken(serial: number, expSec: number, sub = 'user-fixture'): string {
+function nousFixtureAccessToken(serial: number, expSec: number, sub = 'user-fixture'): string {
   return `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ sub, scope: NOUS_FIXTURE_SCOPE, exp: expSec, iat: expSec - 3600, serial })}.fixture-signature-${serial}`
 }
 
-export function nousFixtureConstantsText(clientId: string, scope: string): string {
+function nousFixtureConstantsText(clientId: string, scope: string): string {
   return [
     '"""Shared constants for the auth package (fixture copy)."""',
     '',
@@ -57,7 +57,7 @@ function row(id: string, extra: Row = {}): Row {
   }
 }
 
-export function nousFixtureModels(): Row[] {
+function nousFixtureModels(): Row[] {
   const filler = Array.from({ length: NOUS_FIXTURE_FILLER_ROWS }, (_, i) => row(`fixture/filler-${String(i + 1).padStart(2, '0')}`, { created: 1790000000 - i }))
   return [
     row('stepfun/step-5-preview', { name: 'StepFun: Step 5 Preview', created: 1791462849, context_length: 1000000, max_completion_tokens: 64000, supported_parameters: ['max_tokens', 'reasoning', 'reasoning_effort', 'tools', 'tool_choice'], reasoning: { mandatory: true, supported_efforts: ['high', 'medium', 'low'], default_effort: 'medium' } }),
@@ -71,7 +71,7 @@ export function nousFixtureModels(): Row[] {
   ]
 }
 
-export function nousFixtureAccount(): Row {
+function nousFixtureAccount(): Row {
   return {
     user: { id: 'user-fixture', email: 'fixture@example.invalid', privy_did: 'did:privy:fixture', account_tier: 'registered' },
     organisation: { id: 'org-fixture', slug: 'fixture-org', name: 'Fixture Org' },
@@ -99,14 +99,14 @@ export function nousFixtureAccount(): Row {
   }
 }
 
-export interface NousFixtureCapture {
+interface NousFixtureCapture {
   path: string
   method: string
   headers: Record<string, string>
   body?: Record<string, unknown>
 }
 
-export interface NousFixtureOauthState {
+interface NousFixtureOauthState {
   clientIds: Set<string>
   outcome: 'approved' | 'denied' | 'expired'
   pendingPolls: number
@@ -126,7 +126,7 @@ export interface NousFixtureOauthState {
   sub: string
 }
 
-export interface NousFixtureSourceState {
+interface NousFixtureSourceState {
   tag: string
   clientId: string
   scope: string

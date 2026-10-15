@@ -5,14 +5,14 @@ import type { JevEvalInput } from '../../../src/tools/JevEvalTool/jevEvalSchema.
 
 const ROOT = join(import.meta.dir, '..', '..', '..')
 
-export type JevAskQuestions = JevEvalInput['questions']
-export type JevAskEvidence = Record<string, string>
-export type JevAsk =
+type JevAskQuestions = JevEvalInput['questions']
+type JevAskEvidence = Record<string, string>
+type JevAsk =
   | { ok: true; road: JevRoad; model: string; answers: Record<string, JevAnswer>; nouls: Record<string, number>; usage: JevUsage; chargeUsd: number; requestId?: string }
   | { ok: false; kind: string; words: string }
-export type JevBatchItem = { id: string; evidence: JevAskEvidence }
-export type JevBatchRow = { id: string; ask: JevAsk }
-export const JEV_ASK_WIDTH = 8
+type JevBatchItem = { id: string; evidence: JevAskEvidence }
+type JevBatchRow = { id: string; ask: JevAsk }
+const JEV_ASK_WIDTH = 8
 
 function packageVersion(): string {
   try {
@@ -36,7 +36,7 @@ const assembly = await import('../../../src/tools/JevEvalTool/jevEvalRequest.js'
 
 config.enableConfigs()
 
-export function jevRoadWordsNow(): string {
+function jevRoadWordsNow(): string {
   const settings = setting.readJevSettings()
   return `${settings.enabled ? 'on' : 'off'} · ${settings.road}`
 }
@@ -128,7 +128,7 @@ export async function askJevBatch(items: readonly JevBatchItem[], questions: Jev
   return rows
 }
 
-export async function askJev(evidence: JevAskEvidence, questions: JevAskQuestions): Promise<JevAsk> {
+async function askJev(evidence: JevAskEvidence, questions: JevAskQuestions): Promise<JevAsk> {
   const [row] = await askJevBatch([{ id: 'one', evidence }], questions, 1)
   return row!.ask
 }

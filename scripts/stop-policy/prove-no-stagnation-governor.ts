@@ -11,7 +11,7 @@ const { check, section, finish, failed } = makeTally('prove-no-stagnation-govern
 export const REREAD_ASK = 'reread the notes file twenty times'
 export const REREAD_END = 'done: the notes file was read twenty times'
 export const REREAD_ROUNDS = 20
-export const HIDDEN_DIRECTIVE = 'Cycle re-plan'
+const HIDDEN_DIRECTIVE = 'Cycle re-plan'
 const GOVERNOR_NAMES =
   /cycleLease|evaluateCycleLease|cycle_handoff|cycleReplanInjected|replan-required|handoff-required|STAGNANT_AFTER_BARREN|REPLAN_AFTER_BARREN|HANDOFF_AFTER_REPLANS|deriveProgressPhase|attemptsSinceProgress|repeatAttemptsSinceProgress|replansUsed|barrenRepeats|buildHandoffReport|renderHandoffReport|Cycle re-plan/
 const RELEASE_NOTES = ['src/constants/changelog.ts']
@@ -92,7 +92,7 @@ export function answerTool(res: ServerResponse, n: number, model: string, id: st
   res.end(closeMessage('tool_use', 0))
 }
 
-export type RereadFixture = { port: number; hits: Hit[]; close: () => Promise<void> }
+type RereadFixture = { port: number; hits: Hit[]; close: () => Promise<void> }
 
 export async function startRereadFixture(notesPath: string, rounds = REREAD_ROUNDS, grow = true): Promise<RereadFixture> {
   const hits: Hit[] = []

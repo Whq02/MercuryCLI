@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 
-export type HostStep = Record<string, unknown>
+type HostStep = Record<string, unknown>
 
-export type HostMark = { label: string; ms: number; teeOffset: number; grid: string }
+type HostMark = { label: string; ms: number; teeOffset: number; grid: string }
 export type HostSample = {
   ms: number
   label: string
@@ -16,7 +16,7 @@ export type HostSample = {
   foreground: boolean | null
   tree: Array<{ pid: number; ppid: number; pgid: number; tpgid: number; stat: string; cmd: string }>
 }
-export type HostModeEvent = { ms: number; mode: string; offset: number }
+type HostModeEvent = { ms: number; mode: string; offset: number }
 export type HostReport = {
   endReason: string
   bundlePid: number | null
@@ -32,7 +32,7 @@ export type HostReport = {
   lastStep?: string
 }
 
-export type HostRun = {
+type HostRun = {
   report: HostReport | null
   tee: Buffer
   status: number | null

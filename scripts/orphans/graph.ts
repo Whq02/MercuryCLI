@@ -7,7 +7,7 @@ import ts from 'typescript'
 export const GRAPH_ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(GRAPH_ROOT, 'src')
 
-export type EdgeKind =
+type EdgeKind =
   | 'static-import'
   | 'export-from'
   | 'dynamic-import'
@@ -15,14 +15,14 @@ export type EdgeKind =
   | 'import-equals'
   | 'type-import'
 
-export interface RawEdge {
+interface RawEdge {
   from: string
   spec: string
   kind: EdgeKind
   resolved: string | null
 }
 
-export interface ImportGraph {
+interface ImportGraph {
   root: string
   files: string[]
   entries: string[]
@@ -119,7 +119,7 @@ export function extractSpecs(filePath: string, text: string): Array<{ spec: stri
   return out
 }
 
-export function graphEntries(): string[] {
+function graphEntries(): string[] {
   const entries = [
     'src/entrypoints/cli.tsx',
     ...readdirSync(join(SRC, 'entrypoints'))

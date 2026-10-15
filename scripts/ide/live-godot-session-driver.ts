@@ -22,7 +22,7 @@ interface DriverArgs {
   breakLine?: number
 }
 
-export function parseDriverArgs(argv: string[]): DriverArgs | { error: string } {
+function parseDriverArgs(argv: string[]): DriverArgs | { error: string } {
   const args: DriverArgs = { mode: 'plumbing', scene: 'main' }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]

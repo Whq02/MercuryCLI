@@ -1,7 +1,7 @@
 import { appendFileSync, writeFileSync } from 'node:fs'
 
 export type PtyRecord = { direction: 'input' | 'output'; atMs: number; bytes: Buffer }
-export type PtyRecording = {
+type PtyRecording = {
   records: PtyRecord[]
   exited: Promise<number>
   send: (bytes: string | Uint8Array) => number

@@ -15,9 +15,9 @@ import { systemPromptText, toolRoster } from './lib/wire.ts'
 
 export const HERE = resolve(import.meta.dir)
 export const ROOT = resolve(HERE, '..', '..')
-export const DEFAULT_PORT = 34200
+const DEFAULT_PORT = 34200
 
-export interface BenchmarkOptions {
+interface BenchmarkOptions {
   families: FamilyId[]
   live: boolean
   tasks: string[] | null
@@ -34,7 +34,7 @@ export interface BenchmarkOptions {
   quiet: boolean
 }
 
-export interface BenchmarkResult {
+interface BenchmarkResult {
   out: string
   tables: FamilyTable[]
   summaryPath: string
@@ -101,7 +101,7 @@ export function parseArgs(argv: string[]): BenchmarkOptions {
   return opts
 }
 
-export function readSavedDefaultModel(): { model: string | null; source: string } {
+function readSavedDefaultModel(): { model: string | null; source: string } {
   const home = process.env.MERCURY_CONFIG_DIR?.trim() || join(process.env.HOME ?? '', '.mercury')
   const settings = join(home, 'settings.json')
   try {
@@ -112,7 +112,7 @@ export function readSavedDefaultModel(): { model: string | null; source: string 
   }
 }
 
-export function readOpenrouterKey(): { key: string | null; source: string } {
+function readOpenrouterKey(): { key: string | null; source: string } {
   const env = process.env.OPENROUTER_API_KEY?.trim()
   if (env) return { key: env, source: 'OPENROUTER_API_KEY (env)' }
   const home = process.env.MERCURY_CONFIG_DIR?.trim() || join(process.env.HOME ?? '', '.mercury')
@@ -126,14 +126,14 @@ export function readOpenrouterKey(): { key: string | null; source: string } {
   }
 }
 
-export const BROWSER_PROBE_MS = 15_000
+const BROWSER_PROBE_MS = 15_000
 
-export interface BrowserProbe {
+interface BrowserProbe {
   ok: boolean
   note: string
 }
 
-export async function browserLaunches(nodeBin: string, out: string): Promise<BrowserProbe> {
+async function browserLaunches(nodeBin: string, out: string): Promise<BrowserProbe> {
   const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
   const resolution = resolveBrowser()
   if (resolution.state === 'unavailable') return { ok: false, note: `no browser to launch — ${resolution.note}` }
@@ -338,7 +338,7 @@ async function runFamily(plan: FamilyRunPlan, opts: BenchmarkOptions, fixture: B
   return { header, rows }
 }
 
-export function normalisePaths(text: string, paths: { project: string; home: string; out: string }): string {
+function normalisePaths(text: string, paths: { project: string; home: string; out: string }): string {
   const keyOf = (p: string): string => p.replace(/[\\/]/g, '-')
   const variants = (p: string): string[] => {
     let real = p

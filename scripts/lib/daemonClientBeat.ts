@@ -1,4 +1,4 @@
-export const DAEMON_CLIENT_BEAT_MS = 5_000
+const DAEMON_CLIENT_BEAT_MS = 5_000
 
 export type DaemonClientBeat = { pid: number; beats: () => number; stop: () => void }
 
