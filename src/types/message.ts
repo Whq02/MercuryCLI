@@ -61,6 +61,8 @@ export type CompactMetadata = {
   userContext?: string
   messagesSummarized?: number
   ledger?: import('../services/compact/foldLedger.js').FoldLedger
+  recentRounds?: { requested: number; kept: number; tokens: number; reason: string }
+  requestGauge?: Pick<import('../services/run/requestGauge.js').RequestGaugeAnchor, 'key' | 'epoch' | 'fixed' | 'density'>
   preservedSegment?: {
     headUuid: UUID
     anchorUuid: UUID

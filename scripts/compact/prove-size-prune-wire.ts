@@ -84,6 +84,9 @@ fixture.inputRule = true
 fixture.script((request): Turn => {
   const results = resultsOf(request)
   const input = Math.ceil(JSON.stringify(request.body).length / 4)
+  const requestRows = request.dialect === 'responses' ? request.body.input : request.body.messages
+  const lastRow = Array.isArray(requestRows) ? requestRows.at(-1) as { content?: unknown } : undefined
+  const summaryRequest = textOf(lastRow?.content).includes('Produce the summary now.')
   const byPath = new Map<string, string>()
   const superseded = new Set<string>()
   for (const result of results) {
@@ -101,6 +104,7 @@ fixture.script((request): Turn => {
     cachedInputTokens: 0,
     uncachedInputTokens: input,
     resultCount: results.length,
+    summaryRequest,
     carriedSuperseded: results.filter(result => superseded.has(result.id) && !placeholder(result.text)).map(result => result.id),
     prunedIds: results.filter(result => placeholder(result.text)).map(result => result.id),
     resultChars: Object.fromEntries(results.map(result => [result.id, result.text.length])),
@@ -117,6 +121,7 @@ fixture.script((request): Turn => {
       ? { type: 'error', error: { type: 'invalid_request_error', message: `prompt is too long: ${input} tokens > ${limit} maximum` } }
       : { error: { type: 'invalid_request_error', code: 'context_length_exceeded', message: `This model's maximum context length is ${limit} tokens. However, your messages resulted in ${input} tokens. Please reduce the length of the messages.` } } } }
   }
+  if (summaryRequest) return { text: 'SUMMARY: the scratch file revisions are in progress. Preserve both references, complete the outstanding read/edit rounds in order, and verify the final revision values.', usage: { input, output: 40 } }
   const call = calls[nextCall++]
   if (call !== undefined) return { calls: [call], usage: { input, output: 40 } }
   return { text: 'The file revisions are complete.', usage: { input, output: 12 } }
@@ -213,10 +218,11 @@ check('every edit landed in the scratch files', paths.every((path, index) => rea
 check('no tool result reports an error', frames.some(isToolResult) && !frames.some(frame => isToolResult(frame) && frame.status !== 'ok'))
 check('the provider input-pairing rule refuses nothing', fixture.refusals.length === 0)
 check(`the threshold sits under the refusal limit (${thresholdTokens} < ${limit}) and the two-thirds target sits at least one file read above the floor no prune can clear, the first request plus the newest-output protection (${summary.unprunableFloorTokens} + ${summary.fileReadTokens} < ${targetTokens})`, thresholdTokens < limit && summary.unprunableFloorTokens + summary.fileReadTokens < targetTokens)
-check('the size prune lands before any provider refusal', summary.prunedBeforeRefusal)
-check('the replay incurs no context refusals', refusals === 0)
-check('a protected skill-file read remains on every later request', measurements.length > 2 && measurements.slice(1).every(row => row.protectedPresent))
-check('a file result with no later same-path operation remains', measurements.length > 2 && measurements.slice(2).every(row => row.uniquePresent))
+check('no body is pruned before a summary attempt', !summary.prunedBeforeRefusal && measurements.some(row => row.summaryRequest))
+check('the explicit fixture refusal is recovered through a summary', refusals > 0 && measurements.some(row => row.summaryRequest && !row.refused))
+const firstSummary = measurements.findIndex(row => row.summaryRequest)
+check('the protected read stays whole until the summary and reaches an accepted summary', firstSummary > 1 && measurements.slice(1, firstSummary).every(row => row.protectedPresent) && measurements.some(row => row.summaryRequest && !row.refused && row.protectedPresent))
+check('the unsuperseded read stays whole until the summary and reaches an accepted summary', firstSummary > 2 && measurements.slice(2, firstSummary).every(row => row.uniquePresent) && measurements.some(row => row.summaryRequest && !row.refused && row.uniquePresent))
 console.log(JSON.stringify({ ...summary, notices: notices.length }, null, 2))
 console.log(`evidence: ${output}`)
 process.exit(failures === 0 ? 0 : 1)

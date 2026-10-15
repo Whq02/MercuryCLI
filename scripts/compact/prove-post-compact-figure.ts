@@ -42,7 +42,7 @@ section('§1 the real estimators over the post-compact shape')
 section('§2 the shape: one estimator family on both sides')
 {
   const compact = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
-  check('compact.ts takes the true post figure from the whole-context estimator over the post-compact messages', /truePostCompactTokenCount = estimateContextTokens\(buildPostCompactMessages\(partial\)\)/.test(compact))
+  check('compact.ts takes the true post figure from the whole-context estimator over the post-compact messages', /truePostCompactTokenCount = landingCount\(buildPostCompactMessages\(partial\)\)/.test(compact) && compact.includes('gauge ? estimateRequestGauge(rows, gauge.fixed, gauge.density) : estimateContextTokens(rows)'))
   check('…and the partial fold too (the same owner, never the call\'s billed usage)', /truePostCompactTokenCount = estimateContextTokens\(buildPostCompactMessages\(partialResult\)\)/.test(compact))
   check('…and no longer from the round estimator', !/truePostCompactTokenCount = estimateMessageTokens\(/.test(compact))
   const memory = readFileSync(join(ROOT, 'src/services/compact/sessionMemoryCompact.ts'), 'utf8')

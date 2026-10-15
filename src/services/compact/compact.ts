@@ -65,6 +65,7 @@ import { buildFoldLedger, renderFoldLedger } from './foldLedger.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../run/resolveOwner.js'
 import { buildRunContinuationCapsule } from '../run/runContinuationCapsule.js'
 import { roughTokenCountEstimation } from '../tokenEstimation.js'
+import { estimateRequestGauge, readRequestGauge } from '../run/requestGauge.js'
 import { FileReadTool } from '../../tools/FileReadTool/FileReadTool.js'
 import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../../tools/FileReadTool/prompt.js'
 import { ToolSearchTool } from '../../tools/ToolSearchTool/ToolSearchTool.js'
@@ -614,9 +615,9 @@ function describeAttachment(message: AttachmentMessage): string {
   return attachment.type
 }
 
-export function fitPostCompactUnderThreshold(result: CompactionResult, threshold: number): PostCompactFit {
+export function fitPostCompactUnderThreshold(result: CompactionResult, threshold: number, count = estimateContextTokens): PostCompactFit {
   let current = result
-  let estimate = estimateContextTokens(buildPostCompactMessages(current))
+  let estimate = count(buildPostCompactMessages(current))
   const shed: string[] = []
   for (const kind of POST_COMPACT_SHEDDABLE_ATTACHMENT_TYPES) {
     while (estimate >= threshold) {
@@ -633,7 +634,7 @@ export function fitPostCompactUnderThreshold(result: CompactionResult, threshold
       if (victim < 0) break
       shed.push(describeAttachment(current.attachments[victim] as AttachmentMessage))
       current = { ...current, attachments: current.attachments.filter((_, index) => index !== victim) }
-      estimate = estimateContextTokens(buildPostCompactMessages(current))
+      estimate = count(buildPostCompactMessages(current))
     }
     if (estimate < threshold) break
   }
@@ -1369,7 +1370,7 @@ export async function compactConversation(
 ): Promise<CompactionResult> {
   const transaction = prepareFoldContext(context)
   context = transaction.context
-  const ceiling = recompactionInfo?.autoCompactThreshold
+  let ceiling = recompactionInfo?.autoCompactThreshold
   const summaryContext = summaryModel === undefined ? context : withEngineModel(context, summaryModel)
   const summaryCacheSafeParams =
     summaryModel === undefined
@@ -1395,15 +1396,32 @@ export async function compactConversation(
     const promptText = getCompactPrompt(mergedInstructions, { runCapsulePresent: capsuleProbe !== null })
     const response = await summarizeWithPtlRetry(messages, summaryCacheSafeParams, promptText, summaryContext)
     const rawSummary = validateSummary(response, true)
+    if (overflow?.source === 'provider' && overflow.limitTokens !== undefined) {
+      ceiling = Math.min(ceiling ?? Infinity, overflow.limitTokens)
+    }
     context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
 
     let messagesToKeep: Message[] | undefined
     let tailPrecedingUuid: UUID | undefined
+    let recentRounds: CompactMetadata['recentRounds']
+    const gauge = readRequestGauge(messages, context.options.engineModel)
+    const landingCount = (rows: Message[]): number => gauge ? estimateRequestGauge(rows, gauge.fixed, gauge.density) : estimateContextTokens(rows)
     if (isMercuryCompactKeepTailEnabled()) {
-      const tail = computeVerbatimRecentTail(messages)
+      const tail = computeVerbatimRecentTail(messages, {
+        fits: keep => {
+          if (ceiling === undefined) return true
+          const operator = selectOperatorMessages(messages, { keptUuids: new Set(keep.map(row => row.uuid)) })
+          const marker = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount)
+          const work = renderFoldedWork(foldedWorkOf(messages, keep, marker.uuid))
+          const capsule = buildRunContinuationCapsule(owner, [...context.readFileState.keys()])
+          const text = getCompactUserSummaryMessage([rawSummary, capsule, work].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true) + `\n\n${renderFoldLedger(ledger)}`
+          return landingCount([marker, ...(operator ? [createAttachmentMessage(operator)] : []), createUserMessage({ content: text, isCompactSummary: true }), ...stripThinkingFromIndex(keep, 0), ...beforeRows]) < ceiling
+        },
+      })
       if (tail !== null && tail.keep.length > 0) {
         messagesToKeep = stripThinkingFromIndex(tail.keep, 0)
         tailPrecedingUuid = tail.precedingUuid
+        recentRounds = { requested: tail.roundsRequested, kept: tail.roundsKept, tokens: tail.estimatedTokens, reason: tail.reason }
         logForDebugging(`compact: verbatim tail keeps ${tail.roundsKept} rounds (${tail.keep.length} messages)`)
       }
     }
@@ -1423,6 +1441,8 @@ export async function compactConversation(
     const anchor = messagesToKeep !== undefined ? tailPrecedingUuid : lastMessage.uuid
     const boundary = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount, anchor)
     boundary.compactMetadata.ledger = ledger
+    if (gauge) boundary.compactMetadata.requestGauge = { key: gauge.key, epoch: getContextEpoch(owner).epoch + 1, fixed: gauge.fixed, density: gauge.density }
+    boundary.compactMetadata.recentRounds = recentRounds ?? { requested: 10, kept: 0, tokens: 0, reason: isMercuryCompactKeepTailEnabled() ? 'no-complete-tail' : 'disabled' }
     if (overflow !== undefined) boundary.compactMetadata.overflow = overflow
     const discovered = extractDiscoveredToolNames(messages)
     if (discovered.size > 0) boundary.compactMetadata.preCompactDiscoveredTools = [...discovered].sort()
@@ -1467,9 +1487,9 @@ export async function compactConversation(
       postCompactTokenCount: callUsageTotal,
       compactionUsage: usage,
     }
-    let truePostCompactTokenCount = estimateContextTokens(buildPostCompactMessages(partial))
+    let truePostCompactTokenCount = landingCount(buildPostCompactMessages(partial))
     if (ceiling !== undefined && truePostCompactTokenCount >= ceiling) {
-      const fit = fitPostCompactUnderThreshold(partial, ceiling)
+      const fit = fitPostCompactUnderThreshold(partial, ceiling, landingCount)
       if (fit.shed.length > 0) {
         logForDebugging(
           `compact: post-compact estimate ${truePostCompactTokenCount} >= threshold ${ceiling}; shed ${fit.shed.join(', ')} → ${fit.estimate}`,
@@ -1477,18 +1497,34 @@ export async function compactConversation(
       }
       partial = fit.result
       truePostCompactTokenCount = fit.estimate
-      if (truePostCompactTokenCount >= ceiling) {
-        for (const [path, state] of ledgerBeforeFold) context.readFileState.set(path, state)
-        throw new Error(postCompactOverThresholdMessage(truePostCompactTokenCount, ceiling))
-      }
     }
 
     const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: boundaryTrigger, tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
     partial = { ...partial, hookResults: [...beforeRows, ...afterRows] }
-    const completeFit = ceiling === undefined ? { result: partial, estimate: estimateContextTokens(buildPostCompactMessages(partial)) } : fitPostCompactUnderThreshold(partial, ceiling)
+    const completeFit = ceiling === undefined ? { result: partial, estimate: landingCount(buildPostCompactMessages(partial)) } : fitPostCompactUnderThreshold(partial, ceiling, landingCount)
     partial = completeFit.result
     truePostCompactTokenCount = completeFit.estimate
+    while (ceiling !== undefined && truePostCompactTokenCount >= ceiling && recentRounds !== undefined && recentRounds.kept > 1) {
+      const narrower = computeVerbatimRecentTail(messages, { keepRounds: recentRounds.kept - 1 })
+      if (narrower === null) break
+      messagesToKeep = stripThinkingFromIndex(narrower.keep, 0)
+      recentRounds = { requested: recentRounds.requested, kept: narrower.roundsKept, tokens: narrower.estimatedTokens, reason: 'request-budget' }
+      boundary.compactMetadata.recentRounds = recentRounds
+      boundary.logicalParentUuid = narrower.precedingUuid
+      const selection = selectOperatorMessages(messages, { keptUuids: new Set(messagesToKeep.map(row => row.uuid)) })
+      const work = renderFoldedWork(foldedWorkOf(messages, messagesToKeep, boundary.uuid))
+      const summaryText = getCompactUserSummaryMessage([rawSummary, capsule, work].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true) + `\n\n${renderFoldLedger(ledger)}`
+      partial = { ...partial, messagesToKeep, operatorMessages: selection ? createAttachmentMessage(selection) : undefined, summaryMessages: partial.summaryMessages.map((row, index) => index === 0 ? { ...row, message: { ...row.message, content: summaryText } } : row) }
+      annotateBoundaryWithPreservedSegment(boundary, partial.summaryMessages.at(-1)!.uuid, messagesToKeep)
+      annotateBoundaryWithWork(boundary, messages, messagesToKeep, partial.summaryMessages.at(-1)!.uuid)
+      const fitted = fitPostCompactUnderThreshold(partial, ceiling, landingCount)
+      partial = fitted.result
+      truePostCompactTokenCount = fitted.estimate
+    }
     if (ceiling !== undefined && truePostCompactTokenCount >= ceiling) throw new Error(postCompactOverThresholdMessage(truePostCompactTokenCount, ceiling))
+    const visibleReads = collectPreservedReadPaths(messagesToKeep ?? [])
+    for (const row of partial.attachments) if (row.attachment.type === 'file') visibleReads.add(expandPath(row.attachment.filename))
+    for (const path of context.readFileState.keys()) if (!visibleReads.has(expandPath(path))) context.readFileState.delete(path)
     if (context.abortController.signal.aborted) throw new APIUserAbortError()
     await releaseLspDocumentsForContext('compact_full')
     transaction.commit()

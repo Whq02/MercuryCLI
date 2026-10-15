@@ -596,6 +596,18 @@ async function* streamModel(
           iter.requestPlan.gauge.rebase,
         )
         if (requestGauge !== undefined && requestGauge.digest === iter.requestPlan.gauge?.digest) requestGauge.sourceDigest = iter.requestPlan.gauge.sourceDigest
+        const projectedReplies = new Map<string, AssistantMessage>()
+        const settleGauge = (message: AssistantMessage): void => {
+          if (!requestGauge || message.contextGauge) return
+          const anchor = settleRequestGauge(requestGauge, message)
+          if (!anchor) return
+          const projected = projectedReplies.get(message.uuid)
+          if (projected) projected.contextGauge = anchor
+          if (callId === `${iter.turnId}.c1`) {
+            const u = message.message.usage
+            reconcileAppliedPlanUsage(ownerFromToolUseContext(toolUseContext), (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0))
+          }
+        }
         for await (const message of run.deps.callModel({
           messages: requestMessages,
           systemPrompt: iter.fullSystemPrompt,
@@ -645,12 +657,13 @@ async function* streamModel(
 
             iter.needsFollowUp = resetForRetry(iter).needsFollowUp
           }
-          if (message.type === 'assistant' && requestGauge !== undefined) settleRequestGauge(requestGauge, message)
           const yieldMessage: typeof message = backfillCloneForYield(
             message,
             name => findToolByName(toolUseContext.options.tools, name),
           )
           if (message.type === 'assistant') {
+            projectedReplies.set(message.uuid, yieldMessage as AssistantMessage)
+            settleGauge(message)
             const busyRecovery = message.busyRecovery
             if (busyRecovery !== undefined && !busyRecoveriesReceipted.has(message.uuid)) {
               busyRecoveriesReceipted.add(message.uuid)
@@ -730,13 +743,6 @@ async function* streamModel(
               )
               if (boundRecord !== null) yield emit({ kind: 'attachment', message: boundRecord })
             }
-            if (callId === `${iter.turnId}.c1` && message.message.stop_reason != null) {
-              const u = (message.message as { usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } }).usage
-              const measured = (u?.input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0)
-              if (measured > 0) {
-                reconcileAppliedPlanUsage(ownerFromToolUseContext(toolUseContext), measured)
-              }
-            }
 
             const msgToolUseBlocks = message.message.content.filter(
               content => content.type === 'tool_use',
@@ -750,6 +756,7 @@ async function* streamModel(
           }
         }
         for (const settled of iter.assistantMessages) {
+          settleGauge(settled)
           if (settled.streamEnd === undefined || streamEndsReceipted.has(settled.uuid)) continue
           streamEndsReceipted.add(settled.uuid)
           yield emit({

@@ -336,18 +336,18 @@ section('R2 the retry overflows again → the typed refusal, never the raw sente
 section('R3 the emergency prune follows a summary that could not fit')
 {
   const gapSignal: Sig = { ...OPENAI_SIGNAL, actualTokens: 129_000, limitTokens: 128_000 }
-  const r = await run({ seed: seedWithReads(8, undefined, true), script: [[ping(), overflowError(gapSignal)], [ping(), asstText('pruned reply')]], ledger: true, compact: makeCompact({ onForced: [{ wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD }] }) })
+  const r = await run({ seed: seedWithReads(13, undefined, true), script: [[ping(), overflowError(gapSignal)], [ping(), asstText('pruned reply')]], ledger: true, compact: makeCompact({ onForced: [{ wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD }] }) })
   check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
   check('two model calls', r.calls.length === 2, String(r.calls.length))
   const attempted = r.compact.filter(c => c.forced !== undefined)
-  check('one summary attempt saw all eight bodies before the fallback', attempted.length === 1 && toolResultsOf(attempted[0]!.messages).filter(x => !isPlaceholder(x.content)).length === 8, JSON.stringify(r.compact.map(c => c.forced)))
+  check('one summary attempt saw all thirteen bodies before the fallback', attempted.length === 1 && toolResultsOf(attempted[0]!.messages).filter(x => !isPlaceholder(x.content)).length === 13, JSON.stringify(r.compact.map(c => c.forced)))
   check('no boundary event', !r.events.some(e => e.kind === 'compaction_boundary'))
   const retry = r.calls[1]!.messages
   const results = toolResultsOf(retry)
   const cleared = results.filter(x => isPlaceholder(x.content)).map(x => x.id)
   const kept = results.filter(x => !isPlaceholder(x.content)).map(x => x.id)
   check('the three oldest results wear the placeholder', JSON.stringify(cleared) === JSON.stringify(['toolu_read_0', 'toolu_read_1', 'toolu_read_2']), JSON.stringify(cleared))
-  check('the newest five are untouched (the keep-recent window)', JSON.stringify(kept) === JSON.stringify(['toolu_read_3', 'toolu_read_4', 'toolu_read_5', 'toolu_read_6', 'toolu_read_7']), JSON.stringify(kept))
+  check('the newest five are untouched (the keep-recent window)', JSON.stringify(kept) === JSON.stringify(Array.from({ length: 10 }, (_, index) => `toolu_read_${index + 3}`)), JSON.stringify(kept))
   check('the operator message rides the retried request verbatim', lastText(retry) === OPERATOR_ASK)
   check('the transition names the prune rung', JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"provider"'))
   check('the notice names the count and the reclaimed tokens', noticeTexts(r.yields).some(t => /^context overflowed \(OpenAI: 129,000 tokens > 128,000\) — pruned 3 superseded tool results \(~[\d,]+ tokens\) and retrying$/.test(t)), JSON.stringify(noticeTexts(r.yields)))
@@ -423,7 +423,7 @@ section('R7 mid-tool overflow — the follow-up call after a tool round')
 
 section('R8 the estimate side — the blocking preempt prunes or refuses typed')
 {
-  const seed = seedWithReads(8, 100_000, true)
+  const seed = seedWithReads(13, 100_000, true)
   const count = tokenCountWithEstimation(seed as never)
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(count - 800)
   const r = await run({ seed, script: [[ping(), asstText('after the prune')]], ledger: true, compact: makeCompact({ onThreshold: [{ wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD }] }) })

@@ -111,7 +111,7 @@ try {
   const legacyCold = await resumed(history, result, true)
   check('old-shape sessions keep their existing receipt fallback', equal(counts(legacyCold), counts(legacy)))
   check('old-shape sessions keep their existing recap fallback', equal(recap(legacyCold), recap(legacy)))
-  check('old-shape fallback remains the kept-tail counts', counts(legacy)[0]?.fileEdits === 1 && counts(legacy)[0]?.reads === 1 && counts(legacy)[0]?.commands === 3, JSON.stringify(counts(legacy)))
+  check('old-shape fallback remains the kept-tail counts', counts(legacy)[0]?.fileEdits === 2 && counts(legacy)[0]?.reads === 1 && counts(legacy)[0]?.commands === 6, JSON.stringify(counts(legacy)))
   check('the original receipt identity survives folding and resume', receipts(after)[0]?.uuid === receipts(history)[0]?.uuid && receipts(cold)[0]?.uuid === receipts(history)[0]?.uuid)
   const grouped = buildPostCompactMessages({ ...result, messagesToKeep: [] }) as RenderableMessage[]
   grouped.push({ type: 'grouped_tool_use', uuid: randomUUID(), messages: result.messagesToKeep!.filter(m => m.type === 'assistant'), results: result.messagesToKeep!.filter(m => m.type === 'user') } as RenderableMessage)

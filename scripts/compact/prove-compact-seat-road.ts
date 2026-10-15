@@ -23,7 +23,7 @@ check("the runner's turn resolves its model from the live seat (userSpecifiedMod
 check("the runner's turn context carries the thinking config beside the model", /engineModel: model,\n\s*thinkingConfig,/.test(turn))
 
 const command = read('src/commands/compact/compact.ts')
-check("the fold's model is chosen from the context's live engine model", command.includes('foldModelFor(microcompacted, context.options.engineModel, { forced: false })'))
+check("the fold's model is chosen from the context's live engine model", command.includes('foldModelFor(summaryInput, context.options.engineModel, { forced: false })'))
 
 const fold = read('src/services/compact/compact.ts')
 check("the summary request rides the context's own thinking config and the session's effort", fold.includes('thinkingConfig: context.options.thinkingConfig,') && fold.includes('effortValue: context.getAppState().effortValue,'))
