@@ -1,14 +1,13 @@
 import { mock } from 'bun:test'
 import type * as React from 'react'
 import type { Mounted } from '../lib/settingsPopupHarness.ts'
+import { settledFrame } from './popupFrameSettle.ts'
 
 type Rect = { left: number; right: number; top: number; bottom: number }
-export async function concoursePopupFrames({ sizes, wrap, mount, settle, waitFor, check, judge, save }: {
+export async function concoursePopupFrames({ sizes, wrap, mount, check, judge, save }: {
   sizes: string[]
   wrap: (node: React.ReactNode) => React.ReactNode
   mount: (node: React.ReactNode, columns: number, rows: number) => Promise<Mounted>
-  settle: (ms: number) => Promise<void>
-  waitFor: (predicate: () => boolean, ms: number) => Promise<boolean>
   check: (label: string, ok: boolean, detail?: string) => void
   judge: (label: string, lines: string[], title: string, host: Rect, columns: number, rows: number) => void
   save: (name: string, lines: string[]) => void
@@ -70,19 +69,22 @@ export async function concoursePopupFrames({ sizes, wrap, mount, settle, waitFor
       if (surface.door === 'model') armSignInPickerReturn({ kind: 'session', sessionId: row.sessionId, title: row.title })
       const reducedStage = ['effort', 'ground', 'trust', 'atlas'].includes(surface.door)
       const scene = await mount(wrap(h(ConcourseScreen, { snapshot, callbacks: callbacks as never, reducedStage })), columns, rows)
-      await settle(250)
+      await settledFrame(scene)
       if (surface.door === 'effort') scene.push('e')
       if (surface.door === 'ground' || surface.door === 'trust') scene.push('\r')
       if (surface.door === 'atlas') scene.push('?')
       if (surface.door === 'coordinator') scene.push('\x13')
-      if (surface.door === 'seat') { scene.push('a fixture dispatch'); await settle(40); scene.push('\r') }
-      if (surface.door === 'manager') {
-        scene.push('\x1b[Z')
-        await waitFor(() => scene.screen().includes("The manager's plan"), 4000)
+      if (surface.door === 'seat') {
+        scene.push('a fixture dispatch')
+        await settledFrame(scene, frame => frame.includes('a fixture dispatch') || frame.includes('tab or click to type'))
         scene.push('\r')
       }
-      const opened = await waitFor(() => scene.screen().includes(surface.title), 4000)
-      await settle(100)
+      if (surface.door === 'manager') {
+        scene.push('\x1b[Z')
+        await settledFrame(scene, frame => frame.includes("The manager's plan"))
+        scene.push('\r')
+      }
+      const opened = await settledFrame(scene, frame => frame.includes(surface.title))
       const lines = scene.lines()
       save(`${surface.name}-${size}`, lines)
       check(`${surface.name} ${size}: the source popup opened`, opened, lines.filter(line => /fault|refused|COORDINATOR/.test(line)).join(' | '))
