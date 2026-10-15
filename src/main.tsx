@@ -98,6 +98,7 @@ import { resetUserCache } from './utils/user.js'
 import { settingsChangeDetector } from './utils/settings/changeDetector.js'
 import { skillChangeDetector } from './utils/skills/skillChangeDetector.js'
 import { getSettingsWithErrors, getInitialSettings } from './utils/settings/settings.js'
+import { bindProjectSignInChoicesToSettings } from './services/providers/signInRoster.js'
 import { parseSettingSourcesFlag } from './utils/settings/constants.js'
 import { resetSettingsCache, setSessionSettingsCache } from './utils/settings/settingsCache.js'
 import { setFlagSettingsInline, setFlagSettingsPath, setAllowedSettingSources, getSessionProjectDir } from './bootstrap/state.js'
@@ -153,6 +154,7 @@ function refuseDebugger(): void {
   }
 }
 refuseDebugger()
+bindProjectSignInChoicesToSettings(getInitialSettings)
 
 function applyMergedConfigEnv(): void {
   const env = getInitialSettings().environment?.values ?? {}
