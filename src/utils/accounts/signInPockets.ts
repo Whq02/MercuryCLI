@@ -47,6 +47,10 @@ export function pocketSlug(identity: string): string {
   return slug === '' || slug === '.' || slug === '..' ? 'sign-in' : slug
 }
 
+export function signInsEstate(): string {
+  return getAuthConfigHomeDir()
+}
+
 export function signInsRoot(home: string = getAuthConfigHomeDir()): string {
   return join(home, SIGN_INS_DIR)
 }

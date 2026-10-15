@@ -9,10 +9,10 @@ import {
   setProjectSignIn,
   setSessionSignIn,
   withSignInHome,
+  signInsEstate,
   type PocketEntry,
   type SignInChoice,
 } from '../../utils/accounts/signInPockets.js'
-import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
 import { getSecureStorage, removeSecureStorageField } from '../../utils/secureStorage/index.js'
 import {
   readStoredCompatApiKey,
@@ -179,7 +179,7 @@ function pocketRemoval(family: string): () => void {
 
 export const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'gemini', 'huggingface', 'moonshot', 'xai', 'nous', 'meta', 'openrouter', 'zai', 'deepseek', 'mistral', 'zen', 'local', 'openai-compat'] as const
 
-export function familySignInRoster(family: string, home: string = getAuthConfigHomeDir()): SignInRosterRow[] {
+export function familySignInRoster(family: string, home: string = signInsEstate()): SignInRosterRow[] {
   const choice = chosenSignIn(family)
   const entries = readSignInEntries(family, { home })
   const homeRows: SignInRosterRow[] = withSignInHome(family, home, () => homeSignInsOf(family)).map(row => ({
@@ -212,17 +212,17 @@ function rowInUse(rows: SignInRosterRow[], choice: SignInChoice | undefined): Si
   return rows.find(row => row.isDefault && (row.kind === choice.kind || row.identity === choice.identity)) ?? rows.find(row => row.isDefault)
 }
 
-export function everySignInRoster(home: string = getAuthConfigHomeDir()): SignInRosterRow[] {
+export function everySignInRoster(home: string = signInsEstate()): SignInRosterRow[] {
   return SIGN_IN_FAMILIES.flatMap(family => familySignInRoster(family, home))
 }
 
-export function findSignIn(identity: string, family?: string, home: string = getAuthConfigHomeDir()): { row?: SignInRosterRow; matches: SignInRosterRow[] } {
+export function findSignIn(identity: string, family?: string, home: string = signInsEstate()): { row?: SignInRosterRow; matches: SignInRosterRow[] } {
   const wanted = identity.trim().toLowerCase()
   const rows = (family === undefined ? everySignInRoster(home) : familySignInRoster(family, home)).filter(row => row.identity.toLowerCase() === wanted)
   return rows.length === 1 ? { row: rows[0]!, matches: rows } : { matches: rows }
 }
 
-export function knownIdentities(family: string, home: string = getAuthConfigHomeDir()): string[] {
+export function knownIdentities(family: string, home: string = signInsEstate()): string[] {
   return familySignInRoster(family, home).map(row => row.identity)
 }
 
@@ -230,7 +230,7 @@ export type UseSignInOutcome =
   | { ok: true; row: SignInRosterRow; words: string }
   | { ok: false; words: string }
 
-export function useSignIn(identity: string, family?: string, layer: 'session' | 'project' = 'session', home: string = getAuthConfigHomeDir()): UseSignInOutcome {
+export function useSignIn(identity: string, family?: string, layer: 'session' | 'project' = 'session', home: string = signInsEstate()): UseSignInOutcome {
   const found = findSignIn(identity, family, home)
   if (found.row === undefined) {
     if (found.matches.length > 1) {
@@ -254,7 +254,7 @@ export function useDefaultSignIn(family: string): string {
 
 export type ForgetSignInOutcome = { ok: true; words: string; choiceFell: boolean } | { ok: false; words: string }
 
-export function forgetSignIn(identity: string, family?: string, home: string = getAuthConfigHomeDir()): ForgetSignInOutcome {
+export function forgetSignIn(identity: string, family?: string, home: string = signInsEstate()): ForgetSignInOutcome {
   const found = findSignIn(identity, family, home)
   if (found.row === undefined) {
     return { ok: false, words: found.matches.length > 1 ? `${identity} names a sign-in in more than one family — say which: /logins forget <family> ${identity}` : `no sign-in named ${identity} — nothing forgotten` }
@@ -286,7 +286,7 @@ export function projectSignInRefusals(): ProjectSignInRefusal[] {
   return lastRefusals
 }
 
-export function applyProjectSignInChoices(choices: Record<string, string> | undefined, home: string = getAuthConfigHomeDir()): ProjectSignInRefusal[] {
+export function applyProjectSignInChoices(choices: Record<string, string> | undefined, home: string = signInsEstate()): ProjectSignInRefusal[] {
   const refused: ProjectSignInRefusal[] = []
   for (const [family, identity] of Object.entries(choices ?? {})) {
     if (typeof identity !== 'string' || identity.trim() === '') continue

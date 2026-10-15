@@ -5,6 +5,7 @@
 # gate-watch: scripts/providers/lib/mistral-fixture.ts src/services/providers/mistral/**
 # gate-watch: scripts/providers/lib/zen-fixture.ts src/services/providers/zen/**
 # gate-watch: scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json
+# gate-watch: src/commands/login/login.tsx src/services/providers/signInRoster.ts
 # gate-watch: scripts/providers/fixtures/anthropic-oauth-usage.json scripts/providers/fixtures/openai-chatgpt-usage.json
 # gate-watch: src/context/modalContext.tsx src/services/providers/credentialEnvSpellings.ts
 # gate-watch: src/services/providers/patience.ts
