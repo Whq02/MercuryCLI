@@ -122,6 +122,27 @@ section('§6 the boot binding: the project choices load lazily from the settings
   check('the settings were read once', reads === 1, String(reads))
 }
 
+section('§7 /usage names the other sign-ins under the family heading, shown or hidden, and the one in use stays the heading')
+{
+  const { otherSignInsLine } = await import('../../src/services/providers/providerIdentityLine.ts')
+  const { usageCompactLines, usageSectionPlan } = await import('../../src/components/Settings/Usage.tsx')
+  const { providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
+  pockets.clearSignInChoices()
+  pockets.setSessionSignIn('deepseek', { identity: '…bbbb', dir: pocketB, kind: 'api-key' })
+  const shown = otherSignInsLine('deepseek', true)
+  check('with two sign-ins the line names the one not in use and the way to read its window', shown === 'also signed in: …aaaa — /logins use …aaaa spends it and reads its window', shown)
+  const hidden = otherSignInsLine('deepseek', false)
+  check('identity hidden names no tail and still says a second sign-in is stored', hidden !== undefined && !hidden.includes('…aaaa') && /another sign-in of this family is stored/.test(hidden), hidden)
+  check('a family with one sign-in gets no line', otherSignInsLine('zai', true) === undefined)
+  const plan = usageSectionPlan(providerFamilyPresences())
+  const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
+  const lines = usageCompactLines(plan, { identity: () => 'fixture identity', usage: usageForProvider as never, anthropicWindows: () => [], anthropicPools: () => [], openaiWindows: () => [], jev: () => 'jev' })
+  const at = lines.findIndex(line => line.heading && line.text.startsWith('DeepSeek'))
+  check('the compact /usage carries the other sign-in under the DeepSeek heading', at >= 0 && lines[at + 1]?.text === '  also signed in: …aaaa — /logins use …aaaa spends it and reads its window', JSON.stringify(lines.slice(at, at + 2)))
+  const zaiAt = lines.findIndex(line => line.heading && line.text.startsWith('Z.AI'))
+  check('a one-sign-in family keeps its lines as they were', zaiAt >= 0 && !(lines[zaiAt + 1]?.text ?? '').includes('also signed in'))
+}
+
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ SIGN-IN CHOICE GREEN' : `\n❌ SIGN-IN CHOICE RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
