@@ -275,7 +275,8 @@ import type { ThinkingConfig } from '../utils/thinking.js'
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { filterToolsByDenyRules, getAllBaseTools, getTools, toolsWithheldByDeny } from '../tools.js'
 import { ruleSourceWords, ruleSpelling, withheldByRuleWords } from '../utils/permissions/ruleReason.js'
-import { TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
+import { MCP_SERVER_FAILED_CODE, TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
+import { mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { expandPath } from '../utils/path.js'
 import { getCwd } from '../utils/cwd.js'
@@ -486,6 +487,16 @@ export async function runHeadless(
   let currentTurnId: string | null = null
   let sessionRowFor: string | null = null
   let resumeOf: string | undefined
+  const failedMcpTold = new Set<string>()
+  const tellFailedMcpServers = (): void => {
+    for (const server of mcpServersFailed(getAppState().mcp.clients)) {
+      if (failedMcpTold.has(server.name)) continue
+      failedMcpTold.add(server.name)
+      const words = mcpServerFailedWords(server.name, server.reason)
+      enqueueRow(noticeRow(liveScope(), 'warning', words, MCP_SERVER_FAILED_CODE))
+      if (options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${words}\n`)
+    }
+  }
   const liveScope = (): RowScope => ({ session_id: getSessionId(), ...(currentTurn !== null ? { turn: currentTurn } : {}) })
   const enqueueRow = (row: RowDraft): void => io.outbound.enqueue(row)
   const hookRowsActive = peer !== null || options.outputFormat === 'rows'
@@ -1125,6 +1136,7 @@ export async function runHeadless(
           enqueueRow(sessionRow({ session_id: getSessionId() }, facts))
           for (const entry of withheld) enqueueRow(noticeRow(liveScope(), 'warning', withheldByRuleWords(entry.tool, entry.rule), TOOL_WITHHELD_CODE))
         }
+        tellFailedMcpServers()
         for await (const message of ask({
           commands: dedupedCommands,
           prompt: command.value,
@@ -1187,6 +1199,7 @@ export async function runHeadless(
           if (turnOpened(message as never)) currentTurnId = (message as unknown as { turn_id: string }).turn_id
           onMessage(message)
         }
+        tellFailedMcpServers()
       })
     } finally {
       hostAsks?.stop()

@@ -11,6 +11,7 @@
 # gate-watch: src/services/providers/busyRetry.ts src/services/providers/streamIdleBudget.ts
 # gate-watch: src/services/run/effectObserver.ts src/services/tools/toolExecution.ts src/utils/*
 # gate-watch: src/utils/config/globalConfig.ts
+# gate-watch: src/utils/permissions/filesystem.ts src/utils/permissions/ruleReason.ts src/rows/vocabulary.ts src/rows/project.ts
 # gate-watch: src/utils/messages/rejectionText.ts src/utils/processUserInput/processUserInput.ts
 # gate-watch: src/utils/task/framework.ts
 # gate-watch: src/entrypoints/cli.tsx src/main.tsx src/setup.ts src/cli/runArgs.ts src/cli/sessionArgs.ts src/state/onChangeAppState.ts src/utils/permissions/rootNotice.ts

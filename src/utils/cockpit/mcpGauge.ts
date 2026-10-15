@@ -1,7 +1,7 @@
 
 import { isMcpServerDisabled } from '../../services/mcp/config.js'
 import { describeMcpPolicy, getMaxExposedRisk, isMcpPolicyActive } from '../../services/mcp/toolPolicy.js'
-import { getProjectMcpConfigsFromCwd } from '../../services/mcp/config.js'
+import { getProjectMcpConfigsFromCwd, mcpServersSkippedForTrustLine, PROJECT_MCP_FILE_SPELLING } from '../../services/mcp/config.js'
 import { untrustedWorkspaceHeadless } from '../config.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import { getCurrentProjectConfig, getGlobalConfig } from '../config.js'
@@ -207,11 +207,12 @@ export function mcpGauge(): Snapshot<{ data: McpData }> {
   const counts = countRows(servers)
 
   if (servers.length === 0) {
+    const skippedForTrust = mcpServersSkippedForTrustLine()
     return withState(
       'off',
       { servers, names, counts, maxRisk, mcpPolicyActive, mcpPolicyHint, runtimeStampedAt },
-      'no MCP servers configured',
-      'config.mcpServers',
+      skippedForTrust ?? 'no MCP servers configured',
+      skippedForTrust !== null ? PROJECT_MCP_FILE_SPELLING : 'config.mcpServers',
     )
   }
   return {
