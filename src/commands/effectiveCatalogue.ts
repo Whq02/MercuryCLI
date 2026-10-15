@@ -11,9 +11,9 @@ export function devSurfacesEnabled(): boolean {
   return flagEnabled('MERCURY_DEV_SURFACES')
 }
 
-export type SurfaceVisibility = 'normal' | 'hidden' | 'dev'
+type SurfaceVisibility = 'normal' | 'hidden' | 'dev'
 
-export type EffectiveSurface = {
+type EffectiveSurface = {
   name: string
   displayName: string
   aliases: readonly string[]
@@ -70,13 +70,13 @@ export function normalSurfaces(): EffectiveSurface[] {
   )
 }
 
-export type SurfaceGroup = {
+type SurfaceGroup = {
   key: string
   label: string
   surfaces: EffectiveSurface[]
 }
 
-export function groupedNormalSurfaces(): SurfaceGroup[] {
+function groupedNormalSurfaces(): SurfaceGroup[] {
   return groupCommandsByDomain(normalSurfaces()).map(g => ({
     key: g.key,
     label: g.label,

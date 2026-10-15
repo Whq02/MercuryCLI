@@ -20,11 +20,11 @@ export interface SessionKitV1 {
 
 export const KIT_MCP_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/
 export const KIT_EXTENSION_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,39}$/
-export const KIT_EXTENSION_SERVER_PATTERN = /^ext:[a-z0-9][a-z0-9-]{0,39}:[^\s\x00-\x1f\x7f]{1,128}$/
-export const KIT_SKILL_NAME_PATTERN = /^[^\s/\\\x00-\x1f\x7f]{1,200}$/
+const KIT_EXTENSION_SERVER_PATTERN = /^ext:[a-z0-9][a-z0-9-]{0,39}:[^\s\x00-\x1f\x7f]{1,128}$/
+const KIT_SKILL_NAME_PATTERN = /^[^\s/\\\x00-\x1f\x7f]{1,200}$/
 export const KIT_LIST_CAP = 2000
 
-export type KitValidation = { ok: true; kit: SessionKitV1 } | { ok: false; reason: string }
+type KitValidation = { ok: true; kit: SessionKitV1 } | { ok: false; reason: string }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -56,7 +56,7 @@ const MCP_GRAMMAR = 'an MCP server name (letters, digits, hyphen, underscore —
 const SKILL_GRAMMAR = 'a skill name (1–200 chars, no whitespace, no path separators)'
 const EXTENSION_GRAMMAR = 'an extension name (lowercase letters, digits and hyphens, 1–40 chars)'
 
-export function validateKitDeltas(raw: unknown): { ok: true; deltas: KitDeltasV1 } | { ok: false; reason: string } {
+function validateKitDeltas(raw: unknown): { ok: true; deltas: KitDeltasV1 } | { ok: false; reason: string } {
   if (!isRecord(raw)) return { ok: false, reason: 'deltas must be an object' }
   const mcpOff = validateNames(raw.mcpOff, 'deltas.mcpOff', isKitMcpName, MCP_GRAMMAR)
   if (!mcpOff.ok) return mcpOff
@@ -178,7 +178,7 @@ export interface SessionKitEditV1 {
   extensions?: Array<{ name: string; on: boolean }>
 }
 
-export type KitEditValidation = { ok: true; edit: SessionKitEditV1 } | { ok: false; reason: string }
+type KitEditValidation = { ok: true; edit: SessionKitEditV1 } | { ok: false; reason: string }
 
 export function validateSessionKitEdit(raw: unknown): KitEditValidation {
   if (!isRecord(raw)) return { ok: false, reason: 'kitEdit must be an object' }
@@ -365,7 +365,7 @@ function knownMcpNamesForWorkspace(workspaceDir: string): string[] {
 }
 
 
-export type PresetKitDerivation = { ok: true; kit: SessionKitV1; note?: string } | { ok: false; reason: string }
+type PresetKitDerivation = { ok: true; kit: SessionKitV1; note?: string } | { ok: false; reason: string }
 
 export function deriveSessionKitForPreset(presetName: string, workspaceDir: string): PresetKitDerivation {
   const resolved = kitPresetDeltas(presetName)

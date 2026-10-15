@@ -6,9 +6,9 @@ import { readLedger } from './ledger.js'
 import { lookupTerms } from './mnemeLookup.js'
 import type { LedgerEntry } from './types.js'
 
-export const STATE_SESSIONS_BACK = 3
-export const STATE_FILES_CAP = 60
-export const STATE_CHUNK_STEMS = 16
+const STATE_SESSIONS_BACK = 3
+const STATE_FILES_CAP = 60
+const STATE_CHUNK_STEMS = 16
 const STATUS_TIMEOUT_MS = 10_000
 
 export interface ProjectState {
@@ -83,7 +83,7 @@ export function lastNoteOf(previous: readonly LedgerEntry[]): ProjectState['note
   return { text: noted.handoff.text, session: noted.ordinal, at: noted.handoff.at }
 }
 
-export function ledgerFilesOf(previous: readonly LedgerEntry[], back: number = STATE_SESSIONS_BACK): string[] {
+function ledgerFilesOf(previous: readonly LedgerEntry[], back: number = STATE_SESSIONS_BACK): string[] {
   return previous.slice(-back).reverse().flatMap(entry => entry.files)
 }
 
@@ -98,7 +98,7 @@ function dedupe(paths: readonly string[]): string[] {
   return out
 }
 
-export async function readBranch(root: string): Promise<string | null> {
+async function readBranch(root: string): Promise<string | null> {
   try {
     const gitDir = await resolveGitDir(root)
     if (gitDir === null) return null
@@ -122,7 +122,7 @@ export function parseStatusPaths(porcelain: string): string[] {
   return out
 }
 
-export async function readModifiedFiles(root: string): Promise<string[]> {
+async function readModifiedFiles(root: string): Promise<string[]> {
   try {
     const result = await execFileNoThrowWithCwd(gitExe(), ['--no-optional-locks', 'status', '--porcelain', '--untracked-files=normal'], {
       cwd: root,

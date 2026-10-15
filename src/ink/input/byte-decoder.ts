@@ -8,7 +8,7 @@ function leadLength(b: number): number {
   return 1
 }
 
-export function splitDecodableHead(buf: Buffer): { text: string; pending: Buffer | undefined } {
+function splitDecodableHead(buf: Buffer): { text: string; pending: Buffer | undefined } {
   const len = buf.length
   let i = len - 1
   let back = 0

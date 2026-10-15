@@ -5,7 +5,7 @@ import { useInput } from '../ink.js'
 import { KeyboardEvent } from '../ink/events/keyboard-event.js'
 import { useTerminalSize } from './useTerminalSize.js'
 
-export type UseSearchInputOptions = {
+type UseSearchInputOptions = {
   isActive: boolean
   onExit: () => void
   onCancel?: () => void
@@ -16,7 +16,7 @@ export type UseSearchInputOptions = {
   backspaceExitsOnEmpty?: boolean
 }
 
-export type UseSearchInputReturn = {
+type UseSearchInputReturn = {
   query: string
   setQuery: (q: string) => void
   cursorOffset: number

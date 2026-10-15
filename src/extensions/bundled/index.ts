@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
-export type BundledExtensionDefinition = {
+type BundledExtensionDefinition = {
   name: string
   root: string
   defaultOn: boolean

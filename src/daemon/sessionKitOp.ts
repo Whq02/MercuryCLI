@@ -11,7 +11,7 @@ import {
   type SessionKitEditV1,
 } from './sessionKit.js'
 
-export type KitOpOutcome = { outcome: 'applied' | 'noop' | 'refused'; detail?: string }
+type KitOpOutcome = { outcome: 'applied' | 'noop' | 'refused'; detail?: string }
 
 function describeEdit(edit: SessionKitEditV1): string {
   const words: string[] = []

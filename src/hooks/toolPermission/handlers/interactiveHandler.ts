@@ -12,7 +12,7 @@ import { askLimitMs, unansweredAskRefusal } from '../../../utils/permissions/ask
 const USER_INTERACTION_GRACE_MS = 200
 
 
-export type InteractivePermissionParams = {
+type InteractivePermissionParams = {
   ctx: PermissionContext
   description: string
   result: PermissionAskDecision

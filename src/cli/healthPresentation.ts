@@ -1,7 +1,7 @@
 
-export type HealthOutputMode = 'rich' | 'text' | 'json'
+type HealthOutputMode = 'rich' | 'text' | 'json'
 
-export interface HealthPresentation {
+interface HealthPresentation {
   output: HealthOutputMode
   depth: 'fast' | 'deep'
 }

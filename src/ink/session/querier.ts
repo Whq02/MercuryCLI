@@ -96,7 +96,7 @@ export function terminalQuerierFor(stdout: NodeJS.WriteStream): TerminalQuerier 
   return queriers.get(stdout)
 }
 
-export type QuerySettleOutcome = 'settled' | 'deadline'
+type QuerySettleOutcome = 'settled' | 'deadline'
 
 export class TerminalQuerier {
   private batches: Batch[] = [{ queries: [], sentinel: null, flushedAt: 0 }]

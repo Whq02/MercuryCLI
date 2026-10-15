@@ -54,7 +54,7 @@ type Assert<T extends true> = T
 export type EveryTaskTypeClassified = Assert<IsEqual<TaskType, ClassifiedTaskType>>
 
 
-export type ViewedAgent = {
+type ViewedAgent = {
   kind: 'local_agent'
   taskId: string
   name: string
@@ -66,7 +66,7 @@ export type ViewedAgent = {
   task: TaskState
 }
 
-export function getViewedEscAction(_task: TaskState): 'interrupt' | 'main' {
+function getViewedEscAction(_task: TaskState): 'interrupt' | 'main' {
   return 'main'
 }
 

@@ -4,9 +4,9 @@ import { defineStore } from './fileStore.js'
 import { routerStateDir } from './routerPaths.js'
 
 const OUTCOME_RING_CAP = 300
-export const OUTCOME_HALF_LIFE_MS = 14 * 24 * 60 * 60 * 1000
+const OUTCOME_HALF_LIFE_MS = 14 * 24 * 60 * 60 * 1000
 
-export interface RouteOutcomeRow {
+interface RouteOutcomeRow {
   ts: number
   mode: RouteTopology | 'mission'
   taskShape: RouteTaskShape
@@ -18,7 +18,7 @@ export interface RouteOutcomeRow {
   epoch?: string
 }
 
-export interface RouterOutcomeState {
+interface RouterOutcomeState {
   rows: RouteOutcomeRow[]
   updatedAt: number
 }

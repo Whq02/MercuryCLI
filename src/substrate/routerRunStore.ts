@@ -21,7 +21,7 @@ const EVENT_REASON_CAP = 200
 
 export const MISSION_REPLAN_CEILING = 6
 
-export interface RouteEventEcho {
+interface RouteEventEcho {
   ts: number
   planId: string
   nodeId?: string
@@ -37,7 +37,7 @@ export interface RouterRunState {
   updatedAt: number
 }
 
-export const NODE_TRANSITIONS: Readonly<Record<RouteNodeState, readonly RouteNodeState[]>> = {
+const NODE_TRANSITIONS: Readonly<Record<RouteNodeState, readonly RouteNodeState[]>> = {
   blocked: ['ready', 'cancelled', 'superseded'],
   ready: ['held', 'dispatched', 'cancelled', 'superseded'],
   held: ['ready', 'dispatched', 'delivered', 'working', 'reported', 'cancelled'],
@@ -445,7 +445,7 @@ function byRequest(
   return s
 }
 
-export interface RouteReconcileObservation {
+interface RouteReconcileObservation {
   deliveredState: (requestId: string) => Promise<'delivered' | 'delivering' | null>
   workerGeneration: (short: string) => number | undefined
   now: number

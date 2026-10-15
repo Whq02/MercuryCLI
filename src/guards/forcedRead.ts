@@ -11,11 +11,11 @@ import { engageTurnGuard } from './guards.js'
 
 const READ_TOOL_NAMES = new Set(['Read', 'NotebookRead'])
 
-export const FORCED_READ_STOP_HOOK_ID = 'forced-read-stop'
+const FORCED_READ_STOP_HOOK_ID = 'forced-read-stop'
 
 const forcedReadEngagedSessions = new Set<string>()
 
-export function collectReadFilePaths(messages: Message[]): Set<string> {
+function collectReadFilePaths(messages: Message[]): Set<string> {
   const read = new Set<string>()
   for (const m of messages) {
     if (m.type !== 'assistant') continue

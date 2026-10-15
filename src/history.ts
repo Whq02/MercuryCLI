@@ -317,7 +317,7 @@ async function resolveRecord(record: HistoryRecord): Promise<HistoryEntry> {
   return { display: record.display, pastedContents }
 }
 
-export async function* makeHistoryReader(): AsyncGenerator<HistoryEntry> {
+async function* makeHistoryReader(): AsyncGenerator<HistoryEntry> {
   for (let i = pendingEntries.length - 1; i >= 0; i--) {
     yield resolveRecord(pendingEntries[i]!)
   }

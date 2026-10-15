@@ -35,7 +35,7 @@ type ClusteredChar = {
   hyperlink: string | undefined
 }
 
-export type Clip = {
+type Clip = {
   x1: number | undefined
   x2: number | undefined
   y1: number | undefined
@@ -64,7 +64,7 @@ type ShiftRectOp = {
   n: number
 }
 
-export type Operation =
+type Operation =
   | WriteOp
   | ClipOp
   | UnclipOp

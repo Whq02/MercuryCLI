@@ -18,16 +18,16 @@ export { POLARITY_PAIRS } from './mnemePolarity.js'
 export const CONTRADICTION_OVERLAP_SHARE = 0.75
 export const CONTRADICTION_CONFIDENCE = 0.6
 export const COMPARABLE_LENGTH_RATIO = 0.4
-export const NUMBER_FLIP = 'a number that differs'
-export const NEGATION_FLIP = 'a negation'
+const NUMBER_FLIP = 'a number that differs'
+const NEGATION_FLIP = 'a negation'
 
 export const NEGATION_WORDS: readonly string[] = ['not', 'never', 'no', 'none', 'nothing', 'neither', 'nor', 'without']
 
-export const SCOPE_WORDS: readonly string[] = ['except', 'excepting', 'exception', 'exceptions', 'unless', 'when', 'whenever', 'if', 'while', 'until', 'during']
+const SCOPE_WORDS: readonly string[] = ['except', 'excepting', 'exception', 'exceptions', 'unless', 'when', 'whenever', 'if', 'while', 'until', 'during']
 
-export const SCOPE_PHRASES: readonly string[] = ['only for', 'only when', 'only if', 'only in', 'only on', 'only with', 'only after', 'only before', 'only by', 'only under', 'only during', 'only once', 'only where', 'only while', 'apart from', 'aside from', 'other than', 'save for', 'in case', 'but not', 'but only']
+const SCOPE_PHRASES: readonly string[] = ['only for', 'only when', 'only if', 'only in', 'only on', 'only with', 'only after', 'only before', 'only by', 'only under', 'only during', 'only once', 'only where', 'only while', 'apart from', 'aside from', 'other than', 'save for', 'in case', 'but not', 'but only']
 
-export const IDENTIFIER_MARKERS: readonly string[] = ['rule', 'rules', 'seq', 'fact', 'facts', 'session', 'sessions', 'line', 'lines', 'page', 'pages', 'row', 'rows', 'issue', 'pr', 'step', 'steps', 'item', 'items', 'id', 'number', 'no', 'ordinal']
+const IDENTIFIER_MARKERS: readonly string[] = ['rule', 'rules', 'seq', 'fact', 'facts', 'session', 'sessions', 'line', 'lines', 'page', 'pages', 'row', 'rows', 'issue', 'pr', 'step', 'steps', 'item', 'items', 'id', 'number', 'no', 'ordinal']
 
 const SKIP = new Set<string>([...NEGATION_WORDS, ...SCOPE_WORDS, 'only', 'but', ...POLARITY_WORDS])
 
@@ -198,7 +198,7 @@ export function contradictionCandidates(text: string, dir: string, opts: { exclu
   return out
 }
 
-export function entryName(entry: RecordEntry): string {
+function entryName(entry: RecordEntry): string {
   if (entry.kind === 'rule') return entry.seq === undefined ? 'a pinned rule' : `rule ${entry.seq}`
   if (entry.kind === 'fact') return `fact ${entry.seq}`
   return 'a pending fact'
@@ -216,7 +216,7 @@ export function conflictNotice(candidate: ContradictionCandidate): string {
   return `not stored: it conflicts with ${entryName(entry)}, "${firstWords(entry.text)}"${entry.kind === 'rule' ? ' — the rule stands' : ''}`
 }
 
-export const CONTRADICTION_QUESTION: JevQuestion = {
+const CONTRADICTION_QUESTION: JevQuestion = {
   type: 'noul',
   instructions:
     '`candidate` is a fact or rule about to be saved to memory; `existing` is one already on record. They contradict each other: both cannot be true, or followed, at once — one says to do, allow or be what the other says not to do, not to allow or not to be, or the two give different values for the same thing. A restatement of `existing` in other words, an exception that narrows it to a case, or a statement about a different thing that merely shares words with it, is not a contradiction.',
@@ -233,7 +233,7 @@ export function jevJudgeOpen(): boolean {
 
 export type ContradictionJudge = (pairs: ReadonlyArray<{ existing: string; candidate: string }>, signal?: AbortSignal) => Promise<Array<number | null>>
 
-export const judgeWithJev: ContradictionJudge = async (pairs, signal) => {
+const judgeWithJev: ContradictionJudge = async (pairs, signal) => {
   const settings = readJevSettings()
   const road = settings.road
   const key = resolveJevApiKey(process.env, road)

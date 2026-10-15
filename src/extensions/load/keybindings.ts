@@ -42,7 +42,7 @@ function operatorBlocks(): KeybindingBlock[] {
   return blocks
 }
 
-export function boundChords(): Set<string> {
+function boundChords(): Set<string> {
   const taken = chordsIn(DEFAULT_BINDINGS)
   for (const chord of chordsIn(operatorBlocks())) taken.add(chord)
   return taken

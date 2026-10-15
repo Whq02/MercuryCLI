@@ -140,7 +140,7 @@ function wrapWithOsc8Link(text: string, url: string): string {
   return `${OSC}8;;${url}${BEL}${text}${OSC}8;;${BEL}`
 }
 
-export function buildCharToSegmentMap(segments: StyledSegment[]): number[] {
+function buildCharToSegmentMap(segments: StyledSegment[]): number[] {
   const map: number[] = []
   for (let i = 0; i < segments.length; i++) {
     const len = segments[i]!.text.length
@@ -167,7 +167,7 @@ function wrapperNormalForm(
   return { plain, charToSegment }
 }
 
-export function applyStylesToWrappedText(
+function applyStylesToWrappedText(
   wrappedPlain: string,
   segments: StyledSegment[],
   charToSegment: number[],
@@ -371,7 +371,7 @@ type NodeOpts = {
   inheritedRowBg?: (row: number) => Color | undefined
 }
 
-export type ComposeOptions = {
+type ComposeOptions = {
   offsetX?: number
   offsetY?: number
   prevScreen: Screen | undefined

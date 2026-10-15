@@ -84,7 +84,7 @@ export type CompactMetadata = {
 }
 
 
-export type AssistantAPIMessage = Omit<
+type AssistantAPIMessage = Omit<
   ApiMessage,
   'diagnostics' | 'stop_details'
 > &
@@ -263,7 +263,7 @@ export type SystemStreamCutMessage = {
   timestamp: string
 }
 
-export type BusyRecoveryV1 = {
+type BusyRecoveryV1 = {
   provider: string
   retries: number
   elapsedMs: number

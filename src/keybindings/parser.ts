@@ -94,7 +94,7 @@ export function chordToString(chord: Chord): string {
 
 export type DisplayPlatform = 'macos' | 'windows' | 'linux' | 'wsl' | 'unknown'
 
-export function keystrokeToDisplayString(
+function keystrokeToDisplayString(
   ks: ParsedKeystroke,
   platform: DisplayPlatform = 'linux',
 ): string {

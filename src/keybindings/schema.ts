@@ -51,7 +51,7 @@ export const KEYBINDING_CONTEXT_DESCRIPTIONS: Record<(typeof KEYBINDING_CONTEXTS
 
 const COMMAND_BINDING_RE = /^command:[a-zA-Z0-9:\-_]+$/
 
-export const KeybindingBlockSchema = lazySchema(() =>
+const KeybindingBlockSchema = lazySchema(() =>
   z.object({
     context: z
       .enum(KEYBINDING_CONTEXTS)

@@ -1,5 +1,5 @@
 
-export type LaneState = 'clean' | 'pending' | 'settled' | 'degraded'
+type LaneState = 'clean' | 'pending' | 'settled' | 'degraded'
 
 export interface LaneSettlement {
   state: LaneState
@@ -10,7 +10,7 @@ export interface LaneSettlement {
   released: boolean
 }
 
-export interface SerialGenerationLane<T> {
+interface SerialGenerationLane<T> {
   accept: (value: T) => number
   poke: () => void
   settle: () => Promise<LaneSettlement>
@@ -18,7 +18,7 @@ export interface SerialGenerationLane<T> {
   state: () => LaneSettlement
 }
 
-export interface SerialGenerationOptions<T> {
+interface SerialGenerationOptions<T> {
   name: string
   commit: (value: T, ctx: { generation: number }) => Promise<void>
 }

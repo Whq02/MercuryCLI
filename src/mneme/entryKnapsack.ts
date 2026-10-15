@@ -25,12 +25,12 @@ export interface StartCandidate extends LookupCandidate {
   session?: number
 }
 
-export interface StartScored extends StartCandidate {
+interface StartScored extends StartCandidate {
   score: number
   density: number
 }
 
-export interface StartChoice {
+interface StartChoice {
   rode: StartScored[]
   left: StartScored[]
   limit: number
@@ -38,7 +38,7 @@ export interface StartChoice {
   used: number
 }
 
-export interface MemoryAtStartStatus {
+interface MemoryAtStartStatus {
   limit: number
   pinnedCount: number
   pinnedChars: number
@@ -56,11 +56,11 @@ export function memoryAtStartStatus(): MemoryAtStartStatus | null {
   return lastStatus
 }
 
-export function _resetMemoryAtStartForTesting(): void {
+function _resetMemoryAtStartForTesting(): void {
   lastStatus = null
 }
 
-export function factCandidate(entry: MnemeEntry, doc: MnemeTopicDoc, dir: string, usage: Record<string, UsageRecord>): StartCandidate {
+function factCandidate(entry: MnemeEntry, doc: MnemeTopicDoc, dir: string, usage: Record<string, UsageRecord>): StartCandidate {
   const block = `- ${entry.text} <seq=${entry.seq}>`
   return {
     id: `seq:${entry.seq}`,
@@ -79,7 +79,7 @@ export function factCandidate(entry: MnemeEntry, doc: MnemeTopicDoc, dir: string
   }
 }
 
-export function noteCandidate(entry: LedgerEntry, projectKey: string): StartCandidate | null {
+function noteCandidate(entry: LedgerEntry, projectKey: string): StartCandidate | null {
   if (entry.handoff === null) return null
   const block = `${EARLIER_NOTE_HEADING} (session ${entry.ordinal}, ${stampLocal(entry.handoff.at)})\n${entry.handoff.text}`
   return {
@@ -99,13 +99,13 @@ export function noteCandidate(entry: LedgerEntry, projectKey: string): StartCand
   }
 }
 
-export interface PinnedNow {
+interface PinnedNow {
   count: number
   chars: number
   excluded: Set<number>
 }
 
-export function pinnedNow(dir: string, topics: readonly MnemeTopicDoc[]): PinnedNow {
+function pinnedNow(dir: string, topics: readonly MnemeTopicDoc[]): PinnedNow {
   const pins = readPins(dir)
   const excluded = new Set(pins.map(pin => pin.seq))
   const status = readPinnedStatus(dir)
@@ -118,7 +118,7 @@ export function pinnedNow(dir: string, topics: readonly MnemeTopicDoc[]): Pinned
   return { count: view.loaded.length, chars: lines.reduce((n, line) => n + line.length + 1, 0), excluded }
 }
 
-export function libraryCandidates(dir: string, excluded: ReadonlySet<number>, docs?: { topics: readonly MnemeTopicDoc[]; archives: readonly MnemeTopicDoc[] }): StartCandidate[] {
+function libraryCandidates(dir: string, excluded: ReadonlySet<number>, docs?: { topics: readonly MnemeTopicDoc[]; archives: readonly MnemeTopicDoc[] }): StartCandidate[] {
   const usage = readUsage(dir)
   const topics = docs?.topics ?? listTopicDocs(dir)
   const archives = docs?.archives ?? listArchiveDocs(dir)
@@ -134,7 +134,7 @@ export function libraryCandidates(dir: string, excluded: ReadonlySet<number>, do
   return out
 }
 
-export function earlierNotes(previous: readonly LedgerEntry[], projectKey: string): StartCandidate[] {
+function earlierNotes(previous: readonly LedgerEntry[], projectKey: string): StartCandidate[] {
   const newest = [...previous].reverse().find(entry => entry.handoff !== null) ?? null
   const out: StartCandidate[] = []
   for (const entry of previous) {
@@ -188,7 +188,7 @@ function joinWords(parts: readonly string[]): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
 
-export function memoryAtStartLine(input: { choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: Pick<ProjectState, 'branch' | 'files' | 'note'> }): string {
+function memoryAtStartLine(input: { choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: Pick<ProjectState, 'branch' | 'files' | 'note'> }): string {
   const { choice, pinnedCount, facts, notes, pending, state } = input
   const pins = pinnedCount === 0 ? 'no pinned rule' : `${plural(pinnedCount, 'pinned rule')} (${withThousands(choice.pinnedChars)} characters)`
   if (facts + notes === 0) return `Memory at start: ${pins}; nothing rode (${plural(pending, 'fact')} pending); Recall finds them.`
@@ -212,7 +212,7 @@ export function memoryAtStartRowWords(status: MemoryAtStartStatus): string {
   return `${pins === null ? '' : `${pins} and `}${rode} rode at start${pending}; Recall finds the rest`
 }
 
-export function renderMemoryAtStart(input: { choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: ProjectState }): string | null {
+function renderMemoryAtStart(input: { choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: ProjectState }): string | null {
   if (input.facts + input.notes + input.pending === 0) return null
   const lines: string[] = [MEMORY_AT_START_HEADING, memoryAtStartLine(input)]
   for (const candidate of input.choice.rode) if (candidate.kind === 'fact') lines.push(candidate.block)
@@ -220,7 +220,7 @@ export function renderMemoryAtStart(input: { choice: StartChoice; pinnedCount: n
   return lines.join('\n')
 }
 
-export interface StartPage {
+interface StartPage {
   text: string | null
   choice: StartChoice
   status: MemoryAtStartStatus
@@ -231,7 +231,7 @@ export function staleMark(confirmedAt: string | undefined): string {
   return ` [${memoryStatusWords({ status: 'stale', confirmedAt })}]`
 }
 
-export function markStale(candidate: StartCandidate, confirmedAt: string | undefined): StartCandidate {
+function markStale(candidate: StartCandidate, confirmedAt: string | undefined): StartCandidate {
   const mark = staleMark(confirmedAt)
   return { ...candidate, stale: true, block: `${candidate.block}${mark}`, chars: candidate.chars + mark.length }
 }

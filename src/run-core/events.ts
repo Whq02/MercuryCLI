@@ -113,13 +113,13 @@ export type RunEvent =
   | { kind: 'turn_settled'; seq: number; transition: Continue }
   | { kind: 'run_terminal'; seq: number; terminal: Terminal }
 
-export type RunEventKind = RunEvent['kind']
+type RunEventKind = RunEvent['kind']
 
-export type UnsequencedRunEvent = {
+type UnsequencedRunEvent = {
   [K in RunEventKind]: Omit<Extract<RunEvent, { kind: K }>, 'seq'>
 }[RunEventKind]
 
-export function createSequencer(): { next(): number } {
+function createSequencer(): { next(): number } {
   let seq = 0
   return {
     next: () => ++seq,

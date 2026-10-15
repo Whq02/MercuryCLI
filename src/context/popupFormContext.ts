@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect } from 'react'
 
 export const PopupFormContext = createContext(false)
 
-export type PopupCompact = { compact: boolean; setMarker: (marker: string | null) => void }
+type PopupCompact = { compact: boolean; setMarker: (marker: string | null) => void }
 
 export const PopupCompactContext = createContext<PopupCompact>({ compact: false, setMarker: () => {} })
 

@@ -5,9 +5,9 @@ import { getPlatform } from '../utils/platform.js'
 import { getBindingDisplayText, resolveKeyWithChordState, type ChordResolveResult } from './resolver.js'
 import type { KeybindingContextName, ParsedBinding, ParsedKeystroke } from './types.js'
 
-export type KeybindingHandler = () => void
+type KeybindingHandler = () => void
 
-export type HandlerRegistration = {
+type HandlerRegistration = {
   action: string
   context: KeybindingContextName
   handler: KeybindingHandler
@@ -30,7 +30,7 @@ export type KeybindingContextValue = {
 
 const KeybindingContext = createContext<KeybindingContextValue | null>(null)
 
-export type KeybindingProviderProps = {
+type KeybindingProviderProps = {
   bindings: ParsedBinding[]
   pendingChordRef: React.MutableRefObject<ParsedKeystroke[] | null>
   pendingChord: ParsedKeystroke[] | null

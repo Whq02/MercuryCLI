@@ -54,7 +54,7 @@ export function sessionOrdinal(session: string | null, sessions: readonly Ledger
   return hit?.ordinal
 }
 
-export function entryIndex(docs: Iterable<MnemeTopicDoc>): Map<number, MnemeEntry> {
+function entryIndex(docs: Iterable<MnemeTopicDoc>): Map<number, MnemeEntry> {
   const out = new Map<number, MnemeEntry>()
   for (const d of docs) {
     for (const s of d.sections) for (const e of s.entries) out.set(e.seq, e)
@@ -73,7 +73,7 @@ function resolveRulingId(id: string, entries: Map<number, MnemeEntry>): MnemeEnt
   return undefined
 }
 
-export function rulingRecords(dir: string, sessions: readonly LedgerEntry[]): RulingRecord[] {
+function rulingRecords(dir: string, sessions: readonly LedgerEntry[]): RulingRecord[] {
   const entries = entryIndex([...listTopicDocs(dir), ...listArchiveDocs(dir)])
   const out = new Map<number, RulingRecord>()
   const add = (e: MnemeEntry, ordinal?: number): void => {
@@ -144,7 +144,7 @@ export function renderFootnotes(f: Footnotes): string {
   return parts.join(' · ')
 }
 
-export const NO_NOTE_LEFT = 'no note left'
+const NO_NOTE_LEFT = 'no note left'
 
 function idList(label: string, ids: readonly string[]): string {
   return ids.length === 0 ? `${label}: none` : `${label} (${ids.length}): ${ids.join(', ')}`

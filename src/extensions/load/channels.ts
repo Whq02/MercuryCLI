@@ -2,7 +2,7 @@ import { activeFor } from '../active.js'
 import { recordDroppedChannelPost } from '../health.js'
 import { parseServerRuntimeName } from '../manifest.js'
 
-export type ApprovedChannel = { extensionId: string; extensionName: string; label: string; runtimeName: string }
+type ApprovedChannel = { extensionId: string; extensionName: string; label: string; runtimeName: string }
 
 export function approvedChannelFor(serverName: string): ApprovedChannel | null {
   const parsed = parseServerRuntimeName(serverName)
@@ -25,7 +25,7 @@ export function admitChannelPost(serverName: string): boolean {
   return false
 }
 
-export function approvedChannels(): ApprovedChannel[] {
+function approvedChannels(): ApprovedChannel[] {
   const out: ApprovedChannel[] = []
   for (const ext of activeFor('channels')) {
     for (const channel of ext.resolution.channels) {

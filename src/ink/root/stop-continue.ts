@@ -16,13 +16,13 @@ export function stopIsForeground(signal: StopSignal): boolean {
   return signal === 'SIGTSTP'
 }
 
-export type StopStdin = {
+type StopStdin = {
   isTTY?: boolean
   isRaw?: boolean
   setRawMode(mode: boolean): unknown
 }
 
-export type StopRestoreReceipt = {
+type StopRestoreReceipt = {
   rawModeOff: boolean
 }
 

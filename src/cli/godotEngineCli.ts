@@ -6,11 +6,11 @@ import { engineTreePath } from '../services/vulcan/engine/paths.js'
 import { engineProcessesFor } from '../services/vulcan/engine/spawn.js'
 import { endProcessTree } from '../utils/processGroup.js'
 
-export const GODOT_CLI_VERBS = ['run', 'check', 'jobs', 'cancel', 'result', 'capture', 'frames', 'profile', 'tour'] as const
+const GODOT_CLI_VERBS = ['run', 'check', 'jobs', 'cancel', 'result', 'capture', 'frames', 'profile', 'tour'] as const
 
-export type GodotCliVerb = (typeof GODOT_CLI_VERBS)[number]
+type GodotCliVerb = (typeof GODOT_CLI_VERBS)[number]
 
-export interface GodotCliParse {
+interface GodotCliParse {
   verb: string
   positional: string[]
   flags: Record<string, string | true>
@@ -42,7 +42,7 @@ export function parseGodotCliArgs(argv: readonly string[]): GodotCliParse {
   return { verb, positional, flags }
 }
 
-export function godotCliUsage(cliName: string): string {
+function godotCliUsage(cliName: string): string {
   return [
     `Usage: ${cliName} godot <verb> …  — the engine job service for the Godot project in the working directory (or --project <dir>)`,
     `  ${cliName} godot run [suite …] [--tree <HEAD|ref|working|ref+a,b>] [--native] [--capture] [--priority <verifier|fold-gate|lane-gate|profile>] [--budget-ms <n>] [--display-shared] [--keep-tree] [--label <s>] [--no-wait] [--tail-chars <n>]`,
@@ -75,7 +75,7 @@ function parsed(text: string): Record<string, unknown> | null {
   }
 }
 
-export interface GodotCliIo {
+interface GodotCliIo {
   out(line: string): void
   err(line: string): void
   cliName: string

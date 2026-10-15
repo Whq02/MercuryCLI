@@ -4,7 +4,7 @@ export interface BoundaryScanner {
   reset(): void
 }
 
-export class BlankLineBoundary implements BoundaryScanner {
+class BlankLineBoundary implements BoundaryScanner {
   private scanned = 0
   private fences = 0
   private safeCut = 0
@@ -30,7 +30,7 @@ export class BlankLineBoundary implements BoundaryScanner {
   }
 }
 
-export interface StreamRender {
+interface StreamRender {
   rows: readonly string[]
   stableRows: number
 }

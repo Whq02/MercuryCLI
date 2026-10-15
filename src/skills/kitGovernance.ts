@@ -17,7 +17,7 @@ export function noteBootSkillRoster(governedNames: Iterable<string>): void {
   bootRoster = new Set(governedNames)
 }
 
-export function isBootRosterSkill(name: string): boolean {
+function isBootRosterSkill(name: string): boolean {
   return bootRoster !== null && bootRoster.has(name)
 }
 

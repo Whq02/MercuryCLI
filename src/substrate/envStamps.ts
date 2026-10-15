@@ -25,7 +25,7 @@ const samePath = (a: string, b: string): boolean => {
   return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right
 }
 
-export function compileCacheIsOwn(env: NodeJS.ProcessEnv, home: string = getMercuryHome()): boolean {
+function compileCacheIsOwn(env: NodeJS.ProcessEnv, home: string = getMercuryHome()): boolean {
   const value = env[COMPILE_CACHE_ENV]
   if (value === undefined || value === '') return false
   return samePath(value, join(home, 'compile-cache'))
@@ -37,7 +37,7 @@ export function recordOwnEnvWrite(name: string, previous: string | undefined): v
   if (!ownEnvWrites.has(name)) ownEnvWrites.set(name, previous)
 }
 
-export function ownEnvWriteLedger(): ReadonlyMap<string, string | undefined> {
+function ownEnvWriteLedger(): ReadonlyMap<string, string | undefined> {
   return ownEnvWrites
 }
 

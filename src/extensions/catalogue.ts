@@ -12,9 +12,9 @@ import {
 } from './manifest.js'
 import { CATALOGUE_FILE } from './paths.js'
 
-export const LABEL_RULE = `${NAME_RULE}; not one of the reserved labels project, session, mercury`
+const LABEL_RULE = `${NAME_RULE}; not one of the reserved labels project, session, mercury`
 
-export const CatalogueEntrySchema = lazySchema(() =>
+const CatalogueEntrySchema = lazySchema(() =>
   z.strictObject({
     name: z.string().regex(NAME_PATTERN, `name: ${NAME_RULE}`).describe("The extension's name. Must equal the manifest's `name` — a mismatch is a lying catalogue and the install refuses."),
     version: z.string().min(1).regex(/^\S+$/, 'version: no whitespace').describe("The version offered. Must equal the manifest's `version` at that ref — a mismatch refuses the install."),
@@ -35,11 +35,11 @@ export const CatalogueSchema = lazySchema(() =>
 )
 
 export type Catalogue = z.infer<ReturnType<typeof CatalogueSchema>>
-export type CatalogueEntry = z.infer<ReturnType<typeof CatalogueEntrySchema>>
+type CatalogueEntry = z.infer<ReturnType<typeof CatalogueEntrySchema>>
 
-export const KNOWN_CATALOGUE_KEYS: ReadonlySet<string> = new Set(['name', 'description', 'homepage', 'extensions'])
+const KNOWN_CATALOGUE_KEYS: ReadonlySet<string> = new Set(['name', 'description', 'homepage', 'extensions'])
 
-export type CatalogueParse =
+type CatalogueParse =
   | { ok: true; catalogue: Catalogue; warnings: string[] }
   | { ok: false; errors: string[]; warnings: string[] }
 
@@ -82,7 +82,7 @@ export function parseCatalogueValue(raw: unknown, options: { strict?: boolean } 
   return { ok: true, catalogue, warnings }
 }
 
-export function parseCatalogueText(text: string, options: { strict?: boolean } = {}): CatalogueParse {
+function parseCatalogueText(text: string, options: { strict?: boolean } = {}): CatalogueParse {
   let raw: unknown
   try {
     raw = JSON.parse(text)
@@ -92,7 +92,7 @@ export function parseCatalogueText(text: string, options: { strict?: boolean } =
   return parseCatalogueValue(raw, options)
 }
 
-export type SourceRootRead =
+type SourceRootRead =
   | { status: 'catalogue'; catalogue: Catalogue; warnings: string[]; path: string }
   | { status: 'single'; catalogue: Catalogue; warnings: string[]; path: string }
   | { status: 'none'; reason: string }

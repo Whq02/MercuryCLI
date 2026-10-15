@@ -15,7 +15,7 @@ export function shouldHonorNoColor(
   return Boolean(noColor) && !forceColor
 }
 
-export const MERCURY_HONORS_NO_COLOR = shouldHonorNoColor(process.env)
+const MERCURY_HONORS_NO_COLOR = shouldHonorNoColor(process.env)
 
 function honorNoColor(): boolean {
   if (MERCURY_HONORS_NO_COLOR) {
@@ -41,7 +41,7 @@ export function truecolorFingerprint(
   if (env.KITTY_WINDOW_ID) return 'KITTY_WINDOW_ID (kitty)'
   return null
 }
-export const TRUECOLOR_FINGERPRINT = truecolorFingerprint(process.env)
+const TRUECOLOR_FINGERPRINT = truecolorFingerprint(process.env)
 
 function boostChalkLevelForFingerprint(): boolean {
   if (TRUECOLOR_FINGERPRINT !== null && chalk.level === 2) {
@@ -50,7 +50,7 @@ function boostChalkLevelForFingerprint(): boolean {
   }
   return false
 }
-export const CHALK_BOOSTED_FOR_FINGERPRINT = boostChalkLevelForFingerprint()
+const CHALK_BOOSTED_FOR_FINGERPRINT = boostChalkLevelForFingerprint()
 
 function readTruecolorFlag(): string | undefined {
   try {
@@ -72,7 +72,7 @@ function boostChalkLevelForMercury(): boolean {
   chalk.level = 3
   return true
 }
-export const CHALK_BOOSTED_FOR_MERCURY = boostChalkLevelForMercury()
+const CHALK_BOOSTED_FOR_MERCURY = boostChalkLevelForMercury()
 
 function clampChalkLevelForTmux(): boolean {
   if (isEnvTruthy(readTruecolorFlag())) return false

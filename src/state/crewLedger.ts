@@ -7,7 +7,7 @@ import type { AppState } from './AppStateStore.js'
 
 export type CrewLedgerRow = { facts: CrewAgentFacts; hosted: boolean; listed: boolean; cleared: boolean; stamp: string }
 export type CrewLedger = Record<string, CrewLedgerRow>
-export type CrewSeen = { facts: CrewAgentFacts; hosted: boolean }
+type CrewSeen = { facts: CrewAgentFacts; hosted: boolean }
 
 type SetAppState = (updater: (prevState: AppState) => AppState) => void
 
@@ -30,7 +30,7 @@ export function seenCrewOf(tasks: Record<string, TaskState> | undefined, roster:
   return [...local.map(facts => ({ facts, hosted: false })), ...hosted.map(facts => ({ facts, hosted: true }))]
 }
 
-export function settledUnlisted(facts: CrewAgentFacts, nowMs: number): CrewAgentFacts {
+function settledUnlisted(facts: CrewAgentFacts, nowMs: number): CrewAgentFacts {
   if (!facts.running) return facts
   return {
     ...facts,
@@ -87,7 +87,7 @@ export function foldCrewLedger(
   return next ?? ledger
 }
 
-export function crewLedgerOrder(a: CrewAgentFacts, b: CrewAgentFacts): number {
+function crewLedgerOrder(a: CrewAgentFacts, b: CrewAgentFacts): number {
   if (a.running !== b.running) return a.running ? -1 : 1
   return b.startedAt - a.startedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 }
@@ -122,7 +122,7 @@ export function sessionCrewRows(
   return rows
 }
 
-export function crewLedgerClearable(row: Pick<CrewLedgerRow, 'facts'> | undefined): boolean {
+function crewLedgerClearable(row: Pick<CrewLedgerRow, 'facts'> | undefined): boolean {
   return row !== undefined && crewSettled(row.facts)
 }
 

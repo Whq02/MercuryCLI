@@ -4,8 +4,8 @@ import type { Peer } from '../../runner/wire/peer.js'
 
 export type RequestRef = { id: number }
 
-export type Arm<M extends HostRequestName> = (params: ParamsOf<M>, ref: RequestRef, signal: AbortSignal) => Promise<ResultOf<M>> | ResultOf<M>
-export type NotificationArm<M extends HostNotificationName> = (params: ParamsOf<M>) => void | Promise<void>
+type Arm<M extends HostRequestName> = (params: ParamsOf<M>, ref: RequestRef, signal: AbortSignal) => Promise<ResultOf<M>> | ResultOf<M>
+type NotificationArm<M extends HostNotificationName> = (params: ParamsOf<M>) => void | Promise<void>
 
 export type RunnerArms = { [M in Exclude<HostRequestName, 'initialize'>]: Arm<M> } & { [M in Exclude<HostNotificationName, '$/cancel_request'>]: NotificationArm<M> }
 

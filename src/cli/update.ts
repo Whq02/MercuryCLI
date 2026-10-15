@@ -27,7 +27,7 @@ import { formatBootResidueWarning, readBootAttemptResidue } from 'src/substrate/
 import { jsonStringify } from 'src/utils/slowOperations.js'
 import { cliError, cliJsonError, cliOk } from './exit.js'
 
-export interface UpdateCliOptions {
+interface UpdateCliOptions {
   check?: boolean
   status?: boolean
   rollback?: boolean
@@ -52,7 +52,7 @@ async function moveDaemonAfterUpdate(): Promise<{ state: string; line: string } 
   }
 }
 
-export function openWindowsLine(from: string | null): string {
+function openWindowsLine(from: string | null): string {
   return `any Mercury window still open keeps working on ${from ? `v${from}` : 'the build it started with'} until it is closed and opened again`
 }
 

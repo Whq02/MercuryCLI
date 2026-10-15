@@ -1,5 +1,5 @@
 
-export type TerminalMode =
+type TerminalMode =
   | 'alt-screen'
   | 'alternate-scroll'
   | 'cursor-hidden'
@@ -14,7 +14,7 @@ export type TerminalMode =
 
 type ModeState = 'acquired' | 'imported' | 'released'
 
-export interface TerminalModeRecord {
+interface TerminalModeRecord {
   owner: string
   mode: TerminalMode
   state: ModeState

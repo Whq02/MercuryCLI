@@ -15,7 +15,7 @@ function serialize(config: {
 
 export const DOCS_LINE = 'Run /keys in Mercury for the live effective binding table'
 
-export type BindingEdit = {
+type BindingEdit = {
   context: string
   chord: string
   action: KeybindingValue

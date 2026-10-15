@@ -19,7 +19,7 @@ function skipCell(screen: Screen, x: number, y: number, width: CellWidth): boole
   return screen.noSelect[y * screen.width + x] !== 0
 }
 
-export function buildRowText(screen: Screen, y: number): RowText {
+function buildRowText(screen: Screen, y: number): RowText {
   const cellColumns: number[] = []
   const unitToContribution: number[] = []
   let text = ''

@@ -3,7 +3,7 @@ export interface LedgerEngine {
   at: string
 }
 
-export interface LedgerHandoff {
+interface LedgerHandoff {
   text: string
   at: string
 }

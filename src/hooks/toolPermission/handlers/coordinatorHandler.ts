@@ -3,7 +3,7 @@ import type { PermissionDecision, PermissionMode, PermissionUpdate } from '../..
 import { logError } from '../../../utils/log.js'
 import type { PermissionContext } from '../PermissionContext.js'
 
-export type CoordinatorPermissionParams = {
+type CoordinatorPermissionParams = {
   ctx: PermissionContext
   updatedInput: Record<string, unknown> | undefined
   suggestions: PermissionUpdate[] | undefined

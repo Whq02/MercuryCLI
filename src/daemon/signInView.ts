@@ -68,7 +68,7 @@ export function summarizeSignInView(view: DaemonSignInViewV1): string {
   return `${words.length > 0 ? words.join(' · ') : 'no family signed in'}${none.length > 0 ? ` · no credential: ${none.join(', ')}` : ''}`
 }
 
-export interface SignInViewDifference {
+interface SignInViewDifference {
   family: string
   client: string
   daemon: string

@@ -9,14 +9,14 @@ export interface ProjectedRow {
   readonly text: string
 }
 
-export interface CockpitLedgerReport {
+interface CockpitLedgerReport {
   submitted: number
   settledCount: number
   divergences: number
   flatnessDrops: number
 }
 
-export interface CockpitLedgerOptions {
+interface CockpitLedgerOptions {
   onViolation?: (detail: string) => void
   turnLag?: number
 }

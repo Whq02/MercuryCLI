@@ -9,28 +9,28 @@ import { mnemeLibraryDir } from './mnemeGates.js'
 import { listArchiveDocs, listTopicDocs, publishLibraryFile } from './mnemeLibrary.js'
 import type { MnemeTopicDoc } from './mnemeTopicDocs.js'
 
-export const INDEX_DIR = '.index'
-export const INDEX_FILE = 'embeddings.json'
+const INDEX_DIR = '.index'
+const INDEX_FILE = 'embeddings.json'
 export const INDEX_VERSION = 3
-export const INDEX_BUILDING_WORDS = 'index building…'
-export const EMBED_IDLE_UNLOAD_MS = 5 * 60_000
+const INDEX_BUILDING_WORDS = 'index building…'
+const EMBED_IDLE_UNLOAD_MS = 5 * 60_000
 const VECTOR_DECIMALS = 5
 const BUILD_CHUNK = 4
 
-export interface EmbeddingIndexRow {
+interface EmbeddingIndexRow {
   key: string
   h: string
   v: number[]
 }
 
-export interface EmbeddingIndexFile {
+interface EmbeddingIndexFile {
   version: typeof INDEX_VERSION
   model: string
   dimension: number
   rows: EmbeddingIndexRow[]
 }
 
-export interface IndexedFact {
+interface IndexedFact {
   key: string
   text: string
 }
@@ -57,7 +57,7 @@ export function resetEmbedIndexForTest(opts: { idleUnloadMs?: number } = {}): vo
   fileCache = null
 }
 
-export function unloadEmbedIndexEngine(): boolean {
+function unloadEmbedIndexEngine(): boolean {
   if (idleTimer !== null) {
     clearTimeout(idleTimer)
     idleTimer = null
@@ -92,7 +92,7 @@ export function embedIndexEngineStatus(): { state: 'ok'; model: string; dimensio
   return load === null ? { state: 'off', note: embedIndexOffNote() } : { state: 'ok', model: load.model, dimension: load.dimension }
 }
 
-export function embedIndexOffNote(): string {
+function embedIndexOffNote(): string {
   const addon = loadEmbedAddon()
   if (addon.state !== 'ok') return addon.note
   const check = checkEmbedModel(resolveEmbedModelPin())
@@ -131,7 +131,7 @@ function cosine(a: readonly number[], b: readonly number[]): number {
   return sum
 }
 
-export interface EmbedSearchRow {
+interface EmbedSearchRow {
   key: string
   sim: number
 }
@@ -194,7 +194,7 @@ export function readEmbedIndex(dir: string): EmbeddingIndexFile | null {
   return file
 }
 
-export interface IndexFreshness {
+interface IndexFreshness {
   current: boolean
   reason: string
   rows: number
@@ -223,21 +223,21 @@ export function embedIndexFreshness(index: EmbeddingIndexFile | null, facts: rea
   return { current: true, reason: 'current', rows: index.rows.length }
 }
 
-export function indexModelName(): string {
+function indexModelName(): string {
   const pin = resolveEmbedModelPin()
   if (pin.kind === 'catalogue') return pin.row.name
   if (pin.kind === 'path') return pin.name
   return embedDefaultModel().name
 }
 
-export interface RebuildOutcome {
+interface RebuildOutcome {
   built: boolean
   rows: number
   ms: number
   reason: string
 }
 
-export function embedIndexBuilding(dir: string): boolean {
+function embedIndexBuilding(dir: string): boolean {
   return building.has(indexPath(dir))
 }
 
@@ -290,7 +290,7 @@ async function rebuildNow(dir: string, facts: readonly IndexedFact[]): Promise<R
   return { built: true, rows: rows.length, ms: Date.now() - t0, reason: todo.length > 0 ? `embedded ${todo.length} fact(s), kept ${rows.length - todo.length}` : `kept ${rows.length} fact(s)` }
 }
 
-export interface EnsureOutcome extends RebuildOutcome {
+interface EnsureOutcome extends RebuildOutcome {
   reused: boolean
 }
 
@@ -331,7 +331,7 @@ export function recallRankingWords(dir: string = mnemeLibraryDir()): string {
   return `semantic + word match (${ready.model})`
 }
 
-export function indexInfoLine(dir: string, facts: readonly IndexedFact[] = libraryFacts(dir)): string {
+function indexInfoLine(dir: string, facts: readonly IndexedFact[] = libraryFacts(dir)): string {
   if (embedIndexBuilding(dir)) return INDEX_BUILDING_WORDS
   const index = readEmbedIndex(dir)
   const freshness = embedIndexFreshness(index, facts)
@@ -339,7 +339,7 @@ export function indexInfoLine(dir: string, facts: readonly IndexedFact[] = libra
   return `index current · ${index.rows.length} fact(s) · ${index.model}`
 }
 
-export function indexFileExists(dir: string): boolean {
+function indexFileExists(dir: string): boolean {
   try {
     return statSync(indexPath(dir)).isFile()
   } catch {

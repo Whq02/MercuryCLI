@@ -12,7 +12,7 @@ const RETRY_MS = 8
 const TEARDOWN_SPIN_QUANTUM_MS = 2
 const TEARDOWN_BUDGET_MS = 400
 
-export interface DoorEvents {
+interface DoorEvents {
   onIdle?: () => void
 }
 

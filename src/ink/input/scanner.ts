@@ -28,7 +28,7 @@ type ScanState =
   | 'resync-csi'
   | 'resync-x10'
 
-export type ScannerOptions = {
+type ScannerOptions = {
   x10Mouse?: boolean
 }
 

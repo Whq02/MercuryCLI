@@ -4,7 +4,7 @@ import { dirname, join } from 'path'
 import { durableAtomicPublish } from '../substrate/durablePublish.js'
 import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
 
-export const TASK_OUTCOME_ENVELOPE_VERSION = 1
+const TASK_OUTCOME_ENVELOPE_VERSION = 1
 
 export type TaskOutcomeState =
   | 'succeeded'

@@ -1,6 +1,6 @@
 import type { SetToolJSXFn } from '../Tool.js'
 
-export type ToolJSXState = Parameters<SetToolJSXFn>[0]
+type ToolJSXState = Parameters<SetToolJSXFn>[0]
 
 export function resolveToolJSX(prev: ToolJSXState, next: ToolJSXState): ToolJSXState {
   if (next === null) return null

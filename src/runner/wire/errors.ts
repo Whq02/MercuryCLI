@@ -2,7 +2,7 @@ export const RPC_PARSE_ERROR = -32700
 export const RPC_INVALID_REQUEST = -32600
 export const RPC_METHOD_NOT_FOUND = -32601
 export const RPC_INVALID_PARAMS = -32602
-export const RPC_INTERNAL_ERROR = -32603
+const RPC_INTERNAL_ERROR = -32603
 export const RPC_NOT_INITIALIZED = -32002
 export const RPC_REFUSED = -32010
 export const RPC_CANCELLED = -32800
@@ -17,7 +17,7 @@ export const RPC_ERROR_CODES = [
   RPC_REFUSED,
   RPC_CANCELLED,
 ] as const
-export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number]
+type RpcErrorCode = (typeof RPC_ERROR_CODES)[number]
 
 export const REFUSAL_KINDS = [
   'protocol',
@@ -37,7 +37,7 @@ export const REFUSAL_KINDS = [
   'already-initialized',
   'capability',
 ] as const
-export type RefusalKind = (typeof REFUSAL_KINDS)[number]
+type RefusalKind = (typeof REFUSAL_KINDS)[number]
 
 export const BAD_LINE_LIMIT = 3
 export const MAX_LINE_BYTES = 32 * 1024 * 1024

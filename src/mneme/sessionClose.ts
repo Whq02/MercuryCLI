@@ -9,7 +9,7 @@ export interface SessionCloseContext {
   handoff: string | null
 }
 
-export type SessionCloser = (ctx: SessionCloseContext) => Promise<void>
+type SessionCloser = (ctx: SessionCloseContext) => Promise<void>
 
 const closers: SessionCloser[] = []
 const ranFor = new Set<string>()
@@ -48,7 +48,7 @@ export interface SessionCloseAsk {
   tools?: string[]
 }
 
-export type SessionCloseAskSource = (sessionId: string) => SessionCloseAsk | null
+type SessionCloseAskSource = (sessionId: string) => SessionCloseAsk | null
 
 const asks: SessionCloseAskSource[] = []
 

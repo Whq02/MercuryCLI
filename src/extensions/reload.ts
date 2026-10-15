@@ -12,7 +12,7 @@ import { clearExtensionLspServerCache, getExtensionLspServers } from './load/lan
 import { clearExtensionMcpServerCache, getExtensionMcpServers } from './load/servers.js'
 import { activeEntries, setActiveSnapshot, type ActiveSnapshot } from './roster.js'
 
-export type ReloadCounts = {
+type ReloadCounts = {
   on: number
   partial: number
   broken: number
@@ -29,7 +29,7 @@ export type ReloadCounts = {
 
 export type ReloadResult = { set: ActiveSet; counts: ReloadCounts; line: string }
 
-export function reloadLine(counts: ReloadCounts): string {
+function reloadLine(counts: ReloadCounts): string {
   const parts = [
     `${counts.on} on`,
     `${counts.partial} partial`,

@@ -1,6 +1,6 @@
 import type { SelectionState } from './selection-model.js'
 
-export type LedgerSide = 'above' | 'below'
+type LedgerSide = 'above' | 'below'
 
 export function pushCaptured(
   s: SelectionState,

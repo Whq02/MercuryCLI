@@ -4,13 +4,13 @@ import { noteModeAcquired, noteModeReleased } from './root/terminalModeLedger.js
 import { isProgressReportingAvailable } from './session/capabilities.js'
 import { ITERM2, osc, OSC, PROGRESS, wrapForMultiplexer } from './termio/osc.js'
 
-export type TerminalWrite = (data: string) => void
+type TerminalWrite = (data: string) => void
 
 export const TerminalWriteContext = createContext<TerminalWrite | null>(null)
 export const TerminalWriteProvider = TerminalWriteContext.Provider
 
 
-export type TabRing = {
+type TabRing = {
   hold(token: symbol, live: boolean): void
   release(token: symbol): void
   ringing(): boolean

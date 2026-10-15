@@ -16,7 +16,7 @@ export interface SignalFeatures {
   kind: 'fact' | 'ruling' | 'pending' | 'handoff' | 'session'
 }
 
-export interface SignalQuery {
+interface SignalQuery {
   query: string
   offered: string[]
   features: Record<string, SignalFeatures>

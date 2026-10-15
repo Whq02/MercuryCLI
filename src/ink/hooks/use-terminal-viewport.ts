@@ -4,7 +4,7 @@ import { LiveTerminalSizeContext, TerminalSizeContext } from '../components/Term
 import { InkInstanceContext } from '../components/InkInstanceContext.js'
 import type { DOMElement } from '../dom.js'
 
-export type ViewportEntry = { isVisible: boolean }
+type ViewportEntry = { isVisible: boolean }
 
 const VISIBLE: ViewportEntry = { isVisible: true }
 const HIDDEN: ViewportEntry = { isVisible: false }

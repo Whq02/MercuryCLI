@@ -581,7 +581,7 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
   )
 }
 
-export const call = async (onDone: () => void): Promise<React.ReactNode> => {
+const call = async (onDone: () => void): Promise<React.ReactNode> => {
   return <MercuryHealthCertificate onClose={onDone} />
 }
 

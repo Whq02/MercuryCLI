@@ -87,7 +87,7 @@ export type TurnOutcome =
   | { result: 'cancelled' }
   | { result: 'error'; classification: string; detail?: string }
 
-export type ToolOutcome = 'ok' | 'error' | 'aborted'
+type ToolOutcome = 'ok' | 'error' | 'aborted'
 
 
 export type RecordPayload =
@@ -160,7 +160,7 @@ export type RecordPayload =
       fields: Record<string, unknown>
     }
 
-export type InputMeta = {
+type InputMeta = {
   hiddenFromModel?: boolean
   hiddenFromTranscript?: boolean
   isVirtual?: boolean
@@ -180,7 +180,7 @@ export type EffortStampV1 = {
   wire: string
 }
 
-export type OutputMeta = {
+type OutputMeta = {
   hiddenFromTranscript?: boolean
   isVirtual?: boolean
   isApiErrorNotice?: boolean

@@ -10,10 +10,10 @@ export const METHOD_SCOPES = ['none', 'queue', 'session', 'mcp'] as const
 export type MethodScope = (typeof METHOD_SCOPES)[number]
 
 export const CAPABILITIES = ['holds_asks', 'elicitation', 'partial_rows'] as const
-export type Capability = (typeof CAPABILITIES)[number]
+type Capability = (typeof CAPABILITIES)[number]
 
-export type Sender = 'host' | 'runner' | 'both'
-export type MethodKind = 'request' | 'notification'
+type Sender = 'host' | 'runner' | 'both'
+type MethodKind = 'request' | 'notification'
 
 export interface MethodSpec<P extends z.ZodType = z.ZodType, R extends z.ZodType = z.ZodType> {
   readonly name: string
@@ -34,7 +34,7 @@ const empty = lazySchema(() => z.object({}))
 const record = lazySchema(() => z.record(z.string(), z.unknown()))
 const applied = lazySchema(() => z.enum(['now', 'turn_end']))
 
-export const CapabilitiesSchema = lazySchema(() =>
+const CapabilitiesSchema = lazySchema(() =>
   z.object({
     holds_asks: z.boolean(),
     elicitation: z.boolean(),
@@ -52,7 +52,7 @@ export const InitializeParamsSchema = lazySchema(() =>
 )
 export type InitializeParams = z.infer<ReturnType<typeof InitializeParamsSchema>>
 
-export const InitializeResultSchema = lazySchema(() =>
+const InitializeResultSchema = lazySchema(() =>
   z.object({
     protocol: z.literal(RUNNER_PROTOCOL),
     runner: z.object({ version: z.string(), pid: z.number().int() }),
@@ -61,7 +61,7 @@ export const InitializeResultSchema = lazySchema(() =>
 )
 export type InitializeResult = z.infer<ReturnType<typeof InitializeResultSchema>>
 
-export const PermissionRequestParamsSchema = lazySchema(() =>
+const PermissionRequestParamsSchema = lazySchema(() =>
   z.discriminatedUnion('kind', [
     z.object({
       kind: z.literal('tool'),
@@ -84,7 +84,7 @@ export const PermissionRequestParamsSchema = lazySchema(() =>
 )
 export type PermissionRequestParams = z.infer<ReturnType<typeof PermissionRequestParamsSchema>>
 
-export const PermissionAnswerSchema = lazySchema(() =>
+const PermissionAnswerSchema = lazySchema(() =>
   z.discriminatedUnion('outcome', [
     z.object({
       outcome: z.literal('allow'),
@@ -100,7 +100,7 @@ export const PermissionAnswerSchema = lazySchema(() =>
 )
 export type PermissionAnswer = z.infer<ReturnType<typeof PermissionAnswerSchema>>
 
-export const ElicitationRequestParamsSchema = lazySchema(() =>
+const ElicitationRequestParamsSchema = lazySchema(() =>
   z.object({
     server: z.string(),
     message: z.string(),
@@ -113,7 +113,7 @@ export const ElicitationRequestParamsSchema = lazySchema(() =>
 )
 export type ElicitationRequestParams = z.infer<ReturnType<typeof ElicitationRequestParamsSchema>>
 
-export const ElicitationAnswerSchema = lazySchema(() =>
+const ElicitationAnswerSchema = lazySchema(() =>
   z.object({
     action: z.enum(['accept', 'decline', 'cancel']),
     content: z.record(z.string(), z.unknown()).optional(),
@@ -121,12 +121,12 @@ export const ElicitationAnswerSchema = lazySchema(() =>
 )
 export type ElicitationAnswer = z.infer<ReturnType<typeof ElicitationAnswerSchema>>
 
-export const CancelRequestParamsSchema = lazySchema(() =>
+const CancelRequestParamsSchema = lazySchema(() =>
   z.object({ request_id: z.number().int().positive(), reason: z.string().optional() }),
 )
-export type CancelRequestParams = z.infer<ReturnType<typeof CancelRequestParamsSchema>>
+type CancelRequestParams = z.infer<ReturnType<typeof CancelRequestParamsSchema>>
 
-export const SessionAppliedParamsSchema = lazySchema(() =>
+const SessionAppliedParamsSchema = lazySchema(() =>
   z.object({
     request_id: z.number().int().positive(),
     verb: z.enum(['set_model', 'set_effort', 'set_spawn_switch']),
@@ -437,8 +437,8 @@ type NamesWhere<F extends Sender, K extends MethodKind> = {
 
 export type HostRequestName = NamesWhere<'host', 'request'>
 export type HostNotificationName = NamesWhere<'host', 'notification'>
-export type RunnerRequestName = NamesWhere<'runner', 'request'>
-export type RunnerNotificationName = NamesWhere<'runner', 'notification'>
+type RunnerRequestName = NamesWhere<'runner', 'request'>
+type RunnerNotificationName = NamesWhere<'runner', 'notification'>
 
 export const METHOD_NAMES = Object.keys(METHODS) as MethodName[]
 
@@ -446,7 +446,7 @@ export function isMethodName(name: string): name is MethodName {
   return Object.prototype.hasOwnProperty.call(METHODS, name)
 }
 
-export function methodOf(name: string): MethodSpec | undefined {
+function methodOf(name: string): MethodSpec | undefined {
   return isMethodName(name) ? (METHODS[name] as MethodSpec) : undefined
 }
 
@@ -462,7 +462,7 @@ export function deadlineOf(name: string): number | null {
   return methodOf(name)?.deadlineMs ?? null
 }
 
-export type ParamsCheck<T = unknown> = { ok: true; value: T } | { ok: false; issues: Array<{ path: string; message: string }> }
+type ParamsCheck<T = unknown> = { ok: true; value: T } | { ok: false; issues: Array<{ path: string; message: string }> }
 
 export function checkParams<M extends MethodName>(name: M, params: unknown): ParamsCheck<ParamsOf<M>> {
   const parsed = (METHODS[name] as MethodSpec).params().safeParse(params === undefined ? {} : params)

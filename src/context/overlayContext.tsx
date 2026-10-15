@@ -62,7 +62,7 @@ export function useOverlayOpen(id: string): boolean {
   return overlayStackSnapshot().some(entry => entry.id === id);
 }
 
-export function useOverlayIsTop(token: number | null): boolean {
+function useOverlayIsTop(token: number | null): boolean {
   useSyncExternalStore(subscribeOverlayStack, overlayStackVersion, overlayStackVersion);
   return token !== null && topOverlay()?.token === token;
 }

@@ -8,7 +8,7 @@ import lock from '../../vendor/embed-models.lock.json' with { type: 'json' }
 import { loadEmbedAddon } from './embedPack.js'
 
 export const EMBED_MODELS_LOCK_PATH = 'vendor/embed-models.lock.json'
-export const EMBED_MODELS_SEGMENTS = ['models', 'embed'] as const
+const EMBED_MODELS_SEGMENTS = ['models', 'embed'] as const
 export const EMBED_MODELS_VENDOR_PATH = 'vendor/embed-models'
 export const WORD_MATCH_ONLY_WORDS = 'word match only'
 
@@ -23,7 +23,7 @@ export interface EmbedModelRow {
   words: string
 }
 
-export interface EmbedModelCatalogue {
+interface EmbedModelCatalogue {
   license: string
   licenseNote: string
   source: string
@@ -83,7 +83,7 @@ export function decodeEmbedModelsLock(raw: unknown): EmbedModelCatalogue {
   return { license: m.license, licenseNote: m.licenseNote, source: m.source, defaultName: m.default, models }
 }
 
-export const EMBED_MODEL_CATALOGUE: EmbedModelCatalogue = decodeEmbedModelsLock(lock)
+const EMBED_MODEL_CATALOGUE: EmbedModelCatalogue = decodeEmbedModelsLock(lock)
 export const EMBED_MODELS: readonly EmbedModelRow[] = EMBED_MODEL_CATALOGUE.models
 export const EMBED_DEFAULT_MODEL: string = EMBED_MODEL_CATALOGUE.defaultName
 
@@ -106,7 +106,7 @@ export function embedModelsDir(home: string = getMercuryHome()): string {
   return join(home, ...EMBED_MODELS_SEGMENTS)
 }
 
-export type EmbedModelPin =
+type EmbedModelPin =
   | { kind: 'catalogue'; row: EmbedModelRow; pinned: boolean }
   | { kind: 'path'; path: string; name: string }
   | { kind: 'broken'; note: string }
@@ -168,7 +168,7 @@ function findVendoredModelFile(file: string): string | null {
   return null
 }
 
-export type EmbedModelCheck =
+type EmbedModelCheck =
   | { state: 'present'; path: string; name: string; bytes: number; dimension: number; license: string; pinned: boolean }
   | { state: 'absent'; path: string; row: EmbedModelRow; note: string }
   | { state: 'mismatch'; path: string; note: string }
@@ -210,7 +210,7 @@ export function checkEmbedModel(
   return { state: 'present', path, name: row.name, bytes: size, dimension: row.dimension, license: row.license, pinned: pin.pinned }
 }
 
-export type SemanticReadiness =
+type SemanticReadiness =
   | { state: 'ok'; road: 'local'; model: string; path: string; dimension: number }
   | { state: 'word-only'; words: typeof WORD_MATCH_ONLY_WORDS; note: string }
 
@@ -247,9 +247,9 @@ export function memoryRecallModeLine(dir: string): string {
 }
 
 
-export const EMBED_MODEL_DOWNLOAD_DEADLINE_MS = 15 * 60_000
+const EMBED_MODEL_DOWNLOAD_DEADLINE_MS = 15 * 60_000
 
-export interface EmbedModelDownload {
+interface EmbedModelDownload {
   path: string
   bytes: number
   sha256: string

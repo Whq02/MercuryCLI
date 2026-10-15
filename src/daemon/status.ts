@@ -5,7 +5,7 @@ import {
   daemonControlRpc,
   readDaemonState,
 } from './controlSocket.js'
-export interface FireOutcomeSummary {
+interface FireOutcomeSummary {
   total: number
   byOutcome: Record<string, number>
   usefulRate: number | null
@@ -117,7 +117,7 @@ export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
   return snapshot
 }
 
-export type HelperRow = { pid: number; live: number | null }
+type HelperRow = { pid: number; live: number | null }
 
 export function helperPidSocketsOnDisk(): number[] {
   if (process.platform === 'win32') return []

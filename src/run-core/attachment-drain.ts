@@ -2,14 +2,14 @@
 import type { AssistantMessage, ReplyMark } from '../types/message.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
 
-export type DrainableCommand = {
+type DrainableCommand = {
   uuid?: string
   mode?: string
   agentId?: string
   value?: unknown
 }
 
-export type DrainedRow = {
+type DrainedRow = {
   timestamp: string
   attachment: { type?: string; source_uuid?: string; commandMode?: string; origin?: { kind: string }; isMeta?: boolean }
 }

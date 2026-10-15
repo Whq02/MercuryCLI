@@ -1,7 +1,7 @@
 import type { SignalCandidate } from './mnemeRerank.js'
 import { preservePinnedOrder, signalRanking } from './mnemeRerank.js'
 
-export interface ExtraOrdering {
+interface ExtraOrdering {
   order: string[]
   tieKey: (id: string) => string | null
 }

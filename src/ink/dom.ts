@@ -21,7 +21,7 @@ export type ElementNames =
   | 'ink-progress'
   | 'ink-raw-ansi'
 
-export type ScrollState = {
+type ScrollState = {
   scrollTop?: number
   pendingScrollDelta?: number
   scrollClampMin?: number

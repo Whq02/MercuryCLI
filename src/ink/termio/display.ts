@@ -165,7 +165,7 @@ function toColor(c: ExtendedColor): TextStyle['fg'] {
     : { type: 'rgb', r: c.r, g: c.g, b: c.b }
 }
 
-export function foldSgr(raw: string, prev: TextStyle): TextStyle {
+function foldSgr(raw: string, prev: TextStyle): TextStyle {
   const groups = sgrGroups(raw)
   let s: TextStyle = { ...prev }
   for (let i = 0; i < groups.length; i++) {

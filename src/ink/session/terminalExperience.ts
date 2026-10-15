@@ -2,14 +2,14 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 
-export type ExperienceSource = 'canonical-env' | 'default'
+type ExperienceSource = 'canonical-env' | 'default'
 
-export interface ResolvedExperienceControl {
+interface ResolvedExperienceControl {
   effective: boolean
   source: ExperienceSource
 }
 
-export interface TerminalExperienceResolution {
+interface TerminalExperienceResolution {
   terminalTitle: ResolvedExperienceControl
   accessibility: ResolvedExperienceControl
   virtualScroll: ResolvedExperienceControl

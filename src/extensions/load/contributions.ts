@@ -13,19 +13,19 @@ import {
 import { substituteRootAndData } from '../options.js'
 
 
-export type ResolvedSkill = { name: string; skillName: string; dir: string; file: string; body: string; frontmatter: FrontmatterData }
-export type ResolvedCommand = { name: string; file: string; body: string; frontmatter: FrontmatterData }
+type ResolvedSkill = { name: string; skillName: string; dir: string; file: string; body: string; frontmatter: FrontmatterData }
+type ResolvedCommand = { name: string; file: string; body: string; frontmatter: FrontmatterData }
 export type ResolvedAgent = { agentType: string; file: string; body: string; frontmatter: FrontmatterData; ignoredFields: string[] }
-export type ResolvedHook = {
+type ResolvedHook = {
   event: string
   hook: ManifestHook
   commandLine: string
   scriptPath: string | null
 }
-export type ResolvedServer = { key: string; runtimeName: string; config: ManifestServer; transport: 'stdio' | 'http' | 'sse' }
-export type ResolvedLanguage = { key: string; runtimeName: string; config: NonNullable<ExtensionManifest['contributes']>['language'] extends Record<string, infer T> | undefined ? T : never }
-export type ResolvedChannel = { server: string; runtimeName: string; label: string }
-export type ResolvedKeybinding = { chord: string; target: string; taken: boolean }
+type ResolvedServer = { key: string; runtimeName: string; config: ManifestServer; transport: 'stdio' | 'http' | 'sse' }
+type ResolvedLanguage = { key: string; runtimeName: string; config: NonNullable<ExtensionManifest['contributes']>['language'] extends Record<string, infer T> | undefined ? T : never }
+type ResolvedChannel = { server: string; runtimeName: string; label: string }
+type ResolvedKeybinding = { chord: string; target: string; taken: boolean }
 
 export type Resolution = {
   skills: ResolvedSkill[]
@@ -50,7 +50,7 @@ export type Probes = {
 
 const PATH_EXTS = process.platform === 'win32' ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';') : ['']
 
-export function isOnPath(binary: string): boolean {
+function isOnPath(binary: string): boolean {
   if (binary === '') return false
   if (binary.includes('/') || binary.includes('\\')) return existsSync(binary)
   const dirs = (process.env.PATH ?? '').split(delimiter).filter(Boolean)
@@ -69,7 +69,7 @@ export function isOnPath(binary: string): boolean {
   return false
 }
 
-export function isEnvSet(name: string): boolean {
+function isEnvSet(name: string): boolean {
   const value = process.env[name]
   return value !== undefined && value !== ''
 }
@@ -139,7 +139,7 @@ function isExecutable(path: string): boolean {
 
 const INTERPRETERS = new Set(['sh', 'bash', 'zsh', 'node', 'bun', 'python', 'python3', 'ruby', 'perl', 'pwsh', 'powershell', 'deno'])
 
-export function tokenise(command: string): string[] {
+function tokenise(command: string): string[] {
   const out: string[] = []
   let current = ''
   let quote: string | null = null
@@ -160,7 +160,7 @@ export function tokenise(command: string): string[] {
   return out
 }
 
-export function hookScriptPath(
+function hookScriptPath(
   commandLine: string,
   root: string,
 ): { path: string; direct: boolean } | { escaped: string } | null {

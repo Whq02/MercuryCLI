@@ -18,7 +18,7 @@ export function selfScriptPath(): string {
   return selfScriptMemo.real
 }
 
-export function selfBuildDir(): string {
+function selfBuildDir(): string {
   const script = selfScriptPath()
   return script === '' ? '' : dirname(script)
 }
@@ -37,7 +37,7 @@ export function nodeForBuild(buildDir: string, fallback: string = process.execPa
   return vendoredNodeBeside(buildDir) ?? fallback
 }
 
-export const BUILD_HOLD_FILE = 'manifest.json'
+const BUILD_HOLD_FILE = 'manifest.json'
 
 let buildHoldFd: number | null = null
 

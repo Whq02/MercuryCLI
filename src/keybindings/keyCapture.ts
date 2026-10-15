@@ -1,7 +1,7 @@
 
 import type { Key } from '../ink.js'
 
-export type KeyCaptureFn = (input: string, key: Key) => void
+type KeyCaptureFn = (input: string, key: Key) => void
 
 let capture: KeyCaptureFn | null = null
 

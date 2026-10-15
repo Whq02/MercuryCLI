@@ -9,14 +9,14 @@ import { getErrnoCode } from '../utils/errors.js'
 import * as lockfile from '../utils/lockfile.js'
 import { durableAtomicPublish, faultPoint } from './durablePublish.js'
 
-export type DurableOperationState =
+type DurableOperationState =
   | 'prepared'
   | 'applying'
   | 'committed'
   | 'compensating'
   | 'aborted'
 
-export interface DurableOperationStep {
+interface DurableOperationStep {
   id: string
   target: string
   expectedRevision?: number
@@ -211,13 +211,13 @@ async function withJournalLock<R>(dir: string, fn: () => Promise<R>): Promise<R>
   }
 }
 
-export interface JournalStepSpec {
+interface JournalStepSpec {
   id: string
   target: string
   run: () => Promise<{ digest?: string } | void>
 }
 
-export interface JournaledOperationSpec<R> {
+interface JournaledOperationSpec<R> {
   journalDir: string
   ownerKey: string
   kind: string
@@ -228,7 +228,7 @@ export interface JournaledOperationSpec<R> {
   result?: () => R
 }
 
-export type JournaledOperationOutcome<R> =
+type JournaledOperationOutcome<R> =
   | { outcome: 'committed'; operationId: string; result: R | undefined; replayed: false }
   | { outcome: 'replayed'; operationId: string; result: R | undefined; replayed: true }
   | { outcome: 'in-flight'; operationId: string; result?: undefined; replayed?: undefined }
@@ -375,7 +375,7 @@ async function transition(
 }
 
 
-export interface JournalRecoveryHandler {
+interface JournalRecoveryHandler {
   rollForward?: (op: DurableOperation) => Promise<void>
   compensate?: (op: DurableOperation) => Promise<void>
 }

@@ -43,7 +43,7 @@ function receiptEligibleCommand(segments: readonly { text: string }[]): boolean 
   })
 }
 
-export interface CommitGateVerdict {
+interface CommitGateVerdict {
   allow: boolean
   rule:
     | 'not-a-commit'
@@ -120,7 +120,7 @@ function hasNoVerifyFlag(segment: string): boolean {
   return /(?:^|\s)-[A-Za-z]*n[A-Za-z]*(?=\s|$)/.test(bare)
 }
 
-export const COMMIT_GATE_REPROMPT =
+const COMMIT_GATE_REPROMPT =
   'Commit gate: this commit is not verified. Three ways to satisfy it: ' +
   '(1) FRESH RECEIPT — a green verification of this EXACT tree with no edits since ' +
   'passes automatically (no rerun needed; if you just ran the suite green, commit plainly). ' +
@@ -148,7 +148,7 @@ function commandOfCall(call: ToolCallUnderGuard): string | null {
   return typeof command === 'string' ? command : null
 }
 
-export function registerCommitGate(sessionId: string): string {
+function registerCommitGate(sessionId: string): string {
   engageToolGuard(sessionId, {
     id: COMMIT_GATE_ID,
     tools: ['Bash', POWERSHELL_TOOL_NAME],
@@ -426,7 +426,7 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   return owed.length === 0 ? null : describeOwedAssets(owed)
 }
 
-export function unregisterCommitGate(sessionId: string): void {
+function unregisterCommitGate(sessionId: string): void {
   disengageToolGuard(sessionId, COMMIT_GATE_ID)
 }
 

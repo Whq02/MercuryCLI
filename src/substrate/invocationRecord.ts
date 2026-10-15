@@ -2,9 +2,9 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 
-export type ShellHint = 'powershell' | 'cmd' | 'posix-sh' | 'unknown'
+type ShellHint = 'powershell' | 'cmd' | 'posix-sh' | 'unknown'
 
-export interface InvocationCapabilityRecordV1 {
+interface InvocationCapabilityRecordV1 {
   schema: 1
   pid: number
   recordedAtMs: number
@@ -35,7 +35,7 @@ export function classifyShellHint(env: NodeJS.ProcessEnv = process.env, platform
   return 'unknown'
 }
 
-export function captureInvocationRecord(): InvocationCapabilityRecordV1 {
+function captureInvocationRecord(): InvocationCapabilityRecordV1 {
   return {
     schema: 1,
     pid: process.pid,
@@ -53,7 +53,7 @@ export function captureInvocationRecord(): InvocationCapabilityRecordV1 {
   }
 }
 
-export function invocationRecordPath(): string {
+function invocationRecordPath(): string {
   return join(getMercuryHome(), 'invocation-record.json')
 }
 

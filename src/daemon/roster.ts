@@ -40,19 +40,19 @@ import {
 } from './longLivedRespawn.js'
 import { calculateContextPercentages, getContextWindowForModel } from '../utils/context.js'
 
-export const AUTO_CLEAR_CONTEXT_PCT = 85
+const AUTO_CLEAR_CONTEXT_PCT = 85
 import { currentVersion } from './controlSocket.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import type { DispatchBody, DispatchSource, WireRosterEntry } from './protocol.js'
 
-export type RosterState =
+type RosterState =
   | 'spawning'
   | 'running'
   | 'retiring'
   | 'settled'
   | 'crashed'
 
-export interface RosterEntry {
+interface RosterEntry {
   short: string
   sessionId: string
   prompt: string
@@ -98,7 +98,7 @@ interface LongLivedSeat {
   crashedAt?: number
 }
 
-export type SeatPause = { why: string; words: string; resumesAtMs?: number }
+type SeatPause = { why: string; words: string; resumesAtMs?: number }
 
 interface WorkerHandle {
   entry: RosterEntry
@@ -107,7 +107,7 @@ interface WorkerHandle {
   longLived?: LongLivedSeat
 }
 
-export interface RosterOptions {
+interface RosterOptions {
   dir: string
   breaker: DaemonBreaker
   maxInflight: number
@@ -122,7 +122,7 @@ export interface RosterOptions {
   onChildCrashed?: (short: string) => void
 }
 
-export interface DispatchOutcome {
+interface DispatchOutcome {
   ok: boolean
   short: string
   pid?: number

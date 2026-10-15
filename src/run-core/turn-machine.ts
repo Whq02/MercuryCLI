@@ -201,7 +201,7 @@ const OUTPUT_LIMIT_STOP_WORDS = {
   budget: "the reply hit the output ceiling and the run's budget is spent; the turn ends here",
 } as const
 
-export function continuationAdded(previous: string | undefined, next: string): boolean {
+function continuationAdded(previous: string | undefined, next: string): boolean {
   if (previous === undefined) return true
   const added = next.trim()
   if (added === '') return false
@@ -401,7 +401,7 @@ export function decideReasoningOnlyRecovery(input: { recoveryCount: number; maxT
 
 type ReasoningOnlyTurn = { reply: AssistantMessage; maxTokens: boolean }
 
-export function reasoningOnlyTurnOf(
+function reasoningOnlyTurnOf(
   assistantMessages: readonly AssistantMessage[],
   refusedToolCalls: number,
 ): ReasoningOnlyTurn | null {
@@ -428,7 +428,7 @@ function outputLimitWords(ceiling: number): string {
   return ceiling % 1000 === 0 ? `${ceiling / 1000}k` : String(ceiling)
 }
 
-export function withReasoningCutMarker(reply: AssistantMessage): AssistantMessage {
+function withReasoningCutMarker(reply: AssistantMessage): AssistantMessage {
   const content = Array.isArray(reply.message.content) ? reply.message.content : []
   const marker = { type: 'text' as const, text: REASONING_CUT_MARKER, citations: null }
   return { ...reply, message: { ...reply.message, content: [...content, marker] as AssistantMessage['message']['content'] } }
@@ -451,7 +451,7 @@ export function decideStreamFaultRecovery(input: {
   return { kind: 'surface' }
 }
 
-export function decideMaxOutputTokensRecovery(input: {
+function decideMaxOutputTokensRecovery(input: {
   added: boolean
   budgetAllows: boolean
   recoveryCount: number

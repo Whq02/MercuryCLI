@@ -10,14 +10,14 @@ import { noteMemoryOffered, noteMemoryScores } from './mnemeSignal.js'
 import { fuseSignalRanking } from './mnemeSignalRanking.js'
 import { embedIndexEngineStatus, readEmbedIndex, searchEmbedIndex } from './mnemeIndex.js'
 
-export const LOOKUP_LIMIT = 5
+const LOOKUP_LIMIT = 5
 const MAX_QUERY_TOKENS = 16
 const SEMANTIC_POOL = 16
 const SEMANTIC_MIN_SIM = 0.45
 const SEMANTIC_TIE_WIDTH = 0.02
 
-export const BM25_K1 = 1.2
-export const BM25_B = 0.75
+const BM25_K1 = 1.2
+const BM25_B = 0.75
 export const RECENCY_TAU_MS = 90 * 24 * 60 * 60 * 1000
 
 function recencyOf(candidate: LookupCandidate, now: number): number {
@@ -56,7 +56,7 @@ export function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-export type LookupKind = 'fact' | 'ruling' | 'pending' | 'handoff' | 'session'
+type LookupKind = 'fact' | 'ruling' | 'pending' | 'handoff' | 'session'
 
 export interface LookupCandidate {
   id: string
@@ -77,7 +77,7 @@ export interface LookupHit extends Omit<LookupCandidate, 'time' | 'pinned' | 'ki
   matched: string[]
 }
 
-export interface CandidateFeatures {
+interface CandidateFeatures {
   bm25: number
   recency: number
   pinned: boolean
@@ -86,13 +86,13 @@ export interface CandidateFeatures {
   discriminating: boolean
 }
 
-export interface ScoredCandidate extends LookupCandidate {
+interface ScoredCandidate extends LookupCandidate {
   score: number
   matched: string[]
   features: CandidateFeatures
 }
 
-export interface RankingOptions {
+interface RankingOptions {
   dir?: string
   exclude?: ReadonlySet<string>
   usage?: Record<string, UsageRecord>
@@ -179,12 +179,12 @@ export function fuseRecallRankings(query: string, pool: readonly LookupCandidate
   return fuseSignalRanking([grep, lexical.map(hit => hit.id)], scored, dir, fuseRankings, extra)
 }
 
-export interface SemanticHit {
+interface SemanticHit {
   id: string
   sim: number
 }
 
-export function semanticHits(query: string, pool: readonly LookupCandidate[], dir: string): SemanticHit[] {
+function semanticHits(query: string, pool: readonly LookupCandidate[], dir: string): SemanticHit[] {
   const byKey = new Map<string, string>()
   for (const candidate of pool) byKey.set(candidate.seq !== undefined ? `seq:${candidate.seq}` : candidate.id, candidate.id)
   const index = readEmbedIndex(dir)
@@ -210,7 +210,7 @@ export function semanticRanking(query: string, pool: readonly LookupCandidate[],
   return semanticHits(query, pool, dir).map(hit => hit.id)
 }
 
-export function semanticTieKey(hits: readonly SemanticHit[]): (id: string) => string | null {
+function semanticTieKey(hits: readonly SemanticHit[]): (id: string) => string | null {
   const group = new Map<string, string>()
   let groupTop = Number.POSITIVE_INFINITY
   let groupIndex = -1

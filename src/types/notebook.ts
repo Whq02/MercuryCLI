@@ -16,26 +16,26 @@ export type NotebookCellOutput =
   | NotebookExecuteResultOutput
   | NotebookErrorOutput
 
-export interface NotebookStreamOutput {
+interface NotebookStreamOutput {
   output_type: 'stream'
   name?: string
   text: string | string[]
 }
 
-export interface NotebookDisplayDataOutput {
+interface NotebookDisplayDataOutput {
   output_type: 'display_data'
   data?: NotebookMimeBundle
   metadata?: Record<string, unknown>
 }
 
-export interface NotebookExecuteResultOutput {
+interface NotebookExecuteResultOutput {
   output_type: 'execute_result'
   data?: NotebookMimeBundle
   metadata?: Record<string, unknown>
   execution_count?: number | null
 }
 
-export interface NotebookErrorOutput {
+interface NotebookErrorOutput {
   output_type: 'error'
   ename: string
   evalue: string
@@ -49,20 +49,20 @@ export interface NotebookOutputImage {
   media_type: 'image/png' | 'image/jpeg'
 }
 
-export interface NotebookMetadata {
+interface NotebookMetadata {
   language_info?: NotebookLanguageInfo
   kernelspec?: NotebookKernelSpec
   [key: string]: unknown
 }
 
-export interface NotebookLanguageInfo {
+interface NotebookLanguageInfo {
   name?: string
   version?: string
   file_extension?: string
   mimetype?: string
 }
 
-export interface NotebookKernelSpec {
+interface NotebookKernelSpec {
   name?: string
   display_name?: string
   language?: string

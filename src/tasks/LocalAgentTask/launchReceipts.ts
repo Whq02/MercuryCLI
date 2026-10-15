@@ -22,8 +22,8 @@ import { AGENT_STOP_BY_OPERATOR, agentStopReasonOf, enqueueAgentNotification, ty
 
 export const BACKGROUND_LAUNCH_LINE = 'Crewmate launched in the background.'
 
-export const RECORDED_DESCRIPTION_MAX = 200
-export const RECORDED_PROMPT_MAX = 20_000
+const RECORDED_DESCRIPTION_MAX = 200
+const RECORDED_PROMPT_MAX = 20_000
 
 export function recordedDescription(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -31,7 +31,7 @@ export function recordedDescription(value: unknown): string {
   return line.length > RECORDED_DESCRIPTION_MAX ? `${sliceHeadAtGrapheme(line, RECORDED_DESCRIPTION_MAX - 1)}…` : line
 }
 
-export function recordedPrompt(value: unknown): string {
+function recordedPrompt(value: unknown): string {
   if (typeof value !== 'string') return ''
   const text = stripTerminalControls(value)
   return text.length > RECORDED_PROMPT_MAX ? `${sliceHeadAtGrapheme(text, RECORDED_PROMPT_MAX - 1)}…` : text
@@ -52,7 +52,7 @@ export function coerceRestartReason(value: unknown): RunnerRestartReason | undef
   return value === 'crash' || value === 'stop' || value === 'settings' || value === 'relaunch' ? value : undefined
 }
 
-export function restartBecause(reason?: RunnerRestartReason): string {
+function restartBecause(reason?: RunnerRestartReason): string {
   return reason === 'crash'
     ? ' after a crash'
     : reason === 'stop'
@@ -71,7 +71,7 @@ export function restartStopSummary(description: string, reason?: RunnerRestartRe
 
 export type BackgroundHandoverReason = 'turn-interrupted' | 'backgrounded' | 'agent-type' | 'sibling-ended'
 
-export type SiblingEndFacts = { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
+type SiblingEndFacts = { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
 
 export function foregroundNotKeptLine(reason: BackgroundHandoverReason, sibling?: SiblingEndFacts): string {
   switch (reason) {
@@ -311,7 +311,7 @@ export function isRestartCarryRow(text: string): boolean {
   return isRestartCarryText(text)
 }
 
-export type QueueLogRow = {
+type QueueLogRow = {
   operation: string
   content?: string
   uuid?: string

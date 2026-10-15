@@ -65,7 +65,7 @@ import { onChangeAppState as defaultOnChangeAppState } from './state/onChangeApp
 import type { AppState } from './state/AppStateStore.js'
 
 
-export function completeOnboarding(): void {
+function completeOnboarding(): void {
   const version =
     typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : 'unknown'
   saveGlobalConfig(current => ({
@@ -103,7 +103,7 @@ export function SetupScreenHost({ children }: { children: React.ReactNode }): Re
   )
 }
 
-export function showDialog<T>(
+function showDialog<T>(
   root: Root,
   renderer: (done: (result: T) => void) => React.ReactNode,
 ): Promise<T> {
@@ -112,7 +112,7 @@ export function showDialog<T>(
   })
 }
 
-export function showSetupDialog<T>(
+function showSetupDialog<T>(
   root: Root,
   renderer: (done: (result: T) => void) => React.ReactNode,
   options?: {

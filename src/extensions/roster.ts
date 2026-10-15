@@ -25,7 +25,7 @@ export function setActiveSnapshot(snapshot: ActiveSnapshot | null): void {
 }
 
 
-export type RosterInput = {
+type RosterInput = {
   cwd?: string
   sessionPaths?: string[]
   skipDriftHash?: boolean
@@ -113,7 +113,7 @@ function applyBlock(entry: RosterEntry, source: SourceRecord | null): void {
   entry.blockedBy = match ? match.by : null
 }
 
-export function isActiveByRecords(entry: RosterEntry): boolean {
+function isActiveByRecords(entry: RosterEntry): boolean {
   return entry.approved && entry.switchedOn && entry.blockedBy === null && entry.manifest !== null && !entry.changedSinceApproval
 }
 

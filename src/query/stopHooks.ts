@@ -19,7 +19,7 @@ import { extractTextContent, getLastAssistantMessage } from '../utils/messages.j
 import { createUserInterruptionMessage, createUserMessage } from '../utils/messages/factories.js'
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
 
-export type StopHookOutcome = {
+type StopHookOutcome = {
   blockingErrors: UserMessage[]
   preventContinuation: boolean
 }

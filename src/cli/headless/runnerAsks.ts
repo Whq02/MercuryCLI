@@ -35,18 +35,18 @@ export function unansweredAskCause(reason: unknown): string | undefined {
     : "nobody answered before the turn's no-progress timeout"
 }
 
-export class AskAborted extends Error {
+class AskAborted extends Error {
   constructor(message = 'the ask was aborted') {
     super(message)
     this.name = 'AskAborted'
   }
 }
 
-export type ToolAskParams = Extract<PermissionRequestParams, { kind: 'tool' }>
+type ToolAskParams = Extract<PermissionRequestParams, { kind: 'tool' }>
 
-export type AskAnswer = PermissionAnswer & { unanswered?: true }
+type AskAnswer = PermissionAnswer & { unanswered?: true }
 
-export interface AskChannel {
+interface AskChannel {
   askPermission(params: PermissionRequestParams, opts: { signal?: AbortSignal; key: string }): Promise<AskAnswer>
   parkedAsks(): number
 }
@@ -61,7 +61,7 @@ export interface AskHost extends AskChannel {
   setOnControlRequestResolved(cb: (() => void) | undefined): void
 }
 
-export function serializeDecisionReason(reason: unknown): string | undefined {
+function serializeDecisionReason(reason: unknown): string | undefined {
   if (!reason || typeof reason !== 'object') return undefined
   const typed = reason as { type?: string; reason?: string; hookName?: string }
   switch (typed.type) {
@@ -77,7 +77,7 @@ export function serializeDecisionReason(reason: unknown): string | undefined {
   }
 }
 
-export function describeToolAction(tool: Tool, input: Record<string, unknown>): string {
+function describeToolAction(tool: Tool, input: Record<string, unknown>): string {
   try {
     const described =
       (tool as { getActivityDescription?: (i: unknown) => string | null }).getActivityDescription?.(input) ??
@@ -122,7 +122,7 @@ export function decisionOfAnswer(
   }
 }
 
-export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (details: RequiresActionDetails) => void): CanUseToolFn {
+function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (details: RequiresActionDetails) => void): CanUseToolFn {
   const canUseTool: CanUseToolFn = async (tool, input, toolUseContext, assistantMessage, toolUseID, forceDecision) => {
     const key = randomUUID()
     const parentSignal = toolUseContext.abortController.signal
@@ -238,7 +238,7 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
   return canUseTool
 }
 
-export function createSandboxAsk(channel: AskChannel): (ask: { host: string; port?: number }) => Promise<boolean> {
+function createSandboxAsk(channel: AskChannel): (ask: { host: string; port?: number }) => Promise<boolean> {
   return async ask => {
     try {
       const answer = await channel.askPermission({ kind: 'network', host: ask.host }, { key: randomUUID() })

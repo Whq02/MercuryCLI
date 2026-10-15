@@ -17,11 +17,11 @@ import type {
   ParsedKeystroke,
 } from './types.js'
 
-export type AtlasState = 'bound' | 'disabled' | 'unbound'
+type AtlasState = 'bound' | 'disabled' | 'unbound'
 
-export type AtlasOrigin = 'default' | 'user'
+type AtlasOrigin = 'default' | 'user'
 
-export type AtlasShadow = {
+type AtlasShadow = {
   action: string | null
   context: KeybindingContextName
   origin: AtlasOrigin
@@ -56,14 +56,14 @@ function reservedFor(
   return reserved.find(r => normalizeKeyForComparison(r.key) === norm)
 }
 
-export type BuildAtlasOptions = {
+type BuildAtlasOptions = {
   defaultCount: number
   reserved?: readonly ReservedShortcut[]
   platform?: DisplayPlatform
   extendedKeys?: boolean
 }
 
-export type DisplayPlatform = 'macos' | 'windows' | 'linux' | 'wsl' | 'unknown'
+type DisplayPlatform = 'macos' | 'windows' | 'linux' | 'wsl' | 'unknown'
 
 export function buildAtlas(
   bindings: readonly ParsedBinding[],
@@ -214,7 +214,7 @@ export function actionAffordance(
 }
 
 
-export type LookupOutcome =
+type LookupOutcome =
   | 'match'
   | 'unbound'
   | 'none'
@@ -232,7 +232,7 @@ export type LookupReport = {
   verdict: string
 }
 
-export type ExplainOptions = {
+type ExplainOptions = {
   defaultCount: number
   reserved?: readonly ReservedShortcut[]
   platform?: DisplayPlatform

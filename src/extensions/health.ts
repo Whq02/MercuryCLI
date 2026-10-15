@@ -54,7 +54,7 @@ function versionFloorUnmet(floor: string | undefined): string | null {
   return null
 }
 
-export function compareVersions(a: string, b: string): number {
+function compareVersions(a: string, b: string): number {
   const parse = (v: string): number[] => v.replace(/^v/, '').split('-')[0]!.split('.').map(part => Number.parseInt(part, 10) || 0)
   const pa = parse(a)
   const pb = parse(b)
@@ -66,7 +66,7 @@ export function compareVersions(a: string, b: string): number {
   return 0
 }
 
-export type HealthComputation = { health: Health; resolution: Resolution | null }
+type HealthComputation = { health: Health; resolution: Resolution | null }
 
 export function computeHealth(entry: RosterEntry, facts: RuntimeFacts = {}, options: { probes?: Probes; skipTamperHash?: boolean } = {}): HealthComputation {
   const reasons: string[] = []
@@ -114,7 +114,7 @@ export function computeHealth(entry: RosterEntry, facts: RuntimeFacts = {}, opti
 }
 
 
-export function healthGlyph(outcome: HealthOutcome): string {
+function healthGlyph(outcome: HealthOutcome): string {
   return outcome === 'loads' ? '●' : outcome === 'partial' ? '◑' : '✕'
 }
 

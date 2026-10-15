@@ -95,7 +95,7 @@ export type Grapheme = {
   width: 1 | 2
 }
 
-export type TextSegment = {
+type TextSegment = {
   type: 'text'
   text: string
   style: TextStyle

@@ -557,7 +557,7 @@ function wrapBlocks(blocks: StyledBlock[], width: number): StyledBlock[][] {
 }
 
 
-export type Hunk = {
+type Hunk = {
   oldStart: number
   oldLines: number
   newStart: number
@@ -742,8 +742,8 @@ export class ColorFile {
   }
 }
 
-export type ColorDiffClass = typeof ColorDiff
-export type ColorFileClass = typeof ColorFile
+type ColorDiffClass = typeof ColorDiff
+type ColorFileClass = typeof ColorFile
 
 export type SyntaxTheme = { theme: string; source: string | null }
 
@@ -753,7 +753,7 @@ export function getSyntaxTheme(uiTheme: string): SyntaxTheme {
   return { theme, source: null }
 }
 
-export type NativeModule = {
+type NativeModule = {
   ColorDiff: ColorDiffClass
   ColorFile: ColorFileClass
   getSyntaxTheme: typeof getSyntaxTheme
@@ -761,7 +761,7 @@ export type NativeModule = {
 
 let nativeModule: NativeModule | null = null
 
-export function getNativeModule(): NativeModule | null {
+function getNativeModule(): NativeModule | null {
   if (!nativeModule) {
     nativeModule = { ColorDiff, ColorFile, getSyntaxTheme }
   }

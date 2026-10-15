@@ -3,7 +3,7 @@ import React, { createContext, useEffect, useState, useSyncExternalStore } from 
 import { clockPeriodMs, subscribeIdleMotion } from '../../utils/cockpit/motionGovernor.js'
 import { useTerminalFocus } from '../hooks/use-terminal-focus.js'
 
-export type Clock = {
+type Clock = {
   subscribe: (onChange: () => void, keepAlive: boolean) => () => void
   now: () => number
   setInterval: (ms: number) => void

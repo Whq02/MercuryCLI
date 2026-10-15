@@ -11,7 +11,7 @@ export type SearchPositionsState = {
   currentIdx: number
 }
 
-export type SearchHighlightApi = {
+type SearchHighlightApi = {
   setQuery: (query: string) => void
   scanElement: (el: DOMElement) => MatchPosition[]
   setPositions: (state: SearchPositionsState | null) => void

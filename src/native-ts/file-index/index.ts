@@ -1,7 +1,7 @@
 
-export type SearchResult = { path: string; score: number }
+type SearchResult = { path: string; score: number }
 
-export const CHUNK_MS = 4
+const CHUNK_MS = 4
 
 function yieldToEventLoop(): Promise<void> {
   return new Promise(resolve => {

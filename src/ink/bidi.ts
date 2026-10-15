@@ -1,7 +1,7 @@
 
 import bidiFactory from 'bidi-js'
 
-export type BidiChar = {
+type BidiChar = {
   value: string
   width: number
   styleId: number

@@ -1,7 +1,7 @@
 import type { ExtensionManifest } from './manifest.js'
 import type { InstalledRecord, SourceRecord } from './records.js'
 
-export type ExtensionHome = 'installed' | 'project' | 'session' | 'bundled' | 'proposal'
+type ExtensionHome = 'installed' | 'project' | 'session' | 'bundled' | 'proposal'
 
 export type TrustState = 'available' | 'found' | 'off' | 'pending' | 'on' | 'blocked'
 
@@ -13,7 +13,7 @@ export type Health = {
   notes: string[]
 }
 
-export type BlockedBy = 'operator' | 'policy' | null
+type BlockedBy = 'operator' | 'policy' | null
 
 export type RosterEntry = {
   id: string
@@ -45,7 +45,7 @@ export type RosterEntry = {
   bundledUpdatedWith: string | null
 }
 
-export type ActiveExtension = {
+type ActiveExtension = {
   entry: RosterEntry
   manifest: ExtensionManifest
   root: string

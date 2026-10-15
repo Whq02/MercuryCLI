@@ -1,7 +1,7 @@
 
 import { currentInputEventSeq } from '../ink/events/input-event.js'
 
-export interface OverlayEntry {
+interface OverlayEntry {
   readonly token: number
   readonly id: string
   readonly modal: boolean
