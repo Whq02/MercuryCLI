@@ -26,6 +26,7 @@ import {
 } from './compactionPolicy.js'
 import {
   compactConversation,
+  buildPostCompactMessages,
   compactionPausedForHistoryText,
   CompactionRefusedForHistoryError,
   type CompactionResult,
@@ -401,7 +402,7 @@ export async function autoCompactIfNeeded(
       )
       if (walked.outcome === 'applied') {
         setLastSummarizedMessageId(undefined)
-        runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId })
+        runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId }, buildPostCompactMessages(walked.result))
         if (walked.method === 'notes') {
           return { wasCompacted: true, compactionResult: walked.result, consecutiveRapidRefills: refills }
         }
@@ -419,7 +420,7 @@ export async function autoCompactIfNeeded(
     const viaMemory = await trySessionMemoryCompaction(messages, scoped.agentId, threshold, scoped)
     if (viaMemory !== null) {
       setLastSummarizedMessageId(undefined)
-      runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId })
+      runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId }, buildPostCompactMessages(viaMemory))
       return { wasCompacted: true, compactionResult: viaMemory, consecutiveRapidRefills: refills }
     }
 
@@ -435,7 +436,7 @@ export async function autoCompactIfNeeded(
       foldModel.model,
     )
     setLastSummarizedMessageId(undefined)
-    runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId })
+    runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId }, buildPostCompactMessages(result))
     return {
       wasCompacted: true,
       compactionResult: result,

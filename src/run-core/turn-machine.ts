@@ -30,7 +30,8 @@ import {
   recordThinkingDropLedger,
   takeRewriteNoticeOnce,
 } from '../services/providers/anthropic/thinkingBinding.js'
-import { recordDroppedThinking, takePrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
+import { recordDroppedThinking, takePrefixVerdict, pendingPrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
+import { foldCacheUsage } from '../services/compact/cacheEpoch.js'
 import { boundPrefixRecordToEmit } from '../services/providers/anthropic/boundPrefixRecord.js'
 import { logForDebugging } from '../utils/debug.js'
 
@@ -597,12 +598,18 @@ async function* streamModel(
         )
         if (requestGauge !== undefined && requestGauge.digest === iter.requestPlan.gauge?.digest) requestGauge.sourceDigest = iter.requestPlan.gauge.sourceDigest
         const projectedReplies = new Map<string, AssistantMessage>()
+        let fixedPrefix: import('../services/providers/anthropic/prefixLedger.js').PrefixVerdict['fixedPrefix']
         const settleGauge = (message: AssistantMessage): void => {
           if (!requestGauge || message.contextGauge) return
           const anchor = settleRequestGauge(requestGauge, message)
           if (!anchor) return
+          const boundary = iter.messagesForQuery.findLast(row => row.type === 'system' && row.subtype === 'compact_boundary' && row.compactMetadata.cacheEpoch !== undefined)
+          if (boundary?.type === 'system' && boundary.subtype === 'compact_boundary' && !iter.messagesForQuery.some(row => row.type === 'assistant' && row.foldLanding?.boundaryId === boundary.uuid)) {
+            const usage = foldCacheUsage(message.message.usage)
+            if (usage) message.foldLanding = { boundaryId: boundary.uuid, usage, fixedPrefix: fixedPrefix ?? pendingPrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))?.fixedPrefix }
+          }
           const projected = projectedReplies.get(message.uuid)
-          if (projected) projected.contextGauge = anchor
+          if (projected) { projected.contextGauge = anchor; projected.foldLanding = message.foldLanding }
           if (callId === `${iter.turnId}.c1`) {
             const u = message.message.usage
             reconcileAppliedPlanUsage(ownerFromToolUseContext(toolUseContext), (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0))
@@ -694,6 +701,7 @@ async function* streamModel(
               rememberClassifiedResponse(message.message.id)
               const drops = inputTransformationsOf(message.message)
               const prefixVerdict = takePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
+              fixedPrefix = prefixVerdict?.fixedPrefix
               if (drops.length > 0) recordDroppedThinking(String(rosterOwnerFromToolUseContext(toolUseContext)), drops)
               const rewrite = prefixVerdict?.mismatch ?? null
               const outcome = classifyThinkingDrops(
@@ -1069,6 +1077,7 @@ async function* runEventMachine(
         systemContext,
         toolUseContext,
         forkContextMessages: foldSplit.head,
+        postFoldCarry: foldSplit.carry,
       },
       querySource,
       tracking,

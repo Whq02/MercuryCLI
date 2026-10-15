@@ -61,6 +61,7 @@ export type CompactMetadata = {
   userContext?: string
   messagesSummarized?: number
   ledger?: import('../services/compact/foldLedger.js').FoldLedger
+  cacheEpoch?: import('../services/compact/cacheEpoch.js').FoldCacheEpoch
   recentRounds?: { requested: number; kept: number; tokens: number; reason: string }
   requestGauge?: Pick<import('../services/run/requestGauge.js').RequestGaugeAnchor, 'key' | 'epoch' | 'fixed' | 'density'>
   preservedSegment?: {
@@ -99,6 +100,7 @@ export type AssistantMessage = {
   timestamp: string
   message: AssistantAPIMessage
   contextGauge?: import('../services/run/requestGauge.js').RequestGaugeAnchor
+  foldLanding?: { boundaryId: string; usage: import('../services/compact/cacheEpoch.js').FoldCacheUsage; fixedPrefix?: { previous: string | null; current: string; unchanged: boolean; bytes: number } }
   requestId: string | undefined
   error?: AssistantMessageError
   errorDetails?: string

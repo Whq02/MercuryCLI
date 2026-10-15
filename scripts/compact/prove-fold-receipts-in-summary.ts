@@ -110,7 +110,7 @@ try {
   check('the folded rounds include the first read and the denied edit', /Read×\d/.test(toolLine) && /Edit×\d/.test(toolLine), toolLine)
   check('the files the folded tools touched are the boundary\'s own list', fileLine === `Files the folded tools touched (re-READ on demand — contents not carried): ${(boundaryWork?.recap.files ?? []).join(', ')}`, fileLine)
   check('the first read file is listed', fileLine.includes('/repo/inventory.py'), fileLine)
-  check('a denied edit\'s file is not listed as touched', !fileLine.includes('/repo/denied.py'))
+  check('a denied edit\'s file is not listed as touched', !summary.includes('/repo/denied.py'))
   check('the ledger keeps the denied attempt explicitly as an error', folded.boundaryMarker.compactMetadata.ledger?.tools.some(tool => tool.file === '/repo/denied.py' && tool.outcome === 'error') === true)
   check('the summary message words that the scans know it by still open the text', summary.startsWith('The context window turned over'))
   check('the kept tail is untouched by the block', kept.every(m => !JSON.stringify(m).includes('Folded work')))

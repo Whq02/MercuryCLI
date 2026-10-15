@@ -76,6 +76,8 @@ import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt
 import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from './verbatimTail.js'
 import { selectOperatorMessages } from './operatorMessages.js'
 import { prepareFoldContext } from './foldTransaction.js'
+import { carryFoldPrefix } from './cacheEpoch.js'
+import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
 import type { CompactProgressEvent } from '../../Tool.js'
 import {
@@ -1405,7 +1407,10 @@ export async function compactConversation(
     let tailPrecedingUuid: UUID | undefined
     let recentRounds: CompactMetadata['recentRounds']
     const gauge = readRequestGauge(messages, context.options.engineModel)
-    const landingCount = (rows: Message[]): number => gauge ? estimateRequestGauge(rows, gauge.fixed, gauge.density) : estimateContextTokens(rows)
+    const landingCount = (rows: Message[]): number => {
+      const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
+      return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density) : estimateContextTokens(request)
+    }
     if (isMercuryCompactKeepTailEnabled()) {
       const tail = computeVerbatimRecentTail(messages, {
         fits: keep => {
@@ -1487,6 +1492,9 @@ export async function compactConversation(
       postCompactTokenCount: callUsageTotal,
       compactionUsage: usage,
     }
+    const cacheEpoch = carryFoldPrefix(messages, buildPostCompactMessages(partial), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage)
+    boundary.compactMetadata.cacheEpoch = cacheEpoch.receipt
+    if (cacheEpoch.attachment) partial.attachments.push(cacheEpoch.attachment)
     let truePostCompactTokenCount = landingCount(buildPostCompactMessages(partial))
     if (ceiling !== undefined && truePostCompactTokenCount >= ceiling) {
       const fit = fitPostCompactUnderThreshold(partial, ceiling, landingCount)
@@ -1528,6 +1536,7 @@ export async function compactConversation(
     if (context.abortController.signal.aborted) throw new APIUserAbortError()
     await releaseLspDocumentsForContext('compact_full')
     transaction.commit()
+    restoreBoundPrefixFromMessages(buildPostCompactMessages(partial), { rosterOnly: context.agentId !== undefined })
     advanceContextEpoch(owner, {
       kind: isAutoCompact ? 'auto-compact' : 'manual-compact',
       reason: isAutoCompact ? 'auto-compact threshold' : 'operator /compact',
@@ -1673,11 +1682,15 @@ export async function partialCompactConversation(
       postCompactTokenCount: callUsageTotal,
       compactionUsage: usage,
     }
+    const cacheEpoch = carryFoldPrefix(allMessages, buildPostCompactMessages(partialResult), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage)
+    boundary.compactMetadata.cacheEpoch = cacheEpoch.receipt
+    if (cacheEpoch.attachment) partialResult.attachments.push(cacheEpoch.attachment)
     const truePostCompactTokenCount = estimateContextTokens(buildPostCompactMessages(partialResult))
     const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: 'manual', tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
     if (context.abortController.signal.aborted) throw new APIUserAbortError()
     await releaseLspDocumentsForContext('compact_partial')
     transaction.commit()
+    restoreBoundPrefixFromMessages(buildPostCompactMessages(partialResult), { rosterOnly: context.agentId !== undefined })
     return {
       ...partialResult,
       hookResults: [...beforeRows, ...afterRows],
