@@ -9,7 +9,7 @@ import { unescapeXml } from '../../utils/xml.js'
 import { FAINT } from '../mercuryPalette.js'
 import { MessageResponse } from '../MessageResponse.js'
 
-export function bashExitWords(code: string | null, durationMs: string | null): string | null {
+function bashExitWords(code: string | null, durationMs: string | null): string | null {
   if (code === null || !/^\d+$/.test(code)) return null
   const ms = durationMs !== null && /^\d+$/.test(durationMs) ? Number(durationMs) : null
   const took = ms === null ? null : ms < 1000 ? `${ms}ms` : ms < 60_000 ? formatSecondsShort(ms) : formatDuration(ms)

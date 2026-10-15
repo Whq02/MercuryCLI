@@ -59,7 +59,7 @@ export type AgentNode = {
   cached?: boolean
 }
 
-export type PhaseGroup = {
+type PhaseGroup = {
   index: number
   title: string
   detail?: string
@@ -169,7 +169,7 @@ function AgentMetrics({ agent }: { agent: AgentNode }): React.ReactNode {
   return <Text color={FAINT}> · {parts.join(' · ')}</Text>
 }
 
-export function AgentLine({
+function AgentLine({
   agent,
   last,
 }: {
@@ -198,7 +198,7 @@ export function AgentLine({
   )
 }
 
-export function PhaseBlock({
+function PhaseBlock({
   group,
   number,
 }: {

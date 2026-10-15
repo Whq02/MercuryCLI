@@ -15,7 +15,7 @@ import { getTheme } from '../utils/theme.js'
 import { color } from './design-system/color.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 
-export type Props = BaseTextInputProps & {
+type Props = BaseTextInputProps & {
   selectionRange?: () => { start: number; end: number } | null | undefined
   onSelectionConsumed?: () => void
   onBeforeRangeEdit?: () => void

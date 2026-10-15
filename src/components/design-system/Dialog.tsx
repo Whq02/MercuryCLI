@@ -10,7 +10,7 @@ import { useElevatedSurface } from '../mercury-ui/useElevatedSurface.js'
 import Byline from './Byline.js'
 import Pane from './Pane.js'
 
-export type DialogExitState = ReturnType<typeof useExitOnCtrlCDWithKeybindings>
+type DialogExitState = ReturnType<typeof useExitOnCtrlCDWithKeybindings>
 
 export function Dialog({
   title,

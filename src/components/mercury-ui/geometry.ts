@@ -5,7 +5,7 @@ import { CR_COLS, SQUARE_DOCK_ART_LINES } from '../../utils/cockpit/critterData.
 
 export { paneWindow, scrolledWindow, fitGroupedWindow, fitMeasuredWindow, type PaneWindow } from './paneWindow.js'
 
-export type FrameSpec = {
+type FrameSpec = {
   border?: boolean
   paddingX?: number
   marginX?: number
@@ -112,11 +112,11 @@ export function shedToFit<T extends { text: string; priority: number }>(
 export function cockpitBottomSlotReserve(termRows: number): number {
   return Math.ceil(termRows / 2) + 12
 }
-export type CompactBandForm = 'dock' | 'line' | 'none'
+type CompactBandForm = 'dock' | 'line' | 'none'
 
-export const COMPACT_BAND_DOCK_MIN_ROWS = 20
-export const COMPACT_BAND_LINE_MIN_ROWS = 14
-export const COMPACT_BAND_CRITTER_MIN_COLUMNS = CR_COLS + 3 + 12
+const COMPACT_BAND_DOCK_MIN_ROWS = 20
+const COMPACT_BAND_LINE_MIN_ROWS = 14
+const COMPACT_BAND_CRITTER_MIN_COLUMNS = CR_COLS + 3 + 12
 
 export function compactBandForm(columns: number, rows: number): CompactBandForm {
   if (rows < COMPACT_BAND_LINE_MIN_ROWS) return 'none'

@@ -23,7 +23,7 @@ type Props = {
   isUntracked?: boolean;
 };
 
-export function middleTruncatePath(path: string, max: number): string {
+function middleTruncatePath(path: string, max: number): string {
   if (displayWidth(path) <= max) return path;
   const name = basename(path);
   if (displayWidth(name) + 2 >= max) return truncateToWidth(name, max);

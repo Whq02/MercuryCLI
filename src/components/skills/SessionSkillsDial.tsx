@@ -31,10 +31,10 @@ const FORWARD: Record<SkillDialState, SkillDialState> = { on: 'invocable', invoc
 const BACKWARD: Record<SkillDialState, SkillDialState> = { on: 'off', invocable: 'on', off: 'invocable' }
 const stateOf = (row: SkillsRosterEntryV1): SkillDialState => row.state ?? 'on'
 
-export const SKILLS_EMPTY_SESSION_LINE =
+const SKILLS_EMPTY_SESSION_LINE =
   "No skills in this session. The boot menu's MCPs & Skills sets the next session's."
 
-export const SKILLS_SESSION_SUBTITLE = "this session's skills — the boot menu sets the next session's"
+const SKILLS_SESSION_SUBTITLE = "this session's skills — the boot menu sets the next session's"
 
 export function SessionSkillsDial({
   onExit,

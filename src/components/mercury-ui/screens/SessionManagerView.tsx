@@ -42,7 +42,7 @@ function shellInteriorWidth(columns: number): number {
 }
 
 
-export interface OwnSessionStateWords {
+interface OwnSessionStateWords {
   glyph: string
   state: string
   tail: string
@@ -61,7 +61,7 @@ export function ownSessionStateWords(rec: { parkedAt?: number; parkReason?: stri
   return { glyph: '●', state: 'active', tail: ' · browsing never closes it · switching pauses the current, state kept', parked: false }
 }
 
-export function ownSessionRecord(sessionId: string): { parkedAt?: number; parkReason?: string; endedAt?: number } | undefined {
+function ownSessionRecord(sessionId: string): { parkedAt?: number; parkReason?: string; endedAt?: number } | undefined {
   try {
     return Object.values(readSessionWorkers()).find(rec => rec.sessionId === sessionId && rec.endedAt === undefined)
   } catch {

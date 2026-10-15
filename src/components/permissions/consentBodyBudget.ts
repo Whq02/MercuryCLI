@@ -8,7 +8,7 @@ import sliceAnsi from '../../utils/sliceAnsi.js'
 export const CONSENT_CHROME_ROWS = 21
 export const CONSENT_BODY_MIN_ROWS = 6
 export const CONSENT_CARD_CHROME_COLUMNS = 4
-export const CUT_MARK = '…'
+const CUT_MARK = '…'
 
 export function consentBodyBudget(termRows: number): number {
   return Math.max(CONSENT_BODY_MIN_ROWS, termRows - CONSENT_CHROME_ROWS)
@@ -51,7 +51,7 @@ export function cutToRows(line: string, paintWidth: number, rows: number): strin
   return `${head}${CUT_MARK}`
 }
 
-export type BoundedLines = {
+type BoundedLines = {
   lines: string[]
   hiddenLines: number
   cut: boolean
@@ -89,7 +89,7 @@ function splitHunkLine(raw: string): { prefix: string; content: string } {
   return { prefix: '', content: raw }
 }
 
-export type BoundedHunks = {
+type BoundedHunks = {
   hunks: StructuredPatchHunk[]
   hiddenLines: number
   cut: boolean

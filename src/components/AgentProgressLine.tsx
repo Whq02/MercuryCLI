@@ -3,7 +3,7 @@ import React from 'react'
 import { Box, Text } from '../ink.js'
 import { plural } from '../utils/stringUtils.js'
 
-export type AgentProgressLineProps = {
+type AgentProgressLineProps = {
   agentType: string
   description?: string
   name?: string

@@ -1,5 +1,5 @@
 
-export type RGB = { r: number; g: number; b: number }
+type RGB = { r: number; g: number; b: number }
 
 const FRAME_VOCABULARY = ['✶', '✸', '✹', '✺', '✹', '✷']
 
@@ -19,7 +19,7 @@ export function toRGBColor(c: RGB): string {
   return `rgb(${c.r},${c.g},${c.b})`
 }
 
-export function hueToRgb(hue: number): RGB {
+function hueToRgb(hue: number): RGB {
   const h = ((hue % 360) + 360) % 360
   const s = 0.7
   const l = 0.6

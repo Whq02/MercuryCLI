@@ -46,7 +46,7 @@ const MOUNT_ATTEMPT_LIMIT = 3
 const WARM_CHUNK = 500
 const STICKY_TEXT_CAP = 500
 
-export type StickyPrompt = { text: string; scrollTo: () => void } | 'clicked'
+type StickyPrompt = { text: string; scrollTo: () => void } | 'clicked'
 
 export type JumpHandle = {
   jumpToIndex: (index: number) => void
@@ -58,7 +58,7 @@ export type JumpHandle = {
   disarmSearch: () => void
 }
 
-export type VirtualMessageListProps = {
+type VirtualMessageListProps = {
   messages: readonly RenderableMessage[]
   scrollRef: React.RefObject<ScrollBoxHandle | null>
   columns: number

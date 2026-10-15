@@ -7,7 +7,7 @@ export interface LineDraft {
   caret: number
 }
 
-export function graphemeBoundaries(text: string): number[] {
+function graphemeBoundaries(text: string): number[] {
   const out = [0]
   if (text.length === 0) return out
   for (const seg of getGraphemeSegmenter().segment(text)) {
@@ -54,7 +54,7 @@ export function deleteAt(d: LineDraft): LineDraft {
   return { text: d.text.slice(0, caret) + d.text.slice(next), caret }
 }
 
-export function caretLeft(d: LineDraft): LineDraft {
+function caretLeft(d: LineDraft): LineDraft {
   const caret = clampCaret(d.text, d.caret)
   if (caret === 0) return { text: d.text, caret }
   const bounds = graphemeBoundaries(d.text)
@@ -62,7 +62,7 @@ export function caretLeft(d: LineDraft): LineDraft {
   return { text: d.text, caret: bounds[Math.max(0, at - 1)] ?? 0 }
 }
 
-export function caretRight(d: LineDraft): LineDraft {
+function caretRight(d: LineDraft): LineDraft {
   const caret = clampCaret(d.text, d.caret)
   if (caret >= d.text.length) return { text: d.text, caret }
   const bounds = graphemeBoundaries(d.text)
@@ -70,11 +70,11 @@ export function caretRight(d: LineDraft): LineDraft {
   return { text: d.text, caret: bounds[Math.min(bounds.length - 1, at + 1)] ?? d.text.length }
 }
 
-export function caretHome(d: LineDraft): LineDraft {
+function caretHome(d: LineDraft): LineDraft {
   return { text: d.text, caret: 0 }
 }
 
-export function caretEnd(d: LineDraft): LineDraft {
+function caretEnd(d: LineDraft): LineDraft {
   return { text: d.text, caret: d.text.length }
 }
 
@@ -120,7 +120,7 @@ export function draftLines(d: LineDraft): { lines: string[]; caretLine: number; 
   return { lines, caretLine: lines.length - 1, caretCol: lines[lines.length - 1]!.length }
 }
 
-export interface DraftWindow {
+interface DraftWindow {
   windowStart: number
   windowRows: number
   hiddenAbove: number
@@ -166,9 +166,9 @@ export function caretVerticalOp(
 }
 
 
-export type DraftEditKind = 'type' | 'delete' | 'paste' | 'clear'
+type DraftEditKind = 'type' | 'delete' | 'paste' | 'clear'
 
-export interface DraftUndo {
+interface DraftUndo {
   stack: LineDraft[]
   lastKind: DraftEditKind | null
 }
@@ -192,7 +192,7 @@ export function undoDraft(u: DraftUndo): LineDraft | null {
   return prev
 }
 
-export interface CaretLens {
+interface CaretLens {
   before: string
   at: string
   after: string

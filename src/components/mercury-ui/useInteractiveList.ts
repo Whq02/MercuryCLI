@@ -13,14 +13,14 @@ import { useStableSelection } from './useStableSelection.js'
 
 export type AsyncListNote = { pending: string; result: Promise<string | null | undefined> }
 
-export type ListAction<Row> = {
+type ListAction<Row> = {
   key: string
   run: (row: Row | null) => string | null | undefined | AsyncListNote
   hint: string
   when?: (row: Row) => boolean
 }
 
-export type InteractiveListRowProps = {
+type InteractiveListRowProps = {
   id: string
   selected: boolean
   unavailable: boolean

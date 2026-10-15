@@ -29,7 +29,7 @@ import {
   type CompactFrameSpan,
 } from './compactBoard.js'
 
-export interface CompactConcourseWiring {
+interface CompactConcourseWiring {
   selectSession: (sessionId: string) => void
   activateSession: (sessionId: string) => void
   focusList: () => void

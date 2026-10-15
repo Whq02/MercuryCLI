@@ -30,7 +30,7 @@ import { MessageModel } from './MessageModel.js'
 import { MessageTimestamp } from './MessageTimestamp.js'
 import { SYNTHETIC_MODEL } from '../utils/messages/factories.js'
 
-export type Props = {
+type Props = {
   message: RenderableMessage
   messages?: RenderableMessage[]
   tools: Tools

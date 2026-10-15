@@ -19,9 +19,9 @@ type LineObject = {
   matchedLine?: LineObject
 }
 
-export type DiffLine = LineObject & { lineNumber: number }
+type DiffLine = LineObject & { lineNumber: number }
 
-export type DiffPart = {
+type DiffPart = {
   value: string
   added?: boolean
   removed?: boolean

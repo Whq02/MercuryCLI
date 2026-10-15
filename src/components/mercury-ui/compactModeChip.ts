@@ -6,9 +6,9 @@ import {
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
 
-export type CompactModeChipTone = 'bypass' | 'mode'
+type CompactModeChipTone = 'bypass' | 'mode'
 
-export type CompactModeChip = Readonly<{
+type CompactModeChip = Readonly<{
   text: string
   tone: CompactModeChipTone
   modeColor: string

@@ -18,14 +18,14 @@ export function spinnerStackDecision(facts: {
   return facts.wasStacked && facts.cost > facts.space - STACK_EXIT_SLACK
 }
 
-export const RAIL_INSET = 2
+const RAIL_INSET = 2
 const SEPARATOR_WIDTH = 3
 const HUD_ORDER = ['phase', 'timer', 'tokens', 'pulse', 'promise', 'thinking', 'waiting'] as const
 
-export type HudSegmentKind = 'thinking' | 'waiting'
+type HudSegmentKind = 'thinking' | 'waiting'
 export type HudSegment = { key: string; text: string; kind?: HudSegmentKind }
 
-export type HudFacts = {
+type HudFacts = {
   mode: SpinnerMode
   message: string
   columns: number
@@ -43,7 +43,7 @@ export type HudFacts = {
   wasStacked: boolean
 }
 
-export type HudPlan = {
+type HudPlan = {
   stacked: boolean
   secondRow: boolean
   ordered: HudSegment[]
@@ -64,7 +64,7 @@ export function hudTokensText(facts: Pick<HudFacts, 'liveWords'>): string | null
   return facts.liveWords.count
 }
 
-export function hudCtxSpark(ctxPct: number | null): string {
+function hudCtxSpark(ctxPct: number | null): string {
   return ctxPct != null ? SPARK[Math.min(SPARK.length - 1, Math.floor((ctxPct / 100) * SPARK.length))]! : ''
 }
 

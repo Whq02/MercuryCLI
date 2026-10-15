@@ -143,7 +143,7 @@ export function hasContentAfterIndex(
   return false
 }
 
-export type MessageRowProps = {
+type MessageRowProps = {
   message: RenderableMessage
   isUserContinuation: boolean
   hasContentAfter: boolean

@@ -10,7 +10,7 @@ import { BaseTextInput } from './BaseTextInput.js'
 import { color } from './design-system/color.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 
-export type Props = BaseTextInputProps & { onModeChange?: (mode: VimMode) => void; initialMode?: VimMode }
+type Props = BaseTextInputProps & { onModeChange?: (mode: VimMode) => void; initialMode?: VimMode }
 
 type Painter = (text: string) => string
 

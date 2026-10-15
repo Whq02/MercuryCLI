@@ -193,12 +193,12 @@ export function agentFaceStatusLine(counts: { active: number; disabled: number }
 
 export const AGENT_FACE_LEGEND = '↑↓ move · ↵ edit · n new · x on/off · ⌫ delete · u trash · esc back';
 export const AGENT_FACE_LEGEND_FORM = '↑↓ move · ↵ edit field · g generate · s save · ⌫ clear · esc back';
-export const AGENT_FACE_LEGEND_PROMPT = 'type · ↵ apply · esc cancel';
-export const AGENT_FACE_LEGEND_PICK = '↑↓ move · ↵ pick · esc back';
-export const AGENT_FACE_LEGEND_TRASH = '↑↓ move · ↵ restore · esc back';
-export const AGENT_FACE_LEGEND_CONFIRM = 'y / ↵ delete (recoverable) · n / esc cancel';
+const AGENT_FACE_LEGEND_PROMPT = 'type · ↵ apply · esc cancel';
+const AGENT_FACE_LEGEND_PICK = '↑↓ move · ↵ pick · esc back';
+const AGENT_FACE_LEGEND_TRASH = '↑↓ move · ↵ restore · esc back';
+const AGENT_FACE_LEGEND_CONFIRM = 'y / ↵ delete (recoverable) · n / esc cancel';
 
-export function agentDeleteConfirmLines(agent: AgentDefinition): string[] {
+function agentDeleteConfirmLines(agent: AgentDefinition): string[] {
   return [
     'delete agent',
     '',
@@ -212,7 +212,7 @@ export function agentDeleteConfirmLines(agent: AgentDefinition): string[] {
   ];
 }
 
-export function agentTrashEntryOf(entry: AgentTrashEntry): FaceEntry {
+function agentTrashEntryOf(entry: AgentTrashEntry): FaceEntry {
   return {
     label: entry.agentType,
     group: 'recovery area',
@@ -310,7 +310,7 @@ export function agentFormDetailLines(args: {
   return lines;
 }
 
-export function agentFormFieldKind(
+function agentFormFieldKind(
   id: 'destination' | FieldId,
 ): 'cycle' | 'text' | 'body' | 'pick' | 'tools' {
   switch (id) {

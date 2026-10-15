@@ -145,7 +145,7 @@ export function TwinkleSpark({
   return <Text color={glint ? accentSoft : color}>{glint ? GLYPH.sparkBright : GLYPH.spark}</Text>
 }
 
-export function useSettleFlash(settled: boolean): boolean {
+function useSettleFlash(settled: boolean): boolean {
   const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
   const motion = useIdleMotion('glyphs')
   const enabled = !reducedMotion && motion !== 'off'

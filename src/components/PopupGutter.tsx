@@ -4,8 +4,8 @@ import { estateGroundBg } from '../utils/mercuryTokens.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 
 export const POPUP_GUTTER = 1
-export type PopupBounds = { left: number; top: number; columns: number; rows: number }
-export type PopupSize = { width: number; rows: number }
+type PopupBounds = { left: number; top: number; columns: number; rows: number }
+type PopupSize = { width: number; rows: number }
 export const PopupFrameContext = React.createContext<PopupSize | null>(null)
 
 export function popupWidth(requested: number, columns: number): number {

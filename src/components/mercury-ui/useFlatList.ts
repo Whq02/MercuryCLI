@@ -5,10 +5,10 @@ import { applyNavMotion, decodeNavKey } from './navSemantics.js'
 import { paneWindow } from './paneWindow.js'
 import { useOpenEventGate } from './useOpenEventGate.js'
 
-export type FlatListNoteKind = 'ok' | 'warn' | 'fail' | 'pending'
-export type FlatListNote = { text: string; kind: FlatListNoteKind }
+type FlatListNoteKind = 'ok' | 'warn' | 'fail' | 'pending'
+type FlatListNote = { text: string; kind: FlatListNoteKind }
 
-export type FlatListOptions<T> = {
+type FlatListOptions<T> = {
   load: () => Promise<T[]>
   maxRows: number
   onClose: () => void
@@ -20,7 +20,7 @@ export type FlatListOptions<T> = {
   rowId?: (row: T) => string
 }
 
-export type FlatList<T> = {
+type FlatList<T> = {
   raw: T[] | null
   list: T[]
   loadError: string | null

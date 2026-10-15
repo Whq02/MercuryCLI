@@ -15,7 +15,7 @@ import { useIsInsideModal } from '../../context/modalContext.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 
-export type TabProps = {
+type TabProps = {
   title: string
   id?: string
   children?: React.ReactNode
@@ -35,7 +35,7 @@ type TabsContextValue = {
 
 const TabsContext = createContext<TabsContextValue | null>(null)
 
-export type TabsProps = {
+type TabsProps = {
   children: React.ReactNode
   title?: string
   color?: string

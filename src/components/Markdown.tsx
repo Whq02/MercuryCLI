@@ -263,7 +263,7 @@ export function pendingRowsOf(live: string): number {
   return Math.min(rows, 2)
 }
 
-export const STREAM_CARET = '▍'
+const STREAM_CARET = '▍'
 
 export function StreamingMarkdown({
   children,

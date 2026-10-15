@@ -10,9 +10,9 @@ import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
 
-export type MessageRole = 'user' | 'assistant'
+type MessageRole = 'user' | 'assistant'
 
-export type AttachedAuthor = 'user' | 'coordinator' | 'agent' | 'saturn' | 'advisor'
+type AttachedAuthor = 'user' | 'coordinator' | 'agent' | 'saturn' | 'advisor'
 
 export function attachedPlateName(author: AttachedAuthor): string {
   return author === 'agent' ? 'Mercury' : author === 'coordinator' ? 'Coordinator' : author === 'saturn' ? SATURN_PLATE_NAME : author === 'advisor' ? ADVISOR_PLATE_NAME : userHandle()
@@ -97,7 +97,7 @@ export const HELD_PLATE = 'held'.padEnd(8)
 export const HELD_FOR_COMPACTION_LINE = 'held until the compaction lands — it delivers once, on its own (↑ takes it back)'
 const plateOf = (meta: { queued?: boolean; heldFor?: 'compaction' }): string => (meta.heldFor === 'compaction' ? HELD_PLATE : QUEUED_PLATE)
 
-export type ClockColumnMeta = { timestamp?: string; queued?: boolean; heldFor?: 'compaction' }
+type ClockColumnMeta = { timestamp?: string; queued?: boolean; heldFor?: 'compaction' }
 
 export function clockColumnOf(meta: ClockColumnMeta, grammar: 'plate' | 'notice'): string | null {
   const clock = formatClock(meta.timestamp)

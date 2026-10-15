@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-export type PermissionQueueStatus = {
+type PermissionQueueStatus = {
   position: number
   total: number
 }

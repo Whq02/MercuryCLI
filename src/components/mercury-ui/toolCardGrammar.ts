@@ -6,7 +6,7 @@ import { STATE_STYLE, stateStyleOf } from './theme.js'
 import type { SnapshotState } from './theme.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 
-export interface CardTone {
+interface CardTone {
   glyph: string
   tone: string
 }

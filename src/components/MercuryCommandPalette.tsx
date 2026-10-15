@@ -70,8 +70,8 @@ export function NameHighlight({
 
 
 type PaletteItem = { name: string; desc: string; recent: boolean; score: number; run?: () => void; kind?: ActionKind; keychord?: string; unavailable?: string }
-export type ActionKind = 'open' | 'insert' | 'toggle' | 'switch'
-export type PaletteAction = {
+type ActionKind = 'open' | 'insert' | 'toggle' | 'switch'
+type PaletteAction = {
   label: string
   detail?: string
   run: () => void

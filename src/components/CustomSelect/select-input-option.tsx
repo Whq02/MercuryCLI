@@ -16,7 +16,7 @@ import type { InputOption } from './option-map.js'
 
 const INPUT_WRAP_COLUMNS = 80
 
-export type SelectInputOptionProps<T = string> = {
+type SelectInputOptionProps<T = string> = {
   option: InputOption<T>
   isFocused: boolean
   isSelected?: boolean

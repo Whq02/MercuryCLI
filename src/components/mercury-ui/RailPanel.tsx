@@ -4,7 +4,7 @@ import { InteractiveRow } from './InteractiveRow.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 
 
-export function railPanelPad(width: number): 0 | 1 {
+function railPanelPad(width: number): 0 | 1 {
   return width >= 28 ? 1 : 0
 }
 

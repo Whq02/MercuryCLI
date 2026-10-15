@@ -35,7 +35,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 
 
-export interface BootResumePickerModel {
+interface BootResumePickerModel {
   flat: SessionPickerFlatRow[];
   elsewhereCount: number;
   pendingMore: number;

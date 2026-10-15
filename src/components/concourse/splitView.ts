@@ -10,7 +10,7 @@ export const SPLIT_MIN_ROWS = 22
 export const SPLIT_DIVIDER_COLS = 1
 
 export const SPLIT_RATIOS = ['board-min', 'even', 'chat-min'] as const
-export type SplitRatio = (typeof SPLIT_RATIOS)[number]
+type SplitRatio = (typeof SPLIT_RATIOS)[number]
 
 export function splitMinCols(): number {
   return BOARD_PANE_MIN_COLS + SPLIT_DIVIDER_COLS + CHAT_PANE_MIN_COLS
@@ -20,7 +20,7 @@ export function splitAvailableAt(cols: number, rows: number): boolean {
   return cols >= splitMinCols() && rows >= SPLIT_MIN_ROWS
 }
 
-export interface SplitGeometry {
+interface SplitGeometry {
   boardCols: number
   chatCols: number
   dividerCol: number
@@ -39,7 +39,7 @@ export function splitGeometryAt(cols: number, ratio: SplitRatio): SplitGeometry 
   }
 }
 
-export function splitNeedsFrameLine(cols: number, rows: number): string {
+function splitNeedsFrameLine(cols: number, rows: number): string {
   const narrow = cols < splitMinCols()
   const short = rows < SPLIT_MIN_ROWS
   if (narrow && short) {
@@ -94,7 +94,7 @@ export function splitActiveAt(cols: number, rows: number, compact = false): bool
   return splitActiveOf({ on, cols, rows, plainWorld: chatOnlyBoot(), compact })
 }
 
-export type SplitToggleOutcome =
+type SplitToggleOutcome =
   | { ok: true; on: boolean }
   | { ok: false; code: 'plain-world' | 'too-narrow' | 'too-short'; reason: string }
 
@@ -131,7 +131,7 @@ export function toggleSplitView(cols: number, rows: number): SplitToggleOutcome 
   return decision
 }
 
-export type SplitNudgeOutcome = { moved: true; ratio: SplitRatio } | { moved: false; ratio: SplitRatio }
+type SplitNudgeOutcome = { moved: true; ratio: SplitRatio } | { moved: false; ratio: SplitRatio }
 
 export function nudgeSplitRatio(dir: -1 | 1): SplitNudgeOutcome {
   const at = SPLIT_RATIOS.indexOf(ratio)
@@ -142,7 +142,7 @@ export function nudgeSplitRatio(dir: -1 | 1): SplitNudgeOutcome {
   return { moved: true, ratio }
 }
 
-export type SplitCollapse = { collapsed: false } | { collapsed: true; line: string }
+type SplitCollapse = { collapsed: false } | { collapsed: true; line: string }
 
 export function collapseSplitForFrame(cols: number, rows: number): SplitCollapse {
   if (!on || splitAvailableAt(cols, rows)) return { collapsed: false }

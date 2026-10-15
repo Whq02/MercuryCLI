@@ -1,5 +1,5 @@
 
-export interface NeedsYouJumpFacts {
+interface NeedsYouJumpFacts {
   plain: boolean
   ownOnly: boolean
   boardChord: string

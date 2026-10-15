@@ -94,7 +94,7 @@ const getFocusedThinkingKey = (): string => {
   const live = c.live()
   return live.inFlight && live.phase === 'thinking' ? 'thinking' : ''
 }
-export function thinkingPulseWords(status: { phaseMs: number | null; quietMs: number | null }): string {
+function thinkingPulseWords(status: { phaseMs: number | null; quietMs: number | null }): string {
   const elapsed = status.phaseMs !== null ? ` ${formatQuietAge(status.phaseMs)}` : ''
   const age = status.quietMs !== null ? ` ${GLYPH.dot} ↻${formatQuietAge(status.quietMs)}` : ''
   return `${GLYPH.inProgress} thinking${elapsed}${age}`

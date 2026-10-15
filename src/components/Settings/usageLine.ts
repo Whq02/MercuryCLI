@@ -9,7 +9,7 @@ export function geminiPlanActiveQuotaWords(figures: readonly { key: string; labe
   return view.active === undefined ? undefined : `${view.activeRow ?? view.active.key.slice('plan-quota:'.length)} ${view.active.value} left`
 }
 
-export function sessionFamilyLabel(label: string | undefined): string {
+function sessionFamilyLabel(label: string | undefined): string {
   if (label === undefined) return 'Unrecognised model'
   return label.endsWith(' usage') && label !== 'API usage'
     ? label.slice(0, -' usage'.length)

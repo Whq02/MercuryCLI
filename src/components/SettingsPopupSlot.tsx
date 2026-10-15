@@ -23,11 +23,11 @@ export type SettingsPopupPlacement = SettingsPopupGeometry & {
   rows: number | null
 }
 
-export function centredTop(height: number, terminalRows: number): number {
+function centredTop(height: number, terminalRows: number): number {
   return Math.max(0, Math.ceil((terminalRows - Math.min(height, terminalRows)) / 2))
 }
 
-export type SettingsPopupHost = { left: number; columns: number; top?: number; rows?: number }
+type SettingsPopupHost = { left: number; columns: number; top?: number; rows?: number }
 
 export function settingsPopupHost(element: DOMElement, framed: boolean): SettingsPopupHost | null {
   const inset = framed ? 1 : 0

@@ -4,7 +4,7 @@ import { GLYPH } from '../mercury-ui/glyphs.js'
 import { TOOL_FAMILY_MARKS, type ToolFamily } from '../mercury-ui/toolGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
-export type ToolRowState = 'pending' | 'done' | 'error' | 'denied'
+type ToolRowState = 'pending' | 'done' | 'error' | 'denied'
 
 export function toolRowStateOf(flags: { resolved: boolean; errored: boolean; denied: boolean }): ToolRowState {
   if (flags.denied) return 'denied'

@@ -92,7 +92,7 @@ export const FIELD_ROWS: { id: FieldId; label: string }[] = [
   { id: 'color', label: 'color' },
 ]
 
-export type StudioNote = { text: string; tone: string }
+type StudioNote = { text: string; tone: string }
 
 export type StudioValidation = {
   errors: string[]
@@ -272,7 +272,7 @@ export function effectiveStudioRuntime(args: {
   })
 }
 
-export type StudioReviewFacts = {
+type StudioReviewFacts = {
   changed: string[]
   diffLines: string[]
 }
@@ -323,7 +323,7 @@ export interface StudioEditorSnapshot {
   textCursor: number
 }
 
-export interface StudioEditorDeps {
+interface StudioEditorDeps {
   readFile: (path: string) => string
   saveDocument: typeof saveAgentDocument
   saveDraft: typeof saveAgentDraft
@@ -348,7 +348,7 @@ function liveDeps(): StudioEditorDeps {
   }
 }
 
-export interface StudioEditorOptions {
+interface StudioEditorOptions {
   mode: 'create' | 'edit'
   base?: StudioDraftBase
   cwd: string
@@ -358,7 +358,7 @@ export interface StudioEditorOptions {
   onCancel: () => void
 }
 
-export const STUDIO_AUTOSAVE_DEBOUNCE_MS = 800
+const STUDIO_AUTOSAVE_DEBOUNCE_MS = 800
 
 export interface StudioEditorMachine {
   snapshot(): StudioEditorSnapshot

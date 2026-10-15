@@ -4,7 +4,7 @@ import type React from 'react'
 
 export type OptionValue<T> = T | (string & {})
 
-export type TextOption<T> = {
+type TextOption<T> = {
   type?: 'text'
   label: React.ReactNode
   value: OptionValue<T>

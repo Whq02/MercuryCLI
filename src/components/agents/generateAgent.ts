@@ -11,7 +11,7 @@ import {
 } from '../../utils/messages.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 
-export type GeneratedAgent = {
+type GeneratedAgent = {
   identifier: string
   whenToUse: string
   systemPrompt: string

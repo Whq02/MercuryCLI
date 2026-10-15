@@ -12,7 +12,7 @@ function rgbOf(hex: string): Rgb | null {
   return [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)]
 }
 
-export type SplashCoreAccent =
+type SplashCoreAccent =
   | string
   | { key: string; main: Rgb; deep: Rgb; soft: Rgb; ramp: Rgb[]; t256: number; t256deep: number }
 

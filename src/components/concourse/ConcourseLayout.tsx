@@ -24,7 +24,7 @@ import { NeedsYouRail, RAIL_MAX_ROWS } from './NeedsYouRail.js'
 import { ConcourseStatusRail } from './ConcourseStrips.js'
 
 
-export type ConcourseProfile = 'stacked' | 'wide'
+type ConcourseProfile = 'stacked' | 'wide'
 
 export const ROW_PEEK_DESIRED_ROWS = 8
 
@@ -46,7 +46,7 @@ export function resolveConcourseProfile(cols: number, rows: number): ConcoursePr
 
 export type ConcourseRegion = 'rail' | 'list' | 'live' | 'coordinator' | 'chat'
 
-export interface SwitchboardGeometry {
+interface SwitchboardGeometry {
   constrained?: boolean
   profile: ConcourseProfile
   interior: number
@@ -258,7 +258,7 @@ export function stateWordCell(word: string | null): string {
   return ` ${(word ?? '').slice(0, STATE_WORD_RESERVE).padEnd(STATE_WORD_RESERVE)}`
 }
 
-export interface ConcourseLayoutWiring {
+interface ConcourseLayoutWiring {
   selectSession: (sessionId: string) => void
   enterSession: (sessionId: string) => void
   selectObligation: (index: number) => void

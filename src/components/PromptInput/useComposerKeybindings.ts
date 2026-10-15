@@ -17,7 +17,7 @@ import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js
 import type { OverlaySurface } from './composerOverlay.js'
 import type { ComposerAttachments } from './useComposerAttachments.js'
 
-export type ComposerKeybindingsInput = {
+type ComposerKeybindingsInput = {
   buffer: ReturnType<typeof useInputBuffer>
   input: string
   cursorOffset: number
@@ -51,7 +51,7 @@ export type ComposerKeybindingsInput = {
   setShowContentSearch: React.Dispatch<React.SetStateAction<boolean>>
 }
 
-export type ComposerKeybindings = {
+type ComposerKeybindings = {
   performUndo: () => void
   crewmateFooterIndex: number
 }

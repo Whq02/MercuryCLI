@@ -86,7 +86,7 @@ export function sortForBoard(rows: SaturnScreenRowV1[]): SaturnScreenRowV1[] {
   });
 }
 
-export function collectSaturnScreenFacts(nowMs: number): SaturnScreenFactsV1 {
+function collectSaturnScreenFacts(nowMs: number): SaturnScreenFactsV1 {
   try {
     const records = Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined);
     const rows: SaturnScreenRowV1[] = [];
@@ -137,11 +137,11 @@ export function saturnNextFireWords(facts: SaturnFactsRowV1, nowMs: number): str
   return facts.paused === true ? 'paused' : fireDeltaWords(facts.nextFireMs, nowMs);
 }
 
-export function saturnRowFireWords(row: SaturnScreenRowV1, nowMs: number): string {
+function saturnRowFireWords(row: SaturnScreenRowV1, nowMs: number): string {
   return saturnStandingFireWords(saturnStandingOf(row.schedule, row.held), nowMs);
 }
 
-export type SaturnEntry = {
+type SaturnEntry = {
   label: string;
   group: string;
   groupTitle: string;
@@ -270,7 +270,7 @@ export interface SaturnFormStateV1 {
   note: string | null;
 }
 
-export type SaturnFormRowId = 'when' | 'model' | 'workspace' | 'presence' | 'kit' | 'opening' | 'contract' | 'title' | 'note';
+type SaturnFormRowId = 'when' | 'model' | 'workspace' | 'presence' | 'kit' | 'opening' | 'contract' | 'title' | 'note';
 export const SATURN_FORM_ROWS: readonly SaturnFormRowId[] = ['when', 'model', 'workspace', 'presence', 'kit', 'opening', 'contract', 'title', 'note'];
 
 export function freshSaturnForm(defaults: { modelKey: string; workspaceDir: string }): SaturnFormStateV1 {
@@ -361,7 +361,7 @@ export interface SaturnFormPreflightV1 {
   verdict: ScheduleAccountVerdictV1 | null;
 }
 
-export function livePreflightOf(modelKey: string, nextFireMs: number | null): SaturnFormPreflightV1 {
+function livePreflightOf(modelKey: string, nextFireMs: number | null): SaturnFormPreflightV1 {
   try {
     const derivation = deriveScheduleAccountForModel(modelKey);
     if (!derivation.ok) return { derivation, verdict: null };

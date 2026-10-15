@@ -52,7 +52,7 @@ import { useAgentTranscriptView } from './useAgentTranscriptView.js'
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 
 
-export type PhaseBucket<A> = PhaseBucketOf<A>
+type PhaseBucket<A> = PhaseBucketOf<A>
 
 export function groupByPhase<
   A extends { index: number; phaseIndex?: number; phaseTitle?: string },
@@ -117,7 +117,7 @@ function laneStateWord(state: WorkflowRunAgentSummary['state']): string {
 
 type ControlKey = 's' | 'r' | 'x' | 'p' | 'X' | 'P' | WorkflowControlAction
 
-export function verbWord(key: ControlKey): string {
+function verbWord(key: ControlKey): string {
   switch (key) {
     case 's':
     case 'skip-agent':
@@ -144,7 +144,7 @@ export function verbWord(key: ControlKey): string {
   }
 }
 
-export function controlRefusal(
+function controlRefusal(
   key: ControlKey,
   status: string,
   orphaned: boolean,
@@ -509,7 +509,7 @@ function DossierCard({
 }
 
 
-export type RunDetailPaneProps = {
+type RunDetailPaneProps = {
   runId: string
   task?: DeepImmutable<LocalWorkflowTaskState>
   manifest?: WorkflowRunManifest & { mtimeMs: number }

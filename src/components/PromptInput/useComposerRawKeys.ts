@@ -37,7 +37,7 @@ import type { ComposerSubmit } from './useComposerSubmit.js'
 
 const KEYSETUP_COMMAND = '/keysetup'
 
-export type ComposerRawKeysInput = {
+type ComposerRawKeysInput = {
   modalOverlayUp: boolean
   compactWork: CompactWorkControls | undefined
   input: string

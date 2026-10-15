@@ -75,7 +75,7 @@ function traceCapHandoff(ev: string, fields: Record<string, unknown>): void {
   } catch {}
 }
 
-export type ComposerModelDoorsInput = {
+type ComposerModelDoorsInput = {
   overlay: OverlaySurface
   setOverlay: React.Dispatch<React.SetStateAction<OverlaySurface>>
   messages: Message[]
@@ -91,7 +91,7 @@ export type ComposerModelDoorsInput = {
   addNotification: (notification: Notification) => void
 }
 
-export type ComposerModelDoors = {
+type ComposerModelDoors = {
   handleModelSelect: (value: string, persist?: boolean) => void
   capLaneLine: string | null
   capLaneCut: ReturnType<typeof capLaneLineCut>

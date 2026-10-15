@@ -349,11 +349,11 @@ function wrapLine(line: string, width: number): string[] {
   return out
 }
 
-export function bodyLines(body: string, width: number): string[] {
+function bodyLines(body: string, width: number): string[] {
   return body.replace(/\n$/, '').split('\n').flatMap(line => wrapLine(line, width))
 }
 
-export function bodyByteCount(body: string): number {
+function bodyByteCount(body: string): number {
   return Buffer.byteLength(body, 'utf8')
 }
 

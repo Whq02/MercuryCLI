@@ -21,7 +21,7 @@ import {
 } from '../messages/nullRenderingAttachments.js'
 
 
-export const RECORD_CAP = 500
+const RECORD_CAP = 500
 
 export function foldWorkerRecord(rec: unknown, fallbackUuid: string): MessageType | null {
   if (!rec || typeof rec !== 'object') return null
@@ -61,7 +61,7 @@ export function foldWorkerRecord(rec: unknown, fallbackUuid: string): MessageTyp
   return out as unknown as MessageType
 }
 
-export interface TranscriptFold {
+interface TranscriptFold {
   messages: MessageType[]
   shed: number
 }

@@ -3,9 +3,9 @@ import { Box, Text } from '../../ink.js'
 import { PermissionDialog } from '../permissions/PermissionDialog.js'
 import { PermissionPrompt, type PermissionPromptOption } from '../permissions/PermissionPrompt.js'
 
-export const WORKTREE_LAUNCH_TITLE = 'A worktree for this session'
+const WORKTREE_LAUNCH_TITLE = 'A worktree for this session'
 
-export function worktreeLaunchLine(folder: string, holderTitle: string | null): string {
+function worktreeLaunchLine(folder: string, holderTitle: string | null): string {
   const holder = holderTitle !== null && holderTitle.length > 0 ? `“${holderTitle}”` : 'another live session'
   return `${folder} is already held by ${holder} — this session would start on a worktree of its own: a second checkout of the repository on a new branch (mercury/…). Its edits land on that branch, not on the checkout you are in.`
 }

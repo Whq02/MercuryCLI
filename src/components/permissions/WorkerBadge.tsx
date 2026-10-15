@@ -7,7 +7,7 @@ export type WorkerBadgeProps = {
   color: string
 }
 
-export function WorkerBadge({ name, color }: WorkerBadgeProps): React.ReactNode {
+function WorkerBadge({ name, color }: WorkerBadgeProps): React.ReactNode {
   return (
     <Text color={toInkColor(color)}>
       {'●'} <Text bold>@{name}</Text>

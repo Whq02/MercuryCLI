@@ -106,7 +106,7 @@ const EMPTY_NORMALIZED: NormalizedMessage[] = []
 const EMPTY_SYNTHETIC: Array<{ streaming: StreamingToolUse; uuid: ReturnType<typeof deriveUUID> }> = []
 const EMPTY_COMPOSITION: TranscriptComposition = { collapsed: [], lookups: buildMessageLookups([], []), truncated: false, hiddenCount: 0 }
 
-export type SliceAnchor = TranscriptAnchor
+type SliceAnchor = TranscriptAnchor
 
 export function computeSliceStart(
   collapsed: RenderableMessage[],

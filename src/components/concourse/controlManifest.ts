@@ -2,11 +2,11 @@
 import { CLOSE_CHORD_STAGE_WINDOW_MS } from '../../services/concourse/closeChordStage.js'
 import { SESSION_DEFAULTS_KEY_HINT } from '../../services/switchboard/sessionDefaultsKey.js'
 
-export type ConcourseMode = 'browse' | 'filter-edit' | 'coordinator-picker' | 'confirmation'
+type ConcourseMode = 'browse' | 'filter-edit' | 'coordinator-picker' | 'confirmation'
 
-export type ConcourseFocusRegion = 'needs-you' | 'list' | 'live' | 'coordinator' | 'chat'
+type ConcourseFocusRegion = 'needs-you' | 'list' | 'live' | 'coordinator' | 'chat'
 
-export interface ConcourseControlSpec {
+interface ConcourseControlSpec {
   id: string
   action: string
   region: ConcourseFocusRegion | 'header' | 'status'
@@ -63,7 +63,7 @@ export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
   { id: 'compact:stop', action: 'concourse:stop-session', region: 'list', modes: ['browse'], keys: ['x'], pointer: 'none', receipt: 'row-control' },
 ] as const
 
-export const CONCOURSE_BROWSE_KEYS = [
+const CONCOURSE_BROWSE_KEYS = [
   { keys: '↑↓', label: 'browse' },
   { keys: 'tab', label: 'panes' },
   { keys: '⌃g', label: 'ground' },
@@ -121,7 +121,7 @@ export function browseKeysFor(opts: {
   )
 }
 
-export type BoardSelectionClass =
+type BoardSelectionClass =
   | 'live'
   | 'paused'
   | 'attached'
@@ -144,7 +144,7 @@ export function boardSelectionClassOf(
   return 'live'
 }
 
-export type CloseChordRung =
+type CloseChordRung =
   | 'withdraw'
   | 'stop'
   | 'resend-stop'

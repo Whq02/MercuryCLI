@@ -104,7 +104,7 @@ function DiffLine({
   )
 }
 
-export type StructuredDiffProps = {
+type StructuredDiffProps = {
   patch: StructuredPatchHunk
   dim: boolean
   filePath: string

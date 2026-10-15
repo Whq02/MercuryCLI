@@ -11,7 +11,7 @@ import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
 
-export type QuickOpenItem = { label: string; detail?: string }
+type QuickOpenItem = { label: string; detail?: string }
 
 const LABEL_WIDTH = 40
 const DETAIL_WIDTH = 24
