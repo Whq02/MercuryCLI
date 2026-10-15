@@ -1432,7 +1432,7 @@ export async function compactConversation(
 
     const capsule = buildRunContinuationCapsule(owner, Object.keys(snapshot))
     const degraded = rawSummary.trim().length < DEGRADED_SUMMARY_LENGTH
-    const foldedWork = renderFoldedWork(foldedWorkOf(messages, messagesToKeep ?? [], anchor))
+    const foldedWork = renderFoldedWork(foldedWorkOf(messages, messagesToKeep ?? [], boundary.uuid))
     const summaryWithCapsule = [rawSummary, capsule, foldedWork]
       .filter((part): part is string => part !== null)
       .join('\n\n')
@@ -1596,7 +1596,7 @@ export async function partialCompactConversation(
     const discovered = extractDiscoveredToolNames(allMessages)
     if (discovered.size > 0) boundary.compactMetadata.preCompactDiscoveredTools = [...discovered].sort()
 
-    const foldedWork = renderFoldedWork(foldedWorkOf(allMessages, kept, anchorUuid ?? boundary.uuid))
+    const foldedWork = renderFoldedWork(foldedWorkOf(allMessages, kept, boundary.uuid))
     const summaryText = getCompactUserSummaryMessage(
       foldedWork === null ? rawSummary : `${rawSummary}\n\n${foldedWork}`,
       false,
