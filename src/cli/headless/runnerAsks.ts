@@ -350,9 +350,14 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
   }
 }
 
+export function settleUnansweredAsk(tool: Pick<Tool, 'settleUnansweredAsk'>, input: Record<string, unknown>, decision: PermissionDecision): PermissionDecision {
+  if (decision.behavior !== 'ask' || typeof tool.settleUnansweredAsk !== 'function') return decision
+  return tool.settleUnansweredAsk(input, decision) ?? decision
+}
+
 export function createRuleOnlyAsks(): AskHost {
   const canUseTool: CanUseToolFn = async (tool, input, toolUseContext, assistantMessage, toolUseId, forceDecision) =>
-    forceDecision ?? (await hasPermissionsToUseTool(tool, input, toolUseContext, assistantMessage, toolUseId))
+    settleUnansweredAsk(tool as Tool, input, (forceDecision ?? (await hasPermissionsToUseTool(tool, input, toolUseContext, assistantMessage, toolUseId))) as PermissionDecision)
   return {
     askPermission: params => Promise.resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME, 'this run has no host to answer it'), unanswered: true }),
     parkedAsks: () => 0,

@@ -11,6 +11,11 @@ export interface GeminiPlanQuotaView {
   activeRow?: string
   used: UsageFigureView[]
   others: UsageFigureView[]
+  unreported: Array<{ model: string; active: boolean }>
+}
+
+export function geminiPlanQuotaUnreportedWords(model: string): string {
+  return `${model}: no quota reported for this model`
 }
 
 export function geminiPlanQuotaView(
@@ -31,18 +36,25 @@ export function geminiPlanQuotaView(
     return undefined
   }
   const figureOf = (row: string | undefined): UsageFigureView | undefined => (row === undefined ? undefined : quotas.find(figure => figure.key.slice('plan-quota:'.length).toLowerCase() === row))
+  const bareOf = (model: string): string => model.trim().replace(/\[[^\]]*\]/g, '')
   const activeRow = rowOf(session.model)
   const active = figureOf(activeRow)
   const taken = new Set<string>(active ? [active.key] : [])
   const used: UsageFigureView[] = []
+  const unreported: Array<{ model: string; active: boolean }> = []
+  if (session.model !== undefined && session.model.trim() !== '' && active === undefined && quotas.length > 0 && declaredRouteOf(session.model) === 'gemini') unreported.push({ model: bareOf(session.model), active: true })
   for (const model of session.usedModels) {
     const figure = figureOf(rowOf(model))
-    if (figure === undefined || taken.has(figure.key)) continue
+    if (figure === undefined) {
+      if (quotas.length > 0 && !unreported.some(entry => entry.model === bareOf(model))) unreported.push({ model: bareOf(model), active: false })
+      continue
+    }
+    if (taken.has(figure.key)) continue
     taken.add(figure.key)
     used.push(figure)
   }
   const others = quotas.filter(figure => !taken.has(figure.key))
-  return { ...(active ? { active } : {}), ...(activeRow !== undefined && active ? { activeRow } : {}), used, others }
+  return { ...(active ? { active } : {}), ...(activeRow !== undefined && active ? { activeRow } : {}), used, others, unreported }
 }
 
 export function geminiSessionModelUsage(): Readonly<Record<string, { lastUsedAtMs?: number }>> {
