@@ -42,8 +42,19 @@ if (!existsSync(DIST)) {
   const T1 = new Date().toISOString()
   void runner.prompt(LINE, U1, T1)
   const agentResult = await runner.waitFor("the agent turn's result", isOutcome, bound(90_000), beforeAgent)
-  check("the turn ended with the session's own final text", agentResult !== null && String(agentResult.answer ?? '').startsWith(`done: ${AGENT_TURN_ASK}`), j(agentResult?.answer))
   const requests = requestsOf(fx.wire)
+  {
+    const boundary = requests.find(w => w.arm === 'agent' && w.step === 1)
+    const subLast = requests.filter(w => w.arm === 'subwork').map(w => w.at).sort((a, b) => b - a)[0] ?? 0
+    const notices = requests.filter(w => w.arm === 'plain' && String(w.ask ?? '').startsWith('<task-notification>'))
+    const frames = runner.frames.slice(beforeAgent)
+    const spoken = frames.filter(f => f.type === 'text' && f.turn !== undefined && String(f.text ?? '').startsWith(`done: ${AGENT_TURN_ASK}`))
+    const parked = frames.findIndex(f => f.type === 'turn' && f.state === 'waiting' && Number(f.agents) >= 1)
+    const ended = frames.reduce((last, f, i) => (f.type === 'task' && f.state === 'ended' ? i : last), -1)
+    const outcomes = frames.filter(isOutcome)
+    check("the line handed the sub-agent to the background: the Crewmate tool returned with the handover receipt and the session's model answered with its own text at that boundary, once", boundary !== undefined && boundary.lastToolResult?.isError === false && /launched in the background/i.test(boundary.lastToolResult?.text ?? '') && spoken.length === 1, j([boundary?.n, boundary?.lastToolResult, spoken.map(f => f.text)]))
+    check("the turn then parked on the handed-over sub-agent, which ran on to its own end; its completion notice reached the session's own model once and the cycle settled with one outcome after it", boundary !== undefined && subLast > boundary.at && notices.length === 1 && parked >= 0 && ended > parked && outcomes.length === 1 && frames.indexOf(outcomes[0]!) > ended && agentResult !== null && agentResult.status === 'completed', j({ boundaryAt: boundary?.at, subLast, notices: notices.map(w => w.n), parked, ended, outcomes: outcomes.map(f => [frames.indexOf(f), f.status, f.answer]) }))
+  }
   const subCarrying = carrying(requests.filter(w => w.arm === 'subwork'), LINE)
   const mainCarrying = carrying(requests.filter(w => w.arm === 'agent'), LINE)
   check("no request of the sub-agent's conversation carried the line", subCarrying.length === 0, j(subCarrying.map(w => [w.n, w.step])))
