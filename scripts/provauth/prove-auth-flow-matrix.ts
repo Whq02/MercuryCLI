@@ -1525,7 +1525,7 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
       retry.includes('isRevokedSignInText(errorMessage(error))'),
   )
   const errors = src('src/services/api/errors.ts')
-  const wallAt = errors.indexOf('const wall = classifyCredentialWall(status, message)')
+  const wallAt = errors.indexOf('const wall = classifyCredentialWall(status, message, anthropicWireCredential(model, status))')
   const observedExpiredAt = errors.indexOf("classifyAnthropicRefusal({ status, wireText: message, signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in'")
   const genericAt = errors.search(/\n  if \(status === 401 \|\| status === 403\) \{\n\s*logForDebugging\(`\[api\] \$\{status\} on/)
   check(
