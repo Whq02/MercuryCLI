@@ -1,5 +1,6 @@
 import type { Command } from '../types/command.js'
 import { getCommandName } from '../types/command.js'
+import { collapseWhitespace } from '../utils/stringUtils.js'
 
 type BareSendKind = 'local' | 'local-jsx' | 'usage' | 'turn'
 
@@ -25,10 +26,6 @@ export function bareSendKindOf(command: Pick<Command, 'type' | 'argumentHint'>):
   return requiresArgument(command) ? 'usage' : 'turn'
 }
 
-function oneLine(text: string): string {
-  return text.replace(/\s+/g, ' ').trim()
-}
-
 function cutWithEllipsis(text: string, budget: number): string {
   if (text.length <= budget) return text
   const room = Math.max(1, budget - 1)
@@ -46,7 +43,7 @@ export function bareUsageLine(
   const hint = argumentHintOf(command) ?? ''
   const head = `/${name} — `
   const tail = ` · usage: /${name}${hint === '' ? '' : ` ${hint}`}`
-  const description = oneLine(command.menuDescription ?? command.description)
+  const description = collapseWhitespace(command.menuDescription ?? command.description)
   const budget = Math.max(BARE_USAGE_DESCRIPTION_FLOOR, columns - head.length - tail.length)
   return `${head}${cutWithEllipsis(description, budget)}${tail}`
 }

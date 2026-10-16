@@ -38,24 +38,24 @@ Deferred tools are listed in <system-reminder> messages that begin "Deferred too
 Shape of the result: every match lands as its own \`<function>{"description": "...", "name": "...", "parameters": {...}}</function>\` line inside the <functions> block, encoded the way the opening tool list is. A select that names a tool this session does not have loads nothing; the result names the miss.
 
 Query forms:
-- \`select:WebFetch,Sleep\` — pull exactly the tools named, spelled as the list spells them
-- \`notebook jupyter\` — keyword search returning the best matches, max_results at most
+- \`select:WebFetch,Sleep\` — names spelled as the list spells them
+- \`notebook jupyter\` — keyword search
 - \`+slack send\` — "slack" must appear in the name; remaining terms only rank`
 const SPEC_TEXT = `Load the full schemas of deferred tools so they become callable.
 
 Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, then what the tool is for. Before that fetch, the name and its line are all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and admits each match: the result names the admitted tools, and from that request on their complete definitions are in your tool list, no different from the tools the prompt opened with. A tool already in your tool list needs no fetch: call it directly. A select that names a tool this session does not have loads nothing; the result names the miss.
 
 Query forms:
-- \`select:WebFetch,Sleep\` — pull exactly the tools named, spelled as the list spells them
-- \`notebook jupyter\` — keyword search returning the best matches, max_results at most
+- \`select:WebFetch,Sleep\` — names spelled as the list spells them
+- \`notebook jupyter\` — keyword search
 - \`+slack send\` — "slack" must appear in the name; remaining terms only rank`
 const SPEC_TEXT_APPEND = `Load the full schemas of deferred tools so they become callable.
 
 Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, then what the tool is for. Before that fetch, the name and its line are all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and admits each match: the result names the admitted tools, and their complete definitions are appended to the conversation right after it, callable from then on, no different from the tools the prompt opened with. A tool already in your tool list needs no fetch: call it directly. A select that names a tool this session does not have loads nothing; the result names the miss.
 
 Query forms:
-- \`select:WebFetch,Sleep\` — pull exactly the tools named, spelled as the list spells them
-- \`notebook jupyter\` — keyword search returning the best matches, max_results at most
+- \`select:WebFetch,Sleep\` — names spelled as the list spells them
+- \`notebook jupyter\` — keyword search
 - \`+slack send\` — "slack" must appear in the name; remaining terms only rank`
 
 const firstDifference = (a: string, b: string): string => {
@@ -107,9 +107,15 @@ section('§4 every form shares the head, the location, the direct-call sentence,
   for (const form of ['block', 'text', 'text-append'] as const) {
     const text = getPrompt(form)
     check(`${form}: starts with the head and names the "Deferred tools:" list`, text.startsWith('Load the full schemas of deferred tools so they become callable.\n\nDeferred tools are listed in <system-reminder> messages that begin "Deferred tools:"'))
-    check(`${form}: carries the three query forms`, text.endsWith('Query forms:\n- `select:WebFetch,Sleep` — pull exactly the tools named, spelled as the list spells them\n- `notebook jupyter` — keyword search returning the best matches, max_results at most\n- `+slack send` — "slack" must appear in the name; remaining terms only rank'))
+    check(`${form}: carries the three query forms`, text.endsWith('Query forms:\n- `select:WebFetch,Sleep` — names spelled as the list spells them\n- `notebook jupyter` — keyword search\n- `+slack send` — "slack" must appear in the name; remaining terms only rank'))
     check(`${form}: never names <available-deferred-tools>`, !text.includes('<available-deferred-tools>'))
+    check(`${form}: the query forms do not say again what the query and max_results fields say (the exact names, the best matches, the result bound)`, !text.includes('pull exactly the tools named') && !text.includes('best matches') && !text.includes('max_results'))
+    const spec = form === 'block' ? SPEC_BLOCK : form === 'text' ? SPEC_TEXT : SPEC_TEXT_APPEND
+    check(`${form}: the first three lines — all the Fallback permission card prints under an explicit ask rule — are the specification's, unchanged from .36`, text.split('\n').slice(0, 3).join('\n') === spec.split('\n').slice(0, 3).join('\n') && text.split('\n')[2]!.includes('Hand it a query; it matches against the deferred roster and '), text.split('\n').slice(0, 3).join('\n').slice(0, 160))
   }
+  const fields = (ToolSearchTool.inputSchema as unknown as { shape: Record<string, { description?: string }> }).shape
+  check('the query field says the two modes and the roster', (fields.query?.description ?? '') === 'What to load: exact names as "select:<name>,<name>", or keywords ranked against the deferred roster.', fields.query?.description)
+  check('the max_results field says the result bound and its default', (fields.max_results?.description ?? '') === 'Maximum number of results to return (default: 5)', fields.max_results?.description)
 }
 
 console.log(`\n${checks - failures}/${checks} checks passed`)

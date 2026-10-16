@@ -12,8 +12,6 @@ export interface StoreRevision {
   digest: string
 }
 
-type StoreReadState = 'ready' | 'missing' | 'recoverable'
-
 export type StoreReadResult<T> =
   | { state: 'ready'; value: T; revision: StoreRevision | null }
   | { state: 'missing'; value: T }

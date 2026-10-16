@@ -1,4 +1,6 @@
 
+import { wordCount } from '../../utils/stringUtils.js'
+
 type BlockerDeclarationParse =
   | { kind: 'none' }
   | { kind: 'declared'; description: string; resumeCondition: string }
@@ -19,10 +21,6 @@ function stripLineDecoration(line: string): string {
     .replace(/^[\s>*_`#-]+/, '')
     .replace(/[\s*_`]+$/, '')
     .trim()
-}
-
-function wordCount(s: string): number {
-  return s.split(/\s+/).filter(Boolean).length
 }
 
 function clamp(s: string): string {

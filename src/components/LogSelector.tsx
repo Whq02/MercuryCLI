@@ -30,6 +30,7 @@ import { getCwd } from '../utils/cwd.js'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { getWorktreePaths } from '../utils/getWorktreePaths.js'
 import { formatLogMetadata } from '../utils/format.js'
+import { collapseWhitespace } from '../utils/stringUtils.js'
 import {
   isCustomTitleEnabled,
   saveCustomTitle,
@@ -52,10 +53,6 @@ type LogSelectorProps = {
 }
 
 const MIN_LABEL_WIDTH = 8
-
-function collapseWhitespace(text: string): string {
-  return text.replace(/\s+/g, ' ').trim()
-}
 
 function displayTitle(log: SessionListing): string {
   return collapseWhitespace(getLogDisplayTitle(log, '(no prompt)'))

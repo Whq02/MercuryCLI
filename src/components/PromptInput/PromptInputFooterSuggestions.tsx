@@ -6,6 +6,7 @@ import { computeChromeMode } from '../../hooks/useLayoutTier.js'
 import { useSelectedSuggestion } from './suggestionSelectionStore.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { GLYPH, displayWidth, truncateToWidth } from '../mercury-ui/glyphs.js'
+import { collapseWhitespace } from '../../utils/stringUtils.js'
 import { truncatePathMiddle } from '../../utils/truncate.js'
 
 export type SuggestionType =
@@ -42,10 +43,6 @@ function unifiedGlyph(id: string): string | null {
     if (id.startsWith(prefix)) return glyph
   }
   return null
-}
-
-function collapseWhitespace(text: string): string {
-  return text.replace(/\s+/g, ' ').trim()
 }
 
 function UnifiedRow({

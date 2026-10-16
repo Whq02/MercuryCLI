@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { expandLspFamily, lspFamilyMatches } from '../../services/lsp/toolFamily.js'
 import {
   ALL_AGENT_DISALLOWED_TOOLS,
-  ASYNC_AGENT_ALLOWED_TOOLS,
   CUSTOM_AGENT_DISALLOWED_TOOLS,
   RULE_INHERITS,
 } from '../../constants/tools.js'
@@ -96,18 +95,14 @@ const MCP_TOOL_PREFIX = 'mcp__'
 export function filterToolsForAgent(args: {
   tools: Tools
   isBuiltIn: boolean
-  isAsync?: boolean
 }): Tools {
-  const { tools, isBuiltIn, isAsync } = args
+  const { tools, isBuiltIn } = args
   return tools.filter(tool => {
     if (tool.name.startsWith(MCP_TOOL_PREFIX)) return true
     if (ALL_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
     if (tool.name === JEV_TOOL_NAME && !readJevSettings().subagents) return false
     if (!isBuiltIn && CUSTOM_AGENT_DISALLOWED_TOOLS.has(tool.name)) {
       return false
-    }
-    if (isAsync) {
-      return ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)
     }
     return true
   })
@@ -126,9 +121,8 @@ export function resolveWorkerTools(
   definition: AgentDefinition,
   workerPermissionMode: NonNullable<AgentDefinition['permissionMode']>,
   pool: Tools,
-  isAsync: boolean,
 ): Tools {
-  return resolveAgentTools({ ...definition, permissionMode: workerPermissionMode }, pool, isAsync, false).resolvedTools
+  return resolveAgentTools({ ...definition, permissionMode: workerPermissionMode }, pool, false).resolvedTools
 }
 
 export function resolveAgentTools(
@@ -137,7 +131,6 @@ export function resolveAgentTools(
     'tools' | 'disallowedTools' | 'source' | 'permissionMode'
   > & { agentType?: string },
   availableTools: Tools,
-  isAsync = false,
   isMainThread = false,
 ): ResolvedAgentTools {
   const isBuiltIn = definition.source === 'built-in'
@@ -147,7 +140,6 @@ export function resolveAgentTools(
     : filterToolsForAgent({
         tools: availableTools,
         isBuiltIn,
-        isAsync,
       })
 
   const deniedNames = new Set(

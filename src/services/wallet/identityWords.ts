@@ -19,14 +19,6 @@ const DEVICE_CODE_SIGN_INS: ReadonlySet<WalletProvider> = new Set<WalletProvider
 
 const KIMI_HOST_WORDS: Record<KimiRegion, string> = { global: 'global', 'mainland-cn': 'mainland China' }
 
-function isWalletProvider(id: string): id is WalletProvider {
-  return Object.prototype.hasOwnProperty.call(ACCOUNT_WORDS, id)
-}
-
-function accountWordOf(provider: WalletProvider): string {
-  return ACCOUNT_WORDS[provider]
-}
-
 export function familyAccountWord(family: string): string | undefined {
   return Object.prototype.hasOwnProperty.call(FAMILY_ACCOUNT_WORDS, family) ? FAMILY_ACCOUNT_WORDS[family] : undefined
 }

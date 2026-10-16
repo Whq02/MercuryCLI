@@ -16,15 +16,12 @@ import { workflowPulseFacts } from '../../tools/WorkflowTool/livePulse.js'
 import type { WorkPhaseV1, WorkRowV1 } from '../../services/engine-connector/types.js'
 import { unreadNoticeCount } from '../../services/notices/unreadLedger.js'
 import { crewStartOf } from '../crew/crewStart.js'
+import { clipWithEllipsis } from '../stringUtils.js'
 
 
 const MAX_NAME = 120
 const MAX_ERROR = 200
 const MAX_COMMAND = 4000
-
-function clip(text: string, max: number): string {
-  return text.length <= max ? text : `${text.slice(0, max - 1)}…`
-}
 
 function endTimeOf(task: TaskState): number | undefined {
   const t = task as { endTime?: unknown }
@@ -43,7 +40,7 @@ function workPhasesOf(task: LocalWorkflowTaskState): WorkPhaseV1[] {
   return groupAgentsByPhase(task.phases, phaseEvents, agents).map(g => ({
     title: g.title,
     planned: g.planned,
-    agents: g.agents.map(a => ({ index: a.index, label: clip(a.label, MAX_NAME), state: a.state, ...(a.agentId !== undefined ? { agentId: a.agentId } : {}), waiting: a.waiting ?? null, pausedBy: a.pausedBy ?? null })),
+    agents: g.agents.map(a => ({ index: a.index, label: clipWithEllipsis(a.label, MAX_NAME), state: a.state, ...(a.agentId !== undefined ? { agentId: a.agentId } : {}), waiting: a.waiting ?? null, pausedBy: a.pausedBy ?? null })),
   }))
 }
 
@@ -54,13 +51,13 @@ function workflowRow(task: LocalWorkflowTaskState): WorkRowV1 {
   return {
     id: task.id,
     kind: 'workflow',
-    name: clip(name, MAX_NAME),
+    name: clipWithEllipsis(name, MAX_NAME),
     status: task.status,
     startTime: task.startTime,
     ...(endTimeOf(task) !== undefined ? { endTime: endTimeOf(task) } : {}),
-    ...(desc !== undefined && desc !== name ? { description: clip(desc, MAX_NAME) } : {}),
+    ...(desc !== undefined && desc !== name ? { description: clipWithEllipsis(desc, MAX_NAME) } : {}),
     ...(task.defaultModel !== undefined ? { model: task.defaultModel } : {}),
-    ...(task.error !== undefined ? { error: clip(task.error, MAX_ERROR) } : {}),
+    ...(task.error !== undefined ? { error: clipWithEllipsis(task.error, MAX_ERROR) } : {}),
     totalTokens: task.totalTokens,
     workflowRunId: task.workflowRunId,
     phases: workPhasesOf(task),
@@ -81,13 +78,13 @@ function plainRow(task: TaskState, kind: WorkRowV1['kind'], name: string): WorkR
   return {
     id: task.id,
     kind,
-    name: clip(name, MAX_NAME),
+    name: clipWithEllipsis(name, MAX_NAME),
     status: task.status,
     startTime: task.startTime,
     ...(endTimeOf(task) !== undefined ? { endTime: endTimeOf(task) } : {}),
     ...(typeof t.model === 'string' ? { model: t.model } : {}),
-    ...(typeof t.error === 'string' ? { error: clip(t.error, MAX_ERROR) } : {}),
-    ...(typeof t.stopReason === 'string' && t.stopReason !== '' ? { stopReason: clip(t.stopReason, MAX_ERROR) } : {}),
+    ...(typeof t.error === 'string' ? { error: clipWithEllipsis(t.error, MAX_ERROR) } : {}),
+    ...(typeof t.stopReason === 'string' && t.stopReason !== '' ? { stopReason: clipWithEllipsis(t.stopReason, MAX_ERROR) } : {}),
     ...(typeof task.toolUseId === 'string' && task.toolUseId !== '' ? { toolUseId: task.toolUseId } : {}),
   }
 }
@@ -151,7 +148,7 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
   return {
     ...(typeof p.model === 'string' && p.model !== '' ? { model: p.model } : {}),
     ...(toolUses !== undefined && toolUses >= 0 ? { toolUses } : {}),
-    ...(activity !== undefined ? { activity: clip(activity, MAX_NAME) } : {}),
+    ...(activity !== undefined ? { activity: clipWithEllipsis(activity, MAX_NAME) } : {}),
     ...(phase !== undefined ? { phase } : {}),
     ...(input !== undefined && output !== undefined && (input + output > 0 || (context ?? 0) > 0)
       ? {
@@ -187,7 +184,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
           ? {
               paused: {
                 why: task.paused.why,
-                words: clip(task.paused.words, MAX_ERROR),
+                words: clipWithEllipsis(task.paused.words, MAX_ERROR),
                 ...(task.paused.resumesAtMs !== undefined ? { resumesAtMs: task.paused.resumesAtMs } : {}),
               },
             }
@@ -196,8 +193,8 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
     } else if (isLocalShellTask(task)) {
       rows.push({
         ...plainRow(task, task.kind === 'monitor' ? 'monitor' : 'shell', task.command),
-        command: clip(task.command, MAX_COMMAND),
-        ...(task.description ? { description: clip(task.description, MAX_NAME) } : {}),
+        command: clipWithEllipsis(task.command, MAX_COMMAND),
+        ...(task.description ? { description: clipWithEllipsis(task.description, MAX_NAME) } : {}),
         ...(task.verifyCwd !== undefined ? { cwd: task.verifyCwd } : {}),
         ...(task.result !== undefined ? { exitCode: task.result.code } : {}),
         outputFile: task.outputFile,

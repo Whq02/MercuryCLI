@@ -114,10 +114,7 @@ function buildPrompt(): string {
 
 Before acting on a request, sweep the available skills for one that covers it. When the user says "slash command" or types "/something", they mean a skill — invoke it with this tool.
 
-How to invoke:
-- A bare skill name: skill: "commit"
-- With arguments: skill: "review", args: "src/server.ts"
-- An extension's skill by its namespaced name: skill: "<extension>:skill"
+With arguments: skill: "review", args: "src/server.ts"
 
 The available skills ride in system-reminder messages in this conversation.
 

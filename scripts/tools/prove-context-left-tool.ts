@@ -38,7 +38,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { contextFillView } = await import('../../src/utils/contextFill.ts')
 const { isDeferredTool } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { TOOL_FAMILY_BY_NAME } = await import('../../src/components/mercury-ui/toolGlyphs.ts')
-const { ASYNC_AGENT_ALLOWED_TOOLS, ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
+const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
 
@@ -204,8 +204,7 @@ section('§9 every roster that counts tools by name carries it')
   check('the committed census anchor rows the tool (regenerated in the same change)', row !== undefined, 'run bun scripts/builtin-tools/census-gen.ts')
   check('the census row carries the declared contract and this proof', row?.declared !== null && row?.proof === 'scripts/tools/prove-context-left-tool.ts', JSON.stringify(row))
   check('the glyph registry gives it a family', TOOL_FAMILY_BY_NAME[TOOL_NAME] !== undefined, JSON.stringify(TOOL_FAMILY_BY_NAME[TOOL_NAME]))
-  check('a background sub-agent may ask about its own window', ASYNC_AGENT_ALLOWED_TOOLS.has(TOOL_NAME))
-  check('no agent is barred from it', !ALL_AGENT_DISALLOWED_TOOLS.has(TOOL_NAME))
+  check('no agent is barred from it — a background sub-agent asks about its own window through the one filter', !ALL_AGENT_DISALLOWED_TOOLS.has(TOOL_NAME))
   check('its result is indexed for transcript search (extractSearchText)', typeof subject.extractSearchText === 'function' && subject.extractSearchText({ text: 'Context: x' } as never) === 'Context: x')
 }
 

@@ -228,7 +228,7 @@ const exclusions: Array<[string, RegExp]> = [
   ['filtered evidence only and why', /filtered excerpts or a file of filtered rows — never a whole source file, never the transcript/],
   ['why: it leaves the machine under the chosen road policy', /leaves the machine under the selected road's data policy/],
   ['why: unrelated material costs accuracy', /unrelated material measurably costs accuracy/],
-  ['every option in, allow_none set', /an option you omit cannot be chosen/],
+  ['every option in, allow_none set', /Put every option you are genuinely weighing into `options` and set `allow_none` so Jev can say none of them fit/],
   ['numbers are opinions, 0 and 1 prove nothing', /0 and 1 prove nothing/],
   ['confidence is concentration, noul has none', /how concentrated the distribution is/],
   ['never attribute a rationale', /never attribute a rationale to it/],
@@ -236,6 +236,8 @@ const exclusions: Array<[string, RegExp]> = [
   ['the shared crewmate session pace', /all crewmates in a session share 50 requests a minute/],
 ]
 for (const [label, rx] of exclusions) check(label, rx.test(prompt))
+check('"an option you omit cannot be chosen" is the options field\'s alone, not said again in the prompt', JSON.stringify(jsonSchema).includes('an option you omit cannot be chosen') && !prompt.includes('an option you omit cannot be chosen'))
+check('the Fallback permission card prints JevEval\'s description() whole (one line, so truncateToLines keeps all of it): unchanged from .36', (await JevEvalTool.description()) === "A second opinion from TypeSafe's Jev: typed yes/no, choice and score questions over evidence you supply, answered with numbers only — never an approval, never a reason")
 const headwords = JEV_STATUS_KINDS.filter(k => k !== 'ready').map(k => JEV_STATUS_HEADWORDS[k])
 check('the unavailability paragraph names every reason in the resolver\'s headwords', headwords.every(w => prompt.includes(w)), headwords.filter(w => !prompt.includes(w)).join(','))
 check('final reasons end Jev for the session; waits name the next admission; never retry', /end Jev for this session/.test(prompt) && /name when the next attempt is admitted/.test(prompt) && /Never retry a refusal/.test(prompt))

@@ -67,10 +67,8 @@ section('§4 no agent ever carries the tool')
   const pool = getAllBaseTools()
   check('the pool under test carries Computer', pool.some(t => t.name === 'Computer'))
   for (const isBuiltIn of [true, false]) {
-    for (const isAsync of [false, true]) {
-      const kept = agents.filterToolsForAgent({ tools: pool, isBuiltIn, isAsync }).map(t => t.name)
-      check(`filterToolsForAgent drops Computer (isBuiltIn ${isBuiltIn}, isAsync ${isAsync})`, !kept.includes('Computer'), kept.join(','))
-    }
+    const kept = agents.filterToolsForAgent({ tools: pool, isBuiltIn }).map(t => t.name)
+    check(`filterToolsForAgent drops Computer (isBuiltIn ${isBuiltIn})`, !kept.includes('Computer'), kept.join(','))
   }
   check('the all-agents denial set names Computer', ALL_AGENT_DISALLOWED_TOOLS.has('Computer'))
   const runAgent = sourceText('src/tools/AgentTool/runAgent.ts')

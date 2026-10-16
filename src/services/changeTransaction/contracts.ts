@@ -6,14 +6,6 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export const CHANGE_CONTRACT_VERSION = 1
 
-interface ChangeSnapshot {
-  path: string
-  anchor: string
-  byteLength: number
-  observedAt: number
-  range?: { startLine: number; lineCount: number }
-}
-
 export interface ChangeIntent {
   source: string
   operation: string
