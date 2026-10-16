@@ -66,7 +66,7 @@ section('4 · Gemma 4 (ollama/ollama#15315): <|tool_call>call:name{key:<|"|>text
   check('the bare form (the whole text one call) reads the same way', bare?.shape === 'gemma' && JSON.stringify(args(bare.calls[0]?.argumentsRaw)) === JSON.stringify({ content: body, path: 'AGENTS.md' }) && bare.text === '', JSON.stringify(bare))
   const nested = extractToolCallMarkup('<|tool_call>call:Read{file_path:<|"|>/tmp/a.ts<|"|>,offset:12,limit:3}<tool_call|>', TOOLS)
   check('numbers stay numbers', JSON.stringify(args(nested?.calls[0]?.argumentsRaw)) === JSON.stringify({ file_path: '/tmp/a.ts', offset: 12, limit: 3 }), JSON.stringify(nested))
-  check('prose that merely says "call:" is not a call', extractToolCallMarkup('Please call: the team before you write{anything}.', TOOLS) === undefined)
+  check('prose that merely says "call:" is not a call', extractToolCallMarkup('Please call: the owner before you write{anything}.', TOOLS) === undefined)
 }
 
 section('5 · Mistral / Devstral: [TOOL_CALLS]name[ARGS]{…}')
