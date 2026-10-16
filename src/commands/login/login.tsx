@@ -19,7 +19,7 @@ import { landingWords, takeLastLanding } from '../../utils/accounts/signInPocket
 import { familyDisplayName } from '../../services/providers/accountSlots.js'
 import { shownIdentityWords } from '../../services/providers/providerIdentityLine.js'
 import { accountIdentityShown } from '../../services/wallet/identityWords.js'
-import { everySignInRoster, forgetSignIn, projectSignInRefusalWords, projectSignInRefusals, useDefaultSignIn, useSignIn } from '../../services/providers/signInRoster.js'
+import { everySignInRoster, forgetSignIn, projectSignInRefusalWords, projectSignInRefusals, roadsWords, useDefaultSignIn, useSignIn } from '../../services/providers/signInRoster.js'
 import { logError } from '../../utils/log.js'
 import { stripSignatureBlocks } from '../../utils/messages.js'
 import {
@@ -168,7 +168,10 @@ export function signInChoiceVerb(verb: 'use' | 'forget' | 'list', rest: string[]
   if (verb === 'list' || identity.trim() === '') {
     const rows = everySignInRoster()
     if (rows.length === 0) return { words: 'no sign-ins yet — /logins signs in', changed: false }
-    const lines = rows.map(row => `${familyDisplayName(row.family)}: ${shownIdentityWords(row.family, row.identity)}${row.isDefault ? ' · default' : ''}${row.inUse ? ' · in use' : ''}`)
+    const lines = rows.map(row => {
+      const roads = roadsWords(row)
+      return `${familyDisplayName(row.family)}: ${shownIdentityWords(row.family, row.identity)}${row.isDefault ? ' · default' : ''}${row.inUse ? ' · in use' : ''}${roads === undefined ? '' : ` · roads: ${roads}`}`
+    })
     const refusals = projectSignInRefusals().map(projectSignInRefusalWords)
     return { words: [...lines, ...refusals, '/logins use <identity> spends one this session · /logins forget <identity> drops a second sign-in'].join('\n'), changed: false }
   }
