@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+const home = mkdtempSync(join(tmpdir(), 'entry-task-'))
+process.env.MERCURY_CONFIG_DIR = home
+delete process.env.MERCURY_HOME
+const { composeStartPage } = await import('../../src/mneme/entryKnapsack.ts')
+const { emptyDoc, serializeTopicDoc } = await import('../../src/mneme/mnemeTopicDocs.ts')
+const dir = join(home, 'library')
+mkdirSync(dir, { recursive: true })
+const now = '2026-01-01T00:00:00.000Z'
+const doc = emptyDoc('harbour', 'harbour notes', now)
+doc.sections.push({ heading: 'notes', entries: [
+  { seq: 1, time: now, source: 'tool:Retain s:one', text: 'Release bulletins must keep the crane count private.' },
+  { seq: 2, time: now, source: 'tool:Retain s:one', text: 'Caption edits preserve the supplied harbour wording.' },
+  { seq: 3, time: now, source: 'tool:Retain s:one', text: 'Kernel inspections use the signed boathouse checklist.' },
+  { seq: 4, time: now, source: 'tool:Retain s:one', text: 'The website crew prepares the harbour release page.' },
+  { seq: 5, time: now, source: 'tool:Retain s:one', text: 'The amber worktree note names the old dock.' },
+  { seq: 6, time: now, source: 'tool:Retain s:one', text: 'After 1.0.0-beta.32 ships: a showcase film about the marble pier, then the owner boosts the post.' },
+  { seq: 7, time: now, source: 'tool:Retain s:one', text: 'The 1.0.0-beta.36 marble pier page is published after the tag.' },
+] })
+writeFileSync(join(dir, 'topic-harbour.md'), serializeTopicDoc(doc))
+writeFileSync(join(dir, 'pins.json'), '{"version":1,"pins":[]}')
+writeFileSync(join(dir, 'current.jsonl'), JSON.stringify({ ts: now, source: 'tool:Retain s:two', text: 'Quartz tickets require the dockmaster signature.', topicHint: 'harbour' }) + '\n')
+const pins = readFileSync(join(dir, 'pins.json'), 'utf8')
+const state = { branch: 'amber/worktree', files: [], note: { text: 'amber worktree '.repeat(200), session: 1, at: now }, at: now }
+const base = { dir, projectKey: 'harbour', state, previous: [], limit: 300, now: Date.parse(now), root: null }
+try {
+  for (const [prompt, id] of [['release bulletins', 'seq:1'], ['caption edits', 'seq:2'], ['kernel inspections', 'seq:3'], ['website crew', 'seq:4']] as const) {
+    const page = composeStartPage({ ...base, task: { prompt } } as never)
+    assert.equal(page.choice.rode[0]?.id, id, `${prompt} wins over the old note`)
+  }
+  const pending = composeStartPage({ ...base, task: { prompt: 'quartz tickets dockmaster' } } as never)
+  assert.ok(pending.choice.rode.some(row => row.id === `pending:${now}`), 'a relevant pending row participates at entry')
+  const required = composeStartPage({ ...base, limit: 1, task: { prompt: 'amber worktree', required: [{ id: 'seq:1', source: 'operator-turn-7' }] } } as never)
+  assert.ok(required.text?.includes('crane count private'), 'required source-linked obligations survive outside optional packing')
+  assert.equal(readFileSync(join(dir, 'pins.json'), 'utf8'), pins, 'restoration never pins')
+  const missing = composeStartPage({ ...base, task: { required: [{ id: 'seq:404', source: 'operator-turn-8' }] } } as never)
+  assert.match(missing.text ?? '', /seq:404.*unknown.*operator-turn-8/)
+  const blank = composeStartPage({ ...base, limit: 4000 } as never)
+  for (const weak of ['hi', 'ok go on', 'Resume as the lead from the LIVE line of PIN.md']) {
+    const page = composeStartPage({ ...base, limit: 4000, task: { prompt: weak } } as never)
+    assert.deepEqual(page.choice.rode.map(row => row.id), blank.choice.rode.map(row => row.id), `a prompt with no scoring words ("${weak}") falls back to the branch, files and note as a blank prompt does`)
+  }
+  const newCycle = composeStartPage({ ...base, limit: 4000, task: { prompt: 'make the film for beta.37 about the marble pier and publish the page' } } as never)
+  assert.ok(!newCycle.choice.rode.some(row => row.id === 'seq:6'), 'a prior-cycle plan dropped by the gate (the prompt names the newer cycle) never re-enters through the start block\'s lower tier')
+  assert.ok(newCycle.choice.rode.some(row => row.id === 'seq:7'), 'the current-cycle fact rides')
+  const sameWords = composeStartPage({ ...base, limit: 4000, task: { prompt: 'plan the showcase film about the marble pier' } } as never)
+  const planLine = (sameWords.text ?? '').split('\n').find(line => line.includes('<seq=6>'))
+  assert.ok(planLine === undefined || /\[historical — names beta\.32; the library's latest cycle is beta\.36; not a current obligation\]/.test(planLine), 'a prior-cycle plan that rides at start carries the historical mark')
+  assert.ok(planLine === undefined || sameWords.choice.rode.findIndex(row => row.id === 'seq:6') > sameWords.choice.rode.findIndex(row => row.id === 'seq:7'), 'and ranks after the current-cycle fact')
+  console.log('PASS prompt precedence 4/4; pending 1/1; source-linked restoration pin-neutral; a prior-cycle plan is dropped or marked at start')
+} finally {
+  rmSync(home, { recursive: true, force: true })
+}

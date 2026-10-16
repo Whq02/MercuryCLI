@@ -4,6 +4,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
+import { validatedApplicability, type MemoryApplicability } from './memoryApplicability.js'
 
 export const PINNED_TEXT_LIMIT_DEFAULT = 8000
 export const PINNED_TEXT_LIMIT_MIN = 1000
@@ -35,6 +36,7 @@ export interface PinRecord {
   seq: number
   at: string
   asked?: true
+  applicability?: MemoryApplicability
 }
 
 interface PinsFile {
@@ -66,7 +68,7 @@ export function readPins(dir: string = mnemeLibraryDir()): PinRecord[] {
     if (!Array.isArray(parsed?.pins)) return []
     return parsed.pins
       .filter(p => Number.isInteger(p?.seq) && p.seq > 0 && typeof p?.at === 'string')
-      .map(p => ({ seq: p.seq, at: p.at, ...(p.asked === true ? { asked: true as const } : {}) }))
+      .map(p => ({ seq: p.seq, at: p.at, ...(p.asked === true ? { asked: true as const } : {}), ...(validatedApplicability(p.applicability) ? { applicability: validatedApplicability(p.applicability) } : {}) }))
   } catch {
     return []
   }
@@ -87,18 +89,20 @@ export function pinFact(
   seq: number,
   dir: string = mnemeLibraryDir(),
   now: Date = new Date(),
-  opts: { asked?: boolean } = {},
+  opts: { asked?: boolean; applicability?: MemoryApplicability } = {},
 ): PinOutcome {
   const pins = readPins(dir)
   const existing = pins.find(p => p.seq === seq)
+  const applicability = validatedApplicability(opts.applicability)
+  if (existing && applicability) existing.applicability = applicability
   if (existing) {
-    if (opts.asked && !existing.asked) {
-      existing.asked = true
+    if (applicability || opts.asked && !existing.asked) {
+      if (opts.asked) existing.asked = true
       writePins(pins, dir)
     }
     return { ok: true, pinned: pins.length }
   }
-  pins.push({ seq, at: now.toISOString(), ...(opts.asked ? { asked: true as const } : {}) })
+  pins.push({ seq, at: now.toISOString(), ...(opts.asked ? { asked: true as const } : {}), ...(applicability ? { applicability } : {}) })
   writePins(pins, dir)
   return { ok: true, pinned: pins.length }
 }
@@ -118,7 +122,7 @@ export function movePin(fromSeq: number, toSeq: number, dir: string = mnemeLibra
   const kept = pins.filter((p, i) => i === at || p.seq !== toSeq)
   const slot = kept.findIndex(p => p.seq === fromSeq)
   const prior = kept[slot]!
-  kept[slot] = { seq: toSeq, at: prior.at, ...(prior.asked || already?.asked || asked ? { asked: true as const } : {}) }
+  kept[slot] = { ...prior, seq: toSeq, at: prior.at, ...(prior.asked || already?.asked || asked ? { asked: true as const } : {}) }
   writePins(kept, dir)
   return true
 }

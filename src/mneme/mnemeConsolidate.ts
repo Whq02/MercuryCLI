@@ -29,6 +29,7 @@ import { tidyLibrary, type TidyResult } from './mnemeArchive.js'
 import { publishFrontPage } from './mnemeFrontPage.js'
 import { movePin, pinFact, readPins, readUsage, type PinRecord } from './mnemeUsage.js'
 import { mergeSimilar } from './mnemeSimilarity.js'
+import type { MemoryApplicability } from './memoryApplicability.js'
 
 export { libraryMetaPath, listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibraryMeta } from './mnemeLibrary.js'
 
@@ -240,6 +241,7 @@ interface ManifestRow {
   h: string
   pin?: true
   asked?: true
+  applicability?: MemoryApplicability
 }
 
 interface Consumed {
@@ -349,7 +351,7 @@ function replayLandedPins(dir: string, landedPins: readonly ManifestRow[], now: 
     if (seq !== pin.seq && live.has(seq)) movePin(pin.seq, seq, dir)
   }
   for (const row of landedPins) {
-    if (live.has(row.seq)) pinFact(row.seq, dir, now, { asked: row.asked === true })
+    if (live.has(row.seq)) pinFact(row.seq, dir, now, { asked: row.asked === true, applicability: row.applicability })
   }
 }
 
@@ -531,7 +533,7 @@ export function maybeConsolidate(
       dir,
     )
     const manifestPath = join(dir, `batch-${meta.seqCounter + 1}-${meta.seqCounter + assigned.length}.json`)
-    const manifestRows: ManifestRow[] = assigned.map(r => ({ seq: r.seq, h: rowHash(r), ...(r.pin === true ? { pin: true as const } : {}), ...(r.pin === true && r.asked === true ? { asked: true as const } : {}) }))
+    const manifestRows: ManifestRow[] = assigned.map(r => ({ seq: r.seq, h: rowHash(r), ...(r.pin === true ? { pin: true as const } : {}), ...(r.pin === true && r.asked === true ? { asked: true as const, ...(r.applicability ? { applicability: r.applicability } : {}) } : {}) }))
     durableAtomicPublishSync(manifestPath, JSON.stringify({ version: 1, rows: manifestRows }))
     const byId = new Map(docs.map(d => [d.slug, d]))
     const bySeq = new Map(assigned.map(r => [r.seq, r]))
@@ -632,7 +634,7 @@ export function maybeConsolidate(
     try {
       for (const [from, to] of pinMoves) movePin(from, to, dir)
       for (const row of assigned) {
-        if (row.pin === true && !supersededInBatch.has(row.seq)) pinFact(row.seq, dir, now, { asked: row.asked === true })
+        if (row.pin === true && !supersededInBatch.has(row.seq)) pinFact(row.seq, dir, now, { asked: row.asked === true, applicability: row.applicability })
       }
       tidy = tidyUp(dir, now, touched)
       publishFrontPage(dir, now)

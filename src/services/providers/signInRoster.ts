@@ -49,6 +49,9 @@ import {
 import { credentialFingerprint, maskedKeyTail } from './credentialIdentity.js'
 import { accountIdentityShown } from '../wallet/identityWords.js'
 import { providerDisplayName } from './routeLaw.js'
+import { MERCURY_PROJECT_DIR } from '../../utils/projectConfig.js'
+
+const PROJECT_SIGN_IN_FILE = `${MERCURY_PROJECT_DIR}/settings.local.json`
 
 interface SignInRoad {
   identity: string
@@ -374,7 +377,7 @@ export function forgetSignIn(identity: string, family?: string, home: string = s
   const outcome = forgetPocket(row.family, entry, pocketRemoval(row.family), home)
   if (!outcome.removed) return { ok: false, words: `${name} could not be forgotten — its pocket did not go` }
   const fallback = familySignInRoster(row.family, home).find(candidate => candidate.inUse)
-  const dangling = outcome.fall.project ? ` · .mercury/settings.local.json still names ${shown ? row.identity : 'it'} — remove the line` : ''
+  const dangling = outcome.fall.project ? ` · ${PROJECT_SIGN_IN_FILE} still names ${shown ? row.identity : 'it'} — remove the line` : ''
   return {
     ok: true,
     choiceFell: outcome.choiceFell,
@@ -421,5 +424,5 @@ export function bindProjectSignInChoicesToSettings(readSettings: () => { credent
 export function projectSignInRefusalWords(refusal: ProjectSignInRefusal, shown: boolean = accountIdentityShown()): string {
   const named = shown ? `names ${refusal.identity} for ${providerDisplayName(refusal.family)} but no such sign-in exists` : `names a sign-in for ${providerDisplayName(refusal.family)} that does not exist`
   const known = shown ? refusal.known : refusal.known.map((_, index) => `sign-in ${index + 1}`)
-  return `.mercury/settings.local.json ${named} — ${known.length === 0 ? 'nothing is signed in for it' : `the sign-ins are ${known.join(', ')}`}; the default spends`
+  return `${PROJECT_SIGN_IN_FILE} ${named} — ${known.length === 0 ? 'nothing is signed in for it' : `the sign-ins are ${known.join(', ')}`}; the default spends`
 }

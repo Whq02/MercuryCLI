@@ -4,9 +4,10 @@ import { readFileSync, statSync } from 'node:fs'
 import { dirname, join, normalize } from 'node:path'
 import { getProjectSnapshot } from './snapshot.js'
 import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from './contracts.js'
-import { collectMemoryRefs, memoryStatusWords, type MemoryRef } from '../../mneme/memoryRefs.js'
+import { collectAutomaticMemoryRefs, memoryStatusWords, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { lookupTokens } from '../../mneme/mnemeLookup.js'
 import { isMnemeEnabled } from '../../mneme/paths.js'
+import { memoryGrade } from '../../mneme/memoryEvidence.js'
 
 type CapsuleRole =
   | 'primary edit'
@@ -33,6 +34,10 @@ interface CapsuleMemoryRef {
   confirmedAt?: string
   summary: string
   why: string
+  grade?: string
+  library?: string
+  identity?: string
+  witness?: string
 }
 
 interface ContextCapsule {
@@ -258,12 +263,13 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
   let memoryRefs: CapsuleMemoryRef[] | undefined
   try {
     if (isMnemeEnabled()) {
-      const collected = collectMemoryRefs([input.task, input.goal ?? ''].join(' '), {
+      const collected = collectAutomaticMemoryRefs([input.task, input.goal ?? ''].join(' '), {
         maxRefs: MEMORY_REF_CAP,
         projectRoot: input.workspace,
+        files: input.recentFiles,
       })
       if (collected.length > 0) {
-        memoryRefs = collected.map(r => ({ refId: r.refId, status: r.status, confirmedAt: r.confirmedAt, summary: r.summary, why: r.why }))
+        memoryRefs = collected.map(r => ({ refId: r.refId, status: r.status, confirmedAt: r.confirmedAt, summary: r.summary, why: r.why, grade: r.grade, library: r.library, identity: r.identity, witness: r.witness }))
       }
     }
   } catch {
@@ -295,7 +301,7 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
 
   const digest = createHash('sha1')
     .update(items.map(i => `${i.ref}·${i.role}·${i.tier}`).join('|'))
-    .update('||' + (memoryRefs ?? []).map(r => `${r.refId}·${r.status}·${r.summary}`).join('|'))
+    .update('||' + memoryRefsDigest(memoryRefs ?? []))
     .digest('hex')
     .slice(0, 16)
 
@@ -317,7 +323,11 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
   }
 }
 
-export function renderCapsule(capsule: ContextCapsule): string {
+export function memoryRefsDigest(refs: readonly CapsuleMemoryRef[]): string {
+  return createHash('sha256').update(JSON.stringify(refs.map(r => ({ id: r.identity ?? r.refId, library: r.library ?? '', witness: r.witness ?? r.summary, status: r.status, grade: (r.grade ?? '').replace(/cited (?:\d+|unknown)/g, 'cited') })))).digest('hex')
+}
+
+export function renderCapsule(capsule: ContextCapsule, memory: 'include' | 'omit' | 'changed' = 'include'): string {
   const lines: string[] = [
     `# Working set (task-scoped, generation ${capsule.generation.treeDigest?.slice(0, 12) ?? 'no-digest'})`,
   ]
@@ -327,12 +337,13 @@ export function renderCapsule(capsule: ContextCapsule): string {
   if (capsule.caps.omitted.count > 0 || capsule.caps.omitted.reasons.length > 0) {
     lines.push(`(${capsule.caps.omitted.count} omitted: ${capsule.caps.omitted.reasons.join('; ')})`)
   }
-  if (capsule.memoryRefs && capsule.memoryRefs.length > 0) {
+  if (memory !== 'omit' && capsule.memoryRefs && capsule.memoryRefs.length > 0) {
     lines.push('Memory (task-scoped refs — dereference before relying; bodies stay in their stores):')
     for (const r of capsule.memoryRefs) {
       const status = r.status === 'current' ? '' : ` [${memoryStatusWords(r)}]`
-      lines.push(`- ${r.refId}${status} — ${r.summary} (${r.why})`)
+      lines.push(`- ${r.refId}${status} — ${r.grade ?? memoryGrade({ kind: 'fact' })} ${r.summary} (${r.why})`)
     }
   }
+  if (memory === 'changed' && !capsule.memoryRefs?.length) lines.push('Memory: no task-scoped refs remain; the previous selection is no longer current.')
   return lines.join('\n')
 }

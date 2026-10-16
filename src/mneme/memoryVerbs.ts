@@ -18,6 +18,9 @@ import type { LedgerEntry } from './types.js'
 import { factMemoryState, type MemoryRef } from './memoryRefs.js'
 import { noteMemoryOpened } from './mnemeSignal.js'
 import { liftRulingLinks, recallUsage } from './mnemeLinks.js'
+import { pinIntentSpan, type PinIntent } from './memoryPinIntent.js'
+import { recordGrade, STRUCTURE_GRADE } from './memoryEvidence.js'
+import { applicabilityOf } from './memoryApplicability.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -101,7 +104,7 @@ export function _resetMemoryVerbSessionStateForTesting(): void {
 
 export function retainItems(
   items: RetainItemInput[],
-  provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean; authority?: RuleAuthority },
+  provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean; authority?: RuleAuthority; pinIntent?: PinIntent },
   dir: string = mnemeLibraryDir(),
   guard: RetainGuard = {},
 ): RetainItemOutcome[] {
@@ -117,6 +120,13 @@ export function retainItems(
     const context = item.context?.trim() ?? ''
     const topic = item.topic?.trim() ?? ''
     const replaces = item.replaces?.trim() ?? ''
+    const requestedPin = item.pin === true && replaces === ''
+    const intent = usersOwnChat ? pinIntentSpan(provenance.pinIntent, content) : null
+    const ruleWitness = intent !== null || provenance.authority !== undefined || (provenance.pin === true && provenance.asked === true)
+    if (requestedPin && !ruleWitness) {
+      outcomes.push({ index, status: 'refused', reason: usersOwnChat ? 'pin needs the originating owner message asking for these words as a standing rule (none found in this turn); nothing was stored — retain the fact without pin, or the owner pins it in /memory' : 'a crewmate cannot pin: a standing rule needs the owner\'s own words in the main chat; nothing was stored — retain the fact without pin' })
+      return
+    }
     const text = context ? `${content} (context: ${context})` : content
     const overflow = observationOverflow(text)
     if (overflow !== null) {
@@ -156,7 +166,7 @@ export function retainItems(
       return
     }
     const pin = provenance.pin || item.pin || replacement !== null
-    const askedByUser = (provenance.pin && provenance.asked) || (usersOwnChat && (item.pin || replacement !== null))
+    const askedByUser = (provenance.pin === true && provenance.asked === true) || ((requestedPin || replacement !== null) && (intent !== null || provenance.authority !== undefined))
     const before = pendingRows(dir).length
     const written = appendObservation(
       {
@@ -164,7 +174,7 @@ export function retainItems(
         source: sourceBase,
         ...(topic ? { topicHint: topic } : replacement?.ok ? { topicHint: replacement.slug } : {}),
         ...(pin ? { pin: true } : {}),
-        ...(askedByUser ? { asked: true } : {}),
+        ...(askedByUser ? { asked: true, ...(intent !== null ? { applicability: applicabilityOf(provenance.pinIntent) } : {}) } : {}),
         ...(replacement?.ok ? { replaces: replacement.seq } : {}),
       },
       dir,
@@ -196,7 +206,7 @@ export function retainItems(
 
 export async function retainItemsJudged(
   items: RetainItemInput[],
-  provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean; authority?: RuleAuthority },
+  provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean; authority?: RuleAuthority; pinIntent?: PinIntent },
   io: { dir?: string; judge?: ContradictionJudge | null; signal?: AbortSignal } = {},
 ): Promise<RetainItemOutcome[]> {
   const dir = io.dir ?? mnemeLibraryDir()
@@ -354,15 +364,22 @@ export interface MemoryReadResult {
   found: boolean
   id: string
   content?: string
+  renderedContent?: string
   slug?: string
   note?: string
   footnotes?: Footnotes
+}
+
+function gradedDocLine(line: string, dir: string): string {
+  const entry = parseEntryLine(line.trim())
+  return line.trim() === '' ? line : `${entry ? recordGrade(`seq:${entry.seq}`, entry.source, dir) : STRUCTURE_GRADE} ${line}`
 }
 
 function clipDocRender(
   content: string,
   live: Set<number>,
   budget: number,
+  dir: string,
 ): {
   clipped: boolean
   content: string
@@ -378,11 +395,12 @@ function clipDocRender(
   }
   const kept: string[] = []
   let used = 0
-  const clipped = content.length > budget
+  const clipped = lines.reduce((n, line) => n + gradedDocLine(line, dir).length + 1, 0) > budget
   for (const line of lines) {
-    if (clipped && used + line.length + 1 > budget) break
+    const chars = gradedDocLine(line, dir).length + 1
+    if (clipped && used + chars > budget) break
     kept.push(line)
-    used += line.length + 1
+    used += chars
   }
   const renderedSeqs = new Set<number>()
   for (const line of kept) {
@@ -422,6 +440,7 @@ export function readMemoryRecord(
       const row = parseEntryLine(lines[lineIndex]!.trim())
       const footnotes = row ? footnotesOf(row, footnoteContext(dir, sessions)) : {}
       const rowLine = lines[lineIndex]!
+      const grade = recordGrade(id, row?.source ?? '', dir)
       const heading = lines.slice(0, lineIndex).reverse().find(line => /^## /u.test(line))?.slice(3) ?? doc.slug
       const breadcrumb = `doc:${recallSlug(doc)} › ${heading}`
       if (rowLine.length > DOC_RENDER_BUDGET_CHARS) {
@@ -430,6 +449,7 @@ export function readMemoryRecord(
           id,
           slug: doc.slug,
           content: `${rowLine.slice(0, DOC_RENDER_BUDGET_CHARS)}…`,
+          renderedContent: `${grade} ${rowLine.slice(0, DOC_RENDER_BUDGET_CHARS)}…`,
           note: `this row alone is ${rowLine.length} chars — past the ${DOC_RENDER_BUDGET_CHARS}-char render budget, the FULL row cannot be shown, and amend stays locked for seq ${seq}; ${breadcrumb}`,
           footnotes,
         }
@@ -441,6 +461,7 @@ export function readMemoryRecord(
         id,
         slug: doc.slug,
         content: rowLine,
+        renderedContent: `${grade} ${rowLine}`,
         note: `full record read — amend is now unlocked for this seq; ${breadcrumb}`,
         footnotes,
       }
@@ -464,19 +485,20 @@ export function readMemoryRecord(
     if (!result) return { found: false, id, note: `no topic page '${slug}'` }
     const doc = allDocs(dir).find(d => recallSlug(d) === slug)
     const live = doc ? liveSeqs(doc) : new Set<number>()
-    const render = clipDocRender(result.content, live, DOC_RENDER_BUDGET_CHARS)
+    const render = clipDocRender(result.content, live, DOC_RENDER_BUDGET_CHARS, dir)
     for (const seq of render.renderedSeqs) seenFullRows.add(seq)
     bumpUsage([...render.renderedSeqs], dir)
     noteMemoryOpened([...render.renderedSeqs].map(seq => `seq:${seq}`), dir)
     if (!render.clipped) {
       noteMemoryOpened([`doc:${slug}`], dir)
-      return { found: true, id, slug, content: render.content }
+      return { found: true, id, slug, content: render.content, renderedContent: render.content.split('\n').map(line => gradedDocLine(line, dir)).join('\n') }
     }
     return {
       found: true,
       id,
       slug,
       content: render.content,
+      renderedContent: render.content.split('\n').map(line => gradedDocLine(line, dir)).join('\n'),
       note:
         `TRUNCATED: the doc is ${result.content.length} chars, past the ${DOC_RENDER_BUDGET_CHARS}-char render budget — showing lines 1–${render.renderedLines} of ${render.totalLines}. ` +
         `DROPPED ${render.totalLines - render.renderedLines} line(s) carrying ${render.droppedSeqs.length} live row(s): ${nameDroppedRows(render.droppedSeqs)}. ` +
@@ -489,7 +511,7 @@ export function readMemoryRecord(
     if (!row) return { found: false, id, note: 'that pending row is gone (consolidated, struck or never existed) — recall again' }
     seenPendingRows.add(ts)
     noteMemoryOpened([id], dir)
-    return { found: true, id, content: `${row.text} [unconsolidated, ${row.ts}, ${row.source}]`, note: 'full record read — amend is now unlocked for this pending row' }
+    return { found: true, id, content: `${row.text} [unconsolidated, ${row.ts}, ${row.source}]`, renderedContent: `${recordGrade(id, row.source, dir)} ${row.text} [unconsolidated, ${row.ts}, ${row.source}]`, note: 'full record read — amend is now unlocked for this pending row' }
   }
   return { found: false, id, note: 'unrecognized id — use seq:<n>, doc:<slug>, pending:<ts>, or ledger:<ordinal>' }
 }
