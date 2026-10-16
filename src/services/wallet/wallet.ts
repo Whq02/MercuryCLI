@@ -117,7 +117,7 @@ export function anthropicScopeEntry(
 
 function storedAnthropicCredential(): AnthropicCredentialFacts | undefined {
   try {
-    return getSecureStorage().read()?.claudeAiOauth ?? undefined
+    return getSecureStorage('anthropic').read()?.claudeAiOauth ?? undefined
   } catch {
     return undefined
   }

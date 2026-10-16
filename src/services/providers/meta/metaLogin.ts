@@ -2,6 +2,7 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { formatAge } from '../../../utils/healthCertCore.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { writeStoredMetaApiKey } from '../../../utils/router/providerSecrets.js'
+import { useHomeSignIn } from '../../../utils/accounts/signInPockets.js'
 import {
   metaApiBase,
   metaEnvKey,
@@ -11,7 +12,7 @@ import {
   resolveMetaAccount,
   resolveMetaRawApiKey,
   startMetaDeviceAuth,
-  writeMetaMuseCodeGrant,
+  landMetaMuseCodeGrant,
   writePreferredMetaSource,
   type MetaDeviceAuthStart,
   type MetaMuseCodeGrant,
@@ -142,7 +143,7 @@ export function activateMetaSource(
   kind: MetaSourceKind,
   env: NodeJS.ProcessEnv = process.env,
 ): { ok: true; receipt: string } {
-  writePreferredMetaSource(kind)
+  useHomeSignIn('meta', kind, () => writePreferredMetaSource(kind))
   const named = kind === 'api-key' ? 'the API key' : 'the Muse Code sign-in'
   return {
     ok: true,
@@ -324,7 +325,7 @@ export async function runMetaDeviceLogin(args: MetaDeviceLoginArgs = {}): Promis
       observedAtMs: mint.observedAtMs,
     }
     try {
-      writeMetaMuseCodeGrant(grant)
+      landMetaMuseCodeGrant(grant)
       writePreferredMetaSource('muse-code')
     } catch (error) {
       return {

@@ -48,8 +48,8 @@ const museFetch = (serial: number): typeof fetch =>
     if (url.endsWith('/muse-code/key')) {
       return Response.json({
         api_key: `LLM|10000${serial}|minted-key-fixture-${serial}`,
-        user_email: `user${serial}@example.com`,
-        user_id: `uid-${serial}`,
+        user_email: `user@example.com`,
+        user_id: `uid-same-account`,
         is_subs_active: true,
         subs_tier_id: 'pro',
         subs_tier_name: 'Muse Code Pro',

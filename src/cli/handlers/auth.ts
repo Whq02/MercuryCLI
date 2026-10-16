@@ -8,7 +8,6 @@ import {
   getAuthTokenSource,
   getSubscriptionType,
   loginShadowWarning,
-  saveOAuthTokensIfNeeded,
   validateForceLoginOrg,
 } from '../../utils/auth.js'
 import {
@@ -19,6 +18,7 @@ import {
 } from '../../utils/config.js'
 import { logError } from '../../utils/log.js'
 import { recordSignIn } from '../../utils/accounts/signInLedger.js'
+import { pocketInUse } from '../../utils/accounts/signInPockets.js'
 import { OAuthService } from '../../services/oauth/index.js'
 import {
   createAndStoreApiKey,
@@ -27,7 +27,8 @@ import {
   refreshSignInGrant,
   parseScopes,
   shouldUseClaudeAIAuth,
-  storeOAuthAccountInfo,
+  landClaudeAiTokens,
+  storeLandedOAuthAccountInfo,
 } from '../../services/oauth/client.js'
 import type { OAuthTokens } from '../../services/oauth/types.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
@@ -53,7 +54,16 @@ function logoutPreservingOnboarding(): void {
 }
 
 export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
-  logoutPreservingOnboarding()
+  const saved = landClaudeAiTokens(tokens)
+  if (!saved.success) {
+    throw new Error(saved.warning ?? 'the credential could not be saved to secure storage')
+  }
+  if (pocketInUse('anthropic') === undefined) logoutPreservingOnboarding()
+  else {
+    clearOAuthTokenCache()
+    clearApiKeyHelperCache()
+    getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
+  }
 
   const rawProfile = tokens.profile
   const fetched =
@@ -77,9 +87,9 @@ export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
         ? { accountCreatedAt: profile.account.created_at }
         : {}),
     }
-    storeOAuthAccountInfo(account)
+    storeLandedOAuthAccountInfo(account)
   } else if (tokens.tokenAccount) {
-    storeOAuthAccountInfo({
+    storeLandedOAuthAccountInfo({
       accountUuid: tokens.tokenAccount.uuid,
       emailAddress: tokens.tokenAccount.emailAddress,
       ...(tokens.tokenAccount.organizationUuid
@@ -88,10 +98,6 @@ export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
     })
   }
 
-  const saved = saveOAuthTokensIfNeeded(tokens)
-  if (!saved.success) {
-    throw new Error(saved.warning ?? 'the credential could not be saved to secure storage')
-  }
   clearOAuthTokenCache()
 
   try {
