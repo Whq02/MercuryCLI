@@ -3,21 +3,28 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'reac
 import { Box, Text, useInput } from '../../ink.js'
 import type { DOMElement } from '../../ink.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
+import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
+import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mercuryPalette.js'
-import {
-  CommandCenter,
-  SectionHeader,
-  StateBadge,
-} from '../../components/mercury-ui/components.js'
-import { GLYPH, padTo, truncateToWidth, branchChip } from '../../components/mercury-ui/glyphs.js'
+import { ProductLockup, SectionHeader, StateBadge } from '../../components/mercury-ui/components.js'
+import { padTo, truncateToWidth, branchChip } from '../../components/mercury-ui/glyphs.js'
+import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
 import { CursorCell } from '../../components/mercury-ui/LiveGlyphs.js'
+import { panelWidth, shedToFit } from '../../components/mercury-ui/geometry.js'
+import { decodeNavKey } from '../../components/mercury-ui/navSemantics.js'
+import { useElevatedSurface } from '../../components/mercury-ui/useElevatedSurface.js'
+import { useOpenEventGate } from '../../components/mercury-ui/useOpenEventGate.js'
 import { useSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
+import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
+import { PopupFrameContext } from '../../components/PopupGutter.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { LAYOUT_BREAKPOINTS } from '../../hooks/useLayoutTier.js'
+import type { CommandPopupShape } from '../../utils/cockpit/commandPopup.js'
+import { settingsPopupCompact } from '../../utils/cockpit/settingsPopup.js'
+import { estateGroundBg } from '../../utils/mercuryTokens.js'
+import { MODEL_PICKER_PANEL } from '../../utils/model/modelPickerGroups.js'
 import {
   HEALTH_STATUS_META,
   countByStatus,
-  flattenChecks,
   nextActions,
   runAndRecordHealthReport,
   type HealthCertificate as Cert,
@@ -61,10 +68,45 @@ const VERDICT_META: Record<
   },
 }
 
+export const HEALTH_POPUP_VIEW = 'health'
+export const HEALTH_POPUP_MIN_ROWS = 10
+export const HEALTH_POPUP_SPARE_ROWS = 7
+export const HEALTH_POPUP_CHROME_ROWS = 7
+export const HEALTH_POPUP_COMPACT_CHROME_ROWS = 4
+export const HEALTH_POPUP_CLOSE_HINT = 'esc or click outside closes'
+
+export function healthPopupShape(): CommandPopupShape {
+  return {
+    view: HEALTH_POPUP_VIEW,
+    width: columns => panelWidth(columns, MODEL_PICKER_PANEL),
+    rows: rows => Math.max(HEALTH_POPUP_MIN_ROWS, rows - HEALTH_POPUP_SPARE_ROWS),
+  }
+}
+
+export function healthPopupLayout(frameRows: number, fixRows: number, contentRows: number): { compact: boolean; listRows: number } {
+  const compact = settingsPopupCompact(frameRows - HEALTH_POPUP_CHROME_ROWS - fixRows)
+  const chrome = compact ? HEALTH_POPUP_COMPACT_CHROME_ROWS : HEALTH_POPUP_CHROME_ROWS
+  const budget = Math.max(1, frameRows - chrome - fixRows)
+  return { compact, listRows: Math.max(1, Math.min(budget, contentRows)) }
+}
+
+export function healthPopupFooter(segments: { rows: number; cursor: number; fixable: boolean }, width: number): string {
+  const listed = segments.rows > 0
+  const parts = [
+    { text: listed ? '↑↓ move' : '', priority: 9 },
+    { text: listed ? '↵ unfold' : '', priority: 8 },
+    { text: segments.fixable ? 'f fix' : '', priority: 7 },
+    { text: HEALTH_POPUP_CLOSE_HINT, priority: 6 },
+    { text: listed ? '⇞⇟ page' : '', priority: 4 },
+    { text: 'r re-run', priority: 2 },
+    { text: 'd deep', priority: 1 },
+    { text: listed ? `${segments.cursor + 1}/${segments.rows}` : '', priority: 5 },
+  ].filter(part => part.text !== '')
+  return shedToFit(parts, width).map(part => part.text).join(' · ')
+}
+
 const LABEL_W = 18
 const labelCell = (label: string): string => padTo(truncateToWidth(label, LABEL_W), LABEL_W + 1)
-const CHROME_RESERVE = 8
-const ENTER_BUFFER_MS = 150
 const CONTEXT_ROWS_ABOVE = 2
 
 const rowSpanInEstate = (row: DOMElement | null): { top: number; bottom: number } | null => {
@@ -85,41 +127,28 @@ const rowSpanInEstate = (row: DOMElement | null): { top: number; bottom: number 
 const flatChecks = (sections: HealthSection[]): HealthCheck[] =>
   sections.flatMap(s => s.checks)
 
-function balanceColumns(sections: HealthSection[]): [HealthSection[], HealthSection[]] {
-  const weight = (s: HealthSection): number => s.checks.length + 1
-  const total = sections.reduce((n, s) => n + weight(s), 0)
-  const left: HealthSection[] = []
-  const right: HealthSection[] = []
-  let taken = 0
-  for (const s of sections) {
-    if (taken < total / 2) {
-      left.push(s)
-      taken += weight(s)
-    } else {
-      right.push(s)
-    }
-  }
-  return [left, right]
-}
-
 function CheckRow({
   check,
   active,
   open,
   width,
   rowRef,
+  onSelect,
+  onActivate,
 }: {
   check: HealthCheck
   active: boolean
   open: boolean
   width: number
   rowRef?: React.Ref<DOMElement>
+  onSelect: () => void
+  onActivate: () => void
 }): React.ReactNode {
   const accent = useSessionAccent().accent
   const meta = HEALTH_STATUS_META[check.status]
   const evidenceW = Math.max(8, width - 2 - 2 - LABEL_W - 1)
   return (
-    <Box flexDirection="column" ref={rowRef}>
+    <InteractiveRow id={`health:row:${check.id}`} selected={active} onSelect={onSelect} onActivate={onActivate} width={width} flexDirection="column" rowRef={rowRef}>
       <Text wrap="truncate-end">
         <CursorCell focused={active} color={accent} />
         <Text color={statusColor(check.status)}>{meta.glyph} </Text>
@@ -145,41 +174,7 @@ function CheckRow({
           {check.link ? <Text color={FAINT}>related surface: {check.link}</Text> : null}
         </Box>
       ) : null}
-    </Box>
-  )
-}
-
-function SectionColumn({
-  sections,
-  selId,
-  openId,
-  width,
-  selRowRef,
-}: {
-  sections: HealthSection[]
-  selId: string | null
-  openId: string | null
-  width: number
-  selRowRef: React.Ref<DOMElement>
-}): React.ReactNode {
-  return (
-    <Box flexDirection="column" width={width}>
-      {sections.map(section => (
-        <Box key={section.id} flexDirection="column">
-          <SectionHeader>{section.title}</SectionHeader>
-          {section.checks.map(c => (
-            <CheckRow
-              key={c.id}
-              check={c}
-              active={selId === c.id}
-              open={openId === c.id}
-              width={width}
-              rowRef={selId === c.id ? selRowRef : undefined}
-            />
-          ))}
-        </Box>
-      ))}
-    </Box>
+    </InteractiveRow>
   )
 }
 
@@ -188,11 +183,18 @@ type FixFlow =
   | { phase: 'running'; check: HealthCheck }
   | { phase: 'done'; check: HealthCheck; outcome: AppliedFix }
 
+function fixCardRows(flow: FixFlow | null, width: number): number {
+  if (flow === null) return 0
+  const planLines = Math.max(1, Math.ceil((flow.check.remedy?.plan ?? '').length / Math.max(1, width - 4)))
+  const phaseLines = flow.phase === 'done' ? 3 : 1
+  return 2 + 1 + planLines + 1 + phaseLines
+}
+
 function FixCard({ flow }: { flow: FixFlow }): React.ReactNode {
   const destructive = flow.check.remedy?.class === 'destructive'
   const register = destructive ? CRIMSON : AMBER
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={register} paddingX={1} marginTop={1}>
+    <Box flexDirection="column" borderStyle="round" borderColor={register} paddingX={1}>
       <Text>
         <Text color={register} bold>
           fix · {flow.check.label}
@@ -254,7 +256,15 @@ function FixCard({ flow }: { flow: FixFlow }): React.ReactNode {
 
 function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.ReactNode {
   const accent = useSessionAccent().accent
+  const tok = useMercuryTokens()
+  const elevatedRef = useElevatedSurface()
   const { columns, rows: termRows } = useTerminalSize()
+  const slot = useModalOrTerminalSize({ rows: termRows, columns })
+  const frame = React.useContext(PopupFrameContext)
+  const width = Math.min(frame?.width ?? slot.columns, panelWidth(slot.columns, MODEL_PICKER_PANEL))
+  const frameRows = frame?.rows ?? slot.rows
+  const innerW = Math.max(8, width - 4)
+  const ground = estateGroundBg(tok)
 
   const [cert, setCert] = useState<Cert | null>(null)
   const [loading, setLoading] = useState(true)
@@ -275,8 +285,8 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
   const fixFlowRef = React.useRef<FixFlow | null>(null)
   fixFlowRef.current = fixFlow
 
-  const mountedAt = React.useRef(Date.now())
-  const pastEnterBuffer = (): boolean => Date.now() - mountedAt.current > ENTER_BUFFER_MS
+  const pastOpenEvent = useOpenEventGate()
+  const overlayToken = useRegisterOverlay('health-popup', true, { ownsPageKeys: true })
 
   const run = useCallback(() => {
     setLoading(true)
@@ -335,10 +345,16 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
   const selRowRef = React.useRef<DOMElement | null>(null)
   const pageRowsRef = React.useRef(8)
   useLayoutEffect(() => {
-    if (selRowRef.current && scrollRef.current) {
-      scrollRef.current.scrollToElement(selRowRef.current, -CONTEXT_ROWS_ABOVE)
+    const box = scrollRef.current
+    if (!box) return
+    if (sel === 0) {
+      box.scrollTo(0)
+      return
     }
-  }, [sel, openId, cert])
+    if (selRowRef.current) {
+      box.scrollToElement(selRowRef.current, -CONTEXT_ROWS_ABOVE)
+    }
+  }, [sel, openId, cert, frameRows, width])
   const openRowScrollStep = (direction: -1 | 1): boolean => {
     const box = scrollRef.current
     const open = openId !== null && openId === checksRef.current[selRef.current]?.id
@@ -355,11 +371,25 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
     box.scrollTo(scrollTop + direction)
     return true
   }
+  const moveTo = (index: number): void => {
+    selRef.current = Math.min(Math.max(0, checksRef.current.length - 1), Math.max(0, index))
+    setSel(selRef.current)
+  }
+  const toggleOpen = (index: number): void => {
+    const c = checksRef.current[index]
+    if (c) setOpenId(o => (o === c.id ? null : c.id))
+  }
+  const rerun = (depth: 'fast' | 'deep'): void => {
+    depthRef.current = depth
+    run()
+    moveTo(0)
+  }
 
   useInput(
-    (input, key) => {
+    (input, key, event) => {
       const flow = fixFlowRef.current
       if (flow) {
+        event.stopImmediatePropagation()
         if (flow.phase === 'confirm') {
           if (key.escape) {
             setFixFlow(null)
@@ -380,59 +410,60 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
         if (key.return || key.escape) {
           const verified = flow.outcome.verified?.ok === true
           setFixFlow(null)
-          if (verified) {
-            run()
-            selRef.current = 0
-            setSel(0)
-          }
+          if (verified) rerun(depthRef.current)
         }
         return
       }
 
-      if (key.escape) {
+      const action = decodeNavKey(input, key, { orientation: 'vertical', hierarchy: true, pageKeys: true })
+      if (action === 'cancel') {
+        if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
+        event.stopImmediatePropagation()
         onClose()
         return
       }
-      if (key.upArrow) {
-        if (openRowScrollStep(-1)) return
-        selRef.current = Math.max(0, selRef.current - 1)
-        setSel(selRef.current)
+      if (action === 'movePrevious' || action === 'moveNext') {
+        event.stopImmediatePropagation()
+        const step = action === 'moveNext' ? 1 : -1
+        if (openRowScrollStep(step)) return
+        moveTo(selRef.current + step)
         return
       }
-      if (key.downArrow) {
-        if (openRowScrollStep(1)) return
-        selRef.current = Math.min(Math.max(0, checksRef.current.length - 1), selRef.current + 1)
-        setSel(selRef.current)
-        return
-      }
-      if (key.pageUp || key.pageDown) {
+      if (action === 'pagePrevious' || action === 'pageNext') {
+        event.stopImmediatePropagation()
         const page = Math.max(4, pageRowsRef.current)
-        const next = key.pageUp ? selRef.current - page : selRef.current + page
-        selRef.current = Math.min(Math.max(0, checksRef.current.length - 1), Math.max(0, next))
-        setSel(selRef.current)
+        moveTo(action === 'pagePrevious' ? selRef.current - page : selRef.current + page)
+        return
+      }
+      if (action === 'first' || action === 'last') {
+        event.stopImmediatePropagation()
+        moveTo(action === 'first' ? 0 : checksRef.current.length - 1)
+        return
+      }
+      if (action === 'enterChild' || action === 'leaveChild') {
+        event.stopImmediatePropagation()
+        const c = checksRef.current[selRef.current]
+        if (!c) return
+        if (action === 'enterChild') setOpenId(c.id)
+        else setOpenId(o => (o === c.id ? null : o))
         return
       }
 
-      if (!pastEnterBuffer()) return
-      if (key.return) {
-        const c = checksRef.current[selRef.current]
-        if (c) setOpenId(o => (o === c.id ? null : c.id))
+      if (!pastOpenEvent()) return
+      if (action === 'activate') {
+        event.stopImmediatePropagation()
+        toggleOpen(selRef.current)
         return
       }
       if (input === 'd' && !key.ctrl && !key.meta) {
-        depthRef.current = 'deep'
-        run()
-        selRef.current = 0
-        setSel(0)
+        rerun('deep')
         return
       }
-      if (input === 'r') {
-        run()
-        selRef.current = 0
-        setSel(0)
+      if (input === 'r' && !key.ctrl && !key.meta) {
+        rerun('fast')
         return
       }
-      if (input === 'f') {
+      if (input === 'f' && !key.ctrl && !key.meta) {
         const c = checksRef.current[selRef.current]
         if (c && healthFixEnabled() && isFixable(c)) {
           setFixFlow({ phase: 'confirm', check: c })
@@ -446,50 +477,36 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
   const counts = cert ? countByStatus(checks) : null
   const meta = cert ? VERDICT_META[cert.verdict] : null
   const actions = cert && cert.verdict !== 'certified' ? nextActions(checks, 3) : []
-
-  const twoCol = columns >= LAYOUT_BREAKPOINTS.deckTwoColMin && (cert !== null || liveSections.length > 0)
-  const innerW = Math.max(40, columns - 4)
-  const colW = twoCol ? Math.floor((innerW - 3) / 2) : innerW
-
   const sections = cert ? cert.sections : liveSections
-  const bannerRows = cert ? 4 : loading ? 2 : 3
-  const fixRows = fixFlow ? (fixFlow.phase === 'done' ? 10 : 8) : 0
-  const showLegend = !!cert && termRows >= 30
-  const viewportBudget = Math.max(4, termRows - CHROME_RESERVE - bannerRows - fixRows - (showLegend ? 2 : 0))
-  const rowsOf = (list: HealthSection[]): number => list.reduce((n, s) => n + 2 + s.checks.length, 0)
-  const estimatedRows = (() => {
-    const nextRows = actions.length > 0 ? actions.length + 2 : 0
-    const body = twoCol
-      ? (() => {
-          const [l, r] = balanceColumns(sections)
-          return Math.max(rowsOf(l), rowsOf(r))
-        })()
-      : rowsOf(sections)
-    return nextRows + body + (openId ? viewportBudget : 0)
-  })()
-  const listHeight = Math.max(4, Math.min(viewportBudget, estimatedRows))
-  pageRowsRef.current = listHeight - 1
-
-  const [leftCol, rightCol] = twoCol ? balanceColumns(sections) : [sections, []]
+  const fixRows = fixCardRows(fixFlow, innerW)
+  const nextRows = actions.length > 0 ? actions.length + 2 : 0
+  const contentRows = nextRows + sections.reduce((n, s) => n + 2 + s.checks.length, 0) + (openId ? frameRows : 0)
+  const layout = healthPopupLayout(frameRows, fixRows, Math.max(1, contentRows))
+  pageRowsRef.current = layout.listRows - 1
+  const fixable = checks[sel] !== undefined && healthFixEnabled() && isFixable(checks[sel]!)
+  const footer = healthPopupFooter({ rows: checks.length, cursor: sel, fixable }, innerW)
+  const statusLine = cert && meta
+    ? null
+    : loading
+      ? `◐ examining the harness (${depthRef.current})…${progress ? ` ${progress.done}/${progress.total} · ${progress.current} · ${Math.round((Date.now() - runStartedAt.current) / 1000)}s` : ''}`
+      : `▲ the certificate could not be produced — r re-runs${loadError ? ` · ${loadError}` : ''}`
 
   return (
-    <CommandCenter
-      view="health"
-      subtitle="health certificate"
-      onClose={onClose}
-      captureInput={false}
-      footer={`${checks.length > 0 ? '↑↓ select · ⇞⇟ page · ↵ evidence · ' : ''}${checks[sel] && healthFixEnabled() && isFixable(checks[sel]!) ? 'f fix · ' : ''}d deep · r re-run · esc close${checks.length > 0 ? ` · ${sel + 1}/${checks.length}` : ''}`}
-    >
-      {}
-      <Box marginTop={1} flexDirection="column">
+    <Box ref={elevatedRef} flexDirection="column" width={width} flexShrink={0} borderStyle="round" borderColor={tok.borderStrong} paddingX={1} opaque={true} {...(ground !== undefined ? { backgroundColor: ground } : {})}>
+      <Box flexDirection="row" height={1} overflow="hidden">
+        <ProductLockup view={HEALTH_POPUP_VIEW} separator=" · " />
         {cert && meta ? (
-          <>
-            <Text>
-              <StateBadge state={meta.state} label={meta.label} />
-              <Text color={FAINT}>  {meta.line}</Text>
-            </Text>
+          <Text wrap="truncate-end">
+            <Text color={FAINT}> · </Text>
+            <StateBadge state={meta.state} label={meta.label} />
+          </Text>
+        ) : null}
+      </Box>
+      {layout.compact ? null : (
+        <Box height={1}>
+          {cert && meta ? (
             <Text color={FAINT} wrap="truncate-end">
-              issued {formatAge(Date.now() - Date.parse(cert.ranAt))} · {cert.version}
+              {meta.line} · issued {formatAge(Date.now() - Date.parse(cert.ranAt))} · {cert.version}
               {cert.head.branch ? (
                 <>
                   {' '}
@@ -499,48 +516,34 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
               ) : null}{' '}
               · {cert.durationMs}ms · read-only
             </Text>
-            {counts ? (
-              <Text color={FAINT}>
-                {checks.length} checks
-                {counts.fail ? <Text color={CRIMSON}> · {counts.fail} fail</Text> : null}
-                {counts.stale ? <Text color={AMBER}> · {counts.stale} stale</Text> : null}
-                {counts.warn ? <Text color={AMBER}> · {counts.warn} warn</Text> : null}
-                {counts.unknown ? <Text color={SECOND}> · {counts.unknown} unknown</Text> : null}
-                {counts.ok ? <Text color={TEAL}> · {counts.ok} ok</Text> : null}
-                {counts.off ? <Text color={FAINT}> · {counts.off} off</Text> : null}
-                {counts.info ? <Text color={FAINT}> · {counts.info} info</Text> : null}
-              </Text>
-            ) : null}
-          </>
-        ) : loading ? (
-          <Text color={FAINT}>
-            ◐ examining the harness ({depthRef.current})…
-            {progress
-              ? ` ${progress.done}/${progress.total} · ${progress.current} · ${Math.round((Date.now() - runStartedAt.current) / 1000)}s`
-              : ''}
-          </Text>
-        ) : (
-          <>
-            <Text color={AMBER}>▲ the certificate could not be produced — r re-runs</Text>
-            {loadError ? (
-              <Text color={FAINT} wrap="truncate-end">
-                {loadError}
-              </Text>
-            ) : null}
-          </>
-        )}
-      </Box>
-
-      {
-}
+          ) : (
+            <Text color={loading ? FAINT : AMBER} wrap="truncate-end">{statusLine}</Text>
+          )}
+        </Box>
+      )}
+      {layout.compact ? null : (
+        <Box height={1}>
+          {counts ? (
+            <Text color={FAINT} wrap="truncate-end">
+              {checks.length} checks
+              {counts.fail ? <Text color={CRIMSON}> · {counts.fail} fail</Text> : null}
+              {counts.stale ? <Text color={AMBER}> · {counts.stale} stale</Text> : null}
+              {counts.warn ? <Text color={AMBER}> · {counts.warn} warn</Text> : null}
+              {counts.unknown ? <Text color={SECOND}> · {counts.unknown} unknown</Text> : null}
+              {counts.ok ? <Text color={TEAL}> · {counts.ok} ok</Text> : null}
+              {counts.off ? <Text color={FAINT}> · {counts.off} off</Text> : null}
+              {counts.info ? <Text color={FAINT}> · {counts.info} info</Text> : null}
+            </Text>
+          ) : null}
+        </Box>
+      )}
+      {layout.compact ? null : <Box height={1} />}
       {fixFlow ? <FixCard flow={fixFlow} /> : null}
-
-      {
-}
-      <ScrollBox ref={scrollRef} height={listHeight} flexShrink={0} flexDirection="column">
+      <ScrollBox ref={scrollRef} height={layout.listRows} flexShrink={0} flexDirection="column">
+        {layout.compact && statusLine !== null ? <Text color={loading ? FAINT : AMBER} wrap="truncate-end">{statusLine}</Text> : null}
         {actions.length > 0 ? (
           <Box flexDirection="column">
-            <SectionHeader>NEXT</SectionHeader>
+            <SectionHeader marginTop={0}>NEXT</SectionHeader>
             {actions.map((a, i) => (
               <Text key={i} wrap="truncate-end">
                 <Text color={statusColor(a.status)}>{HEALTH_STATUS_META[a.status].glyph} </Text>
@@ -549,40 +552,32 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
             ))}
           </Box>
         ) : null}
-
-        {sections.length > 0 ? (
-          twoCol ? (
-            <Box>
-              <Box marginRight={3}>
-                <SectionColumn sections={leftCol} selId={selId} openId={openId} width={colW} selRowRef={selRowRef} />
-              </Box>
-              <SectionColumn sections={rightCol} selId={selId} openId={openId} width={colW} selRowRef={selRowRef} />
-            </Box>
-          ) : (
-            <SectionColumn sections={leftCol} selId={selId} openId={openId} width={colW} selRowRef={selRowRef} />
-          )
-        ) : null}
+        {sections.map((section, sectionIndex) => (
+          <Box key={section.id} flexDirection="column">
+            <SectionHeader marginTop={sectionIndex === 0 && actions.length === 0 ? 0 : 1}>{section.title}</SectionHeader>
+            {section.checks.map(c => {
+              const index = checks.findIndex(candidate => candidate.id === c.id)
+              return (
+                <CheckRow
+                  key={c.id}
+                  check={c}
+                  active={selId === c.id}
+                  open={openId === c.id}
+                  width={innerW}
+                  rowRef={selId === c.id ? selRowRef : undefined}
+                  onSelect={() => moveTo(index)}
+                  onActivate={() => toggleOpen(index)}
+                />
+              )
+            })}
+          </Box>
+        ))}
       </ScrollBox>
-
-      {}
-      {showLegend ? (
-        <Box marginTop={1}>
-          <Text color={FAINT} wrap="truncate-end">
-            every claim names its evidence — <Text color={accent}>↵</Text>
-            <Text color={FAINT}> opens the full trail · </Text>
-            <Text color={SECOND}>{GLYPH.drifting} stale</Text>
-            <Text color={FAINT}> = evidence predates what it certifies · </Text>
-            <Text color={SECOND}>{GLYPH.read} unknown</Text>
-            <Text color={FAINT}> = no evidence either way</Text>
-          </Text>
-        </Box>
-      ) : null}
-    </CommandCenter>
+      <Box height={1} width={innerW + 1} marginRight={-1}>
+        <Text color={tok.textMuted} wrap="truncate-end">{footer}</Text>
+      </Box>
+    </Box>
   )
-}
-
-const call = async (onDone: () => void): Promise<React.ReactNode> => {
-  return <MercuryHealthCertificate onClose={onDone} />
 }
 
 export { MercuryHealthCertificate }
