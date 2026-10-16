@@ -34,7 +34,7 @@ import {
   UNITY_ADAPTER_ARM_HINT,
 } from '../services/dap/unityAdapter.js'
 import { summarizeMcpAuthCurrency } from '../services/mcp/auth.js'
-import { isMcpServerDisabled } from '../services/mcp/config.js'
+import { isMcpServerDisabled, mcpServersSkippedForTrustLine, PROJECT_MCP_FILE_SPELLING } from '../services/mcp/config.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
 import { resolvePrimaryAgentBackend } from '../services/providers/primaryBackend.js'
 import { getBundledSkills } from '../skills/bundledSkills.js'
@@ -359,14 +359,15 @@ function mcpRecords(): ReadinessRecord[] {
   }
 
   if (gauge.state === 'off') {
+    const skippedForTrust = mcpServersSkippedForTrustLine()
     records.push({
       id: 'mcp:none',
       kind: 'mcp',
       label: 'MCP servers',
       state: 'disabled',
-      detail: 'no MCP servers configured',
-      remedy: 'add one: `mercury mcp add <name> …` (or /mcp in a session)',
-      source: 'config.mcpServers',
+      detail: skippedForTrust ?? 'no MCP servers configured',
+      remedy: skippedForTrust !== null ? 'start Mercury here once and accept the trust card' : 'add one: `mercury mcp add <name> …` (or /mcp in a session)',
+      source: skippedForTrust !== null ? PROJECT_MCP_FILE_SPELLING : 'config.mcpServers',
       lastCheckedAt: Date.now(),
     })
   }

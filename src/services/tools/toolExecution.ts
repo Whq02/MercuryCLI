@@ -56,6 +56,7 @@ import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.js'
 import { getAllBaseTools } from '../../tools.js'
+import { refusalWithReason, ruleSentence, wholeToolDenyRulesCovering, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import type { HookAnnounce, HookPermissionOutcome } from './toolHooks.js'
 import { afterToolHooks, beforeToolHooks, deciderOf, hookPermissionOutcomeOf, permissionDecidedHooks, resolveHookPermissionDecision } from './toolHooks.js'
 import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js'
@@ -349,12 +350,23 @@ export async function* runToolUse(
     const loadRoad =
       closest !== undefined &&
       buildSchemaNotSentHint(closest, toolUseContext.messages, toolUseContext.options.tools, toolUseContext.options.engineModel) !== null
+    const withheldByRule = (() => {
+      const { toolPermissionContext: permissionContext, mcp } = toolUseContext.getAppState()
+      const named = findToolByName([...getAllBaseTools(), ...(mcp?.tools ?? [])], requestedName)
+      const covering = named === undefined ? [] : wholeToolDenyRulesCovering(permissionContext, named)
+      const rule = covering[0]
+      if (rule === undefined) return null
+      const said = withRuleReason(permissionContext, rule, () => covering)
+      return refusalWithReason(ruleSentence(`Using ${requestedName}`, 'deny', said), said.ruleValue.reason)
+    })()
     const unknownToolText =
-      closest === undefined
-        ? `No such tool available: ${requestedName}. It is not in this session's tool list — call one of the tools you were given (a ToolSearch query loads a deferred tool when one is offered).`
-        : loadRoad
-          ? `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? It is a deferred tool this session has not loaded yet. ${loadRoadSentence(closest.name)}`
-          : `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? Call it by that exact name.`
+      withheldByRule !== null
+        ? withheldByRule
+        : closest === undefined
+          ? `No such tool available: ${requestedName}. It is not in this session's tool list — call one of the tools you were given (a ToolSearch query loads a deferred tool when one is offered).`
+          : loadRoad
+            ? `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? It is a deferred tool this session has not loaded yet. ${loadRoadSentence(closest.name)}`
+            : `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? Call it by that exact name.`
     const unavailable = errorResultUpdate({
       toolUseID,
       content: unknownToolText,

@@ -326,7 +326,7 @@ section('§1 · the Kimi device-code sign-in, end to end')
   chatAnswers = [{ status: 401, body: { error: { message: 'Invalid Authentication', type: 'invalid_authentication_error' } } }]
   refreshAnswer = { status: 500, body: {} }
   const failed = await drive('kimi-k3')
-  check('a failed refresh surfaces ONE typed refusal that says so and names /logins moonshot', failed.errors.length === 1 && failed.errors[0]?.error === 'authentication_failed' && failed.text.includes('refresh was attempted') && failed.text.includes('/logins moonshot') && chatHits().length === 1, failed.text.slice(0, 240))
+  check('a failed refresh surfaces ONE typed refusal: the shared sign-in wall line naming /logins moonshot, no brace, one wire hit', failed.errors.length === 1 && failed.errors[0]?.error === 'authentication_failed' && failed.text.includes('Moonshot sign-in expired — switch providers (/model) or reconnect (/logins moonshot)') && !failed.text.includes('{') && chatHits().length === 1, failed.text.slice(0, 240))
   refreshAnswer = { status: 200, body: { access_token: KIMI_ACCESS_2, refresh_token: KIMI_REFRESH, expires_in: 3600 } }
   chatAnswers = ['ok']
 

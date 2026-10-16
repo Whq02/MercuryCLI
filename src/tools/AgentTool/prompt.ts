@@ -77,7 +77,7 @@ ${typeSelection}`
     "Treat the crewmate's prose as a claim to verify, not a fact: spot-check load-bearing results with a diff, a render, or a test before relying on them. A status=\"valid\" payload passed your schema: use it without re-reading what the crewmate read, and require evidence as a field when a value needs it.",
     "State explicitly whether the crewmate should write code or only research — it cannot see the user's intent.",
     'When an agent description says to use it proactively, honour that cue without waiting to be asked.',
-    'Passing `isolation: "worktree"` hands the crewmate a temporary git worktree of its own. It requires a git repository (or a configured worktree-create hook); outside one, omit the parameter. A worktree the crewmate left untouched cleans itself up; one with changes survives, its path and branch riding back in the result.',
+    "Passing `isolation: \"worktree\"` hands the crewmate a temporary git worktree of its own. It requires a git repository (or a configured worktree-create hook); outside one, omit the parameter. Nothing is removed automatically: the worktree survives the crewmate's end unlocked, its path and branch riding back in the result with what it holds, and the seven-day janitor removes only a clean one whose commits are reachable.",
   ]
   sections.push(`## Usage notes
 ${usage.map(note => `- ${note}`).join('\n')}`)

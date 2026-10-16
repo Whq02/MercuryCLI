@@ -1,1 +1,1 @@
-Something broke? https://mercury-cli.ai/report
+Session saved. Reopen it any time with /sessions.

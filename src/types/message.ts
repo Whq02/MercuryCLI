@@ -675,6 +675,7 @@ export type TurnReceiptMessage = {
     delegatedCostUSD: number
     delegatedUnpriced: number
   }
+  contextDelta?: number
 }
 
 export type RenderableMessage =

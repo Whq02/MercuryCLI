@@ -97,6 +97,8 @@ const HOOK_ENDING_WORDS: Record<HookEndingClass, (ending: Extract<HookEnding, { 
 
 export const HOOK_NOTICE_CODES = { failed: 'hook_failed', block: 'hook_blocked', stop: 'hook_stopped', notice: 'hook_notice' } as const
 export const HOOK_FAILED_CODE = HOOK_NOTICE_CODES.failed
+export const TOOL_WITHHELD_CODE = 'tool_withheld'
+export const MCP_SERVER_FAILED_CODE = 'mcp_server_failed'
 
 export function hookEndingSentence(ending: HookEnding, hook: { name: string; event: string }): string {
   const who = `hook ${hook.name} (${hook.event})`
@@ -143,6 +145,7 @@ export const SessionRowSchema = lazySchema(() =>
     model: z.string(),
     mode: z.string(),
     tools: z.array(z.string()),
+    tools_withheld: z.array(z.object({ tool: z.string(), rule: z.string(), source: z.string() })).optional(),
     mcp_servers: z.array(z.object({ name: z.string(), status: z.string() })),
     commands: z.array(z.string()),
     agents: z.array(z.string()),
