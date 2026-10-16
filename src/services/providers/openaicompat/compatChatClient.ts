@@ -835,7 +835,7 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>)
   for (const raw of toolCalls) {
     const tc = asRecord(raw)
     const fn = asRecord(tc?.function)
-    const fragment = typeof fn?.arguments === 'string' ? fn.arguments : ''
+    const fragment = typeof fn?.arguments === 'string' ? fn.arguments : asRecord(fn?.arguments) !== undefined ? JSON.stringify(fn!.arguments) : ''
     const id = typeof tc?.id === 'string' && tc.id !== '' ? tc.id : undefined
     const name = typeof fn?.name === 'string' && fn.name !== '' ? fn.name : undefined
     const index = toolCallSlot(toolAcc, typeof tc?.index === 'number' ? tc.index : undefined, id, name)
