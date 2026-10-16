@@ -29,7 +29,8 @@ export function latestPinIntent(messages: readonly Message[], agentId?: string):
 
 const FILLER = /^(?:(?:ok(?:ay)?|also|and|so|oh|right|cool|yes|yeah|btw|well|then)[\s,.:!-]+)*/i
 const NEGATED = /^(?:please\s+|pls\s+)?(?:do\s+not|don['’]t|never|no\s+need\s+to|stop)\s+(?:remember|pin|save|keep|make|retain)\b/i
-const DIRECTIVE = /\b(?:please\s+|pls\s+)?(?:remember(?:\s+(?:this|that|these))?\b|(?:make|keep|save|pin)\s+(?:this|it|that|these)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rules?|preferences?)\b|from\s+now\s+on\b|always\b|never\b|(?:i|we)\s+(?:like|prefer|want)\b|(?:standing\s+)?rule\b|every\s+(?:time|release|session|chat)\b)/i
+const DIRECTIVE_HEAD = /^(?:please\s+|pls\s+)?(?:remember(?:\s+(?:this|that|these))?\b|from\s+now\s+on\b|always\b|never\b|(?:i|we)\s+(?:like|prefer|want)\b|(?:standing\s+)?rule\b|every\s+(?:time|release|session|chat)\b)/i
+const REQUEST_FORM = /\b(?:please\s+|pls\s+)?(?:(?:make|keep|save|pin)\s+(?:this|it|that|these)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rules?|preferences?)\b|pin\s+(?:this|it|that|these)\b|remember\s+(?:this|that|these)\s+as\s+(?:a\s+)?(?:standing\s+)?(?:rule|preference)\b|from\s+now\s+on\b|standing\s+rule\b)/i
 const RULE_WORDS = /\b(?:standing rules?|rules?|preferences?|from now on|always|never|every (?:time|release|session|chat)|(?:i|we) (?:like|prefer|want))\b/i
 const SECOND_HAND = /\b(?:example|quote|quoted|document|draft|says|said|wrote|not\s+(?:a\s+)?rule)\b/i
 const SUFFIX = /^[\s.!;,—-]*(?:please\s+|pls\s+)?(?:remember\s+(?:this|that)|(?:make|keep|save|pin)\s+(?:this|it|that)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rule|preference))\s*[.!]?\s*$/i
@@ -55,7 +56,7 @@ function sentences(text: string): Sentence[] {
 function directiveOf(sentence: string): string | null {
   const head = sentence.slice((FILLER.exec(sentence)?.[0] ?? '').length)
   if (NEGATED.test(head)) return null
-  return DIRECTIVE.exec(head)?.[0] ?? null
+  return DIRECTIVE_HEAD.exec(head)?.[0] ?? REQUEST_FORM.exec(head)?.[0] ?? null
 }
 
 function normalise(text: string): string {
