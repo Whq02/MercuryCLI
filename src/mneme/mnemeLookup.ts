@@ -86,6 +86,7 @@ interface CandidateFeatures {
   useCount: number
   discriminating: boolean
   discriminatingStems: number
+  rareStems: number
   maxIdf: number
 }
 
@@ -148,6 +149,7 @@ export function scoreCandidates(query: string, pool: readonly LookupCandidate[],
     const matched: string[] = []
     let discriminating = false
     let discriminatingStems = 0
+    let rareStems = 0
     let maxIdf = 0
     for (const token of tokens) {
       const frequency = doc.frequencies.get(token) ?? 0
@@ -156,6 +158,7 @@ export function scoreCandidates(query: string, pool: readonly LookupCandidate[],
       matched.push(token)
       const idf = Math.log(1 + (total - n + 0.5) / (n + 0.5))
       if (idf >= 1.5 || n === 1) discriminatingStems++
+      if (idf >= RARE_STEM_IDF || n === 1) rareStems++
       maxIdf = Math.max(maxIdf, idf)
       bm25 += idf * frequency * (BM25_K1 + 1) / (frequency + BM25_K1 * (1 - BM25_B + BM25_B * doc.length / averageLength))
       if (n < total || total === 1) discriminating = true
@@ -164,7 +167,7 @@ export function scoreCandidates(query: string, pool: readonly LookupCandidate[],
     const recency = recencyOf(candidate, now)
     const kind = candidate.kind ?? (pinned ? 'ruling' : candidate.pending ? 'pending' : 'fact')
     const useCount = Number.isFinite(candidate.useCount) ? Math.max(0, candidate.useCount!) : 0
-    return { ...candidate, score: discriminating ? bm25 * recency : 0, matched, features: { bm25, recency, pinned, kind, useCount, discriminating, discriminatingStems, maxIdf } }
+    return { ...candidate, score: discriminating ? bm25 * recency : 0, matched, features: { bm25, recency, pinned, kind, useCount, discriminating, discriminatingStems, rareStems, maxIdf } }
   })
 }
 
@@ -257,11 +260,12 @@ export function rankCandidates(query: string, pool: readonly LookupCandidate[], 
 
 export interface AutomaticMemoryHit extends LookupHit {
   witness: string
-  admission: 'stems' | 'rare-stem' | 'semantic' | 'constraint'
+  admission: 'stems' | 'rare-stem' | 'semantic' | 'constraint' | 'companion'
   bm25: number
   cosine: number | null
   discriminatingStems: number
   maxIdf: number
+  historical?: { names: number; latest: number }
 }
 
 const automaticScores = new WeakMap<object, Map<string, ReadonlyMap<string, number>>>()
@@ -290,34 +294,96 @@ function constraintText(text: string): boolean {
   return /\b(?:always|never|must|only|rule|constraint|census|guard|do not)\b/i.test(text)
 }
 
+const WRITING_RULE = /\b(?:writing|copy|captions?|subtitles?|prose|voice|wording)\b/i
+const WRITING_TASK = /\b(?:copy[- ]?edit(?:s|ing)?|captions?|subtitles?|prose|wording|posts?|replies|reply|tweets?|one[- ]liners?|taglines?|headlines?|blurbs?|linkedin)\b/i
+
+const RULE_WORDS = /\b(?:always|never|must|only|rule|constraint|census|guard|do not|stays?|keep|no mention)\b/i
+
+function ruleSentences(text: string): string[] {
+  return text.split(/(?<=[.!?;])\s+|\n+/).filter(sentence => RULE_WORDS.test(sentence))
+}
+
 function taskConstraint(text: string, query: string, files: readonly string[]): boolean {
   if (!constraintText(text)) return false
   const observed = [query, ...files].join(' ')
-  if (/\brelease[ -]notes?\b|\bchangelog\b/i.test(text) && /release[ -]notes?|releases\/|changelog/i.test(observed)) return true
-  if (/\b(?:writing|copy|captions?|subtitles?|prose)\b/i.test(text) && /\b(?:copy|captions?|subtitles?|prose|wording|post|one[- ]liner)\b/i.test(query)) return true
-  const paths = text.match(/(?:src|docs|scripts|assets|lib|test|tests)\/[A-Za-z0-9_.*\/-]+/g) ?? []
-  return paths.some(path => {
-    const matcher = new RegExp(escapeRegExp(path).replace(/\\\*/g, '.*'))
-    return files.some(file => matcher.test(file)) || query.includes(path)
+  const sentences = ruleSentences(text)
+  if (/release[ -]notes?|releases\/|changelog/i.test(observed) && sentences.some(sentence => /\brelease[ -]notes?\b|\bchangelog\b/i.test(sentence))) return true
+  if (WRITING_TASK.test(query) && sentences.some(sentence => WRITING_RULE.test(sentence))) return true
+  return sentences.some(sentence => {
+    const paths = sentence.match(/(?:src|docs|scripts|assets|lib|test|tests)\/[A-Za-z0-9_.*\/-]+/g) ?? []
+    return paths.some(path => {
+      const matcher = new RegExp(escapeRegExp(path).replace(/\\\*/g, '.*'))
+      return files.some(file => matcher.test(file)) || query.includes(path)
+    })
   })
 }
 
-export function automaticMemoryCandidates(query: string, opts: { dir?: string; pool?: readonly LookupCandidate[]; files?: readonly string[]; now?: number } = {}): AutomaticMemoryHit[] {
+const COMPANION_IDF = 2.2
+const STEM_BONUS = 0.05
+const SEMANTIC_FLOOR = 0.62
+const RARE_STEM_IDF = 2.2
+const RARE_STEM_BM25 = 4.5
+const STEM_RARE_MIN = 1
+
+function cycleNamed(text: string): number {
+  let latest = 0
+  for (const match of text.matchAll(/\b(?:1\.0\.0-)?beta[. -]?(\d+)\b/gi)) latest = Math.max(latest, Number(match[1]))
+  return latest
+}
+
+const PLAN_WORDS = /\b(?:next steps?|backlog|queue|what follows|after\b.{0,40}\bships?|this cycle|then the (?:work|owner|lead))\b/i
+
+function companionsOf(constraint: LookupCandidate, pool: readonly LookupCandidate[], taken: ReadonlySet<string>, now: number | undefined): LookupCandidate[] {
+  const terms = pool.map(candidate => new Set(lookupTerms(candidate.text)))
+  const total = pool.length
+  const rareTerm = (token: string): boolean => {
+    if (/\d/.test(token)) return false
+    const n = terms.filter(set => set.has(token)).length
+    return Math.log(1 + (total - n + 0.5) / (n + 0.5)) >= COMPANION_IDF
+  }
+  const out: LookupCandidate[] = []
+  for (const hit of scoreCandidates(constraint.text, pool, now)) {
+    if (hit.id === constraint.id || taken.has(hit.id)) continue
+    if (hit.matched.filter(rareTerm).length >= 2) out.push(hit)
+  }
+  return out
+}
+
+export function automaticMemoryCandidates(query: string, opts: { dir?: string; pool?: readonly LookupCandidate[]; files?: readonly string[]; now?: number; limit?: number } = {}): AutomaticMemoryHit[] {
   const dir = opts.dir ?? mnemeLibraryDir()
   const pool = opts.pool ?? candidates(dir)
   const semantic = automaticSemanticScores(query, pool, dir)
   const admitted: AutomaticMemoryHit[] = []
   const cycle = /\bbeta[. -]?(\d+)\b/i.exec([query, ...(opts.files ?? [])].join(' '))?.[1]
-  for (const hit of scoreCandidates(query, pool, opts.now)) {
+  const latest = Math.max(0, ...pool.map(candidate => cycleNamed(candidate.text)))
+  const witnessOf = (id: string, text: string): string => createHash('sha256').update(`${dir}\0${id}\0${text}`).digest('hex')
+  const historicalOf = (candidate: LookupCandidate): { names: number; latest: number } | undefined => {
+    const names = cycleNamed(candidate.text)
+    return !candidate.pinned && names > 0 && names < latest && PLAN_WORDS.test(candidate.text) ? { names, latest } : undefined
+  }
+  const scored = scoreCandidates(query, pool, opts.now)
+  for (const hit of scored) {
     const priorCycle = /\bbeta[. -]?(\d+)\b/i.exec(hit.text)?.[1]
-    if (!hit.pinned && cycle && priorCycle && cycle !== priorCycle && /\b(?:plan|next steps?|will|this cycle)\b/i.test(hit.text)) continue
+    if (!hit.pinned && cycle && priorCycle && Number(cycle) > Number(priorCycle) && PLAN_WORDS.test(hit.text)) continue
     const cosine = semantic.get(hit.id) ?? null
-    const admission = taskConstraint(hit.text, query, opts.files ?? []) ? 'constraint' : hit.features.discriminatingStems >= 2 ? 'stems' : hit.features.maxIdf >= 2.2 && hit.features.bm25 >= 4.5 ? 'rare-stem' : cosine !== null && cosine >= 0.58 ? 'semantic' : null
+    const admission = taskConstraint(hit.text, query, opts.files ?? []) ? 'constraint' : hit.features.discriminatingStems >= 2 && hit.features.rareStems >= STEM_RARE_MIN ? 'stems' : hit.features.maxIdf >= RARE_STEM_IDF && hit.features.bm25 >= RARE_STEM_BM25 ? 'rare-stem' : cosine !== null && cosine >= SEMANTIC_FLOOR ? 'semantic' : null
     if (admission === null) continue
     const { features, time, pinned, kind, useCount, ...row } = hit
-    admitted.push({ ...row, score: Math.max(cosine ?? 0, Math.min(1, features.bm25 / 10)), witness: createHash('sha256').update(`${dir}\0${hit.id}\0${hit.text}`).digest('hex'), admission, bm25: features.bm25, cosine, discriminatingStems: features.discriminatingStems, maxIdf: features.maxIdf })
+    const historical = historicalOf(hit)
+    admitted.push({ ...row, score: Math.max(cosine ?? 0, Math.min(1, features.bm25 / 10)) + STEM_BONUS * Math.min(features.discriminatingStems, 4), witness: witnessOf(hit.id, hit.text), admission, bm25: features.bm25, cosine, discriminatingStems: features.discriminatingStems, maxIdf: features.maxIdf, ...(historical ? { historical } : {}) })
   }
-  return admitted.sort((a, b) => Number(constraintText(b.text)) - Number(constraintText(a.text)) || Number(b.admission === 'constraint') - Number(a.admission === 'constraint') || b.score - a.score || a.id.localeCompare(b.id)).slice(0, 2)
+  const taken = new Set(admitted.map(row => row.id))
+  for (const constraint of admitted.filter(row => row.admission === 'constraint')) {
+    for (const companion of companionsOf(constraint, pool, taken, opts.now)) {
+      taken.add(companion.id)
+      const base = scored.find(row => row.id === companion.id)!
+      const { features, time, pinned, kind, useCount, ...row } = base
+      const historical = historicalOf(base)
+      admitted.push({ ...row, score: Math.min(1, features.bm25 / 10), witness: witnessOf(base.id, base.text), admission: 'companion', bm25: features.bm25, cosine: semantic.get(base.id) ?? null, discriminatingStems: features.discriminatingStems, maxIdf: features.maxIdf, ...(historical ? { historical } : {}) })
+    }
+  }
+  const rank = (row: AutomaticMemoryHit): number => (row.historical ? -1 : row.admission === 'constraint' ? 2 : row.admission === 'companion' ? 1 : 0)
+  return admitted.sort((a, b) => rank(b) - rank(a) || b.score - a.score || a.id.localeCompare(b.id)).slice(0, opts.limit ?? 2)
 }
 
 export function lookupFacts(

@@ -7,7 +7,6 @@ import type { Attachment, MemoryDelivery } from './types.js'
 import { recordGrade } from '../../mneme/memoryEvidence.js'
 import { mnemeLibraryDir } from '../../mneme/mnemeGates.js'
 import { getSystemPromptSectionCache } from '../../bootstrap/state.js'
-import { cacheKeys } from '../fileStateCache.js'
 import { isOperatorTurn } from '../messages/operatorTurns.js'
 
 export function collectSurfacedMemories(messages: ReadonlyArray<Message>): { ids: Set<string>; paths: Set<string>; totalBytes: number } {
@@ -57,7 +56,7 @@ function visibleMemoryBlocks(messages: readonly Message[]): string[] {
 
 function delivered(hit: AutomaticMemoryHit, blocks: readonly string[]): boolean {
   const identity = hit.seq === undefined ? hit.id : `<seq=${hit.seq}`
-  return blocks.some(block => block.includes(identity) && (block.includes(hit.text) || block.includes(`witness:${hit.witness}`)))
+  return blocks.some(block => block.includes(identity) && (block.includes(hit.text) || block.includes(`witness:${hit.witness.slice(0, 16)}`)))
 }
 
 function latestPrompt(messages: readonly Message[]): string | null {
@@ -67,8 +66,27 @@ function latestPrompt(messages: readonly Message[]): string | null {
   return typeof content === 'string' ? content : content.filter(block => block.type === 'text').map(block => block.text).join('\n')
 }
 
-function turnAllowance(messages: readonly Message[], newInput: boolean): { records: number; chars: number } {
-  if (newInput) return { records: 2, chars: 1200 }
+const PATH_TOKEN = /(?:^|[\s"'`=(])((?:~\/|\.{1,2}\/|\/)?[\w@.+-]+(?:\/[\w@.+-]+)+)/g
+
+function recentToolPaths(messages: readonly Message[]): string[] {
+  const start = messages.findLastIndex(message => isOperatorTurn(message))
+  const paths = new Set<string>()
+  for (const message of messages.slice(start + 1)) {
+    if (message.type !== 'assistant' || typeof message.message.content === 'string') continue
+    for (const block of message.message.content) {
+      if (block.type !== 'tool_use' || typeof block.input !== 'object' || block.input === null) continue
+      for (const [key, value] of Object.entries(block.input as Record<string, unknown>)) {
+        if (typeof value !== 'string') continue
+        if (key === 'file_path' || key === 'notebook_path' || key === 'path') paths.add(value)
+        else if (key === 'command') for (const match of value.matchAll(PATH_TOKEN)) paths.add(match[1]!.replace(/[.,;:)]+$/, ''))
+      }
+    }
+  }
+  return [...paths]
+}
+
+function turnAllowance(messages: readonly Message[], newInput: boolean): { records: number; chars: number; reserve: boolean } {
+  if (newInput) return { records: 2, chars: 1200, reserve: true }
   const start = messages.findLastIndex(message => isOperatorTurn(message))
   const rows = messages.slice(start + 1).flatMap(message => message.type === 'attachment' && message.attachment.type === 'relevant_memories' ? message.attachment.memories : [])
   const deliveries = new Map<string, MemoryDelivery>()
@@ -78,23 +96,67 @@ function turnAllowance(messages: readonly Message[], newInput: boolean): { recor
   }
   for (const message of messages.slice(start + 1)) if (message.type === 'attachment' && message.attachment.type === 'context_capsule') for (const delivery of message.attachment.memoryDeliveries ?? []) deliveries.set(delivery.key, delivery)
   const delivered = [...deliveries.values()]
-  return { records: Math.max(0, 2 - delivered.reduce((n, row) => n + row.ids.length, 0)), chars: Math.max(0, 1200 - delivered.reduce((n, row) => n + row.chars, 0)) }
+  const counted = delivered.filter(row => !row.reserve)
+  return { records: Math.max(0, 2 - counted.reduce((n, row) => n + row.ids.length, 0)), chars: Math.max(0, 1200 - counted.reduce((n, row) => n + row.chars, 0)), reserve: !delivered.some(row => row.reserve) }
 }
 
-function pack(hits: readonly AutomaticMemoryHit[], allowance: { records: number; chars: number }): Attachment[] {
+const FULL_TEXT_CAP = 450
+const PREVIEW_CHARS = 140
+const CONSTRAINT_RESERVE_CHARS = 560
+
+function historicalMark(hit: AutomaticMemoryHit): string {
+  return hit.historical ? ` [historical — names beta.${hit.historical.names}; the library's latest cycle is beta.${hit.historical.latest}; not a current obligation]` : ''
+}
+
+function renderHit(hit: AutomaticMemoryHit, form: 'full' | 'preview' | 'compact'): string {
+  const grade = recordGrade(hit.id, hit.signature)
+  const identity = `witness:${hit.witness.slice(0, 16)}${hit.seq === undefined ? '' : ` <seq=${hit.seq}>`}`
+  if (form === 'full') return `- ${grade} ${hit.text} ${hit.signature}${historicalMark(hit)}`
+  if (form === 'compact') return `- ${grade} [${hit.id}] on the same subject as the rule above (${hit.text.slice(0, 60)}…): Recall read:"${hit.id}" before relying; ${identity}${historicalMark(hit)}`
+  return `- ${grade} [${hit.id}] ${hit.text.slice(0, PREVIEW_CHARS)}… (cropped: read the whole record with Recall read:"${hit.id}" before relying; ${identity})${historicalMark(hit)}`
+}
+
+function pack(hits: readonly AutomaticMemoryHit[], visible: (hit: AutomaticMemoryHit) => boolean, allowance: { records: number; chars: number; reserve: boolean }): Attachment[] {
   const memories: Extract<Attachment, { type: 'relevant_memories' }>['memories'] = []
   const header = 'Memory (task-matched; read pointers before relying):'
   let chars = 0
-  for (const hit of hits.slice(0, allowance.records)) {
-    const grade = recordGrade(hit.id, hit.signature)
-    let content = `- ${grade} ${hit.text} ${hit.signature}`
-    if (chars + header.length + content.length + 41 > allowance.chars) content = `- ${grade} [${hit.id}] full rule requires Recall read:"${hit.id}"; witness:${hit.witness}${hit.seq === undefined ? '' : ` <seq=${hit.seq}>`}`
-    const size = header.length + content.length + 41
-    if (chars + size > allowance.chars) continue
-    memories.push({ path: hit.pagePath, content, header, mtimeMs: 0, ids: [hit.id], delivery: { key: hit.witness, ids: [hit.id], chars: size } })
+  let slots = allowance.records
+  let reserve = allowance.reserve ? CONSTRAINT_RESERVE_CHARS : 0
+  for (const hit of hits) {
+    const exact = hit.admission === 'constraint' || hit.admission === 'companion'
+    if (slots <= 0 && !(exact && reserve > 0)) break
+    if (visible(hit)) {
+      if (!exact) slots--
+      continue
+    }
+    let content = renderHit(hit, hit.text.length <= FULL_TEXT_CAP ? 'full' : 'preview')
+    if (chars + header.length + content.length + 41 > allowance.chars) content = renderHit(hit, 'preview')
+    let size = header.length + content.length + 41
+    let reserved = false
+    if (chars + size > allowance.chars || slots <= 0) {
+      if (!exact || reserve <= 0) continue
+      if (hit.admission === 'companion') { content = renderHit(hit, 'compact'); size = header.length + content.length + 41 }
+      if (size > reserve + header.length + 41) continue
+      reserve -= size - header.length - 41
+      reserved = true
+    } else slots--
+    memories.push({ path: hit.pagePath, content, header, mtimeMs: 0, ids: [hit.id], delivery: { key: hit.witness, ids: [hit.id], chars: size, ...(reserved ? { reserve: true } : {}) } })
     chars += size
   }
   return memories.length ? [{ type: 'relevant_memories', memories }] : []
+}
+
+function currentFiles(messages: readonly Message[], cache: ToolUseContext['readFileState'] | undefined): string[] {
+  const turn = messages.findLast(message => isOperatorTurn(message))
+  const since = turn && 'timestamp' in turn && typeof turn.timestamp === 'string' ? Date.parse(turn.timestamp) : Number.NaN
+  const files = new Set(recentToolPaths(messages))
+  if (cache) {
+    for (const [path, state] of cache.entries()) {
+      const stamp = (state as { timestamp?: number } | undefined)?.timestamp
+      if (!Number.isFinite(since) || typeof stamp !== 'number' || stamp >= since) files.add(path)
+    }
+  }
+  return [...files]
 }
 
 export function getRelevantMemoryAttachments(input: string | null, messages: ReadonlyArray<Message> | undefined, toolUseContext: ToolUseContext): Attachment[] {
@@ -103,9 +165,9 @@ export function getRelevantMemoryAttachments(input: string | null, messages: Rea
   const query = input?.trim() || latestPrompt(visible)
   if (!query) return []
   try {
-    const hits = automaticMemoryCandidates(query, { dir: mnemeLibraryDir(), files: toolUseContext.readFileState ? cacheKeys(toolUseContext.readFileState) : [] })
+    const hits = automaticMemoryCandidates(query, { dir: mnemeLibraryDir(), files: input === null ? currentFiles(visible, toolUseContext.readFileState) : [], limit: Infinity })
     const blocks = visibleMemoryBlocks(visible)
-    return pack(hits.filter(hit => !delivered(hit, blocks)), turnAllowance(visible, input !== null))
+    return pack(hits, hit => delivered(hit, blocks), turnAllowance(visible, input !== null))
   } catch (error) {
     logForDebugging(`memory lookup failed: ${String(error)}`)
     return []
