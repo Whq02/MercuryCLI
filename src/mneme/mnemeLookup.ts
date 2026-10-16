@@ -155,7 +155,7 @@ export function scoreCandidates(query: string, pool: readonly LookupCandidate[],
       const n = df.get(token)!
       matched.push(token)
       const idf = Math.log(1 + (total - n + 0.5) / (n + 0.5))
-      if (idf >= 1.5) discriminatingStems++
+      if (idf >= 1.5 || n === 1) discriminatingStems++
       maxIdf = Math.max(maxIdf, idf)
       bm25 += idf * frequency * (BM25_K1 + 1) / (frequency + BM25_K1 * (1 - BM25_B + BM25_B * doc.length / averageLength))
       if (n < total || total === 1) discriminating = true

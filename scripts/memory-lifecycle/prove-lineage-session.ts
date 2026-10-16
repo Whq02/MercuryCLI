@@ -39,6 +39,7 @@ const absent = (name: string) => (): never => {
 }
 const handoffModule = await import('../../src/mneme/handoffAsk.ts').catch(() => null)
 const entryModule = await import('../../src/mneme/entryPage.ts').catch(() => null)
+const { HANDOFF_GRADE } = await import('../../src/mneme/memoryEvidence.ts')
 const pathsModule = await import('../../src/mneme/paths.ts')
 const ledgerModule = await import('../../src/mneme/ledger.ts').catch(() => null)
 const HANDOFF_ASK: string = handoffModule?.HANDOFF_ASK ?? 'Leave one note for the next session'
@@ -156,7 +157,7 @@ if (!existsSync(DIST)) {
   check('the page sits after the memory index, before the environment', pageBlock.indexOf('# Memory') >= 0 && pageBlock.indexOf('# Memory') < pageStart && pageBlock.indexOf('# Environment') > pageStart, j([pageBlock.indexOf('# Memory'), pageStart, pageBlock.indexOf('# Environment')]))
   check('the page carries the ordinal and the count from the ledger', page.includes('Session 2 of this work; 1 session before it'), page)
   check('the page names the earlier session\'s engine with its time, never the current one as current', page.includes('Engines before this session: claude-opus-4-8 from ') && page.includes('(session 1)'), page)
-  check('the last note rides verbatim under its heading with its time', page.includes('## The last note left (session 1, ') && page.includes(NOTE_ONE), page)
+  check('the last note rides word for word under its heading with its time, every line graded as a model-authored note', page.includes('## The last note left (session 1, ') && page.includes(NOTE_ONE.split('\n').map(line => line.trim() === '' ? line : `${HANDOFF_GRADE} ${line}`).join('\n')), page)
   check('the page points at the pinned rules instead of repeating them', page.includes('Standing rulings: none pinned.'), page)
   const messages = first?.body.messages ?? []
   check('nothing of the page is in the messages: not the heading, not the note', !j(messages).includes(ENTRY_PAGE_HEADING) && !j(messages).includes(NOTE_ONE) && !j(messages).includes('Session 2 of this work'))

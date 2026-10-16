@@ -26,7 +26,8 @@ writeFileSync(join(origin, 'pins.json'), JSON.stringify({ version: 1, pins }))
 const before = readFileSync(join(origin, 'pins.json'), 'utf8')
 try {
   const empty = renderFrontPage({ dir: sibling, topics: [], archives: [], pins: [], usage: {}, now: new Date(now) }).text
-  assert.equal(empty.trim(), 'Memory: empty.')
+  assert.equal(empty.split('\n').length, 2, 'an empty library is the heading and one sentence')
+  assert.ok(empty.startsWith('# Memory\n') && empty.includes(sibling) && empty.includes('nothing saved yet') && !empty.includes('## Index') && !empty.includes('## Pinned'), empty)
   const child = renderFrontPage({ dir: origin, topics: [doc], archives: [], pins: readPins(origin), usage: {}, now: new Date(now), role: 'child' } as never).text
   assert.ok(child.includes('shared vessel') && child.includes('without checking'))
   assert.ok(child.includes('unclassified rule'), 'unknown scope keeps conservative visibility')
@@ -36,7 +37,7 @@ try {
   assert.ok(!global.includes('launch register') && !global.includes('unclassified rule'), 'project and unknown pins never become global')
   assert.ok(global.includes(origin), 'source library identity accompanies the global words')
   assert.equal(readFileSync(join(origin, 'pins.json'), 'utf8'), before)
-  console.log(`PASS empty 1 line; global 2/2; child unrelated 0; unknown preserved; bytes empty=${Buffer.byteLength(empty)} child=${Buffer.byteLength(child)} sibling=${Buffer.byteLength(global)}`)
+  console.log(`PASS empty one sentence under its heading; global 2/2; child unrelated 0; unknown preserved; bytes empty=${Buffer.byteLength(empty)} child=${Buffer.byteLength(child)} sibling=${Buffer.byteLength(global)}`)
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

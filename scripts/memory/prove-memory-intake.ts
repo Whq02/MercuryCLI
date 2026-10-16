@@ -94,7 +94,7 @@ const pinned = readPins(lib)
 check('the pinned tier holds exactly the five rulings', pinned.length === 5)
 check('the header-only note landed as its description, pinned', pages.find(p => p.slug === 'preferences')?.sections.some(s => s.entries.some(e => e.text === 'feedback header only' && e.source === 'handover:feedback-header-only')) === true && pinned.some(p => pages.find(d => d.slug === 'preferences')?.sections.some(s => s.entries.some(e => e.seq === p.seq && e.text === 'feedback header only'))))
 const front = readFrontPage(lib) ?? ''
-check('the pinned rules are in front of the model word for word', front.includes('- Use the model the owner names for every lane. **Why:** the owner rules on models. **How to apply:** never substitute. <seq='))
+check('the pinned rules are in front of the model word for word, behind the plain-pin grade (an intake pin is not an owner-asked rule)', front.includes('- [pinned · owner intent unverified] Use the model the owner names for every lane. **Why:** the owner rules on models. **How to apply:** never substitute. <seq='), front.split('\n').find(l => l.includes('Use the model the owner names')) ?? '(no pinned line)')
 check('the index names the pages, never the facts', /^- project — ongoing project facts/m.test(front) && !front.includes('mercury-working checkout'))
 check('the index pointer lines were not taken as facts', !front.includes('[Owner names models]') && !pages.some(p => p.sections.some(s => s.entries.some(e => e.text.includes('[Owner names models]')))))
 check('every fact carries the note it came from as its source', pages.every(p => p.sections.every(s => s.entries.every(e => e.source.startsWith('handover:')))))

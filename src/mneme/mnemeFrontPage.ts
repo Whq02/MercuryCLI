@@ -18,6 +18,11 @@ const INDEX_LINE_CAP = 160
 export const MEMORY_WRITE_VERBS_SENTENCE = 'Retain saves a new fact; Correct supersedes a wrong one and keeps the old fact as history.'
 export const EMPTY_INDEX_LINE = '(nothing saved yet — Retain saves the first fact)'
 const EMPTY_INDEX_LINE_READ_ONLY = '(nothing saved yet)'
+const EMPTY_PAGE_WRITE_WORDS = ' Retain saves the first fact;'
+
+export function emptyMemoryPage(dir: string): string {
+  return `# Memory\nWhat Mercury remembers about this project lives in topic pages under ${dir}: nothing saved yet.${EMPTY_PAGE_WRITE_WORDS} Recall searches the pages once there are any.`
+}
 
 export interface PinnedStatus {
   pinned: number
@@ -136,8 +141,7 @@ export function renderFrontPage(input: {
   }
   void usage
   const empty = factCount + archivedFacts + pins.length + pendingRows(dir).length === 0 && !input.hasHandoff
-  if (empty) return { text: 'Memory: empty.', status }
-  if (input.role === 'child') return { text: ['# Memory', MEMORY_EVIDENCE_CONTRACT, ...pinnedLines].join('\n'), status }
+  if (empty) return { text: emptyMemoryPage(dir), status }
   return { text: lines.join('\n'), status }
 }
 
@@ -196,7 +200,7 @@ export function frontPageKey(dir: string = mnemeLibraryDir()): string {
 
 export function forReader(page: string, verbs: 'all' | 'read'): string {
   if (verbs === 'all') return page
-  return page.replace(` ${MEMORY_WRITE_VERBS_SENTENCE}`, '').replace(EMPTY_INDEX_LINE, EMPTY_INDEX_LINE_READ_ONLY)
+  return page.replace(` ${MEMORY_WRITE_VERBS_SENTENCE}`, '').replace(EMPTY_INDEX_LINE, EMPTY_INDEX_LINE_READ_ONLY).replace(EMPTY_PAGE_WRITE_WORDS, '')
 }
 
 function globalPinLines(dir: string): string[] {
@@ -226,6 +230,6 @@ export function loadMemoryPrompt(opts: { verbs?: 'all' | 'read'; role?: 'main' |
   const hasHandoff = readLedger(mnemeProjectKey()).some(entry => entry.handoff?.text.trim())
   const page = renderFrontPage({ dir, topics, archives, pins: readPins(dir), usage: readUsage(dir), now: new Date(0), role: opts.role, hasHandoff }).text
   const global = globalPinLines(dir)
-  const text = global.length === 0 ? page : [page === 'Memory: empty.' ? '# Memory' : page, ...(page === 'Memory: empty.' ? [MEMORY_EVIDENCE_CONTRACT] : []), ...global].join('\n')
+  const text = global.length === 0 ? page : [page, ...(page === emptyMemoryPage(dir) ? [MEMORY_EVIDENCE_CONTRACT] : []), ...global].join('\n')
   return forReader(text, opts.verbs ?? 'all')
 }

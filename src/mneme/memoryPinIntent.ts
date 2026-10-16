@@ -18,19 +18,65 @@ export function latestPinIntent(messages: readonly Message[], agentId?: string):
   return undefined
 }
 
+const FILLER = /^(?:(?:ok(?:ay)?|also|and|so|oh|right|cool|yes|yeah|btw|well|then)[\s,.:!-]+)*/i
+const NEGATED = /^(?:please\s+|pls\s+)?(?:do\s+not|don['’]t|never|no\s+need\s+to|stop)\s+(?:remember|pin|save|keep|make|retain)\b/i
+const DIRECTIVE = /^(?:please\s+|pls\s+)?(?:remember(?:\s+(?:this|that|these))?\b|(?:make|keep|save|pin)\s+(?:this|it|that|these)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rules?|preferences?)\b|from\s+now\s+on\b|always\b|never\b|(?:i|we)\s+(?:like|prefer|want)\b|(?:standing\s+)?rule\b|every\s+(?:time|release|session|chat)\b)/i
+const RULE_WORDS = /\b(?:standing rules?|rules?|preferences?|from now on|always|never|every (?:time|release|session|chat)|(?:i|we) (?:like|prefer|want))\b/i
+const SECOND_HAND = /\b(?:example|quote|quoted|document|draft|says|said|wrote|not\s+(?:a\s+)?rule)\b/i
+const SUFFIX = /^[\s.!;,—-]*(?:please\s+|pls\s+)?(?:remember\s+(?:this|that)|(?:make|keep|save|pin)\s+(?:this|it|that)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rule|preference))\s*[.!]?\s*$/i
+
+interface Sentence {
+  start: number
+  end: number
+  text: string
+}
+
+function sentences(text: string): Sentence[] {
+  const out: Sentence[] = []
+  for (const match of text.matchAll(/[^.!?;\n]+(?:[.!?;]+|\n|$)/g)) {
+    const raw = match[0]
+    const lead = raw.length - raw.trimStart().length
+    const body = raw.trim()
+    if (body !== '') out.push({ start: match.index + lead, end: match.index + lead + body.length, text: body })
+  }
+  return out
+}
+
+function directiveOf(sentence: string): string | null {
+  const head = sentence.slice((FILLER.exec(sentence)?.[0] ?? '').length)
+  if (NEGATED.test(head)) return null
+  return DIRECTIVE.exec(head)?.[0] ?? null
+}
+
 export function pinIntentSpan(intent: PinIntent | undefined, content: string): { start: number; end: number } | null {
   if (!intent?.messageId || !content.trim()) return null
   const text = intent.text
-  const words = text.trim()
-  if (/^(?:do\s+not|don['’]t|never)\s+(?:remember|pin|save|keep|make)\b/i.test(words)) return null
-  const prefix = /^(?:please\s+)?(?:remember(?:\s+this)?\b|(?:make|keep|save|pin)\s+(?:this|it)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rule|preference)\b|from\s+now\s+on\b|always\b|never\b)/i.exec(words)
-  const suffix = /(?:[.!;]\s*|\n)(?:please\s+)?(?:remember\s+(?:this|that)|(?:make|keep|save|pin)\s+(?:this|it)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rule|preference))\s*[.!]?$/i.test(words)
-  if (!prefix && !suffix) return null
-  if (!/\b(?:standing rule|rule|preference|from now on|always|never|I (?:like|prefer))\b/i.test(words)) return null
-  const start = text.indexOf(content.trim())
+  const wanted = content.trim()
+  const start = text.indexOf(wanted)
   if (start < 0) return null
+  const end = start + wanted.length
   const before = text.slice(0, start)
-  if (/```|~~~|^\s*>/m.test(before) || /<\/?[a-z][^>]*>/i.test(before)) return null
-  if (prefix && /\b(?:example|quote|document|draft|says|said|not\s+(?:a\s+)?rule)\b/i.test(before.slice(prefix[0].length))) return null
-  return { start, end: start + content.trim().length }
+  if ((before.match(/```|~~~/g) ?? []).length % 2 === 1 || /<\/?[a-z][^>]*>/i.test(before)) return null
+  if (/^\s*>/.test(text.slice(text.lastIndexOf('\n', start) + 1)) || /["'“‘`]\s*$/.test(before)) return null
+  const rows = sentences(text)
+  const holder = rows.find(row => row.start <= start && start < row.end)
+  if (!holder) return null
+  let witness: { directive: string; sentence: Sentence } | null = null
+  let list: { directive: string; sentence: Sentence } | null = null
+  for (const row of rows) {
+    if (row.start > start) break
+    const directive = directiveOf(row.text)
+    if (directive === null && NEGATED.test(row.text.replace(FILLER, ''))) list = null
+    if (directive !== null) list = /:\s*$/.test(row.text) ? { directive, sentence: row } : null
+    if (row !== holder) continue
+    if (directive !== null) witness = { directive, sentence: row }
+    else if (list !== null && !/\n\s*\n/.test(text.slice(list.sentence.end, row.start))) witness = list
+    else if (SUFFIX.test(text.slice(end))) witness = { directive: '', sentence: row }
+  }
+  if (witness === null) return null
+  const lead = text.slice(witness.sentence.start, start)
+  const afterDirective = witness.directive === '' ? lead : lead.slice(lead.indexOf(witness.directive) + witness.directive.length)
+  if (SECOND_HAND.test(afterDirective)) return null
+  if (!RULE_WORDS.test(`${witness.sentence.text} ${holder.text} ${witness.directive === '' ? text.slice(end) : ''}`)) return null
+  return { start, end }
 }
