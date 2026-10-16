@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -28,7 +28,7 @@ console.log('============================================================')
 console.log(' the Launch run op reports the program’s own end; the Test debug op names a missing debugger and still runs the test')
 console.log('============================================================')
 
-const scratch = mkdtempSync(path.join(tmpdir(), 'mercury-debug-without-adapter-'))
+const scratch = realpathSync(mkdtempSync(path.join(tmpdir(), 'mercury-debug-without-adapter-')))
 const nodeProj = path.join(scratch, 'node')
 mkdirSync(path.join(nodeProj, '.vscode'), { recursive: true })
 writeFileSync(path.join(nodeProj, 'printvar.js'), "console.log('VAR is ' + (process.env.VAR ?? '(unset)'))\n")

@@ -340,7 +340,7 @@ export function mcpServersSkippedForTrustLine(): string | null {
     count = 0
   }
   if (count === 0) return null
-  return `mcp: this folder is not trusted, so ${count === 1 ? 'its 1 project MCP server was' : `its ${count} project MCP servers were`} not loaded from ${PROJECT_MCP_FILE_SPELLING} — start Mercury here once and accept the trust card, and they connect`
+  return `mcp: this folder is not trusted, so ${count === 1 ? 'its 1 project MCP server was' : `its ${count} project MCP servers were`} not loaded from ${PROJECT_MCP_FILE_SPELLING} — start Mercury here once and accept the trust card, and ${count === 1 ? 'it connects' : 'they connect'}`
 }
 
 export const PROJECT_MCP_FILE_SPELLING = `${MERCURY_PROJECT_DIR}/${PROJECT_MCP_FILE}`
