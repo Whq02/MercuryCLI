@@ -69,6 +69,14 @@ try {
   const secondPromptAt = first.findIndex(m => m.type === 'user' && JSON.stringify(m.message?.content).includes('"second"'))
   check('the no-tools receipt stands before the next prompt row', firstReceiptAt > 0 && secondPromptAt > firstReceiptAt, `${firstReceiptAt} ${secondPromptAt}`)
 
+  console.log('§3b what is not a real reply: the resume sentinel and an error row')
+  const { NO_RESPONSE_REQUESTED } = await import('../../src/utils/messages/rejectionText.ts')
+  const sentinelRow = { type: 'assistant', uuid: randomUUID(), timestamp, message: { id: randomUUID(), role: 'assistant', content: [{ type: 'text', text: NO_RESPONSE_REQUESTED }] } } as Message
+  check('a resumed session whose last prompt got only the synthetic "No response requested." row carries no receipt (nothing replied)', receiptsOf([createUserMessage({ content: 'an unanswered prompt' }), sentinelRow]).length === 0)
+  const errorRow = { type: 'assistant', uuid: randomUUID(), timestamp, isApiErrorMessage: true, message: { id: randomUUID(), role: 'assistant', content: [{ type: 'text', text: 'The request failed: the provider refused.' }] } } as Message
+  check('a turn that ended on an API error row is not a reply: no no-tools receipt beside the error', receiptsOf([createUserMessage({ content: 'a prompt' }), errorRow]).length === 0)
+  check('a real reply after the sentinel in a later turn still carries its receipt', receiptsOf([createUserMessage({ content: 'one' }), sentinelRow, createUserMessage({ content: 'two' }), reply('an answer')]).length === 1)
+
   console.log('§4 the gate and the live row')
   process.env.MERCURY_TURN_RECEIPT = '0'
   check('MERCURY_TURN_RECEIPT=0: no receipt, the stream untouched', receiptsOf(claimed).length === 0)

@@ -2,6 +2,7 @@
 import type { CompactMetadata, Message, RenderableMessage, TurnReceiptMessage } from '../../types/message.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { deriveUUID } from '../messages/identity.js'
+import { NO_RESPONSE_REQUESTED } from '../messages/rejectionText.js'
 import { isNotEmptyMessage } from '../messages/text.js'
 
 export function isTurnReceiptEnabled(): boolean {
@@ -51,8 +52,8 @@ export function hasActivity(c: TurnReceiptCounts): boolean {
 export const NO_TOOLS_RAN_WORDS = 'no tools ran this turn'
 
 function isReplyRow(m: LooseMessage): boolean {
-  if (m.type !== 'assistant') return false
-  return contentBlocks(m).some(b => b['type'] === 'text' && typeof b['text'] === 'string' && (b['text'] as string).trim() !== '')
+  if (m.type !== 'assistant' || m.isApiErrorMessage === true) return false
+  return contentBlocks(m).some(b => b['type'] === 'text' && typeof b['text'] === 'string' && (b['text'] as string).trim() !== '' && (b['text'] as string).trim() !== NO_RESPONSE_REQUESTED)
 }
 
 const READ_TOOLS = new Set(['Read', 'NotebookRead'])
@@ -96,6 +97,7 @@ type LooseMessage = {
   subtype?: string
   compactMetadata?: CompactMetadata
   isMeta?: boolean
+  isApiErrorMessage?: boolean
   uuid?: string
   message?: { content?: unknown; usage?: unknown }
   messages?: LooseMessage[]
