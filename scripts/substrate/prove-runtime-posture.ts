@@ -107,16 +107,27 @@ section('boot-state capture — kills + MCP cap render when armed at boot')
 
 section('composition into the subagent doctrine (both chokepoints share the seam)')
 {
+  resetRuntimePostureForTest()
+  const interactiveChild = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
+  check(
+    'an interactive parent\'s child carries no posture line (its seat contract says a denied tool is a real denial; a lease refusal names the holder)',
+    interactiveChild.every(s => !s.startsWith('Runtime posture:')),
+  )
+  const { setAskChannel } = await import('../../src/bootstrap/state.ts')
+  setAskChannel('none')
+  markSessionNonInteractive('default')
   const sections = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
   check(
-    'doctrine sections include the posture line',
-    sections.some(s => s.startsWith('Runtime posture:')),
+    'a headless parent\'s child carries the headless posture line',
+    sections.some(s => s.startsWith('Runtime posture: this process is headless')),
   )
   const exempt = buildSubagentMercurySections({ agentDefinition: { agentType: 'Explore' } })
   check(
     'fable-exempt agents still get the posture (it is scope-neutral)',
     exempt.some(s => s.startsWith('Runtime posture:')),
   )
+  setAskChannel('operator')
+  resetRuntimePostureForTest()
 }
 
 section('wiring (structural) — prompts.ts section + print-entry marker')
