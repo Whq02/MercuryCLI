@@ -8,7 +8,7 @@ const REV = revIdx >= 0 ? process.argv[revIdx + 1] ?? null : null
 const baseIdx = process.argv.indexOf('--base')
 const BASE_REV = baseIdx >= 0 ? process.argv[baseIdx + 1] ?? null : null
 
-export interface IntegrityHit {
+interface IntegrityHit {
   file: string
   line: number
   kind:
@@ -51,7 +51,7 @@ function headWords(line: string, count: number): string {
   return words.slice(0, count).join(' ')
 }
 
-export function scanBaseRevisionTails(file: string, baseText: string, text: string): IntegrityHit[] {
+function scanBaseRevisionTails(file: string, baseText: string, text: string): IntegrityHit[] {
   const hits: IntegrityHit[] = []
   const baseLines = baseText.split('\n')
   const lines = text.split('\n')
@@ -182,7 +182,7 @@ export function scanBaseRevisionTails(file: string, baseText: string, text: stri
   return hits
 }
 
-export function scanMarkdownIntegrity(file: string, text: string, baseText?: string): IntegrityHit[] {
+function scanMarkdownIntegrity(file: string, text: string, baseText?: string): IntegrityHit[] {
   const hits: IntegrityHit[] = []
   const lines = text.split('\n')
   let fenced = false
