@@ -84,7 +84,7 @@ export interface PosixProcessTableOptions {
 
 export async function collectPosixProcessTable(options: PosixProcessTableOptions): Promise<ProcessSweepTable> {
   const ps = options.ps ?? ((args: readonly string[]): Promise<string> => new Promise((resolve, reject) => {
-    execFile('ps', [...args], { env: { ...subprocessEnv() }, timeout: options.waitMs, maxBuffer: 16 * 1024 * 1024, windowsHide: true, encoding: 'utf8' }, (error, stdout) => {
+    execFile('ps', [...args], { env: { ...subprocessEnv(), LC_ALL: 'C' }, timeout: options.waitMs, maxBuffer: 16 * 1024 * 1024, windowsHide: true, encoding: 'utf8' }, (error, stdout) => {
       const failed = error as (NodeJS.ErrnoException & { killed?: boolean }) | null
       if (failed !== null && (!args.includes('-p') || failed.code === 'ENOENT' || failed.killed === true || typeof stdout !== 'string')) reject(failed)
       else resolve(stdout)
