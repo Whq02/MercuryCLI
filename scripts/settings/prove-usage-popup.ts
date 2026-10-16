@@ -364,7 +364,7 @@ check('each open mints a distinct token', reopened.props.openToken !== body.prop
 rich = false
 subscriber = false
 await call('', {} as never)
-check('no credential invents a subscription or a percentage', popup.settingsPopupRequest()?.line === 'Anthropic session on · 0 subscriptions signed in')
+check('no credential invents a subscription, a percentage or a session: the lead says the family is not signed in', popup.settingsPopupRequest()?.line === 'Anthropic not signed in · 0 subscriptions signed in', popup.settingsPopupRequest()?.line)
 popup.closeSettingsPopup()
 ids.splice(ids.indexOf('deepseek') + 1, 0, 'xai', 'meta')
 const fullEstate = await mount(146, 22, 178, token++)
@@ -372,7 +372,7 @@ check('the complete estate mounts twelve provider sections including xAI and Met
 await walk(fullEstate, 146, 22, 'complete estate 178x51')
 fullEstate.close()
 await call('', {} as never)
-check('the complete estate context keeps the session lead and no invented figure', popup.settingsPopupRequest()?.line === 'Anthropic session on · 0 subscriptions signed in')
+check('the complete estate context keeps the not-signed-in lead and no invented figure', popup.settingsPopupRequest()?.line === 'Anthropic not signed in · 0 subscriptions signed in', popup.settingsPopupRequest()?.line)
 popup.closeSettingsPopup()
 console.log(`usage popup: ${failures} failure(s)`)
 process.exit(failures ? 1 : 0)
