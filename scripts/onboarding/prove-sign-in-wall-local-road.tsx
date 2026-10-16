@@ -160,12 +160,13 @@ console.log('§2 the probe landed before the walk mounted (the picker already kn
   check("Enter on the row arms the 'model' door here too", frames.door === 'model', `door=${frames.door}`)
 }
 
-console.log('§3 no local server answers: the row keeps its words, Enter arms nothing')
+console.log('§3 no local server answers: the row says a sign-in OR a local model is needed, Enter arms nothing')
 {
   const frames = run('none')
   const catalogue = frames.catalogue ?? frames.error ?? ''
-  check('the row reads "Sign in later to look around. Sign-in is required to run the agent."', flat(catalogue).includes('Sign in later to look around. Sign-in is required to run the agent.'), flat(catalogue).slice(-300))
-  check('no local words paint', !flat(catalogue).includes('run a local model'))
+  check('the row reads "Sign in later to look around. A sign-in or a local model is needed to run the agent."', flat(catalogue).includes('Sign in later to look around. A sign-in or a local model is needed to run the agent.'), flat(catalogue).slice(-300))
+  check('the words "Sign-in is required to run the agent" are nowhere on this frame either', !flat(catalogue).includes('Sign-in is required to run the agent'))
+  check('no found-server words paint', !flat(catalogue).includes('run a local model —'))
   check('Enter continues the walk (Guardrails next)', (frames.after ?? '').includes('Guardrails'))
   check('no face door is armed', frames.door === 'null', `door=${frames.door}`)
 }
@@ -183,7 +184,10 @@ console.log('§4 the wiring: the door opens the picker; the row owner holds the 
   check("the home face opens the model-default picker when the 'model' door is armed", face.includes("useState(faceDoor === 'model' && sessionDefaultsKeyOn())"))
   check('the card paints the row owner\'s local-aware row and arms the door on Enter', card.includes('signInLaterRow(localRoad)') && card.includes("if (localRoadOpen(localRoad)) armFaceDoorDeepLink('model')"))
   check('the card kicks the same TTL\'d discovery the picker uses, only when it hosts the walk\'s row', /if \(walkHost\) void refreshLocalDiscovery\(\)/.test(card))
-  check('the words live in the row owner', rows.includes('or run a local model — ${local!.models} found on ${local!.labels.join'))
+  check('the words live in the row owner', rows.includes('or run a local model — ${local!.models} found on ${local!.labels.join') && rows.includes("label: 'Sign in later to look around. A sign-in or a local model is needed to run the agent.'"))
+  const { LOCAL_NO_SERVER_BLOCKER } = await import('../../src/services/providers/local/localAccounts.ts')
+  const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
+  check("the wall's readiness row for Local servers names /localsetup when no server answers (the readiness block below the roster paints this blocker)", LOCAL_NO_SERVER_BLOCKER.includes('/localsetup sets one up (Ollama, LM Studio, vLLM, llama.cpp)') && resolveProviderUsability({ anthropicApiKey: () => null, anthropicSubscriber: () => false, anthropicBearerToken: () => false, anthropicLimitStatus: () => 'allowed', gptSeat: () => ({ state: 'disabled', reason: 'no OpenAI account is signed in', why: 'no-account' }), zaiKeyPresent: () => false, moonshotAccount: () => undefined, deepseekKeyPresent: () => false, xaiKeyPresent: () => false, compatConfigured: () => false, huggingfaceAccount: () => undefined, localServerPresent: () => false, openrouterKeyPresent: () => false, geminiAccount: () => undefined }).local.blockers[0] === LOCAL_NO_SERVER_BLOCKER)
   check('the station gate never counts the local lane as a credential', onboarding.includes("lane.provider !== 'local' && lane.usable"))
 }
 
