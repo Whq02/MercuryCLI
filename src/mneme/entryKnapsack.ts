@@ -7,7 +7,7 @@ import { currentBufferPath, pendingRows } from './mnemeBuffer.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus } from './mnemeFrontPage.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
-import { scoreCandidates, semanticRanking, type LookupCandidate } from './mnemeLookup.js'
+import { automaticMemoryCandidates, scoreCandidates, semanticRanking, type LookupCandidate } from './mnemeLookup.js'
 import { docFileName, serializeSignature, type MnemeEntry, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { readPins, readUsage, startTextLimit, usageOf, type UsageRecord } from './mnemeUsage.js'
 import { factMemoryState, memoryStatusWords } from './memoryRefs.js'
@@ -178,11 +178,25 @@ function channelScores(chunks: readonly string[], input: { candidates: readonly 
   return new Map([...new Set([...words.keys(), ...meaning.keys()])].map(id => [id, (words.get(id) ?? 0) + (meaning.get(id) ?? 0)]))
 }
 
+const SEMANTIC_CHUNKS = 4
+
+function taskChannel(text: string | undefined, input: { candidates: readonly StartCandidate[]; now: number; dir?: string }, semantic: boolean): Map<string, number> {
+  const scores = new Map<string, number>()
+  if (!text?.trim()) return scores
+  stateQueryChunks(text.split(/\s+/)).forEach((chunk, index) => {
+    const admitted = automaticMemoryCandidates(chunk, { dir: input.dir ?? mnemeLibraryDir(), pool: input.candidates, now: input.now, limit: Infinity, semantic: semantic && index < SEMANTIC_CHUNKS })
+    const taken = new Set(admitted.map(hit => hit.id))
+    const rare = scoreCandidates(chunk, input.candidates, input.now).filter(row => row.features.rareStems >= 1 && !taken.has(row.id)).sort((a, b) => b.features.bm25 - a.features.bm25 || a.id.localeCompare(b.id))
+    ;[...admitted, ...rare].forEach((hit, rank) => scores.set(hit.id, Math.max(scores.get(hit.id) ?? 0, 1 / (FUSE_K + rank + 1))))
+  })
+  return scores
+}
+
 export function chooseAtStart(input: { candidates: readonly StartCandidate[]; chunks: readonly string[]; limit: number; pinnedChars: number; now: number; dir?: string; task?: StartTask }): StartChoice {
   const task = input.task
-  const prompt = channelScores(stateQueryChunks((task?.prompt ?? '').split(/\s+/)), input)
-  const continuation = task?.continuation?.source ? channelScores(stateQueryChunks(task.continuation.objective.split(/\s+/)), input) : new Map<string, number>()
-  const summary = task?.continuation?.source ? channelScores(stateQueryChunks((task.continuation.summary ?? '').split(/\s+/)), input) : new Map<string, number>()
+  const prompt = taskChannel(task?.prompt, input, true)
+  const continuation = task?.continuation?.source ? taskChannel(task.continuation.objective, input, true) : new Map<string, number>()
+  const summary = task?.continuation?.source ? taskChannel(task.continuation.summary, input, false) : new Map<string, number>()
   const fallback = task?.prompt?.trim() || task?.continuation?.objective.trim() ? new Map<string, number>() : channelScores(input.chunks, input)
   const required = new Set((task?.required ?? []).filter(row => row.source.trim()).map(row => row.id))
   const scored: StartScored[] = input.candidates.map(candidate => {
