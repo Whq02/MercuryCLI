@@ -1,6 +1,6 @@
 import { localProbeTargets, refreshLocalDiscovery, type LocalServerKind } from '../providers/local/localDiscovery.js'
 import { LOCAL_MODEL_PREFIX, LOCAL_SERVER_NAMES } from '../providers/local/localCatalogue.js'
-import { chooseKeysLine, pullCandidateOf, readModelChoice } from './setupChoose.js'
+import { chooseKeysLine, otherServerChoice, pullCandidateOf, readModelChoice } from './setupChoose.js'
 import { detectLocalServers, ollamaRootOf, probeWords } from './setupDetect.js'
 import { findOllamaInstall, planInstall, runInstall, waitForInstall, windowsAppExe } from './setupInstall.js'
 import { resolveSetupIo, seconds, type ResolvedSetupIo } from './setupIo.js'
@@ -192,7 +192,23 @@ export async function* runSetupRoad(consent: SetupConsentFn, seam: SetupIo = {})
     if (server.kind !== 'none' && server.kind !== 'ollama' && server.models.length > 0) {
       const other = server
       const otherKind = server.kind
-      const first = other.models[0]!
+      let first = other.models[0]!
+      if (other.models.length > 1) {
+        const choice = otherServerChoice(other, io.currentModel())
+        const step4 = plan('4', 'choose', 'Choose the model', choice.words, '', false, false, chooseKeysLine(choice.current), choice.rows)
+        yield { type: 'step', plan: step4 }
+        const c4 = await ask(step4)
+        const picked = pickOf(c4)
+        if (picked === undefined) {
+          kept = choice.current
+          const summary = stop('4')
+          yield { type: 'done', summary }
+          return summary
+        }
+        const row: SetupModelRow = choice.rows.find(r => r.tag === picked) ?? { tag: picked, on: 'server', words: 'not in the list' }
+        yield result(step4, 'ran', `${row.tag} · ${row.words}`, row)
+        first = picked
+      }
       const step6 = plan('6', 'prove', 'Pick and prove', `${other.label} at ${other.root} serves ${first}; nothing is installed or started`, await proveWillRunFor(first, other.root, otherKind, seam))
       yield { type: 'step', plan: step6 }
       const c6 = await ask(step6)

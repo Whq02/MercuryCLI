@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url'
 const SELF = fileURLToPath(import.meta.url)
 const scenarioAt = process.argv.indexOf('--scenario')
 const scenario = scenarioAt < 0 ? null : (process.argv[scenarioAt + 1] ?? null)
+const sizeAt = process.argv.indexOf('--size')
+const [COLS, ROWS] = (sizeAt < 0 ? '120x40' : (process.argv[sizeAt + 1] ?? '120x40')).split('x').map(Number) as [number, number]
 const MODELS = ['qwen3.6:35b-a3b-coding', 'qwen3.6:27b-coding', 'qwen3.8:27b-mtp-q4_K_M']
 
 if (scenario !== null) {
@@ -57,17 +59,17 @@ if (scenario !== null) {
   const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
   const h = React.createElement
   const element = h(AppStateProvider as never, { onChangeAppState: () => {} } as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never)))
-  const mounted = await mountOffscreen(element, 120, 40)
-  const until = async (needle: string): Promise<boolean> => waitFor(() => mounted.screen().includes(needle), 15_000)
+  const mounted = await mountOffscreen(element, COLS, ROWS)
+  const until = async (needle: string | RegExp): Promise<boolean> => waitFor(() => (typeof needle === 'string' ? mounted.screen().includes(needle) : needle.test(mounted.screen())), 15_000)
   const frames: Record<string, string> = {}
-  const shot = async (name: string, needle: string): Promise<void> => {
+  const shot = async (name: string, needle: string | RegExp): Promise<void> => {
     const ok = await until(needle)
     await settle(300)
     frames[name] = `${ok ? '' : `[never saw: ${needle}]\n`}${mounted.screen()}`
   }
   await shot('theme', 'Choose your theme')
   mounted.push(KEY.enter)
-  await shot('catalogue', withServer ? 'or run a local model' : 'Sign in later')
+  await shot('catalogue', withServer ? 'or run a local model' : /sign in · 2\/\d/)
   for (let i = 0; i < loginFamilyRows({ engineLegs: true }).length; i++) {
     mounted.push(KEY.down)
     await settle(60)
@@ -91,7 +93,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const DEAD = 'http://127.0.0.1:9'
 const SCRATCH = mkdtempSync(join(tmpdir(), 'sign-in-wall-local-road-'))
-const run = (tag: string): Record<string, string> => {
+const run = (tag: string, size = '120x40'): Record<string, string> => {
   const home = mkdtempSync(join(SCRATCH, `${tag}-home-`))
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -125,7 +127,7 @@ const run = (tag: string): Record<string, string> => {
   for (const key of Object.keys(env)) {
     if (/^(ANTHROPIC_AUTH_TOKEN|ANTHROPIC_API_KEY|MERCURY_OAUTH_TOKEN|MERCURY_API_KEY_FILE_DESCRIPTOR|OPENAI_API_KEY|ZAI_API_KEY|OPENROUTER_API_KEY|GOOGLE_API_KEY|GEMINI_API_KEY|MOONSHOT_API_KEY|DEEPSEEK_API_KEY|HF_TOKEN|XAI_API_KEY|MODEL_API_KEY|MERCURY_COMPAT_BASE_URL|MERCURY_LOCAL_BASE_URL|MERCURY_LOCAL_PROBE_TARGETS|CURSOR_TRACE_ID|VSCODE_GIT_ASKPASS_MAIN|__CFBundleIdentifier|VisualStudioVersion|TERMINAL_EMULATOR)$/.test(key)) delete env[key]
   }
-  const r = spawnSync(process.execPath, ['run', SELF, '--scenario', tag], { encoding: 'utf8', env, timeout: 120_000 })
+  const r = spawnSync(process.execPath, ['run', SELF, '--scenario', tag, '--size', size], { encoding: 'utf8', env, timeout: 120_000 })
   rmSync(home, { recursive: true, force: true })
   const start = r.stdout.indexOf('{"theme"')
   const end = r.stdout.lastIndexOf('}')
@@ -160,14 +162,32 @@ console.log('§2 the probe landed before the walk mounted (the picker already kn
   check("Enter on the row arms the 'model' door here too", frames.door === 'model', `door=${frames.door}`)
 }
 
-console.log('§3 no local server answers: the row keeps its words, Enter arms nothing')
+const NO_SERVER_ROW = 'Sign in later to look around. The agent needs a sign-in or a local model (/localsetup).'
+console.log('§3 no local server answers: the row says a sign-in OR a local model is needed and names /localsetup, Enter arms nothing')
 {
   const frames = run('none')
   const catalogue = frames.catalogue ?? frames.error ?? ''
-  check('the row reads "Sign in later to look around. Sign-in is required to run the agent."', flat(catalogue).includes('Sign in later to look around. Sign-in is required to run the agent.'), flat(catalogue).slice(-300))
-  check('no local words paint', !flat(catalogue).includes('run a local model'))
+  check(`the row reads "${NO_SERVER_ROW}"`, flat(catalogue).includes(NO_SERVER_ROW), flat(catalogue).slice(-300))
+  check('the row stands on ONE line at 120×40', catalogue.split('\n').some(line => line.includes(NO_SERVER_ROW)), catalogue.split('\n').filter(line => line.includes('Sign in later')).join(' / '))
+  check('/localsetup is on the no-server frame (the readiness row that names it sits below the fold)', catalogue.includes('/localsetup'))
+  check('the words "Sign-in is required to run the agent" are nowhere on this frame either', !flat(catalogue).includes('Sign-in is required to run the agent'))
+  check('no found-server words paint', !flat(catalogue).includes('run a local model —'))
+  check('↓ to the end focuses the row, /localsetup still on the frame', focusedRow(frames.focused ?? '').startsWith('Sign in later to look around. The agent needs') && (frames.focused ?? '').includes('/localsetup'), focusedRow(frames.focused ?? ''))
   check('Enter continues the walk (Guardrails next)', (frames.after ?? '').includes('Guardrails'))
   check('no face door is armed', frames.door === 'null', `door=${frames.door}`)
+}
+
+console.log('§3b the same at 80×24: the row is below the first window, focused it wraps to two lines and /localsetup is on the frame')
+{
+  const frames = run('none', '80x24')
+  const catalogue = frames.catalogue ?? frames.error ?? ''
+  check('the station paints at 80×24 (sign in · 2/N on the rail)', /sign in · 2\/\d/.test(catalogue), catalogue.split('\n').slice(0, 3).join(' / '))
+  const focused = frames.focused ?? ''
+  check('↓ to the end focuses the row', focusedRow(focused).startsWith('Sign in later to look around. The agent needs'), focusedRow(focused))
+  const unboxed = focused.split('\n').map(line => line.replace(/[│╭╮╰╯─]/g, ' ')).join(' ').replace(/\s+/g, ' ')
+  check(`the whole row reads across its wrapped lines: "${NO_SERVER_ROW}"`, unboxed.includes(NO_SERVER_ROW), unboxed.slice(-300))
+  check('/localsetup is on the 80×24 frame', focused.includes('/localsetup'))
+  check('Enter continues the walk (Guardrails next)', (frames.after ?? '').includes('Guardrails'))
 }
 
 console.log('§4 the wiring: the door opens the picker; the row owner holds the words')
@@ -183,7 +203,10 @@ console.log('§4 the wiring: the door opens the picker; the row owner holds the 
   check("the home face opens the model-default picker when the 'model' door is armed", face.includes("useState(faceDoor === 'model' && sessionDefaultsKeyOn())"))
   check('the card paints the row owner\'s local-aware row and arms the door on Enter', card.includes('signInLaterRow(localRoad)') && card.includes("if (localRoadOpen(localRoad)) armFaceDoorDeepLink('model')"))
   check('the card kicks the same TTL\'d discovery the picker uses, only when it hosts the walk\'s row', /if \(walkHost\) void refreshLocalDiscovery\(\)/.test(card))
-  check('the words live in the row owner', rows.includes('or run a local model — ${local!.models} found on ${local!.labels.join'))
+  check('the words live in the row owner', rows.includes('or run a local model — ${local!.models} found on ${local!.labels.join') && rows.includes(`label: '${NO_SERVER_ROW}'`))
+  const { LOCAL_NO_SERVER_BLOCKER } = await import('../../src/services/providers/local/localAccounts.ts')
+  const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
+  check("the wall's readiness row for Local servers names /localsetup when no server answers (the readiness block below the roster paints this blocker)", LOCAL_NO_SERVER_BLOCKER.includes('/localsetup sets one up (Ollama, LM Studio, vLLM, llama.cpp)') && resolveProviderUsability({ anthropicApiKey: () => null, anthropicSubscriber: () => false, anthropicBearerToken: () => false, anthropicLimitStatus: () => 'allowed', gptSeat: () => ({ state: 'disabled', reason: 'no OpenAI account is signed in', why: 'no-account' }), zaiKeyPresent: () => false, moonshotAccount: () => undefined, deepseekKeyPresent: () => false, xaiKeyPresent: () => false, compatConfigured: () => false, huggingfaceAccount: () => undefined, localServerPresent: () => false, openrouterKeyPresent: () => false, geminiAccount: () => undefined }).local.blockers[0] === LOCAL_NO_SERVER_BLOCKER)
   check('the station gate never counts the local lane as a credential', onboarding.includes("lane.provider !== 'local' && lane.usable"))
 }
 

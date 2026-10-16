@@ -58,7 +58,7 @@ export type {
 } from './setupTypes.js'
 export { resolveSetupIo, shellArgv, type ResolvedSetupIo } from './setupIo.js'
 export { detectLocalServers, listedWords, ollamaRootOf, probeWords } from './setupDetect.js'
-export { SETUP_PULL_CANDIDATES, chooseKeysLine, choiceWords, currentWireTag, markRows, pullCandidateOf, pullCandidateRows, pullRowWords, readModelChoice, serverRowWords } from './setupChoose.js'
+export { SETUP_PULL_CANDIDATES, chooseKeysLine, choiceWords, currentWireTag, markRows, otherServerChoice, pullCandidateOf, pullCandidateRows, pullRowWords, readModelChoice, serverRowWords } from './setupChoose.js'
 export { findOllamaInstall, planInstall, runInstall, waitForInstall, INSTALL_DOCS, type InstallDoc } from './setupInstall.js'
 export { planStart, startServer, waitForOllama, readOllamaVersion } from './setupStart.js'
 export { modelListed, pullModel, pullProgressLine } from './setupPull.js'

@@ -60,9 +60,10 @@ export async function detectLocalServers(seam: SetupIo = {}): Promise<DetectedSe
     return { kind: 'none', models: [], root: '', label: 'none', probed, words: `no local server answered (${roots})` }
   }
   const models = modelsOf(pick)
+  const loaded = pick.models.filter(m => m.loaded === true).map(m => m.id)
   const words =
     pick.kind === 'ollama'
       ? `${pick.label} at ${pick.root} answers with ${listedWords(models)}`
       : `${pick.label} at ${pick.root} answers with ${listedWords(models)} — it keeps working; nothing is installed or started`
-  return { kind: pick.kind, models, root: pick.root, label: pick.label, probed, words }
+  return { kind: pick.kind, models, ...(loaded.length > 0 ? { loaded } : {}), root: pick.root, label: pick.label, probed, words }
 }
