@@ -171,7 +171,7 @@ import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
-import { planToolPayload, toolsOnTheWire } from '../services/providers/toolEconomy.js'
+import { planToolPayloadUnseeded, toolsOnTheWire } from '../services/providers/toolEconomy.js'
 import { createCacheSafeParams, recordSentRequest } from '../utils/forkedAgent.js'
 import { askForHandoff, assistantText, handoffAskDue, handoffNotice } from '../mneme/handoffAsk.js'
 import { finishMemorySignal, memorySignalScope } from '../mneme/mnemeSignal.js'
@@ -998,7 +998,7 @@ async function* runEventMachine(
         fixedRequest: requestGaugeFixed({
           system: appendSystemContext(systemPrompt, systemContext),
           userContext: latestUserContextBody(messages) === null ? userContext : null,
-          tools: await Promise.all(toolsOnTheWire(await planToolPayload({
+          tools: await Promise.all(toolsOnTheWire(await planToolPayloadUnseeded({
             model: toolUseContext.options.engineModel,
             tools: toolUseContext.options.tools,
             messages,

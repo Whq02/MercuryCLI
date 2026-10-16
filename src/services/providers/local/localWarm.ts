@@ -18,7 +18,7 @@ import { compatDispatchModelId, imagesSupportedForCompatModel } from '../openaic
 import type { CompatChatRequest, CompatFault, CompatStreamOptions, CompatUsage } from '../openaicompat/compatChatClient.js'
 import { localThinkingOff } from '../openaicompat/compatWire.js'
 import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute } from '../streamIdleBudget.js'
-import { planToolPayload, toolRosterLatchFor } from '../toolEconomy.js'
+import { planToolPayloadUnseeded } from '../toolEconomy.js'
 import { mapMessagesToZai, mapToolsToZai, type ApiShapedTool } from '../zai/zaiCodec.js'
 import { resolveLocalApiKey } from './localAccounts.js'
 import { localGuardWindow, localLaneProfileFor, localModelAcceptsEffort, localPreComposeEstimate } from './localCallModel.js'
@@ -177,15 +177,13 @@ export async function composeLocalWarm(record: LocalModelRecord, model: string, 
   const getToolPermissionContext = async () => toolUseContext.getAppState().toolPermissionContext
   const agents = toolUseContext.options.agentDefinitions.activeAgents
   const allowedAgentTypes = toolUseContext.options.agentDefinitions.allowedAgentTypes
-  const ownerKey = String(rosterOwnerFromToolUseContext(toolUseContext))
-  const latched = toolRosterLatchFor(ownerKey, history, modelId) !== undefined
-  const plan = await planToolPayload({
+  const plan = await planToolPayloadUnseeded({
     model: modelId,
     tools,
     messages: history,
     getToolPermissionContext,
     agents,
-    ...(latched ? { latchKey: ownerKey } : {}),
+    latchKey: String(rosterOwnerFromToolUseContext(toolUseContext)),
     hasPendingMcpServers: appState.mcp.clients.some(client => client.type === 'pending'),
     source: 'warm',
   })
