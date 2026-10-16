@@ -11,7 +11,7 @@ for (const v of ['MERCURY_GODOT_TOOLS', 'MERCURY_GODOT_TOOLS', 'MERCURY_GODOT', 
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { godotProviderInventory, renderProviderRows } = await import(
-  join(ROOT, 'src/services/vulcan/godotProviders.ts')
+  join(ROOT, 'scripts/vulcan/godotProviders.ts')
 )
 
 let failures = 0

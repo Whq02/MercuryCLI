@@ -38,12 +38,6 @@ export function sourceStale<T>(value: T, reason: string): SourceState<T> {
   return { ...observe(), state: 'stale', value, reason }
 }
 
-function sourceRecoverable(
-  reason: string,
-): SourceObservation & { state: 'recoverable'; reason: string } {
-  return { ...observe(), state: 'recoverable', reason }
-}
-
 export function sourceUnavailable(
   reason: string,
   retryable = false,

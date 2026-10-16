@@ -1,6 +1,6 @@
 import type { HooksSettings } from '../settings/types.js'
 import type { SetAppState } from '../messageQueueManager.js'
-import { addSessionHooks, removeSessionHooks, type HookScope } from './sessionHooks.js'
+import { addSessionHooks, type HookScope } from './sessionHooks.js'
 
 export function registerAgentHooks(setAppState: SetAppState, scope: HookScope, hooks: HooksSettings | undefined, agentType: string): number {
   if (hooks === undefined) return 0
@@ -15,8 +15,4 @@ export function registerSkillHooks(
 ): number {
   if (hooks === undefined) return 0
   return addSessionHooks(setAppState, scope, hooks, { kind: 'skill', name: skill.name, root: skill.root })
-}
-
-function unregisterSkillHooks(setAppState: SetAppState, scope: HookScope, skill: { name: string; root: string }): void {
-  removeSessionHooks(setAppState, scope, { kind: 'skill', name: skill.name, root: skill.root })
 }

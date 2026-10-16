@@ -10,7 +10,7 @@ import type { DOMElement, DOMNode } from '../../src/ink/dom.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const name of Object.keys(process.env)) {
-  if (/^(ANTHROPIC_|CLAUDE_|OPENAI_|ZAI_|OPENROUTER_|GOOGLE_|GEMINI_|MOONSHOT_|DEEPSEEK_|HF_|HUGGINGFACE_)/.test(name)) delete process.env[name]
+  if (/^(ANTHROPIC_|CLAUDE_|OPENAI_|ZAI_|OPENROUTER_|GOOGLE_|GEMINI_|MOONSHOT_|DEEPSEEK_|HF_|HUGGINGFACE_|TYPESAFE_)/.test(name)) delete process.env[name]
 }
 const localeString = Date.prototype.toLocaleString
 Date.prototype.toLocaleString = function (_locales, options) { return localeString.call(this, 'en-US', { ...options, timeZone: 'UTC' }) }
@@ -174,7 +174,7 @@ async function walk(board: Awaited<ReturnType<typeof mount>>, width: number, bud
   const expectedStops: number[] = []
   const sizes = board.sizes()
   const perRow = width >= 120 ? 3 : 1
-  const capacity = usageBodyRows(budget).capacity
+  const capacity = usageBodyRows(budget, 0).capacity
   let bandTop = 0
   for (let index = 0; index < sizes.length; index += perRow) {
     const height = Math.max(...sizes.slice(index, index + perRow).map(section => section.height))
@@ -275,7 +275,7 @@ check('a pending read keeps its loading words', delayed.frame().includes('loadin
 releaseRefresh()
 await settle()
 heldRefresh = undefined
-check('an asynchronously taller band updates clipping and the more names without a key', delayed.viewport().clip === usageBodyRows(22).capacity && delayed.frame().includes('↓ 7 more · DeepSeek · Moonshot · Hugging Face · Z.AI · OpenRouter · Custom endpoint · Local models'))
+check('an asynchronously taller band updates clipping and the more names without a key', delayed.viewport().clip === usageBodyRows(22, 0).capacity && delayed.frame().includes('↓ 7 more · DeepSeek · Moonshot · Hugging Face · Z.AI · OpenRouter · Custom endpoint · Local models'))
 await walk(delayed, 146, 22, 'asynchronous band growth')
 delayed.close()
 {
@@ -298,14 +298,15 @@ delayed.close()
   const board = await mount(58, 4, 64, token++, true)
   const frameLines = () => board.frame().split('\n')
   check('compact 58×4: four single-line rows fill the body, the first the Anthropic heading under the cursor', frameLines().length === 4 && frameLines().every(line => stringWidth(line) <= 58) && frameLines()[0]!.startsWith('› Anthropic usage') && frameLines()[1]!.includes('Current session · 52%') && !board.frame().includes('▀') && !board.frame().includes('Subscription'), board.frame())
-  check('compact: the marker reads 1 of the line count', marker === `1 of ${lines.length}`, String(marker))
+  const painted = lines.length - 1
+  check('compact: the marker reads 1 of the line count — the mounted board, in a home with no evaluator key and no chat, paints every line but the Jev row', marker === `1 of ${painted}`, String(marker))
   let consumed = true
-  for (let step = 0; step < lines.length - 1; step++) consumed &&= await board.key('down')
-  check('compact: down arrows walk every line to the JEV row, the marker following, only arrows consumed', consumed && marker === `${lines.length} of ${lines.length}` && frameLines().at(-1)!.startsWith('› JEV') && !(await board.key('escape')), `${marker} · ${board.frame()}`)
+  for (let step = 0; step < painted - 1; step++) consumed &&= await board.key('down')
+  check('compact: down arrows walk every line to the last provider line, the marker following, no Jev row below it, only arrows consumed', consumed && marker === `${painted} of ${painted}` && frameLines().at(-1)!.startsWith('› ') && !frameLines().at(-1)!.includes(`${JEV_USAGE_LABEL} ·`) && !(await board.key('escape')), `${marker} · ${board.frame()}`)
   consumed &&= await board.key('down')
-  check('compact: the bottom clamps', consumed && marker === `${lines.length} of ${lines.length}`)
-  for (let step = 0; step < lines.length; step++) consumed &&= await board.key('up')
-  check('compact: up arrows return to the first line', consumed && marker === `1 of ${lines.length}` && frameLines()[0]!.startsWith('› Anthropic usage'))
+  check('compact: the bottom clamps', consumed && marker === `${painted} of ${painted}`)
+  for (let step = 0; step < painted; step++) consumed &&= await board.key('up')
+  check('compact: up arrows return to the first line', consumed && marker === `1 of ${painted}` && frameLines()[0]!.startsWith('› Anthropic usage'))
   check('compact: the operator ask ran once for the open', (counts.get('anthropic:operator') ?? 0) - before === 1)
   if (frameDir) writeFileSync(join(frameDir, 'compact-58x4.txt'), board.frame() + '\n')
   board.close()

@@ -407,16 +407,6 @@ async function loadSkillsFromDir(
 }
 
 
-type MarkdownFileEntry = {
-  filePath: string
-  baseDir: string
-  frontmatter: Record<string, unknown>
-  content: string
-  source: 'policySettings' | 'userSettings' | 'projectSettings'
-  parseError?: { message: string }
-}
-
-
 const pendingConditional = new Map<string, Command>()
 const activatedSkillNames = new Set<string>()
 

@@ -1,7 +1,6 @@
 import {
   COMMAND_DOMAINS,
   FALLBACK_DOMAIN_LABEL,
-  groupCommandsByDomain,
 } from '../components/HelpV2/commandDomains.js'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { type Command, getCommandName } from '../types/command.js'
@@ -68,20 +67,6 @@ export function normalSurfaces(): EffectiveSurface[] {
   return effectiveCatalogue().filter(
     s => s.enabled && s.visibility === 'normal',
   )
-}
-
-type SurfaceGroup = {
-  key: string
-  label: string
-  surfaces: EffectiveSurface[]
-}
-
-function groupedNormalSurfaces(): SurfaceGroup[] {
-  return groupCommandsByDomain(normalSurfaces()).map(g => ({
-    key: g.key,
-    label: g.label,
-    surfaces: g.commands,
-  }))
 }
 
 export function surfaceDumpDocument(): {

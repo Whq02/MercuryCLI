@@ -208,9 +208,9 @@ const cases: Case[] = [
   { name: 'a row with spendUsd NaN', jev: { ...internalRow, spendUsd: Number.NaN }, reported: false },
   { name: "a row whose status.kind is 'nonsense'", jev: { ...internalRow, status: { kind: 'nonsense', words: 'x' } }, reported: false },
 ]
-const absentUsageRow = `${usage.JEV_USAGE_LABEL} official · Mercury's count: ${reader.JEV_SPEND_UNREPORTED_WORDS} · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`
+const absentUsageRow = `${usage.JEV_USAGE_LABEL} · second-opinion evaluator · ${reader.JEV_SPEND_UNREPORTED_WORDS} · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`
 const absentPopupLine = `off · official · no key · ${reader.JEV_SPEND_UNREPORTED_SHORT_WORDS} · cap $20.00 · off`
-const reportedUsageRow = `${usage.JEV_USAGE_LABEL} official · Mercury's count: $0.42 · 3 calls (1 unconfirmed) · allowance $20.00 · allowance hit · credits: ${CREDITS_UNREPORTED_WORDS}`
+const reportedUsageRow = `${usage.JEV_USAGE_LABEL} · second-opinion evaluator · $0.42 of a $20.00 allowance · 3 calls (1 unconfirmed) · allowance hit · credits: ${CREDITS_UNREPORTED_WORDS}`
 const reportedPopupLine = 'off · official · no key · spend $0.42 / $20.00 · allowance hit'
 
 let n = 0
@@ -235,7 +235,7 @@ for (const c of cases) {
   const use = await paintUsage()
   check('the /usage popup paints without a throw', use.ok, use.ok ? '' : use.error)
   if (use.ok) {
-    check('the usage title is on the frame and the JEV row is painted verbatim, no boundary fallback', has(use.lines, 'Mercury · usage') && usageRowOf(use.lines) === row && !has(use.lines, FALLBACK) && !has(use.lines, 'RENDER ERROR'), usageRowOf(use.lines))
+    check(c.reported ? 'the usage title is on the frame and the Jev row (calls on the count) is painted verbatim, no boundary fallback' : 'the usage title is on the frame and no Jev row paints for a home with no key and nothing counted, no boundary fallback', has(use.lines, 'Mercury · usage') && usageRowOf(use.lines) === (c.reported ? row : '') && !has(use.lines, FALLBACK) && !has(use.lines, 'RENDER ERROR'), usageRowOf(use.lines))
     await closePopup(use.m)
   }
   check('no crash report landed', crashFiles().length === 0, crashFiles().join(','))
@@ -246,7 +246,7 @@ section(`§${n + 1} no session in the slot`)
   slot.releaseFocusedSessionConnector()
   check('the reader answers no-session', !slot.hasFocusedSession() && reader.jevSessionFacts().state === 'no-session')
   const row = safe(() => usage.jevUsageRow())
-  check('the /usage row reads no chat open beside the shared parts', row === `${usage.JEV_USAGE_LABEL} official · Mercury's count: ${reader.JEV_NO_SESSION_WORDS} · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
+  check('the /usage row reads no chat open beside the shared parts', row === `${usage.JEV_USAGE_LABEL} · second-opinion evaluator · ${reader.JEV_NO_SESSION_WORDS} · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
   const line = safe(() => jevBody.jevPopupLine())
   check('the /jev summary line reads no chat', line === `off · official · no key · ${reader.JEV_NO_SESSION_SHORT_WORDS} · cap $20.00 · off`, line)
   const jev = await paintJev()
@@ -258,7 +258,7 @@ section(`§${n + 1} no session in the slot`)
   const use = await paintUsage()
   check('the /usage popup paints without a throw', use.ok, use.ok ? '' : use.error)
   if (use.ok) {
-    check('the JEV row is painted verbatim, no fallback', usageRowOf(use.lines) === row && !has(use.lines, FALLBACK), usageRowOf(use.lines))
+    check('no chat and no key: no Jev row paints, no fallback', usageRowOf(use.lines) === '' && !has(use.lines, FALLBACK), usageRowOf(use.lines))
     await closePopup(use.m)
   }
   check('no crash report landed', crashFiles().length === 0, crashFiles().join(','))

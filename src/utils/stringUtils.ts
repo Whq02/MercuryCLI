@@ -23,6 +23,26 @@ export function firstLineOf(s: string): string {
   return newlineIndex === -1 ? s : s.slice(0, newlineIndex)
 }
 
+export function collapseWhitespace(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
+export function clipWithEllipsis(text: string, max: number): string {
+  return text.length <= max ? text : `${text.slice(0, max - 1)}…`
+}
+
+export function collapseAndClip(text: string, max: number): string {
+  return clipWithEllipsis(collapseWhitespace(text), max)
+}
+
+export function collapseAndSlice(text: string, max: number): string {
+  return collapseWhitespace(text).slice(0, max)
+}
+
+export function wordCount(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length
+}
+
 type IndexSearchable = {
   indexOf(needle: string, start?: number): number
 }

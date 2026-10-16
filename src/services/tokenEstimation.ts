@@ -70,8 +70,6 @@ async function countWithBusyRetry<T>(road: string, run: () => Promise<T>): Promi
   }
 }
 
-type CountableMessages = ReturnType<typeof normalizeMessagesForAPI>
-
 function hasThinkingBlocks(messages: ReadonlyArray<{ role?: string; content?: unknown }>): boolean {
   for (const message of messages) {
     if ((message as { role?: string }).role !== 'assistant') continue

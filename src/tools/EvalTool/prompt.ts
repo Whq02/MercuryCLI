@@ -1,12 +1,7 @@
 import type { Tools } from '../../Tool.js'
 import { getCwd } from '../../utils/cwd.js'
 import { primeEvalAvailability } from '../../services/eval/interpreters.js'
-import {
-  EVAL_DEFAULT_TIMEOUT_SECONDS,
-  EVAL_IDLE_TTL_MS,
-  EVAL_MAX_TIMEOUT_SECONDS,
-  EVAL_WALL_CEILING_MS,
-} from '../../services/eval/contracts.js'
+import { EVAL_IDLE_TTL_MS, EVAL_WALL_CEILING_MS } from '../../services/eval/contracts.js'
 import { samplesEnabled } from '../../services/samples/contracts.js'
 import { EVAL_TOOL_NAME } from './constants.js'
 
@@ -34,11 +29,11 @@ Languages in this session:
 ${languageLines}
 
 ## Persistence
-- State is keyed per (agent, language, working directory): your own cells share a runtime, another agent's do not. \`reset: true\` recreates only that language's runtime.
+- State is keyed per (agent, language, working directory): your own cells share a runtime, another agent's do not.
 - A runtime idle for ${EVAL_IDLE_TTL_MS / 60_000} minutes is reaped; the next cell starts fresh and its result says so — re-run your setup cell.
 
 ## In-cell helpers (both languages)
-- \`tool.<Name>(...)\` / \`tool('<Name>', {...})\` — call any session tool from code (Python: keyword args; JS: one input object).${inspect} A call obeys the session's permission mode exactly like your direct calls — one that asks the operator waits, and the budget pauses. It raises into the cell only when the tool refused to run (an unknown tool, the kill switch, a permission, a ward): handle it or let the cell fail; do not retry a denial.
+- \`tool.<Name>(...)\` / \`tool('<Name>', {...})\` — call any session tool from code (Python: keyword args; JS: one input object).${inspect} A call obeys the session's permission mode exactly like your direct calls — one that asks the operator waits. It raises into the cell only when the tool refused to run (an unknown tool, the kill switch, a permission, a ward): handle it or let the cell fail; do not retry a denial.
 - \`tool.Bash({command})\` — a command that ran returns \`{code, stdout, stderr}\` whatever it exited: \`code\` is the exit code (null while it runs in the background), \`stdout\` is the one interleaved capture, \`stderr\` is always \`''\`. A non-zero exit is a value, never a raise.
 - \`tool.attempt.<Name>(...)\` (JS) / \`tool.attempt('<Name>', ...)\` (both) — the same call with its error as a value: \`{ok: true, value}\` or \`{ok: false, error}\`.
 - A cell that throws keeps what it bound before the throw; the result names the bindings that survived.
@@ -50,7 +45,7 @@ ${languageLines}
 - \`env\` — the environment, read-only; provider credentials are stripped.${sample}
 
 ## Budget and cancellation
-- \`timeoutSeconds\` bounds runtime work only: default ${EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${EVAL_MAX_TIMEOUT_SECONDS} (a larger value runs at ${EVAL_MAX_TIMEOUT_SECONDS} and the result says so), 0 disables. Time inside tool, agent and completion calls, permission waits included, never counts; a ${EVAL_WALL_CEILING_MS / 60_000}-minute wall ceiling (permission waits excluded) bounds the whole call.
+- \`timeoutSeconds\` bounds runtime work only: time inside tool, agent and completion calls, permission waits included, never counts. A ${EVAL_WALL_CEILING_MS / 60_000}-minute wall ceiling (permission waits excluded) bounds the whole call.
 - A cell stopped by its budget or an abort comes back as an error: Python keeps its variables; the JS runtime is recreated and its state is gone. \`input()\` is refused, never hung.
 - Output is bounded (head + tail); a cut names the file holding the full stream — Read it back.
 

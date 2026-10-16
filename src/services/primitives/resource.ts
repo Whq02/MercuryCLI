@@ -1,6 +1,4 @@
 
-import type { OwnerKey } from '../run/ownerKey.js'
-
 export {
   boundedTextView,
   formatRef,
@@ -24,40 +22,3 @@ export {
   resolveResource,
   resourceAdapterKinds,
 } from '../resources/registry.js'
-
-interface ResourceIdentity {
-  ref: string
-  owner?: OwnerKey
-  version?: string
-  observedAt: number
-}
-
-const RESOURCE_RELATIONS = [
-  'parent',
-  'child',
-  'execution',
-  'transaction',
-  'evidence',
-  'view',
-  'output',
-  'receipt',
-  'snapshot',
-  'verification',
-] as const
-
-type ResourceRelation = (typeof RESOURCE_RELATIONS)[number]
-
-interface ResourceLink {
-  ref: string
-  relation: ResourceRelation
-}
-
-function linksAsChildren(
-  links: readonly ResourceLink[],
-): { ref: string; title: string; summary: string }[] {
-  return links.map(l => ({
-    ref: l.ref,
-    title: l.relation,
-    summary: `${l.relation} → ${l.ref}`,
-  }))
-}

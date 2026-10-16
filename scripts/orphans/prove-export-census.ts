@@ -85,6 +85,8 @@ const SYNTHETIC: Record<string, string> = {
   'scripts/x/prove-lib.ts': ["import { dd } from './lib.js'", 'console.log(dd.ddUsed)', ''].join('\n'),
   'src/ee.ts': ['export const eeA = 1', 'export const eeB = 2', ''].join('\n'),
   'scripts/x/prove-root.ts': ["import { join } from 'node:path'", "const root = join(import.meta.dir, '../../src')", "const m = await import(join(root, 'ee.ts'))", 'console.log(m.eeA)', ''].join('\n'),
+  'src/ff.ts': ['export const ffA = 1', 'export type FfB = 2', ''].join('\n'),
+  'scripts/x/prove-checker.ts': ["import ts from 'typescript'", "const program = ts.createProgram(['src/ff.ts'], {})", 'const checker = program.getTypeChecker()', "const names = checker.getExportsOfModule(checker.getSymbolAtLocation(program.getSourceFile('src/ff.ts')!)!).map(s => s.name)", 'console.log(names)', ''].join('\n'),
 }
 
 function syntheticEstate(): { root: string; options: CensusOptions } {
@@ -153,6 +155,8 @@ function selfTest(): void {
     ['src/dd.ts:ddUsed', 'a namespace binding a helper module exports is read whole'],
     ['src/dd.ts:ddAlso', 'a namespace binding a helper module exports is read whole'],
     ['src/ee.ts:eeA', "a file's own root constant wins over the anchor table (import(join(root, …)) with root = …/src)"],
+    ['src/ff.ts:ffA', 'a proof enumerating exports through the checker (getExportsOfModule) reads every name of the modules it names'],
+    ['src/ff.ts:FfB', 'a proof enumerating exports through the checker (getExportsOfModule) reads every name of the modules it names'],
   ]
   for (const [key, why] of expectRead) check(`read — ${why} (${key})`, classOf(key) === 'read', `class ${classOf(key)}`)
   const expectClass: Array<[string, ExportClass, string]> = [
@@ -189,7 +193,7 @@ function selfTest(): void {
   check('the inventory flag rides the row the contract inventory records', byKey.get('src/a.ts:unused')?.inventory === true)
   check('the .d.ts-only read is marked as a type-side read', byKey.get('src/a.ts:DtsOnly')?.typeSideOnly === true)
   check('no load in the synthetic estate is unresolved', census.unresolved.length === 0, census.unresolved.map(u => `${u.file}:${u.line}`).join(', '))
-  check('the whole-module readers are counted: one embedded script, one export scanner, one exported namespace', census.wholeReads.embeddedScripts === 1 && census.wholeReads.exportScanners === 1 && census.wholeReads.exportedNamespaces === 1, JSON.stringify(census.wholeReads))
+  check('the whole-module readers are counted: one embedded script, two export scanners (one by syntax kind, one through the checker), one exported namespace', census.wholeReads.embeddedScripts === 1 && census.wholeReads.exportScanners === 2 && census.wholeReads.exportedNamespaces === 1, JSON.stringify(census.wholeReads))
   const candidates = census.rows.filter(r => r.class === 'candidate').map(r => `${r.file}:${r.name}`).sort()
   const wantCandidates = expectClass.filter(([, cls]) => cls === 'candidate').map(([key]) => key).sort()
   check(`the candidate set is exactly the expected ${wantCandidates.length}`, candidates.join('\n') === wantCandidates.join('\n'), `got ${candidates.join(', ')}`)

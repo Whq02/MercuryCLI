@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { settleChildRun } from '../../utils/childSettle.js'
 import { getCwd } from '../../utils/cwd.js'
+import { escapeRegExp } from '../../utils/stringUtils.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { lldbDapInstallHint, probeGdbDap, resolveLldbDap } from '../dap/dapClient.js'
 import { latestRun } from './pythonTests.js'
@@ -249,8 +250,6 @@ export interface NodeRunnerDebugShim {
   stop: TestStop | null
   note: string
 }
-
-const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 function splitNode(nodeId: string): { file: string | null; name: string } {
   const sep = nodeId.indexOf('::')

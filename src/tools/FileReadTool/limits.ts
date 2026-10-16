@@ -8,8 +8,6 @@ export const DEFAULT_MAX_OUTPUT_TOKENS = 25000
 export type FileReadingLimits = {
   maxTokens: number
   maxSizeBytes: number
-  includeMaxSizeInPrompt?: boolean
-  targetedRangeNudge?: boolean
 }
 
 export const getDefaultFileReadingLimits = memoize((): FileReadingLimits => ({
