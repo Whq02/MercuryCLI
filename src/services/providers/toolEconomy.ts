@@ -286,6 +286,11 @@ export function toolsOnTheWire(plan: ToolPayloadPlan): Tool[] {
   return [...plan.roster, ...plan.admissionDeclarations.flatMap(declaration => declaration.tools)]
 }
 
+export async function planToolPayloadUnseeded(input: ToolPayloadPlanInput & { latchKey: string }): Promise<ToolPayloadPlan> {
+  const { latchKey, ...unlatched } = input
+  return planToolPayload(toolRosterLatchFor(latchKey, input.messages, input.model) === undefined ? unlatched : input)
+}
+
 function boundaryAdmittedNames(messages: readonly Message[]): Set<string> {
   const names = new Set<string>()
   for (const message of messages) {
