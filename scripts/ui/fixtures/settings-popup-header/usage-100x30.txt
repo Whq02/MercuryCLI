@@ -16,7 +16,7 @@ VITALS              │ │ Subscription                                        
                     │ │ no usage endpoint is read for an API key on this lane — the provider     │ │
                     │ │ console is the view                                                      │ │
                     │ │                                                                          │ │
-                    │ │ JEV official · Mercury's count: no chat open · allowance $20.00 · off ·… │ │
+                    │ │                                                                          │ │
                     │ │ ↓ 14 more · OpenAI · Z.AI · OpenRouter · Gemini · Moonshot · DeepSeek ·… │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ scroll · esc or click outside closes                                  │ │

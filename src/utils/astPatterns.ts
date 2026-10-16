@@ -27,6 +27,7 @@ import {
 } from '../services/structure/pattern.js'
 import { compileFor, discoverPolyglotFiles } from '../services/structure/polyglotQuery.js'
 import { applyEdits, digestOf, lineExtendedRange, type Edit } from '../services/structure/transform.js'
+import { clipWithEllipsis } from './stringUtils.js'
 
 
 export const AST_BOUNDS = {
@@ -832,18 +833,14 @@ export function matchLocation(m: AstMatch): string {
   return m.startLine === m.endLine ? `${m.rel}:${m.startLine}:${m.startCol}` : `${m.rel}:${m.startLine}:${m.startCol}-${m.endLine}:${m.endCol}`
 }
 
-function clip(line: string, chars: number): string {
-  return line.length > chars ? `${line.slice(0, chars - 1)}…` : line
-}
-
 export function renderMatch(m: AstMatch): string[] {
   const codeLines = m.text.split('\n')
-  const shown = codeLines.slice(0, MATCH_TEXT_LINES).map(l => clip(l, MATCH_LINE_CHARS))
+  const shown = codeLines.slice(0, MATCH_TEXT_LINES).map(l => clipWithEllipsis(l, MATCH_LINE_CHARS))
   const out: string[] = [`${matchLocation(m)} [${m.nodeType}]`]
   out.push(...shown.map(l => `  ${l}`))
   if (codeLines.length > MATCH_TEXT_LINES) out.push(`  … +${codeLines.length - MATCH_TEXT_LINES} more lines`)
   if (m.captures.length > 0) {
-    out.push(`  captures: ${m.captures.map(c => `${c.key} = ${clip(c.text.split('\n')[0]!, CAPTURE_CHARS)}${c.text.includes('\n') ? ' …' : ''}`).join(' · ')}`)
+    out.push(`  captures: ${m.captures.map(c => `${c.key} = ${clipWithEllipsis(c.text.split('\n')[0]!, CAPTURE_CHARS)}${c.text.includes('\n') ? ' …' : ''}`).join(' · ')}`)
   }
   return out
 }

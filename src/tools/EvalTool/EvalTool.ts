@@ -5,7 +5,9 @@ import { getCwd } from '../../utils/cwd.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import {
   evalEnabled,
+  EVAL_DEFAULT_TIMEOUT_SECONDS,
   EVAL_MAX_DISPLAY_CHARS,
+  EVAL_MAX_TIMEOUT_SECONDS,
   type EvalCellOutcome,
   type EvalLanguage,
 } from '../../services/eval/contracts.js'
@@ -32,7 +34,7 @@ const inputSchema = () => {
       .int()
       .min(0)
       .optional()
-      .describe('Runtime budget in seconds: default 30, at most 600 (a larger value runs at 600 and the result says so); 0 disables; bridge and permission time never counts.'),
+      .describe(`Runtime budget in seconds: default ${EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${EVAL_MAX_TIMEOUT_SECONDS} (a larger value runs at ${EVAL_MAX_TIMEOUT_SECONDS} and the result says so); 0 disables; bridge and permission time never counts.`),
     reset: z.boolean().optional().describe("Recreate this language's kernel first (the other language keeps its state)."),
   })
 }

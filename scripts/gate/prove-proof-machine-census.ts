@@ -248,6 +248,16 @@ try {
   check(inherited.rc === 0, "a suite launched by a proof already pinned to 'none' is not refused", `rc=${inherited.rc} ${inherited.out.trim()}`)
   const foreign = guardProbe(clean({ MERCURY_CONFIG_DIR: join(scratch, 'suite-home'), BUN: '/usr/bin/false', MERCURY_LOCAL_PROBE_TARGETS: 'ollama=http://127.0.0.1:1' }))
   check(foreign.rc === 78, 'a suite launched with a server named in the environment is refused as foreign', `rc=${foreign.rc} ${foreign.out.trim()}`)
+
+  section("a seat's tool shell stamps NO_COLOR=1 FORCE_COLOR=0 on every command the model runs: a scripts/ entry drops the pair, so a capture renders colour as a terminal would")
+  const stamped = spawnSync(BUN, ['scripts/lib/proofHomePreload.ts'], {
+    cwd: ROOT,
+    env: clean({ MERCURY_CONFIG_DIR: join(scratch, 'pinned'), NO_COLOR: '1', FORCE_COLOR: '0' }),
+    encoding: 'utf8',
+  })
+  const colour = stamped.stdout.split('\n')[2] ?? ''
+  check(stamped.status === 0 && colour === '', 'a scripts/ entry launched under an inherited NO_COLOR=1 FORCE_COLOR=0 runs with neither set (the capture rows of scripts/ui/prove-visual-baseline.ts read the styled cells)', `rc=${stamped.status} colour=${JSON.stringify(colour)}`)
+  check(/delete process\.env\.NO_COLOR\n\s*delete process\.env\.FORCE_COLOR/.test(code('scripts/lib/proofHomePreload.ts')), 'scripts/lib/proofHomePreload.ts drops the pair beside its probe pin for every scripts/ entry')
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

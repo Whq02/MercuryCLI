@@ -330,19 +330,3 @@ export function recallRankingWords(dir: string = mnemeLibraryDir()): string {
   if (embedIndexBuilding(dir)) return `${WORD_MATCH_ONLY_WORDS} (${INDEX_BUILDING_WORDS})`
   return `semantic + word match (${ready.model})`
 }
-
-function indexInfoLine(dir: string, facts: readonly IndexedFact[] = libraryFacts(dir)): string {
-  if (embedIndexBuilding(dir)) return INDEX_BUILDING_WORDS
-  const index = readEmbedIndex(dir)
-  const freshness = embedIndexFreshness(index, facts)
-  if (index === null || !freshness.current) return `index ${freshness.reason}`
-  return `index current · ${index.rows.length} fact(s) · ${index.model}`
-}
-
-function indexFileExists(dir: string): boolean {
-  try {
-    return statSync(indexPath(dir)).isFile()
-  } catch {
-    return false
-  }
-}

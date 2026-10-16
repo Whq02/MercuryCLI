@@ -44,8 +44,8 @@ check('the setSubmitCount(count => count + 1) increment is kept', /setSubmitCoun
 check('permissionOverlay (the live tool-permission overlay) is kept and threaded to the layout', /const permissionOverlay =/.test(repl) && /overlay=\{inVirtualTranscript \? undefined : permissionOverlay\}/.test(repl))
 check('the AlternateScreen wrap keeps mouseTracking + the tree child', /<AlternateScreen mouseTracking=\{isMouseTrackingEnabled\(\)\}>\{tree\}<\/AlternateScreen>/.test(repl))
 const RIPPLE = ['Temp', 'estRipple'].join('')
-const effort = readFileSync(join(root, 'src', 'commands', 'effort', 'EffortSlider.tsx'), 'utf-8')
-check(`EffortSlider no longer imports ${RIPPLE}`, !effort.includes(RIPPLE))
+const effort = readFileSync(join(root, 'src', 'commands', 'effort', 'EffortPopup.tsx'), 'utf-8')
+check(`the /effort popup never imports ${RIPPLE}`, !effort.includes(RIPPLE))
 check(`${RIPPLE}.tsx is deleted`, !existsSync(join(root, 'src', 'components', 'mercury-ui', `${RIPPLE}.tsx`)))
 const rippleRefs = execSync(`grep -rn "${RIPPLE}" "${join(root, 'src')}" || true`, {
   encoding: 'utf-8',

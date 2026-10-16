@@ -2,7 +2,7 @@ import { APIConnectionError, APIConnectionTimeoutError, APIError } from '@anthro
 
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
-import type { AssistantMessage, AssistantMessageError, Message } from '../../types/message.js'
+import type { AssistantMessage, Message } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSource, getOauthAccountInfo, hasStoredOAuthToken, isClaudeAISubscriber, isAnthropicOAuthSignInExpired, wireCredentialSource, type WireCredentialSource } from '../../utils/auth.js'
 import { formatFileSize } from '../../utils/format.js'
@@ -818,21 +818,6 @@ export function classifyAPIError(error: unknown): string {
   const details = connectionDetailsFor(error)
   if (details?.isSSLError) return 'ssl_cert_error'
   if (isConnectionError(error) || details !== null) return 'connection_error'
-  return 'unknown'
-}
-
-function statusOfAny(error: unknown): number | undefined {
-  const status = (error as { status?: unknown } | null)?.status
-  return typeof status === 'number' ? status : undefined
-}
-
-function categorizeRetryableAPIError(error: unknown): AssistantMessageError {
-  const message = messageOf(error)
-  const status = statusOfAny(error)
-  if (status === 529 || message.includes(OVERLOADED_TYPE_MARKER)) return 'rate_limit'
-  if (status === 429) return 'rate_limit'
-  if (status === 401 || status === 403) return 'authentication_failed'
-  if (typeof status === 'number' && status >= 408) return 'server_error'
   return 'unknown'
 }
 

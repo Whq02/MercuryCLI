@@ -9,7 +9,6 @@ import {
   pushOverlay,
   reserveOverlayToken,
   subscribeOverlayStack,
-  topOverlay,
 } from './overlayStack.js';
 
 export { isTopOverlayNow } from './overlayStack.js';
@@ -60,9 +59,4 @@ export function useIsModalOverlayActive(): boolean {
 export function useOverlayOpen(id: string): boolean {
   useSyncExternalStore(subscribeOverlayStack, overlayStackVersion, overlayStackVersion);
   return overlayStackSnapshot().some(entry => entry.id === id);
-}
-
-function useOverlayIsTop(token: number | null): boolean {
-  useSyncExternalStore(subscribeOverlayStack, overlayStackVersion, overlayStackVersion);
-  return token !== null && topOverlay()?.token === token;
 }

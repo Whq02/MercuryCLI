@@ -1,5 +1,6 @@
 import type { NoticeKind, NoticeRowV1, NoticeState } from '../engine-connector/types.js'
 import { createSignal } from '../../utils/signal.js'
+import { collapseAndClip } from '../../utils/stringUtils.js'
 import { isAgentMessageNotice } from '../../constants/agentMessage.js'
 
 
@@ -27,11 +28,6 @@ export const subscribeNoticeLedger = changed.subscribe
 
 const isOpen = (state: NoticeState): boolean => state === 'unread' || state === 'nudged'
 
-function clip(text: string): string {
-  const line = text.replace(/\s+/g, ' ').trim()
-  return line.length <= MAX_WORDS ? line : `${line.slice(0, MAX_WORDS - 1)}…`
-}
-
 function textOf(value: unknown): string {
   if (typeof value === 'string') return value
   if (Array.isArray(value)) {
@@ -45,21 +41,21 @@ function textOf(value: unknown): string {
 export function noticeWordsOf(value: unknown): string {
   const text = textOf(value)
   const summary = /<summary>([\s\S]*?)<\/summary>/.exec(text)
-  if (summary !== null && summary[1]!.trim() !== '') return clip(summary[1]!)
+  if (summary !== null && summary[1]!.trim() !== '') return collapseAndClip(summary[1]!, MAX_WORDS)
   const monitor = /<monitor\b[^>]*\bname=("(?:[^"\\]|\\.)*")/.exec(text)
   if (monitor !== null) {
     try {
-      return clip(`monitor ${JSON.stringify(JSON.parse(monitor[1]!))} reported`)
+      return collapseAndClip(`monitor ${JSON.stringify(JSON.parse(monitor[1]!))} reported`, MAX_WORDS)
     } catch {
-      return clip(`monitor ${monitor[1]!} reported`)
+      return collapseAndClip(`monitor ${monitor[1]!} reported`, MAX_WORDS)
     }
   }
   for (const line of text.split('\n')) {
     const trimmed = line.trim()
     if (trimmed === '' || trimmed.startsWith('<')) continue
-    return clip(trimmed)
+    return collapseAndClip(trimmed, MAX_WORDS)
   }
-  return clip(text) || 'a notice'
+  return collapseAndClip(text, MAX_WORDS) || 'a notice'
 }
 
 type QueuedLike = {
@@ -101,7 +97,7 @@ export function recordNotice(input: { agentId: string; kind: NoticeKind; words: 
     id: `n${seq}`,
     agentId: input.agentId,
     kind: input.kind,
-    words: clip(input.words),
+    words: collapseAndClip(input.words, MAX_WORDS),
     key: input.key ?? `n${seq}`,
     ...(input.altKey !== undefined ? { altKey: input.altKey } : {}),
     deliveredAtMs: clock(),
