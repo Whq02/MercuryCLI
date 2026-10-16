@@ -674,6 +674,7 @@ export type TurnReceiptMessage = {
     delegatedTokens: number
     delegatedCostUSD: number
     delegatedUnpriced: number
+    tools: Record<string, number>
   }
   contextDelta?: number
 }
