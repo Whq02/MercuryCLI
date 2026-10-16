@@ -10,6 +10,7 @@ import { readPins, readUsage, usageOf, type UsageRecord } from './mnemeUsage.js'
 import { noteMemoryOffered, noteMemoryScores } from './mnemeSignal.js'
 import { fuseSignalRanking } from './mnemeSignalRanking.js'
 import { embedIndexEngineStatus, readEmbedIndex, searchEmbedIndex } from './mnemeIndex.js'
+import { escapeRegExp } from '../utils/stringUtils.js'
 
 const LOOKUP_LIMIT = 5
 const MAX_QUERY_TOKENS = 16
