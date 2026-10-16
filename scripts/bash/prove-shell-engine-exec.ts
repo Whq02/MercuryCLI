@@ -246,6 +246,8 @@ section('§6 the environment the seam sets')
   note(`$SHELL=${(await run('echo "$SHELL"')).out.trim()} $0=${(await run('echo "$0"')).out.trim()} (${shellVar.ms}ms)`)
   await row('an export reaches a child process', `export ZED=1; sh -c 'echo "[$ZED]"'`, { code: 0, out: '[1]' })
   await row('the inherited PATH finds tools', 'command -v ls', { code: 0, outMatch: /\/ls\s*$/ })
+  await row('NO_COLOR=1 and FORCE_COLOR=0 stamp the child: colour stops at the source', 'echo "[$NO_COLOR][$FORCE_COLOR]"', { code: 0, out: '[1][0]' })
+  await row("a command's own assignment outranks the stamp", `FORCE_COLOR=1 sh -c 'echo "[$FORCE_COLOR]"'`, { code: 0, out: '[1]' })
 }
 
 section('§7 the security preamble and globs')

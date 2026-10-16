@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
+import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -79,6 +80,23 @@ try {
   const src = readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8')
   check('the strip sits in the model-facing mapper alone', /let stdout = stripAnsi\(output\.stdout\)/.test(src) && /let errorText = stripAnsi\(output\.stderr\)\.trimEnd\(\)/.test(src))
   check('the search text and the truncation predicate read the raw output', /extractSearchText\(output: Out\): string \{\s*return output\.stderr \? `\$\{output\.stdout\}\\n\$\{output\.stderr\}` : output\.stdout/.test(src) && /isOutputLineTruncated\(output\.stdout\)/.test(src))
+
+  section('§4 colour stops at the source: the tool shell stamps NO_COLOR=1 and FORCE_COLOR=0')
+  const colourer = `process.stdout.write((process.env.FORCE_COLOR !== undefined ? process.env.FORCE_COLOR !== '0' : !('NO_COLOR' in process.env)) ? '\\x1b[31mred\\x1b[0m\\n' : 'red\\n')`
+  const bare = spawnSync(process.execPath, ['-e', colourer], { encoding: 'utf8', env: { PATH: process.env.PATH ?? '' } })
+  check('the child colours under a bare environment (the convention: colour unless NO_COLOR, FORCE_COLOR first)', bare.status === 0 && bare.stdout === `${ESC}[31mred${ESC}[0m\n`, JSON.stringify(bare.stdout))
+  const nodeBin = JSON.stringify(process.execPath)
+  const quiet = (await (BashTool as unknown as Caller).call({ command: `${nodeBin} -e ${JSON.stringify(colourer)}` } as never, toolContext)).data as Out
+  check('under the tool shell the same child prints no colour: the record carries plain "red"', quiet.stdout.trimEnd() === 'red', JSON.stringify(quiet.stdout))
+  const stamps = (await (BashTool as unknown as Caller).call({ command: 'echo "[$NO_COLOR][$FORCE_COLOR]"' } as never, toolContext)).data as Out
+  check('the child sees NO_COLOR=1 and FORCE_COLOR=0', stamps.stdout.trim() === '[1][0]', JSON.stringify(stamps.stdout))
+  const forced = (await (BashTool as unknown as Caller).call({ command: `FORCE_COLOR=1 ${nodeBin} -e ${JSON.stringify(colourer)}` } as never, toolContext)).data as Out
+  check('a command that sets FORCE_COLOR=1 itself keeps its colour: the record carries the escape bytes (the card paints what the process wrote)', forced.stdout.trimEnd() === `${ESC}[31mred${ESC}[0m`, JSON.stringify(forced.stdout))
+  check('and the model still reads it plain', mapped(forced).includes('red') && !mapped(forced).includes(ESC))
+  const envSrc = readFileSync(join(ROOT, 'src/utils/subprocessEnv.ts'), 'utf8')
+  const shellSrc = readFileSync(join(ROOT, 'src/utils/Shell.ts'), 'utf8')
+  const engineSrc = readFileSync(join(ROOT, 'src/utils/shell/engineSession.ts'), 'utf8')
+  check('the stamp has one owner and both tool-shell roads spread it before the command\'s own overrides', /export const TOOL_SHELL_PLAIN_OUTPUT[^\n]*NO_COLOR: '1', FORCE_COLOR: '0'/.test(envSrc) && /MERCURY: '1',\s*\.\.\.TOOL_SHELL_PLAIN_OUTPUT,\s*\.\.\.environmentOverrides/.test(shellSrc) && /MERCURY: '1', \.\.\.TOOL_SHELL_PLAIN_OUTPUT, \.\.\.envOverrides\(sandbox\)/.test(engineSrc))
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

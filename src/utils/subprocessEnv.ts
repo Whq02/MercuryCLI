@@ -45,6 +45,8 @@ export const HEADLESS_CHILD_DEFAULTS: Readonly<Record<string, string>> = {
   GIT_PAGER: 'cat',
 }
 
+export const TOOL_SHELL_PLAIN_OUTPUT: Readonly<Record<string, string>> = { NO_COLOR: '1', FORCE_COLOR: '0' }
+
 export function headlessChildDefaultsOwed(env: NodeJS.ProcessEnv): string[] {
   if (!getIsNonInteractiveSession()) return []
   const present = new Set(Object.keys(env).map(nameKey))
