@@ -85,10 +85,15 @@ async function drive(name: string, sends: Record<string, unknown>[], total: numb
   if (rc !== 0) console.log(output.slice(-2500))
   return payload
 }
+const frameAt = process.argv.indexOf('--frames')
+const frames = frameAt < 0 ? null : process.argv[frameAt + 1]!
+if (frames) mkdirSync(frames, { recursive: true })
 function frame(name: string, lines: string[]): void {
   const body = `${lines.join('\n')}\n`
   const file = join(root, 'scripts/ui/fixtures/tester-door', `${name}.txt`)
-  if (process.argv.includes('--record') && failures === 0) {
+  if (frames) {
+    writeFileSync(join(frames, `${name}.txt`), body)
+  } else if (process.argv.includes('--record') && failures === 0) {
     mkdirSync(join(file, '..'), { recursive: true })
     writeFileSync(file, body)
   } else if (!process.argv.includes('--record')) {
