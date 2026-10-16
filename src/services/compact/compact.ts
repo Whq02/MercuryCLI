@@ -1443,6 +1443,7 @@ export async function compactConversation(
     let messagesToKeep: Message[] | undefined
     let tailPrecedingUuid: UUID | undefined
     let recentRounds: CompactMetadata['recentRounds']
+    let tailNeedsFolding = false
     const selectTail = (opts: Parameters<typeof computeVerbatimRecentTail>[1]): ReturnType<typeof computeVerbatimRecentTail> => {
       try {
         return computeVerbatimRecentTail(messages, opts)
@@ -1451,21 +1452,27 @@ export async function compactConversation(
       }
     }
     if (isMercuryCompactKeepTailEnabled()) {
-      const fitsUnder = (limit: number | undefined) => (keep: Message[]): boolean => {
+      const allFolded = (keep: Message[]): Message[] => withFoldedResults(keep, new Map(foldableResults(keep).map(result => [result.toolUseId, foldedResultPlaceholder(result)])))
+      const fitsUnder = (limit: number | undefined, resultsFolded = false) => (keep: Message[]): boolean => {
         if (limit === undefined) return true
         const operator = selectOperatorMessages(messages, { keptUuids: new Set(keep.map(row => row.uuid)) })
         const marker = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount)
         const work = renderFoldedWork(foldedWorkOf(messages, keep, marker.uuid))
         const capsule = buildRunContinuationCapsule(owner, [...context.readFileState.keys()])
         const text = getCompactUserSummaryMessage([rawSummary, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true, newestMessageFollows) + `\n\n${renderFoldLedger(ledger)}`
-        return landingCount([marker, ...(operator ? [createAttachmentMessage(operator)] : []), createUserMessage({ content: text, isCompactSummary: true }), ...stripThinkingFromIndex(keep, 0), ...beforeRows]) < limit
+        return landingCount([marker, ...(operator ? [createAttachmentMessage(operator)] : []), createUserMessage({ content: text, isCompactSummary: true }), ...stripThinkingFromIndex(resultsFolded ? allFolded(keep) : keep, 0), ...beforeRows]) < limit
       }
       let tail: ReturnType<typeof computeVerbatimRecentTail>
       try {
         tail = selectTail({ fits: fitsUnder(landing) })
       } catch (error) {
-        if (landing === undefined || landing >= (ceiling ?? Infinity)) throw error
-        tail = selectTail({ fits: fitsUnder(ceiling) })
+        if (landing === undefined) throw error
+        try {
+          tail = selectTail({ fits: fitsUnder(ceiling) })
+        } catch {
+          tail = selectTail({ fits: fitsUnder(landing, true) })
+          tailNeedsFolding = true
+        }
       }
       if (tail !== null && tail.keep.length > 0) {
         messagesToKeep = stripThinkingFromIndex(tail.keep, 0)
@@ -1573,7 +1580,7 @@ export async function compactConversation(
       truePostCompactTokenCount = fitted.estimate
     }
     const widest = { partial, messagesToKeep, recentRounds, logicalParentUuid: boundary.logicalParentUuid, estimate: truePostCompactTokenCount }
-    while (room !== undefined && truePostCompactTokenCount >= room && recentRounds !== undefined && recentRounds.kept > 1) {
+    while (room !== undefined && !tailNeedsFolding && truePostCompactTokenCount >= room && recentRounds !== undefined && recentRounds.kept > 1) {
       const narrower = selectTail({ keepRounds: recentRounds.kept - 1 })
       if (narrower === null) break
       boundary.logicalParentUuid = narrower.precedingUuid

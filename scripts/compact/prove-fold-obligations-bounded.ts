@@ -123,9 +123,12 @@ try {
   const oneGiantRound = [user('fold me'), assistant([{ type: 'text', text: 'ready' }]), ...stretch(1, 100, 'small'), user('giant ask'), assistant([{ type: 'tool_use', id: giantId, name: 'Bash', input: { command: 'giant --dump' } }]), user([{ type: 'tool_result', tool_use_id: giantId, content: 'x'.repeat(200_000) }])]
   const paid2 = api.messageRequests().length
   let tailRefusal = ''
-  try { await fold(oneGiantRound, context(events2), 20_000) } catch (error) { tailRefusal = error instanceof Error ? error.message : String(error) }
-  check('a stretch whose latest complete round cannot fit refuses with the threshold key (one summary paid, since the obligations alone fit) and the old context kept', tailRefusal.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) && tailRefusal.includes('original context is kept') && api.messageRequests().length === paid2 + 1, `${tailRefusal.slice(0, 140)} requests=${api.messageRequests().length - paid2}`)
-  check('…and no compaction.after hook fired for the refused fold', postCompactHooks(events2) === 0, JSON.stringify(events2.map(e => e.hookType ?? e.stage ?? e.type)))
+  let giant: Awaited<ReturnType<typeof fold>> | undefined
+  try { giant = await fold(oneGiantRound, context(events2), 20_000) } catch (error) { tailRefusal = error instanceof Error ? error.message : String(error) }
+  const giantRounds = giant?.boundaryMarker.compactMetadata.recentRounds
+  const giantResults = (giant?.messagesToKeep ?? []).flatMap(row => row.type === 'user' && Array.isArray(row.message.content) ? row.message.content.filter(block => block.type === 'tool_result').map(block => String(block.content)) : [])
+  check('a stretch whose latest complete round cannot fit whole: the round is kept with its giant result folded into the summary (one summary paid) and the fold lands under the threshold — no refusal, no prune rung', tailRefusal === '' && giant !== undefined && (giantRounds?.kept ?? 0) >= 1 && giantRounds?.folded === 1 && giantResults.filter(text => text.startsWith('[result folded into the summary above')).length === 1 && (giant.truePostCompactTokenCount ?? Infinity) < 20_000 && api.messageRequests().length === paid2 + 1, `${tailRefusal.slice(0, 140)} rounds=${JSON.stringify(giantRounds)} requests=${api.messageRequests().length - paid2}`)
+  check('…and compaction.after fired once for the landed fold', postCompactHooks(events2) === 1, JSON.stringify(events2.map(e => e.hookType ?? e.stage ?? e.type)))
 
   const events3: Progress[] = []
   const landed = await fold(stretch(6, 400, 'hooks'), context(events3), 200_000)
