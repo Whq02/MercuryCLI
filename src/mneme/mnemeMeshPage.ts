@@ -7,6 +7,7 @@ import { readSignalLog, signalCounts, type SignalCounts } from './mnemeSignal.js
 import { ARCHIVE_PREFIX, expandSeqRange, isArchiveDoc, type MnemeEntry } from './mnemeTopicDocs.js'
 import { readPins, readUsage } from './mnemeUsage.js'
 import type { LedgerEntry } from './types.js'
+import { clipWithEllipsis } from '../utils/stringUtils.js'
 
 export const MESH_PAGE_NAME = 'memory-mesh'
 export const MESH_PAGE_TITLE = 'Memory — the library as a page'
@@ -136,10 +137,6 @@ const COL_GAP = 290
 const ROW_GAP = 76
 const PAD = 24
 
-function clip(text: string, n: number): string {
-  return text.length <= n ? text : `${text.slice(0, n - 1)}…`
-}
-
 export function renderMemoryMeshPage(mesh: MemoryMesh): string {
   const columns = new Map<number, MeshNode[]>()
   for (const node of mesh.nodes) {
@@ -168,7 +165,7 @@ export function renderMemoryMeshPage(mesh: MemoryMesh): string {
       `<a href="#${meshAnchor(node.id)}"><g class="node ${node.kind}${node.pinned ? ' pinned' : ''}${node.stale ? ' stale' : ''}" data-node="${escapeHtml(node.id)}" data-kind="${node.kind}" data-pinned="${node.pinned}" data-stale="${node.stale}">`,
       `<rect x="${p.x}" y="${p.y}" width="${BOX_W}" height="${BOX_H}" rx="7"/>`,
       `<text x="${p.x + 9}" y="${p.y + 17}" class="id">${escapeHtml(node.id)}${marks ? ` · ${escapeHtml(marks)}` : ''}</text>`,
-      `<text x="${p.x + 9}" y="${p.y + 34}" class="words">${escapeHtml(clip(node.firstWords, 40))}</text>`,
+      `<text x="${p.x + 9}" y="${p.y + 34}" class="words">${escapeHtml(clipWithEllipsis(node.firstWords, 40))}</text>`,
       node.kind === 'session' ? '' : `<text x="${p.x + 9}" y="${p.y + 50}" class="tally">${tally}</text>`,
       '</g></a>',
     ].join('')

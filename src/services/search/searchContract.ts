@@ -88,12 +88,6 @@ interface SearchSuccess {
 
 export type SearchOutcome = SearchSuccess | SearchFailure
 
-interface SearchBackend {
-  id: SearchBackendId
-  tier: SearchTier
-  search(request: SearchRequest): Promise<SearchOutcome>
-}
-
 export function searchFailure(
   kind: SearchFailureKind,
   via: SearchBackendId | 'none',

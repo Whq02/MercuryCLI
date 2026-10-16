@@ -136,10 +136,6 @@ type CountableMessage = { role: 'user' | 'assistant'; content: unknown }
 
 let counterRoadDown = false
 
-function counterRoadIsDown(): boolean {
-  return counterRoadDown
-}
-
 function countingApplies(): boolean {
   return declaredRouteOf(getEngineModel()) === 'anthropic'
 }

@@ -1,3 +1,4 @@
+import { collapseAndSlice } from '../../utils/stringUtils.js'
 import type { SampleMarksV1, SamplePinV1, SampleRecordV1, SampleVerdict } from './contracts.js'
 
 const MAX_PINS = 200
@@ -20,8 +21,8 @@ export function parseMarksBody(raw: unknown, latestVersion: number): SampleMarks
     pins.push({
       x: clamp01(pin.x),
       y: clamp01(pin.y),
-      target: oneLine(typeof pin.target === 'string' ? pin.target : '', MAX_TARGET_CHARS) || 'the page',
-      text: oneLine(pin.text, MAX_TEXT_CHARS),
+      target: collapseAndSlice(typeof pin.target === 'string' ? pin.target : '', MAX_TARGET_CHARS) || 'the page',
+      text: collapseAndSlice(pin.text, MAX_TEXT_CHARS),
     })
   }
   const note = typeof body.note === 'string' ? body.note.trim().slice(0, MAX_NOTE_CHARS) : ''
@@ -54,8 +55,4 @@ export function formatMarksMessage(record: Pick<SampleRecordV1, 'title'>, marks:
 
 function clamp01(n: number): number {
   return n < 0 ? 0 : n > 1 ? 1 : n
-}
-
-function oneLine(text: string, max: number): string {
-  return text.replace(/\s+/g, ' ').trim().slice(0, max)
 }

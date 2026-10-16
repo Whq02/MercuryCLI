@@ -141,7 +141,7 @@ export async function getContextCapsuleAttachment(
     const task = inputTask ?? latestUserTaskText(messages)
     if (!task) return []
 
-    const { assembleContextCapsule, renderCapsule, memoryRefsDigest } =
+    const { assembleContextCapsule, renderCapsule, RECENTLY_OBSERVED_REASON, memoryRefsDigest } =
       require('../../services/projectIntel/capsule.js') as typeof import('../../services/projectIntel/capsule.js')
     const { getActiveMission } =
       require('../../guards/mission.js') as typeof import('../../guards/mission.js')
@@ -202,7 +202,8 @@ export async function getContextCapsuleAttachment(
     if (!capsule.items.some(i => i.tier <= 4) && !(memoryChanged && (capsule.memoryRefs?.length || prior?.memoryDigest))) return []
 
     const refs = capsule.items.map(i => i.ref)
-    if (!capsuleShouldEmit(prior, { digest: capsule.digest, semDigest, refs, memoryDigest })) return []
+    const unseen = capsule.items.filter(i => i.reason !== RECENTLY_OBSERVED_REASON).map(i => i.ref)
+    if (!capsuleShouldEmit(prior, { digest: capsule.digest, semDigest, refs: unseen, memoryDigest })) return []
     const delta = prior ? deltaLine(prior, refs) : null
     if (lastAttached.size > 64) {
       const oldest = lastAttached.keys().next().value

@@ -5,10 +5,6 @@ import {
   type CritterDef,
 } from './critterData.js'
 
-function critterKeyFor(agentId: string, sessionId: string | null | undefined): string {
-  return agentId === 'main' ? sessionId || 'main' : agentId
-}
-
 const assigned = new Map<string, number>()
 let nextVariant = 0
 

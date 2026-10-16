@@ -20,10 +20,6 @@ const LAYER_OF_SOURCE: Readonly<Record<SettingSource, HookLayer>> = {
   policySettings: 'managed',
 }
 
-function hookLayerOfSource(source: SettingSource): HookLayer {
-  return LAYER_OF_SOURCE[source]
-}
-
 export type HookSource =
   | { kind: 'settings'; layer: HookLayer }
   | { kind: 'extension'; name: string; id: string; root: string }

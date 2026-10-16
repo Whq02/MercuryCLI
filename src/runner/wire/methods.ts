@@ -124,7 +124,6 @@ export type ElicitationAnswer = z.infer<ReturnType<typeof ElicitationAnswerSchem
 export const CancelRequestParamsSchema = lazySchema(() =>
   z.object({ request_id: z.number().int().positive(), reason: z.string().optional() }),
 )
-type CancelRequestParams = z.infer<ReturnType<typeof CancelRequestParamsSchema>>
 
 export const SessionAppliedParamsSchema = lazySchema(() =>
   z.object({
@@ -437,8 +436,6 @@ type NamesWhere<F extends Sender, K extends MethodKind> = {
 
 export type HostRequestName = NamesWhere<'host', 'request'>
 export type HostNotificationName = NamesWhere<'host', 'notification'>
-type RunnerRequestName = NamesWhere<'runner', 'request'>
-type RunnerNotificationName = NamesWhere<'runner', 'notification'>
 
 export const METHOD_NAMES = Object.keys(METHODS) as MethodName[]
 
