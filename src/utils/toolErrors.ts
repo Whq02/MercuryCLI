@@ -43,7 +43,7 @@ function getErrorParts(error: Error): string[] {
       !error.interrupted && Number.isFinite(error.code) && error.code !== 0
         ? `${error.message} (exit code ${error.code})`
         : error.message
-    return [headline, error.interrupted ? INTERRUPT_MESSAGE : '', error.stderr, error.stdout]
+    return [headline, error.interrupted ? INTERRUPT_MESSAGE : '', error.stderr, error.notice, error.stdout]
   }
   const parts: string[] = [describeInvalidArgTypeError(error) ?? error.message]
   const stderr = (error as { stderr?: unknown }).stderr
