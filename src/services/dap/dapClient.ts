@@ -921,8 +921,8 @@ export class DapSession {
       this.#pushOutput(`[adapter] ${String(chunk).trimEnd()}`)
     })
     child.on('exit', (code, signal) => {
+      if (!this.terminated) this.exitDetail = `adapter exited (code ${code ?? 'null'}${signal ? `, signal ${signal}` : ''})`
       this.terminated = true
-      this.exitDetail = `adapter exited (code ${code ?? 'null'}${signal ? `, signal ${signal}` : ''})`
       for (const [, p] of this.#pending) {
         clearTimeout(p.timer)
         p.reject(new Error(this.exitDetail))
@@ -1034,6 +1034,26 @@ export class DapSession {
     if (this.terminated) return true
     if (this.#hostsDebuggee) return false
     return this.children.length > 0 && this.children.every(c => c.treeTerminated())
+  }
+
+  treeExitDetail(): string {
+    const own = this.exitDetail.startsWith('debuggee exited') ? this.exitDetail : ''
+    if (own !== '') return own
+    for (const child of this.children) {
+      const detail = child.treeExitDetail()
+      if (detail !== '') return detail
+    }
+    return this.exitDetail
+  }
+
+  debuggeeEndDetail(): string {
+    const tree = this.treeExitDetail()
+    if (tree.startsWith('debuggee exited')) return tree
+    for (let index = this.output.length - 1; index >= 0; index--) {
+      const printed = /Process exited with code (\d+)/.exec(this.output[index] ?? '')
+      if (printed !== null) return `debuggee exited (code ${printed[1]})`
+    }
+    return tree !== '' ? tree : 'debuggee ended (no non-zero exit code reported)'
   }
 
   debugTarget(): { session: DapSession } | { ambiguousDetail: string } {

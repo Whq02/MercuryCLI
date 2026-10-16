@@ -12,6 +12,7 @@ import {
   getMcpConfigByName,
   getMcpConfigsByScope,
   getMercuryMcpConfigs,
+  mcpServersSkippedForTrustLine,
   removeMcpConfig,
 } from '../../services/mcp/config.js'
 import { isMcpCatalogueMember } from '../../services/mcp/membership.js'
@@ -183,10 +184,10 @@ export async function mcpRemoveHandler(
 export async function mcpListHandler(): Promise<void> {
   const { servers: configs } = await getMercuryMcpConfigs()
   const names = Object.keys(configs)
+  const skippedForTrust = mcpServersSkippedForTrustLine()
+  if (skippedForTrust !== null) process.stdout.write(`${skippedForTrust}\n`)
   if (names.length === 0) {
-    process.stdout.write(
-      `No MCP servers configured. Add one with: ${binaryName()} mcp add\n`,
-    )
+    if (skippedForTrust === null) process.stdout.write(`No MCP servers configured. Add one with: ${binaryName()} mcp add\n`)
     await gracefulShutdown(0)
     return
   }

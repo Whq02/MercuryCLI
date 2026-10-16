@@ -47,7 +47,7 @@ import { applyGrouping } from '../utils/groupToolUses.js'
 import { collapseReadSearchGroups } from '../utils/collapseReadSearch.js'
 import { RowErrorBoundary } from './RowErrorBoundary.js'
 import { collapseBackgroundBashNotifications } from '../utils/collapseBackgroundBashNotifications.js'
-import { injectTurnReceipts, isTurnBoundary } from '../utils/cockpit/turnReceipt.js'
+import { hasActivity, injectTurnReceipts, isTurnBoundary } from '../utils/cockpit/turnReceipt.js'
 import { getMercuryTempDir } from '../utils/permissions/filesystem.js'
 import { hasRealConversation as computeHasRealConversation } from '../utils/cockpit/realConversation.js'
 import {
@@ -491,7 +491,7 @@ function MessagesInner({
     }
     const last = rows[rows.length - 1]
     if (isLoading && !renderRange && last !== undefined && last.type === 'turn_receipt') {
-      return { visible: rows.slice(0, -1), liveReceipt: last }
+      return { visible: rows.slice(0, -1), liveReceipt: hasActivity(last.counts) ? last : null }
     }
     return { visible: rows, liveReceipt: null }
   }, [collapsed, virtualised, disableRenderCap, renderRange, isLoading])

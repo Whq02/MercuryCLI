@@ -48,13 +48,18 @@ import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import {
   keyPageLine,
+  localRoadOpen,
   loginFamilyFocusFor,
   loginFamilyRows,
   loginFamilyInitialFocus,
   openaiArmPickRows,
   SIGN_IN_LATER_ROW,
+  signInLaterRow,
   type LoginFamilyValue,
 } from './loginFamilyRows.js'
+import { localDiscoverySummary } from '../services/providers/local/localCatalogue.js'
+import { refreshLocalDiscovery } from '../services/providers/local/localDiscovery.js'
+import { armFaceDoorDeepLink } from '../substrate/splashHandover.js'
 
 type EngineLeg =
   | 'openai'
@@ -139,6 +144,11 @@ export function ConsoleOAuthFlow({
   const [menuFocus, setMenuFocus] = useState(0)
   useSignInEpoch()
   useCatalogueEpoch()
+  const walkHost = onSkip !== undefined
+  useEffect(() => {
+    if (walkHost) void refreshLocalDiscovery().catch(() => undefined)
+  }, [walkHost])
+  const localRoad = walkHost ? localDiscoverySummary() : null
   const menuUp = leg === null && accountFamily === null && state.name === 'idle'
   const menuCount = loginFamilyRows({ engineLegs: onOpenaiDone !== undefined }).length + (onSkip !== undefined ? 1 : 0)
   usePopupMarker(compact && menuUp ? settingsPopupMarker(menuFocus + 1, menuCount) : null)
@@ -211,7 +221,11 @@ export function ConsoleOAuthFlow({
   }
 
   const startFamily = (value: string): void => {
-    if (value === SIGN_IN_LATER_ROW.value) { onSkip?.(); return }
+    if (value === SIGN_IN_LATER_ROW.value) {
+      if (localRoadOpen(localRoad)) armFaceDoorDeepLink('model')
+      onSkip?.()
+      return
+    }
     if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') {
       setLeg(value)
       return
@@ -303,7 +317,7 @@ export function ConsoleOAuthFlow({
     case 'idle': {
       const idleRows = [
         ...loginFamilyRows({ engineLegs: onOpenaiDone !== undefined }),
-        ...(onSkip !== undefined ? [SIGN_IN_LATER_ROW] : []),
+        ...(onSkip !== undefined ? [signInLaterRow(localRoad)] : []),
       ]
       const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily())
       const defaultFocus = loginFamilyInitialFocus(idleRows, recordedFocus, initialFocus)

@@ -40,6 +40,31 @@ import {
 
 const OPS = ['discover', 'run', 'rerunFailed', 'debug', 'report'] as const
 
+function debuggerMissingLine(debuggerMissing: string, remedy: string): string {
+  return `no ${debuggerMissing} on this machine — ${remedy}; the test ran without a stop`
+}
+
+const DEBUGGER_WORDS: Record<string, string> = {
+  python: 'Python debugger (debugpy)',
+  js: 'js-debug adapter',
+  go: 'Go debugger (dlv)',
+  lldb: 'native debugger (lldb-dap or gdb 14+)',
+  gdb: 'native debugger (lldb-dap or gdb 14+)',
+}
+
+function adapterUnavailable(err: unknown): { debuggerMissing: string; remedy: string } | null {
+  const message = err instanceof Error ? err.message : String(err)
+  const match = /^adapter '([^']+)' is unavailable: ([\s\S]*)$/.exec(message)
+  if (match === null) return null
+  const key = match[1] as string
+  const words = match[2] as string
+  const dash = words.lastIndexOf(' — ')
+  const remedy = (dash === -1 ? words : words.slice(dash + 3)).trim()
+  const debuggerMissing = DEBUGGER_WORDS[key] ?? `${key} debug adapter`
+  const spelled = key === 'python' && /pip install debugpy/.test(remedy) && !/py -m pip/.test(remedy) ? `${remedy} (or py -m pip install debugpy)` : remedy
+  return { debuggerMissing, remedy: spelled }
+}
+
 const inputSchema = lazySchema(() =>
   z.strictObject({
     op: z.enum(OPS).describe('The test operation to perform'),
@@ -345,6 +370,10 @@ async function runOp(
       if (debugLane.lane === 'runner-missing') {
         return { result: `no ${debugLane.runner} test profile in this project's manifests`, outcome: 'failed' }
       }
+      const ranWithoutStop = async (debuggerMissing: string, remedy: string): Promise<{ result: string; outcome: ToolEffectOutcome; record?: TestRunRecord }> => {
+        const ran = await runOp({ ...input, op: 'run' }, context, onProgress)
+        return { result: `${debuggerMissingLine(debuggerMissing, remedy)}\n${ran.result}`, outcome: ran.outcome, ...(ran.record ? { record: ran.record } : {}) }
+      }
       const launchRunnerDebug = async (plan: {
         runner: string
         adapterKey: string
@@ -374,6 +403,8 @@ async function runOp(
             ...(plan.launchExtras ? { launchExtras: plan.launchExtras } : {}),
           })
         } catch (err) {
+          const missing = adapterUnavailable(err)
+          if (missing !== null) return ranWithoutStop(missing.debuggerMissing, missing.remedy)
           return { result: `debug unavailable: ${err instanceof Error ? err.message : String(err)}`, outcome: 'failed' }
         }
         const stop = await session.waitForStopOutcome(20_000)
@@ -381,7 +412,7 @@ async function runOp(
           stop.state === 'stopped'
             ? `stopped in '${stop.session.label}' — reason ${stop.info.reason}${stop.info.threadId !== undefined ? `, threadId ${stop.info.threadId}` : ''}`
             : stop.state === 'terminated'
-              ? `debuggee terminated before any stop (${session.exitDetail || 'clean exit'}) — the test may have run to completion`
+              ? `debuggee terminated before any stop (${session.debuggeeEndDetail()}) — the test may have run to completion`
               : 'still running (no stop within 20s) — inspect with the Debug tool'
         return {
           result:
@@ -401,6 +432,7 @@ async function runOp(
       if (debugLane.lane === 'runner' && debugLane.profile.runner === 'go') {
         const plan = buildGoTestDebugPlan(input.node, {})
         if ('state' in plan) {
+          if (plan.debuggerMissing !== undefined) return ranWithoutStop(plan.debuggerMissing, plan.remedy)
           return { result: `debug unavailable: ${plan.reason}\nremedy: ${plan.remedy}`, outcome: 'failed' }
         }
         return launchRunnerDebug({ runner: 'go', adapterKey: 'go', program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note, launchExtras: plan.launchExtras })
@@ -408,6 +440,7 @@ async function runOp(
       if (debugLane.lane === 'runner' && debugLane.profile.runner === 'cargo') {
         const plan = await buildCargoTestDebugPlan(input.node, { ...(signal ? { signal } : {}) })
         if ('state' in plan) {
+          if (plan.debuggerMissing !== undefined) return ranWithoutStop(plan.debuggerMissing, plan.remedy)
           return { result: `debug unavailable: ${plan.reason}\nremedy: ${plan.remedy}`, outcome: 'failed' }
         }
         return launchRunnerDebug({ runner: 'cargo', adapterKey: plan.adapterKey, program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note })
@@ -436,6 +469,8 @@ async function runOp(
             stopOnEntry: jsBreakpoints.size === 0,
           })
         } catch (err) {
+          const missing = adapterUnavailable(err)
+          if (missing !== null) return ranWithoutStop(missing.debuggerMissing, missing.remedy)
           return { result: `debug unavailable: ${err instanceof Error ? err.message : String(err)}`, outcome: 'failed' }
         }
         const jsStop = await jsSession.waitForStopOutcome(20_000)
@@ -443,7 +478,7 @@ async function runOp(
           jsStop.state === 'stopped'
             ? `stopped in '${jsStop.session.label}' — reason ${jsStop.info.reason}${jsStop.info.threadId !== undefined ? `, threadId ${jsStop.info.threadId}` : ''}`
             : jsStop.state === 'terminated'
-              ? `debuggee terminated before any stop (${jsSession.exitDetail || 'clean exit'}) — the test may have run to completion`
+              ? `debuggee terminated before any stop (${jsSession.debuggeeEndDetail()}) — the test may have run to completion`
               : 'still running (no stop within 20s) — inspect with the Debug tool'
         return {
           result:
@@ -464,21 +499,28 @@ async function runOp(
       if (input.file && input.lines?.length) {
         breakpoints.set(expandPath(input.file), input.lines)
       }
-      const session = await createDapSession({
-        owner,
-        id: sessionId,
-        adapterKey: 'python',
-        program: shim.program,
-        cwd: shim.cwd,
-        breakpoints: breakpoints.size ? breakpoints : undefined,
-        stopOnEntry: breakpoints.size === 0,
-      })
+      let session
+      try {
+        session = await createDapSession({
+          owner,
+          id: sessionId,
+          adapterKey: 'python',
+          program: shim.program,
+          cwd: shim.cwd,
+          breakpoints: breakpoints.size ? breakpoints : undefined,
+          stopOnEntry: breakpoints.size === 0,
+        })
+      } catch (err) {
+        const missing = adapterUnavailable(err)
+        if (missing !== null) return ranWithoutStop(missing.debuggerMissing, missing.remedy)
+        return { result: `debug unavailable: ${err instanceof Error ? err.message : String(err)}`, outcome: 'failed' }
+      }
       const stop = await session.waitForStopOutcome(20_000)
       const state =
         stop.state === 'stopped'
           ? `stopped — reason ${stop.info.reason}${stop.info.threadId !== undefined ? `, threadId ${stop.info.threadId}` : ''}`
           : stop.state === 'terminated'
-            ? `debuggee terminated before any stop (${session.exitDetail || 'clean exit'}) — the test may have run to completion`
+            ? `debuggee terminated before any stop (${session.debuggeeEndDetail()}) — the test may have run to completion`
             : 'still running (no stop within 20s) — inspect with the Debug tool'
       return {
         result:

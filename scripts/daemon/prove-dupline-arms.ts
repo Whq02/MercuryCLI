@@ -25,7 +25,7 @@ import {
   WORKFLOW_SCRIPT,
   WORKFLOW_TURN_ASK,
 } from './dupline-fixture-words.ts'
-import { argAfter, bootRunner, bound, briefly, carriersOf, carrying, childEnv, CLOCK_TOLERANCE_MS, deliveryClockOf, describeRequests, DIST, exportWorld, inMainFile, isDrainedMainRow, isSession, isOutcome, j, makeTally, NODE, queueJournal, removeWorld, REPO, requestsOf, SCRATCH_ROOT, seedHome, settledCarriers, sleep, startFixture, waitWire, type Carrier, type Fixture, type Runner, type Wire } from './dupline-world.ts'
+import { argAfter, bootRunner, bound, briefly, carriersOf, carrying, childEnv, CLOCK_TOLERANCE_MS, deliveryClockOf, describeRequests, DIST, exportWorld, inMainFile, isDrainedMainRow, isSession, isOutcome, j, makeTally, NODE, queueJournal, removeWorld, REPO, requestsOf, SCRATCH_ROOT, seedHome, settledCarriers, sleep, startFixture, waitWire, type Carrier, type Fixture, type Frame, type Runner, type Wire } from './dupline-world.ts'
 
 const { check, section, finish, failed } = makeTally('prove-dupline-arms')
 const src = (rel: string): string => readFileSync(join(REPO, 'src', ...rel.split('/')), 'utf8')
@@ -93,6 +93,30 @@ function lineLaw(w: World, sent: Sent, subArms: string[], mainArm: string, mainS
   check(`${w.name}: the session's transcript holds "${sent.word}" once, as the drained row under the send's identity and clock`, mainRows.length === 1 && mine.filter(inMainFile).length === 1 && mainRows[0]!.sourceUuid === sent.uuid && mainRows[0]!.occurredAt === sent.sentAt && mainRows[0]!.file.endsWith(`${w.sessionId}.jsonl`), briefly(mine))
   check(`${w.name}: no sub-agent's transcript holds "${sent.word}"`, agentRows.length === 0, briefly(agentRows))
 }
+function handoverLaw(w: World, result: Frame | null, ask: string, mainArm: string, mainStep: number, handedArms: string[], before: number): void {
+  const requests = requestsOf(w.fx.wire)
+  const boundary = requests.find(r => r.arm === mainArm && r.step === mainStep)
+  const handedLast = requests.filter(r => handedArms.includes(String(r.arm))).map(r => r.at).sort((a, b) => b - a)[0] ?? 0
+  const notices = requests.filter(r => r.arm === 'plain' && String(r.ask ?? '').startsWith('<task-notification>'))
+  const frames = w.runner.frames.slice(before)
+  const spoken = frames.filter(f => f.type === 'text' && f.turn !== undefined && String(f.text ?? '').startsWith(doneText(ask)))
+  const parked = frames.findIndex(f => f.type === 'turn' && f.state === 'waiting' && Number(f.agents) >= 1)
+  const ended = frames.reduce((last, f, i) => (f.type === 'task' && f.state === 'ended' ? i : last), -1)
+  const outcomes = frames.filter(isOutcome)
+  check(`${w.name}: the line handed the sub-agent to the background — the Crewmate tool returned with the handover receipt and the session's model answered with its own text at that boundary, once`, boundary !== undefined && boundary.lastToolResult?.isError === false && /launched in the background/i.test(boundary.lastToolResult?.text ?? '') && spoken.length === 1, j([boundary?.n, boundary?.lastToolResult, spoken.map(f => f.text)]))
+  check(`${w.name}: the turn then parked on the handed-over sub-agent, which ran on to its own end (its last request after the boundary); its completion notice reached the session's own model once and the cycle settled with one outcome after it`, boundary !== undefined && handedLast > boundary.at && notices.length === 1 && parked >= 0 && ended > parked && outcomes.length === 1 && frames.indexOf(outcomes[0]!) > ended && result !== null && result.status === 'completed', j({ boundaryAt: boundary?.at, handedLast, notices: notices.map(r => r.n), parked, ended, outcomes: outcomes.map(f => [frames.indexOf(f), f.status, f.answer]) }))
+}
+function parkedLineLaw(w: World, sent: Sent, subArms: string[], carriers: Carrier[]): void {
+  const requests = requestsOf(w.fx.wire)
+  const subCarrying = carrying(requests.filter(r => subArms.includes(String(r.arm))), sent.word)
+  const mainCarrying = carrying(requests.filter(r => !subArms.includes(String(r.arm))), sent.word)
+  check(`${w.name}: no request of a sub-agent carried "${sent.word}"`, subCarrying.length === 0, j(subCarrying.map(r => [r.n, r.arm, r.step])))
+  check(`${w.name}: the session's own model read "${sent.word}" once, as the parked turn's own next request (the line is its ask)`, mainCarrying.length >= 1 && mainCarrying[0]!.step === 0 && String(mainCarrying[0]!.ask ?? '').trim() === sent.word && mainCarrying[0]!.counts?.[sent.word] === 1, describeRequests(requests, [sent.word]))
+  const mine = carriers.filter(c => c.word === sent.word)
+  const mainRows = mine.filter(inMainFile)
+  check(`${w.name}: the session's transcript holds "${sent.word}" once, as the parked turn's own input row under the send's identity, within the clock tolerance of the send`, mainRows.length === 1 && mine.length === 1 && mainRows[0]!.kind === 'input' && mainRows[0]!.uuid === sent.uuid && Math.abs(Date.parse(mainRows[0]!.occurredAt) - Date.parse(sent.sentAt)) <= CLOCK_TOLERANCE_MS && mainRows[0]!.file.endsWith(`${w.sessionId}.jsonl`), briefly(mine))
+  check(`${w.name}: no sub-agent's transcript holds "${sent.word}"`, mine.filter(c => !inMainFile(c)).length === 0, briefly(mine.filter(c => !inMainFile(c))))
+}
 type WordCarrier = Carrier & { word: string }
 async function settled(w: World, words: string[], timeoutMs: number, want: (cs: WordCarrier[]) => boolean): Promise<WordCarrier[]> {
   const read = (): WordCarrier[] => words.flatMap(word => carriersOf(projectsOf(w), word).map(c => ({ ...c, word })))
@@ -119,7 +143,7 @@ if (!existsSync(DIST)) {
   check('the built bundle is present', false, DIST)
 } else {
   if (runs('A1')) {
-  section("A1 two lines sent during one sub-agent's run reach the session's own model once each, in order")
+  section("A1 two lines sent during one sub-agent's run reach the session's own model once each, in order: the first hands the sub-agent to the background and drains at the Crewmate tool's return, the second runs as the parked turn's own next request")
     const w = await openWorld('two-lines', 10)
     const before = w.runner.frames.length
     void w.runner.prompt(AGENT_TURN_ASK, UT)
@@ -129,19 +153,21 @@ if (!existsSync(DIST)) {
     await sleep(1500)
     const second = send(w, SECOND_LINE, 2)
     const result = await w.runner.waitFor("the agent turn's result", isOutcome, bound(90_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(AGENT_TURN_ASK)), j(result?.answer))
-    const carriers = await settled(w, [FIRST_LINE, SECOND_LINE], bound(10_000), drainedOnce([FIRST_LINE, SECOND_LINE]))
+    handoverLaw(w, result, AGENT_TURN_ASK, 'agent', 1, ['subwork'], before)
+    const carriers = await settled(w, [FIRST_LINE, SECOND_LINE], bound(10_000), cs => drainedOnce([FIRST_LINE])(cs) && cs.some(c => c.word === SECOND_LINE && inMainFile(c)))
     lineLaw(w, first, ['subwork'], 'agent', 1, carriers)
-    lineLaw(w, second, ['subwork'], 'agent', 1, carriers)
-    const carrier = carrying(requestsOf(w.fx.wire).filter(r => r.arm === 'agent'), FIRST_LINE)[0]
-    check('the two lines arrived in the order sent', carrier !== undefined && (carrier.firstAt?.[FIRST_LINE] ?? -1) >= 0 && (carrier.firstAt?.[FIRST_LINE] ?? 0) < (carrier.firstAt?.[SECOND_LINE] ?? -1), j(carrier?.firstAt))
-    const mainRows = carriers.filter(isDrainedMainRow)
-    check('the two rows landed in the order sent', mainRows.length === 2 && mainRows[0]!.word === FIRST_LINE && mainRows[1]!.word === SECOND_LINE, briefly(mainRows))
+    parkedLineLaw(w, second, ['subwork'], carriers)
+    const requests = requestsOf(w.fx.wire)
+    const firstRequest = carrying(requests, FIRST_LINE)[0]
+    const secondRequest = carrying(requests, SECOND_LINE)[0]
+    check('the two lines reached the session\'s model in the order sent, each in a request of its own', firstRequest !== undefined && secondRequest !== undefined && firstRequest.n < secondRequest.n && (firstRequest.counts?.[SECOND_LINE] ?? 0) === 0, describeRequests(requests, [FIRST_LINE, SECOND_LINE]))
+    const mainRows = carriers.filter(inMainFile).sort((a, b) => Number(a.ordinal) - Number(b.ordinal))
+    check('the two rows landed in the order sent: the drained row, then the parked turn\'s input row', mainRows.length === 2 && mainRows[0]!.word === FIRST_LINE && isDrainedMainRow(mainRows[0]!) && mainRows[1]!.word === SECOND_LINE && mainRows[1]!.kind === 'input', briefly(mainRows))
     await closeWorld(w)
   }
 
   if (runs('A2')) {
-  section("A2 a line sent while the sub-agent runs the Sleep tool waits past the sub-agent's Sleep boundary")
+  section("A2 a line sent while the sub-agent runs the Sleep tool reaches the session's own model once, at the handover boundary; the sub-agent crosses its Sleep boundary in the background")
     const w = await openWorld('sleep-tool', 10)
     const before = w.runner.frames.length
     void w.runner.prompt(SLEEP_TOOL_TURN_ASK, UT)
@@ -150,7 +176,7 @@ if (!existsSync(DIST)) {
     await sleep(1500)
     const line = send(w, LINE, 1)
     const result = await w.runner.waitFor("the agent turn's result", isOutcome, bound(90_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(SLEEP_TOOL_TURN_ASK)), j(result?.answer))
+    handoverLaw(w, result, SLEEP_TOOL_TURN_ASK, 'agentsleep', 1, ['subsleep'], before)
     const afterSleep = requestsOf(w.fx.wire).find(wireOf(w, 'subsleep', 1))
     check('the sub-agent crossed its Sleep boundary (the tool ran, no error)', afterSleep !== undefined && afterSleep.lastToolResult?.isError === false, j(afterSleep?.lastToolResult))
     const carriers = await settled(w, [LINE], bound(10_000), drainedOnce([LINE]))
@@ -169,7 +195,7 @@ if (!existsSync(DIST)) {
     await sleep(2500)
     const line = send(w, LINE, 1)
     const result = await w.runner.waitFor("the crew turn's result", isOutcome, bound(90_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(CREW_TURN_ASK)), j(result?.answer))
+    handoverLaw(w, result, CREW_TURN_ASK, 'crew', 1, ['subwork'], before)
     const carriers = await settled(w, [LINE, CREW_NOTICE], bound(10_000), drainedOnce([LINE, CREW_NOTICE]))
     lineLaw(w, line, ['subwork', 'quick'], 'crew', 1, carriers)
     const requests = requestsOf(w.fx.wire)
@@ -179,14 +205,15 @@ if (!existsSync(DIST)) {
     const noticeRows = carriers.filter(c => c.word === CREW_NOTICE)
     const noticeMain = noticeRows.filter(isDrainedMainRow)
     const lastSub = requests.filter(r => r.arm === 'subwork').map(r => r.at).sort((a, b) => b - a)[0] ?? 0
-    check("the session's transcript holds the notice once, delivered between the sub-agent's last request and the session's own next one (the row's delivery clock, never its stamp: the stamp is the completion the row sits at, minutes before a long-running sub-agent's last request)", noticeMain.length === 1 && noticeRows.filter(inMainFile).length === 1 && noticeRequest !== undefined && deliveryClockOf(noticeMain[0]!) >= lastSub - 2000 && deliveryClockOf(noticeMain[0]!) <= noticeRequest.at + 2000, briefly(noticeRows))
+    const lastQuick = requests.filter(r => r.arm === 'quick').map(r => r.at).sort((a, b) => b - a)[0] ?? 0
+    check("the session's transcript holds the notice once, delivered at the handover boundary: after the quick agent's completion, no later than the session's own next request, while the sleeping sub-agent still ran in the background (the row's delivery clock, never its stamp: the stamp is the completion the row sits at)", noticeMain.length === 1 && noticeRows.filter(inMainFile).length === 1 && noticeRequest !== undefined && deliveryClockOf(noticeMain[0]!) >= lastQuick - 2000 && deliveryClockOf(noticeMain[0]!) <= noticeRequest.at + 2000 && lastSub > deliveryClockOf(noticeMain[0]!), briefly(noticeRows))
     check("the notice row's stamp is its completion — the send clock the queue gave it, no later than the sub-agent's last request and no later than its own delivery", noticeMain.length === 1 && noticeMain[0]!.deliveredAt !== '' && noticeMain[0]!.occurredAt === noticeMain[0]!.sentAt && Date.parse(noticeMain[0]!.occurredAt) <= lastSub + 2000 && Date.parse(noticeMain[0]!.occurredAt) <= deliveryClockOf(noticeMain[0]!), briefly(noticeRows))
     check("no sub-agent's transcript holds the notice", noticeRows.every(inMainFile), briefly(noticeRows.filter(c => !inMainFile(c))))
     await closeWorld(w)
   }
 
   if (runs('A4')) {
-  section("A4 a line sent during a sub-agent's compaction fold waits past the fold and the sub-agent's next boundary")
+  section("A4 a line sent during a sub-agent's compaction fold reaches the session's own model once, at the handover boundary; the fold lands and the sub-agent goes on in the background")
     const w = await openWorld('fold', 3, 800)
     const before = w.runner.frames.length
     void w.runner.prompt(FOLD_TURN_ASK, UT)
@@ -194,7 +221,7 @@ if (!existsSync(DIST)) {
     check('the sub-agent folded its own conversation (the fold request carries its opening)', fold !== null, j(w.fx.wire().map(x => [x.kind, x.arm, x.step])))
     const line = send(w, FOLD_LINE, 1)
     const result = await w.runner.waitFor("the fold turn's result", isOutcome, bound(120_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(FOLD_TURN_ASK)), j(result?.answer))
+    handoverLaw(w, result, FOLD_TURN_ASK, 'agentfold', 1, ['subfold'], before)
     const wire = w.fx.wire()
     const landed = wire.find(x => x.kind === 'fold-landed')
     const postFold = wire.filter(x => x.kind === 'request' && x.arm === 'subfold' && x.folded === true)
@@ -206,7 +233,7 @@ if (!existsSync(DIST)) {
   }
 
   if (runs('A5')) {
-  section('A5 a sub-agent cannot nest: its Crewmate call is refused, and the line sent during its run still waits')
+  section('A5 a sub-agent cannot nest: its Crewmate call is refused (in the background too), and the line sent during its run reaches the session\'s own model once')
     const w = await openWorld('nested', 5)
     const before = w.runner.frames.length
     void w.runner.prompt(NESTED_TURN_ASK, UT)
@@ -215,7 +242,7 @@ if (!existsSync(DIST)) {
     await sleep(1000)
     const line = send(w, LINE, 1)
     const result = await w.runner.waitFor("the nested turn's result", isOutcome, bound(90_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(NESTED_TURN_ASK)), j(result?.answer))
+    handoverLaw(w, result, NESTED_TURN_ASK, 'agentnested', 1, ['subnested'], before)
     const requests = requestsOf(w.fx.wire)
     const refused = requests.find(wireOf(w, 'subnested', 2))
     check("the sub-agent's Crewmate call came back as an error, not a launch", refused !== undefined && refused.lastToolResult?.isError === true, j(refused?.lastToolResult))
@@ -226,7 +253,7 @@ if (!existsSync(DIST)) {
   }
 
   if (runs('A6')) {
-  section('A6 a fork is refused at the Crewmate tool, and the line sent during the sub-agent that follows still waits')
+  section('A6 a fork is refused at the Crewmate tool, and the line sent during the sub-agent that follows reaches the session\'s own model once, at the handover boundary')
     const w = await openWorld('fork', 5)
     const before = w.runner.frames.length
     void w.runner.prompt(FORK_TURN_ASK, UT)
@@ -236,7 +263,7 @@ if (!existsSync(DIST)) {
     await sleep(1000)
     const line = send(w, LINE, 1)
     const result = await w.runner.waitFor("the fork turn's result", isOutcome, bound(90_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(FORK_TURN_ASK)), j(result?.answer))
+    handoverLaw(w, result, FORK_TURN_ASK, 'agentfork', 2, ['subwork'], before)
     const requests = requestsOf(w.fx.wire)
     check('no fork ever queried', requests.every(r => r.arm !== 'forkwork') && carrying(requests, FORK_DONE).length === 0, j(requests.map(r => r.arm)))
     const carriers = await settled(w, [LINE], bound(10_000), drainedOnce([LINE]))

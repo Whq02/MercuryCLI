@@ -42,6 +42,7 @@ import { setMessageCursor, useMessageCursorActive } from '../components/messageC
 import { FocusedSessionStatusRow, statusLine, waitingStatusWords } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
+import { useFocusedWorkRows } from '../components/tasks/useFocusedWork.js';
 import { BackgroundTasksDialog } from '../components/tasks/BackgroundTasksDialog.js';
 import {
   useKickOffCheckAndDisableSovereignIfNeeded,
@@ -52,7 +53,8 @@ import { useFpsMetrics } from '../context/fpsMetrics.js';
 import { useOverlayOpen } from '../context/overlayContext.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY, UPDATE_NOTICE_STAY_MS } from '../services/privateChannel/quietUpdateNotice.js';
-import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
+import { delegationWaitWords } from '../services/engine-connector/workCounts.js';
+import { activeToolCall, activeToolVerb } from '../utils/cockpit/toolVerb.js';
 import { isSettingsPopupOpen } from '../utils/cockpit/settingsPopup.js';
 import { publishTurnSignals, turnEndedInError } from '../utils/cockpit/turnSignals.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
@@ -2023,6 +2025,8 @@ export function Chat({
     seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
   const viewCompacting = seatLive.phase === 'compacting';
   const viewAgentWait = seatLive.phase === 'waiting' ? waitingStatusWords(seatLive) : null;
+  const viewWorkRows = useFocusedWorkRows();
+  const viewDelegationWait = viewAgentWait ?? delegationWaitWords(activeToolCall(messages, viewInProgressToolUseIDs)?.name, viewWorkRows);
   const responseLengthRef = useMemo(
     () => ({
       get current(): number {
@@ -2083,7 +2087,7 @@ export function Chat({
         liveTurnFactsRef={liveTurnFactsRef}
         overrideColor={null}
         overrideShimmerColor={null}
-        overrideMessage={compactStatus !== '' && compactStatus !== 'ready' ? compactStatus : viewCompacting ? FOLD_ROW_HEAD : viewAgentWait}
+        overrideMessage={compactStatus !== '' && compactStatus !== 'ready' ? compactStatus : viewCompacting ? FOLD_ROW_HEAD : viewDelegationWait}
         still={viewCompacting}
         spinnerSuffix={spinnerSuffix ?? null}
         hookWaitKeys={hookWaitKeys}

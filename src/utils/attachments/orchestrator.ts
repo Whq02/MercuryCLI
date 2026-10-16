@@ -31,6 +31,7 @@ import {
   getDeferredToolsDeltaAttachment,
   getHeldToolsAttachment,
   getMcpInstructionsDeltaAttachment,
+  getMcpServersFailedAttachment,
 } from './deltas.js'
 import {
   getContractReminderAttachments,
@@ -154,6 +155,14 @@ export async function getAttachments(
           toolUseContext.options.mcpClients,
           toolUseContext.options.tools,
           toolUseContext.options.engineModel,
+          messages,
+        ),
+      ),
+    ),
+    maybe('mcp_servers_failed', () =>
+      Promise.resolve(
+        getMcpServersFailedAttachment(
+          [...toolUseContext.options.mcpClients, ...(toolUseContext.getAppState?.().mcp?.clients ?? [])],
           messages,
         ),
       ),

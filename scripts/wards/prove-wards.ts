@@ -391,10 +391,10 @@ async function main(): Promise<void> {
     const shown = (call: Call): string => JSON.stringify(call.input.command ?? call.input.file_path)
     const CLOSING = 'Do not rephrase the command to evade this rule — surface the refusal to the operator instead.'
     const MOVED = ['npm-exec-yes', 'git-install-sha', 'curl-pipe-shell', 'self-daemonize', 'cron-persist', 'systemd-persist', 'autostart-persist', 'git-config-global', 'git-hooks-path', 'git-internals-write']
-    const ADDED = ['no-sudo', 'no-device-write', 'no-disk-format', 'no-system-halt', 'no-fork-bomb', 'no-root-recursive-delete']
+    const ADDED = ['no-sudo', 'no-device-write', 'no-disk-format', 'no-system-halt', 'no-fork-bomb', 'no-root-recursive-delete', 'no-other-user-delete']
     const names = new Set(REFUSAL_WARDS.map(r => r.name))
     check('the ten moved shapes keep their ids', MOVED.every(n => names.has(n)), MOVED.filter(n => !names.has(n)).join(','))
-    check('the six machine-destroying shapes are named', ADDED.every(n => names.has(n)), ADDED.filter(n => !names.has(n)).join(','))
+    check('the seven machine- and neighbour-destroying shapes are named', ADDED.every(n => names.has(n)), ADDED.filter(n => !names.has(n)).join(','))
     check('every refusal rule is marked as one and carries a sentence', REFUSAL_WARDS.every(r => r.refusal === true && r.teach.length > 0 && r.skipCommentLines === false))
     const selfDaemonize = REFUSAL_WARDS.find(r => r.name === 'self-daemonize')
     check("the self-daemonize refusal names the sanctioned road: a long command runs with the Bash tool's run_in_background flag", selfDaemonize !== undefined && selfDaemonize.teach.includes("a long command runs with the Bash tool's run_in_background flag"), selfDaemonize?.teach)
@@ -467,6 +467,9 @@ async function main(): Promise<void> {
       ['no-root-recursive-delete', bash('rm -rf -- /')],
       ['no-root-recursive-delete', bash('rd /s /q C:\\')],
       ['no-root-recursive-delete', bash('Remove-Item -Recurse -Force C:\\')],
+      ['no-other-user-delete', bash('rm -rf /Users/alice/proj/build')],
+      ['no-other-user-delete', bash('rm /Users/alice/notes.txt')],
+      ['no-other-user-delete', bash('find /home/alice/proj -name "*.log" -delete')],
     ]
     for (const [name, call] of shapes) {
       const got = refusedAs(call)
@@ -497,7 +500,7 @@ async function main(): Promise<void> {
       bash('npx tsc --noEmit'), bash('pip install requests==2.31.0'), bash('curl -fsSL https://example.com/data.json -o data.json'),
       bash('crontab -l'), bash('systemctl status nginx'), bash('node dist/mercury.mjs &'), write('src/index.ts', 'export const x = 1'),
       bash('rm -rf node_modules'), bash('rm -rf /tmp/ops-proof-x'), bash('rm -rf /private/tmp/mw/world-1'), bash('rm -rf /var/folders/rk/T/x'),
-      bash('rm -rf $HOME/.cache/x'), bash('rm -rf ~/Developer/x/dist'), bash('rm -rf /Users/alice/proj/build'), bash('rm /Users/alice/notes.txt'),
+      bash('rm -rf $HOME/.cache/x'), bash('rm -rf ~/Developer/x/dist'), bash('ls /Users/alice/proj/build'), bash('cat /Users/alice/notes.txt'),
       bash('rm -rf dist build'), bash('find . -name "*.log" -delete'), bash('rm -rf /private/var/folders/rk/T/x'), bash('rm -rf /Volumes/Data/proj/build'),
       bash('rm -rf ./'), bash('rm -rf *'),
       bash('dd if=/dev/zero of=/dev/null bs=1M count=100'), bash('dd if=/dev/urandom of=key.bin bs=32 count=1'), bash('echo x > /dev/null'), bash('cat log 2>/dev/null'),

@@ -1,4 +1,4 @@
-# The language service — questions and refactors
+# The language service: questions and refactors
 
 Mercury speaks to the workspace's language servers: the built-in TypeScript
 and JavaScript sidecar (`mercury-ts`, using the project's own `typescript`
@@ -7,7 +7,7 @@ or `MERCURY_LSP_SERVERS` adds.
 
 `LspRead` asks those servers about definitions, references, types,
 documentation, callers, callees, symbols, diagnostics and server status. It
-only reads. On cloud models its definition loads in full when a server is
+only reads. On hosted models its definition loads in full when a server is
 configured, even if that server is unhealthy; `serverStatus` can explain the
 failure. Local routes discover it through ToolSearch.
 
@@ -50,7 +50,7 @@ read path takes the ordinary read-permission check.
 
 A diagnostics result says whether a server checked the files. A failed start,
 an unanswered request or an uncovered file is not a clean report: the answer
-names the cause and what helps. No symbols found is an answer, not a failure.
+names the cause and what helps. Finding zero symbols is a normal result.
 
 After three consecutive server faults for the same call in the same situation,
 Mercury pauses that call. A changed named file or server state sends it again
@@ -81,10 +81,10 @@ preview until `apply: true` is passed.
   snapshots and change receipts as Edit protect the writes. After writing,
   read state is refreshed, servers are synchronized and diagnostics reported.
 
-A refused apply writes nothing. A file move whose server offers no import
+A refused apply writes nothing. A file move whose server returns no import
 updates previews that fact; it may then move the path without an edit token.
 
-## LspRename — a symbol across the workspace
+## `LspRename`: rename a symbol across the workspace
 
 Pass `filePath`, `line`, `character` and `newName`, pointing at any occurrence
 of the name. The server includes declarations, imports, re-exports, JSX tags
@@ -99,7 +99,7 @@ Example: `LspRename {"filePath":"/repo/src/core/greeting.ts","line":8,
 "character":17,"newName":"craftGreeting"}` previews. Repeat those arguments
 with `"apply":true` and the returned `plan` to write them.
 
-## LspMoveSymbol — a declaration to another file
+## `LspMoveSymbol`: move a declaration to another file
 
 Pass `filePath`, `line` and `character` at the declaration's name, plus
 `targetPath`. A top-level function, class, interface, type, enum or variable
@@ -110,7 +110,7 @@ A position inside a body, a non-declaration, the source itself as target, a
 directory target or a different-language target is refused. This operation
 is supported by the TypeScript and JavaScript sidecar.
 
-## LspMoveFile — a file or directory with its imports
+## `LspMoveFile`: move a file or directory with its imports
 
 Pass `filePath` and `newPath`. The destination must not exist. The tool asks
 claiming servers for import updates, previews them and applies the edits and
@@ -118,7 +118,7 @@ move together. Directory moves find claimants from the files they contain.
 A move touching imports in more than 100 files is refused; split it into
 smaller steps.
 
-## LspCodeAction — fixes, refactors and source actions
+## `LspCodeAction`: fixes, refactors and source actions
 
 Pass `filePath`, `line` and `character`, optionally `endLine` and
 `endCharacter`. The list names each action with a stable `actionId`.
