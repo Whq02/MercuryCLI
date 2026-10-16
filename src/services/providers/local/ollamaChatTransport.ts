@@ -53,6 +53,7 @@ export interface OllamaChatKnobs {
 type OllamaMessage = {
   role: string
   content: string
+  thinking?: string
   images?: string[]
   tool_calls?: Array<{ id?: string; function: { name: string; arguments: Record<string, unknown> } }>
   tool_call_id?: string
@@ -89,13 +90,17 @@ function unrefTimer(handle: unknown): void {
   ;(handle as { unref?: () => void } | null | undefined)?.unref?.()
 }
 
-function argumentsObject(raw: string): Record<string, unknown> {
+function parsedArguments(raw: string): Record<string, unknown> | undefined {
   try {
     const parsed: unknown = JSON.parse(raw.trim() === '' ? '{}' : raw)
-    return rec(parsed) ?? {}
+    return rec(parsed)
   } catch {
-    return {}
+    return undefined
   }
+}
+
+function argumentsObject(raw: string): Record<string, unknown> {
+  return parsedArguments(raw) ?? {}
 }
 
 function dataUrlBase64(url: string): string | undefined {
@@ -128,6 +133,7 @@ export function ollamaMessagesOf(messages: readonly CompatWireMessage[]): Ollama
       }
     }
     const row: OllamaMessage = { role: m.role, content }
+    if (typeof m.reasoning_content === 'string' && m.reasoning_content !== '') row.thinking = m.reasoning_content
     if (images.length > 0) row.images = images
     if (m.tool_calls !== undefined && m.tool_calls.length > 0) {
       row.tool_calls = m.tool_calls.map(call => ({ id: call.id, function: { name: call.function.name, arguments: argumentsObject(call.function.arguments) } }))
@@ -229,11 +235,12 @@ function decodeRow(parsed: unknown, calls: CompatCompletedToolCall[], seen: { mo
         const call = rec(raw)
         const fn = rec(call?.function)
         const name = typeof fn?.name === 'string' ? fn.name : ''
-        const args = rec(fn?.arguments) ?? {}
+        const stringArgs = typeof fn?.arguments === 'string' ? fn.arguments : undefined
+        const args = rec(fn?.arguments) ?? (stringArgs === undefined ? {} : parsedArguments(stringArgs))
         const index = typeof fn?.index === 'number' ? fn.index : calls.length
         const id = typeof call?.id === 'string' && call.id !== '' ? call.id : `call_${index}_${calls.length}`
-        const argumentsRaw = JSON.stringify(args)
-        const malformed = name === ''
+        const argumentsRaw = args === undefined ? stringArgs! : JSON.stringify(args)
+        const malformed = name === '' || args === undefined
         calls.push({ index, id, name, argumentsRaw, ...(malformed ? {} : { arguments: args }), malformed })
         shape.toolCalls += 1
         events.push({ type: 'tool-call-fragment', index, id, name, argumentsFragment: argumentsRaw })

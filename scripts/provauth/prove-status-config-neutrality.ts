@@ -147,8 +147,8 @@ const presence = (
         zaiKeyPresent: () => false,
       } as never).local.blockers[0] ?? ''
     check(
-      "the resolver's own local sentence starts a server, never /logins",
-      localBlocker.includes('start Ollama') && !localBlocker.includes('/logins'),
+      "the resolver's own local sentence sets up or starts a server, never /logins",
+      localBlocker.includes('/localsetup') && localBlocker.includes('MERCURY_LOCAL_BASE_URL') && !localBlocker.includes('/logins'),
       localBlocker,
     )
   }
