@@ -176,7 +176,7 @@ import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type Fil
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled, maybeGetTmuxMouseHint } from '../utils/fullscreen.js';
 import type { PromptInputHelpers } from '../types/promptInputHelpers.js';
 import { formatCommandLoadingMetadata, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../utils/processUserInput/processSlashCommand.js';
-import { addToHistory } from '../history.js';
+import { addToHistory, expandPastedTextRefs } from '../history.js';
 import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../utils/healthPreflight.js';
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js';
 import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText, textForResubmit } from '../utils/messages.js';
@@ -1132,14 +1132,15 @@ export function Chat({
       }
       if (!options?.fromKeybinding && !options?.rearmed) addToHistory({ display: seatMode === 'bash' ? `!${input}` : input, pastedContents: seatPastes });
     };
-    if (seatCommand === undefined && text.startsWith('/') && seatMode !== 'bash') {
-      const gated = resolveGatedPlainWorldCommand(text, commandsRef.current);
+    const words = expandPastedTextRefs(text, seatPastes).trim();
+    if (seatCommand === undefined && words.startsWith('/') && seatMode !== 'bash') {
+      const gated = resolveGatedPlainWorldCommand(words, commandsRef.current);
       if (gated !== undefined) {
         takeComposer();
         paintScreenCommandReceipt(getCommandName(gated), '', unavailableCommandLine(gated));
         return;
       }
-      const unknownName = resolveUnknownSlashName(text, commandsRef.current);
+      const unknownName = resolveUnknownSlashName(words, commandsRef.current);
       if (unknownName !== undefined) {
         takeComposer();
         paintScreenCommandReceipt(unknownName, '', unknownCommandLine(unknownName, commandsRef.current));
