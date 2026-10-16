@@ -50,24 +50,32 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
       !/beginOpenaiBrowserConnect/.test(onboarding),
   )
   check(
-    "the walk's one read of provider usability gates whether the station is asked at all (no provider can run a turn), never which rows it shows",
+    "the walk's one read of provider usability gates whether the station is asked at all (no credentialed provider can run a turn; a found local server is a row on the station, never a skipped station), never which rows it shows",
     onboarding.split('resolveProviderUsability(').length === 2 &&
-      onboarding.includes('isAnthropicAuthEnabled() && !Object.values(resolveProviderUsability()).some(lane => lane.usable)'),
+      onboarding.includes("isAnthropicAuthEnabled() && !Object.values(resolveProviderUsability()).some(lane => lane.provider !== 'local' && lane.usable)"),
   )
   check(
     "ONE station, not two: the walk carries no second sign-in step id",
     !/'oauth'/.test(onboarding),
   )
   check(
-    'the "sign in later" row is offered (onSkip seam) and settles into the walk',
+    'the "sign in later" row is offered (onSkip seam) and settles into the walk; its words come from the row owner, local-aware',
     /onSkip=\{onSkip\}/.test(onboarding) && /onSkip=\{advance\}/.test(onboarding) &&
-      card.includes('...(onSkip !== undefined ? [SIGN_IN_LATER_ROW] : [])'),
+      card.includes('...(onSkip !== undefined ? [signInLaterRow(localRoad)] : [])'),
+  )
+  const { signInLaterRow } = await import('../../src/components/loginFamilyRows.ts')
+  check(
+    'with no local server the later row carries its honest caveat: sign-in is required to run the agent',
+    /sign in later/i.test(SIGN_IN_LATER_ROW.label) &&
+      /Sign-in is required to run the agent/.test(SIGN_IN_LATER_ROW.label) &&
+      signInLaterRow({ models: 0, labels: [] }).label === SIGN_IN_LATER_ROW.label,
+    SIGN_IN_LATER_ROW.label,
   )
   check(
-    'the later row carries its honest caveat: sign-in is required to run the agent',
-    /sign in later/i.test(SIGN_IN_LATER_ROW.label) &&
-      /Sign-in is required to run the agent/.test(SIGN_IN_LATER_ROW.label),
-    SIGN_IN_LATER_ROW.label,
+    'with a local server answering the later row names the local road and drops the caveat',
+    signInLaterRow({ models: 7, labels: ['Ollama 0.34.4'] }).label === 'Sign in later to look around, or run a local model — 7 found on Ollama 0.34.4' &&
+      signInLaterRow({ models: 7, labels: ['Ollama 0.34.4'] }).value === SIGN_IN_LATER_ROW.value,
+    signInLaterRow({ models: 7, labels: ['Ollama 0.34.4'] }).label,
   )
   check(
     'esc topology: catalogue esc backs a station; a pending-leg esc abandons to the catalogue',

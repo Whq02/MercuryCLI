@@ -90,6 +90,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-pipe-quoted-whitespace.ts" || { __
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-awk-operands.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-awk-operands.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-git-rules-in-git-context.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-git-rules-in-git-context.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-which-exit-one-is-a-result.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-which-exit-one-is-a-result.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-plain-tool-result.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-plain-tool-result.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-timeout-result-carries-output.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-timeout-result-carries-output.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-sleep-timeout-says-why.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sleep-timeout-says-why.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-progress-elapsed-from-launch.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-progress-elapsed-from-launch.ts" "$__t" "$__rc"

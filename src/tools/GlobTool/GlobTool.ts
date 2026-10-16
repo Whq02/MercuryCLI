@@ -25,6 +25,10 @@ import {
 
 const DEFAULT_RESULT_LIMIT = 100
 
+export function ignoredPathsLine(ignored: number): string {
+  return `· ${ignored.toLocaleString('en-US')} ${ignored === 1 ? 'path' : 'paths'} under ignore rules not listed`
+}
+
 const inputSchema = z.strictObject({
   pattern: z.string().describe('The glob expression files must match'),
   path: z
@@ -42,6 +46,7 @@ export type Output = {
   numFiles: number
   filenames: string[]
   truncated: boolean
+  ignored?: number
   incomplete?: string
 }
 
@@ -50,6 +55,7 @@ const outputSchema = z.object({
   numFiles: z.number(),
   filenames: z.array(z.string()),
   truncated: z.boolean(),
+  ignored: z.number().optional(),
   incomplete: z.string().optional(),
 })
 
@@ -135,7 +141,7 @@ export const GlobTool = buildTool({
     const started = Date.now()
     const root = searchRootFor(input.path, input.pattern)
     const limit = context.globLimits?.maxResults ?? DEFAULT_RESULT_LIMIT
-    const { files, truncated, incomplete } = await glob(
+    const { files, truncated, ignored, incomplete } = await glob(
       input.pattern,
       root,
       { limit, offset: 0 },
@@ -149,17 +155,19 @@ export const GlobTool = buildTool({
         numFiles: files.length,
         filenames: files.map(toRelativePath),
         truncated,
+        ...(ignored > 0 ? { ignored } : {}),
         ...(incomplete !== undefined ? { incomplete } : {}),
       } satisfies Output,
     }
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     const incompleteNote = data.incomplete !== undefined ? `\n(INCOMPLETE SEARCH — ${data.incomplete})` : ''
+    const ignoredNote = data.ignored !== undefined && data.ignored > 0 ? `\n${ignoredPathsLine(data.ignored)}` : ''
     if (data.numFiles === 0) {
       return {
         tool_use_id: toolUseID,
         type: 'tool_result' as const,
-        content: `No files found${incompleteNote}`,
+        content: `No files found${ignoredNote}${incompleteNote}`,
       }
     }
     let content = data.filenames.join('\n')
@@ -167,7 +175,7 @@ export const GlobTool = buildTool({
       content +=
         '\n(Results are truncated. Consider using a more specific path or pattern.)'
     }
-    return { tool_use_id: toolUseID, type: 'tool_result' as const, content: content + incompleteNote }
+    return { tool_use_id: toolUseID, type: 'tool_result' as const, content: content + ignoredNote + incompleteNote }
   },
   extractSearchText(data: Output): string {
     return data.filenames.join('\n')
