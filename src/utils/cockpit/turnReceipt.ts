@@ -23,6 +23,7 @@ export interface TurnReceiptCounts {
   delegatedTokens: number
   delegatedCostUSD: number
   delegatedUnpriced: number
+  tools: Record<string, number>
 }
 
 function emptyCounts(): TurnReceiptCounts {
@@ -40,16 +41,32 @@ function emptyCounts(): TurnReceiptCounts {
     delegatedTokens: 0,
     delegatedCostUSD: 0,
     delegatedUnpriced: 0,
+    tools: {},
   }
+}
+
+function otherToolCalls(tools: Record<string, number> | undefined): number {
+  let total = 0
+  for (const n of Object.values(tools ?? {})) if (n > 0) total += n
+  return total
 }
 
 export function hasActivity(c: TurnReceiptCounts): boolean {
   return (
-    c.scratchpadEdits + c.fileEdits + c.reads + c.searches + c.fetches + c.commands + c.browser + c.agents > 0
+    c.scratchpadEdits + c.fileEdits + c.reads + c.searches + c.fetches + c.commands + c.browser + c.agents + otherToolCalls(c.tools) > 0
   )
 }
 
 export const NO_TOOLS_RAN_WORDS = 'no tools ran this turn'
+const OTHER_TOOLS_NAMED = 6
+
+export function otherToolsLine(c: TurnReceiptCounts): string | null {
+  const named = Object.entries(c.tools ?? {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  if (named.length === 0) return null
+  const shown = named.slice(0, OTHER_TOOLS_NAMED).map(([name, n]) => `${name} ×${n}`)
+  const rest = named.length - shown.length
+  return rest > 0 ? `${shown.join(' · ')} · +${rest} more tools` : shown.join(' · ')
+}
 
 function isReplyRow(m: LooseMessage): boolean {
   if (m.type !== 'assistant' || m.isApiErrorMessage === true) return false
@@ -122,7 +139,23 @@ function contentBlocks(m: LooseMessage): Array<Record<string, unknown>> {
   return Array.isArray(c) ? (c as Array<Record<string, unknown>>) : []
 }
 
-function countToolUses(m: LooseMessage, c: TurnReceiptCounts): void {
+interface Tally {
+  counts: TurnReceiptCounts
+  pending: Map<string, string>
+}
+
+function emptyTally(): Tally {
+  return { counts: emptyCounts(), pending: new Map() }
+}
+
+function settleTally(t: Tally): TurnReceiptCounts {
+  for (const name of t.pending.values()) t.counts.tools[name] = (t.counts.tools[name] ?? 0) + 1
+  t.pending.clear()
+  return t.counts
+}
+
+function countToolUses(m: LooseMessage, t: Tally): void {
+  const c = t.counts
   for (const block of contentBlocks(m)) {
     if (block['type'] !== 'tool_use') continue
     const name = String(block['name'] ?? '')
@@ -132,7 +165,14 @@ function countToolUses(m: LooseMessage, c: TurnReceiptCounts): void {
     else if (COMMAND_TOOLS.has(name)) c.commands += 1
     else if (BROWSER_TOOLS.has(name)) c.browser += 1
     else if (DELEGATE_TOOLS.has(name)) c.agents += 1
+    else if (typeof block['id'] === 'string' && !t.pending.has(block['id'])) t.pending.set(block['id'], name)
+    else c.tools[name] = (c.tools[name] ?? 0) + 1
   }
+}
+
+function resultToolUseId(m: LooseMessage): string | undefined {
+  const id = contentBlocks(m).find(b => b['type'] === 'tool_result')?.['tool_use_id']
+  return typeof id === 'string' ? id : undefined
 }
 
 function countDelegatedResult(m: LooseMessage, c: TurnReceiptCounts): void {
@@ -193,20 +233,29 @@ function countChangeViewResult(r: ChangeViewResult, c: TurnReceiptCounts, tempRo
   return true
 }
 
-function countEditResult(m: LooseMessage, c: TurnReceiptCounts, tempRoot: string): void {
+function countEditResult(m: LooseMessage, c: TurnReceiptCounts, tempRoot: string): boolean {
+  const before = c.fileEdits + c.scratchpadEdits
   const r = m.toolUseResult as
     | ({ filePath?: unknown; structuredPatch?: unknown; noChange?: unknown; type?: unknown; content?: unknown } & ChangeViewResult)
     | undefined
-  if (!r) return
-  if (countChangeViewResult(r, c, tempRoot)) return
-  if (typeof r.filePath !== 'string' || !Array.isArray(r.structuredPatch)) return
-  if (r.noChange !== undefined || r.type === 'no-change') return
+  if (!r) return false
+  if (countChangeViewResult(r, c, tempRoot)) return c.fileEdits + c.scratchpadEdits > before
+  if (typeof r.filePath !== 'string' || !Array.isArray(r.structuredPatch)) return false
+  if (r.noChange !== undefined || r.type === 'no-change') return false
   countFile(r.filePath, c, tempRoot)
   if (r.type === 'create' && r.structuredPatch.length === 0 && typeof r.content === 'string') {
     c.adds += createdLineCount(r.content)
-    return
+    return true
   }
   countHunkLines(r.structuredPatch, c)
+  return true
+}
+
+function countResult(m: LooseMessage, t: Tally, tempRoot: string): void {
+  const wrote = countEditResult(m, t.counts, tempRoot)
+  countDelegatedResult(m, t.counts)
+  const id = resultToolUseId(m)
+  if (wrote && id !== undefined) t.pending.delete(id)
 }
 
 export function isTurnBoundary(m: LooseMessage): boolean {
@@ -221,7 +270,18 @@ export function isTurnBoundary(m: LooseMessage): boolean {
 }
 
 function makeReceipt(counts: TurnReceiptCounts, anchorUuid: string, contextDelta?: number): TurnReceiptMessage {
-  return { type: 'turn_receipt', uuid: `${anchorUuid}-turn-receipt`, counts, ...(contextDelta !== undefined ? { contextDelta } : {}) }
+  const tools: Record<string, number> = {}
+  for (const [name, n] of Object.entries(counts.tools ?? {}).sort((a, b) => a[0].localeCompare(b[0]))) if (n > 0) tools[name] = n
+  return { type: 'turn_receipt', uuid: `${anchorUuid}-turn-receipt`, counts: { ...counts, tools }, ...(contextDelta !== undefined ? { contextDelta } : {}) }
+}
+
+function addCounts(target: TurnReceiptCounts, source: Partial<TurnReceiptCounts> | undefined, sign: 1 | -1): void {
+  if (!source) return
+  for (const key of Object.keys(target) as Array<keyof TurnReceiptCounts>) {
+    if (key === 'tools') continue
+    target[key] += sign * (typeof source[key] === 'number' ? source[key] : 0)
+  }
+  for (const [name, n] of Object.entries(source.tools ?? {})) target.tools[name] = (target.tools[name] ?? 0) + sign * n
 }
 
 export function injectTurnReceipts(messages: RenderableMessage[], tempRoot: string): RenderableMessage[] {
@@ -240,17 +300,12 @@ export function compactWorkOf(messages: readonly LooseMessage[]): CompactMetadat
   return messages.find(m => m.type === 'system' && m.subtype === 'compact_boundary')?.compactMetadata?.work
 }
 
-function countMessage(m: LooseMessage, counts: TurnReceiptCounts, tempRoot: string): void {
-  if (m.type === 'assistant') countToolUses(m, counts)
-  else if (m.type === 'user') {
-    countEditResult(m, counts, tempRoot)
-    countDelegatedResult(m, counts)
-  } else if (m.type === 'grouped_tool_use') {
-    for (const inner of m.messages ?? []) countToolUses(inner, counts)
-    for (const res of m.results ?? []) {
-      countEditResult(res, counts, tempRoot)
-      countDelegatedResult(res, counts)
-    }
+function countMessage(m: LooseMessage, t: Tally, tempRoot: string): void {
+  if (m.type === 'assistant') countToolUses(m, t)
+  else if (m.type === 'user') countResult(m, t, tempRoot)
+  else if (m.type === 'grouped_tool_use') {
+    for (const inner of m.messages ?? []) countToolUses(inner, t)
+    for (const res of m.results ?? []) countResult(res, t, tempRoot)
   }
 }
 
@@ -264,7 +319,7 @@ function walkTurnReceipts(
     pending.set(receipt.beforeUuid, receipt)
     pending.set(deriveUUID(receipt.beforeUuid as Message['uuid'], receipt.blockIndex ?? 0), receipt)
   }
-  let counts = emptyCounts()
+  let tally = emptyTally()
   let anchorUuid = 'turn-0'
   let replied = false
   let previousPrompt: number | undefined
@@ -280,8 +335,8 @@ function walkTurnReceipts(
   for (let index = 0; index < messages.length; index++) {
     const m = messages[index]!
     if (isTurnBoundary(m)) {
-      visit(counts, anchorUuid, index, replied, settleDelta())
-      counts = emptyCounts()
+      visit(settleTally(tally), anchorUuid, index, replied, settleDelta())
+      tally = emptyTally()
       replied = false
       if (typeof m.uuid === 'string') anchorUuid = m.uuid
     }
@@ -302,14 +357,14 @@ function walkTurnReceipts(
     for (const row of [m, ...(m.messages ?? []), ...(m.results ?? [])]) {
       const carry = row.uuid === undefined ? undefined : pending.get(row.uuid)
       if (!carry) continue
-      for (const key of Object.keys(counts) as Array<keyof TurnReceiptCounts>) counts[key] += carry.counts[key] ?? 0
+      addCounts(tally.counts, carry.counts, 1)
       anchorUuid = carry.anchorUuid
       pending.delete(carry.beforeUuid)
       pending.delete(deriveUUID(carry.beforeUuid as Message['uuid'], carry.blockIndex ?? 0))
     }
-    countMessage(m, counts, tempRoot)
+    countMessage(m, tally, tempRoot)
   }
-  visit(counts, anchorUuid, messages.length, replied, settleDelta())
+  visit(settleTally(tally), anchorUuid, messages.length, replied, settleDelta())
 }
 
 export function foldedTurnReceipts(
@@ -325,10 +380,10 @@ export function foldedTurnReceipts(
     const surviving = messages.slice(start, end).flatMap(m => keptByUuid.has(m.uuid) ? [keptByUuid.get(m.uuid)!] : [])
     start = end
     if (surviving.length === 0 && !(kept.length === 0 && end === messages.length)) return
-    const retained = emptyCounts()
+    const retained = emptyTally()
     for (const m of surviving) countMessage(m, retained, tempRoot)
-    const missing = { ...counts }
-    for (const key of Object.keys(missing) as Array<keyof TurnReceiptCounts>) missing[key] -= retained[key] ?? 0
+    const missing = { ...counts, tools: { ...counts.tools } }
+    addCounts(missing, settleTally(retained), -1)
     let target: { beforeUuid: string; blockIndex?: number } | undefined
     for (const m of surviving) {
       if (m.type !== 'assistant' && m.type !== 'user') continue

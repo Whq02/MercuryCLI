@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const { injectTurnReceipts, isScratchpadPath, isTurnReceiptEnabled, delegatedSpendLine, formatDelegatedTokens, formatDelegatedCost, createdLineCount, hasActivity, NO_TOOLS_RAN_WORDS } = await import(
+const { injectTurnReceipts, isScratchpadPath, isTurnReceiptEnabled, delegatedSpendLine, formatDelegatedTokens, formatDelegatedCost, createdLineCount, hasActivity, NO_TOOLS_RAN_WORDS, otherToolsLine } = await import(
   '../../src/utils/cockpit/turnReceipt.js'
 )
 const TEMP_ROOT = '/tmp/claude-1/'
@@ -39,11 +39,11 @@ const toolUse = (name: string, input: Record<string, unknown> = {}, uuid = 'a1')
     uuid,
     message: { role: 'assistant', content: [{ type: 'tool_use', id: `t-${uuid}`, name, input }] },
   }) as never
-const editResult = (filePath: string, lines: string[], uuid = 'r1') =>
+const editResult = (filePath: string, lines: string[], uuid = 'r1', forUse = 'x') =>
   ({
     type: 'user',
     uuid,
-    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-x' }] },
+    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `t-${forUse}` }] },
     toolUseResult: { filePath, structuredPatch: [{ lines }] },
   }) as never
 const EMPTY_USAGE = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null, cache_creation: null }
@@ -138,6 +138,39 @@ withEnv('1', () => {
   check('the mixed field turn counts the shell command AND the four browser actions', c['commands'] === 1 && c['browser'] === 4, JSON.stringify(c))
   const only = inject([prompt('browser only', 'p1'), toolUse('Browser', { op: 'open', url: 'http://127.0.0.1:8765/' }, 'a1'), toolUse('Browser', { op: 'screenshot' }, 'a2')])
   check('a Browser-only turn gets a receipt of its own (the field saw none in 18 such turns)', receipts(only).length === 1 && receipts(only)[0]!.counts['browser'] === 2, JSON.stringify(receipts(only).map(r => r.counts)))
+})
+
+section('every tool_use counts, by name (F37A-1D-02: a 21-call memory turn read "no tools ran this turn")')
+type NamedReceipt = { type: string; counts: Record<string, number> & { tools: Record<string, number> } }
+const named = (rows: unknown[]): NamedReceipt[] => receipts(rows) as NamedReceipt[]
+const resultFor = (uuid: string, toolUseResult?: Record<string, unknown>) =>
+  ({ type: 'user', uuid: `r-${uuid}`, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `t-${uuid}`, content: 'ok' }] }, ...(toolUseResult ? { toolUseResult } : {}) }) as never
+withEnv('1', () => {
+  const memory = inject([
+    prompt('what does memory hold?', 'p1'),
+    toolUse('ToolSearch', { query: 'select:Recall' }, 'a0'), resultFor('a0'),
+    ...Array.from({ length: 20 }, (_, i) => [toolUse('Recall', { read: `seq:${i}` }, `a${i + 1}`), resultFor(`a${i + 1}`)]).flat(),
+  ])
+  const mc = named(memory)[0]?.counts
+  check('ToolSearch ×1 + Recall ×20 count by name and read as activity (RED on the base: no receipt at all)', mc !== undefined && named(memory).length === 1 && mc.tools['Recall'] === 20 && mc.tools['ToolSearch'] === 1 && hasActivity(mc as never), JSON.stringify(mc?.tools))
+  check('the line names the most-called first, then alphabetical: "Recall ×20 · ToolSearch ×1"', mc !== undefined && otherToolsLine(mc as never) === 'Recall ×20 · ToolSearch ×1', String(mc && otherToolsLine(mc as never)))
+  const sets = inject([prompt('named sets stay named', 'p1'), toolUse('Read', {}, 'a1'), toolUse('Grep', {}, 'a2'), toolUse('WebFetch', {}, 'a3'), toolUse('Bash', {}, 'a4'), toolUse('Browser', {}, 'a5'), toolUse('Crewmate', {}, 'a6')])
+  check('a tool in a named set is never counted twice: its category counts, the by-name map stays empty', Object.keys(named(sets)[0]!.counts.tools).length === 0 && otherToolsLine(named(sets)[0]!.counts as never) === null, JSON.stringify(named(sets)[0]!.counts.tools))
+  const edited = inject([prompt('an edit that wrote', 'p1'), toolUse('Edit', { file_path: '/repo/a.ts' }, 'a1'), resultFor('a1', { filePath: '/repo/a.ts', structuredPatch: [{ lines: ['+a'] }] })])
+  check('an Edit whose result counted a file is "1 file edit" alone — not an Edit ×1 beside it', named(edited)[0]!.counts['fileEdits'] === 1 && Object.keys(named(edited)[0]!.counts.tools).length === 0, JSON.stringify(named(edited)[0]!.counts))
+  const unchanged = inject([prompt('an edit that changed nothing', 'p1'), toolUse('Edit', { file_path: '/repo/a.ts' }, 'a1'), resultFor('a1', { filePath: '/repo/a.ts', structuredPatch: [], noChange: true })])
+  check('an Edit whose result wrote nothing is still a call the turn made: "Edit ×1", never the no-tools words', named(unchanged).length === 1 && named(unchanged)[0]!.counts['fileEdits'] === 0 && named(unchanged)[0]!.counts.tools['Edit'] === 1, JSON.stringify(named(unchanged)[0]?.counts))
+  const preview = inject([prompt('a ChangeSet preview', 'p1'), toolUse('ChangeSet', { op: 'preview' }, 'a1'), resultFor('a1', { op: 'preview', outcome: 'no-change', changeView: { state: 'prepared', files: [{ file: 'src/a.ts', hunks: [] }] } })])
+  check('a ChangeSet preview writes nothing and counts as a call: "ChangeSet ×1"', named(preview)[0]!.counts['fileEdits'] === 0 && named(preview)[0]!.counts.tools['ChangeSet'] === 1, JSON.stringify(named(preview)[0]?.counts))
+  const noResult = inject([prompt('a call still waiting', 'p1'), toolUse('Skill', { skill: 'commit' }, 'a1')])
+  check('a call with no result yet counts by name at the turn\'s end', named(noResult)[0]!.counts.tools['Skill'] === 1)
+  const many = inject([prompt('many tools', 'p1'), ...['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta'].map((name, i) => toolUse(name, {}, `a${i}`)), toolUse('Alpha', {}, 'a9')])
+  check('the line names six tools at most and counts the rest: "Alpha ×2 · Beta ×1 · … · Gamma ×1 · +2 more tools"', otherToolsLine(named(many)[0]!.counts as never) === 'Alpha ×2 · Beta ×1 · Delta ×1 · Epsilon ×1 · Eta ×1 · Gamma ×1 · +2 more tools', String(otherToolsLine(named(many)[0]!.counts as never)))
+  const grouped = inject([prompt('grouped memory calls', 'p1'), { type: 'grouped_tool_use', uuid: 'g1', messages: [toolUse('Recall', {}, 'a1'), toolUse('Recall', {}, 'a2')], results: [resultFor('a1'), resultFor('a2')] } as never])
+  check('grouped rows contribute their inner calls by name', named(grouped)[0]!.counts.tools['Recall'] === 2)
+  const row = src('components', 'messages', 'TurnReceiptRow.tsx')
+  check('the row prints the derive owner\'s by-name words before the delegated spend', /otherToolsLine\(c\)/.test(row) && row.indexOf('otherToolsLine(c)') < row.indexOf('delegatedSpendLine(c)'))
+  check('the folded-work line of a compaction carries the same words', /otherToolsLine\(c\)/.test(src('services', 'compact', 'prompt.ts')))
 })
 
 section('turn boundaries')
@@ -251,15 +284,15 @@ withEnv('1', () => {
 })
 
 section('every tool that writes files counts (RELEASE-29-AIR R29A-06): ChangeSet files and lines, a created file\'s lines; a preview, a refusal, a replay count nothing')
-const resultRow = (toolUseResult: Record<string, unknown>, uuid: string) =>
+const resultRow = (toolUseResult: Record<string, unknown>, uuid: string, forUse = 'x') =>
   ({
     type: 'user',
     uuid,
-    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-x' }] },
+    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `t-${forUse}` }] },
     toolUseResult,
   }) as never
 const hunk = (lines: string[]) => ({ oldStart: 1, oldLines: 1, newStart: 1, newLines: lines.filter(l => !l.startsWith('-')).length, lines })
-const changeSetApplied = (files: Array<{ file: string; hunks: Array<{ lines: string[] }>; added?: number; removed?: number; omittedHunks?: number }>, uuid: string, outcome = 'succeeded', state = 'applied') =>
+const changeSetApplied = (files: Array<{ file: string; hunks: Array<{ lines: string[] }>; added?: number; removed?: number; omittedHunks?: number }>, uuid: string, outcome = 'succeeded', state = 'applied', forUse = 'x') =>
   resultRow(
     {
       op: 'apply',
@@ -276,6 +309,7 @@ const changeSetApplied = (files: Array<{ file: string; hunks: Array<{ lines: str
       },
     },
     uuid,
+    forUse,
   )
 withEnv('1', () => {
   const fieldTurn = inject([
@@ -285,8 +319,8 @@ withEnv('1', () => {
     toolUse('Read', { file_path: '/repo/tests/test_wordfreq.py' }, 'a3'),
     toolUse('Edit', { file_path: '/repo/wordfreq.py' }, 'a4'),
     toolUse('Edit', { file_path: '/repo/wordfreq.py' }, 'a5'),
-    editResult('/repo/wordfreq.py', [' ctx', '+l1', '+l2', '+l3', '+l4', '+l5', '+l6', '+l7', ' ctx'], 'r1'),
-    editResult('/repo/wordfreq.py', [' ctx', '+l8', ' ctx'], 'r2'),
+    editResult('/repo/wordfreq.py', [' ctx', '+l1', '+l2', '+l3', '+l4', '+l5', '+l6', '+l7', ' ctx'], 'r1', 'a4'),
+    editResult('/repo/wordfreq.py', [' ctx', '+l8', ' ctx'], 'r2', 'a5'),
     toolUse('ChangeSet', { op: 'apply', changes: [{ file_path: '/repo/README.md' }, { file_path: '/repo/tests/test_wordfreq.py' }] }, 'a6'),
     changeSetApplied(
       [
@@ -294,12 +328,16 @@ withEnv('1', () => {
         { file: 'tests/test_wordfreq.py', hunks: [hunk([' ctx', ...Array.from({ length: 12 }, (_, i) => `+    test line ${i}`), ' ctx'])], added: 12, removed: 0 },
       ],
       'r3',
+      'succeeded',
+      'applied',
+      'a6',
     ),
   ])
   const c = receipts(fieldTurn)[0]!.counts
   check('the field turn counts every written file: 2 Edits + 2 ChangeSet files = 4 file edits (the release said 2)', c['fileEdits'] === 4, `fileEdits=${c['fileEdits']}`)
   check('…and every line git counts: +22 −1 (the release said +8)', c['adds'] === 22 && c['dels'] === 1, `+${c['adds']} −${c['dels']}`)
   check('…the reads stay 3', c['reads'] === 3)
+  check('…and no written call is counted again by name (each Edit and the ChangeSet released by its own result)', Object.keys((c as unknown as { tools: Record<string, number> }).tools).length === 0, JSON.stringify((c as unknown as { tools: Record<string, number> }).tools))
 
   const onlyChangeSet = inject([
     prompt('one ChangeSet, nothing else', 'p1'),
@@ -353,7 +391,8 @@ withEnv('1', () => {
     toolUse('AstEdit', { pattern: 'x', rewrite: 'y' }, 'a4'),
     resultRow({ state: 'no-change', pattern: 'x', rewrite: 'y', scope: '.', text: 'no change', matchCount: 1, fileCount: 1, changedPaths: [], changeView: { state: 'applied', action: 'astedit', files: [{ file: 'src/z.ts', hunks: [hunk(['+z'])], changedLines: 1 }], refs: [] } }, 'r4'),
   ])
-  check('a preview, a refusal, a replay and a no-change AstEdit write nothing and count nothing', receipts(nothingWritten).length === 0, JSON.stringify(receipts(nothingWritten)[0]?.counts ?? null))
+  const nw = receipts(nothingWritten)[0]!.counts as Record<string, number> & { tools: Record<string, number> }
+  check('a preview, a refusal, a replay and a no-change AstEdit write nothing — no file, no line — and count only as the calls they were: ChangeSet ×3 · AstEdit ×1', nw['fileEdits'] === 0 && nw['scratchpadEdits'] === 0 && nw['adds'] === 0 && nw['dels'] === 0 && nw.tools['ChangeSet'] === 3 && nw.tools['AstEdit'] === 1, JSON.stringify(nw))
 
   const astApplied = inject([
     prompt('an AstEdit that wrote', 'p1'),
