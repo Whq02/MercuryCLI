@@ -1,5 +1,5 @@
 {
-  "base": "2701ef1b2c9c457974d7f4456d144a365b2fb55a",
+  "base": "8c54ac6ded27f413e53bad8409cdf09a9059d8b0",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -3179,7 +3179,7 @@
                   "type": "string"
                 },
                 "pin": {
-                  "description": "Only when the user asked to remember this as a standing rule or preference: pins it, in their words, marked as asked for by the user. The asked mark comes from the user's own chat alone — a crewmate's pin is a plain pin.",
+                  "description": "Only when the user asked to remember this as a standing rule or preference: pins it, in their words, marked as asked for by the user. A pin needs the user's own words in the main chat — the rule in their latest message, or their 'yes, pin it' after stating it; otherwise it is refused and nothing is stored. A crewmate cannot pin: retain the fact without pin.",
                   "type": "boolean"
                 },
                 "replaces": {
