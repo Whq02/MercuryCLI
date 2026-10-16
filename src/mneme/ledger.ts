@@ -1,6 +1,8 @@
 import { appendFileSync, closeSync, fstatSync, mkdirSync, openSync, readFileSync, readSync } from 'node:fs'
+import { uptime } from 'node:os'
 import { dirname, join } from 'node:path'
 import { daemonDir } from '../daemon/controlSocket.js'
+import { getProcessStartToken, isProcessAlive } from '../daemon/ownerWatch.js'
 import { workerPidAlive } from '../daemon/workerIdentity.js'
 import { logForDebugging } from '../utils/debug.js'
 import { lineagePath, mnemeProjectKeyFor } from './paths.js'
@@ -48,7 +50,23 @@ function asEntry(raw: unknown): LedgerEntry | null {
     files: isStringList(row.files) ? row.files : [],
     outcome: typeof row.outcome === 'string' ? row.outcome : null,
     handoff,
+    ...(typeof row.pid === 'number' && Number.isInteger(row.pid) && row.pid > 0 ? { pid: row.pid } : {}),
+    ...(typeof row.procStart === 'string' && row.procStart !== '' ? { procStart: row.procStart } : {}),
   }
+}
+
+function ownProcessFields(): { pid: number; procStart?: string } {
+  const pid = process.pid
+  const token = process.platform === 'win32' ? null : getProcessStartToken(pid)
+  return token === null || token === '' ? { pid } : { pid, procStart: token }
+}
+
+function rowProcessAlive(entry: LedgerEntry): boolean | null {
+  if (entry.pid === undefined) return null
+  if (!isProcessAlive(entry.pid)) return false
+  if (entry.procStart === undefined) return true
+  const current = getProcessStartToken(entry.pid)
+  return current === null || current === entry.procStart
 }
 
 export interface LedgerFile {
@@ -125,6 +143,7 @@ function update(projectKey: string, sessionId: string, change: (entry: LedgerEnt
 export function openEntry(projectKey: string, session: { sessionId: string; model: string }): LedgerEntry {
   const existing = ledgerEntryOf(projectKey, session.sessionId)
   const now = ledgerClock()
+  const { pid, procStart } = ownProcessFields()
   const entry: LedgerEntry =
     existing !== null
       ? {
@@ -135,6 +154,8 @@ export function openEntry(projectKey: string, session: { sessionId: string; mode
             existing.engines[existing.engines.length - 1]?.model === session.model
               ? existing.engines
               : [...existing.engines, { model: session.model, at: now }],
+          pid,
+          procStart,
         }
       : {
           ordinal: readLedger(projectKey).length + 1,
@@ -148,6 +169,8 @@ export function openEntry(projectKey: string, session: { sessionId: string; mode
           files: [],
           outcome: null,
           handoff: null,
+          pid,
+          procStart,
         }
   try {
     appendLine(projectKey, entry)
@@ -206,11 +229,15 @@ export const INTERRUPTED_OUTCOME = 'interrupted'
 
 export function reconcileInterruptedEntries(projectKey: string, currentSessionId: string, cutAt: (sessionId: string) => string | null): LedgerEntry[] {
   const live = new Set(liveSessions(projectKey).map(session => session.sessionId))
+  const bootAt = Date.now() - uptime() * 1000
   const reconciled: LedgerEntry[] = []
   for (const entry of readLedger(projectKey)) {
     if (entry.endedAt !== null || entry.sessionId === currentSessionId || live.has(entry.sessionId)) continue
+    const alive = rowProcessAlive(entry)
+    if (alive === true) continue
     const at = cutAt(entry.sessionId)
     if (at === null) continue
+    if (alive === null && !(Date.parse(at) < bootAt)) continue
     const next = update(projectKey, entry.sessionId, current => (current.endedAt !== null ? null : { ...current, endedAt: at, outcome: INTERRUPTED_OUTCOME }))
     if (next !== null && next.outcome === INTERRUPTED_OUTCOME && next.endedAt === at) reconciled.push(next)
   }
