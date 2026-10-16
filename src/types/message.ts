@@ -64,7 +64,7 @@ export type CompactMetadata = {
   ledger?: import('../services/compact/foldLedger.js').FoldLedger
   memory?: import('../services/compact/foldRetirement.js').FoldMemoryEnvelope
   cacheEpoch?: import('../services/compact/cacheEpoch.js').FoldCacheEpoch
-  recentRounds?: { requested: number; kept: number; tokens: number; reason: string }
+  recentRounds?: { requested: number; kept: number; tokens: number; reason: string; folded?: number }
   requestGauge?: Pick<import('../services/run/requestGauge.js').RequestGaugeAnchor, 'key' | 'epoch' | 'fixed' | 'density'>
   preservedSegment?: {
     headUuid: UUID
