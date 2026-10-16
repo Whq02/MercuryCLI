@@ -97,6 +97,7 @@ function readFileSyncDirNames(dir: string): string[] {
 
 
 const liveChildren = new Map<string, ChildProcess>()
+const projectChildren = new Set<string>()
 const restartTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const startedBy = new Map<string, { cwd: string; name: string; owner: OwnerKey }>()
 
@@ -111,14 +112,14 @@ export function liveServiceChildren(): Array<{ key: string; pid: number | undefi
 }
 
 registerCleanup(async () => {
-  const children = [...liveChildren.values()]
-  liveChildren.clear()
-  await Promise.all(children.map(child => endProcessTree(child, 'SIGTERM').catch(() => undefined)))
+  const children = [...liveChildren].filter(([key]) => !projectChildren.has(key))
+  for (const [key] of children) liveChildren.delete(key)
+  await Promise.all(children.map(([, child]) => endProcessTree(child, 'SIGTERM').catch(() => undefined)))
 })
 
 process.once('exit', () => {
   for (const [key, child] of liveChildren) {
-    void key
+    if (projectChildren.has(key)) continue
     try {
       child.kill('SIGTERM')
     } catch {
@@ -445,11 +446,13 @@ export async function startService(
   }
   writeRecord(spec.cwd, record)
   liveChildren.set(childKey(spec.cwd, spec.name), child)
+  if (spec.lifecycle === 'project') projectChildren.add(childKey(spec.cwd, spec.name))
   if (owner !== undefined && spec.lifecycle === 'session') startedBy.set(childKey(spec.cwd, spec.name), { cwd: spec.cwd, name: spec.name, owner })
   captureStartTokenAsync(spec.cwd, spec.name, child.pid)
 
   child.on('exit', (code, signal) => {
     liveChildren.delete(childKey(spec.cwd, spec.name))
+    projectChildren.delete(childKey(spec.cwd, spec.name))
     startedBy.delete(childKey(spec.cwd, spec.name))
     const current = readRecord(spec.cwd, spec.name)
     if (!current) return

@@ -100,7 +100,7 @@ if (posix) {
   check('cleanup: every kernel disposed', evalKernelManager.kernelCount() === 0 && (await goneSoon(seat.kernel)))
   if (crew.child && alive(crew.child)) process.kill(crew.child, 'SIGKILL')
 } else {
-  console.log('  [SKIP] the kernel leg is POSIX-shaped on this host (the Python kernel is POSIX-only; the win32 arm rides the field task)')
+  console.log('  [SKIP] the js kernel leg spawns `sleep` from its cell, a POSIX shape on this host (the win32 arm rides the field task)')
 }
 
 section('§3 SERVICE — the session-lifecycle services the crewmate started stop at its end; a project-lifecycle one and the seat\'s stay')
@@ -233,6 +233,23 @@ section('§9 THE WIN32 ARM — the strikes the Windows box re-checks live')
   check('the kernel\'s polite exit is followed by the group sweep', /await endProcessTree\(this\.child, 'SIGKILL'\)\n  \}\n\}/.test(kernel))
   const manager = src('src/services/projectServices/serviceManager.ts')
   check('a service stop on win32 strikes the whole tree first (the record\'s root-only kill orphaned a listener)', manager.includes("if (process.platform === 'win32') {") && /win32'\) \{[\s\S]{0,900}?await endProcessTree\(record\.pid, 'SIGKILL'\)/.test(manager))
+}
+
+section('§10 THE QUIT ROAD — the session\'s own cleanup ends session-lifecycle services and leaves a project-lifecycle one alive, as the Service tool promises')
+if (posix) {
+  const spec = (name: string, lifecycle: 'session' | 'project') => ({ name, command: 'sleep', args: ['300'], cwd: work, readiness: [], readinessMode: 'all' as const, restart: 'never' as const, lifecycle })
+  const quitSession = await services.startService({ spec: spec('quit-session', 'session'), sessionId: 'proof', owner: SEAT } as never)
+  const quitProject = await services.startService({ spec: spec('quit-project', 'project'), sessionId: 'proof', owner: SEAT } as never)
+  const pidOf = (r: unknown): number | null => ('record' in (r as object) ? (r as { record: { pid: number | null } }).record.pid : null)
+  check('a session-lifecycle and a project-lifecycle service are up', alive(pidOf(quitSession)) && alive(pidOf(quitProject)))
+  const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')
+  await runCleanupFunctions().catch(() => undefined)
+  check(`the quit ended the session-lifecycle service (pid ${pidOf(quitSession)})`, await goneSoon(pidOf(quitSession)))
+  check(`the quit left the project-lifecycle service alive (pid ${pidOf(quitProject)}) — "project = detached, survives it"`, alive(pidOf(quitProject)))
+  await services.stopService(work, 'quit-project')
+  check('cleanup: the project service stopped by hand', await goneSoon(pidOf(quitProject)))
+} else {
+  console.log('  [SKIP] the quit leg is POSIX-shaped on this host (sleep)')
 }
 
 console.log(`\ncrewmate-teardown: ${checks} checks, ${failures} failed`)
