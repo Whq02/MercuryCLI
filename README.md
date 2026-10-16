@@ -9,7 +9,7 @@ An agent reads and edits files, runs shell commands, steps through tests and deb
 - **Multi-session Concourse and isolated worktrees:** run multiple sessions side by side on the Session Concourse (`/concourse`), and delegate parallel work to cross-provider crewmates (`Crewmate`) in isolated `git worktree` checkouts with project file leases so parallel agents do not overwrite each other.
 - **13 model providers and `/localsetup`:** keep all 13 providers signed in at once (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen), switch providers and models mid-chat, or run `/localsetup` for one-command local model setup with Ollama alongside LM Studio, vLLM and llama.cpp.
 - **Mneme hybrid RAG project memory:** combines an on-device 118 MB BGE semantic embedding model (`bge-base-en-v1.5`) with BM25 word ranking and citation tracking, verbatim pinned rules, branch-aware startup context, write-time contradiction checks, session handoff notes, and the `/memory page` browser graph.
-- **Compiler, AST and DAP debugging tools:** wires in LSP code intelligence and previewed refactors (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), 23-language tree-sitter AST structural search and rewrites (`AstSearch`, `AstEdit`), a built-in Debug Adapter Protocol (`Debug`) debugger (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`) that failing Python and Node tests step straight into, and persistent Python and JavaScript `Eval` cells.
+- **Compiler, AST and DAP debugging tools:** wires in LSP code intelligence and previewed refactors (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), 23-language tree-sitter AST structural search and rewrites (`AstSearch`, `AstEdit`), a built-in Debug Adapter Protocol (`Debug`) debugger (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`) that failing Python, Node, Go and Rust tests step straight into, and persistent Python and JavaScript `Eval` cells.
 - **Keyless `WebSearch` and markdown `WebFetch`:** searches through provider-native search, Brave or Tavily keys, official APIs (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG and keyless DuckDuckGo, and fetches public documentation as clean markdown within a 38,000-character call budget.
 - **Desktop computer use, Whisper voice, Saturn scheduling and editor bridges:** drives desktop applications (`Computer`), transcribes push-to-talk voice dictation on-device with Whisper (`/voice`), schedules recurring or one-shot sessions with Saturn (`/saturn`), and connects to VS Code over the Agent Client Protocol (`mercury acp`) as well as Unity, Blender, Godot and Aseprite.
 
@@ -39,10 +39,11 @@ The install addresses keep approximate script-request counts by source and UTC
 day (completed installs are not counted); the counter stores no IP address, user-agent string
 or cookie.
 
-After installation, open a new terminal and run `mercury --version` to check
-it. Then run `mercury` from a repository to start the [first run](#the-first-run).
-To use Mercury in the terminal you installed from, follow the PATH instruction
-printed by the installer.
+Open a new terminal, or run the `export PATH=…` line the shell installer
+prints, then run `mercury --version` to check it and `mercury` from a
+repository to start the [first run](#the-first-run). On Windows PowerShell, and
+after a Homebrew, npm, bun or mise install, `mercury` works in the same
+terminal.
 
 <details>
 <summary>Installation paths, updates and release verification</summary>
@@ -179,7 +180,9 @@ such as `npm`; running the shim directly fails. After `cd`, give the engine
 an absolute path to the program you want to run.
 
 Set `MERCURY_SHELL_ENGINE=brush`, or choose `brush` in `/config` under Shell
-engine, to use the bundled engine even when `bash.exe` is available.
+engine, to use the bundled Rust shell engine (`brush`, optional on macOS and
+Linux where the system shell is the default) for Bash tool calls with
+persistent shell state even when `bash.exe` is available.
 `MERCURY_SHELL_ENGINE=system` uses only the system `bash.exe`.
 
 A source build without the engine pack or Git for Windows still starts, but
@@ -188,9 +191,7 @@ the Bash tool is unavailable. The PowerShell tool remains available, and the
 
 ## Build from source
 
-Mercury builds with bun and runs on Node 24 LTS. Install the three
-requirements first: Node 24 LTS, git, and bun 1.3.x, which the release
-archives do not include:
+Install [the source-build requirements](#requirements), including bun 1.3.x:
 
 ```sh
 curl -fsSL https://bun.sh/install | bash           # macOS and Linux
@@ -244,12 +245,9 @@ lacks its tools, setup skips it and the health check reports the missing
 addon. The Windows shell engine is compiled on your machine too because
 upstream has no Windows binary.
 
-brush is a bash-compatible shell written in Rust. It is optional on macOS
-and Linux, where the system shell remains the default. Select it through
-`/config` (`shell.engine`) or `MERCURY_SHELL_ENGINE=brush` to use it for Bash
-tool calls with persistent shell state. On Windows, it is selected
-automatically when `bash.exe` is missing. See
-[docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
+See [Windows shells](#windows-shells) and
+[docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md) for the `brush` shell
+engine.
 
 The build writes only to `dist/`. Configuration and sessions live in
 `~/.mercury`, or the directory set by `MERCURY_CONFIG_DIR`, and are created on
@@ -268,11 +266,9 @@ echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 
 The launcher stops with an error if the runtime is missing. It does not
 switch to another build. Node selection follows the order in
-[Requirements](#requirements).
-
-For a release installation, run `mercury install` or `mercury update`. These
-commands leave source checkouts unchanged and need no GitHub sign-in.
-Mercury consults `gh` only if the anonymous release request is refused.
+[Requirements](#requirements). For a release installation, run `mercury
+install` or `mercury update`, which leave source checkouts unchanged; see
+[Updates](#updates).
 
 [AGENTS.md](AGENTS.md) is the short build-and-run guide.
 [BUILD-NOTES.md](BUILD-NOTES.md) covers the build in more detail.
@@ -288,17 +284,23 @@ this later with `/appearance`.
 
 You can also choose "sign in later" to look around without connecting an
 account. When a provider key in your environment already signs a provider
-in, the sign-in step is not asked. In a terminal Mercury knows how to
-configure (Terminal.app, the VS Code family, Alacritty, Zed), a Terminal keys
-step can write one key binding into the terminal's own settings; it is
-off unless you choose it, and a backup is kept.
+in, the sign-in step is not asked. Next, the Guardrails step reminds you to
+check Mercury's edits and commands, and that what it reads can carry
+instructions for the model. In a terminal
+Mercury knows how to configure (Terminal.app, the VS Code family, Alacritty,
+Zed), a Terminal keys step can configure newline keybindings in the
+terminal's own settings (on macOS Terminal.app, it sets `Option+Enter` for a
+newline and silences the terminal bell across every profile, which takes
+effect after restarting Terminal.app; in the VS Code family, Alacritty and
+Zed, it writes `Shift+Enter` for a newline). It is off unless you choose it,
+and a backup is kept.
 
 Next, Mercury asks whether you trust the folder you opened. Nothing requested
 by a workspace configuration runs before you grant that trust. The grant
 covers the whole repository; declining exits Mercury. See
 [docs/TRUST.md](docs/TRUST.md).
 
-A normal interactive launch opens the home screen, called the Boot face.
+A normal interactive launch opens the home screen.
 It has ten menu entries, with Continue Last Session appearing only after you
 have session history:
 
@@ -338,18 +340,16 @@ change the setting at the next turn boundary.
 ### Starting a session and isolating worktrees
 
 Press `Enter` on New Session to create a session in the current folder with
-the model shown on screen. Mercury opens its chat and adds it to the session
+your default model. Mercury opens its chat and adds it to the session
 list at the same time. It keeps a process ready behind the menu to reduce
 startup work.
 
 Starting another session does not stop the previous one. You can leave a
 task running and work elsewhere. Launch with `--worktree [name]` (or ask for a
 `worktree` in chat to run `EnterWorktree`) to give a session its own branch and
-checkout under `.mercury/worktrees/`. When a session spawns parallel crewmates
-through the `Crewmate` tool with `isolation: "worktree"`, each crewmate gets
-its own worktree checkout and coordinates shared paths through the in-process
-file lease tools (`mcp__mercury__lease_take`, `mcp__mercury__lease_release`,
-`mcp__mercury__lease_list`).
+checkout under `.mercury/worktrees/`. Parallel crewmates can also run in
+isolated worktrees and coordinate shared files with project file leases; see
+[What is inside](#what-is-inside-mneme-rag-memory-lsp-23-language-ast-dap-debugger-web-search-and-bridges) and [docs/CREW.md](docs/CREW.md).
 
 ### Working in chat
 
@@ -542,10 +542,9 @@ Anthropic requests have no dollar price, so neither they nor the row carry a
 `cost_usd`; the usage stays. Usage names `input_tokens` (cached tokens included),
 `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens` and,
 when reported, `reasoning_output_tokens`, summed over the main thread and
-the crewmates. `models` gives the per-model figures; `steps` counts the main
-thread's model calls alone (one per `step` row without `parent_call_id`); a
-crewmate's calls are its own `step` rows under its `parent_call_id` and are
-not in the count.
+the crewmates. `models` breaks token usage down by model. `steps` counts only
+the main agent's model calls; model calls made by crewmates appear as their own
+`step` rows tagged with `parent_call_id`.
 
 The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 `turn_limit`, `budget_limit`, `schema_unmet` or `loop_stopped`. A completed
@@ -553,9 +552,12 @@ run exits 0, other outcomes exit 1, and a usage error exits 2. SIGINT and
 SIGTERM exit 130 and 143 after the interrupted turn's outcome is flushed. A
 refused tool call is listed in `denials`. When the refusal was an ask nobody
 could answer (a run with no host in a mode that asks, `--mode dontAsk`, or a
-host's ask that expired), the run is `blocked`: the answer is kept, `error`
-names the tool and how to resume (`--allowed-tools`, another `--mode`, or a
-host that answers asks), and the run exits 1. A refusal you did
+host's ask that expired) and no later tool call in the turn succeeds, the run
+is `blocked`: the answer is kept, `error` names the tool and how to resume
+(`--allowed-tools`, another `--mode`, or a host that answers asks), and the run
+exits 1. If a later tool call in the same turn succeeds, the turn recovers and
+finishes `completed` (exit 0) with a warning `notice` (`"<Tool> was not
+approved; the run continued with other tools."`). A refusal you did
 answer (through a deny rule, a hook, or a host that said no) leaves a completed turn
 completed. A run whose final answer ends with the two lines `BLOCKED ON
 OPERATOR: …` and `RESUME WHEN: …` is `blocked` the same way: `error` carries
@@ -669,8 +671,11 @@ Available commands include:
 - **`mercury health`**: diagnostic report, also called the
   health certificate. `--json` returns the full report, `--deep` runs the deep
   inventory, and `--fix` runs guided fixes.
-- **`mercury auth login|status|logout|mint`**: sign in, check authentication,
-  sign out, or create a long-lived token.
+- **`mercury auth login|status|logout|mint`**: sign in or mint a long-lived
+  token for an Anthropic account (`login`, `mint`), check authentication
+  across all 13 provider families and exit 0 when the active model's provider
+  is signed in (`status`), or sign out (`logout`). Connect other provider
+  families through `/logins` or `/router key`.
 - **`mercury mcp`**: manage MCP servers with `add`, `import`, `list`, `get`,
   `remove`, `trust-reset` and `serve`.
 - **`mercury extensions`**: install extensions and manage their sources.
@@ -704,10 +709,8 @@ Available commands include:
   project's facts in plain markdown topic pages (`Retain`, `Recall`, `Reflect`,
   `Correct`). Recall fuses an on-device 118 MB BGE semantic embedding model
   (`bge-base-en-v1.5` `q8_0`, MIT, bundled in every release archive for macOS
-  Apple silicon and Intel, Linux x86-64 and Windows x86-64; on Linux and
-  Windows a vectorised kernel answers a Recall by meaning in about a tenth of
-  a second, macOS in a few hundredths; a source build without
-  the native embed pack runs word match only) with stemmed BM25 word
+  Apple silicon and Intel, Linux x86-64 and Windows x86-64; see [Optional
+  components](#optional-components)) with stemmed BM25 word
   ranking, recency weighting and citation tracking via reciprocal rank fusion
   (`k = 60`). Pinned rules (`pin: true`) load verbatim on the pinned shelf and
   change only on your word. At session start, Mercury scores unpinned facts and
@@ -729,8 +732,9 @@ Available commands include:
   JavaScript (Node ES module) code cells (`Eval`); and a Debug Adapter Protocol
   debugger (`Debug`) driving `debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`,
   `netcoredbg`, `rdbg` and Godot. The `Test` tool's `debug` operation steps a
-  failing Python (`pytest`, `unittest`) or Node (`node-test`) test straight
-  into a `Debug` session. See
+  failing Python (`pytest`, `unittest`), JavaScript/TypeScript (`node-test`,
+  `vitest`, `jest`), Go (`go test`) or Rust (`cargo test`) test straight into
+  a `Debug` session. See
   [docs/LANGUAGE-SERVICE.md](docs/LANGUAGE-SERVICE.md),
   [change transactions](docs/CHANGE-TRANSACTIONS.md),
   [structural patterns](docs/STRUCTURAL-PATTERNS.md),
@@ -815,8 +819,11 @@ documentation index is [docs/README.md](docs/README.md).
 
 `/help` lists the available interactive commands. Use `/palette` for fuzzy
 command search. The table
-below groups the main built-in commands by the categories used in `/help`;
-the live list can also include skills and extension commands.
+below groups the default-enabled built-in commands by the categories used in
+`/help`; the live list also includes `/samples` under `current work` when
+Samples is enabled (`MERCURY_SAMPLES=1` or the Boot Menu's Samples row),
+`/showcase` when `MERCURY_DEV_SURFACES=1` is set, and any skills or extension
+commands.
 
 | Domain | Commands |
 | --- | --- |

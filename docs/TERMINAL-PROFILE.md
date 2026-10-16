@@ -8,17 +8,17 @@ row of `/health`, and the trace view; the rows below are what it checks.
 ## The resolution
 
 Every check row carries its id, a requirement class, the evidence consulted
-(env var, latch, or sniff — and what it said), and a direct remediation.
+(env var, latch, or sniff, and what it said), and a direct remediation.
 The verdict is one of:
 
-- `full` — every row passes; the complete design renders here.
-- `capable` — the floor is met; some recommended capability is absent.
+- `full`: every row passes; the complete design renders here.
+- `capable`: the floor is met; some recommended capability is absent.
   Nothing is reduced: `required` is only the floor the design cannot render
   without, and a missing recommended row only informs the report card.
-- `unsupported` — a required row failed. Interactive boot shows the
-  requirement card **before** the main interface: the operator can exit (with the missing
+- `unsupported`: a required row failed. Interactive boot shows the
+  requirement card **before** the main interface: you can exit (with the missing
   labels named, and the pointer that non-interactive use works anywhere via
-  `mercury run`) or continue knowingly — never a silently degraded cockpit. The
+  `mercury run`) or continue knowingly, never entering a silently degraded UI. The
   exit guidance is written as plain lines below the card, so a terminal
   without cursor addressing shows it whole.
 
@@ -31,22 +31,22 @@ report card, and the trace view.
 |---|---|
 | `interactive-tty` | stdout is a TTY (piped and scripted use goes through `mercury run`) |
 | `term-vocabulary` | a cursor-addressable terminal (`TERM=dumb` fails; win32 hosts legitimately run without `TERM` and are judged by their own rows) |
-| `win32-conpty-host` (win32) | a ConPTY-era console — an OS-build fact first (Windows 10 build 17763 or newer means every console session is VT-capable), with host fingerprints only rescuing exotic builds |
-| `win32-first-class-host` (win32) | the full Windows profile: Windows Terminal (stable) or the VS Code integrated terminal. Env fingerprints (`WT_SESSION`, `TERM_PROGRAM=vscode`) decide first; a fingerprint-less host is judged by the live synchronized-output latch, because Windows Terminal running as the OS default terminal attaches after the process starts and injects no fingerprint — the latch is the env-free witness that separates it from the legacy console. A host that announces a non-first-class identity (mintty/MSYS) never rides the latch through |
+| `win32-conpty-host` (win32) | a ConPTY-era console: an OS-build fact first (Windows 10 build 17763 or newer means every console session is VT-capable), with host fingerprints only rescuing exotic builds |
+| `win32-first-class-host` (win32) | the full Windows profile: Windows Terminal (stable) or the VS Code integrated terminal. Env fingerprints (`WT_SESSION`, `TERM_PROGRAM=vscode`) decide first; a fingerprint-less host is judged by the live synchronized-output latch, because Windows Terminal running as the OS default terminal attaches after the process starts and injects no fingerprint (the latch is the env-free witness that separates it from the legacy console). A host that announces a non-first-class identity (mintty/MSYS) never rides the latch through |
 
 ### Recommended rows (the complete experience)
 
 | id | What it checks |
 |---|---|
-| `truecolor` | 24-bit color: `COLORTERM=truecolor|24bit`, or a known truecolor terminal (Windows Terminal, VS Code, iTerm2, WezTerm, Ghostty, Kitty). Mercury paints in 24-bit color where this row is met and in 256 colors everywhere else — Apple's Terminal on macOS 15 and older among them — with no flag needed; `MERCURY_TRUECOLOR=1` forces the full depth on a terminal that has it and does not say so, `MERCURY_TRUECOLOR=0` clamps it to 256 colors. The health check's Terminal color row names the depth and why |
-| `synchronized-output` | atomic frames (mode 2026) — no tearing under load |
-| `extended-keys` | extended key reporting — more distinguishable chords |
-| `hyperlinks` | OSC 8 hyperlinks — clickable file and evidence references |
-| `progress-reporting` | OSC 9;4 — long-running work mirrored in the tab/taskbar |
+| `truecolor` | 24-bit color: `COLORTERM=truecolor|24bit`, or a known truecolor terminal (Windows Terminal, VS Code, iTerm2, WezTerm, Ghostty, Kitty). Mercury paints in 24-bit color where this row is met and in 256 colors everywhere else (including Apple's Terminal on macOS 15 and older) with no flag needed; `MERCURY_TRUECOLOR=1` forces the full depth on a terminal that has it and does not say so, `MERCURY_TRUECOLOR=0` clamps it to 256 colors. The health check's Terminal color row names the depth and why |
+| `synchronized-output` | atomic frames (mode 2026) for tear-free rendering under load |
+| `extended-keys` | extended key reporting for distinguishable key chords |
+| `hyperlinks` | OSC 8 hyperlinks for clickable file and evidence references |
+| `progress-reporting` | OSC 9;4 for long-running work mirrored in the tab/taskbar |
 
 Color is deliberately **not** required: `NO_COLOR` and 16-color hosts are
-supported capability families with authored structural equivalents — a
-no-color operator gets full Mercury, not a warning card.
+supported capability families with authored structural equivalents, so a
+no-color terminal gets the full interface without a warning card.
 
 ## Capability detection
 
@@ -56,8 +56,8 @@ vocabulary, the win32 cursor-yank quirk), and two answers are upgraded
 live:
 
 - **Synchronized output** starts from the environment (known hosts; `tmux`
-  deliberately answers no — it parses the markers but chunks frames and
-  breaks atomicity) and is upgraded by a boot-time probe of mode 2026, so a
+  deliberately answers no because it parses the markers and chunks frames,
+  breaking atomicity) and is upgraded by a boot-time probe of mode 2026, so a
   frame painted after the probe sees the truth even when the boot-time read
   could not. `MERCURY_FORCE_SYNC_OUTPUT` (opt-in) forces it on for paint
   captures; tmux still wins.
@@ -67,7 +67,7 @@ live:
 ## Input decoding
 
 Keyboard input is read as a stream: a mouse report or escape sequence split
-across two reads is finished on the next one rather than mis-read as
+across two reads is finished on the next one instead of being mis-read as
 keystrokes, and a genuine lone Escape still interrupts. The terminal's
 replies to Mercury's own questions (its name, the background colour, the
 mode and key-protocol flags, the device attributes that close each batch)
@@ -77,12 +77,12 @@ and no part of it is typed into the composer; a head no tail ever follows
 is let go after two flush windows, so a silent terminal cannot deafen the
 loop. Under
 the kitty keyboard protocol a non-Latin layout reports its own codepoint as
-the key (Cyrillic ф arrives as 1092): plain typing inserts it, and a chord —
-ctrl, alt, super — resolves its name from the base-layout subfield, the
+the key (Cyrillic ф arrives as 1092): plain typing inserts it, and a chord
+(`ctrl`, `alt`, `super`) resolves its name from the base-layout subfield, the
 physical key position, with the shifted subfield as the fallback, so ctrl+ф
 is ctrl+a. A shifted key that arrives with its shifted codepoint in that
 subfield and no text (WezTerm's encoding under the protocol) types the
-shifted glyph — shift+; is `:`, shift+a is `A` — while a chord keeps the
+shifted glyph (`shift+;` is `:`, `shift+a` is `A`), while a chord keeps the
 base code. `CSI P` is the protocol's F1 wherever the kitty push was armed
 and st's Delete where it was not; the push is never armed where the
 terminal identity says st, so the two readings never meet. F2 and F4 (`CSI
@@ -96,13 +96,13 @@ The switches for Mercury's visible terminal behaviour are read live, and
 every one of them is a row of the in-code registry
 (`src/substrate/flagRegistry.ts`):
 
-- `MERCURY_TERMINAL_TITLE` (default-on) — OSC 0/2 terminal-title updates,
+- `MERCURY_TERMINAL_TITLE` (default-on): OSC 0/2 terminal-title updates,
   set at boot, cleared at shutdown.
-- `MERCURY_ACCESSIBILITY` (opt-in) — screen-reader-friendly rendering:
-  disables cursor-hide and live paint.
-- `MERCURY_VIRTUAL_SCROLL` (default-on) — the transcript virtual-scroll
+- `MERCURY_ACCESSIBILITY` (opt-in): screen-reader-friendly rendering,
+  disabling cursor-hide and live paint.
+- `MERCURY_VIRTUAL_SCROLL` (default-on): the transcript virtual-scroll
   surface.
-- `MERCURY_TERMINAL_QUERY_SETTLE_MS` (a value; unset is 250) — how long a
+- `MERCURY_TERMINAL_QUERY_SETTLE_MS` (a value; unset is 250): how long a
   handover of the screen (the external editor, a job-control stop, the
   exit) waits for the terminal's open question batch to settle, counted
   from the moment the questions were sent. Mercury asks the terminal about
@@ -112,15 +112,15 @@ every one of them is a row of the in-code registry
   otherwise. `0` never waits.
 
 Two more switches ride the capability profile: fullscreen and mouse
-tracking (`MERCURY_FULLSCREEN`) and the terminal ground (`MERCURY_OASIS_BG`
-— the background colour of the resolved appearance, set at interactive boot
+tracking (`MERCURY_FULLSCREEN`) and the terminal ground (`MERCURY_OASIS_BG`,
+the background colour of the resolved appearance, set at interactive boot
 and restored on exit, TTY-only: pure black on the True Black default, the
 oasis navy when that appearance is chosen in `/appearance`; Black and white
 leaves the terminal's own ground alone).
 
 ## The ping
 
-When a chat finishes its turn while you are away — the terminal reports itself unfocused, or has seen no key of yours for a few seconds — Mercury pings the terminal once, an iTerm2 notification there and the terminal bell elsewhere; `view.ping: false` in settings.json (the Ping row of `/config`) turns it off.
+When a chat finishes its turn while you are away (when the terminal reports itself unfocused, or has seen no key of yours for a few seconds), Mercury pings the terminal once: an iTerm2 notification there and the terminal bell elsewhere; `view.ping: false` in `settings.json` (the Ping row of `/config`) turns it off.
 
 ## Reduced motion
 
@@ -137,16 +137,16 @@ diagnostics state the active profile plainly.
 
 ## Motion (idle motion under load)
 
-The cockpit's idle motion — the mascot's blink and breath, the live glyphs,
-and the shared clock that paces them — follows the **Motion** setting, one
+The terminal UI's idle motion (the mascot's blink and breath, the live glyphs,
+and the shared clock that paces them) follows the **Motion** setting, one
 saved value with two doors: the Motion row of `/config` and the Motion row
 of the Boot Menu's Performance section.
 
 - `auto` (the default): full motion on a machine that paints within budget.
   When a run of frames costs more than the frame budget with the event loop
-  busy, motion drops to reduced — the clock at a quarter-second floor
-  (slower while a frame costs more than its interval), the mascot still, the
-  glyphs turning at that cadence — and comes back only after a longer run of
+  busy, motion drops to reduced (the clock at a quarter-second floor,
+  slower while a frame costs more than its interval, the mascot still, and the
+  glyphs turning at that cadence) and comes back only after a longer run of
   cheap frames, so it never flaps. The same drop happens when a run of
   frames takes longer than the budget to reach the terminal (a slow link:
   ssh, a console host, a slow pipe), with the same patience before dropping
@@ -154,8 +154,8 @@ of the Boot Menu's Performance section.
   and `reduced · slow link` when the link is the reason.
 - `full`: never reduces.
 - `reduced`: the slow cadence and the still mascot, always.
-- `off`: no idle motion at all — the mascot still, the glyphs static, the
-  clock ticking only for work in flight.
+- `off`: no idle motion at all (the mascot still, the glyphs static, and the
+  clock ticking only for work in flight).
 
 The two registered switches read as the same choice, one part each:
 `MERCURY_CRITTER_IDLE=0` holds the critter part off and `MERCURY_LIVE_GLYPHS=0`

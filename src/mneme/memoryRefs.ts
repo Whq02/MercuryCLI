@@ -1,6 +1,6 @@
 
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, statSync } from 'node:fs'
+import { isAbsolute, join, resolve, sep } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { escapeRegExp, lookupTokens } from './mnemeLookup.js'
 import { ledgerPointers, type MemoryPointer } from './mnemePointers.js'
@@ -16,15 +16,17 @@ export const FACT_STALE_FLOOR = 0.25
 export function factMemoryState(
   entry: Pick<MnemeEntry, 'seq' | 'time' | 'text'>,
   opts: { pins?: readonly PinRecord[]; usage?: Record<string, UsageRecord>; now?: Date; libraryDir?: string; projectRoot?: string | null } = {},
-): { status: MemoryRef['status']; confidence: number; confirmedAt: string } {
+): { status: MemoryRef['status']; confidence: number; confirmedAt: string; missingPaths: string[] } {
   const pins = opts.pins ?? readPins(opts.libraryDir)
   const last = lastUsedMs(entry.seq, entry.time, opts.usage ?? readUsage(opts.libraryDir))
   const ageDays = Math.max(0, (opts.now?.getTime() ?? Date.now()) - last) / 86400000
   const confidence = pins.some(p => p.seq === entry.seq) ? 1 : Math.exp(-FACT_DECAY_LAMBDA * ageDays)
+  const freshness = pathFreshness(entry.text, opts.projectRoot ?? null)
   return {
-    status: confidence < FACT_STALE_FLOOR ? 'stale' : pathFreshness(entry.text, opts.projectRoot ?? null),
+    status: confidence < FACT_STALE_FLOOR ? 'stale' : freshness.status,
     confidence,
     confirmedAt: new Date(last).toISOString(),
+    missingPaths: freshness.missingPaths,
   }
 }
 
@@ -38,6 +40,7 @@ export interface MemoryRef {
   status: 'current' | 'unconsolidated' | 'needs-review' | 'stale'
   confirmedAt?: string
   confidence?: number
+  missingPaths?: readonly string[]
   summary: string
   source?: string
   capturedAt?: string
@@ -50,11 +53,68 @@ const SUMMARY_CAP = 140
 const cap = (s: string): string => (s.length > SUMMARY_CAP ? s.slice(0, SUMMARY_CAP - 1) + '…' : s)
 const wordStart = (t: string): string => `(^|[^a-z0-9])${escapeRegExp(t)}`
 
-function pathFreshness(summary: string, projectRoot: string | null): 'current' | 'needs-review' {
-  if (!projectRoot) return 'current'
-  const m = summary.match(/\b(?:src|docs|scripts|assets|lib|test|tests)\/[A-Za-z0-9_\-./]+\.[a-z]{1,5}\b/)
-  if (!m) return 'current'
-  return existsSync(join(projectRoot, m[0])) ? 'current' : 'needs-review'
+const CITATION_TOKEN = /[^\s"'`()[\]{}<>,;!?]+/g
+const CITATION_LEAD = /^[('"`[{<]+/
+const CITATION_TRAIL = /[.,;:!?)'"`\]}>…]+$/
+const CITATION_LINE_REF = /(?::L?\d+(?:[-–:]L?\d+)*|#L?\d+(?:[-–]L?\d+)?)$/
+const CITATION_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i
+
+export interface CitedPathReport {
+  checked: string[]
+  missing: string[]
+  other: string[]
+}
+
+export function citedPathTokens(text: string): string[] {
+  const out: string[] = []
+  for (const raw of text.match(CITATION_TOKEN) ?? []) {
+    const token = raw.replace(CITATION_LEAD, '').replace(CITATION_TRAIL, '').replace(CITATION_LINE_REF, '')
+    if (!token.includes('/') || CITATION_SCHEME.test(token) || /[*?{}|]/.test(token) || token.includes('//')) continue
+    if (!out.includes(token)) out.push(token)
+  }
+  return out
+}
+
+export function validateCitedPaths(text: string, projectRoot: string | null): CitedPathReport {
+  const report: CitedPathReport = { checked: [], missing: [], other: [] }
+  if (!projectRoot) return report
+  const root = resolve(projectRoot)
+  for (const token of citedPathTokens(text)) {
+    let relative: string | null = null
+    if (isAbsolute(token)) {
+      relative = token === root ? '.' : token.startsWith(`${root}${sep}`) ? token.slice(root.length + 1) : null
+    } else if (token.startsWith('~')) {
+      relative = null
+    } else if (token.startsWith('./')) {
+      relative = token.slice(2)
+    } else {
+      const head = token.split(/[\\/]/)[0] ?? ''
+      let headIsDirectory = false
+      try {
+        headIsDirectory = head !== '' && head !== '..' && head !== '.git' && statSync(join(root, head)).isDirectory()
+      } catch {
+        headIsDirectory = false
+      }
+      relative = headIsDirectory ? token : null
+    }
+    if (relative === null) {
+      report.other.push(token)
+      continue
+    }
+    const absolute = resolve(root, relative)
+    if (absolute !== root && !absolute.startsWith(`${root}${sep}`)) {
+      report.other.push(token)
+      continue
+    }
+    report.checked.push(token)
+    if (!existsSync(absolute)) report.missing.push(token)
+  }
+  return report
+}
+
+function pathFreshness(summary: string, projectRoot: string | null): { status: 'current' | 'needs-review'; missingPaths: string[] } {
+  const missingPaths = validateCitedPaths(summary, projectRoot).missing
+  return { status: missingPaths.length > 0 ? 'needs-review' : 'current', missingPaths }
 }
 
 interface CollectOpts {
@@ -123,7 +183,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
       const sig = h.text.match(/<seq=(\d+), time=([^,>]+), source=([^,>]*?)[,>]/)
       const seq = h.entry?.seq ?? (sig ? Number(sig[1]) : null)
       const words = h.entry?.text ?? h.text.replace(/<seq=.*$/, '').replace(/^\s*-\s+/, '').trim()
-      const state = h.entry ? factMemoryState(h.entry, { pins, usage, now, projectRoot }) : { status: pathFreshness(words, projectRoot), confirmedAt: undefined }
+      const state = h.entry ? factMemoryState(h.entry, { pins, usage, now, projectRoot }) : { ...pathFreshness(words, projectRoot), confirmedAt: undefined }
       push({
         refId: seq !== null ? `mneme:${seq}` : `mneme-line:${h.slug}:${h.line}`,
         kind: 'mneme-fact',
@@ -131,6 +191,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
         scope: 'project',
         status: state.status,
         confirmedAt: state.confirmedAt,
+        ...(state.missingPaths.length > 0 ? { missingPaths: state.missingPaths } : {}),
         summary: cap(words),
         capturedAt: h.entry?.time ?? sig?.[2]?.trim(),
         source: h.entry?.source ?? sig?.[3]?.trim(),
@@ -174,10 +235,13 @@ export function renderMemoryRefLine(r: MemoryRef): string {
   return `${r.refId}${status} — ${r.summary} (${r.why})`
 }
 
-export function memoryStatusWords(r: Pick<MemoryRef, 'status' | 'confirmedAt'>): string {
+export function memoryStatusWords(r: Pick<MemoryRef, 'status' | 'confirmedAt' | 'missingPaths'>): string {
   if (r.status === 'current') return 'current'
   if (r.status === 'unconsolidated') return 'recent, unconsolidated'
-  if (r.status === 'needs-review') return 'needs review — cited path moved'
+  if (r.status === 'needs-review') {
+    const gone = r.missingPaths ?? []
+    return gone.length === 0 ? 'needs review — cited path moved' : `needs review — cited path moved: ${gone.join(', ')}`
+  }
   return `stale — not confirmed since ${r.confirmedAt?.slice(0, 10) ?? 'unknown'}`
 }
 
