@@ -282,6 +282,10 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
 }
 
+export function toolsOnTheWire(plan: ToolPayloadPlan): Tool[] {
+  return [...plan.roster, ...plan.admissionDeclarations.flatMap(declaration => declaration.tools)]
+}
+
 function boundaryAdmittedNames(messages: readonly Message[]): Set<string> {
   const names = new Set<string>()
   for (const message of messages) {

@@ -401,6 +401,7 @@ export function compactionRow(scope: RowScope, fold: FoldStatusV1 | null, trigge
     summary_cap_tokens: fold.summaryCapTokens,
     attempt: fold.attempt,
     ...(fold.exit !== undefined ? { exit: fold.exit } : {}),
+    ...(fold.reason !== undefined ? { reason: fold.reason } : {}),
   })
 }
 

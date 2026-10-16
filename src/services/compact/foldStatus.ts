@@ -19,6 +19,7 @@ export interface FoldStatusV1 {
   attempt: number
   exit?: FoldExit
   endedAtMs?: number
+  reason?: string
 }
 
 export const FOLD_ROW_HEAD = 'compacting context'
@@ -96,8 +97,15 @@ export function foldStatusOnEvent(status: FoldStatusV1, event: CompactProgressEv
   }
 }
 
-export function foldStatusExit(status: FoldStatusV1, exit: FoldExit, endedAtMs: number): FoldStatusV1 {
-  return { ...status, exit, endedAtMs }
+export function foldStatusExit(status: FoldStatusV1, exit: FoldExit, endedAtMs: number, reason?: string): FoldStatusV1 {
+  const words = exit === 'failed' && reason !== undefined ? reason.split('\n')[0]!.trim() : ''
+  return { ...status, exit, endedAtMs, ...(words !== '' ? { reason: words } : {}) }
+}
+
+export function foldFailureClause(reason: string): string {
+  const body = reason.includes(': ') ? reason.slice(reason.indexOf(': ') + 2) : reason
+  const cut = body.search(/ — |\. /)
+  return cut === -1 ? body : body.slice(0, cut)
 }
 
 const STAGE_WORDS = new Set<string>(FOLD_STAGE_ORDER)
@@ -117,6 +125,7 @@ export function decodeFoldStatus(raw: unknown): FoldStatusV1 | null {
   if (!finite(r.summaryTokens) || !finite(r.summaryCapTokens) || !finite(r.attempt)) return null
   if (r.exit !== undefined && !(typeof r.exit === 'string' && EXIT_WORDS.has(r.exit))) return null
   if (r.endedAtMs !== undefined && !finite(r.endedAtMs)) return null
+  if (r.reason !== undefined && typeof r.reason !== 'string') return null
   return {
     schema: 1,
     trigger: r.trigger,
@@ -129,6 +138,7 @@ export function decodeFoldStatus(raw: unknown): FoldStatusV1 | null {
     attempt: Math.max(1, Math.floor(r.attempt)),
     ...(r.exit !== undefined ? { exit: r.exit as FoldExit } : {}),
     ...(r.endedAtMs !== undefined ? { endedAtMs: r.endedAtMs as number } : {}),
+    ...(typeof r.reason === 'string' && r.reason !== '' ? { reason: r.reason } : {}),
   }
 }
 
@@ -201,7 +211,9 @@ export function foldRowWords(status: FoldStatusV1, nowMs: number): { head: strin
   const head = status.trigger === 'auto' ? `${FOLD_ROW_HEAD} (auto)` : FOLD_ROW_HEAD
   const stage =
     status.exit !== undefined
-      ? FOLD_EXIT_WORDS[status.exit]
+      ? status.exit === 'failed' && status.reason !== undefined
+        ? `${FOLD_EXIT_WORDS.failed} — ${foldFailureClause(status.reason)}`
+        : FOLD_EXIT_WORDS[status.exit]
       : status.stage === null
         ? null
         : `${FOLD_STAGE_WORDS[status.stage]}${status.attempt > 1 ? ` · retry ${status.attempt}` : ''}`
