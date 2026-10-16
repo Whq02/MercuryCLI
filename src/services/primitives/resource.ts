@@ -1,6 +1,4 @@
 
-import type { OwnerKey } from '../run/ownerKey.js'
-
 export {
   boundedTextView,
   formatRef,
@@ -24,10 +22,3 @@ export {
   resolveResource,
   resourceAdapterKinds,
 } from '../resources/registry.js'
-
-interface ResourceIdentity {
-  ref: string
-  owner?: OwnerKey
-  version?: string
-  observedAt: number
-}

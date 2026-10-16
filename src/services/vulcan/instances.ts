@@ -16,7 +16,6 @@ export interface VulcanInstance {
   projectRoot: string
   ownerPid: number
 }
-type VulcanInstanceSelector = string | { id?: string; role?: VulcanInstanceRole }
 type VulcanInstanceSelection = { ok: true; instance: VulcanInstance } | { ok: false; error: { code: string; message: string } }
 export interface VulcanInstanceLaunch {
   id: string

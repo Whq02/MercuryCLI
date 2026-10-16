@@ -17,7 +17,6 @@ export const RPC_ERROR_CODES = [
   RPC_REFUSED,
   RPC_CANCELLED,
 ] as const
-type RpcErrorCode = (typeof RPC_ERROR_CODES)[number]
 
 export const REFUSAL_KINDS = [
   'protocol',
