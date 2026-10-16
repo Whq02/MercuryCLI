@@ -13,7 +13,7 @@ function resultText(content: unknown): string {
   return (content as Array<{ type?: unknown; text?: unknown }>).map(block => (block.type === 'text' && typeof block.text === 'string' ? block.text : '')).join('\n')
 }
 
-export function toolErroredOutsideADenial(messages: readonly Message[]): boolean {
+function toolErroredOutsideADenial(messages: readonly Message[]): boolean {
   for (const m of messages) {
     if (m.type !== 'user' || !Array.isArray(m.message.content)) continue
     for (const block of m.message.content) {
