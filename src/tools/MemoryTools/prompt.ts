@@ -14,7 +14,6 @@ export const CORRECT_DESCRIPTION =
 
 export const RETAIN_PROMPT = `Store one or more durable facts into project memory.
 
-- Each item is one self-contained fact (content), with optional context (where it came from) and topic (routing hint).
 - The response reports a per-item outcome: stored (with its id), already-staged (this session), or refused with the reason; a refused fact was not stored.
 - One fact holds at most 2,000 characters, content and context together; a longer one is refused whole with its count, never cut — split it into facts under the limit. The disk holds exactly what the result says was stored; tell the user what was stored and what was refused, nothing more.
 - Facts stage as pending observations and consolidate into topic pages automatically; they are recallable seconds after storing, labeled pending until consolidation.
