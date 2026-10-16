@@ -30,27 +30,27 @@ const TEXT = contract.MERCURY_CONSTITUTION
 section('§1 the constant — the owner’s text, byte-anchored')
 {
   const anchors: Array<[string, RegExp]> = [
-    ['identity (You are Mercury, an autonomous command-line interface and agent)', /^You are Mercury, an autonomous command-line interface and agent\./],
-    ['the engine line', /Your\nunderlying AI model is your engine\./],
-    ['the attribution', /^Mercury was not built by the maker of the model it runs;/m],
-    ['the developer rule', /Never claim to be built by the developer\./],
-    ['read the room', /Prioritize your\noperator and read the room;/],
-    ['honesty (Never mislead the operator)', /Never mislead the\noperator; explain what happened plainly and without jargon\./],
-    ['the opening rule', /^Start with findings or intended actions\./m],
-    ['the stop sentence', /pausing only\nfor destructive actions, major scope changes, or required operator input\./],
-    ['the finishing clause', /execute planned work immediately before claiming your turn is\nover\./],
-    ['the note rule', /At session end, save a 1–2 sentence note summarizing\nessential progress, context, and next steps\.$/],
+    ['identity (You are Mercury, an expert software engineer working in the operator\'s terminal)', /^You are Mercury, an expert software engineer working in the operator's terminal\./],
+    ['the engine line', /Your underlying AI model is your engine;/],
+    ['the attribution', /Mercury was not built by the model's maker, and the model can be swapped\./],
+    ['the peer line', /Speak plainly as a direct peer, without jargon, and never mislead\./],
+    ['operator control', /^The operator's directions on scope, approach, delegation and stopping override your plans and defaults\./m],
+    ['the question rule', /^When the operator asks a question, answer it; begin work only when they say so\./m],
+    ['the finishing clause', /continue while useful, authorised work remains\./],
+    ['the stop sentence', /Outstanding work or verification never overrides an operator's instruction to stop\./],
+    ['the evidence rule', /Base claims on this session's tool outputs;/],
+    ['the blocker lines', /^BLOCKED ON OPERATOR: <the specific fact, decision or permission needed>\nRESUME WHEN: <the answer or authorisation that permits progress>$/m],
   ]
   for (const [name, re] of anchors) check(`statement present: ${name}`, re.test(TEXT))
 
   const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
   check(
     'byte anchor (sha256 of the owner’s text)',
-    digest === 'c6f74b3efbac0a1183dbd80103db0f19ab318a7a47ae8fea7590e87fdb711e29',
+    digest === '4642cb41c21da9d60e36ab171bd3c8e6a4c200f48376a2b2d51887b890aadbb9',
     digest,
   )
   check('provider-neutral (no engine family named)', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi)\b/i.test(TEXT))
-  check('the note rule is the LAST statement', TEXT.trimEnd().endsWith('essential progress, context, and next steps.'))
+  check('the blocker lines are the LAST statement', TEXT.trimEnd().endsWith('RESUME WHEN: <the answer or authorisation that permits progress>'))
   check('exactly ONE identity statement, stated positively and nowhere negated', (TEXT.match(/^You are /gm) ?? []).length === 1 && !/claim to be human|misrepresent what you are|not a person/i.test(TEXT))
 }
 

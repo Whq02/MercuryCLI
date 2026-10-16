@@ -28,6 +28,7 @@ export type WardRule = {
   homePath?: 'itself' | 'within'
   otherUserHome?: boolean
   outsideStartingFolderOnly?: boolean
+  unattendedOnly?: boolean
 }
 
 export type WardVerdict =
@@ -317,6 +318,7 @@ export const AUTONOMOUS_WARDS: readonly WardRule[] = [
     patterns: destructiveGitForms(GIT_SEGMENT, '(?=[;&|\\n]|$)', BARE_FLAG),
     skipCommentLines: false,
     outsideQuotes: true,
+    unattendedOnly: true,
   },
   {
     name: 'no-destructive-git-unattended',
@@ -325,6 +327,7 @@ export const AUTONOMOUS_WARDS: readonly WardRule[] = [
     scope: 'bash',
     patterns: destructiveGitForms(QUOTED_RUN, '(?=[;&|"\']|$)', BARE_FLAG).map(form => INLINE_SHELL_QUOTE + form),
     skipCommentLines: false,
+    unattendedOnly: true,
   },
   {
     name: 'no-destructive-git-unattended',
@@ -333,6 +336,7 @@ export const AUTONOMOUS_WARDS: readonly WardRule[] = [
     scope: 'bash',
     patterns: destructiveGitForms(GIT_SEGMENT, '(?=[;&|\\n]|$)', QUOTED_FLAG),
     skipCommentLines: false,
+    unattendedOnly: true,
   },
 ]
 

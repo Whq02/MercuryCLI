@@ -15,7 +15,7 @@ const DOMAIN_TITLES: Record<DurableOperationRow['domain'], string> = {
   crews: 'Crews',
   tasks: 'Tasks',
   mailbox: 'Mailbox',
-  runs: 'Autonomous runs',
+  runs: 'Runs',
   daemon: 'Daemon records',
   cron: 'Cron / schedules',
   stores: 'Remaining stores',

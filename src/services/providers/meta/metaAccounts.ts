@@ -2,8 +2,6 @@ import { readFileSync } from 'node:fs'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { publishAuthScopedJson, readStoredMetaApiKey, signInLedgerPath } from '../../../utils/router/providerSecrets.js'
-import { landSignIn } from '../../../utils/accounts/signInPockets.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 
@@ -74,7 +72,7 @@ export function metaMuseCodeKeyUrl(env: NodeJS.ProcessEnv = process.env): string
 }
 
 export function metaAuthPathForDisplay(): string {
-  return signInLedgerPath(META_AUTH_FILE_NAME, 'meta')
+  return signInLedgerPath(META_AUTH_FILE_NAME)
 }
 
 function readAuthFile(): MetaAuthFile | null {
@@ -163,25 +161,8 @@ export function writeMetaMuseCodeGrant(grant: MetaMuseCodeGrant | null): void {
       next.museCode = grant
     }
     return next
-  }, 'meta')
-  bumpCatalogueEpoch()
-}
-
-export function metaSignInIdentity(grant: MetaMuseCodeGrant | undefined): string | undefined {
-  if (!grant) return undefined
-  return grant.email ?? grant.userId ?? `meta-${credentialFingerprint(grant.apiKey).slice(0, 8)}`
-}
-
-export function landMetaMuseCodeGrant(grant: MetaMuseCodeGrant): void {
-  landSignIn({
-    family: 'meta',
-    identity: metaSignInIdentity(grant) ?? credentialFingerprint(grant.accessToken),
-    kind: 'muse-code',
-    ledgerKind: 'oauth',
-    stable: grant.email !== undefined || grant.userId !== undefined,
-    homeIdentity: () => metaSignInIdentity(readMetaMuseCodeGrant()),
-    write: () => writeMetaMuseCodeGrant(grant),
   })
+  bumpCatalogueEpoch()
 }
 
 export function disconnectMetaMuseCode(): void {
@@ -212,7 +193,7 @@ export function writePreferredMetaSource(kind: MetaSourceKind | null): void {
     if (kind === null) delete next.preferredSource
     else next.preferredSource = kind
     return next
-  }, 'meta')
+  })
   bumpCatalogueEpoch()
 }
 
