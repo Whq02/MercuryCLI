@@ -50,9 +50,10 @@ everything as it stands.
 1. **Find a server.** The four local servers are probed (Ollama, LM Studio,
    vLLM, llama.cpp; `MERCURY_LOCAL_PROBE_TARGETS` is honoured). Ollama
    answering (with models or with none) jumps to step 4. LM Studio, vLLM or
-   llama.cpp answering with models, while Ollama lists none, offers a choice of
-   that server's models at step 4 (one model skips the choice) and ends the
-   road at step 6 with the picked model. Nothing answering goes on to step 2.
+   llama.cpp answering with models, while Ollama lists none, asks which of
+   that server's models to use at step 4 (one model skips the question) and
+   ends the road at step 6 with the picked model. Nothing answering goes on to
+   step 2.
 2. **Find Ollama.** In order: `ollama` on PATH, the app
    (`/Applications/Ollama.app`, `~/Applications/Ollama.app`), Homebrew (`brew
    list --formula ollama` when `brew` exists), the Linux service (`systemctl

@@ -98,8 +98,9 @@ export async function localToolWireOf(params: CompatCallModelParams): Promise<Lo
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'estimate',
   })
+  const declared = plan.admissionDeclarations.flatMap(declaration => declaration.tools)
   const schemas = await Promise.all(
-    plan.roster.map(tool =>
+    [...plan.roster, ...declared].map(tool =>
       toolToAPISchema(tool, {
         getToolPermissionContext: options.getToolPermissionContext,
         tools: plan.roster,
@@ -117,8 +118,8 @@ export async function localToolWireOf(params: CompatCallModelParams): Promise<Lo
       apiTools.push({ name: shaped.name, ...(shaped.description ? { description: shaped.description } : {}), input_schema: shaped.input_schema })
     }
   }
-  const named = [...plan.deferredNames].filter(name => !plan.admittedNames.has(name)).length
-  return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named }
+  const named = [...plan.deferredNames].filter(name => !plan.admittedNames.has(name) && !declared.some(tool => tool.name === name)).length
+  return { schemas: plan.roster.length, schemaBytes: wireBytesOf(apiTools), named }
 }
 
 export function localPreComposeEstimate(params: LocalEstimateParams): number {
