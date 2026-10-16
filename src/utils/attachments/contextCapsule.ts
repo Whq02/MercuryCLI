@@ -63,7 +63,7 @@ function latestUserTaskText(messages: readonly Message[] | undefined): string | 
   return null
 }
 
-export function priorMemoryDigest(messages: readonly Message[] | undefined): string | undefined {
+function priorMemoryDigest(messages: readonly Message[] | undefined): string | undefined {
   for (let i = (messages?.length ?? 0) - 1; i >= 0; i--) {
     const message = messages![i]!
     if (message.type === 'system' && message.subtype === 'compact_boundary') break
