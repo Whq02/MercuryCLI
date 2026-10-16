@@ -76,7 +76,7 @@ export function foldLandingCeiling(threshold: number, messages: readonly Message
   return Math.max(1, threshold - room)
 }
 
-export type FoldableResult = { toolUseId: string; name: string; file: string | null; bytes: number }
+type FoldableResult = { toolUseId: string; name: string; file: string | null; bytes: number }
 
 export function foldedResultPlaceholder(result: FoldableResult): string {
   const where = result.file === null ? result.name : `${result.name} ${result.file}`
