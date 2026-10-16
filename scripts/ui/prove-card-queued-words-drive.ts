@@ -22,7 +22,7 @@ const NEEDLE = 'Do you want to proceed'
 const MARKER = 'card-a.txt'
 const WORDS = 'when done tell me the count'
 const TRIMMED = WORDS.slice(0, -1)
-const HINT = 'waits in the composer until the turn ends · ⌫ edits'
+const HINT = '↵ is off while words wait — 1 approves · 3 declines · ⌫ edits'
 const YIELD_CUE = 'Waiting for permission…'
 const CLOSING = 'The marker is in place.'
 const ANSWER = 'Two files, as counted.'
@@ -94,7 +94,7 @@ try {
     const restedText = flat(rested!.rows)
     check('once the hand rests the card is back on the frame', restedText.includes(NEEDLE), rowsWith(rested!.rows, 'Bash'))
     check('the typed words are on the same frame as the card (they never vanish)', restedText.includes(WORDS), rowsWith(rested!.rows, '❯'))
-    check('the row under the card says where the words wait and that backspace edits them', restedText.includes(HINT), rowsWith(rested!.rows, 'waits'))
+    check('the row under the card says ↵ is off while the words wait, which digits answer, and that backspace edits them', restedText.includes(HINT), rowsWith(rested!.rows, 'words wait'))
 
     dump('after-backspace', edited!.rows)
     const editedText = flat(edited!.rows)
@@ -109,7 +109,7 @@ try {
     dump('final', final!.rows)
     const finalText = flat(final!.rows)
     check('↵ after the turn sends the words once and the model answers them', finalText.includes(ANSWER), rowsWith(final!.rows, 'counted'))
-    const userRows = final!.rows.filter(r => r.includes(TRIMMED) && !r.includes('waits in the composer')).length
+    const userRows = final!.rows.filter(r => r.includes(TRIMMED) && !r.includes('words wait')).length
     check('the words appear once as the user\'s own row (not twice, not as a queued mid-turn row)', userRows === 1, rowsWith(final!.rows, TRIMMED))
     const messageRequests = run.fixture.requests.filter(r => r.path.includes('/messages'))
     const last = messageRequests.at(-1)
