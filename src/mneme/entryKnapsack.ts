@@ -208,7 +208,7 @@ export function chooseAtStart(input: { candidates: readonly StartCandidate[]; ch
   const prompt = taskChannel(task?.prompt, input, true)
   const continuation = task?.continuation?.source ? taskChannel(task.continuation.objective, input, true) : new Map<string, ChannelHit>()
   const summary = task?.continuation?.source ? taskChannel(task.continuation.summary, input, false) : new Map<string, ChannelHit>()
-  const fallback = task?.prompt?.trim() || task?.continuation?.objective.trim() ? new Map<string, number>() : channelScores(input.chunks, input)
+  const fallback = prompt.size + continuation.size > 0 ? new Map<string, number>() : channelScores(input.chunks, input)
   const required = new Set((task?.required ?? []).filter(row => row.source.trim()).map(row => row.id))
   const scored: StartScored[] = input.candidates.map(candidate => {
     const tier = required.has(candidate.id) ? 4 : prompt.has(candidate.id) ? 3 : continuation.has(candidate.id) ? 2 : fallback.has(candidate.id) ? 1 : 0
