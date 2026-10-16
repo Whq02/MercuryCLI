@@ -708,20 +708,16 @@ Only when a fold cannot bring the context under its threshold, or the
 provider refuses the request despite the estimate, does the emergency prune
 run. It clears older file results that a later successful Read, Edit or
 Write of the same path superseded; the latest result for a path, unique
-results, failed or unfinished operations, skill and brief material, and the
-ten most recent eligible results stay. The chat reports the number of
-result bodies pruned and Mercury's estimate of the tokens, and says that no
-summary was written and nothing moved to memory by that prune. The
-replacements persist across later requests and resume. `MERCURY_COMPACT=0`
-disables folding and the prune alike.
-
-The time-gap trigger retains its existing rules. It clears stale tool
-results of every kind older than the recent ten, keeping the newest 40,000
-tokens of tool output, clearing only when a pass saves 20,000 tokens or
-more, and never a result under 50 tokens; the operator's own answers,
-briefs, skill material and the tool-search record stay, and a cleared
+results, failed or unfinished operations, skill and brief material, the
+ten most recent eligible results and the newest 40,000 tokens of tool
+output stay, and a result under 50 tokens is never replaced. A cleared
 result whose full output was saved to a file keeps the line that names the
-file.
+file. The chat reports the number of result bodies pruned and Mercury's
+estimate of the tokens saved, net of the placeholders, and says that no
+summary was written and nothing moved to memory by that prune. The
+replacements persist across later requests and resume. An idle gap on its
+own no longer clears results. `MERCURY_COMPACT=0` disables folding and the
+prune alike.
 
 ## When the context overflows
 

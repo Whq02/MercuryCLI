@@ -153,7 +153,7 @@ const cacheSafeFor = (ctx: Record<string, unknown>, messages: unknown[]) =>
 async function compactOnce(ctx: Record<string, unknown>, messages: unknown[]): Promise<{ result: Record<string, unknown>; wire: ReturnType<typeof fixture.captured.slice>; threw: string | undefined }> {
   const before = fixture.captured.length
   ctx.abortController = new AbortController()
-  process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '1'
+  process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '3400'
   let result: Record<string, unknown> = {}
   let threw: string | undefined
   try {

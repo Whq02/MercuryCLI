@@ -95,7 +95,7 @@ for (const [columns, terminalRows] of [[178, 51], [80, 24]] as const) {
   })
   const prune = joined.split('▲ ').at(-1) ?? ''
   check(`${label} emergency prune: the notice says 154 bodies were pruned`, prune.includes('pruned 154 superseded tool-result bodies'), prune.slice(-300))
-  check(`${label} emergency prune: it identifies Mercury's gross estimate`, prune.includes("about 740,942 tokens by Mercury's estimate, before placeholders"))
+  check(`${label} emergency prune: it identifies Mercury's gross estimate`, prune.includes("about 740,942 tokens by Mercury's estimate, net of placeholders"))
   check(`${label} emergency prune: it asserts no summary and no memory move`, prune.includes('no summary written, nothing moved to memory'))
   check(`${label}: the context-size prune line the owner saw never paints`, !joined.includes('context size (estimated') && !joined.includes('prune threshold'))
 }

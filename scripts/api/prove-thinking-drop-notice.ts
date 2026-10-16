@@ -200,7 +200,7 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
   const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.js')
   const savedTimePrune = process.env.MERCURY_TIME_BASED_MC
   process.env.MERCURY_TIME_BASED_MC = '1'
-  const history = [user('Read the files.'), ...Array.from({ length: 8 }, (_, i) => [
+  const history = [user('Read the files.'), ...Array.from({ length: 13 }, (_, i) => [
     assistant([THINK('Read ' + i), { type: 'tool_use', id: 'read-' + i, name: 'Read', input: {} }]),
     user([{ type: 'tool_result', tool_use_id: 'read-' + i, content: ('Result ' + i + ' stays available. ').repeat(1_300) }]),
   ]).flat()]
@@ -213,18 +213,18 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
   }
   const planned = await buildRequestContextPlan(input, 'apply')
   const prunedMark = prefixMarkOf(planned.messages, 'claude-fable-5-1', undefined, { requestPlan: planned })
-  check('the real time-triggered plan applies three clearings', planned.reductions.timeBasedCleared === 3)
+  check('the real time-triggered plan applies three clearings (thirteen rounds, ten kept)', planned.reductions.timeBasedCleared === 3, String(planned.reductions.timeBasedCleared))
   resetThinkingDropStates()
-  const pruned = classifyThinkingDrops('pruned', [DROP('messages.17.content.0')], prunedMark)
+  const pruned = classifyThinkingDrops('pruned', [DROP('messages.27.content.0')], prunedMark)
   check('only the response to the applied clearing receives its cause', pruned.kind === 'lawful' && pruned.lawful === 'context-edited', j(pruned))
-  const prunedWords = describeThinkingDrops([DROP('messages.17.content.0')], pruned) ?? ''
+  const prunedWords = describeThinkingDrops([DROP('messages.27.content.0')], pruned) ?? ''
   check('the cause names the prune without accusing an unexplained rewrite', prunedWords.includes('pruned superseded tool results') && prunedWords.includes('expected once') && !prunedWords.includes('health'), prunedWords)
   const fresh = assistant([THINK('New reasoning over the cleared request.'), TEXT('Ready.')])
   fresh.timestamp = new Date().toISOString()
   const later = await buildRequestContextPlan({ ...input, messages: [...history, fresh, user('Continue.')] as never }, 'apply')
   check('the later plan retains replacements without another clearing', later.reductions.timeBasedCleared === 0 && j(later.messages).includes('[stale tool result'))
   const laterMark = prefixMarkOf(later.messages, 'claude-fable-5-1', undefined, { requestPlan: later })
-  const laterDrop = classifyThinkingDrops('pruned', [DROP('messages.19.content.0')], laterMark)
+  const laterDrop = classifyThinkingDrops('pruned', [DROP('messages.29.content.0')], laterMark)
   check('a later unexplained drop is not masked by an earlier prune', laterDrop.kind === 'first' && laterDrop.lawful === null && laterMark.contextEditActive === false, j(laterDrop))
   const inspected = await buildRequestContextPlan({ ...input, contentReplacementState: createContentReplacementState() }, 'inspect')
   check('inspection never declares that it applied a context edit', prefixMarkOf(inspected.messages, 'claude-fable-5-1', undefined, { requestPlan: inspected }).contextEditActive === false)

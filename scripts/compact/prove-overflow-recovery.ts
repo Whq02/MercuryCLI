@@ -350,7 +350,7 @@ section('R3 the emergency prune follows a summary that could not fit')
   check('the newest five are untouched (the keep-recent window)', JSON.stringify(kept) === JSON.stringify(Array.from({ length: 10 }, (_, index) => `toolu_read_${index + 3}`)), JSON.stringify(kept))
   check('the operator message rides the retried request verbatim', lastText(retry) === OPERATOR_ASK)
   check('the transition names the prune rung', JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"provider"'))
-  check('the notice names the count and the reclaimed tokens', noticeTexts(r.yields).some(t => /^context overflowed \(OpenAI: 129,000 tokens > 128,000\) — pruned 3 superseded tool-result bodies \(about [\d,]+ tokens by Mercury's estimate, before placeholders; no summary written, nothing moved to memory\) and retrying$/.test(t)), JSON.stringify(noticeTexts(r.yields)))
+  check('the notice names the count and the reclaimed tokens', noticeTexts(r.yields).some(t => /^context overflowed \(OpenAI: 129,000 tokens > 128,000\) — pruned 3 superseded tool-result bodies \(about [\d,]+ tokens by Mercury's estimate, net of placeholders; no summary written, nothing moved to memory\) and retrying$/.test(t)), JSON.stringify(noticeTexts(r.yields)))
   const ledger = (r.ctx.contentReplacementState as { replacements: Map<string, string> }).replacements
   check('the replacement ledger holds the prune (it re-applies on every later request and on resume)', ['toolu_read_0', 'toolu_read_1', 'toolu_read_2'].every(id => isPlaceholder(ledger.get(id))), JSON.stringify([...ledger.keys()]))
   check('the raw provider sentence never reaches a yield', !anyYieldCarries(r.yields, 'maximum context length is 128000'))

@@ -644,6 +644,14 @@ export function fitPostCompactUnderThreshold(result: CompactionResult, threshold
   return { result: current, estimate, shed }
 }
 
+function fixedMaterialOverThresholdMessage(fixed: number, threshold: number): string {
+  return (
+    `${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: the system prompt and tool definitions alone estimate ${fixed} tokens against a ` +
+    `${threshold}-token threshold, so no fold can land and no summary was requested. The original context is kept whole; nothing moved. ` +
+    `Raise the automatic-fold threshold, or seat a model with a larger window.`
+  )
+}
+
 function postCompactOverThresholdMessage(estimate: number, threshold: number): string {
   return (
     `${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: with every restorable attachment dropped, the summary, ` +
@@ -1396,6 +1404,8 @@ export async function compactConversation(
     const owner = ownerFromToolUseContext(context)
     const capsuleProbe = buildRunContinuationCapsule(owner)
     const ledger = buildFoldLedger(messages, owner, getContextEpoch(owner).epoch + 1)
+    const gauge = readRequestGauge(messages, context.options.engineModel)
+    if (ceiling !== undefined && gauge !== null && gauge.fixed.tokens >= ceiling) throw new Error(fixedMaterialOverThresholdMessage(gauge.fixed.tokens, ceiling))
     const promptText = getCompactPrompt(mergedInstructions, { runCapsulePresent: capsuleProbe !== null })
     const response = await summarizeWithPtlRetry(messages, summaryCacheSafeParams, promptText, summaryContext)
     const rawSummary = validateSummary(response, true)
@@ -1413,7 +1423,6 @@ export async function compactConversation(
     let messagesToKeep: Message[] | undefined
     let tailPrecedingUuid: UUID | undefined
     let recentRounds: CompactMetadata['recentRounds']
-    const gauge = readRequestGauge(messages, context.options.engineModel)
     const landingCount = (rows: Message[]): number => {
       const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
       return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density) : estimateContextTokens(request)
