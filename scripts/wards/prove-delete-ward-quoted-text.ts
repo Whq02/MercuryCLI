@@ -130,6 +130,41 @@ try {
   check('an unquoted delimiter: the backslash joins the lines as the shell does, the delete stays inside the body and never runs', verdictOf(REFUSAL_WARDS, `cat <<EOF${NL}x \\${NL}EOF${NL}rm -rf /`).allow, ruleOf(REFUSAL_WARDS, `cat <<EOF${NL}x \\${NL}EOF${NL}rm -rf /`))
   check('a here-string (<<<) is not a heredoc: the next line is read', ruleOf(REFUSAL_WARDS, `cat <<< "x"${NL}rm -rf /`) === 'no-root-recursive-delete')
 
+  section('§4b a heredoc whose body is FED TO A SHELL is commands, not data: the delete inside it is refused (RED on the first reader: every shape below was allowed)')
+  const heredocScripts: Array<[string, string]> = [
+    ['no-other-user-delete', `bash <<'EOF'${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-root-recursive-delete', `bash <<EOF${NL}rm -rf /${NL}EOF`],
+    ['no-other-user-delete', `sh <<EOF${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `zsh <<'EOF'${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `bash -s <<EOF${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `bash - <<EOF${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `cat <<'EOF' | bash${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `/bin/sh <<EOF${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `cat <<EOF | sed s/x/y/ | bash${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `source /dev/stdin <<EOF${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `. /dev/stdin <<EOF${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `su - <<EOF${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `bash <<EOF${NL}echo start${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `bash <<-EOF${NL}\trm -rf /Users/alice/x${NL}\tEOF`],
+    ['no-other-user-delete', `bash <<EOF${NL}rm -rf \\${NL}/Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `bash <<'EOF'${NL}find /Users/alice -delete${NL}EOF`],
+  ]
+  for (const [rule, command] of heredocScripts) {
+    const got = ruleOf(REFUSAL_WARDS, command)
+    check(`${shown(command)} is refused by ${rule}`, got === rule, got)
+  }
+  for (const command of [
+    `cat <<'EOF' > notes.txt${NL}rm -rf /Users/alice/x${NL}EOF`,
+    `cat <<EOF >> ~/.bashrc${NL}rm -rf /Users/alice/x${NL}EOF`,
+    `grep -c rm <<EOF${NL}rm -rf /Users/alice/x${NL}EOF`,
+    `tee notes.txt <<'EOF'${NL}find /Users/alice/x -delete${NL}EOF`,
+    `cat <<EOF > s.txt${NL}bash${NL}rm -rf /Users/alice/x${NL}EOF`,
+    `bash <<'EOF'${NL}echo "rm -rf /Users/alice/x"${NL}EOF`,
+    `bash <<'EOF'${NL}rm -rf node_modules${NL}EOF`,
+  ]) {
+    check(`${shown(command)} runs: a body written to a file or fed to anything but a shell is data, and a shell's body is read by the same quote law`, verdictOf(REFUSAL_WARDS, command).allow, ruleOf(REFUSAL_WARDS, command))
+  }
+
   section('§5 the unquoted shapes and the near misses of the older proofs are unchanged')
   for (const [rule, command] of [
     ['no-root-recursive-delete', 'rm -rf /Users/alice'],
