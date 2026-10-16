@@ -49,6 +49,20 @@ for (const [status, type, sentence] of shapes) {
   check(`${status}: no brace on the transcript row`, !row.text.includes('{') && !row.text.includes('}'), row.text)
   check(`${status}: the kind stays outside the login flow`, row.kind !== 'authentication_failed', String(row.kind))
 }
+section('§1b the provider\'s sentence rides WHOLE: a quote, a brace or a line break inside it is unescaped, never a cut at the first escaped quote')
+const ROLES = 'messages: roles must alternate between "user" and "assistant", but found multiple "user" roles in a row'
+const quoted = anthropicRow(400, envelope('invalid_request_error', ROLES))
+console.log(`      quoted: ${quoted.text}`)
+check('the real alternating-roles 400 paints its whole sentence, the quoted words included', quoted.text === `${API_ERROR_MESSAGE_PREFIX} (400): Anthropic says: ${ROLES}`, quoted.text)
+check('no stray backslash and no envelope byte on the row', !quoted.text.includes('\\') && !quoted.text.includes('{') && !quoted.text.includes('"type"'), quoted.text)
+const BRACED = 'unexpected token {"foo": 1} at position 4'
+const braced = anthropicRow(400, envelope('invalid_request_error', BRACED))
+check('a brace inside the provider\'s own sentence rides as its words (the envelope\'s braces never do)', braced.text === `${API_ERROR_MESSAGE_PREFIX} (400): Anthropic says: ${BRACED}` && !braced.text.includes('"type"') && !braced.text.includes('\\'), braced.text)
+const BROKEN = 'the first line of the sentence\nthe second line of the sentence'
+const broken = anthropicRow(400, envelope('invalid_request_error', BROKEN))
+check('a line break inside the sentence arrives as a line break, not as the two characters of its escape', broken.text === `${API_ERROR_MESSAGE_PREFIX} (400): Anthropic says: ${BROKEN}` && !broken.text.includes('\\n'), JSON.stringify(broken.text))
+const rateRow = anthropicRow(429, envelope('rate_limit_error', 'This request would exceed the rate limit for your organization ("org_123") of 50 requests per minute'))
+check('the 429 road, served by the same reader, carries its quoted sentence whole', rateRow.text.includes('("org_123") of 50 requests per minute') && !rateRow.text.includes('\\'), rateRow.text)
 const plain = anthropicRow(400, undefined, 'the gateway refused the request body')
 check('a non-JSON tail rides verbatim under the status', plain.text === `${API_ERROR_MESSAGE_PREFIX} (400): the gateway refused the request body`, plain.text)
 const bare = anthropicRow(400, undefined, '')

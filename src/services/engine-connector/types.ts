@@ -191,7 +191,7 @@ export type AnthropicWindowFactV1 = {
   claim?: string
 }
 
-export type AnthropicObservedWindowV1 = {
+type AnthropicObservedWindowV1 = {
   utilization: number
   resetsAt: number
   observedAtMs: number
