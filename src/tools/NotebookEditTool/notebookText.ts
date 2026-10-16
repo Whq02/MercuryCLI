@@ -3,7 +3,7 @@ import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
 
 type Span = { start: number; end: number; items?: Span[]; props?: Map<string, { key: Span; value: Span }> }
 
-export type NotebookEditPlan = { mode: 'replace' | 'insert' | 'delete'; index: number }
+type NotebookEditPlan = { mode: 'replace' | 'insert' | 'delete'; index: number }
 
 const WS = new Set([' ', '\t', '\n', '\r'])
 
