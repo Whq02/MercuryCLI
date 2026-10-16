@@ -215,8 +215,11 @@ const toolContext = {
 } as never
 let failureText = ''
 resetSessionEnvNoticeForTesting()
-try { await BashTool.call({ command: 'exit 7' }, toolContext) } catch (error) { failureText = String((error as { stderr?: string }).stderr ?? error) }
-check('a failed real Bash tool call preserves the scrub notice and exit', failureText.includes('MERCURY_ENTRYPOINT') && failureText.includes('7'), failureText)
+const { formatError } = await import('../../src/utils/toolErrors.ts')
+let failureStderr = ''
+try { await BashTool.call({ command: 'exit 7' }, toolContext) } catch (error) { failureText = formatError(error); failureStderr = String((error as { stderr?: string }).stderr ?? '') }
+check('a failed real Bash tool call preserves the scrub notice and exit in what the model reads', failureText.includes('MERCURY_ENTRYPOINT') && failureText.includes('inherit_session_env') && failureText.includes('7'), failureText)
+check("the notice is the result's own line, not part of the command's stderr (the operator's `!` card paints stderr alone)", !failureStderr.includes('session env scrubbed'), failureStderr)
 const background = await BashTool.call({ command: 'sleep 2', run_in_background: true }, toolContext)
 check('a real background launch carries the scrubbed names', background.data.backgroundTaskId !== undefined && background.data.scrubbedSessionEnv?.includes('MERCURY_ENTRYPOINT') === true, JSON.stringify(background.data))
 const running = appState.tasks[background.data.backgroundTaskId ?? ''] as unknown as { shellCommand?: { result: Promise<unknown> } }
@@ -228,8 +231,8 @@ resetSessionEnvNoticeForTesting()
 try {
   const result = await BashTool.call({ command: 'while :; do printf "ready\\n"; sleep 0.2; done' }, { ...toolContext, abortController: interruptedController } as never, undefined, undefined, () => { interruptionSent = true; interruptedController.abort('proof-cancel') })
   interruptedText = JSON.stringify(BashTool.mapToolResultToToolResultBlockParam(result.data, 'interrupted'))
-} catch (error) { interruptedText = String((error as { stderr?: string }).stderr ?? error) }
-check('an interrupted real Bash call preserves scrub attribution', interruptionSent && interruptedText.includes('MERCURY_ENTRYPOINT'), interruptedText)
+} catch (error) { interruptedText = formatError(error) }
+check('an interrupted real Bash call preserves scrub attribution in what the model reads', interruptionSent && interruptedText.includes('MERCURY_ENTRYPOINT'), interruptedText)
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

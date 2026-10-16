@@ -48,6 +48,7 @@ export class ShellError extends MercuryError {
     readonly code: number,
     readonly interrupted: boolean,
     readonly ran: boolean = true,
+    readonly notice: string = '',
   ) {
     super('Shell command failed')
   }
