@@ -150,7 +150,7 @@ try {
       await waitFor(() => usage.screen().includes('Mercury · usage'), 4000)
       await settle(150)
       keep(`usage-${road}-${cols}x${rows}`, usage, cols, rows)
-      check(`${road}: usage section names the road`, flat(usage).includes(road === 'official' ? 'official' : 'OpenRouter'))
+      check(road === 'official' ? 'official: the usage row says what Jev is and never "official"' : 'openrouter: the usage row names the OpenRouter road', flat(usage).includes('Jev · second-opinion evaluator') && (road === 'official' ? !flat(usage).includes('official') : flat(usage).includes('OpenRouter')), flat(usage).split('\n').filter(line => line.includes('Jev')).join(' | '))
       if (road === 'openrouter') check('usage states the call cost and the known credits without clipping either', flat(usage).includes('last stated $0.000019992') && flat(usage).includes('$12.50 under key cap'))
       popup.closeSettingsPopup()
       usage.unmount()

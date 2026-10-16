@@ -213,7 +213,7 @@ section('§2 the runner-side fold: the ledger and the resolver become the facts 
   ledger.resetJevLedger()
 }
 
-const expectedRow = `${usage.JEV_USAGE_LABEL} official · Mercury's count: $0.42 · 3 calls (1 unconfirmed) · allowance $0.40 · allowance hit · credits: ${CREDITS_UNREPORTED_WORDS}`
+const expectedRow = `${usage.JEV_USAGE_LABEL} · second-opinion evaluator · $0.42 of a $0.40 allowance · 3 calls (1 unconfirmed) · allowance hit · credits: ${CREDITS_UNREPORTED_WORDS}`
 section("§3 a focused session reports its facts while the cockpit's own ledger is empty: the surfaces paint the session's figures")
 {
   check('the local ledger is empty going in', ledger.jevLedgerSnapshot().spendUsd === 0 && ledger.jevLedgerSnapshot().calls === 0 && status.jevStatus().kind === 'ready')
@@ -252,7 +252,7 @@ section("§4 the reverse: the cockpit's own ledger carries spend while the focus
   check('the reader answers unknown for a session whose runner omitted the row', slot.hasFocusedSession() && session.state === 'unknown', j(session))
   check('the status falls to what shared state supports: ready (switch on, key stored), never the local allowance hit', j(reader.jevSessionStatus()) === j({ kind: 'ready', words: 'ready — official road' }), j(reader.jevSessionStatus()))
   const row = usage.jevUsageRow()
-  check('the /usage row says the session spend is not reported, keeps the shared allowance and the shared headword', row === `${usage.JEV_USAGE_LABEL} official · Mercury's count: ${reader.JEV_SPEND_UNREPORTED_WORDS} · allowance $0.40 · ready · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
+  check('the /usage row says the session spend is not reported, keeps the shared allowance and the shared headword', row === `${usage.JEV_USAGE_LABEL} · second-opinion evaluator · ${reader.JEV_SPEND_UNREPORTED_WORDS} · allowance $0.40 · ready · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
   check('the row carries none of the local figures', !row.includes('$0.42') && !row.includes('1 call') && !row.includes('allowance hit'))
   const facts = jevBody.jevFacts()
   check('the popup line names the absence in its short form beside the allowance', jevBody.jevPopupLine(facts) === `on · official · key stored · ${reader.JEV_SPEND_UNREPORTED_SHORT_WORDS} · cap $0.40 · ready`, jevBody.jevPopupLine(facts))
@@ -274,7 +274,7 @@ section('§5 no session in the slot: the honest no-chat form')
   const session = reader.jevSessionFacts()
   check('the reader answers no-session while the slot rests', !slot.hasFocusedSession() && session.state === 'no-session', j(session))
   const row = usage.jevUsageRow()
-  check('the /usage row says no chat is open beside the shared parts', row === `${usage.JEV_USAGE_LABEL} official · Mercury's count: ${reader.JEV_NO_SESSION_WORDS} · allowance $0.40 · ready · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
+  check('the /usage row says no chat is open beside the shared parts', row === `${usage.JEV_USAGE_LABEL} · second-opinion evaluator · ${reader.JEV_NO_SESSION_WORDS} · allowance $0.40 · ready · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
   check('the local ledger still carries spend and the row still paints none of it', contract.jevUsdLabel(ledger.jevLedgerSnapshot().spendUsd) === '$0.42' && !row.includes('$0.42'))
   const facts = jevBody.jevFacts()
   check('the popup line (short form) and the Spend row (full words) read no chat', jevBody.jevPopupLine(facts) === `on · official · key stored · ${reader.JEV_NO_SESSION_SHORT_WORDS} · cap $0.40 · ready` && jevBody.jevRowWords('spend', facts) === reader.JEV_NO_SESSION_WORDS, jevBody.jevPopupLine(facts))

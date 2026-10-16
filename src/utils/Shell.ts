@@ -21,7 +21,7 @@ import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
 import { wrapSpawn, createAbortedCommand, createFailedCommand, type ShellCommand } from './ShellCommand.js'
-import { subprocessEnv } from './subprocessEnv.js'
+import { TOOL_SHELL_PLAIN_OUTPUT, subprocessEnv } from './subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
 import { getTaskOutputDir } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
@@ -301,6 +301,7 @@ export async function exec(
     SHELL: shellType === 'bash' ? provider.shellPath : undefined,
     GIT_EDITOR: 'true',
     MERCURY: '1',
+    ...TOOL_SHELL_PLAIN_OUTPUT,
     ...environmentOverrides,
   }
 
