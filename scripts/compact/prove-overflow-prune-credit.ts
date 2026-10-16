@@ -11,7 +11,7 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'overflow-prune-cred
 for (const k of [
   'MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_BLOCKING_LIMIT_OVERRIDE',
   'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_TIME_BASED_MC', 'NODE_ENV',
-  'MERCURY_MODEL', 'MERCURY_PRUNE_PCT', 'MERCURY_DISABLE_1M_CONTEXT',
+  'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT',
 ]) {
   delete process.env[k]
 }
@@ -252,7 +252,7 @@ section('P1 the owner\'s shape — the breaker tripped, the view over the limit 
   check('the retry after the prune went out: one model call, terminal completed', r.terminal.reason === 'completed' && r.calls.length === 1, `${JSON.stringify(r.terminal)} calls=${r.calls.length} refusals=${JSON.stringify(refusals)}`)
   check('the transition names the prune rung from the estimate', JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"estimate"'), JSON.stringify(settledTransitions(r.events)))
   const notice = noticeTexts(r.yields).find(t => t.startsWith('context overflowed (estimated '))
-  check(`the notice names the estimate, the count and the reclaimed tokens`, notice !== undefined && /^context overflowed \(estimated [\d,]+ tokens > 777,000\) — pruned \d+ superseded tool results \(~[\d,]+ tokens\) and retrying$/.test(notice), JSON.stringify(noticeTexts(r.yields)))
+  check(`the notice names the estimate, the count and the reclaimed tokens`, notice !== undefined && /^context overflowed \(estimated [\d,]+ tokens > 777,000\) — pruned \d+ superseded tool-result bod(?:y|ies) \(about [\d,]+ tokens by Mercury's estimate, before placeholders; no summary written, nothing moved to memory\) and retrying$/.test(notice), JSON.stringify(noticeTexts(r.yields)))
   const cleared = r.calls[0] !== undefined ? toolResultsOf(r.calls[0].messages).filter(x => isPlaceholder(x.content)) : []
   check(`the request on the wire carries the placeholders of the cleared results (${cleared.length} cleared) and the newest results whole`, r.calls[0] !== undefined && cleared.length >= 5 && !isPlaceholder(toolResultsOf(r.calls[0].messages).at(-1)?.content), JSON.stringify(cleared.map(c => c.id)))
   check('no refusal row ever yields — the number moved, the breaker was never asked', refusals.length === 0, JSON.stringify(refusals))
@@ -285,7 +285,7 @@ section('P2 the compaction gate reads the same credit — the freed tokens ride 
   const [first, second] = r.compact
   check('the first ask carried no credit (nothing was pruned yet)', first !== undefined && (first.snip ?? 0) === 0, JSON.stringify(first?.snip))
   const notice = noticeTexts(r.yields).find(t => t.startsWith('context overflowed (estimated ')) ?? ''
-  const reclaimed = Number((/\(~([\d,]+) tokens\)/.exec(notice)?.[1] ?? '0').replace(/,/g, ''))
+  const reclaimed = Number((/\(about ([\d,]+) tokens by Mercury's estimate/.exec(notice)?.[1] ?? '0').replace(/,/g, ''))
   check('the receipt names a real reduction but the projected gauge needs no subtraction', reclaimed > 0 && r.compact.every(call => (call.snip ?? 0) === 0), `reclaimed=${reclaimed}`)
   check('the next gate carries no stale credit after the fresh usage anchor', second !== undefined && (second.snip ?? 0) === 0, JSON.stringify(second?.snip))
   const retry = r.calls[1]

@@ -648,7 +648,7 @@ function postCompactOverThresholdMessage(estimate: number, threshold: number): s
   return (
     `${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: with every restorable attachment dropped, the summary, ` +
     `the kept tail and the session-start hook output still estimate ${estimate} tokens against a ` +
-    `${threshold}-token threshold. Start a fresh conversation with /clear, or trim the hook output.`
+    `${threshold}-token threshold. The original context is kept whole; nothing moved. Start a fresh conversation with /clear, or trim the hook output.`
   )
 }
 
@@ -1542,6 +1542,7 @@ export async function compactConversation(
     for (const row of partial.attachments) if (row.attachment.type === 'file') visibleReads.add(expandPath(row.attachment.filename))
     for (const path of context.readFileState.keys()) if (!visibleReads.has(expandPath(path))) context.readFileState.delete(path)
     if (context.abortController.signal.aborted) throw new APIUserAbortError()
+    boundary.compactMetadata.postTokens = truePostCompactTokenCount
     await releaseLspDocumentsForContext('compact_full')
     transaction.commit()
     restoreBoundPrefixFromMessages(buildPostCompactMessages(partial), { rosterOnly: context.agentId !== undefined })
@@ -1696,6 +1697,7 @@ export async function partialCompactConversation(
     const truePostCompactTokenCount = estimateContextTokens(buildPostCompactMessages(partialResult))
     const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: 'manual', tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
     if (context.abortController.signal.aborted) throw new APIUserAbortError()
+    boundary.compactMetadata.postTokens = truePostCompactTokenCount
     await releaseLspDocumentsForContext('compact_partial')
     transaction.commit()
     restoreBoundPrefixFromMessages(buildPostCompactMessages(partialResult), { rosterOnly: context.agentId !== undefined })

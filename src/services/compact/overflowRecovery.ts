@@ -1,7 +1,4 @@
-import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
-import { getSdkBetas } from '../../bootstrap/state.js'
-import { getContextWindowForModel } from '../../utils/model/capabilities.js'
-import { awaitContextWindowSource } from '../../utils/model/contextWindowWarmup.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { Message } from '../../types/message.js'
 import { isTurnOwningQuerySource } from '../../utils/effort.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE } from '../api/errors.js'
@@ -160,7 +157,7 @@ export function overflowRecoveryNotice(
   if (rung === 'fold') return `${head} — folding the conversation and retrying`
   const n = pruned?.cleared ?? 0
   const saved = pruned?.tokensSaved ?? 0
-  return `${head} — pruned ${n} superseded tool result${n === 1 ? '' : 's'} (~${saved.toLocaleString('en-US')} tokens) and retrying`
+  return `${head} — pruned ${n} superseded tool-result bod${n === 1 ? 'y' : 'ies'} (about ${saved.toLocaleString('en-US')} tokens by Mercury's estimate, before placeholders; no summary written, nothing moved to memory) and retrying`
 }
 
 export function overflowRefusalText(
@@ -189,10 +186,10 @@ export function overflowRefusalText(
         const detail = plainDetail(opts.detail)
         if (detail.startsWith(COMPACTION_PAUSED_KEY)) return detail
         if (detail.startsWith(FOLD_WINDOW_REFUSAL_KEY)) return `${detail}${byHand}`
-        return `the fold failed${detail !== '' ? ` (${detail})` : ''}.${byHand}`
+        return `the fold failed${detail !== '' ? ` (${detail})` : ''}. The conversation is kept whole; nothing moved.${byHand}`
       }
       case 'fold-did-not-land':
-        return `the fold did not bring the conversation under the window.${byHand}`
+        return `the fold did not bring the conversation under the window; it is kept whole and nothing moved.${byHand}`
       case 'single-message':
         return 'this message alone is larger than the window — shorten or split it.'
     }
@@ -204,23 +201,4 @@ export function overflowRefusalText(
 
 export function overflowGapFor(signal: OverflowSignal): number | undefined {
   return overflowGapTokens(signal)
-}
-
-export type SizePruneRequest = { estimatedTokens: number; windowTokens: number; thresholdPercent: number; targetTokens: number }
-
-export async function sizePruneRequest(messages: readonly Message[], model: string, querySource: string | undefined): Promise<SizePruneRequest | undefined> {
-  if (!isTurnOwningQuerySource(querySource) || !flagEnabled('MERCURY_COMPACT')) return undefined
-  const raw = flagEnv('MERCURY_PRUNE_PCT')
-  const configured = raw?.trim() ? Number(raw) : 40
-  const thresholdPercent = Number.isFinite(configured) && configured >= 0 && configured <= 100 ? configured : 40
-  if (thresholdPercent === 0) return undefined
-  await awaitContextWindowSource(model)
-  const windowTokens = getContextWindowForModel(model, getSdkBetas())
-  const estimatedTokens = tokenCountWithEstimation(messages, model)
-  if (estimatedTokens < Math.ceil(windowTokens * thresholdPercent / 100)) return undefined
-  return { estimatedTokens, windowTokens, thresholdPercent, targetTokens: Math.floor(windowTokens * thresholdPercent / 150) }
-}
-
-export function sizePruneNotice(request: SizePruneRequest, pruned: { cleared: number; tokensSaved: number }): string {
-  return `context size (estimated ${request.estimatedTokens.toLocaleString('en-US')} of ${request.windowTokens.toLocaleString('en-US')} tokens; prune threshold ${request.thresholdPercent}%) — pruned ${pruned.cleared} superseded tool result${pruned.cleared === 1 ? '' : 's'} (~${pruned.tokensSaved.toLocaleString('en-US')} tokens)`
 }
