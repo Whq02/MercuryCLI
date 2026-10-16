@@ -1,9 +1,7 @@
 import { chmodSync, copyFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DurablePublishError, durableAtomicPublishSync } from '../../substrate/durablePublish.js'
-import { credentialFingerprint, maskedKeyTail } from '../../services/providers/credentialIdentity.js'
 import { recordSignIn, noteCredentialChange } from '../accounts/signInLedger.js'
-import { landSignIn, signInHome } from '../accounts/signInPockets.js'
 import { getAuthConfigHomeDir } from '../envUtils.js'
 import { getErrnoCode } from '../errors.js'
 
@@ -37,38 +35,13 @@ interface ProviderSecretsFile {
   [k: string]: unknown
 }
 
-const SECRET_FIELD_FAMILY: Readonly<Record<string, string>> = {
-  zaiApiKey: 'zai',
-  zaiKeyPlan: 'zai',
-  openaiApiKey: 'openai',
-  openrouterApiKey: 'openrouter',
-  geminiApiKey: 'gemini',
-  moonshotApiKey: 'moonshot',
-  deepseekApiKey: 'deepseek',
-  xaiApiKey: 'xai',
-  xaiManagementApiKey: 'xai',
-  metaApiKey: 'meta',
-  compatApiKey: 'openai-compat',
-  mistralApiKey: 'mistral',
-  mistralAdminApiKey: 'mistral',
-  huggingfaceApiKey: 'huggingface',
-  localApiKey: 'local',
-  zenApiKey: 'zen',
-  nousApiKey: 'nous',
+function secretsPath(): string {
+  return join(getAuthConfigHomeDir(), FILE_NAME)
 }
 
-function secretsHome(field?: string): string {
-  const family = field === undefined ? undefined : SECRET_FIELD_FAMILY[field]
-  return family === undefined ? getAuthConfigHomeDir() : signInHome(family)
-}
-
-function secretsPath(field?: string): string {
-  return join(secretsHome(field), FILE_NAME)
-}
-
-function readFile(field?: string): ProviderSecretsFile | null {
+function readFile(): ProviderSecretsFile | null {
   try {
-    const raw = readFileSync(secretsPath(field), 'utf8')
+    const raw = readFileSync(secretsPath(), 'utf8')
     const parsed = JSON.parse(raw) as unknown
     if (typeof parsed !== 'object' || parsed === null) return null
     return parsed as ProviderSecretsFile
@@ -105,10 +78,10 @@ function probeSecrets(path: string): SecretsProbe {
   }
 }
 
-function publishSecrets(mutate: (next: ProviderSecretsFile) => void, field?: string): void {
-  const dir = secretsHome(field)
+function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
+  const dir = getAuthConfigHomeDir()
   mkdirSync(dir, { recursive: true })
-  const path = secretsPath(field)
+  const path = secretsPath()
   const probe = probeSecrets(path)
   if (probe.state === 'unreadable') {
     throw Object.assign(
@@ -152,67 +125,42 @@ function publishSecrets(mutate: (next: ProviderSecretsFile) => void, field?: str
 }
 
 
-function landStoredKey(field: string, key: string, write: () => void): void {
-  const family = SECRET_FIELD_FAMILY[field]
-  if (family === undefined) {
-    write()
-    return
-  }
-  landSignIn({
-    family,
-    identity: maskedKeyTail(key) || credentialFingerprint(key),
-    kind: 'api-key',
-    ledgerKind: 'api-key',
-    homeIdentity: () => {
-      const stored = readStoredKey(field as StoredKeyField)
-      return stored === undefined ? undefined : maskedKeyTail(stored) || credentialFingerprint(stored)
-    },
-    write,
-  })
-}
-
 export function readStoredZaiApiKey(): string | undefined {
-  const file = readFile('zaiApiKey')
+  const file = readFile()
   const key = typeof file?.zaiApiKey === 'string' ? file.zaiApiKey.trim() : ''
   return key || undefined
 }
 
 export function readStoredZaiKeyPlan(): ZaiKeyPlan | undefined {
-  const file = readFile('zaiKeyPlan')
+  const file = readFile()
   return file?.zaiKeyPlan === 'coding' && readStoredZaiApiKey() !== undefined ? 'coding' : undefined
 }
 
 export function writeStoredZaiApiKey(key: string | null, plan?: ZaiKeyPlan): void {
-  const publish = (): void =>
-    publishSecrets(next => {
-      if (key === null || key.trim() === '') {
-        delete next.zaiApiKey
-        delete next.zaiKeyPlan
-      } else {
-        next.zaiApiKey = key.trim()
-        if (plan === 'coding') next.zaiKeyPlan = 'coding'
-        else delete next.zaiKeyPlan
-      }
-    }, 'zaiApiKey')
-  if (key === null || key.trim() === '') publish()
-  else landStoredKey('zaiApiKey', key.trim(), publish)
+  publishSecrets(next => {
+    if (key === null || key.trim() === '') {
+      delete next.zaiApiKey
+      delete next.zaiKeyPlan
+    } else {
+      next.zaiApiKey = key.trim()
+      if (plan === 'coding') next.zaiKeyPlan = 'coding'
+      else delete next.zaiKeyPlan
+    }
+  })
   if (key !== null && key.trim() !== '') recordSignIn('zai', 'api-key')
 }
 
 export function readStoredOpenaiApiKey(): string | undefined {
-  const file = readFile('openaiApiKey')
+  const file = readFile()
   const key = typeof file?.openaiApiKey === 'string' ? file.openaiApiKey.trim() : ''
   return key || undefined
 }
 
 export function writeStoredOpenaiApiKey(key: string | null): void {
-  const publish = (): void =>
-    publishSecrets(next => {
-      if (key === null || key.trim() === '') delete next.openaiApiKey
-      else next.openaiApiKey = key.trim()
-    }, 'openaiApiKey')
-  if (key === null || key.trim() === '') publish()
-  else landStoredKey('openaiApiKey', key.trim(), publish)
+  publishSecrets(next => {
+    if (key === null || key.trim() === '') delete next.openaiApiKey
+    else next.openaiApiKey = key.trim()
+  })
   if (key !== null && key.trim() !== '') recordSignIn('openai', 'api-key')
 }
 
@@ -236,8 +184,8 @@ type StoredKeyField =
   | 'mistralAdminApiKey'
   | 'nousApiKey'
 
-function readStoredKey(field: StoredKeyField | 'zaiApiKey' | 'openaiApiKey'): string | undefined {
-  const file = readFile(field)
+function readStoredKey(field: StoredKeyField): string | undefined {
+  const file = readFile()
   const key = typeof file?.[field] === 'string' ? (file[field] as string).trim() : ''
   return key || undefined
 }
@@ -258,14 +206,11 @@ const KEY_FIELD_FAMILY: Partial<Record<StoredKeyField, string>> = {
 }
 
 function writeStoredKey(field: StoredKeyField, key: string | null): void {
-  const publish = (): void =>
-    publishSecrets(next => {
-      if (key === null || key.trim() === '') delete next[field]
-      else next[field] = key.trim()
-    }, field)
+  publishSecrets(next => {
+    if (key === null || key.trim() === '') delete next[field]
+    else next[field] = key.trim()
+  })
   const family = KEY_FIELD_FAMILY[field]
-  if (family === undefined || key === null || key.trim() === '') publish()
-  else landStoredKey(field, key.trim(), publish)
   if (family !== undefined && key !== null && key.trim() !== '') recordSignIn(family, 'api-key')
 }
 
@@ -392,16 +337,15 @@ export function providerSecretsPathForDisplay(): string {
   return secretsPath()
 }
 
-export function signInLedgerPath(fileName: string, family?: string): string {
-  return join(family === undefined ? getAuthConfigHomeDir() : signInHome(family), fileName)
+export function signInLedgerPath(fileName: string): string {
+  return join(getAuthConfigHomeDir(), fileName)
 }
 
 export function publishAuthScopedJson(
   fileName: string,
   mutate: (file: Record<string, unknown>) => Record<string, unknown>,
-  family?: string,
 ): void {
-  const dir = family === undefined ? getAuthConfigHomeDir() : signInHome(family)
+  const dir = getAuthConfigHomeDir()
   mkdirSync(dir, { recursive: true })
   const path = join(dir, fileName)
   let existing: Record<string, unknown> = { version: 1 }
