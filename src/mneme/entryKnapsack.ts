@@ -38,6 +38,7 @@ interface StartScored extends StartCandidate {
   tier: number
   tie: number
   pointer?: boolean
+  historical?: { names: number; latest: number }
 }
 
 interface StartChoice {
@@ -165,7 +166,7 @@ function earlierNotes(previous: readonly LedgerEntry[], projectKey: string): Sta
   return out
 }
 
-const byScore = (a: StartScored, b: StartScored): number => b.tier - a.tier || b.score - a.score || b.tie - a.tie || a.id.localeCompare(b.id)
+const byScore = (a: StartScored, b: StartScored): number => b.tier - a.tier || Number(a.historical !== undefined) - Number(b.historical !== undefined) || b.score - a.score || b.tie - a.tie || a.id.localeCompare(b.id)
 
 function channelScores(chunks: readonly string[], input: { candidates: readonly StartCandidate[]; now: number; dir?: string }): Map<string, number> {
   const words = new Map<string, number>()
@@ -180,31 +181,44 @@ function channelScores(chunks: readonly string[], input: { candidates: readonly 
 
 const SEMANTIC_CHUNKS = 4
 
-function taskChannel(text: string | undefined, input: { candidates: readonly StartCandidate[]; now: number; dir?: string }, semantic: boolean): Map<string, number> {
-  const scores = new Map<string, number>()
+interface ChannelHit {
+  score: number
+  historical?: { names: number; latest: number }
+}
+
+function taskChannel(text: string | undefined, input: { candidates: readonly StartCandidate[]; now: number; dir?: string }, semantic: boolean): Map<string, ChannelHit> {
+  const scores = new Map<string, ChannelHit>()
   if (!text?.trim()) return scores
   stateQueryChunks(text.split(/\s+/)).forEach((chunk, index) => {
-    const admitted = automaticMemoryCandidates(chunk, { dir: input.dir ?? mnemeLibraryDir(), pool: input.candidates, now: input.now, limit: Infinity, semantic: semantic && index < SEMANTIC_CHUNKS })
-    const taken = new Set(admitted.map(hit => hit.id))
-    const rare = scoreCandidates(chunk, input.candidates, input.now).filter(row => row.features.rareStems >= 1 && !taken.has(row.id)).sort((a, b) => b.features.bm25 - a.features.bm25 || a.id.localeCompare(b.id))
-    ;[...admitted, ...rare].forEach((hit, rank) => scores.set(hit.id, Math.max(scores.get(hit.id) ?? 0, 1 / (FUSE_K + rank + 1))))
+    automaticMemoryCandidates(chunk, { dir: input.dir ?? mnemeLibraryDir(), pool: input.candidates, now: input.now, limit: Infinity, semantic: semantic && index < SEMANTIC_CHUNKS, rareTier: true }).forEach((hit, rank) => {
+      const score = 1 / (FUSE_K + rank + 1)
+      const known = scores.get(hit.id)
+      if (!known || score > known.score) scores.set(hit.id, { score, ...(hit.historical ? { historical: hit.historical } : known?.historical ? { historical: known.historical } : {}) })
+    })
   })
   return scores
+}
+
+function historicalMark(row: { names: number; latest: number }): string {
+  return ` [historical — names beta.${row.names}; the library's latest cycle is beta.${row.latest}; not a current obligation]`
 }
 
 export function chooseAtStart(input: { candidates: readonly StartCandidate[]; chunks: readonly string[]; limit: number; pinnedChars: number; now: number; dir?: string; task?: StartTask }): StartChoice {
   const task = input.task
   const prompt = taskChannel(task?.prompt, input, true)
-  const continuation = task?.continuation?.source ? taskChannel(task.continuation.objective, input, true) : new Map<string, number>()
-  const summary = task?.continuation?.source ? taskChannel(task.continuation.summary, input, false) : new Map<string, number>()
+  const continuation = task?.continuation?.source ? taskChannel(task.continuation.objective, input, true) : new Map<string, ChannelHit>()
+  const summary = task?.continuation?.source ? taskChannel(task.continuation.summary, input, false) : new Map<string, ChannelHit>()
   const fallback = task?.prompt?.trim() || task?.continuation?.objective.trim() ? new Map<string, number>() : channelScores(input.chunks, input)
   const required = new Set((task?.required ?? []).filter(row => row.source.trim()).map(row => row.id))
   const scored: StartScored[] = input.candidates.map(candidate => {
     const tier = required.has(candidate.id) ? 4 : prompt.has(candidate.id) ? 3 : continuation.has(candidate.id) ? 2 : fallback.has(candidate.id) ? 1 : 0
-    const score = tier === 4 ? 1 : (tier === 3 ? prompt : tier === 2 ? continuation : fallback).get(candidate.id) ?? 0
-    return { ...candidate, tier, score, tie: tier === 2 ? summary.get(candidate.id) ?? 0 : 0, density: candidate.chars > 0 ? score / Math.sqrt(candidate.chars) : 0 }
+    const channel = tier === 3 ? prompt.get(candidate.id) : tier === 2 ? continuation.get(candidate.id) : undefined
+    const score = tier === 4 ? 1 : tier >= 2 ? channel?.score ?? 0 : fallback.get(candidate.id) ?? 0
+    const historical = tier === 4 ? undefined : channel?.historical ?? (tier === 3 ? continuation.get(candidate.id)?.historical : undefined)
+    const marked = historical ? { ...candidate, historical, block: `${candidate.block}${historicalMark(historical)}`, chars: candidate.chars + historicalMark(historical).length } : candidate
+    return { ...marked, tier, score, tie: tier === 2 ? summary.get(candidate.id)?.score ?? 0 : 0, density: marked.chars > 0 ? score / Math.sqrt(marked.chars) : 0 }
   })
-  const order = [...scored].sort((a, b) => b.tier - a.tier || Number(a.stale === true) - Number(b.stale === true) || b.density - a.density || b.tie - a.tie || a.id.localeCompare(b.id))
+  const order = [...scored].sort((a, b) => b.tier - a.tier || Number(a.historical !== undefined) - Number(b.historical !== undefined) || Number(a.stale === true) - Number(b.stale === true) || b.density - a.density || b.tie - a.tie || a.id.localeCompare(b.id))
   const rode: StartScored[] = []
   const left: StartScored[] = []
   const limit = Math.min(input.limit, 600 * Math.ceil(Math.log2(1 + scored.filter(row => row.score > 0 && row.tier !== 4).length)))
@@ -214,7 +228,7 @@ export function chooseAtStart(input: { candidates: readonly StartCandidate[]; ch
       rode.push(candidate)
       if (candidate.tier !== 4) used += candidate.chars
     } else if (candidate.score > 0 && candidate.kind === 'fact' && candidate.tier >= 2) {
-      const block = `- ${recordGrade(candidate.id, candidate.signature, input.dir)} [${candidate.id}] Recall read:"${candidate.id}" before the affected decision; full text did not fit.`
+      const block = `- ${recordGrade(candidate.id, candidate.signature, input.dir)} [${candidate.id}] Recall read:"${candidate.id}" before the affected decision; full text did not fit.${candidate.historical ? historicalMark(candidate.historical) : ''}`
       if (used + block.length + 1 <= limit) {
         rode.push({ ...candidate, block, chars: block.length + 1, pointer: true })
         used += block.length + 1

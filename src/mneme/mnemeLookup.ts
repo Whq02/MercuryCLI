@@ -260,7 +260,7 @@ export function rankCandidates(query: string, pool: readonly LookupCandidate[], 
 
 export interface AutomaticMemoryHit extends LookupHit {
   witness: string
-  admission: 'stems' | 'rare-stem' | 'semantic' | 'constraint' | 'companion'
+  admission: 'stems' | 'rare-stem' | 'semantic' | 'constraint' | 'companion' | 'rare-tier'
   bm25: number
   cosine: number | null
   discriminatingStems: number
@@ -349,7 +349,7 @@ function companionsOf(constraint: LookupCandidate, pool: readonly LookupCandidat
   return out
 }
 
-export function automaticMemoryCandidates(query: string, opts: { dir?: string; pool?: readonly LookupCandidate[]; files?: readonly string[]; now?: number; limit?: number; semantic?: boolean } = {}): AutomaticMemoryHit[] {
+export function automaticMemoryCandidates(query: string, opts: { dir?: string; pool?: readonly LookupCandidate[]; files?: readonly string[]; now?: number; limit?: number; semantic?: boolean; rareTier?: boolean } = {}): AutomaticMemoryHit[] {
   const dir = opts.dir ?? mnemeLibraryDir()
   const pool = opts.pool ?? candidates(dir)
   const semantic = opts.semantic === false ? new Map<string, number>() : automaticSemanticScores(query, pool, dir)
@@ -366,7 +366,7 @@ export function automaticMemoryCandidates(query: string, opts: { dir?: string; p
     const priorCycle = /\bbeta[. -]?(\d+)\b/i.exec(hit.text)?.[1]
     if (!hit.pinned && cycle && priorCycle && Number(cycle) > Number(priorCycle) && PLAN_WORDS.test(hit.text)) continue
     const cosine = semantic.get(hit.id) ?? null
-    const admission = taskConstraint(hit.text, query, opts.files ?? []) ? 'constraint' : hit.features.discriminatingStems >= 2 && hit.features.rareStems >= STEM_RARE_MIN ? 'stems' : hit.features.maxIdf >= RARE_STEM_IDF && hit.features.bm25 >= RARE_STEM_BM25 ? 'rare-stem' : cosine !== null && cosine >= SEMANTIC_FLOOR ? 'semantic' : null
+    const admission = taskConstraint(hit.text, query, opts.files ?? []) ? 'constraint' : hit.features.discriminatingStems >= 2 && hit.features.rareStems >= STEM_RARE_MIN ? 'stems' : hit.features.maxIdf >= RARE_STEM_IDF && hit.features.bm25 >= RARE_STEM_BM25 ? 'rare-stem' : cosine !== null && cosine >= SEMANTIC_FLOOR ? 'semantic' : opts.rareTier && hit.features.rareStems >= 1 ? 'rare-tier' : null
     if (admission === null) continue
     const { features, time, pinned, kind, useCount, ...row } = hit
     const historical = historicalOf(hit)
@@ -382,7 +382,7 @@ export function automaticMemoryCandidates(query: string, opts: { dir?: string; p
       admitted.push({ ...row, score: Math.min(1, features.bm25 / 10), witness: witnessOf(base.id, base.text), admission: 'companion', bm25: features.bm25, cosine: semantic.get(base.id) ?? null, discriminatingStems: features.discriminatingStems, maxIdf: features.maxIdf, ...(historical ? { historical } : {}) })
     }
   }
-  const rank = (row: AutomaticMemoryHit): number => (row.historical ? -1 : row.admission === 'constraint' ? 2 : row.admission === 'companion' ? 1 : 0)
+  const rank = (row: AutomaticMemoryHit): number => (row.historical ? -2 : row.admission === 'constraint' ? 2 : row.admission === 'companion' ? 1 : row.admission === 'rare-tier' ? -1 : 0)
   return admitted.sort((a, b) => rank(b) - rank(a) || b.score - a.score || a.id.localeCompare(b.id)).slice(0, opts.limit ?? 2)
 }
 

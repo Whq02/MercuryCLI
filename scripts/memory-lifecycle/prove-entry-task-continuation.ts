@@ -18,6 +18,8 @@ doc.sections.push({ heading: 'notes', entries: [
   { seq: 3, time: now, source: 'tool:Retain s:one', text: 'Kernel inspections use the signed boathouse checklist.' },
   { seq: 4, time: now, source: 'tool:Retain s:one', text: 'The website crew prepares the harbour release page.' },
   { seq: 5, time: now, source: 'tool:Retain s:one', text: 'The amber worktree note names the old dock.' },
+  { seq: 6, time: now, source: 'tool:Retain s:one', text: 'After 1.0.0-beta.32 ships: a showcase film about the marble pier, then the owner boosts the post.' },
+  { seq: 7, time: now, source: 'tool:Retain s:one', text: 'The 1.0.0-beta.36 marble pier page is published after the tag.' },
 ] })
 writeFileSync(join(dir, 'topic-harbour.md'), serializeTopicDoc(doc))
 writeFileSync(join(dir, 'pins.json'), '{"version":1,"pins":[]}')
@@ -37,7 +39,14 @@ try {
   assert.equal(readFileSync(join(dir, 'pins.json'), 'utf8'), pins, 'restoration never pins')
   const missing = composeStartPage({ ...base, task: { required: [{ id: 'seq:404', source: 'operator-turn-8' }] } } as never)
   assert.match(missing.text ?? '', /seq:404.*unknown.*operator-turn-8/)
-  console.log('PASS prompt precedence 4/4; pending 1/1; source-linked restoration pin-neutral')
+  const newCycle = composeStartPage({ ...base, limit: 4000, task: { prompt: 'make the film for beta.37 about the marble pier and publish the page' } } as never)
+  assert.ok(!newCycle.choice.rode.some(row => row.id === 'seq:6'), 'a prior-cycle plan dropped by the gate (the prompt names the newer cycle) never re-enters through the start block\'s lower tier')
+  assert.ok(newCycle.choice.rode.some(row => row.id === 'seq:7'), 'the current-cycle fact rides')
+  const sameWords = composeStartPage({ ...base, limit: 4000, task: { prompt: 'plan the showcase film about the marble pier' } } as never)
+  const planLine = (sameWords.text ?? '').split('\n').find(line => line.includes('<seq=6>'))
+  assert.ok(planLine === undefined || /\[historical — names beta\.32; the library's latest cycle is beta\.36; not a current obligation\]/.test(planLine), 'a prior-cycle plan that rides at start carries the historical mark')
+  assert.ok(planLine === undefined || sameWords.choice.rode.findIndex(row => row.id === 'seq:6') > sameWords.choice.rode.findIndex(row => row.id === 'seq:7'), 'and ranks after the current-cycle fact')
+  console.log('PASS prompt precedence 4/4; pending 1/1; source-linked restoration pin-neutral; a prior-cycle plan is dropped or marked at start')
 } finally {
   rmSync(home, { recursive: true, force: true })
 }
