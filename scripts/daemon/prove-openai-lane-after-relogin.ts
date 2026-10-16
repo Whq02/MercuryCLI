@@ -156,7 +156,7 @@ const readRec = (sid: string): Rec | undefined => {
     return undefined
   }
 }
-type Facts = { busy?: boolean; identity?: { accountEmail?: string | null }; usage?: { openaiObserved?: unknown; limitWarning?: unknown } }
+type Facts = { busy?: boolean; identity?: { accountEmail?: string | null }; usage?: { openaiObserved?: { primary?: { usedPct?: number } }; limitWarning?: unknown } }
 const factsPath = (sid: string): string => join(daemonDir, 'session-facts', `${sid}.json`)
 const readFacts = (sid: string): Facts | undefined => {
   try {
@@ -300,7 +300,6 @@ owned.armDaemonSignInPoke({
 })
 const pokesSettled = async (): Promise<void> => {
   await Promise.all(pokes)
-  await sleep(300)
 }
 
 type Errand = { refused: boolean; proceeded: boolean; refusal: string; hits: Capture[]; rows: string }
@@ -314,7 +313,6 @@ async function errand(sid: string, ask: string, label: string, walled = false): 
       ? since(wireBefore).some(h => h.kind === 'openai' && h.status === 429) && since(wireBefore).some(h => h.kind === 'anthropic' && h.arm === 'report')
       : rowsSince(sid, rowsBefore).includes(REFUSAL_HEAD) || rowsSince(sid, rowsBefore).includes(SUBAGENT_REPLY)
   check(`${label}: the real turn settles after its delegated result`, await untilAsync(() => turnEnded(sid) && settled(), 90_000), brief(since(wireBefore)))
-  await sleep(400)
   const rows = rowsSince(sid, rowsBefore)
   const refused = rows.includes(REFUSAL_HEAD)
   const proceeded = rows.includes(SUBAGENT_REPLY) && since(wireBefore).some(h => h.kind === 'openai' && h.arm === 'delegate' && h.status === 200)
@@ -357,7 +355,7 @@ try {
   section('§3 a long window is observed on the GPT row; the next delegated errand still reaches its provider')
   const spend = await errand(sid, DELEGATE_GPT_SPEND_ASK, 'the spend', true)
   check('the delegate rode the OpenAI wire under A and was walled with a long reset', spend.hits.some(h => h.kind === 'openai' && h.arm === 'spend' && h.status === 429 && h.token === ACCOUNTS.a.tail), brief(spend.hits))
-  await sleep(1_000)
+  check('the published usage facts carry the reached window', await untilAsync(() => readFacts(sid)?.usage?.openaiObserved?.primary?.usedPct === 100))
   keep('facts-after-wall.json', readFileSync(factsPath(sid), 'utf8'))
   const walled = await errand(sid, DELEGATE_GPT_ASK, 'the errand under the wall')
   check('the observed long window does not block the next request: OpenAI serves it once under A', servedUnder(walled, ACCOUNTS.a) && servedBeforeReset(walled, spend, RESET_LONG_SECONDS), walled.refusal || brief(walled.hits))
@@ -374,7 +372,7 @@ try {
   const catalogueReadForB = await untilAsync(() => since(wireBeforeRelogin).some(h => h.kind === 'models' && h.token === ACCOUNTS.b.tail), 10_000)
   check("the daemon's word reached the runner: it read the catalogue under B on the poke, before any errand (its memo follows the credential)", catalogueReadForB, brief(since(wireBeforeRelogin)))
   console.log(`      daemon: ${daemonLog().slice(logBefore).split('\n').filter(l => l.includes('credential moved')).join(' | ') || '(the relay line is a debug-only log; the wire above is the evidence)'}`)
-  await sleep(2_000)
+  check('the published usage facts forget the previous account on sign-in', await untilAsync(() => { const facts = readFacts(sid); return facts?.usage !== undefined && facts.usage.openaiObserved?.primary === undefined }))
   keep('facts-after-relogin.json', readFileSync(factsPath(sid), 'utf8'))
 
   section('§5 the next delegated errand after the re-login — the defect as the owner met it')
@@ -384,7 +382,7 @@ try {
   check('the dispatch is not refused: the wall observed under A does not outlive A', !after.refused, after.refusal)
   check("the delegate's request rode the OpenAI wire under B and was answered", after.proceeded && after.hits.some(h => h.kind === 'openai' && h.arm === 'delegate' && h.token === ACCOUNTS.b.tail && h.status === 200), brief(after.hits))
   check("the transcript carries the delegate's reply, not the pending-catalogue words", after.rows.includes(SUBAGENT_REPLY) && !after.rows.includes('live catalogue not fetched yet'), unescaped(after.rows).match(/the delegate reported:[^"\\]{0,200}/)?.[0] ?? '(no report)')
-  await sleep(1_000)
+  check('the published usage facts carry the new account response', await untilAsync(() => readFacts(sid)?.usage?.openaiObserved?.primary?.usedPct === 40))
   keep('facts-after-dispatch.json', readFileSync(factsPath(sid), 'utf8'))
 
   section('§6 a stored window and an unreachable catalogue do not become admission gates')

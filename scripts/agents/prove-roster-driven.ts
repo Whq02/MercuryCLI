@@ -433,7 +433,7 @@ section('§5 the docs skill in a fresh chat: how do I schedule a prompt — answ
   if (KEEP) console.log(`  [docs] requests=${captured.length} exit=${run.exit}\n${run.stderr.slice(-800)}`)
   const all = captured
   const skillTurn = all.find(body => JSON.stringify(body).includes("Answer the question from Mercury's own documentation"))
-  check("the Skill tool expanded mercury-docs into the chat with the shipped pages' map", skillTurn !== undefined && JSON.stringify(skillTurn).includes('- docs/SATURN.md — Saturn — session schedules'), `${all.length} request(s); exit=${run.exit}; ${run.stderr.slice(-300)}`)
+  check("the Skill tool expanded mercury-docs into the chat with the shipped pages' map", skillTurn !== undefined && JSON.stringify(skillTurn).includes('- docs/SATURN.md — Saturn: session schedules'), `${all.length} request(s); exit=${run.exit}; ${run.stderr.slice(-300)}`)
   const base = /Base directory for this skill: (\S+) /.exec(JSON.stringify(skillTurn ?? {}))?.[1]?.replace(/\\\\/g, '\\')
   check('the pages stand extracted under a per-process temp root, not the config home', base !== undefined && !base.startsWith(world.home) && existsSync(join(base, 'docs', 'SATURN.md')), String(base))
   const saturnRead = all.flatMap(toolResultsOf).find(t => t.includes('## In-session schedules'))

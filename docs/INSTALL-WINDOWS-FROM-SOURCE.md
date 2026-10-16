@@ -1,4 +1,4 @@
-# Mercury on Windows — install from source
+# Mercury on Windows: install from source
 
 The release route on Windows is one line in PowerShell 7 (`irm … | iex` in the
 README's Install section) and needs Git and nothing else.
@@ -21,21 +21,20 @@ this page builds from source, which needs Node and bun too.) You will:
 
 1. install three tools (Git, Node, bun),
 2. clone the repository,
-3. run two commands that produce `dist\mercury.mjs`,
+3. run `bun run setup` (or the individual install and pack steps) and `bun run build.ts` to produce `dist\mercury.mjs`,
 4. run it.
 
 Mercury keeps its settings and sessions in `%USERPROFILE%\.mercury`
 (`C:\Users\<you>\.mercury`). The build never writes there; the first run
 creates it.
-
 ---
 
 ## 1. Open the right terminal
 
 Two different things: the **host** and the **shell**. Windows Terminal is the
-host — the full interface is designed for it (the VS Code integrated terminal
+host: the full interface is designed for it (the VS Code integrated terminal
 also qualifies). A host that does not meet the profile shows a
-terminal-check card first, and its first row — `1`, Continue anyway —
+terminal-check card first, and its first row (`1`, Continue anyway)
 starts the full interface. The card names what is missing; continuing does
 not select a reduced presentation.
 PowerShell 7 (`pwsh`) is the shell to run inside that host. Not `cmd.exe`,
@@ -54,18 +53,17 @@ winget install --id Microsoft.PowerShell --source winget
 ```
 
 then close the terminal and open **PowerShell 7** as a Windows Terminal
-profile (Windows Terminal lists it in its new-tab menu once installed — the
+profile (Windows Terminal lists it in its new-tab menu once installed; the
 Start-menu "PowerShell 7" entry opens a standalone console, which works but
 meets the terminal-check card first). Run the check again.
-
 There is no minimum terminal size. Small windows use a compact layout and
 prioritize the input; enlarging the window restores the hidden detail. The
 full interface starts at 100 columns and 26 rows. Maximised is fine.
 
 One more thing: the console must use the UTF-8 code page, or the interface's
 box-drawing renders as garbage (`ΓöÇ`-style on code page 437; accented-letter
-salad on 850 — the exact letters depend on the console's default). Mercury sets it itself on every
-interactive start — the release launcher and the bundle both do — so normally
+salad on 850, depending on the console's default). Mercury sets it itself on every
+interactive start (the release launcher and the bundle both do), so normally
 there is nothing to do. If the box-drawing still renders wrong, check and set
 it by hand:
 
@@ -104,15 +102,14 @@ Git for Windows also installs `bash.exe`, the shell Mercury's Bash tool runs
 under when it is found. A release archive carries its own bash-compatible
 shell engine as well (brush, built from its published crate), and a box
 with no `bash.exe` runs the Bash tool through it with nothing to set: the
-`health` report's **Bash tool shell** row (check id `shell`) then says
-"the bundled shell engine at … — no bash.exe was found on this machine",
-and with Git for Windows present it says "git-bash at … — found on this
-machine". A source build gets the same engine once step 7 builds it. Two
+`health` report's **Bash tool shell** row (check id `shell`) then reports the
+bundled shell engine when no `bash.exe` was found, or `git-bash` when Git for
+Windows is present. A source build gets the same engine once step 7 builds it. Two
 things the engine cannot do on Windows at this version: run a `.cmd` shim
 such as `npm` or `npx` directly (`cmd /c npm …` works, or `node` on the
 script), and find a program named by a relative path after a `cd` (use its
-absolute path). Without either shell — no Git for Windows and no engine
-pack — Mercury still starts, but the Bash tool is missing from the model's
+absolute path). Without either shell (no Git for Windows and no engine
+pack), Mercury still starts, but the Bash tool is missing from the model's
 tool list (the PowerShell tool stays), the **Bash tool shell** row warns,
 and a notice at the start of a session names the ways out: install Git for
 Windows; set `MERCURY_GIT_BASH_PATH` to your `bash.exe` when Git is
@@ -122,14 +119,12 @@ as `system`) keeps the Bash tool on `bash.exe` alone, and `brush` runs it on
 the engine even when `bash.exe` is present; the `/config` row **Shell
 engine** shows `system` for the default, which lets the engine arm itself.
 A `MERCURY_GIT_BASH_PATH` that points at a file that does not exist stops
-Mercury at start with a message saying so — fix the path.
-
+Mercury at start with a message saying so; fix the path.
 ---
 
 ## 3. Install Node 24
 
-Mercury runs on Node **24.x** — not 22, not 25 — and within 24, at least
-**24.20.0**. The floor matters on Windows specifically: 24.20.0 is the first
+Mercury runs on Node **24.x** (at least **24.20.0** and below 25). The floor matters on Windows specifically: 24.20.0 is the first
 Node 24 that carries the fix for nodejs/node#56645, and below it a headless
 `run` command that dispatched any tool aborts at exit with 0xC0000409. The exact
 patch the project builds with is written in the repository file
@@ -159,7 +154,7 @@ The `health` report you will meet in step 9 reads this same policy:
 its **Node & ripgrep** row (check id `runtime`) shows which Node it runs on
 (the vendored runtime beside the build, an explicit `MERCURY_NODE`, or the
 PATH Node it found) against the supported range, and when its fix line says to install Node
-24.20.0 or newer it means this floor — the nodejs/node#56645 exit abort is
+24.20.0 or newer it means this floor: the nodejs/node#56645 exit abort is
 what it is protecting you from. On a Node below the floor you rarely get
 that far: every `node dist\mercury.mjs` route, `health` included, refuses at
 boot with the same sentence and exits non-zero, so an "unsupported Node"
@@ -194,7 +189,7 @@ bun upgrade
 
 ## 5. Clone the repository
 
-Pick a folder path you can type easily — `C:\src` is a good choice. Spaces
+Pick a folder path you can type easily (`C:\src` is a good choice). Spaces
 in the path are fine.
 
 ```powershell
@@ -215,7 +210,23 @@ Expect a short hash on the first line and `True` on the second.
 
 ---
 
-## 6. Install the dependencies
+## 6. Install the dependencies (or run `bun run setup`)
+
+To run `bun install` and every vendored fetch and native build from step 7 in
+one command, run:
+
+```powershell
+bun run setup
+```
+
+`bun run setup` runs `bun install`, downloads the five fetched packs in step 7,
+and builds the native addons (`native/voice`, `native/whisper`,
+`native/desktop` and `native/embed`) plus the default embedding model whenever
+Rust (`cargo`, and `cmake` for `native/whisper`) is installed, skipping any
+pack whose toolchain is absent. On Windows, compile the `brush` shell engine
+separately with `bun run scripts/vendor/build-brush.ts` when Rust is installed.
+
+If you prefer to run the steps one at a time, start with `bun install`:
 
 ```powershell
 bun install --frozen-lockfile
@@ -232,7 +243,7 @@ Test-Path node_modules
 
 Expect `True`.
 
-If it fails with a network error, run the same command again — it resumes.
+If it fails with a network error, run the same command again to resume.
 If it fails with anything about `lockfile`, you are on the wrong bun version;
 go back to step 4.
 
@@ -240,13 +251,15 @@ go back to step 4.
 
 ## 7. Fetch the optional language packs
 
-These five commands download pinned, hash-verified helpers: the Python
-language server, the Python debugger, the Node/TypeScript debug adapter,
-extra tree-sitter grammars for the structural code tools, and this
-machine's own Node runtime (the official `win-x64` build, vendored beside
+If you already ran `bun run setup` in step 6, only `bun run scripts/vendor/build-brush.ts`
+remains here (upstream publishes no Windows binary for `brush`, so it is compiled
+from its crate). Otherwise, these five commands download pinned, hash-verified
+helpers: the Python language server, the Python debugger, the Node/TypeScript
+debug adapter, extra tree-sitter grammars for the structural code tools, and
+the Windows Node runtime (the official `win-x64` build, vendored beside
 the bundle so a release archive made from this build needs no Node
 install). Mercury builds and runs **without** them (the build prints a
-warning naming what was skipped, and the affected features say so honestly
+warning naming what was skipped, and the affected tools say so honestly
 at runtime), but a full install has them.
 
 ```powershell
@@ -262,14 +275,14 @@ installed (https://rustup.rs, the MSVC toolchain): the voice capture addon
 (`bun run scripts/vendor/build-voice.ts`), the on-device transcriber addon
 (`bun run scripts/vendor/build-whisper.ts`, which also needs cmake beside
 cargo: `winget install Kitware.CMake`), the shell engine
-(`bun run scripts/vendor/build-brush.ts` — upstream publishes no Windows
-binary, so the engine is compiled from its published crate; the first build
+(`bun run scripts/vendor/build-brush.ts`; upstream publishes no Windows
+binary, so the engine is compiled from its published crate and the first build
 takes several minutes), and the local semantic memory embedding addon and
 118 MB `bge-base-en-v1.5` model (`bun run scripts/vendor/build-embed.ts` and
 `bun run scripts/vendor/fetch-embed-models.ts --default`; without them, Mneme
 memory lookup runs word match only). Without cargo, or without cmake for the
 transcriber, each says so and skips: Mercury runs without voice input, voice
-takes go to a cloud transcriber, memory runs word match only, and the Bash tool
+takes go to a remote transcriber, memory runs word match only, and the Bash tool
 keeps Git for Windows' bash (the health check names each remedy). A release
 archive always carries the engine, the embedding pack and the model; only a
 source build without cargo lacks them. On Windows the embedding pack runs a
@@ -286,13 +299,12 @@ bun run scripts/vendor/build-desktop.ts
 Without this pack, the Computer tool is unavailable.
 
 Each should end without an error. `fetch-debugpy` unpacks the wheel with the
-first extractor it finds — `unzip`, `python3`, `tar.exe` (ships with Windows
-10 1803 and later), `python`, `py -3` — so a stock Windows box needs nothing
+first extractor it finds (`unzip`, `python3`, `tar.exe` on Windows 10 1803 and
+later, `python`, `py -3`), so a stock Windows box needs nothing
 extra. If every candidate is missing, the fetch says so, the build records
 `degraded: python-debugger`, and everything else still works. If a fetch
-fails on a download, retry it once; if it still fails, continue — nothing
+fails on a download, retry it once; if it still fails, continue, as nothing
 below depends on it.
-
 ---
 
 ## 8. Build
@@ -311,7 +323,7 @@ Test-Path dist\manifest.json
 ```
 
 Expect `True` and `True`. If `manifest.json` is missing the build was
-degraded — read the build output for the first line containing `error` and
+degraded: read the build output for the first line containing `error` and
 fix that before continuing.
 
 ---
@@ -324,8 +336,8 @@ Version check (no interface, safe anywhere):
 node dist\mercury.mjs --version
 ```
 
-Health check — this prints a JSON report and is the single most useful thing
-to paste when asking for help:
+Health check (prints a JSON report and is the single most useful thing
+to paste when asking for help):
 
 ```powershell
 node dist\mercury.mjs health --json
@@ -354,8 +366,8 @@ logon session is still connected). A process whose console host is alive reads
 as having a live terminal; one with no console does not, whatever its session;
 when the console cannot be read, a connected interactive session counts as
 live and a disconnected one leaves the read unknown. An unknown read is never
-permission to end anything, and a failed table is reported as incomplete
-rather than as an empty success. Ending a process re-checks its pid, birth,
+permission to end anything, and a failed table is reported as incomplete.
+Ending a process re-checks its pid, birth,
 executable and account against what was reviewed, refuses a process that is
 not the current user's or whose terminal is live or unknown, re-reads all of
 that once more immediately before acting, and then ends that one process,
@@ -383,22 +395,22 @@ screenshot is shrunk to the model provider's limits, never refused for its
 size; `node dist\mercury.mjs health --json` names the image processor in
 its `iface-image-processor` row.
 
-Where you land: every start with no explicit journey lands on the Boot face
-— the card of New Session · Continue Last Session (once session history
-exists) · Boot Menu · MCPs & Skills · Agents · Health Check ·
-Saturn Scheduler · Logins · Session Concourse · Sessions · Projects —
+Where you land: every start with no explicit journey lands on the home screen
+(the card of New Session · Continue Last Session, once session history
+exists · Boot Menu · MCPs & Skills · Agents · Health Check ·
+Saturn Scheduler · Logins · Session Concourse · Sessions · Projects)
 whether Mercury was started as
 `node dist\mercury.mjs` or through the `mercury` launcher of a release
 install. Starting with a prompt argument, `--continue`, or `--resume` goes
 straight into the chat. Inside the chat, shift+← walks back to the concourse
-and the Boot face at any time; with `--chat` (or the concourse switched off)
-shift+← is the Boot face directly — the strip is the face and the chat alone.
+and the home screen at any time; with `--chat` (or the concourse switched off)
+shift+← goes to the home screen directly.
 
-A source build started this way paints the launch splash first — the
-circuit-trace animation before the Boot face — exactly as a release
+A source build started this way paints the launch splash first (the
+circuit-trace animation before the home screen), just as a release
 install's `mercury` launcher does: the build copies the splash beside
 `dist\mercury.mjs`, and a bare `node dist\mercury.mjs` runs it before the
-face. `$env:MERCURY_SPLASH = "off"` skips it on both roads; a start with any
+home screen. `$env:MERCURY_SPLASH = "off"` skips it on both roads; a start with any
 argument (a prompt, `--continue`, a verb) goes straight to its destination.
 
 ### A prompt from a script
@@ -461,9 +473,8 @@ bun run build.ts
 ```
 
 If `git pull` complains about local changes you did not make, run
-`git status` and paste the output when asking for help — do not force
+`git status` and paste the output when asking for help; do not force
 anything.
-
 ---
 
 ## When something goes wrong
@@ -483,8 +494,8 @@ Common cases:
 | You see | It means | Do |
 |---|---|---|
 | `'bun' is not recognized` | terminal opened before bun was installed | close the terminal, open a new one |
-| `The engine "node" is incompatible` or a Node version error | wrong Node major | step 3 — must be 24.x |
-| `dist\manifest.json` lists names under `degraded` | a vendor fetch was skipped or failed — the build itself still succeeds and prints `BUILD OK` | re-run the fetch it names (step 7), then build again |
+| `The engine "node" is incompatible` or a Node version error | wrong Node major | step 3 (must be 24.x) |
+| `dist\manifest.json` lists names under `degraded` | a vendor fetch was skipped or failed (the build itself still succeeds and prints `BUILD OK`) | re-run `bun run setup` or the fetch it names (step 7), then build again |
 | compact controls or clipped detail | the window has little space | enlarge it to show more; the input and exit keys remain available |
 | an immediate exit that names `mercury run` | stdout is not a terminal (piped or redirected), which Mercury reads as a headless run | run from an interactive Windows Terminal window, or pass a prompt for a headless run |
 | a "Bash tool absent" notice, or the `health` **Bash tool shell** row warns | neither `bash.exe` nor the shell engine serves: Git for Windows is missing or not where Mercury looks, and this source build has no engine pack (a release archive always carries one) or `MERCURY_SHELL_ENGINE=system` turned the engine off | step 2, or set `MERCURY_GIT_BASH_PATH` to your `bash.exe`, or build the engine (step 7), or unset `MERCURY_SHELL_ENGINE` |

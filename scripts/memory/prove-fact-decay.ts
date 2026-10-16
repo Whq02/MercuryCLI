@@ -29,7 +29,10 @@ try {
   const pointers = searchPointers('archive', { dir, limit: 2, sessions: [], now }).pointers
   assert.equal(pointers[0]?.id, 'seq:106')
   assert(pointers[1]?.title.includes(`[stale — not confirmed since ${stamp(90).slice(0, 10)}]`))
-  assert.deepEqual(Object.keys(pointers[1]!).sort(), ['footnotes', 'id', 'kind', 'title'])
+  assert.deepEqual(Object.keys(pointers[1]!).sort(), ['footnotes', 'freshness', 'id', 'kind', 'source', 'title'])
+  assert.equal(pointers[1]!.freshness?.status, 'stale')
+  assert.equal(pointers[1]!.freshness?.confirmedAt, stamp(90))
+  assert.equal(pointers[1]!.source?.page, 'facts')
   assert(renderPointerLine(pointers[1]!).includes('[stale — not confirmed since'))
   assert.deepEqual(readUsage(dir), {})
   assert.equal(readFileSync(join(dir, docFileName(doc.slug)), 'utf8'), before)
