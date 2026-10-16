@@ -103,6 +103,7 @@ t.section('§4 — pokeWorkbench (the template) honours a mid-refresh trigger')
 
   const projection = await import('../../src/services/workbench/projection.ts')
   projection._resetWorkbenchForTesting()
+  await projection.gatherWorkbenchInputs({})
   const unsub = projection.subscribeWorkbench(() => {})
   const version = (): number => projection.getWorkbenchSnapshot()?.version ?? 0
 

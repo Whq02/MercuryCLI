@@ -17,6 +17,7 @@ enableConfigs()
 const projection = await import('../../src/services/workbench/projection.ts')
 const version = (): number => projection.getWorkbenchSnapshot()?.version ?? 0
 const stamp = (): number | undefined => projection.getWorkbenchSnapshot()?.gatherGeneration
+await projection.gatherWorkbenchInputs({})
 
 t.section('§1 — a stopped engine mints a FRESH lane on restart')
 {
