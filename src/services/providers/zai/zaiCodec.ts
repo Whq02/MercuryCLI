@@ -47,6 +47,10 @@ export function toolDeclarationRowAsText(tools: readonly ZaiTool[]): ZaiMessage 
   return { role: 'system', content: toolDeclarationText(tools) }
 }
 
+export function toolDeclarationRowInResult(tools: readonly ZaiTool[]): ZaiMessage {
+  return { role: 'tool', content: toolDeclarationText(tools) }
+}
+
 function imageUrlOfBlock(block: unknown): string | undefined {
   if (typeof block !== 'object' || block === null) return undefined
   const source = (block as { source?: unknown }).source
@@ -164,10 +168,12 @@ export function mapMessagesToZai(
       if (item.type === 'text') userParts.push(item.text)
       else if (item.type === 'tool_result') {
         const parts = partsOfToolResultContent(item.output, imagesSupported)
-        toolRows.push({ role: 'tool', tool_call_id: item.call_id, content: (item.value as { is_error?: boolean }).is_error ? `[tool error] ${parts.text}` : parts.text })
-        userImages.push(...parts.images)
+        const resultText = (item.value as { is_error?: boolean }).is_error ? `[tool error] ${parts.text}` : parts.text
         const declaration = opts?.toolDeclarations?.get(item.call_id)
-        if (declaration !== undefined) declarationRows.push(declaration)
+        const inResult = declaration !== undefined && 'content' in declaration && declaration.role === 'tool' && typeof declaration.content === 'string' ? declaration.content : undefined
+        toolRows.push({ role: 'tool', tool_call_id: item.call_id, content: inResult !== undefined ? `${resultText}\n\n${inResult}` : resultText })
+        userImages.push(...parts.images)
+        if (declaration !== undefined && inResult === undefined) declarationRows.push(declaration)
       } else {
         const url = item.value.type === 'image' && imagesSupported ? imageUrlOfBlock(item.value) : undefined
         if (url !== undefined) userImages.push(url)
