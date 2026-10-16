@@ -81,6 +81,10 @@ try {
     'the pack teaches the three review answers and the only-door law',
     /yes-but-ask-first/.test(text) && /Ask me more questions/.test(text) && /only door to the build/.test(text),
   )
+  check(
+    'the write-only-the-spec rule is stated where the files are named (Phase 2) and at the close, not a third time in Phase 1',
+    !/write and edit ONLY the spec files/.test(text) && /the spec directory is the one place a write is admitted/.test(text) && /until the user approves the review, write only the spec files/.test(text),
+  )
   for (const off of [undefined, 'default', 'implement', 'flow', 'sovereign'] as const) {
     check(`${String(off)} ⇒ [] (byte-identical prompt off-mode)`, pack.getApolloModeSections(off as never).length === 0)
   }
