@@ -82,7 +82,7 @@ section('§1 the block form, first party')
 
 section('§2 the text form')
 {
-  const TEXT = 'local/qwen3-32b'
+  const TEXT = 'glm-5.3'
   check(`${TEXT} rides the text form`, deferralWireFormFor(TEXT).form === 'text')
   const text = await ToolSearchTool.prompt({ model: TEXT })
   check('the description equals the specification\'s text-form text exactly', text === SPEC_TEXT, firstDifference(text, SPEC_TEXT))

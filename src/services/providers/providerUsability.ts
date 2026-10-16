@@ -57,6 +57,7 @@ export interface ProviderUsabilityReads {
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
   localServerPresent?: () => boolean
+  localAccount?: () => { label: string; modelCount: number } | undefined
   openrouterKeyPresent?: () => boolean
   openrouterKeyRefused?: () => string | undefined
   geminiAccount?: () => { kind: 'oauth' | 'api-key' | 'plan' } | undefined
@@ -202,6 +203,11 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
       const { resolveLocalAccount } =
         require('./local/localAccounts.js') as typeof import('./local/localAccounts.js')
       return resolveLocalAccount() !== undefined
+    },
+    localAccount: () => {
+      const { resolveLocalAccount } =
+        require('./local/localAccounts.js') as typeof import('./local/localAccounts.js')
+      return resolveLocalAccount()
     },
     openrouterKeyPresent: () => {
       const { resolveOpenrouterApiKey } =
@@ -379,10 +385,12 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     'no Hugging Face credential — /logins (or HF_TOKEN)',
     huggingfaceAccount?.kind === 'oauth' ? 'oauth' : 'api-key',
   )
+  const localAccount = reads.localAccount?.()
+  const { LOCAL_NO_SERVER_BLOCKER } = require('./local/localAccounts.js') as typeof import('./local/localAccounts.js')
   const local = keyLane(
     'local',
-    reads.localServerPresent?.() ?? false,
-    'no local server discovered — start Ollama/LM Studio/vLLM/llama.cpp-server or set MERCURY_LOCAL_BASE_URL',
+    localAccount !== undefined ? localAccount.modelCount > 0 : (reads.localServerPresent?.() ?? false),
+    localAccount !== undefined && localAccount.modelCount === 0 ? localAccount.label : LOCAL_NO_SERVER_BLOCKER,
     'keyless',
   )
 
