@@ -1068,10 +1068,7 @@ async function* runEventMachine(
     )
 
     const forcedFold = pendingOverflow?.rung === 'fold' ? pendingOverflow.signal : undefined
-    const foldSplit =
-      forcedFold !== undefined
-        ? splitCarriedOperatorTail(messagesForQuery)
-        : { head: messagesForQuery, carry: [] as Message[], hasHistory: true }
+    const foldSplit = splitCarriedOperatorTail(messagesForQuery)
     const {
       compactionResult,
       consecutiveFailures,
@@ -1215,7 +1212,7 @@ async function* runEventMachine(
         compactionResult?.truePostCompactTokenCount ??
         Math.max(
           0,
-          (measuredRawTokenCount ?? tokenCountWithEstimation(messagesForQuery, toolUseContext.options.engineModel)) -
+          ((foldSplit.carry.length === 0 ? measuredRawTokenCount : null) ?? tokenCountWithEstimation(messagesForQuery, toolUseContext.options.engineModel)) -
             prunedTokensFreed,
         )
       const { level } = calculateTokenWarningState(

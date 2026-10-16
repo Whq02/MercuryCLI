@@ -133,11 +133,15 @@ function formatCompactSummary(summary: string): string {
   return out.trim()
 }
 
+export const NEWEST_MESSAGE_HAS_THE_FLOOR =
+  "The operator's newest message follows below, after the preserved messages: it was sent after everything above and it has the floor. Answer it first and in full; carry the task in flight on only afterwards, and only if that message does not change it. No acknowledgement of the summary, no recap of what was happening."
+
 export function getCompactUserSummaryMessage(
   summary: string,
   suppressFollowUpQuestions?: boolean,
   transcriptPath?: string,
   recentMessagesPreserved?: boolean,
+  newestMessageFollows?: boolean,
 ): string {
   const parts = [
     'The context window turned over; this session carries on from an earlier stretch of the same conversation. The summary below holds the earlier portion.',
@@ -151,7 +155,9 @@ export function getCompactUserSummaryMessage(
   if (recentMessagesPreserved === true) {
     parts.push('The most recent messages of the conversation are preserved verbatim after this summary.')
   }
-  if (suppressFollowUpQuestions === true) {
+  if (newestMessageFollows === true) {
+    parts.push(NEWEST_MESSAGE_HAS_THE_FLOOR)
+  } else if (suppressFollowUpQuestions === true) {
     parts.push(
       'Pick the work up exactly where it stopped, with no questions back to the operator. Resume directly — no acknowledgement of the summary, no recap of what was happening, no "I\'ll continue" preface. Carry the last task on as if the break never happened.',
     )
