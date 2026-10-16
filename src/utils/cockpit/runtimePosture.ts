@@ -139,11 +139,8 @@ export function getRuntimePostureSection(): string | null {
 }
 
 export function getRuntimePostureDoctrineLine(): string | null {
-  if (!runtimePostureEnabled()) return null
-  const denyClause = nonInteractive
-    ? 'this process is headless: an unanswerable permission ask is denied automatically, and a denial is policy, not tool failure'
-    : 'a denied tool call may be permission policy, not tool failure — say which it was'
-  return `Runtime posture: ${denyClause}; a file-lease denial means another agent holds those paths (coordinate, do not force).`
+  if (!runtimePostureEnabled() || !nonInteractive) return null
+  return 'Runtime posture: this process is headless: an unanswerable permission ask is denied automatically, and a denial is policy, not tool failure; a file-lease denial means another agent holds those paths (coordinate, do not force).'
 }
 
 export function resetRuntimePostureForTest(): void {
