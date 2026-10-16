@@ -36,12 +36,11 @@ export const REFLECT_PROMPT = `Answer a question by synthesizing over recalled m
 - No usable model/credentials degrades typed: you get the raw recall plus the reason.
 - This costs a model call — use Recall alone when you just need the records. Reflect never writes anything.`
 
-export const CORRECT_PROMPT = `Correct one memory record by its id from Recall: seq:<n> (a consolidated fact) or pending:<ts> (a draft still in the buffer).
+export const CORRECT_PROMPT = `Correct one memory record by its id from Recall.
 
 - op 'supersede' — a new truth replaces the fact; pass content (or replacementId naming an existing seq that already carries the truth). The old fact moves to history with a superseded-by pointer.
 - op 'amend' — fix the record's own wording; requires the full record to have been read this session (Recall read:"<id>" first) so a clipped preview can never destroy an unseen tail.
 - op 'retract' — mark the fact wrong with a reason. A consolidated fact is never hard-deleted: history is the audit spine.
 - A pending row (pending:<ts>) is a draft, not yet a fact: retract strikes it — its bytes leave the buffer and no history is kept; supersede or amend replaces it with a new pending row. This is the road when the user corrects or wants to forget something said minutes ago, before consolidation. A corrected or struck draft never lands on a page.
 - A pinned rule marked "asked for by the user" changes only on the user's answer: the tool puts one card to them with the rule's words as stored and what will happen. Yes runs the op as /memory does (the old wording to history; a draft struck); No returns "the user kept the rule" and nothing changes. Under the sovereign permission mode the op runs without the card and its record says so. A session with no one to answer the card refuses: tell the user the road — in /memory, under pinned rules, ↵ opens the rule and c corrects it (the old wording goes to history), u unpins it. A rule they have unpinned is a plain fact again and Retain with replaces supersedes it when they restate it.
-- Content that looks like a key, a token or a password is refused: memory never holds a secret.
-- Every op carries a reason.`
+- Content that looks like a key, a token or a password is refused: memory never holds a secret.`
