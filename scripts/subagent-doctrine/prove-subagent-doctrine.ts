@@ -93,22 +93,47 @@ process.env.MERCURY_BARE = '1'
 check('memory off: no front page in the doctrine', !join(buildSubagentMercurySections({ agentDefinition: GP })).includes('# Memory'))
 delete process.env.MERCURY_BARE
 
-section('(e1) memory front page — the verb sentence rides only with a reader that has the verbs')
+section('(e1) memory front page — the verb sentence rides only with a reader that has the verbs; an empty library is one sentence')
 {
-  const { MEMORY_WRITE_VERBS_SENTENCE } = await import('../../src/mneme/mnemeFrontPage.js')
-  const memoryOf = (sections: string[]): string => sections.find(s => s.startsWith('# Memory')) ?? ''
-  const crew = memoryOf(buildSubagentMercurySections({ agentDefinition: GP }))
-  const scout = memoryOf(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } }))
-  check('the crew front page names Retain and Correct', crew.includes(MEMORY_WRITE_VERBS_SENTENCE))
-  check("the scout's front page carries the index and the pinned shelf", scout.includes('## Index') && scout.includes('## Pinned'))
-  check("the scout's front page names no verb it cannot call (Retain, Correct)", !scout.includes('Retain') && !scout.includes('Correct') && !scout.includes(MEMORY_WRITE_VERBS_SENTENCE), scout.split('\n')[1]?.slice(0, 200))
-  check("the scout's page still names Recall, which it has", scout.includes('Recall'))
-  check('the two pages differ only by the verb sentence and the empty-index words', crew.replace(` ${MEMORY_WRITE_VERBS_SENTENCE}`, '').replace('(nothing saved yet — Retain saves the first fact)', '(nothing saved yet)') === scout)
-  const reader = memoryOf(buildSubagentMercurySections({ agentDefinition: { agentType: 'quiet-reader' }, toolNames: new Set(['Read', 'Grep']) }))
-  const writer = memoryOf(buildSubagentMercurySections({ agentDefinition: { agentType: 'remembering' }, toolNames: new Set(['Read', 'Grep', 'Retain', 'Recall', 'Reflect', 'Correct']) }))
-  check('a custom agent whose tools lack Retain gets the reading page', !reader.includes('Retain') && reader.includes('## Pinned'))
-  check('a custom agent granted the memory verbs gets the full page', writer.includes(MEMORY_WRITE_VERBS_SENTENCE))
-  check('with no tool list given (the fork path) the full page stands', memoryOf(buildSubagentMercurySections({ agentDefinition: GP })).includes(MEMORY_WRITE_VERBS_SENTENCE))
+  const { mkdtempSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const priorHome = process.env.MERCURY_CONFIG_DIR
+  const scratchHome = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'doctrine-memory-'))
+  process.env.MERCURY_CONFIG_DIR = scratchHome
+  try {
+    const { MEMORY_WRITE_VERBS_SENTENCE } = await import('../../src/mneme/mnemeFrontPage.js')
+    const memoryOf = (sections: string[]): string => sections.find(s => s.startsWith('# Memory')) ?? ''
+    const emptyCrew = memoryOf(buildSubagentMercurySections({ agentDefinition: GP }))
+    const emptyScout = memoryOf(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } }))
+    check('an empty library is the heading and one sentence for every agent — no index, no pinned tier painted', emptyCrew.split('\n').length === 2 && emptyScout.split('\n').length === 2 && !emptyCrew.includes('## Index') && !emptyCrew.includes('## Pinned'), emptyCrew)
+    check('the empty page names Retain only for a reader that has it, and Recall for both', emptyCrew.includes('Retain saves the first fact') && !emptyScout.includes('Retain') && emptyCrew.includes('Recall') && emptyScout.includes('Recall'), emptyScout)
+    check('the two empty pages differ only by the Retain words', emptyCrew.replace(' Retain saves the first fact;', '') === emptyScout)
+    const { appendObservation } = await import('../../src/mneme/mnemeBuffer.js')
+    const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.js')
+    const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
+    const { readPins } = await import('../../src/mneme/mnemeUsage.js')
+    const dir = mnemeLibraryDir()
+    appendObservation({ text: 'the harbour gate opens after the smoke suite', source: 'proof', topicHint: 'harbour' }, dir)
+    appendObservation({ text: 'say what happened first, then what it means', source: 'proof', topicHint: 'rules', pin: true, asked: true }, dir)
+    check('the scratch library landed a fact and a pinned rule', maybeConsolidate({ force: true, dir, now: new Date('2026-01-01T00:00:00Z') }).consolidated === true && readPins(dir).some(p => p.asked === true))
+    const crew = memoryOf(buildSubagentMercurySections({ agentDefinition: GP }))
+    const scout = memoryOf(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } }))
+    check('the crew front page names Retain and Correct', crew.includes(MEMORY_WRITE_VERBS_SENTENCE))
+    check("the scout's front page carries the index and the pinned shelf", scout.includes('## Index') && scout.includes('## Pinned') && scout.includes('say what happened first'), scout)
+    check("the scout's front page names no verb it cannot call (Retain, Correct)", !scout.includes('Retain') && !scout.includes('Correct') && !scout.includes(MEMORY_WRITE_VERBS_SENTENCE), scout.split('\n')[1]?.slice(0, 200))
+    check("the scout's page still names Recall, which it has", scout.includes('Recall'))
+    check('the two pages differ only by the verb sentence', crew.replace(` ${MEMORY_WRITE_VERBS_SENTENCE}`, '') === scout)
+    const reader = memoryOf(buildSubagentMercurySections({ agentDefinition: { agentType: 'quiet-reader' }, toolNames: new Set(['Read', 'Grep']) }))
+    const writer = memoryOf(buildSubagentMercurySections({ agentDefinition: { agentType: 'remembering' }, toolNames: new Set(['Read', 'Grep', 'Retain', 'Recall', 'Reflect', 'Correct']) }))
+    check('a custom agent whose tools lack Retain gets the reading page', !reader.includes('Retain') && reader.includes('## Pinned'))
+    check('a custom agent granted the memory verbs gets the full page', writer.includes(MEMORY_WRITE_VERBS_SENTENCE))
+    check('with no tool list given (the fork path) the full page stands', memoryOf(buildSubagentMercurySections({ agentDefinition: GP })).includes(MEMORY_WRITE_VERBS_SENTENCE))
+  } finally {
+    if (priorHome === undefined) delete process.env.MERCURY_CONFIG_DIR
+    else process.env.MERCURY_CONFIG_DIR = priorHome
+    rmSync(scratchHome, { recursive: true, force: true })
+  }
 }
 
 section('(e2) API-currency: the env block carries the rule once; the doctrine sections repeat nothing')

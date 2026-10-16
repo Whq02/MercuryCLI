@@ -1,7 +1,11 @@
-import { existsSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { pendingRows } from './mnemeBuffer.js'
+import { readLedger } from './ledger.js'
+import { getMemoryBaseDir, mnemeProjectKey } from './paths.js'
 import { logForDebugging } from '../utils/debug.js'
 import { memoryRecallModeLine } from './embedModels.js'
+import { memoryGrade, MEMORY_EVIDENCE_CONTRACT } from './memoryEvidence.js'
 import { indexTopics, liveCount } from './mnemeArchive.js'
 import { listArchiveDocs, listTopicDocs, publishLibraryFile } from './mnemeLibrary.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
@@ -14,6 +18,11 @@ const INDEX_LINE_CAP = 160
 export const MEMORY_WRITE_VERBS_SENTENCE = 'Retain saves a new fact; Correct supersedes a wrong one and keeps the old fact as history.'
 export const EMPTY_INDEX_LINE = '(nothing saved yet — Retain saves the first fact)'
 const EMPTY_INDEX_LINE_READ_ONLY = '(nothing saved yet)'
+const EMPTY_PAGE_WRITE_WORDS = ' Retain saves the first fact;'
+
+export function emptyMemoryPage(dir: string): string {
+  return `# Memory\nWhat Mercury remembers about this project lives in topic pages under ${dir}: nothing saved yet.${EMPTY_PAGE_WRITE_WORDS} Recall searches the pages once there are any.`
+}
 
 export interface PinnedStatus {
   pinned: number
@@ -48,7 +57,7 @@ function clipLine(text: string, cap: number): string {
 }
 
 export function pinnedLine(entry: MnemeEntry, pin: PinRecord): string {
-  return `- ${entry.text} <seq=${entry.seq}${pin.asked ? ', asked for by the user' : ''}>`
+  return `- ${memoryGrade({ pin })} ${entry.text} <seq=${entry.seq}${pin.asked ? ', asked for by the user' : ''}>`
 }
 
 export interface IndexLine {
@@ -78,6 +87,8 @@ export function renderFrontPage(input: {
   usage: Record<string, UsageRecord>
   now: Date
   limit?: number
+  role?: 'main' | 'child'
+  hasHandoff?: boolean
 }): { text: string; status: PinnedStatus } {
   const { dir, topics, archives, pins, usage, now } = input
   const limit = input.limit ?? pinnedTextLimit()
@@ -86,6 +97,7 @@ export function renderFrontPage(input: {
     `What Mercury remembers about this project lives in topic pages under ${dir}. The index below names each topic; Recall searches the pages (query) or reads one whole (read:"doc:<slug>"). ${MEMORY_WRITE_VERBS_SENTENCE} Memory is a record of what was learned, not a second copy of the project: never save what the code, the git history or the instruction files already hold.`,
     '',
     memoryRecallModeLine(dir),
+    MEMORY_EVIDENCE_CONTRACT,
     '',
     '## Index',
   ]
@@ -105,7 +117,7 @@ export function renderFrontPage(input: {
   }
   lines.push('', '## Pinned')
   const live = liveEntryIndex(topics)
-  const view = pinnedView(pins, live)
+  const view = pinnedView(pins.filter(pin => !pin.applicability?.role || pin.applicability.role === (input.role ?? 'main')), live)
   const pinnedLines = view.loaded.map(row => pinnedLine(row.entry, row.pin))
   const used = pinnedLines.reduce((n, l) => n + l.length + 1, 0)
   if (view.loaded.length === 0) {
@@ -127,8 +139,9 @@ export function renderFrontPage(input: {
     asked: view.loaded.filter(r => r.pin.asked).map(r => r.entry.seq),
     renderedAt: now.toISOString(),
   }
-  void factCount
   void usage
+  const empty = factCount + archivedFacts + pins.length + pendingRows(dir).length === 0 && !input.hasHandoff
+  if (empty) return { text: emptyMemoryPage(dir), status }
   return { text: lines.join('\n'), status }
 }
 
@@ -187,17 +200,36 @@ export function frontPageKey(dir: string = mnemeLibraryDir()): string {
 
 export function forReader(page: string, verbs: 'all' | 'read'): string {
   if (verbs === 'all') return page
-  return page.replace(` ${MEMORY_WRITE_VERBS_SENTENCE}`, '').replace(EMPTY_INDEX_LINE, EMPTY_INDEX_LINE_READ_ONLY)
+  return page.replace(` ${MEMORY_WRITE_VERBS_SENTENCE}`, '').replace(EMPTY_INDEX_LINE, EMPTY_INDEX_LINE_READ_ONLY).replace(EMPTY_PAGE_WRITE_WORDS, '')
 }
 
-export function loadMemoryPrompt(opts: { verbs?: 'all' | 'read' } = {}): string | null {
-  if (!mnemeEnabled()) return null
-  const dir = mnemeLibraryDir()
-  const verbs = opts.verbs ?? 'all'
-  const snapshot = readFrontPage(dir)
-  if (snapshot !== null) return forReader(snapshot, verbs)
-  if (existsSync(dir)) {
-    return forReader(renderFrontPage({ dir, topics: listTopicDocs(dir), archives: listArchiveDocs(dir), pins: readPins(dir), usage: readUsage(dir), now: new Date(0) }).text, verbs)
+function globalPinLines(dir: string): string[] {
+  const projects = join(getMemoryBaseDir(), 'projects')
+  const lines: string[] = []
+  try {
+    for (const project of readdirSync(projects, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      if (!project.isDirectory()) continue
+      const library = join(projects, project.name, 'memory', 'library')
+      if (resolve(library) === resolve(dir)) continue
+      const pins = readPins(library).filter(pin => pin.asked && pin.applicability?.scope === 'global' && pin.applicability.purpose)
+      if (!pins.length) continue
+      const live = liveEntryIndex([...listTopicDocs(library), ...listArchiveDocs(library)])
+      for (const row of pinnedView(pins, live).loaded) lines.push(`- ${memoryGrade({ pin: row.pin })} ${row.entry.text} [source library: ${library}; seq:${row.entry.seq}; scope:global]`)
+    }
+  } catch {
+    return lines
   }
-  return forReader(renderFrontPage({ dir, topics: [], archives: [], pins: [], usage: {}, now: new Date(0) }).text, verbs)
+  return lines
+}
+
+export function loadMemoryPrompt(opts: { verbs?: 'all' | 'read'; role?: 'main' | 'child'; dir?: string } = {}): string | null {
+  if (!mnemeEnabled()) return null
+  const dir = opts.dir ?? mnemeLibraryDir()
+  const topics = listTopicDocs(dir)
+  const archives = listArchiveDocs(dir)
+  const hasHandoff = readLedger(mnemeProjectKey()).some(entry => entry.handoff?.text.trim())
+  const page = renderFrontPage({ dir, topics, archives, pins: readPins(dir), usage: readUsage(dir), now: new Date(0), role: opts.role, hasHandoff }).text
+  const global = globalPinLines(dir)
+  const text = global.length === 0 ? page : [page, ...(page === emptyMemoryPage(dir) ? [MEMORY_EVIDENCE_CONTRACT] : []), ...global].join('\n')
+  return forReader(text, opts.verbs ?? 'all')
 }

@@ -66,15 +66,16 @@ const { createRunnerAsks, createRuleOnlyAsks } = await import('../../src/cli/hea
 const { createPeer } = await import('../../src/runner/wire/peer.ts')
 
 const dir = mnemeLibraryDir()
+const ownerSaid = (text: string) => ({ messageId: `owner-${text.length}-${text.slice(0, 12)}`, text })
 const seeded = retainItems(
   [RULE_A, RULE_B, RULE_C, RULE_D, RULE_E].map(content => ({ content, pin: true, topic: 'user-preferences' })),
-  { session: 'rule-card-seed' },
+  { session: 'rule-card-seed', pinIntent: ownerSaid(`Remember these as standing rules:\n- ${RULE_A}\n- ${RULE_B}\n- ${RULE_C}\n- ${RULE_D}\n- ${RULE_E}`) },
   dir,
 )
 check('seed: five rules the user asked for are staged pinned', seeded.every(o => o.status === 'stored'), j(seeded))
 check('seed: consolidation puts them on the shelf', maybeConsolidate({ force: true, dir }).consolidated === true)
 _resetMemoryVerbSessionStateForTesting()
-const pending = retainItems([{ content: RULE_P, pin: true, topic: 'user-preferences' }], { session: 'rule-card-seed' }, dir)
+const pending = retainItems([{ content: RULE_P, pin: true, topic: 'user-preferences' }], { session: 'rule-card-seed', pinIntent: ownerSaid(`Remember this as a standing rule: ${RULE_P}`) }, dir)
 check('seed: one more rule the user asked for stays a pending draft', pending[0]?.status === 'stored' && pending[0].id.startsWith('pending:'), j(pending))
 const pendingId = pending[0]?.status === 'stored' ? pending[0].id : ''
 const liveEntries = (): Array<{ seq: number; text: string; source: string }> => listTopicDocs(dir).flatMap(d => d.sections.flatMap(s => s.entries))
@@ -268,7 +269,7 @@ section('§6 a run whose host holds the asks puts the card to the host; the host
 section('§7 a headless run with no host refuses as today and names the /memory road; nothing changes')
 {
   _resetMemoryVerbSessionStateForTesting()
-  const again = retainItems([{ content: RULE_A, pin: true, topic: 'user-preferences' }], { session: 'rule-card-reseed' }, dir)
+  const again = retainItems([{ content: RULE_A, pin: true, topic: 'user-preferences' }], { session: 'rule-card-reseed', pinIntent: ownerSaid(`Remember this as a standing rule: ${RULE_A}`) }, dir)
   maybeConsolidate({ force: true, dir })
   const seqA2 = seqOf(RULE_A)
   check('reseed: the rule is back, pinned and asked for by the user', again[0]?.status === 'stored' && askedPin(seqA2), j(again))

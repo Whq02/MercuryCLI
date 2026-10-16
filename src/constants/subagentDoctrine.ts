@@ -33,7 +33,7 @@ export function agentFanoutCap(): number | null {
 
 function safeMemoryPrompt(verbs: 'all' | 'read'): string | null {
   try {
-    return loadMemoryPrompt({ verbs })
+    return loadMemoryPrompt({ verbs, role: 'child' })
   } catch {
     return null
   }

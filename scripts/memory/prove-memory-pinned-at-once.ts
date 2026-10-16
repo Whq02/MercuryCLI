@@ -136,7 +136,7 @@ try {
     { kind: 'text', text: 'Saved as a standing rule. Fairwinds', whenBody: 'stored' },
   ])
   check('the chat ended on its own', tell.exit === 0 && tell.frames.some(isOutcome), `exit=${tell.exit} frames=${tell.frames.length} stderr=${tell.stderr.slice(-300)}`)
-  check("the first request's shelf is empty (nothing pinned yet)", tell.bodies.length >= 1 && systemTextOf(tell.bodies[0] ?? {}).includes('no pinned rules'), systemTextOf(tell.bodies[0] ?? {}).slice(0, 200))
+  check("the first request's memory page is the empty library's one sentence (nothing saved, nothing pinned yet)", tell.bodies.length >= 1 && systemTextOf(tell.bodies[0] ?? {}).includes('nothing saved yet') && !systemTextOf(tell.bodies[0] ?? {}).includes('## Pinned'), systemTextOf(tell.bodies[0] ?? {}).slice(0, 200))
   const results = tell.bodies.flatMap(toolResultsOf)
   const retainResult = results.find(r => r.includes('stored'))
   check('the Retain with pin: true and "" in every other optional field stored the rule (nothing refused)', retainResult !== undefined && retainResult.startsWith('1 stored · 0 refused'), results.join(' | ') || 'no tool result reached the model')
@@ -144,7 +144,7 @@ try {
   const lib = libraryOf()
   const pinsOf = (dir: string): Array<{ seq: number; asked?: boolean }> => (JSON.parse(readFileSync(join(dir, 'pins.json'), 'utf8')) as { pins?: Array<{ seq: number; asked?: boolean }> }).pins ?? []
   const frontPageOf = (dir: string): string => (existsSync(join(dir, 'front-page.md')) ? readFileSync(join(dir, 'front-page.md'), 'utf8') : '')
-  check('the library has the rule pinned with the asked mark, on a page, with the front page republished', lib !== null && pinsOf(lib).some(p => p.asked === true) && frontPageOf(lib).includes(`- ${RULE} <seq=`) && frontPageOf(lib).includes('asked for by the user'), lib ? `pins=${JSON.stringify(pinsOf(lib))} page=${frontPageOf(lib).slice(frontPageOf(lib).indexOf('## Pinned'), frontPageOf(lib).indexOf('## Pinned') + 240)}` : 'no library with pins.json under the home')
+  check('the library has the rule pinned with the asked mark, on a page, with the front page republished', lib !== null && pinsOf(lib).some(p => p.asked === true) && frontPageOf(lib).includes(`- [pinned · asked by the owner] ${RULE} <seq=`) && frontPageOf(lib).includes('asked for by the user'), lib ? `pins=${JSON.stringify(pinsOf(lib))} page=${frontPageOf(lib).slice(frontPageOf(lib).indexOf('## Pinned'), frontPageOf(lib).indexOf('## Pinned') + 240)}` : 'no library with pins.json under the home')
   check('the buffer holds no pending row — the rule did not wait for a maintenance pass', lib !== null && (!existsSync(join(lib, 'current.jsonl')) || readFileSync(join(lib, 'current.jsonl'), 'utf8').trim() === ''))
   check('the reply reached the user', resultText(tell).includes('Saved as a standing rule'), resultText(tell).slice(0, 200))
 
@@ -153,7 +153,7 @@ try {
   check('the fresh chat ended on its own', fresh.exit === 0 && fresh.frames.some(isOutcome), `exit=${fresh.exit} stderr=${fresh.stderr.slice(-300)}`)
   const freshSystem = systemTextOf(fresh.bodies[0] ?? {})
   const pinned = freshSystem.slice(freshSystem.indexOf('## Pinned'))
-  check("the first request's system prompt carries the pinned shelf with the rule, word for word, asked for by the user", freshSystem.includes('## Pinned') && /^- end every reply with the word Fairwinds <seq=\d+, asked for by the user>$/m.test(pinned), pinned.slice(0, 400) || freshSystem.slice(0, 300))
+  check("the first request's system prompt carries the pinned shelf with the rule, word for word behind the asked-pin grade, asked for by the user", freshSystem.includes('## Pinned') && /^- \[pinned · asked by the owner\] end every reply with the word Fairwinds <seq=\d+, asked for by the user>$/m.test(pinned), pinned.slice(0, 400) || freshSystem.slice(0, 300))
   check('the shelf tells the model to follow it word for word and never reword a rule marked asked for', pinned.includes('follow them word for word') && pinned.includes('never reworded, merged or dropped'))
   check('the rule rides the prompt, not a relevant_memories attachment', !JSON.stringify(fresh.bodies[0] ?? {}).includes('relevant_memories'))
   check('the calm over-limit line is in no request body and no output row', ![...tell.bodies, ...fresh.bodies].some(b => JSON.stringify(b).includes('Pinned memory:')) && ![...tell.frames, ...fresh.frames].some(f => JSON.stringify(f).includes('Pinned memory:')))
