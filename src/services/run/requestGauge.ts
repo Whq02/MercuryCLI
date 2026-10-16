@@ -5,7 +5,7 @@ import { messageContextFill } from '../../utils/tokens.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages/systemMessages.js'
 
 export type RequestGaugeFixed = { digest: string; tokens: number }
-export type RequestGaugeDensity = { ratio: number; samples: number; residuals: number[] }
+type RequestGaugeDensity = { ratio: number; samples: number; residuals: number[] }
 export type RequestGaugeAnchor = {
   version: 1
   key: string
@@ -85,16 +85,12 @@ function foldSeed(messages: readonly Message[]) {
   return undefined
 }
 
-export function requestGaugeKey(messages: readonly Message[]): string | undefined {
-  return lastAnchor(messages)?.anchor.key
-}
-
 export function bindRequestGauge(messages: readonly Message[], key: string, epoch: number, fixed: RequestGaugeFixed, rebase = false): RequestGaugeView {
   bindings.set(messages, { key, epoch, fixed, rebase })
   return requestGaugeView(messages, key, epoch, fixed, rebase)
 }
 
-export function requestGaugeView(messages: readonly Message[], key: string, epoch: number, fixed: RequestGaugeFixed, rebase = false): RequestGaugeView {
+function requestGaugeView(messages: readonly Message[], key: string, epoch: number, fixed: RequestGaugeFixed, rebase = false): RequestGaugeView {
   messages = getMessagesAfterCompactBoundary(messages as Message[])
   const previous = lastAnchor(messages, key)
   const seed = foldSeed(messages)
@@ -145,7 +141,7 @@ export function readRequestGauge(messages: readonly Message[], model?: string): 
   return requestGaugeView(messages, key, epoch, fixed, bound?.rebase)
 }
 
-export function learnRequestGauge(density: RequestGaugeDensity, denominator: number, measured: number): RequestGaugeDensity {
+function learnRequestGauge(density: RequestGaugeDensity, denominator: number, measured: number): RequestGaugeDensity {
   if (!(denominator >= 1000) || !(measured > 0) || !Number.isFinite(measured)) return density
   const ratio = density.ratio * 0.8 + (measured / denominator) * 0.2
   const residual = measured - denominator * density.ratio

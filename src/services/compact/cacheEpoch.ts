@@ -30,7 +30,7 @@ export function foldCacheUsage(usage: ApiUsage | undefined): FoldCacheUsage | nu
   }
 }
 
-export function stableFoldPrefixHash(record: BoundRecord): string {
+function stableFoldPrefixHash(record: BoundRecord): string {
   return createHash('sha256').update(JSON.stringify({ rosterEnabled: record.rosterEnabled, roster: record.roster, sections: record.sections, systemContext: record.systemContext })).digest('hex')
 }
 

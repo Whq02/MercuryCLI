@@ -16,7 +16,7 @@ export function isMercuryCompactKeepTailEnabled(): boolean {
   return isEnvTruthy(flag) || isEnvTruthy(flagEnv('MERCURY_CTX_COMPACTION')) || isMercurySubstrateProfileOn()
 }
 
-export type VerbatimTailResult = {
+type VerbatimTailResult = {
   keep: Message[]
   precedingUuid: Message['uuid'] | undefined
   roundsKept: number
@@ -29,7 +29,7 @@ function preservable(row: Message): boolean {
   return row.type !== 'progress' && !(row.type === 'system' && row.subtype === 'compact_boundary') && !(row.type === 'user' && row.isCompactSummary)
 }
 
-export function closedTail(messages: readonly Message[]): boolean {
+function closedTail(messages: readonly Message[]): boolean {
   const calls = new Set<string>()
   const results = new Set<string>()
   for (const row of messages) {
