@@ -2,6 +2,8 @@ import { readSignInEntries } from '../../utils/accounts/signInLedger.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
   chosenSignIn,
+  isKeyIdentity,
+  KEY_IDENTITY_MARK,
   pocketInUse,
   forgetPocket,
   registerProjectSignInSource,
@@ -216,9 +218,20 @@ export function everySignInRoster(home: string = signInsEstate()): SignInRosterR
   return SIGN_IN_FAMILIES.flatMap(family => familySignInRoster(family, home))
 }
 
+function spelledIdentity(typed: string): string {
+  const word = typed.trim().toLowerCase()
+  return word.startsWith('...') ? `${KEY_IDENTITY_MARK}${word.slice(3)}` : word
+}
+
+function namesRow(row: SignInRosterRow, wanted: string): boolean {
+  const own = row.identity.toLowerCase()
+  if (own === wanted) return true
+  return isKeyIdentity(row.identity) && own.slice(KEY_IDENTITY_MARK.length) === wanted
+}
+
 export function findSignIn(identity: string, family?: string, home: string = signInsEstate()): { row?: SignInRosterRow; matches: SignInRosterRow[] } {
-  const wanted = identity.trim().toLowerCase()
-  const rows = (family === undefined ? everySignInRoster(home) : familySignInRoster(family, home)).filter(row => row.identity.toLowerCase() === wanted)
+  const wanted = spelledIdentity(identity)
+  const rows = (family === undefined ? everySignInRoster(home) : familySignInRoster(family, home)).filter(row => namesRow(row, wanted))
   return rows.length === 1 ? { row: rows[0]!, matches: rows } : { matches: rows }
 }
 

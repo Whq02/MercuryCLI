@@ -22,7 +22,7 @@
           "type": "string"
         },
         "signIns": {
-          "description": "Which sign-in a provider family spends in this project, by identity as /logins lists it (the account address, the Hub username, a key's masked tail), for example { \"openai\": \"bob@work.example\" }; /logins use <identity> overrides it for one session; an identity that is not signed in is refused with the ones that are",
+          "description": "Which sign-in a provider family spends in this project, by identity as /logins lists it (the account address, the Hub username, a key's masked tail — typed as …k3f9, ...k3f9 or the bare k3f9), for example { \"openai\": \"bob@work.example\" }; /logins use <identity> overrides it for one session; an identity that is not signed in is refused with the ones that are",
           "type": "object",
           "propertyNames": {
             "type": "string"
