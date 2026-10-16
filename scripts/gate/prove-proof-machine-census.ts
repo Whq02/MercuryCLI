@@ -248,6 +248,20 @@ try {
   check(inherited.rc === 0, "a suite launched by a proof already pinned to 'none' is not refused", `rc=${inherited.rc} ${inherited.out.trim()}`)
   const foreign = guardProbe(clean({ MERCURY_CONFIG_DIR: join(scratch, 'suite-home'), BUN: '/usr/bin/false', MERCURY_LOCAL_PROBE_TARGETS: 'ollama=http://127.0.0.1:1' }))
   check(foreign.rc === 78, 'a suite launched with a server named in the environment is refused as foreign', `rc=${foreign.rc} ${foreign.out.trim()}`)
+
+  section("a seat's tool shell stamps NO_COLOR=1 FORCE_COLOR=0 on every command the model runs: a scripts/ entry drops the pair, so a capture renders colour as a terminal would")
+  const grids = join(scratch, 'grids')
+  const captured = spawnSync(BUN, ['scripts/ui/generate-visual-baseline.ts', '--only', 'frame--100x30--dark--truecolor', '--out', grids, '--jobs', '1'], {
+    cwd: ROOT,
+    env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'capture-home'), NO_COLOR: '1', FORCE_COLOR: '0' },
+    encoding: 'utf8',
+    timeout: 300_000,
+  })
+  const gridFile = join(grids, 'grids', 'frame--100x30--dark--truecolor--full.grid.json')
+  const grid = existsSync(gridFile) ? (JSON.parse(readFileSync(gridFile, 'utf8')) as { text: string[]; styles: unknown[][] }) : null
+  const styled = grid?.styles.reduce((n, row) => n + row.length, 0) ?? 0
+  check(captured.status === 0 && grid !== null && grid.text.some(row => row.trim() !== ''), 'the truecolor live-grid capture ran under an inherited NO_COLOR=1 FORCE_COLOR=0 and painted the cockpit', `rc=${captured.status} ${captured.stderr.trim().slice(-300)}`)
+  check(styled > 0, `the captured grid carries styled cells (${styled} spans): the inherited pair never reached the product under capture`, `${styled} style spans`)
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
