@@ -153,5 +153,53 @@ tally.section('§3 a rule spelled with an absolute Windows path reads, on a win3
   }
 }
 
+tally.section("§4 a re-entered call (an Eval cell's tool.X) rides an app state that carries no MCP roster: an unknown name is still the typed 'no such tool' answer and a withheld built-in its named refusal — never a thrown read of the roster")
+{
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  enableConfigs()
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
+  const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+  const permissionContext = {
+    ...getEmptyToolPermissionContext(),
+    alwaysDenyRules: { projectSettings: ['Write'] },
+    ruleReasons: { projectSettings: { Write: 'runs leave no files' } },
+  }
+  const appState = { toolPermissionContext: permissionContext, sessionHooks: new Map() }
+  const context = {
+    options: { commands: [], verbose: false, engineModel: 'claude-sonnet-5', tools: [], mcpClients: [], isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
+    abortController: new AbortController(),
+    readFileState: new Map(),
+    getAppState: () => appState,
+    setAppState: () => undefined,
+    messages: [],
+    setResponseLength: () => undefined,
+    updateFileHistoryState: () => undefined,
+    updateAttributionState: () => undefined,
+  }
+  const answer = async (name: string): Promise<{ text: string; threw: string | null }> => {
+    const block = { type: 'tool_use' as const, id: `reentry_${name}`, name, input: {} }
+    const assistant = createAssistantMessage({ content: [block as never], isVirtual: true })
+    let text = ''
+    try {
+      for await (const update of runToolUse(block as never, assistant, (async () => ({ behavior: 'allow', updatedInput: {} })) as never, context as never)) {
+        const content = (update as { message?: { message?: { content?: unknown } } }).message?.message?.content
+        if (!Array.isArray(content)) continue
+        for (const part of content as Array<{ type?: string; content?: unknown }>) {
+          if (part.type === 'tool_result') text += typeof part.content === 'string' ? part.content : JSON.stringify(part.content)
+        }
+      }
+      return { text, threw: null }
+    } catch (error) {
+      return { text, threw: String(error) }
+    }
+  }
+  const unknown = await answer('NoSuchTool')
+  tally.check("an unknown tool name answers 'No such tool available' into the cell", unknown.threw === null && unknown.text.includes('No such tool available: NoSuchTool'), JSON.stringify(unknown).slice(0, 300))
+  tally.check('nothing was thrown reading the roster', unknown.threw === null && !/mcp\.tools|is not an object/.test(unknown.text), JSON.stringify(unknown).slice(0, 300))
+  const withheld = await answer('Write')
+  tally.check("a withheld built-in answers the rule's named refusal with the reason", withheld.threw === null && withheld.text.includes('Using Write is denied by the rule Write in the shared project settings: runs leave no files.'), JSON.stringify(withheld).slice(0, 300))
+}
+
 rmSync(scratch, { recursive: true, force: true })
 tally.finish()

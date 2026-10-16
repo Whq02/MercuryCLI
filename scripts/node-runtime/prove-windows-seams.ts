@@ -233,12 +233,12 @@ section('(13) the Windows install guide tells the tree\'s truth (a ratchet on th
   check('the concourse chooses a layout instead of refusing small terminals', !layout.includes("return 'too-small'") && !layout.includes('terminal too small for'))
   check('the winget id is the LTS line', doc.includes('winget install --id OpenJS.NodeJS.LTS --source winget') && !/--id OpenJS\.NodeJS --source/.test(doc))
   check('no "spaces break some build tooling" claim', !/spaces break/.test(doc))
-  check('the splash tip says a bare direct node start paints it before the face', /a bare `node dist\\mercury\.mjs` runs it before the\s+face/.test(doc) && !/no effect on\s+a direct `node dist\\mercury\.mjs` start/.test(doc))
+  check('the splash tip says a bare direct node start paints it before the home screen', /a bare `node dist\\mercury\.mjs` runs it before the\s+(?:home screen|face)/.test(doc) && !/no effect on\s+a direct `node dist\\mercury\.mjs` start/.test(doc))
   check('no stale "blank screen after the splash" row', !/blank screen after the splash/.test(doc))
   check('the degraded-build row names the manifest tell, not a build error line', /lists names under `degraded`/.test(doc) && !/ends with `dist\/manifest\.json missing`/.test(doc))
   check('the code-page sentence no longer pins one mojibake spelling', /437/.test(doc) && /850/.test(doc))
   check('step 1 names Windows Terminal as the HOST and PowerShell 7 as the SHELL, not as alternatives', /Windows Terminal is the\s+host/.test(doc) && /PowerShell 7 \(`pwsh`\) is the shell/.test(doc) && !/Use \*\*Windows Terminal\*\* or \*\*PowerShell 7\*\*/.test(doc))
-  check('the standalone console is told about the terminal-check card and that its first row, 1, continues', /terminal-check card first, and its first row — `1`, Continue anyway —/.test(doc))
+  check('the standalone console is told about the terminal-check card and that its first row, 1, continues', /terminal-check card first, and its first row (?:\(|— )`1`, Continue anyway(?:\)| —)\s+starts the full interface/.test(doc))
   check('where the engine is offered instead of Git, its two Windows limits are named with the way round each', doc.includes('cmd /c npm') && /relative\s+path after a `cd`/.test(doc) && /absolute path/.test(doc))
 }
 
