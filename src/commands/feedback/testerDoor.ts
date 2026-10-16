@@ -11,7 +11,7 @@ export function sessionSawFailure(messages: readonly Message[]): boolean {
   return recap !== null && (recap.endedOnError || recap.toolFailures > 0)
 }
 
-export function focusedSessionSawFailure(): boolean {
+function focusedSessionSawFailure(): boolean {
   try {
     return hasFocusedSession() && sessionSawFailure(getFocusedSessionConnector().records())
   } catch {
