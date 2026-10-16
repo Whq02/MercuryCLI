@@ -18,7 +18,7 @@ if (guard) {
     }
   }
 }
-const described = renderPromptTemplate(LINE_FORMAT_INSTRUCTION, '', null, { pdf: true, images: true })
+const described = renderPromptTemplate(LINE_FORMAT_INSTRUCTION, { pdf: true, images: true })
 const pdfSentence = described.split('\n').find(line => line.includes('PDFs with more than')) ?? ''
 const thresholds = [...pdfSentence.matchAll(/more than (\d+) pages/g)].map(m => Number(m[1]))
 check('the Read description states the whole-PDF gate the product holds', thresholds.length === 1 && thresholds[0] === MAX_PDF_PAGES_PER_REQUEST, pdfSentence || 'no PDF sentence')
