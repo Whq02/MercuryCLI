@@ -39,6 +39,11 @@ try {
   assert.equal(readFileSync(join(dir, 'pins.json'), 'utf8'), pins, 'restoration never pins')
   const missing = composeStartPage({ ...base, task: { required: [{ id: 'seq:404', source: 'operator-turn-8' }] } } as never)
   assert.match(missing.text ?? '', /seq:404.*unknown.*operator-turn-8/)
+  const blank = composeStartPage({ ...base, limit: 4000 } as never)
+  for (const weak of ['hi', 'ok go on', 'Resume as the lead from the LIVE line of PIN.md']) {
+    const page = composeStartPage({ ...base, limit: 4000, task: { prompt: weak } } as never)
+    assert.deepEqual(page.choice.rode.map(row => row.id), blank.choice.rode.map(row => row.id), `a prompt with no scoring words ("${weak}") falls back to the branch, files and note as a blank prompt does`)
+  }
   const newCycle = composeStartPage({ ...base, limit: 4000, task: { prompt: 'make the film for beta.37 about the marble pier and publish the page' } } as never)
   assert.ok(!newCycle.choice.rode.some(row => row.id === 'seq:6'), 'a prior-cycle plan dropped by the gate (the prompt names the newer cycle) never re-enters through the start block\'s lower tier')
   assert.ok(newCycle.choice.rode.some(row => row.id === 'seq:7'), 'the current-cycle fact rides')
