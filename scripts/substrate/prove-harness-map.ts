@@ -63,7 +63,9 @@ resetHarnessMapForTest()
 process.env.MERCURY_WORKFLOWS = '0'
 const partial = getHarnessMapSection()
 check('map still present with some gates off', partial !== null)
-check('workflow line dropped when MERCURY_WORKFLOWS=0', partial !== null && !partial.includes('Deterministic multi-agent orchestration'))
+check('no Workflow line in any boot (the Workflow roster line is the one reader)', partial !== null && !partial.includes('Deterministic multi-agent orchestration') && on !== null && !on.includes('Workflow tool'))
+check('no scheduled-runs line (the Cron roster lines and the schedule skill carry it)', on !== null && !on.includes('SATURN') && !on.includes('CronCreate'))
+check('no project-intelligence line (the Read description names mercury:// refs; the capsule carries its own trailer)', on !== null && !on.includes('mercury://project/current') && !on.includes('/orient'))
 check('missing-surface disclaimer present', partial !== null && partial.includes('gated off in this boot'))
 delete process.env.MERCURY_WORKFLOWS
 
