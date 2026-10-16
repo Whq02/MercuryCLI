@@ -54,7 +54,7 @@ export interface TestRunRecord {
   outputArtifactRef?: string
   outputTail: string[]
   exitCode: number | null
-  verdict?: 'no-match'
+  verdict?: 'no-match' | 'zero-run'
   verdictNote?: string
   diagnosticsNote?: string
 }
@@ -109,15 +109,38 @@ function resolveFramework(from: string = getCwd(), explicit?: TestFramework): Te
   return 'unittest'
 }
 
+function namedTestFiles(files: readonly string[]): string {
+  return `${files.length} test file(s) found (${files.slice(0, 3).join(', ')}${files.length > 3 ? ', …' : ''})`
+}
+
 export function pytestFallbackNote(from: string = getCwd()): string | null {
   const profile = buildPythonProjectProfile(from)
-  if (!profile.testFrameworks.pytest.detected) return null
+  const { pytest, testFiles } = profile.testFrameworks
+  if (!pytest.detected) return null
   const probe = probePytest(from)
   if (probe.available) return null
-  return (
-    `NOTE: pytest is configured (${profile.testFrameworks.pytest.evidence ?? 'project markers'}) but ${probe.detail} — ` +
-    `fell back to unittest. pip install pytest (into the selected interpreter) restores the pytest lane.`
-  )
+  if (pytest.configured) {
+    return (
+      `NOTE: pytest is configured (${pytest.evidence ?? 'project markers'}) but ${probe.detail} — ` +
+      `fell back to unittest. pip install pytest (into the selected interpreter) restores the pytest lane.`
+    )
+  }
+  const interpreter = profile.interpreter.state === 'ok' ? profile.interpreter.command : 'the selected interpreter'
+  return `NOTE: ${namedTestFiles(testFiles)}, the unittest lane collects unittest.TestCase classes only — ${pytestMissingWhy(interpreter)}`
+}
+
+function pytestMissingWhy(interpreter: string): string {
+  return `pytest is not importable for ${interpreter}; install it (pip install pytest) or name the framework`
+}
+
+function zeroRunNote(from: string, framework: TestFramework, interpreter: string, testFiles: readonly string[], runnerWords: string): string {
+  const why =
+    framework === 'unittest' && !probePytest(from).available
+      ? pytestMissingWhy(interpreter)
+      : framework === 'unittest'
+        ? `unittest collects unittest.TestCase classes from test*.py files only — ${runnerWords}`
+        : runnerWords
+  return `${namedTestFiles(testFiles)}, the ${framework} lane ran 0 — ${why}`
 }
 
 
@@ -591,8 +614,12 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
 
   const selectionLabel = opts?.selectionLabel ?? (sel.length ? `nodes:${sel.join(',')}`.slice(0, 200) : 'all')
   const noMatchWords = cases.length === 0 && collectErrors.length === 0 ? pythonNoMatchWords(framework, exitCode, output) : undefined
+  const testFiles = noMatchWords !== undefined && selectionLabel === 'all' ? buildPythonProjectProfile(from).testFrameworks.testFiles : []
+  const verdict: TestRunRecord['verdict'] = noMatchWords === undefined ? undefined : testFiles.length > 0 ? 'zero-run' : 'no-match'
   let verdictNote: string | undefined
-  if (noMatchWords !== undefined) {
+  if (verdict === 'zero-run') {
+    verdictNote = zeroRunNote(from, framework, selection.command, testFiles, noMatchWords!)
+  } else if (noMatchWords !== undefined) {
     verdictNote = `${selectionLabel === 'all' ? 'no test ran' : `no test matched ${selectionLabel}`} — ${noMatchWords}`
   } else if (cases.length === 0 && collectErrors.length === 0) {
     verdictNote = `no structured case records arrived (exit ${exitCode ?? 'null'}) — the run is EVIDENCE-FREE, treat as errored`
@@ -630,7 +657,7 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
     ...(outputArtifactRef ? { outputArtifactRef } : {}),
     outputTail: output.slice(-OUTPUT_TAIL_LINES),
     exitCode,
-    ...(noMatchWords !== undefined ? { verdict: 'no-match' as const } : {}),
+    ...(verdict !== undefined ? { verdict } : {}),
     ...(verdictNote ? { verdictNote } : {}),
   }
   try {
@@ -653,6 +680,9 @@ export async function rerunFailedTests(opts?: { from?: string; signal?: AbortSig
       reason: `latest run ${latest.id} is a ${latest.framework} run, not a python run`,
       remedy: 'rerun through the runner lane (the Test tool routes rerunFailed by record framework)',
     }
+  }
+  if (latest.verdict === 'zero-run') {
+    return { state: 'nothing-to-rerun', note: `latest run ${latest.id} ran 0 tests — nothing to rerun; ${latest.verdictNote ?? 'the whole suite ran nothing'}` }
   }
   if (latest.failures.length === 0) {
     return { state: 'nothing-to-rerun', note: `latest run ${latest.id} had no failures — nothing to rerun` }

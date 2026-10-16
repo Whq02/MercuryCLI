@@ -1,7 +1,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, openSync, readSync, closeSync, readFileSync, readdirSync } from 'node:fs'
 import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { whichSync } from '../../utils/which.js'
@@ -38,8 +38,9 @@ interface PythonProjectProfile {
   interpreter: PythonInterpreterResult
   packageRootHints: string[]
   testFrameworks: {
-    pytest: { detected: boolean; evidence?: string }
+    pytest: { detected: boolean; evidence?: string; configured: boolean }
     unittest: { detected: boolean; evidence?: string }
+    testFiles: string[]
   }
   pyright: { configured: boolean; evidence?: string }
   ruff: { available: boolean; version?: string; configured: boolean; evidence?: string }
@@ -76,6 +77,54 @@ export function findPythonProjectRoot(from: string = getCwd()): { root: string; 
     dir = parent
   }
   return { root: path.resolve(from), markers: [] }
+}
+
+const TEST_FILE_NAME = /(^test_.*|_test)\.py$/
+const TEST_FILE_SCAN_CAP = 400
+const TEST_FILE_SNIFF_CAP = 50
+const TEST_FILE_SNIFF_BYTES = 65_536
+const UNITTEST_IMPORT = /^[ \t]*(?:import[ \t]+unittest\b|from[ \t]+unittest(?:\.\w+)*[ \t]+import\b)/m
+
+export function findPythonTestFiles(root: string, skipDirs: ReadonlySet<string> = new Set()): string[] {
+  const found = new Set<string>()
+  let seen = 0
+  const scan = (dir: string, depth: number, top: boolean): void => {
+    let entries: import('node:fs').Dirent[]
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const e of entries) {
+      if (++seen > TEST_FILE_SCAN_CAP) return
+      if (e.isFile() && TEST_FILE_NAME.test(e.name)) {
+        found.add(path.relative(root, path.join(dir, e.name)).split(path.sep).join('/'))
+      } else if (e.isDirectory() && depth > 0 && !e.name.startsWith('.') && e.name !== 'node_modules' && e.name !== 'venv' && e.name !== '__pycache__' && !(top && skipDirs.has(e.name))) {
+        scan(path.join(dir, e.name), depth - 1, false)
+      }
+    }
+  }
+  for (const d of ['tests', 'test', '.']) {
+    const p = d === '.' ? root : path.join(root, d)
+    if (d !== '.' && skipDirs.has(d)) continue
+    if (existsSync(p)) scan(p, 2, d === '.')
+  }
+  return [...found].sort()
+}
+
+function importsUnittest(file: string): boolean {
+  try {
+    const fd = openSync(file, 'r')
+    try {
+      const buf = Buffer.alloc(TEST_FILE_SNIFF_BYTES)
+      const n = readSync(fd, buf, 0, TEST_FILE_SNIFF_BYTES, 0)
+      return UNITTEST_IMPORT.test(buf.toString('utf8', 0, n))
+    } finally {
+      closeSync(fd)
+    }
+  } catch {
+    return false
+  }
 }
 
 
@@ -250,14 +299,20 @@ export function buildPythonProjectProfile(from: string = getCwd()): PythonProjec
   else if (existsSync(setupCfg) && fileContains(setupCfg, '[tool:pytest]')) pytestEvidence = 'setup.cfg [tool:pytest]'
   else if (existsSync(path.join(root, 'conftest.py'))) pytestEvidence = 'conftest.py'
   else if (existsSync(path.join(root, 'tests', 'conftest.py'))) pytestEvidence = 'tests/conftest.py'
+  const pytestConfigured = pytestEvidence !== undefined
+
+  const testFiles = findPythonTestFiles(root)
+  const unittestFiles = testFiles.slice(0, TEST_FILE_SNIFF_CAP).filter(f => importsUnittest(path.join(root, f)))
+  const bareFiles = testFiles.filter(f => !unittestFiles.includes(f))
+  if (!pytestConfigured && bareFiles.length > 0) {
+    pytestEvidence = `${bareFiles.length} bare test file(s): ${bareFiles.slice(0, 3).join(', ')}${bareFiles.length > 3 ? ', …' : ''}`
+  }
 
   let unittestEvidence: string | undefined
+  if (unittestFiles.length > 0) unittestEvidence = `${unittestFiles[0]} imports unittest`
   for (const dir of ['tests', 'test']) {
-    const p = path.join(root, dir)
-    if (existsSync(p)) {
-      unittestEvidence = `${dir}/ directory`
-      break
-    }
+    if (unittestEvidence !== undefined) break
+    if (existsSync(path.join(root, dir))) unittestEvidence = `${dir}/ directory`
   }
 
   let pyrightEvidence: string | undefined
@@ -284,11 +339,12 @@ export function buildPythonProjectProfile(from: string = getCwd()): PythonProjec
     interpreter,
     packageRootHints,
     testFrameworks: {
-      pytest: { detected: pytestEvidence !== undefined, ...(pytestEvidence ? { evidence: pytestEvidence } : {}) },
+      pytest: { detected: pytestEvidence !== undefined, ...(pytestEvidence ? { evidence: pytestEvidence } : {}), configured: pytestConfigured },
       unittest: {
         detected: unittestEvidence !== undefined,
         ...(unittestEvidence ? { evidence: unittestEvidence } : {}),
       },
+      testFiles,
     },
     pyright: { configured: pyrightEvidence !== undefined, ...(pyrightEvidence ? { evidence: pyrightEvidence } : {}) },
     ruff: {
