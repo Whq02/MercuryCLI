@@ -300,22 +300,36 @@ const WRITING_TASK = /\b(?:copy[- ]?edit(?:s|ing)?|captions?|subtitles?|prose|wo
 const RULE_WORDS = /\b(?:always|never|must|only|rule|constraint|census|guard|do not|stays?|keep|no mention)\b/i
 
 function ruleSentences(text: string): string[] {
-  return text.split(/(?<=[.!?;])\s+|\n+/).filter(sentence => RULE_WORDS.test(sentence))
+  return text.split(/(?<=[.!?])\s+|\n+/).filter(sentence => sentence.trim() !== '')
+}
+
+function ruleWindows(text: string): string[] {
+  return ruleSentences(text).filter(sentence => RULE_WORDS.test(sentence))
+}
+
+const PATH_ROOTS = /^(?:src|docs|scripts|assets|lib|test|tests|packages|config|ops|app|apps|tools|public|infra|data|etc|bin|build|dist|native|vendor|records|lead-scripts)\//
+const PATH_SHAPE = /(?:^|[\s"'`(])((?:\.{1,2}\/|\/|~\/)?[A-Za-z0-9_.@-]+(?:\/[A-Za-z0-9_.@*-]+)+)/g
+
+function citedPaths(sentence: string): string[] {
+  const out: string[] = []
+  for (const match of sentence.matchAll(PATH_SHAPE)) {
+    const token = match[1]!.replace(/^(?:\.{1,2}\/|\/|~\/)/, '').replace(/[.,;:)]+$/, '')
+    if (/^[\d/.-]+$/.test(token) || /^(?:https?|mercury|file):/i.test(token)) continue
+    if (/\.[A-Za-z0-9]{1,8}$/.test(token) || PATH_ROOTS.test(token) || token.length >= 12) out.push(token)
+  }
+  return out
 }
 
 function taskConstraint(text: string, query: string, files: readonly string[]): boolean {
   if (!constraintText(text)) return false
   const observed = [query, ...files].join(' ')
-  const sentences = ruleSentences(text)
-  if (/release[ -]notes?|releases\/|changelog/i.test(observed) && sentences.some(sentence => /\brelease[ -]notes?\b|\bchangelog\b/i.test(sentence))) return true
-  if (WRITING_TASK.test(query) && sentences.some(sentence => WRITING_RULE.test(sentence))) return true
-  return sentences.some(sentence => {
-    const paths = sentence.match(/(?:src|docs|scripts|assets|lib|test|tests)\/[A-Za-z0-9_.*\/-]+/g) ?? []
-    return paths.some(path => {
-      const matcher = new RegExp(escapeRegExp(path).replace(/\\\*/g, '.*'))
-      return files.some(file => matcher.test(file)) || query.includes(path)
-    })
-  })
+  const windows = ruleWindows(text)
+  if (/release[ -]notes?|releases\/|changelog/i.test(observed) && windows.some(window => /\brelease[ -]notes?\b|\bchangelog\b/i.test(window))) return true
+  if (WRITING_TASK.test(query) && windows.some(window => WRITING_RULE.test(window))) return true
+  return ruleSentences(text).filter(sentence => RULE_WORDS.test(sentence)).some(sentence => citedPaths(sentence).some(path => {
+    const matcher = new RegExp(`(?:^|/)${escapeRegExp(path).replace(/\\\*/g, '[^/]*')}$`)
+    return files.some(file => matcher.test(file)) || query.includes(path)
+  }))
 }
 
 const COMPANION_IDF = 2.2
@@ -343,7 +357,7 @@ function companionsOf(constraint: LookupCandidate, pool: readonly LookupCandidat
   }
   const out: LookupCandidate[] = []
   for (const hit of scoreCandidates(constraint.text, pool, now)) {
-    if (hit.id === constraint.id || taken.has(hit.id)) continue
+    if (hit.id === constraint.id || taken.has(hit.id) || /^retired: /.test(hit.text)) continue
     if (hit.matched.filter(rareTerm).length >= 2) out.push(hit)
   }
   return out
@@ -363,6 +377,7 @@ export function automaticMemoryCandidates(query: string, opts: { dir?: string; p
   }
   const scored = scoreCandidates(query, pool, opts.now)
   for (const hit of scored) {
+    if (/^retired: /.test(hit.text)) continue
     const priorCycle = /\bbeta[. -]?(\d+)\b/i.exec(hit.text)?.[1]
     if (!hit.pinned && cycle && priorCycle && Number(cycle) > Number(priorCycle) && PLAN_WORDS.test(hit.text)) continue
     const cosine = semantic.get(hit.id) ?? null
