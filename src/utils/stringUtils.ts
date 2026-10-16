@@ -35,6 +35,10 @@ export function collapseAndClip(text: string, max: number): string {
   return clipWithEllipsis(collapseWhitespace(text), max)
 }
 
+export function wordCount(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length
+}
+
 type IndexSearchable = {
   indexOf(needle: string, start?: number): number
 }
