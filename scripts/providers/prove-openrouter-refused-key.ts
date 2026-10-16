@@ -122,7 +122,8 @@ async function turn(): Promise<string> {
   const last = [...rows].reverse().find(row => row.type === 'assistant')
   return last?.message?.content.map(block => block.text ?? '').join('') ?? '(no assistant row)'
 }
-const storedSlot = () => slots.deriveFamilySlotGroups().find(group => group.family.id === 'openrouter')?.slots.find(slot => slot.id === 'openrouter:stored-key')
+const pockets = await import('../../src/utils/accounts/signInPockets.js')
+const storedSlot = () => slots.deriveFamilySlotGroups().find(group => group.family.id === 'openrouter')?.slots.find(slot => slot.id.startsWith('openrouter:stored-key') && slot.signInDir === pockets.pocketInUse('openrouter'))
 const authFile = (): Record<string, unknown> => (existsSync(accounts.openrouterAuthPathForDisplay()) ? (JSON.parse(readFileSync(accounts.openrouterAuthPathForDisplay(), 'utf8')) as Record<string, unknown>) : {})
 const freshRead = (): void => {
   usageState.__resetOpenrouterUsageStateForTest()
@@ -201,7 +202,7 @@ try {
     freshRead()
     const lane = usability.resolveProviderUsability().openrouter
     check('the fresh key is usable', lane.usable && lane.blockers.length === 0, j(lane))
-    check('the fresh slot is signed in with no note', storedSlot()?.signedIn === true && storedSlot()?.stateNote === undefined, j(storedSlot()))
+    check('the fresh slot is signed in with no refusal note (it is the second sign-in of the family, and says so)', storedSlot()?.signedIn === true && storedSlot()?.signInIdentity === `…${FRESH_KEY.slice(-4)}` && !(storedSlot()?.stateNote ?? '').includes(WIRE_MESSAGE), j(storedSlot()))
     check('the catalogue lane is no longer auth-invalid', catalogue.getOpenrouterAvailability().state !== 'disabled' || (catalogue.getOpenrouterAvailability() as { why?: string }).why !== 'auth-invalid', j(catalogue.getOpenrouterAvailability()))
     secrets.writeStoredOpenrouterApiKey(STORED_KEY)
     freshRead()

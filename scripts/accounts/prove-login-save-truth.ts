@@ -112,7 +112,11 @@ async function drive(save: () => SaveResult): Promise<{
   const authSrc = await import('node:fs').then(m =>
     m.readFileSync(join(import.meta.dir, '../../src/cli/handlers/auth.ts'), 'utf8'),
   )
-  t('§4 installOAuthTokens gates its save on the result', /const saved = saveOAuthTokensIfNeeded\(tokens\)/.test(authSrc) && /if \(!saved\.success\)/.test(authSrc))
+  t('§4 installOAuthTokens gates its save on the result', /const saved = landClaudeAiTokens\(tokens\)/.test(authSrc) && /if \(!saved\.success\)/.test(authSrc))
+  const clientSrc = await import('node:fs').then(m =>
+    m.readFileSync(join(import.meta.dir, '../../src/services/oauth/client.ts'), 'utf8'),
+  )
+  t('§4 …and the landing it rides saves through saveOAuthTokensIfNeeded and throws on a refused save', /saved = saveOAuthTokensIfNeeded\(tokens\)/.test(clientSrc) && /if \(!saved\.success\) throw new Error/.test(clientSrc))
 }
 
 console.log(failures === 0 ? 'LOGIN SAVE TRUTH: ALL PASS' : 'LOGIN SAVE TRUTH: RED')

@@ -127,8 +127,9 @@ async function signIn(tokens: Tokens, over: Partial<NonNullable<Parameters<typeo
   return { label: snap.accountLabel, flow: snap.flow.name, ...(snap.flow.message !== undefined ? { message: snap.flow.message } : {}) }
 }
 
-const storedOnFile = (): { emailAddress?: string; accountUuid?: string } | undefined =>
-  (JSON.parse(readFileSync(join(HOME, '.mercury.json'), 'utf8')) as { oauthAccount?: { emailAddress?: string; accountUuid?: string } }).oauthAccount
+const storedOnFile = (dir: string = HOME): { emailAddress?: string; accountUuid?: string } | undefined =>
+  (JSON.parse(readFileSync(join(dir, '.mercury.json'), 'utf8')) as { oauthAccount?: { emailAddress?: string; accountUuid?: string } }).oauthAccount
+const SECOND_POCKET = join(HOME, 'sign-ins', 'anthropic', SECOND_EMAIL)
 
 section('§0 the receipt words and the roles read')
 {
@@ -156,7 +157,7 @@ check('the receipt names the account that just signed in', first.label === SECON
 check('the credential on file is the one the sign-in landed', getClaudeAIOAuthTokens()?.accessToken === 'fixture-second-access-token-0002')
 check('the stored account is the one that signed in, from the profile the exchange returned', getOauthAccountInfo()?.emailAddress === SECOND_EMAIL && getOauthAccountInfo()?.accountUuid === SECOND_UUID, JSON.stringify(getOauthAccountInfo()))
 check('the display name and billing facts of the profile ride the stored account', getOauthAccountInfo()?.displayName === 'Second Account' && getOauthAccountInfo()?.organizationUuid === 'org-second' && getOauthAccountInfo()?.billingType === 'stripe_subscription', JSON.stringify(getOauthAccountInfo()))
-check('the config file on disk carries the account that signed in', storedOnFile()?.emailAddress === SECOND_EMAIL && storedOnFile()?.accountUuid === SECOND_UUID, JSON.stringify(storedOnFile()))
+check('the second account lands beside the first: its own pocket carries the account that signed in, the home file keeps the first', storedOnFile(SECOND_POCKET)?.emailAddress === SECOND_EMAIL && storedOnFile(SECOND_POCKET)?.accountUuid === SECOND_UUID && storedOnFile()?.emailAddress === FIRST_EMAIL, JSON.stringify({ pocket: storedOnFile(SECOND_POCKET), home: storedOnFile() }))
 check('the sign-in epoch moved exactly once for the landed credential', signInLedgerEpoch() === epochBefore + 1, `${epochBefore} → ${signInLedgerEpoch()}`)
 check('a surface woken by the sign-in epoch already reads the account that signed in', seenAtWake.length === 1 && seenAtWake[0] === SECOND_EMAIL, JSON.stringify(seenAtWake))
 check('the usage store saw the credential switch before the receipt was composed', getUsageCredentialEpoch() > usageEpochBefore, `${usageEpochBefore} → ${getUsageCredentialEpoch()}`)
@@ -176,7 +177,7 @@ section('§2b the in-app sign-in reads the account\'s roles with the landed toke
 
 section('§3 every surface that names the account reads the sign-in, with no /accounts in between')
 check('the presence owner names the account that signed in', anthropicCredentialPresence().identity === SECOND_EMAIL, JSON.stringify(anthropicCredentialPresence()))
-check('the logins roster row reads the account that signed in from the scope file', scanAccountScopes()[0]?.email === SECOND_EMAIL && scanAccountScopes()[0]?.authed === true, JSON.stringify(scanAccountScopes()[0]))
+check('the logins roster home row keeps the first account (the family default); the sign-in in use is the second', scanAccountScopes()[0]?.email === FIRST_EMAIL && scanAccountScopes()[0]?.authed === true && getOauthAccountInfo()?.emailAddress === SECOND_EMAIL, JSON.stringify(scanAccountScopes()[0]))
 const chip = sessionAccountWords('claude-opus-5')
 check('the face chip names the account that signed in', chip.state === 'email' && chip.text === SECOND_EMAIL && chip.family === 'anthropic', JSON.stringify(chip))
 
@@ -184,7 +185,7 @@ section('§4 a sign-in whose result carries no account names nobody, never the s
 const bare = await signIn(tokensOf({ accessToken: 'fixture-third-access-token-0003' }))
 check('the machine settled on success', bare.flow === 'success', JSON.stringify(bare))
 check('the receipt carries no email rather than the earlier account', bare.label === null, String(bare.label))
-check('the stored account is left as it was', getOauthAccountInfo()?.emailAddress === SECOND_EMAIL, JSON.stringify(getOauthAccountInfo()))
+check('a sign-in with no account to tell apart replaces the home credential; the home snapshot is left as it was', getOauthAccountInfo()?.emailAddress === FIRST_EMAIL && getClaudeAIOAuthTokens()?.accessToken === 'fixture-third-access-token-0003', JSON.stringify(getOauthAccountInfo()))
 
 section('§5 a save that failed stores no account and names nobody')
 const refused = await signIn(
@@ -192,7 +193,7 @@ const refused = await signIn(
   { saveTokens: () => ({ success: false, warning: 'Failed to save credentials to secure storage' }) } as never,
 )
 check('a failed save lands the error flow', refused.flow === 'error' && (refused.message ?? '').includes('secure storage'), JSON.stringify(refused))
-check('the failed save stored no account and named nobody', refused.label === null && getOauthAccountInfo()?.emailAddress === SECOND_EMAIL, JSON.stringify(getOauthAccountInfo()))
+check('the failed save stored no account and named nobody', refused.label === null && getOauthAccountInfo()?.emailAddress === FIRST_EMAIL, JSON.stringify(getOauthAccountInfo()))
 check('the credential on file is still the one saved before the refused save', getClaudeAIOAuthTokens()?.accessToken === 'fixture-third-access-token-0003', String(getClaudeAIOAuthTokens()?.accessToken))
 
 console.log(`\n ${checks} checks, ${failures} failures`)
