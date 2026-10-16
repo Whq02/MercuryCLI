@@ -45,6 +45,20 @@ try {
   check('child words cannot supply owner intent', child.refused === 1)
   const meta = await pin('Remember: always keep the pier clear.', 'always keep the pier clear', { messages: [{ type: 'user', uuid: randomUUID(), isMeta: true, message: { role: 'user', content: 'Remember: always keep the pier clear.' } }] })
   check('a meta message cannot supply owner intent', meta.refused === 1)
+  const human = (text: string) => ({ type: 'user', uuid: randomUUID(), message: { role: 'user', content: text }, origin: { kind: 'human' } })
+  const assistant = (text: string) => ({ type: 'assistant', uuid: randomUUID(), message: { role: 'assistant', content: [{ type: 'text', text }] } })
+  const midSentence = await pin('the provenance rule never applies to marketing. for marketing we should be able to script up answers and replies. every time I ask you to make a video for the release this will be the format.', 'the provenance rule never applies to marketing. for marketing we should be able to script up answers and replies. every time I ask you to make a video for the release this will be the format.')
+  check("the owner's own standing rule whose directive words sit mid-sentence is accepted word for word", midSentence.stored === 1 && midSentence.refused === 0, JSON.stringify(midSentence.outcomes))
+  const capitalised = await pin('from now on, always reply in British English.', 'Always reply in British English.')
+  check('a capital and a full stop around the owner\'s words do not refuse the pin', capitalised.stored === 1 && capitalised.refused === 0, JSON.stringify(capitalised.outcomes))
+  for (const [label, acceptance] of [['yes pin it', 'yes pin it'], ['pin that', 'pin that'], ['make that a rule', 'make that a rule']] as const) {
+    const later = await pin(null, 'always reply in British English', { messages: [human('always reply in British English'), assistant('Shall I pin that as a standing rule?'), human(acceptance)] })
+    check(`"${label}" one turn after the owner stated the rule pins the rule he stated`, later.stored === 1 && later.refused === 0, JSON.stringify(later.outcomes))
+  }
+  const bareRemember = await pin('remember: the API key lives in the vault', 'the API key lives in the vault')
+  check('a bare "remember:" without a rule word still never pins', bareRemember.refused === 1 && bareRemember.stored === 0, JSON.stringify(bareRemember.outcomes))
+  const acceptanceOfNothing = await pin(null, 'always reply in British English', { messages: [human('what did the last session do?'), assistant('It fixed the dock.'), human('yes pin it')] })
+  check('an acceptance with no rule stated in the owner\'s earlier words pins nothing', acceptanceOfNothing.refused === 1, JSON.stringify(acceptanceOfNothing.outcomes))
   const rule = 'always return the labelled receipt'
   const accepted = await pin(`Please remember this as a standing rule for every future chat here: ${rule}.`, rule)
   check('explicit owner directive is accepted', accepted.stored === 1 && accepted.refused === 0)
