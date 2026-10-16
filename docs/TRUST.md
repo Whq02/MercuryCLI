@@ -176,9 +176,9 @@ including Git Bash `/c/Users` and `/c/Windows` paths and environment variables
 deleting a home or protected root through a PowerShell pipeline
 (`Get-ChildItem … | Remove-Item -Recurse`) is refused by the same ward
 (`-WhatIf` previews remain allowed). A delete of any kind inside another
-user's home — `rm` with or without `-r`, `Remove-Item`, `del`, `rd`, `find …
--delete`, a pipeline into `Remove-Item` — is refused by its own ward
-(`no-other-user-delete`) in every permission mode, sovereign included, for
+user's home is refused by its own ward (`no-other-user-delete`) in every
+permission mode, sovereign included: `rm` with or without `-r`, `Remove-Item`,
+`del`, `rd`, `find … -delete`, and a pipeline into `Remove-Item`, for
 `/Users/<other>`, `/home/<other>`, `C:\Users\<other>` and Git Bash
 `/c/Users/<other>` in any spelling; your own home and the folder the session
 started in are not that ward's business, and a listing or a read of another
