@@ -24,10 +24,11 @@ try {
   mkdirSync(dirname(file), { recursive: true })
   writeFileSync(file, JSON.stringify({ version: 1, workers: {
     live: { ...base, sessionId: 'live', procStart: token },
-    reused: { ...base, sessionId: 'stale', procStart: 'another process start' },
+    reused: { ...base, sessionId: 'stale', procStart: 'Thu Jan  1 00:00:00 1970' },
+    foreign: { ...base, sessionId: 'older-build-vocabulary', procStart: 'Do. 1 Jan. 00:00:00 1970' },
     old: { ...base, sessionId: 'without-token' },
   } }))
-  assert.deepEqual(liveSessions(mnemeProjectKeyFor(home)).map(row => row.sessionId).sort(), ['live', 'without-token'], 'a stale record whose PID belongs to another process is not live')
+  assert.deepEqual(liveSessions(mnemeProjectKeyFor(home)).map(row => row.sessionId).sort(), ['live', 'older-build-vocabulary', 'without-token'], 'a stale record whose PID belongs to a process of another start is not live; a token in a vocabulary this build cannot parse is uncertain and keeps the live pid live')
   console.log('LIVE SESSION IDENTITY GREEN')
 } finally {
   rmSync(home, { recursive: true, force: true })

@@ -683,6 +683,11 @@ Available commands include:
   `enable`, `disable`, `update`, `uninstall`, `fence`, `unfence`, `inspect`
   and `scaffold`.
 - **`mercury roster`**: list the agent inventory.
+- **`mercury usage`**: print the compact figures line the `/usage` screen
+  shows; `--json` prints the whole reading: each signed-in provider's windows
+  with used and reset, the figures and credits it stated, each with its source
+  and age, and the session spend per model, read the way the screen reads it
+  (each signed-in provider's reader sampled once, as on open).
 - **`mercury daemon run|status|stop|restart`**: run, inspect, stop or restart
   the background daemon. Its session seats are `mercury runner` children; the
   daemon sends their prompts and hosts their permission asks.
