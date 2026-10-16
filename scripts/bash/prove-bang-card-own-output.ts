@@ -95,7 +95,7 @@ try {
 console.log(`        the model reads ${clip(modelText)}`)
 check('the call failed and the model reads the exit code and the output', modelText.startsWith('Shell command failed (exit code 7)') && modelText.includes('own-line') && modelText.includes('own-error') && /Exited with code 7/.test(modelText), clip(modelText))
 check("the model's result carries the full scrub note with the inherit hint", modelText.includes('[session env scrubbed: MERCURY_ENTRYPOINT, MERCURY_SEATS') && modelText.includes('inherit_session_env: true keeps them'), clip(modelText))
-check("the note rides the result as its own line after the command's output, not inside the output", modelText.indexOf('[session env scrubbed') > modelText.indexOf('Exited with code 7') && !thrownStderr.includes('[session env scrubbed'), clip(thrownStderr))
+check("the note rides the result as its own line after the command's output, not inside the output", modelText.indexOf('Exited with code 7') >= 0 && modelText.indexOf('[session env scrubbed') > modelText.indexOf('Exited with code 7') && !thrownStderr.includes('[session env scrubbed'), clip(thrownStderr))
 
 section('§2 the operator\'s `!` card: a failed command as the first scrubbing command of the session')
 resetSessionEnvNoticeForTesting()
