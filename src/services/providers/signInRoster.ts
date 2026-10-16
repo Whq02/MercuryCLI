@@ -50,13 +50,13 @@ import { credentialFingerprint, maskedKeyTail } from './credentialIdentity.js'
 import { accountIdentityShown } from '../wallet/identityWords.js'
 import { providerDisplayName } from './routeLaw.js'
 
-export interface SignInRoad {
+interface SignInRoad {
   identity: string
   kind: string
   active: boolean
 }
 
-export interface SignInRosterRow {
+interface SignInRosterRow {
   family: string
   identity: string
   kind: string
@@ -84,7 +84,7 @@ const ROAD_WORDS: Record<string, string> = {
   'api-key': 'API key',
 }
 
-export function roadWords(kind: string): string {
+function roadWords(kind: string): string {
   return ROAD_WORDS[kind] ?? kind
 }
 
@@ -250,7 +250,7 @@ function pocketRemoval(family: string): () => void {
   }
 }
 
-export const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'gemini', 'huggingface', 'moonshot', 'xai', 'nous', 'meta', 'openrouter', 'zai', 'deepseek', 'mistral', 'zen', 'local', 'openai-compat'] as const
+const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'gemini', 'huggingface', 'moonshot', 'xai', 'nous', 'meta', 'openrouter', 'zai', 'deepseek', 'mistral', 'zen', 'local', 'openai-compat'] as const
 
 export function familySignInRoster(family: string, home: string = signInsEstate()): SignInRosterRow[] {
   const choice = chosenSignIn(family)
@@ -294,13 +294,13 @@ function roadNamed(row: SignInRosterRow, typed: string): SignInRoad | undefined 
   return row.roads.find(road => namesIdentity(road.identity, wanted))
 }
 
-export function findSignIn(identity: string, family?: string, home: string = signInsEstate()): { row?: SignInRosterRow; matches: SignInRosterRow[] } {
+function findSignIn(identity: string, family?: string, home: string = signInsEstate()): { row?: SignInRosterRow; matches: SignInRosterRow[] } {
   const wanted = spelledIdentity(identity)
   const rows = (family === undefined ? everySignInRoster(home) : familySignInRoster(family, home)).filter(row => namesRow(row, wanted))
   return rows.length === 1 ? { row: rows[0]!, matches: rows } : { matches: rows }
 }
 
-export function knownIdentities(family: string, home: string = signInsEstate()): string[] {
+function knownIdentities(family: string, home: string = signInsEstate()): string[] {
   return familySignInRoster(family, home).map(row => row.identity)
 }
 
@@ -320,7 +320,7 @@ function typedWords(identity: string, shown: boolean): string {
   return shown ? identity : 'that'
 }
 
-export type UseSignInOutcome =
+type UseSignInOutcome =
   | { ok: true; row: SignInRosterRow; words: string }
   | { ok: false; words: string }
 
@@ -358,7 +358,7 @@ export function useDefaultSignIn(family: string): string {
   return `${providerDisplayName(family)}: this session spends the project's choice or the default again`
 }
 
-export type ForgetSignInOutcome = { ok: true; words: string; choiceFell: boolean } | { ok: false; words: string }
+type ForgetSignInOutcome = { ok: true; words: string; choiceFell: boolean } | { ok: false; words: string }
 
 export function forgetSignIn(identity: string, family?: string, home: string = signInsEstate(), shown: boolean = accountIdentityShown()): ForgetSignInOutcome {
   const found = findSignIn(identity, family, home)
@@ -382,7 +382,7 @@ export function forgetSignIn(identity: string, family?: string, home: string = s
   }
 }
 
-export interface ProjectSignInRefusal {
+interface ProjectSignInRefusal {
   family: string
   identity: string
   known: string[]
