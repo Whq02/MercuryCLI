@@ -455,7 +455,7 @@ interface Scan {
 }
 
 const CODE_LIKE = /\b(?:import\s*\(|require\s*\(|import\s+(?:type\s+)?[{*\w]|export\s*(?:\*|\{))/
-const EXPORT_ENUMERATOR = /\b(?:ExportKeyword|isExportDeclaration|isExportAssignment|isExportSpecifier|isNamedExports)\b/
+const EXPORT_ENUMERATOR = /\b(?:ExportKeyword|isExportDeclaration|isExportAssignment|isExportSpecifier|isNamedExports|getExportsOfModule)\b/
 const PATTERN_PIN_SOURCE = /export(?:\\s[*+]?|\s)+(?:default|declare|async|abstract|function|const|let|var|class|type|interface|enum|namespace|module)\b/
 const PROBE_HEADS = ['export const zzProbeZz = 1', 'export function zzProbeZz() {}', 'export type ZzProbeZz = 1', 'export interface ZzProbeZz {}', 'export class ZzProbeZz {}', 'export async function zzProbeZz(): Promise<void> {}']
 
