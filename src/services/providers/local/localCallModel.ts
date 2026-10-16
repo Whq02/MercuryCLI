@@ -16,7 +16,7 @@ import {
 } from '../openaicompat/compatChatCallModel.js'
 import { buildLocalExtras, localThinkingOff } from '../openaicompat/compatWire.js'
 import { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
-import { planToolPayload } from '../toolEconomy.js'
+import { planToolPayload, toolsOnTheWire } from '../toolEconomy.js'
 import { mapToolsToZai, toolDeclarationRowInResult, type ApiShapedTool } from '../zai/zaiCodec.js'
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
@@ -100,7 +100,7 @@ export async function localToolWireOf(params: CompatCallModelParams): Promise<Lo
   })
   const declared = plan.admissionDeclarations.flatMap(declaration => declaration.tools)
   const schemas = await Promise.all(
-    [...plan.roster, ...declared].map(tool =>
+    toolsOnTheWire(plan).map(tool =>
       toolToAPISchema(tool, {
         getToolPermissionContext: options.getToolPermissionContext,
         tools: plan.roster,
