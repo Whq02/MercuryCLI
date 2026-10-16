@@ -16,6 +16,7 @@ import {
   type TestCaseResult,
   type TestRunRecord,
 } from './pythonTests.js'
+import { findPythonTestFiles } from './pythonProject.js'
 import { goRunPattern, jsTestNamePattern, parseGoTestJson, parseJsonReporter, type ReporterRead } from './runnerReporters.js'
 
 export type RunnerKind = 'test' | 'check' | 'build'
@@ -284,6 +285,38 @@ export function discoverRunnerProfiles(from: string = getCwd()): {
   const root = findRunnerRoot(from)
   if (!root) return { root: null, profiles: [] }
   return { root, profiles: [...jsProfiles(root), ...cargoProfiles(root), ...goProfiles(root)] }
+}
+
+export interface SubPackage {
+  dir: string
+  manifests: string[]
+  profiles: RunnerProfile[]
+}
+
+const RUNNER_MANIFESTS = ['package.json', 'Cargo.toml', 'go.mod'] as const
+const SUB_PACKAGE_SKIP = new Set(['node_modules', 'dist', 'build', 'out', 'coverage', 'target', 'vendor', 'venv', '__pycache__'])
+const SUB_PACKAGE_SCAN_CAP = 200
+
+export function discoverSubPackages(root: string): SubPackage[] {
+  let entries: import('node:fs').Dirent[]
+  try {
+    entries = readdirSync(root, { withFileTypes: true })
+  } catch {
+    return []
+  }
+  const out: SubPackage[] = []
+  for (const e of entries.sort((a, b) => a.name.localeCompare(b.name)).slice(0, SUB_PACKAGE_SCAN_CAP)) {
+    if (!e.isDirectory() || e.name.startsWith('.') || SUB_PACKAGE_SKIP.has(e.name)) continue
+    const dir = path.join(root, e.name)
+    const manifests = RUNNER_MANIFESTS.filter(m => existsSync(path.join(dir, m)))
+    if (manifests.length === 0) continue
+    out.push({ dir: e.name, manifests, profiles: [...jsProfiles(dir), ...cargoProfiles(dir), ...goProfiles(dir)] })
+  }
+  return out
+}
+
+export function subPackageTestRunners(sub: SubPackage): string[] {
+  return [...new Set(sub.profiles.filter(p => p.kind === 'test').map(p => p.runner))]
 }
 
 
@@ -815,30 +848,44 @@ export async function runRunnerProfile(
 export type TestLane =
   | { lane: 'python'; framework?: 'pytest' | 'unittest' }
   | { lane: 'runner'; profile: RunnerProfile }
-  | { lane: 'runner-missing'; runner: string }
+  | { lane: 'runner-missing'; runner: string; below?: SubPackage[] }
   | { lane: 'ambiguous'; options: string[] }
+  | { lane: 'sub-packages'; root: string; packages: SubPackage[]; runner?: string }
 
-export function hasPythonSignal(from: string = getCwd()): boolean {
+export function hasPythonSignal(from: string = getCwd(), skipDirs: ReadonlySet<string> = new Set()): boolean {
   const root = findRunnerRoot(from) ?? path.resolve(from)
   for (const f of ['pyproject.toml', 'setup.py', 'setup.cfg', 'conftest.py']) {
     if (existsSync(path.join(root, f))) return true
   }
-  return hasPythonTestFiles(root)
+  return findPythonTestFiles(root, skipDirs).length > 0
 }
 
 export function hasPythonTestFiles(root: string): boolean {
-  return hasTestFiles(root, /(^test_.*|_test)\.py$/, ['tests', 'test', '.'])
+  return findPythonTestFiles(root).length > 0
 }
 
 export function resolveTestLane(from: string = getCwd(), explicit?: string): TestLane {
   if (explicit === 'pytest' || explicit === 'unittest') {
     return { lane: 'python', framework: explicit }
   }
-  const { profiles } = discoverRunnerProfiles(from)
+  const { root, profiles } = discoverRunnerProfiles(from)
   const testProfiles = profiles.filter(p => p.kind === 'test')
+  const below = root === null && pythonTestsEnabled() ? discoverSubPackages(path.resolve(from)) : []
   if (explicit) {
     const match = testProfiles.find(p => p.runner === explicit)
-    return match ? { lane: 'runner', profile: match } : { lane: 'runner-missing', runner: explicit }
+    if (match) return { lane: 'runner', profile: match }
+    const declaring = below.filter(s => subPackageTestRunners(s).includes(explicit as RunnerFramework))
+    if (declaring.length === 1) return { lane: 'runner', profile: declaring[0]!.profiles.find(p => p.kind === 'test' && p.runner === explicit)! }
+    if (declaring.length > 1) return { lane: 'sub-packages', root: path.resolve(from), packages: declaring, runner: explicit }
+    return { lane: 'runner-missing', runner: explicit, ...(below.length > 0 ? { below } : {}) }
+  }
+  if (below.length > 0) {
+    if (hasPythonSignal(from, new Set(below.map(s => s.dir)))) return { lane: 'python' }
+    const declaring = below.filter(s => subPackageTestRunners(s).length > 0)
+    if (declaring.length === 1 && subPackageTestRunners(declaring[0]!).length === 1) {
+      return { lane: 'runner', profile: declaring[0]!.profiles.find(p => p.kind === 'test')! }
+    }
+    return { lane: 'sub-packages', root: path.resolve(from), packages: below }
   }
   if (hasPythonSignal(from)) return { lane: 'python' }
   if (testProfiles.length === 0) return { lane: 'python' }

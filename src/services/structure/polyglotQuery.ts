@@ -12,6 +12,7 @@ import {
   patternCandidates,
   type CompiledPattern,
 } from './pattern.js'
+import { normalizeFileGlobs, posixRelative } from './scanPaths.js'
 
 const MAX_FILES_SCANNED = 3000
 
@@ -90,6 +91,10 @@ function matchesGlob(value: string, glob: string): boolean {
   return globToRegExp(glob).test(value)
 }
 
+export function admitsPolyglotFile(rel: string, globs: readonly string[] | undefined): boolean {
+  return globs === undefined || globs.some(g => matchesGlob(rel, g))
+}
+
 export function discoverPolyglotFiles(
   root: string,
   fileGlobs: string[] | undefined,
@@ -107,7 +112,7 @@ export function discoverPolyglotFiles(
   let scanned = 0
   let skippedUnsupported = 0
   let truncatedWalk = false
-  const globs = fileGlobs?.map(g => g.replace(/^\.\//, ''))
+  const globs = normalizeFileGlobs(fileGlobs)
 
   function walk(dir: string): void {
     if (truncatedWalk) return
@@ -121,7 +126,7 @@ export function discoverPolyglotFiles(
       if (truncatedWalk) return
       if (entry.startsWith('.')) continue
       const full = path.join(dir, entry)
-      const rel = path.relative(root, full)
+      const rel = posixRelative(root, full)
       let stat
       try {
         stat = statSync(full)
@@ -139,7 +144,7 @@ export function discoverPolyglotFiles(
           return
         }
         if (ignoredByRules(rules, rel, false, entry)) continue
-        if (globs && !globs.some(g => matchesGlob(rel, g))) continue
+        if (!admitsPolyglotFile(rel, globs)) continue
         const lang = languageForFile(entry)
         if (!lang) {
           const ext = path.extname(entry).toLowerCase() || entry
