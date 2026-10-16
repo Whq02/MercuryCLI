@@ -1,3 +1,4 @@
+import stripAnsi from 'strip-ansi'
 import { z } from 'zod/v4'
 import { buildTool, stringInputField, type ToolUseContext, type ToolResult, type ToolPermissionContext } from '../../Tool.js'
 import { bashToolAvailable } from '../../utils/shell/windowsShellRoad.js'
@@ -780,7 +781,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
     const image = buildImageToolResult(output.stdout, toolUseID)
     if (image) return image
   }
-  let stdout = output.stdout.replace(/^\s*\n/g, '').trimEnd()
+  let stdout = stripAnsi(output.stdout).replace(/^\s*\n/g, '').trimEnd()
   if (output.persistedOutputPath) {
     const { preview, hasMore } = generatePreview(stdout, PREVIEW_SIZE_CHARS, output.persistedOutputSize)
     stdout = buildLargeToolResultMessage({
@@ -791,7 +792,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
       hasMore,
     })
   }
-  let errorText = output.stderr.trimEnd()
+  let errorText = stripAnsi(output.stderr).trimEnd()
   if (output.interrupted) {
     const sep = output.stderr !== '' ? '\n' : '\n'
     errorText += `${sep}<error>The command was aborted before completion.</error>`

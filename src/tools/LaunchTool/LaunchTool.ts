@@ -350,11 +350,12 @@ async function runOp(input: Input, context: ToolUseContext, onProgress?: ToolCal
     if (outcome.state === 'terminated') {
       await session.drainOutput()
       const tail = session.output.slice(-12).join('\n')
-      note(`run ${p.id} (${p.label}) — terminated: ${session.exitDetail || 'clean exit'}`)
+      const ended = session.debuggeeEndDetail()
+      note(`run ${p.id} (${p.label}) — terminated: ${ended}`)
       const { removeDapSession } = await import('../../services/dap/dapClient.js')
       await removeDapSession(owner, sessionId)
       return {
-        result: `${gate.ranLine}ran ${p.label} — ${session.exitDetail || 'clean exit'}${tail ? `\noutput:\n${tail}` : ''}`,
+        result: `${gate.ranLine}ran ${p.label} — ${ended}${tail ? `\noutput:\n${tail}` : ''}`,
         outcome: 'succeeded',
       }
     }

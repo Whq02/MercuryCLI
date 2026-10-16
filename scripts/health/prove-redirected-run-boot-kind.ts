@@ -37,11 +37,14 @@ const rows = (configDir: string): Row[] => {
 }
 
 console.log('§1 a redirected start (stdout is a file) is recorded for what it is: a headless boot, never an interactive one')
-for (const args of [['--chat'], ['usage']]) {
+for (const [args, door] of [
+  [['--chat'], { status: 1, words: 'the headless door (exit 1, no screen)' }],
+  [['orient'], { status: 2, words: 'the unknown-command refusal (exit 2, the remedy named, no screen)' }],
+] as const) {
   const w = world(args.join('-').replace(/^-+/, 'bare-'))
   const r = spawnSync('node', [DIST, ...args], { cwd: w.cwd, env: w.env, encoding: 'utf8', input: '', timeout: 90_000 })
   const entry = rows(w.configDir).find(row => row.milestone === 'runtime-entry')
-  check(`mercury ${args.join(' ')} > file: the run took the headless door (exit 1, no screen)`, r.status === 1, `${r.status} · ${(r.stdout + r.stderr).trim().slice(0, 120)}`)
+  check(`mercury ${args.join(' ')} > file: the run took ${door.words}`, r.status === door.status, `${r.status} · ${(r.stdout + r.stderr).trim().slice(0, 120)}`)
   check(`…and its runtime-entry row says boot: headless`, entry !== undefined && entry.boot === 'headless', JSON.stringify(entry))
 }
 

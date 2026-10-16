@@ -25,6 +25,7 @@ import {
   peekAntigravityClient,
 } from './antigravityClientContract.js'
 import { antigravityCodeAssistBases, discoverGeminiPlan, geminiPlanTierWords, type GeminiPlanTierFacts } from './geminiPlanAccess.js'
+import { usagePollTtlMs } from '../usageFreshness.js'
 
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -959,6 +960,14 @@ export async function rereadGeminiPlanTier(opts?: { fetchImpl?: typeof fetch; en
     return { ...file, plan: { ...kept, projectId: discovered.projectId, tier: discovered.tier, tierReadAtMs: readAtMs } }
   })
   return geminiPlanFacts()
+}
+
+export async function rereadGeminiPlanTierOnShow(opts?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number; force?: boolean }): Promise<GeminiPlanFacts | undefined> {
+  const before = planOf(readAuthFile())
+  if (!before) return undefined
+  const now = (opts?.now ?? Date.now)()
+  if (opts?.force !== true && before.tierReadAtMs !== undefined && now - before.tierReadAtMs < usagePollTtlMs()) return geminiPlanFacts()
+  return rereadGeminiPlanTier(opts)
 }
 
 export function __resetGeminiAccountsForTest(): void {

@@ -93,6 +93,13 @@ const ATTACHMENTS: Record<string, Fixture> = {
     good: { addedNames: [], addedBlocks: ['b'], removedNames: [] },
     bad: [{ label: 'addedBlocks is an object', field: 'addedBlocks', fields: { addedNames: [], addedBlocks: {}, removedNames: [] } }],
   },
+  mcp_servers_failed: {
+    good: { servers: [{ name: 'calc', reason: 'Connection closed' }], body: 'b' },
+    bad: [
+      { label: 'servers is text', field: 'servers', fields: { servers: 'calc', body: 'b' } },
+      { label: 'body is missing', field: 'body', fields: { servers: [{ name: 'calc', reason: 'Connection closed' }] } },
+    ],
+  },
   harness_map_delta: { good: { added: ['a'], removed: [] }, bad: [{ label: 'added is text', field: 'added', fields: { added: 'a', removed: [] } }] },
   file: {
     good: { filename: 'a.ts', content: { type: 'text', file: { filePath: 'a.ts', content: 'x', numLines: 1, startLine: 1, totalLines: 1 } }, displayPath: 'a.ts' },
