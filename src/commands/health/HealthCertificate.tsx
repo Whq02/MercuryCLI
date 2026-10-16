@@ -68,11 +68,11 @@ const VERDICT_META: Record<
   },
 }
 
-export const HEALTH_POPUP_VIEW = 'health'
-export const HEALTH_POPUP_MIN_ROWS = 10
-export const HEALTH_POPUP_SPARE_ROWS = 7
-export const HEALTH_POPUP_CHROME_ROWS = 7
-export const HEALTH_POPUP_COMPACT_CHROME_ROWS = 4
+const HEALTH_POPUP_VIEW = 'health'
+const HEALTH_POPUP_MIN_ROWS = 10
+const HEALTH_POPUP_SPARE_ROWS = 7
+const HEALTH_POPUP_CHROME_ROWS = 7
+const HEALTH_POPUP_COMPACT_CHROME_ROWS = 4
 export const HEALTH_POPUP_CLOSE_HINT = 'esc or click outside closes'
 
 export function healthPopupShape(): CommandPopupShape {
@@ -90,7 +90,7 @@ export function healthPopupLayout(frameRows: number, fixRows: number, contentRow
   return { compact, listRows: Math.max(1, Math.min(budget, contentRows)) }
 }
 
-export function healthPopupFooter(segments: { rows: number; cursor: number; fixable: boolean }, width: number): string {
+function healthPopupFooter(segments: { rows: number; cursor: number; fixable: boolean }, width: number): string {
   const listed = segments.rows > 0
   const parts = [
     { text: listed ? '↑↓ move' : '', priority: 9 },
