@@ -124,7 +124,7 @@ async function startFixture(): Promise<{ url: string; hits: Hit[]; close: () => 
   }
 }
 
-type Leg = { name: string; home: string; cwd: string; cfg: string; grid: string; log: string; unknown: string }
+type Leg = { name: string; home: string; cwd: string; cfg: string; grid: string; log: string; unknown: string; composerNeedle: string }
 function seedLeg(name: string): Leg {
   const home = join(SCRATCH, `home-${name}`)
   const cwd = join(SCRATCH, `cwd-${name}`)
@@ -134,7 +134,7 @@ function seedLeg(name: string): Leg {
   seedFirstRun(home, [cwd])
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { sovereignConsentSeen: true }, activity: { tips: { enabled: false } } }))
   const unknown = name === 'pasted' ? `\x1b[200~${UNKNOWN_LINE}\n${PASTE_TAIL}\x1b[201~` : UNKNOWN_LINE
-  return { name, home, cwd, cfg: join(SCRATCH, `${name}-cfg.json`), grid: join(SCRATCH, `${name}-grid.json`), log: join(SCRATCH, `${name}-engine.log`), unknown }
+  return { name, home, cwd, cfg: join(SCRATCH, `${name}-cfg.json`), grid: join(SCRATCH, `${name}-grid.json`), log: join(SCRATCH, `${name}-engine.log`), unknown, composerNeedle: name === 'pasted' ? 'Pasted text #1' : 'some long text here' }
 }
 function childEnv(leg: Leg, fixtureUrl: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
@@ -170,30 +170,32 @@ const gridText = (grid: Grid): string => grid.map(row => row.map(c => cellGlyph(
 type Payload = { grid: Grid; endReason?: string; sendReceipts?: Array<{ atTick: number }>; marks?: Array<{ label: string; grid: Grid }> }
 type Capture = { status: number | null; marks: Record<string, string>; receipts: number; sends: number; endReason: string; output: string }
 
-const after = (data: string, ticks: number, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, afterPrevTicks: ticks, ...extra })
-const gated = (data: string, awaitText: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 1, awaitSettleTicks: 3, ...extra })
+const QUEUED_ROW = `[sam] ❯ ${QUEUED}`
+const ESCAPED_TAIL = 'literal words to the model'
+const ANSWER_2 = 'fixture answer 2 done'
+const ANSWER_3 = 'fixture answer 3 done'
+const ANSWER_4 = 'fixture answer 4 done'
 
 async function capture(leg: Leg, fixtureUrl: string): Promise<Capture> {
   const sends: Array<Record<string, unknown>> = [
-    { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
-    gated(leg.unknown, '← back', { minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'typed-unknown' }),
-    after('\r', 2, { mark: 'sent-unknown' }),
-    after('', 12, { mark: 'after-unknown' }),
-    after(ORDINARY, 2),
-    after('\r', 2, { mark: 'sent-ordinary' }),
-    after(QUEUED, 14, { mark: 'typed-queued' }),
-    after('\r', 2, { mark: 'sent-queued' }),
-    after('', 6, { mark: 'mid-tool' }),
-    after('\x1b', 2, { mark: 'esc' }),
-    gated('', `fixture answer`, { minTick: 1, awaitSettleTicks: 8, awaitStableTicks: 4, mark: 'after-esc' }),
-    after(THIRD, 2),
-    after('\r', 2, { mark: 'sent-third' }),
-    after('', 20, { mark: 'after-third' }),
-    after(ESCAPED, 2),
-    after('\r', 2, { mark: 'sent-escaped' }),
-    after('', 20, { mark: 'end' }),
+    { data: '\r', atTick: 60, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 2, mark: 'boot' },
+    { data: leg.unknown, atTick: 999, awaitText: '← back', requireAwait: true, minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'typed-unknown' },
+    { data: '\r', atTick: 999, awaitText: leg.composerNeedle, requireAwait: true, minTick: 1, awaitSettleTicks: 2, mark: 'sent-unknown' },
+    { data: '', atTick: 999, awaitText: 'Unknown command: /nosuch', requireAwait: true, minTick: 1, awaitSettleTicks: 8, awaitStableTicks: 3, mark: 'after-unknown' },
+    { data: ORDINARY, atTick: 999, awaitText: 'Unknown command: /nosuch', requireAwait: true, minTick: 1, awaitSettleTicks: 1 },
+    { data: '\r', atTick: 999, awaitText: ORDINARY, requireAwait: true, minTick: 1, awaitSettleTicks: 2, mark: 'sent-ordinary' },
+    { data: QUEUED, atTick: 999, awaitText: 'sleep 14', requireAwait: true, minTick: 1, awaitSettleTicks: 4, mark: 'typed-queued' },
+    { data: '\r', atTick: 999, awaitText: QUEUED, requireAwait: true, minTick: 1, awaitSettleTicks: 2, mark: 'sent-queued' },
+    { data: '', atTick: 999, awaitText: QUEUED_ROW, requireAwait: true, minTick: 1, awaitSettleTicks: 3, mark: 'mid-tool' },
+    { data: '\x1b', atTick: 999, awaitText: QUEUED_ROW, requireAwait: true, minTick: 1, awaitSettleTicks: 1, mark: 'esc' },
+    { data: '', atTick: 999, awaitText: ANSWER_2, requireAwait: true, minTick: 1, awaitSettleTicks: 8, awaitStableTicks: 4, mark: 'after-esc' },
+    { data: THIRD, atTick: 999, awaitText: ANSWER_2, requireAwait: true, minTick: 1, awaitSettleTicks: 1 },
+    { data: '\r', atTick: 999, awaitText: THIRD, requireAwait: true, minTick: 1, awaitSettleTicks: 2, mark: 'sent-third' },
+    { data: ESCAPED, atTick: 999, awaitText: ANSWER_3, requireAwait: true, minTick: 1, awaitSettleTicks: 6, awaitStableTicks: 3, mark: 'after-third' },
+    { data: '\r', atTick: 999, awaitText: ESCAPED_TAIL, requireAwait: true, minTick: 1, awaitSettleTicks: 2, mark: 'sent-escaped' },
+    { data: '', atTick: 999, awaitText: ANSWER_4, requireAwait: true, minTick: 1, awaitSettleTicks: 8, awaitStableTicks: 4, mark: 'end' },
   ]
-  const cfg = { argv: [NODE, DIST, '--sovereign'], cwd: leg.cwd, cols: 120, rows: 56, sends, resizes: [], total: 320, out: leg.grid, stableTicks: 0 }
+  const cfg = { argv: [NODE, DIST, '--sovereign'], cwd: leg.cwd, cols: 120, rows: 56, sends, resizes: [], total: 320, out: leg.grid, readyText: [ANSWER_4] }
   writeFileSync(leg.cfg, JSON.stringify(cfg))
   const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), leg.cfg], { cwd: leg.cwd, env: childEnv(leg, fixtureUrl), stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
