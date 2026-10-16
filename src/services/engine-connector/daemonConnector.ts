@@ -1319,6 +1319,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       } else if (row.type === 'attachment' && row.attachment.type === 'queued_command') {
         const id = row.attachment.source_uuid
         if (id !== undefined && identityKeys.has(id)) landed.add(id)
+      } else if (row.type === 'system' && identityKeys.has(row.uuid)) {
+        landed.add(row.uuid)
       }
     }
     for (const s of this.sends) {
