@@ -256,7 +256,7 @@ section('D. doctrine splice')
   })
   check('D1 the envelope doctrine reaches spawned agents',
     sections.some(s => s.includes('mercury-envelope')))
-  check('D2 the doctrine text is the contracts export', ENVELOPE_DOCTRINE.includes('cross-checked against observed tool effects') && sections.some(s => s === ENVELOPE_DOCTRINE))
+  check('D2 the doctrine text is the contracts export, and it ends on the fields (the cross-check claim rides the seat contract, not the envelope)', ENVELOPE_DOCTRINE.endsWith('(names of verification commands you actually ran).') && !ENVELOPE_DOCTRINE.includes('cross-checked') && sections.some(s => s === ENVELOPE_DOCTRINE))
 
   process.env.MERCURY_CHANGE_RECEIPTS = '0'
   const off = buildSubagentMercurySections({

@@ -29,7 +29,7 @@ import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
 import { endEngineSessionFor } from '../../utils/shell/engineSession.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from '../../utils/userContextReminder.js'
-import { disposeBrowserOwner } from '../../services/browser/browserSession.js'
+import { disposeOwnerProcesses } from '../../services/run/ownerLifecycle.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
@@ -1273,7 +1273,7 @@ export async function* runAgent(
         rootSetAppState,
       )
       await endEngineSessionFor(agentId)
-      await disposeBrowserOwner(processOwnerForLane(agentId))
+      await disposeOwnerProcesses(processOwnerForLane(agentId))
     }
   }
 }
