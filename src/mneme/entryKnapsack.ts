@@ -231,19 +231,18 @@ export function staleMark(confirmedAt: string | undefined): string {
   return ` [${memoryStatusWords({ status: 'stale', confirmedAt })}]`
 }
 
-function markStale(candidate: StartCandidate, confirmedAt: string | undefined): StartCandidate {
-  const mark = staleMark(confirmedAt)
+function markStale(candidate: StartCandidate, mark: string): StartCandidate {
   return { ...candidate, stale: true, block: `${candidate.block}${mark}`, chars: candidate.chars + mark.length }
 }
 
-export function composeStartPage(input: { dir: string; projectKey: string; state: ProjectState; previous: readonly LedgerEntry[]; limit: number; now: number; root: string | null; stale?: (candidate: StartCandidate) => boolean; confirmedAt?: (candidate: StartCandidate) => string | undefined }): StartPage {
+export function composeStartPage(input: { dir: string; projectKey: string; state: ProjectState; previous: readonly LedgerEntry[]; limit: number; now: number; root: string | null; stale?: (candidate: StartCandidate) => boolean; confirmedAt?: (candidate: StartCandidate) => string | undefined; mark?: (candidate: StartCandidate) => string | undefined }): StartPage {
   const topics = listTopicDocs(input.dir)
   const archives = listArchiveDocs(input.dir)
   const pinned = pinnedNow(input.dir, topics)
   const facts = libraryCandidates(input.dir, pinned.excluded, { topics, archives })
   const notes = earlierNotes(input.previous, input.projectKey)
   const pending = pendingRows(input.dir).length
-  const candidates = [...facts, ...notes].map(candidate => (input.stale?.(candidate) ? markStale(candidate, input.confirmedAt?.(candidate)) : candidate))
+  const candidates = [...facts, ...notes].map(candidate => (input.stale?.(candidate) ? markStale(candidate, input.mark?.(candidate) ?? staleMark(input.confirmedAt?.(candidate))) : candidate))
   const choice = chooseAtStart({ candidates, chunks: stateQuery(input.state, input.root), limit: input.limit, pinnedChars: pinned.chars, now: input.now, dir: input.dir })
   const status: MemoryAtStartStatus = {
     limit: input.limit,
@@ -277,7 +276,25 @@ export async function composeMemoryAtStart(input: { projectKey: string; sessionI
       states.set(candidate.id, state)
       return state
     }
-    const page = composeStartPage({ dir, projectKey: input.projectKey, state, previous, limit: startTextLimit(), now: now.getTime(), root: input.root, stale: candidate => stateOf(candidate)?.status === 'stale', confirmedAt: candidate => stateOf(candidate)?.confirmedAt })
+    const demoted = (candidate: StartCandidate): boolean => {
+      const status = stateOf(candidate)?.status
+      return status === 'stale' || status === 'needs-review'
+    }
+    const page = composeStartPage({
+      dir,
+      projectKey: input.projectKey,
+      state,
+      previous,
+      limit: startTextLimit(),
+      now: now.getTime(),
+      root: input.root,
+      stale: demoted,
+      confirmedAt: candidate => stateOf(candidate)?.confirmedAt,
+      mark: candidate => {
+        const known = stateOf(candidate)
+        return known === null ? undefined : ` [${memoryStatusWords(known)}]`
+      },
+    })
     lastStatus = page.status
     return page.text
   } catch (error) {
