@@ -56,10 +56,6 @@ export function memoryAtStartStatus(): MemoryAtStartStatus | null {
   return lastStatus
 }
 
-function _resetMemoryAtStartForTesting(): void {
-  lastStatus = null
-}
-
 function factCandidate(entry: MnemeEntry, doc: MnemeTopicDoc, dir: string, usage: Record<string, UsageRecord>): StartCandidate {
   const block = `- ${entry.text} <seq=${entry.seq}>`
   return {
