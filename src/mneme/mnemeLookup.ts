@@ -73,7 +73,7 @@ export interface LookupCandidate {
   useCount?: number
 }
 
-export interface LookupHit extends Omit<LookupCandidate, 'time' | 'pinned' | 'kind' | 'useCount'> {
+interface LookupHit extends Omit<LookupCandidate, 'time' | 'pinned' | 'kind' | 'useCount'> {
   score: number
   matched: string[]
 }
