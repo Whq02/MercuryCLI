@@ -335,7 +335,7 @@ function taskConstraint(text: string, query: string, files: readonly string[]): 
   })
 }
 
-const LOG_HEAD = /^(?:session note\b|\d{4}-\d{2}-\d{2}|(?:1\.0\.0-)?beta[. -]?\d+\b|state of\b)|\b(?:states? (?:on|at)\b|shipped\b|launched\b|lanes? [^:]{0,60}\blanded\b|(?:learned|agreed|clarified|corrected) \d{4}-|prep, state\b|facts learned\b)/i
+const LOG_HEAD = /^(?:session note\b|\d{4}-\d{2}-\d{2}|(?:1\.0\.0-)?beta[. -]?\d+\b|state of\b|[\w-]+ lane \([^)]*\), \d{4}-\d{2}-\d{2}\b)|\b(?:states? (?:on|at)\b|shipped\b|launched\b|lanes? [^:]{0,60}\blanded\b|(?:learned|agreed|clarified|corrected) \d{4}-|prep, state\b|facts learned\b)/i
 
 function logNote(text: string): boolean {
   const head = text.split(':')[0]!.slice(0, 100)
