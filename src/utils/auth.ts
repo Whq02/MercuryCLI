@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { noteCredentialChange } from './accounts/signInLedger.js'
 import { scopeIdentityFile } from './accounts/scopeScan.js'
+import { pocketInUse, signInHome, withPinnedSignInHome } from './accounts/signInPockets.js'
 
 import memoize from 'lodash-es/memoize.js'
 
@@ -569,11 +570,14 @@ function synthesizedEnvToken(accessToken: string): OAuthTokens {
   }
 }
 
-export const getClaudeAIOAuthTokens = memoize((): OAuthTokens | null => {
-  const tokens = readStoredOAuthTokens()
-  signedOutOAuthMemoStamp = tokens === null ? getGlobalConfigCacheStamp() : null
-  return tokens
-})
+export const getClaudeAIOAuthTokens = memoize(
+  (): OAuthTokens | null => {
+    const tokens = readStoredOAuthTokens()
+    signedOutOAuthMemoStamp = tokens === null ? getGlobalConfigCacheStamp() : null
+    return tokens
+  },
+  () => signInHome('anthropic'),
+)
 
 function readStoredOAuthTokens(): OAuthTokens | null {
   if (isBareMode()) return null
@@ -583,7 +587,7 @@ function readStoredOAuthTokens(): OAuthTokens | null {
   const fromFd = getOAuthTokenFromFileDescriptor()
   if (fromFd !== null) return synthesizedEnvToken(fromFd)
   try {
-    const stored = getSecureStorage().read()?.claudeAiOauth
+    const stored = getSecureStorage('anthropic').read()?.claudeAiOauth
     return overlayUnsavedRefresh(stored?.accessToken ? stored : null)
   } catch (error) {
     logError(error)
@@ -599,7 +603,7 @@ export async function getClaudeAIOAuthTokensAsync(): Promise<OAuthTokens | null>
   const fromFd = getOAuthTokenFromFileDescriptor()
   if (fromFd !== null) return synthesizedEnvToken(fromFd)
   try {
-    const data = await getSecureStorage().readAsync()
+    const data = await getSecureStorage('anthropic').readAsync()
     const stored = data?.claudeAiOauth
     return overlayUnsavedRefresh(stored?.accessToken ? stored : null)
   } catch (error) {
@@ -610,7 +614,7 @@ export async function getClaudeAIOAuthTokensAsync(): Promise<OAuthTokens | null>
 
 export function hasStoredOAuthToken(): boolean {
   try {
-    return getSecureStorage().read()?.claudeAiOauth?.accessToken !== undefined
+    return getSecureStorage('anthropic').read()?.claudeAiOauth?.accessToken !== undefined
   } catch {
     return false
   }
@@ -642,7 +646,7 @@ export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
   if (!shouldUseClaudeAIAuth(tokens.scopes)) return { success: true }
   if (tokens.refreshToken === null || tokens.expiresAt === null) return { success: true }
   try {
-    const storage = getSecureStorage()
+    const storage = getSecureStorage('anthropic')
     const current = storage.read() ?? {}
     const previous = current.claudeAiOauth
     const result = storage.update({
@@ -721,19 +725,26 @@ function invalidateOnDiskChange(): void {
 }
 
 
-let refreshInFlight: Promise<boolean> | null = null
+const refreshInFlight = new Map<string, Promise<boolean>>()
 
 export async function checkAndRefreshOAuthTokenIfNeeded(
   retryCount = 0,
   force = false,
 ): Promise<boolean> {
-  if (!force && retryCount === 0 && refreshInFlight !== null) return refreshInFlight
+  const pinned = signInHome('anthropic')
+  return withPinnedSignInHome('anthropic', pinned, () => checkAndRefreshPinned(pinned, retryCount, force))
+}
+
+function checkAndRefreshPinned(pinned: string, retryCount: number, force: boolean): Promise<boolean> {
+  const inFlight = refreshInFlight.get(pinned)
+  if (!force && retryCount === 0 && inFlight !== undefined) return inFlight
   const run = doRefresh(retryCount, force)
   if (!force && retryCount === 0) {
-    refreshInFlight = run.finally(() => {
-      refreshInFlight = null
+    const tracked = run.finally(() => {
+      refreshInFlight.delete(pinned)
     })
-    return refreshInFlight
+    refreshInFlight.set(pinned, tracked)
+    return tracked
   }
   return run
 }
@@ -756,7 +767,7 @@ async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {
   if (!force && !isOAuthTokenExpired(tokens.expiresAt)) return false
   if (isOAuthRefreshKnownDead()) return false
 
-  const lockDir = getAuthConfigHomeDir()
+  const lockDir = signInHome('anthropic')
   let release: () => Promise<void>
   try {
     mkdirSync(lockDir, { recursive: true })
@@ -812,7 +823,7 @@ async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {
 
 async function blankRefreshTokenOnDisk(usedRefreshToken: string): Promise<void> {
   try {
-    const storage = getSecureStorage()
+    const storage = getSecureStorage('anthropic')
     const current = storage.read()
     const stored = current?.claudeAiOauth
     if (!stored || stored.refreshToken !== usedRefreshToken) return
@@ -943,9 +954,13 @@ function readScopedOauthAccount(dir: string) {
   return account
 }
 
+function anthropicPocketDir(): string | undefined {
+  return pocketInUse('anthropic')
+}
+
 export function getOauthAccountInfo() {
   if (!isAnthropicAuthEnabled()) return undefined
-  const scopeDir = getAuthScope()
+  const scopeDir = getAuthScope() ?? anthropicPocketDir()
   if (scopeDir !== undefined) {
     const scoped = readScopedOauthAccount(scopeDir)
     if (scoped) return scoped

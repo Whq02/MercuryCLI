@@ -296,7 +296,7 @@ section('§1b complete bound fields and reasoning continuity')
   const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.js')
   const saved = process.env.MERCURY_TIME_BASED_MC
   process.env.MERCURY_TIME_BASED_MC = '1'
-  const history = Array.from({ length: 8 }, (_, i) => [
+  const history = Array.from({ length: 13 }, (_, i) => [
     { type: 'assistant', uuid: 'thinking-' + i, timestamp: new Date(Date.now() - 7_200_000).toISOString(), message: { id: 'thinking-' + i, role: 'assistant', model: 'claude-fable-5-1', content: [THINK('before-' + i), { type: 'tool_use', id: 'read-' + i, name: 'Read', input: {} }] } },
     { type: 'user', uuid: 'result-' + i, timestamp: new Date().toISOString(), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'read-' + i, content: 'Unchanged reference material. '.repeat(1_100) }] } },
   ]).flat()

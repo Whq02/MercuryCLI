@@ -271,9 +271,9 @@ async function drive(fold: Record<string, unknown>): Promise<{ calls: number; te
 section('G6 wiring pins')
 {
   const compactSrc = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
-  check('the compact owner consumes the threshold (no void)', !compactSrc.includes('void recompactionInfo') && compactSrc.includes('const ceiling = recompactionInfo?.autoCompactThreshold'))
-  check('the owner fits, then refuses when still over', /fitPostCompactUnderThreshold\(partial, ceiling\)[\s\S]{0,700}throw new Error\(postCompactOverThresholdMessage/.test(compactSrc))
-  check('the refusal hands the read ledger back first', /for \(const \[path, state\] of ledgerBeforeFold\) context\.readFileState\.set\(path, state\)\s*throw new Error\(postCompactOverThresholdMessage/.test(compactSrc))
+  check('the compact owner consumes the threshold (no void)', !compactSrc.includes('void recompactionInfo') && compactSrc.includes('let ceiling = recompactionInfo?.autoCompactThreshold'))
+  check('the owner fits, then refuses when still over', /fitPostCompactUnderThreshold\(partial, ceiling, landingCount\)[\s\S]*?throw new Error\(postCompactOverThresholdMessage/.test(compactSrc))
+  check('the read ledger is staged and cannot commit before the size refusal', compactSrc.includes('const transaction = prepareFoldContext(context)') && compactSrc.indexOf('throw new Error(postCompactOverThresholdMessage(truePostCompactTokenCount, ceiling))') !== -1 && compactSrc.indexOf('transaction.commit()') > compactSrc.indexOf('throw new Error(postCompactOverThresholdMessage(truePostCompactTokenCount, ceiling))'))
   const manual = readFileSync(join(ROOT, 'src/commands/compact/compact.ts'), 'utf8')
   check('the manual /compact passes the auto-compact threshold as its ceiling', manual.includes('autoCompactThreshold: getAutoCompactThreshold(context.options.engineModel)'))
   const notes = readFileSync(join(ROOT, 'src/services/compact/sessionMemoryCompact.ts'), 'utf8')

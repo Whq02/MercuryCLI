@@ -56,7 +56,7 @@ function resultOf(messages: readonly Message[], id: string): string {
   }
   return ''
 }
-const fillers = (tokens: number): Use[] => ['f1', 'f2', 'f3', 'f4', 'f5'].map(id => ({ id, name: 'Bash', content: chars(tokens) }))
+const fillers = (tokens: number): Use[] => ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10'].map(id => ({ id, name: 'Bash', content: chars(tokens) }))
 const named = (): Use[] => [
   ...CLASS.map(name => ({ id: `use_${name}`, name, content: chars(4_000), input: name === 'Read' ? { file_path: '/repo/src/index.ts' } : {} })),
   ...NEVER.map(name => ({ id: `use_${name}`, name, content: chars(4_000) })),
@@ -86,9 +86,9 @@ section('§B the budget arithmetic: the newest 40k tokens of tool output stay, a
   check('sixteen results of 4k tokens: r7 through r16 (the newest 40k) stay, r1 through r6 are cleared — the budget reaches past the recent five', p16 !== null && JSON.stringify([...p16.clearedIds].sort()) === JSON.stringify(['r1', 'r2', 'r3', 'r4', 'r5', 'r6'].sort()) && resultOf(p16.messages, 'r7') === chars(4_000), p16 === null ? 'null' : p16.clearedIds.join(','))
   const ten = transcript(Array.from({ length: 10 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(3_000) })))
   check('ten results of 3k tokens (30k in all): nothing is cleared — every one sits inside the newest 40k', projectTimeBasedMicrocompact(ten, 'main_thread') === null)
-  const eleven = transcript(Array.from({ length: 11 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(5_000) })))
+  const eleven = transcript(Array.from({ length: 13 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(5_000) })))
   check('eleven results of 5k tokens: r1 through r3 sit outside the budget but would save 15k — under the 20k minimum the pass clears nothing', projectTimeBasedMicrocompact(eleven, 'main_thread') === null)
-  const twelve = transcript(Array.from({ length: 12 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(5_000) })))
+  const twelve = transcript(Array.from({ length: 14 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(5_000) })))
   const p12 = projectTimeBasedMicrocompact(twelve, 'main_thread')
   check('twelve results of 5k tokens: r1 through r4 save 20k — cleared', p12 !== null && JSON.stringify([...p12.clearedIds].sort()) === JSON.stringify(['r1', 'r2', 'r3', 'r4'].sort()) && p12.tokensSaved === 20_000, p12 === null ? 'null' : `${p12.clearedIds.join(',')} ${p12.tokensSaved}`)
   const p11pressure = projectTimeBasedMicrocompact(eleven, 'main_thread', { pressure: true })

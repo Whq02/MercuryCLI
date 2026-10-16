@@ -69,7 +69,7 @@ async function readViaTool(path: string): Promise<string> {
 
 const fixtures = mkdtempSync(join(tmpdir(), 'dedup-delivery-fixture-'))
 const files: string[] = []
-for (let i = 1; i <= 6; i++) {
+for (let i = 1; i <= 11; i++) {
   const p = join(fixtures, `f${i}.txt`)
   writeFileSync(p, `file ${i} — ${`${'delivery truth line '.repeat(5)}\n`.repeat(850)}`)
   files.push(p)
@@ -114,10 +114,10 @@ const owner = processMainOwner()
     },
     'apply',
   )
-  check('exactly one result cleared (six reads, keep-recent five)', plan.reductions.timeBasedCleared === 1, String(plan.reductions.timeBasedCleared))
+  check('exactly one result cleared (eleven reads, keep-recent ten)', plan.reductions.timeBasedCleared === 1, String(plan.reductions.timeBasedCleared))
   const view = JSON.stringify(plan.messages)
   check('the cleared result no longer carries the content', !view.includes('file 1 — delivery truth'), 'content still rides the view')
-  check('the surviving results keep theirs', view.includes('file 6') && view.includes('file 2'))
+  check('the surviving results keep theirs', view.includes('file 11') && view.includes('file 2'))
 }
 
 section('D3 — after the clear, the same window serves FULL CONTENT again (the lie pinned shut)')

@@ -1,5 +1,6 @@
 import { getProductUserAgent } from '../../../utils/http.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
+import { peekingSignIn } from '../../../utils/accounts/signInPockets.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
@@ -97,6 +98,10 @@ export function openrouterObservedKeyUsage(env: NodeJS.ProcessEnv = process.env)
   errorSource?: OpenrouterKeySource
   errorStatus?: number
 } {
+  if (peekingSignIn('openrouter')) {
+    const refused = openrouterKeyRefusal(env)
+    return refused === undefined ? { usage: null } : { usage: null, lastError: refused.message, errorSource: refused.source, errorStatus: refused.status }
+  }
   dropIfStale(env)
   if (lastError === undefined) {
     const refused = openrouterKeyRefusal(env)

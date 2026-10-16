@@ -70,6 +70,7 @@ type Block = { type: string; messages: Entry[]; omitted: number }
 type Selection = {
   selectOperatorMessages: (messages: unknown[], opts?: { keptUuids?: ReadonlySet<string>; tokenBudget?: number }) => Block | null
   collectOperatorTexts: (messages: unknown[], keptUuids?: ReadonlySet<string>) => string[]
+  priorOperatorMessages: (messages: unknown[]) => number
   operatorMessagesBlockText: (attachment: Block) => string
   OPERATOR_MESSAGES_TOKEN_BUDGET: number
   OPERATOR_MESSAGE_TRUNCATION_MARKER: string
@@ -193,25 +194,30 @@ if (selection !== null) {
     promptRows[6]!, assistant(REPLIES[6]!),
     promptRows[7]!, assistant(REPLIES[7]!),
   ]
-  const expected = [...OLDER, PROMPTS[0]!, PROMPTS[1]!, PROMPTS[2]!, STEER_TEXT, PROMPTS[3]!, 'look at this screenshot\n[image]', PROMPTS[4]!, PROMPTS[5]!, PROMPTS[6]!, PROMPTS[7]!]
+  const expected = [PROMPTS[0]!, PROMPTS[1]!, PROMPTS[2]!, STEER_TEXT, PROMPTS[3]!, 'look at this screenshot\n[image]', PROMPTS[4]!, PROMPTS[5]!, PROMPTS[6]!, PROMPTS[7]!]
+  const earlier = OLDER.length
   const texts = selection.collectOperatorTexts(history)
-  check('the census: the typed prompts, the human steer, the text of a text+image row, and a prior block\'s entries — in order', j(texts) === j(expected), j(texts.map(t => t.slice(0, 40))))
+  check('the census: the typed prompts, the human steer and the text of a text+image row of THIS stretch, in order — a prior fold\'s block is not re-collected (its boundary record carries it whole)', j(texts) === j(expected), j(texts.map(t => t.slice(0, 40))))
+  check('…the prior block\'s messages are counted as earlier', selection.priorOperatorMessages(history) === earlier, String(selection.priorOperatorMessages(history)))
   check('…a Saturn wake, a coordinator row, a command echo and its expansion, a local-command stdout row, a bash-mode row, a tool result, a task notification, a coordinator steer, a virtual row and an image-only row are out', noiseTexts.filter(noiseText => noiseText !== '').every(noiseText => !texts.some(text => text.includes(noiseText.slice(0, 24)))) && !texts.some(text => text.includes(EXPANSION_TEXT) || text.includes(WAKE_TEXT.slice(0, 20)) || text === '[image]'))
   check('…an earlier compaction summary and its boundary are out', !texts.some(text => text.includes('paraphrased') || text.includes('Conversation compacted')))
   const block = selection.selectOperatorMessages(history)
-  check('the block carries every one of them when the budget allows (12 shown, none omitted)', block !== null && block.messages.length === expected.length && block.omitted === 0, j(block))
-  check('…newest first: ordinals descend, the first entry is the last prompt, the last entry is the oldest carried one', block !== null && block.messages.every((entry, index) => entry.ordinal === expected.length - index) && block.messages[0]!.text === PROMPTS[7] && block.messages.at(-1)!.text === OLDER[0], j(block?.messages.map(entry => entry.ordinal)))
-  check('…the entries are the exact texts (verbatim)', block !== null && block.messages.every(entry => entry.text === expected[entry.ordinal - 1]))
+  check(`the block carries every one of this stretch's messages whole (${expected.length} shown) and names the prior fold's ${earlier} by count`, block !== null && block.messages.length === expected.length && block.omitted === earlier, j(block))
+  check('…newest first: ordinals descend from the session total, the first entry is the last prompt, the last entry is the oldest of this stretch', block !== null && block.messages.every((entry, index) => entry.ordinal === earlier + expected.length - index) && block.messages[0]!.text === PROMPTS[7] && block.messages.at(-1)!.text === PROMPTS[0], j(block?.messages.map(entry => entry.ordinal)))
+  check('…the entries are the exact texts (verbatim)', block !== null && block.messages.every(entry => entry.text === expected[entry.ordinal - earlier - 1]))
   const keptUuids = new Set([promptRows[5]!.uuid!, promptRows[6]!.uuid!, promptRows[7]!.uuid!])
   const withKept = selection.selectOperatorMessages(history, { keptUuids })
   check('a prompt inside the kept tail is not repeated (p6, p7, p8 kept ⇒ the block stops at p5)', withKept !== null && withKept.messages.length === expected.length - 3 && withKept.messages[0]!.text === PROMPTS[4] && !withKept.messages.some(entry => entry.text === PROMPTS[5] || entry.text === PROMPTS[6] || entry.text === PROMPTS[7]), j(withKept?.messages.map(entry => entry.text.slice(0, 20))))
   const tokensOf = (text: string): number => Math.ceil(text.length / 4)
   const budget = tokensOf(PROMPTS[7]!) + tokensOf(PROMPTS[6]!) + 100
-  const cut = selection.selectOperatorMessages(history, { tokenBudget: budget })
-  const oldestKept = cut?.messages.at(-1)
-  check('within a budget: the newest ride whole, the oldest kept one is truncated with the one-clause marker, the rest are counted as omitted', cut !== null && cut.messages.length === 3 && cut.messages[0]!.text === PROMPTS[7] && cut.messages[1]!.text === PROMPTS[6] && oldestKept?.truncated === true && oldestKept.text.endsWith(selection.OPERATOR_MESSAGE_TRUNCATION_MARKER) && oldestKept.text.startsWith('p6: refactor the settings screen carefully') && oldestKept.text.length < PROMPTS[5]!.length && cut.omitted === expected.length - 3, j(cut))
-  check('…the truncated entry keeps the head of the message and fits the budget', cut !== null && cut.messages.reduce((sum, entry) => sum + tokensOf(entry.text), 0) <= budget, String(cut?.messages.reduce((sum, entry) => sum + tokensOf(entry.text), 0)))
-  check('a budget too small for even one clause of the newest yields no block', selection.selectOperatorMessages(history, { tokenBudget: 5 }) === null)
+  const original = j(history)
+  let refusal = ''
+  try { selection.selectOperatorMessages(history, { tokenBudget: budget }) } catch (error) { refusal = String(error) }
+  check('an insufficient budget refuses instead of cutting an operator message', refusal.includes('original context is kept'))
+  check('the original operator history is unchanged on refusal', j(history) === original)
+  let tinyRefused = false
+  try { selection.selectOperatorMessages(history, { tokenBudget: 5 }) } catch { tinyRefused = true }
+  check('a tiny budget cannot silently discard the operator block', tinyRefused)
   check('a stretch with no operator message yields no block', selection.selectOperatorMessages([oldBoundary, oldSummary, ...noise, assistant('nothing asked')]) === null)
   check('the steer counts once even when its echo row rides beside it (source_uuid dedupe)', j(selection.collectOperatorTexts([steer, { ...(createUserMessage({ content: STEER_TEXT }) as unknown as AnyMsg), uuid: uuidOf(9001) }])) === j([STEER_TEXT]))
 }
@@ -227,7 +233,7 @@ section('B the wire projection and the registry — one meta user row, newest fi
   const text = projected.length === 1 ? textOf(projected[0]) : ''
   console.log(text.split('\n').map(line => `  │ ${line.slice(0, 150)}`).join('\n'))
   check('the block projects to ONE meta user row', projected.length === 1 && (projected[0] as { isMeta?: boolean }).isMeta === true, String(projected.length))
-  check('…headed as the operator\'s own messages, verbatim and newest first, with the coverage spoken', text.startsWith("The operator's own messages from the stretch folded into the summary below, verbatim and newest first (the newest 3 of 10; messages 1-7 are left to the summary)"))
+  check('…headed as the operator\'s own messages, verbatim and newest first, with the coverage spoken', text.startsWith("The operator's own messages from the stretch folded into the summary below, verbatim and newest first (the newest 3 of 10; messages 1-7 are carried whole by the earlier folds' boundary records)"))
   check('…each entry framed with its ordinal out of the total', text.includes('<operator-message ordinal="10" of="10">\nthe newest ask\n</operator-message>') && text.includes('<operator-message ordinal="8" of="10">'))
   check('…newest first on the wire', text.indexOf('ordinal="10"') >= 0 && text.indexOf('ordinal="10"') < text.indexOf('ordinal="9"') && text.indexOf('ordinal="9"') >= 0 && text.indexOf('ordinal="9"') < text.indexOf('ordinal="8"'))
   check('…the truncated entry carries its marker', text.includes('the oldest kept ask\n[the rest of this message is cut for the budget; the summary covers it]\n</operator-message>'))
@@ -349,7 +355,7 @@ section('D the real fold with the kept tail — a prompt inside the tail is not 
   }
 }
 
-section('E a second fold carries the first block\'s prompts forward, newest first within the budget')
+section('E a second fold carries this stretch\'s prompts whole and names the first block\'s by count — each ask rides in exactly one block')
 if (selection !== null) {
   const firstBlock = createAttachmentMessage({ type: KIND, messages: [{ ordinal: 3, text: 'first fold ask three' }, { ordinal: 2, text: 'first fold ask two' }, { ordinal: 1, text: 'first fold ask one' }], omitted: 0 } as never) as unknown as AnyMsg
   const history = [
@@ -362,7 +368,8 @@ if (selection !== null) {
     assistant('did five'),
   ]
   const block = selection.selectOperatorMessages(history)
-  check('the second block: the new prompts first, then the first block\'s entries, oldest last', block !== null && j(block.messages.map(entry => entry.text)) === j(['second stretch ask five', 'second stretch ask four', 'first fold ask three', 'first fold ask two', 'first fold ask one']) && block.omitted === 0, j(block))
+  check('the second block: the new prompts only, newest first, ordinals continuing the session count; the first block\'s three are named as omitted (their boundary record carries them whole)', block !== null && j(block.messages.map(entry => [entry.ordinal, entry.text])) === j([[5, 'second stretch ask five'], [4, 'second stretch ask four']]) && block.omitted === 3, j(block))
+  check('…the wire head says so', block !== null && selection.operatorMessagesBlockText(block).includes('(the newest 2 of 5; messages 1-3 are carried whole by the earlier folds\' boundary records)'), block === null ? '' : selection.operatorMessagesBlockText(block).slice(0, 220))
   check('…the first summary itself is excluded', block !== null && !block.messages.some(entry => entry.text.includes('first stretch')))
 }
 
@@ -387,7 +394,7 @@ section('F the size guard sheds the block LAST, before refusing; a fitting resul
   const coreWithBlock = estimateContextTokens(compactMod.buildPostCompactMessages(rig([], block) as never) as never)
   check('the block weighs in the whole-context estimate', coreWithBlock > core, `${coreWithBlock} vs ${core}`)
   const out = compactMod.fitPostCompactUnderThreshold(full as never, coreWithBlock) as { result: { operatorMessages?: unknown; attachments: unknown[] }; estimate: number; shed: string[] }
-  check('files and skills go first; the block goes last; the fit then reports under', j(out.shed) === j(['file /rig/A.txt', 'invoked_skills', 'operator messages']) && out.result.operatorMessages === undefined && out.estimate < coreWithBlock, j({ shed: out.shed, estimate: out.estimate, threshold: coreWithBlock }))
+  check('files and skills may go; operator bytes stand even when the fit must refuse', j(out.shed) === j(['file /rig/A.txt', 'invoked_skills']) && out.result.operatorMessages === block && out.estimate >= coreWithBlock, j({ shed: out.shed, estimate: out.estimate, threshold: coreWithBlock }))
   const roomy = compactMod.fitPostCompactUnderThreshold(full as never, coreWithBlock + 100_000) as { result: { operatorMessages?: unknown }; shed: string[] }
   check('a result under the threshold keeps its block (nothing shed)', roomy.shed.length === 0 && roomy.result.operatorMessages === block)
   const tight = compactMod.fitPostCompactUnderThreshold(rig([fileAttachment('A.txt', 4_000)], block) as never, coreWithBlock + 50) as { result: { operatorMessages?: unknown }; shed: string[]; estimate: number }
@@ -482,7 +489,8 @@ section('H the turn machine end to end — the retried request after an overflow
   const firstUser = ((retry?.body as { messages?: AnyMsg[] } | undefined)?.messages ?? [])[0]
   const firstText = wireTextOf(firstUser)
   check('the retried request carries every folded ask VERBATIM', asks.every(ask => body.includes(ask)), `missing: ${asks.filter(ask => !body.includes(ask)).join(' | ')}; the first user row opens: "${firstText.slice(0, 140)}"`)
-  check('…ahead of the summary, newest first', firstText.indexOf(asks[4]!) >= 0 && firstText.indexOf(asks[4]!) < firstText.indexOf(asks[0]!) && firstText.indexOf(asks[0]!) < firstText.indexOf(SUMMARY_H), `${firstText.indexOf(asks[4]!)} ${firstText.indexOf(asks[0]!)} ${firstText.indexOf(SUMMARY_H)}`)
+  const foldedAsks = [...asks].reverse().filter(ask => firstText.includes(ask))
+  check('…folded asks precede the summary newest first; recent asks ride the kept rounds', foldedAsks.length > 0 && foldedAsks.every((ask, index) => firstText.indexOf(ask) < firstText.indexOf(SUMMARY_H) && (index === 0 || firstText.indexOf(foldedAsks[index - 1]!) < firstText.indexOf(ask))))
   check('…the folded replies do not ride (the summary covers them)', !body.includes('reply 0: module 0 adjusted'))
   check('…and the carried operator turn still rides last', retry !== undefined && wireTextOf(((retry.body as { messages?: AnyMsg[] }).messages ?? []).at(-1)).endsWith(OPERATOR_ASK))
   check('the block row yields with the boundary and the summary', yields.some(y => blockOf(y) !== null) && yields.some(y => y.type === 'user' && (y as { isCompactSummary?: boolean }).isCompactSummary === true))
@@ -494,13 +502,13 @@ section('I wiring pins — the seams, by source')
   check('buildPostCompactMessages seats the block right after the boundary', /boundaryMarker,\n\s+\.\.\.\(operatorMessages !== undefined \? \[operatorMessages\] : \[\]\),\n\s+\.\.\.summaryMessages,/.test(compactSrc))
   check('the full fold selects over the folded span minus the kept tail', compactSrc.includes('selectOperatorMessages(messages, {') && compactSrc.includes('keptUuids: new Set((messagesToKeep ?? []).map(message => message.uuid))'))
   check('the partial fold selects over its summarised span', compactSrc.includes('selectOperatorMessages(summarize)'))
-  check('the size guard sheds the block after every other class', /if \(estimate >= threshold && current\.operatorMessages !== undefined\) \{\n\s+shed\.push\(describeAttachment\(current\.operatorMessages\)\)/.test(compactSrc))
+  check('the size guard has no operator-block shedding branch', !compactSrc.includes('current = { ...current, operatorMessages: undefined }'))
   const slash = readFileSync(join(ROOT, 'src/utils/processUserInput/processSlashCommand.tsx'), 'utf8')
   check('the manual /compact seats the block right after the boundary too', /compaction\.boundaryMarker,\n\s+\.\.\.\(compaction\.operatorMessages !== undefined \? \[compaction\.operatorMessages\] : \[\]\),\n\s+\.\.\.compaction\.summaryMessages,/.test(slash))
   const prompt = readFileSync(join(ROOT, 'src/services/compact/prompt.ts'), 'utf8')
   check('the summariser prompt keeps section 6 (the summary still covers every operator message)', prompt.includes('6. Operator Messages: every message the operator sent that is not a tool result.'))
   const tail = readFileSync(join(ROOT, 'src/services/compact/verbatimTail.ts'), 'utf8')
-  check("the tail's rules do not move", tail.includes('export const DEFAULT_KEEP_ROUNDS = 6') && tail.includes('export const DEFAULT_TAIL_TOKEN_BUDGET = 15_000') && tail.includes('export const MIN_HEAD_ROUNDS = 2'))
+  check("the tail's rules do not move", tail.includes('export const DEFAULT_KEEP_ROUNDS = 10') && tail.includes('opts?.fits?.(keep)') && tail.includes('export const MIN_HEAD_ROUNDS = 2'))
 }
 
 await fixture.close()

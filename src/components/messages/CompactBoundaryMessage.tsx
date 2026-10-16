@@ -1,13 +1,16 @@
 import * as React from 'react';
 import { Box, Text } from '../../ink.js';
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js';
-import { type OverflowSignal, overflowWhoClause } from '../../services/api/overflowSignal.js';
-import { formatTokens } from '../../utils/format.js';
+import { overflowWhoClause } from '../../services/api/overflowSignal.js';
+import { foldReceipt, foldReceiptWords } from '../../services/compact/foldReceipt.js';
+import type { CompactMetadata } from '../../types/message.js';
 
 export function CompactBoundaryMessage({
   message,
+  landing,
 }: {
-  message?: { compactMetadata?: { trigger?: string; preTokens?: number; overflow?: OverflowSignal } };
+  message?: { compactMetadata?: Partial<CompactMetadata> };
+  landing?: { input: number } | null;
 }) {
   const historyShortcut = useShortcutDisplay("app:toggleTranscript", "Global", "ctrl+o");
   const meta = message?.compactMetadata;
@@ -18,9 +21,7 @@ export function CompactBoundaryMessage({
       : meta?.trigger === 'auto'
         ? 'Context compacted automatically'
         : 'Conversation compacted';
-  const weight =
-    typeof meta?.preTokens === 'number' && meta.preTokens > 0
-      ? ` — folded ${formatTokens(meta.preTokens)} tokens of history`
-      : '';
-  return <Box marginY={1}><Text dimColor={true}>✻ {head}{weight} ({historyShortcut} for history)</Text></Box>;
+  const words = meta?.trigger === undefined ? [] : foldReceiptWords(foldReceipt({ ...meta, trigger: meta.trigger, preTokens: meta.preTokens ?? 0 }, landing));
+  const facts = words.length > 0 ? ` — ${words.join(' · ')}` : '';
+  return <Box marginY={1}><Text dimColor={true}>✻ {head}{facts} ({historyShortcut} for history)</Text></Box>;
 }

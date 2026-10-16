@@ -11,7 +11,7 @@ import {
 } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
-import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
+import { landSignIn, signInHome, withPinnedSignInHome } from '../../../utils/accounts/signInPockets.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -71,7 +71,7 @@ interface OpenaiAuthFile {
 }
 
 function authFilePath(): string {
-  return join(getAuthConfigHomeDir(), AUTH_FILE_NAME)
+  return join(signInHome('openai'), AUTH_FILE_NAME)
 }
 
 function readAuthFile(): OpenaiAuthFile | null {
@@ -85,7 +85,7 @@ function readAuthFile(): OpenaiAuthFile | null {
 }
 
 function writeAuthFile(mutate: (file: OpenaiAuthFile) => OpenaiAuthFile): void {
-  const dir = getAuthConfigHomeDir()
+  const dir = signInHome('openai')
   mkdirSync(dir, { recursive: true })
   const existing = readAuthFile() ?? { version: OPENAI_AUTH_VERSION }
   const next = mutate({ ...existing, version: OPENAI_AUTH_VERSION })
@@ -173,6 +173,33 @@ export interface OpenaiAccountRef {
 export function subscriptionConnected(): boolean {
   const file = readAuthFile()
   return Boolean(file?.tokens?.refreshToken)
+}
+
+export function subscriptionIdentity(tokens: OpenaiStoredTokens | undefined): string | undefined {
+  if (!tokens?.refreshToken) return undefined
+  return tokens.email ?? tokens.accountId ?? credentialFingerprint(tokens.refreshToken)
+}
+
+export function storedSubscriptionIdentity(): string | undefined {
+  return subscriptionIdentity(readAuthFile()?.tokens)
+}
+
+function landSubscriptionTokens(tokens: OpenaiStoredTokens): void {
+  landSignIn({
+    family: 'openai',
+    identity: subscriptionIdentity(tokens) ?? credentialFingerprint(tokens.accessToken),
+    kind: 'chatgpt-subscription',
+    ledgerKind: 'subscription',
+    stable: tokens.email !== undefined || tokens.accountId !== undefined,
+    homeIdentity: () => subscriptionIdentity(readAuthFile()?.tokens),
+    write: () =>
+      writeAuthFile(file => ({
+        ...file,
+        tokens,
+        lastRefreshMs: Date.now(),
+        preferredSource: 'chatgpt-subscription',
+      })),
+  })
 }
 
 export function openaiSubscriptionPresence(): {
@@ -275,7 +302,7 @@ const REFRESH_SKEW_MS = 5 * 60_000
 const REFRESH_LOCK_STALE_MS = 30_000
 const REFRESH_WAIT_TOTAL_MS = 8_000
 const REFRESH_WAIT_STEP_MS = 200
-let refreshInFlight: Promise<OpenaiStoredTokens | undefined> | undefined
+const refreshInFlight = new Map<string, Promise<OpenaiStoredTokens | undefined>>()
 
 const knownDeadRefreshTokens = new Set<string>()
 
@@ -409,6 +436,14 @@ export async function currentSubscriptionTokens(opts?: {
   now?: () => number
   force?: boolean
 }): Promise<OpenaiStoredTokens | undefined> {
+  const pinned = signInHome('openai')
+  return withPinnedSignInHome('openai', pinned, () => currentSubscriptionTokensPinned(pinned, opts))
+}
+
+async function currentSubscriptionTokensPinned(
+  pinned: string,
+  opts?: Parameters<typeof currentSubscriptionTokens>[0],
+): Promise<OpenaiStoredTokens | undefined> {
   const env = opts?.env ?? process.env
   const now = opts?.now ?? Date.now
   const tokens = readAuthFile()?.tokens
@@ -417,8 +452,9 @@ export async function currentSubscriptionTokens(opts?: {
     tokensFresh(latest, now()) && (!opts?.force || latest?.accessToken !== tokens.accessToken)
   if (adoptable(tokens)) return tokens
   if (knownDeadRefreshTokens.has(tokens.refreshToken)) return undefined
-  if (refreshInFlight) return refreshInFlight
-  refreshInFlight = (async () => {
+  const inFlight = refreshInFlight.get(pinned)
+  if (inFlight) return inFlight
+  const work = (async () => {
     const sleep = (ms: number): Promise<void> =>
       new Promise(resolve => {
         const t = setTimeout(resolve, ms)
@@ -471,10 +507,11 @@ export async function currentSubscriptionTokens(opts?: {
       return latest?.refreshToken ? latest : tokens
     } finally {
       if (locked) releaseRefreshLock()
-      refreshInFlight = undefined
+      refreshInFlight.delete(pinned)
     }
   })()
-  return refreshInFlight
+  refreshInFlight.set(pinned, work)
+  return work
 }
 
 export function disconnectOpenaiSubscription(): void {
@@ -574,12 +611,7 @@ export function beginOpenaiBrowserConnect(opts?: {
     exchangeInFlight = true
     try {
       const tokens = await exchangeAuthorizationCode(code, verifier, fetchImpl, env)
-      writeAuthFile(file => ({
-        ...file,
-        tokens,
-        lastRefreshMs: Date.now(),
-        preferredSource: 'chatgpt-subscription',
-      }))
+      landSubscriptionTokens(tokens)
       forgetOpenaiLimitSource('chatgpt-subscription')
       recordSignIn('openai', 'subscription')
       const resolved = resolveOpenaiAccount(env)
@@ -784,12 +816,7 @@ export async function beginOpenaiDeviceConnect(opts?: {
       })
       const raw = await postTokenEndpoint(exchange, fetchImpl, env)
       const tokens = tokensFromExchange(raw)
-      writeAuthFile(file => ({
-        ...file,
-        tokens,
-        lastRefreshMs: Date.now(),
-        preferredSource: 'chatgpt-subscription',
-      }))
+      landSubscriptionTokens(tokens)
       forgetOpenaiLimitSource('chatgpt-subscription')
       recordSignIn('openai', 'subscription')
       const ref = resolveOpenaiAccount(env)
@@ -866,6 +893,6 @@ export async function resolveOpenaiRequestAuth(opts?: {
 }
 
 export function __resetOpenaiAccountsForTest(): void {
-  refreshInFlight = undefined
+  refreshInFlight.clear()
   knownDeadRefreshTokens.clear()
 }
