@@ -1,6 +1,6 @@
 
 import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -24,9 +24,14 @@ import {
   buildNodeTestDebugShim,
   changedRunnerSelection,
   discoverRunnerProfiles,
+  discoverSubPackages,
+  findRunnerRoot,
   rerunRunnerFailures,
   resolveTestLane,
   runRunnerProfile,
+  subPackageTestRunners,
+  type SubPackage,
+  type TestLane,
 } from '../../services/ide/projectRunners.js'
 import { buildCargoTestDebugPlan, buildGoTestDebugPlan, buildNodeRunnerDebugShim } from '../../services/ide/testDebugPlans.js'
 import type { ToolCallProgress } from '../../Tool.js'
@@ -110,27 +115,40 @@ export type Output = {
   record?: TestRunRecord
 }
 
-function fallbackNoteSuffix(explicit: string | undefined, resolved: string): string {
-  if (explicit !== undefined || resolved !== 'unittest') return ''
+function fallbackNoteSuffix(explicit: string | undefined, resolved: string, record?: TestRunRecord, uncollected?: readonly string[]): string {
+  if (explicit !== undefined || resolved !== 'unittest' || record?.verdict === 'zero-run' || record?.verdict === 'uncollected') return ''
   try {
-    const note = pytestFallbackNote()
+    const note = pytestFallbackNote(undefined, uncollected)
     return note ? `\n${note}` : ''
   } catch {
     return ''
   }
 }
 
+function ranIn(record: TestRunRecord): string {
+  const here = resolve(getCwd())
+  const there = resolve(record.cwd)
+  if (there === here) return ''
+  const rel = relative(here, there)
+  return rel.startsWith('..') || isAbsolute(rel) ? ` (in ${there})` : ` (in ${rel.split(sep).join('/')}/)`
+}
+
 function summarize(record: TestRunRecord): string {
   const c = record.counts
   const counts = `${c.passed} passed · ${c.failed} failed · ${c.skipped} skipped · ${c.errored} errored (${record.durationMs}ms, exit ${record.exitCode ?? 'null'})`
-  const noMatch = record.verdict === 'no-match'
-  const head = noMatch ? `${record.framework} ${record.verdictNote ?? `no test matched ${record.selection}`}` : `${record.framework} ${record.selection} — ${counts}`
+  const noMatch = record.verdict === 'no-match' || record.verdict === 'zero-run'
+  const head =
+    record.verdict === 'zero-run'
+      ? record.verdictNote ?? `test files found, the ${record.framework} lane ran 0`
+      : noMatch
+        ? `${record.framework} ${record.verdictNote ?? `no test matched ${record.selection}`}`
+        : `${record.framework} ${record.selection} — ${counts}`
   const failures = record.cases
     .filter(x => x.outcome === 'failed' || x.outcome === 'errored')
     .slice(0, 10)
     .map(x => `  ${x.id}${x.file ? ` (${x.file}${x.line ? `:${x.line}` : ''})` : ''}\n    ${(x.message ?? '').split('\n').slice(-2).join(' · ').slice(0, 200)}`)
   return [
-    `ran: ${record.command.join(' ')}`,
+    `ran: ${record.command.join(' ')}${ranIn(record)}`,
     head,
     ...(noMatch ? [`counts: ${counts}`] : []),
     ...(failures.length ? ['failures:', ...failures] : []),
@@ -141,7 +159,51 @@ function summarize(record: TestRunRecord): string {
 }
 
 function outcomeOf(record: TestRunRecord, ran: () => ToolEffectOutcome): ToolEffectOutcome {
+  if (record.verdict === 'zero-run') return 'failed'
   return record.verdict === 'no-match' ? 'no-change' : ran()
+}
+
+function subPackageList(packages: readonly SubPackage[]): string {
+  return packages
+    .map(s => {
+      const runners = subPackageTestRunners(s)
+      return `${s.dir}/ (${s.manifests.join(', ')}${runners.length ? `: ${runners.join(', ')}` : ', no test runner declared'})`
+    })
+    .join(', ')
+}
+
+function subPackageWords(lane: Extract<TestLane, { lane: 'sub-packages' }>): string {
+  return lane.runner !== undefined
+    ? `${lane.runner} is declared in more than one package below this root — ${subPackageList(lane.packages)} — run from the package`
+    : `this project declares its manifests one level down — ${subPackageList(lane.packages)} — pass framework: to pick one, or run from the package`
+}
+
+function runnerMissingWords(lane: Extract<TestLane, { lane: 'runner-missing' }>): string {
+  const { profiles } = discoverRunnerProfiles()
+  const here = profiles.length ? ` — discovered: ${profiles.map(p => `${p.runner}/${p.kind}`).join(', ')}` : ''
+  const below = lane.below !== undefined ? ` — one level down: ${subPackageList(lane.below)}` : ''
+  return `no ${lane.runner} test profile in this project's manifests${here}${below}`
+}
+
+function latestRunHere(): TestRunRecord | null {
+  const own = latestRun()
+  if (own !== null || findRunnerRoot() !== null) return own
+  let newest: TestRunRecord | null = null
+  for (const sub of discoverSubPackages(getCwd())) {
+    const record = latestRun(resolve(getCwd(), sub.dir))
+    if (record !== null && (newest === null || record.startedAt > newest.startedAt)) newest = record
+  }
+  return newest
+}
+
+function runHere(id: string): TestRunRecord | null {
+  const own = getRun(id)
+  if (own !== null || findRunnerRoot() !== null) return own
+  for (const sub of discoverSubPackages(getCwd())) {
+    const record = getRun(id, resolve(getCwd(), sub.dir))
+    if (record !== null) return record
+  }
+  return null
 }
 
 function runnerProgress(
@@ -176,14 +238,17 @@ async function runRunnerOp(
   onProgress?: ToolCallProgress,
 ): Promise<{ result: string; outcome: ToolEffectOutcome; record?: TestRunRecord }> {
   if (input.op === 'discover') {
-    const { profiles } = discoverRunnerProfiles()
+    const rel = relative(resolve(getCwd()), resolve(profile.root))
+    const below = rel !== '' && !rel.startsWith('..') && !isAbsolute(rel) ? `${rel.split(sep).join('/')}/` : null
+    const { profiles } = discoverRunnerProfiles(below === null ? undefined : profile.root)
     const lines = profiles.map(p =>
       `${p.id} [${p.runner}/${p.kind}] ${p.title}` +
-      (p.availability.state === 'ok' ? '' : ` — UNAVAILABLE: ${p.availability.reason} (remedy: ${p.availability.remedy})`),
+      (p.availability.state === 'ok' ? '' : ` — UNAVAILABLE: ${p.availability.reason} (remedy: ${p.availability.remedy})`) +
+      (below === null ? '' : ` — in ${below}`),
     )
     return {
       result: lines.length
-        ? `runner profiles (manifest-driven):\n${lines.join('\n')}`
+        ? `runner profiles (${below === null ? 'manifest-driven' : `one level down, in ${below}`}):\n${lines.join('\n')}`
         : 'no runner profiles discovered from this project\'s manifests',
       outcome: 'no-change',
     }
@@ -262,18 +327,21 @@ async function runOp(
       outcome: 'no-change',
     }
   }
+  if (lane.lane === 'sub-packages' && (input.op === 'discover' || input.op === 'run')) {
+    return { result: subPackageWords(lane), outcome: 'no-change' }
+  }
   if (lane.lane === 'runner-missing' && (input.op === 'discover' || input.op === 'run')) {
-    const { profiles } = discoverRunnerProfiles()
-    return {
-      result: `no ${lane.runner} test profile in this project's manifests${profiles.length ? ` — discovered: ${profiles.map(p => `${p.runner}/${p.kind}`).join(', ')}` : ''}`,
-      outcome: 'failed',
-    }
+    return { result: runnerMissingWords(lane), outcome: 'failed' }
   }
   if (lane.lane === 'runner' && (input.op === 'discover' || input.op === 'run')) {
     return runRunnerOp(input, lane.profile, signal, onProgress)
   }
+  let pythonRecordBelow: string | undefined
   if (input.op === 'rerunFailed') {
-    const latest = latestRun()
+    const latest = latestRunHere()
+    if (latest && (latest.framework === 'pytest' || latest.framework === 'unittest') && resolve(latest.cwd) !== resolve(getCwd())) {
+      pythonRecordBelow = latest.cwd
+    }
     if (latest && latest.framework !== 'pytest' && latest.framework !== 'unittest') {
       const out = await rerunRunnerFailures(latest, { ...(signal ? { signal } : {}) })
       if (out.state === 'unavailable') {
@@ -302,7 +370,7 @@ async function runOp(
       return {
         result:
           `${out.framework}: ${out.tests.length} test(s)${out.truncated ? ` (+${out.truncated} truncated)` : ''}` +
-          fallbackNoteSuffix(input.framework, out.framework) +
+          fallbackNoteSuffix(input.framework, out.framework, undefined, out.uncollected ?? []) +
           (out.collectErrors.length ? `\ncollect errors:\n${out.collectErrors.map(e => `  ${e}`).join('\n')}` : '') +
           (lines.length ? `\n${lines.join('\n')}${out.tests.length > lines.length ? `\n(+${out.tests.length - lines.length} more)` : ''}` : ''),
         outcome: 'no-change',
@@ -332,7 +400,7 @@ async function runOp(
           return { result: `test run unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
         }
         return {
-          result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework),
+          result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework, out.record),
           outcome: outcomeOf(out.record, () => (out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed')),
           record: out.record,
         }
@@ -349,13 +417,13 @@ async function runOp(
         return { result: `test run unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
       }
       return {
-        result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework),
+        result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework, out.record),
         outcome: outcomeOf(out.record, () => (out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed')),
         record: out.record,
       }
     }
     case 'rerunFailed': {
-      const out = await rerunFailedTests({ ...(signal ? { signal } : {}) })
+      const out = await rerunFailedTests({ ...(pythonRecordBelow !== undefined ? { from: pythonRecordBelow } : {}), ...(signal ? { signal } : {}) })
       if ('note' in out) return { result: out.note, outcome: 'no-change' }
       if (out.state === 'unavailable') {
         return { result: `rerun unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
@@ -372,8 +440,11 @@ async function runOp(
       if (debugLane.lane === 'ambiguous') {
         return { result: `this project declares multiple test runners: ${debugLane.options.join(', ')} — pass framework: to pick one`, outcome: 'no-change' }
       }
+      if (debugLane.lane === 'sub-packages') {
+        return { result: subPackageWords(debugLane), outcome: 'no-change' }
+      }
       if (debugLane.lane === 'runner-missing') {
-        return { result: `no ${debugLane.runner} test profile in this project's manifests`, outcome: 'failed' }
+        return { result: runnerMissingWords(debugLane), outcome: 'failed' }
       }
       const ranWithoutStop = async (debuggerMissing: string, remedy: string): Promise<{ result: string; outcome: ToolEffectOutcome; record?: TestRunRecord }> => {
         const ran = await runOp({ ...input, op: 'run' }, context, onProgress)
@@ -535,7 +606,7 @@ async function runOp(
       }
     }
     case 'report': {
-      const record = input.runId ? getRun(input.runId) : latestRun()
+      const record = input.runId ? runHere(input.runId) : latestRunHere()
       if (!record) {
         const runs = listRuns()
         return {
@@ -600,13 +671,11 @@ A run whose exit code disagrees with its structured records says so (verdictNote
     if (input.op === 'run') {
       try {
         const { profiles } = discoverRunnerProfiles()
-        const profile = input.profile
-          ? profiles.find(p => p.id === input.profile)
-          : (() => {
-              const lane = resolveTestLane(getCwd(), input.framework)
-              return lane.lane === 'runner' ? lane.profile : undefined
-            })()
-        if (profile) {
+        const lane = input.profile ? undefined : resolveTestLane(getCwd(), input.framework)
+        const profile = input.profile ? profiles.find(p => p.id === input.profile) : lane?.lane === 'runner' ? lane.profile : undefined
+        if (lane !== undefined && lane.lane !== 'runner' && lane.lane !== 'python') {
+          resolved = ' (no single test runner at this root — the call names the options and runs nothing)'
+        } else if (profile) {
           if (input.changed) {
             resolved = ` — will run: ${profile.command.join(' ')} + changed-file focus (targets resolve against the tree at execution)`
           } else {
