@@ -110,15 +110,26 @@ export function imageRefusalWords(
   return fault.message ? `${fault.code}: ${fault.message}` : fault.code
 }
 
+function lastUserQueryIndex(messages: readonly MessageParam[]): number {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]!
+    if (message.role !== 'user') continue
+    const turn = requestTurnOf(message.role, message.content)
+    if (turn.stringContent !== undefined || turn.items.some(item => item.type === 'text')) return index
+  }
+  return -1
+}
+
 export function mapMessagesToZai(
   system: string | undefined,
   messages: readonly MessageParam[],
-  opts?: { keepReasoningHistory?: boolean; imagesSupported?: boolean; toolDeclarations?: ReadonlyMap<string, ZaiWireMessage> },
+  opts?: { keepReasoningHistory?: boolean; keepReasoningAfterLastUser?: boolean; imagesSupported?: boolean; toolDeclarations?: ReadonlyMap<string, ZaiWireMessage> },
 ): ZaiWireMessage[] {
   const out: ZaiWireMessage[] = []
   const imagesSupported = opts?.imagesSupported !== false
+  const lastQuery = opts?.keepReasoningAfterLastUser === true ? lastUserQueryIndex(messages) : -1
   if (system && system.trim() !== '') out.push({ role: 'system', content: system })
-  for (const message of messages) {
+  for (const [index, message] of messages.entries()) {
     const turn = requestTurnOf(message.role, message.content)
     if (turn.stringContent !== undefined) {
       out.push({ role: turn.role, content: turn.stringContent })
@@ -128,11 +139,12 @@ export function mapMessagesToZai(
       const texts: string[] = []
       const thinkingTexts: string[] = []
       const toolCalls: ZaiMessage['tool_calls'] = []
+      const keepReasoning = opts?.keepReasoningHistory === true || (opts?.keepReasoningAfterLastUser === true && index > lastQuery)
       for (const item of turn.items) {
         if (item.type === 'text') texts.push(item.text)
         else if (item.type === 'tool_call' && item.native === 'tool_use') {
           toolCalls!.push({ id: item.call_id, type: 'function', function: { name: item.tool, arguments: JSON.stringify(item.input ?? {}) } })
-        } else if (item.type === 'reasoning' && !item.redacted && opts?.keepReasoningHistory === true) thinkingTexts.push(item.text)
+        } else if (item.type === 'reasoning' && !item.redacted && keepReasoning) thinkingTexts.push(item.text)
       }
       out.push({
         role: 'assistant',
