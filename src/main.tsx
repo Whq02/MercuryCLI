@@ -867,6 +867,16 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
 
   program
+    .command('usage')
+    .description("Print the usage figures the /usage screen shows, read the way the screen reads them (each signed-in provider's reader sampled once, as on open): the compact figures line as text, or the whole reading as JSON — per sign-in the windows with used and reset, the figures and credits the provider stated, each with its source and age, and the session spend per model")
+    .option('--json', 'The whole reading as JSON')
+    .action(async options => {
+      const { usageCli } = await import('./cli/handlers/usage.js')
+      await usageCli({ json: options.json === true })
+      process.exit(0)
+    })
+
+  program
     .command('version')
     .description('Print the version (the same line as --version)')
     .action(() => {
