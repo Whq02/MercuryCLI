@@ -371,8 +371,8 @@ section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
   const def = { agentType: 'mercury-crew', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
   const tool = (name: string): never => ({ name, description: '', inputSchema: {}, call: async () => ({}) }) as never
   const pool = [tool('Read'), tool('Bash'), tool('Crewmate')] as never
-  const launch = resolveWorkerTools(def, 'implement', pool, true).map(t => t.name)
-  const resume = resolveWorkerTools(def, 'implement', pool, true).map(t => t.name)
+  const launch = resolveWorkerTools(def, 'implement', pool).map(t => t.name)
+  const resume = resolveWorkerTools(def, 'implement', pool).map(t => t.name)
   check('K4b the same inputs derive the same pool for a launch and a resume', launch.join(',') === resume.join(','), `${launch.join(',')} vs ${resume.join(',')}`)
   check('K4b the launch narrows through the worker derivation', src('src/tools/AgentTool/AgentTool.tsx').includes('resolveWorkerTools(\n          agentDef,\n          plan.workerPermissionMode,'))
   const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')

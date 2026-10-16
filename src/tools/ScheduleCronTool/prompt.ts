@@ -52,6 +52,7 @@ export function buildCronDeletePrompt(): string {
 
 export const CRON_LIST_DESCRIPTION = "List this session's schedules."
 
-export function buildCronListPrompt(): string {
-  return `List this session's schedules as the daemon last pushed them: id, human-readable timing, one-shot or recurring, fire-into-session or session-birth, next fire, paused state. A schedule ${CRON_CREATE_TOOL_NAME} answered "Scheduled" is listed already; one it answered "Queued, not confirmed" appears once the daemon applies it.`
+export function buildCronListPrompt(offersCreate = true): string {
+  const creator = offersCreate ? `${CRON_CREATE_TOOL_NAME} answered` : 'the session answered'
+  return `List this session's schedules as the daemon last pushed them: id, human-readable timing, one-shot or recurring, fire-into-session or session-birth, next fire, paused state. A schedule ${creator} "Scheduled" is listed already; one it answered "Queued, not confirmed" appears once the daemon applies it.`
 }

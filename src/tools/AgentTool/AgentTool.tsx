@@ -523,7 +523,6 @@ export const AgentTool = buildTool({
             },
             context.getAppState().mcp.tools ?? [],
           ),
-          plan.shouldRunAsync,
         )
 
     if (input.review_receipt !== undefined && (!input.worktree_at || plan.isolation !== 'worktree' || input.cwd !== undefined)) {

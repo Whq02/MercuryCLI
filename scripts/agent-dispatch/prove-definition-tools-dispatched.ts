@@ -29,14 +29,14 @@ const pool = [
 
 section('§1 THE NARROWING LAW')
 {
-  const declared = resolveAgentTools({ tools: ['Read', 'Grep'], source: 'user' } as never, pool as never, false, false)
+  const declared = resolveAgentTools({ tools: ['Read', 'Grep'], source: 'user' } as never, pool as never)
   check(
     'a declared tools: list narrows to exactly those tools',
     declared.resolvedTools.length === 2 &&
       declared.resolvedTools.every(t => ['Read', 'Grep'].includes((t as { name: string }).name)),
     JSON.stringify(declared.resolvedTools.map(t => (t as { name: string }).name)),
   )
-  const denied = resolveAgentTools({ disallowedTools: ['Write'], source: 'user' } as never, pool as never, false, false)
+  const denied = resolveAgentTools({ disallowedTools: ['Write'], source: 'user' } as never, pool as never)
   check(
     'a disallowedTools: entry removes exactly that tool',
     !denied.resolvedTools.some(t => (t as { name: string }).name === 'Write') &&
@@ -68,7 +68,7 @@ section('§3 THE SCOUT CONTROL')
     const scout = (getBuiltInAgents() as Array<{ agentType: string; tools?: string[] }>).find(a => a.agentType === 'mercury-scout')
     check('mercury-scout exists', scout !== undefined)
     if (scout) {
-      const narrowed = resolveAgentTools(scout as never, pool as never, false, false)
+      const narrowed = resolveAgentTools(scout as never, pool as never)
       check(
         "the scout's dispatched pool carries NO editing tool",
         !narrowed.resolvedTools.some(t => ['Write', 'Edit'].includes((t as { name: string }).name)),
