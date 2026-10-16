@@ -14,7 +14,7 @@ import {
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { lookupTokens } from './mnemeLookup.js'
-import { escapeRegExp } from '../utils/stringUtils.js'
+import { escapeRegExp, wordCount } from '../utils/stringUtils.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, type MnemeEntry } from './mnemeTopicDocs.js'
 import { readPins } from './mnemeUsage.js'
 import { noteMemoryOffered } from './mnemeSignal.js'
@@ -128,10 +128,6 @@ function sessionText(s: LedgerEntry): string {
     ...s.retained,
     ...s.corrected,
   ].join(' ')
-}
-
-function wordCount(text: string): number {
-  return text.split(/\s+/).filter(Boolean).length
 }
 
 function ledgerPointer(s: LedgerEntry, count: number, kind: 'session' | 'handoff', words: string[]): MemoryPointer {
