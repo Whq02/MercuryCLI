@@ -23,6 +23,10 @@ export function firstLineOf(s: string): string {
   return newlineIndex === -1 ? s : s.slice(0, newlineIndex)
 }
 
+export function collapseWhitespace(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
 type IndexSearchable = {
   indexOf(needle: string, start?: number): number
 }
