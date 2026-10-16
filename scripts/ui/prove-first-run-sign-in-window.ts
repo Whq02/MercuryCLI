@@ -5,6 +5,9 @@ import { pinScratchHome, pinSourceRef, mountOffscreen, waitFor, KEY } from '../l
 
 const sourceRef = pinSourceRef()
 const home = pinScratchHome('first-run-sign-in-window')
+const { resolveCaptureDriver, captureEngineEntry } = await import('../lib/captureDriver.ts')
+const driver = resolveCaptureDriver()
+if (driver.kind === 'unavailable') throw new Error(driver.reason)
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.BROWSER = '/usr/bin/true'
 process.env.TERM_PROGRAM = 'Apple_Terminal'
@@ -53,7 +56,7 @@ for (const [cols, rows] of [[80, 24], [64, 20]]) {
     readyText: '❯ Sign in later', readySettleTicks: 2,
   }))
   try {
-    const grid = execFileSync(process.platform === 'darwin' ? '/usr/bin/python3' : 'python3', [join(import.meta.dir, 'vshot.py'), cfg], { encoding: 'utf8', timeout: 120000, env: { ...process.env, TMPDIR: home } })
+    const grid = execFileSync(driver.python, [captureEngineEntry(driver, join(import.meta.dir, '../..')), cfg], { encoding: 'utf8', timeout: 120000, env: { ...process.env, TMPDIR: home } })
     check(`PTY ${cols}x${rows}: live resize then End shows the later row`, grid.includes('❯ Sign in later'))
     if (frames) writeFileSync(join(frames, `pty-${cols}x${rows}.txt`), grid)
   } catch (error) { check(`PTY ${cols}x${rows}: live resize then End shows the later row`, false, String(error).slice(0, 200)) }

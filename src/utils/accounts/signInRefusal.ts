@@ -10,7 +10,7 @@ export type SignInRefusal = { status: 401 | 403; at: number }
 type StoredRefusal = SignInRefusal & { identity: string }
 type RefusalFile = { version: number; generation: string; refusal?: StoredRefusal }
 type Credential = { identity: string; key?: string }
-type Observation = { family: string; home: string; credential: Credential; generation: string; startedAt: number }
+type Observation = { family: string; home: string; credential: Credential; generation: string }
 
 function keyCredential(value: { key: string; source: string } | undefined): Credential | undefined {
   return value && !value.source.startsWith('env') ? { identity: credentialFingerprint(value.key), key: value.key } : undefined
@@ -85,7 +85,6 @@ export function clearSignInRefusal(family: string, home = getAuthConfigHomeDir()
     const path = pathOf(family, home)
     if (!path) return
     durableAtomicPublishSync(path, JSON.stringify({ version: 1, generation: randomUUID() }) + '\n', { mode: 0o600 })
-    noteCredentialChange()
   } catch { return }
 }
 
@@ -103,7 +102,7 @@ export function signInRefusalWords(refusal: SignInRefusal): string {
 export function captureSignInRequest(family: string, wireCredential?: string): Observation | undefined {
   const credential = currentCredential(family)
   if (!credential || credential.identity === 'none' || (wireCredential !== undefined && credential.key !== undefined && wireCredential !== credential.key)) return undefined
-  return { family, home: getAuthConfigHomeDir(), credential: { identity: credential.identity }, generation: readFile(family, getAuthConfigHomeDir())?.generation ?? '', startedAt: Date.now() }
+  return { family, home: getAuthConfigHomeDir(), credential: { identity: credential.identity }, generation: readFile(family, getAuthConfigHomeDir())?.generation ?? '' }
 }
 
 export function observeSignInResponse(request: Observation | undefined, status: number | undefined): void {
@@ -112,13 +111,15 @@ export function observeSignInResponse(request: Observation | undefined, status: 
     const { family, home, credential, generation } = request
     if (getAuthConfigHomeDir() !== home || currentCredential(family)?.identity !== credential.identity || (readFile(family, home)?.generation ?? '') !== generation) return
     const previous = readStored(family, home)
-    if (previous && previous.at > request.startedAt) return
-    if (status >= 200 && status < 300) {
-      if (previous?.identity === credential.identity) clearSignInRefusal(family, home)
-      return
-    }
     const path = pathOf(family, home)
     if (!path) return
+    if (status >= 200 && status < 300) {
+      if (previous?.identity === credential.identity) {
+        durableAtomicPublishSync(path, JSON.stringify({ version: 1, generation }) + '\n', { mode: 0o600 })
+        noteCredentialChange()
+      }
+      return
+    }
     durableAtomicPublishSync(path, JSON.stringify({ version: 1, generation, refusal: { status, at: Date.now(), identity: credential.identity } }) + '\n', { mode: 0o600 })
     noteCredentialChange()
   } catch { return }
