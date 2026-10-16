@@ -96,7 +96,7 @@ try {
     'the prompt-build callers thread the LIVE toolPermissionContext.mode (the next-turn law)',
     /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(src('rows', 'turn.ts')) &&
       /permissionMode: appState\.toolPermissionContext\.mode/.test(src('utils', 'queryContext.ts')) &&
-      src('utils', 'queryContext.ts').includes('getSystemPrompt(input.tools, input.engineModel, input.mcpClients, input.permissionMode)'),
+      src('utils', 'queryContext.ts').includes('getSystemPrompt(input.tools, input.engineModel, input.mcpClients, input.permissionMode, input.memoryTask)'),
   )
   const contract = src('prompt', 'behaviourContract.ts')
   check('behaviour contract owns mode:mode-apollo → src/prompt/apolloMode.ts', /\['mode:mode-apollo', 'src\/prompt\/apolloMode\.ts'\]/.test(contract))
