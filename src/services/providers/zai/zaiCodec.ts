@@ -110,6 +110,8 @@ export function imageRefusalWords(
   return fault.message ? `${fault.code}: ${fault.message}` : fault.code
 }
 
+export const ASSISTANT_THINKING_ONLY_ROW = '(thinking)'
+
 function lastUserQueryIndex(messages: readonly MessageParam[]): number {
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index]!
@@ -148,7 +150,7 @@ export function mapMessagesToZai(
       }
       out.push({
         role: 'assistant',
-        content: texts.length > 0 ? texts.join('\n') : toolCalls!.length > 0 ? null : '',
+        content: texts.length > 0 ? texts.join('\n') : toolCalls!.length > 0 ? null : thinkingTexts.length > 0 ? '' : ASSISTANT_THINKING_ONLY_ROW,
         ...(thinkingTexts.length > 0 ? { reasoning_content: thinkingTexts.join('\n') } : {}),
         ...(toolCalls!.length > 0 ? { tool_calls: toolCalls } : {}),
       })
