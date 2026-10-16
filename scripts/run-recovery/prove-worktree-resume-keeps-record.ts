@@ -139,7 +139,7 @@ try {
   freshProcess()
   enterWorktree()
   const first = await build(firstPool)
-  check('the control: the first request names the worktree and carries no task-items bullet (no task tool in the pool)', first.includes('isolated copy of the repository') && first.includes(`Working directory: ${worktree}`) && !first.includes(BULLET))
+  check('the control: the first request names the worktree and carries no task-items bullet (no task tool in the pool)', first.includes(' - This working directory is an isolated copy of the repository (a git worktree); every command runs here, never in the original repository root.') && first.includes(`Working directory: ${worktree}`) && !first.includes(BULLET))
   await planToolPayload({ model: MODEL, tools: firstPool as never, messages: [firstRow] as never, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], source: 'prove', latchKey: owner })
   const row = await boundPrefixRecordToEmit(owner, [firstRow] as never, MODEL)
   check('the first exchange emits its record with the cached sections', row !== null && row.attachment.type === 'bound_prefix' && (row.attachment as { sections: unknown[] }).sections.length > 0)
