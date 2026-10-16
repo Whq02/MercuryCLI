@@ -21,7 +21,7 @@ import { usageFreshness, usageSourceWords, type UsageFreshnessFacts } from '../.
 import { getEngineModel } from '../../utils/model/model.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
 
-export const USAGE_READING_SCHEMA = 1
+const USAGE_READING_SCHEMA = 1
 
 const iso = (ms: number | undefined): string | undefined => (ms === undefined || !Number.isFinite(ms) ? undefined : new Date(ms).toISOString())
 
@@ -118,7 +118,7 @@ function signInReading(presence: ProviderFamilyPresence): Record<string, unknown
   }
 }
 
-export async function sampleShownFamilies(families: readonly ProviderFamilyPresence[]): Promise<RouterProviderId[]> {
+async function sampleShownFamilies(families: readonly ProviderFamilyPresence[]): Promise<RouterProviderId[]> {
   const sampled = families.filter(family => family.credentialed).map(family => family.id)
   await Promise.all(sampled.map(id => refreshProviderUsage(id, { reason: 'open' })))
   return sampled
