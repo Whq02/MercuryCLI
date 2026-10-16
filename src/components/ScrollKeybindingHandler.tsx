@@ -185,7 +185,7 @@ function jumpBy(handle: ScrollBoxHandle, delta: number): boolean {
 }
 
 
-const WHEEL_OWNING_OVERLAYS = new Set(['select', 'model-picker', 'command-palette', 'quick-open', 'file-open', 'content-search', 'files-menu'])
+const WHEEL_OWNING_OVERLAYS = new Set(['select', 'model-picker', 'command-palette', 'quick-open', 'file-open', 'content-search', 'files-menu', 'effort-popup'])
 
 export function wheelYieldsToTopOverlay(): boolean {
   if (settingsPopupRequest()?.scrollRef) return false

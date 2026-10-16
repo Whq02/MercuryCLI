@@ -206,9 +206,10 @@ function clearEffortEnv(): void {
   check("cycle on Terra never lands on max: xhigh →right→ low (wrap)", effort.cycleSelectableEffort('gpt-5.6-terra', 'xhigh', 'right') === 'low')
   check("an out-of-vocabulary current ('max' on Terra) enters at its applied projection", effort.cycleSelectableEffort('gpt-5.6-terra', 'max', 'left') === 'high')
 
-  const sliderSrc = readFileSync(join(ROOT, 'src/commands/effort/EffortSlider.tsx'), 'utf8')
-  check('EffortSlider stamps stops from selectableEffortLevels', sliderSrc.includes('selectableEffortLevels(model)') && sliderSrc.includes('supported: vocabulary.has'))
-  check('EffortSlider navigation skips unsupported stops', sliderSrc.includes('const slide') && sliderSrc.includes('!geo.levels[next]?.supported'))
+  const popupSrc = readFileSync(join(ROOT, 'src/commands/effort/EffortPopup.tsx'), 'utf8')
+  check('EffortPopup lists its rows from selectableEffortLevels', popupSrc.includes('selectableEffortLevels(model).map('))
+  const popupRows = (await import('../../src/commands/effort/EffortPopup.js')).effortPopupRows
+  check('EffortPopup on sonnet-4-6 lists no xhigh row (absent, never greyed)', popupRows('claude-sonnet-4-6').map(row => String(row.value)).join(',') === 'auto,low,medium,high,max')
   const pickerSrc = readFileSync(join(ROOT, 'src/components/ModelPicker.tsx'), 'utf8')
   check('ModelPicker cycles through cycleSelectableEffort (the global full-axis cycle is dead)', pickerSrc.includes('cycleSelectableEffort(') && !pickerSrc.includes('function cycleEffortLevel('))
   check('ModelPicker row claims the owner label (no local max→high clamp)', pickerSrc.includes('resolveEffortTruth(') && !pickerSrc.includes('effort === "max" && !focusedSupportsMax'))

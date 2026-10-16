@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/effort/EffortSlider.tsx src/commands/effort/effort.tsx src/commands/effort/index.ts
+// gate-watch: src/commands/effort/EffortPopup.tsx src/commands/effort/effort.tsx src/commands/effort/index.ts
 // gate-watch: src/commands.ts src/state/AppStateStore.ts src/utils/settings/settings.ts src/utils/settings/types.ts src/utils/effort.ts
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -26,22 +26,27 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-const slider = await import('../../src/commands/effort/EffortSlider.js')
+const popup = await import('../../src/commands/effort/EffortPopup.js')
 const cmd = await import('../../src/commands/effort/effort.js')
 const effortCommand = (await import('../../src/commands/effort/index.js')).default
 const store = await import('../../src/state/AppStateStore.js')
 const settings = await import('../../src/utils/settings/settings.js')
 const commands = await import('../../src/commands.js')
 
-console.log('— the rail: five stops, the last one max, for every model that serves max —')
+console.log('— the popup: auto then the ladder, the last row max, for every model that serves max —')
 for (const model of ['claude-opus-5', 'claude-opus-4-8', 'claude-fable-5-1', 'claude-sonnet-5-5']) {
-  const geo = slider.getSliderGeometry(model)
-  const words = geo.levels.map(l => String(l.value))
-  t(`${model}: the stops are the ladder and end at max`, words.join(',') === 'low,medium,high,xhigh,max', words.join(','))
-  t(`${model}: five triangle columns on a ${geo.width}-wide rail, no junction`, geo.trianglePositions.length === 5 && geo.width === 53 && !geo.trackChars.includes('┆'), `${geo.trianglePositions.length} stops · ${geo.trackChars}`)
-  t(`${model}: the rail carries no caption under a sixth stop`, !('sublabel' in geo) && !('accentStart' in geo))
-  const opens = slider.resolveOpeningStop(model, 'max')
-  t(`${model}: a session at max opens on the last stop`, opens === geo.levels.length - 1 && geo.levels[opens]?.value === 'max', String(opens))
+  const rows = popup.effortPopupRows(model)
+  const words = rows.map(row => String(row.value))
+  t(`${model}: the rows are auto then the ladder and end at max`, words.join(',') === 'auto,low,medium,high,xhigh,max', words.join(','))
+  t(`${model}: every row carries its word and a one-line description, none a sixth tier`, rows.every(row => row.word === String(row.value) && row.description.length > 0) && !words.some(word => /ultra/i.test(word)))
+  t(`${model}: the last row is max`, rows[rows.length - 1]?.value === 'max', String(rows[rows.length - 1]?.value))
+  const opens = popup.effortPopupOpeningRow(model, 'max')
+  t(`${model}: a session at max opens on the last row`, opens === rows.length - 1 && rows[opens]?.value === 'max', String(opens))
+}
+{
+  const rows = popup.effortPopupRows('claude-sonnet-4-6')
+  t('a max-yes/xhigh-no model lists no xhigh row: an unsupported tier is absent, never greyed', rows.map(row => String(row.value)).join(',') === 'auto,low,medium,high,max', rows.map(row => String(row.value)).join(','))
+  t('…and its last row is still max', rows[rows.length - 1]?.value === 'max')
 }
 
 console.log('— the words: /effort offers the ladder and auto, nothing after max —')
