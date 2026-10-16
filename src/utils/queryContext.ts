@@ -17,6 +17,7 @@ import { shouldEnableThinkingByDefault, type ThinkingConfig } from './thinking.j
 type PromptInputs = {
   tools: Tools; engineModel: string; mcpClients: MCPServerConnection[]
   customSystemPrompt?: string; permissionMode?: InternalPermissionMode
+  memoryTask?: import('../mneme/entryKnapsack.js').StartTask
 }
 type PromptParts = {
   defaultSystemPrompt: string[]; userContext: Record<string, string>; systemContext: Record<string, string>
@@ -34,7 +35,7 @@ export async function fetchSystemPromptParts(input: PromptInputs): Promise<Promp
     return { defaultSystemPrompt: [], userContext: await getUserContext(), systemContext: {} }
   }
   const pending = {
-    defaultSystemPrompt: getSystemPrompt(input.tools, input.engineModel, input.mcpClients, input.permissionMode),
+    defaultSystemPrompt: getSystemPrompt(input.tools, input.engineModel, input.mcpClients, input.permissionMode, input.memoryTask),
     userContext: getUserContext(), systemContext: getSystemContext(),
   }
   const [prompt, user, system] = await Promise.all([pending.defaultSystemPrompt, pending.userContext, pending.systemContext])

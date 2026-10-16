@@ -63,7 +63,8 @@ check('the Correct prompt tells the model the road', /↵ opens the rule and c c
 const manual = readFileSync(join(REPO, 'docs/MNEME.md'), 'utf8')
 check('the manual says how a rule you asked for is changed', manual.includes('`↵` opens the rule and `c` corrects it') && manual.includes('the pin and its "asked for'), manual.split('\n').find(l => l.includes('corrects it')) ?? '')
 
-const seeded = retainItems([{ content: OLD_RULE, pin: true, topic: 'user-preferences' }], { session: 'edit-road-seed' }, dir)
+const ownerSaid = (text: string) => ({ messageId: `owner-${text.length}`, text })
+const seeded = retainItems([{ content: OLD_RULE, pin: true, topic: 'user-preferences' }], { session: 'edit-road-seed', pinIntent: ownerSaid(`Remember this as a standing rule: ${OLD_RULE}`) }, dir)
 _resetMemoryVerbSessionStateForTesting()
 check('seed: the rule the user asked for is staged pinned', seeded[0]?.status === 'stored', j(seeded))
 check('seed: consolidation puts it on the shelf', maybeConsolidate({ force: true, dir }).consolidated)
@@ -178,7 +179,7 @@ section('§1 the road on the screen (120x40): pinned rules → ↵ on the rule �
   check('on disk: the old wording is history, linked to the new one', prefs().history.some(e => e.seq === oldSeq && e.supersededBy === newSeq && e.text === OLD_RULE), j(prefs().history))
   check('on disk: ONE current rule in the topic', prefs().sections.flatMap(s => s.entries).length === 1)
   check('the pin and the asked mark followed the new wording; the old seq is unpinned', readPins(dir).some(p => p.seq === newSeq && p.asked === true) && !readPins(dir).some(p => p.seq === oldSeq), j(readPins(dir)))
-  check('the front page lists the new rule as asked for by the user and not the old one', (readFrontPage(dir) ?? '').includes(`- ${NEW_RULE} <seq=${newSeq}, asked for by the user>`) && !(readFrontPage(dir) ?? '').includes(OLD_RULE), (readFrontPage(dir) ?? '').split('## Pinned')[1] ?? '')
+  check('the front page lists the new rule behind the asked-pin grade as asked for by the user and not the old one', (readFrontPage(dir) ?? '').includes(`- [pinned · asked by the owner] ${NEW_RULE} <seq=${newSeq}, asked for by the user>`) && !(readFrontPage(dir) ?? '').includes(OLD_RULE), (readFrontPage(dir) ?? '').split('## Pinned')[1] ?? '')
   const relisted = scene.m.lines().filter(l => /chars · asked for by you · /.test(l))
   check('back in the list: one rule row, the new wording, still marked asked for by you', relisted.length === 1 && relisted[0]!.includes(NEW_RULE), relisted.join(' | '))
   await closeScene(scene)
@@ -207,7 +208,7 @@ section('§1 the road on the screen (120x40): pinned rules → ↵ on the rule �
   save('edit-road-6-unpinned', again.m.lines())
   check('the unpinned rule is a plain live fact, still current', prefs().sections.flatMap(s => s.entries).some(e => e.seq === newSeq), j(prefs().sections.flatMap(s => s.entries)))
   await closeScene(again)
-  const restated = retainItems([{ content: RESTATED, pin: true, replaces: `seq:${newSeq}` }], { session: 'edit-road-user' }, dir)
+  const restated = retainItems([{ content: RESTATED, pin: true, replaces: `seq:${newSeq}` }], { session: 'edit-road-user', pinIntent: ownerSaid(`Remember this as a rule: ${RESTATED}`) }, dir)
   _resetMemoryVerbSessionStateForTesting()
   check('the user restates the rule in the chat and the model names the unpinned one it replaces: stored', restated[0]?.status === 'stored', j(restated))
   check('the pinned retain consolidates at once', maybeConsolidate({ force: true, dir }).consolidated)
@@ -215,7 +216,7 @@ section('§1 the road on the screen (120x40): pinned rules → ↵ on the rule �
   const restatedSeq = finalLive.find(e => e.text === RESTATED)?.seq ?? -1
   check('ONE current rule: the restated one; the unpinned wording is history under it', finalLive.length === 1 && restatedSeq > newSeq && prefs().history.some(e => e.seq === newSeq && e.supersededBy === restatedSeq), j({ live: finalLive.map(e => e.text), history: prefs().history.map(e => [e.seq, e.supersededBy]) }))
   check('the restated rule is pinned and marked asked for by the user', readPins(dir).length === 1 && readPins(dir)[0]!.seq === restatedSeq && readPins(dir)[0]!.asked === true, j(readPins(dir)))
-  check('the front page carries the one rule', (readFrontPage(dir) ?? '').includes(`- ${RESTATED} <seq=${restatedSeq}, asked for by the user>`) && !(readFrontPage(dir) ?? '').includes(NEW_RULE), (readFrontPage(dir) ?? '').split('## Pinned')[1] ?? '')
+  check('the front page carries the one rule behind the asked-pin grade', (readFrontPage(dir) ?? '').includes(`- [pinned · asked by the owner] ${RESTATED} <seq=${restatedSeq}, asked for by the user>`) && !(readFrontPage(dir) ?? '').includes(NEW_RULE), (readFrontPage(dir) ?? '').split('## Pinned')[1] ?? '')
 }
 
 await releaseScratchHome(HOME)

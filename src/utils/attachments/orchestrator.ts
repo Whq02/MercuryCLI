@@ -176,6 +176,7 @@ export async function getAttachments(
         })(),
       ),
     ),
+    ...(!input ? [maybe('relevant_memories', () => Promise.resolve(options?.localSubmission ? [] : getRelevantMemoryAttachments(null, messages, toolUseContext)))] : []),
     maybe('changed_files', () => getChangedFiles(context)),
     maybe('nested_memory', () => getNestedMemoryAttachments(context)),
     maybe('dynamic_skill', () => getDynamicSkillAttachments(context)),
