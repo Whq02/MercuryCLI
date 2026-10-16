@@ -251,7 +251,8 @@ function frameReadsRight(label: string, lines: string[], cols: number, rows: num
   check(`${label}: the verdict chip sits on the title row beside the lockup`, VERDICT.test(inner(window.rows[1]!)) && inner(window.rows[1]!).includes(`${TITLE} · `), inner(window.rows[1]!))
   const expected = certificate.healthPopupLayout(window.height, 0, 1000)
   const legendRow = window.rows.map(inner).find(row => row.startsWith(LEGEND))
-  check(`${label}: the provenance legend ${window.height >= 30 ? 'is painted (the popup has 30 rows or more)' : 'is absent (the popup has fewer than 30 rows: the first line shed)'}`, (legendRow !== undefined) === (window.height >= 30 && !expected.compact), legendRow ?? '(no legend row)')
+  const legendFloor = certificate.HEALTH_POPUP_LEGEND_MIN_ROWS
+  check(`${label}: the provenance legend ${window.height >= legendFloor ? `is painted (the popup has ${legendFloor} rows or more)` : `is absent (the popup has fewer than ${legendFloor} rows: the first line shed)`}`, (legendRow !== undefined) === (window.height >= legendFloor && !expected.compact), legendRow ?? '(no legend row)')
   if (legendRow !== undefined) check(`${label}: the legend sits right above the footer, under the rows`, window.rows.map(inner).indexOf(legendRow) === window.height - 3, String(window.rows.map(inner).indexOf(legendRow)))
   const countsRow = window.rows.map(inner).find(row => /^\d+ checks/.test(row))
   check(`${label}: the ${expected.compact ? 'compact' : 'full'} chrome (${window.height} rows: ${expected.compact ? 'the provenance and counts lines yield to the rows' : 'provenance line, counts line, a blank, then the rows'})`, (countsRow !== undefined) === !expected.compact, countsRow ?? '(no counts row)')
