@@ -130,7 +130,7 @@ try {
   const events3: Progress[] = []
   const landed = await fold(stretch(6, 400, 'hooks'), context(events3), 200_000)
   const order = events3.map(e => e.hookType ?? e.stage ?? e.type)
-  check('a landed fold fires compaction.after exactly once, after the restore stage', postCompactHooks(events3) === 1 && order.indexOf('post_compact') > order.indexOf('restoring') && landed.summaryMessages.length === 1, JSON.stringify(order))
+  check('a landed fold fires compaction.after exactly once, after the restore stage', postCompactHooks(events3) === 1 && order.includes('restoring') && order.indexOf('post_compact') > order.indexOf('restoring') && landed.summaryMessages.length === 1, JSON.stringify(order))
 } finally {
   await api.close()
   rmSync(home, { recursive: true, force: true })
