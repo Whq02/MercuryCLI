@@ -187,6 +187,43 @@ section('§8 which file may pick a sign-in: the project\'s own settings.local.js
   pockets.clearSignInChoices()
 }
 
+section('§9 two roads of one account are ONE sign-in: a ChatGPT subscription beside an OpenAI key reads as one default with two roads; use names the road the resolver spends')
+{
+  const openai = await import('../../src/services/providers/openai/openaiAccounts.ts')
+  const { otherSignInsLine } = await import('../../src/services/providers/providerIdentityLine.ts')
+  pockets.clearSignInChoices()
+  const b64 = (payload: Record<string, unknown>): string => Buffer.from(JSON.stringify(payload)).toString('base64url')
+  const FUTURE_S = Math.floor(Date.now() / 1000) + 3600
+  const handles = openai.beginOpenaiBrowserConnect({
+    skipBrowserOpen: true,
+    fetchImpl: (async (url: RequestInfo | URL) => String(url).includes('/oauth/token')
+      ? new Response(JSON.stringify({ id_token: `h.${b64({ email: 'alice@home.example', 'https://api.openai.com/auth': { chatgpt_account_id: 'acct-alice', chatgpt_plan_type: 'plus' } })}.s`, access_token: `h.${b64({ exp: FUTURE_S })}.s`, refresh_token: 'R-alice', expires_in: 3600 }), { status: 200 })
+      : new Response('', { status: 404 })) as unknown as typeof fetch,
+  } as never)
+  const state = new URL(handles.authorizeUrl).searchParams.get('state')!
+  handles.completeWithRedirect(`http://localhost:1455/auth/callback?code=REAL&state=${state}`)
+  await Promise.race([handles.result, new Promise(resolve => setTimeout(resolve, 5000))])
+  secrets.writeStoredOpenaiApiKey('sk-openai-key-000000000000k3f9')
+  pockets.takeLastLanding()
+  pockets.clearSignInChoices()
+  const rows = roster.familySignInRoster('openai', HOME)
+  check('the home with a subscription and a key is ONE sign-in row with two roads', rows.length === 1 && rows[0]?.isDefault === true && rows[0].roads.length === 2 && rows[0].roads.map(road => road.kind).sort().join(',') === 'api-key,chatgpt-subscription', JSON.stringify(rows))
+  const before = openai.resolveOpenaiAccount()
+  check('the row names the road the resolver spends', before?.kind === 'chatgpt-subscription' && rows[0]?.identity === 'alice@home.example' && rows[0].kind === 'chatgpt-subscription' && rows[0].roads.find(road => road.active)?.kind === 'chatgpt-subscription', JSON.stringify({ before, row: rows[0] }))
+  check('/usage names no "also signed in" for a second road of the same sign-in', otherSignInsLine('openai', true) === undefined, otherSignInsLine('openai', true))
+  const used = roster.useSignIn('…k3f9', undefined, 'session', HOME)
+  const after = openai.resolveOpenaiAccount()
+  check('/logins use <the key road> names the sign-in it belongs to and the road that spends, never a false switch', used.ok && /OpenAI: this session now spends alice@home\.example \(the default\) through its ChatGPT subscription/.test(used.words) && /…k3f9 is its API key road — \/accounts switches the road/.test(used.words), used.words)
+  check('the resolver spends what it spent', JSON.stringify(after) === JSON.stringify(before), JSON.stringify({ before, after }))
+  const listed = signInChoiceVerb('list', [])
+  check('/logins list shows the one sign-in with its two roads and which spends', /OpenAI: alice@home\.example · default · in use · roads: ChatGPT subscription \(spends\), API key …k3f9/.test(listed.words), listed.words)
+  openai.writePreferredOpenaiSource('api-key')
+  const flipped = roster.familySignInRoster('openai', HOME)[0]
+  check('switching the road on /accounts moves the row with the resolver', openai.resolveOpenaiAccount()?.kind === 'api-key' && flipped?.identity === '…k3f9' && flipped.kind === 'api-key' && flipped.roads.find(road => road.active)?.identity === '…k3f9', JSON.stringify(flipped))
+  openai.writePreferredOpenaiSource(null)
+  pockets.clearSignInChoices()
+}
+
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ SIGN-IN CHOICE GREEN' : `\n❌ SIGN-IN CHOICE RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

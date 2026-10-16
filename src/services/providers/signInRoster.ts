@@ -49,6 +49,12 @@ import {
 import { credentialFingerprint, maskedKeyTail } from './credentialIdentity.js'
 import { providerDisplayName } from './routeLaw.js'
 
+export interface SignInRoad {
+  identity: string
+  kind: string
+  active: boolean
+}
+
 export interface SignInRosterRow {
   family: string
   identity: string
@@ -58,12 +64,76 @@ export interface SignInRosterRow {
   inUse: boolean
   isDefault: boolean
   at?: number
+  roads: SignInRoad[]
 }
 
 interface HomeSignIn {
   identity: string
   kind: string
   remove: () => void
+}
+
+const ROAD_WORDS: Record<string, string> = {
+  'chatgpt-subscription': 'ChatGPT subscription',
+  subscription: 'subscription',
+  plan: 'Google plan',
+  oauth: 'sign-in',
+  'muse-code': 'Muse Code sign-in',
+  'oauth-key': 'OAuth-minted key',
+  'api-key': 'API key',
+}
+
+export function roadWords(kind: string): string {
+  return ROAD_WORDS[kind] ?? kind
+}
+
+function activeRoadKind(family: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  switch (family) {
+    case 'anthropic':
+      return 'subscription'
+    case 'openai':
+      return (require('./openai/openaiAccounts.js') as typeof import('./openai/openaiAccounts.js')).resolveOpenaiAccount(env)?.kind
+    case 'gemini':
+      return (require('./gemini/geminiAccounts.js') as typeof import('./gemini/geminiAccounts.js')).resolveGeminiAccount(env)?.kind
+    case 'huggingface':
+      return (require('./huggingface/huggingfaceAccounts.js') as typeof import('./huggingface/huggingfaceAccounts.js')).resolveHuggingfaceAccount(env)?.kind
+    case 'moonshot': {
+      const kind = (require('./moonshot/moonshotAccounts.js') as typeof import('./moonshot/moonshotAccounts.js')).resolveMoonshotAccount(env)?.kind
+      return kind === 'kimi-oauth' ? 'oauth' : kind
+    }
+    case 'xai': {
+      const kind = (require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')).resolveXaiAccount(env)?.kind
+      return kind === 'grok-subscription' ? 'subscription' : kind
+    }
+    case 'nous': {
+      const kind = (require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')).resolveNousAccount(env)?.kind
+      return kind === 'signin' ? 'oauth' : kind
+    }
+    case 'meta':
+      return (require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')).resolveMetaAccount(env)?.kind
+    case 'openrouter':
+      return (require('./openrouter/openrouterAccounts.js') as typeof import('./openrouter/openrouterAccounts.js')).resolveOpenrouterAccount(env)?.kind
+    default:
+      return 'api-key'
+  }
+}
+
+function signInOf(family: string, dir: string | null, roads: HomeSignIn[], entries: Record<string, { at: number }>, slug?: string): SignInRosterRow | undefined {
+  if (roads.length === 0) return undefined
+  const activeKind = activeRoadKind(family)
+  const active = roads.find(road => road.kind === activeKind) ?? roads[0]!
+  const ats = roads.map(road => entries[road.identity]?.at).filter((at): at is number => at !== undefined)
+  return {
+    family,
+    identity: active.identity,
+    kind: active.kind,
+    dir,
+    ...(slug !== undefined ? { slug } : {}),
+    inUse: false,
+    isDefault: dir === null,
+    ...(ats.length > 0 ? { at: Math.min(...ats) } : {}),
+    roads: roads.map(road => ({ identity: road.identity, kind: road.kind, active: road === active })),
+  }
 }
 
 function keyRow(kind: string, key: string | undefined, remove: () => void): HomeSignIn[] {
@@ -184,34 +254,19 @@ export const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'gemini', 'huggingface',
 export function familySignInRoster(family: string, home: string = signInsEstate()): SignInRosterRow[] {
   const choice = chosenSignIn(family)
   const entries = readSignInEntries(family, { home })
-  const homeRows: SignInRosterRow[] = withSignInHome(family, home, () => homeSignInsOf(family)).map(row => ({
-    family,
-    identity: row.identity,
-    kind: row.kind,
-    dir: null,
-    inUse: false,
-    isDefault: true,
-    ...(entries[row.identity]?.at !== undefined ? { at: entries[row.identity]!.at } : {}),
-  }))
-  const pocketRows: SignInRosterRow[] = pocketEntries(family, home).map(entry => ({
-    family,
-    identity: entry.identity,
-    kind: withSignInHome(family, entry.dir, () => homeSignInsOf(family))[0]?.kind ?? entry.kind,
-    dir: entry.dir,
-    slug: entry.slug,
-    inUse: false,
-    isDefault: false,
-    at: entry.at,
-  }))
-  const rows = [...homeRows, ...pocketRows]
+  const homeRow = withSignInHome(family, home, () => signInOf(family, null, homeSignInsOf(family), entries))
+  const pocketRows = pocketEntries(family, home).flatMap(entry => {
+    const row = withSignInHome(family, entry.dir, () => signInOf(family, entry.dir, homeSignInsOf(family), entries, entry.slug))
+    return row === undefined ? [] : [{ ...row, at: entry.at }]
+  })
+  const rows = [...(homeRow === undefined ? [] : [homeRow]), ...pocketRows]
   const inUse = rowInUse(rows, choice)
   return rows.map(row => ({ ...row, inUse: row === inUse }))
 }
 
 function rowInUse(rows: SignInRosterRow[], choice: SignInChoice | undefined): SignInRosterRow | undefined {
-  if (choice === undefined) return rows.find(row => row.isDefault)
-  if (choice.dir !== null) return rows.find(row => row.dir === choice.dir) ?? rows.find(row => row.isDefault)
-  return rows.find(row => row.isDefault && (row.kind === choice.kind || row.identity === choice.identity)) ?? rows.find(row => row.isDefault)
+  if (choice === undefined || choice.dir === null) return rows.find(row => row.isDefault)
+  return rows.find(row => row.dir === choice.dir) ?? rows.find(row => row.isDefault)
 }
 
 export function everySignInRoster(home: string = signInsEstate()): SignInRosterRow[] {
@@ -223,10 +278,19 @@ function spelledIdentity(typed: string): string {
   return word.startsWith('...') ? `${KEY_IDENTITY_MARK}${word.slice(3)}` : word
 }
 
-function namesRow(row: SignInRosterRow, wanted: string): boolean {
-  const own = row.identity.toLowerCase()
+function namesIdentity(identity: string, wanted: string): boolean {
+  const own = identity.toLowerCase()
   if (own === wanted) return true
-  return isKeyIdentity(row.identity) && own.slice(KEY_IDENTITY_MARK.length) === wanted
+  return isKeyIdentity(identity) && own.slice(KEY_IDENTITY_MARK.length) === wanted
+}
+
+function namesRow(row: SignInRosterRow, wanted: string): boolean {
+  return namesIdentity(row.identity, wanted) || row.roads.some(road => namesIdentity(road.identity, wanted))
+}
+
+function roadNamed(row: SignInRosterRow, typed: string): SignInRoad | undefined {
+  const wanted = spelledIdentity(typed)
+  return row.roads.find(road => namesIdentity(road.identity, wanted))
 }
 
 export function findSignIn(identity: string, family?: string, home: string = signInsEstate()): { row?: SignInRosterRow; matches: SignInRosterRow[] } {
@@ -257,7 +321,19 @@ export function useSignIn(identity: string, family?: string, layer: 'session' | 
   const choice: SignInChoice = { identity: row.identity, dir: row.dir, kind: row.kind }
   if (layer === 'project') setProjectSignIn(row.family, choice)
   else setSessionSignIn(row.family, choice)
-  return { ok: true, row, words: `${providerDisplayName(row.family)}: this ${layer} now spends ${row.identity}${row.isDefault ? ' (the default)' : ''}` }
+  return { ok: true, row, words: `${providerDisplayName(row.family)}: this ${layer} now spends ${row.identity}${row.isDefault ? ' (the default)' : ''}${roadClause(row, roadNamed(row, identity))}` }
+}
+
+function roadClause(row: SignInRosterRow, named: SignInRoad | undefined): string {
+  if (row.roads.length < 2) return ''
+  const through = ` through its ${roadWords(row.kind)}`
+  if (named === undefined || named.active) return through
+  return `${through} — ${named.identity} is its ${roadWords(named.kind)} road — /accounts switches the road`
+}
+
+export function roadsWords(row: SignInRosterRow): string | undefined {
+  if (row.roads.length < 2) return undefined
+  return row.roads.map(road => `${roadWords(road.kind)}${isKeyIdentity(road.identity) ? ` ${road.identity}` : ''}${road.active ? ' (spends)' : ''}`).join(', ')
 }
 
 export function useDefaultSignIn(family: string): string {
