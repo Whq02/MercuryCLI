@@ -106,7 +106,7 @@ export async function computeSimpleEnvInfo(
   const items: Array<string | string[]> = []
   if (getCurrentWorktreeSession() !== null) {
     items.push(
-      'This directory is an isolated copy of the repository (a git worktree); every command runs here, never in the original repository root.',
+      'This working directory is an isolated copy of the repository (a git worktree); every command runs here, never in the original repository root.',
     )
   }
   if (declaredRouteOf(modelId) === 'local') {
