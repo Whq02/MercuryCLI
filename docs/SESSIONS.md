@@ -693,36 +693,35 @@ wire of a later turn. The law and its enforcement are in [TRUST.md](TRUST.md).
 
 ## Before the context fills
 
-Mercury checks the estimated context before each request, on every provider
-route. At 40% of the seated model's window it can prune older file results
-that a later successful Read, Edit or Write of the same path superseded.
-The latest result for a path, unique results, failed or unfinished operations,
-skill and brief material, and the five most recent eligible results stay.
-Small results stay when a replacement would not save tokens.
+Mercury sends every tool result whole: nothing is pruned before a summary.
+When the estimated context reaches the automatic-fold threshold, the fold
+runs first with the complete history in front of the summariser, keeps the
+last ten complete rounds when they fit under the window, keeps your own
+messages word for word, moves the run's state to project memory with a
+pointer it has read back (when memory is on and the run has state to
+move), and writes an exact receipt on the boundary row:
+the rounds kept, the operator messages kept whole, what moved to memory,
+what was pruned (nothing, for a fold) and the context before and after.
+A cancelled or failed fold keeps the original context whole and says so.
 
-The **superseded-result prune threshold** is set with `MERCURY_PRUNE_PCT`,
-a percentage from 0 to 100. The default is 40; 0 disables this early prune,
-and an unset, blank or invalid value uses the default. Mercury clears only
-when the eligible results can bring the estimate down to two-thirds of that
-threshold: about 26.7% of the window at the default. Otherwise it leaves the
-history alone and the existing overflow recovery remains available. The
-threshold uses the model's window, independently of a smaller automatic-fold
-window you may have chosen; that earlier fold can run before this prune.
+Only when a fold cannot bring the context under its threshold, or the
+provider refuses the request despite the estimate, does the emergency prune
+run. It clears older file results that a later successful Read, Edit or
+Write of the same path superseded; the latest result for a path, unique
+results, failed or unfinished operations, skill and brief material, and the
+ten most recent eligible results stay. The chat reports the number of
+result bodies pruned and Mercury's estimate of the tokens, and says that no
+summary was written and nothing moved to memory by that prune. The
+replacements persist across later requests and resume. `MERCURY_COMPACT=0`
+disables folding and the prune alike.
 
-The chat reports the context size, threshold, number of results pruned and
-estimated tokens saved. The replacements persist across later requests and
-resume. This uses the same clearing and persistence path as overflow
-recovery, without waiting for a provider refusal. It may invalidate part of
-the provider's cached prefix; fewer input tokens do not by themselves promise
-lower billed cost for a cache-heavy conversation. `MERCURY_AUTO_COMPACT=0`
-leaves this prune available; `MERCURY_COMPACT=0` disables the early prune.
-The time-gap trigger and emergency recovery retain their existing rules.
-Those two clear stale tool results of every kind older than the recent
-five, keeping the newest 40,000 tokens of tool output, clearing only when
-a pass saves 20,000 tokens or more, and never a result under 50 tokens;
-the operator's own answers, briefs, skill material and the tool-search
-record stay, and a cleared result whose full output was saved to a file
-keeps the line that names the file.
+The time-gap trigger retains its existing rules. It clears stale tool
+results of every kind older than the recent ten, keeping the newest 40,000
+tokens of tool output, clearing only when a pass saves 20,000 tokens or
+more, and never a result under 50 tokens; the operator's own answers,
+briefs, skill material and the tool-search record stay, and a cleared
+result whose full output was saved to a file keeps the line that names the
+file.
 
 ## When the context overflows
 

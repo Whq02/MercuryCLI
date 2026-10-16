@@ -183,9 +183,10 @@ section('R4 the card and the boundary row (structural)')
   check('the card names what the summary IS (what the agent retains)', card.includes('what the agent retains'))
   const boundary = read('src/components/messages/CompactBoundaryMessage.tsx')
   check('the boundary row can speak the automatic trigger', boundary.includes('automatically'))
-  check('the boundary row can speak the folded weight', boundary.includes('preTokens') && boundary.includes('folded'))
+  const receipt = read('src/services/compact/foldReceipt.ts')
+  check('the boundary row speaks the receipt of the committed transition: the folded weight, the kept rounds, the operator messages, the memory move and nothing pruned', boundary.includes('foldReceiptWords(foldReceipt(') && receipt.includes('folded ${formatTokens(receipt.before)} tokens of history') && receipt.includes('kept whole') && receipt.includes('moved to memory') && receipt.includes('nothing pruned'))
   const wire = read('src/components/Message.tsx')
-  check('the render site hands the boundary its record', wire.includes('CompactBoundaryMessage message='))
+  check('the render site hands the boundary its record and the first post-fold landing', /CompactBoundaryMessage\s+message=\{message\}\s+landing=/.test(wire))
 }
 
 await fixture.close()

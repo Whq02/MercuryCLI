@@ -147,7 +147,6 @@ const env: NodeJS.ProcessEnv = {
   MERCURY_VERIFY_EVIDENCE: '0',
   MERCURY_AUTO_COMPACT: '0',
   ...(process.argv.includes('--bounded-window') ? { MERCURY_DISABLE_1M_CONTEXT: '1' } : {}),
-  MERCURY_PRUNE_PCT: prunePct,
   BROWSER: '/usr/bin/true',
   ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
 }

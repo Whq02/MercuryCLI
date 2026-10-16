@@ -350,7 +350,7 @@ section('R3 the emergency prune follows a summary that could not fit')
   check('the newest five are untouched (the keep-recent window)', JSON.stringify(kept) === JSON.stringify(Array.from({ length: 10 }, (_, index) => `toolu_read_${index + 3}`)), JSON.stringify(kept))
   check('the operator message rides the retried request verbatim', lastText(retry) === OPERATOR_ASK)
   check('the transition names the prune rung', JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"provider"'))
-  check('the notice names the count and the reclaimed tokens', noticeTexts(r.yields).some(t => /^context overflowed \(OpenAI: 129,000 tokens > 128,000\) — pruned 3 superseded tool results \(~[\d,]+ tokens\) and retrying$/.test(t)), JSON.stringify(noticeTexts(r.yields)))
+  check('the notice names the count and the reclaimed tokens', noticeTexts(r.yields).some(t => /^context overflowed \(OpenAI: 129,000 tokens > 128,000\) — pruned 3 superseded tool-result bodies \(about [\d,]+ tokens by Mercury's estimate, before placeholders; no summary written, nothing moved to memory\) and retrying$/.test(t)), JSON.stringify(noticeTexts(r.yields)))
   const ledger = (r.ctx.contentReplacementState as { replacements: Map<string, string> }).replacements
   check('the replacement ledger holds the prune (it re-applies on every later request and on resume)', ['toolu_read_0', 'toolu_read_1', 'toolu_read_2'].every(id => isPlaceholder(ledger.get(id))), JSON.stringify([...ledger.keys()]))
   check('the raw provider sentence never reaches a yield', !anyYieldCarries(r.yields, 'maximum context length is 128000'))
@@ -432,7 +432,7 @@ section('R8 the estimate side — the blocking preempt prunes or refuses typed')
   check('the transition names the prune rung from the ESTIMATE', JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"estimate"'), JSON.stringify(settledTransitions(r.events)))
   const cleared = toolResultsOf(r.calls[0]!.messages).filter(x => isPlaceholder(x.content)).map(x => x.id)
   check('the oldest results were cleared before the call', cleared.length === 3, JSON.stringify(cleared))
-  check('the notice names the estimate', noticeTexts(r.yields).some(t => t.startsWith('context overflowed (estimated ') && t.includes('pruned 3 superseded tool results')), JSON.stringify(noticeTexts(r.yields)))
+  check('the notice names the estimate', noticeTexts(r.yields).some(t => t.startsWith('context overflowed (estimated ') && t.includes('pruned 3 superseded tool-result bodies (about ') && t.includes('no summary written, nothing moved to memory')), JSON.stringify(noticeTexts(r.yields)))
 
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '1'
   const x = await run({ seed: seedPlain(), script: [[ping(), asstText('never reached')]] })

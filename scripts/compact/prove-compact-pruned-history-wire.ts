@@ -471,7 +471,7 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
   check('…and the pause it applies is the run\'s, never the session\'s (the failure count starts fresh at every query entry)', line !== undefined && line.includes('paused for the rest of this run') && !/for this session/.test(line), line ?? '')
   const errs = errorTexts(r.yields)
   check('a typed refusal retains the original malformed history', errs.length === 1 && errs[0]!.includes('paused for the rest of this run'), JSON.stringify(errs))
-  check('no prune is claimed for malformed history', !notices.some(t => /pruned \d+ superseded tool results/.test(t)), JSON.stringify(notices))
+  check('no prune is claimed for malformed history', !notices.some(t => /pruned \d+ superseded tool-result bod/.test(t)), JSON.stringify(notices))
   check('terminal blocking_limit', r.terminal.reason === 'blocking_limit', JSON.stringify(r.terminal))
 
   section('C2 a manual /compact after that pause still makes its request, and reports the reason and the remedies without claiming a pause')

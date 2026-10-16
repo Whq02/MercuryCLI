@@ -57,6 +57,7 @@ export type MessageOrigin =
 export type CompactMetadata = {
   trigger: 'manual' | 'auto' | 'overflow'
   preTokens: number
+  postTokens?: number
   overflow?: OverflowSignal
   userContext?: string
   messagesSummarized?: number
