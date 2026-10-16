@@ -226,6 +226,89 @@ check('with the guard off (the hand-over import) the row lands as today', import
 const handover = readFileSync(join(import.meta.dir, '..', '..', 'src', 'mneme', 'mnemeHandover.ts'), 'utf8')
 check('the hand-over import passes the guard off', /retainItems\([\s\S]*?\{ guard: 'off' \},?\s*\)/.test(handover))
 
+section('§7 numbers belong to one subject, not every fact with the same words')
+const drawerFact = (n: number): string => `Scratch filler fact number ${n}: the scratch drawer ${n} holds ${n} spoons.`
+const drawerFacts = Array.from({ length: 20 }, (_, i) => drawerFact(i + 1))
+for (let i = 0; i < drawerFacts.length; i++) {
+  check(`drawer ${i + 1} conflicts with no other drawer`, drawerFacts.every(other => guard.contradictionBetween(drawerFacts[i]!, other) === null))
+}
+const quantityPairs: Array<[string, string]> = [
+  ['the server has 8 cores', 'the server has 16 cores'],
+  ['the server has 8 cores', 'the server has 9 cores'],
+  ['drawer 10 holds 8 spoons', 'drawer 10 holds 16 spoons'],
+  ['the team has 3 people', 'the team has 5 people'],
+  ['the deploy runs from mercury-36', 'the deploy runs from mercury-37'],
+]
+for (const [old, fresh] of quantityPairs) {
+  check(`a value about one subject still differs: ${fresh}`, guard.contradictionBetween(fresh, old)?.flip === 'a number that differs' && guard.contradictionBetween(old, fresh)?.flip === 'a number that differs')
+}
+const literalPairs: Array<[string, string]> = [
+  ['the deploy runs from X', 'the deploy runs from Y'],
+  ['the config lives in A', 'the config lives in B'],
+]
+for (const [old, fresh] of literalPairs) {
+  check(`a location value about one subject differs: ${fresh}`, guard.contradictionBetween(fresh, old)?.flip === 'a value that differs' && guard.contradictionBetween(old, fresh)?.flip === 'a value that differs')
+}
+const subjectPairs: Array<[string, string]> = [
+  ['drawer 10 holds 10 spoons', 'drawer 11 holds 11 spoons'],
+  ['drawer 10 holds 10 spoons', 'drawer 11 holds 10 spoons'],
+  ['drawer 10 holds spoons', 'drawer 11 holds spoons'],
+  ['the blue server has 16 cores', 'the red server has 32 cores'],
+  ['step 1 is open', 'step 2 is open'],
+  ['item 3 is open', 'item 4 is open'],
+  ['the server A has 8 cores', 'the server B has 16 cores'],
+  ['the deploy from X runs daily', 'the deploy from Y runs daily'],
+  ['the config in A lives here', 'the config in B lives here'],
+  ...['seq', 'rule', 'issue', 'pr', 'step'].map(marker => [`${marker} 41 is open`, `${marker} 42 is open`] as [string, string]),
+]
+for (const [old, fresh] of subjectPairs) {
+  check(`an identifier is not a changed value: ${fresh}`, guard.contradictionBetween(fresh, old) === null && guard.contradictionBetween(old, fresh) === null)
+  const pairDir = mkdtempSync(join(HOME, 'distinct-subjects-'))
+  _resetMemoryVerbSessionStateForTesting()
+  const result = await retainItemsJudged([{ content: old }, { content: fresh }], { session: 'distinct-subjects' }, { dir: pairDir, judge: null })
+  check(`both distinct facts are stored: ${fresh}`, result.every(outcome => outcome.status === 'stored') && pendingRows(pairDir).length === 2, j(result))
+}
+_resetMemoryVerbSessionStateForTesting()
+const batchResult = await RetainTool.call({ items: drawerFacts.map(content => ({ content })) }, { messages: [] } as never, undefined as never, undefined as never)
+check('one real Retain call stores all twenty exact drawer facts', 'data' in batchResult && batchResult.data.stored === 20 && batchResult.data.refused === 0, j(batchResult))
+check('all twenty drawer facts read back verbatim from pending rows', drawerFacts.every(text => pendingRows(dir).some(row => row.text === text)))
+if ('data' in batchResult) {
+  check('the tool result says twenty stored and has no refusal', String(RetainTool.mapToolResultToToolResultBlockParam(batchResult.data, 'drawers').content).startsWith('20 stored · 0 refused'))
+  check('no false conflict line reaches the user', conflictLines(batchResult.data.outcomes).length === 0)
+}
+const sequentialDir = mkdtempSync(join(HOME, 'sequential-'))
+for (let n = 1; n <= 12; n++) {
+  _resetMemoryVerbSessionStateForTesting()
+  const result = await retainItemsJudged([{ content: drawerFact(n) }], { session: `drawer-${n}` }, { dir: sequentialDir, judge: null })
+  check(`fresh Retain session ${n} stores its drawer`, result[0]?.status === 'stored', j(result))
+}
+check('the twelve separate Retains each wrote the exact fact', pendingRows(sequentialDir).length === 12 && drawerFacts.slice(0, 12).every(text => pendingRows(sequentialDir).some(row => row.text === text)))
+const libraryDir = mkdtempSync(join(HOME, 'library-subjects-'))
+appendObservation({ text: drawerFact(10), source: 'operator', topicHint: 'drawers' }, libraryDir)
+appendObservation({ text: 'the server has 8 cores', source: 'operator', topicHint: 'servers' }, libraryDir)
+check('the subject seeds consolidated to the library', maybeConsolidate({ force: true, dir: libraryDir }).consolidated)
+check('the library has no candidate for another drawer', guard.contradictionCandidates(drawerFact(11), libraryDir).length === 0)
+const serverEntry = guard.recordEntries(libraryDir).find(entry => entry.text === 'the server has 8 cores')!
+_resetMemoryVerbSessionStateForTesting()
+const mixed = await retainItemsJudged([
+  { content: drawerFact(11) },
+  { content: 'the server has 16 cores' },
+  { content: drawerFact(12) },
+], { session: 'mixed-subjects' }, { dir: libraryDir, judge: null })
+check('the mixed batch refuses only the true conflict and names its library record', mixed[0]?.status === 'stored' && mixed[1]?.status === 'refused' && mixed[1].conflict?.entry.id === serverEntry.id && mixed[2]?.status === 'stored', j(mixed))
+check('only the two distinct drawer facts reached pending rows', pendingRows(libraryDir).length === 2 && !pendingRows(libraryDir).some(row => row.text === 'the server has 16 cores'))
+const sameSubjectDir = mkdtempSync(join(HOME, 'same-subject-'))
+for (const [old, fresh] of [...quantityPairs, ...literalPairs, ['always use bun for installs', 'never use bun for installs'], ['the advisor is on by default', 'the advisor is off by default'], ['run the suites in parallel', 'do not run the suites in parallel']] as Array<[string, string]>) {
+  const pairDir = mkdtempSync(join(sameSubjectDir, 'pair-'))
+  _resetMemoryVerbSessionStateForTesting()
+  const result = await retainItemsJudged([{ content: old }, { content: fresh }], { session: 'same-subject' }, { dir: pairDir, judge: null })
+  check(`the real conflict still refuses against its pending record: ${fresh}`, result[0]?.status === 'stored' && result[1]?.status === 'refused' && result[1].conflict?.entry.id === result[0].id, j(result))
+}
+const judgedSubjects: Array<{ existing: string; candidate: string }> = []
+_resetMemoryVerbSessionStateForTesting()
+const subjectVerdicts = await retainItemsJudged([{ content: drawerFact(13) }, { content: 'the server has 16 cores' }], { session: 'judged-subjects' }, { dir: libraryDir, judge: async pairs => { judgedSubjects.push(...pairs); return pairs.map(() => 0.9) } })
+check('the optional judge receives only the genuine same-subject candidate', judgedSubjects.length === 1 && judgedSubjects[0]?.existing === 'the server has 8 cores' && subjectVerdicts[0]?.status === 'stored' && subjectVerdicts[1]?.status === 'refused', j(judgedSubjects))
+
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log(`✅ WRITE CONTRADICTION GREEN (${checks} checks)`)
 else console.log(`❌ WRITE CONTRADICTION RED (${failures} of ${checks} checks failed)`)
