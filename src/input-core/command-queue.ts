@@ -138,6 +138,10 @@ export function holdQueuedWordsForTurnEnd(on: boolean): void {
   wordsWaitForTurnEnd = on
 }
 
+export function queuedWordsWaitForTurnEnd(): boolean {
+  return wordsWaitForTurnEnd
+}
+
 let drainingNow: ReadonlySet<QueuedCommand> = new Set()
 
 export function markDraining(commands: readonly QueuedCommand[]): void {

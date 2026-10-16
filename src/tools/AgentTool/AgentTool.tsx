@@ -64,6 +64,7 @@ import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
   createAgentWorktree,
   preflightWorktreeCapability,
+  unlockAgentWorktree,
 } from '../../utils/worktree.js'
 import { crewWorktreeLeftoverNoted, crewWorktreeLeftoverOf, crewWorktreeReminderTail, noteCrewWorktreeLeftover } from '../../utils/crew/crewWorktreeReminder.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -272,9 +273,9 @@ export const outputSchema = lazySchema(() => {
       modelNote: z.string().optional().describe('The engine note'),
       agentName: z.string().optional().describe('The name the launch gave the crewmate — an address beside the id'),
       backgroundReason: z
-        .enum(['turn-interrupted', 'backgrounded', 'agent-type', 'sibling-ended'])
+        .enum(['turn-interrupted', 'backgrounded', 'agent-type', 'sibling-ended', 'message-queued'])
         .optional()
-        .describe('Why a foreground ask ran in the background: the turn was interrupted, the crewmate was moved, the type always does, or a sibling crewmate failed or stopped and the group wait returned'),
+        .describe('Why a foreground ask ran in the background: the turn was interrupted, the crewmate was moved, the type always does, a sibling crewmate failed or stopped and the group wait returned, or the operator sent a message while the crewmate held the turn'),
       siblingEnd: z
         .object({ taskId: z.string(), description: z.string(), status: z.enum(['failed', 'stopped']), error: z.string().optional() })
         .optional()
@@ -590,6 +591,7 @@ export const AgentTool = buildTool({
       if (cleanupDone || !worktreeInfo) return {}
       cleanupDone = true
       try {
+        if (worktreeInfo.gitRoot !== undefined) await unlockAgentWorktree(worktreeInfo.worktreePath, worktreeInfo.gitRoot)
         const leftover = await crewWorktreeLeftoverOf(
           {
             name: input.name ?? input.description,
