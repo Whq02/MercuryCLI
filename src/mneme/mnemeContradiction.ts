@@ -19,7 +19,9 @@ export const CONTRADICTION_OVERLAP_SHARE = 0.75
 export const CONTRADICTION_CONFIDENCE = 0.6
 export const COMPARABLE_LENGTH_RATIO = 0.4
 const NUMBER_FLIP = 'a number that differs'
+const VALUE_FLIP = 'a value that differs'
 const NEGATION_FLIP = 'a negation'
+const VALUE_PREDICATES = new Set(['is', 'are', 'was', 'were', 'has', 'have', 'had', 'holds', 'hold', 'contains', 'contain', 'runs', 'run', 'lives', 'live'])
 
 export const NEGATION_WORDS: readonly string[] = ['not', 'never', 'no', 'none', 'nothing', 'neither', 'nor', 'without']
 
@@ -55,7 +57,7 @@ interface Analysed {
   negatedClauses: string[][]
   negated: Set<string>
   sides: PolaritySides
-  quantities: Set<string>
+  valueWords: string[]
   scoped: boolean
 }
 
@@ -80,20 +82,14 @@ function isScoped(words: readonly string[]): boolean {
 function analyse(text: string): Analysed {
   const words = wordsOf(text)
   const sides = polaritySides(words)
-  const quantities = new Set<string>()
-  words.forEach((word, index) => {
-    if (!isNumberWord(word)) return
-    const previous = index > 0 ? words[index - 1]! : ''
-    if (IDENTIFIER_MARKERS.includes(previous)) return
-    quantities.add(String(Number(word)))
-  })
+  const valueWords = text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
   const negatedClauses = negatedClausesOf(text)
   return {
     stems: new Set(contentStems(words, SKIP)),
     negatedClauses,
     negated: new Set(negatedClauses.flat()),
     sides,
-    quantities,
+    valueWords,
     scoped: isScoped(words),
   }
 }
@@ -106,16 +102,29 @@ function negationFlip(a: Analysed, b: Analysed): boolean {
   return a.negatedClauses.some(clause => clause.every(stem => b.stems.has(stem)) && clause.some(stem => !b.negated.has(stem)))
 }
 
+function valueFlip(a: Analysed, b: Analysed): string | null {
+  const left = a.valueWords
+  const right = b.valueWords
+  if (left.length !== right.length) return null
+  let changed = -1
+  for (let index = 0; index < left.length; index++) {
+    if (left[index] === right[index]) continue
+    if (changed !== -1) return null
+    changed = index
+  }
+  if (changed < 1 || IDENTIFIER_MARKERS.includes(left[changed - 1]!)) return null
+  const predicate = left.slice(0, changed).findLastIndex(word => VALUE_PREDICATES.has(word))
+  if (predicate < 1) return null
+  const oldValue = left[changed]!
+  const newValue = right[changed]!
+  if (isNumberWord(oldValue) && isNumberWord(newValue)) return Number(oldValue) === Number(newValue) ? null : NUMBER_FLIP
+  return ['from', 'in'].includes(left[changed - 1]!) ? VALUE_FLIP : null
+}
+
 function flipOf(a: Analysed, b: Analysed): string | null {
   if (negationFlip(a, b) || negationFlip(b, a)) return NEGATION_FLIP
   const polarity = flippedPolarity(a.sides, b.sides)
-  if (polarity !== null) return polarity
-  if (a.quantities.size > 0 && b.quantities.size > 0) {
-    const onlyA = [...a.quantities].some(n => !b.quantities.has(n))
-    const onlyB = [...b.quantities].some(n => !a.quantities.has(n))
-    if (onlyA && onlyB) return NUMBER_FLIP
-  }
-  return null
+  return polarity ?? valueFlip(a, b)
 }
 
 function shareOfShorter(a: ReadonlySet<string>, b: ReadonlySet<string>): number {
@@ -142,9 +151,9 @@ export function restates(candidate: string, existing: string): boolean {
 }
 
 export function contradictionBetween(candidate: string, existing: string): { overlap: number; flip: string } | null {
-  if (restates(candidate, existing)) return null
   const fresh = analyse(candidate)
   const old = analyse(existing)
+  if (restates(candidate, existing) && valueFlip(fresh, old) === null) return null
   const wholeShare = shareOf(fresh.stems, old.stems)
   const pairs: Array<{ fresh: Analysed; old: Analysed; share: number }> = [{ fresh, old, share: wholeShare }]
   const freshSentences = sentencesOf(candidate)
@@ -163,7 +172,7 @@ export function contradictionBetween(candidate: string, existing: string): { ove
     if (pair.fresh.scoped || pair.old.scoped) continue
     const flip = flipOf(pair.fresh, pair.old)
     if (flip === null) continue
-    const overlap = flip === NUMBER_FLIP ? jaccard(pair.fresh.stems, pair.old.stems) : pair.share
+    const overlap = flip === VALUE_FLIP ? 1 : flip === NUMBER_FLIP ? jaccard(pair.fresh.stems, pair.old.stems) : pair.share
     if (overlap < CONTRADICTION_OVERLAP_SHARE) continue
     if (best === null || overlap > best.overlap) best = { overlap, flip }
   }
