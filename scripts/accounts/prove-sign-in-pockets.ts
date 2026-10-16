@@ -262,6 +262,33 @@ section('§11 painting the /accounts board never moves a family\'s usage latch: 
   check('under a peek the usage getter answers no observation and borrows none', peeked.usage === null && peeked.lastError === undefined, JSON.stringify(peeked))
 }
 
+section('§12 a credential never sits unlisted on disk: a pocket identity signing in again after the default is signed out REPLACES in its pocket; a write that throws leaves no folder')
+{
+  pockets.clearSignInChoices()
+  secrets.writeStoredDeepseekApiKey(k1)
+  secrets.writeStoredDeepseekApiKey(k2)
+  pockets.takeLastLanding()
+  pockets.clearSignInChoices()
+  const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
+  const { familySignInRoster } = await import('../../src/services/providers/signInRoster.ts')
+  const homeSlot = deriveFamilySlotGroups().find(group => group.family.id === 'deepseek')?.slots.find(slot => slot.signInDir === undefined && !slot.envPinned)
+  check('⌫ on the default leaves the family with no default and the pocket standing', homeSlot !== undefined && executeSlotRemoval(homeSlot).mutated && familySignInRoster('deepseek', HOME).map(row => `${row.identity}${row.isDefault ? '*' : ''}`).join(',') === '…bbbb' && existsSync(pocketB))
+  secrets.writeStoredDeepseekApiKey(k2)
+  const again = pockets.takeLastLanding()
+  check('the pocket identity signing in again REPLACES in its own pocket, never a fresh home copy beside an orphan', again?.landed === 'replaced' && again.dir === pocketB, JSON.stringify(again))
+  check('the home holds no deepseek key; the pocket holds the key; the ledger row still names the pocket', pockets.withSignInHome('deepseek', null, () => secrets.readStoredDeepseekApiKey()) === undefined && json(join(pocketB, '.provider-secrets.json')).deepseekApiKey === k2 && ledger.readSignInEntries('deepseek', { home: HOME })['…bbbb']?.pocket === 'key-bbbb')
+  check('the session spends the pocket', pockets.signInHome('deepseek') === pocketB && secrets.readStoredDeepseekApiKey() === k2)
+  const listed = new Set(pockets.pocketEntries('deepseek', HOME).map(entry => entry.slug))
+  check('every pocket folder on disk is a listed sign-in', readdirSync(join(HOME, 'sign-ins', 'deepseek')).every(slug => listed.has(slug)), readdirSync(join(HOME, 'sign-ins', 'deepseek')).join(','))
+  let threw = false
+  try {
+    pockets.landSignIn({ family: 'deepseek', identity: '…cccc', kind: 'api-key', ledgerKind: 'api-key', homeIdentity: () => '…bbbb', write: () => { throw new Error('the store refused') } })
+  } catch {
+    threw = true
+  }
+  check('a landing whose write throws rethrows, leaves no pocket folder and no ledger row', threw && !existsSync(join(HOME, 'sign-ins', 'deepseek', 'key-cccc')) && ledger.readSignInEntries('deepseek', { home: HOME })['…cccc'] === undefined, readdirSync(join(HOME, 'sign-ins', 'deepseek')).join(','))
+}
+
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ SIGN-IN POCKETS GREEN' : `\n❌ SIGN-IN POCKETS RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

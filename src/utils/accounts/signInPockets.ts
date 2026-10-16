@@ -301,18 +301,25 @@ export function landSignIn(input: LandSignInInput): SignInLandingReceipt {
   const ledger: SignInLedgerIo = { home, ...(input.ledger ?? {}) }
   const defaultIdentity = withSignInHome(family, home, () => input.homeIdentity())
   const unnamed = input.stable === false
-  const homeUnnamed = defaultIdentity !== undefined && readSignInEntries(family, ledger)[defaultIdentity]?.unnamed === true
-  if (unnamed || homeUnnamed || defaultIdentity === undefined || defaultIdentity === input.identity) {
+  const rows = readSignInEntries(family, ledger)
+  const homeUnnamed = defaultIdentity !== undefined && rows[defaultIdentity]?.unnamed === true
+  const ownPocket = rows[input.identity]?.pocket
+  const existing = ownPocket !== undefined && existsSync(pocketDir(family, ownPocket, home)) ? ownPocket : undefined
+  if (existing === undefined && (unnamed || homeUnnamed || defaultIdentity === undefined || defaultIdentity === input.identity)) {
     withSignInHome(family, home, input.write)
     if (defaultIdentity !== undefined && defaultIdentity !== input.identity) dropSignInEntry(family, defaultIdentity, ledger)
     recordSignInEntry(family, input.identity, input.ledgerKind, undefined, ledger, unnamed)
     setSessionSignIn(family, { identity: input.identity, dir: null, kind: input.kind })
     return landed({ landed: defaultIdentity === undefined ? 'first' : 'replaced', family, identity: input.identity, dir: null, defaultIdentity: input.identity, ...(defaultIdentity !== undefined && defaultIdentity !== input.identity ? { replaced: defaultIdentity } : {}) })
   }
-  const existing = readSignInEntries(family, ledger)[input.identity]?.pocket
-  const slug = existing !== undefined && existsSync(pocketDir(family, existing, home)) ? existing : freePocketSlug(family, input.identity, home)
+  const slug = existing ?? freePocketSlug(family, input.identity, home)
   const dir = ensurePocketDir(family, slug, home)
-  withSignInHome(family, dir, input.write)
+  try {
+    withSignInHome(family, dir, input.write)
+  } catch (error) {
+    if (existing === undefined) removePocketDir(family, slug, home)
+    throw error
+  }
   recordSignInEntry(family, input.identity, input.ledgerKind, slug, ledger)
   setSessionSignIn(family, { identity: input.identity, dir, kind: input.kind })
   return landed({ landed: existing === slug ? 'replaced' : 'added', family, identity: input.identity, dir, defaultIdentity })
