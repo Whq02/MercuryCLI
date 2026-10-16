@@ -644,11 +644,11 @@ export function fitPostCompactUnderThreshold(result: CompactionResult, threshold
   return { result: current, estimate, shed }
 }
 
-function fixedMaterialOverThresholdMessage(fixed: number, threshold: number): string {
+function obligationsOverThresholdMessage(estimate: number, threshold: number): string {
   return (
-    `${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: the system prompt and tool definitions alone estimate ${fixed} tokens against a ` +
-    `${threshold}-token threshold, so no fold can land and no summary was requested. The original context is kept whole; nothing moved. ` +
-    `Raise the automatic-fold threshold, or seat a model with a larger window.`
+    `${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: the fold's own obligations — the system prompt and tool definitions, this stretch's operator ` +
+    `messages and the fold ledger — already estimate ${estimate} tokens against a ${threshold}-token threshold, so no fold can land and no summary ` +
+    `was requested. The original context is kept whole; nothing moved. Start a fresh conversation with /clear, or seat a model with a larger window.`
   )
 }
 
@@ -1405,7 +1405,20 @@ export async function compactConversation(
     const capsuleProbe = buildRunContinuationCapsule(owner)
     const ledger = buildFoldLedger(messages, owner, getContextEpoch(owner).epoch + 1)
     const gauge = readRequestGauge(messages, context.options.engineModel)
-    if (ceiling !== undefined && gauge !== null && gauge.fixed.tokens >= ceiling) throw new Error(fixedMaterialOverThresholdMessage(gauge.fixed.tokens, ceiling))
+    const landingCount = (rows: Message[]): number => {
+      const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
+      return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density) : estimateContextTokens(request)
+    }
+    if (ceiling !== undefined) {
+      const obligations = selectOperatorMessages(messages)
+      const estimate = landingCount([
+        createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount),
+        ...(obligations ? [createAttachmentMessage(obligations)] : []),
+        createUserMessage({ content: renderFoldLedger(ledger), isCompactSummary: true }),
+        ...beforeRows,
+      ])
+      if (estimate >= ceiling) throw new Error(obligationsOverThresholdMessage(estimate, ceiling))
+    }
     const promptText = getCompactPrompt(mergedInstructions, { runCapsulePresent: capsuleProbe !== null })
     const response = await summarizeWithPtlRetry(messages, summaryCacheSafeParams, promptText, summaryContext)
     const rawSummary = validateSummary(response, true)
@@ -1423,12 +1436,15 @@ export async function compactConversation(
     let messagesToKeep: Message[] | undefined
     let tailPrecedingUuid: UUID | undefined
     let recentRounds: CompactMetadata['recentRounds']
-    const landingCount = (rows: Message[]): number => {
-      const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
-      return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density) : estimateContextTokens(request)
+    const selectTail = (opts: Parameters<typeof computeVerbatimRecentTail>[1]): ReturnType<typeof computeVerbatimRecentTail> => {
+      try {
+        return computeVerbatimRecentTail(messages, opts)
+      } catch (error) {
+        throw new Error(`${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: ${error instanceof Error ? error.message : String(error)}`)
+      }
     }
     if (isMercuryCompactKeepTailEnabled()) {
-      const tail = computeVerbatimRecentTail(messages, {
+      const tail = selectTail({
         fits: keep => {
           if (ceiling === undefined) return true
           const operator = selectOperatorMessages(messages, { keptUuids: new Set(keep.map(row => row.uuid)) })
@@ -1524,13 +1540,11 @@ export async function compactConversation(
       truePostCompactTokenCount = fit.estimate
     }
 
-    const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: boundaryTrigger, tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
-    partial = { ...partial, hookResults: [...beforeRows, ...afterRows] }
     const completeFit = ceiling === undefined ? { result: partial, estimate: landingCount(buildPostCompactMessages(partial)) } : fitPostCompactUnderThreshold(partial, ceiling, landingCount)
     partial = completeFit.result
     truePostCompactTokenCount = completeFit.estimate
     while (ceiling !== undefined && truePostCompactTokenCount >= ceiling && recentRounds !== undefined && recentRounds.kept > 1) {
-      const narrower = computeVerbatimRecentTail(messages, { keepRounds: recentRounds.kept - 1 })
+      const narrower = selectTail({ keepRounds: recentRounds.kept - 1 })
       if (narrower === null) break
       messagesToKeep = stripThinkingFromIndex(narrower.keep, 0)
       recentRounds = { requested: recentRounds.requested, kept: narrower.roundsKept, tokens: narrower.estimatedTokens, reason: 'request-budget' }
@@ -1552,6 +1566,9 @@ export async function compactConversation(
     for (const path of context.readFileState.keys()) if (!visibleReads.has(expandPath(path))) context.readFileState.delete(path)
     if (context.abortController.signal.aborted) throw new APIUserAbortError()
     boundary.compactMetadata.postTokens = truePostCompactTokenCount
+    const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: boundaryTrigger, tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
+    partial = { ...partial, hookResults: [...beforeRows, ...afterRows] }
+    if (context.abortController.signal.aborted) throw new APIUserAbortError()
     await releaseLspDocumentsForContext('compact_full')
     transaction.commit()
     restoreBoundPrefixFromMessages(buildPostCompactMessages(partial), { rosterOnly: context.agentId !== undefined, fold: true })
@@ -1704,9 +1721,10 @@ export async function partialCompactConversation(
     boundary.compactMetadata.cacheEpoch = cacheEpoch.receipt
     if (cacheEpoch.attachment) partialResult.attachments.push(cacheEpoch.attachment)
     const truePostCompactTokenCount = estimateContextTokens(buildPostCompactMessages(partialResult))
-    const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: 'manual', tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
     if (context.abortController.signal.aborted) throw new APIUserAbortError()
     boundary.compactMetadata.postTokens = truePostCompactTokenCount
+    const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: 'manual', tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
+    if (context.abortController.signal.aborted) throw new APIUserAbortError()
     await releaseLspDocumentsForContext('compact_partial')
     transaction.commit()
     restoreBoundPrefixFromMessages(buildPostCompactMessages(partialResult), { rosterOnly: context.agentId !== undefined, fold: true })

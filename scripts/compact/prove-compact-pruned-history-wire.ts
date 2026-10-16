@@ -150,10 +150,10 @@ async function drive(ctx: Record<string, unknown>, messages: unknown[]): Promise
 
 const cacheSafeFor = (ctx: Record<string, unknown>, messages: unknown[]) =>
   ({ systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: messages }) as never
-async function compactOnce(ctx: Record<string, unknown>, messages: unknown[]): Promise<{ result: Record<string, unknown>; wire: ReturnType<typeof fixture.captured.slice>; threw: string | undefined }> {
+async function compactOnce(ctx: Record<string, unknown>, messages: unknown[], limit = '8000'): Promise<{ result: Record<string, unknown>; wire: ReturnType<typeof fixture.captured.slice>; threw: string | undefined }> {
   const before = fixture.captured.length
   ctx.abortController = new AbortController()
-  process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '3400'
+  process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = limit
   let result: Record<string, unknown> = {}
   let threw: string | undefined
   try {
@@ -183,7 +183,7 @@ function textHistory(rounds: number, model: string): unknown[] {
         content: [{ type: 'text', text: `reply ${i}: module ${i} adjusted ${'and its checks pass '.repeat(12)}` }],
         stop_reason: 'end_turn',
         stop_sequence: null,
-        usage: { input_tokens: 900 + i, output_tokens: 60, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+        usage: { input_tokens: 9_000 + i, output_tokens: 60, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
       },
     })
   }
@@ -528,12 +528,12 @@ section('N1 only a pairing complaint is the malformed-history class — a parame
   ]
   for (const negative of negatives) {
     fixture.script([negative.body, { text: 'never reached' }])
-    const r = await compactOnce(ctxN, historyN)
+    const r = await compactOnce(ctxN, historyN, '16000')
     check(`${negative.name}: one summary request, one failure counted, no pause`, r.threw === undefined && r.wire.length === 1 && r.result.wasCompacted === false && r.result.consecutiveFailures === 1 && r.result.paused === undefined, `threw=${r.threw ?? 'no'} requests=${r.wire.length} result=${JSON.stringify({ consecutiveFailures: r.result.consecutiveFailures, paused: r.result.paused, refusal: String(r.result.refusal ?? '').slice(0, 120) })}`)
     check(`${negative.name}: the reason still rides the refusal, unclassified`, typeof r.result.refusal === 'string' && (r.result.refusal as string).includes(negative.body.error.body.error.message) && !/malformed history/i.test(r.result.refusal as string), String(r.result.refusal ?? ''))
   }
   fixture.script([refusal('No tool output found for function call call_tlxFSxc72b7dbbq5yBsOGC7a.'), { text: 'never reached' }])
-  const positive = await compactOnce(ctxN, historyN)
+  const positive = await compactOnce(ctxN, historyN, '16000')
   check('the pairing complaint itself: one summary request, the breaker at once, the pause', positive.threw === undefined && positive.wire.length === 1 && positive.result.consecutiveFailures === 3 && positive.result.paused === true, `threw=${positive.threw ?? 'no'} requests=${positive.wire.length} result=${JSON.stringify({ consecutiveFailures: positive.result.consecutiveFailures, paused: positive.result.paused })}`)
   check("…its line names the class and the provider's call id", typeof positive.result.refusal === 'string' && /malformed history/i.test(positive.result.refusal as string) && (positive.result.refusal as string).includes('call_tlxFSxc72b7dbbq5yBsOGC7a'), String(positive.result.refusal ?? ''))
 }

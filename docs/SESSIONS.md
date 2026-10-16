@@ -728,18 +728,22 @@ proportional room preserved on small local windows. The gauge, warning line
 and ContextLeft tool count down to that same point. When a request outgrows
 that headroom anyway, the turn recovers instead of ending:
 
-- Superseded tool results older than the recent few are pruned when that
-  alone covers the gap the provider named, and the request is retried. The
-  chat says so: "context overflowed … — pruned N superseded tool results and
+- The conversation is folded first — the same summary `/compact` makes,
+  on the same session, every tool result still in front of the summariser —
+  your message is carried across the fold word for word, and the request is
+  retried once. The chat says "context overflowed … — folding the
+  conversation and retrying", and the fold's own row reads "Context
+  overflowed — folded and retried". Both carry the same words in brackets:
+  the provider's own numbers when it named them; when it named none,
+  Mercury's own count of the conversation and the window it measured that
+  count against.
+- Only when the fold cannot bring the context under its threshold, or the
+  provider refuses the request despite the estimate, are superseded tool
+  results older than the recent ten pruned, when that covers the gap, and
+  the request retried. The chat says so: "context overflowed … — pruned N
+  superseded tool-result bodies (about … tokens by Mercury's estimate, net
+  of placeholders; no summary written, nothing moved to memory) and
   retrying".
-- Otherwise the conversation is folded — the same summary `/compact` makes,
-  on the same session — your message is carried across the fold word for
-  word, and the request is retried once. The chat says "context overflowed …
-  — folding the conversation and retrying", and the fold's own row reads
-  "Context overflowed — folded and retried". Both carry the same words in
-  brackets: the provider's own numbers when it named them; when it named
-  none, Mercury's own count of the conversation and the window it measured
-  that count against.
 - The fold's summary is written by a model whose window holds the
   conversation. After a switch to a model with a smaller window that is the
   model the conversation was built on, never the model that just refused
