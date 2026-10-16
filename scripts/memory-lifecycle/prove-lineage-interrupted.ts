@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/ledger.ts src/mneme/lineageSession.ts src/mneme/entryPage.ts src/mneme/types.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts src/utils/sessionStorage/transcriptReader.ts src/fabric/transcriptDecode.ts src/daemon/ownerWatch.ts
+// gate-watch: src/mneme/ledger.ts src/mneme/lineageSession.ts src/mneme/entryPage.ts src/mneme/types.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts src/utils/sessionStorage/transcriptReader.ts src/fabric/transcriptDecode.ts src/daemon/ownerWatch.ts src/daemon/processSweep.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -35,6 +35,8 @@ const { mnemeProjectKey, lineagePath } = await import('../../src/mneme/paths.ts'
 const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
 const { mnemeEnabled } = await import('../../src/mneme/mnemeGates.ts')
+const { getProcessStartToken } = await import('../../src/daemon/ownerWatch.ts')
+const { parseProcessStartToken } = await import('../../src/daemon/processSweep.ts')
 
 const projectKey = mnemeProjectKey()
 const me = String(getSessionId())
@@ -69,8 +71,8 @@ function openFromDeadProcess(sessionId: string): void {
   const r = spawnSync(process.execPath, [OPENER, projectKey, sessionId, 'exit'], { encoding: 'utf8', env: process.env, timeout: 60_000 })
   if (r.status !== 0 || !r.stdout.includes('opened')) throw new Error(`opener failed: ${r.status} ${r.stderr}`)
 }
-async function openFromLiveProcess(sessionId: string): Promise<ChildProcess> {
-  const child = spawn(process.execPath, [OPENER, projectKey, sessionId, 'stay'], { stdio: ['ignore', 'pipe', 'inherit'], env: process.env })
+async function openFromLiveProcess(sessionId: string, env: NodeJS.ProcessEnv = process.env): Promise<ChildProcess> {
+  const child = spawn(process.execPath, [OPENER, projectKey, sessionId, 'stay'], { stdio: ['ignore', 'pipe', 'inherit'], env })
   await new Promise<void>((resolveOpened, reject) => {
     let out = ''
     child.stdout!.on('data', (chunk: Buffer) => {
@@ -108,7 +110,7 @@ section('§1 the Windows loop\'s shape (F37W-2B-15 / F37W-4D-05): one session ki
   ])
   const before = lastRowOf(ids.killed)
   check('before the next start the killed row is open: endedAt null, outcome null', before?.endedAt === null && before?.outcome === null, JSON.stringify(before))
-  check('the row carries the process that opened it: its pid (not ours) and its start token', typeof before?.pid === 'number' && before.pid !== process.pid && typeof before?.procStart === 'string' && before.procStart !== '', JSON.stringify(before))
+  check('the row carries the process that opened it: its pid (not ours) and the time it claimed the row', typeof before?.pid === 'number' && before.pid !== process.pid && typeof before?.pidAt === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(before.pidAt), JSON.stringify(before))
 
   lineage.noteSessionEngine('proof-model')
   const after = lastRowOf(ids.killed)
@@ -117,7 +119,7 @@ section('§1 the Windows loop\'s shape (F37W-2B-15 / F37W-4D-05): one session ki
   check('the reconciled row keeps its ordinal, start, engines, pid and (no) handoff', after?.ordinal === 1 && after?.startedAt === before?.startedAt && JSON.stringify(after?.engines) === JSON.stringify(before?.engines) && after?.handoff === null && after?.pid === before?.pid, JSON.stringify(after))
   check('the ledger appends, never rewrites: the open row still stands above the reconciled one', rowsOf().filter(r => r.sessionId === ids.killed).length === 2)
   const mine = ledger.ledgerEntryOf(projectKey, me)
-  check('this session opened its own row (ordinal 2, open) stamped with this process', mine?.ordinal === 2 && mine.endedAt === null && mine.pid === process.pid && typeof mine.procStart === 'string', JSON.stringify(mine))
+  check('this session opened its own row (ordinal 2, open) stamped with this process', mine?.ordinal === 2 && mine.endedAt === null && mine.pid === process.pid && typeof mine.pidAt === 'string', JSON.stringify(mine))
 
   const page = composeEntryPage(projectKey, me) ?? ''
   check('the page keeps the count words: "1 session before it (1 of them ended without closing its entry)"', page.includes('Session 2 of this work; 1 session before it (1 of them ended without closing its entry).'), page)
@@ -181,7 +183,7 @@ section('§4 a LIVE second session is never reconciled: a session started by han
     assistantTool('a1', 'u1', CUT_AT),
   ])
   const opened = lastRowOf(ids.live)
-  check('the live row carries the child\'s pid and start token, and the daemon knows no worker for it', opened?.pid === child.pid && typeof opened?.procStart === 'string' && ledger.liveSessions(projectKey).length === 0, JSON.stringify(opened))
+  check('the live row carries the child\'s pid and claim time, and the daemon knows no worker for it', opened?.pid === child.pid && typeof opened?.pidAt === 'string' && ledger.liveSessions(projectKey).length === 0, JSON.stringify(opened))
 
   lineage.noteSessionEngine('proof-model')
   const stillOpen = lastRowOf(ids.live)
@@ -196,6 +198,51 @@ section('§4 a LIVE second session is never reconciled: a session started by han
   const gone = lastRowOf(ids.live)
   check('once the process is gone the same row is reconciled: outcome interrupted at the transcript\'s last row time', gone?.outcome === 'interrupted' && gone?.endedAt === CUT_AT, JSON.stringify(gone))
   check(`the page then says it: "The last session (1) was cut off mid-tool at ${stampLocal(CUT_AT)}; no note was left."`, (composeEntryPage(projectKey, me) ?? '').includes(`The last session (1) was cut off mid-tool at ${stampLocal(CUT_AT)}; no note was left.`), composeEntryPage(projectKey, me) ?? '')
+}
+
+section('§4b the pid claim is read against the process start the kernel reports, in one locale: a live row claimed under en_GB.UTF-8 is read by a next start under de_DE.UTF-8 and left open; a pid whose process started after the claim is a stranger (RED before the locale pin: `ps -o lstart=` answered "Fr. 16 Okt." under de_DE and "Fri 16 Oct" under en_GB — a token no two processes agreed on)')
+{
+  rmSync(lineagePath(projectKey), { force: true })
+  for (const id of Object.values(ids)) rmSync(getTranscriptPathForSession(id), { force: true })
+  lineage._resetLineageSessionForTesting()
+  const PINNED = /^[A-Z][a-z]{2} [A-Z][a-z]{2} {1,2}\d{1,2} \d\d:\d\d:\d\d \d{4}$/
+  const withLocale = <T>(locale: string, run: () => T): T => {
+    const saved = { LC_ALL: process.env.LC_ALL, LANG: process.env.LANG, LC_TIME: process.env.LC_TIME }
+    process.env.LC_ALL = locale
+    process.env.LANG = locale
+    delete process.env.LC_TIME
+    try {
+      return run()
+    } finally {
+      for (const [name, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[name]
+        else process.env[name] = value
+      }
+    }
+  }
+  const tokens = { de: withLocale('de_DE.UTF-8', () => getProcessStartToken(process.pid)), gb: withLocale('en_GB.UTF-8', () => getProcessStartToken(process.pid)), c: withLocale('C', () => getProcessStartToken(process.pid)) }
+  check('the start token of one pid reads the same under de_DE, en_GB and C, in the pinned form (weekday, month, day)', typeof tokens.c === 'string' && PINNED.test(tokens.c) && tokens.de === tokens.c && tokens.gb === tokens.c, JSON.stringify(tokens))
+  check('the pinned form parses to this process\'s start: at or before the moment it began running, never after', typeof tokens.c === 'string' && Number.isFinite(parseProcessStartToken(tokens.c)) && parseProcessStartToken(tokens.c) <= performance.timeOrigin && parseProcessStartToken(tokens.c) > performance.timeOrigin - 60_000, `${tokens.c} vs ${new Date(performance.timeOrigin).toISOString()}`)
+
+  const child = await openFromLiveProcess(ids.live, { ...process.env, LC_ALL: 'en_GB.UTF-8', LANG: 'en_GB.UTF-8' })
+  writeTranscript(ids.live, [
+    user('u1', null, '2026-10-15T20:51:00.000Z', 'count slowly from 1 to 200'),
+    assistantTool('a1', 'u1', CUT_AT),
+  ])
+  withLocale('de_DE.UTF-8', () => lineage.noteSessionEngine('proof-model'))
+  const stillOpen = lastRowOf(ids.live)
+  check('the next start under de_DE leaves the live row claimed under en_GB open: endedAt null, outcome null, one row only', stillOpen?.endedAt === null && stillOpen?.outcome === null && rowsOf().filter(r => r.sessionId === ids.live).length === 1, JSON.stringify(stillOpen))
+
+  const strangerRow = { ...(lastRowOf(ids.live) as Row), sessionId: ids.oldRecent, ordinal: 3, pidAt: new Date(Date.now() - 3 * 24 * 3_600_000).toISOString(), startedAt: new Date(Date.now() - 3 * 24 * 3_600_000).toISOString() }
+  appendFileSync(lineagePath(projectKey), `${JSON.stringify(strangerRow)}\n`)
+  writeTranscript(ids.oldRecent, [user('u1', null, '2026-10-12T20:51:00.000Z', 'count'), assistantTool('a1', 'u1', '2026-10-12T20:51:40.000Z')])
+  lineage._resetLineageSessionForTesting()
+  lineage.noteSessionEngine('proof-model')
+  const stranger = lastRowOf(ids.oldRecent)
+  check('a row whose pid is alive but was claimed three days before that process started is a reused pid: reconciled at its transcript\'s cut', stranger?.outcome === 'interrupted' && stranger?.endedAt === '2026-10-12T20:51:40.000Z', JSON.stringify(stranger))
+  check('…while the live row with the same pid, claimed after that process started, stays open', lastRowOf(ids.live)?.endedAt === null, JSON.stringify(lastRowOf(ids.live)))
+  child.kill('SIGKILL')
+  await new Promise<void>(done => child.on('exit', () => done()))
 }
 
 section('§5 an older store (rows with no pid) is reconciled only when the transcript was cut before this machine booted — a row cut since boot may be a live session and stays open')
