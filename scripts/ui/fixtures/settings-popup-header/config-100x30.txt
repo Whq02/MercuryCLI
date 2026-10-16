@@ -2,7 +2,7 @@
 WORKBENCH           │                                                                              │
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-NEXT                │ │ orchard · 68 settings · 1 set by you                                     │ │
+NEXT                │ │ orchard · 69 settings · 1 set by you                                     │ │
   · /workflows — cr…│ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │
 FILES · orchard     │ │                                                                          │ │
@@ -14,10 +14,10 @@ VITALS              │ │   Session concourse                 on              
   · health — run /h…│ │   Reduced motion                    off                                  │ │
                     │ │   Ping                              on                                   │ │
                     │ │   Account identity                  shown                                │ │
+                    │ │   Zen mode — rails hidden           off                                  │ │
                     │ │   Motion                            auto · off                           │ │
                     │ │   DuckDuckGo page scraping          on                                   │ │
-                    │ │   JEV                               off · official                       │ │
-                    │ │ ↓ 57 more                                                                │ │
+                    │ │ ↓ 58 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │
