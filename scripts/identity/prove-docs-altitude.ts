@@ -120,17 +120,20 @@ export function stripQuotedProductAndCodeSpans(text: string): string {
         return ''
       }
       if (fenced) return ''
+      let line = raw
       for (const ex of CENSUS_EXEMPT_LINES) {
-        if (raw.includes(ex.fragment)) return ''
+        line = line.split(ex.fragment).join(' ')
       }
-      return raw
+      return line
     })
     .join('\n')
+  const emDashInsideQuotes = (quoted: string): string => quoted.split(J(' ', '—', ' ')).join(' ')
   return unfenced
     .replace(/``[\s\S]*?``/g, preserveNewlines)
     .replace(/`[^`]*`/g, preserveNewlines)
-    .replace(/"[^"]*"/g, preserveNewlines)
-    .replace(/“[^”]*”/g, preserveNewlines)
+    .split('\n')
+    .map(line => line.replace(/"[^"]*"|“[^”]*”/g, emDashInsideQuotes))
+    .join('\n')
 }
 
 interface Hit {
@@ -230,26 +233,43 @@ function selfTest(): void {
     'released 2026-08-16 as 9.9.9 (a plain date beside no decision verb)',
     'TASK-driven text carries no row id',
   ].join('\n')
-  const censusRed = scanText(
-    'fixture.md',
-    stripQuotedProductAndCodeSpans('The surface ' + J('—', ' ') + J('rather ', 'than') + ' a menu ' + J('off', 'ers') + ' a road.'),
-    '§4',
-    VOICE_CENSUS_NEEDLES,
-  )
-  if (censusRed.length === 0) {
-    console.error('self-test FAILED: a §4 census fixture was not flagged')
-    process.exit(1)
+  const censusRed: Array<[string, string, number]> = [
+    ['a bare census line', 'The surface ' + J('—', ' ') + J('rather ', 'than') + ' a menu ' + J('off', 'ers') + ' a road.', 1],
+    ...CENSUS_EXEMPT_LINES.map((ex): [string, string, number] => [
+      `a census word beside the exempt fragment ${ex.fragment}`,
+      `- ${ex.fragment}: a ` + J('rob', 'ust') + ' road.',
+      1,
+    ]),
+    ['a census word inside straight quotes', 'The choice is recorded as deviations from "a ' + J('rob', 'ust') + ' road" and resolved.', 1],
+    ['a census word inside curly quotes', 'The row reads “a ' + J('seam', 'less') + ' road” when it lands.', 1],
+    [
+      'a bare census word three lines below a stray straight quote',
+      'The home screen row (12" wide) carries the switch.\n' +
+        'The choice is recorded as deviations from "everything on" and resolved\n' +
+        'into a kit when each new session starts. Flip a switch, start a session,\n' +
+        'and it loads that selection ' +
+        J('seam', 'lessly') +
+        ', "as the menu says".',
+      4,
+    ],
+  ]
+  for (const [label, fixture, line] of censusRed) {
+    const found = scanText('fixture.md', stripQuotedProductAndCodeSpans(fixture), '§4', VOICE_CENSUS_NEEDLES)
+    if (!found.some(h => h.line === line)) {
+      console.error(`self-test FAILED: a §4 census fixture was not flagged on line ${line}: ${label}`)
+      process.exit(1)
+    }
   }
+  const censusClean = [
+    'The row reads `"held: sign-in expired — /logins"` and `` "Run `brew` — [y/N]" ``.',
+    ...CENSUS_EXEMPT_LINES.map(ex => `- ${ex.fragment}: enters the build posture.`),
+    'The strip reads "held: sign-in expired ' + J('—', ' /logins') + '" and “done ' + J('—', ' 3 files”') + ' on its row.',
+  ]
   const cleanHits = [
     ...scanText('clean.md', clean, '§1', PROCESS_TERMS),
     ...scanText('clean.md', clean, '§2', VERIFICATION_CITES),
     ...scanText('clean.md', clean.split(CONFIG_INDEX_SPELLING).join(''), '§3', [['inline source citation', SRC_CITE]]),
-    ...scanText(
-      'clean.md',
-      stripQuotedProductAndCodeSpans('The row reads `"held: sign-in expired — /logins"` and `` "Run `brew` — [y/N]" ``.'),
-      '§4',
-      VOICE_CENSUS_NEEDLES,
-    ),
+    ...censusClean.flatMap(fixture => scanText('clean.md', stripQuotedProductAndCodeSpans(fixture), '§4', VOICE_CENSUS_NEEDLES)),
   ]
   if (cleanHits.length > 0) {
     console.error('self-test FAILED: clean text was flagged:')
