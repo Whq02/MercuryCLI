@@ -181,5 +181,17 @@ section('§7 THE DEFERRED ROSTER lists the new tools for a crewmate exactly as f
   }
 }
 
+section('§8 THE WORDS — the Crewmate tool and docs/CREW.md say what a crewmate carries and what dies with it')
+{
+  const { getPrompt } = await import('../../src/tools/AgentTool/prompt.ts')
+  const full = await getPrompt([MERCURY_CREW_AGENT, MERCURY_SCOUT_AGENT], false, undefined, new Set(catalogueNames))
+  check('the Crewmate description names the barred set and the law, with the whole catalogue offered', full.includes('A crewmate carries every tool of this session except AskUserQuestion, ApolloReview, AskAdvisor, Computer, Journal, TaskStop, Workflow, CronCreate, CronDelete, ScheduleWakeup, RecordConvention and the Crewmate tool itself — the few that need the operator present or reach past its own work — in the foreground and in the background alike; the processes it starts (background shells, code kernels, services, debug sessions, its browser) end when it ends.'), full.slice(full.indexOf('A crewmate carries'), full.indexOf('A crewmate carries') + 200))
+  const narrow = await getPrompt([MERCURY_CREW_AGENT], false, undefined, new Set(catalogueNames.filter(n => n !== 'Computer' && n !== 'AskAdvisor')))
+  check('the note names only the barred tools this session offers (no Computer, no AskAdvisor here)', narrow.includes('except AskUserQuestion, ApolloReview, Journal, TaskStop,') && !narrow.includes('Computer'))
+  check('mercury-crew still lists as (Tools: *) — the claim the law now makes true', /- mercury-crew: .*\(Tools: \*\)/.test(full))
+  const docs = src('docs/CREW.md')
+  check('docs/CREW.md names the same barred set and the processes law', docs.includes('(AskUserQuestion, ApolloReview, AskAdvisor)') && docs.includes('(Computer, Journal, TaskStop, Workflow, CronCreate, CronDelete,\nScheduleWakeup, RecordConvention, and the Crewmate tool itself)') && docs.includes('end when it ends'))
+}
+
 console.log(`\ncrewmate-toolbox: ${checks} checks, ${failures} failed`)
 process.exit(failures ? 1 : 0)
