@@ -437,9 +437,9 @@ browse"`: `↵` unfolds that very list in place on the board (this project's
 older chats, newest first, each with its name and age), `↑↓` or a click
 selects inside it, `↵` on one brings it back through the same door a parked
 row rides, `esc` (or moving off the line) folds it back to the line, and a
-list longer than the window ends in honest arithmetic ("+N more — /sessions
-lists everything"); the board keeps the frame throughout, and the close
-chord on that line clears nothing. The project's full history
+list longer than the window ends in honest arithmetic
+("+N more — /sessions lists everything"); the board keeps the frame throughout,
+and the close chord on that line clears nothing. The project's full history
 is also available through `/sessions` in the chat (project-scoped; `a` widens
 it to every project's history), where chats can be resumed or cleared
 one at a time. Nothing deletes a transcript: no row or key unlinks a
