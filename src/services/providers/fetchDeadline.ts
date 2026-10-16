@@ -16,6 +16,8 @@ export function deadlineBreachLine(provider: string, ms: number): string {
   return `timed out after ${deadlineSecondsLabel(ms)} — ${provider} did not answer`
 }
 
+import { captureSignInRequest, observeSignInResponse } from '../../utils/accounts/signInRefusal.js'
+
 export async function fetchWithProviderDeadline(
   fetchImpl: typeof fetch,
   provider: string,
@@ -27,7 +29,13 @@ export async function fetchWithProviderDeadline(
   const callerSignal = init?.signal ?? null
   const signal = callerSignal ? AbortSignal.any([callerSignal, deadline]) : deadline
   try {
-    return await fetchImpl(url as never, { ...init, signal } as never)
+    const headers = new Headers(init?.headers)
+    const credential = headers.get('authorization')?.replace(/^Bearer /i, '') ?? headers.get('x-api-key') ?? headers.get('x-goog-api-key') ?? new URL(url).searchParams.get('key')
+    const catalogue = /(?:^|\/)models(?:\/|$)|:fetchAvailableModels$/.test(new URL(url).pathname)
+    const observation = credential && catalogue ? captureSignInRequest(provider, credential) : undefined
+    const response = await fetchImpl(url as never, { ...init, signal } as never)
+    observeSignInResponse(observation, response.status)
+    return response
   } catch (error) {
     if (isDeadlineBreach(error) && deadline.aborted && !(callerSignal?.aborted ?? false)) {
       throw new Error(deadlineBreachLine(provider, timeoutMs))

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { basename } from 'node:path';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
+import { readSignInRefusal, signInRefusalWords, type SignInRefusal } from '../utils/accounts/signInRefusal.js';
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W, type BootMenuData } from '../../assets/splash/splash-core.mjs';
@@ -130,13 +131,23 @@ export interface LoginsScreenFactsV1 {
   groups: FamilySlotGroup[];
   usability: Record<ProviderId, ProviderUsability>;
   defaultFamily?: string;
+  refusals?: Partial<Record<ProviderId, SignInRefusal>>;
 }
 
 export function collectLoginsScreenFacts(): LoginsScreenFactsV1 {
   const defaultFamily = mostRecentSignInFamily();
+  const usability = resolveProviderUsability();
+  const refusals: Partial<Record<ProviderId, SignInRefusal>> = {};
+  for (const family of Object.keys(usability) as ProviderId[]) {
+    const refusal = readSignInRefusal(family);
+    if (!refusal) continue;
+    refusals[family] = refusal;
+    usability[family] = { ...usability[family], usable: false, blockers: [signInRefusalWords(refusal)] };
+  }
   return {
     groups: deriveFamilySlotGroups(),
-    usability: resolveProviderUsability(),
+    usability,
+    refusals,
     ...(defaultFamily !== undefined ? { defaultFamily } : {}),
   };
 }
@@ -201,6 +212,8 @@ export function loginsRowStateOf(arm: LoginsArmV1, facts: LoginsScreenFactsV1): 
   const slots = loginsArmSlots(arm, group);
   const signedInSlots = slots.filter(s => s.signedIn);
   const signedIn = signedInSlots.length > 0;
+  const refusal = facts.refusals?.[arm.familyId];
+  if (refusal && slots.length > 0 && (arm.arm === 'family' || slots.some(slot => slot.active))) return { chip: signInRefusalWords(refusal), loud: true, signedIn };
   const expiredSlot = arm.arm === 'subscription' ? slots.find(s => s.expired === true) : undefined;
   const expired =
     arm.arm === 'subscription' &&

@@ -349,8 +349,8 @@ export function ConsoleOAuthFlow({
             options={idleRows.map(row => {
               const arm = arms.find(candidate => candidate.row.value === row.value)
               const status = facts && arm ? loginsRowStateOf(arm, facts) : null
-              if (compact) return status?.signedIn ? { ...row, label: `${row.label} · ${status.chip}` } : row
-              return { ...row, ...(status?.signedIn ? { description: status.chip } : {}) }
+              if (compact) return status && (status.signedIn || status.loud) ? { ...row, label: `${row.label} · ${status.chip}` } : row
+              return { ...row, ...(status && (status.signedIn || status.loud) ? { description: status.chip } : {}) }
             })}
             onFocus={value => setMenuFocus(Math.max(0, idleRows.findIndex(row => row.value === value)))}
             onVisibleWindowChange={(_, to) => setRosterVisibleTo(to)}

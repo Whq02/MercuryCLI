@@ -316,6 +316,7 @@ export interface SignInFamilyViewV1 {
   why?: string
   unfetched?: boolean
   signedInAt?: number | null
+  refused?: { status: 401 | 403; at: number }
 }
 
 export interface DaemonSignInViewV1 {

@@ -211,6 +211,8 @@ export async function authLogin(opts: {
   }
 }
 
+import { readSignInRefusal, signInRefusalWords, type SignInRefusal } from '../../utils/accounts/signInRefusal.js'
+
 export async function authStatus(opts: { json?: boolean }): Promise<void> {
   const readable = opts.json !== true && process.stdout.isTTY === true
   const tokenSource = getAuthTokenSource()
@@ -247,6 +249,8 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
   if (readable) {
     const properties = [...buildAccountProperties(), ...buildAPIProviderProperties()]
     let printed = 0
+    const anthropicRefusal = routed.rows.find(row => row.id === 'anthropic')?.refused
+    if (anthropicRefusal) writeSync(1, `anthropic: ${signInRefusalWords(anthropicRefusal)}\n`)
     for (const property of properties) {
       const value = property.value
       if (value === null || value === undefined || value === 'none') continue
@@ -267,7 +271,7 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
     const others = routed.rows.filter(row => row.id !== 'anthropic' && row.present)
     for (const row of others) {
       try {
-        writeSync(1, `${row.id}: ${row.identity ?? row.source}\n`)
+        writeSync(1, `${row.id}: ${row.refused ? signInRefusalWords(row.refused) : row.identity ?? row.source}\n`)
       } catch {
       }
     }
@@ -307,7 +311,7 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
     } catch {
     }
   }
-  process.exit(routed.family === 'anthropic' ? (loggedIn ? 0 : 1) : routed.present ? 0 : 1)
+  process.exit(routed.present ? 0 : 1)
 }
 
 function signInEmail(): string | undefined {
@@ -319,7 +323,7 @@ function signInEmail(): string | undefined {
 function routedProviderRows(anthropicPresent: boolean): {
   family: string
   present: boolean
-  rows: Array<{ id: string; kind: string; source: string; present: boolean; identity?: string }>
+  rows: Array<{ id: string; kind: string; source: string; present: boolean; identity?: string; refused?: SignInRefusal; status?: string }>
 } {
   try {
     const { declaredRouteOf } = require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
@@ -343,16 +347,18 @@ function routedProviderRows(anthropicPresent: boolean): {
       const account = provider.description.account
       const present = provider.id === 'anthropic' ? anthropicPresent : account.kind !== 'none'
       const identity = presences.find(presence => presence.id === provider.id)?.identity
+      const refused = present ? readSignInRefusal(provider.id) : undefined
       return {
         id: provider.id,
         kind: account.kind,
         source: account.label,
         present,
+        ...(refused ? { refused, status: signInRefusalWords(refused) } : {}),
         ...(identity !== undefined ? { identity } : {}),
       }
     })
     const routedRow = rows.find(row => row.id === family)
-    return { family, present: routedRow?.present ?? false, rows }
+    return { family, present: (routedRow?.present ?? false) && !routedRow?.refused, rows }
   } catch {
     return { family: 'anthropic', present: anthropicPresent, rows: [] }
   }

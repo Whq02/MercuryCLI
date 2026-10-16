@@ -46,6 +46,7 @@ import {
 } from '../../../utils/messages.js'
 import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
+import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { addToTotalSessionCost } from '../../../cost-tracker.js'
 import { calculateUSDCost } from '../../../utils/modelCost.js'
@@ -289,6 +290,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
   let emptyEnds = 0
   for (let attempt = 1; attempt <= ZAI_MAX_ATTEMPTS || busy !== undefined; attempt++) {
     attemptStartedAtMs = Date.now()
+    const signInRequest = captureSignInRequest('zai', apiKey)
     const outcome = yield* streamOneZaiAttempt({
       request,
       apiKey,
@@ -303,6 +305,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {
+      observeSignInResponse(signInRequest, 200)
       zaiLiveProof = { at: Date.now(), model: modelId }
       recordLaneTurnSettled('zai')
       try {
@@ -313,6 +316,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       return
     }
     if (outcome.kind === 'cancelled') return
+    observeSignInResponse(signInRequest, outcome.fault.status)
     const askedMs = outcome.fault.retryAfterMs
     const typed = compatFaultToTypedError(outcome.fault)
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
