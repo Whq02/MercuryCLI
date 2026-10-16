@@ -142,7 +142,7 @@ reg(
     'src/commands/console/console.tsx',
     'src/commands/copy/copy.tsx',
     'src/commands/health/HealthCertificate.tsx',
-    'src/commands/effort/EffortSlider.tsx',
+    'src/commands/effort/EffortPopup.tsx',
     'src/commands/run/run.tsx',
  'src/components/BootSettingsScreen.tsx',
  'src/components/concourse/CoordinatorModelPicker.tsx',

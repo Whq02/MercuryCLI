@@ -1581,7 +1581,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       rows,
     }
   }
-  if (name === 'effort-slider-sonnet46') {
+  if (name === 'effort-popup-sonnet46') {
     writeSyntheticSession('short')
     return {
       argv: ['node', BIN, '--model', 'claude-sonnet-4-6', '--resume', SID],
