@@ -235,7 +235,7 @@ section('§6 · assistant null content replays as empty text unless tool_calls r
   ] as unknown as readonly MessageParam[]
   const mapped = mapMessagesToZai('sys', history)
   const assistants = mapped.filter(m => m.role === 'assistant')
-  check("thinking-only turn ⇒ content '' (never null without tool_calls)", assistants[0]?.content === '' && !('tool_calls' in assistants[0]!))
+  check("thinking-only turn with its reasoning off the wire ⇒ the thinking-only row (never null, never '' without tool_calls)", assistants[0]?.content === '(thinking)' && !('tool_calls' in assistants[0]!))
   check('tool-call turn keeps the documented null beside tool_calls', assistants[1]?.content === null && assistants[1]?.tool_calls?.length === 1)
   check('text turn carries its text', assistants[2]?.content === 'said')
 }

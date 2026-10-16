@@ -181,13 +181,13 @@ section('§0 the fixture is the local record the 9B runs on')
   console.log(`  never-deferred set (${coreNames.length}): ${coreNames.join(', ')}`)
 }
 
-section('§1 the seam — the local route defers in the text form the table gives it')
+section('§1 the seam — the local route defers in the text-append form the table gives it (the tools term frozen from the first request)')
 {
   const verdict = deferralWireFormFor(PERSISTED)
-  check('the wire form for a local record is text, from the route table', verdict.form === 'text' && verdict.why === 'route-table', `${verdict.form}/${verdict.why}`)
+  check('the wire form for a local record is text-append, from the route table', verdict.form === 'text-append' && verdict.why === 'route-table', `${verdict.form}/${verdict.why}`)
   check('supportsToolDeferral admits the local route (the base answers false here)', supportsToolDeferral(PERSISTED) === true)
   const words = await ToolSearchTool.prompt({ model: PERSISTED } as never)
-  check("the ToolSearch tool's words for a local model spell the text form (definitions join the tool list from the admitting request on)", /from that request on their complete definitions are in your tool list/.test(words))
+  check("the ToolSearch tool's words for a local model spell the text-append form (definitions appended to the conversation right after the result)", /their complete definitions are appended to the conversation right after it/.test(words))
 }
 
 section('§2 the FRESH request on the local wire — the core in full, the rest by name, every name present')
@@ -232,7 +232,7 @@ section('§3 the measure — the same wire, the whole catalogue inlined (the off
   check('the deferring request carries under half the whole catalogue\'s tool bytes', deferredBytes > 0 && fullBytes > 0 && deferredBytes * 2 < fullBytes, `${deferredBytes} vs ${fullBytes}`)
 }
 
-section('§4 the ADMISSION on the local road — ToolSearch admits, the next request carries the schema, the record rides as text')
+section('§4 the ADMISSION on the local road — ToolSearch admits, the tools term and the system row stay byte-identical, the schema rides inside the ToolSearch result')
 {
   const builtinPick = deferredNames.includes('WebFetch') ? 'WebFetch' : pool.find(t => isDeferredTool(t) && t.isMcp !== true)!.name
   const admitted = [builtinPick, 'mcp__filesys__read_file']
@@ -255,15 +255,21 @@ section('§4 the ADMISSION on the local road — ToolSearch admits, the next req
   check('the next request rode /api/chat, no refusal', next.chats === 1 && next.error === undefined && next.body !== undefined, next.error ?? `chats=${next.chats}`)
   const tools = next.body ? wireTools(next.body) : []
   const names = tools.map(t => t.name)
-  check('the tools term is the frozen core followed by the admitted definitions, appended at the end', names.join(',') === [...freshNames, ...admitted].join(','), names.join(','))
-  check('each admitted tool now rides with its full schema', admitted.every(n => tools.some(t => t.name === n && t.hasSchema)))
-  check('every other deferred tool still has no schema on the wire', deferredNames.filter(n => !admitted.includes(n)).every(n => !names.includes(n)))
+  check('THE PREFIX LAW: the tools term after the admission is the fresh request\'s, byte for byte (token 0 of the local prompt never moves)', JSON.stringify(next.body?.tools) === JSON.stringify(freshBody?.tools), names.join(','))
+  check('no admitted definition joins the tools term', admitted.every(n => !names.includes(n)), names.join(','))
+  const messages = Array.isArray(next.body?.messages) ? (next.body!.messages as Array<Record<string, unknown>>) : []
+  const freshMessages = Array.isArray(freshBody?.messages) ? (freshBody!.messages as Array<Record<string, unknown>>) : []
+  check('messages[0] (the system prompt) is byte-identical to the fresh request\'s', JSON.stringify(messages[0]) === JSON.stringify(freshMessages[0]))
+  check('no system row rides mid-conversation (Qwen 3.5: "System message must be at the beginning")', messages.slice(1).every(m => m.role !== 'system'), messages.map(m => String(m.role)).join(','))
+  const toolRow = messages.find(m => m.role === 'tool' && m.tool_call_id === 'toolu_ts_1')
+  const toolText = typeof toolRow?.content === 'string' ? toolRow.content : ''
+  check('the ToolSearch result row carries the admission record AND the admitted tools\' complete definitions', toolText.includes(admissionRecordText(admitted, 'text-append').split('\n')[0]!) && admitted.every(n => toolText.includes(`- ${n}`)) && toolText.includes('<tools>') && admitted.every(n => toolText.includes(`"name":"${n}"`)), toolText.slice(0, 300))
+  check('every other deferred tool has no schema anywhere on the wire', deferredNames.filter(n => !admitted.includes(n)).every(n => !names.includes(n) && !toolText.includes(`"name":"${n}"`)))
   const text = next.body ? messagesText(next.body) : ''
-  check('the admission record reaches the wire as text naming the admitted tools', text.includes(admissionRecordText(admitted).split('\n')[0]!) && admitted.every(n => text.includes(`- ${n}`)))
   check('no tool_reference block reaches a wire that cannot expand one', !text.includes('tool_reference'))
   const later = await drive([...transcript, createAssistantMessage({ content: 'pong' }) as Message, createUserMessage({ content: 'and again' }) as Message])
   const laterNames = later.body ? wireTools(later.body).map(t => t.name) : []
-  check('a later turn of the same conversation keeps the admitted schemas (the roster never shrinks)', later.error === undefined && laterNames.join(',') === names.join(','), later.error ?? laterNames.join(','))
+  check('a later turn of the same conversation keeps the same tools term and the declaration inside the earlier result', later.error === undefined && laterNames.join(',') === names.join(',') && messagesText(later.body ?? {}).includes('<tools>'), later.error ?? laterNames.join(','))
 }
 
 ollama.server.close()

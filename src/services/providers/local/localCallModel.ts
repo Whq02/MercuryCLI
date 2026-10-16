@@ -17,7 +17,7 @@ import {
 import { buildLocalExtras, localThinkingOff } from '../openaicompat/compatWire.js'
 import { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { planToolPayload } from '../toolEconomy.js'
-import { mapToolsToZai, type ApiShapedTool } from '../zai/zaiCodec.js'
+import { mapToolsToZai, toolDeclarationRowInResult, type ApiShapedTool } from '../zai/zaiCodec.js'
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, residentServedWindow, type LocalDiscoveryIo, type LocalModelRecord } from './localDiscovery.js'
@@ -98,8 +98,9 @@ export async function localToolWireOf(params: CompatCallModelParams): Promise<Lo
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'estimate',
   })
+  const declared = plan.admissionDeclarations.flatMap(declaration => declaration.tools)
   const schemas = await Promise.all(
-    plan.roster.map(tool =>
+    [...plan.roster, ...declared].map(tool =>
       toolToAPISchema(tool, {
         getToolPermissionContext: options.getToolPermissionContext,
         tools: plan.roster,
@@ -117,8 +118,8 @@ export async function localToolWireOf(params: CompatCallModelParams): Promise<Lo
       apiTools.push({ name: shaped.name, ...(shaped.description ? { description: shaped.description } : {}), input_schema: shaped.input_schema })
     }
   }
-  const named = [...plan.deferredNames].filter(name => !plan.admittedNames.has(name)).length
-  return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named }
+  const named = [...plan.deferredNames].filter(name => !plan.admittedNames.has(name) && !declared.some(tool => tool.name === name)).length
+  return { schemas: plan.roster.length, schemaBytes: wireBytesOf(apiTools), named }
 }
 
 export function localPreComposeEstimate(params: LocalEstimateParams): number {
@@ -156,6 +157,8 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
       return buildLocalExtras({ ...args, server: record.server, acceptsEffort: localModelAcceptsEffort(record) })
     },
     omitsToolChoice: record.server === 'ollama',
+    keepsReasoningOnContinuations: () => true,
+    toolDeclarationRow: toolDeclarationRowInResult,
     ...(record.server === 'ollama'
       ? {
           streamTransport: (options: Parameters<NonNullable<CompatLaneProfile['streamTransport']>>[0]) =>
