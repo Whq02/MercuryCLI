@@ -26,7 +26,7 @@ export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralW
   openrouter: 'openrouter-native',
   gemini: 'text',
   huggingface: 'text',
-  local: 'text',
+  local: 'text-append',
   mistral: 'text',
   nous: 'text',
   zen: 'text',
