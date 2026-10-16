@@ -24,9 +24,14 @@ import {
   buildNodeTestDebugShim,
   changedRunnerSelection,
   discoverRunnerProfiles,
+  discoverSubPackages,
+  findRunnerRoot,
   rerunRunnerFailures,
   resolveTestLane,
   runRunnerProfile,
+  subPackageTestRunners,
+  type SubPackage,
+  type TestLane,
 } from '../../services/ide/projectRunners.js'
 import { buildCargoTestDebugPlan, buildGoTestDebugPlan, buildNodeRunnerDebugShim } from '../../services/ide/testDebugPlans.js'
 import type { ToolCallProgress } from '../../Tool.js'
@@ -150,6 +155,49 @@ function outcomeOf(record: TestRunRecord, ran: () => ToolEffectOutcome): ToolEff
   return record.verdict === 'no-match' ? 'no-change' : ran()
 }
 
+function subPackageList(packages: readonly SubPackage[]): string {
+  return packages
+    .map(s => {
+      const runners = subPackageTestRunners(s)
+      return `${s.dir}/ (${s.manifests.join(', ')}${runners.length ? `: ${runners.join(', ')}` : ', no test runner declared'})`
+    })
+    .join(', ')
+}
+
+function subPackageWords(lane: Extract<TestLane, { lane: 'sub-packages' }>): string {
+  return lane.runner !== undefined
+    ? `${lane.runner} is declared in more than one package below this root — ${subPackageList(lane.packages)} — run from the package`
+    : `this project declares its manifests one level down — ${subPackageList(lane.packages)} — pass framework: to pick one, or run from the package`
+}
+
+function runnerMissingWords(lane: Extract<TestLane, { lane: 'runner-missing' }>): string {
+  const { profiles } = discoverRunnerProfiles()
+  const here = profiles.length ? ` — discovered: ${profiles.map(p => `${p.runner}/${p.kind}`).join(', ')}` : ''
+  const below = lane.below !== undefined ? ` — one level down: ${subPackageList(lane.below)}` : ''
+  return `no ${lane.runner} test profile in this project's manifests${here}${below}`
+}
+
+function latestRunHere(): TestRunRecord | null {
+  const own = latestRun()
+  if (own !== null || findRunnerRoot() !== null) return own
+  let newest: TestRunRecord | null = null
+  for (const sub of discoverSubPackages(getCwd())) {
+    const record = latestRun(resolve(getCwd(), sub.dir))
+    if (record !== null && (newest === null || record.startedAt > newest.startedAt)) newest = record
+  }
+  return newest
+}
+
+function runHere(id: string): TestRunRecord | null {
+  const own = getRun(id)
+  if (own !== null || findRunnerRoot() !== null) return own
+  for (const sub of discoverSubPackages(getCwd())) {
+    const record = getRun(id, resolve(getCwd(), sub.dir))
+    if (record !== null) return record
+  }
+  return null
+}
+
 function runnerProgress(
   runner: string,
   onProgress: ToolCallProgress | undefined,
@@ -268,18 +316,17 @@ async function runOp(
       outcome: 'no-change',
     }
   }
+  if (lane.lane === 'sub-packages' && (input.op === 'discover' || input.op === 'run')) {
+    return { result: subPackageWords(lane), outcome: 'no-change' }
+  }
   if (lane.lane === 'runner-missing' && (input.op === 'discover' || input.op === 'run')) {
-    const { profiles } = discoverRunnerProfiles()
-    return {
-      result: `no ${lane.runner} test profile in this project's manifests${profiles.length ? ` — discovered: ${profiles.map(p => `${p.runner}/${p.kind}`).join(', ')}` : ''}`,
-      outcome: 'failed',
-    }
+    return { result: runnerMissingWords(lane), outcome: 'failed' }
   }
   if (lane.lane === 'runner' && (input.op === 'discover' || input.op === 'run')) {
     return runRunnerOp(input, lane.profile, signal, onProgress)
   }
   if (input.op === 'rerunFailed') {
-    const latest = latestRun()
+    const latest = latestRunHere()
     if (latest && latest.framework !== 'pytest' && latest.framework !== 'unittest') {
       const out = await rerunRunnerFailures(latest, { ...(signal ? { signal } : {}) })
       if (out.state === 'unavailable') {
@@ -378,8 +425,11 @@ async function runOp(
       if (debugLane.lane === 'ambiguous') {
         return { result: `this project declares multiple test runners: ${debugLane.options.join(', ')} — pass framework: to pick one`, outcome: 'no-change' }
       }
+      if (debugLane.lane === 'sub-packages') {
+        return { result: subPackageWords(debugLane), outcome: 'no-change' }
+      }
       if (debugLane.lane === 'runner-missing') {
-        return { result: `no ${debugLane.runner} test profile in this project's manifests`, outcome: 'failed' }
+        return { result: runnerMissingWords(debugLane), outcome: 'failed' }
       }
       const ranWithoutStop = async (debuggerMissing: string, remedy: string): Promise<{ result: string; outcome: ToolEffectOutcome; record?: TestRunRecord }> => {
         const ran = await runOp({ ...input, op: 'run' }, context, onProgress)
@@ -541,7 +591,7 @@ async function runOp(
       }
     }
     case 'report': {
-      const record = input.runId ? getRun(input.runId) : latestRun()
+      const record = input.runId ? runHere(input.runId) : latestRunHere()
       if (!record) {
         const runs = listRuns()
         return {
@@ -606,13 +656,11 @@ A run whose exit code disagrees with its structured records says so (verdictNote
     if (input.op === 'run') {
       try {
         const { profiles } = discoverRunnerProfiles()
-        const profile = input.profile
-          ? profiles.find(p => p.id === input.profile)
-          : (() => {
-              const lane = resolveTestLane(getCwd(), input.framework)
-              return lane.lane === 'runner' ? lane.profile : undefined
-            })()
-        if (profile) {
+        const lane = input.profile ? undefined : resolveTestLane(getCwd(), input.framework)
+        const profile = input.profile ? profiles.find(p => p.id === input.profile) : lane?.lane === 'runner' ? lane.profile : undefined
+        if (lane !== undefined && lane.lane !== 'runner' && lane.lane !== 'python') {
+          resolved = ' (no single test runner at this root — the call names the options and runs nothing)'
+        } else if (profile) {
           if (input.changed) {
             resolved = ` — will run: ${profile.command.join(' ')} + changed-file focus (targets resolve against the tree at execution)`
           } else {
