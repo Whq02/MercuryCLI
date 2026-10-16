@@ -16,15 +16,15 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const effort = await import('../../src/utils/effort.js')
-const slider = await import('../../src/commands/effort/EffortSlider.js')
+const popup = await import('../../src/commands/effort/EffortPopup.js')
 const cmd = await import('../../src/commands/effort/effort.js')
 
 type EffortValue = import('../../src/utils/effort.js').EffortValue
 
 function sliderOpens(model: string, stored: EffortValue | undefined): string {
-  const geo = slider.getSliderGeometry(model)
-  const slot = slider.resolveOpeningStop(model, stored)
-  return String(geo.levels[slot]?.value)
+  const rows = popup.effortPopupRows(model)
+  const row = popup.effortPopupOpeningRow(model, stored)
+  return String(rows[row]?.value)
 }
 
 function effortReadoutRuns(stored: EffortValue | undefined, model: string): string {
@@ -99,13 +99,13 @@ console.log('— §3 the /effort readout speaks the running tier —')
 
 console.log('— §4 override targets keep their own truths —')
 {
-  const geo = slider.getSliderGeometry('claude-opus-5')
-  const maxSlot = slider.resolveOpeningStop('claude-opus-5', 'max')
-  t('a session at max opens on the max stop, the last stop of the rail', geo.levels[maxSlot]?.value === 'max' && maxSlot === geo.levels.length - 1, String(geo.levels[maxSlot]?.value))
-  const ovSlot = slider.resolveOpeningStop('claude-opus-5', 'low', 'xhigh')
+  const geo = { levels: popup.effortPopupRows('claude-opus-5') }
+  const maxSlot = popup.effortPopupOpeningRow('claude-opus-5', 'max')
+  t('a session at max opens on the max row, the last row of the popup', geo.levels[maxSlot]?.value === 'max' && maxSlot === geo.levels.length - 1, String(geo.levels[maxSlot]?.value))
+  const ovSlot = popup.effortPopupOpeningRow('claude-opus-5', 'low', 'xhigh')
   t('an override target opens on the override', geo.levels[ovSlot]?.value === 'xhigh', String(geo.levels[ovSlot]?.value))
   process.env.MERCURY_EFFORT_LEVEL = 'low'
-  const ovPinned = slider.resolveOpeningStop('claude-opus-5', undefined, 'max')
+  const ovPinned = popup.effortPopupOpeningRow('claude-opus-5', undefined, 'max')
   t('…and a foreign env pin cannot move an override target', geo.levels[ovPinned]?.value === 'max', String(geo.levels[ovPinned]?.value))
   delete process.env.MERCURY_EFFORT_LEVEL
 }
@@ -114,8 +114,8 @@ console.log('— §5 a hosted session: the seat\'s served word rules BOTH gauges
 {
   const chip = await import('../../src/components/mercury-ui/EffortChip.js')
   const hostedOpens = (model: string, seat: string | null, sent: string | null | undefined, stored: EffortValue | undefined): string => {
-    const geo = slider.getSliderGeometry(model)
-    return String(geo.levels[slider.resolveOpeningStop(model, stored, undefined, seat, sent)]?.value)
+    const rows = popup.effortPopupRows(model)
+    return String(rows[popup.effortPopupOpeningRow(model, stored, undefined, seat, sent)]?.value)
   }
   const model = 'claude-opus-5'
   const chipMax = chip.focusedEffortLabelOf(model, 'max', 'max', 'high')
@@ -150,8 +150,8 @@ console.log('— §5 a hosted session: the seat\'s served word rules BOTH gauges
   const chipNoSeat = chip.focusedEffortLabelOf(model, null, undefined, 'xhigh')
   const openedNoSeat = hostedOpens(model, null, undefined, 'xhigh')
   t('no seat facts: both gauges fall to the app state (xhigh)', chipNoSeat === 'xhigh' && openedNoSeat === 'xhigh', `chip ${chipNoSeat}, slider ${openedNoSeat}`)
-  const geo = slider.getSliderGeometry(model)
-  const ovSlot = slider.resolveOpeningStop(model, 'low', 'xhigh', 'max', 'max')
+  const geo = { levels: popup.effortPopupRows(model) }
+  const ovSlot = popup.effortPopupOpeningRow(model, 'low', 'xhigh', 'max', 'max')
   t('an override target still opens on the override, the seat\'s word never leaking in', geo.levels[ovSlot]?.value === 'xhigh', String(geo.levels[ovSlot]?.value))
 }
 
