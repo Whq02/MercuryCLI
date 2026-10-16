@@ -336,6 +336,24 @@ function parseCargoTest(out: string): {
   return { counts: { passed, failed, skipped: ignored, errored: 0 }, failures }
 }
 
+const RUNNER_NO_MATCH_WORDS: Record<RunnerFramework, RegExp[]> = {
+  jest: [/^Pattern: .* - 0 matches$/m, /^No tests found.*$/m, /^Tests:\s+\d+ skipped, \d+ total$/m],
+  vitest: [/^No test files found.*$/m, /^filter: .*$/m, /^\s*Tests\s+\d+ skipped.*$/m],
+  'node-test': [/^Could not find .*$/m, /^1\.\.0$/m],
+  go: [/testing: warning: no tests to run/, /\[no test files\]/],
+  cargo: [/^test result: \w+\. 0 passed; 0 failed;.*$/m, /^running 0 tests$/m],
+}
+const NODE_TEST_CASE_ROW = /^\s+(?:not )?ok \d+ - /m
+
+function runnerNoMatchWords(runner: RunnerFramework, out: string): string | undefined {
+  const words: string[] = []
+  for (const re of RUNNER_NO_MATCH_WORDS[runner]) {
+    const m = re.exec(out)
+    if (m !== null && !words.includes(m[0].trim())) words.push(m[0].trim())
+  }
+  return words.length === 0 ? undefined : words.slice(0, 2).join(' · ')
+}
+
 export function reporterFileFlag(runner: RunnerFramework): string | null {
   switch (runner) {
     case 'vitest':
@@ -725,20 +743,23 @@ export async function runRunnerProfile(
 
   const exitOk = result.code === 0 && !result.errMsg
   const failedByCounts = parsed.counts !== null && parsed.counts.failed > 0
-  const emptyRerun = selectionLabel === 'rerun-failed' && parsed.counts !== null && parsed.counts.passed + parsed.counts.failed + parsed.counts.errored === 0
-  const emptyRerunReason = 'the rerun selected no test — the names in the recorded selection did not match a runnable test'
-  const verdictNotes: string[] = emptyRerun ? [emptyRerunReason] : []
-  if (parsed.counts === null && profile.kind === 'test') {
+  const ranCount = parsed.counts === null ? null : parsed.counts.passed + parsed.counts.failed + parsed.counts.errored
+  const noMatchWords = profile.kind === 'test' ? runnerNoMatchWords(profile.runner, combined) : undefined
+  const noCaseRan = profile.runner === 'node-test' ? parsed.counts !== null && /^1\.\.0$/m.test(combined) && !NODE_TEST_CASE_ROW.test(combined) : ranCount === 0
+  const noMatch = profile.kind === 'test' && !result.errMsg && (noCaseRan || (ranCount === null && noMatchWords !== undefined))
+  const noMatchReason = `${selectionLabel === 'all' ? 'no test ran' : `no test matched ${selectionLabel}`} — ${noMatchWords ?? `${profile.runner} reported no test case`}${selectionLabel === 'rerun-failed' ? '; run the full profile to refresh its case names' : ''}`
+  const verdictNotes: string[] = noMatch ? [noMatchReason] : []
+  if (parsed.counts === null && profile.kind === 'test' && !noMatch) {
     verdictNotes.push(`counts not parsed for ${profile.runner} — exit state is the only verdict`)
   }
   if (result.errMsg) verdictNotes.push(`runner did not exit cleanly: ${result.errMsg}`)
   if (exitOk && failedByCounts) verdictNotes.push('exit code 0 disagreed with parsed failures — treated as FAILED')
-  if (reporter !== null && !exitOk && !result.errMsg && reporter.counts.failed === 0 && reporter.counts.errored === 0) {
+  if (reporter !== null && !exitOk && !result.errMsg && !noMatch && reporter.counts.failed === 0 && reporter.counts.errored === 0) {
     verdictNotes.push(`${profile.runner} exited ${result.code ?? 'null'} with no failing case in its report — read the output`)
   }
 
   const runFailed = result.code !== 0 || Boolean(result.errMsg)
-  const cases = reporter !== null ? reporter.cases : runFailed ? parseRunnerCases(profile.runner, combined, profile.root) : []
+  const cases = noMatch ? [] : reporter !== null ? reporter.cases : runFailed ? parseRunnerCases(profile.runner, combined, profile.root) : []
 
   const outputLines = combined.split('\n')
   let outputArtifactRef: string | undefined
@@ -773,18 +794,20 @@ export async function runRunnerProfile(
     interpreter: which(bin) ?? bin,
     startedAt,
     durationMs: Date.now() - startedAt,
-    counts: parsed.counts ?? { passed: 0, failed: exitOk ? 0 : 1, skipped: 0, errored: result.errMsg ? 1 : 0 },
+    counts: noMatch
+      ? { passed: 0, failed: 0, skipped: parsed.counts?.skipped ?? 0, errored: 0 }
+      : (parsed.counts ?? { passed: 0, failed: exitOk ? 0 : 1, skipped: 0, errored: result.errMsg ? 1 : 0 }),
     cases,
     ...(reporter !== null && reporter.casesTruncated > 0 ? { casesTruncated: reporter.casesTruncated } : {}),
-    failures: parsed.failures.length > 0 ? parsed.failures : runFailed ? cases.map(c => c.id) : [],
+    failures: noMatch ? [] : parsed.failures.length > 0 ? parsed.failures : runFailed ? cases.map(c => c.id) : [],
     ...(outputArtifactRef ? { outputArtifactRef } : {}),
     outputTail: outputLines.slice(-OUTPUT_TAIL_LINES),
     exitCode: result.code,
+    ...(noMatch ? { verdict: 'no-match' as const } : {}),
     ...(verdictNotes.length > 0 ? { verdictNote: verdictNotes.join(' · ') } : {}),
     ...(diagnosticsNote ? { diagnosticsNote } : {}),
   }
   await persistTestRun(profile.root, record)
-  if (emptyRerun) return { state: 'unavailable', reason: emptyRerunReason, remedy: `run the full profile to refresh its case names; record: mercury://test/run/${record.id}` }
   return { state: 'ok', record }
 }
 

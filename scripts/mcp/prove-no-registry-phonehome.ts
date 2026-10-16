@@ -59,7 +59,7 @@ const net = require('node:net')
 const LOG = process.env.PROOF_NETLOG
 const log = line => { try { fs.appendFileSync(LOG, line + '\\n') } catch {} }
 try {
-  const lstart = require('node:child_process').execFileSync('ps', ['-o', 'lstart=', '-p', String(process.pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  const lstart = require('node:child_process').execFileSync('ps', ['-o', 'lstart=', '-p', String(process.pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: { ...process.env, LC_ALL: 'C' } }).trim()
   fs.appendFileSync(process.env.PROOF_OWNED_PIDS, process.pid + '\\t' + lstart + '\\n')
 } catch {}
 function describe(a0, a1) {
