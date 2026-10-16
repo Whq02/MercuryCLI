@@ -86,6 +86,13 @@ async function classifyAfterLiveLists(model: string): Promise<ModelRouteVerdict>
   return classifyModelRoute(model)
 }
 
+export async function modelRefusalBeforeAnyRequest(model: string): Promise<string | null> {
+  const verdict = await classifyAfterLiveLists(model)
+  if (verdict.kind === 'absence') return null
+  if (verdict.kind === 'unrecognised' || verdict.route === 'anthropic') return homeLaneAdmissionRefusal(model)
+  return null
+}
+
 export async function* routedCallModel(params: CallModelParams): CallModelStream {
   const verdict = await classifyAfterLiveLists(params.options.model)
   if (verdict.kind === 'absence') {
