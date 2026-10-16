@@ -13,5 +13,3 @@ function resolveMercuryVersion(): string {
   return '0.0.0-src'
 }
 export const MERCURY_VERSION: string = resolveMercuryVersion()
-
-export const versionBanner = `Mercury ${MERCURY_VERSION}`
