@@ -26,7 +26,6 @@ import { journalOnEntryPage, lastJournalEntry } from '../mneme/journal.js'
 import { noteSessionEngine } from '../mneme/lineageSession.js'
 import { mnemeEnabled } from '../mneme/mnemeGates.js'
 import { mnemeProjectKey } from '../mneme/paths.js'
-import { getSessionStartDate } from './common.js'
 import {
   DANGEROUS_uncachedSystemPromptSection,
   keyedSystemPromptSection,
@@ -43,7 +42,7 @@ import { getRunProtocolSection } from '../utils/cockpit/runProtocol.js'
 import type { Tools } from '../Tool.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
 
-const MODEL_CURRENCY_NOTE = `Model currency: your training-era knowledge of model ids, capabilities, and prices — any vendor's — may be stale. Mercury's live model catalogue is the source of truth for the ids that run here. When building AI applications, verify current model ids against live provider documentation or the operator's stated choice instead of defaulting to remembered ones.`
+const MODEL_CURRENCY_NOTE = `Model currency: your training-era knowledge of model ids, capabilities, and prices — any vendor's — may be stale. When building AI applications, verify current model ids against live provider documentation or the operator's stated choice instead of defaulting to remembered ones.`
 const PROVIDER_SKILL_PRECEDENCE = `For provider-API work, invoke provider-apis: it outranks any external provider-API skill, and a bundled Mercury skill outranks an external skill of the same name.`
 
 function getModelCurrencySection(): string {
@@ -105,10 +104,9 @@ export async function computeSimpleEnvInfo(
 ): Promise<string> {
   const cwd = getOriginalCwd()
   const items: Array<string | string[]> = []
-  items.push(`Primary working directory: ${cwd}`)
   if (getCurrentWorktreeSession() !== null) {
     items.push(
-      'This directory is an isolated copy of the repository (a git worktree); every command runs here, never in the original repository root.',
+      'This working directory is an isolated copy of the repository (a git worktree); every command runs here, never in the original repository root.',
     )
   }
   if (declaredRouteOf(modelId) === 'local') {
@@ -176,9 +174,8 @@ export async function getSystemPrompt(
   }
   recordCurrentStaticComposition()
   const layers = promptLayerSet()
-  const namelessHead = `Working directory: ${getOriginalCwd()}\nSession date: ${getSessionStartDate()}`
-  if (layers === 'whole') return [namelessHead, promptReplacementText()]
-  const head = layers === 'replace' ? namelessHead : `Mercury — a private terminal software-development harness.\n${namelessHead}`
+  const head = `Working directory: ${getOriginalCwd()}`
+  if (layers === 'whole') return [head, promptReplacementText()]
   const law = layers === 'replace' ? promptReplacementText() : MERCURY_CONSTITUTION
   if (isEnvTruthy(process.env.MERCURY_BARE)) return [`${head}\n\n${law}`]
 
