@@ -1,5 +1,5 @@
 {
-  "base": "16eadcc0e88f808cc9e787d37648ad9304d4e582",
+  "base": "ba7871370df313d026904ced1ed6f43a806c86a7",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -131,7 +131,7 @@
     },
     {
       "name": "Glob",
-      "description": "- Find files by name pattern at any repo scale\n- Understands glob patterns (\"**/*.js\", \"src/**/*.ts\")\n- Answers with matching paths, newest modification first",
+      "description": "- Find files by name pattern at any repo scale\n- Understands glob patterns (\"**/*.js\", \"src/**/*.ts\")\n- Answers with matching paths, newest modification first\n- Ignore files apply; the result ends with a count of the matches they hid — name an ignored folder as the path to search inside it",
       "input_schema": {
         "type": "object",
         "properties": {
