@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path'
 import { getAuthConfigHomeDir } from '../envUtils.js'
 import { dropSignInEntry, readSignInEntries, recordSignInEntry, type SignInKind, type SignInLedgerIo } from './signInLedger.js'
 
-export const SIGN_INS_DIR = 'sign-ins'
+const SIGN_INS_DIR = 'sign-ins'
 export const KEY_IDENTITY_MARK = '…'
 const FAMILY_RE = /^[a-z][a-z0-9-]{0,31}$/
 const SLUG_KEEP = /[^a-z0-9@._+-]/g
@@ -52,7 +52,7 @@ export function signInsEstate(): string {
   return getAuthConfigHomeDir()
 }
 
-export function signInsRoot(home: string = getAuthConfigHomeDir()): string {
+function signInsRoot(home: string = getAuthConfigHomeDir()): string {
   return join(home, SIGN_INS_DIR)
 }
 
@@ -60,7 +60,7 @@ export function pocketDir(family: string, slug: string, home: string = getAuthCo
   return join(signInsRoot(home), family, slug)
 }
 
-export function isPocketDir(dir: string, home: string = getAuthConfigHomeDir()): boolean {
+function isPocketDir(dir: string, home: string = getAuthConfigHomeDir()): boolean {
   const root = resolve(signInsRoot(home))
   const target = resolve(dir)
   return target.startsWith(root + '/') || target.startsWith(root + '\\')
@@ -84,7 +84,7 @@ export function listPocketSlugs(family: string, home: string = getAuthConfigHome
   }
 }
 
-export function freePocketSlug(family: string, identity: string, home: string = getAuthConfigHomeDir()): string {
+function freePocketSlug(family: string, identity: string, home: string = getAuthConfigHomeDir()): string {
   const base = pocketSlug(identity)
   const taken = new Set(listPocketSlugs(family, home))
   if (!taken.has(base)) return base
@@ -95,13 +95,13 @@ export function freePocketSlug(family: string, identity: string, home: string = 
   return `${base}-${Date.now()}`
 }
 
-export function ensurePocketDir(family: string, slug: string, home: string = getAuthConfigHomeDir()): string {
+function ensurePocketDir(family: string, slug: string, home: string = getAuthConfigHomeDir()): string {
   const dir = pocketDir(family, slug, home)
   mkdirSync(dir, { recursive: true, mode: 0o700 })
   return dir
 }
 
-export function removePocketDir(family: string, slug: string, home: string = getAuthConfigHomeDir()): boolean {
+function removePocketDir(family: string, slug: string, home: string = getAuthConfigHomeDir()): boolean {
   const dir = pocketDir(family, slug, home)
   if (!isPocketDir(dir, home) || !existsSync(dir)) return false
   try {
@@ -185,19 +185,11 @@ function loadProjectChoices(): void {
   }
 }
 
-export function projectChoicesLoading(): boolean {
-  return projectLoading
-}
-
 export function chosenSignIn(family: string): SignInChoice | undefined {
   const name = familyWord(family)
   if (name === undefined) return undefined
   loadProjectChoices()
   return sessionChoices.get(name) ?? projectChoices.get(name)
-}
-
-export function chosenSourceKind(family: string): string | undefined {
-  return chosenSignIn(family)?.kind
 }
 
 export function signInHome(family: string): string {
@@ -243,11 +235,6 @@ export function withSignInHome<T>(family: string, dir: string | null, run: () =>
     if (previous === undefined) transientHomes.delete(name)
     else transientHomes.set(name, previous)
   }
-}
-
-export function transientSignInHome(family: string): string | undefined {
-  const name = familyWord(family)
-  return name === undefined ? undefined : transientHomes.get(name)
 }
 
 const peeks = new Map<string, number>()
@@ -378,12 +365,12 @@ export function useHomeSignIn(family: string, kind: string, write?: () => void):
   setSessionSignIn(name, { identity: `${name}:${kind}`, dir: null, kind })
 }
 
-export interface ChoiceFall {
+interface ChoiceFall {
   session: boolean
   project: boolean
 }
 
-export function forgetChoicesOf(family: string, dir: string): ChoiceFall {
+function forgetChoicesOf(family: string, dir: string): ChoiceFall {
   const name = familyWord(family)
   const fall: ChoiceFall = { session: false, project: false }
   if (name === undefined) return fall
