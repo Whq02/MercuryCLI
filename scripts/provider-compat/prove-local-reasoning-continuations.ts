@@ -111,5 +111,22 @@ section('4 · the local lane profile asks for it')
   check('the whole-history law (Kimi\'s) stays off on local', profile.keepsReasoningHistory === undefined || profile.keepsReasoningHistory('qwen3.5:9b') === false)
 }
 
+section('5 · an assistant turn with no text, no kept reasoning and no call never replays as content "" (Devstral\'s template rejects it): it reads the thinking-only row')
+{
+  const { ASSISTANT_THINKING_ONLY_ROW } = await import('../../src/services/providers/zai/zaiCodec.ts')
+  const silent = [
+    { role: 'user', content: 'first' },
+    { role: 'assistant', content: [{ type: 'thinking', thinking: 'only thought', signature: '' }] },
+    { role: 'user', content: 'say it' },
+  ] as unknown as readonly MessageParam[]
+  const dropped = assistants(mapMessagesToZai('sys', silent))
+  check('reasoning off the wire: the row carries the thinking-only words, never ""', dropped[0]?.content === ASSISTANT_THINKING_ONLY_ROW && dropped[0].content !== '' && !('reasoning_content' in dropped[0]), JSON.stringify(dropped[0]))
+  const kept = assistants(mapMessagesToZai('sys', silent, { keepReasoningHistory: true }))
+  check('reasoning kept on the wire: content stays "" beside reasoning_content (the pinned Kimi shape)', kept[0]?.content === '' && kept[0].reasoning_content === 'only thought', JSON.stringify(kept[0]))
+  const call = assistants(mapMessagesToZai('sys', [{ role: 'user', content: 'go' }, { role: 'assistant', content: [{ type: 'tool_use', id: 't', name: 'Read', input: {} }] }] as unknown as readonly MessageParam[]))
+  check('beside a call content stays null (the documented shape)', call[0]?.content === null && call[0].tool_calls?.length === 1, JSON.stringify(call[0]))
+  check('the words name what happened', ASSISTANT_THINKING_ONLY_ROW === '(thinking)')
+}
+
 console.log(failures === 0 ? '\nprove-local-reasoning-continuations: ALL GREEN' : `\nprove-local-reasoning-continuations: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
