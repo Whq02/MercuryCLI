@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 // gate-watch: src/utils/cockpit/zenMode.ts src/hooks/useLayoutTier.ts src/context/layoutChromeContext.tsx src/components/FullscreenLayout.tsx src/utils/helmGeometry.ts src/utils/settings/types.ts
 // gate-watch: src/commands/zen/index.ts src/commands/zen/zen.tsx src/commands.ts src/components/HelpV2/commandDomains.ts src/components/BaseTextInput.tsx src/hooks/useTypeahead.tsx
+// gate-watch: src/components/MercuryFrame.tsx src/components/Settings/Config.tsx src/components/SettingsPopupSlot.tsx src/commands/config/config.tsx src/utils/cockpit/settingsPopup.ts
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -61,6 +62,9 @@ const { default: zenCommand } = await import('../../src/commands/zen/index.ts')
 const { call: callZen, executeZen } = await import('../../src/commands/zen/zen.tsx')
 const { builtinCommands } = await import('../../src/commands.ts')
 const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.ts')
+const { closeSettingsPopup, openSettingsPopup } = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { configPopupRequest } = await import('../../src/commands/config/config.tsx')
+const { CONFIG_POPUP_HINT } = await import('../../src/components/Settings/Config.tsx')
 const h = React.createElement
 
 const COMPOSER = 'Type a prompt'
@@ -209,9 +213,11 @@ const composerWhole = (frame: string[], cols: number): boolean => {
   return top[0] === '╭' && top[cols - 1] === '╮' && bottom[0] === '╰' && bottom[cols - 1] === '╯'
 }
 const summaryRow = (frame: string[]): string => frame[frame.length - 1] ?? ''
+const zenChipRow = (frame: string[]): number => frame.findIndex(line => /(^|·\s)zen(\s·|\s*$)/.test(line))
 
 function cockpitReadsAsPlanned(label: string, frame: string[], cols: number, rows: number): void {
   const cockpit = cols >= LAYOUT_BREAKPOINTS.cockpitMin && rows >= LAYOUT_BREAKPOINTS.cockpitMinRows
+  check(`${label}: no zen chip while zen is off`, zenChipRow(frame) < 0, frame[zenChipRow(frame)] ?? '')
   if (!cockpit) {
     check(`${label}: below the cockpit size the chat is rail-less as before (no lanes rail, no vitals rail, the band rule spans the width)`, !hasRail(frame, 'lanes') && !hasRail(frame, 'vitals') && fullWidthRule(frame, cols), frame.slice(0, 4).join(' | '))
     return
@@ -221,11 +227,13 @@ function cockpitReadsAsPlanned(label: string, frame: string[], cols: number, row
   check(`${label}: ${shape} exactly as railPlan gives them at ${cols} columns (lanes ${plan.lanesW} wide${plan.vitals ? `, vitals ${plan.vitalsW} wide` : ''})`, hasRail(frame, 'lanes') && hasRail(frame, 'vitals') === plan.vitals && centreBorderAt(frame, plan.lanesW) && (!plan.vitals || centreBorderAt(frame, cols - 1 - plan.vitalsW)), frame.slice(0, 3).map(line => line.slice(0, 60)).join(' | '))
 }
 
-function zenReadsRight(label: string, frame: string[], cols: number): void {
+function zenReadsRight(label: string, frame: string[], cols: number, lastRow: RegExp = /sessions? on/): void {
   check(`${label}: no lanes rail and no vitals rail`, !hasRail(frame, 'lanes') && !hasRail(frame, 'vitals'), frame.slice(0, 2).join(' | '))
   check(`${label}: the chat takes the full width (the band rule spans ${cols} columns, the transcript starts at the edge)`, fullWidthRule(frame, cols) && frame.some(line => line.startsWith('13:00:01 [op]')), frame.slice(0, 6).join(' | '))
   check(`${label}: the composer is whole across the width`, composerWhole(frame, cols), frame.slice(composerRow(frame) - 1, composerRow(frame) + 2).join(' | '))
-  check(`${label}: the status row is whole (the sessions summary at the last row)`, /sessions? on/.test(summaryRow(frame)) && cells(summaryRow(frame)).length === cols, summaryRow(frame))
+  check(`${label}: the status row is whole (${lastRow.source} at the last row)`, lastRow.test(summaryRow(frame)) && cells(summaryRow(frame)).length === cols, summaryRow(frame))
+  const chipRow = zenChipRow(frame)
+  check(`${label}: the zen chip sits on the status row above the composer`, chipRow >= 0 && chipRow < composerRow(frame) && chipRow > composerRow(frame) - 4, chipRow < 0 ? 'no zen chip' : `chip row ${chipRow}, composer row ${composerRow(frame)}`)
 }
 
 section('§1 zen off, on, off at the four pinned sizes — the rails as the plan gives them, then none, then back')
@@ -294,6 +302,56 @@ section('§2 the command: /zen on · /zen off · bare /zen · /zen maybe, the fi
   const hinted = scene.lines()
   save('composer-zen-hint', hinted)
   check('the composer shows the greyed argument hint [on|off] after /zen (the cursor cell between)', hinted.some(line => /^│❯ \/zen\s{1,2}\[on\|off\]/.test(line)), hinted.filter(line => line.includes('/zen')).join(' | '))
+  await scene.close()
+}
+
+section('§3 the /config row "Zen mode — rails hidden" reads the same setting: → flips it live, ↵ saves it, esc reverts it')
+{
+  const ROW = 'Zen mode — rails hidden'
+  const rowValue = (frame: string[]): string | undefined => frame.map(line => new RegExp(`${ROW}\\s+(on|off)\\b`).exec(line)?.[1]).find(value => value !== undefined)
+  const scene = await openScene(177, 49)
+  const context = { messages: [], options: { engineModel: getEngineModel() }, getAppState: () => getDefaultAppState(), setAppState: () => {} }
+  const open = async (): Promise<void> => {
+    openSettingsPopup(configPopupRequest(context as never))
+    check('the /config popup painted over the chat', await until(() => scene.lines().join('\n').includes(CONFIG_POPUP_HINT), 8000))
+    await scene.settle(300)
+    scene.push('/')
+    await scene.settle(150)
+    for (const letter of 'zen') { scene.push(letter); await scene.settle(80) }
+    scene.push('\r')
+    await scene.settle(300)
+  }
+  await open()
+  const found = scene.lines()
+  save('config-zen-row-off', found)
+  check(`the search lands on the row "${ROW}" reading off`, rowValue(found) === 'off', found.filter(line => line.includes('Zen')).join(' | '))
+  scene.push('\x1b[C')
+  await scene.settle()
+  const flipped = scene.lines()
+  save('config-zen-row-on', flipped)
+  check('→ flips the row to on and the file reads true', rowValue(flipped) === 'on' && savedZen() === true, `${rowValue(flipped)} · file ${String(savedZen())}`)
+  check('the layout follows at once under the popup (no rails, the zen chip)', !hasRail(flipped, 'lanes') && !hasRail(flipped, 'vitals') && zenChipRow(flipped) >= 0, flipped.slice(0, 2).join(' | '))
+  scene.push('\r')
+  await scene.settle()
+  const saved = scene.lines()
+  save('config-zen-saved', saved)
+  check('↵ saves and closes; zen stays on', !saved.join('\n').includes(CONFIG_POPUP_HINT) && savedZen() === true && zenModeOn())
+  zenReadsRight('after the /config save', saved, 177, /^set zen mode to on/)
+  await open()
+  check('reopened, the row reads on', rowValue(scene.lines()) === 'on', scene.lines().filter(line => line.includes('Zen')).join(' | '))
+  scene.push('\x1b[C')
+  await scene.settle()
+  check('→ flips it off again live', rowValue(scene.lines()) === 'off' && savedZen() === undefined && hasRail(scene.lines(), 'lanes'), `${rowValue(scene.lines())} · file ${String(savedZen())}`)
+  scene.push('\x1b')
+  await scene.settle()
+  check('esc reverts the unsaved flip: the file reads true and the rails hide again', savedZen() === true && zenModeOn() && !hasRail(scene.lines(), 'lanes'), `file ${String(savedZen())}`)
+  scene.push('\x1b')
+  await scene.settle()
+  check('a second esc closes the popup', !scene.lines().join('\n').includes(CONFIG_POPUP_HINT))
+  closeSettingsPopup()
+  check('/zen off from the command reads the same setting the row wrote', (executeZen('off').message) === 'zen off — rails back · saved for later boots' && savedZen() === undefined)
+  await scene.settle()
+  check('the chat is back to its first frame', hasRail(scene.lines(), 'lanes') && hasRail(scene.lines(), 'vitals') && zenChipRow(scene.lines()) < 0)
   await scene.close()
 }
 

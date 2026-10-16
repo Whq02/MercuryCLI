@@ -13,6 +13,7 @@ type LayoutChromeState = Readonly<{
   fullscreen: boolean
   chrome: ChromeMode
   isCompact: boolean
+  zen: boolean
 }>
 
 const LayoutChromeContext = createContext<LayoutChromeState | null>(null)
@@ -24,14 +25,15 @@ export function LayoutChromeProvider({ children, fullscreen: fullscreenOverride 
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)
   const fullscreen = fullscreenOverride ?? isFullscreenEnvEnabled()
-  const { chrome, isCompact } = fullscreen ? layoutChromeLive(columns, rows) : { chrome: 'inline' as const, isCompact: false }
+  const { chrome, isCompact, zen } = fullscreen ? layoutChromeLive(columns, rows) : { chrome: 'inline' as const, isCompact: false, zen: false }
   const value = useMemo<LayoutChromeState>(() => ({
     realColumns: columns,
     realRows: rows,
     fullscreen,
     chrome,
     isCompact,
-  }), [columns, rows, fullscreen, chrome, isCompact])
+    zen,
+  }), [columns, rows, fullscreen, chrome, isCompact, zen])
   return <LayoutChromeContext.Provider value={value}>{children}</LayoutChromeContext.Provider>
 }
 
