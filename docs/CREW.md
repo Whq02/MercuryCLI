@@ -196,8 +196,8 @@ foreground and in the background alike, except the few that need you present
 (AskUserQuestion, ApolloReview, AskAdvisor) or reach past the crewmate's own
 work (Computer, Journal, TaskStop, Workflow, CronCreate, CronDelete,
 ScheduleWakeup, RecordConvention, and the Crewmate tool itself). The
-processes a crewmate starts — background shells, Eval kernels, the services
-it starts for the session, debug sessions, its browser — end when it ends; a
+processes a crewmate starts (background shells, Eval kernels, the services
+it starts for the session, debug sessions, its browser) end when it ends; a
 service it starts with the `project` lifecycle outlives it, as that lifecycle
 says. `mercury-scout` is the read-only
 reconnaissance agent: it locates files, searches code and answers
