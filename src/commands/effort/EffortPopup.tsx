@@ -40,22 +40,22 @@ import {
   type EffortValue,
 } from '../../utils/effort.js'
 
-export const EFFORT_POPUP_VIEW = 'effort'
+const EFFORT_POPUP_VIEW = 'effort'
 export const EFFORT_POPUP_HINT = '↑↓ move · ↵ apply · esc or click outside closes'
-export const EFFORT_POPUP_AUTO = 'auto'
+const EFFORT_POPUP_AUTO = 'auto'
 const EFFORT_POPUP_ENV_VAR = 'MERCURY_EFFORT_LEVEL'
 const WORD_COLUMN = 8
 const STATE_COLUMN = displayWidth(MODEL_PICKER_CURRENT) + 1
 const LEAD_COLUMN = 2
 
-export type EffortPopupRow = { value: EffortLevel | typeof EFFORT_POPUP_AUTO; word: string; description: string }
+type EffortPopupRow = { value: EffortLevel | typeof EFFORT_POPUP_AUTO; word: string; description: string }
 
 export function effortPopupRows(model: string): EffortPopupRow[] {
   const tiers: EffortPopupRow[] = selectableEffortLevels(model).map(level => ({ value: level, word: level, description: getEffortLevelDescription(level) }))
   return [{ value: EFFORT_POPUP_AUTO, word: EFFORT_POPUP_AUTO, description: `The model's own default — currently ${getDisplayedEffortLabel(model, undefined)}` }, ...tiers]
 }
 
-export function effortPopupEnvLine(env: NodeJS.ProcessEnv = process.env): string | null {
+function effortPopupEnvLine(env: NodeJS.ProcessEnv = process.env): string | null {
   const view = describeEffortEnvOverride(env)
   if (view.state !== 'level' && view.state !== 'deferred') return null
   return `${EFFORT_POPUP_ENV_VAR}=${view.raw} controls this session`
@@ -96,9 +96,9 @@ export function effortPopupOpeningRow(
   return at >= 0 ? at : 0
 }
 
-export const EFFORT_POPUP_FIXED_ROWS = 5
+const EFFORT_POPUP_FIXED_ROWS = 5
 
-export function effortPopupLayout(frameRows: number, rowCount: number, envLine: boolean): { blanks: boolean; modelLine: boolean; envLine: boolean; listRows: number } {
+function effortPopupLayout(frameRows: number, rowCount: number, envLine: boolean): { blanks: boolean; modelLine: boolean; envLine: boolean; listRows: number } {
   const fixed = EFFORT_POPUP_FIXED_ROWS + (envLine ? 1 : 0)
   if (fixed + 2 + rowCount <= frameRows) return { blanks: true, modelLine: true, envLine, listRows: rowCount }
   if (fixed + rowCount <= frameRows) return { blanks: false, modelLine: true, envLine, listRows: rowCount }
