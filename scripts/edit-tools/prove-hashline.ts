@@ -11,6 +11,16 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_LINE_ANCHORS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
+if (process.argv.includes('--print-read-line-anchors-field')) {
+  const gateArg = process.argv.find(a => a.startsWith('--gate='))
+  if (gateArg) process.env.MERCURY_LINE_ANCHORS = gateArg.slice('--gate='.length)
+  const { FileReadTool: tool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { z } = await import('zod/v4')
+  const properties = (z.toJSONSchema((tool as { inputSchema: never }).inputSchema) as { properties?: Record<string, { description?: string }> }).properties ?? {}
+  console.log(JSON.stringify(properties.line_anchors?.description ?? null))
+  process.exit(0)
+}
+
 if (process.argv.includes('--print-read-schema-keys')) {
   const gateArg = process.argv.find(a => a.startsWith('--gate='))
   if (gateArg) process.env.MERCURY_LINE_ANCHORS = gateArg.slice('--gate='.length)
@@ -325,11 +335,6 @@ section('R. the anchored read mode (real FileReadTool)')
   const promptOff = await (FileReadTool as unknown as { prompt: Function }).prompt()
   delete process.env.MERCURY_LINE_ANCHORS
   const promptOn = await (FileReadTool as unknown as { prompt: Function }).prompt()
-  check(
-    'R8 the teaching line rides the gate',
-    !String(promptOff).includes('line_anchors') && String(promptOn).includes('line_anchors') && String(promptOn).includes('N#hhhh'),
-  )
-
   const probe = (gate: string | null): string[] => {
     const args = [process.argv[1]!, '--print-read-schema-keys']
     if (gate !== null) args.push(`--gate=${gate}`)
@@ -347,6 +352,28 @@ section('R. the anchored read mode (real FileReadTool)')
     'R9b schema keys: =0 is the exact base field set',
     JSON.stringify(keysOff) === JSON.stringify(['file_path', 'offset', 'limit', 'pages']),
     keysOff.join(','),
+  )
+  const fieldProbe = (gate: string | null): string | null => {
+    const args = [process.argv[1]!, '--print-read-line-anchors-field']
+    if (gate !== null) args.push(`--gate=${gate}`)
+    const run = spawnSync(process.execPath, args, { encoding: 'utf8' })
+    try {
+      return JSON.parse(String(run.stdout).trim().split('\n').pop() ?? 'null') as string | null
+    } catch {
+      return `<probe failed: ${String(run.stderr).slice(0, 200)}>`
+    }
+  }
+  const fieldDefault = fieldProbe(null)
+  const fieldOff = fieldProbe('0')
+  check(
+    'R8 the teaching rides the gate in the line_anchors field (on: it names the N#hhhh anchor and the Edit address; off: no field) and the prompt never restates it',
+    typeof fieldDefault === 'string' &&
+      fieldDefault.includes('content anchor ("N#hhhh")') &&
+      fieldDefault.includes('anchor-qualified Edit hunks') &&
+      fieldOff === null &&
+      !String(promptOff).includes('line_anchors') &&
+      !String(promptOn).includes('line_anchors'),
+    JSON.stringify({ fieldDefault, fieldOff }),
   )
 }
 
