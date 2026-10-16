@@ -64,6 +64,7 @@ import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
   createAgentWorktree,
   preflightWorktreeCapability,
+  unlockAgentWorktree,
 } from '../../utils/worktree.js'
 import { crewWorktreeLeftoverNoted, crewWorktreeLeftoverOf, crewWorktreeReminderTail, noteCrewWorktreeLeftover } from '../../utils/crew/crewWorktreeReminder.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -590,6 +591,7 @@ export const AgentTool = buildTool({
       if (cleanupDone || !worktreeInfo) return {}
       cleanupDone = true
       try {
+        if (worktreeInfo.gitRoot !== undefined) await unlockAgentWorktree(worktreeInfo.worktreePath, worktreeInfo.gitRoot)
         const leftover = await crewWorktreeLeftoverOf(
           {
             name: input.name ?? input.description,

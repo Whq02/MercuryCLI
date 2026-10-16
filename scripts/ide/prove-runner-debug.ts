@@ -265,7 +265,8 @@ section('G. the go plan: dlv builds the package\'s test binary, one test by anch
     check('G8 go present, dlv absent: unavailable with the delve install line', 'state' in noDlv && noDlv.reason.includes("'dlv' not on PATH") && noDlv.remedy === plans.DLV_INSTALL_REMEDY, JSON.stringify(noDlv))
     const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
     const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'TestAdd' } as never, ctx))) as { data: { result: string; outcome: string } }
-    check('G9 the Test tool answers the same unavailable + remedy for a Go project without dlv', out.data.outcome === 'failed' && out.data.result.startsWith("debug unavailable: 'dlv' not on PATH") && out.data.result.includes(plans.DLV_INSTALL_REMEDY), out.data.result)
+    const firstLine = out.data.result.split('\n')[0] ?? ''
+    check('G9 the Test tool names the missing Go debugger with the delve install line in one line, runs the test without a stop, and follows with the run\'s own words', firstLine === `no Go debugger (dlv) on this machine — ${plans.DLV_INSTALL_REMEDY}; the test ran without a stop` && /go test -json -run TestAdd/.test(out.data.result), out.data.result)
   } finally {
     process.env.PATH = savedPath
   }

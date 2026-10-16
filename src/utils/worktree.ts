@@ -726,7 +726,7 @@ export async function createAgentWorktree(
   }
 }
 
-async function unlockAgentWorktree(worktreePath: string, gitRoot: string): Promise<void> {
+export async function unlockAgentWorktree(worktreePath: string, gitRoot: string): Promise<void> {
   await runGit(['worktree', 'unlock', worktreePath], gitRoot)
 }
 

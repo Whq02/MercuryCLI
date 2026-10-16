@@ -263,6 +263,21 @@ export function clipToWord(text: string, max: number): string {
   return `${(cut > max / 2 ? head.slice(0, cut) : head).trimEnd()}…`
 }
 
+export function mcpServerFailedWords(name: string, reason: string | undefined): string {
+  const why = (reason ?? '').trim()
+  return `MCP server \`${name}\` did not start${why !== '' ? `: ${why}` : ''}; its tools are not available this session`
+}
+
+export function mcpServersFailed(clients: ReadonlyArray<{ name: string; type: string; error?: string }>): Array<{ name: string; reason: string }> {
+  const out: Array<{ name: string; reason: string }> = []
+  for (const client of clients) {
+    if (client.type !== 'failed') continue
+    if (out.some(entry => entry.name === client.name)) continue
+    out.push({ name: client.name, reason: (client.error ?? '').trim() })
+  }
+  return out
+}
+
 const OPERATOR_SERVER_TYPES = ['stdio', 'sse', 'http', 'ws'] as const
 
 type SchemaIssue = {

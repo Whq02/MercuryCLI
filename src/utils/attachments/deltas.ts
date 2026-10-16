@@ -8,6 +8,7 @@ import {
   getMcpInstructionsDelta,
   isMcpInstructionsDeltaEnabled,
 } from '../mcpInstructionsDelta.js'
+import { mcpServerFailedWords, mcpServersFailed } from '../../services/mcp/utils.js'
 import {
   getDeferredToolsDelta,
   isToolSearchEnabledOptimistic,
@@ -61,6 +62,22 @@ export function getHeldToolsAttachment(rosterOwner: string, messages: Message[])
   const names = held.filter(name => !announced.has(name)).sort()
   if (names.length === 0) return []
   return [{ type: 'held_tools', names, body: heldToolsBody(names) }]
+}
+
+export function getMcpServersFailedAttachment(
+  mcpClients: ReadonlyArray<{ name: string; type: string; error?: string }>,
+  messages: readonly Message[] | undefined,
+): Attachment[] {
+  const failed = mcpServersFailed(mcpClients)
+  if (failed.length === 0) return []
+  const announced = new Set<string>()
+  for (const message of messages ?? []) {
+    if (message.type !== 'attachment' || message.attachment.type !== 'mcp_servers_failed') continue
+    for (const server of message.attachment.servers) announced.add(server.name)
+  }
+  const servers = failed.filter(server => !announced.has(server.name))
+  if (servers.length === 0) return []
+  return [{ type: 'mcp_servers_failed', servers, body: servers.map(server => mcpServerFailedWords(server.name, server.reason)).join('\n') }]
 }
 
 export function getMcpInstructionsDeltaAttachment(

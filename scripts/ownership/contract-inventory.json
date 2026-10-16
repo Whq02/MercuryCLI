@@ -329,6 +329,7 @@
    ],
    "src/services/mcp/config.ts": [
     "PROJECT_MCP_FILE",
+    "PROJECT_MCP_FILE_SPELLING",
     "addMcpConfig",
     "areMcpConfigsAllowedWithEnterpriseMcpConfig",
     "dedupAnthropicConnectors",
@@ -343,6 +344,7 @@
     "getMercuryMcpConfigs",
     "getProjectMcpConfigsFromCwd",
     "isMcpServerDisabled",
+    "mcpServersSkippedForTrustLine",
     "parseMcpConfig",
     "parseMcpConfigFromFilePath",
     "projectMcpFilePath",

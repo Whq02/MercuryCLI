@@ -54,16 +54,16 @@ export function normalizeCaseForComparison(path: string): string {
   return path.toLowerCase()
 }
 
-function toPosixPath(path: string): string {
-  return getPlatform() === 'windows' ? windowsPathToPosixPath(path) : path
+function toPosixPath(path: string, platform: ReturnType<typeof getPlatform> = getPlatform()): string {
+  return platform === 'windows' ? windowsPathToPosixPath(path) : path
 }
 
-export function relativePath(from: string, to: string): string {
-  const a = toPosixPath(from)
-  const b = toPosixPath(to)
+export function relativePath(from: string, to: string, platform: ReturnType<typeof getPlatform> = getPlatform()): string {
+  const a = toPosixPath(from, platform)
+  const b = toPosixPath(to, platform)
   const aParts = a.split(posixPath.sep).filter(Boolean)
   const bParts = b.split(posixPath.sep).filter(Boolean)
-  const fold = getPlatform() === 'windows' ? (part?: string) => part?.toLowerCase() : (part?: string) => part
+  const fold = platform === 'windows' ? (part?: string) => part?.toLowerCase() : (part?: string) => part
   let i = 0
   while (i < aParts.length && i < bParts.length && fold(aParts[i]) === fold(bParts[i])) i++
   const up = aParts.slice(i).map(() => '..')
