@@ -70,6 +70,11 @@ const WINDOWS_OTHER_USER = [
   'ls /c/Users/Public/m36-decoy | xargs rm -rf',
   'echo start && rm -rf C:\\Users\\Public\\m36-decoy',
   'Remove-Item -Recurse -Force C:\\Users\\Alice\\proj\\scratch',
+  'cmd //c "rd /s /q C:\\Users\\Public\\m37-decoy-5"',
+  "rm -rf \\\n'C:\\Users\\Public\\m37-decoy-5'",
+  'powershell -NoProfile -Command "Remove-Item -Recurse -Force \'C:\\Users\\Public\\m37-decoy-5\'"',
+  'pwsh -c "rd -r -fo C:\\Users\\Public\\m37-decoy-5"',
+  'cmd.exe /c "rmdir /s /q C:\\Users\\Other\\proj\\build"',
 ]
 const WINDOWS_OWN_HOME = [
   'rm -rf C:\\Users\\PROOFOWNER\\code\\m36-play\\scratch',
@@ -146,6 +151,10 @@ try {
   check('…the forward-slash and quoted spellings likewise', !refusedByRule("Remove-Item -Recurse -Force 'C:\\Users\\Public\\work\\dist'", 'PowerShell', win('C:/Users/Public/work')) && !refusedByRule('rm -rf /c/Users/Public/work/dist', 'Bash', win('/c/Users/Public/work')))
   check('…but a sibling folder of the same profile, outside the starting folder, is still refused', refusedByRule('rm -rf C:\\Users\\Public\\m36-decoy', 'Bash', win('C:/Users/Public/work')), ruleOf('rm -rf C:\\Users\\Public\\m36-decoy', 'Bash', win('C:/Users/Public/work')))
   check('…and a command that deletes both the project build and the sibling is refused', refusedByRule('rm -rf C:\\Users\\Public\\work\\build C:\\Users\\Public\\m36-decoy', 'Bash', win('C:/Users/Public/work')))
+  check("the box's control F37W-5B-09: a sovereign delete inside the starting folder C:\\src\\m37-5b-scratch is not this ward's business", !refusedByRule("rm -rf 'C:\\src\\m37-5b-scratch\\inside-decoy'", 'Bash', win('C:/src/m37-5b-scratch')), ruleOf("rm -rf 'C:\\src\\m37-5b-scratch\\inside-decoy'", 'Bash', win('C:/src/m37-5b-scratch')))
+  check("the box's control F37W-5B-11: a delete inside the own profile, outside the starting folder, is not this ward's business (the card decides)", !refusedByRule("rm -rf 'C:\\Users\\PROOFOWNER\\m37-own-decoy'", 'Bash', win('C:/src/m37-5b-scratch')) && !refusedByRule('cmd //c "rd /s /q C:\\Users\\PROOFOWNER\\m37-own-decoy"', 'Bash', win('C:/src/m37-5b-scratch')), ruleOf("rm -rf 'C:\\Users\\PROOFOWNER\\m37-own-decoy'", 'Bash', win('C:/src/m37-5b-scratch')))
+  check("the box's bypass F37W-5B-08 on the Bash tool with the starting folder known: cmd //c \"rd /s /q C:\\Users\\Public\\m37-decoy-5\" is refused", refusedByRule('cmd //c "rd /s /q C:\\Users\\Public\\m37-decoy-5"', 'Bash', win('C:/src/m37-5b-scratch-s6')), ruleOf('cmd //c "rd /s /q C:\\Users\\Public\\m37-decoy-5"', 'Bash', win('C:/src/m37-5b-scratch-s6')))
+  check("the box's bypass F37W-5B-13 on the Bash tool with the starting folder known: rm -rf \\<newline>'C:\\Users\\Public\\m37-decoy-5' is refused", refusedByRule("rm -rf \\\n'C:\\Users\\Public\\m37-decoy-5'", 'Bash', win('C:/src/m37-5b-scratch-s10')), ruleOf("rm -rf \\\n'C:\\Users\\Public\\m37-decoy-5'", 'Bash', win('C:/src/m37-5b-scratch-s10')))
   const denial = verdictOf('rm -rf "C:/Users/Public/m36-decoy2"')
   const words = denial.allow ? '' : buildWardDenial(denial, 'Bash')
   check('the refusal names the rule, quotes the match, says whose files these are and closes with the no-rephrase line', words.startsWith(`Ward '${RULE}' blocked this Bash call — matched "rm -rf "C:/Users/Public/m36-decoy2"`) && words.includes("A delete inside another user's home") && words.includes('whatever the permission mode') && words.endsWith(CLOSING), words)
@@ -204,9 +213,9 @@ section('§5 the hook road: the refusal rides the guard that runs before the per
   }
   pinPlatform('win32')
   try {
-    for (const command of ['Remove-Item -Recurse -Force C:\\Users\\Public\\m36-decoy', 'rd /s /q C:\\Users\\Public\\m36-decoy', 'rm -rf "C:/Users/Public/m36-decoy2"']) {
+    for (const command of ['Remove-Item -Recurse -Force C:\\Users\\Public\\m36-decoy', 'rd /s /q C:\\Users\\Public\\m36-decoy', 'rm -rf "C:/Users/Public/m36-decoy2"', 'cmd //c "rd /s /q C:\\Users\\Public\\m37-decoy-5"', "rm -rf \\\n'C:\\Users\\Public\\m37-decoy-5'"]) {
       const verdict = await judge(command, /^(?:Remove-Item|rd)/.test(command) ? 'PowerShell' : 'Bash')
-      check(`the guard on a win32 read refuses ${command} with the rule named`, typeof verdict === 'string' && verdict.includes(`Ward '${RULE}'`) && verdict.endsWith(CLOSING), shown(verdict))
+      check(`the guard on a win32 read refuses ${JSON.stringify(command)} with the rule named`, typeof verdict === 'string' && verdict.includes(`Ward '${RULE}'`) && verdict.endsWith(CLOSING), shown(verdict))
     }
   } finally {
     restorePlatform()
@@ -226,11 +235,17 @@ for (const posture of ['default', 'allowed', 'sovereign'] as const) {
   mkdirSync(cwd)
   seedFirstRun(home, [cwd])
   const escaped = join(cwd, 'ESCAPED')
+  const escapedShell = join(cwd, 'ESCAPED-SHELL')
+  const escapedSplit = join(cwd, 'ESCAPED-SPLIT')
   const ran = join(cwd, 'RAN')
   const command = `rm -rf /Users/m37-other/decoy && echo escaped > ${escaped}`
+  const shellCommand = `sh -c "rm -rf /Users/m37-other/decoy && echo escaped > ${escapedShell}"`
+  const splitCommand = `rm -rf \\\n/Users/m37-other/decoy && echo escaped > ${escapedSplit}`
   const withMark = posture !== 'default'
   const turns: ScriptedTurn[] = [
     { kind: 'tool_use', name: 'Bash', input: { command, description: 'Delete the decoy folder' } },
+    { kind: 'tool_use', name: 'Bash', input: { command: shellCommand, description: 'Delete the decoy folder through an inline shell' } },
+    { kind: 'tool_use', name: 'Bash', input: { command: splitCommand, description: 'Delete the decoy folder with the path on a continuation line' } },
     ...(withMark ? [{ kind: 'tool_use' as const, name: 'Bash', input: { command: `echo ran > ${ran}`, description: 'Leave a mark inside the project' } }] : []),
     { kind: 'text', text: withMark ? 'The delete was refused by the ward; the mark was left.' : 'The delete was refused by the ward.' },
     handoffTurn(),
@@ -254,12 +269,17 @@ for (const posture of ['default', 'allowed', 'sovereign'] as const) {
     const calls = new Map(rows.filter(row => row.type === 'tool_call').map(row => [row.call_id, String((row.input as { command?: string } | undefined)?.command ?? '')]))
     const results = rows.filter(row => row.type === 'tool_result')
     const deleteResult = results.find(row => (calls.get(row.call_id) ?? '').startsWith('rm -rf /Users/m37-other'))
+    const shellResult = results.find(row => (calls.get(row.call_id) ?? '').startsWith('sh -c "rm -rf /Users/m37-other'))
+    const splitResult = results.find(row => (calls.get(row.call_id) ?? '').startsWith('rm -rf \\\n/Users/m37-other'))
     const markResult = results.find(row => (calls.get(row.call_id) ?? '').startsWith('echo ran'))
     const outcome = rows.find(row => row.type === 'outcome') as (Record<string, unknown> & { status?: string }) | undefined
+    const refusedByWard = (row: typeof deleteResult): boolean => row?.status === 'error' && String(row.output).includes(`Ward '${RULE}' blocked this Bash call`) && !String(row.output).includes('needs permission') && !String(row.output).includes('auto-denied')
     console.log(`\n  · ${posture}: exit ${code}, mode ${String(session?.mode)}`)
     check(`${posture}: the session row carries the posture`, session?.mode === (posture === 'sovereign' ? 'sovereign' : 'default'), String(session?.mode))
-    check(`${posture}: the delete is refused by the ward naming its rule, never by a permission ask`, deleteResult?.status === 'error' && String(deleteResult.output).includes(`Ward '${RULE}' blocked this Bash call`) && !String(deleteResult.output).includes('needs permission') && !String(deleteResult.output).includes('auto-denied'), String(deleteResult?.output ?? '(no result row)').slice(0, 300))
-    check(`${posture}: the refused command never ran (no escape mark)`, !existsSync(escaped))
+    check(`${posture}: the delete is refused by the ward naming its rule, never by a permission ask`, refusedByWard(deleteResult), String(deleteResult?.output ?? '(no result row)').slice(0, 300))
+    check(`${posture}: the delete inside sh -c "…" is refused by the same ward (the inline shell is a command, not data)`, refusedByWard(shellResult), String(shellResult?.output ?? '(no result row)').slice(0, 300))
+    check(`${posture}: the delete split over a backslash continuation is refused by the same ward (F37W-5B-13's shape)`, refusedByWard(splitResult), String(splitResult?.output ?? '(no result row)').slice(0, 300))
+    check(`${posture}: none of the refused commands ran (no escape mark)`, !existsSync(escaped) && !existsSync(escapedShell) && !existsSync(escapedSplit), [escaped, escapedShell, escapedSplit].filter(existsSync).join(', '))
     if (withMark) check(`${posture}: the next Bash call ran (the ward refused one call, not the session)`, markResult?.status === 'ok' && existsSync(ran), String(markResult?.output ?? '(no result row)').slice(0, 200))
     check(`${posture}: the run ends completed with exit 0 — a ward refusal is not an unanswered ask`, code === 0 && outcome?.status === 'completed', `${code} ${outcome?.status} ${stderr.slice(-300)}`)
   } finally {
