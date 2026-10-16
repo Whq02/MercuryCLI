@@ -80,14 +80,15 @@ try {
     { seq: 38, time: now, source: 'tool:Retain s:test', text: 'beta.32 website state at 2026-10-12 00:4x: main at 6bf18b0, pushed, NOT deployed; only src/panels/Licence.tsx and src/data/install.ts changed, never the queue page.' },
     { seq: 39, time: now, source: 'tool:Retain s:test', text: 'Session note (licence lane, 2026-10-12): src/panels/Licence.tsx must keep the signed badge; the lane landed on main.' },
     { seq: 40, time: now, source: 'tool:Retain s:test', text: 'Never edit src/panels/Licence.tsx without re-running the licence census.' },
+    { seq: 41, time: now, source: 'tool:Retain s:test', text: 'Licence lane (1.0.0-beta.35), 2026-10-14 09:1x: the owner flipped the review seat into the fix seat; src/panels/Licence.tsx must keep the signed badge; DONE at dc5853f07f.' },
   )
   writeFileSync(join(dir, 'topic-harbour.md'), serializeTopicDoc(doc))
   const licence = getRelevantMemoryAttachments(null, [turn('tidy the licence panel', 'u6'), { type: 'assistant', uuid: 'a6', timestamp: now, message: { role: 'assistant', content: [{ type: 'tool_use', id: 't6', name: 'Edit', input: { file_path: join(home, 'repo/src/panels/Licence.tsx'), old_string: 'a', new_string: 'b' } }] } } as never, { type: 'user', uuid: 'r6', timestamp: now, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't6', content: 'ok' }] } } as never], context)
   const licenceIds = memoryRows(licence).flatMap(row => row.ids ?? [])
   assert.ok(licenceIds.includes('seq:40'), 'the rule about the edited file triggers')
-  assert.ok(!licenceIds.includes('seq:38') && !licenceIds.includes('seq:39'), 'a dated state note or a session note naming the file is never bound as a constraint or carried as a companion')
+  assert.ok(!licenceIds.includes('seq:38') && !licenceIds.includes('seq:39') && !licenceIds.includes('seq:41'), 'a dated state note, a session note or a lane note ("<name> lane (<version>), <date>:") naming the file is never bound as a constraint or carried as a companion')
   const verdicts = automaticMemoryCandidates('tidy the licence panel', { dir, files: [join(home, 'repo/src/panels/Licence.tsx')], limit: Infinity })
-  assert.ok(!verdicts.some(row => (row.id === 'seq:38' || row.id === 'seq:39') && (row.admission === 'constraint' || row.admission === 'companion')), 'the verdicts agree: no constraint or companion admission for the two notes')
+  assert.ok(!verdicts.some(row => (row.id === 'seq:38' || row.id === 'seq:39' || row.id === 'seq:41') && (row.admission === 'constraint' || row.admission === 'companion')), 'the verdicts agree: no constraint or companion admission for the three notes')
   assert.ok(verdicts.find(row => row.id === 'seq:38')?.historical?.names === 32 || !verdicts.some(row => row.id === 'seq:38'), 'a state note naming an older cycle is marked historical when it rides at all')
   const limits = getRelevantMemoryAttachments(null, [turn('raise the limits', 'u5'), ...toolRound('sed -n 1,20p config/limits.yaml', 'r5')], context)
   assert.ok(memoryRows(limits).flatMap(row => row.ids ?? []).includes('seq:36'), 'a rule citing config/… triggers when a command names that file')
