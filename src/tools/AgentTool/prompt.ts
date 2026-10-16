@@ -43,7 +43,7 @@ function contentSearchHint(): string {
 function crewmateToolboxNote(offered?: ReadonlySet<string>): string {
   const barred = Object.keys(CREWMATE_BARRED_TOOLS).filter(name => name !== AGENT_TOOL_NAME && (offered === undefined || offered.has(name)))
   const except = barred.length > 0 ? `${barred.join(', ')} and the ${AGENT_TOOL_NAME} tool itself` : `the ${AGENT_TOOL_NAME} tool itself`
-  return `A crewmate carries every tool of this session except ${except} — the few that need the operator present or reach past its own work — in the foreground and in the background alike; the processes it starts (background shells, code kernels, services, debug sessions, its browser) end when it ends.`
+  return `A crewmate carries every tool of this session except ${except} — the few that need the operator present or reach past its own work — in the foreground and in the background alike; the processes it starts (background shells, code kernels, the services it starts for the session, debug sessions, its browser) end when it ends.`
 }
 
 export async function getPrompt(
