@@ -50,6 +50,8 @@ import { HelmVitalsRail } from './HelmVitalsRail.js'
 import { FilesMenuSlot } from './FilesMenuSlot.js'
 import { ModelPickerPopupSlot } from './ModelPickerPopupSlot.js'
 import { modelPickerPopupClaimed, subscribeModelPickerPopup } from '../utils/cockpit/modelPickerPopup.js'
+import { CommandPopupSlot } from './CommandPopupSlot.js'
+import { commandPopupClaim, subscribeCommandPopup } from '../utils/cockpit/commandPopup.js'
 import { SettingsPopupSlot } from './SettingsPopupSlot.js'
 import { PinnedCritterBerth } from './MercuryHome.js'
 import { CR_COLS } from '../utils/cockpit/critterData.js'
@@ -394,6 +396,8 @@ export function FullscreenLayout({
   const modalMounted = modal !== undefined && modal !== null
   const modalUp = modalMounted && modalActive
   const popupUp = useSyncExternalStore(subscribeModelPickerPopup, modelPickerPopupClaimed, modelPickerPopupClaimed) && modalMounted
+  const commandPopup = useSyncExternalStore(subscribeCommandPopup, commandPopupClaim, commandPopupClaim)
+  const commandPopupUp = commandPopup !== null && modalMounted
   const ink = useContext(InkInstanceContext)
   const covered = useContext(MotionParkContext)
   useInsertionEffect(() => {
@@ -561,6 +565,12 @@ export function FullscreenLayout({
       <ModelPickerPopupSlot hostRef={centreBoxRef} framed={centerFrame} scrollRef={modalScrollRef ?? null}>
         {modal}
       </ModelPickerPopupSlot>
+    </MotionParkContext.Provider>
+  ) : commandPopupUp ? (
+    <MotionParkContext.Provider value={false}>
+      <CommandPopupSlot hostRef={centreBoxRef} framed={centerFrame} scrollRef={modalScrollRef ?? null} shape={commandPopup.shape}>
+        {modal}
+      </CommandPopupSlot>
     </MotionParkContext.Provider>
   ) : modalMounted ? (
     <MotionParkContext.Provider value={false}>

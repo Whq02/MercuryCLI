@@ -86,9 +86,10 @@ if (process.env.HEALTH_RENDER_CHILD) {
     const grid = capture(100, 24, [])
     const lines = grid.split('\n')
     check('@100x24: the verdict banner is on-screen', /CERTIFIED|CAUTION|FAULT|examining/.test(grid))
-    check('@100x24: the keybind footer is on-screen', grid.includes('esc close') && grid.includes('re-run'))
-    check('@100x24: the position marker rides the footer tail (packFooter slots the close hint LAST)', /\d+\/\d+ · esc close/.test(grid))
+    check('@100x24: the keybind footer is on-screen', grid.includes('esc or click outside closes') && grid.includes('re-run'))
+    check('@100x24: the position marker rides the footer tail', /· \d+\/\d+\s*│/.test(grid))
     check('@100x24: page verbs are visible', grid.includes('⇞⇟ page'))
+    check('@100x24: the verdict chip sits beside the lockup on the title row', /Mercury · health · [^\n]*(CERTIFIED|CAUTION|FAULT)/.test(grid) || /examining/.test(grid))
     const bottomBorder = lines.findIndex(l => l.includes('╰'))
     check('@100x24: the frame bottom border is INSIDE the grid', bottomBorder !== -1, 'no ╰ row found — frame overflowed')
     check('@100x24: no emoji', !/[\u{1F300}-\u{1FAFF}]/u.test(grid))
@@ -102,14 +103,15 @@ if (process.env.HEALTH_RENDER_CHILD) {
     ]
     const grid = capture(100, 24, sends)
     check('@100x24 after ⇟↓↓: the ▸ cursor row is on-screen', grid.includes('▸'))
-    check('@100x24 after ⇟↓↓: the footer survived the scroll', grid.includes('esc close'))
-    const m = grid.match(/(\d+)\/(\d+) · esc close/)
+    check('@100x24 after ⇟↓↓: the footer survived the scroll', grid.includes('esc or click outside closes'))
+    const m = grid.match(/· (\d+)\/(\d+)\s*│/)
     check('@100x24 after ⇟↓↓: the position advanced past a page', !!m && Number(m[1]) > 10, m ? `at ${m[1]}/${m[2]}` : 'no marker')
   }
 
   {
     const grid = capture(120, 50, [])
-    check('@120x50: two-column certificate renders', grid.includes('esc close'))
+    check('@120x50: the certificate renders with its footer', grid.includes('esc or click outside closes'))
+    check('@120x50: the counts line reads the checks under the verdict', /\d+ checks/.test(grid))
     check('@120x50: the provenance legend is fixed chrome (≥30 rows)', grid.includes('every claim names its evidence'))
   }
 

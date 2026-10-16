@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/utils/config/** src/utils/effort* src/utils/settings/settings*
-# gate-watch: src/commands/effort/EffortSlider.tsx src/commands/effort/effort.tsx src/components/mercury-ui/EffortChip.tsx
+# gate-watch: src/commands/effort/EffortPopup.tsx src/commands/effort/effort.tsx src/components/mercury-ui/EffortChip.tsx
 # gate-watch: src/components/MercuryFrame.tsx src/components/PromptInput/PromptInput.tsx src/main.tsx
 # gate-watch: src/utils/attachments/* src/utils/config.ts src/utils/messages/attachmentText.ts
 # gate-watch: src/utils/model/seatSlots.ts src/utils/settings/types.ts src/utils/thinking.ts
