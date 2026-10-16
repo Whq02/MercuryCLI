@@ -19,6 +19,8 @@ import {
   type RuleAuthority,
 } from '../../mneme/memoryVerbs.js'
 import { mnemeLibraryDir } from '../../mneme/mnemeGates.js'
+import { latestPinIntent } from '../../mneme/memoryPinIntent.js'
+import { gradeLines, MEMORY_EVIDENCE_CONTRACT, recordGrade } from '../../mneme/memoryEvidence.js'
 import { askedReplacements, askedRuleOf, askRuleCard, correctionChange, ruleCardAsk, ruleCardText } from './ruleCard.js'
 import { confirmCitedFacts, renderFootnotes } from '../../mneme/mnemeFootnotes.js'
 import { POINTER_DEFAULT_LIMIT, POINTER_LIMIT, limitCutLine, renderPointerLine, searchPointers, type PointerResult } from '../../mneme/mnemePointers.js'
@@ -68,7 +70,7 @@ const retainSchema = lazySchema(() =>
           content: z.string().describe('One self-contained durable fact.'),
           context: z.string().optional().describe('Where the fact came from (provenance note).'),
           topic: z.string().optional().describe('Topic routing hint (slugified).'),
-          pin: z.boolean().optional().describe("Only when the user asked to remember this as a standing rule or preference: pins it, in their words, marked as asked for by the user. The asked mark comes from the user's own chat alone — a crewmate's pin is a plain pin."),
+          pin: z.boolean().optional().describe("Only when the user asked to remember this as a standing rule or preference: pins it, in their words, marked as asked for by the user. A pin needs the user's own words in the main chat — the rule in their latest message, or their 'yes, pin it' after stating it; otherwise it is refused and nothing is stored. A crewmate cannot pin: retain the fact without pin."),
           replaces: z.string().optional().describe('Only when the user said this rule replaces an earlier one: that rule as seq:<n> — from the pinned shelf, or the rule the user unpinned in /memory and now restates. The new rule takes its place and the old one becomes history, so one rule stays current. For a rule marked asked for by the user, the user answers a yes/no card first (under sovereign, no card).'),
         }),
       )
@@ -142,6 +144,7 @@ export const RetainTool = buildTool({
       input.items,
       {
         session: safeSession(),
+        pinIntent: latestPinIntent(context.messages ?? [], context.agentId ? String(context.agentId) : undefined),
         ...(context.agentId ? { agent: String(context.agentId) } : {}),
         ...(verdict?.ok === true ? { authority: verdict.via } : {}),
       },
@@ -241,7 +244,7 @@ export const RecallTool = buildTool({
     if (output.kind === 'record') {
       const footnotes = output.footnotes ? renderFootnotes(output.footnotes) : ''
       const content = output.found
-        ? `${output.content ?? ''}${output.note ? `\n[${output.note}]` : ''}${footnotes ? `\n[footnotes: ${footnotes}]` : ''}`
+        ? `${output.renderedContent ?? output.content ?? ''}${output.note ? `\n[${output.note}]` : ''}${footnotes ? `\n[footnotes: ${footnotes}]` : ''}`
         : `not found: ${output.id}${output.note ? ` — ${output.note}` : ''}`
       return { tool_use_id: toolUseID, type: 'tool_result', content, ...(output.found ? {} : { is_error: true }) }
     }
@@ -324,13 +327,13 @@ export const ReflectTool = buildTool({
       if (hit.label === 'pending') {
         pendingIndex += 1
         citable.add(`pending ${pendingIndex}`)
-        sheetLines.push(`[pending ${pendingIndex}] ${hit.preview} <${hit.signature}>`)
+        sheetLines.push(`[pending ${pendingIndex}] ${recordGrade(hit.id, hit.signature)} ${hit.preview} <${hit.signature}>`)
         continue
       }
       const seqMatch = /^seq:(\d+)$/.exec(hit.id)
       if (seqMatch) {
         citable.add(`seq ${seqMatch[1]}`)
-        sheetLines.push(`[seq ${seqMatch[1]}] ${hit.preview} <${hit.signature}>`)
+        sheetLines.push(`[seq ${seqMatch[1]}] ${recordGrade(hit.id, hit.signature)} ${hit.preview} <${hit.signature}>`)
       }
     }
     if (sheetLines.length === 0) {
@@ -348,7 +351,7 @@ export const ReflectTool = buildTool({
       const answer = await oneShotCompletion({
         model: context.options.engineModel,
         system:
-          'You synthesize an answer STRICTLY from the memory records provided. Every claim-bearing sentence cites its record like [seq 12] or [pending 1]. If the records do not answer the question, say exactly that (still citing what you checked). Never invent a record id.',
+          'You synthesize an answer STRICTLY from the memory records provided. Every claim-bearing sentence cites its record like [seq 12] or [pending 1]. If the records do not answer the question, say exactly that (still citing what you checked). Never invent a record id. ' + MEMORY_EVIDENCE_CONTRACT,
         prompt: `Question: ${input.query}${input.context ? `\nFraming: ${input.context}` : ''}\n\nMemory records:\n${sheet}`,
         signal: context.abortController.signal,
       })
@@ -383,11 +386,11 @@ export const ReflectTool = buildTool({
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
-        content: `${output.answer}\n\n[cited: ${output.citedIds?.join(', ')}]`,
+        content: `${gradeLines(output.answer ?? '', '[memory synthesis · unverified]')}\n\n[cited: ${output.citedIds?.join(', ')}]`,
       }
     }
     const hits = output.recall.hits
-      .map(hit => `- [${hit.id}] (${hit.label}) ${hit.preview}`)
+      .map(hit => `- [${hit.id}] ${recordGrade(hit.id, hit.signature)} (${hit.label}) ${hit.preview}`)
       .join('\n')
     return {
       tool_use_id: toolUseID,

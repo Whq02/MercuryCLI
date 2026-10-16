@@ -5,6 +5,7 @@ import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { readLedger } from './ledger.js'
 import { mnemeProjectKey } from './paths.js'
 import type { LedgerEntry } from './types.js'
+import { gradeLines, HANDOFF_GRADE } from './memoryEvidence.js'
 
 export function confirmCitedFacts(text: string, dir: string = mnemeLibraryDir(), now: Date = new Date()): number[] {
   if (!mnemeEnabled()) return []
@@ -158,6 +159,6 @@ export function renderLedgerEntry(s: LedgerEntry, count: number): string {
   }
   lines.push(idList('rulings', s.rulings), idList('retained', s.retained), idList('corrected', s.corrected), idList('files', s.files))
   if (s.handoff === null) lines.push(`handoff: ${NO_NOTE_LEFT}`)
-  else lines.push(`handoff (${s.handoff.at}):`, s.handoff.text)
+  else lines.push(`handoff (${s.handoff.at}):`, gradeLines(s.handoff.text, HANDOFF_GRADE))
   return lines.join('\n')
 }

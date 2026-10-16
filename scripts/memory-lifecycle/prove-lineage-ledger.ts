@@ -33,6 +33,7 @@ const frozenIso = (): string => new Date(frozen).toISOString()
 
 const ledger = await import('../../src/mneme/ledger.ts')
 const { composeEntryPage, FIRST_SESSION_LINE, ENTRY_PAGE_HEADING, NO_NOTE_LEFT } = await import('../../src/mneme/entryPage.ts')
+const { HANDOFF_GRADE } = await import('../../src/mneme/memoryEvidence.ts')
 const { lineagePath, mnemeProjectKeyFor } = await import('../../src/mneme/paths.ts')
 const { handoffAskDue, _resetHandoffAskForTesting } = await import('../../src/mneme/handoffAsk.ts')
 const { registerSessionCloser, registerSessionCloseAsk, runSessionClosers, sessionCloseAsks, _resetSessionClosersForTesting } = await import('../../src/mneme/sessionClose.ts')
@@ -96,7 +97,7 @@ try {
     const page = composeEntryPage(key, 'c')!
     check('the page says the last session left no note', page.includes(`The last session (2, ended `) && page.includes(NO_NOTE_LEFT), page)
     check('the page carries the ordinal and the count from the ledger', page.includes('Session 3 of this work; 2 sessions before it'), page)
-    check('the last note that exists is shown verbatim, named by its session', page.includes('## The last note left (session 1, ') && page.includes('A left this.\nTwo lines.'), page)
+    check('the last note that exists is shown word for word, named by its session, every line graded as a model-authored note', page.includes('## The last note left (session 1, ') && page.includes(`${HANDOFF_GRADE} A left this.\n${HANDOFF_GRADE} Two lines.`), page)
     check('the engines line names the earlier sessions\' engine with its first time; the CURRENT engine is never named', page.includes('Engines before this session: claude-fable-5-1 from ') && page.includes('(session 1)') && !page.includes('gpt-6-astra'), page)
     check('the page points at the pinned section instead of duplicating it', page.includes('Standing rulings: none pinned.'), page)
     check('the page is apart from any question: it carries no user words and starts with its own heading', page.startsWith(ENTRY_PAGE_HEADING))
