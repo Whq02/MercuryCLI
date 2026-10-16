@@ -13,6 +13,10 @@ export function recordCurrentStaticComposition(): void {
   setSystemPromptSectionCacheEntry(STATIC_SET, currentStaticSet, null)
 }
 
+export function carriesRecordedWhole(sections: readonly BoundPrefixSection[]): boolean {
+  return sections.some(section => section.name === RECORDED_WHOLE)
+}
+
 export function staticCompositionChanged(sections: readonly BoundPrefixSection[]): boolean {
   const recorded = sections.findLast(section => section.name === STATIC_SET)
   if (recorded) return recorded.value !== currentStaticSet

@@ -30,7 +30,8 @@ import {
   recordThinkingDropLedger,
   takeRewriteNoticeOnce,
 } from '../services/providers/anthropic/thinkingBinding.js'
-import { recordDroppedThinking, takePrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
+import { recordDroppedThinking, takePrefixVerdict, pendingPrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
+import { foldCacheUsage } from '../services/compact/cacheEpoch.js'
 import { boundPrefixRecordToEmit } from '../services/providers/anthropic/boundPrefixRecord.js'
 import { logForDebugging } from '../utils/debug.js'
 
@@ -61,8 +62,6 @@ import {
   requestSizeWarning,
   foldRemedyIsHeadless,
   splitCarriedOperatorTail,
-  sizePruneRequest,
-  sizePruneNotice,
   type OverflowEpisode,
   type OverflowRung,
 } from '../services/compact/overflowRecovery.js'
@@ -163,6 +162,11 @@ import { flushSessionStorage, recordContentReplacement } from '../utils/sessionS
 import { handleStopHooks } from '../query/stopHooks.js'
 import { buildRequestContextPlan, reconcileAppliedPlanUsage, type RequestContextPlan } from '../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
+import { randomUUID, type UUID } from 'node:crypto'
+import { bindRequestGauge, requestGaugeFixed, settleRequestGauge } from '../services/run/requestGauge.js'
+import { getContextEpoch } from '../services/run/contextEpochs.js'
+import { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } from '../services/compact/compact.js'
+import { toolToAPISchema } from '../utils/api.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
@@ -586,6 +590,32 @@ async function* streamModel(
         if (isTurnOwningQuerySource(run.querySource)) {
           recordSentRequest(String(rosterOwnerFromToolUseContext(toolUseContext)), requestMessages)
         }
+        const requestGauge = iter.requestPlan.gauge === undefined ? undefined : bindRequestGauge(
+          iter.messagesForQuery,
+          calibrationKeyFor(declaredRouteOf(iter.currentModel) ?? 'unrecognised', iter.currentModel),
+          getContextEpoch(ownerFromToolUseContext(toolUseContext)).epoch,
+          iter.requestPlan.gauge.fixed,
+          iter.requestPlan.gauge.rebase,
+        )
+        if (requestGauge !== undefined && requestGauge.digest === iter.requestPlan.gauge?.digest) requestGauge.sourceDigest = iter.requestPlan.gauge.sourceDigest
+        const projectedReplies = new Map<string, AssistantMessage>()
+        let fixedPrefix: import('../services/providers/anthropic/prefixLedger.js').PrefixVerdict['fixedPrefix']
+        const settleGauge = (message: AssistantMessage): void => {
+          if (!requestGauge || message.contextGauge) return
+          const anchor = settleRequestGauge(requestGauge, message)
+          if (!anchor) return
+          const boundary = iter.messagesForQuery.findLast(row => row.type === 'system' && row.subtype === 'compact_boundary' && row.compactMetadata.cacheEpoch !== undefined)
+          if (boundary?.type === 'system' && boundary.subtype === 'compact_boundary' && !iter.messagesForQuery.some(row => row.type === 'assistant' && row.foldLanding?.boundaryId === boundary.uuid)) {
+            const usage = foldCacheUsage(message.message.usage)
+            if (usage) message.foldLanding = { boundaryId: boundary.uuid, usage, fixedPrefix: fixedPrefix ?? pendingPrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))?.fixedPrefix }
+          }
+          const projected = projectedReplies.get(message.uuid)
+          if (projected) { projected.contextGauge = anchor; projected.foldLanding = message.foldLanding }
+          if (callId === `${iter.turnId}.c1`) {
+            const u = message.message.usage
+            reconcileAppliedPlanUsage(ownerFromToolUseContext(toolUseContext), (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0))
+          }
+        }
         for await (const message of run.deps.callModel({
           messages: requestMessages,
           systemPrompt: iter.fullSystemPrompt,
@@ -640,6 +670,8 @@ async function* streamModel(
             name => findToolByName(toolUseContext.options.tools, name),
           )
           if (message.type === 'assistant') {
+            projectedReplies.set(message.uuid, yieldMessage as AssistantMessage)
+            settleGauge(message)
             const busyRecovery = message.busyRecovery
             if (busyRecovery !== undefined && !busyRecoveriesReceipted.has(message.uuid)) {
               busyRecoveriesReceipted.add(message.uuid)
@@ -670,6 +702,7 @@ async function* streamModel(
               rememberClassifiedResponse(message.message.id)
               const drops = inputTransformationsOf(message.message)
               const prefixVerdict = takePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
+              fixedPrefix = prefixVerdict?.fixedPrefix
               if (drops.length > 0) recordDroppedThinking(String(rosterOwnerFromToolUseContext(toolUseContext)), drops)
               const rewrite = prefixVerdict?.mismatch ?? null
               const outcome = classifyThinkingDrops(
@@ -719,13 +752,6 @@ async function* streamModel(
               )
               if (boundRecord !== null) yield emit({ kind: 'attachment', message: boundRecord })
             }
-            if (callId === `${iter.turnId}.c1`) {
-              const u = (message.message as { usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } }).usage
-              const measured = (u?.input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0)
-              if (measured > 0) {
-                reconcileAppliedPlanUsage(ownerFromToolUseContext(toolUseContext), measured)
-              }
-            }
 
             const msgToolUseBlocks = message.message.content.filter(
               content => content.type === 'tool_use',
@@ -739,6 +765,7 @@ async function* streamModel(
           }
         }
         for (const settled of iter.assistantMessages) {
+          settleGauge(settled)
           if (settled.streamEnd === undefined || streamEndsReceipted.has(settled.uuid)) continue
           streamEndsReceipted.add(settled.uuid)
           yield emit({
@@ -940,10 +967,7 @@ async function* runEventMachine(
       querySource === 'sdk' ||
       querySource.startsWith('agent:') ||
       querySource.startsWith('main_thread')
-    const pruneModel = toolUseContext.options.engineModel
-    const proactivePrune = pendingOverflow === undefined
-      ? await sizePruneRequest(messages, pruneModel, querySource)
-      : undefined
+    const preserveBodies = pendingOverflow?.rung !== 'prune'
     const requestPlan = await buildRequestContextPlan(
       {
         messages,
@@ -962,6 +986,7 @@ async function* runEventMachine(
             .map(t => t.name),
         ),
         microcompact: deps.microcompact,
+        preserveBodies,
         readFileState: toolUseContext.readFileState,
         calibrationKey: (() => {
           const model = toolUseContext.options.engineModel
@@ -969,17 +994,24 @@ async function* runEventMachine(
             ? calibrationKeyFor(declaredRouteOf(model) ?? 'unrecognised', model)
             : null
         })(),
+        fixedRequest: requestGaugeFixed({
+          system: appendSystemContext(systemPrompt, systemContext),
+          userContext: latestUserContextBody(messages) === null ? userContext : null,
+          tools: await Promise.all(toolUseContext.options.tools.map(tool => toolToAPISchema(tool, {
+            getToolPermissionContext: async () => toolUseContext.getAppState().toolPermissionContext,
+            tools: toolUseContext.options.tools,
+            agents: toolUseContext.options.agentDefinitions.activeAgents,
+            allowedAgentTypes: toolUseContext.options.agentDefinitions.allowedAgentTypes,
+            model: toolUseContext.options.engineModel,
+          }).catch(() => ({ name: tool.name })))),
+        }),
         harnessContextPolicy: null,
-        ...(pendingOverflow?.rung === 'prune'
-          ? { pressurePrune: true as const }
-          : proactivePrune !== undefined
-            ? { pressurePrune: { minimumTokensSaved: proactivePrune.estimatedTokens - proactivePrune.targetTokens } }
-            : {}),
+        ...(pendingOverflow?.rung === 'prune' ? { pressurePrune: true as const } : {}),
       },
       'apply',
     )
     let messagesForQuery = requestPlan.messages
-    const prunedTokensFreed = Math.max(0, requestPlan.reductions.pressurePruned?.tokensSaved ?? 0)
+    const prunedTokensFreed = requestPlan.gauge === undefined ? Math.max(0, requestPlan.reductions.pressurePruned?.tokensSaved ?? 0) : 0
     const clearedByDigest = (requestPlan.reductions.pressurePruned?.cleared ?? 0) + requestPlan.reductions.timeBasedCleared
     if (clearedByDigest > 0) {
       const digested = await fireHooks(
@@ -1001,12 +1033,6 @@ async function* runEventMachine(
         yield emit({ kind: 'attachment', message: record })
         deadThinkingRecords.push(record)
       }
-    }
-    if (proactivePrune !== undefined && requestPlan.reductions.pressurePruned !== undefined && requestPlan.reductions.timeBasedCleared === 0) {
-      yield emit({
-        kind: 'notice',
-        message: createSystemMessage(sizePruneNotice(proactivePrune, requestPlan.reductions.pressurePruned), 'warning'),
-      })
     }
     if (pendingOverflow?.rung === 'prune') {
       const pruned = requestPlan.reductions.pressurePruned
@@ -1043,7 +1069,7 @@ async function* runEventMachine(
       measuredRawTokenCount,
       refusal: compactionRefusal,
       paused: compactionPaused,
-    } = await deps.autocompact(
+    } = pendingOverflow?.rung === 'prune' ? { wasCompacted: false } as Awaited<ReturnType<typeof deps.autocompact>> : await deps.autocompact(
       foldSplit.head,
       toolUseContext,
       {
@@ -1052,6 +1078,7 @@ async function* runEventMachine(
         systemContext,
         toolUseContext,
         forkContextMessages: foldSplit.head,
+        postFoldCarry: foldSplit.carry,
       },
       querySource,
       tracking,
@@ -1073,6 +1100,21 @@ async function* runEventMachine(
     }
 
     if (forcedFold !== undefined && !compactionResult) {
+      if (!toolUseContext.abortController.signal.aborted && (forcedFold.source === 'provider' || compactionRefusal?.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD))) {
+        const saving = projectTimeBasedMicrocompact(messagesForQuery, querySource, { pressure: true, supersededOnly: true })?.tokensSaved ?? 0
+        const fallback = decideOverflowRecovery({ episode: overflowEpisode, gapTokens: overflowGapFor(forcedFold), pruneSavingTokens: saving, pruneAllowed: true, fold: { available: false, why: 'fold-failed' } })
+        if (fallback.kind === 'recover' && fallback.rung === 'prune') {
+          const next: TurnState = {
+            ...state, messages: messagesForQuery, toolUseContext, autoCompactTracking: tracking,
+            overflowEpisode: { folded: true, pruned: true },
+            pendingOverflow: { signal: forcedFold, rung: 'prune' },
+            transition: { reason: 'overflow_recovery', rung: 'prune', source: forcedFold.source },
+          }
+          yield emit({ kind: 'turn_settled', transition: next.transition! })
+          state = next
+          continue
+        }
+      }
       yield emit({
         kind: 'notice',
         message: createAssistantAPIErrorMessage({
@@ -1122,14 +1164,15 @@ async function* runEventMachine(
 
       const postCompactMessages = buildPostCompactMessages(compactionResult)
 
+      const carried = foldSplit.carry.map(row => ({ ...row, uuid: randomUUID() as UUID }))
       yield emit({
         kind: 'compaction_boundary',
         trigger: forcedFold !== undefined ? 'overflow' : 'auto',
-        messages: postCompactMessages,
+        messages: [...postCompactMessages, ...carried],
       })
       resetSessionEnvNoticeOnCompaction()
 
-      messagesForQuery = [...postCompactMessages, ...foldSplit.carry]
+      messagesForQuery = [...postCompactMessages, ...carried]
       overflowEpisode = { pruned: overflowEpisode.pruned, folded: true }
     } else if (consecutiveFailures !== undefined) {
       tracking = {
@@ -1177,13 +1220,14 @@ async function* runEventMachine(
             limitTokens: blockingLimit,
           })
           const pruneSaving =
-            projectTimeBasedMicrocompact(messagesForQuery, querySource, { pressure: true })?.tokensSaved ?? 0
+            projectTimeBasedMicrocompact(messagesForQuery, querySource, { pressure: true, supersededOnly: true })?.tokensSaved ?? 0
           const headFoldFailed =
             (consecutiveFailures ?? 0) > (autoCompactTracking?.consecutiveFailures ?? 0)
           const decision = decideOverflowRecovery({
             episode: overflowEpisode,
             gapTokens: Math.max(1, estimatedTokens - blockingLimit),
             pruneSavingTokens: pruneSaving,
+            pruneAllowed: compactionRefusal?.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) === true,
             fold: foldAvailability({
               tracking,
               headFold: headFoldFailed ? 'failed' : isAutoCompactEnabled() ? 'did-not-land' : undefined,
@@ -1318,11 +1362,12 @@ async function* runEventMachine(
         const overflow = measureOverflow(overflowStamped, foldInput, toolUseContext.options.engineModel)
         const split = splitCarriedOperatorTail(foldInput)
         const pruneSaving =
-          projectTimeBasedMicrocompact(foldInput, querySource, { pressure: true })?.tokensSaved ?? 0
+          projectTimeBasedMicrocompact(foldInput, querySource, { pressure: true, supersededOnly: true })?.tokensSaved ?? 0
         const decision = decideOverflowRecovery({
           episode: overflowEpisode,
           gapTokens: overflowGapFor(overflow),
           pruneSavingTokens: pruneSaving,
+          pruneAllowed: true,
           fold: foldAvailability({ tracking, hasHistory: split.hasHistory }),
         })
         if (decision.kind === 'recover') {

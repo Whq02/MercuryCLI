@@ -5,6 +5,8 @@ import { resetInstructionFilesCache } from '../instructions/engine.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { processMainOwner, processOwnerForLane } from '../run/resolveOwner.js'
 import { resetMicrocompactState } from './microCompact.js'
+import type { Message } from '../../types/message.js'
+import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
 
 
 type PostCompactScope = {
@@ -25,7 +27,7 @@ function isMainThreadCompaction(querySource: string | undefined): boolean {
   )
 }
 
-export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope): void {
+export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope, preservedMessages?: readonly Message[]): void {
   const normalized: PostCompactScope = typeof scope === 'string' ? { querySource: scope } : (scope ?? {})
   const mainThread = isMainThreadCompaction(normalized.querySource)
 
@@ -37,7 +39,10 @@ export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope): v
 
   resetMicrocompactState(owner)
 
-  if (!mainThread) return
+  if (!mainThread) {
+    if (preservedMessages) restoreBoundPrefixFromMessages(preservedMessages, { rosterOnly: true, fold: true })
+    return
+  }
 
   getGitStatus.cache?.clear?.()
   getSystemContext.cache?.clear?.()
@@ -45,4 +50,5 @@ export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope): v
   resetInstructionFilesCache('compact')
   clearSystemPromptSections()
   clearSessionMessagesCache()
+  if (preservedMessages) restoreBoundPrefixFromMessages(preservedMessages, { fold: true })
 }

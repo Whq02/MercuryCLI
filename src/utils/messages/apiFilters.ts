@@ -47,6 +47,16 @@ export function stripThinkingFromIndex<M extends Message>(messages: M[], fromInd
   return reviseRows(messages, (row, index) => index < fromIndex ? row : withoutThinking(row))
 }
 
+export function stripThinkingInPreservedTail<M extends Message>(messages: M[]): M[] {
+  const boundary = messages[0]
+  const segment = boundary?.type === 'system' && boundary.subtype === 'compact_boundary' ? boundary.compactMetadata.preservedSegment : undefined
+  if (segment === undefined) return messages
+  const head = messages.findIndex(row => row.uuid === segment.headUuid)
+  const tail = messages.findIndex(row => row.uuid === segment.tailUuid)
+  if (head < 0 || tail < head) return messages
+  return reviseRows(messages, (row, index) => index >= head && index <= tail ? withoutThinking(row) : row)
+}
+
 function isOtherModel(row: Message, target: string, same: (a: string, b: string) => boolean): row is AssistantMessage {
   return row.type === 'assistant' && typeof row.message.model === 'string' &&
     row.message.model.length > 0 && !same(row.message.model, target)
