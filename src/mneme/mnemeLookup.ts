@@ -326,10 +326,20 @@ function taskConstraint(text: string, query: string, files: readonly string[]): 
   const windows = ruleWindows(text)
   if (/release[ -]notes?|releases\/|changelog/i.test(observed) && windows.some(window => /\brelease[ -]notes?\b|\bchangelog\b/i.test(window))) return true
   if (WRITING_TASK.test(query) && windows.some(window => WRITING_RULE.test(window))) return true
-  return ruleSentences(text).filter(sentence => RULE_WORDS.test(sentence)).some(sentence => citedPaths(sentence).some(path => {
-    const matcher = new RegExp(`(?:^|/)${escapeRegExp(path).replace(/\\\*/g, '[^/]*')}$`)
-    return files.some(file => matcher.test(file)) || query.includes(path)
-  }))
+  return ruleSentences(text).some(sentence => {
+    const clauses = sentence.split(/\s*[;:]\s*/)
+    return clauses.some((clause, index) => (RULE_WORDS.test(clause) || RULE_WORDS.test(clauses[index + 1] ?? '')) && citedPaths(clause).some(path => {
+      const matcher = new RegExp(`(?:^|/)${escapeRegExp(path).replace(/\\\*/g, '[^/]*')}$`)
+      return files.some(file => matcher.test(file)) || query.includes(path)
+    }))
+  })
+}
+
+const LOG_HEAD = /^(?:session note\b|\d{4}-\d{2}-\d{2}|(?:1\.0\.0-)?beta[. -]?\d+\b|state of\b)|\b(?:states? (?:on|at)\b|shipped\b|launched\b|lanes? [^:]{0,60}\blanded\b|(?:learned|agreed|clarified|corrected) \d{4}-|prep, state\b|facts learned\b)/i
+
+function logNote(text: string): boolean {
+  const head = text.split(':')[0]!.slice(0, 100)
+  return LOG_HEAD.test(head)
 }
 
 const COMPANION_IDF = 2.2
@@ -357,7 +367,7 @@ function companionsOf(constraint: LookupCandidate, pool: readonly LookupCandidat
   }
   const out: LookupCandidate[] = []
   for (const hit of scoreCandidates(constraint.text, pool, now)) {
-    if (hit.id === constraint.id || taken.has(hit.id) || /^retired: /.test(hit.text)) continue
+    if (hit.id === constraint.id || taken.has(hit.id) || /^retired: /.test(hit.text) || (!hit.pinned && logNote(hit.text))) continue
     if (hit.matched.filter(rareTerm).length >= 2) out.push(hit)
   }
   return out
@@ -373,7 +383,7 @@ export function automaticMemoryCandidates(query: string, opts: { dir?: string; p
   const witnessOf = (id: string, text: string): string => createHash('sha256').update(`${dir}\0${id}\0${text}`).digest('hex')
   const historicalOf = (candidate: LookupCandidate): { names: number; latest: number } | undefined => {
     const names = cycleNamed(candidate.text)
-    return !candidate.pinned && names > 0 && names < latest && PLAN_WORDS.test(candidate.text) ? { names, latest } : undefined
+    return !candidate.pinned && names > 0 && names < latest && (PLAN_WORDS.test(candidate.text) || logNote(candidate.text)) ? { names, latest } : undefined
   }
   const scored = scoreCandidates(query, pool, opts.now)
   for (const hit of scored) {
@@ -381,7 +391,7 @@ export function automaticMemoryCandidates(query: string, opts: { dir?: string; p
     const priorCycle = /\bbeta[. -]?(\d+)\b/i.exec(hit.text)?.[1]
     if (!hit.pinned && cycle && priorCycle && Number(cycle) > Number(priorCycle) && PLAN_WORDS.test(hit.text)) continue
     const cosine = semantic.get(hit.id) ?? null
-    const admission = taskConstraint(hit.text, query, opts.files ?? []) ? 'constraint' : hit.features.discriminatingStems >= 2 && hit.features.rareStems >= STEM_RARE_MIN ? 'stems' : hit.features.maxIdf >= RARE_STEM_IDF && hit.features.bm25 >= RARE_STEM_BM25 ? 'rare-stem' : cosine !== null && cosine >= SEMANTIC_FLOOR ? 'semantic' : opts.rareTier && hit.features.rareStems >= 1 ? 'rare-tier' : null
+    const admission = !hit.pinned && logNote(hit.text) ? (hit.features.discriminatingStems >= 2 && hit.features.rareStems >= STEM_RARE_MIN ? 'stems' : hit.features.maxIdf >= RARE_STEM_IDF && hit.features.bm25 >= RARE_STEM_BM25 ? 'rare-stem' : cosine !== null && cosine >= SEMANTIC_FLOOR ? 'semantic' : opts.rareTier && hit.features.rareStems >= 1 ? 'rare-tier' : null) : taskConstraint(hit.text, query, opts.files ?? []) ? 'constraint' : hit.features.discriminatingStems >= 2 && hit.features.rareStems >= STEM_RARE_MIN ? 'stems' : hit.features.maxIdf >= RARE_STEM_IDF && hit.features.bm25 >= RARE_STEM_BM25 ? 'rare-stem' : cosine !== null && cosine >= SEMANTIC_FLOOR ? 'semantic' : opts.rareTier && hit.features.rareStems >= 1 ? 'rare-tier' : null
     if (admission === null) continue
     const { features, time, pinned, kind, useCount, ...row } = hit
     const historical = historicalOf(hit)
