@@ -97,7 +97,7 @@ const VOICE_CENSUS_NEEDLES: Array<[string, RegExp]> = [
   ],
 ]
 
-export function stripQuotedProductAndCodeSpans(text: string): string {
+function stripQuotedProductAndCodeSpans(text: string): string {
   const preserveNewlines = (match: string): string => '\n'.repeat((match.match(/\n/g) ?? []).length)
   const withoutGenerated = text.replace(
     /<!--\s*contract:begin[\s\S]*?<!--\s*contract:end\s*-->/g,
