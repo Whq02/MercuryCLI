@@ -30,15 +30,12 @@ const READY_FLAG_RE = /setTimeout\s*\(\s*\(\)\s*=>\s*set\w*(Ready|Buffer|Armed)/
 
 {
   const src = read('src/commands/health/HealthCertificate.tsx')
-  t('HealthCertificate: ↵ is the primary (expand evidence)', src.includes('key.return'))
-  t(
-    'HealthCertificate: mount-TIMESTAMP buffer',
-    src.includes('mountedAt') && /Date\.now\(\) - mountedAt\.current/.test(src),
-  )
+  t('HealthCertificate: ↵ is the primary (unfold evidence) through the ONE vocabulary', src.includes("action === 'activate'") && src.includes("decodeNavKey(input, key, { orientation: 'vertical', hierarchy: true, pageKeys: true })"))
+  t('HealthCertificate: event-identity launch gate (useOpenEventGate), not wall-clock', src.includes('useOpenEventGate()') && !src.includes('Date.now() - mountedAt'))
   t('HealthCertificate: no setTimeout ready-flag', !READY_FLAG_RE.test(src))
   t(
-    'HealthCertificate: footer leads nav then ↵ primary (gated on rows to select)',
-    /checks\.length > 0 \? '↑↓ select · ⇞⇟ page · ↵ evidence · '/.test(src),
+    'HealthCertificate: footer leads nav then ↵ primary (gated on rows to select); the n/N marker rides the tail',
+    /\{ text: listed \? '↑↓ move' : '', priority: 9 \},\n\s+\{ text: listed \? '↵ unfold' : '', priority: 8 \},/.test(src) && /\{ text: listed \? `\$\{segments\.cursor \+ 1\}\/\$\{segments\.rows\}` : '', priority: 5 \},\n\s+\]/.test(src),
   )
 }
 
