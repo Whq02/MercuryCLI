@@ -518,9 +518,14 @@ async function readLaunchForm(io: Io, kind: LocalServerKind | undefined, serverP
     return { kind: 'unknown', note: 'no systemd unit found: set the variables where ollama serve is started' }
   }
   if (io.platform === 'win32') {
-    return { kind: 'windows', note: 'Windows: set each variable as a user environment variable, then quit Ollama from the tray and start it again' }
+    return { kind: 'windows', logPath: windowsServerLog(io), note: 'Windows: set each variable as a user environment variable, then quit Ollama from the tray and start it again' }
   }
   return { kind: 'unknown', note: 'set the variables where ollama serve is started' }
+}
+
+export function windowsServerLog(io: Pick<Io, 'env' | 'home'>): string {
+  const local = str(io.env.LOCALAPPDATA) ?? join(io.home, 'AppData', 'Local')
+  return join(local, 'Ollama', 'server.log')
 }
 
 async function readOllama(io: Io, root: string): Promise<Pick<LocalServerTruth, 'server' | 'loaded' | 'listed'> | undefined> {
@@ -652,6 +657,47 @@ export function defaultMachineTruth(platform: NodeJS.Platform, totalMemoryBytes:
   return { ...base, usableMemoryBytes: totalMemoryBytes, usableSource: 'total memory (no GPU reading)' }
 }
 
+export function parseNvidiaSmiMemory(text: string): number | undefined {
+  let total = 0
+  let cards = 0
+  for (const line of text.split('\n')) {
+    const mib = Number(line.split(',')[0]?.trim())
+    if (!Number.isFinite(mib) || mib <= 0) continue
+    total += Math.round(mib * 1024 * 1024)
+    cards += 1
+  }
+  return cards > 0 ? total : undefined
+}
+
+export function parseRocmSmiMemory(text: string): number | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    return undefined
+  }
+  let total = 0
+  let cards = 0
+  for (const card of Object.values(rec(parsed) ?? {})) {
+    for (const [key, value] of Object.entries(rec(card) ?? {})) {
+      if (!/VRAM Total Memory/i.test(key)) continue
+      const bytes = Number(typeof value === 'string' ? value.trim() : value)
+      if (!Number.isFinite(bytes) || bytes <= 0) continue
+      total += Math.round(bytes)
+      cards += 1
+    }
+  }
+  return cards > 0 ? total : undefined
+}
+
+async function readDiscreteGpuMemory(io: Io): Promise<{ bytes: number; source: string } | undefined> {
+  const nvidia = parseNvidiaSmiMemory((await io.run('nvidia-smi', ['--query-gpu=memory.total', '--format=csv,noheader,nounits'])) ?? '')
+  if (nvidia !== undefined) return { bytes: nvidia, source: 'the GPU memory nvidia-smi reports (memory.total, every card)' }
+  const rocm = parseRocmSmiMemory((await io.run('rocm-smi', ['--showmeminfo', 'vram', '--json'])) ?? '')
+  if (rocm !== undefined) return { bytes: rocm, source: 'the GPU memory rocm-smi reports (VRAM total, every card)' }
+  return undefined
+}
+
 export async function readMachineTruth(io: Io, launchForm: LaunchFormTruth): Promise<MachineTruth> {
   const total = io.totalMemoryBytes
   const base = { platform: io.platform, totalMemoryBytes: total }
@@ -665,6 +711,9 @@ export async function readMachineTruth(io: Io, launchForm: LaunchFormTruth): Pro
   if (io.platform === 'darwin') {
     const limit = Number((await io.run('sysctl', ['-n', 'iogpu.wired_limit_mb']))?.trim())
     if (Number.isFinite(limit) && limit > 0) return { ...base, usableMemoryBytes: Math.round(limit * 1024 * 1024), usableSource: 'iogpu.wired_limit_mb' }
+  } else {
+    const gpu = await readDiscreteGpuMemory(io)
+    if (gpu !== undefined) return { ...base, usableMemoryBytes: gpu.bytes, usableSource: gpu.source }
   }
   return defaultMachineTruth(io.platform, total)
 }
