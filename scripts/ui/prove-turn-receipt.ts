@@ -169,7 +169,7 @@ withEnv('1', () => {
   const grouped = inject([prompt('grouped memory calls', 'p1'), { type: 'grouped_tool_use', uuid: 'g1', messages: [toolUse('Recall', {}, 'a1'), toolUse('Recall', {}, 'a2')], results: [resultFor('a1'), resultFor('a2')] } as never])
   check('grouped rows contribute their inner calls by name', named(grouped)[0]!.counts.tools['Recall'] === 2)
   const row = src('components', 'messages', 'TurnReceiptRow.tsx')
-  check('the row prints the derive owner\'s by-name words before the delegated spend', /otherToolsLine\(c\)/.test(row) && row.indexOf('otherToolsLine(c)') < row.indexOf('delegatedSpendLine(c)'))
+  check('the row prints the derive owner\'s by-name words before the delegated spend', row.indexOf('otherToolsLine(c)') !== -1 && row.indexOf('otherToolsLine(c)') < row.indexOf('delegatedSpendLine(c)'))
   check('the folded-work line of a compaction carries the same words', /otherToolsLine\(c\)/.test(src('services', 'compact', 'prompt.ts')))
 })
 

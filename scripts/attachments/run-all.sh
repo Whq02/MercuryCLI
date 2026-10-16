@@ -10,7 +10,7 @@
 # gate-watch: docs/SESSIONS.md scripts/lib/goldenReplay.ts scripts/lib/hermetic.ts scripts/lib/scriptedTurn.ts scripts/daemon/dupline-world.ts src/Tool.ts
 # gate-watch: src/bootstrap/state.ts src/constants/prompts.ts src/constants/systemPromptSections.ts
 # gate-watch: src/keybindings/defaultBindings.ts src/services/mcp/client.ts src/utils/sessionStorage/writer.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/chain.ts src/utils/sessionStorage/loading.ts src/utils/messages/factories.ts
-# gate-watch: src/tools/FileReadTool/FileReadTool.ts src/utils/attachments.ts src/utils/cockpit/runProtocol.ts
+# gate-watch: src/tools/FileReadTool/FileReadTool.ts src/utils/attachments.ts
 # gate-watch: src/utils/messages.ts src/utils/messages/attachmentText.ts src/utils/config/globalConfig.ts src/utils/model/model.ts src/tools/SkillTool/constants.ts src/state/AppStateStore.ts src/utils/file.ts src/utils/fileStateCache.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

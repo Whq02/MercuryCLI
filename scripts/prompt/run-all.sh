@@ -3,7 +3,7 @@
 # gate-watch: src/prompt/composer* src/tools/AgentTool/builtInAgents* scripts/lib/fixtureApi.ts
 # gate-watch: src/utils/effort*
 # gate-watch: src/utils/profile/appearanceSnapshot*
-# gate-watch: src/utils/cockpit/promptProvenance* src/utils/cockpit/runProtocol*
+# gate-watch: src/utils/cockpit/promptProvenance*
 # gate-watch: src/constants/prompts.ts src/constants/systemPromptSections.ts src/tools/**
 # gate-watch: scripts/agent-experience/baselines/mechanical/prompts/anthropic.system.txt
 # gate-watch: scripts/lib/hermetic.ts src/Tool.ts src/bootstrap/state.ts src/components/Messages.tsx

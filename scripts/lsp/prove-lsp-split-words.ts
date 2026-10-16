@@ -13,7 +13,6 @@ if (!('LSP_TOOLS' in available)) {
 process.env.MERCURY_LSP_SERVERS = JSON.stringify(fixtureServer('fixture', FAKE_SERVER, {}, '.fk', 'fake'))
 const door = await openToolDoor(project)
 try {
-  const { getRunProtocolSection } = await import('../../src/utils/cockpit/runProtocol.ts')
   const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.ts')
   const { isReadOnlyAllowlistedTool } = await import('../../src/utils/permissions/readOnlyAllowlist.ts')
   const { evaluateWards, BUILTIN_WARDS } = await import('../../src/utils/wards/wards.ts')
@@ -24,8 +23,6 @@ try {
   const renameText = (await renameTool?.prompt?.({} as never)) ?? ''
   check('the read tool owns the IDE-evidence facts: definitions and references over text search, diagnostics on files just edited', readText.includes('Use this over Grep and Read for definitions and references') && readText.includes('Run it on files you just edited'))
   check('the rename tool owns the structured-rename fact', renameText.includes('Rename a symbol everywhere the language server sees it'))
-  const protocol = getRunProtocolSection({}) ?? ''
-  check('the run protocol repeats none of it (no IDE-loop paragraph, no "LSP tool")', !protocol.includes('IDE loop') && !protocol.includes('LspRead') && !protocol.includes('LSP tool'))
   const map = computeHarnessMapLines().join('\n')
   check('the harness map repeats none of it (the roster lists the tools)', !map.includes('Code intelligence is native'))
   for (const tool of available.LSP_TOOLS) {
