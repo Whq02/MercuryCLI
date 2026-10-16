@@ -245,6 +245,8 @@ for (const [old, fresh] of quantityPairs) {
 const literalPairs: Array<[string, string]> = [
   ['the deploy runs from X', 'the deploy runs from Y'],
   ['the config lives in A', 'the config lives in B'],
+  ['the config lives in run', 'the config lives in build'],
+  ['the config lives in Paris', 'the config lives in Rome'],
 ]
 for (const [old, fresh] of literalPairs) {
   check(`a location value about one subject differs: ${fresh}`, guard.contradictionBetween(fresh, old)?.flip === 'a value that differs' && guard.contradictionBetween(old, fresh)?.flip === 'a value that differs')
