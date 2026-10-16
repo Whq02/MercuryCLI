@@ -11,6 +11,12 @@ const TELLS: Array<[string, RegExp]> = [
   ['kill-signal', /process\.kill\([^)]+,\s*['"]SIG/g],
 ]
 
+const SEAM_PINS: Array<{ file: string; carries: string; never: RegExp; law: string }> = [
+  { file: 'src/services/structure/query.ts', carries: 'posixRelative(root, full)', never: /path\.relative\(/, law: 'the Structure files filter compares POSIX-relative paths (F37W-7B-25: a win32 walk handed src\\util.ts to a src/util.ts glob and parsed 0 files)' },
+  { file: 'src/services/structure/polyglotQuery.ts', carries: 'posixRelative(root, full)', never: /path\.relative\(/, law: 'the polyglot walk (Structure patterns, AstSearch globs, .gitignore anchors) compares POSIX-relative paths' },
+  { file: 'src/services/structure/scanPaths.ts', carries: "platform === 'win32' ? rel.split('\\\\').join('/') : rel", never: /path\.sep/, law: 'the seam flips separators by the platform it is told, never by the host\'s path.sep, so a proof shapes win32 paths on any host' },
+]
+
 function walk(dir: string, out: string[]): void {
   for (const e of readdirSync(dir)) {
     const p = join(dir, e)
@@ -82,6 +88,18 @@ if (grew.length > 0) {
 if (shrank > 0) {
   console.log(`  [INFO] ${shrank} entr${shrank === 1 ? 'y' : 'ies'} improved — relock to ratchet down:`)
   console.log('         ~/.bun/bin/bun run scripts/build/prove-win32-seam-ratchet.ts --relock')
+}
+
+for (const pin of SEAM_PINS) {
+  let text: string | null
+  try {
+    text = readFileSync(join(ROOT, pin.file), 'utf8')
+  } catch {
+    text = null
+  }
+  const ok = text !== null && text.includes(pin.carries) && !pin.never.test(text)
+  if (!ok) failures++
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] seam pinned: ${pin.file} carries ${JSON.stringify(pin.carries)} and never ${pin.never.source} — ${pin.law}`)
 }
 
 console.log(failures === 0 ? '\nALL WIN32-SEAM CHECKS PASS' : `\n${failures} CHECK(S) FAILED`)

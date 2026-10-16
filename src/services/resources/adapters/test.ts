@@ -12,7 +12,9 @@ import { boundedTextView, type ParsedRef, type ResourceAdapter, type ResourceChi
 
 function recordResource(record: TestRunRecord, ref: string, selectors: ParsedRef['selectors']): ResourceResult {
   const c = record.counts
-  const summary = `${record.framework} ${record.selection} — ${record.verdict === 'no-match' ? 'no test matched · ' : ''}${c.passed}✓ ${c.failed}✗ ${c.errored}${GLYPH.warn} ${c.skipped}→ (${record.durationMs}ms)`
+  const verdictWords =
+    record.verdict === 'no-match' ? 'no test matched · ' : record.verdict === 'zero-run' ? 'test files found, 0 ran · ' : record.verdict === 'uncollected' ? 'test files not collected · ' : ''
+  const summary = `${record.framework} ${record.selection} — ${verdictWords}${c.passed}✓ ${c.failed}✗ ${c.errored}${GLYPH.warn} ${c.skipped}→ (${record.durationMs}ms)`
   const view = boundedTextView(JSON.stringify(record, null, 2), selectors)
   return {
     state: 'ok',
