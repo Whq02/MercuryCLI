@@ -242,7 +242,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     gemini: 'no Gemini credential — /logins (or GOOGLE_API_KEY / GEMINI_API_KEY)',
     huggingface: 'no Hugging Face credential — /logins (or HF_TOKEN)',
     local:
-      'no local server discovered — start Ollama/LM Studio/vLLM/llama.cpp-server or set MERCURY_LOCAL_BASE_URL',
+      'no local server discovered — /localsetup sets one up (Ollama, LM Studio, vLLM, llama.cpp), or start one and set MERCURY_LOCAL_BASE_URL',
     nous: 'no Nous Portal API key — /logins nous (or NOUS_API_KEY)',
     zen: 'no OpenCode Zen API key — /logins zen (or OPENCODE_API_KEY)',
   }

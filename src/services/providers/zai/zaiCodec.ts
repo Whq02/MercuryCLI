@@ -47,6 +47,10 @@ export function toolDeclarationRowAsText(tools: readonly ZaiTool[]): ZaiMessage 
   return { role: 'system', content: toolDeclarationText(tools) }
 }
 
+export function toolDeclarationRowInResult(tools: readonly ZaiTool[]): ZaiMessage {
+  return { role: 'tool', content: toolDeclarationText(tools) }
+}
+
 function imageUrlOfBlock(block: unknown): string | undefined {
   if (typeof block !== 'object' || block === null) return undefined
   const source = (block as { source?: unknown }).source
@@ -110,15 +114,28 @@ export function imageRefusalWords(
   return fault.message ? `${fault.code}: ${fault.message}` : fault.code
 }
 
+export const ASSISTANT_THINKING_ONLY_ROW = '(thinking)'
+
+function lastUserQueryIndex(messages: readonly MessageParam[]): number {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]!
+    if (message.role !== 'user') continue
+    const turn = requestTurnOf(message.role, message.content)
+    if (turn.stringContent !== undefined || turn.items.some(item => item.type === 'text')) return index
+  }
+  return -1
+}
+
 export function mapMessagesToZai(
   system: string | undefined,
   messages: readonly MessageParam[],
-  opts?: { keepReasoningHistory?: boolean; imagesSupported?: boolean; toolDeclarations?: ReadonlyMap<string, ZaiWireMessage> },
+  opts?: { keepReasoningHistory?: boolean; keepReasoningAfterLastUser?: boolean; imagesSupported?: boolean; toolDeclarations?: ReadonlyMap<string, ZaiWireMessage> },
 ): ZaiWireMessage[] {
   const out: ZaiWireMessage[] = []
   const imagesSupported = opts?.imagesSupported !== false
+  const lastQuery = opts?.keepReasoningAfterLastUser === true ? lastUserQueryIndex(messages) : -1
   if (system && system.trim() !== '') out.push({ role: 'system', content: system })
-  for (const message of messages) {
+  for (const [index, message] of messages.entries()) {
     const turn = requestTurnOf(message.role, message.content)
     if (turn.stringContent !== undefined) {
       out.push({ role: turn.role, content: turn.stringContent })
@@ -128,15 +145,16 @@ export function mapMessagesToZai(
       const texts: string[] = []
       const thinkingTexts: string[] = []
       const toolCalls: ZaiMessage['tool_calls'] = []
+      const keepReasoning = opts?.keepReasoningHistory === true || (opts?.keepReasoningAfterLastUser === true && index > lastQuery)
       for (const item of turn.items) {
         if (item.type === 'text') texts.push(item.text)
         else if (item.type === 'tool_call' && item.native === 'tool_use') {
           toolCalls!.push({ id: item.call_id, type: 'function', function: { name: item.tool, arguments: JSON.stringify(item.input ?? {}) } })
-        } else if (item.type === 'reasoning' && !item.redacted && opts?.keepReasoningHistory === true) thinkingTexts.push(item.text)
+        } else if (item.type === 'reasoning' && !item.redacted && keepReasoning) thinkingTexts.push(item.text)
       }
       out.push({
         role: 'assistant',
-        content: texts.length > 0 ? texts.join('\n') : toolCalls!.length > 0 ? null : '',
+        content: texts.length > 0 ? texts.join('\n') : toolCalls!.length > 0 ? null : thinkingTexts.length > 0 ? '' : ASSISTANT_THINKING_ONLY_ROW,
         ...(thinkingTexts.length > 0 ? { reasoning_content: thinkingTexts.join('\n') } : {}),
         ...(toolCalls!.length > 0 ? { tool_calls: toolCalls } : {}),
       })
@@ -150,10 +168,12 @@ export function mapMessagesToZai(
       if (item.type === 'text') userParts.push(item.text)
       else if (item.type === 'tool_result') {
         const parts = partsOfToolResultContent(item.output, imagesSupported)
-        toolRows.push({ role: 'tool', tool_call_id: item.call_id, content: (item.value as { is_error?: boolean }).is_error ? `[tool error] ${parts.text}` : parts.text })
-        userImages.push(...parts.images)
+        const resultText = (item.value as { is_error?: boolean }).is_error ? `[tool error] ${parts.text}` : parts.text
         const declaration = opts?.toolDeclarations?.get(item.call_id)
-        if (declaration !== undefined) declarationRows.push(declaration)
+        const inResult = declaration !== undefined && 'content' in declaration && declaration.role === 'tool' && typeof declaration.content === 'string' ? declaration.content : undefined
+        toolRows.push({ role: 'tool', tool_call_id: item.call_id, content: inResult !== undefined ? `${resultText}\n\n${inResult}` : resultText })
+        userImages.push(...parts.images)
+        if (declaration !== undefined && inResult === undefined) declarationRows.push(declaration)
       } else {
         const url = item.value.type === 'image' && imagesSupported ? imageUrlOfBlock(item.value) : undefined
         if (url !== undefined) userImages.push(url)
