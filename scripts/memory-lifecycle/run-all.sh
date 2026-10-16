@@ -26,6 +26,7 @@ for proof in \
   prove-ledger-torn-tail.ts \
   prove-live-session-identity.ts \
   prove-lineage-session.ts \
+  prove-lineage-interrupted.ts \
   prove-handoff-tool-wall.ts \
   prove-handoff-write-receipt.ts \
   prove-handoff-final-reply.ts \
