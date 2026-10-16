@@ -78,7 +78,6 @@ import {
   LINE_FORMAT_INSTRUCTION,
   MAX_LINES_TO_READ,
   MAX_PDF_PAGES_PER_REQUEST,
-  OFFSET_INSTRUCTION_DEFAULT,
   OFFSET_INSTRUCTION_TARGETED,
   renderPromptTemplate,
 } from './prompt.js'
@@ -936,21 +935,16 @@ export const FileReadTool = buildTool({
   },
   async prompt(options?: { model?: string }): Promise<string> {
     const limits = getDefaultFileReadingLimits()
-    const lineFormat =
-      LINE_FORMAT_INSTRUCTION +
-      (lineAnchorsEnabled()
-        ? `; with \`line_anchors: true\` each prefix also carries the line's content anchor ("N#hhhh") — the exact address an anchor-qualified Edit hunk carries back`
-        : '')
     const maxSizeInstruction = limits.includeMaxSizeInPrompt
       ? `. Files larger than ${formatFileSize(limits.maxSizeBytes)} error — use offset and limit to read slices`
       : ''
     const offsetInstruction = limits.targetedRangeNudge
       ? OFFSET_INSTRUCTION_TARGETED
-      : OFFSET_INSTRUCTION_DEFAULT
+      : null
     const targetLines = readTargetsEnabled() ? readTargetPromptLines() : undefined
     const caps = resolveModelCapabilities(options?.model ?? getEngineModel())
     return renderPromptTemplate(
-      lineFormat,
+      LINE_FORMAT_INSTRUCTION,
       maxSizeInstruction,
       offsetInstruction,
       { pdf: caps.media.pdf, images: caps.media.images },
