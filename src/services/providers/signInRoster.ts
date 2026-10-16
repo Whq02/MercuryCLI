@@ -280,10 +280,11 @@ export function forgetSignIn(identity: string, family?: string, home: string = s
   const outcome = forgetPocket(row.family, entry, pocketRemoval(row.family), home)
   if (!outcome.removed) return { ok: false, words: `${row.identity} could not be forgotten — its pocket did not go` }
   const fallback = familySignInRoster(row.family, home).find(candidate => candidate.inUse)
+  const dangling = outcome.fall.project ? ` · .mercury/settings.local.json still names ${row.identity} — remove the line` : ''
   return {
     ok: true,
     choiceFell: outcome.choiceFell,
-    words: `${providerDisplayName(row.family)}: ${row.identity} forgotten${outcome.choiceFell ? ` — this session now spends ${fallback?.identity ?? 'the default'}` : ''}`,
+    words: `${providerDisplayName(row.family)}: ${row.identity} forgotten${outcome.choiceFell ? ` — this session now spends ${fallback?.identity ?? 'the default'}` : ''}${dangling}`,
   }
 }
 

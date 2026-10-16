@@ -339,17 +339,17 @@ export function pocketEntries(family: string, home: string = getAuthConfigHomeDi
   return out.sort((a, b) => a.at - b.at || a.identity.localeCompare(b.identity))
 }
 
-export function forgetPocket(family: string, entry: Pick<PocketEntry, 'identity' | 'slug' | 'dir'>, removal: () => void, home: string = getAuthConfigHomeDir()): { removed: boolean; choiceFell: boolean } {
+export function forgetPocket(family: string, entry: Pick<PocketEntry, 'identity' | 'slug' | 'dir'>, removal: () => void, home: string = getAuthConfigHomeDir()): { removed: boolean; choiceFell: boolean; fall: ChoiceFall } {
   const name = familyWord(family) ?? family
   try {
     withSignInHome(name, entry.dir, removal)
   } catch {
-    return { removed: false, choiceFell: false }
+    return { removed: false, choiceFell: false, fall: { session: false, project: false } }
   }
   const removed = removePocketDir(name, entry.slug, home)
   dropSignInEntry(name, entry.identity, { home })
-  const choiceFell = forgetSessionChoiceOf(name, entry.dir)
-  return { removed, choiceFell }
+  const fall = forgetChoicesOf(name, entry.dir)
+  return { removed, choiceFell: fall.session || fall.project, fall }
 }
 
 export function landingWords(receipt: SignInLandingReceipt, familyName: string, shown = true): string {
@@ -371,17 +371,22 @@ export function useHomeSignIn(family: string, kind: string, write?: () => void):
   setSessionSignIn(name, { identity: `${name}:${kind}`, dir: null, kind })
 }
 
-export function forgetSessionChoiceOf(family: string, dir: string): boolean {
+export interface ChoiceFall {
+  session: boolean
+  project: boolean
+}
+
+export function forgetChoicesOf(family: string, dir: string): ChoiceFall {
   const name = familyWord(family)
-  if (name === undefined) return false
-  let fell = false
-  for (const layer of [sessionChoices, projectChoices]) {
+  const fall: ChoiceFall = { session: false, project: false }
+  if (name === undefined) return fall
+  for (const [layerName, layer] of [['session', sessionChoices], ['project', projectChoices]] as const) {
     const choice = layer.get(name)
     if (choice?.dir !== null && choice?.dir !== undefined && resolve(choice.dir) === resolve(dir)) {
       layer.delete(name)
-      fell = true
+      fall[layerName] = true
     }
   }
-  if (fell) fanOut()
-  return fell
+  if (fall.session || fall.project) fanOut()
+  return fall
 }
