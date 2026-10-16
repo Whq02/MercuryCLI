@@ -149,13 +149,13 @@ const llamaRecord: LocalModelRecord = { id: 'glm-4.7-flash', server: 'llamacpp',
 const READ = FileReadTool.name
 
 type Settled = { toolUses: Array<{ name: string; input: unknown }>; texts: string[]; thinking: string[]; stop: string | null | undefined; notes: string[] }
-async function drive(record: LocalModelRecord): Promise<Settled> {
+async function drive(record: LocalModelRecord, conversation: { messages?: unknown[]; tools?: unknown[] } = {}): Promise<Settled> {
   const assistants: AssistantMessage[] = []
   for await (const item of compatChatCallModel(localLaneProfileFor(record), {
-    messages: [createUserMessage({ content: 'read /tmp/a.ts' })] as never,
+    messages: (conversation.messages ?? [createUserMessage({ content: 'read /tmp/a.ts' })]) as never,
     systemPrompt: ['fixture system prompt'] as never,
     thinkingConfig: { type: 'enabled', budget_tokens: 1024 } as never,
-    tools: [FileReadTool] as never,
+    tools: (conversation.tools ?? [FileReadTool]) as never,
     signal: new AbortController().signal,
     options: { getToolPermissionContext: async () => getEmptyToolPermissionContext(), model: `local/${record.id}`, isNonInteractiveSession: true, querySource: 'agent:builtin:test', agents: [], hasAppendSystemPrompt: false, mcpTools: [], effortValue: 'high' } as never,
   })) {
@@ -255,6 +255,27 @@ const doneRow = (extra: Record<string, unknown> = {}): Record<string, unknown> =
   check('the Mistral grammar through the compat road mints the same way', settled.toolUses.length === 1 && JSON.stringify(settled.toolUses[0]!.input) === JSON.stringify({ file_path: '/tmp/a.ts' }) && settled.stop === 'tool_use', JSON.stringify(settled))
 }
 
+section('7b · the extractor reads the gate\'s own view: a deferred tool ADMITTED this session (its definition rides the ToolSearch result row, not the tools term) mints from markup; the same tool unadmitted stays text')
+{
+  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+  const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.ts')
+  const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+  const FETCH = WebFetchTool.name
+  const pool = [ToolSearchTool, FileReadTool, WebFetchTool]
+  const markup = `<tool_call>\n<function=${FETCH}>\n<parameter=url>\nhttps://example.com/\n</parameter>\n<parameter=prompt>\nthe title\n</parameter>\n</function>\n</tool_call>`
+  const opening = createUserMessage({ content: 'fetch https://example.com/ and tell me the title' })
+  const search = createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_ts_1', name: ToolSearchTool.name, input: { query: `select:${FETCH}` } }] as never })
+  const admission = createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'toolu_ts_1', content: [{ type: 'text', text: `Admitted: ${FETCH}` }, { type: 'tool_reference', tool_name: FETCH }] }] as never })
+  script.ollama = [{ model: 'qwen3.5:9b', message: { role: 'assistant', content: markup }, done: false }, doneRow()]
+  const admitted = await drive(ollamaRecord, { tools: pool, messages: [opening, search, admission] })
+  check(`${FETCH} is deferred on the local road yet admitted here: its markup mints a ${FETCH} tool_use with the typed input`, admitted.toolUses.length === 1 && admitted.toolUses[0]!.name === FETCH && JSON.stringify(admitted.toolUses[0]!.input) === JSON.stringify({ url: 'https://example.com/', prompt: 'the title' }) && admitted.stop === 'tool_use', JSON.stringify(admitted))
+  script.ollama = [{ model: 'qwen3.5:9b', message: { role: 'assistant', content: markup }, done: false }, doneRow()]
+  const unadmitted = await drive(ollamaRecord, { tools: pool, messages: [createUserMessage({ content: 'fetch https://example.com/ and tell me the title' })] })
+  check(`the same markup with ${FETCH} unadmitted: no tool_use, the text stands, the turn ends`, unadmitted.toolUses.length === 0 && unadmitted.texts.length === 1 && unadmitted.texts[0]!.includes('<tool_call>') && unadmitted.stop === 'end_turn', JSON.stringify(unadmitted))
+  script.ollama = [{ model: 'qwen3.5:9b', message: { role: 'assistant', content: `<tool_call>\n<function=${READ}>\n<parameter=file_path>\n/tmp/a.ts\n</parameter>\n</function>\n</tool_call>` }, done: false }, doneRow()]
+  const listed = await drive(ollamaRecord, { tools: pool, messages: [createUserMessage({ content: 'read /tmp/a.ts' })] })
+  check('a tool the tools term carries mints as before beside the deferred pool', listed.toolUses.length === 1 && listed.toolUses[0]!.name === READ && listed.stop === 'tool_use', JSON.stringify(listed))
+}
 fixture.stop(true)
 
 console.log(failures === 0 ? '\nprove-local-tool-call-markup: ALL GREEN' : `\nprove-local-tool-call-markup: ${failures} FAILURE(S)`)
