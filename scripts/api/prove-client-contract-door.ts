@@ -188,7 +188,7 @@ process.env.NODE_ENV = 'test'
   const plainBody = { type: 'error', error: { type: 'invalid_request_error', message: 'messages: text content blocks must be non-empty' } }
   const plain400 = new APIError(400, plainBody, `400 ${JSON.stringify(plainBody)}`, undefined as never)
   const text = textOf(getAssistantMessageFromError(plain400, 'claude-fable-5-1') as never)
-  check('an unrelated 400 keeps its generic tail', text.includes('API Error: 400') && !text.includes('client-contract'), text)
+  check('an unrelated 400 keeps its generic tail', text.includes('API Error (400)') && !text.includes('client-contract'), text)
   delete process.env.ANTHROPIC_API_KEY
   if (previousNodeEnv === undefined) delete process.env.NODE_ENV
   else process.env.NODE_ENV = previousNodeEnv

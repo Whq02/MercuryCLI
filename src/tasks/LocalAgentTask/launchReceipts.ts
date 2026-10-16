@@ -69,7 +69,7 @@ export function restartStopSummary(description: string, reason?: RunnerRestartRe
   return `Crewmate "${recordedDescription(description)}" was stopped — the session's runner restarted${because} before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted`
 }
 
-export type BackgroundHandoverReason = 'turn-interrupted' | 'backgrounded' | 'agent-type' | 'sibling-ended'
+export type BackgroundHandoverReason = 'turn-interrupted' | 'backgrounded' | 'agent-type' | 'sibling-ended' | 'message-queued'
 
 type SiblingEndFacts = { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
 
@@ -79,6 +79,8 @@ export function foregroundNotKeptLine(reason: BackgroundHandoverReason, sibling?
       return 'The foreground request was not kept: the turn it ran in was interrupted, so the crewmate was handed to the background to finish on its own.'
     case 'backgrounded':
       return 'The foreground request was not kept: the crewmate was moved to the background (ctrl+b, or it ran past the foreground threshold).'
+    case 'message-queued':
+      return 'The foreground request was not kept: the operator sent a message while the crewmate held the turn, so the crewmate was handed to the background to finish on its own and the message follows in this turn.'
     case 'agent-type':
       return 'The foreground request was not kept: this crewmate type always runs in the background.'
     case 'sibling-ended':

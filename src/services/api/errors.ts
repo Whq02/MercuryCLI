@@ -365,14 +365,21 @@ function extract429Detail(message: string): { text: string; providerSentence: bo
   return extractProviderDetail(429, message)
 }
 
+function unescapeJsonString(body: string): string {
+  try {
+    return JSON.parse(`"${body}"`) as string
+  } catch {
+    return body
+  }
+}
 function extractProviderDetail(
   status: number | undefined,
   message: string,
 ): { text: string; providerSentence: boolean } | null {
   const prefix = `${status ?? ''} `
   const stripped = status !== undefined && message.startsWith(prefix) ? message.slice(prefix.length) : message
-  const inner = /"message"\s*:\s*"([^"]+)"/.exec(stripped)
-  if (inner?.[1]) return { text: inner[1], providerSentence: true }
+  const inner = /"message"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(stripped)
+  if (inner?.[1]) return { text: unescapeJsonString(inner[1]), providerSentence: true }
   if (stripped.trim() !== '' && !/\{\s*"/.test(stripped)) return { text: stripped, providerSentence: false }
   return null
 }
@@ -721,10 +728,23 @@ function composeAssistantMessageFromError(
   }
 
   if (error instanceof Error) {
+    const overflow = classifyOverflowFault({ family: overflowFamilyOfModel(model), status, message })
+    if (status !== undefined && status >= 400 && status < 500) {
+      logForDebugging(`[api] ${status} on ${model} — the wire said: ${message}`)
+      const detail = extractProviderDetail(status, message)
+      const family = providerNameOfModel(model)
+      const words =
+        detail === null ? `${family} sent no detail` : detail.providerSentence ? `${family} says: ${detail.text}` : detail.text
+      return createAssistantAPIErrorMessage({
+        content: `${API_ERROR_MESSAGE_PREFIX} (${status}): ${words}`,
+        error: 'unknown',
+        overflow,
+      })
+    }
     return createAssistantAPIErrorMessage({
       content: `${API_ERROR_MESSAGE_PREFIX}: ${error.message}`,
       error: 'unknown',
-      overflow: classifyOverflowFault({ family: overflowFamilyOfModel(model), status, message }),
+      overflow,
     })
   }
   return createAssistantAPIErrorMessage({ content: API_ERROR_MESSAGE_PREFIX, error: 'unknown' })
