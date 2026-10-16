@@ -26,7 +26,6 @@ import { journalOnEntryPage, lastJournalEntry } from '../mneme/journal.js'
 import { noteSessionEngine } from '../mneme/lineageSession.js'
 import { mnemeEnabled } from '../mneme/mnemeGates.js'
 import { mnemeProjectKey } from '../mneme/paths.js'
-import { getSessionStartDate } from './common.js'
 import {
   DANGEROUS_uncachedSystemPromptSection,
   keyedSystemPromptSection,
@@ -176,9 +175,8 @@ export async function getSystemPrompt(
   }
   recordCurrentStaticComposition()
   const layers = promptLayerSet()
-  const namelessHead = `Working directory: ${getOriginalCwd()}\nSession date: ${getSessionStartDate()}`
-  if (layers === 'whole') return [namelessHead, promptReplacementText()]
-  const head = layers === 'replace' ? namelessHead : `Mercury — a private terminal software-development harness.\n${namelessHead}`
+  const head = `Working directory: ${getOriginalCwd()}`
+  if (layers === 'whole') return [head, promptReplacementText()]
   const law = layers === 'replace' ? promptReplacementText() : MERCURY_CONSTITUTION
   if (isEnvTruthy(process.env.MERCURY_BARE)) return [`${head}\n\n${law}`]
 

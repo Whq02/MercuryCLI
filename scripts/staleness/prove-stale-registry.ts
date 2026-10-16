@@ -96,7 +96,6 @@ src/components/concourse/ConcourseRoute.tsx :: lastCoherentSnapshot :: subscript
 src/components/mercury-ui/sessionAccent.ts :: snapshotMemo :: keyed-by-truth
 src/components/messages/TranscriptNameplate.tsx :: cachedHandle :: static-for-process
 src/components/messages/transcriptMemory.ts :: memories :: keyed-by-truth
-src/constants/common.ts :: getSessionStartDate :: static-for-process
 src/context.ts :: getGitStatus :: invalidator=applyHarnessGround
 src/context.ts :: getSystemContext :: invalidator=applyHarnessGround
 src/context.ts :: getUserContext :: invalidator=applyHarnessGround
