@@ -1,3 +1,5 @@
+import { schemaPropertyType, typeTextBySchema } from './schemaTyping.js'
+
 type ToolCallMarkupShape = 'qwen-xml' | 'json-in-xml' | 'glm-xml' | 'gemma' | 'mistral'
 
 interface MarkupToolCall {
@@ -23,17 +25,8 @@ function rec(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined
 }
 
-function propertyType(tool: MarkupToolFacts | undefined, key: string): string | undefined {
-  const schema = rec(tool?.input_schema)
-  const property = rec(rec(schema?.properties)?.[key])
-  if (property === undefined) return undefined
-  if (typeof property.type === 'string') return property.type
-  if (Array.isArray(property.type)) return property.type.find((t): t is string => typeof t === 'string' && t !== 'null')
-  if (Array.isArray(property.anyOf)) {
-    const first = property.anyOf.map(rec).find(option => option !== undefined && option.type !== 'null')
-    return typeof first?.type === 'string' ? first.type : undefined
-  }
-  return undefined
+function coerceValue(text: string, tool: MarkupToolFacts | undefined, key: string): unknown {
+  return typeTextBySchema(text, schemaPropertyType(tool?.input_schema, key))
 }
 
 function parseJson(text: string): unknown | undefined {
@@ -41,33 +34,6 @@ function parseJson(text: string): unknown | undefined {
     return JSON.parse(text) as unknown
   } catch {
     return undefined
-  }
-}
-
-function coerceValue(text: string, type: string | undefined): unknown {
-  const trimmed = text.trim()
-  switch (type) {
-    case 'string':
-      return text
-    case 'number':
-    case 'integer': {
-      const n = Number(trimmed)
-      return trimmed !== '' && Number.isFinite(n) ? n : text
-    }
-    case 'boolean':
-      return trimmed === 'true' ? true : trimmed === 'false' ? false : text
-    case 'object':
-    case 'array': {
-      const parsed = parseJson(trimmed)
-      return parsed !== undefined && typeof parsed === 'object' ? parsed : text
-    }
-    default: {
-      if (/^(?:\{|\[|-?\d|true$|false$|null$)/.test(trimmed)) {
-        const parsed = parseJson(trimmed)
-        if (parsed !== undefined) return parsed
-      }
-      return text
-    }
   }
 }
 
@@ -142,7 +108,7 @@ function readQwenXml(body: string, toolOf: (name: string) => MarkupToolFacts | u
   let rest = fn[2]!
   let param: RegExpExecArray | null
   while ((param = parameters.exec(fn[2]!)) !== null) {
-    args[param[1]!] = coerceValue(stripOneNewline(param[2]!), propertyType(tool, param[1]!))
+    args[param[1]!] = coerceValue(stripOneNewline(param[2]!), tool, param[1]!)
     rest = rest.replace(param[0], '')
   }
   if (rest.trim() !== '') return null
@@ -175,7 +141,7 @@ function readGlmXml(body: string, toolOf: (name: string) => MarkupToolFacts | un
   let pair: RegExpExecArray | null
   while ((pair = pairs.exec(head[2]!)) !== null) {
     const key = pair[1]!.trim()
-    args[key] = coerceValue(pair[2]!, propertyType(tool, key))
+    args[key] = coerceValue(pair[2]!, tool, key)
     rest = rest.replace(pair[0], '')
   }
   if (rest.trim() !== '') return null
