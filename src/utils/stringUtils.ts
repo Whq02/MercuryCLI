@@ -35,6 +35,10 @@ export function collapseAndClip(text: string, max: number): string {
   return clipWithEllipsis(collapseWhitespace(text), max)
 }
 
+export function collapseAndSlice(text: string, max: number): string {
+  return collapseWhitespace(text).slice(0, max)
+}
+
 export function wordCount(text: string): number {
   return text.split(/\s+/).filter(Boolean).length
 }
