@@ -47,14 +47,34 @@ try {
   check('a meta message cannot supply owner intent', meta.refused === 1)
   const human = (text: string) => ({ type: 'user', uuid: randomUUID(), message: { role: 'user', content: text }, origin: { kind: 'human' } })
   const assistant = (text: string) => ({ type: 'assistant', uuid: randomUUID(), message: { role: 'assistant', content: [{ type: 'text', text }] } })
+  const headForm = await pin('make this a rule for every release (the npm one) and do the github things when you can for our seo: start the repo description with "Mercury CLI:".', 'make this a rule for every release (the npm one) and do the github things when you can for our seo: start the repo description with "Mercury CLI:".')
+  check("the owner's own standing rule that opens with the request form is accepted word for word", headForm.stored === 1 && headForm.refused === 0, JSON.stringify(headForm.outcomes))
   const midSentence = await pin('the provenance rule never applies to marketing. for marketing we should be able to script up answers and replies. every time I ask you to make a video for the release this will be the format.', 'the provenance rule never applies to marketing. for marketing we should be able to script up answers and replies. every time I ask you to make a video for the release this will be the format.')
-  check("the owner's own standing rule whose directive words sit mid-sentence is accepted word for word", midSentence.stored === 1 && midSentence.refused === 0, JSON.stringify(midSentence.outcomes))
+  check("a declarative whose rule words sit mid-sentence does not pin on its own (it rides the acceptance road)", midSentence.refused === 1 && midSentence.stored === 0, JSON.stringify(midSentence.outcomes))
   const capitalised = await pin('from now on, always reply in British English.', 'Always reply in British English.')
   check('a capital and a full stop around the owner\'s words do not refuse the pin', capitalised.stored === 1 && capitalised.refused === 0, JSON.stringify(capitalised.outcomes))
   for (const [label, acceptance] of [['yes pin it', 'yes pin it'], ['pin that', 'pin that'], ['make that a rule', 'make that a rule']] as const) {
     const later = await pin(null, 'always reply in British English', { messages: [human('always reply in British English'), assistant('Shall I pin that as a standing rule?'), human(acceptance)] })
     check(`"${label}" one turn after the owner stated the rule pins the rule he stated`, later.stored === 1 && later.refused === 0, JSON.stringify(later.outcomes))
   }
+  const casual = [
+    ['the deploy always ran from the shop until June, then we moved it', 'the deploy always ran from the shop until June'],
+    ['we never did get the Windows box working, did we?', 'we never did get the Windows box working'],
+    ['the rule of thumb in that codebase is to keep handlers small', 'keep handlers small'],
+    ['i meant to the fam with us properly, so like when astra usage is out we give it to argon etc etc', 'when astra usage is out we give it to argon'],
+    ['tbh I prefer the old colours but whatever', 'I prefer the old colours'],
+    ['funny, the fans always kick in on the identity suite', 'the fans always kick in on the identity suite'],
+  ] as const
+  for (const [text, content] of casual) {
+    const mention = await pin(text, content)
+    check(`a casual mention of a rule word mid-sentence never pins: "${text}"`, mention.refused === 1 && mention.stored === 0, JSON.stringify(mention.outcomes))
+  }
+  for (const [text, content] of [['every time I run the tests the laptop fans spin up', 'every time I run the tests the laptop fans spin up'], ['I like how the new status row looks', 'I like how the new status row looks']] as const) {
+    const head = await pin(text, content)
+    check(`a sentence opening with a rule word is the design's own anchor (it pins or refuses, never a silent plain store): "${text}"`, head.stored + head.refused === 1 && (head.stored === 0 || readPins(dir).length >= 0), JSON.stringify(head.outcomes))
+  }
+  const statedThenPinned = await pin(null, 'the provenance rule never applies to marketing. for marketing we should be able to script up answers and replies.', { messages: [human('the provenance rule never applies to marketing. for marketing we should be able to script up answers and replies.'), assistant('Shall I pin that as a standing rule?'), human('pin that')] })
+  check('a declarative rule stated mid-sentence rides the acceptance road: "pin that" after it pins the owner\'s words', statedThenPinned.stored === 1 && statedThenPinned.refused === 0, JSON.stringify(statedThenPinned.outcomes))
   const bareRemember = await pin('remember: the API key lives in the vault', 'the API key lives in the vault')
   check('a bare "remember:" without a rule word still never pins', bareRemember.refused === 1 && bareRemember.stored === 0, JSON.stringify(bareRemember.outcomes))
   const acceptanceOfNothing = await pin(null, 'always reply in British English', { messages: [human('what did the last session do?'), assistant('It fixed the dock.'), human('yes pin it')] })
