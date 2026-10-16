@@ -191,7 +191,7 @@ the Bash tool is unavailable. The PowerShell tool remains available, and the
 
 ## Build from source
 
-Install [the source-build requirements](#requirements), including bun 1.3.x:
+Mercury builds with bun and runs on Node 24 LTS. Install [the source-build requirements](#requirements), including bun 1.3.x:
 
 ```sh
 curl -fsSL https://bun.sh/install | bash           # macOS and Linux
