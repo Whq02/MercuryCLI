@@ -12,10 +12,13 @@ import {
   checkAndRefreshOAuthTokenIfNeeded,
   isClaudeAISubscriber,
   saveApiKey,
+  saveOAuthTokensIfNeeded,
 } from '../../utils/auth.js'
 import { getGlobalConfig, saveGlobalConfig, type AccountInfo } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getAuthScope } from '../../utils/envUtils.js'
+import { landSignIn, pocketInUse } from '../../utils/accounts/signInPockets.js'
+import { credentialFingerprint } from '../providers/credentialIdentity.js'
 import { apiTimeoutMsOverride } from '../../utils/envValidation.js'
 import { logError } from '../../utils/log.js'
 import { getSecureStorage } from '../../utils/secureStorage/index.js'
@@ -142,7 +145,7 @@ export async function exchangeCodeForTokens(
 
 
 function readStoredCredential(): OAuthTokens | undefined {
-  return getSecureStorage().read()?.claudeAiOauth
+  return getSecureStorage('anthropic').read()?.claudeAiOauth
 }
 
 function canSkipProfileFetch(): boolean {
@@ -545,4 +548,50 @@ export function storeOAuthAccountInfo(info: AccountInfo): void {
   void import('../../daemon/ownedDaemon.js')
     .then(m => m.restartOwnedDaemonForFreshSignin())
     .catch(() => {})
+}
+
+export function claudeAiSignInIdentity(tokens: OAuthTokens | null | undefined): string | undefined {
+  if (!tokens?.accessToken) return undefined
+  return accountInfoFromTokens(tokens)?.emailAddress ?? credentialFingerprint(tokens.refreshToken ?? tokens.accessToken)
+}
+
+export function landClaudeAiTokens(tokens: OAuthTokens): { success: boolean; warning?: string } {
+  if (!shouldUseClaudeAIAuth(tokens.scopes)) return saveOAuthTokensIfNeeded(tokens)
+  let saved: { success: boolean; warning?: string } = { success: false }
+  landSignIn({
+    family: 'anthropic',
+    identity: claudeAiSignInIdentity(tokens) ?? credentialFingerprint(tokens.accessToken),
+    kind: 'subscription',
+    ledgerKind: 'oauth',
+    stable: accountInfoFromTokens(tokens)?.emailAddress !== undefined,
+    homeIdentity: () => claudeAiSignInIdentity(getSecureStorage('anthropic').read()?.claudeAiOauth),
+    write: () => {
+      saved = saveOAuthTokensIfNeeded(tokens)
+      if (!saved.success) throw new Error(saved.warning ?? 'the credential could not be saved to secure storage')
+    },
+  })
+  return saved
+}
+
+export function anthropicPocketDir(): string | undefined {
+  return pocketInUse('anthropic')
+}
+
+export function storeLandedOAuthAccountInfo(info: AccountInfo): void {
+  const pocket = anthropicPocketDir()
+  if (pocket === undefined) {
+    storeOAuthAccountInfo(info)
+    return
+  }
+  const { healScopeIdentitySnapshot } = require('../../utils/accounts/accountIdentity.js') as typeof import('../../utils/accounts/accountIdentity.js')
+  const { readScopeIdentity, scopeIdentityFile } = require('../../utils/accounts/scopeScan.js') as typeof import('../../utils/accounts/scopeScan.js')
+  if (readScopeIdentity(scopeIdentityFile(pocket)).uuid !== info.accountUuid) {
+    try {
+      const { resetLimitsForCredentialSwitch } = require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
+      resetLimitsForCredentialSwitch()
+    } catch {
+      logForDebugging('[accounts] the usage window reset could not run for the pocket sign-in')
+    }
+  }
+  healScopeIdentitySnapshot(pocket, { email: info.emailAddress, ...(info.accountUuid ? { uuid: info.accountUuid } : {}) }, info as unknown as Record<string, unknown>)
 }

@@ -604,6 +604,7 @@ if (!existsSync(DIST)) {
         ...Array.from({ length: 12 }, (_, i) => ({ kind: 'tool_use' as const, name: 'Read', input: {}, thinking: 'Read file ' + i, model })),
         { kind: 'text', text: 'PRUNE-READY', thinking: 'All files read.', model },
         { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'prompt is too long: 202000 tokens > 200000 maximum' },
+        { kind: 'text', text: 'SUMMARY: all twelve reference files were read; preserve the recent complete rounds and continue without new tool work.', model },
         { kind: 'text', text: 'PRUNE-APPLIED', thinking: 'Reasoning after clearing.', model },
         { kind: 'text', text: 'PRUNE-NEXT', thinking: 'The following query.', model },
         { kind: 'text', text: 'PRUNE-RESUMED', thinking: 'The restored conversation.', model },
@@ -639,15 +640,17 @@ if (!existsSync(DIST)) {
           check('§11 continue restores the same replacement state', continued.exit === 0 && continued.stdout.includes('PRUNE-CONTINUED'), continued.stderr.slice(-300))
         }
         const requests = mainRequests(fixture)
-        check('§11 all expected model requests occurred', requests.length === 20, String(requests.length))
-        const cleared = requests.slice(14)
+        check('§11 all expected model requests and the summary occurred', requests.length === 21, String(requests.length))
+        const cleared = requests.slice(15)
         const placeholderCounts = cleared.map(request => {
           const body = request.body as Body
           return ((body.messages ?? []) as Array<{ content?: Block[] }>).flatMap(message => Array.isArray(message.content) ? message.content : [])
             .filter(block => block.type === 'tool_result' && typeof block.content === 'string' && block.content.startsWith('[stale tool result')).length
         })
-        check('§11 the clearing request carries placeholders and every subsequent request retains the same count', cleared.length === 6 && (placeholderCounts[0] ?? 0) >= 1 && placeholderCounts.every(count => count === placeholderCounts[0]), placeholderCounts.join(','))
-        check('§11 two results are cleared: the newest-40,000-token protection keeps ten of the twelve 15,989-byte Read results (the reminder rides the first only)', placeholderCounts[0] === 2, placeholderCounts.join(','))
+        check('§11 the folded request and every resumed request carry no emergency-prune placeholder', cleared.length === 6 && placeholderCounts.every(count => count === 0), placeholderCounts.join(','))
+        const summaryBody = requests[14]?.body as Body | undefined
+        const summaryResults = (summaryBody?.messages ?? []).flatMap(row => Array.isArray(row.content) ? row.content : []).filter(block => block.type === 'tool_result')
+        check('§11 all twelve bodies reached the summary before any retirement', summaryResults.length === 12 && summaryResults.every(block => typeof block.content === 'string' && !block.content.startsWith('[stale tool result')))
         check('§11 the binding checker drops no reasoning on any request', requests.every(request => bindingDropsFor(request.body).length === 0), requests.map(request => bindingDropsFor(request.body).length).join(','))
         census('§11 after clearing', cleared, true)
       } finally {
@@ -729,7 +732,7 @@ if (!existsSync(DIST)) {
         { kind: 'text', text: 'S4-POST-COMPACT-DONE', thinking: 'after the fold', inputTransformations: [DROP] },
       ]
       const fixture = await startFixtureApi(turns)
-      const arena = makeArena(fixture, { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '9' })
+      const arena = makeArena(fixture, { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '40' })
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f4'
       const debugFile = join(arena.home, 's4.debug.log')
       const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', debugFile], [

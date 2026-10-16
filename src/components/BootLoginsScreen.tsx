@@ -215,7 +215,7 @@ export function loginsRowStateOf(arm: LoginsArmV1, facts: LoginsScreenFactsV1): 
           ? fitChip(group.family.reason ?? 'unavailable')
           : 'not signed in';
   } else {
-    const first = signedInSlots[0]!;
+    const first = signedInSlots.find(s => s.active) ?? signedInSlots[0]!;
     chip = fitChip(first.identity || first.kindLabel);
     if (signedInSlots.length > 1) chip += ` +${signedInSlots.length - 1}`;
   }

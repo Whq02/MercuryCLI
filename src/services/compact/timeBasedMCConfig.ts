@@ -9,7 +9,7 @@ type TimeBasedMCConfig = {
 }
 
 const DEFAULT_THRESHOLD_MINUTES = 60
-const DEFAULT_KEEP_RECENT = 5
+const DEFAULT_KEEP_RECENT = 10
 
 export function getTimeBasedMCConfig(): TimeBasedMCConfig {
   return {

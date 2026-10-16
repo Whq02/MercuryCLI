@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { BLOCK_HEADER, BLOCK_MARK, SUMMARY_HEADER, SUMMARY_MARK } from './compaction-hold-fixture-words.ts'
+import { BLOCK_HEADER, BLOCK_MARK, SUMMARY_HEADER, SUMMARY_MARK, TOOL_RESULT_MARK } from './compaction-hold-fixture-words.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 import type { Message } from '../../src/types/message.ts'
 
@@ -451,7 +451,8 @@ if (!existsSync(DIST)) {
   check('every request carrying the block carries it once, and the summary after it', withBlock.length >= 2 && withBlock.every(c => partsOf(c).filter(p => p === BLOCK_MARK).length === 1 && partsOf(c).indexOf(BLOCK_MARK) >= 0 && partsOf(c).indexOf(BLOCK_MARK) < partsOf(c).indexOf(SUMMARY_MARK)), j(withBlock.map(c => [c.n, c.parts])))
   check('the block is never the last user text: the delivered lines ride last after it — the held lines as one batched text, the later line, the auto-held lines', withBlock.every(c => partsOf(c).at(-1) !== BLOCK_MARK) && partsOf(heldRequest).at(-1) === `${FIRST}\n${SECOND}` && partsOf(carrying(LATER)[0]).at(-1) === LATER && partsOf(autoRequest).at(-1) === `${AUTO1}\n${AUTO2}`, j(withBlock.map(c => [c.n, partsOf(c).at(-1)])))
   const afterAutoFold = firstAfter[1]
-  check('after the fold inside a running turn nothing is delivered: the summary is the last user text, and the folded lines ride only inside the block', afterAutoFold !== undefined && partsOf(afterAutoFold).at(-1) === SUMMARY_MARK && (afterAutoFold.last ?? []).length === 0 && [FIRST, SECOND, LATER].every(w => (afterAutoFold.block ?? []).includes(w)), j(afterAutoFold))
+  const behindSummary = partsOf(afterAutoFold).slice(partsOf(afterAutoFold).indexOf(SUMMARY_MARK) + 1)
+  check('after the fold inside a running turn nothing is delivered: the folded lines ride only inside the block, and behind the summary rides only the running turn\'s own round kept whole (its ask, then its tool result)', afterAutoFold !== undefined && (afterAutoFold.last ?? []).length === 0 && [FIRST, SECOND, LATER].every(w => (afterAutoFold.block ?? []).includes(w)) && j(behindSummary) === j([afterAutoFold.ask, TOOL_RESULT_MARK]), j(afterAutoFold))
   check('no line rides twice in one request outside the block', asks.every(c => (c.twice ?? []).length === 0), j(asks.filter(c => (c.twice ?? []).length > 0).map(c => [c.n, c.twice])))
   if (failures === 0) rmSync(RUN_HOME, { recursive: true, force: true })
   else {

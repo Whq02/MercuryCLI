@@ -8,6 +8,7 @@ import {
 } from '../compact/microCompact.js'
 import type { Message } from '../../types/message.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
+import { stripThinkingInPreservedTail } from '../../utils/messages/apiFilters.js'
 import { projectRewoundWindows } from '../compact/checkpointRewind.js'
 import { PROTECTED_TOOL_NAMES } from '../compact/pruneProtections.js'
 import {
@@ -23,6 +24,7 @@ import {
   noteMeasuredUsage,
 } from './contextCalibration.js'
 import { getContextEpoch, recordAppliedPlan } from './contextEpochs.js'
+import { bindRequestGauge, requestGaugeDigest, type RequestGaugeFixed, type RequestGaugeView } from './requestGauge.js'
 import {
   candidateIndexFor,
   type ContextPolicyClass,
@@ -49,6 +51,8 @@ interface RequestContextPlanInput {
   calibrationKey?: string | null
   harnessContextPolicy?: ContextPolicyClass | null
   pressurePrune?: true | { minimumTokensSaved: number }
+  fixedRequest?: RequestGaugeFixed
+  preserveBodies?: boolean
 }
 
 export interface RequestContextPlan {
@@ -73,8 +77,10 @@ export interface RequestContextPlan {
   tokenEstimate: {
     key: string
     estimatedTokens: number
+    baseTokens: number
     calibration: CalibrationRead
   } | null
+  gauge?: RequestGaugeView
 }
 
 function digestAndCharsOfMessages(messages: Message[]): { digest: string; chars: number } {
@@ -130,7 +136,7 @@ export function getLastAppliedPlan(owner: OwnerKey): RequestContextPlan | null {
 export function reconcileAppliedPlanUsage(owner: OwnerKey, measuredTokens: number): void {
   const est = lastAppliedPlans.peek(owner)?.plan?.tokenEstimate
   if (!est) return
-  noteMeasuredUsage(est.key, est.estimatedTokens, measuredTokens)
+  noteMeasuredUsage(est.key, est.baseTokens, measuredTokens)
 }
 
 export async function buildRequestContextPlan(
@@ -140,7 +146,7 @@ export async function buildRequestContextPlan(
   const unknownFields: string[] = []
   const reasons: string[] = []
   const sourceMessageCount = input.messages.length
-  const afterBoundary = getMessagesAfterCompactBoundary(input.messages)
+  const afterBoundary = stripThinkingInPreservedTail(getMessagesAfterCompactBoundary(input.messages))
   const afterRewinds = projectRewoundWindows(afterBoundary)
   if (afterRewinds.length < afterBoundary.length) {
     reasons.push(
@@ -171,8 +177,9 @@ export async function buildRequestContextPlan(
   if (input.contentReplacementState) {
     const state =
       mode === 'apply'
-        ? input.contentReplacementState
+        ? input.preserveBodies ? cloneContentReplacementState(input.contentReplacementState) : input.contentReplacementState
         : cloneContentReplacementState(input.contentReplacementState)
+    if (input.preserveBodies) state.budgetChars = Infinity
     const seenBefore = state.seenIds.size
     view = await applyToolResultBudget(
       view,
@@ -180,7 +187,7 @@ export async function buildRequestContextPlan(
       mode === 'apply' ? input.persistReplacements : undefined,
       new Set([...(input.skipToolNames ?? []), ...PROTECTED_TOOL_NAMES]),
     )
-    budgetReplacements = state.seenIds.size - seenBefore
+    budgetReplacements = input.preserveBodies ? 0 : state.seenIds.size - seenBefore
     if (budgetReplacements > 0) {
       reasons.push(`tool-result budget replaced ${budgetReplacements} oversized result(s)`)
     }
@@ -191,7 +198,7 @@ export async function buildRequestContextPlan(
   let timeBasedCleared = 0
   let pressurePruned: RequestContextPlan['reductions']['pressurePruned']
   let deadThinkingMarks: RequestContextPlan['reductions']['deadThinkingMarks']
-  {
+  if (!input.preserveBodies) {
     const projected = projectTimeBasedMicrocompact(view, input.querySource)
     if (projected) {
       timeBasedCleared = projected.cleared
@@ -207,7 +214,7 @@ export async function buildRequestContextPlan(
         input.querySource,
         input.readFileState ? { readFileState: input.readFileState } : undefined,
         input.pressurePrune === true
-          ? { pressure: true }
+          ? { pressure: true, supersededOnly: true }
           : input.pressurePrune !== undefined && projected === null
             ? { pressure: true, supersededOnly: true, minimumTokensSaved: input.pressurePrune.minimumTokensSaved }
             : undefined,
@@ -247,6 +254,7 @@ export async function buildRequestContextPlan(
     tokenEstimate = {
       key: input.calibrationKey,
       estimatedTokens: estimateTokensFromChars(chars, calibration),
+      baseTokens: estimateTokensFromChars(chars, { calibrated: false }),
       calibration,
     }
   }
@@ -270,6 +278,9 @@ export async function buildRequestContextPlan(
     unknownFields,
     selection,
     tokenEstimate,
+    ...(input.fixedRequest && input.calibrationKey ? {
+      gauge: { ...bindRequestGauge(view, input.calibrationKey, getContextEpoch(input.owner).epoch, input.fixedRequest, requestGaugeDigest(afterBoundary) !== requestGaugeDigest(view)), sourceDigest: requestGaugeDigest(afterBoundary) },
+    } : {}),
   }
   if (mode === 'apply') {
     lastAppliedPlans.get(input.owner).plan = plan

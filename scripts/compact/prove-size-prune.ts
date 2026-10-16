@@ -106,30 +106,12 @@ const timedHistory = history.map(message => ({ ...message, timestamp: oldTimesta
 const timedPlan = await buildRequestContextPlan({ ...planInput, messages: timedHistory, querySource: 'main_thread', contentReplacementState: createContentReplacementState(), pressurePrune: { minimumTokensSaved: Number.MAX_SAFE_INTEGER } }, 'apply')
 check('a time-gap prune keeps its wider selection and is attributed only to time', timedPlan.reductions.timeBasedCleared > 0 && timedPlan.reductions.pressurePruned === undefined && !timedPlan.reductions.reasons.some(reason => reason.includes('context size')) && isClearedOrDigested(contentOf(timedPlan.messages, 'read_unique')))
 process.env.MERCURY_TIME_BASED_MC = '0'
-const { sizePruneRequest, sizePruneNotice } = await import('../../src/services/compact/overflowRecovery.ts')
-const windowModel = 'compat/fixture-model'
-const counted = (tokens: number): Message[] => {
-  const assistant = createAssistantMessage({ content: 'ready', usage: { input_tokens: tokens, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } as never })
-  assistant.message.model = windowModel
-  return [assistant]
-}
-delete process.env.MERCURY_COMPACT
-for (const value of ['', 'invalid', '-1', '101', '40']) {
-  process.env.MERCURY_PRUNE_PCT = value
-  const request = await sizePruneRequest(counted(130000), windowModel, 'sdk')
-  check(`threshold ${JSON.stringify(value)} resolves to the default 40 percent and two-thirds target`, request?.thresholdPercent === 40 && request.windowTokens === 200000 && request.targetTokens === 53333)
-}
-check('the request below the threshold is untouched', await sizePruneRequest(counted(79999), windowModel, 'sdk') === undefined)
-const edge = await sizePruneRequest(counted(80000), windowModel, 'sdk')
-check('the request at the threshold is eligible', edge?.estimatedTokens === 80000)
-check('the receipt names size, threshold, applied count and saved estimate', edge !== undefined && sizePruneNotice(edge, { cleared: 2, tokensSaved: 42000 }).includes('prune threshold 40%') && sizePruneNotice(edge, { cleared: 2, tokensSaved: 42000 }).includes('pruned 2 superseded tool results (~42,000 tokens)'))
-check('a summary service never triggers a size prune', await sizePruneRequest(counted(150000), windowModel, 'compact') === undefined)
-process.env.MERCURY_PRUNE_PCT = '0'
-check('zero disables only the size trigger', await sizePruneRequest(counted(150000), windowModel, 'sdk') === undefined)
-process.env.MERCURY_PRUNE_PCT = '40'
-process.env.MERCURY_COMPACT = '0'
-check('the compaction-off switch disables the early prune', await sizePruneRequest(counted(150000), windowModel, 'sdk') === undefined)
-delete process.env.MERCURY_COMPACT
-delete process.env.MERCURY_PRUNE_PCT
+const recovery = await import('../../src/services/compact/overflowRecovery.ts') as Record<string, unknown>
+check('the proactive size-prune road is gone: no request, no notice, no threshold flag', !('sizePruneRequest' in recovery) && !('sizePruneNotice' in recovery) && !(await import('../../src/substrate/flagRegistry.ts')).FLAG_REGISTRY.some(row => row.env === 'MERCURY_PRUNE_PCT'))
+const { overflowRecoveryNotice } = await import('../../src/services/compact/overflowRecovery.ts')
+const incident = overflowRecoveryNotice({ source: 'estimate', family: 'unknown', shape: 'estimate', actualTokens: 1047974, limitTokens: 1025576 } as never, 'prune', { cleared: 154, tokensSaved: 740942 })
+check('the emergency prune receipt names the bodies, Mercury\'s gross estimate and that no summary or memory move happened', incident.includes('pruned 154 superseded tool-result bodies (about 740,942 tokens by Mercury\'s estimate, net of placeholders; no summary written, nothing moved to memory) and retrying'))
+check('one body reads singular', overflowRecoveryNotice({ source: 'estimate', family: 'unknown', shape: 'estimate', actualTokens: 10, limitTokens: 5 } as never, 'prune', { cleared: 1, tokensSaved: 7 }).includes('pruned 1 superseded tool-result body (about 7 tokens'))
+check('the fold rung still names the summary first', overflowRecoveryNotice({ source: 'estimate', family: 'unknown', shape: 'estimate', actualTokens: 10, limitTokens: 5 } as never, 'fold').endsWith('— folding the conversation and retrying'))
 console.log(`${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

@@ -11,7 +11,7 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'overflow-prune-cred
 for (const k of [
   'MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_BLOCKING_LIMIT_OVERRIDE',
   'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_TIME_BASED_MC', 'NODE_ENV',
-  'MERCURY_MODEL', 'MERCURY_PRUNE_PCT', 'MERCURY_DISABLE_1M_CONTEXT',
+  'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT',
 ]) {
   delete process.env[k]
 }
@@ -205,7 +205,7 @@ function seedLongLane(rounds: number, anchorInputTokens: number, resultChars: nu
         type: 'message',
         role: 'assistant',
         model: MODEL,
-        content: [{ type: 'tool_use', id, name: 'Read', input: { file_path: `/tmp/lane/module-${i}.ts` } }],
+        content: [{ type: 'tool_use', id, name: 'Read', input: { file_path: '/fixture/repeated-module.ts' } }],
         stop_reason: 'tool_use',
         stop_sequence: null,
         usage: last
@@ -237,7 +237,8 @@ const isPlaceholder = (content: unknown): boolean =>
 const settledTransitions = (events: AnyEvent[]): unknown[] => events.filter(e => e.kind === 'turn_settled').map(e => e.transition)
 const noticeTexts = (yields: AnyMsg[]): string[] => yields.filter(y => y.type === 'system').map(y => String(y.content ?? ''))
 const errorYields = (yields: AnyMsg[]): AnyMsg[] => yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true)
-const BREAKER_TRIPPED = { wasCompacted: false, consecutiveFailures: 3 }
+const { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/services/compact/compact.js')
+const SUMMARY_TOO_LARGE = { wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD }
 
 section('P1 the owner\'s shape — the breaker tripped, the view over the limit by a small gap, every prunable result before the anchor: the prune rung clears the old results and the retry GOES OUT')
 {
@@ -246,12 +247,12 @@ section('P1 the owner\'s shape — the breaker tripped, the view over the limit 
   const saving = projectTimeBasedMicrocompact(seed as never, 'sdk', { pressure: true })?.tokensSaved ?? 0
   check(`the view is anchored on the last reply's usage and over the limit by a small gap (${fmt(estimate)} > ${fmt(BLOCKING)}; gap ${fmt(estimate - BLOCKING)})`, estimate > BLOCKING && estimate - BLOCKING < 10_000, `${estimate}`)
   check(`the prune rung's projected saving covers the gap and brings the view under the limit (~${fmt(saving)} tokens)`, saving >= (estimate - BLOCKING) * 1.2 && estimate - saving < BLOCKING, `${saving}`)
-  const r = await run({ seed, script: [[ping(), asstText('the retry after the prune')]], compactAnswer: BREAKER_TRIPPED })
+  const r = await run({ seed, script: [[ping(), asstText('the retry after the prune')]], compactAnswer: SUMMARY_TOO_LARGE })
   const refusals = errorYields(r.yields).map(textOf)
   check('the retry after the prune went out: one model call, terminal completed', r.terminal.reason === 'completed' && r.calls.length === 1, `${JSON.stringify(r.terminal)} calls=${r.calls.length} refusals=${JSON.stringify(refusals)}`)
   check('the transition names the prune rung from the estimate', JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"estimate"'), JSON.stringify(settledTransitions(r.events)))
   const notice = noticeTexts(r.yields).find(t => t.startsWith('context overflowed (estimated '))
-  check(`the notice names the estimate, the count and the reclaimed tokens`, notice !== undefined && /^context overflowed \(estimated [\d,]+ tokens > 777,000\) — pruned \d+ superseded tool results \(~[\d,]+ tokens\) and retrying$/.test(notice), JSON.stringify(noticeTexts(r.yields)))
+  check(`the notice names the estimate, the count and the reclaimed tokens`, notice !== undefined && /^context overflowed \(estimated [\d,]+ tokens > 777,000\) — pruned \d+ superseded tool-result bod(?:y|ies) \(about [\d,]+ tokens by Mercury's estimate, net of placeholders; no summary written, nothing moved to memory\) and retrying$/.test(notice), JSON.stringify(noticeTexts(r.yields)))
   const cleared = r.calls[0] !== undefined ? toolResultsOf(r.calls[0].messages).filter(x => isPlaceholder(x.content)) : []
   check(`the request on the wire carries the placeholders of the cleared results (${cleared.length} cleared) and the newest results whole`, r.calls[0] !== undefined && cleared.length >= 5 && !isPlaceholder(toolResultsOf(r.calls[0].messages).at(-1)?.content), JSON.stringify(cleared.map(c => c.id)))
   check('no refusal row ever yields — the number moved, the breaker was never asked', refusals.length === 0, JSON.stringify(refusals))
@@ -278,15 +279,15 @@ section('P2 the compaction gate reads the same credit — the freed tokens ride 
       usage: { input_tokens: 2, output_tokens: 20, cache_creation_input_tokens: 500, cache_read_input_tokens: 602_000 },
     },
   }
-  const r = await run({ seed, script: [[ping(), replyWithUsage], [ping(), asstText('the round after the prune')]], compactAnswer: BREAKER_TRIPPED })
+  const r = await run({ seed, script: [[ping(), replyWithUsage], [ping(), asstText('the round after the prune')]], compactAnswer: SUMMARY_TOO_LARGE })
   check('two model calls: the pruned retry, then the round after its tool result; terminal completed', r.terminal.reason === 'completed' && r.calls.length === 2, `${JSON.stringify(r.terminal)} calls=${r.calls.length}`)
-  check('the gate was asked three times: before the prune, on the pruned iteration, after the reply anchored afresh', r.compact.length === 3, String(r.compact.length))
-  const [first, second, third] = r.compact
+  check('the gate runs before recovery and after the fresh reply, not again during the emergency prune', r.compact.length === 2, String(r.compact.length))
+  const [first, second] = r.compact
   check('the first ask carried no credit (nothing was pruned yet)', first !== undefined && (first.snip ?? 0) === 0, JSON.stringify(first?.snip))
   const notice = noticeTexts(r.yields).find(t => t.startsWith('context overflowed (estimated ')) ?? ''
-  const reclaimed = Number((/\(~([\d,]+) tokens\)/.exec(notice)?.[1] ?? '0').replace(/,/g, ''))
-  check(`the second ask carried the prune's own receipt as its credit (${fmt(second?.snip ?? 0)} = the notice's ~${fmt(reclaimed)})`, second !== undefined && reclaimed > 0 && second.snip === reclaimed, `snip=${second?.snip} reclaimed=${reclaimed}`)
-  check('the third ask carried no credit — the reply\'s own usage is the anchor now and already reads the pruned prompt', third !== undefined && (third.snip ?? 0) === 0, JSON.stringify(third?.snip))
+  const reclaimed = Number((/\(about ([\d,]+) tokens by Mercury's estimate/.exec(notice)?.[1] ?? '0').replace(/,/g, ''))
+  check('the receipt names a real reduction but the projected gauge needs no subtraction', reclaimed > 0 && r.compact.every(call => (call.snip ?? 0) === 0), `reclaimed=${reclaimed}`)
+  check('the next gate carries no stale credit after the fresh usage anchor', second !== undefined && (second.snip ?? 0) === 0, JSON.stringify(second?.snip))
   const retry = r.calls[1]
   const retryCount = retry !== undefined ? tokenCountWithEstimation(retry.messages as never, MODEL) : -1
   check(`the round after the reply counts from the fresh anchor (${fmt(retryCount)}, under the limit) with the placeholders still in place`, retry !== undefined && retryCount > 600_000 && retryCount < BLOCKING && toolResultsOf(retry.messages).some(x => isPlaceholder(x.content)), `${retryCount}`)

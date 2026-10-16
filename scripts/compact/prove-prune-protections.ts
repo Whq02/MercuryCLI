@@ -54,7 +54,7 @@ section('§C the clearing path honours both laws')
   const stamp = (m: Message): Message => ({ ...m, timestamp: OLD }) as Message
   const big = 'x'.repeat(36_000)
   const huge = 'x'.repeat(80_000)
-  const fillers = ['f1', 'f2', 'f3', 'f4', 'bash_recent']
+  const fillers = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'bash_recent']
   const history: Message[] = [
     stamp(createUserMessage({ content: 'go' }) as Message),
     stamp(createAssistantMessage({

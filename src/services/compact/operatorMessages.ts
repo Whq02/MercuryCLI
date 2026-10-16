@@ -2,7 +2,6 @@ import { TERMINAL_OUTPUT_TAGS } from '../../constants/xml.js'
 import type { Message, UserMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { Attachment } from '../../utils/attachments/types.js'
-import { sliceHeadAtGrapheme } from '../../utils/intl.js'
 import { isOperatorTurn } from '../../utils/messages/operatorTurns.js'
 
 export const OPERATOR_MESSAGES_ATTACHMENT_TYPE = 'compact_operator_messages' as const
@@ -64,6 +63,15 @@ export function estimateOperatorMessageTokens(text: string): number {
   return Math.ceil(text.length / CHARS_PER_TOKEN)
 }
 
+export function priorOperatorMessages(messages: readonly Message[]): number {
+  let prior = 0
+  for (const message of messages) {
+    if (message.type !== 'attachment' || message.attachment.type !== OPERATOR_MESSAGES_ATTACHMENT_TYPE) continue
+    prior = Math.max(prior, message.attachment.messages.length + message.attachment.omitted)
+  }
+  return prior
+}
+
 export function collectOperatorTexts(messages: Message[], keptUuids?: ReadonlySet<string>): string[] {
   const texts: string[] = []
   const seen = new Set<string>()
@@ -71,10 +79,7 @@ export function collectOperatorTexts(messages: Message[], keptUuids?: ReadonlySe
     if (keptUuids?.has(message.uuid)) continue
     if (message.type === 'attachment') {
       const attachment = message.attachment
-      if (attachment.type === OPERATOR_MESSAGES_ATTACHMENT_TYPE) {
-        for (let index = attachment.messages.length - 1; index >= 0; index--) texts.push(attachment.messages[index]!.text)
-        continue
-      }
+      if (attachment.type === OPERATOR_MESSAGES_ATTACHMENT_TYPE) continue
       const steer = steerTextOf(attachment)
       if (steer === null) continue
       if (attachment.type === 'queued_command' && attachment.source_uuid !== undefined) {
@@ -97,27 +102,24 @@ export function selectOperatorMessages(
   messages: Message[],
   opts?: { keptUuids?: ReadonlySet<string>; tokenBudget?: number },
 ): OperatorMessagesAttachment | null {
-  const budget = Math.max(0, opts?.tokenBudget ?? OPERATOR_MESSAGES_TOKEN_BUDGET)
+  const budget = Math.max(0, opts?.tokenBudget ?? Infinity)
+  const prior = priorOperatorMessages(messages)
   const texts = collectOperatorTexts(messages, opts?.keptUuids)
   if (texts.length === 0) return null
   const selected: OperatorMessageEntry[] = []
   let remaining = budget
-  for (let ordinal = texts.length; ordinal >= 1; ordinal--) {
-    const text = texts[ordinal - 1]!
+  for (let index = texts.length; index >= 1; index--) {
+    const text = texts[index - 1]!
     const tokens = estimateOperatorMessageTokens(text)
     if (tokens <= remaining) {
-      selected.push({ ordinal, text })
+      selected.push({ ordinal: prior + index, text })
       remaining -= tokens
       continue
     }
-    const keepChars = remaining * CHARS_PER_TOKEN - OPERATOR_MESSAGE_TRUNCATION_MARKER.length - 1
-    if (keepChars >= MIN_TRUNCATED_CHARS) {
-      selected.push({ ordinal, text: `${sliceHeadAtGrapheme(text, keepChars)}\n${OPERATOR_MESSAGE_TRUNCATION_MARKER}`, truncated: true })
-    }
-    break
+    throw new Error('The operator messages do not fit verbatim; the original context is kept.')
   }
   if (selected.length === 0) return null
-  return { type: OPERATOR_MESSAGES_ATTACHMENT_TYPE, messages: selected, omitted: texts.length - selected.length }
+  return { type: OPERATOR_MESSAGES_ATTACHMENT_TYPE, messages: selected, omitted: prior + texts.length - selected.length }
 }
 
 export function operatorMessagesBlockText(attachment: OperatorMessagesAttachment): string {
@@ -126,7 +128,7 @@ export function operatorMessagesBlockText(attachment: OperatorMessagesAttachment
   const coverage =
     attachment.omitted === 0
       ? `all ${total} of them`
-      : `the newest ${shown} of ${total}; ${attachment.omitted === 1 ? 'message 1 is' : `messages 1-${attachment.omitted} are`} left to the summary`
+      : `the newest ${shown} of ${total}; ${attachment.omitted === 1 ? 'message 1 is' : `messages 1-${attachment.omitted} are`} carried whole by the earlier folds' boundary records`
   const head = `The operator's own messages from the stretch folded into the summary below, verbatim and newest first (${coverage}). They are the record of what was asked, in the operator's exact words; the summary says what was done about each and where the work stands.`
   const rows = attachment.messages.map(entry => `<operator-message ordinal="${entry.ordinal}" of="${total}">\n${entry.text}\n</operator-message>`)
   return [head, ...rows].join('\n\n')
