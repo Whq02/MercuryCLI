@@ -25,6 +25,7 @@ export type KeyParseState = {
   pendingBytes?: Buffer
   heldCR?: boolean
   _scanner?: Scanner
+  stringReplyOwed?: () => boolean
 }
 
 export const INITIAL_STATE: KeyParseState = {
@@ -74,7 +75,8 @@ export function parseMultipleKeypresses(
   const isFlush = input === null
 
   const { text, pending } = decodeChunk(prevState.pendingBytes, input)
-  const scanner = prevState._scanner ?? createScanner({ x10Mouse: true })
+  const scanner =
+    prevState._scanner ?? createScanner({ x10Mouse: true, stringReplyOwed: prevState.stringReplyOwed })
 
   const tokens: ScanToken[] = isFlush
     ? [...(text ? scanner.feed(text) : []), ...scanner.flush()]
@@ -155,6 +157,7 @@ export function parseMultipleKeypresses(
       pendingBytes: pending,
       heldCR,
       _scanner: scanner,
+      stringReplyOwed: prevState.stringReplyOwed,
     },
   ]
 }

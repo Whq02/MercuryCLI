@@ -12,8 +12,8 @@ running side.
 refuses anything else on every route). Every launcher picks that Node in one
 order, first hit wins: `MERCURY_NODE` (an explicit binary), the vendored
 runtime beside the bundle (`vendor/node/bin/node`; `vendor\node\node.exe` on
-Windows — every release archive carries one, and a source build carries one
-once `bun run setup` fetched the pack), then a PATH `node`. No rung is
+Windows, included in every release archive and in a source build once `bun run
+setup` fetched the pack), then a PATH `node`. No rung is
 silent: a `MERCURY_NODE` naming a missing file refuses, an unsupported Node
 is refused by name and range, and no rung at all prints all three. The
 runtime spawns its own children through the Node it runs on, so the rung
@@ -21,8 +21,8 @@ the launcher picks is the runtime the whole session runs on. The same bundle ser
 `--version`; the language-service sidecars and the TCP bridge; `daemon`
 (background workers); `runner` (a hosted session over JSON-RPC 2.0 on
 stdio); `acp` (the editor protocol, with a runner child per session); and
-the command estate — interactive boot, `run`, `update`, `install`,
-`health`, and the rest. On interactive boots the
+the command estate (interactive boot, `run`, `update`, `install`,
+`health`, and the rest). On interactive boots the
 crash handlers are armed before any route does async work.
 
 ## The deployed runtime
@@ -39,14 +39,14 @@ hot-swap a running product:
   `runtime/current` (what the launcher and the daemon read) and
   `runtime/dist` (the older name, kept as the same link). A pointer is
   switched by one atomic rename. A folder that a running daemon or session
-  lives in is never moved or renamed — macOS treats a moved program as new
-  and rescans it on every helper it launches — and it is removed only by a
+  lives in is never moved or renamed (macOS treats a moved program as new
+  and rescans it on every helper it launches), and it is removed only by a
   later deploy that finds nothing running from it. A daemon keeps serving
   the build it was started from until its last session has exited; a
   session started after the deploy runs on the new build's daemon. Manual
   rollback: point `runtime/current` (and `runtime/dist`) at an older
-  `builds/` folder — `cd <config-home>/runtime && ln -sfn builds/<older>
-  current && ln -sfn builds/<older> dist`; nothing boots an older build on
+  `builds/` folder (`cd <config-home>/runtime && ln -sfn builds/<older>
+  current && ln -sfn builds/<older> dist`); nothing boots an older build on
   its own. A `runtime/dist` that is still a real folder from the earlier
   layout is left exactly where it is while a daemon runs from it and
   becomes the link once that daemon is gone; `runtime/current` names the
@@ -55,33 +55,33 @@ hot-swap a running product:
 - `bash scripts/ops/deploy-launcher.sh` installs the `mercury` launcher at
   `<config-home>/bin/mercury` on its own; put that directory on your `PATH`.
 
-The launcher resolves the config home without creating one —
-`MERCURY_CONFIG_DIR`, then `MERCURY_HOME`, else `~/.mercury` — and boots
+The launcher resolves the config home without creating one
+(`MERCURY_CONFIG_DIR`, then `MERCURY_HOME`, else `~/.mercury`) and boots
 `<config-home>/runtime/current/mercury.mjs` (falling back to
 `runtime/dist/mercury.mjs` where no `current` pointer exists yet) on the
 Node it resolves the same way the release launchers do (`MERCURY_NODE`,
-the vendored `vendor/node` beside the deployed bundle, then a PATH node —
-no rung answering is a loud card naming all three, exit 127);
+the vendored `vendor/node` beside the deployed bundle, then a PATH node;
+when no rung answers, a refusal card names all three and exits 127);
 `MERCURY_DIST` points a development boot at another bundle. A missing
-deployed runtime is a loud refusal card naming the deploy command, exit 66
-— never a silent fallback onto stale bits. When the deployed runtime is
-older than the repository HEAD, the launcher prints a calm one-line drift
+deployed runtime prints a refusal card naming the deploy command and exits 66,
+without falling back onto stale files. When the deployed runtime is
+older than the repository HEAD, the launcher prints a one-line drift
 note and continues.
 
-A config home that is another harness's own — `~/.codex`, `~/.gemini`,
+A config home that belongs to another tool (`~/.codex`, `~/.gemini`,
 `~/.copilot`, `~/.cursor`, `~/.kiro`, `~/.cline`, `~/.continue`, `~/.qwen`,
 `~/.pi`, `~/.omp`, `~/.config/opencode`, `~/.config/amp`, `~/.config/goose`,
-or a folder inside one — is treated as another tool's:
+or a folder inside one) is treated as another tool's directory:
 Mercury never signs in or bills through its login and writes no identity
-into it; the accounts board shows it for honesty only.
+into it; the accounts board shows it for information only.
 
 On an interactive boot the launcher paints the enter screen before the main
 bundle loads (release archives carry it as `splash.mjs` + `splash-core.mjs`);
 `run`, help and version runs and non-TTY invocations skip it, and
 `MERCURY_SPLASH=off` skips it always. A direct `node dist/mercury.mjs` start
-paints it too: the runtime runs the same asset itself — found beside the
-bundle first (the ordinary build copies the pair there), then in the config
-home, then in the source tree — and hands over by the launcher's own
+paints it too: the runtime runs the same asset itself (found beside the
+bundle first, where the build copies the pair, then in the config
+home, then in the source tree) and hands over by the launcher's own
 exit-code contract, so the boot that follows is the same on both roads. A
 start with any argument boots straight, and a launcher-started boot is never
 splashed twice.
@@ -89,8 +89,8 @@ splashed twice.
 The handover is the splash's exit code, and nothing else: `0` hands over
 inside a held alternate screen (the runtime takes the buffer over without
 re-entering it), `20` hands over with the screen restored, `130` is a cancel
-(the boot stands down), and any other code is an abnormal death — the
-launcher heals the terminal in one bounded write (synchronized output closed,
+(the boot stands down), and any other code indicates an abnormal exit, in which
+case the launcher restores the terminal in one bounded write (synchronized output closed,
 alternate scroll off, the alternate screen left, the cursor shown, the
 background handed back) and boots plain. A handover arms the one-shot marker
 `MERCURY_SPLASH_HANDOFF`; the runtime then reads the enter-screen choice
@@ -100,7 +100,7 @@ the splash writes.
 
 ## The release install (the versioned layout)
 
-Release archives use a user-local, versioned layout instead — understandable without
+Release archives use a user-local, versioned layout that requires no
 developer tools:
 
 ```
@@ -113,95 +113,92 @@ developer tools:
 plus one stable `mercury` shim in a conventional user-local bin directory
 (`~/.local/bin`, or `%LOCALAPPDATA%\Mercury\bin` on Windows)
 that resolves `current.txt` at every run. Updates and rollbacks switch the
-pointer file by atomic rename, never the shim; manual recovery is editing
+pointer file by atomic rename, leaving the shim unchanged; manual recovery is editing
 `current.txt`. Configuration and sessions live in the config home outside
-this root — install, update, rollback, and uninstall never touch them.
+this root; install, update, rollback, and uninstall never touch them.
 
 Every payload carries its own Node runtime under `vendor/node`, and the
 manifest records it (version, platform, the archive digest, the shipped
 binary's digest): install and update refuse a payload whose declared runtime
-is missing, every `--version` smoke runs on the payload's own runtime — so
-the runtime a release ships is proven to run on this machine before it is
-activated — and deep verification (`mercury health --deep`, the shipped
+is missing, every `--version` smoke runs on the payload's own runtime (verifying
+that the shipped runtime runs before the update is activated), and deep
+verification (`mercury health --deep`, the shipped
 `verify-artifact.mjs --deep`) recomputes the binary's digest. `mercury
 update --status` and `mercury health` name the runtime in use: the vendored
 one, an explicit `MERCURY_NODE`, or a system node.
 
-`mercury install`, run from an extracted archive's own launcher,
-self-adopts that payload into the layout and puts the stable command's
-folder on the user's PATH once (a guarded line in the shell's startup file;
-the user PATH on Windows), so a new terminal finds `mercury`: idempotent,
-no administrator access. `--dry-run` previews (and names the runtime the
-payload carries and the PATH act it would perform),
-`--uninstall` removes managed binaries only
-(and says what it preserved), `--force` replaces a pre-existing non-managed
-command at the stable path with a `.bak` kept — without it, a foreign
-command is refused, not clobbered. `--json` on every verb.
+If you unpacked a release archive yourself, run `./mercury/mercury install`
+through that archive's launcher to install the release into `~/.mercury/versions/`
+and add the command directory to your `PATH` once (a guarded line in your shell's
+startup file, or the user `PATH` on Windows), without administrator access.
+`--dry-run` previews the installation (naming the bundled runtime and the
+`PATH` change it would make), `--uninstall` removes managed binaries only
+while keeping your configuration and sessions, and `--force` replaces an
+existing non-Mercury `mercury` file in the bin directory after backing it up as
+`mercury.bak` (without `--force`, an existing file from another program is
+left untouched and refused). Pass `--json` on any verb for JSON output.
 
 ## `mercury update`
 
 `mercury update` (alias `upgrade`) reads the configured repository's GitHub Releases over one
-of two roads: anonymously over HTTPS — no account, no sign-in, no token, the
-same lookup the install one-liner performs — or through the user's own
-signed-in GitHub CLI, consulted only when the anonymous road is refused (a
-private channel, a used-up anonymous limit) — the only road that sees a
-private channel. GitHub's anonymous request limit is said in one
+of two roads: anonymously over HTTPS (no account, no sign-in, no token, the
+same lookup the install script performs), or through your
+signed-in GitHub CLI (`gh`), consulted only when the anonymous request is refused (a
+private channel or an exhausted anonymous rate limit). GitHub's anonymous request limit is reported in one
 line with its reset time in minutes; every answer names the road that read
-the channel, and the receipt records it. Verbs:
+the channel, and the receipt records it. Flags:
 `--check`, `--status`, `--rollback`, `--json`; stdout carries the result,
 stderr the progress; exit 0 includes "already current", 1 is operational
 failure, 2 is usage.
 
-The verb manages the versioned layout that `mercury install` and the install
-script create. Inside a Homebrew install (the keg under `Cellar/mercury/`) the
-bare update asks one question — "This Mercury was installed by Homebrew. Run
-`brew upgrade Whq02/mercury/mercury` now? [y/N]" — and on `y` runs that
-command with its output streamed as it comes, then reads the installed
-version back through the `mercury` the shell runs and says `updated: <from> →
-<to>`, or that the version is still the same when Homebrew's formula has not
-moved yet. `n`, or no answer, leaves the install untouched (exit 1); `--yes`
-skips the question; `--json` needs `--yes` and puts the command's own lines on
-stderr. `--rollback` still declines there: Homebrew keeps its own versions. A
-bundle running from inside `node_modules/mercury-tech-cli` takes the same road
-with `npm update -g mercury-tech-cli`. The shipped npm package does not run
-Mercury from there: its first run installs the release archive into the
-managed layout and every later run hands over to the stable command, so an
-npm-made install is a managed install and `mercury update` updates it through
-Mercury's own channel; when the `mercury` the shell runs is npm's wrapper,
-`--check`, `--status` and the health check say so in one line ("installed through
-npm's wrapper, updated through Mercury's own channel") and the health check's
-Command on PATH row does not ask for a PATH change. `--check` reports the
-newest release against the version running on every channel and ends with the
-road that applies (`mercury update` runs Homebrew's upgrade; `run mercury
-update to install it` on the channel's own layout); `--status` names where
-this Mercury came from. A source checkout (a bundle built with `bun run
-build.ts` inside its repository) is not an install the channel manages: `--check` and `--status` end
-with its own line — `a source checkout at <dist> — rebuild it with git pull &&
-bun run build.ts` — and the bare update and `--rollback` refuse there before
-anything is downloaded or written. On Windows the PowerShell installer and the `.zip`
-archive make a managed install, so the channel road applies there; Homebrew
-does not exist on Windows and the npm road there is untested. After an update
-of a managed install, the lines after the update name the `mercury` the shell
-would run when it is not the stable command — another file ahead of it on
-PATH, or none at all — with the fix; the health check's Command on PATH row says
-the same.
+`mercury update` manages the versioned layout that `mercury install` and the install
+scripts create. In a Homebrew installation (under `Cellar/mercury/`), running
+`mercury update` asks `` "This Mercury was installed by Homebrew. Run `brew
+upgrade Whq02/mercury/mercury` now? [y/N]" ``. Entering `y` runs that
+command with its output streamed live, then checks the installed
+version through the `mercury` on `PATH` and prints `updated: <from> →
+<to>`, or reports that the version is unchanged when Homebrew's formula has not
+updated yet. Entering `n` (or pressing Enter) leaves the installation untouched (exit 1); `--yes`
+skips the prompt; `--json` requires `--yes` and writes the command's output to
+stderr. `--rollback` declines in a Homebrew install because Homebrew manages its own versions. A
+bundle running directly from `node_modules/mercury-tech-cli` follows the same prompt
+with `npm update -g mercury-tech-cli`. Because `mercury-tech-cli` downloads the
+Mercury release into `~/.mercury/versions/` on its first run and launches it from
+there, `mercury update` updates that installed release directly through Mercury's
+own update channel, while `npm update -g mercury-tech-cli` only updates the
+bootstrap wrapper. When the `mercury` on `PATH` is the npm wrapper,
+`--check`, `--status` and the health check report `"installed through
+npm's wrapper, updated through Mercury's own channel"` and the health check's
+Command on PATH row requires no `PATH` change. `--check` compares the
+newest release against the running version on every channel and ends with the
+update command that applies (`mercury update` runs Homebrew's upgrade, or `run mercury
+update to install it` on the versioned layout); `--status` reports how
+Mercury was installed. A source checkout (a bundle built with `bun run
+build.ts` inside its repository) is not managed by the release channel: `--check` and `--status` report
+`` a source checkout at <dist> — rebuild it with `git pull && bun run build.ts` ``,
+and `mercury update` and `--rollback` refuse before
+downloading or writing anything. On Windows, the PowerShell installer and `.zip`
+archive create a versioned layout that `mercury update` updates in place. After
+updating a managed installation, if another `mercury` binary precedes the
+updated command on `PATH` (or if the bin directory is missing from `PATH`),
+Mercury prints the conflicting path and how to fix it; the health check's
+Command on PATH row reports the same check.
 
-The update, and `--rollback`, end with the background daemon. The daemon that
-hosts sessions runs the build it was started from, so after the pointer moves
-the verb asks it to move to the installed build and says what happened on the
-`background daemon:` line: `moved to v… — new sessions run on it`; `v… takes
-new sessions; daemon v… keeps its N live sessions until they finish` (the
-installed build's daemon takes the plane while the old one keeps the sessions
-it holds, and leaves when they end); `moves to v… when its N live sessions
-finish`; `already on v…`; `none running — the next session starts one on v…`;
-or `could not be moved — <why>; mercury daemon stop ends it and the next
-session starts one on v…`. The very last line then says that any Mercury
-window still open keeps working on the build it started with until it is
-closed and opened again: an open window's sessions keep flowing, and the
-window is told, at its next contact with the daemon, that a newer Mercury is
-installed and to close and open Mercury again to use it — nothing restarts the
-installed daemon for a window of an older build. `--json` carries the same
-two facts as `daemon: { state, line }` (state one of `moved`, `moving`,
+After switching the active version pointer, `mercury update` and `--rollback`
+update the background daemon. Because a daemon runs the build it started from,
+the update command asks the daemon to switch to the newly installed version and
+prints the result on the `background daemon:` line: `moved to v… — new sessions
+run on it`; `v… takes new sessions; daemon v… keeps its N live sessions until
+they finish` (a new background daemon starts on the new version for new
+sessions while the old daemon finishes any running sessions and exits when they
+end); `moves to v… when its N live sessions finish`; `already on v…`; `none
+running — the next session starts one on v…`; or `` could not be moved — <why>;
+`mercury daemon stop` ends it and the next session starts one on v… ``. The final
+line notes that any open Mercury terminal window continues running on the build
+it started with until you close and reopen it: existing sessions keep running,
+and at its next daemon check the open window shows a notice that a newer
+version is installed. `--json` reports the same two fields:
+`daemon: { state, line }` (state one of `moved`, `moving`,
 `when-idle`, `current`, `absent`, `stop`, `unknown`) and `openWindows`.
 `mercury daemon restart` makes the same move by hand: the running daemon
 re-executes itself on the installed build now if it is idle, or once its live
@@ -215,38 +212,36 @@ The activation law:
 2. download + checksum verify (same-release `SHA256SUMS.txt` only);
 3. extract → layout judgement;
 4. embedded-version equality (manifest + a staged `--version` smoke);
-5. stage into `versions/<v>` — never touching the active version;
+5. stage into `versions/<v>` without touching the active version;
 6. atomic pointer switch, previous retained;
-7. post-switch smoke — failure restores the pointer automatically.
+7. post-switch smoke (failure restores the pointer automatically).
 
 Every refusal leaves the active installation untouched and names its
 recovery. Output lines never carry GitHub access material.
 
-A quiet once-a-day update notice performs the same
-release-list read, deferred past first paint, silent on every failure, and
-renders one expiring line ("vX.Y.Z available — mercury update") in the
-existing notice surface. The line names a release newer than the running
-build and nothing else: the listing is read against the managed install's
-pointer, and a build running ahead of its own pointer says nothing, on the
-day it lists and from its cache alike. The Boot face reads the same cache and paints one
-small line in its bottom-right corner — "vX.Y.Z available · mercury update" —
-once per newer release: the cache records the version the face announced, the
-line does not return for that version on later boots, and it returns for the
-next release. The face never reads the channel itself; in the compact layout
-the line sits on the last row to the left of the key-map hint. The check
+A once-a-day update notice performs the same
+release-list read after the first screen paint, stays silent on network errors, and
+shows one expiring notice (`"vX.Y.Z available — mercury update"`).
+The notice names a release newer than the running
+build: the listing is compared against the managed install's
+pointer, and a build running ahead of its pointer shows nothing. The home screen reads the same cache and shows
+`"vX.Y.Z available · mercury update"` in its bottom-right corner
+once per newer release: the cache records the version shown on the home screen,
+so the notice does not repeat for that version on later launches and reappears
+only for the next release. In the compact layout
+the notice sits on the last row to the left of the key-map hint. The check
 sends nothing about the machine or the operator; `MERCURY_UPDATE_NOTICE=0`
-disables the check, the cache and both lines.
+disables the check, the cache and both notices.
 
 ## Boot recovery
 
-- **The boot beacon**. The splash stamps
-  every interactive handoff into `<config-home>/boot-attempts.json` before
-  the runtime starts, and the runtime clears the file at completed
-  interactive startup. Residue — attempts with no completed startup after
-  them — at three or more is the bricked-boot signature; `mercury health`
-  and the `update` verb surface it and name the recovery
-  (`mercury update --rollback`). Reads are validated and fail-soft: the
-  beacon is a lever, never a boot dependency.
+- **The boot beacon.** The splash records
+  each interactive handoff in `<config-home>/boot-attempts.json` before
+  the runtime starts, and the runtime clears the file once interactive startup
+  completes. If Mercury fails to start three times in a row, `mercury health`
+  and `mercury update` report the repeated startup failures and suggest
+  `mercury update --rollback`. Reads are validated and fail-soft so the
+  beacon never blocks startup.
 - **Loud crash surface.** A rejection escaping `main()`, or a module-load
   failure reaching the process handlers, restores the terminal, prints a
   card (cause · consequence · next step · how to report), and exits 1.
@@ -254,46 +249,46 @@ disables the check, the cache and both lines.
   exits.
 - **Journaled operations.** Interrupted durable operations (multi-file
   change sets among them) reconcile deterministically at the next boot
-  through the operation journal — see
-  [CHANGE-TRANSACTIONS.md](CHANGE-TRANSACTIONS.md). A journal file the
+  through the operation journal (see
+  [CHANGE-TRANSACTIONS.md](CHANGE-TRANSACTIONS.md)). A journal file the
   build cannot decode never blocks the others: it is left in place and the
   boot's recovery line names it as needing attention until it is removed.
   A journal file whose record names a different operation than its file
   name is treated the same way, and compaction removes a file only under
   its own name.
 - **Provenance at boot.** Packaged launchers run the shipped
-  `verify-artifact.mjs` on interactive boots — warn-only, never blocking; `/health` reports the same
-  verification from in-bundle.
+  `verify-artifact.mjs` on interactive boots (warn-only, never blocking); `/health` reports the same
+  verification from inside the bundle.
 
 ## The shell engine
 
 The Bash tool runs commands through a shell engine. The default is the
-**system** shell — the platform's bash or zsh (Git for Windows' `bash.exe`
-on Windows), a fresh child per command: the working directory carries from
-call to call, everything else resets. One exception: a Windows box where no
-`bash.exe` is found arms the bundled **brush** engine by itself, with
-nothing to set — a release archive always carries it.
+**system** shell: the platform's bash or zsh (Git for Windows' `bash.exe`
+on Windows), spawning a fresh child per command where the working directory carries from
+call to call and everything else resets. On a Windows machine where no
+`bash.exe` is found, Mercury selects the bundled **brush** engine automatically
+(every release archive includes it).
 In both modes, the Bash tool tracks its own shell working directory across
 calls: a `cd` inside a Bash command moves where subsequent shell commands run
 without changing the session's starting folder.
 
-An optional **brush** engine is a vendored payload — brush, a
-bash-compatible shell written in Rust (MIT), shipped as one upstream release
-binary per platform at `dist/vendor/brush/<platform>/` and verified against
+The optional **brush** engine is a vendored Rust bash-compatible shell (MIT),
+shipped as an upstream release binary per platform at
+`dist/vendor/brush/<platform>/` and verified against
 `vendor/brush.lock.json` (on Windows, where upstream publishes no binary,
-built from the published crate at the same version). With it on, one
-long-lived brush process serves the whole conversation and one more serves
+it is compiled from the published crate at the same version). When enabled, one
+long-lived brush process serves the main conversation and a separate process serves
 each crewmate: variables, functions, aliases and options persist between
-calls for their owner — state set by one crewmate is never seen by another or
-by the main conversation, and a crewmate's session ends with the crewmate — and
-the same shell runs on every OS with no Git-for-Windows dependency. Two
+calls for their owner (state set by one crewmate is isolated from other crewmates and
+the main conversation, and a crewmate's shell process exits when the crewmate finishes), and
+the same shell runs on every OS without requiring Git for Windows. Two
 things the engine cannot do on Windows at this version (the Bash tool's own
-description says so there): run a `.cmd` shim such as `npm` or `npx`
+description notes both): run a `.cmd` shim such as `npm` or `npx`
 directly (`cmd /c npm …` works, or `node` on the script), and find a
 program named by a relative path after a `cd` (use its absolute path).
 
 The sessions have a ceiling: the `shell.sessions` setting (a whole
-number, 8 by default — the conversation plus seven crewmates), the
+number, 8 by default: the main conversation plus seven crewmates), the
 `MERCURY_SHELL_ENGINE_SESSIONS` env pin over it, and the `/config` row
 **Shell engine sessions** beside **Shell engine**. The main conversation
 never waits for a session; a crewmate that needs one while the crewmates'
@@ -315,13 +310,13 @@ Select it with the **Shell engine** row in `/config` (setting `shell.engine`:
 `system` | `brush`) or the `MERCURY_SHELL_ENGINE=brush` env pin, which
 outranks the setting; the system shell stays the default. A `brush` choice
 whose pack is absent degrades to the system shell and the `health` row names
-why — never a silent fallback. On a Windows box with no `bash.exe`, `system`
+why, never falling back silently. On a Windows box with no `bash.exe`, `system`
 written as the setting's value or as the env pin turns the engine off and
 the Bash tool leaves the roster; the `/config` row's `system` is the
 default, which lets the engine arm itself. The `health` report's **Bash
-tool shell** row (check id `shell`) says which shell runs and why — a found
-`bash.exe`, the bundled engine because none was found, or the engine by the
-setting or the pin — and its **Shell engine** row (`iface-shell-engine`)
+tool shell** row (check id `shell`) says which shell runs and why (a found
+`bash.exe`, the bundled engine because none was found, or the engine selected by the
+setting or env pin), and its **Shell engine** row (`iface-shell-engine`)
 says the same from the engine's side. The Bash tool's own description
 always states which engine is live, and the command parser and permission
 rules judge the command text identically on either engine.

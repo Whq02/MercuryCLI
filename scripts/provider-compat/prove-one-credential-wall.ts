@@ -158,7 +158,7 @@ console.log("§3 — the compat door: OpenRouter's real client answers the table
   const line = cause === undefined ? '' : credentialWallLine('openrouter', cause)
   check("the compat seam's line is the table's OpenRouter row", shapeOf('openrouter', line) === '<family> key limit reached — switch providers (/model) or connect another key (<door>)' && line.includes('OpenRouter') && line.includes('/logins openrouter'), line)
   const seam = read('src/services/providers/openaicompat/compatChatCallModel.ts')
-  check('source: the compat seam reads the shared classifier and paints the shared line for its lane', seam.includes('classifyCredentialWall(outcome.fault.status, outcome.fault.message)') && seam.includes('credentialWallLine(profile.lane, wall)'))
+  check('source: the compat seam reads the shared classifier and paints the shared line for its lane', seam.includes("classifyCredentialWall(outcome.fault.status, outcome.fault.message, recovery !== undefined ? 'sign-in' : undefined)") && seam.includes('credentialWallLine(profile.lane, wall)'))
 }
 
 console.log('§4 — the source: the Anthropic-only machinery is gone; one classifier, fed the credential')
@@ -189,8 +189,8 @@ console.log('§5 — a 400 Anthropic calls a disabled organisation is no longer 
   delete process.env.ANTHROPIC_API_KEY
   const text = (row.message.content as Array<{ type?: string; text?: string }>).map(b => (b.type === 'text' ? (b.text ?? '') : '')).join('')
   console.log(`        env key, 400: ${text}`)
-  check('the row is the generic error row under the prefix, not an authentication kind (no login flow opens)', text.startsWith(`${API_ERROR_MESSAGE_PREFIX}: 400 `) && (row as { error?: string }).error !== 'authentication_failed', text)
-  check("Anthropic's own sentence is what the error card decodes and shows", decodeApiErrorBlobMessage(text.slice(text.indexOf('{'))) === SENTENCE, text)
+  check('the row is the generic error row under the prefix, not an authentication kind (no login flow opens)', text.startsWith(`${API_ERROR_MESSAGE_PREFIX} (400): `) && (row as { error?: string }).error !== 'authentication_failed', text)
+  check("Anthropic's own sentence rides the row itself, the envelope never does (the card has nothing left to decode)", text === `${API_ERROR_MESSAGE_PREFIX} (400): Anthropic says: ${SENTENCE}` && !text.includes('{') && decodeApiErrorBlobMessage(text) === undefined, text)
   check('Mercury speaks no sentence of its own about the organisation or the variable', !/organi[sz]ation associated|Update or unset|use your subscription instead/i.test(text), text)
 }
 

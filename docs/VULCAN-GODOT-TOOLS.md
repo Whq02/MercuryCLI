@@ -11,14 +11,15 @@ run from consuming changed files held by another session or agent.
 
 ## Arming
 
-One switch, `MERCURY_GODOT_TOOLS=1` (the boot menu's Godot row). Off is
-byte-identical to a build without the tool. On, the tool joins the
-catalog when a Godot executable is on this machine — on `PATH`, under a
+One switch: `MERCURY_GODOT_TOOLS=1` (the Boot Menu's **Godot control surface
+(VULCAN)** row; the separate **Godot language lanes** row controls
+`MERCURY_GODOT=1`). Off is byte-identical to a build without the tool. On, the
+tool joins the catalog when a Godot executable is available (on `PATH`, under a
 well-known install root, seen running, or pinned with
-`MERCURY_GODOT_EXECUTABLE` (a pin that names no executable file counts as
+`MERCURY_GODOT_EXECUTABLE`, where a pin that names no executable file counts as
 none); without one the tool is withheld and the `Tools withheld` row of
-`mercury health` says so. Inside a project — a `project.godot` at or
-above the working directory — the ops work; without one every op answers
+`mercury health` says so. Inside a project (`project.godot` at or
+above the working directory) the operations work; without one every operation answers
 with a teaching line.
 
 The bridge half needs the addon installed (`op:"vulcan_install"`) and the
@@ -31,33 +32,33 @@ addon: a Godot 4 executable is enough (the running editor's own binary,
 
 ## What the engine job service is for
 
-A crew of agents working one Godot project cannot share the operator's
+A crew of agents working one Godot project cannot share your
 editor, and a single hand-rolled runner with a machine-wide lock queues
 every check behind every other one while any half-finished edit in the
 live tree breaks everyone else's gate. The service replaces the lock with
-a queue, the shared tree with a frozen copy per job, and the log-reading
-by hand with a record.
+a queue, the shared tree with a frozen copy per job, and manual log-reading
+with a structured record.
 
-- **A queue with priorities** — `verifier` > `fold-gate` > `lane-gate`
+- **A queue with priorities**: `verifier` > `fold-gate` > `lane-gate`
   (the default) > `profile`. A verifier's run starts before a lane's gate
   queued earlier.
-- **N headless workers** — `min(3, max(1, floor(cores / 2)))` by default,
+- **N headless workers**: `min(3, max(1, floor(cores / 2)))` by default,
   `MERCURY_GODOT_WORKERS` (1..16) overrides it, and `mercury health`'s
   Godot control row names the effective count. Explicit display jobs
-  run one at a time whatever the count, and never while the
-  operator's own editor holds the display unless the job says
+  run one at a time whatever the count, and never while
+  your editor holds the display unless the job sets
   `displayShared: true`.
-- **A frozen copy per job** under `<project>/.mercury/engine/trees/<id>`
-  — a git ref (`HEAD`, a branch, a commit), `HEAD` plus a list of files
-  (the fold's shape: `HEAD+src/a.gd,src/b.gd`), or `working` (HEAD plus
+- **A frozen copy per job** under `<project>/.mercury/engine/trees/<id>`:
+  a git ref (`HEAD`, a branch, a commit), `HEAD` plus a list of files
+  (`HEAD+src/a.gd,src/b.gd`), or `working` (`HEAD` plus
   every local change, frozen at the moment the job is submitted). An
-  edit written into the live tree after that moment is never seen. The
-  operator's editor never shares a `.godot` with a worker: the directory
+  edit written into the live tree after that moment is never seen. Your
+  editor never shares a `.godot` directory with a worker: the directory
   carries a `.gdignore`, and each copy has its own `.godot`.
-- **An empty user directory per job**, so a run never touches the
-  operator's saves: `APPDATA` on Windows (the runner's own way), `HOME` on
-  macOS, the `XDG_*_HOME` trio on Linux. A suite that needs state across
-  runs says `"userDir": "keep"` in the manifest and gets one directory of
+- **An empty user directory per job**, so a run never touches
+  your saves: `APPDATA` on Windows, `HOME` on
+  macOS, and the `XDG_*_HOME` trio on Linux. A suite that needs state across
+  runs sets `"userDir": "keep"` in the manifest and gets one directory of
   its own under `.mercury/engine/users/`.
 - **One import cache** under `.mercury/engine/cache`, keyed by two hashes
   of the copy's inputs: the assets (every imported file and its `.import`
@@ -72,8 +73,8 @@ by hand with a record.
   A function-body edit costs no import; a renamed class or a new texture
   costs one. Naming `import`
   among the suites forces the pass.
-- **Owner liveness** — every engine is Mercury's as a process tree: the
-  process group on POSIX, `taskkill /PID <wrapper> /T /F` on Windows (the
+- **Owner liveness**: every engine is managed as a process tree (the
+  process group on POSIX, or `taskkill /PID <wrapper> /T /F` on Windows for the
   console wrapper, the engine and its `conhost` together). A timeout, a
   budget or a cancel ends the whole tree, and a normal exit of Mercury
   ends every live engine of its own. Ownership has one record: the
@@ -84,8 +85,7 @@ by hand with a record.
   check tree or engine with no descriptor at all (a queued job, an import
   pass before its bridge is up, a capture or profile boot, a compile
   check) is swept only once its run directory has not been stamped for
-  `MERCURY_GODOT_ORPHAN_GRACE_MS` (thirty minutes unset) — a live job
-  stamps it once a minute. There is no shared engine lock file to leave
+  `MERCURY_GODOT_ORPHAN_GRACE_MS` (thirty minutes when unset, stamped once a minute while live). There is no shared engine lock file to leave
   behind.
 
 ## The manifest
@@ -118,9 +118,9 @@ wall-clock kill (default 240000 ms; the import pass has 1200000 ms).
 ride after `--`; a `local` suite whose file is absent is skipped and
 never counts as passed; `nativeOnly` refuses a headless run. Optional at
 the top: `defaults` (`quitAfter`, `timeoutMs`, `importTimeoutMs`,
-`suiteDir`), `unclean` (the regular expression for unclean log lines —
-the default is the runner's, `SCRIPT ERROR|SHADER ERROR|Parse
-Error|^ERROR:|^FAIL:|leaked|resources still in use`, flags `im`, and a
+`suiteDir`), `unclean` (the regular expression for unclean log lines;
+the default is `SCRIPT ERROR|SHADER ERROR|Parse
+Error|^ERROR:|^FAIL:|leaked|resources still in use` with flags `im`, and a
 `WARNING:` line never counts), and `executable`. A repository without the
 file gets the runner's defaults and a teaching error that names it.
 
@@ -130,17 +130,17 @@ file gets the runner's defaults and a teaching error that names it.
 { "op": "engine_run", "args": { "suites": ["shield_checks", "humanoid_checks"], "tree": "HEAD+src/player/shield.gd", "priority": "lane-gate" } }
 ```
 
-The answer is the run's record: the runner's own fields — `root`,
+The answer is the run's record: the runner's fields (`root`,
 `executable`, `results[]` with `name ok exitCode signal timedOut
-spawnError clean marker seconds log`, `complete`, `allPass` — and, per
+spawnError clean marker seconds log`, `complete`, `allPass`) and, per
 suite, the marker line found, the `FAIL:` lines, the `SCRIPT ERROR` and
 `SHADER ERROR` lines, every error's file and line and who last changed
 that file in the frozen copy (the commit and author from git, or
 `uncommitted`), the exact argument vector, and the log tail of every
 failed suite. A suite is `ok` only when the exit code is 0, no signal, no
 timeout, no spawn error, the log is clean and the marker line is present
-— the triple that catches a check skipped by a `SCRIPT ERROR` while the
-suite still printed its marker. The record is also written to
+(catching a check skipped by a `SCRIPT ERROR` while the
+suite still printed its marker). The record is also written to
 `.mercury/engine/runs/<id>/result.json` beside one `<name>.log` per
 suite, and `engine_result {id}` reads it later, from any session.
 
@@ -175,24 +175,24 @@ the project's `[autoload]` section and ignores exactly those lines for
 exactly those names, listing each under `ignored`, and nothing else. And a
 `--script` suite compiles its `preload` graph before autoloads exist, so
 the gate walks that graph (scripts and scenes) for every script-mode suite
-and flags the chain that reaches a script naming an autoload — the whole
-suite would fail with that identifier the moment it ran. The gate
-enforces nothing by itself; a turn-end hook, if wanted, would call it
+and flags any chain that reaches a script naming an autoload, because the
+suite would fail with that identifier as soon as it ran. The gate
+enforces nothing by itself; a turn-end hook, if wanted, can call it
 where the file tools settle a batch of edits.
 
 ## Proof drift on every gate
 
 Every `engine_check` compares the selected tree's changed test
-assertions against that tree's own commit — `HEAD` for the live tree,
-`working` and `HEAD+files`; a git ref carries no overlay and so no drift
-— even when `files` narrows the compile checks. `tree` compares the
-selected frozen content, not unrelated live edits. The result's `drift` array
+assertions against that tree's own commit (`HEAD` for the live tree,
+`working` and `HEAD+files`; a git ref carries no overlay and so no drift),
+even when `files` narrows the compile checks. `tree` compares the
+selected frozen content, leaving unrelated live edits out. The result's `drift` array
 names the file, line, kind, before/after assertion and any fallen count.
 Removed assertions, weaker numeric bounds, fewer assertions and lower
 check counts make `ok` false. Multiline `expect(...)` and `assert(...)`
 calls are compared as logical statements, ignoring formatting and
 comments. Obvious stronger numeric bounds are accepted; other changed
-assertions are flagged for human review rather than pretending to prove
+assertions are flagged for review instead of claiming
 arbitrary semantic equivalence.
 
 A suite that prints `PASS` and `SCRIPT ERROR` is a failure regardless of
@@ -209,7 +209,7 @@ without matching suite evidence does not claim the suite was run.
 
 The script equivalent is `mercury godot check tests/drift_checks.gd
 --run run-id`. Both carry the drift rows as JSON and the command exits 1
-when drift is present. A source comparison is a review aid, not a proof
+when drift is present. A source comparison is a review aid and does not prove
 that unchanged tests provide sufficient coverage.
 
 ## Runtime queries on a named instance
@@ -218,7 +218,7 @@ that unchanged tests provide sufficient coverage.
 `args.instance`; never infer a port from the project. The roles are
 `operator-editor`, `agent-editor`, `headless-worker` and `native-worker`.
 An editor operation without an explicit selection can choose an agent
-editor, but never the operator's editor. Ambiguous selections are refused.
+editor, and never chooses your editor (`operator-editor`). Ambiguous selections are refused.
 Every bridge reply identifies the instance it actually reached.
 
 The service supplies a fresh port and token to each worker. An instance
@@ -235,8 +235,7 @@ place of that returned id:
 { "op": "engine_scene_tree", "args": { "instance": "worker-id", "depth": 3 } }
 ```
 
-Returns the live tree, not the scene file parsed from disk.
-
+Returns the live runtime scene tree (from the running worker).
 A job id from `engine_jobs` is a selector too. An `engine_run` job's id
 reaches its worker's bridge. A running `engine_profile` job's id, when
 the profile's source is `engine` or `auto`, reads the live scene tree
@@ -336,7 +335,7 @@ job id it finds running there.
 ```
 
 A capture uses the service's queue, frozen project, import cache and process
-ownership. It never attaches to the operator's editor or game. A pair boots
+ownership. It never attaches to your editor or game. A pair boots
 the same frozen tour twice, changing only the named switch value. Each boot
 has a fresh user directory. `result.json` lists every frame under `frames`
 with its `variant`, `stepIndex`, complete `step`, `frameIndex`, and absolute
@@ -371,7 +370,7 @@ copied at submission, alongside the frozen resource tree.
 `route` defaults to `headless`. This uses the project's
 `mercury_media_capture` Image hook because stock Godot's headless driver
 has a dummy renderer. The result explicitly labels these as project Image
-pixels, not rendered GPU viewport evidence. `route: "display"` (or
+pixels (distinct from rendered GPU viewport pixels). `route: "display"` (or
 `display: true`) explicitly requests a real viewport window and takes the
 native display slot. `route: "hidden"` refuses before spawning: stock
 Godot shows its native bootstrap window before scripts can hide it. A
@@ -399,18 +398,18 @@ and sets `Engine.time_scale = 0`. The requested simulation and shader time
 must be applied by the project hook. Built-in shader `TIME`, wall clocks,
 autoload initialization and independent RNGs are not intercepted. These
 limitations and the hook's acknowledgement are retained in the result;
-acknowledgement is not proof that arbitrary project code is deterministic.
+acknowledgement does not prove that arbitrary project code is deterministic.
 
 `mercury godot capture fixture --request capture.json` runs the same op,
 where `capture.json` is an object of operation arguments. Common CLI flags
 include `--tree`, `--budget-ms`, `--priority`, `--display`,
 `--display-shared`, `--keep-tree`, and `--label`. The CLI waits for completion
-because its process owns the worker; `wait: false` is available through the
-Godot tool for a session-owned queued job, not the short-lived CLI.
+because its process owns the worker; `wait: false` is available only through the
+Godot tool for a session-owned queued job.
 
 `mercury godot tour fixture --tree HEAD` runs the named tour on its own
 frozen instance and returns the same record with `media.contactSheet.path`.
-No operator editor or game is involved.
+Your editor or game is never touched.
 
 ## Settled profile jobs
 
@@ -449,9 +448,9 @@ evidence names both the decoder version and the connected engine version.
 Script rows name Godot's resource/line/function signature and include
 `selfMs`, `totalMs`, `internalMs`, per-frame `calls` summaries and `totalCalls`
 for the settled window. `servers` and `physics` contain the engine's server
-and physics-component timings. Engine `frameMs` measures engine work, not
-wall-clock spacing; it includes the profile driver's overhead.
-`physicsIntervalMs` is the simulation interval, not physics execution time.
+and physics-component timings. Engine `frameMs` measures engine work (including
+the profile driver's overhead) as distinct from wall-clock frame spacing.
+`physicsIntervalMs` is the configured simulation interval (distinct from physics execution time).
 The `monitors` field carries frame and physics timings plus static memory
 and peak memory in bytes. Godot sends Performance samples once per second;
 memory and navigation summaries are `null` if none falls in the window.
@@ -459,23 +458,23 @@ GPU and viewport CPU timings are not part of this debugger source.
 
 The decoder bounds packets to 8 MiB, each job stream to 64 MiB, and nesting to 64. A profile refuses
 when a script frame reaches the 4096-function reporting cap or collection
-exceeds two million retained values, rather than presenting incomplete
-tables as complete. Shorten a large profile window after a collection-limit
+exceeds two million retained values, avoiding incomplete
+tables. Shorten a large profile window after a collection-limit
 refusal. No editor, existing game, or runtime bridge is attached to, and
 profiling remains headless unless the caller explicitly requests display.
 
 For the project source, `frameMs` measures real frame intervals with
 `Time.get_ticks_usec`; `processMs`, `physicsMs`, and `navigationMs` are Godot
 Performance values converted to milliseconds. Positive viewport CPU and
-GPU reports are retained when available. Headless GPU timings are `null`,
-not a claim of zero rendering cost. The root supplies
+GPU reports are retained when available. Headless GPU timings are `null`
+(indicating headless execution, never zero rendering cost). The root supplies
 `mercury_media_sample() -> Dictionary`, returning
 `scripts: [{script, selfMs, totalMs, calls}]` and
 `physics: {componentName: milliseconds}` for each sample. Tables must remain
 consistent through a phase and contain at least one script and physics
 component. Without that hook, the engine source still works and the project
-evidence explicitly has `projectTables: false`; it retains driver monitors,
-not invented project tables. `mercury_media_toggle` provides the in-boot
+evidence explicitly sets `projectTables: false`, retaining driver monitors
+without fabricating project tables. `mercury_media_toggle` provides the in-boot
 A/B switch; the configure and step hooks are available as for captures.
 
 The quiet-machine guard checks active service jobs, the global live worker
@@ -484,8 +483,7 @@ the measurement boot, and afterward. Other Godot processes or an unavailable
 census cause refusal by default. `quiet: "flag"` retains contaminated data
 with explicit evidence; it never hides the contention. Short-lived workers
 between census samples can escape detection, so a quiet report is sampled
-evidence, not a machine-wide exclusion lock.
-
+evidence (distinct from a machine-wide exclusion lock).
 `baseline: {save: true}` writes an immutable
 `.mercury/engine-baselines/<commit>.json` only for an uncontaminated committed
 frozen tree. It never replaces an existing baseline. To compare, pass
@@ -514,7 +512,7 @@ must match. Inputs are PNG files; source images are never rewritten.
 `mercury godot frames stats frames/off.png --grid 4x3 --max-lag 32` returns
 row and column autocorrelation, anisotropy, high-frequency energy, mean
 RGBA per grid cell, and a small preview PNG. Flat images have no defined
-correlation, rather than an invented tile repeat.
+correlation and return none.
 
 ```json
 { "op": "engine_frames", "args": { "action": "contact-sheet", "id": "<run id>" } }
@@ -523,25 +521,22 @@ correlation, rather than an invented tile repeat.
 `mercury godot frames contact-sheet <run id>` reads the frames listed in a
 run's record and returns a small contact sheet and the placement of each
 source frame. The op can also take `frames: ["a.png", "b.png"]`. Each call
-writes new images under the project's engine estate. The op is a
-file-writing mutation, not an editor undo step. It uses Mercury's existing
+writes new images under the project's engine estate (a
+file-writing mutation, separate from editor undo history). It uses Mercury's existing
 TypeScript PNG decoder, encoder and downscaler; no native dependency is
 needed.
 
 ## The Windows path
 
-Written from the runner's facts on the operator's machine: the job's user
+On Windows, the job's user
 directory rides `APPDATA`, the engine is spawned as the `_console.exe`
 wrapper beside a plain `_win64.exe` when one exists (the wrapper carries
-the output), and a kill is `taskkill /PID <wrapper> /T /F`, which ends
-the wrapper, the engine and its `conhost` together. Live fixture checks
-run on macOS. Linux and Windows environment and argument shapes are
-checked without launching those platforms; their live behavior still
-needs a run on the corresponding machine.
+the output), and a kill runs `taskkill /PID <wrapper> /T /F`, which ends
+the wrapper, the engine and its `conhost` together.
 
-## What this is not
+## Scope
 
-The service does not drive the operator's editor or game. Native workers
+The service does not drive your open editor or game. Native workers
 and display captures still use a display; runtime queries do not make a
 native run off-screen. It does not persist a queue across a Mercury
 restart (the records on disk persist; a queued job does not).
