@@ -343,22 +343,100 @@ function withoutSpans(text: string, spans: readonly Span[]): string {
   return out.replace(/\n{3,}/g, '\n\n').trim()
 }
 
+interface Region {
+  start: number
+  end: number
+}
+
+function inlineCodeRegions(text: string, from: number, to: number, regions: Region[]): void {
+  const slice = text.slice(from, to)
+  const runs = /`+/g
+  let match: RegExpExecArray | null
+  while ((match = runs.exec(slice)) !== null) {
+    const ticks = match[0]
+    let searchFrom = match.index + ticks.length
+    for (;;) {
+      const close = slice.indexOf(ticks, searchFrom)
+      if (close < 0) break
+      let runEnd = close + ticks.length
+      if (slice[runEnd] === '`') {
+        while (slice[runEnd] === '`') runEnd += 1
+        searchFrom = runEnd
+        continue
+      }
+      regions.push({ start: from + match.index, end: from + runEnd })
+      runs.lastIndex = runEnd
+      break
+    }
+  }
+}
+
+function codeRegions(text: string): Region[] {
+  const regions: Region[] = []
+  let fence: { char: string; length: number; start: number } | undefined
+  let proseFrom = 0
+  let lineStart = 0
+  for (;;) {
+    const newline = text.indexOf('\n', lineStart)
+    const lineEnd = newline < 0 ? text.length : newline
+    const run = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(text.slice(lineStart, lineEnd))
+    if (fence === undefined) {
+      if (run !== null) {
+        inlineCodeRegions(text, proseFrom, lineStart, regions)
+        fence = { char: run[1]![0]!, length: run[1]!.length, start: lineStart }
+      }
+    } else if (run !== null && run[1]![0] === fence.char && run[1]!.length >= fence.length && run[2]!.trim() === '') {
+      regions.push({ start: fence.start, end: lineEnd })
+      fence = undefined
+      proseFrom = lineEnd
+    }
+    if (newline < 0) break
+    lineStart = newline + 1
+  }
+  if (fence !== undefined) regions.push({ start: fence.start, end: text.length })
+  else inlineCodeRegions(text, proseFrom, text.length, regions)
+  return regions
+}
+
+function maskRegions(text: string, regions: readonly Region[]): string {
+  let out = text
+  for (const region of regions) out = out.slice(0, region.start) + ' '.repeat(region.end - region.start) + out.slice(region.end)
+  return out
+}
+
+function readSpans(text: string, toolOf: (name: string) => MarkupToolFacts | undefined): { shape: ToolCallMarkupShape; spans: Span[] } | null {
+  if (text.includes('<tool_call>')) return readToolCallEnvelope(text, toolOf)
+  if (text.includes('call:')) {
+    const spans = readGemma(text, toolOf)
+    if (spans !== null) return { shape: 'gemma', spans }
+  }
+  if (text.includes('[TOOL_CALLS]')) {
+    const spans = readMistral(text, toolOf)
+    if (spans !== null) return { shape: 'mistral', spans }
+  }
+  return null
+}
+
 export function extractToolCallMarkup(text: string, tools: readonly MarkupToolFacts[]): ToolCallMarkupExtraction | undefined {
   if (text.trim() === '' || tools.length === 0) return undefined
   const byName = new Map(tools.map(tool => [tool.name, tool] as const))
   const toolOf = (name: string): MarkupToolFacts | undefined => byName.get(name)
-  if (text.includes('<tool_call>')) {
-    const envelope = readToolCallEnvelope(text, toolOf)
-    if (envelope === null) return undefined
-    return { shape: envelope.shape, calls: envelope.spans.map(span => span.call), text: withoutSpans(text, envelope.spans) }
+  const visible = maskRegions(text, codeRegions(text))
+  const read = readSpans(visible, toolOf)
+  if (read === null || read.spans.length === 0) return undefined
+  const spans = [...read.spans].sort((a, b) => a.start - b.start)
+  if (text.slice(spans[spans.length - 1]!.end).trim() !== '') return undefined
+  const calls: MarkupToolCall[] = []
+  for (const span of spans) {
+    const original = text.slice(span.start, span.end)
+    if (original === visible.slice(span.start, span.end)) {
+      calls.push(span.call)
+      continue
+    }
+    const again = readSpans(original, toolOf)
+    const whole = again?.spans.length === 1 && again.shape === read.shape && again.spans[0]!.start === 0 && again.spans[0]!.end === original.length ? again.spans[0] : undefined
+    if (whole === undefined) return undefined
+    calls.push(whole.call)
   }
-  if (text.includes('call:')) {
-    const spans = readGemma(text, toolOf)
-    if (spans !== null) return { shape: 'gemma', calls: spans.map(span => span.call), text: withoutSpans(text, spans) }
-  }
-  if (text.includes('[TOOL_CALLS]')) {
-    const spans = readMistral(text, toolOf)
-    if (spans !== null) return { shape: 'mistral', calls: spans.map(span => span.call), text: withoutSpans(text, spans) }
-  }
-  return undefined
+  return { shape: read.shape, calls, text: withoutSpans(text, spans) }
 }

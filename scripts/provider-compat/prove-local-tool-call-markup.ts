@@ -88,6 +88,35 @@ section('6 · a partial or malformed shape, or a name the request did not carry,
   check('with no tools on the request nothing is read', extractToolCallMarkup('<tool_call>\n<function=Read>\n<parameter=file_path>\n/tmp/a.ts\n</parameter>\n</function>\n</tool_call>', []) === undefined)
 }
 
+section('6b · a call is read only when the LAST shape ends the text; a shape inside a code fence or backticks is a quoted example, never a call')
+{
+  const QWEN = `<tool_call>\n<function=Read>\n<parameter=file_path>\n/tmp/a.ts\n</parameter>\n</function>\n</tool_call>`
+  const JSONX = '<tool_call>{"name":"Read","arguments":{"file_path":"/tmp/a.ts"}}</tool_call>'
+  const GLM = '<tool_call>Read\n<arg_key>file_path</arg_key>\n<arg_value>/tmp/a.ts</arg_value>\n</tool_call>'
+  const GEMMA = '<|tool_call>call:Read{file_path:<|"|>/tmp/a.ts<|"|>}<tool_call|>'
+  const MISTRAL = '[TOOL_CALLS]Read[ARGS]{"file_path": "/tmp/a.ts"}'
+  const FENCE = '```'
+  const TICK = '`'
+  for (const [shape, markup] of [['qwen-xml', QWEN], ['json-in-xml', JSONX], ['glm-xml', GLM], ['gemma', GEMMA], ['mistral', MISTRAL]] as const) {
+    check(`${shape}: the shape ending the text mints (trailing whitespace allowed)`, extractToolCallMarkup(`Reading it.\n${markup}\n\n`, TOOLS)?.shape === shape)
+    check(`${shape}: the shape followed by prose is not a call (the text does not end on it)`, extractToolCallMarkup(`${markup}\nThat is what I would run if you agree.`, TOOLS) === undefined)
+    check(`${shape}: the shape inside a code fence is a quoted example, never a call`, extractToolCallMarkup(`Here is how I would call it:\n${FENCE}\n${markup}\n${FENCE}\n`, TOOLS) === undefined)
+    check(`${shape}: the shape inside backticks is a quoted example, never a call`, extractToolCallMarkup(`The format is ${TICK}${markup}${TICK}`, TOOLS) === undefined)
+  }
+  const bare = 'call:Read{file_path:<|"|>/tmp/a.ts<|"|>}'
+  check('gemma bare: followed by prose it is not a call', extractToolCallMarkup(`${bare} and then I would stop.`, TOOLS) === undefined)
+  const fencedThenReal = `Example:\n${FENCE}\n${MISTRAL}\n${FENCE}\nNow for real:\n${MISTRAL}`
+  check('a fenced example AND a real call ending the text: only the real one is read, the fenced one stays in the text', (() => {
+    const out = extractToolCallMarkup(fencedThenReal, TOOLS)
+    return out?.calls.length === 1 && out.text.includes(FENCE) && out.text.includes('[TOOL_CALLS]') && out.text.endsWith('Now for real:')
+  })(), JSON.stringify(extractToolCallMarkup(fencedThenReal, TOOLS)))
+  const ticked = extractToolCallMarkup(`<tool_call>\n<function=bash>\n<parameter=command>\necho ${TICK}date${TICK} > out.txt\n</parameter>\n</function>\n</tool_call>`, TOOLS)
+  check('backticks inside an argument value are the value, byte for byte', JSON.stringify(args(ticked?.calls[0]?.argumentsRaw)) === JSON.stringify({ command: `echo ${TICK}date${TICK} > out.txt` }), ticked?.calls[0]?.argumentsRaw)
+  const content = `# Notes\n\n${FENCE}ts\nconst a = 1\n${FENCE}\n`
+  const fencedValue = extractToolCallMarkup(`<tool_call>\n<function=write>\n<parameter=path>\nNOTES.md\n</parameter>\n<parameter=content>\n${content}\n</parameter>\n</function>\n</tool_call>`, TOOLS)
+  check('a code fence inside an argument value is the value, byte for byte', JSON.stringify(args(fencedValue?.calls[0]?.argumentsRaw)) === JSON.stringify({ path: 'NOTES.md', content }), fencedValue?.calls[0]?.argumentsRaw)
+}
+
 section('7 · settlement through the local lane on both transports: the markup becomes a gated tool_use block, the prose a text block, the stop reason tool_use')
 const script: { ollama?: Record<string, unknown>[]; compat?: unknown[] } = {}
 const fixture = Bun.serve({
@@ -225,6 +254,7 @@ const doneRow = (extra: Record<string, unknown> = {}): Record<string, unknown> =
   const settled = await drive(llamaRecord)
   check('the Mistral grammar through the compat road mints the same way', settled.toolUses.length === 1 && JSON.stringify(settled.toolUses[0]!.input) === JSON.stringify({ file_path: '/tmp/a.ts' }) && settled.stop === 'tool_use', JSON.stringify(settled))
 }
+
 fixture.stop(true)
 
 console.log(failures === 0 ? '\nprove-local-tool-call-markup: ALL GREEN' : `\nprove-local-tool-call-markup: ${failures} FAILURE(S)`)
