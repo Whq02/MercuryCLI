@@ -1,4 +1,5 @@
 
+import { zenRailsHidden } from '../utils/cockpit/zenMode.js'
 import { isDeckPaneEnabled, isFullscreenEnvEnabled, isHelmHomeEnabled } from '../utils/fullscreen.js'
 import { HELM_HOME_MIN_COLS } from '../utils/helmGeometry.js'
 import { useTerminalSize } from './useTerminalSize.js'
@@ -47,14 +48,16 @@ export function chromeModeLive(
   return layoutChromeLive(realColumns, realRows).chrome
 }
 
-export function layoutChromeLive(realColumns: number, realRows?: number): { chrome: ChromeMode; isCompact: boolean } {
+export function layoutChromeLive(realColumns: number, realRows?: number): { chrome: ChromeMode; isCompact: boolean; zen: boolean } {
   const fullscreen = isFullscreenEnvEnabled()
   const rows = realRows ?? Number.POSITIVE_INFINITY
   cockpitLatched = fullscreen && rows >= LAYOUT_BREAKPOINTS.cockpitMinRows &&
     realColumns >= LAYOUT_BREAKPOINTS.cockpitMin - (cockpitLatched ? COCKPIT_EXIT_HYST_COLS : 0)
+  if (fullscreen && zenRailsHidden()) return { chrome: 'inline', isCompact: true, zen: true }
   return {
     chrome: cockpitLatched && isHelmHomeEnabled() ? 'cockpit' : computeChromeMode(realColumns, realRows),
     isCompact: fullscreen && !cockpitLatched,
+    zen: false,
   }
 }
 

@@ -88,5 +88,6 @@ prove-diff-chip-session-own.ts
 prove-crew-row-parked-ask.ts
 prove-command-popup-slot.ts
 prove-effort-popup-frames.ts
+prove-zen-frames.ts
 prove-health-popup-frames.ts
 prove-bang-clear-leaves-shell-mode.ts
