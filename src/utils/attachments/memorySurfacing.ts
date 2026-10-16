@@ -100,7 +100,7 @@ function turnAllowance(messages: readonly Message[], newInput: boolean): { recor
   return { records: Math.max(0, 2 - counted.reduce((n, row) => n + row.ids.length, 0)), chars: Math.max(0, 1200 - counted.reduce((n, row) => n + row.chars, 0)), reserve: !delivered.some(row => row.reserve) }
 }
 
-const FULL_TEXT_CAP = 450
+const FULL_TEXT_CAP = 350
 const PREVIEW_CHARS = 140
 const CONSTRAINT_RESERVE_CHARS = 560
 

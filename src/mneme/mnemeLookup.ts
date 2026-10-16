@@ -322,7 +322,7 @@ const COMPANION_IDF = 2.2
 const STEM_BONUS = 0.05
 const SEMANTIC_FLOOR = 0.62
 const RARE_STEM_IDF = 2.2
-const RARE_STEM_BM25 = 4.5
+const RARE_STEM_BM25 = 5
 const STEM_RARE_MIN = 1
 
 function cycleNamed(text: string): number {
@@ -349,10 +349,10 @@ function companionsOf(constraint: LookupCandidate, pool: readonly LookupCandidat
   return out
 }
 
-export function automaticMemoryCandidates(query: string, opts: { dir?: string; pool?: readonly LookupCandidate[]; files?: readonly string[]; now?: number; limit?: number } = {}): AutomaticMemoryHit[] {
+export function automaticMemoryCandidates(query: string, opts: { dir?: string; pool?: readonly LookupCandidate[]; files?: readonly string[]; now?: number; limit?: number; semantic?: boolean } = {}): AutomaticMemoryHit[] {
   const dir = opts.dir ?? mnemeLibraryDir()
   const pool = opts.pool ?? candidates(dir)
-  const semantic = automaticSemanticScores(query, pool, dir)
+  const semantic = opts.semantic === false ? new Map<string, number>() : automaticSemanticScores(query, pool, dir)
   const admitted: AutomaticMemoryHit[] = []
   const cycle = /\bbeta[. -]?(\d+)\b/i.exec([query, ...(opts.files ?? [])].join(' '))?.[1]
   const latest = Math.max(0, ...pool.map(candidate => cycleNamed(candidate.text)))
