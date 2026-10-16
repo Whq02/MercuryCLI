@@ -154,7 +154,7 @@ section('§8 at session start a fact whose cited path is gone yields its room to
 const dir = mnemeLibraryDir()
 mkdirSync(dir, { recursive: true })
 const GONE_FACT = 'quartz rotation: the quartz keys rotate in src/gone.ts on the quartz rotation night'
-const FRESH_FACT = `the quartz rotation moved to src/exists.ts on the owner's word; the nightly run is gone and the rotation ledger is written by the morning job ${'(the ledger line names the key, the holder, the time and the receipt) '.repeat(12).trim()}`
+const FRESH_FACT = `the quartz rotation moved to src/exists.ts on the owner's word; the nightly run is gone and the rotation ledger is written by the morning job ${'(the ledger line names the key, the holder, the time and the receipt) '.repeat(11).trim()}`
 const EXTERNAL_FACT = 'quartz rotation: the quartz gate script is lead-scripts/linux-gate/linux-gate-b29.sh on the quartz box'
 frozen = T - 2 * DAY
 appendObservation({ text: GONE_FACT, source: 'proof', topicHint: 'quartz' }, dir)

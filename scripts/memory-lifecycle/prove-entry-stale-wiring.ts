@@ -58,6 +58,8 @@ const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
 const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
 const { listTopicDocs } = await import('../../src/mneme/mnemeLibrary.ts')
 const { bumpUsage, readPins, readUsage, startTextLimit } = await import('../../src/mneme/mnemeUsage.ts')
+const { memoryGrade } = await import('../../src/mneme/memoryEvidence.ts')
+const grade = memoryGrade({ dir: mnemeLibraryDir() })
 
 const dir = mnemeLibraryDir()
 mkdirSync(dir, { recursive: true })
@@ -65,7 +67,7 @@ check('the library of the scratch project lives under the scratch home', dir.sta
 check('the allowance is the thousand the scratch settings name', startTextLimit() === 1000, String(startTextLimit()))
 
 const STALE_FACT = 'quartz rotation: the quartz keys rotate on the quartz rotation night'
-const FRESH_FACT = `the quartz rotation moved to the morning on the owner's word; the nightly run is gone and the rotation ledger is written by the morning job ${'(the ledger line names the key, the holder, the time and the receipt) '.repeat(12).trim()}`
+const FRESH_FACT = `the quartz rotation moved to the morning on the owner's word; the nightly run is gone and the rotation ledger is written by the morning job ${'(the ledger line names the key, the holder, the time and the receipt) '.repeat(11).trim()}`
 const seqOf = (text: string): number => {
   for (const doc of listTopicDocs(dir)) for (const s of doc.sections) for (const e of s.entries) if (e.text === text) return e.seq
   throw new Error(`no fact reads ${text}`)
@@ -102,7 +104,7 @@ section('§3 the fold wiring: the real start page reads factMemoryState, so the 
 const page = await knapsack.composeMemoryAtStart({ projectKey: PK, sessionId: 'review-session', root: repo, dir, now: new Date(T) })
 const status = knapsack.memoryAtStartStatus()
 check('the page composed', page !== null && status !== null, j(status))
-check('the fresh fact rides', page !== null && page.includes(`- ${FRESH_FACT} <seq=${freshSeq}>`), page ?? 'null')
+check('the fresh fact rides behind its grade', page !== null && page.includes(`- ${grade} ${FRESH_FACT} <seq=${freshSeq}>`), page ?? 'null')
 check('the stale fact is left for Recall', page !== null && !page.includes(`<seq=${staleSeq}>`), page ?? 'null')
 check('the line reads one of two facts against the branch', page !== null && page.includes('and 1 of 3 facts most relevant to branch lane/quartz-rotation; Recall finds the rest.'), page ?? 'null')
 check('the status the /config row reads agrees', status !== null && status.rodeFacts === 1 && status.facts === 3 && status.limit === 1000, j(status))
@@ -112,7 +114,7 @@ writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { startLimit
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 resetSettingsCache()
 const roomy = await knapsack.composeMemoryAtStart({ projectKey: PK, sessionId: 'review-session', root: repo, dir, now: new Date(T) })
-check('with two thousand characters both ride, the stale one as written (the page prints by score and carries no stale mark; Recall and the centre carry it)', roomy !== null && roomy.includes(`- ${STALE_FACT} <seq=${staleSeq}>`) && roomy.includes(`- ${FRESH_FACT} <seq=${freshSeq}>`) && roomy.includes('and 2 of 3 facts most relevant to branch lane/quartz-rotation'), roomy ?? 'null')
+check('with two thousand characters (scaled to 1,200 by the two eligible records) both ride, the stale one as written with its mark after the line', roomy !== null && roomy.includes(`- ${grade} ${STALE_FACT} <seq=${staleSeq}> [stale`) && roomy.includes(`- ${grade} ${FRESH_FACT} <seq=${freshSeq}>`) && roomy.includes('and 2 of 3 facts most relevant to branch lane/quartz-rotation'), roomy ?? 'null')
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { startLimit: 1000 } }))
 resetSettingsCache()
 bumpUsage([staleSeq], dir, new Date(T))

@@ -1,10 +1,12 @@
 
 import { existsSync, statSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { memoryGrade, recordGrade } from './memoryEvidence.js'
 import { isAbsolute, join, resolve, sep } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
-import { lookupTokens } from './mnemeLookup.js'
+import { automaticMemoryCandidates, lookupTokens } from './mnemeLookup.js'
 import { escapeRegExp } from '../utils/stringUtils.js'
-import { ledgerPointers, type MemoryPointer } from './mnemePointers.js'
+import { ledgerPointers, memoryPointerForId, type MemoryPointer } from './mnemePointers.js'
 import { catalogDocs, grepLibrary, grepPending, PENDING_SLUG } from './mnemeRetrieval.js'
 import type { LedgerEntry } from './types.js'
 import type { MnemeEntry } from './mnemeTopicDocs.js'
@@ -48,6 +50,10 @@ export interface MemoryRef {
   why: string
   deref: string
   tier: number
+  grade?: string
+  library?: string
+  identity?: string
+  witness?: string
 }
 
 const SUMMARY_CAP = 140
@@ -151,6 +157,10 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
   const push = (r: MemoryRef): void => {
     if (seen.has(r.refId)) return
     seen.add(r.refId)
+    const id = r.kind === 'mneme-fact' ? r.refId.replace(/^mneme:/, 'seq:') : r.kind === 'mneme-pending' ? `pending:${r.capturedAt ?? ''}` : r.refId
+    r.library = opts.libraryDir ?? mnemeLibraryDir()
+    r.identity = id
+    r.grade = r.kind === 'mneme-topic' ? memoryGrade({ kind: 'structure' }) : r.kind === 'mneme-session' ? memoryGrade({ kind: 'session' }) : recordGrade(id, r.source ?? '', opts.libraryDir)
     out.push(r)
   }
 
@@ -173,6 +183,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
         status: 'current',
         summary: cap(`${d.slug}: ${d.summary}`),
         capturedAt: d.updated,
+        witness: createHash('sha256').update(`${d.slug}\0${d.summary}\0${d.updated}`).digest('hex'),
         why: `topic matches '${hit.token}'`,
         deref: `Recall read:"doc:${d.slug}"`,
         tier: 1,
@@ -194,6 +205,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
         confirmedAt: state.confirmedAt,
         ...(state.missingPaths.length > 0 ? { missingPaths: state.missingPaths } : {}),
         summary: cap(words),
+        witness: createHash('sha256').update(h.text).digest('hex'),
         capturedAt: h.entry?.time ?? sig?.[2]?.trim(),
         source: h.entry?.source ?? sig?.[3]?.trim(),
         why: `content matches '${t}'${h.entry?.supersededBy !== undefined ? ' · in history' : ''}`,
@@ -210,6 +222,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
         scope: 'project',
         status: 'unconsolidated',
         summary: cap(h.text.replace(/ \[unconsolidated.*$/, '')),
+        witness: createHash('sha256').update(h.text).digest('hex'),
         ...(stamp !== null ? { capturedAt: stamp[1], source: stamp[2] } : {}),
         why: `recent unconsolidated matches '${t}'`,
         deref: `Recall query:"${t}"`,
@@ -233,7 +246,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
 export function renderMemoryRefLine(r: MemoryRef): string {
   const words = memoryStatusWords(r)
   const status = r.status === 'current' ? '' : ` [${words}]`
-  return `${r.refId}${status} — ${r.summary} (${r.why})`
+  return `${r.refId}${status} — ${r.grade ?? memoryGrade({ source: r.source, pending: r.kind === 'mneme-pending', kind: r.kind === 'mneme-topic' ? 'structure' : r.kind === 'mneme-session' ? 'session' : 'fact' })} ${r.summary} (${r.why})`
 }
 
 export function memoryStatusWords(r: Pick<MemoryRef, 'status' | 'confirmedAt' | 'missingPaths'>): string {
@@ -247,3 +260,13 @@ export function memoryStatusWords(r: Pick<MemoryRef, 'status' | 'confirmedAt' | 
 }
 
 export { PENDING_SLUG }
+
+export function collectAutomaticMemoryRefs(query: string, opts: CollectOpts & { files?: readonly string[] } = {}): MemoryRef[] {
+  const dir = opts.libraryDir ?? mnemeLibraryDir()
+  if (!mnemeEnabled()) return []
+  return automaticMemoryCandidates(query, { dir, files: opts.files, now: opts.now?.getTime() }).flatMap(hit => {
+    const pointer = memoryPointerForId(hit.id, { dir, sessions: opts.sessions, query, now: opts.now })
+    if (!pointer) return []
+    return [{ refId: hit.id.startsWith('seq:') ? `mneme:${hit.id.slice(4)}` : `mneme-pending:${hit.id.slice(8)}`, kind: hit.pending ? 'mneme-pending' as const : 'mneme-fact' as const, store: 'mneme' as const, scope: 'project' as const, status: pointer.freshness?.status ?? 'current', summary: pointer.title, source: pointer.source?.source, capturedAt: pointer.source?.time, why: hit.admission === 'constraint' ? 'source-linked task constraint' : 'clears the relevance gate', deref: `Recall read:"${pointer.id}"`, tier: 1, grade: pointer.source?.grade, library: dir, identity: pointer.id, witness: hit.witness }]
+  })
+}

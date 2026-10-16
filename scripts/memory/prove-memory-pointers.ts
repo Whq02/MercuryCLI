@@ -114,7 +114,7 @@ const crossSlug = pointed.ok ? pointed.slug : ''
 check('the result names the target page', crossSlug === 'deploy', crossSlug)
 
 section('§4 the ruling footnote: the pinned rule recorded in the same session, at or before the fact')
-const rulingOut = retainItems([{ content: 'always run the smoke suite before a release', pin: true }], { session: 'gamma-session' })
+const rulingOut = retainItems([{ content: 'always run the smoke suite before a release', pin: true }], { session: 'gamma-session', pinIntent: { messageId: 'owner-gamma', text: 'always run the smoke suite before a release' } })
 check('the rule is staged', rulingOut[0]?.status === 'stored', JSON.stringify(rulingOut))
 check('the shelf landed', maybeConsolidate({ dir, force: true }).consolidated === true)
 await sleep(5)
