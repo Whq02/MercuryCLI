@@ -1,4 +1,4 @@
-# Saturn — session schedules
+# Saturn: session schedules
 
 Saturn is Mercury's scheduler. A schedule is a **session fact**: it rides the
 durable session record, is fired by the background daemon, and every fire

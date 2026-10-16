@@ -1082,7 +1082,7 @@ and reset, and that the provider stops work only when the window is used up.
 At 90% it also advises keeping the work resumable: finish the step in hand,
 commit what is done and write down where it stands. A spending limit near
 (the Anthropic extra-usage state) rides the same notice. The model decides what to
-do; no percentage, even 100%, holds work, stops a turn or offers a handoff.
+do; no percentage, even 100%, holds work, stops a turn or shows a handoff card.
 Only a rejected request or a provider-stated reached window takes the wall's
 normal road. A resumed
 conversation remembers which thresholds it was told about. A source without

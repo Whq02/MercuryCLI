@@ -54,14 +54,6 @@ const QUOTED_PRODUCT_LABELS: ReadonlyArray<{ span: string; reason: string }> = [
 
 const CENSUS_EXEMPT_LINES: ReadonlyArray<{ fragment: string; reason: string }> = [
   {
-    fragment: '# Saturn ' + J('—', ' session schedules'),
-    reason: 'docs/SATURN.md:1 title pinned by scripts/skills/prove-mercury-docs-skill.ts:83 and scripts/agents/prove-roster-driven.ts:436',
-  },
-  {
-    fragment: 'holds work, stops a turn or ' + J('off', 'ers a handoff'),
-    reason: 'docs/ENGINES.md:1084 sentence pinned by scripts/providers/prove-cap-offer-rule.ts:146',
-  },
-  {
     fragment: '**Yes ' + J('—', ' begin the build**'),
     reason: 'ApolloReview option label in src/components/permissions/ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.tsx:87',
   },
