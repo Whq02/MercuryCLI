@@ -50,6 +50,8 @@ const pending = await import('../../src/input-core/pending-input.ts')
 const { default: instances } = await import('../../src/ink/instances.ts')
 const healthCommand = await import('../../src/commands/health/health.tsx')
 const certificate = await import('../../src/commands/health/HealthCertificate.tsx')
+const { CommandPopupLease } = await import('../../src/components/CommandPopupSlot.tsx')
+const { claimCommandPopup } = await import('../../src/utils/cockpit/commandPopup.ts')
 const h = React.createElement
 
 const TITLE = 'Mercury · health'
@@ -67,6 +69,11 @@ const ENTER = '\r'
 const ESC = '\x1b'
 const CLICK_OUTSIDE = '\x1b[<0;3;3M\x1b[<0;3;3m'
 const SIZES: Array<[number, number]> = [[178, 51], [80, 24], [100, 30], [64, 20]]
+const LEGEND = 'every claim names its evidence'
+const DESTRUCTIVE = 'DESTRUCTIVE — this discards state'
+const FIX_KEY = 'f'
+const DEEP_KEY = 'd'
+const RERUN_KEY = 'r'
 
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -156,13 +163,17 @@ const save = (name: string, lines: string[]): void => {
 
 type Scene = { lines: () => string[]; push: (data: string) => void; resize: (cols: number, rows: number) => Promise<void>; done: () => unknown[][]; close: () => Promise<void> }
 
-async function openScene(cols: number, rows: number): Promise<Scene> {
+type ReportFixture = Parameters<typeof certificate.MercuryHealthCertificate>[0]['report']
+
+async function openScene(cols: number, rows: number, fixture?: ReportFixture): Promise<Scene> {
   initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   pending.edit('')
   pending.setMode('prompt')
   const done: unknown[][] = []
-  const element = await healthCommand.call((...args: unknown[]) => { done.push(args) }, { messages: [], options: {} } as never, '')
+  const element = fixture === undefined
+    ? await healthCommand.call((...args: unknown[]) => { done.push(args) }, { messages: [], options: {} } as never, '')
+    : h(CommandPopupLease, { token: claimCommandPopup(certificate.healthPopupShape()) }, h(certificate.MercuryHealthCertificate, { onClose: () => { done.push([]) }, report: fixture }))
   const insertRef = { current: null } as React.MutableRefObject<unknown>
   const modalScrollRef = React.createRef<null>()
   function Transcript(): React.ReactNode {
@@ -239,6 +250,9 @@ function frameReadsRight(label: string, lines: string[], cols: number, rows: num
   check(`${label}: the window lies inside the terminal (${cols}x${rows})`, window.right < cols && window.bottom < rows && window.left >= 0 && window.top >= 0, describe(window))
   check(`${label}: the verdict chip sits on the title row beside the lockup`, VERDICT.test(inner(window.rows[1]!)) && inner(window.rows[1]!).includes(`${TITLE} · `), inner(window.rows[1]!))
   const expected = certificate.healthPopupLayout(window.height, 0, 1000)
+  const legendRow = window.rows.map(inner).find(row => row.startsWith(LEGEND))
+  check(`${label}: the provenance legend ${window.height >= 30 ? 'is painted (the popup has 30 rows or more)' : 'is absent (the popup has fewer than 30 rows: the first line shed)'}`, (legendRow !== undefined) === (window.height >= 30 && !expected.compact), legendRow ?? '(no legend row)')
+  if (legendRow !== undefined) check(`${label}: the legend sits right above the footer, under the rows`, window.rows.map(inner).indexOf(legendRow) === window.height - 3, String(window.rows.map(inner).indexOf(legendRow)))
   const countsRow = window.rows.map(inner).find(row => /^\d+ checks/.test(row))
   check(`${label}: the ${expected.compact ? 'compact' : 'full'} chrome (${window.height} rows: ${expected.compact ? 'the provenance and counts lines yield to the rows' : 'provenance line, counts line, a blank, then the rows'})`, (countsRow !== undefined) === !expected.compact, countsRow ?? '(no counts row)')
   const footer = inner(window.rows[window.height - 2]!)
@@ -348,6 +362,73 @@ section('§4 a live resize while the popup is open')
     save(`health-resize-${cols}x${rows}`, frame)
     frameReadsRight(`resize → ${cols}x${rows}`, frame, cols, rows, cursorBefore)
   }
+  await scene.close()
+}
+
+section('§5 the fix card inside the popup: a destructive consent card never pushes the frame past its rows')
+{
+  const remedy = {
+    plan: 'end the stale Mercury processes this box still runs (the sweep sends them the end signal and reads the table again)',
+    class: 'destructive' as const,
+    apply: async () => ({ ok: true, note: 'swept' }),
+    verify: async () => ({ ok: true, note: 'none left' }),
+  }
+  const fixtureCert = (depth: 'fast' | 'deep') => ({
+    verdict: 'caution' as const,
+    ranAt: new Date().toISOString(),
+    head: { sha: 'abc1234def', branch: 'lane/fixture', dirty: false },
+    version: '1.0.0',
+    durationMs: 12,
+    depth,
+    sections: [
+      { id: 'processes', title: 'PROCESSES', checks: [
+        { id: 'process-sweep', label: 'Mercury processes', status: 'warn' as const, evidence: '3 stale · 1 cannot end', fix: 'sweep the stale processes', remedy },
+        { id: 'boots', label: 'Boots complete', status: 'ok' as const, evidence: 'no pending attempts' },
+      ] },
+      { id: 'git', title: 'GIT', checks: [
+        { id: 'tree', label: 'Working tree', status: 'ok' as const, evidence: 'clean' },
+      ] },
+    ],
+  })
+  const depths: string[] = []
+  const fixture: ReportFixture = async opts => {
+    depths.push(opts?.depth ?? 'fast')
+    return fixtureCert(opts?.depth ?? 'fast') as never
+  }
+  for (const [cols, rows] of SIZES) {
+    const scene = await openScene(cols, rows, fixture)
+    const before = windowOf(scene.lines())
+    check(`${cols}x${rows}: the fixture certificate paints with the fix key offered on its fixable row`, before !== null && inner(before.rows[before.height - 2]!).includes('f fix'), before === null ? 'no window' : inner(before.rows[before.height - 2]!))
+    scene.push(FIX_KEY)
+    await sleep(400)
+    const frame = scene.lines()
+    save(`health-fixcard-${cols}x${rows}`, frame)
+    const window = windowOf(frame)
+    check(`${cols}x${rows}: f opens the destructive consent card inside the popup`, window !== null && window.rows.some(row => inner(row).includes(DESTRUCTIVE) || inner(row).includes('fix · Mercury processes')), window === null ? frame.slice(0, 12).join(' | ') : window.rows.map(inner).filter(row => row.includes('fix')).join(' | '))
+    const composerRow = frame.findIndex(line => line.includes(COMPOSER))
+    const budget = certificate.healthPopupShape().rows(rows)
+    check(`${cols}x${rows}: with the card open the popup's bottom border is painted whole, inside its row budget, above the composer`, window !== null && wholeBottom(window) && window.height <= budget && window.bottom < composerRow, window === null ? 'the bottom border is clipped' : `height ${window.height} (budget ${budget}, was ${before?.height}) · bottom ${window.bottom} · composer ${composerRow}`)
+    if (window !== null) {
+      check(`${cols}x${rows}: the footer stays the last inner row above the card's frame`, inner(window.rows[window.height - 2]!).startsWith('↑↓ move') || inner(window.rows[window.height - 2]!).includes('esc'), inner(window.rows[window.height - 2]!))
+      const compact = certificate.healthPopupLayout(window.height, 0, 1000).compact
+      check(`${cols}x${rows}: ${compact ? 'the compact popup gives the card its room and the rows yield (the card is modal)' : 'at least one check row stays visible beside the card'}`, compact ? window.rows.some(row => inner(row).startsWith('╰')) : checkRows(window).length >= 1, `${checkRows(window).length} rows`)
+    }
+    scene.push(ESC)
+    await sleep(300)
+    await scene.close()
+  }
+  section('§6 r re-runs at the depth last run: d sets deep, r repeats it')
+  depths.length = 0
+  const scene = await openScene(80, 24, fixture)
+  check('the first run is the fast certificate', depths.join(',') === 'fast', depths.join(','))
+  scene.push(DEEP_KEY)
+  await until(() => depths.length >= 2, 5000)
+  await sleep(300)
+  check('d re-runs deep', depths.join(',') === 'fast,deep', depths.join(','))
+  scene.push(RERUN_KEY)
+  await until(() => depths.length >= 3, 5000)
+  await sleep(300)
+  check('r after d re-runs DEEP again (the depth last run, as before)', depths.join(',') === 'fast,deep,deep', depths.join(','))
   await scene.close()
 }
 

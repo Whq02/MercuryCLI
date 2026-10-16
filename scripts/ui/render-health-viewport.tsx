@@ -112,6 +112,7 @@ if (process.env.HEALTH_RENDER_CHILD) {
     const grid = capture(120, 50, [])
     check('@120x50: the certificate renders with its footer', grid.includes('esc or click outside closes'))
     check('@120x50: the counts line reads the checks under the verdict', /\d+ checks/.test(grid))
+    check('@120x50: the provenance legend is fixed chrome (≥30 rows)', grid.includes('every claim names its evidence'))
   }
 
   console.log(failures === 0 ? '\nHEALTH VIEWPORT: ALL GREEN' : `\nHEALTH VIEWPORT: ${failures} FAILURE(S)`)

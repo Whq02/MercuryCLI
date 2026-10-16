@@ -1,13 +1,13 @@
 import * as React from 'react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
-import { Box, Text, useInput } from '../../ink.js'
+import { Box, Text, useInput, wrapText } from '../../ink.js'
 import type { DOMElement } from '../../ink.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mercuryPalette.js'
 import { ProductLockup, SectionHeader, StateBadge } from '../../components/mercury-ui/components.js'
-import { padTo, truncateToWidth, branchChip } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH, padTo, truncateToWidth, branchChip } from '../../components/mercury-ui/glyphs.js'
 import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
 import { CursorCell } from '../../components/mercury-ui/LiveGlyphs.js'
 import { panelWidth, shedToFit } from '../../components/mercury-ui/geometry.js'
@@ -73,6 +73,7 @@ const HEALTH_POPUP_MIN_ROWS = 10
 const HEALTH_POPUP_SPARE_ROWS = 7
 const HEALTH_POPUP_CHROME_ROWS = 7
 const HEALTH_POPUP_COMPACT_CHROME_ROWS = 4
+export const HEALTH_POPUP_LEGEND_MIN_ROWS = 30
 export const HEALTH_POPUP_CLOSE_HINT = 'esc or click outside closes'
 
 export function healthPopupShape(): CommandPopupShape {
@@ -83,11 +84,13 @@ export function healthPopupShape(): CommandPopupShape {
   }
 }
 
-export function healthPopupLayout(frameRows: number, fixRows: number, contentRows: number): { compact: boolean; listRows: number } {
+export function healthPopupLayout(frameRows: number, fixRows: number, contentRows: number): { compact: boolean; legend: boolean; cardRows: number; listRows: number } {
   const compact = settingsPopupCompact(frameRows - HEALTH_POPUP_CHROME_ROWS - fixRows)
-  const chrome = compact ? HEALTH_POPUP_COMPACT_CHROME_ROWS : HEALTH_POPUP_CHROME_ROWS
-  const budget = Math.max(1, frameRows - chrome - fixRows)
-  return { compact, listRows: Math.max(1, Math.min(budget, contentRows)) }
+  const legend = !compact && frameRows >= HEALTH_POPUP_LEGEND_MIN_ROWS
+  const chrome = compact ? HEALTH_POPUP_COMPACT_CHROME_ROWS : HEALTH_POPUP_CHROME_ROWS + (legend ? 1 : 0)
+  const cardRows = Math.min(fixRows, Math.max(0, frameRows - chrome))
+  const budget = Math.max(fixRows > 0 ? 0 : 1, frameRows - chrome - cardRows)
+  return { compact, legend, cardRows, listRows: Math.max(fixRows > 0 ? 0 : 1, Math.min(budget, contentRows)) }
 }
 
 function healthPopupFooter(segments: { rows: number; cursor: number; fixable: boolean }, width: number): string {
@@ -183,11 +186,30 @@ type FixFlow =
   | { phase: 'running'; check: HealthCheck }
   | { phase: 'done'; check: HealthCheck; outcome: AppliedFix }
 
+const FIX_CARD_DESTRUCTIVE_WORDS = 'DESTRUCTIVE — this discards state that cannot be mechanically recovered. '
+const FIX_CARD_CONFIRM_WORDS = '↵ apply · esc cancel'
+const FIX_CARD_RUNNING_WORDS = '◐ applying… (the panel stays read-only until it settles)'
+
+function fixCardTitle(flow: FixFlow): string {
+  return `fix · ${flow.check.label} · ${flow.check.remedy?.class ?? 'safe'} remedy`
+}
+
+function fixCardPhaseLines(flow: FixFlow): string[] {
+  if (flow.phase === 'confirm') return [`${flow.check.remedy?.class === 'destructive' ? FIX_CARD_DESTRUCTIVE_WORDS : ''}${FIX_CARD_CONFIRM_WORDS}`]
+  if (flow.phase === 'running') return [FIX_CARD_RUNNING_WORDS]
+  return [
+    `apply: ${flow.outcome.applied.ok ? 'ok' : 'FAILED'} — ${truncateToWidth(flow.outcome.applied.note, 60)}`,
+    `verify: ${flow.outcome.verified === null ? 'skipped (apply failed)' : flow.outcome.verified.ok ? 'ok' : 'STILL FAILING'}${flow.outcome.verified ? ` — ${truncateToWidth(flow.outcome.verified.note, 58)}` : ''}`,
+    `↵ ${flow.outcome.verified?.ok ? 'dismiss + re-issue the certificate' : 'dismiss'}`,
+  ]
+}
+
 function fixCardRows(flow: FixFlow | null, width: number): number {
   if (flow === null) return 0
-  const planLines = Math.max(1, Math.ceil((flow.check.remedy?.plan ?? '').length / Math.max(1, width - 4)))
-  const phaseLines = flow.phase === 'done' ? 3 : 1
-  return 2 + 1 + planLines + 1 + phaseLines
+  const inner = Math.max(1, width - 4)
+  const lines = (text: string): number => wrapText(text, inner, 'wrap').split('\n').length
+  const wrapped = [fixCardTitle(flow), flow.check.remedy?.plan ?? '', ...fixCardPhaseLines(flow)]
+  return 2 + 1 + wrapped.reduce((n, text) => n + lines(text), 0)
 }
 
 function FixCard({ flow }: { flow: FixFlow }): React.ReactNode {
@@ -199,7 +221,7 @@ function FixCard({ flow }: { flow: FixFlow }): React.ReactNode {
         <Text color={register} bold>
           fix · {flow.check.label}
         </Text>
-        <Text color={FAINT}> · {flow.check.remedy?.class ?? 'safe'} remedy</Text>
+        <Text color={FAINT}>{fixCardTitle(flow).slice(`fix · ${flow.check.label}`.length)}</Text>
       </Text>
       <Text color={IVORY} wrap="wrap">
         {flow.check.remedy?.plan ?? ''}
@@ -208,14 +230,9 @@ function FixCard({ flow }: { flow: FixFlow }): React.ReactNode {
         evidence: {flow.check.evidence}
       </Text>
       {flow.phase === 'confirm' ? (
-        <Text color={FAINT}>
-          {destructive
-            ? 'DESTRUCTIVE — this discards state that cannot be mechanically recovered. '
-            : ''}
-          ↵ apply · esc cancel
-        </Text>
+        <Text color={FAINT}>{fixCardPhaseLines(flow)[0]}</Text>
       ) : flow.phase === 'running' ? (
-        <Text color={AMBER}>◐ applying… (the panel stays read-only until it settles)</Text>
+        <Text color={AMBER}>{FIX_CARD_RUNNING_WORDS}</Text>
       ) : (
         <>
           <Text>
@@ -254,7 +271,7 @@ function FixCard({ flow }: { flow: FixFlow }): React.ReactNode {
   )
 }
 
-function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.ReactNode {
+function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }: { onClose: () => void; report?: typeof runAndRecordHealthReport }): React.ReactNode {
   const accent = useSessionAccent().accent
   const tok = useMercuryTokens()
   const elevatedRef = useElevatedSurface()
@@ -303,7 +320,7 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
     let alive = true
     const ac = new AbortController()
     const acc = new Map<string, HealthSection>()
-    runAndRecordHealthReport({
+    report({
       depth: depthRef.current,
       signal: ac.signal,
       onProgress: ev => {
@@ -460,7 +477,7 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
         return
       }
       if (input === 'r' && !key.ctrl && !key.meta) {
-        rerun('fast')
+        rerun(depthRef.current)
         return
       }
       if (input === 'f' && !key.ctrl && !key.meta) {
@@ -538,7 +555,11 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
         </Box>
       )}
       {layout.compact ? null : <Box height={1} />}
-      {fixFlow ? <FixCard flow={fixFlow} /> : null}
+      {fixFlow ? (
+        <Box flexDirection="column" maxHeight={layout.cardRows} overflow="hidden" flexShrink={0}>
+          <FixCard flow={fixFlow} />
+        </Box>
+      ) : null}
       <ScrollBox ref={scrollRef} height={layout.listRows} flexShrink={0} flexDirection="column">
         {layout.compact && statusLine !== null ? <Text color={loading ? FAINT : AMBER} wrap="truncate-end">{statusLine}</Text> : null}
         {actions.length > 0 ? (
@@ -573,6 +594,18 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
           </Box>
         ))}
       </ScrollBox>
+      {layout.legend ? (
+        <Box height={1}>
+          <Text color={FAINT} wrap="truncate-end">
+            every claim names its evidence — <Text color={accent}>↵</Text>
+            <Text color={FAINT}> opens the full trail · </Text>
+            <Text color={SECOND}>{GLYPH.drifting} stale</Text>
+            <Text color={FAINT}> = evidence predates what it certifies · </Text>
+            <Text color={SECOND}>{GLYPH.read} unknown</Text>
+            <Text color={FAINT}> = no evidence either way</Text>
+          </Text>
+        </Box>
+      ) : null}
       <Box height={1} width={innerW + 1} marginRight={-1}>
         <Text color={tok.textMuted} wrap="truncate-end">{footer}</Text>
       </Box>
