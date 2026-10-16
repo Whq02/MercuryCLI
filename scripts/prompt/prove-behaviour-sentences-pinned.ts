@@ -141,9 +141,9 @@ try {
     for (const f of [whole, confirm]) check(`${turn}.${f.arm}: the recorded reply is pinned by digest and size`, /^[0-9a-f]{64}$/.test(f.reply_sha256!) && Number(f.reply_bytes) > 0)
   }
   const t05 = questions.find(q => q.turn === 'T05')!
-  check('T05 is the behaviour-bearing flip: the expected answer is the whole-prompt answer, and the confirm arm adopted the stale plan', t05.expected_A0 === 'no' && flips.find(f => f.turn === 'T05' && f.arm === 'A0')!.answer === 'no')
+  check('T05: the recorded whole-prompt answer is the expected one (no stale plan adopted); the study\'s resamples found that baseline itself unstable, so the pair carries no signal of its own', t05.expected_A0 === 'no' && flips.find(f => f.turn === 'T05' && f.arm === 'A0')!.answer === 'no')
   const t10 = questions.find(q => q.turn === 'T10')!
-  check('T10 is recorded as the study measured it: the whole-prompt reply graded its claims in words the grep does not match, so its expected answer and its recorded answer differ', t10.expected_A0 === 'yes' && flips.find(f => f.turn === 'T10' && f.arm === 'A0')!.answer === 'no')
+  check('T10: the recorded whole-prompt answer differs from the expected one (its reply grades its claims in words the grep does not match); the study\'s resamples held the one-row difference, 3 of 4 against 0 of 5', t10.expected_A0 === 'yes' && flips.find(f => f.turn === 'T10' && f.arm === 'A0')!.answer === 'no')
   const readme = readFileSync(join(FIXTURES, 'README.md'), 'utf8')
   check('the README names the study and the door (thinking off)', readme.includes('prompt-ablation study') && readme.includes('thinking off') && readme.includes('M026'))
 } finally {
