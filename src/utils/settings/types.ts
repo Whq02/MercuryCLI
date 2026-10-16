@@ -33,8 +33,6 @@ function requireExactlyOneField(
 
 export const AllowedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
 export const DeniedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
-type AllowedMcpServerEntry = z.infer<ReturnType<typeof AllowedMcpServerEntrySchema>>
-type DeniedMcpServerEntry = z.infer<ReturnType<typeof DeniedMcpServerEntrySchema>>
 
 const modeLockSchema = () => z.preprocess(
   value => value === undefined || typeof value === 'boolean' ? value : true,
@@ -88,7 +86,6 @@ export const ExtensionsSettingsSchema = lazySchema(() =>
       .describe("Managed lock restricting customization surfaces to extensions (filesystem sources such as the config home's skills directory are skipped for locked surfaces)"),
   }),
 )
-type ExtensionsSettings = z.infer<ReturnType<typeof ExtensionsSettingsSchema>>
 
 export const SettingsSchema = lazySchema(() => {
   const base = z.object({

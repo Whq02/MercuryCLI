@@ -51,10 +51,8 @@ export const McpJsonConfigSchema = once(() => z.object({ mcpServers: z.record(z.
 export type McpStdioServerConfig = z.infer<ReturnType<typeof McpStdioServerConfigSchema>>
 export type McpSSEServerConfig = z.infer<ReturnType<typeof McpSSEServerConfigSchema>>
 export type McpHTTPServerConfig = z.infer<ReturnType<typeof McpHTTPServerConfigSchema>>
-type McpWebSocketServerConfig = z.infer<ReturnType<typeof McpWebSocketServerConfigSchema>>
 export type McpAnthropicProxyServerConfig = z.infer<ReturnType<typeof McpAnthropicProxyServerConfigSchema>>
 export type McpServerConfig = z.infer<ReturnType<typeof McpServerConfigSchema>>
-type McpJsonConfig = z.infer<ReturnType<typeof McpJsonConfigSchema>>
 export type ScopedMcpServerConfig = McpServerConfig & { scope: ConfigScope; extensionSource?: string }
 
 type ServerIdentity = { name: string; config: ScopedMcpServerConfig }
@@ -67,21 +65,5 @@ type ConnectionFacts = {
 }
 type Connection<State extends keyof ConnectionFacts> = ServerIdentity & { type: State } & ConnectionFacts[State]
 export type ConnectedMCPServer = Connection<'connected'>
-type FailedMCPServer = Connection<'failed'>
-type NeedsAuthMCPServer = Connection<'needs-auth'>
-type PendingMCPServer = Connection<'pending'>
-type DisabledMCPServer = Connection<'disabled'>
 export type MCPServerConnection = { [State in keyof ConnectionFacts]: Connection<State> }[keyof ConnectionFacts]
 export type ServerResource = Resource & { server: string }
-
-type MCPCliState = {
-  clients: SerializedClient[]; configs: Record<string, ScopedMcpServerConfig>
-  tools: SerializedTool[]; resources: Record<string, ServerResource[]>
-  normalizedNames?: Record<string, string>
-}
-type SerializedClient = { name: string; type: MCPServerConnection['type']; capabilities?: ServerCapabilities }
-type SerializedTool = {
-  name: string; description: string
-  inputJSONSchema?: { type: 'object'; [key: string]: unknown }
-  isMcp?: boolean; originalToolName?: string
-}

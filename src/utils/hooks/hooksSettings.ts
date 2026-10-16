@@ -28,10 +28,6 @@ const LAYER_WORDS: Readonly<Record<HookLayer, string>> = {
   managed: 'Managed',
 }
 
-function hookLayerWords(layer: HookLayer): string {
-  return LAYER_WORDS[layer]
-}
-
 export function hookSourceShortWords(source: HookSource): string {
   switch (source.kind) {
     case 'settings':

@@ -44,6 +44,7 @@ import { otherSignInsLine, providerIdentityLine, providerIdentitySentence, shown
 import { openrouterSlots } from '../../services/providers/accountSlots.js'
 import { jevRoadWords, jevUsdLabel } from '../../services/jev/jevContract.js'
 import { jevCreditsWords } from './Jev.js'
+import { type JevKeyPresence, jevKeyPresence } from '../../services/jev/jevKey.js'
 import { type JevSessionFacts, jevSessionAbsenceWords, jevSessionFacts, jevSessionFactsStamp, jevSessionStatus, subscribeJevSessionFacts } from '../../services/jev/jevSessionFacts.js'
 import { readJevSettings } from '../../services/jev/jevSetting.js'
 import { JEV_STATUS_HEADWORDS } from '../../services/jev/jevStatus.js'
@@ -1260,21 +1261,27 @@ export function usageWindow(bands: ReadonlyArray<{ height: number; count: number
   return { ...current, previous, next }
 }
 
-export const JEV_USAGE_LABEL = 'JEV'
+export const JEV_USAGE_LABEL = 'Jev'
+
+export function jevUsageRowShown(session: JevSessionFacts = jevSessionFacts(), key: JevKeyPresence = jevKeyPresence()): boolean {
+  return key.present || (session.state === 'reported' && (session.facts.calls > 0 || session.facts.attempts > 0))
+}
 
 export function jevUsageRow(session: JevSessionFacts = jevSessionFacts()): string {
   const settings = readJevSettings()
   const headword = JEV_STATUS_HEADWORDS[jevSessionStatus(session, settings).kind]
-  const count = session.state === 'reported' ? `${jevUsdLabel(session.facts.spendUsd)} · ${session.facts.calls} call${session.facts.calls === 1 ? '' : 's'} (${session.facts.unconfirmedCharges} unconfirmed)` : jevSessionAbsenceWords(session)
+  const allowance = jevUsdLabel(settings.allowanceUsd)
+  const count = session.state === 'reported' ? `${jevUsdLabel(session.facts.spendUsd)} of a ${allowance} allowance · ${session.facts.calls} call${session.facts.calls === 1 ? '' : 's'} (${session.facts.unconfirmedCharges} unconfirmed)` : `${jevSessionAbsenceWords(session)} · allowance ${allowance}`
   const stated = settings.road === 'openrouter' && session.state === 'reported' && session.facts.lastCostUsd != null ? ` · last stated $${session.facts.lastCostUsd}` : ''
+  const road = settings.road === 'openrouter' ? ` · ${jevRoadWords(settings.road)}` : ''
   const credits = settings.road === 'openrouter' ? jevCreditsWords(settings.road) : CREDITS_UNREPORTED_WORDS
-  return `${JEV_USAGE_LABEL} ${jevRoadWords(settings.road)} · Mercury's count: ${count}${stated} · allowance ${jevUsdLabel(settings.allowanceUsd)} · ${headword} · credits: ${credits}`
+  return `${JEV_USAGE_LABEL} · second-opinion evaluator${road} · ${count}${stated} · ${headword} · credits: ${credits}`
 }
 
 export function usageBodyRows(budget: number, requestedJevRows = 1): { footerRows: number; jevRows: number; capacity: number } {
   const rows = Math.max(0, Math.floor(budget))
   const footerRows = rows > 1 ? 1 : 0
-  const jevRows = rows > 2 ? Math.min(rows - 2, Math.max(1, requestedJevRows)) : 0
+  const jevRows = rows > 2 && requestedJevRows > 0 ? Math.min(rows - 2, requestedJevRows) : 0
   return { footerRows, jevRows, capacity: rows - footerRows - jevRows }
 }
 
@@ -1287,7 +1294,7 @@ export type UsageCompactReads = {
   anthropicWindows: () => UsageWindowView[]
   anthropicPools: () => UsageWindowView[]
   openaiWindows: () => UsageWindowView[]
-  jev: () => string
+  jev: () => string | undefined
 }
 
 function compactWindowLine(w: UsageWindowView, title: string): string | undefined {
@@ -1304,7 +1311,7 @@ export function usageCompactLines(
     anthropicWindows: () => anthropicWindowViews().filter(w => w.state === 'live'),
     anthropicPools: () => anthropicPoolWindowViews().filter(w => w.state === 'live'),
     openaiWindows: openaiObservedWindowViews,
-    jev: jevUsageRow,
+    jev: () => (jevUsageRowShown() ? jevUsageRow() : undefined),
   },
 ): UsageCompactLine[] {
   const lines: UsageCompactLine[] = []
@@ -1339,7 +1346,8 @@ export function usageCompactLines(
     const full = fullWindowLine(usage)
     if (full !== undefined) lines.push({ text: `  ${full}`, heading: false })
   }
-  lines.push({ text: reads.jev(), heading: false })
+  const jev = reads.jev()
+  if (jev !== undefined) lines.push({ text: jev, heading: false })
   return lines
 }
 
@@ -1422,9 +1430,9 @@ function UsageFull({ openToken, width, rowBudget }: { openToken?: number; width:
   useLayoutEffect(measure)
   const budget = Math.max(0, Math.floor(rowBudget))
   useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
-  const jevLine = jevUsageRow()
+  const jevLine = jevUsageRowShown() ? jevUsageRow() : undefined
   const routerRoad = readJevSettings().road === 'openrouter'
-  const requestedJevRows = routerRoad ? wrapText(jevLine, Math.max(1, Math.floor(width)), 'wrap').split('\n').length : 1
+  const requestedJevRows = jevLine === undefined ? 0 : routerRoad ? wrapText(jevLine, Math.max(1, Math.floor(width)), 'wrap').split('\n').length : 1
   const { footerRows, jevRows, capacity } = usageBodyRows(budget, requestedJevRows)
   const view = usageWindow(bands.map((band, index) => ({ height: heights[index] ?? 1, count: band.length })), capacity, position)
   useInput((_input, key, event) => {

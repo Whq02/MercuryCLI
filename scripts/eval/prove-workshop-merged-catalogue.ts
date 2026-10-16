@@ -13,6 +13,7 @@ const availability = [
   { language: 'js', available: true, version: 'v24.20.0', interpreterPath: 'node' },
 ]
 mock.module('../../src/services/eval/interpreters.js', () => ({ ...original, evalAvailability: () => availability, primeEvalAvailability: async () => availability }))
+const contracts = await import('../../src/services/eval/contracts.js')
 const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.js')
 const { getAllBaseTools } = await import('../../src/tools.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
@@ -30,8 +31,8 @@ const expected = {
 }
 const options = { tools: [EvalTool, { name: 'Inspect' }] as never, agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext() }
 for (const [enabled, hash, bytes] of [
-  ['1', 'dca4bae856f56144476ad29096d0d10d09c40b7c4fef5802638e1b4652347f1a', 5228],
-  ['0', '20a5e295d5b1e051eb1fb1e197ffbdc4ac8dab68563063de543c0ea32106907e', 4798],
+  ['1', 'cb4e618f0fa7203423dd6e9bbec3d90d4d2e6a1fdb103a4c63362e56dbc2abc1', 5062],
+  ['0', '0f52dafb4a059d16c4e92a4779832fd3b27bf569082f04e41e73f8ab4f570281', 4632],
 ] as const) {
   process.env.MERCURY_SAMPLES = enabled
   clearToolSchemaCache()
@@ -40,9 +41,11 @@ for (const [enabled, hash, bytes] of [
   let same = true
   try { deepStrictEqual(definition.input_schema, expected) } catch { same = false }
   check('five-field wire schema matches exactly', same, JSON.stringify(definition.input_schema))
+  check(`samples=${enabled}: the timeoutSeconds field names the runtime constants (default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS}) from contracts.ts`, definition.input_schema.properties.timeoutSeconds.description === `Runtime budget in seconds: default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS} (a larger value runs at ${contracts.EVAL_MAX_TIMEOUT_SECONDS} and the result says so); 0 disables; bridge and permission time never counts.`, definition.input_schema.properties.timeoutSeconds.description)
   const wire = JSON.stringify({ ...definition, eager_input_streaming: true })
   check(`samples=${enabled}: compact definition with eager_input_streaming is ${bytes} bytes`, Buffer.byteLength(wire) === bytes, String(Buffer.byteLength(wire)))
 }
+check('the Fallback permission card prints Eval\'s description() whole (one line, so truncateToLines keeps all of it): unchanged from .36', (await EvalTool.description()) === 'Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn crewmates, and make model completions from inside the cell.')
 const noInspect = await EvalTool.prompt({ ...options, tools: [EvalTool] })
 check('Inspect is named only when available in the session pool', !noInspect.includes('tool.Inspect({ref})'))
 check('the tool remains loaded in full', EvalTool.shouldDefer !== true)

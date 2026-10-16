@@ -10,6 +10,7 @@ import { readPins, readUsage, usageOf, type UsageRecord } from './mnemeUsage.js'
 import { noteMemoryOffered, noteMemoryScores } from './mnemeSignal.js'
 import { fuseSignalRanking } from './mnemeSignalRanking.js'
 import { embedIndexEngineStatus, readEmbedIndex, searchEmbedIndex } from './mnemeIndex.js'
+import { escapeRegExp } from '../utils/stringUtils.js'
 
 const LOOKUP_LIMIT = 5
 const MAX_QUERY_TOKENS = 16
@@ -51,10 +52,6 @@ export function lookupTerms(raw: string): string[] {
 
 export function lookupTokens(raw: string): string[] {
   return [...new Set(lookupTerms(raw))].slice(0, MAX_QUERY_TOKENS)
-}
-
-export function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 type LookupKind = 'fact' | 'ruling' | 'pending' | 'handoff' | 'session'

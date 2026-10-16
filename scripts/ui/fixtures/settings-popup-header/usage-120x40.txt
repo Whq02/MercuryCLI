@@ -26,7 +26,7 @@ VITALS                  │ │ none — /logins anthropic connects a subscripti
                         │ │ not connected — /logins zai adds a Z.AI API key (general or GLM Coding Plan; ZAI_API_KEY │ │
                         │ │ works too).                                                                              │ │
                         │ │                                                                                          │ │
-                        │ │ JEV official · Mercury's count: no chat open · allowance $20.00 · off · credits: not re… │ │
+                        │ │                                                                                          │ │
                         │ │ ↓ 12 more · OpenRouter · Gemini · Moonshot · DeepSeek · xAI · Meta · Custom endpoint · … │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ scroll · esc or click outside closes                                                  │ │

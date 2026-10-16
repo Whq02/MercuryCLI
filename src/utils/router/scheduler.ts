@@ -88,11 +88,6 @@ export function derivePlanState(plan: TaskRoutePlan): RoutePlanState {
   return 'running'
 }
 
-function generationMaySettle(node: RouteNode, generation: number | undefined): boolean {
-  if (node.workerGeneration === undefined || generation === undefined) return true
-  return generation >= node.workerGeneration
-}
-
 export function explainWidth(
   plan: TaskRoutePlan,
   maxWidth: number,

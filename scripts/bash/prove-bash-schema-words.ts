@@ -79,7 +79,7 @@ const brush = resolveShellEngine()
 check('the timeout text is the same under the brush engine pin (it names both engines, it reads neither)', describeTimeout() === field('timeout'))
 if (brush.engine === 'brush') {
   const brushPrompt = getSimplePrompt(null)
-  check('under the brush engine the DESCRIPTION says the command is killed (exit 143) and the session resets', brushPrompt.includes('When it passes, the command is killed (exit 143) and the shell session resets.'), brushPrompt.slice(0, 600))
+  check('under the brush engine the DESCRIPTION says the command is killed (exit 143) and the session resets', brushPrompt.includes('When `timeout` passes, the command is killed (exit 143) and the shell session resets.'), brushPrompt.slice(0, 600))
   check('…and never says it moves to the background', !brushPrompt.includes('moves to the background'))
 } else {
   console.log(`  [INFO] the brush engine does not resolve here (${brush.reason}); the description's variant is not measured on this box`)
