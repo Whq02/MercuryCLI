@@ -136,11 +136,6 @@ export interface BlenderBridgeHelloInfo {
   background: boolean
 }
 
-interface BlenderBridgeSceneRow {
-  name: string
-  isActive: boolean
-}
-
 export interface BlenderBridgeObjectNode {
   name: string
   type: string

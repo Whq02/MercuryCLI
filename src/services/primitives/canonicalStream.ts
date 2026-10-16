@@ -27,15 +27,6 @@ export interface ModelRuntimeCapabilities {
   extensions: string[]
 }
 
-interface ModelRuntime {
-  id: string
-  capabilities: ModelRuntimeCapabilities
-  stream(
-    request: unknown,
-    signal: AbortSignal,
-  ): AsyncIterable<CanonicalModelEvent>
-}
-
 
 interface SseLikeEvent {
   type?: string

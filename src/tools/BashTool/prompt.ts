@@ -55,7 +55,7 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
   sections.push(buildTimeoutParagraph(brush, offers))
   sections.push(buildOutputParagraph())
   sections.push(
-    "Background: `run_in_background: true` returns at once with a task id and an output file. When the command ends, a notice with its exit code reaches you after your next tool result, or in a new turn if the session outlives your turn. It is stopped when the run that started it ends: a crewmate's run when the crewmate finishes, and a `mercury run` given its prompt at launch when your turn ends (unless a crewmate is still running); then no notice comes. The start result says which applies and how to wait. Never poll with repeated calls.",
+    "Background: when a `run_in_background: true` command ends, a notice with its exit code reaches you after your next tool result, or in a new turn if the session outlives your turn. It is stopped when the run that started it ends: a crewmate's run when the crewmate finishes, and a `mercury run` given its prompt at launch when your turn ends (unless a crewmate is still running); then no notice comes. The start result says which applies and how to wait. Never poll with repeated calls.",
   )
   if (brush) {
     sections.push(...brushShellParagraphs())
@@ -81,25 +81,18 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
   return sections.join('\n\n')
 }
 
-function minutes(ms: number): number {
-  return Math.round(ms / 60000)
-}
-
 function buildTimeoutParagraph(brush: boolean, offers: (name: string) => boolean): string {
-  const maxMs = getMaxBashTimeoutMs()
-  const defaultMs = getDefaultBashTimeoutMs()
-  const figures = `Timeout: \`timeout\` is in milliseconds, default ${defaultMs} (${minutes(defaultMs)} minutes), at most ${maxMs} (${minutes(maxMs)} minutes).`
   if (brush) {
-    return `${figures} When it passes, the command is killed (exit 143) and the shell session resets. For work that may take longer, use \`run_in_background\`.`
+    return 'When `timeout` passes, the command is killed (exit 143) and the shell session resets. For work that may take longer, use `run_in_background`.'
   }
   const stop = offers('TaskStop')
     ? ` TaskStop with that id ends it and the processes under it${offers('ToolSearch') ? ' (ToolSearch `select:TaskStop` loads TaskStop when it is deferred)' : ''}. So to bound a command that may hang, pass a short \`timeout\`, then TaskStop it; no watchdog script is needed.`
     : ''
-  return `${figures} When it passes, the command is not killed: it moves to the background, and the result shows its output so far and a task id.${stop} A command whose first word is \`sleep\` is killed at its timeout instead.`
+  return `When \`timeout\` passes, the result shows the command's output so far and a task id.${stop}`
 }
 
 function buildOutputParagraph(): string {
-  return `Output: up to ${getMaxOutputLength()} characters come back whole. A longer output is saved to a file, and you get its size, its path and about ${PREVIEW_SIZE_CHARS} characters from its start and end. \`max_output_chars\` (${getMinOutputLength()} to ${getMaxOutputLength()}) keeps only the head and the tail of a long output. Every cut is marked. A non-zero exit comes back as an error ending \`Exited with code N\`, except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, \`[\`, which or \`command -v\`: that is a result with a label such as \`no matches found (exit code 1)\`.`
+  return `Output: up to ${getMaxOutputLength()} characters come back whole. A longer output is saved to a file, and you get its size, its path and about ${PREVIEW_SIZE_CHARS} characters from its start and end. A smaller \`max_output_chars\` narrows that inline budget. A non-zero exit comes back as an error ending \`Exited with code N\`, except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, \`[\`, which or \`command -v\`: that is a result with a label such as \`no matches found (exit code 1)\`.`
 }
 
 function buildToolsParagraph(embedded: boolean): string {

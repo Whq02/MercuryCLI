@@ -9,6 +9,7 @@ import {
   jevWaitLabel,
 } from '../../services/jev/jevContract.js'
 import { jevStatusIsFinalForSession } from '../../services/jev/jevStatus.js'
+import { collapseAndClip } from '../../utils/stringUtils.js'
 import { JEV_EVAL_CONFIDENCE_FLOOR, JEV_EVAL_LEVEL_LABEL_CLIP, JEV_EVAL_UNSURE } from './constants.js'
 import { type JevEvalSource, jevEvalSourceLine } from './jevEvalEvidence.js'
 import type { JevEvalKind } from './jevEvalSchema.js'
@@ -40,11 +41,6 @@ export function jevEvalProbability(value: number): string {
 
 export function jevEvalScore(value: number): string {
   return String(Number(value.toFixed(2)))
-}
-
-function clip(text: string, max: number): string {
-  const flat = text.replace(/\s+/g, ' ').trim()
-  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat
 }
 
 function levelIndices(answer: Extract<JevAnswer, { type: 'score' }>): number[] {
@@ -90,7 +86,7 @@ export function jevEvalLegendLines(table: JevEvalTable): string[] {
   for (const id of table.order) {
     const answer = first.outcome.response.answers[id]
     if (answer?.type !== 'score') continue
-    lines.push(`${id} levels: ${levelIndices(answer).map(index => `${index}=${clip(answer.legend[String(index)] ?? '', JEV_EVAL_LEVEL_LABEL_CLIP)}`).join(' ')}`)
+    lines.push(`${id} levels: ${levelIndices(answer).map(index => `${index}=${collapseAndClip(answer.legend[String(index)] ?? '', JEV_EVAL_LEVEL_LABEL_CLIP)}`).join(' ')}`)
   }
   return lines
 }

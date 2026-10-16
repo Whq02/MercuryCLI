@@ -133,10 +133,7 @@ export function unclaimedCause(extension: string, cwd: string): { cause: string;
   return { cause: `no language server in this session claims '${extension}' files`, remedy: '' }
 }
 
-export function oneLine(text: string, max = 160): string {
-  const flat = text.replace(/\s+/g, ' ').trim()
-  return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`
-}
+export const LSP_ONE_LINE_MAX = 160
 
 export function retryTimeWords(retryAt: number, now = lspLedgerNow()): string {
   const date = new Date(retryAt)
