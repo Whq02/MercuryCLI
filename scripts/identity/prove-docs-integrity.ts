@@ -203,7 +203,7 @@ function scanMarkdownIntegrity(file: string, text: string, baseText?: string): I
           file,
           line: i + 1,
           kind: 'glued-heading',
-          excerpt: `${prev.slice(-40)} ⏎ ${trimmed.slice(0, 60)}`,
+          excerpt: `${prev.slice(-40)} ↵ ${trimmed.slice(0, 60)}`,
         })
       }
     }
