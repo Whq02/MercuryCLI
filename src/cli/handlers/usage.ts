@@ -125,6 +125,7 @@ async function sampleShownFamilies(families: readonly ProviderFamilyPresence[]):
 }
 
 export async function composeUsageReading(now: number = Date.now()): Promise<Record<string, unknown>> {
+  await refreshProviderUsage('local', { reason: 'open' }).catch(() => undefined)
   const families = providerFamilyPresences()
   const sampled = await sampleShownFamilies(families)
   const active = activeSourceUsage()
