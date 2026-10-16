@@ -695,9 +695,10 @@ async function* runBash(
     }
     const failure = (head?: string): ShellError => {
       const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)
-      const error = new ShellError('', [thrown, clause, sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\n'), result.code, result.interrupted)
+      const notice = sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })
+      const error = new ShellError('', [thrown, clause].filter(Boolean).join('\n'), result.code, result.interrupted, true, notice)
       if (head === undefined && rerun === undefined) return error
-      return new ShellError('', [head, error.stderr, rerun?.notice].filter(Boolean).join('\n'), result.code, result.interrupted)
+      return new ShellError('', [head, error.stderr, rerun?.notice].filter(Boolean).join('\n'), result.code, result.interrupted, true, notice)
     }
     if (!result.interrupted && result.code !== 0 && recorded.length > 0) {
       throw new SandboxDenial(recorded, result.code, head => {

@@ -52,6 +52,7 @@ import {
   controlSessionAgent,
   onSeatApplied,
   answerSeatScheduleEdit,
+  applySeatScheduleControl,
   onSeatRow,
   onSeatSpawned,
   publishSeatFacts,
@@ -81,8 +82,8 @@ import {
 import { stopConcourseSession, reviveConcourseWorker, setConcourseSessionTitle } from './concourseWorkers.js'
 import { readSessionWorkersSnapshot } from './concourseWorkers.js'
 import { applyConcourseContractOp } from './sessionContract.js'
-import { applyConcourseScheduleOp, dropSaturnSelfWakes, type SaturnSelfWakeDropWhy } from './saturn.js'
-import { deriveScheduleAccountForModel, liveFactsForSessionFire, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
+import { dropSaturnSelfWakes, type SaturnSelfWakeDropWhy } from './saturn.js'
+import { deriveScheduleAccountForModel, liveFactsForSessionFire } from './saturnAccount.js'
 import { composeSignInView, refreshSignInReads } from './signInView.js'
 import { fileMoveStamp, startSaturnTicker } from './saturnTicker.js'
 import { makeSaturnBirthPort } from './saturnBirth.js'
@@ -738,19 +739,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           if (action === 'set-schedule') {
             if (scheduleEdit === undefined) return { outcome: 'refused' as const, detail: 'set-schedule requires { scheduleEdit: { op, schedule? | scheduleId? } }' }
-            refreshSignInReads()
-            return settle(
-              applyConcourseScheduleOp(sessionId, scheduleEdit, by, {
-                deriveAccount: deriveScheduleAccountForModel,
-                preflight: (account, nextFireMs) =>
-                  scheduleAccountVerdict({
-                    account,
-                    nextFireMs,
-                    nowMs: Date.now(),
-                    live: readLiveAccountFacts(account),
-                  }),
-              }),
-            )
+            return settle(applySeatScheduleControl(sessionId, scheduleEdit, by, roster))
           }
           if (action === 'set-kit') {
             if (kitEdit === undefined) return { outcome: 'refused' as const, detail: 'set-kit requires { kitEdit: { mcp?, skills?, extensions? } }' }

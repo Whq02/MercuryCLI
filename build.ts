@@ -838,20 +838,27 @@ let typescriptVersion: string | null = null;
   const tsLicense = resolve(ROOT, 'node_modules', 'typescript', 'LICENSE.txt');
   if (!forceNo && statSync(tsLib, { throwIfNoEntry: false })?.isFile()) {
     try {
-      const { mkdirSync: mkd, copyFileSync } = await import('node:fs');
+      const { mkdirSync: mkd, copyFileSync, readdirSync: readDir } = await import('node:fs');
       mkd(tsDest, { recursive: true });
       copyFileSync(tsLib, resolve(tsDest, 'typescript.js'));
       if (statSync(tsLicense, { throwIfNoEntry: false })?.isFile()) {
         copyFileSync(tsLicense, resolve(tsDest, 'LICENSE.txt'));
       }
+      const tsLibDir = resolve(ROOT, 'node_modules', 'typescript', 'lib');
+      const libraryFiles = readDir(tsLibDir).filter(name => /^lib(\..*)?\.d\.ts$/.test(name)).sort();
+      let libraryBytes = 0;
+      for (const name of libraryFiles) {
+        copyFileSync(resolve(tsLibDir, name), resolve(tsDest, name));
+        libraryBytes += statSync(resolve(tsDest, name)).size;
+      }
       typescriptVersion = (JSON.parse(readFileSync(tsPkg, 'utf8')) as { version: string }).version;
       writeFileSync(
         resolve(tsDest, 'vendor.json'),
-        JSON.stringify({ package: 'typescript', version: typescriptVersion, source: 'repo devDependency' }, null, 2) + '\n',
+        JSON.stringify({ package: 'typescript', version: typescriptVersion, source: 'repo devDependency', libraries: { count: libraryFiles.length, bytes: libraryBytes } }, null, 2) + '\n',
       );
       writeFileSync(resolve(tsDest, 'package.json'), JSON.stringify({ type: 'commonjs' }, null, 2) + '\n');
       typescriptVendored = true;
-      console.log(`VENDORED typescript ${typescriptVersion} (compiler single-file, from the pinned devDependency)\n  -> ${tsDest}`);
+      console.log(`VENDORED typescript ${typescriptVersion} (compiler single-file + ${libraryFiles.length} library type files, ${(libraryBytes / 1_000_000).toFixed(1)} MB, from the pinned devDependency)\n  -> ${tsDest}`);
     } catch (e) {
       console.warn(`typescript vendor copy failed — SKIPPED (degraded: structural-intelligence): ${String(e)}`);
     }
