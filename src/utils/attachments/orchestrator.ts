@@ -40,7 +40,6 @@ import {
 import {
   getCriticalSystemReminderAttachment,
   getMaxBudgetUsdAttachment,
-  getOutputTokenUsageAttachment,
   getUsageLimitNoticeAttachment,
 } from './sessionContext.js'
 import { getRelevantMemoryAttachments } from './memorySurfacing.js'
@@ -230,9 +229,6 @@ export async function getAttachments(
           Promise.resolve(
             getMaxBudgetUsdAttachment(toolUseContext.options.maxBudgetUsd),
           ),
-        ),
-        maybe('output_token_usage', async () =>
-          Promise.resolve(getOutputTokenUsageAttachment()),
         ),
         maybe('usage_limit_notice', async () =>
           Promise.resolve(getUsageLimitNoticeAttachment(toolUseContext, messages ?? [])),
