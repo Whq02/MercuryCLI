@@ -110,8 +110,8 @@ export type Output = {
   record?: TestRunRecord
 }
 
-function fallbackNoteSuffix(explicit: string | undefined, resolved: string): string {
-  if (explicit !== undefined || resolved !== 'unittest') return ''
+function fallbackNoteSuffix(explicit: string | undefined, resolved: string, record?: TestRunRecord): string {
+  if (explicit !== undefined || resolved !== 'unittest' || record?.verdict === 'zero-run') return ''
   try {
     const note = pytestFallbackNote()
     return note ? `\n${note}` : ''
@@ -123,8 +123,13 @@ function fallbackNoteSuffix(explicit: string | undefined, resolved: string): str
 function summarize(record: TestRunRecord): string {
   const c = record.counts
   const counts = `${c.passed} passed · ${c.failed} failed · ${c.skipped} skipped · ${c.errored} errored (${record.durationMs}ms, exit ${record.exitCode ?? 'null'})`
-  const noMatch = record.verdict === 'no-match'
-  const head = noMatch ? `${record.framework} ${record.verdictNote ?? `no test matched ${record.selection}`}` : `${record.framework} ${record.selection} — ${counts}`
+  const noMatch = record.verdict === 'no-match' || record.verdict === 'zero-run'
+  const head =
+    record.verdict === 'zero-run'
+      ? record.verdictNote ?? `test files found, the ${record.framework} lane ran 0`
+      : noMatch
+        ? `${record.framework} ${record.verdictNote ?? `no test matched ${record.selection}`}`
+        : `${record.framework} ${record.selection} — ${counts}`
   const failures = record.cases
     .filter(x => x.outcome === 'failed' || x.outcome === 'errored')
     .slice(0, 10)
@@ -141,6 +146,7 @@ function summarize(record: TestRunRecord): string {
 }
 
 function outcomeOf(record: TestRunRecord, ran: () => ToolEffectOutcome): ToolEffectOutcome {
+  if (record.verdict === 'zero-run') return 'failed'
   return record.verdict === 'no-match' ? 'no-change' : ran()
 }
 
@@ -332,7 +338,7 @@ async function runOp(
           return { result: `test run unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
         }
         return {
-          result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework),
+          result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework, out.record),
           outcome: outcomeOf(out.record, () => (out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed')),
           record: out.record,
         }
@@ -349,7 +355,7 @@ async function runOp(
         return { result: `test run unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
       }
       return {
-        result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework),
+        result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework, out.record),
         outcome: outcomeOf(out.record, () => (out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed')),
         record: out.record,
       }

@@ -16,6 +16,7 @@ import {
   type TestCaseResult,
   type TestRunRecord,
 } from './pythonTests.js'
+import { findPythonTestFiles } from './pythonProject.js'
 import { goRunPattern, jsTestNamePattern, parseGoTestJson, parseJsonReporter, type ReporterRead } from './runnerReporters.js'
 
 export type RunnerKind = 'test' | 'check' | 'build'
@@ -827,7 +828,7 @@ export function hasPythonSignal(from: string = getCwd()): boolean {
 }
 
 export function hasPythonTestFiles(root: string): boolean {
-  return hasTestFiles(root, /(^test_.*|_test)\.py$/, ['tests', 'test', '.'])
+  return findPythonTestFiles(root).length > 0
 }
 
 export function resolveTestLane(from: string = getCwd(), explicit?: string): TestLane {
