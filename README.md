@@ -465,8 +465,10 @@ The output row types, by their `type` field:
   status` prints it; absent when no manifest sits beside the bundle),
   `resume_of` (on a continued run, the session id of the conversation it
   continues; the same id as `session_id` unless the run was forked), `cwd`,
-  `model`, `mode`, and the `tools`, `mcp_servers`, `commands`, `agents`,
-  `skills` and `extensions` the session has.
+  `model`, `mode`, the `tools`, `mcp_servers`, `commands`, `agents`,
+  `skills` and `extensions` the session has, and `tools_withheld` (present
+  when a deny rule withholds a tool by its bare name: each entry's `tool`,
+  `rule` and `source`).
 - `turn`: a turn `started` or `waiting`, with its `turn_id`; `model`,
   `message_ids` and the `agents` count when known.
 - `text`: a settled text block: `message_id`, `block`, `text`, and its
