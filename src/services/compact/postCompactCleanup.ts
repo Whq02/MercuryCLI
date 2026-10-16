@@ -40,7 +40,7 @@ export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope, pr
   resetMicrocompactState(owner)
 
   if (!mainThread) {
-    if (preservedMessages) restoreBoundPrefixFromMessages(preservedMessages, { rosterOnly: true })
+    if (preservedMessages) restoreBoundPrefixFromMessages(preservedMessages, { rosterOnly: true, fold: true })
     return
   }
 
@@ -50,5 +50,5 @@ export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope, pr
   resetInstructionFilesCache('compact')
   clearSystemPromptSections()
   clearSessionMessagesCache()
-  if (preservedMessages) restoreBoundPrefixFromMessages(preservedMessages, { liveSystemContext: true })
+  if (preservedMessages) restoreBoundPrefixFromMessages(preservedMessages, { fold: true })
 }
