@@ -1114,6 +1114,16 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const runMode = Boolean(opts.runMode)
   const runnerDoor = opts.runner === true
 
+  if (!runMode && !process.stdin.isTTY) {
+    if (!isNonInteractiveSession) {
+      failCli(`Mercury needs a terminal: stdin is not one, so a chat cannot take your keys; for scripts use ${cliName} run -- "<prompt>"`)
+    }
+    const bareWord = process.argv.slice(2)
+    if (bareWord.length === 1 && bareWord[0] === inputPromptArg && /^[A-Za-z][A-Za-z0-9_-]*$/.test(inputPromptArg ?? '')) {
+      failCli(`unknown command: ${inputPromptArg} — ${cliName} --help lists every command; to send it as a prompt: ${cliName} run -- "${inputPromptArg}"`)
+    }
+  }
+
   const worktreeOpt = opts.worktree as string | boolean | undefined
   const tmuxEnabled = Boolean(opts.multiplex)
   if (tmuxEnabled && !worktreeOpt) failCli('--multiplex requires --worktree')
