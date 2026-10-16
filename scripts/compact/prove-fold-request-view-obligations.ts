@@ -63,7 +63,7 @@ const schemasOf = async (tools: readonly { name: string }[], model: string): Pro
   check('an admitted tool\'s definition rides the text-append wire and so joins the fixed material (one more schema, the tools term itself unmoved)', admittedWire.length === localWire.length + 1 && admittedWire.some(tool => tool.name === 'Retain') && afterAdmission.roster.length === local.roster.length, `${admittedWire.length} vs ${localWire.length}`)
   const turnMachine = readFileSync(new URL('../../src/run-core/turn-machine.ts', import.meta.url), 'utf8')
   const localEstimator = readFileSync(new URL('../../src/services/providers/local/localCallModel.ts', import.meta.url), 'utf8')
-  check('the turn machine builds the gauge\'s fixed material from the tools on the wire, through the one owner the local estimator reads too', /fixedRequest: requestGaugeFixed\(\{[\s\S]{0,400}toolsOnTheWire\(await planToolPayload\(/.test(turnMachine) && localEstimator.includes('toolsOnTheWire(plan)'))
+  check('the turn machine builds the gauge\'s fixed material from the tools on the wire, through the one owner the local estimator reads too — planned unseeded, so the gauge never takes a conversation\'s first latch', /fixedRequest: requestGaugeFixed\(\{[\s\S]{0,400}toolsOnTheWire\(await planToolPayloadUnseeded\(/.test(turnMachine) && !/\bplanToolPayload\(/.test(turnMachine) && localEstimator.includes('toolsOnTheWire(plan)'))
   clearToolRosterLatches()
 }
 
