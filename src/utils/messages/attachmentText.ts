@@ -226,6 +226,7 @@ const renderers: Renderers = {
     [item.addedBlocks, '# MCP server instructions\n\nEach server below says how its tools and resources are used:\n\n', '\n\n'],
     [item.removedNames, 'MCP servers gone from this session; their instructions above no longer hold:\n', '\n'],
   ]),
+  mcp_servers_failed: item => reminders(item.body),
   harness_map_delta: item => changedLists([
     [item.added, 'Mercury harness update — the following surfaces just became AVAILABLE in this session:\n', '\n'],
     [item.removed, 'Mercury harness update — the following surfaces are no longer available (their harness-map lines no longer apply):\n', '\n'],
