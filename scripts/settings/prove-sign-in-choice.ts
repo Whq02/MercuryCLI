@@ -143,6 +143,42 @@ section('§7 /usage names the other sign-ins under the family heading, shown or 
   check('a one-sign-in family keeps its lines as they were', zaiAt >= 0 && !(lines[zaiAt + 1]?.text ?? '').includes('also signed in'))
 }
 
+section('§8 which file may pick a sign-in: the project\'s own settings.local.json, never the shared settings.json a repository commits')
+{
+  const { mkdirSync, writeFileSync } = await import('node:fs')
+  const state = await import('../../src/bootstrap/state.ts')
+  const settings = await import('../../src/utils/settings/settings.ts')
+  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+  const bind = (): void => {
+    pockets.clearSignInChoices()
+    resetSettingsCache()
+  }
+  const project = (file: string): string => {
+    const dir = mkdtempSync(join(tmpdir(), 'prove-sign-in-choice-project-'))
+    mkdirSync(join(dir, '.mercury'), { recursive: true })
+    writeFileSync(join(dir, '.mercury', file), JSON.stringify({ credentials: { signIns: { deepseek: '…bbbb' } } }))
+    state.setOriginalCwd(dir)
+    return dir
+  }
+  const shared = project('settings.json')
+  bind()
+  roster.bindProjectSignInChoicesToSettings(settings.getInitialSettings)
+  check('the merged settings view would obey the shared file (the pocket spends) — the reason the binding must not read it', secrets.readStoredDeepseekApiKey() === k2, String(secrets.readStoredDeepseekApiKey()))
+  bind()
+  roster.bindProjectSignInChoicesToSettings(roster.trustedSignInSettings)
+  check('the shared settings.json carries the key as far as the settings reader sees', settings.getSettingsWithSources().sources.some(source => source.source === 'projectSettings' && source.settings.credentials?.signIns !== undefined))
+  check('a shared settings.json naming a sign-in changes nothing: the default spends', secrets.readStoredDeepseekApiKey() === k1 && pockets.signInHome('deepseek') === env.getAuthConfigHomeDir(), String(secrets.readStoredDeepseekApiKey()))
+  rmSync(shared, { recursive: true, force: true })
+  const local = project('settings.local.json')
+  bind()
+  roster.bindProjectSignInChoicesToSettings(roster.trustedSignInSettings)
+  check('the project\'s own settings.local.json naming a sign-in is honoured: the pocket spends', secrets.readStoredDeepseekApiKey() === k2 && pockets.signInHome('deepseek') === pocketB, String(secrets.readStoredDeepseekApiKey()))
+  const main = readFileSync(join(REPO, 'src', 'main.tsx'), 'utf8')
+  check('the boot binding reads the trusted sources, never the merged view', main.includes('bindProjectSignInChoicesToSettings(trustedSignInSettings)') && !main.includes('bindProjectSignInChoicesToSettings(getInitialSettings)'))
+  rmSync(local, { recursive: true, force: true })
+  pockets.clearSignInChoices()
+}
+
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ SIGN-IN CHOICE GREEN' : `\n❌ SIGN-IN CHOICE RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
