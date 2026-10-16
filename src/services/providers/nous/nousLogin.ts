@@ -3,7 +3,7 @@ import { writeStoredNousApiKey } from '../../../utils/router/providerSecrets.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { NOUS_API_KEY_ENV, nousApiBase, nousSigninIdentity } from './nousAccounts.js'
 import { peekNousClient } from './nousClientContract.js'
-import { pollNousDeviceToken, startNousDeviceAuth, landNousTokens, writePreferredNousSource, type NousDeviceAuthStart, type NousOauthIo, type NousTokens } from './nousOauth.js'
+import { pollNousDeviceToken, startNousDeviceAuth, writeNousTokens, writePreferredNousSource, type NousDeviceAuthStart, type NousOauthIo, type NousTokens } from './nousOauth.js'
 import { fetchNousAccount, nousCreditsDisplay, type NousObservedAccount, type NousUsageIo } from './nousUsageState.js'
 
 export interface NousKeyLoginOutcome {
@@ -111,7 +111,7 @@ export async function runNousDeviceLogin(args: {
     const approved: NousTokens = result.tokens
     args.onEvent?.({ phase: 'finishing' })
     try {
-      landNousTokens(approved)
+      writeNousTokens(approved)
       writePreferredNousSource('signin')
       recordSignIn('nous', 'oauth')
     } catch {

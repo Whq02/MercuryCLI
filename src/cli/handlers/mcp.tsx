@@ -12,6 +12,7 @@ import {
   getMcpConfigByName,
   getMcpConfigsByScope,
   getMercuryMcpConfigs,
+  mcpServerSkippedForTrustLine,
   mcpServersSkippedForTrustLine,
   removeMcpConfig,
 } from '../../services/mcp/config.js'
@@ -225,6 +226,12 @@ export async function mcpGetHandler(name: string): Promise<void> {
   const config = getMcpConfigByName(name)
   if (!config) {
     return cliError(`No MCP server named ${name} is configured`)
+  }
+  const skippedForTrust = mcpServerSkippedForTrustLine(name, config)
+  if (skippedForTrust !== null) {
+    process.stdout.write(`${skippedForTrust}\n`)
+    await gracefulShutdown(0)
+    return
   }
   const outcome = await probeServer(name, config)
   process.stdout.write(`${name}:\n`)

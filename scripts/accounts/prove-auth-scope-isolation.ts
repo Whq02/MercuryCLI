@@ -43,8 +43,6 @@ section('§1 CALLER FLOOR — getAuthConfigHomeDir() only in the credential stor
     'src/utils/secureStorage/plainTextStorage.ts',
     'src/utils/secureStorage/macOsKeychainHelpers.ts',
     'src/utils/router/providerSecrets.ts',
-    'src/utils/accounts/signInPockets.ts',
-    'src/utils/secureStorage/index.ts',
     'src/utils/redactSecrets.ts',
     'src/services/providers/openai/openaiAccounts.ts',
     'src/services/providers/openai/qualificationStore.ts',
@@ -74,7 +72,6 @@ section('§2 SCOPE-SETTER FLOOR — setAuthScope/clearAuthScope only in the swit
     'src/utils/accounts/scopedCredentialRead.ts',
     'src/utils/envUtils.ts',
     'src/utils/accounts/scopedReauth.ts',
-    'src/utils/secureStorage/index.ts',
   ])
   for (const call of ['setAuthScope(', 'clearAuthScope(']) {
     const callers = callerFiles(call)

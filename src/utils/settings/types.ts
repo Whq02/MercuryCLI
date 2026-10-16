@@ -94,7 +94,6 @@ export const SettingsSchema = lazySchema(() => {
       keyCommand: z.string().optional(),
       signInRoute: z.enum(['claudeai', 'console']).optional(),
       organisation: z.string().optional(),
-      signIns: z.record(z.string(), z.string()).optional().describe('Which sign-in a provider family spends in this project, by identity as /logins lists it (the account address, the Hub username, a key\'s masked tail — typed as …k3f9, ...k3f9 or the bare k3f9), for example { "openai": "bob@work.example" }; /logins use <identity> overrides it for one session; an identity that is not signed in is refused with the ones that are'),
     }).passthrough().optional(),
     files: z.object({
       suggester: z.object({ type: z.literal('command'), command: z.string() }).optional(),
@@ -167,6 +166,7 @@ export const SettingsSchema = lazySchema(() => {
       firstRunCards: z.enum(['centred', 'top-left']).optional().describe('Where the first-run cards sit: centred on the screen with the trust tone in brown (the default), or top-left with the amber tone'),
       ping: z.boolean().optional().describe('Ping the terminal once when a chat finishes its turn while you are away (an iTerm2 notification there, the bell elsewhere); on unless set to false'),
       accountIdentity: z.boolean().optional().describe('Account identity on the screens: shown unless set to false; hidden takes every signed-in address, username and key tail off the screens (for a recording) and leaves the account word, while the Logins screen, /accounts and the health report still name the account'),
+      zen: z.boolean().optional().describe('Zen mode: true hides the lanes and vitals rails and the chat takes the full width of the terminal (the rail-less layout narrow terminals already get); off unless set to true; /zen flips it and the Zen mode row of /config shows it'),
     }).passthrough().optional(),
     context: z.object({ wayBack: z.boolean().optional() }).passthrough().optional(),
     input: z.object({ suggestions: z.boolean().optional() }).passthrough().optional(),

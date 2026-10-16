@@ -35,10 +35,8 @@ import {
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/prompt.js'
 import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
-import { TASK_CREATE_TOOL_NAME } from '../tools/TaskCreateTool/constants.js'
 import { getRuntimePostureSection } from '../utils/cockpit/runtimePosture.js'
 import { getHarnessMapSection } from '../utils/cockpit/harnessMap.js'
-import { getRunProtocolSection } from '../utils/cockpit/runProtocol.js'
 import type { Tools } from '../Tool.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
 
@@ -216,13 +214,6 @@ export async function getSystemPrompt(
     systemPromptSection('summarize_tool_results', () => SUMMARIZE_TOOL_RESULTS_LINE),
     systemPromptSection('runtime_posture', () => getRuntimePostureSection()),
     systemPromptSection('harness_map', () => getHarnessMapSection()),
-    systemPromptSection(
-      'run_protocol',
-      () =>
-        getRunProtocolSection({
-          taskToolsMounted: toolNames.has(TASK_CREATE_TOOL_NAME),
-        }),
-    ),
   ]
   const dynamicResolved = await resolveSystemPromptSections(dynamicSpecs)
 

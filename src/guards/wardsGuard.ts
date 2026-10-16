@@ -220,11 +220,14 @@ export function registerWardsGuard(
       timeoutMs: 30_000,
     })
   }
-  const rules: WardRule[] = [
+  const spawned = deleteWardActive()
+  const rulesFor = (unattended: boolean): WardRule[] => [
     ...BUILTIN_WARDS,
-    ...(deleteWardActive() ? AUTONOMOUS_WARDS : []),
+    ...(spawned ? AUTONOMOUS_WARDS.filter(rule => unattended || rule.unattendedOnly !== true) : []),
     ...projectReport.rules,
   ]
+  const attendedRules = rulesFor(false)
+  const unattendedRules = rulesFor(true)
   const resolveTarget = makeTargetResolver(getCwd(), work)
   const startingFolder = realTargetPath(getCwd())
   let denials = 0
@@ -243,7 +246,7 @@ export function registerWardsGuard(
         const refusal = evaluateWards(REFUSAL_WARDS, pending, work)
         if (!refusal.allow && level !== 'warn') return { allow: false, reason: buildWardDenial(refusal, pending.toolName) }
         if (denials < WARD_DENIAL_CAP) {
-          const verdict = evaluateWards(rules, pending, work)
+          const verdict = evaluateWards(call.asksAnswerable === true ? attendedRules : unattendedRules, pending, work)
           if (!verdict.allow) {
             const denial = buildWardDenial(verdict, pending.toolName)
             denials++

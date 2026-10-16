@@ -45,6 +45,7 @@ import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
 import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
 import { declareLawfulPrefixChangeForEveryOwner } from '../services/providers/lawfulPrefixChange.js'
+import { modelRefusalBeforeAnyRequest } from '../services/providers/callModelRouter.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { isToolResultMessage } from '../utils/messages/merge.js'
 import { isLocalCommandCaveat } from '../utils/messages/apiPlan.js'
@@ -446,6 +447,14 @@ export async function runHeadless(
     gracefulShutdownSync(1)
     return
   }
+  if (options.userSpecifiedModel !== undefined) {
+    const refusal = await modelRefusalBeforeAnyRequest(parseUserSpecifiedModel(options.userSpecifiedModel))
+    if (refusal !== null) {
+      process.stderr.write(`${refusal}\n`)
+      gracefulShutdownSync(1)
+      return
+    }
+  }
 
   const io = new StructuredIO(normalizeInputPrompt(inputPrompt), text => enqueueRow(noticeRow(liveScope(), 'error', text, INPUT_REFUSED_CODE)))
   const wire = options.door === 'wire'
@@ -656,7 +665,12 @@ export async function runHeadless(
   if ((options.continue || options.resume) && !getEngineModelOverride()) {
     const recorded = restoreConversationModel({ messages, model: loaded.model })
     if (recorded && !options.userSpecifiedModel) {
-      setEngineModelOverride(recorded)
+      const refusal = await modelRefusalBeforeAnyRequest(recorded)
+      if (refusal === null) {
+        setEngineModelOverride(recorded)
+      } else {
+        enqueueRow(noticeRow(liveScope(), 'warning', `The resumed session's model '${recorded}' is not usable (${refusal}) — this run uses ${getEngineModel()} instead.`))
+      }
     }
   }
 

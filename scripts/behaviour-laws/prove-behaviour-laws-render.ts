@@ -49,15 +49,15 @@ check('the constitution rides the OpenAI render too', openai.includes(MERCURY_CO
 section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
 {
   const sentinels: Array<[string, RegExp]> = [
-    ['the identity (You are Mercury)', /^You are Mercury, an autonomous command-line interface and agent\./m],
-    ['the stop sentence', /pausing only\nfor destructive actions, major scope changes/],
-    ['the note rule', /note summarizing\nessential progress, context, and next steps\./],
+    ['the identity (You are Mercury)', /^You are Mercury, an expert software engineer working in the operator's terminal\./m],
+    ['the stop sentence', /Outstanding work or verification never overrides an operator's instruction to stop\./],
+    ['the blocker lines', /^RESUME WHEN: <the answer or authorisation that permits progress>$/m],
     ['the instruction file (MERCURY.md)', /MERCURY\.md is the project's standing instruction file/],
     ['pinned memory (the user\'s own rule)', /is pinned memory instead/],
     ['the hooks fact', /Hooks are shell commands the user set up in settings/],
     ['the model-currency rule', /^Model currency:/m],
     ['the blocker form', /BLOCKED ON OPERATOR/],
-    ['the failure-string rule', /A returned string that reports a failure is a failure/],
+    ['the failure rule', /Treat a reported failure as failed\./],
   ]
   for (const [label, re] of sentinels) {
     const owners = contract.sections.filter(s => re.test(s.text)).map(s => s.name)
@@ -69,8 +69,8 @@ section('§3 semantic ids — no positional section names; live references resol
 {
   check('no positional section names', contract.sections.every(s => !/^(wrapper|mode)-\d+$/.test(s.name)))
   const all = contract.sections.map(s => s.text).join('\n')
-  check('live references resolve (spot set): the task items the run protocol names ride only with the task tool in the roster, and the discovery commands the harness map names exist',
-    all.includes('create and update task items') && all.includes('/help lists commands') && all.includes('/capabilities'))
+  check('live references resolve (spot set): the discovery commands the harness map names exist',
+    all.includes('/help lists commands') && all.includes('/capabilities'))
 }
 
 console.log('\n' + '═'.repeat(76))
