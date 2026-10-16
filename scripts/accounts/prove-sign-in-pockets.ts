@@ -224,19 +224,49 @@ section('§9 the model-use ledger row names the sign-in that spends, and reads b
   check('a row without a sign-in reads as before', plain && readModelUseLedger(HOME).zai?.model === 'glm-5' && readModelUseLedger(HOME).zai?.identity === undefined)
 }
 
-section('§10 the headless door (mercury auth login) acts on the home sign-in whatever pocket a project chose: its pin outranks the session and project choice')
+section('§10 the headless door (mercury auth login) lands through the same rule as the interactive road: one copy of an identity on disk, its pocket replaced, the home\'s own sign-in untouched')
 {
-  const authSrc = readFileSync(join(REPO, 'src', 'cli', 'handlers', 'auth.ts'), 'utf8')
-  check('installOAuthTokens runs its whole body under the home pin', /export function installOAuthTokens\(tokens: OAuthTokens\): Promise<void> \{\n  return withPinnedSignInHome\('anthropic', signInsEstate\(\), \(\) => installOAuthTokensOnTheHome\(tokens\)\)/.test(authSrc))
-  const anthropicPocket = join(HOME, 'sign-ins', 'anthropic', 'bob@work.example')
-  mkdirSync(anthropicPocket, { recursive: true })
-  pockets.setProjectSignIn('anthropic', { identity: 'bob@work.example', dir: anthropicPocket, kind: 'subscription' })
-  pockets.setSessionSignIn('anthropic', { identity: 'bob@work.example', dir: anthropicPocket, kind: 'subscription' })
-  const storage = await import('../../src/utils/secureStorage/index.ts')
-  check('outside the pin the family storage is the pocket', storage.getSecureStorage('anthropic').name.includes('sign-in pocket'))
-  const underPin = pockets.withPinnedSignInHome('anthropic', pockets.signInsEstate(), () => ({ home: pockets.signInHome('anthropic'), pocket: pockets.pocketInUse('anthropic'), storage: storage.getSecureStorage('anthropic').name }))
-  check('under the pin the family reads the home: no pocket in use, the home storage', underPin.home === HOME && underPin.pocket === undefined && !underPin.storage.includes('sign-in pocket'), JSON.stringify(underPin))
-  check('after the pin the session choice stands again', pockets.pocketInUse('anthropic') === anthropicPocket)
+  pockets.clearSignInChoices()
+  rmSync(join(HOME, '.credentials.json'), { force: true })
+  rmSync(join(HOME, 'sign-ins', 'anthropic'), { recursive: true, force: true })
+  for (const identity of Object.keys(ledger.readSignInEntries('anthropic', { home: HOME }))) ledger.dropSignInEntry('anthropic', identity, { home: HOME })
+  const { enableConfigs, getGlobalConfig } = await import('../../src/utils/config.ts')
+  enableConfigs()
+  const client = await import('../../src/services/oauth/client.ts')
+  const auth = await import('../../src/cli/handlers/auth.ts')
+  const { familySignInRoster, useSignIn } = await import('../../src/services/providers/signInRoster.ts')
+  const tokens = (who: string, n: number) => ({
+    accessToken: `fixture-${who}-access-${n}`, refreshToken: `fixture-${who}-refresh-${n}`, expiresAt: Date.now() + 3_600_000,
+    scopes: ['user:inference', 'user:profile'], subscriptionType: 'max', rateLimitTier: null,
+    profile: { account: { uuid: `uuid-${who}`, email: `${who}@x.example` }, organization: { uuid: `org-${who}` } },
+  })
+  client.landClaudeAiTokens(tokens('alice', 1) as never)
+  client.storeLandedOAuthAccountInfo({ accountUuid: 'uuid-alice', emailAddress: 'alice@x.example' })
+  client.landClaudeAiTokens(tokens('bob', 1) as never)
+  client.storeLandedOAuthAccountInfo({ accountUuid: 'uuid-bob', emailAddress: 'bob@x.example' })
+  pockets.takeLastLanding()
+  pockets.clearSignInChoices()
+  const pocketBob = join(HOME, 'sign-ins', 'anthropic', 'bob@x.example')
+  const refreshIn = (dir: string): string | undefined => {
+    try {
+      return (JSON.parse(readFileSync(join(dir, '.credentials.json'), 'utf8')) as { claudeAiOauth?: { refreshToken?: string } }).claudeAiOauth?.refreshToken
+    } catch {
+      return undefined
+    }
+  }
+  check('alice holds the home, bob a pocket', refreshIn(HOME) === 'fixture-alice-refresh-1' && refreshIn(pocketBob) === 'fixture-bob-refresh-1')
+  const outcome = await Promise.race([auth.installOAuthTokens(tokens('bob', 2) as never).then(() => 'returned'), new Promise<string>(resolve => setTimeout(() => resolve('timed-out'), 15_000))]).catch((error: unknown) => `threw: ${String(error).slice(0, 160)}`)
+  check('the headless door returns', outcome === 'returned', outcome)
+  check('the headless re-sign-in of bob REPLACES in his pocket: one copy of bob on disk, alice untouched in the home', refreshIn(pocketBob) === 'fixture-bob-refresh-2' && refreshIn(HOME) === 'fixture-alice-refresh-1', JSON.stringify({ home: refreshIn(HOME), pocket: refreshIn(pocketBob) }))
+  const rows = familySignInRoster('anthropic', HOME)
+  check('the roster lists each identity once: alice the default, bob the pocket', rows.map(row => `${row.identity}${row.isDefault ? '*' : ''}`).join(',') === 'alice@x.example*,bob@x.example', JSON.stringify(rows.map(row => [row.identity, row.isDefault, row.inUse])))
+  check('the headless landing spends what it landed (bob), as the interactive road does', rows.find(row => row.inUse)?.identity === 'bob@x.example')
+  const snapshot = JSON.parse(readFileSync(join(pocketBob, '.mercury.json'), 'utf8')) as { oauthAccount?: { emailAddress?: string } }
+  check('bob\'s account snapshot rides in his pocket, alice\'s stays in the home\'s config', snapshot.oauthAccount?.emailAddress === 'bob@x.example' && getGlobalConfig().oauthAccount?.emailAddress === 'alice@x.example', JSON.stringify({ pocket: snapshot.oauthAccount?.emailAddress, home: getGlobalConfig().oauthAccount?.emailAddress }))
+  const use = useSignIn('bob@x.example', undefined, 'session', HOME)
+  check('/logins use bob names one sign-in, never a same-family twin', use.ok && /Anthropic: this session now spends bob@x\.example/.test(use.words), use.words)
+  const entries = ledger.readSignInEntries('anthropic', { home: HOME })
+  check('the ledger holds one row per identity, bob\'s naming his pocket', Object.keys(entries).sort().join(',') === 'alice@x.example,bob@x.example' && entries['bob@x.example']?.pocket === 'bob@x.example' && entries['alice@x.example']?.pocket === undefined, JSON.stringify(entries))
   pockets.clearSignInChoices()
 }
 
