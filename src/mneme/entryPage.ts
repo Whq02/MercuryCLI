@@ -1,5 +1,5 @@
 import { dirname } from 'node:path'
-import { ledgerEntryOf, liveSessions, readLedger } from './ledger.js'
+import { INTERRUPTED_OUTCOME, ledgerEntryOf, liveSessions, readLedger } from './ledger.js'
 import { lineageKept } from './lineageSession.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { readPinnedStatus } from './mnemeFrontPage.js'
@@ -69,7 +69,7 @@ export function composeEntryPage(projectKey: string, sessionId?: string, options
   const previous = entries.filter(entry => entry.sessionId !== sessionId)
   if (previous.length === 0) return `${ENTRY_PAGE_HEADING}\n${FIRST_SESSION_LINE}`
   const ordinal = own?.ordinal ?? entries.length + 1
-  const unclosed = previous.filter(entry => entry.endedAt === null).length
+  const unclosed = previous.filter(entry => entry.endedAt === null || entry.outcome === INTERRUPTED_OUTCOME).length
   const lines: string[] = [ENTRY_PAGE_HEADING]
   lines.push(
     `Session ${ordinal} of this work; ${previous.length} session${previous.length === 1 ? '' : 's'} before it${unclosed > 0 ? ` (${unclosed} of them ended without closing ${unclosed === 1 ? 'its' : 'their'} entry)` : ''}. The ledger is under ${dirname(lineagePath(projectKey))}.`,
@@ -85,7 +85,9 @@ export function composeEntryPage(projectKey: string, sessionId?: string, options
   const lastNoted = [...previous].reverse().find(entry => entry.handoff !== null) ?? null
   const journal = options.journal?.() ?? null
   const journalSession = journal !== null ? sessionOfJournalEntry(previous, journal.at) : null
-  if (last.handoff === null) {
+  if (last.outcome === INTERRUPTED_OUTCOME && last.endedAt !== null) {
+    lines.push(`The last session (${last.ordinal}) was cut off mid-tool at ${stampLocal(last.endedAt)}; ${last.handoff === null ? `no note was left${journalSession !== null && journalSession.ordinal === last.ordinal ? '; its journal entry is below' : ''}` : 'the note it had left is below'}.`)
+  } else if (last.handoff === null) {
     const below = journalSession !== null && journalSession.ordinal === last.ordinal ? '; its journal entry is below' : ''
     lines.push(`The last session (${last.ordinal}, ${last.endedAt === null ? 'never closed' : `ended ${stampLocal(last.endedAt)}`}) ${NO_NOTE_LEFT}${below}.`)
   }

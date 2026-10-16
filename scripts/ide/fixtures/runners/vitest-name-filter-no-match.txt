@@ -1,0 +1,11 @@
+
+ RUN  v3.2.7 /work/project
+
+ ↓ sum.test.mjs (3 tests | 3 skipped)
+
+ Test Files  1 skipped (1)
+      Tests  3 skipped (3)
+   Start at  23:14:36
+   Duration  227ms (transform 17ms, setup 0ms, collect 8ms, tests 0ms, environment 0ms, prepare 46ms)
+
+JSON report written to /work/vitest-t-nomatch-report.json

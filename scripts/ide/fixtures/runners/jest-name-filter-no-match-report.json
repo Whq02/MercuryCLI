@@ -1,0 +1,99 @@
+{
+  "numFailedTestSuites": 0,
+  "numFailedTests": 0,
+  "numPassedTestSuites": 0,
+  "numPassedTests": 0,
+  "numPendingTestSuites": 1,
+  "numPendingTests": 3,
+  "numRuntimeErrorTestSuites": 0,
+  "numTodoTests": 0,
+  "numTotalTestSuites": 1,
+  "numTotalTests": 3,
+  "openHandles": [],
+  "snapshot": {
+    "added": 0,
+    "didUpdate": false,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0
+  },
+  "startTime": 1792102476297,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "math ops"
+          ],
+          "duration": null,
+          "failing": false,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "math ops adds",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 0,
+          "retryMessages": [],
+          "retryReasons": [],
+          "status": "pending",
+          "title": "adds",
+          "startAt": 1792102476491
+        },
+        {
+          "ancestorTitles": [
+            "math ops"
+          ],
+          "duration": null,
+          "failing": false,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "math ops adds negatives",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 0,
+          "retryMessages": [],
+          "retryReasons": [],
+          "status": "pending",
+          "title": "adds negatives",
+          "startAt": 1792102476491
+        },
+        {
+          "ancestorTitles": [
+            "math ops"
+          ],
+          "duration": null,
+          "failing": false,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "math ops concatenates wrongly",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 0,
+          "retryMessages": [],
+          "retryReasons": [],
+          "status": "pending",
+          "title": "concatenates wrongly",
+          "startAt": 1792102476491
+        }
+      ],
+      "coverage": {},
+      "endTime": 1792102476495,
+      "message": "",
+      "name": "/work/project/sum.test.js",
+      "startTime": 1792102476495,
+      "status": "skipped",
+      "summary": ""
+    }
+  ],
+  "wasInterrupted": false
+}

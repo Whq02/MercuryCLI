@@ -62,7 +62,7 @@ export function getProcessStartToken(pid: number): string | null {
       windowsHide: true,
       encoding: 'utf-8',
       timeout: 2000,
-      env: { ...subprocessEnv() },
+      env: { ...subprocessEnv(), LC_ALL: 'C' },
     })
     if (r.error) return null
     if (r.status !== 0) return ''
@@ -99,7 +99,7 @@ export function getProcessStartTokenAsync(pid: number): Promise<string | null> {
       execFile(
         'ps',
         ['-o', 'lstart=', '-p', String(pid)],
-        { windowsHide: true, encoding: 'utf-8', timeout: 3000, env: { ...subprocessEnv() } },
+        { windowsHide: true, encoding: 'utf-8', timeout: 3000, env: { ...subprocessEnv(), LC_ALL: 'C' } },
         (err, stdout) => {
           if (err && unknownErr(err)) {
             resolve(null)

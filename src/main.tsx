@@ -487,8 +487,9 @@ async function run(): Promise<void> {
     .option('--provider-preview <betas...>', 'Provider beta headers')
     .option('--backup-model <model>', 'Fallback model when the primary is overloaded')
     .addOption(new Option('--meter-tag <tag>', 'Workload tag').hideHelp())
-    .option('--project <directory>', 'Start in this folder; it must come first on the command line, before everything else (mercury --project <dir> run …)', () => {
-      throw new Error('--project must appear before all other arguments')
+    .option('--project <directory>', 'Start in this folder. Put it first, before the command word — mercury --project <dir> run … — anywhere later it is refused', (value: string) => {
+      const folder = /\s/.test(value) ? JSON.stringify(value) : value
+      throw new InvalidArgumentError(`--project goes before the command word, not after it: ${binaryName()} --project ${folder} run …`)
     })
     .option('--config <file-or-json>', 'Extra settings (path or inline JSON)')
     .option('--session-id <uuid>', 'Use a specific session id')
@@ -864,6 +865,16 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .action(async () => {
       const { agentsHandler } = await import('./cli/handlers/agents.js')
       await agentsHandler()
+      process.exit(0)
+    })
+
+  program
+    .command('usage')
+    .description("Print the usage figures the /usage screen shows, read the way the screen reads them (each signed-in provider's reader sampled once, as on open): the compact figures line as text, or the whole reading as JSON — per sign-in the windows with used and reset, the figures and credits the provider stated, each with its source and age, and the session spend per model")
+    .option('--json', 'The whole reading as JSON')
+    .action(async options => {
+      const { usageCli } = await import('./cli/handlers/usage.js')
+      await usageCli({ json: options.json === true })
       process.exit(0)
     })
 

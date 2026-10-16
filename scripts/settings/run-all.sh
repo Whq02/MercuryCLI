@@ -7,6 +7,7 @@
 # gate-watch: scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json
 # gate-watch: src/commands/login/login.tsx src/services/providers/signInRoster.ts
 # gate-watch: scripts/providers/fixtures/anthropic-oauth-usage.json scripts/providers/fixtures/openai-chatgpt-usage.json
+# gate-watch: src/cli/handlers/usage.ts scripts/providers/lib/usage-plan-world.ts
 # gate-watch: src/context/modalContext.tsx src/services/providers/credentialEnvSpellings.ts
 # gate-watch: src/services/providers/patience.ts
 # gate-watch: src/bootstrap/state* src/bootstrap/runtime/posture.ts

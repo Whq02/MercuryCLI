@@ -107,6 +107,24 @@ const OTHER_USER_SUBFOLDERS = [
   'del /s /q C:\\Users\\Other\\proj\\*.log',
   'Get-ChildItem C:\\Users\\Other\\proj -Recurse | Remove-Item -Recurse -Force',
 ]
+const BOX_SHAPES: Array<[string, string]> = [
+  ['cmd //c "rd /s /q C:\\Users\\Public\\m37-decoy-5"', 'Bash'],
+  ['cmd /c "rd /s /q C:\\Users\\Other\\proj\\build"', 'Bash'],
+  ['cmd.exe /c "rmdir /s /q C:\\Users\\Other\\proj\\build"', 'Bash'],
+  ['cmd //c "del /s /q C:\\Users\\Other\\proj\\*.log"', 'Bash'],
+  ["rm -rf \\\n'C:\\Users\\Public\\m37-decoy-5'", 'Bash'],
+  ['rm -rf \\\nC:\\Users\\Other\\proj\\dist', 'Bash'],
+  ['powershell -NoProfile -Command "Remove-Item -Recurse -Force \'C:\\Users\\Public\\m37-decoy-5\'"', 'Bash'],
+  ['pwsh -c "Remove-Item -Recurse -Force C:\\Users\\Other\\proj\\dist"', 'Bash'],
+  ['bash -c "rm -rf /c/Users/Other/proj/dist"', 'Bash'],
+  ['Remove-Item -Recurse -Force `\n  C:\\Users\\Other\\proj\\dist', 'PowerShell'],
+]
+const BOX_CONTROLS: Array<[string, string]> = [
+  ["rm -rf 'C:\\Users\\Alice\\m37-own-decoy'", 'Bash'],
+  ['cmd //c "rd /s /q C:\\Users\\Alice\\m37-own-decoy"', 'Bash'],
+  ["rm -rf 'C:\\src\\m37-5b-scratch\\inside-decoy'", 'Bash'],
+  ['cmd //c "echo rd /s /q C:\\Users\\Public\\m37-decoy-5"', 'Bash'],
+]
 const ORDINARY_DELETES = [
   'Remove-Item -Recurse -Force C:\\Users\\Alice\\proj\\scratch',
   'Remove-Item -Recurse -Force \\\\server\\share\\proj\\build',
@@ -165,6 +183,10 @@ async function main(): Promise<void> {
     for (const command of ORDINARY_DELETES) check(`not warded: ${command}`, !refused(command, bashVerb(command) ? 'Bash' : undefined), ruleOf(command, bashVerb(command) ? 'Bash' : undefined))
     section('§6b win32 — a folder or a file inside another user\'s home is refused by its own rule, recursive or not (the .37 ruling)')
     for (const command of OTHER_USER_SUBFOLDERS) check(`refused by no-other-user-delete: ${command}`, ruleOf(command, bashVerb(command) ? 'Bash' : undefined) === 'no-other-user-delete', ruleOf(command, bashVerb(command) ? 'Bash' : undefined))
+    section('§6c win32 — the Windows box\'s two sovereign bypasses (F37W-5B-08, F37W-5B-13) and their kin: a delete wrapped in cmd /c, cmd //c, powershell -Command, pwsh -c or bash -c is read as the command it runs, and a backslash continuation is one line (RED on the base: the cmd //c and the continuation forms were allowed)')
+    for (const [command, tool] of BOX_SHAPES) check(`refused by no-other-user-delete (${tool}): ${JSON.stringify(command)}`, ruleOf(command, tool) === 'no-other-user-delete', ruleOf(command, tool))
+    section('§6d win32 — the box\'s controls stay true: the own profile (F37W-5B-11), a folder outside any Users tree (F37W-5B-09) and an echo of the words are not this ward\'s business')
+    for (const [command, tool] of BOX_CONTROLS) check(`not warded by no-other-user-delete (${tool}): ${JSON.stringify(command)}`, ruleOf(command, tool) !== 'no-other-user-delete', ruleOf(command, tool))
   } finally {
     restorePlatform()
     if (savedHome === undefined) delete process.env.HOME

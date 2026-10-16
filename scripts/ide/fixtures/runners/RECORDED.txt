@@ -9,3 +9,20 @@ go-test.jsonl, go-test-build-fail.jsonl
   written by hand from the test2json event format (cmd/test2json: Action start/run/pause/cont/pass/fail/skip/output,
   the Go 1.24 build-output/build-fail rows keyed by ImportPath) — no Go toolchain was present on the recording machine,
   so these two are not recordings of a live `go test -json`.
+jest-no-match.txt, jest-no-match-report.json, jest-name-filter-no-match.txt, jest-name-filter-no-match-report.json
+  recorded 2026-10-15 from jest 30.5.2 on node 24.21.0: `jest --json 'math ops' --outputFile=<file>` (the describe name sent
+  as a positional path pattern — the F37W-2A-01 shape: no file matched, exit 1, a report with numTotalTests 0) and
+  `jest --json -t 'nothing here' --outputFile=<file>` (a name filter that matched no test: the three tests pending, exit 0)
+  over a three-test file in one describe block. The same root replacement and pretty-print.
+vitest-no-match.txt, vitest-no-match-report.json, vitest-name-filter-no-match.txt, vitest-name-filter-no-match-report.json
+  recorded 2026-10-15 from vitest 3.2.7 on node 24.21.0: `vitest run --reporter=default --reporter=json 'math ops'
+  --outputFile=<file>` (no test file matched the filter, exit 1) and the same with `-t 'nothing here'` (three tests skipped,
+  exit 0) over the same three tests. The same root replacement and pretty-print.
+node-test-no-match.tap
+  recorded 2026-10-15 from node 24.21.0: `node --test --test-reporter tap --test-name-pattern 'nothing here' sum.test.mjs`
+  over a two-test file — the file-level subtest passes with a 1..0 plan (node counts the file, not a test).
+go-test-no-match.jsonl
+  recorded 2026-10-15 from go 1.27.2 (darwin/arm64): `go test -json -run NothingHere ./...` over a one-test package
+  (`testing: warning: no tests to run`, the package passes, exit 0).
+cargo-no-match.txt
+  recorded 2026-10-15 from cargo 1.98.1: `cargo test nothing_here` over a one-test lib (`running 0 tests`, exit 0).
