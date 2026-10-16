@@ -156,11 +156,16 @@ section('§3 the floor is gone: no substitution anywhere, no telemetry of one, n
   }
   check('no source file names the floor, its fallback, its predicate, its ring or its note', offenders.length === 0, offenders.join(', '))
   const posture = await import('../../src/utils/cockpit/runtimePosture.ts')
+  const { setAskChannel } = await import('../../src/bootstrap/state.ts')
   posture.resetRuntimePostureForTest()
+  setAskChannel('none')
+  posture.markSessionNonInteractive('default')
   const section = posture.getRuntimePostureSection() ?? ''
-  check('the runtime posture block states no agent-model floor', section.length > 0 && !/floor/i.test(section) && !/Haiku/.test(section), section.split('\n').filter(l => /floor|Haiku/i.test(l)).join(' | '))
+  check('the runtime posture block (the headless one, which still speaks) states no agent-model floor', section.length > 0 && !/floor/i.test(section) && !/Haiku/.test(section), section.split('\n').filter(l => /floor|Haiku/i.test(l)).join(' | '))
   const doctrine = posture.getRuntimePostureDoctrineLine() ?? ''
   check('the doctrine line states no floored spawn', doctrine.length > 0 && !/floor/i.test(doctrine) && !/Haiku/.test(doctrine), doctrine)
+  posture.resetRuntimePostureForTest()
+  setAskChannel('operator')
   const { substrateSnapshot } = await import('../../src/utils/cockpit/substrateSnapshot.ts')
   const rows = substrateSnapshot().data.sections.flatMap(s => s.rows)
   check('the substrate panel carries no floor row', rows.length > 0 && rows.every(r => !/floor/i.test(r.name) && !/Haiku/.test(r.hint)), rows.filter(r => /floor|Haiku/i.test(`${r.name} ${r.hint}`)).map(r => r.name).join(', '))

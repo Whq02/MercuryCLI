@@ -351,6 +351,7 @@ export async function runForegroundAgentExecution(
         ...(envelopeBlock ? { envelopeBlock } : {}),
       })
     } catch (error) {
+      await agentIterator.return(undefined).catch(() => undefined)
       if (error instanceof AbortError) {
         const stopReason = agentStopReasonOf(foregroundTask?.abortController.signal.reason)
         killAsyncAgent(backgroundedTaskId, rootSetAppState, stopReason)
@@ -601,6 +602,7 @@ export async function runForegroundAgentExecution(
     }
   } catch (error) {
     heldError = error
+    if (!backgrounded) await agentIterator.return(undefined).catch(() => undefined)
     if (error instanceof AbortError) throw error
     logForDebugging(`Sync agent error: ${errorMessage(error)}`, {
       level: 'error',

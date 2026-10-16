@@ -4,6 +4,7 @@ import type { OwnerKey } from './ownerKey.js'
 
 type StoreLike = {
   name: string
+  readonly live?: true
   dispose(owner: OwnerKey): void
   disposeAsync?(owner: OwnerKey): Promise<void>
   drainPending?(): Promise<void>
@@ -40,7 +41,15 @@ export function unregisterOwnerDisposer(owner: OwnerKey, id: string): void {
   if (byId.size === 0) adhoc.delete(owner)
 }
 
-export async function disposeOwner(owner: OwnerKey): Promise<void> {
+export function disposeOwner(owner: OwnerKey): Promise<void> {
+  return disposeOwnerIn(owner, () => true)
+}
+
+export function disposeOwnerProcesses(owner: OwnerKey): Promise<void> {
+  return disposeOwnerIn(owner, store => store.live === true)
+}
+
+async function disposeOwnerIn(owner: OwnerKey, chosen: (store: StoreLike) => boolean): Promise<void> {
   const byId = adhoc.get(owner)
   adhoc.delete(owner)
   if (byId) {
@@ -53,6 +62,7 @@ export async function disposeOwner(owner: OwnerKey): Promise<void> {
   }
   const draining: Array<Promise<void>> = []
   for (const store of stores) {
+    if (!chosen(store)) continue
     try {
       if (store.disposeAsync) draining.push(store.disposeAsync(owner))
       else store.dispose(owner)

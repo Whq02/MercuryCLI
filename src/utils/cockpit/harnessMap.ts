@@ -4,8 +4,6 @@ import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
 import { mercuryUnityEnabled } from '../../services/ide/unityProject.js'
 import { mercuryBlenderEnabled } from '../../services/ide/blenderProject.js'
 import { mercuryAsepriteEnabled } from '../../services/aseprite/asepriteApp.js'
-import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
-import { dynamicWorkflowsEnabled } from '../../tools/WorkflowTool/workflowEnablement.js'
 import { getVulcanHarnessMapLine } from '../vulcan/vulcanGates.js'
 import { isSessionMarkedNonInteractive } from './runtimePosture.js'
 import { healthCertEnabled } from '../healthReport.js'
@@ -19,20 +17,6 @@ export function harnessMapEnabled(): boolean {
 
 let memo: string | null | undefined
 
-function refsEnabledSafe(): boolean {
-  try {
-    return (require('../../services/resources/contracts.js') as typeof import('../../services/resources/contracts.js')).mercuryRefsEnabled()
-  } catch {
-    return false
-  }
-}
-function projectIntelEnabledSafe(): boolean {
-  try {
-    return (require('../../services/projectIntel/contracts.js') as typeof import('../../services/projectIntel/contracts.js')).projectIntelEnabled()
-  } catch {
-    return false
-  }
-}
 function dapReachableSafe(): boolean {
   try {
     return reachableDapAdapterKeys().length > 0
@@ -43,19 +27,10 @@ function dapReachableSafe(): boolean {
 
 export function computeHarnessMapLines(): string[] {
   const lines: Array<string | null> = [
-    `- Discovery: /help lists commands; /capabilities is the live capability matrix for this build${healthCertEnabled() ? '; /health runs the evidence-backed health certificate' : ''}; a surface missing from this map is gated off in this boot.`,
+    `- Discovery: /help lists commands; /capabilities is the live capability matrix for this build${healthCertEnabled() ? '; /health runs the evidence-backed health certificate' : ''}; a surface absent here is in the tool roster or gated off.`,
     '- The `!` form: a prompt the user starts with `!` runs that command inside this very session, and whatever it prints arrives in the conversation — the road for a command that needs their own hands, such as an interactive login.',
-    dynamicWorkflowsEnabled()
-      ? '- Deterministic multi-agent orchestration: the Workflow tool; /workflows is its board → run → inspector.'
-      : null,
-    isSaturnSchedulingEnabled()
-      ? '- Scheduled/recurring runs (SATURN): the CronCreate · CronList · CronDelete tools; /saturn is the board; its `a` key creates a scheduled run.'
-      : null,
     mercuryDapEnabled() && !dapReachableSafe() && !dapAdapterProbePending()
       ? '- The Debug tool is withheld on this machine: no debug adapter is reachable, so no launch could work. Arm one — Python `pip install debugpy` (or a build carrying the vendored adapter) · native `xcode-select --install` (lldb-dap) or gdb 14+ · JS: unpack js-debug to ~/.js-debug · Go `go install github.com/go-delve/delve/cmd/dlv@latest` — then start a new session or /clear for the tool to join.'
-      : null,
-    projectIntelEnabledSafe() && refsEnabledSafe()
-      ? '- Project intelligence: mercury://project/current resolves the generation-keyed snapshot (modules · changes · knowledge · checks), ?child=context&q=<task> assembles the explained task working set, ?child=impact&q=<path> projects established impact, ?child=split&q=<a> || <b> proposes a two-operator division; a context_capsule reminder in your context is the current working set (evidence-ranked refs — dereference to read); mercury://transcript/session|agent gives bounded concise transcript views; /orient pin|drop corrects the working set.'
       : null,
     mercuryGodotEnabled()
       ? "- Godot lanes are armed: in a Godot project (project.godot at the root), the editor GDScript LSP and the Debug tool's `godot` DAP adapter are live over the loopback bridge — use them for GDScript symbol and runtime work."
