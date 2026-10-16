@@ -1,7 +1,6 @@
 id	seats	sentence	census	carrier
 M001	main headless	Mercury — a private terminal software-development harness.	private terminal software-development harness	M004, the constitution's own identity sentence
 M003	main headless	Session date: <date>	Session date:	the user-context reminder's # currentDate line, every request
-M031	main headless crewmate	(nothing saved yet — Retain saves the first fact)	nothing saved yet — Retain saves the first fact	M027 (Retain saves a new fact; the same page) and the Retain roster line
 M037	main headless	Primary working directory: <project>	Primary working directory:	M002, the head's Working directory line
 M045	main headless crewmate	Mercury's live model catalogue is the source of truth for the ids that run here.	live model catalogue is the source of truth	the Read description (mercury://seat: asked which model runs you, read it and answer from it); M044
 M050	main	Session: interactive.	Session: interactive.	the ask itself (the permission ladder)

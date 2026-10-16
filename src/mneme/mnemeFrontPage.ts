@@ -14,6 +14,8 @@ export const FRONT_PAGE_FILE = 'front-page.md'
 export const PINNED_STATUS_FILE = 'pinned-status.json'
 const INDEX_LINE_CAP = 160
 export const MEMORY_WRITE_VERBS_SENTENCE = 'Retain saves a new fact; Correct supersedes a wrong one and keeps the old fact as history.'
+const EMPTY_INDEX_LINE = '(nothing saved yet — Retain saves the first fact)'
+const EMPTY_INDEX_LINE_READ_ONLY = '(nothing saved yet)'
 const EMPTY_PAGE_WRITE_WORDS = ' Retain saves the first fact;'
 
 export function emptyMemoryPage(dir: string): string {
@@ -93,19 +95,23 @@ export function renderFrontPage(input: {
     '',
     memoryRecallModeLine(dir),
     MEMORY_EVIDENCE_CONTRACT,
+    '',
+    '## Index',
   ]
   const index = indexLines(topics)
   let factCount = 0
-  const indexBlock: string[] = []
-  for (const row of index) {
-    factCount += row.facts
-    indexBlock.push(row.line)
+  if (index.length === 0) {
+    lines.push(EMPTY_INDEX_LINE)
+  } else {
+    for (const row of index) {
+      factCount += row.facts
+      lines.push(row.line)
+    }
   }
   const archivedFacts = archives.reduce((n, d) => n + liveCount(d), 0)
   if (archivedFacts > 0) {
-    indexBlock.push(`(${archivedFacts} fact${archivedFacts === 1 ? '' : 's'} not used in a long time sit in archive pages off this index; Recall still finds them)`)
+    lines.push(`(${archivedFacts} fact${archivedFacts === 1 ? '' : 's'} not used in a long time sit in archive pages off this index; Recall still finds them)`)
   }
-  if (indexBlock.length > 0) lines.push('', '## Index', ...indexBlock)
   lines.push('', '## Pinned')
   const live = liveEntryIndex(topics)
   const view = pinnedView(pins.filter(pin => !pin.applicability?.role || pin.applicability.role === (input.role ?? 'main')), live)
@@ -191,7 +197,7 @@ export function frontPageKey(dir: string = mnemeLibraryDir()): string {
 
 export function forReader(page: string, verbs: 'all' | 'read'): string {
   if (verbs === 'all') return page
-  return page.replace(` ${MEMORY_WRITE_VERBS_SENTENCE}`, '').replace(EMPTY_PAGE_WRITE_WORDS, '')
+  return page.replace(` ${MEMORY_WRITE_VERBS_SENTENCE}`, '').replace(EMPTY_INDEX_LINE, EMPTY_INDEX_LINE_READ_ONLY).replace(EMPTY_PAGE_WRITE_WORDS, '')
 }
 
 function globalPinLines(dir: string): string[] {
