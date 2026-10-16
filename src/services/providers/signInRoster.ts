@@ -47,6 +47,7 @@ import {
   writeStoredZenApiKey,
 } from '../../utils/router/providerSecrets.js'
 import { credentialFingerprint, maskedKeyTail } from './credentialIdentity.js'
+import { accountIdentityShown } from '../wallet/identityWords.js'
 import { providerDisplayName } from './routeLaw.js'
 
 export interface SignInRoad {
@@ -303,37 +304,53 @@ export function knownIdentities(family: string, home: string = signInsEstate()):
   return familySignInRoster(family, home).map(row => row.identity)
 }
 
+export function signInWords(row: SignInRosterRow, shown: boolean = accountIdentityShown(), withFamily = false, home: string = signInsEstate()): string {
+  if (shown) return row.identity
+  const ordinal = familySignInRoster(row.family, home).findIndex(candidate => candidate.dir === row.dir && candidate.identity === row.identity) + 1
+  const word = `sign-in ${ordinal > 0 ? ordinal : '?'}`
+  return withFamily ? `${providerDisplayName(row.family)} ${word}` : word
+}
+
+function knownSignInWords(families: string[], home: string, shown: boolean): string[] {
+  const withFamily = families.length > 1
+  return families.flatMap(family => familySignInRoster(family, home).map(row => signInWords(row, shown, withFamily, home)))
+}
+
+function typedWords(identity: string, shown: boolean): string {
+  return shown ? identity : 'that'
+}
+
 export type UseSignInOutcome =
   | { ok: true; row: SignInRosterRow; words: string }
   | { ok: false; words: string }
 
-export function useSignIn(identity: string, family?: string, layer: 'session' | 'project' = 'session', home: string = signInsEstate()): UseSignInOutcome {
+export function useSignIn(identity: string, family?: string, layer: 'session' | 'project' = 'session', home: string = signInsEstate(), shown: boolean = accountIdentityShown()): UseSignInOutcome {
   const found = findSignIn(identity, family, home)
   if (found.row === undefined) {
     if (found.matches.length > 1) {
-      return { ok: false, words: `${identity} names a sign-in in more than one family (${found.matches.map(row => row.family).join(', ')}) — say which: /logins use <family> ${identity}` }
+      return { ok: false, words: `${typedWords(identity, shown)} names a sign-in in more than one family (${found.matches.map(row => providerDisplayName(row.family)).join(', ')}) — say which: /logins use <family> ${shown ? identity : '<identity>'}` }
     }
     const families = family === undefined ? [...SIGN_IN_FAMILIES] : [family]
-    const known = families.flatMap(name => knownIdentities(name, home))
-    return { ok: false, words: `no sign-in named ${identity}${family === undefined ? '' : ` for ${providerDisplayName(family)}`} — ${known.length === 0 ? 'nothing is signed in yet; /logins signs in' : `the sign-ins are ${known.join(', ')}`}` }
+    const known = knownSignInWords(families, home, shown)
+    return { ok: false, words: `no sign-in named ${typedWords(identity, shown)}${family === undefined ? '' : ` for ${providerDisplayName(family)}`} — ${known.length === 0 ? 'nothing is signed in yet; /logins signs in' : `the sign-ins are ${known.join(', ')}`}` }
   }
   const row = found.row
   const choice: SignInChoice = { identity: row.identity, dir: row.dir, kind: row.kind }
   if (layer === 'project') setProjectSignIn(row.family, choice)
   else setSessionSignIn(row.family, choice)
-  return { ok: true, row, words: `${providerDisplayName(row.family)}: this ${layer} now spends ${row.identity}${row.isDefault ? ' (the default)' : ''}${roadClause(row, roadNamed(row, identity))}` }
+  return { ok: true, row, words: `${providerDisplayName(row.family)}: this ${layer} now spends ${signInWords(row, shown, false, home)}${row.isDefault ? ' (the default)' : ''}${roadClause(row, roadNamed(row, identity), shown)}` }
 }
 
-function roadClause(row: SignInRosterRow, named: SignInRoad | undefined): string {
+function roadClause(row: SignInRosterRow, named: SignInRoad | undefined, shown: boolean): string {
   if (row.roads.length < 2) return ''
   const through = ` through its ${roadWords(row.kind)}`
   if (named === undefined || named.active) return through
-  return `${through} — ${named.identity} is its ${roadWords(named.kind)} road — /accounts switches the road`
+  return `${through} — ${shown ? named.identity : 'the one named'} is its ${roadWords(named.kind)} road — /accounts switches the road`
 }
 
-export function roadsWords(row: SignInRosterRow): string | undefined {
+export function roadsWords(row: SignInRosterRow, shown: boolean = accountIdentityShown()): string | undefined {
   if (row.roads.length < 2) return undefined
-  return row.roads.map(road => `${roadWords(road.kind)}${isKeyIdentity(road.identity) ? ` ${road.identity}` : ''}${road.active ? ' (spends)' : ''}`).join(', ')
+  return row.roads.map(road => `${roadWords(road.kind)}${shown && isKeyIdentity(road.identity) ? ` ${road.identity}` : ''}${road.active ? ' (spends)' : ''}`).join(', ')
 }
 
 export function useDefaultSignIn(family: string): string {
@@ -343,24 +360,25 @@ export function useDefaultSignIn(family: string): string {
 
 export type ForgetSignInOutcome = { ok: true; words: string; choiceFell: boolean } | { ok: false; words: string }
 
-export function forgetSignIn(identity: string, family?: string, home: string = signInsEstate()): ForgetSignInOutcome {
+export function forgetSignIn(identity: string, family?: string, home: string = signInsEstate(), shown: boolean = accountIdentityShown()): ForgetSignInOutcome {
   const found = findSignIn(identity, family, home)
   if (found.row === undefined) {
-    return { ok: false, words: found.matches.length > 1 ? `${identity} names a sign-in in more than one family — say which: /logins forget <family> ${identity}` : `no sign-in named ${identity} — nothing forgotten` }
+    return { ok: false, words: found.matches.length > 1 ? `${typedWords(identity, shown)} names a sign-in in more than one family — say which: /logins forget <family> ${shown ? identity : '<identity>'}` : `no sign-in named ${typedWords(identity, shown)} — nothing forgotten` }
   }
   const row = found.row
+  const name = signInWords(row, shown, false, home)
   if (row.dir === null) {
-    return { ok: false, words: `${row.identity} is ${providerDisplayName(row.family)}'s default sign-in — ⌫ on its /accounts row signs it out` }
+    return { ok: false, words: `${name} is ${providerDisplayName(row.family)}'s default sign-in — ⌫ on its /accounts row signs it out` }
   }
   const entry: Pick<PocketEntry, 'identity' | 'slug' | 'dir'> = { identity: row.identity, slug: row.slug ?? '', dir: row.dir }
   const outcome = forgetPocket(row.family, entry, pocketRemoval(row.family), home)
-  if (!outcome.removed) return { ok: false, words: `${row.identity} could not be forgotten — its pocket did not go` }
+  if (!outcome.removed) return { ok: false, words: `${name} could not be forgotten — its pocket did not go` }
   const fallback = familySignInRoster(row.family, home).find(candidate => candidate.inUse)
-  const dangling = outcome.fall.project ? ` · .mercury/settings.local.json still names ${row.identity} — remove the line` : ''
+  const dangling = outcome.fall.project ? ` · .mercury/settings.local.json still names ${shown ? row.identity : 'it'} — remove the line` : ''
   return {
     ok: true,
     choiceFell: outcome.choiceFell,
-    words: `${providerDisplayName(row.family)}: ${row.identity} forgotten${outcome.choiceFell ? ` — this session now spends ${fallback?.identity ?? 'the default'}` : ''}${dangling}`,
+    words: `${providerDisplayName(row.family)}: ${name} forgotten${outcome.choiceFell ? ` — this session now spends ${fallback === undefined ? 'the default' : signInWords(fallback, shown, false, home)}` : ''}${dangling}`,
   }
 }
 
@@ -395,11 +413,13 @@ export function trustedSignInSettings(): { credentials?: { signIns?: Record<stri
 export function bindProjectSignInChoicesToSettings(readSettings: () => { credentials?: { signIns?: Record<string, string> } }): void {
   registerProjectSignInSource(() => {
     for (const refusal of applyProjectSignInChoices(readSettings().credentials?.signIns)) {
-      logForDebugging(projectSignInRefusalWords(refusal))
+      logForDebugging(projectSignInRefusalWords(refusal, true))
     }
   })
 }
 
-export function projectSignInRefusalWords(refusal: ProjectSignInRefusal): string {
-  return `.mercury/settings.local.json names ${refusal.identity} for ${providerDisplayName(refusal.family)} but no such sign-in exists — ${refusal.known.length === 0 ? 'nothing is signed in for it' : `the sign-ins are ${refusal.known.join(', ')}`}; the default spends`
+export function projectSignInRefusalWords(refusal: ProjectSignInRefusal, shown: boolean = accountIdentityShown()): string {
+  const named = shown ? `names ${refusal.identity} for ${providerDisplayName(refusal.family)} but no such sign-in exists` : `names a sign-in for ${providerDisplayName(refusal.family)} that does not exist`
+  const known = shown ? refusal.known : refusal.known.map((_, index) => `sign-in ${index + 1}`)
+  return `.mercury/settings.local.json ${named} — ${known.length === 0 ? 'nothing is signed in for it' : `the sign-ins are ${known.join(', ')}`}; the default spends`
 }
