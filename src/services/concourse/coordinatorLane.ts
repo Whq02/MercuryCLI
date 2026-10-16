@@ -20,12 +20,6 @@ import type { CoordinatorTurnRuntime } from './coordinatorTools.js'
 import { decodeManagerAsk, decodeManagerPlan, type ManagerAskV1, type ManagerPlanV1 } from './managerMode.js'
 
 
-function receiptLabel(r: { verb: string; objectRef: string; outcome: string; detail?: string }): string {
-  const ref = r.objectRef.length > 12 ? `${r.objectRef.slice(0, 8)}…` : r.objectRef
-  const why = r.detail !== undefined && r.detail.length > 0 ? ` — ${r.detail}` : ''
-  return `${r.verb} ${r.outcome}${why} · ${ref}`.slice(0, 240)
-}
-
 export const COORDINATOR_CONTRACT_VERSION = COORDINATOR_PERSONA_VERSION
 export const COORDINATOR_CONTRACT = COORDINATOR_PERSONA
 
