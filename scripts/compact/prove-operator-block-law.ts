@@ -37,7 +37,7 @@ const { selectOperatorMessages, operatorMessagesBlockText, OPERATOR_MESSAGES_ATT
 const { getCompactUserSummaryMessage } = await import('../../src/services/compact/prompt.ts')
 const { computeVerbatimRecentTail } = await import('../../src/services/compact/verbatimTail.ts')
 
-const BLOCK_HEADER = "The operator's own messages from the stretch folded into the summary below"
+const BLOCK_HEADER = "The operator's own messages from this stretch and the earlier folds"
 const SUMMARY_HEADER = 'The context window turned over'
 const KIND: string = OPERATOR_MESSAGES_ATTACHMENT_TYPE
 
@@ -177,7 +177,7 @@ section('D a second fold: the first block folds into the second, one block on th
   check('the second fold kept a tail and folded the rest, the first block among the folded rows', second.kept.length > 0 && foldedAsks.length > 0 && !second.kept.some(row => row.uuid === first.blockRow?.uuid), `kept=${keptAsks.length} folded=${foldedAsks.length}`)
   const firstBlockAsks = (first.block?.messages ?? []).map(entry => entry.text)
   const foldedSince = foldedAsks.filter(ask => !firstBlockAsks.includes(ask))
-  check("the second block carries the asks folded since the first fold once each, names the first block's by count (its boundary record carries them whole) and repeats none of them", second.block !== null && foldedSince.length > 0 && foldedSince.every(ask => second.block!.messages.filter(entry => entry.text === ask).length === 1) && firstBlockAsks.every(ask => !second.block!.messages.some(entry => entry.text === ask)) && second.block.omitted === firstBlockAsks.length + (first.block?.omitted ?? 0) && keptAsks.every(ask => !second.block!.messages.some(entry => entry.text === ask)), j({ omitted: second.block?.omitted, texts: second.block?.messages.map(entry => entry.text.slice(0, 6)) }))
+  check("the second block carries the asks folded since the first fold once each and the first block's once each too (the budget the only cut), the kept ones not at all", second.block !== null && foldedSince.length > 0 && foldedSince.every(ask => second.block!.messages.filter(entry => entry.text === ask).length === 1) && firstBlockAsks.every(ask => second.block!.messages.filter(entry => entry.text === ask).length === 1) && second.block.omitted === 0 && keptAsks.every(ask => !second.block!.messages.some(entry => entry.text === ask)), j({ omitted: second.block?.omitted, texts: second.block?.messages.map(entry => entry.text.slice(0, 6)) }))
   check('one block on the wire — the first block row is folded, not repeated', texts.filter(isBlockText).length === 1 && !post.some(row => row.uuid === first.blockRow?.uuid), j(texts.map(markOf)))
   check('the block precedes the summary, and the new ask rides last', texts.findIndex(isBlockText) >= 0 && texts.findIndex(isBlockText) < texts.findIndex(isSummaryText) && (texts.at(-1) ?? '').trim() === ELEVENTH, j(texts.map(markOf)))
   check('nothing twice outside the block: the folded asks ride only inside it, the kept ones once', foldedAsks.every(ask => timesOutside(wire, ask) === 0) && keptAsks.every(ask => timesOutside(wire, ask) === 1) && timesOutside(wire, ELEVENTH) === 1, j(asksSoFar.map(ask => [ask.slice(0, 6), timesOutside(wire, ask)])))
