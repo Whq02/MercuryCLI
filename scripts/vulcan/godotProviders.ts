@@ -1,18 +1,18 @@
 
-import { findGodotProjectRoot, probeGodotEditorReachable, godotDapPort, godotLspPort, mercuryGodotEnabled } from '../lsp/godotLane.js'
-import { vulcanEnabled, vulcanLiteMode } from '../../utils/vulcan/vulcanGates.js'
-import { presenceNudge, probeVulcanEditorPresence } from './editorPresence.js'
-import type { GodotProcess } from './godotProcessCensus.js'
-import { vulcanInstallStatus } from './addonInstaller.js'
+import { findGodotProjectRoot, probeGodotEditorReachable, godotDapPort, godotLspPort, mercuryGodotEnabled } from '../../src/services/lsp/godotLane.js'
+import { vulcanEnabled, vulcanLiteMode } from '../../src/utils/vulcan/vulcanGates.js'
+import { presenceNudge, probeVulcanEditorPresence } from '../../src/services/vulcan/editorPresence.js'
+import type { GodotProcess } from '../../src/services/vulcan/godotProcessCensus.js'
+import { vulcanInstallStatus } from '../../src/services/vulcan/addonInstaller.js'
 
-export type GodotProviderState =
+type GodotProviderState =
   | 'ready'
   | 'not-answering'
   | 'not-installed'
   | 'disabled'
   | 'no-project'
 
-export interface GodotProviderRow {
+interface GodotProviderRow {
   id: 'vulcan' | 'godot-lsp' | 'godot-dap'
   source: string
   endpoint: string
