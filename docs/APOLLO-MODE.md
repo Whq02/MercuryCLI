@@ -1,11 +1,10 @@
 # Apollo Mode
 
-Apollo Mode is Mercury's pre-flight interview station: a session permission mode in which
-the agent interviews the user until the missing spec exists, writes that spec down, and
-then builds a prototype from it in one autonomous run. The stated goal is never a
-finished product — it is a fully one-shot prototype: for a game, a playable demo with
+Apollo Mode is Mercury's pre-flight interview mode: a session permission mode in which
+the agent interviews you until the specification is complete, writes that specification down, and
+then builds a prototype from it in one autonomous run. The goal is a runnable one-shot prototype: for a game, a playable demo with
 UI/UX and example animations; for other software, the equivalent runnable slice, enough
-for the user to decide whether the idea is worth continuing.
+for you to decide whether the idea is worth continuing.
 
 ## The mode
 
@@ -42,12 +41,12 @@ poll budget.
 The appendix directs the agent to interview with the `AskUserQuestion` tool:
 
 - Every poll is multiple choice with exactly four authored options. The harness letters
-  them A–D and adds E automatically; E is where the user types their own answer, and the
+  them A–D and adds E automatically; E is where you type your own answer, and the
   appendix forbids authoring an "Other" option.
 - One question per poll by default; up to four questions batch in one call only when
   they are independent.
 - Questions are plain language, each tied to the technical choice it settles; a
-  technical term appears only as a bridge beside its plain meaning.
+  technical term appears only beside its plain meaning.
 - Between polls the agent spends a turn or two developing what the answers opened, then
   polls again.
 - The poll budget is the `apollo.preflightQuestions` setting, default 7;
@@ -57,7 +56,7 @@ The appendix directs the agent to interview with the `AskUserQuestion` tool:
 
 The letter grammar is fixed: A–D for authored options, E as a stable
 identity for the automatic free-text option (E stays E even when fewer than
-four options were authored). The letters are display-only — answers,
+four options were authored). The letters are display-only: answers,
 drafts, and re-asked-question identity never carry a letter.
 
 ## The spec (phase 2)
@@ -67,10 +66,10 @@ The completed spec is written as readable files under
 everything that links the files. Whatever still blocks after the budget is
 named in the spec, never guessed.
 
-## The close — the review
+## The closing review
 
-`ApolloReview` is the interview's one exit seam. The
-agent calls it with a layman summary of the completed spec, the blocker list (empty when
+`ApolloReview` is the interview's exit tool. The
+agent calls it with a plain-English summary of the completed spec, the blocker list (empty when
 nothing blocks), the spec file paths, and a run note; the call renders the closing
 review card.
 
@@ -80,24 +79,24 @@ session not in mode `apollo` is refused.
 
 Permission behaviour splits on the blocker list:
 
-- No blockers: the tool asks — "Begin the prototype build?" — and the card offers
-  three answers. Every yes completes the mode transition out of Apollo; the two yes
-  tiers differ in permission breadth only, never in whether the mode moves:
-  - **Yes — begin the build**: the build posture (flow when Flow is open,
-    implement otherwise); edit consent rides the mode.
-  - **Yes — but ask me before each edit**: the mode moves to default; the build runs
+- No blockers: the tool asks "Begin the prototype build?" and the card shows
+  three answers. Either yes answer completes the mode transition out of Apollo; the two yes
+  tiers differ in permission breadth:
+  - **Yes — begin the build**: enters the build posture (flow when Flow is open,
+    implement otherwise); edit consent follows the mode.
+  - **Yes — but ask me before each edit**: moves the mode to default; the build runs
     and each edit asks for confirmation.
-  - **No — ask me more questions**: nothing moves. The session and drafts are
+  - **No — ask me more questions**: keeps the session in Apollo Mode. The session and drafts are
     preserved, and the tool result tells the agent to resume the interview and
     present the review afresh.
-  Esc stays the plain hold: a rejection; the agent waits for the user's word.
+  Esc holds the review as a rejection, and the agent waits for your word.
 - Blockers present: the call is informational (allow); the card presents the blockers
-  and nothing changes hands. The agent resolves them with the user — more polls or
-  discussion — then reviews again.
+  without changing the mode. The agent resolves them with you through more polls or
+  discussion, then calls `ApolloReview` again.
 
-While the session is in Apollo Mode the `ApolloReview` schema is force-loaded on the
-wire roster (never name-only behind tool search): the mode's entire exit funnels to
-this one call, so it must not depend on a discovery round-trip.
+`ApolloReview` is deferred like other deferrable tools in every permission mode; on routes
+that defer tool schemas the agent loads it through `ToolSearch` when it is ready to close
+the interview.
 
 ## The build (phase 3)
 
@@ -110,7 +109,7 @@ entry would. If flow raced unavailable between the check
 and the set, the tool falls through to implement, which is always available; neither
 default nor implement entry can be refused, so an approved review can never leave the
 session stranded in Apollo Mode. The output records `buildStarted` and the settled
-mode (`interviewContinues` when the user asked for more questions instead).
+mode (`interviewContinues` when you asked for more questions instead).
 
 The agent then builds the prototype in one autonomous run with the completed spec as the
-brief, and finishes by telling the user in plain terms what was built and how to run it.
+brief, and finishes by telling you in plain terms what was built and how to run it.

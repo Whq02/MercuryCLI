@@ -143,7 +143,7 @@ section('§E RED on the base: the card can still be built for a warning, and kee
   check("the composer's offer state admits no 'warning' trigger", !composer.includes("trigger: 'warning' | 'rejected' | 'reset'"))
   check('the composer hands the card the decision\'s own trigger', composer.includes('trigger: action.trigger') && composer.includes('trigger={offer.trigger}'))
   const docs = source('docs/ENGINES.md')
-  check('the docs state the rule', docs.includes('no percentage, even 100%, holds work, stops a turn or offers a handoff'))
+  check('the docs state the rule', docs.includes('no percentage, even 100%, holds work, stops a turn or shows a handoff card'))
 }
 
 section('§F RED on the base: the latch reader keeps a floor of its own and warns at 72%')
