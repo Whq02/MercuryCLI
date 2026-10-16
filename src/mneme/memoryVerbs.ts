@@ -120,10 +120,11 @@ export function retainItems(
     const context = item.context?.trim() ?? ''
     const topic = item.topic?.trim() ?? ''
     const replaces = item.replaces?.trim() ?? ''
-    const requestedPin = item.pin === true || replaces !== ''
+    const requestedPin = item.pin === true && replaces === ''
     const intent = usersOwnChat ? pinIntentSpan(provenance.pinIntent, content) : null
-    if (requestedPin && intent === null && provenance.authority !== 'card') {
-      outcomes.push({ index, status: 'refused', reason: 'pin needs the originating owner message explicitly requesting these words as a standing rule; nothing was stored' })
+    const ruleWitness = intent !== null || provenance.authority !== undefined || (provenance.pin === true && provenance.asked === true)
+    if (requestedPin && !ruleWitness) {
+      outcomes.push({ index, status: 'refused', reason: usersOwnChat ? 'pin needs the originating owner message asking for these words as a standing rule (none found in this turn); nothing was stored — retain the fact without pin, or the owner pins it in /memory' : 'a crewmate cannot pin: a standing rule needs the owner\'s own words in the main chat; nothing was stored — retain the fact without pin' })
       return
     }
     const text = context ? `${content} (context: ${context})` : content
@@ -165,7 +166,7 @@ export function retainItems(
       return
     }
     const pin = provenance.pin || item.pin || replacement !== null
-    const askedByUser = (provenance.pin && provenance.asked) || (requestedPin && (intent !== null || provenance.authority === 'card'))
+    const askedByUser = (provenance.pin === true && provenance.asked === true) || ((requestedPin || replacement !== null) && (intent !== null || provenance.authority !== undefined))
     const before = pendingRows(dir).length
     const written = appendObservation(
       {

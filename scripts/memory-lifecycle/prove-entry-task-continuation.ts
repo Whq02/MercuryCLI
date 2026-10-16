@@ -15,7 +15,7 @@ const doc = emptyDoc('harbour', 'harbour notes', now)
 doc.sections.push({ heading: 'notes', entries: [
   { seq: 1, time: now, source: 'tool:Retain s:one', text: 'Release bulletins must keep the crane count private.' },
   { seq: 2, time: now, source: 'tool:Retain s:one', text: 'Caption edits preserve the supplied harbour wording.' },
-  { seq: 3, time: now, source: 'tool:Retain s:one', text: 'Kernel inspections use the signed workshop checklist.' },
+  { seq: 3, time: now, source: 'tool:Retain s:one', text: 'Kernel inspections use the signed boathouse checklist.' },
   { seq: 4, time: now, source: 'tool:Retain s:one', text: 'The website crew prepares the harbour release page.' },
   { seq: 5, time: now, source: 'tool:Retain s:one', text: 'The amber worktree note names the old dock.' },
 ] })

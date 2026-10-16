@@ -234,7 +234,7 @@ function judgeOverview(label: string, scene: Scene): void {
   if (header < 0) return
   const head = body[header]!
   const columns = { section: head.indexOf('section'), count: head.indexOf('count'), newest: head.indexOf('newest'), state: head.indexOf('state') }
-  const expected: Array<[string, string, string]> = [['facts and decisions', '4 current', 'on'], ['pinned rules', '2 · 220 of 8k', 'loaded'], ['topics', '2 pages', 'indexed'], ['lineage', 'session 3 · 2 before', 'no note'], ['journal', '2 entries', 'on'], ['maintenance', 'none', 'idle'], ['instruction files', '', 'auto']]
+  const expected: Array<[string, string, string]> = [['facts and decisions', '4 current', 'on'], ['pinned rules', '2 · 280 of 8k', 'loaded'], ['topics', '2 pages', 'indexed'], ['lineage', 'session 3 · 2 before', 'no note'], ['journal', '2 entries', 'on'], ['maintenance', 'none', 'idle'], ['instruction files', '', 'auto']]
   const rows = body.slice(header + 1, header + 1 + expected.length)
   check(`${label}: one row per section, in the brief's order`, expected.every(([section], i) => (rows[i] ?? '').includes(section)), rows.join(' | '))
   check(`${label}: the section and count columns start under their headers in every row`, expected.every(([section, count], i) => { const r = rows[i] ?? ''; return r.indexOf(section) === columns.section && (count === '' || r.indexOf(count) === columns.count) }), rows.join(' | '))

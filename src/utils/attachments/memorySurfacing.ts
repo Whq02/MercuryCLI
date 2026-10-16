@@ -103,7 +103,7 @@ export function getRelevantMemoryAttachments(input: string | null, messages: Rea
   const query = input?.trim() || latestPrompt(visible)
   if (!query) return []
   try {
-    const hits = automaticMemoryCandidates(query, { dir: mnemeLibraryDir(), files: cacheKeys(toolUseContext.readFileState) })
+    const hits = automaticMemoryCandidates(query, { dir: mnemeLibraryDir(), files: toolUseContext.readFileState ? cacheKeys(toolUseContext.readFileState) : [] })
     const blocks = visibleMemoryBlocks(visible)
     return pack(hits.filter(hit => !delivered(hit, blocks)), turnAllowance(visible, input !== null))
   } catch (error) {

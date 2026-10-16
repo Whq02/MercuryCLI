@@ -26,15 +26,19 @@ try {
   const surfaced = attachments[0]!
   assert.equal(surfaced.type, 'relevant_memories')
   if (surfaced.type === 'relevant_memories') {
+    const { memoryGrade } = await import('../../src/mneme/memoryEvidence.js')
     assert.deepEqual(surfaced.memories[0]!.ids, ['seq:1'])
-    assert.equal(surfaced.memories[0]!.content, '- The service deployed after a smoke check. <seq=1, time=2026-10-12T00:00:00.000Z, source=proof>')
-    assert.deepEqual(Object.keys(surfaced.memories[0]!).sort(), ['content', 'header', 'ids', 'mtimeMs', 'path'])
+    assert.equal(surfaced.memories[0]!.content, `- ${memoryGrade({ id: 'seq:1', dir })} The service deployed after a smoke check. <seq=1, time=2026-10-12T00:00:00.000Z, source=proof>`)
+    assert.match(surfaced.memories[0]!.content, /^- \[fact · cited (?:\d+|unknown) · unverified\] The service deployed/)
+    assert.deepEqual(Object.keys(surfaced.memories[0]!).sort(), ['content', 'delivery', 'header', 'ids', 'mtimeMs', 'path'])
+    assert.deepEqual(surfaced.memories[0]!.delivery?.ids, ['seq:1'])
+    assert.ok((surfaced.memories[0]!.delivery?.chars ?? 0) > surfaced.memories[0]!.content.length, 'the delivery receipt counts the header and framing with the body')
   }
   const { lookupFacts } = await import('../../src/mneme/mnemeLookup.js')
   assert.equal(lookupFacts('deploying service', { dir })[0]?.id, 'seq:1')
   assert.equal(readFileSync(usagePath(dir), 'utf8'), usage)
   assert.equal(readFileSync(page, 'utf8'), text)
-  console.log('PASS: surfacing preserves its block and never counts a listing as an open')
+  console.log('PASS: surfacing carries the graded fact with its delivery receipt and never counts a listing as an open')
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

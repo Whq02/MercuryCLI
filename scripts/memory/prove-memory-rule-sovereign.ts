@@ -55,10 +55,11 @@ const { sourceWords, topicPageLines } = await import('../../src/components/memor
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 const dir = mnemeLibraryDir()
-const seeded = retainItems([RULE_A, RULE_B, RULE_C, RULE_D].map(content => ({ content, pin: true, topic: 'user-preferences' })), { session: 'rule-sovereign-seed' }, dir)
+const ownerSaid = (text: string) => ({ messageId: `owner-${text.length}`, text })
+const seeded = retainItems([RULE_A, RULE_B, RULE_C, RULE_D].map(content => ({ content, pin: true, topic: 'user-preferences' })), { session: 'rule-sovereign-seed', pinIntent: ownerSaid(`Remember these as standing rules:\n- ${RULE_A}\n- ${RULE_B}\n- ${RULE_C}\n- ${RULE_D}`) }, dir)
 check('seed: four rules the user asked for are staged pinned and land on the shelf', seeded.every(o => o.status === 'stored') && maybeConsolidate({ force: true, dir }).consolidated === true, j(seeded))
 _resetMemoryVerbSessionStateForTesting()
-const draft = retainItems([{ content: RULE_P, pin: true, topic: 'user-preferences' }], { session: 'rule-sovereign-seed' }, dir)
+const draft = retainItems([{ content: RULE_P, pin: true, topic: 'user-preferences' }], { session: 'rule-sovereign-seed', pinIntent: ownerSaid(`Remember this as a standing rule: ${RULE_P}`) }, dir)
 const draftId = draft[0]?.status === 'stored' ? draft[0].id : ''
 const live = (): Array<{ seq: number; text: string; source: string }> => listTopicDocs(dir).flatMap(d => d.sections.flatMap(s => s.entries))
 const history = (): Array<{ seq: number; text: string; source: string; supersededBy?: number }> => listTopicDocs(dir).flatMap(d => d.history)

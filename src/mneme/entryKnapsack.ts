@@ -37,6 +37,7 @@ interface StartScored extends StartCandidate {
   density: number
   tier: number
   tie: number
+  pointer?: boolean
 }
 
 interface StartChoice {
@@ -57,6 +58,8 @@ interface MemoryAtStartStatus {
   notes: number
   rodeNotes: number
   pending: number
+  rodePending?: number
+  pointers?: number
 }
 
 let lastStatus: MemoryAtStartStatus | null = null
@@ -196,10 +199,10 @@ export function chooseAtStart(input: { candidates: readonly StartCandidate[]; ch
     if (candidate.tier === 4 || candidate.score > 0 && used + candidate.chars <= limit) {
       rode.push(candidate)
       if (candidate.tier !== 4) used += candidate.chars
-    } else if (candidate.score > 0 && candidate.kind === 'fact') {
+    } else if (candidate.score > 0 && candidate.kind === 'fact' && candidate.tier >= 2) {
       const block = `- ${recordGrade(candidate.id, candidate.signature, input.dir)} [${candidate.id}] Recall read:"${candidate.id}" before the affected decision; full text did not fit.`
       if (used + block.length + 1 <= limit) {
-        rode.push({ ...candidate, block, chars: block.length + 1 })
+        rode.push({ ...candidate, block, chars: block.length + 1, pointer: true })
         used += block.length + 1
       } else left.push(candidate)
     } else left.push(candidate)
@@ -220,28 +223,34 @@ function joinWords(parts: readonly string[]): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
 
+function rodeWords(status: Pick<MemoryAtStartStatus, 'facts' | 'rodeFacts' | 'notes' | 'rodeNotes' | 'pending' | 'rodePending' | 'pointers'>): string {
+  const pointers = status.pointers ?? 0
+  const facts = status.facts > 0 ? `${status.rodeFacts} of ${plural(status.facts, 'fact')}${pointers > 0 ? ` (${pointers} as ${pointers === 1 ? 'a pointer' : 'pointers'})` : ''}` : null
+  const pending = (status.rodePending ?? 0) > 0 ? `${status.rodePending} of ${plural(status.pending, 'pending fact')}` : null
+  const notes = status.notes > 0 ? `${status.rodeNotes} of ${plural(status.notes, 'earlier note')}` : null
+  return joinWords([facts, pending, notes].filter((part): part is string => part !== null))
+}
+
 function memoryAtStartLine(input: { task?: StartTask; choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: Pick<ProjectState, 'branch' | 'files' | 'note'> }): string {
   const { choice, pinnedCount, facts, notes, pending, state } = input
   const pins = pinnedCount === 0 ? 'no pinned rule' : `${plural(pinnedCount, 'pinned rule')} (${withThousands(choice.pinnedChars)} characters)`
-  if (facts + notes === 0) return `Memory at start: ${pins}; nothing rode (${plural(pending, 'fact')} pending); Recall finds them.`
-  const pool = joinWords([facts > 0 ? plural(facts, 'fact') : null, notes > 0 ? plural(notes, 'earlier note') : null].filter((part): part is string => part !== null))
+  const rodePending = choice.rode.filter(c => c.kind === 'fact' && c.pending).length
+  if (facts + notes === 0 && rodePending === 0) return `Memory at start: ${pins}; nothing rode (${plural(pending, 'fact')} pending); Recall finds them.`
+  const pool = joinWords([facts > 0 ? plural(facts, 'fact') : null, pending > 0 ? plural(pending, 'pending fact') : null, notes > 0 ? plural(notes, 'earlier note') : null].filter((part): part is string => part !== null))
   const target = [input.task?.prompt?.trim() ? 'the current prompt' : input.task?.continuation?.source ? 'the source-linked continuation' : null, state.branch !== null ? `branch ${state.branch}` : null, state.files.length > 0 ? 'the files touched lately' : null, state.note !== null ? 'the last note' : null].filter((part): part is string => part !== null)
   if (target.length === 0) return `Memory at start: ${pins}; the ${pool} wait for a branch, touched files or a note to match against; Recall finds them.`
-  const rodeFacts = choice.rode.filter(c => c.kind === 'fact').length
-  const rodeNotes = choice.rode.filter(c => c.kind === 'handoff').length
-  const rode = joinWords([facts > 0 ? `${rodeFacts} of ${plural(facts, 'fact')}` : null, notes > 0 ? `${rodeNotes} of ${plural(notes, 'earlier note')}` : null].filter((part): part is string => part !== null))
+  const rode = rodeWords({ facts, rodeFacts: choice.rode.filter(c => c.kind === 'fact' && !c.pending && !c.pointer).length, notes, rodeNotes: choice.rode.filter(c => c.kind === 'handoff').length, pending, rodePending, pointers: choice.rode.filter(c => c.pointer).length })
   return `Memory at start: ${pins} and ${rode} most relevant to ${joinWords(target)}; Recall finds the rest.`
 }
 
 export function memoryAtStartRowWords(status: MemoryAtStartStatus): string {
   const pins = status.pinnedCount > 0 ? plural(status.pinnedCount, 'pinned rule') : null
-  const pending = status.pending > 0 ? ` (${plural(status.pending, 'fact')} pending)` : ''
-  if (status.facts + status.notes === 0) {
+  const pending = status.pending > 0 && !(status.rodePending ?? 0) ? ` (${plural(status.pending, 'fact')} pending)` : ''
+  if (status.facts + status.notes === 0 && !(status.rodePending ?? 0)) {
     if (pins === null && status.pending === 0) return 'nothing on record yet'
     return `${pins === null ? 'nothing' : `${pins}; nothing else`} rode at start${pending}; Recall finds them`
   }
-  const rode = joinWords([status.facts > 0 ? `${status.rodeFacts} of ${plural(status.facts, 'fact')}` : null, status.notes > 0 ? `${status.rodeNotes} of ${plural(status.notes, 'earlier note')}` : null].filter((part): part is string => part !== null))
-  return `${pins === null ? '' : `${pins} and `}${rode} rode at start${pending}; Recall finds the rest`
+  return `${pins === null ? '' : `${pins} and `}${rodeWords(status)} rode at start${pending}; Recall finds the rest`
 }
 
 function renderMemoryAtStart(input: { task?: StartTask; choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: ProjectState }): string | null {
@@ -277,18 +286,21 @@ export function composeStartPage(input: { task?: StartTask; dir: string; project
   const pending = pendingRows(input.dir).length
   const candidates = [...facts, ...notes].map(candidate => (input.stale?.(candidate) ? markStale(candidate, input.mark?.(candidate) ?? staleMark(input.confirmedAt?.(candidate))) : candidate))
   const choice = chooseAtStart({ task: input.task, candidates, chunks: stateQuery(input.state, input.root), limit: input.limit, pinnedChars: pinned.chars, now: input.now, dir: input.dir })
+  const consolidated = facts.filter(candidate => !candidate.pending).length
   const status: MemoryAtStartStatus = {
     limit: choice.limit,
     pinnedCount: pinned.count,
     pinnedChars: pinned.chars,
     used: choice.used,
-    facts: facts.length,
-    rodeFacts: choice.rode.filter(c => c.kind === 'fact').length,
+    facts: consolidated,
+    rodeFacts: choice.rode.filter(c => c.kind === 'fact' && !c.pending && !c.pointer).length,
     notes: notes.length,
     rodeNotes: choice.rode.filter(c => c.kind === 'handoff').length,
     pending,
+    rodePending: choice.rode.filter(c => c.kind === 'fact' && c.pending).length,
+    pointers: choice.rode.filter(c => c.pointer).length,
   }
-  return { text: renderMemoryAtStart({ task: input.task, choice, pinnedCount: pinned.count, facts: facts.length, notes: notes.length, pending, state: input.state }), choice, status, state: input.state }
+  return { text: renderMemoryAtStart({ task: input.task, choice, pinnedCount: pinned.count, facts: consolidated, notes: notes.length, pending, state: input.state }), choice, status, state: input.state }
 }
 
 export async function composeMemoryAtStart(input: { task?: StartTask; projectKey: string; sessionId?: string; root: string; dir?: string; now?: Date }): Promise<string | null> {

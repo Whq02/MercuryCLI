@@ -52,7 +52,7 @@ try {
   const entry = entries.find(row => row.text === rule)
   check('accepted rule remains verbatim and asked on the shelf', entry !== undefined && readPins(dir).some(p => p.seq === entry.seq && p.asked))
   check('refusals create no drafts', pendingRows(dir).length === 0)
-  const fact = retainItems([{ content: 'the workshop has two blue doors' }], { session: 'intent-proof' }, dir)
+  const fact = retainItems([{ content: 'the boathouse has two blue doors' }], { session: 'intent-proof' }, dir)
   check('ordinary retention still works without a directive', fact[0]?.status === 'stored')
   if (entry) {
     pinFact(entry.seq, dir, new Date(), { asked: true })
