@@ -27,6 +27,10 @@ export function collapseWhitespace(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
 }
 
+export function clipWithEllipsis(text: string, max: number): string {
+  return text.length <= max ? text : `${text.slice(0, max - 1)}…`
+}
+
 type IndexSearchable = {
   indexOf(needle: string, start?: number): number
 }
