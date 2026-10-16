@@ -11,6 +11,7 @@
 # gate-watch: src/utils/router/providers/* src/utils/sessionStorage/chain.ts src/utils/toolSchemaCache.ts
 # gate-watch: src/prompt/composer.ts src/utils/settings/settings.ts scripts/lib/hermetic.ts src/services/eval/interpreters.ts src/tools/ComputerTool/ComputerTool.ts
 # gate-watch: scripts/engine-durability/harness.ts
+# gate-watch: src/run-core/turn-machine.ts src/services/run/resolveOwner.ts src/state/AppStateStore.ts src/utils/fileStateCache.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
