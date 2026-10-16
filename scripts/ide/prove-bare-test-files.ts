@@ -61,19 +61,23 @@ const bareLadder = ((): string => {
 check('S0 the stub ladder carries no pytest', !importsPytest(bareLadder), bareLadder)
 
 const SUM_TESTS = 'def add(a, b):\n    return a + b\n\ndef test_adds_two():\n    assert add(1, 1) == 2\n\ndef test_adds_three():\n    assert add(1, 2) == 3\n\ndef test_wrong_on_purpose():\n    assert add(2, 2) == 5\n'
+const MOCK_TESTS = 'from unittest.mock import patch\nfrom unittest import mock\n\ndef test_patched():\n    with patch("os.getcwd", return_value="/x"):\n        import os\n        assert os.getcwd() == "/x"\n\ndef test_mock_object():\n    assert mock.Mock()() is not None\n'
 const UNITTEST_TESTS = 'import unittest\n\nclass TestCalc(unittest.TestCase):\n    def test_adds(self):\n        self.assertEqual(1 + 1, 2)\n\n    def test_multiplies(self):\n        self.assertEqual(2 * 3, 6)\n'
+const UNITTEST_FROM_IMPORT = 'from unittest import TestCase\n\nclass TestFromImport(TestCase):\n    def test_one(self):\n        self.assertTrue(True)\n'
+const BARE_WITH_FAILURE = 'def test_bare_passes():\n    assert 1 == 1\n\ndef test_bare_fails():\n    assert 1 == 2\n'
 
-function bareProject(): string {
+function bareProject(files: Record<string, string> = { 'test_sum.py': SUM_TESTS }): string {
   const root = path.join(mkdtempSync(path.join(scratch, 'box-')), '7b1 spaced pytest')
   mkdirSync(root)
-  writeFileSync(path.join(root, 'test_sum.py'), SUM_TESTS)
+  for (const [name, text] of Object.entries(files)) writeFileSync(path.join(root, name), text)
   return root
 }
-function unittestProject(): string {
+function unittestProject(extra: Record<string, string> = {}): string {
   const root = mkdtempSync(path.join(scratch, 'unit-'))
   mkdirSync(path.join(root, 'tests'))
   writeFileSync(path.join(root, 'tests', '__init__.py'), '')
   writeFileSync(path.join(root, 'tests', 'test_calc.py'), UNITTEST_TESTS)
+  for (const [name, text] of Object.entries(extra)) writeFileSync(path.join(root, 'tests', name), text)
   return root
 }
 function pin(interpreter: string): void {
@@ -105,6 +109,24 @@ if (pytestPython !== null) {
   const rr = rerun.data.record
   check('A4 rerunFailed runs exactly the one failing node', rr !== undefined && rr.selection === 'rerun-failed' && rr.counts.failed === 1 && rr.counts.passed === 0 && rr.command.includes('test_sum.py::test_wrong_on_purpose'), JSON.stringify({ sel: rr?.selection, counts: rr?.counts }))
   rmSync(path.dirname(root), { recursive: true, force: true })
+
+  const mocked = bareProject({ 'test_svc.py': MOCK_TESTS })
+  pin(pytestPython)
+  const mockProfile = pythonProject.buildPythonProjectProfile(mocked)
+  check('A5 a pytest file whose only unittest words are unittest.mock imports is pytest evidence, never unittest\'s (the import alone decides nothing)', mockProfile.testFrameworks.pytest.detected === true && mockProfile.testFrameworks.unittest.detected === false && JSON.stringify(mockProfile.testFrameworks.bareFiles) === JSON.stringify(['test_svc.py']), JSON.stringify(mockProfile.testFrameworks))
+  const mockDiscover = await call(mocked, { op: 'discover' })
+  check('A5 discover lists its two pytest nodes', mockDiscover.data.result.startsWith('pytest: 2 test(s)') && mockDiscover.data.result.includes('test_svc.py::test_patched'), mockDiscover.data.result)
+  const mockRun = await call(mocked, { op: 'run' })
+  check('A5 run takes the pytest lane: 2 passed, outcome succeeded, no NOTE', mockRun.data.record?.framework === 'pytest' && mockRun.data.record?.counts.passed === 2 && mockRun.data.outcome === 'succeeded' && !mockRun.data.result.includes('NOTE:'), mockRun.data.result)
+  rmSync(path.dirname(mocked), { recursive: true, force: true })
+
+  const mixed = unittestProject({ 'test_bare.py': BARE_WITH_FAILURE })
+  pin(pytestPython)
+  const mixedRun = await call(mixed, { op: 'run' })
+  check('A6 a mixed project (TestCase file + bare file) with pytest importable runs all four under pytest, the bare failure counted', mixedRun.data.record?.framework === 'pytest' && mixedRun.data.record?.counts.passed === 3 && mixedRun.data.record?.counts.failed === 1 && mixedRun.data.record?.verdict === undefined, JSON.stringify({ fw: mixedRun.data.record?.framework, counts: mixedRun.data.record?.counts, verdict: mixedRun.data.record?.verdict }))
+  const explicitUnit = await call(mixed, { op: 'run', framework: 'unittest' })
+  check('A7 framework:"unittest" on the mixed project with pytest importable: the bare file is named as not collected with the pytest remedy, the outcome is not succeeded', explicitUnit.data.record?.verdict === 'uncollected' && explicitUnit.data.record?.counts.passed === 2 && explicitUnit.data.outcome === 'failed' && (explicitUnit.data.record?.verdictNote ?? '') === '1 test file(s) not collected (tests/test_bare.py) — the unittest lane collects unittest.TestCase classes from test*.py files only; pass framework: "pytest" to run them under pytest', explicitUnit.data.result)
+  rmSync(mixed, { recursive: true, force: true })
 } else {
   console.log('  [SKIP — LOUD] no interpreter on this machine imports pytest — point MERCURY_PROOF_PYTEST_PYTHON at one (a venv with pytest) to run the pytest arm; the stub-ladder arms below still run')
 }
@@ -117,7 +139,7 @@ section('B. the same files with pytest absent from the ladder — a zero-run is 
   check('B1 the bare file is still pytest-shaped evidence (the lane decision is the probe\'s)', profile.testFrameworks.pytest.detected === true && profile.testFrameworks.pytest.configured === false, JSON.stringify(profile.testFrameworks.pytest))
   const discover = await call(root, { op: 'discover' })
   const lines = discover.data.result.split('\n')
-  check('B2 discover says unittest collected 0 and names the file, the lane and the remedy', lines[0] === 'unittest: 0 test(s)' && (lines[1] ?? '').startsWith('NOTE: 1 test file(s) found (test_sum.py), the unittest lane collects unittest.TestCase classes only — pytest is not importable for ') && (lines[1] ?? '').endsWith('install it (pip install pytest) or name the framework'), discover.data.result)
+  check('B2 discover says unittest collected 0 and names the uncollected file, the lane and the remedy', lines[0] === 'unittest: 0 test(s)' && lines[1] === `NOTE: 1 test file(s) not collected (test_sum.py) — the unittest lane collects unittest.TestCase classes from test*.py files only; pytest is not importable for ${bareLadder}; install it (pip install pytest) or name the framework`, discover.data.result)
   const run = await call(root, { op: 'run' })
   const r = run.data.record
   check('B3 the record\'s verdict word is zero-run with zero counts and no invented rows', r !== undefined && r.verdict === 'zero-run' && zero(r.counts) && r.failures.length === 0 && r.cases.length === 0, JSON.stringify({ verdict: r?.verdict, counts: r?.counts }))
@@ -134,21 +156,36 @@ section('B. the same files with pytest absent from the ladder — a zero-run is 
   const explicit = await call(root, { op: 'run', framework: 'unittest' })
   check('B6 an explicit framework still runs that lane; its empty run is a zero-run too, with no fallback note', explicit.data.record?.framework === 'unittest' && explicit.data.record?.verdict === 'zero-run' && !explicit.data.result.includes('NOTE:'), explicit.data.result)
   rmSync(path.dirname(root), { recursive: true, force: true })
+
+  const mixed = unittestProject({ 'test_bare.py': BARE_WITH_FAILURE })
+  pin(bareLadder)
+  const mixedDiscover = await call(mixed, { op: 'discover' })
+  const md = mixedDiscover.data.result.split('\n')
+  check('B7 a mixed project without pytest: discover counts the two TestCase tests and names exactly the file the unittest lane did not collect', md[0] === 'unittest: 2 test(s)' && md[1] === `NOTE: 1 test file(s) not collected (tests/test_bare.py) — the unittest lane collects unittest.TestCase classes from test*.py files only; pytest is not importable for ${bareLadder}; install it (pip install pytest) or name the framework`, mixedDiscover.data.result)
+  const mixedRun = await call(mixed, { op: 'run' })
+  const mr = mixedRun.data.record
+  check('B7 the run that skipped a test file is never succeeded: verdict uncollected, the two tests that ran counted, the skipped file named once', mr?.verdict === 'uncollected' && mr?.counts.passed === 2 && mr?.counts.failed === 0 && mixedRun.data.outcome === 'failed' && mixedRun.effect.outcome === 'failed' && mr?.verdictNote === `1 test file(s) not collected (tests/test_bare.py) — the unittest lane collects unittest.TestCase classes from test*.py files only; pytest is not importable for ${bareLadder}; install it (pip install pytest) or name the framework`, mixedRun.data.result)
+  check('B7 the result reads the counts line then one NOTE with the skipped file, never the all-files list', mixedRun.data.result.includes('unittest all — 2 passed · 0 failed') && mixedRun.data.result.split('NOTE:').length === 2 && !mixedRun.data.result.includes('tests/test_calc.py'), mixedRun.data.result)
+  const mixedInspect = await runWithCwdOverride(mixed, () => resolveResource(`mercury://test/run/${mr!.id}`, { owner: makeOwnerKey({ workspace: mixed, sessionId: 'bare-test-files-proof', lane: 'main' }), cwd: mixed }))
+  check('B7 the Inspect view says test files were not collected', mixedInspect.state === 'ok' && mixedInspect.resource.summary.includes('test files not collected'), JSON.stringify(mixedInspect).slice(0, 240))
+  const mixedRerun = await call(mixed, { op: 'rerunFailed' })
+  check('B7 rerunFailed after it says the skipped file beside "no failures"', mixedRerun.data.outcome === 'no-change' && mixedRerun.data.result.includes('had no failures among the tests it ran; 1 test file(s) not collected (tests/test_bare.py)'), mixedRerun.data.result)
+  rmSync(mixed, { recursive: true, force: true })
 }
 
-section('C. a real unittest project (tests/test_calc.py imports unittest) stays unittest on both ladders and runs its two tests')
+section('C. a real unittest project (tests/test_calc.py derives from unittest.TestCase; a second file spells it `from unittest import TestCase`) stays unittest on both ladders and runs its three tests')
 for (const [label, interpreter] of [['the pytest-carrying interpreter', pytestPython], ['the stub ladder', bareLadder]] as const) {
   if (interpreter === null) {
     console.log(`  [SKIP — LOUD] ${label}: none on this machine`)
     continue
   }
-  const root = unittestProject()
+  const root = unittestProject({ 'test_from_import.py': UNITTEST_FROM_IMPORT })
   pin(interpreter)
   const profile = pythonProject.buildPythonProjectProfile(root)
-  check(`C1 ${label}: the unittest import is the evidence, pytest is not detected`, profile.testFrameworks.unittest.detected === true && profile.testFrameworks.unittest.evidence === 'tests/test_calc.py imports unittest' && profile.testFrameworks.pytest.detected === false, JSON.stringify(profile.testFrameworks))
+  check(`C1 ${label}: the TestCase class is the evidence, pytest is not detected, no file is bare`, profile.testFrameworks.unittest.detected === true && profile.testFrameworks.unittest.evidence === 'tests/test_calc.py carries unittest.TestCase / unittest.main' && profile.testFrameworks.pytest.detected === false && profile.testFrameworks.bareFiles.length === 0, JSON.stringify(profile.testFrameworks))
   const run = await call(root, { op: 'run' })
   const r = run.data.record
-  check(`C2 ${label}: the run is unittest with 2 passed and no verdict word`, r !== undefined && r.framework === 'unittest' && r.counts.passed === 2 && r.verdict === undefined && run.data.outcome === 'succeeded', JSON.stringify({ fw: r?.framework, counts: r?.counts, verdict: r?.verdict, outcome: run.data.outcome }))
+  check(`C2 ${label}: the run is unittest with 3 passed and no verdict word`, r !== undefined && r.framework === 'unittest' && r.counts.passed === 3 && r.verdict === undefined && run.data.outcome === 'succeeded', JSON.stringify({ fw: r?.framework, counts: r?.counts, verdict: r?.verdict, outcome: run.data.outcome }))
   check(`C2 ${label}: no fallback note is appended`, !run.data.result.includes('NOTE:'), run.data.result)
   rmSync(root, { recursive: true, force: true })
 }

@@ -3,7 +3,7 @@ import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import { spawn, spawnSync } from 'node:child_process'
 import { settleChildRun } from '../../utils/childSettle.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
@@ -54,7 +54,7 @@ export interface TestRunRecord {
   outputArtifactRef?: string
   outputTail: string[]
   exitCode: number | null
-  verdict?: 'no-match' | 'zero-run'
+  verdict?: 'no-match' | 'zero-run' | 'uncollected'
   verdictNote?: string
   diagnosticsNote?: string
 }
@@ -109,28 +109,45 @@ function resolveFramework(from: string = getCwd(), explicit?: TestFramework): Te
   return 'unittest'
 }
 
-function namedTestFiles(files: readonly string[]): string {
-  return `${files.length} test file(s) found (${files.slice(0, 3).join(', ')}${files.length > 3 ? ', …' : ''})`
+function namedFiles(files: readonly string[]): string {
+  return `${files.slice(0, 3).join(', ')}${files.length > 3 ? ', …' : ''}`
 }
 
-export function pytestFallbackNote(from: string = getCwd()): string | null {
+function namedTestFiles(files: readonly string[]): string {
+  return `${files.length} test file(s) found (${namedFiles(files)})`
+}
+
+export function pytestFallbackNote(from: string = getCwd(), uncollected?: readonly string[]): string | null {
   const profile = buildPythonProjectProfile(from)
-  const { pytest, testFiles } = profile.testFrameworks
+  const { pytest } = profile.testFrameworks
   if (!pytest.detected) return null
   const probe = probePytest(from)
-  if (probe.available) return null
   if (pytest.configured) {
+    if (probe.available) return null
     return (
       `NOTE: pytest is configured (${pytest.evidence ?? 'project markers'}) but ${probe.detail} — ` +
       `fell back to unittest. pip install pytest (into the selected interpreter) restores the pytest lane.`
     )
   }
-  const interpreter = profile.interpreter.state === 'ok' ? profile.interpreter.command : 'the selected interpreter'
-  return `NOTE: ${namedTestFiles(testFiles)}, the unittest lane collects unittest.TestCase classes only — ${pytestMissingWhy(interpreter)}`
+  const skipped = uncollected ?? profile.testFrameworks.bareFiles
+  if (skipped.length === 0) return null
+  return `NOTE: ${uncollectedNote(from, skipped)}`
 }
 
 function pytestMissingWhy(interpreter: string): string {
   return `pytest is not importable for ${interpreter}; install it (pip install pytest) or name the framework`
+}
+
+const UNITTEST_COLLECTS = 'the unittest lane collects unittest.TestCase classes from test*.py files only'
+
+function uncollectedWhy(from: string): string {
+  const profile = buildPythonProjectProfile(from)
+  const interpreter = profile.interpreter.state === 'ok' ? profile.interpreter.command : 'the selected interpreter'
+  return probePytest(from).available ? 'pass framework: "pytest" to run them under pytest' : pytestMissingWhy(interpreter)
+}
+
+function uncollectedNote(from: string, skipped: readonly string[]): string {
+  return `${skipped.length} test file(s) not collected (${namedFiles(skipped)}) — ${UNITTEST_COLLECTS}; ${uncollectedWhy(from)}`
 }
 
 function zeroRunNote(from: string, framework: TestFramework, interpreter: string, testFiles: readonly string[], runnerWords: string): string {
@@ -138,9 +155,43 @@ function zeroRunNote(from: string, framework: TestFramework, interpreter: string
     framework === 'unittest' && !probePytest(from).available
       ? pytestMissingWhy(interpreter)
       : framework === 'unittest'
-        ? `unittest collects unittest.TestCase classes from test*.py files only — ${runnerWords}`
+        ? `${UNITTEST_COLLECTS} — ${runnerWords}; pass framework: "pytest" to run them under pytest`
         : runnerWords
   return `${namedTestFiles(testFiles)}, the ${framework} lane ran 0 — ${why}`
+}
+
+function uncollectedUnittestFiles(root: string, testFiles: readonly string[], collected: { ids?: readonly string[]; files?: readonly string[] }): string[] {
+  const seen = new Set<string>()
+  const relOf = (abs: string): string | null => {
+    for (const base of [root, realpathOrSelf(root)]) {
+      const rel = path.relative(base, realpathOrSelf(abs)).split(path.sep).join('/')
+      if (!rel.startsWith('..') && !path.isAbsolute(rel)) return rel
+    }
+    return null
+  }
+  for (const file of collected.files ?? []) {
+    const rel = relOf(file)
+    if (rel !== null) seen.add(rel)
+  }
+  for (const id of collected.ids ?? []) {
+    const parts = id.split('.')
+    for (let i = parts.length - 1; i >= 1; i--) {
+      const candidate = `${parts.slice(0, i).join('/')}.py`
+      if (testFiles.includes(candidate)) {
+        seen.add(candidate)
+        break
+      }
+    }
+  }
+  return testFiles.filter(f => !seen.has(f))
+}
+
+function realpathOrSelf(p: string): string {
+  try {
+    return realpathSync(p)
+  } catch {
+    return p
+  }
 }
 
 
@@ -425,6 +476,7 @@ interface DiscoverOutcome {
   tests: string[]
   collectErrors: string[]
   truncated?: number
+  uncollected?: string[]
 }
 
 export async function discoverPythonTests(opts?: {
@@ -494,11 +546,13 @@ export async function discoverPythonTests(opts?: {
     }
   }
   const cap = 500
+  const uncollected = framework === 'unittest' ? uncollectedUnittestFiles(root, buildPythonProjectProfile(from).testFrameworks.testFiles, { ids: tests }) : []
   return {
     framework,
     tests: tests.slice(0, cap),
     collectErrors,
     ...(tests.length > cap ? { truncated: tests.length - cap } : {}),
+    ...(uncollected.length > 0 ? { uncollected } : {}),
   }
 }
 
@@ -614,11 +668,18 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
 
   const selectionLabel = opts?.selectionLabel ?? (sel.length ? `nodes:${sel.join(',')}`.slice(0, 200) : 'all')
   const noMatchWords = cases.length === 0 && collectErrors.length === 0 ? pythonNoMatchWords(framework, exitCode, output) : undefined
-  const testFiles = noMatchWords !== undefined && selectionLabel === 'all' ? buildPythonProjectProfile(from).testFrameworks.testFiles : []
-  const verdict: TestRunRecord['verdict'] = noMatchWords === undefined ? undefined : testFiles.length > 0 ? 'zero-run' : 'no-match'
+  const testFiles = selectionLabel === 'all' && (noMatchWords !== undefined || framework === 'unittest') ? buildPythonProjectProfile(from).testFrameworks.testFiles : []
+  const uncollected =
+    framework === 'unittest' && noMatchWords === undefined && cases.length > 0 && selectionLabel === 'all'
+      ? uncollectedUnittestFiles(root, testFiles, { files: cases.map(c => c.file ?? '').filter(Boolean) })
+      : []
+  const verdict: TestRunRecord['verdict'] =
+    noMatchWords !== undefined ? (testFiles.length > 0 ? 'zero-run' : 'no-match') : uncollected.length > 0 ? 'uncollected' : undefined
   let verdictNote: string | undefined
   if (verdict === 'zero-run') {
     verdictNote = zeroRunNote(from, framework, selection.command, testFiles, noMatchWords!)
+  } else if (verdict === 'uncollected') {
+    verdictNote = uncollectedNote(from, uncollected)
   } else if (noMatchWords !== undefined) {
     verdictNote = `${selectionLabel === 'all' ? 'no test ran' : `no test matched ${selectionLabel}`} — ${noMatchWords}`
   } else if (cases.length === 0 && collectErrors.length === 0) {
@@ -685,7 +746,8 @@ export async function rerunFailedTests(opts?: { from?: string; signal?: AbortSig
     return { state: 'nothing-to-rerun', note: `latest run ${latest.id} ran 0 tests — nothing to rerun; ${latest.verdictNote ?? 'the whole suite ran nothing'}` }
   }
   if (latest.failures.length === 0) {
-    return { state: 'nothing-to-rerun', note: `latest run ${latest.id} had no failures — nothing to rerun` }
+    const skipped = latest.verdict === 'uncollected' ? ` among the tests it ran; ${latest.verdictNote ?? 'test files were not collected'}` : ''
+    return { state: 'nothing-to-rerun', note: `latest run ${latest.id} had no failures${skipped} — nothing to rerun` }
   }
   return runPythonTests({
     from,

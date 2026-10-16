@@ -1,6 +1,6 @@
 
 import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -115,14 +115,22 @@ export type Output = {
   record?: TestRunRecord
 }
 
-function fallbackNoteSuffix(explicit: string | undefined, resolved: string, record?: TestRunRecord): string {
-  if (explicit !== undefined || resolved !== 'unittest' || record?.verdict === 'zero-run') return ''
+function fallbackNoteSuffix(explicit: string | undefined, resolved: string, record?: TestRunRecord, uncollected?: readonly string[]): string {
+  if (explicit !== undefined || resolved !== 'unittest' || record?.verdict === 'zero-run' || record?.verdict === 'uncollected') return ''
   try {
-    const note = pytestFallbackNote()
+    const note = pytestFallbackNote(undefined, uncollected)
     return note ? `\n${note}` : ''
   } catch {
     return ''
   }
+}
+
+function ranIn(record: TestRunRecord): string {
+  const here = resolve(getCwd())
+  const there = resolve(record.cwd)
+  if (there === here) return ''
+  const rel = relative(here, there)
+  return rel.startsWith('..') || isAbsolute(rel) ? ` (in ${there})` : ` (in ${rel.split(sep).join('/')}/)`
 }
 
 function summarize(record: TestRunRecord): string {
@@ -140,7 +148,7 @@ function summarize(record: TestRunRecord): string {
     .slice(0, 10)
     .map(x => `  ${x.id}${x.file ? ` (${x.file}${x.line ? `:${x.line}` : ''})` : ''}\n    ${(x.message ?? '').split('\n').slice(-2).join(' · ').slice(0, 200)}`)
   return [
-    `ran: ${record.command.join(' ')}`,
+    `ran: ${record.command.join(' ')}${ranIn(record)}`,
     head,
     ...(noMatch ? [`counts: ${counts}`] : []),
     ...(failures.length ? ['failures:', ...failures] : []),
@@ -230,14 +238,17 @@ async function runRunnerOp(
   onProgress?: ToolCallProgress,
 ): Promise<{ result: string; outcome: ToolEffectOutcome; record?: TestRunRecord }> {
   if (input.op === 'discover') {
-    const { profiles } = discoverRunnerProfiles()
+    const rel = relative(resolve(getCwd()), resolve(profile.root))
+    const below = rel !== '' && !rel.startsWith('..') && !isAbsolute(rel) ? `${rel.split(sep).join('/')}/` : null
+    const { profiles } = discoverRunnerProfiles(below === null ? undefined : profile.root)
     const lines = profiles.map(p =>
       `${p.id} [${p.runner}/${p.kind}] ${p.title}` +
-      (p.availability.state === 'ok' ? '' : ` — UNAVAILABLE: ${p.availability.reason} (remedy: ${p.availability.remedy})`),
+      (p.availability.state === 'ok' ? '' : ` — UNAVAILABLE: ${p.availability.reason} (remedy: ${p.availability.remedy})`) +
+      (below === null ? '' : ` — in ${below}`),
     )
     return {
       result: lines.length
-        ? `runner profiles (manifest-driven):\n${lines.join('\n')}`
+        ? `runner profiles (${below === null ? 'manifest-driven' : `one level down, in ${below}`}):\n${lines.join('\n')}`
         : 'no runner profiles discovered from this project\'s manifests',
       outcome: 'no-change',
     }
@@ -325,8 +336,12 @@ async function runOp(
   if (lane.lane === 'runner' && (input.op === 'discover' || input.op === 'run')) {
     return runRunnerOp(input, lane.profile, signal, onProgress)
   }
+  let pythonRecordBelow: string | undefined
   if (input.op === 'rerunFailed') {
     const latest = latestRunHere()
+    if (latest && (latest.framework === 'pytest' || latest.framework === 'unittest') && resolve(latest.cwd) !== resolve(getCwd())) {
+      pythonRecordBelow = latest.cwd
+    }
     if (latest && latest.framework !== 'pytest' && latest.framework !== 'unittest') {
       const out = await rerunRunnerFailures(latest, { ...(signal ? { signal } : {}) })
       if (out.state === 'unavailable') {
@@ -355,7 +370,7 @@ async function runOp(
       return {
         result:
           `${out.framework}: ${out.tests.length} test(s)${out.truncated ? ` (+${out.truncated} truncated)` : ''}` +
-          fallbackNoteSuffix(input.framework, out.framework) +
+          fallbackNoteSuffix(input.framework, out.framework, undefined, out.uncollected ?? []) +
           (out.collectErrors.length ? `\ncollect errors:\n${out.collectErrors.map(e => `  ${e}`).join('\n')}` : '') +
           (lines.length ? `\n${lines.join('\n')}${out.tests.length > lines.length ? `\n(+${out.tests.length - lines.length} more)` : ''}` : ''),
         outcome: 'no-change',
@@ -408,7 +423,7 @@ async function runOp(
       }
     }
     case 'rerunFailed': {
-      const out = await rerunFailedTests({ ...(signal ? { signal } : {}) })
+      const out = await rerunFailedTests({ ...(pythonRecordBelow !== undefined ? { from: pythonRecordBelow } : {}), ...(signal ? { signal } : {}) })
       if ('note' in out) return { result: out.note, outcome: 'no-change' }
       if (out.state === 'unavailable') {
         return { result: `rerun unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }

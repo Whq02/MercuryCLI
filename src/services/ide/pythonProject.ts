@@ -41,6 +41,7 @@ interface PythonProjectProfile {
     pytest: { detected: boolean; evidence?: string; configured: boolean }
     unittest: { detected: boolean; evidence?: string }
     testFiles: string[]
+    bareFiles: string[]
   }
   pyright: { configured: boolean; evidence?: string }
   ruff: { available: boolean; version?: string; configured: boolean; evidence?: string }
@@ -83,7 +84,7 @@ const TEST_FILE_NAME = /(^test_.*|_test)\.py$/
 const TEST_FILE_SCAN_CAP = 400
 const TEST_FILE_SNIFF_CAP = 50
 const TEST_FILE_SNIFF_BYTES = 65_536
-const UNITTEST_IMPORT = /^[ \t]*(?:import[ \t]+unittest\b|from[ \t]+unittest(?:\.\w+)*[ \t]+import\b)/m
+const UNITTEST_FRAMEWORK = /^[ \t]*class[ \t]+\w+[ \t]*\([^)]*\bTestCase\b[^)]*\)|\bunittest\.main\(/m
 
 export function findPythonTestFiles(root: string, skipDirs: ReadonlySet<string> = new Set()): string[] {
   const found = new Set<string>()
@@ -112,13 +113,13 @@ export function findPythonTestFiles(root: string, skipDirs: ReadonlySet<string> 
   return [...found].sort()
 }
 
-function importsUnittest(file: string): boolean {
+function carriesUnittest(file: string): boolean {
   try {
     const fd = openSync(file, 'r')
     try {
       const buf = Buffer.alloc(TEST_FILE_SNIFF_BYTES)
       const n = readSync(fd, buf, 0, TEST_FILE_SNIFF_BYTES, 0)
-      return UNITTEST_IMPORT.test(buf.toString('utf8', 0, n))
+      return UNITTEST_FRAMEWORK.test(buf.toString('utf8', 0, n))
     } finally {
       closeSync(fd)
     }
@@ -302,14 +303,14 @@ export function buildPythonProjectProfile(from: string = getCwd()): PythonProjec
   const pytestConfigured = pytestEvidence !== undefined
 
   const testFiles = findPythonTestFiles(root)
-  const unittestFiles = testFiles.slice(0, TEST_FILE_SNIFF_CAP).filter(f => importsUnittest(path.join(root, f)))
+  const unittestFiles = testFiles.slice(0, TEST_FILE_SNIFF_CAP).filter(f => carriesUnittest(path.join(root, f)))
   const bareFiles = testFiles.filter(f => !unittestFiles.includes(f))
   if (!pytestConfigured && bareFiles.length > 0) {
     pytestEvidence = `${bareFiles.length} bare test file(s): ${bareFiles.slice(0, 3).join(', ')}${bareFiles.length > 3 ? ', …' : ''}`
   }
 
   let unittestEvidence: string | undefined
-  if (unittestFiles.length > 0) unittestEvidence = `${unittestFiles[0]} imports unittest`
+  if (unittestFiles.length > 0) unittestEvidence = `${unittestFiles[0]} carries unittest.TestCase / unittest.main`
   for (const dir of ['tests', 'test']) {
     if (unittestEvidence !== undefined) break
     if (existsSync(path.join(root, dir))) unittestEvidence = `${dir}/ directory`
@@ -345,6 +346,7 @@ export function buildPythonProjectProfile(from: string = getCwd()): PythonProjec
         ...(unittestEvidence ? { evidence: unittestEvidence } : {}),
       },
       testFiles,
+      bareFiles,
     },
     pyright: { configured: pyrightEvidence !== undefined, ...(pyrightEvidence ? { evidence: pyrightEvidence } : {}) },
     ruff: {
