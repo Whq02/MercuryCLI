@@ -810,6 +810,10 @@
         "accountIdentity": {
           "description": "Account identity on the screens: shown unless set to false; hidden takes every signed-in address, username and key tail off the screens (for a recording) and leaves the account word, while the Logins screen, /accounts and the health report still name the account",
           "type": "boolean"
+        },
+        "zen": {
+          "description": "Zen mode: true hides the lanes and vitals rails and the chat takes the full width of the terminal (the rail-less layout narrow terminals already get); off unless set to true; /zen flips it and the Zen mode row of /config shows it",
+          "type": "boolean"
         }
       },
       "additionalProperties": {}
