@@ -152,7 +152,7 @@ async function runStep(
         restart: 'never',
         lifecycle: 'session',
       }
-      const out = await startService({ spec, sessionId: ctx.sessionId })
+      const out = await startService({ spec, sessionId: ctx.sessionId, owner: ctx.owner })
       if ('error' in out) return { ok: false, detail: out.error }
       ctx.startedServices.push(step.name)
       return { ok: true, detail: `service '${step.name}' spawned (pid ${out.record.pid}) — mercury://service/${step.name}` }
