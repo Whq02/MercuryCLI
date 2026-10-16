@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-import { mkdtempSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const home = mkdtempSync(join(tmpdir(), 'cache-prefix-home-'))
-const cwd = mkdtempSync(join(tmpdir(), 'cache-prefix-cwd-'))
+const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'cache-prefix-cwd-')))
 mkdirSync(home, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-proof-cache-prefix'
@@ -80,7 +80,7 @@ for (const [family, model] of FAMILY_MODELS) {
   check('the renders differ across the boundary (the input is render-visible)', base !== moved)
   check('a non-empty shared prefix precedes the first difference', firstDiff > 0,
     `firstDiff=${firstDiff}`)
-  const headLine = 'Mercury — a private terminal software-development harness.\nWorking directory: '
+  const headLine = 'Working directory: '
   check('the first difference is the working directory in the head (the head leads; the constitution beneath it is byte-identical on both sides)',
     firstDiff >= headLine.length && base.startsWith(headLine) && moved.startsWith(headLine) && base.includes(MERCURY_CONSTITUTION) && moved.includes(MERCURY_CONSTITUTION),
     `firstDiff=${firstDiff}`)

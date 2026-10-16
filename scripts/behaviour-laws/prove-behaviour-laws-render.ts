@@ -57,7 +57,7 @@ section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
     ['the hooks fact', /Hooks are shell commands the user set up in settings/],
     ['the model-currency rule', /^Model currency:/m],
     ['the blocker form', /BLOCKED ON OPERATOR/],
-    ['tool effects are ground truth', /Tool effects and verification evidence are ground truth/],
+    ['the failure-string rule', /A returned string that reports a failure is a failure/],
   ]
   for (const [label, re] of sentinels) {
     const owners = contract.sections.filter(s => re.test(s.text)).map(s => s.name)
