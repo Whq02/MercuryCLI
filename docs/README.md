@@ -9,9 +9,9 @@ the guides by task; each page describes the installed product.
 - [AGENTS.md](../AGENTS.md): build, run and check a source checkout.
 - [INSTALL-WINDOWS-FROM-SOURCE.md](INSTALL-WINDOWS-FROM-SOURCE.md): the release route on Windows is one line in PowerShell 7 (`irm … | iex` in the README's Install section) and needs Git and nothing else; this guide builds Mercury from source on Windows with a check after each step.
 - [WINDOWS-GLYPH-FIELD-CHECK.md](WINDOWS-GLYPH-FIELD-CHECK.md): what to look at on Windows after updating, and what to report if a mark looks wrong.
-- [SESSIONS.md](SESSIONS.md): a session owns its conversation, model, permission mode, workspace and running work, hosted by the background daemon across the Boot face, chat and Session Concourse.
+- [SESSIONS.md](SESSIONS.md): a session owns its conversation, model, permission mode, workspace and running work, hosted by the background daemon across the home screen, chat and Session Concourse.
 - [SETTINGS.md](SETTINGS.md): Mercury stores settings in JSON files, edited in `/config` or through `/model`, `/effort`, `/permissions`, `/memory` and the MCPs & Skills menu.
-- [TRUST.md](TRUST.md): workspace trust gates project hooks, helpers and MCP servers until you grant trust for the directory, alongside permission modes and built-in command wards.
+- [TRUST.md](TRUST.md): workspace trust gates project hooks, credential helpers and project MCP servers until you trust the folder, alongside permission modes and built-in command safety rules.
 
 Keyboard interaction lives in the product: `/keys` shows the effective key
 map and `/keybindings` opens your keybindings file.
@@ -32,8 +32,8 @@ map and `/keybindings` opens your keybindings file.
 
 ## Loading, extending and delegating
 
-- [KIT.md](KIT.md): the MCPs & Skills menu, per-repository choices, presets and a running session's dials.
-- [EXTENSIONS.md](EXTENSIONS.md): extension manifests, sources, contributions, approval and the maker's commands.
+- [KIT.md](KIT.md): the MCPs & Skills menu, per-repository choices, presets and a running session's toggles.
+- [EXTENSIONS.md](EXTENSIONS.md): extension manifests, sources, contributions, approval and the author's commands.
 - [CREW.md](CREW.md): every Mercury session can delegate work to its crew of crewmates through the `Crewmate` tool, tracked live in `/crewmates` and `/runs` and reachable by id or name.
 - [SATURN.md](SATURN.md): schedules that send a prompt or start a session, the scheduler board and held or late fires.
 - [HOOKS.md](HOOKS.md): the four hook kinds, event inputs, command and HTTP answers, model verdicts and policy controls.
