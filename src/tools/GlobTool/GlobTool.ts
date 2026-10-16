@@ -25,8 +25,8 @@ import {
 
 const DEFAULT_RESULT_LIMIT = 100
 
-export function ignoredFoldersLine(ignored: number): string {
-  return `· ${ignored.toLocaleString('en-US')} ${ignored === 1 ? 'path' : 'paths'} under ignored folders not listed (name a folder as the path to search inside it)`
+export function ignoredPathsLine(ignored: number): string {
+  return `· ${ignored.toLocaleString('en-US')} ${ignored === 1 ? 'path' : 'paths'} under ignore rules not listed`
 }
 
 const inputSchema = z.strictObject({
@@ -162,7 +162,7 @@ export const GlobTool = buildTool({
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     const incompleteNote = data.incomplete !== undefined ? `\n(INCOMPLETE SEARCH — ${data.incomplete})` : ''
-    const ignoredNote = data.ignored !== undefined && data.ignored > 0 ? `\n${ignoredFoldersLine(data.ignored)}` : ''
+    const ignoredNote = data.ignored !== undefined && data.ignored > 0 ? `\n${ignoredPathsLine(data.ignored)}` : ''
     if (data.numFiles === 0) {
       return {
         tool_use_id: toolUseID,
