@@ -28,7 +28,6 @@ function section(t: string): void {
 const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
 const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
 const { getOriginalCwd, setOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.ts')
-const { getSessionStartDate } = await import('../../src/constants/common.ts')
 const contract = await import('../../src/prompt/mercuryContract.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
@@ -41,8 +40,7 @@ setCwdState(scratch)
 
 const MODEL = 'claude-fable-5-1'
 const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate'].map(name => ({ name })) as never
-const NAMELESS_HEAD = `Working directory: ${scratch}\nSession date: ${getSessionStartDate()}`
-const HEAD = `Mercury — a private terminal software-development harness.\n${NAMELESS_HEAD}`
+const HEAD = `Working directory: ${scratch}`
 const FACTS = ['# The project estate', '# Memory', '# Environment', 'Model currency:', 'Write down important information from tool results', '# Runtime posture', '# Autonomous runs']
 
 async function assemble(env: Record<string, string | undefined>): Promise<string[]> {
@@ -85,12 +83,12 @@ try {
     writeFileSync(slot, first)
     const replace = await assemble({ MERCURY_PROMPT_LAYERS: 'replace', MERCURY_PROMPT_REPLACE_FILE: slot })
     const text = joined(replace)
-    check('replace opens on the nameless head (the working directory and the session date): the product line goes with the name', replace[0] === NAMELESS_HEAD, j(replace[0]))
+    check('replace opens on the same head as stock (the working directory)', replace[0] === HEAD, j(replace[0]))
     check('the file\'s text is the second segment, verbatim (its trailing newline kept, nothing added around it)', replace[1] === first)
     check('the fact sections follow, as under stock', FACTS.every(fact => text.includes(fact)), FACTS.filter(fact => !text.includes(fact)).join(' · '))
     check('the constitution is absent under replace', !text.includes(contract.MERCURY_CONSTITUTION) && !text.includes('You are Mercury, an autonomous command-line interface and agent.'))
     const stock = await assemble({})
-    check('replace is stock with the head nameless and the file in the constitution\'s slot: the segments after the slot are byte-identical', j(replace.slice(2)) === j(stock.slice(2)))
+    check('replace is stock with the file in the constitution\'s slot: the segments after the slot are byte-identical', j(replace.slice(2)) === j(stock.slice(2)))
     const second = 'A different text, written after the first assembly.\n'
     writeFileSync(slot, second)
     const again = await assemble({ MERCURY_PROMPT_LAYERS: 'replace', MERCURY_PROMPT_REPLACE_FILE: slot })
@@ -103,16 +101,16 @@ try {
     }
     check('replace without a file refuses, naming MERCURY_PROMPT_REPLACE_FILE', refusal.includes('MERCURY_PROMPT_LAYERS=replace') && refusal.includes('MERCURY_PROMPT_REPLACE_FILE'), refusal)
     const lean = await assemble({ MERCURY_BARE: '1', MERCURY_PROMPT_LAYERS: 'replace', MERCURY_PROMPT_REPLACE_FILE: slot })
-    check('MERCURY_BARE=1 composes with replace: the nameless head and the file as one segment', j(lean) === j([`${NAMELESS_HEAD}\n\n${second}`]), j(lean).slice(0, 200))
+    check('MERCURY_BARE=1 composes with replace: the head and the file as one segment', j(lean) === j([`${HEAD}\n\n${second}`]), j(lean).slice(0, 200))
     check('the file is unread under stock (a file set beside stock changes nothing)', j(await assemble({ MERCURY_PROMPT_REPLACE_FILE: slot })) === j(stock))
   }
 
-  section('§3 whole — the nameless head and the file alone')
+  section('§3 whole — the head and the file alone')
   {
     const slot = join(scratch, 'whole.txt')
     writeFileSync(slot, 'The whole prompt beneath the head.\n')
     const whole = await assemble({ MERCURY_PROMPT_LAYERS: 'whole', MERCURY_PROMPT_REPLACE_FILE: slot })
-    check('whole is two segments: the nameless head and the file verbatim', whole.length === 2 && whole[0] === NAMELESS_HEAD && whole[1] === readFileSync(slot, 'utf8'), j(whole))
+    check('whole is two segments: the head and the file verbatim', whole.length === 2 && whole[0] === HEAD && whole[1] === readFileSync(slot, 'utf8'), j(whole))
     check('no fact section and no constitution follow', !FACTS.some(fact => joined(whole).includes(fact)) && !joined(whole).includes('You are Mercury'))
     check('MERCURY_BARE=1 leaves whole as it is', j(await assemble({ MERCURY_BARE: '1', MERCURY_PROMPT_LAYERS: 'whole', MERCURY_PROMPT_REPLACE_FILE: slot })) === j(whole))
     let refusal = ''

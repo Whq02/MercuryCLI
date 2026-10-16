@@ -35,7 +35,6 @@ const { clearSystemPromptSections } = await import('../../src/constants/systemPr
 const { getOriginalCwd, setOriginalCwd, setCwdState, setAskChannel } = await import('../../src/bootstrap/state.ts')
 const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
 const { resetHarnessMapForTest } = await import('../../src/utils/cockpit/harnessMap.ts')
-const { getSessionStartDate } = await import('../../src/constants/common.ts')
 const { buildEffectiveSystemPrompt } = await import('../../src/utils/systemPrompt.ts')
 const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.ts')
 const { assembleTurnSystemPrompt, buildSystemPromptBlocks } = await import('../../src/services/providers/anthropic/cacheAndUsage.ts')
@@ -51,7 +50,7 @@ setCwdState(scratch)
 
 const MODEL = 'claude-fable-5-1'
 const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate', 'AskUserQuestion', 'Skill', 'TaskCreate', 'RecordConvention', 'Retain'].map(name => ({ name })) as never
-const HEAD = `Mercury — a private terminal software-development harness.\nWorking directory: ${scratch}\nSession date: ${getSessionStartDate()}`
+const HEAD = `Working directory: ${scratch}`
 
 const DROPPED_PHRASES = [
   'IMPORTANT:',
@@ -153,7 +152,7 @@ try {
   for (const mode of ['interactive', 'headless'] as const) {
     const segments = await assemble(mode)
     const text = segments.join('\n\n')
-    check(`${mode}: segment 0 is the head (the product line, the working directory, the session date)`, segments[0] === HEAD, j(segments[0]))
+    check(`${mode}: segment 0 is the head (the working directory alone: the constitution names the product, the user-context reminder carries the date)`, segments[0] === HEAD, j(segments[0]))
     check(`${mode}: segment 1 is the constitution, verbatim, its own segment`, segments[1] === TEXT)
     check(`${mode}: the constitution appears exactly once`, countOf(text, TEXT) === 1)
     check(`${mode}: exactly one "You are" line in the whole prompt`, (text.match(/^You are /gm) ?? []).length === 1)
