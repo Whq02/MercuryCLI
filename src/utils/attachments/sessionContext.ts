@@ -53,11 +53,6 @@ function awarenessAlreadyEmittedThisTurn(
   return false
 }
 
-export function getOutputTokenUsageAttachment(): Attachment[] {
-
-  return []
-}
-
 const usageLimitNoticed = new Set<string>()
 
 export function getUsageLimitNoticeAttachment(
