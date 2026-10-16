@@ -8,13 +8,13 @@ Configured MCP servers are validated without being started.
 
 The certificate holds three properties:
 
-1. **Evidence-backed** — every check carries a mandatory `evidence` string
+1. **Evidence-backed:** every check carries a mandatory `evidence` string
    naming the artifact, probe, or value consulted. No evidence means the check
    reads `unknown`, never a silent pass.
-2. **Freshness-honest** — evidence that predates what it certifies (a gate
+2. **Freshness-honest:** evidence that predates what it certifies (a gate
    verdict from an older HEAD, a certificate from before a resume) reads
    `stale`.
-3. **A verdict** — `certified`, `caution`, or `fault`, with fixes ranked
+3. **A verdict:** `certified`, `caution`, or `fault`, with fixes ranked
    worst-first.
 
 The report is strictly read-only against the harness: it consults gate helpers,
@@ -61,7 +61,7 @@ it was last checked, a newer number learned from the registry with the day
 it was learned, or the override. It names a failed or unsaved registry read.
 When the provider refuses the presented version as too old, Mercury learns
 the newer number once and retries the refused request; the refusal is
-reported as what it is — the version required, what Mercury presented and
+reported with the version required, what Mercury presented and
 what the registry read did. `MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version>`
 raises the presented version without a rebuild and wins over every other
 source; `MERCURY_DISABLE_NONESSENTIAL_TRAFFIC` keeps the registry reads dark.
@@ -102,8 +102,8 @@ and `/browser status` show the same resolution and the discovered apps.
 
 RUNTIME's `Device headroom` row is joined by `Box lock`: the coordination
 directory of the box lock (`MERCURY_BOX_LOCK_DIR`), the slots held and by
-whom, and the tickets waiting — or the plain word that no lock directory is
-named. The resource `mercury://health/box` gives an agent the same reading
+whom, and the tickets waiting (or the plain word that no lock directory is
+named). The resource `mercury://health/box` gives an agent the same reading
 live. The memory figure on the box row is the last sample the process took,
 with the clock it was taken at and its source (`vm_stat`, `meminfo`, the
 Windows counter, or the runtime's own free figure before any sample); a
@@ -119,18 +119,16 @@ Bash. On macOS it reads `ON — Bash filesystem + network confined
 (seatbelt/bubblewrap)`. On Linux and WSL2 it also says what the sandbox does
 about unix sockets, read from the apply-seccomp helper the sandbox resolves
 beside the bundle (the Linux archive ships it under `vendor/seccomp/<arch>/`):
-`ON — Bash filesystem + network confined (bubblewrap; unix sockets blocked)`
-with the helper found; `ON — Bash filesystem + network confined (bubblewrap;
-unix sockets open — no seccomp helper)` without it; and `ON — Bash filesystem
-+ network confined (bubblewrap; unix sockets open —
-guardrails.sandbox.network.allowAllUnixSockets)` when that setting tells the
+confined with unix sockets blocked when the helper is found, confined with
+unix sockets open when no seccomp helper is present, or confined with unix
+sockets open when `guardrails.sandbox.network.allowAllUnixSockets` tells the
 sandbox to skip the filter. The `/sandbox` dependencies tab shows the same helper as its
 `seccomp filter` row.
 
 TOOL CAPABILITY carries the `Tools withheld` check: every built-in tool kept
-out of the model's catalog because a machine dependency is absent — a debug
+out of the model's catalog because a machine dependency is absent (a debug
 adapter for Debug, a Godot executable for Godot, the desktop driver for
-Computer, the search binary for Grep and Glob — with why and the remedy;
+Computer, the search binary for Grep and Glob), with why and the remedy;
 the withheld tools also appear in `readiness[]` as `tool:withheld:<name>`
 rows. With nothing withheld the row says so and names what it checks. The
 row waits for the debug adapter's toolchain probes to answer, so it never
@@ -141,23 +139,20 @@ set in the environment, with Mercury's own stamps and the boot's saved
 defaults named apart from your overrides. Each override names the
 registered switch, its value and its kind; unset switches use their defaults.
 
-AUTH carries the `Model lists` row: for every provider family Mercury
+AUTH carries the `Model lists` row: for all 12 provider families Mercury
 carries typed model ids for (Anthropic, OpenAI, Z.AI, Moonshot, DeepSeek,
-xAI, Meta, Gemini, Hugging Face), whether each typed id is still served by the live
-model list the product has already read for that family's signed-in source.
-The row never fetches: it reads the catalogue already fetched by `/model`,
-`/logins` or a chat naming the family. A family nothing has asked about reads
-`no list read in this process`, a family without a credential reads
-`no credential`, and a family whose provider publishes no list (Z.AI) reads
-`no live list — typed table dated <date>`. Anthropic follows the same rule:
-its line names the credential door, the served and not-served counts, and
-`list from <age>`; without a read it says `no list read in this process —
-/model or a chat naming the family reads it · <n> typed ids not judged`.
-A failed read instead names the failed door, the endpoint's reason and the
-age; an absent credential reads `Anthropic · no credential · <n> typed ids
-not judged`. The evidence line counts served and unserved ids, then lists read against
-the number of families with a readable catalogue; Z.AI has no live list and
-is not part of that denominator.
+xAI, Meta, Gemini, Hugging Face, Mistral, Nous, OpenCode Zen), whether each
+typed id is still served by the live model list the product has already read
+for that family's signed-in source. The row never fetches: it reads the
+catalogue already fetched by `/model`, `/logins` or a chat naming the family.
+A family nothing has asked about reads `no list read in this process —
+/model or a chat naming the family reads it · <n> typed ids not judged`,
+and a family without a credential reads `<Family> · no credential · <n> typed
+ids not judged`. When a list has been read, the family's line names the
+credential door, the served and not-served counts, and `list from <age>`; a
+failed read names the failed door, the endpoint's reason and the age. The
+evidence line counts served and unserved ids, then `lists read <n> of 12`
+across all 12 families.
 The detail names one line per family and, beneath a family whose list lacks a typed id,
 the ids it lacks. The row reads `ok` when every typed id a read list can
 judge is served, `warn` when a read list lacks one, `info` when no list has
@@ -185,20 +180,20 @@ reads `info` (`no door opens for <model>`) and names `/router key brave` (or
 CREW & DAEMONS carries the `Store isolation` check, which reads the config
 home's harness records by Mercury's own fingerprint: a daemon-plane record carrying no Mercury
 fingerprint was written by another tool and is reported with its evidence
-line — named when the signature table recognizes the writer (the agent CLIs
+line: named when the signature table recognizes the writer (the agent CLIs
 and SDKs it knows), reported as unrecognized otherwise. An older Mercury's
 records are Mercury's own; version variance is never foreignness. The check's remedy archives the foreign records into a
-dated directory inside the home — reversible, nothing deleted.
+dated directory inside the home (reversible, nothing deleted).
 
 CREW & DAEMONS also carries `Mercury processes`, the process sweep: it lists
 Mercury's own processes on this box and classes each one by Mercury's own
-facts — running · stale · cannot end · not ours — never by a parent pid. A
+facts (`running`, `stale`, `cannot end`, `not ours`), never by a parent pid. A
 process is Mercury's own when its command line names Mercury and its
 executable is node, bun or the launcher; on Linux the executable is read
 from the command line or the kernel's own link to the binary, because the
 process table's command name there is the main thread's name. A
 window is read by its own registration (`<config home>/processes/`, a pid, a
-birth token and a heartbeat the cockpit writes and clears at exit) and by
+birth token and a heartbeat the window writes and clears at exit) and by
 whether a live shell still owns its terminal; a daemon by its own
 record, its owner, its live sessions, schedules and persistence; a runner by
 the daemon's roster and its session's seat. Any live fact keeps a process
@@ -230,7 +225,7 @@ at a time; the Windows guide describes the read and the stop.
 
 ## Fixes
 
-Checks can carry an executable remedy — `{plan, apply, verify}` — and a remedy
+Checks can carry an executable remedy (`{plan, apply, verify}`), and a remedy
 is offered only for statuses that assert something is wrong (`fail`, `warn`,
 `stale`); `ok`, `info`, `off`, and `unknown` rows never expose apply. The fix engine
 applies a remedy and then re-probes with `verify()`: the outcome you
@@ -240,8 +235,8 @@ evolution-ledger row, so the improvement history is auditable.
 Consent: in the interactive panel a fix goes through a consent card, and
 destructive remedies render the warning register. Headless, `mercury health
 --fix` applies safe remedies and requires `--yes` for destructive ones.
-`--only <id>` limits any headless form — the plain report, `--json`, `--fix`
-— to one check.
+`--only <id>` limits any headless form (the plain report, `--json`, `--fix`)
+to one check.
 
 ## The health JSON
 
@@ -251,14 +246,14 @@ terminal: the terminal-profile row reads as environmental and never raises
 the verdict. The document carries:
 
 - `verdict`, `ranAt`, `version`, `durationMs`, `depth`;
-- `head` — repo state at issue time: `{sha, branch, dirty}`, null fields when
+- `head`: repo state at issue time (`{sha, branch, dirty}`), null fields when
   not a git repository;
-- `nodeRuntime` — the runtime contract: `{observed, label, range, verdict}`
+- `nodeRuntime`: the runtime contract (`{observed, label, range, verdict}`)
   with verdict `supported`, `too-old`, `unqualified-major`, `prerelease`, or
   `invalid`;
-- `sections[]` — each `{id, title, checks[]}`, each check
+- `sections[]`: each `{id, title, checks[]}`, each check
   `{id, label, probe, depth, durationMs, evidence, evidenceAt, status}`;
-- `readiness[]` — the capability-readiness rows: each
+- `readiness[]`: the capability-readiness rows, each
   `{id, kind, label, state, detail, source, lastCheckedAt, latencyMs}`, with
   kind one of `tool`, `mcp`, `lane`, `engine`, `extension`, `skill`, and state
   one of `ready`, `configured`, `degraded`, `disabled`, `unavailable`.
@@ -270,7 +265,7 @@ Certificate files live beside the project's transcripts under
 `MERCURY_HEALTH_STATE_DIR` selects the project root used to resolve the
 store; it is not a direct certificate-directory override:
 
-- `health/last-cert.json` — an atomic, best-effort summary written after each
+- `health/last-cert.json`: an atomic, best-effort summary written after each
   certificate; the certificate chip in the session chrome folds it in (a
   summary older than a day reads stale), and resume honesty reads it too.
   A fast certificate written after a deep one keeps the deep-only rows'
@@ -278,11 +273,11 @@ store; it is not a direct certificate-directory override:
   a payload fault found at depth is never hidden behind a later fast
   caution; the next deep run replaces them. Skipped entirely when the
   certificate surface is gated off.
-- `health/last-preflight.json` — the boot preflight's summary. The preflight
+- `health/last-preflight.json`: the boot preflight's summary. The preflight
   (`MERCURY_BOOT_PREFLIGHT`) runs a cheap subset of `/health` after the UI
   mounts and notifies only on a fault; it is not a certificate and never
   writes `last-cert.json`.
-- `gate/verdict.json` — written by the local verification pool (`bun run
+- `gate/verdict.json`: written by the local verification pool (`bun run
   verify`); the PROOFS section reads it as evidence and
   reports it `stale` when it predates the current HEAD.
 

@@ -38,7 +38,7 @@ import {
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
 import { useFocusedServedEffort, useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
-import { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaView } from '../../services/providers/gemini/geminiPlanQuota.js'
+import { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaUnreportedWords, geminiPlanQuotaView } from '../../services/providers/gemini/geminiPlanQuota.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { providerIdentityLine, providerIdentitySentence, shownIdentityWords } from '../../services/providers/providerIdentityLine.js'
 import { openrouterSlots } from '../../services/providers/accountSlots.js'
@@ -300,6 +300,7 @@ function geminiPlanFiguresInOrder(figures: readonly UsageFigureView[]): UsageFig
   const ordered: UsageFigureView[] = figures.filter(figure => !figure.key.startsWith('plan-quota:'))
   if (view.active !== undefined) ordered.push({ ...view.active, label: `${view.active.label} (the session's model)` })
   for (const figure of view.used) ordered.push({ ...figure, label: `${figure.label} (used this session)` })
+  for (const entry of view.unreported) ordered.push({ key: `plan-quota-unreported:${entry.model}`, label: `${entry.model} (${entry.active ? "the session's model" : 'used this session'})`, value: 'no quota reported for', source: 'endpoint', freshForMs: 5 * 60 * 1000 })
   if (view.others.length > 0) ordered.push({ key: 'plan-quota-others', label: `other roster model${view.others.length === 1 ? '' : 's'}`, value: String(view.others.length), source: 'endpoint', freshForMs: 5 * 60 * 1000 })
   return ordered
 }
@@ -602,7 +603,7 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
   const tierStamp = tierFigure !== undefined ? usageSourceWords(tierFigure) : undefined
   const sessionModel = useFocusedServedModel()
   const sessionEffort = useFocusedServedEffort()
-  const quota = planActive ? geminiPlanQuotaView(usage.figures ?? [], { ...(sessionModel !== null ? { model: sessionModel } : {}), ...(sessionEffort !== null ? { effort: sessionEffort } : {}), usedModels: geminiLaneModelsByLastUse() }) : { used: [], others: [] }
+  const quota = planActive ? geminiPlanQuotaView(usage.figures ?? [], { ...(sessionModel !== null ? { model: sessionModel } : {}), ...(sessionEffort !== null ? { effort: sessionEffort } : {}), usedModels: geminiLaneModelsByLastUse() }) : { used: [], others: [], unreported: [] }
   const [othersOpen, setOthersOpen] = useState(false)
   useInput((_input, key, event) => {
     if (!key.return || quota.others.length === 0) return
@@ -625,6 +626,9 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
             {quota.active !== undefined ? <Text dimColor>{quotaLine(quota.active, `the session's model${quota.activeRow !== undefined && sessionModel !== null && quota.activeRow !== sessionModel.toLowerCase() ? ` (${sessionModel} ▸ ${quota.activeRow})` : ''}`)}</Text> : null}
             {quota.used.map(figure => (
               <Text key={figure.key} dimColor>{quotaLine(figure, 'used this session')}</Text>
+            ))}
+            {quota.unreported.map(entry => (
+              <Text key={`plan-quota-unreported:${entry.model}`} dimColor>{`${geminiPlanQuotaUnreportedWords(entry.model)} · ${entry.active ? "the session's model" : 'used this session'}`}</Text>
             ))}
             {quota.others.length > 0 ? <Text dimColor>{geminiPlanQuotaFoldWords(quota.others.length, othersOpen)}</Text> : null}
             {othersOpen ? quota.others.map(figure => (

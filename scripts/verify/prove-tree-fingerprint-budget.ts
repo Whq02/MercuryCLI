@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync, spawnSync } from 'node:child_process'
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -106,27 +106,25 @@ const repoIndex = join(repo, '.git', 'index')
 
 section('§1 the index persists — the second digest is a stat walk')
 const repoIndexBefore = statSync(repoIndex).mtimeMs
-const t0 = performance.now()
+const HASH_LOG = join(SCRATCH, 'hashed-files.log')
+writeFileSync(HASH_LOG, '')
+const quote = (word: string): string => `'${word.replace(/'/g, "'\\''")}'`
+const attributes = join(repo, '.git', 'info', 'attributes')
+writeFileSync(attributes, '* filter=hash-witness\n')
+git(repo, 'config', 'filter.hash-witness.process', [process.execPath, join(import.meta.dir, 'hashWitness.mjs'), HASH_LOG].map(quote).join(' '))
+git(repo, 'config', 'filter.hash-witness.required', 'true')
+for (const file of git(repo, 'ls-files', '-z').split('\0').filter(Boolean)) utimesSync(join(repo, file), 1, 1)
+const hashedFiles = (): number => new Set(readFileSync(HASH_LOG, 'utf8').split('\n').filter(Boolean)).size
 const first = await vs.computeWorkingTreeDigestAsync(repo, { fresh: true })
-const firstMs = performance.now() - t0
-check('the first digest answers (the seed scan)', first !== null)
+check('the first digest answers and the content witness counts every seed file', first !== null && hashedFiles() === FILES, `${hashedFiles()}/${FILES}`)
 const storeDirs = existsSync(join(HOME, 'verify')) ? readdirSync(join(HOME, 'verify')) : []
 const store = storeDirs.length === 1 ? join(HOME, 'verify', storeDirs[0]!) : ''
 check("Mercury's index lives under its config home, beside the evidence file", store !== '' && existsSync(join(store, 'index')), storeDirs.join(','))
-let secondMs = Number.POSITIVE_INFINITY
-let second: string | null = null
-for (let i = 0; i < 3; i++) {
-  const t = performance.now()
-  second = await vs.computeWorkingTreeDigestAsync(repo, { fresh: true })
-  secondMs = Math.min(secondMs, performance.now() - t)
-}
-let statWalkMs = Number.POSITIVE_INFINITY
-for (let i = 0; i < 3; i++) {
-  const t = performance.now()
-  git(repo, 'diff-files', '--name-only')
-  statWalkMs = Math.min(statWalkMs, performance.now() - t)
-}
-check(`a digest on the unchanged tree is a stat walk, never a hash: its cost above this box's own stat walk stays under a quarter of the seed scan's (${Math.round(firstMs)} ms → ${Math.round(secondMs)} ms; the stat walk ${Math.round(statWalkMs)} ms)`, secondMs - statWalkMs <= Math.max(1, firstMs - statWalkMs) / 4, `${Math.round(((secondMs - statWalkMs) / Math.max(1, firstMs - statWalkMs)) * 100)}% of the seed scan's cost above the stat walk`)
+writeFileSync(HASH_LOG, '')
+const second = await vs.computeWorkingTreeDigestAsync(repo, { fresh: true })
+check('a digest on the unchanged tree hashes zero files', hashedFiles() === 0, `${hashedFiles()} files hashed`)
+git(repo, 'config', '--remove-section', 'filter.hash-witness')
+rmSync(attributes)
 check('…and names the same tree', second === first)
 check("the repository's own index is never touched", statSync(repoIndex).mtimeMs === repoIndexBefore)
 

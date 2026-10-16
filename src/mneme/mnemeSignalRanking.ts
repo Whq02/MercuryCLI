@@ -12,11 +12,12 @@ export function fuseSignalRanking(
   dir: string,
   fuseRankings: (rankings: string[][]) => string[],
   extra: readonly ExtraOrdering[] = [],
+  refineUntrained?: (order: string[]) => string[],
 ): string[] {
   const baseline = fuseRankings([...rankings, ...extra.map(e => e.order)])
   const eligible = new Set(baseline)
   const learned = signalRanking(scored.filter(hit => eligible.has(hit.id)), dir)
-  if (learned === null) return baseline
+  if (learned === null) return refineUntrained?.(baseline) ?? baseline
   const pinned = new Set(scored.filter(hit => hit.features.pinned).map(hit => hit.id))
   const byId = new Map(scored.map(hit => [hit.id, hit]))
   const preference = new Map(learned.map((id, index) => [id, index]))

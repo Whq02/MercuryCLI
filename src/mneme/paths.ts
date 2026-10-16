@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute, join, normalize, sep } from 'node:path'
 import { memoize } from 'lodash-es'
@@ -6,6 +7,7 @@ import { getInitialSettings, getSettingsForSource } from '../utils/settings/sett
 import { findCanonicalGitRoot } from '../utils/git.js'
 import { getProjectRoot } from '../bootstrap/state.js'
 import { sanitizePathComponent } from '../utils/tasks.js'
+import { capSanitizedName } from '../utils/sessionStoragePortable.js'
 
 export function isMnemeEnabled(): boolean {
   if (isEnvTruthy(process.env.MERCURY_BARE)) return false
@@ -59,7 +61,13 @@ export const getMnemeHome = memoize((): string => {
 }, () => getProjectRoot())
 
 export function mnemeProjectKeyFor(root: string): string {
-  return sanitizePathComponent(findCanonicalGitRoot(root) ?? root)
+  const canonical = findCanonicalGitRoot(root) ?? root
+  const uncapped = sanitizePathComponent(canonical)
+  const capped = capSanitizedName(uncapped, canonical)
+  if (capped === uncapped) return capped
+  const projects = join(getMemoryBaseDir(), 'projects')
+  if (!existsSync(join(projects, capped)) && existsSync(join(projects, uncapped))) return uncapped
+  return capped
 }
 
 export function mnemeProjectKey(): string {

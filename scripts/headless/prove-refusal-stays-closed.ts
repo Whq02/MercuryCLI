@@ -262,7 +262,7 @@ section('§2 the resurface: a scripted model that re-issues the refused commands
   const seat = await runSeat('resurface', turns, prompts, { MERCURY_SPAWNED_BY: 'proof:refusal-closed#2' })
   try {
     const rootDelete = seat.results.find(row => row.text.includes('no-root-recursive-delete'))
-    const homeDelete = seat.results.find(row => row.text.includes('no-home-recursive-delete'))
+    const homeDelete = seat.results.find(row => row.text.includes('no-other-user-delete'))
     check(
       'the re-issued root delete is refused again by the same ward',
       rootDelete !== undefined && rootDelete.is_error === true && rootDelete.text.includes(CLOSING),

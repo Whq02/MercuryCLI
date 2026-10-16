@@ -196,7 +196,7 @@ function lastTextBlockOf(message: AssistantMessage): string {
   return ''
 }
 
-export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 'tools' | 'mcpClients' | 'commands' | 'agents'>, model: string, mode: string, resumeOf?: string): Promise<SessionFacts> {
+export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 'tools' | 'mcpClients' | 'commands' | 'agents'>, model: string, mode: string, resumeOf?: string, toolsWithheld?: SessionFacts['toolsWithheld']): Promise<SessionFacts> {
   headlessProfilerCheckpoint('before_skills_extensions')
   const [skills, loaded] = await Promise.all([getSlashCommandToolSkills(config.cwd), ensureExtensionsLoaded({ cwd: config.cwd })])
   headlessProfilerCheckpoint('after_skills_extensions')
@@ -210,6 +210,7 @@ export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 't
     model,
     mode,
     tools: config.tools.map(tool => tool.name),
+    ...(toolsWithheld !== undefined && toolsWithheld.length > 0 ? { toolsWithheld } : {}),
     mcpServers: config.mcpClients.map(client => ({ name: client.name, status: client.type })),
     commands: config.commands.filter(invocable).map(command => command.name),
     agents: (config.agents ?? []).map(agent => agent.agentType),
