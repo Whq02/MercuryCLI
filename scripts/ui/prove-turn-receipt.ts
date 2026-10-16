@@ -174,6 +174,14 @@ withEnv('1', () => {
   const folded = inject([prompt('a', 'p1'), withUsage('u1', 90000), { type: 'system', subtype: 'compact_boundary', uuid: 'cb' } as never, prompt('b', 'p2'), withUsage('u2', 12000)])
   const foldedDeltas = (folded as Array<{ type?: string; contextDelta?: number }>).filter(r => r?.type === 'turn_receipt').map(r => r.contextDelta)
   check('a compaction boundary forgets the prompt sizes before it: the next turn measures from nothing, never from the folded prompt', foldedDeltas.length === 2 && foldedDeltas[0] === undefined && foldedDeltas[1] === 12000, JSON.stringify(foldedDeltas))
+  const keptTail = inject([
+    { type: 'system', subtype: 'compact_boundary', uuid: 'cb2', compactMetadata: { preservedSegment: { headUuid: 'kp', anchorUuid: 'cb2', tailUuid: 'kr' } } } as never,
+    { type: 'user', uuid: 'sum', isCompactSummary: true, isVisibleInTranscriptOnly: true, message: { role: 'user', content: 'The summary of what was folded.' } } as never,
+    prompt('the kept prompt', 'kp'), withUsage('kr', 60000),
+    prompt('the first new prompt', 'np'), withUsage('nr', 15000),
+  ])
+  const keptDeltas = (keptTail as Array<{ type?: string; uuid?: string; contextDelta?: number }>).filter(r => r?.type === 'turn_receipt').map(r => [r.uuid, r.contextDelta])
+  check('a fold that keeps a verbatim tail: the kept turn re-paints no pre-fold size, the first new turn reads its own full size (RED before the latch: +60.0k then −45.0k)', keptDeltas.some(([id, d]) => id === 'kp-turn-receipt' && d === undefined) && keptDeltas.some(([id, d]) => id === 'np-turn-receipt' && d === 15000), JSON.stringify(keptDeltas))
   const grouped = inject([
     prompt('grouped turn', 'p1'),
     {
