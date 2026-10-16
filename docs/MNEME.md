@@ -65,11 +65,14 @@ ready it reports `ranked by semantic + word match (bge-base-en-v1.5)`.
 
 `Recall` searches topic pages, archives, staged observations and the session
 lineage ledger, returning up to 20 pointers (`limit`, default 12; a pointer is
-an id, a title and footnotes, opened with `read:"<id>"`). When `limit` leaves
-matches out, the second line says `<shown> of <found> hits shown; narrow the
-words or raise the limit` (plus `, <N> of them stale` when stale hits were
-cut). Plain-word queries fuse four orderings by reciprocal rank fusion with
-`k = 60`:
+an id, a title and footnotes, opened with `read:"<id>"`). The limit counts
+records; a page's own lines (its summary, its headings) never take a slot.
+When `limit` leaves records out, the second line says `<shown> of <found> hits
+shown; narrow the words or raise the limit` (with `, <N> of the <M> left out
+stale` when stale hits were cut); at the most of 20 it says instead `the limit
+is at its most (20): narrow the words, or open a whole page with
+read:"doc:<slug>"`. Plain-word queries fuse four orderings by reciprocal rank
+fusion with `k = 60`:
 
 1. Exact-text literal pattern hits across pages and pending rows.
 2. Stemmed BM25 word scoring (`deploying` matches `deployed`) weighted by a

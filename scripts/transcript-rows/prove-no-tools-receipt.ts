@@ -124,6 +124,28 @@ try {
   check('the first new turn after the fold reads its own full size, never the fold\'s shrink: "ctx +15.0k"', newReceipt !== undefined && (await paint(newReceipt)) === `∙ ${NO_TOOLS_RAN_WORDS} · ctx +15.0k`, newReceipt ? await paint(newReceipt) : '')
   const shrink = receiptsOf([createUserMessage({ content: 'a' }), reply('one', 50000), createUserMessage({ content: 'b' }), reply('two', 48200)])
   check('a smaller prompt than the turn before reads as a negative delta: "ctx −1.8k"', shrink[1] !== undefined && (await paint(shrink[1])) === `∙ ${NO_TOOLS_RAN_WORDS} · ctx −1.8k`, shrink[1] ? await paint(shrink[1]) : '')
+
+  console.log('§6 F37A-1D-02: every tool_use counts — the memory verbs, a ToolSearch load, any tool outside the named sets, by its name')
+  const airTurn = [
+    createUserMessage({ content: 'Without using your own earlier context, use the memory tools to list what memory holds' }),
+    ...toolRound('ToolSearch', 30000),
+    ...Array.from({ length: 20 }, (_, i) => toolRound('Recall', 30000 + i * 180)).flat(),
+    reply('I opened seq:1 through seq:7 one at a time, plus both topic pages.', 33600),
+  ]
+  const airReceipts = receiptsOf(airTurn)
+  const airPainted = airReceipts[0] ? await paint(airReceipts[0]) : ''
+  check('the Air turn (ToolSearch ×1 + Recall ×20) paints its calls by name and the delta, never the no-tools words: "∙ Recall ×20 · ToolSearch ×1 · ctx +33.6k"', airReceipts.length === 1 && airPainted === '∙ Recall ×20 · ToolSearch ×1 · ctx +33.6k', airPainted)
+  check('its counts read as activity (the live row and the settled row agree)', airReceipts[0] !== undefined && hasActivity(airReceipts[0].counts) && airReceipts[0].counts.tools['Recall'] === 20 && airReceipts[0].counts.tools['ToolSearch'] === 1, JSON.stringify(airReceipts[0]?.counts.tools))
+  const correctTurn = receiptsOf([createUserMessage({ content: 'the staging server was renamed' }), ...toolRound('Recall'), ...toolRound('Recall'), ...toolRound('Recall'), ...toolRound('Correct'), reply('Corrected: heron-09.')])
+  const correctPainted = correctTurn[0] ? await paint(correctTurn[0]) : ''
+  check('session 1\'s correct turn (Recall ×3 + Correct) paints "∙ Recall ×3 · Correct ×1"', correctPainted === '∙ Recall ×3 · Correct ×1', correctPainted)
+  const pinTurn = receiptsOf([createUserMessage({ content: 'remember: never push on a Friday' }), ...toolRound('Retain'), ...toolRound('Recall'), ...toolRound('Recall'), ...toolRound('Recall'), reply('Pinned.')])
+  const pinPainted = pinTurn[0] ? await paint(pinTurn[0]) : ''
+  check('session 1\'s pin turn (Retain + Recall ×3) paints "∙ Recall ×3 · Retain ×1" (the most-called first, then the name)', pinPainted === '∙ Recall ×3 · Retain ×1', pinPainted)
+  const mixed = receiptsOf([createUserMessage({ content: 'check then remember' }), ...toolRound('Bash'), ...toolRound('Retain'), reply('done')])
+  const mixedPainted = mixed[0] ? await paint(mixed[0]) : ''
+  check('a named set and an other tool together: "∙ 1 shell command · Retain ×1"', mixedPainted === '∙ 1 shell command · Retain ×1', mixedPainted)
+  check('a true zero-tool reply turn still paints the no-tools words', (await paint(receiptsOf([createUserMessage({ content: 'how many pass?' }), reply(CLAIM)])[0]!)) === `∙ ${NO_TOOLS_RAN_WORDS}`)
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

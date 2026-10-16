@@ -2,7 +2,7 @@ import * as React from 'react'
 import { BULLET_OPERATOR } from '../../constants/figures.js'
 import { Box, Text } from '../../ink.js'
 import type { TurnReceiptMessage } from '../../types/message.js'
-import { delegatedSpendLine, formatContextDelta, NO_TOOLS_RAN_WORDS } from '../../utils/cockpit/turnReceipt.js'
+import { delegatedSpendLine, formatContextDelta, NO_TOOLS_RAN_WORDS, otherToolsLine } from '../../utils/cockpit/turnReceipt.js'
 import { plural } from '../../utils/stringUtils.js'
 
 export function TurnReceiptRow({
@@ -74,6 +74,8 @@ export function TurnReceiptRow({
       </Text>,
     )
   }
+  const others = otherToolsLine(c)
+  if (others !== null) push(<Text key="tools">{others}</Text>)
   const delegated = delegatedSpendLine(c)
   if (delegated !== null) {
     push(<Text key="delegated">{delegated}</Text>)

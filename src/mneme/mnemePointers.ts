@@ -38,6 +38,7 @@ export interface PointerResult {
   catalog: Array<{ slug: string; summary: string }>
   found: number
   cutStale: number
+  limit?: number
 }
 
 export const POINTER_LIMIT = 20
@@ -226,12 +227,17 @@ export function searchPointers(
   const stale = new Set(recall.hits.filter(hit => hit.status === 'stale').map(hit => hit.id))
   const cutStale = recall.cut.stale + pointers.slice(limit).filter(p => stale.has(p.id)).length
   noteMemoryOffered(query, offered, dir)
-  return { pointers: offered, elidable: pointers.length === 0, catalog: recall.catalog, found: pointers.length + recall.cut.hits, cutStale }
+  return { pointers: offered, elidable: pointers.length === 0, catalog: recall.catalog, found: pointers.length + recall.cut.hits, cutStale, limit }
 }
 
-export function limitCutLine(result: Pick<PointerResult, 'pointers' | 'found' | 'cutStale'>): string | null {
+export function limitCutLine(result: Pick<PointerResult, 'pointers' | 'found' | 'cutStale' | 'limit'>): string | null {
   if (result.found <= result.pointers.length) return null
-  return `${result.pointers.length} of ${result.found} hits shown; narrow the words or raise the limit${result.cutStale > 0 ? `, ${result.cutStale} of them stale` : ''}`
+  const left = result.found - result.pointers.length
+  const stale = result.cutStale > 0 ? `, ${result.cutStale} of the ${left} left out stale` : ''
+  const remedy = (result.limit ?? 0) >= POINTER_LIMIT
+    ? `the limit is at its most (${POINTER_LIMIT}): narrow the words, or open a whole page with read:"doc:<slug>"`
+    : 'narrow the words or raise the limit'
+  return `${result.pointers.length} of ${result.found} hits shown${stale}; ${remedy}`
 }
 
 export function renderPointerLine(p: MemoryPointer): string {
