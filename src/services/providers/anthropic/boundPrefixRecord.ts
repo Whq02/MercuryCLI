@@ -7,11 +7,11 @@ import { logForDebugging } from '../../../utils/debug.js'
 import { armToolRosterRestore, conversationRosterKey, toolRosterLatchFor, type RosterRestore } from '../toolEconomy.js'
 import { getConversationToolSchemas } from '../../../utils/toolSchemaCache.js'
 import { clearSystemPromptSections } from '../../../constants/systemPromptSections.js'
-import { restoreWholeRecordedComposition, staticCompositionChanged } from '../../../prompt/recordedComposition.js'
+import { carriesRecordedWhole, restoreWholeRecordedComposition, staticCompositionChanged } from '../../../prompt/recordedComposition.js'
 
 interface BoundPrefixRecordOptions {
   rosterOnly?: boolean
-  liveSystemContext?: boolean
+  fold?: boolean
 }
 
 interface BoundPrefixRecordData {
@@ -114,6 +114,7 @@ export function restoreBoundPrefixFromMessages(messages: readonly Message[], opt
 
   const recordedSections = record !== null && Array.isArray(record.sections) ? (record.sections as BoundPrefixSection[]) : []
   const changed = staticCompositionChanged(recordedSections)
+  if (opts?.fold === true && (changed || carriesRecordedWhole(recordedSections))) return null
   if (changed) {
     emittedKeys.delete(boundKey)
     clearSystemPromptSections()
@@ -144,7 +145,7 @@ export function restoreBoundPrefixFromMessages(messages: readonly Message[], opt
     armToolRosterRestore({ key: entry.boundKey, enabled: entry.rosterEnabled === true, marks })
   }
 
-  const systemContext = changed || opts?.liveSystemContext === true ? undefined : record?.systemContext
+  const systemContext = changed || opts?.fold === true ? undefined : record?.systemContext
   if (systemContext !== null && systemContext !== undefined && typeof systemContext === 'object' && !Array.isArray(systemContext)) {
     const cache = getSystemContext.cache as { set?: (key: unknown, value: unknown) => unknown } | undefined
     cache?.set?.(MEMO_KEY, Promise.resolve({ ...(systemContext as Record<string, string>) }))

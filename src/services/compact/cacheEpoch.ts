@@ -4,7 +4,7 @@ import type { ApiUsage } from '../../types/wire.js'
 import type { Attachment } from '../../utils/attachments/types.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { conversationRosterKey } from '../providers/toolEconomy.js'
-import { staticCompositionChanged } from '../../prompt/recordedComposition.js'
+import { carriesRecordedWhole, staticCompositionChanged } from '../../prompt/recordedComposition.js'
 
 export type FoldCacheUsage = { input: number; output: number; read: number; write: number; write5m: number | null; write1h: number | null }
 export type FoldCacheEpoch = {
@@ -38,7 +38,7 @@ export function carryFoldPrefix(source: readonly Message[], landing: readonly Me
   const beforeKey = conversationRosterKey(owner, source, model)
   const afterKey = conversationRosterKey(owner, landing, model)
   const previous = [...source].reverse().find(row => row.type === 'attachment' && row.attachment.type === 'bound_prefix' && row.attachment.boundKey === beforeKey)
-  if (previous?.type !== 'attachment' || previous.attachment.type !== 'bound_prefix' || !Array.isArray(previous.attachment.sections) || staticCompositionChanged(previous.attachment.sections)) {
+  if (previous?.type !== 'attachment' || previous.attachment.type !== 'bound_prefix' || !Array.isArray(previous.attachment.sections) || staticCompositionChanged(previous.attachment.sections) || carriesRecordedWhole(previous.attachment.sections)) {
     return { receipt: { version: 1, state: 'unavailable', beforeKey: null, afterKey, beforeHash: null, afterHash: null, messagePrefixPreserved: false, summary: foldCacheUsage(usage) } }
   }
   const before = previous.attachment
