@@ -12,17 +12,9 @@ interface SignInRecord {
   kind: SignInKind
 }
 
-export interface SignInEntryRecord {
-  at: number
-  kind: SignInKind
-  pocket?: string
-  unnamed?: boolean
-}
-
 interface SignInLedgerFile {
   version: number
   signIns?: Record<string, unknown>
-  entries?: Record<string, unknown>
   [k: string]: unknown
 }
 
@@ -128,62 +120,4 @@ export function recordSignIn(family: string, kind: SignInKind, io?: SignInLedger
   } catch {
     return false
   }
-}
-
-function entryRows(file: SignInLedgerFile | null, family: string): Record<string, unknown> {
-  const all = file?.entries
-  if (typeof all !== 'object' || all === null) return {}
-  const rows = (all as Record<string, unknown>)[family]
-  return typeof rows === 'object' && rows !== null && !Array.isArray(rows) ? (rows as Record<string, unknown>) : {}
-}
-
-export function readSignInEntries(family: string, io?: SignInLedgerIo): Record<string, SignInEntryRecord> {
-  const out: Record<string, SignInEntryRecord> = {}
-  const name = normaliseFamily(family)
-  if (name === undefined) return out
-  for (const [identity, value] of Object.entries(entryRows(readFile(io), name))) {
-    if (identity.trim() === '' || typeof value !== 'object' || value === null) continue
-    const { at, kind, pocket, unnamed } = value as { at?: unknown; kind?: unknown; pocket?: unknown; unnamed?: unknown }
-    if (typeof at !== 'number' || !Number.isFinite(at) || at <= 0) continue
-    if (typeof kind !== 'string' || !KINDS.has(kind)) continue
-    out[identity] = { at, kind: kind as SignInKind, ...(typeof pocket === 'string' && pocket !== '' ? { pocket } : {}), ...(unnamed === true ? { unnamed: true } : {}) }
-  }
-  return out
-}
-
-function publishEntries(family: string, mutate: (rows: Record<string, unknown>) => Record<string, unknown>, io?: SignInLedgerIo): boolean {
-  try {
-    const existing = readFile(io)
-    const entries: Record<string, unknown> =
-      existing !== null && typeof existing.entries === 'object' && existing.entries !== null ? { ...(existing.entries as Record<string, unknown>) } : {}
-    const rows = mutate({ ...entryRows(existing, family) })
-    if (Object.keys(rows).length === 0) delete entries[family]
-    else entries[family] = rows
-    const next: SignInLedgerFile = { ...(existing ?? {}), version: SIGN_IN_LEDGER_VERSION, signIns: existing?.signIns ?? {}, entries }
-    if (Object.keys(entries).length === 0) delete next.entries
-    durableAtomicPublishSync(ledgerPath(io), JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
-    return true
-  } catch {
-    return false
-  }
-}
-
-export function recordSignInEntry(family: string, identity: string, kind: SignInKind, pocket: string | undefined, io?: SignInLedgerIo, unnamed = false): boolean {
-  const name = normaliseFamily(family)
-  if (name === undefined || !KINDS.has(kind) || identity.trim() === '') return false
-  return publishEntries(name, rows => ({ ...rows, [identity]: { at: io?.now?.() ?? Date.now(), kind, ...(pocket !== undefined ? { pocket } : {}), ...(unnamed ? { unnamed: true } : {}) } }), io)
-}
-
-export function dropSignInEntry(family: string, identity: string, io?: SignInLedgerIo): boolean {
-  const name = normaliseFamily(family)
-  if (name === undefined) return false
-  return publishEntries(
-    name,
-    rows => {
-      const next = { ...rows }
-      delete next[identity]
-      return next
-    },
-    io,
-  )
 }
