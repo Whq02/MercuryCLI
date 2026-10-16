@@ -158,6 +158,7 @@ export function setBrowserLaunchDriverForProof(driver: LaunchDriver | null): voi
 
 const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
   name: 'browser-sessions',
+  live: true,
   create: () => ({
     session: null,
     launching: false,

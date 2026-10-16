@@ -15,6 +15,8 @@ import {
 import { connect } from 'node:net'
 import * as path from 'node:path'
 import { getProcessStartToken, getProcessStartTokenAsync, getProcessStartTokenCachedOrRefresh } from '../../daemon/ownerWatch.js'
+import type { OwnerKey } from '../run/ownerKey.js'
+import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -95,7 +97,9 @@ function readFileSyncDirNames(dir: string): string[] {
 
 
 const liveChildren = new Map<string, ChildProcess>()
+const projectChildren = new Set<string>()
 const restartTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const startedBy = new Map<string, { cwd: string; name: string; owner: OwnerKey }>()
 
 function childKey(cwd: string, name: string): string {
   return `${path.resolve(cwd)}::${name}`
@@ -108,14 +112,14 @@ export function liveServiceChildren(): Array<{ key: string; pid: number | undefi
 }
 
 registerCleanup(async () => {
-  const children = [...liveChildren.values()]
-  liveChildren.clear()
-  await Promise.all(children.map(child => endProcessTree(child, 'SIGTERM').catch(() => undefined)))
+  const children = [...liveChildren].filter(([key]) => !projectChildren.has(key))
+  for (const [key] of children) liveChildren.delete(key)
+  await Promise.all(children.map(([, child]) => endProcessTree(child, 'SIGTERM').catch(() => undefined)))
 })
 
 process.once('exit', () => {
   for (const [key, child] of liveChildren) {
-    void key
+    if (projectChildren.has(key)) continue
     try {
       child.kill('SIGTERM')
     } catch {
@@ -341,7 +345,31 @@ export async function waitForReady(
 export interface StartOptions {
   spec: ServiceSpec
   sessionId: string
+  owner?: OwnerKey
 }
+
+async function stopServicesOf(owner: OwnerKey): Promise<void> {
+  const mine = [...startedBy].filter(([, row]) => row.owner === owner)
+  for (const [key] of mine) startedBy.delete(key)
+  await Promise.all(mine.map(([, row]) => stopService(row.cwd, row.name).then(() => undefined, () => undefined)))
+}
+
+registerOwnerScopedStore({
+  name: 'project-services',
+  live: true,
+  dispose(owner) {
+    void stopServicesOf(owner)
+  },
+  disposeAsync(owner) {
+    return stopServicesOf(owner)
+  },
+  clearAllForShutdown() {
+    startedBy.clear()
+  },
+  get size() {
+    return startedBy.size
+  },
+})
 
 export function validateSpec(spec: ServiceSpec): string | null {
   if (!SERVICE_NAME_RE.test(spec.name)) {
@@ -354,7 +382,7 @@ export function validateSpec(spec: ServiceSpec): string | null {
 export async function startService(
   opts: StartOptions,
 ): Promise<{ record: ServiceRecord } | { error: string }> {
-  const { spec, sessionId } = opts
+  const { spec, sessionId, owner } = opts
   const invalid = validateSpec(spec)
   if (invalid) return { error: invalid }
   const existing = reconcileRecord(spec.cwd, spec.name)
@@ -418,10 +446,14 @@ export async function startService(
   }
   writeRecord(spec.cwd, record)
   liveChildren.set(childKey(spec.cwd, spec.name), child)
+  if (spec.lifecycle === 'project') projectChildren.add(childKey(spec.cwd, spec.name))
+  if (owner !== undefined && spec.lifecycle === 'session') startedBy.set(childKey(spec.cwd, spec.name), { cwd: spec.cwd, name: spec.name, owner })
   captureStartTokenAsync(spec.cwd, spec.name, child.pid)
 
   child.on('exit', (code, signal) => {
     liveChildren.delete(childKey(spec.cwd, spec.name))
+    projectChildren.delete(childKey(spec.cwd, spec.name))
+    startedBy.delete(childKey(spec.cwd, spec.name))
     const current = readRecord(spec.cwd, spec.name)
     if (!current) return
     const explicit = current.explicitStop
@@ -449,7 +481,7 @@ export async function startService(
         restartTimers.delete(childKey(spec.cwd, spec.name))
         const latest = readRecord(spec.cwd, spec.name)
         if (!latest || latest.explicitStop) return
-        void startService({ spec, sessionId }).then(result => {
+        void startService({ spec, sessionId, ...(owner !== undefined ? { owner } : {}) }).then(result => {
           if ('record' in result) {
             writeRecord(spec.cwd, {
               ...result.record,
@@ -573,15 +605,17 @@ export async function restartService(
   cwd: string,
   name: string,
   sessionId: string,
+  owner?: OwnerKey,
 ): Promise<{ record: ServiceRecord } | { error: string }> {
   const record = readRecord(cwd, name)
   if (!record) return { error: `no service '${name}' in this project — start it first` }
+  const keeper = startedBy.get(childKey(cwd, name))?.owner ?? owner
   const stopped = await stopService(cwd, name)
   if ('error' in stopped) return stopped
   if (stopped.note !== undefined) {
     return { error: `restart failed: ${stopped.note}` }
   }
-  const started = await startService({ spec: record.spec, sessionId })
+  const started = await startService({ spec: record.spec, sessionId, ...(keeper !== undefined ? { owner: keeper } : {}) })
   if ('error' in started) return started
   const bumped: ServiceRecord = {
     ...started.record,

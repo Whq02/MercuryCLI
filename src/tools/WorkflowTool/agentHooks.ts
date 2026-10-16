@@ -362,7 +362,7 @@ function workflowWorkerTools(
     { ...appState.toolPermissionContext, mode } as Parameters<typeof assembleToolPool>[0],
     appState.mcp.tools as ToolPool,
   )
-  return resolveWorkerTools(def, mode, pool, true)
+  return resolveWorkerTools(def, mode, pool)
 }
 
 async function* adapterSpawnStream(
