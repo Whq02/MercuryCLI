@@ -403,16 +403,6 @@ export function Config({
     changesRef.current.set(key, text)
   }
 
-  const writeFailed = (source: 'localSettings' | 'userSettings', error: Error): void => {
-    logForDebugging(`settings write failed (${source}): ${error.message}`)
-    enqueueNotification(setAppState, {
-      key: 'config-write-failed',
-      text: `that change did not save — ${source === 'localSettings' ? 'project-local' : 'user'} settings write failed: ${error.message}`,
-      priority: 'high',
-      color: 'error',
-      timeoutMs: 15_000,
-    })
-  }
   const writeSource = (
     source: 'localSettings' | 'userSettings',
     partial: Partial<SettingsJson>,
@@ -423,6 +413,16 @@ export function Config({
       return false
     }
     return true
+  }
+  const writeFailed = (source: 'localSettings' | 'userSettings', error: Error): void => {
+    logForDebugging(`settings write failed (${source}): ${error.message}`)
+    enqueueNotification(setAppState, {
+      key: 'config-write-failed',
+      text: `that change did not save — ${source === 'localSettings' ? 'project-local' : 'user'} settings write failed: ${error.message}`,
+      priority: 'high',
+      color: 'error',
+      timeoutMs: 15_000,
+    })
   }
   const globalTouchedRef = useRef(new Set<string>())
   const writeGlobal = (mutate: (config: GlobalConfig) => GlobalConfig): void => {
