@@ -2,11 +2,11 @@ import * as React from 'react'
 import { useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import * as pendingInput from '../../input-core/pending-input.js'
-
-const CARD_QUEUED_WORDS_HINT = 'waits in the composer until the turn ends · ⌫ edits'
+import { consentDeclineRow, queuedWordsHint, subscribeConsentRows } from '../../utils/cockpit/composerSeed.js'
 
 export function CardQueuedWords(): React.ReactNode {
   useSyncExternalStore(pendingInput.subscribePendingInput, pendingInput.editGeneration, pendingInput.editGeneration)
+  const declineRow = useSyncExternalStore(subscribeConsentRows, consentDeclineRow, consentDeclineRow)
   const words = pendingInput.text()
   if (words.trim() === '') return null
   return (
@@ -15,7 +15,7 @@ export function CardQueuedWords(): React.ReactNode {
         <Text dimColor>{'❯ '}</Text>
         <Text wrap="truncate-end">{words}</Text>
       </Box>
-      <Text dimColor>{`  ${CARD_QUEUED_WORDS_HINT}`}</Text>
+      <Text dimColor>{`  ${queuedWordsHint(declineRow)}`}</Text>
     </Box>
   )
 }
