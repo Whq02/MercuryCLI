@@ -315,7 +315,7 @@ let warmHit: Hit | undefined
   check('a warm request reached the server after the switch, before any turn (the base sends nothing until the operator\'s first message)', arrived && warmHit !== undefined, `chats after the switch: ${chats().length - before}`)
   const body = warmHit?.body ?? {}
   const messages = Array.isArray(body.messages) ? (body.messages as Array<Record<string, unknown>>) : []
-  check('the warm body carries ONLY the rendered system prompt as its one message', messages.length === 1 && messages[0]?.role === 'system' && messages[0]?.content === renderedSystemPrompt, `${messages.length} messages: ${messages.map(m => String(m.role)).join(',')}`)
+  check('the warm body carries the rendered system prompt and then the one-word user seed (a system-only prompt is a 500 on the Qwen 3.5/3.8 templates: "no user query found in messages")', messages.length === 2 && messages[0]?.role === 'system' && messages[0]?.content === renderedSystemPrompt && messages[1]?.role === 'user' && messages[1]?.content === 'hi', `${messages.length} messages: ${messages.map(m => String(m.role)).join(',')}`)
   check(`the warm body carries the tool catalogue as the turn will (${Array.isArray(body.tools) ? (body.tools as unknown[]).length : 0} tools — the roster the tool-payload plan gives the local road, deferred or whole)`, Array.isArray(body.tools) && (body.tools as unknown[]).length >= 5)
   check('the smallest generation: options.num_predict = 1 (Ollama 0.34.4 hands num_predict to llama-server as n_predict; 0 is not a bounded budget there)', optionsOf(warmHit).num_predict === 1, JSON.stringify(optionsOf(warmHit)))
   check('the window rides as the turn will send it: num_ctx (the auto window for this prefix) and num_batch', typeof optionsOf(warmHit).num_ctx === 'number' && (optionsOf(warmHit).num_ctx as number) >= 32_768 && typeof optionsOf(warmHit).num_batch === 'number', JSON.stringify(optionsOf(warmHit)))
@@ -336,7 +336,7 @@ section('3 · the first real turn after the switch: the body prefix equals the w
   check('the turn rode /api/chat once and settled (no refusal)', chats().length === before + 1 && turnHit !== undefined && outcome.error === undefined && outcome.texts.some(t => t.includes('pong')), outcome.error ?? shape(hits.slice(-4)))
   const warmRaw = warmHit?.raw ?? ''
   const turnRaw = turnHit?.raw ?? ''
-  const systemRowEnd = warmRaw.indexOf('}]', warmRaw.indexOf('"messages":[')) + 1
+  const systemRowEnd = warmRaw.indexOf('},{"role":"user"', warmRaw.indexOf('"messages":[')) + 1
   const toolsStart = warmRaw.indexOf('"tools":[')
   const toolsEnd = warmRaw.indexOf('],"stream"', toolsStart) + 1
   const commonBytes = commonPrefixLength(warmRaw, turnRaw)
@@ -347,7 +347,8 @@ section('3 · the first real turn after the switch: the body prefix equals the w
   const turnTotal = outcome.usage === undefined ? undefined : outcome.usage.input_tokens! + outcome.usage.cache_read_input_tokens!
   const cached = outcome.usage?.cache_read_input_tokens
   const delta = outcome.usage?.input_tokens
-  check(`the server's cache covered the warm prefix: prompt_eval_cached_count = the warm's count (${String(cached)}), the delta is the operator's rows only (${String(delta)} of ${String(turnTotal)})`, cached !== undefined && delta !== undefined && cached > 1000 && cached === (warmModule?.localWarmFacts().lastWarm?.usage?.inputTokens ?? -1) && delta < cached / 10, `the first turn re-ingested the whole prompt: prompt_eval_count=${String(turnTotal)} cached=${String(cached)}`)
+  const warmCount = warmModule?.localWarmFacts().lastWarm?.usage?.inputTokens ?? -1
+  check(`the server's cache covered the warm prefix: prompt_eval_cached_count = the warm's count less the seed word (${String(cached)} of ${warmCount}), the delta is the operator's rows only (${String(delta)} of ${String(turnTotal)})`, cached !== undefined && delta !== undefined && cached > 1000 && warmCount - cached >= 0 && warmCount - cached <= 2 && delta < cached / 10, `the first turn re-ingested the whole prompt: prompt_eval_count=${String(turnTotal)} cached=${String(cached)} warm=${warmCount}`)
   check('the turn now holds the window it decided, equal to the warm\'s num_ctx', record !== undefined && heldLocalWindow(record)?.window === optionsOf(warmHit).num_ctx, `${String(record && heldLocalWindow(record)?.window)} vs ${String(optionsOf(warmHit).num_ctx)}`)
   check('the turn IS counted (the lane\'s live-proof latch is set by the turn, not the warm)', compatLaneLiveProofState('local') !== null)
 }

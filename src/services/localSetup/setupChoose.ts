@@ -3,7 +3,7 @@ import { gbWords, gibWords, tokensWords, type KvGeometry } from '../localServer/
 import { parseOllamaTags, type LocalServerTruth } from '../localServer/localServerTruth.js'
 import { fitLocalWindowOn } from '../localServer/localWindowFit.js'
 import { num, readJson, rec, resolveSetupIo, str } from './setupIo.js'
-import { SETUP_CHOOSE_KEYS, SETUP_CURRENT_WORDS, SETUP_MODEL_LIBRARY, SETUP_MODEL_TAG, SETUP_SHOW_BOUND, SETUP_TESTED_WORDS, type SetupIo, type SetupModelChoice, type SetupModelRow, type SetupPullCandidate } from './setupTypes.js'
+import { SETUP_CHOOSE_KEYS, SETUP_CURRENT_WORDS, SETUP_MODEL_LIBRARY, SETUP_MODEL_TAG, SETUP_SHOW_BOUND, SETUP_TESTED_WORDS, type DetectedServer, type SetupIo, type SetupModelChoice, type SetupModelRow, type SetupPullCandidate } from './setupTypes.js'
 
 const QWEN35_TRAINED_MAX = 262_144
 
@@ -18,6 +18,7 @@ export const SETUP_PULL_CANDIDATES: readonly SetupPullCandidate[] = [
   { tag: SETUP_MODEL_TAG, sizeWords: '6.6 GB', sizeBytes: 6.6e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(32, 8, 4), tested: true },
   { tag: 'qwen3.5:27b', sizeWords: '17 GB', sizeBytes: 17e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(64, 16, 4) },
   { tag: 'qwen3.5:35b', sizeWords: '24 GB', sizeBytes: 24e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(40, 10, 2) },
+  { tag: 'qwen3.6:35b-a3b-coding', sizeWords: '22 GB', sizeBytes: 22.6e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(41, 10, 2), note: '35B-A3B MoE · 3B active · coding' },
   { tag: 'qwen3.5:122b', sizeWords: '81 GB', sizeBytes: 81e9, trainedMax: QWEN35_TRAINED_MAX, geometry: qwen35(48, 12, 2) },
 ]
 
@@ -31,7 +32,23 @@ export function currentWireTag(model: string | null | undefined): string | undef
 }
 
 export function pullRowWords(candidate: SetupPullCandidate, fit: { window: number; fits: boolean }): string {
-  return `pull ${candidate.sizeWords} · ${fit.fits ? `fits · ${tokensWords(fit.window)}` : 'does not fit'}`
+  return `pull ${candidate.sizeWords} · ${fit.fits ? `fits · ${tokensWords(fit.window)}` : 'does not fit'}${candidate.note !== undefined ? ` · ${candidate.note}` : ''}`
+}
+
+export function otherServerChoice(server: Pick<DetectedServer, 'models' | 'loaded' | 'label' | 'root'>, current: string | null | undefined): SetupModelChoice {
+  const loaded = new Set(server.loaded ?? [])
+  const serverRows: SetupModelRow[] = server.models.map(tag => ({ tag, on: 'server', words: loaded.has(tag) ? 'on the server · loaded now' : 'on the server' }))
+  const currentTag = currentWireTag(current)
+  const nothingLocal = currentTag === undefined
+  const rows = markRows(serverRows, currentTag, false)
+  const session = current === undefined || current === null ? 'no local model is set up yet' : currentTag === undefined ? `no local model is set up yet (the session is on ${current})` : rows.some(r => r.current === true) ? `the session is on ${current}` : `the session is on ${current}, not on this server`
+  return {
+    rows,
+    ...(current !== undefined && current !== null ? { current } : {}),
+    ...(currentTag !== undefined ? { currentTag } : {}),
+    nothingLocal,
+    words: `${server.label} at ${server.root} lists ${server.models.length} models (the loaded one first) · ${session} · nothing is pre-chosen · the window is sized by the product when the model loads`,
+  }
 }
 
 export function serverRowWords(sizeBytes: number | undefined, trainedMax: number | undefined): string {
