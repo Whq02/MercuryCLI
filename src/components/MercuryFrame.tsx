@@ -107,7 +107,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const { cwd, folder: dir, branch } = useFocusedWorkspaceBranch()
 
   const tier = useLayoutTier()
-  const { isCompact } = useLayoutChrome()
+  const { isCompact, zen } = useLayoutChrome()
   const compactBudget = useContext(CompactFrameBudgetContext)
   const cols = tier.columns
 
@@ -475,6 +475,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     const modelReturns = compactBandForm(cols, tier.rows) === 'none'
     const chosen = shedToFit([
       ...(chip !== null ? [{ id: 'mode', text: chip.text, priority: 4 }] : []),
+      ...(zen && !routeSurface ? [{ id: 'zen', text: 'zen', priority: 0 }] : []),
       ...(attentionCount !== '' ? [{ id: 'attention', text: `${FLAG_ICON} ${attentionCount} · ${needsJump}`, priority: 3 }] : []),
       ...(modelReturns ? [
         { id: 'model', text: truncateToWidth(modelName || 'model unreported', cols), priority: 2 },

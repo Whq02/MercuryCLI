@@ -210,6 +210,7 @@ the server definitions themselves.
 | `view.firstRunCards` | First-run card placement: `centred` or `top-left`. |
 | `view.ping` | Pings the terminal when a chat finishes while you are away; on unless `false`. |
 | `view.accountIdentity` | Shows the signed-in account on the screens; `false` takes every address, username and key tail off them (for a recording) and leaves the account word. The Logins screen, `/accounts` and the health report still name the account. On unless `false`. |
+| `view.zen` | Zen mode: `true` hides the lanes and vitals rails and the chat takes the full width of the terminal. Off unless `true`; `/zen` flips it and the Zen mode row of `/config` shows it. |
 | `context.wayBack` | Shows the way-back hint beside a notice. |
 | `input.suggestions` | Enables prompt suggestions. |
 | `apollo.preflightQuestions` | Apollo's interview budget, 1–20 questions, 7 by default. |

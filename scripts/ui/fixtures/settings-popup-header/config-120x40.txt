@@ -2,7 +2,7 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ orchard · 68 settings · 1 set by you                                                     │ │
+NEXT                    │ │ orchard · 69 settings · 1 set by you                                                     │ │
   · /workflows — crewma…│ │                                                                                          │ │
   · /health — health ce…│ │ / Search settings…                                                                       │ │
   · /memory — memory    │ │                                                                                          │ │
@@ -14,7 +14,8 @@ FILES · orchard         │ │   Session concourse                 on         
 VITALS                  │ │   Reduced motion                    off                                                  │ │
   · spend —             │ │   Ping                              on                                                   │ │
   · ctx — · —           │ │   Account identity                  shown                                                │ │
-  · health — run /health│ │   Motion                            auto · off                                           │ │
+  · health — run /health│ │   Zen mode — rails hidden           off                                                  │ │
+                        │ │   Motion                            auto · off                                           │ │
                         │ │   DuckDuckGo page scraping          on                                                   │ │
                         │ │   JEV                               off · official                                       │ │
                         │ │   Instruction profile               auto                                                 │ │
@@ -26,8 +27,7 @@ VITALS                  │ │   Reduced motion                    off         
                         │ │   Usage notice to the model         off                                                  │ │
                         │ │   Tool output                       compact                                              │ │
                         │ │   Terminal progress bar             on                                                   │ │
-                        │ │   Turn duration                     on                                                   │ │
-                        │ │ ↓ 47 more                                                                                │ │
+                        │ │ ↓ 48 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
