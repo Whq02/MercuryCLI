@@ -252,10 +252,13 @@ export async function readSessionLite(filePath: string): Promise<LiteSessionFile
 
 
 export function sanitizePath(name: string): string {
-  const sanitized = name.replace(/[^a-zA-Z0-9]/g, '-')
+  return capSanitizedName(name.replace(/[^a-zA-Z0-9]/g, '-'), name)
+}
+
+export function capSanitizedName(sanitized: string, original: string): string {
   if (sanitized.length <= MAX_SANITIZED_LENGTH) return sanitized
   const bun = (globalThis as { Bun?: { hash?: (input: string) => number | bigint } }).Bun
-  const hash = bun?.hash ? bun.hash(name).toString(36) : Math.abs(djb2Hash(name)).toString(36)
+  const hash = bun?.hash ? bun.hash(original).toString(36) : Math.abs(djb2Hash(original)).toString(36)
   return `${sanitized.slice(0, MAX_SANITIZED_LENGTH)}-${hash}`
 }
 
