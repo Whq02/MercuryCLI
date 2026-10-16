@@ -166,6 +166,7 @@ export const SettingsSchema = lazySchema(() => {
       firstRunCards: z.enum(['centred', 'top-left']).optional().describe('Where the first-run cards sit: centred on the screen with the trust tone in brown (the default), or top-left with the amber tone'),
       ping: z.boolean().optional().describe('Ping the terminal once when a chat finishes its turn while you are away (an iTerm2 notification there, the bell elsewhere); on unless set to false'),
       accountIdentity: z.boolean().optional().describe('Account identity on the screens: shown unless set to false; hidden takes every signed-in address, username and key tail off the screens (for a recording) and leaves the account word, while the Logins screen, /accounts and the health report still name the account'),
+      zen: z.boolean().optional().describe('Zen mode: true hides the lanes and vitals rails and the chat takes the full width of the terminal (the rail-less layout narrow terminals already get); off unless set to true; /zen flips it and the Zen mode row of /config shows it'),
     }).passthrough().optional(),
     context: z.object({ wayBack: z.boolean().optional() }).passthrough().optional(),
     input: z.object({ suggestions: z.boolean().optional() }).passthrough().optional(),
