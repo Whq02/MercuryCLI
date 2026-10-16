@@ -2,7 +2,7 @@
 // gate-watch: src/utils/wards/wards* src/guards/wardsGuard* src/tools/BashTool/destructiveCommandWarning*
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -138,13 +138,14 @@ try {
   section('§4 the hook road: a spawned session refuses through the guard, naming the rule')
   const project = realpathSync(mkdtempSync(join(tmpdir(), 'git-ward-proof-')))
   const store = { state: { sessionHooks: new Map() }, set(fn: (p: never) => never) { this.state = fn(this.state) } }
-  const judge = async (session: string, command: string): Promise<string | true> => {
+  const judge = async (session: string, command: string, asksAnswerable = false): Promise<string | true> => {
     const verdict = await judgeToolCall(session, {
       tool: 'Bash',
       input: { command },
       callId: `git-ward-${session}-${command.length}-${command.charCodeAt(command.length - 1)}`,
       messages: [],
       toolRef: { name: 'Bash', shellCommandOf: (value: { command?: unknown }) => (typeof value.command === 'string' ? value.command : undefined) } as never,
+      asksAnswerable,
     })
     return verdict.refused ? verdict.reason : true
   }
@@ -177,6 +178,40 @@ try {
     check('the refusal list (every session) does not refuse it either', evaluateWards(REFUSAL_WARDS, bash('git reset --hard')).allow && evaluateWards(BUILTIN_WARDS, bash('git reset --hard')).allow)
     const asks = ['git reset --hard', 'git checkout -- .', 'git clean -fd', 'git branch -D topic', 'git push --force origin topic']
     check('the permission card marks each discard destructive, so ordinary mode asks', asks.every(command => getDestructiveCommandWarning(command) !== null), asks.map(command => `${command}: ${getDestructiveCommandWarning(command) ?? 'no warning'}`).join(' · '))
+
+    section('§6 the cockpit: a daemon-spawned seat whose asks reach the operator is not refused — the card asks in default, sovereign runs; the home-delete ward still stands; nobody-can-answer shapes stay refused')
+    check('every destructive-git entry is marked unattended-only; the home-delete ward is not', AUTONOMOUS_WARDS.every(rule => (rule.name === RULE) === (rule.unattendedOnly === true)))
+    const execution = readFileSync(join(import.meta.dir, '..', '..', 'src/services/tools/toolExecution.ts'), 'utf8')
+    check("the call site derives the fact from the permission system's own seams: canAnswerAsks() and the prompt-less context", /const asksAnswerable =\s*\n?\s*canAnswerAsks\(\) && toolUseContext\.getAppState\(\)\.toolPermissionContext\.shouldAvoidPermissionPrompts !== true/.test(execution) && /toolRef: tool, asksAnswerable \}/.test(execution))
+    setFlagEnv('MERCURY_SPAWNED_BY', 'daemon-mercury_concourse_worker:concourse-w58@concourse#19909')
+    check('the cockpit worker carries the spawn stamp (the Air\'s 1D-85 ledger row)', deleteWardActive())
+    resetWardsEngagedSessionsForTest()
+    const cockpit = await runWithCwdOverride(project, () => registerWardsGuard(store.set as never, 'git-ward-cockpit'))
+    check('the wards guard registered for the cockpit seat', cockpit === WARDS_HOOK_ID)
+    const cockpitHard = await judge('git-ward-cockpit', 'git reset --hard', true)
+    check('operator door open (a host holds the asks): git reset --hard is left to the permission card / the sovereign posture', cockpitHard === true, shown(cockpitHard))
+    const cockpitClean = await judge('git-ward-cockpit', 'git clean -fd', true)
+    check('…git clean -fd likewise', cockpitClean === true, shown(cockpitClean))
+    const cockpitPush = await judge('git-ward-cockpit', 'git push --force origin scratch-branch', true)
+    check('…a force push to a topic branch likewise', cockpitPush === true, shown(cockpitPush))
+    const cockpitHome = await judge('git-ward-cockpit', 'rm -rf ~/Projects/scratch', true)
+    check('the home-delete ward is NOT weakened: the same cockpit seat still refuses a recursive delete in the home', typeof cockpitHome === 'string' && cockpitHome.includes("Ward 'no-home-recursive-delete'"), shown(cockpitHome))
+    const crewmateHard = await judge('git-ward-cockpit', 'git reset --hard', false)
+    check('a prompt-less crewmate of the same seat (shouldAvoidPermissionPrompts): refused, the rule named', typeof crewmateHard === 'string' && crewmateHard.includes(`Ward '${RULE}'`), shown(crewmateHard))
+    for (const [shape, stamp] of [['a fired schedule (daemon-fire one-shot)', 'daemon-fire:1d86-schedule#25031'], ['a headless daemon dispatch', 'daemon-fire:w12#19909'], ['a crewmate worker', 'crewmate:lane-x#4242']] as const) {
+      setFlagEnv('MERCURY_SPAWNED_BY', stamp)
+      resetWardsEngagedSessionsForTest()
+      const session = `git-ward-${stamp.replace(/[^a-z0-9]/gi, '')}`
+      await runWithCwdOverride(project, () => registerWardsGuard(store.set as never, session))
+      const closedHard = await judge(session, 'git reset --hard', false)
+      check(`${shape}: nobody can answer an ask — git reset --hard stays refused`, typeof closedHard === 'string' && closedHard.includes(`Ward '${RULE}'`), shown(closedHard))
+      const closedPush = await judge(session, 'git push --force origin topic', false)
+      check(`${shape}: a force push stays refused`, typeof closedPush === 'string' && closedPush.includes(`Ward '${RULE}'`), shown(closedPush))
+      const closedFree = await judge(session, 'git restore --staged .', false)
+      check(`${shape}: unstaging stays free`, closedFree === true, shown(closedFree))
+    }
+    const unsaid = await judgeToolCall('git-ward-cockpit', { tool: 'Bash', input: { command: 'git reset --hard' }, callId: 'git-ward-unsaid', messages: [], toolRef: { name: 'Bash', shellCommandOf: (value: { command?: unknown }) => (typeof value.command === 'string' ? value.command : undefined) } as never })
+    check('a call that does not say whether its asks reach anyone is judged as unattended (fail closed)', unsaid.refused && unsaid.reason.includes(`Ward '${RULE}'`), unsaid.refused ? unsaid.reason.slice(0, 120) : 'ALLOWED (hole!)')
   } finally {
     rmSync(project, { recursive: true, force: true })
   }
