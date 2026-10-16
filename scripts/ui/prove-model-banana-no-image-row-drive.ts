@@ -60,7 +60,7 @@ const run = await runArtifactArena({
     { awaitText: 'Type a prompt', awaitAbsent: 'Mercury · model', afterPrevMs: 800, text: '/model banana' },
     { awaitText: '/model banana', text: '\r' },
     { awaitText: 'Mercury · model', afterPrevMs: 2500, text: '\r' },
-    { awaitText: 'Type a prompt', awaitAbsent: 'Mercury · model', afterPrevMs: 1200, text: '' },
+    { awaitText: '0 of', text: '' },
   ],
   anchor: null,
   extraEnv: { MERCURY_GEMINI_API_BASE: `http://127.0.0.1:${server.port}/v1beta`, GEMINI_API_KEY: 'fixture-gemini-key' },
@@ -83,7 +83,7 @@ try {
     check('/model banana opens the picker', bananaText.includes('Mercury · model'), rowsWith(bananaList!.rows, 'Mercury'))
     check('no image model row answers it — no Nano Banana, no -image id, nothing of the kind highlighted', !bananaText.includes('Nano Banana') && !bananaText.includes('flash-image') && !bananaText.includes('nano-banana'), rowsWith(bananaList!.rows, 'Banana'))
     const finalText = flat(final!.rows)
-    check('↵ there switches the chat to no image model: no image row, no switch receipt naming one, the status row keeps the session model', !finalText.includes('Nano Banana') && !/(?:Model now|Set model to)[^\n]*(?:Nano|image)/i.test(finalText) && /\bOpus 5\.5\b/.test(finalText), rowsWith(final!.rows, 'Opus'))
+    check('↵ on no matching row keeps the picker open and the session model: no image row or image switch receipt', finalText.includes('Mercury · model') && /\b0 of \d+ match/.test(finalText) && !finalText.includes('Nano Banana') && !/(?:Model now|Set model to)[^\n]*(?:Nano|image)/i.test(finalText) && /\bOpus 5\.5\b/.test(finalText), rowsWith(final!.rows, 'Opus'))
   }
 } finally {
   run.cleanup()

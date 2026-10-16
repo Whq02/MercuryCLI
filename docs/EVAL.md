@@ -22,7 +22,7 @@ run beneath the language and title.
   (`for (…) {…} var total = 0`) persists like any other; declarations inside
   a block or a function do not. Leading and trailing comments preserve
   declaration boundaries; regex literals in initializers may contain commas,
-  quotes and braces. The transform is lexical, not a full parser: when its
+  quotes and braces. The transform is lexical: when its
   output would break a valid cell, the cell runs unchanged without promising
   to retain its bindings. One declaration per statement reads best.
 - **Python.** The namespace keeps every assignment a cell made before it
@@ -73,11 +73,11 @@ each cell.
 
 Both kernels carry the same helpers: `tool.<Name>(…)` calls any session
 tool under the session's permission mode (a call raises into the cell only
-when the tool refused to run — an unknown tool, the kill switch, a
-permission, a ward; `tool.attempt` returns that error as a value instead).
+when the tool refused to run, such as an unknown tool, the kill switch, a
+permission denial, or a command safety rule; `tool.attempt` returns that error as a value instead).
 A Bash command that ran comes back as a value whatever it exited:
 `{code, stdout, stderr}`, where `code` is the exit code, `stdout` is the
-command's one interleaved capture — the same text the Bash tool returns —
+command's interleaved capture (the same text the Bash tool returns),
 and `stderr` is always empty because the Bash tool keeps one stream; a
 non-zero exit never stops the cell, the cell's own code decides what it
 means. `agent(…)` runs

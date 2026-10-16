@@ -1,121 +1,127 @@
 # Sessions
 
 A session owns its conversation, model, permission mode, workspace and
-running work, hosted by the background daemon across the Boot face, chat and
+running work, hosted by the background daemon across the home screen, chat and
 Session Concourse.
 
 The session is the unit; every screen is a view. It survives
-whatever screen is looking at it — the chat, the Session Concourse board, a
-live tile and the Boot face render sessions and never store their truth.
-This page is how sessions are born, focused, closed and brought back, how
+whatever screen is looking at it (the chat, the Session Concourse board, a
+live tile and the home screen render sessions and never store their state).
+This page explains how sessions are started, focused, closed and resumed, how
 the folder you start in becomes a project, and the two boot switches that
-shape the journey.
-On Windows, each frame reads the window size from the console so the cockpit follows it even when no resize event arrives.
+shape the navigation strip.
+On Windows, each frame reads the window size from the console so the terminal UI follows it even when no resize event arrives.
 
 ## A fresh boot has no chat
 
-A bare interactive `mercury` lands on the Boot face — the card of New
+Running `mercury` with no arguments opens the home screen: the card of New
 Session · Continue Last Session · Boot Menu · MCPs & Skills · Agents ·
 Health Check · Saturn Scheduler · Logins · Session Concourse, and
-the merged Sessions · Projects door — and there is no chat behind it. The
-boot menu, the kit menu ([KIT.md](KIT.md)), the agent studio, the health
+the merged Sessions · Projects picker, with no chat behind it. The
+Boot Menu, the MCPs & Skills menu ([KIT.md](KIT.md)), the agent studio, the health
 certificate, the scheduler board ([SATURN.md](SATURN.md)), the sign-in
-catalogue and the session-and-repository picker open in place, as layers of
-the face itself —
-esc lands back on the row, the face never flashing chat chrome around a
-dialog — while the Session
-Concourse row is the board itself, one screen to the right. A chat exists
+catalogue and the session-and-repository picker open in place on the home screen
+(`Esc` returns to the selected row without flashing chat chrome), while the Session
+Concourse row opens the board one screen to the right. Pressing `m` on the home
+screen (`m to select model-default`) opens the default model and effort picker
+in place whenever `engine.sessionDefaults` is not `false`. The Boot Menu displays six section headings in screen order: **TRUST COMBO**
+(`Content-rule wards`, `Debug tool (real debugger)`, `C/C++ IDE lane (clangd)`,
+`Sovereign mode`), **COMPUTER USE** (`Computer use`, `Access type`),
+**SAMPLES** (`Samples`), **AGENTS** (`Crewmates`, `Workflows`, `Crewmates while
+backgrounded`, `JEV`), **MISCELLANEOUS** (`Launch animation`, `Godot language
+lanes`, `Godot control surface (VULCAN)`, `Unity dev lanes`, `Blender dev
+lanes`, `Aseprite dev lanes`, `Cap failover posture`, `Session Concourse at
+boot`, `Seats`), and **PERFORMANCE** (`Motion`). A chat exists
 only once you enter
 one: New Session, Continue, a pick on the Sessions · Projects screen, or a
 row on the concourse board. Until
 then the screen's chrome (the model chip, the mode readout, the folder row)
-reads the screen's own facts, and a screen left
-with no chat returns to the Boot face on its own.
+reads the screen's own state, and a screen left
+with no chat returns to the home screen on its own.
 
-Where a boot lands is the Boot face unless something outranks it: an
+Where a boot lands is the home screen unless something outranks it: an
 explicit journey (`--continue`, `--resume`, a prompt argument), or the
-`MERCURY_CONCOURSE` policy — `always` makes the board the boot home, `auto`
-lands the board when more than one session is live or one is waiting on you.
+`MERCURY_CONCOURSE` policy (`always` makes the board the boot home, and `auto`
+opens the board when more than one session is live or one is waiting on you).
 
 ## The strip walks only the screens that exist
 
-shift+← and shift+→ move between the screens that are there, and nothing
-else. A fresh boot has two: the Boot face and the Session Concourse —
-shift+→ from the face is the board, and shift+→ from the board moves
-nothing, because there is no chat to go to; nothing bounces and nothing
-flashes. The chat joins the strip the moment a session is focused — ↵ on
-New Session, ↵ on a board row, a resume — and leaves it when the last chat
+`Shift+←` and `Shift+→` move between the screens that exist, and nothing
+else. A fresh boot has two: the home screen and the Session Concourse
+(`Shift+→` from the home screen opens the board, and `Shift+→` from the board moves
+nothing when there is no chat open). The chat joins the strip the moment a session is focused (`Enter` on
+New Session, `Enter` on a board row, or a resume) and leaves it when the last chat
 closes. Every move lands on the nearest screen that exists in that
-direction, and the dim key-map row on the Boot face and on the board names
-only the moves that exist: "⇧→ concourse" on a fresh boot, "⇧→ chat" once a
-session is focused, "⇧→ no chat open" when nothing lies to the right,
-repainted the instant a screen appears or vanishes. On the board, esc returns
-to the focused chat while one exists — and to the boot menu when none does,
-exactly as its legend reads — and the FOCUSED CHAT crumb is a door only
+direction, and the dim key-map row on the home screen and on the board names
+only the moves that exist: `"⇧→ concourse"` on a fresh boot, `"⇧→ chat"` once a
+session is focused, `"⇧→ no chat open"` when nothing lies to the right,
+repainted the instant a screen appears or vanishes. On the board, `Esc` returns
+to the focused chat while one exists (and to the home screen when none does,
+matching its legend), and the FOCUSED CHAT crumb is active only
 while a chat exists.
 
-## New Session is born on Enter
+## Starting a new session
 
-↵ on New Session creates a real session for the current folder on the model
-the chip shows, and enters it. The session, the chat and its board row come
-into being together — the record is on the board before the chat paints —
-and no words are sent: the session is blank and ready, exactly like a row
-entered from the board. A `/mission` typed in the moment before the seat
-lands still belongs to the chat you opened: it moves to the session at
+Pressing `Enter` on New Session creates a session for the current folder on your
+default model, and opens it. The session, the chat and its board row are created
+together (the record is on the board before the chat paints)
+and no prompt is sent: the session starts blank and ready, just like a row
+opened from the board. A `/mission` typed in the moment before the runner
+is ready still belongs to the chat you opened: it moves to the session at
 admission, its card and its Stop hook with it, and the rail shows it once
-the seat is in. Enter stays instant because a warm runner already
-stands behind the menu; the birth claims it instead of paying a spawn. The session is born wearing the
-repository's MCPs & Skills record — or the preset armed on the face — and
-the launch receipt names which ([KIT.md](KIT.md)). The board's own `+ new session · n`
-tab, at the right end of its SESSIONS title, is the same birth from the
-board: a blank session in the project the board shows, focused at once.
-When every seat is taken, the birth waits up to 20 seconds for one to free
-and starts by itself when it does; otherwise the face comes back with the
-reason — how many live sessions hold the seats, and what frees one: stop or
-park a session on the Session Concourse, or raise the ceiling with `/seats N`
-— and ↵ waits again.
-The board's door row — the empty board's entry, and the first row above the
-sessions once there are any — names the model and the effort the next
-session starts on; with that row under the cursor the bottom row offers `m
-to select model-default`: `m` opens the model picker over the board, and the
-pick is saved as your default — the door row follows at once. If saving
+the runner is ready. Pressing `Enter` opens a chat immediately using a pre-warmed
+background runner. The new session loads the
+repository's MCPs & Skills selection (or the preset you selected on the home screen), and
+the launch receipt names which ([KIT.md](KIT.md)). The board's `+ new session · n`
+tab, at the right end of its SESSIONS title, starts a new session from the
+board in the project the board shows, focused at once.
+When every session slot is taken, the launch waits up to 20 seconds for one to free
+and starts automatically when it does; otherwise the home screen reports how many live
+sessions hold the slots and how to free one (stop or
+park a session on the Session Concourse, or raise the ceiling with `/seats N`),
+and pressing `Enter` waits again.
+The board's door row (the empty board's entry, and the first row above the
+sessions once there are any) names the model and the effort the next
+session starts on; with that row under the cursor the bottom row shows `m
+to select model-default`: pressing `m` opens the model picker over the board, and the
+pick is saved as your default while the door row updates at once. If saving
 fails or `MERCURY_MODEL` overrides the saved choice, the picker stays open
 with the reason in its notice row; compact layouts omit that row. A failed
-effort save keeps the prior effort selected. ↵ on the row starts a session
+effort save keeps the prior effort selected. Pressing `Enter` on the row starts a session
 as `n` does. On a session row, `m` opens that session's picker on its own
 effort, with only the effort levels the session accepts.
 The effort selection follows the session's settled value; a refused change
 leaves it where it was.
-The chat paints while the birth lands, and its first frame already names
-the model, the effort and the permission mode the birth resolved; once the
-session's own record and facts are read they take over, the same words
-standing. A word the birth did not resolve stays unpainted until the
+The chat paints while the session starts, and its first frame already names
+the model, the effort and the permission mode resolved at launch; once the
+session's own record and facts are read they take over with the same values.
+A value not resolved at launch stays unpainted until the
 session's record names it.
 
-The boot's own options ride into the sessions it opens: `--title <name>` titles
-the first session you open (one-shot; later ones name themselves — below),
+The boot's own options apply to the sessions it opens: `--title <name>` titles
+the first session you open (one-shot; later ones name themselves as described below),
 and `--effort`, the permission mode and the runner-side options apply to
-every session this screen births.
+every session started from this screen.
 
 The model and the effort a session runs follow one law. An explicit
 `--model` or `--effort` on the command line wins, for a new session and for
 a resumed one alike. Without the flag, a new session starts on your saved
-choice — `/model` and `/effort` both save the pick as your default, and say
-so — and, with nothing saved, on the family default. A saved family word
+choice (`/model` and `/effort` both save the pick as your default and say
+so) and, with nothing saved, on the family default. A saved family word
 follows its family's newest row (`sonnet` runs Sonnet 5.5 as `opus` runs Opus
 5.5) while a saved full id such as `claude-sonnet-5` stays on that generation.
 A saved choice whose
-family cannot serve it — no sign-in for that family here, or a sign-in whose
-catalogue refused it (a catalogue merely not fetched yet is not a refusal:
-the chat starts on the saved choice) — does not stop the birth: the chat starts on the
+family cannot serve it (no sign-in for that family here, or a sign-in whose
+catalogue refused it; a catalogue not fetched yet is not a refusal, so
+the chat starts on the saved choice) does not block the launch: the chat starts on the
 computed default (the most recent sign-in's newest usable row) and its first
-row says so, naming the family, the reason and the doors (`/logins <family>`
+row says so, naming the family, the reason and the commands (`/logins <family>`
 connects it, `/model` changes the default); the saved choice is left as it
 stands, so the next chat returns to it the moment that family signs in;
 `/model` in that chat saves a new default and the next New Session runs it.
 The board's New
-Session strip births on the same saved choice; its own effort pick, when
-you make one, holds for that one birth. A resumed session
+Session strip starts on the same saved choice; its own effort pick, when
+you make one, applies to that one session. A resumed session
 keeps the model and effort it was on unless the command line says
 otherwise: `--continue --model <id> --effort <level>` brings the session
 back on the launch's model and effort, its record is re-stamped, and the
@@ -160,10 +166,10 @@ back. A window opened while that daemon is still on its way out waits the
 beat it takes to leave, then starts its own, and a daemon that leaves in the
 beat after answering a new session's window is checked for and started
 again by that same ↵, so the session lands without a second one. Each ↵
-names its birth with one key that both the first admission and the retry
-carry, and a daemon that admitted the session but whose answer was lost on
-the wire answers the retry with the session it already holds — the ↵ lands
-in that one session, never a second. One active daemon owns the config home's
+names its launch with one key that both the first admission and the retry
+carry, and a daemon that admitted the session but whose answer was lost in
+transit answers the retry with the session it already holds, so `Enter` lands
+in that one session and never creates a duplicate. One active daemon owns the config home's
 control socket. During an update, a draining helper can keep the sessions
 it already hosts while the installed build takes new sessions; it leaves
 when its own last session finishes. A daemon whose directory is removed
@@ -173,28 +179,28 @@ describes the update's handover and open-window notices.
 
 A chat you just opened is never reaped before your first message. An empty
 background session retires after `MERCURY_SESSION_IDLE_RETIRE_MINUTES`
-(default 10; 0 disables; the row stays on the board as stopped — "retired —
-empty and idle for 10m" — until you release it), but a session born through
+(default 10; 0 disables; the row stays on the board as stopped, `"retired —
+empty and idle for 10m"`, until you release it), but a session started through
 New Session that has not received your first message is excluded from that
-judgment: without limit by default, or for the
+timer: without limit by default, or for the
 `MERCURY_SESSION_NEWBORN_GRACE_MINUTES` you set, and the first message ends
-the grace either way. A session born this way, never messaged, that the daemon finds
-dead at its next reconcile is released quietly rather than painted NEEDS YOU
-— there is nothing to bring back.
+the grace period either way. A session started this way and never messaged that the daemon finds
+stopped at its next reconcile is released instead of being marked NEEDS YOU,
+because there is nothing to resume.
 
 ## A session names itself
 
-A session's name is the best it has, in three stages: at birth, the fact —
-"new session · <project> · ready"; at your first message, the first line of
-the prompt; and once its second reply lands, a short minted title — the
-small model writes one, once per session ever, and only into an empty name,
-so a title you typed is never overwritten and the mint never runs twice; a
-mint that cannot run (offline, refused) leaves the words standing. A name
-never regresses to a lesser stage. `/title <words>` names the focused
-session yourself — a typed name outranks and outlives the mint — and a
-bare `/title` asks the model again, an explicit spend; `r` on a board row
-renames it there. The worker id is a fact of the detail column and never a
-session's title, in any world. `/rename <words>` names the session from the
+A session's name updates in three stages: when created, `"new session ·
+<project> · ready"`; at your first message, the first line of
+the prompt; and once its second reply lands, a short generated title (the
+small model writes one once per session, and only when no custom title is set,
+so a title you typed is never overwritten and title generation never runs twice; if
+generation cannot run offline or is refused, the existing title stays). A name
+never regresses to an earlier stage. `/title <words>` names the focused
+session yourself (a typed name outranks and outlives the generated title), and a
+bare `/title` asks the model to generate one again; `r` on a board row
+renames it there. The worker id appears only in the detail column and never as a
+session's title. `/rename <words>` names the session from the
 chat. The name lives in the terminal's title, on the concourse and in
 `/sessions`; the chat itself paints no title row.
 
@@ -205,24 +211,24 @@ session a terminal is looking at, and a hop moves that mark from the chat
 you leave to the one you land on, so exactly one session per terminal is
 focused at any moment.
 
-Focus carries your seat. The focused chat launches workflows and crewmates on
-your own authority, under its own permission mode. A background session
-keeps working single-handed and waits — until you visit it, until it
+Focus carries your active approval channel. The focused chat launches workflows and crewmates on
+your authority, under its own permission mode. A background session
+keeps working single-handed and waits until you visit it, until it
 holds the workflows-allowed grant (asked of the coordinator, chosen as
 keep-and-background on leave, or the manual-start option), or until you turn
-on "Crewmates while backgrounded" (a `/config` row, the same row in the boot
-menu's Agents section; off by default). With it on, every session you have
+on "Crewmates while backgrounded" (in `/config` or in the Boot
+Menu's Agents section; off by default). With it on, every session you have
 left in the background launches crewmates and workflows as a focused one
 does, under its own permission mode and its own Crewmates and Workflows
-switches, and a session born while it is on carries the Crewmate and Workflow
-tools from its first request; the one workflows-allowed grant stays what it
-is. With it off, a background session's launch refusal names the three roads.
-A hop flips the focus answers at once. `/runs`,
+switches, and a session started while it is on carries the Crewmate and Workflow
+tools from its first request; the workflows-allowed grant stays unchanged.
+With it off, a background session's launch refusal names the three ways to allow it.
+A hop updates focus immediately. `/runs`,
 `/workflows` and the board's work chip show the focused session's own work
-and never another's. A shell's row on the board, or in the cockpit rail's RUNS
+and never another's. A shell's row on the board, or in the side rail's RUNS
 lane, opens its card: the whole command, the directory it runs in, the time it
 has run, its exit code once it has ended, and the last lines of its output,
-read from the output file the session's runner writes on this machine, under a
+read from the output file the session's runner writes, under a
 count of the lines shown against the lines it has written. On a short window
 the command yields rows to the output, so at least one line of it always
 shows. In `/help`, pressing `PageDown` or `PageUp` from the tab header enters
@@ -254,16 +260,16 @@ with ctrl+v on macOS and Linux, or alt+v on Windows (the terminal owns
 ctrl+v there, and an image-only clipboard gives it nothing to paste); drag
 an image file onto the terminal; or paste its path. Each attaches as an
 `[Image #N]` chip, saved under its own name in the session's image store
-for the session's life, and the composer says what was attached — its size,
-and what it was shrunk to when the provider's limits asked for it. An image
+for the session's life, and the composer shows its size
+and what it was shrunk to when the provider's limits required resizing. An image
 sent while a turn is still running rides as a reference to that file, and
-every later request reads its bytes back from the store, a session brought
-back included. Copy an
-image and come back to Mercury and it tells you the key. An image is never
+every later request reads its bytes back from the store, including in a resumed
+session. Copy an
+image and come back to Mercury and it shows the paste shortcut. An image is never
 refused for its size: it is shrunk to the provider's published limits
-(`/health` names the image processor on this machine); the one refusal
-left is an image whose smallest encoding still exceeds them, and its words
-say which limit and what size. Each provider's rule is its own: the Claude
+(`/health` names the active image processor); the only refusal
+is an image whose smallest encoding still exceeds the limit, and the error
+names which limit and what size. Each provider's rule is its own: the Claude
 API caps an image at 10 MB of base64 and 8000 px a side, and at 2000 px a
 side once a request carries more than 20 images, while the OpenAI
 API caps a request at 512 MB and an image at 30,000 patches of 32 px, so a
@@ -294,47 +300,53 @@ capsule's middle however tall the capsule grows (the lower of the two
 middle rows when the capsule has an even number of rows): a status that
 stacks or wraps onto more lines lengthens the capsule downwards and the
 sprite follows its middle. The same small sprite is the critter everywhere
-it appears — the box, the compact layout's band, the header above the chat
-outside the cockpit — and a click on it, or `/critter`, chooses the
-creature. The view runs from the top of the screen down to the status row
+it appears (the session box, the compact layout's band, and the header above the chat),
+and clicking it or running `/critter` chooses the
+creature (on a new config home, the default is the crab in its red; the first-run
+theme fitting chooses only the colour theme). The view runs from the top of the screen down to the status row
 above the composer; the rails beside it run the same height.
 
 The status row above the composer keeps the session's model and the
 effort word its chip paints in every state: it rests on
 `ready · <model> · <effort>` while the session is idle and no crewmate is
 running, and otherwise reads `<model> · <effort>` followed by what the
-session is doing — the wait on crewmates, a request wait, a held receipt, a
-warning, or the CREW's clock while a crewmate or workflow crewmate
-the session's runner hosts is still running — by kind: "crewmate thought for
-28m", "workflow thought for 12m", both when both run (the larger first).
-The clock counts the crew that is running now; when the last of them lands
-or is stopped the row reads `ready` again on the next beat, and the landed
-rows keep their own time in the CREW box, `/crewmates` and `/runs`. At its
+session is doing (a wait on crewmates, a request wait, a confirmation notice, a
+warning, or the crew's timer while a crewmate or workflow
+the session's runner hosts is still running) by kind: `"crewmate thought for
+28m"`, `"workflow thought for 12m"`, or both when both run (the larger first).
+The timer counts the crewmates running now; when the last of them finishes
+or is stopped the row reads `ready` again on the next beat, and the finished
+rows keep their own elapsed time in the CREW box, `/crewmates` and `/runs`. At its
 right end, before the way back, the row names the folder and the branch the
 session works on (`mercury ⌥ main`; the folder alone where there is no
 branch). When the row is too narrow for everything, the state words
-shorten first, then the folder leaves, then the branch — the model and its
-effort stay. The row wears no glyph and paints no session name. The main
+shorten first, then the folder leaves, then the branch, while the model and its
+effort stay. The row wears no glyph and paints no session name. In the compact
+layout (terminals narrower than 100 columns or shorter than 26 rows), the line
+under the input box also shows the count of HTML preview pages (`/samples`)
+created in the session. The main
 agent is narrated once, by the transcript's thinking row and the card under
-the critter, and never repeated here; a session with no crew paints no
-clock while its main agent works. A `/effort` pick's receipt — the daemon's
-own sentence — stands on that row for eight seconds in place of its words,
+the critter, and never repeated here; a session with no running crewmates paints no
+timer while its main agent works. An `/effort` pick's confirmation notice
+stands on that row for eight seconds in place of its resting text,
 then the resting words return with the new effort; where the row is not
-painted (the compact layout) the receipt stays a notice under the composer.
-That is what makes esc read true: esc interrupts the main agent alone, so
-the card's glyph stops while the row's clock keeps counting for the crew
-that runs on. The interrupt ends the tool call in flight as well as the
-request: a tool that answers the interrupt within its grace (three quarters
-of a second) settles with its own words, and one that cannot — a browser
-whose process is gone, a call waiting on something that will never answer —
-is left behind, its result replaced by the interrupt's own, and its late
-answer, if one ever comes, is dropped. A second esc while the first is still
-on its way delivers the interrupt again and nothing more: the runner is
-never signalled, its crewmates run on, and a runner that cannot answer stays
-busy until you stop it by hand — x on its row stops the session, the crew
-view stops one crewmate. A stop you ask for is recorded on the session as
-your stop, never as a crash, and a resume after it brings the runner back
-saying so. A turn that fails inside the runner's own machinery before it has
+painted (the compact layout) the notice appears under the composer.
+Pressing `Esc` in the main chat stops the current turn immediately while your
+crewmates keep running, and any reply already written before you pressed `Esc`
+stays on screen and in the transcript. When you view a crewmate, the bottom
+model chip shows that crewmate's model, and returns to the session's model when
+you switch back to the main chat. The interrupt ends the tool call in flight as well as the
+request: a tool that answers the interrupt within its grace period (three quarters
+of a second) settles with its own output, and one that cannot (such as a browser
+whose process is gone or a call waiting on an unresponsive child)
+is left behind, its result replaced by the interrupt notice, and any late
+answer is dropped. Pressing `Esc` a second time while the first is still
+in flight delivers the interrupt again: the runner process is
+never killed by `Esc`, its crewmates keep running, and a runner that cannot answer stays
+busy until you stop it (`ctrl+x ctrl+x` on its board row stops the session, and `/crewmates`
+stops an individual crewmate). A stop you request is recorded on the session as
+a user stop instead of a crash, and resuming brings the runner back
+with that status. A turn that fails inside the runner's own machinery before it has
 answered ends in a failed `outcome`: `error.message` names the failure and
 `error.detail` carries any further diagnostics. The session lives on to read
 the next line; only a failure after the turn has already answered still ends
@@ -347,157 +359,154 @@ background as a task whose output arrives as a notification; with a draft in
 the composer the key types its letter. `view.backgroundKey: false` in
 settings.json turns the key and both hints off, and esc keeps its meaning
 either way. The row's warnings stay its own: a request wait names what the
-runner waits on and the budget that fires ("waiting for the first byte from
-Opus 5.5 — within 6m"); a held turn names what it waits on ("waiting on 1
-workflow · 2 crewmates"); an interrupt says the request is torn down. The row
+runner waits on and the budget that fires (`"waiting for the first byte from
+Opus 5.5 — within 6m"`); a held turn names what it waits on (`"waiting on 1
+workflow · 2 crewmates"`); an interrupt says the request is torn down. The row
 says the session may be stuck only when the runner's stream has carried no
-event of any kind — the provider's heartbeats included — for longer than its
+event of any kind (the provider's heartbeats included) for longer than its
 own watchdog's warning point: never sooner than five minutes of silence, and
 never later than the watchdog's own cut. On the routes whose keep-alives
 feed the watchdog the budget is six minutes (twelve in patient mode), so the
-row can name the silence from five: "no stream events for 5m — the session
-may be stuck (the watchdog aborts at 6m)"; on the quiet routes, whose budget
-is fifteen minutes, the row names what it saw from seven and a half: "no
+row can name the silence from five (`"no stream events for 5m — the session
+may be stuck (the watchdog aborts at 6m)"`); on the quiet routes, whose budget
+is fifteen minutes, the row names what it saw from seven and a half (`"no
 stream events for 8m — the session may be stuck (the watchdog aborts at
-15m)". Every wait, warning and reissue line spells a minute or more in
-minutes ("within 2m", "within 2m of dispatch") and anything shorter in
+15m)"`). Every wait, warning and reissue line spells a minute or more in
+minutes (`"within 2m"`, `"within 2m of dispatch"`) and anything shorter in
 seconds. A running tool is never called stuck. The chat pane carries no
 clock: every row of the chat carries its own timestamp, and a clock that
 ticks is a repaint a second on an idle screen.
 
 ## The concourse shows the project you are in
 
-`/concourse`, the Boot face's Session Concourse row, or shift+→ from the
-Boot face opens the Session Concourse — the control plane for the project
-you are in, and its resume screen. The board is that project's: its
-sessions that are running, held for a seat, or finished and waiting for a
-merge, and beneath them, PARKED, the project's chats with no runner. It is
-never a pile of everything: pick another project — the rail's REPO picker,
-or a Projects pick on the Boot face — and the board shows that project's
-sessions instead, while every other project's sessions keep running. What
-runs elsewhere stays one glance away: each other project with activity
-paints one small door line under OTHER PROJECTS, between the live rows and
-PARKED — "N running in foo", its finished and needs-you counts trailing,
-"switch to see them" in its NOW cell — and ↵ on it switches the view
-through the REPO picker's own path; at most three lines paint, and a "+N
-more projects with activity" line opens the picker itself (also ⌃g). The
-Boot face's Projects rows carry the same numbers — "foo (3 running)" —
-through the same one running predicate. The chat you are in rides a project
-switch rather than vanishing: the board always adds the one focused
-session, wherever it lives, wearing ✦ "from <its project>" beside its
-title — live among the live rows, or leading PARKED when no runner stands
-behind it — and ↵ enters it as ever; focus a session of the current
-project and the carried row hands back to its own board silently. Two things on the board
-stay machine-wide on purpose: the rail's counts ("N live", the seats
+`/concourse`, the home screen's Session Concourse row, or `Shift+→` from the
+home screen opens the Session Concourse: the control board for the project
+you are in, and its resume screen. On the first visit to the Session Concourse,
+a one-time `"FIRST BOOT — capacity check"` dialog asks whether to probe the
+machine's cores, available memory, and running agent CLIs to size how many
+parallel sessions fit (`"y run it once"` or `"n no probe — the machine's own
+reading decides"`, `"esc keeps the default · asked once, never again"`). The
+board is scoped to that project: its
+sessions that are running, waiting for a slot, or finished and waiting for a
+merge, and beneath them, PARKED, the project's chats with no running worker.
+When you pick another project (through the rail's REPO picker
+or the Sessions · Projects screen on the home screen), the board shows that project's
+sessions instead, while every other project's sessions keep running. Activity
+in other repositories stays visible: each other project with activity
+paints one summary line under OTHER PROJECTS, between the live rows and
+PARKED (`"N running in foo"`, with its finished and needs-you counts and
+`"switch to see them"` in its NOW cell), and pressing `Enter` on it switches the view
+through the REPO picker's path; at most three lines paint, and a `"+N
+more projects with activity"` line opens the picker itself (also `Ctrl+G`). The
+home screen's Projects rows show the same counts (`"foo (3 running)"`)
+through the same running predicate. The chat you are in stays visible across a project
+switch: the board always includes the focused
+session, wherever it lives, marked with `✦ "from <its project>"` beside its
+title (among the live rows when running, or at the top of PARKED when stopped),
+and pressing `Enter` opens it; focusing a session of the current
+project returns the carried row to its own project board. Two things on the board
+are machine-wide: the rail's counts (`"N live"`, the seats
 fraction) count every running session on the machine, and the NEEDS YOU
-rail lists every open question whichever project asked it — a question
-from another project still shows, because a question nobody sees is worse,
-and that row is a door: ↵ switches the view to its project and opens the
+rail lists every open question across all projects so no question goes unseen;
+pressing `Enter` on a NEEDS YOU row switches the view to its project and opens the
 chat.
 
-↵ on a live row is the hop — the chat shows that session whole, the same
-cockpit with its own model, its own consent card and numbers — while every
-other session's runner keeps working. The parked rows are the project's
-chats with no runner that were touched within the last week, newest first,
-at most ten, each wearing its name — the stored title when one stands, else
-its first words — and carrying "parked · <age>" where a live row shows
-motion. ↵ on a parked row brings it back in place: its transcript paints at
-once, the daemon admits the same durable session behind the paint, it
-becomes the focused chat, and shift+←/→ work from there as usual. The
-board's close key is a chord, never a letter: ctrl+x pressed twice (the
+Pressing `Enter` on a live row switches to that session's chat (with its own
+model, permission prompts, and counters) while every
+other session's runner keeps working. The parked rows list the project's
+stopped chats touched within the last week, newest first,
+up to ten, each showing its stored title (or its first prompt line)
+and `"parked · <age>"`. Pressing `Enter` on a parked row resumes it in place: its transcript paints at
+once, the daemon starts a runner for that session behind the paint, it
+becomes the focused chat, and `Shift+←` and `Shift+→` work from there as usual. The
+board's close key is a chord, never a single letter: `ctrl+x` pressed twice (the
 first press shows the hint on the row, the second completes), and the
-chord is a ladder of three rungs. On a live row it stops the session (the
-row stays, wearing stopped and the next step); on a stopped row it
-archives — the row parks; on a parked row a first chord says the next one
-deletes, and that next chord (or a chord straight after the archive)
-deletes the record — the transcript survives on disk, and the Boot face and
-`/sessions` still offer the chat. A chat that was never messaged has nothing
-to park: on its stopped row the hint reads "ctrl+x again removes it (the chat
-held no message)", its archive rung releases it with the receipt "removed from
-the board — the chat held no message", the row leaves the board, and when it
-was the only chat the strip is back to its two stops. A door row
-(another project, the repo picker) has nothing to close. Everything else the project
-holds — chats older than a week, past the ten, cleared from the board, or
-never given words — is counted into one last line, "N older chats · ↵ to
-browse": ↵ unfolds that very list in place on the board — this project's
-older chats, newest first, each wearing its name and age — ↑↓ or a click
-chooses inside it, ↵ on one brings it back through the same door a parked
-row rides, esc (or moving off the line) folds it back to the line, and a
-list longer than the window ends in honest arithmetic ("+N more — /sessions
-lists everything"); the board keeps the frame throughout, and the close
-chord on that line clears nothing. The project's whole history
-is also a command away: `/sessions` in the chat (project-scoped; `a` widens
-it to every project's history), where a chat is brought back, or cleared,
-one at a time. Nothing deletes a transcript — no row or key unlinks a
+chord steps through three stages. On a live row it stops the session (the
+row stays, marked stopped with the next step); on a stopped row it
+parks the session; on a parked row a first chord says the next one
+deletes it, and that next chord (or a chord right after parking)
+deletes the board record while keeping the transcript on disk so the home screen and
+`/sessions` still list the chat. A chat that was never messaged has nothing
+to park: on its stopped row the hint reads `"ctrl+x again removes it (the chat
+held no message)"`, the next chord removes it from the board, and when it
+was the only chat the navigation strip returns to its two screens. A door row
+(another project or the repo picker) has nothing to close. All other chats in the project
+(chats older than a week, beyond the first ten, removed from the board, or
+never messaged) are counted on one line, `"N older chats · ↵ to
+browse"`: `↵` unfolds that very list in place on the board (this project's
+older chats, newest first, each with its name and age), `↑↓` or a click
+selects inside it, `↵` on one brings it back through the same door a parked
+row rides, `esc` (or moving off the line) folds it back to the line, and a
+list longer than the window ends in honest arithmetic
+("+N more — /sessions lists everything"); the board keeps the frame throughout,
+and the close chord on that line clears nothing. The project's full history
+is also available through `/sessions` in the chat (project-scoped; `a` widens
+it to every project's history), where chats can be resumed or cleared
+one at a time. Nothing deletes a transcript: no row or key unlinks a
 chat, and the retention sweep (`records.retentionDays`, default 30
 days) ages only recordings and tool results, never
-a session transcript: a chat is yours until your own act removes it.
+a session transcript.
 Setting `records.retentionDays` to `0` turns transcript writing off for
 new chats; the transcripts already on disk stay.
 
 Every live row is a tile: the NOW cell streams what the session is doing
-right now — the reply's last line, or the tool it is running — and `→`
-opens a peek of the selected row in place. A session's end is a visible
-state: a runner that crashed paints NEEDS YOU with its reason line — the
-exit code and, when the runner said anything as it died, its last words:
-the error its turn ended on, else the last line it wrote to its standard
-error — the row outlives every reconcile, your own next act on the session
-clears the fact, and only your release removes the row. The daemon's log
-carries the same line for every crash, so a runner older than a few minutes
-loses nothing of what it said. ctrl+x ctrl+x stops the selected
-session — the row stays, wearing stopped and the next step — the chord
-again archives it, and a third chord deletes it; typing is never a control,
+right now (the reply's last line, or the tool it is running), and `→`
+opens a preview of the selected row in place. When a runner crashes, its row
+shows NEEDS YOU with the exit code and the last error or stderr line;
+the row stays across reconciles until you act on the session or release the row.
+The daemon's log records the same line for every crash. `ctrl+x ctrl+x` stops the selected
+session (the row stays, marked stopped with the next step), the chord
+again parks it, and a third chord removes the board row; typing is never a control,
 so a plain `x` lands in the composer like any other letter. The board's REPO picker
-changes the folder new sessions launch in, the whole harness follows, and
-the board follows with it — it renders the same list of projects the Boot
-face's Projects rows do.
-`/daemon halt` is the screen's brake — it fires interrupt-first, acting while a
-turn runs, and never rides into a session runner. The status strip's ⚑
-badge counts what needs you. A session that finishes a run while you are elsewhere
-is not a question: its row wears its state glyph and word in amber until
-you open the chat again, and a run you watched to its end in the chat
-leaves no mark. A question from another project stays a door — ↵ switches
-the view to its project and opens the chat; an untrusted folder is never
-switched into silently — the chat still opens, and the note says where the
-view stayed.
+changes the folder new sessions launch in, and the board updates to render
+the same list of projects as the home screen's Sessions · Projects view.
+`/daemon halt` interrupts immediately while a
+turn runs, without routing through a session runner. The status strip's `⚑`
+badge counts what needs your attention. A session that finishes a turn while you are viewing another screen
+is not a question: its row shows its state glyph and status word in amber until
+you open the chat again, while a turn you watched to completion in the chat
+leaves no unread mark. A question from another project opens that project's chat when you press `Enter`; an untrusted folder is never
+switched into silently (the chat still opens, and a notice states that the project scope stayed unchanged).
 
-The coordinator that sits behind the board — launching, watching, messaging
-and queueing sessions — is [CREW.md](CREW.md)'s.
+See [CREW.md](CREW.md) for the coordinator that launches, monitors, messages
+and queues sessions from the board.
 
 ## The folder is the project
 
 Open a terminal in any folder and run `mercury`: that folder is the project,
-by its name, from the first frame — the Boot face's card and its Dir chip
-name it, and a folder that is itself a `.mercury` home is called by its
-parent's name. Nothing is written into the
-folder until a chat is actually born there: looking at the Boot face and
-leaving keeps the folder byte-for-byte as it was. The first chat born in the
-folder, whichever door births it, initializes the catalog: an empty
-`.mercury/` directory in the folder, and a small project card in Mercury's
-own home beside that folder's transcripts. From then on the folder is one of
-your projects everywhere — the Boot face's Projects rows, the board's REPO
-picker and the board's own scope all render the one list. The estate stays
-yours: Mercury writes no ignore rules, never touches `.gitignore`, and never
-deletes `.mercury/`. The project folder holds shared configuration — the
-settings, the gates and wards, the Apollo specs, the agents, the saved
-workflow scripts — the way a crew commits its shared config; everything a
+by its name, from the first frame (the home screen's card and its Dir chip
+name it, and a folder that is itself a `.mercury` directory is named after its
+parent folder). Nothing is written into the
+folder until a chat is started there: opening the home screen and
+exiting leaves the folder untouched. Starting the first chat in the
+folder initializes an empty
+`.mercury/` directory in the folder and a project record in Mercury's
+config home beside that folder's transcripts. From then on the folder appears in
+your project list across the home screen's Sessions · Projects view and the board's REPO
+picker. Mercury writes no ignore rules, never modifies `.gitignore`, and never
+deletes `.mercury/`. The project folder holds shared configuration (settings,
+command safety rules, Apollo specs, custom agents, and saved
+workflow scripts) the way a crew commits its shared config; everything a
 machine or a session writes for itself (run manifests, ledgers, evidence,
-test-run records, local memory, the health check's certificate)
+test-run records, local memory, and the health check's certificate)
 lives in the config home beside that folder's transcripts. A local store
 found in the project folder from before is read once and moved on its
 first touch; the folder keeps its copy, and the health check's Project estate row
 names it with the one `git rm --cached` line that untracks it.
 
-The cockpit's left rail carries a FILES box named for the focused session's
-folder; a hop into a session of another project moves the box and its tree
-with it. `↵` on it or a click on it opens the folder's tree as a menu over
+The left rail carries a FILES box named for the focused session's
+folder; switching into a session of another project moves the box and its tree
+with it. Pressing `Enter` or clicking it opens the folder's tree as a menu over
 the chat: `→` unfolds a folder and `←` folds it, `/` filters the rows by
-name, `↵` on a file puts `@` and its path at the composer's caret and closes
-the menu, and `esc` or a click on the chat outside the menu closes it. Inside
+name, `Enter` on a file inserts `@` and its path at the composer's cursor and closes
+the menu, and `Esc` or clicking outside the menu closes it. Inside
 a git repository the menu's second line names the branch and the count of
 changed files, and a changed file carries its mark at the row's right edge.
-The same click outside closes every panel over the chat that `esc` closes.
-It goes back one level, just like `esc`, without selecting text, opening a
+When you open an external editor, suspend Mercury with `Ctrl+Z`, or exit,
+Mercury waits up to 250 ms (`MERCURY_TERMINAL_QUERY_SETTLE_MS`) for pending
+terminal capability replies to finish so escape codes never leak into your
+shell or editor. Clicking outside closes any popup over the chat that `Esc` closes,
+stepping back one level without selecting text, opening a
 link or pressing anything in the chat beneath it.
 The `view.files` setting set to false takes the FILES box off the rail.
 
@@ -506,28 +515,28 @@ itself: `--worktree [name]` at launch cuts one (with `--multiplex`, inside a tmu
 session of its own), and the EnterWorktree tool cuts one mid-session on the
 word "worktree". The worktree lives under the repository's
 `.mercury/worktrees/` on a branch of its own, cut from the commit the checkout
-is on — the branch you work in, never a remote's copy of it, and nothing is
-fetched to cut it (a `--worktree` name of the form `#<n>` or a pull-request
-link cuts it from that pull request's head instead) — and comes ready to build:
+is on (the branch you work in, never a remote's copy of it, and nothing is
+fetched to cut it; a `--worktree` name of the form `#<n>` or a pull-request
+link cuts it from that pull request's head instead) and comes ready to build:
 `node_modules` and each `vendor/<pack>` the checkout ignores are links to the
 checkout's copies, hidden from git through the clone's exclude file, so the
 checks run there without an install. Because `node_modules` is a link to the
 checkout's, an install run inside the worktree installs into the checkout's
-dependencies, not into a copy of its own.
+dependencies instead of a separate copy.
 
 ## Closing chats
 
 Releasing the last row on the board closes the last chat: the slot rests on
-no session, the chat stop leaves the strip, and the board keeps the frame —
-back to the two screens, with nothing created in its place and nothing
-bouncing to the menu.
-`/clear` in a chat starts fresh: the focused session is parked — its slot
-released, its row on the board reading "parked · <age>", ↵ there brings it
-back, its transcript kept — and a fresh session opens in the same folder on
-the same model, blank and on the board at birth; the cleared chat is never
+no session, the chat stop leaves the strip, and the board keeps the frame,
+returning to the two screens without creating a new session or jumping to the
+home screen.
+`/clear` in a chat starts fresh: the focused session is parked (its slot
+released, its row on the board reading `"parked · <age>"`, `Enter` there brings it
+back, and its transcript is kept) and a fresh session opens in the same folder on
+the same model, blank and listed on the board immediately; the cleared chat is never
 lost. With no chat open there is nothing to clear, and a session mid-turn is
 never dropped under you: the refusal names the one action that unblocks it
-(esc to interrupt, then `/clear`). When leaving Mercury (`/exit` or
+(`Esc` to interrupt, then `/clear`). When leaving Mercury (`/exit` or
 `ctrl+c`/`ctrl+d`), once per session the exit confirmation card (if live work
 is running) or the farewell line prints `Something broke?
 https://mercury-cli.ai/report`; inside a session, `/bug --short <what you
@@ -536,82 +545,83 @@ health dump).
 
 ## Bringing a chat back
 
-Continue Last Session, the face's Sessions · Projects screen (your sessions
-above, your repositories beneath, one highlight — ⇥ jumps containers,
-highlighting a repository filters the sessions to it, ↵ on a session brings
-it back and ↵ on a repository opens its most recent chat; a repo with no
+Continue Last Session, the home screen's Sessions · Projects view (your sessions
+above, your repositories beneath, one highlight where `Tab` switches sections,
+highlighting a repository filters the sessions to it, `Enter` on a session resumes
+it and `Enter` on a repository opens its most recent chat; a repo with no
 history opens a new session there instead), `/sessions`, `-c`/`--continue`,
-`-r`/`--resume <id|title>`, and ↵ on a parked row of the board all come back
-through one door. A
-session live on the board is simply entered. Otherwise its transcript paints
-at once from its file and the daemon admits the same durable session behind
+`-r`/`--resume <id|title>`, and `Enter` on a parked row of the board all resume
+through one path. A
+session live on the board is entered directly. Otherwise its transcript paints
+at once from its file and the daemon starts a runner for that session behind
 the paint; a session whose runner the daemon still holds (one mid-respawn
-after a crash, or one the records read as gone) is entered the same way and
-one receipt row says so — `<title>: a live runner still holds this session —
-re-attached to it` — while a session with no runner at all is revived, and
-a refusal names the daemon's own reason; the chat lands ready on the first
-↵ — a slow transcript never leaves the press dead — the first words you
-type wait for that admission, and the away recap paints as a display-only
+after a crash, or one the records read as gone) is entered the same way with
+a receipt row (`<title>: a live runner still holds this session —
+re-attached to it`), while a session with no runner is revived, and
+a refusal names the daemon's reason; the chat opens ready on the first
+`Enter`, the first words you
+type wait for admission, and the away recap paints as a display-only
 row, never in the model's conversation. The session comes back on its own
 model and effort, unless
-the boot named a `--model` or `--effort`: then the launch's word wins and
+the launch passed `--model` or `--effort`: then the command-line flag wins and
 the recap card says so. Whichever
-door, the whole estate is live behind the chat — the daemon, the board and
-every other running session — and a resume yields, drains, kills, swaps or
-respawns nothing.
+way you resume, the daemon, the board and
+every other running session keep running undisturbed.
 
-A runner that died mid-work — a crash, or a stop you asked for and then
-resumed — comes back carrying what it held. The session's own record keeps
+A runner that stopped mid-work (from a crash, or a user stop followed by a
+resume) comes back with its queued work. The session's record keeps
 what the runner had queued and what its background crewmates had reported:
-each line you typed that the dead runner never read is queued again under
-its own identity and runs as the next turn; a crewmate that had finished is
+each line you typed that the stopped runner never read is queued again under
+its own id and runs as the next turn; a crewmate that had finished is
 delivered from the notice it left, byte for byte; a crewmate still working is
 relaunched from its own transcript, told that its files hold the edits it
-made and to read them again before it edits; and only a launch the record
-knows nothing about is reported stopped. One row says what the restart
-carried — `runner restarted after a crash: 2 background crewmates relaunched, 1
+made and to read them again before editing; and only a launch the record
+has no entry for is reported stopped. One row summarizes what the restart
+carried (`runner restarted after a crash: 2 background crewmates relaunched, 1
 delivered from their receipts, 0 stopped`, or `runner restarted after a
-stop: …` when you had stopped it. The seat comes back on your next words — a
-resume, a line typed — as before.
+stop: …` when you had stopped it). The runner resumes on your next action (resuming
+or sending a message).
 
 ## The preserved-thinking record
 
 Each session keeps one small record beside its samples and its computer-use
 grant, `<config-home>/sessions/<session id>/prefix-ledger.json`: a digest of
-every part of the last request Mercury sent for it — each block of the system
-prompt (with its text, so a moved section can be named), each tool, each
-message block — and the response ids the history carried; never a word of
+every part of the last request Mercury sent for it (each block of the system
+prompt with its text so a changed section can be named, each tool, and each
+message block) plus the response ids the history carried; never a word of
 the conversation, a tool's output or an image. A fresh process bringing the
 session back compares its first request against it, so a dropped thinking
-block is named by the part that moved, and a record a request behind (the
+block is named by the part that moved, and a record a request behind (when the
 previous process ended before its last write) says so instead of naming a
 part. The record is written in the background once a request is on the wire
-— never in the request path, one write for a burst of requests — and flushed
-when the process exits. It is removed with its session: when the row is
-removed from the board, and when the operator's prune deletes the transcript.
+(outside the request path, one write for a burst of requests) and flushed
+when the process exits. It is removed with its session when the row is
+removed from the board or when you prune the transcript.
 An interactive boot sweeps the rest: a record whose transcript no longer
-exists goes, and so does one older than `MERCURY_PREFIX_RECORD_RETENTION_DAYS`
-(thirty days unset); a live session's record is never touched.
+exists is removed, and so is one older than `MERCURY_PREFIX_RECORD_RETENTION_DAYS`
+(thirty days when unset); a live session's record is never touched.
 
 A thinking drop after a long idle is named by the part of the request that
 moved. Idle time alone does not ask the server to clear earlier reasoning.
 
-A crewmate keeps the same kind of record on its own transcript: one brought
-back after its run ended (a message sent to it, the crew view's resume) sends
-the tool list it first sent, whatever the session's tools are by then.
+A crewmate keeps the same kind of record on its own transcript: one resumed
+after its run ended (via `ResumeCrewmate` or the Crew view) sends
+the tool list it first sent, regardless of later changes to the parent session's tools.
 
-On a cloud model a conversation starts with Crewmate, Bash, Glob, Grep, Read,
-Edit, Write, Skill, Eval, ScheduleWakeup and ToolSearch in full when their
-gates admit them and, loaded in full beside them, ChangeSet, AstSearch and
-LSP (whenever a language server is reachable). Routes that support deferral
-announce the remaining tools — JevEval, Debug, Git, AstEdit, Test, Monitor,
-Checkpoint and Rewind among them — one line each, the name and what the
-tool is for, and load them on demand through ToolSearch. A local model
-keeps its own set: the daily tools in full, everything else announced the
-same way. A deferrable tool found after the first request (a debug adapter,
-say) is announced and loadable at once; a tool that loads in full and is
-found after the first request joins at the next compaction or /clear,
-without moving the current conversation's prefix. Nothing is trimmed,
+On a hosted model, a conversation starts with `Crewmate`, `Bash`, `Glob`, `Grep`, `Read`,
+`Edit`, `Write`, `Skill`, `Eval`, `ScheduleWakeup` and `ToolSearch` loaded with their full
+descriptions when their settings and dependencies admit them, alongside `ChangeSet`,
+`AstSearch`, `LspRead` (whenever a language server is reachable) and `Test` (whenever a
+test runner profile or Python test signal is detected in the project). Routes that support
+deferral announce the remaining tools (among them `JevEval`, `Debug`, `Git`, `AstEdit`, `LspRename`,
+`LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`, `LspRequest`, `Monitor`,
+`Checkpoint`, `Rewind`, and `Test` when no test runner is detected) with a one-line
+summary and load their schemas on demand through `ToolSearch`. A local model
+loads the core daily tools in full and announces the remaining tools the
+same way. A deferrable tool discovered after the first request (such as a debug adapter)
+is announced and loadable at once; a tool that loads in full and is
+discovered after the first request joins at the next compaction or `/clear`,
+without changing the current conversation's prefix. Nothing is trimmed,
 dropped or deferred to fit a size limit.
 
 The tool list a conversation starts with is kept for its life, so nothing
@@ -628,68 +638,62 @@ writes them again from the tools it has then.
 ## Winding a chat back
 
 `/rewind` (alias `/checkpoint`) lists the turns of the focused chat and
-restores to one of them — the files, the conversation, or both. The session's
+restores to one of them (the files, the conversation, or both). The session's
 own runner does the work: every turn it captures a checkpoint of each file its
 tools edit (Settings › File checkpointing is the switch; the row beneath it,
-"Checkpoints in this session", is what this session's runner actually does),
-and a restore is the runner's act, answered as a receipt. Restoring the code
-puts every tracked file back to its saved bytes at that turn, all or nothing —
+"Checkpoints in this session", shows what this session's runner actually does),
+and a restore is answered as a receipt. Restoring the code
+puts every tracked file back to its saved bytes at that turn, all or nothing:
 a file you edited by hand since the session last touched it is refused by
 name and nothing is written until you reconcile it; a saved copy that is gone
 from the checkpoint store, or whose size no longer matches what was recorded
 for it, refuses the restore the same way. Restoring the
 conversation winds the chat back to before that turn: the later messages
 leave the model's view and the chat, the turn's words return to the composer,
-and the session keeps its identity — the transcript keeps every row (ctrl+o
-shows them), the same session resumes, nothing is deleted. A point that has no
-saved files offers the conversation restore only; a point before the last
+and the session keeps its identity (the transcript keeps every row under `ctrl+o`,
+the same session resumes, and nothing is deleted). A point that has no
+saved files allows conversation restore only; a point before the last
 `/compact` is refused by name; a turn still running is interrupted first.
 "Create a branch session from here" and "Rerun from here on a new branch"
 leave this chat untouched.
 
 ## `mercury --chat`
 
-`--chat` is the plain world: the Boot face and a chat, and nothing else on
-the strip — no Session Concourse stop at all in that boot, and no Session
-Concourse row on the face either (New Session is the door). A `--chat` boot
-lands on the Boot face like a bare boot; ↵ on New Session starts the chat.
-From the chat, shift+← is the Boot face directly and shift+→ moves nothing;
-the face's key-map row reads "⇧→ chat" while a session is focused and "⇧→
-no chat open" otherwise, and in a `--chat` boot it also offers `m to select
-model-default`: `m` opens the model picker over the face and the pick is
-saved as the default a new session starts on, while the Boot Menu stays on
-its own card row. The setting `engine.sessionDefaults` in `settings.json` (absent
-reads as on) switches the model-default shortcut off when set to `false`.
-The Boot Menu remains available from its row. `/concourse` still opens the
-plain live view of your sessions there.
+Passing `--chat` opens only the home screen and the chat, without the Session
+Concourse board on the navigation strip or the Session Concourse row on the
+home screen (New Session is the entry point). A `--chat` launch
+opens on the home screen like a bare launch, and pressing `Enter` on New Session starts the chat.
+From the chat, `Shift+←` returns to the home screen directly and `Shift+→` moves nothing;
+the home screen's key-map row reads `"⇧→ chat"` while a session is focused and `"⇧→
+no chat open"` otherwise, alongside the same `m to select model-default` shortcut.
+`/concourse` still opens the live view of your sessions from the chat.
 
 ## `mercury --concourse-off`
 
 `--concourse-off` turns the Session Concourse off for this and every later
-boot — a saved setting (`concourseEnabled` in the global config; absent
-reads as on), written only by this switch and the `/config` row "Session
-concourse", never overwritten by visiting `/concourse` or repainted by anything else.
-`--concourse-on` or that `/config` row turns it back on; off is never a
-one-way door, and with both switches on one line the later one wins.
+launch through the saved `concourseEnabled` setting in the global config (absent
+reads as on), written only by this flag and the `/config` row "Session
+concourse", and never overwritten by visiting `/concourse`.
+`--concourse-on` or that `/config` row turns it back on; with both flags on one
+command line, the later one wins.
 
-With it off the strip is the same plain world as `--chat`: the Boot face and
-the chat, no concourse stop — shift+→ walks only screens that exist. The
-plain live view of your sessions is still one door away for a look — the
-Boot face's concourse row ("live view only — concourse off") or `/concourse`
-— showing the rows and their tiles with ↵ to enter one and no coordinator
-pane, composer or new-session tab; the pane names the way back. The Boot face keeps its
-repositories road either way: a repository pick on the Sessions · Projects
+With it off, the navigation strip has only the home screen and
+the chat, with no concourse stop (`Shift+→` walks only screens that exist). The
+live view of your sessions remains available through the
+home screen's concourse row (`"live view only — concourse off"`) or `/concourse`,
+showing the rows and their tiles with `Enter` to open one and no coordinator
+pane, composer or new-session tab. The home screen keeps its
+repositories picker either way: selecting a repository on the Sessions · Projects
 screen still opens that repo's newest chat.
 
-Both switches also admit their single-dash spellings — `-chat`,
-`-concourse-off` and `-concourse-on` are the same switches, rewritten at
-the command line's entry.
+Both flags also accept single-dash spellings (`-chat`,
+`-concourse-off` and `-concourse-on`).
 
 ## Commands that never reach the model
 
-A user-private command is yours alone: the line runs on the screen, never
-enters the session's conversation, never starts a turn and never rides the
-wire of a later turn. The law and its enforcement are in [TRUST.md](TRUST.md).
+A user-private command runs locally in the terminal UI, never
+enters the session's conversation, never starts a turn and never travels on
+a later turn. See [TRUST.md](TRUST.md).
 
 ## Before the context fills
 
@@ -726,8 +730,8 @@ keeps the line that names the file.
 
 ## When the context overflows
 
-A request can outgrow the model's window — a large paste, a long run of
-tool results, a switch to a model with a smaller window. The conversation
+A request can outgrow the model's window (from a large paste, a long run of
+tool results, or a switch to a model with a smaller window). The conversation
 folds automatically 20,000 tokens before the usable edge by default, with
 proportional room preserved on small local windows. The gauge, warning line
 and ContextLeft tool count down to that same point. When a request outgrows
@@ -735,237 +739,224 @@ that headroom anyway, the turn recovers instead of ending:
 
 - Superseded tool results older than the recent few are pruned when that
   alone covers the gap the provider named, and the request is retried. The
-  chat says so: "context overflowed … — pruned N superseded tool results and
-  retrying".
-- Otherwise the conversation is folded — the same summary `/compact` makes,
-  on the same session — your message is carried across the fold word for
-  word, and the request is retried once. The chat says "context overflowed …
-  — folding the conversation and retrying", and the fold's own row reads
-  "Context overflowed — folded and retried". Both carry the same words in
-  brackets: the provider's own numbers when it named them; when it named
-  none, Mercury's own count of the conversation and the window it measured
-  that count against.
+  chat reports `"context overflowed … — pruned N superseded tool results (~N
+  tokens) and retrying"`.
+- Otherwise the conversation is folded (producing the same summary `/compact` makes
+  on the same session), your message is carried across the fold word for
+  word, and the request is retried once. The chat reports `"context overflowed …
+  — folding the conversation and retrying"`, and the fold's row reads
+  `"Context overflowed — folded and retried"`. Both carry the token counts in
+  brackets: the provider's numbers when reported, or Mercury's own count of
+  the conversation and the window it measured against.
 - The fold's summary is written by a model whose window holds the
-  conversation. After a switch to a model with a smaller window that is the
-  model the conversation was built on, never the model that just refused
-  the request; without such a model the summary is written on the seated
-  model and narrowed until it fits, as before.
-- If it still does not fit, one plain line says what was tried and what to
+  conversation. After a switch to a model with a smaller window, that is the
+  model the conversation was built on (never the model that just refused
+  the request); without such a model, the summary is written on the current
+  model and narrowed until it fits.
+- If it still does not fit, one plain line states what was tried and what to
   do: shorten or split an oversized message, use `/compact` to fold by hand,
   `/clear` to start fresh, or `/model` to pick a larger window. A headless run
   reports the same reason with headless remedies.
 
 Each step runs at most once per stretch of work; a completed tool round
 starts a fresh one. The coordinator's chat recovers the same way. The
-provider's own refusal never becomes the reply. Turning Auto-compact off in
-`/config`, or setting `MERCURY_AUTO_COMPACT=0`, stops early folds, not
-emergency recovery: an overflow still folds and retries. `MERCURY_COMPACT=0` disables compaction
-altogether. The failure and rapid-refill breakers still stop repeated doomed
+provider's refusal never becomes the reply. Turning Auto-compact off in
+`/config`, or setting `MERCURY_AUTO_COMPACT=0`, stops early folds while keeping
+emergency recovery active so an overflow still folds and retries. `MERCURY_COMPACT=0` disables compaction
+altogether. The failure and rapid-refill breakers still stop repeated failing
 folds. `/health` names the setting or environment switch that turned folding
 off, and whether emergency folding remains available.
 
 ## A line sent while the model works
 
 A plain line sent while a turn runs goes to the session at once and waits in
-the runner's own queue; its row paints under the composer with the plate
-`queued` and no clock. The runner reads that queue at every tool boundary of
+the runner's queue; its row paints under the composer with the badge
+`queued` and no timer. The runner reads that queue at every tool boundary of
 the running turn: once a tool round's results are in, and before the next
-request goes out, the line reaches the model with those results — introduced
-in Mercury's words ("The operator sent a new message while you were
-working:") and followed by what the message means for the active task: a
-correction applies before the affected work goes on, a question gets a brief
-answer and the task resumes, a stop or a replacement is followed, a separate
-task is kept for afterwards, the original objective stands unless the
-operator changes it, and the turn may not end without accounting for the
-message. Several lines sent before one boundary arrive together, each its
+request goes out, the line reaches the model with those results, introduced
+with `"The operator sent a new message while you were
+working:"` and followed by how to handle it: a
+correction applies before the affected work continues, a question gets a brief
+answer and the task resumes, a stop or replacement is followed, a separate
+task is kept for afterwards, the original objective stands unless you
+change it, and the turn may not end without accounting for the
+message. Several lines sent before one boundary arrive together, each as its
 own message, in the order sent. The row then lands in the transcript where
-the delivery happened, between the tool rows, and carries the clock the line
-was sent at, not the boundary's. A headless run (`mercury run --input rows
---format rows`) reads that clock from the prompt row's `sent_at` and stamps
-the arrival when it is absent or invalid. A host sends the same prompt row
+the delivery happened, between the tool rows, and carries the timestamp when the line
+was sent. A headless run (`mercury run --input rows
+--format rows`) reads that timestamp from the prompt row's `sent_at` and stamps
+the arrival time when it is absent or invalid. A host sends the same prompt row
 through the runner's `queue/add` method. A line sent
 after the turn's last tool round waits for the turn's end, as does a slash
 command sent at any point of the turn, and so does a line sent after a
-`/model`, `/effort`, `/crewmates on|off` or `/workflows on|off` made while the turn runs
-(the pick lands first, and the line runs on it); lines that arrive between
-turns run as one turn, each its own row under its own identity, in the
-order sent; esc interrupts the turn and anything still queued runs as the
+`/model`, `/effort`, `/crewmates on|off` or `/workflows on|off` change made while the turn runs
+(the setting change applies first, and the line runs on it); lines that arrive between
+turns run as one turn, each as its own row under its own id, in the
+order sent; pressing `Esc` interrupts the turn and anything still queued runs as the
 next turn.
-The line always reaches the session's own model. A crewmate the model is
-running (a Crewmate tool call) has tool boundaries of its own; those read only
-the notes addressed to that agent, never the operator's lines, so a line sent
-while a crewmate works waits for the session's next boundary, the Crewmate
-tool's return included, and lands in the session's transcript, not the
-crewmate's.
+The line always reaches the session's main model. A crewmate the model is
+running (a `Crewmate` tool call) has tool boundaries of its own; those read only
+the notes addressed to that crewmate, so a line you send in the main chat
+while a crewmate works waits for the main session's next boundary (including the `Crewmate`
+tool's return) and lands in the main session's transcript.
 
 ## A line sent while the session compacts
 
 A line sent while the session's runner is folding (by hand with `/compact`,
-or on its own) waits in the runner's own queue and is drawn as a queued row
-with the plate `held`; the hint row says "held until the compaction lands — it
-delivers once, on its own (↑ takes it back)". When the fold lands the runner
-takes the held lines as its next turn, in the order they were sent, behind
-nothing newer, each exactly once; a line sent after the fold rides behind
-them. `↑` on an empty composer while a line is held takes it back into the
-composer, the way it does for any queued line.
+or automatically) waits in the runner's queue and is drawn as a queued row
+with the badge `held`; the hint row says `"held until the compaction lands — it
+delivers once, on its own (↑ takes it back)"`. When the fold finishes, the runner
+takes the held lines as its next turn, in the order they were sent, ahead of
+anything newer, each once; a line sent after the fold runs behind
+them. Pressing `↑` on an empty composer while a line is held takes it back into the
+composer, just like any queued line.
 
-A queued or held row stands only while the runner holds that line. A runner
-that died with the line still queued brings it back when it returns: the
-line is queued again from the session's own record, under its own identity,
+A queued or held row stays only while the runner holds that line. A runner
+that stopped with the line still queued restores it when resumed: the
+line is queued again from the session's record, under its own id,
 and runs as the next turn. When the runner reports that it no longer holds a
-line the record does not carry either, the row leaves on its own and the
-hint row names the words once ("the runner restarted — “…” not taken; type
-it again"); `↑` on such a row answers "the session did not take “…” — type
-it again" and removes it. A row that stands for a line no runner holds is
-never left on the screen.
+line that is also absent from the record, the row is removed and the
+hint row shows `"the runner restarted — “…” not taken; type
+it again"`; pressing `↑` on such a row shows `"the session did not take “…” — type
+it again"` and removes it. A row for a line no runner holds is
+never left on screen.
 
-The hint row under the composer is where every such receipt or notice
-paints, for its seconds. While one stands it takes the row: the standing
+The hint row under the composer displays every such receipt or notice
+for several seconds. While one is shown, the default
 hints (`? for shortcuts · ctrl+x p for commands + files`) step aside and
-return in the same place when it clears, so a receipt's fact — the model id a
-`/defaultprovider` switch resolved, say — is readable at 80 columns. On a
-narrow window the session counts step aside the same way, the notice is cut
-to what fits with an ellipsis, and the way back (`⇧← concourse`) keeps the
-row's right end; `context.wayBack: false` in settings.json gives the notice
-the whole row instead. The composer never moves for a notice.
+return when it clears, so a receipt (such as the model id resolved by
+`/defaultprovider`) stays readable at 80 columns. On a
+narrow window the session counts step aside the same way, the notice is truncated
+to fit with an ellipsis, and the back hint (`⇧← concourse`) stays at the
+row's right end; `context.wayBack: false` in `settings.json` gives the notice
+the full row instead. The composer never shifts position for a notice.
 
 ## A notice an agent has not read
 
-Every notice delivered to an agent of a session — a crewmate's completion,
-a workflow's or a shell's, a monitor's tick, a message queued for a
-crewmate, a schedule's wake — is a row of the session's unread-notice
-ledger from the moment it is delivered until a turn of that agent takes it.
+Every notice delivered to an agent of a session (a crewmate's completion,
+a workflow's or a shell's completion, a monitor's tick, a message queued for a
+crewmate, or a schedule's wake) is recorded in the session's unread-notice
+ledger from the moment it is delivered until a turn of that agent reads it.
 The runner's `session/facts` answer carries the ledger (`notices`: each
-entry names its agent, its kind, the notice in a line, the clock it arrived
-at and what became of it), and every crewmate's work row carries the count
-of its own unread notices;
-the Crew view (`/crewmates`) paints that count on the crewmate's row — "2
-unread" — and nothing when there is none.
+entry names its agent, its kind, the one-line summary, the arrival timestamp
+and its status), and every crewmate's work row carries the count
+of its unread notices;
+the Crew view (`/crewmates`) shows that count on the crewmate's row (`"2
+unread"`), and nothing when the count is zero.
 
-A monitor's ticks that land while the session's provider has refused its
-usage window are held by the watch and delivered together, as one notice,
-on the first turn after the window reopens; ticks that arrive within a
-fifth of a second of each other fold into one notice. A monitor armed
-without `persistent` ends at its deadline with one notice that says how to
-arm it again. A headless run whose input closes ends every monitor and every
-background shell with the seat, persistent or not: neither outlives the
-session that started it.
+A monitor's ticks that land while the session's provider usage window is reached
+are held by the watch and delivered together as one notice
+on the first turn after the window reopens; ticks that arrive within 200 ms
+of each other fold into one notice. A monitor started
+without `persistent` ends at its deadline with one notice explaining how to
+start it again. A headless run whose input closes ends every monitor and every
+background shell when the session exits, whether `persistent` is set or not.
 
-Every other notice bound for the session's own thread waits the same way
-while the window is closed — a crewmate's or a shell's completion — and
-the first turn after the window reopens carries them together; a self-paced
-wake due meanwhile fires after the reopen instead. The window is the
-provider's own: an Anthropic, OpenAI, Gemini, OpenRouter or Hugging Face
-usage window closes the lane the same way, and the re-check waits for the
-reset the provider stated. The
-operator's own words are never held. A session parked by the operator is woken by none of these:
-what it holds waits for its resume.
+Every other notice bound for the session's main thread waits the same way
+while the usage window is reached (including a crewmate's or a shell's completion), and
+the first turn after the window reopens receives them together; a self-paced
+wake due meanwhile fires after the window reopens. This applies across
+Anthropic, OpenAI, Gemini, OpenRouter and Hugging Face
+usage windows, waiting until the reset time reported by the provider.
+Your own messages are never held. A session you parked is never woken by background notices:
+its pending notices wait until you resume the session.
 
 A monitor does not outlive the session's runner: on the first turn after a
-resume, one notice per watch that was still armed names it and says how to
-arm it again.
+resume, one notice per watch that was still active names it and shows how to
+start it again.
 
-A runner the daemon brought back does not wait for your next words to read
-what its restart queued. A held stop, crash or landing notice — an agent's
-completion or failure, a stop, a watch that ended with the runner, the row
-that counts what the restart carried — and a line of yours queued again
-from the record wake the idle main agent at once: the runner takes them as
-its first turn, in the order they were queued, the settle window still
-folding a burst into one turn. A session hosted by another program that
-sends its own start request keeps waiting for it, as before.
+A runner the daemon resumed does not wait for you to type before reading
+what its restart queued. A held stop, crash or completion notice (an agent's
+completion or failure, a stop, a watch that ended with the runner, or the row
+summarizing what the restart carried) and any line of yours re-queued
+from the record wake the idle main agent immediately: the runner takes them as
+its first turn, in the order they were queued, with the settle window
+folding a burst into one turn. A session hosted by an external program that
+sends its own start request waits for that host as usual.
 
 An agent idle with unread notices past the deadline is nudged. The session's
-own main thread is woken through its queue with a line, in Mercury's words,
-that names how many notices waited, for how long, and each one; the notices
-themselves arrive as the turns just before it. A named agent parked between
-turns is woken with the notices' own text. Each notice is nudged once. A
-busy agent is never nudged: its own next tool round reads them. A nudge that
-finds the agent gone — its run ended, it was stopped, no such agent in the
-session — retires the notice: the row reads `retired` and says why, and the
-line nothing would read leaves the queue. The deadline is
+main thread is woken through its queue with a message
+naming how many notices waited, for how long, and each notice; the notices
+themselves arrive immediately before it. A named agent parked between
+turns is woken with the notices' text. Each notice is nudged once. A
+busy agent is never nudged because its next tool round reads them. A nudge that
+finds the agent gone (because its run ended, it was stopped, or no such agent exists in the
+session) marks the notice `retired` with the reason and removes it from the queue.
+The deadline is
 `MERCURY_NOTICE_DEADLINE_MS`, a whole number of milliseconds at or above
-1000; unset, it is three minutes.
+1000 (three minutes when unset).
 
-A task notification the chat shows — one the runner took mid-turn, or between
-turns as a plain message — the chat shows once, in its place; it is never
-redrawn under every new message until it ages out. Its place is where the
-model will read it: a notification or a line of yours that arrives while a
-reply is being written stands below that reply from the moment it appears and
-stays there when the reply settles, and one that arrived before the reply
-began stays above it. A reply's settled row takes the place its live text
-held, once; the live text is never painted beside its own row.
-A task notification the chat shows, and every line a monitor reports, paints
-as one notice row: a dim plate naming the kind and the task (a monitor's plate
-carries the watch's name) and the count of its lines, folded; opening the row
-the way any folded row opens shows the lines under it and closing it hides
-them again, and the full transcript view keeps them in sight; never your plate
-and never the wrapper the model reads. Until the runner hands a notification
-to the model it waits with the lines queued for the next turn; the moment it
-is handed over it takes its place in the transcript, above any line you type
-later.
-The words a reply writes before it calls a tool stand as their own row from
-the moment that call begins, and the settled row takes their place; a
+A task notification shown in the chat (whether read mid-turn or between
+turns) is drawn once in its transcript position and never
+redrawn under later messages. A notification or user message that arrives while a
+reply is streaming appears below that reply and stays there when the reply finishes,
+while one that arrived before the reply started stays above it. A reply's settled row replaces its streaming text in place.
+Every task notification and monitor line renders
+as one collapsible notice row: a dim badge naming the kind and task (or the monitor watch's name)
+and the line count, folded by default; expanding the row shows its lines and collapsing hides
+them again, while the full transcript view (`ctrl+o`) shows them in full.
+Until the runner delivers a notification
+to the model, it waits with the lines queued for the next turn; once delivered,
+it takes its place in the transcript above any message you type afterwards.
+Text written by the model before calling a tool appears as its own row as soon as
+the tool call begins, and the settled row replaces it in place; a
 question asked mid-turn stays on screen. A crewmate completion notice uses the
 crewmate's finish timestamp (`completedAt`) as its row clock and appends
 `· delivered HH:MM:SS` when delivered to the parent turn a minute or more after
-completion; other notice kinds show their delivery position clock first and
+completion; other notice kinds show their delivery clock first and
 `· arrived HH:MM:SS` when delayed.
 
-Completions that land while the session waits between turns fold into one
-turn. The runner holds the first for the task poll's second and carries every
-completion that has arrived by then in one message, one block each, so a
-burst of background commands ending together costs one turn, not one per
-command. A completion that lands during a turn reaches the model at that
-turn's next tool boundary, as a note beside the tool's result; one the turn
-has not read by its end is read as soon as the turn ends, together with any
-queued beside it. When a line you typed and a completion both wait at a
-turn's end, your line starts the next turn, and lines you typed in a row share
-that turn even when a completion landed between them; the completion is read
-at that turn's first tool boundary, or at its end: a completion never waits
-past one turn of yours. The chat paints the carried message as one counted
-row, exactly as it paints a run of separate notices.
+Completions that arrive while the session is idle between turns fold into one
+turn. The runner holds the first completion for the one-second poll window and delivers all
+completions that arrived within that second in a single message (one block each), so a
+burst of background commands finishing together runs one turn instead of one turn per
+command. A completion that arrives during a running turn reaches the model at that
+turn's next tool boundary alongside the tool result; one not yet read when the turn
+ends is delivered as soon as the turn finishes, together with any other queued completions.
+When both a message you typed and a completion are waiting at the end of a
+turn, your message starts the next turn (and consecutive messages you typed share
+that turn even if a completion arrived between them); the completion is delivered
+at that turn's first tool boundary or at its end, so a completion never waits
+more than one turn. The chat renders a batched completion message as one counted
+row.
 
-A message one agent sends another takes the completion's road. A background
-crewmate reaches the agent that launched it at `main`; the main agent reaches
-a crewmate by the id its launch receipt names or by its name. The message
-reaches the receiver at its next tool boundary while its turn runs, else at
-the end of its turn; a receiver between turns starts a turn for it, and a
-crewmate whose run has ended is resumed with it. It arrives as a task
-notification whose status is `message`, naming the sender. On the wire the
-runner emits a `task` row with `state: "progress"` and no `status`:
-a message ends nothing.
+Messages between agents use the same delivery path. A background
+crewmate addresses the agent that launched it as `main`; the main agent addresses
+a crewmate by the id in its launch receipt or by its name. The message
+reaches the recipient at its next tool boundary during a running turn, or at
+the end of its turn; a recipient idle between turns starts a turn for it, and a
+crewmate whose run has finished is resumed with it. It arrives as a task
+notification with status `message`, naming the sender. In its output rows the
+runner emits a `task` row with `state: "progress"` and no `status`, because
+a message does not end a task.
 
 ## Where the pieces live
 
-- The coordinator, crewmates and live communication are [CREW.md](CREW.md)'s.
-- What a session loads — its kit, the menu, presets, the in-session dials —
-  is [KIT.md](KIT.md)'s.
-- Schedules that wake a session or birth one on the clock are
-  [SATURN.md](SATURN.md)'s.
-- Workspace trust and the user-private commands are [TRUST.md](TRUST.md)'s.
-- The idle-retirement, birth-grace, unread-notice deadline and prefix-record
-  retention knobs are rows of the flag registry.
-- The box's state rides the session facts in the `box` field, for the agents
-  as much as the screen: the load per core and the memory available (the
-  last sample the process took, with the clock it was taken at), the
-  box lock's slots with who holds each and who waits (the coordination
-  directory `MERCURY_BOX_LOCK_DIR` names, else the one the session's last
-  `with-box-lock.sh` command used). An agent reads it as
-  `mercury://health/box` through the Inspect tool, and a Bash result whose
-  command waited on the lock carries one line saying how long, who held the
-  slots, and the load at that moment.
-  This is visibility only: nothing here schedules or throttles.
-- The `session/facts` answer also carries the first-party usage-window
-  verdict its own replies stated (`usage.anthropic_window`: the state,
-  when it was seen, the account slot, the reset and the window the provider
-  named) and the OpenAI model list it fetched for its requests
-  (`openai_catalogue`). The screen folds available facts into its own record
-  and catalogue, so the offer card and the rail's context figure follow the
-  session's requests.
-- A session's scratchpad — `<temp root>/mercury-<uid>/<project>/<session id>/scratchpad`
-  (`MERCURY_TMPDIR` moves the root) — is the place the model is told to put
-  temporary files: helper scripts, intermediate results, captures. It lies
-  outside the project, so `git status` never sees it; the turn receipt
-  counts an edit there as a scratchpad edit, not a file edit; and it is
-  swept when the session ends — by the daemon when a hosted session's
-  record settles, by the process itself when it is its own session.
+- The coordinator, crewmates and live communication: [CREW.md](CREW.md).
+- What a session loads (its kit, the menu, presets, and in-session toggles):
+  [KIT.md](KIT.md).
+- Schedules that wake a session or start a new scheduled session:
+  [SATURN.md](SATURN.md).
+- Workspace trust and user-private commands: [TRUST.md](TRUST.md).
+- The idle-retirement, newborn-grace, unread-notice deadline and prefix-record
+  retention switches live in `src/substrate/flagRegistry.ts`.
+- Machine load and memory headroom travel in the session facts under `box`:
+  the load per core and available memory (from the process's most recent sample
+  and timestamp), plus the box lock's slots, holders, and waiting queue (from
+  `MERCURY_BOX_LOCK_DIR` or the session's last `with-box-lock.sh` call). An
+  agent can read the live state at `mercury://health/box` through the `Inspect`
+  tool, and any Bash call that waited on the lock includes the wait duration,
+  slot holders, and load in its result. This is visibility only: nothing here
+  schedules or throttles.
+- The `session/facts` response also carries the provider usage-window
+  status reported on recent replies (`usage.anthropic_window`: state,
+  observation timestamp, account slot, reset time, and window name) and the
+  cached OpenAI model list (`openai_catalogue`). The screen folds available
+  facts into its own record and catalogue, so the offer card and the rail's
+  context figure follow the session's requests.
+- A session's scratchpad (`<temp root>/mercury-<uid>/<project>/<session id>/scratchpad`,
+  where `MERCURY_TMPDIR` sets `<temp root>`) is the directory where the model writes
+  temporary helper scripts, intermediate results, and captures. Because it sits
+  outside the project tree, `git status` is unaffected, the turn receipt counts
+  writes there as scratchpad edits (separate from project file edits), and the
+  directory is cleaned up when the session ends.

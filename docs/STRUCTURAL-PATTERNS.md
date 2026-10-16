@@ -1,9 +1,9 @@
-# Structural patterns — AstSearch and AstEdit
+# Structural patterns: AstSearch and AstEdit
 
 Mercury searches and rewrites code by its **syntax shape**: a pattern written
 in the target language, with meta-variables standing for the parts that vary,
-is matched against the parsed syntax tree of every file in scope — never
-against text. Two built-in tools carry it: `AstSearch` finds, `AstEdit`
+is matched against the parsed syntax tree of every file in scope (never
+against raw text). Two built-in tools carry it: `AstSearch` finds, `AstEdit`
 rewrites. Both ride ONE matcher, so an edit's match set is the search's
 match set by construction.
 
@@ -29,9 +29,9 @@ A pattern is parsed with the target language's own grammar, and you may
 write it the way the code is written: an expression without its `;`, a bare
 Go call outside any func, a PHP snippet without `<?php`, an ini setting
 without its section, a bare C statement, or a JSON/TOML fragment with a
-meta-variable in value position — each is read in its natural container. A
+meta-variable in value position; each is read in its natural container. A
 pattern that does not parse refuses with the parser's location and a
-corrected example — never a silent zero. Matching compares structure: node
+corrected example, never returning a silent zero. Matching compares structure: node
 types must agree, sequences line up with the `$$$` meta-variables, leaves
 compare exact text, and comments are skipped. Every match reports its file,
 range, node type, source text and captures.
@@ -40,19 +40,19 @@ range, node type, source text and captures.
 
 Detection is per file, by extension (a basename first, then the extension);
 `lang` forces one. The registry
-ROUTES 23 languages; what a build CARRIES is what the tools advertise —
-the descriptions list exactly the grammars found in the engine dir the
+routes 23 languages; what a build carries is what the tools advertise:
+the descriptions list the grammars found in the engine dir the
 runtime resolves (`dist/vendor/treesitter` beside the bundle, or the
 workspace package for source runs), never the registry alone:
 
-- The `@vscode/tree-sitter-wasm` pack — python · go · rust · javascript ·
+- The `@vscode/tree-sitter-wasm` pack (python · go · rust · javascript ·
   typescript · tsx · bash · c-sharp · cpp · css · java · php · ruby ·
-  powershell · ini · regex — is a devDependency: `bun install` brings it,
+  powershell · ini · regex) is a devDependency: `bun install` brings it,
   every build vendors it. A clean clone's local build carries these 16.
-- The grammar-pack extension — c · html · json · toml · kotlin · swift · vue
-  — is the lock-pinned `tree-sitter-wasms` cache (`vendor/grammars.lock.json`,
-  per-file sha256, tarball sha512). The swift wasm is pinned straight from
-  the grammar's own upstream release rather than the pack (the pack's older
+- The grammar-pack extension (c · html · json · toml · kotlin · swift · vue)
+  is the lock-pinned `tree-sitter-wasms` cache (`vendor/grammars.lock.json`,
+  per-file sha256, tarball sha512). The swift wasm is pinned directly from
+  the grammar's own upstream release (the pack's older
   build crashes the runtime's wasm compiler; swift is auditioned in a
   disposable child on first use either way, and a failing blob is refused by
   name instead of taking the process down). There is no postinstall: you
@@ -69,14 +69,14 @@ language is skipped and counted by extension with the remedy named in the
 result trailer; a single such file, or a `lang` pin on it, refuses by name
 with the remedy. A file whose extension routes to no grammar at all is
 skipped and counted, never text-matched; a file that does not parse is
-reported per file, never matched over. The engine is pure WASM — no native
-dependency, one vendored asset set for every platform artifact; when no
+reported per file, never matched over. The engine is pure WASM (no native
+dependency, one vendored asset set for every platform artifact); when no
 engine resolves at all, neither tool is in the catalog. Friendly spellings
 resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`).
 
 ## AstSearch
 
-`{ pattern, path?, glob?, lang?, mode?, limit?, offset? }` — `path` is a file
+`{ pattern, path?, glob?, lang?, mode?, limit?, offset? }`: `path` is a file
 or a directory (the working directory when omitted); `glob` is relative to
 it and a bare `*.ts` applies at any depth. `glob` takes `{a,b}` alternatives,
 at most 64 after expansion. `mode` is `matches` (the default:
@@ -93,21 +93,21 @@ ledger like Grep's.
 
 ## AstEdit
 
-`{ pattern, rewrite, path?, glob?, lang?, apply?, plan? }` — the rewrite is
+`{ pattern, rewrite, path?, glob?, lang?, apply?, plan? }`: the rewrite is
 code in the target language; `$NAME`/`$$$NAME` insert the captured source
 verbatim; `""` deletes the matched node (a node that owns its line takes the
 line with it). Two calls, always:
 
 1. **The dry run** (no `apply`) plans every match, parse-guards every planned
-   file, and returns the unified diff per file plus a plan token `ae-…` —
-   content-addressed over the pattern, the rewrite and every changed file's
-   before/after digest. Nothing is written. A dry run asks nothing (it
+   file, and returns the unified diff per file plus a plan token `ae-…`
+   (content-addressed over the pattern, the rewrite and every changed file's
+   before/after digest). Nothing is written. A dry run asks nothing (it
    reads).
 2. **The apply** (`apply: true, plan: "ae-…"`) re-plans over the current
-   bytes and refuses when the token differs — a file changed, or the
-   pattern, rewrite or scope did — offering the current dry run. Then it
+   bytes and refuses when the token differs (if a file changed, or the
+   pattern, rewrite or scope changed), returning the current dry run. Then it
    writes through the same door every editing tool uses: the write-permission
-   ladder per target file with ONE aggregate ask naming the count and the
+   ladder per target file with one aggregate ask naming the count and the
    files (a denied path refuses the whole set, zero writes; a whole-tool
    allow rule such as `--allowed-tools AstEdit` covers it), the diagnostics
    baseline and the file-history snapshot per file (so `/rewind` restores
@@ -119,8 +119,8 @@ line with it). Two calls, always:
    success.
 
 The layout-keeping lane: when the rewrite parses to the same shape as the
-pattern — same node types, same children, the same meta-variables in the
-same places — only leaf tokens differ (a callee, a keyword, a string), and
+pattern (same node types, same children, and the same meta-variables in the
+same places), only leaf tokens differ (a callee, a keyword, a string), and
 the rewrite lands as token edits inside the matched node. A declaration
 rename keeps its body, its indentation and its comments. Every other rewrite
 (captures moved, nodes added or removed, a fragment, a deletion) substitutes
@@ -128,7 +128,7 @@ the template literally. The lane is taken only when its result equals the
 literal substitution modulo whitespace and out-of-capture comments.
 
 Refused by name, nothing written: a match nested inside another match (the
-pair is named — narrow the pattern or the scope); a rewrite naming a
+pair is named; narrow the pattern or the scope); a rewrite naming a
 meta-variable the pattern does not capture; an anonymous `$$$` or `$_` in
 the rewrite; a rewrite that would leave a file unparsable (the line is
 named); more than 100 files or 500 matches in one edit. Matches already in

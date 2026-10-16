@@ -125,7 +125,7 @@ async function main(): Promise<void> {
     check('the Windows pattern set is built once per home and reused', live === wards.windowsRemovalPatterns())
     process.env.USERPROFILE = 'D:\\Profiles\\Jo'
     check('a different USERPROFILE rebuilds the set and the new home is refused', live !== wards.windowsRemovalPatterns() && refused('Remove-Item -Recurse -Force D:\\Profiles\\Jo') && refused('rm -rf /d/Profiles/Jo'))
-    check('the old home is then another user\'s home and stays refused (parity); a folder inside it is the permission check\'s', refused('Remove-Item -Recurse -Force C:\\Users\\Alice') && !refused('Remove-Item -Recurse -Force C:\\Users\\Alice\\proj'))
+    check('the old home is then another user\'s home and stays refused (parity); a folder inside it is refused by no-other-user-delete (the .37 ruling)', refused('Remove-Item -Recurse -Force C:\\Users\\Alice') && ruleOf('Remove-Item -Recurse -Force C:\\Users\\Alice\\proj') === 'no-other-user-delete', ruleOf('Remove-Item -Recurse -Force C:\\Users\\Alice\\proj'))
   } finally {
     restorePlatform()
     if (savedHome === undefined) delete process.env.HOME
