@@ -206,7 +206,7 @@ try {
     const readOn = termRows < 26
       ? Array.from({ length: 4 }, (_, i) => (i === 0
         ? { atTick: 999, awaitText: 'Anthropic · Anthropic API key', requireAwait: true, awaitSettleTicks: 2, mark: `down-${i}`, data: '\x1b[B' }
-        : { afterPrevTicks: 3, awaitPattern: '↑↓ select · ⇞⇟ page', mark: `down-${i}`, data: '\x1b[B' }))
+        : { afterPrevTicks: 3, awaitPattern: '↑↓ move · ↵ unfold', mark: `down-${i}`, data: '\x1b[B' }))
       : []
     const frames = await capture(`row-${size}`, cols, termRows, [
       { atTick: 999, awaitText: readyNeedle, requireAwait: true, minTick: 5, awaitSettleTicks: 4, data: '/model' },
@@ -221,11 +221,11 @@ try {
     const flat = (lines: string[]): string => lines.map(line => line.replace(/^[│\s]+|[│\s]+$/g, '')).join(' ').replace(/\s+/g, ' ')
     const opened = frames[0]?.lines ?? []
     check(`${size}: the picker read the fixture's list once`, hits.filter(h => h.endsWith('/openai/chatgpt/models')).length >= 1, hits.join(', '))
-    check(`${size}: /health painted its certificate`, opened.some(l => l.includes('health certificate')))
+    check(`${size}: /health painted its certificate`, opened.some(l => l.includes('Mercury · health')))
     const rowLine = opened.find(l => l.includes('Model lists')) ?? ''
     check(`${size}: the Model lists row is on screen and warns`, rowLine.includes('▲') && rowLine.includes('Model lists'), rowLine.trim().slice(0, 120))
     check(`${size}: the evidence counts the served and not-served ids and names the family`, flat(opened).includes(`served ${OWNER_LIST.length} · not served ${RETIRED.length} (OpenAI)`), opened.filter(l => l.includes('served')).map(l => l.trim()).join(' | ').slice(0, 300))
-    const onRow = new RegExp(`· ${rowIndex + 1}/\\d+ · esc close`)
+    const onRow = new RegExp(`· ${rowIndex + 1}/\\d+\\s*│`)
     const stillOnRow = frames.filter(f => f.lines.some(l => onRow.test(l)))
     const naming = stillOnRow.filter(f => flat(f.lines).includes(`OpenAI not served: ${RETIRED.join(' · ')}`))
     const trail = frames.map(f => `${f.label}: ${f.lines.filter(l => l.includes('not served') || onRow.test(l)).map(l => l.trim().slice(0, 60)).join(' | ')}`).join(' ;; ')
