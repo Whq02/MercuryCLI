@@ -250,18 +250,14 @@ try {
   check(foreign.rc === 78, 'a suite launched with a server named in the environment is refused as foreign', `rc=${foreign.rc} ${foreign.out.trim()}`)
 
   section("a seat's tool shell stamps NO_COLOR=1 FORCE_COLOR=0 on every command the model runs: a scripts/ entry drops the pair, so a capture renders colour as a terminal would")
-  const grids = join(scratch, 'grids')
-  const captured = spawnSync(BUN, ['scripts/ui/generate-visual-baseline.ts', '--only', 'frame--100x30--dark--truecolor', '--out', grids, '--jobs', '1'], {
+  const stamped = spawnSync(BUN, ['scripts/lib/proofHomePreload.ts'], {
     cwd: ROOT,
-    env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'capture-home'), NO_COLOR: '1', FORCE_COLOR: '0' },
+    env: clean({ MERCURY_CONFIG_DIR: join(scratch, 'pinned'), NO_COLOR: '1', FORCE_COLOR: '0' }),
     encoding: 'utf8',
-    timeout: 300_000,
   })
-  const gridFile = join(grids, 'grids', 'frame--100x30--dark--truecolor--full.grid.json')
-  const grid = existsSync(gridFile) ? (JSON.parse(readFileSync(gridFile, 'utf8')) as { text: string[]; styles: unknown[][] }) : null
-  const styled = grid?.styles.reduce((n, row) => n + row.length, 0) ?? 0
-  check(captured.status === 0 && grid !== null && grid.text.some(row => row.trim() !== ''), 'the truecolor live-grid capture ran under an inherited NO_COLOR=1 FORCE_COLOR=0 and painted the cockpit', `rc=${captured.status} ${captured.stderr.trim().slice(-300)}`)
-  check(styled > 0, `the captured grid carries styled cells (${styled} spans): the inherited pair never reached the product under capture`, `${styled} style spans`)
+  const colour = stamped.stdout.split('\n')[2] ?? ''
+  check(stamped.status === 0 && colour === '', 'a scripts/ entry launched under an inherited NO_COLOR=1 FORCE_COLOR=0 runs with neither set (the capture rows of scripts/ui/prove-visual-baseline.ts read the styled cells)', `rc=${stamped.status} colour=${JSON.stringify(colour)}`)
+  check(/delete process\.env\.NO_COLOR\n\s*delete process\.env\.FORCE_COLOR/.test(code('scripts/lib/proofHomePreload.ts')), 'scripts/lib/proofHomePreload.ts drops the pair beside its probe pin for every scripts/ entry')
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
