@@ -10,6 +10,7 @@ import type {
   StructureQueryResult,
   StructureRange,
 } from './contracts.js'
+import { normalizeFileGlobs, posixRelative } from './scanPaths.js'
 import {
   isSupportedSourceFile,
   loadTs,
@@ -49,6 +50,10 @@ function matchesGlob(value: string, glob: string): boolean {
   return globToRegExp(glob).test(value)
 }
 
+export function admitsScannedFile(rel: string, globs: readonly string[] | undefined): boolean {
+  return globs === undefined || globs.some(g => matchesGlob(rel, g))
+}
+
 export function discoverSourceFiles(
   root: string,
   fileGlobs: string[] | undefined,
@@ -56,7 +61,7 @@ export function discoverSourceFiles(
   const files: string[] = []
   let scanned = 0
   let truncatedWalk = false
-  const globs = fileGlobs?.map(g => g.replace(/^\.\//, ''))
+  const globs = normalizeFileGlobs(fileGlobs)
 
   function walk(dir: string): void {
     if (truncatedWalk) return
@@ -86,8 +91,8 @@ export function discoverSourceFiles(
           return
         }
         if (!isSupportedSourceFile(entry)) continue
-        const rel = path.relative(root, full)
-        if (globs && !globs.some(g => matchesGlob(rel, g))) continue
+        const rel = posixRelative(root, full)
+        if (!admitsScannedFile(rel, globs)) continue
         files.push(rel)
       }
     }
