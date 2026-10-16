@@ -21,7 +21,7 @@ export interface LedgerEntry {
   outcome: string | null
   handoff: LedgerHandoff | null
   pid?: number
-  procStart?: string
+  pidAt?: string
 }
 
 export interface LiveSession {
