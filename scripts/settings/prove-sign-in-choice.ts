@@ -107,6 +107,7 @@ section('§5 the /logins verbs: list · use · forget (the default refused, a po
   signInChoiceVerb('use', ['…bbbb'])
   const forgotten = signInChoiceVerb('forget', ['…bbbb'])
   check('forgetting the pocket in use removes it and says what spends now', forgotten.changed && !existsSync(pocketB) && /…bbbb forgotten — this session now spends …aaaa/.test(forgotten.words), forgotten.words)
+  check('a pocket the project file still names is forgotten with a word about the dangling line', /\.mercury\/settings\.local\.json still names …bbbb — remove the line/.test(forgotten.words), forgotten.words)
   check('the home key is untouched and spends', secrets.readStoredDeepseekApiKey() === k1 && roster.familySignInRoster('deepseek', HOME).map(row => row.identity).join(',') === '…aaaa')
   const gone = signInChoiceVerb('use', ['…bbbb'])
   check('a forgotten identity is unknown afterwards', !gone.changed && /no sign-in named …bbbb/.test(gone.words), gone.words)
