@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { voiceCheckoutRoot, voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../services/voice/voicePack.js'
+import { voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../services/voice/voicePack.js'
 import { cpuFloorRefusal, probeCpuFloor, whisperCpuFloorWords } from '../services/voice/whisperPack.js'
 
 const EMBED_PACK_SEGMENTS = ['vendor', 'embed'] as const
@@ -142,12 +142,6 @@ export function checkEmbedPackDir(dir: string, opts: { digest?: boolean; platfor
 type EmbedPackResolution =
   | { state: 'ok'; dir: string; addonPath: string; manifest: EmbedPackManifest; source: 'override' | 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
-
-function embedPackAbsentNote(checkoutRoot: string | null = voiceCheckoutRoot()): string {
-  return checkoutRoot !== null
-    ? 'absent on this checkout — bun run scripts/vendor/build-embed.ts builds it (cargo)'
-    : 'absent — this build shipped without it'
-}
 
 let seededPackDir: string | null = null
 

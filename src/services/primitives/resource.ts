@@ -31,33 +31,3 @@ interface ResourceIdentity {
   version?: string
   observedAt: number
 }
-
-const RESOURCE_RELATIONS = [
-  'parent',
-  'child',
-  'execution',
-  'transaction',
-  'evidence',
-  'view',
-  'output',
-  'receipt',
-  'snapshot',
-  'verification',
-] as const
-
-type ResourceRelation = (typeof RESOURCE_RELATIONS)[number]
-
-interface ResourceLink {
-  ref: string
-  relation: ResourceRelation
-}
-
-function linksAsChildren(
-  links: readonly ResourceLink[],
-): { ref: string; title: string; summary: string }[] {
-  return links.map(l => ({
-    ref: l.ref,
-    title: l.relation,
-    summary: `${l.relation} → ${l.ref}`,
-  }))
-}
