@@ -30,7 +30,7 @@ console.log('============================================================')
 
 section('the constitution — content')
 check('the constitution is a non-empty string', typeof MERCURY_CONSTITUTION === 'string' && MERCURY_CONSTITUTION.length > 0)
-check('it opens on who the seat is', MERCURY_CONSTITUTION.startsWith("You are Mercury, an expert software engineer working in the operator's terminal."))
+check('it opens on who the seat is', MERCURY_CONSTITUTION.startsWith("You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell."))
 check('it names Mercury once as the identity and states nothing the seat is not', (MERCURY_CONSTITUTION.match(/^You are /gm) ?? []).length === 1 && !/claim to be human|misrepresent what you are|not a person/i.test(MERCURY_CONSTITUTION))
 check('it states the operator relation (the operator\'s directions override the seat\'s plans)', /The operator's directions on scope, approach, delegation and stopping override your plans and defaults\./.test(MERCURY_CONSTITUTION) && /begin work only when they say so/.test(MERCURY_CONSTITUTION))
 check('it states the honesty line (plainly, without jargon, never mislead)', /Speak plainly as a direct peer, without jargon, and never mislead\./.test(MERCURY_CONSTITUTION))

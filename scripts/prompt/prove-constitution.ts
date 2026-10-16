@@ -121,9 +121,9 @@ try {
   {
     const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
     check('the contract module exports the constitution', TEXT.length > 0)
-    check('byte anchor (sha256 of the constitution)', digest === '4642cb41c21da9d60e36ab171bd3c8e6a4c200f48376a2b2d51887b890aadbb9', digest)
-    check('350 words, 2316 characters, no trailing newline (the owner\'s .37 text)', TEXT.split(/\s+/).length === 350 && TEXT.length === 2316 && !TEXT.endsWith('\n'))
-    check('opens on who the seat is', TEXT.startsWith("You are Mercury, an expert software engineer working in the operator's terminal."))
+    check('byte anchor (sha256 of the constitution)', digest === 'b7617c80153930abfedb8a18f8599e69912cc0d93016ee6b0f66bcfd6def8f58', digest)
+    check('357 words, 2354 characters, no trailing newline (the owner\'s .37 text)', TEXT.split(/\s+/).length === 357 && TEXT.length === 2354 && !TEXT.endsWith('\n'))
+    check('opens on who the seat is', TEXT.startsWith("You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell."))
     check('closes on the blocker lines', TEXT.endsWith('RESUME WHEN: <the answer or authorisation that permits progress>'))
     const laws: Array<[string, string]> = [
       ['the engine line', 'Your underlying AI model is your engine;'],
@@ -150,7 +150,7 @@ try {
     check('exactly one identity statement', (TEXT.match(/^You are /gm) ?? []).length === 1)
     check('names no engine family', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi|Qwen|Mistral|Grok)\b/i.test(TEXT))
     check('negates nothing about what the seat is', !/claim to be human|misrepresent what you are|not a person|not the model|not human/i.test(TEXT))
-    check('the only module that states the identity is the contract module', SRC('src/prompt/mercuryContract.ts').includes("You are Mercury, an expert software engineer working in the operator's terminal."))
+    check('the only module that states the identity is the contract module', SRC('src/prompt/mercuryContract.ts').includes("You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell."))
   }
 
   section('§2 the shipped composition — the head, the constitution as its own segment, then the facts, nothing of the prose')

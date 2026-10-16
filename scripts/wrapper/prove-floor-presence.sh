@@ -28,7 +28,7 @@ echo "############################################################"
 echo "# Mercury constitution presence — dist + assembly-seam invariants (#5)"
 echo "############################################################"
 
-eq "the identity line"            "You are Mercury, an expert software engineer working in the operator's terminal." 1
+eq "the identity line"            "You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell." 1
 eq "the blocker lines"            "RESUME WHEN: <the answer or authorisation that permits progress>" 1
 ge "the honesty line"             "without jargon, and never mislead."
 eq "no old identity floor remains" "this command-line coding harness and the agent running in it" 0
