@@ -53,7 +53,7 @@ try {
   check('the public read of the advertised pointer returns the same stored text', record.found && typeof record.content === 'string' && stored !== null && record.content.startsWith(stored.text), JSON.stringify(record).slice(0, 200))
   check('the shared pointer builder resolves the advertised id to the same identity, graded as an unconfirmed pending record — never an owner ruling', (() => { const pointer = memoryPointerForId(committed.pointer.id, { dir, sessions: [] }); return pointer !== null && pointer.id === committed.pointer.id && pointer.kind === 'fact' && /\[pending · unconfirmed · cited (?:\d+|unknown)\]/.test(renderPointerLine(pointer)) })(), committed.pointer.id)
   check('no pin was written by the fold', readPins(dir).length === 0 && pinsFile() === pinsBefore)
-  const secretOwner = run('Rotate the deploy token ghp_abcdefghijklmnopqrstuvwxyz0123456789 on the harbour box.', 'Store the new token.', 'readback-secret')
+  const secretOwner = run('Rotate the deploy token ghp_fixture0000abcdefghijklmnopqrstuvwxyz0123456789 on the harbour box.', 'Store the new token.', 'readback-secret')
   const secret = retireFoldToMemory({ messages, owner: secretOwner, epoch: 3, records: messages.length, dir, sessions: [] })
   check('a run state carrying a secret is a failed envelope naming the refusal, with nothing stored', secret.state === 'failed' && 'reason' in secret && /secret/i.test(secret.reason) && pendingRows(dir).length === 1, JSON.stringify(secret).slice(0, 300))
   const crew = retireFoldToMemory({ messages, owner, epoch: 4, records: messages.length, dir, sessions: [], agent: 'crew-1' })
