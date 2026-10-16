@@ -53,6 +53,7 @@ import { effortStampOf, type EffortStampV1, type EffortWireFact } from '../../..
 import { compatEffortWireFact } from './compatWire.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
+import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { classifyCredentialWall, credentialWallLine } from '../credentialWall.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { canonicalWireModelId } from '../routeLaw.js'
@@ -538,6 +539,7 @@ export async function* compatChatCallModel(
       if (refreshed) credential = refreshed
     }
     attemptStartedAtMs = Date.now()
+    const signInRequest = captureSignInRequest(profile.lane, credential.apiKey)
     const outcome = yield* streamOneCompatAttempt({
       profile,
       request,
@@ -557,6 +559,7 @@ export async function* compatChatCallModel(
       ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {
+      observeSignInResponse(signInRequest, 200)
       liveProof.set(profile.lane, { at: Date.now(), model: modelId })
       if (outcome.served !== undefined) profile.noteServedModel?.(modelId, outcome.served, credential)
       recordLaneTurnSettled(profile.lane)
@@ -568,6 +571,7 @@ export async function* compatChatCallModel(
       return
     }
     if (outcome.kind === 'cancelled') return
+    observeSignInResponse(signInRequest, outcome.fault.status)
     const typed = compatFaultToTypedError(outcome.fault)
     if (
       typed === 'authentication_failed' &&
