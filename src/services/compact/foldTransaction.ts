@@ -3,7 +3,7 @@ import { cloneFileStateCache } from '../../utils/fileStateCache.js'
 import { cloneContentReplacementState } from '../../utils/toolResultStorage.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
 
-export function prepareFoldContext(context: ToolUseContext): { context: ToolUseContext; commit: () => void } {
+export function prepareFoldContext(context: ToolUseContext): { context: ToolUseContext; commit: (folded?: ReadonlyMap<string, string>) => void } {
   const readFileState = typeof context.readFileState.dump === 'function'
     ? cloneFileStateCache(context.readFileState)
     : new Map(context.readFileState.entries()) as unknown as ToolUseContext['readFileState']
@@ -18,13 +18,19 @@ export function prepareFoldContext(context: ToolUseContext): { context: ToolUseC
   }
   return {
     context: staged,
-    commit: () => {
+    commit: (folded?: ReadonlyMap<string, string>) => {
       if (context.abortController.signal.aborted) throw new APIUserAbortError()
       context.readFileState.clear()
       for (const [path, state] of staged.readFileState.entries()) context.readFileState.set(path, state)
       for (const key of ['loadedNestedMemoryPaths', 'nestedMemoryAttachmentTriggers', 'dynamicSkillDirTriggers', 'discoveredSkillNames'] as const) {
         context[key]?.clear()
         for (const value of staged[key]) context[key]?.add(value)
+      }
+      if (folded !== undefined && context.contentReplacementState !== undefined) {
+        for (const [toolUseId, replacement] of folded) {
+          context.contentReplacementState.seenIds.add(toolUseId)
+          context.contentReplacementState.replacements.set(toolUseId, replacement)
+        }
       }
     },
   }
