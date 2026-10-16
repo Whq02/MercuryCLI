@@ -1,9 +1,41 @@
 
 import type { Key } from '../../ink.js'
+import * as pendingInput from '../../input-core/pending-input.js'
+import { permissionCardMounted } from '../permissions/permissionFocus.js'
+import { createSignal } from '../signal.js'
 
 let armed = 0
 let seeder: ((seed: string) => void) | null = null
 let trimmer: (() => void) | null = null
+let declineRow: number | null = null
+let declineReporter: object | null = null
+const consentRowsChanged = createSignal()
+
+export function enterHeldByQueuedWords(): boolean {
+  return permissionCardMounted() && pendingInput.text().trim() !== ''
+}
+
+export function reportConsentDeclineRow(token: object, row: number | null): () => void {
+  declineReporter = token
+  declineRow = row
+  consentRowsChanged.emit()
+  return () => {
+    if (declineReporter !== token) return
+    declineReporter = null
+    declineRow = null
+    consentRowsChanged.emit()
+  }
+}
+
+export const subscribeConsentRows = consentRowsChanged.subscribe
+
+export function consentDeclineRow(): number | null {
+  return declineRow
+}
+
+export function queuedWordsHint(row: number | null): string {
+  return row === null ? '↵ is off while words wait · ⌫ edits' : `↵ is off while words wait — 1 approves · ${row} declines · ⌫ edits`
+}
 
 export function registerComposerSeeder(fn: (seed: string) => void): () => void {
   seeder = fn
@@ -63,4 +95,6 @@ export function __composerSeedResetForTest(): void {
   armed = 0
   seeder = null
   trimmer = null
+  declineRow = null
+  declineReporter = null
 }

@@ -17,10 +17,17 @@ const stampOf = (run: ArenaRun, needle: string): number => {
 import {
   __composerSeedResetForTest,
   armComposerSeed,
+  consentDeclineRow,
+  enterHeldByQueuedWords,
   isSeedableInput,
+  queuedWordsHint,
   registerComposerSeeder,
+  reportConsentDeclineRow,
   trySeedComposer,
 } from '../../src/utils/cockpit/composerSeed.ts'
+import * as pendingInput from '../../src/input-core/pending-input.ts'
+import { resetPendingInputForTests } from '../../src/input-core/pending-input.ts'
+import { armPermissionFocus } from '../../src/utils/permissions/permissionFocus.ts'
 import type { Key } from '../../src/ink.js'
 
 let failures = 0
@@ -72,6 +79,31 @@ console.log('── composer type-through (shipped artifact) ──')
   unregister()
   check('unregistered: no seed', !trySeedComposer('z', key()))
   __composerSeedResetForTest()
+
+  resetPendingInputForTests()
+  check('↵ held: no card, no words → ↵ live', !enterHeldByQueuedWords())
+  pendingInput.edit('when done tell me the count')
+  check('↵ held: words but no card → ↵ live (the composer owns it)', !enterHeldByQueuedWords())
+  const cardDown = armPermissionFocus()
+  check('↵ held: a card up over waiting words → ↵ held', enterHeldByQueuedWords())
+  pendingInput.edit('   ')
+  check('↵ held: blank words do not hold the card', !enterHeldByQueuedWords())
+  pendingInput.edit('w')
+  cardDown()
+  check('↵ held: the card gone → ↵ live again', !enterHeldByQueuedWords())
+  resetPendingInputForTests()
+  check('the hint: a three-row card reads the ruled words byte for byte', queuedWordsHint(3) === '↵ is off while words wait — 1 approves · 3 declines · ⌫ edits')
+  check('the hint: a two-row card names its own decline row', queuedWordsHint(2) === '↵ is off while words wait — 1 approves · 2 declines · ⌫ edits')
+  check('the hint: a card with no decline row names no ordinal', queuedWordsHint(null) === '↵ is off while words wait · ⌫ edits')
+  check('no card has reported: the decline row is unknown', consentDeclineRow() === null)
+  const token = {}
+  const unreport = reportConsentDeclineRow(token, 3)
+  check('the card\'s Select reports its decline row', consentDeclineRow() === 3)
+  reportConsentDeclineRow({}, 2)
+  unreport()
+  check('an earlier reporter\'s release never clears a later card\'s row', consentDeclineRow() === 2)
+  __composerSeedResetForTest()
+  check('the reset clears the row', consentDeclineRow() === null)
 }
 
 {
