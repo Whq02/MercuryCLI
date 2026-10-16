@@ -3,6 +3,8 @@ import { geminiLaneModelsByLastUse, geminiPlanQuotaView } from '../../services/p
 import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonshotAccounts.js'
 import { walletEntries } from '../../services/wallet/wallet.js'
 import { focusedSessionModelFacts } from '../../services/engine-connector/focusedConnector.js'
+import { resolveLocalAccount } from '../../services/providers/local/localAccounts.js'
+import { getEngineModel } from '../../utils/model/model.js'
 
 export function geminiPlanActiveQuotaWords(figures: readonly { key: string; label: string; value: string }[] | undefined, session: { model?: string; effort?: string; usedModels: readonly string[] }): string | undefined {
   const view = geminiPlanQuotaView((figures ?? []) as never, session)
@@ -16,11 +18,25 @@ function sessionFamilyLabel(label: string | undefined): string {
     : label
 }
 
+function usageLead(usage: { provider: string; sourceKind: string; label?: string }): string {
+  if (usage.provider === 'local') {
+    const server = resolveLocalAccount()
+    return server === undefined ? `${getEngineModel()} · no local server answering` : `${getEngineModel()} on ${server.label}`
+  }
+  const family = sessionFamilyLabel(usage.label)
+  return usage.sourceKind === 'none' ? `${family} not signed in` : `${family} session on`
+}
+
+function localRoadWords(usage: { provider: string; sourceKind: string }): string | undefined {
+  if (usage.provider === 'local' || usage.sourceKind !== 'none') return undefined
+  const server = resolveLocalAccount()
+  return server === undefined ? undefined : `local servers: ${server.label}`
+}
+
 export function usagePopupLine(): string {
   const subscriptions = walletEntries().filter(entry => entry.kind === 'subscription-oauth').length
     + (resolveMoonshotAccount()?.kind === 'kimi-oauth' ? 1 : 0)
   const usage = activeSourceUsage()
-  const family = sessionFamilyLabel(usage.label)
   const meters = usage.windows
     .filter(window => window.state === 'live' && window.usedPct !== undefined)
     .map(window => {
@@ -30,5 +46,7 @@ export function usagePopupLine(): string {
   const facts = focusedSessionModelFacts()
   const planQuota = usage.provider === 'gemini' && usage.sourceKind === 'oauth' ? geminiPlanActiveQuotaWords(usage.figures, { ...(facts?.effective !== undefined ? { model: facts.effective } : {}), ...(typeof facts?.effort === 'string' ? { effort: facts.effort } : {}), usedModels: geminiLaneModelsByLastUse() }) : undefined
   if (planQuota !== undefined) meters.push(planQuota)
-  return `${family} session on · ${subscriptions} subscription${subscriptions === 1 ? '' : 's'} signed in${meters.length ? ` · ${meters.join(' · ')}` : ''}`
+  const localRoad = localRoadWords(usage)
+  if (localRoad !== undefined) meters.push(localRoad)
+  return `${usageLead(usage)} · ${subscriptions} subscription${subscriptions === 1 ? '' : 's'} signed in${meters.length ? ` · ${meters.join(' · ')}` : ''}`
 }

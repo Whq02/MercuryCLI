@@ -16,7 +16,7 @@ const MODELS = ['qwen3.6:35b-a3b-coding', 'qwen3.6:27b-coding', 'qwen3.8:27b-mtp
 if (scenario !== null) {
   process.env.NODE_ENV = 'test'
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', ISSUES_EXPLAINER: '', PACKAGE_URL: '', README_URL: '', IS_DEV: false, MERCURY_DEMO: false }
-  const withServer = scenario === 'local' || scenario === 'local-primed'
+  const withServer = scenario === 'local' || scenario === 'local-primed' || scenario === 'local-default'
   let close = (): void => {}
   if (withServer) {
     const json = (res: ServerResponse, body: unknown): void => {
@@ -42,7 +42,14 @@ if (scenario !== null) {
       })
       close = () => server.close()
     })
-    process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${root}`
+    if (scenario === 'local-default') {
+      delete process.env.MERCURY_LOCAL_PROBE_TARGETS
+      const realFetch = globalThis.fetch
+      const reroute = (url: string): string => (url.startsWith('http://127.0.0.1:11434/') ? `${root}${url.slice('http://127.0.0.1:11434'.length)}` : url.replace(/^http:\/\/127\.0\.0\.1:(1234|8000|8080)\//, 'http://127.0.0.1:9/'))
+      globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => realFetch(typeof input === 'string' ? reroute(input) : input instanceof URL ? reroute(input.href) : input, init)) as typeof fetch
+    } else {
+      process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${root}`
+    }
   } else {
     process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   }
@@ -80,6 +87,8 @@ if (scenario !== null) {
   await shot('after', 'Guardrails')
   frames['door'] = String(handover.peekFaceDoorDeepLink())
   frames['probed'] = String(discovery.getCachedLocalDiscovery()?.servers.length ?? -1)
+  frames['targets'] = discovery.localProbeTargets(process.env).map(t => t.root).join(',')
+  frames['probeEnv'] = String(process.env.MERCURY_LOCAL_PROBE_TARGETS)
   mounted.unmount()
   close()
   process.stdout.write(JSON.stringify(frames))
@@ -152,6 +161,18 @@ console.log('§1 a local server answers while the sign-in station paints: the la
   check('↓ to the end focuses the local row', focusedRow(frames.focused ?? '').startsWith('Sign in later to look around, or run a local model'), focusedRow(frames.focused ?? ''))
   check('Enter continues the walk credential-free (Guardrails next)', (frames.after ?? '').includes('Guardrails'), (frames.after ?? '').split('\n').slice(0, 3).join(' / '))
   check("Enter armed the 'model' face door: the home face opens the model picker on arrival", frames.door === 'model', `door=${frames.door} probed=${frames.probed}`)
+}
+
+console.log('§1b a FRESH home on the default road (MERCURY_LOCAL_PROBE_TARGETS unset): the station probes the documented default ports itself and paints the found row from the server on 11434')
+{
+  const frames = run('local-default')
+  const catalogue = frames.catalogue ?? frames.error ?? ''
+  check('the child saw no probe variable (the default road, not a pinned target set)', frames.probeEnv === 'undefined', `probeEnv=${frames.probeEnv}`)
+  check('the targets the station probed are the four documented defaults, Ollama first on 11434', frames.targets === 'http://127.0.0.1:11434,http://127.0.0.1:1234,http://127.0.0.1:8000,http://127.0.0.1:8080', `targets=${frames.targets}`)
+  check(`the last row reads "Sign in later to look around, ${LOCAL_WORDS}" — the station's own refresh landed and repainted the wall`, flat(catalogue).includes(`Sign in later to look around, ${LOCAL_WORDS}`), flat(catalogue).slice(-400))
+  check('no-server words are nowhere on the frame', !flat(catalogue).includes('The agent needs a sign-in or a local model'))
+  check('one server in the snapshot (the three dead default ports are simply absent)', frames.probed === '1', `probed=${frames.probed}`)
+  check("Enter on the row arms the 'model' door", frames.door === 'model', `door=${frames.door}`)
 }
 
 console.log('§2 the probe landed before the walk mounted (the picker already knows the server): the station is still offered, with the same row')

@@ -98,6 +98,7 @@ def main() -> None:
         anchor = {"needle": needle.encode(), "at": float(at_s) * scale, "seen_ms": None,
                   "armed_ms": None, "still_ms": None, "ceiling": False}
 
+    probe_targets = os.environ.get("MERCURY_LOCAL_PROBE_TARGETS")
     pid, fd = pty.fork()
     if pid == 0:
         os.environ.setdefault("MERCURY_LOCAL_PROBE_TARGETS", "none")
@@ -301,7 +302,10 @@ def main() -> None:
     print(json.dumps({"raw_bytes": nbytes, "raw_reads": nreads,
                       "sends": si + sum(1 for af in afters if af["fired"]) + (walk.index if walk is not None else 0),
                       "unfired": unfired, "ended": ended,
-                      "elapsed_ms": int((time.time() - t0) * 1000)}))
+                      "elapsed_ms": int((time.time() - t0) * 1000),
+                      "probe_targets": {"value": probe_targets if probe_targets is not None else "none",
+                                        "defaulted": probe_targets is None,
+                                        "note": "the child discovers no local server unless MERCURY_LOCAL_PROBE_TARGETS is set in the caller's environment"}}))
 
 
 if __name__ == "__main__":

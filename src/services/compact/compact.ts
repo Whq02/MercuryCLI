@@ -646,9 +646,10 @@ export function fitPostCompactUnderThreshold(result: CompactionResult, threshold
 
 function obligationsOverThresholdMessage(estimate: number, threshold: number): string {
   return (
-    `${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: the fold's own obligations — the system prompt and tool definitions, this stretch's operator ` +
-    `messages and the fold ledger — already estimate ${estimate} tokens against a ${threshold}-token threshold, so no fold can land and no summary ` +
-    `was requested. The original context is kept whole; nothing moved. Start a fresh conversation with /clear, or seat a model with a larger window.`
+    `${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: the fold's fixed material (${estimate} tokens: the system prompt and the tool definitions this ` +
+    `request carries, this stretch's operator messages and the fold ledger) exceeds the window's ceiling (${threshold} tokens, the fold threshold) — ` +
+    `no fold can land here, so no summary was requested and the original context is kept whole; nothing moved. Start a fresh conversation with /clear, ` +
+    `or seat a model with a larger window.`
   )
 }
 
@@ -1349,15 +1350,17 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
   }
   stamp(true)
   let exit: FoldExit = 'landed'
+  let reason: string | undefined
   try {
     return await work(scoped)
   } catch (err) {
     const aborted = context.abortController?.signal.aborted === true
     exit = aborted || err instanceof APIUserAbortError ? 'cancelled' : 'failed'
+    reason = err instanceof Error ? err.message : String(err)
     throw err
   } finally {
     if (pending !== null) clearTimeout(pending)
-    status = foldStatusExit(status, exit, Date.now())
+    status = foldStatusExit(status, exit, Date.now(), reason)
     restoreAfterCompaction(context, { compacting: status })
     if (facts.trigger !== 'manual') context.setSDKStatus?.(null)
   }
