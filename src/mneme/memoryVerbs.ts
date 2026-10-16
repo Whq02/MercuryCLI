@@ -344,8 +344,20 @@ export function recallQuery(
     if (entry) Object.assign(hit, factMemoryState(entry, { pins, usage, now: opts.now }))
   }
   hits.sort((a, b) => Number(a.status === 'stale') - Number(b.status === 'stale'))
-  const beyond = hits.slice(limit).filter(hit => !hit.id.startsWith('doc:'))
-  return { hits: hits.slice(0, limit), elidable: hits.length === 0, catalog: catalogRows, cut: { hits: beyond.length, stale: beyond.filter(hit => hit.status === 'stale').length } }
+  const kept: RecallHit[] = []
+  const beyond: RecallHit[] = []
+  let records = 0
+  let lines = 0
+  for (const hit of hits) {
+    if (hit.id.startsWith('doc:')) {
+      if (lines < limit) kept.push(hit)
+      lines += 1
+    } else if (records < limit) {
+      kept.push(hit)
+      records += 1
+    } else beyond.push(hit)
+  }
+  return { hits: kept, elidable: hits.length === 0, catalog: catalogRows, cut: { hits: beyond.length, stale: beyond.filter(hit => hit.status === 'stale').length } }
 }
 
 
