@@ -90,8 +90,8 @@ export function getPrompt(wireForm: DeferralWireForm = 'block'): string {
   const queryForms = `
 
 Query forms:
-- \`select:WebFetch,Sleep\` — pull exactly the tools named, spelled as the list spells them
-- \`notebook jupyter\` — keyword search returning the best matches, max_results at most
+- \`select:WebFetch,Sleep\` — names spelled as the list spells them
+- \`notebook jupyter\` — keyword search
 - \`+slack send\` — "slack" must appear in the name; remaining terms only rank`
   if (wireForm === 'text-append') {
     const admits = `admits each match: the result names the admitted tools, and their complete definitions are appended to the conversation right after it, callable from then on, no different from the tools the prompt opened with.`
