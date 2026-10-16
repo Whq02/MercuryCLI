@@ -123,7 +123,7 @@ export function resolveEffectiveAgentRuntime(
     ...(agent.effort !== undefined ? { effortIntent: agent.effort } : {}),
     effort,
     ...(ctx.tools !== undefined
-      ? { tools: resolveAgentTools(agent, ctx.tools, false) }
+      ? { tools: resolveAgentTools(agent, ctx.tools) }
       : {}),
     ...(override !== undefined ? { override } : {}),
     disabled: (agent as { disabled?: boolean }).disabled === true,

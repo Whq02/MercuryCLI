@@ -16,8 +16,8 @@ for (const definition of [
   { agentType: 'mercury-crew', source: 'built-in', tools: ['*'] },
   { agentType: 'remembering', source: 'projectSettings', tools: ['Read', ...memoryNames] },
 ]) {
-  const front = resolveAgentTools(definition as never, pool, false).resolvedTools
-  const back = resolveAgentTools(definition as never, pool, true).resolvedTools
+  const front = resolveAgentTools(definition as never, pool).resolvedTools
+  const back = resolveAgentTools(definition as never, pool).resolvedTools
   const prefix = (tools: typeof front) => buildSubagentMercurySections({ agentDefinition: definition, toolNames: new Set(tools.map(t => t.name)) }).join('\n\n')
   const initial = prefix(front)
   const resumed = prefix(back)
@@ -28,7 +28,7 @@ for (const definition of [
 }
 for (const async of [false, true]) {
   const definition = { agentType: 'reader', source: 'projectSettings', tools: ['*'], disallowedTools: ['Retain', 'Correct'] }
-  const tools = resolveAgentTools(definition as never, pool, async).resolvedTools
+  const tools = resolveAgentTools(definition as never, pool).resolvedTools
   const prefix = buildSubagentMercurySections({ agentDefinition: definition, toolNames: new Set(tools.map(t => t.name)) }).join('\n')
   check(`explicit memory denials still narrow the ${async ? 'background' : 'foreground'} pool`, !tools.some(t => t.name === 'Retain' || t.name === 'Correct'))
   check('a reader is never told to use unavailable memory writers', !prefix.includes(MEMORY_WRITE_VERBS_SENTENCE))

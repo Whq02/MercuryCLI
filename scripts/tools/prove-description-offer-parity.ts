@@ -94,18 +94,17 @@ interface Kind {
   tasksEnv?: string
   mountLsp?: boolean
   disallowedTools?: string[]
-  agent?: { isBuiltIn: boolean; isAsync: boolean }
+  agent?: { isBuiltIn: boolean }
 }
 const kinds: Kind[] = [
   { label: 'interactive', interactive: true },
   { label: 'headless', interactive: false },
   { label: 'headless with tasks', interactive: false, tasksEnv: '1' },
-  { label: 'sub-agent of an interactive session', interactive: true, agent: { isBuiltIn: true, isAsync: false } },
-  { label: 'sub-agent of a headless session', interactive: false, agent: { isBuiltIn: true, isAsync: false } },
-  { label: 'background sub-agent of a headless session', interactive: false, agent: { isBuiltIn: true, isAsync: true } },
-  { label: 'custom sub-agent of a headless session', interactive: false, agent: { isBuiltIn: false, isAsync: false } },
+  { label: 'sub-agent of an interactive session', interactive: true, agent: { isBuiltIn: true } },
+  { label: 'sub-agent of a headless session (foreground and background share one pool)', interactive: false, agent: { isBuiltIn: true } },
+  { label: 'custom sub-agent of a headless session', interactive: false, agent: { isBuiltIn: false } },
   { label: 'interactive with mounted LSP', interactive: true, mountLsp: true },
-  { label: 'restricted custom sub-agent with globally mounted LSP', interactive: false, mountLsp: true, disallowedTools: ['LSP'], agent: { isBuiltIn: false, isAsync: false } },
+  { label: 'restricted custom sub-agent with globally mounted LSP', interactive: false, mountLsp: true, disallowedTools: ['LSP'], agent: { isBuiltIn: false } },
 ]
 
 const permissionContext = getEmptyToolPermissionContext()
@@ -121,7 +120,7 @@ for (const kind of kinds) {
     check(`${kind.label}: LSP is globally mounted`, lspManager.isLspToolMounted())
   }
   let pool: Tool[] = getTools(permissionContext) as Tool[]
-  if (kind.agent !== undefined) pool = filterToolsForAgent({ tools: pool, isBuiltIn: kind.agent.isBuiltIn, isAsync: kind.agent.isAsync }) as Tool[]
+  if (kind.agent !== undefined) pool = filterToolsForAgent({ tools: pool, isBuiltIn: kind.agent.isBuiltIn }) as Tool[]
   if (kind.disallowedTools) pool = resolveAgentTools({ source: 'projectSettings', tools: ['*'], disallowedTools: kind.disallowedTools }, pool).resolvedTools as Tool[]
   const offered = new Set(pool.map(tool => tool.name))
   if (kind.mountLsp) check(`${kind.label}: the actual pool honors its LSP restriction`, LSP_NAMES.every(name => offered.has(name) === !kind.disallowedTools?.includes('LSP')), LSP_NAMES.filter(name => offered.has(name)).join(','))
