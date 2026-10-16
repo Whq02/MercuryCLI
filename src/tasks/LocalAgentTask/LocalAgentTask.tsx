@@ -40,6 +40,7 @@ import { AGENT_MESSAGE_STATUS, MAIN_AGENT_MESSAGE_SUMMARY } from '../../constant
 import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
 import { pauseClockWords, type AgentPauseV1 } from './agentPause.js'
 import { isOverloadAnswerText, overloadPauseWords } from './agentOverload.js'
+import type { BackgroundHandoverReason } from './launchReceipts.js'
 import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
 import { observedFamilyWindow } from '../../services/capFailover.js'
 import { CREW_INTERRUPTED_BY_OPERATOR_WORDS } from '../../services/engine-connector/crewFacts.js'
@@ -289,6 +290,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   lastReportedToolCount?: number
   lastReportedTokenCount?: number
   isBackgrounded: boolean
+  handoverReason?: BackgroundHandoverReason
   pendingMessages?: string[]
   operatorMessages?: string[]
   replyTarget?: 'parent' | 'operator'
@@ -622,6 +624,20 @@ export function backgroundAgentTask(
   )
   resolveBackgroundSignal(taskId)
   return true
+}
+
+export function handOverForegroundAgentsToQueuedMessage(
+  getAppState: () => AppState,
+  setAppState: SetAppState,
+): number {
+  let moved = 0
+  for (const task of Object.values(getAppState().tasks ?? {})) {
+    if (!isLocalAgentTask(task) || task.isBackgrounded || task.status !== 'running') continue
+    if (task.agentType === MAIN_SESSION_AGENT_TYPE) continue
+    updateTaskState<LocalAgentTaskState>(task.id, setAppState, current => ({ ...current, handoverReason: 'message-queued' }))
+    if (backgroundAgentTask(task.id, getAppState, setAppState)) moved += 1
+  }
+  return moved
 }
 
 export function unregisterAgentForeground(taskId: string, setAppState: SetAppState): void {

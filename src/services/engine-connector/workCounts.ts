@@ -1,4 +1,5 @@
 import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
+import { isDelegationToolName } from '../../utils/cockpit/toolVerb.js'
 import type { SampleRowV1, WorkRosterV1, WorkRowV1 } from './types.js'
 
 export function workRowRuns(row: WorkRowV1): boolean {
@@ -48,6 +49,11 @@ export function workChipLine(counts: WorkCountsV1): string | null {
 export function workWaitingWords(counts: WorkCountsV1): string | null {
   const line = workChipLine(counts)
   return line === null ? null : `waiting on ${line}`
+}
+
+export function delegationWaitWords(activeTool: string | undefined, rows: readonly WorkRowV1[]): string | null {
+  if (!isDelegationToolName(activeTool)) return null
+  return workWaitingWords(workCounts(rows))
 }
 
 export function withSampleWords(line: string, samples: readonly SampleRowV1[]): string {
