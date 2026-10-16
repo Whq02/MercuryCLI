@@ -19,6 +19,8 @@ import {
   waitForReady,
 } from '../../services/projectServices/serviceManager.js'
 import { getCwd } from '../../utils/cwd.js'
+import type { OwnerKey } from '../../services/run/ownerKey.js'
+import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { clampWait } from '../../utils/waitCeiling.js'
@@ -97,7 +99,7 @@ function describeRecord(r: ServiceRecord): string {
   return lines.join('\n')
 }
 
-async function runOp(input: Input, sessionId: string): Promise<Output> {
+async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<Output> {
   const cwd = getCwd()
   const need = (field: string): never => {
     throw new Error(`${input.op} needs ${field}`)
@@ -108,6 +110,7 @@ async function runOp(input: Input, sessionId: string): Promise<Output> {
       if (!input.command) need('command')
       const result = await startService({
         sessionId,
+        owner,
         spec: {
           name: input.name!,
           command: input.command!,
@@ -222,7 +225,7 @@ async function runOp(input: Input, sessionId: string): Promise<Output> {
     }
     case 'restart': {
       if (!input.name) need('name')
-      const result = await restartService(input.cwd ?? cwd, input.name!, sessionId)
+      const result = await restartService(input.cwd ?? cwd, input.name!, sessionId, owner)
       if ('error' in result) return { op: 'restart', result: result.error, name: input.name }
       return {
         op: 'restart',
@@ -324,7 +327,7 @@ Services are addressable as mercury://service/<name> (Inspect). Never auto-start
     })()
     let output: Output
     try {
-      output = await runOp(input, sessionId)
+      output = await runOp(input, sessionId, ownerFromToolUseContext(context))
     } catch (err) {
       output = { op: input.op, result: `${input.op} failed: ${(err as Error).message}` }
     }

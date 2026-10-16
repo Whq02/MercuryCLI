@@ -397,7 +397,7 @@ export const AgentTool = buildTool({
       permissionContext,
       AGENT_TOOL_NAME,
     )
-    return getPrompt(effective, false, options.allowedAgentTypes)
+    return getPrompt(effective, false, options.allowedAgentTypes, new Set(options.tools.map(tool => tool.name)))
   },
   isEnabled(): boolean {
     return evaluateLaunchAuthority('subagents').allowed
@@ -523,7 +523,6 @@ export const AgentTool = buildTool({
             },
             context.getAppState().mcp.tools ?? [],
           ),
-          plan.shouldRunAsync,
         )
 
     if (input.review_receipt !== undefined && (!input.worktree_at || plan.isolation !== 'worktree' || input.cwd !== undefined)) {

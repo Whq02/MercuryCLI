@@ -15,7 +15,7 @@ for (const name of [CODE_TOOL_SPELLINGS[0], 'NoSuchCellRuntime']) {
   warnings.push(result.warnings.map(text => text.replaceAll(name, '<name>')))
   check('absent-name allow and deny rules never migrate to Eval', getDenyRuleForTool(result.toolPermissionContext, EvalTool) === null && toolAlwaysAllowedRule(result.toolPermissionContext, EvalTool) === null)
   check('the absent hook matcher does not claim Eval', !matchesPattern('Eval', name))
-  const resolved = resolveAgentTools({ tools: [name], source: 'userSettings' as never }, pool, false, true)
+  const resolved = resolveAgentTools({ tools: [name], source: 'userSettings' as never }, pool, true)
   check('an agent tool list uses the generic invalidTools result', resolved.invalidTools.join() === name && resolved.resolvedTools.length === 0, JSON.stringify(resolved.invalidTools))
 }
 check('warnings follow the identical generic road', JSON.stringify(warnings[0]) === JSON.stringify(warnings[1]), JSON.stringify(warnings))

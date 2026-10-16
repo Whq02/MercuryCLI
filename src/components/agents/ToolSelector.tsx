@@ -53,7 +53,7 @@ export function ToolSelector({
 }): React.ReactNode {
   const candidates = useMemo(
     () =>
-      filterToolsForAgent({ tools, isBuiltIn: false, isAsync: false })
+      filterToolsForAgent({ tools, isBuiltIn: false })
         .map(tool => tool.name)
         .filter(name => name !== AGENT_TOOL_NAME),
     [tools],

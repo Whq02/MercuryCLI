@@ -205,7 +205,6 @@ export async function resumeAgentBackground(args: {
           },
           toolUseContext.getAppState().mcp?.tools ?? [],
         ),
-        true,
       )
 
   const launchName = meta?.name

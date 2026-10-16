@@ -1,4 +1,3 @@
-import { memoize } from 'lodash-es'
 
 export function getLocalISODate(): string {
   const now = new Date()
@@ -7,8 +6,6 @@ export function getLocalISODate(): string {
   const day = String(now.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
-
-export const getSessionStartDate = memoize(getLocalISODate)
 
 export function getLocalMonthYear(): string {
   const date = new Date()

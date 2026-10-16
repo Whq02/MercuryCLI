@@ -33,7 +33,6 @@ import { AstEditTool } from './tools/AstEditTool/AstEditTool.js'
 import { AstSearchTool } from './tools/AstSearchTool/AstSearchTool.js'
 import {
   ALL_AGENT_DISALLOWED_TOOLS,
-  ASYNC_AGENT_ALLOWED_TOOLS,
   CUSTOM_AGENT_DISALLOWED_TOOLS,
 } from './constants/tools.js'
 import { ApolloReviewTool } from './tools/ApolloReviewTool/ApolloReviewTool.js'
@@ -119,7 +118,7 @@ import './services/resources/adapters/transcript.js'
 import './services/resources/adapters/workbench.js'
 
 
-export { ALL_AGENT_DISALLOWED_TOOLS, ASYNC_AGENT_ALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }
+export { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }
 
 
 function cycleTolerant<T>(get: () => T): T | undefined {

@@ -193,7 +193,7 @@ check(
 )
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const { findToolByName } = await import('../../src/Tool.ts')
-const { ALL_AGENT_DISALLOWED_TOOLS, ASYNC_AGENT_ALLOWED_TOOLS } = await import(
+const { ALL_AGENT_DISALLOWED_TOOLS } = await import(
   '../../src/constants/tools.ts'
 )
 const catalogue = getAllBaseTools()
@@ -203,10 +203,8 @@ check(
   offered.length === 0,
   `resolved: ${offered.join(', ')}`,
 )
-const inAgentSets = [...retiredNames].filter(
-  n => ALL_AGENT_DISALLOWED_TOOLS.has(n) || ASYNC_AGENT_ALLOWED_TOOLS.has(n),
-)
-check('the agent allow and deny sets name no retired tool', inAgentSets.length === 0, inAgentSets.join(', '))
+const inAgentSets = [...retiredNames].filter(n => ALL_AGENT_DISALLOWED_TOOLS.has(n))
+check('the crewmate barred set names no retired tool', inAgentSets.length === 0, inAgentSets.join(', '))
 const { getTools } = await import('../../src/tools.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { getIsInteractive, setIsInteractive } = await import('../../src/bootstrap/state.ts')

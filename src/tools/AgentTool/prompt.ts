@@ -4,7 +4,8 @@ import {
   isEnvTruthy,
 } from '../../utils/envUtils.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
-import { MERCURY_CREW_AGENT_TYPE, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
+import { CREWMATE_BARRED_TOOLS } from '../../constants/tools.js'
+import { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { SCOUT_TOOLS_DESCRIPTION } from './scoutPolicy.js'
 
@@ -39,10 +40,17 @@ function contentSearchHint(): string {
     : 'shell `grep` (a name-only find does not look at contents)'
 }
 
+function crewmateToolboxNote(offered?: ReadonlySet<string>): string {
+  const barred = Object.keys(CREWMATE_BARRED_TOOLS).filter(name => name !== AGENT_TOOL_NAME && (offered === undefined || offered.has(name)))
+  const except = barred.length > 0 ? `${barred.join(', ')} and the ${AGENT_TOOL_NAME} tool itself` : `the ${AGENT_TOOL_NAME} tool itself`
+  return `A crewmate carries every tool of this session except ${except} — the few that need the operator present or reach past its own work — in the foreground and in the background alike; the processes it starts (background shells, code kernels, the services it starts for the session, debug sessions, its browser) end when it ends.`
+}
+
 export async function getPrompt(
   agentDefinitions: readonly AgentDefinition[],
   isCoordinator = false,
   allowedAgentTypes?: readonly string[],
+  offered?: ReadonlySet<string>,
 ): Promise<string> {
   const effectiveAgents = allowedAgentTypes
     ? agentDefinitions.filter(agent =>
@@ -74,6 +82,7 @@ ${typeSelection}`
     'When several crewmates can run at once, launch them all in one message — one tool-use block each — so they overlap rather than queue; separate messages run serially.',
     "The crewmate returns a single message that the user cannot see — relay a concise summary of its result.",
     'With `run_in_background: true` the crewmate runs detached: completion returns to you as a notification — never sleep, poll, or proactively check on it. Run in the background when the work is long and independent; run in the foreground when your next step depends on the report.',
+    crewmateToolboxNote(offered),
     "Treat the crewmate's prose as a claim to verify, not a fact: spot-check load-bearing results with a diff, a render, or a test before relying on them. A status=\"valid\" payload passed your schema: use it without re-reading what the crewmate read, and require evidence as a field when a value needs it.",
     "State explicitly whether the crewmate should write code or only research — it cannot see the user's intent.",
     'When an agent description says to use it proactively, honour that cue without waiting to be asked.',
