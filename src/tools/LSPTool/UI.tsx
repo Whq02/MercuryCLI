@@ -8,10 +8,11 @@ import { WithCardTone } from '../../components/mercury-ui/toolCardGrammar.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { Box, Text } from '../../ink.js'
-import { oneLine } from '../../services/lsp/failureWords.js'
+import { LSP_ONE_LINE_MAX } from '../../services/lsp/failureWords.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import { getDisplayPath } from '../../utils/file.js'
 import { extractTag } from '../../utils/messages.js'
+import { collapseAndClip } from '../../utils/stringUtils.js'
 import { getSymbolAtPosition } from './symbolContext.js'
 import type { Output } from './LSPTool.js'
 
@@ -192,7 +193,7 @@ function LspResultSummary({
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   if (output.resultCount === undefined || output.outcome === 'failed') {
-    const words = verbose ? output.result : oneLine(output.result.split('\n')[0] ?? output.result)
+    const words = verbose ? output.result : collapseAndClip(output.result.split('\n')[0] ?? output.result, LSP_ONE_LINE_MAX)
     return (
       <MessageResponse>
         <Text>
@@ -250,7 +251,7 @@ export function renderToolUseErrorMessage(
 ): React.ReactNode {
   if (!verbose && typeof result === 'string') {
     const tagged = extractTag(result, 'tool_use_error')
-    if (tagged !== null) return <ShortErrorLine text={`${name}: ${oneLine(tagged, 140)}`} />
+    if (tagged !== null) return <ShortErrorLine text={`${name}: ${collapseAndClip(tagged, 140)}`} />
   }
   return <FallbackToolUseErrorMessage result={result} verbose={verbose} />
 }

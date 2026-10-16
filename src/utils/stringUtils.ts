@@ -31,6 +31,10 @@ export function clipWithEllipsis(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`
 }
 
+export function collapseAndClip(text: string, max: number): string {
+  return clipWithEllipsis(collapseWhitespace(text), max)
+}
+
 type IndexSearchable = {
   indexOf(needle: string, start?: number): number
 }
