@@ -76,6 +76,7 @@ import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt
 import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from './verbatimTail.js'
 import { selectOperatorMessages } from './operatorMessages.js'
 import { prepareFoldContext } from './foldTransaction.js'
+import { renderFoldMemory, retireFoldToMemory } from './foldRetirement.js'
 import { carryFoldPrefix } from './cacheEpoch.js'
 import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
@@ -1402,6 +1403,12 @@ export async function compactConversation(
       ceiling = Math.min(ceiling ?? Infinity, overflow.limitTokens)
     }
     context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
+    const memory = retireFoldToMemory({
+      messages, owner, epoch: ledger.epoch, records: ledger.sourceRecordIds.length,
+      aborted: context.abortController.signal.aborted,
+      ...(context.agentId === undefined ? {} : { agent: String(context.agentId) }),
+    })
+    const memoryText = renderFoldMemory(memory)
 
     let messagesToKeep: Message[] | undefined
     let tailPrecedingUuid: UUID | undefined
@@ -1419,7 +1426,7 @@ export async function compactConversation(
           const marker = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount)
           const work = renderFoldedWork(foldedWorkOf(messages, keep, marker.uuid))
           const capsule = buildRunContinuationCapsule(owner, [...context.readFileState.keys()])
-          const text = getCompactUserSummaryMessage([rawSummary, capsule, work].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true) + `\n\n${renderFoldLedger(ledger)}`
+          const text = getCompactUserSummaryMessage([rawSummary, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true) + `\n\n${renderFoldLedger(ledger)}`
           return landingCount([marker, ...(operator ? [createAttachmentMessage(operator)] : []), createUserMessage({ content: text, isCompactSummary: true }), ...stripThinkingFromIndex(keep, 0), ...beforeRows]) < ceiling
         },
       })
@@ -1446,6 +1453,7 @@ export async function compactConversation(
     const anchor = messagesToKeep !== undefined ? tailPrecedingUuid : lastMessage.uuid
     const boundary = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount, anchor)
     boundary.compactMetadata.ledger = ledger
+    boundary.compactMetadata.memory = memory
     if (gauge) boundary.compactMetadata.requestGauge = { key: gauge.key, epoch: getContextEpoch(owner).epoch + 1, fixed: gauge.fixed, density: gauge.density }
     boundary.compactMetadata.recentRounds = recentRounds ?? { requested: 10, kept: 0, tokens: 0, reason: isMercuryCompactKeepTailEnabled() ? 'no-complete-tail' : 'disabled' }
     if (overflow !== undefined) boundary.compactMetadata.overflow = overflow
@@ -1455,7 +1463,7 @@ export async function compactConversation(
     const capsule = buildRunContinuationCapsule(owner, Object.keys(snapshot))
     const degraded = rawSummary.trim().length < DEGRADED_SUMMARY_LENGTH
     const foldedWork = renderFoldedWork(foldedWorkOf(messages, messagesToKeep ?? [], boundary.uuid))
-    const summaryWithCapsule = [rawSummary, capsule, foldedWork].filter((part): part is string => part !== null).join('\n\n')
+    const summaryWithCapsule = [rawSummary, capsule, foldedWork, memoryText].filter((part): part is string => part !== null).join('\n\n')
 
     const summaryMessages: UserMessage[] = [
       createUserMessage({
@@ -1521,7 +1529,7 @@ export async function compactConversation(
       boundary.logicalParentUuid = narrower.precedingUuid
       const selection = selectOperatorMessages(messages, { keptUuids: new Set(messagesToKeep.map(row => row.uuid)) })
       const work = renderFoldedWork(foldedWorkOf(messages, messagesToKeep, boundary.uuid))
-      const summaryText = getCompactUserSummaryMessage([rawSummary, capsule, work].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true) + `\n\n${renderFoldLedger(ledger)}`
+      const summaryText = getCompactUserSummaryMessage([rawSummary, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true) + `\n\n${renderFoldLedger(ledger)}`
       partial = { ...partial, messagesToKeep, operatorMessages: selection ? createAttachmentMessage(selection) : undefined, summaryMessages: partial.summaryMessages.map((row, index) => index === 0 ? { ...row, message: { ...row.message, content: summaryText } } : row) }
       annotateBoundaryWithPreservedSegment(boundary, partial.summaryMessages.at(-1)!.uuid, messagesToKeep)
       annotateBoundaryWithWork(boundary, messages, messagesToKeep, partial.summaryMessages.at(-1)!.uuid)

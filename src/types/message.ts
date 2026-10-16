@@ -61,6 +61,7 @@ export type CompactMetadata = {
   userContext?: string
   messagesSummarized?: number
   ledger?: import('../services/compact/foldLedger.js').FoldLedger
+  memory?: import('../services/compact/foldRetirement.js').FoldMemoryEnvelope
   cacheEpoch?: import('../services/compact/cacheEpoch.js').FoldCacheEpoch
   recentRounds?: { requested: number; kept: number; tokens: number; reason: string }
   requestGauge?: Pick<import('../services/run/requestGauge.js').RequestGaugeAnchor, 'key' | 'epoch' | 'fixed' | 'density'>
