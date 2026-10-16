@@ -215,7 +215,7 @@ const aborted = await inflight
 check('an abort after send: status aborted, both charges unconfirmed and counted', aborted.status === 'aborted' && /status=aborted/.test(aborted.text) && /2 of 2 requests/.test(aborted.text) && jevLedgerSnapshot().unconfirmedCharges === 2 && jevLedgerSnapshot().attempts === 2, aborted.text)
 
 section('§8 the description says the shape')
-check('the prompt names the list, the one question set, one request per item at once, and one table back', /list of evidence items/.test(JEV_EVAL_PROMPT) && /one question set/.test(JEV_EVAL_PROMPT) && /one request per item/.test(JEV_EVAL_PROMPT) && /one table/.test(JEV_EVAL_PROMPT), JEV_EVAL_PROMPT.slice(0, 200))
+check('the prompt names the list, the one question set and one table back; one request per item, all at once, is the evidence field\'s alone', /list of evidence items/.test(JEV_EVAL_PROMPT) && /one question set/.test(JEV_EVAL_PROMPT) && /one table/.test(JEV_EVAL_PROMPT) && !/one request per item/.test(JEV_EVAL_PROMPT) && jsonSchema.includes('one request each, all at once'), JEV_EVAL_PROMPT.slice(0, 200))
 check('the prompt shows the paragraph-list form with a literal example keyed by position', /"evidence": \["[^"]+", "[^"]+"\]/.test(JEV_EVAL_PROMPT) && /#1/.test(JEV_EVAL_PROMPT))
 
 await standin.close()
