@@ -102,7 +102,7 @@ export function foldStatusExit(status: FoldStatusV1, exit: FoldExit, endedAtMs: 
   return { ...status, exit, endedAtMs, ...(words !== '' ? { reason: words } : {}) }
 }
 
-export function foldFailureClause(reason: string): string {
+function foldFailureClause(reason: string): string {
   const body = reason.includes(': ') ? reason.slice(reason.indexOf(': ') + 2) : reason
   const cut = body.search(/ — |\. /)
   return cut === -1 ? body : body.slice(0, cut)
