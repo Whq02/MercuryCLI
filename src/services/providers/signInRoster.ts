@@ -297,6 +297,11 @@ export function applyProjectSignInChoices(choices: Record<string, string> | unde
   return refused
 }
 
+export function trustedSignInSettings(): { credentials?: { signIns?: Record<string, string> } } {
+  const { getSettingsForSource } = require('../../utils/settings/settings.js') as typeof import('../../utils/settings/settings.js')
+  return getSettingsForSource('localSettings') ?? {}
+}
+
 export function bindProjectSignInChoicesToSettings(readSettings: () => { credentials?: { signIns?: Record<string, string> } }): void {
   registerProjectSignInSource(() => {
     for (const refusal of applyProjectSignInChoices(readSettings().credentials?.signIns)) {
