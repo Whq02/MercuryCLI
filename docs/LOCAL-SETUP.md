@@ -12,7 +12,8 @@ choice pre-ticks nothing: `esc` on the model list keeps the model the session
 is on.
 
 LM Studio, vLLM and llama.cpp keep working: when one of them already answers
-and Ollama does not list a model, the road ends on that server's model and
+and Ollama does not list a model, the road asks which of that server's models
+to use (when it lists more than one, the loaded one first), proves it, and
 installs or starts nothing.
 
 ## Where it is offered
@@ -49,8 +50,9 @@ everything as it stands.
 1. **Find a server.** The four local servers are probed (Ollama, LM Studio,
    vLLM, llama.cpp; `MERCURY_LOCAL_PROBE_TARGETS` is honoured). Ollama
    answering (with models or with none) jumps to step 4. LM Studio, vLLM or
-   llama.cpp answering with a model, while Ollama lists none, ends the road at
-   step 6 with that server's model. Nothing answering goes on to step 2.
+   llama.cpp answering with models, while Ollama lists none, offers a choice of
+   that server's models at step 4 (one model skips the choice) and ends the
+   road at step 6 with the picked model. Nothing answering goes on to step 2.
 2. **Find Ollama.** In order: `ollama` on PATH, the app
    (`/Applications/Ollama.app`, `~/Applications/Ollama.app`), Homebrew (`brew
    list --formula ollama` when `brew` exists), the Linux service (`systemctl
@@ -78,7 +80,8 @@ everything as it stands.
    (`qwen3.5:27b · on the server · 17.0 GB · trained 256k`); the model the
    session is on is marked `current`. Then what the server can pull: the
    Qwen 3.5 family as ollama.com/library/qwen3.5 lists it (`0.8b`, `2b`, `4b`, `9b`,
-   `27b`, `35b`, `122b`), each sized against your machine by the same fit rule the
+   `27b`, `35b`, `122b`) and the MoE coding tag `qwen3.6:35b-a3b-coding` (`22 GB`,
+   `35B-A3B MoE · 3B active · coding`), each sized against your machine by the same fit rule the
    window step uses (the published weights plus the KV cache at the trained
    maximum against the memory usable for models): `pull 17 GB · fits · 256k`,
    `pull 6.6 GB · fits · 128k`, or `pull 81 GB · does not fit`. A size the
