@@ -60,10 +60,12 @@ let initialized = false
 let owningSessionId: string | null = null
 let suppressionTimer: ReturnType<typeof setTimeout> | null = null
 let editSeq = 0
+let commitSeq = 0
 
 const changed = createSignal()
 
 function commit(): void {
+  commitSeq++
   changed.emit()
 }
 
@@ -111,7 +113,7 @@ export function stashedPrompt(): StashedPrompt | undefined {
 }
 
 export function editGeneration(): number {
-  return editSeq
+  return commitSeq
 }
 
 
@@ -191,6 +193,7 @@ export function resetPendingInputForTests(): void {
   initialized = false
   owningSessionId = null
   editSeq = 0
+  commitSeq = 0
   if (suppressionTimer !== null) {
     clearTimeout(suppressionTimer)
     suppressionTimer = null
