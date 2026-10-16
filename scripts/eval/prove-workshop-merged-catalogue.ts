@@ -13,6 +13,7 @@ const availability = [
   { language: 'js', available: true, version: 'v24.20.0', interpreterPath: 'node' },
 ]
 mock.module('../../src/services/eval/interpreters.js', () => ({ ...original, evalAvailability: () => availability, primeEvalAvailability: async () => availability }))
+const contracts = await import('../../src/services/eval/contracts.js')
 const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.js')
 const { getAllBaseTools } = await import('../../src/tools.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
@@ -40,6 +41,7 @@ for (const [enabled, hash, bytes] of [
   let same = true
   try { deepStrictEqual(definition.input_schema, expected) } catch { same = false }
   check('five-field wire schema matches exactly', same, JSON.stringify(definition.input_schema))
+  check(`samples=${enabled}: the timeoutSeconds field names the runtime constants (default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS}) from contracts.ts`, definition.input_schema.properties.timeoutSeconds.description === `Runtime budget in seconds: default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS} (a larger value runs at ${contracts.EVAL_MAX_TIMEOUT_SECONDS} and the result says so); 0 disables; bridge and permission time never counts.`, definition.input_schema.properties.timeoutSeconds.description)
   const wire = JSON.stringify({ ...definition, eager_input_streaming: true })
   check(`samples=${enabled}: compact definition with eager_input_streaming is ${bytes} bytes`, Buffer.byteLength(wire) === bytes, String(Buffer.byteLength(wire)))
 }
