@@ -189,6 +189,7 @@ export default class App extends PureComponent<Props, State> {
   constructor(props: Props) {
     super(props)
     this.querier = new TerminalQuerier(props.stdout)
+    this.keyParseState = { ...INITIAL_STATE, stringReplyOwed: () => this.querier.stringReplyOwed() }
   }
 
   private get isRawModeSupported(): boolean {

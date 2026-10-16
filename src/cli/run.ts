@@ -102,7 +102,7 @@ import { createPeer, type Peer } from '../runner/wire/peer.js'
 import { invalidParams, isRpcError, refused } from '../runner/wire/errors.js'
 import type { Capabilities, ParamsOf } from '../runner/wire/methods.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
-import { anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type AnthropicLimits } from '../services/anthropicLimits.js'
+import { anthropicObservedUsage, anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type AnthropicLimits } from '../services/anthropicLimits.js'
 import { sessionLaneWall } from '../tools/MonitorTool/laneWall.js'
 import { providerLimitWarning } from '../services/providers/limitWarning.js'
 import {
@@ -202,7 +202,7 @@ import {
   holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
-import { isHeldNotice, isOperatorLine, subscribeQueueConsumption } from '../input-core/command-queue.js'
+import { isHeldNotice, isOperatorLine, queuedWordsWaitForTurnEnd, subscribeQueueConsumption } from '../input-core/command-queue.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
@@ -254,7 +254,7 @@ import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installWireStdoutGuard } from '../utils/wireStdoutGuard.js'
 import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
-import { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, enqueueAgentReceiptRow, isLocalAgentTask, queueOperatorMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, enqueueAgentReceiptRow, handOverForegroundAgentsToQueuedMessage, isLocalAgentTask, queueOperatorMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
 import { markSessionBootRules, markSessionNonInteractive, markSessionPermissionMode } from '../utils/cockpit/runtimePosture.js'
@@ -1637,6 +1637,9 @@ export async function runHeadless(
       ...(input.priority !== undefined ? { priority: input.priority } : {}),
       ...saturnQueueStamp(input.origin),
     })
+    if (input.kind === 'prompt' && input.priority !== 'later' && !('origin' in saturnQueueStamp(input.origin)) && driver.isRunning() && !queuedWordsWaitForTurnEnd()) {
+      handOverForegroundAgentsToQueuedMessage(getAppState, setAppState)
+    }
     driver.kick()
     return { accepted: true }
   }
@@ -1810,6 +1813,7 @@ export async function runHeadless(
       if (sessionFactsHold !== null) await sessionFactsHold
       const state = getAppState()
       const anthropicWindow = anthropicWindowFact()
+      const anthropicObserved = anthropicObservedUsage()
       const openaiWindow = openaiWindowFact()
       const geminiWindow = laneWindowFact('gemini')
       const openrouterWindow = laneWindowFact('openrouter')
@@ -1840,6 +1844,7 @@ export async function runHeadless(
             return observed.primary || observed.secondary ? { openaiObserved: observed } : {}
           })(),
           ...(anthropicWindow !== undefined ? { anthropicWindow } : {}),
+          ...(anthropicObserved !== undefined ? { anthropicObserved } : {}),
           ...(openaiWindow !== undefined ? { openaiWindow } : {}),
           ...(geminiWindow !== undefined ? { geminiWindow } : {}),
           ...(openrouterWindow !== undefined ? { openrouterWindow } : {}),

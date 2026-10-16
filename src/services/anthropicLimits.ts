@@ -5,6 +5,7 @@ import { logError } from '../utils/log.js'
 import { anthropicRefusalFactsOf, classifyAnthropicRefusal } from './providers/anthropicRefusal.js'
 import { accountIdentityShown } from './wallet/identityWords.js'
 import type { UsageFeed } from './providers/usageFreshness.js'
+import type { AnthropicObservedUsageV1 } from './engine-connector/types.js'
 import { processRateLimitHeaders, shouldProcessRateLimits } from './rateLimitMocking.js'
 
 
@@ -579,6 +580,59 @@ export function adoptAnthropicWindowFact(fact: unknown): boolean {
   if (!limitsEqual(next, currentLimits)) {
     emitStatusChange(next)
   }
+  return true
+}
+
+const OBSERVED_WINDOW_KEYS = [
+  ['fiveHour', 'five_hour'],
+  ['sevenDay', 'seven_day'],
+] as const
+
+function observedWindowOf(window: unknown): { utilization: number; resetsAt: number; observedAtMs: number } | undefined {
+  if (typeof window !== 'object' || window === null) return undefined
+  const w = window as Record<string, unknown>
+  const utilization = w.utilization
+  const resetsAt = w.resetsAt
+  const observedAtMs = w.observedAtMs
+  if (typeof utilization !== 'number' || !Number.isFinite(utilization) || utilization < 0) return undefined
+  if (typeof resetsAt !== 'number' || !Number.isFinite(resetsAt) || resetsAt < 0) return undefined
+  if (typeof observedAtMs !== 'number' || !Number.isFinite(observedAtMs) || observedAtMs <= 0) return undefined
+  return { utilization, resetsAt, observedAtMs }
+}
+
+export function anthropicObservedUsage(): AnthropicObservedUsageV1 | undefined {
+  if (observedOwner === null || observedOwner !== resolveOwner()) return undefined
+  const fact: AnthropicObservedUsageV1 = { owner: observedOwner }
+  let stated = false
+  for (const [field, key] of OBSERVED_WINDOW_KEYS) {
+    const window = rawUtilization[key]
+    if (window === undefined || window.source !== 'headers' || window.observedAtMs === undefined) continue
+    fact[field] = { utilization: window.utilization, resetsAt: window.resets_at, observedAtMs: window.observedAtMs }
+    stated = true
+  }
+  return stated ? fact : undefined
+}
+
+export function adoptAnthropicObservedUsage(fact: unknown): boolean {
+  if (typeof fact !== 'object' || fact === null || Array.isArray(fact)) return false
+  const f = fact as Partial<AnthropicObservedUsageV1>
+  if (typeof f.owner !== 'string' || f.owner === '' || f.owner === 'none') return false
+  if (f.owner !== resolveOwner()) return false
+  const next: RawUtilization = { ...rawUtilization }
+  let moved = false
+  for (const [field, key] of OBSERVED_WINDOW_KEYS) {
+    const window = observedWindowOf(f[field])
+    if (window === undefined) continue
+    const mine = rawUtilization[key]
+    if (mine !== undefined && mine.observedAtMs !== undefined && window.observedAtMs <= mine.observedAtMs) continue
+    next[key] = { utilization: window.utilization, resets_at: window.resetsAt, source: 'headers', observedAtMs: window.observedAtMs }
+    moved = true
+  }
+  if (!moved) return false
+  rawUtilization = next
+  observedOwner = f.owner
+  logForDebugging(`[limits] window usage adopted from the session's runner · owner ${f.owner}`)
+  noteUsageRecordChanged()
   return true
 }
 

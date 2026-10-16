@@ -30,6 +30,7 @@ type ScanState =
 
 type ScannerOptions = {
   x10Mouse?: boolean
+  stringReplyOwed?: () => boolean
 }
 
 export type Scanner = {
@@ -49,17 +50,27 @@ const KIND_OF_STATE: Partial<Record<ScanState, TokenKind>> = {
 
 export function createScanner(options?: ScannerOptions): Scanner {
   const x10Mouse = options?.x10Mouse ?? false
+  const stringReplyOwed = options?.stringReplyOwed
   let state: ScanState = 'ground'
   let carry = ''
   let sealedFlushes = 0
   let fedSinceFlush = false
   let x10Owed = 0
+  let flushedHead = ''
 
   const run = (input: string, flush: boolean): ScanToken[] => {
-    const result = scan(carry + input, state, flush, x10Mouse, { sealedFlushes, fedSinceFlush, x10Owed })
+    const head = flushedHead
+    const reanchor = head !== '' && !flush && state === 'ground' && isReplyBody(head, input)
+    const result = scan((reanchor ? head : '') + carry + input, state, flush, x10Mouse, {
+      sealedFlushes,
+      fedSinceFlush,
+      x10Owed,
+      stringReplyOwed: flush && stringReplyOwed?.() === true,
+    })
     state = result.state
     carry = result.carry
     x10Owed = result.x10Owed ?? 0
+    flushedHead = flush ? result.flushedHead ?? (result.tokens.length === 0 ? head : '') : input === '' ? head : ''
     if (flush) {
       sealedFlushes = result.sealed ? sealedFlushes + 1 : 0
       fedSinceFlush = false
@@ -79,6 +90,7 @@ export function createScanner(options?: ScannerOptions): Scanner {
       sealedFlushes = 0
       fedSinceFlush = false
       x10Owed = 0
+      flushedHead = ''
     },
     buffer: () => carry,
   }
@@ -88,10 +100,27 @@ type FlushPolicy = {
   sealedFlushes: number
   fedSinceFlush: boolean
   x10Owed: number
+  stringReplyOwed: boolean
+}
+
+const STRING_INTRODUCER: Partial<Record<ScanState, number>> = {
+  osc: ESC_TYPE.OSC,
+  dcs: ESC_TYPE.DCS,
+  apc: ESC_TYPE.APC,
 }
 
 function isResponseHead(s: string): boolean {
   return /^\x1b\[[?>]/.test(s)
+}
+
+const REPLY_BODY_AFTER_HEAD: Record<string, RegExp> = {
+  [ESC]: /^(?:\[[?>]|\[\d+;\d+R|\]\d|P>)/,
+  [ESC + ']']: /^\d+;/,
+  [ESC + 'P']: /^>\|/,
+}
+
+function isReplyBody(head: string, s: string): boolean {
+  return REPLY_BODY_AFTER_HEAD[head]?.test(s) === true
 }
 
 function isMetaPrefixedIntroducer(code: number): boolean {
@@ -119,7 +148,7 @@ function scan(
   flush: boolean,
   x10Mouse: boolean,
   policy: FlushPolicy,
-): { tokens: ScanToken[]; state: ScanState; carry: string; sealed?: boolean; x10Owed?: number } {
+): { tokens: ScanToken[]; state: ScanState; carry: string; sealed?: boolean; x10Owed?: number; flushedHead?: string } {
   const tokens: ScanToken[] = []
   let state = initial
   let x10Owed = initial === 'resync-x10' ? policy.x10Owed : 0
@@ -145,6 +174,17 @@ function scan(
   const revertToText = (): void => {
     state = 'ground'
     textStart = seqStart
+  }
+
+  const emitString = (): void => {
+    const headed =
+      data.charCodeAt(seqStart) === C0.ESC && data.charCodeAt(seqStart + 1) === STRING_INTRODUCER[state]
+    if (headed) {
+      emit(state as TokenKind)
+      return
+    }
+    state = 'ground'
+    textStart = i
   }
 
   while (i < data.length) {
@@ -309,14 +349,14 @@ function scan(
       case 'apc':
         if (code === C0.BEL) {
           i++
-          emit(state as TokenKind)
+          emitString()
         } else if (
           code === C0.ESC &&
           i + 1 < data.length &&
           data.charCodeAt(i + 1) === ESC_TYPE.ST
         ) {
           i += 2
-          emit(state as TokenKind)
+          emitString()
         } else {
           i++
         }
@@ -347,9 +387,10 @@ function scan(
     return { tokens, state: next, carry: '' }
   }
   if (remaining && (state === 'osc' || state === 'dcs' || state === 'apc')) {
-    if (remaining.length <= 2) {
+    if (policy.stringReplyOwed) return { tokens, state, carry: remaining }
+    if (remaining.length <= 2 && remaining.charCodeAt(0) === C0.ESC) {
       tokens.push({ kind: 'esc', value: remaining })
-      return { tokens, state: 'ground', carry: '' }
+      return { tokens, state: 'ground', carry: '', flushedHead: remaining }
     }
     if (policy.sealedFlushes === 0) return { tokens, state, carry: remaining, sealed: true }
     if (!policy.fedSinceFlush) return { tokens, state, carry: '', sealed: true }
@@ -368,5 +409,5 @@ function scan(
   if (remaining) {
     tokens.push({ kind: seqKind, value: remaining })
   }
-  return { tokens, state: 'ground', carry: '' }
+  return { tokens, state: 'ground', carry: '', flushedHead: remaining === ESC ? ESC : '' }
 }

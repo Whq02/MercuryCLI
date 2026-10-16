@@ -164,7 +164,7 @@ console.log('§3 — the compat door: OpenRouter\'s 403 "Key limit exceeded" thr
   check('mapCompatHttpFailure agrees with the client (status 403 · the sentence · the wall)', mapped.status === 403 && mapped.message === 'Key limit exceeded' && classifyCredentialWall(mapped.status, mapped.message) === 'key-limit')
 
   const src = read('src/services/providers/openaicompat/compatChatCallModel.ts')
-  const seamAt = src.indexOf('const wall = classifyCredentialWall(outcome.fault.status, outcome.fault.message)')
+  const seamAt = src.indexOf("const wall = classifyCredentialWall(outcome.fault.status, outcome.fault.message, recovery !== undefined ? 'sign-in' : undefined)")
   const faultTextAt = src.indexOf('compatTerminalFaultText(profile, outcome.fault, typed', seamAt)
   const seam = seamAt > 0 && faultTextAt > seamAt ? src.slice(seamAt, faultTextAt) : ''
   check('source: the terminal seam consults the wall BEFORE the fault text and returns on it', seam !== '' && seam.includes('return'))
