@@ -109,6 +109,19 @@ try {
   check('a zero-tool turn paints the no-tools words AND the delta: "∙ no tools ran this turn · ctx +1.2k"', secondPainted === `∙ ${NO_TOOLS_RAN_WORDS} · ctx +1.2k`, secondPainted)
   const thirdPainted = deltaReceipts[2] ? await paint(deltaReceipts[2]) : ''
   check('no usage → the no-tools words alone', thirdPainted === `∙ ${NO_TOOLS_RAN_WORDS}`, thirdPainted)
+  const { createCompactBoundaryMessage } = await import('../../src/utils/messages.ts')
+  const { annotateBoundaryWithPreservedSegment, buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
+  const keptPrompt = createUserMessage({ content: 'the kept prompt' })
+  const keptReply = reply('the kept reply', 60000)
+  const boundary = createCompactBoundaryMessage('auto', 80_000)
+  annotateBoundaryWithPreservedSegment(boundary, boundary.uuid, [keptPrompt, keptReply])
+  const summary = createUserMessage({ content: 'What was folded.', isCompactSummary: true, isVisibleInTranscriptOnly: true })
+  const afterFold = [...buildPostCompactMessages({ boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: [keptPrompt, keptReply], attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 }), createUserMessage({ content: 'the first new prompt' }), reply('the first new reply', 15000)]
+  const afterFoldReceipts = receiptsOf(afterFold)
+  const keptReceipt = afterFoldReceipts.find(r => r.uuid === `${keptPrompt.uuid}-turn-receipt`)
+  const newReceipt = afterFoldReceipts.at(-1)
+  check('after an auto-fold that keeps a verbatim tail (the shipped default) the kept turn paints no delta (never its pre-fold +60.0k)', keptReceipt !== undefined && keptReceipt.contextDelta === undefined, JSON.stringify(afterFoldReceipts.map(r => [r.uuid, r.contextDelta])))
+  check('the first new turn after the fold reads its own full size, never the fold\'s shrink: "ctx +15.0k"', newReceipt !== undefined && (await paint(newReceipt)) === `∙ ${NO_TOOLS_RAN_WORDS} · ctx +15.0k`, newReceipt ? await paint(newReceipt) : '')
   const shrink = receiptsOf([createUserMessage({ content: 'a' }), reply('one', 50000), createUserMessage({ content: 'b' }), reply('two', 48200)])
   check('a smaller prompt than the turn before reads as a negative delta: "ctx −1.8k"', shrink[1] !== undefined && (await paint(shrink[1])) === `∙ ${NO_TOOLS_RAN_WORDS} · ctx −1.8k`, shrink[1] ? await paint(shrink[1]) : '')
 } finally {

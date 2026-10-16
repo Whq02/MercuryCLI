@@ -269,6 +269,7 @@ function walkTurnReceipts(
   let replied = false
   let previousPrompt: number | undefined
   let turnPrompt: number | undefined
+  let preFoldTail: string | undefined
   const settleDelta = (): number | undefined => {
     if (turnPrompt === undefined) return undefined
     const delta = turnPrompt - (previousPrompt ?? 0)
@@ -287,10 +288,15 @@ function walkTurnReceipts(
     if (m.type === 'system' && m.subtype === 'compact_boundary') {
       previousPrompt = undefined
       turnPrompt = undefined
+      preFoldTail = m.compactMetadata?.preservedSegment?.tailUuid
     }
-    for (const row of [m, ...(m.messages ?? [])]) {
-      const prompt = row.type === 'assistant' ? promptTokensOf(row.message?.usage) : undefined
-      if (prompt !== undefined) turnPrompt = prompt
+    if (preFoldTail === undefined) {
+      for (const row of [m, ...(m.messages ?? [])]) {
+        const prompt = row.type === 'assistant' ? promptTokensOf(row.message?.usage) : undefined
+        if (prompt !== undefined) turnPrompt = prompt
+      }
+    } else if ([m, ...(m.messages ?? []), ...(m.results ?? [])].some(row => row.uuid === preFoldTail)) {
+      preFoldTail = undefined
     }
     if (isReplyRow(m)) replied = true
     for (const row of [m, ...(m.messages ?? []), ...(m.results ?? [])]) {
