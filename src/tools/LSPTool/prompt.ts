@@ -20,14 +20,14 @@ export const LSP_DESCRIPTIONS: Record<LspToolName, string> = {
 Ask the language servers about code: where a symbol is defined, every reference to it, its type and documentation, its callers and callees, the symbols in a file or across the workspace, and the current errors and warnings in files. It only reads.
 
 Operations, and the arguments each one reads:
-- goToDefinition, findReferences, hover, goToImplementation, typeDefinition, incomingCalls, outgoingCalls: filePath, line, character — the symbol's position, 1-based, as Read shows it
+- goToDefinition, findReferences, hover, goToImplementation, typeDefinition, incomingCalls, outgoingCalls: filePath, line, character — 1-based, as Read shows it
 - documentSymbol: filePath
-- workspaceSymbol: query (a name or part of one); limit (default 50, at most 200); filePath, optional, picks the server for that file's language
-- diagnostics: paths, up to 50 files or directories (a directory stands for the files under it that a server covers), or filePath for one file. Run it on files you just edited.
+- workspaceSymbol: query; limit; filePath, optional, picks the server for that file's language
+- diagnostics: paths (a directory stands for the files under it that a server covers), or filePath for one file. Run it on files you just edited.
 - serverStatus: each server's state, restarts, last error and what it can answer; filePath marks the server for that file
 An argument the operation does not read is ignored. When no server covers a file type, the answer says what would provide one.
 
-Changes go through tools loaded with ToolSearch: LspRename (rename a symbol), LspMoveSymbol (move a declaration to another file), LspMoveFile (move or rename a file or directory), LspCodeAction (quick fixes, refactors), LspFormat (format, organize imports), LspRequest (one raw protocol request).
+Changes go through tools loaded with ToolSearch: LspRename, LspMoveSymbol, LspMoveFile, LspCodeAction, LspFormat, LspRequest.
 
 A call a server fails three times in a row is not sent again until a file it names changes, the server restarts, or the time in the answer has passed.`,
   LspRename: `Rename a symbol everywhere the language server sees it: the declaration, imports, re-exports and every reference in every file — never a comment or a string. Point filePath, line and character at any occurrence of the name (1-based, as Read shows it).
