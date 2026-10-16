@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // gate-watch: src/entrypoints/cli.tsx src/main.tsx
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { handoffTurn, isHandoffRequest, startFixtureApi } from '../lib/fixtureApi.ts'
@@ -103,8 +103,9 @@ function underPty(args: string[]): Promise<Run> | null {
   if (!script) return null
   return withHome((home, cwd, env, requests) => {
     const started = Date.now()
-    const inner = `cd ${JSON.stringify(cwd)} && node ${JSON.stringify(dist)} ${args.map(a => JSON.stringify(a)).join(' ')} < /dev/null; echo "EXIT=$?"`
-    const argv = process.platform === 'darwin' ? ['-q', '/dev/null', 'bash', '-c', inner] : ['-q', '-e', '-c', `bash -c ${JSON.stringify(inner)}`, '/dev/null']
+    const inner = join(home, 'under-pty.sh')
+    writeFileSync(inner, `cd ${JSON.stringify(cwd)} && node ${JSON.stringify(dist)} ${args.map(a => JSON.stringify(a)).join(' ')} < /dev/null; echo "EXIT=$?"\n`)
+    const argv = process.platform === 'darwin' ? ['-q', '/dev/null', 'bash', inner] : ['-q', '-e', '-c', `bash ${JSON.stringify(inner)}`, '/dev/null']
     const child = spawn('script', argv, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
     let out = ''
     let killed = false
