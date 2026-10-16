@@ -408,6 +408,7 @@ export function useTextInput({
         if (start >= 0 && start < end && end <= liveValue.length) {
           const commitRangeEdit = (result: { text: string; cursorOffset: number }): void => {
             liveRef.current = { value: result.text, offset: result.cursorOffset }
+            if (result.text === '') onClearInput?.()
             onChange(result.text)
             setOffset(result.cursorOffset)
             onSelectionConsumed?.()
@@ -462,6 +463,7 @@ export function useTextInput({
     const next = routeKey(cursor, filtered, rawInput, key)
     if (!next) return
 
+    if (next.text === '' && liveValue !== '' && isKillKey(filtered, key)) onClearInput?.()
     if (next.text !== liveValue) onChange(next.text)
     if (next.offset !== liveOffset) setOffset(next.offset)
     liveRef.current = { value: next.text, offset: next.offset }

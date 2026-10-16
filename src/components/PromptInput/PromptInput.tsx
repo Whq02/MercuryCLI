@@ -976,6 +976,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     onSubmit: (value: string) => {
       void submit(value, {})
     },
+    onClearInput: () => {
+      setMode('prompt')
+      setHelpOpen(false)
+    },
     onExit,
     onExitMessage: exitStateChange,
     onHistoryUp: () => {
