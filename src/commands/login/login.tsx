@@ -15,10 +15,6 @@ import type {
 } from '../../types/command.js'
 import { getOauthAccountInfo, loginShadowWarning } from '../../utils/auth.js'
 import { loginSuccessReceipt } from '../../utils/accounts/loginReceipt.js'
-import { landingWords, takeLastLanding } from '../../utils/accounts/signInPockets.js'
-import { familyDisplayName } from '../../services/providers/accountSlots.js'
-import { accountIdentityShown } from '../../services/wallet/identityWords.js'
-import { everySignInRoster, forgetSignIn, projectSignInRefusalWords, projectSignInRefusals, roadsWords, signInWords, useDefaultSignIn, useSignIn } from '../../services/providers/signInRoster.js'
 import { logError } from '../../utils/log.js'
 import { stripSignatureBlocks } from '../../utils/messages.js'
 import {
@@ -144,47 +140,6 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
   }
 }
 
-export function landingLine(): string | undefined {
-  const landing = takeLastLanding()
-  if (landing === undefined || landing.landed === 'first') return undefined
-  return landingWords(landing, familyDisplayName(landing.family), accountIdentityShown())
-}
-
-export function withLandingWords(receipt: string): string {
-  const line = landingLine()
-  return line === undefined ? receipt : `${receipt}\n${line}`
-}
-
-function landingShadow(shadow: string | null | undefined): string | undefined {
-  const lines = [landingLine(), shadow].filter((line): line is string => typeof line === 'string')
-  return lines.length === 0 ? undefined : lines.join('\n')
-}
-
-export function signInChoiceVerb(verb: 'use' | 'forget' | 'list', rest: string[]): { words: string; changed: boolean } {
-  const familyWord = rest.length >= 2 ? parseFamilyFocus(rest[0]) : undefined
-  const family = familyWord === undefined ? undefined : familyWord === 'claudeai' || familyWord === 'console' ? 'anthropic' : familyWord
-  const identity = rest.length >= 2 && familyWord !== undefined ? rest.slice(1).join(' ') : rest.join(' ')
-  if (verb === 'list' || identity.trim() === '') {
-    const rows = everySignInRoster()
-    if (rows.length === 0) return { words: 'no sign-ins yet — /logins signs in', changed: false }
-    const spending = new Set(rows.filter(row => row.inUse).map(row => row.family))
-    const lines = rows.map(row => {
-      const roads = roadsWords(row)
-      const waits = spending.has(row.family) ? '' : ` · waits — /logins use ${accountIdentityShown() ? row.identity : '<identity>'} spends it`
-      return `${familyDisplayName(row.family)}: ${signInWords(row)}${row.isDefault ? ' · default' : ''}${row.inUse ? ' · in use' : ''}${waits}${roads === undefined ? '' : ` · roads: ${roads}`}`
-    })
-    const refusals = projectSignInRefusals().map(refusal => projectSignInRefusalWords(refusal))
-    return { words: [...lines, ...refusals, '/logins use <identity> spends one this session · /logins forget <identity> drops a second sign-in'].join('\n'), changed: false }
-  }
-  if (verb === 'use') {
-    if (identity.trim().toLowerCase() === 'default' && family !== undefined) return { words: useDefaultSignIn(family), changed: true }
-    const outcome = useSignIn(identity, family)
-    return { words: outcome.words, changed: outcome.ok }
-  }
-  const outcome = forgetSignIn(identity, family)
-  return { words: outcome.words, changed: outcome.ok }
-}
-
 export async function call(
   onDone: LocalJSXCommandOnDone,
   context: LocalJSXCommandContext,
@@ -197,26 +152,14 @@ export async function call(
     returnCommand !== undefined && returnCommand.startsWith('/')
       ? { nextInput: returnCommand, submitNextInput: true as const }
       : {}
-  const words = tokens.filter(token => !token.startsWith('--'))
-  const verb = words[0]?.toLowerCase()
-  if (verb === 'use' || verb === 'forget' || verb === 'list') {
-    const outcome = signInChoiceVerb(verb, words.slice(1))
-    if (outcome.changed) {
-      context.onChangeAPIKey()
-      context.setMessages(prev => stripSignatureBlocks(prev))
-      runPostLoginRefresh(context)
-    }
-    onDone(outcome.words, chain)
-    return null
-  }
-  const initialFocus = parseFamilyFocus(words[0])
+  const initialFocus = parseFamilyFocus(tokens.find(token => !token.startsWith('--')))
   const complete = (success: boolean, engineModel: string): void => {
     void (async () => {
       context.onChangeAPIKey()
       context.setMessages(prev => stripSignatureBlocks(prev))
       if (success) {
         runPostLoginRefresh(context)
-        const shadow = landingShadow(loginShadowWarning())
+        const shadow = loginShadowWarning()
         const receipt = loginSuccessReceipt(getOauthAccountInfo()?.emailAddress)
         onDone(shadow ? `${receipt}\n${shadow}` : receipt, chain)
       } else {
@@ -225,9 +168,8 @@ export async function call(
       void engineModel
     })()
   }
-  const completeOpenai = (outcome: { ok: boolean; receipt: string }): void => {
+  const completeOpenai = (result: { ok: boolean; receipt: string }): void => {
     context.setAppState(prev => ({ ...prev, authVersion: (prev.authVersion ?? 0) + 1 }))
-    const result = outcome.ok ? { ...outcome, receipt: withLandingWords(outcome.receipt) } : outcome
     onDone(result.receipt, chain)
   }
   const scrollRef = React.createRef<ScrollBoxHandle>()

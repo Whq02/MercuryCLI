@@ -9,7 +9,6 @@ import { openBrowser } from '../browser.js'
 import { saveOAuthTokensIfNeeded, clearOAuthTokenCache } from '../auth.js'
 import { getAuthScope, setAuthScope, clearAuthScope } from '../envUtils.js'
 import { recordSignIn } from './signInLedger.js'
-import { withSignInHome } from './signInPockets.js'
 import { logForDebugging } from '../debug.js'
 import { healScopeIdentitySnapshot, forgetScopeIdentity } from './accountIdentity.js'
 import { anthropicAccountApiBase } from '../../constants/oauth.js'
@@ -85,16 +84,14 @@ export async function completeScopedReauth(
   setAuthScope(pending.dir)
   clearOAuthTokenCache()
   try {
-    const saved = withSignInHome('anthropic', pending.dir, () =>
-      (deps.save ?? saveOAuthTokensIfNeeded)({
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        expiresAt: Date.now() + tokens.expires_in * 1000,
-        scopes: parseScopes(tokens.scope),
-        subscriptionType: null,
-        rateLimitTier: null,
-      }),
-    )
+    const saved = (deps.save ?? saveOAuthTokensIfNeeded)({
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresAt: Date.now() + tokens.expires_in * 1000,
+      scopes: parseScopes(tokens.scope),
+      subscriptionType: null,
+      rateLimitTier: null,
+    })
     if (!saved.success) {
       return { ok: false, reason: saved.warning ?? 'credential save failed (keychain locked?)' }
     }

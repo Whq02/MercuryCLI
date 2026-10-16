@@ -396,27 +396,9 @@ export function getAssistantMessageFromError(
 }
 
 function signInWallAccount(model: string): string | undefined {
-  const route = routeOfModel(model)
-  const other = otherSignInWords(route === 'gateway' ? 'anthropic' : route)
-  if (!['anthropic', 'gateway'].includes(route) || !isClaudeAISubscriber() || !accountIdentityShown()) return other
+  if (!['anthropic', 'gateway'].includes(routeOfModel(model)) || !isClaudeAISubscriber() || !accountIdentityShown()) return undefined
   try {
-    const email = getOauthAccountInfo()?.emailAddress
-    if (email === undefined) return other
-    return other === undefined ? email : `${email} · ${other}`
-  } catch {
-    return other
-  }
-}
-
-function otherSignInWords(family: string): string | undefined {
-  try {
-    const { otherSignInsLine } = require('../providers/providerIdentityLine.js') as typeof import('../providers/providerIdentityLine.js')
-    const others = otherSignInsLine(family)
-    if (others === undefined) return undefined
-    if (family === 'anthropic' || !accountIdentityShown()) return others
-    const { familySignInRoster } = require('../providers/signInRoster.js') as typeof import('../providers/signInRoster.js')
-    const inUse = familySignInRoster(family).find(row => row.inUse)
-    return inUse === undefined ? others : `${inUse.identity} · ${others}`
+    return getOauthAccountInfo()?.emailAddress
   } catch {
     return undefined
   }
