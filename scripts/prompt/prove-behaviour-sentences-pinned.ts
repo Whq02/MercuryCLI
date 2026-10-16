@@ -49,6 +49,7 @@ const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/
 const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
 const { retainItems } = await import('../../src/mneme/memoryVerbs.ts')
 const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
+const { renderFrontPage } = await import('../../src/mneme/mnemeFrontPage.ts')
 
 const scratch = mkdtempSync(join(tmpdir(), 'sentences-pinned-cwd-'))
 const cwd = process.cwd()
@@ -103,10 +104,12 @@ try {
     check(`${seat}: the memory index sentence is present, verbatim, once`, text.split(M026).length === 2, text.includes('# Memory') ? 'the memory page rides without the sentence' : 'no memory page in the render')
   }
   check('the sentence is the front page\'s own text (one owner)', readFileSync(join(ROOT, 'src/mneme/mnemeFrontPage.ts'), 'utf8').includes(M026))
+  const pinsOnly = renderFrontPage({ dir: library, topics: [], archives: [], pins: [{ seq: 1, at: '2026-10-16T12:00:00.000Z' }], usage: {}, now: new Date('2026-10-16T12:00:00.000Z') }).text
+  check('a pins-only library (pins, no topics, no archives) renders the sentence and its referent: the ## Index heading, the empty-index line beneath it', pinsOnly.includes(M026) && pinsOnly.includes('\n## Index\n(nothing saved yet — Retain saves the first fact)\n'), pinsOnly)
 
   section('§2 every sentence the study cut is absent from the seats it rode in')
   const rows = tsv('cut-rows.tsv')
-  check('the fixture names the twenty-one cut rows', rows.length === 21 && rows.every(r => r.id && r.seats && r.sentence && r.carrier), j(rows.map(r => r.id)))
+  check('the fixture names the twenty cut rows', rows.length === 20 && rows.every(r => r.id && r.seats && r.sentence && r.carrier), j(rows.map(r => r.id)))
   for (const row of rows) {
     const sentence = fill(row.sentence!)
     const present = row.seats!.split(' ').filter(seat => seats[seat]!.includes(sentence))
