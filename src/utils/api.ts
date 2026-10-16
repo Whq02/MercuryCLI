@@ -267,7 +267,7 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
       const rebuilt: Record<string, unknown> = { file_path: normalized.file_path }
       if (edit.old_string !== undefined) rebuilt.old_string = edit.old_string
       if (edit.new_string !== undefined) rebuilt.new_string = edit.new_string
-      if (edit.replace_all !== undefined) rebuilt.replace_all = edit.replace_all
+      if ('replace_all' in input) rebuilt.replace_all = edit.replace_all
       if (parsed.expected_anchor !== undefined) rebuilt.expected_anchor = parsed.expected_anchor
       if (parsed.hunks !== undefined) rebuilt.hunks = parsed.hunks
       if (parsed.append !== undefined) rebuilt.append = parsed.append
