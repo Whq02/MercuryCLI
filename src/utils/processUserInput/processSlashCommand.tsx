@@ -479,20 +479,8 @@ export async function processSlashCommand(
     }
     if (looksLikeCommand(commandName) && !isExistingPath(`/${commandName}`)) {
       const unknownLine = unknownCommandLine(commandName, commands)
-      const messages: Message[] = [
-        caveat,
-        ...attachmentMessages,
-        createUserMessage({ content: unknownLine }),
-      ]
-      if (args) {
-        messages.push(
-          createSystemMessage(
-            `The skill "${commandName}" was not found; its arguments were: ${args}`,
-            'warning',
-          ),
-        )
-      }
-      return { messages, shouldQuery: false, resultText: unknownLine, commandRefused: true }
+      const notice = { ...createSystemMessage(unknownLine, 'warning'), ...(uuid ? { uuid } : {}) }
+      return { messages: [notice], shouldQuery: false, resultText: unknownLine, commandRefused: true }
     }
     const promptMessage = createUserMessage({
       content: inputString,
