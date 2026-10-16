@@ -67,7 +67,7 @@ section('§3 the project choice: the settings map picks the pocket; a missing id
   check('the pocket named by the project is chosen', pockets.signInHome('deepseek') === pocketB && secrets.readStoredDeepseekApiKey() === k2)
   check('the roster marks the project choice in use', roster.familySignInRoster('deepseek', HOME).find(row => row.inUse)?.identity === '…bbbb')
   check('the two unknown identities are refused with the known names', refused.length === 2 && refused[0]?.family === 'zai' && refused[0]?.known.join(',') === '…zzzz' && refused[1]?.family === 'openai' && refused[1]?.known.length === 0, JSON.stringify(refused))
-  const words = refused.map(roster.projectSignInRefusalWords)
+  const words = refused.map(refusal => roster.projectSignInRefusalWords(refusal))
   check('the refusal words name the file, the identity and the sign-ins that exist', /settings\.local\.json names …nope for Z\.AI/.test(words[0] ?? '') && /the sign-ins are …zzzz/.test(words[0] ?? '') && /nothing is signed in for it/.test(words[1] ?? ''), words.join(' | '))
   check('a refused family keeps spending its default', pockets.signInHome('zai') === env.getAuthConfigHomeDir() && secrets.readStoredZaiApiKey() === z1)
   check('the refusals are kept for the screens', roster.projectSignInRefusals().length === 2)
