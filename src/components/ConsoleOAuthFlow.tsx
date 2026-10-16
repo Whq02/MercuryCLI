@@ -332,7 +332,10 @@ export function ConsoleOAuthFlow({
         !compact && setupBody !== null && readinessPlan !== null
           ? signInCardFit({ bodyRows: setupBody.rows, textWidth: setupBody.width - 4, intro, rosterRows: idleRows.length, readinessRows: readinessPlan.rows })
           : { introLines: 0, roster: idleRows.length, readiness: readinessPlan?.rows ?? 0 }
-      const rosterWindow = compact ? Math.max(1, Math.min(rows, idleRows.length)) : fit.roster
+      const rowHeight = !compact && setupBody !== null
+        ? Math.max(...idleRows.map(row => wrapText(row.label, Math.max(1, setupBody.width - 6), 'wrap').split('\n').length))
+        : 1
+      const rosterWindow = compact ? Math.max(1, Math.min(rows, idleRows.length)) : Math.max(1, Math.floor(fit.roster / rowHeight))
       const rosterHidden = Math.max(0, idleRows.length - (rosterVisibleTo ?? Math.min(idleRows.length, rosterWindow)))
       return frame(
         <Box flexDirection="column" gap={compact ? 0 : 1}>

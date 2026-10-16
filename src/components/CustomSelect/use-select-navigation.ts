@@ -74,17 +74,10 @@ export function createNavigationState<T>({
   if (explicit) {
     const index = explicit.index
     if (currentViewport) {
-      const [currentFrom, currentTo] = currentViewport
-      if (index >= currentFrom && index < currentTo) {
-        from = currentFrom
-        to = Math.min(currentTo, options.length)
-      } else if (index < currentFrom) {
-        from = index
-        to = index + visible
-      } else {
-        to = index + 1
-        from = to - visible
-      }
+      from = Math.max(0, Math.min(currentViewport[0], options.length - visible))
+      if (index < from) from = index
+      if (index >= from + visible) from = index + 1 - visible
+      to = from + visible
     } else if (index >= visible) {
       to = index + 1
       from = to - visible
@@ -362,8 +355,9 @@ export function useSelectNavigation<T>({
 
   const previousOptionsRef = useRef(options)
   if (
-    previousOptionsRef.current !== options &&
-    !optionsEquivalent(previousOptionsRef.current, options)
+    state.visibleOptionCount !== Math.min(visibleOptionCount, options.length) ||
+    (previousOptionsRef.current !== options &&
+      !optionsEquivalent(previousOptionsRef.current, options))
   ) {
     previousOptionsRef.current = options
     dispatch({
