@@ -1,0 +1,9 @@
+# The prompt-ablation replay fixture (1.0.0-beta.37)
+
+The record the `scripts/prompt/prove-behaviour-sentences-pinned.ts` proof reads. It comes from the .37 prompt-ablation study (seat B's replay, 2026-10-16): sixteen turns from real sessions were re-sent to the model with the behavioural prompt whole and with groups of sentences removed, and one closed question per turn was judged. The door was the session's evaluation completion with thinking off and prompt caching off, so every answer here is a thinking-off reading.
+
+- `questions.tsv`: the two turns whose judged answer moved when one sentence was removed alone, with the mechanical judge (a grep) and the expected answer with the prompt whole.
+- `replay-flip.tsv`: the four judged replies: for each turn the whole-prompt arm (A0) and the confirm arm with the one sentence removed (CT-A2), the judge's pattern, the words the pattern matched, the judged answer, and the sha256 and byte count of the recorded reply. The replies themselves stay in the study's record (the replay folder of the prompt-ablation study); they are not copied here.
+- `cut-rows.tsv`: the sentences the study ruled restatements, cut from the prompt in this release, each with the carrier that already says it and the literal the proof sweeps the source for.
+
+The one sentence the bisection reached on both turns is the memory index sentence (row M026). On T05 its removal made the model treat a stale earlier-cycle memory fact as the current plan: the whole-prompt reply did not (the expected answer), the one-row arm did. On T10 the grep's answer moved the other way: the whole-prompt reply graded its claims in words the pattern does not match ("inferred from the command, not observed"), the one-row arm used the word "unverified"; the study counted every change of the measured answer as a flip, and the record here says exactly that. M026 stays, and the proof asserts its exact text in the rendered prompt.
