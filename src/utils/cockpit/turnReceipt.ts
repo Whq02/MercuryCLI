@@ -45,7 +45,7 @@ function emptyCounts(): TurnReceiptCounts {
   }
 }
 
-export function otherToolCalls(tools: Record<string, number> | undefined): number {
+function otherToolCalls(tools: Record<string, number> | undefined): number {
   let total = 0
   for (const n of Object.values(tools ?? {})) if (n > 0) total += n
   return total
