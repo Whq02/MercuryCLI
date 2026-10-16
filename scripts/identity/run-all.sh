@@ -37,6 +37,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-file-tool-absent.ts" || { __rc=$?;
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-code-runtime-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-code-runtime-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-transaction-inputs-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transaction-inputs-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-sendmessage-resume-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sendmessage-resume-words-gone.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-second-sign-in-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-second-sign-in-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-view-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-view-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crewmate-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crewmate-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crewmate-tool-name.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crewmate-tool-name.ts" "$__t" "$__rc"

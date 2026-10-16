@@ -50,13 +50,11 @@ try {
   check('the env spelling wins over the store and is labelled as such', resolveZenApiKey()?.source === 'env' && resolveZenAccount()?.label === 'OPENCODE_API_KEY (env)')
   const groups = deriveFamilySlotGroups()
   const slots = groups.find(group => group.family.id === 'zen')?.slots ?? []
-  const stored = slots.filter(slot => slot.removal.route === 'zen-stored-key')
-  check('account slots show honest env-over-stored precedence', slots.length === 3 && slots.filter(slot => slot.envPinned).length === 1 && slots.some(slot => slot.envPinned && slot.active) && stored.length === 2 && stored.every(slot => !slot.active))
-  check('the second key pasted is a second sign-in of the family, listed beside the first with its tail', stored[0]?.signInIdentity === undefined && stored[1]?.signInIdentity === `…${fixture.goKey.slice(-4)}`)
+  check('account slots show honest env-over-stored precedence', slots.length === 2 && slots.some(slot => slot.envPinned && slot.active) && slots.some(slot => !slot.envPinned && !slot.active))
   check('identity and slot views never expose complete key values', !JSON.stringify(groups).includes(KEY) && !JSON.stringify(groups).includes(fixture.goKey) && !JSON.stringify(groups).includes(process.env.OPENCODE_API_KEY) && !providerIdentityLine('zen').text.includes(fixture.goKey))
   delete process.env.OPENCODE_API_KEY
-  const removals = stored.map(slot => executeSlotRemoval(slot))
-  check('slot removal clears the owning store', removals.every(removal => removal.mutated) && !readStoredZenApiKey() && resolveZenAccount() === undefined)
+  const removed = await executeSlotRemoval(slots.find(slot => slot.removal.route === 'zen-stored-key')!)
+  check('slot removal clears the owning store', removed.mutated && !readStoredZenApiKey() && resolveZenAccount() === undefined)
   check('a signed-out family reads as not connected', usageForProvider('zen').sourceKind === 'none' && usageForProvider('zen').whyNot?.includes('/logins zen'))
   const network = (async () => { throw new Error(`fixture offline ${KEY}`) }) as typeof fetch
   const unverified = await storeZenApiKeyLogin(KEY, { env, fetchImpl: network })

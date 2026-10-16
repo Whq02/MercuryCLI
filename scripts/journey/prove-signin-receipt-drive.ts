@@ -272,8 +272,6 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
   daemon: string
   storedEmail: string | undefined
   storedToken: string | undefined
-  homeEmail: string | undefined
-  homeToken: string | undefined
 }> {
   const RUN_HOME = path.join(WORLD_ROOT, `mercury-signin-receipt-${leg}-${process.pid}`)
   const FIXTURE_CWD = path.join(RUN_HOME, 'fixture-repo')
@@ -393,29 +391,16 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
   }
   let storedEmail: string | undefined
   let storedToken: string | undefined
-  let homeEmail: string | undefined
-  let homeToken: string | undefined
-  const readEmail = (dir: string): string | undefined => {
-    try {
-      const cfgOnFile = JSON.parse(readFileSync(path.join(dir, '.mercury.json'), 'utf8')) as { oauthAccount?: { emailAddress?: string } }
-      return cfgOnFile.oauthAccount?.emailAddress
-    } catch {
-      return undefined
-    }
+  try {
+    const cfgOnFile = JSON.parse(readFileSync(path.join(RUN_HOME, '.mercury.json'), 'utf8')) as { oauthAccount?: { emailAddress?: string } }
+    storedEmail = cfgOnFile.oauthAccount?.emailAddress
+  } catch {
   }
-  const readToken = (dir: string): string | undefined => {
-    try {
-      const creds = JSON.parse(readFileSync(path.join(dir, '.credentials.json'), 'utf8')) as { claudeAiOauth?: { accessToken?: string } }
-      return creds.claudeAiOauth?.accessToken
-    } catch {
-      return undefined
-    }
+  try {
+    const creds = JSON.parse(readFileSync(path.join(RUN_HOME, '.credentials.json'), 'utf8')) as { claudeAiOauth?: { accessToken?: string } }
+    storedToken = creds.claudeAiOauth?.accessToken
+  } catch {
   }
-  homeEmail = readEmail(RUN_HOME)
-  homeToken = readToken(RUN_HOME)
-  const pocket = path.join(RUN_HOME, 'sign-ins', 'anthropic', SECOND_EMAIL)
-  storedEmail = existsSync(pocket) ? readEmail(pocket) : homeEmail
-  storedToken = existsSync(pocket) ? readToken(pocket) : homeToken
   let opens = ''
   try {
     opens = readFileSync(seeded.opens, 'utf8')
@@ -431,8 +416,6 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
     daemon,
     storedEmail,
     storedToken,
-    homeEmail,
-    homeToken,
   }
 }
 
@@ -459,11 +442,9 @@ if (LEG === 'chat' || LEG === 'both') {
   check('the success pane names the account that just signed in', pane.includes(`Signed in as ${SECOND_EMAIL}`), tail(pane, 14) || r.stderr.slice(-600))
   check('the success pane never names the account stored before the switch', pane !== '' && !pane.includes(FIRST_EMAIL), tail(pane, 14))
   check('the chat receipt lands after the pane is confirmed', receipt.includes('Login successful'), tail(receipt, 10))
-  check('the credential on file for the sign-in in use is the one the sign-in landed', r.storedToken === SECOND_ACCESS, String(r.storedToken))
+  check('the credential on file is the one the sign-in landed', r.storedToken === SECOND_ACCESS, String(r.storedToken))
   check('the stored account beside it is the one that signed in, with no /accounts opened', r.storedEmail === SECOND_EMAIL, String(r.storedEmail))
-  check('the first account stays signed in beside it: the home keeps its own credential and account', r.homeToken === FIRST_ACCESS && r.homeEmail === FIRST_EMAIL, `${String(r.homeToken)} ${String(r.homeEmail)}`)
-  const endWords = end.split('\n').map(l => l.replace(/^\s*│\s*/, '').replace(/\s*│\s*$/, '').trim()).join(' ').replace(/\s+/g, ' ')
-  check('the chat after the receipt says the second account was added beside the first and spends this session', end !== '' && endWords.includes(`${SECOND_EMAIL} added beside ${FIRST_EMAIL}`) && endWords.includes(`this session spends ${SECOND_EMAIL}`), tail(end, 20))
+  check('the chat after the receipt never names the account stored before the switch', end !== '' && !end.includes(FIRST_EMAIL), tail(end, 20))
   if (failures > 0 || KEEP) kept.push(r.home)
   else rmSync(r.home, { recursive: true, force: true })
 }
@@ -489,14 +470,14 @@ if (LEG === 'face' || LEG === 'both') {
     check('the loopback callback completed the flow and the profile was read with the minted token', r.hits.some(h => h.startsWith('POST /v1/oauth/token')) && r.hits.some(h => h.startsWith('GET /api/oauth/profile') && h.includes(`bearer=${SECOND_ACCESS}`)), r.hits.join(' | '))
     check('the success pane names the account that just signed in', pane.includes(`Signed in as ${SECOND_EMAIL}`), tail(pane, 14))
     check('the roster row behind the open pane already names the account that signed in', (claudeRow(pane) ?? '').includes(SECOND_EMAIL), claudeRow(pane)?.trim() ?? 'no row')
-    check('↵ done leaves the roster naming the account that signed in as the one in use, with the first counted beside it', (claudeRow(roster) ?? '').includes(`${SECOND_EMAIL} +1`) && !(claudeRow(roster) ?? '').includes(FIRST_EMAIL), claudeRow(roster)?.trim() ?? 'no row')
+    check('↵ done leaves the roster naming the account that signed in', (claudeRow(roster) ?? '').includes(SECOND_EMAIL) && !(claudeRow(roster) ?? '').includes(FIRST_EMAIL), claudeRow(roster)?.trim() ?? 'no row')
     const chipLine = end.split('\n').find(l => l.includes('Acct'))
     if (chipLine === undefined) {
       record('the face chip', `the chip strip is shed at ${COLS}x${ROWS}; the face carries no account chip on this frame`)
     } else {
       check('the face chip names the account that signed in once the layer closes', chipLine.includes(SECOND_EMAIL) && !chipLine.includes(FIRST_EMAIL), chipLine.trim())
     }
-    check('the stored account on file for the sign-in in use is the one that signed in; the home keeps the first', r.storedEmail === SECOND_EMAIL && r.homeEmail === FIRST_EMAIL, `${String(r.storedEmail)} ${String(r.homeEmail)}`)
+    check('the stored account on file is the one that signed in', r.storedEmail === SECOND_EMAIL, String(r.storedEmail))
     if (failures > 0 || KEEP) kept.push(r.home)
     else rmSync(r.home, { recursive: true, force: true })
   }

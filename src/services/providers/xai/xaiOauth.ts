@@ -1,8 +1,7 @@
 import { mkdirSync, readFileSync, openSync, closeSync, writeSync, unlinkSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import { landSignIn, signInHome, withPinnedSignInHome } from '../../../utils/accounts/signInPockets.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -28,7 +27,7 @@ interface AuthFile {
   preferredSource?: 'grok-subscription' | 'api-key'
   [key: string]: unknown
 }
-export function xaiAuthPathForDisplay(): string { return join(signInHome('xai'), '.xai-auth.json') }
+export function xaiAuthPathForDisplay(): string { return join(getAuthConfigHomeDir(), '.xai-auth.json') }
 function readAuth(): AuthFile {
   try {
     const value = JSON.parse(readFileSync(xaiAuthPathForDisplay(), 'utf8'))
@@ -36,7 +35,7 @@ function readAuth(): AuthFile {
   } catch { return { version: 1 } }
 }
 function writeAuth(file: AuthFile): void {
-  mkdirSync(signInHome('xai'), { recursive: true })
+  mkdirSync(getAuthConfigHomeDir(), { recursive: true })
   durableAtomicPublishSync(xaiAuthPathForDisplay(), JSON.stringify({ ...file, version: 1 }) + '\n', { mode: 0o600 })
   noteCredentialChange()
 }
@@ -49,13 +48,6 @@ export function writeXaiTokens(tokens: XaiTokens | null): void {
   if (tokens) file.tokens = tokens
   else delete file.tokens
   writeAuth(file)
-}
-export function xaiSignInIdentity(tokens: XaiTokens | undefined): string | undefined {
-  if (!tokens?.accessToken) return undefined
-  return tokens.email ?? `grok-${credentialFingerprint(tokens.refreshToken || tokens.accessToken).slice(0, 8)}`
-}
-export function landXaiTokens(tokens: XaiTokens): void {
-  landSignIn({ family: 'xai', identity: xaiSignInIdentity(tokens) ?? credentialFingerprint(tokens.accessToken), kind: 'subscription', ledgerKind: 'subscription', stable: tokens.email !== undefined, homeIdentity: () => xaiSignInIdentity(xaiStoredTokens()), write: () => writeXaiTokens(tokens) })
 }
 export function clearStoredXaiSubscription(): void { writeXaiTokens(null) }
 export function readPreferredXaiSource(): AuthFile['preferredSource'] { return readAuth().preferredSource }
@@ -165,9 +157,6 @@ async function withRefreshLock<T>(path: string, run: () => Promise<T>): Promise<
 }
 const refreshes = new Map<string, Promise<XaiTokens | undefined>>()
 export function refreshXaiTokens(io?: XaiOauthIo, force = false): Promise<XaiTokens | undefined> {
-  return withPinnedSignInHome('xai', signInHome('xai'), () => refreshXaiTokensPinned(io, force))
-}
-function refreshXaiTokensPinned(io?: XaiOauthIo, force = false): Promise<XaiTokens | undefined> {
   const path = xaiAuthPathForDisplay()
   const existing = refreshes.get(path)
   if (existing) return existing
