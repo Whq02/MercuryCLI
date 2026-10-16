@@ -6,7 +6,7 @@
 # gate-watch: assets/vulcan/addon/categories/editor.gd assets/vulcan/addon/categories/script.gd
 # gate-watch: assets/vulcan/addon/core/** assets/vulcan/addon/plugin.cfg assets/vulcan/addon/plugin.gd
 # gate-watch: assets/vulcan/optable.json scripts/lib/generated-assets-map.mjs src/bootstrap/state.ts
-# gate-watch: src/cli/godotEngineCli.ts src/constants/prompts.ts src/services/ide/godotSession.ts
+# gate-watch: src/cli/godotEngineCli.ts src/constants/prompts.ts src/services/ide/godotSession.ts src/services/lsp/godotLane.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/scriptedTurn.ts
 # gate-watch: src/services/run/ownerKey.ts src/tools.ts src/utils/*
 set -u

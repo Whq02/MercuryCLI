@@ -17,9 +17,5 @@ export function getDescription(offered: ReadonlySet<string> | null = null): stri
   return `Content search across the tree, powered by ripgrep
 
 Usage:
-- Full regex syntax lands (\`log.*Error\`, \`function\\s+\\w+\`)
-- Narrow by file with \`glob\` (\`*.js\`, \`**/*.tsx\`) or by language with \`type\` (\`js\`, \`py\`, \`rust\`)
-- Three output modes: "files_with_matches" lists only the paths that hit (the default), "content" prints the matching lines, "count" tallies matches
-- Pattern dialect: ripgrep's, not grep's — literal braces need escaping (\`interface\\{\\}\` reaches \`interface{}\` in Go code); lookaround and backreferences fall back to PCRE2
-- Multiline: patterns stay within one line unless asked otherwise. A cross-line pattern (say \`struct \\{[\\s\\S]*?field\`) wants \`multiline: true\`${steeringSuffix(offered)}`
+- Pattern dialect: ripgrep's, not grep's — literal braces need escaping (\`interface\\{\\}\` reaches \`interface{}\` in Go code); lookaround and backreferences fall back to PCRE2${steeringSuffix(offered)}`
 }

@@ -97,7 +97,7 @@ if (general === undefined) {
   console.error('prove-workflow-worker-roster-parity: the built-in mercury-crew definition is missing')
   process.exit(1)
 }
-const crewmate = sorted(resolveWorkerTools(general, 'implement', pool, true))
+const crewmate = sorted(resolveWorkerTools(general, 'implement', pool))
 console.log(`  fixture pool: ${show(poolNames)}`)
 console.log(`  background crewmate (mercury-crew, async): ${show(crewmate)}`)
 
@@ -130,7 +130,7 @@ section("§2 A CUSTOM agentType WITH tools: ['Read','Grep'] FOLLOWS ITS DEFINITI
   check('the dispatch reached the agent runner exactly once', captures.length === 1, `dispatches=${captures.length}`)
   if (worker !== undefined) {
     const wire = [...worker.names].sort()
-    const law = sorted(resolveWorkerTools(readerDef as never, 'implement', pool, true))
+    const law = sorted(resolveWorkerTools(readerDef as never, 'implement', pool))
     check('the custom type was dispatched', worker.agentType === 'fixture-reader', worker.agentType)
     check(
       'the built-ins on the wire are exactly Read and Grep',

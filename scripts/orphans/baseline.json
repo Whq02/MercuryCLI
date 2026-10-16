@@ -89,11 +89,6 @@
       "reason": "The shipped verify-artifact entrypoint: packaged as its own standalone file by the release packager and executed offline by installers (`verify-artifact.mjs --deep`); reached from the packaged artifact, not the runtime graph."
     },
     {
-      "file": "src/services/vulcan/godotProviders.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The Godot provider inventory is read by three vulcan proofs (discovery, providers, instance readiness) and by no product module since the readiness rows took their data from the shared presence probe; it moves under scripts/vulcan in 1.0.0-beta.10 or is retired with its proofs."
-    },
-    {
       "file": "src/services/workContexts/workContexts.ts",
       "class": "superseded-unreachable",
       "reason": "The work-context bind/park/cleanup owner behind the WORK/workbench board's LANES verbs, retired in place; the MERCURY_WORK_CONTEXTS_DIR registry row names it as consumer, so the flag is PARKED with it (the reachability manifest records the parking, not a severed flag). Kept for the retire-or-adopt decision on the retire-or-adopt line."

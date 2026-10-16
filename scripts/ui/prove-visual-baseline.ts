@@ -199,6 +199,28 @@ if (FULL) {
   for (const id of SPOTS) run(id)
 }
 
+{
+  const { mkdtempSync, existsSync, readFileSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const out = mkdtempSync(join(tmpdir(), 'visual-baseline-stamped-'))
+  try {
+    const r = spawnSync(process.env.BUN ?? `${process.env.HOME}/.bun/bin/bun`, ['run', 'scripts/ui/generate-visual-baseline.ts', '--only', 'frame--100x30--dark--truecolor', '--out', out, '--jobs', '1'], {
+      encoding: 'utf8',
+      env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
+      timeout: 300_000,
+    })
+    const file = join(out, 'grids', 'frame--100x30--dark--truecolor--full.grid.json')
+    const grid = existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as { text: string[]; styles: unknown[][] }) : null
+    const styled = grid?.styles.reduce((n, row) => n + row.length, 0) ?? 0
+    const painted = r.status === 0 && grid !== null && grid.text.some(row => row.trim() !== '')
+    console.log(`  [${painted && styled > 0 ? 'PASS' : 'FAIL'}] the truecolor capture launched under an inherited NO_COLOR=1 FORCE_COLOR=0 (a seat's tool shell stamps every command it runs) still carries styled cells — ${styled} style spans, rc=${r.status}`)
+    if (!(painted && styled > 0)) fail = 1
+  } finally {
+    rmSync(out, { recursive: true, force: true })
+  }
+}
+
 if (fail) {
   console.log('❌ visual-baseline comparison RED')
   process.exit(1)

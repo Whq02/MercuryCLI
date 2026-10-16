@@ -31,19 +31,23 @@ if (
   ok('build.ts MACRO_VERSION reads package.json (via PKG_JSON) — one version root')
 else bad('build.ts MACRO_VERSION must read package.json (the one root)')
 
-if (product.includes('export const versionBanner = `Mercury ${MERCURY_VERSION}`'))
-  ok('versionBanner is the single-version `Mercury ${MERCURY_VERSION}`')
-else bad('versionBanner must be `Mercury ${MERCURY_VERSION}`')
+const main = readFileSync(join(root, 'src/main.tsx'), 'utf8')
+const versionLineBody = /function exitWithVersionLine\(\): never \{([\s\S]*?)\n\}/.exec(main)?.[1] ?? ''
+if (versionLineBody.includes('writeSync(1, `Mercury ${MERCURY_VERSION}\\n`)'))
+  ok('main.tsx exitWithVersionLine prints `Mercury ${MERCURY_VERSION}` (the one print behind -V and the version verb)')
+else bad('main.tsx exitWithVersionLine must print `Mercury ${MERCURY_VERSION}`')
 
 const cli = readFileSync(join(root, 'src/entrypoints/cli.tsx'), 'utf8')
 if (cli.includes('console.log(`Mercury ${MACRO.VERSION}`)'))
   ok('cli.tsx --version fast-path renders `Mercury ${MACRO.VERSION}` (zero-import, same root)')
 else bad('cli.tsx fast-path must render `Mercury ${MACRO.VERSION}`')
 
-const logo = readFileSync(join(root, 'src/utils/logoV2Utils.ts'), 'utf8')
-if (/process\.env\.MERCURY_DEMO_VERSION \?\? MERCURY_VERSION/.test(logo))
-  ok('home logo (getLogoDisplayData) displays MERCURY_VERSION')
-else bad('logoV2Utils.ts getLogoDisplayData must fall back to MERCURY_VERSION')
+if (
+  /program\.on\('option:V', \(\) => \{[^}]*exitWithVersionLine\(\)/.test(main) &&
+  /\.command\('version'\)\n[^\n]*\.description\([^\n]*\)\n[^\n]*\.action\(\(\) => \{[^}]*exitWithVersionLine\(\)/.test(main)
+)
+  ok('`-V` and the `version` verb both end in exitWithVersionLine (main.tsx)')
+else bad('main.tsx `-V` and the `version` verb must both call exitWithVersionLine')
 
 const turn = readFileSync(join(root, 'src/rows/turn.ts'), 'utf8')
 if (turn.includes('version: MACRO.VERSION'))
@@ -62,6 +66,30 @@ if (existsSync(dist)) {
     else bad(`booted --version printed "${out}" — expected "Mercury ${mv}"`)
   } catch (e) {
     bad(`booting dist/mercury.mjs --version failed: ${e instanceof Error ? e.message : String(e)}`)
+  }
+
+  try {
+    const out = execFileSync('node', [dist, 'version'], {
+      encoding: 'utf8',
+      timeout: 30_000,
+    }).trim()
+    if (mv && out === `Mercury ${mv}`)
+      ok(`BOOTED identity: \`node dist/mercury.mjs version\` → "${out}"`)
+    else bad(`booted version printed "${out}" — expected "Mercury ${mv}"`)
+  } catch (e) {
+    bad(`booting dist/mercury.mjs version failed: ${e instanceof Error ? e.message : String(e)}`)
+  }
+
+  try {
+    const out = execFileSync('node', [dist, '-V', 'prove-slow-path'], {
+      encoding: 'utf8',
+      timeout: 30_000,
+    }).trim()
+    if (mv && out === `Mercury ${mv}`)
+      ok(`SLOW-PATH booted identity: \`-V <extra-arg>\` (commander option:V → exitWithVersionLine) → "${out}"`)
+    else bad(`slow-path -V printed "${out}" — expected "Mercury ${mv}"`)
+  } catch (e) {
+    bad(`slow-path -V errored: ${e instanceof Error ? e.message : String(e)}`)
   }
 
   try {

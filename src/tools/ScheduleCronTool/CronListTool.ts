@@ -51,8 +51,8 @@ export const CronListTool = buildTool({
   async description() {
     return CRON_LIST_DESCRIPTION
   },
-  async prompt() {
-    return buildCronListPrompt()
+  async prompt(options) {
+    return buildCronListPrompt(options?.tools?.some(tool => tool.name === CRON_CREATE_TOOL_NAME) ?? true)
   },
   async call() {
     const roster = sessionScheduleRoster()

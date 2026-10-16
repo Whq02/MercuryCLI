@@ -1,6 +1,6 @@
 
 import type { ExecutionRecord, ExecutionState } from './execution.js'
-import type { TransactionRecord, TransactionState } from './transaction.js'
+import type { TransactionState } from './transaction.js'
 
 type CardState =
   | ExecutionState
@@ -46,34 +46,6 @@ interface ExecutionView {
   startedAt?: number
   durationMs?: number
   generation: number
-}
-
-interface TransactionView {
-  id: string
-  title: string
-  state: CardState
-  summary: string
-  detailRefs: string[]
-  failureDetail?: string
-}
-
-function transactionView(record: TransactionRecord): TransactionView {
-  return {
-    id: record.id,
-    title: record.kind,
-    state: transactionCardState(record.state),
-    summary:
-      `${record.kind} · ${record.state}` +
-      (record.resultRefs.length > 0 ? ` · ${record.resultRefs.length} result(s)` : ''),
-    detailRefs: [
-      ...(record.effectRef ? [record.effectRef] : []),
-      ...record.evidenceRefs,
-      ...record.resultRefs,
-    ],
-    ...(record.failure && {
-      failureDetail: `${record.failure.code}: ${record.failure.message}`,
-    }),
-  }
 }
 
 export function executionView(record: ExecutionRecord): ExecutionView {

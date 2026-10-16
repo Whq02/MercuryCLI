@@ -730,6 +730,7 @@ export const evalKernelManager = new EvalKernelManager()
 
 registerOwnerScopedStore({
   name: 'eval-kernels',
+  live: true,
   dispose(owner) {
     void evalKernelManager.disposeOwner(String(owner))
   },

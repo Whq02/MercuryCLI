@@ -75,10 +75,6 @@ export function streamErrorNotice(errors: CaptureStreamErrors): StreamErrorNotic
   return null
 }
 
-function lastTakeStreamErrors(): CaptureStreamErrors | null {
-  return lastStreamErrors
-}
-
 export function lastTakeStreamWords(errors: CaptureStreamErrors | null = lastStreamErrors, take: 'last take' | 'this take' = 'last take'): string | null {
   if (errors === null) return null
   const notice = streamErrorNotice(errors)
