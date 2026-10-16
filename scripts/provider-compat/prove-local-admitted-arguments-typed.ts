@@ -174,6 +174,20 @@ const ITEMS = [{ content: 'Deploy target for this project: the blue rack in room
   check('a plain sentence where the array goes is refused with the type sentence', settled.toolUses.length === 0 && settled.notes.some(note => note.includes('The parameter `items` was expected to be of type array but string was provided')) && settled.stop === 'end_turn', JSON.stringify(settled))
 }
 
+section('2b · the stored call is the model\'s own: a schema default is applied at execution, never written into the tool_use row (a replayed row must re-ingest byte-identical on a local server)')
+{
+  const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
+  const EDIT = FileEditTool.name
+  const sent = { file_path: '/tmp/add.js', old_string: 'return a + b', new_string: 'return Number(a) + Number(b)' }
+  script.ollama = ollamaCall(EDIT, sent)
+  const settled = await local({ tools: [FileEditTool], messages: [createUserMessage({ content: 'coerce the numbers in add.js' })] })
+  check(`${EDIT} called without replace_all: the stored tool_use input is byte-identical to what the model sent (no default written in)`, settled.toolUses.length === 1 && JSON.stringify(settled.toolUses[0]!.input) === JSON.stringify(sent), JSON.stringify(settled.toolUses[0]?.input))
+  script.ollama = ollamaCall(EDIT, { ...sent, replace_all: true })
+  const explicit = await local({ tools: [FileEditTool], messages: [createUserMessage({ content: 'coerce the numbers in add.js' })] })
+  check(`${EDIT} called with replace_all: the stored input keeps it as sent`, explicit.toolUses.length === 1 && JSON.stringify(explicit.toolUses[0]!.input) === JSON.stringify({ ...sent, replace_all: true }), JSON.stringify(explicit.toolUses[0]?.input))
+  check(`the executor still reads the default at execution (${EDIT}'s schema parses the stored input to replace_all false)`, (FileEditTool.inputSchema.safeParse(settled.toolUses[0]!.input) as { success: boolean; data?: { replace_all?: boolean } }).data?.replace_all === false)
+}
+
 section('3 · never on a hosted lane: the same stringified number through the DeepSeek lane is the refusal it is today')
 {
   const compatCall = (id: string, args: Record<string, unknown>): unknown[] => [
