@@ -75,6 +75,7 @@ function displayMessageOf(message: RenderableMessage): NormalizedMessage | null 
 
 function MessageInner({
   message,
+  messages,
   tools,
   verbose,
   addMargin,
@@ -152,8 +153,12 @@ function MessageInner({
 
       case 'system': {
         if (message.subtype === 'compact_boundary') {
+          const landing = messages?.find(row => row.type === 'assistant' && row.foldLanding?.boundaryId === message.uuid)
           return (
-            <CompactBoundaryMessage message={message as { compactMetadata?: { trigger?: string; preTokens?: number } }} />
+            <CompactBoundaryMessage
+              message={message}
+              landing={landing?.type === 'assistant' && landing.foldLanding ? { input: landing.foldLanding.usage.input } : null}
+            />
           )
         }
         if (message.subtype === 'microcompact_boundary') return null

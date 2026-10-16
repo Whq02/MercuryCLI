@@ -76,7 +76,6 @@ const env: NodeJS.ProcessEnv = {
   MERCURY_TURN_RECEIPT: '0',
   MERCURY_VERIFY_EVIDENCE: '0',
   MERCURY_AUTO_COMPACT: '0',
-  MERCURY_PRUNE_PCT: '40',
   MERCURY_TERMINAL_TITLE: '0',
   MERCURY_CRITTER_IDLE: '0',
   MERCURY_CRITTER_GAZE: '0',
@@ -98,7 +97,7 @@ const cfg = {
   sends: [
     { data: '', awaitText: 'ype a prompt', requireAwait: true, minTick: 5, atTick: 100, awaitSettleTicks: 4, mark: 'ready' },
     { data: 'Continue.\r', afterPrevTicks: 8 },
-    { data: '', awaitText: 'context size', requireAwait: true, afterPrevTicks: 2, atTick: 180, awaitSettleTicks: 5, mark: 'receipt' },
+    { data: '', awaitText: 'The work can continue.', requireAwait: true, afterPrevTicks: 2, atTick: 180, awaitSettleTicks: 5, mark: 'reply' },
   ],
   stableTicks: 5,
   total: 200,
@@ -118,8 +117,8 @@ writeFileSync(join(output, 'capture.stdout.txt'), stdout)
 writeFileSync(join(output, 'capture.stderr.txt'), stderr)
 writeFileSync(join(output, 'wire.json'), JSON.stringify(fixture.captured, null, 2) + '\n')
 const captured = existsSync(cfg.out) ? JSON.parse(readFileSync(cfg.out, 'utf8')) as { marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }> } : {}
-const receipt = captured.marks?.find(mark => mark.label === 'receipt')
-const text = receipt?.grid.map(row => row.map(cell => cell.c).join('')).join(' ').replace(/\s+/g, ' ') ?? ''
+const reply = captured.marks?.find(mark => mark.label === 'reply')
+const text = reply?.grid.map(row => row.map(cell => cell.c).join('')).join(' ').replace(/\s+/g, ' ') ?? ''
 type ResponsesItem = { type?: string; output?: string }
 const inputItems = (request: { body: Record<string, unknown> }): ResponsesItem[] => (Array.isArray(request.body.input) ? (request.body.input as ResponsesItem[]) : [])
 const outputsOf = (request: { body: Record<string, unknown> }): ResponsesItem[] => inputItems(request).filter(item => item.type === 'function_call_output')
@@ -128,17 +127,15 @@ const results = turnRequests[0] === undefined ? [] : outputsOf(turnRequests[0])
 const stale = results.filter(item => item.output?.startsWith('[stale tool result')).length
 const checks: Array<[string, boolean]> = [
   ['the capture exited 0', exit === 0],
-  ['the receipt names the context size', text.includes('context size')],
-  ['the receipt names the prune threshold', text.includes('prune threshold 40%')],
-  ['the receipt counts eleven pruned results', text.includes('pruned 11')],
-  ['the receipt names superseded tool results', text.includes('superseded tool results')],
+  ['the reply painted', text.includes('The work can continue.')],
+  ['no proactive-prune line paints: the context-size receipt the owner saw is gone', !text.includes('context size') && !text.includes('prune threshold') && !/pruned \d+/.test(text)],
   ["one Responses request carries the turn's sixteen tool results (the session's helper calls carry none)", turnRequests.length === 1 && results.length === 16],
-  ['eleven of the sixteen ride as stale placeholders', stale === 11],
+  ['every result rides whole — zero stale placeholders before any summary', stale === 0],
   ['the fixture refused nothing', fixture.refusals.length === 0],
 ]
 const success = checks.every(([, ok]) => ok)
-console.log(`[${success ? 'PASS' : 'FAIL'}] the real chat displays the proactive-prune receipt at ${cols}x${height}`)
+console.log(`[${success ? 'PASS' : 'FAIL'}] the real chat keeps every tool result whole and paints no proactive-prune receipt at ${cols}x${height}`)
 for (const [name, ok] of checks) if (!ok) console.log(`  [FAIL] ${name}`)
 console.log(JSON.stringify({ exit, requests: fixture.captured.map(request => ({ dialect: request.dialect, path: request.path, input: inputItems(request).length, outputs: outputsOf(request).length })), home, output, marks: captured.marks?.map(mark => mark.label), stderr }))
-if (!success) console.log(`  [receipt] ${text.slice(0, 600)}`)
+if (!success) console.log(`  [frame] ${text.slice(0, 600)}`)
 process.exit(success ? 0 : 1)

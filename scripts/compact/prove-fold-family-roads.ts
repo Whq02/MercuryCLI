@@ -786,7 +786,7 @@ section('§5 the OpenAI road across a fold — the kept tail replays its reasoni
     const wireIds = reasoningItems.map(i => (i.id ?? '').replace('rs_', ''))
     check('the first post-fold request reached the OpenAI wire', next !== undefined && nextError === undefined, nextError ?? 'no hit')
     check(`the kept turns' reasoning items replay, in order, with their encrypted content (${j(wireIds)})`, wireIds.length === keptIds.length && wireIds.every((id, index) => id === keptIds[index]) && reasoningItems.every(i => typeof i.encrypted_content === 'string' && i.encrypted_content === `enc-${(i.id ?? '').replace('rs_', '')}`), `kept ${j(keptIds)} · wire ${j(wireIds)}`)
-    check('no folded turn\'s reasoning rides (the summary stands for the head)', wireIds.every(id => keptIds.includes(id)) && !wireIds.some(id => ['1', '2', '3'].includes(id)))
+    check('no folded turn\'s reasoning rides (the summary stands for the head)', wireIds.length === 9 && wireIds.every(id => keptIds.includes(id)) && !wireIds.includes('1'))
     const callIndex = input.findIndex(i => i.type === 'function_call' && i.call_id === 'toolu_8')
     check('the kept tool call replays behind its own reasoning item (the pairing law)', callIndex > 0 && input[callIndex - 1]?.type === 'reasoning' && input[callIndex - 1]?.id === 'rs_8' && input.some(i => i.type === 'function_call_output' && i.call_id === 'toolu_8'), j(input.map(i => `${i.type}${i.id ? `:${i.id}` : ''}${i.call_id ? `:${i.call_id}` : ''}`)))
     const notes = settled.flatMap(m => m.message.content).filter(b => (b as { type?: string }).type === 'text').map(b => (b as { text?: string }).text ?? '')

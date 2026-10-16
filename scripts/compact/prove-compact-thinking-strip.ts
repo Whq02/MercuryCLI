@@ -76,7 +76,7 @@ section('§1 the time-based clearing projection strips from the first cleared me
   const { projectTimeBasedMicrocompact } = await import('../../src/services/compact/microCompact.ts')
   const OLD = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
   const big = 'x'.repeat(44_000)
-  const ids = ['bash_1', 'bash_2', 'bash_3', 'bash_4', 'bash_5', 'bash_6', 'bash_7']
+  const ids = Array.from({ length: 12 }, (_, index) => `bash_${index + 1}`)
   const history = [
     user('go', OLD),
     assistant([THINK('plan the seven commands'), ...ids.map(id => ({ type: 'tool_use', id, name: 'Bash', input: { command: id } }))], OLD),
@@ -160,7 +160,7 @@ section('§2 full compaction — the verbatim tail carries no thinking behind th
   if (result) {
     const keep = (result.messagesToKeep ?? []) as Msg[]
     const keptAssistants = keep.filter(m => m.type === 'assistant').length
-    check('a verbatim tail is kept (six whole rounds: six assistant turns + the five steps between)', keep.length === 11 && keptAssistants === 6, `${keep.length} messages, ${keptAssistants} assistant`)
+    check('the available eight complete rounds are kept behind the two head groups', keep.length === 15 && keptAssistants === 8, `${keep.length} messages, ${keptAssistants} assistant`)
     check('no kept message carries a thinking block', keep.length > 0 && !keep.some(hasThinking), j(keep.map(m => blocksOf(m).map(b => b.type))))
     check('the kept assistant turns keep their text', keep.filter(m => m.type === 'assistant').every(m => textsOf(m).length === 1) && textsOf(keep[keep.length - 1]).includes('did step 9'))
     check('the summary message carries the scripted text', j(result.summaryMessages ?? []).includes('nine numbered steps'))

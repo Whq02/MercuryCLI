@@ -8,6 +8,7 @@
 # gate-watch: src/commands/model/mercuryModel.tsx src/components/* src/constants/prompts.ts
 # gate-watch: src/prompt/mercuryContract.ts src/services/providers/openai/openaiCallModel.ts
 # gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts
+# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/types/ids.ts
 # gate-watch: src/services/providers/openaicompat/compatChatClient.ts src/services/tokenEstimation.ts
 # gate-watch: src/utils/* src/utils/cockpit/contextGauge.ts src/utils/cockpit/quota.ts
 # gate-watch: src/constants/toolLimits.ts

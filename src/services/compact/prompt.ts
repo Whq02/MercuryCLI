@@ -180,30 +180,18 @@ function receiptWords(c: TurnReceiptCounts): string {
 export function renderFoldedWork(work: CompactMetadata['work'] | undefined): string | null {
   if (work === undefined) return null
   const { recap, receipts } = work
-  const tools = [...recap.toolCounts]
-    .filter(([, n]) => n > 0)
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  const tools = [...recap.toolCounts].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
   if (recap.turns === 0 && tools.length === 0 && recap.files.length === 0 && receipts.length === 0) return null
   const lines: string[] = ['## Folded work (deterministic — from the fold\'s receipts, not summarized)']
-  const toolWords =
-    tools.length === 0
-      ? 'none'
-      : tools
-          .slice(0, FOLDED_WORK_MAX_TOOLS)
-          .map(([name, n]) => `${name}×${n}`)
-          .join(', ') + (tools.length > FOLDED_WORK_MAX_TOOLS ? ` …+${tools.length - FOLDED_WORK_MAX_TOOLS} more` : '')
-  lines.push(
-    `Operator turns folded: ${recap.turns} · tool calls: ${toolWords} · failed tool calls: ${recap.toolFailures}`,
-  )
+  const toolWords = tools.length === 0 ? 'none' : tools.slice(0, FOLDED_WORK_MAX_TOOLS).map(([name, n]) => `${name}×${n}`).join(', ') + (tools.length > FOLDED_WORK_MAX_TOOLS ? ` …+${tools.length - FOLDED_WORK_MAX_TOOLS} more` : '')
+  lines.push(`Operator turns folded: ${recap.turns} · tool calls: ${toolWords} · failed tool calls: ${recap.toolFailures}`)
   for (const receipt of receipts.slice(0, FOLDED_WORK_MAX_RECEIPTS)) {
     const words = receiptWords(receipt.counts)
     if (words !== '') lines.push(`Folded part of a turn that continues below: ${words}`)
   }
   if (recap.files.length > 0) {
     const shown = recap.files.slice(0, FOLDED_WORK_MAX_FILES)
-    lines.push(
-      `Files the folded tools touched (re-READ on demand — contents not carried): ${shown.join(', ')}${recap.files.length > shown.length ? ` …+${recap.files.length - shown.length} more` : ''}`,
-    )
+    lines.push(`Files the folded tools touched (re-READ on demand — contents not carried): ${shown.join(', ')}${recap.files.length > shown.length ? ` …+${recap.files.length - shown.length} more` : ''}`)
   }
   return lines.join('\n')
 }
