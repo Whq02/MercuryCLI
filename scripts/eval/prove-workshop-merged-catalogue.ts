@@ -30,8 +30,8 @@ const expected = {
 }
 const options = { tools: [EvalTool, { name: 'Inspect' }] as never, agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext() }
 for (const [enabled, hash, bytes] of [
-  ['1', 'dca4bae856f56144476ad29096d0d10d09c40b7c4fef5802638e1b4652347f1a', 5228],
-  ['0', '20a5e295d5b1e051eb1fb1e197ffbdc4ac8dab68563063de543c0ea32106907e', 4798],
+  ['1', 'cb4e618f0fa7203423dd6e9bbec3d90d4d2e6a1fdb103a4c63362e56dbc2abc1', 5062],
+  ['0', '0f52dafb4a059d16c4e92a4779832fd3b27bf569082f04e41e73f8ab4f570281', 4632],
 ] as const) {
   process.env.MERCURY_SAMPLES = enabled
   clearToolSchemaCache()
@@ -43,6 +43,7 @@ for (const [enabled, hash, bytes] of [
   const wire = JSON.stringify({ ...definition, eager_input_streaming: true })
   check(`samples=${enabled}: compact definition with eager_input_streaming is ${bytes} bytes`, Buffer.byteLength(wire) === bytes, String(Buffer.byteLength(wire)))
 }
+check('the Fallback permission card prints Eval\'s description() whole (one line, so truncateToLines keeps all of it): unchanged from .36', (await EvalTool.description()) === 'Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn crewmates, and make model completions from inside the cell.')
 const noInspect = await EvalTool.prompt({ ...options, tools: [EvalTool] })
 check('Inspect is named only when available in the session pool', !noInspect.includes('tool.Inspect({ref})'))
 check('the tool remains loaded in full', EvalTool.shouldDefer !== true)
