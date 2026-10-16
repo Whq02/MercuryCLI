@@ -20,6 +20,8 @@ export interface LedgerEntry {
   files: string[]
   outcome: string | null
   handoff: LedgerHandoff | null
+  pid?: number
+  pidAt?: string
 }
 
 export interface LiveSession {

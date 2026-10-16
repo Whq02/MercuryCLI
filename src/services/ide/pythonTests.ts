@@ -54,6 +54,7 @@ export interface TestRunRecord {
   outputArtifactRef?: string
   outputTail: string[]
   exitCode: number | null
+  verdict?: 'no-match'
   verdictNote?: string
   diagnosticsNote?: string
 }
@@ -488,6 +489,19 @@ interface RunOptions {
 
 let runSeq = 0
 
+const PYTEST_NO_MATCH_WORDS = [/^\(no match in any of .*\)$/, /^ERROR: (?:not found|file or directory not found): .*$/, /^\d+ deselected in .*$/, /^no tests ran in .*$/]
+const UNITTEST_NO_MATCH_WORDS = [/^Ran 0 tests in .*$/, /^NO TESTS RAN$/]
+
+function pythonNoMatchWords(framework: TestFramework, exitCode: number | null, output: string[]): string | undefined {
+  const words: string[] = []
+  for (const re of framework === 'pytest' ? PYTEST_NO_MATCH_WORDS : UNITTEST_NO_MATCH_WORDS) {
+    const line = output.find(l => re.test(l.trim()))
+    if (line !== undefined && !words.includes(line.trim())) words.push(line.trim())
+  }
+  if (words.length === 0 && exitCode === 5) words.push(`exit 5 (${framework === 'pytest' ? 'no tests collected' : 'no tests ran'})`)
+  return words.length === 0 ? undefined : words.slice(0, 2).join(' · ')
+}
+
 export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome> {
   const from = opts?.from ?? getCwd()
   const { root } = findPythonProjectRoot(from)
@@ -575,8 +589,12 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
   }
   const failures = cases.filter(c => c.outcome === 'failed' || c.outcome === 'errored').map(c => c.id)
 
+  const selectionLabel = opts?.selectionLabel ?? (sel.length ? `nodes:${sel.join(',')}`.slice(0, 200) : 'all')
+  const noMatchWords = cases.length === 0 && collectErrors.length === 0 ? pythonNoMatchWords(framework, exitCode, output) : undefined
   let verdictNote: string | undefined
-  if (cases.length === 0 && collectErrors.length === 0) {
+  if (noMatchWords !== undefined) {
+    verdictNote = `${selectionLabel === 'all' ? 'no test ran' : `no test matched ${selectionLabel}`} — ${noMatchWords}`
+  } else if (cases.length === 0 && collectErrors.length === 0) {
     verdictNote = `no structured case records arrived (exit ${exitCode ?? 'null'}) — the run is EVIDENCE-FREE, treat as errored`
   } else if (exitCode === 0 && failures.length > 0) {
     verdictNote = 'exit code 0 disagreed with recorded failures — structured records win'
@@ -599,7 +617,7 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
     schema: 1,
     id,
     framework,
-    selection: opts?.selectionLabel ?? (sel.length ? `nodes:${sel.join(',')}`.slice(0, 200) : 'all'),
+    selection: selectionLabel,
     command,
     cwd: root,
     interpreter: selection.command,
@@ -612,6 +630,7 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
     ...(outputArtifactRef ? { outputArtifactRef } : {}),
     outputTail: output.slice(-OUTPUT_TAIL_LINES),
     exitCode,
+    ...(noMatchWords !== undefined ? { verdict: 'no-match' as const } : {}),
     ...(verdictNote ? { verdictNote } : {}),
   }
   try {

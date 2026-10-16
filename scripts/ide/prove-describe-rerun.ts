@@ -55,12 +55,12 @@ process.exit(assertionResults.some(a=>a.status==='failed') ? 1 : 0);
       const rerun = await runners.rerunRunnerFailures(run.record, { from: root })
       check(`${runner}: rerun selects exactly the describe-wrapped failure, not the sibling title`, rerun.state === 'ok' && rerun.record.counts.failed === 1 && rerun.record.counts.passed === 0 && rerun.record.counts.skipped === 2, rerun.state === 'ok' ? { counts: rerun.record.counts, command: rerun.record.command } : rerun)
       const vanished = await runners.rerunRunnerFailures({ ...run.record, failures: ['nothing_here'], cases: [] }, { from: root })
-      check(`${runner}: zero selected tests is refused, never an all-clear`, vanished.state === 'unavailable' && vanished.reason.includes('the rerun selected no test'), vanished)
+      check(`${runner}: zero selected tests is a no-match record with zero counts, never an all-clear and never a failure`, vanished.state === 'ok' && vanished.record.verdict === 'no-match' && vanished.record.counts.passed === 0 && vanished.record.counts.failed === 0 && (vanished.record.verdictNote ?? '').startsWith('no test matched rerun-failed — ') && (vanished.record.verdictNote ?? '').includes('run the full profile to refresh its case names'), vanished.state === 'ok' ? { verdict: vanished.record.verdict, counts: vanished.record.counts, note: vanished.record.verdictNote } : vanished)
       await runners.runRunnerProfile(profile, { from: root })
       writeFileSync(path.join(root, file), readFileSync(path.join(root, file), 'utf8').replaceAll('adds zero', 'renamed zero'))
       if (live) {
         const result = await runWithCwdOverride(root, () => TestTool.call({ op: 'rerunFailed' } as never, { getAppState: () => ({}) } as never)) as { data: { outcome: string; result: string } }
-        check(`${runner}: the Test tool reports the empty selection as failed`, result.data.outcome === 'failed' && result.data.result.includes('the rerun selected no test'), result.data)
+        check(`${runner}: the Test tool reports the empty selection as no-change with the runner's own words, not as failed`, result.data.outcome === 'no-change' && result.data.result.includes('no test matched rerun-failed'), result.data)
       }
     }
   }

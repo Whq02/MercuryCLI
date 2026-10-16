@@ -1,6 +1,9 @@
 import { appendFileSync, closeSync, fstatSync, mkdirSync, openSync, readFileSync, readSync } from 'node:fs'
+import { uptime } from 'node:os'
 import { dirname, join } from 'node:path'
 import { daemonDir } from '../daemon/controlSocket.js'
+import { getProcessStartToken, isProcessAlive } from '../daemon/ownerWatch.js'
+import { parseProcessStartToken } from '../daemon/processSweep.js'
 import { workerPidAlive } from '../daemon/workerIdentity.js'
 import { logForDebugging } from '../utils/debug.js'
 import { lineagePath, mnemeProjectKeyFor } from './paths.js'
@@ -48,7 +51,24 @@ function asEntry(raw: unknown): LedgerEntry | null {
     files: isStringList(row.files) ? row.files : [],
     outcome: typeof row.outcome === 'string' ? row.outcome : null,
     handoff,
+    ...(typeof row.pid === 'number' && Number.isInteger(row.pid) && row.pid > 0 ? { pid: row.pid } : {}),
+    ...(typeof row.pidAt === 'string' && Number.isFinite(Date.parse(row.pidAt)) ? { pidAt: row.pidAt } : {}),
   }
+}
+
+const PID_CLAIM_GRACE_MS = 5 * 60 * 1000
+
+function rowProcessAlive(entry: LedgerEntry): boolean | null {
+  if (entry.pid === undefined) return null
+  if (!isProcessAlive(entry.pid)) return false
+  if (entry.pidAt === undefined || process.platform === 'win32') return true
+  const token = getProcessStartToken(entry.pid)
+  if (token === null) return true
+  if (token === '') return false
+  const started = parseProcessStartToken(token)
+  const claimed = Date.parse(entry.pidAt)
+  if (!Number.isFinite(started) || !Number.isFinite(claimed)) return true
+  return started <= claimed + PID_CLAIM_GRACE_MS
 }
 
 export interface LedgerFile {
@@ -135,6 +155,8 @@ export function openEntry(projectKey: string, session: { sessionId: string; mode
             existing.engines[existing.engines.length - 1]?.model === session.model
               ? existing.engines
               : [...existing.engines, { model: session.model, at: now }],
+          pid: process.pid,
+          pidAt: now,
         }
       : {
           ordinal: readLedger(projectKey).length + 1,
@@ -148,6 +170,8 @@ export function openEntry(projectKey: string, session: { sessionId: string; mode
           files: [],
           outcome: null,
           handoff: null,
+          pid: process.pid,
+          pidAt: now,
         }
   try {
     appendLine(projectKey, entry)
@@ -200,6 +224,25 @@ export function closeEntry(projectKey: string, sessionId: string, close: { outco
       handoff: text.trim() !== '' ? { text: clipHandoff(text), at: now } : entry.handoff,
     }
   })
+}
+
+export const INTERRUPTED_OUTCOME = 'interrupted'
+
+export function reconcileInterruptedEntries(projectKey: string, currentSessionId: string, cutAt: (sessionId: string) => string | null): LedgerEntry[] {
+  const live = new Set(liveSessions(projectKey).map(session => session.sessionId))
+  const bootAt = Date.now() - uptime() * 1000
+  const reconciled: LedgerEntry[] = []
+  for (const entry of readLedger(projectKey)) {
+    if (entry.endedAt !== null || entry.sessionId === currentSessionId || live.has(entry.sessionId)) continue
+    const alive = rowProcessAlive(entry)
+    if (alive === true) continue
+    const at = cutAt(entry.sessionId)
+    if (at === null) continue
+    if (alive === null && !(Date.parse(at) < bootAt)) continue
+    const next = update(projectKey, entry.sessionId, current => (current.endedAt !== null ? null : { ...current, endedAt: at, outcome: INTERRUPTED_OUTCOME }))
+    if (next !== null && next.outcome === INTERRUPTED_OUTCOME && next.endedAt === at) reconciled.push(next)
+  }
+  return reconciled
 }
 
 interface WorkerRow {
