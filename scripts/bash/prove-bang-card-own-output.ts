@@ -1,13 +1,9 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
-import React from 'react'
-import { EventEmitter as NodeEventEmitter } from 'node:events'
 import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PassThrough } from 'node:stream'
-import stripAnsi from 'strip-ansi'
 
 plugin({
   name: 'stub-color-diff-napi',
@@ -54,9 +50,6 @@ const { extractTag } = await import('../../src/utils/messages.ts')
 const { unescapeXml } = await import('../../src/utils/xml.js')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
-const { render, Box, flushPendingSyncWork } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { UserBashOutputMessage } = await import('../../src/components/messages/UserBashOutputMessage.js')
 setIsInteractive(false)
 
 let appState = getDefaultAppState()
@@ -85,30 +78,8 @@ async function bangCard(command: string): Promise<Card | null> {
   return { stdout: extractTag(content, 'bash-stdout') ?? '', stderr: unescapeXml(extractTag(content, 'bash-stderr') ?? ''), code: extractTag(content, 'bash-exit-code'), content }
 }
 
-async function paint(content: string, columns: number): Promise<string[]> {
-  const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
-  const stream = new PassThrough()
-  stream.resume()
-  const stdout = Object.assign(stream, { columns, rows: 24 }) as unknown as NodeJS.WriteStream
-  let painted = (): void => {}
-  const first = new Promise<void>(resolve => { painted = resolve })
-  const node = React.createElement(TerminalSizeContext.Provider, { value: { columns, rows: 24 } },
-    React.createElement(Box, { flexDirection: 'column', width: columns }, React.createElement(UserBashOutputMessage, { content, verbose: false })))
-  const instance = await render(node, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
-  await first
-  for (let index = 0; index < 6; index++) {
-    flushPendingSyncWork()
-    await new Promise<void>(resolve => setTimeout(resolve, 5))
-  }
-  const frame = stripAnsi(instance.lastFrame()).replace(/\n$/, '')
-  instance.unmount()
-  instance.cleanup()
-  stream.destroy()
-  return frame.split('\n')
-}
-
 console.log('============================================================')
-console.log(" The `!` card — a failed command's card shows what it printed and nothing else")
+console.log(" The `!` card — a failed command's transcript row shows what it printed and nothing else (the painted frame: scripts/ui/prove-bang-card-frame.ts)")
 console.log('============================================================')
 
 section('§1 the model side keeps the note: a failed Bash tool call, the first of the session')
@@ -134,18 +105,7 @@ check('the transcript carries the card row with the exit code', failed !== null 
 check("the card carries the command's own output", failed !== null && failed.stderr.includes('own-line') && failed.stderr.includes('own-error') && /Exited with code 7/.test(failed.stderr), clip(failed?.stderr ?? ''))
 check('the card carries no session-env note', failed !== null && !NOTICE.test(failed.stderr) && !NOTICE.test(failed.stdout), clip(failed?.stderr ?? ''))
 
-section('§3 the painted card')
-if (failed !== null) {
-  for (const columns of [80, 140]) {
-    const lines = await paint(failed.content, columns)
-    for (const line of lines) console.log(`        │ ${line}`)
-    check(`${columns} cols: the frame paints the command's own lines and the exit words`, lines.some(l => l.includes('own-line')) && lines.some(l => l.includes('own-error')) && lines.some(l => /exit 7/.test(l)), JSON.stringify(lines))
-    check(`${columns} cols: no line of the frame carries the session-env note`, !lines.some(l => NOTICE.test(l)), lines.find(l => NOTICE.test(l)) ?? '')
-    check(`${columns} cols: the frame paints without a render error`, !lines.some(l => l.includes('RENDER ERROR')))
-  }
-}
-
-section('§4 controls: a succeeding `!` command, and the model side after a `!` run')
+section('§3 controls: a succeeding `!` command, and the model side after a `!` run')
 const ok = await bangCard('echo fine; echo "$MERCURY_SEATS"')
 check('a succeeding command\'s card carries its output and no note', ok !== null && ok.code === '0' && ok.stdout.includes('fine') && !NOTICE.test(ok.stdout) && !NOTICE.test(ok.stderr), clip(ok?.content ?? ''))
 let laterText = ''
