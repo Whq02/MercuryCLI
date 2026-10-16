@@ -214,7 +214,7 @@ section('main and sub-agent instructions match the available interaction model')
     delete process.env.MERCURY_ENTRYPOINT
     clearSystemPromptSections()
     const interactive = (await getSystemPrompt([...tools, { name: 'TaskCreate' }] as never, 'claude-fable-5-1')).join('\n\n')
-    check('interactive facts name the interactive-only surfaces: /kill on the posture, the `!` form on the harness map', interactive.includes('/kill') && interactive.includes('starts with `!`'))
+    check('interactive facts name the interactive-only surface the roster does not carry: the `!` form on the harness map; no posture block rides with nothing armed (/kill is named only beside an armed kill)', interactive.includes('starts with `!`') && !interactive.includes('/kill') && !interactive.includes('# Runtime posture'))
     check('task-item guidance remains when the task tools are provided', interactive.includes('create and update task items'))
     check('interactive provider guidance retains bundled-skill precedence', interactive.includes(PROVIDER_GUIDANCE) && FOREIGN_SKILL_NAMES.every(name => !interactive.includes(name)))
   } finally {
