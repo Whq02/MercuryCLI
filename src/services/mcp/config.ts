@@ -14,7 +14,7 @@ import {
 } from '../../utils/config.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { getCwd } from '../../utils/cwd.js'
-import { projectConfigDirs } from '../../utils/projectConfig.js'
+import { MERCURY_PROJECT_DIR, projectConfigDirs } from '../../utils/projectConfig.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { getManagedFilePath } from '../../utils/settings/managedPath.js'
@@ -330,6 +330,20 @@ export function getProjectMcpConfigsFromCwd(): {
     }),
   )
 }
+
+export function mcpServersSkippedForTrustLine(): string | null {
+  if (!untrustedWorkspaceHeadless()) return null
+  let count = 0
+  try {
+    count = Object.keys(getProjectMcpConfigsFromCwd().servers).length
+  } catch {
+    count = 0
+  }
+  if (count === 0) return null
+  return `mcp: this folder is not trusted, so ${count === 1 ? 'its 1 project MCP server was' : `its ${count} project MCP servers were`} not loaded from ${PROJECT_MCP_FILE_SPELLING} — start Mercury here once and accept the trust card, and ${count === 1 ? 'it connects' : 'they connect'}`
+}
+
+export const PROJECT_MCP_FILE_SPELLING = `${MERCURY_PROJECT_DIR}/${PROJECT_MCP_FILE}`
 
 export function getEnterpriseMcpFilePath(): string {
   return join(getManagedFilePath(), 'managed-mcp.json')

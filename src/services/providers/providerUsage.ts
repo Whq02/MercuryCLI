@@ -654,6 +654,13 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
       case 'gemini': {
         const { refreshGeminiPlanQuota } = require('./gemini/geminiPlanQuota.js') as typeof import('./gemini/geminiPlanQuota.js')
         await refreshGeminiPlanQuota(io)
+        const { rereadGeminiPlanTierOnShow } = require('./gemini/geminiAccounts.js') as typeof import('./gemini/geminiAccounts.js')
+        await rereadGeminiPlanTierOnShow({
+          ...(io?.env !== undefined ? { env: io.env } : {}),
+          ...(io?.fetchImpl !== undefined ? { fetchImpl: io.fetchImpl } : {}),
+          ...(io?.now !== undefined ? { now: io.now } : {}),
+          ...(io?.force !== undefined ? { force: io.force } : {}),
+        })
         return
       }
       default:

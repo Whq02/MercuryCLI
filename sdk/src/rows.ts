@@ -69,6 +69,11 @@ export interface SessionRow {
   model: string
   mode: string
   tools: string[]
+  tools_withheld?: Array<{
+    tool: string
+    rule: string
+    source: string
+  }>
   mcp_servers: Array<{
     name: string
     status: string
@@ -512,6 +517,28 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
         "type": "array",
         "items": {
           "type": "string"
+        }
+      },
+      "tools_withheld": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "tool": {
+              "type": "string"
+            },
+            "rule": {
+              "type": "string"
+            },
+            "source": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool",
+            "rule",
+            "source"
+          ]
         }
       },
       "mcp_servers": {

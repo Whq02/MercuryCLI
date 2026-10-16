@@ -33,7 +33,7 @@ import { getEngineModel } from '../../utils/model/model.js'
 import { createStreamingTailStore, type StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import { adoptOpenaiObservedUsage, adoptOpenaiWindowFact } from '../providers/openai/openaiLimitState.js'
 import { adoptOpenaiCatalogueFact } from '../providers/openai/openaiCatalogue.js'
-import { adoptAnthropicWindowFact } from '../anthropicLimits.js'
+import { adoptAnthropicObservedUsage, adoptAnthropicWindowFact } from '../anthropicLimits.js'
 import { mergeRecordsContentKeyed } from './recordIdentity.js'
 import {
   readSessionAsks,
@@ -1499,6 +1499,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     adoptOpenaiObservedUsage(next.usage?.openaiObserved)
     adoptOpenaiWindowFact(next.usage?.openaiWindow)
     adoptAnthropicWindowFact(next.usage?.anthropicWindow)
+    adoptAnthropicObservedUsage(next.usage?.anthropicObserved)
     if (next.openaiCatalogue !== undefined && next.openaiCatalogue.fetchedAtMs !== prev?.openaiCatalogue?.fetchedAtMs) {
       adoptOpenaiCatalogueFact(next.openaiCatalogue)
     }

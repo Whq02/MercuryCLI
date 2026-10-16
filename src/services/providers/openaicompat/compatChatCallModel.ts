@@ -660,10 +660,10 @@ export async function* compatChatCallModel(
       if (signal.aborted) return
       continue
     }
-    const wall = classifyCredentialWall(outcome.fault.status, outcome.fault.message)
+    const wall = classifyCredentialWall(outcome.fault.status, outcome.fault.message, recovery !== undefined ? 'sign-in' : undefined)
     if (wall !== undefined) {
       const wireSaid = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
-      logForDebugging(`[compat:${profile.lane}] credential wall (${wall}) — the wire said: ${wireSaid}`)
+      logForDebugging(`[compat:${profile.lane}] credential wall (${wall}) — the wire said: ${wireSaid}${recovery === 'retried' ? '; the stored token was refreshed and the call retried once first' : recovery === 'no-new-credential' ? '; a token refresh was attempted first and produced no new credential' : ''}`)
       const line = credentialWallLine(profile.lane, wall)
       if (wall === 'key-limit') recordLaneBillingRefusal(profile.lane, { detail: wireSaid, remedy: line })
       if (wall === 'sign-in') profile.onCredentialRefused?.(outcome.fault)

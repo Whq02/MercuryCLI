@@ -75,6 +75,15 @@ export function activeToolVerb(
   inProgress: ReadonlySet<string>,
   scanLimit = 30,
 ): string | undefined {
+  const active = activeToolCall(messages, inProgress, scanLimit)
+  return active === undefined ? undefined : toolVerbFor(active.name, active.input)
+}
+
+export function activeToolCall(
+  messages: readonly unknown[],
+  inProgress: ReadonlySet<string>,
+  scanLimit = 30,
+): { name: string; input: Record<string, unknown> | undefined } | undefined {
   if (inProgress.size === 0) return undefined
   const from = Math.max(0, messages.length - scanLimit)
   for (let i = messages.length - 1; i >= from; i--) {
@@ -90,9 +99,13 @@ export function activeToolVerb(
         inProgress.has(block.id) &&
         typeof block.name === 'string'
       ) {
-        return toolVerbFor(block.name, block.input as Record<string, unknown> | undefined)
+        return { name: block.name, input: block.input as Record<string, unknown> | undefined }
       }
     }
   }
   return undefined
+}
+
+export function isDelegationToolName(name: string | undefined): boolean {
+  return name === 'Crewmate' || name === 'Workflow'
 }

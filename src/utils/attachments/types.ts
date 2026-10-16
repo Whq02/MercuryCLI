@@ -81,6 +81,7 @@ type CapabilityBodies = {
   skill_discovery: { skills: Array<{ name: string; description: string; shortId?: string }>; signal: DiscoverySignal; source: 'native' | 'aki' | 'both' }
   deferred_tools_delta: RosterDelta & { body?: string; addedLines: string[] }
   mcp_instructions_delta: RosterDelta & { addedBlocks: string[] }
+  mcp_servers_failed: { servers: Array<{ name: string; reason: string }>; body: string }
   held_tools: { names: string[]; body: string }
   harness_map_delta: { added: string[]; removed: string[] }
   command_permissions: { allowedTools: string[]; model?: string }

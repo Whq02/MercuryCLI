@@ -53,6 +53,8 @@ const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts'
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const projectDir = paths.getProjectDir(work)
 
+const TYPED = 'two of the agents failed, recover their work in the meantime'
+const RECEIPT_WORDS = 'the operator sent a message while the crewmate held the turn'
 type Capture = { kind: string; at: number; arm?: string; route?: string; status?: number; streaming?: boolean; nth?: number }
 const captureFile = join(SCRATCH, 'wire-captures.jsonl')
 writeFileSync(captureFile, '')
@@ -62,7 +64,7 @@ const wire = (): Capture[] =>
     .filter(l => l.trim() !== '')
     .map(l => JSON.parse(l) as Capture)
 
-type Row = { type?: string; uuid?: string; timestamp?: string; message?: { role?: string; content?: unknown }; attachment?: { type?: string; source_uuid?: string } }
+type Row = { type?: string; uuid?: string; timestamp?: string; message?: { role?: string; content?: unknown }; attachment?: { type?: string; source_uuid?: string; prompt?: unknown } }
 const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
 const transcriptRows = async (sid: string): Promise<Row[]> => {
   const p = join(projectDir, `${sid}.jsonl`)
@@ -76,6 +78,27 @@ const textOf = (row: Row): string => {
   if (Array.isArray(content)) return content.map(b => (typeof (b as { text?: unknown }).text === 'string' ? (b as { text: string }).text : '')).join('\n')
   return ''
 }
+const promptOf = (row: Row): string => {
+  const prompt = row.attachment?.prompt
+  if (typeof prompt === 'string') return prompt
+  if (Array.isArray(prompt)) return prompt.map(b => (typeof (b as { text?: unknown }).text === 'string' ? (b as { text: string }).text : '')).join('\n')
+  return ''
+}
+const resultTextOf = (row: Row): string => {
+  const content = row.message?.content
+  if (!Array.isArray(content)) return ''
+  return content
+    .map(b => {
+      const block = b as { type?: string; content?: unknown }
+      if (block.type !== 'tool_result') return ''
+      if (typeof block.content === 'string') return block.content
+      if (Array.isArray(block.content)) return block.content.map(c => (typeof (c as { text?: unknown }).text === 'string' ? (c as { text: string }).text : '')).join('\n')
+      return ''
+    })
+    .join('\n')
+}
+const isDrainedRow = (row: Row, sendId: string | null): boolean => row.type === 'attachment' && row.attachment?.type === 'queued_command' && row.attachment.source_uuid === sendId
+const carriesWords = (row: Row): boolean => (row.type === 'user' && textOf(row).includes(TYPED)) || (row.type === 'attachment' && row.attachment?.type === 'queued_command' && promptOf(row).includes(TYPED))
 const readFacts = (sid: string): { busy?: boolean; queue?: unknown[] } | undefined => {
   try {
     return JSON.parse(readFileSync(join(daemonDir, 'session-facts', `${sid}.json`), 'utf8')) as { busy?: boolean; queue?: unknown[] }
@@ -140,8 +163,7 @@ const cleanup = async (): Promise<void> => {
   else console.log(`[forensics] world kept: ${SCRATCH}`)
 }
 
-const TYPED = 'two of the agents failed, recover their work in the meantime'
-console.log('queued message + esc — one delivery, time order, no trailing row, on the real daemon and the chat\'s own connector')
+console.log('queued message + esc — one delivery, at once, time order, no trailing row, on the real daemon and the chat\'s own connector')
 try {
   check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
   const ARM = 'held-alive'
@@ -187,49 +209,56 @@ try {
   check("Q1 the chat's own connector reads the turn in flight (its facts feed heard the busy edge, well inside the idle floor)", await untilAsync(() => conn.turnActive(), 5_000), JSON.stringify(conn.live()))
   await sleep(1_500)
 
+  const sentAtMs = Date.now()
   const receipt = await conn.sendWords(TYPED)
   const sendId = conn.recallableSend()?.clientMessageId ?? null
   check('Q2 the send was accepted under the running turn', receipt.state === 'accepted', JSON.stringify(receipt))
   check('Q2 the send has one identity (a uuid)', sendId !== null && /^[0-9a-f-]{36}$/.test(sendId), String(sendId))
-  const queuedRows = (await painted()).filter(r => r.type === 'user' && textOf(r).includes(TYPED))
-  check('Q2 the typed words paint at once, once, as a QUEUED row', queuedRows.length === 1 && queuedRows[0]?.queued === true, JSON.stringify(queuedRows.map(r => [r.uuid, r.queued])))
-  check("Q2 the runner's queue holds the words (the facts say so)", await untilAsync(() => (readFacts(sid)?.queue ?? []).length >= 1, 10_000), JSON.stringify(readFacts(sid)?.queue))
+  const echoed = (await painted()).filter(carriesWords)
+  check('Q2 the typed words paint at once, once (the chat\'s own echo, or already the drained row — never both)', echoed.length === 1, JSON.stringify(echoed.map(r => [r.type, r.uuid, r.queued])))
+  const delivered = await untilAsync(async () => (await transcriptRows(sid)).some(r => isDrainedRow(r, sendId)), 15_000, 50)
+  const deliveredAtMs = Date.now()
+  check('Q2 the words drained into the LIVE turn within seconds of the send — no esc needed', delivered && deliveredAtMs - sentAtMs < 15_000, `${delivered} after ${deliveredAtMs - sentAtMs} ms`)
+  const REPLY = /parent done|fixture answers/
+  check('Q2 the reply to them landed inside the same turn', await untilAsync(async () => {
+    const rows = await transcriptRows(sid)
+    const at = rows.findIndex(r => isDrainedRow(r, sendId))
+    return at >= 0 && rows.slice(at + 1).some(r => r.type === 'assistant' && REPLY.test(textOf(r)))
+  }, 30_000, 50))
+  {
+    const rows = await transcriptRows(sid)
+    const drained = rows.filter(r => isDrainedRow(r, sendId))
+    check('Q2 exactly ONE row carries the words: the drained row under the send\'s own identity and clock', drained.length === 1 && rows.filter(carriesWords).length === 1 && Math.abs(Date.parse(drained[0]?.timestamp ?? '') - sentAtMs) <= 2_000, `${drained.length} drained · ${rows.filter(carriesWords).length} carrying · row=${drained[0]?.timestamp} sent=${new Date(sentAtMs).toISOString()}`)
+    check('Q2 the Crewmate receipt the model read says the seat went to the background because the operator sent a message', rows.some(r => r.type === 'user' && resultTextOf(r).includes(RECEIPT_WORDS)), rows.filter(r => r.type === 'user' && resultTextOf(r) !== '').map(r => resultTextOf(r).slice(0, 160)).join(' | '))
+  }
+  check('Q2 the turn still runs: parked on the seat it handed to the background', readFacts(sid)?.busy === true && conn.turnActive(), JSON.stringify(conn.live()))
   const pressedAt = Date.now()
 
   check('Q3 esc through the connector\'s own door', conn.interrupt() === true)
-  const delivered = await untilAsync(async () => (await transcriptRows(sid)).some(r => r.type === 'user' && textOf(r).includes(TYPED)), 30_000, 50)
-  const deliveredAt = Date.now()
-  check('Q3 the queued words ran as the next turn within seconds of esc (never minutes)', delivered && deliveredAt - pressedAt < 15_000, `${delivered} after ${deliveredAt - pressedAt} ms`)
-  const REPLY = /parent done|fixture answers/
-  check('Q3 the reply to them landed', await untilAsync(async () => {
-    const rows = await transcriptRows(sid)
-    const at = rows.findIndex(r => r.type === 'user' && textOf(r).includes(TYPED))
-    return at >= 0 && rows.slice(at + 1).some(r => r.type === 'assistant' && REPLY.test(textOf(r)))
-  }, 30_000, 50))
+  const ended = await untilAsync(() => readFacts(sid)?.busy === false, 15_000, 50)
+  const endedAt = Date.now()
+  check('Q3 the parked turn ended within seconds of esc (never minutes)', ended && endedAt - pressedAt < 15_000, `${ended} after ${endedAt - pressedAt} ms`)
+  await sleep(1_500)
   const rows = await transcriptRows(sid)
-  const typedRecordAt = Date.parse(rows.find(r => r.type === 'user' && textOf(r).includes(TYPED))?.timestamp ?? '')
-  check('Q3 the words ran within seconds of esc on the runner\'s own clock', Number.isFinite(typedRecordAt) && typedRecordAt - pressedAt < 10_000 && typedRecordAt >= pressedAt - 2_000, `${typedRecordAt - pressedAt} ms after the press`)
   const userRows = rows.filter(r => r.type === 'user' && textOf(r).includes(TYPED))
-  const twins = rows.filter(r => r.type === 'attachment' && r.attachment?.type === 'queued_command' && r.attachment.source_uuid === sendId)
-  check('Q3 exactly ONE user row carries the words — one delivery', userRows.length === 1, `${userRows.length} user rows; ${twins.length} attachment twins`)
-  check("Q3 the row rides the send's own identity (the chat retires its echo by it)", userRows[0]?.uuid === sendId, `row=${userRows[0]?.uuid} send=${sendId}`)
-  check('Q3 no attachment twin of the words', twins.length === 0, String(twins.length))
+  const drainedRows = rows.filter(r => isDrainedRow(r, sendId))
+  check('Q3 the words were not delivered again: still ONE drained row, no user row twin', drainedRows.length === 1 && userRows.length === 0 && rows.filter(carriesWords).length === 1, `${userRows.length} user rows; ${drainedRows.length} drained rows`)
+  check('Q3 no row of the words was written after the press', rows.filter(carriesWords).every(r => Date.parse(r.timestamp ?? '') <= pressedAt), JSON.stringify(rows.filter(carriesWords).map(r => [r.type, r.timestamp])))
 
   const stamps = rows.map(r => Date.parse(r.timestamp ?? '')).filter(t => !Number.isNaN(t))
   const disorder = stamps.findIndex((t, i) => i > 0 && t < stamps[i - 1]! - 1_000)
   check('Q4 the transcript is in time order', disorder === -1, `row ${disorder} earlier than its predecessor`)
 
-  await sleep(1_500)
   await painted()
   await sleep(500)
   const chat = await painted()
-  console.log(`    the chat's painted rows: ${chat.map((r, i) => `${i}:${r.type}${r.queued ? '(queued)' : ''}[${String(r.uuid ?? '').slice(0, 8)}] ${textOf(r).slice(0, 40).replace(/\n/g, ' ')}`).join(' | ')}`)
-  const typedRows = chat.map((r, i) => ({ r, i })).filter(({ r }) => r.type === 'user' && textOf(r).includes(TYPED))
+  console.log(`    the chat's painted rows: ${chat.map((r, i) => `${i}:${r.type}${r.queued ? '(queued)' : ''}[${String(r.uuid ?? '').slice(0, 8)}] ${(textOf(r) || promptOf(r)).slice(0, 40).replace(/\n/g, ' ')}`).join(' | ')}`)
+  const typedRows = chat.map((r, i) => ({ r, i })).filter(({ r }) => carriesWords(r))
   const replyAt = chat.findIndex((r, i) => r.type === 'assistant' && REPLY.test(textOf(r)) && i > (typedRows[0]?.i ?? -1))
-  check('Q5 the chat paints the typed words once, un-queued', typedRows.length === 1 && typedRows[0]?.r.queued !== true, JSON.stringify(typedRows.map(({ r, i }) => [i, r.uuid, r.queued])))
-  check('Q5 …followed by the reply: nothing of them trails under later records', replyAt > (typedRows[0]?.i ?? -1) && !chat.slice(replyAt + 1).some(r => r.type === 'user' && textOf(r).includes(TYPED)), `typed@${typedRows[0]?.i} reply@${replyAt} last=${chat.length - 1}`)
+  check('Q5 the chat paints the typed words once, un-queued (the drained row took the echo\'s place)', typedRows.length === 1 && typedRows[0]?.r.queued !== true && typedRows[0]?.r.type === 'attachment', JSON.stringify(typedRows.map(({ r, i }) => [i, r.type, r.uuid, r.queued])))
+  check('Q5 …followed by the reply: nothing of them trails under later records', replyAt > (typedRows[0]?.i ?? -1) && !chat.slice(replyAt + 1).some(carriesWords), `typed@${typedRows[0]?.i} reply@${replyAt} last=${chat.length - 1}`)
   const receipts = chat.map((r, i) => ({ r, i })).filter(({ r }) => r.type === 'system' && textOf(r).includes('still running'))
-  check('Q5 the interrupt\'s own receipt painted once, at its anchor before the delivered words', receipts.length <= 1 && (receipts.length === 0 || receipts[0]!.i < (typedRows[0]?.i ?? Number.MAX_SAFE_INTEGER)), JSON.stringify(receipts.map(({ i }) => i)))
+  check('Q5 the interrupt\'s own receipt painted at most once, after the delivered words (the press came after the delivery)', receipts.length <= 1 && (receipts.length === 0 || receipts[0]!.i > (typedRows[0]?.i ?? -1)), JSON.stringify(receipts.map(({ i }) => i)))
   conn.detach()
 } finally {
   await cleanup()

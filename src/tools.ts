@@ -2,6 +2,7 @@ import type { Tool, ToolPermissionContext, Tools } from './Tool.js'
 import { isEnvTruthy } from './utils/envUtils.js'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
+import type { PermissionRule } from './types/permissions.js'
 import { searchToolsAvailability } from './utils/ripgrep.js'
 import { isTaskToolsEnabled } from './utils/tasks.js'
 import { isWorktreeModeEnabled } from './utils/worktreeModeEnabled.js'
@@ -213,11 +214,25 @@ export function filterToolsByDenyRules<T extends { name: string; mcpInfo?: unkno
   tools: readonly T[],
   permissionContext: ToolPermissionContext,
 ): T[] {
-  return tools.filter(tool => {
-    const rule = getDenyRuleForTool(permissionContext, tool as never)
-    if (!rule) return true
-    return rule.ruleValue.ruleContent !== undefined && rule.ruleValue.ruleContent !== null
-  })
+  return tools.filter(tool => wholeToolDenyRuleFor(tool, permissionContext) === null)
+}
+
+function wholeToolDenyRuleFor(tool: { name: string; mcpInfo?: unknown }, permissionContext: ToolPermissionContext): PermissionRule | null {
+  const rule = getDenyRuleForTool(permissionContext, tool as never)
+  if (!rule) return null
+  return rule.ruleValue.ruleContent !== undefined && rule.ruleValue.ruleContent !== null ? null : rule
+}
+
+export function toolsWithheldByDeny(
+  tools: readonly { name: string; mcpInfo?: unknown }[],
+  permissionContext: ToolPermissionContext,
+): Array<{ tool: string; rule: PermissionRule }> {
+  const out: Array<{ tool: string; rule: PermissionRule }> = []
+  for (const tool of tools) {
+    const rule = wholeToolDenyRuleFor(tool, permissionContext)
+    if (rule !== null) out.push({ tool: tool.name, rule })
+  }
+  return out
 }
 
 const SPECIAL_TOOL_NAMES = new Set([

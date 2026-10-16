@@ -124,13 +124,13 @@ The crew own their stop. Esc in the chat interrupts the chat's own turn and
 nothing else: the crewmates and workflows the turn launched keep running on
 their own controllers, and the interrupted turn's receipt says how many. To
 stop one, open the Crew view (or the `/runs` board), select it and press `x`
-twice within two seconds — the first press names the crewmate the second
-press stops. The stop reaches every kind of row the same way: a crewmate's
+twice within two seconds (the first press names the crewmate the second
+press stops). The stop reaches every kind of row the same way: a crewmate's
 controller aborts and its running tool ends with it, a workflow run is
 killed. The receipt is the runner's own word: applied once the row has left
-`running`, or refused with the reason — an id the registry no longer holds, a
-row that had already settled, a loop that did not end within the runner's
-settle budget — and a refusal is painted under the rows. `p` parks every
+`running`, or refused with the reason (an id the registry no longer holds, a
+row that had already settled, or a loop that did not end within the runner's
+settle budget), and a refusal is painted under the rows. `p` parks every
 crewmate and the chat at its next safe point (a stream or a tool in flight
 finishes first) and resumes them.
 
@@ -154,8 +154,8 @@ reset time the provider stated, and it starts again by itself at that time,
 or as soon as you log in on another account, with the same model.
 
 A workflow that ends with crewmate failures says so in the first line of its
-notification: the count, then the first failing crewmate and its cause — an
-error's words, a refusal's stop reason — and its run record carries the
+notification: the count, then the first failing crewmate and its cause (an
+error's words or a refusal's stop reason), and its run record carries the
 same failure lines beside the per-crewmate rows.
 
 ## Messages
@@ -189,25 +189,25 @@ the crew's own coordination, read before an edit. The same server serves
 ## Roles
 
 Two agents are built in. `mercury-crew` is the default for delegated work of
-every kind — research, multi-step changes, running and checking commands,
-carrying a brief such as a design, a review or a verification to its end —
+every kind (research, multi-step changes, running and checking commands, and
+carrying a brief such as a design, a review or a verification to its end)
 with the session's full tool set. `mercury-scout` is the read-only
 reconnaissance agent: it locates files, searches code and answers
 how-does-this-work questions with paths, line numbers and excerpts. It
-carries only the tools that read — its shell runs read-only commands, and a
-call that would write or change state is refused — so it cannot write.
+carries only the tools that read (its shell runs read-only commands, and a
+call that would write or change state is refused), so it cannot write.
 Everything else is your own: an
 agent definition file adds a kind of agent with its own prompt, tools and
 model, and `/agents` opens the Agent Studio for building and tuning those
 definitions. The Crewmate tool's roster and `mercury roster` list the two
 built-ins first, then your own agents.
 
-A crewmate's kind is an agent definition — built-in, custom, or from an
-extension — resolved by the Crewmate tool's `crewmate_type`, so a given kind is
+A crewmate's kind is an agent definition (built-in, custom, or from an
+extension) resolved by the Crewmate tool's `crewmate_type`, so a given kind is
 the same crewmate however it was launched. A saved crewmate record whose type
 Mercury does not know resumes as `mercury-crew`.
 
-Three briefs ride as commands, skills and launch options rather than as agent kinds:
+Three briefs run as commands, skills and launch options instead of separate agent kinds:
 `/verify` hands the session's work and an adversarial brief directly to a
 crewmate through the Crewmate tool, ending with a `VERDICT: PASS`, `FAIL` or `PARTIAL`
 line; a Crewmate launch with `isolation: "worktree"`, `worktree_at` and
@@ -249,11 +249,11 @@ and your custom definitions are the choices for a fresh launch.
 
 ## The concourse
 
-The Session Concourse — the board of the project you are in (its running
-sessions and its parked chats), the hop into a row, the live tiles, NEEDS
-YOU, the strip that walks only the screens that exist, and
-how chats are born, focused, closed and brought back — is
-[SESSIONS.md](SESSIONS.md)'s page. This section is the coordinator behind
+The Session Concourse (the board of the project you are in with its running
+sessions and its parked chats, switching into a row, the live tiles, NEEDS
+YOU, the navigation strip that walks only the screens that exist, and
+how chats are started, focused, closed and resumed) is covered in
+[SESSIONS.md](SESSIONS.md). This section describes the coordinator behind
 the board.
 
 Behind the board sits the switchboard coordinator: one terminal, you,

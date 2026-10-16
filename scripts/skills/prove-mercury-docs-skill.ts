@@ -80,7 +80,7 @@ check("the guidance names Mercury's own site and llms.txt as the map, and no oth
 check('an uncovered question is answered plainly, never guessed', /say so and name the nearest page instead of guessing/.test(text))
 const mapLines = text.split('\n').filter(line => line.startsWith('- README.md') || line.startsWith('- docs/'))
 check('the map lists every carried page, README first', mapLines.length === expected.length && mapLines[0]!.startsWith('- README.md — Mercury CLI:'), `${mapLines.length} map rows`)
-check('each map row carries the page title and a one-line summary from the page itself', mapLines.every(line => / — .+: .+/.test(line)) && mapLines.some(line => line.startsWith('- docs/SATURN.md — Saturn — session schedules: Saturn is Mercury\'s scheduler.')))
+check('each map row carries the page title and a one-line summary from the page itself', mapLines.every(line => / — .+: .+/.test(line)) && mapLines.some(line => line.startsWith('- docs/SATURN.md — Saturn: session schedules: Saturn is Mercury\'s scheduler.')))
 check('the question rides last under its own heading', text.endsWith('## The question\nhow do i schedule a prompt in mercury'))
 const bare = await promptText(docs!, '')
 check('no question ⇒ no question heading', !bare.includes('## The question'))

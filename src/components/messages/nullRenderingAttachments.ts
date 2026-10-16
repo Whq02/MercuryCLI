@@ -17,6 +17,7 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'held_tools',
   'agent_roster',
   'mcp_instructions_delta',
+  'mcp_servers_failed',
   'harness_map_delta',
   'context_capsule',
   'bagel_console',

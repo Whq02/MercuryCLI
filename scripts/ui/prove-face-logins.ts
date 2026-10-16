@@ -885,14 +885,15 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   handover.armFaceDoorDeepLink('logins')
   t.check('the resolver PEEKS without consuming; the face consumes ONCE', handover.peekFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === null)
   const handoverSrc = read('src/substrate/splashHandover.ts')
-  t.check("the union carries 'logins'; ACTIONS gained the wire word at the recut", handoverSrc.includes("export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents'") && handoverSrc.includes("const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])") && handoverSrc.includes("receipt.action === 'logins'"))
+  t.check("the union carries 'logins' (and the sign-in wall's 'model' door, no wire word: a process-local arm only); ACTIONS gained the logins wire word at the recut", handoverSrc.includes("export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents' | 'model'") && handoverSrc.includes("const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])") && handoverSrc.includes("receipt.action === 'logins'"))
   const sourceFiles = (dir: string): string[] =>
     readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap(entry =>
       entry.isDirectory() ? sourceFiles(join(dir, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [join(dir, entry.name)] : [],
     )
   const armCallers = sourceFiles('src').filter(rel => rel !== 'src/substrate/splashHandover.ts' && codeOnlyText(rel, read(rel)).includes('armFaceDoorDeepLink('))
   const boardRoute = 'src/components/concourse/ConcourseRoute.tsx'
-  t.check('the board route uses the face-door owner; no other product caller arms a different entry', handoverSrc.includes('export function armFaceDoorDeepLink(door: FaceDoorDeepLink, opener?: FaceDoorOpenerV1): void {') && armCallers.includes(boardRoute) && armCallers.every(rel => rel === boardRoute) && read(boardRoute).includes('if (door) armFaceDoorDeepLink(door, opener)'), armCallers.join(' '))
+  const signInCard = 'src/components/ConsoleOAuthFlow.tsx'
+  t.check("the board route uses the face-door owner; the sign-in card's local row arms the 'model' door; no other product caller arms an entry", handoverSrc.includes('export function armFaceDoorDeepLink(door: FaceDoorDeepLink, opener?: FaceDoorOpenerV1): void {') && armCallers.includes(boardRoute) && armCallers.includes(signInCard) && armCallers.every(rel => rel === boardRoute || rel === signInCard) && read(boardRoute).includes('if (door) armFaceDoorDeepLink(door, opener)') && read(signInCard).includes("if (localRoadOpen(localRoad)) armFaceDoorDeepLink('model')"), armCallers.join(' '))
 
   const React = (await import('react')).default
   const { renderToString } = await import('../../src/utils/staticRender.tsx')
