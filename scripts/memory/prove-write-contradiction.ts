@@ -238,6 +238,7 @@ const quantityPairs: Array<[string, string]> = [
   ['drawer 10 holds 8 spoons', 'drawer 10 holds 16 spoons'],
   ['the cellar has 3 shelves', 'the cellar has 5 shelves'],
   ['the deploy runs from mercury-36', 'the deploy runs from mercury-37'],
+  ['the drawer holds 10 spoons and is red', 'the drawer holds 12 spoons and is red'],
 ]
 for (const [old, fresh] of quantityPairs) {
   check(`a value about one subject still differs: ${fresh}`, guard.contradictionBetween(fresh, old)?.flip === 'a number that differs' && guard.contradictionBetween(old, fresh)?.flip === 'a number that differs')
@@ -247,6 +248,7 @@ const literalPairs: Array<[string, string]> = [
   ['the config lives in A', 'the config lives in B'],
   ['the config lives in run', 'the config lives in build'],
   ['the config lives in Paris', 'the config lives in Rome'],
+  ['the deploy runs from X and is slow', 'the deploy runs from Y and is slow'],
 ]
 for (const [old, fresh] of literalPairs) {
   check(`a location value about one subject differs: ${fresh}`, guard.contradictionBetween(fresh, old)?.flip === 'a value that differs' && guard.contradictionBetween(old, fresh)?.flip === 'a value that differs')
@@ -257,6 +259,7 @@ const subjectPairs: Array<[string, string]> = [
   ['drawer 10 holds spoons', 'drawer 11 holds spoons'],
   ['the blue server has 16 cores', 'the red server has 32 cores'],
   ['step 1 is open', 'step 2 is open'],
+  ['step 1 is done', 'step 2 is done'],
   ['item 3 is open', 'item 4 is open'],
   ['the server A has 8 cores', 'the server B has 16 cores'],
   ['the deploy from X runs daily', 'the deploy from Y runs daily'],

@@ -113,8 +113,8 @@ function valueFlip(a: Analysed, b: Analysed): string | null {
     changed = index
   }
   if (changed < 1 || IDENTIFIER_MARKERS.includes(left[changed - 1]!)) return null
-  const predicate = left.findLastIndex((word, index) => index !== changed && VALUE_PREDICATES.has(word))
-  if (predicate < 1 || predicate >= changed) return null
+  const predicate = left.slice(0, changed).findLastIndex(word => VALUE_PREDICATES.has(word))
+  if (predicate < 1) return null
   const oldValue = left[changed]!
   const newValue = right[changed]!
   if (isNumberWord(oldValue) && isNumberWord(newValue)) return Number(oldValue) === Number(newValue) ? null : NUMBER_FLIP
