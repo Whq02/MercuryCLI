@@ -116,7 +116,7 @@ section('§C local — keyless readiness from the discovery cache, never a login
   const up = resolveProviderUsability({ ...NONE, localServerPresent: () => true }).local
   check('a discovered server ⇒ ready, credential=keyless (nothing to sign into)', up.usable && up.credential === 'keyless')
   const down = resolveProviderUsability(NONE).local
-  check('no server ⇒ the remedy names starting one or pinning the base', !down.usable && (down.blockers[0] ?? '').includes('start Ollama'), JSON.stringify(down.blockers))
+  check('no server ⇒ the remedy names /localsetup, starting one or pinning the base', !down.usable && (down.blockers[0] ?? '').includes('/localsetup') && (down.blockers[0] ?? '').includes('MERCURY_LOCAL_BASE_URL'), JSON.stringify(down.blockers))
 }
 
 section('§D blocker specificity — no two families share a blocker, none generic')

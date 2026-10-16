@@ -31,6 +31,7 @@ export const LOCAL_WARM_SETTLE_MS = 750
 export const LOCAL_WARM_LIVE_WAITS = 8
 export const LOCAL_WARM_CEILING_MS = 20 * 60_000
 export const LOCAL_WARM_NUM_PREDICT = 1
+export const LOCAL_WARM_USER_SEED = 'hi'
 export const LOCAL_WARM_REPEAT_QUIET_MS = 60_000
 export const LOCAL_KEEP_ALIVE_TICK_MS = 5 * 60_000
 export const LOCAL_KEEP_ALIVE_HOLD = '30m'
@@ -218,10 +219,13 @@ export async function composeLocalWarm(record: LocalModelRecord, model: string, 
   const extra = profile.buildExtras({ wireModel, effortValue, thinkingEnabled, maxOutputTokensOverride: undefined })
   const request: CompatChatRequest = {
     model: wireModel,
-    messages: mapMessagesToZai(systemText, [], {
-      keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
-      imagesSupported: imagesSupportedForCompatModel(modelId),
-    }),
+    messages: [
+      ...mapMessagesToZai(systemText, [], {
+        keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
+        imagesSupported: imagesSupportedForCompatModel(modelId),
+      }),
+      { role: 'user', content: LOCAL_WARM_USER_SEED },
+    ],
     ...(apiTools.length > 0 ? { tools: mapToolsToZai(apiTools) } : {}),
     extra: { ...extra, max_tokens: LOCAL_WARM_NUM_PREDICT },
   }

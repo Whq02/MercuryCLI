@@ -28,7 +28,9 @@ import { createCommandInputMessage, createUserMessage } from '../../utils/messag
 import { renderModelName } from '../../utils/model/model.js'
 import { formatCommandLoadingMetadata } from '../../utils/processUserInput/processSlashCommand.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
-import { EffortApplyContext, EffortSlider } from './EffortSlider.js'
+import { CommandPopupLease } from '../../components/CommandPopupSlot.js'
+import { claimCommandPopup } from '../../utils/cockpit/commandPopup.js'
+import { EffortApplyContext, EffortPopup, effortPopupShape } from './EffortPopup.js'
 
 const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|auto`
 
@@ -262,7 +264,7 @@ function deliverEffortReceipt(receipt: EffortReceipt, onDone: LocalJSXCommandOnD
 }
 
 
-function SessionSlider({
+function SessionPopup({
   context,
   onDone,
 }: {
@@ -277,7 +279,7 @@ function SessionSlider({
         return settleEffortResult(result, context).then(receipt => (receiptOnStatusRow(receipt) || receiptInChat(receipt, String(value)) ? '' : receipt.text))
       }}
     >
-      <EffortSlider onDone={message => (message === '' ? onDone(undefined, { display: 'skip' }) : onDone(message))} />
+      <EffortPopup onDone={message => (message === '' ? onDone(undefined, { display: 'skip' }) : onDone(message))} />
     </EffortApplyContext.Provider>
   )
 }
@@ -315,5 +317,10 @@ export async function call(
     return null
   }
 
-  return <SessionSlider context={context} onDone={onDone} />
+  const token = claimCommandPopup(effortPopupShape(model))
+  return (
+    <CommandPopupLease token={token}>
+      <SessionPopup context={context} onDone={onDone} />
+    </CommandPopupLease>
+  )
 }

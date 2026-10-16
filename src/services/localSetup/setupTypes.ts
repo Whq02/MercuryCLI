@@ -41,6 +41,7 @@ export interface SetupPullCandidate {
   trainedMax: number
   geometry: KvGeometry
   tested?: boolean
+  note?: string
 }
 
 export interface SetupModelRow {
@@ -128,6 +129,7 @@ export interface SetupIo {
 export interface DetectedServer {
   kind: SetupServerKind
   models: string[]
+  loaded?: string[]
   root: string
   label: string
   probed: Array<{ kind: LocalServerKind; root: string }>

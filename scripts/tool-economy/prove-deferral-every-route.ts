@@ -82,10 +82,10 @@ const MCP_B = ['create_issue', 'list_issues', 'get_issue'].map(n => fixtureTool(
 const POOL: Tool[] = [...NON_DEFERRED, ToolSearchTool as never, ...DEFERRED_BUILTINS, ...MCP_A, ...MCP_B]
 const DEFERRED_NAMES = [...DEFERRED_BUILTINS, ...MCP_A, ...MCP_B].map(t => t.name)
 
-const TEXT_DEFERRING = new Set(['local'])
+const TEXT_DEFERRING = new Set<string>([])
 const NATIVE_DEFERRING = new Set(['openai'])
 const OLDER_GPT = 'gpt-5.3-codex'
-const TEXT_APPEND = new Set(['moonshot'])
+const TEXT_APPEND = new Set(['moonshot', 'local'])
 const SERVER_SEARCH = new Set(['openai', 'openrouter'])
 const permissionContext = getEmptyToolPermissionContext()
 const planFor = (model: string, messages: Message[], extra: { tools?: Tool[]; hasPendingMcpServers?: boolean; latchKey?: string } = {}) =>
