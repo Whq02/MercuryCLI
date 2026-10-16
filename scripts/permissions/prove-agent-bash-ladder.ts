@@ -264,16 +264,14 @@ section('§3 the roster — the shell rides every definition that carries it, fo
   const pool = POOL_NAMES.map(name => ({ name })) as never
   const definitions = [MERCURY_CREW_AGENT, MERCURY_SCOUT_AGENT]
   for (const definition of definitions) {
-    for (const isAsync of [false, true]) {
-      const resolved = resolveAgentTools(definition as never, pool, isAsync, false)
-      const names = resolved.resolvedTools.map(t => (t as { name: string }).name)
-      check(`${definition.agentType} keeps Bash when ${isAsync ? 'background' : 'foreground'}`, names.includes('Bash'), names.join(','))
-      check(`${definition.agentType} never carries the Crewmate tool itself (${isAsync ? 'background' : 'foreground'})`, !names.includes('Crewmate'))
-    }
+    const resolved = resolveAgentTools(definition as never, pool)
+    const names = resolved.resolvedTools.map(t => (t as { name: string }).name)
+    check(`${definition.agentType} keeps Bash (one derivation, foreground and background)`, names.includes('Bash'), names.join(','))
+    check(`${definition.agentType} never carries the Crewmate tool itself`, !names.includes('Crewmate'))
   }
-  const asyncKept = filterToolsForAgent({ tools: pool, isBuiltIn: true, isAsync: true }).map(t => (t as { name: string }).name)
-  check('the background allow-set keeps Bash', asyncKept.includes('Bash'), asyncKept.join(','))
-  const readOnly = resolveAgentTools(MERCURY_SCOUT_AGENT as never, pool, false, false).resolvedTools.map(t => (t as { name: string }).name)
+  const kept = filterToolsForAgent({ tools: pool, isBuiltIn: true }).map(t => (t as { name: string }).name)
+  check('the one filter keeps Bash', kept.includes('Bash'), kept.join(','))
+  const readOnly = resolveAgentTools(MERCURY_SCOUT_AGENT as never, pool).resolvedTools.map(t => (t as { name: string }).name)
   check('the read-only scout keeps the shell and loses the editors (its shell is read-only by prompt, the read-only lane by verdict)', readOnly.includes('Bash') && !readOnly.includes('Edit') && !readOnly.includes('Write'))
 }
 

@@ -10,6 +10,7 @@ import {
 } from './protocol.js'
 import { EVAL_SHUTDOWN_GRACE_MS } from './contracts.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { endProcessTree, strikeProcessGroupNow } from '../../utils/processGroup.js'
 
 interface KernelSpawnSpec {
   command: string
@@ -63,7 +64,7 @@ export class ProcKernel {
       cwd: spec.cwd,
       env: spec.env,
       stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
-      detached: false,
+      detached: process.platform !== 'win32',
     })
     this.child.stdout?.setEncoding('utf8')
     this.child.stderr?.setEncoding('utf8')
@@ -272,10 +273,7 @@ export class ProcKernel {
   }
 
   kill(): void {
-    try {
-      if (this.alive && this.child.pid) this.child.kill('SIGKILL')
-    } catch {
-    }
+    if (this.alive && this.child.pid) strikeProcessGroupNow(this.child, 'SIGKILL')
   }
 
   onExit(callback: () => void): void {
@@ -296,14 +294,12 @@ export class ProcKernel {
         t.unref?.()
       })
     if ((await Promise.race([exited(), grace(EVAL_SHUTDOWN_GRACE_MS)])) === 'timeout' && this.alive) {
-      try {
-        this.child.kill('SIGTERM')
-      } catch {
-      }
+      await endProcessTree(this.child, 'SIGTERM')
       if ((await Promise.race([exited(), grace(EVAL_SHUTDOWN_GRACE_MS)])) === 'timeout' && this.alive) {
-        this.kill()
+        await endProcessTree(this.child, 'SIGKILL')
         await Promise.race([exited(), grace(1_000)])
       }
     }
+    await endProcessTree(this.child, 'SIGKILL')
   }
 }

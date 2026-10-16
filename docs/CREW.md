@@ -191,7 +191,15 @@ the crew's own coordination, read before an edit. The same server serves
 Two agents are built in. `mercury-crew` is the default for delegated work of
 every kind (research, multi-step changes, running and checking commands, and
 carrying a brief such as a design, a review or a verification to its end)
-with the session's full tool set. `mercury-scout` is the read-only
+with the session's full tool set: every tool the main chat has, in the
+foreground and in the background alike, except the few that need you present
+(AskUserQuestion, ApolloReview, AskAdvisor) or reach past the crewmate's own
+work (Computer, Journal, TaskStop, Workflow, CronCreate, CronDelete,
+ScheduleWakeup, RecordConvention, and the Crewmate tool itself). The
+processes a crewmate starts (background shells, Eval kernels, the services
+it starts for the session, debug sessions, its browser) end when it ends; a
+service it starts with the `project` lifecycle outlives it, as that lifecycle
+says. `mercury-scout` is the read-only
 reconnaissance agent: it locates files, searches code and answers
 how-does-this-work questions with paths, line numbers and excerpts. It
 carries only the tools that read (its shell runs read-only commands, and a
