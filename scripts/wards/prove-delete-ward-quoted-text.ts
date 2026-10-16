@@ -78,6 +78,31 @@ try {
   }
   check('the autonomous home ward reads the same way: an echo of a home delete is not a delete', ruleOf(AUTONOMOUS_WARDS, 'echo "rm -rf ~/Documents" && echo "find $HOME -delete"') === '(allowed)', ruleOf(AUTONOMOUS_WARDS, 'echo "rm -rf ~/Documents" && echo "find $HOME -delete"'))
 
+  section("§1b an apostrophe in a trailing # comment is comment text, not an open quote: the quoted data before it still runs (RED on the base and on the first reader: the comment's apostrophe made the whole text read raw)")
+  for (const command of [
+    `grep -rn "rm -rf /Users/alice" . # don't match`,
+    `git commit -m "remove rm -rf /Users/alice" # it's gone`,
+    `echo "rm -rf /" # that's data`,
+    `echo "rm -rf /Users/alice/x"${NL}# don't worry`,
+    `# it's fine${NL}echo "rm -rf /Users/alice/x"`,
+    `ls # it's \\${NL}echo "rm -rf /Users/alice/x"`,
+    `echo '# not a comment' && echo "rm -rf /Users/alice/x"`,
+  ]) {
+    check(`${shown(command)} runs`, verdictOf(REFUSAL_WARDS, command).allow, ruleOf(REFUSAL_WARDS, command))
+  }
+  for (const [rule, command] of [
+    ['no-other-user-delete', `rm -rf /Users/alice/x # it's gone`],
+    ['no-other-user-delete', `# it's fine${NL}rm -rf /Users/alice/x`],
+    ['no-other-user-delete', `echo "it's" && rm -rf /Users/alice/x`],
+    ['no-other-user-delete', `echo "rm -rf /Users/alice/x" # data${NL}rm -rf /Users/alice/x`],
+    ['no-other-user-delete', `echo '# not a comment' && rm -rf /Users/alice/x`],
+    ['no-other-user-delete', `echo "$(ls)#x" && rm -rf /Users/alice/x`],
+    ['no-other-user-delete', `rm -rf "/Users/alice/x" # it's gone`],
+  ] as Array<[string, string]>) {
+    const got = ruleOf(REFUSAL_WARDS, command)
+    check(`${shown(command)} is refused by ${rule}`, got === rule, got)
+  }
+
   section('§2 a delete whose PATH is quoted is still the delete (the refusals of today, unchanged)')
   const quotedDeletes: Array<[string, string]> = [
     ['no-root-recursive-delete', 'rm -rf "/"'],

@@ -332,6 +332,7 @@ const STRING_RUNNERS = new Set(['eval', 'invoke-expression', 'iex'])
 const POSIX_SHELL_WORDS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'ash', 'fish'])
 const STDIN_SHELL_WORDS = new Set(['eval', 'source', '.', 'su', 'sudo', 'doas'])
 const HEREDOC_WORD_BREAK = new Set([' ', '\t', '\r', ';', '|', '&', '(', ')', '<', '>'])
+const COMMENT_PRECEDERS = new Set([' ', '\t', '\r', '\n', ';', '|', '&', '('])
 const POWERSHELL_WORDS = new Set(['pwsh', 'powershell'])
 const POSIX_SCRIPT_OPTION = /^-[a-z]*c[a-z]*$/i
 const POWERSHELL_SCRIPT_OPTION = /^-c(?:o(?:m(?:m(?:a(?:n(?:d)?)?)?)?)?)?$/i
@@ -346,6 +347,10 @@ function shellDialectOf(pending: PendingToolCall): ShellDialect {
 function feedsShell(word: string): boolean {
   const verb = shellVerbOf(word)
   return POSIX_SHELL_WORDS.has(verb) || STDIN_SHELL_WORDS.has(verb)
+}
+
+function commentStart(text: string, at: number): boolean {
+  return text[at] === '#' && (at === 0 || COMMENT_PRECEDERS.has(text[at - 1]!))
 }
 
 function dropHeredocBodies(text: string): string {
@@ -382,7 +387,8 @@ function dropHeredocBodies(text: string): string {
       } else if (ch === "'" || ch === '"') {
         closeWord(k)
         quote = ch
-      } else if (ch === '<' && line[k + 1] === '<') {
+      } else if (commentStart(line, k)) break
+      else if (ch === '<' && line[k + 1] === '<') {
         closeWord(k)
         const m = HEREDOC_OPERATOR.exec(line.slice(k))
         if (m === null) k++
@@ -403,9 +409,13 @@ function foldContinuations(text: string, dialect: ShellDialect): string {
   const joiner = dialect === 'powershell' ? '`' : '\\'
   let out = ''
   let quote: '' | "'" | '"' = ''
+  let comment = false
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]!
-    if (quote === "'") {
+    if (comment) {
+      if (ch === '\n') comment = false
+      out += ch
+    } else if (quote === "'") {
       if (ch === "'") quote = ''
       out += ch
     } else if (ch === joiner) {
@@ -422,6 +432,9 @@ function foldContinuations(text: string, dialect: ShellDialect): string {
       out += ch
     } else if (ch === "'" || ch === '"') {
       quote = ch
+      out += ch
+    } else if (commentStart(text, i)) {
+      comment = true
       out += ch
     } else if (ch === '|' || (ch === '&' && text[i + 1] === '&')) {
       let j = i + 1
@@ -481,6 +494,11 @@ function lexShellUnit(text: string, start: number, dialect: ShellDialect): Shell
     if (ch === escape) {
       if (word < 0) word = i
       i++
+      continue
+    }
+    if (commentStart(text, i)) {
+      closeWord(i)
+      while (i + 1 < text.length && text[i + 1] !== '\n') i++
       continue
     }
     if (ch === "'" || ch === '"') {

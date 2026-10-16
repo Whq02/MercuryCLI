@@ -122,6 +122,29 @@ try {
     const v = verdictOf(REFUSAL_WARDS, `rm -rf${CONT}/Users/alice/x`)
     return !v.allow && v.line === 1 && v.excerpt === 'rm -rf /Users/alice/x'
   })(), JSON.stringify(verdictOf(REFUSAL_WARDS, `rm -rf${CONT}/Users/alice/x`)))
+
+  section('§5b a comment never continues: a backslash or a heredoc operator inside a # comment is comment text, so the next line is its own command, as every shell runs it (RED on the first reader: each delete below was folded onto the comment and allowed)')
+  for (const [rule, command] of [
+    ['no-other-user-delete', `# cleanup${CONT}rm -rf /Users/alice/x`],
+    ['no-other-user-delete', `echo start # note${CONT}rm -rf /Users/alice/x`],
+    ['no-root-recursive-delete', `# cleanup${CONT}rm -rf /`],
+    ['no-root-recursive-delete', `# cleanup${CONT}rm -rf /Users/alice`],
+    ['no-other-user-delete', `(# comment${CONT}rm -rf /Users/alice/x)`],
+    ['no-other-user-delete', `echo "it's" # c${CONT}rm -rf /Users/alice/x`],
+    ['no-other-user-delete', `ls ;# c${CONT}rm -rf /Users/alice/x`],
+    ['no-other-user-delete', `ls # <<EOF${NL}rm -rf /Users/alice/x`],
+    ['no-other-user-delete', `echo x # see <<EOF${NL}rm -rf /Users/alice/x${NL}EOF`],
+    ['no-other-user-delete', `ls # listing${CONT}bash -c "rm -rf /Users/alice/x"`],
+  ] as Array<[string, string]>) {
+    const got = ruleOf(REFUSAL_WARDS, command)
+    check(`${shown(command)} is refused by ${rule}`, got === rule, got)
+  }
+  check('a # inside ${#x} is not a comment: the continuation after it still folds', ruleOf(REFUSAL_WARDS, `echo \${#x}${CONT}&& rm -rf /Users/alice/x`) === 'no-other-user-delete', ruleOf(REFUSAL_WARDS, `echo \${#x}${CONT}&& rm -rf /Users/alice/x`))
+  check('a # inside a word is not a comment: the continuation after it still folds', ruleOf(REFUSAL_WARDS, `echo a#b${CONT}; rm -rf /Users/alice/x`) === 'no-other-user-delete', ruleOf(REFUSAL_WARDS, `echo a#b${CONT}; rm -rf /Users/alice/x`))
+  check('a # after a closing quote is not a comment: the continuation after it still folds', ruleOf(REFUSAL_WARDS, `echo "a"#b${CONT}; rm -rf /Users/alice/x`) === 'no-other-user-delete', ruleOf(REFUSAL_WARDS, `echo "a"#b${CONT}; rm -rf /Users/alice/x`))
+  check('a comment after a pipe still continues the pipeline (the shell does)', ruleOf(REFUSAL_WARDS, `ls | # listing${NL}xargs rm -rf /Users/alice/x`) === 'no-other-user-delete', ruleOf(REFUSAL_WARDS, `ls | # listing${NL}xargs rm -rf /Users/alice/x`))
+  check('a backslash inside a comment with no line after it is plain text: the command runs', verdictOf(REFUSAL_WARDS, 'echo "x" # comment with \\ backslash').allow, ruleOf(REFUSAL_WARDS, 'echo "x" # comment with \\ backslash'))
+  check('a comment line, then a data line: the echo of a delete phrase runs', verdictOf(REFUSAL_WARDS, `# all fine${CONT}echo "rm -rf /Users/alice/x"`).allow, ruleOf(REFUSAL_WARDS, `# all fine${CONT}echo "rm -rf /Users/alice/x"`))
 } finally {
   if (savedHome === undefined) delete process.env.HOME
   else process.env.HOME = savedHome
@@ -150,6 +173,8 @@ try {
     check(`${tool}: ${shown(command)} is refused by ${rule}`, got === rule, got)
   }
   check('the PowerShell tool does not read a backslash as a continuation: C:\\ at a line end is the drive root and is refused', ruleOf(REFUSAL_WARDS, `Remove-Item -Recurse -Force C:\\${NL}Get-Date`, 'PowerShell') === 'no-root-recursive-delete', ruleOf(REFUSAL_WARDS, `Remove-Item -Recurse -Force C:\\${NL}Get-Date`, 'PowerShell'))
+  check('PowerShell: a backtick inside a # comment does not continue the line: the delete on the next line is refused', ruleOf(REFUSAL_WARDS, `Write-Host hi # note${PS_CONT}Remove-Item -Recurse -Force C:\\Users\\alice\\x`, 'PowerShell') === 'no-other-user-delete', ruleOf(REFUSAL_WARDS, `Write-Host hi # note${PS_CONT}Remove-Item -Recurse -Force C:\\Users\\alice\\x`, 'PowerShell'))
+  check('Bash on win32: a backslash inside a # comment does not continue the line: the delete on the next line is refused', ruleOf(REFUSAL_WARDS, `# cleanup${CONT}rm -rf C:\\Users\\alice\\x`, 'Bash') === 'no-other-user-delete', ruleOf(REFUSAL_WARDS, `# cleanup${CONT}rm -rf C:\\Users\\alice\\x`, 'Bash'))
 } finally {
   restorePlatform()
   if (savedHome === undefined) delete process.env.HOME
