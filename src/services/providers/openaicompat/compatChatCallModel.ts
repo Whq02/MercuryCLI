@@ -347,13 +347,15 @@ async function buildToolDeclarationRows(
   options: Options,
   model: string,
   build: ToolDeclarationRowBuilder,
-): Promise<ReadonlyMap<string, ZaiWireMessage>> {
+): Promise<{ rows: ReadonlyMap<string, ZaiWireMessage>; admitted: readonly ApiShapedTool[] }> {
   const rows = new Map<string, ZaiWireMessage>()
+  const admitted: ApiShapedTool[] = []
   for (const declaration of plan.admissionDeclarations) {
     const shaped = await buildApiShapedTools(declaration.tools, options, model, plan.conversationKey, pool)
     if (shaped.length > 0) rows.set(declaration.toolUseId, build(mapToolsToZai(shaped)))
+    admitted.push(...shaped)
   }
-  return rows
+  return { rows, admitted }
 }
 
 export function mapCompatUsageToAnthropic(usage: CompatUsage | undefined): typeof EMPTY_USAGE {
@@ -416,7 +418,9 @@ export async function* compatChatCallModel(
     source: 'query',
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
-  const toolDeclarations = await buildToolDeclarationRows(plan, tools, options, modelId, profile.toolDeclarationRow ?? toolDeclarationRowAsText)
+  const declared = await buildToolDeclarationRows(plan, tools, options, modelId, profile.toolDeclarationRow ?? toolDeclarationRowAsText)
+  const toolDeclarations = declared.rows
+  const callableTools = [...apiTools, ...declared.admitted].filter(tool => !plan.isDeferredUnadmitted(tool.name))
   const contract = resolveBehaviourContract([...systemPrompt])
   const systemText = renderGenericInstructions(contract)
   const wireModel = profile.wireModelId(modelId)
@@ -546,6 +550,7 @@ export async function* compatChatCallModel(
       messages,
       preparedMessages,
       deferredUnadmitted: plan.isDeferredUnadmitted,
+      callableTools,
       effort: effortOnWire,
       ...(deferral !== undefined ? { deferral } : {}),
       ...(profile.leadingNotes !== undefined ? { leadingNotes: profile.leadingNotes } : {}),
@@ -726,6 +731,7 @@ async function* streamOneCompatAttempt(ctx: {
   messages: Message[]
   preparedMessages: Message[]
   deferredUnadmitted?: (name: string) => boolean
+  callableTools?: readonly ApiShapedTool[]
   effort?: EffortStampV1
   deferral?: CompatDeferralFacts
   leadingNotes?: readonly string[]
@@ -967,7 +973,7 @@ async function* streamOneCompatAttempt(ctx: {
   yield* ensureMessageStart()
   let completed = finish?.toolCalls ?? []
   if (profile.lane === 'local' && completed.length === 0 && blocks.open !== null && finish !== undefined) {
-    const extracted = extractToolCallMarkup(blocks.open.value, (request.tools ?? []).map(tool => ({ name: tool.function.name, input_schema: tool.function.parameters })))
+    const extracted = extractToolCallMarkup(blocks.open.value, ctx.callableTools ?? [])
     if (extracted !== undefined) {
       logForDebugging(`[compat:local] ${extracted.calls.length} tool call(s) read from ${extracted.shape} markup the server left in the ${blocks.open.kind}`)
       completed = extracted.calls.map((call, index) => ({ index, id: `markup_${randomUUID().slice(0, 8)}_${index}`, name: call.name, argumentsRaw: call.argumentsRaw, malformed: false }))
