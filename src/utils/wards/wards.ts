@@ -330,6 +330,8 @@ const DELETE_WORDS = new Set(['rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase
 const FIND_ACTIONS = new Set(['-delete', '-exec', '-execdir', '-ok', '-okdir'])
 const STRING_RUNNERS = new Set(['eval', 'invoke-expression', 'iex'])
 const POSIX_SHELL_WORDS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'ash', 'fish'])
+const STDIN_SHELL_WORDS = new Set(['eval', 'source', '.', 'su', 'sudo', 'doas'])
+const HEREDOC_WORD_BREAK = new Set([' ', '\t', '\r', ';', '|', '&', '(', ')', '<', '>'])
 const POWERSHELL_WORDS = new Set(['pwsh', 'powershell'])
 const POSIX_SCRIPT_OPTION = /^-[a-z]*c[a-z]*$/i
 const POWERSHELL_SCRIPT_OPTION = /^-c(?:o(?:m(?:m(?:a(?:n(?:d)?)?)?)?)?)?$/i
@@ -341,10 +343,15 @@ function shellDialectOf(pending: PendingToolCall): ShellDialect {
   return pending.toolName === 'PowerShell' ? 'powershell' : 'posix'
 }
 
+function feedsShell(word: string): boolean {
+  const verb = shellVerbOf(word)
+  return POSIX_SHELL_WORDS.has(verb) || STDIN_SHELL_WORDS.has(verb)
+}
+
 function dropHeredocBodies(text: string): string {
   const lines = text.split('\n')
   const out: string[] = []
-  const bodies: Array<{ terminator: string; dashed: boolean; literal: boolean }> = []
+  const bodies: Array<{ terminator: string; dashed: boolean; literal: boolean; commands: boolean }> = []
   let quote: '' | "'" | '"' = ''
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i]!
@@ -352,28 +359,42 @@ function dropHeredocBodies(text: string): string {
     if (body !== undefined) {
       while (!body.literal && i + 1 < lines.length && (TRAILING_BACKSLASHES.exec(line)?.[0].length ?? 0) % 2 === 1) line = line.slice(0, -1) + lines[++i]!
       if ((body.dashed ? line.replace(/^\t+/, '') : line) === body.terminator) bodies.shift()
+      else if (body.commands) out.push(line)
       continue
     }
     out.push(line)
+    const opened = bodies.length
+    let commands = false
+    let word = -1
+    const closeWord = (end: number): void => {
+      if (word >= 0 && feedsShell(line.slice(word, end))) commands = true
+      word = -1
+    }
     for (let k = 0; k < line.length; k++) {
       const ch = line[k]!
       if (quote === "'") {
         if (ch === "'") quote = ''
       } else if (ch === '\\') {
+        if (quote === '' && word < 0) word = k
         k++
       } else if (quote === '"') {
         if (ch === '"') quote = ''
       } else if (ch === "'" || ch === '"') {
+        closeWord(k)
         quote = ch
       } else if (ch === '<' && line[k + 1] === '<') {
+        closeWord(k)
         const m = HEREDOC_OPERATOR.exec(line.slice(k))
         if (m === null) k++
         else {
-          bodies.push({ terminator: m[2] ?? m[3] ?? m[5] ?? '', dashed: m[1] === '-', literal: m[5] === undefined || m[4] !== undefined })
+          bodies.push({ terminator: m[2] ?? m[3] ?? m[5] ?? '', dashed: m[1] === '-', literal: m[5] === undefined || m[4] !== undefined, commands: false })
           k += m[0].length - 1
         }
-      }
+      } else if (HEREDOC_WORD_BREAK.has(ch)) closeWord(k)
+      else if (word < 0) word = k
     }
+    closeWord(line.length)
+    for (let b = opened; b < bodies.length; b++) bodies[b]!.commands = commands
   }
   return out.join('\n')
 }
