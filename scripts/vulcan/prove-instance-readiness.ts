@@ -20,7 +20,7 @@ delete process.env.MERCURY_GODOT
 delete process.env.MERCURY_GODOT_TOOLS_LITE
 
 const { VULCAN_ADDON_FILES } = await import('../../src/services/vulcan/addonFiles.generated.js')
-const { godotProviderInventory } = await import('../../src/services/vulcan/godotProviders.js')
+const { godotProviderInventory } = await import('./godotProviders.js')
 const { buildGodotIdeSession, discoverGodotLaunchProfiles } = await import('../../src/services/ide/godotSession.js')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
