@@ -36,6 +36,7 @@ const A = 'claude-fable-5-1'
 const B = 'claude-opus-5'
 const movedCwd = mkdtempSync(join(tmpdir(), 'switch-back-added-'))
 const text = (parts: string[]): string => parts.join('\n\n')
+const headOf = (prompt: string): string => prompt.split('\n\n')[0] ?? ''
 const envBlockOf = (prompt: string): string => {
   const at = prompt.indexOf('# Environment')
   if (at < 0) return ''
@@ -48,14 +49,14 @@ try {
   const a1 = text(await getSystemPrompt([], A, []))
   setOriginalCwd(movedCwd)
   const a1Again = text(await getSystemPrompt([], A, []))
-  check('same model, a directory added mid-session: the system prompt is byte-identical (the env block is keyed on the model alone)', a1Again === a1 && !envBlockOf(a1Again).includes(movedCwd))
+  check('same model, a directory added mid-session: the system prompt is byte-identical (the head and the env block are keyed on the model alone)', a1Again === a1 && !headOf(a1Again).includes(movedCwd))
 
   section('§2 the switch-back — A → B → A after the add: the returning model\'s prompt is no longer the one its thinking blocks were bound to')
   const b = text(await getSystemPrompt([], B, []))
-  check('the switch to B recomputes the env block with the added directory (a lawful change on the switch)', envBlockOf(b).includes(movedCwd))
+  check('the switch to B recomputes the model-keyed sections with the added directory (a lawful change on the switch): the head names it', headOf(b).includes(movedCwd) && envBlockOf(b) !== '')
   const a2 = text(await getSystemPrompt([], A, []))
-  check('back on A: the system prompt is byte-identical to A\'s first prompt (the prefix A\'s thinking blocks are bound to)', a2 === a1, `env block now: ${j(envBlockOf(a2).slice(0, 300))}`)
-  check('back on A: the env block carries no directory added after A\'s first request', !envBlockOf(a2).includes(movedCwd))
+  check('back on A: the system prompt is byte-identical to A\'s first prompt (the prefix A\'s thinking blocks are bound to)', a2 === a1, `head now: ${j(headOf(a2))}`)
+  check('back on A: the head carries no directory added after A\'s first request', !headOf(a2).includes(movedCwd))
   check('B keeps its own block for its own return', text(await getSystemPrompt([], B, [])) === b)
 
   section('§3 the record carries every kept entry, and a new process restoring it serves each model the block it first sent')
@@ -67,11 +68,14 @@ try {
   const messages = [{ type: 'user', uuid: 'u-switch-back', message: { role: 'user', content: 'first' } }]
   await planToolPayload({ model: A, tools: [] as never, messages: messages as never, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], source: 'prove', latchKey: owner })
   const record = await buildBoundPrefixRecordData(owner, messages as never, A)
-  const envEntries = (record?.sections ?? []).filter(s => s.name === 'env_info_simple')
-  const entryOf = (key: string) => envEntries.find(e => e.key === key)
-  const sectionA = entryOf(A)?.value ?? ''
-  const sectionB = entryOf(B)?.value ?? ''
-  check('the record carries the environment section under both models\' keys, each as first sent, the current one last', envEntries.length === 2 && envEntries.at(-1)?.key === B && sectionA !== '' && a1.includes(sectionA) && !sectionA.includes(movedCwd) && sectionB !== '' && b.includes(sectionB) && sectionB.includes(movedCwd), j(envEntries.map(e => [e.key, (e.value ?? '').slice(0, 60)])))
+  const entriesOf = (name: string) => (record?.sections ?? []).filter(s => s.name === name)
+  const envEntries = entriesOf('env_info_simple')
+  const headEntries = entriesOf('head')
+  const entryOf = (entries: typeof envEntries, key: string) => entries.find(e => e.key === key)?.value ?? ''
+  const sectionA = entryOf(envEntries, A)
+  const sectionB = entryOf(envEntries, B)
+  check('the record carries the environment section under both models\' keys, each as first sent, the current one last', envEntries.length === 2 && envEntries.at(-1)?.key === B && sectionA !== '' && a1.includes(sectionA) && sectionB !== '' && b.includes(sectionB), j(envEntries.map(e => [e.key, (e.value ?? '').slice(0, 60)])))
+  check('the record carries the head under both models\' keys: A\'s without the added directory, B\'s with it', headEntries.length === 2 && entryOf(headEntries, A) === headOf(a1) && !entryOf(headEntries, A).includes(movedCwd) && entryOf(headEntries, B) === headOf(b) && entryOf(headEntries, B).includes(movedCwd), j(headEntries.map(e => [e.key, e.value])))
   const row = await boundPrefixRecordToEmit(owner, messages as never, A)
   const persisted = JSON.parse(j(row))
   clearSystemPromptSections()
@@ -83,7 +87,7 @@ try {
   const a3 = text(await getSystemPrompt([], A, []))
   const b3 = text(await getSystemPrompt([], B, []))
   check('restored: A\'s first prompt is served byte for byte although the live world carries the added directory', a3 === a1, j(envBlockOf(a3).slice(0, 200)))
-  check('restored: B\'s first prompt too', envBlockOf(b3) === envBlockOf(b))
+  check('restored: B\'s first prompt too', envBlockOf(b3) === envBlockOf(b) && headOf(b3) === headOf(b))
 } finally {
   clearSystemPromptSections()
   process.chdir(cwd)

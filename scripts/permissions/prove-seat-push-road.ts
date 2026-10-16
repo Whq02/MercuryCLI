@@ -145,9 +145,13 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   const noChannel = postureFor('none', 'flow', contextOf('flow'))
   check('a headless run with NO host keeps its own words (asks are denied; no operator line — there is no operator to be present)', /no host answers an ask/.test(sessionLine(noChannel)) && /denied automatically/.test(sessionLine(noChannel)) && needsLine(noChannel) === '', `${sessionLine(noChannel)}\n${needsLine(noChannel)}`)
   const interactive = postureFor('sdk', undefined, contextOf('flow'))
-  check('an interactive session keeps its own words (no operator line)', /Session: interactive/.test(sessionLine(interactive)) && needsLine(interactive) === '', sessionLine(interactive))
+  check('an interactive session with nothing armed carries no posture block and no operator line', interactive === '' && needsLine(interactive) === '', interactive)
+  check('an interactive parent\'s child carries no doctrine line', posture.getRuntimePostureDoctrineLine() === null)
+  posture.resetRuntimePostureForTest()
+  setAskChannel('sdk')
+  posture.markSessionNonInteractive('flow')
   const doctrine = posture.getRuntimePostureDoctrineLine() ?? ''
-  check('the subagent doctrine line is untouched', /Runtime posture:/.test(doctrine) && /file-lease denial/.test(doctrine), doctrine)
+  check('the headless subagent doctrine line is untouched', /Runtime posture: this process is headless/.test(doctrine) && /file-lease denial/.test(doctrine), doctrine)
   posture.resetRuntimePostureForTest()
   setAskChannel('operator')
 }
