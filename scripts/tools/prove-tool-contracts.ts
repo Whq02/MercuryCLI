@@ -255,6 +255,24 @@ const { z } = await import('zod/v4')
     bigMsg.slice(0, 160),
   )
 
+  const sized = z.strictObject({ items: z.array(z.object({ content: z.string() })).min(1).max(20), limit: z.number().int().min(1).max(50).optional() })
+  const stringForArray = sized.safeParse({ items: '[{"content":"the deploy target is the blue rack"}]', limit: '20' })
+  const stringForArrayMsg = formatZodValidationError('Retain', (stringForArray as { error: never }).error)
+  t(
+    'a string where an array goes reads the one type sentence per parameter',
+    stringForArrayMsg.includes('The parameter `items` was expected to be of type array but string was provided') &&
+      stringForArrayMsg.includes('The parameter `limit` was expected to be of type number but string was provided'),
+    stringForArrayMsg.replace(/\n/g, ' | '),
+  )
+  t(
+    'no bound measured on the wrongly typed value rides beside it (zod runs the length check on any value with a length)',
+    !stringForArrayMsg.includes('characters') && !stringForArrayMsg.includes('maximum of 20') && stringForArrayMsg.split('\n').length === 3,
+    stringForArrayMsg.replace(/\n/g, ' | '),
+  )
+  const tooMany = sized.safeParse({ items: Array.from({ length: 21 }, () => ({ content: 'x' })) })
+  const tooManyMsg = formatZodValidationError('Retain', (tooMany as { error: never }).error)
+  t('a real array over the bound still reads the bound in items', tooManyMsg.includes('The parameter `items` must have a maximum of 20 items'), tooManyMsg.replace(/\n/g, ' | '))
+
   const refined = z
     .strictObject({ timeout_ms: z.number() })
     .refine(v => v.timeout_ms <= 100, {

@@ -203,7 +203,9 @@ export function formatZodValidationError(
   error: z.ZodError,
   inputSchema?: unknown,
 ): string {
-  const lines = error.issues.flatMap(issue => formatIssue(issue as IssueLike, inputSchema, toolName))
+  const mistyped = new Set(error.issues.filter(issue => issue.code === 'invalid_type').map(issue => formatIssuePath(issue.path)))
+  const issues = error.issues.filter(issue => !((issue.code === 'too_small' || issue.code === 'too_big') && mistyped.has(formatIssuePath(issue.path))))
+  const lines = issues.flatMap(issue => formatIssue(issue as IssueLike, inputSchema, toolName))
   if (lines.length === 0) {
     return error.message
   }
