@@ -169,6 +169,31 @@ section('§4 under the hosted capture profile the still window stays authored; t
   rmSync(scratch, { recursive: true, force: true })
 }
 
+section("§5 the driver's proof hygiene is named in its closing report: a child discovers no local server unless the caller set MERCURY_LOCAL_PROBE_TARGETS")
+{
+  type Report = { probe_targets?: { value?: string; defaulted?: boolean; note?: string } }
+  const drive = (env: NodeJS.ProcessEnv): { child: string; report: Report } => {
+    const scratch = mkdtempSync(join(tmpdir(), 'ptydrive-hygiene-'))
+    const out = join(scratch, 'drive.jsonl')
+    const res = spawnSync(
+      driver.python,
+      [PTYDRIVE, '--cols', '40', '--rows', '10', '--seconds', '2', '--out', out, '--', 'sh', '-c', 'printf "probe=%s" "$MERCURY_LOCAL_PROBE_TARGETS"'],
+      { encoding: 'utf8', timeout: 30_000, env },
+    )
+    const child = driveRows(out).filter(r => typeof r.b64 === 'string' && typeof r.ts === 'number').map(r => Buffer.from(r.b64!, 'base64').toString('utf8')).join('')
+    const line = (res.stdout ?? '').trim().split('\n').filter(l => l.startsWith('{')).pop() ?? '{}'
+    rmSync(scratch, { recursive: true, force: true })
+    return { child, report: JSON.parse(line) as Report }
+  }
+  const unset = { ...process.env }
+  delete unset.MERCURY_LOCAL_PROBE_TARGETS
+  const defaulted = drive(unset)
+  check('with the variable unset in the caller, the child sees none (nothing on this box is discovered)', defaulted.child.includes('probe=none'), defaulted.child.slice(-80))
+  check('the closing report says so: probe_targets none, defaulted true, the note naming the variable', defaulted.report.probe_targets?.value === 'none' && defaulted.report.probe_targets?.defaulted === true && (defaulted.report.probe_targets?.note ?? '').includes('MERCURY_LOCAL_PROBE_TARGETS'), JSON.stringify(defaulted.report.probe_targets))
+  const pinned = drive({ ...process.env, MERCURY_LOCAL_PROBE_TARGETS: 'ollama=http://127.0.0.1:9' })
+  check("a caller's own value rides through to the child and the report reads it as not defaulted", pinned.child.includes('probe=ollama=http://127.0.0.1:9') && pinned.report.probe_targets?.value === 'ollama=http://127.0.0.1:9' && pinned.report.probe_targets?.defaulted === false, `${pinned.child.slice(-80)} · ${JSON.stringify(pinned.report.probe_targets)}`)
+}
+
 console.log(`\n${checks} checks, ${failures} failures`)
 console.log(failures === 0 ? 'prove-ptydrive-settle-gate: ALL LAWS HOLD' : `prove-ptydrive-settle-gate: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

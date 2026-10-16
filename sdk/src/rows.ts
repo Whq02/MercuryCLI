@@ -280,6 +280,7 @@ export interface CompactionRow {
   summary_cap_tokens?: number
   attempt?: number
   exit?: 'landed' | 'cancelled' | 'failed'
+  reason?: string
   tokens_before?: number
 }
 export interface ModeRow {
@@ -1710,6 +1711,9 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
           "cancelled",
           "failed"
         ]
+      },
+      "reason": {
+        "type": "string"
       },
       "tokens_before": {
         "type": "number"
