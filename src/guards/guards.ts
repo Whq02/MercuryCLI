@@ -10,6 +10,7 @@ export type ToolCallUnderGuard = {
   callId: string
   messages: Message[]
   toolRef?: Tool
+  asksAnswerable?: boolean
 }
 
 type ToolGuardVerdict =

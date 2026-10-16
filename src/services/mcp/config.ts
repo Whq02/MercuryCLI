@@ -6,6 +6,7 @@ import { stripBOM } from '../../utils/jsonRead.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import {
+  checkHasTrustDialogAccepted,
   getCurrentProjectConfig,
   untrustedWorkspaceHeadless,
   getGlobalConfig,
@@ -340,7 +341,23 @@ export function mcpServersSkippedForTrustLine(): string | null {
     count = 0
   }
   if (count === 0) return null
-  return `mcp: this folder is not trusted, so ${count === 1 ? 'its 1 project MCP server was' : `its ${count} project MCP servers were`} not loaded from ${PROJECT_MCP_FILE_SPELLING} — start Mercury here once and accept the trust card, and ${count === 1 ? 'it connects' : 'they connect'}`
+  return skippedForTrustSentence(count === 1 ? 'its 1 project MCP server was' : `its ${count} project MCP servers were`, count === 1)
+}
+
+function skippedForTrustSentence(subject: string, singular: boolean): string {
+  return `mcp: this folder is not trusted, so ${subject} not loaded from ${PROJECT_MCP_FILE_SPELLING} — start Mercury here once and accept the trust card, and ${singular ? 'it connects' : 'they connect'}`
+}
+
+export function mcpServerSkippedForTrustLine(name: string, config: ScopedMcpServerConfig): string | null {
+  if (config.scope !== 'project') return null
+  let trusted = true
+  try {
+    trusted = checkHasTrustDialogAccepted()
+  } catch {
+    trusted = true
+  }
+  if (trusted) return null
+  return skippedForTrustSentence(`its project MCP server ${name} was`, true)
 }
 
 export const PROJECT_MCP_FILE_SPELLING = `${MERCURY_PROJECT_DIR}/${PROJECT_MCP_FILE}`
