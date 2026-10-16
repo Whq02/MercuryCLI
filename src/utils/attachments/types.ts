@@ -31,7 +31,7 @@ export type AgentRosterRow = {
 type FileLocation = { filename: string; displayPath: string }
 type ReadFileBody = FileLocation & { content: FileReadToolOutput; truncated?: boolean }
 type PathLocation = { path: string; displayPath: string }
-export type MemoryDelivery = { key: string; ids: string[]; chars: number; reserve?: boolean }
+export type MemoryDelivery = { key: string; ids: string[]; chars: number; reserve?: boolean; event?: boolean }
 type MemoryFactPage = { delivery?: MemoryDelivery; path: string; content: string; mtimeMs: number; header?: string; ids?: string[] }
 type RosterDelta = { addedNames: string[]; removedNames: string[] }
 

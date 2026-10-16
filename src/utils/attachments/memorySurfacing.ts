@@ -85,6 +85,8 @@ function recentToolPaths(messages: readonly Message[]): string[] {
   return [...paths]
 }
 
+const RESERVE_EVENTS_PER_TURN = 3
+
 function turnAllowance(messages: readonly Message[], newInput: boolean): { records: number; chars: number; reserve: boolean } {
   if (newInput) return { records: 2, chars: 1200, reserve: true }
   const start = messages.findLastIndex(message => isOperatorTurn(message))
@@ -97,7 +99,7 @@ function turnAllowance(messages: readonly Message[], newInput: boolean): { recor
   for (const message of messages.slice(start + 1)) if (message.type === 'attachment' && message.attachment.type === 'context_capsule') for (const delivery of message.attachment.memoryDeliveries ?? []) deliveries.set(delivery.key, delivery)
   const delivered = [...deliveries.values()]
   const counted = delivered.filter(row => !row.reserve)
-  return { records: Math.max(0, 2 - counted.reduce((n, row) => n + row.ids.length, 0)), chars: Math.max(0, 1200 - counted.reduce((n, row) => n + row.chars, 0)), reserve: !delivered.some(row => row.reserve) }
+  return { records: Math.max(0, 2 - counted.reduce((n, row) => n + row.ids.length, 0)), chars: Math.max(0, 1200 - counted.reduce((n, row) => n + row.chars, 0)), reserve: delivered.filter(row => row.event).length < RESERVE_EVENTS_PER_TURN }
 }
 
 const FULL_TEXT_CAP = 350
@@ -140,7 +142,7 @@ function pack(hits: readonly AutomaticMemoryHit[], visible: (hit: AutomaticMemor
       reserve -= size - header.length - 41
       reserved = true
     } else slots--
-    memories.push({ path: hit.pagePath, content, header, mtimeMs: 0, ids: [hit.id], delivery: { key: hit.witness, ids: [hit.id], chars: size, ...(reserved ? { reserve: true } : {}) } })
+    memories.push({ path: hit.pagePath, content, header, mtimeMs: 0, ids: [hit.id], delivery: { key: hit.witness, ids: [hit.id], chars: size, ...(reserved ? { reserve: true, ...(hit.admission === 'constraint' ? { event: true } : {}) } : {}) } })
     chars += size
   }
   return memories.length ? [{ type: 'relevant_memories', memories }] : []

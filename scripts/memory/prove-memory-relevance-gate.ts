@@ -60,6 +60,24 @@ try {
   assert.ok(memoryRows(afterSpent).some(row => row.ids?.includes('seq:29') && row.content.includes('on the same subject as the rule above')), 'its companion rides the reserve in the compact form')
   const again = getRelevantMemoryAttachments(null, [turn('quartz engine cobalt receipt', 'u3'), ...asMessages(spent), ...asMessages(afterSpent), ...toolRound('cat docs/releases/notes.md', 'r3')], context)
   assert.equal(again.length, 0, 'a visible constraint is never reprinted on a later round')
+  doc.sections[0]!.entries.push(
+    { seq: 33, time: now, source: 'tool:Retain s:test', text: 'Release notes list Added, Changed and Fixed; never a Removed section.' },
+    { seq: 34, time: now, source: 'tool:Retain s:test', text: 'Release notes list the user-facing facts. Never name the inherited estate.' },
+    { seq: 35, time: now, source: 'tool:Retain s:test', text: 'Never edit packages/core/schema.sql without a migration file beside it.' },
+    { seq: 36, time: now, source: 'tool:Retain s:test', text: 'The ceilings in config/limits.yaml are the owner\'s; never change them without his word.' },
+  )
+  writeFileSync(join(dir, 'topic-harbour.md'), serializeTopicDoc(doc))
+  const drafting = memoryRows(getRelevantMemoryAttachments('draft the release notes for the harbour release', [], context)).flatMap(row => row.ids ?? [])
+  assert.ok(drafting.includes('seq:33'), 'a rule whose trigger term and rule word sit either side of a semicolon is still one sentence to the trigger')
+  const drafting2 = getRelevantMemoryAttachments('write the changelog for the harbour release', [], context)
+  assert.notEqual(automaticMemoryCandidates('write the changelog for the harbour release', { dir, limit: Infinity }).find(row => row.id === 'seq:34')?.admission, 'constraint', 'a rule word only in the sentence after the trigger term is not an exact trigger (sentences are whole, not merged)')
+  doc.sections[0]!.entries.push({ seq: 37, time: now, source: 'operator', text: 'retired: operator marked no longer current (was: Release notes must keep the private harbour key out of public copy.)', supersedes: '27' } as never)
+  writeFileSync(join(dir, 'topic-harbour.md'), serializeTopicDoc(doc))
+  assert.ok(!automaticMemoryCandidates('draft the release notes for the harbour release', { dir, limit: Infinity }).some(row => row.id === 'seq:37'), 'a retirement record (a tombstone) is never surfaced automatically')
+  const schema = getRelevantMemoryAttachments(null, [turn('tidy the schema', 'u4'), { type: 'assistant', uuid: 'a4', timestamp: now, message: { role: 'assistant', content: [{ type: 'tool_use', id: 't4', name: 'Edit', input: { file_path: join(home, 'repo/packages/core/schema.sql'), old_string: 'a', new_string: 'b' } }] } } as never, { type: 'user', uuid: 'r4', timestamp: now, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't4', content: 'ok' }] } } as never], context)
+  assert.ok(memoryRows(schema).flatMap(row => row.ids ?? []).includes('seq:35'), 'a rule citing a path under a root outside the seven named ones triggers when that file is edited')
+  const limits = getRelevantMemoryAttachments(null, [turn('raise the limits', 'u5'), ...toolRound('sed -n 1,20p config/limits.yaml', 'r5')], context)
+  assert.ok(memoryRows(limits).flatMap(row => row.ids ?? []).includes('seq:36'), 'a rule citing config/… triggers when a command names that file')
   const caption = getRelevantMemoryAttachments('give the subtitles to a new seat with the plain writing rules', [], context)
   assert.ok(memoryRows(caption).some(row => row.ids?.includes('seq:30')), 'a captions task admits the writing constraint')
   const paraphrase = getRelevantMemoryAttachments('fix the caption wording on the harbour film', [], context)
