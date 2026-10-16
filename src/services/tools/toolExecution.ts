@@ -352,7 +352,7 @@ export async function* runToolUse(
       buildSchemaNotSentHint(closest, toolUseContext.messages, toolUseContext.options.tools, toolUseContext.options.engineModel) !== null
     const withheldByRule = (() => {
       const { toolPermissionContext: permissionContext, mcp } = toolUseContext.getAppState()
-      const named = findToolByName([...getAllBaseTools(), ...mcp.tools], requestedName)
+      const named = findToolByName([...getAllBaseTools(), ...(mcp?.tools ?? [])], requestedName)
       const covering = named === undefined ? [] : wholeToolDenyRulesCovering(permissionContext, named)
       const rule = covering[0]
       if (rule === undefined) return null
