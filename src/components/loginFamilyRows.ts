@@ -122,7 +122,7 @@ export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginF
 }
 
 export const SIGN_IN_LATER_ROW = {
-  label: 'Sign in later to look around. A sign-in or a local model is needed to run the agent.',
+  label: 'Sign in later to look around. The agent needs a sign-in or a local model (/localsetup).',
   value: 'later',
 } as const
 
