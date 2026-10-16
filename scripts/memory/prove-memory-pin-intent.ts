@@ -79,6 +79,29 @@ try {
   check('a bare "remember:" without a rule word still never pins', bareRemember.refused === 1 && bareRemember.stored === 0, JSON.stringify(bareRemember.outcomes))
   const acceptanceOfNothing = await pin(null, 'always reply in British English', { messages: [human('what did the last session do?'), assistant('It fixed the dock.'), human('yes pin it')] })
   check('an acceptance with no rule stated in the owner\'s earlier words pins nothing', acceptanceOfNothing.refused === 1, JSON.stringify(acceptanceOfNothing.outcomes))
+  for (const [label, text, content] of [
+    ['pin this: <rule>', 'pin this: deploys go through the release script', 'Deploys go through the release script.'],
+    ['pin that: <rule>', 'pin that: deploys go through the release script', 'deploys go through the release script'],
+    ['<rule>. pin this.', 'deploys go through the release script. pin this.', 'deploys go through the release script'],
+    ['pin this: <rule> on its own line', 'pin this:\ndeploys go through the release script', 'deploys go through the release script'],
+  ] as const) {
+    const asked = await pin(text, content)
+    check(`the owner's own asking words pin without a rule word in the sentence (the ruling of 2026-10-16): "${label}"`, asked.stored === 1 && asked.refused === 0, JSON.stringify(asked.outcomes))
+  }
+  const askedPins = readPins(dir).filter(p => p.asked)
+  check('each of those lands on the shelf marked asked for by the owner', askedPins.length >= 4, JSON.stringify(askedPins))
+  const crewmatePin = await pin('pin this: deploys go through the release script', 'deploys go through the release script', { agentId: 'child' })
+  check('a crewmate typing the same asking words still cannot pin', crewmatePin.refused === 1 && crewmatePin.stored === 0 && JSON.stringify(crewmatePin.outcomes).includes('a crewmate cannot pin'), JSON.stringify(crewmatePin.outcomes))
+  for (const [text, content] of [
+    ['do not pin this: deploys go through the release script', 'deploys go through the release script'],
+    ['the draft says pin this: deploys go through the release script', 'deploys go through the release script'],
+    ['pin this tab to the dock', 'the tab is in the dock'],
+    ['can you pin this issue to the top of the list', 'the issue is at the top of the list'],
+    ['we deploy through the release script these days', 'we deploy through the release script'],
+  ] as const) {
+    const guarded = await pin(text, content)
+    check(`a negated, second-hand or unrelated "pin this" never pins: "${text}"`, guarded.refused === 1 && guarded.stored === 0, JSON.stringify(guarded.outcomes))
+  }
   const rule = 'always return the labelled receipt'
   const accepted = await pin(`Please remember this as a standing rule for every future chat here: ${rule}.`, rule)
   check('explicit owner directive is accepted', accepted.stored === 1 && accepted.refused === 0)

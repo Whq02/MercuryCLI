@@ -1,12 +1,12 @@
 
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import useInput from '../../ink/hooks/use-input.js'
 import {
   isTopOverlayNow,
   useRegisterOverlay,
 } from '../../context/overlayContext.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
-import { trySeedComposer } from '../../utils/cockpit/composerSeed.js'
+import { enterHeldByQueuedWords, reportConsentDeclineRow, trySeedComposer } from '../../utils/cockpit/composerSeed.js'
 import {
   normalizeFullWidthDigits,
   normalizeFullWidthSpace,
@@ -65,6 +65,13 @@ export function useSelectInput<T>({
   const isOnFirstOption = state.focusedIndex === 1
   const isWindowAtTop = state.visibleFromIndex === 0
 
+  const declineRow = 1 + state.options.findIndex(option => ['no', 'reject'].includes(String(optionValueOf(option))))
+  const reporter = useRef({})
+  useEffect(
+    () => (isDisabled ? undefined : reportConsentDeclineRow(reporter.current, declineRow > 0 ? declineRow : null)),
+    [isDisabled, declineRow],
+  )
+
   useKeybindings(
     {
       'select:next': () => {
@@ -88,7 +95,7 @@ export function useSelectInput<T>({
         state.focusLastOption()
       },
       'select:accept': () => {
-        if (disableSelection === true) return
+        if (disableSelection === true || enterHeldByQueuedWords()) return
         if (state.focusedValue === undefined) return
         const focused = state.options[state.focusedIndex - 1]
         if (focused?.disabled) return
