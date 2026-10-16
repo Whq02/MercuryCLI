@@ -1545,7 +1545,7 @@ export async function compactConversation(
     boundary.compactMetadata.postTokens = truePostCompactTokenCount
     await releaseLspDocumentsForContext('compact_full')
     transaction.commit()
-    restoreBoundPrefixFromMessages(buildPostCompactMessages(partial), { rosterOnly: context.agentId !== undefined })
+    restoreBoundPrefixFromMessages(buildPostCompactMessages(partial), { rosterOnly: context.agentId !== undefined, liveSystemContext: true })
     advanceContextEpoch(owner, {
       kind: isAutoCompact ? 'auto-compact' : 'manual-compact',
       reason: isAutoCompact ? 'auto-compact threshold' : 'operator /compact',
@@ -1700,7 +1700,7 @@ export async function partialCompactConversation(
     boundary.compactMetadata.postTokens = truePostCompactTokenCount
     await releaseLspDocumentsForContext('compact_partial')
     transaction.commit()
-    restoreBoundPrefixFromMessages(buildPostCompactMessages(partialResult), { rosterOnly: context.agentId !== undefined })
+    restoreBoundPrefixFromMessages(buildPostCompactMessages(partialResult), { rosterOnly: context.agentId !== undefined, liveSystemContext: true })
     return {
       ...partialResult,
       hookResults: [...beforeRows, ...afterRows],

@@ -162,7 +162,7 @@ import { flushSessionStorage, recordContentReplacement } from '../utils/sessionS
 import { handleStopHooks } from '../query/stopHooks.js'
 import { buildRequestContextPlan, reconcileAppliedPlanUsage, type RequestContextPlan } from '../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
-import { bindRequestGauge, requestGaugeFixed, settleRequestGauge } from '../services/run/requestGauge.js'
+import { bindRequestGauge, requestGaugeDigest, requestGaugeFixed, settleRequestGauge } from '../services/run/requestGauge.js'
 import { getContextEpoch } from '../services/run/contextEpochs.js'
 import { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } from '../services/compact/compact.js'
 import { toolToAPISchema } from '../utils/api.js'
@@ -279,6 +279,7 @@ type IterationState = {
   ordinal: number
   requestPlan: RequestContextPlan
   messagesForQuery: Message[]
+  carriedRows: number
   toolUseContext: ToolUseContext
   callChain: ToolCallChain
   chainIdForAnalytics: string
@@ -596,7 +597,8 @@ async function* streamModel(
           iter.requestPlan.gauge.fixed,
           iter.requestPlan.gauge.rebase,
         )
-        if (requestGauge !== undefined && requestGauge.digest === iter.requestPlan.gauge?.digest) requestGauge.sourceDigest = iter.requestPlan.gauge.sourceDigest
+        if (requestGauge !== undefined && iter.carriedRows > 0) requestGauge.sourceDigest = requestGaugeDigest(iter.messagesForQuery.slice(0, iter.messagesForQuery.length - iter.carriedRows))
+        else if (requestGauge !== undefined && requestGauge.digest === iter.requestPlan.gauge?.digest) requestGauge.sourceDigest = iter.requestPlan.gauge.sourceDigest
         const projectedReplies = new Map<string, AssistantMessage>()
         let fixedPrefix: import('../services/providers/anthropic/prefixLedger.js').PrefixVerdict['fixedPrefix']
         const settleGauge = (message: AssistantMessage): void => {
@@ -1060,6 +1062,7 @@ async function* runEventMachine(
       forcedFold !== undefined
         ? splitCarriedOperatorTail(messagesForQuery)
         : { head: messagesForQuery, carry: [] as Message[], hasHistory: true }
+    let carriedRows = 0
     const {
       compactionResult,
       consecutiveFailures,
@@ -1171,6 +1174,7 @@ async function* runEventMachine(
       resetSessionEnvNoticeOnCompaction()
 
       messagesForQuery = [...postCompactMessages, ...foldSplit.carry]
+      carriedRows = foldSplit.carry.length
       overflowEpisode = { pruned: overflowEpisode.pruned, folded: true }
     } else if (consecutiveFailures !== undefined) {
       tracking = {
@@ -1294,6 +1298,7 @@ async function* runEventMachine(
       ordinal,
       requestPlan,
       messagesForQuery,
+      carriedRows,
       toolUseContext,
       callChain,
       chainIdForAnalytics,
