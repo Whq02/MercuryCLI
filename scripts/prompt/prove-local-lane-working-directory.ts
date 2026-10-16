@@ -84,7 +84,6 @@ const LOCAL_MODEL = `local/${MODEL_ID}`
 const CLOUD_MODEL = 'claude-fable-5-1'
 const ENV_HEADING = '# Environment'
 const MEMORY_WORDS = 'What Mercury remembers about this project lives in topic pages under'
-const ENV_LINE = `Primary working directory: ${scratch}`
 const LINE = `Files you create go in the working directory: ${scratch}. The memory folder named above is not it.`
 const tool = (name: string): { name: string } => ({ name })
 const pool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate', 'Skill', 'AskUserQuestion'].map(tool)
@@ -100,13 +99,13 @@ try {
   section('0 · the lane: the fixture model is a discovered local record')
   check('local record present', localRecordFor(LOCAL_MODEL) !== undefined)
 
-  section('1 · a first build for a local record: the environment section carries the working-directory line, right after the primary working directory; the memory folder is named above it')
+  section('1 · a first build for a local record: the environment section opens on the working-directory line (the head names the working directory); the memory folder is named above it')
   clearSystemPromptSections()
   const local = await build(LOCAL_MODEL)
   const block = envBlock(local)
   check('the environment section renders', block.startsWith(ENV_HEADING), block.slice(0, 80))
   const lines = block.split('\n').map(l => l.trim()).filter(l => l !== '')
-  check('the working-directory line follows the primary working directory', lines[1] === `- ${ENV_LINE}` && lines[2] === `- ${LINE}`, j(lines.slice(0, 3)))
+  check('the working-directory line opens the environment section', lines[1] === `- ${LINE}`, j(lines.slice(0, 3)))
   check('the memory section (the memory home) is named ABOVE the line', local.includes(MEMORY_WORDS) && local.indexOf(LINE) !== -1 && local.indexOf(MEMORY_WORDS) < local.indexOf(LINE), `memory at ${local.indexOf(MEMORY_WORDS)}, line at ${local.indexOf(LINE)}`)
   check('the section cache keys the environment section on the local model', getSystemPromptSectionCache().get('env_info_simple')?.key === LOCAL_MODEL, j(getSystemPromptSectionCache().get('env_info_simple')?.key))
 

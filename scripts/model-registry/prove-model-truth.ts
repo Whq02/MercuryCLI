@@ -69,9 +69,9 @@ section('5. prompt currency copy (prompts.ts) — no hardcoded vendor list; the 
     !/MODEL_CURRENCY_NOTE = `[^`]*(claude-|gpt-|glm-|gemini-|deepseek)/.test(prompts),
   )
   check(
-    'the neutral live-catalogue rule is the note',
+    'the neutral rule is the note: stale training-era ids, verify against live documentation or the operator\'s choice (the live road to the running model is the Read description\'s mercury://seat line)',
     /MODEL_CURRENCY_NOTE = `Model currency:/.test(prompts) &&
-      /catalogue is the source of truth/.test(prompts),
+      /may be stale\. When building AI applications, verify current model ids against live provider documentation or the operator's stated choice/.test(prompts),
   )
 }
 
