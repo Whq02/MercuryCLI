@@ -7,10 +7,12 @@ interface OwnerScopedStoreOptions<T> {
   dispose?: (state: T, owner: OwnerKey) => void | Promise<void>
   retain?: (state: T, owner: OwnerKey) => boolean
   cap?: number
+  live?: true
 }
 
 export class OwnerScopedStore<T> {
   readonly name: string
+  readonly live?: true
   #create: (owner: OwnerKey) => T
   #dispose?: (state: T, owner: OwnerKey) => void | Promise<void>
   #retain?: (state: T, owner: OwnerKey) => boolean
@@ -21,6 +23,7 @@ export class OwnerScopedStore<T> {
 
   constructor(opts: OwnerScopedStoreOptions<T>) {
     this.name = opts.name
+    if (opts.live) this.live = true
     this.#create = opts.create
     this.#dispose = opts.dispose
     this.#retain = opts.retain
