@@ -537,11 +537,12 @@ the same model, blank and listed on the board immediately; the cleared chat is n
 lost. With no chat open there is nothing to clear, and a session mid-turn is
 never dropped under you: the refusal names the one action that unblocks it
 (`Esc` to interrupt, then `/clear`). When leaving Mercury (`/exit` or
-`ctrl+c`/`ctrl+d`), once per session the exit confirmation card (if live work
-is running) or the farewell line prints `Something broke?
-https://mercury-cli.ai/report`; inside a session, `/bug --short <what you
-tried>` files the same short tester report (OS, what you tried, what broke, no
-health dump).
+`ctrl+c`/`ctrl+d`) after a session in which a tool call failed or a turn ended
+on an error, once per session the exit confirmation card (if live work is
+running) or the farewell line prints `Something broke?
+https://mercury-cli.ai/report`; a clean session ends on the farewell alone.
+Inside a session, `/bug --short <what you tried>` files the same short tester
+report (OS, what you tried, what broke, no health dump).
 
 ## Bringing a chat back
 

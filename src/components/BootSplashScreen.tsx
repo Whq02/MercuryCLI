@@ -153,7 +153,7 @@ export function BootSplashScreen(): React.ReactNode {
   const [loginsOpen, setLoginsOpen] = useState(faceDoor === 'logins');
   const [loginsFamily, setLoginsFamily] = useState<string | undefined>(faceDoor === 'logins' ? faceDoorOpener?.family : undefined);
   const [loginsBack, setLoginsBack] = useState<'route' | 'picker' | null>(faceDoor === 'logins' && faceDoorOpener?.returnToOpener === true ? 'route' : null);
-  const [modelDefaultOpen, setModelDefaultOpen] = useState(false);
+  const [modelDefaultOpen, setModelDefaultOpen] = useState(faceDoor === 'model' && sessionDefaultsKeyOn());
   const [presenceEpoch, setPresenceEpoch] = useState(0);
   const closeLogins = (): void => {
     const back = loginsBack;

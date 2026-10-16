@@ -13,7 +13,7 @@ export function consumeKitManagerDeepLink(): boolean {
   return armed
 }
 
-export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents'
+export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents' | 'model'
 interface FaceDoorOpenerV1 {
   family?: string
   returnToOpener?: boolean
