@@ -50,22 +50,31 @@ function crewScreensVerdict(dir: string): (path: string, actual: Buffer, expecte
     return { same: false, environment: true, detail: `${volatile} rows differ only in the writer's volatile cells (a clock, a duration, the caret's blink phase)` }
   }
 }
-function concourseDraftVerdict(_path: string, actual: Buffer, expected: Buffer): Verdict {
-  if (actual.equals(expected)) return { same: true, environment: false, detail: '' }
-  const volatileCells = (row: string): string => row.replace(/▌/g, ' ').replace(/\b\d{2}:\d{2}:\d{2}\b/g, '00:00:00').replace(/started in \S+ */g, 'started in <checkout>')
-  const stored = expected.toString('utf8').split('\n')
-  const fresh = actual.toString('utf8').split('\n')
-  if (stored.length !== fresh.length) return { same: false, environment: false, detail: `row count ${stored.length} -> ${fresh.length}` }
-  const moved: number[] = []
-  let volatile = 0
-  stored.forEach((row, index) => {
-    if (row === fresh[index]) return
-    if (volatileCells(row) === volatileCells(fresh[index] ?? '')) volatile++
-    else moved.push(index)
-  })
-  if (moved.length > 0) return { same: false, environment: false, detail: `rows differ beyond the capture's volatile cells: ${moved.slice(0, 5).join(', ')} — ${JSON.stringify(stored[moved[0]!]?.trim())} -> ${JSON.stringify(fresh[moved[0]!]?.trim())}` }
-  return { same: false, environment: true, detail: `${volatile} rows differ only in the capture's volatile cells (the caret's blink phase, the send's wall-clock time, the checkout's name)` }
+function volatileRowsVerdict(volatileCells: (row: string) => string, cells: string): (path: string, actual: Buffer, expected: Buffer) => Verdict {
+  return (_path, actual, expected) => {
+    if (actual.equals(expected)) return { same: true, environment: false, detail: '' }
+    const stored = expected.toString('utf8').split('\n')
+    const fresh = actual.toString('utf8').split('\n')
+    if (stored.length !== fresh.length) return { same: false, environment: false, detail: `row count ${stored.length} -> ${fresh.length}` }
+    const moved: number[] = []
+    let volatile = 0
+    stored.forEach((row, index) => {
+      if (row === fresh[index]) return
+      if (volatileCells(row) === volatileCells(fresh[index] ?? '')) volatile++
+      else moved.push(index)
+    })
+    if (moved.length > 0) return { same: false, environment: false, detail: `rows differ beyond the capture's volatile cells: ${moved.slice(0, 5).join(', ')} — ${JSON.stringify(stored[moved[0]!]?.trim())} -> ${JSON.stringify(fresh[moved[0]!]?.trim())}` }
+    return { same: false, environment: true, detail: `${volatile} rows differ only in the capture's volatile cells (${cells})` }
+  }
 }
+const concourseDraftVerdict = volatileRowsVerdict(
+  row => row.replace(/▌/g, ' ').replace(/\b\d{2}:\d{2}:\d{2}\b/g, '00:00:00').replace(/started in \S+ */g, 'started in <checkout>'),
+  "the caret's blink phase, the send's wall-clock time, the checkout's name",
+)
+const wallClockVerdict = volatileRowsVerdict(
+  row => row.replace(/\b\d{2}:\d{2}:\d{2}\b/g, '00:00:00').replace(/\b\d{2}:\d{2}\b/g, '00:00'),
+  "the rows' wall-clock stamps, the status row's clock, the switch row's time",
+)
 const tracked = git('ls-files', '-z').split('\0').filter(Boolean)
 const historical = new Set<string>()
 const historicalLines = readFileSync(join(import.meta.dir, 'frames-historical.tsv'), 'utf8').trimEnd().split('\n')
@@ -131,6 +140,10 @@ families.push(
   { id: 'config-thinking', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/config-thinking/')), script: 'scripts/ui/prove-config-thinking-row.ts', args: ['--frames', '$OUT'], output: file },
   { id: 'appearance-digit', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/appearance-digit/')), script: 'scripts/ui/prove-appearance-digit-and-config-theme.ts', args: ['--frames', '$OUT'], output: file },
   { id: 'concourse-restored-draft', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/concourse-restored-draft/')), script: 'scripts/ui/prove-concourse-restored-draft.ts', args: ['--frames', '$OUT'], output: file, judge: concourseDraftVerdict },
+  { id: 'picker-effort-save', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/picker-effort-save/')), script: 'scripts/ui/prove-picker-effort-save-refusal.ts', args: ['--frames', '$OUT'], output: file },
+  { id: 'small-command-rows', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/small-command-rows/')), script: 'scripts/ui/prove-small-command-rows.ts', args: ['--frames', '$OUT'], output: file, judge: wallClockVerdict },
+  { id: 'tester-door', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/tester-door/')), script: 'scripts/ui/prove-tester-door.ts', args: ['--frames', '$OUT'], output: file },
+  { id: 'thinking-withheld', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/thinking-withheld/')), script: 'scripts/ui/prove-thinking-withheld-drive.ts', args: ['--frames', '$OUT'], output: file, judge: wallClockVerdict },
   { id: 'live-grids', paths: currentFrames.filter(path => path.startsWith('design-system/live/grids/')), script: 'scripts/ui/generate-visual-baseline.ts', args: ['--out', '$OUT', '--jobs', '1'], output: (path, dir) => readFileSync(join(dir, 'grids', basename(path))), judge: liveGridVerdict },
   { id: 'session-start', paths: currentFrames.filter(path => /session-start-frames-/.test(path)), script: 'scripts/ui/prove-session-start-screen.ts', args: ['--pin', '--pin-dir', '$OUT'], output: file },
   { id: 'crew-screens', paths: currentFrames.filter(path => /crew-screens-frames-/.test(path)), script: 'scripts/ui/prove-crew-screens-unchanged.ts', args: ['--frames', '$OUT', '--jobs', '1'], judge: (path, actual, expected) => crewScreensVerdict(join(work, 'crew-screens'))(path, actual, expected), output: (path, dir) => {
@@ -197,6 +210,6 @@ for (const family of selected) {
 }
 for (const [path, digest] of hashes) assert.equal(createHash('sha256').update(readFileSync(join(ROOT, path))).digest('hex'), digest, `writer modified committed frame: ${path}`)
 writeFileSync(join(work, 'frames.json'), JSON.stringify({ complete: only === undefined, checked: results.length, currentFrames: currentFrames.length, historical: tracked.filter(path => path.startsWith('scripts/visual-contract/baselines/')), results, failures, environment }, null, 2) + '\n')
-if (environment > 0) console.log(`CAPTURE ENVIRONMENT (${environment}; a live grid's session-count footer reads the capture's daemon, a crew screen's clocks and durations read the capture's moment; every other cell identical under the writer's own law)`)
+if (environment > 0) console.log(`CAPTURE ENVIRONMENT (${environment}; a live grid's session-count footer reads the capture's daemon, a crew screen's or a cockpit frame's clocks and durations read the capture's moment; every other cell identical under the writer's own law)`)
 console.log(`[${failures ? 'FAIL' : 'PASS'}] frame identity: ${results.length}/${currentFrames.length} frames re-rendered, ${failures} failures, ${environment} capture-environment rows; stored bytes untouched; receipts ${work}`)
 process.exit(failures ? 1 : 0)
