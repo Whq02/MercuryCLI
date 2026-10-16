@@ -18,7 +18,7 @@ const presence = await import(join(ROOT, 'src/services/vulcan/editorPresence.ts'
 const classCache = await import(join(ROOT, 'src/services/vulcan/classCache.ts'))
 const installer = await import(join(ROOT, 'src/services/vulcan/addonInstaller.ts'))
 const capsule = await import(join(ROOT, 'src/services/vulcan/godotCapsule.ts'))
-const providers = await import(join(ROOT, 'src/services/vulcan/godotProviders.ts'))
+const providers = await import(join(ROOT, 'scripts/vulcan/godotProviders.ts'))
 const optable = await import(join(ROOT, 'src/utils/vulcan/optable.generated.ts'))
 
 let failures = 0

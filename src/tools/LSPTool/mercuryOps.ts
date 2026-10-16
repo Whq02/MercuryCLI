@@ -18,7 +18,7 @@ import {
   subscribeLSPDiagnosticPublish,
 } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { builtinImplementationInfo } from '../../services/lsp/builtinServers.js'
-import { lspStartFailureWords, oneLine, remedyForLanguageServer, serverTitle, startFailureCause, unclaimedCause } from '../../services/lsp/failureWords.js'
+import { LSP_ONE_LINE_MAX, lspStartFailureWords, remedyForLanguageServer, serverTitle, startFailureCause, unclaimedCause } from '../../services/lsp/failureWords.js'
 import { isLspStartFailure, type LSPServerInstance, type LspStartFailure } from '../../services/lsp/LSPServerInstance.js'
 import type { LSPServerManager } from '../../services/lsp/LSPServerManager.js'
 import {
@@ -42,6 +42,7 @@ import { getFileModificationTime } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
 import { logError } from '../../utils/log.js'
 import { expandPath } from '../../utils/path.js'
+import { collapseAndClip } from '../../utils/stringUtils.js'
 import {
   checkWritePermissionForTool,
   pathInAllowedWorkingPath,
@@ -1964,7 +1965,7 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
       effect: {
         outcome: 'failed',
         changedPaths: [],
-        evidence: oneLine(reasons[0] ?? 'no claimed files'),
+        evidence: collapseAndClip(reasons[0] ?? 'no claimed files', LSP_ONE_LINE_MAX),
         details: { skipped: skipped.length },
       },
     }

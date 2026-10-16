@@ -110,7 +110,7 @@ try {
 }
 check('the tool-input normaliser keeps max_output_chars on its way to execution', normalized?.max_output_chars === 2000, normalizeError || JSON.stringify(normalized))
 const prompt = getSimplePrompt(null)
-check('the Bash prompt tells the model when to use the field', prompt.includes('`max_output_chars`') && /huge log|only the (beginning|head) and the (verdict|tail)/i.test(prompt))
+check('the Bash definition names the field in its description and says in the field what it does: the head and the tail of a long output', prompt.includes('`max_output_chars`') && /head and tail/.test(projected?.description ?? ''), projected?.description ?? '(absent)')
 
 section('§2 the format honours a per-call window: head + tail around the middle notice, the true line count')
 const cut = formatOutput(thirtyK, { maxLength: 2000 })
@@ -330,7 +330,7 @@ check('the PowerShell projection carries the field as an optional integer', psPr
 check('…with the very description Bash offers (one owner of the words)', psProjected?.description !== undefined && psProjected.description === projected?.description, (psProjected?.description ?? '(absent)').slice(0, 120))
 const bulletOf = (text: string): string => /^- The optional `max_output_chars`.*$/m.exec(text)?.[0] ?? ''
 const psPrompt = await getPowerShellPrompt()
-check('the PowerShell prompt carries the max_output_chars bullet from its one owner in the Bash prompt module (the Bash description says it in its Output paragraph instead)', bulletOf(psPrompt) !== '' && bulletOf(psPrompt) === `- ${maxOutputCharsBullet()}` && prompt.includes('`max_output_chars` (') && prompt.includes('keeps only the head and the tail of a long output'), bulletOf(psPrompt).slice(0, 120) || '(absent)')
+check('the PowerShell prompt carries the max_output_chars bullet from its one owner in the Bash prompt module (the Bash description names the field in its Output paragraph and the field says the head and the tail)', bulletOf(psPrompt) !== '' && bulletOf(psPrompt) === `- ${maxOutputCharsBullet()}` && prompt.includes('A smaller `max_output_chars` narrows that inline budget.') && /head and tail/.test(projected?.description ?? ''), bulletOf(psPrompt).slice(0, 120) || '(absent)')
 const psValidate = (value: unknown): Promise<Verdict> => validateWith(PowerShellTool as unknown as ShellTool, value)
 const psRefused = await psValidate(' 2000 ')
 check('PowerShell’s validateInput refuses a raw " 2000 " with the schema’s words', psRefused.result === false && (psRefused.message ?? '').startsWith('max_output_chars: '), JSON.stringify(psRefused))

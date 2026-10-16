@@ -23,7 +23,6 @@ The user's first clear directive is the lead. From it, find what is missing to o
 - Ask in plain language and tie each question to the technical choice it settles. Cover what the prototype needs: what it looks like and how it is used (UI/UX schema), how it behaves (mechanics/logic), scope of the demo, platform, data it keeps, look and feel.
 - Between polls, spend one or two turns developing what the answers opened — draft the missing design/spec pieces, check what still blocks a one-shot prototype — then poll again.
 - Budget: ${pollBudget} polls for a standard run. Use fewer when nothing blocks; never pad to the budget.
-- During this phase, write and edit ONLY the spec files below. No prototype code yet.
 
 ## Phase 2 — the spec
 Write the completed spec as readable files under ${'`'}${specDir}/${'`'} (create it), in language the user reads — the spec is for them as much as for you. Use the file tools (Write, Edit) for those files only: in Apollo Mode the spec directory is the one place a write is admitted, and a write anywhere else is refused by the mode (the build has not begun). Whatever still blocks after the budget is named in the spec, never guessed.

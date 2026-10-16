@@ -228,7 +228,7 @@ const evidenceDescription = (zodToJsonSchema(schema as never) as { properties: {
 check(`the evidence description states the size rule with its numbers (${MAX_ROWS} rows, ${MAX_FILE_BYTES} bytes) and the refusal`, evidenceDescription.includes(String(MAX_ROWS)) && evidenceDescription.includes(String(MAX_FILE_BYTES)) && /refus/.test(evidenceDescription), evidenceDescription)
 check('the evidence description names the four forms', /paragraph/.test(evidenceDescription) && /named facts/.test(evidenceDescription) && /file/.test(evidenceDescription) && /table/.test(evidenceDescription))
 check('the prompt names the file and the table shapes with the per-row rule and the id column', /"file"/.test(JEV_EVAL_PROMPT) && /"table"/.test(JEV_EVAL_PROMPT) && /one item per row/.test(JEV_EVAL_PROMPT) && /id/.test(JEV_EVAL_PROMPT))
-check('the prompt states the caps with the same numbers', JEV_EVAL_PROMPT.includes(`${MAX_ROWS} rows`) && JEV_EVAL_PROMPT.includes(`${MAX_FILE_BYTES} bytes`))
+check('the prompt does not state the caps again: the size rule and its numbers are the evidence field\'s alone (pinned above)', !JEV_EVAL_PROMPT.includes(`${MAX_ROWS} rows`) && !JEV_EVAL_PROMPT.includes(`${MAX_FILE_BYTES} bytes`) && !/The size rule/.test(JEV_EVAL_PROMPT))
 check('the prompt still forbids a whole source file and the transcript, now beside a file of filtered rows', /a file of filtered rows/.test(JEV_EVAL_PROMPT) && /never a whole source file, never the transcript/.test(JEV_EVAL_PROMPT))
 check('the prompt keeps exactly one complete example line', JEV_EVAL_PROMPT.split('\n').filter(line => line.startsWith('{"goal":')).length === 1)
 check('the prompt still says what leaves the machine', /leaves the machine under the selected road's data policy/.test(JEV_EVAL_PROMPT))

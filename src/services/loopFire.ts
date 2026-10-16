@@ -39,8 +39,6 @@ export function freshLoopFireChainState(): LoopFireChainStateV1 {
   return { preambleSent: false, lastExpandedBody: null }
 }
 
-const moduleChain: LoopFireChainStateV1 = freshLoopFireChainState()
-
 
 export function isLoopPersistentPreambleEnabled(): boolean {
   if (isEnvTruthy(flagEnv('MERCURY_LOOP_PERSISTENT'))) {
@@ -209,15 +207,6 @@ function resolveLoopFileWith(
   chain.preambleSent = true
   return `${getAutonomousLoopPreamble()}\n\n---\n\n${fallbackBody}`
 }
-
-function resolveAutonomousLoopFire(prompt: string): string | null {
-  return resolveAutonomousWith(prompt, moduleChain)
-}
-
-function resolveLoopFileFire(prompt: string): string | null {
-  return resolveLoopFileWith(prompt, moduleChain, readLoopFile())
-}
-
 
 export function resolveLoopFireForWorkspace(
   prompt: string,

@@ -76,6 +76,7 @@ const DEFAULT_MAX_BYTES = 4096
 const IMPORT_SCAN_FILES = 8
 const IMPORT_SCAN_LINES = 60
 const MEMORY_REF_CAP = 4
+export const RECENTLY_OBSERVED_REASON = 'recently observed this session'
 
 const TEST_PATH_RE = /(^|\/)((tests?|__tests__|spec)\/|test_[^/]+\.py$)|\.(test|spec)\.[a-z]+$/
 const PATHISH_RE = /[A-Za-z0-9_@./-]+/g
@@ -239,7 +240,7 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
     }
   }
   for (const r of input.recentFiles ?? []) {
-    if (existsFile(input.workspace, r)) add(r, 'recent change', 4, `recently observed this session`)
+    if (existsFile(input.workspace, r)) add(r, 'recent change', 4, RECENTLY_OBSERVED_REASON)
   }
 
   if (snapshot.instructions.mercuryMd) add('MERCURY.md', 'instruction', 5, `repository instructions`)
