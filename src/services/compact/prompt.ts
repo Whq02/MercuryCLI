@@ -1,5 +1,5 @@
 import type { CompactMetadata } from '../../types/message.js'
-import type { TurnReceiptCounts } from '../../utils/cockpit/turnReceipt.js'
+import { otherToolsLine, type TurnReceiptCounts } from '../../utils/cockpit/turnReceipt.js'
 import { plural } from '../../utils/stringUtils.js'
 
 const NO_TOOLS_PREAMBLE = `Reply with prose only — no tool calls of any kind. Do not invoke Read, Bash, Grep, Glob, Edit, Write, Task, or any other tool. Any tool call will be refused outright, and because you have exactly one turn, a refused call means this summarisation attempt produces nothing and fails. The conversation below already contains everything you need; there is nothing to look up.`
@@ -174,6 +174,8 @@ function receiptWords(c: TurnReceiptCounts): string {
   if (c.commands > 0) parts.push(`${c.commands} shell ${plural(c.commands, 'command')}`)
   if (c.browser > 0) parts.push(`${c.browser} browser ${plural(c.browser, 'action')}`)
   if (c.agents > 0) parts.push(`${c.agents} ${plural(c.agents, 'crewmate')}`)
+  const others = otherToolsLine(c)
+  if (others !== null) parts.push(others)
   return parts.join(' · ')
 }
 
