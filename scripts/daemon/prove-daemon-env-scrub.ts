@@ -24,13 +24,13 @@ check('scrub is GATED on hasStoredOAuthToken() (a confirmed keychain fallback)',
 const FOREIGN = ['CLAUDE', 'CODE'].join('_')
 check('the one-home strip set carries session vars + own FD + the table-derived foreign FDs', /export const STORED_TOKEN_SCRUB_VARS[\s\S]{0,240}\.\.\.ALWAYS_STRIP_TOKEN_VARS,\s*\n?\s*'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR',\s*\n?\s*\.\.\.AGENT_CLI_TOKEN_FD_ENV_VARS/.test(subEnv))
 check('spawnOwnedDaemon consumes the one-home set', owned.includes('for (const k of STORED_TOKEN_SCRUB_VARS)'))
-check('hasStoredOAuthToken reads the keychain (secureStorage), NOT the env var', /export function hasStoredOAuthToken\(\)[\s\S]{0,160}getSecureStorage\(\)\.read\(\)\?\.claudeAiOauth\?\.accessToken/.test(auth))
+check('hasStoredOAuthToken reads the keychain (secureStorage), NOT the env var', /export function hasStoredOAuthToken\(\)[\s\S]{0,160}getSecureStorage\('anthropic'\)\.read\(\)\?\.claudeAiOauth\?\.accessToken/.test(auth))
 const foreignTable = readFileSync(join(ROOT, 'src', 'utils', 'knownAgentClis.ts'), 'utf-8')
 check('ALWAYS_STRIP_TOKEN_VARS is exported + carries the OAuth token (own spelling + the table-derived foreign spellings)', /export const ALWAYS_STRIP_TOKEN_VARS[\s\S]{0,240}MERCURY_OAUTH_TOKEN/.test(subEnv) && subEnv.includes('...AGENT_CLI_SESSION_ENV_VARS') && foreignTable.includes(`'${FOREIGN}_OAUTH_TOKEN'`))
 
 section('source: auth resolution has an env→keychain fallback (so scrub is safe)')
 check('getClaudeAIOAuthTokens checks MERCURY_OAUTH_TOKEN env first', /if \(process\.env\.MERCURY_OAUTH_TOKEN\)/.test(auth))
-check('…then falls back to the keychain (secureStorage.read().claudeAiOauth)', /getSecureStorage\(\)\.read\(\)\?\.claudeAiOauth/.test(auth))
+check('…then falls back to the keychain (secureStorage.read().claudeAiOauth)', /getSecureStorage\('anthropic'\)\.read\(\)\?\.claudeAiOauth/.test(auth))
 
 section('behavioural mirror: the scrub removes the pinned vars (guard true) / keeps (false)')
 const AUTH_VARS = ['MERCURY_OAUTH_TOKEN', `${FOREIGN}_OAUTH_TOKEN`, `${FOREIGN}_SUBSCRIPTION_TYPE`, `${FOREIGN}_RATE_LIMIT_TIER`, 'CODEX_API_KEY', 'CODEX_ACCESS_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', `${FOREIGN}_OAUTH_TOKEN_FILE_DESCRIPTOR`]

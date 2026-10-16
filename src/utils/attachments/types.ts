@@ -31,7 +31,8 @@ export type AgentRosterRow = {
 type FileLocation = { filename: string; displayPath: string }
 type ReadFileBody = FileLocation & { content: FileReadToolOutput; truncated?: boolean }
 type PathLocation = { path: string; displayPath: string }
-type MemoryFactPage = { path: string; content: string; mtimeMs: number; header?: string; ids?: string[] }
+export type MemoryDelivery = { key: string; ids: string[]; chars: number; reserve?: boolean; event?: boolean }
+type MemoryFactPage = { delivery?: MemoryDelivery; path: string; content: string; mtimeMs: number; header?: string; ids?: string[] }
 type RosterDelta = { addedNames: string[]; removedNames: string[] }
 
 type FileBodies = {
@@ -53,6 +54,8 @@ type ContextBodies = {
   context_capsule: {
     markdown: string; digest: string; refs: string[]; delta: string | null
     semDigest?: string; sectionDigest?: string; baseDigest?: string
+    memoryDigest?: string; memoryEmitted?: boolean
+    memoryDeliveries?: MemoryDelivery[]
     sections?: CapsuleSection[]; workingSet?: CapsuleWorkingRef[]
   }
   user_context: { body: string }

@@ -128,8 +128,8 @@
       "expect": {
         "rides": [
           "seq:3",
-          "seq:5",
           "seq:4",
+          "seq:5",
           "seq:2"
         ],
         "left": [

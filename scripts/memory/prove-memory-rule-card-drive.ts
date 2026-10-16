@@ -23,7 +23,7 @@ const section = (title: string): void => console.log(`\n${title}`)
 const COLS = 110
 const ROWS = 40
 const RULE = 'end every reply with the word Fairwinds'
-const PROMPT = 'remember that rule, then drop it again'
+const PROMPT = `remember this as a standing rule, ${RULE}, then drop it again`
 const turns: ScriptedTurn[] = [
   { kind: 'tool_use', preText: 'Pinning it.\n', name: 'Retain', input: { items: [{ content: RULE, pin: true }] } },
   { kind: 'tool_use', preText: 'Dropping it.\n', name: 'Correct', input: { op: 'retract', id: 'seq:1', reason: 'the user said it is not a rule' } },

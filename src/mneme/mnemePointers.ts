@@ -18,6 +18,7 @@ import { ARCHIVE_PREFIX, isArchiveDoc, type MnemeEntry } from './mnemeTopicDocs.
 import { readPins } from './mnemeUsage.js'
 import { noteMemoryOffered } from './mnemeSignal.js'
 import type { LedgerEntry } from './types.js'
+import { memoryGrade, recordGrade } from './memoryEvidence.js'
 
 type PointerKind = 'fact' | 'ruling' | 'handoff' | 'session'
 
@@ -26,7 +27,7 @@ export interface MemoryPointer {
   title: string
   kind: PointerKind
   footnotes: Footnotes
-  source?: { kind: 'entry' | 'pending' | 'ledger'; source: string; time: string; page?: string; heading?: string }
+  source?: { kind: 'entry' | 'pending' | 'ledger'; source: string; time: string; page?: string; heading?: string; grade?: string; library?: string }
   freshness?: { status: MemoryRef['status']; confirmedAt?: string }
 }
 
@@ -99,7 +100,7 @@ function factPointer(hit: RecallHit, row: LiveRow | undefined, pinned: ReadonlyS
       title: `pending · ${pending.topicHint ?? 'general'} · ${day(pending.ts)} · ${pending.source} · ${matchesLine(matchedWords(pending.text, ms))}`,
       kind: 'fact',
       footnotes: ordinal !== undefined ? { session: ordinal } : {},
-      source: { kind: 'pending', source: pending.source, time: pending.ts },
+      source: { kind: 'pending', source: pending.source, time: pending.ts, library: ctx.dir, grade: recordGrade(hit.id, pending.source, ctx.dir) },
       freshness: { status: 'unconsolidated' },
     }
   }
@@ -111,7 +112,7 @@ function factPointer(hit: RecallHit, row: LiveRow | undefined, pinned: ReadonlyS
     title: `${row.slug} › ${row.heading}${status} · ${day(entry.time)} · ${entry.source} · ${matchesLine(matchedWords(entry.text, ms))}`,
     kind: pinned.has(entry.seq) ? 'ruling' : 'fact',
     footnotes: footnotesOf(entry, ctx),
-    source: { kind: 'entry', source: entry.source, time: entry.time, page: row.slug, heading: row.heading },
+    source: { kind: 'entry', source: entry.source, time: entry.time, page: row.slug, heading: row.heading, library: ctx.dir, grade: recordGrade(hit.id, entry.source, ctx.dir) },
     freshness: { status: hit.status ?? 'current', confirmedAt: hit.confirmedAt },
   }
 }
@@ -238,5 +239,6 @@ export function limitCutLine(result: Pick<PointerResult, 'pointers' | 'found' | 
 
 export function renderPointerLine(p: MemoryPointer): string {
   const notes = renderFootnotes(p.footnotes)
-  return `- [${p.id}] ${p.kind} · ${p.title}${notes ? ` {${notes}}` : ''}`
+  const grade = p.source?.grade ?? memoryGrade({ id: p.id, source: p.source?.source, kind: p.kind, pending: p.source?.kind === 'pending', dir: p.source?.library })
+  return `- [${p.id}] ${grade} ${p.kind} · ${p.title}${notes ? ` {${notes}}` : ''}`
 }

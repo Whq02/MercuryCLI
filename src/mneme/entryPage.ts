@@ -6,6 +6,7 @@ import { readPinnedStatus } from './mnemeFrontPage.js'
 import { readPins } from './mnemeUsage.js'
 import { lineagePath } from './paths.js'
 import type { LedgerEntry } from './types.js'
+import { gradeLines, HANDOFF_GRADE } from './memoryEvidence.js'
 
 export const ENTRY_PAGE_HEADING = '# Lineage'
 export const FIRST_SESSION_LINE = 'First session of this work; no record.'
@@ -92,10 +93,10 @@ export function composeEntryPage(projectKey: string, sessionId?: string, options
     lines.push(`The last session (${last.ordinal}, ${last.endedAt === null ? 'never closed' : `ended ${stampLocal(last.endedAt)}`}) ${NO_NOTE_LEFT}${below}.`)
   }
   if (lastNoted !== null && lastNoted.handoff !== null) {
-    lines.push('', `## The last note left (session ${lastNoted.ordinal}, ${stampLocal(lastNoted.handoff.at)})`, lastNoted.handoff.text)
+    lines.push('', `## The last note left (session ${lastNoted.ordinal}, ${stampLocal(lastNoted.handoff.at)})`, gradeLines(lastNoted.handoff.text, HANDOFF_GRADE))
   }
   if (journal !== null) {
-    lines.push('', `## The journal's last entry (${stampLocal(journal.at)}${journalSession !== null ? `, session ${journalSession.ordinal}'s own account — not a note left for you` : " — the model's own account, not a note left for you"})`, journal.text)
+    lines.push('', `## The journal's last entry (${stampLocal(journal.at)}${journalSession !== null ? `, session ${journalSession.ordinal}'s own account — not a note left for you` : " — the model's own account, not a note left for you"})`, gradeLines(journal.text, HANDOFF_GRADE))
   }
   return lines.join('\n')
 }

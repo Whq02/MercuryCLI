@@ -69,6 +69,8 @@ const DAY = 86_400_000
 const SESSION_NOW = Date.UTC(2026, 9, 13, 9, 0, 0, 0)
 
 const knapsack = await import('../../src/mneme/entryKnapsack.ts')
+const evidence = await import('../../src/mneme/memoryEvidence.ts')
+const allowanceFor = (configured: number, eligible: number): number => Math.min(configured, 600 * Math.ceil(Math.log2(1 + eligible)))
 const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
 const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
 const { listArchiveDocs, listTopicDocs } = await import('../../src/mneme/mnemeLibrary.ts')
@@ -138,7 +140,8 @@ try {
     const old = roomy.choice.rode.find(c => c.text.startsWith('the quartz certificates are rotated on the first Tuesday'))!
     check('a fresh fact outscores an old one on the same words (the ninety-day recency of the search lane)', fresh.score > old.score, `${fresh.score.toFixed(3)} vs ${old.score.toFixed(3)}`)
     const noteRode = roomy.choice.rode.filter(c => c.kind === 'handoff')
-    check('the earlier note that overlaps rides verbatim under its own heading with its session and time; the last note never does (it rides on the lineage page as today)', noteRode.length === 1 && noteRode[0]!.session === 1 && text.includes(`${knapsack.EARLIER_NOTE_HEADING} (session 1, `) && text.includes('The work: the quartz rotation.\nDecided: rotate on Tuesdays.\nStill to do: the amber mirror.') && !text.includes('The work: the quartz lane.'), j(noteRode.map(c => c.session)))
+    const gradedNote = ['The work: the quartz rotation.', 'Decided: rotate on Tuesdays.', 'Still to do: the amber mirror.'].map(line => `${evidence.HANDOFF_GRADE} ${line}`).join('\n')
+    check('the earlier note that overlaps rides word for word under its own heading with its session and time, every line graded as a model-authored note; the last note never does (it rides on the lineage page as today)', noteRode.length === 1 && noteRode[0]!.session === 1 && text.includes(`${knapsack.EARLIER_NOTE_HEADING} (session 1, `) && text.includes(gradedNote) && !text.includes('The work: the quartz lane.'), j(noteRode.map(c => c.session)))
     check('the allowance is respected to the character: every block that rode fits in it, and the pinned characters are not counted against it', roomy.choice.used <= 4000 && roomy.choice.used === roomy.choice.rode.reduce((n, c) => n + c.chars, 0) && roomy.choice.pinnedChars === pinned!.used, `${pinned!.used} beside ${roomy.choice.used}`)
     const byDensity = [...roomy.choice.rode].sort((a, b) => b.density - a.density)
     const first = byDensity[0]!
@@ -175,16 +178,17 @@ try {
     check('the home row with pins and facts that rode says what rode and that Recall finds the rest', knapsack.memoryAtStartRowWords(roomy.status) === '1 pinned rule and 5 of 6 facts and 1 of 2 earlier notes rode at start; Recall finds the rest', knapsack.memoryAtStartRowWords(roomy.status))
     check('the home row with pins and nothing else on record says nothing else rode', knapsack.memoryAtStartRowWords({ ...nothing.status, pinnedCount: 2, pending: 1 }) === '2 pinned rules; nothing else rode at start (1 fact pending); Recall finds them')
     const status = roomy.status
-    check('the status the /config row reads carries the allowance, the pinned characters, what rode and the pool', status.limit === 4000 && status.pinnedChars === pinned!.used && status.rodeFacts === 5 && status.facts === 6 && status.rodeNotes === 1 && status.notes === 2 && status.used === roomy.choice.used, j(status))
+    const eligible = roomy.choice.rode.length + roomy.choice.left.filter(c => c.score > 0).length
+    check('the status the /config row reads carries the effective allowance (the configured 4,000 scaled down by the eligible records: 600 × ⌈log₂(1 + eligible)⌉), the pinned characters, what rode and the pool', status.limit === allowanceFor(4000, eligible) && status.limit === 1800 && status.pinnedChars === pinned!.used && status.rodeFacts === 5 && status.facts === 6 && status.rodeNotes === 1 && status.notes === 2 && status.used === roomy.choice.used, j({ status, eligible }))
   }
 
-  section('§3 the wiring: one plain memoized section between the memory page and the lineage page, composed once per conversation')
+  section('§3 the wiring: one memoized section between the memory page and the lineage page, keyed on preview/request alone so the first real request composes it once and the prefix then stands')
   {
     const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
     const memoryAt = prompts.indexOf("systemPromptSection('memory', () => loadMemoryPrompt())")
-    const startAt = prompts.indexOf("systemPromptSection('memory_at_start', () => composeMemoryAtStart(")
+    const startAt = prompts.indexOf("keyedSystemPromptSection('memory_at_start', () => memoryTask ? 'request' : 'preview', () => composeMemoryAtStart({ task: memoryTask,")
     const lineageAt = prompts.indexOf("'entry_page'")
-    check('the memory-at-start section is a plain memoized section (never keyed, never cache-breaking) between the memory section and the entry page', memoryAt >= 0 && startAt > memoryAt && lineageAt > startAt && !prompts.includes("keyedSystemPromptSection(\n      'memory_at_start'") && !prompts.includes("DANGEROUS_uncachedSystemPromptSection(\n      'memory_at_start'"), j([memoryAt, startAt, lineageAt]))
+    check('the memory-at-start section is a memoized section keyed on the request/preview distinction only (never cache-breaking, never re-keyed per turn) between the memory section and the entry page', memoryAt >= 0 && startAt > memoryAt && lineageAt > startAt && !prompts.includes("DANGEROUS_uncachedSystemPromptSection('memory_at_start'") && !prompts.includes("DANGEROUS_uncachedSystemPromptSection(\n      'memory_at_start'"), j([memoryAt, startAt, lineageAt]))
     const contract = readFileSync(join(ROOT, 'src/prompt/behaviourContract.ts'), 'utf8')
     check('the section declares its owner beside the memory section', contract.includes("['dynamic:memory_at_start', 'src/mneme/entryKnapsack.ts']"))
     const doctrine = readFileSync(join(ROOT, 'src/constants/subagentDoctrine.ts'), 'utf8')
@@ -249,11 +253,12 @@ try {
     check('the prompt carries the memory page, then the block, then the lineage page, then the environment, in that order', at('# Memory\n') >= 0 && at('## Pinned') > at('# Memory\n') && at(knapsack.MEMORY_AT_START_HEADING) > at('## Pinned') && at('# Lineage') > at(knapsack.MEMORY_AT_START_HEADING) && at('# Environment') > at('# Lineage'), j([at('# Memory\n'), at('## Pinned'), at(knapsack.MEMORY_AT_START_HEADING), at('# Lineage'), at('# Environment')]))
     const block = first.slice(at(knapsack.MEMORY_AT_START_HEADING), at('# Lineage'))
     console.log(block.trimEnd().split('\n').map(l => `    │ ${l}`).join('\n'))
-    check('the block names the scratch branch and carries the fact that names the touched file; the opal fact (no overlap) stays a Recall away; the pinned rule rides in Pinned, not here', block.includes('most relevant to branch lane/garnet-ledger, the files touched lately and the last note') && block.includes('- the garnet ledger view is rendered by src/ledgerView.ts <seq=') && !block.includes('opal') && !block.includes('fold tip') && first.includes('- every lane branch is cut from the fold tip <seq='), block)
+    const factGrade = evidence.memoryGrade({ id: 'seq:1', dir })
+    check('the block names the scratch branch and carries the fact that names the touched file behind its evidence grade; the opal fact (no overlap) stays a Recall away; the pinned rule rides in Pinned, not here', block.includes('most relevant to branch lane/garnet-ledger, the files touched lately and the last note') && block.includes(`- ${factGrade} the garnet ledger view is rendered by src/ledgerView.ts <seq=`) && factGrade.startsWith('[fact · ') && !block.includes('opal') && !block.includes('fold tip') && first.includes(' every lane branch is cut from the fold tip <seq='), block)
     check('the block appears once in the prompt', first.split(knapsack.MEMORY_AT_START_HEADING).length === 2)
     check('the lineage page still carries the last note as today (the block holds no earlier note: there is only the one)', first.includes('## The last note left (session 1, ') && first.includes('The work: the garnet ledger view.') && !block.includes(knapsack.EARLIER_NOTE_HEADING))
     const status = knapsack.memoryAtStartStatus()
-    check('the status the /config row reads was set by the composition', status !== null && status.rodeFacts === 1 && status.facts === 2 && status.pinnedCount === 1 && status.limit === usage.START_TEXT_LIMIT_DEFAULT, j(status))
+    check('the status the /config row reads was set by the composition: one eligible record scales the default allowance to 600', status !== null && status.rodeFacts === 1 && status.facts === 2 && status.pinnedCount === 1 && status.limit === allowanceFor(usage.START_TEXT_LIMIT_DEFAULT, 1) && status.limit === 600, j(status))
     writeFileSync(join(repo, 'src', 'ledgerView.ts'), 'export const view = 2\n')
     writeFileSync(join(repo, 'src', 'opalExport.ts'), 'export const opal = 1\n')
     retainItems([{ content: 'the opal export writes to the garnet ledger too', topic: 'opal' }], { session: 'knapsack-proof' }, dir)
