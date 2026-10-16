@@ -92,6 +92,7 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { SEAT_DOORS, seatCeilingFactsAsync, seatCeilingValueWords, seatCostWarning, setOperatorSeats, type SeatCeilingFacts } from '../../services/switchboard/capacityCheck.js'
 import { MOTION_DOORS, MOTION_SETTINGS, motionDetailLines, motionValueWords, noteMotionSettingChanged, readMotionSetting, setMotionSetting } from '../../utils/cockpit/motionSetting.js'
+import { setZenMode } from '../../utils/cockpit/zenMode.js'
 import { jevSessionFacts, jevSessionFactsStamp, jevSessionStatus, subscribeJevSessionFacts } from '../../services/jev/jevSessionFacts.js'
 import { jevSettingLines, jevValueWords, readJevSettings, setJevEnabled } from '../../services/jev/jevSetting.js'
 import { BACKGROUND_LAUNCH_DOORS, BACKGROUND_LAUNCH_KEY, BACKGROUND_LAUNCH_LABEL, BACKGROUND_LAUNCH_NOTE, BACKGROUND_LAUNCH_SUMMARY, backgroundLaunchValueWords, backgroundSessionsLaunchCrewmates, setBackgroundSessionsLaunchCrewmates } from '../../services/switchboard/backgroundLaunch.js'
@@ -382,7 +383,7 @@ export function Config({
       global: JSON.parse(JSON.stringify(getGlobalConfig())) as GlobalConfig,
       theme: themeSetting,
       local: { activity: { tips: { enabled: local.activity?.tips?.enabled } }, view: { reducedMotion: local.view?.reducedMotion }, briefs: { profile: local.briefs?.profile }, shell: { engine: local.shell?.engine, sessions: local.shell?.sessions } },
-      user: { engine: { reasoning: user.engine?.reasoning, usageNotice: user.engine?.usageNotice }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff, ping: user.view?.ping, accountIdentity: user.view?.accountIdentity }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit, startLimit: user.memory?.startLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
+      user: { engine: { reasoning: user.engine?.reasoning, usageNotice: user.engine?.usageNotice }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff, ping: user.view?.ping, accountIdentity: user.view?.accountIdentity, zen: user.view?.zen }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit, startLimit: user.memory?.startLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
       appVerbose: appState.verbose === true,
       dirty: false,
     }
@@ -408,17 +409,20 @@ export function Config({
   ): boolean => {
     const { error } = updateSettingsForSource(source, partial)
     if (error !== null) {
-      logForDebugging(`settings write failed (${source}): ${error.message}`)
-      enqueueNotification(setAppState, {
-        key: 'config-write-failed',
-        text: `that change did not save — ${source === 'localSettings' ? 'project-local' : 'user'} settings write failed: ${error.message}`,
-        priority: 'high',
-        color: 'error',
-        timeoutMs: 15_000,
-      })
+      writeFailed(source, error)
       return false
     }
     return true
+  }
+  const writeFailed = (source: 'localSettings' | 'userSettings', error: Error): void => {
+    logForDebugging(`settings write failed (${source}): ${error.message}`)
+    enqueueNotification(setAppState, {
+      key: 'config-write-failed',
+      text: `that change did not save — ${source === 'localSettings' ? 'project-local' : 'user'} settings write failed: ${error.message}`,
+      priority: 'high',
+      color: 'error',
+      timeoutMs: 15_000,
+    })
   }
   const globalTouchedRef = useRef(new Set<string>())
   const writeGlobal = (mutate: (config: GlobalConfig) => GlobalConfig): void => {
@@ -625,6 +629,26 @@ export function Config({
         recordToggle('accountIdentity', `set account identity to ${next ? 'shown' : 'hidden'}`)
         bump()
       }
+    },
+  })
+  items.push({
+    id: 'zen',
+    label: 'Zen mode — rails hidden',
+    searchText: 'zen mode rails hidden lanes vitals full width chat',
+    kind: 'boolean',
+    setByYou: merged.view?.zen !== undefined,
+    value: boolValue(merged.view?.zen === true),
+    warning: 'on hides the lanes and vitals rails and the chat takes the full width of the terminal — /zen flips it too · view.zen in settings',
+    change: () => {
+      const next = merged.view?.zen !== true
+      const error = setZenMode(next)
+      if (error !== null) {
+        writeFailed('userSettings', error)
+        return
+      }
+      snapshots.dirty = true
+      recordToggle('zen', `set zen mode to ${next ? 'on' : 'off'}`)
+      bump()
     },
   })
   {
@@ -1459,6 +1483,10 @@ export function Config({
         ...snapshots.user.routing?.openrouter,
       } }, guardrails: { mode: snapshots.user.guardrails?.mode }, files: { honourGitignore: snapshots.user.files?.honourGitignore }, memory: { pinnedLimit: snapshots.user.memory?.pinnedLimit, startLimit: snapshots.user.memory?.startLimit } })
     writeSource('userSettings', localServerRevertPartial(snapshots.user.local?.server))
+    if (changesRef.current.has('zen')) {
+      const error = setZenMode(snapshots.user.view?.zen === true)
+      if (error !== null) writeFailed('userSettings', error)
+    }
     setAppState(prev => ({ ...prev, verbose: snapshots.appVerbose }))
     const restoredProfile = snapshots.local.briefs?.profile
     setSessionInstructionProfile(
