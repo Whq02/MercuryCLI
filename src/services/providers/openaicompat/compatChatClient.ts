@@ -46,6 +46,7 @@ function unrefTimer(handle: unknown): void {
 export interface CompatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string | null | ZaiContentPart[]
+  reasoning_content?: string
   tool_calls?: CompatToolCall[]
   tool_call_id?: string
 }

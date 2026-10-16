@@ -153,6 +153,7 @@ export interface CompatLaneProfile {
     maxOutputTokensOverride: number | undefined
   }): Record<string, unknown>
   keepsReasoningHistory?(wireModel: string): boolean
+  keepsReasoningOnContinuations?(wireModel: string): boolean
   noteServedModel?(requested: string, served: string, credential: CompatCredential): void
   toolDeclarationRow?: ToolDeclarationRowBuilder
 }
@@ -464,6 +465,7 @@ export async function* compatChatCallModel(
     model: wireModel,
     messages: mapMessagesToZai(systemText, toBridgeMessages(preparedMessages), {
       keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
+      keepReasoningAfterLastUser: profile.keepsReasoningOnContinuations?.(wireModel) ?? false,
       imagesSupported: imagesSupportedForCompatModel(modelId),
       ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
     }),

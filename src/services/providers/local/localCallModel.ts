@@ -156,6 +156,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
       return buildLocalExtras({ ...args, server: record.server, acceptsEffort: localModelAcceptsEffort(record) })
     },
     omitsToolChoice: record.server === 'ollama',
+    keepsReasoningOnContinuations: () => true,
     ...(record.server === 'ollama'
       ? {
           streamTransport: (options: Parameters<NonNullable<CompatLaneProfile['streamTransport']>>[0]) =>
