@@ -40,7 +40,7 @@ import {
 import { useFocusedServedEffort, useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
 import { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaUnreportedWords, geminiPlanQuotaView } from '../../services/providers/gemini/geminiPlanQuota.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { otherSignInsLine, providerIdentityLine, providerIdentitySentence, shownIdentityWords } from '../../services/providers/providerIdentityLine.js'
+import { providerIdentityLine, providerIdentitySentence, shownIdentityWords } from '../../services/providers/providerIdentityLine.js'
 import { openrouterSlots } from '../../services/providers/accountSlots.js'
 import { jevRoadWords, jevUsdLabel } from '../../services/jev/jevContract.js'
 import { jevCreditsWords } from './Jev.js'
@@ -183,10 +183,8 @@ function SlotHeading({ text }: { text: string }): React.ReactNode {
 }
 
 function IdentityLine({ family }: { family: RouterProviderId }): React.ReactNode {
-  const others = otherSignInsLine(family)
   return <Box flexDirection="column">
     <Text dimColor wrap="truncate-end">{providerIdentitySentence(providerIdentityLine(family))}</Text>
-    {others !== undefined ? <Text dimColor wrap="truncate-end">{others}</Text> : null}
     <UsageCredits usage={usageForProvider(family)} />
   </Box>
 }
@@ -1289,7 +1287,6 @@ export type UsageCompactLine = { text: string; heading: boolean }
 
 export type UsageCompactReads = {
   identity: (family: RouterProviderId) => string
-  others?: (family: RouterProviderId) => string | undefined
   usage: (family: RouterProviderId) => ActiveSourceUsage
   anthropicWindows: () => UsageWindowView[]
   anthropicPools: () => UsageWindowView[]
@@ -1317,8 +1314,6 @@ export function usageCompactLines(
   const lines: UsageCompactLine[] = []
   for (const section of plan) {
     lines.push({ text: `${section.title} · ${reads.identity(section.id)}`, heading: true })
-    const others = (reads.others ?? otherSignInsLine)(section.id)
-    if (others !== undefined) lines.push({ text: `  ${others}`, heading: false })
     if (!section.family.credentialed) continue
     const usage = reads.usage(section.id)
     const windows: string[] = []

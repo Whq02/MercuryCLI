@@ -123,7 +123,6 @@ async function resolveUncached(
 export function healScopeIdentitySnapshot(
   dir: string,
   identity: { email: string; uuid?: string },
-  record?: Record<string, unknown>,
 ): void {
   if (isForeignHarnessDir(dir)) {
     logForDebugging(`[accounts] identity heal skipped for ${dir}: another harness's home is never written`)
@@ -166,10 +165,10 @@ export function healScopeIdentitySnapshot(
       }
     }
     const prior = (parsed.oauthAccount ?? {}) as Record<string, unknown>
-    if (record === undefined && prior.emailAddress === identity.email && (!identity.uuid || prior.accountUuid === identity.uuid)) {
+    if (prior.emailAddress === identity.email && (!identity.uuid || prior.accountUuid === identity.uuid)) {
       return
     }
-    parsed.oauthAccount = record ?? {
+    parsed.oauthAccount = {
       ...prior,
       emailAddress: identity.email,
       ...(identity.uuid !== undefined && { accountUuid: identity.uuid }),

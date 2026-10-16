@@ -1,7 +1,7 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredXaiApiKey, writeStoredXaiManagementApiKey } from '../../../utils/router/providerSecrets.js'
 import { resolveXaiApiKey, xaiApiBase, xaiInferenceBase } from './xaiAccounts.js'
-import { startXaiDeviceAuth, pollXaiDeviceToken, landXaiTokens, writePreferredXaiSource, type XaiDeviceAuthStart, type XaiOauthIo } from './xaiOauth.js'
+import { startXaiDeviceAuth, pollXaiDeviceToken, writeXaiTokens, writePreferredXaiSource, type XaiDeviceAuthStart, type XaiOauthIo } from './xaiOauth.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { fetchXaiUsage, xaiUsageFailureWords, type XaiUsageIo } from './xaiUsageState.js'
 import { fetchXaiLiveModels, XaiCatalogueHttpError } from './xaiCatalogue.js'
@@ -98,7 +98,7 @@ export async function runXaiDeviceLogin(args: {
     if (result.state !== 'authorized') return { ok: false, receipt: `Grok sign-in ${result.state} — nothing stored; /logins xai retries.` }
     args.onEvent?.({ phase: 'finishing' })
     try {
-      landXaiTokens(result.tokens)
+      writeXaiTokens(result.tokens)
       writePreferredXaiSource('grok-subscription')
       recordSignIn('xai', 'oauth')
     } catch { return { ok: false, receipt: 'xAI approved sign-in but storing the grant failed; /logins xai retries.' } }

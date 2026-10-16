@@ -17,7 +17,7 @@ export default () =>
         return 'Sign in (Claude subscription · OpenAI ChatGPT · OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · API keys)'
       }
     },
-    argumentHint: '[anthropic|openai|console|openrouter|gemini|huggingface|kimi|glm|deepseek|xai|meta|mistral|nous] · use <identity> · forget <identity> · list',
+    argumentHint: '[anthropic|openai|console|openrouter|gemini|huggingface|kimi|glm|deepseek|xai|meta|mistral|nous]',
     isEnabled: () => flagEnabled('MERCURY_LOGIN_COMMAND'),
     get immediate() {
       return shouldNavCommandBeImmediate()

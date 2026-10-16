@@ -41,7 +41,7 @@ setCwdState(scratch)
 const MODEL = 'claude-fable-5-1'
 const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate'].map(name => ({ name })) as never
 const HEAD = `Working directory: ${scratch}`
-const FACTS = ['# The project estate', '# Memory', '# Environment', 'Model currency:', 'Write down important information from tool results', '# Autonomous runs']
+const FACTS = ['# The project estate', '# Memory', '# Environment', 'Model currency:', 'Write down important information from tool results']
 
 async function assemble(env: Record<string, string | undefined>): Promise<string[]> {
   const saved = new Map<string, string | undefined>()
@@ -86,7 +86,7 @@ try {
     check('replace opens on the same head as stock (the working directory)', replace[0] === HEAD, j(replace[0]))
     check('the file\'s text is the second segment, verbatim (its trailing newline kept, nothing added around it)', replace[1] === first)
     check('the fact sections follow, as under stock', FACTS.every(fact => text.includes(fact)), FACTS.filter(fact => !text.includes(fact)).join(' · '))
-    check('the constitution is absent under replace', !text.includes(contract.MERCURY_CONSTITUTION) && !text.includes('You are Mercury, an autonomous command-line interface and agent.'))
+    check('the constitution is absent under replace', !text.includes(contract.MERCURY_CONSTITUTION) && !text.includes("You are Mercury, an expert software engineer working in the operator's terminal."))
     const stock = await assemble({})
     check('replace is stock with the file in the constitution\'s slot: the segments after the slot are byte-identical', j(replace.slice(2)) === j(stock.slice(2)))
     const second = 'A different text, written after the first assembly.\n'

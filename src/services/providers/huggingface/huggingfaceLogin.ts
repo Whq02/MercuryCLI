@@ -6,7 +6,7 @@ import {
   pollHuggingfaceDeviceToken,
   startHuggingfaceDeviceAuth,
   writeHuggingfaceTokenIdentity,
-  landHuggingfaceTokens,
+  writeHuggingfaceTokens,
   type HuggingfaceDeviceAuthStart,
   type HuggingfaceIdentity,
   type HuggingfaceOauthIo,
@@ -137,7 +137,7 @@ export async function runHuggingfaceDeviceLogin(
     onEvent?.({ phase: 'finishing' })
     if (cancelled()) {
       try {
-        landHuggingfaceTokens(result.tokens)
+        writeHuggingfaceTokens(result.tokens)
       } catch (error) {
         return {
           ok: false,
@@ -156,7 +156,7 @@ export async function runHuggingfaceDeviceLogin(
     const probe = await fetchHuggingfaceIdentity(result.tokens.accessToken, io)
     const identity = probe.state === 'confirmed' ? probe.identity : undefined
     try {
-      landHuggingfaceTokens(result.tokens, identity)
+      writeHuggingfaceTokens(result.tokens, identity)
     } catch (error) {
       return {
         ok: false,

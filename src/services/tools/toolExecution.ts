@@ -9,7 +9,7 @@ import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { getLoggingSafeMcpBaseUrl } from '../mcp/utils.js'
 import type { McpServerConfig } from '../mcp/types.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { addToToolDuration, getSessionId, getStatsStore } from '../../bootstrap/state.js'
+import { addToToolDuration, canAnswerAsks, getSessionId, getStatsStore } from '../../bootstrap/state.js'
 import { judgeToolCall } from '../../guards/guards.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
@@ -596,9 +596,11 @@ async function runTransactionBody(args: {
   let stopReason: string | undefined
   const hookNotes: Message[] = []
 
+  const asksAnswerable =
+    canAnswerAsks() && toolUseContext.getAppState().toolPermissionContext.shouldAvoidPermissionPrompts !== true
   const judgement = await judgeToolCall(
     toolUseContext.agentId ?? getSessionId(),
-    { tool: tool.name, input: observableInput, callId: toolUseID, messages: toolUseContext.messages, toolRef: tool },
+    { tool: tool.name, input: observableInput, callId: toolUseID, messages: toolUseContext.messages, toolRef: tool, asksAnswerable },
     signal,
   )
   hookNotes.push(...judgement.notes)
