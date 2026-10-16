@@ -171,6 +171,7 @@ import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
+import { planToolPayload, toolsOnTheWire } from '../services/providers/toolEconomy.js'
 import { createCacheSafeParams, recordSentRequest } from '../utils/forkedAgent.js'
 import { askForHandoff, assistantText, handoffAskDue, handoffNotice } from '../mneme/handoffAsk.js'
 import { finishMemorySignal, memorySignalScope } from '../mneme/mnemeSignal.js'
@@ -997,7 +998,16 @@ async function* runEventMachine(
         fixedRequest: requestGaugeFixed({
           system: appendSystemContext(systemPrompt, systemContext),
           userContext: latestUserContextBody(messages) === null ? userContext : null,
-          tools: await Promise.all(toolUseContext.options.tools.map(tool => toolToAPISchema(tool, {
+          tools: await Promise.all(toolsOnTheWire(await planToolPayload({
+            model: toolUseContext.options.engineModel,
+            tools: toolUseContext.options.tools,
+            messages,
+            getToolPermissionContext: async () => toolUseContext.getAppState().toolPermissionContext,
+            agents: toolUseContext.options.agentDefinitions.activeAgents,
+            hasPendingMcpServers: toolUseContext.getAppState().mcp.clients.some(c => c.type === 'pending'),
+            latchKey: String(rosterOwnerFromToolUseContext(toolUseContext)),
+            source: 'gauge',
+          })).map(tool => toolToAPISchema(tool, {
             getToolPermissionContext: async () => toolUseContext.getAppState().toolPermissionContext,
             tools: toolUseContext.options.tools,
             agents: toolUseContext.options.agentDefinitions.activeAgents,
