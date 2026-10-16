@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/utils/cockpit/zenMode.ts src/hooks/useLayoutTier.ts src/context/layoutChromeContext.tsx src/components/FullscreenLayout.tsx src/utils/helmGeometry.ts src/utils/settings/types.ts
+// gate-watch: src/commands/zen/index.ts src/commands/zen/zen.tsx src/commands.ts src/components/HelpV2/commandDomains.ts src/components/BaseTextInput.tsx src/hooks/useTypeahead.tsx
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -56,6 +57,10 @@ const { getEngineModel } = await import('../../src/utils/model/model.ts')
 const { railPlan, resetRailTier } = await import('../../src/utils/helmGeometry.ts')
 const { setZenMode, zenModeOn } = await import('../../src/utils/cockpit/zenMode.ts')
 const { getSettingsFilePathForSource } = await import('../../src/utils/settings/settings.ts')
+const { default: zenCommand } = await import('../../src/commands/zen/index.ts')
+const { call: callZen, executeZen } = await import('../../src/commands/zen/zen.tsx')
+const { builtinCommands } = await import('../../src/commands.ts')
+const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.ts')
 const h = React.createElement
 
 const COMPOSER = 'Type a prompt'
@@ -156,7 +161,7 @@ async function openScene(cols: number, rows: number): Promise<Scene> {
           h(PromptInput, {
             compactWork: controls, compactFocus: focus,
             debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
-            setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
+            setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [zenCommand], agents: [],
             isLoading: false, verbose: false, submitCount: 0, onShowMessageSelector: () => {},
             mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,
             onExit: () => {}, getToolUseContext: () => ({} as never),
@@ -243,6 +248,52 @@ for (const [cols, rows] of SIZES) {
   check(`${cols}x${rows}: the file carries no zen key again`, savedZen() === undefined, String(savedZen()))
   check(`${cols}x${rows}: zen off repaints the frame exactly as it was`, after.join('\n') === before.join('\n'), after.slice(0, 3).map(line => line.slice(0, 60)).join(' | '))
   cockpitReadsAsPlanned(`${cols}x${rows} zen back off`, after, cols, rows)
+  await scene.close()
+}
+
+section('§2 the command: /zen on · /zen off · bare /zen · /zen maybe, the file and the layout after each; the roster, the help domain, the composer hint')
+{
+  const registered = builtinCommands().find(command => command.name === 'zen')
+  check('/zen is registered beside /effort with the one-line description /help lists', registered !== undefined && registered.type === 'local-jsx' && registered.description === zenCommand.description && /rails/.test(registered.description), String(registered?.description))
+  check('/zen carries the argument hint [on|off] and runs at once (a view command never waits on the turn)', zenCommand.argumentHint === '[on|off]' && zenCommand.immediate === true, String(zenCommand.argumentHint))
+  check('/help files /zen under the appearance & cockpit domain', COMMAND_DOMAINS.some(domain => domain.key === 'appearance' && domain.names.includes('zen')))
+  check('the value column reads the saved setting (off now)', zenCommand.currentValue?.() === 'off', String(zenCommand.currentValue?.()))
+
+  const scene = await openScene(177, 49)
+  const before = scene.lines()
+  const done: Array<[string | undefined, unknown]> = []
+  const onDone = (result?: string, options?: unknown): void => { done.push([result, options]) }
+  const context = { messages: [], options: { engineModel: getEngineModel() }, getAppState: () => getDefaultAppState(), setAppState: () => {} }
+  const run = async (args: string): Promise<string | undefined> => {
+    const count = done.length
+    await callZen(onDone, context as never, args)
+    await scene.settle()
+    return done.length > count ? done[count]![0] : undefined
+  }
+  check('/zen on answers in the status row\'s register and saves', (await run('on')) === 'zen on — rails hidden · saved for later boots' && savedZen() === true && zenCommand.currentValue?.() === 'on', `${done.at(-1)?.[0]} · file ${String(savedZen())}`)
+  zenReadsRight('after /zen on', scene.lines(), 177)
+  check('/zen on again is a no-op that says so', (await run('on')) === 'zen is already on' && savedZen() === true, String(done.at(-1)?.[0]))
+  check('/zen maybe names the two valid words and changes nothing', (await run('maybe')) === 'Valid options: on|off — "maybe" is not a zen option.' && savedZen() === true, String(done.at(-1)?.[0]))
+  zenReadsRight('after /zen maybe', scene.lines(), 177)
+  check('/zen off answers and the key leaves the file', (await run('off')) === 'zen off — rails back · saved for later boots' && savedZen() === undefined && zenCommand.currentValue?.() === 'off', `${done.at(-1)?.[0]} · file ${String(savedZen())}`)
+  check('after /zen off the frame is the first frame again', scene.lines().join('\n') === before.join('\n'))
+  check('/zen off again is a no-op that says so', (await run('off')) === 'zen is already off' && savedZen() === undefined, String(done.at(-1)?.[0]))
+  check('bare /zen flips on', (await run('')) === 'zen on — rails hidden · saved for later boots' && savedZen() === true, String(done.at(-1)?.[0]))
+  zenReadsRight('after bare /zen', scene.lines(), 177)
+  check('bare /zen flips off again', (await run('  ')) === 'zen off — rails back · saved for later boots' && savedZen() === undefined, String(done.at(-1)?.[0]))
+  check('after the second bare /zen the frame is the first frame again', scene.lines().join('\n') === before.join('\n'))
+  check('the words are the same whatever the case', executeZen('MAYBE').message === 'Valid options: on|off — "MAYBE" is not a zen option.' && executeZen('ON').message === 'zen on — rails hidden · saved for later boots' && executeZen('Off').message === 'zen off — rails back · saved for later boots' && savedZen() === undefined)
+
+  scene.push('/zen')
+  await scene.settle()
+  const typed = scene.lines()
+  save('composer-zen-typed', typed)
+  check('typing /zen lists the command with its description under the composer', typed.some(line => line.includes('/zen') && line.includes('Zen mode')), typed.slice(composerRow(typed) - 1, composerRow(typed) + 6).join(' | '))
+  scene.push(' ')
+  await scene.settle()
+  const hinted = scene.lines()
+  save('composer-zen-hint', hinted)
+  check('the composer shows the greyed argument hint [on|off] after /zen (the cursor cell between)', hinted.some(line => /^│❯ \/zen\s{1,2}\[on\|off\]/.test(line)), hinted.filter(line => line.includes('/zen')).join(' | '))
   await scene.close()
 }
 
