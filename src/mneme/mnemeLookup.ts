@@ -52,10 +52,6 @@ export function lookupTokens(raw: string): string[] {
   return [...new Set(lookupTerms(raw))].slice(0, MAX_QUERY_TOKENS)
 }
 
-export function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
 type LookupKind = 'fact' | 'ruling' | 'pending' | 'handoff' | 'session'
 
 export interface LookupCandidate {
