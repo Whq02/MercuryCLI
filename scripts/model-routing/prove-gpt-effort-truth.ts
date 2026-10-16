@@ -217,12 +217,10 @@ const liveModel = (efforts: string[], def?: string) =>
     `catalogue=${unavailable.catalogue} wire=${String(unavailable.wire)}`,
   )
 
-  const slider = readFileSync(join(ROOT, 'src/commands/effort/EffortSlider.tsx'), 'utf8')
+  const popup = readFileSync(join(ROOT, 'src/commands/effort/EffortPopup.tsx'), 'utf8')
   check(
-    'EF-06: the slider derives its stops from the ladder owner (max at the top, no word above it)',
-    slider.includes('EFFORT_LEVELS.map(level => ({') &&
-      !/\bultra\b/.test(slider) &&
-      slider.includes('supported: vocabulary.has(String(tier.value))'),
+    'EF-06: the /effort popup derives its rows from the ladder owner (max at the top, no word above it)',
+    popup.includes('selectableEffortLevels(model).map(') && !/\bultra\b/.test(popup),
   )
 }
 

@@ -65,9 +65,9 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
   )
   const { signInLaterRow } = await import('../../src/components/loginFamilyRows.ts')
   check(
-    'with no local server the later row carries its honest caveat: sign-in is required to run the agent',
+    'with no local server the later row carries its honest caveat: the agent needs a sign-in or a local model, and names /localsetup',
     /sign in later/i.test(SIGN_IN_LATER_ROW.label) &&
-      /Sign-in is required to run the agent/.test(SIGN_IN_LATER_ROW.label) &&
+      /The agent needs a sign-in or a local model \(\/localsetup\)/.test(SIGN_IN_LATER_ROW.label) &&
       signInLaterRow({ models: 0, labels: [] }).label === SIGN_IN_LATER_ROW.label,
     SIGN_IN_LATER_ROW.label,
   )

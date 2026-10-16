@@ -62,8 +62,8 @@ Each row names the screen, how to reach it, and what it must look like.
    the circled asterisk `⊛`, never a cloud picture.
 6. **Pickers and trees.** The resume picker's session tree folds with `›`
    and opens with `⌄`; task rows use `○` (pending), `◐` (in progress) and
-   `✓` (done); the effort slider (`/effort`) reads
-   `Faster ← effort → Smarter`.
+   `✓` (done); the effort popup (`/effort`) marks the row under the cursor
+   with `❯` and the running tier with the word `current`.
 7. **The health check.** Run both forms and read every status mark as text
    (`✓ ✕ ▲ ○`):
 

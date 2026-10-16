@@ -238,7 +238,7 @@ let beforeAfter = ''
   const after = paramsFor([...params.messages, turn, admission])
   const estimateAfter = await estimateOf(after)
   const sentAfter = await drive(after)
-  check(`after an admission the estimate follows the roster (${coreNames.length} + ${admitted.length} schemas) within 10% of that request's bytes/${WIRE_BYTES_PER_TOKEN}`, sentAfter.chat !== undefined && wireSchemas(sentAfter.chat) === wireSchemas(sent.chat) + admitted.length && within(estimateAfter, realOf(sentAfter.chat), 0.1), `estimate ${fmt(estimateAfter)} vs real ${fmt(realOf(sentAfter.chat))} · ${wireSchemas(sentAfter.chat)} schemas`)
+  check(`after an admission the tools term stays the fresh request's (${coreNames.length} schemas; the ${admitted.length} admitted definitions ride inside the ToolSearch result) and the estimate stays within 10% of that request's bytes/${WIRE_BYTES_PER_TOKEN}`, sentAfter.chat !== undefined && wireSchemas(sentAfter.chat) === wireSchemas(sent.chat) && JSON.stringify(sentAfter.chat.body.messages).includes('<tools>') && within(estimateAfter, realOf(sentAfter.chat), 0.1), `estimate ${fmt(estimateAfter)} vs real ${fmt(realOf(sentAfter.chat))} · ${wireSchemas(sentAfter.chat)} schemas`)
   check('nothing but tags/version/ps/show/chat reached the server — never a load, never a generation', hits.every(h => /^\/api\/(tags|version|ps|show|chat)$/.test(h.url)), hits.map(h => h.url).join(','))
 }
 

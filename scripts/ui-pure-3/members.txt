@@ -86,3 +86,6 @@ prove-silent-command-surface.ts
 prove-crews-dialog-gone.ts
 prove-diff-chip-session-own.ts
 prove-crew-row-parked-ask.ts
+prove-command-popup-slot.ts
+prove-effort-popup-frames.ts
+prove-health-popup-frames.ts
