@@ -1,8 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { pendingRows } from './mnemeBuffer.js'
-import { readLedger } from './ledger.js'
-import { getMemoryBaseDir, mnemeProjectKey } from './paths.js'
+import { getMemoryBaseDir } from './paths.js'
 import { logForDebugging } from '../utils/debug.js'
 import { memoryRecallModeLine } from './embedModels.js'
 import { memoryGrade, MEMORY_EVIDENCE_CONTRACT } from './memoryEvidence.js'
@@ -88,7 +86,6 @@ export function renderFrontPage(input: {
   now: Date
   limit?: number
   role?: 'main' | 'child'
-  hasHandoff?: boolean
 }): { text: string; status: PinnedStatus } {
   const { dir, topics, archives, pins, usage, now } = input
   const limit = input.limit ?? pinnedTextLimit()
@@ -140,7 +137,7 @@ export function renderFrontPage(input: {
     renderedAt: now.toISOString(),
   }
   void usage
-  const empty = factCount + archivedFacts + pins.length + pendingRows(dir).length === 0 && !input.hasHandoff
+  const empty = factCount + archivedFacts + pins.length === 0
   if (empty) return { text: emptyMemoryPage(dir), status }
   return { text: lines.join('\n'), status }
 }
@@ -227,8 +224,7 @@ export function loadMemoryPrompt(opts: { verbs?: 'all' | 'read'; role?: 'main' |
   const dir = opts.dir ?? mnemeLibraryDir()
   const topics = listTopicDocs(dir)
   const archives = listArchiveDocs(dir)
-  const hasHandoff = readLedger(mnemeProjectKey()).some(entry => entry.handoff?.text.trim())
-  const page = renderFrontPage({ dir, topics, archives, pins: readPins(dir), usage: readUsage(dir), now: new Date(0), role: opts.role, hasHandoff }).text
+  const page = renderFrontPage({ dir, topics, archives, pins: readPins(dir), usage: readUsage(dir), now: new Date(0), role: opts.role }).text
   const global = globalPinLines(dir)
   const text = global.length === 0 ? page : [page, ...(page === emptyMemoryPage(dir) ? [MEMORY_EVIDENCE_CONTRACT] : []), ...global].join('\n')
   return forReader(text, opts.verbs ?? 'all')
