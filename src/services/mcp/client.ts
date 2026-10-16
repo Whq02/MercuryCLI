@@ -683,9 +683,15 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       const transportLabel = inProcess ? 'in-process' : type
+      const stdioConfig = config as { command?: string; args?: string[] }
+      const stderrFirstLine = stderrBuffer.trim().split('\n')[0]?.trim().slice(0, 200) ?? ''
+      const spawnedTail =
+        stdioTransport === null
+          ? ''
+          : ` · spawned ${[stdioConfig.command ?? '', ...(stdioConfig.args ?? [])].join(' ').trim()} · ${stderrFirstLine !== '' ? `stderr began: ${stderrFirstLine}` : 'nothing on stderr'}`
       reject(
         new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-          `MCP server "${name}" (${transportLabel}) did not answer in ${deadlineSecondsLabel(connectTimeoutMs())} — retry from /mcp`,
+          `MCP server "${name}" (${transportLabel}) did not answer in ${deadlineSecondsLabel(connectTimeoutMs())} — retry from /mcp${spawnedTail}`,
           MCP_CONNECT_TIMEOUT_TELEMETRY,
         ),
       )
@@ -719,7 +725,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     await transport.close().catch(() => {})
     if (stderrBuffer) logMCPError(name, `stderr: ${stderrBuffer}`)
     if (type === 'stdio' || type === 'sse' || type === 'http') {
-      const stderrTail = stderrBuffer.trim().split('\n').slice(-3).join(' · ').slice(0, 300)
+      const stderrTail = Array.from(new Set(stderrBuffer.trim().split('\n').map(line => line.trim()).filter(line => line !== ''))).slice(-3).join(' · ').slice(0, 300)
       throw new Error(
         describeMcpConnectFailure(err, {
           transport: type,

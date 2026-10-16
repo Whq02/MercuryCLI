@@ -311,9 +311,15 @@ section('§2 the opened fact is one view with its keys, whatever list or search 
   check('esc from the lineage returns to the lineage row, not the first', rowOf(m, 'lineage').includes('❯') && !rowOf(m, 'facts and decisions').includes('❯'), rowOf(m, 'lineage').trim())
   check('the detail slot describes the selected row, not a stale receipt', (rowsOf(m, 'before this one').length >= 1 || rowsOf(m, 'first session of this work').length >= 1) && !m.screen().includes('retired seq') && !m.screen().includes('unpinned'), m.lines().filter(l => l.includes('first session') || l.includes('before this one') || l.includes('retired')).join(' | '))
   save('esc-returns-to-row-120x40', m.lines())
+  const searchY = m.lines().findIndex(line => line.includes(`/ ${layout.MEMORY_SEARCH_PLACEHOLDER}`))
+  const searchX = (m.lines()[searchY] ?? '').indexOf('/ ')
+  const unfocused = m.styleAt(searchX, searchY)?.fg
   m.push('/')
-  await settle(120)
-  check('/ focuses the search and is not its first character', !m.screen().includes('/ /') && rowOf(m, '/ ').includes(String(layout.MEMORY_SEARCH_PLACEHOLDER)), rowOf(m, '/ ').trim())
+  const focused = await waitFor(() => {
+    const fg = m.styleAt(searchX, searchY)?.fg
+    return unfocused !== undefined && fg !== undefined && fg !== unfocused
+  }, 4000)
+  check('/ focuses the search and is not its first character', focused && !m.screen().includes('/ /') && rowOf(m, '/ ').includes(String(layout.MEMORY_SEARCH_PLACEHOLDER)), rowOf(m, '/ ').trim())
   m.push('tab')
   const chunk = await waitFor(() => rowOf(m, '/ tab') !== '' && m.screen().includes('matches for “tab”'), 6000)
   check('a three-character chunk lands whole in the search', chunk, rowOf(m, '/ ').trim())

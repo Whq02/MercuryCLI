@@ -62,7 +62,7 @@ export async function glob(
   { limit, offset }: { limit: number; offset: number },
   abortSignal: AbortSignal,
   toolPermissionContext: ToolPermissionContext,
-): Promise<{ files: string[]; truncated: boolean; incomplete?: string }> {
+): Promise<{ files: string[]; truncated: boolean; ignored: number; incomplete?: string }> {
   let searchDir = cwd
   let pattern = filePattern
   if (isAbsolute(filePattern)) {
@@ -77,24 +77,37 @@ export async function glob(
     pattern = rewritten.pattern
   }
 
-  const args = ['--files', '--glob', normalizeGlobPattern(pattern), '--sortr=modified']
+  const args = ['--files', '--glob', normalizeGlobPattern(pattern), '--sortr=modified', '--no-ignore']
+  const universeArgs = ['--files', '--sortr=modified']
   const depth = globSearchDepth([normalizeGlobPattern(pattern)])
-  if (depth !== undefined) args.push('--max-depth', String(depth))
-  if (envFlagDefaultOn('MERCURY_GLOB_NO_IGNORE')) args.push('--no-ignore')
-  if (envFlagDefaultOn('MERCURY_GLOB_HIDDEN')) args.push('--hidden')
+  if (depth !== undefined) {
+    args.push('--max-depth', String(depth))
+    universeArgs.push('--max-depth', String(depth))
+  }
+  if (envFlagDefaultOn('MERCURY_GLOB_HIDDEN')) {
+    args.push('--hidden')
+    universeArgs.push('--hidden')
+  }
 
   const ignoreByRoot = getFileReadIgnorePatterns(toolPermissionContext)
   const ignores = normalizePatternsToPath(ignoreByRoot as never, searchDir)
   for (const ignore of ignores) {
     args.push('--glob', `!${ignore}`)
+    universeArgs.push('--glob', `!${ignore}`)
   }
 
-  const answer = await ripGrepAnswer(args, searchDir, abortSignal, searchRootAnchor(searchDir, normalizeGlobPattern(pattern), ignores))
-  const files = answer.lines.map(entry => (isAbsolute(entry) ? entry : resolve(join(searchDir, entry))))
+  const anchor = searchRootAnchor(searchDir, normalizeGlobPattern(pattern), ignores)
+  const matches = await ripGrepAnswer(args, searchDir, abortSignal, anchor)
+  const universe = await ripGrepAnswer(universeArgs, searchDir, abortSignal, anchor)
+  const listed = new Set(universe.lines)
+  const kept = matches.lines.filter(entry => listed.has(entry))
+  const complete = matches.complete && universe.complete
+  const files = kept.map(entry => (isAbsolute(entry) ? entry : resolve(join(searchDir, entry))))
   const truncated = files.length > offset + limit
   return {
     files: files.slice(offset, offset + limit),
     truncated,
-    ...(answer.complete ? {} : { incomplete: answer.reason ?? 'the search did not finish' }),
+    ignored: complete ? matches.lines.length - kept.length : 0,
+    ...(complete ? {} : { incomplete: (matches.complete ? universe.reason : matches.reason) ?? 'the search did not finish' }),
   }
 }

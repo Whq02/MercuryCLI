@@ -45,6 +45,89 @@ const VERIFICATION_CITES: Array<[string, RegExp]> = [
 const CONFIG_INDEX_SPELLING = J('src/substrate/', 'flagRegistry.ts')
 const SRC_CITE = new RegExp('[(`]' + J('src', '/'))
 
+const QUOTED_PRODUCT_LABELS: ReadonlyArray<{ span: string; reason: string }> = [
+  {
+    span: '`C/C++ IDE lane (clangd)`',
+    reason: 'Boot Menu row label in src/substrate/startupMenu.ts:168 quoted verbatim in backticks',
+  },
+]
+
+const CENSUS_EXEMPT_LINES: ReadonlyArray<{ fragment: string; reason: string }> = [
+  {
+    fragment: '**Yes ' + J('—', ' begin the build**'),
+    reason: 'ApolloReview option label in src/components/permissions/ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.tsx:87',
+  },
+  {
+    fragment: '**Yes ' + J('—', ' but ask me before each edit**'),
+    reason: 'ApolloReview option label in src/components/permissions/ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.tsx:88',
+  },
+  {
+    fragment: '**No ' + J('—', ' ask me more questions**'),
+    reason: 'ApolloReview option label in src/components/permissions/ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.tsx:89',
+  },
+  {
+    fragment: 'go-delve/' + J('del', 've/cmd/dlv@latest'),
+    reason: 'Go Delve module path in docs/DEBUGGER.md:63',
+  },
+]
+
+const VOICE_CENSUS_NEEDLES: Array<[string, RegExp]> = [
+  [
+    'voice census pattern',
+    new RegExp(
+      [
+        J(' ', '—', ' '),
+        J(', ', 'not '),
+        J('seam', 'less'),
+        J('rob', 'ust'),
+        J('del', 've'),
+        J('super', 'charg'),
+        J('game.', 'chang'),
+        J('un', 'lock'),
+        J('blaz', 'ing'),
+        J('serves ', 'as'),
+        J('stands ', 'as'),
+        J('boa', 'sts'),
+        J('feat', 'ures'),
+        J('off', 'ers'),
+        J('not ', 'just'),
+        J('rather ', 'than'),
+      ].join('|'),
+    ),
+  ],
+]
+
+function stripQuotedProductAndCodeSpans(text: string): string {
+  const preserveNewlines = (match: string): string => '\n'.repeat((match.match(/\n/g) ?? []).length)
+  const withoutGenerated = text.replace(
+    /<!--\s*contract:begin[\s\S]*?<!--\s*contract:end\s*-->/g,
+    preserveNewlines,
+  )
+  const lines = withoutGenerated.split('\n')
+  let fenced = false
+  const unfenced = lines
+    .map(raw => {
+      if (/^\s*(```|~~~)/.test(raw)) {
+        fenced = !fenced
+        return ''
+      }
+      if (fenced) return ''
+      let line = raw
+      for (const ex of CENSUS_EXEMPT_LINES) {
+        line = line.split(ex.fragment).join(' ')
+      }
+      return line
+    })
+    .join('\n')
+  const emDashInsideQuotes = (quoted: string): string => quoted.split(J(' ', '—', ' ')).join(' ')
+  return unfenced
+    .replace(/``[\s\S]*?``/g, preserveNewlines)
+    .replace(/`[^`]*`/g, preserveNewlines)
+    .split('\n')
+    .map(line => line.replace(/"[^"]*"|“[^”]*”/g, emDashInsideQuotes))
+    .join('\n')
+}
+
 interface Hit {
   file: string
   law: string
@@ -82,7 +165,12 @@ function scanTree(): Hit[] {
   }
   for (const rel of s1Surfaces) {
     const text = read(rel)
-    if (text !== null) hits.push(...scanText(rel, text, '§1', PROCESS_TERMS))
+    if (text === null) continue
+    let s1Text = text
+    for (const ex of QUOTED_PRODUCT_LABELS) {
+      s1Text = s1Text.split(ex.span).join('')
+    }
+    hits.push(...scanText(rel, s1Text, '§1', PROCESS_TERMS))
   }
   for (const rel of s2Surfaces) {
     const text = read(rel)
@@ -93,6 +181,12 @@ function scanTree(): Hit[] {
     if (text === null) continue
     const stripped = text.split(CONFIG_INDEX_SPELLING).join('')
     hits.push(...scanText(rel, stripped, '§3', [['inline source citation', SRC_CITE]]))
+  }
+  const topLevelDocs = ['README.md', ...docs.filter(f => /^docs\/[^/]+\.md$/.test(f))]
+  for (const rel of topLevelDocs) {
+    const text = read(rel)
+    if (text === null) continue
+    hits.push(...scanText(rel, stripQuotedProductAndCodeSpans(text), '§4', VOICE_CENSUS_NEEDLES))
   }
   return hits
 }
@@ -131,10 +225,43 @@ function selfTest(): void {
     'released 2026-08-16 as 9.9.9 (a plain date beside no decision verb)',
     'TASK-driven text carries no row id',
   ].join('\n')
+  const censusRed: Array<[string, string, number]> = [
+    ['a bare census line', 'The surface ' + J('—', ' ') + J('rather ', 'than') + ' a menu ' + J('off', 'ers') + ' a road.', 1],
+    ...CENSUS_EXEMPT_LINES.map((ex): [string, string, number] => [
+      `a census word beside the exempt fragment ${ex.fragment}`,
+      `- ${ex.fragment}: a ` + J('rob', 'ust') + ' road.',
+      1,
+    ]),
+    ['a census word inside straight quotes', 'The choice is recorded as deviations from "a ' + J('rob', 'ust') + ' road" and resolved.', 1],
+    ['a census word inside curly quotes', 'The row reads “a ' + J('seam', 'less') + ' road” when it lands.', 1],
+    [
+      'a bare census word three lines below a stray straight quote',
+      'The home screen row (12" wide) carries the switch.\n' +
+        'The choice is recorded as deviations from "everything on" and resolved\n' +
+        'into a kit when each new session starts. Flip a switch, start a session,\n' +
+        'and it loads that selection ' +
+        J('seam', 'lessly') +
+        ', "as the menu says".',
+      4,
+    ],
+  ]
+  for (const [label, fixture, line] of censusRed) {
+    const found = scanText('fixture.md', stripQuotedProductAndCodeSpans(fixture), '§4', VOICE_CENSUS_NEEDLES)
+    if (!found.some(h => h.line === line)) {
+      console.error(`self-test FAILED: a §4 census fixture was not flagged on line ${line}: ${label}`)
+      process.exit(1)
+    }
+  }
+  const censusClean = [
+    'The row reads `"held: sign-in expired — /logins"` and `` "Run `brew` — [y/N]" ``.',
+    ...CENSUS_EXEMPT_LINES.map(ex => `- ${ex.fragment}: enters the build posture.`),
+    'The strip reads "held: sign-in expired ' + J('—', ' /logins') + '" and “done ' + J('—', ' 3 files”') + ' on its row.',
+  ]
   const cleanHits = [
     ...scanText('clean.md', clean, '§1', PROCESS_TERMS),
     ...scanText('clean.md', clean, '§2', VERIFICATION_CITES),
     ...scanText('clean.md', clean.split(CONFIG_INDEX_SPELLING).join(''), '§3', [['inline source citation', SRC_CITE]]),
+    ...censusClean.flatMap(fixture => scanText('clean.md', stripQuotedProductAndCodeSpans(fixture), '§4', VOICE_CENSUS_NEEDLES)),
   ]
   if (cleanHits.length > 0) {
     console.error('self-test FAILED: clean text was flagged:')

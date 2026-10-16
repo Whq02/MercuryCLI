@@ -7,6 +7,7 @@ import { osc } from '../termio/osc.js'
 type TerminalQuery<T extends TerminalResponse = TerminalResponse> = {
   request: string
   match: (r: TerminalResponse) => r is T
+  stringReply?: boolean
 }
 
 type DecrpmResponse = Extract<TerminalResponse, { type: 'decrpm' }>
@@ -57,6 +58,7 @@ export function oscColor(code: number): TerminalQuery<OscResponse> {
   return {
     request: osc(code, '?'),
     match: (r): r is OscResponse => r.type === 'osc' && r.code === code,
+    stringReply: true,
   }
 }
 
@@ -64,6 +66,7 @@ export function xtversion(): TerminalQuery<XtversionResponse> {
   return {
     request: csi('>0q'),
     match: (r): r is XtversionResponse => r.type === 'xtversion',
+    stringReply: true,
   }
 }
 
@@ -73,6 +76,7 @@ const SENTINEL = csi('c')
 type PendingQuery = {
   match: (r: TerminalResponse) => boolean
   resolve: (r: TerminalResponse | undefined) => void
+  stringReply: boolean
 }
 
 type Batch = {
@@ -117,6 +121,10 @@ export class TerminalQuerier {
     return this.batches.every(batch => batch.sentinel === null)
   }
 
+  stringReplyOwed(): boolean {
+    return this.batches.some(batch => batch.sentinel !== null && batch.queries.some(query => query.stringReply))
+  }
+
   whenSettled(deadlineMs: number = terminalQuerySettleMs()): Promise<QuerySettleOutcome> {
     if (this.settled()) return Promise.resolve('settled')
     const oldest = this.batches.find(batch => batch.sentinel !== null)!
@@ -147,6 +155,7 @@ export class TerminalQuerier {
       this.openBatch.queries.push({
         match: query.match,
         resolve: r => resolve(r as T | undefined),
+        stringReply: query.stringReply === true,
       })
       this.pendingRequests += query.request
     })

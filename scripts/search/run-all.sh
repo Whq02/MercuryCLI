@@ -6,7 +6,7 @@
 # gate-watch: src/tools/WebFetchTool/utils* src/utils/http* src/services/tokenEstimation.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/scriptedTurn.ts src/Tool.ts
 # gate-watch: src/services/concourse/coordinatorTools.ts src/services/providers/routeLaw.ts
-# gate-watch: src/tools/GlobTool/GlobTool.ts src/tools/GrepTool/GrepTool.ts src/utils/*
+# gate-watch: src/tools/GlobTool/GlobTool.ts src/tools/GlobTool/prompt.ts src/tools/GrepTool/GrepTool.ts src/utils/*
 # gate-watch: src/utils/model/model.ts src/utils/router/providerSecrets.ts src/utils/settings/settingsCache.ts
 # gate-watch: src/rows/* src/runner/wire/* scripts/lib/rows.ts scripts/lib/fixtureApi.ts
 set -uo pipefail

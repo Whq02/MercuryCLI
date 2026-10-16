@@ -126,6 +126,23 @@ export const SIGN_IN_LATER_ROW = {
   value: 'later',
 } as const
 
+export interface LocalRoadFacts {
+  models: number
+  labels: string[]
+}
+
+export function localRoadOpen(local: LocalRoadFacts | null | undefined): boolean {
+  return local !== null && local !== undefined && local.models > 0 && local.labels.length > 0
+}
+
+export function signInLaterRow(local: LocalRoadFacts | null | undefined): { label: string; value: typeof SIGN_IN_LATER_ROW.value } {
+  if (!localRoadOpen(local)) return SIGN_IN_LATER_ROW
+  return {
+    label: `Sign in later to look around, or run a local model — ${local!.models} found on ${local!.labels.join(' · ')}`,
+    value: SIGN_IN_LATER_ROW.value,
+  }
+}
+
 export function loginFamilyNameOf(row: LoginFamilyRow): string {
   return row.label.split(' — ')[0]!
 }

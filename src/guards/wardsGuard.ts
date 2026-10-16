@@ -226,6 +226,7 @@ export function registerWardsGuard(
     ...projectReport.rules,
   ]
   const resolveTarget = makeTargetResolver(getCwd(), work)
+  const startingFolder = realTargetPath(getCwd())
   let denials = 0
   engageToolGuard(sessionId, {
     id: WARDS_HOOK_ID,
@@ -238,6 +239,7 @@ export function registerWardsGuard(
         pending.shellCommand = call.toolRef?.shellCommandOf?.(pending.input)
         pending.readHead = work === undefined ? readTargetHead : path => readTargetHead(path, work)
         pending.resolvePath = resolveTarget
+        pending.startingFolder = startingFolder
         const refusal = evaluateWards(REFUSAL_WARDS, pending, work)
         if (!refusal.allow && level !== 'warn') return { allow: false, reason: buildWardDenial(refusal, pending.toolName) }
         if (denials < WARD_DENIAL_CAP) {

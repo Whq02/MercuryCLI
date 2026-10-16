@@ -1,4 +1,4 @@
-# Mneme — Mercury's memory
+# Mneme: Mercury's memory
 
 Mneme is Mercury's project memory, on by default. It stores facts in plain
 markdown topic pages under the config home, managed through four tools and
@@ -15,8 +15,8 @@ Mercury config home. Mercury changes them through its memory tools; use
 Four things are in front of the model without anyone asking:
 
 - **The front page**, loaded at the start of every chat. It is the index of
-  the library — each topic on one line with its fact count — built by Mercury,
-  never by the model. The index says where things are; it never carries the
+  the library (each topic on one line with its fact count), built by Mercury
+  and never by the model. The index says where things are; it never carries the
   facts themselves.
 - **The pinned shelf**, loaded in full: standing rules and preferences, word
   for word. A rule you ask Mercury to remember ("remember: always …") is
@@ -24,14 +24,14 @@ Four things are in front of the model without anyone asking:
   rewords, merges or drops such a rule on its own. You pin and unpin from the
   memory centre.
 - **The facts that matter now** (`# Memory at start`), chosen once at the start
-  of the session: within their own allowance (`memory.startLimit`, default 4000)
-  beside the pinned shelf, the facts and earlier notes most relevant to the
-  branch you are on, the files touched lately and the last note left, each word
-  for word. One line above them says how much rode and that Recall finds the
-  rest.
+  of the session: within a dedicated startup budget beside the pinned shelf (see
+  [What rides at the start of a session](#what-rides-at-the-start-of-a-session)),
+  the facts and earlier notes most relevant to the branch you are on, the files
+  touched lately and the last note left, each word for word. One line above them
+  says how much rode and that Recall finds the rest.
 - **The automatic lookup** on every message: up to five facts that match what
-  you just said are attached before the model answers, each pointing at the
-  page it lives on.
+  you just said (ranked by stemmed BM25 word score fused with the usage signal)
+  are attached before the model answers, each pointing at the page it lives on.
 
 Mercury publishes the front page when the library or its pinned rules change.
 Between those changes the same page loads into each chat, preserving the
@@ -56,8 +56,8 @@ idle minutes.
 
 The vectors live in a derived file beside the library
 (`memory/library/.index/embeddings.json`): one row per fact, no fact text,
-stamped with the model that made it, rebuilt from the pages whenever it is
-missing, stale or made by another model — the pages stay the one truth. A
+stamped with the model that made it, and rebuilt from the pages whenever it is
+missing, stale or made by another model, so the pages stay the single source of truth. A
 Retain embeds its fact at once, off the UI thread, so a fresh fact is
 found by meaning before it is consolidated; a whole-library build runs the same
 way and Recall says `word match only (index building…)` meanwhile, and once
@@ -85,9 +85,9 @@ under a ruling recorded in the current session rise up to two places, and a
 corrected fact's replacement inherits the usage history of the record it
 superseded. Pinned rules keep their own order, facts that mean the same hand
 their order to the usage signal, and stale facts sort after current ones before
-`limit` applies. The start-of-session pick scores through the same meaning
-ranking. No model ever rewrites what you said: ranking only decides what to
-find first.
+`limit` applies. See [What rides at the start of a session](#what-rides-at-the-start-of-a-session)
+for how the start-of-session pick ranks candidates. No model ever rewrites what
+you said: ranking only decides what to find first.
 
 `/config`'s **Memory recall ranking** row (`memory.embeddingModel`) names which
 model serves and selects from the models this install carries (or the path to a
@@ -129,10 +129,10 @@ contained restatements are never refused.
 ## It stays small on its own
 
 - A topic page that grows too long splits into smaller pages; the index shows
-  them under the one topic line, so the index grows by a line, not a hundred.
+  them under the one topic line, so the index grows by a single line.
 - Consolidation merges duplicates and replaces corrected facts. A checker
-  confirms that every fact that went in came out — as a live fact or as
-  history — before anything is written.
+  confirms that every fact that went in came out (as a live fact or as
+  history) before anything is written.
 - When a pending observation restates an
   unpinned fact on record (at least `0.8` Jaccard similarity on stemmed 3-word
   shingles, with identical negation windows, polarity windows, numbers,
@@ -154,42 +154,42 @@ contained restatements are never refused.
 
 ## The pinned shelf and its limit
 
-The shelf has a limit on how much text it loads into every session, not on
-how many rules it holds. The limit is yours: `memory.pinnedLimit` in settings
+The shelf has a character limit on the text it loads into every session, while
+holding any number of rules on disk. The limit is yours: `memory.pinnedLimit` in settings
 (characters; the default is 8000), and the **Pinned memory limit** row in
 `/config` moves it. A new rule is never refused. When the shelf is over its
 limit every rule still loads, and a chat you are in opens with one line that
-says so — how much is pinned, the limit, that all of it is loaded, and where
+says so: how much is pinned, the limit, that all of it is loaded, and where
 to trim. The line never appears in a crewmate's chat or in `mercury run`
 output. Crewmates receive the front page with the pinned rules.
 
 A rule you asked for changes only on your word. Consolidation leaves it as
 said. When the model is asked to correct, replace or drop it, it puts one
 card to you first: the rule's words as stored, what will happen (unpinned and
-struck, corrected to the new words, or replaced by them), and Yes or No — No
+struck, corrected to the new words, or replaced by them), and Yes or No; No
 keeps the rule as it is. Under the sovereign permission mode the change runs
 without the card, and `/memory` shows it was made from the chat under
 sovereign. A run with no one to answer the card changes nothing and points
 to `/memory`, where you change it yourself: under pinned rules,
-`↵` opens the rule and `c` corrects it — you retype it, the old wording goes
+`↵` opens the rule and `c` corrects it (you retype it, the old wording goes
 to history linked to the new one, and the pin and its "asked for by you" mark
-follow the new wording; `u` unpins it. Once you have unpinned a rule it is a
+follow the new wording); `u` unpins it. Once you have unpinned a rule it is a
 plain fact again: restate the rule in the chat and the model replaces it, so
 one rule stays current. For another pinned rule, a replacement names that
 rule's id and keeps the earlier text as history. Rules that merely share
-words are not a conflict — both stay.
+words are not a conflict, so both stay.
 
 ## What rides at the start of a session
 
 The pinned shelf rides first and whole, whatever its size. Then, within an
 allowance of its own that the shelf never eats into, Mercury chooses what
-else a session should see at its start — no model is asked.
-The project's state is the question: the name of the branch and its words,
+else a session should see at its start without calling a model.
+The project's state is the query: the name of the branch and its words,
 the files changed in the working tree and the files the last sessions
-touched, the words of the last note left. Every unpinned fact (archived ones
-included) and every earlier note is scored against that state the way Recall
-scores a search — the words in common, a fresh fact ahead of an old one on
-the same words — and divided by its length.
+touched, and the words of the last note left. Every unpinned fact (archived ones
+included) and every earlier note is scored against those state chunks using
+stemmed BM25 weighted by recency plus `1 / (60 + rank + 1)` from semantic
+ranking, then divided by its character length (`score / chars`).
 Stale facts sort last and carry their `stale` confirmation-date tag counted
 within the allowance; a short match (`score / chars`) packs ahead of a long one
 of equal relevance.
@@ -213,36 +213,39 @@ reaches the next session's page.
 ## The journal
 
 When a session ends, Mercury asks the model for one orienting handoff note for
-the next session, stored verbatim up to 8,000 characters in
-`<config home>/projects/<project>/lineage/ledger.jsonl` (never written into
-your repository as `.mercury/handoff.md`; a note over 8,000 characters is
-refused with its character count). If more than half of the note's sentences
-(and at least two sentences) repeat facts, rules or the previous note already
-on record, Mercury names the repeated sources (`Four of your seven sentences
-are already on record (rule 12, fact 19 and the previous note).`) and asks
-once more for only what is new; the second answer is stored as written.
+the next session, stored verbatim up to 8,000 characters in the session lineage
+ledger (see [On disk](#on-disk); never written into your repository as
+`.mercury/handoff.md`, and a note over 8,000 characters is refused with its
+character count). On the next session's `# Lineage` entry page, a previous
+session that left no handoff note is shown as `"The last session (...) left no
+note."`, while `Recall` (`read: "ledger:<ordinal>"`) prints `"no note left"`.
+If more than half of the note's sentences (and at least two sentences) repeat
+facts, rules or the previous note already on record, Mercury names the repeated
+sources (`Four of your seven sentences are already on record (rule 12, fact 19
+and the previous note).`) and asks once more for only what is new; the second
+answer is stored as written.
 
 Beside the facts, Mercury keeps a journal: the model's own account of each
-session, in the first person — what happened, what you wanted, what it
-noticed about how you like to work, what it got wrong. The model writes the
+session, in the first person (what happened, what you wanted, what it
+noticed about how you like to work, what it got wrong). The model writes the
 entry with the **Journal** tool, in plain words and kept short; a fault is
 its own and said so. When a session ends Mercury appends the entry, dated
 from its own clock, to the project's journal. One entry per session; a later
 call replaces the earlier; a session that leaves no entry adds no line.
-Project facts and conventions do not go here — they go to the instruction
-file or to Retain — and what the model noticed about you goes here and never
-into the instruction file.
+Project facts and conventions go to the instruction file or to `Retain` instead
+of the journal, and what the model noticed about you goes to the journal and
+never into the instruction file.
 
-The journal lives in the Mercury home beside the project's memory, never
-under the project tree, and Mercury never pushes, syncs or shares it. Read it
-in `/memory`: the overview row counts the entries and dates the newest, `↵`
-lists them newest first, and `↵` on one opens it whole. `memory.journal`
-turns the writing off (the tool leaves the roster and nothing is written).
-`memory.journalOnEntryPage`, off by default, hands the last entry to the
-model at the start of the next session on its entry page (`# Lineage`) — and whatever the
-model reads at entry travels to the engine's provider with the request;
-"never uploaded" means Mercury itself never pushes, syncs or shares the
-journal, not that the session's own engine does not see it.
+The journal lives in the Mercury config home beside the project's memory (see
+[On disk](#on-disk)), never under the project tree, and Mercury never pushes,
+syncs or shares it. Read it in `/memory`: the overview row counts the entries
+and dates the newest, `↵` lists them newest first, and `↵` on one opens it
+whole. `memory.journal` turns the writing off (the tool leaves the roster and
+nothing is written). `memory.journalOnEntryPage`, off by default, hands the last
+entry to the model at the start of the next session on its entry page (`#
+Lineage`), where the session's model provider receives it as part of the prompt
+("never uploaded" means Mercury itself never pushes, syncs or shares the
+journal file).
 
 ## The memory centre
 
@@ -250,9 +253,9 @@ journal, not that the session's own engine does not see it.
 the files menu and `/config` use: the title "Mercury · memory" with the
 project and its memory folder under it, a search line at the top, the body,
 and the keys in the footer. The overview is a table with one row per
-section — facts and decisions, pinned rules, topics, the lineage, the
-journal, notes to take in (while there are any), maintenance and the
-instruction files — and three columns beside the name: the count, the newest
+section (facts and decisions, pinned rules, topics, the lineage, the
+journal, notes to take in while there are any, maintenance and the
+instruction files) and three columns beside the name: the count, the newest
 date, and a one-word state (`MERCURY.md`, `AGENTS.md` and `MERCURY.local.md` sit
 under instruction files, and the popup title is `Mercury · memory`).
 The selected row's detail reads under the table
@@ -263,8 +266,8 @@ sessions before this one; the chat you are in is never among them.
 
 A section opens in the body with the overview folded to a breadcrumb. The
 facts (newest first), the pinned rules and the topics are lists. The lineage
-is a table of the sessions of this work, newest first — session, engine,
-started, ended, and whether it left a note — and `↵` on a noted session
+is a table of the sessions of this work, newest first (session, engine,
+started, ended, and whether it left a note), and `↵` on a noted session
 opens its note. The journal is a dated list, newest first, and `↵` opens an
 entry whole. A topic page, a session's note and a journal entry open as
 pages wrapped to the frame; `↑↓` scroll one that runs past it.
@@ -277,8 +280,8 @@ the search. A convention you stated in the chat lives in MERCURY.md and the
 search finds it by its words as `MERCURY.md:12 · the line`; `↵` opens the
 file as a page at that line and `e` opens it in your editor.
 
-Open a fact — from the facts, the pinned rules or the search, it is the same
-view — to see its seq, whether it is pinned and asked for by you, when it was
+Open a fact (from the facts, the pinned rules or the search, which all open the same
+view) to see its seq, whether it is pinned and asked for by you, when it was
 saved and from where, and the page it lives on with the fact marked.
 For both consolidated and pending facts (`seq` or `recent`), the detail view
 also shows staleness or path-review status and usage counts (`offered <N> ·
@@ -286,9 +289,9 @@ opened <N> · cited <N> (last 512 turns)`); on a pending fact, `c` strikes the
 old draft when corrected and `x` strikes it before consolidation.
 The footer names only the keys that work there: `c` corrects it (you retype it
 with the current wording in view; the old wording goes to history and the
-pin follows the new one), `x` retires it — `x` asks first and `x` again
-retires it, any other key keeps it — `p` pins it word for word as asked for
-by you, `u` unpins it; pin and unpin act at once and the receipt names the
+pin follows the new one), `x` retires it (pressing `x` asks for confirmation
+first and pressing `x` again retires it, while any other key keeps it), `p` pins it word for word as asked for
+by you, and `u` unpins it; pin and unpin act at once and the receipt names the
 key that undoes them. A change made here reaches new sessions; the chat you
 are in keeps the rules it loaded when it started, and every receipt says so.
 
@@ -303,7 +306,7 @@ fill.
 node with its first words, pinned rules and stale facts are marked, each
 node says how often it was offered, opened and cited (`offered`, `opened`,
 `cited`), and the links are
-edges — what a fact supersedes, the ruling it was made under, the session
+edges showing what a fact supersedes, the ruling it was made under, and the session
 that made it (`supersedes`, `ruling`, `session`). A node opens its record, word for word. The page reads the
 library and writes nothing back. It is kept as a sample, a new version each
 time you open it, so Samples must be on ([SAMPLES.md](SAMPLES.md)).
@@ -315,13 +318,12 @@ Session lineage records and handoff notes live at
 `<config home>/projects/<project>/journal/journal.md`. The
 library lives at `<config home>/projects/<project>/memory/library/`:
 
-- `topic-<slug>.md` — one topic page; `archive-<slug>.md` — its archive;
-- `current.jsonl` — the staging buffer of facts not yet consolidated;
-- `front-page.md` and `pinned-status.json` — the published index and pinned
+- `topic-<slug>.md`: one topic page; `archive-<slug>.md`: its archive;
+- `current.jsonl`: the staging buffer of facts not yet consolidated;
+- `front-page.md` and `pinned-status.json`: the published index and pinned
   shelf, with the shelf's fill;
-- `pins.json` — the pinned rules; `usage.json` — when each fact was last used;
-- `library.json` — the sequence counter; `maintenance.jsonl` — the receipts.
-
+- `pins.json`: the pinned rules; `usage.json`: when each fact was last used;
+- `library.json`: the sequence counter; `maintenance.jsonl`: the receipts.
 `signals.json` holds the recall signal log, and `.index/embeddings.json` holds
 the derived semantic vectors.
 

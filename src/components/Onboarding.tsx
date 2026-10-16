@@ -336,7 +336,7 @@ type Props = {
 
 export function Onboarding({ onDone }: Props): React.ReactNode {
   const [stepIndex, setStepIndex] = useState(0)
-  const [oauthEnabled] = useState(() => isAnthropicAuthEnabled() && !Object.values(resolveProviderUsability()).some(lane => lane.usable))
+  const [oauthEnabled] = useState(() => isAnthropicAuthEnabled() && !Object.values(resolveProviderUsability()).some(lane => lane.provider !== 'local' && lane.usable))
   const [theme] = useTheme()
   const exitState = useExitOnCtrlCDWithKeybindings()
   const notes = bootNotes()

@@ -182,6 +182,7 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   deferred_tools_delta: z.looseObject({ addedNames: z.array(z.string()).optional(), addedLines: list, removedNames: list, body: z.string().optional() }),
   held_tools: z.looseObject({ names: z.array(z.string()), body: z.string() }),
   mcp_instructions_delta: z.looseObject({ addedBlocks: list, removedNames: list }),
+  mcp_servers_failed: z.looseObject({ servers: objectList, body: z.string() }),
   harness_map_delta: z.looseObject({ added: list, removed: list }),
   file: z.looseObject({ filename: z.string(), content: z.looseObject({}), displayPath: z.string() }),
   compact_file_reference: z.looseObject({ filename: z.string(), displayPath: z.string() }),

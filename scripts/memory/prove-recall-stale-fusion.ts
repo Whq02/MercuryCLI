@@ -33,7 +33,10 @@ try {
   assert.equal(literal.hits.length, 2)
   const pointers = searchPointers('quartz certificates', { dir: home, now, limit: 2, sessions: [] }).pointers
   assert.equal(pointers[0]?.id, 'seq:106')
-  assert.deepEqual(Object.keys(pointers[0]!).sort(), ['footnotes', 'id', 'kind', 'title'])
+  assert.deepEqual(Object.keys(pointers[0]!).sort(), ['footnotes', 'freshness', 'id', 'kind', 'source', 'title'])
+  assert.equal(pointers[0]!.freshness?.status, 'current')
+  assert.equal(pointers[1]!.freshness?.status, 'stale')
+  assert.equal(pointers[0]!.source?.page, 'quartz')
   assert(!pointers[0]!.title.includes('concise'))
   assert(pointers[1]!.title.includes('[stale — not confirmed since 2026-01-01]'))
   assert.deepEqual(readUsage(home), {})

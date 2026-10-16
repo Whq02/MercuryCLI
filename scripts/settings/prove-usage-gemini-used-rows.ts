@@ -35,7 +35,7 @@ const { sessionModelSpendRows } = await import('../../src/services/engine-connec
 const wire = await import('../../src/services/engine-connector/seatWire.ts')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { geminiLaneModelsByLastUse, geminiPlanQuotaView } = await import('../../src/services/providers/gemini/geminiPlanQuota.ts')
+const { geminiLaneModelsByLastUse, geminiPlanQuotaUnreportedWords, geminiPlanQuotaView } = await import('../../src/services/providers/gemini/geminiPlanQuota.ts')
 const { sessionSpendByModel } = await import('../../src/services/providers/providerUsage.ts')
 type UsageFacts = import('../../src/services/engine-connector/types.ts').UsageFactsV1
 type Connector = import('../../src/services/engine-connector/types.ts').EngineConnectorV1
@@ -103,6 +103,24 @@ const used = geminiLaneModelsByLastUse()
 check("the slot's used models come from the same facts, last use first — the crewmate's Argon row among them, the Fable row left out", j(used) === j([FLASH, ARGON]), j(used))
 const view = geminiPlanQuotaView(FIGURES, { model: FABLE, effort: 'max', usedModels: used })
 check("under the tier: no active row (a Fable session), the two used rows with their quota and reset, 25 folded — never '27 other roster models' over a session that spent on Argon", view.active === undefined && j(view.used.map(f => [f.key, f.value, f.resetsAtMs])) === j([['plan-quota:gemini-3.8-flash-high', '77%', RESET], [`plan-quota:${ARGON}`, '42%', RESET]]) && view.others.length === 25, j({ active: view.active?.key, used: view.used.map(f => f.key), others: view.others.length }))
+
+section('§1b Google reports quota for some models and none for one: the used model Google does not report says so in one phrase instead of vanishing (F36A-14)')
+{
+  const partial = FIGURES.filter(figure => figure.key !== 'plan-quota:gemini-3.8-flash-high')
+  const partialView = geminiPlanQuotaView(partial, { model: FABLE, effort: 'max', usedModels: used })
+  check('the Argon row keeps its quota and reset; the Flash row is not silently dropped — it is named as unreported', j(partialView.used.map(f => f.key)) === j([`plan-quota:${ARGON}`]) && j(partialView.unreported) === j([{ model: FLASH, active: false }]), j({ used: partialView.used.map(f => f.key), unreported: partialView.unreported }))
+  check('the one phrase', geminiPlanQuotaUnreportedWords(FLASH) === 'gemini-3.8-flash: no quota reported for this model', geminiPlanQuotaUnreportedWords(FLASH))
+  check('the full roster reports nothing as unreported', j(view.unreported) === j([]), j(view.unreported))
+  const argonSession = geminiPlanQuotaView(partial, { model: FLASH, effort: 'high', usedModels: [ARGON] })
+  check("the session's own model, when Google reports no quota for it, is named as unreported and marked as the session's", argonSession.active === undefined && j(argonSession.unreported) === j([{ model: FLASH, active: true }]), j(argonSession.unreported))
+  const noRoster = geminiPlanQuotaView([FIGURES[0]!], { model: FLASH, effort: 'high', usedModels: [ARGON, FLASH] })
+  check('with no quota rows at all nothing is unreported (the section carries the reader note for that)', j(noRoster.unreported) === j([]) && noRoster.used.length === 0, j(noRoster))
+  const fable = geminiPlanQuotaView(partial, { model: FABLE, effort: 'max', usedModels: [] })
+  check("a Fable session's own model is not a Gemini row and is never named", j(fable.unreported) === j([]), j(fable.unreported))
+  const usageSource = read('src/components/Settings/Usage.tsx')
+  check('the Google sign-in slot paints the unreported rows with the one phrase, beside the used rows', usageSource.includes('quota.unreported.map(') && usageSource.includes("geminiPlanQuotaUnreportedWords(entry.model)}") && usageSource.includes("entry.active ? \"the session's model\" : 'used this session'"), 'the slot does not paint quota.unreported')
+  check('the compact figures line carries the same row', usageSource.includes('for (const entry of view.unreported) ordered.push({ key: `plan-quota-unreported:${entry.model}`') && usageSource.includes("value: 'no quota reported for'"), 'geminiPlanFiguresInOrder does not carry the unreported rows')
+}
 
 section('§2 an older runner publishes no rows: the slot falls to the face\'s own ledger, as the totals do')
 focus(zeroUsage())
