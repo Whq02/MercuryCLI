@@ -315,7 +315,7 @@ check('the pause closes the gate', pausedNow && gate?.paused() === true, gateMod
 for (const run of RUNS) rig.modelLatch(run, 1).open()
 await until(() => RUNS.every(run => assistantToolUses(rig, run) === 1), 'the three in-flight streams finish their tokens')
 check('every in-flight stream finished its tokens after the pause (the tool_use assistant settled in each loop)', RUNS.every(run => assistantToolUses(rig, run) === 1), RUNS.map(run => `${run}=${assistantToolUses(rig, run)}`).join(' '))
-await settle(120)
+await until(() => parked().length === RUNS.length, 'the three loops park at the tool seam')
 check('no tool starts while paused (the tool seam parks each block)', rig.toolStarts.length === 0, `${rig.toolStarts.length} tool call(s) proceeded while paused: ${rig.toolStarts.map(s => `${s.run}:${s.tool}(${String(s.input.text)})`).join(', ')}`)
 check('the three loops are parked, each under its own seat (main, scout, reviewer)', JSON.stringify([...parked()].sort()) === JSON.stringify(['main', 'reviewer', 'scout']), `parked=${JSON.stringify(parked())}`)
 check('no further model call starts while paused', rig.calls.length === 3, `${rig.calls.length} model calls`)
@@ -333,7 +333,7 @@ check('the gate is closed again', gate?.paused() === true, gateModule === null ?
 for (const run of RUNS) rig.toolLatch(run, 1).open()
 await until(() => RUNS.every(run => toolResults(rig, run) === 1), 'the three running tools finish and their results settle')
 check('every running tool finished and its tool_result settled after the pause', RUNS.every(run => toolResults(rig, run) === 1), RUNS.map(run => `${run}=${toolResults(rig, run)}`).join(' '))
-await settle(120)
+await until(() => parked().length === RUNS.length, 'the three loops park at the model seam')
 check('no model call starts while paused (the model seam parks before the permit and the request)', rig.calls.length === 3, `${rig.calls.length} model calls — ${rig.calls.length - 3} further call(s) proceeded while paused: ${rig.calls.filter(c => c.ordinal > 1).map(c => `${c.run}.c${c.ordinal}`).join(', ')}`)
 check('the three loops are parked at the model seam under their seats', JSON.stringify([...parked()].sort()) === JSON.stringify(['main', 'reviewer', 'scout']), `parked=${JSON.stringify(parked())}`)
 
