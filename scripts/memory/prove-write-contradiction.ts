@@ -236,7 +236,7 @@ const quantityPairs: Array<[string, string]> = [
   ['the server has 8 cores', 'the server has 16 cores'],
   ['the server has 8 cores', 'the server has 9 cores'],
   ['drawer 10 holds 8 spoons', 'drawer 10 holds 16 spoons'],
-  ['the team has 3 people', 'the team has 5 people'],
+  ['the cellar has 3 shelves', 'the cellar has 5 shelves'],
   ['the deploy runs from mercury-36', 'the deploy runs from mercury-37'],
 ]
 for (const [old, fresh] of quantityPairs) {
