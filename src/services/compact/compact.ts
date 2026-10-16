@@ -75,7 +75,7 @@ import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { projectRewoundWindows } from './checkpointRewind.js'
 import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt, renderFoldedWork, SUMMARY_SECTION_TITLES } from './prompt.js'
 import { computeVerbatimRecentTail, FOLDED_RESULT_KEY, foldLandingCeiling, foldableResults, foldedResultPlaceholder, isMercuryCompactKeepTailEnabled, withFoldedResults } from './verbatimTail.js'
-import { selectOperatorMessages } from './operatorMessages.js'
+import { operatorTextOf, selectOperatorMessages } from './operatorMessages.js'
 import { prepareFoldContext } from './foldTransaction.js'
 import { renderFoldMemory, retireFoldToMemory } from './foldRetirement.js'
 import { carryFoldPrefix } from './cacheEpoch.js'
@@ -1394,6 +1394,7 @@ export async function compactConversation(
       : { ...cacheSafeParams, toolUseContext: withEngineModel(cacheSafeParams.toolUseContext, summaryModel) }
   const trigger = isAutoCompact ? 'auto' : 'manual'
   const boundaryTrigger: CompactMetadata['trigger'] = overflow !== undefined ? 'overflow' : trigger
+  const newestMessageFollows = (cacheSafeParams.postFoldCarry ?? []).some(row => operatorTextOf(row) !== null)
   try {
     if (messages.length === 0) throw new Error(ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)
     const preCompactTokenCount = tokenCountWithEstimation(messages)
@@ -1456,7 +1457,7 @@ export async function compactConversation(
         const marker = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount)
         const work = renderFoldedWork(foldedWorkOf(messages, keep, marker.uuid))
         const capsule = buildRunContinuationCapsule(owner, [...context.readFileState.keys()])
-        const text = getCompactUserSummaryMessage([rawSummary, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true) + `\n\n${renderFoldLedger(ledger)}`
+        const text = getCompactUserSummaryMessage([rawSummary, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true, newestMessageFollows) + `\n\n${renderFoldLedger(ledger)}`
         return landingCount([marker, ...(operator ? [createAttachmentMessage(operator)] : []), createUserMessage({ content: text, isCompactSummary: true }), ...stripThinkingFromIndex(keep, 0), ...beforeRows]) < limit
       }
       let tail: ReturnType<typeof computeVerbatimRecentTail>
@@ -1508,6 +1509,7 @@ export async function compactConversation(
           suppressFollowUpQuestions,
           getTranscriptPath(),
            !!messagesToKeep,
+          newestMessageFollows,
         ) + `\n\n${renderFoldLedger(ledger)}`,
         isCompactSummary: true,
         isVisibleInTranscriptOnly: true,
@@ -1562,7 +1564,7 @@ export async function compactConversation(
       boundary.compactMetadata.recentRounds = rounds
       const selection = selectOperatorMessages(messages, { keptUuids: new Set(keep.map(row => row.uuid)) })
       const work = renderFoldedWork(foldedWorkOf(messages, keep, boundary.uuid))
-      const summaryText = getCompactUserSummaryMessage([rawSummary, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true) + `\n\n${renderFoldLedger(ledger)}`
+      const summaryText = getCompactUserSummaryMessage([rawSummary, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true, newestMessageFollows) + `\n\n${renderFoldLedger(ledger)}`
       partial = { ...partial, messagesToKeep: keep, operatorMessages: selection ? createAttachmentMessage(selection) : undefined, summaryMessages: partial.summaryMessages.map((row, index) => index === 0 ? { ...row, message: { ...row.message, content: summaryText } } : row) }
       annotateBoundaryWithPreservedSegment(boundary, partial.summaryMessages.at(-1)!.uuid, keep)
       annotateBoundaryWithWork(boundary, messages, keep, partial.summaryMessages.at(-1)!.uuid)
