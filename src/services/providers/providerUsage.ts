@@ -1522,8 +1522,22 @@ export function usageForProvider(
   reads?: ActiveUsageReads,
 ): ActiveSourceUsage {
   const view = deriveUsageForProvider(provider, reads)
-  if (view.sourceKind === 'none' || view.carry !== undefined) return view
+  if (view.sourceKind === 'none') {
+    const waiting = provider === 'unrecognised' ? undefined : waitingSignInWords(provider)
+    return waiting === undefined ? view : { ...view, whyNot: `${view.whyNot ?? 'not connected'} — ${waiting}` }
+  }
+  if (view.carry !== undefined) return view
   return { ...view, carry: CARRY_UNSTATED }
+}
+
+function waitingSignInWords(family: string): string | undefined {
+  try {
+    const { otherSignInsLine } = require('./providerIdentityLine.js') as typeof import('./providerIdentityLine.js')
+    const line = otherSignInsLine(family)
+    return line !== undefined && line.startsWith('a stored sign-in waits') ? line : undefined
+  } catch {
+    return undefined
+  }
 }
 
 export function metaMuseCodeUsage(spend: ProviderSessionSpend = providerSessionSpend('meta')): ActiveSourceUsage | undefined {

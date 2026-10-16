@@ -167,9 +167,11 @@ export function signInChoiceVerb(verb: 'use' | 'forget' | 'list', rest: string[]
   if (verb === 'list' || identity.trim() === '') {
     const rows = everySignInRoster()
     if (rows.length === 0) return { words: 'no sign-ins yet — /logins signs in', changed: false }
+    const spending = new Set(rows.filter(row => row.inUse).map(row => row.family))
     const lines = rows.map(row => {
       const roads = roadsWords(row)
-      return `${familyDisplayName(row.family)}: ${signInWords(row)}${row.isDefault ? ' · default' : ''}${row.inUse ? ' · in use' : ''}${roads === undefined ? '' : ` · roads: ${roads}`}`
+      const waits = spending.has(row.family) ? '' : ` · waits — /logins use ${accountIdentityShown() ? row.identity : '<identity>'} spends it`
+      return `${familyDisplayName(row.family)}: ${signInWords(row)}${row.isDefault ? ' · default' : ''}${row.inUse ? ' · in use' : ''}${waits}${roads === undefined ? '' : ` · roads: ${roads}`}`
     })
     const refusals = projectSignInRefusals().map(refusal => projectSignInRefusalWords(refusal))
     return { words: [...lines, ...refusals, '/logins use <identity> spends one this session · /logins forget <identity> drops a second sign-in'].join('\n'), changed: false }
