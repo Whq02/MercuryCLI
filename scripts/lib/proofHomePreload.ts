@@ -17,6 +17,8 @@ function entryTakesProofHome(path: string): boolean {
 if (entryTakesProofHome(entry)) {
   installProofScratch()
   process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
+  delete process.env.NO_COLOR
+  delete process.env.FORCE_COLOR
 }
 
 if (entryTakesProofHome(entry) && configHomeIsReal()) {
