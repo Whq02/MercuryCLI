@@ -2,7 +2,7 @@ import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
-import { landSignIn, signInHome, withPinnedSignInHome } from '../../../utils/accounts/signInPockets.js'
+import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { readStoredMoonshotApiKey } from '../../../utils/router/providerSecrets.js'
@@ -104,7 +104,7 @@ interface MoonshotAuthFile {
 }
 
 function authFilePath(): string {
-  return join(signInHome('moonshot'), AUTH_FILE_NAME)
+  return join(getAuthConfigHomeDir(), AUTH_FILE_NAME)
 }
 
 function readAuthFile(): MoonshotAuthFile | null {
@@ -118,7 +118,7 @@ function readAuthFile(): MoonshotAuthFile | null {
 }
 
 function publishAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): void {
-  mkdirSync(signInHome('moonshot'), { recursive: true })
+  mkdirSync(getAuthConfigHomeDir(), { recursive: true })
   const existing = readAuthFile() ?? { version: MOONSHOT_AUTH_VERSION }
   const next = mutate({ ...existing, version: MOONSHOT_AUTH_VERSION })
   const path = authFilePath()
@@ -288,22 +288,6 @@ export function writeMoonshotTokens(tokens: MoonshotStoredTokens | null, region?
   writeAuthFile(file => withTokens(file, tokens, region))
 }
 
-export function moonshotSignInIdentity(tokens: MoonshotStoredTokens | undefined): string | undefined {
-  return tokens ? `kimi-${kimiAccountKey(tokens).slice(0, 8)}` : undefined
-}
-
-export function landMoonshotTokens(tokens: MoonshotStoredTokens, region?: KimiRegion): void {
-  landSignIn({
-    family: 'moonshot',
-    identity: moonshotSignInIdentity(tokens) ?? credentialFingerprint(tokens.accessToken),
-    kind: 'oauth',
-    ledgerKind: 'oauth',
-    stable: kimiAccountKey(tokens) !== tokenIdentity(tokens),
-    homeIdentity: () => moonshotSignInIdentity(moonshotStoredTokens()),
-    write: () => writeMoonshotTokens(tokens, region),
-  })
-}
-
 export function writeMoonshotRegion(region: KimiRegion): void {
   writeAuthFile(file => ({ ...file, region }))
 }
@@ -462,17 +446,11 @@ export async function pollMoonshotDeviceToken(
   }
 }
 
-const refreshInFlight = new Map<string, Promise<MoonshotStoredTokens | undefined>>()
+let refreshInFlight: Promise<MoonshotStoredTokens | undefined> | null = null
 
 export function refreshMoonshotTokens(io?: MoonshotOauthIo): Promise<MoonshotStoredTokens | undefined> {
-  const pinned = signInHome('moonshot')
-  return withPinnedSignInHome('moonshot', pinned, () => refreshMoonshotTokensPinned(pinned, io))
-}
-
-function refreshMoonshotTokensPinned(pinned: string, io?: MoonshotOauthIo): Promise<MoonshotStoredTokens | undefined> {
-  const inFlight = refreshInFlight.get(pinned)
-  if (inFlight) return inFlight
-  const work = (async (): Promise<MoonshotStoredTokens | undefined> => {
+  if (refreshInFlight) return refreshInFlight
+  refreshInFlight = (async (): Promise<MoonshotStoredTokens | undefined> => {
     try {
       const env = io?.env ?? process.env
       const stored = moonshotStoredTokens()
@@ -501,11 +479,10 @@ function refreshMoonshotTokensPinned(pinned: string, io?: MoonshotOauthIo): Prom
       if (result.status === 400 || result.status === 401) writeMoonshotTokens(null)
       return undefined
     } finally {
-      refreshInFlight.delete(pinned)
+      refreshInFlight = null
     }
   })()
-  refreshInFlight.set(pinned, work)
-  return work
+  return refreshInFlight
 }
 
 
