@@ -8,11 +8,12 @@ import * as path from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'sub-package-manifests-home-'))
 process.env.MERCURY_BARE = '1'
-process.env.MERCURY_PYTHON = process.platform === 'win32' ? 'python' : '/usr/bin/python3'
+process.env.MERCURY_PYTHON = process.env.MERCURY_PROOF_PYTEST_PYTHON || (process.platform === 'win32' ? 'python' : '/usr/bin/python3')
 delete process.env.MERCURY_TESTS
 delete process.env.MERCURY_HOME
 
 const runners = await import('../../src/services/ide/projectRunners.ts')
+const { probePytest } = await import('../../src/services/ide/pythonTests.ts')
 const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 type TestRunRecord = import('../../src/services/ide/pythonTests.ts').TestRunRecord
@@ -54,12 +55,14 @@ function vitestPackage(root: string, name: string): void {
   writeFileSync(path.join(root, name, 'package.json'), JSON.stringify({ name, private: true, devDependencies: { vitest: '^3.0.0' } }) + '\n')
 }
 
-section('A. the box\'s shape (F37W-7B-18): no manifest at the root, package.json in package1/ and package2/ (both bare), package1/test_x.py — the packages are named, the python lane never runs 0 tests at the root (RED on the base: "unittest no test ran — Ran 0 tests", exit 0)')
+section('A. the box\'s shape (F37W-7B-18): no manifest at the root, package.json in package1/ and package2/ (both bare), package1/test_x.py — the packages are named, the python lane never runs 0 tests at the root (RED on the base: "unittest no test ran — Ran 0 tests", exit 0); the bare file\'s run inside package1 is read on the arm the pinned interpreter is on (pytest importable → the pytest lane · absent → the zero-run words)')
 {
   const root = mkdtempSync(path.join(scratch, '7b1-amb-'))
   barePackage(root, 'package1')
   barePackage(root, 'package2')
   writeFileSync(path.join(root, 'package1', 'test_x.py'), 'def test_x():\n    assert True\n')
+  const probe = probePytest(path.join(root, 'package1'))
+  console.log(`  arm: ${probe.detail}`)
   const lane = runners.resolveTestLane(root)
   check('A1 the lane names the sub-packages', lane.lane === 'sub-packages' && lane.lane === 'sub-packages' && lane.packages.map(p => p.dir).join(',') === 'package1,package2', JSON.stringify(lane))
   const words = 'this project declares its manifests one level down — package1/ (package.json, no test runner declared), package2/ (package.json, no test runner declared) — pass framework: to pick one, or run from the package'
@@ -74,14 +77,18 @@ section('A. the box\'s shape (F37W-7B-18): no manifest at the root, package.json
   const permission = await ask(root, { op: 'run' })
   check('A6 the permission ask does not claim the python lane', permission.behavior === 'ask' && (permission.message ?? '').includes('no single test runner at this root') && !(permission.message ?? '').includes('python lane'), permission.message ?? '')
   const inside = await call(path.join(root, 'package1'), { op: 'run' })
-  check('A7 run from the package: its manifest declares no runner, so the python lane reads test_x.py — a zero-run that names the file (row 06\'s law), never a silent 0/0/0/0', inside.data.record?.verdict === 'zero-run' && inside.data.outcome === 'failed' && inside.data.result.includes('1 test file(s) found (test_x.py), the unittest lane ran 0'), inside.data.result)
+  if (probe.available) {
+    check('A7 run from the package, pytest importable: its manifest declares no runner, so the python lane reads the bare test_x.py under pytest — 1 passed, outcome succeeded, no zero-run words', inside.data.record?.framework === 'pytest' && inside.data.record?.verdict === undefined && inside.data.record?.counts.passed === 1 && inside.data.outcome === 'succeeded' && inside.data.result.includes('pytest all — 1 passed · 0 failed') && !inside.data.result.includes('ran 0'), inside.data.result)
+  } else {
+    check('A7 run from the package, pytest absent: its manifest declares no runner, so the python lane reads test_x.py — a zero-run that names the file (row 06\'s law), never a silent 0/0/0/0', inside.data.record?.verdict === 'zero-run' && inside.data.outcome === 'failed' && inside.data.result.includes('1 test file(s) found (test_x.py), the unittest lane ran 0'), inside.data.result)
+  }
   const reportAtRoot = await call(root, { op: 'report' })
   check('A8 report at the root finds the python record package1\'s run left one level down, and says where it ran', reportAtRoot.data.record?.id === inside.data.record?.id && reportAtRoot.data.result.split('\n')[0]!.endsWith(' (in package1/)'), reportAtRoot.data.result)
-  writeFileSync(path.join(root, 'package1', 'test_x.py'), 'import unittest\n\nclass TestX(unittest.TestCase):\n    def test_ok(self):\n        self.assertTrue(True)\n\n    def test_wrong(self):\n        self.assertEqual(1, 2)\n')
-  const insideAgain = await call(path.join(root, 'package1'), { op: 'run' })
-  check('A9 a unittest file inside package1 runs there: 1 passed · 1 failed', insideAgain.data.record?.framework === 'unittest' && insideAgain.data.record?.counts.failed === 1, insideAgain.data.result)
+  writeFileSync(path.join(root, 'package2', 'test_x.py'), 'import unittest\n\nclass TestX(unittest.TestCase):\n    def test_ok(self):\n        self.assertTrue(True)\n\n    def test_wrong(self):\n        self.assertEqual(1, 2)\n')
+  const insideAgain = await call(path.join(root, 'package2'), { op: 'run' })
+  check('A9 a TestCase file inside package2 runs there in the unittest lane on both arms (a TestCase file is never pytest evidence; a fresh folder, so no earlier profile of the folder is read): 1 passed · 1 failed', insideAgain.data.record?.framework === 'unittest' && insideAgain.data.record?.counts.passed === 1 && insideAgain.data.record?.counts.failed === 1 && insideAgain.data.record?.cwd === path.join(root, 'package2') && insideAgain.data.result.includes('unittest all — 1 passed · 1 failed'), insideAgain.data.result)
   const rerunAtRoot = await call(root, { op: 'rerunFailed' })
-  check('A9 rerunFailed at the root reruns the python record\'s one failure one level down (the record report finds, rerunFailed finds too)', rerunAtRoot.data.record?.selection === 'rerun-failed' && rerunAtRoot.data.record?.counts.failed === 1 && rerunAtRoot.data.record?.cwd === path.join(root, 'package1') && rerunAtRoot.data.result.split('\n')[0]!.endsWith(' (in package1/)'), rerunAtRoot.data.result)
+  check('A9 rerunFailed at the root reruns the NEWEST python record\'s one failure one level down — package2\'s, over package1\'s older record (the record report finds, rerunFailed finds too)', rerunAtRoot.data.record?.selection === 'rerun-failed' && rerunAtRoot.data.record?.counts.failed === 1 && rerunAtRoot.data.record?.cwd === path.join(root, 'package2') && rerunAtRoot.data.result.split('\n')[0]!.endsWith(' (in package2/)'), rerunAtRoot.data.result)
   rmSync(root, { recursive: true, force: true })
 }
 

@@ -1,5 +1,5 @@
 {
-  "base": "f55953eeeef45d407cffd5082ee294cd1485d379",
+  "base": "1c27a98e6309a5fb85a208eb584b07f3f0ee1545",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -1335,7 +1335,7 @@
             ]
           },
           "path": {
-            "description": "run: limit to one test file/directory (a selection of one path)",
+            "description": "run: limit to one test file/directory (a selection of one path). A file or folder outside the session project names another project: discover, run, rerunFailed, debug and report then read the project that path lies in (its nearest manifest or Python root) and say which they read",
             "type": "string"
           },
           "node": {
