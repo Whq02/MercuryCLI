@@ -50,5 +50,5 @@ export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope, pr
   resetInstructionFilesCache('compact')
   clearSystemPromptSections()
   clearSessionMessagesCache()
-  if (preservedMessages) restoreBoundPrefixFromMessages(preservedMessages)
+  if (preservedMessages) restoreBoundPrefixFromMessages(preservedMessages, { liveSystemContext: true })
 }

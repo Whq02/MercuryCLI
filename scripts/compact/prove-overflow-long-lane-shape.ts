@@ -228,9 +228,9 @@ section('S2 the road — a refused summary keeps the history; the next message m
   check('the next request opens on the summary without the folded tool rounds', retry !== undefined && !isSummariserRequest(retry.body) && JSON.stringify(retry.body).includes('WHOLE SUMMARY') && !JSON.stringify(retry.body).includes('Bash result 3:'))
   check('the last settled assistant is the reply', textOf(r.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage !== true).at(-1)) === 'the reply after the fold')
   check('the accepted fold emits no error or overflow notice', errorTexts(r.yields).length === 0 && !noticeTexts(r.yields).some(t => t.startsWith('context overflowed')))
-  const transcript = [...nextRows, ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system')]
+  const transcript = [...nextRows, ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system' || y.type === 'attachment')]
   const fill = contextFill(transcript as never, MODEL)
-  check('the gauge after the fold anchors on the reply usage', fill.source === 'usage' && fill.tokens === 9_012, fill)
+  check('the gauge after the fold anchors on the reply usage (the transcript as the product holds it, attachment rows included)', fill.source === 'usage' && fill.tokens === 9_012, fill)
 }
 
 section('S3 the wire\'s own law stands in the rig — a request over the wire\'s window is refused as the home wire refuses it')

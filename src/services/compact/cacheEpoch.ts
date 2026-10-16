@@ -31,7 +31,7 @@ export function foldCacheUsage(usage: ApiUsage | undefined): FoldCacheUsage | nu
 }
 
 function stableFoldPrefixHash(record: BoundRecord): string {
-  return createHash('sha256').update(JSON.stringify({ rosterEnabled: record.rosterEnabled, roster: record.roster, sections: record.sections, systemContext: record.systemContext })).digest('hex')
+  return createHash('sha256').update(JSON.stringify({ rosterEnabled: record.rosterEnabled, roster: record.roster, sections: record.sections })).digest('hex')
 }
 
 export function carryFoldPrefix(source: readonly Message[], landing: readonly Message[], owner: string, model: string, usage?: ApiUsage): { attachment?: AttachmentMessage; receipt: FoldCacheEpoch } {

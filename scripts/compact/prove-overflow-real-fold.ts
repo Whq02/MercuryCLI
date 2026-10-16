@@ -203,7 +203,7 @@ section('F1 the home lane — overflow → the real fold → the retry → a rep
   check('the last settled assistant is the reply', lastAssistantText(r.yields) === 'the recovered answer', lastAssistantText(r.yields))
   check('no API-error row ever yields (the refusal was withheld and recovered)', errorTexts(r.yields).length === 0, JSON.stringify(errorTexts(r.yields)))
   check('the notice speaks', r.yields.some(y => y.type === 'system' && String(y.content ?? '').includes('context overflowed (Anthropic: 213,462 tokens > 200,000) — folding the conversation and retrying')))
-  const transcript = [...seed(5), ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system')]
+  const transcript = [...seed(5), ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system' || y.type === 'attachment')]
   const fill = contextFill(transcript as never)
   check('the gauge after the recovery anchors on the retried turn\'s usage (source usage, the fixture\'s 640+12)', fill.source === 'usage' && fill.tokens === 652, JSON.stringify(fill))
 }
@@ -283,7 +283,7 @@ section('F5 a long history keeps its verbatim tail through the overflow fold; th
   check('the operator message rides LAST, after the tail', retry !== undefined && wireLastUserText('anthropic', retry.body).endsWith(OPERATOR_ASK))
   const meta = (boundaryOf(r.yields) as { compactMetadata?: { trigger?: string; preservedSegment?: unknown } } | undefined)?.compactMetadata
   check("the boundary is typed 'overflow' and records the preserved segment", meta?.trigger === 'overflow' && meta.preservedSegment !== undefined, JSON.stringify(meta))
-  const transcript = [...seed(12), ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system')]
+  const transcript = [...seed(12), ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system' || y.type === 'attachment')]
   const fill = contextFill(transcript as never)
   check('the gauge anchors on the retried turn (2000+10), never the re-homed tail\'s pre-fold usage', fill.source === 'usage' && fill.tokens === 2010, JSON.stringify(fill))
 }

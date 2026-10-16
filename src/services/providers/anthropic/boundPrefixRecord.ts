@@ -11,6 +11,7 @@ import { restoreWholeRecordedComposition, staticCompositionChanged } from '../..
 
 interface BoundPrefixRecordOptions {
   rosterOnly?: boolean
+  liveSystemContext?: boolean
 }
 
 interface BoundPrefixRecordData {
@@ -143,7 +144,7 @@ export function restoreBoundPrefixFromMessages(messages: readonly Message[], opt
     armToolRosterRestore({ key: entry.boundKey, enabled: entry.rosterEnabled === true, marks })
   }
 
-  const systemContext = changed ? undefined : record?.systemContext
+  const systemContext = changed || opts?.liveSystemContext === true ? undefined : record?.systemContext
   if (systemContext !== null && systemContext !== undefined && typeof systemContext === 'object' && !Array.isArray(systemContext)) {
     const cache = getSystemContext.cache as { set?: (key: unknown, value: unknown) => unknown } | undefined
     cache?.set?.(MEMO_KEY, Promise.resolve({ ...(systemContext as Record<string, string>) }))
