@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-env: MERCURY_PROOF_RUNNER_MODULES
+# gate-env: MERCURY_PROOF_RUNNER_MODULES MERCURY_PROOF_PYTEST_PYTHON
 # gate-watch: src/services/changeTransaction/receipts* src/services/dap/dapClient*
 # gate-watch: src/services/dap/debugpyResolver* src/services/ide/** src/services/lsp/**
 # gate-watch: src/services/resources/adapters/ide* src/services/resources/adapters/test*
