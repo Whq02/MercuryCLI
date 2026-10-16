@@ -396,13 +396,18 @@ console.log('§W the wire')
 
   const main = read('src/daemon/main.ts')
   const arm = main.slice(main.indexOf("if (action === 'set-schedule')"), main.indexOf("if (action === 'set-kit')"))
+  const seatControlSrc = read('src/daemon/sessionSeat.ts')
+  const seatControl = seatControlSrc.slice(seatControlSrc.indexOf('export function applySeatScheduleControl('), seatControlSrc.indexOf('function applySessionScheduleAnswer('))
+  const seatDeps = seatControlSrc.slice(seatControlSrc.indexOf('function seatScheduleDeps('), seatControlSrc.indexOf('export function pushScheduleRoster('))
   check(
-    'W5 the daemon arm wires THE REAL RESOLVERS into the one writer and rides settle',
-    arm.includes('applyConcourseScheduleOp(sessionId, scheduleEdit, by') &&
-      arm.includes('deriveAccount: deriveScheduleAccountForModel') &&
-      arm.includes('scheduleAccountVerdict(') &&
-      arm.includes('readLiveAccountFacts(account)') &&
-      arm.includes('return settle('),
+    'W5 the daemon arm rides settle over the seat\'s control function, which wires THE REAL RESOLVERS into the one writer and pushes the roster after an applied op',
+    arm.includes('return settle(applySeatScheduleControl(sessionId, scheduleEdit, by, roster))') &&
+      seatControl.includes('applyConcourseScheduleOp(sessionId, edit, by, deps, dir)') &&
+      seatControl.includes('deps = seatScheduleDeps()') &&
+      seatControl.includes('pushScheduleRoster(rec.runnerId, roster, dir)') &&
+      seatDeps.includes('deriveAccount: deriveScheduleAccountForModel') &&
+      seatDeps.includes('scheduleAccountVerdict(') &&
+      seatDeps.includes('readLiveAccountFacts(account)'),
   )
   check('W6 a payload-less set-schedule refuses with the requires sentence', arm.includes("'set-schedule requires { scheduleEdit: { op, schedule? | scheduleId? } }'"))
 
