@@ -1,17 +1,17 @@
-export type ToolCallMarkupShape = 'qwen-xml' | 'json-in-xml' | 'glm-xml' | 'gemma' | 'mistral'
+type ToolCallMarkupShape = 'qwen-xml' | 'json-in-xml' | 'glm-xml' | 'gemma' | 'mistral'
 
-export interface MarkupToolCall {
+interface MarkupToolCall {
   name: string
   argumentsRaw: string
 }
 
-export interface ToolCallMarkupExtraction {
+interface ToolCallMarkupExtraction {
   shape: ToolCallMarkupShape
   calls: MarkupToolCall[]
   text: string
 }
 
-export interface MarkupToolFacts {
+interface MarkupToolFacts {
   name: string
   input_schema?: unknown
 }
