@@ -39,7 +39,7 @@ put(join(loose, 'a.ts'))
 put(join(loose, '.gitignore'), 'skipped.ts\n')
 put(join(loose, 'skipped.ts'))
 
-const { GlobTool, ignoredFoldersLine } = await import('../../src/tools/GlobTool/GlobTool.ts')
+const { GlobTool, ignoredPathsLine } = await import('../../src/tools/GlobTool/GlobTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 type Answer = { data: { numFiles: number; filenames: string[]; truncated: boolean; ignored?: number; incomplete?: string } }
@@ -62,10 +62,12 @@ try {
   check('the answer is not truncated (nothing to truncate once the dependencies are out)', everyTs.data.truncated === false)
   check(`the ${IGNORED_TS} ignored .ts paths are counted`, everyTs.data.ignored === IGNORED_TS, String(everyTs.data.ignored))
   const words = spoken(everyTs)
-  check('the result ends on the one-line count: "· 120 paths under ignored folders not listed …"', words.endsWith(ignoredFoldersLine(IGNORED_TS)) && words.includes('· 120 paths under ignored folders not listed'), words.split('\n').slice(-2).join(' / '))
+  check('the result ends on the one-line count: "· 120 paths under ignore rules not listed" (true for a folder rule and a by-name rule alike)', words.endsWith(ignoredPathsLine(IGNORED_TS)) && words.includes('· 120 paths under ignore rules not listed'), words.split('\n').slice(-2).join(' / '))
   check('the count line comes after the listed files, never first', words.includes('src/defu.ts') && words.includes('· 120 paths') && words.indexOf('src/defu.ts') < words.indexOf('· 120 paths'), words.slice(0, 200))
-  check('the line formats thousands and names the road inside: 1,204', ignoredFoldersLine(1204) === '· 1,204 paths under ignored folders not listed (name a folder as the path to search inside it)', ignoredFoldersLine(1204))
-  check('one ignored path reads singular', ignoredFoldersLine(1).startsWith('· 1 path under ignored folders not listed'))
+  check('the line formats thousands and carries the count alone', ignoredPathsLine(1204) === '· 1,204 paths under ignore rules not listed', ignoredPathsLine(1204))
+  check('one ignored path reads singular', ignoredPathsLine(1) === '· 1 path under ignore rules not listed')
+  const { DESCRIPTION } = await import('../../src/tools/GlobTool/prompt.ts')
+  check('the tool\'s description carries the road inside an ignored folder (the tail never claims it)', DESCRIPTION.includes('name an ignored folder as the path to search inside it') && DESCRIPTION.includes('Ignore files apply'), DESCRIPTION)
 
   console.log('\n§2 the whole tree, and a search that matches only ignored files')
   const everything = await ask({ pattern: '**/*', path: project })
@@ -74,7 +76,12 @@ try {
   check('**/* (the pattern that whitelists every folder it matches) lists the project\'s own files and nothing under node_modules or dist', everyName.length === PROJECT_FILES.length && PROJECT_FILES.every(rel => everyName.some(name => name.endsWith(rel))) && !everyName.some(name => /node_modules|\/dist\//.test(name)), j(everyName))
   check('its tail counts every hidden path (the dependencies, their package.json, the build output)', everything.data.ignored === IGNORED_TS + 2, String(everything.data.ignored))
   const onlyIgnored = await ask({ pattern: '**/*.mjs', path: project })
-  check('a pattern that matches only ignored files answers "No files found" with the count beneath, so the model knows where they are', onlyIgnored.data.numFiles === 0 && spoken(onlyIgnored) === `No files found\n${ignoredFoldersLine(1)}`, spoken(onlyIgnored))
+  check('a pattern that matches only ignored files answers "No files found" with the count beneath, so the model knows where they are', onlyIgnored.data.numFiles === 0 && spoken(onlyIgnored) === `No files found\n${ignoredPathsLine(1)}`, spoken(onlyIgnored))
+  put(join(project, 'src', 'debug.log'))
+  put(join(project, 'src', '.env'))
+  writeFileSync(join(project, '.gitignore'), 'node_modules\ndist\n*.log\n.env\n')
+  const byName = await ask({ pattern: 'src/*', path: project })
+  check('files ignored BY NAME (*.log, .env) beside listed files are counted with the same true words — nothing says "folder"', byName.data.numFiles === 3 && byName.data.ignored === 2 && spoken(byName).endsWith('· 2 paths under ignore rules not listed') && !spoken(byName).includes('folder'), spoken(byName))
 
   console.log('\n§3 the road inside: naming the ignored folder as the path searches it')
   const inside = await ask({ pattern: '**/*.d.ts', path: join(project, 'node_modules', 'pkg-0') })
