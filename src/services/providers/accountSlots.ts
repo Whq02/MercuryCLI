@@ -7,8 +7,6 @@ import {
   type ScopeIdentityState,
 } from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
-import { forgetPocket, peekSignInHome, pocketEntries, pocketInUse, withSignInHome } from '../../utils/accounts/signInPockets.js'
-import { resolve } from 'node:path'
 import {
   dropCredentialMemos,
   getAnthropicApiKeyWithSource,
@@ -161,8 +159,6 @@ export interface AccountSlot {
   scope?: AccountScope
   stateNote?: string
   removal: SlotRemoval
-  signInDir?: string
-  signInIdentity?: string
 }
 
 export interface FamilySlotGroup {
@@ -1229,36 +1225,7 @@ export function deriveFamilySlotGroups(
   const presences = providerFamilyPresences(providers, reads.familyReads)
   return presences
     .map(family => {
-      const chosen = pocketInUse(family.id)
-      const slotsAt = (dir: string | null): AccountSlot[] => {
-        const spending = dir === null ? chosen === undefined : chosen !== undefined && resolve(chosen) === resolve(dir)
-        return (spending ? withSignInHome : peekSignInHome)(family.id, dir, () => familyOwnSlots(family, providers, reads))
-      }
-      const home = slotsAt(null)
-      const envWins = home.some(slot => slot.envPinned && slot.active)
-      const pockets = pocketEntries(family.id).flatMap(entry =>
-        slotsAt(entry.dir)
-          .filter(slot => !slot.envPinned)
-          .map(slot => ({
-            ...slot,
-            id: `${slot.id}@${entry.slug}`,
-            active: slot.active && !envWins && chosen !== undefined && resolve(chosen) === resolve(entry.dir),
-            signInDir: entry.dir,
-            signInIdentity: entry.identity,
-            stateNote: `second sign-in · ${entry.identity}${slot.stateNote ? ` · ${slot.stateNote}` : ''}`,
-          })),
-      )
-      const slots = [...home.map(slot => ({ ...slot, active: slot.active && (slot.envPinned || chosen === undefined) })), ...pockets]
-      return { family, slots }
-    })
-}
-
-function familyOwnSlots(
-  family: ProviderFamilyPresence,
-  providers: RouterModelSnapshot['providers'],
-  reads: AccountSlotReads,
-): AccountSlot[] {
-  return (
+      const slots =
         family.id === 'anthropic'
           ? anthropicSlots(reads)
           : family.id === 'openai'
@@ -1293,7 +1260,8 @@ function familyOwnSlots(
                                     family,
                                     providers.find(provider => provider.id === family.id),
                                   )
-  )
+      return { family, slots }
+    })
 }
 
 
@@ -1339,14 +1307,14 @@ export function signOutAnthropicSlot(
 ): { loginLeft: boolean } {
   let refreshToken: string | null = null
   try {
-    const stored = getSecureStorage('anthropic').read()?.claudeAiOauth?.refreshToken
+    const stored = getSecureStorage().read()?.claudeAiOauth?.refreshToken
     refreshToken = typeof stored === 'string' && stored.length > 0 ? stored : null
   } catch (error) {
     logError(error)
   }
   let loginLeft = false
   try {
-    const removal = removeSecureStorageField('claudeAiOauth', 'anthropic')
+    const removal = removeSecureStorageField('claudeAiOauth')
     loginLeft = removal.removed
     if (!removal.success) {
       logError(new Error('the per-slot sign-out could not rewrite the credential store — the Claude login field stays until the store is writable'))
@@ -1381,15 +1349,7 @@ export function executeSlotRemoval(
   slot: AccountSlot,
   owners: SlotRemovalOwners = {},
 ): { note: string; mutated: boolean } {
-  if (slot.signInDir !== undefined && slot.signInIdentity !== undefined) {
-    const entry = pocketEntries(slot.family).find(candidate => resolve(candidate.dir) === resolve(slot.signInDir!))
-    const outcome = withSignInHome(slot.family, slot.signInDir, () => routeSlotRemoval(slot, owners))
-    const gone = entry === undefined ? { removed: false, choiceFell: false } : forgetPocket(slot.family, entry, () => undefined)
-    if (outcome.mutated || gone.removed) afterCredentialLeft(slot)
-    const forgotten = gone.removed ? ` · the second sign-in ${slot.signInIdentity} is forgotten${gone.choiceFell ? ' — the default spends' : ''}` : ''
-    return { note: `${outcome.note}${forgotten}`, mutated: outcome.mutated || gone.removed }
-  }
-  const outcome = withSignInHome(slot.family, null, () => routeSlotRemoval(slot, owners))
+  const outcome = routeSlotRemoval(slot, owners)
   if (outcome.mutated) afterCredentialLeft(slot)
   return outcome
 }

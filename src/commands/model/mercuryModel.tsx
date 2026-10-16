@@ -122,7 +122,6 @@ import { accountIdentityShown } from '../../services/wallet/identityWords.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
-import { familySignInRoster } from '../../services/providers/signInRoster.js'
 import { getSubscriptionType } from '../../utils/auth.js'
 import { orderPickerRows, type ProviderHeading } from '../../utils/model/modelPickerGroups.js'
 import { readModelUseLedger, recordModelUse } from '../../utils/model/modelUseLedger.js'
@@ -710,8 +709,7 @@ function orderedModelChoices(models: ModelChoice[], currentRowId: string): Model
 function noteModelUse(setting: string, door?: string): void {
   const family = providerFamilyOfSetting(setting)
   if (family === 'unrecognised') return
-  const identity = familySignInRoster(family).find(row => row.inUse)?.identity
-  void recordModelUse(family, setting, { ...(door !== undefined ? { door } : {}), ...(identity !== undefined ? { identity } : {}) })
+  void recordModelUse(family, setting, door !== undefined ? { door } : {})
 }
 
 type PickRoad = { flip: boolean; door?: string }

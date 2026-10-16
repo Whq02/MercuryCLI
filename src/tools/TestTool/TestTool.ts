@@ -1,6 +1,6 @@
 
-import { existsSync } from 'node:fs'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { existsSync, statSync } from 'node:fs'
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -33,6 +33,7 @@ import {
   type SubPackage,
   type TestLane,
 } from '../../services/ide/projectRunners.js'
+import { findPythonProjectRoot } from '../../services/ide/pythonProject.js'
 import { buildCargoTestDebugPlan, buildGoTestDebugPlan, buildNodeRunnerDebugShim } from '../../services/ide/testDebugPlans.js'
 import type { ToolCallProgress } from '../../Tool.js'
 import {
@@ -80,7 +81,7 @@ const inputSchema = lazySchema(() =>
     path: z
       .string()
       .optional()
-      .describe('run: limit to one test file/directory (a selection of one path)'),
+      .describe('run: limit to one test file/directory (a selection of one path). A file or folder outside the session project names another project: discover, run, rerunFailed, debug and report then read the project that path lies in (its nearest manifest or Python root) and say which they read'),
     node: z
       .string()
       .optional()
@@ -115,14 +116,48 @@ export type Output = {
   record?: TestRunRecord
 }
 
-function fallbackNoteSuffix(explicit: string | undefined, resolved: string, record?: TestRunRecord, uncollected?: readonly string[]): string {
+function fallbackNoteSuffix(explicit: string | undefined, resolved: string, from: string, record?: TestRunRecord, uncollected?: readonly string[]): string {
   if (explicit !== undefined || resolved !== 'unittest' || record?.verdict === 'zero-run' || record?.verdict === 'uncollected') return ''
   try {
-    const note = pytestFallbackNote(undefined, uncollected)
+    const note = pytestFallbackNote(from, uncollected)
     return note ? `\n${note}` : ''
   } catch {
     return ''
   }
+}
+
+type Anchor = { from: string; root: string; selection: string | undefined; outside: boolean }
+
+function isUnder(target: string, root: string): boolean {
+  const rel = relative(resolve(root), resolve(target))
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
+}
+
+function isDirectory(p: string): boolean {
+  try {
+    return statSync(p).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+function projectRootOf(dir: string): string {
+  return findRunnerRoot(dir) ?? findPythonProjectRoot(dir).root
+}
+
+function anchorOf(input: Pick<Input, 'path'>): Anchor {
+  const here = resolve(getCwd())
+  if (input.path === undefined) return { from: here, root: projectRootOf(here), selection: undefined, outside: false }
+  const target = expandPath(input.path)
+  const sessionRoot = projectRootOf(here)
+  if (isUnder(target, here) || isUnder(target, sessionRoot)) return { from: here, root: sessionRoot, selection: target, outside: false }
+  const dir = isDirectory(target) ? target : dirname(target)
+  const root = projectRootOf(dir)
+  return { from: dir, root, selection: resolve(target) === resolve(root) ? undefined : target, outside: true }
+}
+
+function projectNoun(anchor: Anchor): string {
+  return anchor.outside ? anchor.root : 'this project'
 }
 
 function ranIn(record: TestRunRecord): string {
@@ -172,35 +207,39 @@ function subPackageList(packages: readonly SubPackage[]): string {
     .join(', ')
 }
 
-function subPackageWords(lane: Extract<TestLane, { lane: 'sub-packages' }>): string {
+function subPackageWords(lane: Extract<TestLane, { lane: 'sub-packages' }>, anchor: Anchor): string {
   return lane.runner !== undefined
-    ? `${lane.runner} is declared in more than one package below this root — ${subPackageList(lane.packages)} — run from the package`
-    : `this project declares its manifests one level down — ${subPackageList(lane.packages)} — pass framework: to pick one, or run from the package`
+    ? `${lane.runner} is declared in more than one package below ${anchor.outside ? anchor.root : 'this root'} — ${subPackageList(lane.packages)} — run from the package`
+    : `${projectNoun(anchor)} declares its manifests one level down — ${subPackageList(lane.packages)} — pass framework: to pick one, or run from the package`
 }
 
-function runnerMissingWords(lane: Extract<TestLane, { lane: 'runner-missing' }>): string {
-  const { profiles } = discoverRunnerProfiles()
+function runnerMissingWords(lane: Extract<TestLane, { lane: 'runner-missing' }>, anchor: Anchor): string {
+  const { profiles } = discoverRunnerProfiles(anchor.from)
   const here = profiles.length ? ` — discovered: ${profiles.map(p => `${p.runner}/${p.kind}`).join(', ')}` : ''
   const below = lane.below !== undefined ? ` — one level down: ${subPackageList(lane.below)}` : ''
-  return `no ${lane.runner} test profile in this project's manifests${here}${below}`
+  return `no ${lane.runner} test profile in ${projectNoun(anchor)}'s manifests${here}${below}`
 }
 
-function latestRunHere(): TestRunRecord | null {
-  const own = latestRun()
-  if (own !== null || findRunnerRoot() !== null) return own
+function ambiguousWords(lane: Extract<TestLane, { lane: 'ambiguous' }>, anchor: Anchor): string {
+  return `${projectNoun(anchor)} declares multiple test runners: ${lane.options.join(', ')} — pass framework: to pick one`
+}
+
+function latestRunHere(from: string): TestRunRecord | null {
+  const own = latestRun(from)
+  if (own !== null || findRunnerRoot(from) !== null) return own
   let newest: TestRunRecord | null = null
-  for (const sub of discoverSubPackages(getCwd())) {
-    const record = latestRun(resolve(getCwd(), sub.dir))
+  for (const sub of discoverSubPackages(from)) {
+    const record = latestRun(resolve(from, sub.dir))
     if (record !== null && (newest === null || record.startedAt > newest.startedAt)) newest = record
   }
   return newest
 }
 
-function runHere(id: string): TestRunRecord | null {
-  const own = getRun(id)
-  if (own !== null || findRunnerRoot() !== null) return own
-  for (const sub of discoverSubPackages(getCwd())) {
-    const record = getRun(id, resolve(getCwd(), sub.dir))
+function runHere(id: string, from: string): TestRunRecord | null {
+  const own = getRun(id, from)
+  if (own !== null || findRunnerRoot(from) !== null) return own
+  for (const sub of discoverSubPackages(from)) {
+    const record = getRun(id, resolve(from, sub.dir))
     if (record !== null) return record
   }
   return null
@@ -233,23 +272,25 @@ function runnerProgress(
 
 async function runRunnerOp(
   input: Input,
+  anchor: Anchor,
   profile: import('../../services/ide/projectRunners.js').RunnerProfile,
   signal: AbortSignal | undefined,
   onProgress?: ToolCallProgress,
 ): Promise<{ result: string; outcome: ToolEffectOutcome; record?: TestRunRecord }> {
   if (input.op === 'discover') {
-    const rel = relative(resolve(getCwd()), resolve(profile.root))
+    const rel = relative(resolve(anchor.from), resolve(profile.root))
     const below = rel !== '' && !rel.startsWith('..') && !isAbsolute(rel) ? `${rel.split(sep).join('/')}/` : null
-    const { profiles } = discoverRunnerProfiles(below === null ? undefined : profile.root)
+    const where = anchor.outside ? resolve(profile.root) : below
+    const { profiles } = discoverRunnerProfiles(below === null ? anchor.from : profile.root)
     const lines = profiles.map(p =>
       `${p.id} [${p.runner}/${p.kind}] ${p.title}` +
       (p.availability.state === 'ok' ? '' : ` — UNAVAILABLE: ${p.availability.reason} (remedy: ${p.availability.remedy})`) +
-      (below === null ? '' : ` — in ${below}`),
+      (where === null ? '' : ` — in ${where}`),
     )
     return {
       result: lines.length
-        ? `runner profiles (${below === null ? 'manifest-driven' : `one level down, in ${below}`}):\n${lines.join('\n')}`
-        : 'no runner profiles discovered from this project\'s manifests',
+        ? `runner profiles (${where === null ? 'manifest-driven' : below !== null && !anchor.outside ? `one level down, in ${where}` : `in ${where}`}):\n${lines.join('\n')}`
+        : `no runner profiles discovered from ${projectNoun(anchor)}'s manifests`,
       outcome: 'no-change',
     }
   }
@@ -260,6 +301,7 @@ async function runRunnerOp(
       return { result: `changed-file selection unavailable: ${sel.reason}\nremedy: ${sel.remedy}`, outcome: 'failed' }
     }
     const out = await runRunnerProfile(profile, {
+      from: anchor.from,
       argvOverride: sel.argv,
       selectionLabel: `changed (${sel.changedCount} target(s))`,
       ...(onOutput ? { onOutput } : {}),
@@ -277,9 +319,10 @@ async function runRunnerOp(
       record: out.record,
     }
   }
-  const selection = input.node ?? (input.path ? expandPath(input.path) : undefined)
-  const label = input.node ? `nodes:${input.node}` : input.path ? `file:${input.path}` : 'all'
+  const selection = input.node ?? anchor.selection
+  const label = input.node ? `nodes:${input.node}` : anchor.selection !== undefined ? `file:${input.path}` : 'all'
   const out = await runRunnerProfile(profile, {
+    from: anchor.from,
     ...(selection !== undefined ? { selection, selectionKind: input.node ? ('node' as const) : ('path' as const), selectionLabel: label } : {}),
     ...(onOutput ? { onOutput } : {}),
     ...(signal ? { signal } : {}),
@@ -303,8 +346,9 @@ async function runOp(
   onProgress?: ToolCallProgress,
 ): Promise<{ result: string; outcome: ToolEffectOutcome; record?: TestRunRecord }> {
   const signal = context.abortController?.signal
+  const anchor = anchorOf(input)
   if (input.profile && input.op === 'run') {
-    const { profiles } = discoverRunnerProfiles()
+    const { profiles } = discoverRunnerProfiles(anchor.from)
     const found = profiles.find(p => p.id === input.profile)
     if (!found) {
       return {
@@ -318,28 +362,25 @@ async function runOp(
         outcome: 'failed',
       }
     }
-    return runRunnerOp(input, found, signal, onProgress)
+    return runRunnerOp(input, anchor, found, signal, onProgress)
   }
-  const lane = resolveTestLane(getCwd(), input.framework)
+  const lane = resolveTestLane(anchor.from, input.framework)
   if (lane.lane === 'ambiguous' && (input.op === 'discover' || input.op === 'run')) {
-    return {
-      result: `this project declares multiple test runners: ${lane.options.join(', ')} — pass framework: to pick one`,
-      outcome: 'no-change',
-    }
+    return { result: ambiguousWords(lane, anchor), outcome: 'no-change' }
   }
   if (lane.lane === 'sub-packages' && (input.op === 'discover' || input.op === 'run')) {
-    return { result: subPackageWords(lane), outcome: 'no-change' }
+    return { result: subPackageWords(lane, anchor), outcome: 'no-change' }
   }
   if (lane.lane === 'runner-missing' && (input.op === 'discover' || input.op === 'run')) {
-    return { result: runnerMissingWords(lane), outcome: 'failed' }
+    return { result: runnerMissingWords(lane, anchor), outcome: 'failed' }
   }
   if (lane.lane === 'runner' && (input.op === 'discover' || input.op === 'run')) {
-    return runRunnerOp(input, lane.profile, signal, onProgress)
+    return runRunnerOp(input, anchor, lane.profile, signal, onProgress)
   }
   let pythonRecordBelow: string | undefined
   if (input.op === 'rerunFailed') {
-    const latest = latestRunHere()
-    if (latest && (latest.framework === 'pytest' || latest.framework === 'unittest') && resolve(latest.cwd) !== resolve(getCwd())) {
+    const latest = latestRunHere(anchor.from)
+    if (latest && (latest.framework === 'pytest' || latest.framework === 'unittest') && resolve(latest.cwd) !== resolve(anchor.from)) {
       pythonRecordBelow = latest.cwd
     }
     if (latest && latest.framework !== 'pytest' && latest.framework !== 'unittest') {
@@ -360,6 +401,7 @@ async function runOp(
   switch (input.op) {
     case 'discover': {
       const out = await discoverPythonTests({
+        from: anchor.from,
         ...(input.framework === 'pytest' || input.framework === 'unittest' ? { framework: input.framework } : {}),
         ...(signal ? { signal } : {}),
       })
@@ -369,8 +411,8 @@ async function runOp(
       const lines = out.tests.slice(0, 100)
       return {
         result:
-          `${out.framework}: ${out.tests.length} test(s)${out.truncated ? ` (+${out.truncated} truncated)` : ''}` +
-          fallbackNoteSuffix(input.framework, out.framework, undefined, out.uncollected ?? []) +
+          `${out.framework}: ${out.tests.length} test(s)${out.truncated ? ` (+${out.truncated} truncated)` : ''}${anchor.outside ? ` — in ${findPythonProjectRoot(anchor.from).root}` : ''}` +
+          fallbackNoteSuffix(input.framework, out.framework, anchor.from, undefined, out.uncollected ?? []) +
           (out.collectErrors.length ? `\ncollect errors:\n${out.collectErrors.map(e => `  ${e}`).join('\n')}` : '') +
           (lines.length ? `\n${lines.join('\n')}${out.tests.length > lines.length ? `\n(+${out.tests.length - lines.length} more)` : ''}` : ''),
         outcome: 'no-change',
@@ -379,7 +421,7 @@ async function runOp(
     case 'run': {
       if (input.changed) {
         const { gitStatus } = await import('../../services/gitGraph/observe.js')
-        const s = gitStatus(getCwd())
+        const s = gitStatus(anchor.from)
         if ('state' in s) {
           return { result: `changed-file selection unavailable: ${s.note}`, outcome: 'failed' }
         }
@@ -391,6 +433,7 @@ async function runOp(
           }
         }
         const out = await runPythonTests({
+          from: anchor.from,
           selection: testFiles,
           selectionLabel: `changed (${testFiles.length} file(s))`,
           ...(input.framework === 'pytest' || input.framework === 'unittest' ? { framework: input.framework } : {}),
@@ -400,14 +443,15 @@ async function runOp(
           return { result: `test run unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
         }
         return {
-          result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework, out.record),
+          result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework, anchor.from, out.record),
           outcome: outcomeOf(out.record, () => (out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed')),
           record: out.record,
         }
       }
-      const selection = input.node ? [input.node] : input.path ? [expandPath(input.path)] : []
-      const label = input.node ? `nodes:${input.node}` : input.path ? `file:${input.path}` : 'all'
+      const selection = input.node ? [input.node] : anchor.selection !== undefined ? [anchor.selection] : []
+      const label = input.node ? `nodes:${input.node}` : anchor.selection !== undefined ? `file:${input.path}` : 'all'
       const out = await runPythonTests({
+        from: anchor.from,
         selection,
         selectionLabel: label,
         ...(input.framework === 'pytest' || input.framework === 'unittest' ? { framework: input.framework } : {}),
@@ -417,13 +461,13 @@ async function runOp(
         return { result: `test run unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
       }
       return {
-        result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework, out.record),
+        result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework, anchor.from, out.record),
         outcome: outcomeOf(out.record, () => (out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed')),
         record: out.record,
       }
     }
     case 'rerunFailed': {
-      const out = await rerunFailedTests({ ...(pythonRecordBelow !== undefined ? { from: pythonRecordBelow } : {}), ...(signal ? { signal } : {}) })
+      const out = await rerunFailedTests({ from: pythonRecordBelow ?? anchor.from, ...(signal ? { signal } : {}) })
       if ('note' in out) return { result: out.note, outcome: 'no-change' }
       if (out.state === 'unavailable') {
         return { result: `rerun unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
@@ -436,15 +480,15 @@ async function runOp(
     }
     case 'debug': {
       if (!input.node) return { result: 'debug needs node (the test id to debug)', outcome: 'failed' }
-      const debugLane = resolveTestLane(getCwd(), input.framework)
+      const debugLane = resolveTestLane(anchor.from, input.framework)
       if (debugLane.lane === 'ambiguous') {
-        return { result: `this project declares multiple test runners: ${debugLane.options.join(', ')} — pass framework: to pick one`, outcome: 'no-change' }
+        return { result: ambiguousWords(debugLane, anchor), outcome: 'no-change' }
       }
       if (debugLane.lane === 'sub-packages') {
-        return { result: subPackageWords(debugLane), outcome: 'no-change' }
+        return { result: subPackageWords(debugLane, anchor), outcome: 'no-change' }
       }
       if (debugLane.lane === 'runner-missing') {
-        return { result: runnerMissingWords(debugLane), outcome: 'failed' }
+        return { result: runnerMissingWords(debugLane, anchor), outcome: 'failed' }
       }
       const ranWithoutStop = async (debuggerMissing: string, remedy: string): Promise<{ result: string; outcome: ToolEffectOutcome; record?: TestRunRecord }> => {
         const ran = await runOp({ ...input, op: 'run' }, context, onProgress)
@@ -499,14 +543,14 @@ async function runOp(
       }
       if (debugLane.lane === 'runner' && (debugLane.profile.runner === 'vitest' || debugLane.profile.runner === 'jest')) {
         const runner = debugLane.profile.runner
-        const shim = buildNodeRunnerDebugShim(runner, input.node, {})
+        const shim = buildNodeRunnerDebugShim(runner, input.node, { from: anchor.from })
         if ('state' in shim) {
           return { result: `debug unavailable: ${shim.reason}\nremedy: ${shim.remedy}`, outcome: 'failed' }
         }
         return launchRunnerDebug({ runner, adapterKey: 'js', program: shim.program, args: shim.args, cwd: shim.cwd, stop: shim.stop, note: shim.note })
       }
       if (debugLane.lane === 'runner' && debugLane.profile.runner === 'go') {
-        const plan = buildGoTestDebugPlan(input.node, {})
+        const plan = buildGoTestDebugPlan(input.node, { from: anchor.from })
         if ('state' in plan) {
           if (plan.debuggerMissing !== undefined) return ranWithoutStop(plan.debuggerMissing, plan.remedy)
           return { result: `debug unavailable: ${plan.reason}\nremedy: ${plan.remedy}`, outcome: 'failed' }
@@ -514,7 +558,7 @@ async function runOp(
         return launchRunnerDebug({ runner: 'go', adapterKey: 'go', program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note, launchExtras: plan.launchExtras })
       }
       if (debugLane.lane === 'runner' && debugLane.profile.runner === 'cargo') {
-        const plan = await buildCargoTestDebugPlan(input.node, { ...(signal ? { signal } : {}) })
+        const plan = await buildCargoTestDebugPlan(input.node, { from: anchor.from, ...(signal ? { signal } : {}) })
         if ('state' in plan) {
           if (plan.debuggerMissing !== undefined) return ranWithoutStop(plan.debuggerMissing, plan.remedy)
           return { result: `debug unavailable: ${plan.reason}\nremedy: ${plan.remedy}`, outcome: 'failed' }
@@ -522,7 +566,7 @@ async function runOp(
         return launchRunnerDebug({ runner: 'cargo', adapterKey: plan.adapterKey, program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note })
       }
       if (debugLane.lane === 'runner') {
-        const jsShim = buildNodeTestDebugShim(input.node, {})
+        const jsShim = buildNodeTestDebugShim(input.node, { from: anchor.from })
         if ('state' in jsShim) {
           return { result: `debug unavailable: ${jsShim.reason}\nremedy: ${jsShim.remedy}`, outcome: 'failed' }
         }
@@ -564,6 +608,7 @@ async function runOp(
         }
       }
       const shim = buildDebugTestShim(input.node, {
+        from: anchor.from,
         ...(input.framework === 'pytest' || input.framework === 'unittest' ? { framework: input.framework } : {}),
       })
       if ('state' in shim) {
@@ -606,9 +651,9 @@ async function runOp(
       }
     }
     case 'report': {
-      const record = input.runId ? runHere(input.runId) : latestRunHere()
+      const record = input.runId ? runHere(input.runId, anchor.from) : latestRunHere(anchor.from)
       if (!record) {
-        const runs = listRuns()
+        const runs = listRuns(anchor.from)
         return {
           result: runs.length
             ? `no such run. recent: ${runs.map(r => r.id).slice(0, 8).join(', ')}`
@@ -670,26 +715,28 @@ A run whose exit code disagrees with its structured records says so (verdictNote
     let resolved = ''
     if (input.op === 'run') {
       try {
-        const { profiles } = discoverRunnerProfiles()
-        const lane = input.profile ? undefined : resolveTestLane(getCwd(), input.framework)
+        const anchor = anchorOf(input)
+        const { profiles } = discoverRunnerProfiles(anchor.from)
+        const lane = input.profile ? undefined : resolveTestLane(anchor.from, input.framework)
         const profile = input.profile ? profiles.find(p => p.id === input.profile) : lane?.lane === 'runner' ? lane.profile : undefined
+        const where = anchor.outside ? ` (in ${profile ? resolve(profile.root) : anchor.root})` : ''
         if (lane !== undefined && lane.lane !== 'runner' && lane.lane !== 'python') {
-          resolved = ' (no single test runner at this root — the call names the options and runs nothing)'
+          resolved = ` (no single test runner at ${anchor.outside ? anchor.root : 'this root'} — the call names the options and runs nothing)`
         } else if (profile) {
           if (input.changed) {
-            resolved = ` — will run: ${profile.command.join(' ')} + changed-file focus (targets resolve against the tree at execution)`
+            resolved = ` — will run: ${profile.command.join(' ')} + changed-file focus (targets resolve against the tree at execution)${where}`
           } else {
             const extra = input.node
               ? profile.selection === 'node-pattern'
                 ? ` --test-name-pattern ${input.node}`
                 : ` ${input.node}`
-              : input.path
+              : anchor.selection !== undefined
                 ? ` ${input.path}`
                 : ''
-            resolved = ` — will run: ${profile.command.join(' ')}${extra}`
+            resolved = ` — will run: ${profile.command.join(' ')}${extra}${where}`
           }
         } else if (!input.profile) {
-          resolved = ' (python lane: the shared project interpreter)'
+          resolved = ` (python lane: the shared project interpreter${where})`
         }
       } catch {
       }

@@ -344,6 +344,7 @@
     "getMercuryMcpConfigs",
     "getProjectMcpConfigsFromCwd",
     "isMcpServerDisabled",
+    "mcpServerSkippedForTrustLine",
     "mcpServersSkippedForTrustLine",
     "parseMcpConfig",
     "parseMcpConfigFromFilePath",

@@ -121,31 +121,36 @@ try {
   {
     const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
     check('the contract module exports the constitution', TEXT.length > 0)
-    check('byte anchor (sha256 of the constitution)', digest === 'c6f74b3efbac0a1183dbd80103db0f19ab318a7a47ae8fea7590e87fdb711e29', digest)
-    check('186 words, 1212 characters, no trailing newline (the owner\'s .34 text)', TEXT.split(/\s+/).length === 186 && TEXT.length === 1212 && !TEXT.endsWith('\n'))
-    check('opens on who the seat is', TEXT.startsWith('You are Mercury, an autonomous command-line interface and agent.'))
-    check('closes on the note rule', TEXT.endsWith('note summarizing\nessential progress, context, and next steps.'))
+    check('byte anchor (sha256 of the constitution)', digest === '4642cb41c21da9d60e36ab171bd3c8e6a4c200f48376a2b2d51887b890aadbb9', digest)
+    check('350 words, 2316 characters, no trailing newline (the owner\'s .37 text)', TEXT.split(/\s+/).length === 350 && TEXT.length === 2316 && !TEXT.endsWith('\n'))
+    check('opens on who the seat is', TEXT.startsWith("You are Mercury, an expert software engineer working in the operator's terminal."))
+    check('closes on the blocker lines', TEXT.endsWith('RESUME WHEN: <the answer or authorisation that permits progress>'))
     const laws: Array<[string, string]> = [
-      ['the engine line', 'Your\nunderlying AI model is your engine.'],
-      ['the attribution', 'Mercury was not built by the maker of the model it runs'],
-      ['the developer rule', 'Never claim to be built by the developer.'],
-      ['read the room', 'Prioritize your\noperator and read the room'],
-      ['the preference rule', 'operator preferences over generic defaults'],
-      ['the honesty line', 'Never mislead the\noperator; explain what happened plainly and without jargon.'],
-      ['the opening rule', 'Start with findings or intended actions.'],
-      ['the outcome rule', 'state the\noutcome first, followed by relevant details and a single-line verification\nnote.'],
-      ['the assumption rule', 'Act on sufficient information while stating assumptions'],
-      ['the stop sentence', 'pausing only\nfor destructive actions, major scope changes, or required operator input.'],
-      ['the evidence rule', 'Base\nclaims strictly on tool outputs and state what remains unverified'],
-      ['the finishing clause', 'execute planned work immediately before claiming your turn is\nover.'],
-      ['the idle rule', 'Conclude turns when work settles or when instructed to idle, standby, or\nexplain, without delays.'],
-      ['the note rule', 'At session end, save a 1–2 sentence note summarizing\nessential progress, context, and next steps.'],
+      ['the engine line', 'Your underlying AI model is your engine;'],
+      ['the attribution', "Mercury was not built by the model's maker, and the model can be swapped."],
+      ['the peer line', 'Speak plainly as a direct peer, without jargon, and never mislead.'],
+      ['operator control', "The operator's directions on scope, approach, delegation and stopping override your plans and defaults."],
+      ['the correction rule', 'acknowledge corrections by changing your actions, not merely by agreeing in prose.'],
+      ['the question rule', 'When the operator asks a question, answer it; begin work only when they say so.'],
+      ['the plan rule', 'Discussion and a plan you produce do not themselves authorise implementation.'],
+      ['the carry-through rule', 'carry it through investigation, execution and proportionate verification without asking again for routine steps the request already covers'],
+      ['the asking rule', 'Ask only when a necessary fact, consequential choice or required permission cannot be resolved from what you have.'],
+      ['the scope rule', 'Deliver the requested scope without shrinking, expanding, or turning it into a larger system.'],
+      ['the standby rule', 'On stop, pause, wait, stand by, or a request to explain first, stand by with zero new tool calls.'],
+      ['the stop sentence', "Outstanding work or verification never overrides an operator's instruction to stop."],
+      ['the status rule', 'A request for status alone does not cancel an active task'],
+      ['the resume rule', 'Resume paused work only when the operator authorises resumption.'],
+      ['the retry rule', 'Inspect interrupted state before retrying; never repeat landed work.'],
+      ['the failure rule', 'Treat a reported failure as failed. Accepted, queued or attempted work is not completed work.'],
+      ['the evidence rule', "Base claims on this session's tool outputs; treat memory, handoff notes and crewmate reports as unverified until checked against the live tree"],
+      ['the outcome rule', 'Report at checkpoints with evidence: outcome first, key details and a one-line verification note.'],
+      ['the blocker lines', 'BLOCKED ON OPERATOR: <the specific fact, decision or permission needed>\nRESUME WHEN: <the answer or authorisation that permits progress>'],
     ]
     for (const [name, words] of laws) check(`carries ${name}`, TEXT.includes(words))
     check('exactly one identity statement', (TEXT.match(/^You are /gm) ?? []).length === 1)
     check('names no engine family', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi|Qwen|Mistral|Grok)\b/i.test(TEXT))
     check('negates nothing about what the seat is', !/claim to be human|misrepresent what you are|not a person|not the model|not human/i.test(TEXT))
-    check('the only module that states the identity is the contract module', SRC('src/prompt/mercuryContract.ts').includes('You are Mercury, an autonomous command-line interface and agent.'))
+    check('the only module that states the identity is the contract module', SRC('src/prompt/mercuryContract.ts').includes("You are Mercury, an expert software engineer working in the operator's terminal."))
   }
 
   section('§2 the shipped composition — the head, the constitution as its own segment, then the facts, nothing of the prose')
@@ -156,7 +161,7 @@ try {
     check(`${mode}: segment 1 is the constitution, verbatim, its own segment`, segments[1] === TEXT)
     check(`${mode}: the constitution appears exactly once`, countOf(text, TEXT) === 1)
     check(`${mode}: exactly one "You are" line in the whole prompt`, (text.match(/^You are /gm) ?? []).length === 1)
-    const facts = ['# The project estate', '# Memory', '# Environment', 'Model currency:', 'Write down important information from tool results', ...(mode === 'headless' ? ['# Runtime posture'] : []), '# Autonomous runs']
+    const facts = ['# The project estate', '# Memory', '# Environment', 'Model currency:', 'Write down important information from tool results', ...(mode === 'headless' ? ['# Runtime posture'] : [])]
     check(`${mode}: the fact sections follow the constitution, each once`, text.indexOf(TEXT) !== -1 && facts.every(f => countOf(text, f) === 1 && text.indexOf(f) > text.indexOf(TEXT)), facts.filter(f => countOf(text, f) !== 1).join(' · '))
     if (mode === 'interactive') check('interactive: no posture block when nothing is armed (the ask, the kill gate and the policy speak for themselves)', !text.includes('# Runtime posture'))
     const leaked = DROPPED_PHRASES.filter(phrase => text.includes(phrase))

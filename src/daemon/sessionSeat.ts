@@ -658,6 +658,24 @@ export function answerSeatScheduleEdit(
   }
 }
 
+export function applySeatScheduleControl(
+  sessionId: string,
+  edit: import('./saturn.js').ScheduleOpRequestV1,
+  by: string,
+  roster: SeatRosterPort | null,
+  dir?: string,
+  deps = seatScheduleDeps(),
+): ReturnType<typeof applyConcourseScheduleOp> {
+  refreshSignInReads()
+  const out = applyConcourseScheduleOp(sessionId, edit, by, deps, dir)
+  const rec = out.outcome === 'applied' && roster !== null ? liveRecordBySession(sessionId, dir) : undefined
+  if (rec !== undefined && roster !== null) {
+    pushScheduleRoster(rec.runnerId, roster, dir)
+    requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
+  }
+  return out
+}
+
 function applySessionScheduleAnswer(short: string, answer: SessionFactsAnswerV1, roster: SeatRosterPort, dir?: string): void {
   const edits = (answer as { pendingScheduleEdits?: unknown }).pendingScheduleEdits
   if (!Array.isArray(edits) || edits.length === 0) return

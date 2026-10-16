@@ -164,7 +164,6 @@ learned across sessions; [MNEME.md](MNEME.md) describes its tools and shelf.
 | `credentials.keyCommand` | A shell command supplying an Anthropic API key. Project-scope helpers wait for workspace trust. |
 | `credentials.signInRoute` | The required Anthropic sign-in route: `claudeai` or `console`. |
 | `credentials.organisation` | The required organisation for Anthropic sign-in. |
-| `credentials.signIns` | Which sign-in a provider family spends in this project, by identity as `/logins list` shows it (an account address, a Hub username, a key's masked tail — `…k3f9`, `...k3f9` or the bare `k3f9`), for example `{ "openai": "bob@work.example" }` in `.mercury/settings.local.json`. `/logins use <identity>` overrides it for one session; an identity that is not signed in is refused and the ones that are get named. |
 | `environment.values` | Environment variable names and values for Mercury; string, number and boolean values become strings. |
 | `credit.mercury` | Mercury's commit and pull-request attribution is on unless this is `false`. |
 | `credit.lines.commit`, `credit.lines.pr` | Custom attribution text. An empty string omits that line; when `credit.lines` is present, an omitted member uses its default. This object takes precedence over `credit.mercury`. |
@@ -211,6 +210,7 @@ the server definitions themselves.
 | `view.firstRunCards` | First-run card placement: `centred` or `top-left`. |
 | `view.ping` | Pings the terminal when a chat finishes while you are away; on unless `false`. |
 | `view.accountIdentity` | Shows the signed-in account on the screens; `false` takes every address, username and key tail off them (for a recording) and leaves the account word. The Logins screen, `/accounts` and the health report still name the account. On unless `false`. |
+| `view.zen` | Zen mode: `true` hides the lanes and vitals rails and the chat takes the full width of the terminal. Off unless `true`; `/zen` flips it and the Zen mode row of `/config` shows it. |
 | `context.wayBack` | Shows the way-back hint beside a notice. |
 | `input.suggestions` | Enables prompt suggestions. |
 | `apollo.preflightQuestions` | Apollo's interview budget, 1–20 questions, 7 by default. |

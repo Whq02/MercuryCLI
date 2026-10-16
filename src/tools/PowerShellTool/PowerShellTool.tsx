@@ -360,7 +360,7 @@ async function* runPowerShell(
     if (interpretation.isError && !interruptedByUser) {
       const annotated = SandboxManager.annotateStderrWithSandboxFailures(input.command, out)
       const thrown = budget.requested === undefined ? annotated : windowed ? formatOutput(annotated, { maxLength: budget.effective }).truncatedContent : formatExcerpt(annotated, budget.effective)
-      const error = new ShellError('', [thrown, clause, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\n'), result.code, result.interrupted)
+      const error = new ShellError('', [thrown, clause].filter(Boolean).join('\n'), result.code, result.interrupted, true, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command }))
       throw budget.requested === undefined ? error : windowedError(error)
     }
 

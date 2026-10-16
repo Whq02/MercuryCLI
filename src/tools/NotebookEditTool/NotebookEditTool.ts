@@ -10,13 +10,14 @@ import { isENOENT } from '../../utils/errors.js'
 import { getDisplayPath, getFileModificationTime, writeTextContent } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
 import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
-import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
+import { jsonParse } from '../../utils/slowOperations.js'
 import { safeParseJSON } from '../../utils/json.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { parseCellId } from '../../utils/notebook.js'
 import { checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from './constants.js'
+import { notebookTextAfterEdit, sourceInCellShape } from './notebookText.js'
 import { DESCRIPTION, PROMPT } from './prompt.js'
 import {
   getToolUseSummary,
@@ -293,18 +294,19 @@ export const NotebookEditTool = buildTool({
         cells.splice(index, 1)
       } else if (mode === 'insert') {
         const cellType: NotebookCellType = effectiveCellType ?? 'code'
+        const source = sourceInCellShape(new_source, (cells[index - 1] ?? cells[index])?.source)
         const newCell: NotebookCell =
           cellType === 'markdown'
             ? ({
                 cell_type: 'markdown',
                 ...(newCellId !== undefined ? { id: newCellId } : {}),
-                source: new_source,
+                source,
                 metadata: {},
               } as NotebookCell)
             : ({
                 cell_type: 'code',
                 ...(newCellId !== undefined ? { id: newCellId } : {}),
-                source: new_source,
+                source,
                 metadata: {},
                 execution_count: null,
                 outputs: [],
@@ -315,7 +317,7 @@ export const NotebookEditTool = buildTool({
           execution_count?: number | null
           outputs?: unknown[]
         }
-        target.source = new_source
+        target.source = sourceInCellShape(new_source, target.source)
         if (target.cell_type === 'code') {
           target.execution_count = null
           target.outputs = []
@@ -325,7 +327,7 @@ export const NotebookEditTool = buildTool({
         }
       }
 
-      const updatedFile = jsonStringify(notebook, null, 1)
+      const updatedFile = notebookTextAfterEdit(originalFile, notebook, { mode, index })
       writeTextContent(resolvedPath, updatedFile, encoding, lineEndings)
 
       context.readFileState.set(resolvedPath, {
