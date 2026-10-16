@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/utils/attachments/**
+# gate-watch: src/services/projectIntel/capsule.ts
 # gate-watch: src/utils/pdf.ts src/utils/fsOperations.ts src/tools/FileReadTool/prompt.ts
 # gate-watch: src/services/instructions/engine.ts src/utils/permissions/filesystem.ts src/utils/task/framework.ts
 # gate-watch: src/services/lsp/LSPDiagnosticRegistry.ts src/services/lsp/manager.ts src/utils/tasks.ts src/tools/TaskUpdateTool/constants.ts src/tools/BashTool/toolName.ts src/utils/cwd.ts
