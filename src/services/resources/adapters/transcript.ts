@@ -10,6 +10,7 @@ import { recordToEntry } from '../../../fabric/entryCodec.js'
 import { validateRecord } from '../../../fabric/validate.js'
 import { effortStampLine, isEffortStamp } from '../../../utils/effortStamp.js'
 import { replyAddressLine, replyMarksOf } from '../../../utils/messages/replyAddress.js'
+import { collapseAndSlice } from '../../../utils/stringUtils.js'
 import { agentStatusWord } from './agent.js'
 
 function registryStatusOf(ctx: ResourceContext, taskId: string): string | null {
@@ -36,10 +37,6 @@ function transcriptPathFor(sessionId: string): string | null {
   } catch {
     return null
   }
-}
-
-function oneLine(text: string): string {
-  return text.replace(/\s+/g, ' ').trim().slice(0, SAMPLE)
 }
 
 function entryOfLine(parsed: Record<string, unknown>): Record<string, unknown> | null {
@@ -90,13 +87,13 @@ export function jsonlConciseRows(file: string): string[] {
       return `${row}${effortSuffix}${address === null ? '' : ` · ${address}`}`
     }
     if (typeof content === 'string') {
-      if (content.trim()) rows.push(withEffort(`${type}: ${oneLine(content)}`))
+      if (content.trim()) rows.push(withEffort(`${type}: ${collapseAndSlice(content, SAMPLE)}`))
       continue
     }
     if (!Array.isArray(content)) continue
     for (const block of content as Array<Record<string, unknown>>) {
       if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
-        rows.push(withEffort(`${type}: ${oneLine(block.text)}`))
+        rows.push(withEffort(`${type}: ${collapseAndSlice(block.text, SAMPLE)}`))
       } else if (block.type === 'tool_use' && typeof block.name === 'string') {
         const input = (block.input ?? {}) as Record<string, unknown>
         const target =
@@ -105,7 +102,7 @@ export function jsonlConciseRows(file: string): string[] {
             : typeof input.pattern === 'string'
               ? `/${input.pattern}/`
               : typeof input.command === 'string'
-                ? oneLine(input.command).slice(0, 60)
+                ? collapseAndSlice(input.command, SAMPLE).slice(0, 60)
                 : ''
         rows.push(withEffort(`${type}: → ${block.name}${target ? ` ${target}` : ''}`))
       } else if (block.type === 'tool_result') {
@@ -118,7 +115,7 @@ export function jsonlConciseRows(file: string): string[] {
                   .map(b => (typeof b.text === 'string' ? b.text : ''))
                   .join(' ')
               : ''
-        if (text.trim()) rows.push(`tool: ${oneLine(text)}`)
+        if (text.trim()) rows.push(`tool: ${collapseAndSlice(text, SAMPLE)}`)
       }
     }
   }
