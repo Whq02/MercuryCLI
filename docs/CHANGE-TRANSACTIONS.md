@@ -17,7 +17,7 @@ ra:<hex12>:L<start>+<n>   digest of the exact 1-based line range returned
 ```
 
 Digests are sha256 over CRLF-normalized text, truncated to 12 hex characters
-— a staleness check, not a security boundary. Normalization matches what the
+(a staleness check, distinct from a cryptographic boundary). Normalization matches what the
 model actually sees, so a CRLF file anchors identically from either side;
 Unicode is not normalized (content differing in codepoints is different
 content).
@@ -25,25 +25,25 @@ content).
 A mutation that carries `expected_anchor` verifies it against current bytes
 before writing. A failed check returns a typed result naming the reason
 (`stale` or `malformed`), the anchor the same scope mints against current
-content, and the smallest reread that repairs the assumption — the caller
-re-reads precisely, never guesses.
+content, and the smallest reread that repairs the assumption so the caller
+re-reads precisely without guessing.
 
 ## Hashline line anchors
 
 With `MERCURY_LINE_ANCHORS` (default-on), the opt-in `line_anchors` Read
-parameter stamps every line prefix with its content anchor — `N#hhhh`, the
-1-based line number plus the first hex of that line's own hash. The visible
-prefix IS the copyable address. Identical lines share a hash and never
+parameter stamps every line prefix with its content anchor (`N#hhhh`, the
+1-based line number plus the first hex of that line's own hash). The visible
+prefix is the copyable address. Identical lines share a hash and never
 share an address: position is the authority, and the hash is a content
 tripwire whose width widens on evidence. The anchored rows are
 row-for-row the plain presentation with hashes spliced in; the `fa:`/`ra:`
 anchor tail is unchanged.
 
-The Edit hunk grammar accepts anchor-qualified line spellings —
-`"12#ab3f"`, `"12#ab3f-18#9c2e"` — whose endpoint hashes are verified
+The Edit hunk grammar accepts anchor-qualified line spellings
+(`"12#ab3f"`, `"12#ab3f-18#9c2e"`) whose endpoint hashes are verified
 against the current content before anything is written. A diverged or
-out-of-bounds ref REFUSES TYPED, and the refusal answers the current
-neighborhood anchors plus bounded moved-to candidates — the engine never
+out-of-bounds ref refuses typed, and the refusal answers the current
+neighborhood anchors plus bounded moved-to candidates; the engine never
 relocates on its own. A batch whose every hunk is anchor-qualified may drop
 `expected_anchor`: the line anchors are the staleness contract, and
 external drift still refuses wholesale at the read-state gate.
@@ -62,12 +62,12 @@ its exact old/new diff.
 ## The anchor-patch dialect
 
 With `MERCURY_ANCHOR_PATCH` (opt-in), `ChangeSet` additionally accepts a
-compact patch mode — `patch: "…"` beside `changes[]`: one model-authored
+compact patch mode (`patch: "…"` beside `changes[]`): one model-authored
 patch string spells line edits, TS block edits, cut/paste registers
 (cross-file code moves), whole-file delete, and file move over Mercury's
 own `fa:`/`ra:` anchors. The dialect has a closed vocabulary, and every
 patch is preflighted and committed through the same planner and journaled
-commit walk as the JSON form — never a second apply path. The patch path
+commit walk as the JSON form. The patch path
 keeps a per-line seen-lines evidence ledger and a bounded
 unique-relocation recovery for stale anchors; success returns fresh anchors
 per touched file, so patches chain without a reread.
@@ -87,8 +87,8 @@ matches or, for hunks, covers only part of the lines addressed, or when the
 unread lines exceed a Read window. A refusal names the path and the reason
 and nothing of the file: no line of it, no anchor over it, and it records
 nothing, so the same call again is refused again until a Read. A file the
-session has no current knowledge of — never read, or read only before it
-last changed — gets one and the same refusal whatever the `old_string`,
+session has no current knowledge of (never read, or read only before it
+last changed) gets one and the same refusal whatever the `old_string`,
 whether the text occurs once, twice or not at all; the refusal of a file a
 Read deny rule or the project boundary protects therefore tells the model
 nothing about it. With current knowledge of part of the file, the refusal
@@ -99,8 +99,8 @@ every match and the Read that shows the first with its neighbours.
 The Edit tool's own write advances the ledger with it: the lines the model
 had read shift through the edit and the lines it wrote count as seen, at
 the generation the write produced. A later edit of that file therefore
-needs no re-read even when the read cache no longer holds it — a resumed
-agent, a pruned context — while a change made by anyone else still refuses,
+needs no re-read even when the read cache no longer holds it (such as a resumed
+agent or a pruned context), while a change made by anyone else still refuses,
 because its generation is neither the read's nor the edit's. A generation is
 keyed on the file's modification time, its size and a digest of its bytes,
 so a rewrite that keeps the size and lands in the same millisecond is still
@@ -126,7 +126,7 @@ records no lines as read, but its error names the bounded `Read(offset,
 limit)` window to try next. The error carries the same next-window fields
 as the ordinary result. A single oversized line comes back numbered and
 clipped at the display bound, with the number of characters cut and its
-source anchor retained. A notebook over the cap has no line window at all
+source anchor retained. A notebook over the cap has no line window
 (`offset` and `limit` do not select cells): its refusal says so and names
 the shell cell-slice commands instead of a Read.
 
@@ -159,7 +159,7 @@ Changing a file's line endings is a shell command's job.
 
 Every mutation-shaped tool call lands exactly one receipt: the intent (what
 the mutation set out to do, e.g. `tool:Edit`) plus the observed effect,
-recorded once at a single chokepoint — a cancelled or refused call can
+recorded once at a single chokepoint so a cancelled or refused call can
 never mint a partial receipt. Consumers read "what changed, in order, with
 intent" without replaying transcripts; the record is bounded,
 conversation-lifetime state. Repeated no-change outcomes feed the
@@ -172,7 +172,7 @@ reviews, and applies an anchored text change across several existing files:
 
 | Call | Meaning |
 |---|---|
-| `preview` + `changes` | plan only — an immutable, content-addressed plan; writes nothing (the operator-review path) |
+| `preview` + `changes` | plan only: an immutable, content-addressed plan that writes nothing (the review path) |
 | `apply` + `changes` | the fast path: plan, one aggregate decision, apply |
 | `apply` + `plan_id` | apply a previewed plan; a stale plan refuses with current anchors |
 | `status` / `discard` + `plan_id` | inspect or retire a plan |
@@ -182,11 +182,10 @@ its hunks (the live Edit hunk vocabulary). Creation, deletion, move, binary,
 notebook, and executable targets are refused by name in the JSON form (the
 patch dialect above carries delete and move). A nine-step preflight
 covers bounds, duplicates, anchors, hunks, digest determinism, owner
-isolation, and expiry — the valid subset of an invalid set is never written.
-There is exactly one aggregate operator decision per set (any denied path
-means zero writes), and exactly one effect, one receipt, one canonical
+isolation, and expiry; the valid subset of an invalid set is never written.
+There is one aggregate approval decision per set (any denied path
+means zero writes), and one effect, one receipt, one canonical
 transaction, and one aggregate inline change-view card per executed set.
-
 Bounds: 16 files per set, 32 hunks per file, 128 hunks per set, 4 MB staged
 bytes, 240 rendered diff lines (per-file cuts are named, never silent), 16
 retained plans per owner, 30-minute plan lifetime.
@@ -200,13 +199,13 @@ AST planner, and LSP workspace edits. The guarantee:
    writes nothing;
 2. a normal apply reaches the complete planned state, verified by reread;
 3. a midway interruption is journaled and deterministically reconciled at
-   the next boot (idempotent — a second restart changes nothing);
+   the next boot (idempotent, so a second restart changes nothing);
 4. compensation restores originals only where current bytes still match the
-   planned output — later bytes are never overwritten, and the exact
+   planned output; later bytes are never overwritten, and the exact
    unresolved paths are reported.
 
 Durable state lives under `<config-home>/changesets`. Editor/LSP post-write
-sync is awaited and bounded — a timeout classifies as indeterminate, never
+sync is awaited and bounded; a timeout classifies as indeterminate, never
 as success.
 
 ## Flags
@@ -214,17 +213,17 @@ as success.
 All rows live in the in-code registry (`src/substrate/flagRegistry.ts`;
 rendered on demand to an untracked path):
 
-- `MERCURY_CHANGE_RECEIPTS` (default-on) — anchors on reads, the
+- `MERCURY_CHANGE_RECEIPTS` (default-on): anchors on reads, the
   `expected_anchor` Edit field, the receipt record. `=0` removes the layer
   whole: no anchor lines, no enforcement, no record.
-- `MERCURY_EDIT_HUNKS` (default-on) — the `hunks` Edit mode. `=0` restores
+- `MERCURY_EDIT_HUNKS` (default-on): the `hunks` Edit mode. `=0` restores
   the plain `expected_anchor` Edit schema.
-- `MERCURY_LINE_ANCHORS` (default-on) — the hashline layer. `=0` removes
+- `MERCURY_LINE_ANCHORS` (default-on): the hashline layer. `=0` removes
   the `line_anchors` Read parameter, and hash spellings refuse as
-  unparseable exactly like the plain grammar.
-- `MERCURY_ANCHOR_PATCH` (opt-in) — the patch dialect. Unset or `=0`, the
+  unparseable like the plain grammar.
+- `MERCURY_ANCHOR_PATCH` (opt-in): the patch dialect. Unset or `=0`, the
   ChangeSet schema carries no patch field, byte-identically.
-- `MERCURY_CHANGESET` (default-on; requires receipts and hunks) — the
+- `MERCURY_CHANGESET` (default-on; requires receipts and hunks): the
   ChangeSet tool itself. `=0` removes the tool from the catalog
   byte-identically while the shared commit core keeps serving Structure and
   LSP.

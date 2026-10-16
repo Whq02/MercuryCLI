@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const { injectTurnReceipts, isScratchpadPath, isTurnReceiptEnabled, delegatedSpendLine, formatDelegatedTokens, formatDelegatedCost, createdLineCount } = await import(
+const { injectTurnReceipts, isScratchpadPath, isTurnReceiptEnabled, delegatedSpendLine, formatDelegatedTokens, formatDelegatedCost, createdLineCount, hasActivity, NO_TOOLS_RAN_WORDS } = await import(
   '../../src/utils/cockpit/turnReceipt.js'
 )
 const TEMP_ROOT = '/tmp/claude-1/'
@@ -157,7 +157,31 @@ withEnv('1', () => {
 })
 withEnv('1', () => {
   const rows = inject([prompt('no tools at all', 'p1'), prompt('another', 'p2')])
-  check('a turn with zero tool activity injects NOTHING', receipts(rows).length === 0)
+  check('a turn with no reply and no tool activity injects NOTHING', receipts(rows).length === 0)
+  const replyRow = (text: string, uuid = 'r-text') => ({ type: 'assistant', uuid, message: { role: 'assistant', content: [{ type: 'text', text }] } }) as never
+  const claimed = inject([prompt('run the tests and tell me how many pass', 'p1'), replyRow('All 23 tests pass. Verified with pnpm vitest run — exit code 0.'), prompt('next', 'p2')])
+  check('a REPLY turn that ran no tool injects a receipt with every count zero (the no-tools mark; red on the base)', receipts(claimed).length === 1 && !hasActivity(receipts(claimed)[0]!.counts as never), JSON.stringify(receipts(claimed).map(r => r.counts)))
+  const settledTail = inject([prompt('tell me', 'p1'), replyRow('a plain answer')])
+  check('the same at end-of-list once the reply has landed', receipts(settledTail).length === 1 && !hasActivity(receipts(settledTail)[0]!.counts as never))
+  check('a prompt still waiting for its reply injects nothing (the in-flight turn)', receipts(inject([prompt('waiting', 'p1')])).length === 0)
+  check('rows before the first prompt never mint a no-tools receipt', receipts(inject([replyRow('a greeting before any prompt'), prompt('first', 'p1')])).length === 0)
+  check('a reply row of empty text is not a reply', receipts(inject([prompt('x', 'p1'), replyRow('   ')])).length === 0)
+  check('the words the row prints come from the derive owner', NO_TOOLS_RAN_WORDS === 'no tools ran this turn' && /NO_TOOLS_RAN_WORDS/.test(src('components', 'messages', 'TurnReceiptRow.tsx')))
+  const withUsage = (uuid: string, prompt: number) => ({ type: 'assistant', uuid, message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: prompt, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 } } }) as never
+  const deltas = inject([prompt('a', 'p1'), withUsage('u1', 20000), prompt('b', 'p2'), toolUse('Bash', { command: 'ls' }, 'a2'), withUsage('u2', 21500), prompt('c', 'p3'), replyRow('no usage here', 'u3')])
+  const deltaRows = (deltas as Array<{ type?: string; contextDelta?: number }>).filter(r => r?.type === 'turn_receipt').map(r => r.contextDelta)
+  check('each receipt carries the turn\'s context delta from the rows\' own usage (20,000 · +1,500 · none)', deltaRows.length === 3 && deltaRows[0] === 20000 && deltaRows[1] === 1500 && deltaRows[2] === undefined, JSON.stringify(deltaRows))
+  const folded = inject([prompt('a', 'p1'), withUsage('u1', 90000), { type: 'system', subtype: 'compact_boundary', uuid: 'cb' } as never, prompt('b', 'p2'), withUsage('u2', 12000)])
+  const foldedDeltas = (folded as Array<{ type?: string; contextDelta?: number }>).filter(r => r?.type === 'turn_receipt').map(r => r.contextDelta)
+  check('a compaction boundary forgets the prompt sizes before it: the next turn measures from nothing, never from the folded prompt', foldedDeltas.length === 2 && foldedDeltas[0] === undefined && foldedDeltas[1] === 12000, JSON.stringify(foldedDeltas))
+  const keptTail = inject([
+    { type: 'system', subtype: 'compact_boundary', uuid: 'cb2', compactMetadata: { preservedSegment: { headUuid: 'kp', anchorUuid: 'cb2', tailUuid: 'kr' } } } as never,
+    { type: 'user', uuid: 'sum', isCompactSummary: true, isVisibleInTranscriptOnly: true, message: { role: 'user', content: 'The summary of what was folded.' } } as never,
+    prompt('the kept prompt', 'kp'), withUsage('kr', 60000),
+    prompt('the first new prompt', 'np'), withUsage('nr', 15000),
+  ])
+  const keptDeltas = (keptTail as Array<{ type?: string; uuid?: string; contextDelta?: number }>).filter(r => r?.type === 'turn_receipt').map(r => [r.uuid, r.contextDelta])
+  check('a fold that keeps a verbatim tail: the kept turn re-paints no pre-fold size, the first new turn reads its own full size (RED before the latch: +60.0k then −45.0k)', keptDeltas.some(([id, d]) => id === 'kp-turn-receipt' && d === undefined) && keptDeltas.some(([id, d]) => id === 'np-turn-receipt' && d === 15000), JSON.stringify(keptDeltas))
   const grouped = inject([
     prompt('grouped turn', 'p1'),
     {

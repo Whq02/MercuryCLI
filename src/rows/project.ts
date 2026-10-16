@@ -104,6 +104,7 @@ export interface SessionFacts {
   model: string
   mode: string
   tools: string[]
+  toolsWithheld?: Array<{ tool: string; rule: string; source: string }>
   mcpServers: Array<{ name: string; status: string }>
   commands: string[]
   agents: string[]
@@ -124,6 +125,7 @@ export function sessionRow(scope: RowScope, facts: SessionFacts): Unstamped<Sess
       model: facts.model,
       mode: facts.mode,
       tools: facts.tools,
+      ...(facts.toolsWithheld !== undefined && facts.toolsWithheld.length > 0 ? { tools_withheld: facts.toolsWithheld } : {}),
       mcp_servers: facts.mcpServers,
       commands: facts.commands,
       agents: facts.agents,

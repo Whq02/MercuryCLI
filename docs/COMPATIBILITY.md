@@ -42,7 +42,7 @@ from the live validator and refreshes it at
 (`src/utils/settings/localSchema.ts`); every user-settings write stamps
 `$schema` with that path (`src/utils/settings/settings.ts`), so an editor
 validates real Mercury settings offline, versioned with the installed build.
-`$schema` is an editor pointer, not configuration: a file carrying any other
+`$schema` is an editor pointer (separate from active configuration): a file carrying any other
 pointer keeps validating (`src/utils/settings/types.ts`), and no foreign
 schema URL is ever written.
 The committed review snapshot is `scripts/settings/settings-schema.json`,
@@ -51,10 +51,10 @@ held equal to the generator.
 ## MCP
 
 Mercury is a Model Context Protocol client. Server configs merge across
-scopes — the project `.mercury/mcp.json` walk, the user scope, the local scope, a
-managed `managed-mcp.json`, and extension-provided servers
-(`src/services/mcp/config.ts`) — with per-repository server selection in the
-boot menu's MCPs & Skills record, session-scoped toggles in `/mcp`
+scopes (the project `.mercury/mcp.json` walk, the user scope, the local scope, a
+managed `managed-mcp.json`, and extension-provided servers in
+`src/services/mcp/config.ts`) with per-repository server selection in the
+Boot Menu's MCPs & Skills record, session-scoped toggles in `/mcp`
 ([KIT.md](KIT.md)), project-scope server approval prompts, and a risk
 ceiling (`MERCURY_MCP_MAX_RISK`). An extension declares its MCP servers in
 its own manifest ([EXTENSIONS.md](EXTENSIONS.md)). A server entry that does
@@ -67,10 +67,10 @@ behalf, and no server is tagged by anyone's registry.
 
 ## Claude account connectors
 
-Org-managed connector configs can be fetched from the Claude account API —
-strictly opt-in: the registered `MERCURY_ANTHROPIC_CONNECTORS` flag alone
+Org-managed connector configs can be fetched from the Claude account API
+(strictly opt-in: the registered `MERCURY_ANTHROPIC_CONNECTORS` flag alone
 decides, unset is off, and the fetch additionally requires a Claude sign-in
-carrying the `user:mcp_servers` scope. Ever-connected connectors are recorded
+carrying the `user:mcp_servers` scope). Ever-connected connectors are recorded
 in the global config.
 
 ## Extensions
@@ -80,9 +80,9 @@ source is your act (`docs/EXTENSIONS.md`).
 
 ## Skills
 
-Skills load from Mercury's homes alone — `.mercury/skills` under the starting
+Skills load from Mercury's homes alone (`.mercury/skills` under the starting
 project's instruction chain, `~/.mercury/skills`, the managed policy tree,
-and approved extensions (`src/skills/loadSkillsDir.ts`,
+and approved extensions in `src/skills/loadSkillsDir.ts` and
 `src/extensions/load/commands.ts`). A skill body's template tokens expand in
 Mercury's spelling alone, `${MERCURY_SKILL_DIR}` and `${MERCURY_SESSION_ID}`.
 
@@ -109,7 +109,7 @@ also bundles the `vendor/embed` addon built for its platform and the 118 MB
 `windows-x64` the addon runs a vectorised maths kernel, about a tenth of a
 second per Recall by meaning (a few hundredths on macOS through Accelerate). The
 `windows-x64` archive bundles the `brush` shell engine, and the Windows
-recursive-delete ward
+recursive-delete safety rule
 enforces parity across drive roots, `Users`, system folders, share roots and
 PowerShell pipelines ([TRUST.md](TRUST.md)).
 
@@ -121,4 +121,4 @@ PowerShell pipelines ([TRUST.md](TRUST.md)).
 | `windows-x64` | `mercury-v<version>-windows-x64.zip` | Windows on x86_64 | natively, on its own runner |
 
 Any other machine (Linux or Windows on arm64) builds from source (README.md);
-`mercury update` says so rather than guessing an archive.
+`mercury update` states that directly instead of guessing an archive.
