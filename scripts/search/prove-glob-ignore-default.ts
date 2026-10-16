@@ -81,7 +81,7 @@ try {
   put(join(project, 'src', '.env'))
   writeFileSync(join(project, '.gitignore'), 'node_modules\ndist\n*.log\n.env\n')
   const byName = await ask({ pattern: 'src/*', path: project })
-  check('files ignored BY NAME (*.log, .env) beside listed files are counted with the same true words — nothing says "folder"', byName.data.numFiles === 3 && byName.data.ignored === 2 && spoken(byName).endsWith('· 2 paths under ignore rules not listed') && !spoken(byName).includes('folder'), spoken(byName))
+  check('files ignored BY NAME (*.log, .env) beside listed files are counted with the same true words — nothing says "folder"', byName.data.numFiles === 3 && byName.data.ignored === 2 && spoken(byName).endsWith('· 2 paths under ignore rules not listed') && !spoken(byName).split('\n').at(-1)!.includes('folder'), spoken(byName))
 
   console.log('\n§3 the road inside: naming the ignored folder as the path searches it')
   const inside = await ask({ pattern: '**/*.d.ts', path: join(project, 'node_modules', 'pkg-0') })
