@@ -107,7 +107,7 @@ export function getRuntimePostureSection(): string | null {
     return memo
   }
 
-  const lines: string[] = ['# Runtime posture (this process, at boot)']
+  const lines: string[] = []
 
   if (nonInteractive && canAnswerAsks()) {
     lines.push(
@@ -118,12 +118,7 @@ export function getRuntimePostureSection(): string | null {
     if (needs !== null) lines.push(needs)
   } else if (nonInteractive) {
     lines.push(
-      '- Session: non-interactive (mercury run): no human is at a prompt and no host answers an ask, so a tool call that would need an interactive approval is denied automatically and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. A denial is policy, not tool failure: prefer tools your rules allow, or state the blocker plainly in your output.' +
-        (bootPermissionMode ? ` Permission mode for this run: ${bootPermissionMode}.` : ''),
-    )
-  } else {
-    lines.push(
-      '- Session: interactive. Permission asks reach the operator; the current mode is on the shift+tab carousel and can change mid-session.',
+      '- Session: non-interactive (mercury run): no human is at a prompt and no host answers an ask, so a tool call that would need an interactive approval is denied automatically and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. A denial is policy, not tool failure: prefer tools your rules allow, or state the blocker plainly in your output.',
     )
   }
 
@@ -131,21 +126,15 @@ export function getRuntimePostureSection(): string | null {
   const killList = Object.entries(kills).flatMap(([agent, tools]) =>
     tools.map(t => (agent === '*' || agent === '' ? t : `${agent}:${t}`)),
   )
-  lines.push(
-    killList.length > 0
-      ? `- Capability kills armed at boot: ${killList.join(', ')} (MERCURY_KILL — absolute; no mode, including bypass, overrides a kill).${nonInteractive ? '' : ' Live state: /kill.'}`
-      : `- Capability kills armed at boot: none.${nonInteractive ? '' : ' (Kills can be armed mid-session via /kill; live state: /kill.)'}`,
-  )
+  if (killList.length > 0) {
+    lines.push(`- Capability kills armed at boot: ${killList.join(', ')} (MERCURY_KILL — absolute; no mode, including bypass, overrides a kill).${nonInteractive ? '' : ' Live state: /kill.'}`)
+  }
 
-  lines.push(
-    isMcpPolicyActive()
-      ? `- MCP tool-risk policy: ${describeMcpPolicy()} — higher-risk MCP tools are blocked by policy, not broken.`
-      : '- MCP tool-risk policy: permissive (no max-risk cap set).',
-  )
+  if (isMcpPolicyActive()) {
+    lines.push(`- MCP tool-risk policy: ${describeMcpPolicy()} — higher-risk MCP tools are blocked by policy, not broken.`)
+  }
 
-  lines.push('- File leases guard concurrent edits between agents (a lease denial is coordination, not an error).')
-
-  memo = lines.join('\n')
+  memo = lines.length === 0 ? null : ['# Runtime posture (this process, at boot)', ...lines].join('\n')
   return memo
 }
 

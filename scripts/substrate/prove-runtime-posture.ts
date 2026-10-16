@@ -53,19 +53,11 @@ section('gate — default-ON, =0 byte-identical absence')
   resetRuntimePostureForTest()
 }
 
-section('interactive posture (the default)')
+section('interactive posture (the default) — nothing armed, nothing to say')
 {
   const s = getRuntimePostureSection()
-  check('section present when on', s !== null)
-  const text = s ?? ''
-  check('titled as a posture block', text.startsWith('# Runtime posture'))
-  check('interactive semantics stated', /Session: interactive/.test(text))
-  check('never claims headless deny in interactive', !/non-interactive/.test(text))
-  check('kills labeled "at boot" + live surface named', /at boot/.test(text) && /live state: \/kill/.test(text))
-  check('no kills armed ⇒ says none', /kills armed at boot: none/.test(text))
-  check('MCP posture stated (permissive without a cap)', /MCP tool-risk policy: permissive/.test(text))
-  check('no agent-model floor is stated (nothing substitutes a chosen model)', !/floor/i.test(text) && !/Haiku/.test(text))
-  check('MEMOIZED — second call returns the identical string', getRuntimePostureSection() === s)
+  check('an interactive session with no kill and no MCP cap carries no posture block (the ask itself, the kill gate\'s refusal and the policy\'s refusal carry those facts when they bite)', s === null, s ?? '')
+  check('MEMOIZED — second call returns the identical value', getRuntimePostureSection() === s)
 }
 
 section('headless posture (the daemon-child / run truth)')
@@ -86,7 +78,8 @@ section('headless posture (the daemon-child / run truth)')
   setAskChannel('operator')
   resetRuntimePostureForTest()
   markSessionNonInteractive('implement')
-  check('boot permission mode surfaced', /Permission mode for this run: implement/.test(text))
+  check('the boot permission mode is not restated on a run without a host (a refusal names the rule and the mode)', !/Permission mode for this run/.test(text))
+  check('the runner seat with a host keeps its own words, the mode among them', /Permission mode for this run: implement/.test(channelled))
   const line = getRuntimePostureDoctrineLine() ?? ''
   check('doctrine line carries the headless deny semantics', /this process is headless: an unanswerable permission ask is denied automatically/.test(line))
   check('doctrine line carries lease semantics', /file-lease denial/.test(line))
@@ -101,7 +94,10 @@ section('boot-state capture — kills + MCP cap render when armed at boot')
   process.env.MERCURY_MCP_MAX_RISK = 'low'
   killCapability('*', 'WebFetch')
   const text = getRuntimePostureSection() ?? ''
-  check('armed kill named', /kills armed at boot: .*WebFetch/.test(text))
+  check('an armed kill or a cap brings the block back, titled as a posture block', text.startsWith('# Runtime posture (this process, at boot)'))
+  check('armed kill named, labeled at boot, the live surface named', /kills armed at boot: .*WebFetch/.test(text) && /Live state: \/kill/.test(text))
+  check('no agent-model floor is stated (nothing substitutes a chosen model)', !/floor/i.test(text) && !/Haiku/.test(text))
+  check('nothing non-default is restated: no session line, no permissive line, no lease line', !/Session:/.test(text) && !/permissive/.test(text) && !/File leases/.test(text))
   check('kill absoluteness stated (bypass cannot override)', /bypass, overrides a kill/.test(text) || /no mode, including bypass/.test(text))
   check('MCP cap reflected', /MCP tool-risk policy: (?!permissive)/.test(text))
   restoreCapability('*', 'WebFetch')

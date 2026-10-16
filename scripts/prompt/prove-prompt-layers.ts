@@ -41,7 +41,7 @@ setCwdState(scratch)
 const MODEL = 'claude-fable-5-1'
 const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate'].map(name => ({ name })) as never
 const HEAD = `Working directory: ${scratch}`
-const FACTS = ['# The project estate', '# Memory', '# Environment', 'Model currency:', 'Write down important information from tool results', '# Runtime posture', '# Autonomous runs']
+const FACTS = ['# The project estate', '# Memory', '# Environment', 'Model currency:', 'Write down important information from tool results', '# Autonomous runs']
 
 async function assemble(env: Record<string, string | undefined>): Promise<string[]> {
   const saved = new Map<string, string | undefined>()
