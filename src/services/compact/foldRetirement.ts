@@ -13,8 +13,8 @@ import { getRunSnapshot } from '../run/runCoordinator.js'
 import type { RunSnapshot } from '../run/runKernel.js'
 import { groupMessagesByApiRound } from './grouping.js'
 
-export type FoldMemoryItem = { content: string; context: string; topic: string }
-export type FoldMemorySourceRange = { firstRecordId: string; lastRecordId: string; firstTurn: number; lastTurn: number }
+type FoldMemoryItem = { content: string; context: string; topic: string }
+type FoldMemorySourceRange = { firstRecordId: string; lastRecordId: string; firstTurn: number; lastTurn: number }
 export type FoldMemoryEnvelope = {
   version: 1
   epoch: number

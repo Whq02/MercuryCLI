@@ -157,7 +157,7 @@ export function overflowRecoveryNotice(
   if (rung === 'fold') return `${head} — folding the conversation and retrying`
   const n = pruned?.cleared ?? 0
   const saved = pruned?.tokensSaved ?? 0
-  return `${head} — pruned ${n} superseded tool-result bod${n === 1 ? 'y' : 'ies'} (about ${saved.toLocaleString('en-US')} tokens by Mercury's estimate, before placeholders; no summary written, nothing moved to memory) and retrying`
+  return `${head} — pruned ${n} superseded tool-result bod${n === 1 ? 'y' : 'ies'} (about ${saved.toLocaleString('en-US')} tokens by Mercury's estimate, net of placeholders; no summary written, nothing moved to memory) and retrying`
 }
 
 export function overflowRefusalText(

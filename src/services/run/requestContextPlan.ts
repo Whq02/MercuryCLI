@@ -8,6 +8,7 @@ import {
 } from '../compact/microCompact.js'
 import type { Message } from '../../types/message.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
+import { stripThinkingInPreservedTail } from '../../utils/messages/apiFilters.js'
 import { projectRewoundWindows } from '../compact/checkpointRewind.js'
 import { PROTECTED_TOOL_NAMES } from '../compact/pruneProtections.js'
 import {
@@ -145,7 +146,7 @@ export async function buildRequestContextPlan(
   const unknownFields: string[] = []
   const reasons: string[] = []
   const sourceMessageCount = input.messages.length
-  const afterBoundary = getMessagesAfterCompactBoundary(input.messages)
+  const afterBoundary = stripThinkingInPreservedTail(getMessagesAfterCompactBoundary(input.messages))
   const afterRewinds = projectRewoundWindows(afterBoundary)
   if (afterRewinds.length < afterBoundary.length) {
     reasons.push(

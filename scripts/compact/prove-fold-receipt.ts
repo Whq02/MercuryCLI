@@ -97,7 +97,7 @@ try {
   check('an older record with no count speaks nothing', foldReceiptWords(foldReceipt({ trigger: 'manual', preTokens: 0 })).length === 0)
 
   const prune = overflowRecoveryNotice({ source: 'estimate', family: 'unknown', shape: 'estimate', actualTokens: 1_047_974, limitTokens: 1_025_576 } as never, 'prune', { cleared: 154, tokensSaved: 740_942 })
-  check('the session-2 emergency prune receipt says 154 bodies, names Mercury\'s gross estimate and asserts no summary or memory move', prune === 'context overflowed (estimated 1,047,974 tokens > 1,025,576) — pruned 154 superseded tool-result bodies (about 740,942 tokens by Mercury\'s estimate, before placeholders; no summary written, nothing moved to memory) and retrying', prune)
+  check('the session-2 emergency prune receipt says 154 bodies, names Mercury\'s gross estimate and asserts no summary or memory move', prune === 'context overflowed (estimated 1,047,974 tokens > 1,025,576) — pruned 154 superseded tool-result bodies (about 740,942 tokens by Mercury\'s estimate, net of placeholders; no summary written, nothing moved to memory) and retrying', prune)
   const failed = overflowRefusalText({ source: 'estimate', family: 'unknown', shape: 'estimate', actualTokens: 10, limitTokens: 5 } as never, 'fold-failed', { nonInteractive: true, detail: 'the summary call stalled' })
   check('a failed fold says the conversation is kept whole and nothing moved', failed.includes('the fold failed (the summary call stalled). The conversation is kept whole; nothing moved.'), failed)
   const notLanded = overflowRefusalText({ source: 'estimate', family: 'unknown', shape: 'estimate', actualTokens: 10, limitTokens: 5 } as never, 'fold-did-not-land', { nonInteractive: false })

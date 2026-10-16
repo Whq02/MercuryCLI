@@ -121,7 +121,8 @@ try {
   check('nothing was written for the conflict and the fold still landed', pendingRows(dir).length === 1 && conflicted.summaryMessages.length === 1)
   check('the summary says nothing moved and keeps the unsaved item visible in the boundary', summaryOf(conflicted).includes('Nothing moved to memory: ') && summaryOf(conflicted).includes('conflicts with a pending fact') && conflict?.item !== null)
 
-  acceptUserRequest(owner, { objective: 'Rotate the key sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-AA before the release.', rootMessageId: null })
+  const fakeKey = ['sk-ant-api03', 'a'.repeat(95)].join('-')
+  acceptUserRequest(owner, { objective: `Rotate the key ${fakeKey} before the release.`, rootMessageId: null })
   const secret = envelopeOf(await fold([user('Rotate the key.'), ...rounds(14)]))
   check('a run state carrying a secret is refused and never written', secret?.state === 'failed' && 'reason' in secret && secret.reason.includes('looks like a secret') && pendingRows(dir).length === 1, secret?.state === 'failed' ? secret.reason : secret?.state)
 
