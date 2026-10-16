@@ -21,7 +21,9 @@ export function armPermissionFocus(): () => void {
   }
 }
 
-
+export function permissionCardMounted(): boolean {
+  return mounted > 0
+}
 export function refuseGestureWhileModal(what: string): boolean {
   if (mounted <= 0) return false
   notifier?.(

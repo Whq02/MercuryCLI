@@ -31,9 +31,9 @@ const FILLER = /^(?:(?:ok(?:ay)?|also|and|so|oh|right|cool|yes|yeah|btw|well|the
 const NEGATED = /^(?:please\s+|pls\s+)?(?:do\s+not|don['’]t|never|no\s+need\s+to|stop)\s+(?:remember|pin|save|keep|make|retain)\b/i
 const DIRECTIVE_HEAD = /^(?:please\s+|pls\s+)?(?:remember(?:\s+(?:this|that|these))?\b|from\s+now\s+on\b|always\b|never\b|(?:i|we)\s+(?:like|prefer|want)\b|(?:standing\s+)?rule\b|every\s+(?:time|release|session|chat)\b)/i
 const REQUEST_FORM = /\b(?:please\s+|pls\s+)?(?:(?:make|keep|save|pin)\s+(?:this|it|that|these)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rules?|preferences?)\b|pin\s+(?:this|it|that|these)\b|remember\s+(?:this|that|these)\s+as\s+(?:a\s+)?(?:standing\s+)?(?:rule|preference)\b|from\s+now\s+on\b|standing\s+rule\b)/i
-const RULE_WORDS = /\b(?:standing rules?|rules?|preferences?|from now on|always|never|every (?:time|release|session|chat)|(?:i|we) (?:like|prefer|want))\b/i
+const RULE_WORDS = /\b(?:standing rules?|rules?|preferences?|from now on|always|never|every (?:time|release|session|chat)|(?:i|we) (?:like|prefer|want)|pin (?:this|it|that|these))\b/i
 const SECOND_HAND = /\b(?:example|quote|quoted|document|draft|says|said|wrote|not\s+(?:a\s+)?rule)\b/i
-const SUFFIX = /^[\s.!;,—-]*(?:please\s+|pls\s+)?(?:remember\s+(?:this|that)|(?:make|keep|save|pin)\s+(?:this|it|that)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rule|preference))\s*[.!]?\s*$/i
+const SUFFIX = /^[\s.!;,—-]*(?:please\s+|pls\s+)?(?:remember\s+(?:this|that)|pin\s+(?:this|it|that)|(?:make|keep|save|pin)\s+(?:this|it|that)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rule|preference))\s*[.!]?\s*$/i
 const ACCEPTANCE = /^[\s"']*(?:(?:ok(?:ay)?|yes|yeah|yep|sure|please|pls)[\s,.!]*)*(?:pin\s+(?:it|that|this)|(?:make|keep|save)\s+(?:it|that|this)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rule|preference)|remember\s+(?:it|that|this))(?:\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rule|preference))?[\s.!]*$/i
 
 interface Sentence {
