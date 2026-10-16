@@ -76,7 +76,7 @@ export function buildFoldLedger(messages: readonly Message[], owner: OwnerKey, e
   }
 }
 
-export const FOLD_INDEX_PAGE = 40
+const FOLD_INDEX_PAGE = 40
 
 export function renderFoldLedger(ledger: FoldLedger): string {
   const stretch = <T extends { epoch: number }>(rows: T[]): T[] => rows.filter(row => row.epoch === ledger.epoch)
