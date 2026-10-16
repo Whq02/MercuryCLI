@@ -85,6 +85,7 @@ import {
 import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, toolCallRefusalDiagnostic, toolCallRefusalNote } from '../toolCallGate.js'
 import { isLocalLivenessCut, localStreamLawFor } from '../localLiveness.js'
+import { extractToolCallMarkup } from '../local/toolCallMarkup.js'
 import { planToolPayload, renderAdmissionRecordsAsText, type ToolPayloadPlan } from '../toolEconomy.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
@@ -962,10 +963,23 @@ async function* streamOneCompatAttempt(ctx: {
       : null
 
   yield* ensureMessageStart()
+  let completed = finish?.toolCalls ?? []
+  if (profile.lane === 'local' && completed.length === 0 && blocks.open !== null && finish !== undefined) {
+    const extracted = extractToolCallMarkup(blocks.open.value, (request.tools ?? []).map(tool => ({ name: tool.function.name, input_schema: tool.function.parameters })))
+    if (extracted !== undefined) {
+      logForDebugging(`[compat:local] ${extracted.calls.length} tool call(s) read from ${extracted.shape} markup the server left in the ${blocks.open.kind}`)
+      completed = extracted.calls.map((call, index) => ({ index, id: `markup_${randomUUID().slice(0, 8)}_${index}`, name: call.name, argumentsRaw: call.argumentsRaw, malformed: false }))
+      if (extracted.text === '') {
+        yield streamEvent({ type: 'content_block_stop', index: blocks.index })
+        blocks.open = null
+      } else {
+        blocks.open.value = extracted.text
+      }
+    }
+  }
   yield* closeOpenBlock()
-  if ((finish?.toolCalls.length ?? 0) > 0) yield* emitLeadingNotes()
+  if (completed.length > 0) yield* emitLeadingNotes()
 
-  const completed = finish?.toolCalls ?? []
   const accepted: Array<{ call: CompatCompletedToolCall; input: Record<string, unknown> }> = []
   const refused: RefusedToolCall[] = []
   const verdicts = gateToolCalls(
