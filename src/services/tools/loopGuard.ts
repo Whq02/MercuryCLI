@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import { REPEATED_RESULT_MIN_CHARS, REPEATED_RESULT_TAG } from '../../constants/toolLimits.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { FILE_UNCHANGED_STUB } from '../../tools/FileReadTool/prompt.js'
 import type { Message } from '../../types/message.js'
@@ -7,6 +8,8 @@ import type { ToolResultBlockParam } from '../../types/wire.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { createSystemMessage } from '../../utils/messages/systemMessages.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
+import { PERSISTED_OUTPUT_TAG, persistToolResult } from '../../utils/toolResultStorage.js'
+import { MC_CLEARED_PLACEHOLDER, MC_DIGEST_PREFIX } from '../compact/microCompactDigest.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
@@ -24,6 +27,7 @@ const BOOKKEEPING_NAMES = new Set(['Checkpoint', 'Rewind', 'Sleep', 'Monitor'])
 const KEY_SEPARATOR = '\u0000'
 const CYCLE_SEPARATOR = '\u0001'
 const DETECTION_MEMORY = 16
+const RESULT_MEMORY = 128
 
 interface LoopGuardObservation {
   toolName: string
@@ -64,6 +68,12 @@ interface RoundEntry {
   bookkeeping: boolean
 }
 
+interface ResultEntry {
+  toolUseID: string
+  roundID: string
+  digest: string
+}
+
 interface LoopGuardState {
   boundary: string | null
   lastKey: string | null
@@ -78,6 +88,7 @@ interface LoopGuardState {
   roundCalls: Map<string, { ordinal: number; parent: string | null; started: number }>
   roundSequence: number
   detections: Map<string, { count: number; tools: string[] }>
+  results: Map<string, ResultEntry>
 }
 
 function freshState(): LoopGuardState {
@@ -95,6 +106,7 @@ function freshState(): LoopGuardState {
     roundCalls: new Map(),
     roundSequence: 0,
     detections: new Map(),
+    results: new Map(),
   }
 }
 
@@ -429,6 +441,91 @@ export function recordToolCall(owner: OwnerKey, observation: LoopGuardObservatio
   } catch {
     return
   }
+}
+
+function resultText(content: ToolResultBlockParam['content']): string | null {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return null
+  const parts: string[] = []
+  for (const part of content) {
+    if (part.type !== 'text' || typeof part.text !== 'string') return null
+    parts.push(part.text)
+  }
+  return parts.join('\n')
+}
+
+function isReferenceResult(text: string): boolean {
+  return (
+    text.startsWith(REPEATED_RESULT_TAG) ||
+    text.startsWith(PERSISTED_OUTPUT_TAG) ||
+    text.startsWith(FILE_UNCHANGED_STUB) ||
+    text.startsWith(MC_CLEARED_PLACEHOLDER) ||
+    text.startsWith(MC_DIGEST_PREFIX)
+  )
+}
+
+function wholeResultDigest(block: ToolResultBlockParam): string {
+  return createHash('sha256').update(canonicalArguments(block.content)).digest('hex')
+}
+
+function earlierResultStillWhole(messages: readonly unknown[] | undefined, toolUseID: string, digest: string): boolean {
+  if (messages === undefined) return false
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const block = toolResultBlockOf(messages[index] as Message | undefined, toolUseID)
+    if (block !== undefined) return block.is_error !== true && wholeResultDigest(block) === digest
+  }
+  return false
+}
+
+interface RepeatedResultObservation {
+  toolName: string
+  toolUseID: string
+  roundID: string
+  arguments: unknown
+  result: ToolResultBlockParam
+  messages: readonly unknown[] | undefined
+}
+
+export async function repeatedResultPointer(owner: OwnerKey, observation: RepeatedResultObservation): Promise<string | null> {
+  try {
+    const { result, toolUseID, roundID } = observation
+    if (result.is_error === true || isBookkeepingTool(observation.toolName)) return null
+    const text = resultText(result.content)
+    if (text === null || text.length < REPEATED_RESULT_MIN_CHARS || isReferenceResult(text)) return null
+    const state = store.get(owner)
+    settleBoundary(state, observation.messages)
+    const key = toolCallKey(observation.toolName, observation.arguments)
+    const digest = wholeResultDigest(result)
+    const known = state.results.get(key)
+    const repeated =
+      known !== undefined &&
+      known.toolUseID !== toolUseID &&
+      known.digest === digest &&
+      (known.roundID === roundID || earlierResultStillWhole(observation.messages, known.toolUseID, digest))
+    if (!repeated) {
+      state.results.delete(key)
+      state.results.set(key, { toolUseID, roundID, digest })
+      if (state.results.size > RESULT_MEMORY) {
+        const oldest = state.results.keys().next().value
+        if (oldest !== undefined) state.results.delete(oldest)
+      }
+      return null
+    }
+    const kept = await persistToolResult(result.content as never, toolUseID)
+    const where = 'error' in kept ? '' : ` The full text is also kept at ${kept.filepath}.`
+    return `${REPEATED_RESULT_TAG} this ${observation.toolName} call (${argumentPreview(observation.arguments)}) returned exactly the same ${text.length} characters as call ${known.toolUseID} earlier in this turn, so the text is not repeated here. Reread that result — it is unchanged.${where}`
+  } catch {
+    return null
+  }
+}
+
+export function withResultContent<T extends { message: Message }>(update: T, toolUseID: string, content: string): T {
+  const message = update.message
+  if (message.type !== 'user' || !Array.isArray(message.message.content)) return update
+  const blocks = message.message.content.map(block =>
+    block.type === 'tool_result' && block.tool_use_id === toolUseID ? { ...block, content } : block,
+  )
+  return { ...update, message: { ...message, message: { ...message.message, content: blocks } } }
 }
 
 export function closeRound(owner: OwnerKey, roundID: string, complete = true): LoopGuardVerdict {

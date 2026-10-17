@@ -13,6 +13,7 @@ import { digestClearedToolResult, isClearedOrDigested } from './microCompactDige
 import { isBelowPlaceholderFloor, isProtectedFromPruning, PROTECT_NEWEST_TOOL_OUTPUT_TOKENS, PRUNE_MINIMUM_SAVING_TOKENS } from './pruneProtections.js'
 import { clearCompactWarningSuppression, suppressCompactWarning } from './compactWarningState.js'
 import { getTimeBasedMCConfig } from './timeBasedMCConfig.js'
+import { REPEATED_RESULT_TAG } from '../../constants/toolLimits.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
@@ -233,6 +234,7 @@ export function projectTimeBasedMicrocompact(
       if ((message.toolUseResult as { type?: string } | undefined)?.type === 'file_unchanged') continue
       for (const block of message.message.content) {
         if (block.type !== 'tool_result' || block.is_error === true || isClearedOrDigested(block.content)) continue
+        if (typeof block.content === 'string' && block.content.startsWith(REPEATED_RESULT_TAG)) continue
         const path = filePathById.get(block.tool_use_id)
         if (path === undefined) continue
         const prior = latestByPath.get(path)

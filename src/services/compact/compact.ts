@@ -68,6 +68,7 @@ import { buildRunContinuationCapsule } from '../run/runContinuationCapsule.js'
 import { roughTokenCountEstimation, roughTokenCountEstimationForMessages } from '../tokenEstimation.js'
 import { estimateRequestGauge, readRequestGauge } from '../run/requestGauge.js'
 import { FileReadTool } from '../../tools/FileReadTool/FileReadTool.js'
+import { REPEATED_RESULT_TAG } from '../../constants/toolLimits.js'
 import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../../tools/FileReadTool/prompt.js'
 import { ToolSearchTool } from '../../tools/ToolSearchTool/ToolSearchTool.js'
 import { groupMessagesByApiRound } from './grouping.js'
@@ -533,7 +534,7 @@ function collectPreservedReadPaths(preserved: Message[]): Set<string> {
           : Array.isArray(record.content)
             ? record.content.map(item => String((item as { text?: unknown }).text ?? '')).join('')
             : ''
-      if (text.includes(FILE_UNCHANGED_STUB) || text.startsWith(FOLDED_RESULT_KEY)) stubToolUseIds.add(record.tool_use_id)
+      if (text.includes(FILE_UNCHANGED_STUB) || text.startsWith(FOLDED_RESULT_KEY) || text.startsWith(REPEATED_RESULT_TAG)) stubToolUseIds.add(record.tool_use_id)
     }
   }
   const paths = new Set<string>()

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 
 import type { Message } from '../types/message.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
+import { REPEATED_RESULT_TAG } from '../constants/toolLimits.js'
 import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
 import { createFileStateCacheWithSizeLimit, type FileStateCache } from './fileStateCache.js'
@@ -61,7 +62,7 @@ export function extractReadFilesFromMessages(
       const read = reads.get(result.tool_use_id)
       if (read) {
         if (typeof result.content !== 'string') continue
-        if (result.content.startsWith(FILE_UNCHANGED_STUB)) continue
+        if (result.content.startsWith(FILE_UNCHANGED_STUB) || result.content.startsWith(REPEATED_RESULT_TAG)) continue
         if (!timestamp) continue
         const cleaned = result.content
           .replace(SYSTEM_REMINDER_PATTERN, '')
