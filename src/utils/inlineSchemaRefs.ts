@@ -6,6 +6,7 @@ const SCHEMA_SINGLES = new Set(['items', 'additionalProperties', 'additionalItem
 const DEFINITION_TABLES = new Set(['$defs', 'definitions'])
 const NESTING_LIMIT = 32
 const RESOLUTION_BUDGET = 4000
+const INLINED_BYTES_CEILING = 1_000_000
 
 const flattened = new WeakMap<object, SchemaNode>()
 
@@ -72,7 +73,7 @@ function mapSubschemas(node: SchemaNode, map: (child: unknown) => unknown, defin
       if (definitions === 'keep') out[key] = value
     } else if (SCHEMA_TABLES.has(key) && isRecord(value)) {
       const table: SchemaNode = {}
-      for (const [name, child] of Object.entries(value)) table[name] = map(child)
+      for (const [name, child] of Object.entries(value)) if (name !== '__proto__') table[name] = map(child)
       out[key] = table
     } else if ((SCHEMA_LISTS.has(key) || key === 'items') && Array.isArray(value)) {
       out[key] = value.map(map)
@@ -104,15 +105,26 @@ function flatten(root: SchemaNode): SchemaNode {
   if (!hasLocalRef(root)) return root
   let unresolved = false
   let budget = RESOLUTION_BUDGET
+  let bytes = 0
+  const sizes = new Map<string, number>()
+  const sizeOf = (pointer: string, target: unknown): number => {
+    let size = sizes.get(pointer)
+    if (size === undefined) {
+      size = JSON.stringify(target)?.length ?? 0
+      sizes.set(pointer, size)
+    }
+    return size
+  }
   const walk = (node: unknown, stack: readonly string[]): unknown => {
     if (!isRecord(node)) return node
     if (!isLocalRef(node)) return mapSubschemas(node, child => walk(child, stack), 'keep')
     const target = pointerTarget(root, node.$ref)
-    if (target === undefined || stack.includes(node.$ref) || stack.length >= NESTING_LIMIT || budget <= 0) {
+    if ((!isRecord(target) && typeof target !== 'boolean') || stack.includes(node.$ref) || stack.length >= NESTING_LIMIT || budget <= 0 || bytes + sizeOf(node.$ref, target) > INLINED_BYTES_CEILING) {
       unresolved = true
       return node
     }
     budget--
+    bytes += sizeOf(node.$ref, target)
     const resolved = walk(target, [...stack, node.$ref])
     const { $ref: _pointer, ...siblings } = node
     const rest = mapSubschemas(siblings, child => walk(child, stack), 'keep')

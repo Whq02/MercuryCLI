@@ -31,7 +31,8 @@ export function failoverCauseOfMessage(message: AssistantMessage): FailoverCause
 }
 
 export function backupEngineLadder(flagModel: string | undefined): string[] {
-  const configured = getInitialSettings().engine?.backups ?? []
+  const setting = getInitialSettings().engine?.backups
+  const configured = Array.isArray(setting) ? setting : []
   const out: string[] = []
   for (const raw of [flagModel, ...configured]) {
     const id = typeof raw === 'string' ? raw.trim() : ''
@@ -60,7 +61,7 @@ export function engineLadderOf(turn: object, flagModel: string | undefined): Eng
       return ladder.engines.find(engine => !ladder.tried.has(engine))
     },
     take(engine) {
-      if (ladder.tried.has(engine)) return false
+      if (!ladder.engines.includes(engine) || ladder.tried.has(engine)) return false
       ladder.tried.add(engine)
       return true
     },

@@ -167,6 +167,49 @@ section('R6 · a heavily shared definition tree stays bounded')
   check('whatever stayed a $ref still has its $defs beside it', refsIn(wire).length === 0 || '$defs' in wire)
 }
 
+section('refusals · what the walker must never do with a schema it does not trust')
+{
+  const { inlineLocalSchemaRefs } = await import('../../src/utils/inlineSchemaRefs.ts')
+  const flat = (schema: Schema): Schema => inlineLocalSchemaRefs(schema)
+  const notAString = flat({ type: 'object', properties: { a: { $ref: 42, type: 'string' } } })
+  check('a $ref that is not a string is left exactly as it came', JSON.stringify(path(notAString, 'properties', 'a')) === JSON.stringify({ $ref: 42, type: 'string' }))
+  const badEscape = flat({ type: 'object', properties: { a: { $ref: '#/$defs/%E0%A4%A' } }, $defs: { x: { type: 'string' } } })
+  check('a pointer with a broken percent escape stays a $ref, its $defs kept, nothing thrown', path(badEscape, 'properties', 'a', '$ref') === '#/$defs/%E0%A4%A' && '$defs' in badEscape)
+  const nonSchema = flat({ type: 'object', properties: { a: { $ref: '#/$defs/n', description: 'kept' } }, $defs: { n: 42 } })
+  check('a $ref to a value that is neither a schema nor a boolean stays a $ref — never an accept-anything {}', path(nonSchema, 'properties', 'a', '$ref') === '#/$defs/n' && path(nonSchema, 'properties', 'a', 'description') === 'kept' && '$defs' in nonSchema)
+  const selfRoot = flat({ $ref: '#', type: 'object' })
+  check('a root that points at itself is a cycle and stays', selfRoot.$ref === '#')
+  const big = { type: 'object', properties: Object.fromEntries(Array.from({ length: 400 }, (_, i) => [`k${i}`, { type: 'string', description: 'x'.repeat(60) }])) }
+  const bigSchema: Schema = { type: 'object', properties: Object.fromEntries(Array.from({ length: 120 }, (_, i) => [`p${i}`, { $ref: '#/$defs/Big' }])), $defs: { Big: big } }
+  const bigSize = JSON.stringify(big).length
+  const started = Date.now()
+  const bounded = flat(bigSchema)
+  const outBytes = JSON.stringify(bounded).length
+  check(`a definition of ${bigSize} bytes referenced 120 times is charged before each copy: the output stays under the ceiling plus one definition, the rest stay refs with $defs kept (${outBytes} bytes, ${Date.now() - started} ms)`, outBytes < 1_000_000 + bigSize + 20_000 && refsIn(bounded).length > 0 && '$defs' in bounded, `bytes=${outBytes}`)
+  const deepDefs: Schema = {}
+  for (let i = 0; i < 60; i++) deepDefs[`D${i}`] = { type: 'object', properties: { next: i + 1 < 60 ? { $ref: `#/$defs/D${i + 1}` } : { type: 'string' } } }
+  const deep = flat({ type: 'object', properties: { root: { $ref: '#/$defs/D0' } }, $defs: deepDefs })
+  check('a 60-deep chain stops at the nesting limit: some refs remain, $defs kept, nothing thrown', refsIn(deep).length > 0 && '$defs' in deep)
+  const poisoned = flat(JSON.parse('{"type":"object","properties":{"__proto__":{"type":"string"},"ok":{"$ref":"#/$defs/S"}},"$defs":{"S":{"type":"integer"}}}') as Schema)
+  check('a property named __proto__ is never written through assignment: the walked table has the plain prototype and no such key', Object.getPrototypeOf(path(poisoned, 'properties')) === Object.prototype && !Object.prototype.hasOwnProperty.call(path(poisoned, 'properties') as object, '__proto__') && path(poisoned, 'properties', 'ok', 'type') === 'integer')
+  const { getAllBaseTools } = await import('../../src/tools.ts')
+  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  let identical = 0
+  let differed: string[] = []
+  for (const tool of getAllBaseTools() as unknown as Array<{ name: string; inputSchema?: unknown; inputJSONSchema?: unknown; prompt: unknown }>) {
+    if (tool.inputJSONSchema !== undefined || tool.inputSchema === undefined) continue
+    let wire: Schema
+    try {
+      wire = await wireOf(tool as never, 'claude-sonnet-5')
+    } catch {
+      continue
+    }
+    if (JSON.stringify(wire) === JSON.stringify(zodToJsonSchema(tool.inputSchema as never))) identical++
+    else differed.push(tool.name)
+  }
+  check(`the control over the prefix bytes: every built-in tool's wire schema is byte-identical to its converter's output, the fold tip's bytes (${identical} tools), none differ`, identical > 20 && differed.length === 0, differed.join(', '))
+}
+
 console.log('\n' + '='.repeat(60))
 console.log(` ${checks} checks, ${failures} failures`)
 console.log('='.repeat(60))

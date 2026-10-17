@@ -127,6 +127,7 @@ function repairObject(value: Record<string, unknown>, node: Record<string, unkno
   if (properties === undefined) return value
   let out: Record<string, unknown> | undefined
   for (const key of Object.keys(value)) {
+    if (key === '__proto__' || !Object.prototype.hasOwnProperty.call(properties, key)) continue
     const property = rec(properties[key])
     if (property === undefined) continue
     const repaired = repairValue(value[key], property, depth + 1)

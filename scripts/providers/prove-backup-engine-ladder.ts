@@ -260,6 +260,57 @@ section('S4 · the turn: two hops down the ladder, each announced with its cause
   check('nothing configured: the ladder is empty', ladderEmpty === undefined || ladderEmpty.length === 0, j(ladderEmpty))
 }
 
+section('refusals · what the ladder and the vote must never do')
+if (ladderModule !== null) {
+  const backupEngineLadder = ladderModule.backupEngineLadder as (flag: string | undefined) => string[]
+  const engineLadderOf = ladderModule.engineLadderOf as (turn: object, flag: string | undefined) => { next(current: string): string | undefined; take(engine: string): boolean }
+  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+  const withSetting = (backups: unknown): string[] => {
+    writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ engine: { backups } }))
+    resetSettingsCache()
+    return backupEngineLadder(undefined)
+  }
+  check('a setting that is a string is not a list: no engine is read from it, no character spread', j(withSetting('kimi-k2-0905,glm-5.2')) === '[]')
+  check('entries that are not strings are dropped, the strings kept', j(withSetting([42, null, { id: 'x' }, SECOND, ['glm-5.2'], true])) === j([SECOND]))
+  check('a quote, a semicolon or a path in an entry is an engine id the router will not place — kept as text, never run as anything', j(withSetting(['glm-5.2; rm -rf /', '../x', '"q"'])) === j(['glm-5.2; rm -rf /', '../x', '"q"']))
+  const many = withSetting(Array.from({ length: 200 }, (_, i) => `engine-${i}`))
+  const turn = engineLadderOf({}, undefined)
+  let hops = 0
+  let current = PRIMARY
+  for (;;) {
+    const next = turn.next(current)
+    if (next === undefined) break
+    if (!turn.take(next)) break
+    hops++
+    current = next
+  }
+  check('a list of 200 engines ends after 200 hops, each once, never a loop', many.length === 200 && hops === 200 && turn.next(current) === undefined)
+  check('a vote naming an engine the turn never offered is refused by the ladder', !engineLadderOf({}, FLAGGED).take('never-offered') && !engineLadderOf({}, FLAGGED).take(PRIMARY))
+  writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ engine: { backups: [SECOND, FLAGGED, THIRD] } }))
+  resetSettingsCache()
+  const unplaceable = await drive('not a model anyone serves', 'deepseek-chat')
+  check('an unplaceable engine id with a backup named hops onward as an unknown model (the router\u2019s own refusal is the vote), nothing sent to a provider', unplaceable.vote?.trigger === 'unknown-model' && unplaceable.vote.fallbackModel === 'deepseek-chat' && unplaceable.errors.length === 0, j(unplaceable))
+  const unplaceableAlone = await drive('not a model anyone serves')
+  check('the same id with no backup is the refusal it is today', unplaceableAlone.vote === null && unplaceableAlone.errors.length === 1, j(unplaceableAlone))
+  fixtureScript.status = 429
+  fixtureScript.body = { error: { message: 'Rate limit reached for this window', type: 'rate_limit_error', code: 'rate_limit_exceeded' } }
+  const windowed = await (async () => {
+    const started = Date.now()
+    const out = await drive('deepseek-chat', 'deepseek-reasoner')
+    return { ...out, ms: Date.now() - started }
+  })()
+  check('a rate limit the lane answers without a spent busy ladder is never a hop: the usage window stays the cap failover\u2019s', windowed.vote === null || windowed.vote.trigger === 'overloaded', j(windowed))
+  fixtureScript.status = 402
+  fixtureScript.body = { error: { message: 'Insufficient Balance', type: 'insufficient_quota', code: 'insufficient_balance' } }
+  const billing = await drive('deepseek-chat', 'deepseek-reasoner')
+  check('a billing refusal never hops: the error row lands as today', billing.vote === null && billing.errors.length === 1, j(billing))
+  fixtureScript.status = 400
+  fixtureScript.body = { error: { message: "This model's maximum context length is 65536 tokens. However, you requested 70000 tokens", type: 'invalid_request_error', code: 'invalid_request_error' } }
+  const overflow = await drive('deepseek-chat', 'deepseek-reasoner')
+  check('an overflow refusal never hops: the recovery ladder keeps it', overflow.vote === null && overflow.errors.length === 1, j(overflow))
+  check('nothing in the vote road touched a real provider: every request went to the loopback fixture', seen.every(s => typeof s.model === 'string') && seen.length > 0)
+}
+
 fixture.stop(true)
 console.log('\n' + '='.repeat(60))
 console.log(` ${checks} checks, ${failures} failures`)

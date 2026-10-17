@@ -75,6 +75,7 @@ For example:
 | `engine.reasoning` | Whether thinking is requested, on every provider that reads it (Anthropic, Z.AI where thinking-locked models keep it on, and the OpenAI-compatible chat roads; GPT models take the effort dial instead). A model that always reasons keeps its own rule. |
 | `engine.agent` | The agent definition used for the session; `--agent` chooses one for a launch. |
 | `engine.roster` | A list limiting which models can be selected. |
+| `engine.backups` | The backup engines, in order. When the engine in use cannot answer a turn — its provider overloaded past the retry ladder, unreachable, refusing the sign-in after a refresh, or not serving the model — the turn hops to the first backup, then the next, each tried once per turn, and says so in one line. A `--backup-model` heads the list. With no list nothing changes. |
 | `engine.pins` | An object mapping known canonical Anthropic model ids to the ids your endpoint serves. |
 | `engine.sessionDefaults` | Whether the home screen and board show the model-default key; on unless set to `false`. |
 | `engine.usageNotice` | Usage notice to the model: with it on, the model is told when the session's usage window or spending limit is near (80% and 90%); off, the model is told nothing and only you see the meters. |

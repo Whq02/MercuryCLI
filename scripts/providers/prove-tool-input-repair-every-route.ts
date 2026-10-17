@@ -195,6 +195,37 @@ section('E1 · the executor road every wire takes: a tool_use whose input arrive
   check('repairToolInput reads the tool\u2019s own schema', j(direct) === j({ count: 9 }), j(direct))
 }
 
+section('refusals · what the repair must never do with arguments it does not trust')
+{
+  const schema: Schema = { type: 'object', properties: { n: { type: 'integer' }, o: { type: 'object', properties: { x: { type: 'integer' } } }, list: { type: 'array', items: { type: 'integer' } }, s: { type: 'string' } } }
+  const poisoned = JSON.parse('{"__proto__":{"polluted":true},"constructor":{"prototype":{"polluted":true}},"n":"1"}') as Schema
+  const out = repairArgumentsBySchema(poisoned, schema)
+  check('a __proto__ or constructor key in the arguments never reaches an assignment: the repaired object has the plain prototype and no pollution', Object.getPrototypeOf(out) === Object.prototype && (out as { polluted?: unknown }).polluted === undefined && ({} as { polluted?: unknown }).polluted === undefined && out.n === 1, j(out))
+  const inherited = Object.create({ n: { type: 'boolean' } }) as Schema
+  check('a property the schema inherits rather than declares is not a declaration', repairArgumentsBySchema({ n: 'true' }, { type: 'object', properties: inherited }).n === 'true')
+  const huge = 'x'.repeat(2_000_000)
+  const started = Date.now()
+  const big = repairArgumentsBySchema({ n: huge, o: huge, list: huge, s: huge }, schema)
+  check(`a two-megabyte string under every type is bounded by its own size and stays text where no type takes it (${Date.now() - started} ms)`, big.n === huge && big.o === huge && big.s === huge && Date.now() - started < 2_000, j({ n: typeof big.n, o: typeof big.o, list: typeof big.list }))
+  check('a two-megabyte string under an array of integers is wrapped only if the item type admits it — it does not, so it stays text', big.list === huge)
+  const nested = '['.repeat(200_000) + ']'.repeat(200_000)
+  let thrown: unknown = null
+  let deep: Schema = {}
+  try {
+    deep = repairArgumentsBySchema({ o: nested, list: nested }, schema)
+  } catch (error) {
+    thrown = error
+  }
+  check('a 200,000-deep JSON text never throws out of the repair: it is left as text or parsed, never a crash', thrown === null && (typeof deep.o === 'string' || typeof deep.o === 'object'), String(thrown))
+  const jsonArray = `[${Array.from({ length: 100_000 }, (_, i) => `"${i}"`).join(',')}]`
+  const parsed = repairArgumentsBySchema({ list: jsonArray }, schema)
+  check('a 100,000-item JSON array string is parsed once and every item typed, the work linear in the input', Array.isArray(parsed.list) && (parsed.list as unknown[]).length === 100_000 && (parsed.list as number[])[99_999] === 99_999)
+  const control = repairArgumentsBySchema({ s: '{"a":1}', n: 7, list: [1, 2], o: { x: 3 } }, schema)
+  check('the control: a declared string is never parsed whatever it looks like, and typed values come back as the same object', control.s === '{"a":1}' && control === repairArgumentsBySchema(control, schema))
+  const words = gateToolCall([{ name: 'Words', inputSchema: z.strictObject({ limit: z.number() }), prompt: async () => 'w' }] as never, { id: 'w1', name: 'Words', argumentsRaw: '{"limit":"twenty"}', malformed: false })
+  check('the refusal words are the fold tip\u2019s: the typed sentence, unchanged', !words.ok && words.refusal.reason.includes('The parameter `limit` was expected to be of type number but string was provided'), j(words))
+}
+
 console.log('\n' + '='.repeat(60))
 console.log(` ${checks} checks, ${failures} failures`)
 console.log('='.repeat(60))

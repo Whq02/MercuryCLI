@@ -95,8 +95,8 @@ export async function modelRefusalBeforeAnyRequest(model: string): Promise<strin
   return null
 }
 
-export function routedCallModel(params: CallModelParams): CallModelStream {
-  return withBackupVote(dispatchRoute(params), params.options)
+export async function* routedCallModel(params: CallModelParams): CallModelStream {
+  yield* withBackupVote(dispatchRoute(params), params.options)
 }
 
 async function* dispatchRoute(params: CallModelParams): CallModelStream {

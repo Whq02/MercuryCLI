@@ -141,6 +141,29 @@ section('O4 · the judge itself: issues bounded, paths named')
   }
 }
 
+section('refusals · what the judge must never do with a result or a schema it does not trust')
+{
+  const fn = checkModule?.outputSchemaMismatch
+  if (typeof fn === 'function') {
+    const blob = 'x'.repeat(5_000_000)
+    const started = Date.now()
+    const text = fn({ outputSchema: z.object({ content: z.number() }) }, { content: blob })
+    check(`a five-megabyte result that misses its schema is judged in bounded time and the text never carries the value (${Date.now() - started} ms)`, text !== undefined && text.length <= 401 && !text.includes('xxxx') && Date.now() - started < 3_000, String(text?.length))
+    check('a five-megabyte result that fits is no mismatch', fn({ outputSchema: z.object({ content: z.string() }) }, { content: blob }) === undefined)
+    check('a schema whose safeParse answers garbage is a worded mismatch, never a crash', fn({ outputSchema: { safeParse: () => 'nope' } as never }, {}) === 'the result does not match the declared output schema' && fn({ outputSchema: { safeParse: () => null } as never }, {}) !== undefined)
+    check('a schema whose safeParse answers a promise is a worded mismatch, never an unhandled wait', typeof fn({ outputSchema: { safeParse: async () => ({ success: true }) } as never }, {}) === 'string')
+    const circular: Record<string, unknown> = { a: 1 }
+    circular.self = circular
+    check('a circular result under a schema is judged without a stringify crash', typeof fn({ outputSchema: z.object({ a: z.string() }) }, circular) === 'string' && fn({ outputSchema: z.object({ a: z.number() }) }, circular) === undefined)
+  }
+  const tool = probeTool('OutputSecret', z.object({ count: z.number() }), () => ({ count: 'the-secret-value-9f8e7d' }))
+  const { results } = await run(tool)
+  const records = await traceRecords()
+  const mine = records.filter(r => r.tool === 'OutputSecret')
+  check('the trace line carries the mark only, never the result\u2019s words', mine.length === 1 && mine[0]!.outputMismatch === true && !JSON.stringify(mine[0]).includes('the-secret-value'), j(mine))
+  check('the control: the reply is the tool\u2019s own bytes', results[0]!.content === 'reply:{"count":"the-secret-value-9f8e7d"}', j(results))
+}
+
 console.log('\n' + '='.repeat(60))
 console.log(` ${checks} checks, ${failures} failures`)
 console.log('='.repeat(60))
