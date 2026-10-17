@@ -121,7 +121,7 @@ section('§5 the seam: the runner relays the record in its facts, the connector 
   check('the connector adopts it with the window verdict', connector.includes('adoptAnthropicObservedUsage(next.usage?.anthropicObserved)'))
   check('the usage facts type names it', types.includes('anthropicObserved?: AnthropicObservedUsageV1'))
   check('the rail\'s meter tail is the freshness owner\'s age tail over the record', rail.includes('const age = usageAgeTail(w, readNow)') && rail.includes('usageViewIsStale(w, readNow)'))
-  check('the seat re-asks the facts on assistant frames (the turn\'s receipt is the cadence, no clock added)', seat.includes('export function requestSessionFacts(') && seat.includes('a burst of assistant frames'))
+  check('the seat re-asks the facts on assistant frames (the turn\'s receipt is the cadence, no clock added)', seat.includes('export function requestSessionFacts(') && seat.includes('setTimeout(fire, FACTS_DEBOUNCE_MS)') && /case 'step': \{[\s\S]*?requestSessionFacts\(short, roster, undefined, dir\)/.test(seat))
 }
 
 await releaseScratchHome(HOME)
