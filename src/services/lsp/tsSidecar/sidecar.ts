@@ -425,23 +425,8 @@ class SidecarState {
     if (configPath) {
       project = this.loadConfiguredProject(this.normalize(configPath))
       if (project && project.fileNames.size === 0) {
-        const parsed = this.ts.getParsedCommandLineOfConfigFile(
-          project.key,
-          {},
-          {
-            fileExists: this.ts.sys.fileExists,
-            readFile: this.ts.sys.readFile,
-            readDirectory: this.ts.sys.readDirectory,
-            getCurrentDirectory: () => project!.rootDir,
-            useCaseSensitiveFileNames: this.ts.sys.useCaseSensitiveFileNames,
-            onUnRecoverableConfigFileDiagnostic: () => {},
-          },
-        )
-        for (const ref of parsed?.projectReferences ?? []) {
-          const refConfig = this.ts.resolveProjectReferencePath(ref)
-          const refProject = this.loadConfiguredProject(
-            this.normalize(refConfig),
-          )
+        for (const refConfig of this.referencedConfigs(project)) {
+          const refProject = this.loadConfiguredProject(refConfig)
           if (refProject?.fileNames.has(norm)) {
             project = refProject
             break
@@ -452,6 +437,21 @@ class SidecarState {
     if (!project) project = this.implicitProject(this.implicitRootFor(norm))
     if (!project.fileNames.has(norm)) project.extraRoots.add(norm)
     return project
+  }
+
+  private referencedConfigs(solution: Project): string[] {
+    return (this.parseConfig(solution.key)?.projectReferences ?? []).map(ref => this.normalize(this.ts.resolveProjectReferencePath(ref)))
+  }
+
+  workspaceProjects(): Project[] {
+    const configPath = this.nearestConfigFile(this.workspaceRoot)
+    const configured = configPath ? this.loadConfiguredProject(this.normalize(configPath)) : undefined
+    if (configured) {
+      if (configured.fileNames.size > 0) return [configured]
+      const referenced = this.referencedConfigs(configured).map(refConfig => this.loadConfiguredProject(refConfig)).filter((refProject): refProject is Project => refProject !== undefined)
+      if (referenced.length > 0) return referenced
+    }
+    return [this.implicitProject(this.workspaceRoot)]
   }
 
   nearestConfigFile(startDir: string): string | undefined {
@@ -1260,10 +1260,10 @@ export function runTsLspSidecar(
             location: LspLocation
             containerName?: string
           }[] = []
-          for (const project of st.allProjects()) {
+          for (const project of new Set([...st.workspaceProjects(), ...st.allProjects()])) {
             let items: TS.NavigateToItem[] = []
             try {
-              items = project.service.getNavigateToItems(query, 128)
+              items = project.service.getNavigateToItems(query, 128, undefined, false, true)
             } catch {
               continue
             }

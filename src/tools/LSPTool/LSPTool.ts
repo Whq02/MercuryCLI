@@ -8,6 +8,7 @@ import { buildTool, type Tool, type ToolEffect, type ToolUseContext } from '../.
 import { getInitializationStatus, getLspServerManager, isLspToolMounted, waitForInitialization } from '../../services/lsp/manager.js'
 import { clearLspCall, LSP_TRIES_BEFORE_REFUSAL, lspCallKey, lspCallRefusal, lspCallSituation, lspLedgerNow, lspRefusalWindowMs, recordLspServerFault } from '../../services/lsp/failureLedger.js'
 import { lspStartFailureWords, remedyForLanguageServer, retryTimeWords, serverTitle, unclaimedCause } from '../../services/lsp/failureWords.js'
+import { LSP_FIRST_CALL_START_WAIT_MS, startedWithin, workspaceSymbolServer } from '../../services/lsp/firstCallServer.js'
 import { isLspStartFailure } from '../../services/lsp/LSPServerInstance.js'
 import { mercuryLspEnabled, mercuryLspWriteOpsEnabled } from '../../services/lsp/mercuryLsp.js'
 import { runWithLspAbortSignal, lspRequestFaultCount } from '../../services/lsp/lspAbort.js'
@@ -233,21 +234,24 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
   }
   if (operation === 'workspaceSymbol') {
     const query = input.query!
+    let startPath = filePath
     try {
       type WorkspaceSymbolRow = { name: string; kind: number; location?: { uri: string; range: { start: { line: number; character: number } } }; containerName?: string }
       let response: WorkspaceSymbolRow[] | undefined
       if (filePath) {
         response = await manager.sendRequest<WorkspaceSymbolRow[]>(expandPath(filePath), 'workspace/symbol', { query })
       } else {
-        let sent = false
-        for (const server of manager.getAllServers().values()) {
-          if (server.state === 'running') {
-            response = await server.sendRequest<WorkspaceSymbolRow[]>('workspace/symbol', { query })
-            sent = true
-            break
+        const chosen = workspaceSymbolServer(manager, query, cwd)
+        if (!chosen) return fail('No language server is configured in this session; LspRead serverStatus lists what is available.')
+        startPath = chosen.path
+        if (chosen.server.state !== 'running') {
+          const ready = (await startedWithin(chosen.server, LSP_FIRST_CALL_START_WAIT_MS)) || (await startedWithin(chosen.server, LSP_FIRST_CALL_START_WAIT_MS))
+          if (!ready) {
+            const result = `${serverTitle(chosen.server, chosen.path)} is starting for this workspace and was not ready after ${(2 * LSP_FIRST_CALL_START_WAIT_MS) / 1000} s, so the search for "${query}" was not sent. Send the same call again; it answers once the server is up.`
+            return { data: { operation, result, filePath, resultCount: 0, fileCount: 0, outcome: 'indeterminate' }, effect: makeEffect(operation, 'indeterminate', result, startedAt) }
           }
         }
-        if (!sent) return fail('No language server is running yet. Servers start on demand — open (Read) a file of the target language to start one, or pass filePath to route the search through a specific server.')
+        response = await chosen.server.sendRequest<WorkspaceSymbolRow[]>('workspace/symbol', { query })
       }
       if (!Array.isArray(response)) {
         const result = `No symbols found for "${query}" (the server returned no result).`
@@ -261,6 +265,7 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
       return { data: { operation, result, filePath, ...counts }, effect: makeEffect(operation, 'succeeded', result, startedAt) }
     } catch (err) {
       logError(err)
+      if (isLspStartFailure(err)) return fail(failureWords(err, startPath))
       return fail(`The workspaceSymbol search for "${query}" failed: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
