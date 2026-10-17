@@ -933,6 +933,20 @@
             }
           },
           "additionalProperties": false
+        },
+        "openai": {
+          "description": "The OpenAI API-key road's transport: http (the default) posts every request; websocket keeps one connection per conversation and sends only the new input against the previous response, falling back to http on any connect or stream fault before the response begins",
+          "type": "object",
+          "properties": {
+            "transport": {
+              "type": "string",
+              "enum": [
+                "http",
+                "websocket"
+              ]
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": {}

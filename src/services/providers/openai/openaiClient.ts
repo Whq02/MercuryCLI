@@ -19,6 +19,8 @@ import {
   type StreamCutForensicsV1,
 } from './streamCutForensics.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
+import { logForDebugging } from '../../../utils/debug.js'
+import { streamOpenaiResponsesOverSocket, type SocketOpener } from './openaiSocketTransport.js'
 import {
   createStreamActivityRelay,
   createStreamIdleWatchdog,
@@ -296,6 +298,30 @@ export async function* streamOpenaiResponses(
     options.signal?.removeEventListener('abort', onOuterAbort)
     controller.abort()
   }
+}
+
+export async function* streamOpenaiResponsesRoad(
+  options: OpenaiStreamOptions & { socket?: { owner: string; socketImpl?: SocketOpener } },
+): AsyncGenerator<OpenaiStreamEvent> {
+  if (options.socket !== undefined) {
+    const { socket, ...http } = options
+    const outcome = yield* streamOpenaiResponsesOverSocket({
+      baseUrl: http.baseUrl,
+      headers: http.headers,
+      request: http.request,
+      owner: socket.owner,
+      ...(http.signal !== undefined ? { signal: http.signal } : {}),
+      ...(http.idleTimeoutMs !== undefined ? { idleTimeoutMs: http.idleTimeoutMs } : {}),
+      ...(http.onStreamActivity !== undefined ? { onStreamActivity: http.onStreamActivity } : {}),
+      ...(http.firstByte !== undefined ? { firstByte: http.firstByte } : {}),
+      ...(socket.socketImpl !== undefined ? { socketImpl: socket.socketImpl } : {}),
+    })
+    if (outcome.kind === 'served') return
+    logForDebugging(`[openai-socket] ${outcome.why} — the request rides HTTP`)
+    yield* streamOpenaiResponses(http)
+    return
+  }
+  yield* streamOpenaiResponses(options)
 }
 
 

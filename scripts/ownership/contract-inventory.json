@@ -582,11 +582,15 @@
     "type:TurnOptions"
    ],
    "src/run-core/turn-machine.ts": [
+    "PAUSE_TURN_CONTINUATION_LIMIT",
+    "decideCutToolCallRecovery",
     "decideEmptyReplyRecovery",
+    "decidePauseTurnContinuation",
     "decideReasoningOnlyRecovery",
     "decideStreamFaultRecovery",
     "decideToolCallRefusalRecovery",
     "runEventCore",
+    "type:CutToolCallDecision",
     "type:QueryParams"
    ],
    "src/run-core/events.ts": [

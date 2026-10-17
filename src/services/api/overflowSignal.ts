@@ -46,11 +46,22 @@ function isOutputCapComplaint(lower: string): boolean {
   return !/\b(inputs?|prompt|messages|context)\b/.test(lower)
 }
 
+function isRateLimitComplaint(lower: string): boolean {
+  return /\b(?:tokens|requests) per (?:minute|second|day|hour)\b|\((?:tpm|rpm|tpd|rpd)\)|\brate[ _-]?limit|\bquota\b/.test(lower)
+}
+
+function isBodilessRefusal(message: string): boolean {
+  const t = message.trim()
+  return t === '' || /^(?:http\s+)?4\d\d(?:\s+status code)?(?:\s*\(no body\))?$/i.test(t) || /^\(no body\)$/i.test(t) || /^bad request$/i.test(t)
+}
+
+export const NEAR_WINDOW_SHARE = 0.8
+
 type ShapeMatch = { shape: OverflowShape; actualTokens?: number; limitTokens?: number }
 
 function matchOverflowSentence(message: string): ShapeMatch | null {
   const lower = message.toLowerCase()
-  if (isOutputCapComplaint(lower)) return null
+  if (isOutputCapComplaint(lower) || isRateLimitComplaint(lower)) return null
 
   const ptl = /prompt is too long(?:[\s\S]*?(\d[\d,]*)\s*tokens\s*>\s*(\d[\d,]*))?/i.exec(message)
   if (ptl) return { shape: 'prompt-too-long', actualTokens: num(ptl[1]), limitTokens: num(ptl[2]) }
@@ -91,6 +102,35 @@ function matchOverflowSentence(message: string): ShapeMatch | null {
   if (/\btokens? (?:in the prompt |count )?exceeds? the (?:model'?s )?(?:maximum )?context/i.test(message)) {
     return { shape: 'context-size' }
   }
+  return matchFurtherOverflowSentence(message)
+}
+
+const PROMPT_LENGTH_LIMIT = /maximum prompt length is (\d[\d,]*)/i
+const PROMPT_TOO_LARGE_FOR_MODEL = /prompt contains (\d[\d,]*) tokens[\s\S]{0,60}?too large for model with (\d[\d,]*) maximum context length/i
+const INPUTS_MUST_HAVE_LESS = /`?inputs`? must have less than (\d[\d,]*) tokens(?:[\s\S]*?given: (\d[\d,]*))?/i
+const TOKENS_CANNOT_EXCEED = /too many tokens:?[\s\S]{0,80}?cannot exceed (\d[\d,]*)(?:[\s\S]{0,40}?received (\d[\d,]*))?/i
+const INPUT_TOO_LONG = /\b(?:input|prompt|messages?|conversation|content|request) (?:is |are )?too long\b/i
+const INPUT_EXCEEDS_LIMIT = /\b(?:number of )?(?:input|prompt) (?:tokens? |length |size )?exceeds? (?:the )?(?:model'?s )?(?:max(?:imum)?|limit|allowed)\b/i
+const OVER_THE_MAXIMUM_TOKENS = /\b(?:exceeds?|over) the (?:maximum|max) (?:number of )?(?:input |prompt )?tokens?\b/i
+const TOO_MANY_INPUT_TOKENS = /\btoo many (?:input |prompt )tokens\b/i
+const PROMPT_TOO_LONG_CJK = /prompt\s*超长|(?:prompt|token|上下文|输入)[^。.]{0,20}(?:超长|过长)/i
+const BODY_TOO_LARGE = /request entity too large|payload too large|request body (?:is )?too large|body exceeds/i
+
+function matchFurtherOverflowSentence(message: string): ShapeMatch | null {
+  const promptLimit = PROMPT_LENGTH_LIMIT.exec(message)
+  if (promptLimit) {
+    const actual = /(?:prompt|request|input) (?:is|contains|has|had) (\d[\d,]*) tokens/i.exec(message)
+    return { shape: 'context-length-exceeded', limitTokens: num(promptLimit[1]), actualTokens: num(actual?.[1]) }
+  }
+  const tooLargeForModel = PROMPT_TOO_LARGE_FOR_MODEL.exec(message)
+  if (tooLargeForModel) return { shape: 'context-length-exceeded', actualTokens: num(tooLargeForModel[1]), limitTokens: num(tooLargeForModel[2]) }
+  const inputsLess = INPUTS_MUST_HAVE_LESS.exec(message)
+  if (inputsLess) return { shape: 'input-validation', limitTokens: num(inputsLess[1]), actualTokens: num(inputsLess[2]) }
+  const cannotExceed = TOKENS_CANNOT_EXCEED.exec(message)
+  if (cannotExceed) return { shape: 'token-limit', limitTokens: num(cannotExceed[1]), actualTokens: num(cannotExceed[2]) }
+  if (BODY_TOO_LARGE.test(message)) return { shape: 'request-too-large' }
+  if (INPUT_TOO_LONG.test(message) || INPUT_EXCEEDS_LIMIT.test(message) || OVER_THE_MAXIMUM_TOKENS.test(message)) return { shape: 'context-size' }
+  if (TOO_MANY_INPUT_TOKENS.test(message) || PROMPT_TOO_LONG_CJK.test(message)) return { shape: 'context-size' }
   return null
 }
 
@@ -99,6 +139,7 @@ export function classifyOverflowFault(fault: {
   status?: number
   code?: string
   message?: string
+  measured?: () => { tokens: number; window: number }
 }): OverflowSignal | null {
   const { family, status } = fault
   const code = fault.code ?? ''
@@ -106,6 +147,14 @@ export function classifyOverflowFault(fault: {
   const detail = bounded(message)
 
   if (status !== undefined && status !== 400 && status !== 413 && status !== 422) return null
+  if (isRateLimitComplaint(message.toLowerCase())) return null
+  if (status === 400 && fault.measured !== undefined && isBodilessRefusal(message)) {
+    const { tokens, window } = fault.measured()
+    if (window > 0 && tokens >= Math.floor(window * NEAR_WINDOW_SHARE)) {
+      return { source: 'provider', family, shape: 'context-size', measuredTokens: tokens, measuredWindow: window }
+    }
+    return null
+  }
 
   if (/context_length_exceeded/i.test(code)) {
     const sentence = matchOverflowSentence(message)

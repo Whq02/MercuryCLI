@@ -6,6 +6,7 @@ import {
   type OverflowSignal,
   overflowGapTokens,
   overflowWhoClause,
+  NEAR_WINDOW_SHARE,
 } from '../api/overflowSignal.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { autoCompactDisabledReason, COMPACTION_PAUSED_KEY, compactionBreakerText, compactionSettingsText, getAutoCompactThreshold, rapidRefillPauseText, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
@@ -135,7 +136,7 @@ export function measureOverflow(signal: OverflowSignal, messages: readonly Messa
   }
 }
 
-export const SIZE_WARNING_SHARE = 0.8
+const SIZE_WARNING_SHARE = NEAR_WINDOW_SHARE
 
 export function requestSizeWarning(messages: readonly Message[], model: string): string | null {
   const tokens = tokenCountWithEstimation(messages, model)

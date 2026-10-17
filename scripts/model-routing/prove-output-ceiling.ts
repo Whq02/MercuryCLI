@@ -317,7 +317,7 @@ section('§6 the shape: one rule in the owner, every road reads it')
   check('the fallback pair for an unstated id is unchanged (32,000 / 64,000)', edge.includes('const MAX_OUTPUT_TOKENS_DEFAULT = 32_000') && edge.includes('const MAX_OUTPUT_TOKENS_UPPER_LIMIT = 64_000'))
   const core = src('src/services/providers/anthropic/streamCore.ts')
   check('the env door still validates MERCURY_MAX_OUTPUT_TOKENS against the default and the upper limit', core.includes("'MERCURY_MAX_OUTPUT_TOKENS',\n    process.env.MERCURY_MAX_OUTPUT_TOKENS,\n    maxOutputTokens.default,\n    maxOutputTokens.upperLimit,"))
-  check('the budget road still clamps thinking to max_tokens − 1', core.includes('thinkingBudget = Math.min(maxOutputTokens - 1, thinkingBudget)'))
+  check('the budget road still clamps thinking to max_tokens − 1', core.includes('thinkingBudget = Math.min(maxOutputTokens - 1, plannedThinkingBudget)'))
   const compact = src('src/services/compact/compact.ts')
   check('neither compaction lane overrides the output ceiling: the fold rides the session request\'s own', !compact.includes('maxOutputTokensOverride:') && !compact.includes('maxOutputTokens:') && !compact.includes('getModelMaxOutputTokens'))
 }

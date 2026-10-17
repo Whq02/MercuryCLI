@@ -193,6 +193,9 @@ export const SettingsSchema = lazySchema(() => {
         allowFallbacks: z.boolean().optional(),
         zeroDataRetention: z.boolean().optional(),
       }).optional().describe('OpenRouter routing policy: denies data collection and requires every parameter by default, even when absent, with fallbacks on and zero data retention off; an explicit all-off setting (dataCollection: allow, requireParameters: false, allowFallbacks: true, zeroDataRetention: false) sends no routing preference'),
+      openai: z.object({
+        transport: z.enum(['http', 'websocket']).optional(),
+      }).optional().describe('The OpenAI API-key road\'s transport: http (the default) posts every request; websocket keeps one connection per conversation and sends only the new input against the previous response, falling back to http on any connect or stream fault before the response begins'),
     }).passthrough().optional(),
     channels: z.object({ enabled: z.boolean().optional() }).passthrough().optional(),
     apollo: z.object({ preflightQuestions: z.number().int().min(1).max(20).optional() }).optional().describe('Apollo Mode: pre-flight interview poll budget (default 7)'),
