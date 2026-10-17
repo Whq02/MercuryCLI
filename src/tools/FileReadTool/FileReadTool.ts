@@ -82,6 +82,14 @@ import {
   renderPromptTemplate,
 } from './prompt.js'
 import {
+  isRichFormatReadable,
+  parseRichFormatTarget,
+  renderArchiveTarget,
+  renderDocumentTarget,
+  renderSqliteTarget,
+  type ParsedRichTarget,
+} from './readRichFormats.js'
+import {
   classifyReadTarget,
   isDirectoryTarget,
   readTargetPromptLines,
@@ -936,6 +944,169 @@ async function readMultiRangeTextLane(
   return { data }
 }
 
+function inMemoryRangeSlice(
+  fullText: string,
+  lineOffset: number,
+  maxLines: number,
+  mtimeMs: number,
+  totalBytes: number,
+): ReadFileRangeResult {
+  const normalized = fullText.replace(/\r\n/g, '\n')
+  const lines = normalized.split('\n')
+  const totalLines = lines.length
+  const end = Math.min(lineOffset + maxLines, totalLines)
+  const selected = lines.slice(lineOffset, Math.max(end, lineOffset))
+  const content = selected.join('\n')
+  return {
+    content,
+    lineCount: selected.length,
+    totalLines,
+    totalBytes,
+    readBytes: Buffer.byteLength(content),
+    mtimeMs,
+    endsWithNewline: normalized.endsWith('\n'),
+  }
+}
+
+async function readRichFormatLane(
+  resolvedContainerPath: string,
+  rich: ParsedRichTarget,
+  input: Input,
+  parsedRanges: readonly ParsedLineRange[] | null,
+  context: ToolUseContext,
+  limits: FileReadingLimits,
+  ownRead: boolean,
+): Promise<LaneResult> {
+  const stats = await stat(resolvedContainerPath)
+  let extracted: string
+  if (rich.kind === 'archive') {
+    extracted = renderArchiveTarget(resolvedContainerPath, rich.ext, rich.subtarget)
+  } else if (rich.kind === 'sqlite') {
+    extracted = await renderSqliteTarget(resolvedContainerPath, rich.subtarget)
+  } else {
+    extracted = renderDocumentTarget(resolvedContainerPath, rich.ext)
+  }
+
+  const mtimeMs = stats.mtimeMs
+  const totalBytes = Buffer.byteLength(extracted, 'utf8')
+  const wholeCounted = inMemoryRangeSlice(extracted, 0, 0, mtimeMs, totalBytes)
+  const totalLines = realLineTotal(wholeCounted)
+  const anchored = lineAnchorsEnabled() && input.line_anchors === true
+  const displayPath = rich.subtarget ? `${resolvedContainerPath}:${rich.subtarget}` : resolvedContainerPath
+
+  if (parsedRanges !== null && parsedRanges.length > 0) {
+    const blocks: string[] = []
+    const rawPieces: string[] = []
+    let totalShownLines = 0
+    let firstStartLine = 1
+    for (let i = 0; i < parsedRanges.length; i++) {
+      const sel = parsedRanges[i]!
+      const lineOffset =
+        sel.kind === 'tail'
+          ? Math.max(0, totalLines - sel.count)
+          : Math.max(0, sel.start - 1)
+      const maxLines =
+        sel.kind === 'tail'
+          ? sel.count
+          : (sel.limit ?? MAX_LINES_TO_READ)
+      const slice = inMemoryRangeSlice(extracted, lineOffset, maxLines, mtimeMs, totalBytes)
+      const shown = shownWindow(slice, lineOffset)
+      const startLine = lineOffset + 1
+      if (i === 0) firstStartLine = startLine
+      totalShownLines += shown.count
+      rawPieces.push(shown.content)
+      const sliceFile: TextFile = {
+        filePath: displayPath,
+        content: slice.content,
+        numLines: shown.count,
+        startLine,
+        totalLines,
+      }
+      if (slice.content === '') {
+        if (totalLines > 0 && startLine > totalLines) {
+          blocks.push(`<system-reminder>Warning: the file exists but is shorter than the requested offset. Read was requested to start at line ${startLine}, but the file has only ${totalLines} ${totalLines === 1 ? 'line' : 'lines'}.</system-reminder>`)
+        } else {
+          blocks.push('<system-reminder>Warning: the file exists but has empty contents.</system-reminder>')
+        }
+      } else {
+        const numbered = numberedWindow(sliceFile, anchored)
+        const mark =
+          startLine <= 1 && startLine + shown.count - 1 >= totalLines && parsedRanges.length > 1
+            ? `\n[${windowSpan(sliceFile)} of ${totalLines} — the end of the file]`
+            : cutMark(sliceFile)
+        blocks.push(`${numbered}${mark}`)
+      }
+    }
+    const combinedRendered = blocks.join('\n\n')
+    const tokens = await tokensOverCap(combinedRendered, 'txt', limits.maxTokens)
+    if (tokens !== undefined) {
+      throw new MaxFileReadTokenExceededError(
+        tokens,
+        limits.maxTokens,
+        `no lines were returned (the file has ${totalLines} ${totalLines === 1 ? 'line' : 'lines'}); request fewer or narrower ranges.`,
+      )
+    }
+    const joinedContent = rawPieces.join('\n')
+    const data: Output = {
+      type: 'text',
+      file: {
+        filePath: displayPath,
+        content: joinedContent || blocks.join('\n'),
+        numLines: totalShownLines,
+        startLine: firstStartLine,
+        totalLines,
+      },
+    }
+    resultPreRenderedBody.set(data, combinedRendered)
+    if (anchored && totalShownLines > 0) resultLineAnchors.add(data)
+    return { data }
+  }
+
+  const rawOffset = input.offset
+  let lineOffset = rawOffset !== undefined && rawOffset > 0 ? rawOffset - 1 : 0
+  let maxLines = input.limit ?? MAX_LINES_TO_READ
+  if (rawOffset !== undefined && rawOffset < 0) {
+    const tailCount = Math.abs(rawOffset)
+    lineOffset = Math.max(0, totalLines - tailCount)
+    maxLines = input.limit !== undefined ? Math.min(input.limit, tailCount) : tailCount
+  }
+
+  let range = inMemoryRangeSlice(extracted, lineOffset, maxLines, mtimeMs, totalBytes)
+  let overCap: OverCapNote | undefined
+  let shown = shownWindow(range, lineOffset)
+  const rendered = numberedReadContent(shown.content, lineOffset + 1, anchored)
+  const tokens = await tokensOverCap(rendered, 'txt', limits.maxTokens)
+  if (tokens !== undefined) {
+    const window = firstWindowUnderCap(range, shown.count, totalLines, rendered, lineOffset, displayPath, 'txt', limits, tokens)
+    if (!ownRead || window === null) {
+      const next = { offset: lineOffset + 1, limit: window?.shown.lineCount ?? 1 }
+      throw new MaxFileReadTokenExceededError(
+        tokens,
+        limits.maxTokens,
+        `no lines were returned (the file has ${totalLines} ${totalLines === 1 ? 'line' : 'lines'}); ${overCapNextWords(next)}`,
+        next,
+      )
+    }
+    range = window.shown
+    shown = { content: range.content, count: range.lineCount }
+    overCap = window.note
+  }
+
+  const data: Output = {
+    type: 'text',
+    file: {
+      filePath: displayPath,
+      content: range.content,
+      numLines: shown.count,
+      startLine: lineOffset + 1,
+      totalLines,
+      ...(overCap !== undefined ? { overCap } : {}),
+    },
+  }
+  if (anchored && range.content.length > 0) resultLineAnchors.add(data)
+  return { data }
+}
+
 async function readTextLane(
   resolvedPath: string,
   keyPath: string,
@@ -1227,8 +1398,9 @@ export const FileReadTool = buildTool({
 
     const rawExpanded = expandPath(input.file_path)
     const splitTarget = splitPathRangeSelector(input.file_path, rawExpanded)
-    const expanded = splitTarget.expandedPath
-    const targetRawPath = splitTarget.rawPath
+    const richTarget = parseRichFormatTarget(splitTarget.rawPath)
+    const expanded = richTarget !== null ? expandPath(richTarget.containerPath) : splitTarget.expandedPath
+    const targetRawPath = richTarget !== null ? richTarget.containerPath : splitTarget.rawPath
 
     const permissionContext = context.getAppState().toolPermissionContext
     const readDeny = matchingRuleForInput(expanded, permissionContext, 'read', 'deny')
@@ -1247,7 +1419,8 @@ export const FileReadTool = buildTool({
       ext !== '' &&
       (hasBinaryExtension(input.file_path) || hasBinaryExtension(targetRawPath)) &&
       !isPDFExtension(ext) &&
-      !IMAGE_EXTENSIONS.has(ext)
+      !IMAGE_EXTENSIONS.has(ext) &&
+      !isRichFormatReadable(splitTarget.rawPath)
     ) {
       return {
         result: false as const,
@@ -1272,8 +1445,9 @@ export const FileReadTool = buildTool({
       (context.fileReadingLimits as FileReadingLimits | undefined) ?? getDefaultFileReadingLimits()
     const rawExpanded = expandPath(input.file_path)
     const splitTarget = splitPathRangeSelector(input.file_path, rawExpanded)
-    const effectiveRawPath = splitTarget.rawPath
-    const fullFilePath = splitTarget.expandedPath
+    const richTarget = parseRichFormatTarget(splitTarget.rawPath)
+    const effectiveRawPath = richTarget !== null ? richTarget.containerPath : splitTarget.rawPath
+    const fullFilePath = richTarget !== null ? expandPath(richTarget.containerPath) : splitTarget.expandedPath
     const effectiveInput: Input =
       splitTarget.ranges !== undefined && (input.ranges === undefined || input.ranges.length === 0)
         ? { ...input, file_path: effectiveRawPath, ranges: splitTarget.ranges }
@@ -1390,6 +1564,17 @@ export const FileReadTool = buildTool({
       if (ext === 'ipynb') return readNotebookLane(resolvedPath, resolvedPath, effectiveInput, context, limits)
       if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, resolvedPath, context, limits)
       if (isPDFExtension(ext)) return readPdfLane(resolvedPath, resolvedPath, effectiveInput, context)
+      if (richTarget !== null) {
+        return readRichFormatLane(
+          resolvedPath,
+          richTarget,
+          effectiveInput,
+          Array.isArray(parsedRanges) && parsedRanges.length > 0 ? parsedRanges : null,
+          context,
+          limits,
+          ownRead,
+        )
+      }
       if (Array.isArray(parsedRanges) && parsedRanges.length > 0) {
         return readMultiRangeTextLane(resolvedPath, resolvedPath, effectiveInput, parsedRanges, ext, context, limits, ownRead)
       }
