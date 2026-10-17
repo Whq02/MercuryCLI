@@ -87,7 +87,7 @@ export function evaluateKernel(facts: KernelFacts, event: KernelEventV1): Kernel
           verb: 'attention.raise',
           ref: `kernel:capacity:${event.clientMessageId}`,
           sessionId: `dispatch:${event.clientMessageId}`,
-          question: `dispatch refused — ${event.reason}; the draft is preserved (“${preview}”). Retry when a seat frees, or withdraw?`,
+          question: `dispatch refused (${event.reason}); draft preserved ("${preview}"). Retry when a seat frees, or withdraw?`,
           owner: 'operator',
         },
       ]

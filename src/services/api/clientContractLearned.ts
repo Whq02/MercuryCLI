@@ -660,7 +660,7 @@ export function clientContractStory(heal: ClientContractHeal): string {
         : heal.via === 'peer'
           ? `another session's registry read said ${heal.to}`
           : `the config home held the learned ${heal.to}`
-    return `Mercury presented ${presentedWords(heal.sent)} — ${learned}; retried once — still refused`
+    return `Mercury presented ${presentedWords(heal.sent)} (${learned}); retried once, still refused`
   }
   if (heal.kind === 'not-newer') return `${presents} — the registry said ${heal.said}, not newer than the presented ${heal.sent.presented} — not retried`
   if (heal.kind === 'failed') return `${presents} — the registry read failed: ${heal.failure.words} — not retried`

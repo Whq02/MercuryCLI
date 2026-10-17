@@ -209,7 +209,7 @@ function previewRaw(raw: string): string {
 
 function issueSummary(reason: string): string {
   const lines = reason.split('\n').map(l => l.trim()).filter(Boolean)
-  const body = lines.length > 1 && /failed due to the following issue/.test(lines[0]!) ? lines.slice(1) : lines
+  const body = lines.length > 1 && /failed \(issues?\):$/.test(lines[0]!) ? lines.slice(1) : lines
   return body.join('; ')
 }
 

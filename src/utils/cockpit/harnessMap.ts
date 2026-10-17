@@ -30,7 +30,7 @@ export function computeHarnessMapLines(): string[] {
     `- Discovery: /help lists commands; /capabilities is the live capability matrix for this build${healthCertEnabled() ? '; /health runs the evidence-backed health certificate' : ''}; a surface absent here is in the tool roster or gated off.`,
     '- The `!` form: a prompt the user starts with `!` runs that command inside this very session, and whatever it prints arrives in the conversation — the road for a command that needs their own hands, such as an interactive login.',
     mercuryDapEnabled() && !dapReachableSafe() && !dapAdapterProbePending()
-      ? '- The Debug tool is withheld on this machine: no debug adapter is reachable, so no launch could work. Arm one — Python `pip install debugpy` (or a build carrying the vendored adapter) · native `xcode-select --install` (lldb-dap) or gdb 14+ · JS: unpack js-debug to ~/.js-debug · Go `go install github.com/go-delve/delve/cmd/dlv@latest` — then start a new session or /clear for the tool to join.'
+      ? '- The Debug tool is withheld on this machine because no debug adapter is reachable. Install one (Python `pip install debugpy` · native `xcode-select --install` for lldb-dap or gdb 14+ · JS: unpack js-debug to ~/.js-debug · Go `go install github.com/go-delve/delve/cmd/dlv@latest`), then start a new session or run /clear.'
       : null,
     mercuryGodotEnabled()
       ? "- Godot lanes are armed: in a Godot project (project.godot at the root), the editor GDScript LSP and the Debug tool's `godot` DAP adapter are live over the loopback bridge — use them for GDScript symbol and runtime work."

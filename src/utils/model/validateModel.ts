@@ -189,7 +189,7 @@ async function validateNonAnthropicModel(
       return {
         valid: false,
         error: account.kind === 'muse-code'
-          ? `${snapshot.lastError} — the Muse Code key was refused — /logins signs in with Meta again.`
+          ? `${snapshot.lastError}; run /logins to sign in with Meta again.`
           : `${snapshot.lastError} — /logins meta replaces the key.`,
       }
     }

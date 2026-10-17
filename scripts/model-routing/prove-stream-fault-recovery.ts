@@ -73,10 +73,10 @@ function check(label: string, cond: boolean, detail = ''): void {
   const { streamFaultRecoveryContent, streamFaultRecoveryTailLine, STREAM_FAULT_RECOVERY_NUDGE, isStreamFaultRecoveryNudgeText } = await import('../../src/services/api/errors.js')
   check('a cut before any text ⇒ the plain nudge, as a string, as today', streamFaultRecoveryContent('') === STREAM_FAULT_RECOVERY_NUDGE && streamFaultRecoveryContent('   ') === STREAM_FAULT_RECOVERY_NUDGE && streamFaultRecoveryTailLine('') === null)
   const composed = streamFaultRecoveryContent('first the schema swap, then the ')
-  check('a cut after settled text ⇒ two text blocks: the identity nudge (the lookups key on it) and the tail line', Array.isArray(composed) && composed.length === 2 && composed[0]?.type === 'text' && isStreamFaultRecoveryNudgeText((composed[0] as { text: string }).text) && composed[1]?.type === 'text' && (composed[1] as { text: string }).text.includes('“first the schema swap, then the”'), JSON.stringify(composed))
+  check('a cut after settled text ⇒ two text blocks: the identity nudge (the lookups key on it) and the tail line', Array.isArray(composed) && composed.length === 2 && composed[0]?.type === 'text' && isStreamFaultRecoveryNudgeText((composed[0] as { text: string }).text) && composed[1]?.type === 'text' && (composed[1] as { text: string }).text.includes('"first the schema swap, then the"'), JSON.stringify(composed))
   const long = 'x'.repeat(500) + ' the very last words'
   const tailLine = streamFaultRecoveryTailLine(long) ?? ''
-  check('a long reply names its last 160 characters, marked as a tail', tailLine.includes('…') && tailLine.includes(' the very last words”') && !tailLine.includes('x'.repeat(200)), tailLine.slice(0, 80))
+  check('a long reply names its last 160 characters, marked as a tail', tailLine.includes('…') && tailLine.includes(' the very last words"') && !tailLine.includes('x'.repeat(200)), tailLine.slice(0, 80))
   check('the bound increments into the next state', source.includes('streamFaultRecoveryCount: streamFaultRecoveryCount + 1'))
   const transitions = readFileSync(resolve(repoRoot, 'src/query/transitions.ts'), 'utf8')
   check('the transition reason is typed', transitions.includes("reason: 'stream_fault_recovery'; attempt: number"))

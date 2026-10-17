@@ -1838,7 +1838,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
             {
               id: 'co:3',
               role: 'coordinator',
-              text: 'The turn did not run: coordinator turn failed — Not logged in · Please run /logins.',
+              text: 'The turn did not run: coordinator turn failed — Not logged in · run /logins.',
               ts: ts + 5000,
               harness: true,
             },

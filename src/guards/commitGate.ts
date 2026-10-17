@@ -110,7 +110,7 @@ export function evaluateCommitGate(
     allow: false,
     rule: 'bare-commit',
     reason:
-      'unverified `git commit` — chain a verify with `&&` DIRECTLY before the commit (`&&` short-circuits on a failing verify; `;` `||` `&` run the commit regardless). To keep long verify output readable, prefix `set -o pipefail && verify | tail -40 && git commit …` — the pipeline then retains the verifier\'s exit status. A commit right after a green verify of the SAME tree passes without re-running (fresh receipt).',
+      'unverified `git commit`: chain a verify with `&&` right before the commit (`&&` stops on a failing verify; `;` `||` `&` do not). For long verify output, run `set -o pipefail && verify | tail -40 && git commit …` to keep the verifier\'s exit status. A commit right after a green verify of the same tree passes without re-running (fresh receipt).',
   }
 }
 
@@ -122,16 +122,16 @@ function hasNoVerifyFlag(segment: string): boolean {
 
 const COMMIT_GATE_REPROMPT =
   'Commit gate: this commit is not verified. Three ways to satisfy it: ' +
-  '(1) FRESH RECEIPT — a green verification of this EXACT tree with no edits since ' +
-  'passes automatically (no rerun needed; if you just ran the suite green, commit plainly). ' +
-  '(2) Chain your green-gate before the commit in the SAME command, e.g. ' +
-  '`bun run build.ts && git commit -m "…"` — `&&` short-circuits, so a failing verify ' +
-  'blocks the commit. `;` and `||` break that guarantee. ' +
-  '(3) For long verify output, `set -o pipefail && verify 2>&1 | tail -40 && git commit -m "…"` ' +
-  '— pipefail preserves the verifier\'s exit status, so the tail stays readable AND gated. ' +
-  'A blocked chain never ran, so re-issue the WHOLE command including its `git add`. ' +
-  'Do not use --no-verify. If this repo\'s verify runner is a custom script the gate ' +
-  'doesn\'t recognize, set MERCURY_VERIFY_PATTERN to a regex that matches it.'
+  '(1) Fresh receipt: a green verification of this exact tree with no edits since ' +
+  'passes automatically (no rerun needed). ' +
+  '(2) Chain your verify before the commit in the same command, e.g. ' +
+  '`bun run build.ts && git commit -m "…"`; `&&` stops on failure, while ' +
+  '`;` and `||` do not. ' +
+  '(3) For long verify output, use `set -o pipefail && verify 2>&1 | tail -40 && git commit -m "…"` ' +
+  'so pipefail keeps the verifier\'s exit status. ' +
+  'A blocked chain never ran, so re-run the whole command including `git add`. ' +
+  'Do not use --no-verify. If the gate does not recognize a custom verify script, ' +
+  'set MERCURY_VERIFY_PATTERN to a matching regex.'
 
 function generatedAssetsVerdict(command: string): true | string {
   try {

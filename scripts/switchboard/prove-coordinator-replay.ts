@@ -170,7 +170,7 @@ section('§2 — the round trip: a notice is STORED marked, a reply is not')
     {
       crewDir: join(scratch, 'crew'),
       callModel: async () => {
-        throw new Error('Not logged in · Please run /logins')
+        throw new Error('Not logged in · run /logins')
       },
     },
     { clientMessageId: 'replay-refused' },
@@ -179,7 +179,7 @@ section('§2 — the round trip: a notice is STORED marked, a reply is not')
   const afterFail = await conv.readCoordinatorConversation()
   const notice = afterFail.find(e => e.id === 'co:replay-refused')
   check('the notice says the turn did not run', notice?.text.includes('The turn did not run') === true, notice?.text)
-  check('…and it carries the sign-in refusal verbatim', notice?.text.includes('Please run /logins') === true, notice?.text)
+  check('…and it carries the sign-in refusal verbatim', notice?.text.includes('run /logins') === true, notice?.text)
   check('…STORED as the harness, never as the coordinator’s words', notice?.harness === true, JSON.stringify(notice))
 
   const spoke = await lane.runOperatorMessageTurn(
@@ -245,7 +245,7 @@ section('§4 — the wire: a notice is a bracketed note, never an assistant turn
   const body = responses[0]?.body ?? {}
   const wire = JSON.stringify(body.input ?? body)
   check('the notice rides the history as a bracketed harness note', wire.includes('[harness'), wire.slice(0, 300))
-  check('…carrying the refusal text', wire.includes('Please run /logins'), wire.slice(0, 300))
+  check('…carrying the refusal text', wire.includes('run /logins'), wire.slice(0, 300))
   const items = Array.isArray(body.input) ? (body.input as Array<Record<string, unknown>>) : []
   const assistantText = items
     .filter(i => i.role === 'assistant')

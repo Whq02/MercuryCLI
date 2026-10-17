@@ -61,7 +61,7 @@ export async function finishOpenaiSubscriptionConnect(
 export function openaiConnectFailedReceipt(error: unknown, leg: 'browser' | 'device'): string {
   return leg === 'device'
     ? `OpenAI device connect failed: ${errorMessageWithCause(error)}`
-    : `OpenAI connect failed: ${errorMessageWithCause(error)} — retry from /logins (OpenAI — ChatGPT subscription or API key, the subscription arm; d on the wait switches to a device code).`
+    : `OpenAI connect failed: ${errorMessageWithCause(error)}. Retry from /logins (OpenAI: ChatGPT subscription or API key; press d while waiting to use a device code).`
 }
 
 export const OPENAI_DEVICE_STOPPED_RECEIPT =

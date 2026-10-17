@@ -210,7 +210,7 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
       if (resetAt !== undefined && resetAt > Date.now()) retryAfterMs = resetAt - Date.now()
     }
   }
-  const refusalWords = status === 429 && retryAfterMs !== undefined ? `rate limited — the provider asks for ${Math.ceil(retryAfterMs / 1000)} s — ${message}` : message
+  const refusalWords = status === 429 && retryAfterMs !== undefined ? `rate limited (provider asks for ${Math.ceil(retryAfterMs / 1000)} s): ${message}` : message
   return {
     kind: word !== undefined ? 'api-error' : 'http-error',
     code: word !== undefined ? `api-${word}` : `http-${status}`,

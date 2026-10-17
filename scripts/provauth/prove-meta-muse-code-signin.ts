@@ -486,20 +486,20 @@ try {
   requests.length = 0
   const refusedModels = await runChat('muse-spark-1.3')
   check(
-    'HTTP 401 on /v1/models says "the Muse Code key was refused — /logins signs in with Meta again" before inference and never falls through',
+    'HTTP 401 on /v1/models says "run /logins to sign in with Meta again" before inference and never falls through',
     refusedModels.some(
       m =>
         m.isApiErrorMessage &&
         m.error === 'authentication_failed' &&
-        JSON.stringify(m).includes('the Muse Code key was refused — /logins signs in with Meta again'),
+        JSON.stringify(m).includes('run /logins to sign in with Meta again'),
     ) && requests.length === 0,
     JSON.stringify(refusedModels),
   )
   const refusedValidate = await validateModel('muse-spark-1.3')
   check(
-    'validateModel on a refused Muse Code key says "the Muse Code key was refused — /logins signs in with Meta again"',
+    'validateModel on a refused Muse Code key says "run /logins to sign in with Meta again"',
     !refusedValidate.valid &&
-      refusedValidate.error?.includes('the Muse Code key was refused — /logins signs in with Meta again') === true,
+      refusedValidate.error?.includes('run /logins to sign in with Meta again') === true,
     JSON.stringify(refusedValidate),
   )
   modelsStatus = 200

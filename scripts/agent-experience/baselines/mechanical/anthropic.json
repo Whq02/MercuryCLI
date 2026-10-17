@@ -277,7 +277,7 @@
       "errors": [
         {
           "tool": "Grep",
-          "text": "<tool_use_error>The Grep tool failed due to the following issues:\nThe required parameter `pattern` is missing\nThe parameter `query` was not expected</tool_use_error>",
+          "text": "<tool_use_error>Grep failed (issues):\nThe required parameter `pattern` is missing\nThe parameter `query` was not expected</tool_use_error>",
           "namesFix": true,
           "probe": true
         }

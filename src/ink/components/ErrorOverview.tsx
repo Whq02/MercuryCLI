@@ -27,8 +27,7 @@ export default function ErrorOverview({ error }: Props): React.ReactNode {
         <Text>Mercury hit a render error and this view had to close.</Text>
       </Box>
       <Text>
-        Anything already saved to disk — transcript, drafts, receipts — is
-        preserved.
+        Transcript, drafts, and receipts already on disk are preserved.
       </Text>
       <Box flexDirection="column">
         <Text dim>{summarize(error)}</Text>

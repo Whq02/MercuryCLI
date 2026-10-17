@@ -45,7 +45,7 @@ Notes (openrouter): browser task unmeasured: no browser to launch — no managed
 
 - **fix-bug / Bash** (probe) — names a fix: yes — `<tool_use_error>Shell command failed (exit code 1) ✔ mean of a list (0.82375ms) ✔ median of an odd-length list (0.427833ms) ✖ median of an even-length list averages the middle pair (0.620917ms) ℹ tests 3 ℹ suites 0 ℹ pas`
 - **anchored-edit / Edit** (probe) — names a fix: yes — `<tool_use_error>Read the file before editing it — it exists and was not read in this session, so it may be another session's work; the edit needs a prior read of the current content (a Read of the lines it touches, or ex`
-- **search-symbol / Grep** (probe) — names a fix: yes — `<tool_use_error>The Grep tool failed due to the following issues: The required parameter `pattern` is missing The parameter `query` was not expected</tool_use_error>`
+- **search-symbol / Grep** (probe) — names a fix: yes — `<tool_use_error>Grep failed (issues): The required parameter `pattern` is missing The parameter `query` was not expected</tool_use_error>`
 - **use-skill / Skill** (probe) — names a fix: yes — `<tool_use_error>Unknown skill: provider-api. Did you mean: provider-apis? The available skills ride in system-reminder messages in this conversation.</tool_use_error>`
 - **structural-rename / AstEdit** (probe) — names a fix: yes — `<tool_use_error>apply: true needs plan — run the dry run first (the same call without apply), read the diff, then use the plan token it returned as plan.</tool_use_error>`
 
