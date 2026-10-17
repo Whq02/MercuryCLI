@@ -70,6 +70,7 @@ import type { UUID } from 'node:crypto'
 
 import type { FileState } from '../../utils/fileStateCache.js'
 import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
+import { checkIntroducedParseError } from '../FileWriteTool/parseCheck.js'
 import { FILE_EDIT_TOOL_NAME } from './constants.js'
 import { modifiedSinceReadMessage, otherLiveSessionsClause, UNREAD_EXISTING_FILE_NOTE } from './otherSession.js'
 import { getEditToolDescription, localSpanRefusalMessage } from './prompt.js'
@@ -1349,6 +1350,11 @@ export const FileEditTool = buildTool({
 
     const { added, removed } = patchLineCounts(patch)
     const hunkCount = usingHunks ? (input.hunks as EditHunkInput[]).length : 0
+    const parseError = checkIntroducedParseError(
+      expandedPath,
+      fileExists ? freshContent : null,
+      updatedFile,
+    )
     const data: Output = {
       filePath: expandedPath,
       oldString: reportedOldString,
@@ -1361,6 +1367,7 @@ export const FileEditTool = buildTool({
       ...(freshLineAnchors !== undefined ? { freshLineAnchors } : {}),
       ...(staleRecoveryNote !== undefined ? { staleRecovery: staleRecoveryNote } : {}),
       ...(readThrough !== undefined ? { readThrough } : {}),
+      ...(parseError !== undefined ? { parseError } : {}),
       editedLines,
     }
     return {
@@ -1398,15 +1405,16 @@ export const FileEditTool = buildTool({
     const located = data.oldString === '' || data.oldString.includes(HUNK_SPAN_ELISION) ? null : locateActualString(data.originalFile, data.oldString)
     const forgivenClause = located !== null && located.kind === 'found' && located.feedback !== null ? ` ${located.feedback}` : ''
     const relocated = data.staleRecovery !== undefined ? `Your hunks were relocated because the file changed since your read (${data.staleRecovery}) — re-read before further anchored edits.` : null
+    const parseSuffix = data.parseError !== undefined ? `\n${data.parseError}` : ''
     if (data.editedLines === undefined) {
       const text = `The file ${data.filePath} has been updated successfully${modifiedClause}.${forgivenClause}${relocated === null ? '' : ` ${relocated}`}`
       const anchored = data.freshLineAnchors !== undefined ? `${text}\n\n${data.freshLineAnchors}` : text
-      const content = data.readThrough !== undefined ? `${anchored}\n\n${data.readThrough}` : anchored
+      const content = `${data.readThrough !== undefined ? `${anchored}\n\n${data.readThrough}` : anchored}${parseSuffix}`
       return { tool_use_id: toolUseID, type: 'tool_result' as const, content }
     }
     const head = `${editResultHead(data.filePath, modifiedClause, data.editedLines)}${forgivenClause}`
     const close = relocated ?? (data.editedLines.readBack === 'same' ? EDIT_RESULT_CLOSE : null)
-    const content = [head, ...(data.editedLines.body === '' ? [] : [data.editedLines.body]), ...(close === null ? [] : [close])].join('\n')
+    const content = [head, ...(data.editedLines.body === '' ? [] : [data.editedLines.body]), ...(close === null ? [] : [close]), ...(data.parseError !== undefined ? [data.parseError] : [])].join('\n')
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content }
   },
   extractSearchText(data: Output): string {

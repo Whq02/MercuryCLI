@@ -40,6 +40,7 @@ import type { FileState } from '../../utils/fileStateCache.js'
 import { modifiedSinceReadMessage, unreadExistingWriteMessage } from '../FileEditTool/otherSession.js'
 import { APPLIED_NO_REREAD_NOTE } from '../FileEditTool/FileEditTool.js'
 import { gitDiffSchema, hunkSchema, type FileEditOutput } from '../FileEditTool/types.js'
+import { checkIntroducedParseError } from './parseCheck.js'
 import { DESCRIPTION, FILE_WRITE_TOOL_NAME, getWriteToolDescription } from './prompt.js'
 import {
   getToolUseSummary,
@@ -71,6 +72,7 @@ export type Output = {
   originalFile: string | null
   gitDiff?: FileEditOutput['gitDiff']
   noChange?: FileEditOutput['noChange']
+  parseError?: string
 }
 
 const outputSchema = z.object({
@@ -83,6 +85,7 @@ const outputSchema = z.object({
   noChange: z
     .object({ streak: z.number(), stop: z.boolean(), guidance: z.string() })
     .optional(),
+  parseError: z.string().optional(),
 })
 
 function sha16(content: string): string {
@@ -302,6 +305,11 @@ export const FileWriteTool = buildTool({
     })
 
     let gitDiff: Output['gitDiff']
+    const parseError = checkIntroducedParseError(
+      expandedPath,
+      fileExists ? normalizedContent : null,
+      writtenContent,
+    )
     if (fileExists) {
       const shownBefore = hadBom ? normalizedContent.slice(1) : normalizedContent
       const patch = getPatchForDisplay({
@@ -317,6 +325,7 @@ export const FileWriteTool = buildTool({
         structuredPatch: patch,
         originalFile: normalizedContent,
         ...(gitDiff !== undefined ? { gitDiff } : {}),
+        ...(parseError !== undefined ? { parseError } : {}),
       }
       return {
         data,
@@ -340,6 +349,7 @@ export const FileWriteTool = buildTool({
       structuredPatch: [],
       originalFile: null,
       ...(gitDiff !== undefined ? { gitDiff } : {}),
+      ...(parseError !== undefined ? { parseError } : {}),
     }
     return {
       data,
@@ -365,17 +375,18 @@ export const FileWriteTool = buildTool({
         ...(data.noChange?.stop ? { is_error: true } : {}),
       }
     }
+    const parseSuffix = data.parseError !== undefined ? `\n${data.parseError}` : ''
     if (data.type === 'create') {
       return {
         tool_use_id: toolUseID,
         type: 'tool_result' as const,
-        content: `File created successfully at: ${data.filePath}\n${APPLIED_NO_REREAD_NOTE}`,
+        content: `File created successfully at: ${data.filePath}\n${APPLIED_NO_REREAD_NOTE}${parseSuffix}`,
       }
     }
     return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,
-      content: `The file ${data.filePath} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}`,
+      content: `The file ${data.filePath} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}${parseSuffix}`,
     }
   },
   extractSearchText(): string {
