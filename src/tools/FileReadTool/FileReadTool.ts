@@ -114,14 +114,14 @@ const stockFields = () => ({
     .describe(
       `Page range for PDF files (e.g., "2-6", "9", "12-24"). Only applicable to PDF files. Maximum ${MAX_PDF_PAGES_PER_REQUEST} pages per request.`,
     ),
-  outline: semanticBoolean(z.boolean().optional()).describe(
-    'Set true to return a structural outline (signatures kept, function and method bodies elided, original line numbers preserved) using the vendored tree-sitter grammar for the file type. Off, the output is the full window.',
-  ),
 })
 
 const anchoredSchemaFactory = () =>
   z.strictObject({
     ...stockFields(),
+    outline: semanticBoolean(z.boolean().optional()).describe(
+      'Set true to return a structural outline (signatures kept, function and method bodies elided, original line numbers preserved) using the vendored tree-sitter grammar for the file type. Off, the output is the full window.',
+    ),
     line_anchors: semanticBoolean(z.boolean().optional()).describe(
       'Set true to stamp each text line prefix with its content anchor ("N#hhhh") — the copyable address for anchor-qualified Edit hunks. Off, the output is the plain numbered form.',
     ),
