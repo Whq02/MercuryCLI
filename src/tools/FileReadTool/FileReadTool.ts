@@ -791,17 +791,25 @@ async function readTextLane(
   }
 
   const coveredWholeFile =
-    input.outline !== true &&
+    outlineBody === null &&
     lineOffset === 0 &&
     range.lineCount === range.totalLines &&
     range.readBytes === range.totalBytes
-  context.readFileState.set(keyPath, {
-    content: range.content,
-    timestamp: Math.floor(range.mtimeMs),
-    offset: coveredWholeFile ? 0 : overCap !== undefined ? lineOffset + 1 : (input.offset ?? 0),
-    limit: coveredWholeFile ? undefined : overCap !== undefined ? range.lineCount : input.limit,
-    ...(input.outline === true ? { isPartialView: true } : {}),
-  })
+  const existingState = context.readFileState.get(keyPath)
+  const preserveExistingFullRead =
+    outlineBody !== null &&
+    existingState !== undefined &&
+    !existingState.isPartialView &&
+    existingState.timestamp === Math.floor(range.mtimeMs)
+  if (!preserveExistingFullRead) {
+    context.readFileState.set(keyPath, {
+      content: range.content,
+      timestamp: Math.floor(range.mtimeMs),
+      offset: coveredWholeFile ? 0 : overCap !== undefined ? lineOffset + 1 : (input.offset ?? 0),
+      limit: coveredWholeFile ? undefined : overCap !== undefined ? range.lineCount : input.limit,
+      ...(outlineBody !== null ? { isPartialView: true } : {}),
+    })
+  }
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
   notifyFileReadListeners(resolvedPath, range.content)
 
@@ -809,7 +817,7 @@ async function readTextLane(
   let anchor: string | undefined
   let anchoredContent = range.content
   if (
-    input.outline !== true &&
+    outlineBody === null &&
     changeTransactionEnabled() &&
     (coveredWholeFile || (range.content.length > 0 && shown.count > 0))
   ) {

@@ -14,6 +14,8 @@ process.env.BROWSER = '/usr/bin/true'
 delete process.env.NODE_ENV
 
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
+const { _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 
@@ -70,6 +72,30 @@ async function runRead(
     )
     const block = t.mapToolResultToToolResultBlockParam(out.data, `toolu_ol_${seq}`)
     return { ok: true, text: typeof block.content === 'string' ? block.content : '', data: out.data }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+async function runEdit(
+  input: Record<string, unknown>,
+  ctx = makeContext(),
+): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  const t = FileEditTool as { validateInput?: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
+  if (t.validateInput) {
+    const valid = await t.validateInput(input, ctx)
+    if (valid && !valid.result) return { ok: false, error: String(valid.message) }
+  }
+  seq++
+  try {
+    const out = await t.call(
+      input,
+      ctx,
+      null,
+      { uuid: `00000000-0000-0000-0000-${String(seq).padStart(12, '0')}`, message: { id: `msg_ed_${seq}` } },
+    )
+    const block = t.mapToolResultToToolResultBlockParam(out.data, `toolu_ed_${seq}`)
+    return { ok: true, text: typeof block.content === 'string' ? block.content : '' }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
@@ -231,6 +257,36 @@ section('O2. Control: plain Read without outline is byte-identical, and plain Re
       secondPlain.data.type === 'text' &&
       secondPlain.text.includes('12\t    this.count += 1'),
     secondPlain.ok ? secondPlain.text : secondPlain.error,
+  )
+
+  const mdPath = join(fixtures, 'notes.md')
+  writeFileSync(mdPath, '# Notes\n\nalpha line\nbeta line\n')
+  const mdCtx = makeContext()
+  const mdOutline = await runRead({ file_path: mdPath, outline: true }, mdCtx)
+  const mdEdit = await runEdit({ file_path: mdPath, old_string: 'alpha line', new_string: 'alpha updated' }, mdCtx)
+  check(
+    'O2d an outline Read on a .md file (no grammar) falls back to a full plain read with full read evidence, so a subsequent Edit succeeds',
+    mdOutline.ok && mdOutline.text.includes('(anchor: fa:') && mdEdit.ok,
+    !mdOutline.ok ? mdOutline.error : !mdEdit.ok ? mdEdit.error : mdOutline.text,
+  )
+
+  const preserveCtx = makeContext()
+  const tsPreservePath = join(fixtures, 'preserve.ts')
+  writeFileSync(tsPreservePath, tsSource)
+  const fullFirst = await runRead({ file_path: tsPreservePath }, preserveCtx)
+  const outlineSecond = await runRead({ file_path: tsPreservePath, outline: true }, preserveCtx)
+  _resetSeenLinesForTesting()
+  const editThird = await runEdit(
+    { file_path: tsPreservePath, old_string: '  const sum = a + b', new_string: '  const sum = a + b + 1' },
+    preserveCtx,
+  )
+  check(
+    'O2e a full plain Read followed by an outline Read preserves the non-partial readFileState entry so a subsequent Edit succeeds',
+    fullFirst.ok &&
+      outlineSecond.ok &&
+      editThird.ok &&
+      (preserveCtx as unknown as { readFileState: Map<string, { isPartialView?: boolean }> }).readFileState.get(tsPreservePath)?.isPartialView !== true,
+    !editThird.ok ? editThird.error : 'readFileState was clobbered with isPartialView: true',
   )
 }
 
