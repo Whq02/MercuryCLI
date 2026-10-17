@@ -49,9 +49,9 @@ const vault9 = retainOne('The vault holds 9 coins.', undefined, 'session-19')
 check('a changed count about the same subject is refused while the draft is pending, the pending record named', refusedNaming(vault9, 'a pending fact') && vault9.status === 'refused' && vault9.reason.includes('The vault holds 7 coins'), describe(vault9))
 check('the buffer holds one vault fact, not two', pendingRows(dir).filter(row => row.text.includes('vault holds')).length === 1, pendingRows(dir).map(row => row.text.slice(0, 40)).join(' | '))
 
-const team3 = retainOne('The team has 3 people.', "Stated by the user as a 'remember:' fact in this session.", 'session-20')
-const team5 = retainOne('The team has 5 people.', "Stated by the user as a 'remember:' fact in this session; the newest word.", 'session-21')
-check('the team count stores once and the changed count is refused against the pending draft', team3.status === 'stored' && refusedNaming(team5, 'The team has 3 people'), `${describe(team3)} · ${describe(team5)}`)
+const choir3 = retainOne('The choir has 3 singers.', "Stated by the user as a 'remember:' fact in this session.", 'session-20')
+const choir5 = retainOne('The choir has 5 singers.', "Stated by the user as a 'remember:' fact in this session; the newest word.", 'session-21')
+check('the choir count stores once and the changed count is refused against the pending draft', choir3.status === 'stored' && refusedNaming(choir5, 'The choir has 3 singers'), `${describe(choir3)} · ${describe(choir5)}`)
 
 const build36 = retainOne('The nightly build runs from the mercury-36 folder.', 'Stated by the user in session 22.', 'session-22')
 const build37 = retainOne('The nightly build runs from the mercury-37 folder.', 'Stated by the user in session 23.', 'session-23')
