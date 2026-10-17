@@ -129,7 +129,7 @@ function jevCeilingWords(settings: JevSettings): string {
 
 export function jevSettingLines(settings: JevSettings = readJevSettings()): string[] {
   return [
-    `session allowance: ${jevUsdLabel(settings.allowanceUsd)} (session spend cap on the ${jevRoadWords(settings.road)} road, reset by /clear)`,
+    `session allowance: ${jevUsdLabel(settings.allowanceUsd)} (a runaway stop, not a budget; ${jevRoadWords(settings.road)} road only, reset by /clear)`,
     `pace: ${settings.pacePerMinute} requests a minute`,
     `request ceiling: ${jevCeilingWords(settings)}`,
     `crewmates: ${settings.subagents ? `on — ${JEV_SUBAGENT_CALL_BUDGET} calls each; ${JEV_SUBAGENT_PACE_PER_MINUTE} a minute per session, on the same allowance` : 'off'}`,
@@ -146,7 +146,7 @@ export const JEV_MENU_ROW = {
   defaultLabel: 'off',
   applicationClass: 'live',
   summary:
-    "second-opinion scoring from TypeSafe's Jev (does not grant permissions); off by default; /jev configures official or OpenRouter keys, spend, and crewmate access",
+    "second-opinion scoring from TypeSafe's Jev (does not grant permissions); off by default; once on, crewmates get it by default, off by choice; /jev chooses official or OpenRouter, each with its own key, spend and cap",
   detail: {
     controls:
       'Whether JevEval is in the roster on the road saved in /jev. Official needs a TypeSafe key in /jev; OpenRouter uses its sign-in from /logins. It never answers a permission request. Applies at the next turn boundary.',

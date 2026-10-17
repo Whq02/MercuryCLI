@@ -461,7 +461,7 @@ async function run(): Promise<void> {
     .addOption(new Option('--brief-file <file>', 'Read the session system brief from a file').hideHelp())
     .option('--brief-add <prompt>', 'Append to the session system brief')
     .addOption(new Option('--brief-add-file <file>', 'Append to the session system brief from a file').hideHelp())
-    .addOption(new Option('--mode <mode>', `Permission mode: ${PERMISSION_MODES.map(mode => `${mode}: ${MODE_GLOSS[mode]}`).join('; ')} (apollo requires the interactive terminal or mercury runner; mercury run refuses it)`).choices(PERMISSION_MODES))
+    .addOption(new Option('--mode <mode>', `Permission mode: ${PERMISSION_MODES.map(mode => `${mode}: ${MODE_GLOSS[mode]}`).join('; ')} (apollo requires the cockpit or a host serving the session over mercury runner; mercury run alone refuses it)`).choices(PERMISSION_MODES))
     .option('-c, --continue', 'Continue the most recent conversation')
     .option('-r, --resume [value]', 'Resume a conversation (session id, title, or picker)')
     .option('--fork', 'Fork to a new session id on resume')

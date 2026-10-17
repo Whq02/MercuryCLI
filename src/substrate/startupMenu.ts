@@ -301,7 +301,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       'where a plain boot LANDS — the Concourse itself stays on either way: Off lands the Boot face · Auto lands the Concourse board when sessions are live or waiting · Always makes the board the boot home',
     detail: {
       controls:
-        'Sets the opening screen at boot (`--concourse-off` controls whether the Session Concourse is enabled). Off (default): a plain `mercury` launch opens the home screen, with the Concourse at shift+←; a prompt argument or `--continue`/`--resume` opens the chat directly. Auto: opens the Concourse board when more than one session is live or one is waiting on you, otherwise the home screen. Always: opens the Concourse board. Resolution reads one local records summary before the chat mounts.',
+        'Sets where a boot lands (`--concourse-off` controls whether the Session Concourse is enabled). Off (default): a plain `mercury` launch lands on the Boot face, with the Concourse at shift+← and a face row away; a prompt argument or `--continue`/`--resume` goes straight to the chat, leaving existing background sessions untouched. Auto: lands on the Concourse board when more than one session is live or one is waiting on you, otherwise the Boot face. Always: the Concourse board is the boot home. Resolution reads one bounded records summary before the chat mounts, with no daemon call or fleet discovery.',
       on: [
         'auto: >1 live session or a waiting question boots into the Concourse board',
         'always: every boot lands on the Concourse board (the chat one shift+→ away)',

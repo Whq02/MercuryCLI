@@ -44,7 +44,7 @@ check('the default is keyless (no usable row)', decision.source === 'keyless' &&
 check('the row word is the no-usable-row word (a sign-in exists)', decision.row === computed.NO_USABLE_ROW && decision.considered.length > 0, decision.row)
 check('the why names Gemini', /Gemini/.test(decision.why), decision.why)
 check('the why names the switch', /catalogue traffic is off \(MERCURY_DISABLE_NONESSENTIAL_TRAFFIC\)/.test(decision.why), decision.why)
-check('the why names the typed-id door and the logins door', decision.why.includes('pick a model with /model') && decision.why.includes('sign in with /logins'), decision.why)
+check('the why names the typed-id door and the logins door', decision.why.includes('name a model by id with /model') && decision.why.includes('sign in with /logins'), decision.why)
 check('the why never names the placeholder\'s family', !/anthropic/i.test(decision.why), decision.why)
 
 console.log('§2 the admission: an unnamed session launch admits keyless with the note')

@@ -62,7 +62,7 @@ try {
   {
     const help = spawnSync('node', [dist, 'run', '--help'], { cwd, env, encoding: 'utf8' })
     const words = (help.stdout ?? '').replace(/\s+/g, ' ')
-    check('run --help says apollo needs someone to answer its asks (the cockpit, or a host over mercury runner) and that run alone refuses it', /apollo requires the interactive terminal or mercury runner; mercury run refuses it/.test(words), words.slice(words.indexOf('apollo'), words.indexOf('apollo') + 300))
+    check('run --help says apollo needs someone to answer its asks (the cockpit, or a host over mercury runner) and that run alone refuses it', /apollo requires the cockpit or a host serving the session over mercury runner; mercury run alone refuses it/.test(words), words.slice(words.indexOf('apollo'), words.indexOf('apollo') + 300))
     const apollo = await run(['--format', 'rows', '--mode', 'apollo', 'hello'])
     const message = String((outcomeOf(apollo)?.error as { message?: string } | undefined)?.message ?? '')
     check('run --mode apollo is refused (exit 2) naming the runner door\'s help and the cockpit', apollo.code === 2 && outcomeOf(apollo)?.status === 'refused' && /apollo needs a host that answers its asks/.test(message) && /mercury runner --help/.test(message) && /cockpit/.test(message), j({ code: apollo.code, message }))

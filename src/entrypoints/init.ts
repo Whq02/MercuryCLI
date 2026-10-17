@@ -79,8 +79,8 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
       process.stderr.write(
         `Mercury cannot read its configuration file at ${error.filePath} (${error.code}).\n` +
           `The file exists, so Mercury will not start on defaults and overwrite your saved account,\n` +
-          `projects and trust grants. Make the file readable (fix its permissions or close the program\n` +
-          `holding it open), then start Mercury again.\n`,
+          `projects and trust grants on the next save. Make the file readable (fix its permissions or close\n` +
+          `the program holding it open), then start Mercury again.\n`,
       )
       gracefulShutdownSync(1)
       return

@@ -110,7 +110,7 @@ export function evaluateComputedDefault(facts: ComputedDefaultFacts): ComputedDe
         ? facts.keyless.why
         : `no signed-in provider has a usable model (${considered
             .map(c => `${name(c.family)}: ${c.verdict.why}`)
-            .join('; ')}); pick a model with /model or sign in with /logins`
+            .join('; ')}); name a model by id with /model, or sign in with /logins`
     return {
       setting: facts.keyless.setting,
       row: considered.length === 0 ? NO_SIGN_IN_ROW : NO_USABLE_ROW,

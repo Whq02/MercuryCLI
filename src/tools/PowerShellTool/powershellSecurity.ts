@@ -125,7 +125,7 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
   if (flags.hasSubExpressions) return ASK('The command contains sub-expressions.')
   if (flags.hasExpandableStrings) return ASK('The command embeds expressions inside string literals.')
   if (flags.hasSplatting) return ASK('The command uses splatting, which obscures arguments.')
-  if (flags.hasStopParsing) return ASK('The command uses the stop-parsing token (--%) to stop flag parsing.')
+  if (flags.hasStopParsing) return ASK('The command uses the stop-parsing token (--%), which stops PowerShell parsing the rest of the line.')
   if (flags.hasMemberInvocations) return ASK('The command invokes .NET methods.')
   for (const type of parsed.typeLiterals ?? []) {
     if (!isClmAllowedType(type)) return ASK(`The command uses a type literal outside the allowlist: ${type}.`)

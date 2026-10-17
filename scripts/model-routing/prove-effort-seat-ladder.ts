@@ -174,7 +174,7 @@ console.log('\n— the sent word: resolved · no key · unresolved —')
   const column = read('src/commands/effort/index.ts')
   check('the /effort value column paints the asked word AS asked while unresolved', column.includes("if (facts.effortSent === undefined) return `${facts.effort} (asked)`"))
   const readout = read('src/commands/effort/effort.tsx')
-  check('the /effort readout says the word is asked while the seat has not sent a request', readout.includes('(queued for the next request)'))
+  check('the /effort readout says the word is asked while the seat has not sent a request', readout.includes('(asked; the seat has not sent a request yet)'))
 }
 
 for (const [key, value] of Object.entries(savedEnv)) {

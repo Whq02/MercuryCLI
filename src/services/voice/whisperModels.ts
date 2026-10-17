@@ -110,7 +110,7 @@ export function resolveWhisperModelPin(): WhisperModelPin {
     }
     return { kind: 'broken', note: `MERCURY_WHISPER_MODEL is set to ${raw}, which does not exist` }
   }
-  return { kind: 'broken', note: `MERCURY_WHISPER_MODEL=${raw} is not a catalogue name (${WHISPER_MODELS.map(r => r.name).join(' · ')}) or a .ggml file path` }
+  return { kind: 'broken', note: `MERCURY_WHISPER_MODEL=${raw} is not a catalogue name (${WHISPER_MODELS.map(r => r.name).join(' · ')}) or the path of a ggml model file (.bin)` }
 }
 
 type WhisperModelCheck =

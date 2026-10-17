@@ -175,7 +175,7 @@ section('6. nothing invented — without structured, the mapped block is the cur
   const crew = map(settled({ agentType: 'mercury-crew' }), 't6b')
   check('a crewmate result without structured is the current unstructured block (the prose, the trailer)', JSON.stringify(crew) === JSON.stringify({ type: 'tool_result', tool_use_id: 't6b', content: [{ type: 'text', text: PROSE }, { type: 'text', text: TRAILER_CURRENT }] }), JSON.stringify(crew).slice(0, 400))
   const failed = map(settled({ status: 'failed', error: 'API Error: 529', outcome: { status: 'failed', reason: 'provider-declined', error: 'API Error: 529' } }), 't6c')
-  check('a failed result without structured is the current unstructured block (the prose, the failure trailer)', failed.is_error === true && texts(failed).length === 2 && texts(failed)[0] === PROSE && texts(failed)[1]?.startsWith('Crewmate execution failed: API Error: 529\nOutput above was captured before the failure') === true, JSON.stringify(texts(failed)).slice(0, 300))
+  check('a failed result without structured is the current unstructured block (the prose, the failure trailer)', failed.is_error === true && texts(failed).length === 2 && texts(failed)[0] === PROSE && texts(failed)[1]?.startsWith('Crewmate execution failed: API Error: 529\nOutput above was captured before the failure as partial work and must not be read as a conclusion') === true, JSON.stringify(texts(failed)).slice(0, 300))
   check('no text in any of them contains <structured', [scout, crew, failed].every(m => texts(m).every(t => !t.includes('<structured'))))
 }
 
