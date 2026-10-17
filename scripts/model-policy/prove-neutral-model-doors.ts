@@ -183,7 +183,7 @@ section('§3 the floor is gone: no substitution anywhere, no telemetry of one, n
   check("the daemon's reconfigure validates the model through the worker registry's session arm and refuses typed", controlServer.includes("validateWorkerModelChoice(model.trim(), 'session')") && controlServer.includes('model refused ('))
   check('the roster applies a reconfigure model as validated, substituting nothing', !src('daemon', 'roster.ts').includes('validateSeatModel'))
   const kernel = await import('../../src/services/providers/modelRegistry.ts')
-  const snapshot = kernel.buildRouterModelSnapshot()
+  const snapshot = kernel.buildProviderSnapshot()
   check("the kernel's exact pin resolves the sonnet family word as the sonnet class", snapshot.resolveExact('sonnet')?.modelClass === 'sonnet')
   check("the kernel's exact pin refuses an id no available provider lists (typed null, never a substitute)", snapshot.resolveExact('gpt-5.6-sol') === null)
   const crews = readFileSync(join(ROOT, 'docs', 'CREW.md'), 'utf8')

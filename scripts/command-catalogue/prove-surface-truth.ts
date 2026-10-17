@@ -175,7 +175,7 @@ check("a natively-1M frontier head wins as its bare id (no '[1m]' rider)", decis
 const suffixRow = frontier.evaluateFrontierDecision({ ...eligible, fableNatively1M: false })
 check("a suffix-1M row would keep its '[1m]' rider (parity for the older shape)", suffixRow.setting === `${head('fable')}[1m]`, suffixRow.setting)
 check("a crew record's legacy keys fold: the family word to the head; the exact-generation key to the same row while newest", foldLegacyWorkerModelKey('fable') === head('fable') && foldLegacyWorkerModelKey('opus') === head('opus') && foldLegacyWorkerModelKey('sonnet') === head('sonnet') && foldLegacyWorkerModelKey('fable51') === foldLegacyWorkerModelKey('fable'))
-const routed = resolveAnthropicModel('fable', 'adaptive')
+const routed = resolveAnthropicModel('fable')
 check("the router's fable class runs the head in its seat form (bare when natively 1M)", routed !== null && routed.model === (getContextWindowForModel(head('fable')) >= 1_000_000 ? head('fable') : `${head('fable')}[1m]`), String(routed?.model))
 const options = getModelOptions()
 check("the picker carries the family full-id row labelled with the head's display name", options.some(o => o.value === head('fable') && o.label === model.renderModelName(head('fable'))), options.filter(o => o.value === head('fable')).map(o => o.label).join(','))

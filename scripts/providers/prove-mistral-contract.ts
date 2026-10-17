@@ -16,7 +16,7 @@ const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
 const { parseDefaultProviderWord } = await import('../../src/commands/defaultprovider/defaultprovider.tsx')
 const { loginFamilyRows, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
 const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines } = await import('../../src/components/BootLoginsScreen.tsx')
-const { buildRouterModelSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
+const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 const { MISTRAL_DISPLAY_PINS, mistralDisplayPin, isMistralChatModelId, isMistralModelId } = await import('../../src/services/providers/mistral/mistralPins.ts')
 const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
 const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
@@ -30,7 +30,7 @@ let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
 const fixture = mistralFixture()
 try {
-  check('Mistral is a primary provider, with a signed-out usage and readiness truth', buildRouterModelSnapshot().providers.some(provider => provider.id === 'mistral') && usageForProvider('mistral').sourceKind === 'none' && !resolveProviderUsability().mistral.usable)
+  check('Mistral is a primary provider, with a signed-out usage and readiness truth', buildProviderSnapshot().providers.some(provider => provider.id === 'mistral') && usageForProvider('mistral').sourceKind === 'none' && !resolveProviderUsability().mistral.usable)
   check('the family word focuses the sign-in and default-provider doors', parseFamilyFocus('mistral') === 'mistral' && parseDefaultProviderWord('mistral') === 'mistral')
   const row = loginFamilyRows({ engineLegs: true }).find(row => row.value === 'mistral')
   check('the sign-in row names the API-key road and the key page, never a browser sign-in', row?.label === 'Mistral — API key (Mistral Large 4)' && keyPageLine('mistral').includes('console.mistral.ai/api-keys') && !read('src/components/loginFamilyRows.ts').toLowerCase().includes('vibe'))

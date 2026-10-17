@@ -1,6 +1,6 @@
 import { getCachedProviderDiscovery, primeXaiDiscovery } from '../providerDiscovery.js'
 import { xaiCatalogueRows, xaiModelFacts } from './xaiCatalogue.js'
-import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from '../providerAdapter.js'
+import type { ProviderCatalogueEntry, ProviderDescription, ProviderModelRef, ProviderModelClass, ProviderAdapter, ProviderModel, ProviderStatus } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 export const XAI_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] = []
@@ -32,20 +32,20 @@ export function describeXaiProvider(): ProviderDescription {
     ...(live ? { catalogueSource: 'live-discovery' as const, discoveredAtMs: live.fetchedAtMs } : { catalogueSource: 'static-pin' as const }),
   }
 }
-export function xaiStatus(): RouterProviderStatus {
+export function xaiStatus(): ProviderStatus {
   return primeXaiDiscovery()?.keyPresent ? { available: true } : { available: false, reason: 'no-api-key:xai' }
 }
-export function listXaiModels(): RouterProviderModel[] {
+export function listXaiModels(): ProviderModel[] {
   if (!xaiStatus().available) return []
   return xaiCatalogueEntries().map(entry => ({ ref: { provider: 'xai', model: entry.id, modelClass: 'grok', effort: 'high', contextWindow: entry.contextWindow ?? 0 }, displayLabel: entry.displayLabel }))
 }
-export function resolveXaiModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+export function resolveXaiModel(_modelClass: ProviderModelClass): ProviderModelRef | null {
   return null
 }
-export function buildXaiLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
-  throw new Error('router: provider xai has no SEAT runtime — xAI specialists dispatch through the AgentTool engine path')
+export function buildXaiLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
+  throw new Error('seat: provider xai has no SEAT runtime — xAI specialists dispatch through the AgentTool engine path')
 }
-export const xaiProviderAdapter: RouterProviderAdapter = {
+export const xaiProviderAdapter: ProviderAdapter = {
   id: 'xai', transport: 'openai-compat-chat-completions', status: xaiStatus,
   describe: describeXaiProvider, listModels: listXaiModels, resolveModel: resolveXaiModel, buildLaunchPatch: buildXaiLaunchPatch,
 }

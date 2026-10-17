@@ -5,7 +5,7 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-const { resetRouterModelSnapshotMemo } = await import('../../src/services/providers/modelRegistry.ts')
+const { resetProviderSnapshotMemo } = await import('../../src/services/providers/modelRegistry.ts')
 
 const scratch = mkdtempSync(join(tmpdir(), 'sg5-models-'))
 const authHome = join(scratch, 'auth-home')
@@ -150,18 +150,18 @@ console.log('§3 the REAL presence owner — labels agree with providerFamilyPre
 console.log("§4 the file-backed OpenAI account — the operator's shape, read live")
 {
   writeFileSync(join(authHome, '.openai-auth.json'), OPENAI_FIXTURE_AUTH)
-  resetRouterModelSnapshotMemo()
+  resetProviderSnapshotMemo()
   const reg = await composeCoordinatorModelRegistry()
   const apex = reg.entries.filter(e => e.source === 'openai')
   check("every GPT row reads 'ready' through the real owner (credential + catalogue facts only)", apex.every(e => e.availability === 'ready'), JSON.stringify(apex.map(e => [e.modelId, e.availability])))
   check("the Anthropic rows still read 'not-signed-in'", reg.entries.filter(e => e.source === 'anthropic').every(e => e.availability === 'not-signed-in'))
   check('the registry is selectable', reg.selectable === true)
   rmSync(join(authHome, '.openai-auth.json'))
-  resetRouterModelSnapshotMemo()
+  resetProviderSnapshotMemo()
   const signedOut = await composeCoordinatorModelRegistry()
   check("removing the file flips the GPT rows to 'not-signed-in' on the very next read", signedOut.entries.filter(e => e.source === 'openai').every(e => e.availability === 'not-signed-in'))
   writeFileSync(join(authHome, '.openai-auth.json'), OPENAI_FIXTURE_AUTH)
-  resetRouterModelSnapshotMemo()
+  resetProviderSnapshotMemo()
 }
 
 console.log('§5 digest currency is the STORE\'s fact — it never reaches a row (the verdict-word removal)')
@@ -193,11 +193,11 @@ console.log('§6 validateCoordinatorModelChoice (config never overrides the regi
   const notSignedIn = await validateCoordinatorModelChoice(anthropicId)
   check('a NOT-SIGNED-IN choice validates too — the label rides the entry', notSignedIn.ok === true && notSignedIn.entry.availability === 'not-signed-in', JSON.stringify(notSignedIn))
   rmSync(join(authHome, '.openai-auth.json'))
-  resetRouterModelSnapshotMemo()
+  resetProviderSnapshotMemo()
   const engineSignedOut = await validateCoordinatorModelChoice('gpt-5.6-sol')
   check('a signed-out ENGINE choice validates with its label (never a credential refusal)', engineSignedOut.ok === true && engineSignedOut.entry.availability === 'not-signed-in')
   writeFileSync(join(authHome, '.openai-auth.json'), OPENAI_FIXTURE_AUTH)
-  resetRouterModelSnapshotMemo()
+  resetProviderSnapshotMemo()
 }
 
 console.log("§7 non-coordinator receipts never enter — the operator's store shape")
@@ -238,7 +238,7 @@ console.log('§8 the safe-boundary switch owner')
 
   rmSync(join(authHome, '.openai-auth.json'))
 
-  resetRouterModelSnapshotMemo()
+  resetProviderSnapshotMemo()
   const signedOutEngine = await switchCoordinatorAssistModel('gpt-5.6-sol')
   check(
     "a signed-out engine choice APPLIES with 'not-signed-in' (never a credential refusal)",
@@ -246,7 +246,7 @@ console.log('§8 the safe-boundary switch owner')
     `${signedOutEngine.outcome}/${signedOutEngine.availability}`,
   )
   writeFileSync(join(authHome, '.openai-auth.json'), OPENAI_FIXTURE_AUTH)
-  resetRouterModelSnapshotMemo()
+  resetProviderSnapshotMemo()
   const unknown = await switchCoordinatorAssistModel('made-up-model-9')
   check(
     "an unknown id refuses 'unknown-model', config untouched",
@@ -312,7 +312,7 @@ console.log('§11 a typed pin the LANDED live list does not serve is never a rea
   const served = ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']
   const typedOnly = GPT_DISPLAY_PINS.map(pin => pin.id).filter(id => !served.includes(id))
   __resetOpenaiCatalogueForTest()
-  resetRouterModelSnapshotMemo()
+  resetProviderSnapshotMemo()
   check('the fixture list primes the subscription catalogue', primeOpenaiCatalogue({ sourceKind: 'chatgpt-subscription', models: served.map((id, i) => ({ id, displayName: id, supportedReasoningEfforts: ['low', 'high'], reasoningEffortsStated: true, visibility: 'list', priority: i + 1 })), fetchedAtMs: Date.now() }))
   const landed = await composeCoordinatorModelRegistry()
   const gptRows = landed.entries.filter(e => e.source === 'openai')
@@ -333,7 +333,7 @@ console.log('§11 a typed pin the LANDED live list does not serve is never a rea
   check("the configured assist model the landed list lacks reads not-in-catalogue with the catalogue's words, never ready", configuredRow?.availability === 'not-in-catalogue' && (configuredRow.detail ?? '').includes('not served by the connected ChatGPT subscription'), JSON.stringify(configuredRow))
   check('a remembered or configured id the list SERVES stays ready', remembered.entries.some(e => e.modelId === 'gpt-5.6-sol' && e.availability === 'ready'))
   __resetOpenaiCatalogueForTest()
-  resetRouterModelSnapshotMemo()
+  resetProviderSnapshotMemo()
   const pending = await composeCoordinatorModelRegistry()
   const baseline = pending.entries.filter(e => e.source === 'openai')
   check('with no list fetched, every typed pin stands as a ready baseline row', GPT_DISPLAY_PINS.every(pin => baseline.some(e => e.modelId === pin.id && e.availability === 'ready')), JSON.stringify(baseline.map(e => [e.modelId, e.availability])))

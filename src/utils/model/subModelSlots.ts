@@ -20,8 +20,8 @@ import {
   type ProviderFamilyPresence,
 } from '../../services/providers/providerUsage.js'
 import {
-  buildRouterModelSnapshot,
-  type RouterModelSnapshot,
+  buildProviderSnapshot,
+  type ProviderSnapshot,
 } from '../../services/providers/modelRegistry.js'
 import {
   getModelOptions,
@@ -169,11 +169,11 @@ export function subModelConnectHome(route: CallModelRoute | string): {
 export interface SubModelRegistryReads {
   options?: () => ModelOption[]
   presences?: () => ProviderFamilyPresence[]
-  providers?: () => RouterModelSnapshot['providers']
+  providers?: () => ProviderSnapshot['providers']
 }
 
 export function composeSubModelRegistry(reads: SubModelRegistryReads = {}): SubModelRegistry {
-  const providers = (reads.providers ?? (() => buildRouterModelSnapshot().providers))()
+  const providers = (reads.providers ?? (() => buildProviderSnapshot().providers))()
   const presences = (reads.presences ?? (() => providerFamilyPresences(providers)))()
   const presenceOf = new Map(presences.map(presence => [presence.id as string, presence]))
   const credentialed = (route: CallModelRoute | 'unrecognised'): boolean =>

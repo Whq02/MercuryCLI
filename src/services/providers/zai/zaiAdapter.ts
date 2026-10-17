@@ -4,12 +4,11 @@ import { zaiCatalogueRows } from './zaiCatalogue.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderModel,
-  RouterProviderStatus,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
   SpecialistRole,
 } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
@@ -80,14 +79,14 @@ export function describeZaiProvider(): ProviderDescription {
   }
 }
 
-export function zaiStatus(): RouterProviderStatus {
+export function zaiStatus(): ProviderStatus {
   const discovery = primeZaiDiscovery()
   return discovery?.keyPresent
     ? { available: true }
     : { available: false, reason: 'no-api-key:zai' }
 }
 
-export function listZaiModels(): RouterProviderModel[] {
+export function listZaiModels(): ProviderModel[] {
   if (!zaiStatus().available) return []
   return zaiCatalogueEntries().map(entry => ({
     ref: {
@@ -102,19 +101,18 @@ export function listZaiModels(): RouterProviderModel[] {
 }
 
 export function resolveZaiModel(
-  _modelClass: RouterModelClass,
-  _posture: RouterPosture,
-): RouteModelRef | null {
+  _modelClass: ProviderModelClass,
+): ProviderModelRef | null {
   return null
 }
 
-export function buildZaiLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+export function buildZaiLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider zai has no SEAT runtime — roster seats stay Anthropic; GLM specialists dispatch through the AgentTool engine path',
+    'seat: provider zai has no SEAT runtime — roster seats stay Anthropic; GLM specialists dispatch through the AgentTool engine path',
   )
 }
 
-export const zaiProviderAdapter: RouterProviderAdapter = {
+export const zaiProviderAdapter: ProviderAdapter = {
   id: 'zai',
   transport: 'zai-chat-completions',
   status: zaiStatus,

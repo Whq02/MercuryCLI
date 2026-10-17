@@ -131,7 +131,7 @@ section('§2 the account\'s list holds the off-grammar id: it qualifies, paints 
   const entry = described.catalogue.find(e => e.id === OFF)
   check('the router adapter lists it live with its own efforts and window', described.catalogueSource === 'live-discovery' && entry !== undefined && entry.displayLabel === 'Sol 6' && entry.efforts.join(',') === 'low,medium,high' && entry.contextWindow === 400_000, JSON.stringify(described.catalogue.map(e => e.id)))
   check('the seat listing carries it', router.listOpenaiModels().some(m => m.ref.model === OFF))
-  const head = router.resolveOpenaiModel('gpt', 'balanced' as never)
+  const head = router.resolveOpenaiModel('gpt')
   check("the 'gpt' class resolves to the parsed head, not the top-priority unparsed row", head?.model === SOL, JSON.stringify(head))
 
   check('the sign-in ledger records the key sign-in', recordSignIn('openai', 'api-key'))

@@ -1,6 +1,6 @@
 import { mistralCatalogueRows, mistralModelFacts } from './mistralCatalogue.js'
 import { resolveMistralAccount } from './mistralAccounts.js'
-import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from '../providerAdapter.js'
+import type { ProviderCatalogueEntry, ProviderDescription, ProviderModelRef, ProviderModelClass, ProviderAdapter, ProviderModel, ProviderStatus } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 export function mistralLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
@@ -34,24 +34,24 @@ export function describeMistralProvider(): ProviderDescription {
   }
 }
 
-export function mistralStatus(): RouterProviderStatus {
+export function mistralStatus(): ProviderStatus {
   return resolveMistralAccount() ? { available: true } : { available: false, reason: 'no-api-key:mistral' }
 }
 
-export function listMistralModels(): RouterProviderModel[] {
+export function listMistralModels(): ProviderModel[] {
   if (!mistralStatus().available) return []
   return mistralCatalogueEntries().map(entry => ({ ref: { provider: 'mistral', model: entry.id, modelClass: 'mistral', effort: 'high', contextWindow: entry.contextWindow ?? 0 }, displayLabel: entry.displayLabel }))
 }
 
-export function resolveMistralModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+export function resolveMistralModel(_modelClass: ProviderModelClass): ProviderModelRef | null {
   return null
 }
 
-export function buildMistralLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
-  throw new Error('router: provider mistral has no SEAT runtime — Mistral specialists dispatch through the AgentTool engine path')
+export function buildMistralLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
+  throw new Error('seat: provider mistral has no SEAT runtime — Mistral specialists dispatch through the AgentTool engine path')
 }
 
-export const mistralProviderAdapter: RouterProviderAdapter = {
+export const mistralProviderAdapter: ProviderAdapter = {
   id: 'mistral', transport: 'openai-compat-chat-completions', status: mistralStatus,
   describe: describeMistralProvider, listModels: listMistralModels, resolveModel: resolveMistralModel, buildLaunchPatch: buildMistralLaunchPatch,
 }

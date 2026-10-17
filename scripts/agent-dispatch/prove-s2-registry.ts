@@ -9,7 +9,7 @@ const savedOpenaiKey = process.env.OPENAI_API_KEY
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-s2-home-'))
 delete process.env.OPENAI_API_KEY
 
-const { buildRouterModelSnapshot } = await import('../../src/services/providers/modelRegistry.js')
+const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.js')
 const {
   __resetProviderDiscoveryForTest,
   getCachedProviderDiscovery,
@@ -254,7 +254,7 @@ section('3 · discovery — account presence, key sources, TTL/force')
 
 section('4 · snapshot — additive surface; uncredentialed never resolves an engine')
 {
-  const snap = buildRouterModelSnapshot()
+  const snap = buildProviderSnapshot()
   check(
     'providers[] carries fifteen families (Anthropic and fourteen engine spaces)',
     snap.providers.length === 15 && ['xai', 'meta', 'mistral', 'nous', 'zen'].every(id => snap.providers.some(provider => provider.id === id)),
@@ -268,8 +268,8 @@ section('4 · snapshot — additive surface; uncredentialed never resolves an en
         p.description.transport === p.transport,
     )
   }
-  check("resolve('gpt') null uncredentialed (never a fallthrough)", snap.resolve('gpt', 'balanced') === null)
-  check("resolve('glm') null (GLM never seats)", snap.resolve('glm', 'balanced') === null)
+  check("resolve('gpt') null uncredentialed (never a fallthrough)", snap.resolve('gpt') === null)
+  check("resolve('glm') null (GLM never seats)", snap.resolve('glm') === null)
   check("resolveExact('gpt-5.6-sol') refuses uncredentialed (no available provider lists it)", snap.resolveExact('gpt-5.6-sol') === null)
   check("resolveExact('glm-5.2') refuses uncredentialed (no available provider lists it)", snap.resolveExact('glm-5.2') === null)
 }

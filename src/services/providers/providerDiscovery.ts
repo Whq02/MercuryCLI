@@ -1,6 +1,6 @@
 import { readStoredZaiApiKey, readStoredZaiKeyPlan } from './providerSecrets.js'
 import type { MoonshotAccountRef } from './moonshot/moonshotAccounts.js'
-import type { RouterProviderId } from './providerAdapter.js'
+import type { ProviderFamilyId } from './providerAdapter.js'
 import {
   resolveOpenaiAccount,
   type OpenaiAccountRef,
@@ -205,11 +205,11 @@ function probeGemini(io: DiscoveryIo): GeminiDiscovery {
   }
 }
 
-const cache = new Map<RouterProviderId, ProviderDiscovery>()
-const inFlight = new Map<RouterProviderId, Promise<ProviderDiscovery | null>>()
+const cache = new Map<ProviderFamilyId, ProviderDiscovery>()
+const inFlight = new Map<ProviderFamilyId, Promise<ProviderDiscovery | null>>()
 
 export function getCachedProviderDiscovery(
-  id: RouterProviderId,
+  id: ProviderFamilyId,
 ): ProviderDiscovery | null {
   return cache.get(id) ?? null
 }
@@ -390,7 +390,7 @@ export function primeLocalDiscovery(io?: DiscoveryIo): LocalDiscovery | null {
 }
 
 export function refreshProviderDiscovery(
-  id: RouterProviderId,
+  id: ProviderFamilyId,
   opts?: { force?: boolean; io?: DiscoveryIo },
 ): Promise<ProviderDiscovery | null> {
   if (id === 'anthropic') return Promise.resolve(null)

@@ -108,10 +108,9 @@ section("§3 the row: the sonnet family's newest generation, its class, its pick
   check("the router classifies the id 'sonnet'", classOfModel(ID) === 'sonnet', String(classOfModel(ID)))
   check("the router classifies the family word 'sonnet'", classOfModel('sonnet') === 'sonnet', String(classOfModel('sonnet')))
   check("the router still classifies Sonnet 5 'sonnet'", classOfModel(PREVIOUS) === 'sonnet', String(classOfModel(PREVIOUS)))
-  const adaptive = resolveAnthropicModel('sonnet', 'adaptive')
-  const quality = resolveAnthropicModel('sonnet', 'quality')
+  const adaptive = resolveAnthropicModel('sonnet')
   check('the seat table resolves the sonnet class to the new row at 1M', adaptive?.model === ID && adaptive.contextWindow === 1_000_000, JSON.stringify(adaptive))
-  check("the seat's default efforts per posture are unchanged (high; xhigh on quality)", adaptive?.effort === 'high' && quality?.effort === 'xhigh', `${adaptive?.effort}/${quality?.effort}`)
+  check("the seat's default effort is unchanged (high)", adaptive?.effort === 'high', String(adaptive?.effort))
   check("the seat listing's sonnet row is labelled by the display owner", listAnthropicModels().some(m => m.ref.model === ID && m.displayLabel === 'Sonnet 5.5'), JSON.stringify(listAnthropicModels().map(m => [m.ref.model, m.displayLabel])))
   check('the route ladder reaches max on the row', routeEffortsFor(ID).join(',') === 'high,xhigh,max', routeEffortsFor(ID).join(','))
 

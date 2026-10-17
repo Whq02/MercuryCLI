@@ -155,7 +155,7 @@ reg(
     'src/components/ConsoleOAuthFlow.tsx',
     'src/components/GeminiConnect.tsx',
     'src/components/HuggingfaceConnect.tsx',
-    'src/components/RouterOpenrouterConnect.tsx',
+    'src/components/OpenrouterConnect.tsx',
     'src/components/KimiConnect.tsx',
     'src/components/XaiConnect.tsx',
     'src/components/MetaConnect.tsx',
@@ -201,7 +201,7 @@ reg(
     'src/components/mercury-ui/parity/CapabilityManagerView.tsx',
     'src/components/mercury-ui/parity/DaemonView.tsx',
     'src/components/mercury-ui/screens/CrewView.tsx',
-    'src/components/RouterOpenaiConnect.tsx',
+    'src/components/OpenaiConnect.tsx',
 
     'src/components/TraceView.tsx',
     'src/keybindings/KeybindingProviderSetup.tsx',

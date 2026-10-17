@@ -5,12 +5,11 @@ import {
 import { getCachedOpenrouterCatalogue } from './openrouterCatalogue.js'
 import type {
   ProviderDescription,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderModel,
-  RouterProviderStatus,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
 } from '../providerAdapter.js'
 
 function describeOpenrouterProvider(): ProviderDescription {
@@ -41,31 +40,30 @@ function describeOpenrouterProvider(): ProviderDescription {
   }
 }
 
-function openrouterStatus(): RouterProviderStatus {
+function openrouterStatus(): ProviderStatus {
   const discovery = primeOpenrouterDiscovery()
   return discovery?.keyPresent
     ? { available: true }
     : { available: false, reason: 'no-api-key:openrouter' }
 }
 
-function listOpenrouterModels(): RouterProviderModel[] {
+function listOpenrouterModels(): ProviderModel[] {
   return []
 }
 
 function resolveOpenrouterModel(
-  _modelClass: RouterModelClass,
-  _posture: RouterPosture,
-): RouteModelRef | null {
+  _modelClass: ProviderModelClass,
+): ProviderModelRef | null {
   return null
 }
 
-function buildOpenrouterLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildOpenrouterLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider openrouter has no SEAT runtime — roster seats stay Anthropic; OpenRouter dispatch lands with the provider-wire fold',
+    'seat: provider openrouter has no SEAT runtime — roster seats stay Anthropic; OpenRouter dispatch lands with the provider-wire fold',
   )
 }
 
-export const openrouterProviderAdapter: RouterProviderAdapter = {
+export const openrouterProviderAdapter: ProviderAdapter = {
   id: 'openrouter',
   transport: 'openrouter-chat-completions',
   status: openrouterStatus,

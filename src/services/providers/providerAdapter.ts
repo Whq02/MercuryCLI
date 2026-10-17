@@ -1,5 +1,5 @@
 
-export type RouterProviderId =
+export type ProviderFamilyId =
   | 'anthropic'
   | 'openai'
   | 'zai'
@@ -15,7 +15,7 @@ export type RouterProviderId =
   | 'mistral'
   | 'nous'
   | 'zen'
-export type RouterModelClass =
+export type ProviderModelClass =
   | 'opus'
   | 'sonnet'
   | 'fable'
@@ -31,11 +31,10 @@ export type RouterModelClass =
   | 'mistral'
   | 'nous'
   | 'zen'
-export type RouteEffortLevel = 'high' | 'xhigh' | 'max'
-export type RouterPosture = 'adaptive' | 'quality' | 'balanced' | 'fast' | 'fixed'
+export type ProviderEffortLevel = 'high' | 'xhigh' | 'max'
 
 
-export type RouterTransport =
+export type ProviderTransport =
   | 'anthropic-messages'
   | 'openai-responses'
   | 'zai-chat-completions'
@@ -80,14 +79,14 @@ interface ProviderAccountView {
 export interface ProviderCatalogueEntry {
   id: string
   displayLabel: string
-  modelClass: RouterModelClass
+  modelClass: ProviderModelClass
   contextWindow?: number
   efforts: readonly string[]
   roles: readonly SpecialistRole[]
 }
 
 export interface ProviderDescription {
-  transport: RouterTransport
+  transport: ProviderTransport
   capabilities: readonly ProviderCapabilityKey[]
   roles: readonly SpecialistRole[]
   account: ProviderAccountView
@@ -96,30 +95,30 @@ export interface ProviderDescription {
   discoveredAtMs?: number
 }
 
-export interface RouteModelRef {
-  provider: RouterProviderId
+export interface ProviderModelRef {
+  provider: ProviderFamilyId
   model: string
-  modelClass: RouterModelClass
-  effort: RouteEffortLevel
+  modelClass: ProviderModelClass
+  effort: ProviderEffortLevel
   contextWindow: number
 }
 
-export interface RouterProviderModel {
-  ref: RouteModelRef
+export interface ProviderModel {
+  ref: ProviderModelRef
   displayLabel: string
 }
 
-export interface RouterProviderStatus {
+export interface ProviderStatus {
   available: boolean
   reason?: string
 }
 
-export interface RouterProviderAdapter {
-  id: RouterProviderId
-  transport: RouterTransport
-  status(): RouterProviderStatus
+export interface ProviderAdapter {
+  id: ProviderFamilyId
+  transport: ProviderTransport
+  status(): ProviderStatus
   describe(): ProviderDescription
-  listModels(): RouterProviderModel[]
-  resolveModel(modelClass: RouterModelClass, posture: RouterPosture): RouteModelRef | null
-  buildLaunchPatch(ref: RouteModelRef): { model: string; effort: string }
+  listModels(): ProviderModel[]
+  resolveModel(modelClass: ProviderModelClass): ProviderModelRef | null
+  buildLaunchPatch(ref: ProviderModelRef): { model: string; effort: string }
 }

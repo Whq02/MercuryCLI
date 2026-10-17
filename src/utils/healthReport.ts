@@ -34,7 +34,7 @@ import { FLAG_REGISTRY, flagEnabled, flagEnv } from '../substrate/flagRegistry.j
 import { realEnvPin } from '../substrate/startupMenu.js'
 import { isRunOrphaned, listWorkflowRunsDetailed } from '../tools/WorkflowTool/runManifest.js'
 import { getAnthropicApiKeyWithSource, getAuthTokenSource } from './auth.js'
-import { buildRouterModelSnapshot } from '../services/providers/modelRegistry.js'
+import { buildProviderSnapshot } from '../services/providers/modelRegistry.js'
 import { binaryName, isMercurySubstrateProfileOn } from './config.js'
 import { getCwd } from './cwd.js'
 import {
@@ -622,7 +622,7 @@ function editOutcomeHealthChecks(): CheckSpec[] {
 }
 
 function providerAuthChecks(): CheckSpec[] {
-  const snap = buildRouterModelSnapshot()
+  const snap = buildProviderSnapshot()
   const routedFamily = routedAuthFamily()
   return snap.providers.map((provider): CheckSpec => {
     const meta = PROVIDER_AUTH_PRESENTATION[provider.id] ?? {
@@ -844,10 +844,10 @@ function providerSlotsCheck(): CheckSpec {
         refreshProviderDiscovery('zai'),
         refreshProviderDiscovery('local'),
       ])
-      const { buildRouterModelSnapshot } = await import('../services/providers/modelRegistry.js')
-      const snap = buildRouterModelSnapshot()
+      const { buildProviderSnapshot } = await import('../services/providers/modelRegistry.js')
+      const snap = buildProviderSnapshot()
       const anthropic = snap.providers.find(p => p.id === 'anthropic')
-      const classes = (['opus', 'sonnet', 'fable'] as const).map(c => snap.resolve(c, 'adaptive'))
+      const classes = (['opus', 'sonnet', 'fable'] as const).map(c => snap.resolve(c))
       const engines = snap.providers.filter(p => p.id !== 'anthropic')
       const ENGINE_UNAVAILABLE_CODES = [
         'discovery-pending:',
@@ -862,8 +862,8 @@ function providerSlotsCheck(): CheckSpec {
       const enginesHonest = engines.every(
         p => p.available || ENGINE_UNAVAILABLE_CODES.some(code => p.reason?.startsWith(code)),
       )
-      const gptRef = snap.resolve('gpt', 'adaptive')
-      const glmRef = snap.resolve('glm', 'adaptive')
+      const gptRef = snap.resolve('gpt')
+      const glmRef = snap.resolve('glm')
       const seatLawHolds =
         (gptRef === null || (gptRef.provider === 'openai' && gptRef.modelClass === 'gpt')) &&
         (glmRef === null || (glmRef.provider === 'zai' && glmRef.modelClass === 'glm'))

@@ -17,13 +17,13 @@ const { loginFamilyRows, keyPageLine } = await import('../../src/components/logi
 const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines, loginsFlowStatusOf } = await import('../../src/components/BootLoginsScreen.tsx')
 const { keyLaneProviderRows, keyConnectValue } = await import('../../src/utils/model/modelOptions.ts')
 const { subModelConnectHome } = await import('../../src/utils/model/subModelSlots.ts')
-const { buildRouterModelSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
+const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 const root = join(import.meta.dir, '..', '..')
 const read = (path: string): string => readFileSync(join(root, path), 'utf8')
 let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
 try {
-  check('Meta is a primary provider, with a signed-out usage and readiness truth', buildRouterModelSnapshot().providers.some(provider => provider.id === 'meta') && usageForProvider('meta').sourceKind === 'none' && !resolveProviderUsability().meta.usable)
+  check('Meta is a primary provider, with a signed-out usage and readiness truth', buildProviderSnapshot().providers.some(provider => provider.id === 'meta') && usageForProvider('meta').sourceKind === 'none' && !resolveProviderUsability().meta.usable)
   check('both family words focus the same sign-in and default-provider doors', ['meta', 'muse'].every(word => parseFamilyFocus(word) === 'meta' && parseDefaultProviderWord(word) === 'meta'))
   const row = loginFamilyRows({ engineLegs: true }).find(row => row.value === 'meta')
   check('both sign-in surfaces name Meta, Muse Code sign-in and the API-key road identically', row?.label === 'Meta — Muse Code sign-in or API key' && loginsFlowStatusOf({ kind: 'pick', pick: 'meta', pickSel: 0 }) === row.label && keyPageLine('meta').includes('dev.meta.ai'))

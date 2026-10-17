@@ -29,7 +29,7 @@ console.log('============================================================')
 console.log(' S1 — contract freeze (adapter surface · launch plan)')
 console.log('============================================================')
 
-section('1 · RouterProviderAdapter — exactly the frozen member set')
+section('1 · ProviderAdapter — exactly the frozen member set')
 {
   const FROZEN_MEMBERS = [
     'id',

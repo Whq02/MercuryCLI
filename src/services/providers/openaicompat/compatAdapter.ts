@@ -7,12 +7,11 @@ import { stripCompatModelPrefix } from '../routeLaw.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderModel,
-  RouterProviderStatus,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
   SpecialistRole,
 } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
@@ -53,14 +52,14 @@ function describeCompatProvider(): ProviderDescription {
   }
 }
 
-function compatStatus(): RouterProviderStatus {
+function compatStatus(): ProviderStatus {
   const discovery = primeCompatDiscovery()
   return discovery?.configured
     ? { available: true }
     : { available: false, reason: 'not-configured:openai-compat' }
 }
 
-function listCompatModels(): RouterProviderModel[] {
+function listCompatModels(): ProviderModel[] {
   if (!compatStatus().available) return []
   return compatSlotCatalogue().map(entry => ({
     ref: {
@@ -75,19 +74,18 @@ function listCompatModels(): RouterProviderModel[] {
 }
 
 function resolveCompatModel(
-  _modelClass: RouterModelClass,
-  _posture: RouterPosture,
-): RouteModelRef | null {
+  _modelClass: ProviderModelClass,
+): ProviderModelRef | null {
   return null
 }
 
-function buildCompatLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildCompatLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: the openai-compat slot has no SEAT runtime — roster seats stay Anthropic; compat specialists dispatch through the AgentTool engine path',
+    'seat: the openai-compat slot has no SEAT runtime — roster seats stay Anthropic; compat specialists dispatch through the AgentTool engine path',
   )
 }
 
-export const compatProviderAdapter: RouterProviderAdapter = {
+export const compatProviderAdapter: ProviderAdapter = {
   id: 'openai-compat',
   transport: 'openai-compat-chat-completions',
   status: compatStatus,

@@ -829,13 +829,13 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
   const gKey = await storeGeminiApiKeyLogin('gk-abcdefgh12345678', { refreshCatalogue: async () => null })
   t.check('the key drivers store + prove (openrouter · gemini)', orKey.stored && orKey.receipt.includes('Live catalogue: 4 model(s)') && gKey.stored && gKey.receipt.endsWith('generativelanguage.googleapis.com.'))
 
-  const routers = ['RouterOpenaiConnect.tsx', 'RouterOpenrouterConnect.tsx', 'GeminiConnect.tsx']
+  const routers = ['OpenaiConnect.tsx', 'OpenrouterConnect.tsx', 'GeminiConnect.tsx']
   const spellers = routers.filter(f => {
     const src = read(`src/components/${f}`)
     return src.includes('live catalogue: ') || src.includes('connect failed: ${') || src.includes('That is an Anthropic API key')
   })
   t.check('NO connect component spells a settle/fail/guard sentence any more', spellers.length === 0, spellers.join(','))
-  t.check('each component consumes its login door', read('src/components/RouterOpenaiConnect.tsx').includes('finishOpenaiSubscriptionConnect') && read('src/components/RouterOpenrouterConnect.tsx').includes('finishOpenrouterConnect') && read('src/components/GeminiConnect.tsx').includes('finishGeminiOauthConnect'))
+  t.check('each component consumes its login door', read('src/components/OpenaiConnect.tsx').includes('finishOpenaiSubscriptionConnect') && read('src/components/OpenrouterConnect.tsx').includes('finishOpenrouterConnect') && read('src/components/GeminiConnect.tsx').includes('finishGeminiOauthConnect'))
 
   t.check('the openrouter pick is the landed card, byte-same', JSON.stringify(loginsPickOptions('openrouter').map(o => o.label)) === JSON.stringify(['Sign in with the browser — OAuth mints a scoped key', 'Headless — OpenRouter shows a code you paste here', 'Paste an API key (stored locally, mode 600)']))
   const { geminiConnectRows } = await import('../../src/components/geminiConnectGuide.js')

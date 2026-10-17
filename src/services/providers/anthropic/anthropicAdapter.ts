@@ -3,19 +3,18 @@ import { modelSupportsMaxEffort, modelSupportsXHighEffort } from '../../../utils
 import { getDefaultFableModel, getDefaultOpusModel, getDefaultSonnetModel, renderModelChip } from '../../../utils/model/model.js'
 import type {
   ProviderDescription,
-  RouteEffortLevel,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderModel,
-  RouterProviderStatus,
+  ProviderEffortLevel,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
 } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 type AnthropicModelClass = 'opus' | 'sonnet' | 'fable'
 
-function isAnthropicModelClass(modelClass: RouterModelClass): modelClass is AnthropicModelClass {
+function isAnthropicModelClass(modelClass: ProviderModelClass): modelClass is AnthropicModelClass {
   return modelClass === 'opus' || modelClass === 'sonnet' || modelClass === 'fable'
 }
 
@@ -37,45 +36,43 @@ function classForCanonical(canonical: string): AnthropicModelClass | null {
   return null
 }
 
-const ROUTE_EFFORT_LADDER: readonly RouteEffortLevel[] = ['high', 'xhigh', 'max']
+const ROUTE_EFFORT_LADDER: readonly ProviderEffortLevel[] = ['high', 'xhigh', 'max']
 
-export function routeEffortsFor(model: string): RouteEffortLevel[] {
+export function routeEffortsFor(model: string): ProviderEffortLevel[] {
   return ROUTE_EFFORT_LADDER.filter(level =>
     level === 'high' ? true : level === 'xhigh' ? modelSupportsXHighEffort(model) : modelSupportsMaxEffort(model),
   )
 }
 
-function defaultEffortFor(modelClass: AnthropicModelClass, posture: RouterPosture): RouteEffortLevel {
-  if (posture === 'quality') return modelClass === 'opus' ? 'max' : 'xhigh'
+function defaultEffortFor(modelClass: AnthropicModelClass): ProviderEffortLevel {
   return modelClass === 'opus' ? 'xhigh' : 'high'
 }
 
-function anthropicStatus(): RouterProviderStatus {
+function anthropicStatus(): ProviderStatus {
   return { available: true }
 }
 
 export function resolveAnthropicModel(
-  modelClass: RouterModelClass,
-  posture: RouterPosture,
-): RouteModelRef | null {
+  modelClass: ProviderModelClass,
+): ProviderModelRef | null {
   if (!isAnthropicModelClass(modelClass)) return null
   const model = classDefaultModel(modelClass)
-  const effort = defaultEffortFor(modelClass, posture)
+  const effort = defaultEffortFor(modelClass)
   const contextWindow = getContextWindowForModel(model)
   return { provider: 'anthropic', model, modelClass, effort, contextWindow }
 }
 
-export function listAnthropicModels(): RouterProviderModel[] {
+export function listAnthropicModels(): ProviderModel[] {
   const classes: AnthropicModelClass[] = ['opus', 'sonnet', 'fable']
-  const out: RouterProviderModel[] = []
+  const out: ProviderModel[] = []
   for (const modelClass of classes) {
-    const ref = resolveAnthropicModel(modelClass, 'adaptive')
+    const ref = resolveAnthropicModel(modelClass)
     if (ref) out.push({ ref, displayLabel: renderModelChip(ref.model) })
   }
   return out
 }
 
-function buildAnthropicLaunchPatch(ref: RouteModelRef): { model: string; effort: string } {
+function buildAnthropicLaunchPatch(ref: ProviderModelRef): { model: string; effort: string } {
   return { model: ref.model, effort: ref.effort }
 }
 
@@ -105,7 +102,7 @@ function describeAnthropicProvider(): ProviderDescription {
   }
 }
 
-export const anthropicProviderAdapter: RouterProviderAdapter = {
+export const anthropicProviderAdapter: ProviderAdapter = {
   id: 'anthropic',
   transport: 'anthropic-messages',
   status: anthropicStatus,

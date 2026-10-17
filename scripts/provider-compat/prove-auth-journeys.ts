@@ -220,7 +220,7 @@ const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
 import type { Options } from '../../src/services/providers/anthropic/streamCore.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
-import type { RouterModelSnapshot } from '../../src/services/providers/modelRegistry.ts'
+import type { ProviderSnapshot } from '../../src/services/providers/modelRegistry.ts'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 
 
@@ -1069,7 +1069,7 @@ const fixtureProviders = FAMILIES.map(id => ({
     catalogue: [],
     catalogueSource: 'static-pin',
   },
-})) as unknown as RouterModelSnapshot['providers']
+})) as unknown as ProviderSnapshot['providers']
 
 const slotReads = {
   familyReads: {

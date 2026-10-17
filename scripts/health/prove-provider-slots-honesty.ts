@@ -53,8 +53,8 @@ check(
 )
 
 check(
-  'AUTH rows enumerate the catalogue (buildRouterModelSnapshot inside providerAuthChecks)',
-  /function providerAuthChecks\(\)[\s\S]{0,200}buildRouterModelSnapshot\(\)/.test(healthSrc),
+  'AUTH rows enumerate the catalogue (buildProviderSnapshot inside providerAuthChecks)',
+  /function providerAuthChecks\(\)[\s\S]{0,200}buildProviderSnapshot\(\)/.test(healthSrc),
 )
 check(
   'AUTH row ids derive from the enumerated provider id (never a literal row list)',

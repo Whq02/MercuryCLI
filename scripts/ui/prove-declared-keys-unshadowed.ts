@@ -278,9 +278,9 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
   const ACCOUNTS_HOSTS = new Set([
     'src/components/KimiConnect.tsx',
     'src/components/HuggingfaceConnect.tsx',
-    'src/components/RouterOpenrouterConnect.tsx',
+    'src/components/OpenrouterConnect.tsx',
     'src/components/GeminiConnect.tsx',
-    'src/components/RouterOpenaiConnect.tsx',
+    'src/components/OpenaiConnect.tsx',
     'src/components/ConsoleOAuthFlow.tsx',
     'src/components/XaiConnect.tsx',
     'src/components/NousConnect.tsx',

@@ -9,7 +9,7 @@ import {
 } from '../../src/utils/model/model.js'
 import { getModelKnowledgeCutoff } from '../../src/utils/model/capabilities.js'
 import { gatherFrontierFacts } from '../../src/utils/model/frontierPolicy.js'
-import { buildRouterModelSnapshot, classOfModel } from '../../src/services/providers/modelRegistry.js'
+import { buildProviderSnapshot, classOfModel } from '../../src/services/providers/modelRegistry.js'
 
 for (const k of [
   'MERCURY_DEFAULT_OPUS_MODEL',
@@ -130,7 +130,7 @@ section('7. code-side model default census — literals resolve live, tiers trac
 
 section('8. prose surfaces — bundled skills + living docs track the owners')
 {
-  const catalogue = buildRouterModelSnapshot().providers.flatMap(provider => provider.description.catalogue)
+  const catalogue = buildProviderSnapshot().providers.flatMap(provider => provider.description.catalogue)
   const names = [...new Set(catalogue.flatMap(model => [model.id, model.displayLabel, getMarketingNameForModel(model.id)]).filter((name): name is string => typeof name === 'string' && name.length > 0))]
   const fixedRows = (text: string): string[] => text.split('\n').filter(line => {
     const prose = line.replace(/\]\([^)]*\)/g, ']')

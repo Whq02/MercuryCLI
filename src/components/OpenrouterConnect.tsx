@@ -24,7 +24,7 @@ import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
 
 
-export function RouterOpenrouterConnect({
+export function OpenrouterConnect({
   onResult,
 }: {
   onResult: (result: { ok: boolean; receipt: string }) => void

@@ -8,12 +8,11 @@ import { primeOpenaiDiscovery } from '../providerDiscovery.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderModel,
-  RouterProviderStatus,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
   SpecialistRole,
 } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
@@ -93,12 +92,12 @@ export function describeOpenaiProvider(): ProviderDescription {
   }
 }
 
-export function openaiStatus(): RouterProviderStatus {
+export function openaiStatus(): ProviderStatus {
   if (!activeAccount()) return { available: false, reason: 'no-account:openai' }
   return { available: true }
 }
 
-export function listOpenaiModels(): RouterProviderModel[] {
+export function listOpenaiModels(): ProviderModel[] {
   if (!openaiStatus().available) return []
   const live = liveCatalogue()
   if (!live) return []
@@ -115,9 +114,8 @@ export function listOpenaiModels(): RouterProviderModel[] {
 }
 
 export function resolveOpenaiModel(
-  modelClass: RouterModelClass,
-  _posture: RouterPosture,
-): RouteModelRef | null {
+  modelClass: ProviderModelClass,
+): ProviderModelRef | null {
   if (modelClass !== 'gpt') return null
   if (!openaiStatus().available) return null
   const account = activeAccount()
@@ -133,11 +131,11 @@ export function resolveOpenaiModel(
   }
 }
 
-export function buildOpenaiLaunchPatch(ref: RouteModelRef): { model: string; effort: string } {
+export function buildOpenaiLaunchPatch(ref: ProviderModelRef): { model: string; effort: string } {
   return { model: ref.model, effort: ref.effort }
 }
 
-export const openaiProviderAdapter: RouterProviderAdapter = {
+export const openaiProviderAdapter: ProviderAdapter = {
   id: 'openai',
   transport: 'openai-responses',
   status: openaiStatus,

@@ -5,12 +5,11 @@ import {
 import { getCachedGeminiCatalogue } from './geminiCatalogue.js'
 import type {
   ProviderDescription,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderModel,
-  RouterProviderStatus,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
 } from '../providerAdapter.js'
 
 function describeGeminiProvider(): ProviderDescription {
@@ -36,31 +35,30 @@ function describeGeminiProvider(): ProviderDescription {
   }
 }
 
-function geminiStatus(): RouterProviderStatus {
+function geminiStatus(): ProviderStatus {
   const discovery = primeGeminiDiscovery()
   return discovery?.account
     ? { available: true }
     : { available: false, reason: 'no-account:gemini' }
 }
 
-function listGeminiModels(): RouterProviderModel[] {
+function listGeminiModels(): ProviderModel[] {
   return []
 }
 
 function resolveGeminiModel(
-  _modelClass: RouterModelClass,
-  _posture: RouterPosture,
-): RouteModelRef | null {
+  _modelClass: ProviderModelClass,
+): ProviderModelRef | null {
   return null
 }
 
-function buildGeminiLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildGeminiLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider gemini has no SEAT runtime — roster seats stay Anthropic; Gemini dispatch lands with the provider-wire fold',
+    'seat: provider gemini has no SEAT runtime — roster seats stay Anthropic; Gemini dispatch lands with the provider-wire fold',
   )
 }
 
-export const geminiProviderAdapter: RouterProviderAdapter = {
+export const geminiProviderAdapter: ProviderAdapter = {
   id: 'gemini',
   transport: 'gemini-generate-content',
   status: geminiStatus,

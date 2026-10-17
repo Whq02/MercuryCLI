@@ -1,7 +1,7 @@
 import { zenCatalogueRows } from './zenCatalogue.js'
 import { resolveZenAccount } from './zenAccounts.js'
 import { zenDisplayPin, zenQualifiedId } from './zenPins.js'
-import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from '../providerAdapter.js'
+import type { ProviderCatalogueEntry, ProviderDescription, ProviderModelRef, ProviderModelClass, ProviderAdapter, ProviderModel, ProviderStatus } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 export function zenLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
@@ -35,24 +35,24 @@ export function describeZenProvider(): ProviderDescription {
   }
 }
 
-export function zenStatus(): RouterProviderStatus {
+export function zenStatus(): ProviderStatus {
   return resolveZenAccount() ? { available: true } : { available: false, reason: 'no-api-key:zen' }
 }
 
-export function listZenModels(): RouterProviderModel[] {
+export function listZenModels(): ProviderModel[] {
   if (!zenStatus().available) return []
   return zenCatalogueEntries().map(entry => ({ ref: { provider: 'zen', model: entry.id, modelClass: 'zen', effort: 'high', contextWindow: entry.contextWindow ?? 0 }, displayLabel: entry.displayLabel }))
 }
 
-export function resolveZenModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+export function resolveZenModel(_modelClass: ProviderModelClass): ProviderModelRef | null {
   return null
 }
 
-export function buildZenLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
-  throw new Error('router: provider zen has no SEAT runtime — OpenCode Zen specialists dispatch through the AgentTool engine path')
+export function buildZenLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
+  throw new Error('seat: provider zen has no SEAT runtime — OpenCode Zen specialists dispatch through the AgentTool engine path')
 }
 
-export const zenProviderAdapter: RouterProviderAdapter = {
+export const zenProviderAdapter: ProviderAdapter = {
   id: 'zen', transport: 'openai-compat-chat-completions', status: zenStatus,
   describe: describeZenProvider, listModels: listZenModels, resolveModel: resolveZenModel, buildLaunchPatch: buildZenLaunchPatch,
 }

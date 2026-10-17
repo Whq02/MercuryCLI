@@ -52,7 +52,7 @@ check('the running-work census has no codex domain', !/codex/i.test(censusSrc))
 
 const typesSrc = readFileSync(join(ROOT, 'src', 'utils', 'router', 'providers', 'types.ts'), 'utf8')
 check(
-  "RouterTransport has no live 'codex-app-server' MEMBER (comment mentions allowed)",
+  "ProviderTransport has no live 'codex-app-server' MEMBER (comment mentions allowed)",
   !/\|\s*'codex-app-server'/.test(typesSrc),
 )
 

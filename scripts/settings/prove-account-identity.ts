@@ -179,7 +179,7 @@ const discovery = await import(join(ROOT, 'src/services/providers/providerDiscov
 const registry = await import(join(ROOT, 'src/services/providers/modelRegistry.ts'))
 await localDiscovery.refreshLocalDiscovery({ force: true })
 discovery.__resetProviderDiscoveryForTest()
-registry.resetRouterModelSnapshotMemo()
+registry.resetProviderSnapshotMemo()
 ledger.noteCredentialChange()
 
 function setIdentity(leg: Leg): void {
@@ -548,8 +548,8 @@ section('§7 the model picker header and the provider identity words read the ow
   const registry = await import(join(ROOT, 'src/services/providers/modelRegistry.ts'))
   const hfLine = (leg: Leg): string => {
     setIdentity(leg)
-    registry.resetRouterModelSnapshotMemo()
-    const lane = registry.buildRouterModelSnapshot().providers.find(p => p.id === 'huggingface')
+    registry.resetProviderSnapshotMemo()
+    const lane = registry.buildProviderSnapshot().providers.find(p => p.id === 'huggingface')
     return `huggingface: ${identityLine.shownIdentityWords('huggingface', lane?.description.account.label ?? '')} · ${lane?.transport ?? ''}`
   }
   const shownEngines = hfLine('absent')

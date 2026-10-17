@@ -151,7 +151,7 @@ section('(8) every honest engine-unavailable code the providers spell is on the 
     return out
   }
   const spelled = new Set<string>()
-  for (const root of [join(ROOT, 'src', 'utils', 'router', 'providers'), join(ROOT, 'src', 'services', 'providers')]) {
+  for (const root of [join(ROOT, 'src', 'services', 'providers')]) {
     for (const file of walk(root)) {
       for (const m of readFileSync(file, 'utf8').matchAll(/reason: ?[`'"]([a-z-]+:)/g)) spelled.add(m[1] as string)
     }

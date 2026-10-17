@@ -2,12 +2,11 @@ import { getCachedProviderDiscovery, primeNousDiscovery } from '../providerDisco
 import { getCachedNousCatalogue } from './nousCatalogue.js'
 import type {
   ProviderDescription,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderModel,
-  RouterProviderStatus,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
 } from '../providerAdapter.js'
 
 export function describeNousProvider(): ProviderDescription {
@@ -31,24 +30,24 @@ export function describeNousProvider(): ProviderDescription {
   }
 }
 
-export function nousStatus(): RouterProviderStatus {
+export function nousStatus(): ProviderStatus {
   const discovery = primeNousDiscovery()
   return discovery?.keyPresent ? { available: true } : { available: false, reason: 'no-api-key:nous' }
 }
 
-export function listNousModels(): RouterProviderModel[] {
+export function listNousModels(): ProviderModel[] {
   return []
 }
 
-export function resolveNousModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+export function resolveNousModel(_modelClass: ProviderModelClass): ProviderModelRef | null {
   return null
 }
 
-export function buildNousLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
-  throw new Error('router: provider nous has no SEAT runtime — roster seats stay Anthropic; Nous Portal models dispatch through the AgentTool engine path')
+export function buildNousLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
+  throw new Error('seat: provider nous has no SEAT runtime — roster seats stay Anthropic; Nous Portal models dispatch through the AgentTool engine path')
 }
 
-export const nousProviderAdapter: RouterProviderAdapter = {
+export const nousProviderAdapter: ProviderAdapter = {
   id: 'nous',
   transport: 'openai-compat-chat-completions',
   status: nousStatus,

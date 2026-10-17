@@ -20,7 +20,7 @@ import {
 } from '../services/providers/openai/openaiLogin.js'
 
 
-export function RouterOpenaiConnect({
+export function OpenaiConnect({
   mode,
   onDone,
   onResult,

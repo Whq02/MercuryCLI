@@ -201,8 +201,8 @@ section('§3 one owner — /logout calls it; the removal switch and the verb agr
   const missing = routes.filter(r => !verbBody.includes(`['${r}',`))
   check('every engine route of the removal switch has a row in the everything-verb', missing.length === 0, missing.join(', '))
 
-  const { buildRouterModelSnapshot } = await import('../../src/services/providers/modelRegistry.js')
-  const families = buildRouterModelSnapshot().providers.map(p => String(p.id))
+  const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.js')
+  const families = buildProviderSnapshot().providers.map(p => String(p.id))
   check('the enumeration lists the ten families', families.length >= 10, families.join(', '))
   const stem = (id: string): string => (id === 'openai-compat' ? 'compat' : id)
   const armless = families.filter(id =>

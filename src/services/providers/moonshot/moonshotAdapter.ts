@@ -6,12 +6,11 @@ import {
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderModel,
-  RouterProviderStatus,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
   SpecialistRole,
 } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
@@ -57,14 +56,14 @@ export function describeMoonshotProvider(): ProviderDescription {
   }
 }
 
-function moonshotStatus(): RouterProviderStatus {
+function moonshotStatus(): ProviderStatus {
   const discovery = primeMoonshotDiscovery()
   return discovery?.account
     ? { available: true }
     : { available: false, reason: 'no-credential:moonshot' }
 }
 
-export function listMoonshotModels(): RouterProviderModel[] {
+export function listMoonshotModels(): ProviderModel[] {
   if (!moonshotStatus().available) return []
   return moonshotCatalogueEntries().map(entry => ({
     ref: {
@@ -79,19 +78,18 @@ export function listMoonshotModels(): RouterProviderModel[] {
 }
 
 function resolveMoonshotModel(
-  _modelClass: RouterModelClass,
-  _posture: RouterPosture,
-): RouteModelRef | null {
+  _modelClass: ProviderModelClass,
+): ProviderModelRef | null {
   return null
 }
 
-function buildMoonshotLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildMoonshotLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider moonshot has no SEAT runtime — roster seats stay Anthropic; Kimi specialists dispatch through the AgentTool engine path',
+    'seat: provider moonshot has no SEAT runtime — roster seats stay Anthropic; Kimi specialists dispatch through the AgentTool engine path',
   )
 }
 
-export const moonshotProviderAdapter: RouterProviderAdapter = {
+export const moonshotProviderAdapter: ProviderAdapter = {
   id: 'moonshot',
   transport: 'openai-compat-chat-completions',
   status: moonshotStatus,

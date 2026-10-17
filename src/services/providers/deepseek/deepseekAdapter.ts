@@ -8,12 +8,11 @@ import { deepseekCatalogueRows } from './deepseekCatalogue.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderModel,
-  RouterProviderStatus,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
   SpecialistRole,
 } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
@@ -86,14 +85,14 @@ export function describeDeepseekProvider(): ProviderDescription {
   }
 }
 
-export function deepseekStatus(): RouterProviderStatus {
+export function deepseekStatus(): ProviderStatus {
   const discovery = primeDeepseekDiscovery()
   return discovery?.keyPresent
     ? { available: true }
     : { available: false, reason: 'no-api-key:deepseek' }
 }
 
-export function listDeepseekModels(): RouterProviderModel[] {
+export function listDeepseekModels(): ProviderModel[] {
   if (!deepseekStatus().available) return []
   return deepseekCatalogueEntries().map(entry => ({
     ref: {
@@ -108,19 +107,18 @@ export function listDeepseekModels(): RouterProviderModel[] {
 }
 
 export function resolveDeepseekModel(
-  _modelClass: RouterModelClass,
-  _posture: RouterPosture,
-): RouteModelRef | null {
+  _modelClass: ProviderModelClass,
+): ProviderModelRef | null {
   return null
 }
 
-export function buildDeepseekLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+export function buildDeepseekLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider deepseek has no SEAT runtime — roster seats stay Anthropic; DeepSeek specialists dispatch through the AgentTool engine path',
+    'seat: provider deepseek has no SEAT runtime — roster seats stay Anthropic; DeepSeek specialists dispatch through the AgentTool engine path',
   )
 }
 
-export const deepseekProviderAdapter: RouterProviderAdapter = {
+export const deepseekProviderAdapter: ProviderAdapter = {
   id: 'deepseek',
   transport: 'openai-compat-chat-completions',
   status: deepseekStatus,

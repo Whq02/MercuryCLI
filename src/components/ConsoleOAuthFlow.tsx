@@ -32,8 +32,8 @@ import {
   resolveProviderUsability,
   type ProviderId,
 } from '../services/providers/providerUsability.js'
-import { RouterOpenaiConnect } from './RouterOpenaiConnect.js'
-import { RouterOpenrouterConnect } from './RouterOpenrouterConnect.js'
+import { OpenaiConnect } from './OpenaiConnect.js'
+import { OpenrouterConnect } from './OpenrouterConnect.js'
 import { GeminiConnect } from './GeminiConnect.js'
 import { HuggingfaceConnect } from './HuggingfaceConnect.js'
 import { KimiConnect } from './KimiConnect.js'
@@ -264,7 +264,7 @@ export function ConsoleOAuthFlow({
       case 'openrouter':
         if (onOpenaiDone === undefined)
           return frame(<Text dimColor>OpenRouter login unavailable here.</Text>)
-        return frame(<RouterOpenrouterConnect onResult={settleLeg} />)
+        return frame(<OpenrouterConnect onResult={settleLeg} />)
 
       case 'gemini':
         if (onOpenaiDone === undefined)
@@ -504,7 +504,7 @@ function OpenaiSubscriptionLeg({
 }): React.ReactNode {
   const [mode, setMode] = useState<'browser' | 'device'>('browser')
   return (
-    <RouterOpenaiConnect
+    <OpenaiConnect
       key={mode}
       mode={mode}
       onDone={() => {}}

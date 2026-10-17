@@ -7,14 +7,13 @@ import { openaiProviderAdapter } from './openai/openaiAdapter.js'
 import { openrouterProviderAdapter } from './openrouter/openrouterAdapter.js'
 import type {
   ProviderDescription,
-  RouteEffortLevel,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderId,
-  RouterProviderModel,
-  RouterTransport,
+  ProviderEffortLevel,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderFamilyId,
+  ProviderModel,
+  ProviderTransport,
 } from './providerAdapter.js'
 import { zaiProviderAdapter } from './zai/zaiAdapter.js'
 import { moonshotProviderAdapter } from './moonshot/moonshotAdapter.js'
@@ -31,20 +30,20 @@ import { catalogueEpoch } from './catalogueEpoch.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { credentialEnvNames } from './providerSecrets.js'
 
-export interface RouterModelSnapshot {
+export interface ProviderSnapshot {
   providers: Array<{
-    id: RouterProviderId
+    id: ProviderFamilyId
     available: boolean
     reason?: string
-    transport: RouterTransport
+    transport: ProviderTransport
     description: ProviderDescription
   }>
-  resolve(modelClass: RouterModelClass, posture: RouterPosture): RouteModelRef | null
-  resolveExact(pin: string): RouteModelRef | null
-  listAvailable(): RouterProviderModel[]
+  resolve(modelClass: ProviderModelClass): ProviderModelRef | null
+  resolveExact(pin: string): ProviderModelRef | null
+  listAvailable(): ProviderModel[]
 }
 
-const PROVIDER_ADAPTERS: readonly RouterProviderAdapter[] = [
+const PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   anthropicProviderAdapter,
   openaiProviderAdapter,
   zaiProviderAdapter,
@@ -62,7 +61,7 @@ const PROVIDER_ADAPTERS: readonly RouterProviderAdapter[] = [
   zenProviderAdapter,
 ]
 
-function classForCanonical(canonical: string): RouterModelClass | null {
+function classForCanonical(canonical: string): ProviderModelClass | null {
   if (canonical === 'claude-opus-4-6') return 'opus'
   if (canonical === 'claude-opus-5') return 'opus'
   if (canonical === 'claude-opus-5-5') return 'opus'
@@ -73,17 +72,17 @@ function classForCanonical(canonical: string): RouterModelClass | null {
   return null
 }
 
-export function classOfModel(model: string | undefined): RouterModelClass | undefined {
+export function classOfModel(model: string | undefined): ProviderModelClass | undefined {
   if (!model?.trim()) return undefined
   return classForCanonical(getCanonicalName(familyDefaultsModel(parseUserSpecifiedModel(model.trim())))) ?? undefined
 }
 
-function defaultExactEffort(modelClass: RouterModelClass): RouteEffortLevel {
+function defaultExactEffort(modelClass: ProviderModelClass): ProviderEffortLevel {
   return modelClass === 'opus' ? 'xhigh' : 'high'
 }
 
 const SNAPSHOT_TTL_MS = 5_000
-let snapshotMemo: { at: number; key: string; snapshot: RouterModelSnapshot } | null = null
+let snapshotMemo: { at: number; key: string; snapshot: ProviderSnapshot } | null = null
 
 function snapshotKey(): string {
   let env = ''
@@ -91,22 +90,22 @@ function snapshotKey(): string {
   return `${signInLedgerEpoch()}:${catalogueEpoch()}:${env}`
 }
 
-export function resetRouterModelSnapshotMemo(): void {
+export function resetProviderSnapshotMemo(): void {
   snapshotMemo = null
 }
 
-export function buildRouterModelSnapshot(): RouterModelSnapshot {
+export function buildProviderSnapshot(): ProviderSnapshot {
   const key = snapshotKey()
   const now = Date.now()
   if (snapshotMemo !== null && snapshotMemo.key === key && now - snapshotMemo.at < SNAPSHOT_TTL_MS) {
     return snapshotMemo.snapshot
   }
-  const snapshot = composeRouterModelSnapshot()
+  const snapshot = composeProviderSnapshot()
   snapshotMemo = { at: now, key, snapshot }
   return snapshot
 }
 
-function composeRouterModelSnapshot(): RouterModelSnapshot {
+function composeProviderSnapshot(): ProviderSnapshot {
   const statuses = PROVIDER_ADAPTERS.map(adapter => adapter.status())
   const providers = PROVIDER_ADAPTERS.map((adapter, i) => {
     const status = statuses[i]!
@@ -119,16 +118,16 @@ function composeRouterModelSnapshot(): RouterModelSnapshot {
     }
   })
 
-  function resolve(modelClass: RouterModelClass, posture: RouterPosture): RouteModelRef | null {
+  function resolve(modelClass: ProviderModelClass): ProviderModelRef | null {
     for (let i = 0; i < PROVIDER_ADAPTERS.length; i++) {
       if (!statuses[i]!.available) continue
-      const ref = PROVIDER_ADAPTERS[i]!.resolveModel(modelClass, posture)
+      const ref = PROVIDER_ADAPTERS[i]!.resolveModel(modelClass)
       if (ref) return ref
     }
     return null
   }
 
-  function resolveExact(pin: string): RouteModelRef | null {
+  function resolveExact(pin: string): ProviderModelRef | null {
     const trimmed = pin?.trim()
     if (!trimmed) return null
     const resolved = parseUserSpecifiedModel(trimmed)
@@ -144,8 +143,8 @@ function composeRouterModelSnapshot(): RouterModelSnapshot {
     return { provider: 'anthropic', model: resolved, modelClass, effort, contextWindow }
   }
 
-  function listAvailable(): RouterProviderModel[] {
-    const out: RouterProviderModel[] = []
+  function listAvailable(): ProviderModel[] {
+    const out: ProviderModel[] = []
     for (let i = 0; i < PROVIDER_ADAPTERS.length; i++) {
       if (!statuses[i]!.available) continue
       out.push(...PROVIDER_ADAPTERS[i]!.listModels())

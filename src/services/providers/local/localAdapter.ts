@@ -4,12 +4,11 @@ import { LOCAL_MODEL_PREFIX } from './localCatalogue.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderModel,
-  RouterProviderStatus,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
   SpecialistRole,
 } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
@@ -55,7 +54,7 @@ export function describeLocalProvider(): ProviderDescription {
   }
 }
 
-export function localStatus(): RouterProviderStatus {
+export function localStatus(): ProviderStatus {
   const discovery = primeLocalDiscovery()
   if (discovery?.serverPresent) return { available: true }
   if (discovery !== null && !discovery.probed) {
@@ -64,7 +63,7 @@ export function localStatus(): RouterProviderStatus {
   return { available: false, reason: 'no-server:local' }
 }
 
-function listLocalModels(): RouterProviderModel[] {
+function listLocalModels(): ProviderModel[] {
   if (!localStatus().available) return []
   return localLiveCatalogue().map(entry => ({
     ref: {
@@ -78,17 +77,17 @@ function listLocalModels(): RouterProviderModel[] {
   }))
 }
 
-function resolveLocalModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+function resolveLocalModel(_modelClass: ProviderModelClass): ProviderModelRef | null {
   return null
 }
 
-function buildLocalLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildLocalLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider local has no SEAT runtime — roster seats stay Anthropic; local specialists dispatch through the AgentTool engine path',
+    'seat: provider local has no SEAT runtime — roster seats stay Anthropic; local specialists dispatch through the AgentTool engine path',
   )
 }
 
-export const localProviderAdapter: RouterProviderAdapter = {
+export const localProviderAdapter: ProviderAdapter = {
   id: 'local',
   transport: 'openai-compat-chat-completions',
   status: localStatus,

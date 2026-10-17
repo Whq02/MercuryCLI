@@ -231,11 +231,11 @@ async function settleLeg(leg: Leg): Promise<void> {
   moonshotUsage.__resetMoonshotUsageForTest()
   localDiscovery.__resetLocalDiscoveryForTest()
   discovery.__resetProviderDiscoveryForTest()
-  registry.resetRouterModelSnapshotMemo()
+  registry.resetProviderSnapshotMemo()
   ledger.noteCredentialChange()
   if (leg !== 'nothing') await localDiscovery.refreshLocalDiscovery({ force: true })
   discovery.__resetProviderDiscoveryForTest()
-  registry.resetRouterModelSnapshotMemo()
+  registry.resetProviderSnapshotMemo()
   ledger.noteCredentialChange()
 }
 await settleLeg('accounts')

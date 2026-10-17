@@ -125,7 +125,7 @@ for (const path of files(SRC)) {
 }
 const options = readFileSync(join(SRC, 'utils/model/modelOptions.ts'), 'utf8')
 const dispatch = readFileSync(join(SRC, 'utils/crew/engineDispatch.ts'), 'utf8')
-const adapter = readFileSync(join(SRC, 'services/providers/moonshot.ts'), 'utf8')
+const adapter = readFileSync(join(SRC, 'services/providers/moonshot/moonshotAdapter.ts'), 'utf8')
 const familyWords = readFileSync(join(SRC, 'utils/model/bareFamilyWords.ts'), 'utf8')
 check('Moonshot picker reads the live-backed row owner', options.includes('moonshotCatalogueRows().rows') && !options.includes('KIMI_DISPLAY_PINS'))
 check('Moonshot specialist choice and exact admission read the catalogue first; the pin table is reached only as the known rung behind the live list, never a parallel static projection', dispatch.includes('bareFamilyWordOf(modelParam)') && familyWords.includes('moonshotCatalogueRows().rows[0]') && knownRungBehindLiveList(dispatch) && !dispatch.includes('KIMI_DISPLAY_PINS') && dispatch.includes('qualifyMoonshotModel(') && !dispatch.includes('KIMI_STATIC_CATALOGUE'))

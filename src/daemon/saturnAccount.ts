@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { anthropicCredentialPresence } from '../services/providers/providerUsage.js'
-import { buildRouterModelSnapshot } from '../services/providers/modelRegistry.js'
+import { buildProviderSnapshot } from '../services/providers/modelRegistry.js'
 import { getClaudeAIOAuthTokens, isAnthropicOAuthSignInExpired, isClaudeAISubscriber } from '../utils/auth.js'
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
 import { readScopeIdentity, scopeIdentityFile } from '../utils/accounts/scopeScan.js'
@@ -41,7 +41,7 @@ function productionPresenceOf(family: string): FamilyCredentialPresenceV1 {
     }
   }
   try {
-    const provider = buildRouterModelSnapshot().providers.find(p => p.id === family)
+    const provider = buildProviderSnapshot().providers.find(p => p.id === family)
     const account = (provider?.description as { account?: { kind?: string } } | undefined)?.account
     if (!account || account.kind === 'none' || account.kind === undefined) {
       return { credentialed: false, kind: 'none' }

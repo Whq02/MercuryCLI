@@ -435,7 +435,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
   const { providerFamilyPresences, anthropicCredentialPresence } = await import(
     '../../src/services/providers/providerUsage.ts'
   )
-  const { buildRouterModelSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
+  const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
   const { resolveOpenaiAccount } = await import(
     '../../src/services/providers/openai/openaiAccounts.ts'
   )
@@ -470,7 +470,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
       'signed out: the family row is uncredentialed',
       composeSubModelRegistry().families.find(f => f.source === 'openai')?.credentialed === false,
     )
-    const provider = buildRouterModelSnapshot().providers.find(p => p.id === 'openai')
+    const provider = buildProviderSnapshot().providers.find(p => p.id === 'openai')
     check(
       'signed out: the dispatch gate reads the same truth (no-account:openai)',
       provider?.available === false && provider?.reason === 'no-account:openai',
@@ -525,7 +525,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
       family?.credentialed === true && family?.credentialLabel === 'ChatGPT plus subscription',
       JSON.stringify(family),
     )
-    const provider = buildRouterModelSnapshot().providers.find(p => p.id === 'openai')
+    const provider = buildProviderSnapshot().providers.find(p => p.id === 'openai')
     check('signed in: the dispatch gate opens on the same read', provider?.available === true)
   }
 

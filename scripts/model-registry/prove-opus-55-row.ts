@@ -98,10 +98,9 @@ section("§2 the row: the opus family's newest generation, its class, its picker
   check("the router classifies the id 'opus'", classOfModel(ID) === 'opus', String(classOfModel(ID)))
   check("the router classifies the family word 'opus'", classOfModel('opus') === 'opus', String(classOfModel('opus')))
   check("the router still classifies Opus 5 'opus'", classOfModel(PREVIOUS) === 'opus', String(classOfModel(PREVIOUS)))
-  const adaptive = resolveAnthropicModel('opus', 'adaptive')
-  const quality = resolveAnthropicModel('opus', 'quality')
+  const adaptive = resolveAnthropicModel('opus')
   check('the seat table resolves the opus class to the new row at 1M', adaptive?.model === ID && adaptive.contextWindow === 1_000_000, JSON.stringify(adaptive))
-  check("the seat's default efforts per posture are unchanged (xhigh; max on quality)", adaptive?.effort === 'xhigh' && quality?.effort === 'max', `${adaptive?.effort}/${quality?.effort}`)
+  check("the seat's default effort is unchanged (xhigh)", adaptive?.effort === 'xhigh', String(adaptive?.effort))
   check("the seat listing's opus row is labelled by the display owner", listAnthropicModels().some(m => m.ref.model === ID && m.displayLabel === 'Opus 5.5'), JSON.stringify(listAnthropicModels().map(m => [m.ref.model, m.displayLabel])))
   check('the route ladder reaches max on the row', routeEffortsFor(ID).join(',') === 'high,xhigh,max', routeEffortsFor(ID).join(','))
 

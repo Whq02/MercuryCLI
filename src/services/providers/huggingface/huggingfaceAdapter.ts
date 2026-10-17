@@ -10,12 +10,11 @@ import {
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
-  RouteModelRef,
-  RouterModelClass,
-  RouterPosture,
-  RouterProviderAdapter,
-  RouterProviderModel,
-  RouterProviderStatus,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
   SpecialistRole,
 } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
@@ -70,12 +69,12 @@ function describeHuggingfaceProvider(): ProviderDescription {
   }
 }
 
-function huggingfaceStatus(): RouterProviderStatus {
+function huggingfaceStatus(): ProviderStatus {
   const discovery = primeHuggingfaceDiscovery()
   return discovery?.keyPresent ? { available: true } : { available: false, reason: 'no-api-key:huggingface' }
 }
 
-function listHuggingfaceModels(): RouterProviderModel[] {
+function listHuggingfaceModels(): ProviderModel[] {
   if (!huggingfaceStatus().available) return []
   const entries = huggingfaceLiveCatalogue()?.entries ?? HUGGINGFACE_STATIC_CATALOGUE
   return entries.map(entry => ({
@@ -90,17 +89,17 @@ function listHuggingfaceModels(): RouterProviderModel[] {
   }))
 }
 
-function resolveHuggingfaceModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+function resolveHuggingfaceModel(_modelClass: ProviderModelClass): ProviderModelRef | null {
   return null
 }
 
-function buildHuggingfaceLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildHuggingfaceLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider huggingface has no SEAT runtime — roster seats stay Anthropic; Hugging Face specialists dispatch through the AgentTool engine path',
+    'seat: provider huggingface has no SEAT runtime — roster seats stay Anthropic; Hugging Face specialists dispatch through the AgentTool engine path',
   )
 }
 
-export const huggingfaceProviderAdapter: RouterProviderAdapter = {
+export const huggingfaceProviderAdapter: ProviderAdapter = {
   id: 'huggingface',
   transport: 'openai-compat-chat-completions',
   status: huggingfaceStatus,

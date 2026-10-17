@@ -5,7 +5,7 @@ import {
   GPT_DISPLAY_PINS,
 } from '../../services/providers/openai/openaiCatalogue.js'
 import { resolveOpenaiAccount } from '../../services/providers/openai/openaiAccounts.js'
-import { buildRouterModelSnapshot } from '../../services/providers/modelRegistry.js'
+import { buildProviderSnapshot } from '../../services/providers/modelRegistry.js'
 import { refreshProviderDiscovery } from '../../services/providers/providerDiscovery.js'
 import { DEPRECATED_GPT_IDS } from '../../services/providers/openai/openaiAdapter.js'
 import { zaiCatalogueEntries, zaiCatalogueEntry } from '../../services/providers/zai/zaiAdapter.js'
@@ -174,7 +174,7 @@ export function providerUnavailableRefusal(provider: EngineProvider, reason: str
 
 async function requireProviderAvailable(provider: EngineProvider): Promise<void> {
   await refreshProviderDiscovery(provider)
-  const snapshot = buildRouterModelSnapshot()
+  const snapshot = buildProviderSnapshot()
   const entry = snapshot.providers.find(p => p.id === provider)
   if (!entry?.available) {
     throw new Error(providerUnavailableRefusal(provider, entry?.reason))

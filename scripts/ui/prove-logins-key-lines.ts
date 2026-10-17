@@ -50,7 +50,7 @@ const FACE = 'src/components/BootLoginsScreen.tsx'
 const GUIDE = 'src/components/geminiConnectGuide.ts'
 const PANE: Record<Family, string> = {
   openai: 'src/components/ConsoleOAuthFlow.tsx',
-  openrouter: 'src/components/RouterOpenrouterConnect.tsx',
+  openrouter: 'src/components/OpenrouterConnect.tsx',
   gemini: 'src/components/GeminiConnect.tsx',
   huggingface: 'src/components/HuggingfaceConnect.tsx',
   moonshot: 'src/components/KimiConnect.tsx',
