@@ -283,6 +283,19 @@ if (critter !== undefined) {
   }
 }
 
+const caching = routes.find(command => command.name === 'caching')
+if (caching !== undefined) {
+  const scene = await openRoute(caching, 64, 20)
+  if (scene !== null) {
+    for (let index = 0; index < 4; index++) { scene.push(DOWN); await sleep(120) }
+    await sleep(400)
+    const frame = scene.lines()
+    save('caching-64x20-down-4', frame)
+    check('/caching 64x20: ↓ ×4 keeps the focused family painted (the panel followed it under the fold)', markerPainted(frame), describe(frame))
+    await scene.close()
+  }
+}
+
 clearTimeout(hardLimit)
 rmSync(HOME, { recursive: true, force: true })
 console.log(`\nmodal-routes-reach: ${checks} checks, ${failures} failed`)
