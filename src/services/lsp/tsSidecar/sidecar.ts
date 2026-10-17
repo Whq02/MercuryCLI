@@ -356,7 +356,7 @@ class SidecarState {
       if (fs.existsSync(path.join(cursor, 'package.json'))) return cursor
       if (inside && cursor === this.workspaceRoot) return cursor
       const parent = path.dirname(cursor)
-      if (parent === cursor || isHomeOrAbove(parent)) break
+      if (parent === cursor || isHomeOrAbove(parent) || (!inside && isWithin(parent, this.workspaceRoot))) break
       cursor = parent
     }
     return inside ? this.workspaceRoot : dir
@@ -477,6 +477,7 @@ interface TextChangeLike {
   start: number
   length: number
   newText: string
+  probeAt?: number | null
 }
 
 function applyTextChanges(text: string, changes: readonly TextChangeLike[]): string {
@@ -637,7 +638,8 @@ function renameSafetyProblem(
   for (const plan of plans) {
     if (!sensitive.has(plan.file)) continue
     for (const change of plan.changes) {
-      renamedProbe.push({ file: plan.file, offset: change.start, valueShift: change.newText.length - newName.length })
+      if (change.probeAt === null) continue
+      renamedProbe.push({ file: plan.file, offset: change.start, valueShift: change.probeAt ?? 0 })
       for (const key of mappedDefKeys(project.service.getDefinitionAtPosition(plan.file, change.start))) renamedExpected.add(key)
     }
   }
@@ -1414,16 +1416,16 @@ export function runTsLspSidecar(
           const siteKey = (f: string, start: number): string => `${st.normalize(f)}:${start}`
           const siteKinds = new Map<string, PropertyKeySite>()
           for (const loc of locations) siteKinds.set(siteKey(loc.fileName, loc.textSpan.start), propertyKeySiteKind(st.ts, program?.getSourceFile(loc.fileName), loc.textSpan.start))
-          const chainKeys = new Set<string>()
+          const defsOf = (file: string, start: number): string[] => (project.service.getDefinitionAtPosition(st.normalize(file), start) ?? []).map(def => siteKey(def.fileName, def.textSpan.start))
+          const renamedKeys = new Set<string>()
           const chainBindings = new Set<string>()
           for (const loc of locations) {
             const key = siteKey(loc.fileName, loc.textSpan.start)
-            if (siteKinds.get(key) !== 'binding') continue
-            for (const def of project.service.getDefinitionAtPosition(st.normalize(loc.fileName), loc.textSpan.start) ?? []) {
-              const defKey = siteKey(def.fileName, def.textSpan.start)
-              if (!siteKinds.has(defKey)) continue
-              chainKeys.add(defKey)
-              chainBindings.add(key)
+            const kind = siteKinds.get(key)
+            if (kind === 'shorthand') continue
+            for (const defKey of defsOf(loc.fileName, loc.textSpan.start)) {
+              if (siteKinds.get(defKey) === 'shorthand') renamedKeys.add(defKey)
+              if (kind === 'binding' && siteKinds.has(defKey)) chainBindings.add(key)
             }
           }
           for (const loc of locations) {
@@ -1432,13 +1434,24 @@ export function runTsLspSidecar(
             if (locText === undefined) continue
             const key = siteKey(loc.fileName, loc.textSpan.start)
             const kind = siteKinds.get(key)
-            const keepsKey = (kind === 'shorthand' && !chainKeys.has(key)) || (kind === 'binding' && !chainBindings.has(key))
+            const oldText = locText.slice(loc.textSpan.start, loc.textSpan.start + loc.textSpan.length)
+            let newText = p.newName
+            let probeAt: number | null = 0
+            if (kind === 'shorthand') {
+              const valueRenamed = defsOf(loc.fileName, loc.textSpan.start).some(defKey => defKey !== key && siteKinds.has(defKey))
+              if (!renamedKeys.has(key)) {
+                newText = `${oldText}: ${p.newName}`
+                probeAt = oldText.length + 2
+              } else if (!valueRenamed) {
+                newText = `${p.newName}: ${oldText}`
+                probeAt = null
+              }
+            } else if (kind === 'binding' && !chainBindings.has(key)) {
+              newText = `${oldText}: ${p.newName}`
+              probeAt = oldText.length + 2
+            }
             const plan = plans.get(locFile) ?? { file: locFile, changes: [] }
-            plan.changes.push({
-              start: loc.textSpan.start,
-              length: loc.textSpan.length,
-              newText: keepsKey ? `${locText.slice(loc.textSpan.start, loc.textSpan.start + loc.textSpan.length)}: ${p.newName}` : p.newName,
-            })
+            plan.changes.push({ start: loc.textSpan.start, length: loc.textSpan.length, newText, probeAt })
             plans.set(locFile, plan)
           }
           const problem = renameSafetyProblem(st, project, info.displayName, p.newName, [...plans.values()])

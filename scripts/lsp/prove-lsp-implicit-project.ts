@@ -105,6 +105,58 @@ try {
   check('a file with no package.json below the starting folder renames across the starting folder, never the folder above it', !atRoot.isError && JSON.stringify(files(atRoot.data)) === JSON.stringify(['other/c.js', 'other/d.js']) && existsSync(join(scratch, 'e.js')), atRoot.text)
 } finally {
   await door.close()
+}
+
+console.log('§5 a rename started at a consumer of a shorthand property moves the key and keeps the value (`{ subtract: sub }`); started at the declaration it keeps the key (`{ sub: subtract }`); the program runs either way')
+const SHORTHAND: Record<string, string> = {
+  'package.json': JSON.stringify({ name: 'shorthand', private: true, type: 'module' }),
+  'src/math.js': 'function sub(a, b) {\n  return a - b\n}\nexport const math = { sub }\n',
+  'src/access.js': "import { math } from './math.js'\nexport const viaAccess = math.sub(3, 1)\n",
+  'src/destructure.js': "import { math } from './math.js'\nconst { sub } = math\nexport const viaBinding = sub(3, 1)\n",
+  'check.js': "import { viaAccess } from './src/access.js'\nimport { viaBinding } from './src/destructure.js'\nif (viaAccess !== 2 || viaBinding !== 2) process.exit(1)\n",
+}
+const consumers = join(scratch, 'consumers')
+for (const name of ['a', 'b', 'c']) writeProject(consumers, name, SHORTHAND)
+door = await openToolDoor(consumers)
+try {
+  const afterOf = (data: { edits?: Array<{ file: string; after: string }> } | null, file: string): string[] => (data?.edits ?? []).filter(edit => edit.file === file).map(edit => edit.after)
+  const starts = [
+    ['a', 'src/access.js', 'sub', 'a property access (math.sub)'],
+    ['b', 'src/destructure.js', 'sub', 'a destructuring (const { sub } = math)'],
+  ] as const
+  for (const [name, rel, needle, label] of starts) {
+    const root = join(consumers, name)
+    const rename = { filePath: join(root, rel), ...positionOf(SHORTHAND[rel]!, needle), newName: 'subtract' }
+    const preview = await door.driveNamed('LspRename', rename)
+    check(`${label}: the shorthand declaration becomes \`subtract: sub\` — the key moves, the value stays`, !preview.isError && JSON.stringify(afterOf(preview.data, `${name}/src/math.js`)) === JSON.stringify(['subtract: sub']), preview.text)
+    check(`${label}: both consumers follow the key (math.subtract; const { subtract } = math and its use)`, JSON.stringify(afterOf(preview.data, `${name}/src/access.js`)) === JSON.stringify(['subtract']) && JSON.stringify(afterOf(preview.data, `${name}/src/destructure.js`)) === JSON.stringify(['subtract', 'subtract']), preview.text)
+    const applied = await door.driveNamed('LspRename', { ...rename, apply: true, plan: preview.data?.plan })
+    const math = readFileSync(join(root, 'src/math.js'), 'utf8')
+    check(`${label}: after the apply the function keeps its name and the program runs (no undeclared subtract)`, !applied.isError && /function sub\(/.test(math) && /export const math = \{ subtract: sub \}/.test(math) && runs(join(root, 'check.js')), `${applied.text}\n${math}`)
+  }
+  const decl = join(consumers, 'c')
+  const fromDecl = { filePath: join(decl, 'src/math.js'), ...positionOf(SHORTHAND['src/math.js']!, 'sub'), newName: 'subtract' }
+  const preview = await door.driveNamed('LspRename', fromDecl)
+  check('the declaration-started control: the shorthand becomes `sub: subtract`, the consumers are untouched', !preview.isError && preview.data?.fileCount === 1 && JSON.stringify(afterOf(preview.data, 'c/src/math.js')) === JSON.stringify(['subtract', 'sub: subtract']), preview.text)
+  const applied = await door.driveNamed('LspRename', { ...fromDecl, apply: true, plan: preview.data?.plan })
+  check('the declaration-started control: the program runs after the apply', !applied.isError && /export const math = \{ sub: subtract \}/.test(readFileSync(join(decl, 'src/math.js'), 'utf8')) && runs(join(decl, 'check.js')), applied.text)
+} finally {
+  await door.close()
+}
+
+console.log('§6 a file in a sibling folder of the starting folder never roots its implicit project above the starting folder')
+const ws = join(scratch, 'ws')
+const app = writeProject(ws, 'app', { 'package.json': JSON.stringify({ name: 'app', private: true, type: 'module' }), 'index.js': 'export const app = 1\n' })
+writeProject(ws, 'other', { 'c.js': 'export function tally(rows) {\n  return rows.length * 2\n}\n', 'd.js': "import { tally } from './c.js'\nexport const twice = tally([])\n" })
+writeFileSync(join(ws, 'package.json'), JSON.stringify({ name: 'above-the-start', private: true, type: 'module' }))
+writeFileSync(join(ws, 'e.js'), "import { tally } from './other/c.js'\nexport const outside = tally([])\n")
+door = await openToolDoor(app)
+try {
+  const c = join(ws, 'other/c.js')
+  const sibling = await door.driveNamed('LspRename', { filePath: c, ...positionOf('export function tally(rows) {\n  return rows.length * 2\n}\n', 'tally'), newName: 'countRows' })
+  check('the rename from other/c.js covers other/ only — never the package.json folder that encloses the starting folder', !sibling.isError && JSON.stringify(files(sibling.data)) === JSON.stringify([join(ws, 'other/c.js'), join(ws, 'other/d.js')]), sibling.text)
+} finally {
+  await door.close()
   cleanup(scratch)
 }
 finish('prove-lsp-implicit-project')
