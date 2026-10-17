@@ -105,6 +105,16 @@ async function waitSleepChild(present: boolean, timeoutMs: number): Promise<stri
   }
 }
 
+async function waitPidsGone(pids: readonly string[], timeoutMs: number): Promise<string[]> {
+  const until = Date.now() + timeoutMs
+  for (;;) {
+    const alive = sleepPids().filter(pid => pids.includes(pid))
+    if (alive.length === 0) return alive
+    if (Date.now() >= until) return alive
+    await sleep(250)
+  }
+}
+
 const notificationFor = (taskId: string) => (f: Frame): boolean => f.type === 'task' && f.state === 'ended' && f.task_id === taskId
 const hitsOf = (fx: Fixture, ...routes: string[]): number => fx.hits.filter(h => routes.includes(h.route)).length
 
@@ -153,16 +163,18 @@ if (!existsSync(DIST)) {
     section('S4 the operator stops a sub-agent the chat\'s turn waits on: the seat ends, the turn goes on and settles')
     const w = await openWorld('held')
     const before = w.runner.frames.length
+    const stale = sleepPids()
+    if (stale.length > 0) console.log(`  [record] S4 sleep children of this length alive before the scene (an earlier world's, still being reaped): ${j(stale)}`)
     void w.runner.prompt(LEAD_ASK_HELD, U3)
     const row = await waitRow(w, 'the held sub-agent row', r => r.kind === 'agent' && r.name === SEAT_NAME && r.status === 'running', bound(60_000))
     check('S4 the held sub-agent row runs before the stop', row !== null, j(w.fx.hits.map(h => h.route)))
-    const child = await waitSleepChild(true, bound(30_000))
+    const child = (await waitSleepChild(true, bound(30_000))).filter(pid => !stale.includes(pid))
     check('S4 its shell child is alive before the stop', child.length > 0)
     if (row !== null) {
       const reply = await stopAgent(w, row.id, bound(15_000))
       const r = responseOf(reply)
       check('S4 the runner answers the stop', reply !== null && (r.subtype === 'success' || r.subtype === 'error'), j(r))
-      const gone = await waitSleepChild(false, bound(10_000))
+      const gone = await waitPidsGone(child, bound(10_000))
       check('S4 the shell child is gone after the stop', gone.length === 0, j(gone))
       const settled = await waitRow(w, 'the settled held row', x => x.id === row.id && x.status !== 'running', bound(8_000))
       check('S4 the held seat\'s record settles killed', settled !== null && settled.status === 'killed', j(settled))
