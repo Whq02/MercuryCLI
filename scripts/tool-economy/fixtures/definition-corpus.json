@@ -1,5 +1,5 @@
 {
-  "base": "69efc13ddcc42af24c9d68300bb1ef8c5137b4de",
+  "base": "915ed8173364d52e37493016b301fccb9c71bf0e",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -228,7 +228,7 @@
     },
     {
       "name": "Read",
-      "description": "Read the contents of a local file: any file on the machine, and a path that does not exist returns an error.\n\nUsage:\n- With no window parameters the read returns up to 2000 lines from the top of the file. A result that is not the whole file closes its numbered lines with `[lines 1-2000 of 3000 — Read(offset: 2001, limit: 1000) continues from there]` or `[lines 2001-3000 of 3000 — the end of the file]`; without that line it is the whole file\n- An optional line offset and limit narrow the window.\n- Individual lines are cut off past 2000 characters\n- Every returned line carries a prefix — a line number followed by a tab, then the line content — with numbering starting at 1\n- Image files (PNG, JPG, and similar) are shown as the picture itself.\n- Jupyter notebooks (.ipynb files) come back cell by cell with their outputs — code, text output, and visualizations together.\n- This tool also reads directories: pass a directory path to get a deterministic bounded listing (sorted, capped, omissions named). Prefer Glob for pattern-scoped discovery.\n- This tool also reads mercury:// resource references (the same records Inspect serves), with explicit ok/absent/unavailable states. mercury://seat is this seat's own reference: the model this turn runs on, the effort, the posture, and the engines this session has run on with the time of each switch; asked which model runs you, read it and answer from it — never from an earlier reply, an environment variable or the ledger file.\n- An http(s) URL target returns a typed delegation naming the exact WebFetch call — Read never fetches the network itself.\n- A screenshot path the user supplies is read with this tool, a temporary path included.\n- A file that exists but is empty produces a system-reminder note in place of content.",
+      "description": "Read the contents of a local file: any file on the machine, and a path that does not exist returns an error.\n\nUsage:\n- With no window parameters the read returns up to 2000 lines from the top of the file. A result that is not the whole file closes its numbered lines with `[lines 1-2000 of 3000 — Read(offset: 2001, limit: 1000) continues from there]` or `[lines 2001-3000 of 3000 — the end of the file]`; without that line it is the whole file\n- An optional line offset and limit narrow the window.\n- Individual lines are cut off past 2000 characters\n- Every returned line carries a prefix — a line number followed by a tab, then the line content — with numbering starting at 1\n- Image files (PNG, JPG, and similar) are shown as the picture itself.\n- Jupyter notebooks (.ipynb files) come back cell by cell with their outputs — code, text output, and visualizations together.\n- Archives (.zip, .tar, .tar.gz, .tgz; `<archive>:<entry>` reads one entry), SQLite databases (.sqlite, .sqlite3, .db; `<db>:<table>` reads one table), and documents (.docx, .xlsx, .pptx, .odt, .ods, .odp, .epub, .rtf) open as text; `offset: -N` reads the last N lines and `ranges` reads several line ranges in one call.\n- This tool also reads directories: pass a directory path to get a deterministic bounded listing (sorted, capped, omissions named). Prefer Glob for pattern-scoped discovery.\n- This tool also reads mercury:// resource references (the same records Inspect serves), with explicit ok/absent/unavailable states. mercury://seat is this seat's own reference: the model this turn runs on, the effort, the posture, and the engines this session has run on with the time of each switch; asked which model runs you, read it and answer from it — never from an earlier reply, an environment variable or the ledger file.\n- An http(s) URL target returns a typed delegation naming the exact WebFetch call — Read never fetches the network itself.\n- A screenshot path the user supplies is read with this tool, a temporary path included.\n- A file that exists but is empty produces a system-reminder note in place of content.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -249,7 +249,8 @@
             "maximum": 9007199254740991
           },
           "ranges": {
-            "description": "Optional list of 1-based line ranges to read in one call (e.g., [\"1-20\", \"85-100\", \"-15\"]), each keeping its continuation mark.",
+            "description": "Optional list of up to 32 1-based line ranges to read in one call (e.g., [\"1-20\", \"85-100\", \"-15\"]), each keeping its continuation mark.",
+            "maxItems": 32,
             "type": "array",
             "items": {
               "type": "string"
