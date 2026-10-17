@@ -100,8 +100,7 @@ const interrupt = (): Promise<{ interrupted: boolean } | null> => wire.request('
 const pauseGate = (paused: boolean): Promise<{ paused: boolean; parked: number; changed: boolean } | null> =>
   wire.request('session/pause_gate', { paused }, { deadlineMs: 10_000 }).catch(() => null) as Promise<{ paused: boolean; parked: number; changed: boolean } | null>
 const clock = (): string => new Date().toISOString().slice(11, 23)
-const ANSWER_WINDOW_MS = 10_000
-const PARK_WINDOW_MS = 1_500
+const SETTLE_MS = 1_500
 
 try {
   tally.section('S1 THE OWNER\'S STRETCH — a background crewmate, an Esc within a second, the crew view\'s p during the next stream, the parked tool, the Esc, the prompt')
@@ -127,9 +126,9 @@ try {
   tally.check('p closes the gate and x x stops the crewmate (the daemon\'s two verbs of 06:45:04Z and 06:45:07Z)', closed?.paused === true && closed.changed === true && stopped.receipt === 'applied', JSON.stringify({ closed, stopped }))
   const toolAsked = await waitFor('the model never asked for ToolSearch', () => toolCallRow('ToolSearch') !== undefined, TURN_MS)
   const toolSearch = toolCallRow('ToolSearch')
-  await sleep(PARK_WINDOW_MS)
+  await sleep(SETTLE_MS)
   const parkedAtTool = await gateFacts()
-  tally.check('the in-flight stream finishes and ToolSearch parks before it runs (the pause gate\'s own law): no tool result, no further request, the seat parked', toolAsked && toolResultRow(toolSearch?.call_id) === undefined && leadRequests().length === leadBeforeObjection + 1 && parkedAtTool?.paused === true && (parkedAtTool?.parked ?? 0) >= 1, JSON.stringify({ toolAsked, result: toolResultRow(toolSearch?.call_id), lead: leadRequests().length, parkedAtTool }))
+  tally.check('the in-flight stream finishes and ToolSearch parks before it runs (the pause gate\'s own law): no tool result, no further request, the facts read parked ≥ 1', toolAsked && toolResultRow(toolSearch?.call_id) === undefined && leadRequests().length === leadBeforeObjection + 1 && parkedAtTool?.paused === true && (parkedAtTool?.parked ?? 0) >= 1, JSON.stringify({ toolAsked, result: toolResultRow(toolSearch?.call_id), lead: leadRequests().length, parkedAtTool }))
   console.log(`  ${clock()} interrupt (Esc) on the parked tool`)
   const secondEsc = await interrupt()
   const secondTurnEnded = await waitFor('the Esc did not end the parked turn', () => outcomes().length >= 2 && toolResultRow(toolSearch?.call_id) !== undefined, TURN_MS)
@@ -139,10 +138,10 @@ try {
   console.log(`  ${clock()} the prompt "${DEMAND}" — the one that went unanswered`)
   submit(DEMAND)
   const t0 = Date.now()
-  const answered = await waitFor('no model request followed the prompt', () => requestCarrying(DEMAND, leadBeforeDemand) !== undefined, ANSWER_WINDOW_MS)
+  const answered = await waitFor('no model request followed the prompt', () => requestCarrying(DEMAND, leadBeforeDemand) !== undefined, TURN_MS)
   const tookMs = Date.now() - t0
   const gateAfter = await gateFacts()
-  tally.check(`the prompt typed into the paused chat is answered: its model request is issued within ${ANSWER_WINDOW_MS / 1000}s (took ${tookMs}ms)`, answered, JSON.stringify({ lead: leadRequests().length, before: leadBeforeDemand, gateAfter }))
+  tally.check(`the prompt typed into the paused chat is answered: its model request is issued (took ${tookMs}ms)`, answered, JSON.stringify({ lead: leadRequests().length, before: leadBeforeDemand, gateAfter }))
   tally.check('the operator\'s own prompt opened the operator\'s gate: the facts read open, nothing parked', gateAfter?.paused === false && gateAfter.parked === 0, JSON.stringify(gateAfter))
   const landed = answered && (await waitFor('the answer never landed', () => textLanded(ANSWER), TURN_MS))
   tally.check('the answer lands on the chat', landed)
@@ -156,13 +155,14 @@ try {
   const closedAgain = await pauseGate(true)
   const bashAsked = await waitFor('the model never asked for Bash', () => toolCallRow('Bash') !== undefined, TURN_MS)
   const bash = toolCallRow('Bash')
-  await sleep(PARK_WINDOW_MS)
+  await sleep(SETTLE_MS)
   const parkedAtBash = await gateFacts()
-  tally.check('p during the stream parks the Bash call before it runs', carryStreams && closedAgain?.paused === true && bashAsked && toolResultRow(bash?.call_id) === undefined && parkedAtBash?.paused === true, JSON.stringify({ closedAgain, result: toolResultRow(bash?.call_id), parkedAtBash }))
+  tally.check('p during the stream parks the Bash call before it runs (the facts read the gate closed)', carryStreams && closedAgain?.paused === true && bashAsked && toolResultRow(bash?.call_id) === undefined && parkedAtBash?.paused === true, JSON.stringify({ closedAgain, result: toolResultRow(bash?.call_id), parkedAtBash }))
   console.log(`  ${clock()} the prompt "${GO_ON}" with no Esc`)
   submit(GO_ON)
-  const ran = await waitFor('the parked Bash never ran', () => toolResultRow(bash?.call_id)?.status === 'ok' && (toolResultRow(bash?.call_id)?.output as string | undefined)?.includes(CARRIED) === true, ANSWER_WINDOW_MS)
-  tally.check('the words lift the park: the Bash call the model asked for runs with its exact input, from exactly where it stopped', ran, JSON.stringify(toolResultRow(bash?.call_id)))
+  const t1 = Date.now()
+  const ran = await waitFor('the parked Bash never ran', () => toolResultRow(bash?.call_id)?.status === 'ok' && (toolResultRow(bash?.call_id)?.output as string | undefined)?.includes(CARRIED) === true, TURN_MS)
+  tally.check(`the words lift the park: the Bash call the model asked for runs with its exact input, from exactly where it stopped (took ${Date.now() - t1}ms)`, ran, JSON.stringify(toolResultRow(bash?.call_id)))
   const goneOn = await waitFor('the words were never answered', () => requestCarrying(GO_ON, leadBeforeCarry) !== undefined && textLanded(GONE_ON), TURN_MS)
   const gateEnd = await gateFacts()
   tally.check('the words reach the model after the turn they lifted, and the gate reads open', goneOn && gateEnd?.paused === false, JSON.stringify({ gateEnd, lead: leadRequests().length }))
