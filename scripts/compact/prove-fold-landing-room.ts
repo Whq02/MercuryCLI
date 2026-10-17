@@ -145,6 +145,22 @@ try {
     check('the kept rounds ride whole (the gauge changes the count, never the content)', keptResults(result).every(text => !text.startsWith(FOLDED_RESULT_KEY)) && (rounds.folded ?? 0) === 0 && rounds.kept >= 1, JSON.stringify(rounds))
   }
 
+  console.log('L6 the fourth road: a latest round whose folded form fits under the threshold but not under the landing line is kept with its result folded and the row says no room')
+  {
+    const threshold = 60_000
+    const history = [...stretch(2, 400, 'core', 76_000), ...stretch(1, 400, 'small'), ...stretch(1, 100_000, 'giant')]
+    const landing = foldLandingCeiling(threshold, history)
+    let refusal = ''
+    let result: Awaited<ReturnType<typeof fold>> | undefined
+    try { result = await fold(history, context(), threshold) } catch (error) { refusal = error instanceof Error ? error.message : String(error) }
+    const post = result?.truePostCompactTokenCount ?? Infinity
+    const rounds = result === undefined ? undefined : roundsOf(result)
+    const folded = result === undefined ? [] : keptResults(result).filter(text => text.startsWith(FOLDED_RESULT_KEY))
+    check(`the fold lands between the line and the threshold (${landing} ≤ ${post} < ${threshold}) with the latest rounds kept, the giant result folded and the reason no-room (red before: refused — "the latest complete round does not fit")`, refusal === '' && post >= landing && post < threshold && (rounds?.kept ?? 0) >= 1 && rounds?.folded === 1 && folded.length === 1 && rounds?.reason === 'no-room', `${refusal.slice(0, 120)} ${JSON.stringify({ post, landing, rounds, folded: folded.length })}`)
+    check('the small result beside it rides whole (the folding stops at the threshold, largest first)', result !== undefined && keptResults(result).some(text => text.startsWith('small notes 0 line')), JSON.stringify(result === undefined ? [] : keptResults(result).map(t => t.slice(0, 30))))
+    check('the receipt says it', result !== undefined && wordsOf(result)[0] === `last ${rounds?.kept} of 10 rounds kept, 1 large result folded into the summary (no room left for a turn)`, result === undefined ? refusal.slice(0, 80) : wordsOf(result)[0])
+  }
+
   console.log('L4 the threshold law stands: a core over the threshold itself still refuses before any summary')
   {
     let refusal = ''
