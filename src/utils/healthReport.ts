@@ -1469,7 +1469,38 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               projectCount = readdirSync(dir).length
             } catch {
             }
-            return { status: 'ok' as const, evidence: `${dir} · ${projectCount} project dir(s), writable` }
+            const { getTranscriptPath } = await import('./sessionStorage/paths.js')
+            const transcript = getTranscriptPath()
+            let transcriptStat: import('node:fs').Stats | undefined
+            try {
+              transcriptStat = statSync(transcript)
+            } catch {
+              return { status: 'ok' as const, evidence: `${dir} · ${projectCount} project dir(s), writable · this session has no transcript file yet` }
+            }
+            if (!transcriptStat.isFile()) {
+              return {
+                status: 'fail' as const,
+                evidence: `this session's transcript ${transcript} exists but is not a regular file — its turns cannot be recorded or resumed`,
+                fix: 'Move or remove what sits at that path so Mercury can record the session.',
+              }
+            }
+            const { openSync, closeSync } = await import('node:fs')
+            const denied = (['readable', 'writable'] as const).filter(need => {
+              try {
+                closeSync(openSync(transcript, need === 'readable' ? 'r' : 'a'))
+                return false
+              } catch {
+                return true
+              }
+            })
+            if (denied.length > 0) {
+              return {
+                status: 'fail' as const,
+                evidence: `this session's transcript ${transcript} is not ${denied.join(' or ')} — its turns cannot be ${denied.includes('writable') ? 'recorded' : 'resumed'}`,
+                fix: 'Fix permissions on that file (check ownership, a deny entry and antivirus holds).',
+              }
+            }
+            return { status: 'ok' as const, evidence: `${dir} · ${projectCount} project dir(s), writable · this session's transcript ${transcript} readable, writable (${transcriptStat.size} bytes)` }
           },
         },
         {
