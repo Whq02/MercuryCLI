@@ -58,7 +58,19 @@ interface Analysed {
   negated: Set<string>
   sides: PolaritySides
   valueWords: string[]
+  labelWords: number
   scoped: boolean
+}
+
+const LABEL_HEAD = /^([^:.!?]+):\s+\S/
+
+function labelWordCount(text: string): number {
+  const label = LABEL_HEAD.exec(text)?.[1]
+  return label === undefined ? 0 : valueWordsOf(label).length
+}
+
+function valueWordsOf(text: string): string[] {
+  return text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
 }
 
 function negatedClausesOf(text: string): string[][] {
@@ -82,7 +94,7 @@ function isScoped(words: readonly string[]): boolean {
 function analyse(text: string): Analysed {
   const words = wordsOf(text)
   const sides = polaritySides(words)
-  const valueWords = text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+  const valueWords = valueWordsOf(text)
   const negatedClauses = negatedClausesOf(text)
   return {
     stems: new Set(contentStems(words, SKIP)),
@@ -90,6 +102,7 @@ function analyse(text: string): Analysed {
     negated: new Set(negatedClauses.flat()),
     sides,
     valueWords,
+    labelWords: labelWordCount(text),
     scoped: isScoped(words),
   }
 }
@@ -102,10 +115,7 @@ function negationFlip(a: Analysed, b: Analysed): boolean {
   return a.negatedClauses.some(clause => clause.every(stem => b.stems.has(stem)) && clause.some(stem => !b.negated.has(stem)))
 }
 
-function valueFlip(a: Analysed, b: Analysed): string | null {
-  const left = a.valueWords
-  const right = b.valueWords
-  if (left.length !== right.length) return null
+function slotFlip(left: readonly string[], right: readonly string[]): string | null {
   let changed = -1
   for (let index = 0; index < left.length; index++) {
     if (left[index] === right[index]) continue
@@ -119,6 +129,21 @@ function valueFlip(a: Analysed, b: Analysed): string | null {
   const newValue = right[changed]!
   if (isNumberWord(oldValue) && isNumberWord(newValue)) return Number(oldValue) === Number(newValue) ? null : NUMBER_FLIP
   return ['from', 'in'].includes(left[changed - 1]!) ? VALUE_FLIP : null
+}
+
+function valueFlip(a: Analysed, b: Analysed): string | null {
+  const left = a.valueWords
+  const right = b.valueWords
+  if (left.length === right.length) return slotFlip(left, right)
+  const [shorter, longer, label] = left.length < right.length ? [left, right, b.labelWords] : [right, left, a.labelWords]
+  if (label === 0 || longer.length - label !== shorter.length) return null
+  return slotFlip(shorter, longer.slice(label))
+}
+
+const CONTEXT_TAIL = /\s*\(context:[\s\S]*\)\s*$/i
+
+function factOf(text: string): string {
+  return text.replace(CONTEXT_TAIL, '')
 }
 
 function flipOf(a: Analysed, b: Analysed): string | null {
@@ -150,7 +175,9 @@ export function restates(candidate: string, existing: string): boolean {
   return part.every(sentence => whole.has(sentence))
 }
 
-export function contradictionBetween(candidate: string, existing: string): { overlap: number; flip: string } | null {
+export function contradictionBetween(candidateText: string, existingText: string): { overlap: number; flip: string } | null {
+  const candidate = factOf(candidateText)
+  const existing = factOf(existingText)
   const fresh = analyse(candidate)
   const old = analyse(existing)
   if (restates(candidate, existing) && valueFlip(fresh, old) === null) return null
@@ -172,7 +199,7 @@ export function contradictionBetween(candidate: string, existing: string): { ove
     if (pair.fresh.scoped || pair.old.scoped) continue
     const flip = flipOf(pair.fresh, pair.old)
     if (flip === null) continue
-    const overlap = flip === VALUE_FLIP ? 1 : flip === NUMBER_FLIP ? jaccard(pair.fresh.stems, pair.old.stems) : pair.share
+    const overlap = flip === VALUE_FLIP || flip === NUMBER_FLIP ? 1 : pair.share
     if (overlap < CONTRADICTION_OVERLAP_SHARE) continue
     if (best === null || overlap > best.overlap) best = { overlap, flip }
   }
