@@ -129,11 +129,11 @@ export const ContractTool = buildTool({
       case 'acknowledge': {
         if (contract === undefined) return { data: { message: NO_CONTRACT } }
         if ((restatement ?? '').trim().length === 0) {
-          throw new Error('acknowledge needs your restatement — the contract in your own words is the signature; never an empty ack.')
+          throw new Error('acknowledge requires a non-empty restatement of the contract in your own words.')
         }
         const r = await contractVerb('ack')
         if (!r.ok) return { data: { message: `The acknowledgment did not land — ${r.detail ?? 'the daemon was unreachable'}. The contract stands unchanged; try again or continue (advisory).`, ...facts(contract) } }
-        return { data: { message: `Acknowledged — the agreement is in force (your restatement above is the signature, kept in this transcript). Work under it; check-in when unsure; propose-amend when a clause does not survive contact.`, ...facts({ ...contract, status: 'acknowledged' }) } }
+        return { data: { message: `Acknowledged: the agreement is in force and your restatement is recorded in this transcript. Work under it, check-in when unsure, and propose-amend if a clause no longer fits.`, ...facts({ ...contract, status: 'acknowledged' }) } }
       }
       case 'check-in': {
         if (contract === undefined) return { data: { message: `${NO_CONTRACT} Nothing to check against.` } }
@@ -153,7 +153,7 @@ export const ContractTool = buildTool({
         return {
           data: {
             message:
-              'Assess whether this contract is COMPLETE ENOUGH for the work in front of you. The honest outcomes are exactly two: ASK THE USER — naming the specific gap (propose-amend carries it to them as a needs-you) — or CONTINUE. Never silently fill a material gap with a guess.',
+              'Assess whether this contract is complete enough for the work ahead. Either ask the user by naming the specific gap (propose-amend sends a needs-you) or continue. Do not fill a material gap with a guess.',
             ...facts(contract),
           },
         }
@@ -174,7 +174,7 @@ export const ContractTool = buildTool({
         return {
           data: {
             message:
-              'Proposed — the operator/coordinator has a needs-you with your reasoning; they amend, you re-acknowledge. Meanwhile the contract stands as written (advisory): continue what remains on-contract, or end your turn asking the user if nothing does. Silent drift and being stuck are both retired.',
+              'Proposed: the operator or coordinator has a needs-you with your reasoning; once they amend, re-acknowledge. Until then the current contract remains advisory: continue work that fits it, or end your turn and ask the user.',
             ...facts(contract),
           },
         }

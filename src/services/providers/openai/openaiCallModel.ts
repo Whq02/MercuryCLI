@@ -1344,7 +1344,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   }
   if (finish && finish.unknownItemTypes.length > 0) {
     yield* emitNoteBlock(
-      `[openai] the provider returned output item types Mercury does not decode yet (${finish.unknownItemTypes.join(', ')}) — recording the omission rather than dropping it silently.`,
+      `[openai] the provider returned output item types Mercury does not decode yet (${finish.unknownItemTypes.join(', ')}); recorded here.`,
     )
   }
   const loadedTools = finish ? loadedToolNamesOf(finish.orderedItems) : []

@@ -24,7 +24,7 @@ try {
     check(`${operation} answers with its own arguments`, !answer.isError && answer.data?.operation === operation, answer.text)
     check(`${operation} ignores advertised arguments it does not read`, answer.text === filled.text && answer.isError === filled.isError, filled.text)
     const bad = await door.drive({ operation, filePath: lib })
-    check(`${operation} names the missing position exactly`, plain(bad.text) === `${operation} reads filePath, line and character — the symbol's position, 1-based, as Read shows it — and line, character are missing. Example: {"operation":"${operation}","filePath":"/absolute/path/file.ts","line":12,"character":8}. Nothing was sent to a language server.`, bad.text)
+    check(`${operation} names the missing position exactly`, plain(bad.text) === `${operation} requires filePath, line and character (1-based symbol position, as Read shows it); missing: line, character. Example: {"operation":"${operation}","filePath":"/absolute/path/file.ts","line":12,"character":8}. Nothing was sent to a language server.`, bad.text)
   }
   for (const input of [{ operation: 'documentSymbol', filePath: lib }, { operation: 'workspaceSymbol', query: 'budget', filePath: lib }, { operation: 'serverStatus' }]) {
     const answer = await door.drive(input)
@@ -41,8 +41,8 @@ try {
   check('51 paths is a schema refusal', tooMany.isError && /50/.test(tooMany.text), tooMany.text)
   const missingMessages = [
     [{ operation: 'documentSymbol' }, 'documentSymbol reads filePath, which is missing. Example: {"operation":"documentSymbol","filePath":"/absolute/path/file.ts"}. Nothing was sent to a language server.'],
-    [{ operation: 'workspaceSymbol' }, 'workspaceSymbol reads query — a symbol name or part of one — which is missing or empty. Example: {"operation":"workspaceSymbol","query":"parseConfig"}. Nothing was sent to a language server.'],
-    [{ operation: 'diagnostics' }, 'diagnostics reads paths — up to 50 files or directories — or filePath for one file, and neither was given. Example: {"operation":"diagnostics","paths":["/absolute/path/a.ts","/absolute/path/src"]}. Nothing was sent to a language server.'],
+    [{ operation: 'workspaceSymbol' }, 'workspaceSymbol requires a non-empty query (a symbol name or substring). Example: {"operation":"workspaceSymbol","query":"parseConfig"}. Nothing was sent to a language server.'],
+    [{ operation: 'diagnostics' }, 'diagnostics requires paths (up to 50 files or directories) or filePath for one file; neither was given. Example: {"operation":"diagnostics","paths":["/absolute/path/a.ts","/absolute/path/src"]}. Nothing was sent to a language server.'],
   ] as const
   for (const [input, expected] of missingMessages) {
     const answer = await door.drive(input)

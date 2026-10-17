@@ -103,7 +103,7 @@ section('§7 invalid arguments: the cause, the valid shape, and that the same ar
   const door = await openToolDoor(project)
   const verdict = await door.drive({ operation: 'diagnostics' })
   check('refused', verdict.isError)
-  check('the first words name the operation and the missing choice', /diagnostics reads paths/.test(verdict.text) && /neither was given/.test(verdict.text), verdict.text)
+  check('the first words name the operation and the missing choice', /diagnostics requires paths/.test(verdict.text) && /neither was given/.test(verdict.text), verdict.text)
   check('the valid shape is spelled out', verdict.text.includes('{"operation":"diagnostics","paths":["/absolute/path/a.ts","/absolute/path/src"]}'), verdict.text)
   check('the refusal says no server was asked', verdict.text.includes('Nothing was sent to a language server.'), verdict.text)
   const rename = await door.driveNamed('LspRename', { filePath: lib, line: 1, character: 14 })
@@ -120,9 +120,9 @@ section('§8 the screen: the collapsed line shows the cause, and a failed result
   const React = (await import('react')).default
   const { renderToString } = await import(path.join(import.meta.dir, '../../src/utils/staticRender.tsx'))
   const { renderToolUseErrorMessage, renderToolResultMessage } = await import(path.join(import.meta.dir, '../../src/tools/LSPTool/UI.tsx'))
-  const tagged = '<tool_use_error>diagnostics reads paths — up to 50 files or directories — or filePath for one file, and neither was given. Example: {"operation":"diagnostics","paths":["/absolute/path/a.ts","/absolute/path/src"]}. Nothing was sent to a language server.</tool_use_error>'
+  const tagged = '<tool_use_error>diagnostics requires paths (up to 50 files or directories) or filePath for one file; neither was given. Example: {"operation":"diagnostics","paths":["/absolute/path/a.ts","/absolute/path/src"]}. Nothing was sent to a language server.</tool_use_error>'
   const collapsed = await renderToString(React.createElement(React.Fragment, null, renderToolUseErrorMessage(tagged, { verbose: false })), 160)
-  check('the collapsed error line names the cause', /LspRead: diagnostics reads paths/.test(collapsed), collapsed)
+  check('the collapsed error line names the cause', /LspRead: diagnostics requires paths/.test(collapsed), collapsed)
   check('…and no longer says the bare "LSP operation failed"', !/LSP operation failed/.test(collapsed), collapsed)
   const executorError = '<tool_use_error>LSP failed (issue):\nThe parameter `frobnicate` was not expected</tool_use_error>'
   const unknownKey = await renderToString(React.createElement(React.Fragment, null, renderToolUseErrorMessage(executorError, { verbose: false })), 200)

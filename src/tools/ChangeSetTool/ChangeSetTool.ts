@@ -636,8 +636,8 @@ async function runApply(
     return {
       op: 'apply',
       result:
-        `Apply refused — ${lines.length} file(s) not writable:\n${lines.join('\n')}\n` +
-        `Nothing was written (a denied path refuses the WHOLE set). Adjust permission rules, then re-apply.`,
+        `Apply refused (${lines.length} file(s) not writable):\n${lines.join('\n')}\n` +
+        `Nothing was written (a denied path refuses the full set). Adjust permission rules, then re-apply.`,
       outcome: 'failed',
       planId: plan.id,
       effectOperation: 'file.changeSet',
@@ -1123,7 +1123,7 @@ Not this tool (refused by name): file creation (Write) · binary content · note
       const hasChanges = input.changes != null && input.changes.length > 0
       const hasPatch = input.patch != null && input.patch.length > 0
       if (hasChanges === hasPatch) {
-        return { result: false as const, behavior: 'ask' as const, message: 'preview takes EXACTLY ONE of changes (one member per file) or patch (the dialect string).', errorCode: 1 }
+        return { result: false as const, behavior: 'ask' as const, message: 'preview takes one of changes (one member per file) or patch (the dialect string).', errorCode: 1 }
       }
       if (input.plan_id !== undefined) {
         return { result: false as const, behavior: 'ask' as const, message: 'preview takes changes/patch, not plan_id — plans are minted BY preview.', errorCode: 1 }
@@ -1143,7 +1143,7 @@ Not this tool (refused by name): file creation (Write) · binary content · note
         return {
           result: false as const,
           behavior: 'ask' as const,
-          message: `apply takes EXACTLY ONE of changes (the fast path), patch (the dialect string), or plan_id (a previewed plan) — ${carried}. Send exactly one.`,
+          message: `apply takes one of changes (the fast path), patch (the dialect string), or plan_id (a previewed plan); got ${carried}.`,
           errorCode: 1,
         }
       }

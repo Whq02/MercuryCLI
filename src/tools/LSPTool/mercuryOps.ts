@@ -854,7 +854,7 @@ function previewOf(
     created.length > 0
       ? `\nCreates ${created.map(file => `${displayPathFor(env.cwd, file.abs)} (new file, ${file.newText.split('\n').length} line(s))`).join(', ')}.`
       : ''
-  const result = `${preview}${createdNote}\n\nPreview only — nothing written. plan: ${token} — re-run with apply: true, plan: "${token}" ${purpose} (refused if any of these files changes first).`
+  const result = `${preview}${createdNote}\n\nPreview only (nothing written). plan: ${token}; re-run with apply: true, plan: "${token}" ${purpose} (refused if any file changes first).`
   const totalEdits = files.reduce((sum, file) => sum + file.edits.length, 0)
   return {
     result,

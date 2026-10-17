@@ -60,7 +60,7 @@ export async function editorBridgeMain(action: string): Promise<number> {
     out(`vsix: ${vsix ?? 'NOT FOUND (source checkout: bash scripts/vscode/build-vsix.sh)'}`)
     if (!cli) {
       out(`editor CLI: not found — no VS Code-family CLI on PATH (${CLI_ROSTER})`)
-      out('manual install: VS Code → Extensions → “…” menu → Install from VSIX → pick the file above')
+      out('manual install: VS Code → Extensions → "..." menu → Install from VSIX → pick the VSIX')
       return 0
     }
     try {

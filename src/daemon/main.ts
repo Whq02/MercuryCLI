@@ -1403,7 +1403,7 @@ async function daemonRun(args: string[]): Promise<void> {
       if (supersededBy !== null && restartAfterTeardown) {
         restartAfterTeardown = false
         // eslint-disable-next-line no-console
-        console.error(`[daemon] the plane is served by pid ${supersededBy.pid} (build ${supersededBy.buildTree ?? 'unstamped'}) — no successor is spawned; this daemon simply leaves`)
+        console.error(`[daemon] pid ${supersededBy.pid} (build ${supersededBy.buildTree ?? 'unstamped'}) is already serving; exiting without spawning a successor`)
       }
       if (controlEnabled) markDaemonStoppingSync()
       logForDebugging(`[daemon] received ${signal}, shutting down`)

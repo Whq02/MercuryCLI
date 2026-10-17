@@ -92,7 +92,7 @@ async function runFetch(input: Input, context: ToolUseContext): Promise<Output> 
 
   if ('type' in fetched) {
     const phrase = REDIRECT_PHRASES[fetched.statusCode] ?? 'Found'
-    const message = `CROSS-HOST REDIRECT: this URL answers with a redirect to a different host, which is reported rather than followed.
+    const message = `CROSS-HOST REDIRECT: this URL redirects to a different host; WebFetch reports the redirect without following it.
 
 Original URL: ${fetched.originalUrl}
 Redirect URL: ${fetched.redirectUrl}

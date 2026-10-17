@@ -175,7 +175,7 @@ export const BlenderTool = buildTool({
         message:
           input.op === 'blender_bridge_install'
             ? `Blender mutate: ${input.op} — materializes the mercury_blender_bridge add-on, its token, and any port config.json into the user addon home (enabling it in Blender stays your act)`
-            : `Blender mutate: ${input.op} — removes the mercury_blender_bridge add-on directory WHOLE (token and config included) from the user addon home`,
+            : `Blender mutate: ${input.op} removes the entire mercury_blender_bridge add-on directory (token and config included) from the user addon home`,
       }
     }
     const spec = blenderBridgeVerb(input.op)
@@ -199,7 +199,7 @@ export const BlenderTool = buildTool({
     }
     return {
       behavior: 'ask' as const,
-      message: `Blender mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — switches the open .blend (no undo step; unsaved work refuses with BLEND_DIRTY rather than being discarded)`,
+      message: `Blender mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open .blend (no undo step; refuses with BLEND_DIRTY if there are unsaved changes)`,
     }
   },
   async validateInput(input: Input) {

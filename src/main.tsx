@@ -461,11 +461,11 @@ async function run(): Promise<void> {
     .addOption(new Option('--brief-file <file>', 'Read the session system brief from a file').hideHelp())
     .option('--brief-add <prompt>', 'Append to the session system brief')
     .addOption(new Option('--brief-add-file <file>', 'Append to the session system brief from a file').hideHelp())
-    .addOption(new Option('--mode <mode>', `Permission mode — ${PERMISSION_MODES.map(mode => `${mode}: ${MODE_GLOSS[mode]}`).join('; ')} (apollo needs someone to answer its asks: the cockpit, or a host serving the session over mercury runner — mercury run alone refuses it)`).choices(PERMISSION_MODES))
+    .addOption(new Option('--mode <mode>', `Permission mode: ${PERMISSION_MODES.map(mode => `${mode}: ${MODE_GLOSS[mode]}`).join('; ')} (apollo requires the interactive terminal or mercury runner; mercury run refuses it)`).choices(PERMISSION_MODES))
     .option('-c, --continue', 'Continue the most recent conversation')
     .option('-r, --resume [value]', 'Resume a conversation (session id, title, or picker)')
     .option('--fork', 'Fork to a new session id on resume')
-    .option('--pr [value]', 'Resume a session linked to a PR')
+    .option('--pr [value]', 'Resume the session for a PR')
     .addOption(new Option('--draft <text>', 'Prefill the input buffer').hideHelp())
     .option('--ephemeral', 'Keep nothing of the run: no transcript, no lineage row, no note for the next session, no journal line')
     .addOption(new Option('--replay-to <message-id>', 'Truncate the resumed session at a message').hideHelp())
@@ -485,7 +485,7 @@ async function run(): Promise<void> {
     .option('--provider-preview <betas...>', 'Provider beta headers')
     .option('--backup-model <model>', 'Fallback model when the primary is overloaded')
     .addOption(new Option('--meter-tag <tag>', 'Workload tag').hideHelp())
-    .option('--project <directory>', 'Start in this folder. Put it first, before the command word — mercury --project <dir> run … — anywhere later it is refused', (value: string) => {
+    .option('--project <directory>', 'Start in this folder. Pass it before the command word (mercury --project <dir> run …); later positions are refused', (value: string) => {
       const folder = /\s/.test(value) ? JSON.stringify(value) : value
       throw new InvalidArgumentError(`--project goes before the command word, not after it: ${binaryName()} --project ${folder} run …`)
     })
@@ -1057,7 +1057,7 @@ async function showAction(
     if (options.protocol !== undefined) {
       if (!(accepted as readonly string[]).includes(options.protocol)) {
         writeErr(
-          `Unknown protocol '${options.protocol}'. Accepted: ${accepted.join(', ')}. The pin names itself — there is no silent fallback.`,
+          `Unknown protocol '${options.protocol}'. Accepted: ${accepted.join(', ')}.`,
         )
         process.exit(1)
       }

@@ -103,7 +103,7 @@ export function applyBlenderBridgeUninstall(): string {
   const existed = existsSync(dir)
   rmSync(dir, { recursive: true, force: true })
   return existed
-    ? `${BLENDER_ADDON_MODULE} removed WHOLE from ${census.home.path} (add-on files, token, and any config.json) — disable/forget it in Blender's Preferences if it was enabled; a running Blender drops the listener on disable or restart`
+    ? `${BLENDER_ADDON_MODULE} removed from ${census.home.path} (add-on files, token, and any config.json); disable it in Blender's Preferences if it was enabled (a running Blender drops the listener on disable or restart)`
     : `${BLENDER_ADDON_MODULE} was not installed under ${census.home.path}; nothing to remove`
 }
 

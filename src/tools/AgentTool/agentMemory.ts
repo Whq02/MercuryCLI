@@ -66,7 +66,7 @@ export function isAgentMemoryPath(absolutePath: string): boolean {
 }
 
 const SCOPE_GUIDELINES: Record<AgentMemoryScope, string> = {
-  user: 'Keep what you save general rather than project-specific.',
+  user: 'Save general facts that apply across projects.',
   project: 'Tailor what you save to this project.',
   local: 'Tailor what you save to this project and this machine.',
 }
