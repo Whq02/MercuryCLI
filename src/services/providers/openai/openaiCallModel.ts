@@ -84,7 +84,8 @@ import { refreshProviderUsage } from '../providerUsage.js'
 import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
-import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
+import { streamOpenaiResponses, streamOpenaiResponsesRoad, type OpenaiLiveModel } from './openaiClient.js'
+import { openaiSocketRoadChosen } from './openaiSocketTransport.js'
 import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
@@ -1133,11 +1134,14 @@ export async function* streamOneOpenaiAttempt(ctx: {
   const promptTokens = estimateRequestTokens(request)
   const events =
     ctx._eventsForTesting ??
-    streamOpenaiResponses({
+    streamOpenaiResponsesRoad({
       baseUrl: auth.baseUrl,
       headers: auth.headers,
       request,
       signal,
+      ...(auth.account.kind === 'api-key' && openaiSocketRoadChosen()
+        ? { socket: { owner: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)) } }
+        : {}),
       idleTimeoutMs,
       silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: 'openai', cold, promptTokens, idleMs: idleTimeoutMs }),
       ...(options.onStreamActivity ? { onStreamActivity: options.onStreamActivity } : {}),
