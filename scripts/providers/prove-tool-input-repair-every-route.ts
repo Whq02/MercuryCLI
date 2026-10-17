@@ -131,7 +131,7 @@ section('G1 · the gate types by the declared schema on every route — the call
   const typed = call({ limit: 20, paths: ['src/'] })
   check('a well-typed call mints exactly what was sent', typed.ok && j(typed.input) === j({ limit: 20, paths: ['src/'] }), j(typed))
   const bad = call({ limit: 'twenty' })
-  check('a string no type can take is still refused with the type sentence', !bad.ok && bad.refusal.code === 'schema' && bad.refusal.reason.includes('expected to be of type number but string was provided'), j(bad))
+  check('a string no type can take is still refused with the type sentence', !bad.ok && bad.refusal.code === 'schema' && bad.refusal.reason.includes('expects type number, got string'), j(bad))
   const stray = call({ limit: 1, nope: true })
   check('an undeclared key on a strict tool is still the refusal that names it', !stray.ok && stray.refusal.code === 'schema' && stray.refusal.reason.includes('`nope` was not expected'), j(stray))
   const mcp = {
