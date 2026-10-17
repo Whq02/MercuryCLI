@@ -37,12 +37,12 @@ tally.section('4.2 — the description: each fact once, 1,881 bytes with read ta
   tally.check('a rendering for a model without PDF or image input (glm-5.3) changes in the same one line only', noMedia.includes(`${LINE}\n${NEXT_LINE}\n`) && !noMedia.includes(OLD_LINE) && !noMedia.includes('This tool can read PDF files') && noMedia.includes('cannot be shown to the current model'), noMedia)
 }
 
-tally.section('5 — the input schema is byte-identical to its .28 copy')
+tally.section('5 — the input schema matches its recorded copy')
 {
   const schema = JSON.stringify(zodToJsonSchema((FileReadTool as { inputSchema: never }).inputSchema))
   const stored = readFileSync(join(import.meta.dir, 'fixtures', 'read-input-schema-28.json'), 'utf8').replace(/\n$/, '')
   tally.check('the JSON Schema of inputSchema() equals fixtures/read-input-schema-28.json byte for byte', schema === stored, `${schema.length} vs ${stored.length}`)
-  tally.check('it is 936 bytes, the study\'s measured figure', Buffer.byteLength(schema) === 936, `${Buffer.byteLength(schema)} bytes`)
+  tally.check('it is 1218 bytes with negative offset and ranges', Buffer.byteLength(schema) === 1218, `${Buffer.byteLength(schema)} bytes`)
   tally.check('the tool keeps its name', FileReadTool.name === 'Read')
 }
 
