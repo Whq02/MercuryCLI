@@ -506,6 +506,7 @@
     "getEffectiveContextWindowSize",
     "isAutoCompactEnabled",
     "rapidRefillCount",
+    "rapidRefillPauseText",
     "resolveAutoCompactWindow",
     "shouldAutoCompact",
     "type:AutoCompactTrackingState",
@@ -534,10 +535,17 @@
    "src/services/compact/verbatimTail.ts": [
     "DEFAULT_KEEP_ROUNDS",
     "DEFAULT_TAIL_TOKEN_BUDGET",
+    "FOLDED_RESULT_KEY",
+    "LANDING_ROOM_FLOOR_TOKENS",
+    "LANDING_ROOM_MAX_SHARE",
     "MAX_FLOOR_ROUND_TOKENS",
     "MIN_HEAD_ROUNDS",
     "computeVerbatimRecentTail",
-    "isMercuryCompactKeepTailEnabled"
+    "foldLandingCeiling",
+    "foldableResults",
+    "foldedResultPlaceholder",
+    "isMercuryCompactKeepTailEnabled",
+    "withFoldedResults"
    ],
    "src/services/compact/sessionMemoryCompact.ts": [
     "shouldUseSessionMemoryCompaction",
