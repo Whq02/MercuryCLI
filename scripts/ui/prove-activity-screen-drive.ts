@@ -36,6 +36,7 @@ for (const [cols, rows] of SIZES) {
     { requireAwait: true, awaitText: DONE, awaitSettleTicks: 3, data: '', mark: 'turn-done' },
     { requireAwait: true, awaitText: DONE, data: '\u0014' },
     { requireAwait: true, awaitText: '↵ details', data: '\r' },
+    { requireAwait: true, awaitText: `${MONITORS} monitors here`, data: '' },
     { requireAwait: true, awaitText: row(1), data: '', mark: 'open' },
     { requireAwait: true, awaitText: row(1), data: '\u001b[B' },
     { requireAwait: true, awaitText: row(2), data: '\u001b[B' },
