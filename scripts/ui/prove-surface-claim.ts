@@ -45,7 +45,7 @@ check(
 )
 check(
   'flexGrow spacer BELOW the content too (blank claim centers short surfaces)',
-  /\{modal\}<\/Box>\{blankClaims && <Box flexGrow=\{1\} \/>\}/.test(src),
+  /\{modal\}<\/ModalPaneBody>\{blankClaims && <Box flexGrow=\{1\} \/>\}/.test(src),
 )
 check(
   'pane stays opaque={true} in BOTH modes (transparency is structurally banned)',
@@ -69,7 +69,8 @@ check(
 console.log('-- the shell right edge: a flush slot, shells stretch')
 check(
   'the modal slot wrapper is flush (no padding, no margin)',
-  /<Box flexShrink=\{0\} flexDirection="column">\{modal\}<\/Box>/.test(src),
+  /<ModalPaneBody rows=\{Math\.max\(0, terminalRows - modalPeek - modalSeparatorRows\)\} columns=\{columns\} scrollRef=\{modalScrollRef \?\? null\}>\{modal\}<\/ModalPaneBody>/.test(src) &&
+    /<ScrollBox ref=\{paneRef\} flexShrink=\{1\} minHeight=\{0\} flexDirection="column">\s*\{children\}\s*<\/ScrollBox>/.test(src),
 )
 check(
   'the modal context advertises the slot width it actually provides',

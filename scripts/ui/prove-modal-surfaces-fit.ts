@@ -56,7 +56,7 @@ section('mechanism pins')
   check('inside a modal the shell body is a ScrollBox capped at the slot rows minus its chrome', shell.includes('<ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap}>') && shell.includes('slotRows - (5 + (specimen ? 1 : 0))'))
   check('the body registers as the slot\'s scroll target', shell.includes('modalScrollRef.current = bodyRef.current'))
   check('PageUp/PageDown page an overflowing body', /key\.pageUp \|\| key\.pageDown/.test(shell) && shell.includes('body.scrollBy('))
-  check('outside a modal the body renders unbounded (byte-identical inline)', /\{insideModal \? \([\s\S]{0,200}\) : \(\s*children\s*\)\}/.test(shell))
+  check('outside a modal the body renders unbounded (byte-identical inline)', /\{insideModal \? \([\s\S]{0,400}\) : \(\s*children\s*\)\}/.test(shell))
 
   const usage = read('src/components/Settings/Usage.tsx')
   check('the usage bands own their spacing (a row between bands, no per-section margin)', usage.includes('marginTop={bandIndex > 0 ? 1 : 0}'))
