@@ -363,6 +363,133 @@ section('F — a retry resets the early starts: a started call is stopped, taken
   callDelayMs = 0
 }
 
+section('refusals — an abandoned stream (provider throw after a settled tool_use block) aborts the early call and settles synthetically; a mid-stream fallback retry never double-runs; plain/implement ask while sovereign runs without asking')
+{
+  callDelayMs = 20_000
+  marks.length = 0
+  startWaiters.clear()
+  const rig = makeCtx()
+  const started = whenStarted('tu_err_1')
+  async function* failingModel(): AsyncGenerator<never, void> {
+    const m = createAssistantMessage({ content: [{ type: 'tool_use', id: 'tu_err_1', name: 'Grep', input: GREP.input }] as never })
+    m.message.id = 'msg_err_0'
+    m.message.stop_reason = null
+    marks.push('stream:block:tu_err_1')
+    yield m as never
+    await Promise.race([started, new Promise(resolve => setTimeout(resolve, STREAM_CEILING_MS))])
+    marks.push('stream:throw')
+    throw new Error('simulated mid-stream transport failure')
+  }
+  const gen = query({
+    messages: [createUserMessage({ content: 'please do the thing' })] as never,
+    systemPrompt: ['rig system prompt'] as never,
+    userContext: {},
+    systemContext: {},
+    canUseTool: allowAll as never,
+    toolUseContext: rig.ctx as never,
+    querySource: 'sdk' as never,
+    deps: {
+      callModel: failingModel as never,
+      autocompact: (async () => ({ wasCompacted: false })) as never,
+      microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+      uuid: (() => {
+        let n = 0
+        return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
+      })(),
+    },
+  }) as AsyncGenerator<AnyMsg, Record<string, unknown>>
+  const errYields: AnyMsg[] = []
+  let step = await gen.next()
+  while (!step.done) {
+    errYields.push(step.value)
+    step = await gen.next()
+  }
+  await new Promise(resolve => setTimeout(resolve, 30))
+  check('abandoned stream: the early call started before the throw and was aborted when the stream failed', marks.includes('tool:start:Grep:tu_err_1') && marks.includes('tool:aborted:Grep:tu_err_1'), marks.join(' '))
+  const errSettlements = errYields.filter(m => m.type === 'user' && JSON.stringify(m).includes('tu_err_1'))
+  check('abandoned stream: the announced call settled synthetically once as an error and never leaked its real output', step.value.reason === 'model_error' && errSettlements.length === 1 && !JSON.stringify(errYields).includes('Grep answered'), JSON.stringify(step.value))
+  callDelayMs = 0
+
+  marks.length = 0
+  startWaiters.clear()
+  const retryRig = makeCtx()
+  const firstStarted = whenStarted('tu_retry_1')
+  let modelCalls = 0
+  async function* fallbackStreamModel(req: { options: { onStreamingFallback?: () => void } }): AsyncGenerator<never, void> {
+    modelCalls++
+    if (modelCalls === 1) {
+      const m1 = createAssistantMessage({ content: [{ type: 'tool_use', id: 'tu_retry_1', name: 'Grep', input: GREP.input }] as never })
+      m1.message.id = 'msg_retry_1'
+      m1.message.stop_reason = null
+      marks.push('stream:block:tu_retry_1')
+      yield m1 as never
+      await Promise.race([firstStarted, new Promise(resolve => setTimeout(resolve, STREAM_CEILING_MS))])
+      marks.push('stream:fallback')
+      req.options.onStreamingFallback?.()
+      const m2 = createAssistantMessage({ content: [{ type: 'tool_use', id: 'tu_retry_2', name: 'Grep', input: GREP.input }] as never })
+      m2.message.id = 'msg_retry_2'
+      m2.message.stop_reason = 'tool_use'
+      marks.push('stream:block:tu_retry_2')
+      yield m2 as never
+      return
+    }
+    const done = createAssistantMessage({ content: 'done' })
+    done.message.stop_reason = 'end_turn'
+    yield done as never
+  }
+  const retryGen = query({
+    messages: [createUserMessage({ content: 'please do the thing' })] as never,
+    systemPrompt: ['rig system prompt'] as never,
+    userContext: {},
+    systemContext: {},
+    canUseTool: allowAll as never,
+    toolUseContext: retryRig.ctx as never,
+    querySource: 'sdk' as never,
+    deps: {
+      callModel: fallbackStreamModel as never,
+      autocompact: (async () => ({ wasCompacted: false })) as never,
+      microcompact: (async (messages: unknown[]) => ({ messages })) as never,
+      uuid: (() => {
+        let n = 0
+        return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
+      })(),
+    },
+  }) as AsyncGenerator<AnyMsg, Record<string, unknown>>
+  const retryYields: AnyMsg[] = []
+  let rs = await retryGen.next()
+  while (!rs.done) {
+    retryYields.push(rs.value)
+    rs = await retryGen.next()
+  }
+    const retryUserRows = retryYields.filter(m => m.type === 'user')
+    const retryUserText = JSON.stringify(retryUserRows)
+    check('mid-stream fallback: the first attempt\'s early call is retracted and never settled in the user tool_result rows; only the retry\'s call settles once', !retryUserText.includes('tu_retry_1') && retryUserText.includes('tu_retry_2') && marks.filter(m => m === 'tool:start:Grep:tu_retry_1').length === 1 && marks.filter(m => m === 'tool:start:Grep:tu_retry_2').length === 1, marks.join(' '))
+
+  const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
+  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const askInput = { file_path: '/etc/hosts' }
+  const askParent = createAssistantMessage({ content: [{ type: 'tool_use', id: 'tu_mode_1', name: 'Read', input: askInput }] as never })
+  const modeVerdict = async (mode: 'default' | 'implement' | 'sovereign') => {
+    const base = getDefaultAppState()
+    const mCtx = makeCtx()
+    mCtx.ctx.options = { ...(mCtx.ctx.options as Record<string, unknown>), isNonInteractiveSession: false }
+    mCtx.ctx.getAppState = () => ({
+      ...base,
+      toolPermissionContext: {
+        ...base.toolPermissionContext,
+        mode,
+        isBypassPermissionsModeAvailable: mode === 'sovereign',
+        alwaysAskRules: { userSettings: ['Read(/etc/hosts)'] },
+      },
+    })
+    return (await decideToolPermissionWithModes(FileReadTool as never, askInput, mCtx.ctx as never, askParent as never, 'tu_mode_1')).decision.behavior
+  }
+  const plainVerdict = await modeVerdict('default')
+  const implementVerdict = await modeVerdict('implement')
+  const sovereignVerdict = await modeVerdict('sovereign')
+  check('permission modes on an early-eligible Read under an ask rule: plain and implement ask, sovereign allows without asking', plainVerdict === 'ask' && implementVerdict === 'ask' && sovereignVerdict === 'allow', `plain=${plainVerdict} implement=${implementVerdict} sovereign=${sovereignVerdict}`)
+}
+
 console.log('\n' + '='.repeat(76))
 if (failures > 0) {
   console.log(`EARLY-TOOL-START: ${failures} of ${checks} checks FAILED`)

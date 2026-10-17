@@ -829,6 +829,7 @@ async function* streamModel(
       }
     }
   } catch (error) {
+    iter.early.reset()
     logError(error)
     const errorMessage =
       describeInvalidArgTypeError(error) ??
@@ -1336,6 +1337,7 @@ async function* runEventMachine(
 
 
     if (toolUseContext.abortController.signal.aborted) {
+      iter.early.reset()
       const cutReason = toolUseContext.abortController.signal.reason
       yield* emitSyntheticSettlements(
         assistantMessages,
@@ -1363,6 +1365,7 @@ async function* runEventMachine(
     }
 
     if (!iter.needsFollowUp) {
+      iter.early.reset()
       const lastMessage = assistantMessages.at(-1)
 
       const overflowStamped = overflowSignalOf(lastMessage)

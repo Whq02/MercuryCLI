@@ -167,6 +167,25 @@ section('§5 one law, two shells, one schema row')
   check('docs/SETTINGS.md names the key and says it is off by default', /\| `shell\.filterOutput` \|[^\n]*Off by default\./.test(docs))
 }
 
+section('refusals — real output that resembles progress or chatter is never dropped, and image output bypasses the filter')
+{
+  const { applyShellOutputFilter } = await import('../../src/tools/BashTool/utils.ts')
+  const singlePct = 'Coverage summary: 85.4% of statements covered\nAll suites passed.\n'
+  const singleOut = filterShellOutput(singlePct)
+  check('a single percentage line in real output is never dropped (a run of one has 0 redraws)', singleOut.text === singlePct && singleOut.changed === false, JSON.stringify(singleOut))
+  const trace = 'Traceback (most recent call last):\n  File "app.py", line 10, in <module>\n    raise RuntimeError("failed at 50% step")\nRuntimeError: failed at 90% completion\n'
+  const traceOut = filterShellOutput(trace)
+  check('traceback and failure lines with percentages stay whole', traceOut.text === trace && traceOut.changed === false, JSON.stringify(traceOut))
+  const blankRepeats = 'alpha\n\n\n\n\nbeta\n'
+  const blankOut = filterShellOutput(blankRepeats)
+  check('blank lines are never folded into [repeated N times]', blankOut.text === blankRepeats && blankOut.changed === false, JSON.stringify(blankOut))
+  setFilterKey(true)
+  const imageUri = 'data:image/png;base64,' + 'A'.repeat(200)
+  const imageResult = await applyShellOutputFilter(imageUri, { taskId: 'img-task', spilledPath: undefined })
+  check('an image data-URI output bypasses the filter untouched', imageResult === imageUri)
+  setFilterKey(null)
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))
 if (failures > 0) {

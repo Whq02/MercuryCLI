@@ -363,6 +363,36 @@ section('9 — a mixed reply: [Write a, Write b, Edit a, Read c] runs as {Write 
   check('four calls, four settlements', ids.every(id => results.filter(r => r === id).length === 1), JSON.stringify(results))
 }
 
+section('refusals — traversal and symlink-escape spellings resolve to their canonical host target; read-before-edit and deny rules hold on concurrent writes')
+{
+  const escapeLink = join(src, 'escape-to-docs')
+  symlinkSync(docs, escapeLink)
+  const tools = [FileEditTool, FileWriteTool, FileReadTool, GrepTool, GlobTool, BashTool, NotebookEditTool]
+  const ctx = makeCtx(tools) as never
+  const claim = (name: string, input: Record<string, unknown>) => batchClaimOf({ type: 'tool_use', id: `tu_ref_${name}`, name, input } as never, ctx)
+  const viaTraversal = await claim('Edit', { file_path: join(src, 'sub', '..', '..', 'docs', 'c.md'), old_string: '# c', new_string: '# c2' })
+  const viaSymlinkOut = await claim('Write', { file_path: join(escapeLink, 'c.md'), content: '# c3' })
+  const direct = await claim('Edit', { file_path: fileC, old_string: '# c', new_string: '# c4' })
+  check('a ../ traversal spelling and a symlink-out spelling resolve to the exact same canonical write claim as the direct host path', viaTraversal.kind === 'writes' && viaSymlinkOut.kind === 'writes' && direct.kind === 'writes' && viaTraversal.path === direct.path && viaSymlinkOut.path === direct.path && !claimsCompatible(viaTraversal, viaSymlinkOut), JSON.stringify({ viaTraversal, viaSymlinkOut, direct }))
+  const nulClaim = await claim('Edit', { file_path: `${fileA}\0evil`, old_string: 'a', new_string: 'b' })
+  check('a path carrying a NUL byte degrades to an exclusive claim, never batched', nulClaim.kind === 'exclusive', JSON.stringify(nulClaim))
+  const realCtx = makeCtx([FileEditTool, FileWriteTool, FileReadTool])
+  const unreadBlocks = [
+    { type: 'tool_use', id: 'tu_unread_a', name: 'Edit', input: { file_path: fileA, old_string: 'a = 1', new_string: 'a = 9' } },
+    { type: 'tool_use', id: 'tu_unread_b', name: 'Edit', input: { file_path: fileB, old_string: 'b = 2', new_string: 'b = 9' } },
+  ]
+  const unreadParent = createAssistantMessage({ content: unreadBlocks as never })
+  const unreadOut: Array<{ id: string; text: string; isError: boolean }> = []
+  for await (const update of runTools(unreadBlocks as never, [unreadParent] as never, allowAll as never, realCtx as never)) {
+    const content = (update.message as { message?: { content?: unknown } } | undefined)?.message?.content
+    if (!Array.isArray(content)) continue
+    for (const b of content as Array<{ type?: string; tool_use_id?: string; content?: unknown; is_error?: boolean }>) {
+      if (b.type === 'tool_result' && b.tool_use_id) unreadOut.push({ id: b.tool_use_id, text: String(b.content), isError: b.is_error === true })
+    }
+  }
+  check('read-before-edit holds across a concurrent write batch: both unread edits are refused', unreadOut.length === 2 && unreadOut.every(r => r.isError && /read/i.test(r.text)), JSON.stringify(unreadOut))
+}
+
 console.log('\n' + '='.repeat(76))
 if (failures > 0) {
   console.log(`WRITE-BATCHING: ${failures} of ${checks} checks FAILED`)

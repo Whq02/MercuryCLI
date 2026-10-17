@@ -338,6 +338,45 @@ section('J — a tool that is not concurrency-safe takes the same law: two ident
   check('the second Bash result is the pointer to the first', text.startsWith(REPEATED_RESULT_TAG) && text.includes(`call ${first}`) && text.includes('this Bash call'), text.slice(0, 200))
 }
 
+section('refusals — the three stub readers (compact, microcompact, queryHelpers) and the 128-entry ledger cap')
+{
+  const { restorePreservedReads } = await import('../../src/services/compact/compact.ts')
+  const { projectTimeBasedMicrocompact } = await import('../../src/services/compact/microCompact.ts')
+  const { isClearedOrDigested } = await import('../../src/services/compact/microCompactDigest.ts')
+  const { extractReadFilesFromMessages } = await import('../../src/utils/queryHelpers.ts')
+  const { repeatedResultPointer } = await import('../../src/services/tools/loopGuard.ts')
+  const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+  const pointerText = `${REPEATED_RESULT_TAG} this Read call ({"file_path":"/work/a.ts"}) returned exactly the same ${LONG.length} characters as call tu_r1 earlier in this turn, so the text is not repeated here. Reread that result — it is unchanged.`
+  const readUse = (id: string, file_path: string) => createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Read', input: { file_path } }] as never })
+  const readRes = (tool_use_id: string, content: string, timestamp = '2026-10-17T12:00:00.000Z') => ({ ...(createUserMessage({ content: [{ type: 'tool_result', tool_use_id, content }] as never }) as Record<string, unknown>), timestamp })
+  const cache = extractReadFilesFromMessages([readUse('tu_r1', '/work/a.ts'), readRes('tu_r1', '1\tconst real = 1'), readUse('tu_r2', '/work/a.ts'), readRes('tu_r2', pointerText, '2026-10-17T12:01:00.000Z')] as never, '/work')
+  check('queryHelpers: a pointer result on resume never overwrites the real read in the file-state cache', cache.get('/work/a.ts')?.content === 'const real = 1', JSON.stringify(cache.get('/work/a.ts')))
+  const foldCache = createFileStateCacheWithSizeLimit(10)
+  const restored = restorePreservedReads({ readFileState: foldCache } as never, [['/work/a.ts', { content: 'const real = 1', timestamp: 100, offset: 0, limit: undefined }]], [readUse('tu_r2', '/work/a.ts'), readRes('tu_r2', pointerText)] as never)
+  check('compact: a Read answered only by a pointer in the preserved tail is treated as a stub so re-attachment re-injects the file', restored.length === 0 && foldCache.get('/work/a.ts') === undefined, JSON.stringify(restored))
+  const big = 'the complete original result remains available in the model view\n'.repeat(800)
+  const mcHistory: unknown[] = [createUserMessage({ content: 'keep' }), readUse('tu_mc_1', '/work/a.ts'), readRes('tu_mc_1', big), readUse('tu_mc_2', '/work/a.ts'), readRes('tu_mc_2', pointerText)]
+  for (let i = 0; i < 6; i++) {
+    mcHistory.push(readUse(`tu_mc_tail_${i}`, `/work/other-${i}.ts`), readRes(`tu_mc_tail_${i}`, big))
+  }
+  const pruned = projectTimeBasedMicrocompact(mcHistory as never, 'sdk', { pressure: true, supersededOnly: true })
+  const firstAfterPrune = pruned?.messages.flatMap(m => (m.type === 'user' && Array.isArray(m.message.content) ? m.message.content : [])).find((b: { type?: string; tool_use_id?: string }) => b.type === 'tool_result' && b.tool_use_id === 'tu_mc_1') as { content?: unknown } | undefined
+  check('microCompact: a pointer never supersedes the earlier whole Read, so the reference is not pruned out from under the pointer', pruned === null || !isClearedOrDigested(firstAfterPrune?.content as never), String(firstAfterPrune?.content).slice(0, 120))
+  const boundary = createUserMessage({ content: 'cap probe turn' })
+  const view: unknown[] = [boundary]
+  for (let i = 0; i < 130; i++) {
+    const id = `tu_cap_${i}`
+    const arg = { pattern: `needle_${i}`, path: '/tmp/haystack' }
+    const block = { type: 'tool_result' as const, tool_use_id: id, content: `${LONG}\n// ${i}` }
+    const ans = await repeatedResultPointer(processMainOwner(), { toolName: 'Grep', toolUseID: id, roundID: `r_${i}`, arguments: arg, result: block, messages: view })
+    if (i === 0) check('ledger cap: entry 0 starts whole', ans === null)
+    view.push(createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Grep', input: arg }] as never }), createUserMessage({ content: [block] as never }))
+  }
+  const evicted = await repeatedResultPointer(processMainOwner(), { toolName: 'Grep', toolUseID: 'tu_cap_0_again', roundID: 'r_after', arguments: { pattern: 'needle_0', path: '/tmp/haystack' }, result: { type: 'tool_result', tool_use_id: 'tu_cap_0_again', content: `${LONG}\n// 0` }, messages: view })
+  const retained = await repeatedResultPointer(processMainOwner(), { toolName: 'Grep', toolUseID: 'tu_cap_129_again', roundID: 'r_after', arguments: { pattern: 'needle_129', path: '/tmp/haystack' }, result: { type: 'tool_result', tool_use_id: 'tu_cap_129_again', content: `${LONG}\n// 129` }, messages: view })
+  check('ledger cap: the 128-entry FIFO evicts entry 0 (answered whole again) while keeping entry 129 (answered with a pointer)', evicted === null && retained !== null && retained.startsWith(REPEATED_RESULT_TAG), `evicted=${String(evicted)} retained=${String(retained).slice(0, 80)}`)
+}
+
 console.log('\n' + '='.repeat(76))
 if (failures > 0) {
   console.log(`REPEATED-RESULT-POINTER: ${failures} of ${checks} checks FAILED`)
