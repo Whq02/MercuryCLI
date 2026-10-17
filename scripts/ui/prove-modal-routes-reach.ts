@@ -68,7 +68,7 @@ const RIGHT = '\x1b[C'
 const DOWNS = 12
 const SIZES: Array<[number, number]> = [[64, 20], [80, 24], [100, 30], [177, 49]]
 const RESIZE_STOPS: Array<[number, number]> = [[64, 20], [100, 30], [177, 49]]
-const NOT_A_VIEW = new Set(['exit', 'logout', 'zen', 'keysetup', 'rename', 'title', 'crewmates', 'contract', 'mission'])
+const NOT_A_VIEW = new Set(['exit', 'logout', 'zen', 'keysetup', 'rename', 'title', 'crewmates', 'browse', 'contract', 'mission'])
 const TEXT_ROUTES = ['contract', 'mission']
 const MARK: Readonly<Record<string, string>> = {
   defaultprovider: 'Default provider', hooks: 'configured hooks', permissions: 'Permissions:', export: 'Export conversation', sandbox: 'Sandbox', saturn: 'saturn scheduler',
