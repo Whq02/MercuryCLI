@@ -228,6 +228,11 @@ export function _statsForProofs(): {
   }
 }
 
+export function _publishVitalsForProofs(next: Partial<VitalsSnapshots>): void {
+  snapshots = { ...snapshots, ...next, refreshedAt: Date.now(), version: snapshots.version + 1 }
+  emit()
+}
+
 export function useVitals(): VitalsSnapshots
 export function useVitals<T>(selector: (s: VitalsSnapshots) => T): T
 export function useVitals<T>(

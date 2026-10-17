@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/components.tsx src/components/mercury-ui/useCursorFollow.ts src/components/PopupForm.tsx src/components/FullscreenLayout.tsx
+// gate-watch: src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/components.tsx src/components/mercury-ui/useCursorFollow.ts src/components/PopupForm.tsx src/components/FullscreenLayout.tsx src/state/vitalsBus.ts src/ink/ink.tsx
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -8,6 +8,8 @@ import stripAnsi from 'strip-ansi'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const HOME = mkdtempSync(join(tmpdir(), 'activity-screen-keys-'))
+const CWD = mkdtempSync(join(tmpdir(), 'activity-screen-cwd-'))
+process.chdir(CWD)
 process.env.MERCURY_CONFIG_DIR = HOME
 delete process.env.MERCURY_HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -52,6 +54,7 @@ const { default: instances } = await import('../../src/ink/instances.ts')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
 const { setZenMode } = await import('../../src/utils/cockpit/zenMode.ts')
+const { _publishVitalsForProofs } = await import('../../src/state/vitalsBus.ts')
 const h = React.createElement
 
 const STATS = 'Session statistics'
@@ -117,13 +120,25 @@ hardLimit.unref()
 const rosterRows = Array.from({ length: MONITORS }, (_, index) => ({
   id: `mon-${index + 1}`, kind: 'monitor' as const, name: `monitor ${index + 1} watching build-${index + 1}.log`, status: 'running', startTime: Date.now() - (index + 1) * 60_000, command: `tail -f build-${index + 1}.log`,
 }))
-const roster = { rows: rosterRows, mission: [], samples: [], reported: true }
+let roster = { rows: rosterRows, mission: [] as Array<{ id: string; subject: string; activeForm?: string; status: string }>, samples: [], reported: true }
+const rosterListeners = new Set<() => void>()
+function landMission(): void {
+  roster = { ...roster, mission: [
+    { id: 'm1', subject: 'walk the activity screen', activeForm: 'walking the activity screen', status: 'in_progress' },
+    { id: 'm2', subject: 'read the counts', activeForm: 'reading the counts', status: 'in_progress' },
+    { id: 'm3', subject: 'reach the last monitor', status: 'pending' },
+    { id: 'm4', subject: 'close the screen', status: 'pending' },
+  ] }
+  for (const listener of rosterListeners) listener()
+}
 function seedRoster(): void {
+  roster = { ...roster, mission: [] }
+  rosterListeners.clear()
   const resting = noSessionConnector()
   const seeded = new Proxy(resting, {
     get(target, prop, receiver) {
       if (prop === 'workRoster') return () => roster
-      if (prop === 'subscribeWork') return () => () => {}
+      if (prop === 'subscribeWork') return (listener: () => void) => { rosterListeners.add(listener); return () => { rosterListeners.delete(listener) } }
       const value = Reflect.get(target, prop, receiver)
       return typeof value === 'function' ? value.bind(target) : value
     },
@@ -305,9 +320,36 @@ section('§2 a live resize while the screen is open keeps the selected row in vi
   await scene.close()
 }
 
+section('§3 content above the list lands after the first frame: the selected row stays in view')
+const repositoryRow = (lines: string[]): boolean => lines.some(line => /^repository\s/.test(line))
+const missionRow = (lines: string[]): boolean => lines.some(line => line.startsWith('Mission ('))
+for (const [cols, rows] of [[80, 24], [64, 20]] as Array<[number, number]>) {
+  const scene = await openScene(cols, rows, false)
+  const opening = scene.lines()
+  check(`${cols}x${rows}: the scene's folder is no repository, so the screen opens without the repository row and the cursor on monitor 1 in view`, !repositoryRow(opening) && monitorAt(opening) === 1, describe(opening))
+  _publishVitalsForProofs({ git: { commitHash: '0123456789abcdef', branchName: 'lane/late-git', remoteUrl: null, isHeadOnRemote: false, isClean: true, worktreeCount: 1, unpushedCount: 0 } as never })
+  const landed = await until(() => repositoryRow(scene.lines()), 5000)
+  await sleep(300)
+  const after = scene.lines()
+  save(`activity-${cols}x${rows}-late-git`, after)
+  check(`${cols}x${rows}: the repository row lands above the list`, landed && repositoryRow(after), describe(after))
+  check(`${cols}x${rows}: the selected row is still painted after the late row (no key pressed)`, monitorAt(after) === 1, describe(after))
+  landMission()
+  const missionLanded = await until(() => missionRow(scene.lines()), 5000)
+  await sleep(300)
+  const withMission = scene.lines()
+  save(`activity-${cols}x${rows}-late-mission`, withMission)
+  check(`${cols}x${rows}: the mission rows land above the list`, missionLanded && missionRow(withMission), describe(withMission))
+  check(`${cols}x${rows}: the selected row is still painted after the mission rows (no key pressed)`, monitorAt(withMission) === 1, describe(withMission))
+  await pressTimes(scene, DOWN, 1)
+  check(`${cols}x${rows}: ↓ then moves to monitor 2 in view`, monitorAt(scene.lines()) === 2, describe(scene.lines()))
+  await scene.close()
+}
+
 console.error = originalError
 clearTimeout(hardLimit)
 check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 600))
 rmSync(HOME, { recursive: true, force: true })
+rmSync(CWD, { recursive: true, force: true })
 console.log(`\nactivity-screen-keys: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)
