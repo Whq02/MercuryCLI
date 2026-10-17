@@ -59,7 +59,7 @@ type DeserializeResult = {
 }
 
 export function getResumePrompt(): string {
-  return 'Continue from where you left off.'
+  return 'The previous run ended before its turn finished — stopped from outside or crashed; continue from where you left off.'
 }
 
 

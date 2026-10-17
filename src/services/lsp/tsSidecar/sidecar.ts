@@ -1,5 +1,6 @@
 
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -142,7 +143,59 @@ interface Project {
   rootDir: string
 }
 
-const INFERRED_PROJECT_KEY = '<inferred>'
+const IMPLICIT_PROJECT_KEY_PREFIX = '<implicit>'
+const IMPLICIT_PROJECT_SKIP = new Set(['node_modules', 'bower_components', 'jspm_packages', 'dist', 'build', 'out', 'coverage', 'vendor', 'target', 'venv', '__pycache__'])
+const IMPLICIT_PROJECT_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'])
+const IMPLICIT_PROJECT_MAX_FILES = 5_000
+const IMPLICIT_PROJECT_MAX_ENTRIES = 50_000
+const PROJECT_FILES_RELIST_MS = 30_000
+
+function listImplicitProjectFiles(root: string): string[] {
+  const files: string[] = []
+  let entries = 0
+  let truncated = false
+  const walk = (dir: string): void => {
+    let names: fs.Dirent[]
+    try {
+      names = fs.readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    names.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    for (const entry of names) {
+      if (truncated) return
+      if (++entries > IMPLICIT_PROJECT_MAX_ENTRIES) {
+        truncated = true
+        return
+      }
+      if (entry.name.startsWith('.')) continue
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (!IMPLICIT_PROJECT_SKIP.has(entry.name)) walk(full)
+      } else if (entry.isFile() && IMPLICIT_PROJECT_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+        files.push(full)
+        if (files.length >= IMPLICIT_PROJECT_MAX_FILES) truncated = true
+      }
+    }
+  }
+  walk(root)
+  return files
+}
+
+function isWithin(parent: string, child: string): boolean {
+  const rel = path.relative(parent, child)
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel))
+}
+
+function isHomeOrAbove(dir: string): boolean {
+  let home: string
+  try {
+    home = path.resolve(os.homedir())
+  } catch {
+    return path.dirname(dir) === dir
+  }
+  return isWithin(dir, home)
+}
 
 class SidecarState {
   readonly ts: TsModule
@@ -215,7 +268,7 @@ class SidecarState {
 
   private buildHost(
     rootDir: string,
-    options: TS.CompilerOptions,
+    options: () => TS.CompilerOptions,
     baseFiles: () => string[],
   ): TS.LanguageServiceHost {
     const ts = this.ts
@@ -228,7 +281,7 @@ class SidecarState {
           ? undefined
           : ts.ScriptSnapshot.fromString(text)
       },
-      getCompilationSettings: () => options,
+      getCompilationSettings: options,
       getCurrentDirectory: () => rootDir,
       getDefaultLibFileName: opts => ts.getDefaultLibFilePath(opts),
       fileExists: f => ts.sys.fileExists(f),
@@ -242,9 +295,7 @@ class SidecarState {
     }
   }
 
-  private loadConfiguredProject(configPath: string): Project | undefined {
-    const existing = this.projects.get(configPath)
-    if (existing) return existing
+  private parseConfig(configPath: string): TS.ParsedCommandLine | undefined {
     const ts = this.ts
     const host: TS.ParseConfigFileHost = {
       fileExists: ts.sys.fileExists,
@@ -255,21 +306,38 @@ class SidecarState {
       onUnRecoverableConfigFileDiagnostic: () => {
       },
     }
-    const parsed = ts.getParsedCommandLineOfConfigFile(configPath, {}, host)
+    return ts.getParsedCommandLineOfConfigFile(configPath, {}, host)
+  }
+
+  private loadConfiguredProject(configPath: string): Project | undefined {
+    const existing = this.projects.get(configPath)
+    if (existing) return existing
+    const parsed = this.parseConfig(configPath)
     if (!parsed) return undefined
     const rootDir = path.dirname(configPath)
     const fileNames = new Set(parsed.fileNames.map(f => this.normalize(f)))
     const extraRoots = new Set<string>()
+    let options = parsed.options
+    let listedAt = Date.now()
+    const relist = (): void => {
+      if (Date.now() - listedAt < PROJECT_FILES_RELIST_MS) return
+      listedAt = Date.now()
+      const again = this.parseConfig(configPath)
+      if (!again) return
+      options = again.options
+      fileNames.clear()
+      for (const f of again.fileNames) fileNames.add(this.normalize(f))
+    }
     const project: Project = {
       key: configPath,
       rootDir,
       fileNames,
       extraRoots,
       service: this.ts.createLanguageService(
-        this.buildHost(rootDir, parsed.options, () => [
-          ...fileNames,
-          ...extraRoots,
-        ]),
+        this.buildHost(rootDir, () => options, () => {
+          relist()
+          return [...fileNames, ...extraRoots]
+        }),
         this.ts.createDocumentRegistry(
           this.ts.sys.useCaseSensitiveFileNames,
           rootDir,
@@ -280,8 +348,23 @@ class SidecarState {
     return project
   }
 
-  private inferredProject(): Project {
-    const existing = this.projects.get(INFERRED_PROJECT_KEY)
+  implicitRootFor(file: string): string {
+    const dir = path.dirname(this.normalize(file))
+    const inside = isWithin(this.workspaceRoot, dir)
+    let cursor = dir
+    for (let i = 0; i < 64; i++) {
+      if (fs.existsSync(path.join(cursor, 'package.json'))) return cursor
+      if (inside && cursor === this.workspaceRoot) return cursor
+      const parent = path.dirname(cursor)
+      if (parent === cursor || isHomeOrAbove(parent) || (!inside && isWithin(parent, this.workspaceRoot))) break
+      cursor = parent
+    }
+    return inside ? this.workspaceRoot : dir
+  }
+
+  implicitProject(root: string): Project {
+    const key = `${IMPLICIT_PROJECT_KEY_PREFIX}${root}`
+    const existing = this.projects.get(key)
     if (existing) return existing
     const ts = this.ts
     const options: TS.CompilerOptions = {
@@ -296,21 +379,30 @@ class SidecarState {
       allowImportingTsExtensions: true,
       noEmit: true,
     }
+    const list = (): string[] => (isHomeOrAbove(root) ? [] : listImplicitProjectFiles(root).map(f => this.normalize(f)))
+    const fileNames = new Set(list())
     const extraRoots = new Set<string>()
+    let listedAt = Date.now()
+    const relist = (): void => {
+      if (Date.now() - listedAt < PROJECT_FILES_RELIST_MS) return
+      listedAt = Date.now()
+      fileNames.clear()
+      for (const f of list()) fileNames.add(f)
+    }
     const project: Project = {
-      key: INFERRED_PROJECT_KEY,
-      rootDir: this.workspaceRoot,
-      fileNames: new Set(),
+      key,
+      rootDir: root,
+      fileNames,
       extraRoots,
       service: ts.createLanguageService(
-        this.buildHost(this.workspaceRoot, options, () => [...extraRoots]),
-        ts.createDocumentRegistry(
-          ts.sys.useCaseSensitiveFileNames,
-          this.workspaceRoot,
-        ),
+        this.buildHost(root, () => options, () => {
+          relist()
+          return [...fileNames, ...extraRoots]
+        }),
+        ts.createDocumentRegistry(ts.sys.useCaseSensitiveFileNames, root),
       ),
     }
-    this.projects.set(INFERRED_PROJECT_KEY, project)
+    this.projects.set(key, project)
     return project
   }
 
@@ -333,23 +425,8 @@ class SidecarState {
     if (configPath) {
       project = this.loadConfiguredProject(this.normalize(configPath))
       if (project && project.fileNames.size === 0) {
-        const parsed = this.ts.getParsedCommandLineOfConfigFile(
-          project.key,
-          {},
-          {
-            fileExists: this.ts.sys.fileExists,
-            readFile: this.ts.sys.readFile,
-            readDirectory: this.ts.sys.readDirectory,
-            getCurrentDirectory: () => project!.rootDir,
-            useCaseSensitiveFileNames: this.ts.sys.useCaseSensitiveFileNames,
-            onUnRecoverableConfigFileDiagnostic: () => {},
-          },
-        )
-        for (const ref of parsed?.projectReferences ?? []) {
-          const refConfig = this.ts.resolveProjectReferencePath(ref)
-          const refProject = this.loadConfiguredProject(
-            this.normalize(refConfig),
-          )
+        for (const refConfig of this.referencedConfigs(project)) {
+          const refProject = this.loadConfiguredProject(refConfig)
           if (refProject?.fileNames.has(norm)) {
             project = refProject
             break
@@ -357,9 +434,24 @@ class SidecarState {
         }
       }
     }
-    if (!project) project = this.inferredProject()
+    if (!project) project = this.implicitProject(this.implicitRootFor(norm))
     if (!project.fileNames.has(norm)) project.extraRoots.add(norm)
     return project
+  }
+
+  private referencedConfigs(solution: Project): string[] {
+    return (this.parseConfig(solution.key)?.projectReferences ?? []).map(ref => this.normalize(this.ts.resolveProjectReferencePath(ref)))
+  }
+
+  workspaceProjects(): Project[] {
+    const configPath = this.nearestConfigFile(this.workspaceRoot)
+    const configured = configPath ? this.loadConfiguredProject(this.normalize(configPath)) : undefined
+    if (configured) {
+      if (configured.fileNames.size > 0) return [configured]
+      const referenced = this.referencedConfigs(configured).map(refConfig => this.loadConfiguredProject(refConfig)).filter((refProject): refProject is Project => refProject !== undefined)
+      if (referenced.length > 0) return referenced
+    }
+    return [this.implicitProject(this.workspaceRoot)]
   }
 
   nearestConfigFile(startDir: string): string | undefined {
@@ -385,6 +477,7 @@ interface TextChangeLike {
   start: number
   length: number
   newText: string
+  probeAt?: number | null
 }
 
 function applyTextChanges(text: string, changes: readonly TextChangeLike[]): string {
@@ -489,6 +582,24 @@ interface RenamePlan {
   changes: TextChangeLike[]
 }
 
+type PropertyKeySite = 'shorthand' | 'binding' | 'plain'
+
+function propertyKeySiteKind(ts: TsModule, sf: TS.SourceFile | undefined, pos: number): PropertyKeySite {
+  if (!sf) return 'plain'
+  let found: TS.Node | undefined
+  const visit = (node: TS.Node): void => {
+    if (pos < node.getStart(sf) || pos >= node.getEnd()) return
+    found = node
+    ts.forEachChild(node, visit)
+  }
+  ts.forEachChild(sf, visit)
+  const parent = found?.parent
+  if (!parent) return 'plain'
+  if (ts.isShorthandPropertyAssignment(parent) && parent.name === found) return 'shorthand'
+  if (ts.isBindingElement(parent) && parent.propertyName === undefined && parent.name === found && ts.isObjectBindingPattern(parent.parent)) return 'binding'
+  return 'plain'
+}
+
 function renameSafetyProblem(
   st: SidecarState,
   project: Project,
@@ -523,11 +634,12 @@ function renameSafetyProblem(
     return out
   }
   const renamedExpected = new Set<string>()
-  const renamedProbe: Array<{ file: string; offset: number }> = []
+  const renamedProbe: Array<{ file: string; offset: number; valueShift: number }> = []
   for (const plan of plans) {
     if (!sensitive.has(plan.file)) continue
     for (const change of plan.changes) {
-      renamedProbe.push({ file: plan.file, offset: change.start })
+      if (change.probeAt === null) continue
+      renamedProbe.push({ file: plan.file, offset: change.start, valueShift: change.probeAt ?? 0 })
       for (const key of mappedDefKeys(project.service.getDefinitionAtPosition(plan.file, change.start))) renamedExpected.add(key)
     }
   }
@@ -562,10 +674,11 @@ function renameSafetyProblem(
     }
     for (const probe of renamedProbe) {
       const map = mappers.get(probe.file)!
-      const after = mappedDefKeys(project.service.getDefinitionAtPosition(probe.file, map(probe.offset)))
+      const at = map(probe.offset) + probe.valueShift
+      const after = mappedDefKeys(project.service.getDefinitionAtPosition(probe.file, at))
       if (after.length > 0 && !after.some(key => renamedExpected.has(key))) {
         const text = st.textOf(probe.file) ?? ''
-        return `renaming '${displayName}' to '${newName}' would leave the occurrence at ${positionLabel(st.workspaceRoot, probe.file, text, map(probe.offset))} bound to another '${newName}'`
+        return `renaming '${displayName}' to '${newName}' would leave the occurrence at ${positionLabel(st.workspaceRoot, probe.file, text, at)} bound to another '${newName}'`
       }
     }
     for (const [file, offsets] of existingUses) {
@@ -1149,10 +1262,10 @@ export function runTsLspSidecar(
             location: LspLocation
             containerName?: string
           }[] = []
-          for (const project of st.allProjects()) {
+          for (const project of new Set([...st.workspaceProjects(), ...st.allProjects()])) {
             let items: TS.NavigateToItem[] = []
             try {
-              items = project.service.getNavigateToItems(query, 128)
+              items = project.service.getNavigateToItems(query, 128, undefined, false, true)
             } catch {
               continue
             }
@@ -1297,17 +1410,48 @@ export function runTsLspSidecar(
             false,
             false,
             { providePrefixAndSuffixTextForRename: false },
-          )
+          ) ?? []
           const plans = new Map<string, RenamePlan>()
-          for (const loc of locations ?? []) {
+          const program = project.service.getProgram()
+          const siteKey = (f: string, start: number): string => `${st.normalize(f)}:${start}`
+          const siteKinds = new Map<string, PropertyKeySite>()
+          for (const loc of locations) siteKinds.set(siteKey(loc.fileName, loc.textSpan.start), propertyKeySiteKind(st.ts, program?.getSourceFile(loc.fileName), loc.textSpan.start))
+          const defsOf = (file: string, start: number): string[] => (project.service.getDefinitionAtPosition(st.normalize(file), start) ?? []).map(def => siteKey(def.fileName, def.textSpan.start))
+          const renamedKeys = new Set<string>()
+          const chainBindings = new Set<string>()
+          for (const loc of locations) {
+            const key = siteKey(loc.fileName, loc.textSpan.start)
+            const kind = siteKinds.get(key)
+            if (kind === 'shorthand') continue
+            for (const defKey of defsOf(loc.fileName, loc.textSpan.start)) {
+              if (siteKinds.get(defKey) === 'shorthand') renamedKeys.add(defKey)
+              if (kind === 'binding' && siteKinds.has(defKey)) chainBindings.add(key)
+            }
+          }
+          for (const loc of locations) {
             const locFile = st.normalize(loc.fileName)
-            if (st.textOf(locFile) === undefined) continue
+            const locText = st.textOf(locFile)
+            if (locText === undefined) continue
+            const key = siteKey(loc.fileName, loc.textSpan.start)
+            const kind = siteKinds.get(key)
+            const oldText = locText.slice(loc.textSpan.start, loc.textSpan.start + loc.textSpan.length)
+            let newText = p.newName
+            let probeAt: number | null = 0
+            if (kind === 'shorthand') {
+              const valueRenamed = defsOf(loc.fileName, loc.textSpan.start).some(defKey => defKey !== key && siteKinds.has(defKey))
+              if (!renamedKeys.has(key)) {
+                newText = `${oldText}: ${p.newName}`
+                probeAt = oldText.length + 2
+              } else if (!valueRenamed) {
+                newText = `${p.newName}: ${oldText}`
+                probeAt = null
+              }
+            } else if (kind === 'binding' && !chainBindings.has(key)) {
+              newText = `${oldText}: ${p.newName}`
+              probeAt = oldText.length + 2
+            }
             const plan = plans.get(locFile) ?? { file: locFile, changes: [] }
-            plan.changes.push({
-              start: loc.textSpan.start,
-              length: loc.textSpan.length,
-              newText: (loc.prefixText ?? '') + p.newName + (loc.suffixText ?? ''),
-            })
+            plan.changes.push({ start: loc.textSpan.start, length: loc.textSpan.length, newText, probeAt })
             plans.set(locFile, plan)
           }
           const problem = renameSafetyProblem(st, project, info.displayName, p.newName, [...plans.values()])

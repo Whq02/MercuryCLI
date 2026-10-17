@@ -15,6 +15,7 @@ import {
   getRun,
   latestRun,
   listRuns,
+  noMatchRerunNote,
   pytestFallbackNote,
   rerunFailedTests,
   runPythonTests,
@@ -384,6 +385,7 @@ async function runOp(
       pythonRecordBelow = latest.cwd
     }
     if (latest && latest.framework !== 'pytest' && latest.framework !== 'unittest') {
+      if (latest.verdict === 'no-match') return { result: noMatchRerunNote(latest), outcome: 'no-change' }
       const out = await rerunRunnerFailures(latest, { ...(signal ? { signal } : {}) })
       if (out.state === 'unavailable') {
         return { result: `rerun unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }

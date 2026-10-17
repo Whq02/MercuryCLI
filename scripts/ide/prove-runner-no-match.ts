@@ -74,6 +74,10 @@ function standInProject(runner: 'vitest' | 'jest', behaviour: StandIn): string {
 }
 
 const zero = (c: TestRunRecord['counts']): boolean => c.passed === 0 && c.failed === 0 && c.errored === 0
+async function expectNoMatchRerun(label: string, root: string, latestId: string, selection: string): Promise<void> {
+  const rerun = await runWithCwdOverride(root, () => TestTool.call({ op: 'rerunFailed' } as never, { getAppState: () => ({}) } as never)) as { data: { outcome: string; result: string } }
+  check(`${label}: rerunFailed after the no-match says the run matched no test, outcome no-change — the one wording of every lane`, rerun.data.outcome === 'no-change' && rerun.data.result.startsWith(`latest run ${latestId} matched no test — nothing to rerun; no test matched ${selection} — `) && !/rerun unavailable|no parsed failing nodes|had no failures/.test(rerun.data.result), `${rerun.data.outcome} ${rerun.data.result.slice(0, 300)}`)
+}
 function expectNoMatch(label: string, out: Awaited<ReturnType<typeof runners.runRunnerProfile>>, selection: string, words: string, skipped = 0): void {
   if (out.state !== 'ok') {
     check(`${label}: the run is a record, not an unavailable refusal`, false, JSON.stringify(out).slice(0, 300))
@@ -119,6 +123,7 @@ section('A. jest — the F37W-2A-01 shape: a describe name sent as a positional 
   const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
   const inspected = await runWithCwdOverride(withReport, () => resolveResource(`mercury://test/run/${result.data.record!.id}`, { owner: makeOwnerKey({ workspace: withReport, sessionId: 'no-match-proof', lane: 'main' }), cwd: withReport }))
   check('A4 the Inspect view of the record says no test matched', inspected.state === 'ok' && inspected.resource.summary.includes('no test matched'), JSON.stringify(inspected).slice(0, 200))
+  await expectNoMatchRerun('A5 jest', withReport, result.data.record!.id, 'nodes:math ops')
   for (const root of [withReport, noReport, nameFilter]) rmSync(root, { recursive: true, force: true })
 }
 
@@ -134,6 +139,7 @@ section('B. vitest — the same shapes (recorded vitest 3.2.7)')
   expectNoMatch('B2 vitest: a name filter that matched no test (three skipped, exit 0)', out2, 'rerun-failed', 'Tests  3 skipped (3)', 3)
   const result = await runWithCwdOverride(noFile, () => TestTool.call({ op: 'run', node: 'math ops' } as never, { getAppState: () => ({}) } as never)) as { data: { outcome: string; result: string } }
   check('B3 the Test tool reports vitest\'s no-match as no-change with the runner\'s words', result.data.outcome === 'no-change' && result.data.result.includes('vitest no test matched nodes:math ops — No test files found'), `${result.data.outcome} ${result.data.result.split('\n')[1] ?? ''}`)
+  await expectNoMatchRerun('B4 vitest', noFile, (result as { data: { record?: TestRunRecord } }).data.record!.id, 'nodes:math ops')
   for (const root of [noFile, nameFilter]) rmSync(root, { recursive: true, force: true })
 }
 
@@ -166,6 +172,7 @@ section('D. node --test, live: a name pattern that matches nothing is no-match w
   expectNoMatch('D1 node --test --test-name-pattern "nothing here"', out, 'nodes:nothing here', '1..0')
   const missing = await runners.runRunnerProfile(profile, { from: root, selection: 'nothing-here.test.mjs', selectionKind: 'path', selectionLabel: 'file:nothing-here.test.mjs' })
   expectNoMatch('D2 node --test on a file that does not exist', missing, 'file:nothing-here.test.mjs', "Could not find 'nothing-here.test.mjs'")
+  if (missing.state === 'ok') await expectNoMatchRerun('D3 node --test', root, missing.record.id, 'file:nothing-here.test.mjs')
   rmSync(root, { recursive: true, force: true })
 }
 
@@ -221,13 +228,14 @@ section('G. the python lane: pytest\'s three no-match shapes (a node, a file, a 
     check('G3 a -k filter that deselects everything is no-match (exit 5) with the deselected line', filter.state === 'ok' && filter.record.verdict === 'no-match' && filter.record.exitCode === 5 && (filter.record.verdictNote ?? '').includes('1 deselected in'), JSON.stringify(filter).slice(0, 300))
     const result = await runWithCwdOverride(proj, () => TestTool.call({ op: 'run', framework: 'pytest', node: 'tests/test_sum.py::TestSum::test_nothing' } as never, { getAppState: () => ({}) } as never)) as { data: { outcome: string; result: string } }
     check('G4 the Test tool reports the pytest no-match as no-change', result.data.outcome === 'no-change' && result.data.result.includes('pytest no test matched nodes:tests/test_sum.py::TestSum::test_nothing'), `${result.data.outcome} ${result.data.result.split('\n')[1] ?? ''}`)
+    await expectNoMatchRerun('G4b pytest', proj, (result as { data: { record?: TestRunRecord } }).data.record!.id, 'nodes:tests/test_sum.py::TestSum::test_nothing')
     const whole = await pythonTests.runPythonTests({ from: proj, framework: 'pytest', selectionLabel: 'all' })
     check('G5 the whole suite still runs its one test (the control)', whole.state === 'ok' && whole.record.verdict === undefined && whole.record.counts.passed === 1, JSON.stringify(whole).slice(0, 200))
   } else {
     console.log(`  [SKIP — LOUD] pytest arm: ${probe.detail} — point MERCURY_PYTHON at an interpreter that carries pytest to run this leg`)
   }
   const unit = await pythonTests.runPythonTests({ from: proj, framework: 'unittest', selection: ['tests.test_sum.TestSum.test_nothing'], selectionLabel: 'nodes:tests.test_sum.TestSum.test_nothing' })
-  check('G6 unittest keeps its own vocabulary: a node the loader cannot find is one errored _FailedTest, not a no-match (the loader\'s AttributeError is the evidence)', unit.state === 'ok' && unit.record.verdict === undefined && unit.record.counts.errored === 1 && unit.record.cases.some(c => c.id.includes('_FailedTest')), JSON.stringify(unit).slice(0, 300))
+  check('G6 unittest takes the same law: a node the loader cannot find is no-match with the loader\'s AttributeError as the words, zero counts, no _FailedTest row (prove-unittest-no-match.ts carries the shapes)', unit.state === 'ok' && unit.record.verdict === 'no-match' && zero(unit.record.counts) && unit.record.cases.length === 0 && (unit.record.verdictNote ?? '').startsWith("no test matched nodes:tests.test_sum.TestSum.test_nothing — AttributeError: type object 'TestSum' has no attribute 'test_nothing'"), JSON.stringify(unit).slice(0, 300))
   rmSync(proj, { recursive: true, force: true })
 }
 

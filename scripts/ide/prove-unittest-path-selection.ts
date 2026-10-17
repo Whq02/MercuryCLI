@@ -114,14 +114,14 @@ try {
     if (record) check('the counts agree with unittest\'s own line', total(record) === ranCount(record) && record.counts.failed === 1 && record.counts.errored === 0, `${j(record.counts)} vs ${ranLine(record)} ${verdictLine(record)}`)
   }
 
-  section('§6 a name that loads nothing errs ONCE — the count agrees with unittest\'s "errors=1"')
+  section('§6 a name that loads nothing is no-match — zero counts, and the loader\'s own words name the miss')
   {
     const record = await run(['nonsense.module'])
     check('the run lands', record !== null)
     if (record) {
-      check('one errored case', record.counts.errored === 1 && ids(record).length === 1 && ids(record)[0]!.endsWith(':errored'), j({ counts: record.counts, ids: ids(record) }))
-      check('the counts agree with unittest\'s own line', total(record) === ranCount(record) && verdictLine(record) === 'FAILED (errors=1)', `${j(record.counts)} vs ${ranLine(record)} ${verdictLine(record)}`)
-      check('the case carries the import error for the model to read', (record.cases[0]?.message ?? '').includes('No module named'), (record.cases[0]?.message ?? '').slice(0, 200))
+      check('no case ran and none is invented', record.verdict === 'no-match' && total(record) === 0 && ids(record).length === 0, j({ verdict: record.verdict, counts: record.counts, ids: ids(record) }))
+      check('the counts agree with unittest\'s own line', total(record) === ranCount(record) && ranCount(record) === 0, `${j(record.counts)} vs ${ranLine(record)} ${verdictLine(record)}`)
+      check('the note carries the import error for the model to read', (record.verdictNote ?? '').includes("No module named 'nonsense'"), (record.verdictNote ?? '').slice(0, 200))
     }
     const discovered = await tests.discoverPythonTests({ from: repo, framework: 'unittest' })
     check('discovery still answers the structured ids', !('state' in discovered) && discovered.tests.length === 2, j(discovered).slice(0, 200))
