@@ -39,6 +39,7 @@ import {
   BackgroundHint,
 } from '../BashTool/UI.js'
 import {
+  applyShellOutputFilter,
   buildImageToolResult,
   formatExcerpt,
   formatOutput,
@@ -348,6 +349,7 @@ async function* runPowerShell(
     const trailingTrimmed = result.stdout.trimEnd()
     accumulator.append(trailingTrimmed + '\n')
     let out = stripEmptyLines(accumulator.toString())
+    out = await applyShellOutputFilter(out, { taskId: shellCommand.taskOutput.taskId, spilledPath: result.outputFilePath })
     const interpretation = interpretCommandResult(input.command, result.code, trailingTrimmed, result.stderr)
     const budget = resolveOutputBudget(readMaxOutputChars(input.max_output_chars))
     const windowed = result.outputFilePath === undefined

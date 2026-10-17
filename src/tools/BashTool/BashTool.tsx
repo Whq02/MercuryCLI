@@ -58,6 +58,7 @@ import {
   formatExcerpt,
   outputBudgetClause,
   resizeShellImageOutput,
+  applyShellOutputFilter,
 } from './utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from './maxOutputChars.js'
 import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
@@ -685,6 +686,7 @@ async function* runBash(
     const settleMs = !result.interrupted && result.code !== 0 && result.preSpawnError === undefined ? SANDBOX_RECORD_SETTLE_MS : 0
     const recorded = useSandbox ? (await SandboxManager.awaitRecordedViolations(input.command, launchedAt, settleMs, retryableSandboxViolation)).filter(retryableSandboxViolation) : []
     if (recorded.length > 0) out += `\n<sandbox_violations>\n${recorded.join('\n')}\n</sandbox_violations>`
+    out = await applyShellOutputFilter(out, { taskId: shellCommand.taskOutput.taskId, spilledPath: result.outputFilePath })
     const budget = resolveOutputBudget(readMaxOutputChars(input.max_output_chars))
     const windowed = result.outputFilePath === undefined
     const clause = outputBudgetClause(budget)

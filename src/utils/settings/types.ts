@@ -174,6 +174,7 @@ export const SettingsSchema = lazySchema(() => {
       kind: z.enum(['bash', 'powershell']).optional(),
       engine: z.enum(['system', 'brush']).optional(),
       sessions: z.number().int().min(1).max(64).optional().describe("The ceiling on live shell-engine sessions Mercury keeps at once: the main conversation's own plus that many minus one for crewmates (default 8). A crewmate past the ceiling waits for a free session, never sharing another owner's; a ceiling of 1 leaves no session for crewmates"),
+      filterOutput: z.boolean().optional().describe("Filter a shell command's output before the model reads it (default off): progress-bar redraws collapse to their last line, package-manager install chatter is dropped, a run of three or more identical lines folds to one with its count, and a footer names what was left out and the file holding the raw output; an output the filter would leave whole is unchanged"),
     }).passthrough().optional(),
     patience: z.union([
       z.enum(['normal', 'patient']),

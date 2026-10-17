@@ -75,6 +75,23 @@ export function resultRoomFor(anchor: unknown): ResultRoom | null {
   return rooms.get(anchor) ?? null
 }
 
+const ROUND_ROOMS_KEPT = 32
+const roundRooms = new Map<string, ResultRoom>()
+
+export function bindResultRoomRound(roundID: string, room: ResultRoom): void {
+  roundRooms.delete(roundID)
+  roundRooms.set(roundID, room)
+  while (roundRooms.size > ROUND_ROOMS_KEPT) {
+    const oldest = roundRooms.keys().next().value
+    if (oldest === undefined) break
+    roundRooms.delete(oldest)
+  }
+}
+
+export function resultRoomForRound(roundID: string): ResultRoom | null {
+  return roundRooms.get(roundID) ?? null
+}
+
 export function tokensOfResultText(text: string): number {
   return Math.ceil(text.length / 4)
 }

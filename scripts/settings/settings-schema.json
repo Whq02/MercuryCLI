@@ -858,6 +858,10 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 64
+        },
+        "filterOutput": {
+          "description": "Filter a shell command's output before the model reads it (default off): progress-bar redraws collapse to their last line, package-manager install chatter is dropped, a run of three or more identical lines folds to one with its count, and a footer names what was left out and the file holding the raw output; an output the filter would leave whole is unchanged",
+          "type": "boolean"
         }
       },
       "additionalProperties": {}

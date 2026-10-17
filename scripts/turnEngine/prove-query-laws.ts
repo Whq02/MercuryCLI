@@ -57,13 +57,14 @@ function makeFakeTool(spec: {
   name?: string
   gate?: Promise<void>
   onStart?: () => void
+  concurrencySafe?: boolean
 } = {}): Record<string, unknown> {
   const name = spec.name ?? 'QueryProbeTool'
   return {
     name,
     isMcp: false,
     inputSchema: z.object({}).passthrough(),
-    isConcurrencySafe: () => true,
+    isConcurrencySafe: () => spec.concurrencySafe !== false,
     isReadOnly: () => true,
     interruptBehavior: () => 'cancel' as const,
     checkPermissions: async () => ({ behavior: 'allow', updatedInput: {} }),
@@ -228,14 +229,14 @@ section("T3 — an abort mid-stream returns {reason:'aborted_streaming'} + the i
   check('exactly one model call (no post-abort continuation)', r.api.messageRequests().length === 1, `${r.api.messageRequests().length}`)
 }
 
-section("T4 — an abort while a tool executes returns {reason:'aborted_tools'}; nothing left unanswered")
+section("T4 — an abort while a tool executes after the reply settled returns {reason:'aborted_tools'}; nothing left unanswered")
 {
   const gate = makeGate()
   let toolStartedResolve!: () => void
   const toolStarted = new Promise<void>(res => {
     toolStartedResolve = res
   })
-  const tool = makeFakeTool({ gate: gate.promise, onStart: () => toolStartedResolve() })
+  const tool = makeFakeTool({ gate: gate.promise, onStart: () => toolStartedResolve(), concurrencySafe: false })
   const r = await runQuery({
     turns: [
       { kind: 'tool_use', name: 'QueryProbeTool', input: {}, id: 'toolu_t4' },
@@ -251,6 +252,32 @@ section("T4 — an abort while a tool executes returns {reason:'aborted_tools'};
   const answered = r.messages.find(m => m.type === 'user' && textOf(m).includes('toolu_t4'))
   check('the aborted tool_use is still ANSWERED (interrupt/synthetic tool_result)', !!answered, j(realMessages(r.messages)).slice(0, 400))
   check('the TOOL-USE interruption message yields after the tool band', r.messages.some(m => m.type === 'user' && textOf(m).includes(INTERRUPT_MESSAGE_FOR_TOOL_USE)))
+  check('NO follow-up model call after the abort', r.api.messageRequests().length === 1, `${r.api.messageRequests().length}`)
+}
+
+section("T4b — a concurrency-safe tool starts while the reply still streams; an abort then is the stream's abort: {reason:'aborted_streaming'}, the tool_use answered synthetically, no follow-up call")
+{
+  const gate = makeGate()
+  let toolStartedResolve!: () => void
+  const toolStarted = new Promise<void>(res => {
+    toolStartedResolve = res
+  })
+  const tool = makeFakeTool({ gate: gate.promise, onStart: () => toolStartedResolve() })
+  const r = await runQuery({
+    turns: [
+      { kind: 'tool_use', name: 'QueryProbeTool', input: {}, id: 'toolu_t4b' },
+      { kind: 'text', text: 'T4B NEVER REACHED.' },
+    ],
+    tools: [tool],
+    toolStartedPromise: toolStarted,
+    abortWhen: async (_api, started) => {
+      await started
+    },
+  })
+  check("Terminal reason 'aborted_streaming' (the tool had started inside the stream)", r.terminal?.reason === 'aborted_streaming', r.terminal?.reason)
+  const answered = r.messages.find(m => m.type === 'user' && textOf(m).includes('toolu_t4b'))
+  check('the announced tool_use is still ANSWERED (the synthetic tool_result)', !!answered, j(realMessages(r.messages)).slice(0, 400))
+  check('the stream interruption message yields, never the tool-band one', r.messages.some(m => m.type === 'user' && textOf(m).includes(INTERRUPT_MESSAGE)) && !r.messages.some(m => m.type === 'user' && textOf(m).includes(INTERRUPT_MESSAGE_FOR_TOOL_USE)))
   check('NO follow-up model call after the abort', r.api.messageRequests().length === 1, `${r.api.messageRequests().length}`)
 }
 

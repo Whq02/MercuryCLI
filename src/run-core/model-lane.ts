@@ -60,11 +60,13 @@ type TurnBatch = {
   assistantMessages: unknown[]
   toolResults: unknown[]
   toolUseBlocks: ToolUseBlock[]
+  early?: { reset(): void }
 }
 
 export function resetForRetry(batch: TurnBatch): { needsFollowUp: false } {
   batch.assistantMessages.length = 0
   batch.toolResults.length = 0
   batch.toolUseBlocks.length = 0
+  batch.early?.reset()
   return { needsFollowUp: false }
 }

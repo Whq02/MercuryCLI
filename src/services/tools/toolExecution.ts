@@ -37,7 +37,7 @@ import { mcpInfoFromString } from '../mcp/mcpStringUtils.js'
 import { normalizeNameForMCP } from '../mcp/normalization.js'
 import { observeToolStart, observeToolTerminal } from '../run/effectObserver.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
-import { ambientRound, closeRound, openRoundCall, recordToolCall, toolResultBlockOf } from './loopGuard.js'
+import { ambientRound, closeRound, openRoundCall, recordToolCall, repeatedResultPointer, toolResultBlockOf, withResultContent } from './loopGuard.js'
 import { getCwd } from '../../utils/cwd.js'
 import { startSessionActivity, stopSessionActivity } from '../../utils/sessionActivity.js'
 import { Stream } from '../../utils/stream.js'
@@ -404,8 +404,10 @@ export async function* runToolUse(
   let settledResult: ToolResultBlockParam | undefined
   try {
     for await (const update of stream) {
-      settledResult = toolResultBlockOf(update.message, toolUseID) ?? settledResult
-      yield update
+      const block = toolResultBlockOf(update.message, toolUseID)
+      settledResult = block ?? settledResult
+      const pointer = block === undefined ? null : await repeatedResultPointer(owner, { toolName: resolved.name, toolUseID, roundID, arguments: rawInput, result: block, messages: toolUseContext.messages })
+      yield pointer === null ? update : withResultContent(update, toolUseID, pointer)
     }
     await body
   } catch (error) {
