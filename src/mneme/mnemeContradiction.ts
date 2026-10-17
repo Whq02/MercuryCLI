@@ -128,7 +128,8 @@ function slotFlip(left: readonly string[], right: readonly string[]): string | n
   const oldValue = left[changed]!
   const newValue = right[changed]!
   if (isNumberWord(oldValue) && isNumberWord(newValue)) return Number(oldValue) === Number(newValue) ? null : NUMBER_FLIP
-  return ['from', 'in'].includes(left[changed - 1]!) ? VALUE_FLIP : null
+  const prep = ['the', 'a', 'an'].includes(left[changed - 1]!) ? left[changed - 2] : left[changed - 1]
+  return ['from', 'in'].includes(prep ?? '') ? VALUE_FLIP : null
 }
 
 function valueFlip(a: Analysed, b: Analysed): string | null {
@@ -168,11 +169,11 @@ function shareOf(a: ReadonlySet<string>, b: ReadonlySet<string>): number {
 }
 
 export function restates(candidate: string, existing: string): boolean {
-  const fresh = sentencesOf(candidate).map(normalisedText).filter(sentence => sentence !== '')
-  const old = sentencesOf(existing).map(normalisedText).filter(sentence => sentence !== '')
+  const fresh = sentencesOf(factOf(candidate)).map(s => ({ norm: normalisedText(s), analysed: analyse(s) })).filter(s => s.norm !== '')
+  const old = sentencesOf(factOf(existing)).map(s => ({ norm: normalisedText(s), analysed: analyse(s) })).filter(s => s.norm !== '')
   if (fresh.length === 0 || old.length === 0) return false
-  const [part, whole] = fresh.length <= old.length ? [fresh, new Set(old)] : [old, new Set(fresh)]
-  return part.every(sentence => whole.has(sentence))
+  const [part, whole] = fresh.length <= old.length ? [fresh, old] : [old, fresh]
+  return part.every(p => whole.some(w => w.norm === p.norm && valueFlip(p.analysed, w.analysed) === null))
 }
 
 export function contradictionBetween(candidateText: string, existingText: string): { overlap: number; flip: string } | null {
@@ -180,7 +181,7 @@ export function contradictionBetween(candidateText: string, existingText: string
   const existing = factOf(existingText)
   const fresh = analyse(candidate)
   const old = analyse(existing)
-  if (restates(candidate, existing) && valueFlip(fresh, old) === null) return null
+  if (restates(candidate, existing)) return null
   const wholeShare = shareOf(fresh.stems, old.stems)
   const pairs: Array<{ fresh: Analysed; old: Analysed; share: number }> = [{ fresh, old, share: wholeShare }]
   const freshSentences = sentencesOf(candidate)
@@ -242,14 +243,14 @@ function entryName(entry: RecordEntry): string {
 
 export function conflictReason(candidate: ContradictionCandidate): string {
   const entry = candidate.entry
-  const head = `conflicts with ${entryName(entry)}: "${firstWords(entry.text)}"`
+  const head = `conflicts with ${entryName(entry)}: "${firstWords(factOf(entry.text))}"`
   if (entry.kind === 'rule') return `${head} — a pinned rule stands until the user changes it: ${USER_ASKED_RULE_ROAD}; if both are true, retain it again with the difference stated (when, where, which)`
   return `${head}: ask the user which is true; on their word, Correct ${entry.id} with their reason, or retain both with the difference stated (when, where, which)`
 }
 
 export function conflictNotice(candidate: ContradictionCandidate): string {
   const entry = candidate.entry
-  return `not stored: it conflicts with ${entryName(entry)}, "${firstWords(entry.text)}"${entry.kind === 'rule' ? ' — the rule stands' : ''}`
+  return `not stored: it conflicts with ${entryName(entry)}, "${firstWords(factOf(entry.text))}"${entry.kind === 'rule' ? ' — the rule stands' : ''}`
 }
 
 const CONTRADICTION_QUESTION: JevQuestion = {

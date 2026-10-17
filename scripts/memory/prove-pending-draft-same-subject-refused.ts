@@ -26,7 +26,7 @@ function section(t: string): void {
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, numStartups: 3 }))
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { contradictionBetween } = await import('../../src/mneme/mnemeContradiction.ts')
+const { contradictionBetween, restates } = await import('../../src/mneme/mnemeContradiction.ts')
 const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
 const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
 const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
@@ -56,6 +56,9 @@ check('the choir count stores once and the changed count is refused against the 
 const build36 = retainOne('The nightly build runs from the mercury-36 folder.', 'Stated by the user in session 22.', 'session-22')
 const build37 = retainOne('The nightly build runs from the mercury-37 folder.', 'Stated by the user in session 23.', 'session-23')
 check('a changed source folder about the same build is refused against the pending draft', build36.status === 'stored' && refusedNaming(build37, 'mercury-36'), `${describe(build36)} · ${describe(build37)}`)
+const wingEast = retainOne('The archive lives in the east wing.', 'Stated by the user in session 22b.', 'session-22b')
+const wingWest = retainOne('The archive lives in the west wing.', 'Stated by the user in session 23b.', 'session-23b')
+check('a changed location about the same subject is refused against the pending draft, with no context tail leaked in the quote', wingEast.status === 'stored' && refusedNaming(wingWest, 'The archive lives in the east wing.') && wingWest.status === 'refused' && !wingWest.reason.includes('(context:'), `${describe(wingEast)} · ${describe(wingWest)}`)
 
 const drawer10 = retainOne('Scratch filler fact number 10: the scratch drawer 10 holds 10 spoons.', "Stated directly by the user as a 'remember:' filler fact in session 10 (2026-10-17), continuing the scratch drawer 1-9 series from earlier sessions.", 'session-10')
 const drawer12 = retainOne('The scratch drawer 10 holds 12 spoons.', "Stated directly by the user as a 'remember:' filler fact in session 13 (2026-10-17), continuing the scratch drawer 1-9 and 12 series from earlier sessions.", 'session-13')
@@ -79,6 +82,8 @@ check('a candidate carrying its own context tail compares the same way', contrad
 check('the subject phrase inside a longer sentence: one changed slot after the predicate is the flip', contradictionBetween('The scratch drawer 10 holds 12 spoons.', 'Scratch filler fact number 10: the scratch drawer 10 holds 10 spoons.')?.flip === 'a number that differs')
 check('two changed slots inside the longer sentence are two subjects, not a flip', contradictionBetween('The scratch drawer 11 holds 11 spoons.', 'Scratch filler fact number 10: the scratch drawer 10 holds 10 spoons.') === null)
 check('a window that breaks the subject phrase is not a match', contradictionBetween('The scratch drawer 10 holds 12 spoons.', 'The kitchen scratch drawer 10 holds 10 spoons.') === null)
+check('restates strips the context tail on a true restatement and never calls a changed count a restatement', restates('The vault holds 7 coins.', withTail) && !restates('The vault holds 9 coins.', 'The vault holds 7 coins.'))
+check('a single-digit count change against a two-sentence draft is caught as a number flip', contradictionBetween('The vault holds 9 coins.', 'The vault sits in the cellar. The vault holds 7 coins. (context: Stated in session 18.)')?.flip === 'a number that differs')
 
 section('§4 after consolidation the same law holds against the library')
 check('the drafts consolidate', maybeConsolidate({ force: true, dir }).consolidated)
