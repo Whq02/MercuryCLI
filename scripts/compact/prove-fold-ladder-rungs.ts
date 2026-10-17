@@ -256,6 +256,7 @@ section('R5 (d) a 32,768-token local model: the fold lands with the summariser\'
   check(`the fold landed (red on the base: ${FOLD_WINDOW_REFUSAL_KEY} …)`, run.landed, run.error ?? '')
   check('every summariser request fitted the served window, so the silent-truncation guard never fired and nothing was sent over the window', localHits.length >= 1 && localHits.every(hit => hit.chars / 3.9 <= LOCAL_SERVED), `${localHits.length} requests, largest ${largest}`)
   check('the fold ran in parts: the oldest rounds folded into part capsules ahead of the final request', localHits.length >= 2 && localHits.some(hit => JSON.stringify(hit.body).includes('earlier turns folded into this summary for the compaction')), String(localHits.length))
+  check('the kept tail was split off before the send: the newest round\'s call never reached the summariser, and the fold kept it verbatim (red on 41304f7c53: the stand-in for the summary was the whole 8,192-token reserve, larger than the landing, so no split ever fitted and the newest round rode every part)', localHits.length >= 1 && localHits.every(hit => !JSON.stringify(hit.body).includes('call_0029')) && (run.kept ?? 0) > 0, `${localHits.filter(hit => JSON.stringify(hit.body).includes('call_0029')).length} of ${localHits.length} requests carried call_0029; kept ${run.kept}`)
   check('the post-fold context is under the threshold', (run.post ?? Infinity) < getAutoCompactThreshold(model), `${run.post} vs ${getAutoCompactThreshold(model)}`)
   localHits.length = 0
   localAnswer = () => ''

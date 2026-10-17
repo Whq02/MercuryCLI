@@ -118,6 +118,8 @@ const SUMMARISER_WINDOW_SHARE = 0.85
 const SUMMARISER_BUDGET_FLOOR_TOKENS = 2_000
 const SHAPED_RESULTS_KEEP_TOKENS = 50_000
 const SHAPED_RESULT_PREVIEW_CHARS = 2_000
+const SPLIT_STAND_IN_FLOOR_TOKENS = 500
+const SPLIT_STAND_IN_LANDING_SHARE = 4
 export const ERROR_MESSAGE_NO_SUMMARY = 'The summariser produced no summary'
 export const PROSE_SKIPPED_KEY = 'The prose summary was skipped'
 const PART_SUMMARY_MARKER = '[earlier turns folded into this summary for the compaction]'
@@ -1717,13 +1719,16 @@ export async function compactConversation(
       if (overflow !== undefined || preCompactTokenCount + fit.promptTokens > fit.blockingLimit || requestTokens > fit.limitTokens) {
         let split: { retiring: Message[]; rounds: number } | null = null
         if (isMercuryCompactKeepTailEnabled()) {
-          try {
-            const standIn = 'summary '.repeat(Math.ceil(fit.reserveTokens / 2))
-            const tail = computeVerbatimRecentTail(messages, { fits: fitsUnder(landing, false, standIn, null) })
-            const first = tail === null || tail.keep.length === 0 ? -1 : messages.findIndex(row => row.uuid === tail.keep[0]?.uuid)
-            if (tail !== null && first > 0) split = { retiring: messages.slice(0, first), rounds: tail.roundsKept }
-          } catch {
-            split = null
+          const standIn = 'summary '.repeat(Math.ceil(Math.min(fit.reserveTokens, Math.max(SPLIT_STAND_IN_FLOOR_TOKENS, Math.floor((landing ?? fit.reserveTokens) / SPLIT_STAND_IN_LANDING_SHARE))) / 2))
+          for (const [limit, resultsFolded] of [[landing, false], [ceiling, false], [landing, true], [ceiling, true]] as const) {
+            try {
+              const tail = computeVerbatimRecentTail(messages, { fits: fitsUnder(limit, resultsFolded, standIn, null) })
+              const first = tail === null || tail.keep.length === 0 ? -1 : messages.findIndex(row => row.uuid === tail.keep[0]?.uuid)
+              if (tail !== null && first > 0) split = { retiring: messages.slice(0, first), rounds: tail.roundsKept }
+              break
+            } catch {
+              split = null
+            }
           }
         }
         const shaped = await prefitSummariserInput(messages, fit, split, summaryCacheSafeParams, promptText, summaryContext, ladder)
