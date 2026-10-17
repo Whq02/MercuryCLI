@@ -30,6 +30,7 @@ import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emp
 import { isTemporaryStreamFault } from '../temporaryStreamError.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
+import { fitOutputTokensForRequest, outputFitWords } from '../../api/outputFit.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
 import {
   checkResponseForCacheBreak,
@@ -477,6 +478,11 @@ export async function* compatChatCallModel(
       ? fittedImages.messages
       : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
   const preparedMessages = healWalkableForWire(wireMessagesForBridge)
+  const outputFit = options.maxOutputTokensOverride === undefined
+    ? undefined
+    : fitOutputTokensForRequest({ asked: options.maxOutputTokensOverride, messages, model: modelId, fixed: [systemText, apiTools] })
+  if (outputFit?.clamped === true) logForDebugging(outputFitWords(outputFit, modelId))
+  const fittedOutputOverride = outputFit?.tokens
   const request: CompatChatRequest = {
     model: wireModel,
     messages: mapMessagesToZai(systemText, toBridgeMessages(preparedMessages), {
@@ -495,7 +501,7 @@ export async function* compatChatCallModel(
       wireModel,
       effortValue,
       thinkingEnabled,
-      maxOutputTokensOverride: options.maxOutputTokensOverride,
+      maxOutputTokensOverride: fittedOutputOverride,
     }),
   }
   const effortView = effortVocabularyFor(modelId)

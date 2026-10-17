@@ -27,6 +27,7 @@ import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emp
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
+import { fitOutputTokensForRequest, outputFitWords } from '../../api/outputFit.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
 import {
   checkResponseForCacheBreak,
@@ -255,6 +256,13 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
         : nearestSupportedWireEffort(effortValue, [...vocabulary])
       : undefined
   const systemText = renderGenericInstructions(resolveBehaviourContract([...systemPrompt]))
+  const zaiOutputFit = fitOutputTokensForRequest({
+    asked: Math.min(options.maxOutputTokensOverride ?? ZAI_MAX_OUTPUT_TOKENS, ZAI_MAX_OUTPUT_TOKENS),
+    messages,
+    model: modelId,
+    fixed: [systemText, apiTools],
+  })
+  if (zaiOutputFit.clamped) logForDebugging(outputFitWords(zaiOutputFit, modelId))
   const request = buildZaiChatRequest({
     model: modelId,
     system: systemText,
@@ -262,10 +270,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     imagesSupported: imagesSupportedForCompatModel(modelId),
     tools: apiTools,
     ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
-    maxTokens: Math.min(
-      options.maxOutputTokensOverride ?? ZAI_MAX_OUTPUT_TOKENS,
-      ZAI_MAX_OUTPUT_TOKENS,
-    ),
+    maxTokens: zaiOutputFit.tokens,
     ...(wireEffort ? { reasoningEffort: wireEffort } : {}),
     thinkingEnabled: glmThinkingLocked(modelId) ? true : thinkingConfig.type !== 'disabled',
   })

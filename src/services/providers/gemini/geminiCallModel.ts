@@ -17,6 +17,8 @@ import { mapMessagesToZai } from '../zai/zaiCodec.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { compatDispatchModelId } from '../openaicompat/compatChatCallModel.js'
+import { fitOutputTokensForRequest, outputFitWords } from '../../api/outputFit.js'
+import { logForDebugging } from '../../../utils/debug.js'
 
 function bearerFromAuthHeaders(headers: Record<string, string>): string | undefined {
   const auth = headers['authorization'] ?? headers['Authorization']
@@ -172,7 +174,12 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
       const ceiling = geminiOutputTokenLimitFor(options.request.model) ?? geminiOutputTokenLimitFor(model)
       const requested = options.request.extra?.max_tokens
       const capped = ceiling === undefined ? requested : Math.min(typeof requested === 'number' ? requested : ceiling, ceiling)
-      const request = capped === undefined ? options.request : { ...options.request, extra: { ...options.request.extra, max_tokens: capped } }
+      const fit = typeof capped === 'number'
+        ? fitOutputTokensForRequest({ asked: capped, messages, model, fixed: [options.request.messages.filter(row => row.role === 'system'), options.request.tools] })
+        : undefined
+      if (fit?.clamped === true) logForDebugging(outputFitWords(fit, model))
+      const fitted = fit?.tokens ?? capped
+      const request = fitted === undefined ? options.request : { ...options.request, extra: { ...options.request.extra, max_tokens: fitted } }
       const upstream = streamGeminiContent({ ...options, request, messages, plan, onTurn: item => { turn = item } })
       async function* observed(): AsyncGenerator<CompatStreamEvent> {
         for await (const event of upstream) {

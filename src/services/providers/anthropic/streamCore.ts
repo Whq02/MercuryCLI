@@ -183,6 +183,7 @@ import {
 import type { HeldBusyRetryWait } from '../busyRetry.js'
 import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords } from '../emptyStreamRetry.js'
 import { retrySeconds } from '../../api/recoveryBudget.js'
+import { fitOutputTokensForRequest, outputFitWords } from '../../api/outputFit.js'
 import { sleep } from '../../../utils/sleep.js'
 import {
   addCacheBreakpoints,
@@ -635,12 +636,28 @@ async function* queryModel(
       }
     }
 
-    const maxOutputTokens =
-      retryContext?.maxTokensOverride ||
-      options.maxOutputTokensOverride ||
-      getMaxOutputTokensForModel(options.model)
-
     const hasThinking = thinkingConfig.type !== 'disabled'
+    const budgetThinking = hasThinking && modelSupportsThinking(options.model) && !modelSupportsAdaptiveThinking(options.model)
+    const plannedThinkingBudget = !budgetThinking
+      ? 0
+      : thinkingConfig.type === 'enabled' && thinkingConfig.budgetTokens !== undefined
+        ? thinkingConfig.budgetTokens
+        : getMaxThinkingTokensForModel(options.model)
+
+    const outputFit = fitOutputTokensForRequest({
+      asked:
+        retryContext?.maxTokensOverride ||
+        options.maxOutputTokensOverride ||
+        getMaxOutputTokensForModel(options.model),
+      messages,
+      model: options.model,
+      fixed: [system, allTools],
+      betas,
+      least: plannedThinkingBudget + 1,
+    })
+    if (outputFit.clamped) logForDebugging(outputFitWords(outputFit, options.model))
+    const maxOutputTokens = outputFit.tokens
+
     let thinking: BetaMessageStreamParams['thinking'] | undefined = undefined
 
     if (hasThinking && modelSupportsThinking(options.model)) {
@@ -649,14 +666,7 @@ async function* queryModel(
           type: 'adaptive',
         } satisfies BetaMessageStreamParams['thinking']
       } else {
-        let thinkingBudget = getMaxThinkingTokensForModel(options.model)
-        if (
-          thinkingConfig.type === 'enabled' &&
-          thinkingConfig.budgetTokens !== undefined
-        ) {
-          thinkingBudget = thinkingConfig.budgetTokens
-        }
-        thinkingBudget = Math.min(maxOutputTokens - 1, thinkingBudget)
+        const thinkingBudget = Math.min(maxOutputTokens - 1, plannedThinkingBudget)
         thinking = {
           budget_tokens: thinkingBudget,
           type: 'enabled',

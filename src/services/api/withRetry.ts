@@ -1,3 +1,4 @@
+import { OUTPUT_FIT_FLOOR_TOKENS, OUTPUT_FIT_HEADWAY_TOKENS } from './outputFit.js'
 import type Anthropic from '@anthropic-ai/sdk'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 
@@ -359,9 +360,8 @@ export async function* withRetry<T>(
 
       const overflow = parseMaxTokensContextOverflowError(error)
       if (overflow !== undefined) {
-        const SAFETY_BUFFER = 1000
-        const FLOOR = 3000
-        const available = Math.max(0, overflow.contextLimit - overflow.inputTokens - SAFETY_BUFFER)
+        const FLOOR = OUTPUT_FIT_FLOOR_TOKENS
+        const available = Math.max(0, overflow.contextLimit - overflow.inputTokens - OUTPUT_FIT_HEADWAY_TOKENS)
         if (available < FLOOR) {
           logError(
             new Error(
