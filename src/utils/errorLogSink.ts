@@ -5,6 +5,7 @@ import { createBufferedWriter, type BufferedWriter } from './bufferedWriter.js'
 import { CACHE_PATHS } from './cachePaths.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
+import { getErrnoCode } from './errors.js'
 import { getFsImplementation } from './fsOperations.js'
 import { attachErrorLogSink, dateToFilename } from './log.js'
 
@@ -21,19 +22,46 @@ function getMCPLogsPath(serverName: string): string {
 
 const logWriters = new Map<string, BufferedWriter>()
 
+const LOG_FILE_BYTE_CEILING = 8 * 1024 * 1024
+const LOG_RECORD_MESSAGE_CEILING = 16 * 1024
+
+const closedPaths = new Set<string>()
+
+function closePath(path: string, why: string): void {
+  if (closedPaths.has(path)) return
+  closedPaths.add(path)
+  logForDebugging(`log file ${path}: ${why}; its later entries are dropped`, { level: 'error' })
+}
+
+function fileSize(fs: ReturnType<typeof getFsImplementation>, path: string): number {
+  try {
+    return fs.statSync(path).size
+  } catch {
+    return 0
+  }
+}
+
+function appendBounded(path: string, content: string): void {
+  if (closedPaths.has(path)) return
+  const fs = getFsImplementation()
+  const size = fileSize(fs, path)
+  if (size + content.length > LOG_FILE_BYTE_CEILING) {
+    closePath(path, `reached its ${LOG_FILE_BYTE_CEILING} byte ceiling`)
+    return
+  }
+  try {
+    fs.mkdirSync(dirname(path))
+    fs.appendFileSync(path, content)
+  } catch (error) {
+    closePath(path, `cannot be written (${getErrnoCode(error) ?? deriveErrorString(error)})`)
+  }
+}
+
 function getWriterFor(path: string): BufferedWriter {
   const existing = logWriters.get(path)
   if (existing) return existing
-  const fs = getFsImplementation()
   const writer = createBufferedWriter({
-    writeFn: content => {
-      try {
-        fs.appendFileSync(path, content)
-      } catch {
-        fs.mkdirSync(dirname(path))
-        fs.appendFileSync(path, content)
-      }
-    },
+    writeFn: content => appendBounded(path, content),
     flushIntervalMs: 1000,
     maxBufferSize: 50,
   })
@@ -46,6 +74,17 @@ function getWriterFor(path: string): BufferedWriter {
 
 function writeJsonlRecord(path: string, record: Record<string, unknown>): void {
   getWriterFor(path).write(`${JSON.stringify(record)}\n`)
+}
+
+export function resetErrorLogSinkForTest(): void {
+  for (const writer of logWriters.values()) writer.dispose()
+  logWriters.clear()
+  closedPaths.clear()
+}
+
+function boundedMessage(text: string): string {
+  if (text.length <= LOG_RECORD_MESSAGE_CEILING) return text
+  return `${text.slice(0, LOG_RECORD_MESSAGE_CEILING)} … (${text.length} characters, cut at ${LOG_RECORD_MESSAGE_CEILING})`
 }
 
 function deriveErrorString(error: unknown): string {
@@ -89,18 +128,15 @@ function buildHttpContextPrefix(error: unknown): string {
   return `[${parts.join(',')}] `
 }
 
-function appendToLog(logPath: string, record: Record<string, unknown>): void {
-  return
-}
-
 function sinkLogError(error: unknown): void {
   const derived = deriveErrorString(error)
   const prefix = buildHttpContextPrefix(error)
   const name = error instanceof Error ? error.name : 'Error'
   logForDebugging(`${name}: ${prefix}${derived}`, { level: 'error' })
-  appendToLog(getErrorsPath(), {
+  writeJsonlRecord(getErrorsPath(), {
     timestamp: new Date().toISOString(),
-    message: derived,
+    message: boundedMessage(`${prefix}${derived}`),
+    sessionId: getSessionId(),
   })
 }
 
