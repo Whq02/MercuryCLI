@@ -89,6 +89,7 @@ prove-crew-row-parked-ask.ts
 prove-command-popup-slot.ts
 prove-effort-popup-frames.ts
 prove-zen-frames.ts
+prove-composer-down-to-strip.ts
 prove-health-popup-frames.ts
 prove-activity-screen-keys.ts
 prove-modal-routes-reach.ts
