@@ -47,6 +47,7 @@ writeFileSync(
     '}',
     "child.stdout.on('data', chunk => {",
     '  consume(chunk)',
+    "  if (mode === 'slow') { child.stdout.pause(); setTimeout(() => child.stdout.resume(), 150); return }",
     "  if (!stalled && frames.some(f => f.type === 'tool_call' || f.type === 'wait')) {",
     '    stalled = true',
     '    child.stdout.pause()',
@@ -67,7 +68,7 @@ writeFileSync(
   ].join('\n') + '\n',
 )
 
-async function runWithReader(mode: 'stall-then-read' | 'close'): Promise<Run> {
+async function runWithReader(mode: 'stall-then-read' | 'close' | 'slow'): Promise<Run> {
   const runHome = join(scratch, `home-${++homes}`)
   const cwd = join(runHome, 'work')
   const fixture = await startScriptedFixture((req: ScriptedRequest): WireBlock[] => {
@@ -114,6 +115,18 @@ tally.section('a reader that stops reading for a while, then reads again: every 
   tally.check('the process exited 0 once the rows were delivered', run.exit === 0, `exit ${run.exit} signal ${run.signal}`)
   tally.check('the exit came after the reader resumed, not before', run.exitedAtMs !== null && run.exitedAtMs >= run.resumedAtMs, `exit ${seconds(run.exitedAtMs, run.t0)} · resumed ${seconds(run.resumedAtMs, run.t0)}`)
   tally.check('no broken-pipe line on stderr (the reader never left)', !run.stderr.includes('stdout'), run.stderr.slice(0, 200) + run.readerLog.slice(0, 200))
+}
+
+tally.section('a reader that reads slowly, a tail written and the process exiting at once: the close and the outcome rows reach the reader, last and in order')
+{
+  const run = await runWithReader('slow')
+  const types = run.frames.map(f => `${String(f.type)}${f.state !== undefined ? `:${String(f.state)}` : ''}`)
+  console.log(`  rows: ${types.join(' ')}`)
+  console.log(`  bytes received ${run.bytes} · exit ${run.exit} (${run.signal ?? 'no signal'}) at ${seconds(run.exitedAtMs, run.t0)}`)
+  tally.check('the stream ends with the close row then the outcome row', types.length >= 2 && types[types.length - 2] === 'close:stored' && types[types.length - 1] === 'outcome', types.slice(-3).join(' '))
+  tally.check('the outcome says completed and the answer rode it', run.frames[run.frames.length - 1]?.status === 'completed' && String(run.frames[run.frames.length - 1]?.answer ?? '').startsWith(ANSWER_HEAD), JSON.stringify(run.frames[run.frames.length - 1]))
+  tally.check('every row parsed as one JSON line', !run.frames.some(f => f.type === 'unparseable'))
+  tally.check('the process exited 0 on its own after the tail was delivered', run.exit === 0 && run.signal !== 'SIGKILL', `exit ${run.exit} signal ${run.signal}`)
 }
 
 tally.section('a reader that leaves for good: the run ends instead of waiting forever')
