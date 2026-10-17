@@ -115,6 +115,10 @@ export function recordSignIn(family: string, kind: SignInKind, io?: SignInLedger
     const signIns: Record<string, unknown> = { ...kept, [name]: { at: io?.now?.() ?? Date.now(), kind } }
     const next: SignInLedgerFile = { ...(existing ?? {}), version: SIGN_IN_LEDGER_VERSION, signIns }
     durableAtomicPublishSync(ledgerPath(io), JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+    if (kind !== 'operator-switch') {
+      const { clearSignInRefusal } = require('./signInRefusal.js') as typeof import('./signInRefusal.js')
+      clearSignInRefusal(name, io?.home)
+    }
     bumpEpoch()
     return true
   } catch {

@@ -1,4 +1,5 @@
 import type { CallModelRoute } from '../../services/providers/routeLaw.js'
+import { readSignInRefusal, signInRefusalWords } from '../accounts/signInRefusal.js'
 import type { ModelOption } from './modelOptions.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { readSignInLedger, signInLedgerEpoch, type SignInKind } from '../accounts/signInLedger.js'
@@ -389,6 +390,8 @@ export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded:
     ...(recorded !== undefined ? { recordedDefaultProvider: recorded } : {}),
     registryOrder: providers.map(provider => provider.id),
     laneRow: family => {
+      const refusal = readSignInRefusal(family)
+      if (refusal) return { usable: false, why: signInRefusalWords(refusal) }
       if (family === 'anthropic') return liveFirstPartyRow()
       if (KEY_LANES.has(family)) return keyLaneRow(family as 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen')
       if (rows === undefined) {

@@ -242,7 +242,7 @@ const seededHome = (name: string, withModel = true): string => {
 const ADMITTED = '← back'
 const OPENING: unknown[] = [
   { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-  { atTick: 110, data: '/voice on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
+  { atTick: 110, data: '\x15/voice on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
   { afterPrevTicks: 3, data: '\r' },
 ]
 const gridLines = (text: string, needle: string): string => text.split('\n').filter(l => l.includes(needle)).join(' · ')

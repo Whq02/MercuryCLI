@@ -14,7 +14,7 @@
 # gate-watch: src/services/providers/moonshot/* src/services/providers/openai/* src/services/providers/meta/**
 # gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts src/services/search/brave.ts
 # gate-watch: src/services/search/tavily.ts src/utils/* src/utils/accounts/signInLedger.ts
-# gate-watch: src/utils/cockpit/quota.ts src/utils/model/*
+# gate-watch: src/utils/cockpit/quota.ts src/utils/model/* src/utils/accounts/signInRefusal.ts src/daemon/signInView.ts
 # gate-watch: src/utils/cockpit/helmVitalsModel.ts src/Tool.ts src/utils/crew/engineDispatch.ts src/state/AppState.tsx
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/types.ts src/daemon/sessionSeat.ts
 set -u
