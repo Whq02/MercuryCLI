@@ -1,6 +1,6 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
 
-export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen'] as const
+export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
 
 export const CATALOGUE_READ_BOUND_MS = 5_000
@@ -72,6 +72,27 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
         if (!catalogueTrafficVerdict('zen').allowed) return false
         if (!force && !nothingUsable(getCachedZenCatalogue())) return false
         await bounded(refreshZenCatalogue({ force }), boundMs)
+        return true
+      }
+      case 'minimax': {
+        const { getCachedMinimaxCatalogue, refreshMinimaxCatalogue } = await import('./minimax/minimaxCatalogue.js')
+        if (!catalogueTrafficVerdict('minimax').allowed) return false
+        if (!force && !nothingUsable(getCachedMinimaxCatalogue())) return false
+        await bounded(refreshMinimaxCatalogue({ force }), boundMs)
+        return true
+      }
+      case 'together': {
+        const { getCachedTogetherCatalogue, refreshTogetherCatalogue } = await import('./together/togetherCatalogue.js')
+        if (!catalogueTrafficVerdict('together').allowed) return false
+        if (!force && !nothingUsable(getCachedTogetherCatalogue())) return false
+        await bounded(refreshTogetherCatalogue({ force }), boundMs)
+        return true
+      }
+      case 'cohere': {
+        const { getCachedCohereCatalogue, refreshCohereCatalogue } = await import('./cohere/cohereCatalogue.js')
+        if (!catalogueTrafficVerdict('cohere').allowed) return false
+        if (!force && !nothingUsable(getCachedCohereCatalogue())) return false
+        await bounded(refreshCohereCatalogue({ force }), boundMs)
         return true
       }
       case 'moonshot': {

@@ -30,6 +30,9 @@ import { storeMistralApiKeyLogin, storeMistralAdminKeyLogin } from '../services/
 import { MISTRAL_ADMIN_KEY_PAGE } from '../services/providers/mistral/mistralUsageState.js';
 import { storeNousApiKeyLogin, runNousDeviceLogin, NOUS_CONNECT_ROWS } from '../services/providers/nous/nousLogin.js';
 import { storeZenApiKeyLogin } from '../services/providers/zen/zenLogin.js';
+import { storeMinimaxApiKeyLogin } from '../services/providers/minimax/minimaxLogin.js';
+import { storeTogetherApiKeyLogin } from '../services/providers/together/togetherLogin.js';
+import { storeCohereApiKeyLogin } from '../services/providers/cohere/cohereLogin.js';
 import {
   runKimiDeviceLogin,
   storeMoonshotApiKeyLogin,
@@ -475,7 +478,10 @@ export type FaceKeyLegId =
   | 'mistral'
   | 'mistral-admin'
   | 'nous'
-  | 'zen';
+  | 'zen'
+  | 'minimax'
+  | 'together'
+  | 'cohere';
 
 export function geminiPickOptions(facts: GeminiConnectFacts): Array<{ label: string; value: string }> {
   return geminiConnectRows(facts);
@@ -595,6 +601,12 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
       return 'Mistral Admin API key (optional)';
     case 'zen':
       return 'OpenCode Zen API key';
+    case 'minimax':
+      return 'MiniMax API key';
+    case 'together':
+      return 'Together AI API key';
+    case 'cohere':
+      return 'Cohere API key';
   }
 }
 
@@ -629,6 +641,12 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
       return 'Stored auth-scoped (mode 600); MISTRAL_ADMIN_API_KEY wins. Enterprise plans issue it at backoffice.mistral.ai.';
     case 'zen':
       return 'Checked on the usage endpoint first; stored auth-scoped (mode 600); OPENCODE_API_KEY wins. One key, every model the gateway lists.';
+    case 'minimax':
+      return 'Proven on the model list first; stored auth-scoped (mode 600); MINIMAX_API_KEY wins. An M Plan key shows its windows in /usage.';
+    case 'together':
+      return 'Proven on the model list first; stored auth-scoped (mode 600); TOGETHER_API_KEY wins. One key, every chat model the gateway lists.';
+    case 'cohere':
+      return 'Proven on the model list first; stored auth-scoped (mode 600); COHERE_API_KEY wins.';
   }
 }
 
@@ -664,6 +682,12 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
       return { stores: 'a Mistral Admin API key' };
     case 'zen':
       return { stores: 'an OpenCode Zen API key (sk-…)' };
+    case 'minimax':
+      return { stores: 'a MiniMax API key' };
+    case 'together':
+      return { stores: 'a Together AI API key' };
+    case 'cohere':
+      return { stores: 'a Cohere API key' };
   }
 }
 
@@ -681,6 +705,7 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
   if (leg === 'mistral-admin' && note === null) lines.push(...wrapPlain(MISTRAL_ADMIN_KEY_PAGE, DETAIL_W));
   if (leg === 'nous' && note === null) lines.push(...wrapClauses(keyPageLine('nous'), DETAIL_W));
   if (leg === 'zen' && note === null) lines.push(...wrapClauses(keyPageLine('zen'), DETAIL_W));
+  if ((leg === 'minimax' || leg === 'together' || leg === 'cohere') && note === null) lines.push(...wrapClauses(keyPageLine(leg), DETAIL_W));
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
   if (note !== null) {
@@ -1355,6 +1380,11 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       case 'zen':
         setFlow({ kind: 'key', leg: 'zen', note: null, storing: false });
         return;
+      case 'minimax':
+      case 'together':
+      case 'cohere':
+        setFlow({ kind: 'key', leg: arm.row.value, note: null, storing: false });
+        return;
       case 'deepseek':
         setFlow({ kind: 'key', leg: 'deepseek', note: null, storing: false });
         return;
@@ -1500,6 +1530,9 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     else if (leg === 'mistral-admin') void storeMistralAdminKeyLogin(value).then(settle);
     else if (leg === 'nous') void storeNousApiKeyLogin(value).then(outcome => settle({ ok: outcome.ok, stored: outcome.stored, receipt: outcome.receipt }));
     else if (leg === 'zen') void storeZenApiKeyLogin(value).then(settle);
+    else if (leg === 'minimax') void storeMinimaxApiKeyLogin(value).then(settle);
+    else if (leg === 'together') void storeTogetherApiKeyLogin(value).then(settle);
+    else if (leg === 'cohere') void storeCohereApiKeyLogin(value).then(settle);
     else if (leg === 'moonshot-key')
       void storeMoonshotApiKeyLogin(value).then(outcome => settle({ ok: outcome.ok, stored: outcome.stored, receipt: outcome.receipt }));
     else if (leg === 'hf-token') void storeHuggingfaceTokenLogin(value).then(settle);

@@ -44,6 +44,9 @@ import { MetaConnect } from './MetaConnect.js'
 import { MistralConnect } from './MistralConnect.js'
 import { NousConnect } from './NousConnect.js'
 import { ZenConnect } from './ZenConnect.js'
+import { MinimaxConnect } from './MinimaxConnect.js'
+import { TogetherConnect } from './TogetherConnect.js'
+import { CohereConnect } from './CohereConnect.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
@@ -77,6 +80,9 @@ type EngineLeg =
   | 'mistral'
   | 'nous'
   | 'zen'
+  | 'minimax'
+  | 'together'
+  | 'cohere'
 
 export type LoginFamilyFocus = LoginFamilyValue
 
@@ -227,7 +233,7 @@ export function ConsoleOAuthFlow({
       onSkip?.()
       return
     }
-    if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') {
+    if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'minimax' || value === 'together' || value === 'cohere' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') {
       setLeg(value)
       return
     }
@@ -300,6 +306,18 @@ export function ConsoleOAuthFlow({
         if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenCode Zen login unavailable here.</Text>)
         return frame(<ZenConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
 
+      case 'minimax':
+        if (onOpenaiDone === undefined) return frame(<Text dimColor>MiniMax login unavailable here.</Text>)
+        return frame(<MinimaxConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
+
+      case 'together':
+        if (onOpenaiDone === undefined) return frame(<Text dimColor>Together AI login unavailable here.</Text>)
+        return frame(<TogetherConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
+
+      case 'cohere':
+        if (onOpenaiDone === undefined) return frame(<Text dimColor>Cohere login unavailable here.</Text>)
+        return frame(<CohereConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
+
       case 'deepseek':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>DeepSeek login unavailable here.</Text>)
         return frame(<DeepseekConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
@@ -326,7 +344,7 @@ export function ConsoleOAuthFlow({
       const arms = popup ? loginsCatalogue() : []
       const intro =
         startingMessage ??
-        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen). An API key also connects from the terminal: /router key <provider>.'
+        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen · MiniMax · Together AI · Cohere). An API key also connects from the terminal: /router key <provider>.'
       const refusalLayout = popup && facts !== null && Object.keys(facts.refusals ?? {}).length > 0
       const rosterCompact = compact || refusalLayout
       const statusWidth = !compact && setupBody !== null ? setupBody.width - 4 - READINESS_LABEL_WIDTH : null
@@ -606,6 +624,9 @@ export const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = 
   { id: 'meta', label: 'Meta' },
   { id: 'mistral', label: 'Mistral' },
   { id: 'zen', label: 'OpenCode Zen' },
+  { id: 'minimax', label: 'MiniMax' },
+  { id: 'together', label: 'Together AI' },
+  { id: 'cohere', label: 'Cohere' },
   { id: 'local', label: 'Local servers' },
   { id: 'openai-compat', label: 'OpenAI-compatible' },
   { id: 'nous', label: 'Nous Portal' },

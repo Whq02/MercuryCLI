@@ -21,6 +21,9 @@ import { localCallModel } from './local/localCallModel.js'
 import { mistralCallModel } from './mistral/mistralCallModel.js'
 import { nousCallModel } from './nous/nousCallModel.js'
 import { zenCallModel } from './zen/zenCallModel.js'
+import { minimaxCallModel } from './minimax/minimaxCallModel.js'
+import { togetherCallModel } from './together/togetherCallModel.js'
+import { cohereCallModel } from './cohere/cohereCallModel.js'
 import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 import { withBackupVote } from '../api/backupEngines.js'
@@ -158,6 +161,15 @@ async function* dispatchRoute(params: CallModelParams): CallModelStream {
       return
     case 'zen':
       yield* zenCallModel(request)
+      return
+    case 'minimax':
+      yield* minimaxCallModel(request)
+      return
+    case 'together':
+      yield* togetherCallModel(request)
+      return
+    case 'cohere':
+      yield* cohereCallModel(request)
       return
   }
 }

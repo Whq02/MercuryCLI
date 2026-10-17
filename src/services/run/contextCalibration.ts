@@ -15,6 +15,9 @@ export const CODEC_EPOCHS = Object.freeze({
   mistral: 1,
   nous: 1,
   zen: 1,
+  minimax: 1,
+  together: 1,
+  cohere: 1,
 } as const)
 
 type CalibrationRoute = keyof typeof CODEC_EPOCHS

@@ -76,7 +76,18 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
       case 'openai-compat':
       case 'local':
       case 'zen':
+      case 'together':
         return undefined
+      case 'minimax': {
+        const { minimaxCatalogueRows, minimaxCatalogueSourceWords } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
+        const row = minimaxCatalogueRows().rows[0]
+        return row ? { modelId: row.id, displayName: row.displayName, source: minimaxCatalogueSourceWords() } : undefined
+      }
+      case 'cohere': {
+        const { cohereCatalogueRows, cohereCatalogueSourceWords } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
+        const row = cohereCatalogueRows().rows[0]
+        return row ? { modelId: row.id, displayName: row.displayName, source: cohereCatalogueSourceWords() } : undefined
+      }
       case 'huggingface': {
         const { getCachedHuggingfaceCatalogue } =
           require('../../services/providers/huggingface/huggingfaceCatalogue.js') as typeof import('../../services/providers/huggingface/huggingfaceCatalogue.js')

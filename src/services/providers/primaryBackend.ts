@@ -27,6 +27,12 @@ import { resolveNousAccount } from './nous/nousAccounts.js'
 import { NOUS_SIGNIN_EXPIRED_LINE } from './nous/nousOauth.js'
 import { zenCallModel, zenLiveProofState } from './zen/zenCallModel.js'
 import { resolveZenApiKey } from './zen/zenAccounts.js'
+import { minimaxCallModel, minimaxLiveProofState } from './minimax/minimaxCallModel.js'
+import { resolveMinimaxApiKey } from './minimax/minimaxAccounts.js'
+import { togetherCallModel, togetherLiveProofState } from './together/togetherCallModel.js'
+import { resolveTogetherApiKey } from './together/togetherAccounts.js'
+import { cohereCallModel, cohereLiveProofState } from './cohere/cohereCallModel.js'
+import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -56,6 +62,9 @@ export type PrimaryBackendId =
   | 'mistral-chat'
   | 'nous-chat'
   | 'zen-gateway'
+  | 'minimax-chat'
+  | 'together-chat'
+  | 'cohere-chat'
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
@@ -76,6 +85,9 @@ export interface AgentRuntimeRef {
     | 'mistral'
     | 'nous'
     | 'zen'
+    | 'minimax'
+    | 'together'
+    | 'cohere'
   route: CallModelRoute | 'unrecognised' | 'absence'
   canonicalModel: string
   family:
@@ -95,6 +107,9 @@ export interface AgentRuntimeRef {
     | { kind: 'zen' }
     | { kind: 'unknown' }
     | { kind: 'nous' }
+    | { kind: 'minimax' }
+    | { kind: 'together' }
+    | { kind: 'cohere' }
   walletEntryId?: string
 }
 
@@ -239,6 +254,39 @@ const zenBackend: PrimaryAgentBackend = {
       : { state: 'configured', detail: 'key present · no live turn proven this session' }
   },
 }
+const minimaxBackend: PrimaryAgentBackend = {
+  id: 'minimax-chat', provider: 'minimax', label: 'MiniMax (native, in-process)',
+  callModel: minimaxCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveMinimaxApiKey()) return { state: 'unavailable', reason: 'no API key (/logins minimax, or MINIMAX_API_KEY)' }
+    const proof = minimaxLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const togetherBackend: PrimaryAgentBackend = {
+  id: 'together-chat', provider: 'together', label: 'Together AI (gateway, in-process)',
+  callModel: togetherCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveTogetherApiKey()) return { state: 'unavailable', reason: 'no API key (/logins together, or TOGETHER_API_KEY)' }
+    const proof = togetherLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const cohereBackend: PrimaryAgentBackend = {
+  id: 'cohere-chat', provider: 'cohere', label: 'Cohere (native, in-process)',
+  callModel: cohereCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveCohereApiKey()) return { state: 'unavailable', reason: 'no API key (/logins cohere, or COHERE_API_KEY)' }
+    const proof = cohereLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
@@ -368,6 +416,9 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   mistral: mistralBackend,
   nous: nousBackend,
   zen: zenBackend,
+  minimax: minimaxBackend,
+  together: togetherBackend,
+  cohere: cohereBackend,
 }
 
 export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
@@ -420,6 +471,12 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'nous' }
   } else if (route === 'zen') {
     family = { kind: 'zen' }
+  } else if (route === 'minimax') {
+    family = { kind: 'minimax' }
+  } else if (route === 'together') {
+    family = { kind: 'together' }
+  } else if (route === 'cohere') {
+    family = { kind: 'cohere' }
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }

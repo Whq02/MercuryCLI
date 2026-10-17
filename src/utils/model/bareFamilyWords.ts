@@ -26,7 +26,7 @@ export function bareModelIdOf(id: string): string {
   return id.trim().toLowerCase().replace(ANNOTATION_RE, '')
 }
 
-function gateError(family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral'): string | undefined {
+function gateError(family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'minimax' | 'cohere'): string | undefined {
   const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
   const verdict = catalogueTrafficVerdict(family)
   return verdict.allowed ? undefined : verdict.reason
@@ -214,6 +214,68 @@ function mistralKnownRow(id: string): BareFamilyWordRow | undefined {
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
+function minimaxHeadRow(): BareFamilyWordRow | undefined {
+  const { minimaxCatalogueRows } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
+  return minimaxCatalogueRows().rows[0]
+}
+
+function minimaxPinnedDefault(): BareFamilyWordRow | undefined {
+  const { MINIMAX_DISPLAY_PINS } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
+  const pin = MINIMAX_DISPLAY_PINS[0]
+  return pin === undefined ? undefined : { id: pin.wireId, displayName: pin.displayName }
+}
+
+function minimaxListState(): BareFamilyListState {
+  const { minimaxCatalogueRows, getCachedMinimaxCatalogue } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
+  const { source } = minimaxCatalogueRows()
+  if (source.kind === 'live') return { kind: 'live', count: source.count, fetchedAtMs: source.fetchedAtMs }
+  if (source.kind === 'pins') return { kind: 'pin' }
+  const error = gateError('minimax') ?? getCachedMinimaxCatalogue()?.lastError
+  return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
+}
+
+function minimaxKnownRows(): BareFamilyWordRow[] {
+  const { MINIMAX_DISPLAY_PINS } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
+  return MINIMAX_DISPLAY_PINS.map(pin => ({ id: pin.wireId, displayName: pin.displayName }))
+}
+
+function minimaxKnownRow(id: string): BareFamilyWordRow | undefined {
+  const { minimaxDisplayPin } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
+  const pin = minimaxDisplayPin(bareModelIdOf(id))
+  return pin === undefined ? undefined : { id: pin.wireId, displayName: pin.displayName }
+}
+
+function cohereHeadRow(): BareFamilyWordRow | undefined {
+  const { cohereCatalogueRows } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
+  return cohereCatalogueRows().rows[0]
+}
+
+function coherePinnedDefault(): BareFamilyWordRow | undefined {
+  const { COHERE_DISPLAY_PINS } = require('../../services/providers/cohere/coherePins.js') as typeof import('../../services/providers/cohere/coherePins.js')
+  const pin = COHERE_DISPLAY_PINS[0]
+  return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
+}
+
+function cohereListState(): BareFamilyListState {
+  const { cohereCatalogueRows, getCachedCohereCatalogue } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
+  const { source } = cohereCatalogueRows()
+  if (source.kind === 'live') return { kind: 'live', count: source.count, fetchedAtMs: source.fetchedAtMs }
+  if (source.kind === 'pins') return { kind: 'pin' }
+  const error = gateError('cohere') ?? getCachedCohereCatalogue()?.lastError
+  return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
+}
+
+function cohereKnownRows(): BareFamilyWordRow[] {
+  const { COHERE_DISPLAY_PINS } = require('../../services/providers/cohere/coherePins.js') as typeof import('../../services/providers/cohere/coherePins.js')
+  return COHERE_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
+}
+
+function cohereKnownRow(id: string): BareFamilyWordRow | undefined {
+  const { cohereDisplayPin } = require('../../services/providers/cohere/coherePins.js') as typeof import('../../services/providers/cohere/coherePins.js')
+  const pin = cohereDisplayPin(bareModelIdOf(id))
+  return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
+}
+
 export const BARE_FAMILY_WORDS: readonly BareFamilyWord[] = [
   { word: 'glm', route: 'zai', headRow: glmHeadRow, pinnedDefault: glmPinnedDefault, listState: glmListState, knownRows: glmKnownRows, knownRow: glmKnownRow },
   { word: 'kimi', route: 'moonshot', headRow: kimiHeadRow, pinnedDefault: kimiPinnedDefault, listState: kimiListState, knownRows: kimiKnownRows, knownRow: kimiKnownRow },
@@ -221,6 +283,8 @@ export const BARE_FAMILY_WORDS: readonly BareFamilyWord[] = [
   { word: 'grok', route: 'xai', headRow: grokHeadRow, pinnedDefault: grokPinnedDefault, listState: grokListState, knownRows: grokKnownRows, knownRow: grokKnownRow },
   { word: 'muse', route: 'meta', headRow: museHeadRow, pinnedDefault: musePinnedDefault, listState: museListState, knownRows: museKnownRows, knownRow: museKnownRow },
   { word: 'mistral', route: 'mistral', headRow: mistralHeadRow, pinnedDefault: mistralPinnedDefault, listState: mistralListState, knownRows: mistralKnownRows, knownRow: mistralKnownRow },
+  { word: 'minimax', route: 'minimax', headRow: minimaxHeadRow, pinnedDefault: minimaxPinnedDefault, listState: minimaxListState, knownRows: minimaxKnownRows, knownRow: minimaxKnownRow },
+  { word: 'cohere', route: 'cohere', headRow: cohereHeadRow, pinnedDefault: coherePinnedDefault, listState: cohereListState, knownRows: cohereKnownRows, knownRow: cohereKnownRow },
 ]
 
 export function bareFamilyWordOfRoute(route: string): BareFamilyWord | undefined {

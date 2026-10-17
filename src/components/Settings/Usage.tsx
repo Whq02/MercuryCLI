@@ -398,6 +398,21 @@ const ENGINE_USAGE_PRESENTATION: Record<
     connect: '/logins adds Hugging Face (device-code sign-in, or paste a token; HF_TOKEN works too)',
     limitsNote: 'Usage bills to your Hugging Face account; the connected section states what the provider publishes.',
   },
+  minimax: {
+    title: 'MiniMax usage',
+    connect: '/logins minimax adds a MiniMax API key or M Plan Subscription Key (MINIMAX_API_KEY works too)',
+    limitsNote: 'A pay-as-you-go key draws the Open Platform balance shown at platform.minimax.io; an M Plan Subscription Key meters its 5-hour and weekly windows here.',
+  },
+  together: {
+    title: 'Together AI usage',
+    connect: '/logins together adds a Together AI API key (TOGETHER_API_KEY works too)',
+    limitsNote: 'One key bills the prepaid balance at each model\'s price; the balance and spend controls live at api.together.ai/settings/billing — no polled meter exists on this lane.',
+  },
+  cohere: {
+    title: 'Cohere usage',
+    connect: '/logins cohere adds a Cohere API key (COHERE_API_KEY works too)',
+    limitsNote: 'A trial key is rate-limited for evaluation; a production key bills pay-as-you-go, with spend shown at dashboard.cohere.com — no polled meter exists on this lane.',
+  },
   zen: {
     title: 'OpenCode Zen usage',
     connect: '/logins zen adds an OpenCode Zen API key (OPENCODE_API_KEY works too)',
@@ -786,6 +801,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
   if (section.id === 'xai') return <XaiUsageSection {...(width !== undefined ? { width } : {})} />
   if (section.id === 'meta') return <MetaUsageSection {...(width !== undefined ? { width } : {})} />
   if (section.id === 'zen') return <ZenUsageSection {...(width !== undefined ? { width } : {})} {...(section.family.credentialLabel !== undefined ? { credentialLabel: section.family.credentialLabel } : {})} credentialed={section.family.credentialed} />
+  if (section.id === 'minimax') return <MinimaxUsageSection {...(width !== undefined ? { width } : {})} {...(section.family.credentialLabel !== undefined ? { credentialLabel: section.family.credentialLabel } : {})} credentialed={section.family.credentialed} />
   if (section.id === 'local') return <LocalUsageSection />
   const spend = providerSessionSpend(section.id)
   return (
@@ -861,6 +877,34 @@ function MoonshotUsageSection({ width }: { width?: number }): React.ReactNode {
         {account
           ? ENGINE_USAGE_PRESENTATION.moonshot!.limitsNote
           : `Not connected — ${ENGINE_USAGE_PRESENTATION.moonshot!.connect}.`}
+      </Text>
+    </Box>
+  )
+}
+
+function MinimaxUsageSection({ width, credentialLabel, credentialed }: { width?: number; credentialLabel?: string; credentialed: boolean }): React.ReactNode {
+  const spend = providerSessionSpend('minimax')
+  const usage = useOwnerUsage('minimax', credentialed)
+  const windows = usage.windows
+  return (
+    <Box flexDirection="column">
+      <Text bold>MiniMax usage</Text>
+      <IdentityLine family="minimax" />
+      <Box flexDirection="column" marginTop={1}>
+        <SlotHeading text="M Plan" />
+        {credentialed && windows.length > 0 ? (
+          windows.map(window => window.usedPct !== undefined ? (
+            <ObservedWindowMeter key={window.key} window={window} {...(width !== undefined ? { maxWidth: width } : {})} />
+          ) : (
+            <Text key={window.key} dimColor>{`${window.label}: no limit stated`}</Text>
+          ))
+        ) : (
+          <Text dimColor>{credentialed ? (usage.readerNote ?? 'none stated for this key — the plan endpoint is asked on this tab') : absentSlotLine('an M Plan meters here once its key is stored')}</Text>
+        )}
+      </Box>
+      <ApiKeySlot presentLabel={credentialLabel} isActive={credentialed} route="minimax" spend={spend} />
+      <Text dimColor>
+        {credentialed ? (usage.absence ?? ENGINE_USAGE_PRESENTATION.minimax!.limitsNote) : `Not connected — ${ENGINE_USAGE_PRESENTATION.minimax!.connect}.`}
       </Text>
     </Box>
   )

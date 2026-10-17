@@ -27,6 +27,9 @@ import { localProviderAdapter } from './providers/local.js'
 import { mistralProviderAdapter } from './providers/mistral.js'
 import { nousProviderAdapter } from './providers/nous.js'
 import { zenProviderAdapter } from './providers/zen.js'
+import { minimaxProviderAdapter } from './providers/minimax.js'
+import { togetherProviderAdapter } from './providers/together.js'
+import { cohereProviderAdapter } from './providers/cohere.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { signInLedgerEpoch } from '../accounts/signInLedger.js'
 import { credentialEnvNames } from './providerSecrets.js'
@@ -60,6 +63,9 @@ const PROVIDER_ADAPTERS: readonly RouterProviderAdapter[] = [
   mistralProviderAdapter,
   nousProviderAdapter,
   zenProviderAdapter,
+  minimaxProviderAdapter,
+  togetherProviderAdapter,
+  cohereProviderAdapter,
 ]
 
 function classForCanonical(canonical: string): RouterModelClass | null {

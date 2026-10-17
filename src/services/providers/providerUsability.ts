@@ -20,6 +20,9 @@ export type ProviderId =
   | 'mistral'
   | 'nous'
   | 'zen'
+  | 'minimax'
+  | 'together'
+  | 'cohere'
 
 export interface ProviderUsability {
   provider: ProviderId | 'unrecognised'
@@ -53,6 +56,9 @@ export interface ProviderUsabilityReads {
   nousAccount?: () => { kind: 'signin' | 'api-key'; expired?: boolean } | undefined
   nousSigninRefused?: () => string | undefined
   zenKeyPresent?: () => boolean
+  minimaxKeyPresent?: () => boolean
+  togetherKeyPresent?: () => boolean
+  cohereKeyPresent?: () => boolean
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
@@ -170,6 +176,18 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     zenKeyPresent: () => {
       const { resolveZenApiKey } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
       return resolveZenApiKey() !== undefined
+    },
+    minimaxKeyPresent: () => {
+      const { resolveMinimaxApiKey } = require('./minimax/minimaxAccounts.js') as typeof import('./minimax/minimaxAccounts.js')
+      return resolveMinimaxApiKey() !== undefined
+    },
+    togetherKeyPresent: () => {
+      const { resolveTogetherApiKey } = require('./together/togetherAccounts.js') as typeof import('./together/togetherAccounts.js')
+      return resolveTogetherApiKey() !== undefined
+    },
+    cohereKeyPresent: () => {
+      const { resolveCohereApiKey } = require('./cohere/cohereAccounts.js') as typeof import('./cohere/cohereAccounts.js')
+      return resolveCohereApiKey() !== undefined
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
@@ -363,6 +381,9 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   const nousRefused = nousAccount?.kind === 'signin' && nousPresent.credential !== 'none' ? reads.nousSigninRefused?.() ?? (nousAccount.expired ? 'Nous Portal sign-in expired — sign in again (/logins nous) or use an API key' : undefined) : undefined
   const nous: ProviderUsability = nousRefused === undefined ? nousPresent : { ...nousPresent, usable: false, blockers: [...nousPresent.blockers, nousRefused] }
   const zen = keyLane('zen', reads.zenKeyPresent?.() ?? false, 'no OpenCode Zen API key — /logins zen (or OPENCODE_API_KEY)')
+  const minimax = keyLane('minimax', reads.minimaxKeyPresent?.() ?? false, 'no MiniMax API key — /logins minimax (or MINIMAX_API_KEY)')
+  const together = keyLane('together', reads.togetherKeyPresent?.() ?? false, 'no Together AI API key — /logins together (or TOGETHER_API_KEY)')
+  const cohere = keyLane('cohere', reads.cohereKeyPresent?.() ?? false, 'no Cohere API key — /logins cohere (or COHERE_API_KEY)')
   const deepseek = keyLane(
     'deepseek',
     reads.deepseekKeyPresent?.() ?? false,
@@ -473,6 +494,9 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     mistral: applyLaneBilling(mistral),
     nous: applyLaneBilling(nous),
     zen: applyLaneBilling(zen),
+    minimax: applyLaneBilling(minimax),
+    together: applyLaneBilling(together),
+    cohere: applyLaneBilling(cohere),
   }
 }
 

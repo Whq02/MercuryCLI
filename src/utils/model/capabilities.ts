@@ -44,6 +44,11 @@ import { isMetaModelId, metaDisplayPin } from '../../services/providers/meta/met
 import { isMistralModelId } from '../../services/providers/mistral/mistralPins.js'
 import { mistralModelFacts } from '../../services/providers/mistral/mistralCatalogue.js'
 import { isZenModelId, zenDisplayPin } from '../../services/providers/zen/zenPins.js'
+import { isMinimaxModelId, minimaxDisplayPin } from '../../services/providers/minimax/minimaxPins.js'
+import { isTogetherModelId, togetherDisplayPin, togetherEffortVocabulary, togetherThinkingDial } from '../../services/providers/together/togetherPins.js'
+import { togetherContextWindowFor } from '../../services/providers/together/togetherCatalogue.js'
+import { cohereModelFacts } from '../../services/providers/cohere/cohereCatalogue.js'
+import { isCohereModelId } from '../../services/providers/cohere/coherePins.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -64,6 +69,7 @@ export function modelSupportsTemperature(model: string): boolean {
   if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   if (isMistralModelId(model)) return true
   if (isZenModelId(model)) return true
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model)) return true
   const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(model)
   if (!m) return true
   const family = m[1]!
@@ -79,6 +85,7 @@ export function modelSupportsISP(model: string): boolean {
   if (isXaiModelId(model)) return modelSupportsThinking(model)
   if (isMetaModelId(model)) return false
   if (isMistralModelId(model)) return false
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model)) return false
   return !getCanonicalName(model).includes('claude-3-')
 }
 
@@ -90,6 +97,9 @@ export function modelSupportsThinking(model: string): boolean {
   if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   if (isMistralModelId(model)) return mistralModelFacts(model).reasoning === true
   if (isZenModelId(model)) return true
+  if (isMinimaxModelId(model)) return true
+  if (isTogetherModelId(model)) return togetherThinkingDial(model) !== 'none'
+  if (isCohereModelId(model)) return cohereModelFacts(model).reasoning === true
   return !getCanonicalName(model).includes('claude-3-')
 }
 
@@ -97,6 +107,7 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
   if (isXaiModelId(model)) return false
   if (isMetaModelId(model)) return false
   if (isMistralModelId(model)) return false
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   if (canonical === 'claude-haiku-5-5' || canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return true
@@ -128,6 +139,9 @@ export function modelThinkingAlwaysOn(model: string): boolean {
     const pin = zenDisplayPin(model)
     return pin !== undefined && pin.thinkingToggle !== true && !(pin.efforts?.includes('none') ?? false)
   }
+  if (isMinimaxModelId(model)) return minimaxDisplayPin(model)?.thinking !== 'toggle'
+  if (isTogetherModelId(model)) return togetherThinkingDial(model) === 'effort'
+  if (isCohereModelId(model)) return false
   if (isCarrierShapedId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return canonical.includes('fable-5') || canonical.includes('mythos-5') || canonical === 'claude-opus-5-5' || canonical === 'claude-sonnet-5-5'
@@ -208,7 +222,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen'
+      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -233,6 +247,9 @@ export type EffortVocabularyView =
         | 'carrier'
         | 'first-party-legacy'
         | 'nous'
+        | 'minimax'
+        | 'together'
+        | 'cohere'
       defaultEffort?: string
     }
 
@@ -309,6 +326,24 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
     return vocabulary.length > 0
       ? { kind: 'provider', source: 'zen', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'zen' }
+  }
+  if (isMinimaxModelId(model) || route === 'minimax') {
+    const vocabulary = minimaxDisplayPin(model)?.efforts ?? []
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'minimax', vocabulary, defaultEffort: 'max', thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
+      : { kind: 'none', source: 'minimax' }
+  }
+  if (route === 'together') {
+    const vocabulary = togetherEffortVocabulary(model)
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'together', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
+      : { kind: 'none', source: 'together' }
+  }
+  if (isCohereModelId(model) || route === 'cohere') {
+    const vocabulary = cohereModelFacts(model).efforts
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'cohere', vocabulary, defaultEffort: 'high', thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
+      : { kind: 'none', source: 'cohere' }
   }
   if (route === 'openrouter') {
     const { openrouterEffortVocabularyFor } =
@@ -517,7 +552,7 @@ export function resolveContextWindow(
   }
 
   if (has1mContext(model)) {
-    if (isCarrierShapedId(model) || isXaiModelId(model) || isMetaModelId(model) || isMistralModelId(model)) {
+    if (isCarrierShapedId(model) || isXaiModelId(model) || isMetaModelId(model) || isMistralModelId(model) || isMinimaxModelId(model) || isCohereModelId(model)) {
       const base = resolveContextWindow(model.replace(/\[1m\]/i, ''), betas, requestedMode)
       return {
         ...base,
@@ -706,6 +741,9 @@ export function resolveContextWindow(
     if (isMetaModelId(id)) return metaDisplayPin(id)?.contextWindow
     if (isMistralModelId(id)) return mistralModelFacts(id).contextWindow
     if (isZenModelId(id)) return zenDisplayPin(id)?.contextWindow
+    if (isMinimaxModelId(id)) return minimaxDisplayPin(id)?.contextWindow
+    if (isTogetherModelId(id)) return togetherContextWindowFor(id)
+    if (isCohereModelId(id)) return cohereModelFacts(id).contextWindow
     return undefined
   })()
   if (enginePinnedWindow !== undefined) {
@@ -769,6 +807,10 @@ export function getModelMaxOutputTokens(model: string): {
   if (metaOut !== undefined) return statedOutputTokens(metaOut)
   const zenOut = isZenModelId(model) ? zenDisplayPin(model)?.outputMax : undefined
   if (zenOut !== undefined) return statedOutputTokens(zenOut)
+  const minimaxOut = isMinimaxModelId(model) ? minimaxDisplayPin(model)?.outputMax : undefined
+  if (minimaxOut !== undefined) return statedOutputTokens(minimaxOut)
+  const cohereOut = isCohereModelId(model) ? cohereModelFacts(model).outputMax : undefined
+  if (cohereOut !== undefined) return statedOutputTokens(cohereOut)
   let upperLimit: number | undefined
 
   const gptPinOut = gptDisplayPin(model)?.outputMax
@@ -1005,6 +1047,12 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
       return mistralModelFacts(model).images === true
     case 'zen':
       return zenDisplayPin(model)?.images === true
+    case 'minimax':
+      return minimaxDisplayPin(model)?.images === true
+    case 'together':
+      return togetherDisplayPin(model)?.images === true
+    case 'cohere':
+      return cohereModelFacts(model).images === true
     case 'zai':
       return glmTakesImages(model)
     case 'openrouter':

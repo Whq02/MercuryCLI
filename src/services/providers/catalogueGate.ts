@@ -5,12 +5,15 @@ import { resolveXaiCredentialSnapshot } from './xai/xaiAccounts.js'
 import { resolveMetaApiKey } from './meta/metaAccounts.js'
 import { resolveMistralApiKey } from './mistral/mistralAccounts.js'
 import { resolveZenApiKey } from './zen/zenAccounts.js'
+import { resolveMinimaxApiKey } from './minimax/minimaxAccounts.js'
+import { resolveTogetherApiKey } from './together/togetherAccounts.js'
+import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
 import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
 import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
 import { resolveOpenrouterRequestAuth } from './openrouter/openrouterAccounts.js'
 
-export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local' | 'mistral' | 'nous' | 'zen'
+export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere'
 
 type CatalogueGateVerdict =
   | { allowed: true; exempt?: 'local-endpoint' }
@@ -34,6 +37,9 @@ const FAMILY_NAMES: Record<Exclude<CatalogueFamily, 'local'>, string> = {
   mistral: 'Mistral',
   nous: 'Nous Portal',
   zen: 'OpenCode Zen',
+  minimax: 'MiniMax',
+  together: 'Together AI',
+  cohere: 'Cohere',
 }
 
 export function connectToBrowseReason(family: Exclude<CatalogueFamily, 'local'>): string {
@@ -76,6 +82,12 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
     }
     case 'zen':
       return resolveZenApiKey(env) !== undefined
+    case 'minimax':
+      return resolveMinimaxApiKey(env) !== undefined
+    case 'together':
+      return resolveTogetherApiKey(env) !== undefined
+    case 'cohere':
+      return resolveCohereApiKey(env) !== undefined
   }
 }
 

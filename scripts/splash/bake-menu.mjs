@@ -8,7 +8,7 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-menu.mjs',
   check: 'bun scripts/splash/bake-menu.mjs --check',
-  sources: 'src/substrate/startupMenu.ts src/services/providers/xai/xaiPins.ts src/services/providers/meta/metaPins.ts src/services/providers/mistral/mistralPins.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/utils/router/providers/zai.ts',
+  sources: 'src/substrate/startupMenu.ts src/services/providers/xai/xaiPins.ts src/services/providers/meta/metaPins.ts src/services/providers/mistral/mistralPins.ts src/services/providers/minimax/minimaxPins.ts src/services/providers/cohere/coherePins.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/utils/router/providers/zai.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
@@ -41,6 +41,8 @@ const GLM_DISPLAY_PINS = GLM_STATIC_CATALOGUE.map(entry => ({ id: entry.id, disp
 
 const { META_DISPLAY_PINS } = await import('../../src/services/providers/meta/metaPins.ts')
 const { MISTRAL_DISPLAY_PINS } = await import('../../src/services/providers/mistral/mistralPins.ts')
+const { MINIMAX_DISPLAY_PINS } = await import('../../src/services/providers/minimax/minimaxPins.ts')
+const { COHERE_DISPLAY_PINS } = await import('../../src/services/providers/cohere/coherePins.ts')
 const SPLASH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs')
 
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -88,6 +90,10 @@ function modelNamesBlock() {
     for (const alias of pin.aliases) names[alias.toLowerCase()] = pin.displayName
   }
   names.mistral = 'Mistral'
+  for (const pin of MINIMAX_DISPLAY_PINS) names[pin.id.toLowerCase()] = pin.displayName
+  names.minimax = 'MiniMax'
+  for (const pin of COHERE_DISPLAY_PINS) names[pin.id.toLowerCase()] = pin.displayName
+  names.cohere = 'Cohere'
   const take = (id, name) => {
     const key = id.toLowerCase()
     if (names[key] === undefined) names[key] = name

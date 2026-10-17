@@ -291,6 +291,18 @@ export function getPublicModelDisplayName(model: string): string | null {
     const { mistralDisplayPin } = require('../../services/providers/mistral/mistralPins.js') as typeof import('../../services/providers/mistral/mistralPins.js')
     return mistralDisplayPin(bare)?.displayName ?? null
   }
+  if (/^minimax-/i.test(bare)) {
+    const { minimaxDisplayPin } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
+    return minimaxDisplayPin(bare)?.displayName ?? null
+  }
+  if (/^(?:command-|north-|c4ai-aya-)/i.test(bare)) {
+    const { cohereDisplayPin } = require('../../services/providers/cohere/coherePins.js') as typeof import('../../services/providers/cohere/coherePins.js')
+    return cohereDisplayPin(bare)?.displayName ?? null
+  }
+  if (/^together\//i.test(bare)) {
+    const { togetherDisplayPin } = require('../../services/providers/together/togetherPins.js') as typeof import('../../services/providers/together/togetherPins.js')
+    return togetherDisplayPin(bare)?.displayName ?? null
+  }
   const gpt = gptDisplayName(bare)
   if (gpt !== undefined) {
     return gpt

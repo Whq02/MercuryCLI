@@ -66,6 +66,9 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
       if (route === 'local') return 'local model · no metering'
       if (route === 'nous') return 'Nous Portal credits / subscription billing'
       if (route === 'zen') return 'OpenCode Zen pay-as-you-go billing'
+      if (route === 'minimax') return 'MiniMax pay-as-you-go balance / M Plan billing'
+      if (route === 'together') return 'Together AI prepaid balance billing'
+      if (route === 'cohere') return 'Cohere pay-as-you-go billing'
       if (route === null) return 'unrecognised model · no billed lane'
     } catch {
     }

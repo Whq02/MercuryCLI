@@ -511,6 +511,7 @@ export interface ActiveUsageReads {
   nousAccountFailure?: () => NousAccountFailureView | null
   nousSignedIn?: () => boolean
   zenGoUsage?: () => ZenGoObservationView
+  minimaxPlanUsage?: () => MinimaxPlanObservationView
 }
 
 export interface NousObservedAccountView {
@@ -558,6 +559,32 @@ export function zenGoWindowViews(observation: ZenGoObservationView): UsageWindow
 function liveZenGoUsage(): ZenGoObservationView {
   const { zenObservedGoUsage } = require('./zen/zenUsageState.js') as typeof import('./zen/zenUsageState.js')
   return zenObservedGoUsage()
+}
+
+export interface MinimaxPlanObservationView {
+  usage: { observedAtMs: number; windows: { model: string; name: '5 hour' | 'weekly'; usedPercent: number; resetsAtMs?: number }[] } | null
+  plan: 'm-plan' | 'none' | 'unknown'
+  failure: { atMs: number; kind: 'refused' | 'unreachable' | 'invalid'; status?: number } | null
+}
+
+export function minimaxPlanWindowViews(observation: MinimaxPlanObservationView): UsageWindowView[] {
+  if (observation.usage === null) return []
+  const models = new Set(observation.usage.windows.map(window => window.model))
+  return observation.usage.windows.map(window => ({
+    key: `${window.name === '5 hour' ? '5h' : 'wk'}${models.size > 1 ? `:${window.model.toLowerCase()}` : ''}`,
+    label: `M Plan ${window.name}${models.size > 1 ? ` · ${window.model}` : ''}`,
+    state: 'live',
+    usedPct: Math.min(100, Math.max(0, window.usedPercent)),
+    ...(window.resetsAtMs !== undefined ? { resetsAtMs: window.resetsAtMs } : {}),
+    observedAtMs: observation.usage!.observedAtMs,
+    source: 'endpoint',
+    freshForMs: usageStaleAfterMs(),
+  }))
+}
+
+function liveMinimaxPlanUsage(): MinimaxPlanObservationView {
+  const { minimaxObservedPlanUsage } = require('./minimax/minimaxUsageState.js') as typeof import('./minimax/minimaxUsageState.js')
+  return minimaxObservedPlanUsage()
 }
 
 export interface UsageRefreshIo {
@@ -649,6 +676,11 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
       case 'zen': {
         const { refreshZenGoUsage } = require('./zen/zenUsageState.js') as typeof import('./zen/zenUsageState.js')
         await refreshZenGoUsage(io)
+        return
+      }
+      case 'minimax': {
+        const { refreshMinimaxPlanUsage } = require('./minimax/minimaxUsageState.js') as typeof import('./minimax/minimaxUsageState.js')
+        await refreshMinimaxPlanUsage(io)
         return
       }
       case 'gemini': {
@@ -777,6 +809,18 @@ function laneCredentialedLive(provider: RouterProviderId): boolean {
   if (provider === 'zen') {
     const { resolveZenApiKey } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
     return resolveZenApiKey() !== undefined
+  }
+  if (provider === 'minimax') {
+    const { resolveMinimaxApiKey } = require('./minimax/minimaxAccounts.js') as typeof import('./minimax/minimaxAccounts.js')
+    return resolveMinimaxApiKey() !== undefined
+  }
+  if (provider === 'together') {
+    const { resolveTogetherApiKey } = require('./together/togetherAccounts.js') as typeof import('./together/togetherAccounts.js')
+    return resolveTogetherApiKey() !== undefined
+  }
+  if (provider === 'cohere') {
+    const { resolveCohereApiKey } = require('./cohere/cohereAccounts.js') as typeof import('./cohere/cohereAccounts.js')
+    return resolveCohereApiKey() !== undefined
   }
   return false
 }
@@ -1903,6 +1947,31 @@ function deriveUsageForProvider(
       credits: { state: 'unreported', reason: 'the gateway states no balance to clients — the OpenCode console shows it', compact: 'console only' },
       absence,
       ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
+    }
+  }
+  if (provider === 'minimax') {
+    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
+    if (!credentialed) return { provider, sourceKind: 'none', label: 'MiniMax usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins minimax adds a key' }
+    const { MINIMAX_BALANCE_NOTE, MINIMAX_PLAN_ABSENT_NOTE, minimaxPlanFailureWords } = require('./minimax/minimaxUsageState.js') as typeof import('./minimax/minimaxUsageState.js')
+    const observation = (reads?.minimaxPlanUsage ?? liveMinimaxPlanUsage)()
+    const windows = minimaxPlanWindowViews(observation)
+    const note = observation.failure ? minimaxPlanFailureWords(observation.failure) : undefined
+    const absence = observation.plan === 'none' ? `${MINIMAX_PLAN_ABSENT_NOTE}; ${MINIMAX_BALANCE_NOTE}` : MINIMAX_BALANCE_NOTE
+    return {
+      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows, pools: [], spend, tier: API_BILLING_TIER,
+      credits: { state: 'unreported', reason: 'the API states no balance to clients — platform.minimax.io shows it', compact: 'console only' },
+      absence,
+      ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
+    }
+  }
+  if (provider === 'together' || provider === 'cohere') {
+    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
+    const words = provider === 'together' ? { label: 'Together AI usage', door: '/logins together', console: 'api.together.ai/settings/billing' } : { label: 'Cohere usage', door: '/logins cohere', console: 'dashboard.cohere.com' }
+    if (!credentialed) return { provider, sourceKind: 'none', label: words.label, shape: 'none', windows: [], pools: [], spend, whyNot: `not connected — ${words.door} adds a key` }
+    return {
+      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
+      credits: { state: 'unreported', reason: `a standard API key reads no balance endpoint — ${words.console} shows it`, compact: 'console only' },
+      absence: `a standard ${provider === 'together' ? 'Together AI' : 'Cohere'} API key reads no usage, balance or quota endpoint — the session ledger counts this key's tokens; ${words.console} shows the account's spend`,
     }
   }
   if (provider === 'deepseek' || provider === 'openai-compat') {
