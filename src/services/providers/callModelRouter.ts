@@ -23,6 +23,7 @@ import { nousCallModel } from './nous/nousCallModel.js'
 import { zenCallModel } from './zen/zenCallModel.js'
 import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
+import { withBackupVote } from '../api/backupEngines.js'
 
 export {
   classifyModelRoute,
@@ -73,6 +74,7 @@ async function* homeLaneCall(params: CallModelParams): CallModelStream {
     yield createAssistantAPIErrorMessage({
       content: `${API_ERROR_MESSAGE_PREFIX}: ${refusal}`,
       error: 'invalid_request',
+      failover: 'unknown-model',
     })
     return
   }
@@ -93,7 +95,11 @@ export async function modelRefusalBeforeAnyRequest(model: string): Promise<strin
   return null
 }
 
-export async function* routedCallModel(params: CallModelParams): CallModelStream {
+export function routedCallModel(params: CallModelParams): CallModelStream {
+  return withBackupVote(dispatchRoute(params), params.options)
+}
+
+async function* dispatchRoute(params: CallModelParams): CallModelStream {
   const verdict = await classifyAfterLiveLists(params.options.model)
   if (verdict.kind === 'absence') {
     yield createAssistantAPIErrorMessage({

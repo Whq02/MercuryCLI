@@ -208,12 +208,13 @@ export function createAssistantAPIErrorMessage(input: {
   apiError?: AssistantMessage['apiError']
   error?: AssistantMessageError
   errorDetails?: string
+  failover?: AssistantMessage['failover']
   overflow?: AssistantMessage['overflowSignal'] | null
   mediaRefusal?: AssistantMessage['mediaRefusal'] | null
   busyRefusal?: AssistantMessage['busyRefusal'] | null
 }): AssistantMessage {
   return localAssistant({
-    ...fields(input, ['apiError', 'error', 'errorDetails']),
+    ...fields(input, ['apiError', 'error', 'errorDetails', 'failover']),
     content: [textBlock(input.content)],
     isApiErrorMessage: true,
     overflowSignal: input.overflow ?? undefined,

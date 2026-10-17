@@ -2,7 +2,7 @@ import { APIConnectionError, APIConnectionTimeoutError, APIError } from '@anthro
 
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
-import type { AssistantMessage, Message } from '../../types/message.js'
+import type { AssistantMessage, FailoverCause, Message } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSource, getOauthAccountInfo, hasStoredOAuthToken, isClaudeAISubscriber, isAnthropicOAuthSignInExpired, wireCredentialSource, type WireCredentialSource } from '../../utils/auth.js'
 import { formatFileSize } from '../../utils/format.js'
@@ -389,10 +389,22 @@ export function getAssistantMessageFromError(
   model: string,
   _context?: { messages?: Message[]; messagesForAPI?: unknown[]; modelRefusalRequest?: ModelRefusalRequest | undefined },
 ): AssistantMessage {
-  const row = composeAssistantMessageFromError(error, model, _context)
+  const composed = composeAssistantMessageFromError(error, model, _context)
+  const failover = homeFailoverCauseOf(error, composed)
+  const row = failover === undefined ? composed : { ...composed, failover }
   if (row.error === 'authentication_failed' && classifyCredentialWall(statusOf(error), messageOf(error)) !== 'key-limit') return row
   const asked = providerAskedWaitMs(error)
   return asked === undefined ? row : { ...row, providerWaitEndsAtMs: Date.now() + asked }
+}
+
+function homeFailoverCauseOf(error: unknown, row: AssistantMessage): FailoverCause | undefined {
+  if (row.overflowSignal !== undefined || row.apiError !== undefined) return undefined
+  if (row.error === 'authentication_failed') return 'sign-in'
+  const status = statusOf(error)
+  if (status === 404) return 'unknown-model'
+  if (isTimeoutError(error) || isConnectionError(error) || (error as { name?: unknown } | null)?.name === 'ReconnectBudgetSpentError') return 'unreachable'
+  if (status !== undefined && status >= 500 && status !== 529) return 'unreachable'
+  return undefined
 }
 
 function signInWallAccount(model: string): string | undefined {

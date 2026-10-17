@@ -1,7 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 
-import type { SystemAPIErrorMessage } from '../../types/message.js'
+import type { FailoverCause, SystemAPIErrorMessage } from '../../types/message.js'
 import {
   apiKeyHelperFailedLast,
   clearApiKeyHelperCache,
@@ -84,12 +84,14 @@ export class CannotRetryError extends Error {
 export class FallbackTriggeredError extends Error {
   originalModel: string
   fallbackModel: string
+  trigger: FailoverCause
 
-  constructor(originalModel: string, fallbackModel: string) {
+  constructor(originalModel: string, fallbackModel: string, trigger: FailoverCause = 'overloaded') {
     super(`Model fallback triggered: ${originalModel} → ${fallbackModel}`)
     this.name = 'FallbackTriggeredError'
     this.originalModel = originalModel
     this.fallbackModel = fallbackModel
+    this.trigger = trigger
   }
 }
 
@@ -329,10 +331,10 @@ export async function* withRetry<T>(
         busy = ladder
         const step = nextBusyRetry(ladder, providerAskedWaitMs(error), Date.now())
         if (step === null) {
+          if (options.fallbackModel !== undefined) {
+            throw new FallbackTriggeredError(retryContext.model, options.fallbackModel, 'overloaded')
+          }
           if (consecutive529Errors >= CONSECUTIVE_529_FALLBACK_THRESHOLD) {
-            if (options.fallbackModel !== undefined) {
-              throw new FallbackTriggeredError(retryContext.model, options.fallbackModel)
-            }
             throw new CannotRetryError(new Error(REPEATED_529_ERROR_MESSAGE), retryContext)
           }
           throw new CannotRetryError(error, retryContext)

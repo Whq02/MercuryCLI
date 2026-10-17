@@ -21,6 +21,7 @@ import type {
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
 import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
+import { markUnknownModel } from '../../api/backupEngines.js'
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
 import { patienceSeconds } from '../patience.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
@@ -710,13 +711,13 @@ export async function* compatChatCallModel(
           ? `${API_ERROR_MESSAGE_PREFIX}: ${emptyStreamSpentWords(profile.providerLabel, Date.now() - turnStartedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
           : terminalText
     yield withEffort(stampProviderWait(
-      apiErrorMessage(
+      markUnknownModel(apiErrorMessage(
         stayedBusy,
         typed,
         outcome.fault.code,
         overflowOf(profile.lane, outcome.fault),
         busy !== undefined ? busyRefusalFact(profile.providerLabel, busy.ladder, outcome.fault) : null,
-      ),
+      ), outcome.fault.status),
       outcome.fault.retryAfterMs,
     ))
     return
