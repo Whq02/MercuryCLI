@@ -22,9 +22,9 @@ const { groupMessagesByApiRound } = await import('../../src/services/compact/gro
 const LANDING_ROOM_FLOOR_TOKENS = (tailModule.LANDING_ROOM_FLOOR_TOKENS as number | undefined) ?? 20_000
 const LANDING_ROOM_MAX_SHARE = (tailModule.LANDING_ROOM_MAX_SHARE as number | undefined) ?? 2
 const FOLDED_RESULT_KEY = (tailModule.FOLDED_RESULT_KEY as string | undefined) ?? '[result folded into the summary above'
-const foldLandingCeiling = (tailModule.foldLandingCeiling as ((threshold: number, messages: readonly Message[]) => number) | undefined) ?? ((threshold: number, messages: readonly Message[]): number => {
+const foldLandingCeiling = (tailModule.foldLandingCeiling as ((threshold: number, messages: readonly Message[], ratio?: number) => number) | undefined) ?? ((threshold: number, messages: readonly Message[], ratio = 1): number => {
   const largest = Math.max(0, ...groupMessagesByApiRound([...messages]).map(group => estimateContextTokens(group)))
-  return Math.max(1, threshold - Math.min(Math.max(largest, LANDING_ROOM_FLOOR_TOKENS), Math.floor(threshold / LANDING_ROOM_MAX_SHARE)))
+  return Math.max(1, threshold - Math.min(Math.max(Math.ceil(largest * ratio), LANDING_ROOM_FLOOR_TOKENS), Math.floor(threshold / LANDING_ROOM_MAX_SHARE)))
 })
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
@@ -118,6 +118,31 @@ try {
     const rounds = roundsOf(result)
     check(`the fold lands between the landing line and the threshold (${landing} ≤ ${post} < ${threshold}) with the widest tail that fits under the threshold, nothing narrowed or folded for nothing, and the reason no-room`, post >= landing && post < threshold && rounds.kept === 10 && (rounds.folded ?? 0) === 0 && rounds.reason === 'no-room', JSON.stringify({ post, landing, rounds }))
     check('the receipt says it once', wordsOf(result)[0] === 'last 10 rounds kept whole (no room left for a turn)', wordsOf(result)[0])
+  }
+
+  console.log('L5 the room is in the gauge\'s units: with a learned density ratio above 1 the landing line leaves room for the largest round AS THE GAUGE COUNTS IT')
+  {
+    const { calibrationKeyFor } = await import('../../src/services/run/contextCalibration.ts')
+    const { readRequestGauge } = await import('../../src/services/run/requestGauge.ts')
+    const { roughTokenCountEstimationForMessages } = await import('../../src/services/tokenEstimation.ts')
+    const ratio = 1.4
+    const threshold = 126_000
+    const history = stretch(8, 96_000, 'dense')
+    const at = history.length - 2
+    const last = history[at] as Message & { type: 'assistant'; message: { stop_reason: string } }
+    const anchored = { ...last, message: { ...last.message, usage: { input_tokens: 10, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } }, contextGauge: { version: 1 as const, key: calibrationKeyFor('anthropic', 'claude-opus-4-8'), epoch: 7, digest: 'proof', rawTokens: 0, fixed: { digest: 'proof-fixed', tokens: 0 }, density: { ratio, samples: 1, residuals: [] }, sample: { eligible: false, denominator: 0, measured: 0, reason: 'proof' } } } as Message
+    const gauged = [...history.slice(0, at), anchored, ...history.slice(at + 1)]
+    const gauge = readRequestGauge(gauged, 'claude-opus-4-8')
+    const largestRaw = Math.max(...groupMessagesByApiRound([...gauged]).map(group => roughTokenCountEstimationForMessages(group)))
+    const largestGauge = Math.ceil(largestRaw * ratio)
+    check(`the rig binds a gauge whose density ratio is ${ratio} (the largest round: ${largestRaw} raw tokens, ${largestGauge} as the gauge counts it)`, gauge !== null && gauge.density.ratio === ratio && largestRaw > LANDING_ROOM_FLOOR_TOKENS, JSON.stringify(gauge?.density))
+    const landing = foldLandingCeiling(threshold, gauged, ratio)
+    check(`the landing line takes the room in the gauge's units: ${landing} = ${threshold} − ${largestGauge} (red before: the room was the raw ${largestRaw})`, landing === threshold - Math.min(Math.max(largestGauge, LANDING_ROOM_FLOOR_TOKENS), Math.floor(threshold / LANDING_ROOM_MAX_SHARE)), String(landing))
+    const result = await fold(gauged, context(), threshold)
+    const post = result.truePostCompactTokenCount ?? Infinity
+    const rounds = roundsOf(result)
+    check(`the fold lands with room for the largest round as the gauge counts it: ${threshold} − ${post} ≥ ${largestGauge} (red before: the fold kept one round more and left ${threshold} − post < ${largestGauge})`, threshold - post >= largestGauge && post < landing, JSON.stringify({ post, landing, rounds }))
+    check('the kept rounds ride whole (the gauge changes the count, never the content)', keptResults(result).every(text => !text.startsWith(FOLDED_RESULT_KEY)) && (rounds.folded ?? 0) === 0 && rounds.kept >= 1, JSON.stringify(rounds))
   }
 
   console.log('L4 the threshold law stands: a core over the threshold itself still refuses before any summary')
