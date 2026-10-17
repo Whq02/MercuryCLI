@@ -840,7 +840,7 @@ async function runTransactionBody(args: {
         blockForEmission,
         tool.name,
         tool.maxResultSizeChars,
-        room === null ? undefined : { shareChars: room.allowance(toolUseID) * 4, words: RESULT_ROOM_WORDS },
+        room === null || room.reserved(toolUseID) ? undefined : { shareChars: room.allowance(toolUseID) * 4, words: RESULT_ROOM_WORDS },
       )
       if (room !== null) {
         const landed = (processed as { content?: unknown }).content
@@ -913,6 +913,8 @@ async function runTransactionBody(args: {
     settleHookWait()
     durationMs = Date.now() - executionStartedAt
     success = false
+    const room = resultRoomFor(assistantMessage)
+    if (room !== null && room.reserved(toolUseID)) room.settle(toolUseID, 0)
     try {
       addToToolDuration(durationMs)
     } catch {

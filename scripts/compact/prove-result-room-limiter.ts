@@ -166,7 +166,7 @@ function makeCtx(): Record<string, unknown> {
     agentId: undefined,
   }
 }
-type Run = { events: AnyEvent[]; yields: AnyMsg[]; terminal: Record<string, unknown>; calls: CallRecord[] }
+type Run = { events: AnyEvent[]; yields: AnyMsg[]; terminal: Record<string, unknown>; calls: CallRecord[]; ctx: Record<string, unknown> }
 async function run(script: unknown[][]): Promise<Run> {
   const ctx = makeCtx()
   const { calls, callModel } = makeModel(script)
@@ -197,7 +197,7 @@ async function run(script: unknown[][]): Promise<Run> {
     r = await gen.next()
   }
   await new Promise(resolve => setTimeout(resolve, 5))
-  return { events, yields, terminal: r.value as Record<string, unknown>, calls }
+  return { events, yields, terminal: r.value as Record<string, unknown>, calls, ctx }
 }
 const resultsOf = (yields: AnyMsg[]): Array<{ id: string; text: string }> => {
   const out: Array<{ id: string; text: string }> = []
@@ -228,14 +228,16 @@ section(`L2 past the line (the context at ${fmt(900_000)} of ${fmt(WINDOW)}; fol
 
 section(`L3 at the floor (the context at ${fmt(974_000)}, 3,000 under the blocking limit): a shell output and a search under their own caps are persisted with the cut named; the floor keeps a head and a tail`)
 {
+  const grepRowChars = `${haystack}:450:export const row449 = compute(449, 'the haystack.ts module keeps a line of ordinary source text here')\n`.length
+  const grepRows = Math.round(18_000 / grepRowChars)
   const r = await run([
-    [ping(), asstTools([{ id: 'toolu_bash_0', name: 'Bash', input: { command: `cat "${haystack}" | head -c 24000`, description: 'print a slice of the haystack' } }, { id: 'toolu_grep_0', name: 'Grep', input: { pattern: 'export const row', path: haystack, output_mode: 'content', head_limit: 95 } }], 974_000)],
+    [ping(), asstTools([{ id: 'toolu_bash_0', name: 'Bash', input: { command: `cat "${haystack}" | head -c 24000`, description: 'print a slice of the haystack' } }, { id: 'toolu_grep_0', name: 'Grep', input: { pattern: 'export const row', path: haystack, output_mode: 'content', head_limit: grepRows } }], 974_000)],
     [ping(), asstText('the report', 979_000)],
   ])
   const results = resultsOf(r.yields)
   const bash = results.find(result => result.id === 'toolu_bash_0')
   const grep = results.find(result => result.id === 'toolu_grep_0')
-  record(`bash result ${fmt(bash?.text.length ?? 0)} chars; grep result ${fmt(grep?.text.length ?? 0)} chars (${JSON.stringify(grep?.text.slice(0, 160))}); terminal ${JSON.stringify(r.terminal)}`)
+  record(`bash result ${fmt(bash?.text.length ?? 0)} chars; grep result ${fmt(grep?.text.length ?? 0)} chars from ${grepRows} rows of ≈${grepRowChars} chars (${JSON.stringify(grep?.text.slice(0, 160))}); terminal ${JSON.stringify(r.terminal)}`)
   check('the run completed', r.terminal.reason === 'completed' && bash !== undefined && grep !== undefined, JSON.stringify(r.terminal))
   check('the shell output (24,000 chars, under Bash\'s own 30,000-char cap) was persisted to disk with the cut named: a head, a tail, the path and the fold\'s words', bash !== undefined && bash.text.startsWith('<persisted-output>') && bash.text.includes(`(${RESULT_ROOM_WORDS})`) && bash.text.includes('Full output saved to:') && bash.text.includes('row0 =') && bash.text.includes('skipped — full output persisted'), bash?.text.slice(0, 400))
   check('the search (under Grep\'s own 20,000-char cap) was capped the same way, its rows persisted', grep !== undefined && grep.text.startsWith('<persisted-output>') && grep.text.includes(`(${RESULT_ROOM_WORDS})`), grep?.text.slice(0, 400))
@@ -259,6 +261,49 @@ section(`L4 under the line (the context at ${fmt(600_000)}): nothing is touched 
   check('every read carries the whole file (row 0 to row 899)', quietResults.every(result => result.text.includes('row0 =') && result.text.includes('row899 =')))
   const gauge = tokenCountWithEstimation([createUserMessage({ content: 'x' }), asstTools(reads, 600_000)] as never, MODEL)
   check(`the gauge the limiter read was ${fmt(gauge)} — the calibrated figure, under the line at ${fmt(resultRoomBudget({ window: WINDOW, blockingLimit: BLOCKING, foldLine: THRESHOLD, gauge }).line)}`, resultRoomBudget({ window: WINDOW, blockingLimit: BLOCKING, foldLine: THRESHOLD, gauge }).awake === false)
+}
+
+section(`L5 one clamp per result (the context at ${fmt(900_000)}): a room-paged read arrives whole — consecutive numbered lines, nothing cut from the middle — and the lines recorded as read are the lines the model got`)
+{
+  const r = await run([[ping(), asstTools(reads, 900_000)], [ping(), asstText('the report', 960_000)]])
+  const results = resultsOf(r.yields)
+  const clamped = results.filter(result => result.text.includes(`${RESULT_ROOM_WORDS}; read in pieces`))
+  const state = r.ctx.readFileState as { get(path: string): { content: string; offset?: number; limit?: number } | undefined }
+  const faults: string[] = []
+  const shares: Array<{ id: string; tokens: number; granted: number }> = []
+  for (const result of clamped) {
+    const numbered = result.text.split('\n').map(line => /^(\d+)\t(.*)$/.exec(line)).filter((m): m is RegExpExecArray => m !== null)
+    const numbers = numbered.map(m => Number(m[1]))
+    const consecutive = numbers.length > 0 && numbers.every((n, i) => i === 0 || n === (numbers[i - 1] ?? 0) + 1)
+    const cut = result.text.includes('characters cut')
+    const path = String(reads.find(read => read.id === result.id)?.input.file_path)
+    const entry = state.get(path)
+    const recorded = entry === undefined ? [] : entry.content.replace(/\n$/, '').split('\n')
+    const modelLines = numbered.map(m => m[2] ?? '')
+    const same = entry !== undefined && entry.offset === numbers[0] && entry.limit === numbers.length && recorded.length === modelLines.length && recorded.every((line, i) => line === modelLines[i])
+    const span = /lines 1-(\d+) of 900 are below/.exec(result.text)
+    const noteMatches = span !== null && Number(span[1]) === numbers.length
+    const granted = Number(/in the context \((\d+) tokens/.exec(result.text)?.[1])
+    shares.push({ id: result.id, tokens: Math.ceil(result.text.length / 4), granted })
+    if (!consecutive || cut || !same || !noteMatches) faults.push(`${result.id}: consecutive ${consecutive}, cut ${cut}, recorded-equals-shown ${same} (recorded ${entry?.offset}+${entry?.limit} vs shown ${numbers[0]}..${numbers.at(-1)}), note ${noteMatches}`)
+  }
+  record(`${clamped.length} room-paged reads; shares ${shares.map(share => `${share.id} ${fmt(share.tokens)} of ${fmt(share.granted)}`).join(' · ')}`)
+  check('every room-paged read carries consecutive numbered lines with nothing cut from the middle (red on 41304f7c53: a second clamp at emission cut hundreds of characters out of the middle of the paged window)', clamped.length >= 3 && faults.every(fault => !/consecutive false|cut true/.test(fault)), faults.join(' | '))
+  check('the lines recorded as read, and the paging note\'s span, are exactly the lines the model got', faults.length === 0, faults.join(' | '))
+  check('each paged result lands within its granted share, its wrapper included', shares.every(share => share.tokens <= share.granted), JSON.stringify(shares))
+}
+
+section(`L6 a read that fails takes no share (the context at ${fmt(900_000)}): five parallel reads, one of a file that does not exist — the four that land share the whole ceiling`)
+{
+  const missing = join(files, 'no-such-module.ts')
+  const calls = [{ id: 'toolu_missing', name: 'Read', input: { file_path: missing } }, ...reads.slice(0, 4)]
+  const r = await run([[ping(), asstTools(calls, 900_000)], [ping(), asstText('the report', 960_000)]])
+  const results = resultsOf(r.yields)
+  const failed = results.find(result => result.id === 'toolu_missing')
+  const grants = results.filter(result => result.id !== 'toolu_missing').map(result => (result.text.includes(RESULT_ROOM_WORDS) ? Number(/in the context \((\d+) tokens/.exec(result.text)?.[1]) : 25_000)).sort((a, b) => b - a)
+  record(`the missing file: ${JSON.stringify(failed?.text.slice(0, 120))}; the four reads were granted ${grants.map(fmt).join(', ')}; terminal ${JSON.stringify(r.terminal)}`)
+  check('the missing file came back as its own error result and the run completed with the four others', r.terminal.reason === 'completed' && failed !== undefined && !failed.text.includes('row0 =') && results.length === 5, JSON.stringify(r.terminal))
+  check('the four reads that landed shared the whole ceiling — 25,000, 25,000, 10,000, 4,000 (red on 41304f7c53: 25,000, 10,000, 4,000, 4,000 — the failed read held a 25,000 share it never used)', JSON.stringify(grants) === JSON.stringify([25_000, 25_000, 10_000, 4_000]), grants.join(','))
 }
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-result-room-limiter — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)

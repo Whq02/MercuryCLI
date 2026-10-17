@@ -3,6 +3,7 @@ export const RESULT_ROOM_TURN_CEILING_TOKENS = 60_000
 export const RESULT_ROOM_FLOOR_MAX_TOKENS = 4_000
 export const RESULT_ROOM_FLOOR_MIN_TOKENS = 1_000
 export const RESULT_ROOM_FLOOR_DIVISOR = 8
+export const RESULT_ROOM_WRAPPER_TOKENS = 250
 export const RESULT_ROOM_WORDS = 'the context is near its fold'
 
 export type ResultRoomFacts = { window: number; blockingLimit: number; foldLine: number; gauge: number }
@@ -26,6 +27,7 @@ export type ResultRoom = {
   readonly budget: Extract<ResultRoomBudget, { awake: true }>
   remaining(): number
   reserve(id: string, wanted: number): number
+  reserved(id: string): boolean
   allowance(id: string): number
   settle(id: string, landed: number): void
   takes(): ResultRoomTake[]
@@ -45,6 +47,7 @@ export function createResultRoom(budget: Extract<ResultRoomBudget, { awake: true
       grants.set(id, granted)
       return granted
     },
+    reserved: id => grants.has(id),
     allowance(id) {
       const granted = grants.get(id)
       return granted !== undefined ? Math.max(budget.floor, granted) : share()
