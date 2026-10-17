@@ -48,14 +48,15 @@ function closedTail(messages: readonly Message[]): boolean {
 
 export function computeVerbatimRecentTail(
   messages: Message[],
-  opts?: { keepRounds?: number; tailTokenBudget?: number; fits?: (keep: Message[]) => boolean },
+  opts?: { keepRounds?: number; tailTokenBudget?: number; fits?: (keep: Message[]) => boolean; minRounds?: number },
 ): VerbatimTailResult | null {
   const requested = Math.max(1, opts?.keepRounds ?? DEFAULT_KEEP_ROUNDS)
   const budget = Math.max(0, opts?.tailTokenBudget ?? DEFAULT_TAIL_TOKEN_BUDGET)
   const groups = groupMessagesByApiRound(messages)
   const available = Math.min(requested, groups.length - MIN_HEAD_ROUNDS)
   if (available <= 0) return null
-  for (let n = available; n >= 1; n--) {
+  const floor = Math.max(1, Math.min(available, opts?.minRounds ?? 1))
+  for (let n = available; n >= floor; n--) {
     const keep = groups.slice(-n).flat().filter(preservable)
     if (!closedTail(keep)) throw new Error('The recent round is incomplete; the original context is kept.')
     const estimatedTokens = roughTokenCountEstimationForMessages(keep)

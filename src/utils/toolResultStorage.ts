@@ -154,14 +154,23 @@ export async function persistToolResult(
   return { filepath: filePath, originalSize: sizeBytes, isJson, preview, hasMore }
 }
 
-export function buildLargeToolResultMessage(result: PersistedToolResult): string {
+export function buildLargeToolResultMessage(result: PersistedToolResult, cutWords?: string): string {
   return (
     `${PERSISTED_OUTPUT_TAG}\n` +
-    `Output of ${formatFileSize(result.originalSize)}, too large to carry whole. Full output saved to: ${result.filepath}\n\n` +
+    `Output of ${formatFileSize(result.originalSize)}, too large to carry whole${cutWords === undefined ? '' : ` (${cutWords})`}. Full output saved to: ${result.filepath}\n\n` +
     `Preview (head + tail, ~${PREVIEW_SIZE_CHARS} chars; long lines clamped):\n` +
     `${result.preview}\n` +
     PERSISTED_OUTPUT_CLOSING_TAG
   )
+}
+
+export type ResultRoomShare = { shareChars: number; words: string }
+
+export function clampResultToRoom(content: string, share: ResultRoomShare): string {
+  if (content.length <= share.shareChars) return content
+  const { preview } = generatePreview(content, share.shareChars)
+  const cut = content.length - share.shareChars
+  return `${preview.replace(/\n… \[[^\n]*skipped — full output persisted\] …\n/, `\n… [${cut.toLocaleString('en-US')} characters cut: ${share.words}; the result was clamped to ${share.shareChars.toLocaleString('en-US')} characters of head and tail — ask for less, or read in pieces] …\n`)}`
 }
 
 function isToolResultContentEmpty(content: unknown): boolean {
@@ -193,6 +202,7 @@ async function applySizePersistence(
   block: ToolResultBlockParam,
   toolName: string,
   threshold: number | undefined,
+  room?: ResultRoomShare,
 ): Promise<ToolResultBlockParam> {
   const content = (block as { content?: unknown }).content
   if (isToolResultContentEmpty(content)) {
@@ -200,11 +210,17 @@ async function applySizePersistence(
   }
   if (hasImageBlock(content)) return block
   if (typeof content === 'string' && content.startsWith(PERSISTED_OUTPUT_TAG)) return block
-  const limit = threshold ?? DEFAULT_MAX_RESULT_SIZE_CHARS
+  const declared = threshold ?? DEFAULT_MAX_RESULT_SIZE_CHARS
+  const limit = room === undefined ? declared : Math.min(declared, room.shareChars)
   if (contentSizeOf(content) <= limit) return block
+  if (!Number.isFinite(declared)) {
+    if (room === undefined || typeof content !== 'string') return block
+    return { ...block, content: clampResultToRoom(content, room) }
+  }
+  const roomBound = room !== undefined && contentSizeOf(content) <= declared
   const persisted = await persistToolResult(content as string | TextBlockLike[], block.tool_use_id)
   if (isPersistError(persisted)) return block
-  return { ...block, content: buildLargeToolResultMessage(persisted) }
+  return { ...block, content: buildLargeToolResultMessage(persisted, roomBound ? room.words : undefined) }
 }
 
 export async function processToolResultBlock<T>(
@@ -225,8 +241,9 @@ export async function processPreMappedToolResultBlock(
   block: ToolResultBlockParam,
   toolName: string,
   maxResultSizeChars: number,
+  room?: ResultRoomShare,
 ): Promise<ToolResultBlockParam> {
-  return applySizePersistence(block, toolName, getPersistenceThreshold(maxResultSizeChars))
+  return applySizePersistence(block, toolName, getPersistenceThreshold(maxResultSizeChars), room)
 }
 
 export function createContentReplacementState(): ContentReplacementState {

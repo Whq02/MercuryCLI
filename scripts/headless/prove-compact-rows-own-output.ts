@@ -15,7 +15,7 @@ if (!existsSync(DIST)) {
 console.log(`build under proof: ${DIST}`)
 
 const SUMMARY_REQUEST = 'Produce the summary now'
-const FAILURE = 'Error during compaction'
+const FAILURE = 'No messages to compact'
 const CONTEXT_HEAD = '## Context Usage'
 const root = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'compact-own-output-')))
 
@@ -109,10 +109,10 @@ const foldedOk = (run: Run): boolean => {
 }
 const plain: Step[] = Array.from({ length: 9 }, (_, i) => ({ ask: `plain turn number ${i + 1}` }))
 
-tally.section('§1 the field shape — a session whose transcript holds a failed /compact, then a /compact through the rows door that succeeds')
+tally.section('§1 the field shape — a session whose transcript holds a failed /compact (the one text-only failure left to a /compact since 1.0.0-beta.38: nothing to fold yet — a summariser answering nothing now lands the fold), then a /compact through the rows door that succeeds')
 const field = world('field')
-const failed = await live(field, [...plain, { ask: '/compact', summary: 'refused' }])
-const failedRows = commandRows(failed.turns.at(-1) ?? [])
+const failed = await live(field, [{ ask: '/compact' }, ...plain])
+const failedRows = commandRows(failed.turns[0] ?? [])
 tally.check('the failing /compact announces its own failure once: the error row of that run stays', failedRows.length === 1 && textOf(failedRows[0]).includes(FAILURE), JSON.stringify(textsOf(failedRows)))
 const fieldTranscript = transcriptOf(field, failed.sessionId)
 tally.check('the session transcript holds the failure as a local-command notice', noticesOf(fieldTranscript, FAILURE) === 1, JSON.stringify({ fieldTranscript, notices: noticesOf(fieldTranscript, FAILURE) }))
@@ -125,10 +125,11 @@ tally.check('that row is the Compacted line of this run', resumedRows.length >= 
 tally.check('no row of the run repeats the earlier failure', resumedRows.every(r => !textOf(r).includes(FAILURE)), JSON.stringify(textsOf(resumedRows)))
 tally.check('the fold boundary is still announced once', foldsEnded(resumed.frames) === 1, String(foldsEnded(resumed.frames)))
 
-tally.section('§2 the live seat — /context, a failed /compact, then /compact in the same session with no resume')
+tally.section('§2 the live seat — a failed /compact, /context, then /compact in the same session with no resume')
 const seat = world('seat')
-const lived = await live(seat, [...plain, { ask: '/context' }, { ask: '/compact', summary: 'refused' }, { ask: '/compact', summary: 'written' }])
-const [contextTurn = [], failedTurn = [], foldTurn = []] = lived.turns.slice(-3)
+const lived = await live(seat, [{ ask: '/compact' }, ...plain, { ask: '/context' }, { ask: '/compact', summary: 'written' }])
+const failedTurn = lived.turns[0] ?? []
+const [contextTurn = [], foldTurn = []] = lived.turns.slice(-2)
 const contextRows = commandRows(contextTurn)
 tally.check('/context announces its own output once, as it did before', contextRows.length === 1 && textOf(contextRows[0]).startsWith(CONTEXT_HEAD), JSON.stringify(textsOf(contextRows)))
 tally.check('the failing /compact announces its own failure once', commandRows(failedTurn).length === 1 && textOf(commandRows(failedTurn)[0]).includes(FAILURE), JSON.stringify(textsOf(commandRows(failedTurn))))

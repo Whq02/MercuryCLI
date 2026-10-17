@@ -72,6 +72,7 @@ import type { Message } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import { getDefaultFileReadingLimits, type FileReadingLimits } from './limits.js'
 import { buildOutlineNumberedWindow } from './outline.js'
+import { RESULT_ROOM_WORDS, RESULT_ROOM_WRAPPER_TOKENS, resultRoomFor } from '../../services/run/resultRoom.js'
 import {
   DESCRIPTION,
   FILE_READ_TOOL_NAME,
@@ -142,7 +143,7 @@ function selectedPages(pages: string | undefined): string | undefined {
 export type Input = z.infer<WidestReadSchema>
 
 
-type OverCapNote = { tokens: number; maxTokens: number; next: { offset: number; limit: number } }
+type OverCapNote = { tokens: number; maxTokens: number; next: { offset: number; limit: number }; room?: true }
 
 export type Output =
   | {
@@ -187,7 +188,7 @@ const outputSchema = z.discriminatedUnion('type', [
       anchor: z.string().optional(),
       memoryUpdatedAt: z.number().optional(),
       overCap: z
-        .object({ tokens: z.number(), maxTokens: z.number(), next: z.object({ offset: z.number(), limit: z.number() }) })
+        .object({ tokens: z.number(), maxTokens: z.number(), next: z.object({ offset: z.number(), limit: z.number() }), room: z.literal(true).optional() })
         .optional(),
     }),
   }),
@@ -341,7 +342,7 @@ function firstWindowUnderCap(
     rendered,
     [{ start: first, end: first + shownCount - 1 }],
     resolvedPath,
-    { maxLines: MAX_LINES_TO_READ, maxTokens: Math.floor(limits.maxTokens / density) },
+    { maxLines: MAX_LINES_TO_READ, maxTokens: Math.max(1, Math.floor(limits.maxTokens / density) - (limits.room === true ? RESULT_ROOM_WRAPPER_TOKENS : 0)) },
     first,
   )
   const window = plan.windows[0]
@@ -352,16 +353,16 @@ function firstWindowUnderCap(
   const content = whole.content.split('\n').slice(0, count).join('\n')
   return {
     shown: { ...whole, content, lineCount: count, readBytes: Buffer.byteLength(content) },
-    note: { tokens: tokenCount, maxTokens: limits.maxTokens, next: { offset: window.end + 1, limit: Math.min(count, remaining) } },
+    note: { tokens: tokenCount, maxTokens: limits.maxTokens, next: { offset: window.end + 1, limit: Math.min(count, remaining) }, ...(limits.room === true ? { room: true as const } : {}) },
   }
 }
 
-async function tokensOverCap(content: string, ext: string, maxTokens: number): Promise<number | undefined> {
+async function tokensOverCap(content: string, ext: string, maxTokens: number, exact = true): Promise<number | undefined> {
   const estimate = roughTokenCountEstimationForFileType(content, ext)
   if (!estimate || estimate <= maxTokens / 4) return undefined
   let effective = estimate
   try {
-    const accurate = await countTokensWithAPI(content)
+    const accurate = exact ? await countTokensWithAPI(content) : null
     if (accurate !== null) effective = accurate
   } catch {
   }
@@ -579,17 +580,19 @@ async function readNotebookLane(
   keyPath: string,
   input: Input,
   context: ToolUseContext,
-  limits: FileReadingLimits,
+  declared: FileReadingLimits,
+  reserve: () => FileReadingLimits = () => declared,
 ): Promise<LaneResult> {
   const cells = await readNotebook(resolvedPath)
   const serialized = JSON.stringify(cells)
   const serializedBytes = Buffer.byteLength(serialized, 'utf8')
-  if (serializedBytes > limits.maxSizeBytes) {
+  if (serializedBytes > declared.maxSizeBytes) {
     throw new Error(
-      `Notebook content (${formatFileSize(serializedBytes)}) exceeds the maximum allowed size (${formatFileSize(limits.maxSizeBytes)}). ${notebookSliceRemedy(resolvedPath)}`,
+      `Notebook content (${formatFileSize(serializedBytes)}) exceeds the maximum allowed size (${formatFileSize(declared.maxSizeBytes)}). ${notebookSliceRemedy(resolvedPath)}`,
     )
   }
-  const tokens = await tokensOverCap(serialized, 'ipynb', limits.maxTokens)
+  const limits = reserve()
+  const tokens = await tokensOverCap(serialized, 'ipynb', limits.maxTokens, limits.room !== true)
   if (tokens !== undefined) {
     throw new MaxFileReadTokenExceededError(
       tokens,
@@ -728,8 +731,9 @@ async function readTextLane(
   input: Input,
   ext: string,
   context: ToolUseContext,
-  limits: FileReadingLimits,
+  declared: FileReadingLimits,
   ownRead = false,
+  reserve: () => FileReadingLimits = () => declared,
 ): Promise<LaneResult> {
   const lineOffset = Math.max(0, (input.offset ?? 1) - 1)
   const maxLines = input.limit ?? MAX_LINES_TO_READ
@@ -750,7 +754,7 @@ async function readTextLane(
       )
     }
   }
-  const maxBytes = input.limit === undefined ? limits.maxSizeBytes : undefined
+  const maxBytes = input.limit === undefined ? declared.maxSizeBytes : undefined
   let range: ReadFileRangeResult
   try {
     range = await readFileInRange(
@@ -764,6 +768,7 @@ async function readTextLane(
     if (!(err instanceof FileTooLargeError) || !ownRead || input.limit !== undefined) throw err
     throw await countedSizeRefusal(err, resolvedPath, context.abortController.signal)
   }
+  const limits = reserve()
   let overCap: OverCapNote | undefined
   const totalLines = realLineTotal(range)
   let shown = shownWindow(range, lineOffset)
@@ -773,7 +778,7 @@ async function readTextLane(
       ? await buildOutlineNumberedWindow(resolvedPath, shown.content, lineOffset + 1, shown.count, totalLines, anchored)
       : null
   const rendered = outlineBody ?? numberedReadContent(shown.content, lineOffset + 1, anchored)
-  const tokens = await tokensOverCap(rendered, ext, limits.maxTokens)
+  const tokens = await tokensOverCap(rendered, ext, limits.maxTokens, limits.room !== true)
   if (tokens !== undefined) {
     const window = firstWindowUnderCap(range, shown.count, totalLines, rendered, lineOffset, resolvedPath, ext, limits, tokens)
     if (!ownRead || window === null) {
@@ -908,10 +913,10 @@ function cutMark(file: TextFile): string {
 function overCapWords(file: TextFile): string {
   const note = file.overCap!
   const shown = `${windowSpan(file)} of ${file.totalLines} ${file.numLines === 1 ? 'is below and counts as read' : 'are below and count as read'}`
-  return (
-    `File content (${note.tokens} tokens) exceeds maximum allowed tokens (${note.maxTokens}): ${shown}; ` +
-    overCapNextWords(note.next)
-  )
+  const cap = note.room === true
+    ? `exceeds the room left in the context (${note.maxTokens} tokens — ${RESULT_ROOM_WORDS}; read in pieces)`
+    : `exceeds maximum allowed tokens (${note.maxTokens})`
+  return `File content (${note.tokens} tokens) ${cap}: ${shown}; ${overCapNextWords(note.next)}`
 }
 
 
@@ -1050,8 +1055,16 @@ export const FileReadTool = buildTool({
   },
   async call(input: Input, context: ToolUseContext, _canUseTool?: unknown, parentMessage?: unknown) {
     const ownRead = parentMessage !== undefined
-    const limits: FileReadingLimits =
+    const declaredLimits: FileReadingLimits =
       (context.fileReadingLimits as FileReadingLimits | undefined) ?? getDefaultFileReadingLimits()
+    const room = ownRead ? resultRoomFor(parentMessage) : null
+    let granted: FileReadingLimits | undefined
+    const reserve = (): FileReadingLimits => {
+      if (granted !== undefined) return granted
+      const share = room === null ? declaredLimits.maxTokens : room.reserve(context.toolUseId ?? '', declaredLimits.maxTokens)
+      granted = share < declaredLimits.maxTokens ? { ...declaredLimits, maxTokens: share, room: true } : declaredLimits
+      return granted
+    }
     const ext = extensionOf(input.file_path)
     const fullFilePath = expandPath(input.file_path)
     const settle = (lane: LaneResult): { data: Output; newMessages?: Message[] } => {
@@ -1151,10 +1164,10 @@ export const FileReadTool = buildTool({
     }
 
     const dispatch = async (resolvedPath: string): Promise<LaneResult> => {
-      if (ext === 'ipynb') return readNotebookLane(resolvedPath, fullFilePath, input, context, limits)
-      if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, fullFilePath, context, limits)
+      if (ext === 'ipynb') return readNotebookLane(resolvedPath, fullFilePath, input, context, declaredLimits, reserve)
+      if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, fullFilePath, context, reserve())
       if (isPDFExtension(ext)) return readPdfLane(resolvedPath, fullFilePath, input, context)
-      return readTextLane(resolvedPath, fullFilePath, input, ext, context, limits, ownRead)
+      return readTextLane(resolvedPath, fullFilePath, input, ext, context, declaredLimits, ownRead, reserve)
     }
 
     let lane: LaneResult

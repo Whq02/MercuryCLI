@@ -18,7 +18,7 @@ const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
 setIsInteractive(false)
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { compactConversation, partialCompactConversation } = await import('../../src/services/compact/compact.ts')
+const { compactConversation, partialCompactConversation, PROSE_SKIPPED_KEY, ERROR_MESSAGE_NO_SUMMARY } = await import('../../src/services/compact/compact.ts')
 const { getCompactPrompt, getPartialCompactPrompt, SUMMARY_SECTION_TITLES } = await import('../../src/services/compact/prompt.ts')
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
@@ -97,7 +97,7 @@ const accepted: ReadonlyArray<readonly [string, string]> = [
   ['the skeleton with none as its content', '1. Operator Intent:\n   none\n2. Technical Ground:\n   none'],
   ['a summary quoting a refusal inside the sections', '1. Operator Intent: the owner asked for the fold fix.\n2. Technical Ground: TypeScript, bun.\n3. Files and Code Touched: compact.ts.\n4. Errors and Corrections: the model said "I cannot summarize the tool output" once; retried.\n5. Problems Worked: none.'],
 ]
-const fold = async (text: string, direction: 'full' | 'from' | 'up_to'): Promise<{ installed: boolean; error: string; requests: number; kept: boolean; reads: boolean; notices: string[] }> => {
+const fold = async (text: string, direction: 'full' | 'from' | 'up_to'): Promise<{ installed: boolean; error: string; requests: number; kept: boolean; reads: boolean; notices: string[]; summary: string; notes: string[] }> => {
   const notices: string[] = []
   const ledger = new Map([[join(home, 'parser.ts'), { content: 'parser fact', timestamp: 17 }]])
   const reads = JSON.stringify([...ledger])
@@ -106,33 +106,37 @@ const fold = async (text: string, direction: 'full' | 'from' | 'up_to'): Promise
   const cache = { systemPrompt: ['Synthetic refusal phrasing proof.'] } as never
   fixture.script(() => ({ text }))
   const before = fixture.captured.length
-  let result: unknown
+  let result: { summaryMessages?: Array<{ message: { content: unknown } }>; notes?: string[] } | undefined
   let error = ''
   try {
     result = direction === 'full'
       ? await compactConversation(messages, context, cache, false)
       : await partialCompactConversation(messages, direction === 'from' ? 0 : messages.length, context, cache, undefined, direction)
   } catch (caught) { error = String(caught) }
-  return { installed: result !== undefined, error, requests: fixture.captured.length - before, kept: JSON.stringify(messages) === original, reads: JSON.stringify([...ledger]) === reads && loaded.has('nested-memory'), notices }
+  const summaryRow = result?.summaryMessages?.[0]?.message.content
+  return { installed: result !== undefined, error, requests: fixture.captured.length - before, kept: JSON.stringify(messages) === original, reads: JSON.stringify([...ledger]) === reads && loaded.has('nested-memory'), notices, summary: typeof summaryRow === 'string' ? summaryRow : '', notes: result?.notes ?? [] }
 }
+const landedOnRecords = (outcome: Awaited<ReturnType<typeof fold>>, cause: string, text: string): boolean =>
+  outcome.installed && outcome.error === '' && outcome.summary.includes(`${PROSE_SKIPPED_KEY}: ${cause}`) && outcome.summary.split('\n').every(line => line.trim() !== summaryBodyOf(text)) && outcome.notes.some(note => note.startsWith(`${PROSE_SKIPPED_KEY}: ${cause}`))
+const summaryBodyOf = (text: string): string => text.replace(/<\/?summary>|```[a-z]*|<analysis>[\s\S]*?<\/analysis>|Here is the summary:/g, '').trim().split('\n').map(line => line.trim()).find(line => line !== '') ?? text
 try {
-  console.log('1. a refusal in prose, whatever its phrasing, preface or wrapper, is rejected before anything is installed')
+  console.log('1. a refusal in prose, whatever its phrasing, preface or wrapper, is never installed as the summary: the ladder retries once on the text form with thinking off, then lands the fold on the records and names the refusal (the owner\'s ruling for 1.0.0-beta.38: a conversation can always be compacted)')
   for (const [label, text] of refusals) {
     const outcome = await fold(text, 'full')
-    check(`${label}: rejected`, !outcome.installed && outcome.error.includes('Failed to generate a conversation summary.'), outcome)
-    check(`${label}: the conversation, the read ledger and the notice survive; one request`, outcome.kept && outcome.reads && outcome.requests === 1 && outcome.notices.some(value => value.includes('Compaction error:')), outcome)
+    check(`${label}: the refusal is not the summary (it is quoted only as the cause); the fold lands on the records`, landedOnRecords(outcome, 'the answer refused in prose', text), outcome)
+    check(`${label}: two requests (the answer and its one retry on the text form), no error notice`, outcome.requests === 2 && !outcome.notices.some(value => value.includes('Compaction error:')), outcome)
   }
-  console.log('2. a summary that says nothing — the prompt\'s own skeleton, a wrapper with nothing inside, punctuation — is empty')
+  console.log('2. a summary that says nothing — the prompt\'s own skeleton, a wrapper with nothing inside, punctuation — is empty: the same ladder, the cause named')
   for (const [label, text] of empties) {
     const outcome = await fold(text, 'full')
-    check(`${label}: rejected as empty`, !outcome.installed && outcome.error.includes('Failed to generate a conversation summary.'), outcome)
-    check(`${label}: the conversation and the read ledger survive`, outcome.kept && outcome.reads, outcome)
+    check(`${label}: not installed as the summary; the fold lands on the records with the cause named (no words, or the headings alone)`, outcome.installed && outcome.error === '' && (outcome.summary.includes(`${PROSE_SKIPPED_KEY}: the answer carried no words`) || outcome.summary.includes(`${PROSE_SKIPPED_KEY}: the answer carried the summary's headings and nothing under them`)) && outcome.notes.some(note => note.startsWith(PROSE_SKIPPED_KEY)), outcome)
+    check(`${label}: two requests, no error notice`, outcome.requests === 2 && !outcome.notices.some(value => value.includes('Compaction error:')), outcome)
   }
-  console.log('3. the partial folds share the validator')
+  console.log('3. the partial folds share the validator and keep the floor: they refuse, and the sentence names the cause')
   for (const direction of ['from', 'up_to'] as const) {
     for (const [label, text] of [refusals[0]!, refusals[13]!, empties[0]!]) {
       const outcome = await fold(text, direction)
-      check(`${direction} ${label}: rejected`, !outcome.installed && outcome.kept && outcome.reads, outcome)
+      check(`${direction} ${label}: rejected with the cause named`, !outcome.installed && outcome.kept && outcome.reads && outcome.error.includes(ERROR_MESSAGE_NO_SUMMARY) && !outcome.error.includes('Failed to generate'), outcome)
     }
   }
   console.log('4. a substantive summary is accepted whatever its shape, even when it mentions an inability or quotes a refusal')

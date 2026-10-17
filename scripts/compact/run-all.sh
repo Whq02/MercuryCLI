@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/tools/ContextLeftTool/ContextLeftTool.ts src/utils/cockpit/ctxForecast.ts
-# gate-watch: src/services/compact/** src/run-core/turn-machine.ts src/services/run/requestGauge.ts src/services/run/contextCalibration.ts
+# gate-watch: src/services/compact/** src/run-core/turn-machine.ts src/services/run/requestGauge.ts src/services/run/contextCalibration.ts src/services/run/contextEpochs.ts
 # gate-watch: src/tools/CheckpointTool/** src/tools/RewindTool/**
 # gate-watch: src/context.ts
 # gate-watch: scripts/api/wire-prefix-replay.ts scripts/daemon/dupline-world.ts scripts/lib/* scripts/messages/dialectFixture.ts
@@ -42,6 +42,7 @@
 # gate-watch: src/utils/model/model.ts src/utils/permissions/filesystem.ts
 # gate-watch: src/mneme/* src/services/run/runCoordinator.ts src/services/run/ownerKey.ts
 # gate-watch: src/components/messages/SystemTextMessage.tsx src/ink/components/TerminalSizeContext.tsx src/ink/stringWidth.ts
+# gate-watch: src/services/tools/toolExecution.ts src/services/tools/toolOrchestration.ts src/services/run/resultRoom.ts src/tools/FileReadTool/limits.ts src/tools/BashTool/BashTool.tsx src/tools/GrepTool/GrepTool.ts src/utils/sessionStorage/logs.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

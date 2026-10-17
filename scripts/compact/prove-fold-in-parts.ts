@@ -46,7 +46,7 @@ const { productionDeps } = await import('../../src/query/deps.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { ERROR_MESSAGE_PROMPT_TOO_LONG } = await import('../../src/services/compact/compact.ts')
+const { ERROR_MESSAGE_PROMPT_TOO_LONG, PROSE_SKIPPED_KEY } = await import('../../src/services/compact/compact.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 const textOf = (m: unknown): string => {
@@ -190,7 +190,11 @@ section('P1 a session far over the window with no numbers in the refusal: the ba
   const summaryCalls = r.wire.filter(w => isSummaryCall(w.body) && messagesChars(w.body) <= 20_000)
   const seen = new Set<string>()
   for (const w of summaryCalls) for (const m of wireText(w.body).matchAll(/ask (\d+): adjust module/g)) seen.add(m[1]!)
-  check('every round reached a summary call that fit the window — nothing was dropped on the floor', [...Array(40).keys()].every(i => seen.has(String(i))), `asks seen: ${[...seen].sort((a, b) => Number(a) - Number(b)).join(',')}`)
+  const retried = r.wire.filter(w => !isSummaryCall(w.body)).at(-1)
+  const keptVerbatim = new Set<string>()
+  for (const m of wireText(retried?.body ?? {}).matchAll(/ask (\d+): adjust module/g)) keptVerbatim.add(m[1]!)
+  const unsummarised = [...Array(40).keys()].map(String).filter(i => !seen.has(i))
+  check('every round reached a summary call that fit the window, or rides verbatim behind the summary as the kept tail split off before the send — nothing was dropped on the floor', unsummarised.every(i => keptVerbatim.has(i)) && unsummarised.every(i => Number(i) >= 40 - keptVerbatim.size), `asks summarised: ${[...seen].sort((a, b) => Number(a) - Number(b)).join(',')}; unsummarised: ${unsummarised.join(',')}; kept verbatim: ${[...keptVerbatim].sort((a, b) => Number(a) - Number(b)).join(',')}`)
   check('the fold ran in parts: more than one summary call fit the window', summaryCalls.length >= 2, String(summaryCalls.length))
   const final = summaryCalls.at(-1)
   check('the final summary call opens on a part capsule', final !== undefined && wireText(final.body).includes('earlier turns folded into this summary for the compaction') && /SUMMARY \d+:/.test(wireText(final.body)), final !== undefined ? wireText(final.body).slice(0, 200) : 'no final call')
@@ -223,7 +227,7 @@ section('P3 one round alone is bigger than the window: the base could shed nothi
   check('the reply settled last', lastAssistantText(r.yields) === 'the recovered answer', lastAssistantText(r.yields))
 }
 
-section('P4 a provider that refuses even the smallest part: the fold gives up with the typed refusal, never a runaway loop')
+section('P4 a provider that refuses even the smallest part: the ladder walks down to its floor and lands the fold on Mercury\'s own records, never a runaway loop; only the retried request\'s own overflow ends the run (the owner\'s ruling for 1.0.0-beta.38)')
 {
   const three = seed(3) as AnyMsg[]
   const shape = OVERFLOW_WIRE_SHAPES.anthropic!
@@ -234,7 +238,9 @@ section('P4 a provider that refuses even the smallest part: the fold gives up wi
   })
   const r = await drive('claude-opus-4-8', three)
   check('terminal prompt_too_long, the run never threw', r.threw === undefined && r.terminal.reason === 'prompt_too_long', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
-  check('the refusal names the fold\'s own reason: refused even for its smallest part', errorTexts(r.yields).some(text => text.includes(ERROR_MESSAGE_PROMPT_TOO_LONG)), JSON.stringify(errorTexts(r.yields)).slice(0, 300))
+  const card = r.yields.find(y => y.type === 'user' && (y as { isCompactSummary?: boolean }).isCompactSummary === true)
+  check('the fold landed on the records, its card saying the prose summary was skipped because the summariser was refused even for its smallest part', card !== undefined && textOf(card).includes(`${PROSE_SKIPPED_KEY}: the summariser was refused as too long even for its smallest part`), textOf(card).slice(0, 300))
+  check('the refusal names the retried request\'s own overflow, never the fold', errorTexts(r.yields).some(text => text.includes('the conversation was folded and the request retried once, and it still overflows')) && !errorTexts(r.yields).some(text => text.includes(ERROR_MESSAGE_PROMPT_TOO_LONG)), JSON.stringify(errorTexts(r.yields)).slice(0, 300))
   check('the ladder walked down and stopped (a bounded number of requests)', requests >= 3 && requests <= 12, String(requests))
 }
 
