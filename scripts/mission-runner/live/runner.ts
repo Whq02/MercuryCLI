@@ -6,7 +6,7 @@ import { parseFrame } from '../../lib/rows.ts'
 import {
   evaluateMissionCompletion,
   parseReviewResult,
-} from '../../../src/services/mission/completion.js'
+} from './completion.js'
 import { getProjectDir } from '../../../src/utils/sessionStoragePortable.js'
 import { CORPUS_SEED_ROOT, type HelixTask } from '../corpus/contracts.js'
 import { taskById } from '../corpus/tasks.js'

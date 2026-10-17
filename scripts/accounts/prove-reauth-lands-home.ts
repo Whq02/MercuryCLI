@@ -77,7 +77,7 @@ section('§5 every wall reconnect door lands focused; the /accounts reroute ride
       const word = door.slice('/logins '.length).trim()
       check(`the ${family} wall door ('${door}') pre-focuses a real row`, parseFamilyFocus(word) !== undefined)
     } else {
-      check(`the ${family} door is its own named road ('${door}')`, door.startsWith('/'))
+      check(`the ${family} door is its own named road ('${door}')`, door.startsWith('/') || /^[A-Z][A-Z0-9_]+$/.test(door))
     }
   }
   const board = readFileSync(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')

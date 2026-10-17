@@ -1,7 +1,7 @@
 import {
   evaluateMissionCompletion,
   parseReviewResult,
-} from '../../src/services/mission/completion.js'
+} from './live/completion.js'
 
 let failures = 0
 function check(label: string, ok: boolean, detail?: string): void {
