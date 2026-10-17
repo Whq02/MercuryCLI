@@ -301,6 +301,38 @@ section('R7 (a) under the budget nothing is shaped: the summariser reads the who
   check('the request carried every round whole: the first and the last tool call, every result\'s bytes, no capped body, no part capsule', wire.includes('call_0000') && wire.includes('call_0007') && !wire.includes('characters omitted for the compaction') && !wire.includes('earlier turns folded') && [...Array(8).keys()].every(i => wire.includes(`result call_${String(i).padStart(4, '0')}: a fixture line`)), wire.slice(0, 200))
 }
 
+section('R8 a provider that ends the response under its own policy is rung 2, then rung 3 — never a throw past the ladder and never a note installed as the summary')
+{
+  const geminiRows = conversation({ rounds: 6, resultChars: 4_000, model: GEMINI, lastUsage: { input: 9_000, output: 300 } })
+  let before = fixture.captured.length
+  fixture.script([{ refusal: true }, SUMMARY, SUMMARY, SUMMARY])
+  const once = await fold(GEMINI, geminiRows, 'auto')
+  let requests = fixture.captured.slice(before)
+  record(`Gemini SAFETY once: ${once.landed ? 'LANDED' : `FAILED (${once.error})`} after ${requests.length} request(s); thinking levels ${requests.map(thinkingLevelOf).join(', ')}`)
+  check('a Gemini SAFETY finish on the first request is rung 2: the halved retry with thinking off answers and the fold lands with the model\'s prose (red on 41304f7c53: the stream fault was thrown past the ladder)', once.landed && requests.length === 3 && thinkingLevelOf(requests[1]!) === 'LOW' && (once.summaryText ?? '').includes('Where Work Stands') && !(once.summaryText ?? '').includes(PROSE_SKIPPED_KEY), once.error ?? `${requests.length} · ${(once.summaryText ?? '').slice(0, 160)}`)
+  before = fixture.captured.length
+  fixture.script(() => ({ refusal: true }))
+  const always = await fold(GEMINI, geminiRows, 'auto')
+  requests = fixture.captured.slice(before)
+  record(`Gemini SAFETY always: ${always.landed ? 'LANDED' : `FAILED (${always.error})`} after ${requests.length} request(s)`)
+  const safetyLine = `${PROSE_SKIPPED_KEY}: the provider ended the response before a summary (finish reason SAFETY).`
+  check('a provider that answers SAFETY to every request lands the fold on rung 3, the card and the receipt naming the finish reason', always.landed && requests.length <= 4 && (always.summaryText ?? '').includes(safetyLine) && (always.notes ?? []).some(note => note.startsWith(safetyLine)), always.error ?? `${requests.length} · ${(always.summaryText ?? '').slice(0, 200)} · ${JSON.stringify(always.notes)}`)
+  const CHAT = 'glm-5.2'
+  const chatRows = conversation({ rounds: 6, resultChars: 4_000, model: CHAT, lastUsage: { input: 9_000, output: 300 } })
+  before = fixture.captured.length
+  fixture.script([{ text: '', finishReason: 'content_filter' }, SUMMARY, SUMMARY, SUMMARY])
+  const filtered = await fold(CHAT, chatRows, 'auto')
+  requests = fixture.captured.slice(before)
+  record(`chat dialect content_filter once: ${filtered.landed ? 'LANDED' : `FAILED (${filtered.error})`} after ${requests.length} request(s) on the ${requests.map(r => r.dialect).join(', ')} wire`)
+  check('a chat-dialect content_filter finish is rung 2 too: the fold lands with the model\'s prose, the provider\'s note never installed as the summary', filtered.landed && requests.length === 3 && (filtered.summaryText ?? '').includes('Where Work Stands') && !(filtered.summaryText ?? '').includes('the provider ended this response') && !(filtered.summaryText ?? '').includes(PROSE_SKIPPED_KEY), filtered.error ?? `${requests.length} · ${(filtered.summaryText ?? '').slice(0, 200)}`)
+  const note = assistantRow(CHAT, 'msg_note', [{ type: 'text', text: '[zai] the provider ended this response under its content filter — the turn is incomplete by provider policy, not finished.' }], { input: 10, output: 5 }, 'end_turn')
+  check('the classifier names a provider-termination note as a fault, not a summary', (summaryAnswerFault(note) ?? '').startsWith('the provider ended the response before a summary: "[zai] the provider ended this response under its content filter'), summaryAnswerFault(note) ?? 'null')
+  const faultRow = { ...assistantRow(GEMINI, 'msg_fault', [{ type: 'text', text: 'API Error: Gemini stream fault (finish:SAFETY) — Gemini ended the response: SAFETY' }], { input: 10, output: 5 }, 'end_turn'), isApiErrorMessage: true, errorDetails: 'finish:SAFETY' } as unknown as AssistantMessage
+  check('…and a provider-termination fault row (errorDetails finish:SAFETY) as a fault naming the finish reason', summaryAnswerFault(faultRow) === 'the provider ended the response before a summary (finish reason SAFETY)', summaryAnswerFault(faultRow) ?? 'null')
+  const otherFault = { ...assistantRow(GEMINI, 'msg_other', [{ type: 'text', text: 'API Error: 500 upstream' }], { input: 10, output: 5 }, 'end_turn'), isApiErrorMessage: true, errorDetails: 'http:500' } as unknown as AssistantMessage
+  check('every other error row keeps its typed road (no fault classification)', summaryAnswerFault(otherFault) === null, summaryAnswerFault(otherFault) ?? 'null')
+}
+
 ollama.server.close()
 await fixture.close()
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-fold-ladder-rungs — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)

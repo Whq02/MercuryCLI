@@ -120,6 +120,8 @@ const SHAPED_RESULTS_KEEP_TOKENS = 50_000
 const SHAPED_RESULT_PREVIEW_CHARS = 2_000
 const SPLIT_STAND_IN_FLOOR_TOKENS = 500
 const SPLIT_STAND_IN_LANDING_SHARE = 4
+const PROVIDER_FINISH_FAULT_PREFIX = 'finish:'
+const PROVIDER_TERMINATION_NOTE = /^\[[a-z0-9_-]+\] the provider ended this response\b/i
 export const ERROR_MESSAGE_NO_SUMMARY = 'The summariser produced no summary'
 export const PROSE_SKIPPED_KEY = 'The prose summary was skipped'
 const PART_SUMMARY_MARKER = '[earlier turns folded into this summary for the compaction]'
@@ -970,6 +972,7 @@ async function streamingFallbackAttempts(
     if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
     if (bound.signal.aborted) throw new APIUserAbortError()
     if (captured?.isApiErrorMessage === true) {
+      if (summaryAnswerFault(captured) !== null) return captured
       if (!isOverflowAnswer(captured) && !summaryRefusedByModel(captured)) {
         const malformed = malformedHistoryRefusalOf(captured)
         if (malformed !== null) {
@@ -1041,7 +1044,10 @@ function withSummariserThinkingOff<C extends ToolUseContext>(context: C): C {
 }
 
 export function summaryAnswerFault(response: AssistantMessage): string | null {
-  if (response.isApiErrorMessage === true) return null
+  if (response.isApiErrorMessage === true) {
+    const details = typeof response.errorDetails === 'string' ? response.errorDetails : ''
+    return details.startsWith(PROVIDER_FINISH_FAULT_PREFIX) ? `the provider ended the response before a summary (finish reason ${details.slice(PROVIDER_FINISH_FAULT_PREFIX.length)})` : null
+  }
   const stop = response.message.stop_reason
   if (stop == null) return null
   const blocks = Array.isArray(response.message.content) ? (response.message.content as Array<{ type?: string }>) : []
@@ -1053,6 +1059,7 @@ export function summaryAnswerFault(response: AssistantMessage): string | null {
   if (text === '') return `the answer had no text (stop reason ${stop}; ${thinkingWords}, ${calls} tool call${calls === 1 ? '' : 's'})`
   const body = summaryBody(text)
   if (!/[\p{L}\p{N}]/u.test(body)) return `the answer carried no words (${text.length} characters of wrapper or punctuation)`
+  if (PROVIDER_TERMINATION_NOTE.test(body)) return `the provider ended the response before a summary: ${JSON.stringify(body.slice(0, 120))}`
   if (summarySaysNothing(body)) return "the answer carried the summary's headings and nothing under them"
   if (summaryRefusesInProse(body)) return `the answer refused in prose: ${JSON.stringify(body.slice(0, 120))}`
   return null
