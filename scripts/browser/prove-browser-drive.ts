@@ -960,7 +960,7 @@ console.log('§15 structural teeth')
   const runAgentSrc = await Bun.file(join(ROOT, 'src', 'tools', 'AgentTool', 'runAgent.ts')).text()
   check(
     "agent teardown reaps the agent's own browser child (the leak-repair seam)",
-    runAgentSrc.includes('disposeBrowserOwner(processOwnerForLane(agentId))'),
+    runAgentSrc.includes('disposeOwnerProcesses(processOwnerForLane(agentId))'),
   )
   check('secret pairings wipe on EVERY dead-session road', sessionSrc.split('.approvedSecretPairings.clear()').length === 5)
   check('the error-text scrub is INSTALLED on the result rail', toolSrc.includes('scrubSecretFromText(result'))
