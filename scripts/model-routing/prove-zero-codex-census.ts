@@ -50,7 +50,7 @@ check("the execution plane has no 'codex-engine' kind", !executionSrc.includes("
 const censusSrc = readFileSync(join(ROOT, 'src', 'services', 'primitives', 'executionCensus.ts'), 'utf8')
 check('the running-work census has no codex domain', !/codex/i.test(censusSrc))
 
-const typesSrc = readFileSync(join(ROOT, 'src', 'utils', 'router', 'providers', 'types.ts'), 'utf8')
+const typesSrc = readFileSync(join(ROOT, 'src', 'services', 'providers', 'providerAdapter.ts'), 'utf8')
 check(
   "ProviderTransport has no live 'codex-app-server' MEMBER (comment mentions allowed)",
   !/\|\s*'codex-app-server'/.test(typesSrc),

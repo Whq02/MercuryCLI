@@ -577,7 +577,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
   )
 
   const adapterSrc = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'utils', 'router', 'providers', 'openai.ts'),
+    join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'openai', 'openaiAdapter.ts'),
     'utf-8',
   )
   const catalogueSrc = readFileSync(
