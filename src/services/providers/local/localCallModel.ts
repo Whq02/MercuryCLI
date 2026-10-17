@@ -180,6 +180,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
       if (estTokens <= guard.tokens * LOCAL_FIT_TOLERANCE) return undefined
       return localFitRefusalSentence({ id: record.id, estTokens, toolCount, window: guard.tokens, sourceWords: guard.sourceWords })
     },
+    servedWindowTokens: () => localGuardWindow(record)?.tokens,
     toolCapabilityRefusal: () => {
       if (record.toolsDeclared === false) {
         return `${LOCAL_SERVER_NAMES[record.server]} lists '${record.id}' without tool support — this model cannot take a tool-bearing turn; pick a tool-capable local model (Ollama: capabilities include 'tools'; LM Studio: trained for tool use) for roles that carry tools.`

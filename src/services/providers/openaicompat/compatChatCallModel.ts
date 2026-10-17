@@ -69,7 +69,7 @@ import type { SystemPrompt } from '../../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../../utils/thinking.js'
 import { imageRefusalWords, mapMessagesToZai, mapToolsToZai, toolDeclarationRowAsText, type ApiShapedTool, type ToolDeclarationRowBuilder } from '../zai/zaiCodec.js'
 import type { ZaiWireMessage } from '../zai/zaiClient.js'
-import { effortVocabularyFor, modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
+import { effortVocabularyFor, getContextWindowForModel, modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
 import { imageRefusalOf, noteImageRefusal } from '../../desktop/desktopSession.js'
 import type { MediaRefusal } from '../../api/mediaRefusal.js'
 import {
@@ -142,6 +142,7 @@ export interface CompatLaneProfile {
   requestUrl(): string
   wireModelId(modelId: string): string
   requestFitRefusal?(estimate: { requestBytes: number; estTokens: number; toolCount: number; wireModel: string }): string | undefined
+  servedWindowTokens?(): number | undefined
   onResponseHeaders?(headers: Headers, status?: number): void
   onCredentialRefused?(fault: Pick<CompatFault, 'status' | 'code' | 'message'>): void
   extraHeaders?(): Record<string, string> | undefined
@@ -192,10 +193,20 @@ function apiErrorMessage(
 }
 
 function overflowOf(
-  lane: CompatLaneId,
+  profile: Pick<CompatLaneProfile, 'lane' | 'servedWindowTokens'>,
   fault: Pick<CompatFault, 'code' | 'message'> & { status?: number },
+  sent: { request: CompatChatRequest; model: string },
 ): OverflowSignal | null {
-  return classifyOverflowFault({ family: lane, status: fault.status, code: fault.code, message: fault.message })
+  return classifyOverflowFault({
+    family: profile.lane,
+    status: fault.status,
+    code: fault.code,
+    message: fault.message,
+    measured: () => ({
+      tokens: estimateRequestTokens(sent.request),
+      window: profile.servedWindowTokens?.() ?? getContextWindowForModel(sent.model),
+    }),
+  })
 }
 
 type TypedError = NonNullable<AssistantMessage['error']>
@@ -696,7 +707,7 @@ export async function* compatChatCallModel(
         `${API_ERROR_MESSAGE_PREFIX}: the model on the ${profile.providerLabel} route refused the image: ${refusedImage} — the next request carries it as [image]; the Computer tool refuses on this model until /model picks one that receives images`,
         typed,
         outcome.fault.code,
-        overflowOf(profile.lane, outcome.fault),
+        overflowOf(profile, outcome.fault, { request, model: modelId }),
         null,
         { blockTypes: ['image'], detail: refusedImage },
       ))
@@ -714,7 +725,7 @@ export async function* compatChatCallModel(
         stayedBusy,
         typed,
         outcome.fault.code,
-        overflowOf(profile.lane, outcome.fault),
+        overflowOf(profile, outcome.fault, { request, model: modelId }),
         busy !== undefined ? busyRefusalFact(profile.providerLabel, busy.ladder, outcome.fault) : null,
       ),
       outcome.fault.retryAfterMs,
@@ -1106,7 +1117,7 @@ async function* streamOneCompatAttempt(ctx: {
       streamFaultAfterPartialText(profile.providerLabel, fault.code, fault.message),
       compatFaultToTypedError(fault),
       fault.code,
-      overflowOf(profile.lane, fault),
+      overflowOf(profile, fault, { request, model: modelId }),
     )
     yield ctx.effort !== undefined ? { ...faultRow, effort: ctx.effort } : faultRow
   }
