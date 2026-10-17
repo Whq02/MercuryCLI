@@ -317,6 +317,46 @@ try {
 
   const escapedRes = await runRead({ file_path: `${nestedAndBinZip}:../escaped.txt` })
   check('6e. escaping entry name is matched in-memory without touching disk', escapedRes.ok && escapedRes.text.includes('safe escaped content'), escapedRes.ok ? escapedRes.text : escapedRes.error)
+
+  console.log('§7 SQLite read-only safety: WAL-mode database in writable dir creates no -wal/-shm/-journal, views skip COUNT(*), blobs use SQL length()')
+  const { Database } = await import('bun:sqlite')
+  const { readdirSync, readFileSync } = await import('node:fs')
+  const walBuildDir = join(scratch, 'wal-build')
+  const walTestDir = join(scratch, 'wal-test')
+  const { mkdirSync } = await import('node:fs')
+  mkdirSync(walBuildDir, { recursive: true })
+  mkdirSync(walTestDir, { recursive: true })
+  const builtWalDbPath = join(walBuildDir, 'built.sqlite')
+  const dbWal = new Database(builtWalDbPath)
+  dbWal.exec(`
+    PRAGMA journal_mode = WAL;
+    CREATE TABLE items (id INTEGER PRIMARY KEY, payload BLOB, note TEXT);
+    INSERT INTO items (id, payload, note) VALUES (1, zeroblob(2097152), '${'x'.repeat(500)}');
+    CREATE VIEW heavy_view AS SELECT a.id AS aid, b.id AS bid FROM items a CROSS JOIN items b;
+  `)
+  dbWal.close()
+  const testWalDbPath = join(walTestDir, 'wal.sqlite')
+  writeFileSync(testWalDbPath, readFileSync(builtWalDbPath))
+  const beforeWalFiles = readdirSync(walTestDir).sort()
+  const walOverviewRes = await runRead({ file_path: testWalDbPath })
+  const afterWalFiles = readdirSync(walTestDir).sort()
+  check(
+    '7a. WAL-mode SQLite database in writable folder opens via immutable URI and creates zero -wal/-shm/-journal files',
+    walOverviewRes.ok &&
+      JSON.stringify(beforeWalFiles) === JSON.stringify(['wal.sqlite']) &&
+      JSON.stringify(afterWalFiles) === JSON.stringify(['wal.sqlite']),
+    walOverviewRes.ok ? `files=${afterWalFiles.join(',')}` : walOverviewRes.error,
+  )
+  check(
+    '7b. SQLite view skips COUNT(*) (headed "## heavy_view (view)") and SQLite blob/text columns are bounded in SQL via length()/substr()',
+    walOverviewRes.ok &&
+      walOverviewRes.text.includes('## heavy_view (view)') &&
+      !walOverviewRes.text.includes('## heavy_view (view,') &&
+      walOverviewRes.text.includes('<BLOB 2097152B>') &&
+      walOverviewRes.text.includes(`${'x'.repeat(200)}…`) &&
+      srcRich.includes("typeof(${qCol}) = 'blob' THEN '<BLOB ' || length(${qCol})"),
+    walOverviewRes.ok ? walOverviewRes.text : walOverviewRes.error,
+  )
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

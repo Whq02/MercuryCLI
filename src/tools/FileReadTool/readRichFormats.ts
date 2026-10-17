@@ -1,4 +1,5 @@
 import { closeSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 import { createGunzip, inflateRawSync } from 'node:zlib'
 import { hasBinaryExtension } from '../../constants/files.js'
 import { formatFileSize } from '../../utils/format.js'
@@ -482,7 +483,7 @@ async function readTgzEntriesStreaming(filePath: string, wantedSubtarget?: strin
     }
   })
   gunzip.on('error', err => {
-    if (streamErr === null) streamErr = err
+    if (state !== 'done' && streamErr === null) streamErr = err
   })
 
   const readBuf = Buffer.alloc(16384)
@@ -491,15 +492,13 @@ async function readTgzEntriesStreaming(filePath: string, wantedSubtarget?: strin
     while (state !== 'done' && streamErr === null) {
       const bytesRead = readSync(fd, readBuf, 0, readBuf.length, filePos)
       if (bytesRead === 0) {
-        gunzip.end()
-        await new Promise<void>(resolve => setImmediate(resolve))
+        await new Promise<void>(resolve => gunzip.end(() => resolve()))
         break
       }
       filePos += bytesRead
-      gunzip.write(readBuf.subarray(0, bytesRead))
-      await new Promise<void>(resolve => setImmediate(resolve))
+      await new Promise<void>(resolve => gunzip.write(readBuf.subarray(0, bytesRead), () => resolve()))
     }
-    if (streamErr !== null) throw streamErr
+    if (state !== 'done' && streamErr !== null) throw streamErr
     return entries
   } finally {
     gunzip.destroy()
@@ -1056,21 +1055,36 @@ function formatCellValue(v: unknown): string {
   return s.length > 200 ? `${s.slice(0, 200)}…` : s
 }
 
+function queryBoundedSqliteRows(
+  db: SqliteDb,
+  tableName: string,
+  limit: number,
+): { cols: string[]; rows: Record<string, unknown>[] } {
+  const qName = quoteIdent(tableName)
+  const info = db.prepare(`PRAGMA table_info(${qName})`).all() as Array<{ name?: unknown }>
+  const cols = info.map(c => String(c.name ?? '')).filter(Boolean)
+  if (cols.length === 0) return { cols: [], rows: [] }
+  const exprs = cols.map(c => {
+    const qCol = quoteIdent(c)
+    return `CASE WHEN typeof(${qCol}) = 'blob' THEN '<BLOB ' || length(${qCol}) || 'B>' WHEN typeof(${qCol}) = 'text' AND length(${qCol}) > 200 THEN substr(${qCol}, 1, 200) || '…' ELSE ${qCol} END AS ${qCol}`
+  })
+  const rows = db.prepare(`SELECT ${exprs.join(', ')} FROM ${qName} LIMIT ${limit}`).all()
+  return { cols, rows }
+}
+
 export async function renderSqliteTarget(
   dbPath: string,
   subtarget?: string,
 ): Promise<string> {
-  const st = statSync(dbPath)
-  if (!st.isFile()) {
-    throw new Error(`Not a regular file: ${dbPath}`)
-  }
+  statBoundedContainer(dbPath)
+  const uri = `${pathToFileURL(dbPath).href}?immutable=1`
   const bunSqlite = 'bun:sqlite'
   const db: SqliteDb = process.versions.bun
     ? new ((await import(bunSqlite)) as { Database: new (file: string, opts?: { readonly?: boolean }) => SqliteDb }).Database(
-        dbPath,
+        uri,
         { readonly: true },
       )
-    : new (await import('node:sqlite')).DatabaseSync(dbPath, { open: true, readOnly: true } as never)
+    : new (await import('node:sqlite')).DatabaseSync(uri, { open: true, readOnly: true } as never)
 
   try {
     const objects = db
@@ -1086,15 +1100,18 @@ export async function renderSqliteTarget(
         throw new Error(`SQLite table or view "${subtarget}" not found in ${dbPath}. Available: ${names || '(none)'}`)
       }
       const qName = quoteIdent(targetObj.name)
-      const countRow = db.prepare(`SELECT COUNT(*) AS c FROM ${qName}`).all()[0] as { c?: number } | undefined
-      const rowCount = Number(countRow?.c ?? 0)
-      const rows = db.prepare(`SELECT * FROM ${qName} LIMIT 100`).all()
+      const isView = targetObj.type === 'view'
+      let rowLabel = 'view'
+      if (!isView) {
+        const countRow = db.prepare(`SELECT COUNT(*) AS c FROM ${qName}`).all()[0] as { c?: number } | undefined
+        rowLabel = `rows: ${Number(countRow?.c ?? 0)}`
+      }
+      const { cols, rows } = queryBoundedSqliteRows(db, targetObj.name, 100)
       const lines: string[] = [
-        `(database: sqlite · table: ${targetObj.name} · rows: ${rowCount})`,
+        `(database: sqlite · ${isView ? 'view' : 'table'}: ${targetObj.name} · ${rowLabel})`,
       ]
       if (targetObj.sql) lines.push(targetObj.sql.trim())
-      if (rows.length > 0) {
-        const cols = Object.keys(rows[0]!)
+      if (rows.length > 0 && cols.length > 0) {
         lines.push(cols.join('\t'))
         for (const row of rows) {
           lines.push(cols.map(c => formatCellValue(row[c])).join('\t'))
@@ -1108,18 +1125,24 @@ export async function renderSqliteTarget(
     ]
     for (const obj of objects) {
       const qName = quoteIdent(obj.name)
-      let rowCount = 0
+      const isView = obj.type === 'view'
+      let countDesc = 'view'
+      let cols: string[] = []
       let sample: Record<string, unknown>[] = []
       try {
-        const countRow = db.prepare(`SELECT COUNT(*) AS c FROM ${qName}`).all()[0] as { c?: number } | undefined
-        rowCount = Number(countRow?.c ?? 0)
-        sample = db.prepare(`SELECT * FROM ${qName} LIMIT ${SQLITE_SAMPLE_ROWS}`).all()
+        if (!isView) {
+          const countRow = db.prepare(`SELECT COUNT(*) AS c FROM ${qName}`).all()[0] as { c?: number } | undefined
+          const rowCount = Number(countRow?.c ?? 0)
+          countDesc = `${rowCount} ${rowCount === 1 ? 'row' : 'rows'}`
+        }
+        const res = queryBoundedSqliteRows(db, obj.name, SQLITE_SAMPLE_ROWS)
+        cols = res.cols
+        sample = res.rows
       } catch {}
       lines.push('')
-      lines.push(`## ${obj.name} (${obj.type}, ${rowCount} ${rowCount === 1 ? 'row' : 'rows'})`)
+      lines.push(isView ? `## ${obj.name} (view)` : `## ${obj.name} (${obj.type}, ${countDesc})`)
       if (obj.sql) lines.push(obj.sql.trim())
-      if (sample.length > 0) {
-        const cols = Object.keys(sample[0]!)
+      if (sample.length > 0 && cols.length > 0) {
         lines.push(cols.join('\t'))
         for (const row of sample) {
           lines.push(cols.map(c => formatCellValue(row[c])).join('\t'))
