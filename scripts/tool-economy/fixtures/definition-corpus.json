@@ -1,5 +1,5 @@
 {
-  "base": "25532f0c00b0e206bbe4b611afd712f7a4e35685",
+  "base": "5d5cb17790d5485a8eb14e4a258dc71ea4a95cc9",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -1283,7 +1283,7 @@
             ]
           },
           "pty": {
-            "description": "start: run the command inside a pseudo-terminal, so a program that needs a terminal (a REPL, an interactive CLI, a prompt that asks) sees one; its screen bytes land in the log and op:\"input\" types to it (default false: a plain pipe)",
+            "description": "start: run the command inside a pseudo-terminal, so a program that needs a terminal (an interactive interpreter, an interactive CLI, a prompt that asks) sees one; its screen bytes land in the log and op:\"input\" types to it (default false: a plain pipe)",
             "type": "boolean"
           },
           "mode": {
