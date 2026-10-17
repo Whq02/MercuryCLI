@@ -15,7 +15,8 @@ import { endProcessTree, strikeProcessGroupNow } from '../../utils/processGroup.
 
 export type KernelTransport = 'fd' | 'loopback'
 
-const KERNEL_PROTOCOL_PORT_ENV = 'MERCURY_EVAL_PROTOCOL_PORT'
+const PROTOCOL_PORT_FLAG = '--protocol-port'
+const UNPROVEN_SOCKET_CAP = 64 * 1024
 
 interface KernelSpawnSpec {
   command: string
@@ -88,6 +89,8 @@ export class ProcKernel {
   private settleTimer: NodeJS.Timeout | null = null
   private readonly protocol: LoopbackProtocol | null
   private readonly protocolSockets = new Set<Socket>()
+  private protocolProven = false
+  private provenSocket: Socket | null = null
   executionCount = 0
 
   static async launch(spec: Omit<KernelSpawnSpec, 'protocol'> & { transport: KernelTransport }): Promise<ProcKernel> {
@@ -105,18 +108,12 @@ export class ProcKernel {
       for (const frame of this.decoder.push(String(chunk))) this.route(frame)
     }
     if (this.protocol !== null) {
-      this.protocol.server.on('connection', (socket: Socket) => {
-        this.protocolSockets.add(socket)
-        socket.setEncoding('utf8')
-        socket.on('data', onProtocolData)
-        socket.on('error', () => undefined)
-        socket.on('close', () => this.protocolSockets.delete(socket))
-      })
+      this.protocol.server.on('connection', (socket: Socket) => this.admitProtocolSocket(socket))
     }
-    this.child = spawn(spec.command, spec.args, {
+    this.child = spawn(spec.command, this.protocol === null ? spec.args : [...spec.args, PROTOCOL_PORT_FLAG, String(this.protocol.port)], {
       windowsHide: true,
       cwd: spec.cwd,
-      env: this.protocol === null ? spec.env : { ...spec.env, [KERNEL_PROTOCOL_PORT_ENV]: String(this.protocol.port) },
+      env: spec.env,
       stdio: this.protocol === null ? ['pipe', 'pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe'],
       detached: process.platform !== 'win32',
     })
@@ -225,6 +222,47 @@ export class ProcKernel {
 
   get transport(): KernelTransport {
     return this.protocol === null ? 'fd' : 'loopback'
+  }
+
+  get protocolPort(): number | null {
+    return this.protocol?.port ?? null
+  }
+
+  private admitProtocolSocket(socket: Socket): void {
+    if (this.protocolProven || this.exited !== null) {
+      socket.destroy()
+      return
+    }
+    this.protocolSockets.add(socket)
+    socket.setEncoding('utf8')
+    socket.on('error', () => undefined)
+    socket.on('close', () => this.protocolSockets.delete(socket))
+    let head = ''
+    const decoder = new RunnerFrameDecoder(this.token)
+    socket.on('data', (chunk: string | Buffer) => {
+      if (this.protocolProven) {
+        if (socket === this.provenSocket) for (const frame of decoder.push(String(chunk))) this.route(frame)
+        return
+      }
+      head += String(chunk)
+      const newline = head.indexOf('\n')
+      if (newline < 0) {
+        if (head.length > UNPROVEN_SOCKET_CAP) socket.destroy()
+        return
+      }
+      const frames = decoder.push(head)
+      head = ''
+      if (frames.length === 0) {
+        logForDebugging('eval protocol: a connection whose first line carried no frame of this kernel was closed')
+        socket.destroy()
+        return
+      }
+      this.protocolProven = true
+      this.provenSocket = socket
+      this.protocol?.server.close()
+      for (const other of this.protocolSockets) if (other !== socket) other.destroy()
+      for (const frame of frames) this.route(frame)
+    })
   }
 
   private closeProtocol(): void {

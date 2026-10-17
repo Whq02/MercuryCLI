@@ -28,8 +28,9 @@ function spawnDist(args: string[], cwd: string, env: Record<string, string>, bud
   return new Promise<Run>(done => child.on('close', code => { clearTimeout(guard); done({ code, out, err }) }))
 }
 
-async function mercuryRun(args: string[], turns: ScriptedTurn[]): Promise<Run & { outcome: Outcome | undefined; rows: Array<Record<string, unknown>>; modelCalls: number }> {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'max-time-')))
+type Driven = Run & { outcome: Outcome | undefined; rows: Array<Record<string, unknown>>; modelCalls: number; firstRequest: Record<string, unknown> | undefined; home: string }
+async function mercuryRun(args: string[], turns: ScriptedTurn[], reuse?: { home: string }): Promise<Driven> {
+  const home = reuse?.home ?? realpathSync(mkdtempSync(join(tmpdir(), 'max-time-')))
   const cwd = join(home, 'project')
   mkdirSync(cwd, { recursive: true })
   writeFileSync(join(cwd, 'note.txt'), 'hello\n')
@@ -42,11 +43,11 @@ async function mercuryRun(args: string[], turns: ScriptedTurn[]): Promise<Run & 
     }, 120_000)
     const rows = run.out.split('\n').filter(Boolean).map(line => { try { return JSON.parse(line) as Record<string, unknown> } catch { return null } }).filter((row): row is Record<string, unknown> => row !== null)
     const outcome = rows.filter(row => row.type === 'outcome').at(-1) as Outcome | undefined
-    const modelCalls = api.messageRequests().filter(request => !isHandoffRequest(request)).length
-    return { ...run, rows, outcome, modelCalls }
+    const modelRequests = api.messageRequests().filter(request => !isHandoffRequest(request))
+    return { ...run, rows, outcome, modelCalls: modelRequests.length, firstRequest: modelRequests[0]?.body as Record<string, unknown> | undefined, home }
   } finally {
     await api.close()
-    rmSync(home, { recursive: true, force: true })
+    if (reuse === undefined) rmSync(home, { recursive: true, force: true })
   }
 }
 
@@ -117,6 +118,40 @@ console.log('§7 the control: a limit that is not reached changes nothing')
   check('the outcome is completed with the answer', run.outcome?.status === 'completed' && run.outcome?.answer === 'The note says hello.', j(run.outcome))
   check('both model calls were made', run.modelCalls === 2, String(run.modelCalls))
   check('the run exits 0', run.code === 0, String(run.code))
+}
+
+console.log('refusals: the limit never reaches the model, it holds in every permission mode, and a value that is no span is refused at the door')
+{
+  {
+    const withLimit = await mercuryRun(['read note.txt', '--format', 'rows', '--max-time', '10m', '--allowed-tools', 'Read'], [readNote, answer, handoffTurn()])
+    const without = await mercuryRun(['read note.txt', '--format', 'rows', '--allowed-tools', 'Read'], [readNote, answer, handoffTurn()])
+    const prompt = (run: Driven): string =>
+      JSON.stringify({ system: run.firstRequest?.system, tools: run.firstRequest?.tools, messages: run.firstRequest?.messages })
+        .split(run.home).join('<HOME>')
+        .split(run.home.slice(run.home.lastIndexOf('/') + 1)).join('<HOME-NAME>')
+        .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<ID>')
+    const differenceAt = (a: string, b: string): string => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return `${a.length} vs ${b.length} bytes, first difference at ${i}: ${JSON.stringify(a.slice(Math.max(0, i - 80), i + 120))}` }
+    check('the first request\'s system prompt, tools and messages are byte-identical with and without the flag (the scratch home\'s name and the session id aside)', withLimit.firstRequest !== undefined && prompt(withLimit) === prompt(without), differenceAt(prompt(withLimit), prompt(without)))
+    const whole = JSON.stringify(withLimit.firstRequest).split(withLimit.home).join('<HOME>')
+    const needle = ['--max-time', 'time_limit'].find(word => whole.includes(word))
+    check('the limit never appears in the request', needle === undefined, needle === undefined ? '' : JSON.stringify(whole.slice(Math.max(0, whole.indexOf(needle) - 200), whole.indexOf(needle) + 100)))
+  }
+  const sovereign = await mercuryRun(['read note.txt', '--format', 'rows', '--max-time', '1s', '--mode', 'sovereign'], [readNote, answer, handoffTurn()])
+  check('the limit holds in sovereign mode (no ask, no exemption): time_limit, one model call, exit 1', sovereign.outcome?.status === 'time_limit' && sovereign.modelCalls === 1 && sovereign.code === 1, j(sovereign.outcome))
+  const implement = await mercuryRun(['read note.txt', '--format', 'rows', '--max-time', '1s', '--mode', 'implement'], [readNote, answer, handoffTurn()])
+  check('and in implement mode', implement.outcome?.status === 'time_limit' && implement.code === 1, j(implement.outcome))
+  const home2 = realpathSync(mkdtempSync(join(tmpdir(), 'max-time-door-2-')))
+  const env2 = { HOME: home2, PATH: process.env.PATH ?? '', TMPDIR: tmpdir(), MERCURY_CONFIG_DIR: home2, MERCURY_HOME: home2, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home2, 'daemon') }
+  try {
+    for (const bad of ['-5', '1e3', 'Infinity', '100ms', '10 minutes', '1h-30m', '']) {
+      const refused = await spawnDist(['run', '--max-time', bad, 'hello'], home2, env2, 60_000)
+      check(`'${bad}' is refused at the door with exit 2 and no run`, refused.code === 2 && refused.err.includes('--max-time must be a span of time') && refused.out === '', j(refused))
+    }
+    const rowsDoor = await spawnDist(['run', '--format', 'rows', '--max-time', 'soon', 'hello'], home2, env2, 60_000)
+    check('on the rows road the refusal is one refused outcome row', rowsDoor.code === 2 && rowsDoor.out.includes('"status":"refused"') && rowsDoor.out.includes('--max-time must be a span of time'), j(rowsDoor))
+  } finally {
+    rmSync(home2, { recursive: true, force: true })
+  }
 }
 
 console.log(failures === 0 ? 'ALL PASS' : `${failures} FAIL`)

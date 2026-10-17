@@ -2,9 +2,18 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+if (process.argv[2] === '--start-detached') {
+  const [, , , home, cwd, python] = process.argv as [string, string, string, string, string, string]
+  process.env.MERCURY_CONFIG_DIR = home
+  const { startService } = await import('../../src/services/projectServices/serviceManager.ts')
+  const result = await startService({ sessionId: 'the-other-session', spec: { name: 'foreign-tty', command: python, args: ['-c', 'import sys\nprint("tty", sys.stdin.isatty(), flush=True)\nsys.stdin.readline()'], cwd, readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'project', pty: true } })
+  console.log(JSON.stringify(result))
+  process.exit(0)
+}
 
 if (process.argv[2] === '--start-without-python') {
   process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'svc-pty-nopy-'))
@@ -21,7 +30,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'svc-pty-'))
 delete process.env.MERCURY_SERVICES
 delete process.env.MERCURY_EVAL_PYTHON
 
-const { readLogs, readRecord, sendInput, startService, stopService } = await import('../../src/services/projectServices/serviceManager.ts')
+const { readLogs, readRecord, sendInput, servicesDir, startService, stopService } = await import('../../src/services/projectServices/serviceManager.ts')
 const { ensurePtyHost, PTY_HOST_COLS, PTY_HOST_ROWS, PTY_HOST_SOURCE, ptyHostUnavailable } = await import('../../src/services/projectServices/ptyHost.ts')
 const { readableTerminalLines, readableTerminalText } = await import('../../src/services/projectServices/terminalText.ts')
 const { primeEvalAvailability } = await import('../../src/services/eval/interpreters.ts')
@@ -40,18 +49,42 @@ const guard = setTimeout(() => {
   process.exit(1)
 }, 120_000)
 guard.unref?.()
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-async function until(label: string, ready: () => boolean, ms = 15_000): Promise<boolean> {
-  const deadline = Date.now() + ms
-  while (Date.now() < deadline) {
-    if (ready()) return true
-    await sleep(50)
-  }
-  console.log(`  (waited ${ms} ms for ${label})`)
-  return ready()
-}
 const workDir = mkdtempSync(join(tmpdir(), 'svc-pty-work-'))
 const SESSION = 'svc-pty-session'
+function until(label: string, ready: () => boolean, ceilingMs = 15_000, logOfService?: string): Promise<boolean> {
+  return new Promise(resolve => {
+    let settled = false
+    const paths = [servicesDir(workDir), ...(logOfService !== undefined ? [readRecord(workDir, logOfService)?.logFile ?? ''] : [])].filter(Boolean)
+    const watchers = paths.map(path => watch(path, { persistent: false }, () => {
+      if (!settled && ready()) settle(true)
+    }))
+    const look = setInterval(() => {
+      if (ready()) settle(true)
+    }, 100)
+    const ceiling = setTimeout(() => {
+      console.log(`  (the ceiling of ${ceilingMs} ms passed waiting for ${label})`)
+      settle(ready())
+    }, ceilingMs)
+    function settle(answer: boolean): void {
+      if (settled) return
+      settled = true
+      clearTimeout(ceiling)
+      clearInterval(look)
+      for (const watcher of watchers) watcher.close()
+      resolve(answer)
+    }
+    if (ready()) settle(true)
+  })
+}
+const logHas = (name: string, needle: string) => (): boolean => {
+  const record = readRecord(workDir, name)
+  try {
+    return record !== null && readFileSync(record.logFile, 'utf8').includes(needle)
+  } catch {
+    return false
+  }
+}
+const logShows = (name: string, needle: string, label = needle): Promise<boolean> => until(label, logHas(name, needle), 15_000, name)
 const cold = await startService({ sessionId: SESSION, spec: { name: 'cold-start', command: 'true', args: [], cwd: workDir, readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session', pty: true } })
 const python = (await primeEvalAvailability(workDir)).find(row => row.language === 'py')!
 const spec = (name: string, args: string[], pty: boolean) => ({ name, command: python.interpreterPath!, args, cwd: workDir, readiness: [], readinessMode: 'all' as const, restart: 'never' as const, lifecycle: 'session' as const, ...(pty ? { pty: true } : {}) })
@@ -82,7 +115,7 @@ section('§2 — the pipe road is what it was: no terminal, submit adds a newlin
   const name = 'pipe-echo'
   const result = await startService({ sessionId: SESSION, spec: spec(name, ['-u', '-c', 'import sys\nprint("tty", sys.stdin.isatty(), flush=True)\nfor line in sys.stdin:\n    print("got", repr(line), flush=True)\nprint("end", flush=True)'], false) })
   check('the plain service starts', 'record' in result && result.record.state === 'starting', JSON.stringify(result))
-  await until('the tty line', () => false, 400)
+  check('the program announced itself (no terminal)', await logShows(name, 'tty False', 'the tty line'))
   const first = sendInput(workDir, name, 'hello', SESSION)
   check('submit is the default and reports the stdin road', 'ok' in first && first.pty === false, JSON.stringify(first))
   sendInput(workDir, name, 'ab', SESSION, 'write')
@@ -101,11 +134,11 @@ section('§3 — the pseudo-terminal road: the program sees a terminal of the ho
   const result = await startService({ sessionId: SESSION, spec: spec(name, ['-c', 'import os, sys\nprint("tty", sys.stdin.isatty(), os.get_terminal_size().columns, os.get_terminal_size().lines, flush=True)\nname = input("name? ")\nprint("hello", name, flush=True)\nrest = sys.stdin.read()\nprint("rest", repr(rest), flush=True)\nsys.exit(5)'], true) })
   check('the pty service starts and its record carries the pseudo-terminal', 'record' in result && result.record.spec.pty === true, JSON.stringify(result))
   check('the record\'s pid is the host, not the program (the program runs inside the host\'s terminal)', 'record' in result && typeof result.record.pid === 'number')
-  await until('the prompt', () => /name\? /.test(''), 600)
+  check('the program printed its prompt into the terminal', await logShows(name, 'name? ', 'the prompt'))
   const wrote = sendInput(workDir, name, 'Mer', SESSION, 'write')
   check('write reports the terminal road', 'ok' in wrote && wrote.pty === true, JSON.stringify(wrote))
   sendInput(workDir, name, 'cury', SESSION, 'submit')
-  await until('the greeting', () => false, 500)
+  check('the greeting came back through the terminal', await logShows(name, 'hello Mercury', 'the greeting'))
   sendInput(workDir, name, '', SESSION, 'eof')
   await until('the pty child to end', () => (readRecord(workDir, name)?.state ?? '') === 'failed')
   const raw = await logOf(name)
@@ -133,21 +166,21 @@ section('§5 — stop ends the program inside the terminal with the host, nothin
   const name = 'tty-sleeper'
   const result = await startService({ sessionId: SESSION, spec: spec(name, ['-c', 'import os, time\nprint("pid", os.getpid(), flush=True)\ntime.sleep(300)'], true) })
   check('the sleeper starts', 'record' in result, JSON.stringify(result))
-  await until('its pid line', () => /pid \d+/.test(readFileSync(readRecord(workDir, name)!.logFile, 'utf8')))
+  await logShows(name, 'pid ', 'its pid line')
   const inner = Number(/pid (\d+)/.exec(await logOf(name))?.[1])
   const hostPid = readRecord(workDir, name)?.pid ?? 0
   check('the program is a child of the host, a different pid', Number.isInteger(inner) && inner > 0 && inner !== hostPid, `${inner} vs host ${hostPid}`)
   const stopped = await stopService(workDir, name)
   check('the stop reads stopped', 'record' in stopped && stopped.record.state === 'stopped', JSON.stringify(stopped))
-  const gone = await until('the inner program to be gone', () => {
+  const gone = ((): boolean => {
     try {
       process.kill(inner, 0)
       return false
     } catch {
       return true
     }
-  }, 6_000)
-  check('the program inside the terminal is gone with the host', gone)
+  })()
+  check('the program inside the terminal is gone with the host (the host ends it before it exits)', gone)
 }
 
 section('§6 — the readable rendering of terminal bytes')
@@ -176,7 +209,44 @@ section('§7 — the tool\'s surface')
   check('a start with pty:true and no Python on the machine is refused with that sentence, nothing spawned', child.status === 0 && last.includes('asks for a pseudo-terminal') && last.includes('"error"'), `${child.status}: ${last} ${child.stderr.slice(0, 200)}`)
 }
 
-for (const name of ['cold-start', 'pipe-echo', 'tty-prompt', 'tty-only-pipe', 'tty-only-pty', 'tty-sleeper']) await stopService(workDir, name).catch(() => undefined)
+section('refusals — the command is one argv word (no shell), typed text can never be a frame, a control byte is a keystroke, the asks stand in every mode, another session cannot type, a restart keeps the terminal')
+{
+  const marker = join(workDir, 'never-made.txt')
+  const shellish = await startService({ sessionId: SESSION, spec: { name: 'shellish', command: `true; touch ${marker}`, args: [], cwd: workDir, readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session', pty: true } })
+  check('a command with shell words starts as one program name, which does not exist', 'record' in shellish, JSON.stringify(shellish))
+  await until('the shellish program to fail', () => readRecord(workDir, 'shellish')?.state === 'failed')
+  check('nothing ran: the host reports it could not start the program (exit 127) and the marker was never written', readRecord(workDir, 'shellish')?.lastExitCode === 127 && (await logOf('shellish')).includes('cannot start') && !existsSync(marker), JSON.stringify(readRecord(workDir, 'shellish')))
+  const name = 'typed'
+  await startService({ sessionId: SESSION, spec: spec(name, ['-c', 'import sys\nprint("ready", flush=True)\nfor line in sys.stdin:\n    print("got", repr(line), flush=True)\nprint("end", flush=True)'], true) })
+  await logShows(name, 'ready')
+  sendInput(workDir, name, '{"t":"eof"}', SESSION, 'submit')
+  check('a typed line shaped like a host frame is text to the program (Enter read as the terminal\'s newline), never a frame to the host', await logShows(name, 'got \'{"t":"eof"}\\n\'', 'the typed frame as text'), await logOf(name))
+  sendInput(workDir, name, 'one\n{"t":"eof"}\ntwo', SESSION, 'write')
+  sendInput(workDir, name, '', SESSION, 'submit')
+  check('newlines inside a written text are keystrokes: three lines reach the program, its input still open', await logShows(name, "got 'two", 'the third line'), await logOf(name))
+  const foreign = spawnSync(process.execPath, [process.argv[1]!, '--start-detached', process.env.MERCURY_CONFIG_DIR!, workDir, python.interpreterPath!], { encoding: 'utf8', env: process.env })
+  check('a pty service spawned by another process is on the record', foreign.status === 0 && (readRecord(workDir, 'foreign-tty')?.pid ?? 0) > 0, `${foreign.status} ${foreign.stdout.slice(0, 200)} ${foreign.stderr.slice(0, 200)}`)
+  const other = sendInput(workDir, 'foreign-tty', 'x', SESSION, 'submit')
+  check('this session cannot type to it: its terminal lives with the process that spawned it', 'error' in other && other.error.includes('spawned by another session'), JSON.stringify(other))
+  const foreignStop = await stopService(workDir, 'foreign-tty')
+  check('it can still be stopped from here (a project-lifecycle service)', 'record' in foreignStop && foreignStop.record.state === 'stopped', JSON.stringify(foreignStop))
+  sendInput(workDir, name, '\u0003', SESSION, 'write')
+  await until('the interrupted program to end', () => ['stopped', 'failed'].includes(readRecord(workDir, name)?.state ?? ''))
+  check('a control byte written is the terminal\'s keystroke: Ctrl-C interrupts the program (it ends, its input never reached end)', readRecord(workDir, name)?.state !== 'starting' && !(await logOf(name)).includes('\nend'), JSON.stringify(readRecord(workDir, name)))
+  const start = await ServiceTool.checkPermissions({ op: 'start', name: 'x', command: 'sh', pty: true } as never, {} as never)
+  const eof = await ServiceTool.checkPermissions({ op: 'input', name: 'x', mode: 'eof' } as never, {} as never)
+  const logs = await ServiceTool.checkPermissions({ op: 'logs', name: 'x' } as never, {} as never)
+  check('a pty start asks like any start; an eof input asks and says so; logs never ask', start.behavior === 'ask' && eof.behavior === 'ask' && (eof as { message?: string }).message?.includes('(end of input)') === true && logs.behavior === 'allow')
+  const kept = await startService({ sessionId: SESSION, spec: spec('kept-tty', ['-c', 'import sys\nprint("tty", sys.stdin.isatty(), flush=True)\nsys.stdin.readline()'], true) })
+  check('a pty service starts for the restart check', 'record' in kept)
+  await logShows('kept-tty', 'tty True')
+  const { restartService } = await import('../../src/services/projectServices/serviceManager.ts')
+  const restarted = await restartService(workDir, 'kept-tty', SESSION)
+  check('a restart keeps the pseudo-terminal: the retained spec carries pty and the program sees a terminal again', 'record' in restarted && restarted.record.spec.pty === true && (await until('the restarted program', () => ((): boolean => { try { return (readFileSync(readRecord(workDir, 'kept-tty')!.logFile, 'utf8').match(/tty True/g) ?? []).length >= 2 } catch { return false } })(), 15_000, 'kept-tty')), JSON.stringify(restarted))
+  check('a clipboard or title sequence in the terminal\'s bytes never reaches the reader', readableTerminalText('\x1b]52;c;aGVsbG8=\x07secret\x1b]0;t\x07') === 'secret')
+}
+
+for (const name of ['cold-start', 'pipe-echo', 'tty-prompt', 'tty-only-pipe', 'tty-only-pty', 'tty-sleeper', 'shellish', 'typed', 'kept-tty']) await stopService(workDir, name).catch(() => undefined)
 writeFileSync(join(workDir, 'done'), 'ok')
 console.log(failures === 0 ? '\nprove-service-pty-mode: ALL GREEN' : `\nprove-service-pty-mode: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

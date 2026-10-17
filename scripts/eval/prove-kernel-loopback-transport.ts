@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { connect, createServer, type Server } from 'node:net'
 import { join } from 'node:path'
 import { check, cleanup, finish, loadEval, refusingBridge, section, setup, within } from './lib.js'
@@ -13,14 +13,13 @@ const { ensurePyRunner } = await import('../../src/services/eval/runnerCache.js'
 const { buildKernelEnv } = await import('../../src/services/eval/kernelEnv.js')
 const { encodeHostFrame } = await import('../../src/services/eval/protocol.js')
 const { kernelTransportFor, ProcKernel } = await import('../../src/services/eval/procKernel.js')
-const KERNEL_PROTOCOL_PORT_ENV = 'MERCURY_EVAL_PROTOCOL_PORT'
 
 section('§1 — the transport choice: the Python kernel rides the loopback port on win32 and fd 3 everywhere else; JavaScript keeps fd 3')
 check('py on win32 → loopback', kernelTransportFor('py', 'win32') === 'loopback')
 check('py on darwin → fd', kernelTransportFor('py', 'darwin') === 'fd')
 check('py on linux → fd', kernelTransportFor('py', 'linux') === 'fd')
 check('js on win32 → fd', kernelTransportFor('js', 'win32') === 'fd')
-check('the runner reads the port from the kernel marker\'s sibling variable', readFileSync(join(ROOT, 'src/services/eval/pyRunnerSource.ts'), 'utf8').includes('os.environ.get("MERCURY_EVAL_PROTOCOL_PORT")') && readFileSync(join(ROOT, 'src/services/eval/procKernel.ts'), 'utf8').includes("'MERCURY_EVAL_PROTOCOL_PORT'"))
+check('the port rides the runner\'s own command line (--protocol-port), never the environment a cell\'s children would inherit', readFileSync(join(ROOT, 'src/services/eval/pyRunnerSource.ts'), 'utf8').includes('"--protocol-port" in sys.argv') && readFileSync(join(ROOT, 'src/services/eval/procKernel.ts'), 'utf8').includes("'--protocol-port'") && !readFileSync(join(ROOT, 'src/services/eval/procKernel.ts'), 'utf8').includes('PROTOCOL_PORT_ENV'))
 
 section('§2 — the ladder: Windows is no longer refused before the first probe, and its PATH rungs are python3, python, py')
 const win = pythonCandidates(work, { PATH: '' }, 'win32')
@@ -96,7 +95,7 @@ async function overLoopback(): Promise<Capture & { connections: number; server: 
   })
   const port = await new Promise<number>(resolve => server.listen(0, '127.0.0.1', () => resolve((server.address() as { port: number }).port)))
   const connected = new Promise<void>(resolve => server.once('connection', () => resolve()))
-  const child = spawn(interpreter, [runner], { cwd: work, env: { ...buildKernelEnv(), [KERNEL_PROTOCOL_PORT_ENV]: String(port) }, stdio: ['pipe', 'pipe', 'pipe'] })
+  const child = spawn(interpreter, [runner, '--protocol-port', String(port)], { cwd: work, env: buildKernelEnv(), stdio: ['pipe', 'pipe', 'pipe'] })
   const capture = await drive(child, () => protocol, within('the runner connects to the port', 15_000, connected))
   server.close()
   return { ...capture, connections, server }
@@ -118,7 +117,7 @@ function canConnect(port: number): Promise<boolean> {
     socket.once('error', () => resolve(false))
   })
 }
-const PORT_CELL = 'import os\nint(os.environ["MERCURY_EVAL_PROTOCOL_PORT"])'
+const PORT_CELL = 'import sys\nint(sys.modules["__main__"]._PROTOCOL_PORT[0])'
 const CHANNEL_CELL = 'import sys\ntype(sys.modules["__main__"]._PROTO.buffer.raw).__name__'
 
 section('§4 — the whole road forced on the Mac: a manager whose Python kernel rides the loopback port runs cells, keeps state, reports errors, serves the bridge and survives an interrupt')
@@ -128,13 +127,15 @@ const bridge = refusingBridge()
 const run = (manager: InstanceType<typeof EvalKernelManager>, code: string, extra: Partial<{ timeoutSeconds: number }> = {}) =>
   within(`py cell`, 60_000, manager.runCell({ owner: 'loopback-owner', cwd: work, input: { language: 'py', code, ...extra }, abortSignal: new AbortController().signal, serveBridge: bridge }))
 try {
-  const seed = await run(forced, 'import os\nkept = 7\n"port" if os.environ.get("MERCURY_EVAL_PROTOCOL_PORT") else "fd"')
+  const seed = await run(forced, 'import os, sys\nkept = 7\n"port" if sys.modules["__main__"]._PROTOCOL_PORT[0] else "fd"')
   check('the forced kernel was born with the port named', seed.status === 'ok' && seed.resultRepr === "'port'", JSON.stringify({ status: seed.status, repr: seed.resultRepr, error: seed.error }))
+  const inherited = await run(forced, 'import os, sys\n[k for k in os.environ if "PROTOCOL_PORT" in k] + [a for a in sys.argv if "protocol" in a]')
+  check('a cell and the processes it starts inherit no port: nothing in the environment, nothing left in argv', inherited.status === 'ok' && inherited.resultRepr === '[]', JSON.stringify({ status: inherited.status, repr: inherited.resultRepr }))
   const channel = await run(forced, CHANNEL_CELL)
   check('the forced kernel speaks over a socket, not a pipe', channel.status === 'ok' && channel.resultRepr === "'SocketIO'", JSON.stringify({ status: channel.status, repr: channel.resultRepr }))
   const portCell = await run(forced, PORT_CELL)
   const forcedPort = Number(portCell.resultRepr)
-  check('the host listens on the port it named while the kernel lives', Number.isInteger(forcedPort) && (await canConnect(forcedPort)), JSON.stringify({ status: portCell.status, repr: portCell.resultRepr }))
+  check('the port the runner connected to refuses every later connection: the listener closed behind the runner', Number.isInteger(forcedPort) && !(await canConnect(forcedPort)), JSON.stringify({ status: portCell.status, repr: portCell.resultRepr }))
   const state = await run(forced, 'kept + 1')
   check('state persists across cells on the loopback road', state.status === 'ok' && state.resultRepr === '8', JSON.stringify({ status: state.status, repr: state.resultRepr }))
   const streams = await run(forced, 'print("hello out")\nimport sys\nsys.stderr.write("hello err\\n")')
@@ -147,7 +148,7 @@ try {
   check('the runtime budget interrupts the cell', cancelled.status === 'cancelled', cancelled.status)
   const survived = await run(forced, 'kept')
   check('the kernel and its state survive the interrupt', survived.status === 'ok' && survived.resultRepr === '7', JSON.stringify({ status: survived.status, repr: survived.resultRepr }))
-  const controlSeed = await run(control, 'import os\n"port" if os.environ.get("MERCURY_EVAL_PROTOCOL_PORT") else "fd"')
+  const controlSeed = await run(control, 'import sys\n"port" if sys.modules["__main__"]._PROTOCOL_PORT[0] else "fd"')
   check('the control manager on this Mac keeps the fd-3 road', controlSeed.status === 'ok' && controlSeed.resultRepr === "'fd'", JSON.stringify({ status: controlSeed.status, repr: controlSeed.resultRepr }))
   const controlChannel = await run(control, CHANNEL_CELL)
   check('the control kernel speaks over the fd-3 pipe', controlChannel.status === 'ok' && controlChannel.resultRepr === "'FileIO'", JSON.stringify({ status: controlChannel.status, repr: controlChannel.resultRepr }))
@@ -155,12 +156,34 @@ try {
   section('§5 — a kernel that dies mid-cell on the loopback road ends the cell honestly, and its listener closes with it')
   const died = await run(forced, 'import os\nos._exit(3)')
   check('the cell did not hang: the death is reported', died.status !== 'ok' && died.annotations.length > 0, JSON.stringify({ status: died.status, annotations: died.annotations }))
-  check('the dead kernel\'s listener is closed', !(await canConnect(forcedPort)))
+  check('the dead kernel\'s port stays closed', !(await canConnect(forcedPort)))
   const replacedPort = Number((await run(forced, PORT_CELL)).resultRepr)
-  check('the replacement kernel listens on a port of its own', Number.isInteger(replacedPort) && replacedPort !== forcedPort && (await canConnect(replacedPort)), String(replacedPort))
+  check('the replacement kernel came in through a port of its own, closed behind it too', Number.isInteger(replacedPort) && replacedPort !== forcedPort && !(await canConnect(replacedPort)), String(replacedPort))
   await forced.disposeAll()
   await control.disposeAll()
   check('no loopback listener outlives its kernel', !(await canConnect(replacedPort)))
+
+  section('refusals — a stranger on the loopback port: the first line must be a frame of this kernel, a line without end is cut at 64 KiB, the listener closes once the runner is in')
+  const slow = join(work, 'slow-runner.py')
+  writeFileSync(slow, 'import runpy, sys, time\ntime.sleep(1.5)\nrunpy.run_path(sys.argv[1], run_name="__main__")\n')
+  const guarded = await ProcKernel.launch({ command: interpreter, args: [slow, runner], cwd: work, env: buildKernelEnv(), transport: 'loopback' })
+  const port = guarded.protocolPort!
+  const handshake = guarded.handshake(work, 20_000)
+  const stranger = (bytes: string): Promise<{ closedByHost: boolean }> =>
+    new Promise(resolve => {
+      const socket = connect({ host: '127.0.0.1', port }, () => socket.write(bytes))
+      const timer = setTimeout(() => { socket.destroy(); resolve({ closedByHost: false }) }, 1_000)
+      socket.once('close', () => { clearTimeout(timer); resolve({ closedByHost: true }) })
+      socket.once('error', () => { clearTimeout(timer); resolve({ closedByHost: true }) })
+    })
+  check('a first line that is no JSON frame closes the connection', (await stranger('hello there\n')).closedByHost)
+  check('a well-formed frame with the wrong token closes the connection', (await stranger('{"t": "ready", "token": "not-this-kernel"}\n')).closedByHost)
+  check('a first line that never ends is cut at 64 KiB', (await stranger('x'.repeat(70 * 1024))).closedByHost)
+  check('the runner still comes in and handshakes after the strangers', await handshake)
+  check('once the runner is in, the port refuses the next connection', !(await canConnect(port)))
+  const after = await guarded.exec('c-after', 'print("still mine")\n1 + 1', { onStdout: () => undefined, onStderr: () => undefined, onDisplay: () => undefined, onResult: () => undefined, onError: () => undefined, onBridge: () => undefined })
+  check('the kernel behind the guarded port runs a cell', after.kind === 'done' && after.status === 'ok', JSON.stringify(after))
+  await guarded.dispose()
 
   section('§6 — ProcKernel.launch with the loopback transport handshakes the real runner; the fd transport is the same constructor as before')
   const direct = await ProcKernel.launch({ command: interpreter, args: [runner], cwd: work, env: buildKernelEnv(), transport: 'loopback' })
