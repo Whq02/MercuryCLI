@@ -1,5 +1,6 @@
 
 import { displayWidth } from '../components/mercury-ui/glyphs.js'
+import { resultResolvedNames } from '../tools/FileReadTool/FileReadTool.js'
 
 export const MAX_INLINE_SUMMARY = 64
 
@@ -22,10 +23,14 @@ function bashSummary(out: Record<string, unknown>): string | null {
 
 function readSummary(out: Record<string, unknown>): string | null {
   const file = asRecord(out['file'])
+  const resolved = resultResolvedNames.get(out)
+  const suffix = resolved !== undefined ? ` (${resolved})` : ''
   switch (out['type']) {
     case 'text': {
       const n = file?.['numLines']
-      return typeof n === 'number' ? `Read ${n} line${n === 1 ? '' : 's'}` : null
+      if (typeof n !== 'number') return null
+      const summary = `Read ${n} line${n === 1 ? '' : 's'}${suffix}`
+      return displayWidth(summary) <= MAX_INLINE_SUMMARY ? summary : `Read ${n} line${n === 1 ? '' : 's'}`
     }
     case 'image':
       return 'Read image'

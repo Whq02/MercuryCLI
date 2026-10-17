@@ -1,5 +1,6 @@
 import { stat } from 'node:fs/promises'
-import { closeSync, openSync, readSync } from 'node:fs'
+import { closeSync, openSync, readdirSync, readSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 
 import { z } from 'zod/v4'
 
@@ -225,7 +226,7 @@ const outputSchema = z.discriminatedUnion('type', [
 
 
 const resultLineAnchors = new WeakSet<object>()
-
+export const resultResolvedNames = new WeakMap<object, string>()
 const resultsWithoutReminder = new WeakSet<object>()
 
 const REMINDER_TAKEN_CAP = 256
@@ -452,6 +453,30 @@ function extensionOf(rawPath: string): string {
   return dot === -1 ? '' : base.slice(dot + 1).toLowerCase()
 }
 
+function canonicalFilename(name: string): string {
+  return name
+    .normalize('NFC')
+    .replace(/[\u00A0\u202F]/g, ' ')
+    .replace(/[\u2018\u2019\u02BC]/g, "'")
+}
+
+function resolveCanonicalNearMissPath(filePath: string): string | null {
+  try {
+    const dir = dirname(filePath)
+    const wantedName = basename(filePath)
+    const wantedCanonical = canonicalFilename(wantedName)
+    let matched: string | null = null
+    for (const entry of readdirSync(dir)) {
+      if (entry === wantedName) continue
+      if (canonicalFilename(entry) !== wantedCanonical) continue
+      if (matched !== null) return null
+      matched = entry
+    }
+    return matched !== null ? join(dir, matched) : null
+  } catch {
+    return null
+  }
+}
 
 const SCREENSHOT_NAME_PATTERN = /^([\s\S]*)([  ])(AM|PM)(\.png)$/
 
@@ -846,11 +871,13 @@ function numberedWindow(file: TextFile, anchored: boolean): string {
 }
 
 function serializeTextResult(file: TextFile, data: object): string {
+  const resolvedName = resultResolvedNames.get(data)
+  const resolvedNote = resolvedName !== undefined ? `(resolved near-miss filename to ${resolvedName})\n` : ''
   if (file.content === '') {
     if (file.totalLines > 0 && file.startLine > file.totalLines) {
-      return `<system-reminder>Warning: the file exists but is shorter than the requested offset. Read was requested to start at line ${file.startLine}, but the file has only ${file.totalLines} ${file.totalLines === 1 ? 'line' : 'lines'}.</system-reminder>`
+      return `${resolvedNote}<system-reminder>Warning: the file exists but is shorter than the requested offset. Read was requested to start at line ${file.startLine}, but the file has only ${file.totalLines} ${file.totalLines === 1 ? 'line' : 'lines'}.</system-reminder>`
     }
-    return `<system-reminder>Warning: the file exists but has empty contents.</system-reminder>${file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''}`
+    return `${resolvedNote}<system-reminder>Warning: the file exists but has empty contents.</system-reminder>${file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''}`
   }
   const prefix =
     file.memoryUpdatedAt !== undefined
@@ -859,7 +886,7 @@ function serializeTextResult(file: TextFile, data: object): string {
   const capNote = file.overCap === undefined ? '' : `${overCapWords(file)}\n`
   const numbered = numberedWindow(file, resultLineAnchors.has(data))
   const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
-  return `${prefix}${capNote}${numbered}${cutMark(file)}${anchorSuffix}`
+  return `${resolvedNote}${prefix}${capNote}${numbered}${cutMark(file)}${anchorSuffix}`
 }
 
 function windowSpan(file: TextFile): string {
@@ -1120,10 +1147,10 @@ export const FileReadTool = buildTool({
     }
 
     const dispatch = async (resolvedPath: string): Promise<LaneResult> => {
-      if (ext === 'ipynb') return readNotebookLane(resolvedPath, fullFilePath, input, context, limits)
-      if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, fullFilePath, context, limits)
-      if (isPDFExtension(ext)) return readPdfLane(resolvedPath, fullFilePath, input, context)
-      return readTextLane(resolvedPath, fullFilePath, input, ext, context, limits, ownRead)
+      if (ext === 'ipynb') return readNotebookLane(resolvedPath, resolvedPath, input, context, limits)
+      if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, resolvedPath, context, limits)
+      if (isPDFExtension(ext)) return readPdfLane(resolvedPath, resolvedPath, input, context)
+      return readTextLane(resolvedPath, resolvedPath, input, ext, context, limits, ownRead)
     }
 
     let lane: LaneResult
@@ -1131,10 +1158,17 @@ export const FileReadTool = buildTool({
       lane = await dispatch(fullFilePath)
     } catch (err) {
       if (!isENOENT(err)) throw err
-      const alternate = alternateScreenshotPath(fullFilePath)
+      const alternate = resolveCanonicalNearMissPath(fullFilePath) ?? alternateScreenshotPath(fullFilePath)
       if (alternate !== null) {
         try {
           lane = await dispatch(alternate)
+          if (alternate !== fullFilePath) {
+            resultResolvedNames.set(lane.data, basename(alternate))
+            const resolvedState = context.readFileState.get(alternate)
+            if (resolvedState !== undefined) {
+              context.readFileState.set(fullFilePath, resolvedState)
+            }
+          }
           return settle(lane)
         } catch (retryErr) {
           if (!isENOENT(retryErr)) throw retryErr
