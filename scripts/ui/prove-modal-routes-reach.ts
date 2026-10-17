@@ -256,7 +256,7 @@ async function openRoute(command: (typeof routes)[number], cols: number, rows: n
   ink.render(h(App, { initialState: state, getFpsMetrics: () => undefined } as never, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
   const mark = markOf(command.name)
-  const painted = await until(() => lines().some(line => mark.test(line)) && !lines().some(line => /Loading conversations|loading…/.test(line)))
+  const painted = await until(() => lines().some(line => mark.test(line)) && !lines().some(line => /Loading conversations|loading…/.test(line)) && (!markerExpected(command.name, cols, 'open', lines()) || markerPainted(lines(), command.name)))
   check(`/${command.name} paints its own mark at ${cols}x${rows} (${mark.source})`, painted, lines().slice(0, 8).map(line => line.replace(/\s+$/, '')).join(' | ').slice(0, 300))
   await settled(lines)
   return {
@@ -297,7 +297,18 @@ function region(lines: string[]): string[] {
   }
   return lines
 }
-const markerPainted = (lines: string[]): boolean => region(lines).some(line => /(^|[│ ])[❯▸]\s+\S/.test(line) && !line.includes('Type a prompt') && !line.includes('[op]'))
+const glyphMarker = (lines: string[]): boolean => region(lines).some(line => /(^|[│ ])[❯▸]\s*\S/.test(line) && !line.includes('Type a prompt') && !line.includes('[op]'))
+const boxedMarker = (lines: string[]): boolean => {
+  const rows = region(lines)
+  return rows.some((line, index) => /^│\s*╭─+╮\s*│/.test(line) && /^│\s*│ \S/.test(rows[index + 1] ?? ''))
+}
+const MARKER_ALWAYS = new Set(['accounts', 'appearance', 'caching', 'capabilities', 'console', 'critter', 'defaultprovider', 'effort', 'export', 'feedback', 'health', 'hooks', 'keys', 'logins', 'memory', 'model', 'palette', 'samples', 'sandbox', 'sessions', 'showcase', 'submodels'])
+const MARKER_AFTER_WALK = new Set(['permissions'])
+const MARKER_WIDE_NAV = new Set(['extensions', 'router', 'workbench'])
+const diffListsFiles = (lines: string[]): boolean => region(lines).some(line => /Mercury — diff · \d+ files? /.test(line))
+const markerExpected = (name: string, cols: number, stage: 'open' | 'walked', frame: string[] = []): boolean =>
+  MARKER_ALWAYS.has(name) || (MARKER_AFTER_WALK.has(name) && stage === 'walked') || (MARKER_WIDE_NAV.has(name) && cols >= 177) || (name === 'diff' && diffListsFiles(frame))
+const markerPainted = (lines: string[], name = ''): boolean => glyphMarker(lines) || (name === 'model' && boxedMarker(lines))
 const fullFrameOpen = (lines: string[]): boolean => lines.some((line, index) => /^╭─+╮\s*$/.test(line) && /^│ .*Mercury — /.test(lines[index + 1] ?? ''))
 const fullFrameClosed = (lines: string[]): boolean => lines.some(line => /^╰─+╯\s*$/.test(line))
 const describe = (lines: string[]): string => region(lines).slice(0, 6).map(line => line.replace(/\s+$/, '')).join(' | ').slice(0, 300)
@@ -342,20 +353,19 @@ if (onlyRoute === undefined) {
 
 for (const command of routes) {
   const name = `/${command.name}`
-  const markerAt = new Map<string, boolean>()
   for (const [cols, rows] of SIZES) {
     const label = `${name} ${cols}x${rows}`
     const scene = await openRoute(command, cols, rows)
     if (scene === null) continue
     const opening = frameLaws(`${label} open`, scene, cols, rows)
     save(`${command.name}-${cols}x${rows}-open`, opening)
-    const hasMarker = markerPainted(opening)
-    markerAt.set(`${cols}x${rows}`, hasMarker)
+    check(`${label}: the selection marker on open reads as the table says (${markerExpected(command.name, cols, 'open', opening) ? 'painted' : 'none'})`, markerPainted(opening, command.name) === markerExpected(command.name, cols, 'open', opening), describe(opening))
     for (let index = 0; index < DOWNS; index++) { scene.push(DOWN); await sleep(60) }
     await settled(scene.lines)
     const moved = frameLaws(`${label} after ↓ ×${DOWNS}`, scene, cols, rows)
     save(`${command.name}-${cols}x${rows}-down`, moved)
-    if (hasMarker) check(`${label}: after ↓ ×${DOWNS} the selected row is still painted (the panel followed it)`, markerPainted(moved), describe(moved))
+    if (markerExpected(command.name, cols, 'walked', moved)) check(`${label}: after ↓ ×${DOWNS} the selected row is still painted (the panel followed it)`, markerPainted(moved, command.name), describe(moved))
+    else check(`${label}: after ↓ ×${DOWNS} no selection marker appears (the table says none)`, !markerPainted(moved, command.name), describe(moved))
     check(`${label}: no render fault`, !scene.faults().some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), scene.faults().join(' | ').slice(0, 300))
     await scene.close()
   }
@@ -366,11 +376,11 @@ for (const command of routes) {
   for (const [cols, rows] of RESIZE_STOPS) {
     await scene.resize(cols, rows)
     const frame = frameLaws(`${name} resize → ${cols}x${rows}`, scene, cols, rows)
-    const hasMarker = markerAt.get(`${cols}x${rows}`) === true
-    if (hasMarker) check(`${name} resize → ${cols}x${rows}: the selected row is still painted`, markerPainted(frame), describe(frame))
+    const hasMarker = markerExpected(command.name, cols, 'walked', frame)
+    if (hasMarker) check(`${name} resize → ${cols}x${rows}: the selected row is still painted`, markerPainted(frame, command.name), describe(frame))
     scene.push(DOWN)
     await settled(scene.lines)
-    if (hasMarker) check(`${name} resize → ${cols}x${rows}: ↓ keeps the selected row painted`, markerPainted(scene.lines()), describe(scene.lines()))
+    if (hasMarker) check(`${name} resize → ${cols}x${rows}: ↓ keeps the selected row painted`, markerPainted(scene.lines(), command.name), describe(scene.lines()))
   }
   check(`${name} resize: no render fault`, !scene.faults().some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), scene.faults().join(' | ').slice(0, 300))
   await scene.close()
@@ -411,7 +421,7 @@ if (caching !== undefined) {
     await settled(scene.lines)
     const frame = scene.lines()
     save('caching-64x20-down-4', frame)
-    check('/caching 64x20: ↓ ×4 keeps the focused family painted (the panel followed it under the fold)', markerPainted(frame), describe(frame))
+    check('/caching 64x20: ↓ ×4 keeps the focused family painted (the panel followed it under the fold)', markerPainted(frame, 'caching'), describe(frame))
     await scene.close()
   }
   const wide = await openRoute(caching, 177, 49)
