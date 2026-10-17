@@ -52,7 +52,10 @@ export function renderSync(node: ReactNode, options?: NodeJS.WriteStream | Rende
   const { engine, stdout } = mount(options, 'reuse')
   engine.render(node)
   const { render, unmount, waitUntilExit } = rootDoors(engine)
-  return { rerender: render, unmount, waitUntilExit, cleanup: () => void instances.delete(stdout), lastFrame: engine.lastFrameText.bind(engine) }
+  const forgetOwnSeat = (): void => {
+    if (instances.get(stdout) === engine) instances.delete(stdout)
+  }
+  return { rerender: render, unmount, waitUntilExit, cleanup: forgetOwnSeat, lastFrame: engine.lastFrameText.bind(engine) }
 }
 
 const sinceProcessStartMs = (): number => Math.round(process.uptime() * 1000)

@@ -388,7 +388,7 @@ section('§6 the seat: renderSync reuses the engine seated on its stdout, keeps 
   held.unmount()
 }
 
-section('§7 createRoot always seats a fresh engine; a replaced engine keeps running; an old cleanup clears the newer seat')
+section('§7 createRoot always seats a fresh engine; a replaced engine keeps running; an old cleanup leaves the newer seat (I-R1)')
 {
   const out = screen()
   const held = root.renderSync(line('held'), { stdout: out, ...quiet() })
@@ -400,7 +400,7 @@ section('§7 createRoot always seats a fresh engine; a replaced engine keeps run
   check('a fresh root has painted nothing', after?.lastFrameText() === '')
   check('the root answers exactly render, unmount and waitUntilExit, unmount being the engine\'s own', same(Object.keys(made).sort(), ['render', 'unmount', 'waitUntilExit']) && made.unmount === after?.unmount)
   held.cleanup()
-  check('as shipped (I-R1 flips this): the old instance\'s cleanup clears the seat the new root holds', engineOn(out) === undefined)
+  check('I-R1: the old instance\'s cleanup leaves the seat the new root holds; it forgets only its own engine', engineOn(out) === after)
   made.unmount()
   held.unmount()
 }
