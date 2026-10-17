@@ -46,6 +46,7 @@ Usage:
 - Every returned line carries a prefix — ${lineFormat} — with numbering starting at 1
 ${imageLine}${pdfLines}
 - Jupyter notebooks (.ipynb files) come back cell by cell with their outputs — code, text output, and visualizations together.
+- Archives (.zip, .tar, .tar.gz, .tgz; \`<archive>:<entry>\` reads one entry), SQLite databases (.sqlite, .sqlite3, .db; \`<db>:<table>\` reads one table), and documents (.docx, .xlsx, .pptx, .odt, .ods, .odp, .epub, .rtf) open as text; \`offset: -N\` reads the last N lines and \`ranges\` reads several line ranges in one call.
 ${directoryLines}${screenshotLine}
 - A file that exists but is empty produces a system-reminder note in place of content.`
 }

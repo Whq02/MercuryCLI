@@ -16,7 +16,7 @@ import { FILE_NOT_FOUND_CWD_NOTE, getDisplayPath } from '../../utils/file.js'
 import { formatFileSize } from '../../utils/format.js'
 import { isPathInside } from '../../utils/pathPrefix.js'
 import { plural } from '../../utils/stringUtils.js'
-import type { Input, Output } from './FileReadTool.js'
+import { resultResolvedNames, type Input, type Output } from './FileReadTool.js'
 import { FILE_READ_TOOL_NAME } from './prompt.js'
 
 
@@ -110,12 +110,15 @@ function ReadResultSummary({ output }: { output: Output }): React.ReactNode {
       )
     case 'file_unchanged':
       return <Text color={tokens.textMuted}>unchanged since last read</Text>
-    case 'text':
+    case 'text': {
+      const resolvedName = resultResolvedNames.get(output)
       return (
         <Text>
           Read <Text bold>{output.file.numLines}</Text> {plural(output.file.numLines, 'line')}
+          {resolvedName !== undefined ? <Text color={tokens.textMuted}> ({resolvedName})</Text> : null}
         </Text>
       )
+    }
   }
 }
 
