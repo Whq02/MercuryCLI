@@ -29,44 +29,30 @@ export type Root = {
 
 const isStream = (value: unknown): value is NodeJS.WriteStream => typeof value === 'object' && value !== null && 'write' in value
 
-const onProcessStreams = (stdout: NodeJS.WriteStream): InkOptions => ({
-  stdout,
-  stdin: process.stdin,
-  stderr: process.stderr,
-  exitOnCtrlC: true,
-  patchConsole: true,
-})
+const processKnobs = (stdout: NodeJS.WriteStream): InkOptions => ({ stdout, stdin: process.stdin, stderr: process.stderr, exitOnCtrlC: true, patchConsole: true })
 
-const givenKnobs = (options: RenderOptions): Partial<InkOptions> =>
-  Object.fromEntries(Object.entries(options).filter(([, value]) => value != null)) as Partial<InkOptions>
-
-function resolveOptions(options: NodeJS.WriteStream | RenderOptions = {}): InkOptions {
-  return isStream(options) ? onProcessStreams(options) : { ...onProcessStreams(process.stdout), ...givenKnobs(options) }
+function knobsFor(options: NodeJS.WriteStream | RenderOptions = {}): InkOptions {
+  if (isStream(options)) return processKnobs(options)
+  const given = Object.fromEntries(Object.entries(options).filter(([, value]) => value != null)) as Partial<InkOptions>
+  return { ...processKnobs(process.stdout), ...given }
 }
 
-function registered(stdout: NodeJS.WriteStream, instance: Ink): Ink {
-  instances.set(stdout, instance)
-  return instance
+type Seat = 'reuse' | 'fresh'
+
+function mount(options: NodeJS.WriteStream | RenderOptions | undefined, seat: Seat): { engine: Ink; stdout: NodeJS.WriteStream } {
+  const knobs = knobsFor(options)
+  const engine = (seat === 'reuse' ? instances.get(knobs.stdout) : undefined) ?? new Ink(knobs)
+  instances.set(knobs.stdout, engine)
+  return { engine, stdout: knobs.stdout }
 }
 
-const doorsOf = (instance: Ink): Pick<Instance, 'unmount' | 'waitUntilExit'> => ({
-  unmount: instance.unmount,
-  waitUntilExit: instance.waitUntilExit.bind(instance),
-})
+const rootDoors = (engine: Ink): Root => ({ render: engine.render.bind(engine), unmount: engine.unmount, waitUntilExit: engine.waitUntilExit.bind(engine) })
 
-export function renderSync(
-  node: ReactNode,
-  options?: NodeJS.WriteStream | RenderOptions,
-): Instance {
-  const resolved = resolveOptions(options)
-  const instance = instances.get(resolved.stdout) ?? registered(resolved.stdout, new Ink(resolved))
-  instance.render(node)
-  return {
-    rerender: instance.render.bind(instance),
-    ...doorsOf(instance),
-    cleanup: () => void instances.delete(resolved.stdout),
-    lastFrame: instance.lastFrameText.bind(instance),
-  }
+export function renderSync(node: ReactNode, options?: NodeJS.WriteStream | RenderOptions): Instance {
+  const { engine, stdout } = mount(options, 'reuse')
+  engine.render(node)
+  const { render, unmount, waitUntilExit } = rootDoors(engine)
+  return { rerender: render, unmount, waitUntilExit, cleanup: () => void instances.delete(stdout), lastFrame: engine.lastFrameText.bind(engine) }
 }
 
 const sinceProcessStartMs = (): number => Math.round(process.uptime() * 1000)
@@ -83,7 +69,5 @@ export default async function render(
 
 export async function createRoot(options?: RenderOptions): Promise<Root> {
   await Promise.resolve()
-  const resolved = resolveOptions(options)
-  const instance = registered(resolved.stdout, new Ink(resolved))
-  return { render: instance.render.bind(instance), ...doorsOf(instance) }
+  return rootDoors(mount(options, 'fresh').engine)
 }
