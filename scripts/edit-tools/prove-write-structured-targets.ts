@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, closeSync, existsSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { crc32, deflateRawSync } from 'node:zlib'
+import { crc32, deflateRawSync, inflateRawSync } from 'node:zlib'
 import { Database } from 'bun:sqlite'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'write-structured-targets-home-'))
@@ -18,20 +18,24 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.NODE_ENV
 
-const { _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getFileModificationTime } = await import('../../src/utils/file.ts')
+const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
+const { _resetSeenLinesForTesting } = await import(`${SRC}/services/changeTransaction/seenLines.ts`)
+const { FileEditTool } = await import(`${SRC}/tools/FileEditTool/FileEditTool.ts`)
+const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
+const { FileWriteTool } = await import(`${SRC}/tools/FileWriteTool/FileWriteTool.ts`)
+const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
+const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/utils/fileStateCache.ts`)
+const structured = (await import(`${SRC}/tools/FileWriteTool/structuredTargets.ts`).catch(() => null)) as null | {
+  parseStructuredWriteTarget: (raw: string) => { kind: string; hostPath: string; reason?: string } | null
+  STRUCTURED_EDIT_MODES_NOTE: string
+}
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(
-    `  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 500 ? `${detail.slice(0, 500)}…` : detail}` : ''}`,
-  )
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -39,41 +43,54 @@ function section(t: string): void {
 
 const fixtures = mkdtempSync(join(tmpdir(), 'write-structured-targets-fixtures-'))
 
-function buildTestZip(entries: Array<{ name: string; content: string }>): Buffer {
+type ZipSpec = { name: string; content: Buffer | string; stored?: boolean; extra?: Buffer; claimedSize?: number; comment?: Buffer }
+function buildZip(entries: ZipSpec[], archiveComment = Buffer.alloc(0)): Buffer {
   const localParts: Buffer[] = []
   const centralParts: Buffer[] = []
   let offset = 0
   for (const e of entries) {
     const nameBytes = Buffer.from(e.name, 'utf8')
-    const raw = Buffer.from(e.content, 'utf8')
-    const compressed = deflateRawSync(raw)
+    const raw = typeof e.content === 'string' ? Buffer.from(e.content, 'utf8') : e.content
+    const payload = e.stored ? raw : deflateRawSync(raw)
+    const method = e.stored ? 0 : 8
     const sum = crc32(raw) >>> 0
+    const extra = e.extra ?? Buffer.alloc(0)
+    const comment = e.comment ?? Buffer.alloc(0)
+    const usize = e.claimedSize ?? raw.length
 
     const loc = Buffer.alloc(30)
     loc.writeUInt32LE(0x04034b50, 0)
     loc.writeUInt16LE(20, 4)
     loc.writeUInt16LE(0x0800, 6)
-    loc.writeUInt16LE(8, 8)
+    loc.writeUInt16LE(method, 8)
+    loc.writeUInt16LE(0x6a3c, 10)
+    loc.writeUInt16LE(0x5a21, 12)
     loc.writeUInt32LE(sum, 14)
-    loc.writeUInt32LE(compressed.length, 18)
-    loc.writeUInt32LE(raw.length, 22)
+    loc.writeUInt32LE(payload.length, 18)
+    loc.writeUInt32LE(usize, 22)
     loc.writeUInt16LE(nameBytes.length, 26)
-    localParts.push(loc, nameBytes, compressed)
+    loc.writeUInt16LE(extra.length, 28)
+    localParts.push(loc, nameBytes, extra, payload)
 
     const cen = Buffer.alloc(46)
     cen.writeUInt32LE(0x02014b50, 0)
-    cen.writeUInt16LE(20, 4)
+    cen.writeUInt16LE(0x031e, 4)
     cen.writeUInt16LE(20, 6)
     cen.writeUInt16LE(0x0800, 8)
-    cen.writeUInt16LE(8, 10)
+    cen.writeUInt16LE(method, 10)
+    cen.writeUInt16LE(0x6a3c, 12)
+    cen.writeUInt16LE(0x5a21, 14)
     cen.writeUInt32LE(sum, 16)
-    cen.writeUInt32LE(compressed.length, 20)
-    cen.writeUInt32LE(raw.length, 24)
+    cen.writeUInt32LE(payload.length, 20)
+    cen.writeUInt32LE(usize, 24)
     cen.writeUInt16LE(nameBytes.length, 28)
+    cen.writeUInt16LE(extra.length, 30)
+    cen.writeUInt16LE(comment.length, 32)
+    cen.writeUInt32LE(0x81a40000, 38)
     cen.writeUInt32LE(offset, 42)
-    centralParts.push(cen, nameBytes)
+    centralParts.push(cen, nameBytes, extra, comment)
 
-    offset += loc.length + nameBytes.length + compressed.length
+    offset += loc.length + nameBytes.length + extra.length + payload.length
   }
   const cd = Buffer.concat(centralParts)
   const eocd = Buffer.alloc(22)
@@ -82,222 +99,609 @@ function buildTestZip(entries: Array<{ name: string; content: string }>): Buffer
   eocd.writeUInt16LE(entries.length, 10)
   eocd.writeUInt32LE(cd.length, 12)
   eocd.writeUInt32LE(offset, 16)
-  return Buffer.concat([...localParts, cd, eocd])
+  eocd.writeUInt16LE(archiveComment.length, 20)
+  return Buffer.concat([...localParts, cd, eocd, archiveComment])
+}
+
+type ZipRecord = { name: string; method: number; crc: number; usize: number; central: Buffer; local: Buffer; data: Buffer }
+function listZip(buf: Buffer): { records: ZipRecord[]; comment: string } {
+  let eocd = -1
+  for (let i = buf.length - 22; i >= 0; i--) {
+    if (buf.readUInt32LE(i) === 0x06054b50) {
+      eocd = i
+      break
+    }
+  }
+  if (eocd === -1) throw new Error('no EOCD')
+  const total = buf.readUInt16LE(eocd + 10)
+  const cdOffset = buf.readUInt32LE(eocd + 16)
+  const commentLen = buf.readUInt16LE(eocd + 20)
+  const comment = buf.subarray(eocd + 22, eocd + 22 + commentLen).toString('utf8')
+  const records: ZipRecord[] = []
+  let pos = cdOffset
+  for (let i = 0; i < total; i++) {
+    if (buf.readUInt32LE(pos) !== 0x02014b50) throw new Error('bad central header')
+    const method = buf.readUInt16LE(pos + 10)
+    const crc = buf.readUInt32LE(pos + 16)
+    const csize = buf.readUInt32LE(pos + 20)
+    const usize = buf.readUInt32LE(pos + 24)
+    const nameLen = buf.readUInt16LE(pos + 28)
+    const extraLen = buf.readUInt16LE(pos + 30)
+    const cmtLen = buf.readUInt16LE(pos + 32)
+    const localOffset = buf.readUInt32LE(pos + 42)
+    const name = buf.subarray(pos + 46, pos + 46 + nameLen).toString('utf8')
+    const central = Buffer.from(buf.subarray(pos, pos + 46 + nameLen + extraLen + cmtLen))
+    central.writeUInt32LE(0, 42)
+    const lNameLen = buf.readUInt16LE(localOffset + 26)
+    const lExtraLen = buf.readUInt16LE(localOffset + 28)
+    const dataStart = localOffset + 30 + lNameLen + lExtraLen
+    const local = Buffer.from(buf.subarray(localOffset, dataStart))
+    const data = Buffer.from(buf.subarray(dataStart, dataStart + csize))
+    records.push({ name, method, crc, usize, central, local, data })
+    pos += 46 + nameLen + extraLen + cmtLen
+  }
+  return { records, comment }
+}
+function zipText(buf: Buffer, name: string): string | null {
+  const rec = listZip(buf).records.find(r => r.name === name)
+  if (!rec) return null
+  const raw = rec.method === 0 ? rec.data : inflateRawSync(rec.data, { maxOutputLength: 8 * 1024 * 1024 })
+  if ((crc32(raw) >>> 0) !== rec.crc) throw new Error(`crc mismatch for ${name}`)
+  return raw.toString('utf8')
 }
 
 type Entry = { content: string; timestamp: number; offset?: number; limit?: number; isPartialView?: boolean }
 type Ctx = { readFileState: Map<string, Entry> }
-function makeContext(denyRules: string[] = []): Ctx {
+function makeContext(denyRules: string[] = [], mode: 'default' | 'implement' | 'sovereign' = 'default'): Ctx {
   const perm = getEmptyToolPermissionContext()
   perm.alwaysDenyRules.cliArg = denyRules
+  perm.mode = mode
   return {
-    readFileState: new Map<string, Entry>(),
+    readFileState: createFileStateCacheWithSizeLimit(100),
     userModified: false,
     updateFileHistoryState: () => {},
     dynamicSkillDirTriggers: new Set<string>(),
     nestedMemoryAttachmentTriggers: new Set<string>(),
     abortController: new AbortController(),
+    messages: [],
     getAppState: () => ({ toolPermissionContext: perm }),
   } as never as Ctx
 }
 
-const PARENT = { uuid: '00000000-0000-0000-0000-000000000009', message: { id: 'msg_fixture' } }
+let serial = 0
 type Verdict = { ok: true; text: string; isError: boolean; data: Record<string, unknown> } | { ok: false; message: string }
-async function run(tool: unknown, input: Record<string, unknown>, ctx: Ctx, id: string): Promise<Verdict> {
+async function run(tool: unknown, input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> {
+  serial++
   const t = tool as { validateInput?: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
-  if (t.validateInput) {
-    const verdict = await t.validateInput(input, ctx)
-    if (verdict.result === false) return { ok: false, message: String(verdict.message) }
-  }
   try {
-    const out = await t.call(input, ctx, null, PARENT)
-    const block = t.mapToolResultToToolResultBlockParam(out.data, id)
-    return { ok: true, text: typeof block.content === 'string' ? block.content : '', isError: block.is_error === true, data: out.data }
+    if (t.validateInput) {
+      const verdict = await t.validateInput(input, ctx)
+      if (verdict.result === false) return { ok: false, message: String(verdict.message) }
+    }
+    const out = await t.call(input, ctx, null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_${serial}` } })
+    const block = t.mapToolResultToToolResultBlockParam(out.data, `toolu_${serial}`)
+    return { ok: true, text: typeof block.content === 'string' ? block.content : JSON.stringify(block.content), isError: block.is_error === true, data: out.data }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
   }
 }
+const read = (input: Record<string, unknown>, ctx: Ctx) => run(FileReadTool, input, ctx)
+const write = (input: Record<string, unknown>, ctx: Ctx) => run(FileWriteTool, input, ctx)
+const edit = (input: Record<string, unknown>, ctx: Ctx) => run(FileEditTool, input, ctx)
+const words = (v: Verdict): string => (v.ok ? v.text : v.message)
+const bytesOf = (p: string): Buffer => readFileSync(p)
 
-section('S1. Zip archive entry Write and Edit: read-before-overwrite, atomic entry replacement, and permission routing')
+section('S0. The grammar is the Read side\'s; a path that merely carries !, :: or : stays a plain file (the control)')
 {
   _resetSeenLinesForTesting()
-  const zipPath = join(fixtures, 'bundle.zip')
-  writeFileSync(
-    zipPath,
-    buildTestZip([
-      { name: 'README.txt', content: 'line one\nline two\n' },
-      { name: 'config/app.json', content: '{\n  "port": 3000\n}\n' },
-    ]),
-  )
-
-  const ctx = makeContext()
-  const unreadOverwrite = await run(
-    FileWriteTool,
-    { file_path: `${zipPath}!README.txt`, content: 'replaced without reading\n' },
-    ctx,
-    'tu_zip_unread',
-  )
-  check(
-    'S1a overwriting an existing zip entry without prior Read is refused by the read-before-overwrite law, and no literal "bundle.zip!README.txt" file is created on disk',
-    !unreadOverwrite.ok &&
-      /read/i.test(unreadOverwrite.message) &&
-      !existsSync(`${zipPath}!README.txt`),
-    unreadOverwrite.ok ? unreadOverwrite.text : unreadOverwrite.message,
-  )
-
-  ctx.readFileState.set(`${zipPath}!README.txt`, {
-    content: 'line one\nline two\n',
-    timestamp: getFileModificationTime(zipPath),
-  })
-  const readOverwrite = await run(
-    FileWriteTool,
-    { file_path: `${zipPath}!README.txt`, content: 'line one\nline updated\n' },
-    ctx,
-    'tu_zip_write',
-  )
-  check(
-    'S1b after recording read state, Write replaces the zip entry inside the archive without creating a literal "!" file on disk',
-    readOverwrite.ok && !existsSync(`${zipPath}!README.txt`),
-    readOverwrite.ok ? readOverwrite.text : readOverwrite.message,
-  )
-
-  const editAfterWrite = await run(
-    FileEditTool,
-    {
-      file_path: `${zipPath}!README.txt`,
-      old_string: 'line updated',
-      new_string: 'line edited',
-    },
-    ctx,
-    'tu_zip_edit',
-  )
-  check(
-    'S1c Edit on the zip entry updates the entry in place and preserves untouched sibling entries in the archive',
-    editAfterWrite.ok && editAfterWrite.text.includes('line edited'),
-    editAfterWrite.ok ? editAfterWrite.text : editAfterWrite.message,
-  )
-
-  const createNewEntry = await run(
-    FileWriteTool,
-    { file_path: `${zipPath}!docs/NEW.txt`, content: 'brand new entry\n' },
-    ctx,
-    'tu_zip_new',
-  )
-  check(
-    'S1d Write creates a new zip entry without requiring a prior Read',
-    createNewEntry.ok && !existsSync(`${zipPath}!docs/NEW.txt`),
-    createNewEntry.ok ? createNewEntry.text : createNewEntry.message,
-  )
-
-  const structuredMod = (await import('../../src/tools/FileWriteTool/structuredTargets.ts').catch(() => null)) as null | {
-    readZipEntryText: (hostPath: string, entryName: string) => { exists: boolean; content: string }
+  const plain = ['notes!entry.txt', 'draft::entry.txt', 'todo:users', 'report.txt:3']
+  for (const [idx, suffix] of plain.entries()) {
+    const ctx = makeContext()
+    const target = join(fixtures, suffix)
+    const w = await write({ file_path: target, content: `alpha-${idx}\n` }, ctx)
+    const e = await edit({ file_path: target, old_string: `alpha-${idx}`, new_string: `beta-${idx}` }, ctx)
+    check(
+      `S0.${idx + 1} Write and Edit on "${suffix}" operate on the literal file (no container in the name)`,
+      w.ok && e.ok && existsSync(target) && readFileSync(target, 'utf8') === `beta-${idx}\n` && structured?.parseStructuredWriteTarget(target) === null,
+      !w.ok ? w.message : !e.ok ? e.message : readFileSync(target, 'utf8'),
+    )
   }
-  const readmeAfter = structuredMod?.readZipEntryText(zipPath, 'README.txt')
-  const configAfter = structuredMod?.readZipEntryText(zipPath, 'config/app.json')
-  const newAfter = structuredMod?.readZipEntryText(zipPath, 'docs/NEW.txt')
+  const spellings = ['bundle.zip:README.txt', 'bundle.zip!README.txt', 'bundle.zip::README.txt', 'bundle.zip!/README.txt']
+  const parsed = spellings.map(s => structured?.parseStructuredWriteTarget(join(fixtures, s)) ?? null)
   check(
-    'S1e reading back the archive entries confirms README.txt was updated, config/app.json was preserved byte-for-byte, and docs/NEW.txt was added',
-    readmeAfter?.exists === true &&
-      readmeAfter.content === 'line one\nline edited\n' &&
-      configAfter?.exists === true &&
-      configAfter.content === '{\n  "port": 3000\n}\n' &&
-      newAfter?.exists === true &&
-      newAfter.content === 'brand new entry\n',
-    JSON.stringify({ readmeAfter, configAfter, newAfter }),
-  )
-
-  const denyCtx = makeContext([`Edit(/${zipPath})`])
-  const deniedWrite = await run(
-    FileWriteTool,
-    { file_path: `${zipPath}!docs/DENIED.txt`, content: 'no\n' },
-    denyCtx,
-    'tu_zip_deny',
-  )
-  check(
-    'S1f an Edit deny rule on the host zip archive blocks writes to entries inside that archive',
-    !deniedWrite.ok && /deny|blocked|not allowed|rule/i.test(deniedWrite.message),
-    deniedWrite.ok ? deniedWrite.text : deniedWrite.message,
+    'S0.5 the four delimiter spellings the Read side accepts (":", "!", "::", "!/") name the same zip entry on the write side',
+    parsed.every(p => p !== null && p.kind === 'zip-entry' && p.hostPath === join(fixtures, 'bundle.zip')),
+    JSON.stringify(parsed),
   )
 }
 
-section('S2. SQLite row Write and Edit: parameterised INSERT and UPDATE with read-before-overwrite and SQL injection safety')
+section('S1. A zip entry: Read, then Write and Edit, siblings and headers byte-identical')
+const zipPath = join(fixtures, 'bundle.zip')
 {
   _resetSeenLinesForTesting()
-  const dbPath = join(fixtures, 'app.sqlite')
-  {
-    const db = new Database(dbPath)
-    db.run('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL)')
-    db.prepare('INSERT INTO users (id, name, role) VALUES (?, ?, ?)').run(1, 'Ada', 'admin')
-    db.close()
+  const extra = Buffer.from([0x55, 0x54, 0x05, 0x00, 0x03, 0x01, 0x02, 0x03, 0x04])
+  writeFileSync(
+    zipPath,
+    buildZip(
+      [
+        { name: 'README.txt', content: 'line one\nline two\nline three\n', extra, comment: Buffer.from('readme note') },
+        { name: 'config/app.json', content: '{\n  "port": 3000\n}\n', extra, comment: Buffer.from('kept') },
+        { name: 'stored.txt', content: 'stored as is\n', stored: true, extra },
+      ],
+      Buffer.from('archive comment stays'),
+    ),
+  )
+  const before = bytesOf(zipPath)
+  const ctx = makeContext()
+
+  const unread = await write({ file_path: `${zipPath}:README.txt`, content: 'replaced without reading\n' }, ctx)
+  check(
+    'S1.1 overwriting an existing entry without a Read is refused by the read-before-overwrite law; the archive and the host folder are untouched',
+    !unread.ok && /read/i.test(unread.message) && bytesOf(zipPath).equals(before) && !existsSync(`${zipPath}:README.txt`),
+    words(unread),
+  )
+
+  const readme = await read({ file_path: `${zipPath}:README.txt` }, ctx)
+  check(
+    'S1.2 Read of the entry returns its text and records the read under the entry key (host:entry), never under the host path',
+    readme.ok && readme.text.includes('line two') && ctx.readFileState.get(`${zipPath}:README.txt`)?.content === 'line one\nline two\nline three\n' && ctx.readFileState.get(zipPath) === undefined,
+    `${words(readme)} keys=${[...ctx.readFileState.keys()].join(',')}`,
+  )
+
+  const written = await write({ file_path: `${zipPath}:README.txt`, content: 'line one\nline updated\nline three\n' }, ctx)
+  const afterWrite = bytesOf(zipPath)
+  const beforeList = listZip(before)
+  const afterList = listZip(afterWrite)
+  const sibling = (name: string) => ({ b: beforeList.records.find(r => r.name === name)!, a: afterList.records.find(r => r.name === name)! })
+  const cfg = sibling('config/app.json')
+  const sto = sibling('stored.txt')
+  check(
+    'S1.3 after the Read, Write replaces the entry; config/app.json and stored.txt keep their local headers, central records, extra fields and data byte for byte; the archive comment survives',
+    written.ok &&
+      zipText(afterWrite, 'README.txt') === 'line one\nline updated\nline three\n' &&
+      cfg.a.local.equals(cfg.b.local) && cfg.a.central.equals(cfg.b.central) && cfg.a.data.equals(cfg.b.data) &&
+      sto.a.local.equals(sto.b.local) && sto.a.central.equals(sto.b.central) && sto.a.data.equals(sto.b.data) &&
+      afterList.comment === 'archive comment stays' &&
+      afterList.records.find(r => r.name === 'README.txt')!.central.subarray(46 + 10, 46 + 10 + 11).toString() === 'readme note',
+    words(written),
+  )
+
+  const edited = await edit({ file_path: `${zipPath}:README.txt`, old_string: 'line updated', new_string: 'line edited' }, ctx)
+  check(
+    'S1.4 Edit after the Write replaces the string inside the entry and the result shows the change',
+    edited.ok && edited.text.includes('line edited') && zipText(bytesOf(zipPath), 'README.txt') === 'line one\nline edited\nline three\n',
+    words(edited),
+  )
+
+  const ctx2 = makeContext()
+  const reread = await read({ file_path: `${zipPath}:README.txt` }, ctx2)
+  const editAgain = await edit({ file_path: `${zipPath}:README.txt`, old_string: 'line edited', new_string: 'line read-then-edited' }, ctx2)
+  check(
+    'S1.5 a fresh session reads the entry through Read and edits it with the bytes Read showed (one representation on both roads)',
+    reread.ok && reread.text.includes('2\tline edited') && editAgain.ok && zipText(bytesOf(zipPath), 'README.txt') === 'line one\nline read-then-edited\nline three\n',
+    `${words(reread)} / ${words(editAgain)}`,
+  )
+
+  const created = await write({ file_path: `${zipPath}:docs/NEW.txt`, content: 'brand new entry\n' }, ctx)
+  check(
+    'S1.6 Write creates a new entry without a prior Read; the three earlier entries stay',
+    created.ok && zipText(bytesOf(zipPath), 'docs/NEW.txt') === 'brand new entry\n' && listZip(bytesOf(zipPath)).records.map(r => r.name).join(',') === 'README.txt,config/app.json,stored.txt,docs/NEW.txt',
+    words(created),
+  )
+
+  const same = await write({ file_path: `${zipPath}:docs/NEW.txt`, content: 'brand new entry\n' }, ctx)
+  check('S1.7 writing the exact bytes again settles as no-change', same.ok && /No changes were made/.test(same.text), words(same))
+
+  const unzip = Bun.which('unzip')
+  if (unzip !== null) {
+    const test = Bun.spawnSync([unzip, '-tq', zipPath])
+    check('S1.8 the system unzip verifies the rewritten archive', test.exitCode === 0, `${test.stdout.toString()}${test.stderr.toString()}`)
   }
 
+  const fresh = makeContext()
+  writeFileSync(join(fixtures, 'brand.zip:x'), '')
+  const brandNew = await write({ file_path: `${join(fixtures, 'brand.zip')}:notes/first.txt`, content: 'first\n' }, fresh)
+  check(
+    'S1.9 Write to an entry of an archive that does not exist yet creates the archive with that one entry',
+    brandNew.ok && existsSync(join(fixtures, 'brand.zip')) && zipText(bytesOf(join(fixtures, 'brand.zip')), 'notes/first.txt') === 'first\n',
+    words(brandNew),
+  )
+}
+
+section('S2. A SQLite row: Read, then Write and Edit, one JSON representation on both roads')
+const dbPath = join(fixtures, 'app.sqlite')
+{
+  _resetSeenLinesForTesting()
+  const db = new Database(dbPath)
+  db.exec(`
+    CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL);
+    INSERT INTO users (id, name, role) VALUES (1, 'Ada', 'admin');
+    CREATE TABLE logs (msg TEXT, level TEXT);
+    INSERT INTO logs (msg, level) VALUES ('boot', 'info'), ('ready', 'info');
+    CREATE TABLE comp (a TEXT, b TEXT, note TEXT, PRIMARY KEY (a, b));
+    INSERT INTO comp (a, b, note) VALUES ('x', 'y', 'first');
+    CREATE TABLE items (id INTEGER PRIMARY KEY, payload BLOB, big INTEGER, note TEXT);
+    INSERT INTO items (id, payload, big, note) VALUES (1, X'010203', 9007199254740993, 'keep');
+    CREATE VIEW admins AS SELECT * FROM users WHERE role = 'admin';
+  `)
+  db.close()
+  const query = <T>(sql: string, ...params: unknown[]): T[] => {
+    const d = new Database(dbPath, { readonly: true })
+    try {
+      return d.prepare(sql).all(...(params as never[])) as T[]
+    } finally {
+      d.close()
+    }
+  }
   const ctx = makeContext()
-  const unreadRowUpdate = await run(
-    FileWriteTool,
-    {
-      file_path: `${dbPath}!users/1`,
-      content: JSON.stringify({ id: 1, name: 'Ada Lovelace', role: 'owner' }),
-    },
-    ctx,
-    'tu_sql_unread',
-  )
+
+  const unread = await write({ file_path: `${dbPath}:users/1`, content: JSON.stringify({ id: 1, name: 'Ada Lovelace', role: 'owner' }) }, ctx)
   check(
-    'S2a overwriting an existing SQLite row without prior Read is refused by the read-before-overwrite law, and no literal "app.sqlite!users/1" file is created on disk',
-    !unreadRowUpdate.ok &&
-      /read/i.test(unreadRowUpdate.message) &&
-      !existsSync(`${dbPath}!users/1`),
-    unreadRowUpdate.ok ? unreadRowUpdate.text : unreadRowUpdate.message,
+    'S2.1 overwriting an existing row without a Read is refused; the row is untouched and no host file appeared',
+    !unread.ok && /read/i.test(unread.message) && query<{ name: string }>('SELECT name FROM users WHERE id = 1')[0]?.name === 'Ada' && !existsSync(`${dbPath}:users/1`),
+    words(unread),
   )
 
-  const insertNewRow = await run(
-    FileWriteTool,
-    {
-      file_path: `${dbPath}!users/2`,
-      content: JSON.stringify({ name: "Bob'); DROP TABLE users; --", role: 'member' }),
-    },
-    ctx,
-    'tu_sql_insert',
-  )
+  const rowRead = await read({ file_path: `${dbPath}:users/1` }, ctx)
+  const expectedRow = '{\n  "id": 1,\n  "name": "Ada",\n  "role": "admin"\n}\n'
   check(
-    'S2b inserting a new SQLite row via parameterised INSERT succeeds without prior Read and safely binds SQL metacharacters as literal text',
-    insertNewRow.ok && !existsSync(`${dbPath}!users/2`),
-    insertNewRow.ok ? insertNewRow.text : insertNewRow.message,
+    'S2.2 Read of users/1 renders the row as one JSON object and records it under the row key',
+    rowRead.ok && rowRead.text.includes('"name": "Ada"') && ctx.readFileState.get(`${dbPath}:users/1`)?.content === expectedRow,
+    `${words(rowRead)} keys=${[...ctx.readFileState.keys()].join(',')}`,
   )
 
-  const editRow2 = await run(
-    FileEditTool,
-    {
-      file_path: `${dbPath}!users/2`,
-      old_string: '"role": "member"',
-      new_string: '"role": "staff"',
-    },
-    ctx,
-    'tu_sql_edit',
-  )
+  const edited = await edit({ file_path: `${dbPath}:users/1`, old_string: '"role": "admin"', new_string: '"role": "owner"' }, ctx)
   check(
-    'S2c Edit on the written SQLite row updates the column via parameterised UPDATE',
-    editRow2.ok && editRow2.text.includes('"role": "staff"'),
-    editRow2.ok ? editRow2.text : editRow2.message,
+    'S2.3 Edit on the row updates the one column through a parameterised UPDATE; the database agrees',
+    edited.ok && edited.text.includes('"role": "owner"') && query<{ role: string }>('SELECT role FROM users WHERE id = 1')[0]?.role === 'owner',
+    words(edited),
   )
 
-  const dbCheck = new Database(dbPath, { readonly: true })
-  const rows = dbCheck.query('SELECT id, name, role FROM users ORDER BY id').all() as Array<{
-    id: number
-    name: string
-    role: string
-  }>
-  dbCheck.close()
+  const ctx2 = makeContext()
+  const reread = await read({ file_path: `${dbPath}:users/1` }, ctx2)
   check(
-    'S2d querying the SQLite database directly confirms row 1 is untouched and row 2 holds the injected string literally with updated role "staff"',
-    rows.length === 2 &&
-      rows[0]?.id === 1 &&
-      rows[0]?.name === 'Ada' &&
-      rows[0]?.role === 'admin' &&
-      rows[1]?.id === 2 &&
-      rows[1]?.name === "Bob'); DROP TABLE users; --" &&
-      rows[1]?.role === 'staff',
-    JSON.stringify(rows),
+    'S2.4 Read after the Edit shows the same bytes the Edit wrote (the write road and the read road render one representation)',
+    reread.ok && ctx2.readFileState.get(`${dbPath}:users/1`)?.content === '{\n  "id": 1,\n  "name": "Ada",\n  "role": "owner"\n}\n',
+    words(reread),
   )
+
+  const inserted = await write({ file_path: `${dbPath}:users/2`, content: JSON.stringify({ name: "Bob'); DROP TABLE users; --", role: 'member' }) }, ctx)
+  const rows = query<{ id: number; name: string; role: string }>('SELECT id, name, role FROM users ORDER BY id')
+  check(
+    'S2.5 Write to a row that does not exist inserts it with the key from the selector; SQL metacharacters in values bind as text',
+    inserted.ok && rows.length === 2 && rows[1]?.id === 2 && rows[1]?.name === "Bob'); DROP TABLE users; --" && rows[1]?.role === 'member',
+    `${words(inserted)} rows=${JSON.stringify(rows)}`,
+  )
+
+  const byColumn = await write({ file_path: `${dbPath}:users/name=Zed`, content: JSON.stringify({ role: 'guest' }) }, ctx)
+  const zed = query<{ id: number; name: string; role: string }>("SELECT id, name, role FROM users WHERE name = 'Zed'")[0]
+  check(
+    'S2.5b a column=value selector that matches no row inserts one carrying that column; the key comes from the table and the result keeps the selector spelling',
+    byColumn.ok && zed !== undefined && zed.id === 3 && zed.role === 'guest' && byColumn.text.includes(`${dbPath}:users/name=Zed`),
+    `${words(byColumn)} row=${JSON.stringify(zed)}`,
+  )
+  const sameValues = await write({ file_path: `${dbPath}:users/2`, content: JSON.stringify({ id: 2, name: "Bob'); DROP TABLE users; --", role: 'member' }) }, ctx)
+  check('S2.6 writing the values the row already holds settles as no-change', sameValues.ok && /No changes were made/.test(sameValues.text), words(sameValues))
+
+  const keyOnly = await write({ file_path: `${dbPath}:users/2`, content: JSON.stringify({ id: 2 }) }, ctx)
+  check(
+    'S2.7 a write carrying only the key column is a no-op the result says so (nothing silently succeeds)',
+    keyOnly.ok && /No changes were made/.test(keyOnly.text) && keyOnly.data.type === 'no-change',
+    words(keyOnly),
+  )
+
+  const logRead = await read({ file_path: `${dbPath}:logs/2` }, ctx)
+  const logEdit = await edit({ file_path: `${dbPath}:logs/2`, old_string: '"msg": "ready"', new_string: '"msg": "ready for work"' }, ctx)
+  const logs = query<{ rowid: number; msg: string }>('SELECT rowid, msg FROM logs ORDER BY rowid')
+  check(
+    'S2.8 a table without a primary key is addressed by rowid on both roads: Read shows "rowid", Edit updates that row in place (no duplicate)',
+    logRead.ok && logRead.text.includes('"rowid": 2') && logEdit.ok && logs.length === 2 && logs[1]?.msg === 'ready for work',
+    `${words(logRead)} / ${words(logEdit)} / ${JSON.stringify(logs)}`,
+  )
+
+  const compBare = await read({ file_path: `${dbPath}:comp/x` }, ctx)
+  const compRead = await read({ file_path: `${dbPath}:comp/a=x` }, ctx)
+  const compEdit = await edit({ file_path: `${dbPath}:comp/a=x`, old_string: '"note": "first"', new_string: '"note": "second"' }, ctx)
+  check(
+    'S2.9 a composite primary key refuses the bare key form on Read with the column=value form named; column=value reads and edits the row',
+    !compBare.ok && /composite primary key/.test(compBare.message) && compRead.ok && compEdit.ok && query<{ note: string }>("SELECT note FROM comp WHERE a = 'x'")[0]?.note === 'second',
+    `${words(compBare)} / ${words(compRead)} / ${words(compEdit)}`,
+  )
+
+  const moveRead = await read({ file_path: `${dbPath}:users/2` }, ctx)
+  const moved = await edit({ file_path: `${dbPath}:users/2`, old_string: '"id": 2', new_string: '"id": 5' }, ctx)
+  const ids = query<{ id: number }>('SELECT id FROM users ORDER BY id').map(r => r.id)
+  check(
+    'S2.10 editing the key column moves the row and the result says where it now lives',
+    moveRead.ok && moved.ok && ids.join(',') === '1,3,5' && moved.text.includes(`:users/id=5`),
+    `${words(moved)} ids=${ids.join(',')}`,
+  )
+
+  const itemRead = await read({ file_path: `${dbPath}:items/1` }, ctx)
+  const itemEdit = await edit({ file_path: `${dbPath}:items/1`, old_string: '"note": "keep"', new_string: '"note": "kept"' }, ctx)
+  const item = query<{ payload: Uint8Array; big: bigint; note: string }>('SELECT payload, big, note FROM items WHERE id = 1')[0]
+  check(
+    'S2.11 a blob renders as a placeholder and a big integer as a string; editing another column leaves both bytes intact in the database',
+    itemRead.ok && itemRead.text.includes('"payload": "<BLOB 3B>"') && itemRead.text.includes('"big": "9007199254740993"') && itemEdit.ok &&
+      item !== undefined && Buffer.from(item.payload).equals(Buffer.from([1, 2, 3])) && item.note === 'kept' &&
+      query<{ big: string }>('SELECT CAST(big AS TEXT) AS big FROM items WHERE id = 1')[0]?.big === '9007199254740993',
+    `${words(itemRead)} / ${words(itemEdit)} / ${JSON.stringify(item, (_k, v) => (typeof v === 'bigint' ? String(v) : v))}`,
+  )
+}
+
+section('refusals. Every way to abuse or break the row, driven and refused')
+{
+  _resetSeenLinesForTesting()
+  const hostBytes = bytesOf(zipPath)
+  const folderBefore = readdirSync(fixtures).sort().join(',')
+  const escapes: Array<[string, RegExp]> = [
+    [`${zipPath}:../escaped.txt`, /climbs out of the archive/],
+    [`${zipPath}:/etc/passwd`, /absolute/],
+    [`${zipPath}:C:/evil.txt`, /drive letter/],
+    [`${zipPath}:dir\\evil.txt`, /backslash/],
+    [`${zipPath}:a/./b.txt`, /empty or "\." segment/],
+    [`${zipPath}:dir/`, /names a directory/],
+    [`${zipPath}:`, /no entry or row inside it/],
+    [`${zipPath}!../escaped.txt`, /climbs out of the archive/],
+    [`${zipPath}::../escaped.txt`, /climbs out of the archive/],
+  ]
+  for (const [idx, [target, reason]] of escapes.entries()) {
+    const ctx = makeContext()
+    const w = await write({ file_path: target, content: 'x\n' }, ctx)
+    const e = await edit({ file_path: target, old_string: 'a', new_string: 'b' }, ctx)
+    check(
+      `R1.${idx + 1} "${target.slice(fixtures.length + 1)}": Write and Edit refuse with the reason; nothing is written on the host`,
+      !w.ok && reason.test(w.message) && !e.ok && reason.test(e.message) && bytesOf(zipPath).equals(hostBytes) && readdirSync(fixtures).sort().join(',') === folderBefore,
+      `${words(w)} / ${words(e)}`,
+    )
+  }
+  {
+    const ctx = makeContext()
+    const nul = await write({ file_path: `${zipPath}:ok\u0000.txt`, content: 'x\n' }, ctx)
+    check('R1.10 a NUL byte in the entry name is refused as a path', !nul.ok && /NUL|null byte|not allowed/i.test(nul.message), words(nul))
+    const tar = await write({ file_path: `${join(fixtures, 'x.tar')}:a.txt`, content: 'x\n' }, ctx)
+    check('R1.11 writing inside a .tar archive is refused by name, never a plain file named "x.tar:a.txt"', !tar.ok && /\.tar archive is not supported/.test(tar.message) && !existsSync(`${join(fixtures, 'x.tar')}:a.txt`), words(tar))
+  }
+
+  for (const mode of ['default', 'implement', 'sovereign'] as const) {
+    const ctx = makeContext([], mode)
+    const w = await write({ file_path: `${zipPath}:../escaped.txt`, content: 'x\n' }, ctx)
+    check(`R2 the escaping-name refusal holds in ${mode} mode (a ward, never an ask)`, !w.ok && /climbs out of the archive/.test(w.message) && !existsSync(join(fixtures, 'escaped.txt')), words(w))
+  }
+
+  const sqlSelectors: Array<[string, RegExp]> = [
+    [`${dbPath}:users;DROP TABLE users/1`, /not a table name/],
+    [`${dbPath}:users/id=1;DROP TABLE users`, /never SQL/],
+    [`${dbPath}:users/na"me=1`, /not a column name/],
+    [`${dbPath}:users/`, /row selector after "users\/" is empty/],
+    [`${dbPath}:users`, /address one row/],
+    [`${dbPath}:`, /no entry or row inside it/],
+  ]
+  for (const [idx, [target, reason]] of sqlSelectors.entries()) {
+    const ctx = makeContext()
+    const w = await write({ file_path: target, content: '{"name": "x", "role": "y"}' }, ctx)
+    const e = await edit({ file_path: target, old_string: 'a', new_string: 'b' }, ctx)
+    check(
+      `R3.${idx + 1} selector "${target.slice(dbPath.length)}": Write and Edit refuse with the reason; the table is intact`,
+      !w.ok && reason.test(w.message) && !e.ok && reason.test(e.message) && new Database(dbPath, { readonly: true }).query('SELECT COUNT(*) AS c FROM users').get() !== null,
+      `${words(w)} / ${words(e)}`,
+    )
+  }
+  {
+    const ctx = makeContext()
+    const injected = await write({ file_path: `${dbPath}:users/1 OR 1=1`, content: '{"name": "x", "role": "y"}' }, ctx)
+    const rows = new Database(dbPath, { readonly: true }).query('SELECT id, name FROM users ORDER BY id').all() as Array<{ id: number; name: string }>
+    check(
+      'R3.7 a key value with SQL in it binds as a literal: no row matches, the insert is refused by the integer key, every row is as it was',
+      !injected.ok && rows.map(r => `${r.id}:${r.name}`).join(',') === "1:Ada,3:Zed,5:Bob'); DROP TABLE users; --",
+      `${words(injected)} rows=${JSON.stringify(rows)}`,
+    )
+    const noDb = await write({ file_path: `${join(fixtures, 'missing.sqlite')}:users/1`, content: '{"name": "x"}' }, ctx)
+    check('R3.8 a row write never creates a database', !noDb.ok && /never creates a database/.test(noDb.message) && !existsSync(join(fixtures, 'missing.sqlite')), words(noDb))
+    const view = await write({ file_path: `${dbPath}:admins/1`, content: '{"name": "x"}' }, ctx)
+    check('R3.9 a view has no writable rows', !view.ok && /view/.test(view.message), words(view))
+  }
+
+  {
+    const ctx = makeContext()
+    const huge = join(fixtures, 'huge.zip')
+    const fd = openSync(huge, 'w')
+    ftruncateSync(fd, 17 * 1024 * 1024)
+    closeSync(fd)
+    const over = await write({ file_path: `${huge}:a.txt`, content: 'x\n' }, ctx)
+    check('R4.1 an archive over the 16 MiB container ceiling is refused by stat before it is read', !over.ok && /exceeds the maximum allowed container size/.test(over.message) && statSync(huge).size === 17 * 1024 * 1024, words(over))
+
+    const bombPayload = Buffer.alloc(5 * 1024 * 1024, 0x41)
+    const claimed = join(fixtures, 'claimed-bomb.zip')
+    writeFileSync(claimed, buildZip([{ name: 'bomb.txt', content: bombPayload }]))
+    const claimedRes = await write({ file_path: `${claimed}:bomb.txt`, content: 'x\n' }, ctx)
+    check('R4.2 an entry whose header claims more than 4 MiB is refused before inflating', !claimedRes.ok && /exceeds the maximum allowed entry size/.test(claimedRes.message), words(claimedRes))
+
+    const spoofed = join(fixtures, 'spoofed-bomb.zip')
+    writeFileSync(spoofed, buildZip([{ name: 'bomb.txt', content: bombPayload, claimedSize: 128 }]))
+    const spoofedBytes = bytesOf(spoofed)
+    const spoofedRes = await write({ file_path: `${spoofed}:bomb.txt`, content: 'x\n' }, ctx)
+    check('R4.3 an entry with a spoofed small header that inflates past 4 MiB is refused by the inflation ceiling; the archive is untouched', !spoofedRes.ok && /inflated past the maximum allowed entry size/.test(spoofedRes.message) && bytesOf(spoofed).equals(spoofedBytes), words(spoofedRes))
+
+    const big = await write({ file_path: `${zipPath}:big.txt`, content: 'y'.repeat(4 * 1024 * 1024 + 1) }, ctx)
+    check('R4.4 content over the 4 MiB entry ceiling is refused', !big.ok && /exceeds the maximum allowed entry size/.test(big.message), words(big))
+
+    const corrupt = join(fixtures, 'corrupt.zip')
+    writeFileSync(corrupt, Buffer.from('this is not a zip file at all'))
+    const corruptRes = await write({ file_path: `${corrupt}:a.txt`, content: 'x\n' }, ctx)
+    check('R4.5 a malformed archive answers a reason, never a confident rewrite', !corruptRes.ok && /no zip central directory|Invalid or corrupt zip/.test(corruptRes.message) && readFileSync(corrupt, 'utf8') === 'this is not a zip file at all', words(corruptRes))
+
+    const binZip = join(fixtures, 'bin.zip')
+    writeFileSync(binZip, buildZip([{ name: 'image.png', content: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1]) }, { name: 'raw.txt', content: Buffer.from([0, 1, 2, 3]) }]))
+    const binBytes = bytesOf(binZip)
+    const png = await write({ file_path: `${binZip}:image.png`, content: 'text\n' }, ctx)
+    const raw = await write({ file_path: `${binZip}:raw.txt`, content: 'text\n' }, ctx)
+    check('R4.6 a binary entry (by extension or by its bytes) is never overwritten through the text road', !png.ok && /binary file/.test(png.message) && !raw.ok && /binary content/.test(raw.message) && bytesOf(binZip).equals(binBytes), `${words(png)} / ${words(raw)}`)
+  }
+
+  {
+    const ctx = makeContext()
+    const a = await write({ file_path: `${zipPath}:docs/another.txt`, content: 'another\n' }, ctx)
+    const sibling = await write({ file_path: `${zipPath}:config/app.json`, content: '{}\n' }, ctx)
+    const siblingEdit = await edit({ file_path: `${zipPath}:config/app.json`, old_string: '3000', new_string: '4000' }, ctx)
+    check(
+      'R5.1 writing one entry unlocks nothing else: an unread sibling entry still refuses Write and Edit',
+      a.ok && !sibling.ok && /read/i.test(sibling.message) && !siblingEdit.ok && /Read the file before editing/.test(siblingEdit.message) && zipText(bytesOf(zipPath), 'config/app.json') === '{\n  "port": 3000\n}\n',
+      `${words(sibling)} / ${words(siblingEdit)}`,
+    )
+    const insert = await write({ file_path: `${dbPath}:users/7`, content: '{"name": "Grace", "role": "member"}' }, ctx)
+    const row1 = await write({ file_path: `${dbPath}:users/1`, content: '{"name": "Nobody", "role": "none"}' }, ctx)
+    const row1Edit = await edit({ file_path: `${dbPath}:users/1`, old_string: '"role": "owner"', new_string: '"role": "none"' }, ctx)
+    const ada = new Database(dbPath, { readonly: true }).query('SELECT name, role FROM users WHERE id = 1').get() as { name: string; role: string }
+    check(
+      'R5.2 inserting one row unlocks nothing else: an unread sibling row still refuses Write and Edit',
+      insert.ok && !row1.ok && /read/i.test(row1.message) && !row1Edit.ok && /Read the file before editing/.test(row1Edit.message) && ada.name === 'Ada' && ada.role === 'owner',
+      `${words(row1)} / ${words(row1Edit)}`,
+    )
+    const hostEvidence = makeContext()
+    hostEvidence.readFileState.set(zipPath, { content: 'whatever', timestamp: Date.now() + 1000 })
+    const viaHost = await write({ file_path: `${zipPath}:config/app.json`, content: '{}\n' }, hostEvidence)
+    check('R5.3 read evidence recorded against the host archive path unlocks no entry', !viaHost.ok && /read/i.test(viaHost.message), words(viaHost))
+  }
+
+  {
+    const ctx = makeContext()
+    writeFileSync(zipPath, buildZip([{ name: 'dup.txt', content: 'same\nsame\nother\n' }, { name: 'config/app.json', content: '{\n  "port": 3000\n}\n' }]))
+    const plainPath = join(fixtures, 'dup.txt')
+    writeFileSync(plainPath, 'same\nsame\nother\n')
+    await read({ file_path: `${zipPath}:dup.txt` }, ctx)
+    await read({ file_path: plainPath }, ctx)
+    const inZip = await edit({ file_path: `${zipPath}:dup.txt`, old_string: 'same', new_string: 'different' }, ctx)
+    const inPlain = await edit({ file_path: plainPath, old_string: 'same', new_string: 'different' }, ctx)
+    const lead = (m: string) => m.split('\n')[0]!.replace(/ in [^ ]+/, ' in <path>')
+    check(
+      'R6 a non-unique old_string is refused inside the archive with the same sentence the plain road speaks; the entry is untouched',
+      !inZip.ok && !inPlain.ok && /2 (?:matches|occurrences)|matches at|not unique|more than once/i.test(inZip.message) && lead(inZip.message) === lead(inPlain.message) && zipText(bytesOf(zipPath), 'dup.txt') === 'same\nsame\nother\n',
+      `${words(inZip)}\n---\n${words(inPlain)}`,
+    )
+    const before = bytesOf(zipPath)
+    const modes: Array<[string, Record<string, unknown>]> = [
+      ['hunks', { hunks: [{ lines: '1', replace: 'gone' }], expected_anchor: 'fa:000000000000' }],
+      ['append', { append: 'more\n' }],
+      ['section', { section: '## Head', new_string: 'x' }],
+    ]
+    for (const [name, extra] of modes) {
+      const refused = await edit({ file_path: `${zipPath}:dup.txt`, ...extra }, ctx)
+      check(
+        `R7 Edit mode "${name}" is refused by name on a zip entry and the entry keeps its bytes`,
+        !refused.ok && (structured === null || refused.message === structured.STRUCTURED_EDIT_MODES_NOTE) && bytesOf(zipPath).equals(before) && zipText(bytesOf(zipPath), 'dup.txt') === 'same\nsame\nother\n',
+        words(refused),
+      )
+    }
+    const emptyOld = await edit({ file_path: `${zipPath}:dup.txt`, old_string: '', new_string: '' }, ctx)
+    check('R7.4 an empty old_string on an existing entry refuses (never wipes it)', !emptyOld.ok && /already exists/.test(emptyOld.message) && zipText(bytesOf(zipPath), 'dup.txt') === 'same\nsame\nother\n', words(emptyOld))
+  }
+
+  {
+    const walDir = join(fixtures, 'wal')
+    mkdirSync(walDir)
+    const walPath = join(walDir, 'wal.sqlite')
+    const seed = new Database(walPath)
+    seed.exec("PRAGMA journal_mode = WAL; CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT); INSERT INTO notes (id, body) VALUES (1, 'in the main file');")
+    seed.close()
+    const holder = new Database(walPath)
+    holder.exec("INSERT INTO notes (id, body) VALUES (2, 'lives in the wal')")
+    const filesBefore = readdirSync(walDir).sort().join(',')
+    const ctx = makeContext()
+    const walWrite = await write({ file_path: `${walPath}:notes/3`, content: '{"body": "written through sqlite"}' }, ctx)
+    const integrity = holder.query('PRAGMA integrity_check').get() as { integrity_check: string }
+    const bodies = (holder.query('SELECT id, body FROM notes ORDER BY id').all() as Array<{ id: number; body: string }>).map(r => `${r.id}:${r.body}`).join(',')
+    holder.close()
+    check(
+      'R8.1 a database in WAL mode with a live -wal beside it is written through SQLite\'s own API: integrity ok, the wal-resident row and the new row both stand',
+      walWrite.ok && filesBefore.includes('wal.sqlite-wal') && integrity.integrity_check === 'ok' && bodies === '1:in the main file,2:lives in the wal,3:written through sqlite',
+      `${words(walWrite)} files=${filesBefore} integrity=${integrity.integrity_check} rows=${bodies}`,
+    )
+    const locker = new Database(dbPath)
+    locker.exec('BEGIN IMMEDIATE')
+    const locked = await write({ file_path: `${dbPath}:users/8`, content: '{"name": "Late", "role": "member"}' }, ctx)
+    locker.exec('ROLLBACK')
+    const count = (locker.query('SELECT COUNT(*) AS c FROM users').get() as { c: number }).c
+    const lockedIntegrity = (locker.query('PRAGMA integrity_check').get() as { integrity_check: string }).integrity_check
+    locker.close()
+    check('R8.2 a database another connection holds locked refuses with the reason; nothing is written and the file is intact', !locked.ok && /locked/i.test(locked.message) && count === 4 && lockedIntegrity === 'ok', `${words(locked)} count=${count}`)
+  }
+
+  {
+    const sealedDir = join(fixtures, 'sealed')
+    mkdirSync(sealedDir)
+    const sealedZip = join(sealedDir, 'sealed.zip')
+    writeFileSync(sealedZip, buildZip([{ name: 'a.txt', content: 'alpha\n' }]))
+    const before = bytesOf(sealedZip)
+    const ctx = makeContext()
+    await read({ file_path: `${sealedZip}:a.txt` }, ctx)
+    chmodSync(sealedDir, 0o555)
+    let failed: Verdict
+    try {
+      failed = await write({ file_path: `${sealedZip}:a.txt`, content: 'beta\n' }, ctx)
+    } finally {
+      chmodSync(sealedDir, 0o755)
+    }
+    check(
+      'R9 a rewrite that cannot complete leaves the original archive byte-identical and no temporary file behind (the write goes to a temp file and renames)',
+      !failed.ok && bytesOf(sealedZip).equals(before) && readdirSync(sealedDir).join(',') === 'sealed.zip',
+      `${words(failed)} files=${readdirSync(sealedDir).join(',')}`,
+    )
+  }
+
+  {
+    const rules: Array<[string, string, 'zip' | 'db' | 'both']> = [
+      [`Edit(/${zipPath})`, 'the archive path', 'zip'],
+      [`Edit(/${fixtures}/**)`, 'the folder', 'both'],
+      [`Edit(/${fixtures}/*.sqlite)`, 'the extension', 'db'],
+    ]
+    const usersBefore = (new Database(dbPath, { readonly: true }).query('SELECT COUNT(*) AS c FROM users').get() as { c: number }).c
+    for (const [rule, what, covers] of rules) {
+      for (const mode of ['default', 'sovereign'] as const) {
+        const ctx = makeContext([rule], mode)
+        const denied = (v: Verdict) => !v.ok && /deny|rule/i.test(v.message)
+        const zipOk =
+          covers === 'db' ||
+          (denied(await write({ file_path: `${zipPath}:docs/denied.txt`, content: 'no\n' }, ctx)) &&
+            denied(await edit({ file_path: `${zipPath}:dup.txt`, old_string: 'other', new_string: 'changed' }, ctx)) &&
+            zipText(bytesOf(zipPath), 'docs/denied.txt') === null)
+        const dbOk =
+          covers === 'zip' ||
+          (denied(await write({ file_path: `${dbPath}:users/9`, content: '{"name": "x", "role": "y"}' }, ctx)) &&
+            denied(await edit({ file_path: `${dbPath}:users/1`, old_string: '"role": "owner"', new_string: '"role": "none"' }, ctx)) &&
+            (new Database(dbPath, { readonly: true }).query('SELECT COUNT(*) AS c FROM users').get() as { c: number }).c === usersBefore)
+        check(`R10 a deny rule on ${what} (${rule.replace(fixtures, '<fixtures>')}) refuses the inner Write and Edit in ${mode} mode`, zipOk && dbOk, `${rule} ${mode}`)
+      }
+    }
+  }
+
+  {
+    const ctx = makeContext()
+    writeFileSync(zipPath, buildZip([{ name: 'stale.txt', content: 'v1\n' }]))
+    await read({ file_path: `${zipPath}:stale.txt` }, ctx)
+    await new Promise(resolve => setTimeout(resolve, 1100))
+    writeFileSync(zipPath, buildZip([{ name: 'stale.txt', content: 'v2 from elsewhere\n' }]))
+    const stale = await write({ file_path: `${zipPath}:stale.txt`, content: 'v3\n' }, ctx)
+    check('R11 an entry changed since the Read refuses as modified-since-read', !stale.ok && /changed on disk after your last read/.test(stale.message) && zipText(bytesOf(zipPath), 'stale.txt') === 'v2 from elsewhere\n', words(stale))
+  }
+
+  {
+    const ctx = makeContext()
+    const noRow = await read({ file_path: `${dbPath}:users/404` }, ctx)
+    const noTable = await read({ file_path: `${dbPath}:ghosts/1` }, ctx)
+    const viewRow = await read({ file_path: `${dbPath}:admins/1` }, ctx)
+    const badCol = await read({ file_path: `${dbPath}:users/nope=1` }, ctx)
+    const table = await read({ file_path: `${dbPath}:users` }, ctx)
+    check(
+      'R12 the Read side refuses a missing row, a missing table, a view row and an unknown column with reasons, and the table render keeps its shape',
+      !noRow.ok && /No row of table "users" has id = 404/.test(noRow.message) &&
+        !noTable.ok && /not found/.test(noTable.message) &&
+        !viewRow.ok && /view/.test(viewRow.message) &&
+        !badCol.ok && /no column "nope"/.test(badCol.message) &&
+        table.ok && /\(database: sqlite · table: users · rows: \d+\)/.test(table.text) && table.text.includes('id\tname\trole') && ctx.readFileState.get(`${dbPath}:users`) === undefined,
+      `${words(noRow)} / ${words(noTable)} / ${words(viewRow)} / ${words(badCol)} / ${words(table)}`,
+    )
+  }
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)

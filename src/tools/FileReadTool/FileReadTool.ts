@@ -90,7 +90,9 @@ import {
   renderDocumentTarget,
   renderSqliteTarget,
   type ParsedRichTarget,
+  type RichRender,
 } from './readRichFormats.js'
+import type { FileState } from '../../utils/fileStateCache.js'
 import {
   classifyReadTarget,
   isDirectoryTarget,
@@ -1114,14 +1116,16 @@ async function readRichFormatLane(
   reserve: () => FileReadingLimits = () => declared,
 ): Promise<LaneResult> {
   const stats = await stat(resolvedContainerPath)
-  let extracted: string
+  let rendering: RichRender
   if (rich.kind === 'archive') {
-    extracted = await renderArchiveTarget(resolvedContainerPath, rich.ext, rich.subtarget)
+    rendering = await renderArchiveTarget(resolvedContainerPath, rich.ext, rich.subtarget)
   } else if (rich.kind === 'sqlite') {
-    extracted = await renderSqliteTarget(resolvedContainerPath, rich.subtarget)
+    rendering = await renderSqliteTarget(resolvedContainerPath, rich.subtarget)
   } else {
-    extracted = renderDocumentTarget(resolvedContainerPath, rich.ext)
+    rendering = { text: renderDocumentTarget(resolvedContainerPath, rich.ext), ownBytes: false }
   }
+  const extracted = rendering.text
+  const ownBytes = rendering.ownBytes
 
   const limits = reserve()
   const mtimeMs = stats.mtimeMs
@@ -1130,6 +1134,9 @@ async function readRichFormatLane(
   const totalLines = realLineTotal(wholeCounted)
   const anchored = lineAnchorsEnabled() && input.line_anchors === true
   const displayPath = rich.subtarget ? `${resolvedContainerPath}:${rich.subtarget}` : resolvedContainerPath
+  const recordRead = (state: FileState): void => {
+    if (ownBytes && rich.subtarget !== undefined) context.readFileState.set(displayPath, state)
+  }
 
   if (parsedRanges !== null && parsedRanges.length > 0) {
     const blocks: string[] = []
@@ -1232,6 +1239,13 @@ async function readRichFormatLane(
     }
     resultPreRenderedBody.set(data, combinedRendered)
     if (anchored && totalShownLines > 0) resultLineAnchors.add(data)
+    recordRead({
+      content: joinedContent,
+      timestamp: Math.floor(mtimeMs),
+      offset: firstStartLine,
+      limit: totalShownLines,
+      isPartialView: parsedRanges.length > 1,
+    })
     return { data }
   }
 
@@ -1277,6 +1291,13 @@ async function readRichFormatLane(
     },
   }
   if (anchored && range.content.length > 0) resultLineAnchors.add(data)
+  const coveredWholeTarget = lineOffset === 0 && range.lineCount === range.totalLines
+  recordRead({
+    content: range.content,
+    timestamp: Math.floor(mtimeMs),
+    offset: coveredWholeTarget ? 0 : lineOffset + 1,
+    limit: coveredWholeTarget ? undefined : range.lineCount,
+  })
   return { data }
 }
 

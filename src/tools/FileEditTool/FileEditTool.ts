@@ -826,7 +826,7 @@ export const FileEditTool = buildTool({
 
     if (windowsPathNeedsPermission(input.file_path)) return { result: true as const }
     if (structuredTarget !== null) {
-      return validateStructuredEditTarget(structuredTarget, input, context)
+      return validateStructuredEditTarget(structuredTarget, input, context, notUniqueRefusal)
     }
 
     let generationAtStat: string | null = null
@@ -1075,6 +1075,7 @@ export const FileEditTool = buildTool({
     const startedAt = Date.now()
     const structuredTarget = parseStructuredWriteTarget(input.file_path)
     if (structuredTarget !== null) {
+      if (structuredTarget.kind === 'refused') throw new Error(structuredTarget.reason)
       if (fileHistoryEnabled()) {
         await fileHistoryTrackEdit(
           context.updateFileHistoryState,

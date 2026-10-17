@@ -46,6 +46,7 @@ import {
   expandStructuredTargetPath,
   hostPathOfWriteTarget,
   parseStructuredWriteTarget,
+  structuredTargetRefusal,
 } from './structuredTargets.js'
 import { DESCRIPTION, FILE_WRITE_TOOL_NAME, getWriteToolDescription } from './prompt.js'
 import {
@@ -167,6 +168,12 @@ export const FileWriteTool = buildTool({
       return { result: false as const, message: memoryRefusal, errorCode: 3 }
     }
     if (windowsPathNeedsPermission(input.file_path)) return { result: true as const }
+    const structuredTarget = parseStructuredWriteTarget(input.file_path)
+    if (structuredTarget !== null) {
+      const refusal = structuredTargetRefusal(structuredTarget, 'write')
+      if (refusal !== null) return { result: false as const, message: refusal.message, errorCode: refusal.errorCode }
+      return { result: true as const }
+    }
     let isDirectory = false
     try {
       isDirectory = getFsImplementation().statSync(expandedPath).isDirectory()
@@ -186,6 +193,7 @@ export const FileWriteTool = buildTool({
     const startedAt = Date.now()
     const structuredTarget = parseStructuredWriteTarget(input.file_path)
     if (structuredTarget !== null) {
+      if (structuredTarget.kind === 'refused') throw new Error(structuredTarget.reason)
       const hostParentDir = structuredTarget.hostPath.split(/[\\/]/).slice(0, -1).join('/')
       if (hostParentDir) {
         await getFsImplementation().mkdir(hostParentDir)
