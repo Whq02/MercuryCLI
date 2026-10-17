@@ -1838,7 +1838,7 @@ export default class Ink {
     this.engine?.detach()
     reconciler.updateContainerSync(null, this.container, null, null)
     reconciler.flushSyncWork()
-    instances.delete(this.options.stdout)
+    if (instances.get(this.options.stdout) === this) instances.delete(this.options.stdout)
     const layout = this.rootNode.layoutNode
     if (layout) {
       layout.free()

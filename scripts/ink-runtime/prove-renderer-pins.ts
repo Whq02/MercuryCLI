@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/ink.ts src/ink/frame.ts src/ink/root.ts src/ink/instances.ts
+// gate-watch: src/ink.ts src/ink/frame.ts src/ink/root.ts src/ink/instances.ts src/ink/ink.tsx
 import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
@@ -388,7 +388,7 @@ section('§6 the seat: renderSync reuses the engine seated on its stdout, keeps 
   held.unmount()
 }
 
-section('§7 createRoot always seats a fresh engine; a replaced engine keeps running; an old cleanup leaves the newer seat (I-R1)')
+section('§7 createRoot always seats a fresh engine; a replaced engine keeps running; an old cleanup or unmount leaves the newer seat (I-R1, P-5)')
 {
   const out = screen()
   const held = root.renderSync(line('held'), { stdout: out, ...quiet() })
@@ -401,8 +401,10 @@ section('§7 createRoot always seats a fresh engine; a replaced engine keeps run
   check('the root answers exactly render, unmount and waitUntilExit, unmount being the engine\'s own', same(Object.keys(made).sort(), ['render', 'unmount', 'waitUntilExit']) && made.unmount === after?.unmount)
   held.cleanup()
   check('I-R1: the old instance\'s cleanup leaves the seat the new root holds; it forgets only its own engine', engineOn(out) === after)
-  made.unmount()
   held.unmount()
+  check('P-5: the replaced engine\'s unmount leaves the seat the new root holds; an engine forgets only its own seat', before?.isUnmounted === true && engineOn(out) === after)
+  made.unmount()
+  check('the new root\'s own unmount clears the seat it holds', after?.isUnmounted === true && engineOn(out) === undefined)
 }
 
 section('§8 the mount line: "ink render mounted <ms>ms after process start" at debug level only')
