@@ -12,5 +12,6 @@ prove-scroll-damage.ts
 prove-sessiontab-switch.ts
 prove-compact-frames.ts
 prove-compact-journey.ts
+prove-activity-screen-drive.ts
 prove-window-kept.ts
 prove-chat-compact.ts
