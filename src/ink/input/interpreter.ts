@@ -248,7 +248,7 @@ function resolveChordNameFromLayout(
 const CSI_U_RE = /^\x1b\[(\d+)(?::(\d*))?(?::(\d*))?(?::\d*)*(?:;(\d+)(?::(\d+))?)?(?:;([\d:]+))?u$/
 const EVENT_TYPED_FUNCTIONAL_RE = /^(\x1b\[[\d;]*);(\d+):(\d+)([~A-Za-z])$/
 const MODIFY_OTHER_KEYS_RE = /^\x1b\[27;(\d+);(\d+)~/
-const META_KEY_CODE_RE = /^(?:\x1b)([a-zA-Z0-9])$/
+const META_KEY_CODE_RE = /^(?:\x1b)([a-zA-Z0-9\]\\_^])$/
 const FN_KEY_RE =
   /^(?:\x1b+)(O|N|\[|\[\[)(?:(\d+)(?:;(\d+))?([~^$])|(?:1;)?(\d+)?([a-zA-Z]))/
 
