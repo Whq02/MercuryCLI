@@ -227,7 +227,7 @@ check('memory.journal says the default is off and that Mercury never pushes, syn
 check('memory.journalOnEntryPage states the honesty line', /travels to the engine's provider with the request/.test(memoryProps.journalOnEntryPage?.description ?? '') && /default off/.test(memoryProps.journalOnEntryPage?.description ?? ''), memoryProps.journalOnEntryPage?.description ?? '')
 const config = readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8')
 check('/config carries both rows', config.includes("id: 'memory.journal'") && config.includes("id: 'memory.journalOnEntryPage'"))
-check('/config states the honesty line on the entry-page row', /travels to the engine's provider with the request/.test(config))
+check('/config states the honesty line on the entry-page row', /sent to the model's provider/.test(config))
 
 section("§9 the entry page carries the journal's last entry only when memory.journalOnEntryPage is on")
 {

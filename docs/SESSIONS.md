@@ -815,8 +815,8 @@ that stopped with the line still queued restores it when resumed: the
 line is queued again from the session's record, under its own id,
 and runs as the next turn. When the runner reports that it no longer holds a
 line that is also absent from the record, the row is removed and the
-hint row shows `"the runner restarted — “…” not taken; type
-it again"`; pressing `↑` on such a row shows `"the session did not take “…” — type
+hint row shows `"the runner restarted ("…" not taken); type
+it again"`; pressing `↑` on such a row shows `"the session did not take "…"; type
 it again"` and removes it. A row for a line no runner holds is
 never left on screen.
 

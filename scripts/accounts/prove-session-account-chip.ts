@@ -149,7 +149,7 @@ section('C7 the model chip beside it: the decision\'s own row word, healed when 
     keyless,
   })
   check('a sign-in whose catalogue is composing ⇒ keyless with the "no usable row yet" row (the sign-in is not denied)', composing.source === 'keyless' && composing.provider === null && composing.row === computed.NO_USABLE_ROW && composing.considered.length === 1, JSON.stringify({ row: composing.row, why: composing.why }))
-  check('the default description explains why signed-in providers have no usable model', computed.keylessReason(composing) === composing.why && composing.why.includes('live catalogue not fetched yet') && composing.why.endsWith('/logins signs another provider in') && computed.describeComputedDefaultRow(composing) === `Default (${composing.why})`, computed.describeComputedDefaultRow(composing))
+  check('the default description explains why signed-in providers have no usable model', computed.keylessReason(composing) === composing.why && composing.why.includes('live catalogue not fetched yet') && composing.why.endsWith('name a model by id with /model, or sign in with /logins') && computed.describeComputedDefaultRow(composing) === `Default (${composing.why})`, computed.describeComputedDefaultRow(composing))
   check('…/model\'s label and the terse line lead with the row word', computed.describeComputedDefaultLabel(composing).startsWith(`${computed.NO_USABLE_ROW} (default — `) && computed.describeComputedDefault(composing) === `${computed.NO_USABLE_ROW} · ${composing.why}`, computed.describeComputedDefaultLabel(composing))
   computed.resetComputedDefaultMemo()
   const first = computed.computedDefault()
