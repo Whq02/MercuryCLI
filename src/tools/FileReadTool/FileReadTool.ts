@@ -1764,10 +1764,6 @@ export const FileReadTool = buildTool({
           lane = await dispatch(alternate)
           if (alternate !== fullFilePath) {
             resultResolvedNames.set(lane.data, basename(alternate))
-            const resolvedState = context.readFileState.get(alternate)
-            if (resolvedState !== undefined) {
-              context.readFileState.set(fullFilePath, resolvedState)
-            }
           }
           return settle(lane)
         } catch (retryErr) {
