@@ -1,5 +1,4 @@
-import type { Tool, ToolUseContext } from '../../Tool.js'
-import { findToolByName } from '../../Tool.js'
+import type { ToolUseContext } from '../../Tool.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { ToolUseBlock } from '../../types/wire.js'
@@ -8,6 +7,7 @@ import { logError } from '../../utils/log.js'
 import type { MessageUpdateLazy } from './toolExecution.js'
 import { runToolUse } from './toolExecution.js'
 import { closeRound } from './loopGuard.js'
+import { batchClaimOf, claimsCompatible, type BatchClaim } from './toolBatching.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
 import { parkBeforeTool } from '../../run-core/pauseGate.js'
 import { randomUUID } from 'node:crypto'
@@ -22,19 +22,6 @@ const DEFAULT_MAX_TOOL_USE_CONCURRENCY = 10
 
 function maxToolUseConcurrency(): number {
   return DEFAULT_MAX_TOOL_USE_CONCURRENCY
-}
-
-async function isConcurrencySafeBlock(block: ToolUseBlock, context: ToolUseContext): Promise<boolean> {
-  try {
-    const tool: Tool | undefined = findToolByName(context.options.tools, block.name)
-    if (!tool) return false
-    const parsed = tool.inputSchema.safeParse(block.input)
-    if (!parsed.success) return false
-    await tool.prepare?.(block.input as never)
-    return tool.isConcurrencySafe(parsed.data as never) === true
-  } catch {
-    return false
-  }
 }
 
 function parentMessageFor(
@@ -83,14 +70,15 @@ export async function* runTools(
   let context = toolUseContext
   const roundID = `round:${randomUUID()}`
 
-  const batches: Array<{ concurrent: boolean; blocks: ToolUseBlock[] }> = []
+  const batches: Array<{ concurrent: boolean; blocks: ToolUseBlock[]; claims: BatchClaim[] }> = []
   for (const block of toolUseBlocks) {
-    const safe = await isConcurrencySafeBlock(block, context)
+    const claim = await batchClaimOf(block, context)
     const lastBatch = batches[batches.length - 1]
-    if (safe && lastBatch?.concurrent) {
+    if (claim.kind !== 'exclusive' && lastBatch?.concurrent && lastBatch.claims.every(held => claimsCompatible(held, claim))) {
       lastBatch.blocks.push(block)
+      lastBatch.claims.push(claim)
     } else {
-      batches.push({ concurrent: safe, blocks: [block] })
+      batches.push({ concurrent: claim.kind !== 'exclusive', blocks: [block], claims: [claim] })
     }
   }
 
