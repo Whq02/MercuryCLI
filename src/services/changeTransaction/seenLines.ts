@@ -1,5 +1,6 @@
 
 import { readFileSync, statSync } from 'node:fs'
+import { ideFileGeneration } from '../acp/ideToolBridge.js'
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import type { OwnerKey } from '../run/ownerKey.js'
@@ -38,6 +39,8 @@ function contentDigestOf(bytes: Uint8Array): string {
 }
 
 export function fileGeneration(path: string): string | null {
+  const ideGen = ideFileGeneration(path)
+  if (ideGen !== null) return ideGen
   try {
     return `${generationOf(statSync(path))}:${contentDigestOf(readFileSync(path))}`
   } catch {

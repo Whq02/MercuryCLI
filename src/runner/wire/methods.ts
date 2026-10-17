@@ -9,7 +9,7 @@ export const RUNNER_PROTOCOL = 1
 export const METHOD_SCOPES = ['none', 'queue', 'session', 'mcp'] as const
 export type MethodScope = (typeof METHOD_SCOPES)[number]
 
-export const CAPABILITIES = ['holds_asks', 'elicitation', 'partial_rows'] as const
+export const CAPABILITIES = ['holds_asks', 'elicitation', 'partial_rows', 'fs_read_text_file', 'fs_write_text_file', 'terminal'] as const
 type Capability = (typeof CAPABILITIES)[number]
 
 type Sender = 'host' | 'runner' | 'both'
@@ -39,6 +39,9 @@ export const CapabilitiesSchema = lazySchema(() =>
     holds_asks: z.boolean(),
     elicitation: z.boolean(),
     partial_rows: z.boolean(),
+    fs_read_text_file: z.boolean().optional(),
+    fs_write_text_file: z.boolean().optional(),
+    terminal: z.boolean().optional(),
   }),
 )
 export type Capabilities = z.infer<ReturnType<typeof CapabilitiesSchema>>
@@ -395,6 +398,112 @@ export const METHODS = {
     scope: 'none',
     deadlineMs: null,
     capability: 'elicitation',
+  }),
+  'fs/read_text_file': method({
+    name: 'fs/read_text_file',
+    from: 'runner',
+    kind: 'request',
+    params: lazySchema(() =>
+      z.object({
+        path: z.string(),
+        line: z.number().int().positive().nullable().optional(),
+        limit: z.number().int().positive().nullable().optional(),
+      }),
+    ),
+    result: lazySchema(() => z.object({ content: z.string() })),
+    scope: 'none',
+    deadlineMs: 30_000,
+    capability: 'fs_read_text_file',
+  }),
+  'fs/write_text_file': method({
+    name: 'fs/write_text_file',
+    from: 'runner',
+    kind: 'request',
+    params: lazySchema(() =>
+      z.object({
+        path: z.string(),
+        content: z.string(),
+      }),
+    ),
+    result: empty,
+    scope: 'none',
+    deadlineMs: 30_000,
+    capability: 'fs_write_text_file',
+  }),
+  'terminal/create': method({
+    name: 'terminal/create',
+    from: 'runner',
+    kind: 'request',
+    params: lazySchema(() =>
+      z.object({
+        command: z.string(),
+        args: z.array(z.string()).optional(),
+        env: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
+        cwd: z.string().nullable().optional(),
+        outputByteLimit: z.number().int().positive().nullable().optional(),
+      }),
+    ),
+    result: lazySchema(() => z.object({ terminalId: z.string() })),
+    scope: 'none',
+    deadlineMs: 30_000,
+    capability: 'terminal',
+  }),
+  'terminal/output': method({
+    name: 'terminal/output',
+    from: 'runner',
+    kind: 'request',
+    params: lazySchema(() => z.object({ terminalId: z.string() })),
+    result: lazySchema(() =>
+      z.object({
+        output: z.string(),
+        truncated: z.boolean(),
+        exitStatus: z
+          .object({
+            exitCode: z.number().int().nullable().optional(),
+            signal: z.string().nullable().optional(),
+          })
+          .nullable()
+          .optional(),
+      }),
+    ),
+    scope: 'none',
+    deadlineMs: 30_000,
+    capability: 'terminal',
+  }),
+  'terminal/wait_for_exit': method({
+    name: 'terminal/wait_for_exit',
+    from: 'runner',
+    kind: 'request',
+    params: lazySchema(() => z.object({ terminalId: z.string() })),
+    result: lazySchema(() =>
+      z.object({
+        exitCode: z.number().int().nullable().optional(),
+        signal: z.string().nullable().optional(),
+      }),
+    ),
+    scope: 'none',
+    deadlineMs: null,
+    capability: 'terminal',
+  }),
+  'terminal/kill': method({
+    name: 'terminal/kill',
+    from: 'runner',
+    kind: 'request',
+    params: lazySchema(() => z.object({ terminalId: z.string() })),
+    result: empty,
+    scope: 'none',
+    deadlineMs: 15_000,
+    capability: 'terminal',
+  }),
+  'terminal/release': method({
+    name: 'terminal/release',
+    from: 'runner',
+    kind: 'request',
+    params: lazySchema(() => z.object({ terminalId: z.string() })),
+    result: empty,
+    scope: 'none',
+    deadlineMs: 15_000,
+    capability: 'terminal',
   }),
   row: method({
     name: 'row',

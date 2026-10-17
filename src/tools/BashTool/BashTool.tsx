@@ -9,6 +9,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { getOriginalCwd, isRunInputClosed } from '../../bootstrap/state.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { exec, getShellCwd } from '../../utils/Shell.js'
+import { execViaIdeTerminal, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
 import { HARD_CAP_MULTIPLIER } from '../../utils/ShellCommand.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
@@ -379,19 +380,32 @@ async function* runBash(
     bytes: 0,
     incomplete: false,
   }
-  const shellCommand = await exec(input.command, abortController.signal, 'bash', {
-    timeout: effectiveTimeout,
-    preventCwdChanges: !isMainThread,
-    shouldUseSandbox: useSandbox,
-    shouldAutoBackground,
-    backgroundIntent: input.run_in_background === true && !BACKGROUND_TASKS_DISABLED,
-    inheritSessionEnv: input.inherit_session_env === true,
-    owner: agentId,
-    onProgress: (recent, all, lines, bytes, incomplete) => {
-      latest = { recent, all, lines, bytes: incomplete ? bytes : 0, incomplete }
-      progressResolve?.()
-    },
-  })
+  const onProgress = (recent: string, all: string, lines: number, bytes: number, incomplete: boolean): void => {
+    latest = { recent, all, lines, bytes: incomplete ? bytes : 0, incomplete }
+    progressResolve?.()
+  }
+  const ideShellCommand =
+    isMainThread && !input.run_in_background && ideTerminalAvailable()
+      ? await execViaIdeTerminal(input.command, abortController.signal, {
+          cwd: getShellCwd(),
+          timeout: effectiveTimeout,
+          shouldAutoBackground,
+          inheritSessionEnv: input.inherit_session_env === true,
+          onProgress,
+        })
+      : null
+  const shellCommand =
+    ideShellCommand ??
+    (await exec(input.command, abortController.signal, 'bash', {
+      timeout: effectiveTimeout,
+      preventCwdChanges: !isMainThread,
+      shouldUseSandbox: useSandbox,
+      shouldAutoBackground,
+      backgroundIntent: input.run_in_background === true && !BACKGROUND_TASKS_DISABLED,
+      inheritSessionEnv: input.inherit_session_env === true,
+      owner: agentId,
+      onProgress,
+    }))
 
   let timeoutAutoBackgroundedAfterMs: number | undefined
   let foregroundTaskId: string | null = null

@@ -35,6 +35,7 @@ import { getLspServerManager } from '../../services/lsp/manager.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ideReadTextAvailable, ideWriteTextAvailable, readRangeViaIde, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../services/acp/ideToolBridge.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -816,32 +817,50 @@ export const FileEditTool = buildTool({
     if (windowsPathNeedsPermission(input.file_path)) return { result: true as const }
 
     let generationAtStat: string | null = null
-    try {
-      const stats = await stat(expandedPath)
-      if (stats.size > ONE_GIB) {
-        return {
-          result: false as const,
-          behavior: 'ask' as const,
-          message: `File is too large to edit (${formatFileSize(stats.size)}; the maximum is ${formatFileSize(ONE_GIB)}).`,
-          errorCode: 10,
+    if (!ideReadTextAvailable()) {
+      try {
+        const stats = await stat(expandedPath)
+        if (stats.size > ONE_GIB) {
+          return {
+            result: false as const,
+            behavior: 'ask' as const,
+            message: `File is too large to edit (${formatFileSize(stats.size)}; the maximum is ${formatFileSize(ONE_GIB)}).`,
+            errorCode: 10,
+          }
         }
+        generationAtStat = fileGeneration(expandedPath)
+      } catch (err) {
+        if (!isENOENT(err)) throw err
       }
-      generationAtStat = fileGeneration(expandedPath)
-    } catch (err) {
-      if (!isENOENT(err)) throw err
     }
 
     let fileExists = true
     let currentContent = ''
     let decodeLossless = true
-    try {
-      const buffer = await readFile(expandedPath)
-      const decoded = decodeFileBuffer(buffer)
-      currentContent = decoded.content
-      decodeLossless = decoded.lossless
-    } catch (err) {
-      if (!isENOENT(err)) throw err
-      fileExists = false
+    if (ideReadTextAvailable()) {
+      try {
+        const ideMeta = await readWholeTextViaIde(expandedPath, context.abortController.signal)
+        if (ideMeta !== null) {
+          currentContent = ideMeta.content
+          decodeLossless = ideMeta.losslessDecode
+          generationAtStat = fileGeneration(expandedPath)
+        }
+      } catch (err) {
+        if (!isENOENT(err) && !/no such file|not found|ENOENT/i.test(err instanceof Error ? err.message : String(err))) {
+          throw err
+        }
+        fileExists = false
+      }
+    } else {
+      try {
+        const buffer = await readFile(expandedPath)
+        const decoded = decodeFileBuffer(buffer)
+        currentContent = decoded.content
+        decodeLossless = decoded.lossless
+      } catch (err) {
+        if (!isENOENT(err)) throw err
+        fileExists = false
+      }
     }
     if (fileExists && !decodeLossless) {
       return {
@@ -1084,18 +1103,37 @@ export const FileEditTool = buildTool({
     let fileExists = true
     let encoding: BufferEncoding = 'utf8'
     let lineEndings: LineEndingType = 'LF'
-    try {
-      const metadata = readFileSyncWithMetadata(expandedPath)
-      if (!metadata.losslessDecode) {
-        throw new Error(`${LOSSY_DECODE_MESSAGE} Nothing was written.`)
+    let currentMtimeMs: number | undefined
+    if (ideReadTextAvailable()) {
+      try {
+        const ideMeta = await readWholeTextViaIde(expandedPath, context.abortController.signal)
+        if (ideMeta !== null) {
+          freshContent = ideMeta.content
+          rawBefore = ideMeta.rawContent
+          encoding = ideMeta.encoding
+          lineEndings = ideMeta.lineEndings
+          currentMtimeMs = ideMeta.mtimeMs
+        }
+      } catch (err) {
+        if (!isENOENT(err) && !/no such file|not found|ENOENT/i.test(err instanceof Error ? err.message : String(err))) {
+          throw err
+        }
+        fileExists = false
       }
-      freshContent = metadata.content
-      rawBefore = metadata.rawContent
-      encoding = metadata.encoding
-      lineEndings = metadata.lineEndings
-    } catch (err) {
-      if (!isENOENT(err)) throw err
-      fileExists = false
+    } else {
+      try {
+        const metadata = readFileSyncWithMetadata(expandedPath)
+        if (!metadata.losslessDecode) {
+          throw new Error(`${LOSSY_DECODE_MESSAGE} Nothing was written.`)
+        }
+        freshContent = metadata.content
+        rawBefore = metadata.rawContent
+        encoding = metadata.encoding
+        lineEndings = metadata.lineEndings
+      } catch (err) {
+        if (!isENOENT(err)) throw err
+        fileExists = false
+      }
     }
 
     let sameCall: Extract<ReadKnowledge, { verdict: 'carry' }> | null = null
@@ -1112,7 +1150,7 @@ export const FileEditTool = buildTool({
             : null
       const entry = context.readFileState.get(expandedPath)
       const intact = entry !== undefined && readCoversRanges(entry, touched) && (
-        getFileModificationTime(expandedPath) <= entry.timestamp ||
+        (currentMtimeMs ?? getFileModificationTime(expandedPath)) <= entry.timestamp ||
         (isFullReadEntry(entry) && entry.content === freshContent)
       )
       if (!intact) {
@@ -1306,9 +1344,21 @@ export const FileEditTool = buildTool({
     const knownBeforeWrite = fileExists
       ? knowledgeBeforeWrite(context, expandedPath, input.file_path, freshContent, input.expected_anchor, fileGeneration(expandedPath), seenLinesOf(owner, expandedPath))
       : []
-    writeTextContent(expandedPath, reconciled, encoding, fileExists ? 'LF' : lineEndings)
-    const writtenAt = getFileModificationTime(expandedPath)
-    const writtenGeneration = generationOfWrittenBytes(expandedPath, writtenBytesOf(expandedPath, reconciled, encoding))
+    let writtenAt: number
+    let writtenGeneration: string | null
+    let finalStateContent = updatedFile
+    const ideWritten = ideWriteTextAvailable()
+      ? await writeTextViaIdeWithReadBack(expandedPath, reconciled, encoding, rawBefore.charCodeAt(0) === 0xfeff, context.abortController.signal)
+      : null
+    if (ideWritten !== null) {
+      writtenAt = ideWritten.mtimeMs
+      writtenGeneration = ideWritten.generation
+      finalStateContent = ideWritten.finalContent
+    } else {
+      writeTextContent(expandedPath, reconciled, encoding, fileExists ? 'LF' : lineEndings)
+      writtenAt = getFileModificationTime(expandedPath)
+      writtenGeneration = generationOfWrittenBytes(expandedPath, writtenBytesOf(expandedPath, reconciled, encoding))
+    }
     stampOwnEditAsSeen(owner, expandedPath, writtenGeneration, knownBeforeWrite, patch, updatedFile)
     const built = await buildEditedLines({
       written: updatedFile,
@@ -1317,6 +1367,14 @@ export const FileEditTool = buildTool({
       ...(occurrences !== undefined ? { occurrences } : {}),
       path: expandedPath,
       readWindow: async (start, count) => {
+        if (ideWritten !== null) {
+          const allLines = finalStateContent === '' ? [] : finalStateContent.split('\n')
+          return allLines.slice(start - 1, start - 1 + count)
+        }
+        const ideSlice = await readRangeViaIde(expandedPath, start - 1, count, undefined, context.abortController.signal)
+        if (ideSlice !== null) {
+          return ideSlice.lineCount === 0 ? [] : ideSlice.content.split('\n')
+        }
         const range = await readFileInRange(expandedPath, start - 1, count, undefined, context.abortController.signal)
         return range.lineCount === 0 ? [] : range.content.split('\n')
       },
@@ -1331,14 +1389,14 @@ export const FileEditTool = buildTool({
     if (lspManager) {
       try {
         clearDeliveredDiagnosticsForFile(`file://${expandedPath}`)
-        await lspManager.changeAndSaveFile(expandedPath, updatedFile)
+        await lspManager.changeAndSaveFile(expandedPath, finalStateContent)
       } catch (err) {
         logError(err)
       }
     }
 
     context.readFileState.set(expandedPath, {
-      content: updatedFile,
+      content: finalStateContent,
       timestamp: writtenAt,
       offset: undefined,
       limit: undefined,

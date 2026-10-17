@@ -720,6 +720,9 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
   let clientElicitation = false
   let clientFormElicitation = false
   let clientUrlElicitation = false
+  let clientFsReadTextFile = false
+  let clientFsWriteTextFile = false
+  let clientTerminal = false
   const entry = opts.entry ?? { node: process.execPath, script: selfScriptPath() }
 
   const attachSession = (
@@ -777,6 +780,9 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         permissionMode: args.modeId ?? 'default',
         allowSovereign: !isSovereignDisabled(),
         elicitation: clientElicitation,
+        fsReadTextFile: clientFsReadTextFile,
+        fsWriteTextFile: clientFsWriteTextFile,
+        terminal: clientTerminal,
         entry,
         ...(mcp !== null && { mcpConfig: mcp.json }),
       },
@@ -917,6 +923,92 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         onElicitationComplete: (_server, elicitationId) => {
           void ctx.notify(methods.client.elicitation.complete, { sessionId: acpSessionId, elicitationId })
         },
+        onReadTextFile: async (params, withdrawn) => {
+          if (!clientFsReadTextFile) throw new Error('fs/read_text_file was not advertised by this ACP client')
+          const result = await ctx.request(
+            methods.client.fs.readTextFile,
+            {
+              sessionId: acpSessionId,
+              path: params.path,
+              ...(params.line !== undefined ? { line: params.line } : {}),
+              ...(params.limit !== undefined ? { limit: params.limit } : {}),
+            },
+            { cancellationSignal: withdrawn },
+          )
+          return { content: result.content }
+        },
+        onWriteTextFile: async (params, withdrawn) => {
+          if (!clientFsWriteTextFile) throw new Error('fs/write_text_file was not advertised by this ACP client')
+          await ctx.request(
+            methods.client.fs.writeTextFile,
+            {
+              sessionId: acpSessionId,
+              path: params.path,
+              content: params.content,
+            },
+            { cancellationSignal: withdrawn },
+          )
+          return {}
+        },
+        onTerminalCreate: async (params, withdrawn) => {
+          if (!clientTerminal) throw new Error('terminal was not advertised by this ACP client')
+          const result = await ctx.request(
+            methods.client.terminal.create,
+            {
+              sessionId: acpSessionId,
+              command: params.command,
+              ...(params.args !== undefined ? { args: params.args } : {}),
+              ...(params.env !== undefined ? { env: params.env } : {}),
+              ...(params.cwd !== undefined ? { cwd: params.cwd } : {}),
+              ...(params.outputByteLimit !== undefined ? { outputByteLimit: params.outputByteLimit } : {}),
+            },
+            { cancellationSignal: withdrawn },
+          )
+          return { terminalId: result.terminalId }
+        },
+        onTerminalOutput: async (params, withdrawn) => {
+          if (!clientTerminal) throw new Error('terminal was not advertised by this ACP client')
+          const result = await ctx.request(
+            methods.client.terminal.output,
+            { sessionId: acpSessionId, terminalId: params.terminalId },
+            { cancellationSignal: withdrawn },
+          )
+          return {
+            output: result.output,
+            truncated: result.truncated,
+            ...(result.exitStatus !== undefined ? { exitStatus: result.exitStatus } : {}),
+          }
+        },
+        onTerminalWaitForExit: async (params, withdrawn) => {
+          if (!clientTerminal) throw new Error('terminal was not advertised by this ACP client')
+          const result = await ctx.request(
+            methods.client.terminal.waitForExit,
+            { sessionId: acpSessionId, terminalId: params.terminalId },
+            { cancellationSignal: withdrawn },
+          )
+          return {
+            ...(result.exitCode !== undefined ? { exitCode: result.exitCode } : {}),
+            ...(result.signal !== undefined ? { signal: result.signal } : {}),
+          }
+        },
+        onTerminalKill: async (params, withdrawn) => {
+          if (!clientTerminal) throw new Error('terminal was not advertised by this ACP client')
+          await ctx.request(
+            methods.client.terminal.kill,
+            { sessionId: acpSessionId, terminalId: params.terminalId },
+            { cancellationSignal: withdrawn },
+          )
+          return {}
+        },
+        onTerminalRelease: async (params, withdrawn) => {
+          if (!clientTerminal) throw new Error('terminal was not advertised by this ACP client')
+          await ctx.request(
+            methods.client.terminal.release,
+            { sessionId: acpSessionId, terminalId: params.terminalId },
+            { cancellationSignal: withdrawn },
+          )
+          return {}
+        },
         onExit: code => {
           if (state.turnResolve) {
             const resolveTurn = state.turnResolve
@@ -1002,6 +1094,9 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       clientFormElicitation = caps?.form !== undefined && caps.form !== null
       clientUrlElicitation = caps?.url !== undefined && caps.url !== null
       clientElicitation = clientFormElicitation || clientUrlElicitation
+      clientFsReadTextFile = ctx.params.clientCapabilities?.fs?.readTextFile === true
+      clientFsWriteTextFile = ctx.params.clientCapabilities?.fs?.writeTextFile === true
+      clientTerminal = ctx.params.clientCapabilities?.terminal === true
       return {
         protocolVersion: PROTOCOL_VERSION,
         agentCapabilities: {

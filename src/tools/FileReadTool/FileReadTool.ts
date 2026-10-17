@@ -19,6 +19,7 @@ import {
   mintRangeAnchor,
 } from '../../services/changeTransaction/snapshotAnchor.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ideReadTextAvailable, readRangeViaIde } from '../../services/acp/ideToolBridge.js'
 import {
   countTokensWithAPI,
   roughTokenCountEstimationForFileType,
@@ -937,11 +938,12 @@ async function readMultiRangeTextLane(
       )
     }
   }
-  const st = await stat(resolvedPath)
-  const useFastReverse = st.size > 2 * 1024 * 1024 && parsedRanges.every(r => r.kind === 'tail')
+  const st = ideReadTextAvailable() ? { size: 0, mtimeMs: Date.now() } : await stat(resolvedPath)
+  const useFastReverse = !ideReadTextAvailable() && st.size > 2 * 1024 * 1024 && parsedRanges.every(r => r.kind === 'tail')
   const counted = useFastReverse
     ? null
-    : await readFileInRange(resolvedPath, 0, 0, undefined, context.abortController.signal)
+    : (await readRangeViaIde(resolvedPath, 0, 0, undefined, context.abortController.signal)) ??
+      (await readFileInRange(resolvedPath, 0, 0, undefined, context.abortController.signal))
   let totalLines = counted !== null ? realLineTotal(counted) : 0
   const anchored = lineAnchorsEnabled() && input.line_anchors === true
   const blocks: string[] = []
@@ -968,7 +970,9 @@ async function readMultiRangeTextLane(
         sel.kind === 'tail'
           ? sel.count
           : (sel.limit ?? MAX_LINES_TO_READ)
-      slice = await readFileInRange(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal)
+      slice =
+        (await readRangeViaIde(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal)) ??
+        (await readFileInRange(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal))
     }
     const shown = shownWindow(slice, lineOffset)
     const startLine = lineOffset + 1
@@ -1311,7 +1315,24 @@ async function readTextLane(
     }
   }
   let range: ReadFileRangeResult
-  if (rawOffset !== undefined && rawOffset < 0) {
+  const ideRange = ideReadTextAvailable()
+    ? await (async () => {
+        if (rawOffset !== undefined && rawOffset < 0) {
+          const tailCount = Math.abs(rawOffset)
+          const counted = await readRangeViaIde(resolvedPath, 0, 0, undefined, context.abortController.signal)
+          if (counted === null) return null
+          const total = realLineTotal(counted)
+          lineOffset = Math.max(0, total - tailCount)
+          maxLines = input.limit !== undefined ? Math.min(input.limit, tailCount) : tailCount
+          return readRangeViaIde(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal)
+        }
+        const maxBytes = input.limit === undefined ? declared.maxSizeBytes : undefined
+        return readRangeViaIde(resolvedPath, lineOffset, maxLines, maxBytes, context.abortController.signal)
+      })()
+    : null
+  if (ideRange !== null) {
+    range = ideRange
+  } else if (rawOffset !== undefined && rawOffset < 0) {
     const tailCount = Math.abs(rawOffset)
     const st = await stat(resolvedPath)
     if (st.size > 2 * 1024 * 1024) {
@@ -1734,6 +1755,7 @@ export const FileReadTool = buildTool({
 
     const entry = context.readFileState.get(fullFilePath)
     if (
+      !ideReadTextAvailable() &&
       entry &&
       entry.offset !== undefined &&
       !entry.isPartialView &&

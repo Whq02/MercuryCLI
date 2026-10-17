@@ -96,7 +96,7 @@ function decodeSafePath(pathname: string): string | null {
   }
 }
 
-export function classifyStructuredFetchUrl(rawUrl: string): StructuredTarget | null {
+function classifyStructuredFetchUrl(rawUrl: string): StructuredTarget | null {
   let parsed: URL
   try {
     parsed = new URL(rawUrl)
