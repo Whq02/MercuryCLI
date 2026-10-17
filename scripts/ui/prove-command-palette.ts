@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { fuzzySearch } from '../../src/utils/fuzzyMatch.ts'
+import { DEFAULT_BINDINGS } from '../../src/keybindings/defaultBindings.ts'
+import { formsMissing, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -34,9 +36,9 @@ check('a no-match query returns empty (honest, no false hits)', empty.length ===
 section('2. keybinding: action + FLAG-GATED ctrl+x p binding')
 const graph = read('src', 'keybindings', 'actionGraph.ts')
 check("KEYBINDING_ACTIONS includes 'app:commandPalette'", /'app:commandPalette'/.test(graph))
-const binds = read('src', 'keybindings', 'defaultBindings.ts')
-check("ctrl+x p binds app:commandPalette", /'ctrl\+x p':\s*'app:commandPalette'/.test(binds))
-check('the ctrl+x p binding is present unconditionally (a plain entry, no gated spread)', /^\s+'ctrl\+x p': 'app:commandPalette',$/m.test(binds))
+check("ctrl+x p binds app:commandPalette", DEFAULT_BINDINGS.find(block => block.context === 'Global')?.bindings['ctrl+x p'] === 'app:commandPalette')
+const unbound = formsMissing(shippedKeyForms(), 'Global', 'ctrl+x p', 'app:commandPalette')
+check('the ctrl+x p binding is present unconditionally (Global binds it on every shipped form: four platforms, five switch settings)', unbound.length === 0, unbound.join(' · '))
 
 section('3. PromptInput wiring (import · state · keybinding · render), stamp-gated')
 const pi = read('src', 'components', 'PromptInput', 'PromptInput.tsx') + read('src', 'components', 'PromptInput', 'useComposerKeybindings.ts')

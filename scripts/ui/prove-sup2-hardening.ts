@@ -2,6 +2,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { formsMissing, rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 const SUP2_SCRATCH_HOME = mkdtempSync(join(tmpdir(), 'sup2-home-'))
 process.env.MERCURY_CONFIG_DIR = SUP2_SCRATCH_HOME
@@ -449,11 +450,11 @@ console.log('§27 sync-output — the hatch gates emission, never the host verdi
 
 console.log('§28 /keys atlas — no bound row without a handler')
 {
-  const bindings = read('src/keybindings/defaultBindings.ts')
+  const shipped = shippedKeyForms()
   const graph = read('src/keybindings/actionGraph.ts')
-  check('the workbench chord rides the real command dispatch', bindings.includes("'ctrl+x k': 'command:workbench'"))
+  check('the workbench chord rides the real command dispatch', formsMissing(shipped, 'Global', 'ctrl+x k', 'command:workbench').length === 0)
   for (const dead of ["'crew:open-board'", "'settings:search'", "'confirm:toggle'", "'confirm:nextField'", "'chat:submit'", "'history:previous'", "'history:next'"]) {
-    check(`poison gone: ${dead} bound nowhere and out of the graph`, !bindings.includes(`: ${dead}`) && !graph.includes(`  ${dead}: {`))
+    check(`poison gone: ${dead} bound nowhere and out of the graph`, rowsBinding(shipped, action => `'${action}'` === dead).length === 0 && !graph.includes(`  ${dead}: {`))
   }
   const composer = read('src/hooks/useTextInput.ts')
   check('the composer keys keep working through their own path (returnKey/history handling present)', /return|history/i.test(composer))

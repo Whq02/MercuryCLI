@@ -6,7 +6,7 @@
 # gate-watch: src/services/branches/** src/services/run/contextSelection.ts
 # gate-watch: .github/workflows/windows-ui.yml scripts/consistency-census/gen-lockup-census.ts
 # gate-watch: scripts/consistency-census/prove-lockup-census.ts scripts/crew/run-all.sh
-# gate-watch: scripts/helm-console/run-all.sh scripts/lib/codeText.ts scripts/release/launcherTemplates.mjs
+# gate-watch: scripts/helm-console/run-all.sh scripts/lib/codeText.ts scripts/lib/shippedKeyForms.ts scripts/release/launcherTemplates.mjs
 # gate-watch: scripts/session-graph/prove-resize-continuity.ts scripts/ui/* src/bootstrap/state.ts
 # gate-watch: src/commands/crew/index.ts src/commands/login/login.tsx
 # gate-watch: src/services/mockRateLimits.ts src/commands/model/mercuryModel.tsx

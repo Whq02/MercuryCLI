@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CONFIG_HOME, cleanupScenario, scenario } from '../ui/renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { formsMissing, rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -58,10 +59,10 @@ console.log('\n── §2 contracts pinned in source ─────────
   check('esc clears the selection, never the draft', uti.includes('if (key.escape) {\n            onSelectionConsumed?.()\n            return\n          }'))
   const graph = read('src/keybindings/actionGraph.ts')
   const schema = read('src/keybindings/schema.ts')
-  const defaults = read('src/keybindings/defaultBindings.ts')
+  const shipped = shippedKeyForms()
   const help = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
-  check('chat:redo registered in schema + defaults + help', graph.includes("'chat:redo'") && schema.includes("export { KEYBINDING_ACTIONS } from './actionGraph.js'") && defaults.includes("'ctrl+x ctrl+r': 'chat:redo'") && help.includes('to redo'))
-  check('ctrl+z is never advertised for redo', !defaults.includes("ctrl+z': 'chat:redo") && !help.includes('ctrl + z to redo'))
+  check('chat:redo registered in schema + defaults + help', graph.includes("'chat:redo'") && schema.includes("export { KEYBINDING_ACTIONS } from './actionGraph.js'") && formsMissing(shipped, 'Chat', 'ctrl+x ctrl+r', 'chat:redo').length === 0 && help.includes('to redo'))
+  check('ctrl+z is never advertised for redo', rowsBinding(shipped, (action, chord) => action === 'chat:redo' && chord.endsWith('ctrl+z')).length === 0 && !help.includes('ctrl + z to redo'))
   const shutdown = read('src/utils/gracefulShutdown.ts')
   const installerStart = shutdown.indexOf('export const setupGracefulShutdown')
   const crashHandlerAt = shutdown.indexOf("process.on('uncaughtException'")

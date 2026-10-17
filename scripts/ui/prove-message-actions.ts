@@ -3,6 +3,7 @@ import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { formsMissing, rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -20,14 +21,17 @@ console.log(' MESSAGE_ACTIONS — fork-enabled (shift+up message cursor)')
 console.log('============================================================')
 
 section('1. keybindings: BOTH gates carry the stamp arms')
-const binds = read('src', 'keybindings', 'defaultBindings.ts')
 const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
-const gateShiftUp = /'shift\+up': 'chat:messageActions',/.test(binds)
-const gateContext = DEFAULT_BINDINGS.some(block => block.context === 'MessageActions' && Object.keys(block.bindings).length > 0)
+const shipped = shippedKeyForms()
+const gateShiftUp = formsMissing(shipped, 'Chat', 'shift+up', 'chat:messageActions').length === 0
+const gateContext = shipped.every(form => rowsBinding([form], (_action, _chord, context) => context === 'MessageActions').length > 0)
 const forkArmedGates = [gateShiftUp, gateContext].filter(Boolean)
 check('both message-actions keybinding groups are present unconditionally ', forkArmedGates.length === 2, `${forkArmedGates.length}/2`)
-check('shift+up still maps to chat:messageActions', /'shift\+up': 'chat:messageActions'/.test(binds))
-check('the MessageActions nav context survives (prev/next/escape)', /'messageActions:prev'/.test(binds) && /'messageActions:escape'/.test(binds))
+check('shift+up still maps to chat:messageActions', DEFAULT_BINDINGS.find(block => block.context === 'Chat')?.bindings['shift+up'] === 'chat:messageActions')
+const navMissing = ['messageActions:prev', 'messageActions:next', 'messageActions:escape'].flatMap(nav =>
+  shipped.filter(form => rowsBinding([form], (action, _chord, context) => context === 'MessageActions' && action === nav).length === 0).map(form => `${form.form} lacks ${nav}`),
+)
+check('the MessageActions nav context survives (prev/next/escape)', navMissing.length === 0, navMissing.join(' · '))
 
 section('2. Chat: a single messageActionsDisabled gate, used at every render site')
 const repl = read('src', 'screens', 'Chat.tsx')

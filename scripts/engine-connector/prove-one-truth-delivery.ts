@@ -5,6 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'one-truth-home-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'one-truth-daemon-'))
@@ -80,8 +81,8 @@ section('T1 — the pen is gone (class members, files, vocabulary)')
   check('placeholder carries no steer/queue sentence', !placeholder.includes('steers this turn') && !placeholder.includes('queued messages back'))
   const tagBar = readFileSync(join(REPO, 'src/components/SwitchboardTagBar.tsx'), 'utf8')
   check('tag bar carries no waiting-words copy', !tagBar.includes('waiting for') && !tagBar.includes('land after this reply'))
-  const bindings = readFileSync(join(REPO, 'src/keybindings/defaultBindings.ts'), 'utf8')
-  check('no queue keybindings', !bindings.includes('queueForNextTurn') && !bindings.includes('steerNow') && !bindings.includes('holdForNext'))
+  const queueRows = rowsBinding(shippedKeyForms(), (action, chord) => /queueForNextTurn|steerNow|holdForNext/.test(`${chord} ${action}`))
+  check('no queue keybindings', queueRows.length === 0, queueRows.slice(0, 3).join(' · '))
   const connectorSrc = readFileSync(join(REPO, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
   check(
     'connector source: no steered/queued send state, no optimisticQueue (call-shaped)',

@@ -2,6 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { formsMissing, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 process.env.NODE_ENV = 'test'
 
@@ -47,11 +48,10 @@ section('§A the retry wall: structured detail, no silent sleep, every retry vis
 
 section('§B the externalEditor kill chain: unbound bell, guarded draft, async handoff, sealed OSC')
 {
-  const bindings = readFileSync(join(ROOT, 'src/keybindings/defaultBindings.ts'), 'utf8')
   const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
   const ctrlG = DEFAULT_BINDINGS.filter(block => 'ctrl+g' in block.bindings).map(block => `${block.context}:${block.bindings['ctrl+g']}`)
   check('ctrl+g binds ONLY in the Confirmation context (the cards)', ctrlG.join(',') === 'Confirmation:chat:externalEditor')
-  check('the deliberate chord stays', bindings.includes("'ctrl+x ctrl+e': 'chat:externalEditor'"))
+  check('the deliberate chord stays', formsMissing(shippedKeyForms(), 'Chat', 'ctrl+x ctrl+e', 'chat:externalEditor').length === 0)
 
   const prompt = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerKeybindings.ts'), 'utf8')
   check('an empty draft never opens the editor (guard + notice)', prompt.includes('external-editor-empty') && prompt.includes('type a draft first'))
