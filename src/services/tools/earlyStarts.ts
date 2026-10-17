@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { ToolUseContext } from '../../Tool.js'
+import { findToolByName } from '../../Tool.js'
+import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { ToolUseBlock } from '../../types/wire.js'
@@ -41,7 +43,8 @@ export class EarlyStarts {
       try {
         const claim = await batchClaimOf(block, this.context)
         if (generation !== this.generation) return
-        const admitted = (claim.kind === 'free' || claim.kind === 'reads') && this.claims.every(held => claimsCompatible(held, claim))
+        const launchesCrewmate = findToolByName(this.context.options.tools, block.name)?.name === AGENT_TOOL_NAME
+        const admitted = !launchesCrewmate && (claim.kind === 'free' || claim.kind === 'reads') && this.claims.every(held => claimsCompatible(held, claim))
         this.claims.push(claim)
         if (admitted) this.start(block, parent, ordinal)
       } catch (error) {

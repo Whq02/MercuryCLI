@@ -102,6 +102,7 @@ const TOOLS = [
   makeTool({ name: 'Read', readOnly: true, safeWhenOn: true, pathOf: filePathOf }),
   makeTool({ name: 'Edit', readOnly: false, safeWhenOn: false, pathOf: filePathOf }),
   makeTool({ name: 'Bash', readOnly: false, safeWhenOn: false, pathOf: () => undefined }),
+  makeTool({ name: 'Crewmate', readOnly: true, safeWhenOn: true, pathOf: () => undefined }),
 ]
 
 function makeCtx(): { ctx: Record<string, unknown>; abortController: AbortController } {
@@ -264,6 +265,7 @@ const READ_A: Step = { name: 'Read', input: { file_path: '/tmp/early-start-tree/
 const READ_B: Step = { name: 'Read', input: { file_path: '/tmp/early-start-tree/b.ts' } }
 const EDIT_A: Step = { name: 'Edit', input: { file_path: '/tmp/early-start-tree/a.ts', old_string: 'x', new_string: 'y' } }
 const BASH: Step = { name: 'Bash', input: { command: 'bun test' } }
+const CREWMATE: Step = { name: 'Crewmate', input: { prompt: 'look around', description: 'scout' } }
 
 section('A — a safe call starts the moment its block settles, while the reply is still streaming; the settled road (the same call through an unsafe twin) is the control: same events, same bytes')
 let early: Run
@@ -293,6 +295,15 @@ section('B — nothing unsafe starts early: [Read a, Bash, Grep] — the Read st
   check('the Bash started after the stream ended', startOf(run, 'Bash', bash!) > end, run.marks.join(' '))
   check('the Grep behind the Bash started after the stream ended, and after the Bash ended', startOf(run, 'Grep', grep!) > end && startOf(run, 'Grep', grep!) > at(run, `tool:end:Bash:${bash}`), run.marks.join(' '))
   check('three settlements, one per call', resultsOf(run).size === 3 && run.ids.every(id => resultsOf(run).has(id)))
+}
+
+section('B2 — a crewmate launch is declared safe and read-only, and still waits for the settled reply: nothing a stream interrupt would have to tear down is started early')
+{
+  const run = await runScript([{ calls: [CREWMATE, GREP], waitFor: 1 }], 'b2')
+  const [crew, grep] = run.ids
+  check('the Grep beside it started during the stream', startOf(run, 'Grep', grep!) < at(run, 'stream:end') && startOf(run, 'Grep', grep!) > 0, run.marks.join(' '))
+  check('the crewmate launch started only after the stream ended', startOf(run, 'Crewmate', crew!) > at(run, 'stream:end'), run.marks.join(' '))
+  check('both settled once', resultsOf(run).size === 2)
 }
 
 section('C — a reader beside a writer: a Read of another file starts early though the Edit before it waits; a Read of the edited file waits with it')
