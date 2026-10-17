@@ -1444,7 +1444,7 @@ export async function compactConversation(
     let messagesToKeep: Message[] | undefined
     let tailPrecedingUuid: UUID | undefined
     let recentRounds: CompactMetadata['recentRounds']
-    let tailNeedsFolding = false
+    let foldTarget: number | undefined
     const selectTail = (opts: Parameters<typeof computeVerbatimRecentTail>[1]): ReturnType<typeof computeVerbatimRecentTail> => {
       try {
         return computeVerbatimRecentTail(messages, opts)
@@ -1471,8 +1471,13 @@ export async function compactConversation(
         try {
           tail = selectTail({ fits: fitsUnder(ceiling) })
         } catch {
-          tail = selectTail({ fits: fitsUnder(landing, true) })
-          tailNeedsFolding = true
+          try {
+            tail = selectTail({ fits: fitsUnder(landing, true) })
+            foldTarget = landing
+          } catch {
+            tail = selectTail({ fits: fitsUnder(ceiling, true) })
+            foldTarget = ceiling
+          }
         }
       }
       if (tail !== null && tail.keep.length > 0) {
@@ -1581,7 +1586,7 @@ export async function compactConversation(
       truePostCompactTokenCount = fitted.estimate
     }
     const widest = { partial, messagesToKeep, recentRounds, logicalParentUuid: boundary.logicalParentUuid, estimate: truePostCompactTokenCount }
-    while (room !== undefined && !tailNeedsFolding && truePostCompactTokenCount >= room && recentRounds !== undefined && recentRounds.kept > 1) {
+    while (room !== undefined && foldTarget === undefined && truePostCompactTokenCount >= room && recentRounds !== undefined && recentRounds.kept > 1) {
       const narrower = selectTail({ keepRounds: recentRounds.kept - 1 })
       if (narrower === null) break
       boundary.logicalParentUuid = narrower.precedingUuid
@@ -1589,23 +1594,27 @@ export async function compactConversation(
     }
     if (room !== undefined && messagesToKeep !== undefined && recentRounds !== undefined) {
       const whole = messagesToKeep
+      const target = foldTarget ?? room
       for (const result of foldableResults(whole)) {
-        if (truePostCompactTokenCount < room) break
+        if (truePostCompactTokenCount < target) break
         folded.set(result.toolUseId, foldedResultPlaceholder(result))
         const keep = withFoldedResults(whole, folded)
         rekeep(keep, { ...recentRounds, tokens: roughTokenCountEstimationForMessages(keep), folded: folded.size })
       }
     }
-    if (landing !== undefined && truePostCompactTokenCount >= landing && widest.recentRounds !== undefined && widest.estimate < (ceiling ?? Infinity)) {
-      folded.clear()
-      partial = widest.partial
-      messagesToKeep = widest.messagesToKeep
-      truePostCompactTokenCount = widest.estimate
-      boundary.logicalParentUuid = widest.logicalParentUuid
-      recentRounds = { ...widest.recentRounds, reason: 'no-room' }
+    if (landing !== undefined && truePostCompactTokenCount >= landing && recentRounds !== undefined) {
+      if (widest.recentRounds !== undefined && widest.estimate < (ceiling ?? Infinity)) {
+        folded.clear()
+        partial = widest.partial
+        messagesToKeep = widest.messagesToKeep
+        truePostCompactTokenCount = widest.estimate
+        boundary.logicalParentUuid = widest.logicalParentUuid
+        recentRounds = widest.recentRounds
+        annotateBoundaryWithPreservedSegment(boundary, partial.summaryMessages.at(-1)!.uuid, messagesToKeep ?? [])
+        annotateBoundaryWithWork(boundary, messages, messagesToKeep ?? [], partial.summaryMessages.at(-1)!.uuid)
+      }
+      recentRounds = { ...recentRounds, reason: 'no-room' }
       boundary.compactMetadata.recentRounds = recentRounds
-      annotateBoundaryWithPreservedSegment(boundary, partial.summaryMessages.at(-1)!.uuid, messagesToKeep ?? [])
-      annotateBoundaryWithWork(boundary, messages, messagesToKeep ?? [], partial.summaryMessages.at(-1)!.uuid)
     }
     if (ceiling !== undefined && truePostCompactTokenCount >= ceiling) throw new Error(postCompactOverThresholdMessage(truePostCompactTokenCount, ceiling))
     const visibleReads = collectPreservedReadPaths(messagesToKeep ?? [])
