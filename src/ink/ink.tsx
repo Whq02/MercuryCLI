@@ -277,6 +277,7 @@ export default class Ink {
   private searchPositions: SearchPositions | null = null
   private readonly hoveredNodes = new Set<DOMElement>()
   private cursorDeclaration: CursorDeclaration | null = null
+  private readonly frameListeners = new Set<() => void>()
   onHyperlinkClick: ((url: string) => void) | undefined
 
   private storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
@@ -906,6 +907,20 @@ export default class Ink {
     })
     noteFrameWire(readFrameWire())
     noteFrameCost(durationMs)
+    for (const listener of this.frameListeners) {
+      try {
+        listener()
+      } catch (error) {
+        logForDebugging(`frame listener threw (ignored): ${error}`, { level: 'warn' })
+      }
+    }
+  }
+
+  subscribeFrame(listener: () => void): () => void {
+    this.frameListeners.add(listener)
+    return () => {
+      this.frameListeners.delete(listener)
+    }
   }
 
   private resolveCursorTarget(): CursorPoint | null {

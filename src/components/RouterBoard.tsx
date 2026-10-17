@@ -202,16 +202,25 @@ export function RouterBoard({ onClose }: { onClose: () => void }): React.ReactNo
     return <KeyValueGrid rows={rows} keyWidth={10} />
   }
 
-  const providers = snapshot.providers
+  const providers = [...snapshot.providers]
+    .sort((a, b) => Number(b.available) - Number(a.available))
     .map(p => (p.available ? `${p.id} LIVE` : `${p.id} ${p.reason ?? 'unavailable'}`))
     .join(' · ')
 
   const headerLine = (
-    <Box>
-      <Text color={tokens.textSecondary}>posture {posture}</Text>
-      {pin !== 'auto' ? <Text color={tokens.warning}> · pin {pin}</Text> : null}
-      <Text color={tokens.textMuted}> · {providers} · </Text>
-      <FreshnessLine at={state?.updatedAt ?? 0} now={now} source="route store" />
+    <Box height={1} overflow="hidden">
+      <Box flexShrink={0}>
+        <Text>
+          <Text color={tokens.textSecondary}>posture {posture}</Text>
+          {pin !== 'auto' ? <Text color={tokens.warning}> · pin {pin}</Text> : null}
+          <Text color={tokens.textMuted}> · </Text>
+          <FreshnessLine at={state?.updatedAt ?? 0} now={now} source="route store" />
+          <Text color={tokens.textMuted}> · </Text>
+        </Text>
+      </Box>
+      <Box flexShrink={1} minWidth={0}>
+        <Text color={tokens.textMuted} wrap="truncate-end">{providers}</Text>
+      </Box>
     </Box>
   )
 

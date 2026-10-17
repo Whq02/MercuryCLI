@@ -10,6 +10,8 @@ import { useAppState, useSetAppState, type AppState } from '../../state/AppState
 import { enterCrewmateView } from '../../state/crewmateViewHelpers.js'
 import { useVitals } from '../../state/vitalsBus.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
+import { useModalScrollRef } from '../../context/modalContext.js'
+import { CursorRow } from '../mercury-ui/CursorRow.js'
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
 import type { CompactWorkControls } from './CompactWorkSummary.js'
 import { useCompactWorkCounts, compactWorkSummaryText } from './useFocusedWork.js'
@@ -373,9 +375,13 @@ export function BackgroundTasksDialog({
   selectedIdRef.current = flat[selectedIndex]?.id ?? null
   const selected: BoardItem | undefined = flat[selectedIndex]
 
+  const modalScrollRef = useModalScrollRef()
   const moveSelection = (delta: number): void => {
-    if (flat.length === 0) return
     const next = Math.max(0, Math.min(flat.length - 1, selectedIndex + delta))
+    if (flat.length === 0 || next === selectedIndex) {
+      modalScrollRef?.current?.scrollBy(delta)
+      return
+    }
     selectedIdRef.current = flat[next]?.id ?? null
     setCursor(next)
   }
@@ -620,7 +626,7 @@ export function BackgroundTasksDialog({
     const isSelected = item.id === selectedIdRef.current
     if (item.sample !== undefined) {
       return (
-        <Box key={item.id} flexDirection="row">
+        <CursorRow key={item.id} selected={isSelected}>
           <Text bold={isSelected} color={isSelected ? tokens.textPrimary : undefined}>
             {isSelected ? `${figures.pointer} ` : '  '}
           </Text>
@@ -630,11 +636,11 @@ export function BackgroundTasksDialog({
           <Box flexShrink={0} marginLeft={1}>
             <Text color={tokens.textMuted}>↵ opens in your browser</Text>
           </Box>
-        </Box>
+        </CursorRow>
       )
     }
     return (
-      <Box key={item.id} flexDirection="row">
+      <CursorRow key={item.id} selected={isSelected}>
         <Text bold={isSelected} color={isSelected ? tokens.textPrimary : undefined}>
           {isSelected ? `${figures.pointer} ` : '  '}
         </Text>
@@ -649,7 +655,7 @@ export function BackgroundTasksDialog({
           ) : null}
         </Box>
         <AgeCell item={item} now={now} />
-      </Box>
+      </CursorRow>
     )
   }
 

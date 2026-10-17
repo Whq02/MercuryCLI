@@ -20,6 +20,8 @@ import { useLayoutChrome } from '../../context/layoutChromeContext.js'
 import { useIsInsideModal, useModalOrTerminalSize, useModalScrollRef } from '../../context/modalContext.js'
 import { PopupFrameContext } from '../PopupGutter.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
+import CursorDeclarationContext from '../../ink/components/CursorDeclarationContext.js'
+import { useCursorFollow } from './useCursorFollow.js'
 import { composeFooterHint, packFooter, type FooterCloseKeys } from './footerHint.js'
 import { gaugeColorOf, stateStyleOf, type SnapshotState } from './theme.js'
 
@@ -133,6 +135,7 @@ export function CommandCenter({
   const bodyCap = isCompact ? Math.max(0, slotRows - compactHeaderRows - compactFooterRows) : Math.max(1, slotRows - (5 + (specimen ? 1 : 0)))
   const bodyRef = React.useRef<ScrollBoxHandle | null>(null)
   const modalScrollRef = useModalScrollRef()
+  const followCursor = useCursorFollow(bodyRef, { rows: bodyCap, width: cols })
   React.useLayoutEffect(() => {
     if (!insideModal || embedded || !modalScrollRef) return
     modalScrollRef.current = bodyRef.current
@@ -168,7 +171,9 @@ export function CommandCenter({
   if (isCompact) return (
     <Box ref={elevated ? elevatedRef : undefined} flexDirection="column" maxHeight={slotRows} overflow="hidden">
       {compactHeaderRows > 0 ? <ProductLockup view={view} subtitle={subtitle} /> : null}
-      <ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap} minHeight={0}>{children}</ScrollBox>
+      <CursorDeclarationContext.Provider value={followCursor}>
+        <ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap} minHeight={0}>{children}</ScrollBox>
+      </CursorDeclarationContext.Provider>
       {compactFooterRows > 0 ? <Box height={1} flexShrink={0} onClick={closable ? onClose : undefined}><Text dimColor wrap="truncate-end">{footerText}</Text></Box> : null}
     </Box>
   )
@@ -184,9 +189,11 @@ export function CommandCenter({
         </Box>
       ) : null}
       {insideModal ? (
-        <ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap}>
-          {children}
-        </ScrollBox>
+        <CursorDeclarationContext.Provider value={followCursor}>
+          <ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap}>
+            {children}
+          </ScrollBox>
+        </CursorDeclarationContext.Provider>
       ) : (
         children
       )}
