@@ -19,6 +19,7 @@ run_proof "$here/prove-gate-runner.sh" bash "$here/prove-gate-runner.sh" || fail
 run_proof "$here/prove-proof-scratch.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-scratch.ts" || fail=1
 run_proof "$here/prove-suite-env-guard.sh" bash "$here/prove-suite-env-guard.sh" || fail=1
 run_proof "$here/prove-suite-home-guard.sh" bash "$here/prove-suite-home-guard.sh" || fail=1
+run_proof "$here/prove-screen-slot-claims.sh" bash "$here/prove-screen-slot-claims.sh" || fail=1
 run_proof "$here/prove-run-root-socket-bound.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-run-root-socket-bound.ts" || fail=1
 run_proof "$here/prove-process-ledger-reader.sh" bash "$here/prove-process-ledger-reader.sh" || fail=1
 run_proof "$here/prove-proof-machine-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-machine-census.ts" || fail=1
