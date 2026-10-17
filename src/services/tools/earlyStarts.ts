@@ -9,7 +9,7 @@ import { Stream } from '../../utils/stream.js'
 import { batchClaimOf, claimsCompatible, type BatchClaim } from './toolBatching.js'
 import { runToolUse, type MessageUpdateLazy } from './toolExecution.js'
 
-export type EarlyCall = {
+type EarlyCall = {
   updates: Stream<MessageUpdateLazy>
   settled: Promise<void>
 }

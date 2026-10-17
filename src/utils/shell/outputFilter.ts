@@ -4,9 +4,9 @@ import { plural } from '../stringUtils.js'
 export const SHELL_OUTPUT_FILTER_SETTING = 'shell.filterOutput'
 const REPEAT_RUN_FLOOR = 3
 
-export type OutputFilterLeftOut = { progress: number; noise: number; repeats: number }
+type OutputFilterLeftOut = { progress: number; noise: number; repeats: number }
 
-export type FilteredShellOutput = { text: string; leftOut: OutputFilterLeftOut; changed: boolean }
+type FilteredShellOutput = { text: string; leftOut: OutputFilterLeftOut; changed: boolean }
 
 export function isShellOutputFilterOn(): boolean {
   try {
