@@ -124,13 +124,14 @@ try {
       console.log(`  [SKIP — LOUD] ${SYS_PY} carries debugpy (${JSON.stringify(adapter.provenance)}) — this leg needs an interpreter without it`)
     } else {
       const { TestTool } = await import('../../src/tools/TestTool/TestTool.js')
-      const out = (await TestTool.call({ op: 'debug', node: 'tests.test_sum.TestSum.test_add_three_plus_four', framework: 'unittest' } as never, ctx)) as { data: { result: string; outcome: string } }
+      const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+      const out = (await runWithCwdOverride(pyProj, () => TestTool.call({ op: 'debug', node: 'tests.test_sum.TestSum.test_add_three_plus_four', framework: 'unittest' } as never, ctx))) as { data: { result: string; outcome: string } }
       const first = out.data.result.split('\n')[0] ?? ''
       console.log(`  debug → ${first}`)
       check('the first line says no Python debugger is on this machine', first.startsWith('no Python debugger (debugpy) on this machine — '), first)
       check('…with the install words', /pip install debugpy/.test(first) && /py -m pip install debugpy/.test(first), first)
       check('…and that the test ran without a stop', first.endsWith('; the test ran without a stop'), first)
-      check('the run’s own verdict follows: the failing test is named with its counts', /test_add_three_plus_four/.test(out.data.result) && /1 failed|failed/.test(out.data.result) && out.data.outcome === 'failed', out.data.result.slice(0, 400))
+      check('the run’s own verdict follows: the failing test is named with its counts', /unittest nodes:tests\.test_sum\.TestSum\.test_add_three_plus_four — 0 passed · 1 failed/.test(out.data.result) && /AssertionError: 7 != 8/.test(out.data.result) && out.data.outcome === 'failed', out.data.result.slice(0, 400))
       check('the result is a typed answer, never a thrown tool error', !/^Error|adapter 'python' is unavailable:/.test(first), first)
     }
   }
