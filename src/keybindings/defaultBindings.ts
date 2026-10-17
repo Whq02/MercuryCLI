@@ -1,18 +1,21 @@
 import { satisfies } from 'semver'
 import type { KeybindingBlock, KeybindingContextName } from './types.js'
 
-const onWindows = process.platform === 'win32'
-
 const VT_MODE_FLOORS = { bun: '>=1.2.23', node: '>=22.17.0 <23.0.0 || >=24.2.0' } as const
 
-const windowsTerminalHasVtMode = (): boolean => {
-  const { bun, node } = process.versions
-  return bun ? satisfies(bun, VT_MODE_FLOORS.bun) : satisfies(node, VT_MODE_FLOORS.node)
+type HostChords = { modeCycle: string; imagePaste: string; copyRows: Record<string, string> }
+
+function hostChords(platform: NodeJS.Platform, versions: NodeJS.ProcessVersions): HostChords {
+  const windows = platform === 'win32'
+  const consoleHasVtMode = (): boolean => (versions.bun ? satisfies(versions.bun, VT_MODE_FLOORS.bun) : satisfies(versions.node, VT_MODE_FLOORS.node))
+  return {
+    modeCycle: !windows || consoleHasVtMode() ? 'shift+tab' : 'meta+m',
+    imagePaste: windows ? 'alt+v' : 'ctrl+v',
+    copyRows: platform === 'darwin' ? { 'cmd+c': 'selection:copy' } : {},
+  }
 }
 
-const modifierOnlyChordsDeliver = !onWindows || windowsTerminalHasVtMode()
-const modeCycleKey = modifierOnlyChordsDeliver ? 'shift+tab' : 'meta+m'
-const imagePasteKey = onWindows ? 'alt+v' : 'ctrl+v'
+const HOST = hostChords(process.platform, process.versions)
 
 const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
   Global: {
@@ -38,7 +41,7 @@ const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
     escape: 'chat:cancel',
     'ctrl+x ctrl+k': 'chat:killAgents',
     'shift+b': 'chat:backgroundShell',
-    [modeCycleKey]: 'chat:cycleMode',
+    [HOST.modeCycle]: 'chat:cycleMode',
     'meta+p': 'chat:modelPicker',
     'meta+t': 'chat:thinkingToggle',
     'ctrl+_': 'chat:undo',
@@ -46,7 +49,7 @@ const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
     'ctrl+x ctrl+r': 'chat:redo',
     'ctrl+x ctrl+e': 'chat:externalEditor',
     'ctrl+s': 'chat:stash',
-    [imagePasteKey]: 'chat:imagePaste',
+    [HOST.imagePaste]: 'chat:imagePaste',
     'shift+up': 'chat:messageActions',
   },
   Autocomplete: {
@@ -114,7 +117,7 @@ const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
     'ctrl+end': 'scroll:bottom',
     'alt+down': 'scroll:bottom',
     'ctrl+shift+c': 'selection:copy',
-    ...(process.platform === 'darwin' ? { 'cmd+c': 'selection:copy' } : {}),
+    ...HOST.copyRows,
   },
   Help: { escape: 'help:dismiss' },
   Attachments: {
