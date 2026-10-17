@@ -43,6 +43,7 @@ import { pendingToolRosterRestore } from '../../services/providers/toolEconomy.j
 import { getSchemaBoundStructuredOutputTool, STRUCTURED_OUTPUT_TOOL_NAME } from '../WorkflowTool/structuredOutputTool.js'
 import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
 import { cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
+import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import { MERCURY_CREW_AGENT_TYPE } from './constants.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
@@ -232,7 +233,10 @@ export async function resumeAgentBackground(args: {
   })
   const owner = liveAgentOwner(agentId, tasksNow)
   if (owner !== null) throw new Error(owner.words)
-  if (args.automatic !== true) cancelAutomaticResume(agentId)
+  if (args.automatic !== true) {
+    cancelAutomaticResume(agentId)
+    operatorPauseGate.lift(agentId)
+  }
   const previousTask = tasksNow?.[agentId]
   const replyTarget = args.replyTarget ?? (args.automatic === true && isLocalAgentTask(previousTask) ? previousTask.replyTarget : undefined) ?? 'parent'
   const task = registerAsyncAgent({

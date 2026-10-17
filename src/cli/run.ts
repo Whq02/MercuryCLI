@@ -1656,6 +1656,7 @@ export async function runHeadless(
       receivedUuids.add(uuid)
     }
     if (input.kind === 'note') {
+      operatorPauseGate.lift(input.to)
       enqueue({
         value: input.content,
         mode: 'task-notification',
@@ -1666,6 +1667,7 @@ export async function runHeadless(
       return { accepted: true }
     }
     const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()
+    if (input.kind === 'prompt' && !('origin' in saturnQueueStamp(input.origin))) operatorPauseGate.resume()
     enqueue({
       value: input.kind === 'shell' ? input.command : input.content,
       mode: input.kind === 'shell' ? 'bash' : 'prompt',
