@@ -298,6 +298,35 @@ const userRows = (msgs: unknown[]): unknown[] => (msgs as AnyMsg[]).filter(m => 
   check('the Responses road takes no cap: no re-ask, the correction road', r.calls.length === 3 && r.calls[1]?.cap === undefined && !notices(r.yields).some(l => l.includes('re-asking with room')), `${r.calls.length} calls · cap ${r.calls[1]?.cap}`)
 }
 
+section('refusals — bad numbers, a nameless cut, huge bytes, the model-facing words, the control')
+{
+  const decide = (turnMachine as { decideCutToolCallRecovery?: (input: Record<string, unknown>) => { kind: string } }).decideCutToolCallRecovery
+  if (decide) {
+    for (const bad of [
+      { sentCap: Number.NaN, cutAt: 4_096, upperLimit: 64_000, room: 500_000 },
+      { sentCap: undefined, cutAt: Number.NaN, upperLimit: 64_000, room: 500_000 },
+      { sentCap: undefined, cutAt: 4_096, upperLimit: Number.POSITIVE_INFINITY, room: 500_000 },
+      { sentCap: undefined, cutAt: 4_096, upperLimit: 64_000, room: Number.NaN },
+      { sentCap: undefined, cutAt: 0, upperLimit: 0, room: 0 },
+    ]) {
+      const verdict = decide({ recoveryCount: 0, routeTakesCap: true, ...bad })
+      check(`a number that is not finite, or no limit at all, surfaces instead of a re-ask (${JSON.stringify(bad)})`, verdict.kind === 'surface', JSON.stringify(verdict))
+    }
+  }
+  const { cutToolCallOf } = await import('../../src/services/providers/anthropic/streamCore.ts')
+  const nameless = cutToolCallOf({ type: 'tool_use', input: '{"command": "ls' })
+  check('a cut call with no id and no name still refuses (empty id and name, the gate\'s own missing-id words follow)', nameless?.code === 'invalid-json' && nameless.id === '' && nameless.name === '', JSON.stringify(nameless))
+  const huge = cutToolCallOf({ type: 'tool_use', id: 'toolu_big', name: 'Write', input: `{"content": "${'x'.repeat(5_000_000)}` })
+  check('a 5 MB cut input is refused whole and its length recorded', huge?.code === 'invalid-json' && huge.argumentsLength === 5_000_013, String(huge?.argumentsLength))
+  check('the correction the model reads bounds the raw bytes it quotes', huge !== null && gate.toolCallRefusalCorrection([huge]).length < 5_000, String(huge === null ? 0 : gate.toolCallRefusalCorrection([huge]).length))
+  check('a whole call, an empty input, a text block and a server tool are never read as cut', cutToolCallOf({ type: 'tool_use', id: 'a', name: 'Bash', input: '{"command":"ls"}' }) === null && cutToolCallOf({ type: 'tool_use', id: 'a', name: 'Bash', input: '' }) === null && cutToolCallOf({ type: 'text', text: '{"command": "ls' }) === null && cutToolCallOf({ type: 'server_tool_use', id: 's', name: 'web_search', input: '{"query": "x' }) === null)
+  const note = gate.toolCallRefusalNote('anthropic', { id: 'toolu_cut', name: 'Bash', argumentsRaw: '{"command": "ls', code: 'invalid-json', reason: 'r' })
+  check('the model-facing note is the gate\'s own sentence, the one the chat lanes already send (lane word aside)', note === '[anthropic] the provider emitted a malformed tool call (Bash): its arguments were not valid JSON, so it was not executed.', note)
+  const model = 'deepseek-v4-pro'
+  const r = await run(model, [toolTurn(model), textTurn(model, 'listed')])
+  check('the control: a whole tool call runs once with no re-ask and no notice', r.calls.length === 2 && r.ran === 1 && r.calls[1]?.cap === undefined && !notices(r.yields).some(l => l.includes('re-asking')), `${r.calls.length} calls · ran ${r.ran}`)
+}
+
 await fixture.close()
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`} — ${checks} checks`)
 process.exit(failures === 0 ? 0 : 1)

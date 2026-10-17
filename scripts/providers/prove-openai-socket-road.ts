@@ -40,7 +40,7 @@ console.log('============================================================')
 const MODEL = 'gpt-5.6-sol'
 type Frame = Record<string, unknown>
 type Turn = { text?: string; call?: { id: string; name: string; args: string }; usage?: { input: number; output: number } }
-type Mode = 'serve' | 'error-before' | 'close-before' | 'close-mid' | 'not-found-once' | 'refuse-upgrade'
+type Mode = 'serve' | 'error-before' | 'close-before' | 'close-mid' | 'not-found-once' | 'not-found-always' | 'garbage-mid' | 'error-shape' | 'refuse-upgrade'
 
 const sockets: Array<{ authorization: string | null; frames: Frame[]; responseIds: string[]; closed: boolean; closeCode?: number }> = []
 const posts: Array<{ authorization: string | null; body: Record<string, unknown> }> = []
@@ -109,6 +109,14 @@ const server = Bun.serve<{ index: number }>({
         ws.close(1009, 'message too large')
         return
       }
+      if (mode === 'error-shape') {
+        ws.send(JSON.stringify({ type: 'error', error: 'not an object', status: 'bad' }))
+        return
+      }
+      if (mode === 'not-found-always') {
+        ws.send(JSON.stringify({ type: 'error', status: 400, error: { type: 'invalid_request_error', code: 'previous_response_not_found', message: 'gone', param: 'previous_response_id' } }))
+        return
+      }
       if (mode === 'not-found-once' && typeof frame.previous_response_id === 'string' && !notFoundAnswered) {
         notFoundAnswered = true
         ws.send(JSON.stringify({ type: 'error', status: 400, error: { type: 'invalid_request_error', code: 'previous_response_not_found', message: `Previous response with id '${String(frame.previous_response_id)}' not found.`, param: 'previous_response_id' } }))
@@ -122,6 +130,12 @@ const server = Bun.serve<{ index: number }>({
         ws.send(JSON.stringify(events[0]))
         ws.send(JSON.stringify(events[1]))
         ws.close(1011, 'the fixture dropped the stream')
+        return
+      }
+      if (mode === 'garbage-mid') {
+        ws.send(JSON.stringify(events[0]))
+        ws.send(JSON.stringify(events[1]))
+        ws.send('{this is not json')
         return
       }
       for (const event of events) ws.send(JSON.stringify(event))
@@ -332,6 +346,53 @@ section('S4 the connection\'s life and the register')
   const schema = readFileSync(join(import.meta.dir, '..', 'settings', 'settings-schema.json'), 'utf8')
   const docs = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'SETTINGS.md'), 'utf8')
   check('the setting is in the schema snapshot and the settings page', schema.includes('"websocket"') && docs.includes('`routing.openai.transport`'))
+}
+
+section('refusals — garbage frames, a cache that never answers, a changed prefix, a junk setting, the token, the record the road keeps')
+{
+  socketRoad._resetOpenaiSocketRoadForTest()
+  const postsBefore = posts.length
+  const generationsBefore = generations
+  mode = 'garbage-mid'
+  turns = [{ text: 'garbage after the start' }]
+  const rg = await call([createUserMessage({ content: 'hello i' })], 'conversation-i')
+  for (let i = 0; i < 100 && sockets.at(-1)?.closed !== true; i++) await new Promise(resolve => setTimeout(resolve, 10))
+  check('a frame that is not JSON after the response began: a typed fault, the socket dropped, no second generation', rg.errors.length === 1 && JSON.stringify(rg.errors[0]?.message).includes('unparseable') && generations === generationsBefore + 1 && posts.length === postsBefore && sockets.at(-1)?.closed === true, JSON.stringify(rg.errors[0]?.message).slice(0, 200))
+  mode = 'error-shape'
+  turns = [{ text: 'served over http after a malformed error frame' }]
+  const re = await call([createUserMessage({ content: 'hello j' })], 'conversation-j')
+  check('an error frame whose error is not an object: HTTP once, nothing thrown', textOf(re.rows) === 'served over http after a malformed error frame' && posts.length === postsBefore + 1 && re.errors.length === 0, `posts=${posts.length - postsBefore}`)
+  mode = 'serve'
+  turns = [{ text: 'first on k' }]
+  const firstK = [createUserMessage({ content: 'hello k' })]
+  const rk1 = await call(firstK, 'conversation-k')
+  mode = 'not-found-always'
+  turns = [{ text: 'k served over http in the end' }]
+  const generationsK = generations
+  const rk2 = await call([...firstK, replyRow(rk1.rows)!, createUserMessage({ content: 'again k' })], 'conversation-k')
+  const kFrames = sockets.at(-1)!.frames.filter(f => f.type === 'response.create')
+  check('a cache that answers not-found even to the whole input: one whole replay on the socket, then HTTP — never a loop, one generation', textOf(rk2.rows) === 'k served over http in the end' && kFrames.length === 3 && !('previous_response_id' in (kFrames[2] ?? {})) && posts.length === postsBefore + 2 && generations === generationsK + 1, `frames=${kFrames.length} posts=${posts.length - postsBefore} generations=${generations - generationsK}`)
+  mode = 'serve'
+  socketRoad._resetOpenaiSocketRoadForTest()
+  turns = [{ text: 'first on l' }]
+  const firstL = [createUserMessage({ content: 'hello l' })]
+  const rl1 = await call(firstL, 'conversation-l')
+  turns = [{ text: 'second on l' }]
+  const edited = [createUserMessage({ content: 'hello l, edited' }), replyRow(rl1.rows)!, createUserMessage({ content: 'again l' })]
+  await call(edited, 'conversation-l')
+  const lFrames = sockets.at(-1)!.frames.filter(f => f.type === 'response.create')
+  check('an earlier item changed (a pruned or rewritten row): the whole input goes, never a chain on a context the service does not hold', lFrames.length === 2 && !('previous_response_id' in (lFrames[1] ?? {})) && (lFrames[1]?.input as unknown[]).length === 3, JSON.stringify(lFrames[1]).slice(0, 200))
+  check('a junk setting value reads as off', socketRoad.openaiSocketRoadChosen({ routing: { openai: { transport: 'tcp' } } } as never) === false && socketRoad.openaiSocketRoadChosen({} as never) === false)
+  const key = socketRoad.socketRoadKey(`${base}/v1`, { authorization: 'Bearer sk-fixture-openai-key-not-a-real-key' }, 'conversation-a')
+  check('the connection key never carries the token', !key.includes('sk-fixture') && !key.includes('Bearer'), key)
+  const reply = replyRow(rl1.rows) as { apexProviderTurn?: { provider?: string; items?: unknown[]; responseId?: string } } | undefined
+  check('the road keeps the same replay record the HTTP road keeps (provider, the settled items, the response id)', reply?.apexProviderTurn?.provider === 'openai' && (reply.apexProviderTurn.items?.length ?? 0) === 1 && typeof reply.apexProviderTurn.responseId === 'string', JSON.stringify(reply?.apexProviderTurn).slice(0, 200))
+  setTransport(undefined)
+  turns = [{ text: 'the control over http' }]
+  const socketsBefore = sockets.length
+  const postsBeforeControl = posts.length
+  const rc = await call([createUserMessage({ content: 'hello m' })], 'conversation-m')
+  check('the control: with the setting absent again the request posts over HTTP and no socket opens', textOf(rc.rows) === 'the control over http' && sockets.length === socketsBefore && posts.length === postsBeforeControl + 1)
 }
 
 server.stop(true)

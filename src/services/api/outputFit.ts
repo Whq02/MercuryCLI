@@ -11,7 +11,8 @@ export type OutputFit = { tokens: number; asked: number; room: number; clamped: 
 export function fitOutputTokens(input: { asked: number; window: number; promptTokens: number; least?: number }): OutputFit {
   const { asked, window, promptTokens } = input
   const room = window - promptTokens - OUTPUT_FIT_HEADWAY_TOKENS
-  if (!(asked > 0) || !(window > 0) || !(promptTokens > 0) || asked <= room) return { tokens: asked, asked, room, clamped: false }
+  const positive = (n: number): boolean => Number.isFinite(n) && n > 0
+  if (!positive(asked) || !positive(window) || !positive(promptTokens) || asked <= room) return { tokens: asked, asked, room, clamped: false }
   const tokens = Math.min(asked, Math.max(room, OUTPUT_FIT_FLOOR_TOKENS, input.least ?? 0))
   return { tokens, asked, room, clamped: tokens < asked }
 }

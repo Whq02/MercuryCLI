@@ -408,6 +408,7 @@ export function decideCutToolCallRecovery(input: {
   routeTakesCap: boolean
 }): CutToolCallDecision {
   if (!input.routeTakesCap || input.recoveryCount >= CUT_TOOL_CALL_RECOVERY_LIMIT) return { kind: 'surface' }
+  if (![input.sentCap ?? 0, input.cutAt, input.upperLimit, input.room].every(Number.isFinite)) return { kind: 'surface' }
   const base = Math.max(input.sentCap ?? 0, input.cutAt, 1)
   const ceiling = Math.min(input.upperLimit, input.room > 0 ? input.room : input.upperLimit)
   const outputTokens = Math.min(base * 2, ceiling)
@@ -434,7 +435,8 @@ export function decidePauseTurnContinuation(input: { continuations: number }): S
 
 function pausedReplyOf(assistantMessages: readonly AssistantMessage[]): AssistantMessage | null {
   const reply = assistantMessages.filter(m => m.isApiErrorMessage !== true).at(-1)
-  return reply !== undefined && reply.message.stop_reason === 'pause_turn' ? reply : null
+  if (reply === undefined || reply.message.stop_reason !== 'pause_turn') return null
+  return Array.isArray(reply.message.content) && reply.message.content.length > 0 ? reply : null
 }
 
 const EMPTY_REPLY_RECOVERY_LIMIT = 1

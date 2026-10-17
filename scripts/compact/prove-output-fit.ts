@@ -250,6 +250,31 @@ const expectedFit = (model: string, messages: unknown[], asked: number): { token
   check('responses road: no output cap before and none after (the wire sends none)', plain.body !== null && near.body !== null && capOf(plain.body) === undefined && capOf(near.body) === undefined, `${JSON.stringify(capOf(plain.body))}/${JSON.stringify(capOf(near.body))}`)
 }
 
+section('refusals — bad numbers, no room at all, the thinking budget, the control')
+if (fitModule !== null) {
+  const { fitOutputTokens } = fitModule
+  for (const asked of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const fit = fitOutputTokens({ asked, window: 200_000, promptTokens: 150_000 })
+    check(`an ask that is not a positive number rides untouched (${asked})`, Object.is(fit.tokens, asked) && !fit.clamped, JSON.stringify(fit))
+  }
+  for (const promptTokens of [Number.NaN, -10, Number.POSITIVE_INFINITY]) {
+    const fit = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens })
+    check(`a prompt measure that is not a positive number changes nothing (${promptTokens})`, fit.tokens === 64_000 && !fit.clamped, JSON.stringify(fit))
+  }
+  const beyond = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens: 400_000 })
+  check('a prompt already past the window sends the floor, never a negative or zero cap', beyond.tokens === FLOOR && beyond.clamped, JSON.stringify(beyond))
+  const budgetBeyond = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens: 400_000, least: 32_001 })
+  check('…and a thinking budget past the room stands whole (the wire answers the overflow; thinking is never cut)', budgetBeyond.tokens === 32_001, JSON.stringify(budgetBeyond))
+  const leastAboveAsk = fitOutputTokens({ asked: 8_000, window: 200_000, promptTokens: 199_000, least: 32_001 })
+  check('the least never raises the cap above what was asked', leastAboveAsk.tokens === 8_000, JSON.stringify(leastAboveAsk))
+  const model = 'claude-opus-4-8'
+  const budgeted = await call(model, conversation(model, getContextWindowForModel(model) - 2_000), { thinkingConfig: { type: 'enabled', budgetTokens: 10_000 } } as never)
+  check('the control for thinking: a budget model near the window keeps budget_tokens below max_tokens by the base\'s own law', budgeted.body !== null && (typeof budgeted.body.thinking !== 'object' || budgeted.body.thinking === null || !('budget_tokens' in (budgeted.body.thinking as Record<string, unknown>)) || ((budgeted.body.thinking as { budget_tokens: number }).budget_tokens < (budgeted.body.max_tokens as number))), JSON.stringify({ thinking: budgeted.body?.thinking, max_tokens: budgeted.body?.max_tokens }))
+  const small = await call(model, [createUserMessage({ content: 'fixture ask' })])
+  const keys = Object.keys(small.body ?? {}).sort()
+  check('the control: a small conversation\'s Anthropic body carries the same keys as before and the ceiling (the dialect byte-parity proofs pin the whole body)', keys.includes('max_tokens') && keys.includes('messages') && keys.includes('model') && small.body?.max_tokens === getMaxOutputTokensForModel(model), keys.join(','))
+}
+
 await fixture.close()
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`} — ${checks} checks`)
 process.exit(failures === 0 ? 0 : 1)

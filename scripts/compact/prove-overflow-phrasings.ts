@@ -213,6 +213,38 @@ async function callLane(model: string, messages: unknown[]): Promise<{ errors: A
   check('…and the ladder\'s clause names that count', stamped !== null && overflowWhoClause(stamped).includes("by Mercury's count"), stamped === null ? '' : overflowWhoClause(stamped))
 }
 
+section('refusals — the classifier against hostile and malformed bodies')
+{
+  const huge = `Input is too long for requested model. ${'x'.repeat(2_000_000)}`
+  const hugeSig = classifyOverflowFault({ family: 'openai-compat', status: 400, message: huge })
+  check('a 2 MB error message classifies and its detail is bounded to 240 characters', hugeSig?.shape === 'context-size' && (hugeSig.detail?.length ?? 0) <= 240, String(hugeSig?.detail?.length))
+  const hostile = `${'input '.repeat(200_000)}exceeds ${'maximum '.repeat(1_000)}`
+  const hostileSig = classifyOverflowFault({ family: 'openai-compat', status: 400, message: hostile })
+  check('a repetitive 1.2 MB message returns a verdict (no runaway match) with a bounded detail', (hostileSig === null || hostileSig.shape === 'context-size') && (hostileSig?.detail?.length ?? 0) <= 240)
+  const objectBody = mapCompatHttpFailure(400, { error: { message: { nested: 'object' } } })
+  check('a body whose message is not a string still maps to words and never throws', typeof objectBody.message === 'string' && classifyOverflowFault({ family: 'openai-compat', status: 400, code: objectBody.code, message: objectBody.message }) === null, objectBody.message)
+  const arrayBody = mapCompatHttpFailure(400, [{ error: { message: 'Input is too long for requested model.' } }])
+  check('an array-wrapped body is read through the mapper\'s own envelope law', classifyOverflowFault({ family: 'openai-compat', status: 400, code: arrayBody.code, message: arrayBody.message })?.shape === 'context-size')
+  for (const measured of [{ tokens: Number.NaN, window: 128_000 }, { tokens: -1, window: 128_000 }, { tokens: 200_000, window: Number.NaN }, { tokens: 200_000, window: -5 }, { tokens: Number.POSITIVE_INFINITY, window: 0 }]) {
+    const sig = classifyOverflowFault({ family: 'local', status: 400, message: 'HTTP 400', measured: () => measured })
+    check(`a measure that is not a positive pair reads nothing into a bodiless 400 (${JSON.stringify(measured)})`, sig === null, JSON.stringify(sig))
+  }
+  let threw = false
+  try {
+    classifyOverflowFault({ family: 'local', status: 400, message: 'HTTP 400', measured: () => { throw new Error('the measure failed') } })
+  } catch {
+    threw = true
+  }
+  check('a measure that throws is the caller\'s fault to see, never a silent overflow stamp', threw)
+  for (const status of [400, 413, 422]) {
+    check(`the per-minute allowance is refused on HTTP ${status} alike`, classifyOverflowFault({ family: 'openai-compat', status, message: 'Request too large for model on tokens per minute (TPM): Limit 6000, Requested 7000' }) === null)
+  }
+  const words = classifyOverflowFault({ family: 'openai-compat', status: 400, message: 'the prompt is too long to display in the dashboard; input length exceeds the maximum column width', measured: () => ({ tokens: 1, window: 1 }) })
+  check('the control: a worded 400 with the window words is classified by its words alone (the measure is never read)', words !== null && words.measuredTokens === undefined && words.measuredWindow === undefined, JSON.stringify(words))
+  const control = mapCompatHttpFailure(400, { error: { message: 'Invalid parameter: tool_choice must be one of auto/none', type: 'invalid_request_error' } })
+  check('the control: an unrelated 400 with a body is the same plain fault it was', classifyOverflowFault({ family: 'openai-compat', status: 400, code: control.code, message: control.message }) === null && control.message === 'Invalid parameter: tool_choice must be one of auto/none')
+}
+
 await fixture.close()
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`} — ${checks} checks`)
 process.exit(failures === 0 ? 0 : 1)

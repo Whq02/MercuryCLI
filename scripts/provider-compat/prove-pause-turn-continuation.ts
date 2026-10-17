@@ -231,6 +231,27 @@ const roles = (msgs: unknown[]): string[] => (msgs as AnyMsg[]).map(m => String(
   check('with max-turns 2 the continuation goes out and the run completes', r2.terminal.reason === 'completed' && r2.calls.length === 2, `${JSON.stringify(r2.terminal)} · ${r2.calls.length} calls`)
 }
 
+section('refusals — an empty paused reply, a paused error row, the replay bytes, the control')
+{
+  const model = 'claude-opus-4-8'
+  const empty = createAssistantMessage({ content: [] as never })
+  empty.message.stop_reason = 'pause_turn'
+  empty.message.model = model
+  const r = await run(model, [[empty], textTurn(model, 'never asked')])
+  check('a paused reply with no content is not sent back (nothing to continue): the turn ends', r.calls.length === 1 && r.terminal.reason === 'completed', `${r.calls.length} calls`)
+  const errorRow = createAssistantMessage({ content: 'API Error: something' })
+  errorRow.message.stop_reason = 'pause_turn'
+  errorRow.isApiErrorMessage = true
+  const r2 = await run(model, [[errorRow], textTurn(model, 'never asked')])
+  check('an API-error row carrying the pause word is never replayed', r2.calls.length === 1, `${r2.calls.length} calls`)
+  const r3 = await run(model, [pausedTurn(model, 'Searching…'), textTurn(model, 'done')])
+  const sentBack = (r3.calls[1]?.messages as AnyMsg[] | undefined)?.[1]
+  const yielded = r3.yields.find(m => m.type === 'assistant' && (m.message as { stop_reason?: string }).stop_reason === 'pause_turn')
+  check('the replayed turn is the very reply that was yielded, byte for byte (no edit, no marker, no nudge)', sentBack !== undefined && yielded !== undefined && JSON.stringify(sentBack.message) === JSON.stringify(yielded.message), JSON.stringify(sentBack?.message).slice(0, 160))
+  const r4 = await run(model, [textTurn(model, 'a plain answer')])
+  check('the control: a plain end_turn reply is one call, no continuation line', r4.calls.length === 1 && !notices(r4.yields).some(l => l.includes('paused the turn')), `${r4.calls.length} calls`)
+}
+
 await fixture.close()
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`} — ${checks} checks`)
 process.exit(failures === 0 ? 0 : 1)
