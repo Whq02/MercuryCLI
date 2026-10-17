@@ -372,6 +372,8 @@ const READ_ONLY_RULES: readonly ReadOnlyRule[] = [
   probe('node', 'node -v', 'node --version'),
   probe('python', 'python --version'),
   probe('python3', 'python3 --version'),
+  exactly('env', 'env', 'env -0'),
+  matching('printenv', /^printenv(?:\s+[A-Za-z_][A-Za-z0-9_]*)?$/),
   exactly('pwd', 'pwd'),
   exactly('whoami', 'whoami'),
   exactly('alias', 'alias'),

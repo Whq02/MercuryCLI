@@ -433,6 +433,8 @@ async function* queryModel(
   void
 > {
 
+  const { captureSignInRequest, observeSignInResponse } = require('../../../utils/accounts/signInRefusal.js') as typeof import('../../../utils/accounts/signInRefusal.js')
+  let signInRequest: ReturnType<typeof captureSignInRequest>
   const resolvedModel = options.model
   const modelRefusalRequest: { current?: ModelRefusalRequest } = {}
   const effortTruth = resolveEffortTruth(options.model, options.effortValue, { agentId: options.agentId })
@@ -440,6 +442,7 @@ async function* queryModel(
   const captureModelRequest = (params: BetaMessageStreamParams): void => {
     modelRefusalRequest.current = captureModelRefusalRequest(params.model)
     effortOnWire = effortStampOf(effortTruth.requested, anthropicEffortWireFact(params as Parameters<typeof anthropicEffortWireFact>[0], effortTruth.supportsEffort))
+    signInRequest = captureSignInRequest('anthropic')
     captureAPIRequest(params, options.querySource)
   }
 
@@ -837,6 +840,7 @@ async function* queryModel(
 
     if (error instanceof APIError) {
       extractQuotaStatusFromError(error)
+      observeSignInResponse(signInRequest, error.status)
     }
 
     logAPIError({ error, clientRequestId })
@@ -1677,6 +1681,7 @@ async function* queryModel(
     setLastMainRequestId(streamRequestId)
   }
 
+  observeSignInResponse(signInRequest, 200)
   const successfulRequest = modelRefusalRequest.current
   if (successfulRequest !== undefined) {
     clearModelRefusal(successfulRequest.id, successfulRequest.door, successfulRequest.home, successfulRequest.presented)

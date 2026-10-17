@@ -258,6 +258,12 @@ export function geminiSourceIdentity(
   return credentialFingerprint(tokens?.refreshToken ?? tokens?.accessToken)
 }
 
+export function geminiSourceMatchesCredential(sourceKind: GeminiSourceKind, credential: string): boolean {
+  const file = readAuthFile()
+  const current = sourceKind === 'api-key' ? resolveGeminiApiKey()?.key : sourceKind === 'plan' ? planOf(file)?.tokens.accessToken : file?.tokens?.accessToken
+  return credential !== '' && credential === current
+}
+
 const SECRET_MASK = '«masked»'
 const SECRET_SHAPES = [/ya29\.[A-Za-z0-9._-]+/g, /AIza[A-Za-z0-9_-]{20,}/g, /1\/\/[A-Za-z0-9._-]{20,}/g]
 

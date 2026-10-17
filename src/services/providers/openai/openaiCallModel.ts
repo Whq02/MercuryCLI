@@ -83,6 +83,7 @@ import { clearOpenaiUsageLimit, noteOpenaiSourceIdentity, openaiLimitWindow, rec
 import { refreshProviderUsage } from '../providerUsage.js'
 import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
+import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
 import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
@@ -673,6 +674,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     }
     attemptStartedAtMs = Date.now()
     noteRunPhase('dispatch')
+    const signInRequest = captureSignInRequest('openai', auth.headers.authorization?.replace(/^Bearer /i, ''))
     const outcome = yield* streamOneOpenaiAttempt({
       request,
       auth,
@@ -690,6 +692,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {
+      observeSignInResponse(signInRequest, 200)
       clearOpenaiUsageLimit(auth.account.kind)
       try {
         const { logAPISuccessAndDuration } = await import('../../api/logging.js')
@@ -711,6 +714,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       return
     }
     if (outcome.kind === 'cancelled') return
+    observeSignInResponse(signInRequest, outcome.fault.status)
     const typed = openaiFaultToTypedError(outcome.fault)
     if (
       typed === 'authentication_failed' &&
