@@ -2,7 +2,7 @@
 // gate-watch: src/utils/Shell.ts src/utils/cwd.ts src/tools/AgentTool/AgentTool.tsx src/tools/AgentTool/resumeAgent.ts
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -63,7 +63,7 @@ async function shell(command: string, owner?: string): Promise<string> {
 }
 const where = (owner?: string): Promise<string> => shell('pwd -P', owner)
 
-type Job = { command: string; resolve: (out: string) => void }
+type Job = { command?: string; spawnName?: string; resolve: (out: string) => void; resolveChild?: (child: Crewmate) => void }
 class Crewmate {
   private jobs: Job[] = []
   private wake: (() => void) | null = null
@@ -80,12 +80,23 @@ class Crewmate {
         })
         continue
       }
-      job.resolve(await shell(job.command, this.name))
+      if (job.spawnName !== undefined && job.resolveChild !== undefined) {
+        job.resolveChild(new Crewmate(job.spawnName, fn => runWithOwnShellCwd(fn)))
+        continue
+      }
+      job.resolve(await shell(job.command!, this.name))
     }
   }
   run(command: string): Promise<string> {
     return new Promise(resolve => {
       this.jobs.push({ command, resolve })
+      this.wake?.()
+      this.wake = null
+    })
+  }
+  spawnPlain(name: string): Promise<Crewmate> {
+    return new Promise(resolveChild => {
+      this.jobs.push({ spawnName: name, resolve: () => {}, resolveChild })
       this.wake?.()
       this.wake = null
     })
@@ -133,10 +144,24 @@ await C.run(`cd ${JSON.stringify(C_DIR)}`)
 check("the plain crewmate's cd persists for it", (await C.where()) === C_DIR, await C.where())
 const parentAfterC = await where()
 check("the plain crewmate's cd does not move the parent's shell", parentAfterC === PARENT_DIR, `the parent is in ${parentAfterC}`)
-const D = new Crewmate('crewmate-d', fn => runWithCwdOverride(WORKTREE_A, () => runWithOwnShellCwd(fn)))
+const D = await A.spawnPlain('crewmate-d')
 const nested = await D.where()
-check("a crewmate launched by crewmate A starts in A's folder (its launch folder), not where A's shell went", nested === WORKTREE_A, `D started in ${nested}`)
-for (const crewmate of [A, B, C, D]) crewmate.end()
+check("a crewmate launched by crewmate A (from inside A's live context after A cd'd) starts in A's launch folder, not where A's shell went", nested === WORKTREE_A, `D started in ${nested}`)
+await D.run(`cd ${JSON.stringify(C_DIR)}`)
+check("the nested crewmate's cd persists for it and does not move its launcher A", (await D.where()) === C_DIR && (await A.where()) === A_DIR, `D ${await D.where()} · A ${await A.where()}`)
+const P = new Crewmate('crewmate-p', fn => runWithOwnShellCwd(fn))
+const OTHER_SESSION = folder('other-session')
+setCwd(OTHER_SESSION)
+await shell(`cd ${JSON.stringify(PARENT_DIR)}`)
+const pFirst = await P.where()
+check("a plain crewmate seeded from the session folder at launch keeps that folder even if the parent later changes setCwd", pFirst === SESSION, `P started in ${pFirst}`)
+const VANISHED = folder('vanished-worktree')
+const V = new Crewmate('crewmate-v', fn => runWithCwdOverride(VANISHED, fn))
+rmdirSync(VANISHED)
+await V.where()
+const parentAfterVanished = await where()
+check("a crewmate recovering from a deleted folder never resets the parent's cwdState or shell directory", parentAfterVanished === PARENT_DIR, `the parent is in ${parentAfterVanished}`)
+for (const crewmate of [A, B, C, D, P, V]) crewmate.end()
 
 section('§5 the launch seams: every crewmate lifecycle runs in a cwd context of its own')
 {

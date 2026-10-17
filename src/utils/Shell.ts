@@ -257,7 +257,7 @@ export async function exec(
   if (!directoryResolves(cwd)) {
     const bootDirectory = getOriginalCwd()
     if (directoryResolves(bootDirectory)) {
-      setCwdState(bootDirectory)
+      if (contextShellCwd() === undefined) setCwdState(bootDirectory)
       writeShellCwd(null)
       logForDebugging(
         `working directory ${cwd} no longer exists; recovered to the original directory ${bootDirectory}`,

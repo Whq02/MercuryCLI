@@ -11,7 +11,7 @@ export function runWithCwdOverride<T>(cwd: string, fn: () => T): T {
 }
 
 export function runWithOwnShellCwd<T>(fn: () => T): T {
-  return cwdOverrideStorage.run({ cwd: cwdOverrideStorage.getStore()?.cwd, shellCwd: null }, fn)
+  return cwdOverrideStorage.run({ cwd: getCwd(), shellCwd: null }, fn)
 }
 
 export function contextShellCwd(): string | null | undefined {
