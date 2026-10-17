@@ -1513,6 +1513,7 @@ export async function runHeadless(
       const waitedMs = Date.now() - Math.min(...notices.map(notice => notice.deliveredAtMs))
       if (agentId === MAIN_THREAD_AGENT) {
         enqueue({ value: nudgeWords(notices, waitedMs), mode: 'prompt', priority: 'later', isMeta: true, uuid: randomUUID() })
+        driver.endOperatorWait()
         return true
       }
       return false
