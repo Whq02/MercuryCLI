@@ -166,7 +166,7 @@ import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { randomUUID, type UUID } from 'node:crypto'
 import { bindRequestGauge, requestGaugeFixed, settleRequestGauge } from '../services/run/requestGauge.js'
 import { getContextEpoch } from '../services/run/contextEpochs.js'
-import { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } from '../services/compact/compact.js'
+import { ERROR_MESSAGE_USER_ABORT } from '../services/compact/compact.js'
 import { toolToAPISchema } from '../utils/api.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
@@ -1106,7 +1106,7 @@ async function* runEventMachine(
     const rapidRefillPaused = tracking?.rapidRefillPaused === true || rapidRefillBreakerTripped === true
 
     if (forcedFold !== undefined && !compactionResult) {
-      if (!toolUseContext.abortController.signal.aborted && (forcedFold.source === 'provider' || compactionRefusal?.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD))) {
+      if (!toolUseContext.abortController.signal.aborted && (forcedFold.source === 'provider' || (compactionRefusal !== undefined && compactionRefusal !== ERROR_MESSAGE_USER_ABORT))) {
         const saving = projectTimeBasedMicrocompact(messagesForQuery, querySource, { pressure: true, supersededOnly: true })?.tokensSaved ?? 0
         const fallback = decideOverflowRecovery({ episode: overflowEpisode, gapTokens: overflowGapFor(forcedFold), pruneSavingTokens: saving, pruneAllowed: true, fold: { available: false, why: 'fold-failed' } })
         if (fallback.kind === 'recover' && fallback.rung === 'prune') {
@@ -1235,7 +1235,7 @@ async function* runEventMachine(
             episode: overflowEpisode,
             gapTokens: Math.max(1, estimatedTokens - blockingLimit),
             pruneSavingTokens: pruneSaving,
-            pruneAllowed: compactionRefusal?.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) === true,
+            pruneAllowed: compactionRefusal !== undefined && compactionRefusal !== ERROR_MESSAGE_USER_ABORT,
             fold: foldAvailability({
               tracking,
               headFold: !foldSplit.hasHistory ? undefined : headFoldFailed ? 'failed' : isAutoCompactEnabled() ? 'did-not-land' : undefined,
