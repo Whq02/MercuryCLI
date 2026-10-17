@@ -649,7 +649,7 @@ if (import.meta.main) {
   const taskId = get('--task')
   const policyId = get('--policy')
   if (!taskId || !policyId) {
-    console.error('usage: runner.ts --task <id> --policy <id|selected> [--run N] [--out FILE]')
+    console.error('usage: runner.ts --task <id> --policy <id> [--run N] [--out FILE]')
     process.exit(2)
   }
   const baseOptions = {
@@ -658,38 +658,6 @@ if (import.meta.main) {
     root: get('--root'),
     configHome: get('--config-home'),
   }
-  let row: HelixRunRow
-  if (policyId === 'selected') {
-    const { resolveSelectedArm } = await import('./selectedPolicy.js')
-    const { taskFingerprint } = await import('./selectedPolicy.js')
-    const resolution = await resolveSelectedArm(taskById(taskId))
-    row = runTask(taskId, resolution.executedAs, {
-      ...baseOptions,
-      rowExtras: {
-        policyId: 'selected',
-        policyDigest: resolution.decision.profileDigest,
-        selectedProfile: resolution.decision.profile.id,
-        selectionSource: resolution.decision.source,
-        selectionReasons: resolution.decision.reasonCodes,
-        executedAs: resolution.executedAs,
-        ...(resolution.mappingNote ? { mappingNote: resolution.mappingNote } : {}),
-      },
-    })
-    if (row.status === 'accepted' || row.status === 'rejected') {
-      const { recordMissionOutcome } = await import('../../../src/substrate/routerOutcomeStore.js')
-      const fp = taskFingerprint(taskById(taskId))
-      await recordMissionOutcome({
-        profileId: resolution.decision.profile.id,
-        taskShape: fp.shape,
-        ambiguity: fp.ambiguityBand,
-        coupling: fp.couplingBand,
-        accepted: row.status === 'accepted',
-        epoch: resolution.decision.epoch,
-        modelClass: resolution.executedAs === 'specialist-sol' ? 'gpt' : 'opus',
-      })
-    }
-  } else {
-    row = runTask(taskId, policyId, baseOptions)
-  }
+  const row: HelixRunRow = runTask(taskId, policyId, baseOptions)
   process.exit(row.status === 'accepted' || row.status === 'not-applicable' ? 0 : 1)
 }

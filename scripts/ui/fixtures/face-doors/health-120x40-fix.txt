@@ -20,12 +20,12 @@
    │                                                                │  │ evidence: last verified 26h ago            │
    │ PROVIDERS                                                      │  │                                            │
    │ ❯ Anthropic credential                                 ◓ stale │  │ … (the trail continues — a taller termina… │
-   │   Model route                                           · info │  ╰────────────────────────────────────────────╯
-   │                                                                │  ╭────────────────────────────────────────────╮
-   │ ESTATE                                                         │  │ CERTIFICATE                                │
-   │   Daemon reachability                                ◌ unknown │  │ Verdict    ▲ caution                       │
-   │   Certificate store                                      · off │  │ Checks     7 · 1 stale · 1 warn · 1 unkno… │
-   ╰────────────────────────────────────────────────────────────────╯  │ Issued     2m ago · 830ms                  │
+   │                                                                │  ╰────────────────────────────────────────────╯
+   │ ESTATE                                                         │  ╭────────────────────────────────────────────╮
+   │   Daemon reachability                                ◌ unknown │  │ CERTIFICATE                                │
+   │   Certificate store                                      · off │  │ Verdict    ▲ caution                       │
+   ╰────────────────────────────────────────────────────────────────╯  │ Checks     6 · 1 stale · 1 warn · 1 unkno… │
+                                                                       │ Issued     2m ago · 830ms                  │
                                                                        │ Build      1.0.0-beta.1 · main @ abcdef1   │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  verdict caution · 7 checks · issued 2m ago · 830ms · read-only                              │
+   │ ● System ready  │  verdict caution · 6 checks · issued 2m ago · 830ms · read-only                              │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
                                                   ↵ apply · esc cancel

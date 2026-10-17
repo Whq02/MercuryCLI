@@ -33,7 +33,6 @@ console.log('── mo5 census ratchet + artifact survival')
   const rows: Array<[string, string | RegExp, RegExp]> = [
     ['src/keybindings/writeBindings.ts', "durablePublish.js'", /await rename\(tmp, path\)/],
     ['src/utils/realmRegistry.ts', "durablePublish.js'", /renameSync\(tmp, path\)/],
-    ['src/utils/router/postures.ts', "durablePublish.js'", /renameSync\(tmp, routerPosturePath\(\)\)/],
     ['src/utils/sessionStorage/resumeSnapshot.ts', "durablePublish.js'", /renameSync\(temp, target\)/],
     ['src/utils/verification/verificationState.ts', "durablePublish.js'", /renameSync\(tmp, file\)/],
     ['src/services/interview/decisionRecord.ts', "durablePublish.js'", /renameSync\(tmp, path\)/],

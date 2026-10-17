@@ -5,7 +5,6 @@ import { join, resolve } from 'node:path'
 import { corpusDigest } from '../corpus/manifest.js'
 import { HELIX_TASKS } from '../corpus/tasks.js'
 import { HELIX_POLICIES, policyById, policyDigest } from './policies.js'
-import { missionPolicyEpoch, missionProfileSetDigest, MISSION_PROFILES, missionProfileDigest } from '../../../src/services/mission/policyProfiles.js'
 import { APEX_ARCHITECTURE_EPOCH } from '../../../src/services/providers/openai/openaiCatalogue.js'
 
 const repoRoot = resolve(new URL('../../..', import.meta.url).pathname)
@@ -26,17 +25,9 @@ function buildFreeze(seed: number): Record<string, unknown> {
       anthropicDefault: 'claude-opus-4-8',
       engines: ['gpt-5.6-sol (chatgpt-subscription, receipts required current)'],
       architectureEpoch: APEX_ARCHITECTURE_EPOCH,
-      missionPolicyEpoch: missionPolicyEpoch({
-        architectureEpoch: APEX_ARCHITECTURE_EPOCH,
-        frontierDefaultModel: 'claude-opus-4-8',
-      }),
     },
     baselinePolicy: { id: 'solo', digest: policyDigest(policyById('solo')) },
-    candidatePolicy: {
-      id: 'selected',
-      profileSetDigest: missionProfileSetDigest(),
-      profiles: MISSION_PROFILES.map(p => ({ id: p.id, digest: missionProfileDigest(p) })),
-    },
+    candidatePolicy: null,
     armPolicies: HELIX_POLICIES.map(p => ({ id: p.id, digest: policyDigest(p) })),
     machineProfile: {
       host: hostname(),
@@ -50,7 +41,6 @@ function buildFreeze(seed: number): Record<string, unknown> {
       perTaskCeilingSec: 'per corpus manifest',
       infraRetryRule:
         'ONE retry allowed only when the harness failed to launch before any model turn (spawn error, empty stdout, no session) — retried rows are recorded with runIndex>1 and the original row is KEPT',
-      replanCeilings: { perNodeAttempts: 3, missionReplanCeiling: 6 },
     },
     graduationRule: 'scripts/mission-runner/live/graduation.ts (§12.1; predeclared statistics in its header)',
     pairingSeed: seed,

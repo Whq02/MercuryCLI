@@ -3,9 +3,8 @@
 # gate-watch: scripts/mission-runner/**
 # gate-watch: scripts/mission-runner/**
 # gate-watch: src/services/mission/** src/services/resources/adapters/mission.ts
-# gate-watch: src/substrate/routerOutcomeStore.ts src/substrate/routerRunStore.ts
 # gate-watch: src/services/providers/openai/openaiCatalogue.ts
-# gate-watch: src/services/providers/openai/qualificationStore.ts src/utils/router/routeCompiler.ts
+# gate-watch: src/services/providers/openai/qualificationStore.ts
 # gate-watch: src/rows/* src/runner/wire/* src/commands/verify.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

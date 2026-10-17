@@ -39,7 +39,7 @@ const WORKER_MODEL_LEGACY_KEY_NAMES = new Set(['opus', 'sonnet', 'fable', 'fable
 const LOGINS_FAMILY_WORDS = new Set(['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'zen'])
 export function loginsActionFor(family: string): string {
   if (LOGINS_FAMILY_WORDS.has(family)) return `ask the operator to run /logins ${family}`
-  if (family === 'openai-compat') return 'ask the operator to set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY, or /router key compat)'
+  if (family === 'openai-compat') return 'ask the operator to set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY if the endpoint needs one)'
   if (family === 'local') return 'ask the operator to start a local server, or set MERCURY_LOCAL_BASE_URL'
   return 'ask the operator to run /logins'
 }
@@ -115,7 +115,7 @@ export function defaultProviderDriftNote(
 
 export const NO_ACCOUNT_REFUSAL = 'no-credential:any' satisfies WorkerModelRefusal
 export const NO_ACCOUNT_DETAIL = 'no provider is signed in on this account'
-export const NO_ACCOUNT_ACTION = '/logins to choose an account, or /router key <provider> to connect an API key'
+export const NO_ACCOUNT_ACTION = '/logins to choose an account or connect an API key'
 
 export function noAccountRefusal(
   refusal: WorkerModelRefusal,

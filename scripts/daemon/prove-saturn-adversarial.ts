@@ -925,7 +925,7 @@ console.log('§SF1 the fire-time account resolution (ruling b)')
   const sC = {
     nowMs: T0,
     facts: 'ready' as 'ready' | 'signed-out',
-    derive: (_m: string) => ({ ok: false as const, reason: 'no-credential:deepseek — /logins connects an account, or /router key deepseek connects an API key' }),
+    derive: (_m: string) => ({ ok: false as const, reason: 'no-credential:deepseek — /logins deepseek connects an account or an API key' }),
   }
   const mC = makePorts(sC)
   const rC = await tickSaturnOnce(mC.ports)

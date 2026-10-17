@@ -50,7 +50,6 @@ A fast run certifies these sections (section id · title):
 | `coding-loop-fast` | CODING LOOP |
 | `flux` | TERMINAL FLUIDITY |
 | `tool-capability-fast` | TOOL CAPABILITY |
-| `router-fast` | ROUTER |
 | `architecture-fast` | ARCHITECTURE PRIMITIVES |
 
 ### Client contract
@@ -174,8 +173,8 @@ otherwise noted as `no metasearch instance configured`), and keyless DuckDuckGo
 page scraping (on by default). When no search door opens for the model (no
 native search, no Brave/Tavily key, no SearXNG instance, and DuckDuckGo page
 scraping turned off in `/config` or with `MERCURY_SEARCH_KEYLESS=0`), the row
-reads `info` (`no door opens for <model>`) and names `/router key brave` (or
-`tavily`) and `/config` to turn DuckDuckGo page scraping back on.
+reads `info` (`no door opens for <model>`) and names `BRAVE_API_KEY` (or
+`TAVILY_API_KEY`) and `/config` to turn DuckDuckGo page scraping back on.
 
 CREW & DAEMONS carries the `Store isolation` check, which reads the config
 home's harness records by Mercury's own fingerprint: a daemon-plane record carrying no Mercury

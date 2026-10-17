@@ -66,7 +66,7 @@ section('§2 the explicit-key plan remains deterministic when no session model o
   check('tavily only · keyless off · no instance ⇒ Tavily alone', j(doorsOf({ tavilyKey: 'stored', keylessAllowed: false })) === j(['keyed:tavily']))
   const closedAll = resolveSearchDoorPlan({ keylessAllowed: false })
   check('no keys, no instance and the keyless door off ⇒ no door; every closed source named, the missing instance included',
-    closedAll.doors.length === 0 && closedAll.closed.length === 3 && closedAll.closed.some(c => c.includes('DuckDuckGo page scraping is off') && c.includes('/config') && c.includes('MERCURY_SEARCH_KEYLESS=0')) && closedAll.closed.some(c => c.includes('/router key brave')) && closedAll.closed.some(c => c.includes('no metasearch instance configured; MERCURY_SEARCH_SEARXNG_INSTANCES')),
+    closedAll.doors.length === 0 && closedAll.closed.length === 3 && closedAll.closed.some(c => c.includes('DuckDuckGo page scraping is off') && c.includes('/config') && c.includes('MERCURY_SEARCH_KEYLESS=0')) && closedAll.closed.some(c => c.includes('BRAVE_API_KEY')) && closedAll.closed.some(c => c.includes('no metasearch instance configured; MERCURY_SEARCH_SEARXNG_INSTANCES')),
     j(closedAll.closed))
   delete process.env.MERCURY_SEARCH_KEYLESS
   const fresh = resolveSearchDoorPlan(liveSearchDoorReads({}))
@@ -103,7 +103,7 @@ section("§3 the override names ONE vendored door — 'native' is not a backend 
   const braveOnly = resolveSearchDoorPlan({ braveKey: 'env', tavilyKey: 'env', keylessAllowed: true, backendOverride: 'brave' })
   check('backend=brave with a key ⇒ exactly the Brave door', j(braveOnly.doors.map(searchDoorLabel)) === j(['Brave Search (keyed, env key)']), j(braveOnly.doors))
   const braveMissing = resolveSearchDoorPlan({ keylessAllowed: true, backendOverride: 'brave' })
-  check('backend=brave with NO key ⇒ no door, the absence naming the key doors', braveMissing.doors.length === 0 && braveMissing.closed[0]?.includes('/router key brave') === true, j(braveMissing.closed))
+  check('backend=brave with NO key ⇒ no door, the absence naming the key doors', braveMissing.doors.length === 0 && braveMissing.closed[0]?.includes('BRAVE_API_KEY') === true, j(braveMissing.closed))
   const ddgOff = resolveSearchDoorPlan({ keylessAllowed: false, backendOverride: 'duckduckgo' })
   check('backend=duckduckgo with the keyless door off ⇒ no door, both facts on the line', ddgOff.doors.length === 0 && ddgOff.closed[0]?.includes('MERCURY_SEARCH_KEYLESS=0') === true, j(ddgOff.closed))
   const tavilyForced = resolveSearchDoorPlan({ braveKey: 'env', tavilyKey: 'stored', keylessAllowed: true, backendOverride: 'tavily' })
@@ -124,7 +124,7 @@ section('§4 the composed lines')
   check('…and without a native family it names no ProviderSearch door and stays ONE line', !line.includes('ProviderSearch') && !line.includes('\n'), line)
   const nativeLine = walkFailureLine([searchFailure('rate-limited', 'duckduckgo-lite', 'HTTP 202 with the bot challenge page')], resolveSearchDoorPlan({ keylessAllowed: true }), { nativeFamily: 'openai' })
   check("a failed cascade never tells the model to repeat its native rung",
-    !nativeLine.includes("ProviderSearch") && nativeLine.includes('/router key brave · /router key tavily') && nativeLine.includes('free tier') && !nativeLine.includes('\n'), nativeLine)
+    !nativeLine.includes("ProviderSearch") && nativeLine.includes('BRAVE_API_KEY · TAVILY_API_KEY') && nativeLine.includes('free tier') && !nativeLine.includes('\n'), nativeLine)
   const empty = walkFailureLine([], resolveSearchDoorPlan({ keylessAllowed: false }))
   check('an empty plan\'s line is the no-backend sentence naming every absence', empty.includes('No source answered') && empty.includes('MERCURY_SEARCH_KEYLESS=0'), empty)
   const emptyNative = walkFailureLine([], resolveSearchDoorPlan({ keylessAllowed: false }), { nativeFamily: 'anthropic' })

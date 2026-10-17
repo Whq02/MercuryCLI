@@ -46,7 +46,6 @@ const XAI_BILLING_SURFACES = new Set([
   'scripts/settings/prove-xai-usage-popup.ts',
   'scripts/ui/fixtures/face-logins/logins-120x40-key-xai-management.txt',
   'scripts/ui/fixtures/face-logins/logins-80x24-key-xai-management.txt',
-  'src/components/RouterKeyEntry.tsx',
   'src/components/Settings/Usage.tsx',
   'src/services/providers/providerUsage.ts',
   'src/services/providers/xai/xaiLogin.ts',

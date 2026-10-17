@@ -523,11 +523,10 @@ section('§6 the other mints: the Saturn trail, the window refusal and the sign-
   setIdentity('absent')
 }
 
-section('§7 the model picker header and /router engines read the owners')
+section('§7 the model picker header and the provider identity words read the owners')
 {
   const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
   const model = await import(join(ROOT, 'src/commands/model/mercuryModel.tsx'))
-  const router = await import(join(ROOT, 'src/commands/router/router.tsx'))
   const picker = async (leg: Leg): Promise<string> => {
     setIdentity(leg)
     ledger.noteCredentialChange()
@@ -545,18 +544,18 @@ section('§7 the model picker header and /router engines read the owners')
   check('hidden: no line of the picker carries an address, a username or a key tail', leaks(hiddenPicker).length === 0, JSON.stringify(leaks(hiddenPicker)))
   const source = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
   check('the picker composes the door account through the owner, no copy of its own', source.includes('const account = providerDoorAccount(slot, identity)') && !source.includes('function accountOfSlot('))
-  const engines = async (leg: Leg): Promise<string> => {
+  const identityLine = await import(join(ROOT, 'src/services/providers/providerIdentityLine.ts'))
+  const registry = await import(join(ROOT, 'src/utils/router/modelRegistry.ts'))
+  const hfLine = (leg: Leg): string => {
     setIdentity(leg)
-    let text = ''
-    await router.call((value?: string) => { text = value ?? '' }, {} as never, 'engines')
-    return text
+    registry.resetRouterModelSnapshotMemo()
+    const lane = registry.buildRouterModelSnapshot().providers.find(p => p.id === 'huggingface')
+    return `huggingface: ${identityLine.shownIdentityWords('huggingface', lane?.description.account.label ?? '')} · ${lane?.transport ?? ''}`
   }
-  const hfLine = (text: string): string => text.split('\n').find(line => line.startsWith('huggingface:')) ?? ''
-  const shownEngines = await engines('absent')
-  const hiddenEngines = await engines('hidden')
-  check('absent: /router engines names the Hub account on the Hugging Face lane', hfLine(shownEngines).includes(`Hugging Face account (${HF_USERNAME})`), hfLine(shownEngines))
-  check('hidden: the Hugging Face lane names the account by its word, no username', hfLine(hiddenEngines).includes('· Hugging Face account ·') && !hfLine(hiddenEngines).includes(HF_USERNAME), hfLine(hiddenEngines))
-  check('hidden: every other lane reads as it did', shownEngines.split('\n').filter(line => !line.startsWith('huggingface:')).join('\n') === hiddenEngines.split('\n').filter(line => !line.startsWith('huggingface:')).join('\n'))
+  const shownEngines = hfLine('absent')
+  const hiddenEngines = hfLine('hidden')
+  check('absent: the Hugging Face lane names the Hub account', shownEngines.includes(`Hugging Face account (${HF_USERNAME})`), shownEngines)
+  check('hidden: the Hugging Face lane names the account by its word, no username', hiddenEngines.includes('Hugging Face account ·') && !hiddenEngines.includes(HF_USERNAME), hiddenEngines)
   setIdentity('absent')
 }
 

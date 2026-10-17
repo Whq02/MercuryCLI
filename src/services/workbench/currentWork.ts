@@ -62,7 +62,6 @@ interface CurrentWork {
   totalChangedPaths: number
   review: CurrentWorkReview | null
   verification: { state: string; detail: string } | null
-  executionShape: { profile: string; source: string; reasonCodes: string[] } | null
   effectiveModelAndEffort: { model: string; effortLabel: string | null }
   usage: { contextPct: number | null }
   artifactRefs: string[]
@@ -81,7 +80,6 @@ export interface CurrentWorkInputs {
   model: string
   effortLabel: string | null
   contextPct: number | null
-  executionShape: { profile: string; source: string; reasonCodes: string[] } | null
   recovery: CurrentWorkRecovery
 }
 
@@ -172,7 +170,6 @@ export function deriveCurrentWork(inputs: CurrentWorkInputs): CurrentWork {
     totalChangedPaths: run?.totalChangedPaths ?? 0,
     review,
     verification: run ? { state: run.verification.state, detail: run.verification.detail } : null,
-    executionShape: scale === 'none' ? null : inputs.executionShape,
     effectiveModelAndEffort: { model: inputs.model, effortLabel: inputs.effortLabel },
     usage: { contextPct: inputs.contextPct },
     artifactRefs: wb?.artifactHeads.map(a => a.ref) ?? [],
@@ -257,23 +254,6 @@ export async function gatherCurrentWork(opts?: {
     contextPct = null
   }
 
-  let executionShape: CurrentWorkInputs['executionShape'] = null
-  try {
-    if (run && run.substantive && run.deliverables.length >= 2 && run.objective.trim() !== '') {
-      const { gatherPolicyDecision } = await import('../mission/projection.js')
-      const decision = await gatherPolicyDecision(run.objective, run.totalChangedPaths)
-      if (decision) {
-        executionShape = {
-          profile: decision.profile.id,
-          source: decision.source,
-          reasonCodes: decision.reasonCodes.slice(0, 8),
-        }
-      }
-    }
-  } catch {
-    executionShape = null
-  }
-
   return deriveCurrentWork({
     now: Date.now(),
     owner,
@@ -284,7 +264,6 @@ export async function gatherCurrentWork(opts?: {
     model,
     effortLabel,
     contextPct,
-    executionShape,
     recovery: await classifyRecovery(owner, run),
   })
 }

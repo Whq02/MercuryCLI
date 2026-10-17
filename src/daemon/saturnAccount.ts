@@ -94,7 +94,7 @@ export type ScheduleAccountDerivation =
   | { ok: false; reason: string; code?: 'unreachable' }
 
 export function noCredentialRefusal(family: string): string {
-  return `no-credential:${family} — /logins connects an account, or /router key ${family} connects an API key`
+  return `no-credential:${family} — /logins ${family} connects an account or an API key`
 }
 
 export function localUnreachableRefusal(): string {

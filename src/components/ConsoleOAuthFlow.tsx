@@ -326,7 +326,7 @@ export function ConsoleOAuthFlow({
       const arms = popup ? loginsCatalogue() : []
       const intro =
         startingMessage ??
-        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen). An API key also connects from the terminal: /router key <provider>.'
+        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen).'
       const refusalLayout = popup && facts !== null && Object.keys(facts.refusals ?? {}).length > 0
       const rosterCompact = compact || refusalLayout
       const statusWidth = !compact && setupBody !== null ? setupBody.width - 4 - READINESS_LABEL_WIDTH : null

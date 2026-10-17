@@ -161,7 +161,7 @@ function runsOf(tasks: Record<string, TaskState>, roster: Pick<WorkRosterV1, 'ro
   )
 }
 
-export function planningObjectiveOf(snap: RunSnapshot | null): string | null {
+function planningObjectiveOf(snap: RunSnapshot | null): string | null {
   return snap &&
     snap.substantive &&
     !isTerminalLifecycle(snap.lifecycle) &&
@@ -179,7 +179,6 @@ function workDigestOf(
   ledger: readonly WorkLedgerRow[],
   rowW: number,
   planningObjective: string | null,
-  workShape: string | null,
   tok: MercuryThemeTokens,
 ): WorkDigest | null {
   if (!snap || !snap.substantive) return null
@@ -199,7 +198,6 @@ function workDigestOf(
   if (snap.unresolvedBadEffects > 0) statusBits.push(`${snap.unresolvedBadEffects}!`)
   rows.push({ text: truncateToWidth(statusBits.join(' · '), w), color: tok.textSecondary })
   if (planningObjective !== null && snap.objective === planningObjective) {
-    if (workShape) rows.push({ text: truncateToWidth(`via ${workShape}`, w), color: tok.textSecondary })
     pushWrapped('', 'plan: edit /runs · steer by typing', tok.textMuted, 2)
   }
   const active = snap.deliverables.find(d => d.state === 'in-progress')
@@ -314,7 +312,6 @@ export type LanesInput = {
   tasks: Record<string, TaskState>
   roster: Pick<WorkRosterV1, 'rows'>
   workRunSnap: RunSnapshot | null
-  workShape: string | null
   ledger: readonly WorkLedgerRow[]
   lastSentPrompt: string | null
   filesOff: boolean
@@ -377,7 +374,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
   const runsLive = runsAll.reduce((n, r) => n + (r.status === 'running' ? 1 : 0), 0)
 
   const planningObjective = planningObjectiveOf(input.workRunSnap)
-  const work = workDigestOf(input.workRunSnap, input.ledger, rowW, planningObjective, input.workShape, tok)
+  const work = workDigestOf(input.workRunSnap, input.ledger, rowW, planningObjective, tok)
 
   const workbenchRows: string[] | null = input.lastSentPrompt !== null
     ? wrapRailRows(input.lastSentPrompt.replace(/\s+/g, ' ').trim(), Math.max(6, rowW - 2), 2)

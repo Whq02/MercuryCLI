@@ -255,7 +255,7 @@ export function useComposerModelDoors({
         if (keyLane === 'compat') {
           addNotification({
             key: 'compat-configure',
-            text: 'Custom endpoint: set MERCURY_COMPAT_BASE_URL (+ MERCURY_COMPAT_MODELS, optional MERCURY_COMPAT_API_KEY or /router key compat) — the rows go live next /model open',
+            text: 'Custom endpoint: set MERCURY_COMPAT_BASE_URL (+ MERCURY_COMPAT_MODELS, optional MERCURY_COMPAT_API_KEY) — the rows go live next /model open',
             priority: 'high',
             timeoutMs: 6000,
           })

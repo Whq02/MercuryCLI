@@ -879,7 +879,7 @@ function MercuryModelWrapper({
           setNotice(
             snapshot && snapshot.models.length > 0 && !snapshot.lastError
               ? `GPT catalogue landed: ${snapshot.models.length} model(s) from the ${account.label} — pick one above`
-              : `GPT catalogue unavailable — ↵ retries · /router engines shows readiness${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
+              : `GPT catalogue unavailable — ↵ retries · /logins shows readiness${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
           )
         })()
         return
@@ -1003,7 +1003,7 @@ function MercuryModelWrapper({
       if (keyLane !== undefined) {
         if (keyLane === 'compat') {
           onDone(
-            'Custom endpoint: set MERCURY_COMPAT_BASE_URL (+ MERCURY_COMPAT_MODELS, optional MERCURY_COMPAT_API_KEY or /router key compat) — the rows go live next /model open',
+            'Custom endpoint: set MERCURY_COMPAT_BASE_URL (+ MERCURY_COMPAT_MODELS, optional MERCURY_COMPAT_API_KEY) — the rows go live next /model open',
           )
           return
         }

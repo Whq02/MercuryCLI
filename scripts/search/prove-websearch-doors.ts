@@ -324,7 +324,7 @@ section('§5 TYPED FAILURES — the challenge, the poison, the fallthroughs, the
   fixture.reset()
   run = await runTool(NEMOTRON, { query: QUERY })
   check('keyless off + no keys + no native ⇒ the typed no-backend line naming the key door and the flag',
-    run.output === undefined && /No source answered/.test(run.error?.message ?? '') && /\/router key brave/.test(run.error?.message ?? '') && /MERCURY_SEARCH_KEYLESS=0/.test(run.error?.message ?? ''), run.error?.message)
+    run.output === undefined && /No source answered/.test(run.error?.message ?? '') && /BRAVE_API_KEY/.test(run.error?.message ?? '') && /MERCURY_SEARCH_KEYLESS=0/.test(run.error?.message ?? ''), run.error?.message)
   check('…and NOTHING was dialled', j(run.perLane) === j({}), j(run.perLane))
   process.env.MERCURY_SEARCH_KEYLESS = '1'
   fixture.reset()
@@ -463,7 +463,7 @@ section("§11 THE SESSION CACHE — the same query answers with ZERO knocks and 
     const head = output?.results[0]
     return head !== undefined && typeof head !== 'string' ? j(head.content) : ''
   }
-  check("a fresh process's first keyless answer carries the key-door hint (both commands, the free tiers)", first?.hint === KEYED_DOOR_REMEDY && first.hint.includes('/router key brave') && first.hint.includes('/router key tavily') && first.hint.includes('free tier'), j(first?.hint))
+  check("a fresh process's first keyless answer carries the key-door hint (both variables, the free tiers)", first?.hint === KEYED_DOOR_REMEDY && first.hint.includes('BRAVE_API_KEY') && first.hint.includes('TAVILY_API_KEY') && first.hint.includes('free tier'), j(first?.hint))
   check('…its group id is minted fresh (via-N)', /^duckduckgo-\d+$/.test(groupOf(first)), groupOf(first))
   fixture.reset()
   run = await runTool(NEMOTRON, { query: QUERY }, { keepPacing: true })

@@ -18,7 +18,6 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
       'workflows', 'agents',
       'crewmates', 'crew',
       'daemon', 'saturn', 'seats', 'kill', 'unkill',
-      'router',
     ],
   },
   {

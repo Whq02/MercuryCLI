@@ -55,7 +55,7 @@ function door(deps = ready): void {
 try {
   Date.now = () => now
   seed()
-  door({ deriveAccount: () => ({ ok: false, reason: 'no-credential:openai — /logins connects an account, or /router key openai connects an API key' }) })
+  door({ deriveAccount: () => ({ ok: false, reason: 'no-credential:openai — /logins openai connects an account or an API key' }) })
   const refused = await rejection(() => call({ cron: '0 9 * * 1-5', prompt: 'nightly audit' }))
   check('daemon refusal reaches the model instead of submitted success', refused.startsWith('CronCreate: the daemon refused this schedule, so nothing was scheduled.') && refused.includes('schedule refused — no-credential:openai') && refused.endsWith('Nothing was scheduled.'), refused)
   check('refused add writes no schedule', rows().length === 0)

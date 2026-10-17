@@ -63,7 +63,6 @@ import mouse from './commands/mouse/index.js'
 import showcase from './commands/showcase/index.js'
 import capabilities from './commands/capabilities/index.js'
 import workbench from './commands/workbench/index.js'
-import router from './commands/router/index.js'
 import daemon from './commands/daemon/index.js'
 import saturn from './commands/saturn/index.js'
 import seats from './commands/seats/index.js'
@@ -192,7 +191,6 @@ const COMMANDS = memoize((): Command[] => [
   capabilities,
   caching,
   workbench,
-  router,
   daemon,
   saturn,
   seats,

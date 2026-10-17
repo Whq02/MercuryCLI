@@ -162,10 +162,6 @@ section('6 · the picker row states only the ACTIVE source (structural)')
     !picker.includes('an API key serves'),
   )
   check(
-    'the row no longer routes the window question to /router connect (the SUBSCRIPTION verb)',
-    !/serves \$\{fmtCtx\([^)]*\)\} \(\/router connect\)/.test(picker) && !picker.includes('(/router connect)'),
-  )
-  check(
     'the row reads the source-declared ceiling accessor',
     picker.includes('liveGptContextCeiling'),
   )

@@ -152,7 +152,7 @@ export function subModelConnectHome(route: CallModelRoute | string): {
     case 'zen':
       return { command: '/logins zen', note: 'connect — /logins (API key)' }
     case 'openai-compat':
-      return { note: 'MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — /router key compat)' }
+      return { note: 'MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — MERCURY_COMPAT_API_KEY)' }
     case 'huggingface':
       return { command: '/logins huggingface', note: 'sign in — /logins' }
     case 'local':

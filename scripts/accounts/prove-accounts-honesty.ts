@@ -180,7 +180,7 @@ section('§1 slotSigninState — one answer per slot')
     moonshot: 'not signed in · ↵ names the route — /logins moonshot or MOONSHOT_API_KEY',
     deepseek: 'not signed in · ↵ names the route — /logins deepseek or DEEPSEEK_API_KEY',
     huggingface: 'not signed in · ↵ names the route — /logins huggingface or HF_TOKEN',
-    'openai-compat': 'not signed in · ↵ names the route — MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — /router key compat)',
+    'openai-compat': 'not signed in · ↵ names the route — MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — MERCURY_COMPAT_API_KEY)',
     local: 'no server discovered · ↵ names the route — Ollama · LM Studio · vLLM · llama.cpp, or MERCURY_LOCAL_BASE_URL',
   }
   for (const [family, words] of Object.entries(expected)) {

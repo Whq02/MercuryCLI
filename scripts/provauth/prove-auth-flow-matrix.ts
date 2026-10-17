@@ -218,8 +218,8 @@ const RECONNECT_DOORS: Record<string, string> = {
   openrouter: '/logins openrouter',
   gemini: '/logins gemini',
   huggingface: '/logins huggingface',
-  'openai-compat': '/router key compat',
-  local: '/router key local',
+  'openai-compat': 'MERCURY_COMPAT_API_KEY',
+  local: 'MERCURY_LOCAL_API_KEY',
   nous: '/logins nous',
   zen: '/logins zen',
 }
@@ -322,7 +322,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     rows.join('|'),
   )
   check(
-    "compat and local parse NO /logins focus (their door is /router key — never a dead /logins row)",
+    "compat and local parse NO /logins focus (their door is the env variable — never a dead /logins row)",
     loginFamilyFocusFor('openai-compat') === undefined && loginFamilyFocusFor('local') === undefined,
   )
   check(
@@ -1817,7 +1817,7 @@ section('§11 the keyed search tier: Brave · Tavily — doors, refusals, quota,
   const storedRead = resolveBraveSearchApiKey({} as NodeJS.ProcessEnv)
   const envRead = resolveBraveSearchApiKey({ BRAVE_API_KEY: 'brave-env-fixture-000001' } as never)
   check(
-    'brave: the stored key signs in through /router key; an env pin wins over it',
+    'brave: a stored key signs in; an env pin wins over it',
     storedRead?.key === 'brave-stored-fixture-0001' &&
       storedRead?.source === 'stored' &&
       envRead?.key === 'brave-env-fixture-000001' &&
@@ -1827,11 +1827,10 @@ section('§11 the keyed search tier: Brave · Tavily — doors, refusals, quota,
 
   const absent = await braveSearch(request, { env: {} as NodeJS.ProcessEnv })
   check(
-    'brave: no key answers the typed no-backend line naming BRAVE_API_KEY and /router key brave',
+    'brave: no key answers the typed no-backend line naming BRAVE_API_KEY',
     absent.ok === false &&
       (absent as { kind: string }).kind === 'no-backend' &&
-      (absent as { message: string }).message.includes('BRAVE_API_KEY') &&
-      (absent as { message: string }).message.includes('/router key brave'),
+      (absent as { message: string }).message.includes('set BRAVE_API_KEY'),
     JSON.stringify(absent),
   )
 
@@ -1841,11 +1840,11 @@ section('§11 the keyed search tier: Brave · Tavily — doors, refusals, quota,
   }
   const refused = await braveSearch(request, refusedIo as never)
   check(
-    'brave: a refused key (401) answers key-refused with the dashboard and the /router re-key door',
+    'brave: a refused key (401) answers key-refused with the dashboard and the variable',
     refused.ok === false &&
       (refused as { kind: string }).kind === 'key-refused' &&
       (refused as { message: string }).message.includes('api-dashboard.search.brave.com') &&
-      (refused as { message: string }).message.includes('/router key brave again'),
+      (refused as { message: string }).message.includes('set BRAVE_API_KEY again'),
     JSON.stringify(refused),
   )
 
@@ -1873,24 +1872,16 @@ section('§11 the keyed search tier: Brave · Tavily — doors, refusals, quota,
     fetchImpl: (async () => new Response('{}', { status: 432 })) as unknown as typeof fetch,
   } as never)
   check(
-    'tavily: stored sign-in resolves; a refused key names app.tavily.com and the re-key door; 432 answers the spent plan',
+    'tavily: stored sign-in resolves; a refused key names app.tavily.com and the variable; 432 answers the spent plan',
     tavStored?.key === 'tavily-stored-fixture-001' &&
       tavRefused.ok === false &&
       (tavRefused as { message: string }).message.includes('app.tavily.com') &&
-      (tavRefused as { message: string }).message.includes('/router key tavily again') &&
+      (tavRefused as { message: string }).message.includes('set TAVILY_API_KEY again') &&
       tavSpent.ok === false &&
       (tavSpent as { kind: string }).kind === 'rate-limited',
     JSON.stringify({ tavRefused, tavSpent }),
   )
 
-  const routerSrc = (await import('node:fs')).readFileSync(
-    join(import.meta.dir, '..', '..', 'src/commands/router/router.tsx'),
-    'utf8',
-  )
-  check(
-    "the /router key vocabulary registers 'brave' and 'tavily'",
-    /KEY_LANES = \[[^\]]*'brave', 'tavily'[^\]]*\] as const/.test(routerSrc),
-  )
 }
 
 console.log(

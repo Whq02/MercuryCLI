@@ -155,7 +155,7 @@ export function normaliseHits(hits: readonly SearchHit[], maxResults = DEFAULT_M
 }
 
 
-export const KEYED_DOOR_COMMANDS = '/router key brave · /router key tavily'
+export const KEYED_DOOR_COMMANDS = 'BRAVE_API_KEY · TAVILY_API_KEY'
 export const KEYED_DOOR_FREE_TIER = 'both offer a free tier'
 
 export const KEYED_DOOR_REMEDY = `a Brave or Tavily key lifts the keyless door's rate limit — ${KEYED_DOOR_COMMANDS} (${KEYED_DOOR_FREE_TIER})`

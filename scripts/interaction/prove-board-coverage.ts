@@ -12,7 +12,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 const BOARDS = [
-  'src/components/RouterBoard.tsx',
   'src/components/extensions/ExtensionsBoard.tsx',
   'src/components/extensions/SourceView.tsx',
   'src/components/tasks/WorkflowsBoard.tsx',

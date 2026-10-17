@@ -30,7 +30,6 @@ const LOG_CALLEE = /^(?:logForDebugging|logError|logEvent|logWarn|logInfo|debugL
 type Row = { path: string; fragment: string | null; why: string }
 const ALLOW: Row[] = [
   ...[
-    ['src/components/RouterKeyEntry.tsx', 'the API key identifies the team'],
     ['src/components/Settings/Usage.tsx', 'the team’s prepaid credits'],
     ['src/services/providers/providerUsage.ts', 'a management key unlocks the team balance'],
     ['src/services/providers/providerUsage.ts', 'team usage ('],

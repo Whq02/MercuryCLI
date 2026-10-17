@@ -33,8 +33,8 @@ const LOGINS_FAMILY_WORDS = new Set(['anthropic', 'openai', 'openrouter', 'gemin
 
 export function reconnectDoorFor(route: string): string {
   if (LOGINS_FAMILY_WORDS.has(route)) return `/logins ${route}`
-  if (route === 'openai-compat') return '/router key compat'
-  if (route === 'local') return '/router key local'
+  if (route === 'openai-compat') return 'MERCURY_COMPAT_API_KEY'
+  if (route === 'local') return 'MERCURY_LOCAL_API_KEY'
   return '/logins'
 }
 

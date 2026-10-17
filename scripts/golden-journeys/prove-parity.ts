@@ -59,7 +59,6 @@ const work = deriveCurrentWork({
   model: 'claude-fable-5',
   effortLabel: 'high',
   contextPct: null,
-  executionShape: null,
   recovery: { state: 'live' },
 })
 

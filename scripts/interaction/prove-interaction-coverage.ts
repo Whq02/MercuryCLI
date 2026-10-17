@@ -81,7 +81,6 @@ reg(
     'src/components/BootResumeScreen.tsx',
     'src/components/KitMenuScreen.tsx',
     'src/components/concourse/CompactConcourse.tsx',
-    'src/components/RouterBoard.tsx',
  'src/components/concourse/ConcourseScreen.tsx',
  'src/components/concourse/ConcourseLayout.tsx',
  'src/components/concourse/ConcourseHeader.tsx',
@@ -202,7 +201,6 @@ reg(
     'src/components/mercury-ui/parity/CapabilityManagerView.tsx',
     'src/components/mercury-ui/parity/DaemonView.tsx',
     'src/components/mercury-ui/screens/CrewView.tsx',
-    'src/components/RouterKeyEntry.tsx',
     'src/components/RouterOpenaiConnect.tsx',
 
     'src/components/TraceView.tsx',

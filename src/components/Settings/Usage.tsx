@@ -385,7 +385,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
   },
   'openai-compat': {
     title: 'Custom endpoint usage',
-    connect: 'set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)',
+    connect: 'set MERCURY_COMPAT_BASE_URL (key optional — MERCURY_COMPAT_API_KEY)',
     limitsNote: 'Usage bills to the endpoint you configured; no polled limit meter exists on this lane.',
   },
   mistral: {

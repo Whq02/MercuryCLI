@@ -886,7 +886,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       })()
       yield withEffort(stampProviderWait(
         markUnknownModel(apiErrorMessage(
-          busyPrefix(`${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} request was refused (${outcome.fault.code}) — ${outcome.fault.message}${carryClause}. The next request goes to OpenAI again; resume any time. Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry now · pick another model via /model · switch the OpenAI source explicitly (/router source).'}${laneRemedy}`, outcome.fault, typed),
+          busyPrefix(`${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} request was refused (${outcome.fault.code}) — ${outcome.fault.message}${carryClause}. The next request goes to OpenAI again; resume any time. Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry now · pick another model via /model · switch the OpenAI source explicitly (s on the OpenAI row in /logins).'}${laneRemedy}`, outcome.fault, typed),
           openaiFaultToTypedError(outcome.fault),
           `${outcome.fault.code}${outcome.fault.resetsAtMs !== undefined ? ` resets_at=${new Date(outcome.fault.resetsAtMs).toISOString()}` : ''}`,
         ), outcome.fault.status),

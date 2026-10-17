@@ -104,7 +104,7 @@ check(
 )
 
 section('§3 gate behavior matrix under stamp-sim (LIVE env re-reads)')
-const optOutSample = ['MERCURY_DAEMON_CATCHUP', 'MERCURY_ROUTER']
+const optOutSample = ['MERCURY_DAEMON_CATCHUP', 'MERCURY_MISSION']
 for (const env of optOutSample) {
   delete process.env[env]
   const on = flagEnabled(env)

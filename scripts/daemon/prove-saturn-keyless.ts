@@ -136,7 +136,7 @@ console.log('§K3 no server ⇒ the probe route, never a login door')
       missed.reason,
     )
     check("NO login door — local has none ('/logins' absent)", !missed.reason.includes('/logins'), missed.reason)
-    check('no key door either — the family is keyless by default', !missed.reason.includes('/router key'), missed.reason)
+    check('no key door either — the family is keyless by default', !missed.reason.includes('API key'), missed.reason)
   }
 }
 

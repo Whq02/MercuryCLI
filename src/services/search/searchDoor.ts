@@ -52,7 +52,7 @@ export function resolveSearchDoorPlan(reads: SearchDoorReads, query = ''): Searc
   if (reads.tavilyKey) keyed.push({ kind: 'keyed', backend: 'tavily', keySource: reads.tavilyKey })
   if (parsed === 'brave' || parsed === 'tavily') {
     const door = keyed.find(d => d.kind === 'keyed' && d.backend === parsed)
-    return door ? { doors: [door], closed: [], override: parsed } : { doors: [], closed: [`MERCURY_SEARCH_BACKEND=${parsed}, but no ${searchBackendLabel(parsed)} key is present (${parsed === 'brave' ? 'BRAVE_API_KEY or /router key brave' : 'TAVILY_API_KEY or /router key tavily'})`], override: parsed }
+    return door ? { doors: [door], closed: [], override: parsed } : { doors: [], closed: [`MERCURY_SEARCH_BACKEND=${parsed}, but no ${searchBackendLabel(parsed)} key is present (${parsed === 'brave' ? 'set BRAVE_API_KEY' : 'set TAVILY_API_KEY'})`], override: parsed }
   }
   if (parsed === 'duckduckgo') return reads.keylessAllowed
     ? { doors: [{ kind: 'keyless' }], closed: [], override: parsed }
@@ -66,7 +66,7 @@ export function resolveSearchDoorPlan(reads: SearchDoorReads, query = ''): Searc
   if (reads.metasearchInstances) doors.push({ kind: 'metasearch' })
   if (reads.keylessAllowed) doors.push({ kind: 'keyless' })
   const closed = []
-  if (!keyed.length) closed.push(`no Brave or Tavily key stored (${KEYED_DOOR_COMMANDS} — ${KEYED_DOOR_FREE_TIER})`)
+  if (!keyed.length) closed.push(`no Brave or Tavily key (${KEYED_DOOR_COMMANDS} — ${KEYED_DOOR_FREE_TIER})`)
   if (!reads.metasearchInstances) closed.push(NO_METASEARCH_INSTANCE)
   if (!reads.keylessAllowed) closed.push(`DuckDuckGo page scraping is off (${DUCKDUCKGO_OFF_DOORS})`)
   return { doors, closed, override: parsed }

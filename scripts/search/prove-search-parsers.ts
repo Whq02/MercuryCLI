@@ -137,10 +137,10 @@ section('§6 the honest lines and the query builders')
   }
   check('failureLine(parse-failed) says no result was guessed', contract.failureLine(contract.searchFailure('parse-failed', 'brave', 'x')).includes('no result was guessed'))
   check('viaLine(keyless) names the door and its tier only — the key remedy never rides the standing line (it is the once-per-session hint)',
-    contract.viaLine('duckduckgo', 'keyless') === 'via DuckDuckGo (keyless)' && !contract.viaLine('duckduckgo', 'keyless').includes('/router'))
+    contract.viaLine('duckduckgo', 'keyless') === 'via DuckDuckGo (keyless)' && !contract.viaLine('duckduckgo', 'keyless').includes('_API_KEY'))
   check('viaChip(keyless) is the same words', contract.viaChip('duckduckgo', 'keyless') === 'via DuckDuckGo (keyless)')
-  check('the hint sentence names both key commands and the free tiers',
-    contract.KEYED_DOOR_REMEDY.includes('/router key brave') && contract.KEYED_DOOR_REMEDY.includes('/router key tavily') && contract.KEYED_DOOR_REMEDY.includes('free tier'), contract.KEYED_DOOR_REMEDY)
+  check('the hint sentence names both key variables and the free tiers',
+    contract.KEYED_DOOR_REMEDY.includes('BRAVE_API_KEY') && contract.KEYED_DOOR_REMEDY.includes('TAVILY_API_KEY') && contract.KEYED_DOOR_REMEDY.includes('free tier'), contract.KEYED_DOOR_REMEDY)
   check('viaChip(keyed/native) name the tier', contract.viaChip('brave', 'keyed') === 'via Brave Search (keyed)' && contract.viaChip('openai-native', 'native') === 'via OpenAI web search (native)')
   check('one allowed domain rides as site: on the keyless query', keylessQueryFor({ query: 'q', allowedDomains: ['example.com'] }) === 'q site:example.com')
   check('several allowed domains do NOT ride the query (the post-filter is the law)', keylessQueryFor({ query: 'q', allowedDomains: ['a.com', 'b.com'] }) === 'q')

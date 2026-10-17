@@ -678,7 +678,7 @@ Available commands include:
   token for an Anthropic account (`login`, `mint`), check authentication
   across all 13 provider families and exit 0 when the active model's provider
   is signed in (`status`), or sign out (`logout`). Connect other provider
-  families through `/logins` or `/router key`.
+  families through `/logins`.
 - **`mercury mcp`**: manage MCP servers with `add`, `import`, `list`, `get`,
   `remove`, `trust-reset` and `serve`.
 - **`mercury extensions`**: install extensions and manage their sources.
@@ -836,7 +836,7 @@ commands.
 | Domain | Commands |
 | --- | --- |
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
-| crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/router` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
+| crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` |
 | memory & goals | `/memory` `/console` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |

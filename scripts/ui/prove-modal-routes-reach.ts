@@ -158,7 +158,7 @@ const commands = await getCommands(process.cwd())
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 const routes = commands.filter(command => command.type === 'local-jsx' && !NOT_A_VIEW.has(command.name) && (onlyRoute === undefined || command.name === onlyRoute))
 console.log(`routes: ${routes.map(command => command.name).join(' ')}`)
-const expectedRoutes = ['agents', 'appearance', 'caching', 'capabilities', 'console', 'context', 'copy', 'critter', 'daemon', 'defaultprovider', 'diff', 'effort', 'export', 'extensions', 'feedback', 'health', 'help', 'hooks', 'keys', 'logins', 'mcp', 'memory', 'model', 'palette', 'permissions', 'realms', 'router', 'run', 'runs', 'samples', 'sandbox', 'saturn', 'sessions', 'showcase', 'skills', 'submodels', 'trace', 'workbench', 'workflows']
+const expectedRoutes = ['agents', 'appearance', 'caching', 'capabilities', 'console', 'context', 'copy', 'critter', 'daemon', 'defaultprovider', 'diff', 'effort', 'export', 'extensions', 'feedback', 'health', 'help', 'hooks', 'keys', 'logins', 'mcp', 'memory', 'model', 'palette', 'permissions', 'realms', 'run', 'runs', 'samples', 'sandbox', 'saturn', 'sessions', 'showcase', 'skills', 'submodels', 'trace', 'workbench', 'workflows']
 if (onlyRoute === undefined) check('every view route the compositor census knows is in the walk (the nine that never paint a view are named)', expectedRoutes.every(name => routes.some(command => command.name === name)), expectedRoutes.filter(name => !routes.some(command => command.name === name)).join(' '))
 
 const sessionFile = workerTranscriptPath({ sessionId: SEED_SESSION, workspaceId: process.cwd() })
@@ -304,7 +304,7 @@ const boxedMarker = (lines: string[]): boolean => {
 }
 const MARKER_ALWAYS = new Set(['accounts', 'appearance', 'caching', 'capabilities', 'console', 'critter', 'defaultprovider', 'effort', 'export', 'feedback', 'health', 'hooks', 'keys', 'logins', 'memory', 'model', 'palette', 'samples', 'sandbox', 'sessions', 'showcase', 'submodels'])
 const MARKER_AFTER_WALK = new Set(['permissions'])
-const MARKER_WIDE_NAV = new Set(['extensions', 'router', 'workbench'])
+const MARKER_WIDE_NAV = new Set(['extensions', 'workbench'])
 const diffListsFiles = (lines: string[]): boolean => region(lines).some(line => /Mercury — diff · \d+ files? /.test(line))
 const markerExpected = (name: string, cols: number, stage: 'open' | 'walked', frame: string[] = []): boolean =>
   MARKER_ALWAYS.has(name) || (MARKER_AFTER_WALK.has(name) && stage === 'walked') || (MARKER_WIDE_NAV.has(name) && cols >= 177) || (name === 'diff' && diffListsFiles(frame))
@@ -437,21 +437,6 @@ if (caching !== undefined) {
       check(`/caching resize → ${cols}x${rows} with Gemini selected: the family's ${wrapped(cols)} lines are whole, the next family's head or the footer right after them`, familyWhole(frame, 'Gemini', 'DeepSeek', wrapped(cols)), describe(frame))
     }
     await wide.close()
-  }
-}
-
-const router = routes.find(command => command.name === 'router')
-if (router !== undefined) {
-  for (const [cols, rows] of [[64, 20], [177, 49]] as Array<[number, number]>) {
-    const scene = await openRoute(router, cols, rows)
-    if (scene === null) continue
-    const frame = scene.lines()
-    save(`router-${cols}x${rows}-posture`, frame)
-    const line = frame.find(candidate => candidate.includes('posture ')) ?? ''
-    const stampAt = line.indexOf('route store')
-    const liveAt = line.indexOf(' LIVE')
-    check(`/router ${cols}x${rows}: the posture line carries the route store's freshness stamp before the provider list, and the live provider leads the list`, stampAt >= 0 && liveAt > stampAt && line.indexOf('·', stampAt) < liveAt, line.replace(/\s+$/, '').slice(0, 200))
-    await scene.close()
   }
 }
 

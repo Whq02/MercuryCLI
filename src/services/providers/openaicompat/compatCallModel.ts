@@ -21,9 +21,9 @@ export const compatSlotLaneProfile: CompatLaneProfile = {
     return key ? { apiKey: key.key } : {}
   },
   credentialHint:
-    'the OpenAI-compatible endpoint slot is not configured — set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY / /router key compat if the endpoint needs one).',
+    'the OpenAI-compatible endpoint slot is not configured — set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY if the endpoint needs one).',
   authRemedy:
-    'set MERCURY_COMPAT_API_KEY (or /router key compat) to the key this endpoint expects; a keyless endpoint needs neither.',
+    'set MERCURY_COMPAT_API_KEY to the key this endpoint expects; a keyless endpoint needs neither.',
   requestUrl: () => {
     const url = compatChatCompletionsUrl()
     if (url === undefined) {

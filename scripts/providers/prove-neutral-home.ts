@@ -364,15 +364,13 @@ section("§7 the surfaces name the session's family — never the first-party on
   const missing = notLoggedInGateDecision([{ provider: 'openai' }] as never, 'anthropic')
   check('the wallet gate names the missing family by its one-owner display name', missing.state === 'provider-missing' && missing.missingProvider === 'Anthropic' && /No Anthropic account/.test(missing.steering), JSON.stringify(missing))
   check('a session on a key lane is never steered to the first-party sign-in', notLoggedInGateDecision([], 'openrouter').state === 'ok')
-  const routerText = readFileSync(join(ROOT, 'src/commands/router/router.tsx'), 'utf8')
-  check('the /router header names the estate as it is, with the ruled fence beside it', /every provider lane beside the home lane/.test(routerText) && /seats stay Anthropic/.test(routerText))
 }
 
 section("§8 the operator's sighting: a fresh box's New Session is born keyless; a spelled-out id keeps its family's door, spoken to the operator")
 {
   const wm = await import('../../src/services/concourse/workerModels.js')
   const ruled = wm.noAccountRefusal('no-credential:anthropic', undefined, false)
-  check('no default recorded + nothing signed in ⇒ the ruled two-door sentence', ruled !== undefined && ruled.reason === 'no-credential:any' && ruled.action === '/logins to choose an account, or /router key <provider> to connect an API key', JSON.stringify(ruled))
+  check('no default recorded + nothing signed in ⇒ the ruled door sentence', ruled !== undefined && ruled.reason === 'no-credential:any' && ruled.action === '/logins to choose an account or connect an API key', JSON.stringify(ruled))
   check('…and no family word rides it', ruled !== undefined && !/anthropic|claude|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(`${ruled.detail} ${ruled.action}`), JSON.stringify(ruled))
   check('a recorded default is the drift note\'s case, not this one', wm.noAccountRefusal('no-credential:anthropic', 'openrouter', false) === undefined)
   check('any credentialed family means the launch lands there — never this refusal', wm.noAccountRefusal('no-credential:anthropic', undefined, true) === undefined)
