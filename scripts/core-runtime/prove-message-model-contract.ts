@@ -934,7 +934,7 @@ section('TEXT-TABLE — extractTag / textForResubmit / wrapCommandText rows')
   const human = M.wrapCommandText('X', undefined)
   check(
     'wrapCommandText: human/default row opens with the operator line and closes with the accounting sentence',
-    human.startsWith('The operator sent a new message while you were working:\nX\n\nRead and apply this operator message before your next action:') &&
+    human.startsWith('The operator sent a new message while you were working:\nX\n\nIMPORTANT: Read this message before taking your next action') &&
       human.endsWith('Before ending your turn, account for this message: address it, incorporate it into the work, or explain any blocker. Do not silently drop it.') &&
       M.wrapCommandText('X', { kind: 'human' } as never) === human,
   )

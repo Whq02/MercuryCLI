@@ -153,7 +153,7 @@ export function buildMissionDirective(condition: string): string {
     `working toward it. Do not stop until the condition is genuinely met — a`,
     `Stop hook will keep re-prompting you until it is.`,
     ``,
-    `Once the condition is met, end that`,
+    `When — and only when — the condition is genuinely and fully met, end that`,
     `turn with a single final line containing exactly:`,
     ``,
     `    ${MISSION_MET_SENTINEL}`,
@@ -270,7 +270,7 @@ export function setActiveMission(
   }
 
   const hookId = `mission-${sessionId}-${setAt}`
-  const words = `The standing mission for this session is not yet met: ${condition}\nKeep working toward it. When it is met, end your turn with a final line containing ${MISSION_MET_SENTINEL}. A snapshot-style condition (a plan or in-flight status) counts as met once the work it directs is complete.`
+  const words = `The standing mission for this session is not yet met: ${condition}\nKeep working toward it. When it is genuinely met, end your turn with a final line containing exactly ${MISSION_MET_SENTINEL}. A snapshot-style condition (a plan or in-flight status) counts as met once the work it directs is complete — being past the described state is completion, not a mismatch.`
   engageTurnGuard(sessionId, {
     id: hookId,
     timeoutMs: 5000,

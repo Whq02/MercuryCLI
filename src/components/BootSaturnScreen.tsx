@@ -305,7 +305,7 @@ export const SATURN_OPENING_REVIEW_ROW = 'review';
 export const SATURN_OPENING_CUSTOM_ROW = 'custom…';
 
 export const SATURN_AUDIT_MISSION =
-  'Audit this workspace: sweep recent changes and their checks, verify what they claim against the tree, and write your findings with file references into the transcript.';
+  'Audit this workspace: sweep the recent changes and the checks that guard them, verify what they claim against the tree, and write your findings — with file references — into the transcript.';
 export const SATURN_REVIEW_MISSION =
   'Review the recent work in this workspace: read the latest commits, flag defects and risks with file references, and write the review into the transcript.';
 

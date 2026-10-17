@@ -47,8 +47,8 @@ export const STREAM_FAULT_AFTER_PARTIAL_MARKER = 'stream fault after partial con
 
 export const STREAM_FAULT_RECOVERY_NUDGE =
   'The provider stream dropped mid-response after partial content. ' +
-  'Pick up where your output stopped without restarting, apologising, ' +
-  'or restating what you already wrote. Finish the remaining work and ' +
+  'Pick up exactly where your output stopped rather than restarting. Do not apologise ' +
+  'and do not restate anything you already produced. Finish the outstanding work and ' +
   'end with a complete final message.'
 
 const STREAM_FAULT_RECOVERY_TAIL_CHARS = 160
@@ -57,7 +57,7 @@ export function streamFaultRecoveryTailLine(replyText: string): string | null {
   const settled = replyText.trimEnd()
   if (settled === '') return null
   const tail = settled.length > STREAM_FAULT_RECOVERY_TAIL_CHARS ? `…${settled.slice(-STREAM_FAULT_RECOVERY_TAIL_CHARS)}` : settled
-  return `Your reply so far is the assistant message above; the stream was cut right after: "${tail}". Continue from that point.`
+  return `Your reply so far is the assistant message directly above this one; the stream was cut right after its last words: “${tail}”. Continue from exactly that point.`
 }
 
 export function streamFaultRecoveryContent(replyText: string): string | ContentBlockParam[] {
@@ -77,8 +77,8 @@ const REASONING_ONLY_RECOVERY_NUDGE =
   '[System: your last turn carried thinking only — say your reply, or call the tool you meant.]'
 
 const REASONING_ONLY_FEWER_WORDS_NUDGE =
-  '[System: your last turn carried thinking only and ran out of output. ' +
-  'Say your reply in fewer words, or call the tool you meant.]'
+  '[System: your last turn carried thinking only — say your reply, or call the tool you meant; ' +
+  'you ran out of output while thinking — answer in fewer words.]'
 
 export const REASONING_CUT_MARKER = '[output ran out while thinking — no reply was written yet]'
 
@@ -100,7 +100,7 @@ export const PROMPT_TOO_LONG_ERROR_MESSAGE = 'Prompt is too long'
 export const CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE = 'Credit balance is too low'
 
 export const INVALID_API_KEY_ERROR_MESSAGE =
-  'Not logged in · run /logins'
+  'Not logged in · Please run /logins'
 
 export const INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL =
   'Invalid API key · Fix external API key'

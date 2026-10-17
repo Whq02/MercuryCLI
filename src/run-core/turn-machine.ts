@@ -200,7 +200,7 @@ import { refreshGovernorCeilings } from '../services/capacity/composeCeilings.js
 import { count } from '../utils/array.js'
 
 const OUTPUT_LIMIT_RECOVERY_TEXT =
-  'The reply hit the output ceiling. Continue from where it stopped in smaller pieces without recapping.'
+  'The reply hit the output ceiling. Carry on from exactly where it stopped — no recap, no apology — in smaller pieces.'
 
 const OUTPUT_LIMIT_STOP_WORDS = {
   repeat: 'the reply hit the output ceiling and the continuation repeated what already stood; the turn ends here',

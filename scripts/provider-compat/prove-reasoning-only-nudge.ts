@@ -74,7 +74,7 @@ const LOCAL_REPLY = 'The menu file is updated and the footer is aligned.'
 const CLOUD_REPLY = 'A quick demo: one HTML file with a canvas and a loop.'
 const ASK = 'a quick demo of the game in html'
 const BASE_WORDS = 'your last turn carried thinking only — say your reply, or call the tool you meant'
-const FEWER_WORDS = 'your last turn carried thinking only and ran out of output. Say your reply in fewer words, or call the tool you meant'
+const FEWER_WORDS = 'you ran out of output while thinking — answer in fewer words'
 const CLOUD_MODEL = 'claude-opus-4-8'
 const CUT_THOUGHT_DELTAS = ['The user wants a quick demo of the game', ' in HTML — I will design the whole engine first']
 const CUT_THOUGHT = CUT_THOUGHT_DELTAS.join('')
@@ -278,7 +278,7 @@ section('0 · the owners: the words live beside the other nudges, the decision i
   const nudge = errors.reasoningOnlyRecoveryNudge as ((fewerWords: boolean) => string) | undefined
   check('reasoningOnlyRecoveryNudge is exported from services/api/errors.ts', typeof nudge === 'function', 'not exported')
   check('the plain words: ' + j(BASE_WORDS), typeof nudge === 'function' && nudge(false).includes(BASE_WORDS) && !nudge(false).includes(FEWER_WORDS), typeof nudge === 'function' ? nudge(false) : '')
-  check('the fewer-words variant adds: ' + j(FEWER_WORDS), typeof nudge === 'function' && nudge(true).includes(FEWER_WORDS), typeof nudge === 'function' ? nudge(true) : '')
+  check('the fewer-words variant adds: ' + j(FEWER_WORDS), typeof nudge === 'function' && nudge(true).includes(BASE_WORDS) && nudge(true).includes(FEWER_WORDS), typeof nudge === 'function' ? nudge(true) : '')
   const isNudge = errors.isReasoningOnlyRecoveryNudgeText as ((text: string) => boolean) | undefined
   check('the classifier accepts both wordings and nothing else', typeof isNudge === 'function' && typeof nudge === 'function' && isNudge(nudge(false)) && isNudge(nudge(true)) && !isNudge(ASK) && !isNudge(String(errors.EMPTY_REPLY_RECOVERY_NUDGE)), 'isReasoningOnlyRecoveryNudgeText missing or wrong')
   check('the cut marker (the text block that lets the truncated thinking ride the wire) is owned there too', typeof MARKER === 'string' && MARKER.startsWith('[') && MARKER.endsWith(']') && /output ran out/.test(MARKER), j(MARKER))
@@ -392,7 +392,7 @@ section('E · the Anthropic road: a second max-tokens stop gets the second conti
   const rows = assistantRows(bodies[2])
   check('the third request carries BOTH truncated turns\' signed thinking (two assistant rows, each thinking + the marker)', rows.length === 2 && rows.every(carriesCutThinking), j(rows).slice(0, 400))
   const last = bodies[2]?.messages?.at(-1)
-  check('the second continuation\'s nudge adds "answer in fewer words"', last?.role === 'user' && textOf(last.content).includes(FEWER_WORDS), j(textOf(last?.content)).slice(0, 240))
+  check('the second continuation\'s nudge adds "answer in fewer words"', last?.role === 'user' && textOf(last.content).includes(BASE_WORDS) && textOf(last.content).includes(FEWER_WORDS), j(textOf(last?.content)).slice(0, 240))
   const firstNudge = bodies[1]?.messages?.at(-1)
   check('the first continuation\'s nudge did not', firstNudge?.role === 'user' && !textOf(firstNudge.content).includes(FEWER_WORDS))
   check(`the second row: "thinking ran to the output limit (${CEILING_WORDS}) again — continuing, asking for fewer words"`, warnings(r, `thinking ran to the output limit (${CEILING_WORDS}) again — continuing, asking for fewer words`) === 1, j(r.notices))

@@ -574,7 +574,7 @@ if (cap !== null) {
   const recoveryRows = foliage?.lines.filter(l => l.includes('asked the model to continue from where it stopped')) ?? []
   check(`F1 the child's transcript holds two faults and the one recovery between them (${faultRows.length} faults, ${recoveryRows.length} recovery notices)`, faultRows.length === 2 && recoveryRows.length === 1)
   const faultCalls = gptHits.filter(h => !h.raw.includes(DEAD_WORD))
-  check(`F1 the seat was asked twice before it died, the second time with the nudge (${faultCalls.length} calls)`, faultCalls.length === 2 && faultCalls[1]?.raw.includes('Pick up where your output stopped') === true)
+  check(`F1 the seat was asked twice before it died, the second time with the nudge (${faultCalls.length} calls)`, faultCalls.length === 2 && faultCalls[1]?.raw.includes('Pick up exactly where your output stopped') === true)
   const failedNotes = notes.filter(h => h.lastUserText.includes('<status>failed</status>') && h.lastUserText.includes(SEATS.foliage))
   check(`F1 exactly one failed notice reached the parent's model, naming ${SEATS.foliage}`, failedNotes.length === 1, `${failedNotes.length} of ${notes.length} notes`)
   const failedText = failedNotes[0]?.lastUserText ?? ''
