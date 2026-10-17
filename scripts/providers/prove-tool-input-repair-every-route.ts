@@ -223,7 +223,7 @@ section('refusals · what the repair must never do with arguments it does not tr
   const control = repairArgumentsBySchema({ s: '{"a":1}', n: 7, list: [1, 2], o: { x: 3 } }, schema)
   check('the control: a declared string is never parsed whatever it looks like, and typed values come back as the same object', control.s === '{"a":1}' && control === repairArgumentsBySchema(control, schema))
   const words = gateToolCall([{ name: 'Words', inputSchema: z.strictObject({ limit: z.number() }), prompt: async () => 'w' }] as never, { id: 'w1', name: 'Words', argumentsRaw: '{"limit":"twenty"}', malformed: false })
-  check('the refusal words are the fold tip\u2019s: the typed sentence, unchanged', !words.ok && words.refusal.reason.includes('The parameter `limit` was expected to be of type number but string was provided'), j(words))
+  check('the refusal words are the fold tip\u2019s: the typed sentence, unchanged', !words.ok && words.refusal.reason.includes('Parameter `limit` expects type number, got string'), j(words))
 }
 
 console.log('\n' + '='.repeat(60))
