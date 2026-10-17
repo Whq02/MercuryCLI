@@ -843,7 +843,7 @@ commands.
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` |
 | config & setup | `/config` `/jev` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/sandbox` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
-| appearance & cockpit | `/appearance` `/critter` `/palette` |
+| appearance & cockpit | `/appearance` `/critter` `/palette` `/zen` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 
 `/mouse off` returns the pointer to the terminal for native text selection
