@@ -110,7 +110,7 @@ console.log('§4 the right order still works, and the help text says the law in 
   check('mercury --project <dir> --help exits 0 (the folder flag first is accepted)', r.code === 0 && !r.stderr.includes('--project goes before'), `${r.code} · ${r.stderr.slice(0, 200)}`)
   const helpLine = r.stdout.split('\n').map(l => l.trim()).filter(l => l.startsWith('--project'))
   const joined = r.stdout.replace(/\s+/g, ' ')
-  check('the --project help line says to put it first, before the command word, with the example', helpLine.length === 1 && joined.includes('Put it first, before the command word') && joined.includes('mercury --project <dir> run'), helpLine.join(' | ') || r.stdout.slice(0, 200))
+  check('the --project help line says to pass it before the command word, with the example', helpLine.length === 1 && joined.includes('Pass it before the command word') && joined.includes('mercury --project <dir> run'), helpLine.join(' | ') || r.stdout.slice(0, 200))
   check('the old sentence is not in the help', !joined.includes(OLD_WORDS))
   check('no crash report was written by any road above', crashFiles().length === 0, crashFiles().join(','))
 }
