@@ -163,6 +163,7 @@ export interface InvocationTrace {
   killed?: boolean
   durationMs?: number
   ok?: boolean
+  outputMismatch?: true
 }
 
 export function isInvocationTraceEnabled(): boolean {
@@ -179,6 +180,7 @@ export function buildInvocationTrace(
     killed?: boolean
     durationMs?: number
     ok?: boolean
+    outputMismatch?: boolean
     callReadOnly?: boolean
   } = {},
 ): InvocationTrace {
@@ -222,6 +224,7 @@ export function buildInvocationTrace(
     trace.durationMs = Math.max(0, Math.round(opts.durationMs))
   }
   if (typeof opts.ok === 'boolean') trace.ok = opts.ok
+  if (opts.outputMismatch === true) trace.outputMismatch = true
 
   return trace
 }
@@ -237,6 +240,7 @@ export function emitInvocationTrace(
     killed?: boolean
     durationMs?: number
     ok?: boolean
+    outputMismatch?: boolean
   } = {},
 ): void {
   if (!isInvocationTraceEnabled()) return

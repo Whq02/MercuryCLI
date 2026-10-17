@@ -35,6 +35,8 @@ export const ASSISTANT_MESSAGE_ERRORS = [
 ] as const
 export type AssistantMessageError = (typeof ASSISTANT_MESSAGE_ERRORS)[number]
 
+export type FailoverCause = 'overloaded' | 'unreachable' | 'sign-in' | 'unknown-model'
+
 export type RefusedToolCall = {
   id: string
   name: string
@@ -106,6 +108,7 @@ export type AssistantMessage = {
   requestId: string | undefined
   error?: AssistantMessageError
   errorDetails?: string
+  failover?: FailoverCause
   providerWaitEndsAtMs?: number
   overflowSignal?: OverflowSignal
   mediaRefusal?: MediaRefusal

@@ -395,6 +395,13 @@
             "type": "string"
           }
         },
+        "backups": {
+          "description": "The backup engines, in order: when the engine in use cannot answer a turn (its provider overloaded past the retry ladder, unreachable, refusing the sign-in after a refresh, or not serving the model), the turn hops to the first backup, then the next; a --backup-model heads the list; each engine is tried once per turn, and with no list nothing changes",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "pins": {
           "type": "object",
           "propertyNames": {

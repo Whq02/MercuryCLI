@@ -52,6 +52,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-watchdog-tim
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-silent-after-headers.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-silent-after-headers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-end-typed.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-turn-end-typed.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tool-schema-key-memo.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-tool-schema-key-memo.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tool-schema-refs-inlined.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-tool-schema-refs-inlined.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-client-contract-door.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-client-contract-door.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-model-refusals.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-model-refusals.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-openai-provider-refusal.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-openai-provider-refusal.ts" "$__t" "$__rc"

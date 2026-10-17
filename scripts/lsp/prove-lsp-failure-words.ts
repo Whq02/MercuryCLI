@@ -108,7 +108,7 @@ section('§7 invalid arguments: the cause, the valid shape, and that the same ar
   check('the refusal says no server was asked', verdict.text.includes('Nothing was sent to a language server.'), verdict.text)
   const rename = await door.driveNamed('LspRename', { filePath: lib, line: 1, character: 14 })
   check('rename without newName: the schema names the required argument', rename.isError && /required parameter `newName` is missing/.test(rename.text), rename.text)
-  const typed = await door.drive({ operation: 'diagnostics', paths: 'lib.ts' })
+  const typed = await door.drive({ operation: 'diagnostics', paths: 42 })
   check('a wrong type keeps its detail', typed.isError && /paths/.test(typed.text) && /array/.test(typed.text), typed.text)
   await door.close()
 }

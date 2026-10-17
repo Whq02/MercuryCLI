@@ -51,6 +51,8 @@ import {
 } from '../../utils/toolSearch.js'
 import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import { deferralSearchIsServerSide, deferralWireFormFor } from '../providers/deferralWire.js'
+import { repairToolInput } from '../providers/local/schemaTyping.js'
+import { outputSchemaMismatch } from './toolOutputCheck.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
@@ -506,7 +508,7 @@ async function runTransactionBody(args: {
     return
   }
 
-  const parsed = tool.inputSchema.safeParse(input)
+  const parsed = tool.inputSchema.safeParse(repairToolInput(tool, input))
   if (!parsed.success) {
     traceOnce({ ok: false })
     let content = formatZodValidationError(tool.name, parsed.error, tool.inputJSONSchema)
@@ -749,6 +751,7 @@ async function runTransactionBody(args: {
   let executed = false
   let success = true
   let durationMs: number | undefined
+  let outputMismatch: string | undefined
   let result: ToolResult<unknown> | undefined
 
   try {
@@ -809,6 +812,8 @@ async function runTransactionBody(args: {
       })
     }
     success = effect?.outcome === 'failed' ? false : true
+    outputMismatch = outputSchemaMismatch(tool, result.data)
+    if (outputMismatch !== undefined) logForDebugging(`tool output mismatch for ${tool.name}: ${outputMismatch}`)
     const dataRecord =
       typeof result.data === 'object' && result.data !== null
         ? (result.data as { backgroundTaskId?: unknown })
@@ -994,7 +999,7 @@ async function runTransactionBody(args: {
     if (executed && allowanceRow !== null) push({ message: allowanceRow })
     if (executed) for (const note of hookNotes) push({ message: note })
     if (executed) {
-      traceOnce({ durationMs, ok: success })
+      traceOnce({ durationMs, ok: success, ...(outputMismatch !== undefined ? { outputMismatch: true } : {}) })
       try {
         try {
           const op = result?.effect?.operation

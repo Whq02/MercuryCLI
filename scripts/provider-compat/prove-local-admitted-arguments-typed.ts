@@ -20,7 +20,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { typeStringArgumentsBySchema, typeTextBySchema, schemaPropertyType } = await import('../../src/services/providers/local/schemaTyping.ts')
+const { repairArgumentsBySchema, typeTextBySchema, schemaPropertyType } = await import('../../src/services/providers/local/schemaTyping.ts')
 
 section('1 · the shared typing: a string value is typed by the schema property it is declared under; anything else is left as it came')
 {
@@ -38,7 +38,7 @@ section('1 · the shared typing: a string value is typed by the schema property 
     },
   }
   const items = [{ content: 'the deploy target is the blue rack in room 4', topic: 'deployment' }]
-  const typed = typeStringArgumentsBySchema({ items: JSON.stringify(items), limit: '20', ratio: '0.5', pin: 'true', op: 'amend', query: '42', maybe: '[1]', either: '7' }, schema)
+  const typed = repairArgumentsBySchema({ items: JSON.stringify(items), limit: '20', ratio: '0.5', pin: 'true', op: 'amend', query: '42', maybe: '[1]', either: '7' }, schema)
   check('an array declared and sent as a JSON string becomes the array', JSON.stringify(typed.items) === JSON.stringify(items), JSON.stringify(typed.items))
   check('an integer sent as "20" becomes 20', typed.limit === 20, String(typed.limit))
   check('a number sent as "0.5" becomes 0.5', typed.ratio === 0.5, String(typed.ratio))
@@ -49,12 +49,12 @@ section('1 · the shared typing: a string value is typed by the schema property 
   check('a type union that admits string is left a string', typed.either === '7', String(typed.either))
 
   const already = { items, limit: 20, pin: false }
-  check('typed values are untouched and the same object comes back', typeStringArgumentsBySchema(already, schema) === already)
+  check('typed values are untouched and the same object comes back', repairArgumentsBySchema(already, schema) === already)
   const stray = { items: 'the blue rack', limit: 'twenty', pin: 'yes', unknown: '[1]' }
-  const left = typeStringArgumentsBySchema(stray, schema)
+  const left = repairArgumentsBySchema(stray, schema)
   check('a string the schema type cannot take stays the string (array · integer · boolean), so the schema refuses it as today', left.items === 'the blue rack' && left.limit === 'twenty' && left.pin === 'yes', JSON.stringify(left))
   check('a key the schema does not declare is left alone', left.unknown === '[1]')
-  check('an object-shaped string under an array type is not an array and stays text', typeStringArgumentsBySchema({ items: '{"content":"x"}' }, schema).items === '{"content":"x"}')
+  check('an object-shaped string under an array of objects is parsed and wrapped as the one item', JSON.stringify(repairArgumentsBySchema({ items: '{"content":"x"}' }, schema).items) === '[{"content":"x"}]')
   check('an array-shaped string under an object type stays text', typeTextBySchema('[1,2]', 'object') === '[1,2]')
   check('the extractor and the gate read one property-type owner', schemaPropertyType(schema, 'limit') === 'integer' && schemaPropertyType(schema, 'nothing') === undefined)
   const markupSource = readFileSync(new URL('../../src/services/providers/local/toolCallMarkup.ts', import.meta.url), 'utf8')
@@ -149,9 +149,9 @@ const ITEMS = [{ content: 'Deploy target for this project: the blue rack in room
   check(`${RECALL} admitted, its limit "20": the tool_use mints with limit 20`, settled.toolUses.length === 1 && settled.toolUses[0]!.name === RECALL && JSON.stringify(settled.toolUses[0]!.input) === JSON.stringify({ query: 'deploy target', limit: 20 }) && settled.stop === 'tool_use', JSON.stringify(settled))
 }
 {
-  script.ollama = ollamaCall(RECALL, { query: 'deploy target', limit: '20' })
+  script.ollama = ollamaCall(RECALL, { query: 'deploy target', limit: 'twenty' })
   const settled = await local({ messages: [createUserMessage({ content: 'what do you remember about the deploy target?' })] })
-  check(`${RECALL} unadmitted (called blind): refused as today, the admission road named`, settled.toolUses.length === 0 && settled.notes.some(note => note.includes('deferred tool')) && settled.stop === 'end_turn', JSON.stringify(settled))
+  check(`${RECALL} unadmitted (called blind) with an argument no typing can take: refused as today, the admission road named`, settled.toolUses.length === 0 && settled.notes.some(note => note.includes('deferred tool')) && settled.stop === 'end_turn', JSON.stringify(settled))
 }
 {
   script.ollama = ollamaCall(READ, { file_path: '/tmp/a.ts', offset: 12 })
@@ -188,7 +188,7 @@ section('2b · the stored call is the model\'s own: a schema default is applied 
   check(`the executor still reads the default at execution (${EDIT}'s schema parses the stored input to replace_all false)`, (FileEditTool.inputSchema.safeParse(settled.toolUses[0]!.input) as { success: boolean; data?: { replace_all?: boolean } }).data?.replace_all === false)
 }
 
-section('3 · never on a hosted lane: the same stringified number through the DeepSeek lane is the refusal it is today')
+section('3 · on a hosted lane too: the same stringified number through the DeepSeek lane is typed by the declared schema and the call mints')
 {
   const compatCall = (id: string, args: Record<string, unknown>): unknown[] => [
     { id, model: 'deepseek-chat', choices: [{ index: 0, delta: { role: 'assistant', tool_calls: [{ index: 0, id: `call_${id}`, type: 'function', function: { name: RECALL, arguments: JSON.stringify(args) } }] }, finish_reason: null }] },
@@ -196,7 +196,7 @@ section('3 · never on a hosted lane: the same stringified number through the De
   ]
   script.compat = compatCall('c1', { query: 'deploy target', limit: '20' })
   const settled = await drive(deepseekLaneProfile, 'deepseek-chat', { messages: admitted([RETAIN, RECALL]) })
-  check(`DeepSeek: ${RECALL} admitted, its limit "20" is refused (expected number, string provided) and no block mints`, settled.toolUses.length === 0 && settled.notes.some(note => note.includes('Parameter `limit` expects type number, got string')), JSON.stringify(settled))
+  check(`DeepSeek: ${RECALL} admitted, its limit "20" mints with limit 20 (every route types by the declared schema)`, settled.toolUses.length === 1 && JSON.stringify(settled.toolUses[0]!.input) === JSON.stringify({ query: 'deploy target', limit: 20 }) && settled.notes.length === 0, JSON.stringify(settled))
   script.compat = compatCall('c2', { query: 'deploy target', limit: 20 })
   const typed = await drive(deepseekLaneProfile, 'deepseek-chat', { messages: admitted([RETAIN, RECALL]) })
   check('DeepSeek: the typed call mints as before', typed.toolUses.length === 1 && JSON.stringify(typed.toolUses[0]!.input) === JSON.stringify({ query: 'deploy target', limit: 20 }), JSON.stringify(typed))

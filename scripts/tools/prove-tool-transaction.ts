@@ -195,7 +195,7 @@ section('the refusal band — no start, no terminal observation, error results')
   const road = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'tools', 'toolExecution.ts'), 'utf8')
   const body = road.slice(road.indexOf('async function runTransactionBody('), road.indexOf('runPreToolUseHooks('))
   const killAt = body.indexOf("kind: 'capability-gate'")
-  const schemaAt = body.indexOf('tool.inputSchema.safeParse(input)')
+  const schemaAt = body.indexOf('tool.inputSchema.safeParse(')
   const between = killAt >= 0 && schemaAt > killAt ? body.slice(killAt + 1, schemaAt) : ''
   check('the kill-switch step is followed by schema validation — no second operator gate on the road', killAt >= 0 && schemaAt > killAt && !/kind: '[a-z-]+'/.test(between), `kill@${killAt} schema@${schemaAt}`)
   const beforeHooks = body

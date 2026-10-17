@@ -2,6 +2,7 @@ import type { ToolResultBlockParam, ToolUseBlock } from '../types/wire.js'
 import type { EffortValue } from '../utils/effort.js'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { FallbackTriggeredError } from '../services/api/withRetry.js'
+import { backupEngineNoticeLine, engineLadderOf } from '../services/api/backupEngines.js'
 import { resetSessionEnvNoticeOnCompaction } from '../tools/shared/sessionEnvNotice.js'
 import {
   AUTOCOMPACT_THRASH_MESSAGE,
@@ -147,9 +148,6 @@ import {
 } from '../utils/messageQueueManager.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { headlessProfilerCheckpoint } from '../utils/headlessProfiler.js'
-import {
-  renderModelName,
-} from '../utils/model/model.js'
 import { getModelMaxOutputTokens } from '../utils/model/capabilities.js'
 import {
   tokenCountWithEstimation,
@@ -519,6 +517,7 @@ async function* streamModel(
   emit: EventMint,
 ): AsyncGenerator<RunEvent, StreamOutcome> {
   const { toolUseContext, callChain } = iter
+  const backups = engineLadderOf(run, run.fallbackModel)
   let attemptWithFallback = true
 
   try {
@@ -635,7 +634,7 @@ async function* streamModel(
             toolChoice: undefined,
             isNonInteractiveSession:
               toolUseContext.options.isNonInteractiveSession,
-            fallbackModel: run.fallbackModel,
+            fallbackModel: backups.next(iter.currentModel),
             onStreamingFallback: () => {
               streamingFallbackOccured = true
             },
@@ -798,8 +797,8 @@ async function* streamModel(
           }
         }
       } catch (innerError) {
-        if (innerError instanceof FallbackTriggeredError && run.fallbackModel) {
-          iter.currentModel = run.fallbackModel
+        if (innerError instanceof FallbackTriggeredError && backups.take(innerError.fallbackModel)) {
+          iter.currentModel = innerError.fallbackModel
           attemptWithFallback = true
 
           yield* emitSyntheticSettlements(
@@ -810,15 +809,12 @@ async function* streamModel(
           )
           iter.needsFollowUp = resetForRetry(iter).needsFollowUp
 
-          toolUseContext.options.engineModel = run.fallbackModel
+          toolUseContext.options.engineModel = innerError.fallbackModel
 
 
           yield emit({
             kind: 'notice',
-            message: createSystemMessage(
-              `${renderModelName(innerError.originalModel)} is overloaded; this turn runs on ${renderModelName(innerError.fallbackModel)} instead`,
-              'warning',
-            ),
+            message: createSystemMessage(backupEngineNoticeLine(innerError), 'warning'),
           })
 
           continue

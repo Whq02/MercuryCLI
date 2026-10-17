@@ -19,6 +19,7 @@ import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
 import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
+import { markUnknownModel } from '../../api/backupEngines.js'
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
 import { sleep } from '../../../utils/sleep.js'
 import { logForDebugging } from '../../../utils/debug.js'
@@ -428,13 +429,13 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
           ? `${API_ERROR_MESSAGE_PREFIX}: ${emptyStreamSpentWords(ZAI_FAULT_PROFILE.providerLabel, Date.now() - turnStartedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
           : terminalText
     yield withEffort(stampProviderWait(
-      apiErrorMessage(
+      markUnknownModel(apiErrorMessage(
         stayedBusy,
         typed,
         outcome.fault.code,
         overflowOf(outcome.fault),
         busy !== undefined ? busyRefusalFact(ZAI_FAULT_PROFILE.providerLabel, busy.ladder, outcome.fault) : null,
-      ),
+      ), outcome.fault.status),
       outcome.fault.retryAfterMs,
     ))
     return

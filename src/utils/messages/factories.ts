@@ -158,6 +158,7 @@ type AssistantDraft = {
   overflowSignal?: AssistantMessage['overflowSignal']
   mediaRefusal?: AssistantMessage['mediaRefusal']
   busyRefusal?: AssistantMessage['busyRefusal']
+  failover?: AssistantMessage['failover']
 }
 
 function localAssistant(draft: AssistantDraft): AssistantMessage {
@@ -176,7 +177,7 @@ function localAssistant(draft: AssistantDraft): AssistantMessage {
     context_management: null,
   }
   const facts = Object.fromEntries(
-    (['overflowSignal', 'mediaRefusal', 'busyRefusal'] as const)
+    (['overflowSignal', 'mediaRefusal', 'busyRefusal', 'failover'] as const)
       .filter(key => draft[key] !== undefined)
       .map(key => [key, draft[key]]),
   )
@@ -208,6 +209,7 @@ export function createAssistantAPIErrorMessage(input: {
   apiError?: AssistantMessage['apiError']
   error?: AssistantMessageError
   errorDetails?: string
+  failover?: AssistantMessage['failover']
   overflow?: AssistantMessage['overflowSignal'] | null
   mediaRefusal?: AssistantMessage['mediaRefusal'] | null
   busyRefusal?: AssistantMessage['busyRefusal'] | null
@@ -216,6 +218,7 @@ export function createAssistantAPIErrorMessage(input: {
     ...fields(input, ['apiError', 'error', 'errorDetails']),
     content: [textBlock(input.content)],
     isApiErrorMessage: true,
+    failover: input.failover,
     overflowSignal: input.overflow ?? undefined,
     mediaRefusal: input.mediaRefusal ?? undefined,
     busyRefusal: input.busyRefusal ?? undefined,
