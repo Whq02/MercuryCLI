@@ -1056,7 +1056,7 @@ export function summaryAnswerFault(response: AssistantMessage): string | null {
   return null
 }
 
-export function foldLadderExhausted(error: unknown): boolean {
+function foldLadderExhausted(error: unknown): boolean {
   if (!(error instanceof Error)) return false
   return error.message.startsWith(ERROR_MESSAGE_PROMPT_TOO_LONG) || error.message.startsWith(ERROR_MESSAGE_NO_SUMMARY)
 }
@@ -1065,7 +1065,7 @@ function overflowExhaustedWords(gap: number | undefined): string {
   return `the last part sent was refused over the window${gap !== undefined && gap > 0 ? ` by ${gap.toLocaleString('en-US')} tokens` : ''}`
 }
 
-export function proseSkippedLine(cause: string): string {
+function proseSkippedLine(cause: string): string {
   const why = cause.startsWith(`${ERROR_MESSAGE_NO_SUMMARY}: `)
     ? cause.slice(ERROR_MESSAGE_NO_SUMMARY.length + 2)
     : cause.startsWith(ERROR_MESSAGE_PROMPT_TOO_LONG)
@@ -1457,7 +1457,7 @@ export function withEngineModel<C extends ToolUseContext>(context: C, model: str
   return { ...context, options: { ...context.options, engineModel: model } }
 }
 
-export type SummariserFit = {
+type SummariserFit = {
   budgetTokens: number
   fixedTokens: number
   promptTokens: number
@@ -1489,7 +1489,7 @@ async function estimateFixedRequestTokens(context: ToolUseContext, cacheSafePara
   return Math.ceil((system.length + tools) / 4)
 }
 
-export async function summariserFitFor(
+async function summariserFitFor(
   context: ToolUseContext,
   cacheSafeParams: CacheSafeParams,
   promptText: string,
@@ -1514,7 +1514,7 @@ function resultTextOf(content: unknown): string | null {
   return blocks.map(block => block.text ?? '').join('\n')
 }
 
-export function shapedResultPreview(text: string, previewChars: number): string {
+function shapedResultPreview(text: string, previewChars: number): string {
   if (text.length <= previewChars) return text
   const headBudget = Math.floor(previewChars * 0.6)
   let head = text.slice(0, headBudget)
@@ -1527,7 +1527,7 @@ export function shapedResultPreview(text: string, previewChars: number): string 
   return `${head}\n… [${omitted.toLocaleString('en-US')} characters omitted for the compaction — the full result is in the transcript] …\n${tail}`
 }
 
-export function capOlderToolResults(rows: Message[], keepTokens: number, previewChars: number): Message[] {
+function capOlderToolResults(rows: Message[], keepTokens: number, previewChars: number): Message[] {
   const sizes: Array<{ row: number; block: number; text: string }> = []
   rows.forEach((row, index) => {
     if (row.type !== 'user' || !Array.isArray(row.message.content)) return
@@ -1605,7 +1605,7 @@ async function foldOldestIntoParts(
   return current
 }
 
-export async function prefitSummariserInput(
+async function prefitSummariserInput(
   messages: Message[],
   fit: SummariserFit,
   split: { retiring: Message[]; rounds: number } | null,
