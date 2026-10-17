@@ -43,7 +43,7 @@ function anthropicSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>
     out.push(evt('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
     out.push(evt('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: turn.text } }))
     out.push(evt('content_block_stop', { type: 'content_block_stop', index: 0 }))
-    out.push(evt('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage }))
+    out.push(evt('message_delta', { type: 'message_delta', delta: { stop_reason: turn.finishReason ?? 'end_turn', stop_sequence: null }, usage }))
   }
   out.push(evt('message_stop', { type: 'message_stop' }))
   return out.join('')

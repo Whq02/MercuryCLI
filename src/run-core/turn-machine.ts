@@ -256,6 +256,7 @@ type TurnState = {
   streamFaultRecoveryCount: number
   toolCallRefusalRecoveryCount: number
   cutToolCallRecoveryCount?: number
+  pauseTurnContinuations?: number
   pendingToolUseSummary: Promise<ToolUseSummaryMessage | null> | undefined
   stopHookActive: boolean | undefined
   turnCount: number
@@ -422,6 +423,18 @@ function cutToolCallOf(assistantMessages: readonly AssistantMessage[], refused: 
   if (!stopped) return null
   const cutAt = Math.max(0, ...replies.map(m => m.message.usage?.output_tokens ?? 0))
   return { name: cut.name || 'unnamed', cutAt }
+}
+
+export const PAUSE_TURN_CONTINUATION_LIMIT = 8
+
+export function decidePauseTurnContinuation(input: { continuations: number }): StreamFaultDecision {
+  if (input.continuations < PAUSE_TURN_CONTINUATION_LIMIT) return { kind: 'continue', attempt: input.continuations + 1 }
+  return { kind: 'surface' }
+}
+
+function pausedReplyOf(assistantMessages: readonly AssistantMessage[]): AssistantMessage | null {
+  const reply = assistantMessages.filter(m => m.isApiErrorMessage !== true).at(-1)
+  return reply !== undefined && reply.message.stop_reason === 'pause_turn' ? reply : null
 }
 
 const EMPTY_REPLY_RECOVERY_LIMIT = 1
@@ -1498,6 +1511,43 @@ async function* runEventMachine(
         const terminal: Terminal = decision.why === 'breaker' && tracking?.rapidRefillPaused === true ? { reason: 'rapid_refill_breaker' } : { reason: 'prompt_too_long' }
         yield emit({ kind: 'run_terminal', terminal })
         return terminal
+      }
+
+      const paused = pausedReplyOf(assistantMessages)
+      if (paused !== null) {
+        const pauseTurnContinuations = state.pauseTurnContinuations ?? 0
+        const decision = decidePauseTurnContinuation({ continuations: pauseTurnContinuations })
+        if (decision.kind === 'continue') {
+          const nextTurnCount = turnCount + 1
+          if (maxTurns !== undefined && budgetGuard.maxTurnsExceeded(nextTurnCount, maxTurns)) {
+            yield emit({ kind: 'attachment', message: createAttachmentMessage({ type: 'max_turns_reached', maxTurns, turnCount: nextTurnCount }) })
+            const terminal: Terminal = { reason: 'max_turns', turnCount: nextTurnCount }
+            yield emit({ kind: 'run_terminal', terminal })
+            return terminal
+          }
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(`the provider paused the turn mid-work — sending it back to continue (${decision.attempt} of ${PAUSE_TURN_CONTINUATION_LIMIT}); it counts as a turn`, 'suggestion'),
+          })
+          const next: TurnState = {
+            ...state,
+            messages: [...messagesForQuery, ...assistantMessages.filter(m => m.isApiErrorMessage !== true)],
+            autoCompactTracking: tracking,
+            turnCount: nextTurnCount,
+            pauseTurnContinuations: pauseTurnContinuations + 1,
+            pendingToolUseSummary: undefined,
+            stopHookActive: undefined,
+            pendingOverflow: undefined,
+            transition: { reason: 'pause_turn_continuation', attempt: decision.attempt },
+          }
+          yield emit({ kind: 'turn_settled', transition: next.transition! })
+          state = next
+          continue
+        }
+        yield emit({
+          kind: 'notice',
+          message: createSystemMessage(`the provider paused the turn ${pauseTurnContinuations} times in a row; the reply stands as it is and the turn ends here`, 'warning'),
+        })
       }
 
       const chant = lastMessage !== undefined && (lastMessage.isApiErrorMessage !== true || isWithheldMaxOutputTokens(lastMessage)) ? detectChant(replyTextOf(assistantMessages)) : null
