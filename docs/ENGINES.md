@@ -581,11 +581,11 @@ silently fall through to another provider; each runtime returns typed refusals:
   route (where to sign in or store a key), never a generic error;
 - a tool-bearing request on a model whose catalogue states it cannot take tools is
   refused pre-flight with a typed reason instead of a broken turn; a local model whose
-  server declares no tool support takes its tools through the prompt instead — the
+  server declares no tool support takes its tools through the prompt instead: the
   catalogue rendered into the system text as JSON, calls written as `<tool_call>`
   blocks holding `{"name", "arguments"}` and read back by the local lane's markup
-  readers, results returned as `<tool_result>` blocks — while a model with native
-  tool calling is sent them on the wire as before;
+  readers, results returned as `<tool_result>` blocks. A model with native tool
+  calling is sent them on the wire as before;
 - an undiscovered `local/<id>` refuses with the probe route and the pull (`ollama
   pull <id>` when an Ollama server answers) instead of guessing a port; a
   request larger than a local model's stated served window refuses before the

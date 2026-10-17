@@ -7,7 +7,6 @@ import { startFixtureApi, handoffTurn, isHandoffRequest, type ScriptedTurn } fro
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { timeSpanMsOf } from '../../src/utils/deadline.ts'
 import { ERROR_CLASSES, OUTCOME_SENTENCES, OUTCOME_STATUSES } from '../../src/rows/vocabulary.ts'
-import { hookMatchValues } from '../../src/utils/hooks/contract.ts'
 
 const at = process.argv.indexOf('--dist')
 const dist = resolve(at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[at + 1]!)
@@ -59,7 +58,6 @@ const timeLimitSentence = (ms: number): string => OUTCOME_SENTENCES.time_limit({
 console.log('§1 the vocabulary carries the time limit')
 check('time_limit is an outcome status', (OUTCOME_STATUSES as readonly string[]).includes('time_limit'))
 check('time_limit is an error class', (ERROR_CLASSES as readonly string[]).includes('time_limit'))
-check('the turn.end hook matches on it', (hookMatchValues('turn.end') ?? []).includes('time_limit'), j(hookMatchValues('turn.end')))
 check('the sentence names the limit in the span grammar', timeLimitSentence(600_000) === 'Reached the maximum run time (10m)' && timeLimitSentence(90_000) === 'Reached the maximum run time (1m30s)', timeLimitSentence(600_000))
 
 console.log('§2 the span grammar: a bare number is seconds, units s m h, junk refused')

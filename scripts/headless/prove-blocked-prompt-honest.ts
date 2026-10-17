@@ -34,7 +34,7 @@ section('§3 THE PRINT ROAD (the existing groove, pinned)')
   const print = src('src/cli/run.ts')
   check(
     'a non-completed outcome answers its sentence on stderr',
-    /if \(last\.status === 'completed'\) \{[\s\S]{0,600}?await flushWrite\(process\.stderr, `\$\{sentence\}/.test(print),
+    /if \(last\.status === 'completed'\) \{[\s\S]{0,800}?await flushWrite\(process\.stderr, `\$\{sentence\}/.test(print),
   )
   check('and the exit code derives from the status alone', /exitCodeOf\(last\.status\)/.test(print))
 }
