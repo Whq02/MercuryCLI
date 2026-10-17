@@ -45,7 +45,7 @@ const { clearSystemPromptSections } = await import('../../src/constants/systemPr
 const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore } = await import('../../src/services/providers/toolEconomy.ts')
 const { boundPrefixRecordToEmit, resetBoundPrefixEmitted } = await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { TASK_CREATE_TOOL_NAME } = await import('../../src/tools/TaskCreateTool/constants.ts')
+const { RETAIN_TOOL_NAME } = await import('../../src/tools/MemoryTools/prompt.ts')
 const { RECORD_CONVENTION_TOOL_NAME } = await import('../../src/tools/RecordConventionTool/prompt.ts')
 const { loadConversationForResume } = await import('../../src/utils/conversationRecovery.ts')
 const sessionRestore = await import('../../src/utils/sessionRestore.ts')
@@ -61,11 +61,11 @@ const SID = '00000000-0000-4000-8000-0000000c0ded'
 const U_FIRST = '00000000-0000-4000-8000-000000000001'
 const U_REPLY = '00000000-0000-4000-8000-000000000002'
 const U_RECORD = '00000000-0000-4000-8000-000000000003'
-const BULLET = 'For multi-deliverable work, create and update task items'
+const BULLET = ` (${RETAIN_TOOL_NAME} with pin)`
 const STALE = 'STALE SECTION FROM ANOTHER CONVERSATION'
 const tool = (name: string): { name: string } => ({ name })
 const firstPool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate', 'Skill', 'AskUserQuestion', RECORD_CONVENTION_TOOL_NAME].map(tool)
-const grownPool = [...firstPool, ...[TASK_CREATE_TOOL_NAME, 'TaskGet', 'TaskList', 'TaskUpdate'].map(tool)]
+const grownPool = [...firstPool, ...[RETAIN_TOOL_NAME, 'Recall', 'Correct'].map(tool)]
 const owner = 'worktree-resume'
 const firstRow = { type: 'user', uuid: U_FIRST, message: { role: 'user', content: 'first' } }
 const text = (parts: string[]): string => parts.join('\n\n')
@@ -139,13 +139,13 @@ try {
   freshProcess()
   enterWorktree()
   const first = await build(firstPool)
-  check('the control: the first request names the worktree and carries no task-items bullet (no task tool in the pool)', first.includes(' - This working directory is an isolated copy of the repository (a git worktree); every command runs here, never in the original repository root.') && first.includes(`Working directory: ${worktree}`) && !first.includes(BULLET))
+  check('the control: the first request names the worktree and carries no Retain pin clause (no Retain in the pool)', first.includes(' - This working directory is an isolated copy of the repository (a git worktree); every command runs here, never in the original repository root.') && first.includes(`Working directory: ${worktree}`) && !first.includes(BULLET))
   await planToolPayload({ model: MODEL, tools: firstPool as never, messages: [firstRow] as never, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], source: 'prove', latchKey: owner })
   const row = await boundPrefixRecordToEmit(owner, [firstRow] as never, MODEL)
   check('the first exchange emits its record with the cached sections', row !== null && row.attachment.type === 'bound_prefix' && (row.attachment as { sections: unknown[] }).sections.length > 0)
   const record = JSON.parse(j(row!.attachment)) as Record<string, unknown> & { sections: Array<{ name: string; value: string | null }> }
-  const recordedRunProtocol = record.sections.find(s => s.name === 'run_protocol')?.value ?? null
-  check('the record carries the run-protocol section as first sent', recordedRunProtocol !== null && !recordedRunProtocol.includes(BULLET))
+  const recordedRunProtocol = record.sections.find(s => s.name === 'project_estate')?.value ?? null
+  check('the record carries the project-estate section as first sent', recordedRunProtocol !== null && !recordedRunProtocol.includes(BULLET))
   writeTranscript(record)
 
   section('§2 the plain road — the loader restores the record, the session state and the metadata follow; the resumed prefix is the recorded bytes')
@@ -154,7 +154,7 @@ try {
   check('the transcript resolves through the session-id road and carries the worktree record', plain.worktreeSession?.worktreePath === worktree && plain.fullPath === transcriptPath, j({ worktree: plain.worktreeSession, fullPath: plain.fullPath }))
   await plainRoad(plain)
   const plainResumed = await build(grownPool)
-  check('the plain road re-sends the first request byte for byte although the task tools joined the pool', plainResumed === first, firstDifference(first, plainResumed))
+  check('the plain road re-sends the first request byte for byte although the memory tools joined the pool', plainResumed === first, firstDifference(first, plainResumed))
 
   section('§3 the plain road inside the recorded worktree — the runner already sits there, as the daemon spawns it; nothing after the loader re-decides a section')
   freshProcess()
@@ -162,10 +162,10 @@ try {
   const recorded = await load()
   await plainRoad(recorded)
   check('the control: the runner sits in the worktree and nothing re-entered it (the cwd stays, the in-memory worktree slot stays null, the record is in the cache)', process.cwd() === worktree && state.getOriginalCwd() === worktree && getCurrentWorktreeSession() === null && recorded.worktreeSession?.worktreePath === worktree, j({ cwd: process.cwd(), worktree: getCurrentWorktreeSession() }))
-  const cachedRunProtocol = state.getSystemPromptSectionCache().get('run_protocol')?.value ?? null
-  check('the section cache still holds the record\'s run-protocol bytes after the resume inside the worktree', cachedRunProtocol === recordedRunProtocol, `cache holds ${state.getSystemPromptSectionCache().size} section(s) after the resume; run_protocol=${j(cachedRunProtocol?.slice(0, 80) ?? null)}`)
+  const cachedRunProtocol = state.getSystemPromptSectionCache().get('project_estate')?.value ?? null
+  check('the section cache still holds the record\'s project-estate bytes after the resume inside the worktree', cachedRunProtocol === recordedRunProtocol, `cache holds ${state.getSystemPromptSectionCache().size} section(s) after the resume; project_estate=${j(cachedRunProtocol?.slice(0, 80) ?? null)}`)
   const worktreeResumed = await build(grownPool)
-  check('the resume inside the worktree re-sends the first request byte for byte — no task-items bullet rendered from the live pool', worktreeResumed === first && !worktreeResumed.includes(BULLET), firstDifference(first, worktreeResumed))
+  check('the resume inside the worktree re-sends the first request byte for byte — no Retain pin clause rendered from the live pool', worktreeResumed === first && !worktreeResumed.includes(BULLET), firstDifference(first, worktreeResumed))
   check('the plain road sends identical prefix bytes from the repo and from inside the worktree', worktreeResumed === plainResumed, firstDifference(plainResumed, worktreeResumed))
 
   section('§4 the control — a transcript without a record on the plain road renders the live world (the pool\'s truth), never a section from elsewhere')
@@ -177,17 +177,17 @@ try {
   check('the loader seeded nothing: a fresh process resuming a recordless transcript holds no section', state.getSystemPromptSectionCache().size === 0, `${state.getSystemPromptSectionCache().size} section(s)`)
   await plainRoad(recordless)
   const recordlessResumed = await build(grownPool)
-  check('a fresh process resuming a recordless transcript renders the pool\'s truth: the bullet appears', recordlessResumed.includes(BULLET), firstDifference(first, recordlessResumed))
+  check('a fresh process resuming a recordless transcript renders the pool\'s truth: the pin clause appears', recordlessResumed.includes(BULLET), firstDifference(first, recordlessResumed))
   freshProcess()
   sitInWorktree()
-  state.setSystemPromptSectionCacheEntry('run_protocol', STALE, null)
+  state.setSystemPromptSectionCacheEntry('project_estate', STALE, null)
   const unguarded = await load()
   await plainRoad(unguarded)
   const unguardedResumed = await build(grownPool)
   check('the hazard, shown: a warm process that built a prompt before its claim and then loads a recordless transcript WITHOUT the claim\'s clear serves the stale section in the resumed prefix', unguardedResumed.includes(STALE) && !unguardedResumed.includes(BULLET), firstDifference(first, unguardedResumed))
   freshProcess()
   sitInWorktree()
-  state.setSystemPromptSectionCacheEntry('run_protocol', STALE, null)
+  state.setSystemPromptSectionCacheEntry('project_estate', STALE, null)
   const claimSource = readFileSync(join(import.meta.dir, '../../src/cli/run.ts'), 'utf8')
   const claimBody = claimSource.slice(claimSource.indexOf("'session/claim': async params => {"), claimSource.indexOf("'session/set_effort': (params, ref) => {"))
   const RED_WARM = 'RED WHERE THE WARM CLAIM CLEARS NO SECTION'
@@ -196,17 +196,17 @@ try {
   const claimed = await load()
   await plainRoad(claimed)
   const claimedResumed = await build(grownPool)
-  check(`${RED_WARM}: with the claim's clear ahead of the load, a recordless warm claim renders the pool's truth — the bullet appears and no stale bytes stand`, !claimedResumed.includes(STALE) && claimedResumed.includes(BULLET), firstDifference(first, claimedResumed))
+  check(`${RED_WARM}: with the claim's clear ahead of the load, a recordless warm claim renders the pool's truth — the pin clause appears and no stale bytes stand`, !claimedResumed.includes(STALE) && claimedResumed.includes(BULLET), firstDifference(first, claimedResumed))
   freshProcess()
   sitInWorktree()
   writeTranscript(record)
-  state.setSystemPromptSectionCacheEntry('run_protocol', STALE, null)
+  state.setSystemPromptSectionCacheEntry('project_estate', STALE, null)
   state.setSystemPromptSectionCacheEntry('stale_extra_section', STALE, null)
   clearSystemPromptSections()
   const recordedClaim = await load()
   await plainRoad(recordedClaim)
   const recordedClaimResumed = await build(grownPool)
-  check('a recorded warm claim: the clear ahead of the load leaves only the record\'s sections plus the live ones — the first request is byte-identical to the first exchange and no extra section survives', recordedClaimResumed === first && !state.getSystemPromptSectionCache().has('stale_extra_section') && state.getSystemPromptSectionCache().get('run_protocol')?.value === recordedRunProtocol, firstDifference(first, recordedClaimResumed))
+  check('a recorded warm claim: the clear ahead of the load leaves only the record\'s sections plus the live ones — the first request is byte-identical to the first exchange and no extra section survives', recordedClaimResumed === first && !state.getSystemPromptSectionCache().has('stale_extra_section') && state.getSystemPromptSectionCache().get('project_estate')?.value === recordedRunProtocol, firstDifference(first, recordedClaimResumed))
 
   section('§5 the retirement — the plain road is the one restore; the recorded-worktree entry and its re-entry helpers are gone')
   const RED = 'RED WHERE THE RETIRED ENTRY STILL STANDS'
