@@ -121,6 +121,7 @@ async function drive(script: Script, stop: 'abort' | 'return' | 'drain'): Promis
       const item = ev as Yielded
       yielded.push(item)
       if (item.type === 'stream_event' && item.event?.type === 'content_block_delta') {
+        await new Promise(resolve => setTimeout(resolve, 5))
         if (stop === 'abort') controller.abort()
         if (stop === 'return') break
       }
