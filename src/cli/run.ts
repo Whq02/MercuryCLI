@@ -1317,7 +1317,7 @@ export async function runHeadless(
           if (line !== null) lastOutcome = line as OutcomeRow
         })
       }
-      void written
+      void written.catch(error => logError(error))
       return
     }
     if (isOutcome(message as never)) lastOutcome = io.rows.stamp(message as never) as OutcomeRow

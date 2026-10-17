@@ -7,7 +7,6 @@ import { getIsScrollDraining } from '../bootstrap/state.js'
 import type { SESSION_END_REASONS } from './hooks/contract.js'
 
 import { runCleanupFunctions } from './cleanupRegistry.js'
-import { armInactivityDeadline } from './deadline.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { logError } from './log.js'
@@ -598,28 +597,16 @@ export async function quiesceCleanupBeforeExit(
 }
 
 export async function drainPipedStdoutForExit(
-  stdout: { isTTY?: boolean; writableLength: number } = process.stdout,
-  stallMs = 2_000,
+  stdout: { isTTY?: boolean; writableLength: number; destroyed?: boolean; writable?: boolean } = process.stdout,
 ): Promise<{ drained: boolean; remainingBytes: number }> {
   if (stdout.isTTY) return { drained: true, remainingBytes: 0 }
-  let last = stdout.writableLength
-  if (last === 0) return { drained: true, remainingBytes: 0 }
-  const deadline = armInactivityDeadline({ seam: 'stdout drain at exit', limitMs: stallMs })
-  try {
-    while (stdout.writableLength > 0 && !deadline.fired) {
-      await new Promise(resolve => setTimeout(resolve, 10))
-      const now = stdout.writableLength
-      if (now < last) {
-        deadline.touch()
-        last = now
-      }
-    }
-  } finally {
-    deadline.cancel()
+  const readerAlive = (): boolean => stdout.destroyed !== true && stdout.writable !== false
+  while (stdout.writableLength > 0 && readerAlive()) {
+    await new Promise(resolve => setTimeout(resolve, 10))
   }
   const remainingBytes = stdout.writableLength
   if (remainingBytes > 0) {
-    logForDebugging(`stdout drain at exit: consumer stalled for ${stallMs}ms with ${remainingBytes} bytes still queued`)
+    logForDebugging(`stdout drain at exit: the reader's pipe is gone with ${remainingBytes} bytes still queued`)
   }
   return { drained: remainingBytes === 0, remainingBytes }
 }

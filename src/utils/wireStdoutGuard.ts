@@ -32,13 +32,13 @@ export function installWireStdoutGuard(): void {
     const text = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8')
     lineBuffer += text
 
-    let lastForwardReturn: boolean | null = null
+    const forwarded: string[] = []
     let newlineIndex = lineBuffer.indexOf('\n')
     while (newlineIndex !== -1) {
       const line = lineBuffer.slice(0, newlineIndex)
       lineBuffer = lineBuffer.slice(newlineIndex + 1)
       if (line === '' || isParseableJson(line)) {
-        lastForwardReturn = realWrite(`${line}\n`)
+        forwarded.push(line)
       } else {
         process.stderr.write(`${STDOUT_GUARD_MARKER} ${line}\n`)
         logForDebugging(`stdout guard diverted a non-JSON line: ${line.slice(0, 200)}`)
@@ -46,7 +46,12 @@ export function installWireStdoutGuard(): void {
       newlineIndex = lineBuffer.indexOf('\n')
     }
 
-    if (callback) {
+    let lastForwardReturn: boolean | null = null
+    for (const [index, line] of forwarded.entries()) {
+      const last = index === forwarded.length - 1
+      lastForwardReturn = last && callback ? realWrite(`${line}\n`, callback) : realWrite(`${line}\n`)
+    }
+    if (callback && forwarded.length === 0) {
       queueMicrotask(() => callback())
     }
     return lastForwardReturn ?? true
