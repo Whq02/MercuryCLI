@@ -26,6 +26,7 @@ import { isLocalModelId, localRecordFor } from './localCatalogue.js'
 import { confirmServedWindow, LOCAL_PROBE_TIMEOUT_MS, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
 import { chooseLocalBatch, chooseLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf } from './localWindow.js'
 import { ollamaChatUrl, streamOllamaChat, type OllamaChatKnobs } from './ollamaChatTransport.js'
+import { toolDialectSystemText } from './toolDialect.js'
 
 export const LOCAL_WARM_SETTLE_MS = 750
 export const LOCAL_WARM_LIVE_WAITS = 8
@@ -210,7 +211,8 @@ export async function composeLocalWarm(record: LocalModelRecord, model: string, 
   const systemText = renderGenericInstructions(resolveBehaviourContract([...fullSystemPrompt]))
   const profile = localLaneProfileFor(record)
   const wireModel = profile.wireModelId(modelId)
-  if (apiTools.length > 0 && profile.toolCapabilityRefusal?.(wireModel) !== undefined) return { skipped: 'the model declares no tool support; the first turn refuses before sending' }
+  const toolsInPrompt = apiTools.length > 0 && profile.toolsInPrompt?.(wireModel) === true
+  if (apiTools.length > 0 && !toolsInPrompt && profile.toolCapabilityRefusal?.(wireModel) !== undefined) return { skipped: 'the model declares no tool support; the first turn refuses before sending' }
   const thinkingConfig = toolUseContext.options.thinkingConfig as { type?: string } | undefined
   const thinkingEnabled = thinkingConfig?.type !== 'disabled'
   const effortValue = resolveWireRequestedEffort(modelId, appState.effortValue, {})
@@ -218,13 +220,13 @@ export async function composeLocalWarm(record: LocalModelRecord, model: string, 
   const request: CompatChatRequest = {
     model: wireModel,
     messages: [
-      ...mapMessagesToZai(systemText, [], {
+      ...mapMessagesToZai(toolsInPrompt ? toolDialectSystemText(systemText, mapToolsToZai(apiTools)) : systemText, [], {
         keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
         imagesSupported: imagesSupportedForCompatModel(modelId),
       }),
       { role: 'user', content: LOCAL_WARM_USER_SEED },
     ],
-    ...(apiTools.length > 0 ? { tools: mapToolsToZai(apiTools) } : {}),
+    ...(apiTools.length > 0 && !toolsInPrompt ? { tools: mapToolsToZai(apiTools) } : {}),
     extra: { ...extra, max_tokens: LOCAL_WARM_NUM_PREDICT },
   }
   const estimateMessages = latestUserContextBody(history) === null ? prependUserContext(history, context.userContext) : history

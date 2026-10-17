@@ -253,10 +253,14 @@ section('7 · the wire')
   check('reasoning_effort rides for a thinking-capable Ollama model (nearest-below on its ladder)', buildLocalExtras({ wireModel: 'qwen3:8b', effortValue: 'xhigh', thinkingEnabled: true, maxOutputTokensOverride: undefined, server: 'ollama', acceptsEffort: localModelAcceptsEffort(qwen) }).reasoning_effort === 'high')
   check('no reasoning_effort for a non-thinking model', buildLocalExtras({ wireModel: 'llama3.2:latest', effortValue: 'high', thinkingEnabled: true, maxOutputTokensOverride: undefined, server: 'ollama', acceptsEffort: localModelAcceptsEffort(localRecordFor('local/llama3.2:latest')!) }).reasoning_effort === undefined)
   const llavaProfile = localLaneProfileFor(localRecordFor('local/llava:latest')!)
-  check('a model declaring no tools refuses a tool-bearing turn, typed', (llavaProfile.toolCapabilityRefusal?.('llava:latest') ?? '').includes('without tool support'))
-  check('a tool-capable model proceeds', profile.toolCapabilityRefusal?.('qwen3:8b') === undefined)
+  check('a model declaring no tools takes its tools through the prompt dialect, never a refusal', llavaProfile.toolsInPrompt?.('llava:latest') === true && llavaProfile.toolCapabilityRefusal === undefined)
+  check('a tool-capable model keeps its tools on the wire', profile.toolsInPrompt?.('qwen3:8b') === false && profile.toolCapabilityRefusal === undefined)
   const lmProfile = localLaneProfileFor(localRecordFor('local/meta-llama-3.1-8b-instruct')!)
-  check('LM Studio trained_for_tool_use:false refuses too', (lmProfile.toolCapabilityRefusal?.('meta-llama-3.1-8b-instruct') ?? '').includes('without tool support'))
+  check('LM Studio trained_for_tool_use:false takes the prompt dialect too', lmProfile.toolsInPrompt?.('meta-llama-3.1-8b-instruct') === true)
+  const { localLiveCatalogue } = await import('../../src/utils/router/providers/local.ts')
+  const { SPECIALIST_ROLES } = await import('../../src/utils/router/providers/types.ts')
+  const llavaEntry = localLiveCatalogue().find(entry => entry.id === 'local/llava:latest')
+  check('every role is open to a model that declares no tools (its tools ride in the prompt)', llavaEntry !== undefined && llavaEntry.roles.length === SPECIALIST_ROLES.length, JSON.stringify(llavaEntry?.roles))
   const events: CompatStreamEvent[] = []
   for await (const event of streamCompatChat({
     url: profile.requestUrl(),

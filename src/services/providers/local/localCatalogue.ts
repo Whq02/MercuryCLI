@@ -116,7 +116,7 @@ export function getLocalModelOptions(): ModelOption[] {
       value: persisted,
       label: record.displayName ?? record.id,
       description: '',
-      descriptionForModel: `${record.id} — served locally by ${LOCAL_SERVER_NAMES[record.server]} at ${record.baseUrl} (keyless, no metering); persisted as ${persisted}.${record.toolsDeclared === false ? ' The server declares no tool support — tool-bearing roles refuse it.' : ''}`,
+      descriptionForModel: `${record.id} — served locally by ${LOCAL_SERVER_NAMES[record.server]} at ${record.baseUrl} (keyless, no metering); persisted as ${persisted}.${record.toolsDeclared === false ? ' The server declares no tool support — its tools ride in the prompt.' : ''}`,
       group: LOCAL_MODEL_GROUP,
       ...(record.contextWindow !== undefined ? { statedContextWindow: record.contextWindow.tokens } : {}),
     })
