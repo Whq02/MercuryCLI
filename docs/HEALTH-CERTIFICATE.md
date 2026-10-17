@@ -163,6 +163,13 @@ nobody asked for; the release-day check
 (`bun scripts/ops/check-typed-model-ids.ts`) fetches every list live and
 uses the same comparison.
 
+AUTH carries the `Provider slots` row (`provider-slots`): every engine family
+either reads configured or names one of its honest unavailable codes
+(`no-account:`, `no-api-key:`, `no-credential:`, `not-configured:`,
+`no-server:` and the like), and the Anthropic classes resolve to their
+own family's models; a row that cannot say which is a `fail` naming the
+broken invariant.
+
 AUTH also carries the `Web search` row (`web-search-door`): it reports the
 search cascade available to the session's model, including native provider
 search (`Anthropic web search (native, session account)` or `OpenAI web search
