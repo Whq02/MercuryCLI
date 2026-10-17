@@ -162,3 +162,16 @@ export async function primeEvalAvailability(cwd: string): Promise<EvalLanguageAv
   }
   return evalAvailability(cwd)
 }
+
+export async function settledPython(cwd: string): Promise<EvalLanguageAvailability> {
+  for (let pass = 0; pass < 8; pass++) {
+    const row = discoverPython(cwd)
+    if (row.probing !== true) return row
+    const inflight = [...probeCache.values()]
+      .map(entry => entry.inflight)
+      .filter((probe): probe is Promise<ProbeResult> => probe !== null)
+    if (inflight.length === 0) return row
+    await Promise.all(inflight)
+  }
+  return discoverPython(cwd)
+}

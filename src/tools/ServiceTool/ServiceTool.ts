@@ -5,8 +5,10 @@ import {
   describeCondition,
   servicesEnabled,
   type ReadinessCondition,
+  type ServiceInputMode,
   type ServiceRecord,
 } from '../../services/projectServices/contracts.js'
+import { readableTerminalLines } from '../../services/projectServices/terminalText.js'
 import {
   evaluateReadiness,
   readLogs,
@@ -65,6 +67,8 @@ const inputSchema = lazySchema(() =>
     readinessMode: z.enum(['all', 'any']).optional().describe('start: how conditions combine (default all)'),
     restart: z.enum(['never', 'on-failure']).optional().describe('start: auto-restart policy (default never; bounded backoff, explicit stop always suppresses)'),
     lifecycle: z.enum(['session', 'project']).optional().describe('start: session = dies with this Mercury session (default); project = detached, survives it'),
+    pty: z.boolean().optional().describe('start: run the command inside a pseudo-terminal, so a program that needs a terminal (a REPL, an interactive CLI, a prompt that asks) sees one; its screen bytes land in the log and op:"input" types to it (default false: a plain pipe)'),
+    mode: z.enum(['write', 'submit', 'eof']).optional().describe('input: write = the text exactly as given (keystrokes, control bytes such as \u0003); submit = the text with Enter after it (default); eof = end of input (the text is ignored)'),
     timeoutMs: semanticNumber(z.number().int().min(0).optional()).describe(`wait: readiness deadline in ms (default ${WAIT_DEFAULT_MS}, min ${WAIT_MIN_MS}, max ${WAIT_MAX_MS}; a value outside the bounds is clamped to them and the result says so)`),
     cursor: semanticNumber(z.number().int().min(0).optional()).describe('logs: byte cursor from a previous read (omit for the tail)'),
     limitLines: semanticNumber(z.number().int().min(1).max(1000).optional()).describe('logs: max lines (default 100)'),
@@ -86,7 +90,7 @@ function describeRecord(r: ServiceRecord): string {
     `${r.spec.name} — ${r.state}${r.pid ? ` (pid ${r.pid})` : ''}`,
     `  command: ${r.spec.command} ${r.spec.args.join(' ')}`,
     `  cwd: ${r.spec.cwd}`,
-    `  lifecycle: ${r.spec.lifecycle} · restart: ${r.spec.restart} · restarts so far: ${r.restartCount}`,
+    `  lifecycle: ${r.spec.lifecycle} · restart: ${r.spec.restart} · restarts so far: ${r.restartCount}${r.spec.pty === true ? ' · pseudo-terminal' : ''}`,
     ...(r.startedAt ? [`  started: ${new Date(r.startedAt).toISOString()}`] : []),
     ...(r.stoppedAt ? [`  stopped: ${new Date(r.stoppedAt).toISOString()}${r.lastExitCode !== null ? ` (exit ${r.lastExitCode})` : ''}`] : []),
     `  log: ${r.logFile}`,
@@ -121,6 +125,7 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
           readinessMode: input.readinessMode ?? 'all',
           restart: input.restart ?? 'never',
           lifecycle: input.lifecycle ?? 'session',
+          ...(input.pty === true ? { pty: true } : {}),
         },
       })
       if ('error' in result) return { op: 'start', result: result.error, state: 'failed', name: input.name }
@@ -193,21 +198,28 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
         tail: input.cursor === undefined,
       })
       if ('error' in logs) return { op: 'logs', result: logs.error, name: input.name }
+      const record = reconcileRecord(input.cwd ?? cwd, input.name!)
+      const lines = record?.spec.pty === true ? readableTerminalLines(logs.lines) : logs.lines
       return {
         op: 'logs',
         result:
-          (logs.lines.length > 0 ? logs.lines.join('\n') : '(no log lines in this window)') +
+          (lines.length > 0 ? lines.join('\n') : '(no log lines in this window)') +
           `\n[cursor: ${logs.nextCursor}${logs.eof ? ' — end of log' : ' — more available: pass cursor'} · ${logs.totalBytes} bytes total]`,
         name: input.name,
       }
     }
     case 'input': {
       if (!input.name) need('name')
-      if (input.text === undefined) need('text')
-      const sent = sendInput(input.cwd ?? cwd, input.name!, input.text!, sessionId)
-      return 'error' in sent
-        ? { op: 'input', result: sent.error, name: input.name }
-        : { op: 'input', result: `wrote ${input.text!.length} chars to '${input.name}' stdin`, name: input.name }
+      const mode: ServiceInputMode = input.mode ?? 'submit'
+      if (input.text === undefined && mode !== 'eof') need('text')
+      const sent = sendInput(input.cwd ?? cwd, input.name!, input.text ?? '', sessionId, mode)
+      if ('error' in sent) return { op: 'input', result: sent.error, name: input.name }
+      const where = sent.pty ? 'terminal' : 'stdin'
+      return {
+        op: 'input',
+        result: mode === 'eof' ? `sent end of input to '${input.name}' ${where}` : `${mode === 'write' ? 'wrote' : 'submitted'} ${input.text!.length} chars to '${input.name}' ${where}${mode === 'submit' ? ' with Enter' : ''}`,
+        name: input.name,
+      }
     }
     case 'stop': {
       if (!input.name) need('name')
@@ -261,7 +273,8 @@ Operations:
 · wait — block until ready or the deadline; a timeout names exactly the unmet conditions.
 · logs — ordered byte cursors: first call tails, pass the returned cursor for strictly-newer lines; filterRegex bounds noise. stdout+stderr share one ordered log.
 · describe / list — reconciled truth (a dead pid is never reported live).
-· input — write a line to the service stdin (only the spawning session holds it).
+· input — type to the service (only the spawning session holds it): mode submit writes the text with Enter after it (default), write sends it exactly as given, eof ends the input.
+· start with pty:true runs the command inside a pseudo-terminal: a program that needs a terminal sees one (its screen bytes land in the log, read back as plain lines), input types keystrokes to it, and Enter is the terminal's.
 · stop / restart — explicit lifecycle; restart reuses the retained spec.
 
 Services are addressable as mercury://service/<name> (Inspect). Never auto-started: a package.json script is a suggestion you start deliberately.`
@@ -289,7 +302,7 @@ Services are addressable as mercury://service/<name> (Inspect). Never auto-start
     if (input.op === 'input') {
       return {
         behavior: 'ask' as const,
-        message: `Service input → ${input.name ?? '?'}: ${input.text?.slice(0, 80) ?? ''}`,
+        message: `Service input → ${input.name ?? '?'}: ${input.mode === 'eof' ? '(end of input)' : (input.text?.slice(0, 80) ?? '')}`,
       }
     }
     return { behavior: 'allow' as const, updatedInput: input }
@@ -301,7 +314,7 @@ Services are addressable as mercury://service/<name> (Inspect). Never auto-start
     if (input.op === 'start' && !input.command) {
       return { result: false as const, message: 'start requires command', errorCode: 1 }
     }
-    if (input.op === 'input' && input.text === undefined) {
+    if (input.op === 'input' && input.text === undefined && input.mode !== 'eof') {
       return { result: false as const, message: 'input requires text', errorCode: 1 }
     }
     return { result: true as const }
