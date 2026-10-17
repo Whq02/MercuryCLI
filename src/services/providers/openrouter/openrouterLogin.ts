@@ -1,5 +1,5 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredOpenrouterApiKey } from '../../../utils/router/providerSecrets.js'
+import { writeStoredOpenrouterApiKey } from '../providerSecrets.js'
 import { forgetOpenrouterKeyRefusal, type OpenrouterAccountRef } from './openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from './openrouterCatalogue.js'
 

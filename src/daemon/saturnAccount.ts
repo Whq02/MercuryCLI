@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { anthropicCredentialPresence } from '../services/providers/providerUsage.js'
-import { buildRouterModelSnapshot } from '../utils/router/modelRegistry.js'
+import { buildRouterModelSnapshot } from '../services/providers/modelRegistry.js'
 import { getClaudeAIOAuthTokens, isAnthropicOAuthSignInExpired, isClaudeAISubscriber } from '../utils/auth.js'
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
 import { readScopeIdentity, scopeIdentityFile } from '../utils/accounts/scopeScan.js'

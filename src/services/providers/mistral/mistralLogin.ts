@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { writeStoredMistralAdminApiKey, writeStoredMistralApiKey } from '../../../utils/router/providerSecrets.js'
+import { writeStoredMistralAdminApiKey, writeStoredMistralApiKey } from '../providerSecrets.js'
 import { mistralApiBase, mistralEnvKey } from './mistralAccounts.js'
 import { fetchMistralLiveModels, MistralCatalogueHttpError } from './mistralCatalogue.js'
 import { fetchMistralIdentity, fetchMistralLimits, mistralUsageFailureWords, type MistralUsageIo } from './mistralUsageState.js'

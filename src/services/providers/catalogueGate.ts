@@ -65,7 +65,7 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
       return resolveMoonshotAccount(env) !== undefined
     case 'zai': {
       const { resolveZaiDispatch } =
-        require('../../utils/router/providerDiscovery.js') as typeof import('../../utils/router/providerDiscovery.js')
+        require('./providerDiscovery.js') as typeof import('./providerDiscovery.js')
       return resolveZaiDispatch(env) !== undefined
     }
     case 'mistral':

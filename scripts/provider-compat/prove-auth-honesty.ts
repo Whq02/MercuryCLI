@@ -287,7 +287,7 @@ const now = Date.now()
 section('§4 · readiness derivations tell the truth the dispatch would tell')
 {
   const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-  const { writeStoredZaiApiKey } = await import('../../src/utils/router/providerSecrets.ts')
+  const { writeStoredZaiApiKey } = await import('../../src/services/providers/providerSecrets.ts')
   const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
   const { __resetLaneBillingStateForTest } = await import('../../src/services/providers/laneBillingState.ts')
   __resetLaneBillingStateForTest()

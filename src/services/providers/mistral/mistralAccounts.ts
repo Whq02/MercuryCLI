@@ -1,4 +1,4 @@
-import { readStoredMistralAdminApiKey, readStoredMistralApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredMistralAdminApiKey, readStoredMistralApiKey } from '../providerSecrets.js'
 
 export function mistralApiBase(env: NodeJS.ProcessEnv = process.env): string {
   return (env.MERCURY_MISTRAL_API_BASE?.trim() || 'https://api.mistral.ai/v1').replace(/\/+$/, '')

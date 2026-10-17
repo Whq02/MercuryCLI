@@ -41,7 +41,7 @@ const {
   modelSupportsXHighEffort,
 } = await import('../../src/utils/model/capabilities.ts')
 const { getCanonicalName, parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
-const { classOfModel } = await import('../../src/utils/router/modelRegistry.ts')
+const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
 const seatSlots = await import('../../src/utils/model/seatSlots.ts')
 const { getLaunchDefaultEffort } = await import('../../src/utils/effort.ts')
 const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')

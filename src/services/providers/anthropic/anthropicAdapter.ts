@@ -1,6 +1,6 @@
-import { getContextWindowForModel } from '../../context.js'
-import { modelSupportsMaxEffort, modelSupportsXHighEffort } from '../../model/capabilities.js'
-import { getDefaultFableModel, getDefaultOpusModel, getDefaultSonnetModel, renderModelChip } from '../../model/model.js'
+import { getContextWindowForModel } from '../../../utils/context.js'
+import { modelSupportsMaxEffort, modelSupportsXHighEffort } from '../../../utils/model/capabilities.js'
+import { getDefaultFableModel, getDefaultOpusModel, getDefaultSonnetModel, renderModelChip } from '../../../utils/model/model.js'
 import type {
   ProviderDescription,
   RouteEffortLevel,
@@ -10,8 +10,8 @@ import type {
   RouterProviderAdapter,
   RouterProviderModel,
   RouterProviderStatus,
-} from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
+} from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 type AnthropicModelClass = 'opus' | 'sonnet' | 'fable'
 

@@ -39,7 +39,7 @@ process.env.MERCURY_HUGGINGFACE_API_BASE = `${base}/huggingface`
 process.env.MERCURY_HUGGINGFACE_HUB_BASE = `${base}/huggingface`
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-const secrets = await import('../../src/utils/router/providerSecrets.js')
+const secrets = await import('../../src/services/providers/providerSecrets.js')
 const { captureSignInRequest, observeSignInResponse, readSignInRefusal } = await import('../../src/utils/accounts/signInRefusal.js')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
 const { composeSignInView, summarizeSignInView } = await import('../../src/daemon/signInView.js')

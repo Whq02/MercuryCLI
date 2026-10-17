@@ -3,8 +3,8 @@ import {
   DEEPSEEK_DISPLAY_PINS,
   DEEPSEEK_EFFORTS,
   deepseekCurrentModelId,
-} from '../../../services/providers/deepseek/deepseekPins.js'
-import { deepseekCatalogueRows } from '../../../services/providers/deepseek/deepseekCatalogue.js'
+} from './deepseekPins.js'
+import { deepseekCatalogueRows } from './deepseekCatalogue.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
@@ -15,8 +15,8 @@ import type {
   RouterProviderModel,
   RouterProviderStatus,
   SpecialistRole,
-} from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
+} from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
 

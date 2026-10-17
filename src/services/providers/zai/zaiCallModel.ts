@@ -53,7 +53,7 @@ import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { addToTotalSessionCost } from '../../../cost-tracker.js'
 import { calculateUSDCost } from '../../../utils/modelCost.js'
 import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
-import { resolveZaiDispatch } from '../../../utils/router/providerDiscovery.js'
+import { resolveZaiDispatch } from '../providerDiscovery.js'
 import { emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../emptyReply.js'
 import {
   renderGenericInstructions,

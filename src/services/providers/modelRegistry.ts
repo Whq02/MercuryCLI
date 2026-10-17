@@ -1,10 +1,10 @@
-import { getContextWindowForModel } from '../context.js'
-import { getCanonicalName, normalizeModelStringForAPI, parseUserSpecifiedModel } from '../model/model.js'
-import { familyDefaultsModel } from '../model/configs.js'
-import { anthropicProviderAdapter } from './providers/anthropic.js'
-import { geminiProviderAdapter } from './providers/gemini.js'
-import { openaiProviderAdapter } from './providers/openai.js'
-import { openrouterProviderAdapter } from './providers/openrouter.js'
+import { getContextWindowForModel } from '../../utils/context.js'
+import { getCanonicalName, normalizeModelStringForAPI, parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { familyDefaultsModel } from '../../utils/model/configs.js'
+import { anthropicProviderAdapter } from './anthropic/anthropicAdapter.js'
+import { geminiProviderAdapter } from './gemini/geminiAdapter.js'
+import { openaiProviderAdapter } from './openai/openaiAdapter.js'
+import { openrouterProviderAdapter } from './openrouter/openrouterAdapter.js'
 import type {
   ProviderDescription,
   RouteEffortLevel,
@@ -15,20 +15,20 @@ import type {
   RouterProviderId,
   RouterProviderModel,
   RouterTransport,
-} from './providers/types.js'
-import { zaiProviderAdapter } from './providers/zai.js'
-import { moonshotProviderAdapter } from './providers/moonshot.js'
-import { deepseekProviderAdapter } from './providers/deepseek.js'
-import { xaiProviderAdapter } from './providers/xai.js'
-import { metaProviderAdapter } from './providers/meta.js'
-import { compatProviderAdapter } from './providers/openaicompat.js'
-import { huggingfaceProviderAdapter } from './providers/huggingface.js'
-import { localProviderAdapter } from './providers/local.js'
-import { mistralProviderAdapter } from './providers/mistral.js'
-import { nousProviderAdapter } from './providers/nous.js'
-import { zenProviderAdapter } from './providers/zen.js'
-import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
-import { signInLedgerEpoch } from '../accounts/signInLedger.js'
+} from './providerAdapter.js'
+import { zaiProviderAdapter } from './zai/zaiAdapter.js'
+import { moonshotProviderAdapter } from './moonshot/moonshotAdapter.js'
+import { deepseekProviderAdapter } from './deepseek/deepseekAdapter.js'
+import { xaiProviderAdapter } from './xai/xaiAdapter.js'
+import { metaProviderAdapter } from './meta/metaAdapter.js'
+import { compatProviderAdapter } from './openaicompat/compatAdapter.js'
+import { huggingfaceProviderAdapter } from './huggingface/huggingfaceAdapter.js'
+import { localProviderAdapter } from './local/localAdapter.js'
+import { mistralProviderAdapter } from './mistral/mistralAdapter.js'
+import { nousProviderAdapter } from './nous/nousAdapter.js'
+import { zenProviderAdapter } from './zen/zenAdapter.js'
+import { catalogueEpoch } from './catalogueEpoch.js'
+import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { credentialEnvNames } from './providerSecrets.js'
 
 export interface RouterModelSnapshot {

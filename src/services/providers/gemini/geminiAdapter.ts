@@ -2,7 +2,7 @@ import {
   getCachedProviderDiscovery,
   primeGeminiDiscovery,
 } from '../providerDiscovery.js'
-import { getCachedGeminiCatalogue } from '../../../services/providers/gemini/geminiCatalogue.js'
+import { getCachedGeminiCatalogue } from './geminiCatalogue.js'
 import type {
   ProviderDescription,
   RouteModelRef,
@@ -11,7 +11,7 @@ import type {
   RouterProviderAdapter,
   RouterProviderModel,
   RouterProviderStatus,
-} from './types.js'
+} from '../providerAdapter.js'
 
 function describeGeminiProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('gemini') ?? primeGeminiDiscovery()

@@ -90,7 +90,7 @@ try {
   check('the Z.ai quota reader exists (src/services/providers/zai/zaiUsageState.ts)', readerPresent, 'no such module on this tree')
   const { enableConfigs } = await import('../../src/utils/config.js')
   enableConfigs()
-  const secrets = await import('../../src/utils/router/providerSecrets.ts')
+  const secrets = await import('../../src/services/providers/providerSecrets.ts')
   const owner = await import('../../src/services/providers/providerUsage.ts')
   const records = await import('../../src/services/anthropicLimits.ts')
   const fresh = await import('../../src/services/providers/usageFreshness.ts')

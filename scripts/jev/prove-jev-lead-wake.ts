@@ -40,7 +40,7 @@ process.env.MERCURY_JEV_BASE = 'http://127.0.0.1:1'
 const config = await import('../../src/utils/config.js')
 config.enableConfigs()
 const setting = await import('../../src/services/jev/jevSetting.ts')
-const secrets = await import('../../src/utils/router/providerSecrets.ts')
+const secrets = await import('../../src/services/providers/providerSecrets.ts')
 const OR_KEY = 'proof-openrouter-key-not-real'
 secrets.writeStoredOpenrouterApiKey(OR_KEY)
 setting.setJevEnabled(true, 'openrouter')

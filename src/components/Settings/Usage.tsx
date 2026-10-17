@@ -13,7 +13,7 @@ import { isClaudeAISubscriber } from '../../utils/auth.js'
 import { recentSignIns, mostRecentSignInFamily } from '../../utils/model/computedDefault.js'
 import { renderModelName, getUserSpecifiedModelSetting, parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
-import type { RouterProviderId } from '../../utils/router/providers/types.js'
+import type { RouterProviderId } from '../../services/providers/providerAdapter.js'
 import {
   CREDITS_UNREPORTED_WORDS,
   anthropicPoolWindowViews,

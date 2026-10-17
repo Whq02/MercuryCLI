@@ -80,7 +80,7 @@ const huggingface = await import(
   '../../src/services/providers/huggingface/huggingfaceAccounts.js'
 )
 const { writeStoredZaiApiKey, readStoredZaiApiKey } = await import(
-  '../../src/utils/router/providerSecrets.js'
+  '../../src/services/providers/providerSecrets.js'
 )
 
 const SEAT_ABSENT_REASON = 'no OpenAI account — /logins openai connects one'
@@ -1809,7 +1809,7 @@ section('§11 the keyed search tier: Brave · Tavily — doors, refusals, quota,
   const { braveSearch, resolveBraveSearchApiKey } = await import('../../src/services/search/brave.js')
   const { tavilySearch, resolveTavilyApiKey } = await import('../../src/services/search/tavily.js')
   const { writeStoredBraveSearchApiKey, writeStoredTavilyApiKey } = await import(
-    '../../src/utils/router/providerSecrets.js'
+    '../../src/services/providers/providerSecrets.js'
   )
   const request = { query: 'matrix fixture' } as never
 

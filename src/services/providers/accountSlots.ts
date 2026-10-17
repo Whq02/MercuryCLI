@@ -57,7 +57,7 @@ import {
   writeStoredOpenaiApiKey,
   writeStoredOpenrouterApiKey,
   writeStoredZaiApiKey,
-} from '../../utils/router/providerSecrets.js'
+} from './providerSecrets.js'
 import {
   disconnectOpenrouterOauthKey,
   readMintedOpenrouterKey,
@@ -91,7 +91,7 @@ import { resolveLocalAccount, type LocalAccountRef } from './local/localAccounts
 import {
   buildRouterModelSnapshot,
   type RouterModelSnapshot,
-} from '../../utils/router/modelRegistry.js'
+} from './modelRegistry.js'
 import {
   disconnectOpenaiSubscription,
   openaiSubscriptionPresence,

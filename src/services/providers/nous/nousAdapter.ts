@@ -1,5 +1,5 @@
 import { getCachedProviderDiscovery, primeNousDiscovery } from '../providerDiscovery.js'
-import { getCachedNousCatalogue } from '../../../services/providers/nous/nousCatalogue.js'
+import { getCachedNousCatalogue } from './nousCatalogue.js'
 import type {
   ProviderDescription,
   RouteModelRef,
@@ -8,7 +8,7 @@ import type {
   RouterProviderAdapter,
   RouterProviderModel,
   RouterProviderStatus,
-} from './types.js'
+} from '../providerAdapter.js'
 
 export function describeNousProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('nous') ?? primeNousDiscovery()

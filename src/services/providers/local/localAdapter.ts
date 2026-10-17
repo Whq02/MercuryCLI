@@ -1,6 +1,6 @@
 import { getCachedProviderDiscovery, primeLocalDiscovery } from '../providerDiscovery.js'
-import { cachedLocalModels, getCachedLocalDiscovery } from '../../../services/providers/local/localDiscovery.js'
-import { LOCAL_MODEL_PREFIX } from '../../../services/providers/local/localCatalogue.js'
+import { cachedLocalModels, getCachedLocalDiscovery } from './localDiscovery.js'
+import { LOCAL_MODEL_PREFIX } from './localCatalogue.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
@@ -11,8 +11,8 @@ import type {
   RouterProviderModel,
   RouterProviderStatus,
   SpecialistRole,
-} from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
+} from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
 

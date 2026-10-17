@@ -1,6 +1,6 @@
 import { getCachedProviderDiscovery, primeZaiDiscovery } from '../providerDiscovery.js'
-import { GLM_STATIC_FLOOR_IDS, glmDisplayPin, glmEffortsFor } from '../../../services/providers/zai/glmPins.js'
-import { zaiCatalogueRows } from '../../../services/providers/zai/zaiCatalogue.js'
+import { GLM_STATIC_FLOOR_IDS, glmDisplayPin, glmEffortsFor } from './glmPins.js'
+import { zaiCatalogueRows } from './zaiCatalogue.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
@@ -11,8 +11,8 @@ import type {
   RouterProviderModel,
   RouterProviderStatus,
   SpecialistRole,
-} from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
+} from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
 

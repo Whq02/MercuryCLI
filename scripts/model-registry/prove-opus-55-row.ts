@@ -74,8 +74,8 @@ section("§2 the row: the opus family's newest generation, its class, its picker
 {
   const { FAMILY_GENERATIONS, newestGenerationKey, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
   const { getDefaultOpusModel, isDefaultOpusNatively1M, renderModelSetting, renderDefaultModelSetting } = await import('../../src/utils/model/model.ts')
-  const { classOfModel } = await import('../../src/utils/router/modelRegistry.ts')
-  const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/utils/router/providers/anthropic.ts')
+  const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
+  const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
   const { focusedOptionSupports1m, getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
   const { resolveCatalogueSpelling } = await import('../../src/utils/model/modelSpellingFold.ts')
   const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/utils/modelCost.ts')

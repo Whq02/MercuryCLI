@@ -1,5 +1,5 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredOpenaiApiKey } from '../../../utils/router/providerSecrets.js'
+import { writeStoredOpenaiApiKey } from '../providerSecrets.js'
 import type { OpenaiAccountRef } from './openaiAccounts.js'
 import { refreshOpenaiCatalogue } from './openaiCatalogue.js'
 

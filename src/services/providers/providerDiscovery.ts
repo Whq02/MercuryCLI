@@ -1,12 +1,12 @@
 import { readStoredZaiApiKey, readStoredZaiKeyPlan } from './providerSecrets.js'
-import type { MoonshotAccountRef } from '../../services/providers/moonshot/moonshotAccounts.js'
-import type { RouterProviderId } from './providers/types.js'
+import type { MoonshotAccountRef } from './moonshot/moonshotAccounts.js'
+import type { RouterProviderId } from './providerAdapter.js'
 import {
   resolveOpenaiAccount,
   type OpenaiAccountRef,
-} from '../../services/providers/openai/openaiAccounts.js'
-import { openrouterKeySource } from '../../services/providers/openrouter/openrouterAccounts.js'
-import { resolveGeminiAccount } from '../../services/providers/gemini/geminiAccounts.js'
+} from './openai/openaiAccounts.js'
+import { openrouterKeySource } from './openrouter/openrouterAccounts.js'
+import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
 
 export const PROVIDER_DISCOVERY_TTL_MS = 5 * 60_000
 
@@ -243,7 +243,7 @@ function probeMoonshot(io: DiscoveryIo): MoonshotDiscovery {
   const {
     resolveMoonshotApiKey,
     resolveMoonshotAccount,
-  } = require('../../services/providers/moonshot/moonshotAccounts.js') as typeof import('../../services/providers/moonshot/moonshotAccounts.js')
+  } = require('./moonshot/moonshotAccounts.js') as typeof import('./moonshot/moonshotAccounts.js')
   const key = resolveMoonshotApiKey(io.env)
   const account = resolveMoonshotAccount(io.env as NodeJS.ProcessEnv)
   return {
@@ -256,19 +256,19 @@ function probeMoonshot(io: DiscoveryIo): MoonshotDiscovery {
 }
 
 function probeMeta(io: DiscoveryIo): MetaDiscovery {
-  const { resolveMetaApiKey } = require('../../services/providers/meta/metaAccounts.js') as typeof import('../../services/providers/meta/metaAccounts.js')
+  const { resolveMetaApiKey } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
   const key = resolveMetaApiKey(io.env)
   return { provider: 'meta', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 
 function probeMistral(io: DiscoveryIo): MistralDiscovery {
-  const { resolveMistralApiKey } = require('../../services/providers/mistral/mistralAccounts.js') as typeof import('../../services/providers/mistral/mistralAccounts.js')
+  const { resolveMistralApiKey } = require('./mistral/mistralAccounts.js') as typeof import('./mistral/mistralAccounts.js')
   const key = resolveMistralApiKey(io.env)
   return { provider: 'mistral', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 
 function probeNous(io: DiscoveryIo): NousDiscovery {
-  const { resolveNousCredentialSnapshot } = require('../../services/providers/nous/nousAccounts.js') as typeof import('../../services/providers/nous/nousAccounts.js')
+  const { resolveNousCredentialSnapshot } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
   const key = resolveNousCredentialSnapshot(io.env)
   return { provider: 'nous', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
@@ -280,14 +280,14 @@ export function primeNousDiscovery(io?: DiscoveryIo): NousDiscovery | null {
 }
 
 function probeZen(io: DiscoveryIo): ZenDiscovery {
-  const { resolveZenApiKey } = require('../../services/providers/zen/zenAccounts.js') as typeof import('../../services/providers/zen/zenAccounts.js')
+  const { resolveZenApiKey } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
   const key = resolveZenApiKey(io.env as NodeJS.ProcessEnv)
   return { provider: 'zen', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 
 function probeDeepseek(io: DiscoveryIo): DeepseekDiscovery {
   const { resolveDeepseekApiKey } =
-    require('../../services/providers/deepseek/deepseekAccounts.js') as typeof import('../../services/providers/deepseek/deepseekAccounts.js')
+    require('./deepseek/deepseekAccounts.js') as typeof import('./deepseek/deepseekAccounts.js')
   const key = resolveDeepseekApiKey(io.env)
   return {
     provider: 'deepseek',
@@ -298,7 +298,7 @@ function probeDeepseek(io: DiscoveryIo): DeepseekDiscovery {
 }
 
 function probeXai(io: DiscoveryIo): XaiDiscovery {
-  const { resolveXaiCredentialSnapshot } = require('../../services/providers/xai/xaiAccounts.js') as typeof import('../../services/providers/xai/xaiAccounts.js')
+  const { resolveXaiCredentialSnapshot } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
   const key = resolveXaiCredentialSnapshot(io.env)
   return { provider: 'xai', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
@@ -313,7 +313,7 @@ function probeCompat(io: DiscoveryIo): CompatDiscovery {
   const {
     resolveCompatSlotConfig,
     resolveCompatApiKey,
-  } = require('../../services/providers/openaicompat/compatAccounts.js') as typeof import('../../services/providers/openaicompat/compatAccounts.js')
+  } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
   const config = resolveCompatSlotConfig(io.env as NodeJS.ProcessEnv)
   const key = resolveCompatApiKey(io.env)
   return {
@@ -346,7 +346,7 @@ export function primeCompatDiscovery(io?: DiscoveryIo): CompatDiscovery | null {
 
 function probeHuggingface(io: DiscoveryIo): HuggingfaceDiscovery {
   const { resolveHuggingfaceAccount } =
-    require('../../services/providers/huggingface/huggingfaceAccounts.js') as typeof import('../../services/providers/huggingface/huggingfaceAccounts.js')
+    require('./huggingface/huggingfaceAccounts.js') as typeof import('./huggingface/huggingfaceAccounts.js')
   const account = resolveHuggingfaceAccount(io.env as NodeJS.ProcessEnv)
   return {
     provider: 'huggingface',
@@ -358,9 +358,9 @@ function probeHuggingface(io: DiscoveryIo): HuggingfaceDiscovery {
 
 function probeLocal(io: DiscoveryIo): LocalDiscovery {
   const { resolveLocalAccount, resolveLocalApiKey } =
-    require('../../services/providers/local/localAccounts.js') as typeof import('../../services/providers/local/localAccounts.js')
+    require('./local/localAccounts.js') as typeof import('./local/localAccounts.js')
   const { getCachedLocalDiscovery } =
-    require('../../services/providers/local/localDiscovery.js') as typeof import('../../services/providers/local/localDiscovery.js')
+    require('./local/localDiscovery.js') as typeof import('./local/localDiscovery.js')
   const snapshot = getCachedLocalDiscovery()
   const account = resolveLocalAccount(io.env as NodeJS.ProcessEnv)
   const key = resolveLocalApiKey(io.env)
@@ -406,7 +406,7 @@ export function refreshProviderDiscovery(
     try {
       if (id === 'local') {
         const { refreshLocalDiscovery } =
-          require('../../services/providers/local/localDiscovery.js') as typeof import('../../services/providers/local/localDiscovery.js')
+          require('./local/localDiscovery.js') as typeof import('./local/localDiscovery.js')
         await refreshLocalDiscovery({ ...(opts?.force ? { force: true } : {}), env: io.env as NodeJS.ProcessEnv }).catch(() => undefined)
       }
       const record =

@@ -1,4 +1,4 @@
-import { readStoredDeepseekApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredDeepseekApiKey } from '../providerSecrets.js'
 
 const DEEPSEEK_API_BASE_URL = 'https://api.deepseek.com'
 

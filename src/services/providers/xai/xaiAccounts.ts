@@ -1,4 +1,4 @@
-import { readStoredXaiApiKey, readStoredXaiManagementApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredXaiApiKey, readStoredXaiManagementApiKey } from '../providerSecrets.js'
 import { readPreferredXaiSource, refreshXaiTokens, xaiStoredTokens, type XaiOauthIo } from './xaiOauth.js'
 
 const XAI_API_BASE_URL = 'https://api.x.ai/v1'

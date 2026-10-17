@@ -23,7 +23,7 @@
 # gate-watch: src/substrate/directSplash.ts src/substrate/durablePublish.ts src/substrate/fileStore.ts src/tools/AgentTool/constants.ts src/tools/WorkflowTool/constants.ts
 # gate-watch: src/utils/accounts/signInLedger.ts src/utils/auth.ts src/utils/config/globalConfig.ts src/utils/editor.ts src/utils/execFileNoThrow.ts
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/messages/factories.ts src/utils/messages/normalize.ts src/utils/processGroup.ts src/utils/redactHeaders.ts
-# gate-watch: src/utils/router/providerDiscovery.ts src/utils/runtime/win32Console.ts src/utils/secureStorage/index.ts src/utils/sessionStorage/paths.ts src/utils/skills/skillChangeDetector.ts
+# gate-watch: src/services/providers/providerDiscovery.ts src/utils/runtime/win32Console.ts src/utils/secureStorage/index.ts src/utils/sessionStorage/paths.ts src/utils/skills/skillChangeDetector.ts
 # gate-watch: src/utils/subprocessEnv.ts src/utils/worktree.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -2,7 +2,7 @@ import { getCachedProviderDiscovery, primeMoonshotDiscovery } from '../providerD
 import {
   KIMI_EFFORTS,
   KIMI_EFFORT_MODELS,
-} from '../../../services/providers/moonshot/kimiPins.js'
+} from './kimiPins.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
@@ -13,9 +13,9 @@ import type {
   RouterProviderModel,
   RouterProviderStatus,
   SpecialistRole,
-} from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
-import { moonshotCatalogueRows } from '../../../services/providers/moonshot/moonshotCatalogue.js'
+} from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
+import { moonshotCatalogueRows } from './moonshotCatalogue.js'
 
 const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
 

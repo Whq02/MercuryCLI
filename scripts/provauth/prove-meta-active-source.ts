@@ -21,7 +21,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const accounts = await import('../../src/services/providers/meta/metaAccounts.ts')
 const login = await import('../../src/services/providers/meta/metaLogin.ts')
-const secrets = await import('../../src/utils/router/providerSecrets.ts')
+const secrets = await import('../../src/services/providers/providerSecrets.ts')
 
 const keyFetch = (): typeof fetch =>
   (async () =>

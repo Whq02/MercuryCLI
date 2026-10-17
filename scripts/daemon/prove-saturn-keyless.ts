@@ -104,7 +104,7 @@ console.log('§K2 the real road: discovered server ⇒ keyless capture (no injec
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${fixtureRoot}`
   await refreshLocalDiscovery({ force: true })
-  const { primeLocalDiscovery } = await import('../../src/utils/router/providerDiscovery.ts')
+  const { primeLocalDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
   primeLocalDiscovery()
   const real = deriveScheduleAccountForModel('local/qwen3:1.7b')
   check('the production road derives ok with a discovered server', real.ok === true, real.ok ? '' : real.reason)
@@ -122,7 +122,7 @@ console.log('§K3 no server ⇒ the probe route, never a login door')
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   await refreshLocalDiscovery({ force: true })
-  const { primeLocalDiscovery } = await import('../../src/utils/router/providerDiscovery.ts')
+  const { primeLocalDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
   primeLocalDiscovery()
   const missed = deriveScheduleAccountForModel('local/ghost')
   check('an undiscovered local model refuses (never throws)', missed.ok === false)

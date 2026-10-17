@@ -1,5 +1,5 @@
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
-import { credentialEnvNames } from '../../utils/router/providerSecrets.js'
+import { credentialEnvNames } from './providerSecrets.js'
 import { accountIdentityShown, familyAccountWord } from '../wallet/identityWords.js'
 import { catalogueEpoch } from './catalogueEpoch.js'
 import { deriveFamilySlotGroups, type AccountSlot, type AccountSlotReads, type FamilySlotGroup } from './accountSlots.js'

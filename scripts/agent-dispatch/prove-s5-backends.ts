@@ -31,7 +31,7 @@ const { buildAgentLaunchPlan } = await import(
   '../../src/utils/crew/agentLaunchPlan.js'
 )
 const { SPECIALIST_ROLES, SPECIALIST_ROLE_ACCESS } = await import(
-  '../../src/utils/router/providers/types.js'
+  '../../src/services/providers/providerAdapter.js'
 )
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { readFileSync } = await import('node:fs')

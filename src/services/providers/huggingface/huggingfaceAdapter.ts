@@ -2,11 +2,11 @@ import { getCachedProviderDiscovery, primeHuggingfaceDiscovery } from '../provid
 import {
   getCachedHuggingfaceCatalogue,
   huggingfaceLiveContextWindow,
-} from '../../../services/providers/huggingface/huggingfaceCatalogue.js'
+} from './huggingfaceCatalogue.js'
 import {
   HUGGINGFACE_DISPLAY_PINS,
   HUGGINGFACE_MODEL_PREFIX,
-} from '../../../services/providers/huggingface/huggingfacePins.js'
+} from './huggingfacePins.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
@@ -17,8 +17,8 @@ import type {
   RouterProviderModel,
   RouterProviderStatus,
   SpecialistRole,
-} from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
+} from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
 

@@ -619,7 +619,7 @@ export function hasStoredOAuthToken(): boolean {
 export function clearOAuthTokenCache(): void {
   getClaudeAIOAuthTokens.cache?.clear?.()
   clearKeychainCache()
-  const { resetRouterModelSnapshotMemo } = require('./router/modelRegistry.js') as typeof import('./router/modelRegistry.js')
+  const { resetRouterModelSnapshotMemo } = require('../services/providers/modelRegistry.js') as typeof import('../services/providers/modelRegistry.js')
   resetRouterModelSnapshotMemo()
   const { resetWalletEntriesMemo } = require('../services/wallet/wallet.js') as typeof import('../services/wallet/wallet.js')
   resetWalletEntriesMemo()

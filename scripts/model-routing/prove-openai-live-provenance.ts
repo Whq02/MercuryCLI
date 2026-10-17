@@ -33,7 +33,7 @@ const catalogue = await import('../../src/services/providers/openai/openaiCatalo
 const { GPT_DISPLAY_PINS } = catalogue
 const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.js')
 const { providerFrontierFact, providerLightFact, providerSmallFastFact } = await import('../../src/utils/model/providerFrontier.js')
-const router = await import('../../src/utils/router/providers/openai.js')
+const router = await import('../../src/services/providers/openai/openaiAdapter.js')
 const { computedDefault, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
 

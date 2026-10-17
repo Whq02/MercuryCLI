@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/providers/openrouter/** src/services/providers/gemini/**
-# gate-watch: src/utils/router/providerSecrets* src/utils/router/providerDiscovery* src/utils/router/providers/**
+# gate-watch: src/services/providers/providerSecrets.ts src/services/providers/providerDiscovery.ts src/services/providers/**
 # gate-watch: src/services/wallet/** src/services/providers/accountSlots* src/services/providers/providerUsage*
 # gate-watch: src/services/anthropicLimits* src/services/api/usage* src/services/providers/providerUsability*
 # gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/effectiveCatalogue.ts

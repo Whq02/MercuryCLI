@@ -36,7 +36,7 @@ const {
   huggingfaceKeyTail,
   HF_OAUTH_SCOPE,
 } = accounts
-const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/router/providerSecrets.ts')
+const { writeStoredHuggingfaceApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
 const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')

@@ -1,5 +1,5 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredGeminiApiKey } from '../../../utils/router/providerSecrets.js'
+import { writeStoredGeminiApiKey } from '../providerSecrets.js'
 import { geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
 import { geminiPlanTierWords } from './geminiPlanAccess.js'
 import { geminiGenerateModels, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'

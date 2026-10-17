@@ -2,7 +2,7 @@ import {
   getCachedProviderDiscovery,
   primeOpenrouterDiscovery,
 } from '../providerDiscovery.js'
-import { getCachedOpenrouterCatalogue } from '../../../services/providers/openrouter/openrouterCatalogue.js'
+import { getCachedOpenrouterCatalogue } from './openrouterCatalogue.js'
 import type {
   ProviderDescription,
   RouteModelRef,
@@ -11,7 +11,7 @@ import type {
   RouterProviderAdapter,
   RouterProviderModel,
   RouterProviderStatus,
-} from './types.js'
+} from '../providerAdapter.js'
 
 function describeOpenrouterProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('openrouter') ?? primeOpenrouterDiscovery()

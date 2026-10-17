@@ -7,7 +7,7 @@ for (const name of ['MODEL_API_KEY', 'META_API_KEY']) delete process.env[name]
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { storeMetaApiKeyLogin } = await import('../../src/services/providers/meta/metaLogin.ts')
 const { resolveMetaApiKey, resolveMetaAccount, metaApiBase } = await import('../../src/services/providers/meta/metaAccounts.ts')
-const { readStoredMetaApiKey, writeStoredMetaApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/utils/router/providerSecrets.ts')
+const { readStoredMetaApiKey, writeStoredMetaApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/services/providers/providerSecrets.ts')
 const { readSignInLedger } = await import('../../src/utils/accounts/signInLedger.ts')
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS, PROVIDER_CREDENTIAL_VALUE_SHAPES } = await import('../../src/services/providers/credentialEnvSpellings.ts')
 const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')

@@ -12,12 +12,12 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { refreshProviderDiscovery } = await import('../../src/utils/router/providerDiscovery.ts')
+const { refreshProviderDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
 const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
 const { parseDefaultProviderWord } = await import('../../src/commands/defaultprovider/defaultprovider.tsx')
 const { loginFamilyRows, keyPageLine, KEY_PAGES } = await import('../../src/components/loginFamilyRows.ts')
 const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines } = await import('../../src/components/BootLoginsScreen.tsx')
-const { buildRouterModelSnapshot } = await import('../../src/utils/router/modelRegistry.ts')
+const { buildRouterModelSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 const { getModelOptions, ZEN_MODEL_GROUP, parseKeyConnectValue, keyConnectValue } = await import('../../src/utils/model/modelOptions.ts')
 const { providerDisplayName, declaredRouteOf, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
 const { PROVIDER_ID_SPACES, declaredIdSpacesLine } = await import('../../src/services/providers/idSpaces.ts')
@@ -56,7 +56,7 @@ try {
   check('discovery records Zen rather than falling through to another family', discovery?.provider === 'zen' && discovery.keyPresent && discovery.keySource === 'env')
   check('the typed-id ledger carries a Zen fact beside the other families', readModelListFacts().some(fact => fact.family === 'zen' && fact.typed.length === 60))
   const files = ['Accounts', 'CallModel', 'Catalogue', 'Login', 'Pins', 'ResponsesTransport', 'UsageState'].map(part => `src/services/providers/zen/zen${part}.ts`)
-  files.push('src/utils/router/providers/zen.ts')
+  files.push('src/services/providers/zen/zenAdapter.ts')
   for (const file of files) {
     const source = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true)
     const names: string[] = []

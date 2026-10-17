@@ -2,8 +2,8 @@ import { getCachedProviderDiscovery, primeCompatDiscovery } from '../providerDis
 import {
   compatSlotModelIds,
   resolveCompatSlotConfig,
-} from '../../../services/providers/openaicompat/compatAccounts.js'
-import { stripCompatModelPrefix } from '../../../services/providers/routeLaw.js'
+} from './compatAccounts.js'
+import { stripCompatModelPrefix } from '../routeLaw.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
@@ -14,8 +14,8 @@ import type {
   RouterProviderModel,
   RouterProviderStatus,
   SpecialistRole,
-} from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
+} from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
 

@@ -1,5 +1,5 @@
 
-import { credentialEnvNames } from '../../utils/router/providerSecrets.js'
+import { credentialEnvNames } from '../providers/providerSecrets.js'
 
 const SECRET_SUFFIX = /(_API_KEY|_TOKEN|_SECRET|_PASSWORD|_CREDENTIALS?)$/i
 

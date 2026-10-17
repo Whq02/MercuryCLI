@@ -1,6 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
-import { readStoredTavilyApiKey } from '../../utils/router/providerSecrets.js'
+import { readStoredTavilyApiKey } from '../providers/providerSecrets.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import type { KeyedSearchIo, SearchKeySource } from './brave.js'
 import {

@@ -13,9 +13,9 @@ import {
 } from '../../utils/auth.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { modelPricingBasis } from '../../utils/modelCost.js'
-import { buildRouterModelSnapshot, type RouterModelSnapshot } from '../../utils/router/modelRegistry.js'
-import { resolveZaiDispatch } from '../../utils/router/providerDiscovery.js'
-import type { RouterProviderId } from '../../utils/router/providers/types.js'
+import { buildRouterModelSnapshot, type RouterModelSnapshot } from './modelRegistry.js'
+import { resolveZaiDispatch } from './providerDiscovery.js'
+import type { RouterProviderId } from './providerAdapter.js'
 import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
 import {
   currentLimits,

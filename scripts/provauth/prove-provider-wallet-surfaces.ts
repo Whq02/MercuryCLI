@@ -49,7 +49,7 @@ process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = 'https://fixture.invalid/token'
 
 const orAccounts = await import('../../src/services/providers/openrouter/openrouterAccounts.js')
 const gmAccounts = await import('../../src/services/providers/gemini/geminiAccounts.js')
-const secrets = await import('../../src/utils/router/providerSecrets.js')
+const secrets = await import('../../src/services/providers/providerSecrets.js')
 const wallet = await import('../../src/services/wallet/wallet.js')
 const slots = await import('../../src/services/providers/accountSlots.js')
 const providerUsage = await import('../../src/services/providers/providerUsage.js')

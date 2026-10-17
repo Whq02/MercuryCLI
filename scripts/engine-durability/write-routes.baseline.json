@@ -55,7 +55,7 @@
     "src/utils/healthDeepProbes.ts",
     "src/utils/observability/invocationTrace.ts",
     "src/utils/realmRegistry.ts",
-    "src/utils/router/providerSecrets.ts",
+    "src/services/providers/providerSecrets.ts",
     "src/utils/scratchLeases.ts",
     "src/utils/secureStorage/plainTextStorage.ts",
     "src/utils/sessionStorage/paths.ts",

@@ -135,7 +135,7 @@ section('4 · unfetched falls back to the PIN, unchanged')
 
 section('5 · the LIVE router catalogue carries the SERVED window, not the pin')
 {
-  const providerSrc = readFileSync(join(ROOT, 'src/utils/router/providers/openai.ts'), 'utf8')
+  const providerSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiAdapter.ts'), 'utf8')
   check(
     'the live row prefers the source-served window',
     /candidate\.live\.contextWindow !== undefined\s*\n\s*\? \{ contextWindow: candidate\.live\.contextWindow \}/.test(providerSrc),

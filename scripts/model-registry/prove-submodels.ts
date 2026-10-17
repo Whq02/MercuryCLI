@@ -431,11 +431,11 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
   const { writeFileSync, rmSync } = await import('node:fs')
   const home = process.env.MERCURY_CONFIG_DIR as string
   const authFile = join(home, '.openai-auth.json')
-  const discovery = await import('../../src/utils/router/providerDiscovery.ts')
+  const discovery = await import('../../src/services/providers/providerDiscovery.ts')
   const { providerFamilyPresences, anthropicCredentialPresence } = await import(
     '../../src/services/providers/providerUsage.ts'
   )
-  const { buildRouterModelSnapshot } = await import('../../src/utils/router/modelRegistry.ts')
+  const { buildRouterModelSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
   const { resolveOpenaiAccount } = await import(
     '../../src/services/providers/openai/openaiAccounts.ts'
   )

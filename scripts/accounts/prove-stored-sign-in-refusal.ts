@@ -17,7 +17,7 @@ for (const name of Object.keys(process.env)) if (/API_KEY|AUTH_TOKEN|OAUTH_TOKEN
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-const secrets = await import('../../src/utils/router/providerSecrets.js')
+const secrets = await import('../../src/services/providers/providerSecrets.js')
 const { composeSignInView, summarizeSignInView } = await import('../../src/daemon/signInView.js')
 const { collectLoginsScreenFacts, loginsCatalogue, loginsRowStateOf } = await import('../../src/components/BootLoginsScreen.js')
 const { computedDefault } = await import('../../src/utils/model/computedDefault.js')

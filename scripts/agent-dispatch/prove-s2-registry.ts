@@ -2,24 +2,24 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { DiscoveryIo } from '../../src/utils/router/providerDiscovery.js'
+import type { DiscoveryIo } from '../../src/services/providers/providerDiscovery.js'
 
 const savedConfigDir = process.env.MERCURY_CONFIG_DIR
 const savedOpenaiKey = process.env.OPENAI_API_KEY
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-s2-home-'))
 delete process.env.OPENAI_API_KEY
 
-const { buildRouterModelSnapshot } = await import('../../src/utils/router/modelRegistry.js')
+const { buildRouterModelSnapshot } = await import('../../src/services/providers/modelRegistry.js')
 const {
   __resetProviderDiscoveryForTest,
   getCachedProviderDiscovery,
   PROVIDER_DISCOVERY_TTL_MS,
   refreshProviderDiscovery,
-} = await import('../../src/utils/router/providerDiscovery.js')
-const { anthropicProviderAdapter } = await import('../../src/utils/router/providers/anthropic.js')
-const { openaiProviderAdapter } = await import('../../src/utils/router/providers/openai.js')
-const { zaiProviderAdapter } = await import('../../src/utils/router/providers/zai.js')
-const { SPECIALIST_ROLES } = await import('../../src/utils/router/providers/types.js')
+} = await import('../../src/services/providers/providerDiscovery.js')
+const { anthropicProviderAdapter } = await import('../../src/services/providers/anthropic/anthropicAdapter.js')
+const { openaiProviderAdapter } = await import('../../src/services/providers/openai/openaiAdapter.js')
+const { zaiProviderAdapter } = await import('../../src/services/providers/zai/zaiAdapter.js')
+const { SPECIALIST_ROLES } = await import('../../src/services/providers/providerAdapter.js')
 const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
 
 let failures = 0

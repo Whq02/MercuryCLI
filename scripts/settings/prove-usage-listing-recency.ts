@@ -33,7 +33,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-const discovery = await import('../../src/utils/router/providerDiscovery.js')
+const discovery = await import('../../src/services/providers/providerDiscovery.js')
 const ledger = await import('../../src/utils/accounts/signInLedger.ts')
 const { recentSignIns } = await import('../../src/utils/model/computedDefault.ts')
 const { providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')

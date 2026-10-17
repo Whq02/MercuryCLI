@@ -26,7 +26,7 @@ function currentCredential(family: string): Credential | undefined {
       case 'mistral': return keyCredential(require('../../services/providers/mistral/mistralAccounts.js').resolveMistralApiKey())
       case 'nous': return keyCredential(require('../../services/providers/nous/nousAccounts.js').resolveNousCredentialSnapshot())
       case 'zen': return keyCredential(require('../../services/providers/zen/zenAccounts.js').resolveZenApiKey())
-      case 'zai': return keyCredential(require('../router/providerDiscovery.js').resolveZaiDispatch())
+      case 'zai': return keyCredential(require('../../services/providers/providerDiscovery.js').resolveZaiDispatch())
       case 'local': return keyCredential(require('../../services/providers/local/localAccounts.js').resolveLocalApiKey())
       case 'openai-compat': return keyCredential(require('../../services/providers/openaicompat/compatAccounts.js').resolveCompatApiKey())
       case 'moonshot': {

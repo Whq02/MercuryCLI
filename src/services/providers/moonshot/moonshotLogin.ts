@@ -1,5 +1,5 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredMoonshotApiKey } from '../../../utils/router/providerSecrets.js'
+import { writeStoredMoonshotApiKey } from '../providerSecrets.js'
 import {
   kimiCodingBase,
   kimiRegionLabel,

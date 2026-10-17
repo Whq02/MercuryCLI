@@ -41,7 +41,7 @@ const moonshotState = await import('../../src/services/providers/moonshot/moonsh
 const openrouterState = await import('../../src/services/providers/openrouter/openrouterUsageState.ts')
 const huggingfaceState = await import('../../src/services/providers/huggingface/huggingfaceUsageState.ts')
 const geminiState = await import('../../src/services/providers/gemini/geminiUsageState.ts')
-import type { RouterProviderId } from '../../src/utils/router/providers/types.js'
+import type { RouterProviderId } from '../../src/services/providers/providerAdapter.js'
 
 const FAMILIES: RouterProviderId[] = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'openai-compat', 'openrouter', 'gemini', 'huggingface', 'local']
 const xaiAuth = await import('../../src/services/providers/xai/xaiOauth.ts')

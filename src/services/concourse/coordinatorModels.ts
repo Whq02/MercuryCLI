@@ -74,7 +74,7 @@ export async function composeCoordinatorModelRegistry(
   const presences = await (async () => {
     if (reads.presences !== undefined) return reads.presences()
     const [{ primeOpenaiDiscovery }, { providerFamilyPresences }] = await Promise.all([
-      import('../../utils/router/providerDiscovery.js'),
+      import('../providers/providerDiscovery.js'),
       import('../providers/providerUsage.js'),
     ])
     primeOpenaiDiscovery()

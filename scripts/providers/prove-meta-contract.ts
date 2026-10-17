@@ -10,14 +10,14 @@ process.env.MERCURY_META_API_BASE = 'http://127.0.0.1:1/v1'
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { refreshProviderDiscovery } = await import('../../src/utils/router/providerDiscovery.ts')
+const { refreshProviderDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
 const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
 const { parseDefaultProviderWord } = await import('../../src/commands/defaultprovider/defaultprovider.tsx')
 const { loginFamilyRows, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
 const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines, loginsFlowStatusOf } = await import('../../src/components/BootLoginsScreen.tsx')
 const { keyLaneProviderRows, keyConnectValue } = await import('../../src/utils/model/modelOptions.ts')
 const { subModelConnectHome } = await import('../../src/utils/model/subModelSlots.ts')
-const { buildRouterModelSnapshot } = await import('../../src/utils/router/modelRegistry.ts')
+const { buildRouterModelSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 const root = join(import.meta.dir, '..', '..')
 const read = (path: string): string => readFileSync(join(root, path), 'utf8')
 let count = 0
@@ -38,7 +38,7 @@ try {
   const discovery = await refreshProviderDiscovery('meta', { force: true })
   check('discovery records Meta rather than falling through to another family', discovery?.provider === 'meta' && discovery.keyPresent && discovery.keySource === 'env')
   const files = ['Accounts', 'CallModel', 'Catalogue', 'Login', 'Pins', 'UsageState'].map(part => `src/services/providers/meta/meta${part}.ts`)
-  files.push('src/utils/router/providers/meta.ts')
+  files.push('src/services/providers/meta/metaAdapter.ts')
   for (const file of files) {
     const source = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true)
     const names: string[] = []

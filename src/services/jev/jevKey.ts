@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readStoredTypesafeApiKey, writeStoredTypesafeApiKey } from '../../utils/router/providerSecrets.js'
+import { readStoredTypesafeApiKey, writeStoredTypesafeApiKey } from '../providers/providerSecrets.js'
 import { resolveOpenrouterApiKey } from '../providers/openrouter/openrouterAccounts.js'
 import type { JevRoad } from './jevContract.js'
 import { noteJevKeyChanged } from './jevLedger.js'

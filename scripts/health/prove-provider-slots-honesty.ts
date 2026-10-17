@@ -23,7 +23,7 @@ const accepted = (listMatch?.[1] ?? '')
   .map(s => s.trim().replace(/^'|'$/g, ''))
   .filter(Boolean)
 
-const providerFiles = ['src/utils/router/providers/openai.ts', 'src/utils/router/providers/zai.ts']
+const providerFiles = ['src/services/providers/openai/openaiAdapter.ts', 'src/services/providers/zai/zaiAdapter.ts']
 const emitted = new Set<string>()
 for (const f of providerFiles) {
   const src = readFileSync(join(ROOT, f), 'utf8')

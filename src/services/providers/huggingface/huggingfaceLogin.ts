@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { writeStoredHuggingfaceApiKey } from '../../../utils/router/providerSecrets.js'
+import { writeStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import {
   fetchHuggingfaceIdentity,
   pollHuggingfaceDeviceToken,

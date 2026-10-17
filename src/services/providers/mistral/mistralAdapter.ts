@@ -1,7 +1,7 @@
-import { mistralCatalogueRows, mistralModelFacts } from '../../../services/providers/mistral/mistralCatalogue.js'
-import { resolveMistralAccount } from '../../../services/providers/mistral/mistralAccounts.js'
-import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
+import { mistralCatalogueRows, mistralModelFacts } from './mistralCatalogue.js'
+import { resolveMistralAccount } from './mistralAccounts.js'
+import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 export function mistralLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = mistralCatalogueRows()

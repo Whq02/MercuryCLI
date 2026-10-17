@@ -1,5 +1,5 @@
 import { getGlobalConfig } from '../../../utils/config.js'
-import { readStoredCompatApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredCompatApiKey } from '../providerSecrets.js'
 import { COMPAT_MODEL_PREFIX } from '../routeLaw.js'
 
 interface CompatSlotConfig {

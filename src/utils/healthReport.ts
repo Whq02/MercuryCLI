@@ -34,7 +34,7 @@ import { FLAG_REGISTRY, flagEnabled, flagEnv } from '../substrate/flagRegistry.j
 import { realEnvPin } from '../substrate/startupMenu.js'
 import { isRunOrphaned, listWorkflowRunsDetailed } from '../tools/WorkflowTool/runManifest.js'
 import { getAnthropicApiKeyWithSource, getAuthTokenSource } from './auth.js'
-import { buildRouterModelSnapshot } from './router/modelRegistry.js'
+import { buildRouterModelSnapshot } from '../services/providers/modelRegistry.js'
 import { binaryName, isMercurySubstrateProfileOn } from './config.js'
 import { getCwd } from './cwd.js'
 import {
@@ -838,13 +838,13 @@ function providerSlotsCheck(): CheckSpec {
     id: 'provider-slots',
     label: 'Provider slots',
     run: async () => {
-      const { refreshProviderDiscovery } = await import('./router/providerDiscovery.js')
+      const { refreshProviderDiscovery } = await import('../services/providers/providerDiscovery.js')
       await Promise.all([
         refreshProviderDiscovery('openai'),
         refreshProviderDiscovery('zai'),
         refreshProviderDiscovery('local'),
       ])
-      const { buildRouterModelSnapshot } = await import('./router/modelRegistry.js')
+      const { buildRouterModelSnapshot } = await import('../services/providers/modelRegistry.js')
       const snap = buildRouterModelSnapshot()
       const anthropic = snap.providers.find(p => p.id === 'anthropic')
       const classes = (['opus', 'sonnet', 'fable'] as const).map(c => snap.resolve(c, 'adaptive'))

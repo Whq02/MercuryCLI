@@ -1,7 +1,7 @@
 import { getCachedProviderDiscovery, primeXaiDiscovery } from '../providerDiscovery.js'
-import { xaiCatalogueRows, xaiModelFacts } from '../../../services/providers/xai/xaiCatalogue.js'
-import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
+import { xaiCatalogueRows, xaiModelFacts } from './xaiCatalogue.js'
+import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 export const XAI_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] = []
 export function xaiLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {

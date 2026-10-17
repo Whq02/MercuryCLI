@@ -329,7 +329,7 @@ export function recentSignIns(): CredentialFact[] {
   const { providerFamilyPresences } =
     require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
   const { buildRouterModelSnapshot } =
-    require('../router/modelRegistry.js') as typeof import('../router/modelRegistry.js')
+    require('../../services/providers/modelRegistry.js') as typeof import('../../services/providers/modelRegistry.js')
   const { configuredDefaultProvider } =
     require('./defaultProviderRung.js') as typeof import('./defaultProviderRung.js')
   const providers = buildRouterModelSnapshot().providers
@@ -365,7 +365,7 @@ export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded:
   const { providerFamilyPresences } =
     require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
   const { buildRouterModelSnapshot } =
-    require('../router/modelRegistry.js') as typeof import('../router/modelRegistry.js')
+    require('../../services/providers/modelRegistry.js') as typeof import('../../services/providers/modelRegistry.js')
   const { configuredDefaultProvider } =
     require('./defaultProviderRung.js') as typeof import('./defaultProviderRung.js')
   const { providerDisplayName } =

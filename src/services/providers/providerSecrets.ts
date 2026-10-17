@@ -1,9 +1,9 @@
 import { chmodSync, copyFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DurablePublishError, durableAtomicPublishSync } from '../../substrate/durablePublish.js'
-import { recordSignIn, noteCredentialChange } from '../accounts/signInLedger.js'
-import { getAuthConfigHomeDir } from '../envUtils.js'
-import { getErrnoCode } from '../errors.js'
+import { recordSignIn, noteCredentialChange } from '../../utils/accounts/signInLedger.js'
+import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
+import { getErrnoCode } from '../../utils/errors.js'
 
 const PROVIDER_SECRETS_VERSION = 1
 const FILE_NAME = '.provider-secrets.json'

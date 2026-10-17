@@ -37,7 +37,7 @@ process.env.MERCURY_GEMINI_OAUTH_AUTH_BASE = 'https://fixture.invalid/o/oauth2/v
 process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = 'https://fixture.invalid/token'
 
 const accounts = await import('../../src/services/providers/gemini/geminiAccounts.js')
-const secrets = await import('../../src/utils/router/providerSecrets.js')
+const secrets = await import('../../src/services/providers/providerSecrets.js')
 const {
   __resetGeminiAccountsForTest,
   beginGeminiBrowserConnect,

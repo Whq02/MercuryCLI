@@ -1,8 +1,8 @@
-import { zenCatalogueRows } from '../../../services/providers/zen/zenCatalogue.js'
-import { resolveZenAccount } from '../../../services/providers/zen/zenAccounts.js'
-import { zenDisplayPin, zenQualifiedId } from '../../../services/providers/zen/zenPins.js'
-import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
+import { zenCatalogueRows } from './zenCatalogue.js'
+import { resolveZenAccount } from './zenAccounts.js'
+import { zenDisplayPin, zenQualifiedId } from './zenPins.js'
+import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 export function zenLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = zenCatalogueRows()

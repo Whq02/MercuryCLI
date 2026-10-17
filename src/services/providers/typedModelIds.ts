@@ -265,7 +265,7 @@ function huggingfaceFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 function zaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   const typed = (): string[] => [...(require('./zai/glmPins.js') as typeof import('./zai/glmPins.js')).GLM_STATIC_FLOOR_IDS]
   return guarded('zai', name, typed, () => {
-    const { resolveZaiDispatch } = require('../../utils/router/providerDiscovery.js') as typeof import('../../utils/router/providerDiscovery.js')
+    const { resolveZaiDispatch } = require('./providerDiscovery.js') as typeof import('./providerDiscovery.js')
     const { getCachedZaiCatalogue } = require('./zai/zaiCatalogue.js') as typeof import('./zai/zaiCatalogue.js')
     const dispatch = resolveZaiDispatch(env)
     if (!dispatch) return { family: 'zai', name, typed: typed(), list: { kind: 'no-credential' } }

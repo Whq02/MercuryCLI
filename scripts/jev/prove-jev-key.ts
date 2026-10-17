@@ -23,7 +23,7 @@ function section(t: string): void {
 const PROOF_KEY = 'proof-key-jev-not-a-real-key-0001'
 const ENV_KEY = 'proof-key-jev-env-pin-not-real-0002'
 
-const secrets = await import('../../src/utils/router/providerSecrets.js')
+const secrets = await import('../../src/services/providers/providerSecrets.js')
 const key = await import('../../src/services/jev/jevKey.js')
 const ledger = await import('../../src/services/jev/jevLedger.js')
 const { credentialEnvNames, providerSecretsPathForDisplay, readStoredTypesafeApiKey } = secrets

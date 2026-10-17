@@ -33,7 +33,7 @@ process.env.MERCURY_OPENROUTER_AUTH_BASE = 'https://fixture.invalid/auth'
 process.env.MERCURY_OPENROUTER_API_BASE = 'https://fixture.invalid/api/v1'
 
 const accounts = await import('../../src/services/providers/openrouter/openrouterAccounts.js')
-const secrets = await import('../../src/utils/router/providerSecrets.js')
+const secrets = await import('../../src/services/providers/providerSecrets.js')
 const {
   beginOpenrouterConnect,
   disconnectOpenrouterOauthKey,

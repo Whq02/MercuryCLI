@@ -1,7 +1,7 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { formatAge } from '../../../utils/healthCertCore.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { writeStoredMetaApiKey } from '../../../utils/router/providerSecrets.js'
+import { writeStoredMetaApiKey } from '../providerSecrets.js'
 import {
   metaApiBase,
   metaEnvKey,

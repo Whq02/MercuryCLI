@@ -19,7 +19,7 @@ import {
 } from '../../services/providers/providerUsage.js'
 import { usageFreshness, usageSourceWords, type UsageFreshnessFacts } from '../../services/providers/usageFreshness.js'
 import { getEngineModel } from '../../utils/model/model.js'
-import type { RouterProviderId } from '../../utils/router/providers/types.js'
+import type { RouterProviderId } from '../../services/providers/providerAdapter.js'
 
 const USAGE_READING_SCHEMA = 1
 

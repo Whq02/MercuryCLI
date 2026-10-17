@@ -4,7 +4,7 @@
 # gate-watch: scripts/lib/firstRunSeed.ts
 # gate-watch: src/services/switchboard/harnessGround.ts src/utils/settings/changeDetector.ts
 # gate-watch: src/utils/config/projectConfig.ts src/ink/session/windowsHostSetup.ts
-# gate-watch: src/utils/router/providerDiscovery.ts src/services/switchboard/capacityCheck.ts
+# gate-watch: src/services/providers/providerDiscovery.ts src/services/switchboard/capacityCheck.ts
 # gate-watch: scripts/lib/codeText.ts src/bootstrap/state.ts src/commands/memory/memory.tsx
 # gate-watch: src/components/KitMenuScreen.tsx src/components/TerminalProfileCard.tsx
 # gate-watch: src/components/mercury-ui/parity/AccountView.tsx src/context.ts src/extensions/boot.ts
@@ -12,7 +12,7 @@
 # gate-watch: src/services/kitMenu/kitCatalogue.ts src/services/providers/local/localDiscovery.ts src/setup.ts
 # gate-watch: src/skills/loadSkillsDir.ts src/tools/EnterWorktreeTool/EnterWorktreeTool.ts
 # gate-watch: src/tools/ExitWorktreeTool/ExitWorktreeTool.ts src/utils/* src/utils/config/globalConfig.ts
-# gate-watch: src/utils/router/providers/local.ts src/utils/settings/settings.ts
+# gate-watch: src/services/providers/local/localAdapter.ts src/utils/settings/settings.ts
 # gate-watch: src/utils/skills/skillChangeDetector.ts
 # gate-watch: src/daemon/concourseWorkers.ts
 set -u

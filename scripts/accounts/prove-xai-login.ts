@@ -9,7 +9,7 @@ delete process.env.XAI_MANAGEMENT_API_KEY
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { storeXaiApiKeyLogin, storeXaiManagementKeyLogin, runXaiDeviceLogin } = await import('../../src/services/providers/xai/xaiLogin.ts')
 const { resolveXaiApiKey, resolveXaiAccount, xaiApiBase } = await import('../../src/services/providers/xai/xaiAccounts.ts')
-const { readStoredXaiApiKey, writeStoredXaiApiKey, readStoredXaiManagementApiKey, writeStoredXaiManagementApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/utils/router/providerSecrets.ts')
+const { readStoredXaiApiKey, writeStoredXaiApiKey, readStoredXaiManagementApiKey, writeStoredXaiManagementApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/services/providers/providerSecrets.ts')
 const { readSignInLedger } = await import('../../src/utils/accounts/signInLedger.ts')
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS, PROVIDER_CREDENTIAL_VALUE_SHAPES } = await import('../../src/services/providers/credentialEnvSpellings.ts')
 const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')

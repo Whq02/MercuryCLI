@@ -254,7 +254,7 @@ const skipped: string[] = []
 }
 
 {
-  const { resolveZaiDispatch } = await import('../../src/utils/router/providerDiscovery.js')
+  const { resolveZaiDispatch } = await import('../../src/services/providers/providerDiscovery.js')
   const { zaiChatCompletionsUrl } = await import('../../src/services/providers/zai/zaiClient.js')
   const { keyLanePins } = await import('../../src/utils/model/modelOptions.js')
   const { GLM_PRICE_PINS } = await import('../../src/services/providers/zai/glmPins.js')

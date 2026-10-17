@@ -39,7 +39,7 @@ const {
   writeMoonshotTokens,
   disconnectMoonshotOauth,
 } = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
-const { writeStoredMoonshotApiKey } = await import('../../src/utils/router/providerSecrets.ts')
+const { writeStoredMoonshotApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

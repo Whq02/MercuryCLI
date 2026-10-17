@@ -22,7 +22,7 @@ import {
 import {
   buildRouterModelSnapshot,
   type RouterModelSnapshot,
-} from '../router/modelRegistry.js'
+} from '../../services/providers/modelRegistry.js'
 import {
   getModelOptions,
   isProviderActionRow,

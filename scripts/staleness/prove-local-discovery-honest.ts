@@ -16,8 +16,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const discovery = await import('../../src/utils/router/providerDiscovery.js')
-const local = await import('../../src/utils/router/providers/local.js')
+const discovery = await import('../../src/services/providers/providerDiscovery.js')
+const local = await import('../../src/services/providers/local/localAdapter.js')
 const localDiscovery = await import('../../src/services/providers/local/localDiscovery.js')
 const globalConfig = await import('../../src/utils/config/globalConfig.js')
 globalConfig.enableConfigs()
@@ -69,7 +69,7 @@ globalConfig.enableConfigs()
   check('/health’s honesty grammar accepts discovery-pending', health.includes("'discovery-pending:'"))
   const board = readFileSync(join(repoRoot, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
   check('the accounts board kicks one bounded local probe at mount', board.includes("refreshProviderDiscovery('local')") && board.includes('setVersion(v => v + 1)'))
-  const probe = readFileSync(join(repoRoot, 'src/utils/router/providerDiscovery.ts'), 'utf8')
+  const probe = readFileSync(join(repoRoot, 'src/services/providers/providerDiscovery.ts'), 'utf8')
   check('probeLocal stamps the snapshot’s time (the io.now() stamp is gone)', probe.includes('probedAtMs: snapshot?.probedAtMs ?? 0') && !/provider: 'local',\s*\n\s*probedAtMs: io\.now\(\)/.test(probe))
 }
 

@@ -21,7 +21,7 @@ enableConfigs()
 const accounts = await import('../../src/services/providers/gemini/geminiAccounts.ts')
 const login = await import('../../src/services/providers/gemini/geminiLogin.ts')
 const guide = await import('../../src/components/geminiConnectGuide.ts')
-const secrets = await import('../../src/utils/router/providerSecrets.ts')
+const secrets = await import('../../src/services/providers/providerSecrets.ts')
 
 const noCatalogue = { refreshCatalogue: async () => null }
 const grant = (serial: number): typeof fetch =>

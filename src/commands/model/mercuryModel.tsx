@@ -96,7 +96,7 @@ import {
 import { deepseekApiBase, resolveDeepseekApiKey } from '../../services/providers/deepseek/deepseekAccounts.js'
 import { getCachedZaiCatalogue, refreshZaiCatalogue, type ZaiCatalogueSnapshot } from '../../services/providers/zai/zaiCatalogue.js'
 import { zaiApiBase } from '../../services/providers/zai/zaiClient.js'
-import { resolveZaiDispatch } from '../../utils/router/providerDiscovery.js'
+import { resolveZaiDispatch } from '../../services/providers/providerDiscovery.js'
 import {
   getCachedXaiCatalogue,
   refreshXaiCatalogue,

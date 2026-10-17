@@ -66,7 +66,7 @@ for (const base of [
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 
-const secrets = await import('../../src/utils/router/providerSecrets.js')
+const secrets = await import('../../src/services/providers/providerSecrets.js')
 const openai = await import('../../src/services/providers/openai/openaiAccounts.js')
 const openrouter = await import('../../src/services/providers/openrouter/openrouterAccounts.js')
 const gemini = await import('../../src/services/providers/gemini/geminiAccounts.js')
@@ -201,7 +201,7 @@ section('§3 one owner — /logout calls it; the removal switch and the verb agr
   const missing = routes.filter(r => !verbBody.includes(`['${r}',`))
   check('every engine route of the removal switch has a row in the everything-verb', missing.length === 0, missing.join(', '))
 
-  const { buildRouterModelSnapshot } = await import('../../src/utils/router/modelRegistry.js')
+  const { buildRouterModelSnapshot } = await import('../../src/services/providers/modelRegistry.js')
   const families = buildRouterModelSnapshot().providers.map(p => String(p.id))
   check('the enumeration lists the ten families', families.length >= 10, families.join(', '))
   const stem = (id: string): string => (id === 'openai-compat' ? 'compat' : id)

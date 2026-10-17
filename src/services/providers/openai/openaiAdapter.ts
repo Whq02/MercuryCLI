@@ -3,7 +3,7 @@ import {
   gptDisplayPin,
   qualifiedGptCandidates,
   GPT_DISPLAY_PINS,
-} from '../../../services/providers/openai/openaiCatalogue.js'
+} from './openaiCatalogue.js'
 import { primeOpenaiDiscovery } from '../providerDiscovery.js'
 import type {
   ProviderCatalogueEntry,
@@ -15,8 +15,8 @@ import type {
   RouterProviderModel,
   RouterProviderStatus,
   SpecialistRole,
-} from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
+} from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
 

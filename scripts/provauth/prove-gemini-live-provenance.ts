@@ -147,7 +147,7 @@ section('5 · the shape: the picker guard reads the routing law; nothing on the 
     'src/services/providers/gemini/geminiAccounts.ts',
     'src/services/providers/gemini/geminiCallModel.ts',
     'src/services/providers/gemini/geminiClient.ts',
-    'src/utils/router/providers/gemini.ts',
+    'src/services/providers/gemini/geminiAdapter.ts',
     'src/utils/model/modelOptions.ts',
   ]) {
     check(`${file} filters nothing by the gemini- prefix`, !prefix.test(readFileSync(join(ROOT, file), 'utf8')))

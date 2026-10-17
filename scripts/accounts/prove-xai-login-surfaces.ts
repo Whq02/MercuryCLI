@@ -26,7 +26,7 @@ const { BootLoginsScreen } = await import('../../src/components/BootLoginsScreen
 const { AppStateProvider } = await import('../../src/state/AppState.tsx')
 const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
 const mount = (element: React.ReactNode, columns: number, rows: number) => mountOffscreen(React.createElement(AppStateProvider, { children: React.createElement(KeybindingSetup, { children: element }) }), columns, rows)
-const secrets = await import('../../src/utils/router/providerSecrets.ts')
+const secrets = await import('../../src/services/providers/providerSecrets.ts')
 const { signedOutFacts, STILLS, renderStill } = await import('../ui/face-logins-stills.ts')
 const framesArg = process.argv.indexOf('--frames')
 const frames = framesArg >= 0 ? process.argv[framesArg + 1] : undefined

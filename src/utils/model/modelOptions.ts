@@ -560,7 +560,7 @@ function liveKeyLaneReads(): KeyLaneReads {
   return {
     zaiKeyPresent: () => {
       const { resolveZaiApiKey } =
-        require('../router/providerDiscovery.js') as typeof import('../router/providerDiscovery.js')
+        require('../../services/providers/providerDiscovery.js') as typeof import('../../services/providers/providerDiscovery.js')
       return resolveZaiApiKey() !== undefined
     },
     moonshotCredentialPresent: () => {

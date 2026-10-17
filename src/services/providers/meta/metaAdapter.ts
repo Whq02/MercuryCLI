@@ -1,8 +1,8 @@
-import { metaCatalogueRows } from '../../../services/providers/meta/metaCatalogue.js'
-import { resolveMetaAccount } from '../../../services/providers/meta/metaAccounts.js'
-import { metaDisplayPin } from '../../../services/providers/meta/metaPins.js'
-import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from './types.js'
-import { SPECIALIST_ROLES } from './types.js'
+import { metaCatalogueRows } from './metaCatalogue.js'
+import { resolveMetaAccount } from './metaAccounts.js'
+import { metaDisplayPin } from './metaPins.js'
+import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
 export function metaLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = metaCatalogueRows()

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/cli/healthJson* src/services/dap/dapClient* src/services/run/ownerLifecycle*
-# gate-watch: src/substrate/startupMenu* src/utils/**
+# gate-watch: src/substrate/startupMenu* src/utils/** src/services/providers/openai/openaiAdapter.ts src/services/providers/zai/zaiAdapter.ts
 # gate-watch: assets/splash/launcher-action-block.sh
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/ops/launcher-mercury.sh scripts/splash/deploy.sh
 # gate-watch: scripts/lib/scriptedTurn.ts scripts/hooks/lib/runDoor.ts src/utils/text/hiddenCodePoints.ts src/utils/text/hiddenCharacterFindings.ts

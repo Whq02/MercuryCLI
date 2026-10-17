@@ -32,8 +32,8 @@ const LIST_PIN_RE = /^\s*['"](?:claude-(?:opus|sonnet|haiku|fable|mythos|3|4|5)|
 const ALLOW: ReadonlyArray<{ path: string; reason: string }> = [
   { path: 'utils/model/', reason: 'THE model-truth estate — tier getters, catalogues, capability/floor/cost tables, the ratified seat slots (stale-pin alarmed)' },
   { path: 'services/providers/', reason: 'the family runtimes and their pin/catalogue owners' },
-  { path: 'utils/router/providers/', reason: 'the router registry descriptions per family' },
-  { path: 'utils/router/modelRegistry.ts', reason: 'the router model registry — family rows are its content' },
+  { path: 'services/providers/', reason: 'the router registry descriptions per family' },
+  { path: 'services/providers/modelRegistry.ts', reason: 'the router model registry — family rows are its content' },
   { path: 'constants/', reason: 'documentation constants (model-currency notes, betas) — no dispatch' },
   { path: 'utils/modelCost.ts', reason: 'pricing tables keyed by family id' },
   { path: 'services/anthropicLimits.ts', reason: 'family-CORRECT: the quota probe reads the ANTHROPIC window — the ping must ride the Anthropic wire' },

@@ -1,6 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
-import { readStoredBraveSearchApiKey } from '../../utils/router/providerSecrets.js'
+import { readStoredBraveSearchApiKey } from '../providers/providerSecrets.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { htmlToText } from './htmlText.js'
 import { liveSearchClock, noteRateLimited, secondsLeftLabel, serverSearchWaitMs, withSearchTurn, type SearchClock } from './searchPacing.js'

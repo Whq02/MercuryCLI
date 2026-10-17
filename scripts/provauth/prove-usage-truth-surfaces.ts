@@ -60,14 +60,14 @@ const { enableConfigs } = await import('../../src/utils/config.js')
 const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
 enableConfigs()
 
-const discovery = await import('../../src/utils/router/providerDiscovery.js')
+const discovery = await import('../../src/services/providers/providerDiscovery.js')
 const providerUsage = await import('../../src/services/providers/providerUsage.js')
 const usageTab = await import('../../src/components/Settings/Usage.js')
 const usability = await import('../../src/services/providers/providerUsability.js')
 const openaiLimits = await import('../../src/services/providers/openai/openaiLimitState.js')
 const claudeLimits = await import('../../src/services/anthropicLimits.js')
 const quota = await import('../../src/utils/cockpit/quota.js')
-import type { RouterProviderId } from '../../src/utils/router/providers/types.js'
+import type { RouterProviderId } from '../../src/services/providers/providerAdapter.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 

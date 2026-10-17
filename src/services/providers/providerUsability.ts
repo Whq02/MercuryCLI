@@ -134,7 +134,7 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     gptSeat: () => getGptSeatAvailability(fetchCatalogues ? { fetch: true } : undefined),
     zaiKeyPresent: () => {
       const { resolveZaiApiKey } =
-        require('../../utils/router/providerDiscovery.js') as typeof import('../../utils/router/providerDiscovery.js')
+        require('./providerDiscovery.js') as typeof import('./providerDiscovery.js')
       return resolveZaiApiKey() !== undefined
     },
     moonshotAccount: () => {

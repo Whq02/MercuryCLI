@@ -5,7 +5,7 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-const { resetRouterModelSnapshotMemo } = await import('../../src/utils/router/modelRegistry.ts')
+const { resetRouterModelSnapshotMemo } = await import('../../src/services/providers/modelRegistry.ts')
 
 const scratch = mkdtempSync(join(tmpdir(), 'sg5-models-'))
 const authHome = join(scratch, 'auth-home')
