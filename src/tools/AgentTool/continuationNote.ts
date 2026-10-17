@@ -6,7 +6,7 @@ export type ContinuationDirectoryFacts = {
 }
 
 export const PARENT_CHECKOUT_NOTE =
-  ' Its worktree is gone (already folded or cleaned), so the resumed crewmate runs in the parent checkout and edits the main tree.'
+  ' (its worktree is gone, already folded or cleaned; the resumed crewmate runs in the parent checkout, and anything it edits lands in the real tree)'
 
 export function continuationDirectoryNote(resumed: ContinuationDirectoryFacts, sessionDirectory: string = getCwdState()): string {
   if (resumed.cwdFallback === 'parent-checkout') return PARENT_CHECKOUT_NOTE

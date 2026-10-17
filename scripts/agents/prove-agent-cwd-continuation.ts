@@ -58,7 +58,7 @@ if (noteLeaf !== null) {
   check('the note is one line, once', (gone.match(/NOTE:/g) ?? []).length === 1 && !gone.includes('\n'), gone)
   check('the note says where edits land now', gone.includes('anything it edits lands there'), gone)
   const checkout = noteLeaf.continuationDirectoryNote({ cwdFallback: 'parent-checkout' }, '/proof/session')
-  check('a gone worktree keeps its existing sentence byte for byte', checkout === ' Its worktree is gone (already folded or cleaned), so the resumed crewmate runs in the parent checkout and edits the main tree.', checkout)
+  check('a gone worktree keeps its existing sentence byte for byte', checkout === ' (its worktree is gone, already folded or cleaned; the resumed crewmate runs in the parent checkout, and anything it edits lands in the real tree)', checkout)
   check('a continuation in its recorded directory carries no note', noteLeaf.continuationDirectoryNote({}, '/proof/session') === '')
   const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
   const { getCwdState } = await import('../../src/bootstrap/state.ts')
