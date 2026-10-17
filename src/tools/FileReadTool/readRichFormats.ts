@@ -5,7 +5,7 @@ const ARCHIVE_EXTENSIONS = new Set(['zip', 'tar', 'tgz'])
 const SQLITE_EXTENSIONS = new Set(['sqlite', 'sqlite3', 'db'])
 const DOCUMENT_EXTENSIONS = new Set(['docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'epub', 'rtf'])
 
-export type RichFormatKind = 'archive' | 'sqlite' | 'document'
+type RichFormatKind = 'archive' | 'sqlite' | 'document'
 
 export interface ParsedRichTarget {
   kind: RichFormatKind
@@ -18,7 +18,7 @@ function lowerName(filePath: string): string {
   return (filePath.split(/[\\/]/).pop() ?? '').toLowerCase()
 }
 
-export function classifyRichFormatExtension(filePath: string): { kind: RichFormatKind; ext: string } | null {
+function classifyRichFormatExtension(filePath: string): { kind: RichFormatKind; ext: string } | null {
   const name = lowerName(filePath)
   if (name.endsWith('.tar.gz')) return { kind: 'archive', ext: 'tar.gz' }
   const dot = name.lastIndexOf('.')
@@ -56,7 +56,7 @@ export function parseRichFormatTarget(filePath: string): ParsedRichTarget | null
   }
 }
 
-export interface ArchiveEntryMeta {
+interface ArchiveEntryMeta {
   name: string
   uncompressedSize: number
   compressedSize: number
@@ -81,7 +81,7 @@ function findEocdOffset(buf: Buffer): number {
   return -1
 }
 
-export function readZipEntries(buf: Buffer): ArchiveEntryMeta[] {
+function readZipEntries(buf: Buffer): ArchiveEntryMeta[] {
   const eocd = findEocdOffset(buf)
   const entries: ArchiveEntryMeta[] = []
   if (eocd !== -1) {
@@ -133,7 +133,7 @@ export function readZipEntries(buf: Buffer): ArchiveEntryMeta[] {
   return entries
 }
 
-export function extractZipEntryBuffer(buf: Buffer, entry: ArchiveEntryMeta): Buffer {
+function extractZipEntryBuffer(buf: Buffer, entry: ArchiveEntryMeta): Buffer {
   const pos = entry.localHeaderOffset
   if (pos + 30 > buf.length || buf.readUInt32LE(pos) !== 0x04034b50) {
     throw new Error(`Invalid local file header for zip entry "${entry.name}".`)
@@ -164,7 +164,7 @@ function cString(buf: Buffer, offset: number, length: number): string {
   return (nul === -1 ? sub : sub.subarray(0, nul)).toString('utf8')
 }
 
-export function readTarEntries(rawBuf: Buffer, gunzipFirst = false): ArchiveEntryMeta[] {
+function readTarEntries(rawBuf: Buffer, gunzipFirst = false): ArchiveEntryMeta[] {
   const buf = gunzipFirst ? gunzipSync(rawBuf) : rawBuf
   const entries: ArchiveEntryMeta[] = []
   let pos = 0
@@ -536,7 +536,7 @@ function extractEpubText(buf: Buffer): string {
   return parts.join('\n\n')
 }
 
-export function extractRtfText(rtf: string): string {
+function extractRtfText(rtf: string): string {
   const out: string[] = []
   const skipDestinations = new Set([
     'fonttbl',
