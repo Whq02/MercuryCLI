@@ -78,6 +78,7 @@ function makeCtx(): Record<string, unknown> {
 
 const FIRST = 'FIRST-MESSAGE: my name for this session is Corvid Lantern and the code word is MARIGOLD-PANGOLIN-9.'
 const QUESTION = 'What was my first message in this session? Quote it word for word.'
+const BIG_ASK_HEAD = 'BIG-ASK: read this pasted log and tell me what failed'
 function seed(rounds: number, replyChars: number): unknown[] {
   const out: unknown[] = [createUserMessage({ content: FIRST })]
   for (let i = 0; i < rounds; i++) {
@@ -159,6 +160,49 @@ section('N1 a fresh operator message on a history over the threshold: the fold c
   check('the reply answered the question, not the task', textOfYield(r.yields.filter(y => y.type === 'assistant').at(-1)) === 'Your first message was quoted from the record.', textOfYield(r.yields.filter(y => y.type === 'assistant').at(-1)))
   const boundary = r.yields.find(y => y.type === 'system' && (y as { subtype?: string }).subtype === 'compact_boundary') as { compactMetadata?: { preTokens?: number; postTokens?: number } } | undefined
   check('one boundary, with its own before and after figures', boundary !== undefined && typeof boundary.compactMetadata?.preTokens === 'number' && typeof boundary.compactMetadata?.postTokens === 'number' && boundary.compactMetadata.postTokens < boundary.compactMetadata.preTokens, JSON.stringify(boundary?.compactMetadata))
+}
+
+section('N3 the decision counts the whole view: a history under the threshold plus a just-sent message that crosses the blocking limit folds at the head and answers')
+{
+  fixture.script((request: Captured): Turn => {
+    if (isSummariser(request.body)) return { text: '<summary>\n1. Operator Intent: summarise the notes.\n2. Technical Ground: notes.\n3. Files and Code Touched: none.\n4. Errors and Corrections: none.\n5. Problems Worked: none.\n6. Operator Messages: asks.\n7. Open Work: the rest.\n8. Where Work Stands: midway.\n9. Next Move (optional): go on.\n10. Agents in flight: none.\n</summary>' }
+    const last = userTexts(request.body).at(-1) ?? ''
+    if (last.includes(BIG_ASK_HEAD)) return { text: 'the big ask was answered after the fold' }
+    return { text: 'resumed', usage: { input: 600, output: 10 } }
+  })
+  const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
+  const history = seed(8, 24_000)
+  const bigAsk = createUserMessage({ content: `${BIG_ASK_HEAD}\n${'a pasted log line that must ride whole\n'.repeat(2_400)}` })
+  const historyTokens = tokenCountWithEstimation(history as never, MODEL)
+  const wholeTokens = tokenCountWithEstimation([...history, bigAsk] as never, MODEL)
+  process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(Math.floor((historyTokens + 20_000 + wholeTokens) / 2))
+  const r = await drive([...history, bigAsk])
+  delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+  const summaries = r.wire.filter(w => isSummariser(w.body))
+  check('the history alone sits under the threshold and the whole view over the blocking limit (the rig)', historyTokens + 20_000 < wholeTokens, `history=${historyTokens} whole=${wholeTokens}`)
+  check('the fold ran at the head and the turn answered (red before the fix: no fold tried, "the fold did not bring the conversation under the window", no model call)', r.threw === undefined && r.terminal.reason === 'completed' && summaries.length === 1 && textOfYield(r.yields.filter(y => y.type === 'assistant').at(-1)) === 'the big ask was answered after the fold', `terminal=${JSON.stringify(r.terminal)} summaries=${summaries.length} errors=${JSON.stringify(r.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true).map(textOfYield)).slice(0, 300)}`)
+  const post = r.wire.filter(w => !isSummariser(w.body)).at(-1)
+  const lastBlocks = post !== undefined ? textBlocksOf(rowsOf(post.body).filter(r => r.role === 'user').at(-1)?.content) : []
+  check('the big ask rides whole and last in the post-fold request, outside the summariser\'s request', (lastBlocks.at(-1) ?? '').startsWith(BIG_ASK_HEAD) && summaries[0] !== undefined && !JSON.stringify(summaries[0].body).includes(BIG_ASK_HEAD), JSON.stringify(lastBlocks.map(t => t.slice(0, 40))))
+}
+
+section('N4 a lone message with no history behind it: nothing is folded (no summariser call), and over the window the refusal names the message itself')
+{
+  fixture.script((request: Captured): Turn => {
+    if (isSummariser(request.body)) return { text: 'a summary that must never be asked for' }
+    return { text: 'the lone message was answered directly', usage: { input: 600, output: 10 } }
+  })
+  const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
+  const lone = createUserMessage({ content: `${BIG_ASK_HEAD}\n${'a pasted log line that must ride whole\n'.repeat(2_400)}` })
+  const loneTokens = tokenCountWithEstimation([lone] as never, MODEL)
+  process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(loneTokens + 10_000)
+  const fits = await drive([lone])
+  check('over the threshold but under the window: no summariser call, the message answered as sent', fits.threw === undefined && fits.terminal.reason === 'completed' && fits.wire.length === 1 && !isSummariser(fits.wire[0]!.body) && textOfYield(fits.yields.filter(y => y.type === 'assistant').at(-1)) === 'the lone message was answered directly', `terminal=${JSON.stringify(fits.terminal)} wire=${fits.wire.length}`)
+  process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(loneTokens - 2_000)
+  const over = await drive([lone])
+  delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+  const refusals = over.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true).map(textOfYield)
+  check('over the window: no summariser call, the refusal says this message alone is larger than the window', over.wire.length === 0 && over.terminal.reason === 'blocking_limit' && refusals.some(t => t.includes('this message alone is larger than the window')), `wire=${over.wire.length} terminal=${JSON.stringify(over.terminal)} ${JSON.stringify(refusals).slice(0, 300)}`)
 }
 
 section('N2 a fold with no fresh operator message (the view ends in the model\'s own reply) keeps the resume words')

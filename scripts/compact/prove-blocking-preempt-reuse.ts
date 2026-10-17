@@ -101,13 +101,13 @@ section('R3 · the wiring reads the carried count first (source pins)')
     auto.includes('if (!compact) return { ...notCompacted, measuredRawTokenCount }'),
   )
   check(
-    'the advance branch reuses the measured count and recounts only as fallback',
-    auto.includes('(measuredRawTokenCount ?? tokenCountWithEstimation(messages, model)) - snipTokensFreed'),
+    'the advance branch reuses the measured count (the whole view: the fold input and the carried operator turn) and recounts only as fallback',
+    auto.includes('(measuredRawTokenCount ?? tokenCountWithEstimation([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model)) - snipTokensFreed') && auto.includes('shouldAutoCompact([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model, querySource, snipTokensFreed, raw => {'),
   )
   const tm = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
   check(
-    'the blocking preempt reuses the carried count when the fold input was the whole view, recounts the whole view when an operator tail was carried around the fold or as fallback, and credits the prune receipt of this iteration against either (never below zero)',
-    /const estimatedTokens =\s*compactionResult\?\.truePostCompactTokenCount \?\?\s*Math\.max\(\s*0,\s*\(\(foldSplit\.carry\.length === 0 \? measuredRawTokenCount : null\) \?\? tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.engineModel\)\) -\s*prunedTokensFreed,\s*\)[\s\S]{0,80}calculateTokenWarningState\(\s*estimatedTokens,/.test(tm),
+    'the blocking preempt reuses the carried count, recounts only as fallback, and credits the prune receipt of this iteration against either (never below zero)',
+    /const estimatedTokens =\s*compactionResult\?\.truePostCompactTokenCount \?\?\s*Math\.max\(\s*0,\s*\(measuredRawTokenCount \?\? tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.engineModel\)\) -\s*prunedTokensFreed,\s*\)[\s\S]{0,80}calculateTokenWarningState\(\s*estimatedTokens,/.test(tm),
   )
   check(
     'a projected request gauge needs no prune subtraction; an unstamped view keeps the receipt credit',
@@ -116,7 +116,7 @@ section('R3 · the wiring reads the carried count first (source pins)')
   )
   check(
     'the preempt stays gated on the just-compacted exemption (a compaction-changed view never reuses a stale number; the exemption holds only under the limit)',
-    /const justCompactedUnderLimit =\s*compactionResult !== undefined &&[\s\S]{0,400}!justCompactedUnderLimit &&[\s\S]{0,220}querySource !== 'session_memory'[\s\S]{0,900}?measuredRawTokenCount : null\) \?\?\s*tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.engineModel\)/.test(tm),
+    /const justCompactedUnderLimit =\s*compactionResult !== undefined &&[\s\S]{0,400}!justCompactedUnderLimit &&[\s\S]{0,220}querySource !== 'session_memory'[\s\S]{0,900}?measuredRawTokenCount \?\?\s*tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.engineModel\)/.test(tm),
   )
 }
 
