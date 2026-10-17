@@ -4,7 +4,7 @@ import type { AssistantMessage, RefusedToolCall } from '../../types/message.js'
 import { formatZodValidationError } from '../../utils/toolErrors.js'
 import { stripNullArgs } from './openai/openaiWire.js'
 import { straightenQuotes } from '../../utils/curlyQuotes.js'
-import { typeStringArgumentsBySchema } from './local/schemaTyping.js'
+import { declaredInputSchema, repairArgumentsBySchema } from './local/schemaTyping.js'
 
 interface IncomingToolCall {
   id: string
@@ -122,7 +122,6 @@ export function toolCallRefusalDiagnostic(refusal: RefusedToolCall): string {
 interface ToolCallGateHints {
   deferredUnadmitted?: (name: string) => boolean
   straightenQuotes?: boolean
-  wireSchemaOf?: (name: string) => unknown
 }
 
 export function schemaNotSentSentence(toolName: string): string {
@@ -161,8 +160,7 @@ export function gateToolCall(tools: Tools, call: IncomingToolCall, hints?: ToolC
   }
   const dropped = dropEmptyOptionalArgs(stripped as Record<string, unknown>, tool)
   const straightened = hints?.straightenQuotes === true ? straightenQuoteArgs(dropped, tool) : dropped
-  const wireSchema = hints?.wireSchemaOf?.(tool.name)
-  const input = wireSchema === undefined ? straightened : typeStringArgumentsBySchema(straightened, wireSchema)
+  const input = repairArgumentsBySchema(straightened, declaredInputSchema(tool))
   try {
     const verdict = tool.inputSchema.safeParse(input)
     if (!verdict.success) {

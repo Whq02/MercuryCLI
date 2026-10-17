@@ -1002,10 +1002,7 @@ async function* streamOneCompatAttempt(ctx: {
       argumentsRaw: call.argumentsRaw,
       malformed: call.malformed,
     })),
-    {
-      deferredUnadmitted: ctx.deferredUnadmitted,
-      ...(profile.lane === 'local' ? { wireSchemaOf: (name: string) => ctx.callableTools?.find(tool => tool.name === name)?.input_schema } : {}),
-    },
+    { deferredUnadmitted: ctx.deferredUnadmitted },
   )
   completed.forEach((call, index) => {
     const verdict = verdicts[index]!

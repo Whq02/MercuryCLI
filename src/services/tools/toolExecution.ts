@@ -50,6 +50,7 @@ import {
 } from '../../utils/toolSearch.js'
 import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import { deferralSearchIsServerSide, deferralWireFormFor } from '../providers/deferralWire.js'
+import { repairToolInput } from '../providers/local/schemaTyping.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
@@ -503,7 +504,7 @@ async function runTransactionBody(args: {
     return
   }
 
-  const parsed = tool.inputSchema.safeParse(input)
+  const parsed = tool.inputSchema.safeParse(repairToolInput(tool, input))
   if (!parsed.success) {
     traceOnce({ ok: false })
     let content = formatZodValidationError(tool.name, parsed.error, tool.inputJSONSchema)
