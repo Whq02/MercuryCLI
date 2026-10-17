@@ -702,6 +702,31 @@ section('refusals. Every way to abuse or break the row, driven and refused')
       `${words(noRow)} / ${words(noTable)} / ${words(viewRow)} / ${words(badCol)} / ${words(table)}`,
     )
   }
+
+  {
+    const ladder = async (tool: unknown, filePath: string, ctx: Ctx): Promise<{ behavior: string; message: string }> => {
+      const d = await (tool as { checkPermissions: Function }).checkPermissions({ file_path: filePath, content: 'x', old_string: 'a', new_string: 'b' }, ctx)
+      return { behavior: String(d.behavior), message: String(d.message ?? '') }
+    }
+    const outside = join(fixtures, 'ladder.zip')
+    for (const [mode, rules, expected] of [
+      ['default', [], 'ask'],
+      ['implement', [], 'ask'],
+      ['default', [`Edit(/${fixtures}/**)`], 'deny'],
+      ['sovereign', [`Edit(/${fixtures}/**)`], 'deny'],
+    ] as Array<['default' | 'implement' | 'sovereign', string[], string]>) {
+      const ctx = makeContext(rules, mode)
+      const entry = await ladder(FileWriteTool, `${outside}:notes/x.txt`, ctx)
+      const row = await ladder(FileEditTool, `${dbPath}:users/1`, ctx)
+      const host = await ladder(FileWriteTool, outside, ctx)
+      const dbHost = await ladder(FileEditTool, dbPath, ctx)
+      check(
+        `R13 the permission ladder judges a ${expected === 'deny' ? 'denied' : 'new, out-of-project'} entry or row by its HOST path in ${mode} mode: the same ${expected} the host archive or database itself gets, naming the host`,
+        entry.behavior === expected && row.behavior === expected && entry.message === host.message && row.message === dbHost.message && entry.message.includes(outside) && !entry.message.includes('notes/x.txt'),
+        `${JSON.stringify(entry)} vs host ${JSON.stringify(host)}; ${JSON.stringify(row)} vs ${JSON.stringify(dbHost)}`,
+      )
+    }
+  }
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
