@@ -778,6 +778,10 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
   return { state: 'ok', record }
 }
 
+export function noMatchRerunNote(latest: Pick<TestRunRecord, 'id' | 'selection' | 'verdictNote'>): string {
+  return `latest run ${latest.id} matched no test — nothing to rerun; ${latest.verdictNote ?? `no test matched ${latest.selection}`}`
+}
+
 export async function rerunFailedTests(opts?: { from?: string; signal?: AbortSignal }): Promise<
   TestRunOutcome | { state: 'nothing-to-rerun'; note: string }
 > {
@@ -795,7 +799,7 @@ export async function rerunFailedTests(opts?: { from?: string; signal?: AbortSig
     return { state: 'nothing-to-rerun', note: `latest run ${latest.id} ran 0 tests — nothing to rerun; ${latest.verdictNote ?? 'the whole suite ran nothing'}` }
   }
   if (latest.verdict === 'no-match') {
-    return { state: 'nothing-to-rerun', note: `latest run ${latest.id} matched no test — nothing to rerun; ${latest.verdictNote ?? `no test matched ${latest.selection}`}` }
+    return { state: 'nothing-to-rerun', note: noMatchRerunNote(latest) }
   }
   if (latest.failures.length === 0) {
     const skipped = latest.verdict === 'uncollected' ? ` among the tests it ran; ${latest.verdictNote ?? 'test files were not collected'}` : ''
