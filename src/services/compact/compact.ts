@@ -1386,7 +1386,7 @@ export async function compactConversation(
   const transaction = prepareFoldContext(context)
   context = transaction.context
   let ceiling = recompactionInfo?.autoCompactThreshold
-  let landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages)
+  let landing: number | undefined
   const summaryContext = summaryModel === undefined ? context : withEngineModel(context, summaryModel)
   const summaryCacheSafeParams =
     summaryModel === undefined
@@ -1411,6 +1411,7 @@ export async function compactConversation(
     const capsuleProbe = buildRunContinuationCapsule(owner)
     const ledger = buildFoldLedger(messages, owner, getContextEpoch(owner).epoch + 1)
     const gauge = readRequestGauge(messages, context.options.engineModel)
+    landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1)
     const landingCount = (rows: Message[]): number => {
       const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
       return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density) : estimateContextTokens(request)
@@ -1430,7 +1431,7 @@ export async function compactConversation(
     const rawSummary = validateSummary(response, true)
     if (overflow?.source === 'provider' && overflow.limitTokens !== undefined) {
       ceiling = Math.min(ceiling ?? Infinity, overflow.limitTokens)
-      landing = Math.min(landing ?? Infinity, foldLandingCeiling(ceiling, messages))
+      landing = Math.min(landing ?? Infinity, foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1))
     }
     context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
     const memory = retireFoldToMemory({
