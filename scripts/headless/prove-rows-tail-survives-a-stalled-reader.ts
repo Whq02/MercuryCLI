@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
@@ -137,6 +137,33 @@ tally.section('a reader that leaves for good: the run ends instead of waiting fo
   tally.check('the run stayed alive while its reader was stalled', run.aliveAfterStall)
   tally.check('once the reader closed its end the process ended on its own (no kill needed)', run.exitedAtMs !== null && run.signal !== 'SIGKILL', `exit ${run.exit} signal ${run.signal}`)
   tally.check('the process ended within a few seconds of the reader leaving', run.exitedAtMs !== null && run.exitedAtMs - run.resumedAtMs < vshotBudgetMs(10_000), `exit ${seconds(run.exitedAtMs, run.t0)} · closed ${seconds(run.resumedAtMs, run.t0)}`)
+  tally.check('a dead reader ends loudly with exit 1 (never a silent 0)', run.exit === 1, `exit ${run.exit}`)
+  tally.check('stderr states the broken-stdout reason', run.stderr.includes("stdout closed before the run's output was delivered (broken pipe)"), run.stderr.slice(0, 200))
+}
+
+tally.section('a file target is unchanged: every row through close and outcome lands on disk with exit 0')
+{
+  const runHome = join(scratch, `home-${++homes}`)
+  const cwd = join(runHome, 'work')
+  const outFile = join(scratch, 'rows-out.ndjson')
+  const fixture = await startScriptedFixture((req: ScriptedRequest): WireBlock[] => {
+    if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 1', description: 'the quiet step' } }]
+    return [{ type: 'text', text: ANSWER }]
+  })
+  seedScratchHome(runHome, cwd)
+  const port = Number(new URL(fixture.base).port)
+  const fd = openSync(outFile, 'w')
+  const child: ChildProcess = spawn(NODE, [DIST, 'run', '--format', 'rows', '--mode', 'sovereign', '--model', MODEL, '--', ASK], {
+    cwd,
+    env: childEnv(runHome, port) as Record<string, string | undefined>,
+    stdio: ['ignore', fd, 'pipe'],
+  })
+  const exit = await new Promise<number | null>(resolve => child.on('exit', code => resolve(code)))
+  closeSync(fd)
+  await fixture.close()
+  const lines = readFileSync(outFile, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l) as Frame)
+  const types = lines.map(f => `${String(f.type)}${f.state !== undefined ? `:${String(f.state)}` : ''}`)
+  tally.check('the file target ends with close:stored then outcome and exits 0', exit === 0 && types.length >= 2 && types[types.length - 2] === 'close:stored' && types[types.length - 1] === 'outcome' && lines[lines.length - 1]?.status === 'completed', `exit ${exit} · tail ${types.slice(-3).join(' ')}`)
 }
 
 tally.section('the seam: the exit drain waits while the reader is alive, the guard hands the caller\'s callback to the real write')
@@ -159,6 +186,8 @@ tally.section('the seam: the exit drain waits while the reader is alive, the gua
   tally.check('a TTY never waits', (await drainPipedStdoutForExit({ isTTY: true, writableLength: 5, destroyed: false, writable: true })).drained)
   const guard = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'wireStdoutGuard.ts'), 'utf8')
   tally.check('the guard hands the caller\'s callback to the real write of the last forwarded line', /realWrite\(`\$\{line\}\\n`, [a-zA-Z]+\)/.test(guard) || guard.includes('realWrite(`${line}\\n`, callback'))
+  const shutdownSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'gracefulShutdown.ts'), 'utf8')
+  tally.check('gracefulShutdown disarms its failsafe clock before drainPipedStdoutForExit and promotes an undrained pipe to exit 1', /clearTimeout\(failsafeTimer\)[\s\S]{0,120}const stdoutDrain = await drainPipedStdoutForExit\(\)[\s\S]{0,120}!stdoutDrain\.drained/.test(shutdownSrc))
 }
 
 tally.finish()

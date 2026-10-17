@@ -517,11 +517,16 @@ export async function gracefulShutdown(
     logForDebugging(`gracefulShutdown: exit-cliff drain failed (ignored): ${String(err)}`)
   }
 
-  await drainPipedStdoutForExit()
+  if (failsafeTimer) {
+    clearTimeout(failsafeTimer)
+    failsafeTimer = undefined
+  }
+  const stdoutDrain = await drainPipedStdoutForExit()
+  if (!stdoutDrain.drained && exitCode === 0) exitCode = 1
 
   await quiesceCleanupBeforeExit(cleanupRun)
 
-  forceExit(exitCode)
+  forceExit(typeof process.exitCode === 'number' && process.exitCode !== 0 ? process.exitCode : exitCode)
 }
 
 export const CRASH_SHUTDOWN_BUDGET_MS = 1500
