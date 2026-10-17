@@ -21,7 +21,6 @@ const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { initializeLspServerManager, shutdownLspServerManager } = await import('../../src/services/lsp/manager.ts')
 const parseCheckModule = (await import('../../src/tools/FileWriteTool/parseCheck.ts').catch(() => null)) as null | {
   checkIntroducedParseError: (
     filePath: string,
@@ -152,9 +151,6 @@ section('P2. Pre-existing identical parse errors and LSP-covered files stay sile
       parseCheckModule.checkIntroducedParseError('/tmp/x.json', '{"a":1}', '{"a":}', true) === undefined,
     parseCheckModule === null ? 'parseCheck.ts missing' : 'returned non-undefined when hasLspServer=true',
   )
-
-  await shutdownLspServerManager()
-  void initializeLspServerManager
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)

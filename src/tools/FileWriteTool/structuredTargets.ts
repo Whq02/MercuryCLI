@@ -40,7 +40,7 @@ const EOCD_SIG = 0x06054b50
 const CEN_SIG = 0x02014b50
 const LOC_SIG = 0x04034b50
 
-export type StructuredWriteTarget =
+type StructuredWriteTarget =
   | {
       kind: 'zip-entry'
       hostPath: string
@@ -55,7 +55,7 @@ export type StructuredWriteTarget =
       rawPath: string
     }
 
-export type ZipCentralEntry = {
+type ZipCentralEntry = {
   name: string
   versionMadeBy: number
   versionNeeded: number
@@ -159,7 +159,7 @@ export function parseStructuredWriteTarget(rawPath: string): StructuredWriteTarg
   const zipSplit = splitAtTargetDelimiter(rawPath, ZIP_EXTENSIONS)
   if (zipSplit !== null) {
     const entryName = normalizeEntryPath(zipSplit.rest)
-    if (entryName !== '' && !entryName.split('/').includes('..')) {
+    if (entryName !== '' && !entryName.split(/[\\/]/).includes('..')) {
       return {
         kind: 'zip-entry',
         hostPath: expandPath(zipSplit.hostRaw),
@@ -201,7 +201,7 @@ export function expandStructuredTargetPath(rawPath: string): string {
   return `${target.hostPath}!${target.table}${suffix}`
 }
 
-export function readZipCentralEntries(archiveBytes: Buffer): ZipCentralEntry[] {
+function readZipCentralEntries(archiveBytes: Buffer): ZipCentralEntry[] {
   const minEocd = 22
   if (archiveBytes.length < minEocd) {
     throw new Error('Invalid zip archive: file is shorter than the end-of-central-directory record.')
@@ -295,7 +295,7 @@ export function readZipCentralEntries(archiveBytes: Buffer): ZipCentralEntry[] {
   return entries
 }
 
-export function decodeZipEntryBuffer(entry: ZipCentralEntry): Buffer {
+function decodeZipEntryBuffer(entry: ZipCentralEntry): Buffer {
   if (entry.method === 0) {
     return Buffer.from(entry.compressedData)
   }
@@ -317,7 +317,7 @@ export function readZipEntryText(hostPath: string, entryName: string): { exists:
   return { exists: true, content: decodeZipEntryBuffer(found).toString('utf8') }
 }
 
-export function buildZipArchiveFromEntries(entries: readonly ZipCentralEntry[]): Buffer {
+function buildZipArchiveFromEntries(entries: readonly ZipCentralEntry[]): Buffer {
   const localParts: Buffer[] = []
   const centralParts: Buffer[] = []
   let offset = 0
@@ -377,7 +377,7 @@ export function buildZipArchiveFromEntries(entries: readonly ZipCentralEntry[]):
   return Buffer.concat([...localParts, centralDir, eocd])
 }
 
-export function writeZipEntryAtomically(
+function writeZipEntryAtomically(
   hostPath: string,
   entryName: string,
   content: string,
@@ -476,7 +476,26 @@ function toBindableScalar(val: unknown): string | number | bigint | boolean | Ui
   return JSON.stringify(val)
 }
 
-export async function readSqliteTargetSnapshot(
+type SqliteStmt = {
+  all(...params: unknown[]): unknown[]
+  get(...params: unknown[]): unknown
+  run(...params: unknown[]): { changes: number }
+}
+
+type SqliteDb = {
+  query(sql: string): SqliteStmt
+  prepare(sql: string): SqliteStmt
+  transaction<T>(fn: () => T): () => T
+  close(): void
+}
+
+async function openSqliteDb(hostPath: string, readonlyMode: boolean): Promise<SqliteDb> {
+  const mod = await import('bun' + ':sqlite')
+  const Database = (mod as { Database: new (p: string, opts?: { readonly?: boolean }) => SqliteDb }).Database
+  return readonlyMode ? new Database(hostPath, { readonly: true }) : new Database(hostPath)
+}
+
+async function readSqliteTargetSnapshot(
   hostPath: string,
   table: string,
   pkFilter?: { column?: string; value: string },
@@ -484,8 +503,7 @@ export async function readSqliteTargetSnapshot(
   if (!existsSync(hostPath)) {
     return { exists: false, content: '', primaryKeyColumn: null }
   }
-  const { Database } = await import('bun:sqlite')
-  const db = new Database(hostPath, { readonly: true })
+  const db = await openSqliteDb(hostPath, true)
   try {
     const columns = db.query(`PRAGMA table_info(${quoteIdent(table)})`).all() as SqliteColumnInfo[]
     if (columns.length === 0) {
@@ -518,7 +536,7 @@ export async function readSqliteTargetSnapshot(
   }
 }
 
-export async function writeSqliteRowsParameterised(
+async function writeSqliteRowsParameterised(
   hostPath: string,
   table: string,
   content: string,
@@ -542,8 +560,7 @@ export async function writeSqliteRowsParameterised(
   }
 
   const beforeSnap = await readSqliteTargetSnapshot(hostPath, table, pkFilter)
-  const { Database } = await import('bun:sqlite')
-  const db = new Database(hostPath)
+  const db = await openSqliteDb(hostPath, false)
   try {
     const columns = db.query(`PRAGMA table_info(${quoteIdent(table)})`).all() as SqliteColumnInfo[]
     if (columns.length === 0) {
@@ -621,7 +638,28 @@ function hasReadEvidenceForStructuredTarget(
   canonicalTargetPath: string,
   currentContent: string,
 ): { ok: true } | { ok: false; stale: boolean } {
-  const candidates = [canonicalTargetPath, expandPath(target.rawPath), target.rawPath, target.hostPath]
+  const colonSpelling =
+    target.kind === 'zip-entry'
+      ? `${target.hostPath}:${target.entryName}`
+      : `${target.hostPath}:${target.table}${target.pkFilter ? `/${target.pkFilter.column ? `${target.pkFilter.column}=` : ''}${target.pkFilter.value}` : ''}`
+  const dcolonSpelling =
+    target.kind === 'zip-entry'
+      ? `${target.hostPath}::${target.entryName}`
+      : `${target.hostPath}::${target.table}${target.pkFilter ? `/${target.pkFilter.column ? `${target.pkFilter.column}=` : ''}${target.pkFilter.value}` : ''}`
+  const tableColonSpelling =
+    target.kind === 'sqlite-row' ? `${target.hostPath}:${target.table}` : null
+  const tableBangSpelling =
+    target.kind === 'sqlite-row' ? `${target.hostPath}!${target.table}` : null
+  const candidates = [
+    canonicalTargetPath,
+    colonSpelling,
+    dcolonSpelling,
+    ...(tableColonSpelling ? [tableColonSpelling] : []),
+    ...(tableBangSpelling ? [tableBangSpelling] : []),
+    expandPath(target.rawPath),
+    target.rawPath,
+    target.hostPath,
+  ]
   const owner = ownerFromToolUseContext(context)
   for (const key of candidates) {
     const entry = context.readFileState.get(key)
