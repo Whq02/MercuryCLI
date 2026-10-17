@@ -1,7 +1,7 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { pinScratchHome, pinSourceRef, mountOffscreen, waitFor, KEY } from '../lib/settingsPopupHarness.ts'
+import { pinScratchHome, pinSourceRef, releaseScratchHome, mountOffscreen, waitFor, KEY } from '../lib/settingsPopupHarness.ts'
 
 const sourceRef = pinSourceRef()
 const home = pinScratchHome('first-run-sign-in-window')
@@ -50,7 +50,7 @@ for (const [cols, rows] of [[80, 24], [64, 20]]) {
     sends: [
       { data: '\r', awaitText: 'Choose your theme', requireAwait: true, awaitSettleTicks: 2 },
       { data: '\x1b[H', awaitText: 'sign in · 2/', requireAwait: true, awaitSettleTicks: 2, mark: 'list' },
-      { data: '\x1b[F', afterPrevTicks: 5 },
+      { data: '\x1b[F', afterPrevTicks: 5, requireAwait: true, awaitText: '↑↓ move · ↵ choose · esc back', awaitSettleTicks: 2 },
     ],
     resizes: [{ afterMark: 'list', afterMs: 0, cols, rows }],
     readyText: '❯ Sign in later', readySettleTicks: 2,
@@ -108,6 +108,6 @@ for (const [cols, rows, shrink] of [[177, 49, false], [100, 30, false], [80, 24,
     save('home')
   } finally { scene.unmount() }
 }
-rmSync(home, { recursive: true, force: true })
+await releaseScratchHome(home)
 console.log(failures ? `first-run-sign-in-window: ${failures} FAILURE(S)` : 'first-run-sign-in-window: ALL LAWS HOLD')
 process.exit(failures ? 1 : 0)
