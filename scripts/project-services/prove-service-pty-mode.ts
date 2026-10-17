@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, watch, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdtempSync, readFileSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,8 +17,8 @@ if (process.argv[2] === '--start-detached') {
 
 if (process.argv[2] === '--start-without-python') {
   process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'svc-pty-nopy-'))
-  process.env.PATH = ''
   delete process.env.MERCURY_EVAL_PYTHON
+  delete process.env.VIRTUAL_ENV
   const { startService } = await import('../../src/services/projectServices/serviceManager.ts')
   const cwd = mkdtempSync(join(tmpdir(), 'svc-pty-nopy-work-'))
   const result = await startService({ sessionId: 'nopy', spec: { name: 'needs-tty', command: 'sh', args: ['-c', 'true'], cwd, readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session', pty: true } })
@@ -146,7 +146,8 @@ section('§3 — the pseudo-terminal road: the program sees a terminal of the ho
   check('the program saw a terminal of 120 by 40', raw.includes('tty True 120 40'), raw)
   check('the terminal echoed the typed keys and the program read Mercury whole', raw.includes('name? Mercury') && raw.includes('hello Mercury'), raw)
   check('eof ended its input (nothing more was read)', raw.includes("rest ''"), raw)
-  check('the raw log is the terminal\'s bytes (carriage returns, the EOF echo); the readable lines are plain', raw.includes('\r\n') && raw.includes('^D') && lines.includes('hello Mercury') && !lines.some(line => line.includes('\r') || line.includes('^D')), JSON.stringify(lines))
+  check('the readable lines are plain on every platform: the greeting whole, no carriage return, no EOF echo', lines.includes('hello Mercury') && lines.includes('tty True 120 40') && !lines.some(line => line.includes('\r') || line.includes('^D')), JSON.stringify(lines))
+  check(process.platform === 'darwin' ? 'the raw log is the terminal\'s bytes: carriage returns and the EOF echo (macOS echoes ^D)' : 'the raw log is the terminal\'s bytes: carriage returns (this line discipline does not echo the EOF)', raw.includes('\r\n') && (process.platform !== 'darwin' || raw.includes('^D')), JSON.stringify(raw.slice(-120)))
   const record = readRecord(workDir, name)
   check('the program\'s own exit code comes back through the host: exit 5, state failed', record?.lastExitCode === 5 && record.state === 'failed', JSON.stringify(record))
 }
@@ -204,9 +205,14 @@ section('§7 — the tool\'s surface')
   check('eof needs no text; submit still does', valid.result === true && invalid.result === false)
   const sentence = ptyHostUnavailable('needs-tty', 'no python3 found on PATH')
   check('the no-Python refusal names the road and the remedies', sentence.includes("service 'needs-tty' asks for a pseudo-terminal") && sentence.includes('Python 3') && sentence.includes('MERCURY_EVAL_PYTHON') && sentence.includes('without pty'))
-  const child = spawnSync(process.execPath, [process.argv[1]!, '--start-without-python'], { encoding: 'utf8', env: { ...process.env, PATH: '' } })
+  const masked = mkdtempSync(join(tmpdir(), 'svc-pty-no-python-'))
+  for (const name of ['python3', 'python', 'py']) {
+    writeFileSync(join(masked, name), '#!/bin/sh\nexit 127\n')
+    chmodSync(join(masked, name), 0o755)
+  }
+  const child = spawnSync(process.execPath, [process.argv[1]!, '--start-without-python'], { encoding: 'utf8', env: { ...process.env, PATH: masked } })
   const last = child.stdout.trim().split('\n').at(-1) ?? ''
-  check('a start with pty:true and no Python on the machine is refused with that sentence, nothing spawned', child.status === 0 && last.includes('asks for a pseudo-terminal') && last.includes('"error"'), `${child.status}: ${last} ${child.stderr.slice(0, 200)}`)
+  check('a start with pty:true and no usable Python on the PATH (every python the PATH holds masked) is refused with that sentence, nothing spawned', child.status === 0 && last.includes('asks for a pseudo-terminal') && last.includes('"error"') && !last.includes('"pid"'), `${child.status}: ${last} ${child.stderr.slice(0, 200)}`)
 }
 
 section('refusals — the command is one argv word (no shell), typed text can never be a frame, a control byte is a keystroke, the asks stand in every mode, another session cannot type, a restart keeps the terminal')
