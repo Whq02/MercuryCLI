@@ -43,22 +43,12 @@ export function emptyFrame(rows: number, columns: number, stylePool: StylePool, 
   return { screen, viewport, cursor: homeCursor() }
 }
 
-export type FlickerRecord = {
-  desiredHeight: number
-  availableHeight: number
-  reason: FlickerReason
-}
+export type FlickerRecord = { desiredHeight: number; availableHeight: number; reason: FlickerReason }
 
-type TimedPhase = 'renderer' | 'diff' | 'optimize' | 'write' | 'yoga' | 'commit'
+type PhaseTimings = Record<'renderer' | 'diff' | 'optimize' | 'write' | 'yoga' | 'commit', number>
 
-type LayoutCounter = 'yogaVisited' | 'yogaMeasured' | 'yogaCacheHits' | 'yogaLive'
+type FrameCounts = Record<'patches' | 'yogaVisited' | 'yogaMeasured' | 'yogaCacheHits' | 'yogaLive', number>
 
-export type FramePhases = { [Phase in TimedPhase]: number } & { patches: number } & {
-  [Counter in LayoutCounter]: number
-}
+export type FramePhases = PhaseTimings & FrameCounts
 
-export type FrameEvent = {
-  durationMs: number
-  phases?: FramePhases
-  flickers: FlickerRecord[]
-}
+export type FrameEvent = { durationMs: number; phases?: FramePhases; flickers: FlickerRecord[] }

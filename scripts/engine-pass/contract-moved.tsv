@@ -137,3 +137,5 @@ unexported	CopyReceipt	no reader outside its own file: the export keyword leaves
 unexported	WrapAnsiOptions	no reader outside its own file: the export keyword leaves, the declaration stays	exports-1900	b8b3e96147
 unexported	Frame	the declaration line moved: the frame is one read-only record over its five fields and its viewport a read-only pair; the export, its name and its members stay	estate-renderer	air/beta38-estate-renderer
 unexported	emptyFrame	the declaration line moved: the signature is written on one line; the export, its name, its parameters and its answer stay	estate-renderer	air/beta38-estate-renderer
+unexported	FlickerRecord	the declaration line moved: the full-clear record is written as one record line; the export, its name and its members stay	estate-renderer	air/beta38-estate-renderer
+unexported	FrameEvent	the declaration line moved: the frame report is written as one record line beside its phase timings and counts; the export, its name and its members stay	estate-renderer	air/beta38-estate-renderer
