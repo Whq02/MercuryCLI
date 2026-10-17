@@ -272,8 +272,8 @@ section('(g) wiring — compact.ts populates messagesToKeep + relink; Chat dedup
   check('compact.ts returns messagesToKeep on the full path', /messagesToKeep,\s*\n\s*attachments: postCompactFileAttachments/.test(compact))
   check('compact.ts counts the tail in truePostCompactTokenCount', compact.includes('...(messagesToKeep ?? []),'))
   check(
-    'compact.ts passes the preserved-tail flag (!!messagesToKeep) into the summary message',
-    /getCompactUserSummaryMessage\(\s*summaryWithCapsule,\s*suppressFollowUpQuestions,\s*getTranscriptPath\(\),[\s\S]{0,80}?!!messagesToKeep,\s*\)/.test(compact),
+    'compact.ts passes the preserved-tail flag (!!messagesToKeep) into the summary message, the newest-message-follows flag beside it',
+    /getCompactUserSummaryMessage\(\s*summaryWithCapsule,\s*suppressFollowUpQuestions,\s*getTranscriptPath\(\),[\s\S]{0,80}?!!messagesToKeep,\s*newestMessageFollows,\s*\)/.test(compact),
   )
 
   const repl = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf-8')

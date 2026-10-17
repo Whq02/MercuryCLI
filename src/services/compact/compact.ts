@@ -44,6 +44,7 @@ import type { FileState } from '../../utils/fileStateCache.js'
 import { isSessionActivityTrackingActive, sendSessionActivitySignal } from '../../utils/sessionActivity.js'
 import { reAppendSessionMetadata } from '../../utils/sessionStorage/logs.js'
 import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
+import { recordContentReplacement } from '../../utils/sessionStorage/writer.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { extractDiscoveredToolNames, isToolSearchEnabled } from '../../utils/toolSearch.js'
 import { sleep } from '../../utils/sleep.js'
@@ -64,7 +65,7 @@ import { advanceContextEpoch, getContextEpoch } from '../run/contextEpochs.js'
 import { buildFoldLedger, renderFoldLedger } from './foldLedger.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../run/resolveOwner.js'
 import { buildRunContinuationCapsule } from '../run/runContinuationCapsule.js'
-import { roughTokenCountEstimation } from '../tokenEstimation.js'
+import { roughTokenCountEstimation, roughTokenCountEstimationForMessages } from '../tokenEstimation.js'
 import { estimateRequestGauge, readRequestGauge } from '../run/requestGauge.js'
 import { FileReadTool } from '../../tools/FileReadTool/FileReadTool.js'
 import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../../tools/FileReadTool/prompt.js'
@@ -73,8 +74,8 @@ import { groupMessagesByApiRound } from './grouping.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { projectRewoundWindows } from './checkpointRewind.js'
 import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt, renderFoldedWork, SUMMARY_SECTION_TITLES } from './prompt.js'
-import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from './verbatimTail.js'
-import { selectOperatorMessages } from './operatorMessages.js'
+import { computeVerbatimRecentTail, FOLDED_RESULT_KEY, foldLandingCeiling, foldableResults, foldedResultPlaceholder, isMercuryCompactKeepTailEnabled, withFoldedResults } from './verbatimTail.js'
+import { operatorTextOf, selectOperatorMessages } from './operatorMessages.js'
 import { prepareFoldContext } from './foldTransaction.js'
 import { renderFoldMemory, retireFoldToMemory } from './foldRetirement.js'
 import { carryFoldPrefix } from './cacheEpoch.js'
@@ -532,7 +533,7 @@ function collectPreservedReadPaths(preserved: Message[]): Set<string> {
           : Array.isArray(record.content)
             ? record.content.map(item => String((item as { text?: unknown }).text ?? '')).join('')
             : ''
-      if (text.includes(FILE_UNCHANGED_STUB)) stubToolUseIds.add(record.tool_use_id)
+      if (text.includes(FILE_UNCHANGED_STUB) || text.startsWith(FOLDED_RESULT_KEY)) stubToolUseIds.add(record.tool_use_id)
     }
   }
   const paths = new Set<string>()
@@ -1385,6 +1386,7 @@ export async function compactConversation(
   const transaction = prepareFoldContext(context)
   context = transaction.context
   let ceiling = recompactionInfo?.autoCompactThreshold
+  let landing: number | undefined
   const summaryContext = summaryModel === undefined ? context : withEngineModel(context, summaryModel)
   const summaryCacheSafeParams =
     summaryModel === undefined
@@ -1392,6 +1394,7 @@ export async function compactConversation(
       : { ...cacheSafeParams, toolUseContext: withEngineModel(cacheSafeParams.toolUseContext, summaryModel) }
   const trigger = isAutoCompact ? 'auto' : 'manual'
   const boundaryTrigger: CompactMetadata['trigger'] = overflow !== undefined ? 'overflow' : trigger
+  const newestMessageFollows = (cacheSafeParams.postFoldCarry ?? []).some(row => operatorTextOf(row) !== null)
   try {
     if (messages.length === 0) throw new Error(ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)
     const preCompactTokenCount = tokenCountWithEstimation(messages)
@@ -1408,6 +1411,7 @@ export async function compactConversation(
     const capsuleProbe = buildRunContinuationCapsule(owner)
     const ledger = buildFoldLedger(messages, owner, getContextEpoch(owner).epoch + 1)
     const gauge = readRequestGauge(messages, context.options.engineModel)
+    landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1)
     const landingCount = (rows: Message[]): number => {
       const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
       return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density) : estimateContextTokens(request)
@@ -1427,6 +1431,7 @@ export async function compactConversation(
     const rawSummary = validateSummary(response, true)
     if (overflow?.source === 'provider' && overflow.limitTokens !== undefined) {
       ceiling = Math.min(ceiling ?? Infinity, overflow.limitTokens)
+      landing = Math.min(landing ?? Infinity, foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1))
     }
     context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
     const memory = retireFoldToMemory({
@@ -1439,6 +1444,7 @@ export async function compactConversation(
     let messagesToKeep: Message[] | undefined
     let tailPrecedingUuid: UUID | undefined
     let recentRounds: CompactMetadata['recentRounds']
+    let foldTarget: number | undefined
     const selectTail = (opts: Parameters<typeof computeVerbatimRecentTail>[1]): ReturnType<typeof computeVerbatimRecentTail> => {
       try {
         return computeVerbatimRecentTail(messages, opts)
@@ -1447,17 +1453,33 @@ export async function compactConversation(
       }
     }
     if (isMercuryCompactKeepTailEnabled()) {
-      const tail = selectTail({
-        fits: keep => {
-          if (ceiling === undefined) return true
-          const operator = selectOperatorMessages(messages, { keptUuids: new Set(keep.map(row => row.uuid)) })
-          const marker = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount)
-          const work = renderFoldedWork(foldedWorkOf(messages, keep, marker.uuid))
-          const capsule = buildRunContinuationCapsule(owner, [...context.readFileState.keys()])
-          const text = getCompactUserSummaryMessage([rawSummary, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true) + `\n\n${renderFoldLedger(ledger)}`
-          return landingCount([marker, ...(operator ? [createAttachmentMessage(operator)] : []), createUserMessage({ content: text, isCompactSummary: true }), ...stripThinkingFromIndex(keep, 0), ...beforeRows]) < ceiling
-        },
-      })
+      const allFolded = (keep: Message[]): Message[] => withFoldedResults(keep, new Map(foldableResults(keep).map(result => [result.toolUseId, foldedResultPlaceholder(result)])))
+      const fitsUnder = (limit: number | undefined, resultsFolded = false) => (keep: Message[]): boolean => {
+        if (limit === undefined) return true
+        const operator = selectOperatorMessages(messages, { keptUuids: new Set(keep.map(row => row.uuid)) })
+        const marker = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount)
+        const work = renderFoldedWork(foldedWorkOf(messages, keep, marker.uuid))
+        const capsule = buildRunContinuationCapsule(owner, [...context.readFileState.keys()])
+        const text = getCompactUserSummaryMessage([rawSummary, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true, newestMessageFollows) + `\n\n${renderFoldLedger(ledger)}`
+        return landingCount([marker, ...(operator ? [createAttachmentMessage(operator)] : []), createUserMessage({ content: text, isCompactSummary: true }), ...stripThinkingFromIndex(resultsFolded ? allFolded(keep) : keep, 0), ...beforeRows]) < limit
+      }
+      let tail: ReturnType<typeof computeVerbatimRecentTail>
+      try {
+        tail = selectTail({ fits: fitsUnder(landing) })
+      } catch (error) {
+        if (landing === undefined) throw error
+        try {
+          tail = selectTail({ fits: fitsUnder(ceiling) })
+        } catch {
+          try {
+            tail = selectTail({ fits: fitsUnder(landing, true) })
+            foldTarget = landing
+          } catch {
+            tail = selectTail({ fits: fitsUnder(ceiling, true) })
+            foldTarget = ceiling
+          }
+        }
+      }
       if (tail !== null && tail.keep.length > 0) {
         messagesToKeep = stripThinkingFromIndex(tail.keep, 0)
         tailPrecedingUuid = tail.precedingUuid
@@ -1500,6 +1522,7 @@ export async function compactConversation(
           suppressFollowUpQuestions,
           getTranscriptPath(),
            !!messagesToKeep,
+          newestMessageFollows,
         ) + `\n\n${renderFoldLedger(ledger)}`,
         isCompactSummary: true,
         isVisibleInTranscriptOnly: true,
@@ -1532,36 +1555,66 @@ export async function compactConversation(
     boundary.compactMetadata.cacheEpoch = cacheEpoch.receipt
     if (cacheEpoch.attachment) partial.attachments.push(cacheEpoch.attachment)
     let truePostCompactTokenCount = landingCount(buildPostCompactMessages(partial))
-    if (ceiling !== undefined && truePostCompactTokenCount >= ceiling) {
-      const fit = fitPostCompactUnderThreshold(partial, ceiling, landingCount)
+    const room = landing ?? ceiling
+    if (room !== undefined && truePostCompactTokenCount >= room) {
+      const fit = fitPostCompactUnderThreshold(partial, room, landingCount)
       if (fit.shed.length > 0) {
         logForDebugging(
-          `compact: post-compact estimate ${truePostCompactTokenCount} >= threshold ${ceiling}; shed ${fit.shed.join(', ')} → ${fit.estimate}`,
+          `compact: post-compact estimate ${truePostCompactTokenCount} >= the landing line ${room} (threshold ${ceiling}); shed ${fit.shed.join(', ')} → ${fit.estimate}`,
         )
       }
       partial = fit.result
       truePostCompactTokenCount = fit.estimate
     }
 
-    const completeFit = ceiling === undefined ? { result: partial, estimate: landingCount(buildPostCompactMessages(partial)) } : fitPostCompactUnderThreshold(partial, ceiling, landingCount)
+    const completeFit = room === undefined ? { result: partial, estimate: landingCount(buildPostCompactMessages(partial)) } : fitPostCompactUnderThreshold(partial, room, landingCount)
     partial = completeFit.result
     truePostCompactTokenCount = completeFit.estimate
-    while (ceiling !== undefined && truePostCompactTokenCount >= ceiling && recentRounds !== undefined && recentRounds.kept > 1) {
-      const narrower = selectTail({ keepRounds: recentRounds.kept - 1 })
-      if (narrower === null) break
-      messagesToKeep = stripThinkingFromIndex(narrower.keep, 0)
-      recentRounds = { requested: recentRounds.requested, kept: narrower.roundsKept, tokens: narrower.estimatedTokens, reason: 'request-budget' }
-      boundary.compactMetadata.recentRounds = recentRounds
-      boundary.logicalParentUuid = narrower.precedingUuid
-      const selection = selectOperatorMessages(messages, { keptUuids: new Set(messagesToKeep.map(row => row.uuid)) })
-      const work = renderFoldedWork(foldedWorkOf(messages, messagesToKeep, boundary.uuid))
-      const summaryText = getCompactUserSummaryMessage([rawSummary, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true) + `\n\n${renderFoldLedger(ledger)}`
-      partial = { ...partial, messagesToKeep, operatorMessages: selection ? createAttachmentMessage(selection) : undefined, summaryMessages: partial.summaryMessages.map((row, index) => index === 0 ? { ...row, message: { ...row.message, content: summaryText } } : row) }
-      annotateBoundaryWithPreservedSegment(boundary, partial.summaryMessages.at(-1)!.uuid, messagesToKeep)
-      annotateBoundaryWithWork(boundary, messages, messagesToKeep, partial.summaryMessages.at(-1)!.uuid)
-      const fitted = fitPostCompactUnderThreshold(partial, ceiling, landingCount)
+    const folded = new Map<string, string>()
+    const rekeep = (keep: Message[], rounds: NonNullable<CompactMetadata['recentRounds']>): void => {
+      messagesToKeep = keep
+      recentRounds = rounds
+      boundary.compactMetadata.recentRounds = rounds
+      const selection = selectOperatorMessages(messages, { keptUuids: new Set(keep.map(row => row.uuid)) })
+      const work = renderFoldedWork(foldedWorkOf(messages, keep, boundary.uuid))
+      const summaryText = getCompactUserSummaryMessage([rawSummary, capsule, work, memoryText].filter(part => part !== null).join('\n\n'), suppressFollowUpQuestions, getTranscriptPath(), true, newestMessageFollows) + `\n\n${renderFoldLedger(ledger)}`
+      partial = { ...partial, messagesToKeep: keep, operatorMessages: selection ? createAttachmentMessage(selection) : undefined, summaryMessages: partial.summaryMessages.map((row, index) => index === 0 ? { ...row, message: { ...row.message, content: summaryText } } : row) }
+      annotateBoundaryWithPreservedSegment(boundary, partial.summaryMessages.at(-1)!.uuid, keep)
+      annotateBoundaryWithWork(boundary, messages, keep, partial.summaryMessages.at(-1)!.uuid)
+      const fitted = fitPostCompactUnderThreshold(partial, room ?? Infinity, landingCount)
       partial = fitted.result
       truePostCompactTokenCount = fitted.estimate
+    }
+    const widest = { partial, messagesToKeep, recentRounds, logicalParentUuid: boundary.logicalParentUuid, estimate: truePostCompactTokenCount }
+    while (room !== undefined && foldTarget === undefined && truePostCompactTokenCount >= room && recentRounds !== undefined && recentRounds.kept > 1) {
+      const narrower = selectTail({ keepRounds: recentRounds.kept - 1 })
+      if (narrower === null) break
+      boundary.logicalParentUuid = narrower.precedingUuid
+      rekeep(stripThinkingFromIndex(narrower.keep, 0), { requested: recentRounds.requested, kept: narrower.roundsKept, tokens: narrower.estimatedTokens, reason: 'request-budget' })
+    }
+    if (room !== undefined && messagesToKeep !== undefined && recentRounds !== undefined) {
+      const whole = messagesToKeep
+      const target = foldTarget ?? room
+      for (const result of foldableResults(whole)) {
+        if (truePostCompactTokenCount < target) break
+        folded.set(result.toolUseId, foldedResultPlaceholder(result))
+        const keep = withFoldedResults(whole, folded)
+        rekeep(keep, { ...recentRounds, tokens: roughTokenCountEstimationForMessages(keep), folded: folded.size })
+      }
+    }
+    if (landing !== undefined && truePostCompactTokenCount >= landing && recentRounds !== undefined) {
+      if (widest.recentRounds !== undefined && widest.estimate < (ceiling ?? Infinity)) {
+        folded.clear()
+        partial = widest.partial
+        messagesToKeep = widest.messagesToKeep
+        truePostCompactTokenCount = widest.estimate
+        boundary.logicalParentUuid = widest.logicalParentUuid
+        recentRounds = widest.recentRounds
+        annotateBoundaryWithPreservedSegment(boundary, partial.summaryMessages.at(-1)!.uuid, messagesToKeep ?? [])
+        annotateBoundaryWithWork(boundary, messages, messagesToKeep ?? [], partial.summaryMessages.at(-1)!.uuid)
+      }
+      recentRounds = { ...recentRounds, reason: 'no-room' }
+      boundary.compactMetadata.recentRounds = recentRounds
     }
     if (ceiling !== undefined && truePostCompactTokenCount >= ceiling) throw new Error(postCompactOverThresholdMessage(truePostCompactTokenCount, ceiling))
     const visibleReads = collectPreservedReadPaths(messagesToKeep ?? [])
@@ -1573,7 +1626,10 @@ export async function compactConversation(
     partial = { ...partial, hookResults: [...beforeRows, ...afterRows] }
     if (context.abortController.signal.aborted) throw new APIUserAbortError()
     await releaseLspDocumentsForContext('compact_full')
-    transaction.commit()
+    transaction.commit(folded)
+    if (folded.size > 0 && (recompactionInfo?.querySource === 'sdk' || recompactionInfo?.querySource?.startsWith('agent:') === true || recompactionInfo?.querySource?.startsWith('main_thread') === true)) {
+      await recordContentReplacement([...folded].map(([toolUseId, replacement]) => ({ kind: 'tool-result' as const, toolUseId, replacement })), context.agentId).catch((error: unknown) => logError(error))
+    }
     restoreBoundPrefixFromMessages(buildPostCompactMessages(partial), { rosterOnly: context.agentId !== undefined, fold: true })
     advanceContextEpoch(owner, {
       kind: isAutoCompact ? 'auto-compact' : 'manual-compact',

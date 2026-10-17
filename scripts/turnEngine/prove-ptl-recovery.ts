@@ -53,7 +53,7 @@ guard.unref?.()
 
 const COMPACT_NEEDLE = 'running record of this conversation'
 const isCompactRequest = (r: { raw: string }): boolean => r.raw.includes(COMPACT_NEEDLE)
-const OPERATOR_BLOCK_HEADER = "The operator's own messages from the stretch folded into the summary below"
+const OPERATOR_BLOCK_HEADER = "The operator's own messages from this stretch and the earlier folds"
 const SUMMARY_HEADER = 'The context window turned over'
 type WirePart = { type?: string; text?: unknown }
 type WireItem = { role?: string; content?: unknown }
