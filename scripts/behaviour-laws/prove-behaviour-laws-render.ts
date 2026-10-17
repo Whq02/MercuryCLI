@@ -49,7 +49,7 @@ check('the constitution rides the OpenAI render too', openai.includes(MERCURY_CO
 section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
 {
   const sentinels: Array<[string, RegExp]> = [
-    ['the identity (You are Mercury)', /^You are Mercury, an expert software engineer working in the operator's terminal\./m],
+    ['the identity (You are Mercury)', /^You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell\./m],
     ['the stop sentence', /Outstanding work or verification never overrides an operator's instruction to stop\./],
     ['the blocker lines', /^RESUME WHEN: <the answer or authorisation that permits progress>$/m],
     ['the instruction file (MERCURY.md)', /MERCURY\.md is the project's standing instruction file/],
