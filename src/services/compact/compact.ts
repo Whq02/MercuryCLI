@@ -1058,11 +1058,19 @@ export function summaryAnswerFault(response: AssistantMessage): string | null {
 
 export function foldLadderExhausted(error: unknown): boolean {
   if (!(error instanceof Error)) return false
-  return error.message === ERROR_MESSAGE_PROMPT_TOO_LONG || error.message.startsWith(ERROR_MESSAGE_NO_SUMMARY)
+  return error.message.startsWith(ERROR_MESSAGE_PROMPT_TOO_LONG) || error.message.startsWith(ERROR_MESSAGE_NO_SUMMARY)
+}
+
+function overflowExhaustedWords(gap: number | undefined): string {
+  return `the last part sent was refused over the window${gap !== undefined && gap > 0 ? ` by ${gap.toLocaleString('en-US')} tokens` : ''}`
 }
 
 export function proseSkippedLine(cause: string): string {
-  const why = cause.startsWith(`${ERROR_MESSAGE_NO_SUMMARY}: `) ? cause.slice(ERROR_MESSAGE_NO_SUMMARY.length + 2) : cause === ERROR_MESSAGE_PROMPT_TOO_LONG ? 'the summariser was refused as too long even for its smallest part' : cause
+  const why = cause.startsWith(`${ERROR_MESSAGE_NO_SUMMARY}: `)
+    ? cause.slice(ERROR_MESSAGE_NO_SUMMARY.length + 2)
+    : cause.startsWith(ERROR_MESSAGE_PROMPT_TOO_LONG)
+      ? `the summariser was refused as too long even for its smallest part${cause.slice(ERROR_MESSAGE_PROMPT_TOO_LONG.length).trim() === '' ? '' : ` (${cause.slice(ERROR_MESSAGE_PROMPT_TOO_LONG.length).trim().replace(/^\(|\)$/g, '')})`}`
+      : cause
   return `${PROSE_SKIPPED_KEY}: ${why}. The folded stretch is carried by Mercury's own records below (the run capsule, the folded work, the memory note and the fold ledger).`
 }
 
@@ -1205,6 +1213,7 @@ async function summarizeWithPtlRetry(
   const bound = groupMessagesByApiRound(messages).length + PTL_RETRY_LIMIT
   let summaryContext = ladder.noSummaryRetries > 0 ? withSummariserThinkingOff(context) : context
   let fault: string | null = null
+  let lastGap: number | undefined
   for (let attempt = 0; attempt <= bound; attempt++) {
     if (attempt > 0) context.onCompactProgress?.({ type: 'retry', attempt: attempt + 1 })
     const promptMessage = createUserMessage({ content: promptText })
@@ -1212,8 +1221,9 @@ async function summarizeWithPtlRetry(
     let folded: Message[] | null
     if (summaryRefused(response)) {
       fault = null
+      lastGap = overflowGapOf(response)
       if (attempt === bound) break
-      folded = await foldHeadIntoCapsule(messages, overflowGapOf(response), cacheSafeParams, promptText, summaryContext, ladder)
+      folded = await foldHeadIntoCapsule(messages, lastGap, cacheSafeParams, promptText, summaryContext, ladder)
     } else {
       fault = summaryAnswerFault(response)
       if (fault === null) return response
@@ -1229,7 +1239,7 @@ async function summarizeWithPtlRetry(
     before = after
     messages = folded
   }
-  throw new Error(fault === null ? ERROR_MESSAGE_PROMPT_TOO_LONG : `${ERROR_MESSAGE_NO_SUMMARY}: ${fault}`)
+  throw new Error(fault === null ? `${ERROR_MESSAGE_PROMPT_TOO_LONG} (${overflowExhaustedWords(lastGap)})` : `${ERROR_MESSAGE_NO_SUMMARY}: ${fault}`)
 }
 
 const REFUSAL_PREFACE = /^(?:(?:i(?:\s+am|['’]m)\s+(?:sorry|afraid)|sorry|i\s+apologi[sz]e|(?:my\s+)?apologies|unfortunately|regrettably|however|as\s+an\s+ai(?:\s+(?:language\s+model|assistant|model|system))?)[,.:!;]?\s*(?:but\s+|that\s+)?)+/i
