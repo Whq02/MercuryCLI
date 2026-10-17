@@ -18,16 +18,21 @@ import { resolveZaiDispatch } from '../../utils/router/providerDiscovery.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
 import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
 import {
+  anthropicWindowClosedUntil,
+  anthropicWindowFact,
   currentLimits,
   getEndpointExtraUsage,
+  getRateLimitDisplayName,
   getRawUtilization,
   getUsageCredentialEpoch,
   getUsageRecordVersion,
   WEEKLY_POOL_CLAIMS,
   weeklyPoolClaimForModel,
+  windowClaimBindsModel,
   type AnthropicExtraUsageRecord,
   type AnthropicMoney,
   type AnthropicLimits,
+  type AnthropicWindowFact,
   type RateLimitType,
   type WeeklyPoolClaim,
 } from '../anthropicLimits.js'
@@ -454,7 +459,7 @@ export interface ActiveSourceUsage {
   credits?: UsageCreditsView
   carry?: UsageCarryView
   spend: ProviderSessionSpend
-  limited?: { resetsAtMs: number }
+  limited?: { resetsAtMs: number; claim?: RateLimitType; windowName?: string }
   balance?: {
     display: string
     observedAtMs: number
@@ -476,6 +481,7 @@ export interface ActiveUsageReads {
   anthropicPoolWindows?: () => UsageWindowView[]
   anthropicExtraUsage?: () => AnthropicExtraUsageRecord | null
   anthropicLimits?: () => AnthropicLimits
+  anthropicWindow?: () => AnthropicWindowFact | undefined
   openaiObserved?: () => OpenaiObservedUsage
   openaiLimited?: () => OpenaiLimitWindow
   zaiKeyPresent?: () => boolean
@@ -1004,6 +1010,19 @@ export function anthropicExtraUsageCarry(reads?: ActiveUsageReads): UsageCarryVi
   if (record.used === undefined) return { state: 'carries', display: 'on extra usage — the endpoint states no figure', compact: 'on extra usage', ...stamp }
   const figure = extraUsageFigure(record, record.used)
   return { state: 'carries', display: `on extra usage · ${figure.display}`, compact: `on extra usage ${figure.compact}`, ...stamp }
+}
+
+export function anthropicLimitedWindow(reads?: ActiveUsageReads, now: number = Date.now()): NonNullable<ActiveSourceUsage['limited']> | undefined {
+  const fact = (reads?.anthropicWindow ?? anthropicWindowFact)()
+  const until = anthropicWindowClosedUntil(fact, now)
+  if (until === undefined) return undefined
+  const claim = fact?.claim
+  return { resetsAtMs: until, ...(claim !== undefined ? { claim, windowName: getRateLimitDisplayName(claim) } : {}) }
+}
+
+export function limitBindsWords(claim: RateLimitType | undefined, model: string): string {
+  if (claim === undefined || !(WEEKLY_POOL_CLAIMS as readonly string[]).includes(claim)) return `binds every model, ${model} among them`
+  return windowClaimBindsModel(claim, model) ? `binds ${model}` : `binds the ${POOL_LABELS[claim as WeeklyPoolClaim]} models, not ${model}`
 }
 
 export function worstLiveWindow(windows: readonly UsageWindowView[]): UsageWindowView | null {
@@ -1974,6 +1993,7 @@ function deriveUsageForProvider(
   if (provider === 'anthropic') {
     const plan = (reads?.anthropicPlan ?? getSubscriptionType)()
     const reader = reads === undefined ? liveAnthropicReaderWords() : {}
+    const limited = anthropicLimitedWindow(reads)
     return {
       provider,
       sourceKind: 'subscription-oauth',
@@ -1984,6 +2004,7 @@ function deriveUsageForProvider(
       credits: anthropicExtraUsageCredits(reads),
       carry: anthropicExtraUsageCarry(reads),
       spend,
+      ...(limited !== undefined ? { limited } : {}),
       tier: plan ? `Claude ${planWord(plan)}` : 'Claude subscription',
       ...(reader.note !== undefined ? { readerNote: reader.note } : {}),
       ...(reader.compact !== undefined ? { readerNoteCompact: reader.compact } : {}),

@@ -11,7 +11,7 @@ import {
 } from '../../services/api/usage.js'
 import { isClaudeAISubscriber } from '../../utils/auth.js'
 import { recentSignIns, mostRecentSignInFamily } from '../../utils/model/computedDefault.js'
-import { renderModelName, getUserSpecifiedModelSetting, parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { getEngineModel, renderModelName, getUserSpecifiedModelSetting, parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
 import {
@@ -36,6 +36,7 @@ import {
   type ProviderSessionSpend,
   type UsageFigureView,
   type UsageWindowView,
+  limitBindsWords,
 } from '../../services/providers/providerUsage.js'
 import { useFocusedServedEffort, useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
 import { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaUnreportedWords, geminiPlanQuotaView } from '../../services/providers/gemini/geminiPlanQuota.js'
@@ -269,8 +270,13 @@ export function carryTail(usage: Pick<ActiveSourceUsage, 'carry'>): string {
   return words === undefined ? '' : ` · ${words}`
 }
 
-export function fullWindowLine(usage: Pick<ActiveSourceUsage, 'windows' | 'pools' | 'limited' | 'carry'>): string | undefined {
-  return usageWindowReached(usage) === 'full' ? `A usage window reads 100%${carryTail(usage)}.` : undefined
+export function fullWindowLine(usage: Pick<ActiveSourceUsage, 'windows' | 'pools' | 'limited' | 'carry'>, model: string = focusedSessionModelFacts()?.effective ?? getEngineModel()): string | undefined {
+  const reached = usageWindowReached(usage)
+  if (reached === 'wall' && usage.limited !== undefined) {
+    const window = usage.limited.windowName !== undefined ? `The ${usage.limited.windowName}` : 'A usage window'
+    return `${window} is reached — resets ${new Date(usage.limited.resetsAtMs).toLocaleString()} · ${limitBindsWords(usage.limited.claim, model)}${carryTail(usage)}.`
+  }
+  return reached === 'full' ? `A usage window reads 100%${carryTail(usage)}.` : undefined
 }
 
 function FullWindowLine({ usage }: { usage: Pick<ActiveSourceUsage, 'windows' | 'pools' | 'limited' | 'carry'> }): React.ReactNode {

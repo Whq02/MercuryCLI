@@ -7,6 +7,7 @@ import { accountIdentityShown } from './wallet/identityWords.js'
 import type { UsageFeed } from './providers/usageFreshness.js'
 import type { AnthropicObservedUsageV1 } from './engine-connector/types.js'
 import { processRateLimitHeaders, shouldProcessRateLimits } from './rateLimitMocking.js'
+import { providerAskedWaitMs, providerWaitIsWindow } from './api/recoveryBudget.js'
 
 
 export type RateLimitType =
@@ -674,7 +675,9 @@ export function extractQuotaStatusFromHeaders(headers: Headers, startedAtMs: num
 export function extractQuotaStatusFromError(error: unknown): void {
   try {
     if (!shouldProcessRateLimits(isClaudeAISubscriber())) return
-    if (classifyAnthropicRefusal(anthropicRefusalFactsOf(error)) !== 'window') return
+    const kind = classifyAnthropicRefusal(anthropicRefusalFactsOf(error))
+    const askedMs = providerAskedWaitMs(error)
+    if (kind !== 'window' && !(kind === 'rate-limit' && providerWaitIsWindow(askedMs))) return
     const headers = (error as { headers?: Headers }).headers
     let next: AnthropicLimits
     if (headers) {
@@ -685,6 +688,7 @@ export function extractQuotaStatusFromError(error: unknown): void {
       next = { ...currentLimits }
     }
     next.status = 'rejected'
+    if (next.resetsAt === undefined && askedMs !== undefined) next.resetsAt = Math.ceil((Date.now() + askedMs) / 1000)
     windowObserved = true
     stampVerdictOwner()
     if (!limitsEqual(next, currentLimits)) {
