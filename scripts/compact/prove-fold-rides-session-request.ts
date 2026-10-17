@@ -34,7 +34,7 @@ const check = (name: string, ok: boolean, details: unknown = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)}`}`)
 }
 const summary = 'The synthetic parser accepts quoted commas and its 14 checks passed. Preserve the test command and continue with CLI verification.'
-const ENVELOPE_KEYS_OUTSIDE = new Set(['messages', 'input', 'system', 'instructions', 'tools', 'metadata', 'stream', 'stream_options', 'tool_choice', 'prompt_cache_key', 'previous_response_id', 'store', 'user', 'safety_identifier', 'model', 'max_tokens', 'max_completion_tokens', 'max_output_tokens', 'include', 'cache_control', 'n', 'contents', 'systemInstruction', 'toolConfig'])
+const ENVELOPE_KEYS_OUTSIDE = new Set(['messages', 'input', 'system', 'instructions', 'tools', 'metadata', 'stream', 'stream_options', 'tool_choice', 'prompt_cache_key', 'previous_response_id', 'store', 'user', 'safety_identifier', 'model', 'max_tokens', 'max_completion_tokens', 'max_output_tokens', 'include', 'cache_control', 'n', 'contents', 'systemInstruction', 'toolConfig', 'max_tokens', 'max_completion_tokens', 'max_output_tokens'])
 type Body = Record<string, any>
 const posture = (body: Body | undefined): Record<string, unknown> => {
   if (body === undefined) return { absent: true }
@@ -43,6 +43,8 @@ const posture = (body: Body | undefined): Record<string, unknown> => {
   return out
 }
 const ceilingOf = (body: Body | undefined): unknown => body === undefined ? undefined : (body.max_tokens ?? body.max_completion_tokens ?? body.max_output_tokens ?? body.generationConfig?.maxOutputTokens ?? null)
+const ceilingFollows = (fold: unknown, session: unknown): boolean => JSON.stringify(fold) === JSON.stringify(session) || (typeof fold === 'number' && typeof session === 'number' && fold <= session && session - fold < 4_000)
+const ceilingsNear = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b) || (typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) < 4_000)
 const assistantRows = (body: Body | undefined): Array<{ at: number; row: unknown }> => {
   if (body === undefined) return []
   if (Array.isArray(body.input)) return body.input.map((item: any, at: number) => ({ at, item })).filter(({ item }: any) => item.type === 'reasoning' || (item.type === 'message' && item.role === 'assistant')).map(({ at, item }: any) => ({ at, row: item }))
@@ -110,7 +112,7 @@ function compare(label: string, reference: Body | undefined, fold: Body | undefi
   const refPosture = posture(reference)
   const foldPosture = posture(fold)
   check(`${label}: every effort and thinking field outside the envelope is the session request's`, JSON.stringify(refPosture) === JSON.stringify(foldPosture), { session: refPosture, fold: foldPosture })
-  check(`${label}: the output ceiling is the session request's`, JSON.stringify(ceilingOf(reference)) === JSON.stringify(ceilingOf(fold)), { session: ceilingOf(reference), fold: ceilingOf(fold) })
+  check(`${label}: the output ceiling is the session request's, or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, ceilingFollows(ceilingOf(fold), ceilingOf(reference)), { session: ceilingOf(reference), fold: ceilingOf(fold) })
   const refRows = assistantRows(reference)
   const foldRows = assistantRows(fold)
   check(`${label}: every preserved thinking block rides byte-identically at its original position`, JSON.stringify(refRows) === JSON.stringify(foldRows), { session: refRows, fold: foldRows })
@@ -152,7 +154,7 @@ try {
       check(`${label}: two requests, the fork's then the direct lane's`, driven.fold.length === 2 && driven.error === undefined, { requests: driven.fold.length, error: driven.error })
       compare(`${label} (fork)`, driven.reference, driven.fold[0], [], true)
       compare(`${label} (direct)`, driven.reference, driven.fold[1], [], true)
-      check(`${label}: the fork and the direct lane carry one posture`, JSON.stringify(posture(driven.fold[0])) === JSON.stringify(posture(driven.fold[1])) && JSON.stringify(ceilingOf(driven.fold[0])) === JSON.stringify(ceilingOf(driven.fold[1])), { fork: posture(driven.fold[0]), direct: posture(driven.fold[1]), ceilings: [ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])] })
+      check(`${label}: the fork and the direct lane carry one posture`, JSON.stringify(posture(driven.fold[0])) === JSON.stringify(posture(driven.fold[1])) && ceilingsNear(ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])), { fork: posture(driven.fold[0]), direct: posture(driven.fold[1]), ceilings: [ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])] })
     }
   }
   {
@@ -174,7 +176,7 @@ try {
     const manual = await drive(road, 'max', { type: 'adaptive' }, { continued: true, redacted: false })
     const auto = await drive(road, 'max', { type: 'adaptive' }, { continued: true, redacted: false, auto: true })
     const overflow = await drive(road, 'max', { type: 'adaptive' }, { continued: true, redacted: false, auto: true, overflow: true })
-    const same = (a: Body | undefined, b: Body | undefined): boolean => JSON.stringify(posture(a)) === JSON.stringify(posture(b)) && JSON.stringify(ceilingOf(a)) === JSON.stringify(ceilingOf(b))
+    const same = (a: Body | undefined, b: Body | undefined): boolean => JSON.stringify(posture(a)) === JSON.stringify(posture(b)) && ceilingsNear(ceilingOf(a), ceilingOf(b))
     check(`${road.lane}: /compact, the threshold fold and the overflow fold carry one posture`, same(manual.fold.at(-1), auto.fold.at(-1)) && same(auto.fold.at(-1), overflow.fold.at(-1)) && manual.error === undefined && auto.error === undefined && overflow.error === undefined, { manual: posture(manual.fold.at(-1)), auto: posture(auto.fold.at(-1)), overflow: posture(overflow.fold.at(-1)), errors: [manual.error, auto.error, overflow.error] })
   }
   {

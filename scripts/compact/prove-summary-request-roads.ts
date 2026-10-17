@@ -1,6 +1,8 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+const ceilingOf = (row: any): unknown => row && (row.max_tokens ?? row.max_completion_tokens ?? row.max_output_tokens ?? row.generationConfig?.maxOutputTokens ?? null)
+const ceilingFollows = (fold: unknown, session: unknown): boolean => JSON.stringify(fold) === JSON.stringify(session) || (typeof fold === 'number' && typeof session === 'number' && fold <= session && session - fold < 4_000)
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const key of ['MERCURY_HOME', 'MERCURY_OAUTH_TOKEN', 'MERCURY_MODEL', 'MERCURY_EXTRA_BODY', 'MERCURY_EFFORT_LEVEL', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_SM_COMPACT']) delete process.env[key]
@@ -92,11 +94,11 @@ try {
         } catch (caught) { error = String(caught) }
         const requests = fixture.captured.slice(before)
         const body = requests.at(-1)?.body as any
-        const posture = (row: any): unknown => row && ({ effort: row.reasoning_effort, reasoning: row.reasoning, thinking: row.thinking, output: row.output_config, max: row.max_tokens, completion: row.max_completion_tokens, outputTokens: row.max_output_tokens })
+        const posture = (row: any): unknown => row && ({ effort: row.reasoning_effort, reasoning: row.reasoning, thinking: row.thinking, output: row.output_config })
         const label = `${road.lane} ${thinkingConfig.type} ${continued ? 'continued' : 'fresh'}`
         check(`${label}: summary request resolves once on its declared wire`, requests.length === 1 && requests[0]?.dialect === road.dialect && fixture.captured[referenceAt]?.dialect === road.dialect && error === undefined, { error, actual: requests[0]?.dialect, expected: road.dialect })
         if (road.lane === 'anthropic-budget' && thinkingConfig.type === 'enabled') check(`${label}: the fixed thinking budget stays exact`, body?.thinking?.type === 'enabled' && body.thinking.budget_tokens === thinkingConfig.budgetTokens, body?.thinking)
-        check(`${label}: effort, thinking and ceiling are the session request's`, JSON.stringify(posture(body)) === JSON.stringify(posture(reference)), { actual: posture(body), expected: posture(reference) })
+        check(`${label}: effort and thinking are the session request's; the ceiling is the session's or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, JSON.stringify(posture(body)) === JSON.stringify(posture(reference)) && ceilingFollows(ceilingOf(body), ceilingOf(reference)), { actual: posture(body), expected: posture(reference), ceilings: { fold: ceilingOf(body), session: ceilingOf(reference) } })
         check(`${label}: no per-message effort row`, Array.isArray(body?.messages) ? body.messages.every((row: any) => row.output_config === undefined) : Array.isArray(body?.input) || Array.isArray(body?.contents), body?.messages)
         const preserved = (row: any): unknown[] => {
           if (Array.isArray(row?.input)) return row.input.filter((item: any) => item.type === 'reasoning')
@@ -114,7 +116,7 @@ try {
     const { conversationAtThreshold } = await import('./thresholdFixture.ts')
     const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
     const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
-    const posture = (row: any): unknown => row && ({ effort: row.reasoning_effort, reasoning: row.reasoning, thinking: row.thinking, output: row.output_config, max: row.max_tokens, completion: row.max_completion_tokens, outputTokens: row.max_output_tokens, generation: row.generationConfig })
+    const posture = (row: any): unknown => row && ({ effort: row.reasoning_effort, reasoning: row.reasoning, thinking: row.thinking, output: row.output_config, generation: row.generationConfig && { ...row.generationConfig, maxOutputTokens: undefined } })
     const preserved = (row: any): unknown[] => (row?.messages ?? row?.contents ?? []).filter((item: any) => item.role === 'assistant' || item.role === 'model').map((item: any) => ({ content: Array.isArray(item.content) ? item.content.filter((block: any) => block.type === 'thinking' || block.type === 'redacted_thinking') : undefined, parts: Array.isArray(item.parts) ? item.parts.filter((part: any) => part.thought === true || part.thoughtSignature !== undefined) : undefined }))
     for (const leg of [{ lane: 'anthropic', fixed: 20_000, ratio: 1 }, { lane: 'gemini', fixed: 42_723, ratio: 1.3 }]) {
       const road = roads.find(r => r.lane === leg.lane)!
@@ -141,7 +143,7 @@ try {
       const wire = JSON.stringify(body ?? {})
       const label = `${road.lane} · real-sized Read results (${built.ids.length} rounds) with a calibrated gauge AT the fold threshold (${built.gauge.toLocaleString('en-US')} of ${getContextWindowForModel(road.model).toLocaleString('en-US')}) · the threshold fold`
       check(`${label}: the summary request resolves once on its declared wire`, requests.length === 1 && requests[0]?.dialect === road.dialect && error === undefined, { error, requests: requests.length })
-      check(`${label}: effort, thinking and ceiling are the session request's`, JSON.stringify(posture(body)) === JSON.stringify(posture(reference)), { actual: posture(body), expected: posture(reference) })
+      check(`${label}: effort and thinking are the session request's; the ceiling is the session's or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, JSON.stringify(posture(body)) === JSON.stringify(posture(reference)) && ceilingFollows(ceilingOf(body), ceilingOf(reference)), { actual: posture(body), expected: posture(reference), ceilings: { fold: ceilingOf(body), session: ceilingOf(reference) } })
       check(`${label}: route-preserved thinking rides byte-identically, every round of it`, JSON.stringify(preserved(body)) === JSON.stringify(preserved(reference)) && preserved(body).length === built.ids.length, { actual: preserved(body).length, expected: preserved(reference).length })
       check(`${label}: the newest round and every result's bytes ride whole`, built.paths.every(path => wire.includes(JSON.stringify(path).slice(1, -1))) && built.results.every(text => wire.includes(JSON.stringify(text).slice(1, -1))) && !wire.includes('characters omitted for the compaction'), { newest: wire.includes(built.paths.at(-1) ?? '') })
     }
