@@ -24,8 +24,9 @@ function describeTools(agent: AgentDefinition): string {
   return 'All tools'
 }
 
-function formatAgentLine(agent: AgentDefinition): string {
-  return `- ${agent.agentType}: ${agent.whenToUse} (Tools: ${describeTools(agent)})`
+function formatAgentLine(agent: AgentDefinition, refusal?: string): string {
+  const line = `- ${agent.agentType}: ${agent.whenToUse} (Tools: ${describeTools(agent)})`
+  return refusal === undefined ? line : `${line} — ${refusal}`
 }
 
 function fileLocationHint(): string {
@@ -51,6 +52,7 @@ export async function getPrompt(
   isCoordinator = false,
   allowedAgentTypes?: readonly string[],
   offered?: ReadonlySet<string>,
+  refusals?: ReadonlyMap<string, string>,
 ): Promise<string> {
   const effectiveAgents = allowedAgentTypes
     ? agentDefinitions.filter(agent =>
@@ -58,7 +60,7 @@ export async function getPrompt(
       )
     : agentDefinitions
 
-  const listing = effectiveAgents.map(formatAgentLine).join('\n')
+  const listing = effectiveAgents.map(agent => formatAgentLine(agent, refusals?.get(agent.agentType))).join('\n')
 
   const typeSelection = `Specify \`crewmate_type\` to select an agent; omitting it gives ${MERCURY_CREW_AGENT_TYPE}.`
 

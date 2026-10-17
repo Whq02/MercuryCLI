@@ -46,7 +46,8 @@ import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../utils/effort.js'
 import { subagentConcurrencyCap, subagentDefaultEffort } from '../../utils/agentDefaults.js'
-import { filterDeniedAgents } from '../../utils/permissions/decision/rules.js'
+import { getDenyRuleForAgent } from '../../utils/permissions/decision/rules.js'
+import { reasonForRule, refusalWithReason, ruleSentence } from '../../utils/permissions/ruleReason.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
 import {
@@ -392,12 +393,12 @@ export const AgentTool = buildTool({
       )
     })
     const permissionContext = await options.getToolPermissionContext()
-    const effective = filterDeniedAgents(
-      mcpEligible as AgentDefinition[],
-      permissionContext,
-      AGENT_TOOL_NAME,
-    )
-    return getPrompt(effective, false, options.allowedAgentTypes, new Set(options.tools.map(tool => tool.name)))
+    const refusals = new Map<string, string>()
+    for (const agent of mcpEligible) {
+      const rule = getDenyRuleForAgent(permissionContext, AGENT_TOOL_NAME, agent.agentType)
+      if (rule) refusals.set(agent.agentType, refusalWithReason(ruleSentence('launching it', 'deny', rule), reasonForRule(permissionContext, rule)))
+    }
+    return getPrompt(mcpEligible, false, options.allowedAgentTypes, new Set(options.tools.map(tool => tool.name)), refusals)
   },
   isEnabled(): boolean {
     return evaluateLaunchAuthority('subagents').allowed
