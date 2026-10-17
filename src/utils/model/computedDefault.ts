@@ -305,11 +305,18 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
       normalizeModelStringForAPI(value).toLowerCase() === normalizeModelStringForAPI(id).toLowerCase()
     const preferred =
       fact !== undefined ? selectable.find(option => sameId(option.value as string, fact.modelId)) : undefined
-    const pick = preferred ?? (selectable[0] as (typeof selectable)[number])
+    const { newestGeminiGenerationFirst, geminiGeneration } =
+      require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
+    const byGeneration = newestGeminiGenerationFirst(selectable, option => normalizeModelStringForAPI(option.value as string))
+    const newest = byGeneration[0] as (typeof selectable)[number]
+    const generationKnown = geminiGeneration(normalizeModelStringForAPI(newest.value as string))[0] > 0
+    const pick = preferred ?? newest
     const why =
       preferred !== undefined && fact !== undefined
         ? `the newest row this sign-in can use (the recorded frontier${fact.observedAt !== undefined ? `, ${fact.observedAt}` : ''})`
-        : "the first row this sign-in can use (the catalogue's own order)"
+        : generationKnown
+          ? "the newest generation this sign-in can use (by the id's version, then the catalogue's order)"
+          : "the first row this sign-in can use (the catalogue's own order)"
     return { usable: true, setting: pick.value as string, row: pick.label, why }
   } catch {
     return { usable: false, why: 'the catalogue could not be read' }

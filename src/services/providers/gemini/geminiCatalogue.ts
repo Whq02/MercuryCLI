@@ -363,6 +363,19 @@ export function geminiGenerateModels(snapshot: GeminiCatalogueSnapshot | null): 
   return snapshot.models.filter(m => m.supportedGenerationMethods?.includes('generateContent') && m.disabled !== true && !/^(?:antigravity|deep-research)(?:-|$)/i.test(m.id) && !geminiMakesNoChat(m))
 }
 
+export function geminiGeneration(id: string): [number, number] {
+  const match = /^gemini-(\d+)(?:\.(\d+))?/.exec(id)
+  return match ? [Number(match[1]), Number(match[2] ?? 0)] : [0, 0]
+}
+
+export function newestGeminiGenerationFirst<T>(rows: readonly T[], idOf: (row: T) => string): T[] {
+  return [...rows].sort((a, b) => {
+    const left = geminiGeneration(idOf(a))
+    const right = geminiGeneration(idOf(b))
+    return right[0] - left[0] || right[1] - left[1]
+  })
+}
+
 export function geminiDisabledRosterModels(snapshot: GeminiCatalogueSnapshot | null): GeminiLiveModel[] {
   if (!snapshot) return []
   return snapshot.models.filter(m => m.disabled === true && m.supportedGenerationMethods?.includes('generateContent'))
