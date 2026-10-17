@@ -6,7 +6,18 @@ const ROOT = join(import.meta.dir, '..', '..')
 const revIdx = process.argv.indexOf('--rev')
 const REV = revIdx >= 0 ? process.argv[revIdx + 1] ?? null : null
 const baseIdx = process.argv.indexOf('--base')
-const BASE_REV = baseIdx >= 0 ? process.argv[baseIdx + 1] ?? null : null
+const BASE_ASKED = baseIdx >= 0 ? process.argv[baseIdx + 1] ?? null : null
+const BASE_REV = resolveBaseRev(BASE_ASKED)
+function resolveBaseRev(rev: string | null): string | null {
+  if (rev === null) return null
+  try {
+    execFileSync('git', ['-C', ROOT, 'rev-parse', '--verify', '-q', `${rev}^{commit}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+    return rev
+  } catch {
+    console.log(`docs-integrity: the base ${rev} is not a commit of this tree (a published form rewrites the history), so the base-revision tail scan is skipped here`)
+    return null
+  }
+}
 
 interface IntegrityHit {
   file: string
