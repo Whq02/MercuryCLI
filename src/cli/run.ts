@@ -303,6 +303,7 @@ type HeadlessOptions = {
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
   maxBudgetUsd?: number
+  maxTimeMs?: number
   systemPrompt?: string
   appendSystemPrompt?: string
   userSpecifiedModel?: string
@@ -395,6 +396,7 @@ export async function runHeadless(
   agents: AgentDefinition[],
   options: HeadlessOptions,
 ): Promise<void> {
+  const maxTime = options.maxTimeMs === undefined ? undefined : { limitMs: options.maxTimeMs, at: Date.now() + options.maxTimeMs }
   setAskChannel(options.door === 'wire' ? 'sdk' : 'none')
   markSessionNonInteractive(getAppState().toolPermissionContext?.mode)
   markSessionBootRules(getAppState().toolPermissionContext)
@@ -1169,6 +1171,7 @@ export async function runHeadless(
           thinkingConfig,
           maxTurns: options.maxTurns,
           maxBudgetUsd: options.maxBudgetUsd,
+          maxTime,
           canUseTool,
           ...(peer !== null ? { hostHoldsAsks: true } : {}),
           userSpecifiedModel: activeModel,
@@ -2243,7 +2246,7 @@ export async function runHeadless(
       const sentence =
         last.status === 'refused' || last.status === 'failed'
           ? (last.error?.message ?? (last.status === 'refused' ? 'The request was refused' : 'The turn failed'))
-          : OUTCOME_SENTENCES[last.status]({ maxTurns: options.maxTurns, maxBudgetUsd: options.maxBudgetUsd, message: last.error?.message })
+          : OUTCOME_SENTENCES[last.status]({ maxTurns: options.maxTurns, maxBudgetUsd: options.maxBudgetUsd, maxTimeMs: options.maxTimeMs, message: last.error?.message })
       await flushWrite(process.stderr, `${sentence}\n`)
     }
   }

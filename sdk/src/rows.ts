@@ -8,13 +8,13 @@ export const PARTIAL_ROW_TYPES = ['block_start', 'text_delta', 'reasoning_delta'
 export type PartialRowType = (typeof PARTIAL_ROW_TYPES)[number]
 export const INPUT_ROW_TYPES = ['prompt', 'shell', 'note'] as const
 export type InputRowType = (typeof INPUT_ROW_TYPES)[number]
-export const OUTCOME_STATUSES = ['completed', 'blocked', 'refused', 'interrupted', 'turn_limit', 'budget_limit', 'schema_unmet', 'loop_stopped', 'failed'] as const
+export const OUTCOME_STATUSES = ['completed', 'blocked', 'refused', 'interrupted', 'turn_limit', 'budget_limit', 'time_limit', 'schema_unmet', 'loop_stopped', 'failed'] as const
 export type OutcomeStatus = (typeof OUTCOME_STATUSES)[number]
 export const STOP_WORDS = ['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'refusal', 'pause', 'hook'] as const
 export type StopWord = (typeof STOP_WORDS)[number]
-export const ERROR_CLASSES = ['model', 'auth', 'billing', 'rate_limit', 'invalid_request', 'server', 'output_limit', 'context_overflow', 'context_limit', 'image', 'refill_breaker', 'idle_timeout', 'cut', 'internal', 'option', 'command', 'hook', 'load', 'interrupt', 'turn_limit', 'budget_limit', 'schema_unmet', 'loop_stopped', 'blocked'] as const
+export const ERROR_CLASSES = ['model', 'auth', 'billing', 'rate_limit', 'invalid_request', 'server', 'output_limit', 'context_overflow', 'context_limit', 'image', 'refill_breaker', 'idle_timeout', 'cut', 'internal', 'option', 'command', 'hook', 'load', 'interrupt', 'turn_limit', 'budget_limit', 'time_limit', 'schema_unmet', 'loop_stopped', 'blocked'] as const
 export type ErrorClass = (typeof ERROR_CLASSES)[number]
-export const OUTCOME_EXIT_CODES = { completed: 0, blocked: 1, refused: 1, interrupted: 1, turn_limit: 1, budget_limit: 1, schema_unmet: 1, loop_stopped: 1, failed: 1 } as const
+export const OUTCOME_EXIT_CODES = { completed: 0, blocked: 1, refused: 1, interrupted: 1, turn_limit: 1, budget_limit: 1, time_limit: 1, schema_unmet: 1, loop_stopped: 1, failed: 1 } as const
 export type JsonSchema = {
   type?: 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null' | readonly string[]
   const?: string | number | boolean
@@ -185,7 +185,7 @@ export interface StepRow {
 }
 export interface OutcomeError {
   message: string
-  class: 'model' | 'auth' | 'billing' | 'rate_limit' | 'invalid_request' | 'server' | 'output_limit' | 'context_overflow' | 'context_limit' | 'image' | 'refill_breaker' | 'idle_timeout' | 'cut' | 'internal' | 'option' | 'command' | 'hook' | 'load' | 'interrupt' | 'turn_limit' | 'budget_limit' | 'schema_unmet' | 'loop_stopped' | 'blocked'
+  class: 'model' | 'auth' | 'billing' | 'rate_limit' | 'invalid_request' | 'server' | 'output_limit' | 'context_overflow' | 'context_limit' | 'image' | 'refill_breaker' | 'idle_timeout' | 'cut' | 'internal' | 'option' | 'command' | 'hook' | 'load' | 'interrupt' | 'turn_limit' | 'budget_limit' | 'time_limit' | 'schema_unmet' | 'loop_stopped' | 'blocked'
   detail?: string[]
 }
 export interface Denial {
@@ -202,7 +202,7 @@ export interface OutcomeRow {
   parent_call_id?: string
   schema: 1
   turn_id: string
-  status: 'completed' | 'blocked' | 'refused' | 'interrupted' | 'turn_limit' | 'budget_limit' | 'schema_unmet' | 'loop_stopped' | 'failed'
+  status: 'completed' | 'blocked' | 'refused' | 'interrupted' | 'turn_limit' | 'budget_limit' | 'time_limit' | 'schema_unmet' | 'loop_stopped' | 'failed'
   stop?: 'end_turn' | 'max_tokens' | 'stop_sequence' | 'tool_use' | 'refusal' | 'pause' | 'hook'
   answer?: string
   structured?: unknown
@@ -1129,6 +1129,7 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
           "interrupted",
           "turn_limit",
           "budget_limit",
+          "time_limit",
           "schema_unmet",
           "loop_stopped",
           "failed"
@@ -1180,6 +1181,7 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
               "interrupt",
               "turn_limit",
               "budget_limit",
+              "time_limit",
               "schema_unmet",
               "loop_stopped",
               "blocked"

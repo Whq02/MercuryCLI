@@ -547,8 +547,11 @@ the main agent's model calls; model calls made by crewmates appear as their own
 `step` rows tagged with `parent_call_id`.
 
 The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
-`turn_limit`, `budget_limit`, `schema_unmet` or `loop_stopped`. A completed
-run exits 0, other outcomes exit 1, and a usage error exits 2. SIGINT and
+`turn_limit`, `budget_limit`, `time_limit`, `schema_unmet` or `loop_stopped`.
+A run under `--max-time` (seconds, or `10m`, `1h`) ends `time_limit` at the
+next step once the time is up; the model call or tool round under way is not
+cut. A completed run exits 0, other outcomes exit 1, and a usage error exits
+2. SIGINT and
 SIGTERM exit 130 and 143 after the interrupted turn's outcome is flushed. A
 refused tool call is listed in `denials`. When the refusal was an ask nobody
 could answer (a run with no host in a mode that asks, `--mode dontAsk`, or a

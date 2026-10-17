@@ -23,6 +23,7 @@ export const RUN_OPTIONS = [
   { flag: '--reasoning-mode', value: 'required', choices: ['enabled', 'adaptive', 'disabled'], hidden: true },
   { flag: '--max-turns', value: 'required', hidden: true },
   { flag: '--budget', value: 'required', hidden: false },
+  { flag: '--max-time', value: 'required', hidden: false },
   { flag: '--allowed-tools', value: 'variadic', hidden: false },
   { flag: '--toolset', value: 'variadic', hidden: false },
   { flag: '--block-tools', value: 'variadic', hidden: false },

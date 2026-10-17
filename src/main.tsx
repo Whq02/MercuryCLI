@@ -74,6 +74,7 @@ import { startBackgroundHousekeeping } from './utils/backgroundHousekeeping.js'
 import { getGlobalConfig, saveGlobalConfigDeferred, flushDeferredGlobalConfigSaves, binaryName, getRemoteControlAtStartup, getCurrentProjectConfig } from './utils/config.js'
 import { registerSession, updateSessionName } from './utils/concurrentSessions.js'
 import { lastCrashReportPath } from './utils/crashReport.js'
+import { timeSpanMsOf } from './utils/deadline.js'
 import { logForDebugging } from './utils/debug.js'
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js'
 import { startCapturingEarlyInput, stopCapturingEarlyInput, consumeEarlyInput } from './utils/earlyInput.js'
@@ -449,6 +450,13 @@ async function run(): Promise<void> {
       const parsed = Number(value)
       if (!Number.isFinite(parsed) || parsed <= 0) {
         failCli('--budget must be a positive number greater than 0')
+      }
+      return parsed
+    })
+    .option('--max-time <time>', 'The longest a run may take, in seconds or with a unit (600, 10m, 1h); once it is reached the turn ends at its next step and the outcome says so', value => {
+      const parsed = timeSpanMsOf(value)
+      if (parsed === null) {
+        failCli(`--max-time must be a span of time in seconds or with a unit s, m or h (600, 90s, 10m, 1h30m); got '${value}'`)
       }
       return parsed
     })
@@ -2181,6 +2189,7 @@ async function runLaunch(args: {
         thinkingConfig: args.thinkingConfig,
         maxTurns: opts.maxTurns as number | undefined,
         maxBudgetUsd: opts.budget as number | undefined,
+        maxTimeMs: opts.maxTime as number | undefined,
         systemPrompt: args.customSystemPrompt,
         appendSystemPrompt: args.appendSystemPrompt,
         userSpecifiedModel: args.userSpecifiedModel ?? args.mainThreadAgentDefinition?.model ?? undefined,

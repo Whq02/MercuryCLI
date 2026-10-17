@@ -4,6 +4,7 @@ import { ASSISTANT_MESSAGE_ERRORS, type AssistantMessageError } from '../types/m
 import type { Terminal } from '../query/transitions.js'
 import type { TurnCutKind } from '../utils/messages/turnCut.js'
 import type { NonNullableUsage } from '../services/api/emptyUsage.js'
+import { formatLimit } from '../utils/deadline.js'
 
 export const ROWS_SCHEMA = 1
 
@@ -37,7 +38,7 @@ export type PartialRowType = (typeof PARTIAL_ROW_TYPES)[number]
 export const INPUT_ROW_TYPES = ['prompt', 'shell', 'note'] as const
 export type InputRowType = (typeof INPUT_ROW_TYPES)[number]
 
-export const OUTCOME_STATUSES = ['completed', 'blocked', 'refused', 'interrupted', 'turn_limit', 'budget_limit', 'schema_unmet', 'loop_stopped', 'failed'] as const
+export const OUTCOME_STATUSES = ['completed', 'blocked', 'refused', 'interrupted', 'turn_limit', 'budget_limit', 'time_limit', 'schema_unmet', 'loop_stopped', 'failed'] as const
 export type OutcomeStatus = (typeof OUTCOME_STATUSES)[number]
 
 export const STOP_WORDS = ['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'refusal', 'pause', 'hook'] as const
@@ -65,6 +66,7 @@ export const ERROR_CLASSES = [
   'interrupt',
   'turn_limit',
   'budget_limit',
+  'time_limit',
   'schema_unmet',
   'loop_stopped',
   'blocked',
@@ -602,11 +604,12 @@ export function toolCallsRefusedSentence(terminal: Extract<Terminal, { reason: '
   return `The turn failed: every tool call the model made (${terminal.tools.join(', ')}) was refused before execution, and ${terminal.corrections} correction${terminal.corrections === 1 ? '' : 's'} did not produce a valid call`
 }
 
-export const OUTCOME_SENTENCES: Record<Exclude<OutcomeStatus, 'completed' | 'refused' | 'failed'>, (detail: { maxTurns?: number; maxBudgetUsd?: number; message?: string }) => string> = {
+export const OUTCOME_SENTENCES: Record<Exclude<OutcomeStatus, 'completed' | 'refused' | 'failed'>, (detail: { maxTurns?: number; maxBudgetUsd?: number; maxTimeMs?: number; message?: string }) => string> = {
   blocked: d => d.message ?? 'Blocked on the operator',
   interrupted: () => 'Interrupted',
   turn_limit: d => `Reached the maximum number of turns (${d.maxTurns ?? 'configured limit'})`,
   budget_limit: d => `Reached the maximum budget of $${d.maxBudgetUsd ?? 'the configured amount'}`,
+  time_limit: d => `Reached the maximum run time (${d.maxTimeMs !== undefined ? formatLimit(d.maxTimeMs) : 'the configured limit'})`,
   schema_unmet: () => 'Valid structured output was not produced within the retry limit',
   loop_stopped: d => d.message ?? 'The loop guard ended the turn: a cycle of tool calls repeated with identical arguments and results',
 }
