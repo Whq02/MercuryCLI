@@ -398,6 +398,68 @@ if (gateModule === null) {
   check('the words: the model seat, the tool seat, the chip, and the wait recogniser agree on one spelling', gateModule.pauseGateModelWords().startsWith(gateModule.OPERATOR_PAUSE_WORDS) && gateModule.pauseGateToolWords('Read').includes('(Read)') && gateModule.isOperatorPauseWait(gateModule.pauseGateToolWords('Read')) && !gateModule.isOperatorPauseWait('waiting for a seat — 3 of 3 held') && gateModule.pauseGateChipWords({ paused: true, parked: 2 }) === 'paused by the operator · 2 parked' && gateModule.pauseGateChipWords({ paused: false, parked: 0 }) === null)
 }
 
+section('G2 A LIFT FOR ONE SEAT — a message to one seat releases that seat\'s wait and exempts it while the gate stays closed; the others stay parked; the lift ends when the gate reopens')
+if (gateModule === null) {
+  check('the gate module exists (src/run-core/pauseGate.ts)', false, 'absent on this tree')
+} else {
+  const g = gateModule.createPauseGate()
+  check('the gate carries lift() and holds()', typeof g.lift === 'function' && typeof g.holds === 'function')
+  check('lift() on an open gate changes nothing', g.lift('agent-a') === false && !g.holds('agent-a'))
+  g.pause()
+  const a = new AbortController()
+  const b = new AbortController()
+  const events: string[] = []
+  const unsubscribe = g.subscribe(s => events.push(`${s.paused ? 'closed' : 'open'}:${s.parked}`))
+  let aDone = false
+  let bDone = false
+  void g.park(a.signal, 'a', 'agent-a').then(() => { aDone = true })
+  void g.park(b.signal, 'b', 'agent-b').then(() => { bDone = true })
+  await settle(10)
+  check('two seats park under their labels and are held by their keys', j(g.parked()) === j(['a', 'b']) && g.holds('agent-a') && g.holds('agent-b'), j(g.parked()))
+  const heardBefore = events.length
+  const liftedA = g.lift('agent-a')
+  await settle(10)
+  check('lift(agent-a) reports the change, releases a alone and leaves b parked under a closed gate', liftedA && aDone && !bDone && g.paused() && j(g.parked()) === j(['b']), `aDone=${aDone} bDone=${bDone} parked=${j(g.parked())}`)
+  check('the lifted seat is no longer held; the other still is', !g.holds('agent-a') && g.holds('agent-b'))
+  check('subscribers heard the lift as a parked count change under the closed gate', events.length === heardBefore + 1 && events.at(-1) === 'closed:1', events.join(','))
+  let aAgain = false
+  await Promise.race([g.park(new AbortController().signal, 'a', 'agent-a').then(() => { aAgain = true }), settle(20)])
+  check('a lifted seat\'s next park resolves at once while the gate stays closed', aAgain && g.paused())
+  check('a second lift of the same seat changes nothing', g.lift('agent-a') === false)
+  check('a lift of a seat with no wait still exempts it', g.lift('agent-c') === true && !g.holds('agent-c') && g.paused())
+  check('a key defaults to its seat label: park(signal, seat) is lifted by that label', (() => { void g.park(new AbortController().signal, 'd'); return g.holds('d') && g.lift('d') === true && !g.holds('d') })())
+  check('resume() releases the rest', g.resume() === true)
+  await settle(10)
+  check('the remaining wait was released and the gate is open', bDone && g.parked().length === 0 && !g.paused())
+  g.pause()
+  check('a fresh pause holds every seat again, the lifted ones included', g.holds('agent-a') && g.holds('agent-c') && g.holds('d') && g.holds('main'))
+  unsubscribe()
+  check('the context key is the agent id, the context seat its holder label, and the chat is main for both', gateModule.pauseGateKeyOf({ agentId: 'agent-scout' }) === 'agent-scout' && gateModule.pauseGateSeatOf({ agentId: 'agent-scout', seatHolder: 'scout' }) === 'scout' && gateModule.pauseGateKeyOf({}) === gateModule.PAUSE_GATE_MAIN_SEAT && gateModule.pauseGateSeatOf({}) === gateModule.PAUSE_GATE_MAIN_SEAT)
+}
+
+section('L1 ONE LOOP LIFTED BY A MESSAGE — the addressed loop runs on from exactly where it stopped, byte-identical to the control, while the others stay parked and the gate stays closed; the resume releases the rest')
+{
+  const one = buildRig()
+  await until(() => RUNS.every(run => callsOf(one, run).length === 1), 'the three first model calls in flight')
+  check('the pause closes the gate', pause() && gate?.paused() === true, gateModule === null ? 'no gate module: pause() is a no-op' : String(gate?.state()))
+  for (const run of RUNS) one.modelLatch(run, 1).open()
+  await until(() => parked().length === RUNS.length, 'the three loops park at the tool seam')
+  check('the three loops are parked at the tool seam, no tool started', JSON.stringify([...parked()].sort()) === JSON.stringify(['main', 'reviewer', 'scout']) && one.toolStarts.length === 0, `parked=${JSON.stringify(parked())} tools=${one.toolStarts.length}`)
+  const liftedScout = gate?.lift('agent-scout') ?? false
+  await until(() => startsOf(one, 'scout').length === 1, "scout's tool starts after the lift")
+  check("lift(agent-scout) — the message's key is the loop's agent id — releases scout's wait alone: its tool starts with the exact input its model asked for", liftedScout && startsOf(one, 'scout').length === 1 && JSON.stringify(startsOf(one, 'scout')[0]?.input) === JSON.stringify(toolUseOf('scout', 1).input), JSON.stringify(startsOf(one, 'scout')))
+  check('the gate stays closed with main and reviewer parked; neither started a tool', gate?.paused() === true && JSON.stringify([...parked()].sort()) === JSON.stringify(['main', 'reviewer']) && startsOf(one, 'main').length === 0 && startsOf(one, 'reviewer').length === 0, `parked=${JSON.stringify(parked())}`)
+  check("scout's wait words cleared (its row reads running again); main and reviewer keep theirs", one.waitOf('scout') === null && one.waitOf('main') !== null && one.waitOf('reviewer') !== null, `scout=${j(one.waitOf('scout'))} main=${j(one.waitOf('main'))} reviewer=${j(one.waitOf('reviewer'))}`)
+  for (const n of [1, 2, 3]) { one.modelLatch('scout', n).open(); if (n < 3) one.toolLatch('scout', n).open() }
+  await one.done('scout')
+  check('scout completes under the closed gate: three calls and two tools, every request byte-identical to the unpaused control\'s', one.terminalOf('scout')?.reason === 'completed' && callsOf(one, 'scout').length === 3 && startsOf(one, 'scout').length === 2 && callsOf(one, 'scout').every((c, i) => digest(c.messages) === digest(callsOf(control, 'scout')[i]!.messages)), `${one.terminalOf('scout')?.reason} ${callsOf(one, 'scout').length} calls ${startsOf(one, 'scout').length} tools`)
+  check('main and reviewer stayed parked the whole while: one call each, no tool, the gate closed', gate?.paused() === true && callsOf(one, 'main').length === 1 && callsOf(one, 'reviewer').length === 1 && one.toolStarts.filter(s => s.run !== 'scout').length === 0 && JSON.stringify([...parked()].sort()) === JSON.stringify(['main', 'reviewer']), `parked=${JSON.stringify(parked())}`)
+  check('the resume releases the rest', resume() && parked().length === 0)
+  for (const run of ['main', 'reviewer'] as const) for (const n of [1, 2, 3]) { one.modelLatch(run, n).open(); if (n < 3) one.toolLatch(run, n).open() }
+  await Promise.all([one.done('main'), one.done('reviewer')])
+  check('main and reviewer complete after the resume with three calls and two tools each; the gate is open and nothing is parked', (['main', 'reviewer'] as const).every(run => one.terminalOf(run)?.reason === 'completed' && callsOf(one, run).length === 3 && startsOf(one, run).length === 2) && gate?.paused() === false && parked().length === 0, (['main', 'reviewer'] as const).map(run => `${run}: ${one.terminalOf(run)?.reason} ${callsOf(one, run).length}/${startsOf(one, run).length}`).join(' · '))
+}
+
 section('R0 A GATE PER WORKFLOW RUN — the tree\'s facts (the seam, the ride, the context) before the two-run rows')
 const seamGateOf = (seam: RunSeam): PauseGate | null => (seam.gate !== undefined && seam.gate !== null && typeof seam.gate.paused === 'function' ? seam.gate : null)
 const rideExported = typeof runControlMod.workflowGateRide === 'function' && typeof runControlMod.runnerHostsOnlyRun === 'function'

@@ -194,7 +194,7 @@ import {
 } from './attachment-drain.js'
 import { buildModelCallReference } from './call-reference.js'
 import { createEventMint, type RunEvent } from './events.js'
-import { operatorPauseGate, pauseGateModelWords, pauseGateSeatOf } from './pauseGate.js'
+import { operatorPauseGate, pauseGateKeyOf, pauseGateModelWords, pauseGateSeatOf } from './pauseGate.js'
 import { acquireModelPermit, releaseModelPermitByCall } from '../services/capacity/governor.js'
 import { refreshGovernorCeilings } from '../services/capacity/composeCeilings.js'
 import { count } from '../utils/array.js'
@@ -522,9 +522,9 @@ async function* streamModel(
   try {
     while (attemptWithFallback) {
       attemptWithFallback = false
-      if (operatorPauseGate.paused()) {
+      if (operatorPauseGate.holds(pauseGateKeyOf(toolUseContext))) {
         toolUseContext.onSeatWait?.(pauseGateModelWords())
-        await operatorPauseGate.park(toolUseContext.abortController.signal, pauseGateSeatOf(toolUseContext))
+        await operatorPauseGate.park(toolUseContext.abortController.signal, pauseGateSeatOf(toolUseContext), pauseGateKeyOf(toolUseContext))
         toolUseContext.onSeatWait?.(null)
         if (toolUseContext.abortController.signal.aborted) return { kind: 'streamed' }
       }

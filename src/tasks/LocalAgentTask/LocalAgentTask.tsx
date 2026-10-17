@@ -35,6 +35,7 @@ import {
 } from '../../utils/task/diskOutput.js'
 import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { emitTaskProgress } from '../../utils/task/sdkProgress.js'
+import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import { emitTaskEnded, enqueueRow, type TaskUsage } from '../../utils/sdkEventQueue.js'
 import { AGENT_MESSAGE_STATUS, MAIN_AGENT_MESSAGE_SUMMARY } from '../../constants/agentMessage.js'
 import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
@@ -932,7 +933,9 @@ export function queuePendingMessage(
     queued = true
     return { ...task, pendingMessages: [...(task.pendingMessages ?? []), message] }
   })
-  if (queued) recordAgentMessage(taskId, message)
+  if (!queued) return
+  recordAgentMessage(taskId, message)
+  operatorPauseGate.lift(taskId)
 }
 
 export function queueOperatorMessage(
@@ -946,7 +949,9 @@ export function queueOperatorMessage(
     queued = true
     return { ...task, operatorMessages: [...(task.operatorMessages ?? []), message] }
   })
-  if (queued) recordAgentMessage(taskId, message)
+  if (!queued) return
+  recordAgentMessage(taskId, message)
+  operatorPauseGate.lift(taskId)
 }
 
 export function peekOperatorMessages(task: unknown): string[] {

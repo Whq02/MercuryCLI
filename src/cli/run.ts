@@ -1656,6 +1656,7 @@ export async function runHeadless(
       receivedUuids.add(uuid)
     }
     if (input.kind === 'note') {
+      operatorPauseGate.lift(input.to)
       enqueue({
         value: input.content,
         mode: 'task-notification',
