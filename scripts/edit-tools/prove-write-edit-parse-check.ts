@@ -151,6 +151,27 @@ section('P2. Pre-existing identical parse errors and LSP-covered files stay sile
       parseCheckModule.checkIntroducedParseError('/tmp/x.json', '{"a":1}', '{"a":}', true) === undefined,
     parseCheckModule === null ? 'parseCheck.ts missing' : 'returned non-undefined when hasLspServer=true',
   )
+
+  const shiftedTomlPath = join(fixtures, 'shifted-error.toml')
+  const tomlLines = Array.from({ length: 19 }, (_, i) => `key_${i + 1} = ${i + 1}`)
+  tomlLines.push('broken_line = ')
+  writeFileSync(shiftedTomlPath, `${tomlLines.join('\n')}\n`)
+  await run(FileReadTool, { file_path: shiftedTomlPath }, ctx, 'tu_rshift')
+  const eShifted = await run(
+    FileEditTool,
+    {
+      file_path: shiftedTomlPath,
+      old_string: 'key_3 = 3',
+      new_string: 'key_3 = 30\nkey_3_extra = 31',
+    },
+    ctx,
+    'tu_eshift',
+  )
+  check(
+    'P2c editing at line 3 above a pre-existing TOML syntax error at line 20 (shifting its line number) stays silent',
+    eShifted.ok && !/parse error/i.test(eShifted.text),
+    eShifted.ok ? eShifted.text : eShifted.message,
+  )
 }
 
 section('P3. Plain-path control: Write and Edit treat paths carrying !, ::, or : as ordinary filesystem paths')

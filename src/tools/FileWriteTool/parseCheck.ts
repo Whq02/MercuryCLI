@@ -47,6 +47,12 @@ function parseOnce(format: ParseFormat, text: string): string | undefined {
   }
 }
 
+function normalizeParseError(err: string): string {
+  return err
+    .replace(/\s*\(line \d+(?:, column \d+)?\)/gi, '')
+    .replace(/\b(?:line|column|position|offset)\s+\d+/gi, '')
+}
+
 export function checkIntroducedParseError(
   filePath: string,
   beforeContent: string | null,
@@ -62,7 +68,9 @@ export function checkIntroducedParseError(
   if (afterErr === undefined) return undefined
   if (beforeContent !== null) {
     const beforeErr = parseOnce(format, beforeContent)
-    if (beforeErr === afterErr) return undefined
+    if (beforeErr !== undefined && normalizeParseError(beforeErr) === normalizeParseError(afterErr)) {
+      return undefined
+    }
   }
   return afterErr
 }
