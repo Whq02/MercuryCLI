@@ -10,8 +10,8 @@ import wrapText from '../../ink/wrap-text.js'
 
 type ContractOfferAnswer = 'yes' | 'no'
 
-export const CONTRACT_ASK_BLURB = `a contract is the session's advisory work agreement in your words: the agent acknowledges it without being blocked by it. Yes opens a field to write one before the session starts; No starts the session plain (/contract can add one any time).`
-export const CONTRACT_FIELD_BLURB = `the session's advisory work agreement in your words; the agent acknowledges it without being blocked.`
+export const CONTRACT_ASK_BLURB = `a contract is the session's work agreement — what it is for, in your words. It is advisory: the agent is encouraged by it and acknowledges it in its own words, never fenced by it. Yes opens a field here to write one and the session births under it; No births the session plain — /contract can add one any time.`
+export const CONTRACT_FIELD_BLURB = `the session's work agreement, in your words — advisory: the agent acknowledges it, never fenced by it.`
 const CONTRACT_ASK_KEYS = '↑↓ choose · ↵ confirm · esc starts it plain'
 const CONTRACT_ASK_CHROME_ROWS = 9
 const CONTRACT_FIELD_CHROME_ROWS = 9
