@@ -376,13 +376,13 @@ Three wire families serve the providers:
 Whichever wire a session runs on, a turn behaves the same way: text and
 tool calls stream as they arrive; the final usage and stop reason are
 recorded; a provider fault never crashes the turn (a terminal fault lands
-as an API-error message in the chat, cancellation returns quietly, and a
+as an API-error message in the chat, cancellation returns clean, and a
 retryable fault before any content is retried once); every request's usage
 joins the one session cost ledger. A refusal that says the provider is busy
 (an HTTP 503, the Anthropic wire's HTTP 529 or `overloaded_error`, inside a
 stream too, Google's UNAVAILABLE, OpenAI's overloaded model, DeepSeek's
 overloaded server, OpenRouter's no available provider, Z.AI's code 1305, or a
-vendor's own overloaded or unavailable word) is retried quietly on a growing
+vendor's own overloaded or unavailable word) is retried on a growing
 wait on every road (1 s, 2 s, 4 s, 8 s, 16 s and 30 s, about a minute in
 all) before the chat gives up: nothing is painted for the first thirty
 seconds, then the retry line shows the true wait and the true count, and the
@@ -974,7 +974,7 @@ The automatic search order is:
    public-code search requires `GH_TOKEN`; without one, it says so and tries
    the next source.
 4. A configured SearXNG JSON API. There are **no built-in instances**;
-   without configuration, this step says “no metasearch instance configured”.
+   without configuration, this step says "no metasearch instance configured".
    Set `MERCURY_SEARCH_SEARXNG_INSTANCES` to a JSON array of entries containing
    `url` (the instance base), `terms` (its policy URL), `apiAllowed: true` and
    `checked` (the date you read that policy, as `YYYY-MM-DD`). Configure an
@@ -1025,8 +1025,8 @@ if needed. If neither can answer, the page text comes back with that fact.
 
 Fetch requests leave your machine for the site and use the standard
 `HTTPS_PROXY` / `HTTP_PROXY` and `NO_PROXY` settings. When sparse HTML needs a
-browser, Mercury may send the page’s full URL, query string included, to the
-hosted reader **r.jina.ai**; the result says “read through r.jina.ai”. No cookies, credentials or
+browser, Mercury may send the page's full URL, query string included, to the
+hosted reader **r.jina.ai**; the result says "read through r.jina.ai". No cookies, credentials or
 conversation are sent to the reader. `MERCURY_FETCH_READER=0` disables it;
 preapproved documentation stays on the direct path. The reader is paced at
 its keyless allowance and a site or reader refusal names the wait without

@@ -69,8 +69,8 @@ behalf, and no server is tagged by anyone's registry.
 
 Org-managed connector configs can be fetched from the Claude account API
 (strictly opt-in: the registered `MERCURY_ANTHROPIC_CONNECTORS` flag alone
-decides, unset is off, and the fetch additionally requires a Claude sign-in
-carrying the `user:mcp_servers` scope). Ever-connected connectors are recorded
+decides, unset is off, and the fetch also requires a Claude sign-in
+with the `user:mcp_servers` scope). Ever-connected connectors are recorded
 in the global config.
 
 ## Extensions

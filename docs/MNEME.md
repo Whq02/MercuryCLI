@@ -174,8 +174,8 @@ keeps the rule as it is. Under the sovereign permission mode the change runs
 without the card, and `/memory` shows it was made from the chat under
 sovereign. A run with no one to answer the card changes nothing and points
 to `/memory`, where you change it yourself: under pinned rules,
-`↵` opens the rule and `c` corrects it (you retype it, the old wording goes
-to history linked to the new one, and the pin and its "asked for by you" mark
+`↵` opens the rule and `c` corrects it (you retype it, the old wording moves
+to history under the new one, and the pin and its "asked for by you" mark
 follow the new wording); `u` unpins it. Once you have unpinned a rule it is a
 plain fact again: restate the rule in the chat and the model replaces it, so
 one rule stays current. For another pinned rule, a replacement names that

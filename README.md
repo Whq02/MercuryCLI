@@ -798,7 +798,7 @@ Available commands include:
   [Blender](docs/BLENDER-BRIDGE.md), [Godot](docs/VULCAN-GODOT-TOOLS.md) and
   [Aseprite](docs/ASEPRITE-BRIDGE.md).
 - **Extensions.** Each extension has one manifest. Add sources from a git
-  URL, local folder or archive, with approval tied to the contributions hash.
+  URL, local folder or archive, approved by its contributions hash.
   See [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
 - **MCPs & Skills.** Per-repository configuration for what sessions load,
   with named presets and controls you can change during a session. See

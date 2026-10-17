@@ -61,7 +61,7 @@ its exact old/new diff.
 
 ## The anchor-patch dialect
 
-With `MERCURY_ANCHOR_PATCH` (opt-in), `ChangeSet` additionally accepts a
+With `MERCURY_ANCHOR_PATCH` (opt-in), `ChangeSet` also accepts a
 compact patch mode (`patch: "…"` beside `changes[]`): one model-authored
 patch string spells line edits, TS block edits, cut/paste registers
 (cross-file code moves), whole-file delete, and file move over Mercury's
