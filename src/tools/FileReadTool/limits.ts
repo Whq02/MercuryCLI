@@ -8,6 +8,7 @@ export const DEFAULT_MAX_OUTPUT_TOKENS = 25000
 export type FileReadingLimits = {
   maxTokens: number
   maxSizeBytes: number
+  room?: true
 }
 
 export const getDefaultFileReadingLimits = memoize((): FileReadingLimits => ({

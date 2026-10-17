@@ -43,6 +43,7 @@ import { startSessionActivity, stopSessionActivity } from '../../utils/sessionAc
 import { Stream } from '../../utils/stream.js'
 import { formatError, formatZodValidationError } from '../../utils/toolErrors.js'
 import { processPreMappedToolResultBlock } from '../../utils/toolResultStorage.js'
+import { RESULT_ROOM_WORDS, resultRoomFor, tokensOfResultText } from '../run/resultRoom.js'
 import {
   extractDiscoveredToolNames,
   isToolSearchEnabledOptimistic,
@@ -834,7 +835,17 @@ async function runTransactionBody(args: {
     const allowBlocks = (decision as { contentBlocks?: unknown[] }).contentBlocks ?? []
 
     const buildResultUpdate = async (blockForEmission: ToolResultBlockParam): Promise<MessageUpdateLazy> => {
-      const processed = await processPreMappedToolResultBlock(blockForEmission, tool.name, tool.maxResultSizeChars)
+      const room = resultRoomFor(assistantMessage)
+      const processed = await processPreMappedToolResultBlock(
+        blockForEmission,
+        tool.name,
+        tool.maxResultSizeChars,
+        room === null ? undefined : { shareChars: room.allowance(toolUseID) * 4, words: RESULT_ROOM_WORDS },
+      )
+      if (room !== null) {
+        const landed = (processed as { content?: unknown }).content
+        room.settle(toolUseID, tokensOfResultText(typeof landed === 'string' ? landed : JSON.stringify(landed ?? '')))
+      }
       const blocks: unknown[] = [processed]
       if (acceptFeedback) blocks.push({ type: 'text', text: acceptFeedback })
       blocks.push(...allowBlocks)

@@ -71,6 +71,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import type { Message } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import { getDefaultFileReadingLimits, type FileReadingLimits } from './limits.js'
+import { RESULT_ROOM_WORDS, resultRoomFor } from '../../services/run/resultRoom.js'
 import {
   DESCRIPTION,
   FILE_READ_TOOL_NAME,
@@ -138,7 +139,7 @@ function selectedPages(pages: string | undefined): string | undefined {
 export type Input = z.infer<WidestReadSchema>
 
 
-type OverCapNote = { tokens: number; maxTokens: number; next: { offset: number; limit: number } }
+type OverCapNote = { tokens: number; maxTokens: number; next: { offset: number; limit: number }; room?: true }
 
 export type Output =
   | {
@@ -183,7 +184,7 @@ const outputSchema = z.discriminatedUnion('type', [
       anchor: z.string().optional(),
       memoryUpdatedAt: z.number().optional(),
       overCap: z
-        .object({ tokens: z.number(), maxTokens: z.number(), next: z.object({ offset: z.number(), limit: z.number() }) })
+        .object({ tokens: z.number(), maxTokens: z.number(), next: z.object({ offset: z.number(), limit: z.number() }), room: z.literal(true).optional() })
         .optional(),
     }),
   }),
@@ -346,16 +347,16 @@ function firstWindowUnderCap(
   const content = whole.content.split('\n').slice(0, count).join('\n')
   return {
     shown: { ...whole, content, lineCount: count, readBytes: Buffer.byteLength(content) },
-    note: { tokens: tokenCount, maxTokens: limits.maxTokens, next: { offset: window.end + 1, limit: Math.min(count, remaining) } },
+    note: { tokens: tokenCount, maxTokens: limits.maxTokens, next: { offset: window.end + 1, limit: Math.min(count, remaining) }, ...(limits.room === true ? { room: true as const } : {}) },
   }
 }
 
-async function tokensOverCap(content: string, ext: string, maxTokens: number): Promise<number | undefined> {
+async function tokensOverCap(content: string, ext: string, maxTokens: number, exact = true): Promise<number | undefined> {
   const estimate = roughTokenCountEstimationForFileType(content, ext)
   if (!estimate || estimate <= maxTokens / 4) return undefined
   let effective = estimate
   try {
-    const accurate = await countTokensWithAPI(content)
+    const accurate = exact ? await countTokensWithAPI(content) : null
     if (accurate !== null) effective = accurate
   } catch {
   }
@@ -762,7 +763,7 @@ async function readTextLane(
   const totalLines = realLineTotal(range)
   let shown = shownWindow(range, lineOffset)
   const rendered = numberedReadContent(shown.content, lineOffset + 1, lineAnchorsEnabled() && input.line_anchors === true)
-  const tokens = await tokensOverCap(rendered, ext, limits.maxTokens)
+  const tokens = await tokensOverCap(rendered, ext, limits.maxTokens, limits.room !== true)
   if (tokens !== undefined) {
     const window = firstWindowUnderCap(range, shown.count, totalLines, rendered, lineOffset, resolvedPath, ext, limits, tokens)
     if (!ownRead || window === null) {
@@ -878,10 +879,10 @@ function cutMark(file: TextFile): string {
 function overCapWords(file: TextFile): string {
   const note = file.overCap!
   const shown = `${windowSpan(file)} of ${file.totalLines} ${file.numLines === 1 ? 'is below and counts as read' : 'are below and count as read'}`
-  return (
-    `File content (${note.tokens} tokens) exceeds maximum allowed tokens (${note.maxTokens}): ${shown}; ` +
-    overCapNextWords(note.next)
-  )
+  const cap = note.room === true
+    ? `exceeds the room left in the context (${note.maxTokens} tokens — ${RESULT_ROOM_WORDS}; read in pieces)`
+    : `exceeds maximum allowed tokens (${note.maxTokens})`
+  return `File content (${note.tokens} tokens) ${cap}: ${shown}; ${overCapNextWords(note.next)}`
 }
 
 
@@ -1020,8 +1021,11 @@ export const FileReadTool = buildTool({
   },
   async call(input: Input, context: ToolUseContext, _canUseTool?: unknown, parentMessage?: unknown) {
     const ownRead = parentMessage !== undefined
-    const limits: FileReadingLimits =
+    const declaredLimits: FileReadingLimits =
       (context.fileReadingLimits as FileReadingLimits | undefined) ?? getDefaultFileReadingLimits()
+    const room = ownRead ? resultRoomFor(parentMessage) : null
+    const granted = room === null ? declaredLimits.maxTokens : room.reserve(context.toolUseId ?? '', declaredLimits.maxTokens)
+    const limits: FileReadingLimits = granted < declaredLimits.maxTokens ? { ...declaredLimits, maxTokens: granted, room: true } : declaredLimits
     const ext = extensionOf(input.file_path)
     const fullFilePath = expandPath(input.file_path)
     const settle = (lane: LaneResult): { data: Output; newMessages?: Message[] } => {

@@ -11,6 +11,10 @@ import { closeRound } from './loopGuard.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
 import { parkBeforeTool } from '../../run-core/pauseGate.js'
 import { randomUUID } from 'node:crypto'
+import { getAutoCompactThreshold, getBlockingLimit, resolveAutoCompactWindow } from '../compact/autoCompact.js'
+import { tokenCountWithEstimation } from '../../utils/tokens.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { bindResultRoom, createResultRoom, resultRoomBudget, type ResultRoom } from '../run/resultRoom.js'
 
 
 type MessageUpdate = {
@@ -74,6 +78,23 @@ async function parkBeforeBlock(block: ToolUseBlock, context: ToolUseContext): Pr
   await parkBeforeTool(context, block.name)
 }
 
+function openResultRoomForRound(assistantMessages: readonly AssistantMessage[], context: ToolUseContext): ResultRoom | null {
+  const model = context.options.engineModel
+  if (typeof model !== 'string' || model === '' || assistantMessages.length === 0) return null
+  const gauge = tokenCountWithEstimation([...context.messages, ...assistantMessages], model)
+  const budget = resultRoomBudget({
+    window: resolveAutoCompactWindow(model).window,
+    blockingLimit: getBlockingLimit(model),
+    foldLine: getAutoCompactThreshold(model),
+    gauge,
+  })
+  if (!budget.awake) return null
+  const room = createResultRoom(budget)
+  bindResultRoom(room, assistantMessages)
+  logForDebugging(`result room: the context reads ${gauge} tokens past the line at ${budget.line} — this round's results share a ceiling of ${budget.ceiling} tokens (room ${budget.room} to the blocking limit, floor ${budget.floor} per result)`)
+  return room
+}
+
 export async function* runTools(
   toolUseBlocks: ToolUseBlock[],
   assistantMessages: AssistantMessage[],
@@ -82,6 +103,7 @@ export async function* runTools(
 ): AsyncGenerator<MessageUpdate> {
   let context = toolUseContext
   const roundID = `round:${randomUUID()}`
+  openResultRoomForRound(assistantMessages, toolUseContext)
 
   const batches: Array<{ concurrent: boolean; blocks: ToolUseBlock[] }> = []
   for (const block of toolUseBlocks) {
