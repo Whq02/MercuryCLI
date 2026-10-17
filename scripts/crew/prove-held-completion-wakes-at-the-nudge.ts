@@ -28,12 +28,28 @@ type Frame = Record<string, unknown> & { atMs: number }
 const runHome = realpathSync(mkdtempSync(join(tmpdir(), 'held-completion-nudge-')))
 const cwd = join(runHome, 'work')
 const t0 = Date.now()
+let notificationTurns = 0
+let nudgeTurns = 0
+let followUpNotificationsInHistory = 0
+let followUpNudgesInHistory = 0
+const FOLLOW_UP = 'operator follow-up after the nudge'
+const FOLLOW_UP_ACK = 'follow-up acknowledged'
 const fixture: ScriptedFixture = await startScriptedFixture((req: ScriptedRequest): WireBlock[] => {
   if (req.opening.trim() === AGENT_PROMPT) {
     if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `sleep ${CREWMATE_SECONDS}`, description: 'the crewmate sleeps' } }]
     return [{ type: 'text', text: AGENT_DONE }]
   }
-  if (req.ask.includes('<task-notification>') || req.allTexts.some(text => text.includes('waited unread'))) {
+  if (req.ask.includes(FOLLOW_UP)) {
+    followUpNotificationsInHistory = req.allTexts.filter(t => t.includes('<task-notification>')).length
+    followUpNudgesInHistory = req.allTexts.filter(t => t.includes('waited unread')).length
+    return [{ type: 'text', text: FOLLOW_UP_ACK }]
+  }
+  if (req.allTexts.some(text => text.includes('waited unread'))) {
+    nudgeTurns++
+    return [{ type: 'text', text: 'nudge settled' }]
+  }
+  if (req.ask.includes('<task-notification>')) {
+    notificationTurns++
     const carried = req.allTexts.some(text => text.includes(AGENT_DONE))
     return [{ type: 'text', text: carried ? `${RELAYED} ${AGENT_DONE}` : 'a wake with no report in hand' }]
   }
@@ -89,7 +105,10 @@ const ended = await until('the crewmate to finish', () => taskEnded() !== undefi
 const endedAt = taskEnded()?.atMs
 const woke = await until('the lead to wake with the report', () => relayed() !== undefined, vshotBudgetMs(DEADLINE_MS + 12_000))
 const wokeAt = relayed()?.atMs
-await sleep(500)
+await sleep(DEADLINE_MS + 400)
+void host.prompt(FOLLOW_UP, { id: randomUUID() }).catch(() => undefined)
+const followedUp = await until('the operator follow-up to settle', () => frames.some(f => f.type === 'text' && f.parent_call_id === undefined && JSON.stringify(f).includes(FOLLOW_UP_ACK)), vshotBudgetMs(15_000))
+await sleep(200)
 host.end()
 await Promise.race([host.exited, sleep(5_000)])
 try {
@@ -99,6 +118,7 @@ try {
 await fixture.close()
 
 const leadTurnsAfterCompletion = turnRows().filter(f => endedAt !== undefined && f.atMs >= endedAt)
+const relayedFrames = frames.filter(f => f.type === 'text' && f.parent_call_id === undefined && JSON.stringify(f).includes(RELAYED))
 console.log(`  timeline: esc ${seconds(escAt)} · crewmate ended ${seconds(endedAt)} · lead woke with the report ${seconds(wokeAt)} · turns ${turnRows().map(f => seconds(f.atMs)).join(', ')}`)
 console.log(`  interrupt answer: ${JSON.stringify(interrupted)} · frames ${frames.length}`)
 
@@ -107,9 +127,11 @@ tally.check('the lead launched the crewmate in the background and parked on it',
 tally.check('esc ended the park and the lead went idle while the crewmate ran on', idle && interrupted !== null, `idle ${idle} interrupt ${JSON.stringify(interrupted)}`)
 tally.check('the crewmate finished while the lead was idle', ended && endedAt !== undefined && endedAt > escAt, `ended ${seconds(endedAt)}`)
 tally.check('no turn started between the esc and the completion (the esc law stands inside the deadline)', turnRows().filter(f => f.atMs > escAt + 500 && (endedAt === undefined || f.atMs < endedAt)).length === 0, turnRows().map(f => seconds(f.atMs)).join(', '))
+tally.check('after the completion, the esc hold kept the report held until the nudge deadline', endedAt !== undefined && leadTurnsAfterCompletion[0] !== undefined && leadTurnsAfterCompletion[0].atMs - endedAt >= DEADLINE_MS - 150, `ended ${seconds(endedAt)} · first wake turn ${seconds(leadTurnsAfterCompletion[0]?.atMs)}`)
 tally.check('the lead woke with the report in hand without any keystroke', woke && relayed() !== undefined, woke ? '' : `no relay; last frames ${frames.slice(-4).map(f => `${String(f.type)}${f.state !== undefined ? `:${String(f.state)}` : ''}`).join(' ')}`)
 tally.check(`the wake came within the deadline plus the poll window (${DEADLINE_MS} ms + a few seconds)`, endedAt !== undefined && wokeAt !== undefined && wokeAt - endedAt <= vshotBudgetMs(DEADLINE_MS + 8_000), `ended ${seconds(endedAt)} · woke ${seconds(wokeAt)}`)
 tally.check('the wake was its own turn (a turn started after the completion)', leadTurnsAfterCompletion.length >= 1 && turnRows().length > turnsBeforeCompletion, `turns after completion: ${leadTurnsAfterCompletion.length}`)
+tally.check('the held report was delivered once at the nudge and never a second time on a later sweep or operator turn', followedUp && notificationTurns === 1 && nudgeTurns === 1 && followUpNotificationsInHistory === 1 && followUpNudgesInHistory === 1 && relayedFrames.length === 1, `notificationTurns=${notificationTurns} nudgeTurns=${nudgeTurns} inHistory=${followUpNotificationsInHistory}/${followUpNudgesInHistory} relayedFrames=${relayedFrames.length}`)
 tally.check('no runner error on stderr', !/error|exception/i.test(stderr), stderr.slice(0, 300))
 
 tally.section('the seam: the nudge is the operator stand-in the driver waits for')
