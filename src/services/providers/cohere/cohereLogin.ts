@@ -1,16 +1,16 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { writeStoredCohereApiKey } from '../../../utils/router/providerSecrets.js'
-import { COHERE_KEY_PAGE, cohereApiBase, cohereEnvKey } from './cohereAccounts.js'
+import { cohereApiBase, cohereEnvKey } from './cohereAccounts.js'
 import { CohereCatalogueHttpError, fetchCohereLiveModels } from './cohereCatalogue.js'
 
-export interface CohereKeyLoginOutcome {
+interface CohereKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string
 }
 
-export const COHERE_KEY_RECEIPT_TAIL = 'A trial key is rate-limited and for evaluation; a production key bills pay-as-you-go, with spend shown at dashboard.cohere.com.'
+const COHERE_KEY_RECEIPT_TAIL = 'A trial key is rate-limited and for evaluation; a production key bills pay-as-you-go, with spend shown at dashboard.cohere.com.'
 
 export async function storeCohereApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<CohereKeyLoginOutcome> {
   key = key.trim()
@@ -23,7 +23,7 @@ export async function storeCohereApiKeyLogin(key: string, io?: { fetchImpl?: typ
     note = `${result.models.length} chat ${result.models.length === 1 ? 'model' : 'models'} listed`
   } catch (error) {
     if (error instanceof CohereCatalogueHttpError && (error.status === 401 || error.status === 403)) {
-      return { ok: false, stored: false, receipt: `Cohere refused this key (HTTP ${error.status}) — nothing stored; create an API key at ${COHERE_KEY_PAGE} and paste again.` }
+      return { ok: false, stored: false, receipt: `Cohere refused this key (HTTP ${error.status}) — nothing stored; create an API key at dashboard.cohere.com/api-keys and paste again.` }
     }
     note = `UNVERIFIED — the model list could not confirm the key (${safe(errorMessageWithCause(error))})`
   }

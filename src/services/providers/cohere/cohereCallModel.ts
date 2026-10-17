@@ -6,7 +6,7 @@ import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
-import { COHERE_ENV_KEY, COHERE_KEY_PAGE, cohereChatCompletionsUrl, resolveCohereAccount, resolveCohereApiKey } from './cohereAccounts.js'
+import { COHERE_ENV_KEY, cohereChatCompletionsUrl, resolveCohereAccount, resolveCohereApiKey } from './cohereAccounts.js'
 import { cohereListedModel, cohereModelFacts, getCachedCohereCatalogue, newestCohereModel } from './cohereCatalogue.js'
 import { isCohereChatModelId } from './coherePins.js'
 
@@ -19,14 +19,14 @@ export function buildCohereExtras(args: LaneExtrasArgs, outputFormat?: CallModel
   }
 }
 
-export const cohereLaneProfile: CompatLaneProfile = {
+const cohereLaneProfile: CompatLaneProfile = {
   lane: 'cohere', providerLabel: 'Cohere',
   resolveCredential: () => {
     const key = resolveCohereApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint: `no Cohere API key detected — /logins cohere stores one (made at ${COHERE_KEY_PAGE}); ${COHERE_ENV_KEY} works too.`,
-  authRemedy: `set a valid ${COHERE_ENV_KEY}, or /logins cohere stores a new key from ${COHERE_KEY_PAGE}.`,
+  credentialHint: `no Cohere API key detected — /logins cohere stores one (made at dashboard.cohere.com/api-keys); ${COHERE_ENV_KEY} works too.`,
+  authRemedy: `set a valid ${COHERE_ENV_KEY}, or /logins cohere stores a new key from dashboard.cohere.com/api-keys.`,
   billingRemedy: 'the Cohere account cannot be billed for this request — a trial key is rate-limited and non-commercial, a production key bills pay-as-you-go at dashboard.cohere.com/billing; fix the account there, then retry; /model picks another model meanwhile.',
   requestUrl: () => cohereChatCompletionsUrl(),
   wireModelId: model => model,

@@ -1,16 +1,16 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { writeStoredTogetherApiKey } from '../../../utils/router/providerSecrets.js'
-import { TOGETHER_KEY_PAGE, togetherApiBase, togetherEnvKey } from './togetherAccounts.js'
+import { togetherApiBase, togetherEnvKey } from './togetherAccounts.js'
 import { fetchTogetherLiveModels, TogetherCatalogueHttpError } from './togetherCatalogue.js'
 
-export interface TogetherKeyLoginOutcome {
+interface TogetherKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string
 }
 
-export const TOGETHER_KEY_RECEIPT_TAIL = 'Requests draw the prepaid balance at the vendor\'s per-model prices; the balance and spend controls live at api.together.ai/settings/billing.'
+const TOGETHER_KEY_RECEIPT_TAIL = 'Requests draw the prepaid balance at the vendor\'s per-model prices; the balance and spend controls live at api.together.ai/settings/billing.'
 
 export async function storeTogetherApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<TogetherKeyLoginOutcome> {
   key = key.trim()
@@ -23,7 +23,7 @@ export async function storeTogetherApiKeyLogin(key: string, io?: { fetchImpl?: t
     note = `${result.models.length} chat ${result.models.length === 1 ? 'model' : 'models'} listed${result.otherKinds > 0 ? ` (${result.otherKinds} image, video and audio rows set aside)` : ''}`
   } catch (error) {
     if (error instanceof TogetherCatalogueHttpError && (error.status === 401 || error.status === 403)) {
-      return { ok: false, stored: false, receipt: `Together AI refused this key (HTTP ${error.status}) — nothing stored; create a key at ${TOGETHER_KEY_PAGE} and paste again.` }
+      return { ok: false, stored: false, receipt: `Together AI refused this key (HTTP ${error.status}) — nothing stored; create a key at api.together.ai/settings (the project's API Keys page) and paste again.` }
     }
     note = `UNVERIFIED — the model list could not confirm the key (${safe(errorMessageWithCause(error))})`
   }

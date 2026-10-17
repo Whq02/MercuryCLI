@@ -9,9 +9,9 @@ import { MINIMAX_AUTH_CODES, minimaxBaseRespFailure } from './minimaxCatalogue.j
 export const MINIMAX_BALANCE_NOTE = 'a pay-as-you-go key draws the Open Platform balance, shown at platform.minimax.io (the API states no balance to clients)'
 export const MINIMAX_PLAN_ABSENT_NOTE = 'no M Plan window on this key — turns draw the pay-as-you-go balance'
 
-export type MinimaxWindowName = '5 hour' | 'weekly'
+type MinimaxWindowName = '5 hour' | 'weekly'
 
-export interface MinimaxPlanWindow {
+interface MinimaxPlanWindow {
   model: string
   name: MinimaxWindowName
   usedPercent: number
@@ -22,19 +22,19 @@ export interface MinimaxPlanWindow {
   used?: number
 }
 
-export interface MinimaxPlanUsage {
+interface MinimaxPlanUsage {
   observedAtMs: number
   windows: MinimaxPlanWindow[]
 }
 
-export type MinimaxPlanProbe =
+type MinimaxPlanProbe =
   | { state: 'confirmed'; usage: MinimaxPlanUsage }
   | { state: 'no-plan' }
   | { state: 'refused'; status: number; message?: string }
   | { state: 'invalid' }
   | { state: 'unreachable'; message: string }
 
-export interface MinimaxPlanObservation {
+interface MinimaxPlanObservation {
   usage: MinimaxPlanUsage | null
   plan: 'm-plan' | 'none' | 'unknown'
   failure: { atMs: number; kind: 'refused' | 'unreachable' | 'invalid'; status?: number } | null
@@ -87,7 +87,7 @@ function count(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
 }
 
-export function decodeMinimaxPlanUsage(body: unknown, nowMs: number): MinimaxPlanUsage | 'no-plan' | undefined {
+function decodeMinimaxPlanUsage(body: unknown, nowMs: number): MinimaxPlanUsage | 'no-plan' | undefined {
   if (typeof body !== 'object' || body === null) return undefined
   const remains = (body as Record<string, unknown>).model_remains
   if (remains === undefined || remains === null) return 'no-plan'

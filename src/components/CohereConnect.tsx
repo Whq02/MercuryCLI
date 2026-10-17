@@ -9,8 +9,8 @@ import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
 
-export const COHERE_CONNECT_BILLING_LINE = 'A trial key is free, rate-limited and for evaluation; a production key bills pay-as-you-go. Command, North and Aya chat models ride the compatibility endpoint; embed and rerank do not.'
-export const COHERE_CONNECT_STORE_LINE = 'Checked on the model list first (a refused key is never stored); stored auth-scoped (mode 600), never logged. COHERE_API_KEY wins over the store.'
+const COHERE_CONNECT_BILLING_LINE = 'A trial key is free, rate-limited and for evaluation; a production key bills pay-as-you-go. Command, North and Aya chat models ride the compatibility endpoint; embed and rerank do not.'
+const COHERE_CONNECT_STORE_LINE = 'Checked on the model list first (a refused key is never stored); stored auth-scoped (mode 600), never logged. COHERE_API_KEY wins over the store.'
 
 export function CohereConnect({ onResult, onBack }: {
   onResult: (result: { ok: boolean; receipt: string }) => void

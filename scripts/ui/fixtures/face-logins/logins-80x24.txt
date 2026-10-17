@@ -1,6 +1,7 @@
 
  (>_) MERCURY · logins
 
+
  signed in
  ❯ OpenAI — ChatGPT subscription or API key  ChatGPT Plus
    Claude subscription account               op@example.com
@@ -16,7 +17,7 @@
    Meta — Muse Code sign-in or API key       not signed in
    Mistral — API key (Mistral Large 4)       not signed in
    Nous Portal — account sign-in or API ke…  not signed in
-   OpenCode Zen — API key (one key, the ga…  not signed in
+ ↓ 4 more
 
  OpenAI · ChatGPT Plus
  ↑↓ move · ↵ sign in · esc back

@@ -1,8 +1,6 @@
 import { readStoredMinimaxApiKey } from '../../../utils/router/providerSecrets.js'
 
-export const MINIMAX_API_BASE_URL = 'https://api.minimax.io/v1'
-export const MINIMAX_KEY_PAGE = 'platform.minimax.io/user-center/basic-information/interface-key'
-export const MINIMAX_PLAN_PAGE = 'platform.minimax.io/console/plan'
+const MINIMAX_API_BASE_URL = 'https://api.minimax.io/v1'
 export const MINIMAX_ENV_KEY = 'MINIMAX_API_KEY'
 
 export function minimaxApiBase(env: NodeJS.ProcessEnv = process.env): string {
@@ -13,7 +11,7 @@ export function minimaxChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env):
   return `${minimaxApiBase(env)}/chat/completions`
 }
 
-export function minimaxModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
+function minimaxModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${minimaxApiBase(env)}/models`
 }
 
@@ -33,7 +31,7 @@ export function resolveMinimaxApiKey(env: NodeJS.ProcessEnv = process.env): { ke
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export interface MinimaxAccountRef {
+interface MinimaxAccountRef {
   kind: 'api-key'
   label: string
   keySource: 'env' | 'stored'

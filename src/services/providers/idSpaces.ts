@@ -42,10 +42,10 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'gemini', qualifiedPrefix: 'google/', innerGrammar: 'named', barePrefixes: ['gemini-'], bareAliases: ['gemini'] },
   { route: 'mistral', barePrefixes: ['mistral-', 'ministral-', 'codestral-'], bareAliases: ['mistral'] },
   { route: 'nous', qualifiedPrefix: 'nous/', innerGrammar: 'segments-2' },
-  { route: 'zen', qualifiedPrefix: 'zen/', innerGrammar: 'named' },
   { route: 'together', qualifiedPrefix: 'together/', innerGrammar: 'segments-2' },
   { route: 'minimax', barePrefixes: ['minimax-'], bareAliases: ['minimax'] },
   { route: 'cohere', barePrefixes: ['command-', 'north-', 'c4ai-aya-'], bareAliases: ['cohere'] },
+  { route: 'zen', qualifiedPrefix: 'zen/', innerGrammar: 'named' },
 ]
 
 export const COMPAT_MODEL_PREFIX = 'compat/'

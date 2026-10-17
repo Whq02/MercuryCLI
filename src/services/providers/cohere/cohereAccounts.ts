@@ -1,9 +1,8 @@
 import { readStoredCohereApiKey } from '../../../utils/router/providerSecrets.js'
 
-export const COHERE_API_BASE_URL = 'https://api.cohere.ai/compatibility/v1'
-export const COHERE_KEY_PAGE = 'dashboard.cohere.com/api-keys'
+const COHERE_API_BASE_URL = 'https://api.cohere.ai/compatibility/v1'
 export const COHERE_ENV_KEY = 'COHERE_API_KEY'
-export const COHERE_ENV_KEY_ALT = 'CO_API_KEY'
+const COHERE_ENV_KEY_ALT = 'CO_API_KEY'
 
 export function cohereApiBase(env: NodeJS.ProcessEnv = process.env): string {
   return (env.MERCURY_COHERE_API_BASE?.trim() || COHERE_API_BASE_URL).replace(/\/+$/, '')
@@ -13,7 +12,7 @@ export function cohereChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): 
   return `${cohereApiBase(env)}/chat/completions`
 }
 
-export function cohereModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
+function cohereModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${cohereApiBase(env)}/models`
 }
 
@@ -31,7 +30,7 @@ export function resolveCohereApiKey(env: NodeJS.ProcessEnv = process.env): { key
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export interface CohereAccountRef {
+interface CohereAccountRef {
   kind: 'api-key'
   label: string
   keySource: 'env' | 'stored'

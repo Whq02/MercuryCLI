@@ -7,7 +7,7 @@ import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import { thinkingOffWireEffort, type LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
-import { TOGETHER_ENV_KEY, TOGETHER_KEY_PAGE, resolveTogetherAccount, resolveTogetherApiKey, togetherChatCompletionsUrl } from './togetherAccounts.js'
+import { TOGETHER_ENV_KEY, resolveTogetherAccount, resolveTogetherApiKey, togetherChatCompletionsUrl } from './togetherAccounts.js'
 import { cachedLiveIds, getCachedTogetherCatalogue, togetherListedModel } from './togetherCatalogue.js'
 import { togetherEffortVocabulary, togetherThinkingDial, togetherWireId } from './togetherPins.js'
 
@@ -26,15 +26,15 @@ export function buildTogetherExtras(args: LaneExtrasArgs & { promptCacheKey?: st
   }
 }
 
-export const togetherLaneProfile: CompatLaneProfile = {
+const togetherLaneProfile: CompatLaneProfile = {
   lane: 'together',
   providerLabel: 'Together AI',
   resolveCredential: () => {
     const key = resolveTogetherApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint: `no Together AI API key detected — /logins together stores one (made at ${TOGETHER_KEY_PAGE}); ${TOGETHER_ENV_KEY} works too.`,
-  authRemedy: `create a key at ${TOGETHER_KEY_PAGE} and store it with /logins together, or set a valid ${TOGETHER_ENV_KEY}.`,
+  credentialHint: `no Together AI API key detected — /logins together stores one (made at api.together.ai/settings, the project's API Keys page); ${TOGETHER_ENV_KEY} works too.`,
+  authRemedy: `create a key at api.together.ai/settings (the project's API Keys page) and store it with /logins together, or set a valid ${TOGETHER_ENV_KEY}.`,
   billingRemedy: 'the Together AI prepaid balance is spent — add credit at api.together.ai/settings/billing, then retry; /model picks another model meanwhile.',
   requestUrl: () => togetherChatCompletionsUrl(),
   wireModelId: model => togetherWireId(model),

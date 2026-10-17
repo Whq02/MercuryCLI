@@ -3,7 +3,7 @@ import { resolveCohereAccount } from '../../../services/providers/cohere/cohereA
 import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from './types.js'
 import { SPECIALIST_ROLES } from './types.js'
 
-export function cohereLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+function cohereLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = cohereCatalogueRows()
   if (source.kind !== 'live') return undefined
   return { fetchedAtMs: source.fetchedAtMs, entries: rows.map(row => ({
@@ -21,7 +21,7 @@ export function cohereCatalogueEntry(id: string): ProviderCatalogueEntry | undef
   return cohereCatalogueEntries().find(row => row.id.toLowerCase() === id.trim().toLowerCase())
 }
 
-export function describeCohereProvider(): ProviderDescription {
+function describeCohereProvider(): ProviderDescription {
   const account = resolveCohereAccount()
   const live = cohereLiveCatalogue()
   return {
@@ -34,20 +34,20 @@ export function describeCohereProvider(): ProviderDescription {
   }
 }
 
-export function cohereStatus(): RouterProviderStatus {
+function cohereStatus(): RouterProviderStatus {
   return resolveCohereAccount() ? { available: true } : { available: false, reason: 'no-api-key:cohere' }
 }
 
-export function listCohereModels(): RouterProviderModel[] {
+function listCohereModels(): RouterProviderModel[] {
   if (!cohereStatus().available) return []
   return cohereCatalogueEntries().map(entry => ({ ref: { provider: 'cohere', model: entry.id, modelClass: 'cohere', effort: 'high', contextWindow: entry.contextWindow ?? 0 }, displayLabel: entry.displayLabel }))
 }
 
-export function resolveCohereModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+function resolveCohereModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
   return null
 }
 
-export function buildCohereLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildCohereLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error('router: provider cohere has no SEAT runtime — Cohere specialists dispatch through the AgentTool engine path')
 }
 

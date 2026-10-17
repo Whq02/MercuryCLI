@@ -1,5 +1,5 @@
 export const COHERE_OBSERVED_AT = '2026-10-17'
-export const COHERE_EFFORTS = ['none', 'high'] as const
+const COHERE_EFFORTS = ['none', 'high'] as const
 
 export function isCohereModelId(model: string): boolean {
   const id = model.trim().toLowerCase()
@@ -11,7 +11,7 @@ export function isCohereChatModelId(model: string): boolean {
   return /^(?:command-|north-|c4ai-aya-)/.test(id) && !/(?:embed|rerank|classify)/.test(id)
 }
 
-export interface CohereDisplayPin {
+interface CohereDisplayPin {
   id: string
   displayName: string
   observedAt: string
@@ -53,6 +53,6 @@ export function cohereDisplayName(id: string): string {
   return cohereDisplayPin(id)?.displayName ?? id
 }
 
-export function cohereAcceptsEffort(model: string, effort: string): boolean {
+function cohereAcceptsEffort(model: string, effort: string): boolean {
   return cohereDisplayPin(model)?.efforts.includes(effort) === true
 }

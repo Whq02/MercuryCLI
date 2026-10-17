@@ -175,9 +175,21 @@ const ABSENT: Partial<Record<string, Partial<Record<Arm, string>>>> = {
     refresh: 'a stored API key has no refresh protocol — honest absence',
     'expiry-at-rest': 'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
   },
+  minimax: {
+    refresh: 'a stored API key has no refresh protocol — honest absence',
+    'expiry-at-rest': 'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
+  },
+  together: {
+    refresh: 'a stored API key has no refresh protocol — honest absence',
+    'expiry-at-rest': 'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
+  },
+  cohere: {
+    refresh: 'a stored API key has no refresh protocol — honest absence',
+    'expiry-at-rest': 'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
+  },
 }
 
-check('the family set is the resolver’s fifteen (including Anthropic)', families.length === 15, families.join(', '))
+check('the family set is the resolver’s eighteen (including Anthropic)', families.length === 18, families.join(', '))
 {
   let driven = 0
   let absent = 0
@@ -222,6 +234,9 @@ const RECONNECT_DOORS: Record<string, string> = {
   local: '/router key local',
   nous: '/logins nous',
   zen: '/logins zen',
+  minimax: '/logins minimax',
+  together: '/logins together',
+  cohere: '/logins cohere',
 }
 
 section('§1 sign-in: the signed-out answers name the right door, every family')
@@ -245,6 +260,9 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
       'no local server discovered — /localsetup sets one up (Ollama, LM Studio, vLLM, llama.cpp), or start one and set MERCURY_LOCAL_BASE_URL',
     nous: 'no Nous Portal API key — /logins nous (or NOUS_API_KEY)',
     zen: 'no OpenCode Zen API key — /logins zen (or OPENCODE_API_KEY)',
+    minimax: 'no MiniMax API key — /logins minimax (or MINIMAX_API_KEY)',
+    together: 'no Together AI API key — /logins together (or TOGETHER_API_KEY)',
+    cohere: 'no Cohere API key — /logins cohere (or COHERE_API_KEY)',
   }
   for (const family of families) {
     const lane = map[family as keyof typeof map]
@@ -270,6 +288,9 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     gemini: 'not connected — /logins adds Gemini',
     huggingface: 'not connected — /logins adds Hugging Face',
     zen: 'not connected — /logins zen adds a key',
+    minimax: 'not connected — /logins minimax adds a key',
+    together: 'not connected — /logins together adds a key',
+    cohere: 'not connected — /logins cohere adds a key',
     local: 'no local server — start one, or set MERCURY_LOCAL_BASE_URL',
     nous: 'not connected — /logins nous adds a key',
   }
@@ -316,9 +337,9 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
   check('the starting row follows display order, not a fixed index mapping', loginFamilyInitialFocus(reversed, undefined) === reversed[0]!.value)
   check('an empty list has no selected row', loginFamilyInitialFocus([], undefined) === undefined)
   check(
-    'the /logins catalogue carries the thirteen sign-in families (anthropic as claudeai+console)',
+    'the /logins catalogue carries the sixteen sign-in families (anthropic as claudeai+console)',
     rows.join('|') ===
-      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'zen'].join('|'),
+      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'minimax', 'together', 'cohere', 'zen'].join('|'),
     rows.join('|'),
   )
   check(
@@ -326,9 +347,9 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     loginFamilyFocusFor('openai-compat') === undefined && loginFamilyFocusFor('local') === undefined,
   )
   check(
-    "the thirteen sign-in families parse a /logins focus (anthropic → 'claudeai')",
+    "the sixteen sign-in families parse a /logins focus (anthropic → 'claudeai')",
     loginFamilyFocusFor('anthropic') === 'claudeai' &&
-      (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'zen'] as const).every(
+      (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere'] as const).every(
         family => loginFamilyFocusFor(family) === family,
       ),
   )

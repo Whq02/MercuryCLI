@@ -4,7 +4,7 @@ import { togetherEffortVocabulary } from '../../../services/providers/together/t
 import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from './types.js'
 import { SPECIALIST_ROLES } from './types.js'
 
-export function togetherLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+function togetherLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = togetherCatalogueRows()
   if (source.kind !== 'live') return undefined
   return { fetchedAtMs: source.fetchedAtMs, entries: rows.map(row => ({
@@ -22,7 +22,7 @@ export function togetherCatalogueEntry(id: string): ProviderCatalogueEntry | und
   return togetherCatalogueEntries().find(row => row.id.toLowerCase() === id.trim().toLowerCase())
 }
 
-export function describeTogetherProvider(): ProviderDescription {
+function describeTogetherProvider(): ProviderDescription {
   const account = resolveTogetherAccount()
   const live = togetherLiveCatalogue()
   return {
@@ -35,20 +35,20 @@ export function describeTogetherProvider(): ProviderDescription {
   }
 }
 
-export function togetherStatus(): RouterProviderStatus {
+function togetherStatus(): RouterProviderStatus {
   return resolveTogetherAccount() ? { available: true } : { available: false, reason: 'no-api-key:together' }
 }
 
-export function listTogetherModels(): RouterProviderModel[] {
+function listTogetherModels(): RouterProviderModel[] {
   if (!togetherStatus().available) return []
   return togetherCatalogueEntries().map(entry => ({ ref: { provider: 'together', model: entry.id, modelClass: 'together', effort: 'high', contextWindow: entry.contextWindow ?? 0 }, displayLabel: entry.displayLabel }))
 }
 
-export function resolveTogetherModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+function resolveTogetherModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
   return null
 }
 
-export function buildTogetherLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildTogetherLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error('router: provider together has no SEAT runtime — Together AI specialists dispatch through the AgentTool engine path')
 }
 

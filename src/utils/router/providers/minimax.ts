@@ -3,7 +3,7 @@ import { resolveMinimaxAccount } from '../../../services/providers/minimax/minim
 import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from './types.js'
 import { SPECIALIST_ROLES } from './types.js'
 
-export function minimaxLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+function minimaxLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = minimaxCatalogueRows()
   if (source.kind !== 'live') return undefined
   return { fetchedAtMs: source.fetchedAtMs, entries: rows.map(row => ({
@@ -21,7 +21,7 @@ export function minimaxCatalogueEntry(id: string): ProviderCatalogueEntry | unde
   return minimaxCatalogueEntries().find(row => row.id.toLowerCase() === id.trim().toLowerCase())
 }
 
-export function describeMinimaxProvider(): ProviderDescription {
+function describeMinimaxProvider(): ProviderDescription {
   const account = resolveMinimaxAccount()
   const live = minimaxLiveCatalogue()
   return {
@@ -34,20 +34,20 @@ export function describeMinimaxProvider(): ProviderDescription {
   }
 }
 
-export function minimaxStatus(): RouterProviderStatus {
+function minimaxStatus(): RouterProviderStatus {
   return resolveMinimaxAccount() ? { available: true } : { available: false, reason: 'no-api-key:minimax' }
 }
 
-export function listMinimaxModels(): RouterProviderModel[] {
+function listMinimaxModels(): RouterProviderModel[] {
   if (!minimaxStatus().available) return []
   return minimaxCatalogueEntries().map(entry => ({ ref: { provider: 'minimax', model: entry.id, modelClass: 'minimax', effort: 'high', contextWindow: entry.contextWindow ?? 0 }, displayLabel: entry.displayLabel }))
 }
 
-export function resolveMinimaxModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+function resolveMinimaxModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
   return null
 }
 
-export function buildMinimaxLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildMinimaxLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error('router: provider minimax has no SEAT runtime — MiniMax specialists dispatch through the AgentTool engine path')
 }
 

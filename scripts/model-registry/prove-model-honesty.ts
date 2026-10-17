@@ -148,6 +148,9 @@ section('§2 the four account states — the rows each family paints on /model')
         'Mercury — Moonshot models', 'Mercury — DeepSeek models', 'Mercury — xAI models', 'Mercury — Meta models', 'Mercury — Mistral models', 'Mercury — custom endpoint', 'Mercury — local models',
         'Mercury — Nous Portal models',
         'Mercury — OpenCode Zen models',
+        'Mercury — MiniMax models',
+        'Mercury — Together AI models',
+        'Mercury — Cohere models',
       ]
       check(`[${tag}] the first sections are OpenAI, Anthropic, OpenRouter`, JSON.stringify(groups.slice(0, 3)) === JSON.stringify(expectedGroups.slice(0, 3)), JSON.stringify(groups))
       check(`[${tag}] every provider section is contiguous and retains its order`, new Set(groups).size === groups.length && JSON.stringify(groups) === JSON.stringify(expectedGroups.filter(group => groups.includes(group))), JSON.stringify(groups))

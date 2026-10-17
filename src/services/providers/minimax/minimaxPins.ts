@@ -1,9 +1,9 @@
 export const MINIMAX_OBSERVED_AT = '2026-10-17'
-export const MINIMAX_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+const MINIMAX_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 
 export type MinimaxThinkingDial = 'tunable' | 'toggle' | 'fixed'
 
-export interface MinimaxDisplayPin {
+interface MinimaxDisplayPin {
   id: string
   wireId: string
   displayName: string
@@ -58,6 +58,6 @@ export function minimaxDisplayName(id: string): string {
   return minimaxDisplayPin(id)?.displayName ?? id
 }
 
-export function minimaxAcceptsEffort(model: string, effort: string): boolean {
+function minimaxAcceptsEffort(model: string, effort: string): boolean {
   return minimaxDisplayPin(model)?.efforts.includes(effort) === true
 }

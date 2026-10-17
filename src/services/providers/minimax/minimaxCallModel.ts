@@ -8,7 +8,7 @@ import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile }
 import { thinkingOffWireEffort, type LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
 import { refreshProviderUsage } from '../providerUsage.js'
-import { MINIMAX_ENV_KEY, MINIMAX_KEY_PAGE, minimaxChatCompletionsUrl, resolveMinimaxAccount, resolveMinimaxApiKey } from './minimaxAccounts.js'
+import { MINIMAX_ENV_KEY, minimaxChatCompletionsUrl, resolveMinimaxAccount, resolveMinimaxApiKey } from './minimaxAccounts.js'
 import { getCachedMinimaxCatalogue, minimaxListedModel, minimaxModelFacts, minimaxWireId, newestMinimaxModel } from './minimaxCatalogue.js'
 import { isMinimaxTextModelId } from './minimaxPins.js'
 
@@ -26,14 +26,14 @@ export function buildMinimaxExtras(args: LaneExtrasArgs): Record<string, unknown
   }
 }
 
-export const minimaxLaneProfile: CompatLaneProfile = {
+const minimaxLaneProfile: CompatLaneProfile = {
   lane: 'minimax', providerLabel: 'MiniMax',
   resolveCredential: () => {
     const key = resolveMinimaxApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint: `no MiniMax API key detected — /logins minimax stores one (made at ${MINIMAX_KEY_PAGE}); ${MINIMAX_ENV_KEY} works too.`,
-  authRemedy: `set a valid ${MINIMAX_ENV_KEY}, or /logins minimax stores a new key from ${MINIMAX_KEY_PAGE} (an M Plan Subscription Key from platform.minimax.io/console/plan works too).`,
+  credentialHint: `no MiniMax API key detected — /logins minimax stores one (made at platform.minimax.io/user-center, Account Management → API Keys); ${MINIMAX_ENV_KEY} works too.`,
+  authRemedy: `set a valid ${MINIMAX_ENV_KEY}, or /logins minimax stores a new key from platform.minimax.io/user-center (an M Plan Subscription Key from platform.minimax.io/console/plan works too).`,
   billingRemedy: 'the Open Platform balance is spent or the M Plan window is used up — top up at platform.minimax.io or wait for the window to reset, then retry; /model picks another model meanwhile.',
   requestUrl: () => minimaxChatCompletionsUrl(),
   wireModelId: model => minimaxWireId(model),

@@ -9,8 +9,8 @@ import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
 
-export const TOGETHER_CONNECT_BILLING_LINE = 'One key reaches every chat model the gateway lists, at the vendor\'s per-model prices from the prepaid balance; image, video and audio models are set aside.'
-export const TOGETHER_CONNECT_STORE_LINE = 'Checked on the model list first (a refused key is never stored); stored auth-scoped (mode 600), never logged. TOGETHER_API_KEY wins over the store.'
+const TOGETHER_CONNECT_BILLING_LINE = 'One key reaches every chat model the gateway lists, at the vendor\'s per-model prices from the prepaid balance; image, video and audio models are set aside.'
+const TOGETHER_CONNECT_STORE_LINE = 'Checked on the model list first (a refused key is never stored); stored auth-scoped (mode 600), never logged. TOGETHER_API_KEY wins over the store.'
 
 export function TogetherConnect({ onResult, onBack }: {
   onResult: (result: { ok: boolean; receipt: string }) => void

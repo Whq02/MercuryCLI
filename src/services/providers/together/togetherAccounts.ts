@@ -1,9 +1,8 @@
 import { readStoredTogetherApiKey } from '../../../utils/router/providerSecrets.js'
 
-export const TOGETHER_API_BASE_URL = 'https://api.together.ai/v1'
-export const TOGETHER_KEY_PAGE = 'api.together.ai/settings/projects/~current/api-keys'
+const TOGETHER_API_BASE_URL = 'https://api.together.ai/v1'
 export const TOGETHER_ENV_KEY = 'TOGETHER_API_KEY'
-export const TOGETHER_ENV_KEY_ALT = 'TOGETHER_AI_API_KEY'
+const TOGETHER_ENV_KEY_ALT = 'TOGETHER_AI_API_KEY'
 
 export function togetherApiBase(env: NodeJS.ProcessEnv = process.env): string {
   return (env.MERCURY_TOGETHER_API_BASE?.trim() || TOGETHER_API_BASE_URL).replace(/\/+$/, '')
@@ -13,7 +12,7 @@ export function togetherChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env)
   return `${togetherApiBase(env)}/chat/completions`
 }
 
-export function togetherModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
+function togetherModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${togetherApiBase(env)}/models`
 }
 
@@ -31,7 +30,7 @@ export function resolveTogetherApiKey(env: NodeJS.ProcessEnv = process.env): { k
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export interface TogetherAccountRef {
+interface TogetherAccountRef {
   kind: 'api-key'
   label: string
   keySource: 'env' | 'stored'

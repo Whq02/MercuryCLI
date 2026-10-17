@@ -1,9 +1,9 @@
 export const TOGETHER_OBSERVED_AT = '2026-10-17'
-export const TOGETHER_MODEL_PREFIX = 'together/'
+const TOGETHER_MODEL_PREFIX = 'together/'
 
-export type TogetherThinkingDial = 'toggle' | 'effort' | 'none'
+type TogetherThinkingDial = 'toggle' | 'effort' | 'none'
 
-export interface TogetherDisplayPin {
+interface TogetherDisplayPin {
   id: string
   displayName: string
   contextWindow?: number
@@ -38,7 +38,7 @@ export const TOGETHER_DISPLAY_PINS: readonly TogetherDisplayPin[] = [
   { id: 'Prism-ML/Ternary-Bonsai-27B', displayName: 'Ternary Bonsai 27B (free)', contextWindow: 262_144, costInPerMtok: 0, costOutPerMtok: 0, thinking: 'none', free: true },
 ]
 
-export const TOGETHER_HYBRID_THINKING_MODELS: ReadonlySet<string> = new Set(
+const TOGETHER_HYBRID_THINKING_MODELS: ReadonlySet<string> = new Set(
   ['MiniMaxAI/MiniMax-M3', 'deepseek-ai/DeepSeek-V4-Pro-0813', 'zai-org/GLM-5.2', 'zai-org/GLM-5.3', 'moonshotai/Kimi-K3', 'Qwen/Qwen3.6-Plus', 'Qwen/Qwen3.5-9B'].map(id => id.toLowerCase()),
 )
 
