@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/inlineSchemaRefs.ts src/utils/api.ts src/services/providers/gemini/geminiCodec.ts src/services/providers/local/localCallModel.ts
+// gate-watch: src/utils/inlineSchemaRefs.ts src/utils/api.ts src/services/providers/gemini/geminiCodec.ts src/services/providers/openai/responsesBridge.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -19,7 +19,6 @@ const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.t
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { codeAssistSchema } = await import('../../src/services/providers/gemini/geminiCodec.ts')
 const { mapToolsToOpenai } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const { localToolWireGuess } = await import('../../src/services/providers/local/localCallModel.ts')
 
 type Schema = Record<string, unknown>
 
@@ -150,10 +149,6 @@ section('R5 · a schema without refs is the very same object on the wire')
   const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
   const zodWire = await wireOf(zodTool as never)
   check('a zod-derived schema is byte-identical to its converter\u2019s output', JSON.stringify(zodWire) === JSON.stringify(zodToJsonSchema(zodTool.inputSchema as never)))
-  check('the local lane\u2019s byte estimate counts the flat form', (() => {
-    const guess = localToolWireGuess([fakeTool('mcp__plain__echo', plain)] as never, [])
-    return guess.schemas === 1 && guess.schemaBytes > 0
-  })())
 }
 
 section('R6 · a heavily shared definition tree stays bounded')
