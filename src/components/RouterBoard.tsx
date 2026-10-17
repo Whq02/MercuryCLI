@@ -207,11 +207,13 @@ export function RouterBoard({ onClose }: { onClose: () => void }): React.ReactNo
     .join(' · ')
 
   const headerLine = (
-    <Box>
-      <Text color={tokens.textSecondary}>posture {posture}</Text>
-      {pin !== 'auto' ? <Text color={tokens.warning}> · pin {pin}</Text> : null}
-      <Text color={tokens.textMuted}> · {providers} · </Text>
-      <FreshnessLine at={state?.updatedAt ?? 0} now={now} source="route store" />
+    <Box height={1} overflow="hidden">
+      <Text wrap="truncate-end">
+        <Text color={tokens.textSecondary}>posture {posture}</Text>
+        {pin !== 'auto' ? <Text color={tokens.warning}> · pin {pin}</Text> : null}
+        <Text color={tokens.textMuted}> · {providers} · </Text>
+        <FreshnessLine at={state?.updatedAt ?? 0} now={now} source="route store" />
+      </Text>
     </Box>
   )
 

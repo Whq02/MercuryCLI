@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Box, Text, type DOMElement } from '../../ink.js'
 import type { TextGesture } from '../../ink/events/text-gesture.js'
+import { useDeclaredCursor } from '../../ink/hooks/use-declared-cursor.js'
 import { claimHover, releaseHover, useHoverOwned } from './useHoverOwned.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 
@@ -57,6 +58,12 @@ export function InteractiveRow({
   const tokens = useMercuryTokens()
   const hover = useHoverOwned(id)
   const interactive = !unavailable && (!!onSelect || !!onActivate)
+  const cursorRef = useDeclaredCursor({ line: 0, column: 0, active: selected && focused && !unavailable && !directActivate })
+  const attachRow = React.useCallback((node: DOMElement | null): void => {
+    cursorRef(node)
+    if (typeof rowRef === 'function') rowRef(node)
+    else if (rowRef) (rowRef as React.MutableRefObject<DOMElement | null>).current = node
+  }, [cursorRef, rowRef])
   const bandPainted =
     selectionBand &&
     selected &&
@@ -102,7 +109,7 @@ export function InteractiveRow({
 
   return (
     <Box
-      ref={rowRef}
+      ref={attachRow}
       width={width}
       height={height}
       flexDirection={flexDirection}

@@ -30,6 +30,8 @@ import {
   setHelmVitalsAvailable,
 } from '../utils/cockpit/helmFocus.js'
 import { ModalContext } from '../context/modalContext.js'
+import CursorDeclarationContext from '../ink/components/CursorDeclarationContext.js'
+import { useCursorFollow } from './mercury-ui/useCursorFollow.js'
 import {
   PromptOverlayProvider,
   usePromptOverlay,
@@ -327,6 +329,24 @@ function JumpPill({
   )
 }
 
+function ModalPaneBody({ rows, columns, scrollRef, children }: { rows: number; columns: number; scrollRef: React.RefObject<ScrollBoxHandle | null> | null; children: React.ReactNode }): React.ReactNode {
+  const paneRef = useRef<ScrollBoxHandle | null>(null)
+  const follow = useCursorFollow(paneRef, { rows, width: columns })
+  useLayoutEffect(() => {
+    if (scrollRef && scrollRef.current === null) scrollRef.current = paneRef.current
+  })
+  useLayoutEffect(() => () => {
+    if (scrollRef && scrollRef.current === paneRef.current) scrollRef.current = null
+  }, [scrollRef])
+  return (
+    <CursorDeclarationContext.Provider value={follow}>
+      <ScrollBox ref={paneRef} flexShrink={1} minHeight={0} flexDirection="column">
+        {children}
+      </ScrollBox>
+    </CursorDeclarationContext.Provider>
+  )
+}
+
 
 export function FullscreenLayout({
   scrollable,
@@ -585,7 +605,7 @@ export function FullscreenLayout({
         >
           {
 }
-          <Box flexShrink={0} flexDirection="column">{modal}</Box>{blankClaims && <Box flexGrow={1} />}
+          <ModalPaneBody rows={Math.max(0, terminalRows - modalPeek - modalSeparatorRows)} columns={columns} scrollRef={modalScrollRef ?? null}>{modal}</ModalPaneBody>{blankClaims && <Box flexGrow={1} />}
         </ModalContext.Provider>
       </Box>
     </MotionParkContext.Provider>

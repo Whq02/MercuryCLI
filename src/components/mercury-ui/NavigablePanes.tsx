@@ -768,7 +768,7 @@ export function NavigablePanes<Row>({
             ) : null}
           </Box>
         )}
-        {headerLine ? <Box flexShrink={0}>{headerLine}</Box> : null}
+        {headerLine ? <Box flexShrink={0} maxHeight={2} overflow="hidden">{headerLine}</Box> : null}
         {regionChrome?.aboveBody ? (
           <Box flexShrink={0} flexDirection="column" overflow="hidden">
             {regionChrome.aboveBody}

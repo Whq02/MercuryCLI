@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Box, Text, useInput } from '../../ink.js'
+import { CursorRow } from '../../components/mercury-ui/CursorRow.js'
 import { CommandCenter } from '../../components/mercury-ui/components.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import {
@@ -159,7 +160,7 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
           const focused = i === cursor
           const marker = focused ? '▸' : ' '
           return (
-            <Box key={row.route} flexDirection="column">
+            <CursorRow key={row.route} selected={focused} flexDirection="column">
               <Box>
                 <Text color={focused ? t.accent : t.textPrimary} bold={focused}>
                   {marker} {providerDisplayName(row.route)}
@@ -206,7 +207,7 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
                   <Text color={t.warning}>{note}</Text>
                 </Box>
               ) : null}
-            </Box>
+            </CursorRow>
           )
         })}
         {currentValue === '1h' ? (
