@@ -1,20 +1,17 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
+import { rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 const t = checker()
 
 t.section('CS-27 — the Constellation actions live in the one key atlas')
-let bindings = ''
-try {
-  bindings = readFileSync('src/keybindings/defaultBindings.ts', 'utf8')
-} catch {
-  bindings = ''
-}
+const withoutConcourse = shippedKeyForms()
+  .filter(form => rowsBinding([form], action => action.startsWith('concourse:')).length === 0)
+  .map(form => form.form)
 t.check(
   "the atlas carries a 'concourse:' action family",
-  /concourse:/.test(bindings),
-  'defaultBindings.ts registers no concourse actions',
+  withoutConcourse.length === 0,
+  withoutConcourse.length > 0 ? `no concourse action on ${withoutConcourse.join(' · ')}` : '',
 )
 
 t.section('CS-27 — disposition visibility is prover-pinned')

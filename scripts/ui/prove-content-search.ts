@@ -3,6 +3,8 @@ import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { DEFAULT_BINDINGS } from '../../src/keybindings/defaultBindings.ts'
+import { formsMissing, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -22,9 +24,9 @@ console.log('============================================================')
 section('1. keybinding: action + FLAG-GATED ctrl+x g binding')
 const graph = read('src', 'keybindings', 'actionGraph.ts')
 check("KEYBINDING_ACTIONS includes 'app:contentSearch'", /'app:contentSearch'/.test(graph))
-const binds = read('src', 'keybindings', 'defaultBindings.ts')
-check('ctrl+x g binds app:contentSearch', /'ctrl\+x g':\s*'app:contentSearch'/.test(binds))
-check('the ctrl+x g binding is present unconditionally (a plain entry, no gated spread)', /^\s+'ctrl\+x g': 'app:contentSearch',$/m.test(binds))
+check('ctrl+x g binds app:contentSearch', DEFAULT_BINDINGS.find(block => block.context === 'Global')?.bindings['ctrl+x g'] === 'app:contentSearch')
+const unbound = formsMissing(shippedKeyForms(), 'Global', 'ctrl+x g', 'app:contentSearch')
+check('the ctrl+x g binding is present unconditionally (Global binds it on every shipped form: four platforms, five switch settings)', unbound.length === 0, unbound.join(' · '))
 
 section('2. PromptInput wiring, stamp-gated')
 const pi = read('src', 'components', 'PromptInput', 'PromptInput.tsx') + read('src', 'components', 'PromptInput', 'useComposerKeybindings.ts')

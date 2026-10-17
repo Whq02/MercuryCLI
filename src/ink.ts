@@ -1,27 +1,21 @@
 import { createElement, type ReactNode } from 'react'
-import { color } from './components/design-system/color.js'
 import { ThemeProvider } from './components/design-system/ThemeProvider.js'
-import baseRender, {
-  createRoot as createBaseRoot,
-  type Instance,
-  type RenderOptions,
-  type Root,
-} from './ink/root.js'
+import renderBare, { createRoot as createBareRoot, type Instance, type RenderOptions, type Root } from './ink/root.js'
+
+function themed(node: ReactNode): ReactNode {
+  return createElement(ThemeProvider, null, node)
+}
 
 export function render(
   node: ReactNode,
   options?: NodeJS.WriteStream | RenderOptions,
 ): Promise<Instance> {
-  return baseRender(createElement(ThemeProvider, null, node), options)
+  return renderBare(themed(node), options)
 }
 
 export async function createRoot(options?: RenderOptions): Promise<Root> {
-  const root = await createBaseRoot(options)
-  return {
-    ...root,
-    render: (node: ReactNode) =>
-      root.render(createElement(ThemeProvider, null, node)),
-  }
+  const root = await createBareRoot(options)
+  return { ...root, render: node => root.render(themed(node)) }
 }
 
 export type { Instance, RenderOptions, Root }

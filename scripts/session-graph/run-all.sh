@@ -4,7 +4,7 @@
 # gate-watch: src/services/attention/** src/services/attention/relations.ts
 # gate-watch: src/services/workbench/** src/services/acp/** src/input-core/composer-document.ts
 # gate-watch: src/utils/artifacts/** src/utils/sideQuestion.ts
-# gate-watch: scripts/engine-durability/harness.ts scripts/lib/codeText.ts scripts/streaming/artifactArena.ts
+# gate-watch: scripts/engine-durability/harness.ts scripts/lib/codeText.ts scripts/lib/shippedKeyForms.ts scripts/streaming/artifactArena.ts
 # gate-watch: scripts/ui/render-tui.ts src/cli/run.ts src/commands/crew/index.ts
 # gate-watch: src/components/concourse/ConcourseRoute.tsx src/components/prompts-panel/PromptsPanel.tsx
 # gate-watch: src/components/prompts-panel/rows.ts src/ink/stringWidth.ts

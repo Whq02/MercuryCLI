@@ -37,7 +37,7 @@ function scanFacade(): { exports: FacadeExport[]; extraStatements: string[] } {
   )
   const exports: FacadeExport[] = []
   const extraStatements: string[] = []
-  const SANCTIONED_LOCALS = new Set(['withTheme', 'render', 'createRoot'])
+  const SANCTIONED_LOCALS = new Set(['themed', 'render', 'createRoot'])
 
   for (const stmt of source.statements) {
     if (ts.isImportDeclaration(stmt)) continue

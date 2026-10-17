@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 const ROOT = join(import.meta.dir, '../../')
 const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
@@ -338,7 +339,7 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
       'UI-057: modified arrows never map (ctrl/shift/meta arrows keep their own meanings)',
       JSON.stringify(names([{ ...arrow('up'), shift: true }], engaged)) === JSON.stringify(['up']),
     )
-    const bindings = src('src/keybindings/defaultBindings.ts')
+    const historyRows = rowsBinding(shippedKeyForms(), action => action === 'history:previous' || action === 'history:next')
     const composer = src('src/hooks/useTextInput.ts')
     check(
       'UI-058: the portable history route is REAL in the composer (ctrl+p/ctrl+n ride upOrHistory/downOrHistory)',
@@ -347,7 +348,8 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
     )
     check(
       "UI-058: the registry's dead history rows STAY retired (a revival re-lies to the atlas)",
-      !bindings.includes("'history:previous'") && !bindings.includes("'history:next'"),
+      historyRows.length === 0,
+      historyRows.slice(0, 3).join(' · '),
     )
     check(
       '§policy identity: scroll-first-in-native-selection is the documented choice',

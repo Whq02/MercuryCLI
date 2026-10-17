@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { formsMissing, rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -51,10 +52,14 @@ console.log('§3 /keysetup no longer lists the host it just refused')
 
 console.log('§4 the Scroll copy chord is platform-forked (no more super+c on Windows)')
 {
-  const db = readFileSync(join(ROOT, 'src/keybindings/defaultBindings.ts'), 'utf8')
+  const shipped = shippedKeyForms()
+  const darwinWithoutCopy = formsMissing(shipped.filter(form => form.form.startsWith('darwin')), 'Scroll', 'cmd+c', 'selection:copy')
+  const cmdCopyElsewhere = rowsBinding(shipped, (action, chord, context) => chord === 'cmd+c' && !(context === 'Scroll' && action === 'selection:copy'))
+    .concat(rowsBinding(shipped.filter(form => !form.form.startsWith('darwin')), (_action, chord) => chord === 'cmd+c'))
   check(
     "cmd+c is darwin's (the IMAGE_PASTE_KEY idiom): declared unconditionally it won the end-first display walk everywhere and the Windows footer taught super+c, deliverable by no console there",
-    db.includes("...(process.platform === 'darwin' ? { 'cmd+c': 'selection:copy' } : {})"),
+    darwinWithoutCopy.length === 0 && cmdCopyElsewhere.length === 0,
+    [...darwinWithoutCopy.map(form => `${form} lacks Scroll cmd+c`), ...cmdCopyElsewhere].join(' · '),
   )
   const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
   const scroll = DEFAULT_BINDINGS.find(b => b.context === 'Scroll')?.bindings ?? {}

@@ -1,20 +1,37 @@
 import { satisfies } from 'semver'
-import type { KeybindingBlock, KeybindingContextName } from './types.js'
+import type { ActionGraph } from './actionGraph.js'
+import type { KeybindingBlock } from './types.js'
 
-const onWindows = process.platform === 'win32'
+type GraphAction = keyof ActionGraph
+type GraphContext = ActionGraph[GraphAction]['contexts'][number]
+type BoundIn<Context extends GraphContext> =
+  | { [Action in GraphAction]: Context extends ActionGraph[Action]['contexts'][number] ? Action : never }[GraphAction]
+  | `command:${string}`
+type ShippedRows = { [Context in GraphContext]?: Record<string, BoundIn<Context>> }
 
 const VT_MODE_FLOORS = { bun: '>=1.2.23', node: '>=22.17.0 <23.0.0 || >=24.2.0' } as const
 
-const windowsTerminalHasVtMode = (): boolean => {
-  const { bun, node } = process.versions
-  return bun ? satisfies(bun, VT_MODE_FLOORS.bun) : satisfies(node, VT_MODE_FLOORS.node)
+type HostChords = { modeCycle: string; imagePaste: string; copyRows: Record<string, BoundIn<'Scroll'>> }
+
+function hostChords(platform: NodeJS.Platform, versions: NodeJS.ProcessVersions): HostChords {
+  const windows = platform === 'win32'
+  const consoleHasVtMode = (): boolean => (versions.bun ? satisfies(versions.bun, VT_MODE_FLOORS.bun) : satisfies(versions.node, VT_MODE_FLOORS.node))
+  return {
+    modeCycle: !windows || consoleHasVtMode() ? 'shift+tab' : 'meta+m',
+    imagePaste: windows ? 'alt+v' : 'ctrl+v',
+    copyRows: platform === 'darwin' ? { 'cmd+c': 'selection:copy' } : {},
+  }
 }
 
-const modifierOnlyChordsDeliver = !onWindows || windowsTerminalHasVtMode()
-const modeCycleKey = modifierOnlyChordsDeliver ? 'shift+tab' : 'meta+m'
-const imagePasteKey = onWindows ? 'alt+v' : 'ctrl+v'
+const HOST = hostChords(process.platform, process.versions)
 
-const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
+const SELECT_LIST_KEYS = {
+  wheel: { wheelup: 'select:previous', wheeldown: 'select:next' },
+  ctrlPrevNext: { 'ctrl+p': 'select:previous', 'ctrl+n': 'select:next' },
+  ends: { home: 'select:first', end: 'select:last' },
+} as const satisfies Record<string, Record<string, BoundIn<'Settings'> & BoundIn<'Select'>>>
+
+const SHIPPED_KEYS = {
   Global: {
     'ctrl+c': 'app:interrupt',
     'ctrl+d': 'app:exit',
@@ -38,7 +55,7 @@ const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
     escape: 'chat:cancel',
     'ctrl+x ctrl+k': 'chat:killAgents',
     'shift+b': 'chat:backgroundShell',
-    [modeCycleKey]: 'chat:cycleMode',
+    [HOST.modeCycle]: 'chat:cycleMode',
     'meta+p': 'chat:modelPicker',
     'meta+t': 'chat:thinkingToggle',
     'ctrl+_': 'chat:undo',
@@ -46,7 +63,7 @@ const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
     'ctrl+x ctrl+r': 'chat:redo',
     'ctrl+x ctrl+e': 'chat:externalEditor',
     'ctrl+s': 'chat:stash',
-    [imagePasteKey]: 'chat:imagePaste',
+    [HOST.imagePaste]: 'chat:imagePaste',
     'shift+up': 'chat:messageActions',
   },
   Autocomplete: {
@@ -57,16 +74,13 @@ const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
   },
   Settings: {
     escape: 'confirm:no',
-    wheelup: 'select:previous',
-    wheeldown: 'select:next',
+    ...SELECT_LIST_KEYS.wheel,
     up: 'select:previous',
     down: 'select:next',
     k: 'select:previous',
     j: 'select:next',
-    'ctrl+p': 'select:previous',
-    'ctrl+n': 'select:next',
-    home: 'select:first',
-    end: 'select:last',
+    ...SELECT_LIST_KEYS.ctrlPrevNext,
+    ...SELECT_LIST_KEYS.ends,
     space: 'select:accept',
     r: 'settings:retry',
   },
@@ -114,7 +128,7 @@ const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
     'ctrl+end': 'scroll:bottom',
     'alt+down': 'scroll:bottom',
     'ctrl+shift+c': 'selection:copy',
-    ...(process.platform === 'darwin' ? { 'cmd+c': 'selection:copy' } : {}),
+    ...HOST.copyRows,
   },
   Help: { escape: 'help:dismiss' },
   Attachments: {
@@ -190,16 +204,13 @@ const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
     x: 'diff:sendAllComments',
   },
   Select: {
-    wheelup: 'select:previous',
-    wheeldown: 'select:next',
+    ...SELECT_LIST_KEYS.wheel,
     up: 'select:previous',
     k: 'select:previous',
     down: 'select:next',
     j: 'select:next',
-    'ctrl+p': 'select:previous',
-    'ctrl+n': 'select:next',
-    home: 'select:first',
-    end: 'select:last',
+    ...SELECT_LIST_KEYS.ctrlPrevNext,
+    ...SELECT_LIST_KEYS.ends,
     enter: 'select:accept',
     escape: 'select:cancel',
   },
@@ -220,6 +231,6 @@ const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
     'ctrl+l': 'atlas:lookup',
     'ctrl+r': 'atlas:rebind',
   },
-}
+} satisfies ShippedRows
 
 export const DEFAULT_BINDINGS: KeybindingBlock[] = Object.entries(SHIPPED_KEYS).map(([context, bindings]) => ({ context, bindings }))

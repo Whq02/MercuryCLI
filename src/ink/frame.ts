@@ -10,67 +10,45 @@ import type { Cursor } from './cursor.js'
 
 export type FlickerReason = 'resize' | 'offscreen' | 'clear'
 
-type BarePatchKind = 'cursorHide' | 'cursorShow' | 'carriageReturn'
+type ClearCause = { triggerY: number; prevLine: string; nextLine: string }
 
-type BarePatch = { [Kind in BarePatchKind]: { type: Kind } }[BarePatchKind]
+type NoPayload = Record<never, never>
 
-type BytesPatch =
-  | { type: 'stdout'; content: string }
-  | { type: 'styleStr'; str: string }
-  | { type: 'hyperlink'; uri: string }
+type PatchPayloads = {
+  stdout: { content: string }
+  styleStr: { str: string }
+  hyperlink: { uri: string }
+  cursorMove: { x: number; y: number }
+  cursorTo: { col: number }
+  clear: { count: number }
+  clearTerminal: { reason: FlickerReason; debug?: ClearCause }
+  cursorHide: NoPayload
+  cursorShow: NoPayload
+  carriageReturn: NoPayload
+}
 
-type CursorPatch = { type: 'cursorMove'; x: number; y: number } | { type: 'cursorTo'; col: number }
-
-type ResetDebug = { triggerY: number; prevLine: string; nextLine: string }
-
-type ClearPatch =
-  | { type: 'clear'; count: number }
-  | { type: 'clearTerminal'; reason: FlickerReason; debug?: ResetDebug }
-
-export type Patch = BytesPatch | CursorPatch | ClearPatch | BarePatch
+export type Patch = { [Kind in keyof PatchPayloads]: { type: Kind } & PatchPayloads[Kind] }[keyof PatchPayloads]
 
 export type Diff = Patch[]
 
-type Viewport = { readonly width: number; readonly height: number }
+type Viewport = Readonly<{ width: number; height: number }>
 
-export type Frame = {
-  readonly screen: Screen
-  readonly viewport: Viewport
-  readonly cursor: Cursor
-  readonly scrollHint?: ScrollHint | null
-  readonly scrollDrainPending?: boolean
-}
+export type Frame = Readonly<{ screen: Screen; viewport: Viewport; cursor: Cursor; scrollHint?: ScrollHint | null; scrollDrainPending?: boolean }>
 
 const homeCursor = (): Cursor => ({ x: 0, y: 0, visible: true })
 
-export function emptyFrame(
-  rows: number,
-  columns: number,
-  stylePool: StylePool,
-  charPool: CharPool,
-  hyperlinkPool: HyperlinkPool,
-): Frame {
+export function emptyFrame(rows: number, columns: number, stylePool: StylePool, charPool: CharPool, hyperlinkPool: HyperlinkPool): Frame {
   const viewport: Viewport = { width: columns, height: rows }
   const screen = createScreen(viewport.width, 0, stylePool, charPool, hyperlinkPool)
   return { screen, viewport, cursor: homeCursor() }
 }
 
-export type FlickerRecord = {
-  desiredHeight: number
-  availableHeight: number
-  reason: FlickerReason
-}
+export type FlickerRecord = { desiredHeight: number; availableHeight: number; reason: FlickerReason }
 
-type TimedPhase = 'renderer' | 'diff' | 'optimize' | 'write' | 'yoga' | 'commit'
+type PhaseTimings = Record<'renderer' | 'diff' | 'optimize' | 'write' | 'yoga' | 'commit', number>
 
-type LayoutCounter = 'yogaVisited' | 'yogaMeasured' | 'yogaCacheHits' | 'yogaLive'
+type FrameCounts = Record<'patches' | 'yogaVisited' | 'yogaMeasured' | 'yogaCacheHits' | 'yogaLive', number>
 
-export type FramePhases = { [Phase in TimedPhase]: number } & { patches: number } & {
-  [Counter in LayoutCounter]: number
-}
+export type FramePhases = PhaseTimings & FrameCounts
 
-export type FrameEvent = {
-  durationMs: number
-  phases?: FramePhases
-  flickers: FlickerRecord[]
-}
+export type FrameEvent = { durationMs: number; phases?: FramePhases; flickers: FlickerRecord[] }
