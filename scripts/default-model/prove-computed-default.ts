@@ -52,6 +52,12 @@ for (const base of [
   'MERCURY_MOONSHOT_API_BASE',
   'MERCURY_DEEPSEEK_API_BASE',
   'MERCURY_HUGGINGFACE_HUB_BASE',
+  'MERCURY_ZAI_API_BASE',
+  'MERCURY_XAI_API_BASE',
+  'MERCURY_META_API_BASE',
+  'MERCURY_MISTRAL_API_BASE',
+  'MERCURY_ZEN_API_BASE',
+  'MERCURY_NOUS_API_BASE',
 ]) {
   process.env[base] = dead
 }
@@ -327,6 +333,37 @@ section('§4 the live chain in a scratch home')
   check('…and the default stays on the most recent timed sign-in', withEnv.provider === 'zai', withEnv.provider ?? 'null')
   delete process.env.OPENROUTER_API_KEY
   resetComputedDefaultMemo()
+}
+
+section('§4b a stored key the provider refuses is skipped by the default until that family signs in again')
+{
+  const { refreshZaiCatalogue } = await import('../../src/services/providers/zai/zaiCatalogue.ts')
+  const { readSignInRefusal } = await import('../../src/utils/accounts/signInRefusal.ts')
+  const refusing = (async () =>
+    new Response(JSON.stringify({ error: { message: 'invalid api key' } }), { status: 401, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
+  const snapshot = await refreshZaiCatalogue({ force: true, env: { ...process.env }, fetchImpl: refusing })
+  const refusal = readSignInRefusal('zai')
+  check(
+    'a catalogue read the provider answers 401 records the stored key as refused',
+    snapshot?.lastError?.includes('HTTP 401') === true && refusal !== undefined && refusal.status === 401,
+    JSON.stringify({ lastError: snapshot?.lastError, refusal }),
+  )
+  resetComputedDefaultMemo()
+  const afterRefusal = computedDefault()
+  const refusedRow = afterRefusal.considered.find(c => c.family === 'zai')
+  check(
+    '…and the computed default skips that family, the refusal in its why, the next timed sign-in chosen',
+    afterRefusal.provider === 'deepseek' && refusedRow !== undefined && refusedRow.verdict.usable === false && refusedRow.verdict.why.startsWith('stored · refused (HTTP 401) at '),
+    JSON.stringify({ provider: afterRefusal.provider, why: refusedRow?.verdict.why }),
+  )
+  await sleep(15)
+  const again = storeZaiApiKeyLogin('zai-proof-key-000001', 'general')
+  resetComputedDefaultMemo()
+  check(
+    'a new sign-in of that family clears the refusal and the default returns to it',
+    again.ok && readSignInRefusal('zai') === undefined && computedDefault().provider === 'zai',
+    JSON.stringify({ ok: again.ok, refusal: readSignInRefusal('zai'), provider: computedDefault().provider }),
+  )
 }
 
 section('§5 the sign-in owners — every credential-landing site records; the refresh path never does; every consumer reads the one owner')
