@@ -222,7 +222,7 @@ const f2 = chainRows(SID2, [
   toolResult('f2r3b', 'pg', 'no matches', { mode: 'content', numFiles: 0, filenames: [], numLines: 0 }),
   asst('f2a4', 'gpt-5.6-sol', [use('w1', 'Crewmate', { description: 'verify estate', prompt: 'verify the estate' })]),
   toolResult('f2r4', 'w1', 'agent done', AGENT_RECORD_USAGE),
-  user('f2cont', 'Continue from where you left off.', { isMeta: true }),
+  user('f2cont', 'The previous run ended before its turn finished — stopped from outside or crashed; continue from where you left off.', { isMeta: true }),
   asst('f2sent', SYNTHETIC_MODEL, [{ type: 'text', text: 'No response requested.' }]),
   asst('f2a5', 'gpt-5.6-sol', [use('w2', 'Crewmate', { description: 'sweep estate', prompt: 'sweep the estate' })]),
   toolResult('f2r5', 'w2', 'agent done', AGENT_RECORD_NO_USAGE),
@@ -276,7 +276,7 @@ console.log('\n§1 · the census session: the transcript is whole')
     cont?.type === 'user' &&
       cont?.isMeta === true &&
       Array.isArray(contBlocks) &&
-      (contBlocks[0] as { text?: string })?.text === 'Continue from where you left off.',
+      (contBlocks[0] as { text?: string })?.text === 'The previous run ended before its turn finished — stopped from outside or crashed; continue from where you left off.',
   )
   const sentBlocks = sent?.message?.content
   check(

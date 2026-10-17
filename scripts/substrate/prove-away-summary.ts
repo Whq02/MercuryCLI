@@ -211,7 +211,7 @@ section('(h) buildAwayRecap — structured fields + buildAwaySummary stays a thi
 
   const sentinelUser = {
     type: 'user', uuid: uid(), timestamp: '2026-01-01T13:00:00.000Z', isMeta: true,
-    message: { role: 'user', content: 'Continue from where you left off.' },
+    message: { role: 'user', content: 'The previous run ended before its turn finished — stopped from outside or crashed; continue from where you left off.' },
   }
   const sentinelAsst = {
     type: 'assistant', uuid: uid(), timestamp: '2026-01-01T13:00:00.000Z',
