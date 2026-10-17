@@ -223,7 +223,6 @@ function staticImports(src: string): {
     '../bootstrap/state.js',
     '../cli/sessionArgs.js',
     './cleanupRegistry.js',
-    './deadline.js',
     './debug.js',
     './diagLogs.js',
     './log.js',

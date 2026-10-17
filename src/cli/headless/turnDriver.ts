@@ -95,6 +95,7 @@ export type TurnDriver = {
   isRunning(): boolean
   hasHeldResult(): boolean
   releaseHold(): void
+  endOperatorWait(): void
   closeOutputOnce(): Promise<void>
   hasDueQueued(): boolean
 }
@@ -457,6 +458,10 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       holdReleased = true
       noticesAwaitOperator = true
       wakeAgentWait?.()
+    },
+    endOperatorWait: () => {
+      noticesAwaitOperator = false
+      kick()
     },
     closeOutputOnce,
     hasDueQueued: dueQueued,

@@ -1317,7 +1317,7 @@ export async function runHeadless(
           if (line !== null) lastOutcome = line as OutcomeRow
         })
       }
-      void written
+      void written.catch(error => logError(error))
       return
     }
     if (isOutcome(message as never)) lastOutcome = io.rows.stamp(message as never) as OutcomeRow
@@ -1513,6 +1513,7 @@ export async function runHeadless(
       const waitedMs = Date.now() - Math.min(...notices.map(notice => notice.deliveredAtMs))
       if (agentId === MAIN_THREAD_AGENT) {
         enqueue({ value: nudgeWords(notices, waitedMs), mode: 'prompt', priority: 'later', isMeta: true, uuid: randomUUID() })
+        driver.endOperatorWait()
         return true
       }
       return false

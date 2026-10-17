@@ -166,6 +166,7 @@ export default class App extends PureComponent<Props, State> {
   override state: State = {}
 
   private rawModeEnabledCount = 0
+  private identityProbed = false
   private readonly internal_eventEmitter = new EventEmitter()
   private keyParseState: KeyParseState = INITIAL_STATE
   private incompleteEscapeTimer: ReturnType<typeof setTimeout> | null = null
@@ -298,7 +299,10 @@ export default class App extends PureComponent<Props, State> {
         noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'bracketed-paste')
         noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'focus-events')
         if (extendedKeys) noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'kitty-kbd')
-        void this.probeTerminalIdentity()
+        if (!this.identityProbed) {
+          this.identityProbed = true
+          void this.probeTerminalIdentity()
+        }
       }
       this.rawModeEnabledCount++
       return

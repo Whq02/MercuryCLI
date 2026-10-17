@@ -39,7 +39,7 @@ import {
   runWithAgentContext,
   type SubagentContext,
 } from '../../utils/agentContext.js'
-import { getCwd, runWithCwdOverride } from '../../utils/cwd.js'
+import { getCwd, runWithCwdOverride, runWithOwnShellCwd } from '../../utils/cwd.js'
 import { getPlatform } from '../../utils/platform.js'
 import { posixPathToWindowsPath } from '../../utils/windowsPaths.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -738,7 +738,7 @@ export const AgentTool = buildTool({
       void runWithAgentContext(agentContext, () =>
         cwdOverride
           ? runWithCwdOverride(cwdOverride, lifecycle)
-          : lifecycle(),
+          : runWithOwnShellCwd(lifecycle),
       )
 
       const canReadOutputFile = options.tools.some(
@@ -788,7 +788,7 @@ export const AgentTool = buildTool({
         })
       return cwdOverride
         ? runWithCwdOverride(cwdOverride, execute)
-        : execute()
+        : runWithOwnShellCwd(execute)
     })
 
     return { data: result.data }

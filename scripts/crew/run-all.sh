@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-watch: src/ink.ts
+# gate-watch: scripts/lib/hermetic.ts src/utils/Shell.ts src/utils/cwd.ts
 # gate-watch: src/services/providers/local/ollamaChatTransport.ts src/services/providers/openaicompat/compatChatCallModel.ts
 # gate-watch: src/substrate/operationJournal.ts
 # gate-class: cpu

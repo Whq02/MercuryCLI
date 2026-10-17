@@ -137,8 +137,12 @@ closeWindow()
 console.log('\n the laws that stand when no reply is owed')
 const chord = decode([`${ESC}]`, null], SETTLED)
 check('alt+] alone at the flush is still one ESC-led key (the meta chord)', chord.atoms.length === 1 && chord.atoms[0]!.kind === 'key' && chord.atoms[0]!.sequence === `${ESC}]`, JSON.stringify(chord.atoms))
-const sealed = decode([`${ESC}]11;rgb:1e1e/`, null, null, 'ab', null, 'ok'], SETTLED)
-check('a sealed string head grounds after its two flushes and the keyboard is heard again', sealed.typed.endsWith('ok') && !sealed.typed.includes('rgb'), `typed ${vis(sealed.typed)}`)
+const sealed = decode([`${ESC}]abc/`, null, null, 'ab', null, 'ok'], SETTLED)
+check('a sealed string head that is no reply (a chord and its typing) grounds after its two flushes and the keyboard is heard again', sealed.typed.endsWith('ok') && !sealed.typed.includes('abc'), `typed ${vis(sealed.typed)}`)
+const replyHead = decode([`${ESC}]11;rgb:1e1e/`, null, null, '1e1e', null, `/1e1e${ST}`], SETTLED)
+check('a sealed reply head keeps its body held past the two flushes, to its terminator (the .38 law)', replyHead.typed === '' && replyHead.responses.length === 1, `typed ${vis(replyHead.typed)} responses ${replyHead.responses.length}`)
+const replyHeadReleased = decode([`${ESC}]11;rgb:1e1e/`, null, null, 'ab', null, '\r', 'ok'], SETTLED)
+check('a control byte is never a reply byte: it ends the hold and the keyboard is heard again', replyHeadReleased.typed === 'ok' && replyHeadReleased.atoms.some(a => a.kind === 'key' && a.name === 'return'), `typed ${vis(replyHeadReleased.typed)}`)
 const escape = decode([ESC, null, 'hello'], SETTLED)
 check('a lone ESC at the flush is still Escape and the next read is text', escape.atoms[0]?.kind === 'key' && escape.atoms[0].name === 'escape' && escape.typed === 'hello', JSON.stringify(escape.atoms))
 const owedThenSettled = (() => {
@@ -146,7 +150,7 @@ const owedThenSettled = (() => {
   const state0: KeyParseState = { ...INITIAL_STATE, stringReplyOwed: () => owed }
   let state = state0
   const atoms: ParsedInput[] = []
-  for (const feed of [`${ESC}]11;rgb:1e1e/`, null, null, null]) {
+  for (const feed of [`${ESC}]abc/`, null, null, null]) {
     const [got, next] = parseMultipleKeypresses(state, feed)
     atoms.push(...got)
     state = next
@@ -159,7 +163,7 @@ const owedThenSettled = (() => {
   }
   return { typed: composerText(atoms), incomplete: state.incomplete }
 })()
-check('once the owed reply is closed, the seal ends by the standing two-flush law and the keyboard is heard again', owedThenSettled.typed === 'ok' && owedThenSettled.incomplete === '', JSON.stringify(owedThenSettled))
+check('once the owed reply is closed, a sealed head that is no reply ends by the standing two-flush law and the keyboard is heard again', owedThenSettled.typed === 'ok' && owedThenSettled.incomplete === '', JSON.stringify(owedThenSettled))
 check('INITIAL_STATE stays unmutated', INITIAL_STATE.stringReplyOwed === undefined && INITIAL_STATE.incomplete === '')
 
 console.log('\n the product mark: the querier owes a string reply from the write until its answer or the sentinel')

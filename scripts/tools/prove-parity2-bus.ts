@@ -69,18 +69,25 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const { drainPipedStdoutForExit } = await import('../../src/utils/gracefulShutdown.ts')
   t('a TTY never waits', (await drainPipedStdoutForExit({ isTTY: true, writableLength: 5_000 })).drained)
   t('an empty pipe buffer is already drained', (await drainPipedStdoutForExit({ isTTY: false, writableLength: 0 })).drained)
-  const shrinking = { isTTY: false, writableLength: 1_000 }
+  const shrinking = { isTTY: false, writableLength: 1_000, destroyed: false, writable: true }
   const drainer = setInterval(() => {
     shrinking.writableLength = Math.max(0, shrinking.writableLength - 50)
   }, 20)
   const shrinkStart = Date.now()
-  const shrinkResult = await drainPipedStdoutForExit(shrinking, 120)
+  const shrinkResult = await drainPipedStdoutForExit(shrinking)
   clearInterval(drainer)
-  t('a draining consumer is waited on past the stall bound (progress, not a flat cap)', shrinkResult.drained && Date.now() - shrinkStart > 120)
-  const stuck = { isTTY: false, writableLength: 777 }
-  const stuckStart = Date.now()
-  const stuckResult = await drainPipedStdoutForExit(stuck, 80)
-  t('a stalled consumer is abandoned after the stall bound with the remainder counted', !stuckResult.drained && stuckResult.remainingBytes === 777 && Date.now() - stuckStart >= 80)
+  t('a draining consumer is waited on to the last byte (progress, not a flat cap)', shrinkResult.drained && Date.now() - shrinkStart > 120)
+  const stuck = { isTTY: false, writableLength: 777, destroyed: false, writable: true }
+  let stuckSettled = false
+  const stuckWait = drainPipedStdoutForExit(stuck).then(result => {
+    stuckSettled = true
+    return result
+  })
+  await new Promise(resolve => setTimeout(resolve, 2_500))
+  t('a stalled consumer whose pipe is alive is still waited on after 2.5 s (no stall clock)', !stuckSettled)
+  stuck.destroyed = true
+  const stuckResult = await stuckWait
+  t('a consumer whose pipe is gone ends the wait with the remainder counted', !stuckResult.drained && stuckResult.remainingBytes === 777)
 
   const { quiesceCleanupBeforeExit, EXIT_QUIESCENCE_MS } = await import('../../src/utils/gracefulShutdown.ts')
   t('the quiescence grace is bounded and small (a wedged cleanup cannot hold the exit)', EXIT_QUIESCENCE_MS > 0 && EXIT_QUIESCENCE_MS <= 1_000)

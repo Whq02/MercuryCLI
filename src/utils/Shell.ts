@@ -5,7 +5,7 @@ import { isAbsolute, join, posix as posixPath, resolve as resolvePath } from 'no
 import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
-import { getCwd } from './cwd.js'
+import { contextShellCwd, getCwd, setContextShellCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage, isENOENT } from './errors.js'
 import { getFsImplementation } from './fsOperations.js'
@@ -135,19 +135,29 @@ subscribeCwdState(() => {
   shellCwd = null
 })
 
+function readShellCwd(): string | null {
+  const own = contextShellCwd()
+  return own === undefined ? shellCwd : own
+}
+
+function writeShellCwd(next: string | null): void {
+  if (!setContextShellCwd(next)) shellCwd = next
+}
+
 export function getShellCwd(): string {
-  if (shellCwd !== null && directoryResolves(shellCwd)) return shellCwd
-  shellCwd = null
+  const last = readShellCwd()
+  if (last !== null && directoryResolves(last)) return last
+  writeShellCwd(null)
   return getCwd()
 }
 
 function recordShellCwd(path: string, base: string): void {
   const resolved = isAbsolute(path) ? path : resolvePath(base, path)
-  shellCwd = getFsImplementation().realpathSync(resolved).normalize('NFC')
+  writeShellCwd(getFsImplementation().realpathSync(resolved).normalize('NFC'))
 }
 
 function __resetShellCwdForTest(): void {
-  shellCwd = null
+  writeShellCwd(null)
 }
 
 function directoryResolves(path: string): boolean {
@@ -247,8 +257,8 @@ export async function exec(
   if (!directoryResolves(cwd)) {
     const bootDirectory = getOriginalCwd()
     if (directoryResolves(bootDirectory)) {
-      setCwdState(bootDirectory)
-      shellCwd = null
+      if (contextShellCwd() === undefined) setCwdState(bootDirectory)
+      writeShellCwd(null)
       logForDebugging(
         `working directory ${cwd} no longer exists; recovered to the original directory ${bootDirectory}`,
       )
