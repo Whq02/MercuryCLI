@@ -1065,13 +1065,17 @@ function overflowExhaustedWords(gap: number | undefined): string {
   return `the last part sent was refused over the window${gap !== undefined && gap > 0 ? ` by ${gap.toLocaleString('en-US')} tokens` : ''}`
 }
 
-function proseSkippedLine(cause: string): string {
+function proseSkippedNote(cause: string): string {
   const why = cause.startsWith(`${ERROR_MESSAGE_NO_SUMMARY}: `)
     ? cause.slice(ERROR_MESSAGE_NO_SUMMARY.length + 2)
     : cause.startsWith(ERROR_MESSAGE_PROMPT_TOO_LONG)
       ? `the summariser was refused as too long even for its smallest part${cause.slice(ERROR_MESSAGE_PROMPT_TOO_LONG.length).trim() === '' ? '' : ` (${cause.slice(ERROR_MESSAGE_PROMPT_TOO_LONG.length).trim().replace(/^\(|\)$/g, '')})`}`
       : cause
-  return `${PROSE_SKIPPED_KEY}: ${why}. The folded stretch is carried by Mercury's own records below (the run capsule, the folded work, the memory note and the fold ledger).`
+  return `${PROSE_SKIPPED_KEY}: ${why}.`
+}
+
+function proseSkippedLine(cause: string): string {
+  return `${proseSkippedNote(cause)} The folded stretch is carried by Mercury's own records below (the run capsule, the folded work, the memory note and the fold ledger).`
 }
 
 export function summaryRefusedByModel(response: AssistantMessage): boolean {
@@ -1704,6 +1708,7 @@ export async function compactConversation(
     let response: AssistantMessage | undefined
     let rawSummary = ''
     let proseSkipped: string | undefined
+    let proseSkippedReceipt: string | undefined
     try {
       let summaryInput = messages
       if (Math.ceil(roughTokenCountEstimationForMessages(messages) * fit.ratio) > fit.budgetTokens) {
@@ -1727,6 +1732,7 @@ export async function compactConversation(
     } catch (error) {
       if (!foldLadderExhausted(error) || context.abortController.signal.aborted) throw error
       proseSkipped = proseSkippedLine((error as Error).message)
+      proseSkippedReceipt = proseSkippedNote((error as Error).message)
       logForDebugging(`compact: the ladder's bottom — ${(error as Error).message}; the fold lands on Mercury's own records without a prose summary`, { level: 'warn' })
     }
     const prose = proseSkipped ?? rawSummary
@@ -1842,7 +1848,7 @@ export async function compactConversation(
       preCompactTokenCount,
       postCompactTokenCount: callUsageTotal,
       compactionUsage: usage,
-      ...(proseSkipped !== undefined ? { notes: [proseSkipped] } : {}),
+      ...(proseSkippedReceipt !== undefined ? { notes: [proseSkippedReceipt] } : {}),
     }
     const cacheEpoch = carryFoldPrefix(messages, buildPostCompactMessages(partial), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage)
     boundary.compactMetadata.cacheEpoch = cacheEpoch.receipt
