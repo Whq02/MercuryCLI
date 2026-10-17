@@ -328,7 +328,7 @@ async function readTgzEntriesStreaming(filePath: string, wantedSubtarget?: strin
   const fd = openSync(filePath, 'r')
   const gunzip = createGunzip()
 
-  let state: 'header' | 'data' | 'skip' | 'done' = 'header'
+  let state: string = 'header'
   let headerFill = 0
   const headerBuf = Buffer.alloc(512)
   let remainingPayload = 0
