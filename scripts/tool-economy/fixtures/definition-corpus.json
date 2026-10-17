@@ -1,5 +1,5 @@
 {
-  "base": "1c27a98e6309a5fb85a208eb584b07f3f0ee1545",
+  "base": "b90e291ede28f5d441dd3345ec6c0a043b461833",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -1084,7 +1084,7 @@
     },
     {
       "name": "Service",
-      "description": "Named long-lived project processes as state machines: queued → starting → ready/running → stopping → stopped/failed. Use Service for processes meant to stay up (web servers, watch builds, local APIs, file watchers); use Bash for finite commands.\n\nOperations:\n· start — name + command + args (argv array, no shell parsing) + optional readiness: an array of condition objects, e.g. [{kind:\"tcp\",port:3000}] ({kind:\"log\",regex} · {kind:\"tcp\",port} · {kind:\"http\",url,status?,bodyRegex?} · {kind:\"file\",path,contentRegex?} · {kind:\"stable\",ms}), readinessMode all|any, restart never|on-failure (bounded backoff; an explicit stop always suppresses restart), lifecycle session (dies with this session, default) | project (detached — survives it, stoppable from any session on this project).\n· wait — block until ready or the deadline; a timeout names exactly the unmet conditions.\n· logs — ordered byte cursors: first call tails, pass the returned cursor for strictly-newer lines; filterRegex bounds noise. stdout+stderr share one ordered log.\n· describe / list — reconciled truth (a dead pid is never reported live).\n· input — write a line to the service stdin (only the spawning session holds it).\n· stop / restart — explicit lifecycle; restart reuses the retained spec.\n\nServices are addressable as mercury://service/<name> (Inspect). Never auto-started: a package.json script is a suggestion you start deliberately.",
+      "description": "Named long-lived project processes as state machines: queued → starting → ready/running → stopping → stopped/failed. Use Service for processes meant to stay up (web servers, watch builds, local APIs, file watchers); use Bash for finite commands.\n\nOperations:\n· start — name + command + args (argv array, no shell parsing) + optional readiness: an array of condition objects, e.g. [{kind:\"tcp\",port:3000}] ({kind:\"log\",regex} · {kind:\"tcp\",port} · {kind:\"http\",url,status?,bodyRegex?} · {kind:\"file\",path,contentRegex?} · {kind:\"stable\",ms}), readinessMode all|any, restart never|on-failure (bounded backoff; an explicit stop always suppresses restart), lifecycle session (dies with this session, default) | project (detached — survives it, stoppable from any session on this project).\n· wait — block until ready or the deadline; a timeout names exactly the unmet conditions.\n· logs — ordered byte cursors: first call tails, pass the returned cursor for strictly-newer lines; filterRegex bounds noise. stdout+stderr share one ordered log.\n· describe / list — reconciled truth (a dead pid is never reported live).\n· input — type to the service (only the spawning session holds it): mode submit writes the text with Enter after it (default), write sends it exactly as given, eof ends the input.\n· start with pty:true runs the command inside a pseudo-terminal: a program that needs a terminal sees one (its screen bytes land in the log, read back as plain lines), input types keystrokes to it, and Enter is the terminal's.\n· stop / restart — explicit lifecycle; restart reuses the retained spec.\n\nServices are addressable as mercury://service/<name> (Inspect). Never auto-started: a package.json script is a suggestion you start deliberately.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1268,6 +1268,19 @@
             "enum": [
               "session",
               "project"
+            ]
+          },
+          "pty": {
+            "description": "start: run the command inside a pseudo-terminal, so a program that needs a terminal (a REPL, an interactive CLI, a prompt that asks) sees one; its screen bytes land in the log and op:\"input\" types to it (default false: a plain pipe)",
+            "type": "boolean"
+          },
+          "mode": {
+            "description": "input: write = the text exactly as given (keystrokes, control bytes such as \u0003); submit = the text with Enter after it (default); eof = end of input (the text is ignored)",
+            "type": "string",
+            "enum": [
+              "write",
+              "submit",
+              "eof"
             ]
           },
           "timeoutMs": {
