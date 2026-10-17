@@ -154,11 +154,33 @@ check('an arrow key inside a held body is decoded as the arrow and the keyboard 
 const pasted = decode([`${ESC}[200~`, `${ESC}]11;pasted bytes`, `${ESC}[201~`, 'ok', null])
 check('a pasted reply-shaped head ends at the paste\'s own end mark, the paste lands and typing follows', pasted.atoms.some(a => a.kind === 'key' && a.isPasted === true) && pasted.typed.endsWith('ok') && pasted.incomplete === '', `atoms ${JSON.stringify(pasted.atoms.map(a => a.kind === 'key' ? (a.isPasted ? 'paste' : a.name || a.sequence) : a.kind))} typed ${vis(pasted.typed)} carry ${vis(pasted.incomplete)}`)
 const strayBel = decode([`${ESC}]11;rgb:1e1e/`, null, '\r', null, `1e1e/1e1e${BEL}`, null])
-check('the terminator of a body a keystroke cut short is never the ctrl+g key', !strayBel.keys.includes('ctrl+g'), JSON.stringify(strayBel.keys))
+check('the terminator of a body a keystroke cut short is never the ctrl+g key, and its tail is never typed', !strayBel.keys.includes('ctrl+g') && strayBel.typed === '', `keys ${JSON.stringify(strayBel.keys)} typed ${vis(strayBel.typed)}`)
 const strayST = decode([`${ESC}P>|iTerm2 3.5.1`, null, '\r', null, `4${ST}`, null])
-check('the terminator of a version body a keystroke cut short is never a key', !strayST.keys.includes('ST-key'), JSON.stringify(strayST.keys))
+check('the terminator of a version body a keystroke cut short is never a key, and its tail digit is never typed', !strayST.keys.includes('ST-key') && strayST.typed === '', `keys ${JSON.stringify(strayST.keys)} typed ${vis(strayST.typed)}`)
+const escRelease = decode([`${ESC}P>|iTerm2 3.5.`, null, ESC, null, 'ok', null])
+check('a reply with no terminator is released by Escape at the flush, never typed, and every following typed byte lands', escRelease.atoms.some(a => a.kind === 'key' && a.name === 'escape') && escRelease.typed === 'ok' && escRelease.incomplete === '', `keys ${JSON.stringify(escRelease.keys)} typed ${vis(escRelease.typed)} carry ${vis(escRelease.incomplete)}`)
 const laterChord = decode([`${ESC}P>|iTerm2 3.5.1`, null, '\r', null, `${ESC}[A`, null, ST, null])
 check('once another key followed the cut, ESC \\ is a key again (the debt is paid or forgotten, never kept)', laterChord.keys.includes('ST-key'), JSON.stringify(laterChord.keys))
+const laterTextKey = decode([`${ESC}]11;rgb:1e1e/`, null, '\r', null, 'a', null, BEL, null, ST, null])
+check('once a typed character followed the cut, ctrl+g and ESC \\ are keys again (text clears the terminator debt too)', laterTextKey.typed === 'a' && laterTextKey.keys.includes('ctrl+g') && laterTextKey.keys.includes('ST-key'), `typed ${vis(laterTextKey.typed)} keys ${JSON.stringify(laterTextKey.keys)}`)
+const typingDuringWindowAndLateReply = (() => {
+  let owed = true
+  let state: KeyParseState = { ...INITIAL_STATE, stringReplyOwed: () => owed }
+  const atoms: ParsedInput[] = []
+  for (const feed of ['he', `${ESC}]`, null, 'l']) {
+    const [got, next] = parseMultipleKeypresses(state, feed)
+    atoms.push(...got)
+    state = next
+  }
+  owed = false
+  for (const feed of [`${ESC}P>|iTerm2 3.5.`, null, '1', null, '4', null, `${ST}lo`, null]) {
+    const [got, next] = parseMultipleKeypresses(state, feed)
+    atoms.push(...got)
+    state = next
+  }
+  return { typed: composerText(atoms), responses: atoms.filter(a => a.kind === 'response') }
+})()
+check('a user typing during the window (including an alt+] chord) and while a late reply dribbles in: every typed byte lands in order and the reply resolves', typingDuringWindowAndLateReply.typed === 'hello' && typingDuringWindowAndLateReply.responses.length === 1, `typed ${vis(typingDuringWindowAndLateReply.typed)} responses ${typingDuringWindowAndLateReply.responses.length}`)
 check('INITIAL_STATE stays unmutated', INITIAL_STATE.stringReplyOwed === undefined && INITIAL_STATE.incomplete === '')
 
 console.log('\n the sender: the identity probe (version, colour, sync, kitty) leaves once per session, at the first raw-mode arm — a later arm of the input owner never sends it again')
@@ -211,6 +233,11 @@ console.log('\n the sender: the identity probe (version, colour, sync, kitty) le
   await settle()
   check('a later re-arm after a release sends no third version query', versionQueries() === 1, `${versionQueries()} queries`)
   check('raw mode is on again', stdin.isRaw === true)
+  ink.setAltScreenActive(true)
+  await settle()
+  ink.setAltScreenActive(false)
+  await settle()
+  check('entering and leaving the alternate screen sends no second version query', versionQueries() === 1, `${versionQueries()} queries`)
   const exited = ink.waitUntilExit()
   ink.unmount()
   await exited

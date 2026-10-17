@@ -125,6 +125,7 @@ const REPLY_BODY_AFTER_HEAD: Record<string, RegExp> = {
 }
 
 function isReplyBody(head: string, s: string): boolean {
+  if (head.length > 2 && head.endsWith(ESC)) return s.startsWith('\\')
   return REPLY_BODY_AFTER_HEAD[head]?.test(s) === true
 }
 
@@ -173,10 +174,12 @@ function scan(
   let seqKind: TokenKind = KIND_OF_STATE[initial] ?? 'esc'
   let terminatorOwed = policy.terminatorOwed
   let terminatorOwedNow = false
+  let releasedAtFlush = ''
 
   const flushText = (): void => {
     if (i > textStart) {
       tokens.push({ kind: 'text', value: data.slice(textStart, i) })
+      terminatorOwed = false
     }
     textStart = i
   }
@@ -197,7 +200,11 @@ function scan(
   }
 
   const releaseStringBody = (): void => {
-    if (isReplyStringHead(data.slice(seqStart, i))) terminatorOwedNow = true
+    const head = data.slice(seqStart, i)
+    if (isReplyStringHead(head)) {
+      terminatorOwedNow = true
+      if (flush && data.charCodeAt(i) === C0.ESC && i + 1 >= data.length) releasedAtFlush = head + ESC
+    }
     state = 'ground'
     textStart = i
   }
@@ -223,12 +230,18 @@ function scan(
     switch (state) {
       case 'ground':
         if (code === C0.ESC) {
+          if ((terminatorOwed || terminatorOwedNow) && data.charCodeAt(i + 1) === ESC_TYPE.ST) {
+            terminatorOwed = false
+            terminatorOwedNow = false
+            i += 2
+            textStart = i
+            break
+          }
           flushText()
           seqStart = i
           seqKind = 'esc'
           state = 'escape'
         } else if (code === C0.BEL && (terminatorOwed || terminatorOwedNow)) {
-          flushText()
           terminatorOwed = false
           terminatorOwedNow = false
           i++
@@ -395,7 +408,7 @@ function scan(
         ) {
           i += 2
           emitString()
-        } else if (code === C0.ESC && i + 1 >= data.length) {
+        } else if (code === C0.ESC && i + 1 >= data.length && !flush) {
           i++
         } else if (code === C0.ESC || !isStringBodyByte(code)) {
           releaseStringBody()
@@ -405,12 +418,11 @@ function scan(
         break
     }
   }
-  const owed = terminatorOwed || terminatorOwedNow
-
   if (state === 'ground') {
     flushText()
-    return { tokens, state, carry: '', terminatorOwed: owed }
+    return { tokens, state, carry: '', terminatorOwed: terminatorOwed || terminatorOwedNow }
   }
+  const owed = terminatorOwed || terminatorOwedNow
   if (state === 'resync' || state === 'resync-head' || state === 'resync-csi') {
     return { tokens, state, carry: '', terminatorOwed: owed }
   }
@@ -430,11 +442,11 @@ function scan(
     return { tokens, state: next, carry: '', terminatorOwed: owed }
   }
   if (remaining && (state === 'osc' || state === 'dcs' || state === 'apc')) {
-    if (policy.stringReplyOwed || isReplyStringHead(remaining)) return { tokens, state, carry: remaining, terminatorOwed: owed }
     if (remaining.length <= 2 && remaining.charCodeAt(0) === C0.ESC) {
       tokens.push({ kind: 'esc', value: remaining })
       return { tokens, state: 'ground', carry: '', flushedHead: remaining, terminatorOwed: owed }
     }
+    if (policy.stringReplyOwed || isReplyStringHead(remaining)) return { tokens, state, carry: remaining, terminatorOwed: owed }
     if (policy.sealedFlushes === 0) return { tokens, state, carry: remaining, sealed: true, terminatorOwed: owed }
     if (!policy.fedSinceFlush) return { tokens, state, carry: '', sealed: true, terminatorOwed: owed }
     return { tokens, state: 'ground', carry: '', terminatorOwed: owed }
@@ -452,5 +464,5 @@ function scan(
   if (remaining) {
     tokens.push({ kind: seqKind, value: remaining })
   }
-  return { tokens, state: 'ground', carry: '', flushedHead: remaining === ESC ? ESC : '', terminatorOwed: owed }
+  return { tokens, state: 'ground', carry: '', flushedHead: releasedAtFlush || (remaining === ESC ? ESC : ''), terminatorOwed: owed }
 }
