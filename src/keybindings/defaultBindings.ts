@@ -25,6 +25,12 @@ function hostChords(platform: NodeJS.Platform, versions: NodeJS.ProcessVersions)
 
 const HOST = hostChords(process.platform, process.versions)
 
+const SELECT_LIST_KEYS = {
+  wheel: { wheelup: 'select:previous', wheeldown: 'select:next' },
+  ctrlPrevNext: { 'ctrl+p': 'select:previous', 'ctrl+n': 'select:next' },
+  ends: { home: 'select:first', end: 'select:last' },
+} as const satisfies Record<string, Record<string, BoundIn<'Settings'> & BoundIn<'Select'>>>
+
 const SHIPPED_KEYS = {
   Global: {
     'ctrl+c': 'app:interrupt',
@@ -68,16 +74,13 @@ const SHIPPED_KEYS = {
   },
   Settings: {
     escape: 'confirm:no',
-    wheelup: 'select:previous',
-    wheeldown: 'select:next',
+    ...SELECT_LIST_KEYS.wheel,
     up: 'select:previous',
     down: 'select:next',
     k: 'select:previous',
     j: 'select:next',
-    'ctrl+p': 'select:previous',
-    'ctrl+n': 'select:next',
-    home: 'select:first',
-    end: 'select:last',
+    ...SELECT_LIST_KEYS.ctrlPrevNext,
+    ...SELECT_LIST_KEYS.ends,
     space: 'select:accept',
     r: 'settings:retry',
   },
@@ -201,16 +204,13 @@ const SHIPPED_KEYS = {
     x: 'diff:sendAllComments',
   },
   Select: {
-    wheelup: 'select:previous',
-    wheeldown: 'select:next',
+    ...SELECT_LIST_KEYS.wheel,
     up: 'select:previous',
     k: 'select:previous',
     down: 'select:next',
     j: 'select:next',
-    'ctrl+p': 'select:previous',
-    'ctrl+n': 'select:next',
-    home: 'select:first',
-    end: 'select:last',
+    ...SELECT_LIST_KEYS.ctrlPrevNext,
+    ...SELECT_LIST_KEYS.ends,
     enter: 'select:accept',
     escape: 'select:cancel',
   },
