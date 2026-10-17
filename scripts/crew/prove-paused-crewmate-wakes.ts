@@ -125,6 +125,8 @@ try {
   if (!wokeA) throw new Error('the crewmate is deaf to the words — the later scenes need a crewmate that wakes')
 
   tally.section('B — p twice (open, then a fresh pause) parks the woken crewmate again at its next tool; a note addressed to it (queue/add type:note, the daemon\'s delivery) wakes it again')
+  const carriedAcrossTheSeam = await waitFor('the woken crewmate never started its second model call', () => requestsOf(peerModel).length >= 2, TURN_MS)
+  tally.check('the lift carries across the model seam: the woken crewmate\'s second request streams under the closed gate', carriedAcrossTheSeam && (await gateFacts())?.paused === true, JSON.stringify({ peer: requestsOf(peerModel).length }))
   const opened = await pauseGate(false)
   const closedAgain = await pauseGate(true)
   const bashAskedAgain = await waitFor('the crewmate never asked for its second Bash', () => toolCallRows('Bash').length >= 2, TURN_MS)
