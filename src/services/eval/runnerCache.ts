@@ -14,7 +14,7 @@ function contentHash(source: string): string {
   return createHash('sha256').update(source, 'utf8').digest('hex').slice(0, 12)
 }
 
-function ensureCached(prefix: string, extension: string, source: string): string {
+export function ensureCached(prefix: string, extension: string, source: string): string {
   const dir = evalCacheDir()
   const path = join(dir, `${prefix}-${contentHash(source)}${extension}`)
   if (existsSync(path)) return path

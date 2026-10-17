@@ -33,7 +33,7 @@ import { buildKernelEnv } from './kernelEnv.js'
 import { transformJsCell } from './jsCellTransform.js'
 import { jsEnvironmentNotes } from './jsKernelWords.js'
 import { ensureJsRunner, ensurePyRunner } from './runnerCache.js'
-import { ProcKernel, type CellEnd } from './procKernel.js'
+import { kernelTransportFor, ProcKernel, type CellEnd, type KernelTransport } from './procKernel.js'
 import type { BridgeRequestFrame } from './protocol.js'
 import type { SampleItem } from '../samples/contracts.js'
 
@@ -189,7 +189,7 @@ export class EvalKernelManager {
   private sweepTimer: ReturnType<typeof setInterval> | null = null
   private reapedIdle = new Map<string, { idleMs: number; owner: string }>()
 
-  constructor(private readonly tuning: { idleTtlMs?: number; idleSweepMs?: number } = {}) {}
+  constructor(private readonly tuning: { idleTtlMs?: number; idleSweepMs?: number; pyTransport?: KernelTransport } = {}) {}
 
   private get idleTtlMs(): number {
     return this.tuning.idleTtlMs ?? EVAL_IDLE_TTL_MS
@@ -234,11 +234,12 @@ export class EvalKernelManager {
       for (const note of notes) logForDebugging(`eval recovery: ${note}`)
     }
     const runner = language === 'py' ? ensurePyRunner() : ensureJsRunner()
-    const kernel = new ProcKernel({
+    const kernel = await ProcKernel.launch({
       command: interpreter,
       args: [runner],
       cwd,
       env: buildKernelEnv(),
+      transport: language === 'py' && this.tuning.pyTransport !== undefined ? this.tuning.pyTransport : kernelTransportFor(language),
     })
     if (kernel.pid === undefined) return { spawnError: `failed to spawn ${interpreter}` }
     const operationId = `kernel-${process.pid}-${kernel.pid}-${Date.now()}`

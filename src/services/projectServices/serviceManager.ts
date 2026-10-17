@@ -1,6 +1,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
+import { encodePtyFrame, ptyHostLaunch } from './ptyHost.js'
 import { endProcessTree } from '../../utils/processGroup.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import {
@@ -25,6 +26,7 @@ import {
   SERVICE_NAME_RE,
   type ReadinessCondition,
   type ReadinessStatus,
+  type ServiceInputMode,
   type ServiceRecord,
   type ServiceSpec,
 } from './contracts.js'
@@ -407,9 +409,14 @@ export async function startService(
     return { error: `cannot open log file ${logFile}: ${e instanceof Error ? e.message : String(e)}` }
   }
 
+  const launch = spec.pty === true ? await ptyHostLaunch(spec) : { command: spec.command, args: spec.args }
+  if ('error' in launch) {
+    closeSync(logFd)
+    return { error: launch.error }
+  }
   let child: ChildProcess
   try {
-    child = spawn(spec.command, spec.args, {
+    child = spawn(launch.command, launch.args, {
       windowsHide: true,
       cwd: spec.cwd,
       env: { ...subprocessEnv(), ...(spec.env ?? {}) },
@@ -631,7 +638,8 @@ export function sendInput(
   name: string,
   text: string,
   sessionId: string,
-): { ok: true } | { error: string } {
+  mode: ServiceInputMode = 'submit',
+): { ok: true; pty: boolean } | { error: string } {
   const record = reconcileRecord(cwd, name)
   if (!record) return { error: `no service '${name}' in this project` }
   if (!record.pid) return { error: `service '${name}' is ${record.state} — nothing to write to` }
@@ -644,8 +652,14 @@ export function sendInput(
           : `service '${name}' has no writable stdin in this session`,
     }
   }
-  child.stdin.write(text.endsWith('\n') ? text : text + '\n')
-  return { ok: true }
+  if (record.spec.pty === true) {
+    child.stdin.write(encodePtyFrame(mode === 'eof' ? { t: 'eof' } : { t: mode, text }))
+    return { ok: true, pty: true }
+  }
+  if (mode === 'eof') child.stdin.end()
+  else if (mode === 'write') child.stdin.write(text)
+  else child.stdin.write(text.endsWith('\n') ? text : text + '\n')
+  return { ok: true, pty: false }
 }
 
 

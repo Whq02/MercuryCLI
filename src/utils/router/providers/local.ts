@@ -23,7 +23,7 @@ export function localLiveCatalogue(): ProviderCatalogueEntry[] {
     modelClass: 'local' as const,
     ...(record.contextWindow ? { contextWindow: record.contextWindow.tokens } : {}),
     efforts: [],
-    roles: record.toolsDeclared === false ? [] : ALL_ROLES,
+    roles: ALL_ROLES,
   }))
 }
 

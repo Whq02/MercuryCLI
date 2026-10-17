@@ -124,6 +124,7 @@ export type ConversationConfig = {
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
   maxBudgetUsd?: number
+  maxTime?: { limitMs: number; at: number }
   jsonSchema?: Record<string, unknown>
   handleElicitation?: ToolUseContext['handleElicitation']
   partialRows?: boolean
@@ -817,6 +818,12 @@ export class Conversation {
       await this.recordDelta(turnMessages)
     }
     const messages = this.mutableMessages
+    const maxTimeReached = (): boolean => config.maxTime !== undefined && Date.now() >= config.maxTime.at
+    const timeLimitFacts = (): Partial<OutcomeFacts> => ({ error: { message: OUTCOME_SENTENCES.time_limit({ maxTimeMs: config.maxTime?.limitMs }), class: 'time_limit' } })
+    if (maxTimeReached()) {
+      yield* endTurn('time_limit', timeLimitFacts())
+      return
+    }
 
     const queryParams: QueryParams = {
       messages: turnMessages,
@@ -1037,6 +1044,14 @@ export class Conversation {
           const open = steps.flush()
           if (open !== null) yield open
           yield* endTurn('budget_limit', { error: { message: OUTCOME_SENTENCES.budget_limit({ maxBudgetUsd: config.maxBudgetUsd }), class: 'budget_limit' } })
+          return
+        }
+        const moreStepsAhead = kind === 'user' || isBoundary || (kind === 'assistant' && (message as AssistantMessage).message.content.some(block => block.type === 'tool_use'))
+        if (moreStepsAhead && maxTimeReached()) {
+          if (eagerFlush) await flushSessionStorage()
+          const open = steps.flush()
+          if (open !== null) yield open
+          yield* endTurn('time_limit', timeLimitFacts())
           return
         }
         if (kind === 'user' && config.jsonSchema) {

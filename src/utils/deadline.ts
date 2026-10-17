@@ -160,3 +160,17 @@ export function minutesKnobToMs(raw: string | undefined, defaultMinutes: number)
   if (!Number.isFinite(parsed) || parsed < 0) return defaultMinutes * 60_000
   return parsed * 60_000
 }
+
+const TIME_SPAN_UNIT_MS: Record<string, number> = { s: 1_000, m: 60_000, h: 3_600_000 }
+
+export function timeSpanMsOf(raw: string): number | null {
+  const text = raw.replace(/\s+/g, '').toLowerCase()
+  if (/^\d+(?:\.\d+)?$/.test(text)) {
+    const seconds = Number(text)
+    return seconds > 0 ? seconds * 1_000 : null
+  }
+  if (!/^(\d+(?:\.\d+)?[smh])+$/.test(text)) return null
+  let total = 0
+  for (const part of text.matchAll(/(\d+(?:\.\d+)?)([smh])/g)) total += Number(part[1]) * TIME_SPAN_UNIT_MS[part[2]!]!
+  return total > 0 ? total : null
+}

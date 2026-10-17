@@ -89,6 +89,7 @@ import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, toolCallRefusalDiagnostic, toolCallRefusalNote } from '../toolCallGate.js'
 import { isLocalLivenessCut, localStreamLawFor } from '../localLiveness.js'
 import { extractToolCallMarkup } from '../local/toolCallMarkup.js'
+import { renderToolDialectHistory, toolDialectSystemText } from '../local/toolDialect.js'
 import { planToolPayload, renderAdmissionRecordsAsText, type ToolPayloadPlan } from '../toolEconomy.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
@@ -150,6 +151,7 @@ export interface CompatLaneProfile {
   extraHeaders?(): Record<string, string> | undefined
   omitsToolChoice?: boolean
   toolCapabilityRefusal?(wireModel: string): string | undefined
+  toolsInPrompt?(wireModel: string): boolean
   buildExtras(args: {
     wireModel: string
     effortValue: string | undefined
@@ -461,7 +463,8 @@ export async function* compatChatCallModel(
   const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
   const thinkingEnabled = thinkingConfig.type !== 'disabled'
-  if (apiTools.length > 0 && profile.toolCapabilityRefusal) {
+  const toolsInPrompt = apiTools.length > 0 && profile.toolsInPrompt?.(wireModel) === true
+  if (apiTools.length > 0 && !toolsInPrompt && profile.toolCapabilityRefusal) {
     const refusal = profile.toolCapabilityRefusal(wireModel)
     if (refusal !== undefined) {
       yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${refusal}`)
@@ -484,17 +487,19 @@ export async function* compatChatCallModel(
     : fitOutputTokensForRequest({ asked: options.maxOutputTokensOverride, messages, model: modelId, fixed: [systemText, apiTools] })
   if (outputFit?.clamped === true) logForDebugging(outputFitWords(outputFit, modelId))
   const fittedOutputOverride = outputFit?.tokens
+  const wireTools = mapToolsToZai(apiTools)
+  const mappedMessages = mapMessagesToZai(toolsInPrompt ? toolDialectSystemText(systemText, wireTools) : systemText, toBridgeMessages(preparedMessages), {
+    keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
+    keepReasoningAfterLastUser: profile.keepsReasoningOnContinuations?.(wireModel) ?? false,
+    imagesSupported: imagesSupportedForCompatModel(modelId),
+    ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
+  })
   const request: CompatChatRequest = {
     model: wireModel,
-    messages: mapMessagesToZai(systemText, toBridgeMessages(preparedMessages), {
-      keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
-      keepReasoningAfterLastUser: profile.keepsReasoningOnContinuations?.(wireModel) ?? false,
-      imagesSupported: imagesSupportedForCompatModel(modelId),
-      ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
-    }),
-    ...(apiTools.length > 0
+    messages: toolsInPrompt ? renderToolDialectHistory(mappedMessages) : mappedMessages,
+    ...(apiTools.length > 0 && !toolsInPrompt
       ? {
-          tools: mapToolsToZai(apiTools),
+          tools: wireTools,
           ...(profile.omitsToolChoice ? {} : { tool_choice: 'auto' as const }),
         }
       : {}),

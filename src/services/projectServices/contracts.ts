@@ -22,7 +22,10 @@ export interface ServiceSpec {
   readinessMode: 'all' | 'any'
   restart: RestartPolicy
   lifecycle: ServiceLifecycle
+  pty?: boolean
 }
+
+export type ServiceInputMode = 'write' | 'submit' | 'eof'
 
 type ServiceState =
   | 'queued'

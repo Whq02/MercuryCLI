@@ -80,7 +80,7 @@ for (const event of EVENTS) {
   check(`${event}: match field ${matchFields[event] ?? 'none'}`, C.hookEventTable[event].match === matchFields[event], String(C.hookEventTable[event].match))
 }
 check('hookMatchValue reads the match field from the payload', C.hookMatchValue('tool.before', { tool: 'Bash' }) === 'Bash' && C.hookMatchValue('turn.end', { status: 'failed' }) === 'failed' && C.hookMatchValue('turn.start', { prompt: 'x' }) === undefined)
-check('hookMatchValues lists a closed vocabulary and nothing for an open field', JSON.stringify(C.hookMatchValues('turn.end')) === JSON.stringify(['completed', 'blocked', 'refused', 'interrupted', 'turn_limit', 'budget_limit', 'schema_unmet', 'loop_stopped', 'failed']) && JSON.stringify(C.hookMatchValues('session.state')) === JSON.stringify(['needs-you', 'stalled', 'ready-to-review', 'paused', 'completed', 'failed', 'cancelled']) && C.hookMatchValues('tool.before') === undefined)
+check('hookMatchValues lists a closed vocabulary and nothing for an open field', JSON.stringify(C.hookMatchValues('turn.end')) === JSON.stringify(['completed', 'blocked', 'refused', 'interrupted', 'turn_limit', 'budget_limit', 'time_limit', 'schema_unmet', 'loop_stopped', 'failed']) && JSON.stringify(C.hookMatchValues('session.state')) === JSON.stringify(['needs-you', 'stalled', 'ready-to-review', 'paused', 'completed', 'failed', 'cancelled']) && C.hookMatchValues('tool.before') === undefined)
 
 const answers: Record<(typeof EVENTS)[number], string[]> = {
   'turn.start': ['block', 'stop', 'context', 'notice'],
