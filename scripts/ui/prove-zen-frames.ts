@@ -3,10 +3,11 @@
 // gate-watch: src/commands/zen/index.ts src/commands/zen/zen.tsx src/commands.ts src/components/HelpV2/commandDomains.ts src/components/BaseTextInput.tsx src/hooks/useTypeahead.tsx
 // gate-watch: src/components/MercuryFrame.tsx src/components/Settings/Config.tsx src/components/SettingsPopupSlot.tsx src/commands/config/config.tsx src/utils/cockpit/settingsPopup.ts
 import { EventEmitter } from 'node:events'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import stripAnsi from 'strip-ansi'
+import { releaseScratchHome } from '../lib/settingsPopupHarness.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const HOME = mkdtempSync(join(tmpdir(), 'zen-frames-'))
@@ -358,6 +359,6 @@ section('§3 the /config row "Zen mode — rails hidden" reads the same setting:
 console.error = originalError
 clearTimeout(hardLimit)
 check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 600))
-rmSync(HOME, { recursive: true, force: true })
+await releaseScratchHome(HOME)
 console.log(`\nzen-frames: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)
