@@ -53,7 +53,7 @@ export const AUTOCOMPACT_BUFFER_TOKENS = 20_000
 
 const SUMMARY_OUTPUT_RESERVE_TOKENS = 20_000
 const MAX_CONSECUTIVE_FAILURES = 3
-const RAPID_REFILL_TURN_WINDOW = 3
+const RAPID_REFILL_TURN_WINDOW = 2
 const RAPID_REFILL_LIMIT = 3
 
 const SUMMARY_RESERVE_MAX_WINDOW_DIVISOR = 4
@@ -69,10 +69,16 @@ export function compactionBreakerText(opts: { nonInteractive: boolean }): string
 }
 
 export const AUTOCOMPACT_THRASH_MESSAGE =
-  `Auto-compaction is looping: the context refilled within ${RAPID_REFILL_TURN_WINDOW} turns ` +
-  `${RAPID_REFILL_LIMIT} times in a row. The usual cause is a single input larger than the ` +
-  `window can hold — a file read or a tool output. Read it in smaller pieces, or start a ` +
-  `fresh conversation with /clear.`
+  `Auto-compaction is looping: the context refilled within ${RAPID_REFILL_TURN_WINDOW - 1} turn of each fold ` +
+  `${RAPID_REFILL_LIMIT} times in a row — each turn brings in more than a fold can free, ` +
+  `a file read or a tool output larger than the room a fold leaves.`
+
+export function rapidRefillPauseText(opts: { nonInteractive: boolean }): string {
+  const remedy = opts.nonInteractive
+    ? 'read in smaller pieces, or start a fresh run'
+    : 'read in smaller pieces, /compact folds the conversation by hand, and the next message makes a fresh automatic attempt'
+  return `Automatic compaction is paused for the rest of this run; ${remedy}.`
+}
 
 export type AutoCompactWindowSource = 'settings' | 'auto' | 'experiment' | 'model-default'
 
@@ -82,6 +88,7 @@ export type AutoCompactTrackingState = {
   turnId: string
   consecutiveFailures?: number
   consecutiveRapidRefills?: number
+  rapidRefillPaused?: true
 }
 
 export type TokenWarningLevel = 'ok' | 'warn' | 'compact' | 'blocked'
@@ -308,6 +315,9 @@ export async function autoCompactIfNeeded(
   }
   const failures = tracking?.consecutiveFailures ?? 0
   const nonInteractive = foldRemedyIsHeadless(toolUseContext.options.isNonInteractiveSession)
+  if (tracking?.rapidRefillPaused === true) {
+    return forced ? { ...notCompacted, refusal: rapidRefillPauseText({ nonInteractive }) } : notCompacted
+  }
   if (failures >= MAX_CONSECUTIVE_FAILURES) {
     return forced ? { ...notCompacted, refusal: compactionBreakerText({ nonInteractive }) } : notCompacted
   }
@@ -328,15 +338,16 @@ export async function autoCompactIfNeeded(
     )
     compact = true
   } else {
-    compact = await shouldAutoCompact(messages, model, querySource, snipTokensFreed, raw => {
+    compact = await shouldAutoCompact([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model, querySource, snipTokensFreed, raw => {
       measuredRawTokenCount = raw
     })
+    if (compact && messages.length === 0) return { ...notCompacted, measuredRawTokenCount }
   }
 
   if (!compact && advanceTriggerEnabled() && isAutoCompactEnabled()) {
     if (querySource !== 'session_memory' && querySource !== 'compact' && querySource !== 'context_agent') {
       try {
-        const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation(messages, model)) - snipTokensFreed
+        const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model)) - snipTokensFreed
         const { pctLeft } = calculateTokenWarningState(tokenCount, model)
         const owner = ownerFromToolUseContext(toolUseContext)
         const slot = advanceState.get(owner)
@@ -363,10 +374,9 @@ export async function autoCompactIfNeeded(
   }
 
   const refills = rapidRefillCount(tracking)
-  if (refills >= RAPID_REFILL_LIMIT) {
-    logForDebugging('autoCompact: rapid-refill breaker tripped')
-    return { ...notCompacted, consecutiveRapidRefills: refills, rapidRefillBreakerTripped: true }
-  }
+  const tripped = refills >= RAPID_REFILL_LIMIT
+  if (tripped) logForDebugging('autoCompact: rapid-refill breaker tripped — this fold lands, then automatic compaction pauses for the run')
+  const breaker = tripped ? { rapidRefillBreakerTripped: true as const } : {}
 
   const threshold = getAutoCompactThreshold(model)
   const recompactionInfo: RecompactionInfo = {
@@ -404,16 +414,17 @@ export async function autoCompactIfNeeded(
         setLastSummarizedMessageId(undefined)
         runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId }, buildPostCompactMessages(walked.result))
         if (walked.method === 'notes') {
-          return { wasCompacted: true, compactionResult: walked.result, consecutiveRapidRefills: refills }
+          return { wasCompacted: true, compactionResult: walked.result, consecutiveRapidRefills: refills, ...breaker }
         }
         return {
           wasCompacted: true,
           compactionResult: walked.result,
           consecutiveFailures: 0,
           consecutiveRapidRefills: refills,
+          ...breaker,
         }
       }
-      return notCompacted
+      return { ...notCompacted, ...breaker }
     }
 
     if (sessionMemoryArmed) scoped.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
@@ -421,7 +432,7 @@ export async function autoCompactIfNeeded(
     if (viaMemory !== null) {
       setLastSummarizedMessageId(undefined)
       runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId }, buildPostCompactMessages(viaMemory))
-      return { wasCompacted: true, compactionResult: viaMemory, consecutiveRapidRefills: refills }
+      return { wasCompacted: true, compactionResult: viaMemory, consecutiveRapidRefills: refills, ...breaker }
     }
 
     const result = await compactConversation(
@@ -442,6 +453,7 @@ export async function autoCompactIfNeeded(
       compactionResult: result,
       consecutiveFailures: 0,
       consecutiveRapidRefills: refills,
+      ...breaker,
     }
     }, { trigger: 'auto', sessionMemory: sessionMemoryArmed, microcompaction: false })
   } catch (err) {
@@ -473,6 +485,7 @@ export async function autoCompactIfNeeded(
       wasCompacted: false,
       consecutiveFailures: nextFailures,
       refusal: reason,
+      ...breaker,
     }
   }
 }

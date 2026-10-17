@@ -30,7 +30,7 @@ const TEXT = contract.MERCURY_CONSTITUTION
 section('§1 the constant — the owner’s text, byte-anchored')
 {
   const anchors: Array<[string, RegExp]> = [
-    ['identity (You are Mercury, an expert software engineer working in the operator\'s terminal)', /^You are Mercury, an expert software engineer working in the operator's terminal\./],
+    ['identity (You are Mercury, an expert software engineer working in the operator\'s terminal)', /^You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell\./],
     ['the engine line', /Your underlying AI model is your engine;/],
     ['the attribution', /Mercury was not built by the model's maker, and the model can be swapped\./],
     ['the peer line', /Speak plainly as a direct peer, without jargon, and never mislead\./],
@@ -46,7 +46,7 @@ section('§1 the constant — the owner’s text, byte-anchored')
   const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
   check(
     'byte anchor (sha256 of the owner’s text)',
-    digest === '4642cb41c21da9d60e36ab171bd3c8e6a4c200f48376a2b2d51887b890aadbb9',
+    digest === 'b7617c80153930abfedb8a18f8599e69912cc0d93016ee6b0f66bcfd6def8f58',
     digest,
   )
   check('provider-neutral (no engine family named)', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi)\b/i.test(TEXT))

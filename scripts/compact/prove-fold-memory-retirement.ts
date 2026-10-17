@@ -32,6 +32,7 @@ const { recallQuery, readMemoryRecord } = await import('../../src/mneme/memoryVe
 const { strikePendingRow } = await import('../../src/mneme/mnemeCorrect.ts')
 const { APIUserAbortError } = await import('../../src/services/api/sdkErrors.ts')
 const { groupMessagesByApiRound } = await import('../../src/services/compact/grouping.ts')
+const { foldReceipt, foldReceiptWords } = await import('../../src/services/compact/foldReceipt.ts')
 
 let checks = 0
 let failures = 0
@@ -53,7 +54,7 @@ function rounds(count: number): Message[] {
   }
   return rows
 }
-const api = await startFixtureApi(Array.from({ length: 8 }, () => ({ kind: 'text' as const, text: 'The compaction road was rebuilt on the measurement. Row six retires the run state to project memory with a pointer the next epoch can read back.' })))
+const api = await startFixtureApi(Array.from({ length: 10 }, () => ({ kind: 'text' as const, text: 'The compaction road was rebuilt on the measurement. Row six retires the run state to project memory with a pointer the next epoch can read back.' })))
 process.env.ANTHROPIC_BASE_URL = api.url
 const dir = mnemeLibraryDir()
 const owner = makeOwnerKey({ workspace: process.cwd(), sessionId: 'fold-memory-proof', lane: 'main' })
@@ -120,6 +121,12 @@ try {
   check('a contradicting run state is refused by the retention guard and advertises no pointer', conflict?.state === 'failed' && 'reason' in conflict && conflict.reason.includes('conflicts with a pending fact') && !('pointer' in conflict), conflict?.state === 'failed' ? conflict.reason : conflict?.state)
   check('nothing was written for the conflict and the fold still landed', pendingRows(dir).length === 1 && conflicted.summaryMessages.length === 1)
   check('the summary says nothing moved and keeps the unsaved item visible in the boundary', summaryOf(conflicted).includes('Nothing moved to memory: ') && summaryOf(conflicted).includes('conflicts with a pending fact') && conflict?.item !== null)
+  const onceMore = await fold([...buildPostCompactMessages(conflicted), ...rounds(3)])
+  const notAgain = envelopeOf(onceMore)
+  check('the same refused item is not offered again at the next fold: the envelope says so and carries the refusal, the fold lands, nothing is written (red on the base: offered and refused again, word for word)', notAgain?.state === 'failed' && 'reason' in notAgain && notAgain.reason.startsWith('refused at the previous fold and not offered again: conflicts with a pending fact') && notAgain.item?.content === conflict?.item?.content && pendingRows(dir).length === 1 && onceMore.summaryMessages.length === 1, notAgain?.state === 'failed' ? notAgain.reason : notAgain?.state)
+  const thirdTime = envelopeOf(await fold([...buildPostCompactMessages(onceMore), ...rounds(3)]))
+  check('…and the third fold says it once, never nesting the words', thirdTime?.state === 'failed' && 'reason' in thirdTime && thirdTime.reason.startsWith('refused at the previous fold and not offered again: conflicts with a pending fact') && thirdTime.reason.split('not offered again').length === 2, thirdTime?.state === 'failed' ? thirdTime.reason : thirdTime?.state)
+  check('the boundary row names the refusal, not a move', foldReceiptWords(foldReceipt(onceMore.boundaryMarker.compactMetadata)).some(word => word.startsWith('nothing moved to memory (refused at the previous fold and not offered again: ')), JSON.stringify(foldReceiptWords(foldReceipt(onceMore.boundaryMarker.compactMetadata))))
 
   const fakeKey = ['sk-ant-api03', 'a'.repeat(95)].join('-')
   acceptUserRequest(owner, { objective: `Rotate the key ${fakeKey} before the release.`, rootMessageId: null })

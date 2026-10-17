@@ -217,7 +217,7 @@ section('S2 the road — a refused summary keeps the history; the next message m
   const r = await drive(ctx, nextRows)
   const summaries = r.wire.filter(w => isSummariserRequest(w.body))
   check('the next message starts a fresh fold and the turn completes', r.threw === undefined && r.terminal.reason === 'completed' && r.wire.length === 2 && summaries.length === 1, { terminal: r.terminal, requests: r.wire.length, summaries: summaries.length })
-  check('the fresh summary request retains the new message and original tool rounds', JSON.stringify(summaries[0]?.body).includes('Continue the remaining suites') && JSON.stringify(summaries[0]?.body).includes('Bash result 3:'))
+  check('the fresh summary request retains the original tool rounds and never the new message — the operator\'s just-sent turn is carried around the fold and ends the post-fold request', !JSON.stringify(summaries[0]?.body).includes('Continue the remaining suites') && JSON.stringify(summaries[0]?.body).includes('Bash result 3:') && JSON.stringify(r.wire.at(-1)?.body.messages).includes('Continue the remaining suites'))
   check('every request fits the wire window', fixture.refusals.length === 0 && [...first.wire, ...r.wire].every(w => bodyTokens(w.body) <= WIRE_WINDOW), [...first.wire, ...r.wire].map(w => bodyTokens(w.body)))
   const boundary = boundaryOf(r.yields)
   const meta = (boundary as { compactMetadata?: { trigger?: string; preTokens?: number } } | undefined)?.compactMetadata

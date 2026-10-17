@@ -37,6 +37,16 @@ const oneLine = (text: string): string => text.replace(/[\r\n\t]+/g, ' ').replac
 const clip = (text: string, max: number): string => (text.length > max ? `${text.slice(0, max - 1)}…` : text)
 const short = (id: string): string => id.slice(0, RECORD_SHORT)
 
+const NOT_OFFERED_AGAIN = 'refused at the previous fold and not offered again: '
+
+function previousFoldMemory(messages: readonly Message[]): FoldMemoryEnvelope | null {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const row = messages[index]
+    if (row?.type === 'system' && row.subtype === 'compact_boundary' && row.compactMetadata.memory) return row.compactMetadata.memory
+  }
+  return null
+}
+
 function foldMemorySourceRange(messages: readonly Message[]): FoldMemorySourceRange {
   let priorLastTurn = 0
   for (let index = messages.length - 1; index >= 0; index--) {
@@ -126,8 +136,18 @@ export function retireFoldToMemory(input: {
     if (pointer === null) return { ...held, state: 'pending', reason: `already in memory as ${retired.id} but no pointer resolves for it` }
     return { ...held, state: 'committed', pointer }
   }
+  const previous = previousFoldMemory(input.messages)
+  if (previous !== null && previous.state === 'failed' && previous.item !== null && previous.item.content === item.content) {
+    const reason = previous.reason.startsWith(NOT_OFFERED_AGAIN) ? previous.reason.slice(NOT_OFFERED_AGAIN.length) : previous.reason
+    return { ...base, state: 'failed', reason: `${NOT_OFFERED_AGAIN}${reason}` }
+  }
   const source = `fold s:${short(sessionId)} e:${input.epoch}`
-  const [outcome] = retainItems([{ content: item.content, context: item.context, topic: item.topic }], { session: sessionId, source }, dir)
+  let outcome: ReturnType<typeof retainItems>[number] | undefined
+  try {
+    ;[outcome] = retainItems([{ content: item.content, context: item.context, topic: item.topic }], { session: sessionId, source }, dir)
+  } catch (error) {
+    return { ...base, state: 'failed', reason: `the memory write failed: ${error instanceof Error ? error.message : String(error)}` }
+  }
   if (outcome === undefined || outcome.status === 'refused') return { ...base, state: 'failed', reason: outcome?.reason ?? 'the memory write returned no outcome' }
   const row = readBackStoredRow(outcome.id, dir)
   if (row === null || row.text !== expected || row.pin) {

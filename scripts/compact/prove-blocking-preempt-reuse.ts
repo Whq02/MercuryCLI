@@ -101,8 +101,8 @@ section('R3 · the wiring reads the carried count first (source pins)')
     auto.includes('if (!compact) return { ...notCompacted, measuredRawTokenCount }'),
   )
   check(
-    'the advance branch reuses the measured count and recounts only as fallback',
-    auto.includes('(measuredRawTokenCount ?? tokenCountWithEstimation(messages, model)) - snipTokensFreed'),
+    'the advance branch reuses the measured count (the whole view: the fold input and the carried operator turn) and recounts only as fallback',
+    auto.includes('(measuredRawTokenCount ?? tokenCountWithEstimation([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model)) - snipTokensFreed') && auto.includes('shouldAutoCompact([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model, querySource, snipTokensFreed, raw => {'),
   )
   const tm = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
   check(

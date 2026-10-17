@@ -202,12 +202,12 @@ if (selection !== null) {
   check('…a Saturn wake, a coordinator row, a command echo and its expansion, a local-command stdout row, a bash-mode row, a tool result, a task notification, a coordinator steer, a virtual row and an image-only row are out', noiseTexts.filter(noiseText => noiseText !== '').every(noiseText => !texts.some(text => text.includes(noiseText.slice(0, 24)))) && !texts.some(text => text.includes(EXPANSION_TEXT) || text.includes(WAKE_TEXT.slice(0, 20)) || text === '[image]'))
   check('…an earlier compaction summary and its boundary are out', !texts.some(text => text.includes('paraphrased') || text.includes('Conversation compacted')))
   const block = selection.selectOperatorMessages(history)
-  check(`the block carries every one of this stretch's messages whole (${expected.length} shown) and names the prior fold's ${earlier} by count`, block !== null && block.messages.length === expected.length && block.omitted === earlier, j(block))
-  check('…newest first: ordinals descend from the session total, the first entry is the last prompt, the last entry is the oldest of this stretch', block !== null && block.messages.every((entry, index) => entry.ordinal === earlier + expected.length - index) && block.messages[0]!.text === PROMPTS[7] && block.messages.at(-1)!.text === PROMPTS[0], j(block?.messages.map(entry => entry.ordinal)))
-  check('…the entries are the exact texts (verbatim)', block !== null && block.messages.every(entry => entry.text === expected[entry.ordinal - earlier - 1]))
+  check(`the block carries every one of this stretch's messages whole (${expected.length}) and the prior fold's ${earlier} too, within the budget — nothing omitted`, block !== null && block.messages.length === expected.length + earlier && block.omitted === 0, j(block))
+  check('…newest first: ordinals descend from the session total, the first entry is the last prompt, the last entry is the session\'s opening message', block !== null && block.messages.every((entry, index) => entry.ordinal === earlier + expected.length - index) && block.messages[0]!.text === PROMPTS[7] && block.messages.at(-1)!.text === OLDER[0], j(block?.messages.map(entry => entry.ordinal)))
+  check('…the entries are the exact texts (verbatim), the earlier ones from the prior block', block !== null && block.messages.every(entry => entry.text === (entry.ordinal > earlier ? expected[entry.ordinal - earlier - 1] : OLDER[entry.ordinal - 1])))
   const keptUuids = new Set([promptRows[5]!.uuid!, promptRows[6]!.uuid!, promptRows[7]!.uuid!])
   const withKept = selection.selectOperatorMessages(history, { keptUuids })
-  check('a prompt inside the kept tail is not repeated (p6, p7, p8 kept ⇒ the block stops at p5)', withKept !== null && withKept.messages.length === expected.length - 3 && withKept.messages[0]!.text === PROMPTS[4] && !withKept.messages.some(entry => entry.text === PROMPTS[5] || entry.text === PROMPTS[6] || entry.text === PROMPTS[7]), j(withKept?.messages.map(entry => entry.text.slice(0, 20))))
+  check('a prompt inside the kept tail is not repeated (p6, p7, p8 kept ⇒ the block\'s newest is p5; the prior fold\'s two still ride at its end)', withKept !== null && withKept.messages.length === expected.length - 3 + earlier && withKept.messages[0]!.text === PROMPTS[4] && withKept.messages.at(-1)!.text === OLDER[0] && !withKept.messages.some(entry => entry.text === PROMPTS[5] || entry.text === PROMPTS[6] || entry.text === PROMPTS[7]), j(withKept?.messages.map(entry => entry.text.slice(0, 20))))
   const tokensOf = (text: string): number => Math.ceil(text.length / 4)
   const budget = tokensOf(PROMPTS[7]!) + tokensOf(PROMPTS[6]!) + 100
   const original = j(history)
@@ -233,7 +233,7 @@ section('B the wire projection and the registry — one meta user row, newest fi
   const text = projected.length === 1 ? textOf(projected[0]) : ''
   console.log(text.split('\n').map(line => `  │ ${line.slice(0, 150)}`).join('\n'))
   check('the block projects to ONE meta user row', projected.length === 1 && (projected[0] as { isMeta?: boolean }).isMeta === true, String(projected.length))
-  check('…headed as the operator\'s own messages, verbatim and newest first, with the coverage spoken', text.startsWith("The operator's own messages from the stretch folded into the summary below, verbatim and newest first (the newest 3 of 10; messages 1-7 are carried whole by the earlier folds' boundary records)"))
+  check('…headed as the operator\'s own messages, verbatim and newest first, with the coverage spoken by ordinal', text.startsWith("The operator's own messages from this stretch and the earlier folds, verbatim and newest first (3 of 10; messages 1-7 are carried whole by the earlier folds' boundary records)"), text.slice(0, 200))
   check('…each entry framed with its ordinal out of the total', text.includes('<operator-message ordinal="10" of="10">\nthe newest ask\n</operator-message>') && text.includes('<operator-message ordinal="8" of="10">'))
   check('…newest first on the wire', text.indexOf('ordinal="10"') >= 0 && text.indexOf('ordinal="10"') < text.indexOf('ordinal="9"') && text.indexOf('ordinal="9"') >= 0 && text.indexOf('ordinal="9"') < text.indexOf('ordinal="8"'))
   check('…the truncated entry carries its marker', text.includes('the oldest kept ask\n[the rest of this message is cut for the budget; the summary covers it]\n</operator-message>'))
@@ -355,7 +355,7 @@ section('D the real fold with the kept tail — a prompt inside the tail is not 
   }
 }
 
-section('E a second fold carries this stretch\'s prompts whole and names the first block\'s by count — each ask rides in exactly one block')
+section('E a second fold carries this stretch\'s prompts whole and the first block\'s with them, the opening message first — one block on the wire, the budget the only cut')
 if (selection !== null) {
   const firstBlock = createAttachmentMessage({ type: KIND, messages: [{ ordinal: 3, text: 'first fold ask three' }, { ordinal: 2, text: 'first fold ask two' }, { ordinal: 1, text: 'first fold ask one' }], omitted: 0 } as never) as unknown as AnyMsg
   const history = [
@@ -368,8 +368,11 @@ if (selection !== null) {
     assistant('did five'),
   ]
   const block = selection.selectOperatorMessages(history)
-  check('the second block: the new prompts only, newest first, ordinals continuing the session count; the first block\'s three are named as omitted (their boundary record carries them whole)', block !== null && j(block.messages.map(entry => [entry.ordinal, entry.text])) === j([[5, 'second stretch ask five'], [4, 'second stretch ask four']]) && block.omitted === 3, j(block))
-  check('…the wire head says so', block !== null && selection.operatorMessagesBlockText(block).includes('(the newest 2 of 5; messages 1-3 are carried whole by the earlier folds\' boundary records)'), block === null ? '' : selection.operatorMessagesBlockText(block).slice(0, 220))
+  check('the second block: the new prompts newest first, ordinals continuing the session count, then the first block\'s three — nothing omitted within the budget', block !== null && j(block.messages.map(entry => [entry.ordinal, entry.text])) === j([[5, 'second stretch ask five'], [4, 'second stretch ask four'], [3, 'first fold ask three'], [2, 'first fold ask two'], [1, 'first fold ask one']]) && block.omitted === 0, j(block))
+  check('…the wire head says so', block !== null && selection.operatorMessagesBlockText(block).includes('(all 5 of them)'), block === null ? '' : selection.operatorMessagesBlockText(block).slice(0, 220))
+  const wide = createAttachmentMessage({ type: KIND, messages: [{ ordinal: 3, text: 'x'.repeat(100_000) }, { ordinal: 2, text: 'y'.repeat(100_000) }, { ordinal: 1, text: 'the opening ask' }], omitted: 0 } as never) as unknown as AnyMsg
+  const cut = selection.selectOperatorMessages([history[0]!, wide, history[2]!, ...history.slice(3)])
+  check('over the budget the opening message rides first and the newest of the rest next; what the budget leaves out is named by ordinal', cut !== null && j(cut.messages.map(entry => entry.ordinal)) === j([5, 4, 1]) && cut.omitted === 2 && selection.operatorMessagesBlockText(cut).includes('(3 of 5; messages 2-3 are carried whole by the earlier folds\' boundary records)'), cut === null ? '' : `${j(cut.messages.map(entry => entry.ordinal))} ${selection.operatorMessagesBlockText(cut).slice(0, 200)}`)
   check('…the first summary itself is excluded', block !== null && !block.messages.some(entry => entry.text.includes('first stretch')))
 }
 

@@ -91,3 +91,4 @@ prove-effort-popup-frames.ts
 prove-zen-frames.ts
 prove-health-popup-frames.ts
 prove-bang-clear-leaves-shell-mode.ts
+prove-bang-card-frame.ts
