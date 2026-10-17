@@ -6,6 +6,7 @@ import { toolToAPISchema } from '../../../utils/api.js'
 import { extractDiscoveredToolNames, isToolSearchEnabledOptimistic } from '../../../utils/toolSearch.js'
 import { getToolSchemaCache } from '../../../utils/toolSchemaCache.js'
 import { zodToJsonSchema } from '../../../utils/zodToJsonSchema.js'
+import { inlineLocalSchemaRefs } from '../../../utils/inlineSchemaRefs.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
 import {
   compatChatCallModel,
@@ -66,7 +67,7 @@ function unrenderedApiTool(tool: Tool): ApiShapedTool {
   const explicit = (tool as { inputJSONSchema?: unknown }).inputJSONSchema
   let input_schema: unknown = {}
   try {
-    input_schema = explicit ?? zodToJsonSchema(tool.inputSchema as never)
+    input_schema = inlineLocalSchemaRefs((explicit as Record<string, unknown> | undefined) ?? zodToJsonSchema(tool.inputSchema as never))
   } catch {
     input_schema = {}
   }

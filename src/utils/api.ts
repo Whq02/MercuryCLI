@@ -10,6 +10,7 @@ import { getEngineModel } from './model/model.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { deferralWireFormFor, toolReferenceWireAccepted } from '../services/providers/deferralWire.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
+import { inlineLocalSchemaRefs } from './inlineSchemaRefs.js'
 import { userContextReminderBody } from './userContextReminder.js'
 
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
@@ -128,7 +129,9 @@ export async function toolToAPISchema(
     })
     const explicit = (tool as { inputJSONSchema?: Record<string, unknown> }).inputJSONSchema
     const rawSchema =
-      explicit ?? (zodToJsonSchema(tool.inputSchema as never) as Record<string, unknown>)
+      explicit === undefined
+        ? inlineLocalSchemaRefs(zodToJsonSchema(tool.inputSchema as never) as Record<string, unknown>)
+        : inlineLocalSchemaRefs(explicit, serializedSchemaKeys.get(explicit))
     const input_schema = rawSchema as ToolInputSchema
 
     const built: ApiTool = { name: tool.name, description, input_schema }
