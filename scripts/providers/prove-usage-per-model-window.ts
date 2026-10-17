@@ -11,6 +11,8 @@ process.env.MERCURY_MOCK_LIMITS = '1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_RECOVERY_BUDGET_MINUTES = '30'
 delete process.env.MERCURY_HOME
+delete process.env.ANTHROPIC_API_KEY
+delete process.env.ANTHROPIC_AUTH_TOKEN
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
