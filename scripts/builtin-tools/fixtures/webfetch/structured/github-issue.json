@@ -1,0 +1,10 @@
+{
+  "number": 42,
+  "title": "Widget overflows on narrow viewports",
+  "state": "open",
+  "user": { "login": "alice" },
+  "created_at": "2026-10-01T10:00:00Z",
+  "labels": [{ "name": "bug" }, { "name": "layout" }],
+  "comments": 2,
+  "body": "When `width < 320`, the outer container clips the border.\n\nSteps to reproduce:\n1. Set viewport to 300px.\n2. Render `<Widget />`."
+}

@@ -1,0 +1,7 @@
+[
+  {
+    "user": { "login": "bob" },
+    "created_at": "2026-10-01T11:30:00Z",
+    "body": "Confirmed on 1.2.0; switching to `min-width: 0` fixes the flex child."
+  }
+]

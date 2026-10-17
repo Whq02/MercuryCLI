@@ -1,0 +1,16 @@
+{
+  "full_name": "acme/widget",
+  "description": "A deterministic widget toolkit for tests.",
+  "language": "TypeScript",
+  "default_branch": "main",
+  "stargazers_count": 1420,
+  "forks_count": 88,
+  "open_issues_count": 12,
+  "archived": false,
+  "homepage": "https://widget.example.org",
+  "topics": ["typescript", "widgets", "deterministic"],
+  "license": {
+    "spdx_id": "MIT",
+    "name": "MIT License"
+  }
+}

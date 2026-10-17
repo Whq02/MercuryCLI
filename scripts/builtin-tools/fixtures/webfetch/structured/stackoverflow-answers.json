@@ -1,0 +1,14 @@
+{
+  "items": [
+    {
+      "answer_id": 778900,
+      "score": 52,
+      "is_accepted": true,
+      "owner": { "display_name": "net_guru" },
+      "body": "<p>Pass <code>maxContentLength: 2 * 1024 * 1024</code> and <code>maxRedirects: 0</code> in the request config.</p><pre><code>await axios.get(url, { maxContentLength: 2_097_152, maxRedirects: 0 })</code></pre>"
+    }
+  ],
+  "has_more": false,
+  "quota_max": 300,
+  "quota_remaining": 297
+}

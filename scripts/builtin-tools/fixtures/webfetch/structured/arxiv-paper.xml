@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <entry>
+    <id>http://arxiv.org/abs/2401.12345v2</id>
+    <published>2024-01-22T18:00:00Z</published>
+    <updated>2024-02-10T12:00:00Z</updated>
+    <title>Bounded Context Windows in Deterministic Coding Agents</title>
+    <summary>We present an exact token-budgeted state machine for developer tools that guarantees zero silent truncation across multi-file edits.</summary>
+    <author><name>Ada Lovelace</name></author>
+    <author><name>Alan Turing</name></author>
+    <arxiv:comment>14 pages, 4 figures</arxiv:comment>
+    <arxiv:doi>10.1234/arxiv.2401.12345</arxiv:doi>
+    <category term="cs.SE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+</feed>
