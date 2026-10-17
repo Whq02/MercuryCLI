@@ -155,16 +155,16 @@ async function drive(label: string, opts: { files: number; lines: number; perTur
   return { exit: r.exit, frames: r.frames, hits: engine.hits, stderr: r.stderr, transcript, t0, questionSentAt }
 }
 
-type Boundary = { pre: number; post: number; rounds: Record<string, unknown>; memory: string }
+type Boundary = { pre: number; post: number; epoch: number; rounds: Record<string, unknown>; memory: string }
 function boundariesOnDisk(transcript: string): Boundary[] {
   if (transcript === '' || !existsSync(transcript)) return []
   const out: Boundary[] = []
   for (const line of readFileSync(transcript, 'utf8').split('\n')) {
     if (line.trim() === '') continue
-    const record = JSON.parse(line) as { payload?: { kind?: string; fields?: { compactMetadata?: { preTokens?: number; postTokens?: number; recentRounds?: Record<string, unknown>; memory?: { state?: string } } } } }
+    const record = JSON.parse(line) as { payload?: { kind?: string; fields?: { compactMetadata?: { preTokens?: number; postTokens?: number; ledger?: { epoch?: number }; recentRounds?: Record<string, unknown>; memory?: { state?: string } } } } }
     const meta = record.payload?.kind === 'boundary' ? record.payload.fields?.compactMetadata : undefined
     if (meta === undefined) continue
-    out.push({ pre: Number(meta.preTokens), post: Number(meta.postTokens), rounds: meta.recentRounds ?? {}, memory: meta.memory?.state ?? 'none' })
+    out.push({ pre: Number(meta.preTokens), post: Number(meta.postTokens), epoch: Number(meta.ledger?.epoch), rounds: meta.recentRounds ?? {}, memory: meta.memory?.state ?? 'none' })
   }
   return out
 }
@@ -208,7 +208,7 @@ if (!existsSync(DIST)) {
     console.log(`  [record] question → answer: ${fmt(answerAt - d.questionSentAt)} with ${foldsBetween} summariser call(s); the whole drive ${fmt(Date.now() - d.t0)}; ${summaries.length} folds in all`)
     const rows = landedRows(d.frames)
     check('one painted compaction row per boundary on disk, each with the boundary\'s own before figure', rows.length === boundaries.length && rows.every((row, i) => Number(row.tokens_before) === boundaries[i]!.pre), `${rows.length} rows / ${boundaries.length} boundaries · ${rows.map(r => r.tokens_before).join(',')} vs ${boundaries.map(b => b.pre).join(',')}`)
-    check('every boundary carries its own figures: the after figure is the fold\'s own, under its before, and no two folds share a before figure', boundaries.every(b => b.post < b.pre) && new Set(boundaries.map(b => b.pre)).size === boundaries.length)
+    check('every boundary carries its own figures: the after figure is the fold\'s own, under its before, and each boundary is its own fold — the ledger epochs strictly increase', boundaries.every(b => b.post < b.pre) && boundaries.every((b, i) => Number.isFinite(b.epoch) && (i === 0 || b.epoch > boundaries[i - 1]!.epoch)), boundaries.map(b => `epoch ${b.epoch}: ${b.pre}→${b.post}`).join(' '))
     const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
     const chain = await reader.readTranscriptChainSince(d.transcript, null)
     const chainBoundaries = chain.rows.filter((r: Record<string, unknown>) => r.type === 'system' && r.subtype === 'compact_boundary') as Array<{ compactMetadata?: { preTokens?: number; postTokens?: number } }>
