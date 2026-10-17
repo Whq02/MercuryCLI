@@ -440,10 +440,10 @@ export const METHODS = {
         args: z.array(z.string()).optional(),
         env: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
         cwd: z.string().nullable().optional(),
-        outputByteLimit: z.number().int().positive().nullable().optional(),
+        output_byte_limit: z.number().int().positive().nullable().optional(),
       }),
     ),
-    result: lazySchema(() => z.object({ terminalId: z.string() })),
+    result: lazySchema(() => z.object({ terminal_id: z.string() })),
     scope: 'none',
     deadlineMs: 30_000,
     capability: 'terminal',
@@ -452,14 +452,14 @@ export const METHODS = {
     name: 'terminal/output',
     from: 'runner',
     kind: 'request',
-    params: lazySchema(() => z.object({ terminalId: z.string() })),
+    params: lazySchema(() => z.object({ terminal_id: z.string() })),
     result: lazySchema(() =>
       z.object({
         output: z.string(),
         truncated: z.boolean(),
-        exitStatus: z
+        exit_status: z
           .object({
-            exitCode: z.number().int().nullable().optional(),
+            exit_code: z.number().int().nullable().optional(),
             signal: z.string().nullable().optional(),
           })
           .nullable()
@@ -474,10 +474,10 @@ export const METHODS = {
     name: 'terminal/wait_for_exit',
     from: 'runner',
     kind: 'request',
-    params: lazySchema(() => z.object({ terminalId: z.string() })),
+    params: lazySchema(() => z.object({ terminal_id: z.string() })),
     result: lazySchema(() =>
       z.object({
-        exitCode: z.number().int().nullable().optional(),
+        exit_code: z.number().int().nullable().optional(),
         signal: z.string().nullable().optional(),
       }),
     ),
@@ -489,7 +489,7 @@ export const METHODS = {
     name: 'terminal/kill',
     from: 'runner',
     kind: 'request',
-    params: lazySchema(() => z.object({ terminalId: z.string() })),
+    params: lazySchema(() => z.object({ terminal_id: z.string() })),
     result: empty,
     scope: 'none',
     deadlineMs: 15_000,
@@ -499,7 +499,7 @@ export const METHODS = {
     name: 'terminal/release',
     from: 'runner',
     kind: 'request',
-    params: lazySchema(() => z.object({ terminalId: z.string() })),
+    params: lazySchema(() => z.object({ terminal_id: z.string() })),
     result: empty,
     scope: 'none',
     deadlineMs: 15_000,

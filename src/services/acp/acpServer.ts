@@ -925,7 +925,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         },
         onReadTextFile: async (params, withdrawn) => {
           if (!clientFsReadTextFile) throw new Error('fs/read_text_file was not advertised by this ACP client')
-          const result = await ctx.request(
+          const result = (await ctx.request(
             methods.client.fs.readTextFile,
             {
               sessionId: acpSessionId,
@@ -934,7 +934,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
               ...(params.limit !== undefined ? { limit: params.limit } : {}),
             },
             { cancellationSignal: withdrawn },
-          )
+          )) as { content: string }
           return { content: result.content }
         },
         onWriteTextFile: async (params, withdrawn) => {
@@ -952,7 +952,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         },
         onTerminalCreate: async (params, withdrawn) => {
           if (!clientTerminal) throw new Error('terminal was not advertised by this ACP client')
-          const result = await ctx.request(
+          const result = (await ctx.request(
             methods.client.terminal.create,
             {
               sessionId: acpSessionId,
@@ -960,34 +960,41 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
               ...(params.args !== undefined ? { args: params.args } : {}),
               ...(params.env !== undefined ? { env: params.env } : {}),
               ...(params.cwd !== undefined ? { cwd: params.cwd } : {}),
-              ...(params.outputByteLimit !== undefined ? { outputByteLimit: params.outputByteLimit } : {}),
+              ...(params.output_byte_limit !== undefined ? { outputByteLimit: params.output_byte_limit } : {}),
             },
             { cancellationSignal: withdrawn },
-          )
-          return { terminalId: result.terminalId }
+          )) as { terminalId: string }
+          return { terminal_id: result.terminalId }
         },
         onTerminalOutput: async (params, withdrawn) => {
           if (!clientTerminal) throw new Error('terminal was not advertised by this ACP client')
-          const result = await ctx.request(
+          const result = (await ctx.request(
             methods.client.terminal.output,
-            { sessionId: acpSessionId, terminalId: params.terminalId },
+            { sessionId: acpSessionId, terminalId: params.terminal_id },
             { cancellationSignal: withdrawn },
-          )
+          )) as { output: string; truncated: boolean; exitStatus?: { exitCode?: number | null; signal?: string | null } | null }
           return {
             output: result.output,
             truncated: result.truncated,
-            ...(result.exitStatus !== undefined ? { exitStatus: result.exitStatus } : {}),
+            ...(result.exitStatus !== undefined && result.exitStatus !== null
+              ? {
+                  exit_status: {
+                    ...(result.exitStatus.exitCode !== undefined ? { exit_code: result.exitStatus.exitCode } : {}),
+                    ...(result.exitStatus.signal !== undefined ? { signal: result.exitStatus.signal } : {}),
+                  },
+                }
+              : {}),
           }
         },
         onTerminalWaitForExit: async (params, withdrawn) => {
           if (!clientTerminal) throw new Error('terminal was not advertised by this ACP client')
-          const result = await ctx.request(
+          const result = (await ctx.request(
             methods.client.terminal.waitForExit,
-            { sessionId: acpSessionId, terminalId: params.terminalId },
+            { sessionId: acpSessionId, terminalId: params.terminal_id },
             { cancellationSignal: withdrawn },
-          )
+          )) as { exitCode?: number | null; signal?: string | null }
           return {
-            ...(result.exitCode !== undefined ? { exitCode: result.exitCode } : {}),
+            ...(result.exitCode !== undefined ? { exit_code: result.exitCode } : {}),
             ...(result.signal !== undefined ? { signal: result.signal } : {}),
           }
         },
@@ -995,7 +1002,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           if (!clientTerminal) throw new Error('terminal was not advertised by this ACP client')
           await ctx.request(
             methods.client.terminal.kill,
-            { sessionId: acpSessionId, terminalId: params.terminalId },
+            { sessionId: acpSessionId, terminalId: params.terminal_id },
             { cancellationSignal: withdrawn },
           )
           return {}
@@ -1004,7 +1011,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           if (!clientTerminal) throw new Error('terminal was not advertised by this ACP client')
           await ctx.request(
             methods.client.terminal.release,
-            { sessionId: acpSessionId, terminalId: params.terminalId },
+            { sessionId: acpSessionId, terminalId: params.terminal_id },
             { cancellationSignal: withdrawn },
           )
           return {}

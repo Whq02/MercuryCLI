@@ -13,13 +13,13 @@ import { MAX_TASK_OUTPUT_BYTES } from '../../utils/task/diskOutput.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
 
-export interface IdeToolCapabilities {
+interface IdeToolCapabilities {
   readTextFile: boolean
   writeTextFile: boolean
   terminal: boolean
 }
 
-export interface IdeToolDoor {
+interface IdeToolDoor {
   capabilities(): IdeToolCapabilities
   readTextFile(params: ParamsOf<'fs/read_text_file'>, signal?: AbortSignal): Promise<ResultOf<'fs/read_text_file'>>
   writeTextFile(params: ParamsOf<'fs/write_text_file'>, signal?: AbortSignal): Promise<ResultOf<'fs/write_text_file'>>
@@ -169,7 +169,7 @@ export async function readRangeViaIde(
   }
 }
 
-export interface IdeWriteOutcome {
+interface IdeWriteOutcome {
   finalContent: string
   diverged: boolean
   mtimeMs: number
@@ -251,11 +251,11 @@ export async function execViaIdeTerminal(
         command,
         cwd: options.cwd,
         env: envList,
-        outputByteLimit: MAX_TASK_OUTPUT_BYTES,
+        output_byte_limit: MAX_TASK_OUTPUT_BYTES,
       },
       abortSignal,
     )
-    terminalId = created.terminalId
+    terminalId = created.terminal_id
   } catch (error) {
     return createFailedCommand(error instanceof Error ? error.message : String(error))
   }
@@ -274,7 +274,7 @@ export async function execViaIdeTerminal(
     if (released) return
     released = true
     try {
-      await door.terminalRelease({ terminalId })
+      await door.terminalRelease({ terminal_id: terminalId })
     } catch {
       released = true
     }
@@ -282,17 +282,17 @@ export async function execViaIdeTerminal(
 
   const killTerminal = async (): Promise<ProcessTreeKillReceipt> => {
     if (status === 'completed' || status === 'killed') {
-      return { killedCount: 0, survivors: [] }
+      return { ended: 0, survivors: [] }
     }
     status = 'killed'
     killedByUs = true
     try {
-      await door.terminalKill({ terminalId })
+      await door.terminalKill({ terminal_id: terminalId })
     } catch {
       killedByUs = true
     }
     await releaseOnce()
-    return { killedCount: 1, survivors: [] }
+    return { ended: 1, survivors: [] }
   }
 
   const onAbort = (): void => {
@@ -319,7 +319,7 @@ export async function execViaIdeTerminal(
   let pollTimer: NodeJS.Timeout | undefined = setInterval(() => {
     if (status !== 'running' && status !== 'backgrounded') return
     void door
-      .terminalOutput({ terminalId })
+      .terminalOutput({ terminal_id: terminalId })
       .then(snap => {
         if (snap.output.length > lastOutput.length) {
           const delta = snap.output.slice(lastOutput.length)
@@ -333,12 +333,12 @@ export async function execViaIdeTerminal(
 
   const resultPromise: Promise<ExecResult> = (async () => {
     try {
-      const exit = await door.terminalWaitForExit({ terminalId }, abortSignal)
+      const exit = await door.terminalWaitForExit({ terminal_id: terminalId }, abortSignal)
       if (timeoutTimer !== undefined) clearTimeout(timeoutTimer)
       if (pollTimer !== undefined) clearInterval(pollTimer)
       let finalSnap = lastOutput
       try {
-        const snap = await door.terminalOutput({ terminalId })
+        const snap = await door.terminalOutput({ terminal_id: terminalId })
         if (snap.output.length > lastOutput.length) {
           taskOutput.writeStdout(snap.output.slice(lastOutput.length))
         }
@@ -349,7 +349,7 @@ export async function execViaIdeTerminal(
       await releaseOnce()
       await taskOutput.flush()
       if (status === 'running' || status === 'backgrounded') status = 'completed'
-      const code = typeof exit.exitCode === 'number' ? exit.exitCode : killedByUs ? 137 : 1
+      const code = typeof exit.exit_code === 'number' ? exit.exit_code : killedByUs ? 137 : 1
       const stderr = killedByTimeout ? `Command timed out after ${Math.round(options.timeout / 1000)}s` : ''
       return {
         stdout: finalSnap,
