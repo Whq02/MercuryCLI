@@ -31,25 +31,13 @@ export type Patch = { [Kind in keyof PatchPayloads]: { type: Kind } & PatchPaylo
 
 export type Diff = Patch[]
 
-type Viewport = { readonly width: number; readonly height: number }
+type Viewport = Readonly<{ width: number; height: number }>
 
-export type Frame = {
-  readonly screen: Screen
-  readonly viewport: Viewport
-  readonly cursor: Cursor
-  readonly scrollHint?: ScrollHint | null
-  readonly scrollDrainPending?: boolean
-}
+export type Frame = Readonly<{ screen: Screen; viewport: Viewport; cursor: Cursor; scrollHint?: ScrollHint | null; scrollDrainPending?: boolean }>
 
 const homeCursor = (): Cursor => ({ x: 0, y: 0, visible: true })
 
-export function emptyFrame(
-  rows: number,
-  columns: number,
-  stylePool: StylePool,
-  charPool: CharPool,
-  hyperlinkPool: HyperlinkPool,
-): Frame {
+export function emptyFrame(rows: number, columns: number, stylePool: StylePool, charPool: CharPool, hyperlinkPool: HyperlinkPool): Frame {
   const viewport: Viewport = { width: columns, height: rows }
   const screen = createScreen(viewport.width, 0, stylePool, charPool, hyperlinkPool)
   return { screen, viewport, cursor: homeCursor() }
