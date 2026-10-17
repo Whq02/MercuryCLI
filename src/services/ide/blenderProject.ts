@@ -108,7 +108,7 @@ export function locateBlender(testOpts?: {
   if (pin && pin.trim() !== '') {
     if (isFile(pin)) return { blender: { path: pin, source: 'pin' } }
     return {
-      pinError: `MERCURY_BLENDER_BIN set but ${pin} is not an existing file — the pin names itself, no silent fallback`,
+      pinError: `MERCURY_BLENDER_BIN is set to ${pin}, which does not exist`,
     }
   }
   if (!testOpts?.skipPathProbe) {

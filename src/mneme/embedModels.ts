@@ -137,11 +137,11 @@ export function resolveEmbedModelPin(specOverride?: string): EmbedModelPin {
       const base = path.split(/[\\/]/).pop() ?? path
       return { kind: 'path', path, name: base.replace(/\.gguf$/i, '') }
     }
-    return { kind: 'broken', note: `embedding model path ${raw} is absent — the pin names itself, no silent fallback` }
+    return { kind: 'broken', note: `embedding model path ${raw} does not exist; pinned path not substituted` }
   }
   return {
     kind: 'broken',
-    note: `embedding model ${raw} is not a catalogue name (${EMBED_MODELS.map(r => r.name).join(' · ')}) or the path of a gguf model file — the pin names itself, no silent fallback`,
+    note: `embedding model ${raw} is not a catalogue name (${EMBED_MODELS.map(r => r.name).join(' · ')}) or a .gguf file path`,
   }
 }
 

@@ -110,7 +110,7 @@ section('§3 · location rungs')
   census = locateAseprite()
   check(
     'broken pin refuses BY NAME, no silent fallback',
-    census.aseprite === undefined && (census.pinError ?? '').includes('MERCURY_ASEPRITE_BIN') && (census.pinError ?? '').includes('no silent fallback'),
+    census.aseprite === undefined && (census.pinError ?? '').includes('MERCURY_ASEPRITE_BIN is set to') && (census.pinError ?? '').includes('which does not exist'),
     census.pinError,
   )
 

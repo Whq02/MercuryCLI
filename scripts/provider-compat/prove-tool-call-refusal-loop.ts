@@ -139,7 +139,7 @@ const refusal = (over: Partial<RefusedToolCall> = {}): RefusedToolCall => ({
   name: 'Bash',
   argumentsRaw: '{"cmd":"ls"}',
   code: 'schema',
-  reason: 'The Bash tool failed due to the following issue:\nThe required parameter `command` is missing',
+  reason: 'Bash failed (issue):\nThe required parameter `command` is missing',
   ...over,
 })
 

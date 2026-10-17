@@ -93,7 +93,7 @@ export function resolveGrammarEngineDir(): EngineResolution | EngineUnavailable 
     if (isEngineDir(override)) return { state: 'ok', dir: override, source: 'override' }
     return {
       state: 'unavailable',
-      note: `MERCURY_TREESITTER_VENDOR_DIR set but ${override} holds no tree-sitter.js + tree-sitter.wasm — the pin names itself, no silent fallback`,
+      note: `MERCURY_TREESITTER_VENDOR_DIR (${override}) has no tree-sitter.js + tree-sitter.wasm`,
     }
   }
   const vendored = path.resolve(__dirname, 'vendor', 'treesitter')

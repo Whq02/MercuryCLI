@@ -196,7 +196,7 @@ section('§0 the plan: a provider refusal (stop_reason: refusal) is shown to the
   process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
   const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
   const { createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-  const COCKPIT_WORDS = 'The model ended the response early (stop_reason: refusal). Use /rewind (or shift+up) to edit your last message, or start a new session. If refusals repeat, consider running /model claude-haiku-4-5-20251001.'
+  const COCKPIT_WORDS = 'The model ended the response early (stop_reason: refusal). Use /rewind (or shift+up) to edit your last message, or start a new session. If refusals repeat, try /model claude-haiku-4-5-20251001.'
   const HEADLESS_WORDS = 'The model ended the response early (stop_reason: refusal). Try rephrasing the request or a different approach.'
   for (const [road, words] of [['cockpit', COCKPIT_WORDS], ['headless', HEADLESS_WORDS]] as const) {
     const refused = createUserMessage({ content: `Use the Bash tool to run exactly this command and nothing else: ${ROOT_DELETE}` })

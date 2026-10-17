@@ -260,8 +260,8 @@ const { z } = await import('zod/v4')
   const stringForArrayMsg = formatZodValidationError('Retain', (stringForArray as { error: never }).error)
   t(
     'a string where an array goes reads the one type sentence per parameter',
-    stringForArrayMsg.includes('The parameter `items` was expected to be of type array but string was provided') &&
-      stringForArrayMsg.includes('The parameter `limit` was expected to be of type number but string was provided'),
+    stringForArrayMsg.includes('Parameter `items` expects type array, got string') &&
+      stringForArrayMsg.includes('Parameter `limit` expects type number, got string'),
     stringForArrayMsg.replace(/\n/g, ' | '),
   )
   t(

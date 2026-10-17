@@ -323,10 +323,9 @@ export function ManagerSeatAskCard({
           </Box>
           <Box flexShrink={0}>
             <Text dimColor wrap="wrap">
-              the plan would run past the reading. Yes starts {fits === 0 ? 'none yet' : `${fits} now`} and holds
-              the other {lanes - fits} in the plan — each starts under its own contract the moment a
-              seat frees (never a queued first turn without its contract). No dispatches nothing
-              — the plan card stays for editing.
+              the plan exceeds available seats. Yes starts {fits === 0 ? 'none yet' : `${fits} now`} and queues
+              the other {lanes - fits}, starting each under its contract as a seat frees. No dispatches
+              nothing and leaves the plan card open for editing.
             </Text>
           </Box>
           <PermissionPrompt

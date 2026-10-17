@@ -329,7 +329,7 @@ section('§3 the retry that is still refused — the row tells the whole story i
   check('the door saw exactly two requests', result.requests.length === 2, result.requests.map(r => r.version).join(' -> '))
   check('the retry presented the number the registry answered', result.requests[1]?.version === NEWER_2, result.requests[1]?.version ?? 'none')
   check('the registry was read exactly once', registryReads - readsBefore === 1, `${registryReads - readsBefore} read(s)`)
-  check('the row names the presented number, its source, the registry answer and the retry', result.refusalText.includes(`Mercury presented ${CONTRACT} (constant) — the registry said ${NEWER_2}; retried once — still refused`), result.refusalText)
+  check('the row names the presented number, its source, the registry answer and the retry', result.refusalText.includes(`Mercury presented ${CONTRACT} (constant) (the registry said ${NEWER_2}); retried once, still refused`), result.refusalText)
   check('the row keeps the override remedy at the floor', result.refusalText.includes(`MERCURY_ANTHROPIC_CLIENT_CONTRACT=${STILL_REFUSED_FLOOR}`), result.refusalText)
   check('the row stays one sentence', sentences(result.refusalText) === 1, result.refusalText)
   const record = readLearnedFile(home)
@@ -596,7 +596,7 @@ section('§8 durable publication — a refused write is said, never claimed as s
   check('…and nothing claims it was saved: the config home holds the bare claim, no learned number and no day stamp', record !== null && record.learned === undefined && record.lastPeekAtMs === undefined && record.lastRead?.by === 'peek' && record.lastRead.answer === undefined, JSON.stringify(record))
   rmSync(join(home, 'client-contract.json.lock'), { recursive: true, force: true })
 }
-check('the words of a still-refused retry whose answer was not saved say so in the one sentence', learnedModule?.clientContractStory({ kind: 'retry', sent: { presented: CONTRACT, source: 'constant' }, to: NEWER, via: 'registry', unsaved: 'EACCES' }) === `Mercury presented ${CONTRACT} (constant) — the registry said ${NEWER}, not saved to the config home (EACCES); retried once — still refused`)
+check('the words of a still-refused retry whose answer was not saved say so in the one sentence', learnedModule?.clientContractStory({ kind: 'retry', sent: { presented: CONTRACT, source: 'constant' }, to: NEWER, via: 'registry', unsaved: 'EACCES' }) === `Mercury presented ${CONTRACT} (constant) (the registry said ${NEWER}, not saved to the config home (EACCES)); retried once, still refused`)
 
 section('§9 the quiet window is claimed across processes — two sessions refused together make one registry read')
 {

@@ -106,7 +106,7 @@ export function evaluateConcourseAdmission(
     return {
       admit: false,
       code: 'runtime-ceiling',
-      reason: `every seat is taken — ${seatHoldersWords(live, ceiling)} — ${describeSeatReading(ceiling)}`,
+      reason: `every seat is taken: ${seatHoldersWords(live, ceiling)} (${describeSeatReading(ceiling)})`,
       moves: [
         { verb: 'queue', label: 'it queues and starts when a seat frees' },
         ...SEAT_FREEING_MOVES,

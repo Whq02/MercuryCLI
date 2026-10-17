@@ -264,7 +264,7 @@ export function lowerAnchorPatch(parse: AnchorPatchParse, owner: OwnerKey): Lowe
       return {
         ok: false,
         code: 'bad-target',
-        message: `${group.path}: ${fileOp === 'delete' ? 'delete-file' : 'move-to'} needs a WHOLE-file anchor (fa:…) — re-read the full file first`,
+        message: `${group.path}: ${fileOp === 'delete' ? 'delete-file' : 'move-to'} needs a full-file anchor (fa:…); re-read the full file first`,
       }
     }
 

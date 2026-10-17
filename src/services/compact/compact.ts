@@ -223,7 +223,7 @@ export class CompactionRefusedForHistoryError extends Error {
 const FOLD_STALL_MS = 120_000
 
 export const ERROR_MESSAGE_FOLD_TIMEOUT =
-  'The summary call stalled and was stopped — nothing was folded; the conversation stands as it was. Try again, or start fresh with /clear.'
+  'The summary call stalled and was stopped; the conversation is unchanged. Try again, or start fresh with /clear.'
 
 export type FoldBounds = { stallMs: number; ingestMsPer1kTokens: number }
 

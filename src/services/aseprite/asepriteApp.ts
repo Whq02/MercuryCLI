@@ -126,7 +126,7 @@ export function locateAseprite(testOpts?: {
   if (pin && pin.trim() !== '') {
     if (isFile(pin)) return { aseprite: { path: pin, source: 'pin' } }
     return {
-      pinError: `MERCURY_ASEPRITE_BIN set but ${pin} is not an existing file — the pin names itself, no silent fallback`,
+      pinError: `MERCURY_ASEPRITE_BIN is set to ${pin}, which does not exist`,
     }
   }
   if (flagEnv('MERCURY_ASEPRITE_NO_DISCOVERY') === '1') return {}

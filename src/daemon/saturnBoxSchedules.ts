@@ -36,7 +36,7 @@ export function boxScheduleProblem(raw: unknown): string | null {
   if (!sub.ok) return sub.reason
   if (sub.submission.action.kind !== 'birth') return "the box tier takes 'birth' schedules only"
   const account = row.account as Record<string, unknown> | undefined
-  if (typeof account !== 'object' || account === null) return 'the account is first-class — every box row carries one (family + source)'
+  if (typeof account !== 'object' || account === null) return 'every schedule row requires an account object (family + source)'
   if (
     typeof account.family !== 'string' ||
     (account.source !== 'oauth' && account.source !== 'api-key' && account.source !== 'keyless')

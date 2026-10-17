@@ -158,7 +158,7 @@ type SubMenu =
   | 'language'
   | typeof LOCAL_SERVER_APPLY_MENU
 
-const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "a choice, not a model — the spawned crewmate runs its parent's model" }
+const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "uses the parent session's model when spawning a crewmate" }
 
 type ItemKind = 'boolean' | 'enum' | 'managed-enum' | 'info'
 
@@ -1065,7 +1065,7 @@ export function Config({
       kind: 'boolean',
       value: boolValue(onEntryPage),
       setByYou: merged.memory?.journalOnEntryPage !== undefined,
-      warning: "hands the journal's last entry to the model at session start — what the model reads at entry travels to the engine's provider with the request — never uploaded means Mercury itself never pushes, syncs or shares the journal, not that the session's own engine does not see it",
+      warning: "includes the journal's last entry in the session-start context sent to the model's provider (Mercury never syncs or shares the journal elsewhere)",
       change: () => {
         if (writeSource('userSettings', { memory: { journalOnEntryPage: !onEntryPage } })) {
           recordToggle('memory.journalOnEntryPage', `set the journal on the entry page to ${onEntryPage ? 'off' : 'on'}`)
@@ -1334,7 +1334,7 @@ export function Config({
         {agentDefaults.effortSource === 'convention' ? <Text color={tokens.textSecondary}> (default)</Text> : null}
       </Text>
     ),
-    warning: 'the effort a spawned crewmate runs at when the call names none — never the session\'s own level, so a session at max pins it on the lead alone · ←/→ walk the ladder',
+    warning: 'default effort for a spawned crewmate when the call names none (independent of the lead\'s own effort) · ←/→ walk the ladder',
     change: direction => {
       const next = cycleIn(EFFORT_LEVELS, agentDefaults.effort, direction)
       writeAgents({ defaultEffort: next })

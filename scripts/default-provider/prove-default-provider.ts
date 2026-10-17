@@ -152,7 +152,7 @@ section('§5 — the live wiring (a legacy home: config deepseek + two env keys,
   const withoutKey = computedDefault()
   check(
     'the DeepSeek credential gone and OpenRouter unusable ⇒ no default stands (keyless, named), the config untouched',
-    withoutKey.source === 'keyless' && withoutKey.provider === null && withoutKey.why.startsWith('no sign-in offers a usable row') && configuredDefaultProvider() === 'deepseek',
+    withoutKey.source === 'keyless' && withoutKey.provider === null && withoutKey.why.startsWith('no signed-in provider has a usable model') && configuredDefaultProvider() === 'deepseek',
     withoutKey.why,
   )
   delete process.env.OPENROUTER_API_KEY

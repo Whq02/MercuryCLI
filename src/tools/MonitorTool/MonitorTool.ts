@@ -207,9 +207,9 @@ export const MonitorTool = buildTool({
       if (now - overflowStart > OVERFLOW_STOP_MS) {
         stopped = true
         mailbox.push(
-          `[Monitor stopped — your script produced too much output (${suppressed} events suppressed over ${Math.round(
+          `[Monitor stopped: your script produced too much output (${suppressed} events suppressed over ${Math.round(
             (now - overflowStart) / 1000,
-          )}s). Write a new monitor command that filters more aggressively — a tighter grep --line-buffered pattern or a wrapper script that only emits the specific events you need.]`,
+          )}s). Start a new monitor with a tighter filter, such as grep --line-buffered or a wrapper script that emits only the events you need.]`,
         )
         if (taskId) void stopTask(taskId, { getAppState, setAppState }).catch(() => {})
       }

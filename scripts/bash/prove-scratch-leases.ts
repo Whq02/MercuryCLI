@@ -66,7 +66,7 @@ try {
   const worktreeSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
   check('a session worktree registers its lease (the one production registrar)', worktreeSrc.includes("registerScratchLease({ kind: 'session'"))
   const healthSrc = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-  check('/health lists leftovers lease-exact', healthSrc.includes("id: 'scratch-leases'") && healthSrc.includes('never a broad /tmp sweep'))
+  check('/health lists leftovers lease-exact', healthSrc.includes("id: 'scratch-leases'") && healthSrc.includes('Delete only the named lease paths, not all of /tmp.'))
 } finally {
   rmSync(TMP_SCRATCH, { recursive: true, force: true })
 }

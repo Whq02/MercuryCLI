@@ -255,7 +255,7 @@ export function geminiKeyLegLines(opened: GeminiGuideOpenState | undefined): Gem
 
 export const GEMINI_PLAN_LEG_TITLE = 'Sign in with Google'
 export const GEMINI_PLAN_LEG_DETAIL =
-  "Google's sign-in page opens in your browser: pick the account that holds your plan and allow the access. Mercury presents Google's own Antigravity client — no Cloud project, no client of your own — and Gemini then runs on that plan's quota."
+  "Google's sign-in page opens in your browser: pick the account that holds your plan and allow access. Mercury uses Google's own Antigravity client (no Cloud project or custom client needed), and Gemini runs on that plan's quota."
 
 export function geminiPlanLegLines(opened: GeminiGuideOpenState | undefined): GeminiGuideLine[] {
   const lines: GeminiGuideLine[] = [{ text: GEMINI_PLAN_LEG_TITLE, tone: 'title' }, { text: GEMINI_PLAN_LEG_DETAIL, tone: 'detail' }]

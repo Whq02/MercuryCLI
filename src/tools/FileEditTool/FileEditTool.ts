@@ -770,7 +770,7 @@ export const FileEditTool = buildTool({
           message:
             'hunks require expected_anchor — carry the parenthesised "(anchor: …)" value from your preceding Read of this file.' +
             (lineAnchorsEnabled()
-              ? ' (Or anchor-qualify EVERY hunk\'s lines from a line_anchors read — "12#ab3f" — and the line anchors themselves are the staleness contract.)'
+              ? ' (Or anchor-qualify every hunk\'s lines from a line_anchors read, such as "12#ab3f", in place of expected_anchor.)'
               : ''),
           errorCode: 13,
         }

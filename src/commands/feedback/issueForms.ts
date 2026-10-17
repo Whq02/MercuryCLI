@@ -66,7 +66,7 @@ export const ISSUE_FORMS: Readonly<Record<IssueKind, IssueForm>> = {
         id: 'actual',
         label: 'What happened instead',
         source: 'ask',
-        prompt: 'A pasted transcript of the failing screen helps; paste text rather than an image where you can.',
+        prompt: 'A pasted transcript of the failing screen helps; prefer text over an image when you can.',
       },
       HEALTH_FIELD,
     ],
@@ -114,7 +114,7 @@ export const ISSUE_FORMS: Readonly<Record<IssueKind, IssueForm>> = {
         id: 'task',
         label: 'What you are trying to do',
         source: 'words',
-        prompt: 'The task in your own words, not the feature; the task is what a design answers.',
+        prompt: 'Describe the task you want to accomplish in your own words.',
       },
       {
         id: 'today',

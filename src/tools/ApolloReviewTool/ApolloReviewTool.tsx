@@ -24,11 +24,11 @@ export function apolloReviewRefusal(mode: PermissionMode): string {
   const now = permissionModeTitle(mode)
   const exit = lastModeTransitionFrom('apollo')
   if (exit !== undefined) {
-    return `Apollo Mode ended before this review: ${describeModeRoad(exit.road)} moved the session to ${permissionModeTitle(exit.to)}${exit.detail !== undefined ? ` (${exit.detail})` : ''}; the session is now in ${now}. ApolloReview closes only an Apollo pre-flight interview — if the interview should continue, ask the user to re-enter Apollo Mode (shift+tab cycles to it); if the spec was already approved, simply build it.`
+    return `Apollo Mode ended before this review: ${describeModeRoad(exit.road)} moved the session to ${permissionModeTitle(exit.to)}${exit.detail !== undefined ? ` (${exit.detail})` : ''}; the session is now in ${now}. ApolloReview closes only an Apollo pre-flight interview: if the interview should continue, ask the user to re-enter Apollo Mode (shift+tab cycles to it); if the spec was already approved, build it.`
   }
   const boot = bootModeTransition()
   const since = boot !== undefined ? `this runner started in ${permissionModeTitle(boot.to)} and ` : 'this runner '
-  return `This session is not in Apollo Mode: it is in ${now}, and ${since}never entered Apollo Mode. ApolloReview exists solely to close an Apollo pre-flight interview — enter Apollo Mode (shift+tab cycles to it) to run one; if a spec was already approved, simply build it.`
+  return `This session is not in Apollo Mode: it is in ${now}, and ${since}never entered Apollo Mode. ApolloReview only closes an Apollo pre-flight interview: enter Apollo Mode (shift+tab cycles to it) to run one, or build the spec if it was already approved.`
 }
 
 const inputSchema = z.object({
@@ -212,7 +212,7 @@ export const ApolloReviewTool = buildTool({
       const count = output.blockers.length
       content = [
         `The review stands with ${count} blocker${count === 1 ? '' : 's'}. Nothing changed hands.`,
-        'Resolve the blockers with the user — more polls or discussion, in plain language — then present the review again.',
+        'Resolve the blockers with the user through polls or plain-language discussion, then present the review again.',
       ].join('\n')
     } else {
       content = [

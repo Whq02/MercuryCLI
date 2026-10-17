@@ -101,7 +101,7 @@ export function formatAnchorFailure(
 ): string {
   const lines = [
     check.reason === 'malformed'
-      ? 'Malformed anchor: expected_anchor is not a valid anchor string — it is the bare fa:… or ra:… value, never the (anchor: …) decoration around it.'
+      ? 'Malformed anchor: pass the bare fa:… or ra:… value in expected_anchor without the surrounding "(anchor: …)" text.'
       : 'Stale anchor: the file content no longer matches the read that produced this anchor.',
     `expected_anchor: ${expectedAnchor}`,
   ]

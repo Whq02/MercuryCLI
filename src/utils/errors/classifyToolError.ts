@@ -14,7 +14,7 @@ function hintsFor(platform: NodeJS.Platform): ReadonlyArray<readonly [RegExp, st
     platform === 'win32'
       ? [
           /\bEACCES\b|\bEPERM\b|\bEBUSY\b/,
-          'file in use — on Windows this is usually a short-lived lock by another program (antivirus, search indexer, an open editor/terminal handle); Mercury retried briefly — if it persists, close whatever holds the file or exclude the folder from real-time scanning',
+          'file in use: on Windows another program often holds a brief lock (antivirus, search indexer, or open handle). Mercury retried; if it persists, close the holder or exclude the folder from real-time scanning',
         ]
       : [/\bEACCES\b|\bEPERM\b/, 'permission denied — check file modes/ownership'],
     [/\bETIMEDOUT\b|timed out/i, 'timed out — retry or raise the timeout'],

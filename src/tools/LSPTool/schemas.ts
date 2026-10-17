@@ -79,13 +79,13 @@ export function readArgumentError(input: LspInput): string | undefined {
   const op = input.operation ?? ''
   if (POSITION_OPERATIONS.has(op)) {
     const missing = (['filePath', 'line', 'character'] as const).filter(key => input[key] === undefined || input[key] === '')
-    if (missing.length) return `${op} reads filePath, line and character — the symbol's position, 1-based, as Read shows it — and ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} missing. Example: {"operation":"${op}","filePath":"/absolute/path/file.ts","line":12,"character":8}. Nothing was sent to a language server.`
+    if (missing.length) return `${op} requires filePath, line and character (1-based symbol position, as Read shows it); missing: ${missing.join(', ')}. Example: {"operation":"${op}","filePath":"/absolute/path/file.ts","line":12,"character":8}. Nothing was sent to a language server.`
   } else if (op === 'documentSymbol') {
     if (!input.filePath) return 'documentSymbol reads filePath, which is missing. Example: {"operation":"documentSymbol","filePath":"/absolute/path/file.ts"}. Nothing was sent to a language server.'
   } else if (op === 'workspaceSymbol') {
-    if (!input.query?.trim()) return 'workspaceSymbol reads query — a symbol name or part of one — which is missing or empty. Example: {"operation":"workspaceSymbol","query":"parseConfig"}. Nothing was sent to a language server.'
+    if (!input.query?.trim()) return 'workspaceSymbol requires a non-empty query (a symbol name or substring). Example: {"operation":"workspaceSymbol","query":"parseConfig"}. Nothing was sent to a language server.'
   } else if (op === 'diagnostics') {
-    if (!input.paths?.length && !input.filePath) return 'diagnostics reads paths — up to 50 files or directories — or filePath for one file, and neither was given. Example: {"operation":"diagnostics","paths":["/absolute/path/a.ts","/absolute/path/src"]}. Nothing was sent to a language server.'
+    if (!input.paths?.length && !input.filePath) return 'diagnostics requires paths (up to 50 files or directories) or filePath for one file; neither was given. Example: {"operation":"diagnostics","paths":["/absolute/path/a.ts","/absolute/path/src"]}. Nothing was sent to a language server.'
   } else if (op !== 'serverStatus') {
     return `${op} is not an LspRead operation. LspRead answers goToDefinition, findReferences, hover, goToImplementation, typeDefinition, incomingCalls, outgoingCalls, documentSymbol, workspaceSymbol, diagnostics and serverStatus; renaming, moving, code actions, formatting and raw requests are LspRename, LspMoveSymbol, LspMoveFile, LspCodeAction, LspFormat and LspRequest.`
   }

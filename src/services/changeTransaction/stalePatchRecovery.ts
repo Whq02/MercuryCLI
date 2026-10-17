@@ -75,7 +75,7 @@ export function recoverStaleHunks(opts: {
     if (hits.length === 0) {
       return {
         ok: false,
-        reason: `hunk ${i + 1} (lines ${h.lines}): the anchored text no longer appears in ${opts.displayPath} — the content changed, not just moved`,
+        reason: `hunk ${i + 1} (lines ${h.lines}): the anchored text no longer appears in ${opts.displayPath}; the content changed`,
       }
     }
     if (hits.length > 1) {

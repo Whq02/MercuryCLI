@@ -361,7 +361,7 @@ export async function homeRepositoryCheck(): Promise<CheckResult> {
       const words = homeRepositoryRemovalWords(dir)
       const holders = holdersWords(await mercuryHoldersOf(dir))
       const fix = madeByMercury
-        ? `${QUIT_FIRST_WORDS}, then run ${words.inspect} — only Mercury's base commit should be listed — then remove the repository: ${words.remove}`
+        ? `${QUIT_FIRST_WORDS}, then run ${words.inspect} (only Mercury's base commit should appear), then remove the repository: ${words.remove}`
         : `Mercury keys every project beneath it as one: memory and project settings mix, and a forked worktree is a worktree of the home — keep it if it is yours; to remove it: ${QUIT_FIRST_WORDS}, check ${words.inspect}, then: ${words.remove}`
       return { evidence: `${dir} is a git repository (${created}; ${who}; ${holders})`, fix }
     }),
@@ -798,7 +798,7 @@ export function modelRefusalsCheck(): CheckSpec {
       return {
         status,
         evidence: refusals.map(refusal => `${renderModelName(refusal.id)} · ${refusal.door} · ${kinds[refusal.kind]} · seen ${formatAge(now - refusal.seenAtMs)}`).join('\n'),
-        detail: `${refusals.map(refusal => refusal.words).join('\n')}${status === 'info' ? '\nA refused model id older than an hour is a record, not a caution.' : ''}`,
+        detail: `${refusals.map(refusal => refusal.words).join('\n')}${status === 'info' ? '\nRefused model ids older than an hour are kept for reference only.' : ''}`,
         fix: [...new Set(refusals.map(refusal => `${modelRefusalFix(refusal)}.`))].join('\n'),
         ...(status === 'warn' && healthFixEnabled()
           ? {
@@ -1524,7 +1524,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: 'warn',
               evidence: `${leftovers.length} leftover lease(s), ${mb(total)} total · ${rows.join(' · ')}`,
-              fix: 'Delete exactly the named lease paths — never a broad /tmp sweep.',
+              fix: 'Delete only the named lease paths, not all of /tmp.',
             }
           },
         },

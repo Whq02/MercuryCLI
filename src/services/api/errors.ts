@@ -128,7 +128,7 @@ export const REPEATED_529_ERROR_MESSAGE =
   'Repeated API overload errors (529). The provider is under sustained load; try again shortly.'
 
 export const CUSTOM_OFF_SWITCH_MESSAGE =
-  'The top-tier model is currently experiencing high load. Switch to the mid-tier model with /model for faster responses.'
+  'The top-tier model is under high load. Switch to the mid-tier model with /model for faster replies.'
 
 export const API_TIMEOUT_ERROR_MESSAGE =
   'Request timed out. Check your internet connection and proxy settings.'
@@ -210,16 +210,16 @@ export function getPdfTooLargeErrorMessage(): string {
 
 export function getPdfPasswordProtectedErrorMessage(): string {
   if (getIsNonInteractiveSession()) {
-    return 'The PDF is password protected and cannot be read by the API. Use a CLI tool to extract or convert its contents first.'
+    return 'The API cannot read a password-protected PDF. Extract or convert its contents with a CLI tool first.'
   }
-  return 'The PDF is password protected and cannot be read by the API. Use /rewind (or shift+up) to edit your message.'
+  return 'The API cannot read a password-protected PDF. Use /rewind (or shift+up) to edit your message.'
 }
 
 export function getPdfInvalidErrorMessage(): string {
   if (getIsNonInteractiveSession()) {
-    return 'The PDF was not valid and cannot be read by the API. Convert it to text first.'
+    return 'The API could not read this invalid PDF. Convert it to text first.'
   }
-  return 'The PDF was not valid and cannot be read by the API. Use /rewind (or shift+up) to edit your message and try a different file.'
+  return 'The API could not read this invalid PDF. Use /rewind (or shift+up) to edit your message and try another file.'
 }
 
 export function getImageTooLargeErrorMessage(): string {
@@ -442,7 +442,7 @@ function composeAssistantMessageFromError(
   if (refusal === 'rate-limit' && retryAfterMs !== undefined) {
     const detail = extract429Detail(message)?.text ?? message
     return stampProviderWait(createAssistantAPIErrorMessage({
-      content: `${API_ERROR_MESSAGE_PREFIX}: Anthropic is rate limited — the provider asks for ${Math.ceil(retryAfterMs / 1000)} s — ${detail}`,
+      content: `${API_ERROR_MESSAGE_PREFIX}: Anthropic is rate limited (${Math.ceil(retryAfterMs / 1000)} s wait): ${detail}`,
       error: 'rate_limit',
       errorDetails: message,
     }), retryAfterMs)
@@ -504,7 +504,7 @@ function composeAssistantMessageFromError(
     return createAssistantAPIErrorMessage({
       content:
         detail429 === null
-          ? `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): Anthropic sent no detail — this may be a temporary capacity issue; check https://status.anthropic.com.`
+          ? `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): Anthropic sent no detail; check https://status.anthropic.com.`
           : detail429.providerSentence
             ? `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): Anthropic says: ${detail429.text}`
             : `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): ${detail429.text}`,
@@ -557,7 +557,7 @@ function composeAssistantMessageFromError(
     return createAssistantAPIErrorMessage({
       content: nonInteractive
         ? base
-        : `${base} Simply continue, or run /compact to drop old images.`,
+        : `${base} Continue, or run /compact to drop old images.`,
       error: 'invalid_request',
       errorDetails: message,
     })
@@ -574,7 +574,7 @@ function composeAssistantMessageFromError(
     return createAssistantAPIErrorMessage({
       content: nonInteractive
         ? base
-        : `${base} Simply continue, or run /compact to drop old images.`,
+        : `${base} Continue, or run /compact to drop old images.`,
       error: 'invalid_request',
       errorDetails: message,
     })
@@ -703,7 +703,7 @@ function composeAssistantMessageFromError(
       })
     }
     return createAssistantAPIErrorMessage({
-      content: nonInteractive ? `Authentication failed. ${evidence}` : `Please run /logins. ${evidence}`,
+      content: nonInteractive ? `Authentication failed. ${evidence}` : `Run /logins. ${evidence}`,
       error: 'authentication_failed',
     })
   }
@@ -715,7 +715,7 @@ function composeAssistantMessageFromError(
       headerValue(errorHeaders(error), 'request-id') ??
       'unknown'
     return createAssistantAPIErrorMessage({
-      content: `There is an issue with the selected model (${model}) — it may not exist or may be inaccessible (HTTP 404, request_id: ${String(requestId)}). Run \`${switchCommand}\` to pick a different model.`,
+      content: `Model ${model} was not found or is not accessible (HTTP 404, request_id: ${String(requestId)}). Run \`${switchCommand}\` to pick another model.`,
       error: 'invalid_request',
     })
   }
@@ -822,7 +822,7 @@ export function getErrorMessageIfRefusal(
     const errorRoute = declaredRouteOf(model)
     const light = errorRoute === null ? undefined : providerLightFact(errorRoute)
     if (light !== undefined && model !== light.modelId) {
-      content += ` If refusals repeat, consider running /model ${light.modelId}.`
+      content += ` If refusals repeat, try /model ${light.modelId}.`
     }
   } catch {
   }

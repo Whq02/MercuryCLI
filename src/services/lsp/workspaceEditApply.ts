@@ -67,7 +67,7 @@ export function normalizeWorkspaceEdit(
       }
       return {
         ok: false,
-        reason: `resource operation '${c.kind}' not supported — apply refused (a file is created only by moveSymbol, moved only by pathRename, never by a code action)`,
+        reason: `resource operation '${c.kind}' not supported: apply refused (only moveSymbol creates files and only pathRename moves them)`,
       }
     }
     if (!c.textDocument?.uri || !Array.isArray(c.edits)) {

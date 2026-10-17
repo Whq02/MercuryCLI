@@ -232,7 +232,7 @@ const pickerFrames = new Map<string, string>()
     if (columns === 178) {
       await panel.press('\r')
       const picked = flat(panel.frame())
-      check('↵ on the advisor list persists the pick under subModels.advisor alone and paints the Advisor receipt, live on the next note', getGlobalConfig().subModels?.advisor === MODEL && getGlobalConfig().subModels?.console === undefined && /Advisor model set to Opus 4\.8 \(Anthropic\) — runs @high \(the model default\) — live on the next note/.test(picked), `${j(getGlobalConfig().subModels)} · ${picked.slice(-300)}`)
+      check('↵ on the advisor list persists the pick under subModels.advisor alone and paints the Advisor receipt, live on the next note', getGlobalConfig().subModels?.advisor === MODEL && getGlobalConfig().subModels?.console === undefined && /Advisor model set to Opus 4\.8 \(Anthropic\), runs @high \(the model default\) \(live on the next note\)/.test(picked), `${j(getGlobalConfig().subModels)} · ${picked.slice(-300)}`)
       check('the advisor header now names the model and its saved pick; the console header stays unset', /▸ ADVISOR — advises the working model, not you · Opus 4\.8 · @high \(the model default\) · saved pick/.test(picked) && / CONSOLE — side questions · unset · no model pinned/.test(picked), picked.slice(0, 400))
       pickerFrames.set('advisor-picked-178x51', panel.frame())
       await panel.press(`${ESC}[Z`)

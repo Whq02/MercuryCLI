@@ -146,7 +146,7 @@ section('§3 the daemon\'s proto unknown: the refusal\'s shape names an older bu
   check('after the dialect retry the gap is numbered', toggle.ok === false && refusalOf(toggle) === 'daemon-older' && errorOf(toggle).includes('protocol 5'), errorOf(toggle))
   await daemon.close()
   const bare = olderDaemonRefusalLine('sessionControl set-spawn-switch', 6, null)
-  check('with no proto on record the line still names an older build and the sentence', bare.startsWith('the daemon is an older build —') && bare.includes('needs protocol 6') && bare.endsWith(RESTART), bare)
+  check('with no proto on record the line still names an older build and the sentence', bare.startsWith('the daemon is an older build:') && bare.includes('needs protocol 6') && bare.endsWith(RESTART), bare)
 }
 
 section('§4 a pre-handshake (v1) daemon: hello refused as unknown op still classifies as pre-handshake')

@@ -165,7 +165,7 @@ function computeGitInitRefusal(folder: string): GitInitRefusal | null {
   const root = nonProjectRootKindOf(folder)
   if (root === 'home') return { kind: root, words: 'this is your home folder' }
   if (root === 'filesystem-root') return { kind: root, words: 'this is a drive root' }
-  if (root === 'user-root') return { kind: root, words: `this is your ${basename(realOrSelf(folder))} folder (a well-known user folder, never a project)` }
+  if (root === 'user-root') return { kind: root, words: `this is your ${basename(realOrSelf(folder))} user folder, not a project directory` }
   if (projectMarkerOf(folder) !== null) return null
   const entries = countEntriesBounded(folder)
   if (!entries.ceilingReached) return null

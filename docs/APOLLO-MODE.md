@@ -45,7 +45,7 @@ The appendix directs the agent to interview with the `AskUserQuestion` tool:
   appendix forbids authoring an "Other" option.
 - One question per poll by default; up to four questions batch in one call only when
   they are independent.
-- Questions are plain language, each tied to the technical choice it settles; a
+- Questions are plain language and name the technical choice each settles; a
   technical term appears only beside its plain meaning.
 - Between polls the agent spends a turn or two developing what the answers opened, then
   polls again.

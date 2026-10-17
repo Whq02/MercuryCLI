@@ -132,7 +132,7 @@ type Message = import('../../src/types/message.ts').Message
 
 const SYSTEM = 'fixture system prompt: answer tersely'
 const BASH = BashTool.name
-const refusal = { id: 'call_bad', name: BASH, argumentsRaw: '{}', code: 'schema' as const, reason: 'The Bash tool failed due to the following issue:\nThe required parameter `command` is missing' }
+const refusal = { id: 'call_bad', name: BASH, argumentsRaw: '{}', code: 'schema' as const, reason: 'Bash failed (issue):\nThe required parameter `command` is missing' }
 const glmTurn = createAssistantMessage({
   content: [
     { type: 'thinking', thinking: 'glm thought', signature: '' },

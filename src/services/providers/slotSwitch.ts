@@ -262,9 +262,9 @@ export function slotWallAppendix(
     return ` Cap failover posture 'auto' is armed: the active slot switches to the ${view.other.label} now — the next turn rides it (${wordsDoor} switches back).`
   }
   if (!view.other.wallKnown) {
-    return ` The ${view.other.label} slot is signed in — its own window is unobserved from this seat; the wall card offers the switch in one key (${wordsDoor} in words; the sign-in stays connected either way).`
+    return ` The ${view.other.label} slot is signed in (its usage window is unobserved here); press one key on the wall card or run ${wordsDoor} to switch while keeping this sign-in connected.`
   }
-  return ` The ${view.other.label} slot is signed in with headroom — the wall card offers the switch in one key (${wordsDoor} in words; the sign-in stays connected either way).`
+  return ` The ${view.other.label} slot is signed in with headroom; press one key on the wall card or run ${wordsDoor} to switch while keeping this sign-in connected.`
 }
 
 export type SlotSwitchOutcome =

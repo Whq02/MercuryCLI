@@ -74,9 +74,9 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     kind: 'toggle',
     options: ['0'],
     defaultLabel: 'on',
-    summary: 'a real debugger the agent can drive — breakpoints, stepping, variables, evaluate — instead of print statements',
+    summary: 'a real debugger the agent can drive (breakpoints, stepping, variables, evaluate) instead of print statements',
     detail: {
-      controls: 'The Debug tool speaks the Debug Adapter Protocol to real debuggers (Python via debugpy, native code via lldb-dap). Launching a program under the debugger always asks permission first. Rounds out the trust combo: real runtime evidence instead of guesses.',
+      controls: 'The Debug tool speaks the Debug Adapter Protocol to real debuggers (Python via debugpy, native code via lldb-dap). Launching a program under the debugger always asks permission first.',
       on: ['the Debug tool joins the catalog', 'launch asks permission like any command execution', 'inspection (stacks, variables) rides the permitted session'],
       off: ['the tool is absent — identical to a build without it'],
     },
@@ -88,10 +88,10 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     kind: 'toggle',
     options: ['0'],
     defaultLabel: 'on',
-    summary: 'real C/C++ IDE evidence — diagnostics with clang-tidy, rename, source ⇄ header — through a clangd the harness finds for you',
+    summary: 'C/C++ diagnostics with clang-tidy, rename, and source ⇄ header navigation through clangd',
     detail: {
-      controls: 'The C/C++ language lane of the IDE bridge: finds a clangd (PATH · Xcode · Homebrew llvm), lazy-starts it on the first C/C++ file touched, and answers through LspRead and LspRename. Needs nothing from the project — a compile database sharpens it (evidence on /health). Pairs with the Debug tool: real IDE evidence instead of guesses.',
-      on: ['C/C++ files get diagnostics · rename · code actions · source ⇄ header jumps', 'clang-tidy findings ride the diagnostics', 'no clangd installed ⇒ the lane simply stays quiet'],
+      controls: 'The C/C++ language lane of the IDE bridge: finds clangd (PATH · Xcode · Homebrew llvm), starts it on the first C/C++ file touched, and answers through LspRead and LspRename. A compile database sharpens it when present (shown in /health).',
+      on: ['C/C++ files get diagnostics · rename · code actions · source ⇄ header jumps', 'clang-tidy findings ride the diagnostics', 'no clangd installed ⇒ the lane stays quiet'],
       off: ['C/C++ files fall back to plain-text editing — no language server'],
     },
   },
@@ -105,7 +105,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     warnWhenOn: 'nothing asks or stops you — every action runs as you',
     summary: 'no permission question is asked — not for files, commands, or computer use; you take the wheel',
     detail: {
-      controls: "The one bypass: interactive boots start in sovereign mode, as if --sovereign was passed, and no permission question is asked — not for files, not for commands, not for computer use. Saving this row is the standing consent; the launch confirmation dialog still applies and root users receive a notice, a deny rule in a settings file still refuses, and the refusals that are the screen's own (the terminal running Mercury, an application that moved in front) still hold. Headless runs (run) and daemon workers NEVER inherit it — their stricter permission floor stands. The computer ask card's last answer turns this row on for the running session and saves it here.",
+      controls: "Interactive boots start in sovereign mode (as if --sovereign was passed) with no permission prompts for files, commands, or computer use. Saving this row is standing consent; the launch confirmation dialog, root notice, settings deny rules, and computer-use terminal/focus guards still apply. Headless runs (run) and daemon workers do not inherit it. The computer ask card's last option also turns this row on and saves it here.",
       on: ["interactive boots start in sovereign mode (the crimson banner): no permission question is asked, computer use included", "the launch consent dialog still confirms once", "headless runs and daemon workers are unaffected"],
       off: ["every permission question is asked — files, commands, and the first act in each application for computer use; the CLI flag still works when passed by hand"],
     },
@@ -206,7 +206,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     defaultLabel: 'off',
     summary: 'GDScript IDE + debugger through your running Godot editor — outline, member search, navigation, breakpoints',
     detail: {
-      controls: 'Arms both Godot lanes: the GDScript language server (outline · member search · navigation — it lives INSIDE the Godot editor, reached over a loopback bridge on :6005) and the godot debug adapter (:6006) for the Debug tool. Activates only in a project with a project.godot, and the editor must be open — a closed editor answers with a teaching note, never a hang. Pairs with the Godot control surface (VULCAN) below for full editor control.',
+      controls: 'Arms both Godot lanes: the GDScript language server (outline · member search · navigation inside the Godot editor over loopback :6005) and the godot debug adapter (:6006) for the Debug tool. Activates in projects with project.godot when the editor is open; if the editor is closed, calls return a setup note immediately. Pairs with the Godot control surface (VULCAN) below.',
       on: ['.gd files get the GDScript IDE ops through LspRead and LspRename', "the Debug tool gains the 'godot' adapter (breakpoints in the running editor)", 'no project.godot or no running editor ⇒ an honest teaching note'],
       off: ['no Godot servers are ever dialed — identical to a build without it'],
     },
@@ -285,7 +285,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
         'on the home window\'s observed reset, the same posture brings work home to the family it left',
       ],
       off: [
-        'the slot rung still ASKS — a walled slot with a signed-in sibling gets the one-key switch card (the wall is never a dead end)',
+        'the slot rung still asks: a walled slot with a signed-in sibling shows the one-key switch card',
         'cross-family: never switches, never offers — a capped family waits for its reset (the pre-change default, selectable exactly)',
       ],
     },
@@ -301,7 +301,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       'where a plain boot LANDS — the Concourse itself stays on either way: Off lands the Boot face · Auto lands the Concourse board when sessions are live or waiting · Always makes the board the boot home',
     detail: {
       controls:
-        'Where a boot lands — never whether the Session Concourse exists (that is the persisted `--concourse-off` switch; the Concourse stays a first-class screen whatever this row says). Off (default): a plain `mercury` launch lands on the Boot face, with the Concourse one shift+← from the chat and a face row away; a prompt argument or `--continue`/`--resume` goes straight to the chat; existing background sessions are untouched. Auto: the boot lands on the Concourse board exactly when it has something to show (more than one live session, or a session waiting on you); otherwise the Boot face as usual. Always: the Concourse board is the boot home. Resolution reads one bounded records summary before the chat mounts — never a daemon call, never fleet discovery.',
+        'Sets where a boot lands (`--concourse-off` controls whether the Session Concourse is enabled). Off (default): a plain `mercury` launch lands on the Boot face, with the Concourse at shift+← and a face row away; a prompt argument or `--continue`/`--resume` goes straight to the chat, leaving existing background sessions untouched. Auto: lands on the Concourse board when more than one session is live or one is waiting on you, otherwise the Boot face. Always: the Concourse board is the boot home. Resolution reads one bounded records summary before the chat mounts, with no daemon call or fleet discovery.',
       on: [
         'auto: >1 live session or a waiting question boots into the Concourse board',
         'always: every boot lands on the Concourse board (the chat one shift+→ away)',

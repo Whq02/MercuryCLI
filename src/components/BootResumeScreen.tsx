@@ -391,7 +391,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
         hint: 'prune',
         run: () => {
           if (projectFilter !== null) {
-            return 'the prune door offers the whole scope — walk back out of the project filter first';
+            return 'prune acts on the whole list; exit the project filter first';
           }
           openPruneDoor();
           return null;

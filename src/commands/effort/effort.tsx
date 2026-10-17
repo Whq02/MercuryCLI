@@ -144,7 +144,7 @@ export function showSeatEffort(word: string | null | undefined, sent: string | n
     return `Effort is automatic — this session carries no effort word; currently ${resolveStampedEffortTruth(model, undefined).label} on ${model}.`
   }
   if (sent === undefined) {
-    return `Effort is ${String(value)} (asked — the seat has not sent a request yet) — ${getEffortValueDescription(value, model)}.`
+    return `Effort is ${String(value)} (asked; the seat has not sent a request yet): ${getEffortValueDescription(value, model)}.`
   }
   const runs = sent
   const clause =

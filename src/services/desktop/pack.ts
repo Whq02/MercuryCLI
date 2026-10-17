@@ -134,7 +134,7 @@ export function resolveDesktopPackDir(): DesktopPackResolution {
   if (override !== undefined && override.trim() !== '') {
     const check = checkDesktopPackDir(override)
     if (check.state === 'ok') return { state: 'ok', dir: override, addonPath: check.addonPath, manifest: check.manifest, source: 'override' }
-    return { state: 'unavailable', note: `MERCURY_DESKTOP_PACK_DIR set but ${check.note} — the pin names itself, no silent fallback` }
+    return { state: 'unavailable', note: `MERCURY_DESKTOP_PACK_DIR is unusable (${check.note})` }
   }
   const moduleDir = path.dirname(fileURLToPath(import.meta.url))
   const platform = voicePackPlatform()

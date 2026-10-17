@@ -199,7 +199,7 @@ export const UnityTool = buildTool({
     }
     return {
       behavior: 'ask' as const,
-      message: `Unity mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — switches the open scene (no undo step; unsaved work refuses with SCENE_DIRTY rather than being discarded)`,
+      message: `Unity mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open scene (no undo step; refuses with SCENE_DIRTY if there are unsaved changes)`,
     }
   },
   async validateInput(input: Input) {

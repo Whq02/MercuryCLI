@@ -512,7 +512,7 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
             <Text>
               <Text color={IVORY}>{`delete ${mode.agent.agentType}? `}</Text>
               <Text color={FAINT}>
-                {`the file moves to the recovery area (restore with U) — never a permanent unlink`}
+                {`moves the file to the recovery area (press U to restore)`}
               </Text>
             </Text>
             <Text color={FAINT}>{truncateToWidth(`  ${(mode.agent as { filePath?: string }).filePath ?? ''}`, 76)}</Text>

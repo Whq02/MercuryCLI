@@ -51,7 +51,7 @@ and may carry:
   seconds elapsed against the hook's timeout) until the hook answers or is
   ended.
 - `match`: names (`Bash`, `Read|Edit`) or a regular expression, matched
-  against the event's match field in the table below. Absent, or `*`, matches
+  against the event's match field. Absent, or `*`, matches
   everything. An entry whose match is not a valid regular expression is a
   named fault and does not load; so is a match on an event that has no match
   field. `match` is the one filter: a hook on a tool fires on every call of

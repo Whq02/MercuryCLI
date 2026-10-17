@@ -866,7 +866,7 @@ export const AgentTool = buildTool({
       ]
       const failedTrailer = [
         `Crewmate execution failed: ${data.error ?? 'unknown error'}`,
-        'Anything above is partial work, not a final answer — it was captured before the failure and must not be read as a conclusion; its work is kept on its transcript.',
+        'Output above was captured before the failure as partial work and must not be read as a conclusion; its work is kept on the crewmate\'s transcript.',
         continuationHint(String(data.agentId ?? '')),
         usageBlock(data),
       ]

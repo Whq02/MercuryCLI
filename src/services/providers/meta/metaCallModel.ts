@@ -75,7 +75,7 @@ export async function* metaCallModel(params: CallModelParams): CallModelStream {
   const credentialRefused = snapshot?.lastError?.includes('refused the credential') === true
   if (credentialRefused) {
     refusal = account.kind === 'muse-code'
-      ? `${snapshot!.lastError} — the Muse Code key was refused — /logins signs in with Meta again.`
+      ? `${snapshot!.lastError}; run /logins to sign in with Meta again.`
       : `${snapshot!.lastError} — /logins meta replaces the key.`
   }
   else if (!model) refusal = "Meta cannot resolve 'muse' until the account's live list serves a Standard Muse Spark model; Contributor models permit training on your data and must be selected explicitly. /model refreshes the list."

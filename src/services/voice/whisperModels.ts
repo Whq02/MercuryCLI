@@ -108,9 +108,9 @@ export function resolveWhisperModelPin(): WhisperModelPin {
       const base = path.split(/[\\/]/).pop() ?? path
       return { kind: 'path', path, name: base.replace(/^ggml-/, '').replace(/\.bin$/, '') }
     }
-    return { kind: 'broken', note: `MERCURY_WHISPER_MODEL names ${raw}, which is absent — the pin names itself, no silent fallback` }
+    return { kind: 'broken', note: `MERCURY_WHISPER_MODEL is set to ${raw}, which does not exist` }
   }
-  return { kind: 'broken', note: `MERCURY_WHISPER_MODEL=${raw} is not a catalogue name (${WHISPER_MODELS.map(r => r.name).join(' · ')}) or the path of a ggml model file — the pin names itself, no silent fallback` }
+  return { kind: 'broken', note: `MERCURY_WHISPER_MODEL=${raw} is not a catalogue name (${WHISPER_MODELS.map(r => r.name).join(' · ')}) or the path of a ggml model file (.bin)` }
 }
 
 type WhisperModelCheck =

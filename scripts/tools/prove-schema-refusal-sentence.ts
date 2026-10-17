@@ -41,7 +41,7 @@ for (const input of [{ count: 'two' }, {}]) {
   const result = results[0]
   const text = String(result?.content ?? '')
   check('the refusal is one error result', results.length === 1 && result?.is_error === true, text)
-  check('the refusal starts with its sentence', text.startsWith('<tool_use_error>The '), text)
+  check('the refusal starts with its sentence', text.startsWith(`<tool_use_error>${tool.name} failed (`), text)
   check('the refusal names the count field', text.includes('`count`'), text)
   check('the refusal explains the expected shape', 'count' in input ? text.includes('number') : text.includes('missing'), text)
   const row = updates.find(u => u.message.type === 'user')?.message

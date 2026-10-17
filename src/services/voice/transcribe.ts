@@ -63,7 +63,7 @@ export function parseTranscriberPin(raw: string | undefined): TranscriberPin {
   return {
     kind: 'broken',
     value,
-    note: `${TRANSCRIBER_PIN_ENV}=${value} is not on-device, cloud or a family id (${Object.keys(FAMILY_TRANSCRIBER).join(' · ')}) — the pin names itself, no silent fallback`,
+    note: `${TRANSCRIBER_PIN_ENV}=${value} must be on-device, cloud, or a family id (${Object.keys(FAMILY_TRANSCRIBER).join(' · ')})`,
   }
 }
 
@@ -219,7 +219,7 @@ export function pickTranscriber(
   if (pin.kind === 'on-device') {
     const choice = localChoice()
     if (choice !== null) return { state: 'ok', choice, skipped, local, unused: [], saved: overridden }
-    return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=on-device but the on-device transcriber is ${local.state === 'absent' ? local.note : 'unusable'} — the pin names itself, no silent fallback`, skipped, local, saved: overridden }
+    return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=on-device, but the on-device transcriber is ${local.state === 'absent' ? local.note : 'unusable'}`, skipped, local, saved: overridden }
   }
   if (pin.kind === 'family') {
     const family = pin.family
@@ -227,11 +227,11 @@ export function pickTranscriber(
     const display = providerDisplayName(family)
     if (local.state === 'ok') skipped.push(`${HELD_BACK} ${TRANSCRIBER_PIN_ENV}=${family}`)
     if (rule.slot === 'none') {
-      return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=${family} but ${display}: ${rule.why} — the pin names itself, no silent fallback`, skipped, local, saved: overridden }
+      return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=${family}, but ${display}: ${rule.why}`, skipped, local, saved: overridden }
     }
     const label = labelOf(family)
     if (label === null) {
-      return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=${family} but no ${display} API key is signed in — the pin names itself, no silent fallback`, skipped, local, saved: overridden }
+      return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=${family}, but no ${display} API key is signed in`, skipped, local, saved: overridden }
     }
     return { state: 'ok', choice: { kind: 'cloud', family: family as TranscribingFamily, slot: 'api-key', label }, skipped, local, unused: [], saved: overridden }
   }

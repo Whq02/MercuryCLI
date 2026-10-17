@@ -122,11 +122,11 @@ console.log('§2 — the first-party door: the SDK presenter paints the line, ne
   seed(null)
   const plain401 = textOf(getAssistantMessageFromError(expired401, 'claude-opus-5') as never)
   check('a plain expired 401 with nothing observed keeps the generic presenter — no false "sign-in expired"', !plain401.includes('sign-in expired'), plain401.slice(0, 120))
-  check('the generic 401 row carries the provider\'s sentence, attributed, under the recognised prefix', plain401 === `Please run /logins. ${API_ERROR_MESSAGE_PREFIX} (401): Anthropic says: OAuth token expired`, plain401)
+  check('the generic 401 row carries the provider\'s sentence, attributed, under the recognised prefix', plain401 === `Run /logins. ${API_ERROR_MESSAGE_PREFIX} (401): Anthropic says: OAuth token expired`, plain401)
   check('POISON: the generic tail carries no envelope either', !/[{}"]/.test(plain401) && !plain401.includes('authentication_error'))
   const bare403 = new APIError(403, undefined as never, 'forbidden', undefined as never)
   const painted403bare = textOf(getAssistantMessageFromError(bare403, 'claude-opus-5') as never)
-  check('a body-less 403 shows the non-JSON tail verbatim, unattributed (it may be SDK text, not provider words)', painted403bare === `Please run /logins. ${API_ERROR_MESSAGE_PREFIX} (403): forbidden`, painted403bare)
+  check('a body-less 403 shows the non-JSON tail verbatim, unattributed (it may be SDK text, not provider words)', painted403bare === `Run /logins. ${API_ERROR_MESSAGE_PREFIX} (403): forbidden`, painted403bare)
 
   const src = read('src/services/api/errors.ts')
   const wallAt = src.indexOf('const wall = classifyCredentialWall(status, message, anthropicWireCredential(model, status))')

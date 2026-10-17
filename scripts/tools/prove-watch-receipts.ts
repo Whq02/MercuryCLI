@@ -50,7 +50,7 @@ const messages = (...m: Msg[]): never => m as never
   check("the shell's own end notice settles it", settledWatchIds(messages(...byNotification)).has('t1') && orphanedWatches(messages(...byNotification), new Set()).length === 0)
   const byExpiry = [...base, said(monitorNoticeBlock('t1', DESC, '[Monitor "the appended log" (task t1) expired after 300s with 2 events. Re-arm it by calling Monitor again with the same command if the watch is still wanted; set persistent: true for a watch that must outlive the deadline.]'))]
   check('the expiry notice settles it', orphanedWatches(messages(...byExpiry), new Set()).length === 0)
-  const byFlood = [...base, said(monitorNoticeBlock('t1', DESC, '[Monitor stopped — your script produced too much output (30 events suppressed over 11s). Write a new monitor command that filters more aggressively.]'))]
+  const byFlood = [...base, said(monitorNoticeBlock('t1', DESC, '[Monitor stopped: your script produced too much output (30 events suppressed over 11s). Start a new monitor with a tighter filter, such as grep --line-buffered or a wrapper script that emits only the events you need.]'))]
   check('the flood stop settles it', orphanedWatches(messages(...byFlood), new Set()).length === 0)
   const byEvent = [...base, said(monitorNoticeBlock('t1', DESC, 'a plain line the watch reported'))]
   check('a plain event of the watch settles nothing — the watch is still armed', orphanedWatches(messages(...byEvent), new Set()).length === 1)

@@ -166,12 +166,12 @@ const ITEMS = [{ content: 'Deploy target for this project: the blue rack in room
 {
   script.ollama = ollamaCall(RECALL, { query: 'deploy target', limit: 'twenty' })
   const settled = await local({ messages: admitted([RETAIN, RECALL]) })
-  check('a string no schema type can take ("twenty" for an integer) is refused with the current words', settled.toolUses.length === 0 && settled.notes.some(note => note.includes('The parameter `limit` was expected to be of type number but string was provided')) && settled.stop === 'end_turn', JSON.stringify(settled))
+  check('a string no schema type can take ("twenty" for an integer) is refused with the current words', settled.toolUses.length === 0 && settled.notes.some(note => note.includes('Parameter `limit` expects type number, got string')) && settled.stop === 'end_turn', JSON.stringify(settled))
 }
 {
   script.ollama = ollamaCall(RETAIN, { items: 'the blue rack in room 4' })
   const settled = await local({ messages: admitted([RETAIN, RECALL]) })
-  check('a plain sentence where the array goes is refused with the type sentence', settled.toolUses.length === 0 && settled.notes.some(note => note.includes('The parameter `items` was expected to be of type array but string was provided')) && settled.stop === 'end_turn', JSON.stringify(settled))
+  check('a plain sentence where the array goes is refused with the type sentence', settled.toolUses.length === 0 && settled.notes.some(note => note.includes('Parameter `items` expects type array, got string')) && settled.stop === 'end_turn', JSON.stringify(settled))
 }
 
 section('2b · the stored call is the model\'s own: a schema default is applied at execution, never written into the tool_use row (a replayed row must re-ingest byte-identical on a local server)')
@@ -196,7 +196,7 @@ section('3 · never on a hosted lane: the same stringified number through the De
   ]
   script.compat = compatCall('c1', { query: 'deploy target', limit: '20' })
   const settled = await drive(deepseekLaneProfile, 'deepseek-chat', { messages: admitted([RETAIN, RECALL]) })
-  check(`DeepSeek: ${RECALL} admitted, its limit "20" is refused (expected number, string provided) and no block mints`, settled.toolUses.length === 0 && settled.notes.some(note => note.includes('The parameter `limit` was expected to be of type number but string was provided')), JSON.stringify(settled))
+  check(`DeepSeek: ${RECALL} admitted, its limit "20" is refused (expected number, string provided) and no block mints`, settled.toolUses.length === 0 && settled.notes.some(note => note.includes('Parameter `limit` expects type number, got string')), JSON.stringify(settled))
   script.compat = compatCall('c2', { query: 'deploy target', limit: 20 })
   const typed = await drive(deepseekLaneProfile, 'deepseek-chat', { messages: admitted([RETAIN, RECALL]) })
   check('DeepSeek: the typed call mints as before', typed.toolUses.length === 1 && JSON.stringify(typed.toolUses[0]!.input) === JSON.stringify({ query: 'deploy target', limit: 20 }), JSON.stringify(typed))

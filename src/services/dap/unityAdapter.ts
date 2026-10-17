@@ -73,7 +73,7 @@ export function resolveUnityDebugAdapter(testOpts?: {
   if (pin && pin.trim() !== '') {
     if (!isFile(pin)) {
       return {
-        reason: `MERCURY_UNITY_DEBUG_ADAPTER set but ${pin} is not an existing file — the pin names itself, no silent fallback`,
+        reason: `MERCURY_UNITY_DEBUG_ADAPTER is set to ${pin}, which does not exist`,
       }
     }
     if (!dotnet) {

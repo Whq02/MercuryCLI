@@ -154,7 +154,7 @@ export function resolveEmbedPackDir(): EmbedPackResolution {
   if (seededPackDir !== null) {
     const check = checkEmbedPackDir(seededPackDir)
     if (check.state === 'ok') return { state: 'ok', dir: seededPackDir, addonPath: check.addonPath, manifest: check.manifest, source: 'override' }
-    return { state: 'unavailable', note: `embed pack override set to ${seededPackDir} but ${check.note} — the pin names itself, no silent fallback` }
+    return { state: 'unavailable', note: `embed pack override ${seededPackDir} is unusable (${check.note})` }
   }
   const moduleDir = path.dirname(fileURLToPath(import.meta.url))
   const platform = voicePackPlatform()

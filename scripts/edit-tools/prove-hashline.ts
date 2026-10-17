@@ -468,7 +468,7 @@ section('E. hash-qualified hunks (real FileEditTool)')
   )
   check(
     'E2b a MIXED batch still demands expected_anchor (and teaches the alternative)',
-    !e2b.ok && e2b.ok === false && e2b.error.includes('hunks require expected_anchor') && e2b.error.includes('anchor-qualify EVERY hunk'),
+    !e2b.ok && e2b.ok === false && e2b.error.includes('hunks require expected_anchor') && e2b.error.includes('anchor-qualify every hunk'),
   )
   check('E2c the mixed refusal wrote nothing', readFileSync(fileB2, 'utf8') === 'one\ntwo\nthree\n')
 

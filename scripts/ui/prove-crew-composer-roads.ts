@@ -741,7 +741,7 @@ async function run(cols: number, rows: number): Promise<void> {
       pending.edit(WITH_IMAGE)
       await clearNotices()
     }
-    const refusedWith = (name: string): boolean => screenWords().includes(`${name} did not take the message: a crewmate reads words, never an image — send the image to ${LEAD_ROW}, or describe it — the draft stays`)
+    const refusedWith = (name: string): boolean => screenWords().includes(`${name} did not take the message: a crewmate cannot read images; send the image to ${LEAD_ROW}, or describe it in words — the draft stays`)
     await seedImage()
     const lanesBeforeImage = JSON.stringify(localLanes())
     scene.push(ENTER)

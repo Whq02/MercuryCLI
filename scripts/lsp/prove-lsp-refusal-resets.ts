@@ -62,7 +62,7 @@ process.env.MERCURY_LSP_SERVERS = JSON.stringify(fixtureServer('fixture-ts', FAI
     check('after 61 seconds a fourth failed try is sent and waits 120 seconds', requests() > beforeTime && /failed 4 times in a row/.test(at61.text) && /in 120 s/.test(at61.text), at61.text)
     for (let i = 0; i < 5; i++) {
       const bad = await door.drive({ operation: 'findReferences', filePath: main })
-      check(`argument refusal ${i + 1} never counts`, bad.isError && /line, character are missing/.test(bad.text) && !/Not tried/.test(bad.text), bad.text)
+      check(`argument refusal ${i + 1} never counts`, bad.isError && /missing: line, character/.test(bad.text) && !/Not tried/.test(bad.text), bad.text)
     }
     const key = ledger.lspCallKey('workspaceSymbol', { operation: 'workspaceSymbol', query: 'none', filePath: main })
     const situation = await ledger.lspCallSituation([main], manager)

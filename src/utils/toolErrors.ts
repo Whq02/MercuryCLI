@@ -159,7 +159,7 @@ function formatIssue(issue: IssueLike, inputSchema: unknown, toolName?: string):
       }
       const receivedMatch = issue.message.match(/received (\w+)/)
       const received = receivedMatch ? (receivedMatch[1] as string) : 'a different type'
-      return [`The parameter \`${name}\` was expected to be of type ${issue.expected ?? 'unknown'} but ${received} was provided`]
+      return [`Parameter \`${name}\` expects type ${issue.expected ?? 'unknown'}, got ${received}`]
     }
     case 'unrecognized_keys': {
       const validKeys = extractSchemaKeys(inputSchema)
@@ -174,7 +174,7 @@ function formatIssue(issue: IssueLike, inputSchema: unknown, toolName?: string):
       if (values.length === 0) {
         return [`The parameter \`${name}\` has an invalid value`]
       }
-      return [`The parameter \`${name}\` must be one of the following values: ${values.map(value => JSON.stringify(value)).join(', ')}`]
+      return [`Parameter \`${name}\` must be one of: ${values.map(value => JSON.stringify(value)).join(', ')}`]
     }
     case 'too_small': {
       const bound = issue.minimum ?? 0
@@ -210,5 +210,5 @@ export function formatZodValidationError(
     return error.message
   }
   const noun = lines.length === 1 ? 'issue' : 'issues'
-  return `The ${toolName} tool failed due to the following ${noun}:\n${lines.join('\n')}`
+  return `${toolName} failed (${noun}):\n${lines.join('\n')}`
 }

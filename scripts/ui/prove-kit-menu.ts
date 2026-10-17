@@ -237,7 +237,7 @@ t.section('§6 — THE CONTAINER: cycling, the tri-state words, the master row, 
   const screen = read('src/components/KitMenuScreen.tsx')
   const bound = { return: screen.includes("key: 'return'"), space: screen.includes("key: ' '"), backspace: screen.includes("key: 'backspace'"), arrows: screen.includes('key.leftArrow') && screen.includes('key.rightArrow'), esc: screen.includes('onClose: () =>') }
   t.check('the legend names ↵ · ⌫ · esc · ↑↓, every named key is bound, and the ←→ cycle stays bound unadvertised', KIT_LEGEND === '↑↓ move · ↵ change · ⌫ default · esc back' && KIT_LEGEND_SAVED === '↑↓ move · ↵ change (saved) · ⌫ default · esc back' && Object.values(bound).every(Boolean))
-  t.check("the store-bound screen wears the '(saved)' legend (with the preset key) and its status line says a running session is never touched", screen.includes('legend: preset.open ? KIT_LEGEND_PROMPT : KIT_LEGEND_PRESET') && KIT_LEGEND_PRESET.startsWith(KIT_LEGEND_SAVED.replace(' · esc back', '')) && KIT_LEGEND_PRESET.includes('p save as preset…') && screen.includes("key: 'p'") && kitStatusLine(0).includes('never a running one'))
+  t.check("the store-bound screen wears the '(saved)' legend (with the preset key) and its status line says a running session is never touched", screen.includes('legend: preset.open ? KIT_LEGEND_PROMPT : KIT_LEGEND_PRESET') && KIT_LEGEND_PRESET.startsWith(KIT_LEGEND_SAVED.replace(' · esc back', '')) && KIT_LEGEND_PRESET.includes('p save as preset…') && screen.includes("key: 'p'") && kitStatusLine(0).includes('changes apply to new sessions only'))
   t.check('a click activates through the same toggle body as ↵ (onActivate rides the primary action)', screen.includes('onActivate={props.onActivate}') && screen.includes("{ key: 'return', hint: 'change', run: row => ({ pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) }) }"))
   {
     const { withSkillState, withExtensionState } = await import('../../src/services/mcp/kitStore.js')
@@ -392,7 +392,7 @@ t.section("§8 — THE STORE WRITE: write-through per toggle onto the REAL recor
     const store = new RecordKitMenuStore()
     t.check('a fresh record reads EMPTY (every row on — default all-on by construction)', store.read(WS).size === 0 && rows.filter(isMember).every(r => kitRowView(r, store.read(WS)).effective === 'on'))
     const fresh = kitStatusLine(0)
-    t.check("the fresh status line is the all-on truth and never a nag (no 'configure' / 'set up' / 'choose' words)", fresh === 'everything on — changes apply to the next session, never a running one' && !/configure|set up|choose|please/i.test(fresh))
+    t.check("the fresh status line is the all-on truth and never a nag (no 'configure' / 'set up' / 'choose' words)", fresh === 'everything on; changes apply to new sessions only' && !/configure|set up|choose|please/i.test(fresh))
     t.check('the standing line counts the saved choices once any stand', kitStatusLine(1) === '1 choice saved — applies to the next session' && kitStatusLine(3).startsWith('3 choices saved'))
     t.check("write deploy → invocable, re-read: invocable (receipt 'deploy → invocable')", JSON.stringify(store.write(WS, deploy, 'invocable')) === JSON.stringify({ ok: true, receipt: 'deploy → invocable' }) && store.read(WS).get('skill:deploy') === 'invocable' && kitDeltasForWorkspace(WS).skillStates['deploy'] === 'invocable')
     t.check('write deploy → off, re-read: off', store.write(WS, deploy, 'off').ok && store.read(WS).get('skill:deploy') === 'off')

@@ -299,7 +299,7 @@ export function recoveryBudgetSpentLine(budget: RecoveryBudget): string {
   if (budget.faults > 0) parts.push(`${budget.faults} provider fault${budget.faults === 1 ? '' : 's'}`)
   if (budget.refusals > 0) parts.push(`${budget.refusals} refusal${budget.refusals === 1 ? '' : 's'}`)
   const last = budget.lastCause !== undefined ? `; the last: ${budget.lastCause}` : ''
-  return `the ${words} is spent waiting on the provider — ${n} wait${n === 1 ? '' : 's'} in a row (${parts.join(', ')}${last}) — ${RESUME_WORDS}`
+  return `the ${words} is spent waiting on the provider after ${n} wait${n === 1 ? '' : 's'} in a row (${parts.join(', ')}${last}); ${RESUME_WORDS}`
 }
 
 export class RecoveryBudgetSpentError extends Error {
