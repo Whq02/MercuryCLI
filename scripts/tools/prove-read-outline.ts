@@ -15,7 +15,6 @@ delete process.env.NODE_ENV
 
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 
@@ -273,13 +272,20 @@ section('O2. Control: plain Read without outline is byte-identical, and plain Re
   const preserveCtx = makeContext()
   const tsPreservePath = join(fixtures, 'preserve.ts')
   writeFileSync(tsPreservePath, tsSource)
-  const fullFirst = await runRead({ file_path: tsPreservePath }, preserveCtx)
-  const outlineSecond = await runRead({ file_path: tsPreservePath, outline: true }, preserveCtx)
-  _resetSeenLinesForTesting()
-  const editThird = await runEdit(
-    { file_path: tsPreservePath, old_string: '  const sum = a + b', new_string: '  const sum = a + b + 1' },
-    preserveCtx,
-  )
+  process.env.MERCURY_CHANGE_RECEIPTS = '0'
+  let fullFirst: Awaited<ReturnType<typeof runRead>>
+  let outlineSecond: Awaited<ReturnType<typeof runRead>>
+  let editThird: Awaited<ReturnType<typeof runEdit>>
+  try {
+    fullFirst = await runRead({ file_path: tsPreservePath }, preserveCtx)
+    outlineSecond = await runRead({ file_path: tsPreservePath, outline: true }, preserveCtx)
+    editThird = await runEdit(
+      { file_path: tsPreservePath, old_string: '  const sum = a + b', new_string: '  const sum = a + b + 1' },
+      preserveCtx,
+    )
+  } finally {
+    delete process.env.MERCURY_CHANGE_RECEIPTS
+  }
   check(
     'O2e a full plain Read followed by an outline Read preserves the non-partial readFileState entry so a subsequent Edit succeeds',
     fullFirst.ok &&
