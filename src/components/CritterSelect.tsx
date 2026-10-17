@@ -14,6 +14,12 @@ import {
   persistSessionCritter,
 } from './mercury-ui/sessionAccent.js'
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js'
+import { useDeclaredCursor } from '../ink/hooks/use-declared-cursor.js'
+
+function CritterCard({ on, ...box }: { on: boolean } & React.ComponentProps<typeof Box>): React.ReactNode {
+  const cursorRef = useDeclaredCursor({ line: 0, column: 0, active: on })
+  return <Box ref={cursorRef} {...box} />
+}
 
 
 export function CritterSelect({ onClose }: { onClose: () => void }): React.ReactNode {
@@ -86,7 +92,8 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
           const active = c.key === liveActive
           const def = dockDefs[i]!
           return (
-            <Box
+            <CritterCard
+              on={on}
               key={c.key}
               borderStyle="round"
               borderColor={on || hovered === i ? c.accent : DUNE}
@@ -119,7 +126,7 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
                 <Text color={on ? c.accent : FAINT}>{GLYPH.prompt} launch </Text>
                 {active ? <Text color={TEAL}>{GLYPH.done} ready</Text> : <Text color={FAINT}>{GLYPH.pending}</Text>}
               </Box>
-            </Box>
+            </CritterCard>
           )
         })}
       </Box>

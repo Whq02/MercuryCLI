@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/** src/components/FullscreenLayout.tsx src/components/mercury-ui/components.tsx src/components/mercury-ui/InteractiveRow.tsx src/components/mercury-ui/CursorRow.tsx src/components/mercury-ui/useCursorFollow.ts src/components/mercury-ui/NavigablePanes.tsx src/components/RouterBoard.tsx src/components/CustomSelect/select.tsx src/components/design-system/ListItem.tsx
+// gate-watch: src/commands/** src/components/CritterSelect.tsx src/components/FullscreenLayout.tsx src/components/mercury-ui/components.tsx src/components/mercury-ui/InteractiveRow.tsx src/components/mercury-ui/CursorRow.tsx src/components/mercury-ui/useCursorFollow.ts src/components/mercury-ui/NavigablePanes.tsx src/components/RouterBoard.tsx src/components/CustomSelect/select.tsx src/components/design-system/ListItem.tsx
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -267,6 +267,20 @@ for (const command of routes) {
   }
   check(`${name} resize: no render fault`, !scene.faults().some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), scene.faults().join(' | ').slice(0, 300))
   await scene.close()
+}
+
+const critter = routes.find(command => command.name === 'critter')
+if (critter !== undefined) {
+  const scene = await openRoute(critter, 64, 20)
+  if (scene !== null) {
+    for (let index = 0; index < 2; index++) { scene.push(DOWN); await sleep(120) }
+    await sleep(400)
+    const frame = scene.lines()
+    save('critter-64x20-down-2', frame)
+    const nameRow = frame.findIndex(line => line.includes('[3] '))
+    check('/critter 64x20: ↓ ×2 brings the third card whole into view (its name row and its bottom border painted)', nameRow >= 0 && /^╰/.test(frame[nameRow + 2] ?? ''), describe(frame))
+    await scene.close()
+  }
 }
 
 clearTimeout(hardLimit)

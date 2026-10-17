@@ -23,7 +23,10 @@ export function useCursorFollow(
       const y = elementTop + current.relativeY
       const top = body.getScrollTop()
       const height = body.getViewportHeight()
-      if (height > 0 && (y < top || y >= top + height)) body.scrollToElement(current.node, current.relativeY - (y < top ? 0 : height - 1))
+      if (height <= 0) return
+      const span = Math.max(1, Math.min(height, Math.ceil(current.node.layoutNode?.getComputedHeight() ?? 1) - current.relativeY))
+      if (y < top) body.scrollToElement(current.node, current.relativeY)
+      else if (y + span > top + height) body.scrollToElement(current.node, current.relativeY - (height - span))
     }, 0)
   }, [scrollRef])
   useEffect(() => {
