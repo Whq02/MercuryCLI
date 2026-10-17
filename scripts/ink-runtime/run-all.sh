@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/ink/**
+# gate-watch: src/ink/** tsconfig.json
 # gate-watch: scripts/lib/generated-assets-map.mjs scripts/ui/run-viewport-proof.ts
 # gate-watch: scripts/ui/viewportRuntime.ts
 set -u
