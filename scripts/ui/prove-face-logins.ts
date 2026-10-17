@@ -972,7 +972,7 @@ t.section('§11 — THE MERGED SESSIONS·PROJECTS SCREEN (B2, dark: the containe
   t.check('the filter rides the core (live) and the SAME matcher (injected)', src.includes('...(projectFilter !== null ? { filterDir: projectFilter.dir } : {})') && src.includes('given.flat.filter(f => isProjectSession(f.row.log, projectFilter.dir))'))
   t.check('the cursor re-anchors BY ID when the filter resizes the list', src.includes('const at = selectable.findIndex(r => selectableIdOf(r) === want);') && src.includes('if (at !== -1 && at !== list.selectedIndex) list.moveTo(at);'))
   t.check('⇥ jumps containers through the list’s own moveTo (the ← precedent)', src.includes('list.moveTo(list.selectedIndex >= projStart ? 0 : projStart);'))
-  t.check('the prune door REFUSES under a project filter (its card vocabulary is pinned elsewhere)', src.includes('the prune door offers the whole scope — walk back out of the project filter first'))
+  t.check('the prune door REFUSES under a project filter (its card vocabulary is pinned elsewhere)', src.includes('prune acts on the whole list; exit the project filter first'))
   t.check('a projects-less mount is the landed picker (title · panel · legend unchanged)', src.includes("title: merged ? 'sessions · projects' : 'resume session'"))
 }
 

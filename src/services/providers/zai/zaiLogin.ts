@@ -23,7 +23,7 @@ export function storeZaiApiKeyLogin(
     return { ok: false, stored: false, receipt: `Could not store the key: ${errorMessageWithCause(error)}` }
   }
   const shadowNote = env.ZAI_API_KEY?.trim()
-    ? ' NOTE: a ZAI_API_KEY env pin is set and WINS over the store this session (an env key rides the general base).'
+    ? ' (ZAI_API_KEY is set in the environment and overrides the stored key this session, using the general base.)'
     : ''
   const base = plan === 'coding' ? ZAI_CODING_API_BASE_URL : zaiApiBase({})
   return {

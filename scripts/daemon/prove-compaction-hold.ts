@@ -89,12 +89,12 @@ section("F1 the withdraw's UNKNOWN retires the row and names the words")
   answer = async () => ({ ok: true, op: 'sessionControl', outcome: 'refused', withdrawn: false, reason: 'unknown', detail: "the runner's queue never held the line" })
   liveWakes = 0
   const receipt = await connector.withdrawSend(id)
-  check("the receipt is the runner's unknown, marked retired, naming the words", receipt.withdrawn === false && receipt.reason === 'unknown' && receipt.retired === true && receipt.detail === lostLine('the words no runner holds') && receipt.detail.includes('“the words no runner holds”'), j(receipt))
+  check("the receipt is the runner's unknown, marked retired, naming the words", receipt.withdrawn === false && receipt.reason === 'unknown' && receipt.retired === true && receipt.detail === lostLine('the words no runner holds') && receipt.detail.includes('"the words no runner holds"'), j(receipt))
   check('the send and its row left the screen — no orphan stands', sendOf(id) === undefined && !painted().includes('the words no runner holds'), painted().slice(0, 160))
   check('the live listeners woke', liveWakes >= 1, `${liveWakes} wakes`)
   const again = await connector.withdrawSend(id)
   check('a second withdraw finds nothing sent — the plain no-queue line, no retired mark', again.withdrawn === false && again.reason === 'unknown' && again.detail === RECALL_UNKNOWN_LINE && again.retired === undefined, j(again))
-  check('a long line is quoted cut, one line — short enough for the hint row beside the shortcuts', lostLine('a'.repeat(80)).includes('…”') && lostLine('a'.repeat(80)).length <= 80, lostLine('a'.repeat(80)))
+  check('a long line is quoted cut, one line — short enough for the hint row beside the shortcuts', lostLine('a'.repeat(80)).includes('…"') && lostLine('a'.repeat(80)).length <= 80, lostLine('a'.repeat(80)))
   foldRunning(false)
 }
 
@@ -122,9 +122,9 @@ section("F2 the runner's life count: the same runner takes, a new runner loses")
   check('a NEW runner (the count moved) with an empty queue retires both held sends', sendOf(one) === undefined && sendOf(two) === undefined, j(g.sends.map(s => [s.text, s.state])))
   check('…and their rows are gone from the transcript', !painted().includes('first held words') && !painted().includes('second held words'), painted().slice(0, 160))
   const lost = lostLineOf()
-  check("lostLine() names both, the composer's own words (pastes unexpanded, cut past thirty-two characters), on the restart line", lost !== null && lost !== undefined && lost.text === lostWithRunnerLine(['first held words', 'second held words [Pasted text #1 +3 lines]']) && lost.text.includes('the runner restarted') && lost.text.includes('“first held words” · “second held words [Pasted text…”') && lost.text.endsWith('not taken; type them again'), j(lost))
+  check("lostLine() names both, the composer's own words (pastes unexpanded, cut past thirty-two characters), on the restart line", lost !== null && lost !== undefined && lost.text === lostWithRunnerLine(['first held words', 'second held words [Pasted text #1 +3 lines]']) && lost.text.includes('the runner restarted') && lost.text.includes('"first held words" · "second held words [Pasted text…"') && lost.text.endsWith('not taken); type them again'), j(lost))
   check('the live listeners woke for the notice', liveWakes >= 1, `${liveWakes} wakes`)
-  check('one lost line reads singular', lostWithRunnerLine(['only one']).endsWith('not taken; type it again') && lostWithRunnerLine(['only one']).includes('“only one”'), lostWithRunnerLine(['only one']))
+  check('one lost line reads singular', lostWithRunnerLine(['only one']).endsWith('not taken); type it again') && lostWithRunnerLine(['only one']).includes('"only one"'), lostWithRunnerLine(['only one']))
   foldRunning(false)
 }
 

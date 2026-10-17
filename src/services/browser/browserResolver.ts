@@ -244,7 +244,7 @@ export function resolveBrowser(reads?: BrowserResolverReads): BrowserResolution 
     return {
       state: 'unavailable',
       source: 'operator-pin',
-      note: `MERCURY_BROWSER_PATH set but ${pin} does not exist — the pin names itself, no silent fallback`,
+      note: `MERCURY_BROWSER_PATH is set to ${pin}, which does not exist`,
       remedies: ['fix or unset MERCURY_BROWSER_PATH'],
     }
   }

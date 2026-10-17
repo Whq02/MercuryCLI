@@ -155,7 +155,7 @@ export function RouterKeyEntry({
       lane.write(key)
       const envShadow = lane.envShadow()
       onDone(
-        `${lane.title} stored (auth-scoped, mode 600): ${providerSecretsPathForDisplay()}${envShadow ? ` — NOTE: an explicit ${lane.envVar} env pin is set and WINS over the store this session` : ''}. /router engines shows readiness; /router key ${provider === 'zai' ? '' : `${provider} `}clear removes it.`,
+        `${lane.title} stored (auth-scoped, mode 600): ${providerSecretsPathForDisplay()}${envShadow ? ` (${lane.envVar} is set in the environment and overrides the stored key this session)` : ''}. /router engines shows readiness; /router key ${provider === 'zai' ? '' : `${provider} `}clear removes it.`,
       )
     } catch (error) {
       onDone(

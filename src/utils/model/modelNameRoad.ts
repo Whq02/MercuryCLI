@@ -41,7 +41,7 @@ export function modelNameAskWords(match: ModelNameMatch, labelOf: (id: string) =
   if (match.kind === 'none') {
     return match.nearest.length === 0
       ? `'${match.typed}' names no listed model — pick a row below`
-      : `'${match.typed}' names no listed model — nearest: ${match.nearest.map(labelOf).join(' · ')} — pick a row below`
+      : `'${match.typed}' names no listed model (nearest: ${match.nearest.map(labelOf).join(' · ')}); pick a row below`
   }
   return ''
 }

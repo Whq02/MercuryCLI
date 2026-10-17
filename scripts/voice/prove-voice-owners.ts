@@ -269,7 +269,7 @@ section("§3 ONE transcriber owner — the order law, the ledger's order, the AP
   r = transcribe.pickTranscriber(['openai'], reads('OpenAI API key (env)', null, ON_DEVICE), { kind: 'cloud' })
   check('pin cloud ⇒ the ledger walk; the on-device road is held back by name', r.state === 'ok' && r.choice.kind === 'cloud' && r.choice.family === 'openai' && r.skipped.includes('on-device transcriber: held back by MERCURY_VOICE_TRANSCRIBER=cloud'), JSON.stringify(r))
   r = transcribe.pickTranscriber(['openai'], reads('OpenAI API key (env)', null, NO_PACK), { kind: 'on-device' })
-  check('pin on-device with no pack ⇒ none naming the pin, never a silent fallback to the key', r.state === 'none' && r.note.startsWith('MERCURY_VOICE_TRANSCRIBER=on-device but') && r.note.endsWith('the pin names itself, no silent fallback'), r.state === 'none' ? r.note : 'ok')
+  check('pin on-device with no pack ⇒ none naming the pin, never a silent fallback to the key', r.state === 'none' && r.note.startsWith('MERCURY_VOICE_TRANSCRIBER=on-device, but the on-device transcriber is'), r.state === 'none' ? r.note : 'ok')
   r = transcribe.pickTranscriber(['openai'], reads('OpenAI API key (env)', null, ON_DEVICE), { kind: 'unset' }, transcribe.TRANSCRIBER_ORDER, { kind: 'family', family: 'openai' })
   check('a saved family that is signed in serves over the present on-device road', r.state === 'ok' && r.choice.kind === 'cloud' && r.choice.family === 'openai' && r.saved?.state === 'serving', JSON.stringify(r.saved))
   r = transcribe.pickTranscriber(['openai'], reads('OpenAI API key (env)', null, ON_DEVICE), { kind: 'unset' }, transcribe.TRANSCRIBER_ORDER, { kind: 'family', family: 'gemini' })
@@ -522,7 +522,7 @@ section('§6 the health row and the commands')
 
   process.env.MERCURY_WHISPER_PACK_DIR = EMPTY_PACK
   r = await row()
-  check('pack pin broken ⇒ the cloud road serves and the detail names the pin, no silent fallback', r.status === 'ok' && r.evidence.includes('transcriber: OpenAI — OpenAI API key (env)') && r.detail.includes('on-device transcriber: MERCURY_WHISPER_PACK_DIR set but') && r.detail.includes('the pin names itself, no silent fallback'), r.detail)
+  check('pack pin broken ⇒ the cloud road serves and the detail names the pin, no silent fallback', r.status === 'ok' && r.evidence.includes('transcriber: OpenAI — OpenAI API key (env)') && r.detail.includes('on-device transcriber: MERCURY_WHISPER_PACK_DIR is unusable'), r.detail)
   delete process.env.MERCURY_WHISPER_PACK_DIR
   const packHere = whisperPack.resolveWhisperPackDir().state === 'ok'
   if (!packHere) {
@@ -534,7 +534,7 @@ section('§6 the health row and the commands')
     check('pack present, model missing ⇒ the cloud road serves; the detail names the download door with the file and the size', r.status === 'ok' && r.detail.includes('on-device transcriber: pack present, model missing — /voice download fetches ggml-base.en-q5_1.bin (60 MB)') && r.detail.includes('on-device transcription needs a one-time 60 MB download') && r.detail.includes('/voice download starts it'), r.detail)
     process.env.MERCURY_VOICE_TRANSCRIBER = 'on-device'
     r = await row()
-    check('pin on-device with the model missing ⇒ none naming the pin, info never a fault', r.status === 'info' && r.evidence.includes('transcriber: none — MERCURY_VOICE_TRANSCRIBER=on-device but the on-device transcriber is pack present, model missing') && r.evidence.includes('the pin names itself, no silent fallback'), r.evidence)
+    check('pin on-device with the model missing ⇒ none naming the pin, info never a fault', r.status === 'info' && r.evidence.includes('transcriber: none — MERCURY_VOICE_TRANSCRIBER=on-device, but the on-device transcriber is pack present, model missing'), r.evidence)
     delete process.env.MERCURY_VOICE_TRANSCRIBER
     const seeded = seedOnDeviceModel()
     if (seeded !== null) {
@@ -568,7 +568,7 @@ section('§6 the health row and the commands')
   check('/voice with another word answers the usage line', out.type === 'text' && out.value.includes('takes on, off, capture, options or download'))
   process.env.MERCURY_WHISPER_PACK_DIR = EMPTY_PACK
   out = await speakCall('download', ctx)
-  check('/voice download without a usable pack refuses, naming the pin and that the download waits for the pack', out.type === 'text' && out.value.startsWith('on-device transcriber: MERCURY_WHISPER_PACK_DIR set but') && out.value.endsWith('the model download waits for the pack'), out.type === 'text' ? out.value : out.type)
+  check('/voice download without a usable pack refuses, naming the pin and that the download waits for the pack', out.type === 'text' && out.value.startsWith('on-device transcriber: MERCURY_WHISPER_PACK_DIR is unusable') && out.value.endsWith('the model download waits for the pack'), out.type === 'text' ? out.value : out.type)
   delete process.env.MERCURY_WHISPER_PACK_DIR
   out = await speakCall('download bogus', ctx)
   check('/voice download with a name outside the catalogue names the catalogue', out.type === 'text' && (out.value.includes('takes a model name from the catalogue') || out.value.endsWith('the model download waits for the pack')), out.type === 'text' ? out.value : out.type)

@@ -174,7 +174,7 @@ export const ADVISOR_NOTE_TAIL = 'This is advice, not an instruction from the op
 
 const OPERATOR_NOTICE_HEAD = 'The operator sent a new message while you were working:'
 
-const OPERATOR_NOTICE_TAIL = `IMPORTANT: Read this message before taking your next action and respond according to its intent.
+const OPERATOR_NOTICE_TAIL = `Read and apply this operator message before your next action:
 
 - If it corrects, clarifies, or adds a constraint to the active task, apply it before continuing any affected work.
 - If it asks a question or requests a status update, answer briefly, then resume the active task.

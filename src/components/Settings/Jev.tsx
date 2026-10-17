@@ -196,7 +196,7 @@ export function jevRowNote(id: JevRowId, road: JevRoad = readJevSettings().road)
     case 'spend':
       return `${jevSpendLabel(road)} · credits: ${jevCreditsWords(road)} — published rate (${RATE_WORDS}); an unconfirmed charge is a call whose answer Mercury did not read (a timeout or an unreadable reply), counted at the most a call can cost (${jevUsdLabel(maxCall)}) · resets with the cost ledger on /clear`
     case 'allowance':
-      return `a runaway stop, not a budget — one call costs at most ${jevUsdLabel(maxCall)}; the pace and the request ceiling do the real work · ←/→ walk ${JEV_ALLOWANCE_RUNGS.map(usd => jevUsdLabel(usd)).join(' · ')} · ↵ types a dollar amount · ⌫ returns to ${jevUsdLabel(JEV_DEFAULT_ALLOWANCE_USD)}`
+      return `session spend cap (one call costs at most ${jevUsdLabel(maxCall)}; pace and request ceiling bound request rate) · ←/→ walk ${JEV_ALLOWANCE_RUNGS.map(usd => jevUsdLabel(usd)).join(' · ')} · ↵ types a dollar amount · ⌫ returns to ${jevUsdLabel(JEV_DEFAULT_ALLOWANCE_USD)}`
     case 'pace':
       return `main-model requests admitted a minute; past it a request is refused with the wait until the minute turns · ←/→ move by one · ↵ types a count · ⌫ returns to ${JEV_DEFAULT_PACE_PER_MINUTE}`
     case 'ceiling':

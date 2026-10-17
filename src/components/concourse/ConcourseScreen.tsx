@@ -2799,8 +2799,8 @@ function CapacityAskModal({
       </Box>
       <Box flexShrink={0} marginTop={1}>
         <Text color={t.textPrimary} wrap="wrap">
-          may I run a one-time check of what this machine carries — cores, memory, other agent CLIs
-          already running — to size how many parallel sessions fit?
+          may I run a one-time check of this machine (cores, memory, other running agent CLIs) to
+          size how many parallel sessions fit?
         </Text>
       </Box>
       <Box flexDirection="column" flexShrink={0} marginTop={1}>

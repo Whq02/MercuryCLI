@@ -78,7 +78,7 @@ export function probeBuiltinPyright(): PyrightProbe {
     if (!pinned) {
       result = {
         available: false,
-        reason: `MERCURY_PYRIGHT_VENDOR_DIR set but ${pin} holds no langserver.index.js — the pin names itself, no silent fallback`,
+        reason: `MERCURY_PYRIGHT_VENDOR_DIR (${pin}) has no langserver.index.js`,
       }
       probeCache = { at: now, key, result }
       return result

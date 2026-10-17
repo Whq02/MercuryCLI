@@ -71,7 +71,7 @@ export function presetPromptLines(name: string, note: string | null): string[] {
 export function kitStatusLine(changed: number): string {
   return changed > 0
     ? `${changed} choice${changed === 1 ? '' : 's'} saved — applies to the next session`
-    : 'everything on — changes apply to the next session, never a running one';
+    : 'everything on; changes apply to new sessions only';
 }
 
 export type PresetRowFact = { name: string; count: number | null };

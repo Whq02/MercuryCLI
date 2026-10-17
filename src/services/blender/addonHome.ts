@@ -39,7 +39,7 @@ export function resolveBlenderAddonHome(testOpts?: {
   if (pin) {
     if (isDir(pin)) return { home: { path: pin, source: 'pin' } }
     return {
-      pinError: `MERCURY_BLENDER_BRIDGE_ADDON_DIR set but ${pin} is not an existing directory — the pin names itself, no silent fallback`,
+      pinError: `MERCURY_BLENDER_BRIDGE_ADDON_DIR is set to ${pin}, which is not an existing directory`,
       reason: `MERCURY_BLENDER_BRIDGE_ADDON_DIR is set but ${pin} is not an existing directory`,
     }
   }

@@ -78,7 +78,7 @@ export function resolveStructureTypescript(root: string): TsResolution | TsResol
     }
     return {
       state: 'unavailable',
-      note: `MERCURY_TYPESCRIPT_VENDOR_DIR set but ${candidate} is missing or not a compiler — the pin names itself, no silent fallback`,
+      note: `MERCURY_TYPESCRIPT_VENDOR_DIR (${candidate}) is missing or not a compiler`,
     }
   }
   const workspace = resolveWorkspace(root)

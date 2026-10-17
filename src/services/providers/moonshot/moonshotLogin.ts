@@ -172,7 +172,7 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
           ? `the usage endpoint refused the fresh token (HTTP ${probe.status}) — the sign-in is stored; the first turn says whether it dispatches`
           : `the usage endpoint did not answer (${probe.message}) — the sign-in is stored unverified; the first turn proves it`
     const keyShadow = env.MOONSHOT_API_KEY?.trim()
-      ? ' NOTE: a MOONSHOT_API_KEY env pin is set and WINS over the sign-in this session.'
+      ? ' (MOONSHOT_API_KEY is set in the environment and overrides this sign-in.)'
       : ''
     return {
       ok: true,

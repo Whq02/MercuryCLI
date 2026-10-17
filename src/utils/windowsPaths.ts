@@ -84,9 +84,9 @@ export function gitBashCandidatePaths(gitPaths: string[]): string[] {
 export type GitBashLocation = { path: string } | { absent: true }
 
 export const GIT_BASH_REMEDY =
-  'Mercury on Windows requires git-bash for the Bash tool. Download it from https://git-scm.com/downloads/win — ' +
-  'if it is already installed but not on PATH, set MERCURY_GIT_BASH_PATH=<path to your bash.exe> ' +
-  '(for example C:\\Program Files\\Git\\bin\\bash.exe) — or turn the shell engine on.'
+  'Mercury on Windows requires git-bash for the Bash tool. Download it from https://git-scm.com/downloads/win, ' +
+  'set MERCURY_GIT_BASH_PATH=<path to bash.exe> ' +
+  '(for example C:\\Program Files\\Git\\bin\\bash.exe) if already installed, or turn the shell engine on.'
 
 export const locateGitBash = memoize((): GitBashLocation => {
   const override = process.env.MERCURY_GIT_BASH_PATH

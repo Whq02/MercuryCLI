@@ -732,7 +732,7 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
       group: ZAI_MODEL_GROUP,
       providerName: 'Z.AI',
       connectValue: keyConnectValue('zai'),
-      connectHint: '↵ opens /logins zai (a Z.AI API key — general or GLM Coding Plan) — ZAI_API_KEY works too',
+      connectHint: '↵ opens /logins zai (Z.AI API key: general or GLM Coding Plan; or set ZAI_API_KEY)',
       keyPresent: reads.zaiKeyPresent(),
       pins: keyLanePins('zai'),
       listState: keyLaneListState('zai'),

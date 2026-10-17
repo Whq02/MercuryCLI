@@ -131,7 +131,7 @@ export function locateUnityEditors(testOpts?: {
     if (isFile(pin)) return { editors: [{ path: pin, source: 'pin' }] }
     return {
       editors: [],
-      pinError: `MERCURY_UNITY_EDITOR set but ${pin} is not an existing file — the pin names itself, no silent fallback`,
+      pinError: `MERCURY_UNITY_EDITOR is set to ${pin}, which does not exist`,
     }
   }
   const editors: UnityEditorLocation[] = []

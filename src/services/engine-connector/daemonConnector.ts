@@ -140,14 +140,14 @@ export const RECALL_UNKNOWN_LINE = 'nothing queued to take back — esc interrup
 const QUOTED_WORDS_MAX = 32
 function quoteWords(words: string): string {
   const folded = words.replace(/\s+/g, ' ').trim()
-  return `“${folded.length > QUOTED_WORDS_MAX ? `${folded.slice(0, QUOTED_WORDS_MAX - 1).trimEnd()}…` : folded}”`
+  return `"${folded.length > QUOTED_WORDS_MAX ? `${folded.slice(0, QUOTED_WORDS_MAX - 1).trimEnd()}…` : folded}"`
 }
 export function lostLine(words: string): string {
-  return `the session did not take ${quoteWords(words)} — type it again`
+  return `the session did not take ${quoteWords(words)}; type it again`
 }
 export function lostWithRunnerLine(lines: readonly string[]): string {
   const named = lines.map(quoteWords).join(' · ')
-  return lines.length === 1 ? `the runner restarted — ${named} not taken; type it again` : `the runner restarted — ${named} not taken; type them again`
+  return lines.length === 1 ? `the runner restarted (${named} not taken); type it again` : `the runner restarted (${named} not taken); type them again`
 }
 const PENDING_WITHDRAW_WAIT_MS = 10_000
 

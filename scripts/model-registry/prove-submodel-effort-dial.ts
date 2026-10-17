@@ -348,9 +348,9 @@ section('§4 the copy: one clause for what the model runs; the model-pick receip
   check('an unstated GPT row: runs @default, the pick named as resolved live', clause('console', 'gpt-5.6-bare') === 'runs @default (max chosen — resolved live at dispatch)', clause('console', 'gpt-5.6-bare'))
   slots.setSubModelEffort('console', 'xhigh')
   const pick = slots.setSubModel('console', 'claude-opus-5', reads)
-  check('the model-pick receipt names the effort beside the model', pick.ok && pick.receipt === 'Console model set to Opus 5 (Anthropic) — runs @xhigh (chosen) — live on the next side question', JSON.stringify(pick))
+  check('the model-pick receipt names the effort beside the model', pick.ok && pick.receipt === 'Console model set to Opus 5 (Anthropic), runs @xhigh (chosen) (live on the next side question)', JSON.stringify(pick))
   const pick2 = slots.setSubModel('console', 'claude-sonnet-4-6', reads)
-  check('…and the fallback at the moment the pick stops applying (a model change under a standing pick)', pick2.ok && /Sonnet 4\.6 \(Anthropic\) — claude-sonnet-4-6 does not offer xhigh — runs @/.test(pick2.receipt), JSON.stringify(pick2))
+  check('…and the fallback at the moment the pick stops applying (a model change under a standing pick)', pick2.ok && /Sonnet 4\.6 \(Anthropic\), claude-sonnet-4-6 does not offer xhigh — runs @/.test(pick2.receipt), JSON.stringify(pick2))
   const set = slots.setSubModelEffort('console', 'high')
   check("the effort receipt names the pinned model's clause", set.ok && set.receipt === 'Console effort set to high — claude-sonnet-4-6 runs @high (chosen)', JSON.stringify(set))
   process.env.MERCURY_EFFORT_LEVEL = 'low'

@@ -32,6 +32,6 @@ export const call = async (
     type: 'text',
     value: next
       ? 'mouse capture ON — clickable TUI (rails · tabs · cards); in-app drag-copy is transcript-scoped (rails never pollute the clipboard); saved for later boots'
-      : 'mouse capture OFF — native terminal select/copy works now (NOTE: native selection sweeps the side rails; /mouse on + drag copies the transcript cleanly); TUI clicks/wheel are off until /mouse on — the statusbar shows an amber chip while off; saved for later boots (/config → Mouse capture shows it)',
+      : 'mouse capture OFF: native terminal select/copy works now (native selection includes the side rails; /mouse on + drag copies the transcript only). TUI clicks and wheel are off until /mouse on, and the statusbar shows an amber chip; saved for later boots (/config → Mouse capture)',
   }
 }

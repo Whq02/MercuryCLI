@@ -252,7 +252,7 @@ export function useComposerRawKeys({
       if (getPlatform() === 'macos' && rawInput.length === 1 && 'åß∂ƒ©˙∆˚¬…æ∑'.includes(rawInput)) {
         addNotification({
           key: 'option-meta-hint',
-          text: `option produced “${rawInput}” — run ${KEYSETUP_COMMAND} to make option send meta`,
+          text: `option produced "${rawInput}"; run ${KEYSETUP_COMMAND} to make option send meta`,
           priority: 'low',
           timeoutMs: 5000,
         })

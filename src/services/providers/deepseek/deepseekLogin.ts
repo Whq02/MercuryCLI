@@ -27,7 +27,7 @@ export async function storeDeepseekApiKeyLogin(
     return { ok: false, stored: false, receipt: `Could not store the key: ${errorMessageWithCause(error)}` }
   }
   const shadowNote = env.DEEPSEEK_API_KEY?.trim()
-    ? ' NOTE: a DEEPSEEK_API_KEY env pin is set and WINS over the store this session.'
+    ? ' (DEEPSEEK_API_KEY is set in the environment and overrides the store.)'
     : ''
   if (probe.state === 'confirmed') {
     const primary = probe.balance.balances[0]

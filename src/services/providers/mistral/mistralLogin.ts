@@ -66,6 +66,6 @@ export async function storeMistralAdminKeyLogin(key: string, io?: { fetchImpl?: 
   const meter = limits.noMonthlyLimit
     ? `${limits.currency} ${spent !== undefined ? spent.toFixed(2) : '?'} used this month · no monthly limit`
     : `${limits.currency} ${spent !== undefined ? spent.toFixed(2) : '?'} of ${limits.usageLimit !== undefined ? limits.usageLimit.toFixed(2) : '?'} used this month${limits.monthlyLimitReached ? ' · LIMIT REACHED' : ''}`
-  const shadow = env.MISTRAL_ADMIN_API_KEY?.trim() ? ' NOTE: MISTRAL_ADMIN_API_KEY is set and wins over this stored key.' : ''
+  const shadow = env.MISTRAL_ADMIN_API_KEY?.trim() ? ' (MISTRAL_ADMIN_API_KEY is set and overrides this stored key.)' : ''
   return { ok: true, stored: true, receipt: `Mistral Admin API key stored (auth-scoped, mode 600) · ${meter}.${shadow}` }
 }

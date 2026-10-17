@@ -103,7 +103,7 @@ console.log('\n[M] the model road — the lock, the three states, the pin, the d
   check('…or the path of a ggml file on disk (its stem is the name)', pin.kind === 'path' && pin.path === own && pin.name === 'own-model')
   process.env.MERCURY_WHISPER_MODEL = join(SCRATCH, 'missing.bin')
   pin = models.resolveWhisperModelPin()
-  check('a path that is absent names itself', pin.kind === 'broken' && pin.note.includes('MERCURY_WHISPER_MODEL names') && pin.note.includes('the pin names itself, no silent fallback'))
+  check('a path that is absent names itself', pin.kind === 'broken' && pin.note.includes('MERCURY_WHISPER_MODEL is set to') && pin.note.includes('which does not exist'))
   process.env.MERCURY_WHISPER_MODEL = 'bogus'
   pin = models.resolveWhisperModelPin()
   check('a name outside the catalogue names itself and the catalogue', pin.kind === 'broken' && pin.note.startsWith('MERCURY_WHISPER_MODEL=bogus is not a catalogue name (base.en-q5_1'), pin.kind === 'broken' ? pin.note : pin.kind)
@@ -336,7 +336,7 @@ if (load.state === 'ok') {
   process.env.MERCURY_WHISPER_PACK_DIR = empty
   pack.resetWhisperAddonForTest()
   const pinned = pack.resolveWhisperPackDir()
-  check('a pack pin at an empty directory names itself, no silent fallback', pinned.state === 'unavailable' && pinned.note.startsWith('MERCURY_WHISPER_PACK_DIR set but') && pinned.note.endsWith('the pin names itself, no silent fallback'), pinned.state === 'unavailable' ? pinned.note : 'ok')
+  check('a pack pin at an empty directory names itself, no silent fallback', pinned.state === 'unavailable' && pinned.note.startsWith('MERCURY_WHISPER_PACK_DIR is unusable ('), pinned.state === 'unavailable' ? pinned.note : 'ok')
   const pinnedRead = transcribe.localTranscriberRead()
   check('…and the on-device read says so in one row', pinnedRead.state === 'absent' && pinnedRead.reason === 'pin' && pinnedRead.short === 'on-device pack pin broken', JSON.stringify(pinnedRead))
   delete process.env.MERCURY_WHISPER_PACK_DIR

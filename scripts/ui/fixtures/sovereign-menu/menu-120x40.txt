@@ -12,14 +12,14 @@
    │                                                                │  │ ❯ Sovereign mode                           │
    │ TRUST COMBO                                                    │  │                                            │
    │   Content-rule wards                              default (on) │  │ What it controls                           │
-   │   Debug tool (real debugger)                      default (on) │  │ The one bypass: interactive boots start    │
-   │   C/C++ IDE lane (clangd)                         default (on) │  │ in sovereign mode, as if --sovereign was   │
-   │ ❯ Sovereign mode                                            on │  │ passed, and no permission question is      │
-   │ ▲ nothing asks or stops you — every action runs as you         │  │ asked — not for files, not for commands,   │
-   │                                                                │  │ not for computer use. Saving this row is   │
-   │ COMPUTER USE                                                   │  │ the standing consent; the launch           │
-   │   Computer use                                    default (on) │  │ confirmation dialog still applies and      │
-   │   Access type                  default (full · sovereign mode) │  │ root users receive a notice, a deny rule   │
+   │   Debug tool (real debugger)                      default (on) │  │ Interactive boots start in sovereign mode  │
+   │   C/C++ IDE lane (clangd)                         default (on) │  │ (as if --sovereign was passed) with no     │
+   │ ❯ Sovereign mode                                            on │  │ permission prompts for files, commands,    │
+   │ ▲ nothing asks or stops you — every action runs as you         │  │ or computer use. Saving this row is        │
+   │                                                                │  │ standing consent; the launch confirmation  │
+   │ COMPUTER USE                                                   │  │ dialog, root notice, settings deny rules,  │
+   │   Computer use                                    default (on) │  │ and computer-use terminal/focus guards     │
+   │   Access type                  default (full · sovereign mode) │  │ still apply. Headless runs (run) and       │
    │                                                                │  │ … (the trail continues — a taller termina… │
    │ SAMPLES                                                        │  ╰────────────────────────────────────────────╯
    │   Samples                                        default (off) │  ╭────────────────────────────────────────────╮

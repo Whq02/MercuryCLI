@@ -35,7 +35,7 @@ export async function storeXaiApiKeyLogin(
   } catch (error) {
     return { ok: false, stored: false, receipt: `Could not store the key: ${safe(errorMessageWithCause(error))}` }
   }
-  const shadow = env.XAI_API_KEY?.trim() ? ' NOTE: XAI_API_KEY is set and wins over this stored key.' : ''
+  const shadow = env.XAI_API_KEY?.trim() ? ' (XAI_API_KEY is set and overrides this stored key.)' : ''
   return { ok: true, stored: true, receipt: `xAI API key stored (auth-scoped, mode 600) · ${note}. Requests use api.x.ai under usage-based billing.${shadow}` }
 }
 export async function storeXaiManagementKeyLogin(key: string, io?: XaiUsageIo): Promise<XaiKeyLoginOutcome> {
@@ -53,7 +53,7 @@ export async function storeXaiManagementKeyLogin(key: string, io?: XaiUsageIo): 
     return { ok: false, stored: false, receipt: `Could not store the management key: ${safe(errorMessageWithCause(error))}` }
   }
   const note = probe.state === 'confirmed' ? 'team usage confirmed' : `UNVERIFIED — ${xaiUsageFailureWords(probe.failure)}`
-  const shadow = env.XAI_MANAGEMENT_API_KEY?.trim() ? ' NOTE: XAI_MANAGEMENT_API_KEY is set and wins over this stored key.' : ''
+  const shadow = env.XAI_MANAGEMENT_API_KEY?.trim() ? ' (XAI_MANAGEMENT_API_KEY is set and overrides this stored key.)' : ''
   return { ok: true, stored: true, receipt: `xAI management key stored (auth-scoped, mode 600) · ${note}. /usage reads the team meter.${shadow}` }
 }
 export const XAI_CONNECT_ROWS = [

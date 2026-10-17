@@ -127,7 +127,7 @@ console.log('[1] the pin names itself')
   mkdirSync(empty, { recursive: true })
   usePack(empty)
   const resolution = pack.resolveDesktopPackDir()
-  check('an empty MERCURY_DESKTOP_PACK_DIR answers unavailable, naming the pin and refusing a silent fallback', resolution.state === 'unavailable' && resolution.note.includes('MERCURY_DESKTOP_PACK_DIR') && resolution.note.includes('no silent fallback'), JSON.stringify(resolution))
+  check('an empty MERCURY_DESKTOP_PACK_DIR answers unavailable, naming the pin and refusing a silent fallback', resolution.state === 'unavailable' && resolution.note.includes('MERCURY_DESKTOP_PACK_DIR is unusable'), JSON.stringify(resolution))
   const load = native.resolveNativeDesktopDriver()
   check('the native driver answers unavailable with the same note and no remedy', load.state === 'unavailable' && load.note === resolution.note && load.remedy === null, JSON.stringify(load))
 }

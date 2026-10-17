@@ -56,7 +56,7 @@ section('W the words the model reads (the source)')
 {
   const text = await import(join(SRC, 'utils/messages/text.ts'))
   const human = text.wrapCommandText(LINE1, undefined) as string
-  check('the default arm opens with the operator line and the message', human.startsWith(`${OPENING}\n${LINE1}\n\nIMPORTANT: Read this message before taking your next action and respond according to its intent.\n\n`), human.slice(0, 160))
+  check('the default arm opens with the operator line and the message', human.startsWith(`${OPENING}\n${LINE1}\n\nRead and apply this operator message before your next action:\n\n`), human.slice(0, 160))
   check('the four cases stand in order, then the objective sentence', BULLETS.every(b => human.includes(b)) && BULLETS.map(b => human.indexOf(b)).every((at, i, all) => i === 0 || at > all[i - 1]!) && human.includes(OBJECTIVE) && human.indexOf(OBJECTIVE) > human.indexOf(BULLETS[3]!))
   check('the arm ends with the accounting sentence', human.endsWith(ACCOUNTING))
   check('the explicit human origin reads the same', text.wrapCommandText(LINE1, { kind: 'human' }) === human)
@@ -253,7 +253,7 @@ if (!existsSync(DIST)) {
   }
   check('the reminder reader counts operator deliveries, not a tool-list notice beside them',
     j(remindersIn([{ type: 'tool_result/text', text: `<system-reminder>\n${OPENING}\nfixture line\n</system-reminder>\n<system-reminder>\nTools joined after the first request.\n</system-reminder>` }])) === j([`${OPENING}\nfixture line`]))
-  const wordsFor = (line: string): string => `${OPENING}\n${line}\n\nIMPORTANT: Read this message before taking your next action and respond according to its intent.\n\n${BULLETS.join('\n')}\n\n${OBJECTIVE}\n\n${ACCOUNTING}`
+  const wordsFor = (line: string): string => `${OPENING}\n${line}\n\nRead and apply this operator message before your next action:\n\n${BULLETS.join('\n')}\n\n${OBJECTIVE}\n\n${ACCOUNTING}`
 
   section('R1 the runner is up')
   await host.initialize().catch(() => undefined)

@@ -25,7 +25,7 @@ import type { CompactWorkControls } from '../tasks/CompactWorkSummary.js'
 import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 
 const DOUBLED_SLASH = '//'
-const CREWMATE_IMAGE_DETAIL = `a crewmate reads words, never an image — send the image to ${LEAD_ROW_NAME}, or describe it`
+const CREWMATE_IMAGE_DETAIL = `a crewmate cannot read images; send the image to ${LEAD_ROW_NAME}, or describe it in words`
 
 type ComposerSubmitOptions = { fromKeybinding?: boolean; isSlashPick?: boolean }
 

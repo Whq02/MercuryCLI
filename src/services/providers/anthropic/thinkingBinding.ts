@@ -735,7 +735,7 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null, sessi
   return {
     ...fresh,
     status: 'info',
-    detail: `${fresh.detail ?? ''}${fresh.detail ? ' ' : ''}Older than an hour and from another session: a record, not a caution.`,
+    detail: `${fresh.detail ?? ''}${fresh.detail ? ' ' : ''}Older than an hour and from another session (informational only).`,
   }
 }
 

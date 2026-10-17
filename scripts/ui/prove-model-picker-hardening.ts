@@ -86,7 +86,7 @@ const openai: ModelChoice[] = [row('gpt-6-astra', 'GPT-6 Astra', '872k ctx', OPE
 const gemini: ModelChoice[] = Array.from({ length: 14 }, (_, k) => row(`gemini-3.${k}-pro`, `Gemini 3.${k} Pro`, '1M ctx', GEMINI))
 const hfDoor: ModelChoice = { id: '__mercury_huggingface_expand__', name: 'Hugging Face — 3 models live', tag: '', ctx: '', group: HF, action: true, expand: { group: HF, family: 'Hugging Face', total: 3 } }
 const hfFull: ModelChoice[] = Array.from({ length: 3 }, (_, k) => row(`huggingface/org/model-${k}`, `HF ${k}`, '32k ctx', HF))
-const INHERIT: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "a choice, not a model — the spawned crewmate runs its parent's model" }
+const INHERIT: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "uses the parent session's model when spawning a crewmate" }
 const headings = {
   [ANTHROPIC]: { name: 'ANTHROPIC', doors: [{ door: LOGIN, account: EMAIL40, active: true }, { door: KEY, account: '…6f2a' }] },
   [OPENROUTER]: { name: 'OPENROUTER', doors: [{ door: 'OAuth key', account: '…9c1d', active: true }] },
@@ -338,7 +338,7 @@ section('§5 ctrl+w never dies silent: a heading, a choice row and a sign-in row
 {
   const board = await mount({ models: [INHERIT, ...estate], current: 'inherit', top: 'Crewmate', columns: 120, height: 40 })
   await board.key('w', 'w', false, true)
-  check('ctrl+w on a choice row speaks the choice', board.frame().includes("a choice, not a model — the spawned crewmate runs its parent's model"), board.lines().filter(l => l.includes('choice')).map(inner).join(' | '))
+  check('ctrl+w on a choice row speaks the choice', board.frame().includes("uses the parent session's model when spawning a crewmate"), board.lines().filter(l => l.includes('choice')).map(inner).join(' | '))
   await board.key('left')
   await board.key('w', 'w', false, true)
   check('ctrl+w on a heading answers with the heading law', board.frame().includes('no context window on a provider heading · ↓ reaches its rows'), cursorLine(board.lines()))
