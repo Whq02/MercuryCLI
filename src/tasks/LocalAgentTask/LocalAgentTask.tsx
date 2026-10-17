@@ -933,9 +933,8 @@ export function queuePendingMessage(
     queued = true
     return { ...task, pendingMessages: [...(task.pendingMessages ?? []), message] }
   })
-  if (!queued) return
-  recordAgentMessage(taskId, message)
-  operatorPauseGate.lift(taskId)
+  if (queued) recordAgentMessage(taskId, message)
+  if (queued) operatorPauseGate.lift(taskId)
 }
 
 export function queueOperatorMessage(
@@ -949,9 +948,8 @@ export function queueOperatorMessage(
     queued = true
     return { ...task, operatorMessages: [...(task.operatorMessages ?? []), message] }
   })
-  if (!queued) return
-  recordAgentMessage(taskId, message)
-  operatorPauseGate.lift(taskId)
+  if (queued) recordAgentMessage(taskId, message)
+  if (queued) operatorPauseGate.lift(taskId)
 }
 
 export function peekOperatorMessages(task: unknown): string[] {
