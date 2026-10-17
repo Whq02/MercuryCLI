@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -151,6 +151,27 @@ section('P2. Pre-existing identical parse errors and LSP-covered files stay sile
       parseCheckModule.checkIntroducedParseError('/tmp/x.json', '{"a":1}', '{"a":}', true) === undefined,
     parseCheckModule === null ? 'parseCheck.ts missing' : 'returned non-undefined when hasLspServer=true',
   )
+}
+
+section('P3. Plain-path control: Write and Edit treat paths carrying !, ::, or : as ordinary filesystem paths')
+{
+  _resetSeenLinesForTesting()
+  const ctx = makeContext()
+  for (const [idx, suffix] of ['archive.zip!entry.txt', 'archive.zip::entry.txt', 'db.sqlite:users'].entries()) {
+    const plainTarget = join(fixtures, suffix)
+    const w = await run(FileWriteTool, { file_path: plainTarget, content: `alpha-${idx}\n` }, ctx, `tu_wplain_${idx}`)
+    const e = await run(
+      FileEditTool,
+      { file_path: plainTarget, old_string: `alpha-${idx}`, new_string: `beta-${idx}` },
+      ctx,
+      `tu_eplain_${idx}`,
+    )
+    check(
+      `P3_${idx + 1} Write and Edit on ${suffix} operate on the literal filesystem path`,
+      w.ok && e.ok && existsSync(plainTarget) && readFileSync(plainTarget, 'utf8') === `beta-${idx}\n`,
+      !w.ok ? w.message : !e.ok ? e.message : readFileSync(plainTarget, 'utf8'),
+    )
+  }
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)

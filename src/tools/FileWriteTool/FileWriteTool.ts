@@ -41,12 +41,6 @@ import { modifiedSinceReadMessage, unreadExistingWriteMessage } from '../FileEdi
 import { APPLIED_NO_REREAD_NOTE } from '../FileEditTool/FileEditTool.js'
 import { gitDiffSchema, hunkSchema, type FileEditOutput } from '../FileEditTool/types.js'
 import { checkIntroducedParseError } from './parseCheck.js'
-import {
-  callStructuredWriteTarget,
-  expandStructuredTargetPath,
-  hostPathOfWriteTarget,
-  parseStructuredWriteTarget,
-} from './structuredTargets.js'
 import { DESCRIPTION, FILE_WRITE_TOOL_NAME, getWriteToolDescription } from './prompt.js'
 import {
   getToolUseSummary,
@@ -132,27 +126,24 @@ export const FileWriteTool = buildTool({
     return input?.file_path ? `Writing ${input.file_path}` : 'Writing a file'
   },
   getPath(input: Partial<Input> | undefined): string {
-    return input?.file_path ? hostPathOfWriteTarget(input.file_path) : getCwd()
+    return input?.file_path || getCwd()
   },
   async checkPermissions(input: Input, context: ToolUseContext) {
     return checkWritePermissionForTool(
-      {
-        name: FILE_WRITE_TOOL_NAME,
-        getPath: (i: Partial<Input> | undefined) => (i?.file_path ? hostPathOfWriteTarget(i.file_path) : getCwd()),
-      },
+      { name: FILE_WRITE_TOOL_NAME, getPath: (i: Partial<Input> | undefined) => i?.file_path || getCwd() },
       input,
       context.getAppState().toolPermissionContext,
     )
   },
   backfillObservableInput(input: Input): void {
     if (hasNulByte(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
-    input.file_path = expandStructuredTargetPath(input.file_path)
+    input.file_path = expandPath(input.file_path)
   },
   async validateInput(input: Input, context: ToolUseContext) {
     if (hasNulByte(input.file_path)) {
       return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
     }
-    const expandedPath = hostPathOfWriteTarget(input.file_path)
+    const expandedPath = expandPath(input.file_path)
     const permissionContext = context.getAppState().toolPermissionContext
     const writeDeny = matchingRuleForInput(expandedPath, permissionContext, 'edit', 'deny')
     if (writeDeny) {
@@ -184,21 +175,6 @@ export const FileWriteTool = buildTool({
   },
   async call(input: Input, context: ToolUseContext, _canUseTool, parentMessage) {
     const startedAt = Date.now()
-    const structuredTarget = parseStructuredWriteTarget(input.file_path)
-    if (structuredTarget !== null) {
-      const hostParentDir = structuredTarget.hostPath.split(/[\\/]/).slice(0, -1).join('/')
-      if (hostParentDir) {
-        await getFsImplementation().mkdir(hostParentDir)
-      }
-      if (fileHistoryEnabled()) {
-        await fileHistoryTrackEdit(
-          context.updateFileHistoryState,
-          structuredTarget.hostPath,
-          parentMessage.uuid as UUID,
-        )
-      }
-      return callStructuredWriteTarget(structuredTarget, input.content, context, startedAt)
-    }
     const expandedPath = expandPath(input.file_path)
     const parentDir = expandedPath.split(/[\\/]/).slice(0, -1).join('/')
 
