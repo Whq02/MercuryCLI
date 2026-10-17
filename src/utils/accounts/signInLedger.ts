@@ -103,6 +103,10 @@ export function readSignInRecord(family: string, io?: SignInLedgerIo): SignInRec
   return name === undefined ? undefined : readSignInLedger(io)[name]
 }
 
+export function publishSignInRecord(path: string, text: string): void {
+  durableAtomicPublishSync(path, text, { mode: 0o600 })
+}
+
 export function recordSignIn(family: string, kind: SignInKind, io?: SignInLedgerIo): boolean {
   const name = normaliseFamily(family)
   if (name === undefined || !KINDS.has(kind)) return false

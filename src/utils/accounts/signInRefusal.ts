@@ -1,10 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { credentialFingerprint } from '../../services/providers/credentialIdentity.js'
 import { getAuthConfigHomeDir } from '../envUtils.js'
-import { noteCredentialChange } from './signInLedger.js'
+import { noteCredentialChange, publishSignInRecord } from './signInLedger.js'
 
 export type SignInRefusal = { status: 401 | 403; at: number }
 type StoredRefusal = SignInRefusal & { identity: string }
@@ -84,7 +83,7 @@ export function clearSignInRefusal(family: string, home = getAuthConfigHomeDir()
   try {
     const path = pathOf(family, home)
     if (!path) return
-    durableAtomicPublishSync(path, JSON.stringify({ version: 1, generation: randomUUID() }) + '\n', { mode: 0o600 })
+    publishSignInRecord(path, JSON.stringify({ version: 1, generation: randomUUID() }) + '\n')
   } catch { return }
 }
 
@@ -115,12 +114,12 @@ export function observeSignInResponse(request: Observation | undefined, status: 
     if (!path) return
     if (status >= 200 && status < 300) {
       if (previous?.identity === credential.identity) {
-        durableAtomicPublishSync(path, JSON.stringify({ version: 1, generation }) + '\n', { mode: 0o600 })
+        publishSignInRecord(path, JSON.stringify({ version: 1, generation }) + '\n')
         noteCredentialChange()
       }
       return
     }
-    durableAtomicPublishSync(path, JSON.stringify({ version: 1, generation, refusal: { status, at: Date.now(), identity: credential.identity } }) + '\n', { mode: 0o600 })
+    publishSignInRecord(path, JSON.stringify({ version: 1, generation, refusal: { status, at: Date.now(), identity: credential.identity } }) + '\n')
     noteCredentialChange()
   } catch { return }
 }
