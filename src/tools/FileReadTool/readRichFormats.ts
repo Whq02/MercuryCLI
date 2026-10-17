@@ -1,9 +1,14 @@
-import { readFileSync, statSync } from 'node:fs'
-import { gunzipSync, inflateRawSync } from 'node:zlib'
+import { closeSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
+import { createGunzip, inflateRawSync } from 'node:zlib'
+import { hasBinaryExtension } from '../../constants/files.js'
+import { formatFileSize } from '../../utils/format.js'
 
 const ARCHIVE_EXTENSIONS = new Set(['zip', 'tar', 'tgz'])
 const SQLITE_EXTENSIONS = new Set(['sqlite', 'sqlite3', 'db'])
 const DOCUMENT_EXTENSIONS = new Set(['docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'epub', 'rtf'])
+
+const RICH_CONTAINER_MAX_BYTES = 16 * 1024 * 1024
+const RICH_ENTRY_MAX_BYTES = 4 * 1024 * 1024
 
 type RichFormatKind = 'archive' | 'sqlite' | 'document'
 
@@ -34,26 +39,43 @@ export function isRichFormatReadable(filePath: string): boolean {
   return parseRichFormatTarget(filePath) !== null
 }
 
-const CONTAINER_SUBTARGET_RE = /^(.*\.(?:tar\.gz|zip|tar|tgz|sqlite3|sqlite|db))(?:::|!\/|!|:)([\s\S]+)$/i
+const CONTAINER_SUBTARGET_RE = /^(.+?\.(?:tar\.gz|zip|tar|tgz|sqlite3|sqlite|db))(?:::|!\/|!|:)([\s\S]+)$/i
 
 export function parseRichFormatTarget(filePath: string): ParsedRichTarget | null {
+  const m = CONTAINER_SUBTARGET_RE.exec(filePath)
+  if (m) {
+    const containerPath = m[1]!
+    const subtarget = m[2]!.trim()
+    if (subtarget !== '') {
+      const container = classifyRichFormatExtension(containerPath)
+      if (container && (container.kind === 'archive' || container.kind === 'sqlite')) {
+        return {
+          kind: container.kind,
+          containerPath,
+          ext: container.ext,
+          subtarget,
+        }
+      }
+    }
+  }
   const direct = classifyRichFormatExtension(filePath)
   if (direct !== null) {
     return { kind: direct.kind, containerPath: filePath, ext: direct.ext }
   }
-  const m = CONTAINER_SUBTARGET_RE.exec(filePath)
-  if (!m) return null
-  const containerPath = m[1]!
-  const subtarget = m[2]!.trim()
-  if (subtarget === '') return null
-  const container = classifyRichFormatExtension(containerPath)
-  if (!container || (container.kind !== 'archive' && container.kind !== 'sqlite')) return null
-  return {
-    kind: container.kind,
-    containerPath,
-    ext: container.ext,
-    subtarget,
+  return null
+}
+
+function statBoundedContainer(filePath: string): number {
+  const st = statSync(filePath)
+  if (!st.isFile()) {
+    throw new Error(`Not a regular file: ${filePath}`)
   }
+  if (st.size > RICH_CONTAINER_MAX_BYTES) {
+    throw new Error(
+      `Container file (${formatFileSize(st.size)}) exceeds the maximum allowed container size (${formatFileSize(RICH_CONTAINER_MAX_BYTES)}): ${filePath}`,
+    )
+  }
+  return st.size
 }
 
 interface ArchiveEntryMeta {
@@ -81,7 +103,7 @@ function findEocdOffset(buf: Buffer): number {
   return -1
 }
 
-function readZipEntries(buf: Buffer): ArchiveEntryMeta[] {
+function readZipEntries(buf: Buffer, filePath = 'archive.zip'): ArchiveEntryMeta[] {
   const eocd = findEocdOffset(buf)
   const entries: ArchiveEntryMeta[] = []
   if (eocd !== -1) {
@@ -130,10 +152,18 @@ function readZipEntries(buf: Buffer): ArchiveEntryMeta[] {
     })
     pos += 30 + nameLen + extraLen + compressedSize
   }
+  if (entries.length === 0) {
+    throw new Error(`Invalid or corrupt zip archive (missing central directory and local file headers): ${filePath}`)
+  }
   return entries
 }
 
 function extractZipEntryBuffer(buf: Buffer, entry: ArchiveEntryMeta): Buffer {
+  if (entry.uncompressedSize > RICH_ENTRY_MAX_BYTES) {
+    throw new Error(
+      `Archive entry "${entry.name}" (${formatFileSize(entry.uncompressedSize)} uncompressed) exceeds the maximum allowed entry size (${formatFileSize(RICH_ENTRY_MAX_BYTES)}).`,
+    )
+  }
   const pos = entry.localHeaderOffset
   if (pos + 30 > buf.length || buf.readUInt32LE(pos) !== 0x04034b50) {
     throw new Error(`Invalid local file header for zip entry "${entry.name}".`)
@@ -146,8 +176,27 @@ function extractZipEntryBuffer(buf: Buffer, entry: ArchiveEntryMeta): Buffer {
     throw new Error(`Truncated zip entry "${entry.name}".`)
   }
   const raw = buf.subarray(dataStart, dataEnd)
-  if (entry.method === 0) return raw
-  if (entry.method === 8) return inflateRawSync(raw)
+  if (entry.method === 0) {
+    if (raw.length > RICH_ENTRY_MAX_BYTES) {
+      throw new Error(
+        `Archive entry "${entry.name}" (${formatFileSize(raw.length)}) exceeds the maximum allowed entry size (${formatFileSize(RICH_ENTRY_MAX_BYTES)}).`,
+      )
+    }
+    return raw
+  }
+  if (entry.method === 8) {
+    try {
+      return inflateRawSync(raw, { maxOutputLength: RICH_ENTRY_MAX_BYTES })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (/maxOutputLength|Cannot create a Buffer larger than|output length/i.test(msg)) {
+        throw new Error(
+          `Archive entry "${entry.name}" inflated past the maximum allowed entry size (${formatFileSize(RICH_ENTRY_MAX_BYTES)}).`,
+        )
+      }
+      throw err
+    }
+  }
   throw new Error(`Unsupported zip compression method ${entry.method} for entry "${entry.name}".`)
 }
 
@@ -164,75 +213,338 @@ function cString(buf: Buffer, offset: number, length: number): string {
   return (nul === -1 ? sub : sub.subarray(0, nul)).toString('utf8')
 }
 
-function readTarEntries(rawBuf: Buffer, gunzipFirst = false): ArchiveEntryMeta[] {
-  const buf = gunzipFirst ? gunzipSync(rawBuf) : rawBuf
+function verifyTarHeaderChecksum(header: Buffer): boolean {
+  const rawChk = header.subarray(148, 156).toString('ascii').replace(/\0.*$/, '').trim()
+  if (rawChk === '' || !/^[0-7]+$/.test(rawChk)) return false
+  const expected = Number.parseInt(rawChk, 8)
+  if (!Number.isFinite(expected)) return false
+  let unsignedSum = 0
+  let signedSum = 0
+  for (let i = 0; i < 512; i++) {
+    const b = i >= 148 && i < 156 ? 0x20 : header[i]!
+    unsignedSum += b
+    signedSum += b > 127 ? b - 256 : b
+  }
+  return expected === unsignedSum || expected === signedSum
+}
+
+function readTarEntriesFromFile(filePath: string, wantedSubtarget?: string): ArchiveEntryMeta[] {
+  const normalizedWanted = wantedSubtarget?.replace(/^\/+/, '')
+  const fd = openSync(filePath, 'r')
   const entries: ArchiveEntryMeta[] = []
   let pos = 0
   let pendingLongName: string | null = null
+  const header = Buffer.alloc(512)
 
-  while (pos + 512 <= buf.length) {
-    const header = buf.subarray(pos, pos + 512)
-    let allZero = true
-    for (let i = 0; i < 512; i++) {
-      if (header[i] !== 0) {
-        allZero = false
-        break
+  try {
+    while (true) {
+      const read = readSync(fd, header, 0, 512, pos)
+      if (read === 0) break
+      if (read < 512) {
+        throw new Error(`Not a valid tar archive (truncated header at byte offset ${pos}): ${filePath}`)
       }
-    }
-    if (allZero) break
+      let allZero = true
+      for (let i = 0; i < 512; i++) {
+        if (header[i] !== 0) {
+          allZero = false
+          break
+        }
+      }
+      if (allZero) break
+      if (!verifyTarHeaderChecksum(header)) {
+        throw new Error(`Not a tar archive (header checksum failed at byte offset ${pos}): ${filePath}`)
+      }
 
-    const namePart = cString(header, 0, 100)
-    const size = parseOctal(header, 124, 12)
-    const typeFlag = header[156] ?? 0
-    const magic = cString(header, 257, 6)
-    const prefix = magic.startsWith('ustar') ? cString(header, 345, 155) : ''
-    const dataStart = pos + 512
-    const dataEnd = Math.min(buf.length, dataStart + size)
-    const paddedSize = Math.ceil(size / 512) * 512
+      const namePart = cString(header, 0, 100)
+      const size = parseOctal(header, 124, 12)
+      const typeFlag = header[156] ?? 0
+      const magic = cString(header, 257, 6)
+      const prefix = magic.startsWith('ustar') ? cString(header, 345, 155) : ''
+      const dataStart = pos + 512
+      const paddedSize = Math.ceil(size / 512) * 512
 
-    if (typeFlag === 0x4c) {
-      pendingLongName = cString(buf, dataStart, size)
+      if (typeFlag === 0x4c) {
+        const cap = Math.min(size, 65536)
+        const nameBuf = Buffer.alloc(cap)
+        readSync(fd, nameBuf, 0, cap, dataStart)
+        pendingLongName = cString(nameBuf, 0, cap)
+        pos = dataStart + paddedSize
+        continue
+      }
+      if (typeFlag === 0x78 || typeFlag === 0x67) {
+        const cap = Math.min(size, 65536)
+        const paxBuf = Buffer.alloc(cap)
+        readSync(fd, paxBuf, 0, cap, dataStart)
+        const pax = paxBuf.toString('utf8')
+        const m = /(?:^|\n)\d+ path=([^\n]+)\n/.exec(pax)
+        if (m && typeFlag === 0x78) pendingLongName = m[1]!
+        pos = dataStart + paddedSize
+        continue
+      }
+
+      const fullName = pendingLongName ?? (prefix ? `${prefix}/${namePart}` : namePart)
+      pendingLongName = null
+      const isDir = typeFlag === 0x35 || fullName.endsWith('/')
+      const matchesTarget =
+        wantedSubtarget !== undefined &&
+        (fullName === wantedSubtarget || fullName.replace(/^\/+/, '') === normalizedWanted)
+
+      let data: Buffer | undefined
+      if (matchesTarget && !isDir) {
+        if (size > RICH_ENTRY_MAX_BYTES) {
+          throw new Error(
+            `Archive entry "${fullName}" (${formatFileSize(size)}) exceeds the maximum allowed entry size (${formatFileSize(RICH_ENTRY_MAX_BYTES)}).`,
+          )
+        }
+        data = Buffer.alloc(size)
+        const got = readSync(fd, data, 0, size, dataStart)
+        if (got < size) {
+          throw new Error(`Truncated tar entry "${fullName}" in ${filePath}.`)
+        }
+      }
+
+      entries.push({
+        name: fullName,
+        uncompressedSize: size,
+        compressedSize: size,
+        isDirectory: isDir,
+        method: 0,
+        localHeaderOffset: dataStart,
+        data,
+      })
+
       pos = dataStart + paddedSize
-      continue
     }
-    if (typeFlag === 0x78 || typeFlag === 0x67) {
-      const pax = buf.subarray(dataStart, dataEnd).toString('utf8')
-      const m = /(?:^|\n)\d+ path=([^\n]+)\n/.exec(pax)
-      if (m && typeFlag === 0x78) pendingLongName = m[1]!
-      pos = dataStart + paddedSize
-      continue
-    }
-
-    const fullName =
-      pendingLongName ?? (prefix ? `${prefix}/${namePart}` : namePart)
-    pendingLongName = null
-
-    const isDir = typeFlag === 0x35 || fullName.endsWith('/')
-    entries.push({
-      name: fullName,
-      uncompressedSize: size,
-      compressedSize: size,
-      isDirectory: isDir,
-      method: 0,
-      localHeaderOffset: dataStart,
-      data: buf.subarray(dataStart, dataEnd),
-    })
-
-    pos = dataStart + paddedSize
+    return entries
+  } finally {
+    closeSync(fd)
   }
-  return entries
 }
 
-export function renderArchiveTarget(
+async function readTgzEntriesStreaming(filePath: string, wantedSubtarget?: string): Promise<ArchiveEntryMeta[]> {
+  const normalizedWanted = wantedSubtarget?.replace(/^\/+/, '')
+  const entries: ArchiveEntryMeta[] = []
+  const fd = openSync(filePath, 'r')
+  const gunzip = createGunzip()
+
+  let state: 'header' | 'data' | 'skip' | 'done' = 'header'
+  let headerFill = 0
+  const headerBuf = Buffer.alloc(512)
+  let remainingPayload = 0
+  let remainingPad = 0
+  let streamOffset = 0
+  let pendingLongName: string | null = null
+  let currentMeta: {
+    typeFlag: number
+    fullName: string
+    size: number
+    isDir: boolean
+    dataStart: number
+    collect: boolean
+    chunks: Buffer[]
+    collected: number
+  } | null = null
+
+  const consumeDecompressed = (chunk: Buffer): void => {
+    let idx = 0
+    while (idx < chunk.length && state !== 'done') {
+      if (state === 'header') {
+        const take = Math.min(512 - headerFill, chunk.length - idx)
+        chunk.copy(headerBuf, headerFill, idx, idx + take)
+        headerFill += take
+        idx += take
+        if (headerFill === 512) {
+          headerFill = 0
+          let allZero = true
+          for (let i = 0; i < 512; i++) {
+            if (headerBuf[i] !== 0) {
+              allZero = false
+              break
+            }
+          }
+          if (allZero) {
+            state = 'done'
+            break
+          }
+          if (!verifyTarHeaderChecksum(headerBuf)) {
+            throw new Error(`Not a tar archive (header checksum failed at decompressed byte offset ${streamOffset}): ${filePath}`)
+          }
+          const namePart = cString(headerBuf, 0, 100)
+          const size = parseOctal(headerBuf, 124, 12)
+          const typeFlag = headerBuf[156] ?? 0
+          const magic = cString(headerBuf, 257, 6)
+          const prefix = magic.startsWith('ustar') ? cString(headerBuf, 345, 155) : ''
+          const dataStart = streamOffset + 512
+          streamOffset += 512
+          const paddedSize = Math.ceil(size / 512) * 512
+          remainingPayload = size
+          remainingPad = paddedSize - size
+
+          const fullName = pendingLongName ?? (prefix ? `${prefix}/${namePart}` : namePart)
+          const isMeta = typeFlag === 0x4c || typeFlag === 0x78 || typeFlag === 0x67
+          if (!isMeta) pendingLongName = null
+          const isDir = typeFlag === 0x35 || fullName.endsWith('/')
+          const matchesTarget =
+            wantedSubtarget !== undefined &&
+            (fullName === wantedSubtarget || fullName.replace(/^\/+/, '') === normalizedWanted)
+
+          if (matchesTarget && !isDir && size > RICH_ENTRY_MAX_BYTES) {
+            throw new Error(
+              `Archive entry "${fullName}" (${formatFileSize(size)}) exceeds the maximum allowed entry size (${formatFileSize(RICH_ENTRY_MAX_BYTES)}).`,
+            )
+          }
+
+          const collect = isMeta ? size <= 65536 : (matchesTarget && !isDir)
+          currentMeta = {
+            typeFlag,
+            fullName,
+            size,
+            isDir,
+            dataStart,
+            collect,
+            chunks: [],
+            collected: 0,
+          }
+          if (remainingPayload > 0) {
+            state = 'data'
+          } else if (remainingPad > 0) {
+            finishCurrentEntry()
+            state = 'skip'
+          } else {
+            finishCurrentEntry()
+            state = 'header'
+          }
+        }
+        continue
+      }
+
+      if (state === 'data') {
+        const take = Math.min(remainingPayload, chunk.length - idx)
+        if (currentMeta?.collect) {
+          currentMeta.chunks.push(Buffer.from(chunk.subarray(idx, idx + take)))
+          currentMeta.collected += take
+        }
+        idx += take
+        remainingPayload -= take
+        streamOffset += take
+        if (remainingPayload === 0) {
+          finishCurrentEntry()
+          state = remainingPad > 0 ? 'skip' : 'header'
+        }
+        continue
+      }
+
+      if (state === 'skip') {
+        const take = Math.min(remainingPad, chunk.length - idx)
+        idx += take
+        remainingPad -= take
+        streamOffset += take
+        if (remainingPad === 0) {
+          state = 'header'
+        }
+      }
+    }
+  }
+
+  const finishCurrentEntry = (): void => {
+    if (!currentMeta) return
+    const meta = currentMeta
+    currentMeta = null
+    const payload = meta.collect ? Buffer.concat(meta.chunks) : undefined
+    if (meta.typeFlag === 0x4c && payload) {
+      pendingLongName = cString(payload, 0, payload.length)
+      return
+    }
+    if ((meta.typeFlag === 0x78 || meta.typeFlag === 0x67) && payload) {
+      const pax = payload.toString('utf8')
+      const m = /(?:^|\n)\d+ path=([^\n]+)\n/.exec(pax)
+      if (m && meta.typeFlag === 0x78) pendingLongName = m[1]!
+      return
+    }
+    entries.push({
+      name: meta.fullName,
+      uncompressedSize: meta.size,
+      compressedSize: meta.size,
+      isDirectory: meta.isDir,
+      method: 0,
+      localHeaderOffset: meta.dataStart,
+      data: payload,
+    })
+  }
+
+  let streamErr: unknown = null
+  gunzip.on('data', (chunk: Buffer) => {
+    if (streamErr !== null) return
+    try {
+      consumeDecompressed(chunk)
+    } catch (e) {
+      streamErr = e
+    }
+  })
+  gunzip.on('error', err => {
+    if (streamErr === null) streamErr = err
+  })
+
+  const readBuf = Buffer.alloc(16384)
+  let filePos = 0
+  try {
+    while (state !== 'done' && streamErr === null) {
+      const bytesRead = readSync(fd, readBuf, 0, readBuf.length, filePos)
+      if (bytesRead === 0) {
+        gunzip.end()
+        await new Promise<void>(resolve => setImmediate(resolve))
+        break
+      }
+      filePos += bytesRead
+      gunzip.write(readBuf.subarray(0, bytesRead))
+      await new Promise<void>(resolve => setImmediate(resolve))
+    }
+    if (streamErr !== null) throw streamErr
+    return entries
+  } finally {
+    gunzip.destroy()
+    closeSync(fd)
+  }
+}
+
+function isNestedArchiveOrBinaryEntry(entryName: string): { kind: 'nested-archive' | 'binary'; ext: string } | null {
+  const lower = entryName.toLowerCase()
+  if (lower.endsWith('.tar.gz')) return { kind: 'nested-archive', ext: 'tar.gz' }
+  const dot = lower.lastIndexOf('.')
+  if (dot === -1) return null
+  const ext = lower.slice(dot + 1)
+  if (ARCHIVE_EXTENSIONS.has(ext)) return { kind: 'nested-archive', ext }
+  if (hasBinaryExtension(entryName)) return { kind: 'binary', ext }
+  return null
+}
+
+function hasNonTextBytes(buf: Buffer): boolean {
+  const checkLen = Math.min(buf.length, 4096)
+  for (let i = 0; i < checkLen; i++) {
+    if (buf[i] === 0) return true
+  }
+  return false
+}
+
+export async function renderArchiveTarget(
   containerPath: string,
   ext: string,
   subtarget?: string,
-): string {
-  const buf = readFileSync(containerPath)
-  const isTar = ext === 'tar' || ext === 'tar.gz' || ext === 'tgz'
-  const entries = isTar
-    ? readTarEntries(buf, ext === 'tar.gz' || ext === 'tgz')
-    : readZipEntries(buf)
+): Promise<string> {
+  statBoundedContainer(containerPath)
+  const isTgz = ext === 'tar.gz' || ext === 'tgz'
+  const isTar = ext === 'tar' || isTgz
+
+  let zipBuf: Buffer | null = null
+  let entries: ArchiveEntryMeta[]
+  if (isTgz) {
+    entries = await readTgzEntriesStreaming(containerPath, subtarget)
+  } else if (ext === 'tar') {
+    entries = readTarEntriesFromFile(containerPath, subtarget)
+  } else {
+    zipBuf = readFileSync(containerPath)
+    entries = readZipEntries(zipBuf, containerPath)
+  }
 
   if (subtarget !== undefined && subtarget !== '') {
     const normalizedWanted = subtarget.replace(/^\/+/, '')
@@ -254,7 +566,14 @@ export function renderArchiveTarget(
         ...children,
       ].join('\n')
     }
-    const data = isTar ? (entry.data ?? Buffer.alloc(0)) : extractZipEntryBuffer(buf, entry)
+    const special = isNestedArchiveOrBinaryEntry(entry.name)
+    if (special !== null) {
+      return `(archive: ${ext} · entry: ${entry.name} · ${special.kind === 'nested-archive' ? `nested archive (.${special.ext})` : `binary file (.${special.ext})`} · ${entry.uncompressedSize} B — binary/nested archive entry is not decoded as text)`
+    }
+    const data = isTar ? (entry.data ?? Buffer.alloc(0)) : extractZipEntryBuffer(zipBuf!, entry)
+    if (hasNonTextBytes(data)) {
+      return `(archive: ${ext} · entry: ${entry.name} · binary entry · ${data.length} B — binary content is not decoded as text)`
+    }
     return data.toString('utf8')
   }
 
@@ -294,13 +613,15 @@ function decodeXmlEntities(text: string): string {
   })
 }
 
-function readZipEntryMap(buf: Buffer): Map<string, Buffer> {
+function readSelectedZipEntries(
+  buf: Buffer,
+  filePath: string,
+  filter: (name: string) => boolean,
+): Map<string, Buffer> {
   const map = new Map<string, Buffer>()
-  for (const entry of readZipEntries(buf)) {
-    if (entry.isDirectory) continue
-    try {
-      map.set(entry.name, extractZipEntryBuffer(buf, entry))
-    } catch {}
+  for (const entry of readZipEntries(buf, filePath)) {
+    if (entry.isDirectory || !filter(entry.name)) continue
+    map.set(entry.name, extractZipEntryBuffer(buf, entry))
   }
   return map
 }
@@ -325,8 +646,12 @@ function extractWordXmlText(xml: string): string {
     .trim()
 }
 
-function extractDocxText(buf: Buffer): string {
-  const entries = readZipEntryMap(buf)
+function extractDocxText(buf: Buffer, filePath: string): string {
+  const entries = readSelectedZipEntries(
+    buf,
+    filePath,
+    name => /^word\/(?:document|footnotes|endnotes|header\d*|footer\d*)\.xml$/.test(name),
+  )
   const parts: string[] = []
   const order = [
     ...[...entries.keys()].filter(k => /^word\/header\d*\.xml$/.test(k)).sort(),
@@ -344,8 +669,15 @@ function extractDocxText(buf: Buffer): string {
   return parts.join('\n\n')
 }
 
-function extractXlsxText(buf: Buffer): string {
-  const entries = readZipEntryMap(buf)
+function extractXlsxText(buf: Buffer, filePath: string): string {
+  const entries = readSelectedZipEntries(
+    buf,
+    filePath,
+    name =>
+      name === 'xl/sharedStrings.xml' ||
+      name === 'xl/workbook.xml' ||
+      /^xl\/worksheets\/sheet\d+\.xml$/.test(name),
+  )
   const sharedStrings: string[] = []
   const sstRaw = entries.get('xl/sharedStrings.xml')
   if (sstRaw) {
@@ -423,8 +755,12 @@ function extractXlsxText(buf: Buffer): string {
   return out.join('\n\n')
 }
 
-function extractPptxText(buf: Buffer): string {
-  const entries = readZipEntryMap(buf)
+function extractPptxText(buf: Buffer, filePath: string): string {
+  const entries = readSelectedZipEntries(
+    buf,
+    filePath,
+    name => /^ppt\/slides\/slide\d+\.xml$/.test(name),
+  )
   const slideKeys = [...entries.keys()]
     .filter(k => /^ppt\/slides\/slide\d+\.xml$/.test(k))
     .sort((a, b) => {
@@ -455,8 +791,8 @@ function extractPptxText(buf: Buffer): string {
   return out.join('\n\n')
 }
 
-function extractOdfText(buf: Buffer): string {
-  const entries = readZipEntryMap(buf)
+function extractOdfText(buf: Buffer, filePath: string): string {
+  const entries = readSelectedZipEntries(buf, filePath, name => name === 'content.xml')
   const contentRaw = entries.get('content.xml')
   if (!contentRaw) return ''
   const xml = contentRaw.toString('utf8')
@@ -486,22 +822,28 @@ function stripHtmlToText(html: string): string {
     .trim()
 }
 
-function extractEpubText(buf: Buffer): string {
-  const entries = readZipEntryMap(buf)
+function extractEpubText(buf: Buffer, filePath: string): string {
+  const allMeta = readZipEntries(buf, filePath)
+  const byName = new Map(allMeta.filter(e => !e.isDirectory).map(e => [e.name, e]))
+  const extractNamed = (name: string): Buffer | undefined => {
+    const meta = byName.get(name)
+    return meta ? extractZipEntryBuffer(buf, meta) : undefined
+  }
+
   let opfPath: string | undefined
-  const containerRaw = entries.get('META-INF/container.xml')
+  const containerRaw = extractNamed('META-INF/container.xml')
   if (containerRaw) {
     const containerXml = containerRaw.toString('utf8')
     opfPath = /full-path="([^"]+)"/.exec(containerXml)?.[1]
   }
   if (!opfPath) {
-    opfPath = [...entries.keys()].find(k => k.endsWith('.opf'))
+    opfPath = [...byName.keys()].find(k => k.endsWith('.opf'))
   }
 
   const orderedDocs: string[] = []
-  if (opfPath && entries.has(opfPath)) {
+  if (opfPath && byName.has(opfPath)) {
     const opfDir = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/') + 1) : ''
-    const opfXml = entries.get(opfPath)!.toString('utf8')
+    const opfXml = extractNamed(opfPath)!.toString('utf8')
     const manifest = new Map<string, string>()
     const itemRe = /<item\b([^>]+)>/g
     let im: RegExpExecArray | null
@@ -515,20 +857,20 @@ function extractEpubText(buf: Buffer): string {
     let irm: RegExpExecArray | null
     while ((irm = itemrefRe.exec(opfXml)) !== null) {
       const p = manifest.get(irm[1]!)
-      if (p && entries.has(p)) orderedDocs.push(p)
+      if (p && byName.has(p)) orderedDocs.push(p)
     }
   }
   if (orderedDocs.length === 0) {
     orderedDocs.push(
-      ...[...entries.keys()]
+      ...[...byName.keys()]
         .filter(k => /\.(?:xhtml|html|htm)$/i.test(k))
         .sort(),
     )
   }
 
   const parts: string[] = []
-  for (const docKey of orderedDocs) {
-    const raw = entries.get(docKey)
+  for (const docKey of orderedDocs.slice(0, 200)) {
+    const raw = extractNamed(docKey)
     if (!raw) continue
     const text = stripHtmlToText(raw.toString('utf8'))
     if (text) parts.push(text)
@@ -667,25 +1009,26 @@ function extractRtfText(rtf: string): string {
 }
 
 export function renderDocumentTarget(filePath: string, ext: string): string {
+  statBoundedContainer(filePath)
   const buf = readFileSync(filePath)
   let body = ''
   switch (ext) {
     case 'docx':
-      body = extractDocxText(buf)
+      body = extractDocxText(buf, filePath)
       break
     case 'xlsx':
-      body = extractXlsxText(buf)
+      body = extractXlsxText(buf, filePath)
       break
     case 'pptx':
-      body = extractPptxText(buf)
+      body = extractPptxText(buf, filePath)
       break
     case 'odt':
     case 'ods':
     case 'odp':
-      body = extractOdfText(buf)
+      body = extractOdfText(buf, filePath)
       break
     case 'epub':
-      body = extractEpubText(buf)
+      body = extractEpubText(buf, filePath)
       break
     case 'rtf':
       body = extractRtfText(buf.toString('latin1'))

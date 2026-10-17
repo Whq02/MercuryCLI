@@ -980,7 +980,7 @@ async function readRichFormatLane(
   const stats = await stat(resolvedContainerPath)
   let extracted: string
   if (rich.kind === 'archive') {
-    extracted = renderArchiveTarget(resolvedContainerPath, rich.ext, rich.subtarget)
+    extracted = await renderArchiveTarget(resolvedContainerPath, rich.ext, rich.subtarget)
   } else if (rich.kind === 'sqlite') {
     extracted = await renderSqliteTarget(resolvedContainerPath, rich.subtarget)
   } else {
