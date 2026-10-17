@@ -240,7 +240,7 @@ def pytest_addoption(parser):
 `
 
 export const UNITTEST_RUNNER_SOURCE = `
-import json, os, sys, time, unittest
+import importlib, json, os, sys, time, unittest
 
 def selection_plan(start_dir, items, osp=os.path, isfile=None, isdir=None):
     isfile = osp.isfile if isfile is None else isfile
@@ -270,9 +270,36 @@ def selection_plan(start_dir, items, osp=os.path, isfile=None, isdir=None):
                 plan.append({"kind": "file", "start": osp.dirname(path), "top": osp.dirname(path), "pattern": osp.basename(path)})
             else:
                 plan.append({"kind": "name", "name": rel[:-3].replace("\\\\", ".").replace("/", ".")})
+        elif item.lower().endswith(".py") or osp.sep in item or "/" in item:
+            plan.append({"kind": "missing", "name": item})
         else:
             plan.append({"kind": "name", "name": item})
     return plan
+
+def missing_part(name):
+    parts = name.split(".")
+    module = None
+    k = len(parts)
+    while k > 0:
+        prefix = ".".join(parts[:k])
+        try:
+            module = importlib.import_module(prefix)
+            break
+        except ModuleNotFoundError as error:
+            absent = getattr(error, "name", None)
+            if absent is None or not (prefix == absent or prefix.startswith(absent + ".") or absent.startswith(prefix + ".")):
+                return None
+        except Exception:
+            return None
+        k -= 1
+    if module is None:
+        return parts[0]
+    obj = module
+    for part in parts[k:]:
+        if not hasattr(obj, part):
+            return part
+        obj = getattr(obj, part)
+    return None
 
 if __name__ == "__main__":
     report_path = sys.argv[1]
@@ -296,25 +323,39 @@ if __name__ == "__main__":
 
     loader = unittest.TestLoader()
     unloadable = []
+    missing = []
     if selection:
         suite = unittest.TestSuite()
         for target in selection_plan(start_dir, selection):
             try:
-                if target["kind"] == "name":
-                    suite.addTests(loader.loadTestsFromName(target["name"]))
+                if target["kind"] == "missing":
+                    missing.append((target["name"], "no such file or directory: %s" % target["name"]))
+                elif target["kind"] == "name":
+                    for test in iter_tests(loader.loadTestsFromName(target["name"])):
+                        unloaded = type(test).__name__ == "_FailedTest" and type(test).__module__ == "unittest.loader"
+                        if unloaded and missing_part(target["name"]) is not None:
+                            exc = getattr(test, "_exception", None)
+                            lines = str(exc).strip().splitlines() if exc is not None else []
+                            missing.append((target["name"], lines[-1] if len(lines) > 1 else "%s: %s" % (type(exc).__name__, exc) if exc is not None else "not found"))
+                        else:
+                            suite.addTest(test)
                 elif target["kind"] == "folder":
                     suite.addTests(loader.discover(target["start"], top_level_dir=target["top"]))
                 else:
                     suite.addTests(loader.discover(target["start"], pattern=target["pattern"], top_level_dir=target["top"]))
             except Exception as error:
-                unloadable.append((target.get("name") or target["start"], "%s: %s" % (type(error).__name__, error)))
+                words = "%s: %s" % (type(error).__name__, error)
+                if target["kind"] == "name" and missing_part(target["name"]) is not None:
+                    missing.append((target["name"], words))
+                else:
+                    unloadable.append((target.get("name") or target["start"], words))
     else:
         suite = loader.discover(start_dir)
 
     if mode == "discover":
         for err in loader.errors:
             emit({"t": "collect-error", "id": "loader", "message": str(err)[:800]})
-        for name, message in unloadable:
+        for name, message in unloadable + missing:
             emit({"t": "collect-error", "id": name, "message": message[:800]})
         for test in iter_tests(suite):
             emit({"t": "collect", "id": test.id()})
@@ -348,9 +389,13 @@ if __name__ == "__main__":
 
     for name, message in unloadable:
         emit({"t": "case", "id": "unittest.loader._FailedTest." + name, "outcome": "errored", "message": message[:800]})
+    for name, message in missing:
+        emit({"t": "no-match", "id": name, "message": message[:800]})
     runner = unittest.TextTestRunner(resultclass=MercuryResult, verbosity=1)
     result = runner.run(suite)
-    sys.exit(0 if result.wasSuccessful() and not unloadable else 1)
+    if unloadable or not result.wasSuccessful() or (missing and result.testsRun > 0):
+        sys.exit(1)
+    sys.exit(5 if missing else 0)
 `
 
 
@@ -658,6 +703,7 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
       ...(typeof e.durationMs === 'number' ? { durationMs: e.durationMs } : {}),
     }))
   const collectErrors = events.filter(e => e.t === 'collect-error')
+  const misses = events.filter(e => e.t === 'no-match' && e.id)
   const counts = {
     passed: cases.filter(c => c.outcome === 'passed').length,
     failed: cases.filter(c => c.outcome === 'failed').length,
@@ -667,7 +713,8 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
   const failures = cases.filter(c => c.outcome === 'failed' || c.outcome === 'errored').map(c => c.id)
 
   const selectionLabel = opts?.selectionLabel ?? (sel.length ? `nodes:${sel.join(',')}`.slice(0, 200) : 'all')
-  const noMatchWords = cases.length === 0 && collectErrors.length === 0 ? pythonNoMatchWords(framework, exitCode, output) : undefined
+  const missWords = misses.slice(0, 2).map(m => m.message ?? `${m.id} not found`).join(' · ')
+  const noMatchWords = cases.length === 0 && collectErrors.length === 0 ? (misses.length > 0 ? missWords : pythonNoMatchWords(framework, exitCode, output)) : undefined
   const testFiles = selectionLabel === 'all' && (noMatchWords !== undefined || framework === 'unittest') ? buildPythonProjectProfile(from).testFrameworks.testFiles : []
   const uncollected =
     framework === 'unittest' && noMatchWords === undefined && cases.length > 0 && selectionLabel === 'all'
@@ -682,6 +729,8 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
     verdictNote = uncollectedNote(from, uncollected)
   } else if (noMatchWords !== undefined) {
     verdictNote = `${selectionLabel === 'all' ? 'no test ran' : `no test matched ${selectionLabel}`} — ${noMatchWords}`
+  } else if (misses.length > 0) {
+    verdictNote = `${misses.length} of the selection matched no test — ${misses.slice(0, 3).map(m => `${m.id}: ${m.message ?? 'not found'}`).join(' · ')}`
   } else if (cases.length === 0 && collectErrors.length === 0) {
     verdictNote = `no structured case records arrived (exit ${exitCode ?? 'null'}) — the run is EVIDENCE-FREE, treat as errored`
   } else if (exitCode === 0 && failures.length > 0) {
@@ -744,6 +793,9 @@ export async function rerunFailedTests(opts?: { from?: string; signal?: AbortSig
   }
   if (latest.verdict === 'zero-run') {
     return { state: 'nothing-to-rerun', note: `latest run ${latest.id} ran 0 tests — nothing to rerun; ${latest.verdictNote ?? 'the whole suite ran nothing'}` }
+  }
+  if (latest.verdict === 'no-match') {
+    return { state: 'nothing-to-rerun', note: `latest run ${latest.id} matched no test — nothing to rerun; ${latest.verdictNote ?? `no test matched ${latest.selection}`}` }
   }
   if (latest.failures.length === 0) {
     const skipped = latest.verdict === 'uncollected' ? ` among the tests it ran; ${latest.verdictNote ?? 'test files were not collected'}` : ''

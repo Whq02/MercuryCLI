@@ -227,7 +227,7 @@ section('G. the python lane: pytest\'s three no-match shapes (a node, a file, a 
     console.log(`  [SKIP — LOUD] pytest arm: ${probe.detail} — point MERCURY_PYTHON at an interpreter that carries pytest to run this leg`)
   }
   const unit = await pythonTests.runPythonTests({ from: proj, framework: 'unittest', selection: ['tests.test_sum.TestSum.test_nothing'], selectionLabel: 'nodes:tests.test_sum.TestSum.test_nothing' })
-  check('G6 unittest keeps its own vocabulary: a node the loader cannot find is one errored _FailedTest, not a no-match (the loader\'s AttributeError is the evidence)', unit.state === 'ok' && unit.record.verdict === undefined && unit.record.counts.errored === 1 && unit.record.cases.some(c => c.id.includes('_FailedTest')), JSON.stringify(unit).slice(0, 300))
+  check('G6 unittest takes the same law: a node the loader cannot find is no-match with the loader\'s AttributeError as the words, zero counts, no _FailedTest row (prove-unittest-no-match.ts carries the shapes)', unit.state === 'ok' && unit.record.verdict === 'no-match' && zero(unit.record.counts) && unit.record.cases.length === 0 && (unit.record.verdictNote ?? '').startsWith("no test matched nodes:tests.test_sum.TestSum.test_nothing — AttributeError: type object 'TestSum' has no attribute 'test_nothing'"), JSON.stringify(unit).slice(0, 300))
   rmSync(proj, { recursive: true, force: true })
 }
 
