@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 
 type ShippedBlock = { context: string; bindings: Record<string, string | null> }
-export type ShippedForm = { form: string; blocks: ShippedBlock[] }
+type ShippedForm = { form: string; blocks: ShippedBlock[] }
 
 const TABLE = join(import.meta.dir, '..', '..', 'src', 'keybindings', 'defaultBindings.ts')
 
