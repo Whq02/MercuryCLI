@@ -1,4 +1,6 @@
-import { closeSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
+import { closeSync, copyFileSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { basename, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createGunzip, inflateRawSync } from 'node:zlib'
 import { hasBinaryExtension } from '../../constants/files.js'
@@ -1077,14 +1079,26 @@ export async function renderSqliteTarget(
   subtarget?: string,
 ): Promise<string> {
   statBoundedContainer(dbPath)
-  const uri = `${pathToFileURL(dbPath).href}?immutable=1`
   const bunSqlite = 'bun:sqlite'
-  const db: SqliteDb = process.versions.bun
-    ? new ((await import(bunSqlite)) as { Database: new (file: string, opts?: { readonly?: boolean }) => SqliteDb }).Database(
-        uri,
-        { readonly: true },
-      )
-    : new (await import('node:sqlite')).DatabaseSync(uri, { open: true, readOnly: true } as never)
+  const openReadOnly = async (file: string): Promise<SqliteDb> =>
+    process.versions.bun
+      ? new ((await import(bunSqlite)) as { Database: new (file: string, opts?: { readonly?: boolean }) => SqliteDb }).Database(file, { readonly: true })
+      : new (await import('node:sqlite')).DatabaseSync(file, { open: true, readOnly: true } as never)
+  let scratch: string | null = null
+  let db: SqliteDb
+  try {
+    db = await openReadOnly(`${pathToFileURL(dbPath).href}?immutable=1`)
+  } catch {
+    scratch = mkdtempSync(join(tmpdir(), 'mercury-sqlite-read-'))
+    const copy = join(scratch, basename(dbPath))
+    copyFileSync(dbPath, copy)
+    try {
+      db = await openReadOnly(copy)
+    } catch (error) {
+      rmSync(scratch, { recursive: true, force: true })
+      throw error
+    }
+  }
 
   try {
     const objects = db
@@ -1152,5 +1166,6 @@ export async function renderSqliteTarget(
     return lines.join('\n')
   } finally {
     db.close()
+    if (scratch !== null) rmSync(scratch, { recursive: true, force: true })
   }
 }
