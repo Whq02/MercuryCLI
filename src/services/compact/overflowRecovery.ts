@@ -8,7 +8,7 @@ import {
   overflowWhoClause,
 } from '../api/overflowSignal.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
-import { autoCompactDisabledReason, COMPACTION_PAUSED_KEY, compactionBreakerText, compactionSettingsText, getAutoCompactThreshold, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
+import { autoCompactDisabledReason, COMPACTION_PAUSED_KEY, compactionBreakerText, compactionSettingsText, getAutoCompactThreshold, rapidRefillPauseText, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
 import { FOLD_WINDOW_REFUSAL_KEY } from './compact.js'
 import { compactionBreakerAllows } from './compactionPolicy.js'
 
@@ -39,6 +39,7 @@ export function foldAvailability(input: {
   hasHistory: boolean
 }): FoldAvailability {
   if (!flagEnabled('MERCURY_COMPACT')) return { available: false, why: 'compaction-off' }
+  if (input.tracking?.rapidRefillPaused === true) return { available: false, why: 'breaker', detail: 'rapid-refill' }
   if (!compactionBreakerAllows(input.tracking?.consecutiveFailures)) return { available: false, why: 'breaker' }
   if (input.headFold === 'failed') {
     return { available: false, why: 'fold-failed', ...(input.headFoldDetail !== undefined ? { detail: input.headFoldDetail } : {}) }
@@ -181,7 +182,7 @@ export function overflowRefusalText(
       case 'compaction-off':
         return 'compaction is disabled (MERCURY_COMPACT=0), so nothing could fold.'
       case 'breaker':
-        return compactionBreakerText({ nonInteractive: opts.nonInteractive })
+        return opts.detail === 'rapid-refill' ? rapidRefillPauseText({ nonInteractive: opts.nonInteractive }) : compactionBreakerText({ nonInteractive: opts.nonInteractive })
       case 'fold-failed': {
         const detail = plainDetail(opts.detail)
         if (detail.startsWith(COMPACTION_PAUSED_KEY)) return detail

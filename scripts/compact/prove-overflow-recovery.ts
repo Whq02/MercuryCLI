@@ -477,14 +477,14 @@ section('R11 the episode law — a completed tool round opens a fresh episode; t
   check('four calls, terminal completed', r.calls.length === 4 && r.terminal.reason === 'completed', `${r.calls.length} ${JSON.stringify(r.terminal)}`)
   check('two forced folds — the second is a NEW episode after the tool round', r.compact.filter(c => c.forced !== undefined).length === 2)
 
-  const thrash = makeCompact({ onForced: [rigFoldResult(), { wasCompacted: false, rapidRefillBreakerTripped: true }] })
+  const thrash = makeCompact({ onForced: [rigFoldResult(), { ...rigFoldResult(), rapidRefillBreakerTripped: true }] })
   const t = await run({
     seed: seedPlain(),
-    script: [[ping(), overflowError()], [ping(), asstToolUse('toolu_ep_2', 'EchoTool', { text: 'go' })], [ping(), overflowError()], [ping(), asstText('never')]],
+    script: [[ping(), overflowError()], [ping(), asstToolUse('toolu_ep_2', 'EchoTool', { text: 'go' })], [ping(), overflowError()], [ping(), asstText('the reply beside the breaker notice')]],
     compact: thrash,
   })
-  check('the rapid-refill breaker ends the thrash: terminal rapid_refill_breaker', t.terminal.reason === 'rapid_refill_breaker', JSON.stringify(t.terminal))
-  check('…with the thrash message, and no fourth call', t.calls.length === 3 && anyYieldCarries(t.yields, AUTOCOMPACT_THRASH_MESSAGE.slice(0, 40)))
+  check('the rapid-refill breaker never swallows the turn: the tripping fold lands, the retry is made and the reply settles — four calls, terminal completed', t.calls.length === 4 && t.terminal.reason === 'completed' && anyYieldCarries(t.yields, 'the reply beside the breaker notice'), `${t.calls.length} ${JSON.stringify(t.terminal)}`)
+  check('…the thrash words ride as a warning row with the pause, never as the reply', noticeTexts(t.yields).some(text => text.startsWith(AUTOCOMPACT_THRASH_MESSAGE.slice(0, 40)) && text.includes('paused for the rest of this run')) && !t.yields.some(y => y.type === 'assistant' && textOf(y).includes(AUTOCOMPACT_THRASH_MESSAGE.slice(0, 40))), JSON.stringify(noticeTexts(t.yields)))
 }
 
 section('R12 the forced fold fails at the head → refusal names the reason, no call on a request known not to fit')
