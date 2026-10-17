@@ -134,6 +134,7 @@ async function drive(label: string, opts: { files: number; lines: number; perTur
     const path = join(cwd, `notes-${String(i).padStart(2, '0')}.txt`)
     const lines: string[] = []
     for (let line = 0; line < opts.lines; line++) lines.push(`notes ${i} line ${line}: the station keeps its notes tidy and its checks green`)
+    lines.push(`notes ${i} tail ${'x'.repeat(4 * i)}`)
     writeFileSync(path, lines.join('\n') + '\n')
     files.push(path)
   }
@@ -209,6 +210,7 @@ if (!existsSync(DIST)) {
     const rows = landedRows(d.frames)
     check('one painted compaction row per boundary on disk, each with the boundary\'s own before figure', rows.length === boundaries.length && rows.every((row, i) => Number(row.tokens_before) === boundaries[i]!.pre), `${rows.length} rows / ${boundaries.length} boundaries · ${rows.map(r => r.tokens_before).join(',')} vs ${boundaries.map(b => b.pre).join(',')}`)
     check('every boundary carries its own figures: the after figure is the fold\'s own, under its before, and each boundary is its own fold — the ledger epochs strictly increase', boundaries.every(b => b.post < b.pre) && boundaries.every((b, i) => Number.isFinite(b.epoch) && (i === 0 || b.epoch > boundaries[i - 1]!.epoch)), boundaries.map(b => `epoch ${b.epoch}: ${b.pre}→${b.post}`).join(' '))
+    check('the before figures are distinct by construction (every file carries a tail of its own length), so no two folds can share one', new Set(boundaries.map(b => b.pre)).size === boundaries.length, boundaries.map(b => b.pre).join(','))
     const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
     const chain = await reader.readTranscriptChainSince(d.transcript, null)
     const chainBoundaries = chain.rows.filter((r: Record<string, unknown>) => r.type === 'system' && r.subtype === 'compact_boundary') as Array<{ compactMetadata?: { preTokens?: number; postTokens?: number } }>
