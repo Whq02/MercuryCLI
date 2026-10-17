@@ -192,7 +192,7 @@ async function openRoute(command: (typeof routes)[number], cols: number, rows: n
   else releaseFocusedSessionConnector()
   const state = getDefaultAppState()
   const context = {
-    messages: command.name === 'copy' || command.name === 'feedback' ? seedMessages() : [], options: { engineModel: getEngineModel(), theme: 'dark', commands, tools: [], mcpClients: [], mcpResources: {}, debug: false, verbose: false, mainLoopModel: getEngineModel(), maxThinkingTokens: 0, agentDefinitions: { activeAgents: [], allAgents: [] }, isNonInteractiveSession: false },
+    messages: command.name === 'copy' || command.name === 'feedback' ? seedMessages() : [], options: { engineModel: getEngineModel(), theme: 'dark', commands, tools: [], mcpClients: [], mcpResources: {}, debug: false, verbose: false, maxThinkingTokens: 0, agentDefinitions: { activeAgents: [], allAgents: [] }, isNonInteractiveSession: false },
     getAppState: () => state, setAppState: () => {}, setMessages: () => {}, onChangeAPIKey: () => {},
     abortController: new AbortController(), readFileState: new Map(), setToolJSX: () => {},
   }
