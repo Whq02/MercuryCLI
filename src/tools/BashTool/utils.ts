@@ -1,4 +1,8 @@
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { getMaxOutputLength, OUTPUT_HEAD_SHARE, type OutputBudget } from '../../utils/shell/outputLimits.js'
+import { filterShellOutput, isShellOutputFilterOn, outputFilterFooter } from '../../utils/shell/outputFilter.js'
+import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { countCharInString, plural } from '../../utils/stringUtils.js'
 import { cutAroundSpillNotice } from '../../utils/toolErrors.js'
 import { clampClause } from '../../utils/waitCeiling.js'
@@ -102,6 +106,24 @@ export function formatOutput(content: string, opts?: { preExcerpted?: boolean; m
   const removedLines = Math.max(1, countCharInString(middle, '\n') - (middle.startsWith('\n') && middle.endsWith('\n') ? 1 : 0))
   const notice = `\n\n[${removedLines} ${plural(removedLines, 'line')} truncated from the middle — the head and the tail of the output are shown]\n\n`
   return { totalLines, truncatedContent: head + notice + tail, isImage: false }
+}
+
+export async function applyShellOutputFilter(out: string, raw: { taskId: string; spilledPath: string | undefined }): Promise<string> {
+  if (!isShellOutputFilterOn() || isImageOutput(out)) return out
+  const filtered = filterShellOutput(out)
+  if (!filtered.changed) return out
+  let rawPath = raw.spilledPath
+  if (rawPath === undefined) {
+    try {
+      const destination = join(getScratchpadDir(), `${raw.taskId}.output`)
+      await mkdir(dirname(destination), { recursive: true })
+      await writeFile(destination, out, 'utf8')
+      rawPath = destination
+    } catch {
+      rawPath = undefined
+    }
+  }
+  return `${filtered.text}\n${outputFilterFooter(filtered.leftOut, rawPath)}`
 }
 
 export function formatExcerpt(content: string, maxLength: number): string {
