@@ -18,7 +18,7 @@ const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
 setIsInteractive(false)
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { compactConversation, partialCompactConversation } = await import('../../src/services/compact/compact.ts')
+const { compactConversation, partialCompactConversation, PROSE_SKIPPED_KEY, ERROR_MESSAGE_NO_SUMMARY } = await import('../../src/services/compact/compact.ts')
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
@@ -49,7 +49,7 @@ try {
       const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages, readFileState: ledger, loadedNestedMemoryPaths: loaded, addNotification: (notice: { text: string }) => notices.push(notice.text), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
       const cache = { systemPrompt: ['Synthetic summary validation proof.'] } as never
       fixture.script(() => ({ text }))
-      let result: unknown
+      let result: { summaryMessages?: Array<{ message: { content: unknown } }>; notes?: string[] } | undefined
       let error: unknown
       const before = fixture.captured.length
       try {
@@ -57,10 +57,17 @@ try {
           ? await compactConversation(messages, context, cache, false)
           : await partialCompactConversation(messages, direction === 'from' ? 0 : messages.length, context, cache, undefined, direction)
       } catch (caught) { error = String(caught) }
-      check(`${direction} ${label}: rejects instead of installing a boundary`, result === undefined && String(error).includes('Failed to generate a conversation summary.'), { error, installed: result !== undefined })
-      check(`${direction} ${label}: conversation and read state survive`, JSON.stringify(messages) === original && JSON.stringify([...ledger]) === reads && loaded.has('nested-memory'))
-      check(`${direction} ${label}: existing error notice is delivered`, notices.some(value => value.includes('Compaction error:')))
-      check(`${direction} ${label}: no extra provider request`, fixture.captured.length - before === 1, fixture.captured.length - before)
+      if (direction === 'full') {
+        const summary = result?.summaryMessages?.[0]?.message.content
+        const card = typeof summary === 'string' ? summary : ''
+        check(`${direction} ${label}: never installed as the summary — the ladder retries once on the text form, then lands the fold on the records with the cause named (the owner's ruling for 1.0.0-beta.38)`, result !== undefined && error === undefined && card.includes(`${PROSE_SKIPPED_KEY}: the answer `) && (result.notes ?? []).some(note => note.startsWith(PROSE_SKIPPED_KEY)) && card.split('\n').every(line => line.trim() !== refusal), { error, card: card.slice(0, 300) })
+        check(`${direction} ${label}: no error notice; the answer and its one retry`, !notices.some(value => value.includes('Compaction error:')) && fixture.captured.length - before === 2, { notices, requests: fixture.captured.length - before })
+      } else {
+        check(`${direction} ${label}: the partial fold rejects instead of installing a boundary, and names the cause`, result === undefined && String(error).includes(ERROR_MESSAGE_NO_SUMMARY) && !String(error).includes('Failed to generate'), { error, installed: result !== undefined })
+        check(`${direction} ${label}: conversation and read state survive`, JSON.stringify(messages) === original && JSON.stringify([...ledger]) === reads && loaded.has('nested-memory'))
+        check(`${direction} ${label}: existing error notice is delivered`, notices.some(value => value.includes('Compaction error:')))
+        check(`${direction} ${label}: the partial road makes its one retry and no more`, fixture.captured.length - before <= 2, fixture.captured.length - before)
+      }
     }
   }
   for (const text of [good, `<summary>${good}</summary>`, `\`\`\`markdown\n${good}\n\`\`\``, 'The provider said "I cannot summarize this conversation" on the previous attempt. The parser still passes 14 checks.']) {

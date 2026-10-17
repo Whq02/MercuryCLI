@@ -275,7 +275,7 @@ section('W3 no switch: a history the seated model wrote folds on the seated mode
   ])
   const r = await drive(SEATED, seed(SEATED))
   check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
-  check('both requests rode the seated wire (the summary never leaves the seat without a switch)', dialects(r) === 'responses→responses', dialects(r))
+  check('every request rode the seated wire (the summary never leaves the seat without a switch; a history over the seat\'s window folds in parts on that same wire)', dialects(r).split('→').every(dialect => dialect === 'responses') && dialects(r).includes('responses→responses'), dialects(r))
   guarded('W3 the fold-model owner', () => {
     const choice = fold(seed(SEATED) as never, SEATED, { forced: true })
     check('the fold-model owner keeps the seat when the history was written on it', choice.source === 'seated' && choice.model === SEATED, JSON.stringify(choice))

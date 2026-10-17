@@ -51,7 +51,7 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { contextFill } = await import('../../src/utils/tokens.ts')
-const { ERROR_MESSAGE_PROMPT_TOO_LONG } = await import('../../src/services/compact/compact.ts')
+const { ERROR_MESSAGE_PROMPT_TOO_LONG, PROSE_SKIPPED_KEY } = await import('../../src/services/compact/compact.ts')
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
@@ -250,7 +250,7 @@ section('F3 the fold itself overflows — the shed head is folded into a part su
   check("the boundary is typed 'overflow'", (boundaryOf(r.yields) as { compactMetadata?: { trigger?: string } } | undefined)?.compactMetadata?.trigger === 'overflow')
 }
 
-section('F4 the fold cannot shrink under the window — the ladder walks every part down to its floor, then the typed refusal names the fold\'s own reason')
+section('F4 the summariser is refused even for its smallest part — the ladder walks every part down to its floor, lands the fold on Mercury\'s own records (the owner\'s ruling for 1.0.0-beta.38: a conversation can always be compacted), and only the retried request\'s own overflow ends the run')
 {
   const shape = OVERFLOW_WIRE_SHAPES.anthropic!
   const refused = { error: { status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message: 'prompt is too long: 201000 tokens > 200000 maximum' } } } } as const
@@ -259,8 +259,11 @@ section('F4 the fold cannot shrink under the window — the ladder walks every p
   check('terminal prompt_too_long, the run never threw', r.threw === undefined && r.terminal.reason === 'prompt_too_long', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
   const errs = errorTexts(r.yields)
   check('exactly one typed refusal yields', errs.length === 1, JSON.stringify(errs))
-  check('it leads with the stable content key and names the fold\'s own reason', errs[0] !== undefined && errs[0].startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE) && errs[0].includes(`the fold failed (${ERROR_MESSAGE_PROMPT_TOO_LONG})`), errs[0])
-  check('no reply was attempted on a request known not to fit (no "never reached" request)', !r.wire.some(w => wireText(w.body).includes('never reached')) && lastAssistantText(r.yields).startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE))
+  check('it leads with the stable content key and names the retried request\'s own overflow (the fold itself landed)', errs[0] !== undefined && errs[0].startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE) && errs[0].includes('the conversation was folded and the request retried once, and it still overflows') && !errs[0].includes(ERROR_MESSAGE_PROMPT_TOO_LONG), errs[0])
+  const boundary = r.yields.find(y => y.type === 'system' && (y as { subtype?: string }).subtype === 'compact_boundary')
+  const card = r.yields.find(y => y.type === 'user' && (y as { isCompactSummary?: boolean }).isCompactSummary === true)
+  check('the fold landed on the records: a boundary row and a summary card whose first line says the prose summary was skipped and why', boundary !== undefined && card !== undefined && textOf(card).includes(`${PROSE_SKIPPED_KEY}: the summariser was refused as too long even for its smallest part`), textOf(card).slice(0, 300))
+  check('the ladder stopped at its floor: no request resent the same bytes, so the "never reached" answer was never reached', !r.wire.some(w => wireText(w.body).includes('never reached')) && r.wire.length <= 5 && lastAssistantText(r.yields).startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE), String(r.wire.length))
   check('the raw provider sentence never reaches a yield', !r.yields.some(y => textOf(y).includes('213462 tokens > 200000')))
 }
 

@@ -46,7 +46,7 @@ const { productionDeps } = await import('../../src/query/deps.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { ERROR_MESSAGE_PROMPT_TOO_LONG } = await import('../../src/services/compact/compact.ts')
+const { ERROR_MESSAGE_PROMPT_TOO_LONG, PROSE_SKIPPED_KEY } = await import('../../src/services/compact/compact.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 const textOf = (m: unknown): string => {
@@ -223,7 +223,7 @@ section('P3 one round alone is bigger than the window: the base could shed nothi
   check('the reply settled last', lastAssistantText(r.yields) === 'the recovered answer', lastAssistantText(r.yields))
 }
 
-section('P4 a provider that refuses even the smallest part: the fold gives up with the typed refusal, never a runaway loop')
+section('P4 a provider that refuses even the smallest part: the ladder walks down to its floor and lands the fold on Mercury\'s own records, never a runaway loop; only the retried request\'s own overflow ends the run (the owner\'s ruling for 1.0.0-beta.38)')
 {
   const three = seed(3) as AnyMsg[]
   const shape = OVERFLOW_WIRE_SHAPES.anthropic!
@@ -234,7 +234,9 @@ section('P4 a provider that refuses even the smallest part: the fold gives up wi
   })
   const r = await drive('claude-opus-4-8', three)
   check('terminal prompt_too_long, the run never threw', r.threw === undefined && r.terminal.reason === 'prompt_too_long', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
-  check('the refusal names the fold\'s own reason: refused even for its smallest part', errorTexts(r.yields).some(text => text.includes(ERROR_MESSAGE_PROMPT_TOO_LONG)), JSON.stringify(errorTexts(r.yields)).slice(0, 300))
+  const card = r.yields.find(y => y.type === 'user' && (y as { isCompactSummary?: boolean }).isCompactSummary === true)
+  check('the fold landed on the records, its card saying the prose summary was skipped because the summariser was refused even for its smallest part', card !== undefined && textOf(card).includes(`${PROSE_SKIPPED_KEY}: the summariser was refused as too long even for its smallest part`), textOf(card).slice(0, 300))
+  check('the refusal names the retried request\'s own overflow, never the fold', errorTexts(r.yields).some(text => text.includes('the conversation was folded and the request retried once, and it still overflows')) && !errorTexts(r.yields).some(text => text.includes(ERROR_MESSAGE_PROMPT_TOO_LONG)), JSON.stringify(errorTexts(r.yields)).slice(0, 300))
   check('the ladder walked down and stopped (a bounded number of requests)', requests >= 3 && requests <= 12, String(requests))
 }
 
