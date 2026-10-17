@@ -12,6 +12,8 @@ export function useCursorFollow(
   const cursor = useRef<CursorDeclaration | null>(null)
   const pending = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const restOnClear = options.restOnClear === true
+  const spanOf = (current: CursorDeclaration, height: number): number =>
+    Math.max(1, Math.min(height, Math.ceil(current.node.layoutNode?.getComputedHeight() ?? 1) - current.relativeY))
   const follow = useCallback(() => {
     clearTimeout(pending.current)
     pending.current = setTimeout(() => {
@@ -24,7 +26,7 @@ export function useCursorFollow(
       const top = body.getScrollTop()
       const height = body.getViewportHeight()
       if (height <= 0) return
-      const span = Math.max(1, Math.min(height, Math.ceil(current.node.layoutNode?.getComputedHeight() ?? 1) - current.relativeY))
+      const span = spanOf(current, height)
       if (y < top) body.scrollToElement(current.node, current.relativeY)
       else if (y + span > top + height) body.scrollToElement(current.node, current.relativeY - (height - span))
     }, 0)
@@ -32,9 +34,13 @@ export function useCursorFollow(
   useEffect(() => {
     clearTimeout(pending.current)
     const current = cursor.current
-    if (current) scrollRef.current?.scrollToElement(current.node, current.relativeY - Math.max(0, viewport.rows - 1))
+    if (current) {
+      const rows = Math.max(1, viewport.rows)
+      scrollRef.current?.scrollToElement(current.node, current.relativeY - (rows - spanOf(current, rows)))
+      follow()
+    }
     return () => clearTimeout(pending.current)
-  }, [viewport.width, viewport.rows, scrollRef])
+  }, [viewport.width, viewport.rows, scrollRef, follow])
   return useCallback<CursorDeclarationSetter>((next, clearIfNode) => {
     publishCursor(next, clearIfNode)
     if (next === null) {
