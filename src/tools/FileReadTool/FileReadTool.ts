@@ -1,5 +1,5 @@
 import { stat } from 'node:fs/promises'
-import { closeSync, existsSync, openSync, readdirSync, readSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 
 import { z } from 'zod/v4'
@@ -108,6 +108,8 @@ import {
 } from './UI.js'
 
 
+const MAX_RANGES_PER_READ = 32
+
 const stockFields = () => ({
   file_path: z.string().describe('Absolute path of the file to open'),
   offset: semanticNumber(z.number().int().optional()).describe(
@@ -118,9 +120,10 @@ const stockFields = () => ({
   ),
   ranges: z
     .array(z.string())
+    .max(MAX_RANGES_PER_READ)
     .optional()
     .describe(
-      'Optional list of 1-based line ranges to read in one call (e.g., ["1-20", "85-100", "-15"]), each keeping its continuation mark.',
+      `Optional list of up to ${MAX_RANGES_PER_READ} 1-based line ranges to read in one call (e.g., ["1-20", "85-100", "-15"]), each keeping its continuation mark.`,
     ),
   pages: z
     .string()
@@ -791,7 +794,7 @@ function parseSingleRangeSelector(raw: string): ParsedLineRange | null {
   return null
 }
 
-function parseLineRangesList(items: readonly string[]): ParsedLineRange[] | { invalid: string } {
+function parseLineRangesList(items: readonly string[]): ParsedLineRange[] | { invalid: string; tooMany?: boolean } {
   const out: ParsedLineRange[] = []
   for (const item of items) {
     for (const part of item.split(',')) {
@@ -800,9 +803,82 @@ function parseLineRangesList(items: readonly string[]): ParsedLineRange[] | { in
       const parsed = parseSingleRangeSelector(trimmed)
       if (parsed === null) return { invalid: trimmed }
       out.push(parsed)
+      if (out.length > MAX_RANGES_PER_READ) return { invalid: trimmed, tooMany: true }
     }
   }
   return out
+}
+
+function readTailLinesReverse(
+  resolvedPath: string,
+  tailCount: number,
+  maxLines?: number,
+): ReadFileRangeResult {
+  const st = statSync(resolvedPath)
+  const totalBytes = st.size
+  const mtimeMs = st.mtimeMs
+  if (totalBytes === 0) {
+    return {
+      content: '',
+      lineCount: 1,
+      totalLines: 1,
+      totalBytes: 0,
+      readBytes: 0,
+      mtimeMs,
+      endsWithNewline: false,
+    }
+  }
+  const fd = openSync(resolvedPath, 'r')
+  try {
+    const chunkSize = 65536
+    const chunks: Buffer[] = []
+    let pos = totalBytes
+    let newlinesSeen = 0
+    const neededNewlines = tailCount + 1
+    const maxBackwardBytes = Math.min(totalBytes, Math.max(256 * 1024, tailCount * 4096))
+    const minPos = totalBytes - maxBackwardBytes
+    while (pos > minPos && newlinesSeen <= neededNewlines) {
+      const readLen = Math.min(chunkSize, pos - minPos)
+      pos -= readLen
+      const buf = Buffer.alloc(readLen)
+      const got = readSync(fd, buf, 0, readLen, pos)
+      const slice = got < readLen ? buf.subarray(0, got) : buf
+      for (let i = slice.length - 1; i >= 0; i--) {
+        if (slice[i] === 0x0a) newlinesSeen++
+      }
+      chunks.unshift(slice)
+    }
+    const tailBuf = Buffer.concat(chunks)
+    let text = tailBuf.toString('utf8')
+    if (pos === 0 && text.charCodeAt(0) === 0xfeff) text = text.slice(1)
+    const endsWithNewline = text.endsWith('\n')
+    const rawLines = text.split('\n').map(l => (l.endsWith('\r') ? l.slice(0, -1) : l))
+    const completeLines = pos > 0 ? rawLines.slice(1) : rawLines
+    const realLines = endsWithNewline ? completeLines.slice(0, -1) : completeLines
+    let totalRealLines = realLines.length
+    if (pos > 0) {
+      const avgLineBytes = Math.max(1, Math.floor(tailBuf.length / Math.max(1, realLines.length)))
+      const estimatedPrior = Math.max(1, Math.round(pos / avgLineBytes))
+      totalRealLines = estimatedPrior + realLines.length
+    }
+    const startIdx = Math.max(0, realLines.length - tailCount)
+    const count = maxLines !== undefined ? Math.min(maxLines, tailCount) : tailCount
+    const selected = realLines.slice(startIdx, startIdx + count)
+    const content = selected.join('\n')
+    const totalLines = endsWithNewline ? totalRealLines + 1 : Math.max(1, totalRealLines)
+    const takesToEnd = startIdx + selected.length >= realLines.length
+    return {
+      content: takesToEnd && endsWithNewline ? `${content}\n` : content,
+      lineCount: takesToEnd && endsWithNewline ? selected.length + 1 : selected.length,
+      totalLines,
+      totalBytes,
+      readBytes: Buffer.byteLength(content),
+      mtimeMs,
+      endsWithNewline,
+    }
+  } finally {
+    closeSync(fd)
+  }
 }
 
 function splitPathRangeSelector(rawPath: string, expandedPath: string): { rawPath: string; expandedPath: string; ranges?: string[] } {
@@ -850,8 +926,12 @@ async function readMultiRangeTextLane(
       )
     }
   }
-  const counted = await readFileInRange(resolvedPath, 0, 0, undefined, context.abortController.signal)
-  const totalLines = realLineTotal(counted)
+  const st = await stat(resolvedPath)
+  const useFastReverse = st.size > 2 * 1024 * 1024 && parsedRanges.every(r => r.kind === 'tail')
+  const counted = useFastReverse
+    ? null
+    : await readFileInRange(resolvedPath, 0, 0, undefined, context.abortController.signal)
+  let totalLines = counted !== null ? realLineTotal(counted) : 0
   const anchored = lineAnchorsEnabled() && input.line_anchors === true
   const blocks: string[] = []
   const rawPieces: string[] = []
@@ -862,15 +942,23 @@ async function readMultiRangeTextLane(
 
   for (let i = 0; i < parsedRanges.length; i++) {
     const sel = parsedRanges[i]!
-    const lineOffset =
-      sel.kind === 'tail'
-        ? Math.max(0, totalLines - sel.count)
-        : Math.max(0, sel.start - 1)
-    const maxLines =
-      sel.kind === 'tail'
-        ? sel.count
-        : (sel.limit ?? MAX_LINES_TO_READ)
-    const slice = await readFileInRange(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal)
+    let slice: ReadFileRangeResult
+    let lineOffset: number
+    if (sel.kind === 'tail' && useFastReverse) {
+      slice = readTailLinesReverse(resolvedPath, sel.count, sel.count)
+      totalLines = realLineTotal(slice)
+      lineOffset = Math.max(0, totalLines - sel.count)
+    } else {
+      lineOffset =
+        sel.kind === 'tail'
+          ? Math.max(0, totalLines - sel.count)
+          : Math.max(0, sel.start - 1)
+      const maxLines =
+        sel.kind === 'tail'
+          ? sel.count
+          : (sel.limit ?? MAX_LINES_TO_READ)
+      slice = await readFileInRange(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal)
+    }
     const shown = shownWindow(slice, lineOffset)
     const startLine = lineOffset + 1
     if (i === 0) firstStartLine = startLine
@@ -905,27 +993,61 @@ async function readMultiRangeTextLane(
     }
   }
 
-  const combinedRendered = blocks.join('\n\n')
+  const joinedContent = rawPieces.join('\n')
+  let overCap: OverCapNote | undefined
+  let combinedRendered = blocks.join('\n\n')
   const tokens = await tokensOverCap(combinedRendered, ext, limits.maxTokens)
   if (tokens !== undefined) {
-    throw new MaxFileReadTokenExceededError(
+    const synthRange: ReadFileRangeResult = {
+      content: joinedContent,
+      lineCount: totalShownLines,
+      totalLines,
+      totalBytes: st.size,
+      readBytes: Buffer.byteLength(joinedContent),
+      mtimeMs: st.mtimeMs,
+      endsWithNewline: false,
+    }
+    const window = firstWindowUnderCap(
+      synthRange,
+      totalShownLines,
+      totalLines,
+      combinedRendered,
+      firstStartLine - 1,
+      resolvedPath,
+      ext,
+      limits,
       tokens,
-      limits.maxTokens,
-      `no lines were returned (the file has ${totalLines} ${totalLines === 1 ? 'line' : 'lines'}); request fewer or narrower ranges.`,
     )
+    if (!ownRead || window === null) {
+      const next = { offset: firstStartLine, limit: window?.shown.lineCount ?? 1 }
+      throw new MaxFileReadTokenExceededError(
+        tokens,
+        limits.maxTokens,
+        `no lines were returned (the file has ${totalLines} ${totalLines === 1 ? 'line' : 'lines'}); ${overCapNextWords(next)}`,
+        next,
+      )
+    }
+    overCap = window.note
+    combinedRendered = `${overCapWords({
+      filePath: resolvedPath,
+      content: window.shown.content,
+      numLines: window.shown.lineCount,
+      startLine: firstStartLine,
+      totalLines,
+      overCap,
+    })}\n${numberedReadContent(window.shown.content, firstStartLine, anchored)}`
+    totalShownLines = window.shown.lineCount
   }
 
-  const joinedContent = rawPieces.join('\n')
   context.readFileState.set(keyPath, {
     content: joinedContent,
-    timestamp: Math.floor(counted.mtimeMs),
+    timestamp: Math.floor(st.mtimeMs),
     offset: firstStartLine,
     limit: totalShownLines,
     isPartialView: parsedRanges.length > 1,
   })
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
   notifyFileReadListeners(resolvedPath, joinedContent)
-  void ownRead
 
   const data: Output = {
     type: 'text',
@@ -935,6 +1057,7 @@ async function readMultiRangeTextLane(
       numLines: totalShownLines,
       startLine: firstStartLine,
       totalLines,
+      ...(overCap !== undefined ? { overCap } : {}),
     },
   }
   resultPreRenderedBody.set(data, combinedRendered)
@@ -1037,16 +1160,51 @@ async function readRichFormatLane(
         blocks.push(`${numbered}${mark}`)
       }
     }
-    const combinedRendered = blocks.join('\n\n')
+    const joinedContent = rawPieces.join('\n')
+    let overCap: OverCapNote | undefined
+    let combinedRendered = blocks.join('\n\n')
     const tokens = await tokensOverCap(combinedRendered, 'txt', limits.maxTokens)
     if (tokens !== undefined) {
-      throw new MaxFileReadTokenExceededError(
+      const synthRange: ReadFileRangeResult = {
+        content: joinedContent,
+        lineCount: totalShownLines,
+        totalLines,
+        totalBytes,
+        readBytes: Buffer.byteLength(joinedContent),
+        mtimeMs,
+        endsWithNewline: false,
+      }
+      const window = firstWindowUnderCap(
+        synthRange,
+        totalShownLines,
+        totalLines,
+        combinedRendered,
+        firstStartLine - 1,
+        displayPath,
+        'txt',
+        limits,
         tokens,
-        limits.maxTokens,
-        `no lines were returned (the file has ${totalLines} ${totalLines === 1 ? 'line' : 'lines'}); request fewer or narrower ranges.`,
       )
+      if (!ownRead || window === null) {
+        const next = { offset: firstStartLine, limit: window?.shown.lineCount ?? 1 }
+        throw new MaxFileReadTokenExceededError(
+          tokens,
+          limits.maxTokens,
+          `no lines were returned (the file has ${totalLines} ${totalLines === 1 ? 'line' : 'lines'}); ${overCapNextWords(next)}`,
+          next,
+        )
+      }
+      overCap = window.note
+      combinedRendered = `${overCapWords({
+        filePath: displayPath,
+        content: window.shown.content,
+        numLines: window.shown.lineCount,
+        startLine: firstStartLine,
+        totalLines,
+        overCap,
+      })}\n${numberedReadContent(window.shown.content, firstStartLine, anchored)}`
+      totalShownLines = window.shown.lineCount
     }
-    const joinedContent = rawPieces.join('\n')
     const data: Output = {
       type: 'text',
       file: {
@@ -1055,6 +1213,7 @@ async function readRichFormatLane(
         numLines: totalShownLines,
         startLine: firstStartLine,
         totalLines,
+        ...(overCap !== undefined ? { overCap } : {}),
       },
     }
     resultPreRenderedBody.set(data, combinedRendered)
@@ -1136,26 +1295,35 @@ async function readTextLane(
       )
     }
   }
-  if (rawOffset !== undefined && rawOffset < 0) {
-    const counted = await readFileInRange(resolvedPath, 0, 0, undefined, context.abortController.signal)
-    const total = realLineTotal(counted)
-    const tailCount = Math.abs(rawOffset)
-    lineOffset = Math.max(0, total - tailCount)
-    maxLines = input.limit !== undefined ? Math.min(input.limit, tailCount) : tailCount
-  }
-  const maxBytes = input.limit === undefined && (rawOffset === undefined || rawOffset >= 0) ? limits.maxSizeBytes : undefined
   let range: ReadFileRangeResult
-  try {
-    range = await readFileInRange(
-      resolvedPath,
-      lineOffset,
-      maxLines,
-      maxBytes,
-      context.abortController.signal,
-    )
-  } catch (err) {
-    if (!(err instanceof FileTooLargeError) || !ownRead || input.limit !== undefined) throw err
-    throw await countedSizeRefusal(err, resolvedPath, context.abortController.signal)
+  if (rawOffset !== undefined && rawOffset < 0) {
+    const tailCount = Math.abs(rawOffset)
+    const st = await stat(resolvedPath)
+    if (st.size > 2 * 1024 * 1024) {
+      range = readTailLinesReverse(resolvedPath, tailCount, input.limit)
+      const total = realLineTotal(range)
+      lineOffset = Math.max(0, total - tailCount)
+    } else {
+      const counted = await readFileInRange(resolvedPath, 0, 0, undefined, context.abortController.signal)
+      const total = realLineTotal(counted)
+      lineOffset = Math.max(0, total - tailCount)
+      maxLines = input.limit !== undefined ? Math.min(input.limit, tailCount) : tailCount
+      range = await readFileInRange(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal)
+    }
+  } else {
+    const maxBytes = input.limit === undefined ? limits.maxSizeBytes : undefined
+    try {
+      range = await readFileInRange(
+        resolvedPath,
+        lineOffset,
+        maxLines,
+        maxBytes,
+        context.abortController.signal,
+      )
+    } catch (err) {
+      if (!(err instanceof FileTooLargeError) || !ownRead || input.limit !== undefined) throw err
+      throw await countedSizeRefusal(err, resolvedPath, context.abortController.signal)
+    }
   }
   let overCap: OverCapNote | undefined
   const totalLines = realLineTotal(range)
@@ -1376,7 +1544,9 @@ export const FileReadTool = buildTool({
       if (!Array.isArray(parsed)) {
         return {
           result: false as const,
-          message: `Invalid line range "${parsed.invalid}" in ranges. Accepted formats are "N", "N-M", "N+K", "N-", or "-N" (last N lines).`,
+          message: parsed.tooMany
+            ? `Too many line ranges in ranges (maximum ${MAX_RANGES_PER_READ} ranges per Read call).`
+            : `Invalid line range "${parsed.invalid}" in ranges. Accepted formats are "N", "N-M", "N+K", "N-", or "-N" (last N lines).`,
           errorCode: 7,
         }
       }
@@ -1556,7 +1726,9 @@ export const FileReadTool = buildTool({
         : null
     if (parsedRanges !== null && !Array.isArray(parsedRanges)) {
       throw new Error(
-        `Invalid line range "${parsedRanges.invalid}" in ranges. Accepted formats are "N", "N-M", "N+K", "N-", or "-N" (last N lines).`,
+        parsedRanges.tooMany
+          ? `Too many line ranges in ranges (maximum ${MAX_RANGES_PER_READ} ranges per Read call).`
+          : `Invalid line range "${parsedRanges.invalid}" in ranges. Accepted formats are "N", "N-M", "N+K", "N-", or "-N" (last N lines).`,
       )
     }
 
