@@ -17,18 +17,41 @@ function isLocalRef(node: SchemaNode): node is SchemaNode & { $ref: string } {
   return typeof node.$ref === 'string' && node.$ref.startsWith('#')
 }
 
+function pointerSegments(pointer: string): string[] | undefined {
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(pointer)
+  } catch {
+    return undefined
+  }
+  const segments: string[] = []
+  let current = ''
+  for (let i = 0; i < decoded.length; i++) {
+    const char = decoded[i]!
+    if (char === '/') {
+      segments.push(current)
+      current = ''
+    } else if (char === '~' && decoded[i + 1] === '1') {
+      current += '/'
+      i++
+    } else if (char === '~' && decoded[i + 1] === '0') {
+      current += '~'
+      i++
+    } else {
+      current += char
+    }
+  }
+  segments.push(current)
+  return segments
+}
+
 function pointerTarget(root: SchemaNode, ref: string): unknown {
   if (ref === '#') return root
   if (!ref.startsWith('#/')) return undefined
+  const segments = pointerSegments(ref.slice(2))
+  if (segments === undefined) return undefined
   let node: unknown = root
-  for (const raw of ref.slice(2).split('/')) {
-    let part: string
-    try {
-      part = decodeURIComponent(raw)
-    } catch {
-      return undefined
-    }
-    part = part.replace(/~1/g, '/').replace(/~0/g, '~')
+  for (const part of segments) {
     if (Array.isArray(node)) {
       const index = Number(part)
       if (!Number.isInteger(index) || index < 0 || index >= node.length) return undefined
