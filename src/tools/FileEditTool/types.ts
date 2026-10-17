@@ -164,6 +164,7 @@ export const outputSchema = lazySchema(() =>
     staleRecovery: z.string().optional(),
     readThrough: z.string().optional(),
     editedLines: editedLinesSchema().optional(),
+    parseError: z.string().optional(),
   }),
 )
 
