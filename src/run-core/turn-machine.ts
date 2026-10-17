@@ -158,6 +158,7 @@ import { getTotalCostUSD } from '../bootstrap/state.js'
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js'
 import type { QuerySource } from '../constants/querySource.js'
 import { runTools } from '../services/tools/toolOrchestration.js'
+import { EarlyStarts } from '../services/tools/earlyStarts.js'
 import { emitCompactionTrace } from '../utils/observability/invocationTrace.js'
 import { flushSessionStorage, recordContentReplacement } from '../utils/sessionStorage.js'
 import { handleStopHooks } from '../query/stopHooks.js'
@@ -297,6 +298,7 @@ type IterationState = {
   needsFollowUp: boolean
   callOrdinal: number
   replyTo: ReplyMark[]
+  early: EarlyStarts
 }
 
 
@@ -760,6 +762,7 @@ async function* streamModel(
             ) as ToolUseBlock[]
             if (msgToolUseBlocks.length > 0) {
               iter.toolUseBlocks.push(...msgToolUseBlocks)
+              for (const block of msgToolUseBlocks) iter.early.offer(block, message, iter.toolUseBlocks.indexOf(block))
               iter.needsFollowUp = true
             }
           } else {
@@ -1319,6 +1322,7 @@ async function* runEventMachine(
       needsFollowUp: false,
       callOrdinal: 0,
       replyTo: awaitingReply,
+      early: new EarlyStarts(toolUseContext, canUseTool),
     }
 
     const streamOutcome = yield* streamModel(run, iter, emit)
@@ -1902,6 +1906,7 @@ async function* runEventMachine(
       assistantMessages,
       canUseTool,
       toolUseContext,
+      iter.early,
     )
 
     for await (const update of toolUpdates) {

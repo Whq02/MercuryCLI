@@ -98,6 +98,9 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-repeated-result-poin
 echo "── core-runtime: writers of disjoint paths run beside each other; an overlapping reader or writer waits (the batching claims)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-write-batching.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-write-batching.ts "$__t" "$__rc"
 
+echo "── core-runtime: a safe tool call starts while the reply still streams; unsafe calls and the transcript keep the settled road"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-early-tool-start.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-early-tool-start.ts "$__t" "$__rc"
+
 echo "── core-runtime: delivery interleavings (delivery-verifier)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-delivery-interleavings.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-delivery-interleavings.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-field-findings-input-family.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-field-findings-input-family.ts "$__t" "$__rc"
