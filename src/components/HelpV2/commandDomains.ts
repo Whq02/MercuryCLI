@@ -82,7 +82,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'appearance & cockpit',
     names: [
       'palette', 'critter', 'showcase',
-      'appearance', 'zen',
+      'appearance', 'zen', 'browse',
     ],
   },
   {
