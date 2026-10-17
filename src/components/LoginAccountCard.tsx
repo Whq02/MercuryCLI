@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useRef, useState } from 'react'
 import { Box, Text, useInput } from '../ink.js'
+import wrapText from '../ink/wrap-text.js'
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js'
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'
 import { useSetAppStateMaybe } from '../state/AppState.js'
@@ -16,7 +17,7 @@ export function LoginAccountCard({ family, onSignIn, onBack, onChanged }: { fami
   useSignInEpoch()
   useCatalogueEpoch()
   const { compact } = usePopupCompact()
-  const { rows } = useTerminalSize()
+  const { rows, columns } = useTerminalSize()
   const setAppState = useSetAppStateMaybe()
   const [version, setVersion] = useState(0)
   const [note, setNote] = useState('')
@@ -43,13 +44,16 @@ export function LoginAccountCard({ family, onSignIn, onBack, onChanged }: { fami
     switchSlot()
   })
   const detail = loginsDetailLines(arm, facts)
+  const state = loginsRowStateOf(arm, facts)
+  const heading = `${detail[0]} · ${state.chip}`
+  const headingRows = state.refusal ? wrapText(heading, Math.max(1, columns), 'wrap').split('\n').length : 1
   return (
     <Box flexDirection="column" gap={compact ? 0 : 1}>
       <Box flexDirection="column">
-        {compact ? <Text wrap="truncate-end">{detail[0]} · {loginsRowStateOf(arm, facts).chip}</Text> : detail.map((line, index) => <Text key={index}>{line || ' '}</Text>)}
+        {compact ? <Text wrap={state.refusal ? 'wrap' : 'truncate-end'}>{heading}</Text> : detail.map((line, index) => <Text key={index}>{line || ' '}</Text>)}
       </Box>
       <Select
-        visibleOptionCount={compact ? Math.max(1, Math.min(rows - 1, slots.length + 2)) : slots.length + 2}
+        visibleOptionCount={compact ? Math.max(1, Math.min(rows - headingRows, slots.length + 2)) : slots.length + 2}
         options={[
           { label: 'Sign in / re-login', value: 'sign-in' },
           ...(switchable ? [{ label: 'Switch active slot', value: 'switch' }] : []),

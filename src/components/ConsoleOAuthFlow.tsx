@@ -13,10 +13,11 @@ import TextInput from './TextInput.js'
 import { Spinner } from './Spinner.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import { PopupFormContext, usePopupCompact, usePopupMarker } from '../context/popupFormContext.js'
+import { PopupFormContext, PopupCompactContext, usePopupCompact, usePopupMarker } from '../context/popupFormContext.js'
 import { settingsPopupMarker } from '../utils/cockpit/settingsPopup.js'
 import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import { LoginAccountCard } from './LoginAccountCard.js'
+import { familyDisplayName } from '../services/providers/accountSlots.js'
 import { collectLoginsScreenFacts, loginsArmSlots, loginsCatalogue, loginsRowStateOf } from './BootLoginsScreen.js'
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js'
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'
@@ -326,6 +327,8 @@ export function ConsoleOAuthFlow({
       const intro =
         startingMessage ??
         'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen). An API key also connects from the terminal: /router key <provider>.'
+      const refusalLayout = popup && facts !== null && Object.keys(facts.refusals ?? {}).length > 0
+      const rosterCompact = compact || refusalLayout
       const statusWidth = !compact && setupBody !== null ? setupBody.width - 4 - READINESS_LABEL_WIDTH : null
       const readinessPlan = compact ? null : readinessBlockPlan(resolveProviderUsability(), statusWidth)
       const fit =
@@ -335,11 +338,17 @@ export function ConsoleOAuthFlow({
       const rowHeight = !compact && setupBody !== null
         ? Math.max(...idleRows.map(row => wrapText(row.label, Math.max(1, setupBody.width - 6), 'wrap').split('\n').length))
         : 1
-      const rosterWindow = compact ? Math.max(1, Math.min(rows, idleRows.length)) : Math.max(1, Math.floor(fit.roster / rowHeight))
+      const focusedArm = arms.find(arm => arm.row.value === idleRows[menuFocus]?.value)
+      const focusedState = facts && focusedArm ? loginsRowStateOf(focusedArm, facts) : null
+      const refusalText = rosterCompact && focusedState?.refusal ? focusedState.chip : null
+      const refusalRows = refusalText ? wrapText(refusalText, Math.max(1, columns), 'wrap').split('\n').length : 0
+      const rosterWindow = rosterCompact ? Math.max(1, Math.min(rows - refusalRows, idleRows.length)) : Math.max(1, Math.floor(fit.roster / rowHeight))
       const rosterHidden = Math.max(0, idleRows.length - (rosterVisibleTo ?? Math.min(idleRows.length, rosterWindow)))
-      return frame(
-        <Box flexDirection="column" gap={compact ? 0 : 1}>
-          {compact ? null : <Text>{intro}</Text>}
+      const renderMenu = refusalLayout ? (children: React.ReactNode) => children : frame
+      return renderMenu(
+        <Box flexDirection="column" gap={rosterCompact ? 0 : 1}>
+          {rosterCompact ? null : <Text>{intro}</Text>}
+          <PopupCompactContext.Provider value={{ compact: rosterCompact, setMarker: () => {} }}>
           <Select
             hideIndexes
             disableSelection="numeric"
@@ -349,7 +358,8 @@ export function ConsoleOAuthFlow({
             options={idleRows.map(row => {
               const arm = arms.find(candidate => candidate.row.value === row.value)
               const status = facts && arm ? loginsRowStateOf(arm, facts) : null
-              if (compact) return status && (status.signedIn || status.loud) ? { ...row, label: `${row.label} · ${status.chip}` } : row
+              if (rosterCompact && status?.refusal && arm) return { ...row, label: `${familyDisplayName(arm.familyId)} · refused (HTTP ${status.refusal.status})` }
+              if (rosterCompact) return status && (status.signedIn || status.loud) ? { ...row, label: `${row.label} · ${status.chip}` } : row
               return { ...row, ...(status && (status.signedIn || status.loud) ? { description: status.chip } : {}) }
             })}
             onFocus={value => setMenuFocus(Math.max(0, idleRows.findIndex(row => row.value === value)))}
@@ -364,8 +374,10 @@ export function ConsoleOAuthFlow({
             }}
             onCancel={onCancel}
           />
-          {!compact && rosterWindow < idleRows.length && rosterHidden > 0 ? <Text dimColor>{MORE_BELOW_ROW(rosterHidden)}</Text> : null}
-          {compact || fit.readiness === 0 ? null : <ProviderReadinessBlock rows={fit.readiness} statusWidth={statusWidth} />}
+          </PopupCompactContext.Provider>
+          {refusalText ? <Text>{refusalText}</Text> : null}
+          {!rosterCompact && rosterWindow < idleRows.length && rosterHidden > 0 ? <Text dimColor>{MORE_BELOW_ROW(rosterHidden)}</Text> : null}
+          {rosterCompact || fit.readiness === 0 ? null : <ProviderReadinessBlock rows={fit.readiness} statusWidth={statusWidth} />}
         </Box>,
       )
     }

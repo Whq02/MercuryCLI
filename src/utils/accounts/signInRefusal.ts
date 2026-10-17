@@ -9,7 +9,7 @@ import { noteCredentialChange } from './signInLedger.js'
 export type SignInRefusal = { status: 401 | 403; at: number }
 type StoredRefusal = SignInRefusal & { identity: string }
 type RefusalFile = { version: number; generation: string; refusal?: StoredRefusal }
-type Credential = { identity: string; key?: string }
+type Credential = { identity: string; key?: string; matches?: (credential: string) => boolean }
 type Observation = { family: string; home: string; credential: Credential; generation: string }
 
 function keyCredential(value: { key: string; source: string } | undefined): Credential | undefined {
@@ -40,13 +40,13 @@ function currentCredential(family: string): Credential | undefined {
         const owner = require('../../services/providers/openai/openaiAccounts.js') as typeof import('../../services/providers/openai/openaiAccounts.js')
         const account = owner.resolveOpenaiAccount()
         if (!account) return undefined
-        return account.kind === 'api-key' ? keyCredential(owner.resolveOpenaiApiKey()) : { identity: owner.openaiSourceIdentity(account.kind) }
+        return account.kind === 'api-key' ? keyCredential(owner.resolveOpenaiApiKey()) : { identity: owner.openaiSourceIdentity(account.kind), matches: credential => owner.openaiSourceMatchesCredential(account.kind, credential) }
       }
       case 'gemini': {
         const owner = require('../../services/providers/gemini/geminiAccounts.js') as typeof import('../../services/providers/gemini/geminiAccounts.js')
         const account = owner.resolveGeminiAccount()
         if (!account) return undefined
-        return account.kind === 'api-key' ? keyCredential(owner.resolveGeminiApiKey()) : { identity: owner.geminiSourceIdentity(account.kind) }
+        return account.kind === 'api-key' ? keyCredential(owner.resolveGeminiApiKey()) : { identity: owner.geminiSourceIdentity(account.kind), matches: credential => owner.geminiSourceMatchesCredential(account.kind, credential) }
       }
       case 'anthropic': {
         const owner = require('../auth.js') as typeof import('../auth.js')
@@ -77,7 +77,7 @@ function readFile(family: string, home: string): RefusalFile | undefined {
 
 function readStored(family: string, home: string): StoredRefusal | undefined {
   const value = readFile(family, home)?.refusal
-  return value && (value.status === 401 || value.status === 403) && Number.isFinite(value.at) && value.at > 0 && typeof value.identity === 'string' ? value : undefined
+  return value && (value.status === 401 || value.status === 403) && Number.isFinite(value.at) && value.at > 0 && value.at <= 8.64e15 && typeof value.identity === 'string' ? value : undefined
 }
 
 export function clearSignInRefusal(family: string, home = getAuthConfigHomeDir()): void {
@@ -101,7 +101,7 @@ export function signInRefusalWords(refusal: SignInRefusal): string {
 
 export function captureSignInRequest(family: string, wireCredential?: string): Observation | undefined {
   const credential = currentCredential(family)
-  if (!credential || credential.identity === 'none' || (wireCredential !== undefined && credential.key !== undefined && wireCredential !== credential.key)) return undefined
+  if (!credential || credential.identity === 'none' || (wireCredential !== undefined && (credential.matches ? !credential.matches(wireCredential) : wireCredential !== credential.key))) return undefined
   return { family, home: getAuthConfigHomeDir(), credential: { identity: credential.identity }, generation: readFile(family, getAuthConfigHomeDir())?.generation ?? '' }
 }
 

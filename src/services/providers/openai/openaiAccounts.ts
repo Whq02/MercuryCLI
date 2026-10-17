@@ -225,6 +225,10 @@ export function openaiSourceIdentity(
   return credentialFingerprint(tokens?.refreshToken ?? tokens?.accountId ?? tokens?.accessToken)
 }
 
+export function openaiSourceMatchesCredential(sourceKind: OpenaiAccountSourceKind, credential: string): boolean {
+  return credential !== '' && credential === (sourceKind === 'api-key' ? resolveOpenaiApiKey()?.key : readAuthFile()?.tokens?.accessToken)
+}
+
 export function writePreferredOpenaiSource(kind: OpenaiAccountSourceKind | null): void {
   writeAuthFile(file => {
     const next = { ...file }
