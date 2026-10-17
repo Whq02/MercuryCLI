@@ -39,7 +39,8 @@ const SUMMARY_CHUNKS = 48
 const SUMMARY_CHUNK_MS = 160
 const RESTORE_HOLD_S = 1.5
 const AUTO_PCT = '1.5'
-const { FOLD_ROW_HEAD: ROW_HEAD } = await import('../../src/services/compact/foldStatus.ts')
+const MANUAL_PCT = '10'
+const { FOLD_ROW_HEAD: ROW_HEAD, FOLD_BAR_CELLS_PER_STAGE } = await import('../../src/services/compact/foldStatus.ts')
 const CARD = 'Compacted —'
 const { ERROR_MESSAGE_USER_ABORT: CANCELLED_LINE } = await import('../../src/services/compact/compact.ts')
 const FAILED_LINE = 'Error during compaction'
@@ -350,7 +351,7 @@ async function scene(label: string, sid: string, world: { home: string; cwd: str
         stableTicks: 4,
         total,
       },
-      driveEnv(world.home, base),
+      { ...driveEnv(world.home, base), ...(label === 'fold' ? { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: MANUAL_PCT } : {}) },
       240_000,
     )
   } catch (error) {
@@ -472,7 +473,7 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     dump('fold · the card', m['card'])
     check('[fold] the summary call ran on the wire once', foldHits.length === 1, `${foldHits.length}`)
     check('F1 [fold] the row stands in the chat within a second of the send, under the echo', firstLive !== undefined && (cap.startedMs + cap.markMs[firstLive.key]! - (sent?.ts ?? 0)) < 1500 && rowsWith(m[firstLive.key], '❯ /compact').length > 0, firstLive ? `${firstLive.key} · ${firstLive.row}` : 'no live row in any frame')
-    check('F1 [fold] the row carries the head, a bar and a clock', live.every(l => /compacting context · .*[█◐░]{9,12} · \d+s/.test(l.row)), live.map(l => l.row).slice(0, 3).join(' | '))
+    check('F1 [fold] the row carries the head, a bar and a clock', live.every(l => /compacting context · .*[█◐░]+ · \d+s/.test(l.row) && (l.row.match(/[█◐░]+/)?.[0].length ?? 0) === 2 * FOLD_BAR_CELLS_PER_STAGE), live.map(l => l.row).slice(0, 3).join(' | '))
     check('F1 [fold] the row stands in every frame until the card takes its place (no blank beat)', live.length > 0 && foldMarks('fold').every(k => m[k] === undefined || foldRowOf(m[k]) !== null || rowsWith(m[k], CARD).length > 0 || cap.markMs[k]! < cap.markMs[firstLive!.key]!), foldMarks('fold').map(k => `${k}:${foldRowOf(m[k]) ? 'row' : rowsWith(m[k], CARD).length ? 'card' : '—'}`).join(' '))
     check('F1 [fold] no frame paints the live row and the card together', !foldMarks('fold').some(k => rowsWith(m[k], CARD).length > 0 && foldRowOf(m[k]) !== null && !foldRowOf(m[k])!.includes('compacted')), withCard.map(k => foldRowOf(m[k]) ?? '').filter(Boolean).join(' | '))
     check('F1 [fold] the card landed', rowsWith(m['card'], CARD).length > 0 && foldRowOf(m['card']) === null, rowsWith(m['card'], /Compact/).map(flat).join(' | ').slice(0, 200))
