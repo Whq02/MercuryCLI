@@ -202,6 +202,7 @@ export interface LoginsRowStateV1 {
   chip: string;
   loud: boolean;
   signedIn: boolean;
+  refusal?: SignInRefusal;
 }
 
 export function loginsRowStateOf(arm: LoginsArmV1, facts: LoginsScreenFactsV1): LoginsRowStateV1 {
@@ -213,7 +214,7 @@ export function loginsRowStateOf(arm: LoginsArmV1, facts: LoginsScreenFactsV1): 
   const signedInSlots = slots.filter(s => s.signedIn);
   const signedIn = signedInSlots.length > 0;
   const refusal = facts.refusals?.[arm.familyId];
-  if (refusal && slots.length > 0 && (arm.arm === 'family' || slots.some(slot => slot.active))) return { chip: signInRefusalWords(refusal), loud: true, signedIn };
+  if (refusal && slots.length > 0 && (arm.arm === 'family' || slots.some(slot => slot.active))) return { chip: signInRefusalWords(refusal), loud: true, signedIn, refusal };
   const expiredSlot = arm.arm === 'subscription' ? slots.find(s => s.expired === true) : undefined;
   const expired =
     arm.arm === 'subscription' &&
