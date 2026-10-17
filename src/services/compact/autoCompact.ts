@@ -338,15 +338,16 @@ export async function autoCompactIfNeeded(
     )
     compact = true
   } else {
-    compact = await shouldAutoCompact(messages, model, querySource, snipTokensFreed, raw => {
+    compact = await shouldAutoCompact([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model, querySource, snipTokensFreed, raw => {
       measuredRawTokenCount = raw
     })
+    if (compact && messages.length === 0) return { ...notCompacted, measuredRawTokenCount }
   }
 
   if (!compact && advanceTriggerEnabled() && isAutoCompactEnabled()) {
     if (querySource !== 'session_memory' && querySource !== 'compact' && querySource !== 'context_agent') {
       try {
-        const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation(messages, model)) - snipTokensFreed
+        const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model)) - snipTokensFreed
         const { pctLeft } = calculateTokenWarningState(tokenCount, model)
         const owner = ownerFromToolUseContext(toolUseContext)
         const slot = advanceState.get(owner)

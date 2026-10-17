@@ -1212,7 +1212,7 @@ async function* runEventMachine(
         compactionResult?.truePostCompactTokenCount ??
         Math.max(
           0,
-          ((foldSplit.carry.length === 0 ? measuredRawTokenCount : null) ?? tokenCountWithEstimation(messagesForQuery, toolUseContext.options.engineModel)) -
+          (measuredRawTokenCount ?? tokenCountWithEstimation(messagesForQuery, toolUseContext.options.engineModel)) -
             prunedTokensFreed,
         )
       const { level } = calculateTokenWarningState(
@@ -1238,9 +1238,9 @@ async function* runEventMachine(
             pruneAllowed: compactionRefusal?.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) === true,
             fold: foldAvailability({
               tracking,
-              headFold: headFoldFailed ? 'failed' : isAutoCompactEnabled() ? 'did-not-land' : undefined,
+              headFold: !foldSplit.hasHistory ? undefined : headFoldFailed ? 'failed' : isAutoCompactEnabled() ? 'did-not-land' : undefined,
               ...(headFoldFailed && compactionRefusal !== undefined ? { headFoldDetail: compactionRefusal } : {}),
-              hasHistory: splitCarriedOperatorTail(messagesForQuery).hasHistory,
+              hasHistory: foldSplit.hasHistory,
             }),
           })
           if (decision.kind === 'recover') {
