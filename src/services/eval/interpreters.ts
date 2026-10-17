@@ -74,32 +74,26 @@ function pythonVersionTuple(version: string): [number, number] | null {
   return [Number(match[1]), Number(match[2])]
 }
 
-export function pythonCandidates(cwd: string, env: NodeJS.ProcessEnv = process.env): string[] {
+export function pythonCandidates(cwd: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): string[] {
   const candidates: string[] = []
   const explicit = evalPythonOverride()
   if (explicit) candidates.push(explicit)
   const venv = env.VIRTUAL_ENV?.trim()
   if (venv) {
-    const bin = process.platform === 'win32' ? join(venv, 'Scripts', 'python.exe') : join(venv, 'bin', 'python')
+    const bin = platform === 'win32' ? join(venv, 'Scripts', 'python.exe') : join(venv, 'bin', 'python')
     if (existsSync(bin)) candidates.push(bin)
   }
   const local =
-    process.platform === 'win32'
+    platform === 'win32'
       ? join(cwd, '.venv', 'Scripts', 'python.exe')
       : join(cwd, '.venv', 'bin', 'python')
   if (existsSync(local)) candidates.push(local)
   candidates.push('python3')
+  if (platform === 'win32') candidates.push('python', 'py')
   return candidates
 }
 
 export function discoverPython(cwd: string): EvalLanguageAvailability {
-  if (process.platform === 'win32') {
-    return {
-      language: 'py',
-      available: false,
-      whyNot: 'Python eval kernels are POSIX-only in v1 (the fd-3 protocol pipe); the Windows packet is queued',
-    }
-  }
   let lastWhy = 'no python3 found on PATH'
   for (const candidate of pythonCandidates(cwd)) {
     const probe = readProbe(candidate, ['--version'])

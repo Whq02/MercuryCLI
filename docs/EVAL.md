@@ -65,9 +65,9 @@ difference names the fact and the fix:
 
 Python cells run on `python3`: the interpreter named by
 `MERCURY_EVAL_PYTHON`, else the active virtualenv, else `.venv` under the
-working directory, else the `python3` on the path. The last expression's
-value is the cell result, as in a notebook, and figures are captured after
-each cell.
+working directory, else the `python3` on the path (on Windows, `python3`,
+then `python`, then the `py` launcher). The last expression's value is the
+cell result, as in a notebook, and figures are captured after each cell.
 
 ## Inside a cell
 

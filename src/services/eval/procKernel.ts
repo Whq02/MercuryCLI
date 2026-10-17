@@ -2,6 +2,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { once } from 'node:events'
+import { createServer, type Server, type Socket } from 'node:net'
 import {
   encodeHostFrame,
   RunnerFrameDecoder,
@@ -12,11 +13,42 @@ import { EVAL_SHUTDOWN_GRACE_MS } from './contracts.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { endProcessTree, strikeProcessGroupNow } from '../../utils/processGroup.js'
 
+export type KernelTransport = 'fd' | 'loopback'
+
+const KERNEL_PROTOCOL_PORT_ENV = 'MERCURY_EVAL_PROTOCOL_PORT'
+
 interface KernelSpawnSpec {
   command: string
   args: string[]
   cwd: string
   env: Record<string, string>
+  protocol?: LoopbackProtocol
+}
+
+interface LoopbackProtocol {
+  server: Server
+  port: number
+}
+
+export function kernelTransportFor(language: 'py' | 'js', platform: NodeJS.Platform = process.platform): KernelTransport {
+  return language === 'py' && platform === 'win32' ? 'loopback' : 'fd'
+}
+
+function openLoopbackProtocol(): Promise<LoopbackProtocol> {
+  return new Promise((resolve, reject) => {
+    const server = createServer()
+    server.unref()
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      if (address === null || typeof address === 'string') {
+        server.close()
+        reject(new Error('eval kernel protocol listener has no port'))
+        return
+      }
+      resolve({ server, port: address.port })
+    })
+  })
 }
 
 interface CellFrameHandlers {
@@ -54,29 +86,50 @@ export class ProcKernel {
   private marked: Record<DataStream, boolean> = { stdout: false, stderr: false }
   private pendingDone: Extract<CellEnd, { kind: 'done' }> | null = null
   private settleTimer: NodeJS.Timeout | null = null
+  private readonly protocol: LoopbackProtocol | null
+  private readonly protocolSockets = new Set<Socket>()
   executionCount = 0
+
+  static async launch(spec: Omit<KernelSpawnSpec, 'protocol'> & { transport: KernelTransport }): Promise<ProcKernel> {
+    const { transport, ...rest } = spec
+    if (transport === 'fd') return new ProcKernel(rest)
+    const protocol = await openLoopbackProtocol()
+    return new ProcKernel({ ...rest, protocol })
+  }
 
   constructor(spec: KernelSpawnSpec) {
     this.token = randomBytes(16).toString('hex')
     this.decoder = new RunnerFrameDecoder(this.token)
+    this.protocol = spec.protocol ?? null
+    const onProtocolData = (chunk: string | Buffer): void => {
+      for (const frame of this.decoder.push(String(chunk))) this.route(frame)
+    }
+    if (this.protocol !== null) {
+      this.protocol.server.on('connection', (socket: Socket) => {
+        this.protocolSockets.add(socket)
+        socket.setEncoding('utf8')
+        socket.on('data', onProtocolData)
+        socket.on('error', () => undefined)
+        socket.on('close', () => this.protocolSockets.delete(socket))
+      })
+    }
     this.child = spawn(spec.command, spec.args, {
       windowsHide: true,
       cwd: spec.cwd,
-      env: spec.env,
-      stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
+      env: this.protocol === null ? spec.env : { ...spec.env, [KERNEL_PROTOCOL_PORT_ENV]: String(this.protocol.port) },
+      stdio: this.protocol === null ? ['pipe', 'pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe'],
       detached: process.platform !== 'win32',
     })
     this.child.stdout?.setEncoding('utf8')
     this.child.stderr?.setEncoding('utf8')
-    const protoStream = this.child.stdio[3] as NodeJS.ReadableStream | null
+    const protoStream = this.protocol === null ? (this.child.stdio[3] as NodeJS.ReadableStream | null) : null
     protoStream?.setEncoding?.('utf8')
     this.child.stdout?.on('data', (chunk: string) => this.onData('stdout', chunk))
     this.child.stderr?.on('data', (chunk: string) => this.onData('stderr', chunk))
-    protoStream?.on('data', (chunk: string | Buffer) => {
-      for (const frame of this.decoder.push(String(chunk))) this.route(frame)
-    })
+    protoStream?.on('data', onProtocolData)
     this.child.on('exit', (code, signal) => {
       this.exited = { code, signal: signal ?? null }
+      this.closeProtocol()
       if (this.pendingDone) this.settle()
       this.flushHeld()
       const end = this.cellEnd
@@ -89,6 +142,7 @@ export class ProcKernel {
       logForDebugging(`eval kernel spawn error: ${String(error)}`)
       if (!this.exited) {
         this.exited = { code: null, signal: null }
+        this.closeProtocol()
         if (this.pendingDone) this.settle()
         this.flushHeld()
         const end = this.cellEnd
@@ -167,6 +221,17 @@ export class ProcKernel {
 
   get pid(): number | undefined {
     return this.child.pid
+  }
+
+  get transport(): KernelTransport {
+    return this.protocol === null ? 'fd' : 'loopback'
+  }
+
+  private closeProtocol(): void {
+    if (this.protocol === null) return
+    for (const socket of this.protocolSockets) socket.destroy()
+    this.protocolSockets.clear()
+    this.protocol.server.close()
   }
 
   get alive(): boolean {

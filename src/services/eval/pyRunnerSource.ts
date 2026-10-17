@@ -2,7 +2,17 @@
 export const PY_RUNNER_SOURCE: string = `# Mercury eval kernel runner (generated; do not edit in place)
 import ast, base64, io, json, os, queue, signal, sys, threading, traceback, types
 
-_PROTO = os.fdopen(3, "w", buffering=1, encoding="utf-8")
+
+def _open_protocol():
+    port = os.environ.get("MERCURY_EVAL_PROTOCOL_PORT")
+    if port:
+        import socket
+        sock = socket.create_connection(("127.0.0.1", int(port)))
+        return sock.makefile("w", buffering=1, encoding="utf-8")
+    return os.fdopen(3, "w", buffering=1, encoding="utf-8")
+
+
+_PROTO = _open_protocol()
 _PROTO_LOCK = threading.Lock()
 _TOKEN = [None]
 _CWD = [None]
