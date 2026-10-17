@@ -67,7 +67,7 @@ const inputSchema = lazySchema(() =>
     readinessMode: z.enum(['all', 'any']).optional().describe('start: how conditions combine (default all)'),
     restart: z.enum(['never', 'on-failure']).optional().describe('start: auto-restart policy (default never; bounded backoff, explicit stop always suppresses)'),
     lifecycle: z.enum(['session', 'project']).optional().describe('start: session = dies with this Mercury session (default); project = detached, survives it'),
-    pty: z.boolean().optional().describe('start: run the command inside a pseudo-terminal, so a program that needs a terminal (a REPL, an interactive CLI, a prompt that asks) sees one; its screen bytes land in the log and op:"input" types to it (default false: a plain pipe)'),
+    pty: z.boolean().optional().describe('start: run the command inside a pseudo-terminal, so a program that needs a terminal (an interactive interpreter, an interactive CLI, a prompt that asks) sees one; its screen bytes land in the log and op:"input" types to it (default false: a plain pipe)'),
     mode: z.enum(['write', 'submit', 'eof']).optional().describe('input: write = the text exactly as given (keystrokes, control bytes such as \u0003); submit = the text with Enter after it (default); eof = end of input (the text is ignored)'),
     timeoutMs: semanticNumber(z.number().int().min(0).optional()).describe(`wait: readiness deadline in ms (default ${WAIT_DEFAULT_MS}, min ${WAIT_MIN_MS}, max ${WAIT_MAX_MS}; a value outside the bounds is clamped to them and the result says so)`),
     cursor: semanticNumber(z.number().int().min(0).optional()).describe('logs: byte cursor from a previous read (omit for the tail)'),
