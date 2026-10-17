@@ -71,6 +71,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import type { Message } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import { getDefaultFileReadingLimits, type FileReadingLimits } from './limits.js'
+import { buildOutlineNumberedWindow } from './outline.js'
 import {
   DESCRIPTION,
   FILE_READ_TOOL_NAME,
@@ -113,6 +114,9 @@ const stockFields = () => ({
     .describe(
       `Page range for PDF files (e.g., "2-6", "9", "12-24"). Only applicable to PDF files. Maximum ${MAX_PDF_PAGES_PER_REQUEST} pages per request.`,
     ),
+  outline: semanticBoolean(z.boolean().optional()).describe(
+    'Set true to return a structural outline (signatures kept, function and method bodies elided, original line numbers preserved) using the vendored tree-sitter grammar for the file type. Off, the output is the full window.',
+  ),
 })
 
 const anchoredSchemaFactory = () =>
@@ -225,6 +229,8 @@ const outputSchema = z.discriminatedUnion('type', [
 
 
 const resultLineAnchors = new WeakSet<object>()
+
+const resultOutlineBodies = new WeakMap<object, string>()
 
 const resultsWithoutReminder = new WeakSet<object>()
 
@@ -761,7 +767,12 @@ async function readTextLane(
   let overCap: OverCapNote | undefined
   const totalLines = realLineTotal(range)
   let shown = shownWindow(range, lineOffset)
-  const rendered = numberedReadContent(shown.content, lineOffset + 1, lineAnchorsEnabled() && input.line_anchors === true)
+  const anchored = lineAnchorsEnabled() && input.line_anchors === true
+  const outlineBody =
+    input.outline === true
+      ? await buildOutlineNumberedWindow(resolvedPath, shown.content, lineOffset + 1, shown.count, totalLines, anchored)
+      : null
+  const rendered = outlineBody ?? numberedReadContent(shown.content, lineOffset + 1, anchored)
   const tokens = await tokensOverCap(rendered, ext, limits.maxTokens)
   if (tokens !== undefined) {
     const window = firstWindowUnderCap(range, shown.count, totalLines, rendered, lineOffset, resolvedPath, ext, limits, tokens)
@@ -780,25 +791,33 @@ async function readTextLane(
   }
 
   const coveredWholeFile =
-    lineOffset === 0 && range.lineCount === range.totalLines && range.readBytes === range.totalBytes
+    input.outline !== true &&
+    lineOffset === 0 &&
+    range.lineCount === range.totalLines &&
+    range.readBytes === range.totalBytes
   context.readFileState.set(keyPath, {
     content: range.content,
     timestamp: Math.floor(range.mtimeMs),
     offset: coveredWholeFile ? 0 : overCap !== undefined ? lineOffset + 1 : (input.offset ?? 0),
     limit: coveredWholeFile ? undefined : overCap !== undefined ? range.lineCount : input.limit,
+    ...(input.outline === true ? { isPartialView: true } : {}),
   })
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
   notifyFileReadListeners(resolvedPath, range.content)
 
   const memoryUpdatedAt = isMnemeFile(resolvedPath) ? Math.floor(range.mtimeMs) : undefined
   let anchor: string | undefined
-  let anchored = range.content
-  if (changeTransactionEnabled() && (coveredWholeFile || (range.content.length > 0 && shown.count > 0))) {
+  let anchoredContent = range.content
+  if (
+    input.outline !== true &&
+    changeTransactionEnabled() &&
+    (coveredWholeFile || (range.content.length > 0 && shown.count > 0))
+  ) {
     const wholeFile =
       lineOffset === 0 &&
       range.lineCount === range.totalLines &&
       range.readBytes === range.totalBytes
-    if (!wholeFile) anchored = shown.content
+    if (!wholeFile) anchoredContent = shown.content
     anchor = wholeFile
       ? mintFileAnchor(range.content)
       : mintRangeAnchor(shown.content, lineOffset + 1, shown.count)
@@ -817,14 +836,17 @@ async function readTextLane(
     },
   }
 
-  if (lineAnchorsEnabled() && input.line_anchors === true && range.content.length > 0) {
+  if (anchored && range.content.length > 0) {
     resultLineAnchors.add(data)
+  }
+  if (outlineBody !== null) {
+    resultOutlineBodies.set(data, outlineBody)
   }
   if (anchor !== undefined) {
     if (anchorPatchEnabled() || staleEditRecoveryEnabled()) {
       try {
         const owner = ownerFromToolUseContext(context)
-        rememberAnchoredSnapshot(owner, anchor, anchored, resolvedPath)
+        rememberAnchoredSnapshot(owner, anchor, anchoredContent, resolvedPath)
         const generation = fileGeneration(resolvedPath)
         if (generation !== null) {
           recordSeenLines(owner, resolvedPath, generation, lineOffset + 1, shown.count)
@@ -857,7 +879,7 @@ function serializeTextResult(file: TextFile, data: object): string {
       ? `(memory file — last updated ${new Date(file.memoryUpdatedAt).toISOString()})\n`
       : ''
   const capNote = file.overCap === undefined ? '' : `${overCapWords(file)}\n`
-  const numbered = numberedWindow(file, resultLineAnchors.has(data))
+  const numbered = resultOutlineBodies.get(data) ?? numberedWindow(file, resultLineAnchors.has(data))
   const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
   return `${prefix}${capNote}${numbered}${cutMark(file)}${anchorSuffix}`
 }
@@ -1092,7 +1114,8 @@ export const FileReadTool = buildTool({
       !entry.isPartialView &&
       entry.offset === (input.offset ?? 0) &&
       entry.limit === input.limit &&
-      input.line_anchors !== true
+      input.line_anchors !== true &&
+      input.outline !== true
     ) {
       try {
         const stats = await stat(fullFilePath)
