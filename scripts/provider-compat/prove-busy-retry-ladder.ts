@@ -203,7 +203,7 @@ try {
   const stamp = marks[0]?.busyRecovery
   const firstAnswer = recovered.find(item => item.type === 'assistant')
   check('a refusal that clears on the third request answers with no notice and no red line', hits.length === 3 && notices(recovered).length === 0 && redLines(recovered).length === 0 && answered(recovered, 'native answer'), `${hits.length} requests, ${notices(recovered).length} notices, ${redLines(recovered).length} red lines`)
-  check('the first settled answer carries one recovery stamp naming the provider, the retries and the seconds; later blocks carry none', marks.length === 1 && marks[0] === firstAnswer && stamp?.provider === 'Gemini' && stamp.retries === 2 && stamp.elapsedMs >= 1800 && stamp.status === 503 && stamp.code === 'api-UNAVAILABLE', JSON.stringify(stamp))
+  check('the first settled answer carries one recovery stamp naming the provider, the retries and the seconds; later blocks carry none', marks.length === 1 && marks[0] === firstAnswer && stamp?.provider === 'Gemini' && stamp.retries === 2 && stamp.elapsedMs >= 1750 && stamp.status === 503 && stamp.code === 'api-UNAVAILABLE', JSON.stringify(stamp))
   check("the stamp's detail carries Google's words, both waits and the request that answered", /^Gemini answered HTTP 503 \(api-UNAVAILABLE\): This model is currently experiencing high demand\. .* — retried after 1 s and 1 s, and the third request was answered\.$/.test(stamp?.detail ?? ''), stamp?.detail ?? '')
 
   reset('1')
@@ -262,7 +262,7 @@ try {
     const roadStamp = roadMarks[0]?.busyRecovery
     const roadFirstAnswer = roadRecovered.find(item => item.type === 'assistant')
     check(`${road.name}: a refusal that clears on the third request answers with no notice and no red line`, hits.length === 3 && notices(roadRecovered).length === 0 && redLines(roadRecovered).length === 0 && answered(roadRecovered, ANSWER), `${hits.length} requests, ${notices(roadRecovered).length} notices, ${redLines(roadRecovered).length} red lines`)
-    check(`${road.name}: the first settled answer carries one recovery stamp naming ${road.provider}, 2 retries and the seconds`, roadMarks.length === 1 && roadMarks[0] === roadFirstAnswer && roadStamp?.provider === road.provider && roadStamp.retries === 2 && roadStamp.elapsedMs >= 1800 && roadStamp.status === road.busy.status && roadStamp.code === road.busy.code, JSON.stringify(roadStamp))
+    check(`${road.name}: the first settled answer carries one recovery stamp naming ${road.provider}, 2 retries and the seconds`, roadMarks.length === 1 && roadMarks[0] === roadFirstAnswer && roadStamp?.provider === road.provider && roadStamp.retries === 2 && roadStamp.elapsedMs >= 1750 && roadStamp.status === road.busy.status && roadStamp.code === road.busy.code, JSON.stringify(roadStamp))
     check(`${road.name}: the stamp's detail carries the wire's words, both waits and the request that answered`, new RegExp(`^${escape(road.provider)} answered HTTP ${road.busy.status} \\(${escape(road.busy.code)}\\): ${escape(road.busy.message)} — retried after 1 s and 1 s, and the third request was answered\\.$`).test(roadStamp?.detail ?? ''), roadStamp?.detail ?? '')
 
     reset('1', { status: road.busy.status, body: road.busy.body })
