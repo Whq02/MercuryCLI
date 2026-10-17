@@ -218,7 +218,7 @@ function startFixture(port: number, fixtureCwd: string): Promise<{ base: string;
     server.once('error', reject)
     server.listen(port, '127.0.0.1', () =>
       resolve({
-        base: `http://127.0.0.1:${port}`,
+        base: `http://127.0.0.1:${(server.address() as { port: number }).port}`,
         hits,
         close: () => new Promise<void>(r => server.close(() => r())),
       }),
@@ -419,7 +419,7 @@ console.log(` the fold is a chat row with a bar — real bundle, PTY, ${SIZE.col
 console.log('============================================================')
 const KEEP = process.env.FOLD_DRIVE_KEEP === '1'
 const world = await seedWorld()
-const fixture = await startFixture(Number(process.env.FOLD_DRIVE_PORT ?? 25311), world.cwd)
+const fixture = await startFixture(Number(process.env.FOLD_DRIVE_PORT ?? 0), world.cwd)
 const FOLD_FRAMES = 24
 const foldMarks = (prefix: string): string[] => Array.from({ length: FOLD_FRAMES }, (_, i) => `${prefix}-${String(i + 1).padStart(2, '0')}`)
 

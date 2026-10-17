@@ -9,7 +9,7 @@ import { boxFloors, costRows, fiveRunMedians, RELATIVE_FLOOR } from './cost-comp
 import { BASE, ROOT, argument, baseSources, git, hasBaseObject, median, scratch } from './support.ts'
 
 type Frame = { atMs: number; view: string; draft: string; durationMs: number; phases?: { patches: number; renderer: number; diff: number; optimize: number; write: number; yoga: number; commit: number } }
-type Input = { atMs: number; kind: 'key' | 'view' | 'pointer' }
+type Input = { atMs: number; kind: 'key' | 'view' | 'pointer'; afterFrame: number; view: string; draft: string }
 type Metrics = Record<string, number>
 const scenes = join(import.meta.dir, 'scenes')
 const work = argument('--work-dir') ?? scratch('frame-cost-')
@@ -51,16 +51,24 @@ async function measure(bundle: string, label: string): Promise<{ metrics: Metric
     const idleStart = sharedClockMs()
     await delay(10_000)
     const idleEnd = sharedClockMs()
+    let expectedDraft = ''
+    let expectedView = 'chat'
     for (const key of 'the quick brown fox!') {
-      inputs.push({ atMs: recording.send(key), kind: 'key' })
+      const afterFrame = readFrames(timing).length
+      expectedDraft += key
+      inputs.push({ atMs: recording.send(key), kind: 'key', afterFrame, view: expectedView, draft: expectedDraft })
+      await until(() => readFrames(timing).slice(afterFrame).some(frame => frame.draft === expectedDraft && frame.view === expectedView), `draft ${expectedDraft}`)
       await delay(120)
     }
     for (let turn = 0; turn < 6; turn++) {
-      inputs.push({ atMs: recording.send(turn % 2 === 0 ? '\x1b[1;2D' : '\x1b[1;2C'), kind: 'view' })
+      const afterFrame = readFrames(timing).length
+      expectedView = turn % 2 === 0 ? 'concourse' : 'chat'
+      inputs.push({ atMs: recording.send(turn % 2 === 0 ? '\x1b[1;2D' : '\x1b[1;2C'), kind: 'view', afterFrame, view: expectedView, draft: expectedDraft })
+      await until(() => readFrames(timing).slice(afterFrame).some(frame => frame.view === expectedView && frame.draft === expectedDraft), `view ${expectedView}`)
       await delay(1500)
     }
     for (const row of [2, 30]) {
-      inputs.push({ atMs: recording.send(`\x1b[<35;40;${row}M`), kind: 'pointer' })
+      inputs.push({ atMs: recording.send(`\x1b[<35;40;${row}M`), kind: 'pointer', afterFrame: readFrames(timing).length, view: expectedView, draft: expectedDraft })
       await delay(150)
     }
     const ended = sharedClockMs()
@@ -70,7 +78,8 @@ async function measure(bundle: string, label: string): Promise<{ metrics: Metric
       const end = inputs[index + 1]?.atMs ?? ended
       const output = outputBetween(recording.records, input.atMs, end)
       const burst = outputBursts(output)[0] ?? []
-      const active = frames.filter(frame => frame.atMs - frame.durationMs >= input.atMs && frame.atMs - frame.durationMs < end && (frame.phases?.patches ?? 0) > 0)
+      const nextFrame = inputs[index + 1]?.afterFrame ?? frames.length
+      const active = frames.slice(input.afterFrame, nextFrame).filter(frame => frame.view === input.view && frame.draft === input.draft && (frame.phases?.patches ?? 0) > 0)
       if (input.kind === 'view') assert.ok(output.length > 0, `${label} missing repaint for view switch ${index}`)
       if (input.kind !== 'pointer' && output.length > 0) assert.ok(active.length > 0, `${label} missing engine timing for input ${index}`)
       return {
