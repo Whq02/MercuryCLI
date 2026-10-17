@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
 import { FAINT, IVORY } from '../mercuryPalette.js'
 import { CommandCenter, SectionHeader, StateBadge } from './components.js'
+import { CursorRow } from './CursorRow.js'
 import { useSessionAccent } from './sessionAccent.js'
 import { type SnapshotState } from './theme.js'
 import { useOpenEventGate } from './useOpenEventGate.js'
@@ -65,10 +66,12 @@ export function SpecimenGallery({
                 <SectionHeader>{it.group!}</SectionHeader>
               </Box>
             ) : null}
-            <Text>
-              <Text color={i === sel ? accent : FAINT}>{i === sel ? '▸ ' : '  '}</Text>
-              <StateBadge state={it.state} label={it.label} mono />
-            </Text>
+            <CursorRow selected={i === sel}>
+              <Text>
+                <Text color={i === sel ? accent : FAINT}>{i === sel ? '▸ ' : '  '}</Text>
+                <StateBadge state={it.state} label={it.label} mono />
+              </Text>
+            </CursorRow>
           </React.Fragment>
         )
       })}
