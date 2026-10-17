@@ -110,6 +110,42 @@ try {
       }
     }
   }
+  {
+    const { conversationAtThreshold } = await import('./thresholdFixture.ts')
+    const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
+    const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
+    const posture = (row: any): unknown => row && ({ effort: row.reasoning_effort, reasoning: row.reasoning, thinking: row.thinking, output: row.output_config, max: row.max_tokens, completion: row.max_completion_tokens, outputTokens: row.max_output_tokens, generation: row.generationConfig })
+    const preserved = (row: any): unknown[] => (row?.messages ?? row?.contents ?? []).filter((item: any) => item.role === 'assistant' || item.role === 'model').map((item: any) => ({ content: Array.isArray(item.content) ? item.content.filter((block: any) => block.type === 'thinking' || block.type === 'redacted_thinking') : undefined, parts: Array.isArray(item.parts) ? item.parts.filter((part: any) => part.thought === true || part.thoughtSignature !== undefined) : undefined }))
+    for (const leg of [{ lane: 'anthropic', fixed: 20_000, ratio: 1 }, { lane: 'gemini', fixed: 42_723, ratio: 1.3 }]) {
+      const road = roads.find(r => r.lane === leg.lane)!
+      const threshold = getAutoCompactThreshold(road.model)
+      const built = conversationAtThreshold({ model: road.model, family: leg.lane, resultChars: 24_000, fixed: leg.fixed, ratio: leg.ratio, target: threshold })
+      const tools = [FileReadTool]
+      const thinkingConfig = { type: 'adaptive' } as const
+      const owner = `threshold-${road.lane}`
+      const context: any = { agentId: owner, abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: built.messages, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: 8192, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
+      const systemPrompt = asSystemPrompt(['Synthetic fold request proof.'])
+      fixture.script([{ text: summary }])
+      const referenceAt = fixture.captured.length
+      for await (const _ of routedCallModel({ messages: built.messages, systemPrompt, thinkingConfig, tools, signal: context.abortController.signal, options: { model: road.model, getToolPermissionContext: async () => state.toolPermissionContext, isNonInteractiveSession: true, hasAppendSystemPrompt: false, maxOutputTokensOverride: undefined, querySource: 'compact' as never, agents: [], mcpTools: [], effortValue: state.effortValue as never, agentId: owner as never, ownerKey: String(rosterOwnerFromToolUseContext(context)) } })) {}
+      const reference = fixture.captured[referenceAt]?.body as any
+      recordSentRequest(String(rosterOwnerFromToolUseContext(context)), built.messages)
+      fixture.script([{ text: summary }])
+      const before = fixture.captured.length
+      let error: unknown
+      try {
+        await compactConversation(built.messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: built.messages } as never, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: threshold })
+      } catch (caught) { error = String(caught) }
+      const requests = fixture.captured.slice(before)
+      const body = requests.at(-1)?.body as any
+      const wire = JSON.stringify(body ?? {})
+      const label = `${road.lane} · real-sized Read results (${built.ids.length} rounds) with a calibrated gauge AT the fold threshold (${built.gauge.toLocaleString('en-US')} of ${getContextWindowForModel(road.model).toLocaleString('en-US')}) · the threshold fold`
+      check(`${label}: the summary request resolves once on its declared wire`, requests.length === 1 && requests[0]?.dialect === road.dialect && error === undefined, { error, requests: requests.length })
+      check(`${label}: effort, thinking and ceiling are the session request's`, JSON.stringify(posture(body)) === JSON.stringify(posture(reference)), { actual: posture(body), expected: posture(reference) })
+      check(`${label}: route-preserved thinking rides byte-identically, every round of it`, JSON.stringify(preserved(body)) === JSON.stringify(preserved(reference)) && preserved(body).length === built.ids.length, { actual: preserved(body).length, expected: preserved(reference).length })
+      check(`${label}: the newest round and every result's bytes ride whole`, built.paths.every(path => wire.includes(JSON.stringify(path).slice(1, -1))) && built.results.every(text => wire.includes(JSON.stringify(text).slice(1, -1))) && !wire.includes('characters omitted for the compaction'), { newest: wire.includes(built.paths.at(-1) ?? '') })
+    }
+  }
 } finally {
   await fixture.close()
   rmSync(home, { recursive: true, force: true })

@@ -78,11 +78,11 @@ function historyFor(road: { lane: string; model: string }, withRedacted: boolean
 }
 
 type Drive = { reference: Body | undefined; fold: Body[]; error: unknown; result: Awaited<ReturnType<typeof compactConversation>> | undefined }
-async function drive(road: { lane: string; model: string; dialect: string }, effort: string, thinkingConfig: any, opts: { continued: boolean; redacted: boolean; auto?: boolean; overflow?: boolean; script?: unknown[] }): Promise<Drive> {
+async function drive(road: { lane: string; model: string; dialect: string }, effort: string, thinkingConfig: any, opts: { continued: boolean; redacted: boolean; auto?: boolean; overflow?: boolean; script?: unknown[]; messages?: any[]; threshold?: number }): Promise<Drive> {
   const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: effort }
   const tools = [FileReadTool]
-  const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: thinkingConfig.budgetTokens ?? 0, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
-  const messages = historyFor(road, opts.redacted)
+  const messages = opts.messages ?? historyFor(road, opts.redacted)
+  const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: opts.messages ?? [], readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: thinkingConfig.budgetTokens ?? 0, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
   const systemPrompt = asSystemPrompt(['Synthetic fold request proof.'])
   fixture.script([{ text: summary }])
   const referenceAt = fixture.captured.length
@@ -98,7 +98,7 @@ async function drive(road: { lane: string; model: string; dialect: string }, eff
   let result: Awaited<ReturnType<typeof compactConversation>> | undefined
   try {
     const overflow = opts.overflow ? { source: 'provider', family: road.lane, shape: 'context-length-exceeded' } : undefined
-    result = await compactConversation(messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never, opts.auto === true, undefined, opts.auto === true, opts.auto === true ? { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: 150_000 } : undefined, overflow as never)
+    result = await compactConversation(messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never, opts.auto === true, undefined, opts.auto === true, opts.auto === true ? { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: opts.threshold ?? 150_000 } : undefined, overflow as never)
   } catch (caught) { error = String(caught) }
   const fold = fixture.captured.slice(before).map(request => request.body as Body)
   return { reference, fold, error, result }
@@ -176,6 +176,22 @@ try {
     const overflow = await drive(road, 'max', { type: 'adaptive' }, { continued: true, redacted: false, auto: true, overflow: true })
     const same = (a: Body | undefined, b: Body | undefined): boolean => JSON.stringify(posture(a)) === JSON.stringify(posture(b)) && JSON.stringify(ceilingOf(a)) === JSON.stringify(ceilingOf(b))
     check(`${road.lane}: /compact, the threshold fold and the overflow fold carry one posture`, same(manual.fold.at(-1), auto.fold.at(-1)) && same(auto.fold.at(-1), overflow.fold.at(-1)) && manual.error === undefined && auto.error === undefined && overflow.error === undefined, { manual: posture(manual.fold.at(-1)), auto: posture(auto.fold.at(-1)), overflow: posture(overflow.fold.at(-1)), errors: [manual.error, auto.error, overflow.error] })
+  }
+  {
+    const { conversationAtThreshold } = await import('./thresholdFixture.ts')
+    const { getAutoCompactThreshold, getBlockingLimit } = await import('../../src/services/compact/autoCompact.ts')
+    const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
+    for (const leg of [{ lane: 'anthropic', fixed: 20_000, ratio: 1 }, { lane: 'gemini', fixed: 42_723, ratio: 1.3 }]) {
+      const road = roads.find(r => r.lane === leg.lane)!
+      const threshold = getAutoCompactThreshold(road.model)
+      const built = conversationAtThreshold({ model: road.model, family: leg.lane, resultChars: 24_000, fixed: leg.fixed, ratio: leg.ratio, target: threshold })
+      const label = `${road.lane} · real-sized Read results (${built.ids.length} rounds, ${(JSON.stringify(built.messages).length / 1_048_576).toFixed(1)} MB) with a calibrated gauge AT the fold threshold (${built.gauge.toLocaleString('en-US')} of ${getContextWindowForModel(road.model).toLocaleString('en-US')}; blocking limit ${getBlockingLimit(road.model).toLocaleString('en-US')}) · continued history · the threshold fold`
+      const driven = await drive(road, 'max', { type: 'adaptive' }, { continued: true, redacted: false, auto: true, messages: built.messages, threshold })
+      const wire = JSON.stringify(driven.fold[0] ?? {})
+      check(`${label}: the gauge sits at the threshold and the fold made one request on its declared wire and settled`, built.gauge === threshold && driven.fold.length === 1 && driven.error === undefined && driven.result?.summaryMessages.some(row => String(row.message.content).includes(summary)) === true, { gauge: built.gauge, threshold, requests: driven.fold.length, error: driven.error })
+      check(`${label}: every round's Read and every result's bytes ride, the newest round included, nothing capped`, built.paths.every(path => wire.includes(JSON.stringify(path).slice(1, -1))) && built.results.every(body => wire.includes(JSON.stringify(body).slice(1, -1))) && !wire.includes('characters omitted for the compaction') && !wire.includes('earlier turns folded into this summary'), { newest: wire.includes(built.paths.at(-1) ?? ''), capped: wire.includes('characters omitted for the compaction') })
+      compare(label, driven.reference, driven.fold.at(-1), [], true)
+    }
   }
 } finally {
   await fixture.close()

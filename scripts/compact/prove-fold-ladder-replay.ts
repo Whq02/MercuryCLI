@@ -175,7 +175,8 @@ async function fold(messages: Message[], road: 'auto' | 'manual'): Promise<Drive
 
 async function replay(label: string, messages: Message[]): Promise<void> {
   const gauge = tokenCountWithEstimation(messages, MODEL)
-  record(`${label}: ${messages.length} messages; the gauge reads ${gauge.toLocaleString('en-US')} tokens on a ${WINDOW.toLocaleString('en-US')}-token window (fold threshold ${getAutoCompactThreshold(MODEL).toLocaleString('en-US')}, blocking limit ${getBlockingLimit(MODEL).toLocaleString('en-US')})`)
+  const overTheLimit = gauge > getBlockingLimit(MODEL)
+  record(`${label}: ${messages.length} messages; the gauge reads ${gauge.toLocaleString('en-US')} tokens on a ${WINDOW.toLocaleString('en-US')}-token window (fold threshold ${getAutoCompactThreshold(MODEL).toLocaleString('en-US')}, blocking limit ${getBlockingLimit(MODEL).toLocaleString('en-US')}) — ${overTheLimit ? 'over the blocking limit: rung 1 pre-fits the summariser\'s input' : 'under the blocking limit: the whole conversation is sent first, rung 2 halves it when the model answers nothing'}`)
   check(`${label}: the window resolved from the catalogue`, getContextWindowForModel(MODEL) === WINDOW, String(getContextWindowForModel(MODEL)))
   check(`${label}: the conversation stands between the fold threshold and the window, as the dead seat did`, gauge > 950_000 && gauge < WINDOW, String(gauge))
   for (const road of ['auto', 'manual'] as const) {
@@ -184,12 +185,17 @@ async function replay(label: string, messages: Message[]): Promise<void> {
     const requests = fixture.captured.slice(before)
     record(`${label} · ${road} road: ${run.landed ? 'LANDED' : `FAILED (${run.error ?? ''})`} after ${run.sent.length} summariser request(s) counted ${run.sent.map(n => n.toLocaleString('en-US')).join(', ')} tokens by the provider's density; ${run.ms} ms${run.landed ? `; context ${run.pre?.toLocaleString('en-US')} → ${run.post?.toLocaleString('en-US')} tokens, ${run.kept} messages kept verbatim` : ''}`)
     check(`${label} · ${road}: the fold landed (red on the base: "Failed to generate a conversation summary." after one request over the window)`, run.landed, run.error ?? '')
-    check(`${label} · ${road}: rung 1 landed it in ONE summariser request`, run.sent.length === 1, String(run.sent.length))
-    check(`${label} · ${road}: that request fitted the window by the provider's own count`, run.sent.every(n => n <= Math.floor(WINDOW * 0.95)), run.sent.join(','))
-    const wire = requests.length === 1 ? JSON.stringify(requests[0]?.body) : ''
+    const wire = JSON.stringify(requests[0]?.body ?? {})
     const firstCall = firstToolUseId(messages)
     const lastCall = lastToolUseId(messages)
-    check(`${label} · ${road}: the request carried the operator's ask and the oldest round (nothing dropped unsummarised) and left out the newest round (the kept tail split off before the send)`, wire.includes(operatorAsk(messages)) && (firstCall === null || wire.includes(firstCall)) && (lastCall === null || !wire.includes(lastCall)), `first ${firstCall} ${wire.includes(firstCall ?? '')} · last ${lastCall} ${wire.includes(lastCall ?? '')}`)
+    if (overTheLimit) {
+      check(`${label} · ${road}: rung 1 landed it in ONE summariser request`, run.sent.length === 1, String(run.sent.length))
+      check(`${label} · ${road}: that request fitted the window by the provider's own count`, run.sent.every(n => n <= Math.floor(WINDOW * 0.95)), run.sent.join(','))
+      check(`${label} · ${road}: the request carried the operator's ask and the oldest round (nothing dropped unsummarised) and left out the newest round (the kept tail split off before the send)`, wire.includes(operatorAsk(messages)) && (firstCall === null || wire.includes(firstCall)) && (lastCall === null || !wire.includes(lastCall)), `first ${firstCall} ${wire.includes(firstCall ?? '')} · last ${lastCall} ${wire.includes(lastCall ?? '')}`)
+    } else {
+      check(`${label} · ${road}: the first request was the whole conversation, the newest round included (the gauge read it under the limit, so nothing was shaped before the send)`, wire.includes(operatorAsk(messages)) && (firstCall === null || wire.includes(firstCall)) && (lastCall === null || wire.includes(lastCall)), `first ${firstCall} ${wire.includes(firstCall ?? '')} · last ${lastCall} ${wire.includes(lastCall ?? '')}`)
+      check(`${label} · ${road}: the model answered nothing to it (over the window by the provider's own count), and rung 2 landed the fold on halved input within three requests`, run.sent.length >= 2 && run.sent.length <= 3 && (run.sent[0] ?? 0) > Math.floor(WINDOW * 0.95) && run.sent.slice(1).every(n => n <= Math.floor(WINDOW * 0.95)), run.sent.join(','))
+    }
     check(`${label} · ${road}: the prose summary was written by the model (no skipped-prose line)`, run.landed && !(run.summaryText ?? '').includes(PROSE_SKIPPED_KEY) && (run.notes ?? []).length === 0, JSON.stringify(run.notes))
     check(`${label} · ${road}: the post-fold context is under the fold threshold with a verbatim tail kept`, run.landed && (run.post ?? Infinity) < getAutoCompactThreshold(MODEL) && (run.kept ?? 0) > 0, `${run.post} / ${run.kept}`)
   }

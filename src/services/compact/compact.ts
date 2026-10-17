@@ -1463,6 +1463,7 @@ export function withEngineModel<C extends ToolUseContext>(context: C, model: str
 
 type SummariserFit = {
   budgetTokens: number
+  limitTokens: number
   fixedTokens: number
   promptTokens: number
   reserveTokens: number
@@ -1507,7 +1508,8 @@ async function summariserFitFor(
   const promptTokens = roughTokenCountEstimation(promptText)
   const driftSafe = Math.floor(window * SUMMARISER_WINDOW_SHARE) - reserveTokens
   const budgetTokens = Math.max(SUMMARISER_BUDGET_FLOOR_TOKENS, Math.min(blockingLimit, driftSafe) - fixedTokens - promptTokens)
-  return { budgetTokens, fixedTokens, promptTokens, reserveTokens, window, blockingLimit, ratio: gauge?.density.ratio ?? 1 }
+  const limitTokens = Math.max(budgetTokens, blockingLimit - fixedTokens - promptTokens)
+  return { budgetTokens, limitTokens, fixedTokens, promptTokens, reserveTokens, window, blockingLimit, ratio: gauge?.density.ratio ?? 1 }
 }
 
 function resultTextOf(content: unknown): string | null {
@@ -1711,7 +1713,8 @@ export async function compactConversation(
     let proseSkippedReceipt: string | undefined
     try {
       let summaryInput = messages
-      if (Math.ceil(roughTokenCountEstimationForMessages(messages) * fit.ratio) > fit.budgetTokens) {
+      const requestTokens = Math.ceil(roughTokenCountEstimationForMessages(messages) * fit.ratio)
+      if (overflow !== undefined || preCompactTokenCount + fit.promptTokens > fit.blockingLimit || requestTokens > fit.limitTokens) {
         let split: { retiring: Message[]; rounds: number } | null = null
         if (isMercuryCompactKeepTailEnabled()) {
           try {
