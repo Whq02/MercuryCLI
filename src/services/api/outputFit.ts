@@ -24,6 +24,11 @@ export function promptRoomOf(messages: readonly Message[], model: string, fixed:
   return { window: getContextWindowForModel(model, betas), promptTokens }
 }
 
+export function outputRoomOf(messages: readonly Message[], model: string, fixed: unknown, betas?: string[]): number {
+  const { window, promptTokens } = promptRoomOf(messages, model, fixed, betas)
+  return window - promptTokens - OUTPUT_FIT_HEADWAY_TOKENS
+}
+
 export function fitOutputTokensForRequest(input: {
   asked: number
   messages: readonly Message[]

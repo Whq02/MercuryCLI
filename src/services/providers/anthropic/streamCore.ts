@@ -184,6 +184,9 @@ import type { HeldBusyRetryWait } from '../busyRetry.js'
 import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords } from '../emptyStreamRetry.js'
 import { retrySeconds } from '../../api/recoveryBudget.js'
 import { fitOutputTokensForRequest, outputFitWords } from '../../api/outputFit.js'
+import { toolCallRefusalNote } from '../toolCallGate.js'
+import { safeParseJSON } from '../../../utils/json.js'
+import type { RefusedToolCall } from '../../../types/message.js'
 import { sleep } from '../../../utils/sleep.js'
 import {
   addCacheBreakpoints,
@@ -420,6 +423,19 @@ async function nonStreamingAnswer(
 function isFirstByteTimeout(error: unknown): boolean {
   if (error instanceof APIConnectionTimeoutError) return true
   return error instanceof Error && error.constructor?.name === 'APIConnectionTimeoutError'
+}
+
+export function cutToolCallOf(block: { type: string; id?: string; name?: string; input?: unknown }): RefusedToolCall | null {
+  if (block.type !== 'tool_use' || typeof block.input !== 'string' || block.input.length === 0) return null
+  if (safeParseJSON(block.input, false) !== null) return null
+  return {
+    id: block.id ?? '',
+    name: block.name ?? '',
+    argumentsRaw: block.input,
+    argumentsLength: block.input.length,
+    code: 'invalid-json',
+    reason: `the arguments were not valid JSON (${block.input.length} characters arrived before the reply ended)`,
+  }
 }
 
 async function* queryModel(
@@ -1208,6 +1224,17 @@ async function* queryModel(
             }
             if (!partialMessage) {
               throw new Error('Message not found')
+            }
+            const cutCall = cutToolCallOf(contentBlock)
+            if (cutCall !== null) {
+              const note = mintAssistantMessage(partialMessage, [
+                { type: 'text', text: toolCallRefusalNote('anthropic', cutCall), citations: null },
+              ] as BetaContentBlock[])
+              note.refusedToolCalls = [cutCall]
+              stoppedBlockIndices.add(part.index)
+              newMessages.push(note)
+              yield note
+              break
             }
             const m = mintAssistantMessage(partialMessage, [
               contentBlock,

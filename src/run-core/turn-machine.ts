@@ -87,6 +87,7 @@ import type {
   ReplyMark,
   ToolUseSummaryMessage,
   UserMessage,
+  RefusedToolCall,
 } from '../types/message.js'
 import { logError } from '../utils/log.js'
 import {
@@ -165,6 +166,7 @@ import { buildRequestContextPlan, reconcileAppliedPlanUsage, type RequestContext
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { randomUUID, type UUID } from 'node:crypto'
 import { bindRequestGauge, requestGaugeFixed, settleRequestGauge } from '../services/run/requestGauge.js'
+import { outputRoomOf } from '../services/api/outputFit.js'
 import { getContextEpoch } from '../services/run/contextEpochs.js'
 import { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } from '../services/compact/compact.js'
 import { toolToAPISchema } from '../utils/api.js'
@@ -253,6 +255,7 @@ type TurnState = {
   maxOutputTokensOverride: number | undefined
   streamFaultRecoveryCount: number
   toolCallRefusalRecoveryCount: number
+  cutToolCallRecoveryCount?: number
   pendingToolUseSummary: Promise<ToolUseSummaryMessage | null> | undefined
   stopHookActive: boolean | undefined
   turnCount: number
@@ -389,6 +392,36 @@ export function decideToolCallRefusalRecovery(input: {
     return { kind: 'continue', attempt: input.recoveryCount + 1 }
   }
   return { kind: 'surface' }
+}
+
+const CUT_TOOL_CALL_RECOVERY_LIMIT = 2
+
+export type CutToolCallDecision = { kind: 'retry'; attempt: number; outputTokens: number } | { kind: 'surface' }
+
+export function decideCutToolCallRecovery(input: {
+  recoveryCount: number
+  sentCap: number | undefined
+  cutAt: number
+  upperLimit: number
+  room: number
+  routeTakesCap: boolean
+}): CutToolCallDecision {
+  if (!input.routeTakesCap || input.recoveryCount >= CUT_TOOL_CALL_RECOVERY_LIMIT) return { kind: 'surface' }
+  const base = Math.max(input.sentCap ?? 0, input.cutAt, 1)
+  const ceiling = Math.min(input.upperLimit, input.room > 0 ? input.room : input.upperLimit)
+  const outputTokens = Math.min(base * 2, ceiling)
+  if (outputTokens <= base) return { kind: 'surface' }
+  return { kind: 'retry', attempt: input.recoveryCount + 1, outputTokens }
+}
+
+function cutToolCallOf(assistantMessages: readonly AssistantMessage[], refused: readonly RefusedToolCall[]): { name: string; cutAt: number } | null {
+  const cut = refused.find(r => r.code === 'invalid-json')
+  if (cut === undefined) return null
+  const replies = assistantMessages.filter(m => m.isApiErrorMessage !== true)
+  const stopped = assistantMessages.some(isWithheldMaxOutputTokens) || replies.some(m => m.message.stop_reason === 'max_tokens')
+  if (!stopped) return null
+  const cutAt = Math.max(0, ...replies.map(m => m.message.usage?.output_tokens ?? 0))
+  return { name: cut.name || 'unnamed', cutAt }
 }
 
 const EMPTY_REPLY_RECOVERY_LIMIT = 1
@@ -1358,6 +1391,48 @@ async function* runEventMachine(
       }
     }
 
+    const cutCall = cutToolCallOf(assistantMessages, refusedToolCalls)
+    if (cutCall !== null) {
+      const cutToolCallRecoveryCount = state.cutToolCallRecoveryCount ?? 0
+      const route = declaredRouteOf(iter.currentModel)
+      const decision = decideCutToolCallRecovery({
+        recoveryCount: cutToolCallRecoveryCount,
+        sentCap: maxOutputTokensOverride ?? (route === 'anthropic' ? getModelMaxOutputTokens(iter.currentModel).default : undefined),
+        cutAt: cutCall.cutAt,
+        upperLimit: getModelMaxOutputTokens(iter.currentModel).upperLimit,
+        room: outputRoomOf(messagesForQuery, iter.currentModel, [iter.fullSystemPrompt, toolUseContext.options.tools]),
+        routeTakesCap: route !== 'openai',
+      })
+      if (decision.kind === 'retry') {
+        yield emit({
+          kind: 'notice',
+          message: createSystemMessage(
+            `the reply was cut at ${cutCall.cutAt.toLocaleString('en-US')} output tokens inside a tool call (${cutCall.name}) — re-asking with room for ${decision.outputTokens.toLocaleString('en-US')} (${decision.attempt} of ${CUT_TOOL_CALL_RECOVERY_LIMIT}); nothing ran`,
+            'warning',
+          ),
+        })
+        for (const msg of assistantMessages) {
+          if (msg.inReplyTo !== undefined) iter.replyTo.unshift(...msg.inReplyTo)
+          yield emit({ kind: 'assistant_retracted', message: msg })
+        }
+        const next: TurnState = {
+          ...state,
+          messages: messagesForQuery,
+          autoCompactTracking: tracking,
+          maxOutputTokensOverride: decision.outputTokens,
+          cutToolCallRecoveryCount: cutToolCallRecoveryCount + 1,
+          pendingToolUseSummary: undefined,
+          stopHookActive: undefined,
+          turnCount,
+          pendingOverflow: undefined,
+          transition: { reason: 'cut_tool_call_recovery', attempt: decision.attempt, outputTokens: decision.outputTokens },
+        }
+        yield emit({ kind: 'turn_settled', transition: next.transition! })
+        state = next
+        continue
+      }
+    }
+
     if (!iter.needsFollowUp) {
       const lastMessage = assistantMessages.at(-1)
 
@@ -1487,7 +1562,7 @@ async function* runEventMachine(
         }
       }
 
-      if (chant === null && reasoningOnly === null && isWithheldMaxOutputTokens(lastMessage)) {
+      if (chant === null && reasoningOnly === null && refusedToolCalls.length === 0 && isWithheldMaxOutputTokens(lastMessage)) {
         const replyText = replyTextOf(assistantMessages)
         const maxBudgetUsd = toolUseContext.options.maxBudgetUsd as number | undefined
         const decision = decideMaxOutputTokensRecovery({

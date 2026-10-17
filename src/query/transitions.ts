@@ -25,6 +25,7 @@ export type Continue =
   | { reason: 'token_budget_continuation' }
   | { reason: 'stream_fault_recovery'; attempt: number }
   | { reason: 'tool_call_refusal_recovery'; attempt: number }
+  | { reason: 'cut_tool_call_recovery'; attempt: number; outputTokens: number }
   | { reason: 'empty_reply_retry'; attempt: number }
   | { reason: 'reasoning_only_recovery'; attempt: number }
   | { reason: 'chant_recovery'; attempt: number }

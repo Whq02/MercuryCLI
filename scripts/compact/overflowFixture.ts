@@ -6,7 +6,7 @@ export type ScriptedCall = { id: string; name: string; args: string }
 type ScriptedReasoning = { summary: string; encrypted: string }
 export type Turn =
   | { text: string; usage?: { input: number; output: number; cost?: number }; finishReason?: string; reasoning?: ScriptedReasoning }
-  | { calls: ScriptedCall[]; usage?: { input: number; output: number; cost?: number }; reasoning?: ScriptedReasoning }
+  | { calls: ScriptedCall[]; usage?: { input: number; output: number; cost?: number }; reasoning?: ScriptedReasoning; finishReason?: string }
   | { error: { status: number; body: unknown } }
   | { cut: { reasoning?: ScriptedReasoning; text?: string; calls?: ScriptedCall[] } }
   | { refusal: true; text?: string; usage?: { input: number; output: number } }
@@ -38,7 +38,7 @@ function anthropicSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>
       out.push(evt('content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: call.args } }))
       out.push(evt('content_block_stop', { type: 'content_block_stop', index }))
     })
-    out.push(evt('message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use', stop_sequence: null }, usage }))
+    out.push(evt('message_delta', { type: 'message_delta', delta: { stop_reason: turn.finishReason === 'length' ? 'max_tokens' : 'tool_use', stop_sequence: null }, usage }))
   } else {
     out.push(evt('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
     out.push(evt('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: turn.text } }))
@@ -121,7 +121,7 @@ function chatSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>): st
     turn.calls.forEach((call, index) => {
       out.push(sse({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: { ...(index === 0 ? { role: 'assistant' } : {}), tool_calls: [{ index, id: call.id, type: 'function', function: { name: call.name, arguments: call.args } }] }, finish_reason: null }] }))
     })
-    out.push(sse({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }], usage }))
+    out.push(sse({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: {}, finish_reason: turn.finishReason ?? 'tool_calls' }], usage }))
   } else if (!('refusal' in turn)) {
     out.push(sse({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: { role: 'assistant', content: turn.text }, finish_reason: null }] }))
     out.push(sse({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: {}, finish_reason: turn.finishReason ?? 'stop' }], usage }))
