@@ -13,7 +13,9 @@ export type PauseGate = {
   toggle(): boolean
   paused(): boolean
   pausedBy(): string | null
-  park(signal: AbortSignal, seat?: string): Promise<void>
+  holds(key: string): boolean
+  lift(key: string): boolean
+  park(signal: AbortSignal, seat?: string, key?: string): Promise<void>
   parked(): readonly string[]
   state(): PauseGateState
   subscribe(listener: (state: PauseGateState) => void): () => void
@@ -58,6 +60,7 @@ export function pauseGateChipWords(state: Pick<PauseGateState, 'paused' | 'parke
 
 type Waiter = {
   seat: string
+  key: string
   release: () => void
 }
 
@@ -66,6 +69,7 @@ export function createPauseGate(): PauseGate {
   let since: number | null = null
   let by: string | null = null
   const waiters = new Set<Waiter>()
+  const lifted = new Set<string>()
   const listeners = new Set<(state: PauseGateState) => void>()
   let snapshot: PauseGateState = { paused: false, parked: 0, since: null, by: null }
 
@@ -85,6 +89,7 @@ export function createPauseGate(): PauseGate {
     closed = true
     since = Date.now()
     by = pauser === undefined || pauser === '' ? null : pauser
+    lifted.clear()
     emit()
     return true
   }
@@ -94,6 +99,7 @@ export function createPauseGate(): PauseGate {
     closed = false
     since = null
     by = null
+    lifted.clear()
     const released = [...waiters]
     waiters.clear()
     for (const waiter of released) waiter.release()
@@ -101,11 +107,28 @@ export function createPauseGate(): PauseGate {
     return true
   }
 
-  const park = (signal: AbortSignal, seat: string = PAUSE_GATE_MAIN_SEAT): Promise<void> => {
-    if (!closed || signal.aborted) return Promise.resolve()
+  const holds = (key: string): boolean => closed && !lifted.has(key)
+
+  const lift = (key: string): boolean => {
+    if (!closed) return false
+    const fresh = !lifted.has(key)
+    lifted.add(key)
+    const released = [...waiters].filter(waiter => waiter.key === key)
+    for (const waiter of released) {
+      waiters.delete(waiter)
+      waiter.release()
+    }
+    if (!fresh && released.length === 0) return false
+    emit()
+    return true
+  }
+
+  const park = (signal: AbortSignal, seat: string = PAUSE_GATE_MAIN_SEAT, key: string = seat): Promise<void> => {
+    if (!holds(key) || signal.aborted) return Promise.resolve()
     return new Promise<void>(resolve => {
       const waiter: Waiter = {
         seat,
+        key,
         release: () => {
           signal.removeEventListener('abort', onAbort)
           resolve()
@@ -135,6 +158,8 @@ export function createPauseGate(): PauseGate {
     },
     paused: () => closed,
     pausedBy: () => by,
+    holds,
+    lift,
     park,
     parked: () => [...waiters].map(waiter => waiter.seat),
     state: () => snapshot,
@@ -151,16 +176,22 @@ export const operatorPauseGate: PauseGate = createPauseGate()
 
 export function pauseGateSeatOf(context: { agentId?: unknown; seatHolder?: string }): string {
   if (typeof context.seatHolder === 'string' && context.seatHolder !== '') return context.seatHolder
+  return pauseGateKeyOf(context)
+}
+
+export function pauseGateKeyOf(context: { agentId?: unknown }): string {
   return context.agentId !== undefined && context.agentId !== null ? String(context.agentId) : PAUSE_GATE_MAIN_SEAT
 }
 
 export type PauseGateCarrier = {
+  agentId?: unknown
   pauseGate?: PauseGate
 }
 
 export function closedPauseGateOf(context: PauseGateCarrier): PauseGate | null {
-  if (operatorPauseGate.paused()) return operatorPauseGate
-  if (context.pauseGate !== undefined && context.pauseGate.paused()) return context.pauseGate
+  const key = pauseGateKeyOf(context)
+  if (operatorPauseGate.holds(key)) return operatorPauseGate
+  if (context.pauseGate !== undefined && context.pauseGate.holds(key)) return context.pauseGate
   return null
 }
 
@@ -224,7 +255,7 @@ export async function parkBeforeTool(context: ParkContext, toolName: string): Pr
     spoke = true
     context.onSeatWait?.(pauseGateToolWords(toolName, gate.pausedBy()))
     requestParkFrame(context)
-    await gate.park(context.abortController.signal, pauseGateSeatOf(context))
+    await gate.park(context.abortController.signal, pauseGateSeatOf(context), pauseGateKeyOf(context))
   }
   if (!spoke) return
   context.onSeatWait?.(null)
