@@ -1141,11 +1141,13 @@ async function summarizeTextInParts(
 ): Promise<string | null> {
   const summaries: string[] = []
   for (const chunk of splitTextForFold(text, chunkChars)) {
-    const response = await runSummarization([createUserMessage({ content: chunk })], cacheSafeParams, createUserMessage({ content: promptText }), context, ladder.noSummaryRetries > 0)
+    const summaryContext = ladder.noSummaryRetries > 0 ? withSummariserThinkingOff(context) : context
+    const response = await runSummarization([createUserMessage({ content: chunk })], cacheSafeParams, createUserMessage({ content: promptText }), summaryContext, ladder.noSummaryRetries > 0)
     if (!summaryRefused(response) && summaryAnswerFault(response) === null) {
       summaries.push(validateSummary(response, false))
       continue
     }
+    if (!summaryRefused(response) && ++ladder.noSummaryRetries > NO_SUMMARY_RETRY_LIMIT) return null
     if (chunkChars <= PART_TEXT_CHUNK_FLOOR_CHARS) return null
     const narrowerChars = Math.max(PART_TEXT_CHUNK_FLOOR_CHARS, Math.floor(chunkChars / 2))
     if (chunk.length <= narrowerChars) return null
@@ -1952,7 +1954,7 @@ export async function compactConversation(
       tokensAfter: truePostCompactTokenCount,
       preservedTailCount: messagesToKeep !== undefined ? messagesToKeep.length : null,
       capsule: degraded
-        ? { state: 'degraded', reason: `semantic summary under ${DEGRADED_SUMMARY_LENGTH} chars` }
+        ? { state: 'degraded', reason: proseSkippedReceipt ?? `semantic summary under ${DEGRADED_SUMMARY_LENGTH} chars` }
         : capsule !== null
           ? { state: 'installed', reason: 'summary + capsule' }
           : { state: 'none', reason: 'no substantive run' },

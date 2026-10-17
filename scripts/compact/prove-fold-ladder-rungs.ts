@@ -333,6 +333,37 @@ section('R8 a provider that ends the response under its own policy is rung 2, th
   check('every other error row keeps its typed road (no fault classification)', summaryAnswerFault(otherFault) === null, summaryAnswerFault(otherFault) ?? 'null')
 }
 
+section('R9 the text road is bounded by the same ladder: one round larger than a 32,768 window on a model that answers nothing makes a handful of requests, then rung 3 — and the epoch ledger records the skipped prose as the cause')
+{
+  const { getContextEpoch } = await import('../../src/services/run/contextEpochs.ts')
+  const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const model = `local/${LOCAL_MODEL}`
+  const messages: Message[] = [createUserMessage({ content: filler(100_000, 'an attached document'), isMeta: true }), assistantRow(model, 'msg_0', [{ type: 'text', text: 'Noted; the document is read.' }], { input: 30_000, output: 50 }, 'end_turn')]
+  record(`the gauge reads ${tokenCountWithEstimation(messages, model).toLocaleString('en-US')} on window ${getContextWindowForModel(model).toLocaleString('en-US')} (blocking ${getBlockingLimit(model).toLocaleString('en-US')}) — the first round alone is larger than the window, so the summariser reads it as text in chunks`)
+  localHits.length = 0
+  localAnswer = () => ''
+  const context = makeContext(model, messages)
+  const cache = { systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never
+  let landed = false
+  let error = ''
+  let summaryText = ''
+  let notes: string[] = []
+  try {
+    const result = await compactConversation(messages, context as never, cache, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoCompactThreshold(model) }, undefined, model)
+    landed = true
+    const summary = result.summaryMessages[0]
+    summaryText = summary !== undefined && typeof summary.message.content === 'string' ? summary.message.content : ''
+    notes = result.notes ?? []
+  } catch (caught) {
+    error = caught instanceof Error ? caught.message : String(caught)
+  }
+  record(`${landed ? 'LANDED' : `FAILED (${error})`} after ${localHits.length} request(s) of ${localHits.map(hit => hit.chars.toLocaleString('en-US')).join(', ')} chars`)
+  check('the fold landed on rung 3 with the one-line cause', landed && summaryText.includes(`${PROSE_SKIPPED_KEY}: the answer had no text`), error || summaryText.slice(0, 200))
+  check('the text road made at most 1 + 2 + 1 requests — the chunk halving stops where the ladder\'s retries stop (red on 41304f7c53: the halving walked 40k → 2k chars, six requests and more, before the final request)', localHits.length <= 4, String(localHits.length))
+  const epoch = getContextEpoch(ownerFromToolUseContext(context as never))
+  check('the epoch ledger records the skipped prose as the degraded capsule\'s reason, the receipt\'s own sentence (red on 41304f7c53: "semantic summary under 200 chars")', epoch.capsule.state === 'degraded' && notes.length === 1 && epoch.capsule.reason === notes[0] && epoch.degraded.at(-1) === `epoch ${epoch.epoch}: ${notes[0]}`, JSON.stringify({ capsule: epoch.capsule, notes, last: epoch.degraded.at(-1) }))
+}
+
 ollama.server.close()
 await fixture.close()
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-fold-ladder-rungs — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)
