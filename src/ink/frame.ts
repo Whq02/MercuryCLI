@@ -10,24 +10,24 @@ import type { Cursor } from './cursor.js'
 
 export type FlickerReason = 'resize' | 'offscreen' | 'clear'
 
-type BarePatchKind = 'cursorHide' | 'cursorShow' | 'carriageReturn'
+type ClearCause = { triggerY: number; prevLine: string; nextLine: string }
 
-type BarePatch = { [Kind in BarePatchKind]: { type: Kind } }[BarePatchKind]
+type NoPayload = Record<never, never>
 
-type BytesPatch =
-  | { type: 'stdout'; content: string }
-  | { type: 'styleStr'; str: string }
-  | { type: 'hyperlink'; uri: string }
+type PatchPayloads = {
+  stdout: { content: string }
+  styleStr: { str: string }
+  hyperlink: { uri: string }
+  cursorMove: { x: number; y: number }
+  cursorTo: { col: number }
+  clear: { count: number }
+  clearTerminal: { reason: FlickerReason; debug?: ClearCause }
+  cursorHide: NoPayload
+  cursorShow: NoPayload
+  carriageReturn: NoPayload
+}
 
-type CursorPatch = { type: 'cursorMove'; x: number; y: number } | { type: 'cursorTo'; col: number }
-
-type ResetDebug = { triggerY: number; prevLine: string; nextLine: string }
-
-type ClearPatch =
-  | { type: 'clear'; count: number }
-  | { type: 'clearTerminal'; reason: FlickerReason; debug?: ResetDebug }
-
-export type Patch = BytesPatch | CursorPatch | ClearPatch | BarePatch
+export type Patch = { [Kind in keyof PatchPayloads]: { type: Kind } & PatchPayloads[Kind] }[keyof PatchPayloads]
 
 export type Diff = Patch[]
 
