@@ -1,9 +1,17 @@
 import { satisfies } from 'semver'
-import type { KeybindingBlock, KeybindingContextName } from './types.js'
+import type { ActionGraph } from './actionGraph.js'
+import type { KeybindingBlock } from './types.js'
+
+type GraphAction = keyof ActionGraph
+type GraphContext = ActionGraph[GraphAction]['contexts'][number]
+type BoundIn<Context extends GraphContext> =
+  | { [Action in GraphAction]: Context extends ActionGraph[Action]['contexts'][number] ? Action : never }[GraphAction]
+  | `command:${string}`
+type ShippedRows = { [Context in GraphContext]?: Record<string, BoundIn<Context>> }
 
 const VT_MODE_FLOORS = { bun: '>=1.2.23', node: '>=22.17.0 <23.0.0 || >=24.2.0' } as const
 
-type HostChords = { modeCycle: string; imagePaste: string; copyRows: Record<string, string> }
+type HostChords = { modeCycle: string; imagePaste: string; copyRows: Record<string, BoundIn<'Scroll'>> }
 
 function hostChords(platform: NodeJS.Platform, versions: NodeJS.ProcessVersions): HostChords {
   const windows = platform === 'win32'
@@ -17,7 +25,7 @@ function hostChords(platform: NodeJS.Platform, versions: NodeJS.ProcessVersions)
 
 const HOST = hostChords(process.platform, process.versions)
 
-const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
+const SHIPPED_KEYS = {
   Global: {
     'ctrl+c': 'app:interrupt',
     'ctrl+d': 'app:exit',
@@ -223,6 +231,6 @@ const SHIPPED_KEYS: Record<KeybindingContextName, Record<string, string>> = {
     'ctrl+l': 'atlas:lookup',
     'ctrl+r': 'atlas:rebind',
   },
-}
+} satisfies ShippedRows
 
 export const DEFAULT_BINDINGS: KeybindingBlock[] = Object.entries(SHIPPED_KEYS).map(([context, bindings]) => ({ context, bindings }))
