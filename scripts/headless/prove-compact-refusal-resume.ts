@@ -45,22 +45,23 @@ function run(ask: string, resume = seed): Promise<{ frames: Frame[]; stderr: str
 try {
   console.log(`build under proof: ${DIST}`)
   const refusal = 'I cannot summarize this conversation. I refuse to provide the requested summary. No summary will be provided.'
+  const skippedLine = `The prose summary was skipped: the answer refused in prose: ${JSON.stringify(refusal)}.`
+  const withoutCause = (text: string): string => text.split(JSON.stringify(skippedLine).slice(1, -1)).join('').split(skippedLine).join('')
   fixture.script(() => ({ text: refusal }))
   const folded = await run('/compact')
   const outcome = folded.frames.find(isOutcome)
-  const error = outcome?.error as { message?: string; class?: string } | undefined
   const output = folded.frames.filter(row => row.type === 'command_output')
-  tally.check('prose refusal: exits nonzero and reports failed', folded.code === 1 && outcome?.status === 'failed', JSON.stringify({ code: folded.code, outcome, stderr: folded.stderr }))
-  tally.check('prose refusal: no completed answer and the existing command error', outcome?.answer === undefined && error?.class === 'command' && error.message?.includes('Failed to generate a conversation summary.') === true, JSON.stringify(outcome))
-  tally.check('prose refusal: one output row owns the same error', output.length === 1 && output[0]?.text === error?.message, JSON.stringify(output))
-  tally.check('prose refusal: one summary request', fixture.captured.length === 1, String(fixture.captured.length))
+  tally.check('prose refusal: /compact lands on the records and exits 0 (the owner\'s ruling for 1.0.0-beta.38: a conversation can always be compacted; red on the base: exit 1, "Failed to generate a conversation summary.")', folded.code === 0 && outcome?.status === 'completed' && outcome.error === undefined, JSON.stringify({ code: folded.code, outcome, stderr: folded.stderr }))
+  tally.check('prose refusal: the receipt is the Compacted line and the one line naming why the prose was skipped', String(outcome?.answer ?? '').startsWith('Compacted') && String(outcome?.answer ?? '').includes(skippedLine), JSON.stringify(outcome?.answer))
+  tally.check('prose refusal: one output row owns the same receipt', output.length === 1 && output[0]?.text === outcome?.answer, JSON.stringify(output))
+  tally.check('prose refusal: the answer, then the two halved retries with thinking off, and no more', fixture.captured.length === 3, String(fixture.captured.length))
   const resumedId = typeof outcome?.session_id === 'string' ? outcome.session_id : 'missing-outcome-session'
   fixture.script(() => ({ text: 'A post-fold reply. The original facts remain available.' }))
   const before = fixture.captured.length
   const resumed = await run('Continue with the pending checks.', resumedId)
   const wire = JSON.stringify(fixture.captured.slice(before).map(request => request.body.messages))
   tally.check('resume: the next prompt is answered', resumed.code === 0 && resumed.frames.find(isOutcome)?.status === 'completed', JSON.stringify({ code: resumed.code, stderr: resumed.stderr }))
-  tally.check('resume: prose refusal never replaces older facts', !wire.includes(refusal) && wire.includes('FIRST_SENTINEL_14_TESTS'), JSON.stringify({ refusalInstalled: wire.includes(refusal), originalFact: wire.includes('FIRST_SENTINEL_14_TESTS') }))
+  tally.check('resume: the refusal is never the summary — it rides only inside the one line that names the cause; the folded stretch left the wire with its oldest fact', !withoutCause(wire).includes(refusal) && wire.includes(JSON.stringify(skippedLine).slice(1, -1)) && !wire.includes('FIRST_SENTINEL_14_TESTS'), JSON.stringify({ refusalOutsideTheCause: withoutCause(wire).includes(refusal), causeLine: wire.includes(JSON.stringify(skippedLine).slice(1, -1)), oldestFact: wire.includes('FIRST_SENTINEL_14_TESTS') }))
   tally.check('resume: the recent tail remains available', wire.includes('RECENT_SENTINEL_11'))
   const firstSummary = 'The synthetic modules are implemented. FIRST_SENTINEL_14_TESTS records the earlier result; RECENT_SENTINEL_11 is the recent result. Continue with the pending checks.'
   fixture.script(() => ({ text: `<summary>${firstSummary}</summary>` }))
