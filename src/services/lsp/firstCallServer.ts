@@ -8,7 +8,7 @@ const MAIN_LANGUAGE_WALK_DEPTH = 3
 const MAIN_LANGUAGE_WALK_ENTRIES = 5_000
 const MAIN_LANGUAGE_SKIP = new Set(['node_modules', 'bower_components', 'jspm_packages', 'dist', 'build', 'out', 'coverage', 'vendor', 'target', 'venv', '__pycache__'])
 
-export type WorkspaceSymbolServer = { server: LSPServerInstance; path: string }
+type WorkspaceSymbolServer = { server: LSPServerInstance; path: string }
 
 export function workspaceSymbolServer(manager: LSPServerManager, query: string, cwd: string): WorkspaceSymbolServer | undefined {
   const servers = [...manager.getAllServers().values()]
