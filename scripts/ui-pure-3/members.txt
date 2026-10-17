@@ -90,5 +90,6 @@ prove-command-popup-slot.ts
 prove-effort-popup-frames.ts
 prove-zen-frames.ts
 prove-health-popup-frames.ts
+prove-activity-screen-keys.ts
 prove-bang-clear-leaves-shell-mode.ts
 prove-bang-card-frame.ts
