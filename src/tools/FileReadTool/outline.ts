@@ -65,21 +65,21 @@ function collectElidedSpans(root: TSNode, languageName: string): ElidedSpan[] {
         if (languageName === 'python') {
           const sigEndLine = Math.max(node.startPosition.row + 1, bodyStartLine - 1)
           const elideStart = Math.max(sigEndLine + 1, bodyStartLine)
-          if (bodyEndLine >= elideStart) {
+          if (bodyEndLine > elideStart) {
             raw.push({ startLine: elideStart, endLine: bodyEndLine })
             continue
           }
         } else if (languageName === 'ruby') {
           const elideStart = bodyStartLine
           const elideEnd = bodyEndLine
-          if (elideEnd >= elideStart) {
+          if (elideEnd > elideStart) {
             raw.push({ startLine: elideStart, endLine: elideEnd })
             continue
           }
         } else {
           const elideStart = bodyStartLine + 1
           const elideEnd = bodyEndLine - 1
-          if (elideEnd >= elideStart) {
+          if (elideEnd > elideStart) {
             raw.push({ startLine: elideStart, endLine: elideEnd })
             continue
           }

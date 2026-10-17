@@ -288,6 +288,31 @@ section('O2. Control: plain Read without outline is byte-identical, and plain Re
       (preserveCtx as unknown as { readFileState: Map<string, { isPartialView?: boolean }> }).readFileState.get(tsPreservePath)?.isPartialView !== true,
     !editThird.ok ? editThird.error : 'readFileState was clobbered with isPartialView: true',
   )
+
+  const oneLinePath = join(fixtures, 'one-liner.ts')
+  writeFileSync(
+    oneLinePath,
+    [
+      'export function identity(x: number): number {',
+      '  return x',
+      '}',
+      '',
+      'export function multiLine(a: number, b: number): number {',
+      '  const sum = a + b',
+      '  return sum',
+      '}',
+      '',
+    ].join('\n'),
+  )
+  const oneLineOutline = await runRead({ file_path: oneLinePath, outline: true })
+  check(
+    'O2f a one-line function body is kept verbatim while a multi-line body (two or more interior lines) is elided',
+    oneLineOutline.ok &&
+      oneLineOutline.text.includes('2\t  return x') &&
+      !oneLineOutline.text.includes('[elided body line 2]') &&
+      oneLineOutline.text.includes('[elided body lines 6-7]'),
+    oneLineOutline.ok ? oneLineOutline.text : oneLineOutline.error,
+  )
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
