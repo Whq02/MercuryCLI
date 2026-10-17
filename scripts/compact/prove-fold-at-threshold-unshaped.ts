@@ -147,7 +147,10 @@ async function atThreshold(label: string, model: string, family: string, resultC
   const lastAt = lastModelRowAt(refRows)
   const identical = lastAt >= 0 && JSON.stringify(refRows.slice(0, lastAt + 1)) === JSON.stringify(foldRowsAll.slice(0, lastAt + 1))
   check(`${label}: the request's rows through the session's last model row are byte-identical to the session's own request (${lastAt + 1} rows, ${(refWire.length / 1_048_576).toFixed(1)} MB)`, identical, `rows ${foldRowsAll.length} vs ${refRows.length}; first differing row ${refRows.findIndex((row, at) => JSON.stringify(row) !== JSON.stringify(foldRowsAll[at]))}`)
-  check(`${label}: the posture and the output ceiling are the session request's`, JSON.stringify(posture(reference)) === JSON.stringify(posture(requests[0]?.body as Body | undefined)) && JSON.stringify(ceilingOf(reference)) === JSON.stringify(ceilingOf(requests[0]?.body as Body | undefined)), JSON.stringify({ reference: posture(reference), fold: posture(requests[0]?.body as Body | undefined) }).slice(0, 300))
+  const refCeiling = ceilingOf(reference)
+  const foldCeiling = ceilingOf(requests[0]?.body as Body | undefined)
+  const ceilingFollows = JSON.stringify(refCeiling) === JSON.stringify(foldCeiling) || (typeof refCeiling === 'number' && typeof foldCeiling === 'number' && foldCeiling <= refCeiling && refCeiling - foldCeiling < 4_000)
+  check(`${label}: the posture is the session request's, and the output ceiling is the session's or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, JSON.stringify(posture(reference)) === JSON.stringify(posture(requests[0]?.body as Body | undefined)) && ceilingFollows, JSON.stringify({ reference: posture(reference), fold: posture(requests[0]?.body as Body | undefined), ceilings: { reference: refCeiling, fold: foldCeiling } }).slice(0, 300))
   if (shouldRideCacheSharingFork(model, thinkingConfig as never)) {
     check(`${label}: the cache-sharing fork carried the summary — no direct lane, no hand-over`, roads.length === 1 && roads[0]?.road === 'fork' && roads[0]?.outcome === 'summary', roads.map(r => `${r.road}:${r.outcome}`).join(', '))
     const rows = rowsOf(requests[0]?.body as Body | undefined) as any[]
