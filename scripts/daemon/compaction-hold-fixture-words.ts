@@ -1,4 +1,4 @@
-export const BLOCK_HEADER = "The operator's own messages from the stretch folded into the summary below"
+export const BLOCK_HEADER = "The operator's own messages from this stretch and the earlier folds"
 export const SUMMARY_HEADER = 'The context window turned over'
 export const BLOCK_MARK = '<block>'
 export const SUMMARY_MARK = '<summary>'
