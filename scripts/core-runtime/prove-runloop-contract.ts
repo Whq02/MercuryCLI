@@ -987,24 +987,23 @@ section('L11 BLOCKING LIMIT — synthetic preempt, ZERO model calls')
   check('characterized: preempt fired with auto-compact defaults untouched', true)
 }
 
-section('L12 RAPID-REFILL BREAKER — thrash message, ZERO model calls')
+section('L12 RAPID-REFILL BREAKER — the notice rides beside the answer, the turn still runs')
 {
   const r = record(
     await run({
       autocompact: [{ wasCompacted: false, rapidRefillBreakerTripped: true }],
-      script: [[y(asstText('never reached'))]],
+      script: [[y(asstText('the answer beside the notice'))]],
     }),
   )
-  check('terminal rapid_refill_breaker', r.terminal.reason === 'rapid_refill_breaker', JSON.stringify(r.terminal))
-  check('ZERO model calls', r.calls.length === 0, String(r.calls.length))
+  check('terminal completed (the breaker pauses folding for the run, it never ends the turn)', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
+  check('ONE model call: the answer is made', r.calls.length === 1, String(r.calls.length))
   const thrash = r.yields.find(
     m =>
-      (m as AnyMsg).isApiErrorMessage === true &&
-      JSON.stringify((m as AnyMsg).message).includes(
-        AUTOCOMPACT_THRASH_MESSAGE.slice(0, 40),
-      ),
+      (m as AnyMsg).type === 'system' &&
+      String((m as AnyMsg).content ?? '').includes(AUTOCOMPACT_THRASH_MESSAGE.slice(0, 40)) &&
+      String((m as AnyMsg).content ?? '').includes('paused for the rest of this run'),
   )
-  check('the AUTOCOMPACT_THRASH_MESSAGE is yielded', thrash !== undefined)
+  check('the AUTOCOMPACT_THRASH_MESSAGE rides as a warning row with the pause, not as an error reply', thrash !== undefined && !r.yields.some(m => (m as AnyMsg).isApiErrorMessage === true))
 }
 
 section('L13 COMPACTION BOUNDARY — boundary yields, post-compact input')

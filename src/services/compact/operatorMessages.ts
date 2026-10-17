@@ -72,6 +72,16 @@ export function priorOperatorMessages(messages: readonly Message[]): number {
   return prior
 }
 
+export function earlierOperatorEntries(messages: readonly Message[]): OperatorMessageEntry[] {
+  let latest: OperatorMessagesAttachment | null = null
+  for (const message of messages) {
+    if (message.type !== 'attachment' || message.attachment.type !== OPERATOR_MESSAGES_ATTACHMENT_TYPE) continue
+    latest = message.attachment
+  }
+  if (latest === null) return []
+  return [...latest.messages].filter(entry => entry.truncated !== true).sort((a, b) => a.ordinal - b.ordinal)
+}
+
 export function collectOperatorTexts(messages: Message[], keptUuids?: ReadonlySet<string>): string[] {
   const texts: string[] = []
   const seen = new Set<string>()
@@ -105,7 +115,8 @@ export function selectOperatorMessages(
   const budget = Math.max(0, opts?.tokenBudget ?? Infinity)
   const prior = priorOperatorMessages(messages)
   const texts = collectOperatorTexts(messages, opts?.keptUuids)
-  if (texts.length === 0) return null
+  const earlier = earlierOperatorEntries(messages)
+  if (texts.length === 0 && earlier.length === 0) return null
   const selected: OperatorMessageEntry[] = []
   let remaining = budget
   for (let index = texts.length; index >= 1; index--) {
@@ -118,18 +129,50 @@ export function selectOperatorMessages(
     }
     throw new Error('The operator messages do not fit verbatim; the original context is kept.')
   }
+  let room = Math.min(remaining, OPERATOR_MESSAGES_TOKEN_BUDGET - selected.reduce((n, entry) => n + estimateOperatorMessageTokens(entry.text), 0))
+  const opening = earlier.find(entry => entry.ordinal === 1)
+  const carry: OperatorMessageEntry[] = []
+  const admit = (entry: OperatorMessageEntry): boolean => {
+    const tokens = estimateOperatorMessageTokens(entry.text)
+    if (tokens > room) return false
+    room -= tokens
+    carry.push({ ordinal: entry.ordinal, text: entry.text })
+    return true
+  }
+  if (opening !== undefined) admit(opening)
+  for (const entry of [...earlier].reverse()) {
+    if (entry.ordinal === 1) continue
+    admit(entry)
+  }
+  selected.push(...carry)
+  selected.sort((a, b) => b.ordinal - a.ordinal)
   if (selected.length === 0) return null
   return { type: OPERATOR_MESSAGES_ATTACHMENT_TYPE, messages: selected, omitted: prior + texts.length - selected.length }
+}
+
+function ordinalRanges(ordinals: number[]): string {
+  const sorted = [...ordinals].sort((a, b) => a - b)
+  const parts: string[] = []
+  for (let index = 0; index < sorted.length; index++) {
+    const start = sorted[index]!
+    let end = start
+    while (index + 1 < sorted.length && sorted[index + 1] === end + 1) end = sorted[++index]!
+    parts.push(start === end ? String(start) : `${start}-${end}`)
+  }
+  return parts.join(', ')
 }
 
 export function operatorMessagesBlockText(attachment: OperatorMessagesAttachment): string {
   const shown = attachment.messages.length
   const total = shown + attachment.omitted
+  const present = new Set(attachment.messages.map(entry => entry.ordinal))
+  const missing: number[] = []
+  for (let ordinal = 1; ordinal <= total; ordinal++) if (!present.has(ordinal)) missing.push(ordinal)
   const coverage =
     attachment.omitted === 0
       ? `all ${total} of them`
-      : `the newest ${shown} of ${total}; ${attachment.omitted === 1 ? 'message 1 is' : `messages 1-${attachment.omitted} are`} carried whole by the earlier folds' boundary records`
-  const head = `The operator's own messages from the stretch folded into the summary below, verbatim and newest first (${coverage}). They are the record of what was asked, in the operator's exact words; the summary says what was done about each and where the work stands.`
+      : `${shown} of ${total}; ${missing.length === 1 ? `message ${ordinalRanges(missing)} is` : `messages ${ordinalRanges(missing)} are`} carried whole by the earlier folds' boundary records`
+  const head = `The operator's own messages from this stretch and the earlier folds, verbatim and newest first (${coverage}). They are the record of what was asked, in the operator's exact words; the summary says what was done about each and where the work stands.`
   const rows = attachment.messages.map(entry => `<operator-message ordinal="${entry.ordinal}" of="${total}">\n${entry.text}\n</operator-message>`)
   return [head, ...rows].join('\n\n')
 }

@@ -5,6 +5,7 @@ import { FallbackTriggeredError } from '../services/api/withRetry.js'
 import { resetSessionEnvNoticeOnCompaction } from '../tools/shared/sessionEnvNotice.js'
 import {
   AUTOCOMPACT_THRASH_MESSAGE,
+  rapidRefillPauseText,
   calculateTokenWarningState,
   getBlockingLimit,
   isAutoCompactEnabled,
@@ -1067,10 +1068,7 @@ async function* runEventMachine(
     )
 
     const forcedFold = pendingOverflow?.rung === 'fold' ? pendingOverflow.signal : undefined
-    const foldSplit =
-      forcedFold !== undefined
-        ? splitCarriedOperatorTail(messagesForQuery)
-        : { head: messagesForQuery, carry: [] as Message[], hasHistory: true }
+    const foldSplit = splitCarriedOperatorTail(messagesForQuery)
     const {
       compactionResult,
       consecutiveFailures,
@@ -1099,15 +1097,13 @@ async function* runEventMachine(
     if (rapidRefillBreakerTripped) {
       yield emit({
         kind: 'notice',
-        message: createAssistantAPIErrorMessage({
-          content: AUTOCOMPACT_THRASH_MESSAGE,
-          error: 'invalid_request',
-        }),
+        message: createSystemMessage(
+          `${AUTOCOMPACT_THRASH_MESSAGE} ${rapidRefillPauseText({ nonInteractive: foldRemedyIsHeadless(toolUseContext.options.isNonInteractiveSession) })}`,
+          'warning',
+        ),
       })
-      const terminal: Terminal = { reason: 'rapid_refill_breaker' }
-      yield emit({ kind: 'run_terminal', terminal })
-      return terminal
     }
+    const rapidRefillPaused = tracking?.rapidRefillPaused === true || rapidRefillBreakerTripped === true
 
     if (forcedFold !== undefined && !compactionResult) {
       if (!toolUseContext.abortController.signal.aborted && (forcedFold.source === 'provider' || compactionRefusal?.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD))) {
@@ -1170,6 +1166,7 @@ async function* runEventMachine(
         turnCounter: 0,
         consecutiveFailures: 0,
         consecutiveRapidRefills,
+        ...(rapidRefillPaused ? { rapidRefillPaused: true as const } : {}),
       }
 
       const postCompactMessages = buildPostCompactMessages(compactionResult)
@@ -1184,10 +1181,11 @@ async function* runEventMachine(
 
       messagesForQuery = [...postCompactMessages, ...carried]
       overflowEpisode = { pruned: overflowEpisode.pruned, folded: true }
-    } else if (consecutiveFailures !== undefined) {
+    } else if (consecutiveFailures !== undefined || rapidRefillPaused) {
       tracking = {
         ...(tracking ?? { compacted: false, turnId: '', turnCounter: 0 }),
-        consecutiveFailures,
+        ...(consecutiveFailures !== undefined ? { consecutiveFailures } : {}),
+        ...(rapidRefillPaused ? { rapidRefillPaused: true as const } : {}),
       }
     }
 
@@ -1240,9 +1238,9 @@ async function* runEventMachine(
             pruneAllowed: compactionRefusal?.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) === true,
             fold: foldAvailability({
               tracking,
-              headFold: headFoldFailed ? 'failed' : isAutoCompactEnabled() ? 'did-not-land' : undefined,
+              headFold: !foldSplit.hasHistory ? undefined : headFoldFailed ? 'failed' : isAutoCompactEnabled() ? 'did-not-land' : undefined,
               ...(headFoldFailed && compactionRefusal !== undefined ? { headFoldDetail: compactionRefusal } : {}),
-              hasHistory: splitCarriedOperatorTail(messagesForQuery).hasHistory,
+              hasHistory: foldSplit.hasHistory,
             }),
           })
           if (decision.kind === 'recover') {
@@ -1284,7 +1282,7 @@ async function* runEventMachine(
               overflow: signal,
             }),
           })
-          const terminal: Terminal = { reason: 'blocking_limit' }
+          const terminal: Terminal = why === 'breaker' && tracking?.rapidRefillPaused === true ? { reason: 'rapid_refill_breaker' } : { reason: 'blocking_limit' }
           yield emit({ kind: 'run_terminal', terminal })
           return terminal
         }
@@ -1422,7 +1420,7 @@ async function* runEventMachine(
             overflow,
           }),
         })
-        const terminal: Terminal = { reason: 'prompt_too_long' }
+        const terminal: Terminal = decision.why === 'breaker' && tracking?.rapidRefillPaused === true ? { reason: 'rapid_refill_breaker' } : { reason: 'prompt_too_long' }
         yield emit({ kind: 'run_terminal', terminal })
         return terminal
       }
