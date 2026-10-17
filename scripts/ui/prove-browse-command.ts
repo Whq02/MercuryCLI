@@ -239,7 +239,7 @@ function zenReadsRight(label: string, frame: string[], cols: number, lastRow: Re
 }
 
 
-section('§1 the command exists, in the catalogue and the help domain and the README roster')
+section('§1 the command exists, in the catalogue and the help domain (the README roster is the command-catalogue suite\'s pin)')
 {
   const entry = builtinCommands().find(command => command.name === 'browse')
   check('/browse is a built-in local command', entry !== undefined && entry.type === 'local-jsx', JSON.stringify(entry?.name))
@@ -247,8 +247,6 @@ section('§1 the command exists, in the catalogue and the help domain and the RE
   check('…immediate exactly as /zen is (the same navigation-command law)', browseCommand.immediate === zenCommand.immediate)
   const domain = COMMAND_DOMAINS.find(d => d.names.includes('browse'))
   check('the help domain lists it under appearance & cockpit', domain?.label === 'appearance & cockpit', domain?.label)
-  const readme = readFileSync(join(import.meta.dir, '../../README.md'), 'utf8')
-  check('the README roster row carries /browse', /\| appearance & cockpit \|[^\n]*`\/browse`/.test(readme))
 }
 
 section('§2 /browse opens exactly the browser the FILES card opens, from the composer, in every layout')
