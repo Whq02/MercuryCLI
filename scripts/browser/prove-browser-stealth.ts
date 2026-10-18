@@ -559,11 +559,19 @@ try {
     await closeBrowserSession(OWNER)
 
     const recordedLaunches: LaunchOptions[] = []
+    let failNextLaunch = false
+    const spawnedChildren: Array<{ closed: boolean }> = []
     setBrowserLaunchDriverForProof(async options => {
       recordedLaunches.push(options)
+      if (failNextLaunch) {
+        failNextLaunch = false
+        throw new Error('simulated replacement launch failure')
+      }
+      const childRec = { closed: false }
+      spawnedChildren.push(childRec)
       return {
         connected: true,
-        process: () => ({ pid: 999001, spawnargs: [], kill: () => undefined }),
+        process: () => ({ pid: 999000 + spawnedChildren.length, spawnargs: [], kill: () => { childRec.closed = true } }),
         pages: async () => [
           {
             url: () => 'about:blank',
@@ -574,7 +582,9 @@ try {
         ],
         newPage: async () => ({}),
         on: () => undefined,
-        close: async () => undefined,
+        close: async () => {
+          childRec.closed = true
+        },
       } as unknown as DriverBrowser
     })
     try {
@@ -585,7 +595,60 @@ try {
       await ensureBrowserSession(OWNER_VIS)
       check('headless default: ensureBrowserSession() passes headless: true by default', recordedLaunches.length === 2 && recordedLaunches[1]!.headless === true, JSON.stringify(recordedLaunches[1]?.headless))
       await sessionMod.disposeBrowserOwner(OWNER_VIS)
+
+      const OWNER_ROT = processOwnerForLane('rotation-safety-check')
+      const OWNER_HOLD = processOwnerForLane('rotation-cap-holder')
+      const firstRot = await ensureBrowserSession(OWNER_ROT, { origin: 'http://127.0.0.1:61001' })
+      await ensureBrowserSession(OWNER_HOLD, { origin: 'http://127.0.0.1:61002' })
+      sessionMod.approveWebOrigin(OWNER_ROT, 'http://127.0.0.1:61001/')
+      sessionMod.approveSecretPairing(OWNER_ROT, 'ROT_SECRET', 'http://127.0.0.1:61001')
+      const rotChild = spawnedChildren[spawnedChildren.length - 2]!
+      let networkClosed = 0
+      if (!('state' in firstRot)) {
+        ;(firstRot as unknown as { closeNetwork?: () => void }).closeNetwork = () => {
+          networkClosed++
+        }
+      }
+      process.env.MERCURY_BROWSER_MAX_SESSIONS = '1'
+      const preflightRefused = await ensureBrowserSession(OWNER_ROT, { origin: 'http://127.0.0.1:61003' })
+      delete process.env.MERCURY_BROWSER_MAX_SESSIONS
+      check(
+        'rotation pre-flight refusal keeps the existing session reachable and unclosed (no leaked browser)',
+        'state' in preflightRefused &&
+          preflightRefused.state === 'at-capacity' &&
+          activeSession(OWNER_ROT) !== null &&
+          rotChild.closed === false,
+        JSON.stringify({ refused: preflightRefused, active: activeSession(OWNER_ROT) !== null, closed: rotChild.closed }),
+      )
+
+      failNextLaunch = true
+      let launchThrew = false
+      try {
+        await ensureBrowserSession(OWNER_ROT, { origin: 'http://127.0.0.1:61003' })
+      } catch {
+        launchThrew = true
+      }
+      check(
+        'rotation with a throwing replacement launch closes the old browser and its network and wipes origin and secret grants',
+        launchThrew &&
+          rotChild.closed === true &&
+          networkClosed === 1 &&
+          activeSession(OWNER_ROT) === null &&
+          !sessionMod.originApproved(OWNER_ROT, 'http://127.0.0.1:61001') &&
+          !sessionMod.secretPairingApproved(OWNER_ROT, 'ROT_SECRET', 'http://127.0.0.1:61001'),
+        JSON.stringify({
+          launchThrew,
+          closed: rotChild.closed,
+          networkClosed,
+          active: activeSession(OWNER_ROT) !== null,
+          originGrant: sessionMod.originApproved(OWNER_ROT, 'http://127.0.0.1:61001'),
+          secretGrant: sessionMod.secretPairingApproved(OWNER_ROT, 'ROT_SECRET', 'http://127.0.0.1:61001'),
+        }),
+      )
+      await sessionMod.disposeBrowserOwner(OWNER_ROT)
+      await sessionMod.disposeBrowserOwner(OWNER_HOLD)
     } finally {
+      delete process.env.MERCURY_BROWSER_MAX_SESSIONS
       setBrowserLaunchDriverForProof(null)
     }
 

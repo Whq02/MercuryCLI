@@ -781,12 +781,7 @@ async function launchOwnerSession(
   state: OwnerBrowserState,
   opts: EnsureBrowserSessionOptions = {},
 ): Promise<Session | EnsureSessionRefusal> {
-  const rotating = state.session && state.session.browser.connected ? state.session : null
-  if (state.session && !rotating) {
-    state.approvedOrigins.clear()
-    state.approvedSecretPairings.clear()
-  }
-  state.session = null
+  reapDeadSession(state)
   const gate = driverNodeGate()
   if (!gate.ok) return { state: 'unavailable', note: gate.note }
   const cap = browserSessionCap()
@@ -802,10 +797,15 @@ async function launchOwnerSession(
   if (resolution.state === 'unavailable') {
     return { state: 'unavailable', note: `${resolution.note} — ${resolution.remedies.join('; ')}` }
   }
+  const rotating = state.session && state.session.browser.connected ? state.session : null
+  state.session = null
   state.launching = true
   let unhanded: DriverBrowser | null = null
   try {
-    if (rotating !== null) await closeChild(rotating.browser)
+    if (rotating !== null) {
+      ;(rotating as { closeNetwork?: () => void }).closeNetwork?.()
+      await closeChild(rotating.browser)
+    }
     const launch: LaunchDriver =
       launchDriverForProof ?? (async options => (await import('puppeteer-core')).default.launch(options))
     const hostLang = resolveHostLanguages()
@@ -1079,6 +1079,10 @@ async function launchOwnerSession(
   } finally {
     state.launching = false
     if (unhanded !== null) await closeChild(unhanded)
+    if (state.session === null) {
+      state.approvedOrigins.clear()
+      state.approvedSecretPairings.clear()
+    }
   }
   if (!exitHookInstalled) {
     exitHookInstalled = true
