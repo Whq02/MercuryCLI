@@ -13,6 +13,7 @@
 # gate-watch: src/components/mercury-ui/useFlatList.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts scripts/lib/spawnCapture.ts
 # gate-watch: scripts/hooks/lib/runDoor.ts src/services/projectIntel/capsule.ts
+# gate-watch: src/utils/attachments/memorySurfaced.ts src/utils/attachments/contextCapsule.ts scripts/project-intel/fixtures/materialize.ts
 # gate-watch: scripts/ui/** scripts/memory-study/**
 # gate-watch: scripts/jev/lib/jevStandin.ts src/services/jev/jevClient.ts src/services/jev/jevSetting.ts src/services/jev/jevKey.ts src/services/jev/jevLedger.ts src/tools/MemoryTools/UI.tsx src/tools/MemoryTools/prompt.ts
 # gate-watch: src/tools/MemoryTools/ruleCard.ts src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx src/components/permissions/PermissionRequest.tsx src/hooks/toolPermission/PermissionContext.ts src/hooks/toolPermission/handlers/interactiveHandler.ts

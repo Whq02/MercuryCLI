@@ -29,9 +29,13 @@ Four things are in front of the model without anyone asking:
   the facts and earlier notes most relevant to the branch you are on, the files
   touched lately and the last note left, each word for word. One line above them
   says how much rode and that Recall finds the rest.
-- **The automatic lookup** on every message: up to five facts that match what
-  you just said (ranked by stemmed BM25 word score fused with the usage signal)
-  are attached before the model answers, each pointing at the page it lives on.
+- **The automatic lookup** on every message: up to two facts that match what
+  you just said, or a rule that names a file the model has in hand, are
+  attached before the model answers, each pointing at the page it lives on. A
+  fact is attached once, the first time it becomes relevant in a session; after
+  that it is a Recall away, and a compaction does not bring it back. The
+  working-set capsule lists memory the same way: a record once, the first time
+  it matches, on whichever of the two surfaces sees it first.
 
 Mercury publishes the front page when the library or its pinned rules change.
 Between those changes the same page loads into each chat, preserving the
@@ -99,7 +103,11 @@ only` and both the front page and `Recall` say so in one line.
 
 ## The four verbs
 
-The model works its memory through four tools:
+The model writes memory only when you ask it to remember something: a
+preference about how to work, a constraint you state, a fact you name, in your
+words. It never saves a decision or an outcome on its own judgement; those
+belong in the project's records. The model works its memory through four
+tools:
 
 - **Retain** saves a fact (up to 2,000 characters of content and context per
   item) for future sessions into `current.jsonl`. It is findable in the staging

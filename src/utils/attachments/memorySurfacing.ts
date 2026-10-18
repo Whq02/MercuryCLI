@@ -8,6 +8,7 @@ import { recordGrade } from '../../mneme/memoryEvidence.js'
 import { mnemeLibraryDir } from '../../mneme/mnemeGates.js'
 import { getSystemPromptSectionCache } from '../../bootstrap/state.js'
 import { isOperatorTurn } from '../messages/operatorTurns.js'
+import { markMemorySurfaced, memorySurfacedThisSession } from './memorySurfaced.js'
 
 export function collectSurfacedMemories(messages: ReadonlyArray<Message>): { ids: Set<string>; paths: Set<string>; totalBytes: number } {
   const ids = new Set<string>()
@@ -120,7 +121,7 @@ function renderHit(hit: AutomaticMemoryHit, form: 'full' | 'preview' | 'compact'
 
 function pack(hits: readonly AutomaticMemoryHit[], visible: (hit: AutomaticMemoryHit) => boolean, allowance: { records: number; chars: number; reserve: boolean }): Attachment[] {
   const memories: Extract<Attachment, { type: 'relevant_memories' }>['memories'] = []
-  const header = 'Memory (task-matched; read pointers before relying):'
+  const header = 'Memory (task-matched):'
   let chars = 0
   let slots = allowance.records
   let reserve = allowance.reserve ? CONSTRAINT_RESERVE_CHARS : 0
@@ -169,7 +170,10 @@ export function getRelevantMemoryAttachments(input: string | null, messages: Rea
   try {
     const hits = automaticMemoryCandidates(query, { dir: mnemeLibraryDir(), files: input === null ? currentFiles(visible, toolUseContext.readFileState) : [], limit: Infinity })
     const blocks = visibleMemoryBlocks(visible)
-    return pack(hits, hit => delivered(hit, blocks), turnAllowance(visible, input !== null))
+    const surfaced = memorySurfacedThisSession(toolUseContext, visible)
+    const packed = pack(hits, hit => surfaced.has(hit.id) || delivered(hit, blocks), turnAllowance(visible, input !== null))
+    markMemorySurfaced(toolUseContext, packed.flatMap(attachment => attachment.type === 'relevant_memories' ? attachment.memories.flatMap(row => row.ids ?? []) : []))
+    return packed
   } catch (error) {
     logForDebugging(`memory lookup failed: ${String(error)}`)
     return []
