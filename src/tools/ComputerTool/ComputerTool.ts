@@ -564,7 +564,7 @@ function treeLimitsOf(input: Input): { depth: number; count: number } {
   return { depth: input.depth ?? TREE_DEPTH_DEFAULT, count: input.limit ?? TREE_LIMIT_DEFAULT }
 }
 
-export function treeWords(app: DesktopApplication, tree: DesktopTree, limits: { depth: number; count: number }, map: ScreenMap | null): string {
+function treeWords(app: DesktopApplication, tree: DesktopTree, limits: { depth: number; count: number }, map: ScreenMap | null): string {
   const deepest = tree.elements.reduce((most, element) => Math.max(most, element.depth), 0)
   const lines: string[] = [
     `tree: ${app.name} (${app.identity}) — ${tree.elements.length} element${tree.elements.length === 1 ? '' : 's'} to depth ${deepest} (limit ${limits.count}, depth ${limits.depth}) · frames @x,y w×h in screen points${map !== null ? '; (x, y) px is the element\'s centre in the last screenshot' : ''}`,

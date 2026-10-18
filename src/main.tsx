@@ -887,24 +887,24 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   const sessions = program.command('sessions').description('Saved sessions: delete').helpCommand('help [command]', 'Show help for a command')
   sessions
     .command('delete <id>')
-    .description('Delete one saved session on purpose — its transcript and the records kept beside it (receipts, resume snapshot) — after a question; a session the daemon hosts now is refused')
+    .description('Delete one saved session on purpose — its transcript and the records kept beside it (receipts, resume snapshot) — after a question; a session the background process (the daemon) hosts now is refused')
     .option('--yes', 'Delete without the question (for scripts)')
     .action(async (id: string, options: { yes?: boolean }) => {
       const { sessionsDeleteCli } = await import('./cli/sessionsVerb.js')
       await gracefulShutdown(await sessionsDeleteCli(id, { yes: options.yes === true }))
     })
 
-  const lsp = program.command('lsp').description('Language servers: list the catalogue, install one').helpCommand('help [command]', 'Show help for a command')
+  const lsp = program.command('lsp').description('Language servers: list the ones Mercury knows (the catalogue), install one').helpCommand('help [command]', 'Show help for a command')
   lsp
     .command('list')
-    .description('List the language-server catalogue: each server installed (with its binary) or absent (with its install remedy); Mercury never installs one on its own')
+    .description('List the language servers Mercury knows: each one installed (with its binary) or absent (with its install remedy); Mercury never installs one on its own')
     .action(async () => {
       const { lspListCli } = await import('./cli/lspVerb.js')
       await gracefulShutdown(await lspListCli())
     })
   lsp
     .command('install <server>')
-    .description('Install one language server from the catalogue by running its install remedy, shown first and run after a question; reports where the binary landed; an unknown server is refused with the roster')
+    .description('Install one language server Mercury knows by running its install remedy, shown first and run after a question; reports where the binary landed; an unknown server is refused with the list of known ones')
     .option('--yes', 'Run the remedy without the question (for scripts)')
     .action(async (server: string, options: { yes?: boolean }) => {
       const { lspInstallCli } = await import('./cli/lspVerb.js')

@@ -44,8 +44,11 @@ try {
     } as never
   }, dir)
   const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
-  const published = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 60))
   const tail = () => readSessionTail(sid, dir) as (Record<string, unknown> & { text?: string | null; messageId?: string; withdrawn?: string }) | null
+  const published = async (want: (t: ReturnType<typeof tail>) => boolean): Promise<void> => {
+    const ceiling = Date.now() + 5_000
+    while (!want(tail()) && Date.now() < ceiling) await new Promise<void>(resolve => setImmediate(resolve))
+  }
   let seq = 0
   const feed = (o: Record<string, unknown>): void => onSeatRow(SHORT, { seq: ++seq, timestamp: 't', session_id: sid, turn: 1, ...o } as never, roster as never, dir)
   const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
@@ -53,7 +56,7 @@ try {
   feed({ type: 'block_start', message_id: 'msg_first', block: 1, of: 'text' })
   feed({ type: 'text_delta', message_id: 'msg_first', block: 1, text: PARTIAL[0] })
   feed({ type: 'text_delta', message_id: 'msg_first', block: 1, text: PARTIAL[2] })
-  await published()
+  await published(t => t?.text === PARTIAL[0] + PARTIAL[2])
   check('the first stream\'s text is the tail under its id', tail()?.text === PARTIAL[0] + PARTIAL[2] && tail()?.messageId === 'msg_first' && tail()?.withdrawn === undefined, j(tail()))
   feed({ type: 'retracted', message_id: 'msg_first' })
   check('the retraction clears the tail, drops the id and names the withdrawn message', tail()?.text === null && tail()?.messageId === undefined && tail()?.withdrawn === 'msg_first', j(tail()))
@@ -61,7 +64,7 @@ try {
   check('the next message\'s block start keeps the withdrawn id standing (a coalesced read still learns it)', tail()?.text === null && tail()?.messageId === 'msg_second' && tail()?.withdrawn === 'msg_first', j(tail()))
   feed({ type: 'block_start', message_id: 'msg_second', block: 1, of: 'text' })
   feed({ type: 'text_delta', message_id: 'msg_second', block: 1, text: FINAL })
-  await published()
+  await published(t => t?.text === FINAL)
   check('the reissued stream\'s first text retires the withdrawn id', tail()?.text === FINAL && tail()?.messageId === 'msg_second' && tail()?.withdrawn === undefined, j(tail()))
   feed({ type: 'text', message_id: 'msg_second', block: 1, text: FINAL })
   feed({ type: 'outcome', schema: 1, turn_id: 't-sp', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })

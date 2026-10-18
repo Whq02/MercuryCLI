@@ -226,7 +226,7 @@ interface DesktopAddonHeld {
   keys: string[]
 }
 
-export interface DesktopAddonTreeElement {
+interface DesktopAddonTreeElement {
   depth: number
   role: string
   title?: string | null

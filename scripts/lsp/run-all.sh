@@ -8,6 +8,7 @@
 # gate-watch: src/entrypoints/cli.tsx src/services/changeTransaction/changeSetCommit.ts
 # gate-watch: src/services/changeTransaction/contracts.ts src/tools.ts src/tools/DebugTool/DebugTool.ts
 # gate-watch: scripts/ast-tools/lib/harness.ts
+# gate-watch: src/cli/lspVerb.ts src/main.tsx assets/completions/_mercury assets/completions/mercury.bash assets/completions/mercury.fish scripts/lib/hermetic.ts
 # gate-watch: src/services/providers/toolEconomy.ts src/services/providers/toolCallGate.ts src/services/providers/anthropic/boundPrefixRecord.ts
 # gate-watch: src/tools/AgentTool/agentToolUtils.ts src/tools/ToolSearchTool/** src/fabric/** src/tools/MCPTool/absentToolShim.ts
 # gate-watch: build.ts

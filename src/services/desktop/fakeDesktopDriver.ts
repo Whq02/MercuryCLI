@@ -31,7 +31,7 @@ import {
   type DesktopTypeOptions,
 } from './driver.js'
 
-export interface FakeTreeNode {
+interface FakeTreeNode {
   role: string
   title?: string | null
   value?: string | null

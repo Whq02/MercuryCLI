@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { getOriginalCwd } from '../bootstrap/state.js'
+import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { SERVER_CATALOGUE, probeCatalogueEntry } from '../services/lsp/serverCatalogue.js'
 import { binaryName } from '../utils/config/derived.js'
 import { whichSync } from '../utils/which.js'
@@ -25,7 +26,7 @@ const defaultIo: LspCliIo = {
   },
   run: argv =>
     new Promise(resolveCode => {
-      const child = spawn(argv[0]!, argv.slice(1), { stdio: 'inherit' })
+      const child = spawn(argv[0]!, argv.slice(1), { stdio: 'inherit', env: subprocessEnv() })
       child.on('error', () => resolveCode(null))
       child.on('exit', code => resolveCode(code))
     }),
