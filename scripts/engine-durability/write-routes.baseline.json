@@ -65,6 +65,7 @@
     "src/utils/verification/verificationState.ts"
   ],
   "lock": [
+    "src/daemon/concourseWorkers.ts",
     "src/history.ts",
     "src/services/mcp/auth.ts",
     "src/services/providers/nous/nousOauth.ts",
@@ -74,5 +75,8 @@
     "src/utils/auth.ts",
     "src/utils/config/globalConfig.ts",
     "src/utils/settings/settings.ts"
-  ]
+  ],
+  "reasons": {
+    "src/daemon/concourseWorkers.ts": "synchronous cross-process lock (proper-lockfile lockSync via src/utils/lockfile.ts) serialising updateConcourseWorkers and the sibling daemon stores across helper daemons and the daemon-down settle"
+  }
 }
