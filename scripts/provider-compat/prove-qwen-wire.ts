@@ -1,8 +1,7 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
-import { readFileSync, rmSync, statSync } from 'node:fs'
-import { createHash } from 'node:crypto'
+import { readdirSync, readFileSync, rmSync } from 'node:fs'
 import { z } from 'zod/v4'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
@@ -17,14 +16,7 @@ const KEY_CODING = 'proof-key-qwen-coding-fixture-not-a-real-key'
 const KEY_WORKSPACE = 'proof-key-qwen-virginia-workspace-fixture-not-a-real-key'
 const KEY_NOWHERE = 'proof-key-qwen-nowhere-fixture-not-a-real-key'
 const ACCEPTS: Record<string, string> = { [KEY_INTL]: 'singapore', [KEY_CN]: 'beijing', [KEY_CODING]: 'coding-intl', [KEY_WORKSPACE]: 'workspace-virginia' }
-const QWEN_CLIENT_ID = 'f0304373b74a44d2b584a3fb70ca9e56'
-const oauthCalls: Array<{ path: string; form: Record<string, string>; requestId: string | null; raw: string; headers: Record<string, string> }> = []
-let deviceChallenge = ''
-let pollScript: string[] = []
-let tokenSerial = 0
-let refreshMode = 'ok'
-let gatewayBlocksTokenPath = false
-const GATEWAY_BLOCK_PAGE = '<!doctypehtml><html lang="zh-cn"><meta charset="utf-8"><title>405</title><body><div id="block_message"></div><script id="renderData" type="application/json" style="display:none">{"traceid":"proof-trace-not-real","lang":"en"}</script><script>var en_tips={block_message:"Sorry, your request has been blocked as it may cause potential threats to the server\'s security."}</script></body></html>'
+const oauthCalls: string[] = []
 process.env.DASHSCOPE_API_KEY = KEY_INTL
 const liveRows = (ids: string[]): unknown[] => ids.map(id => ({ id, object: 'model', created: 1, owned_by: 'system' }))
 const TEXT_IDS = ['qwen3.8-max', 'qwen3.7-plus', 'qwen3-coder-plus', 'qwen3.8-flash', 'qwen3.7-flash', 'qwen3-coder-flash', 'qwen3.8-omni-flash', 'qwen-plus']
@@ -43,52 +35,13 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   const path = `/${rest.join('/')}`
   const bearer = req.headers.get('authorization')?.replace(/^Bearer /, '') ?? null
   const accepted = bearer !== null && ACCEPTS[bearer] === endpoint
-  if (endpoint === 'plan') {
-    const planBearer = bearer === `proof-token-qwen-access-${tokenSerial}-not-real`
-    if (path === '/models') { listReads.push('plan'); return planBearer ? Response.json({ object: 'list', data: liveRows(['coder-model', 'qwen3-coder-plus']) }) : refuse(401, 'invalid_api_key', 'Incorrect API key provided. ') }
-    if (path === '/chat/completions' && req.method === 'POST') {
-      const raw = await req.text()
-      assert.ok(!raw.includes('proof-token-qwen'))
-      const body = JSON.parse(raw) as Record<string, any>
-      captures.push({ endpoint: 'plan', body, bearer })
-      if (!planBearer) return refuse(401, 'invalid_api_key', 'Incorrect API key provided. ')
-      return new Response(`data: ${JSON.stringify({ id: 'chatcmpl-plan', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{ index: 0, delta: { role: 'assistant', content: 'PLAN-SETTLED' }, finish_reason: 'stop' }] })}\n\ndata: ${JSON.stringify({ id: 'chatcmpl-plan', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [], usage: { prompt_tokens: 10, completion_tokens: 3, total_tokens: 13 } })}\n\ndata: [DONE]\n\n`, { headers: { 'content-type': 'text/event-stream' } })
-    }
-  }
   if (path === '/models') {
     listReads.push(endpoint!)
     if (!accepted || listStatus === 401) return refuse(401, 'invalid_api_key', 'Incorrect API key provided. ')
     if (listStatus !== 200) return refuse(listStatus, 'server_error', 'unavailable')
     return Response.json({ object: 'list', data: modelList })
   }
-  if (url.pathname === '/api/v1/oauth2/device/code' || url.pathname === '/api/v1/oauth2/token') {
-    const raw = await req.text()
-    const form = Object.fromEntries(new URLSearchParams(raw))
-    oauthCalls.push({ path: url.pathname, form, requestId: req.headers.get('x-request-id'), raw, headers: Object.fromEntries(req.headers.entries()) })
-    if (url.pathname === '/api/v1/oauth2/token' && gatewayBlocksTokenPath) return new Response(GATEWAY_BLOCK_PAGE, { status: 405, statusText: 'Not Allowed', headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache, no-store' } })
-    if (url.pathname === '/api/v1/oauth2/device/code') {
-      if (form.client_id !== QWEN_CLIENT_ID || form.scope !== 'openid profile email model.completion' || form.code_challenge_method !== 'S256' || !/^[A-Za-z0-9_-]{43}$/.test(form.code_challenge ?? '')) return Response.json({ error: 'invalid_request', error_description: 'bad device request' }, { status: 400 })
-      deviceChallenge = form.code_challenge!
-      return Response.json({ device_code: 'proof-device-code-qwen-not-real', user_code: 'ABCD-1234', verification_uri: `${seam}/device`, verification_uri_complete: `${seam}/device?user_code=ABCD-1234`, expires_in: 300 })
-    }
-    if (form.grant_type === 'urn:ietf:params:oauth:grant-type:device_code') {
-      const verifierMatches = typeof form.code_verifier === 'string' && createHash('sha256').update(form.code_verifier).digest('base64url') === deviceChallenge
-      if (form.client_id !== QWEN_CLIENT_ID || form.device_code !== 'proof-device-code-qwen-not-real' || !verifierMatches) return Response.json({ error: 'invalid_grant', error_description: 'bad poll' }, { status: 400 })
-      const step = pollScript.shift() ?? 'authorized'
-      if (step === 'pending') return Response.json({ error: 'authorization_pending', error_description: 'waiting' }, { status: 400 })
-      if (step === 'slow') return Response.json({ error: 'slow_down', error_description: 'slower' }, { status: 429 })
-      if (step === 'denied') return Response.json({ error: 'access_denied', error_description: 'declined in the browser' }, { status: 400 })
-      tokenSerial++
-      return Response.json({ access_token: `proof-token-qwen-access-${tokenSerial}-not-real`, refresh_token: `proof-token-qwen-refresh-${tokenSerial}-not-real`, token_type: 'Bearer', expires_in: 3600, scope: 'openid profile email model.completion', resource_url: 'portal.qwen.ai' })
-    }
-    if (form.grant_type === 'refresh_token') {
-      if (refreshMode === 'revoked') return Response.json({ error: 'invalid_grant', error_description: 'the refresh token was revoked' }, { status: 400 })
-      if (form.client_id !== QWEN_CLIENT_ID || form.refresh_token !== `proof-token-qwen-refresh-${tokenSerial}-not-real`) return Response.json({ error: 'invalid_grant', error_description: 'unknown refresh token' }, { status: 400 })
-      tokenSerial++
-      return Response.json({ access_token: `proof-token-qwen-access-${tokenSerial}-not-real`, refresh_token: `proof-token-qwen-refresh-${tokenSerial}-not-real`, token_type: 'Bearer', expires_in: 3600, resource_url: 'portal.qwen.ai' })
-    }
-    return Response.json({ error: 'unsupported_grant_type' }, { status: 400 })
-  }
+  if (url.pathname.startsWith('/api/v1/oauth2/')) { oauthCalls.push(url.pathname); return new Response('not found', { status: 404 }) }
   if (path !== '/chat/completions' || req.method !== 'POST') return new Response('not found', { status: 404 })
   const raw = await req.text()
   for (const key of Object.keys(ACCEPTS)) assert.ok(!raw.includes(key))
@@ -125,7 +78,6 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 const seam = `http://127.0.0.1:${server.port}`
 process.env.MERCURY_QWEN_API_BASE = seam
-process.env.MERCURY_QWEN_PORTAL_BASE = seam
 process.env.MERCURY_GROQ_API_BASE = `${seam}/groq-fixture/openai/v1`
 let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
@@ -134,7 +86,7 @@ try {
   const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
   const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
   section('routing')
-  check('the bare Model Studio ids, the family word and the plan alias route to Qwen before any request', ['qwen3.8-max', 'qwen3.7-plus', 'qwen3-coder-flash', 'qwen-plus', 'qwq-plus', 'qwen', 'coder-model', 'Qwen3.8-Max'].every(id => classifyModelRoute(parseUserSpecifiedModel(id)).route === 'qwen'))
+  check('the bare Model Studio ids and the family word route to Qwen before any request', ['qwen3.8-max', 'qwen3.7-plus', 'qwen3-coder-flash', 'qwen-plus', 'qwq-plus', 'qwen', 'Qwen3.8-Max'].every(id => classifyModelRoute(parseUserSpecifiedModel(id)).route === 'qwen'))
   check('the qualified namespaces keep their own Qwen rows and a bare vendor slug stays carrier-shaped', classifyModelRoute('zen/qwen3.8-max').route === 'zen' && classifyModelRoute('groq/qwen/qwen3.8-27b').route === 'groq' && classifyModelRoute('together/Qwen/Qwen3.7-Plus').route === 'together' && classifyModelRoute('qwen/qwen3-coder').kind === 'unrecognised')
   const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
@@ -244,7 +196,7 @@ try {
   check('pinned facts fill the pinned rows and the live-only rows show themselves', rows.rows.find(row => row.id === 'qwen3.8-max')?.contextWindow === 1_000_000 && rows.rows.find(row => row.id === 'qwen3-coder-plus')?.contextWindow === undefined && keyLanePins('qwen').find(pin => pin.id === 'qwen3-coder-plus')?.liveUnknown === true && keyLanePins('qwen').find(pin => pin.id === 'qwen3.8-max')?.liveUnknown !== true)
   check('the source words name the bound endpoint and the rows set aside', (qwenCatalogueSourceWords() ?? '').includes('live on International (Singapore)') && (qwenCatalogueSourceWords() ?? '').includes(`${OTHER_IDS.length} of other lines not listed`) && keyLaneListState('qwen').kind === 'live')
   check('the pins carry the console facts read 2026-10-18: Qwen3.8 Max 1M window, 128K output, $2 in / $6 out / $0.25 cache read', getContextWindowForModel('qwen3.8-max') === 1_000_000 && getModelMaxOutputTokens('qwen3.8-max').upperLimit === 131_072 && modelPricingBasis('qwen3.8-max') === 'recorded' && getModelCosts('qwen3.8-max').inputTokens === 2 && getModelCosts('qwen3.8-max').outputTokens === 6 && getModelCosts('qwen3.8-max').promptCacheReadTokens === 0.25 && getModelCosts('qwen3.8-max').promptCacheWriteTokens === 2.5 && modelSupportsThinking('qwen3.8-max') && !modelSupportsThinking('qwen3-coder-flash'))
-  check('the live resource carries the listed Qwen rows and the known resource the dated pins under the family word', (await liveModelsReference({ engineModel: 'qwen3.8-max' })).providers.find(row => row.provider === 'qwen')?.models.length === TEXT_IDS.length && (await knownModelsReference()).providers.find(row => row.provider === 'qwen')?.models.length === QWEN_DISPLAY_PINS.filter(pin => !pin.planOnly).length && (await knownModelsReference()).providers.find(row => row.provider === 'qwen')?.familyWord === 'qwen')
+  check('the live resource carries the listed Qwen rows and the known resource the dated pins under the family word', (await liveModelsReference({ engineModel: 'qwen3.8-max' })).providers.find(row => row.provider === 'qwen')?.models.length === TEXT_IDS.length && (await knownModelsReference()).providers.find(row => row.provider === 'qwen')?.models.length === QWEN_DISPLAY_PINS.length && (await knownModelsReference()).providers.find(row => row.provider === 'qwen')?.familyWord === 'qwen')
   check("the bare word 'qwen' is known and resolves to the live head row", bareFamilyWordOf('qwen')?.route === 'qwen' && bareFamilyWordOf('qwen')?.headRow()?.id === 'qwen3.8-max' && (await resolveEngineDispatch('qwen'))?.model === 'qwen3.8-max')
   check('Agent exact dispatch keeps a pinned id and admits a live-only id', (await resolveEngineDispatch('qwen3.7-plus'))?.model === 'qwen3.7-plus' && (await resolveEngineDispatch('qwen3-coder-plus'))?.backend === 'qwen')
   const meter = usageForProvider('qwen')
@@ -321,7 +273,7 @@ try {
   check('an id the endpoint does not list refuses before inference', captures.length === before && absent.some(row => row.isApiErrorMessage) && words(absent).includes('qwen3.9-fixture-absent'))
   modelList = []; await refreshQwenCatalogue({ force: true })
   const emptyPins = qwenCatalogueRows()
-  check('an empty live list falls to the dated pins labelled as pins, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === QWEN_DISPLAY_PINS.filter(pin => !pin.planOnly).length && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-18') && keyLaneListState('qwen').kind === 'pin' && (qwenCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-18)') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'qwen3.8-max')
+  check('an empty live list falls to the dated pins labelled as pins, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === QWEN_DISPLAY_PINS.length && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-18') && keyLaneListState('qwen').kind === 'pin' && (qwenCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-18)') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'qwen3.8-max')
   before = captures.length
   check('with the live list empty an unpinned id refuses before inference', (await run(params('qwen3-coder-plus'))).some(row => row.isApiErrorMessage) && captures.length === before)
   modelList = fixtures
@@ -341,80 +293,23 @@ try {
   __resetQwenCatalogueForTest(); forgetQwenBoundBases()
   const aborted = new AbortController(); aborted.abort()
   check('pre-aborted calls perform no inference', (await run({ ...params(), signal: aborted.signal })).length === 0 && captures.length === before)
-  section('the Qwen account sign-in: the device code, the token, the refresh, the revocation')
-  const { runQwenDeviceLogin, QWEN_CONNECT_ROWS, QWEN_FACE_PICK_LINE, QWEN_SIGNIN_ROAD_CLOSED_LINE } = await import('../../src/services/providers/qwen/qwenLogin.ts')
-  const { qwenStoredTokens, qwenAuthPathForDisplay, writeQwenTokens, qwenSigninRefusal, tokensFromQwenBody, clearStoredQwenSignin, refreshQwenTokens, QWEN_OAUTH_CLIENT_ID } = await import('../../src/services/providers/qwen/qwenOauth.ts')
-  const { resolveQwenAccount, resolveQwenCredential, qwenAccountIdentity } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
-  const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
+  section('the Qwen account sign-in road is gone: the key road alone')
+  const { QWEN_KEY_KINDS_LINE, QWEN_KEY_KINDS_SHORT } = await import('../../src/services/providers/qwen/qwenLogin.ts')
+  const { resolveQwenAccount } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
+  const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
   const { qwenCatalogueIdentity } = await import('../../src/services/providers/qwen/qwenCatalogue.ts')
   const { qwenProviderAdapter } = await import('../../src/services/providers/qwen/qwenAdapter.ts')
-  const { validateModel } = await import('../../src/utils/model/validateModel.ts')
-  check("the /model pickers' refresh road reads the catalogue's own identity, which is the stored key's while no account is signed in", readFileSync(new URL('../../src/commands/model/mercuryModel.tsx', import.meta.url), 'utf8').includes('identity: () => qwenCatalogueIdentity()') && qwenCatalogueIdentity()?.startsWith('stored:') === true && qwenCatalogueIdentity()?.endsWith(':bound') === true)
-  check("the sign-in card offers the key first (the Coding Plan key named) and the account road second with Qwen's closure of 2026-04-15 on its row; the face layer's pick line carries the closure and names the source", QWEN_CONNECT_ROWS[0]?.value === 'key' && QWEN_CONNECT_ROWS[0].label.includes('Coding Plan key is sk-sp-…') && QWEN_CONNECT_ROWS[1]?.value === 'device' && QWEN_CONNECT_ROWS[1].label.includes('closed by Qwen on 2026-04-15') && QWEN_CONNECT_ROWS.every(row => row.label.length <= 62) && QWEN_FACE_PICK_LINE.includes('Qwen closed the account sign-in on 2026-04-15') && QWEN_FACE_PICK_LINE.includes('sk-sp-…') && QWEN_SIGNIN_ROAD_CLOSED_LINE.includes('QwenLM/qwen-code issue 3203') && QWEN_OAUTH_CLIENT_ID === QWEN_CLIENT_ID)
-  check("the face layer's Qwen card title names the key road and the closure", readFileSync(new URL('../../src/components/BootLoginsScreen.tsx', import.meta.url), 'utf8').includes("'Qwen — Model Studio API key (the account sign-in is closed by Qwen)'") && readFileSync(new URL('../../src/services/providers/qwen/QwenConnect.tsx', import.meta.url), 'utf8').includes('<Text>{QWEN_FACE_PICK_LINE}</Text>'))
-  check('a token body with a Qwen resource host is trusted and a foreign host is dropped', tokensFromQwenBody({ access_token: 'a', refresh_token: 'r', expires_in: 60, resource_url: 'portal.qwen.ai' }, { env: {} }).resourceUrl === 'https://portal.qwen.ai' && tokensFromQwenBody({ access_token: 'a', refresh_token: 'r', expires_in: 60, resource_url: 'https://evil.example/v1' }, { env: {} }).resourceUrl === undefined)
-  pollScript = ['pending', 'slow', 'authorized']
-  const events: string[] = []
+  const face = readFileSync(new URL('../../src/components/BootLoginsScreen.tsx', import.meta.url), 'utf8')
+  const card = readFileSync(new URL('../../src/services/providers/qwen/QwenConnect.tsx', import.meta.url), 'utf8')
+  const family = readdirSync(new URL('../../src/services/providers/qwen/', import.meta.url))
+  check("the /model pickers' refresh road reads the catalogue's own identity, which is the stored key's", readFileSync(new URL('../../src/commands/model/mercuryModel.tsx', import.meta.url), 'utf8').includes('identity: () => qwenCatalogueIdentity()') && qwenCatalogueIdentity()?.startsWith('stored:') === true && qwenCatalogueIdentity()?.endsWith(':bound') === true)
+  check('the account sign-in road is gone: no OAuth module in the family folder, no device family or pick for Qwen in the face layer, the card is the key card alone, no plan-only pin, no plan alias, and the account is the key', !family.includes('qwenOauth.ts') && !/FaceDeviceFamily = [^;]*'qwen'/.test(face) && !/LoginsPickId = [^;]*'qwen'/.test(face) && !face.includes("openPick('qwen')") && !card.includes('device') && card.includes('<KeyCardTitle family="qwen"') && card.includes('{QWEN_KEY_KINDS_LINE}') && QWEN_DISPLAY_PINS.every(pin => !('planOnly' in pin)) && classifyModelRoute('coder-model').kind === 'unrecognised' && resolveQwenAccount()?.kind === 'api-key' && qwenProviderAdapter.describe().account.kind === 'api-key' && (deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots ?? []).every(slot => slot.kind === 'api-key'))
+  check('the key card names both keys: a Model Studio key and a Coding Plan key (sk-sp-…), in the popup card and the face pane', QWEN_KEY_KINDS_LINE.includes('Model Studio API key') && QWEN_KEY_KINDS_LINE.includes('Coding Plan key (sk-sp-…)') && QWEN_KEY_KINDS_SHORT.includes('Model Studio or Coding Plan (sk-sp-…) key') && face.includes('${QWEN_KEY_KINDS_SHORT}') && loginFamilyRows({ engineLegs: true }).find(item => item.value === 'qwen')?.label.startsWith('Qwen — Model Studio API key') === true)
+  const deviceFlagOut: string[] = []
+  const deviceFlag = await providerAuthLogin('qwen', { device: true }, { key: KEY_CN, writeOut: text => deviceFlagOut.push(text), writeErr: text => deviceFlagOut.push(text), exit: () => {} })
+  check('mercury auth login qwen --device is an unknown input: the key road runs as for every key family, the key binds through the probe, no refusal line names the flag', deviceFlag.ok && deviceFlag.receipt.includes('bound to China (Beijing)') && !deviceFlagOut.join('').toLowerCase().includes('device') && readStoredQwenApiKey() === KEY_CN)
+  check('no request ever reached an OAuth path on the fixture', oauthCalls.length === 0)
   __resetQwenCatalogueForTest(); forgetQwenBoundBases()
-  const signin = await runQwenDeviceLogin({ sleep: async () => {}, onEvent: event => events.push(event.phase === 'waiting' ? `waiting:${event.polls}:${event.start.userCode}` : event.phase) })
-  const device = oauthCalls.find(call => call.path === '/api/v1/oauth2/device/code')
-  const polls = oauthCalls.filter(call => call.path === '/api/v1/oauth2/token' && call.form.grant_type === 'urn:ietf:params:oauth:grant-type:device_code')
-  check('the device request carries the public client id, the scope, an S256 challenge and a request id; the polls carry the device code and the verifier that hashes to it', device?.form.client_id === QWEN_CLIENT_ID && device.form.scope === 'openid profile email model.completion' && device.form.code_challenge_method === 'S256' && device.requestId !== null && polls.length === 3 && polls.every(call => call.form.device_code === 'proof-device-code-qwen-not-real' && createHash('sha256').update(call.form.code_verifier!).digest('base64url') === deviceChallenge))
-  check('the device request is the form the service accepted: client id, scope with + for its spaces, challenge, method — under the form content type, the JSON accept, the product user agent and a request id, with no cookie or authorization', device?.raw === `client_id=${QWEN_CLIENT_ID}&scope=openid+profile+email+model.completion&code_challenge=${device?.form.code_challenge}&code_challenge_method=S256` && device?.headers['content-type'] === 'application/x-www-form-urlencoded' && device.headers['accept'] === 'application/json' && /^mercury\/\d/.test(device.headers['user-agent'] ?? '') && /^[0-9a-f-]{36}$/.test(device.headers['x-request-id'] ?? '') && !('cookie' in device.headers) && !('authorization' in device.headers))
-  check('the token poll is the same form road: grant, client id, device code, verifier, in that order, with the same four headers', polls.every(call => call.raw === `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=${QWEN_CLIENT_ID}&device_code=proof-device-code-qwen-not-real&code_verifier=${call.form.code_verifier}` && call.headers['content-type'] === 'application/x-www-form-urlencoded' && call.headers['accept'] === 'application/json' && /^mercury\/\d/.test(call.headers['user-agent'] ?? '') && call.requestId !== null))
-  check('pending and slow_down keep polling until the approval lands, and the events show the code', signin.ok && events[0] === 'starting' && events[1] === 'waiting:0:ABCD-1234' && events.includes('finishing') && signin.receipt.includes('Qwen account sign-in stored (auth-scoped, mode 600)') && signin.receipt.includes('2 text models listed on the plan endpoint') && signin.receipt.includes("the Qwen Coder plan's own terms"))
-  console.log(signin.receipt)
-  const stored = qwenStoredTokens()
-  check('the tokens rest in the auth-scoped file at mode 600 with the resource host, and the sign-in is the account now', stored?.accessToken === 'proof-token-qwen-access-1-not-real' && stored.refreshToken === 'proof-token-qwen-refresh-1-not-real' && stored.resourceUrl === 'https://portal.qwen.ai' && (statSync(qwenAuthPathForDisplay()).mode & 0o777) === 0o600 && resolveQwenAccount()?.kind === 'signin' && readStoredQwenApiKey() === KEY_INTL)
-  const qwenSlots = deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots ?? []
-  check('/accounts shows the sign-in slot active beside the stored key, which steps aside', qwenSlots.some(slot => slot.id === 'qwen:signin' && slot.active && slot.signedIn && slot.kind === 'oauth') && qwenSlots.some(slot => slot.kind === 'api-key' && !slot.active && slot.stateNote === 'Qwen account sign-in selected'))
-  check('with the account signed in beside the key, the pickers\' refresh road identity is the sign-in\'s plan identity, the adapter reports the sign-in as a provider sign-in and available', qwenCatalogueIdentity() === `signin:${qwenAccountIdentity()}:plan` && qwenProviderAdapter.describe().account.kind === 'provider-oauth' && qwenProviderAdapter.describe().account.label === 'Qwen account sign-in' && qwenProviderAdapter.status().available === true)
-  before = captures.length
-  const plan = await run(params('qwen'))
-  check("the family word under the sign-in runs the plan's head row on the plan endpoint with the bearer token, never a Model Studio endpoint", captures.length === before + 1 && captures.at(-1)?.endpoint === 'plan' && captures.at(-1)?.bearer === 'proof-token-qwen-access-1-not-real' && captures.at(-1)?.body.model === 'coder-model' && textOf(plan) === 'PLAN-SETTLED' && !('enable_thinking' in captures.at(-1)!.body))
-  check('the plan catalogue is live and the picker lists its rows under the sign-in', qwenCatalogueRows().source.kind === 'live' && qwenCatalogueRows().rows.map(row => row.id).join(',') === 'coder-model,qwen3-coder-plus' && (qwenCatalogueSourceWords() ?? '').includes('live on the Qwen account plan') && usageForProvider('qwen').sourceKind === 'oauth')
-  writeQwenTokens({ ...stored!, expiresAtMs: Date.now() - 1 })
-  before = captures.length
-  await run(params('coder-model'))
-  const refreshCalls = oauthCalls.filter(call => call.form.grant_type === 'refresh_token')
-  check('an expired token is refreshed before the turn with the refresh grant and the client id, the fresh token rides the wire and rests in the file', refreshCalls.length === 1 && refreshCalls[0]?.form.client_id === QWEN_CLIENT_ID && refreshCalls[0].form.refresh_token === 'proof-token-qwen-refresh-1-not-real' && captures.length === before + 1 && captures.at(-1)?.bearer === 'proof-token-qwen-access-2-not-real' && qwenStoredTokens()?.accessToken === 'proof-token-qwen-access-2-not-real')
-  refreshMode = 'revoked'
-  writeQwenTokens({ ...qwenStoredTokens()!, expiresAtMs: Date.now() - 1 })
-  __resetQwenCatalogueForTest()
-  before = captures.length
-  const revoked = await run(params('coder-model'))
-  check('a revoked refresh token on a COLD catalogue cache refuses the turn before any request with the sign-in words (never the key road), and the account reads expired on every surface', captures.length === before && revoked.some(row => row.isApiErrorMessage) && words(revoked).includes('Qwen account sign-in expired') && words(revoked).includes('/logins qwen') && !words(revoked).includes('re-binds the key') && qwenSigninRefusal()?.code === 'invalid_grant' && (await resolveQwenCredential()) === undefined && resolveQwenAccount()?.expired === true && resolveProviderUsability().qwen.usable === false && resolveProviderUsability().qwen.blockers.some(line => line.includes('/logins qwen')) && (deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots.find(slot => slot.id === 'qwen:signin')?.signedIn === false))
-  console.log(words(revoked))
-  __resetQwenCatalogueForTest()
-  const revokedValidation = await validateModel('coder-model')
-  check('the model validator on a cold cache answers the same sign-in words, and the adapter reports the revoked sign-in unavailable and the pickers\' road identity gone', !revokedValidation.valid && (revokedValidation.error ?? '').includes('Qwen account sign-in expired') && !(revokedValidation.error ?? '').includes('re-binds the key') && qwenProviderAdapter.status().available === false && qwenProviderAdapter.status().reason === 'no-account:qwen' && qwenCatalogueIdentity() === `signin:${qwenAccountIdentity()}:plan`)
-  __resetQwenCatalogueForTest()
-  const revokedWarm = await run(params('coder-model'))
-  check('the warm-cache path answers the same words', words(revokedWarm).includes('Qwen account sign-in expired') && !words(revokedWarm).includes('re-binds the key') && captures.length === before)
-  const removal = deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots.find(slot => slot.id === 'qwen:signin')
-  check('/accounts removes the sign-in and the stored key becomes the account again', removal !== undefined && executeSlotRemoval(removal).mutated && qwenStoredTokens() === undefined && resolveQwenAccount()?.kind === 'api-key')
-  refreshMode = 'ok'; pollScript = ['authorized']
-  const terminalDevice: string[] = []
-  const deviceLogin = await providerAuthLogin('qwen', { device: true }, { writeOut: text => terminalDevice.push(text), writeErr: text => terminalDevice.push(text), exit: () => {} })
-  check('mercury auth login qwen --device prints the URL and the code, and stores the sign-in', deviceLogin.ok && terminalDevice.join('').includes('Visit') && terminalDevice.join('').includes('ABCD-1234') && qwenStoredTokens()?.accessToken === 'proof-token-qwen-access-3-not-real')
-  pollScript = ['denied']
-  const declined = await runQwenDeviceLogin({ sleep: async () => {} })
-  check('a sign-in declined in the browser stores nothing new and offers the key leg', !declined.ok && declined.receipt.includes('declined in the browser') && declined.receipt.includes('/logins qwen') && qwenStoredTokens()?.accessToken === 'proof-token-qwen-access-3-not-real')
-  gatewayBlocksTokenPath = true
-  const blockedEvents: string[] = []
-  const blockedFrom = oauthCalls.length
-  const blocked = await runQwenDeviceLogin({ sleep: async () => {}, onEvent: event => blockedEvents.push(event.phase === 'waiting' ? `waiting:${event.polls}:${event.start.userCode}` : event.phase) })
-  const blockedPolls = oauthCalls.slice(blockedFrom).filter(call => call.path === '/api/v1/oauth2/token')
-  check("the gateway's block page on the token path (HTTP 405, no OAuth body): the code was shown before the one poll, and the receipt names the step, the observation, that approving in the browser cannot land, Qwen's closure with its source, nothing stored, and the Coding Plan key road — never 'retries the sign-in'; one poll, no hammering", !blocked.ok && blockedEvents[1] === 'waiting:0:ABCD-1234' && blockedPolls.length === 1 && blocked.receipt.includes("the Qwen sign-in service's gateway blocked the approval check (HTTP 405, a block page rather than an OAuth answer) after the device code ABCD-1234 was issued") && blocked.receipt.includes('approving in the browser cannot complete this sign-in') && blocked.receipt.includes(QWEN_SIGNIN_ROAD_CLOSED_LINE) && blocked.receipt.includes('Nothing stored') && blocked.receipt.includes('Coding Plan key (sk-sp-…)') && blocked.receipt.includes('/logins qwen') && !blocked.receipt.includes('retries the sign-in') && qwenStoredTokens()?.accessToken === 'proof-token-qwen-access-3-not-real')
-  console.log(blocked.receipt)
-  const blockedTerminal: string[] = []
-  const blockedDoor = await providerAuthLogin('qwen', { device: true }, { writeOut: text => blockedTerminal.push(text), writeErr: text => blockedTerminal.push(text), exit: () => {} })
-  check('mercury auth login qwen --device prints the code and then the same receipt', !blockedDoor.ok && blockedTerminal.join('').includes('ABCD-1234') && blockedDoor.receipt.includes(QWEN_SIGNIN_ROAD_CLOSED_LINE))
-  writeQwenTokens({ ...qwenStoredTokens()!, expiresAtMs: Date.now() - 1 })
-  const blockedRefresh = await refreshQwenTokens(undefined, true).then(() => 'refreshed', (error: unknown) => (error instanceof Error ? error.message : String(error)))
-  check('a refresh met by the block page keeps the stored sign-in and says what answered', blockedRefresh.includes('could not refresh the sign-in (HTTP 405, a block page rather than an OAuth answer)') && blockedRefresh.includes('the stored sign-in is kept') && qwenStoredTokens()?.accessToken === 'proof-token-qwen-access-3-not-real' && qwenSigninRefusal() === undefined)
-  gatewayBlocksTokenPath = false
-  clearStoredQwenSignin(); __resetQwenCatalogueForTest(); forgetQwenBoundBases()
   const { proveExistingCompatKnobs } = await import('../providers/lib/fast-infer-control.ts')
   await proveExistingCompatKnobs()
   console.log(`QWEN WIRE GREEN (${count} checks; loopback fixture only)`)

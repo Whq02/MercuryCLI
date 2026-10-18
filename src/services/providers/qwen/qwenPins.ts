@@ -1,5 +1,4 @@
 export const QWEN_OBSERVED_AT = '2026-10-18'
-const QWEN_PLAN_MODEL_ID = 'coder-model'
 const QWEN_EFFORTS: readonly string[] = ['low', 'medium', 'xhigh']
 
 export type QwenThinkingDial = 'hybrid' | 'none'
@@ -17,7 +16,6 @@ interface QwenDisplayPin {
   preservesThinking: boolean
   efforts: readonly string[]
   images: boolean
-  planOnly?: boolean
 }
 
 const flagship = { contextWindow: 1_000_000, outputMax: 131_072, thinking: 'hybrid' as const, preservesThinking: true, efforts: [] as readonly string[], images: true }
@@ -29,7 +27,6 @@ export const QWEN_DISPLAY_PINS: readonly QwenDisplayPin[] = [
   { ...flagship, id: 'qwen3.8-omni-flash', displayName: 'Qwen3.8 Omni Flash', efforts: QWEN_EFFORTS, costInPerMtok: 0.15, costOutPerMtok: 0.47, cachedInPerMtok: 0.016 },
   { ...flagship, id: 'qwen3.7-flash', displayName: 'Qwen3.7 Flash', costInPerMtok: 0.03, costOutPerMtok: 0.13, cachedInPerMtok: 0.006, cacheWritePerMtok: 0.038 },
   { id: 'qwen3-coder-flash', displayName: 'Qwen3 Coder Flash', contextWindow: 1_000_000, outputMax: 65_536, costInPerMtok: 0.3, costOutPerMtok: 1.5, cachedInPerMtok: 0.06, cacheWritePerMtok: 0.375, thinking: 'none', preservesThinking: false, efforts: [], images: false },
-  { id: QWEN_PLAN_MODEL_ID, displayName: 'Qwen Coder (Qwen account plan)', contextWindow: 1_000_000, outputMax: 65_536, thinking: 'none', preservesThinking: false, efforts: [], images: false, planOnly: true },
 ]
 
 function bareId(id: string): string {
@@ -38,12 +35,11 @@ function bareId(id: string): string {
 
 export function isQwenModelId(model: string): boolean {
   const id = bareId(model)
-  return id === 'qwen' || id === QWEN_PLAN_MODEL_ID || /^(?:qwen|qwq|qvq)(?:[0-9.]|-)/.test(id)
+  return id === 'qwen' || /^(?:qwen|qwq|qvq)(?:[0-9.]|-)/.test(id)
 }
 
 export function isQwenTextModelId(model: string): boolean {
   const id = bareId(model)
-  if (id === QWEN_PLAN_MODEL_ID) return true
   return /^(?:qwen|qwq|qvq)(?:[0-9.]|-)/.test(id)
     && !/(?:-tts|-asr|embedding|rerank|-image|-video|realtime|livetranslate|-ocr|-audio-|-mt-|wan[0-9])/i.test(id)
 }

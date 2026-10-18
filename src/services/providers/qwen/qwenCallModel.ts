@@ -8,8 +8,7 @@ import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile }
 import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
-import { QWEN_BASE_OVERRIDE_ENV, QWEN_ENV_KEY, qwenBoundEndpointLabel, qwenChatCompletionsUrl, qwenSigninActive, resolveQwenAccount, resolveQwenCredential } from './qwenAccounts.js'
-import { QWEN_SIGNIN_EXPIRED_LINE, qwenSigninRefusal, qwenSigninRefusalNote, refreshQwenTokens } from './qwenOauth.js'
+import { QWEN_BASE_OVERRIDE_ENV, QWEN_ENV_KEY, qwenBoundEndpointLabel, qwenChatCompletionsUrl, resolveQwenAccount, resolveQwenCredential } from './qwenAccounts.js'
 import { getCachedQwenCatalogue, newestQwenModel, qwenListedModel, qwenModelFacts, qwenWireId } from './qwenCatalogue.js'
 import { QWEN_DISPLAY_PINS, isQwenTextModelId, qwenDisplayPin, qwenPreservesThinking, qwenWireEffort } from './qwenPins.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
@@ -43,26 +42,15 @@ const qwenLaneProfile: CompatLaneProfile = {
     return credential ? { apiKey: credential.apiKey, requestUrl: credential.requestUrl } : undefined
   },
   recoverCredential: async () => {
-    if (qwenSigninActive()) {
-      const fresh = await refreshQwenTokens(undefined, true).catch(() => undefined)
-      if (!fresh) return undefined
-      const credential = await resolveQwenCredential()
-      return credential ? { apiKey: credential.apiKey, requestUrl: credential.requestUrl } : undefined
-    }
     if (!configuredProviderKeyCommand('qwen')) return null
     const fresh = recoverProviderKeyCommand('qwen')
     return fresh ? { apiKey: fresh } : undefined
   },
   get credentialHint(): string {
-    if (qwenSigninActive()) {
-      const refusal = qwenSigninRefusal()
-      return refusal ? `${qwenSigninRefusalNote(refusal)}.` : `${QWEN_SIGNIN_EXPIRED_LINE}.`
-    }
     const failure = providerKeyCommandFailure('qwen')
-    return failure ? `the configured ${failure.message} — no Model Studio API key detected.` : `no Model Studio API key detected — /logins qwen stores one (made at ${QWEN_KEY_PAGE}) or signs in with a Qwen account; ${QWEN_ENV_KEY} works too.`
+    return failure ? `the configured ${failure.message} — no Model Studio API key detected.` : `no Model Studio API key detected — /logins qwen stores one (made at ${QWEN_KEY_PAGE}; a Coding Plan key is sk-sp-…); ${QWEN_ENV_KEY} works too.`
   },
   get authRemedy(): string {
-    if (qwenSigninActive()) return `${QWEN_SIGNIN_EXPIRED_LINE}.`
     return qwenWrongRegionRemedy(qwenBoundEndpointLabel())
   },
   billingRemedy: 'the Model Studio balance or plan quota is spent — top up or wait for the plan window at modelstudio.console.alibabacloud.com (Usage & Billing), then retry; /model picks another model meanwhile.',
@@ -100,13 +88,13 @@ export async function* qwenCallModel(params: CallModelParams): CallModelStream {
   const model = asked.trim().toLowerCase() === 'qwen' ? newestQwenModel() : qwenListedModel(snapshot, asked)?.id ?? qwenWireId(asked)
   let refusal: string | undefined
   const credentialRefused = snapshot?.lastError?.includes('refused the credential') === true
-  if (credentialRefused) refusal = qwenSigninActive() ? `${qwenSigninRefusal() ? qwenSigninRefusalNote(qwenSigninRefusal()!) : QWEN_SIGNIN_EXPIRED_LINE}.` : `${snapshot!.lastError} — /logins qwen re-binds the key.`
+  if (credentialRefused) refusal = `${snapshot!.lastError} — /logins qwen re-binds the key.`
   else if (!model) refusal = "Qwen cannot resolve 'qwen' until the account's live list serves a text model; /model refreshes the list."
   else if (!isQwenTextModelId(model)) refusal = `Qwen model '${model}' is not on the text road; the speech, image, video, embedding and rerank lines are not supported here.`
   else if (snapshot && snapshot.models.length > 0 && !qwenListedModel(snapshot, model)) {
     refusal = modelNotOfferedByCatalogue(model, account.label, snapshot.models.map(row => row.id))
   } else if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !qwenDisplayPin(model)) {
-    refusal = modelNotOfferedByCatalogue(model, account.label, QWEN_DISPLAY_PINS.filter(pin => !pin.planOnly).map(pin => pin.id))
+    refusal = modelNotOfferedByCatalogue(model, account.label, QWEN_DISPLAY_PINS.map(pin => pin.id))
   }
   if (refusal) {
     yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${refusal}`, error: credentialRefused ? 'authentication_failed' : 'invalid_request' })
