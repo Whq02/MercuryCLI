@@ -166,12 +166,12 @@ function windowsCommandWarning(command: string): string | null {
   let downloader = false
   for (const segment of shellCommandSegments(command)) {
     const words = segment.words.map(word => word.toLowerCase())
-    const name = (words[0]?.split(/[\\/]/).pop() ?? '').replace(/\.(exe|com)$/, '')
+    const name = (words[0]?.split(/[\\/]/).pop() ?? '').replace(/^\(+/, '').replace(/\.(exe|com)$/, '')
     const args = words.slice(1)
     if (!segment.piped) downloader = false
-    if (['iwr', 'irm', 'invoke-webrequest', 'invoke-restmethod', 'curl', 'wget'].includes(name)) downloader = true
+    if (['iwr', 'irm', 'invoke-webrequest', 'invoke-restmethod', 'curl', 'wget'].includes(name) || (name === 'new-object' && /webclient\b/.test(words.join(' ')))) downloader = true
     if (segment.piped && downloader && ['iex', 'invoke-expression'].includes(name)) return 'Note: this downloads and executes remote code.'
-    if (['format-volume', 'clear-disk', 'initialize-disk', 'stop-service', 'stop-process', 'remove-itemproperty', 'remove-item', 'ri', 'rm', 'rd', 'rmdir', 'del', 'erase'].includes(name) && args.some(arg => /^-whatif(?::\$?true)?$/.test(arg))) continue
+    if (['format-volume', 'clear-disk', 'initialize-disk', 'stop-service', 'spsv', 'stop-process', 'spps', 'remove-itemproperty', 'rp', 'remove-item', 'ri', 'rm', 'rd', 'rmdir', 'del', 'erase'].includes(name) && args.some(arg => /^-whatif(?::\$?true)?$/.test(arg))) continue
     if (name === 'vssadmin' && args[0] === 'delete' && args[1] === 'shadows') return 'Note: this deletes shadow copies used for recovery.'
     if (name === 'wbadmin' && args[0] === 'delete') return 'Note: this deletes backup recovery data.'
     if (name === 'reg' && args[0] === 'delete') return 'Note: this deletes Windows registry data.'
@@ -179,9 +179,14 @@ function windowsCommandWarning(command: string): string | null {
     if (name === 'cipher' && args.some(arg => /^\/w(?::|$)/.test(arg))) return 'Note: this overwrites deleted data so it cannot be recovered.'
     if (name === 'icacls' && (args.includes('/reset') || args.some((arg, i) => /^\/grant(?::r)?$/.test(arg) && /^everyone(?::|$)/.test(args[i + 1] ?? '')))) return 'Note: this resets file permissions or grants access to everyone.'
     if (name === 'bcdedit' && args[0] === '/set') return 'Note: this changes Windows boot configuration.'
-    if (['stop-service', 'stop-process', 'remove-itemproperty'].includes(name) && args.includes('-force')) return 'Note: this forcibly stops a service or process, or removes registry properties.'
+    const hasPsForce = args.some(arg => /^-(?:f|fo|for|forc|force)$/.test(arg))
+    const hasPsRecurse = args.some(arg => /^-(?:r|re|rec|recu|recur|recurs|recurse)$/.test(arg))
+    const hasCmdQuietRecurse = (args.includes('/s') && args.includes('/q')) || args.some(arg => /^\/(?:sq|qs)$/.test(arg))
+    if (['stop-service', 'spsv', 'stop-process', 'spps', 'remove-itemproperty', 'rp'].includes(name) && hasPsForce) return 'Note: this forcibly stops a service or process, or removes registry properties.'
     if (name === 'sc' && ['delete', 'stop'].includes(args[0] ?? '')) return 'Note: this stops or deletes a Windows service.'
-    if (['remove-item', 'ri', 'rm', 'rd', 'rmdir', 'del', 'erase'].includes(name) && args.includes('-recurse') && args.includes('-force') && args.some(arg => /^(?:[a-z]:[\\/]*|[\\/]|~|\$home|\$env:userprofile|%userprofile%|[a-z]:[\\/]users[\\/][^\\/]+[\\/]*|\/(?:users|home)\/[^/]+\/?)$/.test(arg))) return 'Note: this recursively force-removes a root or home folder.'
+    if (['remove-item', 'ri', 'rm', 'rd', 'rmdir', 'del', 'erase'].includes(name) && ((hasPsRecurse && hasPsForce) || hasCmdQuietRecurse) && args.some(arg => /^(?:[a-z]:[\\/]*|[\\/]|~|\$home|\$env:userprofile|%userprofile%|[a-z]:[\\/]users[\\/][^\\/]+[\\/]*|\/(?:users|home)\/[^/]+\/?)$/.test(arg))) return 'Note: this recursively force-removes a root or home folder.'
+    if (['del', 'erase', 'rd', 'rmdir'].includes(name) && hasCmdQuietRecurse) return 'Note: this may recursively force-remove files.'
+    if (name === 'rm' && hasPsRecurse && hasPsForce) return 'Note: this may recursively force-remove files.'
     if (name === 'taskkill' && args.includes('/f') && args.some((arg, i) => arg === '/im' && /^(?:system|registry|smss|csrss|wininit|services|lsass|winlogon|svchost)(?:\.exe)?$/.test(args[i + 1] ?? '') || arg === '/pid' && ['0', '4'].includes(args[i + 1] ?? ''))) return 'Note: this forcibly terminates a Windows system process.'
     if (['powershell', 'pwsh'].includes(name) && args.some(arg => /^-(?:e|en|enc|enco|encod|encode|encoded|encodedc|encodedco|encodedcom|encodedcomm|encodedcomma|encodedcomman|encodedcommand)$/.test(arg))) return 'Note: this executes an encoded PowerShell command whose intent is hidden.'
   }
