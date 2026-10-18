@@ -104,10 +104,10 @@ t.section('§3 — REAL BINARY: keystrokes fill the ring; /trace renders it')
       out,
       cwd: process.cwd(),
       sends: [
-        { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 2, mark: 'boot-ready', data: '\r' },
-        { requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 3, mark: 'chat-ready', data: 'x' },
-        { afterPrevTicks: 3, data: '' },
-        { requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 2, mark: 'trace-requested', data: '/trace\r' },
+        { requireAwait: true, awaitText: '↑↓ choose', awaitPattern: '↑↓ choose', awaitSettleTicks: 2, mark: 'boot-ready', data: '\r' },
+        { requireAwait: true, awaitText: ' ready · ', awaitPattern: ' ready · [\\s\\S]*Type a prompt, start a slash command', awaitSettleTicks: 3, mark: 'chat-ready', data: 'x' },
+        { requireAwait: true, awaitText: '│❯ x ', awaitPattern: '│❯ x ', awaitSettleTicks: 2, mark: 'typed-x', data: '\x7f' },
+        { requireAwait: true, awaitText: 'Type a prompt, start a slash command', awaitPattern: 'Type a prompt, start a slash command', awaitSettleTicks: 2, mark: 'trace-requested', data: '/trace\r' },
       ],
       readyText: ['input→frame', 'slowest ', 'compose ', 'profile '],
       readySettleTicks: 4,
@@ -137,7 +137,7 @@ t.section('§3 — REAL BINARY: keystrokes fill the ring; /trace renders it')
     } catch {
     }
     t.check('the journey completed (vshot exit 0)', r.status === 0, `exit=${r.status}`)
-    t.check('refusals: no navigation send runs before its product-ready mark', marks.join(',') === 'boot-ready,chat-ready,trace-requested', marks.join(','))
+    t.check('refusals: no navigation send runs before its product-ready mark', marks.join(',') === 'boot-ready,chat-ready,typed-x,trace-requested', marks.join(','))
     if (r.status !== 0) console.log(r.stdout, r.stderr, text)
     t.check(
       'the frames section renders the sample count over the cap and the live span',
