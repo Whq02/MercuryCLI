@@ -195,8 +195,9 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
   const envelope = Array.isArray(body) ? body.find(item => item !== null && typeof item === 'object' && 'error' in item) : body
   const o = typeof envelope === 'object' && envelope !== null ? (envelope as Record<string, unknown>) : undefined
   const err = typeof o?.error === 'object' && o.error !== null ? (o.error as Record<string, unknown>) : undefined
+  const vendor = vendorEnvelopeFault(o)
   const stringError = typeof o?.error === 'string' && o.error.trim() !== '' ? o.error : undefined
-  const message = String(err?.message ?? stringError ?? o?.message ?? `HTTP ${status}`)
+  const message = String(err?.message ?? stringError ?? o?.message ?? vendor?.message ?? `HTTP ${status}`)
   const word = vendorErrorWord(err)
   let retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
   if (status === 429 && retryAfterMs === undefined) {
@@ -212,10 +213,10 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
   }
   const refusalWords = status === 429 && retryAfterMs !== undefined ? `rate limited (provider asks for ${Math.ceil(retryAfterMs / 1000)} s): ${message}` : message
   return {
-    kind: word !== undefined ? 'api-error' : 'http-error',
-    code: word !== undefined ? `api-${word}` : `http-${status}`,
+    kind: word !== undefined || vendor !== undefined ? 'api-error' : 'http-error',
+    code: word !== undefined ? `api-${word}` : vendor?.code ?? `http-${status}`,
     message: refusalWords,
-    retryable: status === 429 || status === 408 || status >= 500,
+    retryable: status === 429 || status === 408 || status >= 500 || vendor?.retryable === true,
     status,
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
   }
@@ -757,7 +758,8 @@ function vendorEnvelopeFault(body: unknown): CompatFault | undefined {
   const code = base?.status_code
   if (typeof code !== 'number' || !Number.isFinite(code) || code === 0) return undefined
   const message = typeof base?.status_msg === 'string' && base.status_msg !== '' ? base.status_msg : `vendor status ${code}`
-  return { kind: 'api-error', code: `minimax-${code}`, message, retryable: false }
+  const retryable = code === 1000 || code === 1001 || code === 1013 || code === 1024 || code === 1033
+  return { kind: 'api-error', code: `minimax-${code}`, message, retryable }
 }
 
 const KNOWN_FINISH: readonly CompatFinishReason[] = [

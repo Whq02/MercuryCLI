@@ -4,7 +4,7 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { minimaxPlanRemainsUrl, resolveMinimaxApiKey } from './minimaxAccounts.js'
-import { MINIMAX_AUTH_CODES, minimaxBaseRespFailure } from './minimaxCatalogue.js'
+import { minimaxBaseRespFailure } from './minimaxCatalogue.js'
 
 export const MINIMAX_BALANCE_NOTE = 'a pay-as-you-go key draws the Open Platform balance, shown at platform.minimax.io (the API states no balance to clients)'
 export const MINIMAX_PLAN_ABSENT_NOTE = 'no M Plan window on this key — turns draw the pay-as-you-go balance'
@@ -88,7 +88,8 @@ function count(value: unknown): number | undefined {
 }
 
 function decodeMinimaxPlanUsage(body: unknown, nowMs: number): MinimaxPlanUsage | 'no-plan' | undefined {
-  if (typeof body !== 'object' || body === null) return undefined
+  if (body === undefined || body === null) return 'no-plan'
+  if (typeof body !== 'object') return undefined
   const remains = (body as Record<string, unknown>).model_remains
   if (remains === undefined || remains === null) return 'no-plan'
   if (!Array.isArray(remains)) return undefined
@@ -146,9 +147,9 @@ export async function fetchMinimaxPlanUsage(
       body = undefined
     }
     const vendor = minimaxBaseRespFailure(body)
-    if (vendor && MINIMAX_AUTH_CODES.has(vendor.code)) probe = { state: 'refused', status: 401, message: vendor.message }
-    else if (response.status === 401 || response.status === 403) probe = { state: 'refused', status: response.status, ...(vendor ? { message: vendor.message } : {}) }
-    else if (response.status === 404 || vendor) probe = { state: 'no-plan' }
+    if (vendor && vendor.code === 2049) probe = { state: 'refused', status: 401, message: vendor.message }
+    else if (response.status === 401) probe = { state: 'refused', status: 401, ...(vendor ? { message: vendor.message } : {}) }
+    else if (response.status === 403 || response.status === 404 || vendor) probe = { state: 'no-plan' }
     else if (!response.ok) probe = { state: 'refused', status: response.status }
     else {
       const decoded = decodeMinimaxPlanUsage(body, nowMs)

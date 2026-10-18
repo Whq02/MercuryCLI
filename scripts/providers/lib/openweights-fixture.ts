@@ -13,6 +13,7 @@ export const MINIMAX_FIXTURE_PLAN = {
   model_remains: [
     { model_name: 'MiniMax-M3', start_time: 1_792_050_000_000, end_time: 1_792_068_000_000, current_interval_remaining_percent: 62, current_interval_total_count: 1000, current_interval_usage_count: 380, current_interval_status: 'normal', weekly_start_time: 1_791_800_000_000, weekly_end_time: 1_792_404_800_000, current_weekly_remaining_percent: 81, current_weekly_status: 'normal' },
   ],
+  base_resp: { status_code: 0, status_msg: '' },
 }
 
 export const TOGETHER_FIXTURE_MODELS = [

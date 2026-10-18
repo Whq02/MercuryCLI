@@ -243,8 +243,9 @@ const ZEN_BILLING_WORDS = /^(?:api|openai)-(?:CreditsError|MonthlyLimitError|Use
 function minimaxCodeClass(code: number): TypedError | undefined {
   if (code === 1004 || code === 2049) return 'authentication_failed'
   if (code === 1008) return 'billing_error'
-  if (code === 1002 || code === 1039 || code === 2045 || code === 2056) return 'rate_limit'
-  if (code === 2013 || code === 1026 || code === 1027) return 'invalid_request'
+  if (code === 1002 || code === 1039 || code === 1041 || code === 2045 || code === 2056) return 'rate_limit'
+  if (code === 2013 || code === 1026 || code === 1027 || code === 1042) return 'invalid_request'
+  if (code === 1000 || code === 1001 || code === 1013 || code === 1024 || code === 1033) return 'server_error'
   return undefined
 }
 

@@ -38,7 +38,7 @@ export function minimaxBaseRespFailure(body: unknown): { code: number; message: 
   return { code, message: typeof message === 'string' && message !== '' ? message : `MiniMax status ${code}` }
 }
 
-export const MINIMAX_AUTH_CODES: ReadonlySet<number> = new Set([1004, 2049])
+const MINIMAX_AUTH_CODES: ReadonlySet<number> = new Set([1004, 2049])
 
 export async function fetchMinimaxLiveModels(opts: { baseUrl: string; key: string; fetchImpl?: typeof fetch }): Promise<{ models: MinimaxLiveModel[]; otherLines: number; fetchedAtMs: number }> {
   let response: Response
