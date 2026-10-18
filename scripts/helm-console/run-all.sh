@@ -23,6 +23,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-console-text.ts" || { __rc=$?; fai
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-console-wiring.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-console-wiring.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-console-ask.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-console-ask.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-hip-vocab.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hip-vocab.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-desert-verbs-cadence.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-desert-verbs-cadence.ts" "$__t" "$__rc"
 if [ "$fail" -ne 0 ]; then
   echo "❌ helm-console suite: FAILURES"
   exit 1
