@@ -1254,7 +1254,10 @@ export function Chat({
         dialogInFlightRef.current = null;
         if (!slot.mounted) drainQueuedDialogCommand();
       };
-      takeComposer();
+      if (pendingInput.text().replace(/\s+$/, '') === input) {
+        pendingInput.clearForSubmit(input);
+        setInputValue('');
+      }
       const context = getToolUseContext([...focusedNow.records()], [], createAbortController(), focusedNow.modelFacts().effective);
       let completed = false;
       const onDone = (

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const dist = resolve(process.env.HELPERS_DIST ?? join(root, 'dist'))
@@ -35,7 +36,7 @@ const note = (label: string, detail: unknown = ''): void => {
 }
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const until = async (predicate: () => boolean | Promise<boolean>, ms = 30_000): Promise<boolean> => {
-  const deadline = Date.now() + ms
+  const deadline = Date.now() + vshotBudgetMs(ms)
   do {
     if (await predicate()) return true
     await wait(100)
