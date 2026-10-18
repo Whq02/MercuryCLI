@@ -45,7 +45,7 @@
 # gate-watch: src/services/tools/toolHooks.ts src/substrate/startupMenu.ts src/tools/ComputerTool/ComputerTool.ts
 # gate-watch: scripts/bash/floor-proof-helpers.ts
 # gate-watch: src/utils/wards/wards.ts src/utils/windowsPaths.ts
-# gate-watch: src/guards/**
+# gate-watch: src/guards/** src/utils/artifactIdentity.ts src/daemon/ownerWatch.ts src/cli/update.ts src/tools/JourneyTool/JourneyTool.ts src/tools/ServiceTool/ServiceTool.ts
 # gate-watch: src/hooks/useCanUseTool.tsx src/keybindings/KeybindingContext.tsx
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 set -u

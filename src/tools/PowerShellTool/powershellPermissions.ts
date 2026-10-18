@@ -37,7 +37,7 @@ import { checkPermissionMode, isSymlinkCreatingCommand } from './modeValidation.
 import { isGitInternalPathPS, isDotGitPathPS } from './gitSafety.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { getShellCwd } from '../../utils/Shell.js'
-import { shellCredentialWritePath, shellMercurySecretPath } from '../../utils/permissions/shellProtectedPaths.js'
+import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
 
 const TOOL_NAME = 'PowerShell'
 
@@ -138,6 +138,8 @@ export async function powershellToolHasPermission(
 ): Promise<PermissionResult> {
   const toolPermissionContext = context.getAppState().toolPermissionContext as ToolPermissionContext
   const command = input.command.trim()
+  const selfProtection = await shellSelfProtectionReason(command, true)
+  if (selfProtection !== null) return { behavior: 'deny', message: selfProtection, decisionReason: { type: 'other', reason: selfProtection } }
 
   if (command === '') return { behavior: 'allow', updatedInput: input, decisionReason: other('Nothing to run.') }
 

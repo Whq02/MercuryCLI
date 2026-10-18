@@ -28,6 +28,7 @@ import { refusalWithReason, ruleSentence, withRuleReason } from './ruleReason.js
 import { uncPathRisk, uncPathMessage } from './uncPath.js'
 import { suspiciousWindowsPattern } from './windowsPath.js'
 import { credentialStorePath, mercurySecretPath, mercurySecretReadIgnores, protectedPathForms } from './protectedPaths.js'
+import { runtimeWritePath } from './runtimeProtection.js'
 
 
 const DANGEROUS_FILES: string[] = [
@@ -715,6 +716,12 @@ export function checkWritePermissionForTool(
   const path = tool.getPath?.(input)
   if (path === undefined) {
     return ask(`Permission to use ${tool.name} has not been granted.`, { type: 'other', reason: 'no path accessor' })
+  }
+  const runtimeInput = typeof input === 'object' && input !== null && 'file_path' in input && typeof input.file_path === 'string' ? input.file_path : path
+  const runtime = runtimeWritePath(path) ?? runtimeWritePath(runtimeInput)
+  if (runtime !== null) {
+    const message = 'Writing ' + path + ' is refused: ' + runtime + ' is part of Mercury’s running runtime.'
+    return deny(message, { type: 'other', reason: message })
   }
   const remote = checkUncPathPermission(path, context, 'edit')
   if (remote && remote.behavior !== 'allow') return remote

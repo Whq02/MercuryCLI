@@ -1,6 +1,8 @@
 import { getShellCwd } from '../Shell.js'
 import { credentialStorePath, mercurySecretPath } from './protectedPaths.js'
-import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, type Node } from './decision/commandAnalysis.js'
+import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, extractHeredocs, type Node } from './decision/commandAnalysis.js'
+import { runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
+import { expandPath } from '../path.js'
 
 function words(text: string, powershell: boolean): Array<string | { op?: string }> {
   const prepared = powershell ? text.replace(/`\r?\n/g, '').replace(/`([^\r\n])/g, '$1').replace(/\\/g, '\\\\') : text
@@ -123,6 +125,95 @@ async function shellProtectedPath(command: string, powershell: boolean, operands
       if (/^(?:bash|sh|zsh|dash|pwsh|powershell)$/.test(verb(unwrapped[0] ?? ''))) {
         const flag = unwrapped.findIndex((word, i) => i > 0 && /^-(?:[a-z]*c|command)$/i.test(word))
         if (flag >= 0 && unwrapped[flag + 1] && unwrapped[flag + 1]!.length < text.length) pending.push(unwrapped[flag + 1]!)
+      }
+    }
+  }
+  return null
+}
+
+function runtimeOperands(argv: string[]): Array<{ path: string; removesTree: boolean }> {
+  const name = verb(argv[0] ?? '')
+  const args = argv.slice(1)
+  if (args.some(arg => /^-whatif$/i.test(arg))) return []
+  const targets = writeOperands(argv).map(path => ({ path, removesTree: false }))
+  const removers = ['rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase', 'remove-item', 'mv', 'move', 'move-item', 'mi', 'ren', 'rename', 'rename-item']
+  if (removers.includes(name) || (name === 'find' && args.includes('-delete'))) {
+    targets.push(...args.filter(arg => !arg.startsWith('-') && !/^\/[sq]$/i.test(arg)).map(path => ({ path, removesTree: true })))
+  }
+  if (['truncate', 'clear-content', 'clc', 'new-item', 'ni'].includes(name)) {
+    targets.push(...args.filter(arg => !arg.startsWith('-')).map(path => ({ path, removesTree: false })))
+  }
+  if (['install', 'ln'].includes(name)) {
+    const target = args.filter(arg => !arg.startsWith('-')).at(-1)
+    if (target) targets.push({ path: target, removesTree: false })
+  }
+  if (name === 'dd') targets.push(...args.filter(arg => arg.startsWith('of=')).map(arg => ({ path: arg.slice(3), removesTree: false })))
+  return targets
+}
+
+export async function shellSelfProtectionReason(command: string, powershell = false): Promise<string | null> {
+  const pending = [{ text: command, cwd: getShellCwd(), powershell }]
+  while (pending.length) {
+    const current = pending.pop()!
+    const extracted = extractHeredocs(current.text)
+    const text = extracted.processedCommand
+    const views: string[] = []
+    const root = current.powershell ? null : await pinnedCommandAnalysis.parseCommandRaw(text)
+    if (root !== null && root !== PARSE_ABORTED) {
+      const visit = (node: Node): void => {
+        if (['command', 'redirected_statement', 'pipeline', 'file_redirect'].includes(node.type)) {
+          views.push(node.text)
+          const substitutions = (child: Node): void => {
+            if (child.type === 'command_substitution') visit(child)
+            else for (const nested of child.children) substitutions(nested)
+          }
+          for (const child of node.children) substitutions(child)
+        } else for (const child of node.children) visit(child)
+      }
+      visit(root)
+    } else views.push(text)
+    let cwd = current.cwd
+    for (const view of views) {
+      const commands = groups(view, current.powershell).map(argv => {
+        let unwrapped = argv[0] === '&' ? argv.slice(1) : argv
+        while (['command', 'builtin', 'exec'].includes(verb(unwrapped[0] ?? ''))) {
+          unwrapped = unwrapped.slice(1)
+          while (unwrapped[0]?.startsWith('-')) unwrapped = unwrapped.slice(1)
+        }
+        const peeled = peelWrappers(unwrapped)
+        return Array.isArray(peeled) ? peeled : unwrapped
+      })
+      const processReason = await runtimeProcessRefusal(commands)
+      if (processReason) return processReason
+      for (const argv of commands) {
+        const name = verb(argv[0] ?? '')
+        if (['cd', 'chdir', 'set-location', 'sl', 'pushd', 'push-location'].includes(name)) {
+          const target = argv.slice(1).find(word => !word.startsWith('-'))
+          if (target) cwd = expandPath(target, cwd)
+        }
+        for (const target of runtimeOperands(argv)) {
+          const hit = runtimeWritePath(target.path, cwd, target.removesTree)
+          if (hit !== null) return 'Changing ' + target.path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
+        }
+        const shell = /^(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)$/.test(name)
+        if (shell) {
+          const flag = argv.findIndex((word, i) => i > 0 && /^(?:-(?:[a-z]*c|command)|\/[ck])$/i.test(word))
+          if (flag >= 0 && argv[flag + 1] && argv[flag + 1]!.length < current.text.length) pending.push({ text: argv[flag + 1]!, cwd, powershell: /^(?:pwsh|powershell)$/.test(name) })
+          for (const [placeholder, heredoc] of extracted.heredocs) {
+            if (view.includes(placeholder)) pending.push({ text: current.text.slice(heredoc.contentStartIndex, heredoc.contentEndIndex), cwd, powershell: false })
+          }
+        }
+        if (['eval', 'iex', 'invoke-expression'].includes(name)) {
+          const script = argv.slice(1).join(' ')
+          if (script.length < current.text.length) pending.push({ text: script, cwd, powershell: current.powershell })
+        }
+        if (/^(?:node|bun|python[\d.]*|ruby|perl)$/.test(name) && argv.some(word => /^-(?:e|c|p|command)$/.test(word))) {
+          const script = argv.slice(2).join(' ')
+          for (const call of script.matchAll(/\b(?:write\w*|append\w*|rm\w*|unlink\w*|truncate\w*|rename\w*|remove\w*|rmtree)\s*\(\s*(['"])([^'"\r\n]+)\1/g)) {
+            const hit = runtimeWritePath(call[2]!, cwd, true)
+            if (hit) return 'Changing ' + call[2] + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
+          }
+        }
       }
     }
   }
