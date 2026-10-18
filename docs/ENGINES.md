@@ -534,8 +534,13 @@ alias use this form; other K2 ids are not assumed to support it.
 Z.AI's GLM rows follow the same road: with a Z.AI key present, Mercury reads
 the account's model list (`GET /models` on the base the key is valid on: a
 GLM Coding Plan key reads `https://api.z.ai/api/coding/paas/v4`, and a general
-key or `ZAI_API_KEY` reads `https://api.z.ai/api/paas/v4`) when the picker
-composes its rows, and paints the GLM ids it names, newest first. The list
+key reads `https://api.z.ai/api/paas/v4`) when the picker composes its rows,
+and paints the GLM ids it names, newest first. A key stored through `/logins
+zai` carries the plan it was proven under; a key given as `ZAI_API_KEY` (or by
+a key command) rides the plan `ZAI_KEY_PLAN` names (`coding` or `general`),
+and with it unset Mercury reads the plan from the key's own models list once
+per process (the general base first, then the Coding Plan base), so a GLM
+Coding Plan key in the environment reaches the Coding Plan base. The list
 states ids only; each row's window and reasoning dial are the facts
 docs.z.ai states for that id (read 2026-10-05): `glm-5.3`, `glm-5.3-flash`
 and `glm-5.3-flashx` have a 1M-token window, a 128K output ceiling and the

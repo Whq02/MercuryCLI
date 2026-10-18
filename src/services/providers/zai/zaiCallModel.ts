@@ -54,6 +54,8 @@ import { addToTotalSessionCost } from '../../../cost-tracker.js'
 import { calculateUSDCost } from '../../../utils/modelCost.js'
 import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
 import { resolveZaiDispatch } from './zaiAccounts.js'
+import { learnZaiKeyPlan } from './zaiCatalogue.js'
+import { otherZaiKeyPlan, rememberZaiKeyPlan, zaiKeyPlanUnknownWord, type ZaiKeyPlanWord } from './zaiKeyPlan.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../emptyReply.js'
 import {
@@ -199,7 +201,7 @@ const ZAI_FAULT_PROFILE = {
   providerLabel: 'Z.AI',
   credentialHint: 'no Z.AI API key detected — /logins zai stores one (general or GLM Coding Plan); ZAI_API_KEY works too.',
   authRemedy:
-    'set a valid ZAI_API_KEY, or store a new key via /logins zai (z.ai/manage-apikey issues them — a GLM Coding Plan key must be stored as one, it is refused on the general base).',
+    'set a valid ZAI_API_KEY (ZAI_KEY_PLAN=coding names a GLM Coding Plan key; unset, the plan is read from the key\'s own models list and both bases are asked), or store a new key via /logins zai (z.ai/manage-apikey issues them).',
   billingRemedy: 'top up the Z.AI account (its balance is exhausted), then retry; /model picks another model meanwhile.',
 }
 
@@ -212,7 +214,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
   const { messages, systemPrompt, thinkingConfig, tools, signal, options } = params
   const modelId = normalizeModelStringForAPI(options.model)
 
-  const dispatch = resolveZaiDispatch()
+  let dispatch = resolveZaiDispatch()
   if (!dispatch) {
     const failure = providerKeyCommandFailure('zai')
     const hint = failure ? `the configured ${failure.message} — no Z.AI API key detected.` : ZAI_FAULT_PROFILE.credentialHint
@@ -220,6 +222,16 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       `${API_ERROR_MESSAGE_PREFIX}: ${hint} Model '${modelId}' cannot run.`,
     )
     return
+  }
+  const planWord = dispatch.planSource === 'stored' ? undefined : zaiKeyPlanUnknownWord(process.env)
+  if (planWord !== undefined) {
+    yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${planWord}. Model '${modelId}' cannot run.`)
+    return
+  }
+  if (dispatch.planSource === 'assumed') {
+    const learned = await learnZaiKeyPlan(dispatch.key)
+    if (learned.plan !== undefined) dispatch = { ...dispatch, plan: learned.plan, planSource: 'learned' }
+    else logForDebugging(`[zai] the plan of the ${dispatch.source} key could not be read from the models list (${learned.error.message}) — the general base is asked first`)
   }
   let apiKey = dispatch.key
 
@@ -298,10 +310,11 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
   let reconnect: ReconnectLadder | undefined
   let emptyEnds = 0
   let recovery: 'retried' | 'no-new-credential' | undefined
+  let planTrial: { from: ZaiKeyPlanWord; fault: ZaiFault } | undefined
   for (let attempt = 1; attempt <= ZAI_MAX_ATTEMPTS || busy !== undefined; attempt++) {
     attemptStartedAtMs = Date.now()
     const signInRequest = captureSignInRequest('zai', apiKey)
-    const outcome = yield* streamOneZaiAttempt({
+    let outcome = yield* streamOneZaiAttempt({
       request,
       apiKey,
       requestUrl: zaiChatCompletionsUrl(process.env, dispatch.plan),
@@ -316,6 +329,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     })
     if (outcome.kind === 'done') {
       observeSignInResponse(signInRequest, 200)
+      if (dispatch.planSource === 'assumed' || dispatch.planSource === 'learned') rememberZaiKeyPlan(dispatch.key, dispatch.plan)
       zaiLiveProof = { at: Date.now(), model: modelId }
       recordLaneTurnSettled('zai')
       try {
@@ -326,6 +340,22 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       return
     }
     if (outcome.kind === 'cancelled') return
+    const refusedClass = (fault: ZaiFault): boolean => {
+      const kind = compatFaultToTypedError(fault)
+      return kind === 'authentication_failed' || kind === 'billing_error'
+    }
+    const otherBaseDiffers = zaiChatCompletionsUrl(process.env, otherZaiKeyPlan(dispatch.plan)) !== zaiChatCompletionsUrl(process.env, dispatch.plan)
+    if (outcome.retryEligible && refusedClass(outcome.fault) && (dispatch.planSource === 'assumed' || dispatch.planSource === 'learned') && planTrial === undefined && otherBaseDiffers) {
+      planTrial = { from: dispatch.plan, fault: outcome.fault }
+      dispatch = { ...dispatch, plan: otherZaiKeyPlan(dispatch.plan), planSource: 'assumed' }
+      logForDebugging(`[zai] the ${planTrial.from} base refused the ${dispatch.source} key (${outcome.fault.code}) — asking the ${dispatch.plan} base once before the fault is reported`)
+      attempt--
+      continue
+    }
+    if (planTrial !== undefined && refusedClass(outcome.fault)) {
+      dispatch = { ...dispatch, plan: planTrial.from }
+      outcome = { kind: 'fault', fault: planTrial.fault, retryEligible: outcome.retryEligible }
+    }
     observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     const askedMs = outcome.fault.retryAfterMs
     const typed = compatFaultToTypedError(outcome.fault)
