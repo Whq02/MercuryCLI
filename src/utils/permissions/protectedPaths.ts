@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
-import { join, posix, resolve } from 'node:path'
+import { posix, resolve } from 'node:path'
 import { getCwd } from '../cwd.js'
-import { getAuthScope, getMercuryHome } from '../envUtils.js'
+import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
 import { getPathsForPermissionCheck } from '../fsOperations.js'
 
 function spelling(path: string): string {
@@ -47,7 +47,7 @@ export function credentialStorePath(path: string, cwd = getCwd()): string | null
 const MERCURY_SECRET_PATTERNS = ['.credentials.json', '.provider-secrets.json', '*-auth.json', 'browser-secrets.json', '.credentials.json.corrupt.*', '.provider-secrets.json.corrupt.*']
 
 export function mercurySecretReadIgnores(): Map<string, string[]> {
-  return new Map([getMercuryHome(), getAuthScope(), join(homedir(), '.mercury')].filter((path): path is string => !!path)
+  return new Map([getMercuryHome(), getAuthScope(), defaultMercuryHome()].filter((path): path is string => !!path)
     .flatMap(home => getPathsForPermissionCheck(spelling(home)).map(path => [path, MERCURY_SECRET_PATTERNS] as [string, string[]])))
 }
 

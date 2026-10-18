@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join, posix } from 'node:path'
-import { homedir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { describeArtifactIdentity } from '../artifactIdentity.js'
-import { getMercuryHome } from '../envUtils.js'
+import { defaultMercuryHome, getMercuryHome } from '../envUtils.js'
 import { getShellCwd } from '../Shell.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { execFileNoThrow } from '../execFileNoThrow.js'
@@ -17,7 +16,7 @@ const inside = (path: string, root: string): boolean => path === root || path.st
 
 function runtimeRoots(): string[] {
   const artifact = describeArtifactIdentity('')
-  const roots = [join(getMercuryHome(), 'runtime'), join(process.env.HOME || homedir(), '.mercury', 'runtime'), ...protectedPathForms(process.execPath).map(path => posix.dirname(path))]
+  const roots = [join(getMercuryHome(), 'runtime'), join(defaultMercuryHome(), 'runtime'), ...protectedPathForms(process.execPath).map(path => posix.dirname(path))]
   if (artifact.entry && artifact.distribution !== 'source-run') roots.push(dirname(artifact.entry))
   return roots.flatMap(root => protectedPathForms(root))
 }

@@ -145,7 +145,7 @@
     {
       "file": "src/utils/envUtils.ts",
       "needle": ".mercury",
-      "excerpt": "process.env.MERCURY_CONFIG_DIR || flagEnv('MERCURY_HOME') || join(homedir(), '.mercury')",
+      "excerpt": "return join(homedir(), '.mercury')",
       "cls": "owner-internal",
       "why": "the config-home monolith family — the home resolver owns the home basenames"
     },
