@@ -2,7 +2,8 @@
 // gate-watch: src/components/concourse/ConcourseScreen.tsx src/components/concourse/CoordinatorModelPicker.tsx src/services/concourse/coordinatorModels.ts src/state/onChangeAppState.ts
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { grabScreens, requireDist, runArtifactArena, firstOutputTs } from '../streaming/artifactArena.ts'
+import { grabScreens, requireDist, runArtifactArena, firstOutputTs, type ArenaOpts } from '../streaming/artifactArena.ts'
+import { vshotBudgetScale } from '../lib/captureDriver.ts'
 import { startCrossfamilyFixture } from '../lib/crossfamilyConcourseFixture.ts'
 
 requireDist()
@@ -29,6 +30,8 @@ const flat = (rows: string[]): string => rows.map(r => r.replace(/\s+$/, '')).jo
 const rowsWith = (rows: string[], needle: string): string => rows.filter(r => r.includes(needle)).map(r => r.trim().slice(0, 120)).join(' | ') || `(no row carries "${needle}")`
 
 section('§1 a concourse visit — the draft, the hops, a coordinator turn on glm-5.3, the coordinator-model picker — leaves the user\'s saved default untouched')
+const settleMs = Math.max(80, Math.round(300 / vshotBudgetScale()))
+const step = (s: Record<string, unknown>): ArenaOpts['sends'][number] => ({ settleMs, ...s }) as ArenaOpts['sends'][number]
 const chair = await startCrossfamilyFixture({ port: 0 })
 const run = await runArtifactArena({
   cols: 177,
@@ -42,17 +45,17 @@ const run = await runArtifactArena({
     writeFileSync(join(configDir, 'settings.json'), SETTINGS)
   },
   sends: [
-    { awaitText: 'Type a prompt', text: SHIFT_LEFT },
-    { awaitText: 'COORDINATOR', text: TYPED },
-    { awaitText: 'do not send', text: SHIFT_RIGHT },
-    { awaitText: 'Type a prompt', awaitAbsent: 'COORDINATOR', text: SHIFT_LEFT },
-    { awaitText: 'tab here first', text: SHIFT_TAB },
-    { awaitText: '↵↵ sends', text: '\r' },
-    { awaitText: '↵ again sends', text: '\r' },
-    { awaitText: '[Coordinator] cma-zai', text: CTRL_S },
-    { awaitText: 'COORDINATOR MODEL', afterPrevMs: 800, text: DOWN },
-    { awaitText: 'COORDINATOR MODEL', afterPrevMs: 800, text: '\r' },
-    { awaitText: 'switched:', afterPrevMs: 600, text: ESC },
+    step({ awaitText: 'Type a prompt', text: SHIFT_LEFT }),
+    step({ awaitText: 'COORDINATOR', text: TYPED }),
+    step({ awaitText: 'do not send', text: SHIFT_RIGHT }),
+    step({ awaitText: 'Type a prompt', awaitAbsent: 'COORDINATOR', text: SHIFT_LEFT }),
+    step({ awaitText: 'tab here first', text: SHIFT_TAB }),
+    step({ awaitText: '↵↵ sends', text: '\r' }),
+    step({ awaitText: '↵ again sends', text: '\r' }),
+    step({ awaitText: '[Coordinator] cma-zai', text: CTRL_S }),
+    step({ awaitText: ['COORDINATOR MODEL', '↵ selects'], afterPrevMs: 800, text: DOWN }),
+    step({ awaitText: ['COORDINATOR MODEL', '↵ selects'], afterPrevMs: 800, text: '\r' }),
+    step({ awaitText: 'switched:', afterPrevMs: 600, text: ESC }),
   ],
   anchor: null,
   extraEnv: { MERCURY_ZAI_API_BASE: chair.env.MERCURY_ZAI_API_BASE, ZAI_API_KEY: chair.env.ZAI_API_KEY },
