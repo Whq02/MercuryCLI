@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -341,6 +341,33 @@ function cohereFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 
+function groqFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./groq/groqPins.js') as typeof import('./groq/groqPins.js')).GROQ_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('groq', name, typed, () => {
+    const { resolveGroqAccount } = require('./groq/groqAccounts.js') as typeof import('./groq/groqAccounts.js')
+    const { getCachedGroqCatalogue } = require('./groq/groqCatalogue.js') as typeof import('./groq/groqCatalogue.js')
+    const account = resolveGroqAccount(env)
+    return { family: 'groq', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedGroqCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+function cerebrasFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./cerebras/cerebrasPins.js') as typeof import('./cerebras/cerebrasPins.js')).CEREBRAS_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('cerebras', name, typed, () => {
+    const { resolveCerebrasAccount } = require('./cerebras/cerebrasAccounts.js') as typeof import('./cerebras/cerebrasAccounts.js')
+    const { getCachedCerebrasCatalogue } = require('./cerebras/cerebrasCatalogue.js') as typeof import('./cerebras/cerebrasCatalogue.js')
+    const account = resolveCerebrasAccount(env)
+    return { family: 'cerebras', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedCerebrasCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+function fireworksFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./fireworks/fireworksPins.js') as typeof import('./fireworks/fireworksPins.js')).FIREWORKS_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('fireworks', name, typed, () => {
+    const { resolveFireworksAccount } = require('./fireworks/fireworksAccounts.js') as typeof import('./fireworks/fireworksAccounts.js')
+    const { getCachedFireworksCatalogue } = require('./fireworks/fireworksCatalogue.js') as typeof import('./fireworks/fireworksCatalogue.js')
+    const account = resolveFireworksAccount(env)
+    return { family: 'fireworks', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedFireworksCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
 export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelListFact[] {
   const { providerDisplayName } = require('./routeLaw.js') as typeof import('./routeLaw.js')
   const name = (family: ModelListFamily): string => providerDisplayName(family)
@@ -360,5 +387,8 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     minimaxFact(name('minimax'), env),
     togetherFact(name('together'), env),
     cohereFact(name('cohere'), env),
+    groqFact(name('groq'), env),
+    cerebrasFact(name('cerebras'), env),
+    fireworksFact(name('fireworks'), env),
   ]
 }

@@ -38,6 +38,9 @@ const PAGES = {
   minimax: 'platform.minimax.io',
   together: 'api.together.ai/settings',
   cohere: 'dashboard.cohere.com/api-keys',
+  groq: 'console.groq.com/keys',
+  cerebras: 'cloud.cerebras.ai',
+  fireworks: 'app.fireworks.ai/api-keys',
 } as const
 type Family = keyof typeof PAGES
 const FAMILIES = Object.keys(PAGES) as Family[]
@@ -67,6 +70,9 @@ const PANE: Record<Family, string> = {
   minimax: 'src/components/MinimaxConnect.tsx',
   together: 'src/components/TogetherConnect.tsx',
   cohere: 'src/components/CohereConnect.tsx',
+  groq: 'src/services/providers/groq/GroqConnect.tsx',
+  cerebras: 'src/services/providers/cerebras/CerebrasConnect.tsx',
+  fireworks: 'src/services/providers/fireworks/FireworksConnect.tsx',
 }
 const ROAD: Partial<Record<Family, string[]>> = {
   deepseek: ['src/services/providers/deepseek/deepseekLogin.ts', 'src/services/providers/deepseek/deepseekCallModel.ts'],
@@ -78,6 +84,9 @@ const ROAD: Partial<Record<Family, string[]>> = {
   minimax: ['src/services/providers/minimax/minimaxLogin.ts', 'src/services/providers/minimax/minimaxCallModel.ts'],
   together: ['src/services/providers/together/togetherLogin.ts', 'src/services/providers/together/togetherCallModel.ts'],
   cohere: ['src/services/providers/cohere/cohereLogin.ts', 'src/services/providers/cohere/cohereCallModel.ts'],
+  groq: ['src/services/providers/groq/groqLogin.ts', 'src/services/providers/groq/groqCallModel.ts'],
+  cerebras: ['src/services/providers/cerebras/cerebrasLogin.ts', 'src/services/providers/cerebras/cerebrasCallModel.ts'],
+  fireworks: ['src/services/providers/fireworks/fireworksLogin.ts', 'src/services/providers/fireworks/fireworksCallModel.ts'],
   moonshot: ['src/services/providers/moonshot/moonshotLogin.ts'],
   huggingface: ['src/services/providers/huggingface/huggingfaceLogin.ts'],
   zai: ['src/services/providers/zai/zaiCallModel.ts'],
@@ -92,7 +101,7 @@ const { composeLogins, renderStill, signedOutFacts } = await import('./face-logi
 
 const DETAIL_W = 38
 const WAY_OUT: Record<'pick' | 'key', string> = { pick: 'esc — back to the roster', key: '↵ stores it · esc back' }
-const isKeyOnly = (family: Family): family is 'deepseek' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' => family === 'deepseek' || family === 'mistral' || family === 'nous' || family === 'zen' || family === 'minimax' || family === 'together' || family === 'cohere'
+const isKeyOnly = (family: Family): family is 'deepseek' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' => family === 'deepseek' || family === 'mistral' || family === 'nous' || family === 'zen' || family === 'minimax' || family === 'together' || family === 'cohere' || family === 'groq' || family === 'cerebras' || family === 'fireworks'
 const cardKind = (family: Family): 'pick' | 'key' => (isKeyOnly(family) ? 'key' : 'pick')
 const cardLines = (family: Family): string[] =>
   isKeyOnly(family) ? screen.keyPromptPaneLines(family, null, 0, false) : screen.loginsPickPaneLines(family)
@@ -105,7 +114,7 @@ t.section('§1 — ONE OWNER: the family-row owner spells every key page once; t
 {
   const pages = owner['KEY_PAGES'] as Record<string, string> | undefined
   t.check(
-    'KEY_PAGES names exactly the fifteen key families with these page spellings',
+    'KEY_PAGES names exactly the eighteen key families with these page spellings',
     pages !== undefined && JSON.stringify(Object.entries(pages).sort()) === JSON.stringify(Object.entries(PAGES).sort()),
     pages === undefined ? 'no KEY_PAGES export' : JSON.stringify(pages),
   )

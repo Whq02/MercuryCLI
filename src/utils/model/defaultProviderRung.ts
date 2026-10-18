@@ -19,6 +19,9 @@ const KNOWN_FAMILIES = new Set([
   'minimax',
   'together',
   'cohere',
+  'groq',
+  'cerebras',
+  'fireworks',
 ])
 
 interface DefaultProviderReads {

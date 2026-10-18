@@ -157,6 +157,12 @@ export function subModelConnectHome(route: CallModelRoute | string): {
       return { command: '/logins together', note: 'connect — /logins (API key)' }
     case 'cohere':
       return { command: '/logins cohere', note: 'connect — /logins (API key)' }
+    case 'groq':
+      return { command: '/logins groq', note: 'connect — /logins (API key)' }
+    case 'cerebras':
+      return { command: '/logins cerebras', note: 'connect — /logins (API key)' }
+    case 'fireworks':
+      return { command: '/logins fireworks', note: 'connect — /logins (API key)' }
     case 'openai-compat':
       return { note: 'MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — MERCURY_COMPAT_API_KEY)' }
     case 'huggingface':

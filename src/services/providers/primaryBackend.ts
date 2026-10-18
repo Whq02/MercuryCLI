@@ -33,6 +33,12 @@ import { togetherCallModel, togetherLiveProofState } from './together/togetherCa
 import { resolveTogetherApiKey } from './together/togetherAccounts.js'
 import { cohereCallModel, cohereLiveProofState } from './cohere/cohereCallModel.js'
 import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
+import { groqCallModel, groqLiveProofState } from './groq/groqCallModel.js'
+import { resolveGroqApiKey } from './groq/groqAccounts.js'
+import { cerebrasCallModel, cerebrasLiveProofState } from './cerebras/cerebrasCallModel.js'
+import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
+import { fireworksCallModel, fireworksLiveProofState } from './fireworks/fireworksCallModel.js'
+import { resolveFireworksApiKey } from './fireworks/fireworksAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -65,6 +71,9 @@ export type PrimaryBackendId =
   | 'minimax-chat'
   | 'together-chat'
   | 'cohere-chat'
+  | 'groq-chat'
+  | 'cerebras-chat'
+  | 'fireworks-chat'
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
@@ -88,6 +97,9 @@ export interface AgentRuntimeRef {
     | 'minimax'
     | 'together'
     | 'cohere'
+    | 'groq'
+    | 'cerebras'
+    | 'fireworks'
   route: CallModelRoute | 'unrecognised' | 'absence'
   canonicalModel: string
   family:
@@ -105,6 +117,9 @@ export interface AgentRuntimeRef {
     | { kind: 'local' }
     | { kind: 'mistral' }
     | { kind: 'zen' }
+    | { kind: 'groq' }
+    | { kind: 'cerebras' }
+    | { kind: 'fireworks' }
     | { kind: 'unknown' }
     | { kind: 'nous' }
     | { kind: 'minimax' }
@@ -287,6 +302,39 @@ const cohereBackend: PrimaryAgentBackend = {
       : { state: 'configured', detail: 'key present · no live turn proven this session' }
   },
 }
+const groqBackend: PrimaryAgentBackend = {
+  id: 'groq-chat', provider: 'groq', label: 'Groq (gateway, in-process)',
+  callModel: groqCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveGroqApiKey()) return { state: 'unavailable', reason: 'no API key (/logins groq, or GROQ_API_KEY)' }
+    const proof = groqLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const cerebrasBackend: PrimaryAgentBackend = {
+  id: 'cerebras-chat', provider: 'cerebras', label: 'Cerebras (gateway, in-process)',
+  callModel: cerebrasCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveCerebrasApiKey()) return { state: 'unavailable', reason: 'no API key (/logins cerebras, or CEREBRAS_API_KEY)' }
+    const proof = cerebrasLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const fireworksBackend: PrimaryAgentBackend = {
+  id: 'fireworks-chat', provider: 'fireworks', label: 'Fireworks (gateway, in-process)',
+  callModel: fireworksCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveFireworksApiKey()) return { state: 'unavailable', reason: 'no API key (/logins fireworks, or FIREWORKS_API_KEY)' }
+    const proof = fireworksLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
@@ -419,6 +467,9 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   minimax: minimaxBackend,
   together: togetherBackend,
   cohere: cohereBackend,
+  groq: groqBackend,
+  cerebras: cerebrasBackend,
+  fireworks: fireworksBackend,
 }
 
 export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
@@ -477,6 +528,12 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'together' }
   } else if (route === 'cohere') {
     family = { kind: 'cohere' }
+  } else if (route === 'groq') {
+    family = { kind: 'groq' }
+  } else if (route === 'cerebras') {
+    family = { kind: 'cerebras' }
+  } else if (route === 'fireworks') {
+    family = { kind: 'fireworks' }
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }

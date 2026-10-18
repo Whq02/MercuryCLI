@@ -47,6 +47,9 @@ import { ZenConnect } from './ZenConnect.js'
 import { MinimaxConnect } from './MinimaxConnect.js'
 import { TogetherConnect } from './TogetherConnect.js'
 import { CohereConnect } from './CohereConnect.js'
+import { GroqConnect } from '../services/providers/groq/GroqConnect.js'
+import { CerebrasConnect } from '../services/providers/cerebras/CerebrasConnect.js'
+import { FireworksConnect } from '../services/providers/fireworks/FireworksConnect.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
@@ -83,6 +86,9 @@ type EngineLeg =
   | 'minimax'
   | 'together'
   | 'cohere'
+  | 'groq'
+  | 'cerebras'
+  | 'fireworks'
 
 export type LoginFamilyFocus = LoginFamilyValue
 
@@ -233,7 +239,7 @@ export function ConsoleOAuthFlow({
       onSkip?.()
       return
     }
-    if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'minimax' || value === 'together' || value === 'cohere' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') {
+    if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'minimax' || value === 'together' || value === 'cohere' || value === 'groq' || value === 'cerebras' || value === 'fireworks' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') {
       setLeg(value)
       return
     }
@@ -318,6 +324,15 @@ export function ConsoleOAuthFlow({
         if (onOpenaiDone === undefined) return frame(<Text dimColor>Cohere login unavailable here.</Text>)
         return frame(<CohereConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
 
+      case 'groq':
+        if (onOpenaiDone === undefined) return frame(<Text dimColor>Groq login unavailable here.</Text>)
+        return frame(<GroqConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
+      case 'cerebras':
+        if (onOpenaiDone === undefined) return frame(<Text dimColor>Cerebras login unavailable here.</Text>)
+        return frame(<CerebrasConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
+      case 'fireworks':
+        if (onOpenaiDone === undefined) return frame(<Text dimColor>Fireworks login unavailable here.</Text>)
+        return frame(<FireworksConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
       case 'deepseek':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>DeepSeek login unavailable here.</Text>)
         return frame(<DeepseekConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
@@ -344,7 +359,7 @@ export function ConsoleOAuthFlow({
       const arms = popup ? loginsCatalogue() : []
       const intro =
         startingMessage ??
-        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen · MiniMax · Together AI · Cohere)..'
+        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen · MiniMax · Together AI · Cohere · Groq · Cerebras · Fireworks).'
       const refusalLayout = popup && facts !== null && Object.keys(facts.refusals ?? {}).length > 0
       const rosterCompact = compact || refusalLayout
       const statusWidth = !compact && setupBody !== null ? setupBody.width - 4 - READINESS_LABEL_WIDTH : null
@@ -627,6 +642,9 @@ export const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = 
   { id: 'minimax', label: 'MiniMax' },
   { id: 'together', label: 'Together AI' },
   { id: 'cohere', label: 'Cohere' },
+  { id: 'groq', label: 'Groq' },
+  { id: 'cerebras', label: 'Cerebras' },
+  { id: 'fireworks', label: 'Fireworks' },
   { id: 'local', label: 'Local servers' },
   { id: 'openai-compat', label: 'OpenAI-compatible' },
   { id: 'nous', label: 'Nous Portal' },

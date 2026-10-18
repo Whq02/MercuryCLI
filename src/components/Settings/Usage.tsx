@@ -419,6 +419,9 @@ const ENGINE_USAGE_PRESENTATION: Record<
     connect: '/logins cohere adds a Cohere API key (COHERE_API_KEY works too)',
     limitsNote: 'A trial key is rate-limited for evaluation; a production key bills pay-as-you-go, with spend shown at dashboard.cohere.com — no polled meter exists on this lane.',
   },
+  groq: { title: 'Groq usage', connect: '/logins groq adds an API key (GROQ_API_KEY works too)', limitsNote: 'Rate limits are read from response headers; account spend is shown at console.groq.com/dashboard/usage.' },
+  cerebras: { title: 'Cerebras usage', connect: '/logins cerebras adds an API key (CEREBRAS_API_KEY works too)', limitsNote: 'The session ledger counts tokens and spend; the cloud console shows account limits and credits.' },
+  fireworks: { title: 'Fireworks usage', connect: '/logins fireworks adds an API key (FIREWORKS_API_KEY works too)', limitsNote: 'The session ledger counts spend and response headers state TPM limits; app.fireworks.ai/account/billing shows account credits.' },
   zen: {
     title: 'OpenCode Zen usage',
     connect: '/logins zen adds an OpenCode Zen API key (OPENCODE_API_KEY works too)',

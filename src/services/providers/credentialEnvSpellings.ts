@@ -19,6 +19,9 @@ export const PROVIDER_CREDENTIAL_ENV_VARS: Record<CallModelRoute, readonly strin
   minimax: ['MINIMAX_API_KEY'],
   together: ['TOGETHER_API_KEY', 'TOGETHER_AI_API_KEY'],
   cohere: ['COHERE_API_KEY', 'CO_API_KEY'],
+  groq: ['GROQ_API_KEY'],
+  cerebras: ['CEREBRAS_API_KEY'],
+  fireworks: ['FIREWORKS_API_KEY'],
 }
 
 export const ALL_PROVIDER_CREDENTIAL_ENV_VARS: readonly string[] = [
@@ -46,6 +49,9 @@ export const PROVIDER_CREDENTIAL_VALUE_SHAPES: Record<CallModelRoute, Credential
   minimax: null,
   together: null,
   cohere: null,
+  groq: null,
+  cerebras: null,
+  fireworks: null,
 }
 
 export const REPOSITORY_HOST_TOKEN_SHAPE: NonNullable<CredentialValueShape> = {

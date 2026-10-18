@@ -31,6 +31,9 @@ interface ProviderSecretsFile {
   minimaxApiKey?: string
   togetherApiKey?: string
   cohereApiKey?: string
+  groqApiKey?: string
+  cerebrasApiKey?: string
+  fireworksApiKey?: string
   braveSearchApiKey?: string
   tavilyApiKey?: string
   typesafeApiKey?: string
@@ -180,6 +183,9 @@ type StoredKeyField =
   | 'huggingfaceApiKey'
   | 'localApiKey'
   | 'zenApiKey'
+  | 'groqApiKey'
+  | 'cerebrasApiKey'
+  | 'fireworksApiKey'
   | 'braveSearchApiKey'
   | 'tavilyApiKey'
   | 'typesafeApiKey'
@@ -212,6 +218,9 @@ const KEY_FIELD_FAMILY: Partial<Record<StoredKeyField, string>> = {
   minimaxApiKey: 'minimax',
   togetherApiKey: 'together',
   cohereApiKey: 'cohere',
+  groqApiKey: 'groq',
+  cerebrasApiKey: 'cerebras',
+  fireworksApiKey: 'fireworks',
 }
 
 function writeStoredKey(field: StoredKeyField, key: string | null): void {
@@ -331,6 +340,24 @@ export function readStoredCohereApiKey(): string | undefined {
 export function writeStoredCohereApiKey(key: string | null): void {
   writeStoredKey('cohereApiKey', key)
 }
+export function readStoredGroqApiKey(): string | undefined {
+  return readStoredKey('groqApiKey')
+}
+export function writeStoredGroqApiKey(key: string | null): void {
+  writeStoredKey('groqApiKey', key)
+}
+export function readStoredCerebrasApiKey(): string | undefined {
+  return readStoredKey('cerebrasApiKey')
+}
+export function writeStoredCerebrasApiKey(key: string | null): void {
+  writeStoredKey('cerebrasApiKey', key)
+}
+export function readStoredFireworksApiKey(): string | undefined {
+  return readStoredKey('fireworksApiKey')
+}
+export function writeStoredFireworksApiKey(key: string | null): void {
+  writeStoredKey('fireworksApiKey', key)
+}
 
 export function readStoredLocalApiKey(): string | undefined {
   return readStoredKey('localApiKey')
@@ -421,5 +448,8 @@ export function credentialEnvNames(): readonly string[] {
     'TOGETHER_AI_API_KEY',
     'COHERE_API_KEY',
     'CO_API_KEY',
+    'GROQ_API_KEY',
+    'CEREBRAS_API_KEY',
+    'FIREWORKS_API_KEY',
   ]
 }

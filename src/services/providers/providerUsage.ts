@@ -1994,6 +1994,18 @@ function deriveUsageForProvider(
       absence: `a standard ${provider === 'together' ? 'Together AI' : 'Cohere'} API key reads no usage, balance or quota endpoint — the session ledger counts this key's tokens; ${words.console} shows the account's spend`,
     }
   }
+  if (provider === 'groq') {
+    const { groqUsageView } = require('./groq/groqUsageState.js') as typeof import('./groq/groqUsageState.js')
+    return groqUsageView(spend, reads?.laneCredentialed?.(provider))
+  }
+  if (provider === 'cerebras') {
+    const { cerebrasUsageView } = require('./cerebras/cerebrasUsageState.js') as typeof import('./cerebras/cerebrasUsageState.js')
+    return cerebrasUsageView(spend, reads?.laneCredentialed?.(provider))
+  }
+  if (provider === 'fireworks') {
+    const { fireworksUsageView } = require('./fireworks/fireworksUsageState.js') as typeof import('./fireworks/fireworksUsageState.js')
+    return fireworksUsageView(spend, reads?.laneCredentialed?.(provider))
+  }
   if (provider === 'deepseek' || provider === 'openai-compat') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
     const uncredentialedLabel = provider === 'deepseek' ? 'DeepSeek usage' : 'Endpoint usage'

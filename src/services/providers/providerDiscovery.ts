@@ -102,6 +102,24 @@ export interface CohereDiscovery {
   keyPresent: boolean
   keySource?: 'env' | 'stored'
 }
+export interface GroqDiscovery {
+  provider: 'groq'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
+export interface CerebrasDiscovery {
+  provider: 'cerebras'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
+export interface FireworksDiscovery {
+  provider: 'fireworks'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
 export interface CompatDiscovery {
   provider: 'openai-compat'
   probedAtMs: number
@@ -149,6 +167,9 @@ export type ProviderDiscovery =
   | MinimaxDiscovery
   | TogetherDiscovery
   | CohereDiscovery
+  | GroqDiscovery
+  | CerebrasDiscovery
+  | FireworksDiscovery
 
 export interface DiscoveryIo {
   env: Record<string, string | undefined>
@@ -318,6 +339,21 @@ function probeCohere(io: DiscoveryIo): CohereDiscovery {
   return { provider: 'cohere', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 
+function probeGroq(io: DiscoveryIo): GroqDiscovery {
+  const { resolveGroqApiKey } = require('./groq/groqAccounts.js') as typeof import('./groq/groqAccounts.js')
+  const key = resolveGroqApiKey(io.env as NodeJS.ProcessEnv)
+  return { provider: 'groq', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+function probeCerebras(io: DiscoveryIo): CerebrasDiscovery {
+  const { resolveCerebrasApiKey } = require('./cerebras/cerebrasAccounts.js') as typeof import('./cerebras/cerebrasAccounts.js')
+  const key = resolveCerebrasApiKey(io.env as NodeJS.ProcessEnv)
+  return { provider: 'cerebras', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+function probeFireworks(io: DiscoveryIo): FireworksDiscovery {
+  const { resolveFireworksApiKey } = require('./fireworks/fireworksAccounts.js') as typeof import('./fireworks/fireworksAccounts.js')
+  const key = resolveFireworksApiKey(io.env as NodeJS.ProcessEnv)
+  return { provider: 'fireworks', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
 function probeZen(io: DiscoveryIo): ZenDiscovery {
   const { resolveZenApiKey } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
   const key = resolveZenApiKey(io.env as NodeJS.ProcessEnv)
@@ -481,7 +517,13 @@ export function refreshProviderDiscovery(
                                       ? probeTogether(io)
                                       : id === 'cohere'
                                         ? probeCohere(io)
-                                        : probeZai(io)
+                                        : id === 'groq'
+                                          ? probeGroq(io)
+                                          : id === 'cerebras'
+                                            ? probeCerebras(io)
+                                            : id === 'fireworks'
+                                              ? probeFireworks(io)
+                                              : probeZai(io)
       cache.set(id, record)
       return record
     } finally {

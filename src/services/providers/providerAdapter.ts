@@ -18,6 +18,9 @@ export type ProviderFamilyId =
   | 'minimax'
   | 'together'
   | 'cohere'
+  | 'groq'
+  | 'cerebras'
+  | 'fireworks'
 export type ProviderModelClass =
   | 'opus'
   | 'sonnet'
@@ -37,6 +40,9 @@ export type ProviderModelClass =
   | 'minimax'
   | 'together'
   | 'cohere'
+  | 'groq'
+  | 'cerebras'
+  | 'fireworks'
 export type ProviderEffortLevel = 'high' | 'xhigh' | 'max'
 
 

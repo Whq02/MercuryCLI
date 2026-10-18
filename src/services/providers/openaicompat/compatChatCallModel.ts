@@ -114,6 +114,9 @@ type CompatLaneId =
   | 'minimax'
   | 'together'
   | 'cohere'
+  | 'groq'
+  | 'cerebras'
+  | 'fireworks'
 
 export function imagesSupportedForCompatModel(model: string): boolean {
   return modelReceivesImageBlocks(model) && imageRefusalOf(model) === null

@@ -25,7 +25,7 @@ await stub('../../src/hooks/useCatalogueEpoch.js', { useCatalogueEpoch: () => 0 
 await stub('../../src/utils/model/computedDefault.js', { mostRecentSignInFamily: () => undefined })
 await stub('../../src/utils/browser.js', { openBrowser: async () => true })
 let estate = 'absent'
-const ids = ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'local', 'openai-compat', 'nous', 'zen', 'minimax', 'together', 'cohere']
+const ids = ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'local', 'openai-compat', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks']
 await stub('../../src/services/providers/providerUsability.js', {
   resolveProviderUsability: () => Object.fromEntries(ids.map((id, i) => {
     const usable = estate === 'full' || (estate === 'mixed' && i % 2 === 0)
@@ -187,7 +187,7 @@ for (const s of sizes) {
   seed = 'idle'; estate = 'absent'
   let board = await mount(s)
   fits(board.m, s, 'menu'); save(board.m, s, 'menu')
-  check(`${s.columns}x${s.rows}: the seventeen-family list starts without a digit or a reserved ordinal column`, familyRows.length === 17 && board.m.screen().includes('❯ OpenAI — ChatGPT'))
+  check(`${s.columns}x${s.rows}: the twenty-family list starts without a digit or a reserved ordinal column`, familyRows.length === 20 && board.m.screen().includes('❯ OpenAI — ChatGPT'))
   const menu = board.m.screen()
   for (const digit of ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '１', '９']) {
     await key(board.m, digit)
@@ -197,18 +197,18 @@ for (const s of sizes) {
   if (compact) {
     const body = bodyRows(board.m, s)
     check(`${s.columns}x${s.rows} compact: the body is the family rows alone, one line each, filling the box`, body.length === geometryOf(s).rowBudget && body.every(line => line !== '') && body.filter(line => /^[❯ ↓↑] /.test(line)).length === body.length && !board.m.screen().includes('Sign in') && !board.m.screen().includes('Provider readiness') && !board.m.screen().includes('subscription, usage-based billing'), body.join(' | '))
-    check(`${s.columns}x${s.rows} compact: the header marker reads 1 of 17`, markerOf(board.m) === '1 of 17', markerOf(board.m))
+    check(`${s.columns}x${s.rows} compact: the header marker reads 1 of 20`, markerOf(board.m) === '1 of 20', markerOf(board.m))
   }
-  for (let index = 1; index < 17; index++) {
+  for (let index = 1; index < 20; index++) {
     await key(board.m, KEY.down)
     check(`${s.columns}x${s.rows}: arrows reach family ${index + 1} without a digit or a reserved ordinal column`, board.m.screen().includes(`❯ ${familyRows[index]!.label.slice(0, 24)}`))
-    if (compact) check(`${s.columns}x${s.rows} compact: the marker follows the focus to ${index + 1} of 17`, markerOf(board.m) === `${index + 1} of 17`, markerOf(board.m))
+    if (compact) check(`${s.columns}x${s.rows} compact: the marker follows the focus to ${index + 1} of 20`, markerOf(board.m) === `${index + 1} of 20`, markerOf(board.m))
   }
   save(board.m, s, 'menu-bottom')
   if (compact) {
     check(`${s.columns}x${s.rows} compact: the last family row is reached by arrows with the title row still pinned`, board.m.screen().includes('OpenCode Zen — API key') && board.m.lines().some(line => line.includes(compactHint)))
-    for (let index = 0; index < 16; index++) await key(board.m, KEY.up)
-    check(`${s.columns}x${s.rows} compact: arrows return to the first row and the marker reads 1 of 17`, markerOf(board.m) === '1 of 17' && board.m.screen().includes('OpenAI — ChatGPT'), markerOf(board.m))
+    for (let index = 0; index < 19; index++) await key(board.m, KEY.up)
+    check(`${s.columns}x${s.rows} compact: arrows return to the first row and the marker reads 1 of 20`, markerOf(board.m) === '1 of 20' && board.m.screen().includes('OpenAI — ChatGPT'), markerOf(board.m))
   } else {
     check('the readiness tail is reachable without moving the close hint', await walk(board.m, 'OpenAI-compatible') && board.m.screen().includes(hint))
     save(board.m, s, 'readiness')
@@ -290,7 +290,7 @@ for (const s of sizes) {
   save(board.m, s, 'paste-guard')
   await key(board.m, KEY.esc)
   check('key esc returns to the family menu, not out of the popup', store.isSettingsPopupOpen() && await walk(board.m, compact ? 'OpenAI — ChatGPT' : 'Provider readiness', compact ? KEY.up : undefined))
-  if (compact) check('compact: back on the menu the marker returns', markerOf(board.m) !== undefined && /of 17$/.test(markerOf(board.m) ?? ''), markerOf(board.m))
+  if (compact) check('compact: back on the menu the marker returns', markerOf(board.m) !== undefined && /of 20$/.test(markerOf(board.m) ?? ''), markerOf(board.m))
   board.close()
   board = await mount(s, 'moonshot')
   await key(board.m, KEY.enter); await key(board.m, KEY.enter); await key(board.m, KEY.enter)
@@ -380,7 +380,7 @@ device.close()
 const short = { columns: 80, rows: 14, bottom: 4 }
 const tiny = await mount(short)
 fits(tiny.m, short, 'short host')
-check('a shorter host is compact and its arrows reach the last family row with the marker at 17 of 17', isCompact(short) && await walk(tiny.m, 'OpenCode Zen — API key', KEY.down) && markerOf(tiny.m) === '17 of 17', markerOf(tiny.m))
+check('a shorter host is compact and its arrows reach the last family row with the marker at 20 of 20', isCompact(short) && await walk(tiny.m, 'OpenCode Zen — API key', KEY.down) && markerOf(tiny.m) === '20 of 20', markerOf(tiny.m))
 save(tiny.m, short, 'short-host')
 tiny.close()
 for (const phase of ['menu', 'key', 'device', 'browser', 'receipt', 'account']) {

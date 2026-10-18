@@ -1,6 +1,6 @@
 # Engines: the provider estate
 
-Mercury runs models across 16 sign-in provider families plus local servers
+Mercury runs models across 19 sign-in provider families plus local servers
 and custom endpoints, with per-family credentials, model lists, usage meters
 and web tools.
 
@@ -37,6 +37,9 @@ arm.
 | `minimax` | `minimax-*`, alias `minimax` (the text line, `MiniMax-M*`; the video, speech, music and image ids refuse here) | MiniMax |
 | `together` | `together/<org>/<model>` (qualified; stripped because Together's ids are org/model slugs, so the namespace tells a Together row from a native family's) | Together AI |
 | `cohere` | `command-*`, `north-*`, `c4ai-aya-*`, alias `cohere` (the embed, rerank and classify ids refuse here) | Cohere |
+| `groq` | `groq/<model-id>` (qualified; text models only) | Groq |
+| `cerebras` | `cerebras/<model-id>` (qualified; text models only) | Cerebras |
+| `fireworks` | `fireworks/<model-id>` (qualified; text models only) | Fireworks |
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
@@ -408,6 +411,54 @@ is never sent (the vendor lists it unsupported). The meter is the session's
 spend at the recorded prices; a standard key reads no usage endpoint, and the
 dashboard shows the account's spend.
 
+Groq connects through `/logins groq` or `GROQ_API_KEY`, with keys from
+[console.groq.com/keys](https://console.groq.com/keys). Its live text models
+use qualified ids such as `groq/openai/gpt-oss-120b`; speech and moderation
+rows stay out of the picker. If the list cannot be read, dated pins are
+labelled as such. Chat streams text, reasoning, tool calls and token usage
+through Groq's OpenAI-compatible endpoint. Reasoning uses each model's
+documented format and highest supported effort when max is selected.
+`/usage` shows session spend and observed rate limits; account spend and
+monthly limits live in the Groq console. Free-tier token limits can be too
+small for tool-bearing turns; the Developer tier has higher limits.
+Sources read **2026-10-18**: [API reference](https://console.groq.com/docs/api-reference),
+[models](https://console.groq.com/docs/models), [reasoning](https://console.groq.com/docs/reasoning),
+[rate limits](https://console.groq.com/docs/rate-limits) and
+[spend limits](https://console.groq.com/docs/spend-limits).
+
+Cerebras connects through `/logins cerebras` or `CEREBRAS_API_KEY`, with
+keys from [cloud.cerebras.ai](https://cloud.cerebras.ai). Its live text
+models use qualified ids such as `cerebras/gpt-oss-120b`; dated pins are
+labelled when the list cannot be read. Requests carry the model's documented
+reasoning effort and a stable conversation cache key. No output ceiling is
+sent, so the server's model limit applies without reserving a large token
+estimate before the turn runs. Cached input has the same price as fresh
+input. `/usage` counts session tokens and spend and reports observed retry
+waits; account credits and limits are shown in the cloud console. Trial
+and paid accounts have different context and rate limits. Sources read
+**2026-10-18**: [API reference](https://inference-docs.cerebras.ai/api-reference/chat-completions),
+[models](https://inference-docs.cerebras.ai/models/overview),
+[reasoning](https://inference-docs.cerebras.ai/capabilities/reasoning),
+[prompt caching](https://inference-docs.cerebras.ai/capabilities/prompt-caching),
+[rate limits](https://inference-docs.cerebras.ai/support/rate-limits) and
+[errors](https://inference-docs.cerebras.ai/support/error).
+
+Fireworks AI connects through `/logins fireworks` or `FIREWORKS_API_KEY`,
+with keys from [app.fireworks.ai/api-keys](https://app.fireworks.ai/api-keys).
+The live text catalogue uses qualified resource ids; `fireworks/kimi-k3`
+also names `fireworks/accounts/fireworks/models/kimi-k3`, while
+`fireworks/kimi-fast-latest` names the Fire Pass router. Dated pins are
+labelled when the catalogue is unavailable. Requests carry top-level
+reasoning effort, tool calls and a stable session-affinity header for prompt
+caching. `/usage` shows session spend and the three reported TPM limits;
+account credits and costs are shown in the Fireworks console. Sources read
+**2026-10-18**: [API reference](https://docs.fireworks.ai/api-reference/post-chatcompletions),
+[reasoning](https://docs.fireworks.ai/guides/reasoning),
+[prompt caching](https://docs.fireworks.ai/guides/prompt-caching),
+[serverless pricing](https://docs.fireworks.ai/serverless/pricing),
+[rate limits](https://docs.fireworks.ai/serverless/rate-limits) and
+[Fire Pass](https://docs.fireworks.ai/firepass).
+
 Moonshot's default, picker and specialist choices follow the account's live
 model list. An API key reads the platform list; a Kimi sign-in reads its
 region's coding list with the same credential used for chat. The newest
@@ -472,7 +523,7 @@ Three wire families serve the providers:
   `thought_signature` parts across tool rounds on every Gemini credential).
 - **The OpenAI-compatible chat wire**: Moonshot/Kimi, DeepSeek, xAI's Grok
   models, Meta, Mistral, Nous Portal, OpenCode Zen (chat-completions rows),
-  MiniMax, Together AI, Cohere,
+  MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI,
   custom `compat/` endpoints, OpenRouter,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.

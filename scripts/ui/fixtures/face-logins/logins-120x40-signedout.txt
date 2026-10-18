@@ -24,13 +24,13 @@
    │   Mistral — API key (Mistral Large 4)            not signed in │  ╰────────────────────────────────────────────╯
    │   Nous Portal — account sign-in or API ke…       not signed in │  ╭────────────────────────────────────────────╮
    │   MiniMax — API key or M Plan key (M3, M2…       not signed in │  │ LOGINS                                     │
-   │   Together AI — API key (the gateway's ch…       not signed in │  │ Families   16                              │
-   │   Cohere — API key (Command A+, North)           not signed in │  │ Signed in  0 of 16                         │
-   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Ready      0 lanes                         │
-   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
+   │   Together AI — API key (the gateway's ch…       not signed in │  │ Families   19                              │
+   │   Cohere — API key (Command A+, North)           not signed in │  │ Signed in  0 of 19                         │
+   │   Groq — API key (text models)                   not signed in │  │ Ready      0 lanes                         │
+   │   Cerebras — API key (text models)               not signed in │  ╰────────────────────────────────────────────╯
+   │   Fireworks — API key (text models)              not signed in │  ╭────────────────────────────────────────────╮
+   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ ENVIRONMENT                                │
+   ╰────────────────────────────────────────────────────────────────╯  │ Mercury    Opus 5                          │
                                                                        │ Critter    Octopus                         │
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯

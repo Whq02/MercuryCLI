@@ -51,6 +51,9 @@ export type CacheLane =
   | 'minimax'
   | 'together'
   | 'cohere'
+  | 'groq'
+  | 'cerebras'
+  | 'fireworks'
 
 type PromptStateSnapshot = {
   system: NeutralSystemBlock[]

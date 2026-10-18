@@ -29,7 +29,10 @@ async function validateNonAnthropicModel(
     | 'zen'
     | 'minimax'
     | 'together'
-    | 'cohere',
+    | 'cohere'
+    | 'groq'
+    | 'cerebras'
+    | 'fireworks',
   trimmed: string,
 ): Promise<ValidateModelResult & { skipCache?: boolean }> {
   if (route !== 'openrouter') {
@@ -275,6 +278,48 @@ async function validateNonAnthropicModel(
     if (!isCohereChatModelId(id)) return { valid: false, error: 'This Cohere model is not on the chat-completions road.' }
     if (snapshot?.models.length && !cohereListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Cohere account's live catalogue.` }
     if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !cohereDisplayPin(id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Cohere account's live catalogue.` }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'groq') {
+    const { resolveGroqAccount } = await import('../../services/providers/groq/groqAccounts.js')
+    if (!resolveGroqAccount()) return { valid: false, error: 'Groq is unavailable — no API key (/logins groq, or set GROQ_API_KEY).' }
+    const { groqWireId, isGroqTextModelId, groqDisplayPin } = await import('../../services/providers/groq/groqPins.js')
+    const wire = groqWireId(trimmed)
+    if (!isGroqTextModelId(wire)) return { valid: false, error: 'Groq requires a text model qualified as groq/<id>.' }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('groq')
+    const { getCachedGroqCatalogue, groqListedModel } = await import('../../services/providers/groq/groqCatalogue.js')
+    const snapshot = getCachedGroqCatalogue()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins groq replaces the key.' }
+    if (snapshot?.models.length ? !groqListedModel(snapshot, wire) : !groqDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Groq text catalogue.' }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'cerebras') {
+    const { resolveCerebrasAccount } = await import('../../services/providers/cerebras/cerebrasAccounts.js')
+    if (!resolveCerebrasAccount()) return { valid: false, error: 'Cerebras is unavailable — no API key (/logins cerebras, or set CEREBRAS_API_KEY).' }
+    const { cerebrasWireId, isCerebrasTextModelId, cerebrasDisplayPin } = await import('../../services/providers/cerebras/cerebrasPins.js')
+    const wire = cerebrasWireId(trimmed)
+    if (!isCerebrasTextModelId(wire)) return { valid: false, error: 'Cerebras requires a text model qualified as cerebras/<id>.' }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('cerebras')
+    const { getCachedCerebrasCatalogue, cerebrasListedModel } = await import('../../services/providers/cerebras/cerebrasCatalogue.js')
+    const snapshot = getCachedCerebrasCatalogue()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins cerebras replaces the key.' }
+    if (snapshot?.models.length ? !cerebrasListedModel(snapshot, wire) : !cerebrasDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Cerebras text catalogue.' }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'fireworks') {
+    const { resolveFireworksAccount } = await import('../../services/providers/fireworks/fireworksAccounts.js')
+    if (!resolveFireworksAccount()) return { valid: false, error: 'Fireworks is unavailable — no API key (/logins fireworks, or set FIREWORKS_API_KEY).' }
+    const { fireworksWireId, isFireworksTextModelId, fireworksDisplayPin } = await import('../../services/providers/fireworks/fireworksPins.js')
+    const wire = fireworksWireId(trimmed)
+    if (!isFireworksTextModelId(wire)) return { valid: false, error: 'Fireworks requires a text model qualified as fireworks/<id>.' }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('fireworks')
+    const { getCachedFireworksCatalogue, fireworksListedModel } = await import('../../services/providers/fireworks/fireworksCatalogue.js')
+    const snapshot = getCachedFireworksCatalogue()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins fireworks replaces the key.' }
+    if (snapshot?.models.length ? !fireworksListedModel(snapshot, wire) : !fireworksDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Fireworks text catalogue.' }
     return { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {

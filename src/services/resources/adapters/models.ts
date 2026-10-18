@@ -58,7 +58,7 @@ export interface KnownModelsReference {
   providers: KnownProviderPage[]
 }
 
-const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere'] as const
+const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks'] as const
 
 function windowWords(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toString().replace(/\.0$/, '')}M window`
@@ -93,6 +93,30 @@ async function listFactsOf(route: string, env: NodeJS.ProcessEnv = process.env):
       const { source } = togetherCatalogueRows(env)
       if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
       const error = getCachedTogetherCatalogue(env)?.lastError
+      return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
+    }
+    case 'groq': {
+      const { groqCatalogueRows, groqCatalogueSourceWords, getCachedGroqCatalogue } = await import('../../providers/groq/groqCatalogue.js')
+      const { source } = groqCatalogueRows(env)
+      if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
+      if (source.kind === 'pins') return { kind: 'static', words: groqCatalogueSourceWords(env)! }
+      const error = getCachedGroqCatalogue(env)?.lastError
+      return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
+    }
+    case 'cerebras': {
+      const { cerebrasCatalogueRows, cerebrasCatalogueSourceWords, getCachedCerebrasCatalogue } = await import('../../providers/cerebras/cerebrasCatalogue.js')
+      const { source } = cerebrasCatalogueRows(env)
+      if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
+      if (source.kind === 'pins') return { kind: 'static', words: cerebrasCatalogueSourceWords(env)! }
+      const error = getCachedCerebrasCatalogue(env)?.lastError
+      return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
+    }
+    case 'fireworks': {
+      const { fireworksCatalogueRows, fireworksCatalogueSourceWords, getCachedFireworksCatalogue } = await import('../../providers/fireworks/fireworksCatalogue.js')
+      const { source } = fireworksCatalogueRows(env)
+      if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
+      if (source.kind === 'pins') return { kind: 'static', words: fireworksCatalogueSourceWords(env)! }
+      const error = getCachedFireworksCatalogue(env)?.lastError
       return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
     }
     case 'openai': {
@@ -260,6 +284,12 @@ export async function knownModelsReference(): Promise<KnownModelsReference> {
   providers.push({ provider: 'zen', providerName: providerDisplayName('zen'), familyWord: 'zen', models: ZEN_DISPLAY_PINS.map(pin => ({ id: zenQualifiedId(pin.id), displayName: pin.displayName })) })
   const { TOGETHER_DISPLAY_PINS, togetherQualifiedId } = await import('../../providers/together/togetherPins.js')
   providers.push({ provider: 'together', providerName: providerDisplayName('together'), familyWord: 'together', models: TOGETHER_DISPLAY_PINS.map(pin => ({ id: togetherQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../providers/groq/groqPins.js')
+  providers.push({ provider: 'groq', providerName: providerDisplayName('groq'), familyWord: 'groq', models: GROQ_DISPLAY_PINS.map(pin => ({ id: groqQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../providers/cerebras/cerebrasPins.js')
+  providers.push({ provider: 'cerebras', providerName: providerDisplayName('cerebras'), familyWord: 'cerebras', models: CEREBRAS_DISPLAY_PINS.map(pin => ({ id: cerebrasQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../providers/fireworks/fireworksPins.js')
+  providers.push({ provider: 'fireworks', providerName: providerDisplayName('fireworks'), familyWord: 'fireworks', models: FIREWORKS_DISPLAY_PINS.map(pin => ({ id: fireworksQualifiedId(pin.id), displayName: pin.displayName })) })
   return { version: MERCURY_VERSION, providers }
 }
 

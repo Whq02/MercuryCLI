@@ -14,6 +14,9 @@ import { zenDisplayPin } from '../services/providers/zen/zenPins.js'
 import { minimaxDisplayPin } from '../services/providers/minimax/minimaxPins.js'
 import { togetherDisplayPin } from '../services/providers/together/togetherPins.js'
 import { cohereDisplayPin } from '../services/providers/cohere/coherePins.js'
+import { groqDisplayPin } from '../services/providers/groq/groqPins.js'
+import { cerebrasDisplayPin } from '../services/providers/cerebras/cerebrasPins.js'
+import { fireworksDisplayPin } from '../services/providers/fireworks/fireworksPins.js'
 import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from './model/model.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from './model/configs.js'
 
@@ -253,6 +256,9 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   },
   together: model => recorded(engineTier(togetherDisplayPin(model))),
   cohere: model => recorded(engineTier(cohereDisplayPin(model))),
+  groq: model => recorded(engineTier(groqDisplayPin(model))),
+  cerebras: model => recorded(engineTier(cerebrasDisplayPin(model))),
+  fireworks: model => recorded(engineTier(fireworksDisplayPin(model))),
 }
 
 export function resolveModelPricing(model: string, opts?: { promptTokens?: number }): ResolvedModelPricing {

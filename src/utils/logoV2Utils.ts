@@ -69,6 +69,9 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
       if (route === 'minimax') return 'MiniMax pay-as-you-go balance / M Plan billing'
       if (route === 'together') return 'Together AI prepaid balance billing'
       if (route === 'cohere') return 'Cohere pay-as-you-go billing'
+      if (route === 'groq') return 'Groq API billing'
+      if (route === 'cerebras') return 'Cerebras API billing'
+      if (route === 'fireworks') return 'Fireworks API billing'
       if (route === null) return 'unrecognised model · no billed lane'
     } catch {
     }
