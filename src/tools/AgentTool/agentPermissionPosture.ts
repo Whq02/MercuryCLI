@@ -114,14 +114,19 @@ export function composeAgentAppState(
   }
   if (facts.definitionTools !== undefined) {
     const rules = scopedAgentToolRules(facts.definitionTools)
-    if (rules.allow.length > 0 || rules.deny.length > 0) {
-      const permission = next.toolPermissionContext
+    const permission = next.toolPermissionContext
+    const allowNarrowing = rules.allow.length > 0 ? rules.allow : undefined
+    const mergedDeny = [...new Set([...(permission.alwaysDenyRules.toolsNarrowing ?? []), ...rules.deny])]
+    const denyNarrowing = mergedDeny.length > 0 ? mergedDeny : undefined
+    if (allowNarrowing !== permission.alwaysAllowRules.toolsNarrowing || denyNarrowing !== permission.alwaysDenyRules.toolsNarrowing) {
+      const { toolsNarrowing: _prevAllow, ...restAllow } = permission.alwaysAllowRules
+      const { toolsNarrowing: _prevDeny, ...restDeny } = permission.alwaysDenyRules
       next = {
         ...next,
         toolPermissionContext: {
           ...permission,
-          alwaysAllowRules: { ...permission.alwaysAllowRules, toolsNarrowing: [...new Set([...(permission.alwaysAllowRules.toolsNarrowing ?? []), ...rules.allow])] },
-          alwaysDenyRules: { ...permission.alwaysDenyRules, toolsNarrowing: [...new Set([...(permission.alwaysDenyRules.toolsNarrowing ?? []), ...rules.deny])] },
+          alwaysAllowRules: allowNarrowing ? { ...restAllow, toolsNarrowing: allowNarrowing } : restAllow,
+          alwaysDenyRules: denyNarrowing ? { ...restDeny, toolsNarrowing: denyNarrowing } : restDeny,
         },
       }
     }

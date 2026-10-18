@@ -678,6 +678,8 @@ export function checkReadPermissionForTool(
     const rule = matchingRuleForInput(resolved, context, 'read', 'deny')
     if (rule) return ruleDecision('deny', `Reading ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'read', 'deny'))
   }
+  const narrowedRead = toolsNarrowingDenial(path, resolutionSet, context, 'read')
+  if (narrowedRead) return narrowedRead
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, 'read', 'ask')
     if (rule) return ruleDecision('ask', `Reading ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'read', 'ask'))
@@ -721,6 +723,8 @@ export function checkWritePermissionForTool(
     const rule = matchingRuleForInput(resolved, context, 'edit', 'deny')
     if (rule) return ruleDecision('deny', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'deny'))
   }
+  const narrowedEdit = toolsNarrowingDenial(path, resolutionSet, context, 'edit')
+  if (narrowedEdit) return narrowedEdit
   const internal = checkEditableInternalPath(expandPath(path), input)
   if ((internal as { behavior: string }).behavior !== 'passthrough') return internal as unknown as PermissionDecision
   const estate = sessionEstateAllow(path, context, input)
@@ -774,6 +778,25 @@ export function checkWritePermissionForTool(
       ? { type: 'workingDir', reason: 'the path is outside the starting folder' }
       : undefined,
   } as unknown as PermissionDecision
+}
+
+function toolsNarrowingDenial(
+  path: string,
+  resolutionSet: readonly string[],
+  context: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+): PermissionDecision | null {
+  const narrowed = {
+    ...(context as object),
+    alwaysAllowRules: {
+      toolsNarrowing: ((context as unknown as Record<string, Record<string, string[]>>).alwaysAllowRules ?? {}).toolsNarrowing ?? [],
+    },
+  } as unknown as ToolPermissionContext
+  const names = toolType === 'edit' ? fileEditRuleToolNames() : fileReadRuleToolNames()
+  const rules = [...rulesForToolFamilyAndBehavior(narrowed, names, 'allow').values()]
+  if (rules.length === 0) return null
+  if (resolutionSet.length > 0 && resolutionSet.every(resolved => matchingRuleForInput(resolved, narrowed, toolType, 'allow') !== null)) return null
+  return ruleDecision('deny', `${toolType === 'edit' ? 'Editing' : 'Reading'} ${path}`, context, rules[0]!, () => rules)
 }
 
 function sessionEstateAllow(

@@ -14,11 +14,19 @@ export function agentToolRuleProblem(spec: string): string | null {
 }
 
 export function scopedAgentToolRules(definition: { tools?: readonly string[]; disallowedTools?: readonly string[] }): { allow: string[]; deny: string[] } {
-  const scoped = (specs: readonly string[] | undefined): string[] => (specs ?? []).filter(spec => {
+  const bareTools = new Set(
+    (definition.tools ?? [])
+      .filter(spec => agentToolRuleProblem(spec) === null)
+      .map(spec => permissionRuleValueFromString(spec))
+      .filter(rule => rule.ruleContent === undefined)
+      .map(rule => rule.toolName),
+  )
+  const scoped = (specs: readonly string[] | undefined, skipBare: boolean): string[] => (specs ?? []).filter(spec => {
     const problem = agentToolRuleProblem(spec)
     if (problem !== null) throw new Error(problem)
     const rule = permissionRuleValueFromString(spec)
+    if (skipBare && (bareTools.has('*') || bareTools.has(rule.toolName))) return false
     return rule.ruleContent !== undefined && rule.toolName !== AGENT_TOOL_NAME
   })
-  return { allow: scoped(definition.tools), deny: scoped(definition.disallowedTools) }
+  return { allow: scoped(definition.tools, true), deny: scoped(definition.disallowedTools, false) }
 }
