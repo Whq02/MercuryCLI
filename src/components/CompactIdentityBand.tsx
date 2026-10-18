@@ -33,7 +33,7 @@ import { hasSeatLive } from '../services/engine-connector/seatLive.js'
 import { CrewmateCard } from './CrewmateCard.js'
 import { useViewedCrewmate } from './tasks/useCrewmateView.js'
 import { crewStatusWords } from '../services/engine-connector/crewFacts.js'
-import { crewmateCardKeys } from '../utils/cockpit/crewmateWords.js'
+import { COMPACT_BACK_HINT, crewmateCardKeys } from '../utils/cockpit/crewmateWords.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 const getFocusedTurnCount = (): number => countOperatorTurns(getFocusedSessionConnector().records())
@@ -136,7 +136,7 @@ export function CompactIdentityBand(): React.ReactNode {
             <Text wrap="truncate-end">
               <Text color={viewed.pinned ? tok.warning : sa.accent} bold>{viewed.pinned ? GLYPH.star : GLYPH.circledBullet} {viewed.name}</Text>
               {facts !== null ? <Text color={live ? tok.success : tok.textSecondary}> · {crewStatusWords(facts, Date.now())}</Text> : null}
-              <Text color={tok.textMuted}> · {crewmateCardKeys(viewed.pinned, live)}</Text>
+              <Text color={tok.textMuted}> · {crewmateCardKeys(viewed.pinned, live, COMPACT_BACK_HINT)}</Text>
             </Text>
           </Box>
           {rule}

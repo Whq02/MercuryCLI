@@ -30,5 +30,6 @@ prove-composer-draft-survives-click-drive.ts
 prove-model-picker-groups-drive.ts
 prove-model-picker-popup-drive.ts
 prove-agent-view-drive.ts
+prove-zen-agent-view-drive.ts
 prove-crew-look-drive.ts
 prove-crew-screens-unchanged.ts
