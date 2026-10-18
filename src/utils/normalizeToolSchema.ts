@@ -2,9 +2,9 @@ import type { CallModelRoute } from '../services/providers/idSpaces.js'
 
 type SchemaNode = Record<string, unknown>
 
-export type SchemaLane = 'anthropic-strict' | 'llama-grammar' | 'ref-default' | 'responses'
+type SchemaLane = 'anthropic-strict' | 'llama-grammar' | 'ref-default' | 'responses'
 
-export type RenameTree = { keys: Record<string, string>; children: Record<string, RenameTree> }
+type RenameTree = { keys: Record<string, string>; children: Record<string, RenameTree> }
 
 export const PROPERTY_KEY_PATTERN = /^[a-zA-Z0-9_.-]{1,64}$/
 
