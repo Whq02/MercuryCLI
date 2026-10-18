@@ -27,7 +27,7 @@ import { createEditRuleSuggestion, createReadRuleSuggestion } from './Permission
 import { refusalWithReason, ruleSentence, withRuleReason } from './ruleReason.js'
 import { uncPathRisk, uncPathMessage } from './uncPath.js'
 import { suspiciousWindowsPattern } from './windowsPath.js'
-import { credentialStorePath, protectedPathForms } from './protectedPaths.js'
+import { credentialStorePath, mercurySecretPath, mercurySecretReadIgnores, protectedPathForms } from './protectedPaths.js'
 
 
 const DANGEROUS_FILES: string[] = [
@@ -602,6 +602,7 @@ export function getFileReadIgnorePatterns(context: ToolPermissionContext): Map<s
     list.push(relative)
     byRoot.set(root, list)
   }
+  for (const [root, patterns] of mercurySecretReadIgnores()) byRoot.set(root, [...(byRoot.get(root) ?? []), ...patterns])
   return byRoot
 }
 
@@ -660,6 +661,11 @@ export function checkReadPermissionForTool(
     return ask(`Permission to use ${tool.name} has not been granted.`, { type: 'other', reason: 'no path accessor' })
   }
 
+  const secret = mercurySecretPath(path)
+  if (secret !== null) {
+    const message = `Reading ${path} is refused: ${secret} holds Mercury's own credentials; use the product's sign-in and account surfaces instead.`
+    return deny(message, { type: 'other', reason: message })
+  }
   const remote = checkUncPathPermission(path, context)
   if (remote && remote.behavior !== 'allow') return remote
   const resolutionSet = getResolvedWorkingDirPaths(path)

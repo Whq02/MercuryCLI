@@ -1,5 +1,5 @@
 import { getShellCwd } from '../Shell.js'
-import { credentialStorePath } from './protectedPaths.js'
+import { credentialStorePath, mercurySecretPath } from './protectedPaths.js'
 import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, type Node } from './decision/commandAnalysis.js'
 
 function words(text: string, powershell: boolean): Array<string | { op?: string }> {
@@ -59,7 +59,44 @@ function writeOperands(argv: string[]): string[] {
   return out
 }
 
-export async function shellCredentialWritePath(command: string, powershell = false): Promise<string | null> {
+function readOperands(argv: string[]): string[] {
+  const out: string[] = []
+  const command: string[] = []
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '<' || argv[i] === '>') {
+      if (argv[i] === '<' && argv[i + 2]) out.push(argv[i + 2]!)
+      i += 2
+    } else command.push(argv[i]!)
+  }
+  const peeled = peelWrappers(command)
+  const unwrapped = Array.isArray(peeled) ? peeled : command
+  const name = verb(unwrapped[0] ?? '')
+  const readers = new Set(['cat', 'type', 'get-content', 'gc', 'head', 'tail', 'base64', 'xxd', 'od', 'hexdump', 'strings', 'grep', 'rg', 'cp', 'copy', 'copy-item', 'ci', 'cpi'])
+  if (readers.has(name)) {
+    const args = unwrapped.slice(1).filter(arg => !arg.startsWith('-'))
+    out.push(...(['cp', 'copy', 'copy-item', 'ci', 'cpi'].includes(name) ? args.slice(0, -1) : args))
+  }
+  return out
+}
+
+export function shellCredentialWritePath(command: string, powershell = false): Promise<string | null> {
+  return shellProtectedPath(command, powershell, writeOperands, credentialStorePath)
+}
+
+export async function shellMercurySecretPath(command: string, powershell = false): Promise<string | null> {
+  const pending = [command]
+  while (pending.length) {
+    const text = pending.pop()!
+    for (const match of text.matchAll(/"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s"'();|<>=]+)/g)) {
+      const token = match[1] ?? match[2] ?? match[3]!
+      if (mercurySecretPath(token, getShellCwd()) !== null) return token
+      if (token.length < text.length && /["']/.test(token)) pending.push(token)
+    }
+  }
+  return shellProtectedPath(command, powershell, readOperands, mercurySecretPath)
+}
+
+async function shellProtectedPath(command: string, powershell: boolean, operands: (argv: string[]) => string[], match: (path: string, cwd: string) => string | null): Promise<string | null> {
   const pending = [command]
   while (pending.length) {
     const text = pending.pop()!
@@ -77,8 +114,8 @@ export async function shellCredentialWritePath(command: string, powershell = fal
       }
     }
     for (const view of views) for (const argv of groups(view, powershell)) {
-      for (const path of writeOperands(argv)) {
-        const hit = credentialStorePath(path, getShellCwd())
+      for (const path of operands(argv)) {
+        const hit = match(path, getShellCwd())
         if (hit !== null) return path
       }
       const peeled = peelWrappers(argv)

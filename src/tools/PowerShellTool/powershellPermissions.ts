@@ -37,7 +37,7 @@ import { checkPermissionMode, isSymlinkCreatingCommand } from './modeValidation.
 import { isGitInternalPathPS, isDotGitPathPS } from './gitSafety.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { getShellCwd } from '../../utils/Shell.js'
-import { shellCredentialWritePath } from '../../utils/permissions/shellProtectedPaths.js'
+import { shellCredentialWritePath, shellMercurySecretPath } from '../../utils/permissions/shellProtectedPaths.js'
 
 const TOOL_NAME = 'PowerShell'
 
@@ -148,6 +148,11 @@ export async function powershellToolHasPermission(
   const prefixDeny = matchRules(command, toolPermissionContext, 'deny', 'prefix')
   if (prefixDeny) return ruledVerdict(toolPermissionContext, command, prefixDeny, 'deny')
   let deferredAsk: PermissionResult | null = null
+  const secretRead = await shellMercurySecretPath(command, true)
+  if (secretRead !== null) {
+    const message = 'Reading ' + secretRead + " is refused: it holds Mercury's own credentials; use the product's sign-in and account surfaces instead."
+    return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } }
+  }
   const protectedWrite = await shellCredentialWritePath(command, true)
   if (protectedWrite !== null) {
     const message = 'Writing ' + protectedWrite + ' affects a credential store and requires approval.'

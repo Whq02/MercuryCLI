@@ -1,5 +1,6 @@
 import { realpathSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
+import { dirname } from 'node:path'
 
 import { z } from 'zod/v4'
 
@@ -298,8 +299,8 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   const ignoreByRoot = getFileReadIgnorePatterns(
     context.getAppState().toolPermissionContext,
   )
-  for (const pattern of normalizePatternsToPath(ignoreByRoot as never, getCwd())) {
-    args.push('--glob', pattern.startsWith('/') ? `!${pattern}` : `!**/${pattern}`)
+  for (const pattern of normalizePatternsToPath(ignoreByRoot as never, searchRoot)) {
+    args.push('--iglob', pattern.startsWith('/') ? `!${pattern}` : `!**/${pattern}`)
   }
   return args
 }
@@ -363,14 +364,15 @@ async function answerWithPcre2Fallback(
   searchRoot: string,
   signal: AbortSignal,
 ): Promise<{ answer: RipgrepAnswer; engine?: string }> {
+  const cwd = (await stat(searchRoot)).isDirectory() ? searchRoot : dirname(searchRoot)
   try {
-    return { answer: await ripGrepAnswer(args, searchRoot, signal) }
+    return { answer: await ripGrepAnswer(args, searchRoot, signal, { cwd }) }
   } catch (error) {
     if (!(error instanceof RipgrepUsageError) || !/regex parse error/i.test(error.diagnostic)) throw error
     const construct = pcreOnlyConstruct(pattern)
     if (construct === null) throw error
     try {
-      const answer = await ripGrepAnswer(['--pcre2', ...args], searchRoot, signal)
+      const answer = await ripGrepAnswer(['--pcre2', ...args], searchRoot, signal, { cwd })
       return { answer, engine: `matched with PCRE2: the pattern uses ${construct}` }
     } catch (retryError) {
       if (retryError instanceof RipgrepUsageError) throw pcre2Refused(error, construct, retryError.diagnostic)
@@ -389,6 +391,10 @@ export const GrepTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    if (input.glob) {
+      const literal = checkReadPermissionForTool({ name: 'Grep', getPath: () => expandPath(input.glob!, input.path ? expandPath(input.path) : getCwd()) }, input, context.getAppState().toolPermissionContext)
+      if (literal.behavior === 'deny') return literal
+    }
     return checkReadPermissionForTool(GrepTool, input, context.getAppState().toolPermissionContext)
   },
   isSearchOrReadCommand: () => ({ isSearch: true, isRead: false }),

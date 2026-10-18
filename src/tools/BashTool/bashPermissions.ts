@@ -45,7 +45,7 @@ import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotR
 import { checkSedConstraints } from './sedValidation.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
-import { shellCredentialWritePath } from '../../utils/permissions/shellProtectedPaths.js'
+import { shellCredentialWritePath, shellMercurySecretPath } from '../../utils/permissions/shellProtectedPaths.js'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix }
 export const bashPermissionRule = (ruleContent: string): ShellPermissionRule =>
@@ -634,6 +634,11 @@ async function decideBashPermission(
 ): Promise<PermissionResult> {
   const command = input.command
   const astRoot = await pinnedCommandAnalysis.parseCommandRaw(command) ?? undefined
+  const secretRead = await shellMercurySecretPath(command)
+  if (secretRead !== null) {
+    const message = 'Reading ' + secretRead + " is refused: it holds Mercury's own credentials; use the product's sign-in and account surfaces instead."
+    return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } }
+  }
   const protectedWrite = await shellCredentialWritePath(command)
   if (protectedWrite !== null) {
     const denied = astRoot === undefined ? earlyExitDenyCheck(input, context) : astDenyCheck(input, context, astRoot)

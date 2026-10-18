@@ -1,6 +1,7 @@
 import { homedir } from 'node:os'
-import { posix, resolve } from 'node:path'
+import { join, posix, resolve } from 'node:path'
 import { getCwd } from '../cwd.js'
+import { getAuthScope, getMercuryHome } from '../envUtils.js'
 import { getPathsForPermissionCheck } from '../fsOperations.js'
 
 function spelling(path: string): string {
@@ -10,6 +11,7 @@ function spelling(path: string): string {
     .replace(/^~(?=\/|$)/, home.replace(/\\/g, '/'))
     .replace(/^(?:\$\{HOME\}|\$HOME|%HOME%)(?=\/|$)/i, home.replace(/\\/g, '/'))
     .replace(/^(?:%USERPROFILE%|\$\{?(?:env:)?USERPROFILE\}?)(?=\/|$)/i, profile.replace(/\\/g, '/'))
+    .replace(/^(?:\$\{MERCURY_CONFIG_DIR\}|\$MERCURY_CONFIG_DIR|%MERCURY_CONFIG_DIR%|\$env:MERCURY_CONFIG_DIR)(?=\/|$)/i, getMercuryHome().replace(/\\/g, '/'))
     .replace(/^\/(?:mnt\/)?([a-z])\//i, '$1:/')
 }
 
@@ -38,6 +40,27 @@ export function credentialStorePath(path: string, cwd = getCwd()): string | null
     for (const home of conventional ? [...homes, conventional] : homes) {
       if (HOME_FILES.some(file => candidate === `${home}/${file}`) || HOME_TREES.some(dir => inside(candidate, `${home}/${dir}`))) return candidate
     }
+  }
+  return null
+}
+
+const MERCURY_SECRET_PATTERNS = ['.credentials.json', '.provider-secrets.json', '*-auth.json', 'browser-secrets.json', '.credentials.json.corrupt.*', '.provider-secrets.json.corrupt.*']
+
+export function mercurySecretReadIgnores(): Map<string, string[]> {
+  return new Map([getMercuryHome(), getAuthScope(), join(homedir(), '.mercury')].filter((path): path is string => !!path)
+    .flatMap(home => getPathsForPermissionCheck(spelling(home)).map(path => [path, MERCURY_SECRET_PATTERNS] as [string, string[]])))
+}
+
+export function mercurySecretPath(path: string, cwd = getCwd()): string | null {
+  const target = path.startsWith('mercury://file/') ? decodeURIComponent(path.slice('mercury://file/'.length).split('?')[0]!) : path
+  const plain = target.replace(/:(?:-?\d+(?:[-+,]\d+)*)$/, '')
+  const homes = [...mercurySecretReadIgnores().keys()].map(comparable)
+  for (const candidate of protectedPathForms(plain, cwd)) {
+    const parent = posix.dirname(candidate)
+    const name = posix.basename(candidate)
+    const conventional = /^(?:\/(?:users|home)\/[^/]+|\/root|[a-z]:\/users\/[^/]+)\/\.mercury$/.test(parent)
+    if (!conventional && !homes.includes(parent)) continue
+    if (/^(?:\.credentials\.json|\.provider-secrets\.json)(?:\.corrupt\.[^/]+)?$/.test(name) || /^.+-auth\.json$/.test(name) || name === 'browser-secrets.json') return candidate
   }
   return null
 }
