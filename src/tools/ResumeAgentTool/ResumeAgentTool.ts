@@ -10,12 +10,15 @@ import { endedWords, mapMessageResult, messageNoticeFor, messageWorkflowWorker, 
 import { renderToolResultMessage, renderToolUseMessage } from '../SendMessageTool/UI.js'
 import { RESUME_AGENT_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
+import { EFFORT_LEVELS, type EffortLevel } from '../../utils/effort.js'
 
 type ResumeAgentToolOutput = MessageOutput
-type Input = CrewMessageInput
+type Input = CrewMessageInput & { model?: string; effort?: EffortLevel }
 const inputSchema = lazySchema(() => z.object({
   to: z.string().describe('The crewmate to resume: the id its launch receipt names or the name its launch gave it'),
   message: z.string().describe('Its next turn: what to do, written as you would brief it'),
+  model: z.string().optional().describe('Model for the resumed turn of a finished crewmate; omitted, its recorded model stays. Read mercury://models for available ids.'),
+  effort: z.enum(EFFORT_LEVELS).optional().describe('Effort for the resumed turn; omitted, its recorded effort stays. Max is admitted; an unsupported lower tier is refused, not clamped.'),
 }))
 type InputSchema = ReturnType<typeof inputSchema>
 const outputSchema = lazySchema(() => z.object({ success: z.boolean(), message: z.string() }))
@@ -41,6 +44,10 @@ export const ResumeAgentTool = buildTool({
     if (address.kind === 'unknown') return { data: { success: false, message: await unknownAgentRefusal(to, context, 'resume') } }
     const resolvedSelf = selfAddressRefusalText(to, context, 'resume', address.agentId)
     if (resolvedSelf !== null) return { data: { success: false, message: resolvedSelf } }
+    if (input.model !== undefined || input.effort !== undefined) {
+      const owner = liveAgentOwner(address.agentId, context.getAppState().tasks)
+      if (owner !== null) return { data: { success: false, message: `${owner.words} Model and effort overrides apply only to a finished crewmate; nothing was queued.` } }
+    }
     if (address.task?.status === 'running') {
       queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState)
       return { data: { success: true, message: `Crewmate ${address.who} is still running, so nothing was resumed: the message was delivered and it reads it at its next tool boundary.` } }
@@ -53,6 +60,7 @@ export const ResumeAgentTool = buildTool({
       const notice = messageNoticeFor(address.agentId, input.message, context)
       const resumed = await (await import('../AgentTool/resumeAgent.js')).resumeAgentBackground({
         agentId: address.agentId, prompt: notice, toolUseContext: context, canUseTool, invokingRequestId: parentAssistantMessage.requestId,
+        model: input.model, effort: input.effort,
       })
       speakAgentMessageFrame(address.agentId, notice)
       const completion = senderAgentTask(context) === undefined
