@@ -118,6 +118,8 @@ section('D. the builder applies the lane to an explicit schema only; every built
   check('and the tool is remembered for the un-rename', normaliser._renamedToolsForTesting().includes('mcp__quirky__search'))
   const onLocal = (await toolToAPISchema(mcpLike, { ...options, tools: [mcpLike], model: 'local/fixture-q4' })) as { input_schema: Node }
   check('on the local road the same schema takes the grammar shape instead', JSON.stringify(((onLocal.input_schema.properties as Record<string, Node>).bag)) === '{"type":"object","properties":{}}' && 'file name' in (onLocal.input_schema.properties as Node), JSON.stringify(onLocal.input_schema))
+  const onAnthropicCached = (await toolToAPISchema(mcpLike, { ...options, tools: [mcpLike], model: 'claude-fable-5-1' })) as { input_schema: Node }
+  check('building the schema for another route does not erase the Anthropic rename tree across a cached Anthropic turn', Object.keys(onAnthropicCached.input_schema.properties as Node).includes('file_name') && (restoreRenamedArgumentKeys('mcp__quirky__search', { file_name: 'a.txt' }) as Node)['file name'] === 'a.txt', JSON.stringify(restoreRenamedArgumentKeys('mcp__quirky__search', { file_name: 'a.txt' })))
   const builtin = (await toolToAPISchema(GrepTool, { ...options, model: 'claude-fable-5-1' })) as { input_schema: Node }
   const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
   check('a built-in tool is its own zod schema, byte for byte, on the strict road', JSON.stringify(builtin.input_schema) === JSON.stringify(zodToJsonSchema(GrepTool.inputSchema as never)))

@@ -133,8 +133,9 @@ export async function toolToAPISchema(
       explicit === undefined
         ? inlineLocalSchemaRefs(zodToJsonSchema(tool.inputSchema as never) as Record<string, unknown>)
         : inlineLocalSchemaRefs(explicit, serializedSchemaKeys.get(explicit))
-    const normalized = explicit === undefined ? null : normalizeToolSchemaFor(schemaLaneFor(declaredRouteOf(promptModel)), rawSchema, rawSchema === explicit ? serializedSchemaKeys.get(explicit) : undefined)
-    if (normalized !== null) rememberRenamedArgumentKeys(tool.name, normalized.renamed)
+    const schemaLane = schemaLaneFor(declaredRouteOf(promptModel))
+    const normalized = explicit === undefined ? null : normalizeToolSchemaFor(schemaLane, rawSchema, rawSchema === explicit ? serializedSchemaKeys.get(explicit) : undefined)
+    if (schemaLane === 'anthropic-strict' && normalized !== null) rememberRenamedArgumentKeys(tool.name, normalized.renamed)
     const input_schema = (normalized?.schema ?? rawSchema) as ToolInputSchema
 
     const built: ApiTool = { name: tool.name, description, input_schema }
