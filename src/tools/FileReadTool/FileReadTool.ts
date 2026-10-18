@@ -136,6 +136,13 @@ const stockFields = () => ({
     .describe(
       `Page range for PDF files (e.g., "2-6", "9", "12-24"). Only applicable to PDF files. Maximum ${MAX_PDF_PAGES_PER_REQUEST} pages per request.`,
     ),
+  crop: z
+    .array(semanticNumber(z.number().int().min(0)))
+    .length(4)
+    .optional()
+    .describe(
+      'For an image: a box [x1, y1, x2, y2] in the original pixels, cut out before any downscale so small text stays crisp — zoom into a screenshot by re-reading it with a box; refused when it reaches outside the image or is inverted.',
+    ),
 })
 
 const anchoredSchemaFactory = () =>
@@ -537,20 +544,44 @@ const IMAGE_TOKEN_BUDGET_DEFAULT = 25000
 
 type ImageOutput = Extract<Output, { type: 'image' }>
 
+type CropBox = readonly [number, number, number, number]
+
+async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string): Promise<{ buffer: Buffer; full: { width: number; height: number } }> {
+  const [x1, y1, x2, y2] = crop
+  const box = `[${crop.join(', ')}]`
+  if (crop.length !== 4 || crop.some(value => !Number.isInteger(value) || value < 0)) throw new Error(`crop refused: ${box} must be four non-negative integers in the image's own pixels (x1, y1, x2, y2)`)
+  if (x2 <= x1 || y2 <= y1) throw new Error(`crop refused: ${box} is inverted or empty — x2 must exceed x1 and y2 must exceed y1`)
+  const { getImageProcessor } = await import('./imageProcessor.js')
+  const { imageDimensionsFromHeader } = await import('./imageProcessorJs.js')
+  const sharp = await getImageProcessor()
+  const metadata = await sharp(buffer).metadata().catch(() => ({}) as { width?: number; height?: number })
+  const header = imageDimensionsFromHeader(buffer)
+  const width = metadata.width ?? header?.width
+  const height = metadata.height ?? header?.height
+  if (width === undefined || height === undefined) throw new Error(`crop refused: the size of ${filePath} could not be read, so ${box} cannot be checked against it`)
+  if (x2 > width || y2 > height) throw new Error(`crop refused: ${box} reaches outside the image, which is ${width}x${height} px`)
+  const cropped = await sharp(buffer).extract({ left: x1, top: y1, width: x2 - x1, height: y2 - y1 }).png({ compressionLevel: 6 }).toBuffer()
+  return { buffer: cropped, full: { width, height } }
+}
+
 export async function readImageWithTokenBudget(
   filePath: string,
   maxTokens: number = IMAGE_TOKEN_BUDGET_DEFAULT,
   maxBytes?: number,
-): Promise<ImageOutput> {
+  crop?: CropBox,
+): Promise<ImageOutput & { cropped?: { box: CropBox; full: { width: number; height: number } } }> {
   const fsImpl = getFsImplementation()
-  const buffer = fsImpl.readFileBytesSync
+  const file = fsImpl.readFileBytesSync
     ? fsImpl.readFileBytesSync(filePath)
     : (await import('node:fs')).readFileSync(filePath)
-  if (buffer.length === 0) {
+  if (file.length === 0) {
     throw new Error(`Empty image file (zero bytes): ${filePath}`)
   }
+  const cut = crop === undefined ? null : await cropImageBuffer(file, crop, filePath)
+  const buffer = cut === null ? file : cut.buffer
   const detected = detectImageFormatFromBuffer(buffer)
   const detectedSubtype = detected.split('/')[1] || 'png'
+  const cropped = cut === null || crop === undefined ? {} : { cropped: { box: crop, full: cut.full } }
 
   let resized: { buffer: Buffer; mediaType: string; dimensions?: ImageDimensions }
   try {
@@ -575,6 +606,7 @@ export async function readImageWithTokenBudget(
         originalSize: buffer.length,
         ...(resized.dimensions ? { dimensions: resized.dimensions } : {}),
       },
+      ...cropped,
     }
   }
 
@@ -587,6 +619,7 @@ export async function readImageWithTokenBudget(
         type: compressed.mediaType as ImageOutput['file']['type'],
         originalSize: buffer.length,
       },
+      ...cropped,
     }
   } catch (err) {
     logError(err)
@@ -605,6 +638,7 @@ export async function readImageWithTokenBudget(
         type: detectImageFormatFromBuffer(lastResort) as ImageOutput['file']['type'],
         originalSize: buffer.length,
       },
+      ...cropped,
     }
   } catch (err) {
     logError(err)
@@ -615,6 +649,7 @@ export async function readImageWithTokenBudget(
         type: `image/${resized.mediaType}` as ImageOutput['file']['type'],
         originalSize: buffer.length,
       },
+      ...cropped,
     }
   }
 }
@@ -663,10 +698,14 @@ async function readImageLane(
   keyPath: string,
   context: ToolUseContext,
   limits: FileReadingLimits,
+  crop?: CropBox,
 ): Promise<LaneResult> {
-  const data = await readImageWithTokenBudget(resolvedPath, limits.maxTokens)
+  const { cropped, ...data } = await readImageWithTokenBudget(resolvedPath, limits.maxTokens, undefined, crop)
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
   const newMessages: Message[] = []
+  if (cropped !== undefined) {
+    newMessages.push(createUserMessage({ content: `This image is the crop [${cropped.box.join(', ')}] of ${resolvedPath}, cut from the ${cropped.full.width}x${cropped.full.height} px original before any downscale; the coordinates below are the crop's own.`, isMeta: true }))
+  }
   if (data.file.dimensions) {
     const metadataText = createImageMetadataText(data.file.dimensions, resolvedPath)
     if (metadataText) {
@@ -1514,7 +1553,26 @@ function serializeTextResult(file: TextFile, data: object): string {
   const capNote = file.overCap === undefined ? '' : `${overCapWords(file)}\n`
   const numbered = resultOutlineBodies.get(data) ?? numberedWindow(file, resultLineAnchors.has(data))
   const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
-  return `${resolvedNote}${prefix}${capNote}${numbered}${cutMark(file)}${anchorSuffix}`
+  return `${resolvedNote}${prefix}${capNote}${numbered}${conflictMark(file.content)}${cutMark(file)}${anchorSuffix}`
+}
+
+export function unresolvedConflictBlocks(content: string): number {
+  let count = 0
+  let open = false
+  for (const line of content.split('\n')) {
+    if (/^<{7}(?: |$)/.test(line)) open = true
+    else if (open && /^>{7}(?: |$)/.test(line)) {
+      count++
+      open = false
+    }
+  }
+  return count
+}
+
+function conflictMark(content: string): string {
+  const count = unresolvedConflictBlocks(content)
+  if (count === 0) return ''
+  return `\n[${count} unresolved merge-conflict ${count === 1 ? 'block' : 'blocks'} (<<<<<<< ======= >>>>>>>) in the lines returned — resolve them before relying on this content]`
 }
 
 function windowSpan(file: TextFile): string {
@@ -1667,6 +1725,13 @@ export const FileReadTool = buildTool({
     if (windowsPathNeedsPermission(targetRawPath)) return { result: true as const }
 
     const ext = extensionOf(targetRawPath)
+    if (input.crop !== undefined && !IMAGE_EXTENSIONS.has(ext)) {
+      return {
+        result: false as const,
+        message: `The crop parameter applies to image files only; .${ext || '(no extension)'} is read as text.`,
+        errorCode: 7,
+      }
+    }
     if (
       ext !== '' &&
       (hasBinaryExtension(input.file_path) || hasBinaryExtension(targetRawPath)) &&
@@ -1826,7 +1891,7 @@ export const FileReadTool = buildTool({
 
     const dispatch = async (resolvedPath: string): Promise<LaneResult> => {
       if (ext === 'ipynb') return readNotebookLane(resolvedPath, resolvedPath, effectiveInput, context, declaredLimits, reserve)
-      if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, resolvedPath, context, reserve())
+      if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, resolvedPath, context, reserve(), effectiveInput.crop === undefined ? undefined : (effectiveInput.crop as [number, number, number, number]))
       if (isPDFExtension(ext)) return readPdfLane(resolvedPath, resolvedPath, effectiveInput, context)
       if (richTarget !== null) {
         return readRichFormatLane(

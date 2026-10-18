@@ -80,6 +80,54 @@ export function needsPowerShellBom(filePath: string, platform: NodeJS.Platform =
   return /\.(ps1|psm1|psd1)$/i.test(filePath)
 }
 
+const ALIGNMENT_CELL_BUDGET = 4_000_000
+
+function alignReplacedLines(rawNormalized: string[], updated: string[]): number[] {
+  const owner = new Array<number>(updated.length).fill(-1)
+  const n = rawNormalized.length
+  const m = updated.length
+  if (n === 0 || m === 0) return owner
+  if (n * m > ALIGNMENT_CELL_BUDGET) {
+    if (n === m) for (let i = 0; i < m; i++) owner[i] = i
+    return owner
+  }
+  const width = m + 1
+  const table = new Uint32Array((n + 1) * width)
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      table[i * width + j] =
+        rawNormalized[i] === updated[j]
+          ? (table[(i + 1) * width + j + 1] as number) + 1
+          : Math.max(table[(i + 1) * width + j] as number, table[i * width + j + 1] as number)
+    }
+  }
+  let i = 0
+  let j = 0
+  let rawGapStart = 0
+  let updatedGapStart = 0
+  const pairGap = (rawEnd: number, updatedEnd: number): void => {
+    if (rawEnd - rawGapStart === updatedEnd - updatedGapStart) {
+      for (let k = 0; k < updatedEnd - updatedGapStart; k++) owner[updatedGapStart + k] = rawGapStart + k
+    }
+  }
+  while (i < n && j < m) {
+    if (rawNormalized[i] === updated[j]) {
+      pairGap(i, j)
+      owner[j] = i
+      i++
+      j++
+      rawGapStart = i
+      updatedGapStart = j
+    } else if ((table[(i + 1) * width + j] as number) >= (table[i * width + j + 1] as number)) {
+      i++
+    } else {
+      j++
+    }
+  }
+  pairGap(n, m)
+  return owner
+}
+
 export function preserveUntouchedLineEndings(
   raw: string,
   updated: string,
@@ -108,12 +156,9 @@ export function preserveUntouchedLineEndings(
   }
   const rawMiddle = rawLines.slice(top, bottomRaw + 1)
   const updatedMiddle = updatedLines.slice(top, bottomUpdated + 1)
-  const rawKnown = new Set(rawMiddle.map(normalize))
-  const lineForLine =
-    rawMiddle.length === updatedMiddle.length &&
-    updatedMiddle.every((line, index) => line === normalize(rawMiddle[index] as string) || !rawKnown.has(line))
+  const owner = alignReplacedLines(rawMiddle.map(normalize), updatedMiddle)
   const middleStyled = updatedMiddle.map((line, index) => {
-    const own = lineForLine ? (rawMiddle[index] as string) : ''
+    const own = owner[index] === -1 ? '' : (rawMiddle[owner[index] as number] as string)
     const ending = own.endsWith('\r\n') ? 'CRLF' : own.endsWith('\n') ? 'LF' : majority
     return ending === 'CRLF' ? line.replace(/\n$/, '\r\n') : line
   })

@@ -103,6 +103,9 @@ const inputSchema = z.strictObject({
   multiline: semanticBoolean(z.boolean().optional()).describe(
     'Let patterns span line boundaries, with . matching newlines (rg -U --multiline-dotall). Off by default.',
   ),
+  literal: semanticBoolean(z.boolean().optional()).describe(
+    'Match the pattern as exact text, not a regex (rg -F) — for code with regex characters such as foo(bar[0]), $VAR or a.b, nothing escaped. Off by default.',
+  ),
 })
 
 type Input = z.infer<typeof inputSchema>
@@ -334,6 +337,7 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   args.push('--max-columns', '500')
 
   if (input.multiline) args.push('-U', '--multiline-dotall')
+  if (input.literal) args.push('-F')
   if (input['-i']) args.push('-i')
   if (mode === 'files_with_matches') args.push('-l')
   if (mode === 'count') args.push('-c')
@@ -350,7 +354,7 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
       if (input['-A'] !== undefined) args.push('-A', String(input['-A']))
     }
   }
-  const pattern = quoteTolerantPattern(input.pattern)
+  const pattern = input.literal ? input.pattern : quoteTolerantPattern(input.pattern)
   if (pattern.startsWith('-')) {
     args.push('-e', pattern)
   } else {

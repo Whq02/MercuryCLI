@@ -25,9 +25,15 @@ permission-gated because an arbitrary request can mutate the debuggee.
 Built-in adapter rows cover python (`debugpy`, vendored in the build with
 an installed-module fallback), js (`js-debug` for Node/TypeScript, vendored in
 the build; `MERCURY_JS_DEBUG_DAP` pins a custom copy), lldb, gdb,
-go, dotnet, ruby, and godot. Custom adapters are one JSON row each
-(command, transport, file types, launch defaults) via `MERCURY_DAP_ADAPTERS`
-or the `dap-adapters.json` file in the config home.
+go, dotnet, ruby, dart (`dart debug_adapter` from the Dart SDK), kotlin
+(`kotlin-debug-adapter`), elixir (the elixir-ls debug adapter) and godot; a
+row that needs a binary appears when that binary is on PATH, and `/health`
+names the install for the ones that are not. Custom adapters are one JSON row
+each (command, transport, file types, launch defaults) via
+`MERCURY_DAP_ADAPTERS` or the `dap-adapters.json` file in the config home;
+that is the road for adapters that ship only as editor-extension bundles, such
+as the PHP and bash debuggers (`node <bundle>/out/phpDebug.js`,
+`node <bundle>/out/bashDebug.js`).
 
 On macOS, a native adapter (lldb, gdb) that starts and then never answers
 is usually waiting on the operating system: without Developer Mode,

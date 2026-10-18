@@ -30,7 +30,7 @@ import {
   mintFileAnchor,
 } from '../../services/changeTransaction/snapshotAnchor.js'
 import { serializeIntentDigest } from '../../services/changeTransaction/repetitionPolicy.js'
-import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnosticRegistry.js'
+import { clearDeliveredDiagnosticsForFile, snapshotDiagnosticsBeforeWrite } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
@@ -1236,6 +1236,7 @@ export const FileEditTool = buildTool({
     let freshLineAnchors: string | undefined
     let what: string
     let occurrences: number | undefined
+    let rawUpdated: string | null = null
     if (usingHunks) {
       const { bom, body } = splitLeadingBom(freshContent)
       const plan = planHunks(body, effectiveHunks as EditHunkInput[], effectiveAnchor)
@@ -1295,6 +1296,16 @@ export const FileEditTool = buildTool({
           : hasText(input.append)
             ? `appended inside section "${sectionHeadingOf(input.section ?? '')}"`
             : `section "${sectionHeadingOf(input.section ?? '')}" replaced`
+    } else if (fileExists && (input.old_string ?? '') !== '' && input.old_string !== input.new_string && (input.old_string ?? '').replaceAll('\r', '') === (input.new_string ?? '').replaceAll('\r', '') && rawBefore.includes(input.old_string ?? '')) {
+      const oldString = input.old_string ?? ''
+      const newString = input.new_string ?? ''
+      rawUpdated = applyEditToFile(rawBefore, oldString, newString, input.replace_all)
+      updatedFile = rawUpdated.replaceAll('\r\n', '\n')
+      patch = getPatchFromContents({ filePath: expandedPath, oldContent: freshContent, newContent: updatedFile })
+      reportedOldString = oldString
+      reportedNewString = newString
+      occurrences = input.replace_all ? rawBefore.split(oldString).length - 1 : 1
+      what = `line endings changed at ${occurrences} ${occurrences === 1 ? 'place' : 'places'} (the bytes differ only in carriage returns)`
     } else {
       const oldString = input.old_string ?? ''
       const newString = input.new_string ?? ''
@@ -1328,7 +1339,7 @@ export const FileEditTool = buildTool({
     const userModified = context.userModifiedInput === true
     const replaceAll = input.replace_all ?? false
 
-    if (updatedFile === freshContent) {
+    if (rawUpdated === null ? updatedFile === freshContent : rawUpdated === rawBefore) {
       const owner = ownerFromToolUseContext(context)
       const intentDigest = serializeIntentDigest(
         usingHunks
@@ -1378,9 +1389,9 @@ export const FileEditTool = buildTool({
       }
     }
 
-    const reconciled = fileExists
+    const reconciled = rawUpdated ?? (fileExists
       ? preserveUntouchedLineEndings(rawBefore, updatedFile, lineEndings)
-      : updatedFile
+      : updatedFile)
     const owner = ownerFromToolUseContext(context)
     const knownBeforeWrite = fileExists
       ? knowledgeBeforeWrite(context, expandedPath, input.file_path, freshContent, input.expected_anchor, fileGeneration(expandedPath), seenLinesOf(owner, expandedPath))
@@ -1429,6 +1440,7 @@ export const FileEditTool = buildTool({
     const lspManager = getLspServerManager()
     if (lspManager) {
       try {
+        snapshotDiagnosticsBeforeWrite(expandedPath, fileExists ? freshContent : null, finalStateContent, lspManager.getDocumentVersion(expandedPath))
         clearDeliveredDiagnosticsForFile(`file://${expandedPath}`)
         await lspManager.changeAndSaveFile(expandedPath, finalStateContent)
       } catch (err) {

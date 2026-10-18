@@ -8,6 +8,8 @@ import { desktopGrantWords } from '../services/desktop/nativeDriver.js'
 import { desktopClaimFileSnapshot } from '../services/desktop/desktopClaim.js'
 import { desktopSnapshot } from '../services/desktop/desktopSession.js'
 import {
+  ELIXIR_DEBUG_ADAPTER_HINT,
+  KOTLIN_DEBUG_ADAPTER_HINT,
   mercuryDapEnabled,
   probeGdbDap,
   jsDebugSourceLabel,
@@ -750,6 +752,24 @@ function dapLaneRecords(): ReadinessRecord[] {
       label: 'rdbg adapter (Ruby)',
       binary: 'rdbg',
       remedy: 'gem install debug (provides rdbg)',
+    },
+    {
+      id: 'lane:dap:dart',
+      label: 'dart debug_adapter (Dart)',
+      binary: 'dart',
+      remedy: 'install the Dart SDK (dart.dev/get-dart) — it ships dart debug_adapter',
+    },
+    {
+      id: 'lane:dap:kotlin',
+      label: 'kotlin-debug-adapter (Kotlin)',
+      binary: 'kotlin-debug-adapter',
+      remedy: KOTLIN_DEBUG_ADAPTER_HINT,
+    },
+    {
+      id: 'lane:dap:elixir',
+      label: 'elixir-ls debug adapter (Elixir)',
+      binary: 'elixir-ls-debugger',
+      remedy: ELIXIR_DEBUG_ADAPTER_HINT,
     },
   ]
   if (mercuryUnityEnabled()) {

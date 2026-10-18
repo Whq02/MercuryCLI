@@ -15,6 +15,7 @@ import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.
 import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
 import {
   clearDeliveredDiagnosticsForFile,
+  snapshotDiagnosticsBeforeWrite,
   subscribeLSPDiagnosticPublish,
 } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { builtinImplementationInfo } from '../../services/lsp/builtinServers.js'
@@ -495,8 +496,10 @@ export async function syncServersAfterWrite(
   manager: LSPServerManager,
   absolutePath: string,
   newText: string,
+  before: string | null = null,
   deadlineMs: number = SERVER_SYNC_DEADLINE_MS,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
+  snapshotDiagnosticsBeforeWrite(absolutePath, before, newText, manager.getDocumentVersion(absolutePath))
   clearDeliveredDiagnosticsForFile(absolutePath)
   let timer: NodeJS.Timeout | undefined
   try {
@@ -1184,7 +1187,7 @@ async function applyPrepared(
     } catch (error) {
       logForDebugging(`lsp ops: read-state refresh failed for ${w.abs}: ${String(error)}`)
     }
-    const sync = await syncServersAfterWrite(manager, w.abs, w.newText)
+    const sync = await syncServersAfterWrite(manager, w.abs, w.newText, w.create ? null : w.originalText)
     if (!sync.ok) syncFailures.push(`${displayPathFor(env.cwd, w.abs)}: ${sync.reason}`)
     try {
       rememberAnchoredSnapshot(owner, mintFileAnchor(w.newText), w.newText, w.abs)
@@ -1830,21 +1833,10 @@ async function opTypeDefinition(env: OpEnv): Promise<MercuryLspOpOutput> {
   }
 }
 
-async function opServerStatus(env: OpEnv): Promise<MercuryLspOpOutput> {
-  const rows = statusRowsFor(env.manager, env.input.filePath ? env.absolutePath : undefined)
-  if (rows.length === 0) {
-    return {
-      result: 'No LSP servers are configured for this workspace.',
-      resultCount: 0,
-      fileCount: 0,
-      effect: {
-        outcome: 'no-change',
-        changedPaths: [],
-        evidence: 'no servers configured',
-      },
-    }
-  }
-  const lines = rows.map(row => {
+export const NO_LSP_SERVERS_CONFIGURED = 'No LSP servers are configured for this workspace.'
+
+export function serverStatusLines(manager: LSPServerManager, filePath?: string): string[] {
+  return statusRowsFor(manager, filePath).map(row => {
     const claims = row.claimsFile ? ' · claims this file' : ''
     const impl = row.implementation
       ? ` · impl: ${row.implementation.source}${row.implementation.version ? ` ${row.implementation.version}` : ''}`
@@ -1859,8 +1851,25 @@ async function opServerStatus(env: OpEnv): Promise<MercuryLspOpOutput> {
         : '    capabilities: (none until running)'
     return `${row.name} — ${row.state} (gen ${row.generation}, restarts ${row.restartCount})${claims}${impl}${lastError}\n${capabilitiesLine}`
   })
+}
+
+async function opServerStatus(env: OpEnv): Promise<MercuryLspOpOutput> {
+  const filePath = env.input.filePath ? env.absolutePath : undefined
+  const rows = statusRowsFor(env.manager, filePath)
+  if (rows.length === 0) {
+    return {
+      result: NO_LSP_SERVERS_CONFIGURED,
+      resultCount: 0,
+      fileCount: 0,
+      effect: {
+        outcome: 'no-change',
+        changedPaths: [],
+        evidence: 'no servers configured',
+      },
+    }
+  }
   return {
-    result: lines.join('\n'),
+    result: serverStatusLines(env.manager, filePath).join('\n'),
     resultCount: rows.length,
     fileCount: 0,
     effect: {

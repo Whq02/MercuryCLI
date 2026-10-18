@@ -372,14 +372,11 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
       throw new Error(`Failed to stop LSP server ${name} for restart: ${err instanceof Error ? err.message : String(err)}`)
     }
     restartCount++
-    if (restartCount > maxRestarts()) {
-      throw new Error(`LSP server ${name} exceeded the restart cap (${maxRestarts()})`)
-    }
     try {
       await start()
     } catch (err) {
       throw new Error(
-        `Failed to restart LSP server ${name} (attempt ${restartCount} of ${maxRestarts()}): ${
+        `Failed to restart LSP server ${name} (restart ${restartCount}): ${
           err instanceof Error ? err.message : String(err)
         }`,
       )

@@ -388,8 +388,18 @@ export function encodePng(image: RgbaImage, options: { compressionLevel?: number
 }
 
 
+function cropRgba(image: RgbaImage, region: { left: number; top: number; width: number; height: number }): RgbaImage {
+  const out = new Uint8Array(region.width * region.height * 4)
+  for (let y = 0; y < region.height; y++) {
+    const from = ((region.top + y) * image.width + region.left) * 4
+    out.set(image.data.subarray(from, from + region.width * 4), y * region.width * 4)
+  }
+  return { width: region.width, height: region.height, data: out }
+}
+
 class JavascriptImageInstance implements SharpInstance {
   private target: { width: number | null; height: number | null; withoutEnlargement: boolean } | null = null
+  private region: { left: number; top: number; width: number; height: number } | null = null
   private compressionLevel = 6
 
   constructor(private readonly input: Buffer) {}
@@ -402,6 +412,11 @@ class JavascriptImageInstance implements SharpInstance {
 
   resize(width: number | null, height?: number | null, options?: { fit?: string; withoutEnlargement?: boolean }): SharpInstance {
     this.target = { width, height: height ?? null, withoutEnlargement: options?.withoutEnlargement ?? false }
+    return this
+  }
+
+  extract(region: { left: number; top: number; width: number; height: number }): SharpInstance {
+    this.region = region
     return this
   }
 
@@ -420,6 +435,7 @@ class JavascriptImageInstance implements SharpInstance {
 
   async toBuffer(): Promise<Buffer> {
     let image = decodeImage(this.input)
+    if (this.region !== null) image = cropRgba(image, this.region)
     if (this.target !== null && (this.target.width !== null || this.target.height !== null)) {
       const boxWidth = this.target.width ?? Number.POSITIVE_INFINITY
       const boxHeight = this.target.height ?? Number.POSITIVE_INFINITY

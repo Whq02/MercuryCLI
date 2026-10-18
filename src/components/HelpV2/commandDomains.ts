@@ -61,7 +61,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'health & introspection',
     names: [
       'health', 'verify', 'trace',
-      'capabilities',
+      'capabilities', 'lsp',
     ],
   },
   {

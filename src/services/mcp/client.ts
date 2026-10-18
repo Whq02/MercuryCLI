@@ -38,6 +38,7 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { checkAndRefreshOAuthTokenIfNeeded, getClaudeAIOAuthTokens, handleOAuth401Error } from '../../utils/auth.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
+import { restoreRenamedArgumentKeys } from '../../utils/normalizeToolSchema.js'
 import { armInactivityDeadline, formatLimit, minutesKnobToMs } from '../../utils/deadline.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome, isEnvTruthy } from '../../utils/envUtils.js'
@@ -922,7 +923,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
       const invoke = () => callMCPToolWithUrlElicitationRetry({
         client,
         tool: toolName,
-        args,
+        args: restoreRenamedArgumentKeys(modelFacingName, args),
         toolDefinition: sdkTool,
         signal: context.abortController.signal,
         parentMessage,

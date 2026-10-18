@@ -63,6 +63,12 @@ A failed server start has its own 15-second to five-minute backoff. Calls during
 that backoff do not count as new starts or extend it. An explicit restart or
 `/extensions reload` allows a fresh start.
 
+From the composer, `/lsp status` prints the `serverStatus` rows and `/lsp
+restart <server>` stops and starts one server at once; `/lsp restart` alone
+restarts the whole language service for the workspace, re-reading its
+configuration, and each server then starts on the first file it claims. A name
+that is not configured is refused with the roster.
+
 ## Preview, then apply
 
 `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction` and `LspFormat`

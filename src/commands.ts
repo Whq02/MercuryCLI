@@ -26,6 +26,7 @@ import trace from './commands/trace/index.js'
 import { kill, unkill } from './commands/kill/index.js'
 import diff from './commands/diff/index.js'
 import health from './commands/health/index.js'
+import lsp from './commands/lsp/index.js'
 import effort from './commands/effort/index.js'
 import zen from './commands/zen/index.js'
 import browse from './commands/browse/index.js'
@@ -154,6 +155,7 @@ const COMMANDS = memoize((): Command[] => [
   unkill,
   diff,
   health,
+  lsp,
   effort,
   zen,
   browse,

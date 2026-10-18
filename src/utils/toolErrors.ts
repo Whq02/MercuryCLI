@@ -131,7 +131,7 @@ const PARAMETER_STAND_INS: Readonly<Record<string, Readonly<Record<string, strin
     '-e': 'pattern carries the expression',
     '-E': 'pattern is a regex already',
     '-P': 'pattern falls back to PCRE2 for lookaround and backreferences',
-    '-F': 'escape the regex metacharacters in pattern',
+    '-F': 'literal true matches the pattern as exact text',
     '-w': 'a \\b boundary in pattern',
     '-r': 'the search is recursive already; path narrows it',
     '-R': 'the search is recursive already; path narrows it',

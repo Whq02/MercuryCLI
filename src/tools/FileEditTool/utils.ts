@@ -35,7 +35,25 @@ function stripTrailingWhitespace(s: string): string {
 
 export const FORGIVENESS_CONTENT_DRIFT_LIMIT = 0
 
-type ForgivingRoad = 'exact' | 'quotes' | 'characters' | 'whitespace' | 'indentation'
+type ForgivingRoad = 'exact' | 'quotes' | 'characters' | 'whitespace' | 'indentation' | 'escapes'
+
+const CONTROL_SEQUENCES: Readonly<Record<string, string>> = { n: '\n', t: '\t', r: '\r', '\\': '\\' }
+
+function unescapeControlSequences(text: string): string {
+  if (!/\\[ntr]/.test(text)) return text
+  let out = ''
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i] as string
+    const next = text[i + 1]
+    if (char === '\\' && next !== undefined && next in CONTROL_SEQUENCES) {
+      out += CONTROL_SEQUENCES[next]
+      i++
+      continue
+    }
+    out += char
+  }
+  return out
+}
 
 type ActualMatch = {
   kind: 'found'
@@ -80,6 +98,7 @@ function forgivenessFeedback(road: ForgivingRoad, actual: string, search: string
   if (road === 'exact' || road === 'quotes') return null
   const span = lineSpan(startLine, endLine)
   if (road === 'characters') return `Matched with the file's dash/space characters at ${span}.`
+  if (road === 'escapes') return `Matched at ${span} with the \\n, \\t and \\r sequences of old_string read as the characters they spell (the file carries the characters, not the sequences); new_string was read the same way.`
   const actualLines = actual.split('\n')
   const searchLines = search.split('\n')
   const characters = actualLines.some((line, i) => line.trim() !== (searchLines[i] ?? '').trim())
@@ -171,12 +190,27 @@ function locateByLines(fileContent: string, searchString: string): ActualMatchOu
   return { kind: 'none' }
 }
 
+function locateByEscapes(fileContent: string, searchString: string): ActualMatchOutcome | null {
+  const unescaped = unescapeControlSequences(searchString)
+  if (unescaped === searchString) return null
+  const first = fileContent.indexOf(unescaped)
+  if (first === -1) return null
+  const positions = [first]
+  for (let at = fileContent.indexOf(unescaped, first + unescaped.length); at !== -1; at = fileContent.indexOf(unescaped, at + unescaped.length)) positions.push(at)
+  if (positions.length > 1) {
+    return { kind: 'ambiguous', road: 'escapes', count: positions.length, matches: positions.map(at => linesAt(fileContent, at, unescaped)) }
+  }
+  return foundAt(fileContent, unescaped, first, 'escapes', searchString)
+}
+
 export function locateActualString(fileContent: string, searchString: string): ActualMatchOutcome {
   const exact = fileContent.indexOf(searchString)
   if (exact !== -1) return foundAt(fileContent, searchString, exact, 'exact', searchString)
   const quoted = normalizeQuotes(fileContent).indexOf(normalizeQuotes(searchString))
   if (quoted !== -1) return foundAt(fileContent, fileContent.slice(quoted, quoted + searchString.length), quoted, 'quotes', searchString)
-  return locateByCharacters(fileContent, searchString) ?? locateByLines(fileContent, searchString)
+  const located = locateByCharacters(fileContent, searchString) ?? locateByLines(fileContent, searchString)
+  if (located.kind !== 'none') return located
+  return locateByEscapes(fileContent, searchString) ?? located
 }
 
 export function findActualString(fileContent: string, searchString: string): string | null {
@@ -188,6 +222,7 @@ function matchRoad(oldString: string, actualOldString: string): ForgivingRoad | 
   if (actualOldString === oldString) return 'exact'
   if (normalizeQuotes(actualOldString) === normalizeQuotes(oldString)) return 'quotes'
   if (plainTypography(actualOldString) === plainTypography(oldString)) return 'characters'
+  if (unescapeControlSequences(oldString) === actualOldString) return 'escapes'
   const actualLines = actualOldString.split('\n')
   const oldLines = oldString.split('\n')
   if (actualLines.length !== oldLines.length) return null
@@ -316,6 +351,9 @@ export async function preserveQuoteStyleForFile(
   newString: string,
 ): Promise<string> {
   const road = matchRoad(oldString, actualOldString)
+  if (road === 'escapes') {
+    return preserveQuoteStyleForFile(filePath, fileContent, actualOldString, actualOldString, unescapeControlSequences(newString))
+  }
   if (road === 'whitespace' || road === 'indentation') {
     const respelled = respellWhitespace(oldString, actualOldString, newString)
     return preserveQuoteStyleForFile(filePath, fileContent, actualOldString, actualOldString, respelled)

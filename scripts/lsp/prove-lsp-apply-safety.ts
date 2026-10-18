@@ -150,6 +150,7 @@ function fakeEnvFor(dir: string, opts: {
       savedFiles.push(f)
     },
     getServerForFile: () => undefined,
+    getDocumentVersion: () => undefined,
     sendRequest: async (_file: string, method: string) => {
       if (method === 'textDocument/rename') return opts.renameEditFor(target)
       return undefined

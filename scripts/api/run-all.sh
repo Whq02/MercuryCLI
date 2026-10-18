@@ -10,6 +10,7 @@
 # gate-watch: src/components/SwitchboardTagBar.tsx src/components/concourse/ConcourseRoute.tsx
 # gate-watch: src/components/messages/AssistantTextMessage.tsx
 # gate-watch: src/components/messages/nullRenderingAttachments.ts
+# gate-watch: src/utils/normalizeToolSchema.ts src/utils/api.ts src/tools/GrepTool/GrepTool.ts
 # gate-watch: src/components/tasks/WorkflowDetailDialog.tsx src/constants/* src/query/transitions.ts
 # gate-watch: src/services/compact/autoCompact.ts src/services/compact/compact.ts
 # gate-watch: src/services/desktop/screenshotRetention.ts src/services/engine-connector/seatLive.ts
@@ -53,6 +54,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-silent-after
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-end-typed.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-turn-end-typed.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tool-schema-key-memo.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-tool-schema-key-memo.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tool-schema-refs-inlined.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-tool-schema-refs-inlined.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-mcp-schema-normaliser.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-mcp-schema-normaliser.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-client-contract-door.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-client-contract-door.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-model-refusals.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-model-refusals.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-openai-provider-refusal.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-openai-provider-refusal.ts" "$__t" "$__rc"
