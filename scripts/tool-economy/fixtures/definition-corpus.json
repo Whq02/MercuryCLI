@@ -1,5 +1,5 @@
 {
-  "base": "eaf59ae9e015d4dd1cc6cac3ce065c0710d435ad",
+  "base": "c058dc268dee2f5beae8bd27888a8cc1a2438ce9",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -263,6 +263,17 @@
           "pages": {
             "description": "Page range for PDF files (e.g., \"2-6\", \"9\", \"12-24\"). Only applicable to PDF files. Maximum 20 pages per request.",
             "type": "string"
+          },
+          "crop": {
+            "description": "For an image: a box [x1, y1, x2, y2] in the original pixels, cut out before any downscale so small text stays crisp — zoom into a screenshot by re-reading it with a box; refused when it reaches outside the image or is inverted.",
+            "minItems": 4,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
           },
           "outline": {
             "description": "Set true to return a structural outline (signatures kept, function and method bodies elided, original line numbers preserved) using the vendored tree-sitter grammar for the file type. Off, the output is the full window.",
