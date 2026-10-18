@@ -34,8 +34,10 @@ export class FetchPacing {
     const prior = this.turn
     let release!: () => void
     this.turn = new Promise<void>(resolve => { release = resolve })
-    await prior
+    let holdsTurn = false
     try {
+      await untilTurn(prior, signal)
+      holdsTurn = true
       if (signal?.aborted) throw new AbortError()
       if (this.remaining() > 0) return await request(this.remaining())
       await this.clock.sleep(Math.max(0, this.next - this.clock.now()), signal)
@@ -44,7 +46,21 @@ export class FetchPacing {
       this.next = this.clock.now() + intervalMs
       return await request(0)
     } finally {
-      release()
+      if (holdsTurn) release()
+      else void prior.then(release)
     }
   }
+}
+
+function untilTurn(prior: Promise<void>, signal: AbortSignal | undefined): Promise<void> {
+  if (signal === undefined) return prior
+  if (signal.aborted) return Promise.reject(new AbortError())
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = (): void => reject(new AbortError())
+    signal.addEventListener('abort', onAbort, { once: true })
+    void prior.then(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    })
+  })
 }

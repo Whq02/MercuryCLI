@@ -41,11 +41,12 @@ const ALLOWED_FIXTURE_HOSTS = new Set([
 
 const seen: Array<{ url: string; accept: string | null; ua: string | null; headers: Record<string, string> }> = []
 let oversizedBytes = Buffer.alloc(2 * 1024 * 1024 + 4096, 0x61)
+let heldResponse: Promise<void> = Promise.resolve()
 
 const server = Bun.serve({
   hostname: '127.0.0.1',
   port: 0,
-  fetch(request) {
+  async fetch(request) {
     const targetUrl = request.headers.get('x-fixture-url')!
     seen.push({
       url: targetUrl,
@@ -168,6 +169,10 @@ const server = Bun.serve({
     }
 
     if (host === 'crates.io') {
+      if (path === '/api/v1/crates/gated_a') {
+        await heldResponse
+        return new Response(readFixture('crates-pkg.json'), { headers: { 'Content-Type': 'application/json' } })
+      }
       if (path === '/api/v1/crates/serde_widget') {
         return new Response(readFixture('crates-pkg.json'), { headers: { 'Content-Type': 'application/json' } })
       }
@@ -533,6 +538,46 @@ try {
       'credentials: no request to a structured host carries Authorization, Cookie or a proxy credential, with token variables set',
       apiCalls.length >= 10 && apiCalls.every(s => s.headers.authorization === undefined && s.headers.cookie === undefined && s.headers['proxy-authorization'] === undefined),
       JSON.stringify(apiCalls.filter(s => s.headers.authorization !== undefined || s.headers.cookie !== undefined).map(s => s.url)),
+    )
+
+    const ticks = async (n: number): Promise<void> => {
+      for (let i = 0; i < n; i++) await new Promise<void>(resolve => setImmediate(resolve))
+    }
+    clearWebFetchCache()
+    let releaseHeld!: () => void
+    heldResponse = new Promise<void>(resolve => { releaseHeld = resolve })
+    const ahead = callFetch('https://crates.io/crates/gated_a')
+    while (!seen.some(s => s.url === 'https://crates.io/api/v1/crates/gated_a')) await ticks(1)
+    const abortQueued = new AbortController()
+    let queuedSettled = false
+    const queued = WebFetchTool.call({ url: 'https://crates.io/crates/serde_widget' }, { abortController: abortQueued, options: { isNonInteractiveSession: true } } as never).then(
+      () => 'completed',
+      (error: Error) => error.name,
+    )
+    void queued.then(() => { queuedSettled = true })
+    await ticks(20)
+    abortQueued.abort()
+    await ticks(50)
+    check(
+      'queue: a fetch aborted while it waits behind another leaves the queue at once, before the one ahead is answered',
+      queuedSettled && (await queued) === 'AbortError',
+      `settled=${queuedSettled}`,
+    )
+    const seenBeforeNext = seen.length
+    const next = callFetch('https://crates.io/crates/serde_widget')
+    await ticks(50)
+    check(
+      'queue: the next fetch in line still waits for the one ahead, which is unaffected by the abort',
+      !seen.slice(seenBeforeNext).some(s => s.url === 'https://crates.io/api/v1/crates/serde_widget'),
+      JSON.stringify(seen.map(s => s.url).slice(-3)),
+    )
+    releaseHeld()
+    const aheadDone = await ahead
+    const nextDone = await next
+    check(
+      'queue: once the one ahead is answered the next is served in its turn',
+      aheadDone.code === 200 && nextDone.code === 200 && nextDone.result.includes('# serde_widget (1.0.9)'),
+      `${aheadDone.code} ${nextDone.code}`,
     )
 
     const { hasPermissionsToUseTool } = await import('../../src/utils/permissions/permissions.js')
