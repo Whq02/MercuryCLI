@@ -11,6 +11,7 @@ import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnost
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { ideReadTextAvailable, ideWriteTextAvailable, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../services/acp/ideToolBridge.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -80,6 +81,7 @@ export type Output = {
   gitDiff?: FileEditOutput['gitDiff']
   noChange?: FileEditOutput['noChange']
   parseError?: string
+  diverged?: boolean
 }
 
 const outputSchema = z.object({
@@ -93,6 +95,7 @@ const outputSchema = z.object({
     .object({ streak: z.number(), stop: z.boolean(), guidance: z.string() })
     .optional(),
   parseError: z.string().optional(),
+  diverged: z.boolean().optional(),
 })
 
 function sha16(content: string): string {
@@ -238,15 +241,34 @@ export const FileWriteTool = buildTool({
     let normalizedContent = ''
     let encoding: BufferEncoding = 'utf8'
     let lineEndings: LineEndingType = 'LF'
-    try {
-      const metadata = readFileSyncWithMetadata(expandedPath)
-      rawContent = metadata.rawContent
-      normalizedContent = metadata.content
-      encoding = metadata.encoding
-      lineEndings = metadata.lineEndings
-    } catch (err) {
-      if (!isENOENT(err)) throw err
-      fileExists = false
+    let currentMtimeMs: number | undefined
+    if (ideReadTextAvailable()) {
+      try {
+        const ideMeta = await readWholeTextViaIde(expandedPath, context.abortController.signal)
+        if (ideMeta !== null) {
+          rawContent = ideMeta.rawContent
+          normalizedContent = ideMeta.content
+          encoding = ideMeta.encoding
+          lineEndings = ideMeta.lineEndings
+          currentMtimeMs = ideMeta.mtimeMs
+        }
+      } catch (err) {
+        if (!isENOENT(err) && !/no such file|not found|ENOENT/i.test(err instanceof Error ? err.message : String(err))) {
+          throw err
+        }
+        fileExists = false
+      }
+    } else {
+      try {
+        const metadata = readFileSyncWithMetadata(expandedPath)
+        rawContent = metadata.rawContent
+        normalizedContent = metadata.content
+        encoding = metadata.encoding
+        lineEndings = metadata.lineEndings
+      } catch (err) {
+        if (!isENOENT(err)) throw err
+        fileExists = false
+      }
     }
 
     const hadBom = rawContent.charCodeAt(0) === 0xfeff
@@ -297,7 +319,7 @@ export const FileWriteTool = buildTool({
           throw new Error(unreadExistingWriteMessage())
         }
       } else {
-        const mtime = getFileModificationTime(expandedPath)
+        const mtime = currentMtimeMs ?? getFileModificationTime(expandedPath)
         if (
           mtime > entry.timestamp &&
           !(isFullReadEntry(entry) && entry.content === normalizedContent)
@@ -307,16 +329,32 @@ export const FileWriteTool = buildTool({
       }
     }
 
-    writeTextContent(expandedPath, shaped, encoding, 'LF', { keepBom: hadBom })
-    const writtenContent = shaped.replaceAll('\r\n', '\n')
-    const writtenAt = getFileModificationTime(expandedPath)
-    try {
-      const writtenGeneration = generationOfWrittenBytes(expandedPath, Buffer.from(producedContent, encoding))
-      if (writtenGeneration !== null) {
-        recordWholeFileSeen(ownerFromToolUseContext(context), expandedPath, writtenGeneration, writtenContent)
+    let writtenContent = shaped.replaceAll('\r\n', '\n')
+    let writtenAt: number
+    let diverged = false
+    const ideWritten = ideWriteTextAvailable()
+      ? await writeTextViaIdeWithReadBack(expandedPath, shaped, encoding, hadBom, context.abortController.signal)
+      : null
+    if (ideWritten !== null) {
+      writtenContent = ideWritten.finalContent
+      writtenAt = ideWritten.mtimeMs
+      diverged = ideWritten.diverged
+      try {
+        recordWholeFileSeen(ownerFromToolUseContext(context), expandedPath, ideWritten.generation, writtenContent)
+      } catch (err) {
+        logError(err)
       }
-    } catch (err) {
-      logError(err)
+    } else {
+      writeTextContent(expandedPath, shaped, encoding, 'LF', { keepBom: hadBom })
+      writtenAt = getFileModificationTime(expandedPath)
+      try {
+        const writtenGeneration = generationOfWrittenBytes(expandedPath, Buffer.from(producedContent, encoding))
+        if (writtenGeneration !== null) {
+          recordWholeFileSeen(ownerFromToolUseContext(context), expandedPath, writtenGeneration, writtenContent)
+        }
+      } catch (err) {
+        logError(err)
+      }
     }
 
     const lspManager = getLspServerManager()
@@ -353,11 +391,12 @@ export const FileWriteTool = buildTool({
       const data: Output = {
         type: 'update',
         filePath: expandedPath,
-        content: input.content,
+        content: writtenContent,
         structuredPatch: patch,
         originalFile: normalizedContent,
         ...(gitDiff !== undefined ? { gitDiff } : {}),
         ...(parseError !== undefined ? { parseError } : {}),
+        ...(diverged ? { diverged: true } : {}),
       }
       return {
         data,
@@ -373,15 +412,16 @@ export const FileWriteTool = buildTool({
       }
     }
 
-    countLinesChanged([], input.content)
+    countLinesChanged([], writtenContent)
     const data: Output = {
       type: 'create',
       filePath: expandedPath,
-      content: input.content,
+      content: writtenContent,
       structuredPatch: [],
       originalFile: null,
       ...(gitDiff !== undefined ? { gitDiff } : {}),
       ...(parseError !== undefined ? { parseError } : {}),
+      ...(diverged ? { diverged: true } : {}),
     }
     return {
       data,
@@ -408,17 +448,18 @@ export const FileWriteTool = buildTool({
       }
     }
     const parseSuffix = data.parseError !== undefined ? `\n${data.parseError}` : ''
+    const divergedSuffix = data.diverged === true ? `\nThe file as read back right after the write differs from what was written (formatted on save); its current content counts as read:\n\n${data.content}` : ''
     if (data.type === 'create') {
       return {
         tool_use_id: toolUseID,
         type: 'tool_result' as const,
-        content: `File created successfully at: ${data.filePath}\n${APPLIED_NO_REREAD_NOTE}${parseSuffix}`,
+        content: `File created successfully at: ${data.filePath}\n${APPLIED_NO_REREAD_NOTE}${divergedSuffix}${parseSuffix}`,
       }
     }
     return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,
-      content: `The file ${data.filePath} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}${parseSuffix}`,
+      content: `The file ${data.filePath} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}${divergedSuffix}${parseSuffix}`,
     }
   },
   extractSearchText(): string {

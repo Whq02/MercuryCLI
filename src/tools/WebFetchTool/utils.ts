@@ -14,6 +14,7 @@ import { readHostedPage, fetchReaderEnabled } from './reader.js'
 import { FetchRefusedError } from './fetchErrors.js'
 import { fetchPage, type RawResponse, type RedirectResult } from './fetchTransport.js'
 import { pageAccessNotice } from './pageAccess.js'
+import { resetStructuredFetchPacing, tryStructuredFetch } from './structuredHosts.js'
 export type { RedirectResult } from './fetchTransport.js'
 export { EgressBlockedError } from './fetchErrors.js'
 
@@ -39,6 +40,7 @@ const urlCache = new LRUCache<string, FetchedContent>({
 
 export function clearWebFetchCache(): void {
   urlCache.clear()
+  resetStructuredFetchPacing()
 }
 
 
@@ -90,6 +92,12 @@ export async function getURLMarkdownContent(
   const parsedForUpgrade = new URL(url)
   if (parsedForUpgrade.protocol === 'http:') parsedForUpgrade.protocol = 'https:'
   const upgraded = parsedForUpgrade.toString()
+
+  const structured = await tryStructuredFetch(upgraded, abortController.signal)
+  if (structured !== null) {
+    urlCache.set(cacheKey, structured, { size: Math.max(1, Buffer.byteLength(structured.content, 'utf8')) })
+    return structured
+  }
 
   const response = await fetchPage(upgraded, abortController.signal)
   if ('type' in response && response.type === 'redirect') {

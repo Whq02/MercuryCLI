@@ -1,0 +1,18 @@
+{
+  "number": 99,
+  "title": "Clamp flex child min-width on narrow containers",
+  "state": "closed",
+  "merged": true,
+  "draft": false,
+  "user": { "login": "bob" },
+  "created_at": "2026-10-02T09:15:00Z",
+  "head": { "label": "bob:fix-narrow", "ref": "fix-narrow" },
+  "base": { "label": "acme:main", "ref": "main" },
+  "commits": 2,
+  "additions": 18,
+  "deletions": 4,
+  "changed_files": 3,
+  "labels": [{ "name": "layout" }],
+  "comments": 0,
+  "body": "Fixes #42 by adding `min-width: 0` to the flex row."
+}

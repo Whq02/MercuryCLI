@@ -128,6 +128,7 @@ import {
   registerScheduleEditDoor,
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
+import { registerIdeToolDoor } from '../services/acp/ideToolBridge.js'
 import { saturnQueueStamp } from '../utils/messages/noticeRows.js'
 import { advisorFacts, advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
@@ -485,6 +486,20 @@ export async function runHeadless(
   const asks: AskHost = peer !== null ? createRunnerAsks(peer, () => capabilities) : createRuleOnlyAsks()
   if (peer !== null) {
     registerScheduleEditDoor((edit, signal) => peer.request('schedule/edit', { edit: scheduleEditToWire(edit) }, { signal }))
+    registerIdeToolDoor({
+      capabilities: () => ({
+        readTextFile: capabilities.fs_read_text_file === true,
+        writeTextFile: capabilities.fs_write_text_file === true,
+        terminal: capabilities.terminal === true,
+      }),
+      readTextFile: (params, signal) => peer.request('fs/read_text_file', params, signal ? { signal } : {}),
+      writeTextFile: (params, signal) => peer.request('fs/write_text_file', params, signal ? { signal } : {}),
+      terminalCreate: (params, signal) => peer.request('terminal/create', params, signal ? { signal } : {}),
+      terminalOutput: (params, signal) => peer.request('terminal/output', params, signal ? { signal } : {}),
+      terminalWaitForExit: (params, signal) => peer.request('terminal/wait_for_exit', params, { deadlineMs: null, ...(signal ? { signal } : {}) }),
+      terminalKill: (params, signal) => peer.request('terminal/kill', params, signal ? { signal } : {}),
+      terminalRelease: (params, signal) => peer.request('terminal/release', params, signal ? { signal } : {}),
+    })
     peer.onRequest('initialize', async params => {
       checkProtocol(params)
       capabilities = params.capabilities

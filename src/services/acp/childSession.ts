@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { selfScriptPath } from '../../daemon/daemonBuild.js'
 import { MERCURY_VERSION } from '../../constants/product.js'
 import type { LooseRow } from '../../rows/read.js'
-import type { ElicitationAnswer, ElicitationRequestParams, PermissionAnswer, PermissionRequestParams } from '../../runner/wire/methods.js'
+import type { ElicitationAnswer, ElicitationRequestParams, ParamsOf, PermissionAnswer, PermissionRequestParams, ResultOf } from '../../runner/wire/methods.js'
 import { createPeer, PeerClosed, type Peer } from '../../runner/wire/peer.js'
 import type { RpcError } from '../../runner/wire/errors.js'
 import { flagSpellings } from '../../substrate/flagRegistry.js'
@@ -36,6 +36,13 @@ interface ChildEventHandlers {
   onNetworkAsk?: (host: string, withdrawn: AbortSignal) => Promise<boolean>
   onElicitation?: (params: ElicitationRequestParams, withdrawn: AbortSignal) => Promise<ElicitationAnswer>
   onElicitationComplete?: (server: string, elicitationId: string) => void
+  onReadTextFile?: (params: ParamsOf<'fs/read_text_file'>, withdrawn: AbortSignal) => Promise<ResultOf<'fs/read_text_file'>>
+  onWriteTextFile?: (params: ParamsOf<'fs/write_text_file'>, withdrawn: AbortSignal) => Promise<ResultOf<'fs/write_text_file'>>
+  onTerminalCreate?: (params: ParamsOf<'terminal/create'>, withdrawn: AbortSignal) => Promise<ResultOf<'terminal/create'>>
+  onTerminalOutput?: (params: ParamsOf<'terminal/output'>, withdrawn: AbortSignal) => Promise<ResultOf<'terminal/output'>>
+  onTerminalWaitForExit?: (params: ParamsOf<'terminal/wait_for_exit'>, withdrawn: AbortSignal) => Promise<ResultOf<'terminal/wait_for_exit'>>
+  onTerminalKill?: (params: ParamsOf<'terminal/kill'>, withdrawn: AbortSignal) => Promise<ResultOf<'terminal/kill'>>
+  onTerminalRelease?: (params: ParamsOf<'terminal/release'>, withdrawn: AbortSignal) => Promise<ResultOf<'terminal/release'>>
   onExit: (code: number | null) => void
 }
 
@@ -51,6 +58,9 @@ interface SpawnChildOptions {
   env?: Record<string, string>
   mcpConfig?: string
   elicitation?: boolean
+  fsReadTextFile?: boolean
+  fsWriteTextFile?: boolean
+  terminal?: boolean
 }
 
 const INITIALIZE_DEADLINE_MS = 120_000
@@ -167,13 +177,48 @@ export class MercuryChildSession {
       if (ask === undefined) return { action: 'cancel' }
       return ask(params, ctx.signal)
     })
+    this.peer.onRequest('fs/read_text_file', (params, ctx) => {
+      if (!this.handlers.onReadTextFile) throw new Error('fs/read_text_file is not supported by this ACP client')
+      return this.handlers.onReadTextFile(params, ctx.signal)
+    })
+    this.peer.onRequest('fs/write_text_file', (params, ctx) => {
+      if (!this.handlers.onWriteTextFile) throw new Error('fs/write_text_file is not supported by this ACP client')
+      return this.handlers.onWriteTextFile(params, ctx.signal)
+    })
+    this.peer.onRequest('terminal/create', (params, ctx) => {
+      if (!this.handlers.onTerminalCreate) throw new Error('terminal/create is not supported by this ACP client')
+      return this.handlers.onTerminalCreate(params, ctx.signal)
+    })
+    this.peer.onRequest('terminal/output', (params, ctx) => {
+      if (!this.handlers.onTerminalOutput) throw new Error('terminal/output is not supported by this ACP client')
+      return this.handlers.onTerminalOutput(params, ctx.signal)
+    })
+    this.peer.onRequest('terminal/wait_for_exit', (params, ctx) => {
+      if (!this.handlers.onTerminalWaitForExit) throw new Error('terminal/wait_for_exit is not supported by this ACP client')
+      return this.handlers.onTerminalWaitForExit(params, ctx.signal)
+    })
+    this.peer.onRequest('terminal/kill', (params, ctx) => {
+      if (!this.handlers.onTerminalKill) throw new Error('terminal/kill is not supported by this ACP client')
+      return this.handlers.onTerminalKill(params, ctx.signal)
+    })
+    this.peer.onRequest('terminal/release', (params, ctx) => {
+      if (!this.handlers.onTerminalRelease) throw new Error('terminal/release is not supported by this ACP client')
+      return this.handlers.onTerminalRelease(params, ctx.signal)
+    })
     this.initialized = this.peer
       .request(
         'initialize',
         {
           protocol: 1,
           host: { name: 'mercury-acp', version: MERCURY_VERSION },
-          capabilities: { holds_asks: true, elicitation: opts.elicitation === true, partial_rows: false },
+          capabilities: {
+            holds_asks: true,
+            elicitation: opts.elicitation === true,
+            partial_rows: false,
+            ...(opts.fsReadTextFile === true ? { fs_read_text_file: true } : {}),
+            ...(opts.fsWriteTextFile === true ? { fs_write_text_file: true } : {}),
+            ...(opts.terminal === true ? { terminal: true } : {}),
+          },
         },
         { deadlineMs: INITIALIZE_DEADLINE_MS },
       )

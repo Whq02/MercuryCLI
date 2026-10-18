@@ -9,6 +9,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { getOriginalCwd, isRunInputClosed } from '../../bootstrap/state.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { exec, getShellCwd } from '../../utils/Shell.js'
+import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
 import { HARD_CAP_MULTIPLIER } from '../../utils/ShellCommand.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
@@ -39,7 +40,7 @@ import {
 } from '../../utils/file.js'
 import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { interpretCommandResult } from './commandSemantics.js'
-import { describeCommandDescription, describeMaxOutputChars, describeRunInBackground, describeTimeout, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
+import { describeCommandDescription, describeMaxOutputChars, describeRunInBackground, describeTimeout, EDITOR_TERMINAL_RESULT_NOTE, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
 import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { isSedInPlaceEdit, parseSedEditCommand, applySedSubstitution } from './sedEditParser.js'
@@ -379,19 +380,38 @@ async function* runBash(
     bytes: 0,
     incomplete: false,
   }
-  const shellCommand = await exec(input.command, abortController.signal, 'bash', {
-    timeout: effectiveTimeout,
-    preventCwdChanges: !isMainThread,
-    shouldUseSandbox: useSandbox,
-    shouldAutoBackground,
-    backgroundIntent: input.run_in_background === true && !BACKGROUND_TASKS_DISABLED,
-    inheritSessionEnv: input.inherit_session_env === true,
-    owner: agentId,
-    onProgress: (recent, all, lines, bytes, incomplete) => {
-      latest = { recent, all, lines, bytes: incomplete ? bytes : 0, incomplete }
-      progressResolve?.()
-    },
-  })
+  const onProgress = (recent: string, all: string, lines: number, bytes: number, incomplete: boolean): void => {
+    latest = { recent, all, lines, bytes: incomplete ? bytes : 0, incomplete }
+    progressResolve?.()
+  }
+  let editorTerminalNote: string | undefined
+  const ideShellCommand =
+    isMainThread && !input.run_in_background && !useSandbox && ideTerminalAvailable()
+      ? await execViaIdeTerminal(input.command, abortController.signal, {
+          cwd: getShellCwd(),
+          timeout: effectiveTimeout,
+          shouldAutoBackground,
+          inheritSessionEnv: input.inherit_session_env === true,
+          onProgress,
+        }).catch((error: unknown) => {
+          if (!(error instanceof IdeTerminalUnavailableError)) throw error
+          editorTerminalNote = `The editor could not open a terminal (${error.message}); this command ran in the local shell.`
+          return null
+        })
+      : null
+  if (ideShellCommand !== null) editorTerminalNote = EDITOR_TERMINAL_RESULT_NOTE
+  const shellCommand =
+    ideShellCommand ??
+    (await exec(input.command, abortController.signal, 'bash', {
+      timeout: effectiveTimeout,
+      preventCwdChanges: !isMainThread,
+      shouldUseSandbox: useSandbox,
+      shouldAutoBackground,
+      backgroundIntent: input.run_in_background === true && !BACKGROUND_TASKS_DISABLED,
+      inheritSessionEnv: input.inherit_session_env === true,
+      owner: agentId,
+      onProgress,
+    }))
 
   let timeoutAutoBackgroundedAfterMs: number | undefined
   let foregroundTaskId: string | null = null
@@ -664,6 +684,7 @@ async function* runBash(
     const accumulator = new EndTruncatingAccumulator()
     accumulator.append(result.stdout.trimEnd() + '\n')
     if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
+    if (editorTerminalNote !== undefined) accumulator.append(editorTerminalNote + '\n')
     if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
     if (commandNamesBoxLock(input.command)) await refreshBoxReading()
     const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd: getShellCwd() })

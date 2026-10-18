@@ -1,0 +1,16 @@
+{
+  "info": {
+    "name": "httpx-widget",
+    "version": "0.27.2",
+    "summary": "Async HTTP widget helper for Python.",
+    "license": "BSD-3-Clause",
+    "requires_python": ">=3.9",
+    "home_page": "https://httpx-widget.example.org",
+    "project_urls": {
+      "Source": "https://github.com/acme/httpx-widget",
+      "Documentation": "https://httpx-widget.example.org/docs"
+    },
+    "requires_dist": ["anyio>=4.0", "certifi"],
+    "description": "# httpx-widget\n\nStructured async client helpers."
+  }
+}

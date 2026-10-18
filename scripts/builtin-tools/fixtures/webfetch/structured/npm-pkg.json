@@ -1,0 +1,22 @@
+{
+  "name": "@acme/widget",
+  "dist-tags": { "latest": "2.4.1" },
+  "description": "Top-level fallback description",
+  "versions": {
+    "2.4.0": {
+      "version": "2.4.0",
+      "description": "Earlier widget release",
+      "license": "MIT"
+    },
+    "2.4.1": {
+      "version": "2.4.1",
+      "description": "Deterministic widget components for terminal and web",
+      "license": "MIT",
+      "homepage": "https://widget.example.org",
+      "repository": { "type": "git", "url": "git+https://github.com/acme/widget.git" },
+      "keywords": ["widget", "ui"],
+      "dependencies": { "lru-cache": "^10.0.0", "zod": "^3.23.0" },
+      "readme": "# @acme/widget\n\nZero-config widgets with strict bounds."
+    }
+  }
+}

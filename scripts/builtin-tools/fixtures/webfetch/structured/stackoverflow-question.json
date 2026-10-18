@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "question_id": 778899,
+      "title": "How to bound ArrayBuffer reads in Axios without streaming?",
+      "score": 37,
+      "answer_count": 2,
+      "is_answered": true,
+      "owner": { "display_name": "dev_jane" },
+      "tags": ["node.js", "axios", "typescript"],
+      "body": "<p>When fetching an untrusted endpoint with <code>axios.get</code>, how do I reject bodies over 2 MiB before decoding?</p><pre><code>await axios.get(url, { responseType: &quot;arraybuffer&quot; })</code></pre>"
+    }
+  ],
+  "has_more": false,
+  "quota_max": 300,
+  "quota_remaining": 298
+}
