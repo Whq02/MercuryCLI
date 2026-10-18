@@ -36,7 +36,7 @@ function describeQwenProvider(): ProviderDescription {
 
 function qwenStatus(): ProviderStatus {
   const account = resolveQwenAccount()
-  if (account?.expired) return { available: false, reason: 'signin-expired:qwen' }
+  if (account?.expired) return { available: false, reason: 'no-account:qwen' }
   return resolveQwenCredentialSnapshot() ? { available: true } : { available: false, reason: 'no-api-key:qwen' }
 }
 

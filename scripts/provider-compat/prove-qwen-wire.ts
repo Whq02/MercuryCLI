@@ -380,7 +380,7 @@ try {
   console.log(words(revoked))
   __resetQwenCatalogueForTest()
   const revokedValidation = await validateModel('coder-model')
-  check('the model validator on a cold cache answers the same sign-in words, and the adapter reports the revoked sign-in unavailable and the pickers\' road identity gone', !revokedValidation.valid && (revokedValidation.error ?? '').includes('Qwen account sign-in expired') && !(revokedValidation.error ?? '').includes('re-binds the key') && qwenProviderAdapter.status().available === false && qwenProviderAdapter.status().reason === 'signin-expired:qwen' && qwenCatalogueIdentity() === `signin:${qwenAccountIdentity()}:plan`)
+  check('the model validator on a cold cache answers the same sign-in words, and the adapter reports the revoked sign-in unavailable and the pickers\' road identity gone', !revokedValidation.valid && (revokedValidation.error ?? '').includes('Qwen account sign-in expired') && !(revokedValidation.error ?? '').includes('re-binds the key') && qwenProviderAdapter.status().available === false && qwenProviderAdapter.status().reason === 'no-account:qwen' && qwenCatalogueIdentity() === `signin:${qwenAccountIdentity()}:plan`)
   __resetQwenCatalogueForTest()
   const revokedWarm = await run(params('coder-model'))
   check('the warm-cache path answers the same words', words(revokedWarm).includes('Qwen account sign-in expired') && !words(revokedWarm).includes('re-binds the key') && captures.length === before)
