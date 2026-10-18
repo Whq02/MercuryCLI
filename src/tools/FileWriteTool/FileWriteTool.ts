@@ -7,7 +7,7 @@ import {
 } from '../../services/changeTransaction/repetitionPolicy.js'
 import { generationOfWrittenBytes, recordWholeFileSeen, wholeFileSeen } from '../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
-import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnosticRegistry.js'
+import { clearDeliveredDiagnosticsForFile, snapshotDiagnosticsBeforeWrite } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -360,6 +360,7 @@ export const FileWriteTool = buildTool({
     const lspManager = getLspServerManager()
     if (lspManager) {
       try {
+        snapshotDiagnosticsBeforeWrite(expandedPath, fileExists ? normalizedContent : null, writtenContent, lspManager.getDocumentVersion(expandedPath))
         clearDeliveredDiagnosticsForFile(`file://${expandedPath}`)
         await lspManager.changeAndSaveFile(expandedPath, writtenContent)
       } catch (err) {

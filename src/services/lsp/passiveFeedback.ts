@@ -102,15 +102,16 @@ export function registerLSPNotificationHandlers(manager: LSPServerManager): Hand
             return
           }
           const files = formatDiagnosticsForAttachment(payload)
+          const version = typeof payload.version === 'number' ? payload.version : undefined
           if (files.length > 0) {
-            recordPublishedReport(serverName, files[0] as DiagnosticFile)
+            recordPublishedReport(serverName, files[0] as DiagnosticFile, version)
           }
           if (files.length === 0 || (files[0] as DiagnosticFile).diagnostics.length === 0) {
             logForDebugging(`passiveFeedback: ${serverName} published an empty diagnostic set for ${payload.uri}`)
             return
           }
           try {
-            registerPendingLSPDiagnostic({ serverName, files })
+            registerPendingLSPDiagnostic({ serverName, files, ...(version !== undefined ? { version } : {}) })
             diagnosticFailures.set(serverName, { count: 0, lastError: '' })
           } catch (err) {
             logError(err)
