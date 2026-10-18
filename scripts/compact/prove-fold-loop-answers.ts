@@ -161,8 +161,9 @@ function boundariesOnDisk(transcript: string): Boundary[] {
   if (transcript === '' || !existsSync(transcript)) return []
   const out: Boundary[] = []
   for (const line of readFileSync(transcript, 'utf8').split('\n')) {
-    if (line.trim() === '') continue
-    const record = JSON.parse(line) as { payload?: { kind?: string; fields?: { compactMetadata?: { preTokens?: number; postTokens?: number; ledger?: { epoch?: number }; recentRounds?: Record<string, unknown>; memory?: { state?: string } } } } }
+    if (!line.includes('"kind":"boundary"')) continue
+    const start = line.lastIndexOf('{"schemaVersion"')
+    const record = JSON.parse(start > 0 ? line.slice(start) : line) as { payload?: { kind?: string; fields?: { compactMetadata?: { preTokens?: number; postTokens?: number; ledger?: { epoch?: number }; recentRounds?: Record<string, unknown>; memory?: { state?: string } } } } }
     const meta = record.payload?.kind === 'boundary' ? record.payload.fields?.compactMetadata : undefined
     if (meta === undefined) continue
     out.push({ pre: Number(meta.preTokens), post: Number(meta.postTokens), epoch: Number(meta.ledger?.epoch), rounds: meta.recentRounds ?? {}, memory: meta.memory?.state ?? 'none' })
