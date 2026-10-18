@@ -1,0 +1,116 @@
+--- a/brush-core-0.5.0/src/commands.rs
++++ b/brush-core-0.5.0/src/commands.rs
+@@ -177,6 +177,25 @@
+     args: &[S],
+     empty_env: bool,
+ ) -> Result<std::process::Command, error::Error> {
++    #[cfg(windows)]
++    let command_path = context.shell.working_dir().join(command_name);
++    #[cfg(windows)]
++    let command_name = command_path.as_os_str();
++    #[cfg(windows)]
++    if command_path
++        .extension()
++        .is_some_and(|ext| ext.eq_ignore_ascii_case("cmd") || ext.eq_ignore_ascii_case("bat"))
++        && command_name
++            .as_encoded_bytes()
++            .iter()
++            .any(|c| matches!(c, b'"' | b'\r' | b'\n'))
++    {
++        return Err(std::io::Error::new(
++            std::io::ErrorKind::InvalidInput,
++            "batch file path contains a quote or newline",
++        )
++        .into());
++    }
+     let mut cmd = std::process::Command::new(command_name);
+ 
+     // Override argv[0].
+@@ -630,6 +649,8 @@
+             .join(" ")
+     );
+ 
++    #[cfg(windows)]
++    let script_path = PathBuf::from(cmd.get_program());
+     match sys::process::spawn(cmd) {
+         Ok(child) => {
+             // Retrieve the pid.
+@@ -649,6 +670,23 @@
+             ))
+         }
+         Err(spawn_err) => {
++            #[cfg(windows)]
++            if spawn_err.raw_os_error() == Some(193)
++                && script_path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("sh"))
++            {
++                let mut subshell = context.shell.clone();
++                for (fd, file) in context.iter_fds() {
++                    subshell.open_files_mut().set_fd(fd, file);
++                }
++                let script_args = cmd_args.into_iter().cloned().collect::<Vec<_>>();
++                return Ok(ExecutionSpawnResult::StartedTask(tokio::task::spawn_blocking(
++                    move || {
++                        let rt = tokio::runtime::Handle::current();
++                        let result = rt.block_on(subshell.run_script(script_path, script_args.into_iter()))?;
++                        Ok(result.exit_code.into())
++                    },
++                )));
++            }
+             if context.shell.options().interactive {
+                 sys::terminal::move_self_to_foreground()?;
+             }
+@@ -871,3 +909,54 @@
+         _ => None,
+     }
+ }
++
++#[cfg(all(test, windows))]
++mod windows_command_tests {
++    use super::*;
++
++    #[tokio::test]
++    async fn paths_are_shell_relative_without_implicit_cwd_search() -> Result<(), Box<dyn std::error::Error>> {
++        let dir = tempfile::tempdir()?;
++        let cwd = dir.path().join("work");
++        let bin = dir.path().join("bin");
++        std::fs::create_dir_all(&cwd)?;
++        std::fs::create_dir_all(&bin)?;
++        std::fs::write(cwd.join("cwd-only.cmd"), "@echo CWD_SHIM_MUST_NOT_RUN\r\n")?;
++        std::fs::write(bin.join("shim-probe.cmd"), "@echo PATH_SHIM_OK\r\n")?;
++        let mut shell = Shell::builder().build().await?;
++        shell.set_working_dir(&cwd)?;
++        let params = shell.default_exec_params();
++        let context = ExecutionContext {
++            shell: &mut shell,
++            command_name: "probe".into(),
++            params: params.clone(),
++        };
++        for name in ["./probe.exe", "../probe.exe", "sub/probe.exe"] {
++            let cmd = compose_std_command(&context, name, name, &["%VAR%", "^", "a b"], false)?;
++            assert_eq!(Path::new(cmd.get_program()), context.shell.working_dir().join(name));
++            assert_eq!(cmd.get_current_dir(), Some(context.shell.working_dir()));
++            assert_eq!(cmd.get_args().collect::<Vec<_>>(), ["%VAR%", "^", "a b"]);
++        }
++        if cfg!(windows) {
++            let name = r".\probe.exe";
++            let cmd = compose_std_command(&context, name, name, &[] as &[&str], false)?;
++            assert_eq!(Path::new(cmd.get_program()), context.shell.working_dir().join(name));
++        }
++        let absolute = bin.join("shim-probe.cmd");
++        let name = absolute.to_str().ok_or("non-UTF-8 scratch directory")?;
++        let cmd = compose_std_command(&context, name, name, &["%VAR%", "^"], false)?;
++        assert_eq!(Path::new(cmd.get_program()), absolute);
++        assert_eq!(cmd.get_args().collect::<Vec<_>>(), ["%VAR%", "^"]);
++        for name in ["./bad\".cmd", "./bad\n.cmd", "./bad\r.bat"] {
++            assert!(compose_std_command(&context, name, name, &[] as &[&str], false).is_err());
++        }
++        assert!(pathsearch::search_for_executable([&bin].into_iter(), "cwd-only.cmd").next().is_none());
++        let mut command = SimpleCommand::new(
++            ShellForCommand::ParentShell(&mut shell), params, "cwd-only.cmd".into(),
++            vec![CommandArg::String("cwd-only.cmd".into())],
++        );
++        command.path_dirs = Some(vec![bin]);
++        assert!(command.execute().await.is_err());
++        Ok(())
++    }
++}

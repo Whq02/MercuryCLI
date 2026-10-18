@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import {
   BRUSH_PACK_MANIFEST_FILE,
   BRUSH_PACK_NAME,
@@ -20,6 +20,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const LOCK_PATH = join(ROOT, 'vendor', 'brush.lock.json')
 const PACK_ROOT = join(ROOT, ...BRUSH_PACK_PATH.split('/'))
 const CARGO_TARGET_DIR = join(PACK_ROOT, '.cargo-target')
+const WINDOWS_PATCH = join(ROOT, 'scripts', 'vendor', 'patches', 'brush-0.4.0-windows.patch')
 
 interface LockBuildEntry {
   kind: 'build'
@@ -118,6 +119,7 @@ function packInvalidReason(lock: Lock, entry: LockBuildEntry, dir: string, platf
   if (m.crate !== entry.crate || m.crateVersion !== entry.crateVersion) return `cache was built from ${m.crate} ${m.crateVersion}, the lock pins ${entry.crate} ${entry.crateVersion}`
   if (m.target !== entry.target) return `cache target ${m.target} is not the lock's ${entry.target}`
   if (entry.crateSha256 !== null && m.crateSha256 !== entry.crateSha256) return 'cache crateSha256 does not match the lock'
+  if (platform === 'win-x64' && m.patchSha256 !== sha256(readFileSync(WINDOWS_PATCH))) return 'cache Windows patch sha256 does not match the build source'
   const tree = brushPackTreeDigest(dir)
   if (tree.fileCount !== m.fileCount) return `file count drifted: ${tree.fileCount} on disk vs ${m.fileCount} in the manifest`
   if (tree.treeDigest !== m.treeDigest) return 'treeDigest mismatch (pack content drifted)'
@@ -153,11 +155,46 @@ function linkedCrates(manifestPath: string, triple: string): CargoPackage[] {
 
 const LICENSE_FILE = /^(LICENSE|LICENCE|COPYING|NOTICE)([-._].*)?$/i
 
-function installPack(cargo: string, lock: Lock, entry: LockBuildEntry, installRoot: string, crateSha256: string | null, outDir: string, platform: string): void {
+async function prepareWindowsSource(entry: LockBuildEntry, installRoot: string): Promise<string> {
+  if (entry.crate !== 'brush-shell' || entry.crateVersion !== '0.4.0' || entry.crateSha256 === null) fail('the Windows patch requires the pinned brush-shell 0.4.0 archive')
+  const leaf = entry.crate + '-' + entry.crateVersion + '.crate'
+  const cached = registryFind('cache', leaf)
+  let bytes: Buffer
+  if (cached !== null) bytes = readFileSync(cached)
+  else {
+    const response = await fetch('https://static.crates.io/crates/' + entry.crate + '/' + leaf)
+    if (!response.ok) fail('crate download failed: HTTP ' + response.status)
+    bytes = Buffer.from(await response.arrayBuffer())
+  }
+  if (sha256(bytes) !== entry.crateSha256) fail('crate archive sha256 mismatch before extraction')
+  const archive = join(installRoot, leaf)
+  writeFileSync(archive, bytes)
+  const unpack = run('tar', ['-xf', archive, '-C', installRoot], { capture: true })
+  if (unpack.status !== 0) fail('crate extraction failed: ' + (unpack.error?.message ?? unpack.stderr))
+  const source = join(installRoot, entry.crate + '-' + entry.crateVersion)
+  const deps = join(installRoot, 'deps')
+  const vendored = run('cargo', ['vendor', '--locked', '--versioned-dirs', deps], { cwd: source, capture: true })
+  if (vendored.status !== 0) fail('locked dependency preparation failed: ' + vendored.stderr)
+  const core = join(deps, 'brush-core-0.5.0')
+  const checksumPath = join(core, '.cargo-checksum.json')
+  const checksum = JSON.parse(readFileSync(checksumPath, 'utf8')) as { package: string; files: Record<string, string> }
+  if (checksum.package !== '967a82f3b1bf090db686d5fb86424b19725073828532a42f960d5a13bff14ecb') fail('the Windows patch requires the pinned brush-core 0.5.0 archive')
+  for (const check of [true, false]) {
+    const applied = run('git', ['apply', ...(check ? ['--check'] : []), '--directory', relative(ROOT, deps).replaceAll('\\', '/'), WINDOWS_PATCH], { capture: true })
+    if (applied.status !== 0) fail('Windows patch ' + (check ? 'check' : 'apply') + ' failed: ' + (applied.error?.message ?? applied.stderr))
+  }
+  checksum.files['src/commands.rs'] = sha256(readFileSync(join(core, 'src', 'commands.rs')))
+  writeFileSync(checksumPath, JSON.stringify(checksum) + '\n')
+  mkdirSync(join(source, '.cargo'), { recursive: true })
+  writeFileSync(join(source, '.cargo', 'config.toml'), vendored.stdout)
+  return source
+}
+
+function installPack(cargo: string, lock: Lock, entry: LockBuildEntry, installRoot: string, crateSha256: string | null, outDir: string, platform: string, patchedSource?: string): void {
   const binary = brushBinaryFor(platform)
   const built = join(installRoot, 'bin', binary)
   if (!existsSync(built)) fail(`cargo reported success but ${built} is absent`)
-  const srcDir = registryFind('src', `${entry.crate}-${entry.crateVersion}`)
+  const srcDir = patchedSource ?? registryFind('src', `${entry.crate}-${entry.crateVersion}`)
   if (srcDir === null) fail(`cargo's registry under ${cargoHome()} holds no unpacked source for ${entry.crate} ${entry.crateVersion} — the licence inventory cannot be laid, so the pack is not installed`)
   const tmp = `${outDir}.tmp-${process.pid}`
   rmSync(tmp, { recursive: true, force: true })
@@ -197,6 +234,7 @@ function installPack(cargo: string, lock: Lock, entry: LockBuildEntry, installRo
     crate: entry.crate,
     crateVersion: entry.crateVersion,
     crateSha256,
+    ...(platform === 'win-x64' ? { patchSha256: sha256(readFileSync(WINDOWS_PATCH)) } : {}),
     cargo,
     binary,
     binarySha256: sha256(readFileSync(join(tmp, binary))),
@@ -212,7 +250,7 @@ function installPack(cargo: string, lock: Lock, entry: LockBuildEntry, installRo
   console.log(`build-brush: installed ${binary} + ${notices.length} crate licences → ${BRUSH_PACK_PATH}/${platform} (treeDigest ${manifest.treeDigest.slice(0, 12)}…)`)
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const lock = readLock()
   if (PLATFORM === null || OUT_DIR === null) {
     console.log(`build-brush: no shell-engine pack layout exists for ${SHIP.platform}/${SHIP.arch} — nothing to build`)
@@ -265,15 +303,17 @@ function main(): void {
   const installRoot = join(PACK_ROOT, `.install-${process.pid}`)
   rmSync(installRoot, { recursive: true, force: true })
   mkdirSync(installRoot, { recursive: true })
-  console.log(`build-brush: ${cargo} — cargo install --locked ${entry.crate} --version ${entry.crateVersion}${CROSS ? ` --target ${entry.target}` : ''} (${PLATFORM})`)
-  const build = run('cargo', ['install', '--locked', entry.crate, '--version', entry.crateVersion, '--root', installRoot, '--target-dir', CARGO_TARGET_DIR, ...(CROSS ? ['--target', entry.target] : [])])
+  const patchedSource = SHIP.platform === 'win32' ? await prepareWindowsSource(entry, installRoot) : undefined
+  const sourceArgs = patchedSource ? ['--path', patchedSource] : [entry.crate, '--version', entry.crateVersion]
+  console.log(`build-brush: ${cargo} — cargo install --locked ${sourceArgs.join(' ')}${CROSS ? ` --target ${entry.target}` : ''} (${PLATFORM})`)
+  const build = run('cargo', ['install', '--locked', ...sourceArgs, '--root', installRoot, '--target-dir', CARGO_TARGET_DIR, ...(CROSS ? ['--target', entry.target] : [])], { cwd: patchedSource ?? ROOT })
   if (build.error) fail(`cargo could not be started: ${build.error.message}`)
   if (build.status !== 0) {
     rmSync(installRoot, { recursive: true, force: true })
     fail(`cargo install failed (exit ${String(build.status)}) — the shell engine pack is not installed; the build ships without the vendored shell engine (degraded: shell-engine). Fix the reported error and re-run ${RERUN}`)
   }
   const crateFile = registryFind('cache', `${entry.crate}-${entry.crateVersion}.crate`)
-  const crateSha256 = crateFile === null ? null : sha256(readFileSync(crateFile))
+  const crateSha256 = patchedSource ? entry.crateSha256 : crateFile === null ? null : sha256(readFileSync(crateFile))
   if (entry.crateSha256 !== null && crateSha256 !== null && crateSha256 !== entry.crateSha256) {
     rmSync(installRoot, { recursive: true, force: true })
     fail(`crate archive sha256 mismatch for ${entry.crate} ${entry.crateVersion}: got ${crateSha256.slice(0, 24)}…, lock pins ${entry.crateSha256.slice(0, 24)}… — refusing (artifact identity changed)`)
@@ -283,7 +323,7 @@ function main(): void {
       ? `build-brush: cargo kept no ${entry.crate}-${entry.crateVersion}.crate in its registry cache — crateSha256 stays null in the manifest`
       : `build-brush: the crate archive's sha256 is ${crateSha256} — pin it as the lock's ${PLATFORM} crateSha256 so the next build verifies it`)
   }
-  installPack(cargo, lock, entry, installRoot, crateSha256, OUT_DIR, PLATFORM)
+  installPack(cargo, lock, entry, installRoot, crateSha256, OUT_DIR, PLATFORM, patchedSource)
   rmSync(installRoot, { recursive: true, force: true })
   const post = packInvalidReason(lock, entry, OUT_DIR, PLATFORM)
   if (post !== null) fail(`post-install validation failed for ${PLATFORM}: ${post}`)
@@ -291,4 +331,4 @@ function main(): void {
   console.log(`build-brush: DONE — ${BRUSH_PACK_NAME} ${lock.version} ${PLATFORM} ready for the build (${size} bytes; bun run build.ts)`)
 }
 
-main()
+main().catch(error => fail(error instanceof Error ? error.message : String(error)))
