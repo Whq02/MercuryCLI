@@ -29,12 +29,19 @@ mkdir "$SCREEN_SLOTS_DIR/slot-2" && printf '%s\n' "$sleeper" >"$SCREEN_SLOTS_DIR
 check "both slots held by live pids: the claimer gives up after its bounded waits" "$(grep -q '^rc=1$' "$scratch/out2" && grep -q 'none of 2 free after 2 wait' "$scratch/err2" && echo 0 || echo 1)" "$(cat "$scratch/out2" "$scratch/err2")"
 check "…and the live claims stand" "$([ "$(cat "$SCREEN_SLOTS_DIR/slot-2/pid")" = "$sleeper" ] && [ "$(cat "$SCREEN_SLOTS_DIR/slot-1/pid")" = "$$" ] && echo 0 || echo 1)"
 
-echo "── §3 a claim whose pid is gone is taken, and said"
+echo "── §3 a claim whose pid is gone (or reused by an unrelated process) is taken, and said"
 kill "$sleeper" 2>/dev/null; wait "$sleeper" 2>/dev/null
 ( . "$root/scripts/lib/screen-slot.sh"; screen_slot_take 2 >"$scratch/out3" 2>&1; echo "slot=$SCREEN_SLOT rc=$?" >>"$scratch/out3"; echo "pid=$(cat "$SCREEN_SLOT_DIR/pid")" >>"$scratch/out3" )
 check "the dead claim's slot is taken" "$(grep -q '^slot=2' "$scratch/out3" && echo 0 || echo 1)" "$(cat "$scratch/out3")"
 check "…the line names the gone pid" "$(grep -q "screen slot 2: the claim of pid $sleeper is gone — taken" "$scratch/out3" && echo 0 || echo 1)" "$(cat "$scratch/out3")"
 check "…and the claim now carries the new claimant's pid" "$(grep -q '^pid=[0-9][0-9]*$' "$scratch/out3" && ! grep -q "^pid=$sleeper\$" "$scratch/out3" && echo 0 || echo 1)" "$(grep '^pid=' "$scratch/out3")"
+sleep 300 & reused=$!
+rm -rf "$SCREEN_SLOTS_DIR/slot-2"
+( . "$root/scripts/lib/screen-slot.sh"; screen_slot_take 2 "$reused" >/dev/null 2>&1 )
+printf 'Thu Jan  1 00:00:00 1970 /bin/ vanished-claimer\n' >"$SCREEN_SLOTS_DIR/slot-2/proc"
+( . "$root/scripts/lib/screen-slot.sh"; screen_slot_take 2 >"$scratch/out3b" 2>&1; echo "slot=$SCREEN_SLOT rc=$?" >>"$scratch/out3b"; echo "pid=$(cat "$SCREEN_SLOT_DIR/pid")" >>"$scratch/out3b" )
+kill "$reused" 2>/dev/null; wait "$reused" 2>/dev/null
+check "a live pid reused by an unrelated process (start time / command mismatch) is reclaimed" "$(grep -q '^slot=2 rc=0$' "$scratch/out3b" && grep -q "screen slot 2: the claim of pid $reused is gone — taken" "$scratch/out3b" && ! grep -q "^pid=$reused\$" "$scratch/out3b" && echo 0 || echo 1)" "$(cat "$scratch/out3b")"
 
 echo "── §4 refusals: an older claim without a pid is left alone; a foreign pid file too"
 rm -rf "$SCREEN_SLOTS_DIR/slot-2"
