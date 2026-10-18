@@ -284,7 +284,7 @@ function qwenHeadRow(): BareFamilyWordRow | undefined {
 
 function qwenPinnedDefault(): BareFamilyWordRow | undefined {
   const { QWEN_DISPLAY_PINS } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
-  const pin = QWEN_DISPLAY_PINS.find(row => !row.planOnly)
+  const pin = QWEN_DISPLAY_PINS[0]
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
@@ -298,7 +298,7 @@ function qwenListState(): BareFamilyListState {
 
 function qwenKnownRows(): BareFamilyWordRow[] {
   const { QWEN_DISPLAY_PINS } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
-  return QWEN_DISPLAY_PINS.filter(pin => !pin.planOnly).map(pin => ({ id: pin.id, displayName: pin.displayName }))
+  return QWEN_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
 }
 
 function qwenKnownRow(id: string): BareFamilyWordRow | undefined {

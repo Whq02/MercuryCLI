@@ -319,7 +319,7 @@ export async function knownModelsReference(): Promise<KnownModelsReference> {
   const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../providers/fireworks/fireworksPins.js')
   providers.push({ provider: 'fireworks', providerName: providerDisplayName('fireworks'), familyWord: 'fireworks', models: FIREWORKS_DISPLAY_PINS.map(pin => ({ id: fireworksQualifiedId(pin.id), displayName: pin.displayName })) })
   const { QWEN_DISPLAY_PINS } = await import('../../providers/qwen/qwenPins.js')
-  providers.push({ provider: 'qwen', providerName: providerDisplayName('qwen'), familyWord: 'qwen', models: QWEN_DISPLAY_PINS.filter(pin => !pin.planOnly).map(pin => ({ id: pin.id, displayName: pin.displayName })) })
+  providers.push({ provider: 'qwen', providerName: providerDisplayName('qwen'), familyWord: 'qwen', models: QWEN_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName })) })
   return { version: MERCURY_VERSION, providers }
 }
 

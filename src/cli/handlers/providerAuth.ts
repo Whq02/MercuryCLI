@@ -20,7 +20,7 @@ import { runKimiDeviceLogin, storeMoonshotApiKeyLogin } from '../../services/pro
 import { runNousDeviceLogin, storeNousApiKeyLogin } from '../../services/providers/nous/nousLogin.js'
 import { storeOpenaiApiKeyLogin } from '../../services/providers/openai/openaiLogin.js'
 import { storeOpenrouterApiKeyLogin } from '../../services/providers/openrouter/openrouterLogin.js'
-import { runQwenDeviceLogin, storeQwenApiKeyLogin } from '../../services/providers/qwen/qwenLogin.js'
+import { storeQwenApiKeyLogin } from '../../services/providers/qwen/qwenLogin.js'
 import { storeTogetherApiKeyLogin } from '../../services/providers/together/togetherLogin.js'
 import { runXaiDeviceLogin, storeXaiApiKeyLogin } from '../../services/providers/xai/xaiLogin.js'
 import { storeZaiApiKeyLogin } from '../../services/providers/zai/zaiLogin.js'
@@ -180,15 +180,6 @@ export async function providerAuthLogin(
         },
       })
       if (outcome.ok) await readCatalogueIfPending('nous', { force: true })
-      return finish(outcome.ok, outcome.receipt)
-    }
-    if (normalized === 'qwen') {
-      const outcome = await runQwenDeviceLogin({
-        onEvent: ev => {
-          if (ev.phase === 'waiting' && ev.polls === 0) out(`Visit ${ev.start.verificationUriComplete ?? ev.start.verificationUri} and enter code ${ev.start.userCode}\n`)
-        },
-      })
-      if (outcome.ok) await readCatalogueIfPending('qwen', { force: true })
       return finish(outcome.ok, outcome.receipt)
     }
   }

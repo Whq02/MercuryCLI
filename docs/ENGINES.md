@@ -460,32 +460,20 @@ account credits and costs are shown in the Fireworks console. Sources read
 [rate limits](https://docs.fireworks.ai/serverless/rate-limits) and
 [Fire Pass](https://docs.fireworks.ai/firepass).
 
-Qwen connects through `/logins` with a Model Studio API key; the Coding Plan is
-reached with its own key (`sk-sp-…`), which binds to the Coding Plan endpoint.
-The Qwen account sign-in (a device code approved in the browser, on Qwen Code's
-public OAuth client behind chat.qwen.ai) was closed by Qwen on 2026-04-15
-(QwenLM/qwen-code issue 3203; Qwen Code's own client no longer lists it): the
-device code is still issued, but the token service answers every client with its
-gateway's block page, so the card lists the key first and the sign-in row says
-so; picking the sign-in tries the road once and reports what the service
-answered, with nothing stored. Mercury runs the device flow itself, stores any
-tokens auth-scoped at mode 600, refreshes them before they expire, and never reads
-another tool's credential file; the plan's terms are the account holder's own, and
-the road ships as it is. A signed-in account dispatches on the plan endpoint the
-token names with the plan's own model list; a revoked or expired sign-in refuses
-the turn and names `/logins`. The Model Studio API key
-(`DASHSCOPE_API_KEY` works too) is made in the Alibaba Cloud Model Studio console
-for the region the account lives in. A Model Studio key answers only the region
-and plan it was minted in, so the sign-in probes the documented endpoints in
-turn (International (Singapore), China (Beijing), China (Hong Kong), the Coding
-Plan for international and China accounts, and the Token Plan in Singapore and
-Beijing), keeps the first whose model list accepts the key, and stores that
-endpoint beside the key; a key no endpoint accepts is refused with the endpoints
-named and nothing is stored. `DASHSCOPE_BASE_URL` names an endpoint instead of
-the probe (a workspace-dedicated domain such as
+Qwen connects through `/logins qwen` or `DASHSCOPE_API_KEY` with a Model Studio
+API key, made in the Alibaba Cloud Model Studio console for the region the
+account lives in: a pay-as-you-go or Token Plan key, or a Coding Plan key
+(`sk-sp-…`), which binds to the Coding Plan endpoint. A Model Studio key answers
+only the region and plan it was minted in, so the sign-in probes the documented
+endpoints in turn (International (Singapore), China (Beijing), China (Hong
+Kong), the Coding Plan for international and China accounts, and the Token Plan
+in Singapore and Beijing), keeps the first whose model list accepts the key, and
+stores that endpoint beside the key; a key no endpoint accepts is refused with
+the endpoints named and nothing is stored. `DASHSCOPE_BASE_URL` names an
+endpoint instead of the probe (a workspace-dedicated domain such as
 `https://<workspace>.us-east-1.maas.aliyuncs.com/compatible-mode/v1`), and
 `DASHSCOPE_WORKSPACE_ID` adds the six workspace-dedicated domains to the probe.
-The picker lists the text models the bound endpoint (or the plan) serves live,
+The picker lists the text models the bound endpoint serves live,
 with dated pins for the context windows and prices of the rows this build knows
 (Qwen3.8 Max, Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash, Qwen3.7 Flash,
 Qwen3 Coder Flash), and falls to the pins, labelled as pins, when the list cannot
