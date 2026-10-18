@@ -62,6 +62,7 @@ function stubSource(answers: StubAnswers, exports: readonly string[]): string {
     answers.ownedWindowFile === undefined
       ? "  ownTerminalApplication: () => { count('ownTerminalApplication'); return { identity: null, name: null, pid: null, title: null, bounds: null, reason: 'fixture: no terminal' } },"
       : `  ownTerminalApplication: (identity, tty) => { count('ownTerminalApplication'); if (!identity || !tty) return { identity: null }; const fs = require('node:fs'); fs.appendFileSync(${JSON.stringify(`${answers.ownedWindowFile}.calls`)}, tty + '\\n'); const answer = JSON.parse(fs.readFileSync(${JSON.stringify(answers.ownedWindowFile)}, 'utf8')); if (answer.delayMs) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, answer.delayMs); return { identity, name: 'Terminal', tty, windowId: answer.windowId, bounds: null } },`,
+    "  accessibilityTree: (pid, maxDepth, maxCount) => { count('accessibilityTree'); return { elements: [{ depth: 0, role: 'AXApplication', title: 'Editor', value: null, frame: null }, { depth: 1, role: 'AXWindow', title: 'Untitled', value: null, frame: { x: 100, y: 100, width: 800, height: 600 } }].slice(0, maxCount), truncated: maxDepth < 1 || maxCount < 2, reason: null } },",
     "  cursor: () => { count('cursor'); return { x: 720, y: 450, display: 0, reason: null } },",
     "  mouseMove: () => { count('mouseMove') },",
     "  mouseDown: () => { count('mouseDown') },",

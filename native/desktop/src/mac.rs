@@ -8,7 +8,7 @@ use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_foundation::NSString;
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer};
+use crate::{ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, TreeAnswer, TreeElement, TREE_BUDGET_MS, TREE_VALUE_CHARS};
 
 type CFTypeRef = *const c_void;
 type CGEventRef = *mut c_void;
@@ -39,6 +39,13 @@ extern "C" {
     fn CFStringCreateWithCString(allocator: CFTypeRef, cstr: *const c_char, encoding: u32) -> CFTypeRef;
     fn CFDataGetLength(data: CFTypeRef) -> isize;
     fn CFDataGetBytePtr(data: CFTypeRef) -> *const u8;
+    fn CFRetain(cf: CFTypeRef) -> CFTypeRef;
+    fn CFGetTypeID(cf: CFTypeRef) -> usize;
+    fn CFArrayGetTypeID() -> usize;
+    fn CFStringGetTypeID() -> usize;
+    fn CFNumberGetTypeID() -> usize;
+    fn CFBooleanGetTypeID() -> usize;
+    fn CFBooleanGetValue(boolean: CFTypeRef) -> u8;
     static kCFTypeDictionaryKeyCallBacks: [usize; 6];
     static kCFTypeDictionaryValueCallBacks: [usize; 6];
     static kCFBooleanTrue: CFTypeRef;
@@ -86,9 +93,13 @@ extern "C" {
     fn AXUIElementCreateApplication(pid: i32) -> CFTypeRef;
     fn AXUIElementSetMessagingTimeout(element: CFTypeRef, timeout: f32) -> i32;
     fn AXUIElementCopyAttributeValue(element: CFTypeRef, attribute: CFTypeRef, value: *mut CFTypeRef) -> i32;
+    fn AXUIElementGetAttributeValueCount(element: CFTypeRef, attribute: CFTypeRef, count: *mut isize) -> i32;
     fn AXValueGetValue(value: CFTypeRef, kind: u32, output: *mut c_void) -> bool;
     static kAXTrustedCheckOptionPrompt: CFTypeRef;
 }
+
+const NUMBER_FLOAT64: isize = 13;
+const TREE_MESSAGING_TIMEOUT_S: f32 = 1.0;
 
 const EVENT_SOURCE_HID_SYSTEM_STATE: i32 = 1;
 const HID_EVENT_TAP: u32 = 0;
@@ -477,6 +488,155 @@ pub fn frontmost_application() -> ApplicationAnswer {
         let mut answer = ApplicationAnswer::found(identity, name, Some(pid as u32), None, bounds);
         answer.window_id = window_id;
         answer
+    })
+}
+
+unsafe fn ax_text(value: CFTypeRef) -> Option<String> {
+    if value.is_null() {
+        return None;
+    }
+    let kind = CFGetTypeID(value);
+    if kind == CFStringGetTypeID() {
+        let text = (*(value as *const NSString)).to_string();
+        return if text.is_empty() { None } else { Some(text) };
+    }
+    if kind == CFNumberGetTypeID() {
+        let mut number: f64 = 0.0;
+        if CFNumberGetValue(value, NUMBER_FLOAT64, &mut number as *mut f64 as *mut c_void) == 0 {
+            return None;
+        }
+        return Some(if number.fract() == 0.0 && number.abs() < 1e15 { format!("{}", number as i64) } else { format!("{number}") });
+    }
+    if kind == CFBooleanGetTypeID() {
+        return Some(if CFBooleanGetValue(value) != 0 { "true".to_string() } else { "false".to_string() });
+    }
+    None
+}
+
+unsafe fn ax_string(element: CFTypeRef, name: &str) -> Option<String> {
+    let value = ax_attribute(element, name);
+    let text = ax_text(value);
+    if !value.is_null() {
+        CFRelease(value);
+    }
+    text
+}
+
+fn clipped(text: String, cap: usize) -> String {
+    if text.chars().count() <= cap {
+        return text;
+    }
+    let mut kept: String = text.chars().take(cap).collect();
+    kept.push('…');
+    kept
+}
+
+unsafe fn ax_frame(element: CFTypeRef) -> Option<BoundsRecord> {
+    let position = ax_attribute(element, "AXPosition");
+    let size = ax_attribute(element, "AXSize");
+    let mut p = point(0.0, 0.0);
+    let mut s = CGSize { width: 0.0, height: 0.0 };
+    let frame = if !position.is_null() && !size.is_null() && AXValueGetValue(position, 1, &mut p as *mut CGPoint as *mut c_void) && AXValueGetValue(size, 2, &mut s as *mut CGSize as *mut c_void) {
+        Some(BoundsRecord { x: p.x, y: p.y, width: s.width, height: s.height })
+    } else {
+        None
+    };
+    for value in [position, size] {
+        if !value.is_null() {
+            CFRelease(value);
+        }
+    }
+    frame
+}
+
+unsafe fn ax_children(element: CFTypeRef) -> Vec<CFTypeRef> {
+    let children = ax_attribute(element, "AXChildren");
+    let mut list: Vec<CFTypeRef> = Vec::new();
+    if children.is_null() {
+        return list;
+    }
+    if CFGetTypeID(children) == CFArrayGetTypeID() {
+        let count = CFArrayGetCount(children);
+        for i in 0..count {
+            let child = CFArrayGetValueAtIndex(children, i);
+            if !child.is_null() {
+                list.push(CFRetain(child));
+            }
+        }
+    }
+    CFRelease(children);
+    list
+}
+
+unsafe fn ax_child_count(element: CFTypeRef) -> isize {
+    let key = cf_string("AXChildren");
+    let mut count: isize = 0;
+    let status = AXUIElementGetAttributeValueCount(element, key, &mut count);
+    CFRelease(key);
+    if status == 0 { count } else { 0 }
+}
+
+unsafe fn tree_element(element: CFTypeRef, depth: u32) -> TreeElement {
+    let mut role = ax_string(element, "AXRole").unwrap_or_else(|| "AXUnknown".to_string());
+    if let Some(subrole) = ax_string(element, "AXSubrole") {
+        role = format!("{role} ({subrole})");
+    }
+    let title = ax_string(element, "AXTitle").or_else(|| ax_string(element, "AXDescription")).map(|text| clipped(text, TREE_VALUE_CHARS));
+    let value = ax_string(element, "AXValue").map(|text| clipped(text, TREE_VALUE_CHARS));
+    TreeElement { depth, role, title, value, frame: ax_frame(element) }
+}
+
+pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32) -> TreeAnswer {
+    autoreleasepool(|_| unsafe {
+        if !AXIsProcessTrusted() {
+            return TreeAnswer::refused("Accessibility is not granted to the responsible process (the terminal application that started Mercury)");
+        }
+        let app = AXUIElementCreateApplication(pid);
+        if app.is_null() {
+            return TreeAnswer::refused("the application has no accessibility element");
+        }
+        AXUIElementSetMessagingTimeout(app, TREE_MESSAGING_TIMEOUT_S);
+        if ax_string(app, "AXRole").is_none() {
+            CFRelease(app);
+            return TreeAnswer::refused("the application answered no accessibility element (no such process, or it is not responding)");
+        }
+        let started = std::time::Instant::now();
+        let budget = std::time::Duration::from_millis(TREE_BUDGET_MS);
+        let mut elements: Vec<TreeElement> = Vec::new();
+        let mut truncated = false;
+        let mut reason: Option<String> = None;
+        let mut stack: Vec<(CFTypeRef, u32)> = vec![(app, 0)];
+        while let Some((element, depth)) = stack.pop() {
+            let over_count = elements.len() >= max_count as usize;
+            let over_time = started.elapsed() > budget;
+            if over_count || over_time {
+                truncated = true;
+                if over_time {
+                    reason = Some(format!("the walk stopped after {} ms", TREE_BUDGET_MS));
+                }
+                CFRelease(element);
+                for (rest, _) in stack.drain(..) {
+                    CFRelease(rest);
+                }
+                break;
+            }
+            elements.push(tree_element(element, depth));
+            if depth < max_depth {
+                let mut children = ax_children(element);
+                if depth == 0 {
+                    let mut ordered: Vec<(bool, CFTypeRef)> = children.drain(..).map(|child| (ax_string(child, "AXRole").as_deref() == Some("AXMenuBar"), child)).collect();
+                    ordered.sort_by_key(|(menu_bar, _)| *menu_bar);
+                    children = ordered.into_iter().map(|(_, child)| child).collect();
+                }
+                for child in children.into_iter().rev() {
+                    stack.push((child, depth + 1));
+                }
+            } else if ax_child_count(element) > 0 {
+                truncated = true;
+            }
+            CFRelease(element);
+        }
+        TreeAnswer { elements, truncated, reason }
     })
 }
 

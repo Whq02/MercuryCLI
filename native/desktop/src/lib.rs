@@ -38,6 +38,8 @@ pub const DRAG_STEP_MS: u64 = 8;
 pub const TYPE_GAP_DEFAULT_MS: u32 = 4;
 pub const TYPE_GAP_CAP_MS: u32 = 1000;
 pub const ABORTED: &str = "aborted";
+pub const TREE_BUDGET_MS: u64 = 6000;
+pub const TREE_VALUE_CHARS: usize = 300;
 
 #[napi(object)]
 #[derive(Clone)]
@@ -108,6 +110,29 @@ impl ApplicationAnswer {
 
     pub fn found(identity: String, name: Option<String>, pid: Option<u32>, title: Option<String>, bounds: Option<BoundsRecord>) -> ApplicationAnswer {
         ApplicationAnswer { identity: Some(identity), name, pid, title, bounds, window_id: None, tty: None, reason: None }
+    }
+}
+
+#[napi(object)]
+#[derive(Clone)]
+pub struct TreeElement {
+    pub depth: u32,
+    pub role: String,
+    pub title: Option<String>,
+    pub value: Option<String>,
+    pub frame: Option<BoundsRecord>,
+}
+
+#[napi(object)]
+pub struct TreeAnswer {
+    pub elements: Vec<TreeElement>,
+    pub truncated: bool,
+    pub reason: Option<String>,
+}
+
+impl TreeAnswer {
+    pub fn refused(reason: &str) -> TreeAnswer {
+        TreeAnswer { elements: Vec::new(), truncated: false, reason: Some(reason.to_string()) }
     }
 }
 
@@ -308,6 +333,11 @@ pub fn own_terminal_application(identity: Option<String>, tty: Option<String>, f
     #[cfg(not(target_os = "macos"))]
     let _ = (identity, tty, front);
     imp::own_terminal_application()
+}
+
+#[napi]
+pub fn accessibility_tree(pid: u32, max_depth: u32, max_count: u32) -> TreeAnswer {
+    imp::accessibility_tree(pid as i32, max_depth, max_count)
 }
 
 #[napi]

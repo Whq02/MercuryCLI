@@ -421,7 +421,8 @@
         "wait",
         "cursor",
         "displays",
-        "frontmost"
+        "frontmost",
+        "tree"
       ],
       "units": [
         "desktop-drive"
@@ -452,7 +453,8 @@
           "wait",
           "cursor",
           "displays",
-          "frontmost"
+          "frontmost",
+          "tree"
         ],
         "execution": {
           "kind": "desktop-session",

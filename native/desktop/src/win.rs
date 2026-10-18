@@ -25,7 +25,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer};
+use crate::{ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, TreeAnswer};
 
 struct DpiScope {
     previous: DPI_AWARENESS_CONTEXT,
@@ -262,6 +262,10 @@ pub fn own_terminal_application() -> ApplicationAnswer {
         return ApplicationAnswer::refused("no console window owns this process");
     }
     application_of(console)
+}
+
+pub fn accessibility_tree(_pid: i32, _max_depth: u32, _max_count: u32) -> TreeAnswer {
+    TreeAnswer::refused("the accessibility tree is read through the macOS Accessibility API; this platform has no tree reader in this release")
 }
 
 pub fn cursor() -> Result<(f64, f64), String> {

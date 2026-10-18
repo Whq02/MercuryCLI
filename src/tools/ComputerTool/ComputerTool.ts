@@ -25,6 +25,7 @@ import type {
   DesktopError,
   DesktopModifier,
   DesktopPoint,
+  DesktopTree,
 } from '../../services/desktop/driver.js'
 import {
   DESKTOP_SHOTS_KEEP,
@@ -82,6 +83,7 @@ const ACTIONS = [
   'cursor',
   'displays',
   'frontmost',
+  'tree',
 ] as const
 type ComputerAction = (typeof ACTIONS)[number]
 
@@ -96,8 +98,9 @@ const ACT_ACTIONS: ReadonlySet<string> = new Set([
   'key',
   'hold',
 ])
+const ASK_ACTIONS: ReadonlySet<string> = new Set([...ACT_ACTIONS, 'tree'])
 const POINT_ACTIONS: ReadonlySet<string> = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll'])
-const READ_ACTIONS: ReadonlySet<string> = new Set(['screenshot', 'wait', 'cursor', 'displays', 'frontmost'])
+const READ_ACTIONS: ReadonlySet<string> = new Set(['screenshot', 'wait', 'cursor', 'displays', 'frontmost', 'tree'])
 const FACT_ACTIONS: ReadonlySet<string> = new Set(['cursor', 'displays', 'frontmost'])
 
 const MODIFIERS = ['Shift', 'Control', 'Alt', 'Meta'] as const
@@ -116,6 +119,10 @@ const WAIT_CAP_MS = 10_000
 const HOLD_MIN_MS = 50
 export const HOLD_CAP_MS = 5_000
 export const TYPE_TEXT_CAP = 4_000
+export const TREE_DEPTH_DEFAULT = 8
+export const TREE_DEPTH_CAP = 32
+export const TREE_LIMIT_DEFAULT = 200
+export const TREE_LIMIT_CAP = 2_000
 
 export function computerToolEnabled(): boolean {
   if (!flagEnabled('MERCURY_COMPUTER_USE')) return false
@@ -126,7 +133,7 @@ const inputSchema = lazySchema(() =>
   z.strictObject({
     action: z
       .enum(ACTIONS)
-      .describe('screenshot · click · doubleClick · rightClick · move · drag · scroll · type · key · hold · wait · cursor · displays · frontmost'),
+      .describe('screenshot · click · doubleClick · rightClick · move · drag · scroll · type · key · hold · wait · cursor · displays · frontmost · tree'),
     x: z.number().optional().describe('click/doubleClick/rightClick/move/drag/scroll: x in pixels of the last screenshot (drag: the start)'),
     y: z.number().optional().describe('the y of x'),
     toX: z.number().optional().describe('drag: the end x, same pixels'),
@@ -150,6 +157,8 @@ const inputSchema = lazySchema(() =>
       .describe(`acts: the pause before the screenshot that follows the act (default ${SETTLE_DEFAULT_MS}, cap ${SETTLE_CAP_MS})`),
     capture: z.boolean().optional().describe('acts: false skips the screenshot after the act (default true)'),
     label: z.string().optional().describe('screenshot: a name for the saved file'),
+    depth: z.number().optional().describe(`tree: how many levels below the application to read (default ${TREE_DEPTH_DEFAULT}, cap ${TREE_DEPTH_CAP})`),
+    limit: z.number().optional().describe(`tree: how many elements at most (default ${TREE_LIMIT_DEFAULT}, cap ${TREE_LIMIT_CAP})`),
   }),
 )
 
@@ -181,6 +190,7 @@ const ACTION_FIELDS: Readonly<Record<ComputerAction, readonly string[]>> = {
   cursor: [],
   displays: [],
   frontmost: [],
+  tree: ['depth', 'limit'],
 }
 
 const NO_SCREENSHOT = 'no screenshot yet — coordinates are pixels of the last screenshot; take one first'
@@ -257,6 +267,14 @@ function tableRefusal(input: Input): string | null {
   }
   if (input.settleMs !== undefined && !(isNumber(input.settleMs) && input.settleMs >= 0)) {
     return `${action} takes settleMs as a number of milliseconds`
+  }
+  if (action === 'tree') {
+    if (input.depth !== undefined && !(Number.isInteger(input.depth) && input.depth >= 0 && input.depth <= TREE_DEPTH_CAP)) {
+      return `tree takes depth as a whole number from 0 to ${TREE_DEPTH_CAP} — ${String(input.depth)} is outside`
+    }
+    if (input.limit !== undefined && !(Number.isInteger(input.limit) && input.limit >= 1 && input.limit <= TREE_LIMIT_CAP)) {
+      return `tree takes limit as a whole number from 1 to ${TREE_LIMIT_CAP} — ${String(input.limit)} is outside`
+    }
   }
   return null
 }
@@ -542,6 +560,35 @@ async function frontmostWords(driver: DesktopDriver): Promise<string> {
   return `frontmost ${applicationWords(front.value)}`
 }
 
+function treeLimitsOf(input: Input): { depth: number; count: number } {
+  return { depth: input.depth ?? TREE_DEPTH_DEFAULT, count: input.limit ?? TREE_LIMIT_DEFAULT }
+}
+
+export function treeWords(app: DesktopApplication, tree: DesktopTree, limits: { depth: number; count: number }, map: ScreenMap | null): string {
+  const deepest = tree.elements.reduce((most, element) => Math.max(most, element.depth), 0)
+  const lines: string[] = [
+    `tree: ${app.name} (${app.identity}) — ${tree.elements.length} element${tree.elements.length === 1 ? '' : 's'} to depth ${deepest} (limit ${limits.count}, depth ${limits.depth}) · frames @x,y w×h in screen points${map !== null ? '; (x, y) px is the element\'s centre in the last screenshot' : ''}`,
+  ]
+  for (const element of tree.elements) {
+    const parts = [element.role]
+    if (element.title !== null) parts.push(JSON.stringify(element.title))
+    if (element.value !== null) parts.push(`value=${JSON.stringify(element.value)}`)
+    const frame = element.frame
+    if (frame !== null) {
+      parts.push(`@${Math.round(frame.x)},${Math.round(frame.y)} ${Math.round(frame.width)}×${Math.round(frame.height)}`)
+      if (map !== null) {
+        const pixel = pixelOfPoint(map, { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 })
+        if (pixelOnScreen(map, pixel)) parts.push(`· (${pixel.x}, ${pixel.y}) px`)
+      }
+    }
+    lines.push(`${'  '.repeat(element.depth)}${parts.join(' ')}`)
+  }
+  if (tree.truncated) {
+    lines.push(`truncated: the tree goes on past ${tree.reason !== null ? tree.reason : `the limit of ${limits.count} elements or depth ${limits.depth}`} — raise limit or depth to read more, or act on what is shown`)
+  }
+  return lines.join('\n')
+}
+
 async function factsLine(driver: DesktopDriver, map: ScreenMap | null): Promise<string> {
   return `${await cursorWords(driver, map)} · ${await frontmostWords(driver)}`
 }
@@ -700,14 +747,15 @@ export const ComputerTool = buildTool({
     return "Drive the operator's screen: screenshot, click, type, press keys, scroll and drag in the application in front, on every model route that receives images"
   },
   async prompt() {
-    return `Drive the operator's screen through the desktop driver. Coordinates are pixels of the last screenshot you received — take one before any act, and again after a compaction or when the result says the screenshot is gone. The result of every act carries a fresh screenshot after a short settle (settleMs; capture:false skips it) plus one line: the cursor, the application in front and the display size.
+    return `Drive the operator's screen. Coordinates are pixels of the last screenshot you received — take one before any act, and again after a compaction or when the result says the screenshot is gone. The result of every act carries a fresh screenshot after a short settle (settleMs; capture:false skips it) plus one line: the cursor, the application in front and the display size.
 
 action:"screenshot" (display?, label?) — the display under the cursor, or the numbered one from action:"displays".
 action:"click" | "doubleClick" | "rightClick" (x, y, modifiers?) · action:"move" (x, y) · action:"drag" (x, y, toX, toY, modifiers?) · action:"scroll" (x, y, dx?, dy? in wheel notches; positive dy scrolls down).
 action:"type" (text) — the characters as typed, up to ${TYPE_TEXT_CAP}; newline and tab are the only control characters. action:"key" (key) — one chord: ${KEY_CHORD_VOCABULARY} (cmd+shift+s). action:"hold" (key, durationMs) — the chord stays down for durationMs (cap ${HOLD_CAP_MS}).
 action:"wait" (durationMs?) — pause (default ${WAIT_DEFAULT_MS}, cap ${WAIT_CAP_MS}) then screenshot. action:"cursor" · action:"displays" · action:"frontmost" — cheap facts, no image.
+action:"tree" (depth?, limit?) — read-only: the accessibility tree of the application in front: role, title, value and frame per element, indented by depth (points; centre in px of the last screenshot); depth and limit (default ${TREE_DEPTH_DEFAULT}, ${TREE_LIMIT_DEFAULT}) bound it and a cut is said; no clipboard, no input.
 
-Permissions: the first act in an application this session asks the operator by the application's name; later acts in it ride the grant; an act that lands in another application asks for that one before the next act there. Reads (screenshot, wait, cursor, displays, frontmost) never ask. Keystrokes never go to the terminal running this session: with that terminal in front, type and hold refuse, key allows only the application switch chord, and clicks must land outside its window. One session drives the desktop at a time; a second is refused naming the first. The operator's esc or ctrl+c ends the act in flight (held keys released) and the turn.
+Permissions: the first act in an application this session asks the operator by the application's name; later acts in it ride the grant; an act that lands in another application asks for that one before the next act there. Reads (screenshot, wait, cursor, displays, frontmost) never ask; tree asks like an act. Keystrokes never go to the terminal running this session: with that terminal in front, type and hold refuse, key allows only the application switch chord, and clicks must land outside its window. One session drives the desktop at a time; a second is refused naming the first. The operator's esc or ctrl+c ends the act in flight (held keys released) and the turn.
 
 Take a screenshot after acts that change the screen, act on what the latest one shows, and prefer key chords over clicks on menus. Screenshots are not kept in the saved conversation; older ones leave the context as newer ones arrive.`
   },
@@ -749,7 +797,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     return { result: true as const }
   },
   async checkPermissions(input: Input, context: ToolUseContext) {
-    if (!ACT_ACTIONS.has(input.action)) return { behavior: 'allow' as const, updatedInput: input }
+    if (!ASK_ACTIONS.has(input.action)) return { behavior: 'allow' as const, updatedInput: input }
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
     const resolution = resolveDesktopDriver()
     if (resolution.state !== 'ok') return { behavior: 'allow' as const, updatedInput: input }
@@ -765,7 +813,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     const home = noteTurnHome(owner, turnKeyOf(context), { identity: app.identity, name: app.name })
     const plan = planOf(owner, context, input)
     if (isPlanRefusal(plan)) return denied(plan.refusal, 'the act has no screenshot frame')
-    const terminal = await ownTerminalRefusal(driver, input, app, plan)
+    const terminal = input.action === 'tree' ? null : await ownTerminalRefusal(driver, input, app, plan)
     if (terminal !== null) return denied(terminal, 'the own-terminal guard refused the act')
     const permissionContext = (context as Partial<ToolUseContext> | undefined)?.getAppState?.()
       ?.toolPermissionContext as ToolPermissionContext | undefined
@@ -786,7 +834,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     }
     return {
       behavior: 'ask' as const,
-      message: `Computer ${input.action}${actDetail(input)} in ${app.name} (${app.identity}) — first act in this application this session (drives your mouse and keyboard)`,
+      message: `Computer ${input.action}${actDetail(input)} in ${app.name} (${app.identity}) — first act in this application this session (${input.action === 'tree' ? 'reads its accessibility tree: the controls with their titles, values and frames' : 'drives your mouse and keyboard'})`,
       decisionReason: {
         type: 'safetyCheck' as const,
         reason: `${app.name} (${app.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`,
@@ -992,6 +1040,32 @@ Take a screenshot after acts that change the screen, act on what the latest one 
           }
           const app = front.value
           result = `frontmost: ${app.name} (${app.identity})${app.title ? ` — ${app.title}` : ''}`
+          outcome = 'succeeded'
+          break
+        }
+        case 'tree': {
+          const checked = consumeCheckedAct(owner, 'tree')
+          const judged: DesktopJudgedApp | null = checked?.app ?? null
+          if (!turnFront.ok) {
+            result = faultText('tree', turnFront.error)
+            outcome = 'failed'
+            break
+          }
+          const app = turnFront.value
+          if (judged !== null && judged.identity !== app.identity) {
+            result = `tree refused: the screen moved from ${judged.name} (${judged.identity}) to ${app.name} (${app.identity}) between the permission check and the read — nothing read; re-issue`
+            outcome = 'failed'
+            break
+          }
+          const limits = treeLimitsOf(input)
+          const tree = await driver.accessibilityTree(app, limits, signal)
+          if (!tree.ok) {
+            result = tree.error.kind === 'aborted' ? interruptedText('tree') : faultText('tree', tree.error)
+            outcome = 'failed'
+            break
+          }
+          if (checked?.viaGrant !== true) approveApp(owner, judged ?? { identity: app.identity, name: app.name })
+          result = treeWords(app, tree.value, limits, screenOf(owner))
           outcome = 'succeeded'
           break
         }

@@ -98,7 +98,7 @@ check('the addon never writes to the terminal (no println!, eprintln! or dbg!)',
 const lib = sources.get('lib.rs') ?? ''
 check('the held-input state and its release exist', /static HELD/.test(lib) && /pub fn release_all\(/.test(lib))
 check('capture is an AsyncTask export; the frontmost read is not', /pub fn capture\([^)]*\)\s*->\s*Result<AsyncTask</.test(lib) && /pub fn frontmost_application\(\)\s*->\s*ApplicationAnswer/.test(lib))
-check('the export list carries twenty-one names', pack.DESKTOP_ADDON_EXPORTS.length === 21, String(pack.DESKTOP_ADDON_EXPORTS.length))
+check('the export list carries twenty-two names', pack.DESKTOP_ADDON_EXPORTS.length === 22, String(pack.DESKTOP_ADDON_EXPORTS.length))
 const snake = (name: string): string => name.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`)
 const missingExports = pack.DESKTOP_ADDON_EXPORTS.filter(name => !new RegExp(`#\\[napi[^\\n]*\\]\\s*\\n\\s*pub fn ${snake(name)}\\(`).test(lib))
 check('every listed export is a #[napi] function in the source', missingExports.length === 0, missingExports.join(','))

@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, ROOT, section } from './computerProofKit.ts'
-import { COMPUTER_ACTIONS, COMPUTER_ACTS, COMPUTER_READS, toolContext } from './computerToolKit.ts'
+import { COMPUTER_ACTIONS, COMPUTER_ACTS, COMPUTER_READ_ONLY, toolContext } from './computerToolKit.ts'
 
 const { ComputerTool, COMPUTER_TOOL_NAME, HOLD_CAP_MS, TYPE_TEXT_CAP } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
@@ -22,13 +22,13 @@ const description = await ComputerTool.description({ action: 'screenshot' } as n
 const prompt = await ComputerTool.prompt({ getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools: [], agents: [] })
 const bytes = (text: string): number => Buffer.byteLength(text, 'utf8')
 
-section('§1 the fourteen actions, in order, on the capability and on the schema')
+section('§1 the fifteen actions, in order, on the capability and on the schema')
 {
   check('the tool is named Computer', ComputerTool.name === 'Computer' && COMPUTER_TOOL_NAME === 'Computer')
   const declared = ComputerTool.capability?.operations ?? []
-  check('capability.operations is exactly the fourteen names in order', JSON.stringify(declared) === JSON.stringify(COMPUTER_ACTIONS), JSON.stringify(declared))
+  check('capability.operations is exactly the fifteen names in order', JSON.stringify(declared) === JSON.stringify(COMPUTER_ACTIONS), JSON.stringify(declared))
   const properties = (schema.properties ?? {}) as Record<string, { enum?: string[] }>
-  check('the schema\'s action enum is the same fourteen in the same order', JSON.stringify(properties.action?.enum) === JSON.stringify(COMPUTER_ACTIONS), JSON.stringify(properties.action))
+  check('the schema\'s action enum is the same fifteen in the same order', JSON.stringify(properties.action?.enum) === JSON.stringify(COMPUTER_ACTIONS), JSON.stringify(properties.action))
   const unknown = ComputerTool.inputSchema.safeParse({ action: 'screenshot', bogus: 1 })
   check('an unknown key is refused by the strict object', unknown.success === false)
   const plain = ComputerTool.inputSchema.safeParse({ action: 'screenshot' })
@@ -101,7 +101,7 @@ section('§4 the shape fields')
   check('the capability declaration validates', validation.ok, JSON.stringify(validation))
   check("the capability gate is the opt-in flag and its proof is the asks proof", ComputerTool.capability?.gate === 'MERCURY_COMPUTER_USE' && ComputerTool.capability?.proof === 'scripts/computer/prove-computer-asks.ts')
   check('the capability proof exists', existsSync(join(ROOT, 'scripts', 'computer', 'prove-computer-asks.ts')))
-  for (const action of COMPUTER_READS) check(`isReadOnly(${action}) is true`, ComputerTool.isReadOnly({ action } as never) === true)
+  for (const action of COMPUTER_READ_ONLY) check(`isReadOnly(${action}) is true`, ComputerTool.isReadOnly({ action } as never) === true)
   for (const action of COMPUTER_ACTS) check(`isReadOnly(${action}) is false`, ComputerTool.isReadOnly({ action } as never) === false)
   for (const action of COMPUTER_ACTIONS) {
     const safe = ComputerTool.isConcurrencySafe({ action } as never)

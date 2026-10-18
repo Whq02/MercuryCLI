@@ -25,8 +25,19 @@ import {
   type DesktopPermissions,
   type DesktopPoint,
   type DesktopSessionKind,
+  type DesktopTree,
+  type DesktopTreeElement,
+  type DesktopTreeLimits,
   type DesktopTypeOptions,
 } from './driver.js'
+
+export interface FakeTreeNode {
+  role: string
+  title?: string | null
+  value?: string | null
+  frame?: DesktopBounds | null
+  children?: FakeTreeNode[]
+}
 
 interface FakeSceneSwitch {
   afterActs: number
@@ -44,6 +55,7 @@ export interface FakeScene {
   holdMs: number
   ownTerminal: DesktopApplication | null
   permissions: DesktopPermissions
+  tree: FakeTreeNode[]
 }
 
 const FAKE_DRIVER_VERSION = 'fixture'
@@ -57,10 +69,23 @@ export const FAKE_SCENE_DEFAULT: FakeScene = {
   holdMs: 0,
   ownTerminal: { identity: 'com.example.Terminal', name: 'Terminal', pid: 4100, title: 'mercury', windowId: '101', bounds: { x: 0, y: 700, width: 1440, height: 200 } },
   permissions: { session: 'desktop', screenCapture: 'granted', input: 'granted', reason: null },
+  tree: [
+    {
+      role: 'AXWindow',
+      title: 'Untitled',
+      frame: { x: 100, y: 100, width: 800, height: 600 },
+      children: [
+        { role: 'AXToolbar', frame: { x: 100, y: 128, width: 800, height: 40 }, children: [{ role: 'AXButton', title: 'Bold', frame: { x: 112, y: 134, width: 28, height: 28 } }] },
+        { role: 'AXScrollArea', frame: { x: 100, y: 168, width: 800, height: 532 }, children: [{ role: 'AXTextArea', value: 'The quick brown fox jumps over the lazy dog.\nA second line of the document.', frame: { x: 100, y: 168, width: 785, height: 532 } }] },
+      ],
+    },
+    { role: 'AXMenuBar', frame: { x: 0, y: 0, width: 1440, height: 24 }, children: [{ role: 'AXMenuBarItem', title: 'File', frame: { x: 70, y: 0, width: 36, height: 24 }, children: [{ role: 'AXMenu', children: [{ role: 'AXMenuItem', title: 'Save' }] }] }] },
+  ],
 }
 
 type FakeActKind =
   | 'capture'
+  | 'accessibilityTree'
   | 'mouseMove'
   | 'mouseDown'
   | 'mouseUp'
@@ -134,8 +159,30 @@ function displayProblem(value: unknown, at: string, position: number): string | 
   return null
 }
 
+function treeProblem(value: unknown, at: string): string | null {
+  if (!Array.isArray(value)) return `${at} must be a list of elements`
+  for (let i = 0; i < value.length; i++) {
+    const node: unknown = value[i]
+    if (!isRecord(node)) return `${at}[${i}] must be an element record with a role`
+    if (!isText(node.role) || node.role === '') return `${at}[${i}].role must be a non-empty string`
+    if (!(node.title === null || node.title === undefined || isText(node.title))) return `${at}[${i}].title must be a string or null`
+    if (!(node.value === null || node.value === undefined || isText(node.value))) return `${at}[${i}].value must be a string or null`
+    const frame = boundsProblem(node.frame ?? null, `${at}[${i}].frame`)
+    if (frame !== null) return frame
+    if (node.children !== undefined) {
+      const problem = treeProblem(node.children, `${at}[${i}].children`)
+      if (problem !== null) return problem
+    }
+  }
+  return null
+}
+
 function fakeSceneProblem(value: unknown): string | null {
   if (!isRecord(value)) return 'the scene must be a JSON object'
+  if (value.tree !== undefined) {
+    const problem = treeProblem(value.tree, 'tree')
+    if (problem !== null) return problem
+  }
   if (value.displays !== undefined) {
     if (!Array.isArray(value.displays) || value.displays.length === 0) return 'displays must be a non-empty list'
     for (let i = 0; i < value.displays.length; i++) {
@@ -234,7 +281,30 @@ function sceneFrom(value: Record<string, unknown>): FakeScene {
       reason: isText(value.permissions.reason) ? value.permissions.reason : null,
     }
   }
+  if (Array.isArray(value.tree)) base.tree = structuredClone(value.tree as FakeTreeNode[])
   return base
+}
+
+function flattenTree(root: FakeTreeNode, limits: DesktopTreeLimits): DesktopTree {
+  const elements: DesktopTreeElement[] = []
+  let truncated = false
+  const stack: Array<{ node: FakeTreeNode; depth: number }> = [{ node: root, depth: 0 }]
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop()!
+    if (elements.length >= limits.count) {
+      truncated = true
+      break
+    }
+    const frame = node.frame ?? null
+    elements.push({ depth, role: node.role, title: isText(node.title) && node.title !== '' ? node.title : null, value: isText(node.value) && node.value !== '' ? node.value : null, frame: frame ? { ...frame } : null })
+    const children = node.children ?? []
+    if (depth < limits.depth) {
+      for (let i = children.length - 1; i >= 0; i--) stack.push({ node: children[i]!, depth: depth + 1 })
+    } else if (children.length > 0) {
+      truncated = true
+    }
+  }
+  return { elements, truncated, reason: null }
 }
 
 export function readFakeScene(path: string): FakeSceneRead {
@@ -465,6 +535,23 @@ export class FakeDesktopDriver implements DesktopDriver {
   async ownTerminalApplication(): Promise<DesktopAnswer<DesktopApplication | null>> {
     const terminal = this.scene.ownTerminal
     return answer(terminal ? { ...terminal, bounds: terminal.bounds ? { ...terminal.bounds } : null } : null)
+  }
+
+  async accessibilityTree(app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>> {
+    if (this.closed) return refusal({ kind: 'unavailable', note: 'the fake desktop driver is closed' })
+    if (!Number.isInteger(limits.depth) || limits.depth < 0 || !Number.isInteger(limits.count) || limits.count < 1) return refusal(inputError(`the tree limits must be a whole depth and a count of at least one, not ${JSON.stringify(limits)}`))
+    const permissions = this.scene.permissions
+    if (permissions.session !== 'desktop') return refusal({ kind: 'session', note: permissions.reason ?? `the session is ${permissions.session}, not a desktop` })
+    if (!grantHolds(permissions.input)) return refusal({ kind: 'permission', note: `Accessibility is not granted — ${permissions.reason ?? permissions.input}`, remedy: GRANT_REMEDY })
+    const front = await this.frontmostApplication()
+    if (!front.ok || front.value.identity !== app.identity) return refusal({ kind: 'display', note: `${app.name} is not the application in front of the fake scene` })
+    if ((await this.hold(signal)) === 'aborted') {
+      this.record('accessibilityTree', 'aborted', { app: app.identity, ...limits })
+      return desktopAbortedAnswer()
+    }
+    const tree = flattenTree({ role: 'AXApplication', title: app.name, children: this.scene.tree }, limits)
+    this.record('accessibilityTree', 'done', { app: app.identity, ...limits, elements: tree.elements.length, truncated: tree.truncated })
+    return answer(tree)
   }
 
   async cursor(): Promise<DesktopAnswer<DesktopCursor>> {

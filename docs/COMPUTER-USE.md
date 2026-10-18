@@ -56,6 +56,19 @@ classifier answers this ask: because the foreground window determines the target
 the consent is yours alone, and sovereign mode is the one posture that
 answers it automatically, whatever the access type below saves.
 
+One read asks like an act: `tree`, the accessibility tree of the
+application in front. It answers one line per element, indented by depth,
+with the element's role, title, value and frame in screen points (and the
+centre in pixels of the last screenshot, so the model can click it), bounded
+by a depth and a count the model may set; when the tree goes on past them
+the result says so. It is read on macOS through the Accessibility API, under
+the same Accessibility grant as the keyboard; it sends no input and reads no
+clipboard. Because it reads what an application shows (its controls and
+their text), the first tree in an application asks by the application's
+name like a first act, and the grant it leaves is the same one: later trees
+and acts in that application ride it. On Windows and Linux the action says
+plainly that this release reads the tree on macOS only.
+
 ## The access type
 
 Under the Boot Menu's `Computer use` row sits `Access type`, with three
