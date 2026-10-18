@@ -37,6 +37,7 @@ import {
 import type { OwnerKey } from './ownerKey.js'
 import { registerOwnerScopedStore } from './ownerLifecycle.js'
 import { OwnerScopedStore } from './ownerScopedStore.js'
+import { fitCompletionResults } from '../agentResults/summaryRoom.js'
 
 interface RequestContextPlanInput {
   messages: Message[]
@@ -181,6 +182,8 @@ export async function buildRequestContextPlan(
         ? input.contentReplacementState
         : cloneContentReplacementState(input.contentReplacementState)
     const replacedBefore = state.replacements.size
+    const completionRecords = await fitCompletionResults(view, state, input.engineModel)
+    if (mode === 'apply' && completionRecords.length > 0) await input.persistReplacements?.(completionRecords)
     view = await applyToolResultBudget(
       view,
       state,

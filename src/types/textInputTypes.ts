@@ -119,6 +119,7 @@ type QueuePayload = {
   mode: PromptInputMode
   pastedContents?: Record<number, PastedContent>
   preExpansionValue?: string
+  agentCompletion?: { agentId: string; start: number; end: number }
 }
 
 type QueueIdentity = {

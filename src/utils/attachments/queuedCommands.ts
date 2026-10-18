@@ -10,6 +10,8 @@ import type { PastedContent } from '../config.js'
 import { maybeResizeAndDownsampleImageBlock } from '../imageResizer.js'
 import { extractTextContent } from '../messages.js'
 import type { Attachment } from './types.js'
+import { fitCompletionCommands } from '../../services/agentResults/summaryRoom.js'
+import type { Message } from '../../types/message.js'
 
 const imagePastesOf = (pasted: Record<number, PastedContent> | undefined): PastedContent[] =>
   pasted ? Object.values(pasted).filter(isValidImagePaste) : []
@@ -40,8 +42,8 @@ async function queuedRow(command: QueuedCommand): Promise<Attachment> {
   }
 }
 
-export async function getQueuedCommandAttachments(queuedCommands: QueuedCommand[]): Promise<Attachment[]> {
-  return Promise.all((queuedCommands ?? []).flatMap(command =>
+export async function getQueuedCommandAttachments(queuedCommands: QueuedCommand[], parent?: { messages: readonly Message[]; model: string }): Promise<Attachment[]> {
+  return Promise.all(fitCompletionCommands(queuedCommands ?? [], parent).flatMap(command =>
     command.mode === 'prompt' || command.mode === 'task-notification' ? [queuedRow(command)] : [],
   ))
 }

@@ -460,7 +460,7 @@ export class Conversation {
       dynamicSkillDirTriggers: new Set<string>(),
     })
     if (options?.initialNotices?.length) {
-      const attachments = await getQueuedCommandAttachments(options.initialNotices)
+      const attachments = await getQueuedCommandAttachments(options.initialNotices, { messages: this.mutableMessages, model: resolvedModel })
       this.mutableMessages.push(...attachments.map(createAttachmentMessage))
       if (!persistenceDisabled) await this.recordDelta(this.mutableMessages)
     }

@@ -64,7 +64,7 @@ export async function getAttachments(
   options?: { localSubmission?: boolean },
 ): Promise<Attachment[]> {
   if (isEnvTruthy(process.env.MERCURY_BARE)) {
-    return getQueuedCommandAttachments(queuedCommands)
+    return getQueuedCommandAttachments(queuedCommands, { messages: messages ?? toolUseContext.messages, model: toolUseContext.options.engineModel })
   }
 
   const abortController = createAbortController()
@@ -118,7 +118,7 @@ export async function getAttachments(
   const userAttachmentResults = await Promise.all(userInputAttachments)
 
   const allThreadAttachments = [
-    maybe('queued_commands', () => getQueuedCommandAttachments(queuedCommands), {
+    maybe('queued_commands', () => getQueuedCommandAttachments(queuedCommands, { messages: context.messages, model: context.options.engineModel }), {
       priority: true,
     }),
     maybe('date_change', () =>

@@ -284,6 +284,8 @@ import { getCwd } from '../utils/cwd.js'
 import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { streamIdleTimeoutMsForRoute } from '../services/providers/streamIdleBudget.js'
 import { runWithWorkload } from '../utils/workloadContext.js'
+import { fitCompletionCommands } from '../services/agentResults/summaryRoom.js'
+import { foldNotificationValues } from './headless/turnDriver.js'
 
 export { joinPromptValues, canBatchWith }
 export { removeInterruptedMessage }
@@ -1088,6 +1090,8 @@ export async function runHeadless(
     onMessage: (message: RowDraft) => void,
     initialNotices: QueuedCommand[] = [],
   ): Promise<void> => {
+    const delivery = command.mode === 'task-notification' ? fitCompletionCommands(batch.length > 0 ? batch : [command], { messages, model: activeModel ?? getEngineModel() }) : []
+    const promptValue = delivery.length > 1 ? foldNotificationValues(delivery.map(member => member.value)) : delivery[0]?.value ?? command.value
     const batchUuids = batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined)
     const batchTail: BatchedPrompt[] =
       command.mode === 'prompt'
@@ -1152,7 +1156,7 @@ export async function runHeadless(
         tellFailedMcpServers()
         for await (const message of ask({
           commands: dedupedCommands,
-          prompt: command.value,
+          prompt: promptValue,
           ...(options.syntaxInput !== undefined && command.value === inputPrompt ? { syntaxInput: options.syntaxInput } : {}),
           promptUuid: command.uuid,
           ...(batchUuids.length > 0 ? { batchUuids } : {}),

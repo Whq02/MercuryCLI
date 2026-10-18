@@ -1,6 +1,7 @@
 
 import type { SessionId } from './ids.js'
 import type { MessageOrigin } from './message.js'
+import type { QueuedCommand } from './textInputTypes.js'
 
 export type QueueOperation =
   | 'enqueue'
@@ -21,4 +22,5 @@ export type QueueOperationMessage = {
   isMeta?: boolean
   sentAt?: string
   origin?: MessageOrigin
+  agentCompletion?: QueuedCommand['agentCompletion']
 }
