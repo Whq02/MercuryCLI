@@ -27,9 +27,9 @@ const t = checker()
 const ESC = String.fromCharCode(27)
 
 const OSC52_ENV = { SSH_CONNECTION: 'poise 0 hermetic 0' }
-const press = (c: number, r: number): string => `${ESC}[<0;${c};${r}M`
-const move = (c: number, r: number): string => `${ESC}[<32;${c};${r}M`
-const release = (c: number, r: number): string => `${ESC}[<0;${c};${r}m`
+const press = (c: number, r: number | string): string => `${ESC}[<0;${c};${r}M`
+const move = (c: number, r: number | string): string => `${ESC}[<32;${c};${r}M`
+const release = (c: number, r: number | string): string => `${ESC}[<0;${c};${r}m`
 
 const WORDS = [
   'alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel',
@@ -55,6 +55,7 @@ type RunSpec = {
   turns: ScriptedTurn[]
   dragAt: number
   dragAfter?: string
+  originRowText?: string
   origin: [number, number]
   path: [number, number][]
   end: [number, number]
@@ -88,6 +89,7 @@ const specs: RunSpec[] = [
     turns: turnsLive,
     dragAt: 10500,
     dragAfter: `${WORDS[11]}-segment`,
+    originRowText: '[Mercury] alpha-segment',
     origin: [40, 11],
     path: [[60, 11], [70, 12], [76, 12]],
     end: [80, 13],
@@ -168,14 +170,31 @@ specs.push({
 
 const activeSpecs = process.env.POISE_ONLY_RAIL ? specs.filter(sp => sp.kind === 'rail') : specs
 for (const spec of activeSpecs) {
+  const rowRef = (r: number): number | string => {
+    if (spec.originRowText === undefined) return r
+    const dy = r - spec.origin[1]
+    return dy === 0 ? '{Y}' : dy > 0 ? `{Y+${dy}}` : `{Y${dy}}`
+  }
   const gesture: [number, string][] = [
-    [0, press(...spec.origin)],
-    ...spec.path.map((p, i): [number, string] => [250 * (i + 1), move(...p)]),
-    [250 * (spec.path.length + 1), move(...spec.end)],
-    [250 * (spec.path.length + 1) + 350, release(...spec.end)],
+    [0, press(spec.origin[0], rowRef(spec.origin[1]))],
+    ...spec.path.map((p, i): [number, string] => [250 * (i + 1), move(p[0], rowRef(p[1]))]),
+    [250 * (spec.path.length + 1), move(spec.end[0], rowRef(spec.end[1]))],
+    [250 * (spec.path.length + 1) + 350, release(spec.end[0], rowRef(spec.end[1]))],
     ...(spec.kind === 'resize' ? [[2600, `${press(30, 12)}${release(30, 12)}`] as [number, string]] : []),
   ]
-  const dragSends = gesture.map(([offset, payload]) => (spec.dragAfter === undefined ? `${spec.dragAt + offset}:${payload}` : `after:${spec.dragAfter}:${offset}:${payload}`))
+  const dragSends =
+    spec.dragAfter !== undefined && spec.originRowText !== undefined
+      ? [
+          { awaitText: [spec.originRowText, spec.dragAfter], settleMs: 0, text: '' },
+          ...gesture.map(([offset, payload], i) => ({
+            awaitText: spec.originRowText!,
+            settleMs: 0,
+            afterPrevMs: i === 0 ? 2000 : offset - gesture[i - 1]![0],
+            targetText: spec.originRowText!,
+            text: payload,
+          })),
+        ]
+      : gesture.map(([offset, payload]) => (spec.dragAfter === undefined ? `${spec.dragAt + offset}:${payload}` : `after:${spec.dragAfter}:${offset}:${payload}`))
   const run = await runPulseArena({
     turns: spec.turns,
     sends: ['2000:\\r', '6000:selection probe\\r', ...dragSends],
@@ -185,11 +204,18 @@ for (const spec of activeSpecs) {
     keep: true,
     extraEnv: { ...OSC52_ENV, COLORTERM: 'truecolor' },
   })
+  const records = readFileSync(run.paths.drive, 'utf8')
+    .split('\n')
+    .filter(Boolean)
+    .map(line => JSON.parse(line) as { ts?: number; sent?: number; after?: string; step?: number; targetText?: string; targetRow?: number })
+  const pressRecord =
+    spec.originRowText !== undefined
+      ? records.find(r => typeof r.sent === 'number' && r.step === 1 && r.targetText === spec.originRowText)
+      : records.find(r => typeof r.sent === 'number' && r.after === spec.dragAfter)
   const pressAt = ((): number => {
     if (spec.dragAfter === undefined) return anchoredOffset(run, S(spec.dragAt))
-    const records = readFileSync(run.paths.drive, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as { ts?: number; sent?: number; after?: string })
     const firstOutput = records.find(r => typeof r.ts === 'number')?.ts
-    const pressed = records.find(r => typeof r.sent === 'number' && r.after === spec.dragAfter)?.sent
+    const pressed = pressRecord?.sent
     return firstOutput === undefined || pressed === undefined ? -1 : pressed - firstOutput
   })()
   const grab = spawnSync(
@@ -206,6 +232,16 @@ for (const spec of activeSpecs) {
   }
   const { screens, copies, copyFacts } = JSON.parse(grab.stdout) as Grab
   const pre = screens[0]
+  if (spec.originRowText !== undefined) {
+    const rowIn = (f: Frame): number => f.rows.findIndex(r => r.includes(spec.originRowText!)) + 1
+    const preRow = rowIn(pre)
+    const rowsAcross = screens.map(rowIn)
+    t.check(
+      `the drag anchored on the ${spec.originRowText} row in the captured grid with zero row drift across the gesture`,
+      preRow > 0 && pressRecord?.targetRow === preRow && rowsAcross.every(r => r === preRow),
+      `targetRow=${pressRecord?.targetRow} gridRows=${JSON.stringify(rowsAcross)}`,
+    )
+  }
   const key = (c: number[]): string => `${c[0]},${c[1]}`
   const preReverse = new Set(pre.reverse.map(key))
   const preBg = new Map(pre.bg.map(([x, y, col]) => [`${x},${y}`, col]))

@@ -1,3 +1,6 @@
+import re
+
+
 class ObservedWalk:
     def __init__(self, steps, scale=1.0):
         self.steps = steps
@@ -30,6 +33,7 @@ class ObservedWalk:
             return None
         payload = "" if already else step.get("text", "")
         target = None if already else step.get("targetText")
+        target_row = None
         if target is not None:
             candidates = list(enumerate(rows))
             start_x = 0
@@ -48,10 +52,15 @@ class ObservedWalk:
             if len(hits) != 1:
                 return None
             x, y = hits[0]
-            payload = "\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (x, y, x, y)
+            target_row = y
+            if payload:
+                payload = re.sub(r"\{Y([+-]\d+)?\}", lambda m: str(y + int(m.group(1) or 0)), payload).replace("{X}", str(x))
+            else:
+                payload = "\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (x, y, x, y)
         receipt = {"step": self.index, "awaitText": step["awaitText"], "screen": list(rows)}
         if target is not None:
             receipt["targetText"] = target
+            receipt["targetRow"] = target_row
         self.index += 1
         self.last_sent = now_ms
         self.previous = None
