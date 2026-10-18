@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -176,6 +176,7 @@ const store = await loadStore()
 const keysIn = (w: string): string[] => Object.keys(store.readSessionWorkers(dirOf(w))).sort()
 const listing = (w: string): string[] => (existsSync(dirOf(w)) ? readdirSync(dirOf(w)).sort() : [])
 const lockDirOf = (w: string): string => `${store.concourseWorkersPath(dirOf(w))}.lock`
+const ownerOf = (w: string): string => `${lockDirOf(w)}.owner`
 const parse = (text: string): Record<string, unknown> => JSON.parse(text) as Record<string, unknown>
 
 try {
@@ -263,7 +264,7 @@ try {
     check('no lock directory lingered at the end of the nested update', receipt?.lockLeft === false, receipt)
   }
 
-  section('§6 an interrupted writer: killed inside its section, the file stays old-complete and the next writer takes over')
+  section('§6 an interrupted writer: killed inside its section, the file stays old-complete and the next writer reclaims the dead holder at once')
   {
     const w = world('die')
     store.updateConcourseWorkers(workers => { workers['kept'] = row('kept', w) }, dirOf(w))
@@ -272,19 +273,54 @@ try {
     check('the doomed writer entered its section', await until(() => raised('die-in', w), 15_000), d.out())
     const code = await d.exit
     check('it was killed (SIGKILL, no exit code)', code === null, { code, out: d.out() })
-    check('its lock directory is left behind', existsSync(lockDirOf(w)), listing(w))
+    check('its lock directory and its owner record (its pid) are left behind', existsSync(lockDirOf(w)) && existsSync(ownerOf(w)) && Number(readFileSync(ownerOf(w), 'utf8').trim()) === d.proc.pid, listing(w))
     check('the file is unchanged and readable (old-complete)', readFileSync(store.concourseWorkersPath(dirOf(w)), 'utf8') === bytesBefore && keysIn(w).join() === 'kept', keysIn(w))
     const startedAt = Date.now()
     const next = start('add', w, ['after-death'])
     check('the next writer exits 0', (await next.exit) === 0, next.out())
     const waitedMs = Date.now() - startedAt
     const receipt = raised('after-death-published', w) ? parse(readFlag('after-death-published', w)) : null
-    check(`it waited out the abandoned lock (the ${STALE_MS / 1000} s stale law) rather than publishing over it`, waitedMs >= STALE_MS - 1_500 && waitedMs < STALE_MS + 7_000, { waitedMs, receipt })
+    check('it read the dead owner and reclaimed the lock without waiting the stale law out', waitedMs < STALE_MS / 2, { waitedMs, receipt })
     check('its record landed beside the kept one; the never-published record is absent', keysIn(w).join() === 'after-death,kept', keysIn(w))
-    check('the abandoned lock is gone', !existsSync(lockDirOf(w)), listing(w))
+    check('the abandoned lock and its owner record are gone', !existsSync(lockDirOf(w)) && !existsSync(ownerOf(w)), listing(w))
   }
 
-  section('§7 an interrupted publication: killed at the flush, the destination is untouched and the next writer reclaims the aged lock at once')
+  section(`§6b a lock with no owner record falls back to the stale law: the next writer waits the ${STALE_MS / 1000} s out rather than publishing over it`)
+  {
+    const w = world('die-unowned')
+    store.updateConcourseWorkers(workers => { workers['kept'] = row('kept', w) }, dirOf(w))
+    const d = start('die', w, [])
+    check('the doomed writer entered its section', await until(() => raised('die-in', w), 15_000), d.out())
+    check('it was killed (SIGKILL, no exit code)', (await d.exit) === null, d.out())
+    rmSync(ownerOf(w), { force: true })
+    check('its lock directory stands with no owner record', existsSync(lockDirOf(w)) && !existsSync(ownerOf(w)), listing(w))
+    const startedAt = Date.now()
+    const next = start('add', w, ['after-stale'])
+    check('the next writer exits 0', (await next.exit) === 0, next.out())
+    const waitedMs = Date.now() - startedAt
+    check('it waited the stale law out before taking the lock', waitedMs >= STALE_MS - 1_500 && waitedMs < STALE_MS + 7_000, { waitedMs })
+    check('its record landed beside the kept one', keysIn(w).join() === 'after-stale,kept', keysIn(w))
+    check('the lock is gone', !existsSync(lockDirOf(w)), listing(w))
+  }
+
+  section('§6c a lock whose owner is alive is never taken from it: the writer waits until the owner lets go')
+  {
+    const w = world('live-owner')
+    store.updateConcourseWorkers(workers => { workers['kept'] = row('kept', w) }, dirOf(w))
+    mkdirSync(lockDirOf(w))
+    writeFileSync(ownerOf(w), `${process.pid}\n`)
+    const startedAt = Date.now()
+    const next = start('add', w, ['after-owner'])
+    check('the writer reached its update call', await until(() => raised('after-owner-entering', w), 15_000), next.out())
+    await sleep(1_500)
+    check('the writer has not published while the live owner holds the lock', !raised('after-owner-published', w) && existsSync(lockDirOf(w)) && existsSync(ownerOf(w)), listing(w))
+    rmSync(ownerOf(w), { force: true })
+    rmSync(lockDirOf(w), { recursive: true, force: true })
+    check('the writer exits 0 once the owner let go', (await next.exit) === 0, next.out())
+    check('it published only after the owner let go', Date.now() - startedAt >= 1_500 && keysIn(w).join() === 'after-owner,kept', { waitedMs: Date.now() - startedAt, keys: keysIn(w) })
+  }
+
+  section('§7 an interrupted publication: killed at the flush, the destination is untouched and the next writer reclaims the dead holder')
   {
     const w = world('flush-kill')
     store.updateConcourseWorkers(workers => { workers['kept'] = row('kept', w) }, dirOf(w))
@@ -294,15 +330,13 @@ try {
     check('the writer was killed at the flush (no exit code)', code === null, { code, out: d.out() })
     check('the destination is byte-identical and readable', readFileSync(store.concourseWorkersPath(dirOf(w)), 'utf8') === bytesBefore && keysIn(w).join() === 'kept', keysIn(w))
     const left = listing(w)
-    check('its lock directory and its own temp were left behind (the orphan sweep owns the temp)', existsSync(lockDirOf(w)) && left.some(n => /^\.concourse-workers\.json\.\d+\.[0-9a-f]{8}\.tmp$/.test(n)), left)
-    const aged = (Date.now() - 2 * STALE_MS) / 1000
-    if (existsSync(lockDirOf(w))) utimesSync(lockDirOf(w), aged, aged)
+    check('its lock directory, its owner record and its own temp were left behind (the orphan sweep owns the temp)', existsSync(lockDirOf(w)) && existsSync(ownerOf(w)) && left.some(n => /^\.concourse-workers\.json\.\d+\.[0-9a-f]{8}\.tmp$/.test(n)), left)
     const startedAt = Date.now()
     const next = start('add', w, ['after-flush'])
     check('the next writer exits 0', (await next.exit) === 0, next.out())
-    check('it reclaimed the aged lock without waiting the stale law out', Date.now() - startedAt < STALE_MS / 2, { waitedMs: Date.now() - startedAt })
+    check('it reclaimed the dead holder without waiting the stale law out', Date.now() - startedAt < STALE_MS / 2, { waitedMs: Date.now() - startedAt })
     check('its record landed; the torn record never did', keysIn(w).join() === 'after-flush,kept', keysIn(w))
-    check('the reclaimed lock is released', !existsSync(lockDirOf(w)), listing(w))
+    check('the reclaimed lock and its owner record are released', !existsSync(lockDirOf(w)) && !existsSync(ownerOf(w)), listing(w))
   }
 
   section('§8 ownership loss: a lock removed or re-held under a writer refuses its publish, and never removes the new holder')

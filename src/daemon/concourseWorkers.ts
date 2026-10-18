@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { partiallySanitizeUnicode } from '../utils/sanitization.js'
 import { randomUUID } from '../utils/crypto.js'
@@ -505,8 +505,39 @@ function lockIdentityOf(lockDir: string): string | null {
 
 type SessionRecordsLock = { release: () => void; stillHeld: () => boolean }
 
+function abandonedLockReading(lockDir: string, ownerPath: string): string | null {
+  let owner: string
+  try {
+    owner = readFileSync(ownerPath, 'utf8')
+  } catch {
+    return null
+  }
+  const pid = Number(owner.trim())
+  if (!Number.isInteger(pid) || pid <= 0 || isProcessAlive(pid)) return null
+  const identity = lockIdentityOf(lockDir)
+  return identity === null ? null : `${identity}|${pid}`
+}
+
+function reclaimAbandonedLock(lockDir: string, ownerPath: string): boolean {
+  const judged = abandonedLockReading(lockDir, ownerPath)
+  if (judged === null) return false
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+  if (abandonedLockReading(lockDir, ownerPath) !== judged) return false
+  try {
+    unlinkSync(ownerPath)
+  } catch {}
+  if (lockIdentityOf(lockDir) !== judged.split('|')[0]) return false
+  try {
+    rmdirSync(lockDir)
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'ENOENT'
+  }
+  return true
+}
+
 function acquireSessionRecordsLock(path: string, dir: string | undefined): SessionRecordsLock | 'home-gone' {
   const lockDir = `${path}.lock`
+  const ownerPath = `${lockDir}.owner`
   const deadline = Date.now() + SESSION_RECORDS_LOCK_WAIT_MS
   let backoffMs = 2
   let parentCreated = false
@@ -520,8 +551,19 @@ function acquireSessionRecordsLock(path: string, dir: string | undefined): Sessi
           logForDebugging(`[concourse] the session records lock was compromised: ${err.message}`, { level: 'warn' })
         },
       })
+      try {
+        writeFileSync(ownerPath, `${process.pid}\n`)
+      } catch {}
       const identity = lockIdentityOf(lockDir)
-      return { release, stillHeld: () => identity !== null && lockIdentityOf(lockDir) === identity }
+      return {
+        stillHeld: () => identity !== null && lockIdentityOf(lockDir) === identity,
+        release: () => {
+          try {
+            unlinkSync(ownerPath)
+          } catch {}
+          release()
+        },
+      }
     } catch (err) {
       const code = (err as NodeJS.ErrnoException | null)?.code
       if (code === 'ENOENT') {
@@ -532,6 +574,7 @@ function acquireSessionRecordsLock(path: string, dir: string | undefined): Sessi
         continue
       }
       if (code !== 'ELOCKED') throw err
+      if (reclaimAbandonedLock(lockDir, ownerPath)) continue
       if (Date.now() >= deadline) {
         throw new SessionRecordsLockError(path, `another writer held its lock for ${SESSION_RECORDS_LOCK_WAIT_MS} ms`)
       }
