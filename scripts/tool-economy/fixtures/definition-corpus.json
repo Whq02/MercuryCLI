@@ -1,5 +1,5 @@
 {
-  "base": "5d5cb17790d5485a8eb14e4a258dc71ea4a95cc9",
+  "base": "c33a9cb00ab7460e87f59034b7a24460106e9141",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2937,6 +2937,21 @@
           "message": {
             "type": "string",
             "description": "Its next turn: what to do, written as you would brief it"
+          },
+          "model": {
+            "description": "Model for the resumed turn of a finished crewmate; omitted, its recorded model stays. Read mercury://models for available ids.",
+            "type": "string"
+          },
+          "effort": {
+            "description": "Effort for the resumed turn; omitted, its recorded effort stays. Max is admitted; an unsupported lower tier is refused, not clamped.",
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ]
           }
         },
         "required": [
