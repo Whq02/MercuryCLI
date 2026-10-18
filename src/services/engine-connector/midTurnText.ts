@@ -56,3 +56,11 @@ export function textRowLanded(row: Message, messageId: string, text: string): bo
   const message = row.type === 'assistant' ? (row as { message?: { id?: unknown; content?: unknown } }).message : undefined
   return message?.id === messageId && textsOf(message.content).some(landed => landed.startsWith(text))
 }
+
+function retractedReply(row: Message): boolean {
+  return row.type === 'assistant' && (row as { retracted?: unknown }).retracted === true
+}
+
+export function withoutRetractedReplies(rows: readonly Message[]): Message[] {
+  return rows.some(retractedReply) ? rows.filter(row => !retractedReply(row)) : (rows as Message[])
+}

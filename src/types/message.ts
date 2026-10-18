@@ -116,6 +116,7 @@ export type AssistantMessage = {
   isApiErrorMessage?: boolean
   isMeta?: boolean
   isVirtual?: true
+  retracted?: true
   research?: unknown
   refusedToolCalls?: RefusedToolCall[]
   reasoningOnly?: boolean

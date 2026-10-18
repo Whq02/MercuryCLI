@@ -60,7 +60,7 @@ import { IDLE_LIVE, type LiveTurnFactsV1, type LostLineV1, type SeatLiveExtensio
 import { interruptLatchRelease } from './interruptLatch.js'
 import { createNoticeRow, deliveredNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, placeDeliveredNotices, queueOrderedSends } from './queuedNotices.js'
 import { BASH_INPUT_TAG } from '../../constants/xml.js'
-import { createTextRow, textRowLanded, type CommittedTextRow } from './midTurnText.js'
+import { createTextRow, textRowLanded, withoutRetractedReplies, type CommittedTextRow } from './midTurnText.js'
 import { computeTailRelease } from '../../utils/messages/tailRetirement.js'
 import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
 import { workChipLine, workCounts } from './workCounts.js'
@@ -556,6 +556,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private tailAtMs = -1
   private tailMessageId: string | null = null
   private interruptedMessageId: string | null = null
+  private withdrawnMessageId: string | null = null
   private liveTurnChars = 0
   private liveTurnOutputTokens: number | null = null
   private liveTurnThinkingChars = 0
@@ -712,6 +713,16 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.lastEventAtMs = typeof tail.lastEventAtMs === 'number' ? tail.lastEventAtMs : null
     const block = tail.streamBlock === 'thinking' || tail.streamBlock === 'text' || tail.streamBlock === 'tool_use' ? tail.streamBlock : null
     this.setStreamBlock(block, block !== null && typeof tail.blockSinceMs === 'number' ? tail.blockSinceMs : null)
+    const withdrawn = typeof tail.withdrawn === 'string' && tail.withdrawn !== '' ? tail.withdrawn : null
+    if (withdrawn !== null && withdrawn !== this.withdrawnMessageId) {
+      this.withdrawnMessageId = withdrawn
+      const kept = this.textRows.filter(committed => committed.messageId !== withdrawn)
+      if (kept.length !== this.textRows.length) {
+        connectorTrace({ ev: 'withdrawn-rows-dropped', sid: this.record.sessionId, count: this.textRows.length - kept.length })
+        this.textRows = kept
+        this.paint()
+      }
+    }
     if (tail.atMs === this.tailAtMs && tail.text === this.tailStore.read()) return
     this.tailAtMs = tail.atMs
     const id = typeof tail.messageId === 'string' && tail.messageId !== '' ? tail.messageId : null
@@ -746,9 +757,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private commitHeldText(text: string, atMs: number): 'committed' | 'standing' | 'dropped' | 'unidentified' {
     const id = this.tailStore.readIds().current
     if (id === null) return 'unidentified'
-    if (id === this.interruptedMessageId) {
+    if (id === this.interruptedMessageId || id === this.withdrawnMessageId) {
       this.tailSeq = null
-      connectorTrace({ ev: 'interrupted-text-dropped', sid: this.record.sessionId, chars: text.length })
+      connectorTrace({ ev: id === this.withdrawnMessageId ? 'withdrawn-text-dropped' : 'interrupted-text-dropped', sid: this.record.sessionId, chars: text.length })
       return 'dropped'
     }
     if (computeTailRelease(this.rawRecords, { current: id, settled: null }).publishedShown) {
@@ -1403,7 +1414,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     const echoes: Message[] = [...held.map(entry => entry.row), ...afterTail]
     this.rowsAfterTail = afterTail.length
-    const kept = projectOperatorRewinds(this.rawRecords)
+    const kept = withoutRetractedReplies(projectOperatorRewinds(this.rawRecords))
     const dropped = kept.length === this.rawRecords.length ? null : new Set<Message>(kept)
     if (echoes.length === 0 && this.displayRows.length === 0 && dropped === null) {
       this.painted = this.rawRecords

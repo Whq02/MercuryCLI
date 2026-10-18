@@ -151,6 +151,7 @@ export interface SessionTailV1 {
   firstByteAtMs?: number
   messageId?: string
   phase?: TextPhase
+  withdrawn?: string
   stateWord?: 'compacting' | 'waiting-on-agents'
   waitingOnAgents?: number
   fold?: FoldStatusV1
