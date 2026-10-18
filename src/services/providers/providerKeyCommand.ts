@@ -55,16 +55,27 @@ function commandFromSettings(settings: Record<string, any> | null | undefined, f
   return typeof mapped === 'string' && mapped.trim() ? mapped.trim() : undefined
 }
 
+function checkoutTrusted(): boolean {
+  try {
+    return checkHasTrustDialogAccepted()
+  } catch {
+    return false
+  }
+}
+
 function allowedSources(family: string): readonly SettingSource[] {
   if (family.startsWith('compat:')) return ['userSettings', 'flagSettings', 'policySettings']
   if (isBareMode()) return ['flagSettings']
   const enabled = getEnabledSettingSources()
-  if (!checkHasTrustDialogAccepted()) return enabled.filter(source => OUTSIDE_CHECKOUT_SOURCES.has(source))
+  const hasCheckoutCommand =
+    commandFromSettings(getSettingsForSource('projectSettings') as Record<string, any>, family) !== undefined ||
+    commandFromSettings(getSettingsForSource('localSettings') as Record<string, any>, family) !== undefined
+  if (hasCheckoutCommand && !checkoutTrusted()) return enabled.filter(source => OUTSIDE_CHECKOUT_SOURCES.has(source))
   return enabled
 }
 
 function blockedByInteractiveTrust(family: string, configured: string): boolean {
-  if (family.startsWith('compat:') || getIsNonInteractiveSession() || checkHasTrustDialogAccepted()) return false
+  if (family.startsWith('compat:') || getIsNonInteractiveSession() || checkoutTrusted()) return false
   const fromProject =
     configured === commandFromSettings(getSettingsForSource('projectSettings') as Record<string, any>, family) ||
     configured === commandFromSettings(getSettingsForSource('localSettings') as Record<string, any>, family)
