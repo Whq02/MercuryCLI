@@ -54,12 +54,14 @@ const DEFAULT_LIMITS: AnthropicLimits = {
   isUsingOverage: false,
 }
 
-export function anthropicWindowClosed(limits: Pick<AnthropicLimits, 'status' | 'isUsingOverage'>): boolean {
-  return limits.status === 'rejected' && !limits.isUsingOverage
+export function anthropicWindowClosed(limits: Pick<AnthropicLimits, 'status' | 'isUsingOverage' | 'resetsAt'>, nowMs: number = Date.now()): boolean {
+  if (limits.status !== 'rejected' || limits.isUsingOverage) return false
+  const resetsAtMs = statedResetMs(limits.resetsAt)
+  return resetsAtMs === undefined || resetsAtMs > nowMs
 }
 
-export function laneQuotaStatus(limits: Pick<AnthropicLimits, 'status' | 'isUsingOverage'>): QuotaStatus {
-  return limits.status === 'rejected' && limits.isUsingOverage ? 'allowed' : limits.status
+export function laneQuotaStatus(limits: Pick<AnthropicLimits, 'status' | 'isUsingOverage' | 'resetsAt'>, nowMs: number = Date.now()): QuotaStatus {
+  return limits.status === 'rejected' && !anthropicWindowClosed(limits, nowMs) ? 'allowed' : limits.status
 }
 
 export let currentLimits: AnthropicLimits = { ...DEFAULT_LIMITS }
@@ -682,10 +684,16 @@ export function extractQuotaStatusFromError(error: unknown): void {
     let next: AnthropicLimits
     if (headers) {
       const effective = processRateLimitHeaders(headers)
-      recomputeRawUtilization(effective)
-      next = computeNewLimitsFromHeaders(effective)
+      if (effective.get('anthropic-ratelimit-unified-5h-utilization') !== null || effective.get('anthropic-ratelimit-unified-7d-utilization') !== null) {
+        recomputeRawUtilization(effective)
+      }
+      const hasUnified = ['anthropic-ratelimit-unified-status', 'anthropic-ratelimit-unified-reset', 'anthropic-ratelimit-unified-representative-claim', 'anthropic-ratelimit-unified-overage-status'].some(name => {
+        const value = effective.get(name)
+        return value !== null && value !== ''
+      })
+      next = hasUnified ? computeNewLimitsFromHeaders(effective) : { ...DEFAULT_LIMITS }
     } else {
-      next = { ...currentLimits }
+      next = { ...DEFAULT_LIMITS }
     }
     next.status = 'rejected'
     if (next.resetsAt === undefined && askedMs !== undefined) next.resetsAt = Math.ceil((Date.now() + askedMs) / 1000)

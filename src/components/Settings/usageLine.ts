@@ -49,9 +49,10 @@ export function usagePopupLine(): string {
   if (planQuota !== undefined) meters.push(planQuota)
   const localRoad = localRoadWords(usage)
   if (localRoad !== undefined) meters.push(localRoad)
-  if (usage.limited !== undefined) {
+  const now = Date.now()
+  if (usage.limited !== undefined && usage.limited.resetsAtMs > now) {
     const model = facts?.effective ?? getEngineModel()
-    meters.push(`${usage.limited.windowName ?? 'limit'} reached · resets ${formatCountdown(usage.limited.resetsAtMs - Date.now())} · ${limitBindsWords(usage.limited.claim, model)}`)
+    meters.push(`${usage.limited.windowName ?? 'limit'} reached · resets ${formatCountdown(usage.limited.resetsAtMs - now)} · ${limitBindsWords(usage.limited.claim, model)}`)
   }
   return `${usageLead(usage)} · ${subscriptions} subscription${subscriptions === 1 ? '' : 's'} signed in${meters.length ? ` · ${meters.join(' · ')}` : ''}`
 }

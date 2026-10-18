@@ -32,6 +32,8 @@ const limits = await import('../../src/services/anthropicLimits.ts')
 const usage = await import('../../src/services/providers/providerUsage.ts')
 const { fullWindowLine } = await import('../../src/components/Settings/Usage.tsx')
 const { usagePopupLine } = await import('../../src/components/Settings/usageLine.ts')
+const { composeUsageReading } = await import('../../src/cli/handlers/usage.ts')
+const { failoverCauseOf, withBackupVote } = await import('../../src/services/api/backupEngines.ts')
 
 const OWNER = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000aa'
 limits.__setAnthropicOwnerResolverForTest(() => OWNER, () => 'ana@example.com')
@@ -67,6 +69,8 @@ section('§1 a 429 naming the Fable week beside shared figures of 31% and 56%: t
   check('…and says when the session model is outside the window', other !== undefined && other.includes(`binds the Fable models, not ${SONNET}`), other)
   const popup = usagePopupLine()
   check('the figures line (/usage header and mercury usage) carries it after the account figures', /session 31% · week 56% · Fable limit reached · resets 5d \d+h · binds /.test(popup), popup)
+  const reading = await composeUsageReading(now) as { active?: { limited?: Record<string, unknown> } }
+  check('mercury usage --json carries the closed window typed (resetsAt, claim, windowName, binds)', reading.active?.limited?.claim === 'seven_day_fable' && reading.active?.limited?.windowName === 'Fable limit' && reading.active?.limited?.resetsAt === new Date(resetAt * 1000).toISOString() && typeof reading.active?.limited?.binds === 'string' && String(reading.active?.limited?.binds).includes('binds '), JSON.stringify(reading.active?.limited))
 }
 
 section('§2 a 429 with only a Retry-After past the retry budget closes the window until then')
@@ -78,10 +82,46 @@ section('§2 a 429 with only a Retry-After past the retry budget closes the wind
   check('the window closes until the asked wait, no claim named', limited !== undefined && limited.claim === undefined && Math.abs(limited.resetsAtMs - expectedMs) <= 2_000, JSON.stringify(limited))
   const line = screenLine(FABLE)
   check('the screen says a usage window is reached, binding every model', line !== undefined && line.startsWith('A usage window is reached — resets ') && line.includes(`binds every model, ${FABLE} among them`), line)
+  check('the account figures still paint beside a Retry-After closed window', /session 31% · week 56% · limit reached · resets 5d \d+h · binds /.test(usagePopupLine()), usagePopupLine())
   check('the words name the model the session runs', usage.limitBindsWords(undefined, FABLE) === `binds every model, ${FABLE} among them`)
+  const reading = await composeUsageReading(now) as { active?: { limited?: Record<string, unknown> } }
+  check('mercury usage --json carries binds on a Retry-After closed window too', typeof reading.active?.limited?.resetsAt === 'string' && typeof reading.active?.limited?.binds === 'string' && String(reading.active?.limited?.binds).startsWith('binds every model, '), JSON.stringify(reading.active?.limited))
 }
 
-section('§3 refusals: a burst, a passed reset, a headroom answer and the control')
+section('§3 the window clears when the reset passes, and the seat never hops models on it')
+{
+  fresh()
+  const resetAt = Math.floor(now / 1000) + 10
+  limits.extractQuotaStatusFromError(rejected({ 'anthropic-ratelimit-unified-status': 'rejected', 'anthropic-ratelimit-unified-representative-claim': 'seven_day_fable', 'anthropic-ratelimit-unified-reset': String(resetAt) }))
+  const viewAtWall = usage.usageForProvider('anthropic')
+  const cachedBefore = usagePopupLine()
+  check('before the reset passes: the popup line carries the closed window', cachedBefore.includes('Fable limit reached'), cachedBefore)
+  const afterMs = (resetAt + 5) * 1000
+  check('usageWindowReached clears once the clock passes the reset', usage.usageWindowReached(viewAtWall, afterMs) === null, String(usage.usageWindowReached(viewAtWall, afterMs)))
+  check('anthropicWindowClosed clears once the clock passes the reset', limits.anthropicWindowClosed(limits.currentLimits, afterMs) === false, String(limits.anthropicWindowClosed(limits.currentLimits, afterMs)))
+  const realDateNow = Date.now
+  try {
+    Date.now = () => afterMs
+    check('after the reset passes: the screen paints no stale reached line, even inside the cache window', screenLine(FABLE) === undefined && !usagePopupLine().includes('limit reached') && usagePopupLine().endsWith('session 31% · week 56%'), `${screenLine(FABLE)} | ${usagePopupLine()}`)
+    const readingAfter = await composeUsageReading(afterMs) as { active?: { limited?: unknown } }
+    check('mercury usage --json clears limited after the reset passes', readingAfter.active?.limited === undefined, JSON.stringify(readingAfter.active?.limited))
+  } finally {
+    Date.now = realDateNow
+  }
+  check('a usage window / rate limit is not a backup-engine failover cause', failoverCauseOf('rate_limit', undefined, false) === undefined)
+  let hopped = false
+  try {
+    const stream = withBackupVote((async function* () {
+      yield { type: 'assistant', isApiErrorMessage: true, error: 'rate_limit', message: { content: [{ type: 'text', text: 'The Fable limit is reached' }] } } as never
+    })(), { model: FABLE, fallbackModel: SONNET })
+    for await (const _ of stream) { void _ }
+  } catch {
+    hopped = true
+  }
+  check('the seat never hops models on a usage window refusal', !hopped)
+}
+
+section('§4 refusals: a burst, a passed reset, a headroom answer and the control')
 {
   fresh()
   limits.extractQuotaStatusFromError(rejected({ 'retry-after': '20' }))

@@ -1120,7 +1120,7 @@ export function usageWindowReached(
   view: Pick<ActiveSourceUsage, 'windows' | 'pools' | 'limited'>,
   now: number = Date.now(),
 ): 'wall' | 'full' | null {
-  if (view.limited !== undefined) return 'wall'
+  if (view.limited !== undefined && view.limited.resetsAtMs > now) return 'wall'
   const full = [...view.windows, ...view.pools].some(
     w => w.state === 'live' && typeof w.usedPct === 'number' && Math.round(w.usedPct) >= 100 && (w.resetsAtMs === undefined || w.resetsAtMs > now),
   )
@@ -1381,7 +1381,8 @@ export function activeSourceUsage(opts?: {
       activeUsageCache.model === model &&
       activeUsageCache.epoch === epoch &&
       activeUsageCache.record === record &&
-      now - activeUsageCache.atMs < ACTIVE_USAGE_CACHE_MS
+      now - activeUsageCache.atMs < ACTIVE_USAGE_CACHE_MS &&
+      (activeUsageCache.value.limited === undefined || activeUsageCache.value.limited.resetsAtMs > now)
     ) {
       return activeUsageCache.value
     }

@@ -173,7 +173,7 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
   if (crewLine !== null) muted('usage:crew', crewLine)
   const scheduledLine = scheduledUsageLine()
   if (scheduledLine !== null) muted('usage:scheduled', scheduledLine)
-  if (usage.limited !== undefined) {
+  if (usage.limited !== undefined && usage.limited.resetsAtMs > now) {
     usageRows.push({ kind: 'text', key: 'usage:limited', text: `  ${usage.limited.windowName ?? 'limit'} reached · resets ${formatCountdown(usage.limited.resetsAtMs - now)}`, color: tok.warning })
   }
   const reached = usageWindowReached(usage, readNow)
