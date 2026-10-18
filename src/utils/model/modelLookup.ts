@@ -13,5 +13,8 @@ export const PROVIDER_MODEL_PAGES: Readonly<Record<string, string>> = {
   openrouter: 'https://openrouter.ai/models',
   huggingface: 'https://huggingface.co/models?inference_provider=all',
   zen: 'https://opencode.ai/v2/docs/console/models/',
+  minimax: 'https://platform.minimax.io/docs/guides/models-intro',
+  together: 'https://docs.together.ai/docs/serverless-models',
+  cohere: 'https://docs.cohere.com/docs/models',
 }
 const MODEL_PAGES_CHECKED = '2026-10-13'

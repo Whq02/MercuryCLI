@@ -174,7 +174,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
 
   if (head === 'key') {
-    const KEY_LANES = ['zai', 'moonshot', 'deepseek', 'xai', 'xai-management', 'meta', 'compat', 'huggingface', 'local', 'nous', 'zen', 'brave', 'tavily', 'mistral', 'mistral-admin'] as const
+    const KEY_LANES = ['zai', 'moonshot', 'deepseek', 'xai', 'xai-management', 'meta', 'compat', 'huggingface', 'local', 'nous', 'zen', 'brave', 'tavily', 'mistral', 'mistral-admin', 'minimax', 'together', 'cohere'] as const
     const word = rest.find(token => token !== 'clear' && !token.startsWith('--return='))
     if (word !== undefined && !(KEY_LANES as readonly string[]).includes(word)) {
       const loginsFamilies = ['openrouter', 'gemini', 'openai', 'anthropic', 'claude', 'console']
@@ -234,6 +234,15 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
       } else if (providerArg === 'zen') {
         secrets.writeStoredZenApiKey(null)
         onDone('OpenCode Zen stored key cleared (an explicit OPENCODE_API_KEY env pin, if set, still applies).')
+      } else if (providerArg === 'minimax') {
+        secrets.writeStoredMinimaxApiKey(null)
+        onDone('MiniMax stored key cleared (an explicit MINIMAX_API_KEY env pin, if set, still applies).')
+      } else if (providerArg === 'together') {
+        secrets.writeStoredTogetherApiKey(null)
+        onDone('Together AI stored key cleared (an explicit TOGETHER_API_KEY env pin, if set, still applies).')
+      } else if (providerArg === 'cohere') {
+        secrets.writeStoredCohereApiKey(null)
+        onDone('Cohere stored key cleared (an explicit COHERE_API_KEY env pin, if set, still applies).')
       } else {
         secrets.writeStoredZaiApiKey(null)
         onDone('Z.AI stored key cleared (an explicit ZAI_API_KEY env pin, if set, still applies).')
@@ -245,7 +254,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
 
   if (head) {
-    onDone(`unknown /router argument '${head}' — usage: /router [adaptive|quality|balanced|fast|fixed | pin opus|sonnet|auto | explain | engines | source sub|api|clear | key [zai|moonshot|deepseek|xai|xai-management|meta|compat|huggingface|local|nous|brave|tavily|mistral|mistral-admin|zen] [clear] | reset-history] (OpenAI sign-in lives at /logins; disconnect at /accounts; brave/tavily are web-search keys)`)
+    onDone(`unknown /router argument '${head}' — usage: /router [adaptive|quality|balanced|fast|fixed | pin opus|sonnet|auto | explain | engines | source sub|api|clear | key [zai|moonshot|deepseek|xai|xai-management|meta|compat|huggingface|local|nous|brave|tavily|mistral|mistral-admin|zen|minimax|together|cohere] [clear] | reset-history] (OpenAI sign-in lives at /logins; disconnect at /accounts; brave/tavily are web-search keys)`)
     return null
   }
 

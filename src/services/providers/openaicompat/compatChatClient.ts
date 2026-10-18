@@ -195,8 +195,9 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
   const envelope = Array.isArray(body) ? body.find(item => item !== null && typeof item === 'object' && 'error' in item) : body
   const o = typeof envelope === 'object' && envelope !== null ? (envelope as Record<string, unknown>) : undefined
   const err = typeof o?.error === 'object' && o.error !== null ? (o.error as Record<string, unknown>) : undefined
+  const vendor = vendorEnvelopeFault(o)
   const stringError = typeof o?.error === 'string' && o.error.trim() !== '' ? o.error : undefined
-  const message = String(err?.message ?? stringError ?? o?.message ?? `HTTP ${status}`)
+  const message = String(err?.message ?? stringError ?? o?.message ?? vendor?.message ?? `HTTP ${status}`)
   const word = vendorErrorWord(err)
   let retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
   if (status === 429 && retryAfterMs === undefined) {
@@ -212,10 +213,10 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
   }
   const refusalWords = status === 429 && retryAfterMs !== undefined ? `rate limited (provider asks for ${Math.ceil(retryAfterMs / 1000)} s): ${message}` : message
   return {
-    kind: word !== undefined ? 'api-error' : 'http-error',
-    code: word !== undefined ? `api-${word}` : `http-${status}`,
+    kind: word !== undefined || vendor !== undefined ? 'api-error' : 'http-error',
+    code: word !== undefined ? `api-${word}` : vendor?.code ?? `http-${status}`,
     message: refusalWords,
-    retryable: status === 429 || status === 408 || status >= 500,
+    retryable: status === 429 || status === 408 || status >= 500 || vendor?.retryable === true,
     status,
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
   }
@@ -583,6 +584,8 @@ export async function* streamCompatChat(
 
     const reader = response.body.getReader()
     const decoder = new SseDecoder()
+    let rawHead = ''
+    let sawEvent = false
     const watchdog = local === undefined ? createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null }) : null
     idleWatchdog = watchdog
     if (local !== undefined) {
@@ -634,9 +637,12 @@ export async function* streamCompatChat(
         void reader.cancel().catch(() => {})
         return
       }
+      if (!chunk.done && !sawEvent && rawHead.length < 4096) rawHead += Buffer.from(chunk.value!).toString('utf8').slice(0, 4096 - rawHead.length)
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))
-      if (results.some(item => item.kind === 'event')) relay.noteEvent()
-      else relay.noteChunk()
+      if (results.some(item => item.kind === 'event')) {
+        relay.noteEvent()
+        sawEvent = true
+      } else relay.noteChunk()
       for (const item of results) {
         if (item.kind === 'fault') {
           yield {
@@ -709,6 +715,19 @@ export async function* streamCompatChat(
       if (chunk.done) break
     }
 
+    if (!finished && !sawEvent) {
+      let head: unknown
+      try {
+        head = JSON.parse(rawHead)
+      } catch {
+        head = undefined
+      }
+      const envelope = vendorEnvelopeFault(head)
+      if (envelope !== undefined) {
+        finished = true
+        yield { type: 'stream-fault', fault: envelope }
+      }
+    }
     if (!finished) {
       yield {
         type: 'stream-fault',
@@ -732,6 +751,15 @@ export async function* streamCompatChat(
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
+}
+
+function vendorEnvelopeFault(body: unknown): CompatFault | undefined {
+  const base = asRecord(asRecord(body)?.base_resp)
+  const code = base?.status_code
+  if (typeof code !== 'number' || !Number.isFinite(code) || code === 0) return undefined
+  const message = typeof base?.status_msg === 'string' && base.status_msg !== '' ? base.status_msg : `vendor status ${code}`
+  const retryable = code === 1000 || code === 1001 || code === 1013 || code === 1024 || code === 1033
+  return { kind: 'api-error', code: `minimax-${code}`, message, retryable }
 }
 
 const KNOWN_FINISH: readonly CompatFinishReason[] = [
@@ -772,6 +800,8 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>)
   const o = asRecord(parsed)
   const servedModel = typeof o?.model === 'string' ? o.model.trim() : ''
   if (servedModel !== '') out.push({ type: 'served-model', model: servedModel })
+  const envelope = vendorEnvelopeFault(o)
+  if (envelope !== undefined) out.push({ type: 'stream-fault', fault: envelope })
   const errRecord = asRecord(o?.error)
   if (errRecord !== undefined || typeof o?.error === 'string') {
     const message =

@@ -553,6 +553,18 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
     label: 'Nous Portal',
     signIn: 'Add a Nous Portal API key via /logins nous, or export NOUS_API_KEY',
   },
+  minimax: {
+    label: 'MiniMax',
+    signIn: 'Add a MiniMax API key via /logins minimax, or export MINIMAX_API_KEY',
+  },
+  together: {
+    label: 'Together AI',
+    signIn: 'Add a Together AI API key via /logins together, or export TOGETHER_API_KEY',
+  },
+  cohere: {
+    label: 'Cohere',
+    signIn: 'Add a Cohere API key via /logins cohere, or export COHERE_API_KEY',
+  },
   'openai-compat': {
     label: 'Custom endpoint',
     signIn: 'Set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)',

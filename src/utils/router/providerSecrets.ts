@@ -28,6 +28,9 @@ interface ProviderSecretsFile {
   huggingfaceApiKey?: string
   localApiKey?: string
   zenApiKey?: string
+  minimaxApiKey?: string
+  togetherApiKey?: string
+  cohereApiKey?: string
   braveSearchApiKey?: string
   tavilyApiKey?: string
   typesafeApiKey?: string
@@ -181,6 +184,9 @@ type StoredKeyField =
   | 'tavilyApiKey'
   | 'typesafeApiKey'
   | 'mistralApiKey'
+  | 'minimaxApiKey'
+  | 'togetherApiKey'
+  | 'cohereApiKey'
   | 'mistralAdminApiKey'
   | 'nousApiKey'
 
@@ -203,6 +209,9 @@ const KEY_FIELD_FAMILY: Partial<Record<StoredKeyField, string>> = {
   mistralApiKey: 'mistral',
   nousApiKey: 'nous',
   zenApiKey: 'zen',
+  minimaxApiKey: 'minimax',
+  togetherApiKey: 'together',
+  cohereApiKey: 'cohere',
 }
 
 function writeStoredKey(field: StoredKeyField, key: string | null): void {
@@ -304,6 +313,24 @@ export function readStoredZenApiKey(): string | undefined {
 export function writeStoredZenApiKey(key: string | null): void {
   writeStoredKey('zenApiKey', key)
 }
+export function readStoredMinimaxApiKey(): string | undefined {
+  return readStoredKey('minimaxApiKey')
+}
+export function writeStoredMinimaxApiKey(key: string | null): void {
+  writeStoredKey('minimaxApiKey', key)
+}
+export function readStoredTogetherApiKey(): string | undefined {
+  return readStoredKey('togetherApiKey')
+}
+export function writeStoredTogetherApiKey(key: string | null): void {
+  writeStoredKey('togetherApiKey', key)
+}
+export function readStoredCohereApiKey(): string | undefined {
+  return readStoredKey('cohereApiKey')
+}
+export function writeStoredCohereApiKey(key: string | null): void {
+  writeStoredKey('cohereApiKey', key)
+}
 
 export function readStoredLocalApiKey(): string | undefined {
   return readStoredKey('localApiKey')
@@ -389,5 +416,10 @@ export function credentialEnvNames(): readonly string[] {
     'MISTRAL_ADMIN_API_KEY',
     'NOUS_API_KEY',
     'OPENCODE_API_KEY',
+    'MINIMAX_API_KEY',
+    'TOGETHER_API_KEY',
+    'TOGETHER_AI_API_KEY',
+    'COHERE_API_KEY',
+    'CO_API_KEY',
   ]
 }

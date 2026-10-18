@@ -111,6 +111,9 @@ type CompatLaneId =
   | 'mistral'
   | 'nous'
   | 'zen'
+  | 'minimax'
+  | 'together'
+  | 'cohere'
 
 export function imagesSupportedForCompatModel(model: string): boolean {
   return modelReceivesImageBlocks(model) && imageRefusalOf(model) === null
@@ -237,9 +240,20 @@ function zaiCodeClass(code: number): TypedError | undefined {
 
 const ZEN_BILLING_WORDS = /^(?:api|openai)-(?:CreditsError|MonthlyLimitError|UserLimitError)$/
 
+function minimaxCodeClass(code: number): TypedError | undefined {
+  if (code === 1004 || code === 2049) return 'authentication_failed'
+  if (code === 1008) return 'billing_error'
+  if (code === 1002 || code === 1039 || code === 1041 || code === 2045 || code === 2056) return 'rate_limit'
+  if (code === 2013 || code === 1026 || code === 1027 || code === 1042) return 'invalid_request'
+  if (code === 1000 || code === 1001 || code === 1013 || code === 1024 || code === 1033) return 'server_error'
+  return undefined
+}
+
 function vendorWordClass(code: string): TypedError | undefined {
   const zai = /^zai-(\d+)$/.exec(code)
   if (zai) return zaiCodeClass(Number(zai[1]))
+  const minimax = /^minimax-(\d+)$/.exec(code)
+  if (minimax) return minimaxCodeClass(Number(minimax[1]))
   if (ZEN_BILLING_WORDS.test(code)) return 'billing_error'
   if (!code.startsWith('api-')) return undefined
   const word = code.slice('api-'.length)

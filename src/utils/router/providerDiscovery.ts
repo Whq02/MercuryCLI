@@ -84,6 +84,24 @@ export interface ZenDiscovery {
   keyPresent: boolean
   keySource?: 'env' | 'stored'
 }
+export interface MinimaxDiscovery {
+  provider: 'minimax'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
+export interface TogetherDiscovery {
+  provider: 'together'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
+export interface CohereDiscovery {
+  provider: 'cohere'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
 export interface CompatDiscovery {
   provider: 'openai-compat'
   probedAtMs: number
@@ -128,6 +146,9 @@ export type ProviderDiscovery =
   | MistralDiscovery
   | NousDiscovery
   | ZenDiscovery
+  | MinimaxDiscovery
+  | TogetherDiscovery
+  | CohereDiscovery
 
 export interface DiscoveryIo {
   env: Record<string, string | undefined>
@@ -277,6 +298,24 @@ export function primeNousDiscovery(io?: DiscoveryIo): NousDiscovery | null {
   const record = probeNous(io ?? defaultIo())
   cache.set('nous', record)
   return record
+}
+
+function probeMinimax(io: DiscoveryIo): MinimaxDiscovery {
+  const { resolveMinimaxApiKey } = require('../../services/providers/minimax/minimaxAccounts.js') as typeof import('../../services/providers/minimax/minimaxAccounts.js')
+  const key = resolveMinimaxApiKey(io.env as NodeJS.ProcessEnv)
+  return { provider: 'minimax', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+
+function probeTogether(io: DiscoveryIo): TogetherDiscovery {
+  const { resolveTogetherApiKey } = require('../../services/providers/together/togetherAccounts.js') as typeof import('../../services/providers/together/togetherAccounts.js')
+  const key = resolveTogetherApiKey(io.env as NodeJS.ProcessEnv)
+  return { provider: 'together', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+
+function probeCohere(io: DiscoveryIo): CohereDiscovery {
+  const { resolveCohereApiKey } = require('../../services/providers/cohere/cohereAccounts.js') as typeof import('../../services/providers/cohere/cohereAccounts.js')
+  const key = resolveCohereApiKey(io.env as NodeJS.ProcessEnv)
+  return { provider: 'cohere', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 
 function probeZen(io: DiscoveryIo): ZenDiscovery {
@@ -436,7 +475,13 @@ export function refreshProviderDiscovery(
                                 ? probeNous(io)
                                 : id === 'zen'
                                   ? probeZen(io)
-                                  : probeZai(io)
+                                  : id === 'minimax'
+                                    ? probeMinimax(io)
+                                    : id === 'together'
+                                      ? probeTogether(io)
+                                      : id === 'cohere'
+                                        ? probeCohere(io)
+                                        : probeZai(io)
       cache.set(id, record)
       return record
     } finally {

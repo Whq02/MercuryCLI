@@ -14,6 +14,9 @@ export type LoginFamilyValue =
   | 'mistral'
   | 'nous'
   | 'zen'
+  | 'minimax'
+  | 'together'
+  | 'cohere'
 
 export interface LoginFamilyRow {
   label: string
@@ -48,6 +51,9 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: META_LOGIN_FAMILY_LABEL, value: 'meta' as const },
           { label: 'Mistral — API key (Mistral Large 4)', value: 'mistral' as const },
           { label: 'Nous Portal — account sign-in or API key (model gateway)', value: 'nous' as const },
+          { label: 'MiniMax — API key or M Plan key (M3, M2.7)', value: 'minimax' as const },
+          { label: 'Together AI — API key (the gateway\'s chat models)', value: 'together' as const },
+          { label: 'Cohere — API key (Command A+, North)', value: 'cohere' as const },
           { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },
         ]
       : []),
@@ -86,6 +92,9 @@ export const KEY_PAGES: Record<KeyFamilyValue, string> = {
   mistral: 'console.mistral.ai/api-keys',
   nous: 'portal.nousresearch.com',
   zen: 'opencode.ai/auth',
+  minimax: 'platform.minimax.io',
+  together: 'api.together.ai/settings',
+  cohere: 'dashboard.cohere.com/api-keys',
 }
 
 export const KEY_FAMILIES = Object.keys(KEY_PAGES) as KeyFamilyValue[]
@@ -115,6 +124,9 @@ export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginF
     case 'mistral':
     case 'nous':
     case 'zen':
+    case 'minimax':
+    case 'together':
+    case 'cohere':
       return defaultProvider
     default:
       return undefined

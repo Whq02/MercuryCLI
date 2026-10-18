@@ -196,6 +196,9 @@ const CONFIG_PROVIDER_PRESENTATION: Record<
   local: { label: 'Local', absent: `no sign-in — start a local server or MERCURY_LOCAL_BASE_URL, then ${LOCAL_PULL_RECOMMENDATION}, ${LOCAL_SETUP_OFFER}` },
   nous: { label: 'Nous Portal', absent: 'no key — /logins nous connects (or NOUS_API_KEY)', manage: '/accounts' },
   zen: { label: 'OpenCode Zen', absent: 'no key — /logins zen connects (or OPENCODE_API_KEY)', manage: '/accounts' },
+  minimax: { label: 'MiniMax', absent: 'no key — /logins minimax connects (or MINIMAX_API_KEY)', manage: '/accounts' },
+  together: { label: 'Together AI', absent: 'no key — /logins together connects (or TOGETHER_API_KEY)', manage: '/accounts' },
+  cohere: { label: 'Cohere', absent: 'no key — /logins cohere connects (or COHERE_API_KEY)', manage: '/accounts' },
 }
 
 

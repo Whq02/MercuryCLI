@@ -314,17 +314,20 @@ export const META_MODEL_GROUP = 'Mercury — Meta models'
 export const MISTRAL_MODEL_GROUP = 'Mercury — Mistral models'
 export const COMPAT_MODEL_GROUP = 'Mercury — custom endpoint'
 export const ZEN_MODEL_GROUP = 'Mercury — OpenCode Zen models'
+export const MINIMAX_MODEL_GROUP = 'Mercury — MiniMax models'
+export const TOGETHER_MODEL_GROUP = 'Mercury — Together AI models'
+export const COHERE_MODEL_GROUP = 'Mercury — Cohere models'
 
 export const KEY_CONNECT_PREFIX = '__mercury_connect__:'
-export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen'): string {
+export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere'): string {
   return `${KEY_CONNECT_PREFIX}${provider}`
 }
 export function parseKeyConnectValue(
   value: string,
-): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | undefined {
+): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | undefined {
   if (!value.startsWith(KEY_CONNECT_PREFIX)) return undefined
   const provider = value.slice(KEY_CONNECT_PREFIX.length)
-  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat' || provider === 'mistral' || provider === 'zen'
+  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat' || provider === 'mistral' || provider === 'zen' || provider === 'minimax' || provider === 'together' || provider === 'cohere'
     ? provider
     : undefined
 }
@@ -485,7 +488,20 @@ export type KeyLaneListState =
   | { kind: 'pin' }
   | { kind: 'unread'; reading: boolean; error?: string }
 
-export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen'): KeyLaneListState {
+export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere'): KeyLaneListState {
+  if (provider === 'minimax' || provider === 'together' || provider === 'cohere') {
+    const read = provider === 'minimax'
+      ? (() => { const owner = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js'); return { snapshot: owner.getCachedMinimaxCatalogue(), source: owner.minimaxCatalogueRows().source } })()
+      : provider === 'together'
+        ? (() => { const owner = require('../../services/providers/together/togetherCatalogue.js') as typeof import('../../services/providers/together/togetherCatalogue.js'); return { snapshot: owner.getCachedTogetherCatalogue(), source: owner.togetherCatalogueRows().source } })()
+        : (() => { const owner = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js'); return { snapshot: owner.getCachedCohereCatalogue(), source: owner.cohereCatalogueRows().source } })()
+    if (read.source.kind === 'live') return { kind: 'live', count: read.source.count }
+    if (read.source.kind === 'pins') return { kind: 'pin' }
+    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const gate = catalogueTrafficVerdict(provider)
+    const error = !gate.allowed ? gate.reason : read.snapshot?.lastError
+    return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
+  }
   if (provider === 'zai') {
     const { zaiCatalogueRows } = require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')
     const { source } = zaiCatalogueRows()
@@ -553,6 +569,9 @@ export interface KeyLaneReads {
   metaKeyPresent?(): boolean
   mistralKeyPresent?(): boolean
   zenKeyPresent?(): boolean
+  minimaxKeyPresent?(): boolean
+  togetherKeyPresent?(): boolean
+  cohereKeyPresent?(): boolean
   compat(): { label: string; models: string[]; keyPresent: boolean } | undefined
 }
 
@@ -584,6 +603,18 @@ function liveKeyLaneReads(): KeyLaneReads {
       const { resolveZenApiKey } = require('../../services/providers/zen/zenAccounts.js') as typeof import('../../services/providers/zen/zenAccounts.js')
       return resolveZenApiKey() !== undefined
     },
+    minimaxKeyPresent: () => {
+      const { resolveMinimaxApiKey } = require('../../services/providers/minimax/minimaxAccounts.js') as typeof import('../../services/providers/minimax/minimaxAccounts.js')
+      return resolveMinimaxApiKey() !== undefined
+    },
+    togetherKeyPresent: () => {
+      const { resolveTogetherApiKey } = require('../../services/providers/together/togetherAccounts.js') as typeof import('../../services/providers/together/togetherAccounts.js')
+      return resolveTogetherApiKey() !== undefined
+    },
+    cohereKeyPresent: () => {
+      const { resolveCohereApiKey } = require('../../services/providers/cohere/cohereAccounts.js') as typeof import('../../services/providers/cohere/cohereAccounts.js')
+      return resolveCohereApiKey() !== undefined
+    },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
         require('../../services/providers/deepseek/deepseekAccounts.js') as typeof import('../../services/providers/deepseek/deepseekAccounts.js')
@@ -603,7 +634,22 @@ function liveKeyLaneReads(): KeyLaneReads {
   }
 }
 
-export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen'): KeyLanePin[] {
+export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere'): KeyLanePin[] {
+  if (provider === 'minimax') {
+    const { minimaxCatalogueRows } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
+    const { minimaxDisplayPin } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
+    return minimaxCatalogueRows().rows.map(row => ({ ...row, ...(minimaxDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
+  }
+  if (provider === 'together') {
+    const { togetherCatalogueRows } = require('../../services/providers/together/togetherCatalogue.js') as typeof import('../../services/providers/together/togetherCatalogue.js')
+    const { togetherDisplayPin } = require('../../services/providers/together/togetherPins.js') as typeof import('../../services/providers/together/togetherPins.js')
+    return togetherCatalogueRows().rows.map(row => ({ id: row.id, displayName: row.free && !row.displayName.endsWith('(free)') ? `${row.displayName} (free)` : row.displayName, observedAt: row.observedAt, ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}), listedLive: row.listedLive, ...(togetherDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
+  }
+  if (provider === 'cohere') {
+    const { cohereCatalogueRows } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
+    const { cohereDisplayPin } = require('../../services/providers/cohere/coherePins.js') as typeof import('../../services/providers/cohere/coherePins.js')
+    return cohereCatalogueRows().rows.map(row => ({ ...row, ...(cohereDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
+  }
   if (provider === 'xai') {
     const { xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
     const { xaiDisplayPin } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
@@ -812,6 +858,20 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
       connectHint: 'opens /logins zen (an OpenCode Zen API key from opencode.ai/auth) — OPENCODE_API_KEY works too',
       keyPresent: zenCredentialed, pins: zenRows, listState: zenState, engineWords: 'the OpenCode Zen gateway' }))
   }
+  for (const lane of [
+    { provider: 'minimax' as const, group: MINIMAX_MODEL_GROUP, name: 'MiniMax', credentialed: reads.minimaxKeyPresent?.() ?? false, hint: 'opens /logins minimax (a MiniMax API key or M Plan Subscription Key) — MINIMAX_API_KEY works too', empty: "the account's live list serves no text model — /logins minimax checks the key", engine: 'the native chat-completions engine' },
+    { provider: 'together' as const, group: TOGETHER_MODEL_GROUP, name: 'Together AI', credentialed: reads.togetherKeyPresent?.() ?? false, hint: 'opens /logins together (a Together AI API key) — TOGETHER_API_KEY works too', empty: "the gateway's live list serves no chat model — /logins together checks the key", engine: 'the Together AI gateway' },
+    { provider: 'cohere' as const, group: COHERE_MODEL_GROUP, name: 'Cohere', credentialed: reads.cohereKeyPresent?.() ?? false, hint: 'opens /logins cohere (a Cohere API key) — COHERE_API_KEY works too', empty: "the account's live list serves no chat model — /logins cohere checks the key", engine: 'the native chat-completions engine' },
+  ]) {
+    const rows = keyLanePins(lane.provider)
+    const state = keyLaneListState(lane.provider)
+    if (lane.credentialed && rows.length === 0 && state.kind === 'live') {
+      out.push({ value: keyConnectValue(lane.provider), label: `${lane.name} — no models listed`, group: lane.group, description: lane.empty,
+        descriptionForModel: `The ${lane.name} account returned an empty model list; no ${lane.name} model is selectable.` })
+    } else {
+      out.push(...keyLaneGroupRows({ group: lane.group, providerName: lane.name, connectValue: keyConnectValue(lane.provider), connectHint: lane.hint, keyPresent: lane.credentialed, pins: rows, listState: state, engineWords: lane.engine }))
+    }
+  }
   const compat = reads.compat()
   if (compat === undefined) {
     out.push({
@@ -924,6 +984,9 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     LOCAL_MODEL_GROUP,
     NOUS_MODEL_GROUP,
     ZEN_MODEL_GROUP,
+    MINIMAX_MODEL_GROUP,
+    TOGETHER_MODEL_GROUP,
+    COHERE_MODEL_GROUP,
   ]
   const sectionRank = (opt: ModelOption): number => {
     const index = SECTION_ORDER.indexOf(opt.group ?? ANTHROPIC_MODEL_GROUP)

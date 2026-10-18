@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -311,6 +311,36 @@ function zenFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 
+function minimaxFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./minimax/minimaxPins.js') as typeof import('./minimax/minimaxPins.js')).MINIMAX_DISPLAY_PINS.map(pin => pin.wireId)
+  return guarded('minimax', name, typed, () => {
+    const { resolveMinimaxAccount } = require('./minimax/minimaxAccounts.js') as typeof import('./minimax/minimaxAccounts.js')
+    const { getCachedMinimaxCatalogue } = require('./minimax/minimaxCatalogue.js') as typeof import('./minimax/minimaxCatalogue.js')
+    const account = resolveMinimaxAccount(env)
+    return { family: 'minimax', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedMinimaxCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
+function togetherFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./together/togetherPins.js') as typeof import('./together/togetherPins.js')).TOGETHER_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('together', name, typed, () => {
+    const { resolveTogetherAccount } = require('./together/togetherAccounts.js') as typeof import('./together/togetherAccounts.js')
+    const { getCachedTogetherCatalogue } = require('./together/togetherCatalogue.js') as typeof import('./together/togetherCatalogue.js')
+    const account = resolveTogetherAccount(env)
+    return { family: 'together', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedTogetherCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
+function cohereFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./cohere/coherePins.js') as typeof import('./cohere/coherePins.js')).COHERE_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('cohere', name, typed, () => {
+    const { resolveCohereAccount } = require('./cohere/cohereAccounts.js') as typeof import('./cohere/cohereAccounts.js')
+    const { getCachedCohereCatalogue } = require('./cohere/cohereCatalogue.js') as typeof import('./cohere/cohereCatalogue.js')
+    const account = resolveCohereAccount(env)
+    return { family: 'cohere', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedCohereCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
 export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelListFact[] {
   const { providerDisplayName } = require('./routeLaw.js') as typeof import('./routeLaw.js')
   const name = (family: ModelListFamily): string => providerDisplayName(family)
@@ -327,5 +357,8 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     mistralFact(name('mistral'), env),
     nousFact(name('nous'), env),
     zenFact(name('zen'), env),
+    minimaxFact(name('minimax'), env),
+    togetherFact(name('together'), env),
+    cohereFact(name('cohere'), env),
   ]
 }

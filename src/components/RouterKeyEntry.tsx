@@ -20,13 +20,16 @@ import {
   writeStoredXaiManagementApiKey,
   writeStoredZaiApiKey,
   writeStoredZenApiKey,
+  writeStoredMinimaxApiKey,
+  writeStoredTogetherApiKey,
+  writeStoredCohereApiKey,
 } from '../utils/router/providerSecrets.js'
 import { zaiKeySource } from '../utils/router/providerDiscovery.js'
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js'
 import { MISTRAL_ADMIN_KEY_PAGE } from '../services/providers/mistral/mistralUsageState.js'
 
 
-export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily' | 'mistral' | 'mistral-admin' | 'nous' | 'zen'
+export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily' | 'mistral' | 'mistral-admin' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere'
 
 const LANES: Record<
   KeyEntryProvider,
@@ -126,6 +129,24 @@ const LANES: Record<
     envVar: 'OPENCODE_API_KEY',
     write: writeStoredZenApiKey,
     envShadow: () => Boolean(process.env.OPENCODE_API_KEY?.trim()),
+  },
+  minimax: {
+    title: 'MiniMax API key',
+    envVar: 'MINIMAX_API_KEY',
+    write: writeStoredMinimaxApiKey,
+    envShadow: () => Boolean(process.env.MINIMAX_API_KEY?.trim()),
+  },
+  together: {
+    title: 'Together AI API key',
+    envVar: 'TOGETHER_API_KEY',
+    write: writeStoredTogetherApiKey,
+    envShadow: () => Boolean(process.env.TOGETHER_API_KEY?.trim() || process.env.TOGETHER_AI_API_KEY?.trim()),
+  },
+  cohere: {
+    title: 'Cohere API key',
+    envVar: 'COHERE_API_KEY',
+    write: writeStoredCohereApiKey,
+    envShadow: () => Boolean(process.env.COHERE_API_KEY?.trim() || process.env.CO_API_KEY?.trim()),
   },
 }
 

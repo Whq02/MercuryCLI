@@ -80,6 +80,9 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     { family: presence('mistral'), slots: [] },
     { family: presence('nous'), slots: [] },
     { family: presence('zen'), slots: [] },
+    { family: presence('minimax'), slots: [] },
+    { family: presence('together'), slots: [] },
+    { family: presence('cohere'), slots: [] },
   ]
   const usability: Record<ProviderId, ProviderUsability> = {
     anthropic: usable('anthropic', { credential: 'oauth', limit: 'allowed', usable: true, blockers: [] }),
@@ -97,6 +100,9 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     local: usable('local'),
     nous: usable('nous'),
     zen: usable('zen'),
+    minimax: usable('minimax'),
+    together: usable('together'),
+    cohere: usable('cohere'),
   }
   return { groups, usability }
 }

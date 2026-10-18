@@ -22,6 +22,10 @@ import {
 import { COMPAT_MODEL_PREFIX, isCompatModelId } from '../../services/providers/routeLaw.js'
 import { HUGGINGFACE_STATIC_CATALOGUE, huggingfaceLiveCatalogue } from '../router/providers/huggingface.js'
 import { zenCatalogueEntries, zenCatalogueEntry } from '../router/providers/zen.js'
+import { minimaxCatalogueEntries, minimaxCatalogueEntry } from '../router/providers/minimax.js'
+import { togetherCatalogueEntries, togetherCatalogueEntry } from '../router/providers/together.js'
+import { cohereCatalogueEntries, cohereCatalogueEntry } from '../router/providers/cohere.js'
+import { isTogetherModelId } from '../../services/providers/together/togetherPins.js'
 import { isZenModelId } from '../../services/providers/zen/zenPins.js'
 import { localLiveCatalogue } from '../router/providers/local.js'
 import {
@@ -47,7 +51,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -74,18 +78,19 @@ export function isExactEngineModelId(v: unknown): v is string {
   if (typeof v !== 'string') return false
   return (
     liveListedRouteOf(v) !== undefined ||
-    /^(gpt|glm|kimi|moonshot|deepseek|grok|muse|gemini|mistral|ministral|codestral)-/i.test(v.trim()) ||
+    /^(gpt|glm|kimi|moonshot|deepseek|grok|muse|gemini|mistral|ministral|codestral|minimax|command|north|c4ai-aya)-/i.test(v.trim()) ||
     isCompatModelId(v) ||
     isHuggingfaceModelId(v) ||
     isLocalModelId(v) ||
     isOpenrouterModelId(v) ||
     isNousModelId(v) ||
     isZenModelId(v) ||
+    isTogetherModelId(v) ||
     isGoogleRosterModelId(v)
   )
 }
 
-function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'mistral' | undefined {
+function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'mistral' | 'minimax' | 'cohere' | undefined {
   const listed = liveListedRouteOf(id)
   if (listed !== undefined) return listed
   if (/^gpt-/i.test(id)) return 'openai'
@@ -95,6 +100,8 @@ function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | '
   if (/^muse-/i.test(id)) return 'meta'
   if (/^gemini-/i.test(id) || isGoogleRosterModelId(id)) return 'gemini'
   if (/^(mistral|ministral|codestral)-/i.test(id)) return 'mistral'
+  if (/^minimax-/i.test(id)) return 'minimax'
+  if (/^(command|north|c4ai-aya)-/i.test(id)) return 'cohere'
   return undefined
 }
 
@@ -109,7 +116,7 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
 
 import { MODEL_LOOKUP_LADDER } from '../model/modelLookup.js'
 
-const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, google/*, mistral-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*'
+const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, google/*, mistral-*, minimax-*, command-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*, together/*'
 
 export function unrecognisedModelWordRefusal(model: string | undefined): string | null {
   if (model === undefined) return null
@@ -138,6 +145,9 @@ type EngineProvider =
   | 'mistral'
   | 'nous'
   | 'zen'
+  | 'minimax'
+  | 'together'
+  | 'cohere'
 
 export interface EngineDispatch {
   backend: EngineProvider
@@ -159,6 +169,9 @@ const SIGN_IN_DOORS: Partial<Record<EngineProvider, string>> = {
   mistral: '/logins mistral',
   nous: '/logins nous',
   zen: '/logins zen',
+  minimax: '/logins minimax',
+  together: '/logins together',
+  cohere: '/logins cohere',
 }
 
 export function providerUnavailableRefusal(provider: EngineProvider, reason: string | undefined): string {
@@ -346,6 +359,19 @@ async function resolveZenClassDispatch(): Promise<EngineDispatch> {
   return { backend: 'zen', model: head.id, displayLabel: head.displayLabel }
 }
 
+async function resolveTogetherClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'together') {
+    return { backend: 'together', model: main, displayLabel: togetherCatalogueEntry(main)?.displayLabel ?? main.slice('together/'.length) }
+  }
+  if (!togetherCatalogueEntries().length) await readCatalogueIfPending('together')
+  const head = togetherCatalogueEntries()[0]
+  if (!head) {
+    throw new Error("The 'together' class cannot resolve — the Together AI gateway's chat list has not been read or lists no row. Name an exact together/<org>/<model> this build knows from mercury://models/known, or retry when the list lands; never switch to another provider on your own.")
+  }
+  return { backend: 'together', model: head.id, displayLabel: head.displayLabel }
+}
+
 async function resolveOpenrouterClassDispatch(): Promise<EngineDispatch> {
   const main = getEngineModel()
   if (declaredRouteOf(main) === 'openrouter') {
@@ -479,6 +505,10 @@ export async function resolveEngineDispatch(
       await requireProviderAvailable('zen')
       return resolveZenClassDispatch()
     }
+    if (modelParam === 'together') {
+      await requireProviderAvailable('together')
+      return resolveTogetherClassDispatch()
+    }
     await requireProviderAvailable('openai-compat')
     const first = compatSlotModelIds()[0]
     if (!first) {
@@ -513,6 +543,14 @@ export async function resolveEngineDispatch(
       await requireProviderAvailable('mistral')
       return resolveKeyLaneExactModel('mistral', id, mistralCatalogueEntry, mistralCatalogueEntries)
     }
+    if (family === 'minimax') {
+      await requireProviderAvailable('minimax')
+      return resolveKeyLaneExactModel('minimax', id, minimaxCatalogueEntry, minimaxCatalogueEntries)
+    }
+    if (family === 'cohere') {
+      await requireProviderAvailable('cohere')
+      return resolveKeyLaneExactModel('cohere', id, cohereCatalogueEntry, cohereCatalogueEntries)
+    }
     if (family === 'deepseek') {
       await requireProviderAvailable('deepseek')
       return resolveKeyLaneExactModel('deepseek', id, deepseekCatalogueEntry, deepseekCatalogueEntries)
@@ -540,6 +578,17 @@ export async function resolveEngineDispatch(
     if (isLocalModelId(id)) {
       await requireProviderAvailable('local')
       return resolveLocalExactModel(id)
+    }
+    if (isTogetherModelId(id)) {
+      await requireProviderAvailable('together')
+      if (!togetherCatalogueEntry(id)) await readCatalogueIfPending('together')
+      const pin = togetherCatalogueEntry(id)
+      if (!pin) {
+        throw new Error(
+          `Together AI model '${id}' is not on the gateway's chat list (listed: ${togetherCatalogueEntries().map(c => c.id).join(', ')}) — name one of them from mercury://models, or ask the operator for the model id; never switch to another provider on your own.`,
+        )
+      }
+      return { backend: 'together', model: pin.id, displayLabel: pin.displayLabel }
     }
     if (isZenModelId(id)) {
       await requireProviderAvailable('zen')
@@ -573,7 +622,7 @@ export async function resolveEngineDispatch(
   return null
 }
 
-type KeyLaneRoute = 'xai' | 'meta' | 'mistral' | 'deepseek' | 'zai'
+type KeyLaneRoute = 'xai' | 'meta' | 'mistral' | 'deepseek' | 'zai' | 'minimax' | 'cohere'
 
 async function resolveKeyLaneExactModel(
   route: KeyLaneRoute,

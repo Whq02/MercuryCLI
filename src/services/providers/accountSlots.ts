@@ -46,6 +46,12 @@ import {
   writeStoredNousApiKey,
   readStoredZenApiKey,
   writeStoredZenApiKey,
+  readStoredMinimaxApiKey,
+  writeStoredMinimaxApiKey,
+  readStoredTogetherApiKey,
+  writeStoredTogetherApiKey,
+  readStoredCohereApiKey,
+  writeStoredCohereApiKey,
   readStoredHuggingfaceApiKey,
   readStoredLocalApiKey,
   readStoredMoonshotApiKey,
@@ -130,6 +136,9 @@ export type SlotRemoval =
   | { route: 'meta-muse-code' }
   | { route: 'meta-stored-key' }
   | { route: 'zen-stored-key' }
+  | { route: 'minimax-stored-key' }
+  | { route: 'together-stored-key' }
+  | { route: 'cohere-stored-key' }
   | { route: 'compat-stored-key' }
   | { route: 'huggingface-oauth' }
   | { route: 'huggingface-stored-key' }
@@ -213,6 +222,12 @@ export interface AccountSlotReads {
   nousSignin?: typeof nousStoredTokens
   zenEnvKey?: () => string | undefined
   zenStoredKey?: () => string | undefined
+  minimaxEnvKey?: () => string | undefined
+  minimaxStoredKey?: () => string | undefined
+  togetherEnvKey?: () => string | undefined
+  togetherStoredKey?: () => string | undefined
+  cohereEnvKey?: () => string | undefined
+  cohereStoredKey?: () => string | undefined
   compatEnvKey?: () => string | undefined
   compatStoredKey?: () => string | undefined
   huggingfaceEnvKey?: () => string | undefined
@@ -1025,6 +1040,24 @@ function zenSlots(reads: AccountSlotReads): AccountSlot[] {
   return keyLaneSlots({ family: 'zen', envVar: 'OPENCODE_API_KEY', envKey, storedKey, storedRemoval: { route: 'zen-stored-key' } })
 }
 
+function minimaxSlots(reads: AccountSlotReads): AccountSlot[] {
+  const envKey = reads.minimaxEnvKey ? reads.minimaxEnvKey() : process.env.MINIMAX_API_KEY?.trim() || undefined
+  const storedKey = (reads.minimaxStoredKey ?? readStoredMinimaxApiKey)()
+  return keyLaneSlots({ family: 'minimax', envVar: 'MINIMAX_API_KEY', envKey, storedKey, storedRemoval: { route: 'minimax-stored-key' } })
+}
+
+function togetherSlots(reads: AccountSlotReads): AccountSlot[] {
+  const envKey = reads.togetherEnvKey ? reads.togetherEnvKey() : process.env.TOGETHER_API_KEY?.trim() || process.env.TOGETHER_AI_API_KEY?.trim() || undefined
+  const storedKey = (reads.togetherStoredKey ?? readStoredTogetherApiKey)()
+  return keyLaneSlots({ family: 'together', envVar: process.env.TOGETHER_API_KEY?.trim() ? 'TOGETHER_API_KEY' : process.env.TOGETHER_AI_API_KEY?.trim() ? 'TOGETHER_AI_API_KEY' : 'TOGETHER_API_KEY', envKey, storedKey, storedRemoval: { route: 'together-stored-key' } })
+}
+
+function cohereSlots(reads: AccountSlotReads): AccountSlot[] {
+  const envKey = reads.cohereEnvKey ? reads.cohereEnvKey() : process.env.COHERE_API_KEY?.trim() || process.env.CO_API_KEY?.trim() || undefined
+  const storedKey = (reads.cohereStoredKey ?? readStoredCohereApiKey)()
+  return keyLaneSlots({ family: 'cohere', envVar: process.env.COHERE_API_KEY?.trim() ? 'COHERE_API_KEY' : process.env.CO_API_KEY?.trim() ? 'CO_API_KEY' : 'COHERE_API_KEY', envKey, storedKey, storedRemoval: { route: 'cohere-stored-key' } })
+}
+
 function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
     reads.deepseekEnvKey ? reads.deepseekEnvKey() : process.env.DEEPSEEK_API_KEY?.trim() || undefined
@@ -1246,6 +1279,12 @@ export function deriveFamilySlotGroups(
                           ? metaSlots(reads)
                           : family.id === 'zen'
                             ? zenSlots(reads)
+                          : family.id === 'minimax'
+                            ? minimaxSlots(reads)
+                          : family.id === 'together'
+                            ? togetherSlots(reads)
+                          : family.id === 'cohere'
+                            ? cohereSlots(reads)
                           : family.id === 'openai-compat'
                             ? compatSlots(reads)
                             : family.id === 'huggingface'
@@ -1285,6 +1324,9 @@ export interface SlotRemovalOwners {
   clearStoredMistralKey?: () => void
   clearStoredMistralAdminKey?: () => void
   clearStoredZenKey?: () => void
+  clearStoredMinimaxKey?: () => void
+  clearStoredTogetherKey?: () => void
+  clearStoredCohereKey?: () => void
   clearStoredCompatKey?: () => void
   disconnectHuggingfaceOauth?: () => void
   clearStoredHuggingfaceKey?: () => void
@@ -1495,6 +1537,15 @@ function routeSlotRemoval(
     case 'zen-stored-key':
       ;(owners.clearStoredZenKey ?? (() => writeStoredZenApiKey(null)))()
       return { note: 'stored OpenCode Zen API key cleared from the auth-scoped store', mutated: true }
+    case 'minimax-stored-key':
+      ;(owners.clearStoredMinimaxKey ?? (() => writeStoredMinimaxApiKey(null)))()
+      return { note: 'stored MiniMax API key cleared from the auth-scoped store', mutated: true }
+    case 'together-stored-key':
+      ;(owners.clearStoredTogetherKey ?? (() => writeStoredTogetherApiKey(null)))()
+      return { note: 'stored Together AI API key cleared from the auth-scoped store', mutated: true }
+    case 'cohere-stored-key':
+      ;(owners.clearStoredCohereKey ?? (() => writeStoredCohereApiKey(null)))()
+      return { note: 'stored Cohere API key cleared from the auth-scoped store', mutated: true }
     case 'deepseek-stored-key':
       ;(owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null)))()
       return { note: 'stored DeepSeek API key cleared from the auth-scoped store', mutated: true }
@@ -1557,6 +1608,9 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['meta-muse-code', owners.disconnectMetaMuseCode ?? disconnectMetaMuseCode],
     ['meta-stored-key', owners.clearStoredMetaKey ?? (() => writeStoredMetaApiKey(null))],
     ['zen-stored-key', owners.clearStoredZenKey ?? (() => writeStoredZenApiKey(null))],
+    ['minimax-stored-key', owners.clearStoredMinimaxKey ?? (() => writeStoredMinimaxApiKey(null))],
+    ['together-stored-key', owners.clearStoredTogetherKey ?? (() => writeStoredTogetherApiKey(null))],
+    ['cohere-stored-key', owners.clearStoredCohereKey ?? (() => writeStoredCohereApiKey(null))],
     ['compat-stored-key', owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null))],
     ['huggingface-oauth', owners.disconnectHuggingfaceOauth ?? disconnectHuggingfaceOauth],
     ['huggingface-stored-key', owners.clearStoredHuggingfaceKey ?? (() => writeStoredHuggingfaceApiKey(null))],

@@ -58,7 +58,7 @@ export interface KnownModelsReference {
   providers: KnownProviderPage[]
 }
 
-const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen'] as const
+const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere'] as const
 
 function windowWords(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toString().replace(/\.0$/, '')}M window`
@@ -86,6 +86,13 @@ async function listFactsOf(route: string, env: NodeJS.ProcessEnv = process.env):
       const { source } = zenCatalogueRows(env)
       if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
       const error = getCachedZenCatalogue(env)?.lastError
+      return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
+    }
+    case 'together': {
+      const { togetherCatalogueRows, getCachedTogetherCatalogue } = await import('../../providers/together/togetherCatalogue.js')
+      const { source } = togetherCatalogueRows(env)
+      if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
+      const error = getCachedTogetherCatalogue(env)?.lastError
       return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
     }
     case 'openai': {
@@ -251,6 +258,8 @@ export async function knownModelsReference(): Promise<KnownModelsReference> {
   providers.push({ provider: 'huggingface', providerName: providerDisplayName('huggingface'), familyWord: 'huggingface', models: HUGGINGFACE_DISPLAY_PINS.map(pin => ({ id: `huggingface/${pin.id}`, displayName: pin.displayName })) })
   const { ZEN_DISPLAY_PINS, zenQualifiedId } = await import('../../providers/zen/zenPins.js')
   providers.push({ provider: 'zen', providerName: providerDisplayName('zen'), familyWord: 'zen', models: ZEN_DISPLAY_PINS.map(pin => ({ id: zenQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { TOGETHER_DISPLAY_PINS, togetherQualifiedId } = await import('../../providers/together/togetherPins.js')
+  providers.push({ provider: 'together', providerName: providerDisplayName('together'), familyWord: 'together', models: TOGETHER_DISPLAY_PINS.map(pin => ({ id: togetherQualifiedId(pin.id), displayName: pin.displayName })) })
   return { version: MERCURY_VERSION, providers }
 }
 

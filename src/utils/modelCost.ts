@@ -11,6 +11,9 @@ import { gptDisplayPin, gptPriceTierFor } from '../services/providers/openai/gpt
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { glmPricePin } from '../services/providers/zai/glmPins.js'
 import { zenDisplayPin } from '../services/providers/zen/zenPins.js'
+import { minimaxDisplayPin } from '../services/providers/minimax/minimaxPins.js'
+import { togetherDisplayPin } from '../services/providers/together/togetherPins.js'
+import { cohereDisplayPin } from '../services/providers/cohere/coherePins.js'
 import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from './model/model.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from './model/configs.js'
 
@@ -244,6 +247,12 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
     const pin = zenDisplayPin(model)
     return recorded(engineTier(pin?.longContext && promptTokens !== undefined && promptTokens >= (pin.longContextThreshold ?? Infinity) ? { ...pin.longContext, cacheWritePerMtok: pin.cacheWritePerMtok } : pin))
   },
+  minimax: (model, promptTokens) => {
+    const pin = minimaxDisplayPin(model)
+    return recorded(engineTier(pin?.longContext && promptTokens !== undefined && promptTokens >= (pin.longContextThreshold ?? Infinity) ? { ...pin.longContext, cacheWritePerMtok: pin.cacheWritePerMtok } : pin))
+  },
+  together: model => recorded(engineTier(togetherDisplayPin(model))),
+  cohere: model => recorded(engineTier(cohereDisplayPin(model))),
 }
 
 export function resolveModelPricing(model: string, opts?: { promptTokens?: number }): ResolvedModelPricing {

@@ -1,6 +1,6 @@
 # Engines: the provider estate
 
-Mercury runs models across 13 sign-in provider families plus local servers
+Mercury runs models across 16 sign-in provider families plus local servers
 and custom endpoints, with per-family credentials, model lists, usage meters
 and web tools.
 
@@ -34,6 +34,9 @@ arm.
 | `mistral` | `mistral-*`, `ministral-*`, `codestral-*`, alias `mistral` (the embedding, OCR, moderation and audio ids refuse here) | Mistral |
 | `nous` | `nous/<vendor>/<model>` (qualified; stripped because the Portal's ids are vendor/model slugs, so the namespace disambiguates them; the `~vendor/<name>-latest` alias rows ride the same way) | Nous Portal |
 | `zen` | `zen/<model-id>` (qualified; stripped before the request is sent because the gateway's own ids are bare vendor names such as `glm-5.3` or `gpt-5.5`, so the namespace tells a Zen row from the native family's) | OpenCode Zen |
+| `minimax` | `minimax-*`, alias `minimax` (the text line, `MiniMax-M*`; the video, speech, music and image ids refuse here) | MiniMax |
+| `together` | `together/<org>/<model>` (qualified; stripped because Together's ids are org/model slugs, so the namespace tells a Together row from a native family's) | Together AI |
+| `cohere` | `command-*`, `north-*`, `c4ai-aya-*`, alias `cohere` (the embed, rerank and classify ids refuse here) | Cohere |
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
@@ -305,6 +308,93 @@ client itself reads none); `/usage` says so instead of inventing a figure. The
 Go plan bills only on its own base (`/zen/go/v1`), which this build does not
 address (a Go key on the Zen base draws the balance).
 
+MiniMax (platform.minimax.io) serves its M-series text models on an
+OpenAI-compatible Chat Completions endpoint at
+`https://api.minimax.io/v1/chat/completions`. Connect through `/logins minimax`,
+`/router key minimax`, or `MINIMAX_API_KEY`; the key is a pay-as-you-go API key
+from the Open Platform's key page or an M Plan Subscription Key from
+`platform.minimax.io/console/plan` (the two are separate keys on the same base).
+The key is checked on the account's `GET /v1/models` list before it is stored,
+and a refused key is never stored. Rows are persisted under the vendor's own
+ids (`MiniMax-M3`, `MiniMax-M2.7`), typed in any case; the bare word `minimax`
+runs the newest text row the account lists. The list keeps the text line only:
+the video (H3), speech, music and image ids never ride this road. Mercury's
+recorded pins (display name, window, prices, thinking dial; observed
+**2026-10-17** from the vendor's chat-completions reference and pricing pages)
+stand in when the live list cannot be read, labelled as pins.
+
+Every MiniMax request sends `reasoning_split: true` so thinking arrives in
+`reasoning_content` instead of `<think>` tags in the text, and asks for usage
+on the final chunk; historical reasoning returns with the assistant turn, as
+the vendor's tool-calling guide asks. The thinking dial follows the model:
+`MiniMax-M3.1-Flash-Preview` (M Plan only) tunes depth through
+`reasoning_effort` (`low` · `medium` · `high` · `xhigh` · `max`, default
+`max`) and cannot stop thinking, so thinking-off sends `low` and `none` is
+never sent (the vendor answers it with HTTP 400); `MiniMax-M3` takes the
+`thinking` toggle (`adaptive` on, `disabled` off); the M2.x rows always think
+and take no dial. An explicit output ceiling rides `max_completion_tokens`.
+The vendor's own status codes (`1004`/`2049` key, `1008` balance, `1002`/`2056`
+rate and usage limits) are read wherever they arrive, on the HTTP status or in
+the `base_resp` envelope of a 200 body, and typed as the refusal they name.
+
+The meter: the session's spend at the recorded prices (the >512K-token tier of
+`MiniMax-M3` priced at its own rate), and, for an M Plan key, the plan's 5-hour
+and weekly windows per model from `GET /v1/token_plan/remains`. The
+pay-as-you-go balance is shown only on the platform (the API states none);
+`/usage` says so instead of inventing a figure.
+
+Together AI (together.ai) is a serverless gateway: one API key, billed from a
+prepaid balance at each model's price, serves a live catalogue of open-weights
+models (Kimi, GLM, DeepSeek, Qwen, MiniMax, Muse, GPT-OSS and more) at the
+gateway's `org/model` slugs. Mercury persists these ids as
+`together/<org>/<model>`; the namespace detaches for the wire. Connect through
+`/logins together`, `/router key together`, `TOGETHER_API_KEY` or
+`TOGETHER_AI_API_KEY`; the key is made at the project's API-keys page and
+checked on the account's `GET /v1/models` list before it is stored. Only the
+list's chat rows are offered (its image, video, audio and moderation rows are
+set aside and refused for chat); a typed `together/<org>/<model>` id is refused
+before chat when a fetched list lacks it, and the recorded pins (display name,
+window, prices; observed **2026-10-17** from the vendor's serverless-models
+page) stand in, labelled as pins, when the list cannot be read. The free
+`Prism-ML/Ternary-Bonsai-27B` row is labelled `(free)`.
+
+Mercury uses the gateway's Chat Completions endpoint at
+`https://api.together.ai/v1/chat/completions` with streaming and usage,
+function tools, a `prompt_cache_key` carrying the session id (the vendor's
+routing-stickiness knob for its prefix cache) and the model's documented
+reasoning knobs: the hybrid rows (Kimi K3, GLM 5.2/5.3, DeepSeek V4 Pro,
+MiniMax M3, Qwen 3.6 Plus) take `reasoning: { enabled }` from the session's
+thinking switch; `openai/gpt-oss-120b` takes `reasoning_effort` (`low` ·
+`medium` · `high`) and DeepSeek V4 Pro `high` · `max`, the lowest rung standing
+in for thinking-off where the model cannot stop. The gateway streams reasoning
+as `reasoning` or `reasoning_content` and cached tokens flat or nested; both
+spellings decode. The meter is the session's spend at the recorded prices; the
+balance lives at `api.together.ai/settings/billing` (the billing-usage API is
+a beta the vendor enables per organisation, which this build does not read).
+
+Cohere (cohere.com) serves its Command, North and Aya chat models on an
+OpenAI-compatible endpoint at
+`https://api.cohere.ai/compatibility/v1/chat/completions`. Connect through
+`/logins cohere`, `/router key cohere`, `COHERE_API_KEY` or `CO_API_KEY`; the
+key is made at `dashboard.cohere.com/api-keys` (a trial key is free,
+rate-limited and for evaluation; a production key bills pay-as-you-go) and
+checked on the account's `GET /compatibility/v1/models` list before it is
+stored. The bare word `cohere` runs the newest row the account lists; the
+embed, rerank and classify ids refuse here. The recorded pins (display name,
+window, output ceiling, prices where the vendor states them; observed
+**2026-10-17** from the vendor's models and pricing pages) stand in, labelled
+as pins, when the list cannot be read.
+
+The wire is Mistral's near-twin: streaming, function tools, `max_tokens` on an
+explicit ceiling, structured output as `response_format: { type:
+'json_object', schema }`, and on the reasoning rows (Command A+, North Mini
+Code, Command A Reasoning) a two-word `reasoning_effort` dial: `high` with
+thinking on, `none` with it off, because the compatibility endpoint accepts
+no other value (`low` and `medium` answer HTTP 400). `parallel_tool_calls`
+is never sent (the vendor lists it unsupported). The meter is the session's
+spend at the recorded prices; a standard key reads no usage endpoint, and the
+dashboard shows the account's spend.
+
 Moonshot's default, picker and specialist choices follow the account's live
 model list. An API key reads the platform list; a Kimi sign-in reads its
 region's coding list with the same credential used for chat. The newest
@@ -369,6 +459,7 @@ Three wire families serve the providers:
   `thought_signature` parts across tool rounds on every Gemini credential).
 - **The OpenAI-compatible chat wire**: Moonshot/Kimi, DeepSeek, xAI's Grok
   models, Meta, Mistral, Nous Portal, OpenCode Zen (chat-completions rows),
+  MiniMax, Together AI, Cohere,
   custom `compat/` endpoints, OpenRouter,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.
@@ -782,7 +873,7 @@ Run `/accounts` to see every connected account and API key across all providers:
   directly, and its `clear` road or its own `/accounts` row removes only that
   key while keeping the inference key. A management key alone cannot run Grok;
 - **meta**: a Muse Code subscription sign-in (`.meta-auth.json`, mode 600, holding the account token, the minted key, the e-mail, the tier and the usage windows) or an API key (`MODEL_API_KEY`, `META_API_KEY` or stored key), the latest sign-in action active;
-- **zai, deepseek, zen, huggingface, local, compat, nous**: env pins and stored keys.
+- **zai, deepseek, zen, huggingface, local, compat, nous, minimax, together, cohere**: env pins and stored keys.
 - **mistral**: an env pin or a stored key, with an optional Admin API key
   beside it (`MISTRAL_ADMIN_API_KEY`, `/router key mistral-admin`) that reads
   the organisation meter and never runs a turn; its own `/accounts` row

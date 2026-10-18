@@ -151,6 +151,12 @@ export function subModelConnectHome(route: CallModelRoute | string): {
       return { command: '/logins mistral', note: 'connect — /logins (API key)' }
     case 'zen':
       return { command: '/logins zen', note: 'connect — /logins (API key)' }
+    case 'minimax':
+      return { command: '/logins minimax', note: 'connect — /logins (API key)' }
+    case 'together':
+      return { command: '/logins together', note: 'connect — /logins (API key)' }
+    case 'cohere':
+      return { command: '/logins cohere', note: 'connect — /logins (API key)' }
     case 'openai-compat':
       return { note: 'MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — /router key compat)' }
     case 'huggingface':

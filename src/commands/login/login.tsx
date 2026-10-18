@@ -135,6 +135,12 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
     case 'zen':
     case 'opencode':
       return 'zen'
+    case 'minimax':
+      return 'minimax'
+    case 'together':
+      return 'together'
+    case 'cohere':
+      return 'cohere'
     default:
       return undefined
   }

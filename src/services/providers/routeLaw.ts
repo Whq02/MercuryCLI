@@ -36,6 +36,9 @@ const PROVIDER_DISPLAY_NAMES: Record<CallModelRoute, string> = {
   mistral: 'Mistral',
   nous: 'Nous Portal',
   zen: 'OpenCode Zen',
+  minimax: 'MiniMax',
+  together: 'Together AI',
+  cohere: 'Cohere',
 }
 
 export function providerDisplayName(route: string): string {

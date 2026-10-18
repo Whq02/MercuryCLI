@@ -38,6 +38,9 @@ export const FAMILY_TRANSCRIBER: Record<CallModelRoute, { slot: 'api-key' } | { 
   mistral: { slot: 'none', why: 'no speech-to-text endpoint wired' },
   nous: { slot: 'none', why: 'no speech-to-text endpoint wired' },
   zen: { slot: 'none', why: 'no speech-to-text endpoint' },
+  minimax: { slot: 'none', why: 'no speech-to-text endpoint wired' },
+  together: { slot: 'none', why: 'no speech-to-text endpoint wired' },
+  cohere: { slot: 'none', why: 'no speech-to-text endpoint' },
 }
 
 

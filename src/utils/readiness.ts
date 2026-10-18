@@ -942,6 +942,9 @@ function backendRemedy(backendId: string): string | undefined {
   if (backendId === 'huggingface-chat') return 'connect Hugging Face via /logins (device-code sign-in or a token) or set HF_TOKEN'
   if (backendId === 'local-chat') return 'start Ollama / LM Studio / vLLM / llama.cpp-server, or point MERCURY_LOCAL_BASE_URL at your server'
   if (backendId === 'nous-chat') return 'add a Nous Portal API key via /logins nous (or set NOUS_API_KEY)'
+  if (backendId === 'minimax-chat') return 'add a MiniMax API key via /logins minimax (or set MINIMAX_API_KEY)'
+  if (backendId === 'together-chat') return 'add a Together AI API key via /logins together (or set TOGETHER_API_KEY)'
+  if (backendId === 'cohere-chat') return 'add a Cohere API key via /logins cohere (or set COHERE_API_KEY)'
   return undefined
 }
 
@@ -960,6 +963,9 @@ const BACKEND_ROUTE_PROBES: readonly string[] = [
   'local/probe',
   'mistral',
   'nous/probe/probe',
+  'minimax',
+  'together/probe/probe',
+  'cohere',
 ]
 
 function backendRecords(): ReadinessRecord[] {

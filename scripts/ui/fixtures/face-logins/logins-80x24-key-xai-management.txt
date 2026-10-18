@@ -5,8 +5,7 @@
    XAI_MANAGEMENT_API_KEY wins. key: ▌ ↵ stores · empty/esc skips; API key
    stays
 
-   ↑ 5 more
-   available
+   ↑ 6 more
      Usage-based billing — Anthropic Console…  not signed in
      OpenRouter — one credential, the whole …  not signed in
      Google Gemini — Google sign-in, API key   not signed in
@@ -16,8 +15,9 @@
      Meta — Muse Code sign-in or API key       not signed in
      Mistral — API key (Mistral Large 4)       not signed in
      Nous Portal — account sign-in or API ke…  not signed in
-     OpenCode Zen — API key (one key, the ga…  not signed in
-
+     MiniMax — API key or M Plan key (M3, M2…  not signed in
+     Together AI — API key (the gateway's ch…  not signed in
+   ↓ 2 more
 
    xAI · not signed in
    ↵ store key · empty/esc skip

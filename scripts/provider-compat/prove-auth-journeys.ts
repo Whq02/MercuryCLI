@@ -283,7 +283,7 @@ function messageText(m: AssistantMessage): string {
 section('S1 · the family roster derives from the route law (never hand-copied)')
 
 const FAMILIES = ['anthropic', ...PROVIDER_ID_SPACES.map(space => space.route)] as const
-check('the route law declares fifteen families including Anthropic', FAMILIES.length === 15)
+check('the route law declares eighteen families including Anthropic', FAMILIES.length === 18)
 check(
   'every family has a display name of its own (no fallthrough spelling)',
   FAMILIES.every(f => providerDisplayName(f) !== f || f === 'local'),
@@ -306,6 +306,9 @@ const FAMILY_MODEL: Record<string, string> = {
   mistral: 'mistral-large-4',
   nous: 'nous/anthropic/claude-sonnet-4.6',
   zen: 'zen/glm-5.3',
+  minimax: 'MiniMax-M3',
+  together: 'together/moonshotai/Kimi-K3',
+  cohere: 'command-a-plus-05-2026',
 }
 check('the journey matrix covers every declared family', FAMILIES.every(f => FAMILY_MODEL[f] !== undefined))
 for (const f of FAMILIES) {

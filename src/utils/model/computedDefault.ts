@@ -228,9 +228,9 @@ function liveFirstPartyRow(): LaneRowVerdict {
   }
 }
 
-const KEY_LANES = new Set(['zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'zen'])
+const KEY_LANES = new Set(['zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'zen', 'minimax', 'together', 'cohere'])
 
-function keyLaneRow(family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen'): LaneRowVerdict {
+function keyLaneRow(family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere'): LaneRowVerdict {
   try {
     const { keyLanePins, keyLaneListState } = require('./modelOptions.js') as typeof import('./modelOptions.js')
     const pins = keyLanePins(family)
@@ -393,7 +393,7 @@ export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded:
       const refusal = readSignInRefusal(family)
       if (refusal) return { usable: false, why: signInRefusalWords(refusal) }
       if (family === 'anthropic') return liveFirstPartyRow()
-      if (KEY_LANES.has(family)) return keyLaneRow(family as 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen')
+      if (KEY_LANES.has(family)) return keyLaneRow(family as 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere')
       if (rows === undefined) {
         rows = livePickerRows()
         if (rows === null) facts.degraded = true

@@ -15,6 +15,9 @@ export type RouterProviderId =
   | 'mistral'
   | 'nous'
   | 'zen'
+  | 'minimax'
+  | 'together'
+  | 'cohere'
 export type RouterModelClass =
   | 'opus'
   | 'sonnet'
@@ -31,6 +34,9 @@ export type RouterModelClass =
   | 'mistral'
   | 'nous'
   | 'zen'
+  | 'minimax'
+  | 'together'
+  | 'cohere'
 export type RouteEffortLevel = 'high' | 'xhigh' | 'max'
 export type RouterPosture = 'adaptive' | 'quality' | 'balanced' | 'fast' | 'fixed'
 

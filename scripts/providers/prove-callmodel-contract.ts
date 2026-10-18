@@ -27,6 +27,9 @@ const FAMILY_ROADS = [
   'mistralCallModel',
   'nousCallModel',
   'zenCallModel',
+  'minimaxCallModel',
+  'togetherCallModel',
+  'cohereCallModel',
 ].sort()
 const SEAM_ROADS = ['routedCallModel']
 const SHARED_RUNTIMES = ['compatChatCallModel']
