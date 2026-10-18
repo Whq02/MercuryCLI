@@ -179,11 +179,11 @@ try {
     const lane = usability.resolveProviderUsability().openrouter
     check('the usability resolver: not usable, with the refused words', !lane.usable && lane.blockers.length === 1 && lane.blockers[0] === REFUSED_NOTE, j(lane))
     const slot = storedSlot()
-    check('/logins: the stored slot is not signed in and carries the provider\'s words', slot?.signedIn === false && slot.stateNote === WIRE_MESSAGE, j(slot))
+    check('/logins: the stored slot stays signed in (a credential exists) and carries the refusal with the provider\'s words', slot?.signedIn === true && slot.stateNote?.startsWith(`key refused (HTTP 401: ${WIRE_MESSAGE}) at `) === true && slot.stateNote.endsWith(' · /logins openrouter reconnects'), j(slot))
     const groups = slots.deriveFamilySlotGroups()
     const counts = loginsFamilyCounts(groups)
     const signedFamilies = counts.familyIds.filter(id => (groups.find(g => g.family.id === id)?.slots ?? []).some(s => s.signedIn))
-    check('the Boot face count leaves OpenRouter out', counts.familyIds.includes('openrouter') && !signedFamilies.includes('openrouter'), j({ counts, signedFamilies }))
+    check('the Boot face counts OpenRouter as signed in — its row carries the refusal, never a quiet absence', counts.familyIds.includes('openrouter') && signedFamilies.includes('openrouter'), j({ counts, signedFamilies }))
     const availability = catalogue.getOpenrouterAvailability()
     check('the catalogue lane is disabled as auth-invalid with the refused words', availability.state === 'disabled' && availability.why === 'auth-invalid' && availability.reason === REFUSED_NOTE, j(availability))
     const options = catalogue.getOpenrouterModelOptions()
@@ -192,7 +192,7 @@ try {
     const read = usage.usageForProvider('openrouter')
     check('the usage reader names the slot whose credit truth is unavailable', read.readerNote === 'credit truth unavailable for API key (stored)', j(read.readerNote))
     const child = childRead()
-    check('a separate process (health\'s shape) reads the same refusal from the store', child !== null && child.usable === false && child.blockers[0] === REFUSED_NOTE && child.signedIn === false && child.availability === `auth-invalid: ${REFUSED_NOTE}`, j(child))
+    check('a separate process (health\'s shape) reads the same refusal from the store', child !== null && child.usable === false && child.blockers[0] === REFUSED_NOTE && child.signedIn === true && child.availability === `auth-invalid: ${REFUSED_NOTE}`, j(child))
   }
 
   section('§3 a key the operator re-enters is a new credential: the old refusal no longer applies')
@@ -215,7 +215,7 @@ try {
     check('a served turn clears the mark', usability.resolveProviderUsability().openrouter.usable === true && authFile().refused === undefined, j(authFile()))
     keyStatus = 401
     await usageState.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
-    check('the key probe\'s 401 marks the key refused with the same words', authFile().refused !== undefined && storedSlot()?.stateNote === WIRE_MESSAGE && usability.resolveProviderUsability().openrouter.blockers[0] === REFUSED_NOTE, `${j(storedSlot())} observed=${j(usageState.openrouterObservedKeyUsage())} hits=${hits.slice(-3).join('|')} file=${j(authFile().refused)}`)
+    check('the key probe\'s 401 marks the key refused with the same words', authFile().refused !== undefined && storedSlot()?.stateNote?.startsWith(`key refused (HTTP 401: ${WIRE_MESSAGE}) at `) === true && usability.resolveProviderUsability().openrouter.blockers[0] === REFUSED_NOTE, `${j(storedSlot())} observed=${j(usageState.openrouterObservedKeyUsage())} hits=${hits.slice(-3).join('|')} file=${j(authFile().refused)}`)
     keyStatus = 200
     await usageState.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
     check('the key probe\'s 200 clears it and the credit truth is read', authFile().refused === undefined && storedSlot()?.signedIn === true && usageState.openrouterObservedKeyUsage().usage?.limitRemaining === 18.5, j(storedSlot()))
