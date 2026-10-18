@@ -119,6 +119,7 @@ is 1–32 lowercase letters, digits or hyphens; select a model as
 | --- | --- |
 | `compatProvider.<name>.baseUrl` | The HTTP(S) API base, without credentials, query or fragment. |
 | `compatProvider.<name>.label` | The endpoint name shown in the model picker and Logins. |
+| `compatProvider.<name>.keyCommand` | A shell command supplying the API key for this endpoint (10 s timeout, cached for the process, 30 s back-off after a failure, invalidated on HTTP 401). |
 | `compatProvider.<name>.models` | Vendor model ids. Without a list, named endpoints read `/models` when catalogue traffic is on. |
 | `compatProvider.<name>.headers` | Extra request headers; credential and transport headers are reserved. |
 | `compatProvider.<name>.sessionAffinityHeader` | A header carrying the session id on model requests. |
@@ -208,7 +209,8 @@ learned across sessions; [MNEME.md](MNEME.md) describes its tools and shelf.
 
 | Key | What it sets |
 | --- | --- |
-| `credentials.keyCommand` | A shell command supplying an Anthropic API key. Project-scope helpers wait for workspace trust. |
+| `credentials.keyCommand` | A shell command supplying an Anthropic API key (10 s timeout, cached for the process, 30 s back-off after a failure, invalidated on HTTP 401). Project-scope helpers wait for workspace trust. |
+| `credentials.keyCommands` | A map of provider family names (`openai`, `openrouter`, `gemini`, `moonshot`, `deepseek`, `xai`, `meta`, `mistral`, `nous`, `zen`, `minimax`, `together`, `cohere`, `huggingface`, `local`, `zai`, `anthropic`, or `compat/<name>`) to shell commands supplying their API keys, under the same timeout, cache, back-off, 401 invalidation and workspace-trust rules. |
 | `credentials.signInRoute` | The required Anthropic sign-in route: `claudeai` or `console`. |
 | `credentials.organisation` | The required organisation for Anthropic sign-in. |
 | `environment.values` | Environment variable names and values for Mercury; string, number and boolean values become strings. |

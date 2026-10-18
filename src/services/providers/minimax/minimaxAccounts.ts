@@ -1,4 +1,5 @@
 import { readStoredMinimaxApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
 const MINIMAX_API_BASE_URL = 'https://api.minimax.io/v1'
 export const MINIMAX_ENV_KEY = 'MINIMAX_API_KEY'
@@ -27,6 +28,8 @@ export function minimaxEnvKey(env: NodeJS.ProcessEnv = process.env): { key: stri
 export function resolveMinimaxApiKey(env: NodeJS.ProcessEnv = process.env): { key: string; source: 'env' | 'stored' } | undefined {
   const key = minimaxEnvKey(env)
   if (key) return { key: key.key, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('minimax')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredMinimaxApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

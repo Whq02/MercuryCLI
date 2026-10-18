@@ -433,6 +433,9 @@ export function resolveHuggingfaceApiKey(
   if (envKey) return { key: envKey, source: 'env' }
   const oauth = huggingfaceStoredTokens()
   if (oauth) return { key: oauth.accessToken, source: 'oauth' }
+  const { resolveProviderKeyCommand } = require('../providerKeyCommand.js') as typeof import('../providerKeyCommand.js')
+  const fromCommand = resolveProviderKeyCommand('huggingface')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredHuggingfaceApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }
@@ -493,7 +496,8 @@ export async function resolveHuggingfaceDispatchCredential(
       return { apiKey: oauth.accessToken }
     }
   }
-  const stored = readStoredHuggingfaceApiKey()
+  const { resolveProviderKeyCommand } = require('../providerKeyCommand.js') as typeof import('../providerKeyCommand.js')
+  const stored = resolveProviderKeyCommand('huggingface') ?? readStoredHuggingfaceApiKey()
   return stored ? { apiKey: stored } : undefined
 }
 

@@ -1,4 +1,5 @@
 import { readStoredXaiApiKey, readStoredXaiManagementApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { readPreferredXaiSource, refreshXaiTokens, xaiStoredTokens, type XaiOauthIo } from './xaiOauth.js'
 
 const XAI_API_BASE_URL = 'https://api.x.ai/v1'
@@ -49,6 +50,8 @@ export function resolveXaiApiKey(
 ): { key: string; source: 'env' | 'stored' } | undefined {
   const key = env.XAI_API_KEY?.trim()
   if (key) return { key, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('xai')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredXaiApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

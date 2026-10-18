@@ -51,7 +51,7 @@ export function getMnemeDirectorySources(): string[] {
 }
 
 export function getApiKeyHelperSources(): string[] {
-  return sourcesWhere(settings => Boolean(settings.credentials?.keyCommand))
+  return sourcesWhere(settings => Boolean(settings.credentials?.keyCommand || (settings.credentials?.keyCommands && Object.values(settings.credentials.keyCommands).some(Boolean))))
 }
 
 export function getDangerousEnvVarsSources(): string[] {

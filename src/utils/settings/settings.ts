@@ -554,7 +554,8 @@ export function getApiKeyHelperFromOutsideCheckoutSources(): string | undefined 
   let helper: string | undefined
   for (const source of getEnabledSettingSources()) {
     if (!OUTSIDE_CHECKOUT_SOURCES.has(source)) continue
-    const value = getSettingsForSource(source)?.credentials?.keyCommand
+    const settings = getSettingsForSource(source)
+    const value = settings?.credentials?.keyCommand ?? settings?.credentials?.keyCommands?.anthropic
     if (typeof value === 'string' && value) helper = value
   }
   return helper

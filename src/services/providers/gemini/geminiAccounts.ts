@@ -15,6 +15,7 @@ import {
   generateState,
 } from '../../oauth/crypto.js'
 import { readStoredGeminiApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import {
@@ -227,6 +228,8 @@ export function resolveGeminiApiKey(
   if (googleKey) return { key: googleKey, source: 'env-google' }
   const geminiKey = env.GEMINI_API_KEY?.trim()
   if (geminiKey) return { key: geminiKey, source: 'env-gemini' }
+  const fromCommand = resolveProviderKeyCommand('gemini')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredGeminiApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

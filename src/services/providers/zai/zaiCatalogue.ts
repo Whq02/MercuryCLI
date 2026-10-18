@@ -5,7 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
-import { resolveZaiDispatch } from '../providerDiscovery.js'
+import { resolveZaiDispatch } from './zaiAccounts.js'
 import { GLM_STATIC_FLOOR_IDS, glmDisplayName, glmDisplayPin } from './glmPins.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000

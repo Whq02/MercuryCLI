@@ -9,6 +9,7 @@ import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile }
 import { buildXaiExtras, type LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { KIMI_PRESERVED_THINKING_MODELS } from '../moonshot/kimiPins.js'
 import { refreshProviderUsage } from '../providerUsage.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { resolveZenAccount, resolveZenApiKey, zenChatCompletionsUrl, zenRequestHeaders, ZEN_ENV_KEY } from './zenAccounts.js'
 import { cachedLiveIds, getCachedZenCatalogue, refreshZenCatalogue } from './zenCatalogue.js'
 import { zenDisplayPin, zenWireId, zenWireShapeOf } from './zenPins.js'
@@ -27,7 +28,15 @@ export const zenLaneProfile: CompatLaneProfile = {
     const key = resolveZenApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint: `no OpenCode Zen API key detected — /logins zen stores one (made at opencode.ai/auth); ${ZEN_ENV_KEY} works too.`,
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('zen')) return null
+    const fresh = recoverProviderKeyCommand('zen')
+    return fresh ? { apiKey: fresh } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('zen')
+    return failure ? `the configured ${failure.message} — no OpenCode Zen API key detected.` : `no OpenCode Zen API key detected — /logins zen stores one (made at opencode.ai/auth); ${ZEN_ENV_KEY} works too.`
+  },
   authRemedy: `create a key at opencode.ai/auth and store it with /logins zen, or set a valid ${ZEN_ENV_KEY}.`,
   billingRemedy: 'the Zen balance is empty or a monthly limit is reached — add credits or raise the limit in the OpenCode console (opencode.ai/auth → Billing), then retry; /model picks another model meanwhile.',
   requestUrl: () => zenChatCompletionsUrl(),

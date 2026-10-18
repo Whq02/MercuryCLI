@@ -6,6 +6,7 @@ import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { COHERE_ENV_KEY, cohereChatCompletionsUrl, resolveCohereAccount, resolveCohereApiKey } from './cohereAccounts.js'
 import { cohereListedModel, cohereModelFacts, getCachedCohereCatalogue, newestCohereModel } from './cohereCatalogue.js'
 import { COHERE_DISPLAY_PINS, cohereDisplayPin, isCohereChatModelId } from './coherePins.js'
@@ -25,7 +26,15 @@ const cohereLaneProfile: CompatLaneProfile = {
     const key = resolveCohereApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint: `no Cohere API key detected — /logins cohere stores one (made at dashboard.cohere.com/api-keys); ${COHERE_ENV_KEY} works too.`,
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('cohere')) return null
+    const fresh = recoverProviderKeyCommand('cohere')
+    return fresh ? { apiKey: fresh } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('cohere')
+    return failure ? `the configured ${failure.message} — no Cohere API key detected.` : `no Cohere API key detected — /logins cohere stores one (made at dashboard.cohere.com/api-keys); ${COHERE_ENV_KEY} works too.`
+  },
   authRemedy: `set a valid ${COHERE_ENV_KEY}, or /logins cohere stores a new key from dashboard.cohere.com/api-keys.`,
   billingRemedy: 'the Cohere account cannot be billed for this request — a trial key is rate-limited and non-commercial, a production key bills pay-as-you-go at dashboard.cohere.com/billing; fix the account there, then retry; /model picks another model meanwhile.',
   requestUrl: () => cohereChatCompletionsUrl(),

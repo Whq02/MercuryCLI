@@ -33,7 +33,7 @@ function currentCredential(family: string): Credential | undefined {
       case 'minimax': return keyCredential(require('../../services/providers/minimax/minimaxAccounts.js').resolveMinimaxApiKey())
       case 'together': return keyCredential(require('../../services/providers/together/togetherAccounts.js').resolveTogetherApiKey())
       case 'cohere': return keyCredential(require('../../services/providers/cohere/cohereAccounts.js').resolveCohereApiKey())
-      case 'zai': return keyCredential(require('../../services/providers/providerDiscovery.js').resolveZaiDispatch())
+      case 'zai': return keyCredential(require('../../services/providers/zai/zaiAccounts.js').resolveZaiDispatch())
       case 'local': return keyCredential(require('../../services/providers/local/localAccounts.js').resolveLocalApiKey())
       case 'openai-compat': {
         const owner = require('../../services/providers/openaicompat/compatAccounts.js') as typeof import('../../services/providers/openaicompat/compatAccounts.js')

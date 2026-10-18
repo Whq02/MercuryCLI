@@ -7,6 +7,7 @@ import {
 import { buildMoonshotExtras } from '../openaicompat/compatWire.js'
 import { toolDeclarationRowAsTools } from '../zai/zaiCodec.js'
 import { KIMI_PRESERVED_THINKING_MODELS } from './kimiPins.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import {
   moonshotChatCompletionsUrl,
   moonshotDispatchSource,
@@ -24,14 +25,20 @@ export const moonshotLaneProfile: CompatLaneProfile = {
   lane: 'moonshot',
   providerLabel: 'Moonshot',
   resolveCredential: () => resolveMoonshotDispatchCredential(),
-  credentialHint:
-    'no Kimi sign-in or Moonshot API key detected — /logins moonshot signs in with a device code or stores a key; MOONSHOT_API_KEY works too.',
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('moonshot')
+    return failure ? `the configured ${failure.message} — no Kimi sign-in or Moonshot API key detected.` : 'no Kimi sign-in or Moonshot API key detected — /logins moonshot signs in with a device code or stores a key; MOONSHOT_API_KEY works too.'
+  },
   authRemedy:
     'sign in again at /logins moonshot, or set a valid MOONSHOT_API_KEY / store a new key there (the Moonshot console issues them).',
   billingRemedy:
     'the Moonshot balance is exhausted — top up the account, then retry; /model picks another model meanwhile.',
   recoverCredential: async () => {
-    if (moonshotDispatchSource() !== 'kimi-oauth') return null
+    if (moonshotDispatchSource() !== 'kimi-oauth') {
+      if (!configuredProviderKeyCommand('moonshot')) return null
+      const fresh = recoverProviderKeyCommand('moonshot')
+      return fresh ? resolveMoonshotDispatchCredential() : undefined
+    }
     const fresh = await refreshMoonshotTokens()
     if (!fresh) return undefined
     return resolveMoonshotDispatchCredential()

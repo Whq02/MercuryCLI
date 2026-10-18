@@ -153,6 +153,9 @@
             "label": {
               "type": "string"
             },
+            "keyCommand": {
+              "type": "string"
+            },
             "models": {
               "type": "array",
               "items": {
@@ -203,6 +206,9 @@
               "label": {
                 "type": "string"
               },
+              "keyCommand": {
+                "type": "string"
+              },
               "models": {
                 "type": "array",
                 "items": {
@@ -249,6 +255,16 @@
       "properties": {
         "keyCommand": {
           "type": "string"
+        },
+        "keyCommands": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "signInRoute": {
           "type": "string",

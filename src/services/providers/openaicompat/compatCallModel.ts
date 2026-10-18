@@ -4,6 +4,7 @@ import { getSessionId } from '../../../bootstrap/state.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { compatKeyEnvName, compatModelEndpoint, compatModelRefusal } from './compatAccounts.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { compatResponsesTransport } from './compatResponsesTransport.js'
 import { buildLocalExtras } from './compatWire.js'
 import {
@@ -23,10 +24,18 @@ export const compatSlotLaneProfile: CompatLaneProfile = {
   resolveCredential: () => {
     if (compatChatCompletionsUrl() === undefined) return undefined
     const key = resolveCompatApiKey()
+    if (!key && providerKeyCommandFailure('compat:default')) return undefined
     return key ? { apiKey: key.key } : {}
   },
-  credentialHint:
-    'the OpenAI-compatible endpoint slot is not configured — set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY if the endpoint needs one).',
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('compat:default')) return null
+    const fresh = recoverProviderKeyCommand('compat:default')
+    return fresh ? { apiKey: fresh } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('compat:default')
+    return failure ? `the configured ${failure.message} — no credential was sent.` : 'the OpenAI-compatible endpoint slot is not configured — set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY if the endpoint needs one).'
+  },
   authRemedy:
     'set MERCURY_COMPAT_API_KEY to the key this endpoint expects; a keyless endpoint needs neither.',
   requestUrl: () => {
@@ -68,8 +77,18 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     ...(endpoint.named ? { authRemedy: `/logins compat/${endpoint.name} replaces this endpoint's key; ${compatKeyEnvName(endpoint.name)} takes precedence when set.` } : {}),
     resolveCredential: () => {
       const key = resolveCompatApiKey(process.env, endpoint.name)
+      if (!key && providerKeyCommandFailure(`compat:${endpoint.name}`)) return undefined
       if (endpoint.named) observation = captureSignInRequest(`compat-${endpoint.name}`, key?.key)
       return key ? { apiKey: key.key } : {}
+    },
+    recoverCredential: async () => {
+      if (!configuredProviderKeyCommand(`compat:${endpoint.name}`)) return null
+      const fresh = recoverProviderKeyCommand(`compat:${endpoint.name}`)
+      return fresh ? { apiKey: fresh } : undefined
+    },
+    get credentialHint(): string {
+      const failure = providerKeyCommandFailure(`compat:${endpoint.name}`)
+      return failure ? `the configured ${failure.message} — no credential was sent.` : compatSlotLaneProfile.credentialHint
     },
     requestUrl: () => `${endpoint.baseUrl}/chat/completions`,
     wireModelId: () => wireId,

@@ -1,4 +1,5 @@
 import { readStoredLocalApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { getCachedLocalDiscovery } from './localDiscovery.js'
 
 export const LOCAL_PULL_RECOMMENDATION = 'ollama pull qwen3.5:9b (tool-capable, ~6.6 GB; qwen3.5:27b for 48 GB and up)'
@@ -17,6 +18,8 @@ export function resolveLocalApiKey(
 ): { key: string; source: 'env' | 'stored' } | undefined {
   const envKey = env.MERCURY_LOCAL_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('local')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredLocalApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

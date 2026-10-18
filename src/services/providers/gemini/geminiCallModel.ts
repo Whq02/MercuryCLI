@@ -7,6 +7,7 @@ import {
 import { buildGeminiExtras } from '../openaicompat/compatWire.js'
 import { randomUUID } from 'node:crypto'
 import { geminiApiBase, resolveGeminiAccount, resolveGeminiRequestAuth } from './geminiAccounts.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { geminiEffortVocabularyFor, geminiOutputTokenLimitFor, geminiPlanRosterKin, geminiPlanRosterKinWords, geminiPlanWireModel, refreshGeminiCatalogue, type GeminiPlanRosterKin } from './geminiCatalogue.js'
 import { clearGeminiUsageLimit, recordGeminiRateHeaders } from './geminiUsageState.js'
 import type { CompatStreamEvent } from '../openaicompat/compatChatClient.js'
@@ -35,8 +36,15 @@ export const geminiLaneProfile: CompatLaneProfile = {
     const bearer = bearerFromAuthHeaders(auth.headers)
     return bearer ? { apiKey: bearer } : undefined
   },
-  credentialHint:
-    'no Gemini credential detected — /logins adds Gemini (API key, or Google OAuth with your own client).',
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('gemini')) return null
+    const fresh = recoverProviderKeyCommand('gemini')
+    return fresh ? { apiKey: fresh } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('gemini')
+    return failure ? `the configured ${failure.message} — no Gemini credential detected.` : 'no Gemini credential detected — /logins adds Gemini (API key, or Google OAuth with your own client).'
+  },
   authRemedy:
     'set a valid GEMINI_API_KEY (or GOOGLE_API_KEY), or /logins reconnects Gemini — a fresh key, or the Google account again.',
   billingRemedy:
@@ -302,7 +310,13 @@ export async function* geminiCallModel(params: CallModelParams): CallModelStream
             return fresh ? { apiKey: fresh, requestUrl: nativeUrl(auth.baseUrl) } : undefined
           },
         }
-      : {}),
+      : {
+          recoverCredential: async () => {
+            if (!configuredProviderKeyCommand('gemini')) return null
+            const fresh = recoverProviderKeyCommand('gemini', bearer)
+            return fresh ? { apiKey: fresh, requestUrl: nativeUrl(geminiApiBase()) } : undefined
+          },
+        }),
     onResponseHeaders: (headers, responseStatus) => {
       status = responseStatus
       recordGeminiRateHeaders(headers)

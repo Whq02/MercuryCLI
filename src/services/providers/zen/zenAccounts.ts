@@ -1,4 +1,5 @@
 import { readStoredZenApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
 export const ZEN_API_BASE_URL = 'https://opencode.ai/zen/v1'
 export const ZEN_GO_API_BASE_URL = 'https://opencode.ai/zen/go/v1'
@@ -32,6 +33,8 @@ export function zenGoUsageUrl(env: NodeJS.ProcessEnv = process.env): string {
 export function resolveZenApiKey(env: NodeJS.ProcessEnv = process.env): { key: string; source: 'env' | 'stored' } | undefined {
   const key = env[ZEN_ENV_KEY]?.trim()
   if (key) return { key, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('zen')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredZenApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

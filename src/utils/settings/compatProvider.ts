@@ -17,6 +17,7 @@ const baseUrl = () => z.string().refine(value => {
 const endpointShape = () => ({
   baseUrl: baseUrl().optional(),
   label: z.string().optional(),
+  keyCommand: z.string().optional(),
   models: z.array(z.string().trim().min(1)).optional(),
   headers: z.record(headerName(), z.string().refine(value => !/[\r\n\0]/.test(value), 'header values cannot contain line breaks')).optional(),
   sessionAffinityHeader: headerName().optional(),
@@ -33,6 +34,7 @@ export type CompatProviderSettings = z.infer<ReturnType<typeof CompatProviderSch
 export interface CompatEndpointSettings {
   baseUrl?: string
   label?: string
+  keyCommand?: string
   models?: string[]
   headers?: Record<string, string>
   sessionAffinityHeader?: string

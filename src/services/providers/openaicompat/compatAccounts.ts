@@ -2,6 +2,7 @@ import { getGlobalConfig } from '../../../utils/config.js'
 import { getSettingsForSource } from '../../../utils/settings/settings.js'
 import { COMPAT_ENDPOINT_NAME, CompatEndpointSchema, CompatProviderSchema, type CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'
 import { readStoredCompatApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { COMPAT_MODEL_PREFIX } from '../idSpaces.js'
 
 export interface CompatEndpoint extends CompatEndpointSettings {
@@ -86,6 +87,8 @@ export function compatKeyEnvName(name: string): string {
 export function resolveCompatApiKey(env: Record<string, string | undefined> = process.env, name = 'default'): { key: string; source: 'env' | 'stored' } | undefined {
   const envKey = (name === 'default' ? env.MERCURY_COMPAT_API_KEY?.trim() : undefined) || env[compatKeyEnvName(name)]?.trim()
   if (envKey) return { key: envKey, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand(`compat:${name}`)
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredCompatApiKey(name)
   return stored ? { key: stored, source: 'stored' } : undefined
 }

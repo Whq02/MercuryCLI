@@ -20,6 +20,7 @@ import { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFac
 import { planToolPayload, toolsOnTheWire } from '../toolEconomy.js'
 import { mapToolsToZai, toolDeclarationRowInResult, type ApiShapedTool } from '../zai/zaiCodec.js'
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
+import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, residentServedWindow, type LocalDiscoveryIo, type LocalModelRecord } from './localDiscovery.js'
 import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, localWindowApplication, localWindowDecisionLine, localWindowSettingOf, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
@@ -147,6 +148,11 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     resolveCredential: () => {
       const key = resolveLocalApiKey()
       return key ? { apiKey: key.key } : {}
+    },
+    recoverCredential: async () => {
+      if (!configuredProviderKeyCommand('local')) return null
+      const fresh = recoverProviderKeyCommand('local')
+      return fresh ? { apiKey: fresh } : undefined
     },
     credentialHint: 'the local server is not reachable.',
     authRemedy:

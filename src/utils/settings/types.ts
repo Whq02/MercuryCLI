@@ -96,6 +96,7 @@ export const SettingsSchema = lazySchema(() => {
     compatProvider: CompatProviderSchema().optional().describe('Custom endpoints keyed by name, or one endpoint named default: baseUrl, label, models, headers, sessionAffinityHeader and dialect; keys are kept by /logins, not in settings'),
     credentials: z.object({
       keyCommand: z.string().optional(),
+      keyCommands: z.record(z.string().min(1), z.string()).optional(),
       signInRoute: z.enum(['claudeai', 'console']).optional(),
       organisation: z.string().optional(),
     }).passthrough().optional(),

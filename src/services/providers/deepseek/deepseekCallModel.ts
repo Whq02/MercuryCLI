@@ -5,6 +5,7 @@ import {
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildDeepseekExtras } from '../openaicompat/compatWire.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { deepseekChatCompletionsUrl, resolveDeepseekApiKey } from './deepseekAccounts.js'
 import { deepseekCurrentModelId } from './deepseekPins.js'
 
@@ -15,8 +16,15 @@ export const deepseekLaneProfile: CompatLaneProfile = {
     const key = resolveDeepseekApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint:
-    'no DeepSeek API key detected — /logins deepseek stores one; DEEPSEEK_API_KEY works too.',
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('deepseek')) return null
+    const fresh = recoverProviderKeyCommand('deepseek')
+    return fresh ? { apiKey: fresh } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('deepseek')
+    return failure ? `the configured ${failure.message} — no DeepSeek API key detected.` : 'no DeepSeek API key detected — /logins deepseek stores one; DEEPSEEK_API_KEY works too.'
+  },
   authRemedy:
     'set a valid DEEPSEEK_API_KEY, or store a new key via /logins deepseek (platform.deepseek.com issues them).',
   billingRemedy:
