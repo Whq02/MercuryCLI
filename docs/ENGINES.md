@@ -460,15 +460,21 @@ account credits and costs are shown in the Fireworks console. Sources read
 [rate limits](https://docs.fireworks.ai/serverless/rate-limits) and
 [Fire Pass](https://docs.fireworks.ai/firepass).
 
-Qwen connects through `/logins` two ways. A Qwen account sign-in is a device
-code approved in the browser; it runs the Qwen Coder plan behind chat.qwen.ai on
-Qwen Code's public OAuth client. Mercury runs the device flow itself, stores the
+Qwen connects through `/logins` with a Model Studio API key; the Coding Plan is
+reached with its own key (`sk-sp-…`), which binds to the Coding Plan endpoint.
+The Qwen account sign-in (a device code approved in the browser, on Qwen Code's
+public OAuth client behind chat.qwen.ai) was closed by Qwen on 2026-04-15
+(QwenLM/qwen-code issue 3203; Qwen Code's own client no longer lists it): the
+device code is still issued, but the token service answers every client with its
+gateway's block page, so the card lists the key first and the sign-in row says
+so; picking the sign-in tries the road once and reports what the service
+answered, with nothing stored. Mercury runs the device flow itself, stores any
 tokens auth-scoped at mode 600, refreshes them before they expire, and never reads
 another tool's credential file; the plan's terms are the account holder's own, and
 the road ships as it is. A signed-in account dispatches on the plan endpoint the
 token names with the plan's own model list; a revoked or expired sign-in refuses
-the turn and names `/logins`. The other way is a Model Studio API key
-(`DASHSCOPE_API_KEY` works too), made in the Alibaba Cloud Model Studio console
+the turn and names `/logins`. The Model Studio API key
+(`DASHSCOPE_API_KEY` works too) is made in the Alibaba Cloud Model Studio console
 for the region the account lives in. A Model Studio key answers only the region
 and plan it was minted in, so the sign-in probes the documented endpoints in
 turn (International (Singapore), China (Beijing), China (Hong Kong), the Coding
