@@ -225,16 +225,16 @@ section('§4 the display string follows the same owner')
 section('§5 the shape')
 {
   const src = readFileSync(join(ROOT, 'src/utils/modelCost.ts'), 'utf8')
-  for (const route of ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'gemini', 'openrouter', 'huggingface', 'local', "'openai-compat'"]) {
+  for (const route of ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'gemini', 'openrouter', 'huggingface', 'local', "'openai-compat'", 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks']) {
     check(`the owner table carries a row for ${route}`, new RegExp(`^\\s+${route}: `, 'm').test(src))
   }
   check('the owner table is typed over every route (a new family without a row is a type error)', src.includes('Record<CallModelRoute, PricingOwner>'))
-  check('the unpriced basis is a zero tier under the flag, spelled once', src.includes("resolved ?? { costs: COST_UNPRICED, basis: 'unpriced' }") && src.includes("if (resolved.basis !== 'recorded') setHasUnknownModelCost()"))
+  check('the unpriced basis is a zero tier under the flag, spelled once', src.includes("resolved ?? { costs: COST_UNPRICED, basis: 'unpriced' as const }") && src.includes("if (resolved.basis !== 'recorded') setHasUnknownModelCost()"))
   const ownersStart = src.indexOf('const PRICING_OWNERS')
   const ownersTable = src.slice(ownersStart, src.indexOf('\n}\n', ownersStart))
   const ownerRows = ownersTable.split('\n').filter(l => /^\s+[a-z'-]+: /.test(l))
   const offFirstParty = ownersTable.split('\n').filter(l => !/^\s+anthropic: /.test(l))
-  check('the owners table has one row per route (fifteen), the first-party owner on its anthropic row alone', ownerRows.length === 15 && ownerRows.filter(l => l.includes('firstPartyPricing')).length === 1 && /^\s+anthropic: \(model, promptTokens\) => firstPartyPricing\(model, promptTokens\),$/m.test(ownersTable), ownerRows.join(' | '))
+  check('the owners table has one row per route (twenty-one), the first-party owner on its anthropic row alone', ownerRows.length === 21 && ownerRows.filter(l => l.includes('firstPartyPricing')).length === 1 && /^\s+anthropic: \(model, promptTokens\) => firstPartyPricing\(model, promptTokens\),$/m.test(ownersTable), ownerRows.join(' | '))
   check('no first-party tier is reachable for a non-first-party route: no other line of the owners table touches the first-party table, a first-party tier constant or the first-party fallback', offFirstParty.every(l => !/firstPartyPricing|COST_TIER_|MODEL_COSTS|FIRST_PARTY_FALLBACK_TIER|COST_FABLE|COST_HAIKU/.test(l)), offFirstParty.filter(l => /firstPartyPricing|COST_TIER_|MODEL_COSTS|FIRST_PARTY_FALLBACK_TIER|COST_FABLE|COST_HAIKU/.test(l)).join(' | '))
   const fpStart = src.indexOf('function firstPartyPricing')
   const fpBody = src.slice(fpStart, src.indexOf('\n}\n', fpStart))
