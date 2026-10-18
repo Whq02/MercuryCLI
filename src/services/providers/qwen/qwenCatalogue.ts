@@ -7,7 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
 import { qwenAccountIdentity, qwenBaseOverride, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenListAnswersEveryCaller, qwenProbeLane, qwenSigninActive, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredential, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
 import { QWEN_SIGNIN_EXPIRED_LINE, qwenPlanBase, qwenSigninRefusal, qwenSigninRefusalNote, qwenStoredTokens } from './qwenOauth.js'
-import { QWEN_DISPLAY_PINS, QWEN_OBSERVED_AT, isQwenTextModelId, qwenDisplayName, qwenDisplayPin, qwenEffortVocabulary, qwenPreservesThinking, qwenThinkingDial, type QwenThinkingDial } from './qwenPins.js'
+import { QWEN_DISPLAY_PINS, QWEN_OBSERVED_AT, isQwenTextModelId, qwenDisplayName, qwenDisplayPin, qwenEffortVocabulary, qwenPinWireId, qwenPinsFor, qwenPreservesThinking, qwenThinkingDial, type QwenPinScope, type QwenThinkingDial } from './qwenPins.js'
 
 export interface QwenLiveModel {
   id: string
@@ -86,10 +86,6 @@ export async function fetchQwenLiveModels(opts: { baseUrl: string; key: string; 
     if (seen.has(model.id.toLowerCase())) continue
     seen.add(model.id.toLowerCase())
     models.push(model)
-  }
-  const pinRank = (id: string): number => {
-    const index = QWEN_DISPLAY_PINS.findIndex(pin => pin.id === id.toLowerCase())
-    return index === -1 ? QWEN_DISPLAY_PINS.length : index
   }
   models.sort((a, b) => pinRank(a.id) - pinRank(b.id) || b.created - a.created || a.id.localeCompare(b.id))
   if (qwenListAnswersEveryCaller(opts.baseUrl, env)) {
@@ -251,23 +247,44 @@ export interface QwenCatalogueRow {
   contextWindow?: number
   listedLive: boolean
 }
-export type QwenCatalogueSource = { kind: 'live'; count: number; otherLines: number; fetchedAtMs: number } | { kind: 'pins' } | { kind: 'unread' }
+export type QwenCatalogueSource = { kind: 'live'; count: number; otherLines: number; fetchedAtMs: number } | { kind: 'plan'; count: number; fetchedAtMs: number } | { kind: 'pins' } | { kind: 'unread' }
 
-export function qwenPinRows(env: NodeJS.ProcessEnv = process.env): QwenCatalogueRow[] {
-  const plan = qwenSigninActive(env)
-  return QWEN_DISPLAY_PINS.filter(pin => (pin.planOnly === true) === plan).map(pin => ({ id: pin.id, displayName: pin.displayName, observedAt: QWEN_OBSERVED_AT, contextWindow: pin.contextWindow, listedLive: false }))
+export function qwenPinScope(env: NodeJS.ProcessEnv = process.env, snapshot: QwenCatalogueSnapshot | null = getCachedQwenCatalogue(env)): QwenPinScope {
+  if (snapshot ? snapshot.keySource === 'signin' : qwenSigninActive(env)) return 'account-plan'
+  const base = snapshot?.baseUrl ?? qwenBoundBase(env)
+  return base !== undefined && qwenListAnswersEveryCaller(base, env) ? 'coding-plan' : 'pay-as-you-go'
+}
+
+function pinRow(pin: (typeof QWEN_DISPLAY_PINS)[number], listedLive: boolean): QwenCatalogueRow {
+  return { id: pin.id, displayName: pin.displayName, observedAt: QWEN_OBSERVED_AT, ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}), listedLive }
+}
+
+export function qwenPinRows(env: NodeJS.ProcessEnv = process.env, scope: QwenPinScope = qwenPinScope(env)): QwenCatalogueRow[] {
+  return qwenPinsFor(scope).map(pin => pinRow(pin, false))
+}
+
+const pinRank = (id: string): number => {
+  const index = QWEN_DISPLAY_PINS.findIndex(pin => pin.id === id.toLowerCase())
+  return index === -1 ? QWEN_DISPLAY_PINS.length : index
 }
 
 export function qwenCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: QwenCatalogueRow[]; source: QwenCatalogueSource } {
   const snapshot = getCachedQwenCatalogue(env)
   if (!snapshot) return { rows: [], source: { kind: 'unread' } }
-  if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: qwenPinRows(env), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
-  const rows = snapshot.models.map(model => {
+  const scope = qwenPinScope(env, snapshot)
+  if (scope === 'coding-plan' && snapshot.fetchedAtMs > 0) {
+    const rows = qwenPinRows(env, scope)
+    return { rows, source: { kind: 'plan', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
+  }
+  if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: qwenPinRows(env, scope), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
+  const created = new Map(snapshot.models.map(model => [model.id.toLowerCase(), model.created]))
+  const live = snapshot.models.map(model => {
     const pin = qwenDisplayPin(model.id)
-    return { id: model.id, displayName: qwenDisplayName(model.id), observedAt: pin ? QWEN_OBSERVED_AT : new Date(snapshot.fetchedAtMs).toISOString().slice(0, 10),
-      ...(pin ? { contextWindow: pin.contextWindow } : {}), listedLive: true }
+    return pin ? pinRow(pin, true) : { id: model.id, displayName: qwenDisplayName(model.id), observedAt: new Date(snapshot.fetchedAtMs).toISOString().slice(0, 10), listedLive: true }
   })
-  return { rows, source: { kind: 'live', count: rows.length, otherLines: snapshot.otherLines, fetchedAtMs: snapshot.fetchedAtMs } }
+  const unlisted = qwenPinsFor(scope).filter(pin => !created.has(pin.id)).map(pin => pinRow(pin, false))
+  const rows = [...live, ...unlisted].sort((a, b) => pinRank(a.id) - pinRank(b.id) || (created.get(b.id.toLowerCase()) ?? 0) - (created.get(a.id.toLowerCase()) ?? 0) || a.id.localeCompare(b.id))
+  return { rows, source: { kind: 'live', count: live.length, otherLines: snapshot.otherLines, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
 export function newestQwenModel(env: NodeJS.ProcessEnv = process.env): string | undefined {
@@ -276,12 +293,13 @@ export function newestQwenModel(env: NodeJS.ProcessEnv = process.env): string | 
 
 export function qwenWireId(model: string, env: NodeJS.ProcessEnv = process.env): string {
   const asked = model.trim().replace(/\[(?:[0-9]+m|served)\]/gi, '')
-  return qwenListedModel(getCachedQwenCatalogue(env), asked)?.id ?? qwenDisplayPin(asked)?.id ?? asked
+  return qwenListedModel(getCachedQwenCatalogue(env), asked)?.id ?? (qwenDisplayPin(asked) ? qwenPinWireId(asked) : asked)
 }
 
 export function qwenCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const snapshot = getCachedQwenCatalogue(env)
   const { source } = qwenCatalogueRows(env)
+  if (source.kind === 'plan') return `the Coding Plan's documented models (observed ${QWEN_OBSERVED_AT}) on ${snapshot?.endpointLabel ?? 'the Coding Plan endpoint'} — its model list answers every caller and is not the plan's list`
   if (source.kind === 'pins') return `pinned list (observed ${QWEN_OBSERVED_AT}) — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`
   if (snapshot?.lastError) return snapshot.lastError
   return source.kind === 'live' ? `${source.count} text ${source.count === 1 ? 'model' : 'models'} live on ${snapshot?.endpointLabel ?? 'Model Studio'}${source.otherLines > 0 ? ` · ${source.otherLines} of other lines not listed` : ''}` : undefined
@@ -290,7 +308,7 @@ export function qwenCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): 
 export function qwenModelFacts(id: string): { contextWindow?: number; outputMax?: number; thinking: QwenThinkingDial; preservesThinking: boolean; efforts: readonly string[]; images?: boolean } {
   const pin = qwenDisplayPin(id)
   return {
-    ...(pin ? { contextWindow: pin.contextWindow, outputMax: pin.outputMax, images: pin.images } : {}),
+    ...(pin ? { ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}), ...(pin.outputMax !== undefined ? { outputMax: pin.outputMax } : {}), images: pin.images } : {}),
     thinking: qwenThinkingDial(id),
     preservesThinking: qwenPreservesThinking(id),
     efforts: qwenEffortVocabulary(id),

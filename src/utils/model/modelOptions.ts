@@ -530,7 +530,7 @@ export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xa
     const owner = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
     const { source } = owner.qwenCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
-    if (source.kind === 'pins') return { kind: 'pin' }
+    if (source.kind === 'pins' || source.kind === 'plan') return { kind: 'pin' }
     const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('qwen')
     const error = !gate.allowed ? gate.reason : owner.getCachedQwenCatalogue()?.lastError

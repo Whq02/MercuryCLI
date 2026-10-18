@@ -2,7 +2,8 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { writeStoredQwenApiKey } from '../providerSecrets.js'
 import { QWEN_BASE_OVERRIDE_ENV, QWEN_ENV_KEY as QWEN_ENV_KEY_WORDS, qwenBaseOverride, qwenEndpointLabelOf, qwenEnvKey, rememberQwenBoundBase } from './qwenAccounts.js'
-import { fetchQwenLiveModels, forgetQwenCatalogue, probeQwenEndpoints, QwenCatalogueHttpError } from './qwenCatalogue.js'
+import { fetchQwenLiveModels, forgetQwenCatalogue, probeQwenEndpoints, qwenPinRows, QwenCatalogueHttpError } from './qwenCatalogue.js'
+import { qwenDisplayName } from './qwenPins.js'
 import { QWEN_OAUTH_CLIENT_ID, pollQwenDeviceToken, qwenPlanBase, startQwenDeviceAuth, writePreferredQwenSource, writeQwenTokens, type QwenDeviceAuthStart, type QwenOauthIo, type QwenTokens } from './qwenOauth.js'
 
 interface QwenKeyLoginOutcome {
@@ -43,7 +44,9 @@ export async function storeQwenApiKeyLogin(key: string, io?: { fetchImpl?: typeo
     if (probe.kind === 'refused') return { ok: false, stored: false, receipt: `Model Studio refused this key on every endpoint — nothing stored; ${probe.words}. Keys are made at ${QWEN_KEY_PAGE_WORDS}.` }
     if (probe.kind === 'bound') {
       boundBase = probe.baseUrl
-      note = `bound to ${probe.endpoint.label} (${hostOf(probe.baseUrl)}) · ${probe.models.length} text ${probe.models.length === 1 ? 'model' : 'models'} listed${probe.otherLines > 0 ? ` (${probe.otherLines} non-text rows set aside)` : ''}`
+      note = probe.endpoint.plan === 'coding-plan'
+        ? `bound to ${probe.endpoint.label} (${hostOf(probe.baseUrl)}) · the plan's ${qwenPinRows(env, 'coding-plan').length} documented models, ${qwenDisplayName(qwenPinRows(env, 'coding-plan')[0]?.id ?? '')} first (the endpoint's own model list answers every caller and is not the plan's)`
+        : `bound to ${probe.endpoint.label} (${hostOf(probe.baseUrl)}) · ${probe.models.length} text ${probe.models.length === 1 ? 'model' : 'models'} listed${probe.otherLines > 0 ? ` (${probe.otherLines} non-text rows set aside)` : ''}`
     } else {
       note = `UNVERIFIED — no endpoint confirmed the key: ${safe(probe.words)}; the first turn probes the endpoints again`
     }

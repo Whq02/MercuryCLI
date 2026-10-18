@@ -369,7 +369,7 @@ function fireworksFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 function qwenFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => (require('./qwen/qwenPins.js') as typeof import('./qwen/qwenPins.js')).QWEN_DISPLAY_PINS.filter(pin => !pin.planOnly).map(pin => pin.id)
+  const typed = (): string[] => (require('./qwen/qwenPins.js') as typeof import('./qwen/qwenPins.js')).qwenPinsFor('pay-as-you-go').map(pin => pin.id)
   return guarded('qwen', name, typed, () => {
     const { resolveQwenAccount } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
     const { getCachedQwenCatalogue } = require('./qwen/qwenCatalogue.js') as typeof import('./qwen/qwenCatalogue.js')

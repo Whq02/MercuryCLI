@@ -1099,6 +1099,13 @@ function qwenSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey = reads.qwenEnvKey ? reads.qwenEnvKey() : process.env.DASHSCOPE_API_KEY?.trim() || undefined
   const storedKey = (reads.qwenStoredKey ?? readStoredQwenApiKey)()
   const slots = keyLaneSlots({ family: 'qwen', envVar: 'DASHSCOPE_API_KEY', envKey, storedKey, storedRemoval: { route: 'qwen-stored-key' } })
+  const plan = qwenBoundPlanLabel()
+  if (plan !== undefined) {
+    for (const slot of slots) {
+      slot.kindLabel = `${plan.kind} · ${slot.kindLabel}`
+      slot.identity = label([slot.envPinned ? `DASHSCOPE_API_KEY (env, ${plan.endpoint})` : `${plan.kind} key (auth-scoped, ${plan.endpoint})`, maskedKeyTail(slot.envPinned ? envKey! : storedKey!)])
+    }
+  }
   const signin = (reads.qwenSignin ?? qwenStoredTokens)()
   if (signin) {
     const active = !envKey && (readPreferredQwenSource() !== 'api-key' || !storedKey)
@@ -1127,6 +1134,7 @@ import { disconnectMetaMuseCode } from './meta/metaAccounts.js'
 import { xaiStoredTokens, clearStoredXaiSubscription, readPreferredXaiSource } from './xai/xaiOauth.js'
 import { NOUS_SIGNIN_EXPIRED_LINE, clearStoredNousSignin, nousSigninRefusal, nousStoredTokens, readPreferredNousSource } from './nous/nousOauth.js'
 import { QWEN_SIGNIN_EXPIRED_LINE, clearStoredQwenSignin, qwenSigninRefusal, qwenStoredTokens, readPreferredQwenSource } from './qwen/qwenOauth.js'
+import { qwenBoundPlanLabel } from './qwen/qwenAccounts.js'
 
 function xaiSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey = reads.xaiEnvKey ? reads.xaiEnvKey() : process.env.XAI_API_KEY?.trim() || undefined

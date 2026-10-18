@@ -482,12 +482,19 @@ and the service's words named, and nothing is stored. `DASHSCOPE_BASE_URL` names
 an endpoint instead of the probe (a workspace-dedicated domain such as
 `https://<workspace>.us-east-1.maas.aliyuncs.com/compatible-mode/v1`), and
 `DASHSCOPE_WORKSPACE_ID` adds the six workspace-dedicated domains to the probe.
-The picker lists the text models the bound endpoint (or the plan) serves live,
-with dated pins for the context windows and prices of the rows this build knows
-(Qwen3.8 Max, Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash, Qwen3.7 Flash,
-Qwen3 Coder Flash), and falls to the pins, labelled as pins, when the list cannot
-be read. Requests carry Qwen's own `enable_thinking` switch and
-`preserve_thinking` on the rows that take them, the effort dial as
+On a pay-as-you-go endpoint the picker lists the text models the endpoint
+serves live together with the dated pins this build knows (Qwen3.8 Max,
+Qwen3.7 Max, Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash, Qwen3.7 Flash,
+Qwen3.6 Flash, Qwen3 Coder Flash — their context windows and prices): a live
+row wins on a shared id, a pinned id the list does not name still shows from
+the pin and is sent for Model Studio to decide, and the pins alone stand,
+labelled as pins, when the list cannot be read. On a Coding Plan endpoint the
+rows are the plan's documented models — Qwen3.8 Max, Qwen3.7 Max, Qwen3.7 Plus,
+Qwen3.8 Flash, Qwen3.6 Flash and the plan's own Auto row (`qwen-auto`, sent as
+`auto`) — because that endpoint's model list answers every caller and is not
+the plan's list; the account and `/usage` rows name the plan. The family word
+`qwen` runs Qwen3.8 Max wherever it is a row. Requests carry Qwen's own
+`enable_thinking` switch and `preserve_thinking` on the rows that take them, the effort dial as
 `reasoning_effort` in Qwen's vocabulary (`low`, `medium`, `xhigh`) on the Qwen3.8
 rows that document it, a stated `models.<id>.thinkingBudget` as `thinking_budget`
 in place of the effort word, the system prompt in `messages[0]` alone, and tool

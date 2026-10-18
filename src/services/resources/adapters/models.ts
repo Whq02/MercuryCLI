@@ -127,7 +127,7 @@ async function listFactsOf(route: string, env: NodeJS.ProcessEnv = process.env):
       const { qwenCatalogueRows, qwenCatalogueSourceWords, getCachedQwenCatalogue } = await import('../../providers/qwen/qwenCatalogue.js')
       const { source } = qwenCatalogueRows(env)
       if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
-      if (source.kind === 'pins') return { kind: 'static', words: qwenCatalogueSourceWords(env)! }
+      if (source.kind === 'pins' || source.kind === 'plan') return { kind: 'static', words: qwenCatalogueSourceWords(env)! }
       const error = getCachedQwenCatalogue(env)?.lastError
       return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
     }
@@ -318,8 +318,8 @@ export async function knownModelsReference(): Promise<KnownModelsReference> {
   providers.push({ provider: 'cerebras', providerName: providerDisplayName('cerebras'), familyWord: 'cerebras', models: CEREBRAS_DISPLAY_PINS.map(pin => ({ id: cerebrasQualifiedId(pin.id), displayName: pin.displayName })) })
   const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../providers/fireworks/fireworksPins.js')
   providers.push({ provider: 'fireworks', providerName: providerDisplayName('fireworks'), familyWord: 'fireworks', models: FIREWORKS_DISPLAY_PINS.map(pin => ({ id: fireworksQualifiedId(pin.id), displayName: pin.displayName })) })
-  const { QWEN_DISPLAY_PINS } = await import('../../providers/qwen/qwenPins.js')
-  providers.push({ provider: 'qwen', providerName: providerDisplayName('qwen'), familyWord: 'qwen', models: QWEN_DISPLAY_PINS.filter(pin => !pin.planOnly).map(pin => ({ id: pin.id, displayName: pin.displayName })) })
+  const { qwenPinsFor } = await import('../../providers/qwen/qwenPins.js')
+  providers.push({ provider: 'qwen', providerName: providerDisplayName('qwen'), familyWord: 'qwen', models: qwenPinsFor('pay-as-you-go').map(pin => ({ id: pin.id, displayName: pin.displayName })) })
   return { version: MERCURY_VERSION, providers }
 }
 

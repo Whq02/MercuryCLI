@@ -279,26 +279,26 @@ function cohereKnownRow(id: string): BareFamilyWordRow | undefined {
 function qwenHeadRow(): BareFamilyWordRow | undefined {
   const { qwenCatalogueRows } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
   const { rows, source } = qwenCatalogueRows()
-  return source.kind === 'live' ? rows[0] : undefined
+  return source.kind === 'live' || source.kind === 'plan' ? rows[0] : undefined
 }
 
 function qwenPinnedDefault(): BareFamilyWordRow | undefined {
-  const { QWEN_DISPLAY_PINS } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
-  const pin = QWEN_DISPLAY_PINS.find(row => !row.planOnly)
+  const { qwenPinsFor } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+  const pin = qwenPinsFor('pay-as-you-go')[0]
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
 function qwenListState(): BareFamilyListState {
-  const { getCachedQwenCatalogue } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
-  const snapshot = getCachedQwenCatalogue()
-  if (snapshot && snapshot.fetchedAtMs > 0) return { kind: 'live', count: snapshot.models.length, fetchedAtMs: snapshot.fetchedAtMs }
-  const error = gateError('qwen') ?? snapshot?.lastError
+  const { getCachedQwenCatalogue, qwenCatalogueRows } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
+  const { source } = qwenCatalogueRows()
+  if (source.kind === 'live' || source.kind === 'plan') return { kind: 'live', count: source.count, fetchedAtMs: source.fetchedAtMs }
+  const error = gateError('qwen') ?? getCachedQwenCatalogue()?.lastError
   return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
 }
 
 function qwenKnownRows(): BareFamilyWordRow[] {
-  const { QWEN_DISPLAY_PINS } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
-  return QWEN_DISPLAY_PINS.filter(pin => !pin.planOnly).map(pin => ({ id: pin.id, displayName: pin.displayName }))
+  const { qwenPinsFor } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+  return qwenPinsFor('pay-as-you-go').map(pin => ({ id: pin.id, displayName: pin.displayName }))
 }
 
 function qwenKnownRow(id: string): BareFamilyWordRow | undefined {

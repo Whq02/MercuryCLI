@@ -260,15 +260,16 @@ async function validateNonAnthropicModel(
     if (qwenAccount.expired) return { valid: false, error: `${qwenSigninRefusal() ? qwenSigninRefusalNote(qwenSigninRefusal()!) : QWEN_SIGNIN_EXPIRED_LINE}.` }
     const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
     await readCatalogueIfPending('qwen')
-    const { getCachedQwenCatalogue, qwenListedModel, newestQwenModel } = await import('../../services/providers/qwen/qwenCatalogue.js')
+    const { getCachedQwenCatalogue, qwenListedModel, newestQwenModel, qwenPinScope } = await import('../../services/providers/qwen/qwenCatalogue.js')
     const { isQwenTextModelId, qwenDisplayPin } = await import('../../services/providers/qwen/qwenPins.js')
     const snapshot = getCachedQwenCatalogue()
     const id = trimmed.toLowerCase()
     if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: qwenSigninActive() ? `${qwenSigninRefusal() ? qwenSigninRefusalNote(qwenSigninRefusal()!) : QWEN_SIGNIN_EXPIRED_LINE}.` : `${snapshot.lastError} — /logins qwen re-binds the key.` }
-    if (id === 'qwen') return newestQwenModel() ? { valid: true, skipCache: true } : { valid: false, error: "Qwen's live list has not served a text model for 'qwen' yet — /model refreshes it." }
+    if (id === 'qwen') return newestQwenModel() ? { valid: true, skipCache: true } : { valid: false, error: "Qwen's list has not served a text model for 'qwen' yet — /model refreshes it." }
     if (!isQwenTextModelId(id)) return { valid: false, error: 'This Qwen model is not on the text road; the speech, image, video, embedding and rerank lines are not supported here.' }
+    if (qwenPinScope(process.env, snapshot) === 'coding-plan' || qwenDisplayPin(id)) return { valid: true, skipCache: true }
     if (snapshot?.models.length && !qwenListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Model Studio endpoint's live catalogue.` }
-    if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !qwenDisplayPin(id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Model Studio endpoint's live catalogue.` }
+    if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0) return { valid: false, error: `Model "${trimmed}" is not listed by the Model Studio endpoint's live catalogue.` }
     return { valid: true, skipCache: true }
   }
   if (route === 'together') {
