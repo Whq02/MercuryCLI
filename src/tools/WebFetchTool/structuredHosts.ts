@@ -115,7 +115,7 @@ function classifyStructuredFetchUrl(rawUrl: string): StructuredTarget | null {
     const RESERVED = new Set([
       'about', 'account', 'apps', 'blog', 'codespaces', 'collections', 'contact', 'customer-stories',
       'dashboard', 'developers', 'discussions', 'enterprise', 'events', 'explore', 'features',
-      'gist', 'gists', 'git-guides', 'join', 'login', 'logout', 'marketplace', 'new', 'notifications',
+      'gist', 'gists', 'git-guides', 'join', 'login', 'logout', 'new', 'notifications',
       'orgs', 'organizations', 'pricing', 'pulls', 'issues', 'readme', 'search', 'security',
       'session', 'settings', 'signup', 'site', 'sponsors', 'topics', 'trending', 'users', 'watching',
     ])
