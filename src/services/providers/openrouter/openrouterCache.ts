@@ -3,6 +3,10 @@ import type { CompatChatRequest, CompatMessage, CompatWireMessage } from '../ope
 const QWEN_EXPLICIT = new Set(['qwen/qwen3-max', 'qwen/qwen-plus', 'qwen/qwen3.6-plus', 'qwen/qwen3-coder-plus', 'qwen/qwen3-coder-flash'])
 const CONTROL = { type: 'ephemeral' as const }
 
+function hasCacheableText(content: CompatMessage['content']): boolean {
+  return typeof content === 'string' ? content !== '' : Array.isArray(content) && content.some(part => part.type === 'text' && part.text !== '')
+}
+
 function cacheContent(content: CompatMessage['content'], both: boolean): CompatMessage['content'] {
   if (typeof content === 'string') {
     if (content === '') return content
@@ -10,7 +14,7 @@ function cacheContent(content: CompatMessage['content'], both: boolean): CompatM
     return [part]
   }
   if (content === null || content.length === 0) return content
-  const textIndices = content.flatMap((part, i) => part.type === 'text' ? [i] : [])
+  const textIndices = content.flatMap((part, i) => part.type === 'text' && part.text !== '' ? [i] : [])
   const last = textIndices.at(-1)
   if (last === undefined) return content
   const first = both ? textIndices[0] : last
@@ -20,8 +24,8 @@ function cacheContent(content: CompatMessage['content'], both: boolean): CompatM
 export function openrouterChatCache(request: CompatChatRequest): CompatChatRequest {
   const anthropic = request.model.startsWith('anthropic/')
   if (!anthropic && !QWEN_EXPLICIT.has(request.model)) return request
-  const firstSystem = request.messages.findIndex(message => message.role === 'system' && 'content' in message)
-  const tail = request.messages.findLastIndex(message => message.role !== 'system' && 'content' in message && message.content !== null)
+  const firstSystem = request.messages.findIndex(message => message.role === 'system' && 'content' in message && hasCacheableText(message.content))
+  const tail = request.messages.findLastIndex(message => message.role !== 'system' && 'content' in message && hasCacheableText(message.content))
   const messages: CompatWireMessage[] = request.messages.map((message, i) => {
     if (!('content' in message) || (i !== firstSystem && i !== tail)) return message
     return { ...message, content: cacheContent(message.content, anthropic && i === firstSystem) }
