@@ -97,6 +97,15 @@ const server = Bun.serve({
           headers: { 'Content-Type': 'application/json', 'Retry-After': '90' },
         })
       }
+      if (path === '/repos/acme/renamed') {
+        return new Response('', { status: 301, headers: { Location: 'https://api.github.com/repositories/777' } })
+      }
+      if (path === '/repositories/777') {
+        return new Response(readFixture('github-repo.json'), { headers: { 'Content-Type': 'application/json' } })
+      }
+      if (path === '/repos/acme/loop') {
+        return new Response('', { status: 301, headers: { Location: 'https://api.github.com/repos/acme/loop' } })
+      }
       if (path === '/repos/acme/limited') {
         return new Response('{"message":"API rate limit exceeded for 203.0.113.9."}', {
           status: 403,
@@ -126,6 +135,12 @@ const server = Bun.serve({
 
     if (host === 'pypi.org') {
       if (path === '/pypi/httpx-widget/json' || path === '/pypi/httpx-widget/0.27.2/json') {
+        return new Response(readFixture('pypi-pkg.json'), { headers: { 'Content-Type': 'application/json' } })
+      }
+      if (path === '/pypi/pyyaml-case/json') {
+        return new Response('', { status: 301, headers: { Location: 'https://pypi.org/pypi/PyYAML-Case/json' } })
+      }
+      if (path === '/pypi/PyYAML-Case/json') {
         return new Response(readFixture('pypi-pkg.json'), { headers: { 'Content-Type': 'application/json' } })
       }
       return new Response('{}', { status: 404 })
@@ -430,6 +445,32 @@ try {
       'shape: a URL with an explicit port is read as the page it names, never answered by the GitHub API',
       !seen.slice(beforePort).some(s => s.url.startsWith('https://api.github.com/')) && portPage.result.includes('Fallback GitHub HTML'),
       JSON.stringify(seen.slice(beforePort).map(s => s.url)),
+    )
+
+    clearWebFetchCache()
+    const renamed = await callFetch('https://github.com/acme/renamed')
+    check(
+      'redirect: a renamed repository (the API answers 301 with a location on its own host) is read through the redirect',
+      renamed.code === 200 && renamed.result.includes('# acme/widget') && renamed.result.includes('Language: TypeScript'),
+      renamed.result.slice(0, 300),
+    )
+
+    clearWebFetchCache()
+    const pyCanonical = await callFetch('https://pypi.org/project/pyyaml-case/')
+    check(
+      'redirect: a PyPI name the registry redirects to its canonical spelling is read through the redirect',
+      pyCanonical.code === 200 && pyCanonical.result.includes('# httpx-widget (0.27.2)'),
+      pyCanonical.result.slice(0, 300),
+    )
+
+    clearWebFetchCache()
+    const beforeLoop = seen.length
+    const looped = await callFetch('https://github.com/acme/loop')
+    const loopRequests = seen.slice(beforeLoop).filter(s => s.url === 'https://api.github.com/repos/acme/loop').length
+    check(
+      'redirect: a redirect that loops on its own host is refused after a few requests, never followed without end',
+      looped.code !== 200 && loopRequests >= 1 && loopRequests <= 4 && /redirect/i.test(looped.result),
+      `${loopRequests} requests — ${looped.result.slice(0, 200)}`,
     )
 
     clearWebFetchCache()

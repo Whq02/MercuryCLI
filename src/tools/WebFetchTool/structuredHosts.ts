@@ -4,6 +4,7 @@ import { decodeHtmlEntities, htmlToText, readAttribute } from '../../services/se
 import { webUserAgent } from '../../utils/webUserAgent.js'
 import { EgressBlockedError, FetchRefusedError } from './fetchErrors.js'
 import { FetchPacing } from './fetchPacing.js'
+import { permittedFetchRedirect } from './fetchTransport.js'
 
 type StructuredResult = {
   bytes: number
@@ -27,6 +28,7 @@ type StructuredTarget =
 type StructuredSource = StructuredTarget['source']
 
 const MAX_API_BYTES = 2 * 1024 * 1024
+const MAX_API_REDIRECTS = 3
 const MAX_BODY_CHARS = 16_000
 const MAX_README_CHARS = 24_000
 const MAX_COMMENT_CHARS = 4_000
@@ -210,10 +212,11 @@ async function fetchApiEndpoint(
   signal: AbortSignal,
   accept: string,
   optional = false,
+  redirects = 0,
 ): Promise<ApiReadResult> {
   if (signal.aborted) throw new AbortError()
   const pace = pacingFor(source)
-  return pace.run(SOURCE_INTERVAL_MS[source], signal, async waitMs => {
+  const outcome = await pace.run<ApiReadResult | { redirectTo: string }>(SOURCE_INTERVAL_MS[source], signal, async waitMs => {
     if (signal.aborted) throw new AbortError()
     if (waitMs > 0) {
       throw new FetchRefusedError(
@@ -263,10 +266,18 @@ async function fetchApiEndpoint(
     if (status >= 300 && status < 400) {
       const loc = typeof headers.location === 'string' ? headers.location : ''
       let nextHost = ''
+      let next = ''
       try {
-        nextHost = new URL(loc, apiUrl).hostname
+        next = new URL(loc, apiUrl).toString()
+        nextHost = new URL(next).hostname
       } catch {
         nextHost = 'unknown'
+      }
+      if (next !== '' && permittedFetchRedirect(apiUrl, next)) {
+        if (redirects >= MAX_API_REDIRECTS) {
+          throw new FetchRefusedError(status, `${SOURCE_LABEL[source]} redirected more than ${MAX_API_REDIRECTS} times; search for another source.`)
+        }
+        return { redirectTo: next }
       }
       throw new FetchRefusedError(
         status,
@@ -315,6 +326,8 @@ async function fetchApiEndpoint(
       headers,
     }
   })
+  if ('redirectTo' in outcome) return fetchApiEndpoint(source, outcome.redirectTo, signal, accept, optional, redirects + 1)
+  return outcome
 }
 
 function parseJsonBody(source: StructuredSource, res: Extract<ApiReadResult, { ok: true }>): Record<string, unknown> {
