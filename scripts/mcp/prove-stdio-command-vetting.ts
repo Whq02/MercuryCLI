@@ -74,7 +74,7 @@ try {
     const read = parseMcpConfig({ configObject: { mcpServers: { safe: config } }, expandVars: true, scope: 'user' })
     check('package runners and non-executing controls are untouched', read.config?.mcpServers.safe !== undefined && read.errors.length === 0, config)
   }
-  const diskConfigPath = join(home, '.mcp.json')
+  const diskConfigPath = join(home, 'mcp.json')
   const rawDiskConfig = JSON.stringify({ mcpServers: { badDisk: bad[0], goodDisk: { command: 'node', args: ['server.js'] } } }, null, 2)
   writeFileSync(diskConfigPath, rawDiskConfig)
   const parsedFromDisk = parseMcpConfig({ configObject: JSON.parse(readFileSync(diskConfigPath, 'utf8')), filePath: diskConfigPath, expandVars: true, scope: 'project' })
