@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -28,12 +28,15 @@ if (process.argv.includes('--live')) {
   check('the probe follows the config home of the run', live.startsWith(HOME4) && live.endsWith('.jsonl'), live)
   mkdirSync(join(HOME4, 'projects'), { recursive: true })
   const before = await storeRow()
-  check('no session file yet: the folder is probed and the words say so', before?.status === 'ok' && before.evidence.includes('no transcript file yet'), `${before?.status}: ${before?.evidence}`)
+  check('no session file yet: the folder is probed and the words say so', before?.status === 'ok' && before.evidence.includes('no transcript file yet') && before.evidence.includes('the folder'), `${before?.status}: ${before?.evidence}`)
   mkdirSync(dirname(live), { recursive: true })
   writeFileSync(live, '{"type":"fixture"}\n')
+  const past = new Date(Date.now() - 60_000)
+  utimesSync(live, past, past)
+  const beforeMtime = statSync(live).mtimeMs
   const row = await storeRow()
   check('a readable, writable session file reads ok naming the file', row?.status === 'ok' && row.evidence.includes(live) && row.evidence.includes('readable, writable'), `${row?.status}: ${row?.evidence}`)
-  check('the probe writes nothing to the transcript', statSync(live).size === 19 && readFileSync(live, 'utf8') === '{"type":"fixture"}\n')
+  check('the probe writes nothing to the transcript and leaves its mtime unchanged', statSync(live).size === 19 && statSync(live).mtimeMs === beforeMtime && readFileSync(live, 'utf8') === '{"type":"fixture"}\n', `size=${statSync(live).size} mtime=${statSync(live).mtimeMs} vs ${beforeMtime}`)
   if (process.getuid?.() === 0) {
     console.log('  [SKIP] a denied session file (root ignores file modes)')
   } else {

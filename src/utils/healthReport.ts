@@ -1475,7 +1475,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             try {
               transcriptStat = statSync(transcript)
             } catch {
-              return { status: 'ok' as const, evidence: `${dir} · ${projectCount} project dir(s), writable · this session has no transcript file yet` }
+              return { status: 'ok' as const, evidence: `${dir} · ${projectCount} project dir(s), the folder is writable · this session has no transcript file yet` }
             }
             if (!transcriptStat.isFile()) {
               return {
