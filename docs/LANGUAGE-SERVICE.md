@@ -3,7 +3,11 @@
 Mercury speaks to the workspace's language servers: the built-in TypeScript
 and JavaScript sidecar (`mercury-ts`, using the project's own `typescript`
 package), the Python, C/C++, GDScript and C# lanes, and any server an extension
-or `MERCURY_LSP_SERVERS` adds.
+or `MERCURY_LSP_SERVERS` adds. Beyond those, Mercury knows a catalogue of
+language servers: `mercury lsp list` shows each as installed (with its binary)
+or absent (with its install remedy), and `mercury lsp install <server>` shows
+that remedy, asks, runs exactly it and reports where the binary landed. Mercury
+never installs a language server on its own.
 
 `LspRead` asks those servers about definitions, references, types,
 documentation, callers, callees, symbols, diagnostics and server status. It

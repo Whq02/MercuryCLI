@@ -138,9 +138,10 @@ set in the environment, with Mercury's own stamps and the boot's saved
 defaults named apart from your overrides. Each override names the
 registered switch, its value and its kind; unset switches use their defaults.
 
-AUTH carries the `Model lists` row: for all 12 provider families Mercury
+AUTH carries the `Model lists` row: for all 19 provider families Mercury
 carries typed model ids for (Anthropic, OpenAI, Z.AI, Moonshot, DeepSeek,
-xAI, Meta, Gemini, Hugging Face, Mistral, Nous, OpenCode Zen), whether each
+xAI, Meta, Gemini, Hugging Face, Mistral, Nous, OpenCode Zen, MiniMax,
+Together AI, Cohere, Groq, Cerebras, Fireworks AI, Qwen), whether each
 typed id is still served by the live model list the product has already read
 for that family's signed-in source. The row never fetches: it reads the
 catalogue already fetched by `/model`, `/logins` or a chat naming the family.
@@ -150,8 +151,8 @@ and a family without a credential reads `<Family> · no credential · <n> typed
 ids not judged`. When a list has been read, the family's line names the
 credential door, the served and not-served counts, and `list from <age>`; a
 failed read names the failed door, the endpoint's reason and the age. The
-evidence line counts served and unserved ids, then `lists read <n> of 12`
-across all 12 families.
+evidence line counts served and unserved ids, then `lists read <n> of 19`
+across all 19 families.
 The detail names one line per family and, beneath a family whose list lacks a typed id,
 the ids it lacks. The row reads `ok` when every typed id a read list can
 judge is served, `warn` when a read list lacks one, `info` when no list has

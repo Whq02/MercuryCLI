@@ -442,10 +442,12 @@ list longer than the window ends in honest arithmetic
 and the close chord on that line clears nothing. The project's full history
 is also available through `/sessions` in the chat (project-scoped; `a` widens
 it to every project's history), where chats can be resumed or cleared
-one at a time. Nothing deletes a transcript: no row or key unlinks a
-chat, and the retention sweep (`records.retentionDays`, default 30
+one at a time. Nothing in the board deletes a transcript: no row or key unlinks
+a chat, and the retention sweep (`records.retentionDays`, default 30
 days) ages only recordings and tool results, never
-a session transcript.
+a session transcript. The one way to delete a saved session is on purpose, from
+the command line: `mercury sessions delete <id>` asks first (`--yes` skips the
+question).
 Setting `records.retentionDays` to `0` turns transcript writing off for
 new chats; the transcripts already on disk stay.
 

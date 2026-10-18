@@ -39,7 +39,7 @@ console.log('============================================================')
 }
 
 {
-  check('the retention sentence stands (nothing deletes a transcript)', doc.includes('Nothing deletes a transcript'))
+  check('the retention sentence stands (nothing in the board deletes a transcript)', doc.includes('Nothing in the board deletes a transcript'))
 }
 
 console.log(failures === 0 ? '\n✅ prove-spec-ledger-docs — all checks pass' : '\n❌ prove-spec-ledger-docs — check(s) failed')

@@ -11,7 +11,7 @@ the guides by task; each page describes the installed product.
 - [WINDOWS-GLYPH-FIELD-CHECK.md](WINDOWS-GLYPH-FIELD-CHECK.md): what to look at on Windows after updating, and what to report if a mark looks wrong.
 - [SESSIONS.md](SESSIONS.md): a session owns its conversation, model, permission mode, workspace and running work, hosted by the background daemon across the home screen, chat and Session Concourse.
 - [SETTINGS.md](SETTINGS.md): Mercury stores settings in JSON files, edited in `/config` or through `/model`, `/effort`, `/permissions`, `/memory` and the MCPs & Skills menu.
-- [TRUST.md](TRUST.md): workspace trust gates project hooks, credential helpers and project MCP servers until you trust the folder, alongside permission modes and built-in command safety rules.
+- [TRUST.md](TRUST.md): workspace trust gates project hooks, credential helpers and project MCP servers until you trust the folder, alongside permission modes, built-in command safety rules and the safety floors.
 
 Keyboard interaction lives in the product: `/keys` shows the effective key
 map and `/keybindings` opens your keybindings file.
@@ -36,7 +36,7 @@ map and `/keybindings` opens your keybindings file.
 - [EXTENSIONS.md](EXTENSIONS.md): extension manifests, sources, contributions, approval and the author's commands.
 - [CREW.md](CREW.md): every Mercury session can delegate work to its crew of crewmates through the `Crewmate` tool, tracked live in `/crewmates` and `/runs` and reachable by id or name.
 - [SATURN.md](SATURN.md): schedules that send a prompt or start a session, the scheduler board and held or late fires.
-- [HOOKS.md](HOOKS.md): the four hook kinds, event inputs, command and HTTP answers, model verdicts and policy controls.
+- [HOOKS.md](HOOKS.md): the three hook kinds (a shell command, a model question, a crewmate), event inputs, answers and policy controls.
 
 ## Providers and models
 
@@ -50,7 +50,7 @@ map and `/keybindings` opens your keybindings file.
 - [DURABILITY.md](DURABILITY.md): atomic publication, operation journals, recovery, watchdogs and loop-stop outcomes.
 - [TERMINAL-RUNTIME.md](TERMINAL-RUNTIME.md): how the built product boots, where deployed copies live, how updates land, and how a broken boot recovers.
 - [TERMINAL-PROFILE.md](TERMINAL-PROFILE.md): terminal requirements, capability detection, input decoding, ping and motion controls.
-- [COMPATIBILITY.md](COMPATIBILITY.md): Mercury keeps configuration in its `.mercury` homes, reads `MERCURY_*` switches from `src/substrate/flagRegistry.ts`, and ships four platform archives.
+- [COMPATIBILITY.md](COMPATIBILITY.md): Mercury keeps configuration in its `.mercury` homes, reads `MERCURY_*` switches from `src/substrate/flagRegistry.ts`, and ships six platform archives.
 
 ## Creative tools
 

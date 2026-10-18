@@ -7,7 +7,7 @@ Website: [mercury-cli.ai](https://mercury-cli.ai) · Repository: [github.com/Whq
 An agent reads and edits files, runs shell commands, steps through tests and debuggers, and checks the results. You choose the model provider, the model, and what the agent is allowed to do:
 
 - **Multi-session Concourse and isolated worktrees:** run multiple sessions side by side on the Session Concourse (`/concourse`), and delegate parallel work to cross-provider crewmates (`Crewmate`) in isolated `git worktree` checkouts with project file leases so parallel agents do not overwrite each other.
-- **13 model providers and `/localsetup`:** keep all 13 providers signed in at once (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen), switch providers and models mid-chat, or run `/localsetup` for one-command local model setup with Ollama alongside LM Studio, vLLM and llama.cpp.
+- **20 model providers and `/localsetup`:** keep all 20 providers signed in at once (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI), switch providers and models mid-chat, or run `/localsetup` for one-command local model setup with Ollama alongside LM Studio, vLLM and llama.cpp.
 - **Mneme hybrid RAG project memory:** combines an on-device 118 MB BGE semantic embedding model (`bge-base-en-v1.5`) with BM25 word ranking and citation tracking, verbatim pinned rules, branch-aware startup context, write-time contradiction checks, session handoff notes, and the `/memory page` browser graph.
 - **Compiler, AST and DAP debugging tools:** wires in LSP code intelligence and previewed refactors (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), 23-language tree-sitter AST structural search and rewrites (`AstSearch`, `AstEdit`), a built-in Debug Adapter Protocol (`Debug`) debugger (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`) that failing Python, Node, Go and Rust tests step straight into, and persistent Python and JavaScript `Eval` cells.
 - **Keyless `WebSearch` and markdown `WebFetch`:** searches through provider-native search, Brave or Tavily keys, official APIs (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG and keyless DuckDuckGo, and fetches public documentation as clean markdown within a 38,000-character call budget.
@@ -135,9 +135,8 @@ check an archive manually.
 
 ### Platform notes
 
-On Linux arm64, follow the installer’s instruction to
-[build from source](#build-from-source). On Windows arm64, use the x64 archive
-under emulation. Mercury has no native archive for either arm64 platform.
+Release archives exist for every platform listed above. Any other machine
+builds from source.
 
 Intel Mac archives are available from 1.0.0-beta.3. They are cross-packaged on
 an Apple silicon runner and tested at startup under Rosetta before
@@ -233,12 +232,14 @@ component. Running `bun install` alone produces a build without those packs.
 
 To build voice support, run `setup` with Rust installed. That builds
 `native/voice`. Add cmake to build `native/whisper` as well. With Rust
-installed, `setup` also builds the local embedding addon (`native/embed`,
+installed, `setup` also builds the desktop driver addon (`native/desktop`) that
+the `Computer` tool runs through. With Rust installed,
+`setup` also builds the local embedding addon (`native/embed`,
 `bun run scripts/vendor/build-embed.ts`) and fetches the 118 MB BGE model
 (`bun run scripts/vendor/fetch-embed-models.ts --default`); without cargo the
 pack is skipped, setup says so, and Mneme memory lookup runs word match only.
-Every release archive carries the embedding pack (macOS Apple silicon and
-Intel, Linux x86-64, Windows x86-64); on Linux and Windows the maths runs a
+Every release archive carries the embedding pack built for its platform;
+on Linux and Windows the maths runs a
 vectorised kernel, so a Recall by meaning takes about a tenth of a second (a
 few hundredths on macOS, which uses Accelerate). If a native build
 lacks its tools, setup skips it and the health check reports the missing
@@ -721,7 +722,8 @@ Available commands include:
   server that is already installed.
 - **`mercury acp`**: serve an editor over the Agent Client Protocol, with a
   runner child for each session. `mercury bridge install` installs the
-  VS Code extension; `mercury bridge status` checks it.
+  VS Code extension; `mercury bridge status` checks it;
+  `mercury bridge uninstall` removes it.
 - **`mercury godot run|check|capture|frames|profile|tour|jobs|cancel|result`**:
   manage engine jobs for the Godot project in the current directory. Mercury
   runs suites on its own headless workers from a frozen project copy. The
@@ -741,8 +743,8 @@ Available commands include:
 - **Mneme hybrid RAG project memory.** Mneme is on by default, keeping each
   project's facts in plain markdown topic pages (`Retain`, `Recall`, `Reflect`,
   `Correct`). Recall fuses an on-device 118 MB BGE semantic embedding model
-  (`bge-base-en-v1.5` `q8_0`, MIT, bundled in every release archive for macOS
-  Apple silicon and Intel, Linux x86-64 and Windows x86-64; see [Optional
+  (`bge-base-en-v1.5` `q8_0`, MIT, bundled in every release archive,
+  built for its platform; see [Optional
   components](#optional-components)) with stemmed BM25 word
   ranking, recency weighting and citation tracking via reciprocal rank fusion
   (`k = 60`). Pinned rules (`pin: true`) load verbatim on the pinned shelf and
@@ -764,7 +766,8 @@ Available commands include:
   build plus 7 in the grammar pack); persistent Python (`python3`) and
   JavaScript (Node ES module) code cells (`Eval`); and a Debug Adapter Protocol
   debugger (`Debug`) driving `debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`,
-  `netcoredbg`, `rdbg` and Godot. The `Test` tool's `debug` operation steps a
+  `netcoredbg`, `rdbg`, the Dart SDK's debug adapter, `kotlin-debug-adapter`,
+  the elixir-ls debug adapter and Godot. The `Test` tool's `debug` operation steps a
   failing Python (`pytest`, `unittest`), JavaScript/TypeScript (`node-test`,
   `vitest`, `jest`), Go (`go test`) or Rust (`cargo test`) test straight into
   a `Debug` session. See
