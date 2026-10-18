@@ -386,7 +386,7 @@ async function* runBash(
   }
   let editorTerminalNote: string | undefined
   const ideShellCommand =
-    isMainThread && !input.run_in_background && ideTerminalAvailable()
+    isMainThread && !input.run_in_background && !useSandbox && ideTerminalAvailable()
       ? await execViaIdeTerminal(input.command, abortController.signal, {
           cwd: getShellCwd(),
           timeout: effectiveTimeout,

@@ -598,6 +598,40 @@ section('§9 write only (fs.writeTextFile: true, fs.readTextFile: false, termina
   }
 }
 
+section('§10 the sandbox is on: Bash stays in the local sandbox and is never sent to the editor terminal')
+{
+  mkdirSync(join(projDir, '.mercury'), { recursive: true })
+  writeFileSync(join(projDir, '.mercury', 'settings.local.json'), JSON.stringify({ guardrails: { sandbox: { enabled: true } } }))
+  const api = await startFixtureApi([
+    { kind: 'tool_use', name: 'Bash', input: { command: 'printf "sandboxed-local\\n"' }, preText: 'bash under the sandbox' },
+    { kind: 'text', text: 'sandbox done' },
+  ])
+  const server = spawnServer(api.url)
+  const h = connectClient(server, {
+    onTerminalCreate: () => ({ terminalId: 'term-sandbox' }),
+    onTerminalOutput: () => ({ output: 'from-the-editor-terminal\n', truncated: false, exitStatus: { exitCode: 0 } }),
+    onTerminalWaitForExit: () => ({ exitCode: 0 }),
+  })
+  try {
+    await h.agent.request('initialize', {
+      protocolVersion: acp.PROTOCOL_VERSION,
+      clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: true },
+    })
+    const { sessionId } = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
+    const res = await h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'sandboxed bash' }] })
+    check('turn completes', res.stopReason === 'end_turn', j(res))
+    const results = toolResultStrings(h.updates)
+    check('no terminal request reached the editor while the sandbox is on', h.termCalls.length === 0, j(h.termCalls.map(c => c.op)))
+    check('the command ran locally', results.some(r => r.includes('sandboxed-local')) && !results.some(r => r.includes('from-the-editor-terminal')), j(results))
+    await h.agent.request('session/close', { sessionId }).catch(() => {})
+  } finally {
+    h.close()
+    server.kill('SIGKILL')
+    await api.close()
+    rmSync(join(projDir, '.mercury', 'settings.local.json'), { force: true })
+  }
+}
+
 console.log('')
 if (failures > 0) {
   console.error(`❌ prove-acp-ide-routing: ${failures} failure(s)`)
