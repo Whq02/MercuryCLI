@@ -4,7 +4,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 import * as acp from '@agentclientprotocol/sdk'
 
@@ -430,6 +430,166 @@ section('§5 refusals — read-before-edit/read-before-overwrite laws, deny rule
       !h.fsReads.some(r => r.path === deniedFile) && sovResults.some(r => r.includes('is denied by the rule')),
       j({ reads: h.fsReads, sovResults }),
     )
+    await h.agent.request('session/close', { sessionId }).catch(() => {})
+  } finally {
+    h.close()
+    server.kill('SIGKILL')
+    await api.close()
+  }
+}
+
+section('§6 terminal only (fs.readTextFile: false, fs.writeTextFile: false, terminal: true): Bash runs in the editor terminal with its exit code, Read and Edit stay on disk')
+{
+  const diskFile = join(projDir, 'terminal-only.txt')
+  writeFileSync(diskFile, 'alpha\nbeta\n')
+  const api = await startFixtureApi([
+    { kind: 'tool_use', name: 'Read', input: { file_path: diskFile }, preText: 'read disk' },
+    { kind: 'tool_use', name: 'Edit', input: { file_path: diskFile, old_string: 'beta', new_string: 'gamma' }, preText: 'edit disk' },
+    { kind: 'tool_use', name: 'Bash', input: { command: 'echo hi' }, preText: 'bash ok' },
+    { kind: 'tool_use', name: 'Bash', input: { command: 'exit 3' }, preText: 'bash fails' },
+    { kind: 'text', text: 'terminal only done' },
+  ])
+  const commands = new Map<string, string>()
+  const exitOf = (id: string): number => (commands.get(id) === 'exit 3' ? 3 : 0)
+  const server = spawnServer(api.url)
+  const h = connectClient(server, {
+    onTerminalCreate: p => {
+      const id = `t${commands.size + 1}`
+      commands.set(id, p.command)
+      return { terminalId: id }
+    },
+    onTerminalOutput: p => ({ output: exitOf(p.terminalId) === 3 ? 'boom\n' : 'hi\n', truncated: false, exitStatus: { exitCode: exitOf(p.terminalId) } }),
+    onTerminalWaitForExit: p => ({ exitCode: exitOf(p.terminalId) }),
+  })
+  try {
+    await h.agent.request('initialize', {
+      protocolVersion: acp.PROTOCOL_VERSION,
+      clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: true },
+    })
+    const { sessionId } = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
+    const res = await h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'terminal only' }] })
+    check('turn completes', res.stopReason === 'end_turn', j(res))
+    check('zero fs/read_text_file or fs/write_text_file requests were sent', h.fsReads.length === 0 && h.fsWrites.length === 0, j({ reads: h.fsReads, writes: h.fsWrites }))
+    check('Edit changed the file on disk', readFileSync(diskFile, 'utf8') === 'alpha\ngamma\n')
+    const creates = h.termCalls.filter(c => c.op === 'create')
+    check('two terminals were created for the two commands, in the session folder', creates.length === 2 && creates.every(c => typeof c.payload.cwd === 'string' && (c.payload.cwd as string).endsWith(basename(projDir))), j(creates))
+    check('both terminals were released after they exited', h.termCalls.filter(c => c.op === 'release').length === 2, j(h.termCalls.map(c => c.op)))
+    const results = toolResultStrings(h.updates)
+    check('the first result carries the terminal output', results.some(r => r.includes('hi')), j(results))
+    check('the failing command names its exit code 3 and carries its output', results.some(r => r.includes('boom') && /\b3\b/.test(r)), j(results))
+    await h.agent.request('session/close', { sessionId }).catch(() => {})
+  } finally {
+    h.close()
+    server.kill('SIGKILL')
+    await api.close()
+  }
+}
+
+section('§7 the editor cannot create a terminal: the command runs in the local shell and the result says so')
+{
+  const api = await startFixtureApi([
+    { kind: 'tool_use', name: 'Bash', input: { command: 'printf "ran-local\\n"' }, preText: 'bash with a broken editor terminal' },
+    { kind: 'text', text: 'fallback done' },
+  ])
+  const server = spawnServer(api.url)
+  const h = connectClient(server, {
+    onTerminalCreate: () => {
+      throw new acp.RequestError(-32603, 'no pty available in this editor')
+    },
+  })
+  try {
+    await h.agent.request('initialize', {
+      protocolVersion: acp.PROTOCOL_VERSION,
+      clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: true },
+    })
+    const { sessionId } = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
+    const res = await h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'broken terminal' }] })
+    check('turn completes', res.stopReason === 'end_turn', j(res))
+    const results = toolResultStrings(h.updates)
+    check('the command ran in the local shell', results.some(r => r.includes('ran-local')), j(results))
+    check(
+      'the result states that the editor could not open a terminal, why, and that the local shell ran the command',
+      results.some(r => /editor/i.test(r) && /terminal/i.test(r) && r.includes('no pty available in this editor') && /local shell/i.test(r)),
+      j(results),
+    )
+    await h.agent.request('session/close', { sessionId }).catch(() => {})
+  } finally {
+    h.close()
+    server.kill('SIGKILL')
+    await api.close()
+  }
+}
+
+section('§8 abort: cancelling a turn that waits on an editor terminal kills the terminal and then releases it')
+{
+  const api = await startFixtureApi([
+    { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 600' }, preText: 'a long command' },
+    { kind: 'text', text: 'unreachable' },
+  ])
+  let killed!: () => void
+  const killedSignal = new Promise<void>(resolve => {
+    killed = resolve
+  })
+  const server = spawnServer(api.url)
+  const h = connectClient(server, {
+    onTerminalCreate: () => ({ terminalId: 'long-1' }),
+    onTerminalWaitForExit: async () => {
+      await killedSignal
+      return { exitCode: null }
+    },
+    onTerminalKill: () => {
+      killed()
+      return {}
+    },
+  })
+  try {
+    await h.agent.request('initialize', {
+      protocolVersion: acp.PROTOCOL_VERSION,
+      clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: true },
+    })
+    const { sessionId } = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
+    const turn = h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'long command' }] })
+    for (let waited = 0; !h.termCalls.some(c => c.op === 'wait_for_exit') && waited < 600; waited++) await new Promise(r => setTimeout(r, 50))
+    await h.agent.notify('session/cancel', { sessionId })
+    const res = await turn
+    check('the cancelled turn settles', res.stopReason === 'cancelled', j(res))
+    const ops = h.termCalls.map(c => c.op)
+    check('terminal/kill is sent, then terminal/release', ops.includes('kill') && ops.includes('release') && ops.indexOf('kill') < ops.lastIndexOf('release'), j(ops))
+    await h.agent.request('session/close', { sessionId }).catch(() => {})
+  } finally {
+    h.close()
+    server.kill('SIGKILL')
+    await api.close()
+  }
+}
+
+section('§9 write only (fs.writeTextFile: true, fs.readTextFile: false, terminal: false): Read stays on disk, Edit goes through the editor and the read-back finds the formatted file on disk')
+{
+  const fmtFile = join(projDir, 'write-only.ts')
+  writeFileSync(fmtFile, 'const a=1\n')
+  const api = await startFixtureApi([
+    { kind: 'tool_use', name: 'Read', input: { file_path: fmtFile }, preText: 'read disk' },
+    { kind: 'tool_use', name: 'Edit', input: { file_path: fmtFile, old_string: 'const a=1', new_string: 'const a=2' }, preText: 'edit with format on save' },
+    { kind: 'text', text: 'write only done' },
+  ])
+  const server = spawnServer(api.url)
+  const h = connectClient(server, {
+    onWriteTextFile: ({ path, content }) => {
+      writeFileSync(path, content.replace(/const (\w+)=(\d+)/g, 'const $1 = $2;'))
+      return {}
+    },
+  })
+  try {
+    await h.agent.request('initialize', {
+      protocolVersion: acp.PROTOCOL_VERSION,
+      clientCapabilities: { fs: { readTextFile: false, writeTextFile: true }, terminal: false },
+    })
+    const { sessionId } = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
+    const res = await h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'write only' }] })
+    check('turn completes', res.stopReason === 'end_turn', j(res))
+    check('no fs/read_text_file was sent and Edit went through fs/write_text_file once', h.fsReads.length === 0 && h.fsWrites.length === 1, j({ reads: h.fsReads, writes: h.fsWrites }))
+    const results = toolResultStrings(h.updates)
+    check('the read-back from disk caught the formatting and reported the formatted line', results.some(r => r.includes('differ from what this edit wrote') && r.includes('const a = 2;')), j(results))
     await h.agent.request('session/close', { sessionId }).catch(() => {})
   } finally {
     h.close()

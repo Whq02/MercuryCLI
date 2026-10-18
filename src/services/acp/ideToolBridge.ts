@@ -7,7 +7,7 @@ import { detectLineEndingsForString } from '../../utils/fileRead.js'
 import { writeTextContent } from '../../utils/file.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
 import { generateTaskId } from '../../Task.js'
-import { createAbortedCommand, createFailedCommand, type ExecResult, type ShellCommand } from '../../utils/ShellCommand.js'
+import { createAbortedCommand, type ExecResult, type ShellCommand } from '../../utils/ShellCommand.js'
 import type { ProcessTreeKillReceipt } from '../../utils/processGroup.js'
 import { MAX_TASK_OUTPUT_BYTES } from '../../utils/task/diskOutput.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
@@ -29,6 +29,8 @@ interface IdeToolDoor {
   terminalKill(params: ParamsOf<'terminal/kill'>, signal?: AbortSignal): Promise<ResultOf<'terminal/kill'>>
   terminalRelease(params: ParamsOf<'terminal/release'>, signal?: AbortSignal): Promise<ResultOf<'terminal/release'>>
 }
+
+export class IdeTerminalUnavailableError extends Error {}
 
 let activeDoor: IdeToolDoor | null = null
 const virtualGenerations = new Map<string, { generation: string; mtimeMs: number; content: string }>()
@@ -257,7 +259,8 @@ export async function execViaIdeTerminal(
     )
     terminalId = created.terminal_id
   } catch (error) {
-    return createFailedCommand(error instanceof Error ? error.message : String(error))
+    if (abortSignal.aborted) return createAbortedCommand()
+    throw new IdeTerminalUnavailableError(error instanceof Error ? error.message : String(error))
   }
 
   const taskId = generateTaskId('local_bash')

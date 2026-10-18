@@ -9,7 +9,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { getOriginalCwd, isRunInputClosed } from '../../bootstrap/state.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { exec, getShellCwd } from '../../utils/Shell.js'
-import { execViaIdeTerminal, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
+import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
 import { HARD_CAP_MULTIPLIER } from '../../utils/ShellCommand.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
@@ -384,6 +384,7 @@ async function* runBash(
     latest = { recent, all, lines, bytes: incomplete ? bytes : 0, incomplete }
     progressResolve?.()
   }
+  let editorTerminalNote: string | undefined
   const ideShellCommand =
     isMainThread && !input.run_in_background && ideTerminalAvailable()
       ? await execViaIdeTerminal(input.command, abortController.signal, {
@@ -392,6 +393,10 @@ async function* runBash(
           shouldAutoBackground,
           inheritSessionEnv: input.inherit_session_env === true,
           onProgress,
+        }).catch((error: unknown) => {
+          if (!(error instanceof IdeTerminalUnavailableError)) throw error
+          editorTerminalNote = `The editor could not open a terminal (${error.message}); this command ran in the local shell.`
+          return null
         })
       : null
   const shellCommand =
@@ -678,6 +683,7 @@ async function* runBash(
     const accumulator = new EndTruncatingAccumulator()
     accumulator.append(result.stdout.trimEnd() + '\n')
     if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
+    if (editorTerminalNote !== undefined) accumulator.append(editorTerminalNote + '\n')
     if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
     if (commandNamesBoxLock(input.command)) await refreshBoxReading()
     const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd: getShellCwd() })
