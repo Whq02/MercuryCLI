@@ -1,6 +1,6 @@
 --- a/brush-core-0.5.0/src/commands.rs
 +++ b/brush-core-0.5.0/src/commands.rs
-@@ -177,6 +177,25 @@
+@@ -177,6 +177,25 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
      args: &[S],
      empty_env: bool,
  ) -> Result<std::process::Command, error::Error> {
@@ -26,7 +26,7 @@
      let mut cmd = std::process::Command::new(command_name);
  
      // Override argv[0].
-@@ -630,6 +649,8 @@
+@@ -630,6 +649,8 @@ pub(crate) fn execute_external_command(
              .join(" ")
      );
  
@@ -35,7 +35,7 @@
      match sys::process::spawn(cmd) {
          Ok(child) => {
              // Retrieve the pid.
-@@ -649,6 +670,23 @@
+@@ -649,6 +670,23 @@ pub(crate) fn execute_external_command(
              ))
          }
          Err(spawn_err) => {
@@ -59,7 +59,7 @@
              if context.shell.options().interactive {
                  sys::terminal::move_self_to_foreground()?;
              }
-@@ -871,3 +909,54 @@
+@@ -871,3 +909,74 @@ fn try_unwrap_bare_input_redir_program(program: &ast::Program) -> Option<&ast::I
          _ => None,
      }
  }
@@ -77,8 +77,28 @@
 +        std::fs::create_dir_all(&bin)?;
 +        std::fs::write(cwd.join("cwd-only.cmd"), "@echo CWD_SHIM_MUST_NOT_RUN\r\n")?;
 +        std::fs::write(bin.join("shim-probe.cmd"), "@echo PATH_SHIM_OK\r\n")?;
++        std::fs::write(bin.join("npm"), "#!/bin/sh\necho POSIX_SHIM\n")?;
++        std::fs::write(bin.join("npm.cmd"), "@echo PATH_SHIM_OK\r\n")?;
 +        let mut shell = Shell::builder().build().await?;
 +        shell.set_working_dir(&cwd)?;
++        let mut path_val = bin.as_os_str().to_os_string();
++        path_val.push(if cfg!(windows) { ";" } else { ":" });
++        shell.env_mut().set_global(
++            "PATH",
++            variables::ShellVariable::new(path_val.to_string_lossy().into_owned()),
++        )?;
++        if cfg!(windows) {
++            assert_eq!(
++                shell.find_first_executable_in_path_using_cache("shim-probe"),
++                Some(bin.join("shim-probe.cmd"))
++            );
++            assert_eq!(
++                shell.find_first_executable_in_path_using_cache("npm"),
++                Some(bin.join("npm.cmd"))
++            );
++        }
++        assert!(shell.find_first_executable_in_path_using_cache("cwd-only").is_none());
++        assert!(shell.find_first_executable_in_path_using_cache("cwd-only.cmd").is_none());
 +        let params = shell.default_exec_params();
 +        let context = ExecutionContext {
 +            shell: &mut shell,
@@ -114,3 +134,65 @@
 +        Ok(())
 +    }
 +}
+--- a/brush-core-0.5.0/src/shell/fs.rs
++++ b/brush-core-0.5.0/src/shell/fs.rs
+@@ -125,8 +125,17 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
+     ) -> Option<PathBuf> {
+         let path = self.env_str("PATH").unwrap_or_default();
+         for one_dir in crate::sys::fs::split_paths(path.as_ref()) {
++            #[cfg(windows)]
++            if one_dir.as_os_str().is_empty() || candidate_name.as_ref().is_empty() {
++                continue;
++            }
++            #[cfg(windows)]
++            let one_dir = self.absolute_path(&one_dir);
+             let candidate_path = one_dir.join(candidate_name.as_ref());
+             if candidate_path.executable() {
++                #[cfg(windows)]
++                return crate::sys::fs::resolve_executable(candidate_path);
++                #[cfg(not(windows))]
+                 return Some(candidate_path);
+             }
+         }
+--- a/brush-core-0.5.0/src/sys/windows/fs.rs
++++ b/brush-core-0.5.0/src/sys/windows/fs.rs
+@@ -61,4 +61,4 @@ fn is_executable_file(path: &Path) -> bool {
+ pub fn resolve_executable(path: PathBuf) -> Option<PathBuf> {
+-    if is_executable_file(&path) {
+-        return Some(path);
++    if path.extension().is_some() {
++        return is_executable_file(&path).then_some(path);
+     }
+@@ -66,7 +66,9 @@ pub fn resolve_executable(path: PathBuf) -> Option<PathBuf> {
+     for ext in PATHEXT_EXTENSIONS.iter() {
+-        let mut name = path.as_os_str().to_owned();
+-        name.push(ext);
+-        let candidate = PathBuf::from(name);
+-        if candidate.is_file() {
+-            return Some(candidate);
++        for candidate_ext in [ext.as_str(), &ext.to_ascii_uppercase()] {
++            let mut name = path.as_os_str().to_owned();
++            name.push(candidate_ext);
++            let candidate = PathBuf::from(name);
++            if candidate.is_file() {
++                return Some(candidate);
++            }
+         }
+@@ -86,4 +88,4 @@ impl crate::sys::fs::PathExt for Path {
+     fn executable(&self) -> bool {
+-        if is_executable_file(self) {
+-            return true;
++        if self.extension().is_some() {
++            return is_executable_file(self);
+         }
+@@ -92,5 +94,7 @@ impl crate::sys::fs::PathExt for Path {
+         PATHEXT_EXTENSIONS.iter().any(|ext| {
+-            let mut name = self.as_os_str().to_owned();
+-            name.push(ext);
+-            Self::new(&name).is_file()
++            [ext.as_str(), &ext.to_ascii_uppercase()].into_iter().any(|candidate_ext| {
++                let mut name = self.as_os_str().to_owned();
++                name.push(candidate_ext);
++                Self::new(&name).is_file()
++            })
+         })
