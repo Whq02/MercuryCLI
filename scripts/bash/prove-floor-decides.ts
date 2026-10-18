@@ -36,12 +36,12 @@ async function decide(command: string, allow: string[] = [], deny: string[] = []
 }
 const rows: Array<[string, string, string]> = [
   ['recursive delete substitution', 'rm -rf $(cat x)', 'ask'],
-  ['destructive second statement', 'echo a; rm -rf /', 'ask'],
+  ['runtime-destroying second statement', 'echo a; rm -rf /', 'deny'],
   ['changed directory before git', 'cd / && git status', 'ask'],
   ['process substitution', 'cat >(cat)', 'ask'],
   ['substitution in a write path', 'touch "prefix$(cat x)"', 'ask'],
   ['unquoted environment delete path', 'rm -rf $HOME/cache', 'ask'],
-  ['expanding heredoc executes its substitution', 'cat <<EOF\n$(rm -rf /)\nEOF', 'ask'],
+  ['expanding heredoc refuses its runtime-destroying substitution', 'cat <<EOF\n$(rm -rf /)\nEOF', 'deny'],
   ['single-quoted semicolon', "echo ';'", 'allow'],
   ['quoted exclamation remains text', 'echo "hi!"', 'allow'],
   ['quoted apostrophe remains text', `echo "a'b"`, 'allow'],

@@ -1,3 +1,4 @@
+import './webfetchFixtureDns.ts'
 import assert from 'node:assert/strict'
 import axios from 'axios'
 

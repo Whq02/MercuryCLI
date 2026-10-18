@@ -13,6 +13,7 @@ import { getToolUseSummary, renderToolResultMessage, renderToolUseMessage, rende
 import { applyPromptToMarkdown, getURLMarkdownContent, isPreapprovedUrl } from './utils.js'
 import { pageSlice } from './pageBudget.js'
 import { FetchRefusedError } from './fetchErrors.js'
+import { metadataRefusal, metadataSafeAddresses } from './privateHost.js'
 
 
 const inputSchema = z.strictObject({
@@ -88,6 +89,7 @@ const REDIRECT_PHRASES: Record<number, string> = {
 
 async function runFetch(input: Input, context: ToolUseContext): Promise<Output> {
   const startTime = Date.now()
+  await metadataSafeAddresses(input.url)
   const fetched = await getURLMarkdownContent(input.url, context.abortController)
 
   if ('type' in fetched) {
@@ -182,6 +184,8 @@ export const WebFetchTool = buildTool({
     }
   },
   async checkPermissions(input: Input, context: ToolUseContext) {
+    const refused = metadataRefusal(input.url)
+    if (refused !== null) return { behavior: 'deny' as const, message: refused, decisionReason: { type: 'other' as const, reason: refused } }
     const permissionContext = context.getAppState().toolPermissionContext as ToolPermissionContext
     try {
       const parsed = new URL(input.url)

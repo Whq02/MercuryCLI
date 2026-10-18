@@ -40,6 +40,7 @@ import { getShellCwd } from '../../utils/Shell.js'
 import { hiddenCommandCharacterReason } from '../../utils/sanitization.js'
 import { credentialUploadReason } from '../../utils/permissions/commandContent.js'
 import { getDestructiveCommandWarning } from '../BashTool/destructiveCommandWarning.js'
+import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
 
 const TOOL_NAME = 'PowerShell'
 
@@ -142,6 +143,8 @@ export async function powershellToolHasPermission(
   const hidden = hiddenCommandCharacterReason(input.command.replace(/\r\n/g, '\n'))
   if (hidden !== null) return { behavior: 'deny', message: hidden, decisionReason: { type: 'safetyCheck', reason: hidden, operatorOnly: true } }
   const command = input.command.trim()
+  const selfProtection = await shellSelfProtectionReason(command, true)
+  if (selfProtection !== null) return { behavior: 'deny', message: selfProtection, decisionReason: { type: 'other', reason: selfProtection } }
 
   if (command === '') return { behavior: 'allow', updatedInput: input, decisionReason: other('Nothing to run.') }
 
@@ -151,9 +154,19 @@ export async function powershellToolHasPermission(
   if (exact.behavior === 'deny') return exact
   const prefixDeny = matchRules(command, toolPermissionContext, 'deny', 'prefix')
   if (prefixDeny) return ruledVerdict(toolPermissionContext, command, prefixDeny, 'deny')
+  const secretRead = await shellMercurySecretPath(command, true)
+  if (secretRead !== null) {
+    const message = 'Reading ' + secretRead + " is refused: it holds Mercury's own credentials; use the product's sign-in and account surfaces instead."
+    return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } }
+  }
   const warning = credentialUploadReason(command) ?? getDestructiveCommandWarning(command)
   let deferredAsk: PermissionResult | null = warning === null ? null : {
     behavior: 'ask', message: warning, decisionReason: { type: 'safetyCheck', reason: warning, operatorOnly: true },
+  }
+  const protectedWrite = await shellCredentialWritePath(command, true)
+  if (protectedWrite !== null) {
+    const message = 'Writing ' + protectedWrite + ' affects a credential store and requires approval.'
+    deferredAsk = { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
   }
   const prefixAsk = matchRules(command, toolPermissionContext, 'ask', 'prefix')
   if (prefixAsk) deferredAsk = ruledVerdict(toolPermissionContext, command, prefixAsk, 'ask')

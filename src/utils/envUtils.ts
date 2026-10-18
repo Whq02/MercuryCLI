@@ -8,9 +8,13 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { readSessionOption } from '../cli/sessionArgs.js'
 
 
+export function defaultMercuryHome(): string {
+  return join(homedir(), '.mercury')
+}
+
 export const getMercuryHome = memoize((): string => {
   const resolved =
-    process.env.MERCURY_CONFIG_DIR || flagEnv('MERCURY_HOME') || join(homedir(), '.mercury')
+    process.env.MERCURY_CONFIG_DIR || flagEnv('MERCURY_HOME') || defaultMercuryHome()
   return canonicalHomeSpelling(resolved)
 }, () =>
   JSON.stringify([

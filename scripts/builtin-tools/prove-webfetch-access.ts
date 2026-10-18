@@ -1,3 +1,4 @@
+import './webfetchFixtureDns.ts'
 import assert from 'node:assert/strict'
 import { readFile, unlink } from 'node:fs/promises'
 import axios from 'axios'

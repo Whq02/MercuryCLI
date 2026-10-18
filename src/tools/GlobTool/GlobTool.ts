@@ -81,6 +81,8 @@ export const GlobTool = buildTool({
       const remote = path === undefined ? null : checkUncPathPermission(path, context.getAppState().toolPermissionContext)
       if (remote && remote.behavior !== 'allow') return remote
     }
+    const literal = checkReadPermissionForTool({ name: 'Glob', getPath: () => expandPath(input.pattern, input.path ? expandPath(input.path) : getCwd()) }, input, context.getAppState().toolPermissionContext)
+    if (literal.behavior === 'deny') return literal
     return checkReadPermissionForTool(GlobTool, input, context.getAppState().toolPermissionContext)
   },
   isSearchOrReadCommand: () => ({ isSearch: true, isRead: false }),

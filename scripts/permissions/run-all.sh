@@ -9,7 +9,7 @@
 # gate-watch: src/tools/BashTool/pathValidation* src/tools/BashTool/readOnlyValidation*
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/seedTranscript.ts scripts/lib/runnerHost.ts scripts/lib/scriptedTurn.ts
 # gate-watch: scripts/api/read-instruction-heading.ts
-# gate-watch: docs/TRUST.md
+# gate-watch: docs/TRUST.md AGENTS.md
 # gate-watch: src/tools/FileReadTool/FileReadTool.ts src/tools/GrepTool/GrepTool.ts src/tools/TransactionTool/TransactionTool.ts
 # gate-watch: src/services/ide/ideTransaction.ts src/utils/fsOperations.ts src/utils/shell/readOnlyCommandValidation.ts src/utils/projectHomeStores.ts
 # gate-watch: src/mneme/mnemeGates.ts src/mneme/paths.ts src/tools/MemoryTools/prompt.ts src/utils/collapseReadSearch.ts src/utils/memoryFileDetection.ts
@@ -22,7 +22,7 @@
 # gate-watch: src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/ink/stringWidth.ts
 # gate-watch: src/interactiveHelpers.tsx src/main.tsx src/screens/Chat.tsx src/services/agents/codec.ts
 # gate-watch: src/services/desktop/toolName.ts src/services/engine-connector/daemonConnector.ts
-# gate-watch: src/services/instructions/engine.ts src/services/lsp/** src/services/mcp/** src/services/providers/**
+# gate-watch: src/services/instructions/engine.ts src/services/instructions/projectInstructionWriter.ts src/tools/RecordConventionTool/RecordConventionTool.ts src/services/lsp/** src/services/mcp/** src/services/providers/**
 # gate-watch: src/services/switchboard/bootBirthFacts.ts src/services/switchboard/runnerArgv.ts
 # gate-watch: src/skills/loadSkillsDir.ts src/state/AppState.tsx src/state/AppStateStore.ts src/state/store.ts
 # gate-watch: src/substrate/flagRegistry.ts src/tools.ts src/tools/AgentTool/** src/tools/AstEditTool/AstEditTool.ts
@@ -40,13 +40,13 @@
 # gate-watch: src/daemon/controlSocket.ts src/daemon/protocol.ts src/services/engine-connector/seatProjections.ts
 # gate-watch: src/components/agents/studio/StudioEditor.tsx src/components/agents/studio/AgentStudio.tsx src/components/BootAgentsScreen.tsx
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: scripts/lib/seatDoor.ts scripts/lib/hermetic.ts
+# gate-watch: scripts/lib/seatDoor.ts scripts/lib/hermetic.ts scripts/eval/lib.ts
 # gate-watch: scripts/computer/computerToolKit.ts scripts/computer/computerProofKit.ts src/services/desktop/desktopSession.ts src/services/desktop/resolveDriver.ts
 # gate-watch: src/services/tools/toolHooks.ts src/substrate/startupMenu.ts src/tools/ComputerTool/ComputerTool.ts
 # gate-watch: scripts/bash/floor-proof-helpers.ts
 # gate-watch: src/utils/wards/wards.ts src/utils/windowsPaths.ts
 # gate-watch: src/utils/sessionStorage/logs.ts src/utils/sessionTitle.ts src/utils/sanitization.ts
-# gate-watch: src/guards/**
+# gate-watch: src/guards/** src/utils/artifactIdentity.ts src/utils/genericProcessUtils.ts src/utils/execFileNoThrow.ts src/daemon/ownerWatch.ts src/cli/update.ts src/tools/JourneyTool/JourneyTool.ts src/tools/ServiceTool/ServiceTool.ts
 # gate-watch: src/hooks/useCanUseTool.tsx src/keybindings/KeybindingContext.tsx
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 set -u

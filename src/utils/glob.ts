@@ -1,4 +1,5 @@
-import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { statSync } from 'node:fs'
 import { resolveRelativePatternPrefix } from './globPrefix.js'
 
 import type { ToolPermissionContext } from '../Tool.js'
@@ -6,6 +7,7 @@ import { isEnvTruthy } from './envUtils.js'
 import { globSearchDepth, normalizeGlobPattern } from './globPattern.js'
 import { getFileReadIgnorePatterns, normalizePatternsToPath } from './permissions/filesystem.js'
 import { getPlatform } from './platform.js'
+import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { ripGrepAnswer } from './ripgrep.js'
 
 
@@ -47,15 +49,6 @@ function envFlagDefaultOn(name: string): boolean {
   return isEnvTruthy(raw === undefined || raw === '' ? '1' : raw)
 }
 
-function hasInteriorSlash(glob: string): boolean {
-  return (glob.endsWith('/') ? glob.slice(0, -1) : glob).includes('/')
-}
-
-function searchRootAnchor(searchDir: string, pattern: string, ignores: string[]): { cwd?: string } {
-  if (!isAbsolute(searchDir) || !hasInteriorSlash(pattern) || pattern.startsWith('**/') || ignores.some(hasInteriorSlash)) return {}
-  return getPlatform() === 'windows' && /^[\\/]{2}/.test(searchDir) ? {} : { cwd: searchDir }
-}
-
 export async function glob(
   filePattern: string,
   cwd: string,
@@ -77,6 +70,8 @@ export async function glob(
     pattern = rewritten.pattern
   }
 
+  const givenSearchDir = resolve(searchDir)
+  searchDir = safeResolvePath(getFsImplementation(), givenSearchDir).resolvedPath
   const args = ['--files', '--glob', normalizeGlobPattern(pattern), '--sortr=modified', '--no-ignore']
   const universeArgs = ['--files', '--sortr=modified']
   const depth = globSearchDepth([normalizeGlobPattern(pattern)])
@@ -90,19 +85,26 @@ export async function glob(
   }
 
   const ignoreByRoot = getFileReadIgnorePatterns(toolPermissionContext)
-  const ignores = normalizePatternsToPath(ignoreByRoot as never, searchDir)
+  const relativeRules = ignoreByRoot.get(null) ?? []
+  const sessionRoot = safeResolvePath(getFsImplementation(), process.cwd()).resolvedPath
+  ignoreByRoot.set(null, relativeRules.filter(pattern => !pattern.includes('/')))
+  ignoreByRoot.set(sessionRoot, [...(ignoreByRoot.get(sessionRoot) ?? []), ...relativeRules.filter(pattern => pattern.includes('/'))])
+  let walkRoot = searchDir
+  try { if (!statSync(walkRoot).isDirectory()) walkRoot = dirname(walkRoot) } catch {}
+  const ignores = normalizePatternsToPath(ignoreByRoot as never, walkRoot)
   for (const ignore of ignores) {
-    args.push('--glob', `!${ignore}`)
-    universeArgs.push('--glob', `!${ignore}`)
+    args.push('--iglob', `!${ignore}`)
+    universeArgs.push('--iglob', `!${ignore}`)
   }
 
-  const anchor = searchRootAnchor(searchDir, normalizeGlobPattern(pattern), ignores)
+  const anchor = { cwd: walkRoot }
   const matches = await ripGrepAnswer(args, searchDir, abortSignal, anchor)
   const universe = await ripGrepAnswer(universeArgs, searchDir, abortSignal, anchor)
   const listed = new Set(universe.lines)
   const kept = matches.lines.filter(entry => listed.has(entry))
   const complete = matches.complete && universe.complete
   const files = kept.map(entry => (isAbsolute(entry) ? entry : resolve(join(searchDir, entry))))
+    .map(file => resolve(givenSearchDir, relative(searchDir, file)))
   const truncated = files.length > offset + limit
   return {
     files: files.slice(offset, offset + limit),

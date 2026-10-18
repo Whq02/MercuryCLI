@@ -172,7 +172,7 @@ section('§4 H-19 · ONE FILESYSTEM PERMISSION ENGINE ACROSS THE THREE TOOLS')
   )
   check(
     'the aggregate permission decision delegates every path to the same write engine',
-    /for \(const p of paths\) \{\s*const decision = checkWritePermissionForTool\(pathShim, \{ file_path: p \}, permCtx\)/.test(changeSet),
+    /for \(const p of new Set\(\[\.\.\.paths, \.\.\.remotePaths\]\)\) \{\s*const decision = checkWritePermissionForTool\(pathShim, \{ file_path: p \}, permCtx\)/.test(changeSet),
   )
   check(
     'the LSP ops delegate to pathInAllowedWorkingPath',

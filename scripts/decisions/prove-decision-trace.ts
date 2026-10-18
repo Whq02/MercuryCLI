@@ -159,7 +159,7 @@ section('full entry — decidedBy lands on the expected stage per terminal outco
 {
   const rows: Array<[string, unknown, unknown, string, string]> = [
     ['deny rule', makeTool(), makeContext({ deny: ['FakeTool'] }), 'toolDenyRule', 'deny'],
-    ['ask rule', makeTool(), makeContext({ ask: ['FakeTool'] }), 'toolAskRule', 'ask'],
+    ['ask rule after the tool verdict', makeTool(), makeContext({ ask: ['FakeTool'] }), 'toolAskRuleCarried', 'ask'],
     ['tool deny', makeTool({ verdict: { behavior: 'deny' } }), makeContext({}), 'toolVerdictDeny', 'deny'],
     [
       'requiresUserInteraction ask',

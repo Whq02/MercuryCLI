@@ -76,9 +76,18 @@ class FixtureChild {
 
 const log: string[] = []
 const spawned: FixtureChild[] = []
+const spawnWaiters = new Set<() => void>()
+function waitForSpawn(count: number): Promise<void> {
+  if (spawned.length >= count) return Promise.resolve()
+  return new Promise(resolve => {
+    const wake = (): void => { if (spawned.length >= count) { spawnWaiters.delete(wake); resolve() } }
+    spawnWaiters.add(wake)
+  })
+}
 session.setBrowserLaunchDriverForProof(async () => {
   const child = new FixtureChild(spawned.length + 1, log)
   spawned.push(child)
+  for (const wake of spawnWaiters) wake()
   log.push(`spawned:${child.id}`)
   await child.landed
   return child as unknown as DriverBrowser
@@ -99,6 +108,7 @@ console.log('L1 a teardown during the launch')
   reset()
   const OWNER = processOwnerForLane('fixture-teardown-mid-launch')
   const flight = session.ensureBrowserSession(OWNER)
+  await waitForSpawn(1)
   check('L1 the launch is in the air (one child spawned, none landed)', spawned.length === 1 && live().length === 1)
   let disposed = false
   const disposal = session.disposeBrowserOwner(OWNER).then(() => {
@@ -131,6 +141,7 @@ console.log('L2 the relaunch behind a teardown')
   const first = session.ensureBrowserSession(OWNER)
   const disposal = session.disposeBrowserOwner(OWNER)
   const second = session.ensureBrowserSession(OWNER)
+  await waitForSpawn(2)
   check('L2 an ensure behind the teardown launches a fresh child (two in the air)', spawned.length === 2 && live().length === 2)
   check(
     'L2 the census shows the owner once (the live state, launching) while both are in the air',
@@ -157,6 +168,7 @@ console.log('L3 a setup failure after the spawn')
   reset()
   const OWNER = processOwnerForLane('fixture-setup-failure')
   const flight = session.ensureBrowserSession(OWNER)
+  await waitForSpawn(1)
   spawned[0]!.failSetup = true
   spawned[0]!.land()
   let surfaced = ''
@@ -169,6 +181,7 @@ console.log('L3 a setup failure after the spawn')
   check('L3 the spawned child was closed on the way out', spawned[0]!.closed && live().length === 0, log.join(' '))
   check('L3 the owner holds no session and no flight afterwards', census(OWNER).length === 0 && session.activeSession(OWNER) === null)
   const again = session.ensureBrowserSession(OWNER)
+  await waitForSpawn(2)
   check('L3 the next ensure launches cleanly (a fresh child)', spawned.length === 2)
   spawned[1]!.land()
   const o = await again
@@ -184,6 +197,7 @@ console.log('L4 the census counts a flight')
   const A = processOwnerForLane('fixture-cap-a')
   const B = processOwnerForLane('fixture-cap-b')
   const flightA = session.ensureBrowserSession(A)
+  await waitForSpawn(1)
   const rowsA = census(A)
   check('L4 a launch in the air holds a cap slot (census row, url null, attributed)', rowsA.length === 1 && rowsA[0]!.url === null && rowsA[0]!.lane.includes('fixture-cap-a'), JSON.stringify(rowsA))
   const oB = await session.ensureBrowserSession(B)
@@ -196,6 +210,7 @@ console.log('L4 the census counts a flight')
   await flightA
   await session.disposeBrowserOwner(A)
   const flightB = session.ensureBrowserSession(B)
+  await waitForSpawn(2)
   check('L4 the slot frees with the teardown', spawned.length === 2)
   spawned[1]!.land()
   await flightB
@@ -209,6 +224,7 @@ console.log('L5 close during a launch')
   reset()
   const OWNER = processOwnerForLane('fixture-close-mid-launch')
   const flight = session.ensureBrowserSession(OWNER)
+  await waitForSpawn(1)
   let closedEarly = false
   const closing = session.closeBrowserSession(OWNER).then(result => {
     closedEarly = true
@@ -233,6 +249,7 @@ console.log('L6 the shutdown sweep during a launch')
   reset()
   const OWNER = processOwnerForLane('fixture-shutdown-sweep')
   const flight = session.ensureBrowserSession(OWNER)
+  await waitForSpawn(1)
   let swept = false
   const sweep = disposeAllOwnersForShutdown().then(() => {
     swept = true
@@ -253,6 +270,7 @@ console.log('L7 dispose is idempotent')
   const OWNER = processOwnerForLane('fixture-idempotent')
   await session.disposeBrowserOwner(OWNER)
   const flight = session.ensureBrowserSession(OWNER)
+  await waitForSpawn(1)
   spawned[0]!.land()
   await flight
   await session.disposeBrowserOwner(OWNER)
@@ -267,6 +285,7 @@ console.log('L8 the open op names the teardown')
   const ctx = { agentId: 'fixture-tool-teardown' } as Parameters<typeof BrowserTool.call>[1]
   const OWNER = processOwnerForLane('fixture-tool-teardown')
   const call = BrowserTool.call({ op: 'open', url: 'http://127.0.0.1:9/' } as Parameters<typeof BrowserTool.call>[0], ctx)
+  await waitForSpawn(1)
   check('L8 the open op is mid-launch', spawned.length === 1)
   const disposal = session.disposeBrowserOwner(OWNER)
   spawned[0]!.land()
@@ -290,6 +309,7 @@ console.log('L9 an interrupt releases the waiter, not the launch')
   const interrupt = new AbortController()
   const waited = session.ensureBrowserSession(OWNER, { signal: interrupt.signal })
   const joiner = session.ensureBrowserSession(OWNER)
+  await waitForSpawn(1)
   check('L9 the interrupted caller and a plain joiner share ONE flight', spawned.length === 1)
   interrupt.abort()
   let released = ''

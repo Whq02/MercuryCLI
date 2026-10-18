@@ -163,16 +163,8 @@ async function runDecisionChain(
   let carriedAskRule: typeof askRule | null = null
   if (askRule) {
     if (!ports.sandboxAutoAllows(tool, input)) {
-      if (postureBypassesAsks(permissionContext)) {
-        carriedAskRule = askRule
-        pass('toolAskRule', `mode: ${permissionContext.mode} — carried past the tool verdict; the ask stands down`)
-      } else {
-        return decided('toolAskRule', {
-          behavior: 'ask',
-          decisionReason: { type: 'rule', rule: askRule },
-          message: ruleSentence(`Using ${tool.name}`, 'ask', askRule),
-        })
-      }
+      carriedAskRule = askRule
+      pass('toolAskRule', `mode: ${permissionContext.mode} — carried past the tool verdict`)
     } else {
       pass('toolAskRule', 'sandbox-auto-allow fallthrough')
     }
@@ -245,7 +237,7 @@ async function runDecisionChain(
       return decided('toolAskRuleCarried', {
         behavior: 'ask',
         decisionReason: { type: 'rule', rule: carriedAskRule },
-        message: createPermissionRequestMessage(tool.name),
+        message: ruleSentence(`Using ${tool.name}`, 'ask', carriedAskRule),
       })
     }
   } else {

@@ -48,6 +48,7 @@ import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotR
 import { checkSedConstraints } from './sedValidation.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
+import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix }
 export const bashPermissionRule = (ruleContent: string): ShellPermissionRule =>
@@ -584,11 +585,25 @@ async function decideBashPermission(
   prefixFn: PrefixFn,
 ): Promise<PermissionResult> {
   const command = input.command
+  const selfProtection = await shellSelfProtectionReason(command)
+  if (selfProtection !== null) return { behavior: 'deny', message: selfProtection, decisionReason: { type: 'other', reason: selfProtection } }
   const hidden = hiddenCommandCharacterReason(command)
   if (hidden !== null) return { behavior: 'deny', message: hidden, decisionReason: { type: 'safetyCheck', reason: hidden, operatorOnly: true } }
   const upload = credentialUploadReason(command)
   const uploadAsk: PermissionResult | null = upload === null ? null : { behavior: 'ask', message: upload, decisionReason: { type: 'safetyCheck', reason: upload, operatorOnly: true } }
   const astRoot = await pinnedCommandAnalysis.parseCommandRaw(command) ?? undefined
+  const secretRead = await shellMercurySecretPath(command)
+  if (secretRead !== null) {
+    const message = 'Reading ' + secretRead + " is refused: it holds Mercury's own credentials; use the product's sign-in and account surfaces instead."
+    return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } }
+  }
+  const protectedWrite = await shellCredentialWritePath(command)
+  if (protectedWrite !== null) {
+    const denied = astRoot === undefined ? earlyExitDenyCheck(input, context) : astDenyCheck(input, context, astRoot)
+    if (denied) return denied
+    const message = 'Writing ' + protectedWrite + ' affects a credential store and requires approval.'
+    return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
+  }
   const remote = uncPathRisk(command, { command: true })
   if (remote.risky) {
     const denied = earlyExitDenyCheck(input, context)

@@ -1205,20 +1205,25 @@ Not this tool (refused by name): file creation (Write) · binary content · note
       return { behavior: 'allow', updatedInput: input }
     }
     let needsAsk = false
-    for (const p of paths) {
+    let safetyAsk: Extract<PermissionDecision, { behavior: 'ask' }> | undefined
+    for (const p of new Set([...paths, ...remotePaths])) {
       const decision = checkWritePermissionForTool(pathShim, { file_path: p }, permCtx)
       if (decision.behavior === 'deny') {
         return {
           ...decision,
-          message: refusalWithReason(`Editing ${p} is denied${decision.decisionReason.type === 'rule' ? ` by ${ruleWords(decision.decisionReason.rule)}` : ''} — a denied path refuses the whole change set (zero writes).`, decision.decisionReason.type === 'rule' ? reasonForRule(permCtx, decision.decisionReason.rule) : undefined),
+          message: decision.decisionReason.type === 'rule'
+            ? refusalWithReason(`Editing ${p} is denied by ${ruleWords(decision.decisionReason.rule)} — a denied path refuses the whole change set (zero writes).`, reasonForRule(permCtx, decision.decisionReason.rule))
+            : `${decision.message} A denied path refuses the whole change set (zero writes).`,
         }
       }
       if (decision.behavior !== 'allow') needsAsk = true
+      if (decision.behavior === 'ask' && decision.decisionReason?.type === 'safetyCheck') safetyAsk ??= decision
     }
     if (needsAsk) {
       return {
         behavior: 'ask',
-        message: `Apply this change set (${paths.length} file${paths.length === 1 ? '' : 's'})? One decision covers every path; any denied path means zero writes.`,
+        ...(safetyAsk ? { decisionReason: safetyAsk.decisionReason } : {}),
+        message: `Apply this change set (${paths.length} file${paths.length === 1 ? '' : 's'})? One decision covers every path; any denied path means zero writes.${safetyAsk ? ' ' + safetyAsk.message : ''}`,
       }
     }
     return { behavior: 'allow', updatedInput: input }
