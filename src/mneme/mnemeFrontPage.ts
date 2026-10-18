@@ -13,10 +13,10 @@ import { pinnedTextLimit, readPins, readUsage, type PinRecord, type UsageRecord 
 export const FRONT_PAGE_FILE = 'front-page.md'
 export const PINNED_STATUS_FILE = 'pinned-status.json'
 const INDEX_LINE_CAP = 160
-export const MEMORY_WRITE_VERBS_SENTENCE = 'Retain saves a new fact; Correct supersedes a wrong one and keeps the old fact as history.'
-const EMPTY_INDEX_LINE = '(nothing saved yet — Retain saves the first fact)'
+export const MEMORY_WRITE_VERBS_SENTENCE = 'Memory is written only when the user asks for something to be remembered; Correct supersedes a wrong record and keeps the old one as history.'
+const EMPTY_INDEX_LINE = '(nothing saved yet — memory is written only when the user asks for something to be remembered)'
 const EMPTY_INDEX_LINE_READ_ONLY = '(nothing saved yet)'
-const EMPTY_PAGE_WRITE_WORDS = ' Retain saves the first fact;'
+const EMPTY_PAGE_WRITE_WORDS = ' Memory is written only when the user asks for something to be remembered;'
 
 export function emptyMemoryPage(dir: string): string {
   return `# Memory\nWhat Mercury remembers about this project lives in topic pages under ${dir}: nothing saved yet.${EMPTY_PAGE_WRITE_WORDS} Recall searches the pages once there are any.`

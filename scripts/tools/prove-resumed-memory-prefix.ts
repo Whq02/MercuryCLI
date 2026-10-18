@@ -23,7 +23,7 @@ for (const definition of [
   const resumed = prefix(back)
   check(`${definition.agentType}: memory verbs survive background resume`, memoryNames.every(name => back.some(tool => tool.name === name)), back.map(tool => tool.name).join(', '))
   check(`${definition.agentType}: foreground and background prefixes are byte-identical`, initial === resumed, `foreground writer=${initial.includes(MEMORY_WRITE_VERBS_SENTENCE)}; background writer=${resumed.includes(MEMORY_WRITE_VERBS_SENTENCE)}`)
-  const writerWords = (page: string): boolean => page.includes(MEMORY_WRITE_VERBS_SENTENCE) || /Retain saves the first fact/.test(page)
+  const writerWords = (page: string): boolean => page.includes(MEMORY_WRITE_VERBS_SENTENCE) || /Memory is written only when the user asks for something to be remembered/.test(page)
   check(`${definition.agentType}: the shared memory writer supplies the wording (the verbs sentence, or the empty page's writer words)`, writerWords(initial) && writerWords(resumed))
 }
 for (const async of [false, true]) {

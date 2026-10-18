@@ -105,7 +105,7 @@ try {
   }
   check('the sentence is the front page\'s own text (one owner)', readFileSync(join(ROOT, 'src/mneme/mnemeFrontPage.ts'), 'utf8').includes(M026))
   const pinsOnly = renderFrontPage({ dir: library, topics: [], archives: [], pins: [{ seq: 1, at: '2026-10-16T12:00:00.000Z' }], usage: {}, now: new Date('2026-10-16T12:00:00.000Z') }).text
-  check('a pins-only library (pins, no topics, no archives) renders the sentence and its referent: the ## Index heading, the empty-index line beneath it', pinsOnly.includes(M026) && pinsOnly.includes('\n## Index\n(nothing saved yet — Retain saves the first fact)\n'), pinsOnly)
+  check('a pins-only library (pins, no topics, no archives) renders the sentence and its referent: the ## Index heading, the empty-index line beneath it', pinsOnly.includes(M026) && pinsOnly.includes('\n## Index\n(nothing saved yet — memory is written only when the user asks for something to be remembered)\n'), pinsOnly)
 
   section('§2 every sentence the study cut is absent from the seats it rode in')
   const rows = tsv('cut-rows.tsv')
