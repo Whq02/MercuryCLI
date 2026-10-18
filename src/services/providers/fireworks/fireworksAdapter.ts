@@ -50,7 +50,7 @@ function resolveFireworksModel(_modelClass: ProviderModelClass): ProviderModelRe
 }
 
 function buildFireworksLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
-  throw new Error('router: provider fireworks has no SEAT runtime — Fireworks specialists dispatch through the AgentTool engine path')
+  throw new Error('seat: provider fireworks has no SEAT runtime — Fireworks specialists dispatch through the AgentTool engine path')
 }
 
 export const fireworksProviderAdapter: ProviderAdapter = {

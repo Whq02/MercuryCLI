@@ -50,7 +50,7 @@ function resolveCerebrasModel(_modelClass: ProviderModelClass): ProviderModelRef
 }
 
 function buildCerebrasLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
-  throw new Error('router: provider cerebras has no SEAT runtime — Cerebras specialists dispatch through the AgentTool engine path')
+  throw new Error('seat: provider cerebras has no SEAT runtime — Cerebras specialists dispatch through the AgentTool engine path')
 }
 
 export const cerebrasProviderAdapter: ProviderAdapter = {
