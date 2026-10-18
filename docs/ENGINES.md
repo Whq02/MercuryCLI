@@ -461,19 +461,19 @@ account credits and costs are shown in the Fireworks console. Sources read
 [Fire Pass](https://docs.fireworks.ai/firepass).
 
 Qwen connects through `/logins qwen` or `DASHSCOPE_API_KEY` with a QwenCloud
-key, made at qwencloud.com (API Keys), or a Model Studio API key, made in the
-Alibaba Cloud Model Studio console for the region the account lives in: a
-Model Studio pay-as-you-go or Token Plan key (`sk-…`), a QwenCloud
-pay-as-you-go key (`sk-…`), a QwenCloud Token Plan key (`sk-sp-…`), or a Model
-Studio Coding Plan key (`sk-sp-…`). Each key answers only the region and plan
-it was minted in. A key beginning `sk-sp-` probes the QwenCloud Token Plan
-endpoint (`token-plan.maas.qwencloudapi.com/compatible-mode/v1`) first by its
-model list, which authenticates the key, and then the two Model Studio Coding
-Plan endpoints (international, then China), whose model lists answer every
-caller and therefore authenticate the key with one chat call of one token on
-the first listed model. Any other key is probed on the endpoints whose model
-list authenticates it, in turn (International (Singapore), China (Beijing),
-China (Hong Kong), QwenCloud pay-as-you-go at
+API key from qwencloud.com (API Keys) or a Model Studio API key from the Alibaba
+Cloud Model Studio console for the account's region: a Model Studio
+pay-as-you-go or Token Plan key (`sk-…`), a QwenCloud pay-as-you-go key
+(`sk-…`), a QwenCloud Token Plan key (`sk-sp-…`), or a Model Studio Coding Plan
+key (`sk-sp-…`). Each key answers only the region and plan it was minted in. A
+key beginning `sk-sp-` probes the QwenCloud Token Plan endpoint
+(`token-plan.maas.qwencloudapi.com/compatible-mode/v1`) first by its model
+list, which authenticates the key, and then the two Model Studio Coding Plan
+endpoints (international, then China), whose model lists answer every caller
+and therefore authenticate the key with one chat call of one token on the first
+listed model. Any other key is probed on the endpoints whose model list
+authenticates it, in turn (International (Singapore), China (Beijing), China
+(Hong Kong), QwenCloud pay-as-you-go at
 `maas.qwencloudapi.com/compatible-mode/v1`, and the Model Studio Token Plan in
 Singapore and Beijing), and bound to the first that accepts it; the endpoint is
 stored beside the key. A key no endpoint accepts is refused with the endpoints,
