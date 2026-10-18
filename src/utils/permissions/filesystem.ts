@@ -221,11 +221,13 @@ export function isSettingsFilePath(filePath: string): boolean {
   return false
 }
 
-function isProductConfigPath(expandedPath: string): boolean {
+function isProductConfigPath(expandedPath: string, instructionEstate = false): boolean {
+  if (instructionEstate && ['mercury.md', 'mercury.local.md', 'agents.md'].includes(posixPath.basename(expandedPath.replace(/\\/g, '/')).toLowerCase())) return true
   if (isSettingsFilePath(expandedPath)) return true
   const cwd = getOriginalCwd()
   const folded = normalizeCaseForComparison(expandedPath)
   for (const home of PROJECT_CONFIG_DIR_NAMES) {
+    if (instructionEstate && protectedPathForms(joinWithSep(cwd, home)).some(base => expandedPath === base || expandedPath.startsWith(base + '/'))) return true
     for (const sub of ['agents', 'skills']) {
       const base = normalizeCaseForComparison(joinWithSep(joinWithSep(cwd, home), sub))
       if (pathHasSegmentContainment(folded, base)) return true
@@ -725,7 +727,7 @@ export function checkWritePermissionForTool(
   }
   const remote = checkUncPathPermission(path, context, 'edit')
   if (remote && remote.behavior !== 'allow') return remote
-  const resolutionSet = precomputedPathsToCheck ?? getResolvedWorkingDirPaths(path)
+  const resolutionSet = [...new Set([...(precomputedPathsToCheck ?? []), ...getPathsForPermissionCheck(path)])]
   for (const resolved of resolutionSet) {
     const remote = checkUncPathPermission(resolved, context, 'edit')
     if (remote && remote.behavior !== 'allow') return remote
@@ -750,6 +752,17 @@ export function checkWritePermissionForTool(
     if (named) return allow(input, { type: 'rule', rule: named })
     const message = 'Writing ' + path + ' is refused: ' + credential + ' is a protected system or credential path.'
     return deny(message, { type: 'other', reason: message })
+  }
+  if (tool.name !== 'RecordConvention' && (context.mode === 'default' || context.mode === 'implement') &&
+      [path, runtimeInput].some(target => protectedPathForms(target).some(form => isProductConfigPath(form, true)))) {
+    for (const resolved of resolutionSet) {
+      const rule = matchingRuleForInput(resolved, context, 'edit', 'ask')
+      if (rule) return ruleDecision('ask', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'ask'))
+    }
+    const grant = resolutionSet.map(resolved => matchingRuleForInput(resolved, context, 'edit', 'allow')).find(rule => rule?.ruleValue.ruleContent)
+    if (grant) return allow(input, { type: 'rule', rule: grant })
+    const message = `Permission to write ${path} is required: this file steers every later session.`
+    return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false }, suggestions: generateSuggestions(path, 'write', context, resolutionSet) } as PermissionDecision
   }
   const internal = checkEditableInternalPath(expandPath(path), input)
   if ((internal as { behavior: string }).behavior !== 'passthrough') return internal as unknown as PermissionDecision

@@ -22,7 +22,7 @@
 # gate-watch: src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/ink/stringWidth.ts
 # gate-watch: src/interactiveHelpers.tsx src/main.tsx src/screens/Chat.tsx src/services/agents/codec.ts
 # gate-watch: src/services/desktop/toolName.ts src/services/engine-connector/daemonConnector.ts
-# gate-watch: src/services/instructions/engine.ts src/services/lsp/** src/services/mcp/** src/services/providers/**
+# gate-watch: src/services/instructions/engine.ts src/services/instructions/projectInstructionWriter.ts src/tools/RecordConventionTool/RecordConventionTool.ts src/services/lsp/** src/services/mcp/** src/services/providers/**
 # gate-watch: src/services/switchboard/bootBirthFacts.ts src/services/switchboard/runnerArgv.ts
 # gate-watch: src/skills/loadSkillsDir.ts src/state/AppState.tsx src/state/AppStateStore.ts src/state/store.ts
 # gate-watch: src/substrate/flagRegistry.ts src/tools.ts src/tools/AgentTool/** src/tools/AstEditTool/AstEditTool.ts

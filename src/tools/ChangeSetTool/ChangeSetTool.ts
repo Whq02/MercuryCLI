@@ -1205,6 +1205,7 @@ Not this tool (refused by name): file creation (Write) · binary content · note
       return { behavior: 'allow', updatedInput: input }
     }
     let needsAsk = false
+    let safetyAsk: Extract<PermissionDecision, { behavior: 'ask' }> | undefined
     for (const p of new Set([...paths, ...remotePaths])) {
       const decision = checkWritePermissionForTool(pathShim, { file_path: p }, permCtx)
       if (decision.behavior === 'deny') {
@@ -1216,11 +1217,13 @@ Not this tool (refused by name): file creation (Write) · binary content · note
         }
       }
       if (decision.behavior !== 'allow') needsAsk = true
+      if (decision.behavior === 'ask' && decision.decisionReason?.type === 'safetyCheck') safetyAsk ??= decision
     }
     if (needsAsk) {
       return {
         behavior: 'ask',
-        message: `Apply this change set (${paths.length} file${paths.length === 1 ? '' : 's'})? One decision covers every path; any denied path means zero writes.`,
+        ...(safetyAsk ? { decisionReason: safetyAsk.decisionReason } : {}),
+        message: `Apply this change set (${paths.length} file${paths.length === 1 ? '' : 's'})? One decision covers every path; any denied path means zero writes.${safetyAsk ? ' ' + safetyAsk.message : ''}`,
       }
     }
     return { behavior: 'allow', updatedInput: input }
