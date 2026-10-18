@@ -21,19 +21,19 @@ const agents = [
   { agentType: 'deployer', whenToUse: 'ships the build', source: 'projectSettings', tools: ['Bash'] },
 ] as unknown as AgentDefinition[]
 
-const context = (deny: readonly string[], reasons?: Record<string, string>): ToolPermissionContext => ({
+const context = (deny: readonly string[], reasons?: Record<string, string>, source: 'userSettings' | 'projectSettings' = 'userSettings'): ToolPermissionContext => ({
   mode: 'default',
   alwaysAllowRules: {},
-  alwaysDenyRules: deny.length > 0 ? { userSettings: [...deny] } : {},
+  alwaysDenyRules: deny.length > 0 ? { [source]: [...deny] } : {},
   alwaysAskRules: {},
-  ...(reasons ? { ruleReasons: { userSettings: reasons } } : {}),
+  ...(reasons ? { ruleReasons: { [source]: reasons } } : {}),
   isBypassPermissionsModeAvailable: false,
 }) as unknown as ToolPermissionContext
 
 const promptUnder = (ctx: ToolPermissionContext): Promise<string> =>
   AgentTool.prompt!({ getToolPermissionContext: async () => ctx as never, tools: [], agents })
 
-console.log('── §1 a denied type stays listed, with its refusal ──')
+console.log('── §1 a denied type stays listed, with its refusal (user rule vs project rule) ──')
 const denied = await promptUnder(context(['Crewmate(deployer)']))
 const listingOf = (prompt: string): string[] => prompt.split('\n').slice(0, prompt.split('\n').indexOf('## When delegating is the wrong move')).filter(line => line.startsWith('- '))
 const lines = listingOf(denied)
@@ -42,11 +42,17 @@ check('the denied type is still on the list', deployerLine !== undefined, lines.
 check('…its line carries the refusal', deployerLine !== undefined && deployerLine.includes('launching it is denied by the rule Crewmate(deployer) in your user settings'), deployerLine)
 check('…after the unchanged listing shape', deployerLine?.startsWith('- deployer: ships the build (Tools: Bash) — ') === true, deployerLine)
 check('the other types carry no refusal', lines.filter(l => l !== deployerLine).every(l => !l.includes('denied')))
+const projectDenied = await promptUnder(context(['Crewmate(auditor)'], undefined, 'projectSettings'))
+const auditorProjectLine = listingOf(projectDenied).find(line => line.startsWith('- auditor:'))
+check('a type denied by a project rule names the shared project settings', auditorProjectLine?.endsWith('launching it is denied by the rule Crewmate(auditor) in the shared project settings.') === true, auditorProjectLine)
 
 console.log('── §2 the rule\'s reason rides on the line ──')
 const reasoned = await promptUnder(context(['Crewmate(deployer)'], { 'Crewmate(deployer)': 'deploys are the release lead\'s' }))
 const reasonedLine = reasoned.split('\n').find(line => line.startsWith('- deployer:'))
 check('the reason follows the sentence', reasonedLine?.endsWith("in your user settings: deploys are the release lead's.") === true, reasonedLine)
+const projectReasoned = await promptUnder(context(['Crewmate(auditor)'], { 'Crewmate(auditor)': 'audits run in CI' }, 'projectSettings'))
+const projectReasonedLine = projectReasoned.split('\n').find(line => line.startsWith('- auditor:'))
+check('a project rule with a reason names the shared project settings and the reason', projectReasonedLine?.endsWith('in the shared project settings: audits run in CI.') === true, projectReasonedLine)
 
 console.log('── §3 the launch still refuses with the same words ──')
 let launchRefusal = ''

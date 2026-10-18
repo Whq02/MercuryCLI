@@ -243,7 +243,7 @@ const STRIP = /sessions? on · .*monitors? here · .*crewmates? here|^S:\d+ · M
 const stripFocused = (frame: string[]): boolean => STRIP.test(stripRow(frame)) && stripRow(frame).includes(FOCUSED_HINT)
 const press = (x: number, y: number): string => `\x1b[<0;${x + 1};${y + 1}M\x1b[<0;${x + 1};${y + 1}m`
 
-for (const [cols, rows, zen] of [[80, 24, false], [64, 20, false], [80, 24, true], [100, 30, true]] as Array<[number, number, boolean]>) {
+for (const [cols, rows, zen] of [[80, 24, false], [64, 20, false], [64, 20, true], [80, 24, true], [100, 30, true], [177, 49, true]] as Array<[number, number, boolean]>) {
   const label = `${cols}x${rows}${zen ? ' zen' : ''}`
   setZenMode(zen)
   const scene = await openScene(cols, rows)
@@ -294,16 +294,16 @@ for (const [cols, rows, zen] of [[80, 24, false], [64, 20, false], [80, 24, true
   await scene.close()
 }
 
-section('§3 the cockpit layout (rails shown, no strip): ↓ on the empty composer changes nothing')
-{
+section('§3 the cockpit layout (100x30 and 177x49 with rails shown, no strip): ↓ on the empty composer changes nothing')
+for (const [cols, rows] of [[100, 30], [177, 49]] as Array<[number, number]>) {
   setZenMode(false)
-  const scene = await openScene(177, 49)
+  const scene = await openScene(cols, rows)
   await scene.settle(300)
   const before = scene.lines().join('\n')
-  check('177x49: no counts strip paints below the composer', !/sessions? on · /.test(stripRow(scene.lines())), stripRow(scene.lines()))
+  check(`${cols}x${rows}: no counts strip paints below the composer`, !/sessions? on · /.test(stripRow(scene.lines())), stripRow(scene.lines()))
   scene.push(DOWN)
   await scene.settle(400)
-  check('177x49: the frame after ↓ is the frame before', scene.lines().join('\n') === before)
+  check(`${cols}x${rows}: the frame after ↓ is the frame before`, scene.lines().join('\n') === before)
   await scene.close()
 }
 

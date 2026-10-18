@@ -47,12 +47,17 @@ try {
   const one = await defaultFor(['gemini-2.5-flash'])
   check('one row is the default whatever its generation', one.setting?.endsWith('gemini-2.5-flash') === true, String(one.setting))
 
-  console.log('\n§2 the sort is the dispatcher\'s own, shared')
+  console.log('\n§2 the sort is the dispatcher\'s own, shared, comparing versions numerically')
   check('gemini-3.8-flash reads generation 3.8', JSON.stringify(geminiGeneration('gemini-3.8-flash')) === '[3,8]')
+  check('gemini-4-argon-high reads generation 4.0', JSON.stringify(geminiGeneration('gemini-4-argon-high')) === '[4,0]')
   check('gemini-3-pro reads 3.0', JSON.stringify(geminiGeneration('gemini-3-pro')) === '[3,0]')
   check('an id without the grammar reads 0.0', JSON.stringify(geminiGeneration('learnlm-2.0-flash')) === '[0,0]')
   const ordered = newestGeminiGenerationFirst(['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-3.7-flash'], id => id)
-  check('newest first, then the id\'s minor', ordered.join(',') === 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.1-pro-preview,gemini-2.5-flash', ordered.join(','))
+  check('newest first, then the id\'s minor (2.5 < 3.8)', ordered.join(',') === 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.1-pro-preview,gemini-2.5-flash', ordered.join(','))
+  const major = newestGeminiGenerationFirst(['gemini-3.8-flash', 'gemini-4-argon-high'], id => id)
+  check('gemini-3.8-flash < gemini-4-argon-high', major.join(',') === 'gemini-4-argon-high,gemini-3.8-flash', major.join(','))
+  const numeric = newestGeminiGenerationFirst(['gemini-9-pro', 'gemini-10-pro', 'gemini-3.9-flash', 'gemini-3.10-flash'], id => id)
+  check('versions compare numerically (10 > 9 for both major and minor)', numeric.join(',') === 'gemini-10-pro,gemini-9-pro,gemini-3.10-flash,gemini-3.9-flash', numeric.join(','))
 
   console.log('\n§3 refusals: no invented ranking elsewhere')
   const foreign = ['openrouter/anthropic/claude-opus-5-5', 'openrouter/openai/gpt-5.4', 'openrouter/google/gemini-3-pro', 'llama3.2:latest']
