@@ -40,7 +40,7 @@ arm.
 | `groq` | `groq/<model-id>` (qualified; text models only) | Groq |
 | `cerebras` | `cerebras/<model-id>` (qualified; text models only) | Cerebras |
 | `fireworks` | `fireworks/<model-id>` (qualified; text models only) | Fireworks |
-| `qwen` | `qwen-*`, `qwen3*`, `qwen2*`, `qwq-*`, `qvq-*`, alias `qwen` (Alibaba Cloud Model Studio's own Qwen text models; the speech, image, video, embedding and rerank ids refuse here) | Qwen |
+| `qwen` | `qwen-*`, `qwen3*`, `qwen2*`, `qwq-*`, `qvq-*`, alias `qwen` (QwenCloud and Alibaba Cloud Model Studio's own Qwen text models; the speech, image, video, embedding and rerank ids refuse here) | Qwen |
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
@@ -460,21 +460,26 @@ account credits and costs are shown in the Fireworks console. Sources read
 [rate limits](https://docs.fireworks.ai/serverless/rate-limits) and
 [Fire Pass](https://docs.fireworks.ai/firepass).
 
-Qwen connects through `/logins qwen` or `DASHSCOPE_API_KEY` with a Model Studio
-API key, made in the Alibaba Cloud Model Studio console for the region the
-account lives in: a pay-as-you-go or Token Plan key, or a Coding Plan key
-(`sk-sp-…`), which binds to the Coding Plan endpoint. A Model Studio key answers
-only the region and plan it was minted in. A Coding Plan key begins `sk-sp-` and
-is read only on the Coding Plan endpoints (international, then China): their
-model lists answer every caller, so the sign-in authenticates the key with one
-chat call of one token on the first listed model and binds the endpoint that
-accepted it. Any other key is probed on the endpoints whose model list
-authenticates it, in turn (International (Singapore), China (Beijing), China
-(Hong Kong), the Token Plan in Singapore and Beijing), and bound to the first
-that accepts it; the endpoint is stored beside the key. A key no endpoint
-accepts is refused with the endpoints and the service's words named, and
-nothing is stored. `DASHSCOPE_BASE_URL` names an endpoint instead of the probe
-(a workspace-dedicated domain such as
+Qwen connects through `/logins qwen` or `DASHSCOPE_API_KEY` with a QwenCloud
+key, made at qwencloud.com (API Keys), or a Model Studio API key, made in the
+Alibaba Cloud Model Studio console for the region the account lives in: a
+Model Studio pay-as-you-go or Token Plan key (`sk-…`), a QwenCloud
+pay-as-you-go key (`sk-…`), a QwenCloud Token Plan key (`sk-sp-…`), or a Model
+Studio Coding Plan key (`sk-sp-…`). Each key answers only the region and plan
+it was minted in. A key beginning `sk-sp-` probes the QwenCloud Token Plan
+endpoint (`token-plan.maas.qwencloudapi.com/compatible-mode/v1`) first by its
+model list, which authenticates the key, and then the two Model Studio Coding
+Plan endpoints (international, then China), whose model lists answer every
+caller and therefore authenticate the key with one chat call of one token on
+the first listed model. Any other key is probed on the endpoints whose model
+list authenticates it, in turn (International (Singapore), China (Beijing),
+China (Hong Kong), QwenCloud pay-as-you-go at
+`maas.qwencloudapi.com/compatible-mode/v1`, and the Model Studio Token Plan in
+Singapore and Beijing), and bound to the first that accepts it; the endpoint is
+stored beside the key. A key no endpoint accepts is refused with the endpoints,
+both consoles and the service's words named, and nothing is stored.
+`DASHSCOPE_BASE_URL` names an endpoint instead of the probe (a
+workspace-dedicated domain such as
 `https://<workspace>.us-east-1.maas.aliyuncs.com/compatible-mode/v1`), and
 `DASHSCOPE_WORKSPACE_ID` adds the six workspace-dedicated domains to the probe.
 On a pay-as-you-go endpoint the picker lists the text models the endpoint
@@ -483,21 +488,23 @@ Qwen3.7 Max, Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash, Qwen3.7 Flash,
 Qwen3.6 Flash and Qwen3 Coder Flash, with their context windows and prices): a
 live row wins on a shared id, a pinned id the list does not name still shows
 from the pin and is sent for Model Studio to decide, and the pins alone stand,
-labelled as pins, when the list cannot be read. On a Coding Plan endpoint the
-rows are the plan's documented models (Qwen3.8 Max, Qwen3.7 Max, Qwen3.7 Plus,
-Qwen3.8 Flash, Qwen3.6 Flash and the plan's own Auto row, `qwen-auto`, sent as
-`auto`), because that endpoint's model list answers every caller and is not
-the plan's list; the account and `/usage` rows name the plan. The family word
-`qwen` runs Qwen3.8 Max wherever it is a row. Requests carry Qwen's own
-`enable_thinking` switch and `preserve_thinking` on the rows that take them,
-the effort dial as
+labelled as pins, when the list cannot be read. On the QwenCloud Token Plan
+endpoint the picker unites the live Qwen text rows with the plan's documented
+pins (Qwen3.8 Max first, Qwen3.7 Max, Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.6
+Flash and the plan's Auto row, `qwen-auto`, sent as `auto`) while setting the
+gateway's non-Qwen and non-text rows aside. On a Model Studio Coding Plan
+endpoint the rows are those six plan pins alone, because that endpoint's model
+list answers every caller and is not the plan's list; on both plans the account
+and `/usage` rows name the plan. The family word `qwen` runs Qwen3.8 Max
+wherever it is a row. Requests carry Qwen's own `enable_thinking` switch and
+`preserve_thinking` on the rows that take them, the effort dial as
 `reasoning_effort` in Qwen's vocabulary (`low`, `medium`, `xhigh`) on the Qwen3.8
 rows that document it, a stated `models.<id>.thinkingBudget` as `thinking_budget`
 in place of the effort word, the system prompt in `messages[0]` alone, and tool
 calls on the shared wire. A 401 from the bound endpoint names the region and the
-re-bind road. `/usage` shows session spend; Model Studio documents no usage or
+re-bind road. `/usage` shows session spend; neither console exposes a usage or
 balance endpoint an API key can read, so the account's balance and plan windows
-are shown in its console. Sources read **2026-10-18**:
+are shown in the QwenCloud or Model Studio console. Sources read **2026-10-18**:
 [regions and endpoints](https://www.alibabacloud.com/help/en/model-studio/regions),
 [Chat Completions](https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-openai-chat-completions),
 [deep thinking](https://www.alibabacloud.com/help/en/model-studio/deep-thinking),

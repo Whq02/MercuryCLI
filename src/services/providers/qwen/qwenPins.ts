@@ -21,7 +21,7 @@ interface QwenDisplayPin {
   codingPlanOnly?: boolean
 }
 
-export type QwenPinScope = 'pay-as-you-go' | 'coding-plan'
+export type QwenPinScope = 'pay-as-you-go' | 'coding-plan' | 'qwencloud-token-plan'
 
 const flagship = { contextWindow: 1_000_000, outputMax: 131_072, thinking: 'hybrid' as const, preservesThinking: true, efforts: [] as readonly string[], images: true }
 
@@ -36,11 +36,11 @@ export const QWEN_DISPLAY_PINS: readonly QwenDisplayPin[] = [
   { ...flagship, id: 'qwen3.7-flash', displayName: 'Qwen3.7 Flash', costInPerMtok: 0.03, costOutPerMtok: 0.13, cachedInPerMtok: 0.006, cacheWritePerMtok: 0.038 },
   { ...flagship, id: 'qwen3.6-flash', displayName: 'Qwen3.6 Flash', outputMax: 65_536, preservesThinking: false, costInPerMtok: 0.25, costOutPerMtok: 1.5, cachedInPerMtok: 0.025, cacheWritePerMtok: 0.3125, codingPlan: true },
   { id: 'qwen3-coder-flash', displayName: 'Qwen3 Coder Flash', contextWindow: 1_000_000, outputMax: 65_536, costInPerMtok: 0.3, costOutPerMtok: 1.5, cachedInPerMtok: 0.06, cacheWritePerMtok: 0.375, thinking: 'none', preservesThinking: false, efforts: [], images: false },
-  { id: QWEN_CODING_PLAN_ROUTER_ID, wireId: 'auto', displayName: 'Auto (the Coding Plan picks the model)', thinking: 'hybrid', preservesThinking: false, efforts: [], images: false, codingPlan: true, codingPlanOnly: true },
+  { id: QWEN_CODING_PLAN_ROUTER_ID, wireId: 'auto', displayName: 'Auto (the plan picks the model)', thinking: 'hybrid', preservesThinking: false, efforts: [], images: false, codingPlan: true, codingPlanOnly: true },
 ]
 
 export function qwenPinsFor(scope: QwenPinScope): readonly QwenDisplayPin[] {
-  if (scope === 'coding-plan') return QWEN_DISPLAY_PINS.filter(pin => pin.codingPlan === true)
+  if (scope === 'coding-plan' || scope === 'qwencloud-token-plan') return QWEN_DISPLAY_PINS.filter(pin => pin.codingPlan === true)
   return QWEN_DISPLAY_PINS.filter(pin => pin.codingPlanOnly !== true)
 }
 

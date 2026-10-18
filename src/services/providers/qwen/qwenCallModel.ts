@@ -13,7 +13,7 @@ import { getCachedQwenCatalogue, newestQwenModel, qwenListedModel, qwenModelFact
 import { isQwenTextModelId, qwenDisplayPin, qwenPinsFor, qwenPreservesThinking, qwenWireEffort } from './qwenPins.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 
-const QWEN_KEY_PAGE = 'modelstudio.alibabacloud.com (API-KEY)'
+const QWEN_KEY_PAGE = 'qwencloud.com (API Keys) or modelstudio.alibabacloud.com (API-KEY)'
 
 export function buildQwenExtras(args: LaneExtrasArgs): Record<string, unknown> {
   const facts = qwenModelFacts(args.wireModel)
@@ -105,7 +105,7 @@ export async function* qwenCallModel(params: CallModelParams): CallModelStream {
   }
   const notes = snapshot?.lastError || !snapshot?.models.length
     ? [`Qwen model list unavailable — the named id '${model}' is sent for Model Studio to decide.`]
-    : scope !== 'coding-plan' && !qwenListedModel(snapshot, chosen!) ? [`'${model}' is a pinned Model Studio id the endpoint's list does not name — sent for Model Studio to decide.`] : undefined
+    : scope === 'pay-as-you-go' && !qwenListedModel(snapshot, chosen!) ? [`'${model}' is a pinned Model Studio id the endpoint's list does not name — sent for Model Studio to decide.`] : undefined
   yield* compatChatCallModel({
     ...qwenLaneProfile, ...(notes ? { leadingNotes: notes } : {}), wireModelId: () => model!,
   }, { ...params, options: { ...params.options, model: model! } })

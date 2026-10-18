@@ -151,9 +151,13 @@ export function qwenBoundEndpointLabel(env: NodeJS.ProcessEnv = process.env): st
   return base === undefined ? undefined : qwenEndpointLabelOf(base, env)
 }
 
-export function qwenBoundPlanLabel(env: NodeJS.ProcessEnv = process.env): { kind: 'Coding Plan'; endpoint: string } | undefined {
+export function qwenBoundPlanLabel(env: NodeJS.ProcessEnv = process.env): { kind: 'Coding Plan' | 'QwenCloud Token Plan'; endpoint: string } | undefined {
   const base = qwenBoundBase(env)
-  return base !== undefined && qwenListAnswersEveryCaller(base, env) ? { kind: 'Coding Plan', endpoint: qwenEndpointLabelOf(base, env) } : undefined
+  if (base === undefined) return undefined
+  const endpoint = qwenEndpointForBase(base, env)
+  if (endpoint?.plan === 'coding-plan') return { kind: 'Coding Plan', endpoint: endpoint.label }
+  if (endpoint?.id === 'qwencloud-token-plan') return { kind: 'QwenCloud Token Plan', endpoint: endpoint.label }
+  return undefined
 }
 
 export type QwenCredentialSource = 'env' | 'stored'
@@ -168,7 +172,7 @@ export function resolveQwenAccount(env: NodeJS.ProcessEnv = process.env): QwenAc
   const key = resolveQwenApiKey(env)
   if (!key) return undefined
   const plan = qwenBoundPlanLabel(env)
-  return { kind: 'api-key', label: key.source === 'env' ? `${QWEN_ENV_KEY} (env${plan ? `, ${plan.kind}` : ''})` : `Model Studio ${plan ? plan.kind : 'API'} key (stored, auth-scoped)`, keySource: key.source }
+  return { kind: 'api-key', label: key.source === 'env' ? `${QWEN_ENV_KEY} (env${plan ? `, ${plan.kind}` : ''})` : plan?.kind === 'QwenCloud Token Plan' ? 'QwenCloud Token Plan key (stored, auth-scoped)' : `Model Studio ${plan ? plan.kind : 'API'} key (stored, auth-scoped)`, keySource: key.source }
 }
 
 export function resolveQwenCredentialSnapshot(env: NodeJS.ProcessEnv = process.env): { key: string; source: QwenCredentialSource } | undefined {

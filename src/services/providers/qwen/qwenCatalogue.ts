@@ -234,7 +234,9 @@ export type QwenCatalogueSource = { kind: 'live'; count: number; otherLines: num
 
 export function qwenPinScope(env: NodeJS.ProcessEnv = process.env, snapshot: QwenCatalogueSnapshot | null = getCachedQwenCatalogue(env)): QwenPinScope {
   const base = snapshot?.baseUrl ?? qwenBoundBase(env)
-  return base !== undefined && qwenListAnswersEveryCaller(base, env) ? 'coding-plan' : 'pay-as-you-go'
+  if (base === undefined) return 'pay-as-you-go'
+  if (qwenListAnswersEveryCaller(base, env)) return 'coding-plan'
+  return qwenEndpointLabelOf(base, env) === 'QwenCloud Token Plan' ? 'qwencloud-token-plan' : 'pay-as-you-go'
 }
 
 function pinRow(pin: (typeof QWEN_DISPLAY_PINS)[number], listedLive: boolean): QwenCatalogueRow {

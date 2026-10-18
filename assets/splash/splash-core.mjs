@@ -193,7 +193,7 @@ const MODEL_NAMES = {
   "qwen3.7-flash": "Qwen3.7 Flash",
   "qwen3.6-flash": "Qwen3.6 Flash",
   "qwen3-coder-flash": "Qwen3 Coder Flash",
-  "qwen-auto": "Auto (the Coding Plan picks the model)",
+  "qwen-auto": "Auto (the plan picks the model)",
   "qwen": "Qwen",
   "deepseek-v4-pro": "DeepSeek V4 Pro",
   "deepseek-flash": "DeepSeek V4.1 Flash",
