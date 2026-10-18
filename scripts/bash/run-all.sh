@@ -78,6 +78,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-record-of-sub-agent-launch.t
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-sub-agent-shell-notification.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sub-agent-shell-notification.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-session-env.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-session-env.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tool-shell-defaults.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tool-shell-defaults.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-tool-shell-markers.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tool-shell-markers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-pack.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-session.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-exec.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-exec.ts" "$__t" "$__rc"

@@ -48,6 +48,8 @@ export const HEADLESS_CHILD_DEFAULTS: Readonly<Record<string, string>> = {
 export const TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
   ...HEADLESS_CHILD_DEFAULTS,
   MERCURY: '1',
+  AGENT: '1',
+  AI_AGENT: 'mercury',
   NO_COLOR: '1',
   FORCE_COLOR: '0',
   GH_PAGER: 'cat',
