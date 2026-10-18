@@ -195,16 +195,13 @@ function probeOpenai(io: DiscoveryIo): OpenaiDiscovery {
 export function resolveZaiApiKey(
   env: Record<string, string | undefined> = process.env,
 ): string | undefined {
-  const envKey = env.ZAI_API_KEY?.trim()
-  if (envKey) return envKey
-  return readStoredZaiApiKey()
+  return resolveZaiDispatch(env)?.key
 }
 
 export function zaiKeySource(
   env: Record<string, string | undefined> = process.env,
 ): 'env' | 'stored' | undefined {
-  if (env.ZAI_API_KEY?.trim()) return 'env'
-  return readStoredZaiApiKey() ? 'stored' : undefined
+  return resolveZaiDispatch(env)?.source
 }
 
 export function resolveZaiDispatch(
@@ -212,6 +209,9 @@ export function resolveZaiDispatch(
 ): { key: string; source: 'env' | 'stored'; plan: 'general' | 'coding' } | undefined {
   const envKey = env.ZAI_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env', plan: 'general' }
+  const { resolveProviderKeyCommand } = require('./providerKeyCommand.js') as typeof import('./providerKeyCommand.js')
+  const fromCommand = resolveProviderKeyCommand('zai')
+  if (fromCommand) return { key: fromCommand, source: 'stored', plan: 'general' }
   const stored = readStoredZaiApiKey()
   if (!stored) return undefined
   return { key: stored, source: 'stored', plan: readStoredZaiKeyPlan() === 'coding' ? 'coding' : 'general' }

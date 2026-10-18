@@ -25,6 +25,7 @@ import {
 } from './openrouterUsageState.js'
 import { openrouterResponsesTransport } from './openrouterResponsesTransport.js'
 import { refreshProviderUsage } from '../providerUsage.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { getInitialSettings } from '../../../utils/settings/settings.js'
 import { openrouterProviderObject } from './openrouterRoutingPolicy.js'
 import { openrouterChatCache } from './openrouterCache.js'
@@ -62,8 +63,15 @@ export const openrouterLaneProfile: CompatLaneProfile = {
     const key = resolveOpenrouterApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint:
-    'no OpenRouter credential detected — /logins connects OpenRouter (OAuth mints a key), or set OPENROUTER_API_KEY.',
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('openrouter')) return null
+    const fresh = recoverProviderKeyCommand('openrouter')
+    return fresh ? { apiKey: fresh } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('openrouter')
+    return failure ? `the configured ${failure.message} — no OpenRouter credential detected.` : 'no OpenRouter credential detected — /logins connects OpenRouter (OAuth mints a key), or set OPENROUTER_API_KEY.'
+  },
   authRemedy: OPENROUTER_AUTH_REMEDY,
   billingRemedy:
     'the OpenRouter account has insufficient credits — add credits, then retry; /model picks another model meanwhile.',

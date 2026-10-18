@@ -1,11 +1,12 @@
 import { spawnSync } from 'node:child_process'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import { checkHasTrustDialogAccepted, untrustedWorkspaceHeadless } from '../../utils/config.js'
+import { checkHasTrustDialogAccepted } from '../../utils/config.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isBareMode } from '../../utils/envUtils.js'
 import { logError } from '../../utils/log.js'
 import { getEnabledSettingSources, type SettingSource } from '../../utils/settings/constants.js'
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 
 const OUTSIDE_CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set([
@@ -54,16 +55,27 @@ function commandFromSettings(settings: Record<string, any> | null | undefined, f
   return typeof mapped === 'string' && mapped.trim() ? mapped.trim() : undefined
 }
 
+function checkoutTrusted(): boolean {
+  try {
+    return checkHasTrustDialogAccepted()
+  } catch {
+    return false
+  }
+}
+
 function allowedSources(family: string): readonly SettingSource[] {
   if (family.startsWith('compat:')) return ['userSettings', 'flagSettings', 'policySettings']
   if (isBareMode()) return ['flagSettings']
   const enabled = getEnabledSettingSources()
-  if (untrustedWorkspaceHeadless()) return enabled.filter(source => OUTSIDE_CHECKOUT_SOURCES.has(source))
+  const hasCheckoutCommand =
+    commandFromSettings(getSettingsForSource('projectSettings') as Record<string, any>, family) !== undefined ||
+    commandFromSettings(getSettingsForSource('localSettings') as Record<string, any>, family) !== undefined
+  if (hasCheckoutCommand && !checkoutTrusted()) return enabled.filter(source => OUTSIDE_CHECKOUT_SOURCES.has(source))
   return enabled
 }
 
 function blockedByInteractiveTrust(family: string, configured: string): boolean {
-  if (family.startsWith('compat:') || getIsNonInteractiveSession() || checkHasTrustDialogAccepted()) return false
+  if (family.startsWith('compat:') || getIsNonInteractiveSession() || checkoutTrusted()) return false
   const fromProject =
     configured === commandFromSettings(getSettingsForSource('projectSettings') as Record<string, any>, family) ||
     configured === commandFromSettings(getSettingsForSource('localSettings') as Record<string, any>, family)
@@ -92,7 +104,7 @@ function runCommandSync(command: string, label: string): { key: string | null; f
   const result = spawnSync(command, {
     shell: true,
     cwd: getCwd(),
-    env: process.env,
+    env: subprocessEnv(),
     timeout: KEY_COMMAND_TIMEOUT_MS,
     encoding: 'utf8',
     maxBuffer: 1024 * 1024,
@@ -100,7 +112,7 @@ function runCommandSync(command: string, label: string): { key: string | null; f
   })
   const now = Date.now()
   const timedOut = Boolean((result.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || /timed out/i.test(result.error?.message ?? ''))
-  if (timedOut || result.status !== 0) {
+  if (timedOut || result.error || result.status !== 0) {
     const stderr = (result.stderr ?? '').trim()
     const code = result.status ?? 1
     const why = timedOut ? 'timed out after 10s' : `exited with code ${code}`
