@@ -744,6 +744,45 @@ section('§13 an editor read that fails is reported to the model; the disk copy 
   }
 }
 
+section('§14 after the editor reformats an Edit the next Edit on the reformatted line is accepted without a new Read, and a line the model never saw is refused as not found')
+{
+  const fmtFile = join(projDir, 'drift-twice.ts')
+  writeFileSync(fmtFile, 'const x=1\nconst z=9\n')
+  const buffers = new Map<string, string>([[fmtFile, 'const x=1\nconst z=9\n']])
+  const api = await startFixtureApi([
+    { kind: 'tool_use', name: 'Read', input: { file_path: fmtFile }, preText: 'read' },
+    { kind: 'tool_use', name: 'Edit', input: { file_path: fmtFile, old_string: 'const x=1', new_string: 'const x=2' }, preText: 'first edit, formatted on save' },
+    { kind: 'tool_use', name: 'Edit', input: { file_path: fmtFile, old_string: 'const x = 2;', new_string: 'const x = 3;' }, preText: 'second edit on the reformatted line' },
+    { kind: 'tool_use', name: 'Edit', input: { file_path: fmtFile, old_string: 'const z=9', new_string: 'const z=8' }, preText: 'third edit on text the formatter changed and the model never saw' },
+    { kind: 'text', text: 'drift twice done' },
+  ])
+  const server = spawnServer(api.url)
+  const h = connectClient(server, {
+    onReadTextFile: ({ path }) => ({ content: buffers.get(path) ?? '' }),
+    onWriteTextFile: ({ path, content }) => {
+      const formatted = content.replace(/const (\w+)=(\d+)/g, 'const $1 = $2;')
+      buffers.set(path, formatted)
+      writeFileSync(path, formatted)
+      return {}
+    },
+  })
+  try {
+    await h.agent.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION, clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: false } })
+    const { sessionId } = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
+    const res = await h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'drift twice' }] })
+    check('turn completes', res.stopReason === 'end_turn', j(res))
+    const results = toolResultStrings(h.updates)
+    check('the first Edit reports the formatter changed what it wrote', results.some(r => r.includes('differ from what this edit wrote') && r.includes('const x = 2;')), j(results))
+    check('the second Edit, on the reformatted line and with no new Read, is accepted', results.filter(r => r.includes('has been updated successfully')).length === 2 && readFileSync(fmtFile, 'utf8') === 'const x = 3;\nconst z = 9;\n', j({ results, file: readFileSync(fmtFile, 'utf8') }))
+    check('the third Edit, on text the formatter had changed and the model never saw, is refused as not found', results.some(r => r.includes('The old_string was not found in the file')), j(results))
+    await h.agent.request('session/close', { sessionId }).catch(() => {})
+  } finally {
+    h.close()
+    server.kill('SIGKILL')
+    await api.close()
+  }
+}
+
 console.log('')
 if (failures > 0) {
   console.error(`❌ prove-acp-ide-routing: ${failures} failure(s)`)
