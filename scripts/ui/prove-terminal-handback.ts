@@ -203,6 +203,7 @@ section('S · one owner · every hand-off site · the one native spelling · the
   }
   const headless: Record<string, string> = {
     'src/cli/editorBridge.ts': 'a headless verb (mercury bridge …) — the process ends with the child; no renderer returns to the terminal',
+    'src/cli/lspVerb.ts': 'a headless verb (mercury lsp install …) — the install command runs with the terminal attached and the process ends after it; no renderer returns to the terminal',
     'src/daemon/main.ts': 'the daemon successor spawn — no terminal',
     'src/daemon/headlessRun.ts': 'the rows child inherits stderr only',
     'src/services/acp/childSession.ts': 'the ACP child inherits stderr only',
