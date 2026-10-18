@@ -293,7 +293,7 @@ export function editResultHead(path: string, modifiedClause: string, edited: Edi
 
 export type NotUniqueWords = {
   count: number
-  road: 'exact' | 'quotes' | 'characters' | 'whitespace' | 'indentation'
+  road: 'exact' | 'quotes' | 'characters' | 'whitespace' | 'indentation' | 'escapes'
   spelling: 'same' | 'differs'
   replaceAll: boolean
   matches: readonly LineRange[]
@@ -313,6 +313,8 @@ export function roadWords(road: NotUniqueWords['road']): string {
       return ' (found after ignoring trailing whitespace)'
     case 'indentation':
       return ' (found after ignoring indentation)'
+    case 'escapes':
+      return ' (found after reading the \\n, \\t and \\r sequences as the characters they spell)'
   }
 }
 
