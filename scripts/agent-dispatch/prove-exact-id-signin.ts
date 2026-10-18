@@ -116,7 +116,7 @@ section("§2 the ladder for 'grok-4.7' with a signed-in xAI and an empty catalog
   resetAll()
   const cold = await road('grok-4.7')
   check("the list cannot be read: 'grok-4.7' launches on xAI as the pin this build knows (RED on the base: 'not a catalogue-verified id')", cold.backend === 'xai' && cold.model === 'grok-4.7' && cold.displayLabel === 'Grok 4.7', show(cold))
-  check('…with a note that names the read failure, the id that runs and the two pages', cold.note?.includes('the xAI model list could not be read (xAI models endpoint returned HTTP 500)') === true && cold.note.includes('Grok 4.7 (grok-4.7)') && cold.note.includes('mercury://models/known'), show(cold))
+  check('…with a note that names the read failure with the service\'s own words, the id that runs and the two pages', cold.note?.includes('the xAI model list could not be read (xAI models endpoint returned HTTP 500 — fixture outage)') === true && cold.note.includes('Grok 4.7 (grok-4.7)') && cold.note.includes('mercury://models/known'), show(cold))
   const windowed = await road('grok-4.7[1m]')
   check("a typed window is dressing for an xAI id: 'grok-4.7[1m]' looks up grok-4.7 and runs it", windowed.backend === 'xai' && windowed.model === 'grok-4.7', show(windowed))
   const unknown = await road('grok-9-fixture')

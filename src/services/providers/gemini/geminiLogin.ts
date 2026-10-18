@@ -1,3 +1,4 @@
+import { KEY_PAGES } from '../../../components/loginFamilyRows.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { readStoredGeminiApiKey, writeStoredGeminiApiKey } from '../providerSecrets.js'
 import { geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, readPreferredGeminiSource, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
@@ -109,7 +110,7 @@ export async function storeGeminiApiKeyLogin(
     return {
       ok: false,
       stored: false,
-      receipt: `Google refused this key${snapshot.lastStatus !== undefined ? ` (HTTP ${snapshot.lastStatus})` : ''}${snapshot.lastSaid ? ` — ${snapshot.lastSaid}` : ''} — nothing stored${previousKey ? '; the key stored before stays' : ''}; keys are made at aistudio.google.com, paste again.`,
+      receipt: `Google refused this key${snapshot.lastStatus !== undefined ? ` (HTTP ${snapshot.lastStatus})` : ''}${snapshot.lastSaid ? ` — ${snapshot.lastSaid}` : ''} — nothing stored${previousKey ? '; the key stored before stays' : ''}; keys are made at ${KEY_PAGES.gemini}, paste again.`,
     }
   }
   const catalogueNote = snapshot?.lastError

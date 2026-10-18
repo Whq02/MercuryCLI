@@ -110,7 +110,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
   { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
-  { data: '\r', afterPrevTicks: 4 },
+  { data: '\r', atTick: 999, awaitText: ask, requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
 ]
 
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
@@ -144,13 +144,13 @@ async function compactLeg(cols: number, rows: number, zen: boolean): Promise<voi
   const sends: Array<Record<string, unknown>> = [
     ...bootSends(LEAD_ASK_SLEEPER),
     { data: CTRL_T, atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 5, awaitSettleTicks: 6, mark: 'launched' },
-    { data: '\r', afterPrevTicks: 4 },
+    { data: '\r', atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: '\r', atTick: 999, awaitText: ACTIVITY_TITLE, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'activity' },
     { data: CTRL_T, atTick: 999, awaitText: CREWMATE_PLATE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'strip-view' },
-    { data: '\r', afterPrevTicks: 4 },
+    { data: '\r', atTick: 999, awaitText: CREWMATE_PLATE, requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: '\r', atTick: 999, awaitText: LEAD_ROW_WORDS, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'activity-lead' },
     { data: '/crewmates', atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'strip-back' },
-    { data: '\r', afterPrevTicks: 4 },
+    { data: '\r', atTick: 999, awaitText: '/crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: '\r', atTick: 999, awaitText: '↵ open in the view', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'popup' },
     { data: ESC, atTick: 999, awaitText: CREWMATE_PLATE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'popup-view' },
     { data: ESC, atTick: 999, awaitText: 'the interrupt ended', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'cut' },
@@ -158,7 +158,7 @@ async function compactLeg(cols: number, rows: number, zen: boolean): Promise<voi
   ]
   let cap: Capture | null = null
   try {
-    cap = await capture({ cols, rows, total: 600, cwd, argv: ['node', DIST], sends, stableTicks: 6 }, driveEnv(home, fixture.base))
+    cap = await capture({ cols, rows, total: 600, cwd, argv: ['node', DIST], sends, readyText: LEAD_LINE, readySettleTicks: 3, stableTicks: 6 }, driveEnv(home, fixture.base))
   } finally {
     await fixture.close()
   }
@@ -207,7 +207,7 @@ async function cockpitLeg(cols: number, rows: number): Promise<void> {
   const sends: Array<Record<string, unknown>> = [
     ...bootSends(LEAD_ASK_SLEEPER),
     { data: '/crewmates', atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 5, awaitSettleTicks: 6, mark: 'launched' },
-    { data: '\r', afterPrevTicks: 4 },
+    { data: '\r', atTick: 999, awaitText: '/crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: '\r', atTick: 999, awaitText: '↵ open in the view', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'popup' },
     { data: ESC, atTick: 999, awaitText: CREWMATE_PLATE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'popup-view' },
     { data: ESC, atTick: 999, awaitText: 'the interrupt ended', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'cut' },
@@ -215,7 +215,7 @@ async function cockpitLeg(cols: number, rows: number): Promise<void> {
   ]
   let cap: Capture | null = null
   try {
-    cap = await capture({ cols, rows, total: 520, cwd, argv: ['node', DIST], sends, stableTicks: 6 }, driveEnv(home, fixture.base))
+    cap = await capture({ cols, rows, total: 520, cwd, argv: ['node', DIST], sends, readyText: LEAD_LINE, readySettleTicks: 3, stableTicks: 6 }, driveEnv(home, fixture.base))
   } finally {
     await fixture.close()
   }

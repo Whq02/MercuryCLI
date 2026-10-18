@@ -15,7 +15,9 @@ process.env.MERCURY_FULLSCREEN = '1'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const React = await import('react')
 const { render, Text } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
+const { AppStateProvider, useAppStateStore } = await import('../../src/state/AppState.js')
+let storeRef: { getState: () => unknown } | null = null
+const viewing = (): string | undefined => (storeRef?.getState() as { viewingAgentTaskId?: string } | undefined)?.viewingAgentTaskId
 const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
 const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.js')
 const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.js')
@@ -52,6 +54,7 @@ try {
     const stdout = Object.assign(new Writable({ write(chunk, _encoding, done) { written += String(chunk); done() } }), { columns: 178, rows: 51, isTTY: true }) as unknown as NodeJS.WriteStream
     const stdin = Object.assign(new Readable({ read() {} }), { isTTY: true, setRawMode() {}, ref() {}, unref() {} }) as unknown as NodeJS.ReadStream
     function Host(): React.ReactNode {
+      storeRef = useAppStateStore() as never
       const [open, setOpen] = React.useState(true)
       const close = (): void => { closed = true; setOpen(false) }
       const panel = panels[kind](close)
@@ -68,7 +71,14 @@ try {
     try {
       await settle()
       check(`${kind} recess=${recess}: the backdrop uses the requested policy`, recessActive() === (recess === '1'))
-      if (kind === 'crew' || kind === 'tasks') {
+      if (kind === 'tasks') {
+        check(`${kind} recess=${recess}: the real list paints both fixture rows`, screenText().includes('first agent') && screenText().includes('second agent'))
+        await send('\r')
+        check(`${kind} recess=${recess}: Enter on a crewmate row enters its view and the activity screen gives way (the view is the chat's, never a card)`, closed && viewing() === 'first' && !screenText().includes('Activity') && screenText().includes('◉ first agent') && screenText().includes('untouched composer'), screenText())
+        check(`${kind} recess=${recess}: dismissal leaves the work roster unchanged`, roster.rows.every(row => row.status === 'completed'))
+        continue
+      }
+      if (kind === 'crew') {
         check(`${kind} recess=${recess}: the real list paints both fixture rows`, screenText().includes('first agent') && screenText().includes('second agent'))
         await send('\r')
         check(`${kind} recess=${recess}: Enter opens the real work card`, screenText().includes('› first agent'), screenText())
