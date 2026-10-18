@@ -444,6 +444,10 @@ export function netcoredbgInstallHint(platform: string = process.platform): stri
     : 'download netcoredbg from github.com/Samsung/netcoredbg/releases (the Windows and Linux archives ship the netcoredbg binary) and put it on PATH'
 }
 
+export const KOTLIN_DEBUG_ADAPTER_HINT = 'download the kotlin-debug-adapter release (github.com/fwcd/kotlin-debug-adapter/releases) and put its bin directory on PATH'
+export const ELIXIR_DEBUG_ADAPTER_BINARIES = ['elixir-ls-debugger', 'debug_adapter.sh'] as const
+export const ELIXIR_DEBUG_ADAPTER_HINT = 'brew install elixir-ls (ships elixir-ls-debugger) or unpack the elixir-ls release (debug_adapter.sh) onto PATH'
+
 export function gdbInstallHint(platform: string = process.platform): string {
   return platform === 'win32'
     ? 'install gdb 14+ from MSYS2 (pacman -S mingw-w64-ucrt-x86_64-gdb) — the first release with the native -i=dap interpreter'
@@ -506,6 +510,34 @@ function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => D
       fileTypes: ['.rb'],
       rootMarkers: ['Gemfile'],
       installHint: 'gem install debug (provides rdbg)',
+    })
+  }
+  if (findOnPathLocal('dart')) {
+    table.dart = () => ({
+      command: 'dart',
+      args: ['debug_adapter'],
+      fileTypes: ['.dart'],
+      rootMarkers: ['pubspec.yaml'],
+      installHint: 'dart debug_adapter ships with the Dart SDK (dart.dev/get-dart)',
+    })
+  }
+  if (findOnPathLocal('kotlin-debug-adapter')) {
+    table.kotlin = () => ({
+      command: 'kotlin-debug-adapter',
+      args: [],
+      fileTypes: ['.kt'],
+      rootMarkers: ['build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts'],
+      installHint: KOTLIN_DEBUG_ADAPTER_HINT,
+    })
+  }
+  const elixirDebugAdapter = ELIXIR_DEBUG_ADAPTER_BINARIES.find(name => findOnPathLocal(name))
+  if (elixirDebugAdapter !== undefined) {
+    table.elixir = () => ({
+      command: elixirDebugAdapter,
+      args: [],
+      fileTypes: ['.ex', '.exs'],
+      rootMarkers: ['mix.exs'],
+      installHint: ELIXIR_DEBUG_ADAPTER_HINT,
     })
   }
   const gdb = read === 'memo' ? gdbProbeFromMemo() : probeGdbDap()
@@ -736,6 +768,15 @@ export function dormantBuiltinAdapterHints(read: 'live' | 'memo' = 'live'): Arra
   }
   if (!('ruby' in table)) {
     out.push({ key: 'ruby', hint: 'gem install debug (provides rdbg)' })
+  }
+  if (!('dart' in table)) {
+    out.push({ key: 'dart', hint: 'install the Dart SDK (dart.dev/get-dart) — it ships dart debug_adapter' })
+  }
+  if (!('kotlin' in table)) {
+    out.push({ key: 'kotlin', hint: KOTLIN_DEBUG_ADAPTER_HINT })
+  }
+  if (!('elixir' in table)) {
+    out.push({ key: 'elixir', hint: ELIXIR_DEBUG_ADAPTER_HINT })
   }
   if (!('gdb' in table)) {
     out.push({ key: 'gdb', hint: gdbInstallHint() })
