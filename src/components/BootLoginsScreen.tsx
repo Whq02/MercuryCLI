@@ -988,7 +988,7 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
         case 'nous':
           return 'Nous Portal — account sign-in or API key';
         case 'qwen':
-          return 'Qwen — account sign-in or Model Studio API key';
+          return 'Qwen — Model Studio API key (the account sign-in is closed by Qwen)';
         case 'meta':
           return META_LOGIN_FAMILY_LABEL;
         case 'openai':

@@ -6,7 +6,7 @@ import { setClipboard } from '../../../ink/termio/osc.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import TextInput from '../../../components/TextInput.js'
 import { useMercuryTokens } from '../../../components/mercury-ui/useMercuryTokens.js'
-import { QWEN_CONNECT_CLIENT_LINE, QWEN_CONNECT_ROWS, QWEN_CONNECT_STOPPED_RECEIPT, runQwenDeviceLogin, storeQwenApiKeyLogin, type QwenDeviceLoginEvent } from './qwenLogin.js'
+import { QWEN_CONNECT_CLIENT_LINE, QWEN_CONNECT_ROWS, QWEN_CONNECT_STOPPED_RECEIPT, QWEN_FACE_PICK_LINE, runQwenDeviceLogin, storeQwenApiKeyLogin, type QwenDeviceLoginEvent } from './qwenLogin.js'
 import { keyPasteGuardNote } from '../../../components/mercury-ui/screens/keyPasteGuards.js'
 import { keyPageLine } from '../../../components/loginFamilyRows.js'
 import { KeyCardTitle } from '../../../components/KeyCardTitle.js'
@@ -63,7 +63,7 @@ export function QwenConnect({ onResult, onBack }: {
   }
   if (step === 'choice') return <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
     <Text bold color={tokens.accent}>Connect Qwen</Text>
-    {compact ? null : <Text>Sign in with your Qwen account in the browser (the Qwen Coder plan), or paste a Model Studio API key.</Text>}
+    {compact ? null : <Text>{QWEN_FACE_PICK_LINE}</Text>}
     {compact ? null : <Text>{QWEN_CONNECT_CLIENT_LINE}</Text>}
     <Select options={QWEN_CONNECT_ROWS} onChange={choice => setStep(choice === 'device' ? 'device' : 'key')} onCancel={onBack} />
   </Box>

@@ -61,12 +61,14 @@ export async function storeQwenApiKeyLogin(key: string, io?: { fetchImpl?: typeo
   return { ok: true, stored: true, receipt: `Model Studio API key stored (auth-scoped, mode 600) · ${note}. ${QWEN_KEY_RECEIPT_TAIL}${shadow}` }
 }
 
+export const QWEN_SIGNIN_ROAD_CLOSED_LINE = "Qwen closed the Qwen Code account sign-in on 2026-04-15 (QwenLM/qwen-code issue 3203; Qwen Code's own client no longer offers it): the device code is still issued, but the token service refuses every client"
+const QWEN_CODING_PLAN_KEY_LINE = 'A Model Studio API key is the way in: a Coding Plan key (sk-sp-…) reaches the Coding Plan on its own endpoint, a Token Plan or pay-as-you-go key its region; /logins qwen stores it (DASHSCOPE_API_KEY works too).'
 export const QWEN_CONNECT_ROWS = [
-  { label: 'Sign in with your Qwen account — device code in the browser (the Qwen Coder plan)', value: 'device' },
-  { label: 'Paste a Model Studio API key (pay-as-you-go or a plan key)', value: 'key' },
+  { label: 'Paste a Model Studio API key (a Coding Plan key is sk-sp-…)', value: 'key' },
+  { label: 'Qwen account sign-in — closed by Qwen on 2026-04-15', value: 'device' },
 ]
 export const QWEN_CONNECT_CLIENT_LINE = `The sign-in runs Qwen Code's public OAuth client (client id ${QWEN_OAUTH_CLIENT_ID}) against chat.qwen.ai: the device code, the token and the refresh leave this machine for that service and nothing else; the plan's terms are yours with Qwen, and Mercury ships this road as it is.`
-export const QWEN_FACE_PICK_LINE = "Sign in with your Qwen account in the browser (the Qwen Coder plan, on Qwen Code's public client and the plan's own terms), or paste a Model Studio API key."
+export const QWEN_FACE_PICK_LINE = 'Paste a Model Studio API key (a Coding Plan key sk-sp-… for the Coding Plan). Qwen closed the account sign-in on 2026-04-15; its row tries the road once and reports the answer.'
 export const QWEN_CONNECT_STOPPED_RECEIPT = 'Qwen account sign-in cancelled — an approval already in flight still lands; /accounts shows and removes it.'
 const QWEN_KEY_LEG_OFFER = '/logins qwen retries the sign-in or stores a Model Studio API key.'
 
@@ -113,6 +115,7 @@ export async function runQwenDeviceLogin(args: {
     }
     if (result.state === 'denied') return fail('Qwen account sign-in was declined in the browser')
     if (result.state === 'expired') return fail('Qwen account sign-in code expired before it was approved')
+    if (result.state === 'blocked') return { ok: false, receipt: `the Qwen sign-in service's gateway blocked the approval check (${result.words}) after the device code ${start.userCode} was issued — approving in the browser cannot complete this sign-in. ${QWEN_SIGNIN_ROAD_CLOSED_LINE}. Nothing stored. ${QWEN_CODING_PLAN_KEY_LINE}` }
     if (result.state === 'refused') return fail(`the Qwen sign-in service refused the sign-in (${result.words})`)
     const approved: QwenTokens = result.tokens
     args.onEvent?.({ phase: 'finishing' })

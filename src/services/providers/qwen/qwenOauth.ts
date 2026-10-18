@@ -190,6 +190,7 @@ export function tokensFromQwenBody(body: Record<string, unknown>, io?: QwenOauth
 interface QwenPortalAnswer {
   status: number
   body: Record<string, unknown>
+  json: boolean
 }
 
 async function post(path: string, form: Record<string, string>, io: QwenOauthIo | undefined): Promise<QwenPortalAnswer> {
@@ -211,12 +212,24 @@ async function post(path: string, form: Record<string, string>, io: QwenOauthIo 
   } catch {
     parsed = undefined
   }
-  const body = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
-  return { status: response.status, body }
+  const json = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+  return { status: response.status, body: json ? (parsed as Record<string, unknown>) : {}, json }
 }
 
 function described(body: Record<string, unknown>): string {
-  return typeof body.error_description === 'string' && body.error_description.trim() ? body.error_description.trim() : typeof body.message === 'string' && body.message.trim() ? body.message.trim() : ''
+  for (const key of ['error_description', 'message', 'detail']) {
+    const value = body[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+function gatewayAnswer(result: QwenPortalAnswer): boolean {
+  return result.status !== 200 && !result.json
+}
+
+function qwenGatewayWords(status: number): string {
+  return `HTTP ${status}, a block page rather than an OAuth answer`
 }
 
 function qwenPkcePair(): { verifier: string; challenge: string } {
@@ -248,7 +261,7 @@ export async function startQwenDeviceAuth(io?: QwenOauthIo): Promise<QwenDeviceA
   const result = await post(DEVICE_CODE_PATH, { client_id: QWEN_OAUTH_CLIENT_ID, scope: QWEN_OAUTH_SCOPE, code_challenge: pkce.challenge, code_challenge_method: 'S256' }, io)
   if (result.status !== 200) {
     const words = described(result.body)
-    throw new Error(`the Qwen sign-in service refused the device request (HTTP ${result.status}${words ? `: ${words}` : ''})`)
+    throw new Error(`the Qwen sign-in service refused the device request (${gatewayAnswer(result) ? qwenGatewayWords(result.status) : `HTTP ${result.status}${words ? `: ${words}` : ''}`})`)
   }
   const b = result.body
   if (typeof b.device_code !== 'string' || !b.device_code || typeof b.user_code !== 'string' || !b.user_code) throw new Error('the sign-in service returned an incomplete device code')
@@ -271,6 +284,7 @@ type QwenDevicePoll =
   | { state: 'denied'; words: string }
   | { state: 'expired'; words: string }
   | { state: 'refused'; words: string }
+  | { state: 'blocked'; status: number; words: string }
 
 export async function pollQwenDeviceToken(start: QwenDeviceAuthStart, io?: QwenOauthIo): Promise<QwenDevicePoll> {
   const result = await post(TOKEN_PATH, { grant_type: QWEN_DEVICE_CODE_GRANT, client_id: QWEN_OAUTH_CLIENT_ID, device_code: start.deviceCode, code_verifier: start.codeVerifier }, io)
@@ -283,6 +297,7 @@ export async function pollQwenDeviceToken(start: QwenDeviceAuthStart, io?: QwenO
   }
   const code = typeof result.body.error === 'string' ? result.body.error : ''
   if (!code && (result.status === 408 || result.status === 429 || result.status >= 500)) return { state: 'unavailable' }
+  if (gatewayAnswer(result)) return { state: 'blocked', status: result.status, words: qwenGatewayWords(result.status) }
   const words = described(result.body) || `HTTP ${result.status}${code ? ` (${code})` : ''}`
   switch (code) {
     case 'authorization_pending':
@@ -350,7 +365,7 @@ export function refreshQwenTokens(io?: QwenOauthIo, force = false): Promise<Qwen
         markQwenSigninRefused(old, result.status, verdict, words, now)
         throw new QwenRefreshRefusedError(qwenSigninRefusalNote({ status: result.status, code: verdict, message: words }), result.status, verdict)
       }
-      throw new Error(`the Qwen sign-in service could not refresh the sign-in (HTTP ${result.status}${words ? `: ${words}` : ''}) — the stored sign-in is kept; retry shortly`)
+      throw new Error(`the Qwen sign-in service could not refresh the sign-in (${gatewayAnswer(result) ? qwenGatewayWords(result.status) : `HTTP ${result.status}${words ? `: ${words}` : ''}`}) — the stored sign-in is kept; retry shortly`)
     } finally {
       await release().catch(() => undefined)
     }
