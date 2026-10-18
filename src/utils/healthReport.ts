@@ -1605,7 +1605,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             const { daemonControlRpc, restartDaemonWords } = await import('../daemon/controlSocket.js')
             const { compareSignInViews, composeSignInView, summarizeSignInView } = await import('../daemon/signInView.js')
-            const reply = (await daemonControlRpc({ op: 'signIns' } as never, { timeoutMs: 3000 })) as
+            const reply = (await daemonControlRpc({ op: 'signIns', refresh: true } as never, { timeoutMs: 3000 })) as
               | { ok: true; view: DaemonSignInViewV1 }
               | { ok: false; code?: string; error?: string }
             const restart = restartDaemonWords(binaryName())
@@ -1617,7 +1617,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 link: '/daemon',
               }
             }
-            const mine = composeSignInView()
+            const mine = composeSignInView({ refresh: true })
             const gaps = compareSignInViews(mine, reply.view)
             const sameEstate = reply.view.home === mine.home && reply.view.store === mine.store
             const where = `daemon read ${reply.view.store} in ${reply.view.home}; this process reads ${mine.store} in ${mine.home}`
@@ -1626,6 +1626,19 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             const named = gaps.map(g => `${g.family}: client ${g.client} vs daemon ${g.daemon}`).join('; ')
             const lists = `daemon: [${summarizeSignInView(reply.view)}] · client: [${summarizeSignInView(mine)}]`
+            const now = Date.now()
+            const olderLists = gaps.flatMap(gap => {
+              const client = mine.families.find(family => family.family === gap.family)
+              const daemon = reply.view.families.find(family => family.family === gap.family)
+              if (!client?.credentialed || !daemon?.credentialed || client.refused || daemon.refused) return []
+              const clientAt = client.catalogueReadAt
+              const daemonAt = daemon.catalogueReadAt
+              if (typeof clientAt !== 'number' || typeof daemonAt !== 'number' || !Number.isFinite(clientAt) || !Number.isFinite(daemonAt) || daemonAt <= 0 || clientAt > now || daemonAt >= clientAt) return []
+              return [`${gap.family}: daemon list read ${formatAge(now - daemonAt)}`]
+            })
+            if (sameEstate && gaps.length > 0 && olderLists.length === gaps.length) {
+              return { status: 'info', evidence: `daemon model lists are older — ${olderLists.join('; ')} · ${lists} · ${where}`, link: '/daemon' }
+            }
             return {
               status: 'fail',
               evidence: `daemon ≠ client${named !== '' ? ` — ${named}` : ' — different home or store'} · ${lists} · ${where}`,
