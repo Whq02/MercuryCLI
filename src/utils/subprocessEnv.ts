@@ -45,7 +45,77 @@ export const HEADLESS_CHILD_DEFAULTS: Readonly<Record<string, string>> = {
   GIT_PAGER: 'cat',
 }
 
-export const TOOL_SHELL_PLAIN_OUTPUT: Readonly<Record<string, string>> = { NO_COLOR: '1', FORCE_COLOR: '0' }
+export const TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
+  ...HEADLESS_CHILD_DEFAULTS,
+  MERCURY: '1',
+  AGENT: '1',
+  AI_AGENT: 'mercury',
+  NO_COLOR: '1',
+  FORCE_COLOR: '0',
+  GH_PAGER: 'cat',
+  GLAB_PAGER: 'cat',
+  MANPAGER: 'cat',
+  PSQL_PAGER: 'cat',
+  AWS_PAGER: '',
+  LESS: '-FRX',
+  BAT_PAGER: '',
+  DELTA_PAGER: 'cat',
+  EDITOR: 'true',
+  VISUAL: 'true',
+  GIT_EDITOR: 'true',
+  GIT_ASKPASS: '',
+  SSH_ASKPASS: '',
+  PYTHONUNBUFFERED: '1',
+  npm_config_yes: 'false',
+  npm_config_update_notifier: 'false',
+  npm_config_fund: 'false',
+  npm_config_audit: 'false',
+  npm_config_progress: 'false',
+  PNPM_CONFIG_UPDATE_NOTIFIER: 'false',
+  YARN_ENABLE_PROGRESS_BARS: '0',
+  YARN_ENABLE_TELEMETRY: '0',
+  YARN_PREFER_INTERACTIVE: '0',
+  CARGO_TERM_COLOR: 'never',
+  CARGO_TERM_PROGRESS_WHEN: 'never',
+  PIP_NO_INPUT: '1',
+  TF_INPUT: '0',
+  GH_PROMPT_DISABLED: '1',
+}
+
+const WINDOWS_TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
+  PYTHONIOENCODING: 'utf-8',
+  PYTHONUTF8: '1',
+  LANG: 'C.UTF-8',
+  LC_ALL: 'C.UTF-8',
+}
+
+export function toolShellEnv(
+  env: NodeJS.ProcessEnv,
+  overrides: NodeJS.ProcessEnv = {},
+  platform: string = process.platform,
+): NodeJS.ProcessEnv {
+  const keyOf = (key: string): string => platform === 'win32' || /^(?:npm|pnpm)_config_/i.test(key) ? key.toUpperCase() : key
+  const child: NodeJS.ProcessEnv = {}
+  const names = new Map<string, string>()
+  for (const [key, value] of Object.entries(env)) {
+    if (value === undefined) continue
+    const previous = names.get(keyOf(key))
+    if (previous !== undefined && previous !== key) delete child[previous]
+    child[key] = value
+    names.set(keyOf(key), key)
+  }
+  for (const [key, value] of Object.entries(overrides)) {
+    const previous = names.get(keyOf(key))
+    if (previous !== undefined && previous !== key) delete child[previous]
+    child[key] = value
+    names.set(keyOf(key), key)
+  }
+  const defaults = platform === 'win32' ? { ...TOOL_SHELL_DEFAULTS, ...WINDOWS_TOOL_SHELL_DEFAULTS } : TOOL_SHELL_DEFAULTS
+  for (const [key, value] of Object.entries(defaults)) {
+    if (!names.has(keyOf(key))) child[key] = value
+  }
+  return child
+}
 
 export function headlessChildDefaultsOwed(env: NodeJS.ProcessEnv): string[] {
   if (!getIsNonInteractiveSession()) return []

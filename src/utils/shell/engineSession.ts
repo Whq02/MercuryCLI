@@ -13,7 +13,7 @@ import { getPlatform } from '../platform.js'
 import { SandboxManager } from '../sandbox/sandbox-adapter.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
-import { TOOL_SHELL_PLAIN_OUTPUT, subprocessEnv } from '../subprocessEnv.js'
+import { toolShellEnv, subprocessEnv } from '../subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
 import { TaskOutput } from '../task/TaskOutput.js'
 import { generateTaskId } from '../../Task.js'
@@ -282,7 +282,7 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
   const live: LiveSession = {
     child: spawn(file, args, {
       cwd: cwdThatResolves(),
-      env: { ...base.env, SHELL: binaryPath, GIT_EDITOR: 'true', MERCURY: '1', ...TOOL_SHELL_PLAIN_OUTPUT, ...envOverrides(sandbox) },
+      env: toolShellEnv(base.env, { SHELL: binaryPath, ...envOverrides(sandbox) }),
       stdio: ['pipe', 'pipe', 'pipe'],
       detached: getPlatform() !== 'windows',
       windowsHide: true,

@@ -19,6 +19,8 @@ const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
 process.chdir(ROOT)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.MERCURY_SHELL_ENGINE
+delete process.env.NO_COLOR
+delete process.env.FORCE_COLOR
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'plain-tool-result-')))
 process.env.MERCURY_TMPDIR = join(SCRATCH, 'tmp')
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -96,7 +98,7 @@ try {
   const envSrc = readFileSync(join(ROOT, 'src/utils/subprocessEnv.ts'), 'utf8')
   const shellSrc = readFileSync(join(ROOT, 'src/utils/Shell.ts'), 'utf8')
   const engineSrc = readFileSync(join(ROOT, 'src/utils/shell/engineSession.ts'), 'utf8')
-  check('the stamp has one owner and both tool-shell roads spread it before the command\'s own overrides', /export const TOOL_SHELL_PLAIN_OUTPUT[^\n]*NO_COLOR: '1', FORCE_COLOR: '0'/.test(envSrc) && /MERCURY: '1',\s*\.\.\.TOOL_SHELL_PLAIN_OUTPUT,\s*\.\.\.environmentOverrides/.test(shellSrc) && /MERCURY: '1', \.\.\.TOOL_SHELL_PLAIN_OUTPUT, \.\.\.envOverrides\(sandbox\)/.test(engineSrc))
+  check('one absent-only table feeds both tool-shell roads', /NO_COLOR: '1',\s*FORCE_COLOR: '0'/.test(envSrc) && shellSrc.includes('toolShellEnv(base.env, {') && engineSrc.includes('toolShellEnv(base.env, {'))
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
