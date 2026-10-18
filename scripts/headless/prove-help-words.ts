@@ -86,7 +86,8 @@ const INSIDER: RegExp[] = [/plain world/i, /classic feel/, /\breaped\b/, /Cells-
 
 console.log('§0 the walk')
 check('every page exits 0', [...exits.values()].every(code => code === 0), [...exits].filter(([, code]) => code !== 0).map(([key, code]) => `${key}=${code}`).join(', '))
-check('the walk reached the root, every verb and every sub-command (43 pages)', pages.size === 43, `${pages.size}: ${[...pages.keys()].join(', ')}`)
+const expectedPages = pages.has('lsp') ? 50 : 45
+check(`the walk reached the root, every verb and every sub-command (${expectedPages} pages)`, pages.size === expectedPages, `${pages.size}: ${[...pages.keys()].join(', ')}`)
 
 console.log("§1 a name's first use on a page carries its plain words, once; later uses stand alone")
 let taught = 0
