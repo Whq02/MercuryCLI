@@ -276,6 +276,7 @@ src/utils/model/capabilities.ts :: getModelBetas :: keyed-by-truth
 src/utils/model/computedDefault.ts :: memo :: ttl-bounded
 src/utils/mtls.ts :: getMTLSAgent :: static-for-process
 src/utils/mtls.ts :: getMTLSConfig :: static-for-process
+src/utils/normalizeToolSchema.ts :: memo :: keyed-by-truth
 src/utils/permissions/filesystem.ts :: bundledSkillsRootCache :: static-for-process
 src/utils/permissions/filesystem.ts :: tempDirCache :: static-for-process
 src/utils/permissions/filesystem.ts :: workingDirResolutionCache :: keyed-by-truth
