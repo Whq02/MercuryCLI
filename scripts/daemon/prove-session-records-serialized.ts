@@ -45,10 +45,32 @@ type Store = {
   updateConcourseWorkers: (mutate: (workers: Record<string, Record<string, unknown>>) => void, dir?: string) => Record<string, Record<string, unknown>>
   readSessionWorkers: (dir?: string) => Record<string, Record<string, unknown>>
   concourseWorkersPath: (dir?: string) => string
+  concourseCollisionsPath: (dir?: string) => string
+  readCollisionEvidence: (dir?: string) => Array<Record<string, unknown>>
+  recordCollisionEvidence: (row: Record<string, unknown>, dir?: string) => void
+  markCollisionEvidenceConsumed: (workspaceId: string, workerIds: readonly string[], dir?: string) => void
+}
+type DispatchStore = {
+  concourseDispatchesPath: (dir?: string) => string
+  readConcourseDispatches: (dir?: string) => Record<string, Record<string, unknown>>
+  withdrawConcourseDispatch: (clientMessageId: string, dir?: string) => boolean
+  makeConcourseDispatchHandler: (deps: {
+    admit: (req: Record<string, unknown>) => Promise<Record<string, unknown>>
+    deliver: (runnerId: string, row: unknown) => Promise<boolean>
+    dir?: string
+  }) => (req: Record<string, unknown>) => Promise<Record<string, unknown>>
+  flushDeferredDispatchPublishes: () => Promise<void>
+  concourseControlOpsPath: (dir?: string) => string
+  readConcourseControlOps: (dir?: string) => Record<string, Record<string, unknown>>
+  recordConcourseControlOp: (rec: Record<string, unknown>, dir?: string) => void
 }
 const loadStore = async (): Promise<Store> => {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   return (await import(pathToFileURL(join(TREE, 'src', 'daemon', 'concourseWorkers.ts')).href)) as Store
+}
+const loadDispatch = async (): Promise<DispatchStore> => {
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  return (await import(pathToFileURL(join(TREE, 'src', 'daemon', 'concourseDispatch.ts')).href)) as DispatchStore
 }
 const loadHome = async (): Promise<{ armDaemonHomeWatch: (dir: string, onGone: (where: string) => void) => void }> =>
   (await import(pathToFileURL(join(TREE, 'src', 'daemon', 'daemonHome.ts')).href)) as never
@@ -114,6 +136,77 @@ if (process.argv[2] === 'child') {
       outerSawInner = workers['inner'] !== undefined
     }, dir)
     raise('nest-done', world, JSON.stringify({ sameObject: innerReturn === outer, outerSawInner, after: keysNow(), lockLeft: existsSync(`${store.concourseWorkersPath(dir)}.lock`) }))
+  } else if (role === 'hold-caught') {
+    const [name] = rest as [string]
+    try {
+      store.updateConcourseWorkers(workers => {
+        raise('hold-in', world, JSON.stringify(Object.keys(workers).sort()))
+        awaitFlagSync('hold-go', world, 8_000)
+        workers[name] = row(name, world)
+      }, dir)
+    } catch (err) {
+      process.stderr.write(`${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}\n`)
+      process.exit(1)
+    }
+  } else if (role === 'collision-add') {
+    const [workerId] = rest as [string]
+    raise(`${workerId}-collision-entering`, world)
+    store.recordCollisionEvidence(
+      {
+        schema: 1,
+        kind: 'authored-work-retained',
+        workspaceId: world,
+        holders: [{ workerId, sessionId: `${workerId}-session`, isolation: 'worktree-isolated' }],
+        observedAt: Date.now(),
+        branchName: `mercury/${workerId}`,
+      },
+      dir,
+    )
+    raise(`${workerId}-collision-published`, world)
+  } else if (role === 'control-op-stress') {
+    const [prefix, count] = rest as [string, string]
+    const dispatch = await loadDispatch()
+    raise(`${prefix}-entering`, world)
+    for (let i = 1; i <= Number(count); i++) {
+      dispatch.recordConcourseControlOp(
+        {
+          clientOpId: `${prefix}-${i}`,
+          action: 'interrupt',
+          sessionId: `s-${prefix}`,
+          outcome: 'applied',
+          atMs: 1_000 + i,
+        },
+        dir,
+      )
+    }
+    raise(`${prefix}-done`, world)
+  } else if (role === 'dispatch-hold') {
+    const [id] = rest as [string]
+    const dispatch = await loadDispatch()
+    const handler = dispatch.makeConcourseDispatchHandler({
+      admit: async () => {
+        raise('dispatch-a-in-admit', world)
+        awaitFlagSync('dispatch-a-go', world, 8_000)
+        return { ok: true, runnerId: 'concourse-w1', sessionId: 'sess-a', workspaceId: world }
+      },
+      deliver: async () => true,
+      dir,
+    })
+    await handler({ clientMessageId: id, prompt: `prompt ${id}`, workspaceDir: world })
+    await dispatch.flushDeferredDispatchPublishes()
+    raise('dispatch-a-done', world)
+  } else if (role === 'dispatch-b') {
+    const [id, withdrawId] = rest as [string, string]
+    const dispatch = await loadDispatch()
+    const handler = dispatch.makeConcourseDispatchHandler({
+      admit: async () => ({ ok: true, runnerId: 'concourse-w2', sessionId: 'sess-b', workspaceId: world }),
+      deliver: async () => true,
+      dir,
+    })
+    await handler({ clientMessageId: id, prompt: `prompt ${id}`, workspaceDir: world })
+    await dispatch.flushDeferredDispatchPublishes()
+    dispatch.withdrawConcourseDispatch(withdrawId, dir)
+    raise('dispatch-b-done', world)
   } else if (role === 'armed-gone') {
     const home = await loadHome()
     const gone: string[] = []
@@ -353,16 +446,18 @@ try {
     check('the file is byte-identical: nothing was published over the lost lock', readFileSync(store.concourseWorkersPath(dirOf(w)), 'utf8') === bytesBefore, keysIn(w))
     rmSync(join(w, 'flags'), { recursive: true, force: true })
     mkdirSync(join(w, 'flags'))
-    const b = start('hold', w, ['add', 'stolen'])
+    const b = start('hold-caught', w, ['stolen'])
     check('writer B entered its section', await until(() => raised('hold-in', w), 15_000), b.out())
+    rmSync(ownerOf(w), { force: true })
     rmSync(lockDirOf(w), { recursive: true, force: true })
     mkdirSync(lockDirOf(w))
-    writeFileSync(join(lockDirOf(w), 'holder'), 'another process')
+    writeFileSync(ownerOf(w), `${process.pid}\n`)
     raise('hold-go', w)
     const codeB = await b.exit
     check('B exits non-zero with the typed refusal', codeB !== 0 && b.out().includes('SessionRecordsLockError'), { codeB, out: b.out() })
-    check("the new holder's lock directory is still standing (B did not release what it no longer owned)", existsSync(join(lockDirOf(w), 'holder')), listing(w))
+    check("the new holder's empty lock directory and owner record are still standing (neither release nor process.exit removed what B no longer owned)", existsSync(lockDirOf(w)) && existsSync(ownerOf(w)), listing(w))
     check('the file is still byte-identical', readFileSync(store.concourseWorkersPath(dirOf(w)), 'utf8') === bytesBefore, keysIn(w))
+    rmSync(ownerOf(w), { force: true })
     rmSync(lockDirOf(w), { recursive: true, force: true })
   }
 
@@ -386,6 +481,63 @@ try {
     check('the writer exits 0', (await c.exit) === 0, c.out())
     const receipt = raised('fresh-published', w) ? parse(readFlag('fresh-published', w)) : null
     check('the mutate saw an empty list and the file now carries the fresh record alone', (receipt?.seen as string[] | undefined)?.length === 0 && keysIn(w).join() === 'fresh', { receipt, keys: keysIn(w) })
+  }
+
+  section('§11 the sibling daemon stores (collisions, control-ops, dispatches) serialize under the same lock contract')
+  {
+    const dispatch = await loadDispatch()
+    const w = world('siblings')
+    const collisionsLock = `${store.concourseCollisionsPath(dirOf(w))}.lock`
+    const collisionsOwner = `${collisionsLock}.owner`
+    mkdirSync(collisionsLock)
+    writeFileSync(collisionsOwner, `${process.pid}\n`)
+    const ca = start('collision-add', w, ['w-a'])
+    check('collision writer A reached its update while a live owner holds the collisions lock', await until(() => raised('w-a-collision-entering', w), 15_000), ca.out())
+    await sleep(400)
+    check('collision writer A has not published while the collisions lock is held', !raised('w-a-collision-published', w), listing(w))
+    rmSync(collisionsOwner, { force: true })
+    rmSync(collisionsLock, { recursive: true, force: true })
+    const cb = start('collision-add', w, ['w-b'])
+    const cCodes = await Promise.all([ca.exit, cb.exit])
+    check('both collision writers exit 0 after the lock frees', cCodes.every(c => c === 0), { cCodes, a: ca.out(), b: cb.out() })
+    store.markCollisionEvidenceConsumed(w, ['w-a'], dirOf(w))
+    const collisions = store.readCollisionEvidence(dirOf(w))
+    check('both collision evidence rows and the consumedAt mark survive with no lingering lock', collisions.length === 2 && collisions.some(r => r.branchName === 'mercury/w-a' && typeof r.consumedAt === 'number') && collisions.some(r => r.branchName === 'mercury/w-b' && r.consumedAt === undefined) && !existsSync(collisionsLock), collisions)
+
+    const opsLock = `${dispatch.concourseControlOpsPath(dirOf(w))}.lock`
+    const opsOwner = `${opsLock}.owner`
+    mkdirSync(opsLock)
+    writeFileSync(opsOwner, `${process.pid}\n`)
+    const oa = start('control-op-stress', w, ['op-a', '12'])
+    check('control-op writer A reached its update while a live owner holds the control-ops lock', await until(() => raised('op-a-entering', w), 15_000), oa.out())
+    await sleep(400)
+    check('control-op writer A has not finished while the control-ops lock is held', !raised('op-a-done', w), listing(w))
+    rmSync(opsOwner, { force: true })
+    rmSync(opsLock, { recursive: true, force: true })
+    const ob = start('control-op-stress', w, ['op-b', '12'])
+    const oCodes = await Promise.all([oa.exit, ob.exit])
+    const ops = dispatch.readConcourseControlOps(dirOf(w))
+    check('both control-op writers exit 0 and all 24 clientOpId rows stand with no lingering lock', oCodes.every(c => c === 0) && Object.keys(ops).length === 24 && !existsSync(opsLock), { count: Object.keys(ops).length, oCodes })
+
+    writeFileSync(
+      dispatch.concourseDispatchesPath(dirOf(w)),
+      `${JSON.stringify({ version: 1, dispatches: { 'cm-w': { schema: 1, clientMessageId: 'cm-w', promptDigest: '0'.repeat(64), state: 'queued', stateRevision: 1, acceptedAt: Date.now(), heldReason: 'seat' } } }, null, 1)}\n`,
+    )
+    const da = start('dispatch-hold', w, ['cm-a'])
+    check('dispatch writer A published its reservation and paused inside admit', await until(() => raised('dispatch-a-in-admit', w), 15_000), da.out())
+    const db = start('dispatch-b', w, ['cm-b', 'cm-w'])
+    check('dispatch writer B completed cm-b and withdrew cm-w while A was in admit', (await db.exit) === 0 && raised('dispatch-b-done', w), db.out())
+    raise('dispatch-a-go', w)
+    check('dispatch writer A exits 0 after finishing admit and deliver', (await da.exit) === 0, da.out())
+    const dispatches = JSON.parse(readFileSync(dispatch.concourseDispatchesPath(dirOf(w)), 'utf8')) as { dispatches: Record<string, { state?: string }> }
+    check(
+      'the dispatch ledger keeps both working dispatches (cm-a and cm-b) and the withdrawn failure (cm-w) without clobbering across processes',
+      dispatches.dispatches['cm-a']?.state === 'working' &&
+        dispatches.dispatches['cm-b']?.state === 'working' &&
+        dispatches.dispatches['cm-w']?.state === 'failed' &&
+        !existsSync(`${dispatch.concourseDispatchesPath(dirOf(w))}.lock`),
+      dispatches.dispatches,
+    )
   }
 } finally {
   for (const child of children) {

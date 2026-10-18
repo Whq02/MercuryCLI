@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, utimesSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { partiallySanitizeUnicode } from '../utils/sanitization.js'
 import { randomUUID } from '../utils/crypto.js'
@@ -9,7 +9,7 @@ import { gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js
 import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { STORE_LOCK_OPTIONS } from '../substrate/fileStore.js'
 import { lockSync } from '../utils/lockfile.js'
-import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
+import { daemonHomeStands, publishInDaemonHome, publishTransientInDaemonHome } from './daemonHome.js'
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
 import { getProcessStartToken, getProcessStartTokenCachedOrRefresh, isProcessAlive } from './ownerWatch.js'
@@ -246,10 +246,12 @@ export function markConcourseWorkerActivity(
   if (!current || current.endedAt !== undefined) return
   const activity = sessionActivityOf(input.turnActive, input.work, input.waitingOnAgents ?? 0, input.lastTurnAt ?? current.activity?.lastTurnAt ?? null)
   if (JSON.stringify(current.activity) === JSON.stringify(activity)) return
-  updateConcourseWorkers(workers => {
-    const rec = workers[runnerId]
-    if (rec && rec.endedAt === undefined) rec.activity = activity
-  }, dir)
+  try {
+    updateConcourseWorkers(workers => {
+      const rec = workers[runnerId]
+      if (rec && rec.endedAt === undefined) rec.activity = activity
+    }, dir)
+  } catch {}
 }
 
 export function isNewbornRecord(rec: Pick<ConcourseWorkerRecordV1, 'bornBlankAt' | 'lastDeliveryAt'>): boolean {
@@ -295,15 +297,23 @@ export function readCollisionEvidence(dir?: string): CollisionEvidenceV1[] {
   }
 }
 
+function updateCollisionEvidence(mutate: (rows: CollisionEvidenceV1[]) => CollisionEvidenceV1[], dir?: string): void {
+  const path = concourseCollisionsPath(dir)
+  withDaemonStoreLock('the collision evidence', path, dir, ({ homeGone, assertStillHeld }) => {
+    const rows = mutate(readCollisionEvidence(dir))
+    if (homeGone || !daemonHomeStands('the collision evidence', dir)) return
+    assertStillHeld()
+    publishInDaemonHome(
+      'the collision evidence',
+      path,
+      `${JSON.stringify({ version: 1, rows } satisfies CollisionFileV1, null, 1)}\n`,
+      { dir },
+    )
+  })
+}
+
 export function recordCollisionEvidence(row: CollisionEvidenceV1, dir?: string): void {
-  const rows = [...readCollisionEvidence(dir), row].slice(-COLLISION_EVIDENCE_CAP)
-  if (!daemonHomeStands('the collision evidence', dir)) return
-  publishInDaemonHome(
-    'the collision evidence',
-    concourseCollisionsPath(dir),
-    `${JSON.stringify({ version: 1, rows } satisfies CollisionFileV1, null, 1)}\n`,
-    { dir },
-  )
+  updateCollisionEvidence(rows => [...rows, row].slice(-COLLISION_EVIDENCE_CAP), dir)
 }
 
 export function markCollisionEvidenceConsumed(
@@ -312,20 +322,17 @@ export function markCollisionEvidenceConsumed(
   dir?: string,
 ): void {
   const ids = new Set(workerIds)
-  const rows = readCollisionEvidence(dir).map(row =>
-    row.kind === 'authored-work-retained' &&
-    row.workspaceId === workspaceId &&
-    row.consumedAt === undefined &&
-    row.holders.some(h => ids.has(h.workerId))
-      ? { ...row, consumedAt: Date.now() }
-      : row,
-  )
-  if (!daemonHomeStands('the collision evidence', dir)) return
-  publishInDaemonHome(
-    'the collision evidence',
-    concourseCollisionsPath(dir),
-    `${JSON.stringify({ version: 1, rows } satisfies CollisionFileV1, null, 1)}\n`,
-    { dir },
+  updateCollisionEvidence(
+    rows =>
+      rows.map(row =>
+        row.kind === 'authored-work-retained' &&
+        row.workspaceId === workspaceId &&
+        row.consumedAt === undefined &&
+        row.holders.some(h => ids.has(h.workerId))
+          ? { ...row, consumedAt: Date.now() }
+          : row,
+      ),
+    dir,
   )
 }
 
@@ -488,8 +495,8 @@ function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1
 const SESSION_RECORDS_LOCK_WAIT_MS = STORE_LOCK_OPTIONS.stale + 5_000
 
 class SessionRecordsLockError extends Error {
-  constructor(path: string, detail: string) {
-    super(`the session records at ${path} were not updated: ${detail}`)
+  constructor(path: string, detail: string, where: string = 'the session records') {
+    super(`${where} at ${path} were not updated: ${detail}`)
     this.name = 'SessionRecordsLockError'
   }
 }
@@ -523,19 +530,25 @@ function reclaimAbandonedLock(lockDir: string, ownerPath: string): boolean {
   if (judged === null) return false
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
   if (abandonedLockReading(lockDir, ownerPath) !== judged) return false
-  try {
-    unlinkSync(ownerPath)
-  } catch {}
   if (lockIdentityOf(lockDir) !== judged.split('|')[0]) return false
   try {
     rmdirSync(lockDir)
   } catch (err) {
     return (err as NodeJS.ErrnoException).code === 'ENOENT'
   }
+  if (!existsSync(lockDir)) {
+    try {
+      unlinkSync(ownerPath)
+    } catch {}
+  }
   return true
 }
 
-function acquireSessionRecordsLock(path: string, dir: string | undefined): SessionRecordsLock | 'home-gone' {
+function acquireSessionRecordsLock(
+  path: string,
+  dir: string | undefined,
+  where: string = 'the session records',
+): SessionRecordsLock | 'home-gone' {
   const lockDir = `${path}.lock`
   const ownerPath = `${lockDir}.owner`
   const deadline = Date.now() + SESSION_RECORDS_LOCK_WAIT_MS
@@ -543,31 +556,47 @@ function acquireSessionRecordsLock(path: string, dir: string | undefined): Sessi
   let parentCreated = false
   for (;;) {
     try {
+      let acquired = false
+      let identity: string | null = null
+      const stillHeld = (): boolean => identity !== null && lockIdentityOf(lockDir) === identity
       const release = lockSync(path, {
         lockfilePath: lockDir,
         realpath: false,
         stale: STORE_LOCK_OPTIONS.stale,
+        fs: {
+          mkdirSync,
+          realpathSync,
+          statSync,
+          utimesSync,
+          rmdirSync: ((target: string) => {
+            if (acquired && !stillHeld()) return
+            rmdirSync(target)
+          }) as typeof rmdirSync,
+        } as never,
         onCompromised: (err: Error) => {
-          logForDebugging(`[concourse] the session records lock was compromised: ${err.message}`, { level: 'warn' })
+          logForDebugging(`[concourse] ${where} lock was compromised: ${err.message}`, { level: 'warn' })
         },
       })
       try {
-        writeFileSync(ownerPath, `${process.pid}\n`)
+        publishTransientInDaemonHome(where, ownerPath, `${process.pid}\n`, dir)
       } catch {}
-      const identity = lockIdentityOf(lockDir)
+      identity = lockIdentityOf(lockDir)
+      acquired = true
       return {
-        stillHeld: () => identity !== null && lockIdentityOf(lockDir) === identity,
+        stillHeld,
         release: () => {
-          try {
-            unlinkSync(ownerPath)
-          } catch {}
+          if (stillHeld()) {
+            try {
+              unlinkSync(ownerPath)
+            } catch {}
+          }
           release()
         },
       }
     } catch (err) {
       const code = (err as NodeJS.ErrnoException | null)?.code
       if (code === 'ENOENT') {
-        if (!daemonHomeStands('the session records', dir)) return 'home-gone'
+        if (!daemonHomeStands(where, dir)) return 'home-gone'
         if (parentCreated) throw err
         mkdirSync(dirname(path), { recursive: true })
         parentCreated = true
@@ -576,10 +605,52 @@ function acquireSessionRecordsLock(path: string, dir: string | undefined): Sessi
       if (code !== 'ELOCKED') throw err
       if (reclaimAbandonedLock(lockDir, ownerPath)) continue
       if (Date.now() >= deadline) {
-        throw new SessionRecordsLockError(path, `another writer held its lock for ${SESSION_RECORDS_LOCK_WAIT_MS} ms`)
+        throw new SessionRecordsLockError(path, `another writer held its lock for ${SESSION_RECORDS_LOCK_WAIT_MS} ms`, where)
       }
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, backoffMs + Math.floor(Math.random() * backoffMs))
       backoffMs = Math.min(backoffMs * 2, 50)
+    }
+  }
+}
+
+const daemonStoreLocksInFlight = new Map<string, SessionRecordsLock | 'home-gone'>()
+
+export function withDaemonStoreLock<T>(
+  where: string,
+  path: string,
+  dir: string | undefined,
+  run: (ctx: { homeGone: boolean; assertStillHeld: () => void }) => T,
+): T {
+  const existing = daemonStoreLocksInFlight.get(path)
+  if (existing !== undefined) {
+    return run({
+      homeGone: existing === 'home-gone',
+      assertStillHeld: () => {
+        if (existing !== 'home-gone' && !existing.stillHeld()) {
+          throw new SessionRecordsLockError(path, 'its lock was lost before the publish', where)
+        }
+      },
+    })
+  }
+  const lock = daemonHomeStands(where, dir) ? acquireSessionRecordsLock(path, dir, where) : 'home-gone'
+  daemonStoreLocksInFlight.set(path, lock)
+  try {
+    return run({
+      homeGone: lock === 'home-gone',
+      assertStillHeld: () => {
+        if (lock !== 'home-gone' && !lock.stillHeld()) {
+          throw new SessionRecordsLockError(path, 'its lock was lost before the publish', where)
+        }
+      },
+    })
+  } finally {
+    daemonStoreLocksInFlight.delete(path)
+    if (lock !== 'home-gone') {
+      try {
+        lock.release()
+      } catch (err) {
+        logForDebugging(`[concourse] ${where} lock was not released: ${err}`, { level: 'warn' })
+      }
     }
   }
 }
@@ -595,30 +666,19 @@ export function updateConcourseWorkers(
     mutate(sessionRecordsInFlight.workers)
     return sessionRecordsInFlight.workers
   }
-  const lock = daemonHomeStands('the session records', dir) ? acquireSessionRecordsLock(path, dir) : 'home-gone'
-  let workers: Record<string, ConcourseWorkerRecordV1>
-  try {
-    workers = readSessionWorkers(dir)
+  const workers = withDaemonStoreLock('the session records', path, dir, ({ assertStillHeld }) => {
+    const next = readSessionWorkers(dir)
     const outer = sessionRecordsInFlight
-    sessionRecordsInFlight = { path, workers }
+    sessionRecordsInFlight = { path, workers: next }
     try {
-      mutate(workers)
+      mutate(next)
     } finally {
       sessionRecordsInFlight = outer
     }
-    if (lock !== 'home-gone' && !lock.stillHeld()) {
-      throw new SessionRecordsLockError(path, 'its lock was lost before the publish')
-    }
-    publishConcourseWorkers(workers, dir)
-  } finally {
-    if (lock !== 'home-gone' && lock.stillHeld()) {
-      try {
-        lock.release()
-      } catch (err) {
-        logForDebugging(`[concourse] the session records lock was not released: ${err}`, { level: 'warn' })
-      }
-    }
-  }
+    assertStillHeld()
+    publishConcourseWorkers(next, dir)
+    return next
+  })
   observeSessionStates(workers)
   return workers
 }
