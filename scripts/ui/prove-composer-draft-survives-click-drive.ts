@@ -179,8 +179,8 @@ const DOORS: Door[] = [
   row('next-row-click', 'NEXT /workflows row (select, then activate) → /workflows', '/workflows — crew', 'Mercury — workflows'),
   { name: 'ctrl-t', road: 'ctrl+t (the task panel toggle; nothing paints with no tasks)', open: [after(CTRL_T, 2)], needle: null, close: after(CTRL_T, 1) },
   { name: 'palette', road: 'ctrl+x p palette, usage, ↵ (an insert at the caret, never a submit)', open: [after(CTRL_X, 2), after('p', 3), after('usage', 3), after('\r', 3)], needle: 'brown/usage', close: null },
-  row('health-row', 'HEALTH cert row (select, then activate) → /health', 'no cert · /health', 'Mercury — health'),
-  header('health-header', 'HEALTH card header → /health', 'HEALTH', 'Mercury — health'),
+  row('health-row', 'HEALTH cert row (select, then activate) → /health', 'no cert · /health', 'Mercury · health'),
+  header('health-header', 'HEALTH card header → /health', 'HEALTH', 'Mercury · health'),
   { name: 'ctx-row', road: 'ctx row (select, then activate) → /context: the chart card paints at once (counting the context window… · esc closes); esc while counting closes it with its receipt', open: [clickOn('ctx — ·', 2), secondClickOn('ctx — ·', 2)], needle: CONTEXT_COUNTING, close: after(ESC, 1) },
 ]
 
