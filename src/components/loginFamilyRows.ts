@@ -29,14 +29,14 @@ export interface LoginFamilyRow {
 
 export const META_SIGN_IN_ROADS = 'Muse Code sign-in or API key'
 export const META_LOGIN_FAMILY_LABEL = `Meta — ${META_SIGN_IN_ROADS}`
-export const ANTHROPIC_LOGIN_FAMILY_LABEL = 'Anthropic — Claude subscription or Console sign-in / API key'
+export const ANTHROPIC_FAMILY_ROW_LABEL = 'Anthropic — Claude subscription or Console sign-in / API key'
 
 export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginFamilyRow[] {
   return [
     ...(engineLegs
       ? [{ label: 'OpenAI — ChatGPT subscription or API key', value: 'openai' as const }]
       : []),
-    { label: ANTHROPIC_LOGIN_FAMILY_LABEL, value: 'anthropic' },
+    { label: ANTHROPIC_FAMILY_ROW_LABEL, value: 'anthropic' },
     ...(engineLegs
       ? [
           {
