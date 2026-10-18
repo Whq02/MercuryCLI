@@ -211,7 +211,7 @@ function expandSubcommands(commands: string[][]): string[][] {
   return out
 }
 
-export function normalizeInlineScript(script: string): string {
+function normalizeInlineScript(script: string): string {
   const home = (process.env.HOME || process.env.USERPROFILE || '').replace(/\\/g, '/')
   const config = getMercuryHome().replace(/\\/g, '/')
   const exe = process.execPath.replace(/\\/g, '/')
@@ -221,7 +221,7 @@ export function normalizeInlineScript(script: string): string {
     .replace(/(?:os\.environ(?:\.get)?\s*[\[(]\s*(['"])(?:HOME|USERPROFILE)\1\s*[\])]|os\.path\.expanduser\s*\(\s*(['"])~\2\s*\)|(?:os\.)?homedir\s*\(\s*\)|process\.env\.(?:HOME|USERPROFILE))\s*\+\s*(['"])([^'"\r\n]+)\3/g, (_m, _q1, _q2, q3, rest) => `${q3}${home}${rest}${q3}`)
 }
 
-export function inlineScriptWrites(rawScript: string): string[] {
+function inlineScriptWrites(rawScript: string): string[] {
   const script = normalizeInlineScript(rawScript)
   const out: string[] = []
   for (const call of script.matchAll(/(?:\b(?:write\w*|append\w*|rm\w*|unlink\w*|truncate\w*|rename\w*|remove\w*|rmtree|chmod\w*|chown\w*)|\.write_text|\.write_bytes)\s*\(\s*(['"])([^'"\r\n]+)\1/g)) {
@@ -240,7 +240,7 @@ export function inlineScriptWrites(rawScript: string): string[] {
   return out
 }
 
-export function inlineScriptReads(rawScript: string): string[] {
+function inlineScriptReads(rawScript: string): string[] {
   const script = normalizeInlineScript(rawScript)
   if (!/\b(?:read\w*|open|load\w*|Get-Content|ReadAll\w*|ReadLines|OpenRead|Path|cat|type)\b/i.test(script)) return []
   const out: string[] = []
