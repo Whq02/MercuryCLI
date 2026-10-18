@@ -207,7 +207,7 @@ section('§7 the roads read the one classification')
 {
   const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
   const limitsSrc = src('src/services/anthropicLimits.ts')
-  check("the latch's error road gates on the classification, not on a status of its own", limitsSrc.includes("classifyAnthropicRefusal(anthropicRefusalFactsOf(error)) !== 'window'") && !limitsSrc.includes('if (status !== 429) return'))
+  check("the latch's error road gates on the classification, not on a status of its own", limitsSrc.includes("const kind = classifyAnthropicRefusal(anthropicRefusalFactsOf(error))") && limitsSrc.includes("if (kind !== 'window' && !(kind === 'rate-limit' && providerWaitIsWindow(askedMs))) return") && !limitsSrc.includes('if (status !== 429) return'))
   const errorsSrc = src('src/services/api/errors.ts')
   check("the notice's window arm reads the classification", errorsSrc.includes('classifyAnthropicRefusal(anthropicRefusalFactsOf(error))') && errorsSrc.includes("refusal === 'window'"))
   check("the notice's sign-in arm reads it with the estate's observed fact", errorsSrc.includes("signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in'"))

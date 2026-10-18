@@ -315,11 +315,13 @@ section('§2 the opened fact is one view with its keys, whatever list or search 
   const searchX = (m.lines()[searchY] ?? '').indexOf('/ ')
   const unfocused = m.styleAt(searchX, searchY)?.fg
   m.push('/')
+  const searchRow = (): string => m.lines()[searchY] ?? ''
   const focused = await waitFor(() => {
     const fg = m.styleAt(searchX, searchY)?.fg
-    return unfocused !== undefined && fg !== undefined && fg !== unfocused
+    const row = searchRow()
+    return unfocused !== undefined && fg !== undefined && fg !== unfocused && row.includes(`/ ${layout.MEMORY_SEARCH_PLACEHOLDER}`) && !row.includes('/ /')
   }, 4000)
-  check('/ focuses the search and is not its first character', focused && !m.screen().includes('/ /') && rowOf(m, '/ ').includes(String(layout.MEMORY_SEARCH_PLACEHOLDER)), rowOf(m, '/ ').trim())
+  check('/ focuses the search and is not its first character', focused, searchRow().trim())
   m.push('tab')
   const chunk = await waitFor(() => rowOf(m, '/ tab') !== '' && m.screen().includes('matches for “tab”'), 6000)
   check('a three-character chunk lands whole in the search', chunk, rowOf(m, '/ ').trim())

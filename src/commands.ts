@@ -28,6 +28,7 @@ import diff from './commands/diff/index.js'
 import health from './commands/health/index.js'
 import effort from './commands/effort/index.js'
 import zen from './commands/zen/index.js'
+import browse from './commands/browse/index.js'
 import exit from './commands/exit/index.js'
 import help from './commands/help/index.js'
 import keybindings from './commands/keybindings/index.js'
@@ -156,6 +157,7 @@ const COMMANDS = memoize((): Command[] => [
   health,
   effort,
   zen,
+  browse,
   exit,
   help,
   keybindings,

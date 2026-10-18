@@ -991,8 +991,12 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (!historyNavAllowed('last')) return
       if (history.historyIndex === 0) {
         if (footerSelection === null && suggestionsMirrorRef.current.suggestions.length === 0) {
+          if (isCompact) {
+            if (compactWork !== undefined && canFocusSummary()) compactWork.set('summary')
+            return
+          }
           const manageable = Object.values(appStateStore.getState().tasks).filter(isManageableTask)
-          if (!isCompact && manageable.length > 0) {
+          if (manageable.length > 0) {
             setAppState(prev => ({ ...prev, footerSelection: 'tasks' as const }))
             if (getGlobalConfig().hasSeenTasksHint !== true) {
               saveGlobalConfig(config => ({ ...config, hasSeenTasksHint: true }))

@@ -1,4 +1,5 @@
-import { activeSourceUsage } from '../../services/providers/providerUsage.js'
+import { activeSourceUsage, limitBindsWords } from '../../services/providers/providerUsage.js'
+import { formatCountdown } from '../../utils/cockpit/quota.js'
 import { geminiLaneModelsByLastUse, geminiPlanQuotaView } from '../../services/providers/gemini/geminiPlanQuota.js'
 import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonshotAccounts.js'
 import { walletEntries } from '../../services/wallet/wallet.js'
@@ -48,5 +49,10 @@ export function usagePopupLine(): string {
   if (planQuota !== undefined) meters.push(planQuota)
   const localRoad = localRoadWords(usage)
   if (localRoad !== undefined) meters.push(localRoad)
+  const now = Date.now()
+  if (usage.limited !== undefined && usage.limited.resetsAtMs > now) {
+    const model = facts?.effective ?? getEngineModel()
+    meters.push(`${usage.limited.windowName ?? 'limit'} reached · resets ${formatCountdown(usage.limited.resetsAtMs - now)} · ${limitBindsWords(usage.limited.claim, model)}`)
+  }
   return `${usageLead(usage)} · ${subscriptions} subscription${subscriptions === 1 ? '' : 's'} signed in${meters.length ? ` · ${meters.join(' · ')}` : ''}`
 }

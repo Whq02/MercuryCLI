@@ -30,6 +30,10 @@ import {
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
 import { hasSeatLive } from '../services/engine-connector/seatLive.js'
+import { CrewmateCard } from './CrewmateCard.js'
+import { useViewedCrewmate } from './tasks/useCrewmateView.js'
+import { crewStatusWords } from '../services/engine-connector/crewFacts.js'
+import { crewmateCardKeys } from '../utils/cockpit/crewmateWords.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 const getFocusedTurnCount = (): number => countOperatorTurns(getFocusedSessionConnector().records())
@@ -67,6 +71,7 @@ export function CompactIdentityBand(): React.ReactNode {
   const landing = useSyncExternalStore(subscribeFocusedSessionConnector, getFocusedLanding, getFocusedLanding)
   const idle = compactBandIdle(inFlight, landing)
   const cwd = useFocusedWorkspaceCwd()
+  const viewed = useViewedCrewmate()
   const [git, setGit] = useState<Snapshot<{ data: GitData }> | null>(null)
   useEffect(() => {
     let alive = true
@@ -122,6 +127,22 @@ export function CompactIdentityBand(): React.ReactNode {
   )
   const rule = <Text color={tok.borderStrong}>{'─'.repeat(Math.max(0, columns))}</Text>
   if (form === 'line') {
+    if (viewed !== null) {
+      const facts = viewed.facts
+      const live = facts === null || facts.running
+      return (
+        <Box flexDirection="column" flexShrink={0}>
+          <Box height={1} flexShrink={0} overflow="hidden">
+            <Text wrap="truncate-end">
+              <Text color={viewed.pinned ? tok.warning : sa.accent} bold>{viewed.pinned ? GLYPH.star : GLYPH.circledBullet} {viewed.name}</Text>
+              {facts !== null ? <Text color={live ? tok.success : tok.textSecondary}> · {crewStatusWords(facts, Date.now())}</Text> : null}
+              <Text color={tok.textMuted}> · {crewmateCardKeys(viewed.pinned, live)}</Text>
+            </Text>
+          </Box>
+          {rule}
+        </Box>
+      )
+    }
     return (
       <Box flexDirection="column" flexShrink={0}>
         {identityLine(
@@ -146,23 +167,29 @@ export function CompactIdentityBand(): React.ReactNode {
         </Box>
         <Box width={2} flexShrink={0} />
         <Box flexDirection="column" flexGrow={1} minWidth={0}>
-          {identityLine(
-            <Text>
-              <Text color={tok.textMuted}> · </Text>
-              {modelFacts}
-            </Text>,
-          )}
-          <Box height={1} flexShrink={0} overflow="hidden">
-            <Text wrap="truncate-end">
-              {placeFacts}
-              {turnsFacts !== null ? (
+          {viewed !== null ? (
+            <CrewmateCard crewmate={viewed} width={Math.max(12, columns - artCols - 3)} />
+          ) : (
+            <>
+              {identityLine(
                 <Text>
                   <Text color={tok.textMuted}> · </Text>
-                  {turnsFacts}
+                  {modelFacts}
+                </Text>,
+              )}
+              <Box height={1} flexShrink={0} overflow="hidden">
+                <Text wrap="truncate-end">
+                  {placeFacts}
+                  {turnsFacts !== null ? (
+                    <Text>
+                      <Text color={tok.textMuted}> · </Text>
+                      {turnsFacts}
+                    </Text>
+                  ) : null}
                 </Text>
-              ) : null}
-            </Text>
-          </Box>
+              </Box>
+            </>
+          )}
         </Box>
       </Box>
       {rule}

@@ -18,16 +18,21 @@ import { resolveZaiDispatch } from '../../utils/router/providerDiscovery.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
 import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
 import {
+  anthropicWindowClosedUntil,
+  anthropicWindowFact,
   currentLimits,
   getEndpointExtraUsage,
+  getRateLimitDisplayName,
   getRawUtilization,
   getUsageCredentialEpoch,
   getUsageRecordVersion,
   WEEKLY_POOL_CLAIMS,
   weeklyPoolClaimForModel,
+  windowClaimBindsModel,
   type AnthropicExtraUsageRecord,
   type AnthropicMoney,
   type AnthropicLimits,
+  type AnthropicWindowFact,
   type RateLimitType,
   type WeeklyPoolClaim,
 } from '../anthropicLimits.js'
@@ -454,7 +459,7 @@ export interface ActiveSourceUsage {
   credits?: UsageCreditsView
   carry?: UsageCarryView
   spend: ProviderSessionSpend
-  limited?: { resetsAtMs: number }
+  limited?: { resetsAtMs: number; claim?: RateLimitType; windowName?: string }
   balance?: {
     display: string
     observedAtMs: number
@@ -476,6 +481,7 @@ export interface ActiveUsageReads {
   anthropicPoolWindows?: () => UsageWindowView[]
   anthropicExtraUsage?: () => AnthropicExtraUsageRecord | null
   anthropicLimits?: () => AnthropicLimits
+  anthropicWindow?: () => AnthropicWindowFact | undefined
   openaiObserved?: () => OpenaiObservedUsage
   openaiLimited?: () => OpenaiLimitWindow
   zaiKeyPresent?: () => boolean
@@ -1050,6 +1056,19 @@ export function anthropicExtraUsageCarry(reads?: ActiveUsageReads): UsageCarryVi
   return { state: 'carries', display: `on extra usage · ${figure.display}`, compact: `on extra usage ${figure.compact}`, ...stamp }
 }
 
+export function anthropicLimitedWindow(reads?: ActiveUsageReads, now: number = Date.now()): NonNullable<ActiveSourceUsage['limited']> | undefined {
+  const fact = (reads?.anthropicWindow ?? anthropicWindowFact)()
+  const until = anthropicWindowClosedUntil(fact, now)
+  if (until === undefined) return undefined
+  const claim = fact?.claim
+  return { resetsAtMs: until, ...(claim !== undefined ? { claim, windowName: getRateLimitDisplayName(claim) } : {}) }
+}
+
+export function limitBindsWords(claim: RateLimitType | undefined, model: string): string {
+  if (claim === undefined || !(WEEKLY_POOL_CLAIMS as readonly string[]).includes(claim)) return `binds every model, ${model} among them`
+  return windowClaimBindsModel(claim, model) ? `binds ${model}` : `binds the ${POOL_LABELS[claim as WeeklyPoolClaim]} models, not ${model}`
+}
+
 export function worstLiveWindow(windows: readonly UsageWindowView[]): UsageWindowView | null {
   const live = windows.filter(
     w => w.state === 'live' && typeof w.usedPct === 'number' && Number.isFinite(w.usedPct),
@@ -1145,7 +1164,7 @@ export function usageWindowReached(
   view: Pick<ActiveSourceUsage, 'windows' | 'pools' | 'limited'>,
   now: number = Date.now(),
 ): 'wall' | 'full' | null {
-  if (view.limited !== undefined) return 'wall'
+  if (view.limited !== undefined && view.limited.resetsAtMs > now) return 'wall'
   const full = [...view.windows, ...view.pools].some(
     w => w.state === 'live' && typeof w.usedPct === 'number' && Math.round(w.usedPct) >= 100 && (w.resetsAtMs === undefined || w.resetsAtMs > now),
   )
@@ -1406,7 +1425,8 @@ export function activeSourceUsage(opts?: {
       activeUsageCache.model === model &&
       activeUsageCache.epoch === epoch &&
       activeUsageCache.record === record &&
-      now - activeUsageCache.atMs < ACTIVE_USAGE_CACHE_MS
+      now - activeUsageCache.atMs < ACTIVE_USAGE_CACHE_MS &&
+      (activeUsageCache.value.limited === undefined || activeUsageCache.value.limited.resetsAtMs > now)
     ) {
       return activeUsageCache.value
     }
@@ -2043,6 +2063,7 @@ function deriveUsageForProvider(
   if (provider === 'anthropic') {
     const plan = (reads?.anthropicPlan ?? getSubscriptionType)()
     const reader = reads === undefined ? liveAnthropicReaderWords() : {}
+    const limited = anthropicLimitedWindow(reads)
     return {
       provider,
       sourceKind: 'subscription-oauth',
@@ -2053,6 +2074,7 @@ function deriveUsageForProvider(
       credits: anthropicExtraUsageCredits(reads),
       carry: anthropicExtraUsageCarry(reads),
       spend,
+      ...(limited !== undefined ? { limited } : {}),
       tier: plan ? `Claude ${planWord(plan)}` : 'Claude subscription',
       ...(reader.note !== undefined ? { readerNote: reader.note } : {}),
       ...(reader.compact !== undefined ? { readerNoteCompact: reader.compact } : {}),

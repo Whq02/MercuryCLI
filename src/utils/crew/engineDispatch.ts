@@ -45,6 +45,7 @@ import { readCatalogueIfPending } from '../../services/providers/catalogueOnDema
 import { resolveGeminiAccount } from '../../services/providers/gemini/geminiAccounts.js'
 import {
   geminiGenerateModels,
+  newestGeminiGenerationFirst,
   geminiPlanEffortRow,
   refreshGeminiCatalogue,
 } from '../../services/providers/gemini/geminiCatalogue.js'
@@ -309,12 +310,7 @@ async function resolveGeminiClassDispatch(): Promise<EngineDispatch> {
     )
   }
   const snapshot = await refreshGeminiCatalogue(account.kind).catch(() => null)
-  const generation = (id: string): number[] => /^gemini-(\d+)(?:\.(\d+))?/.exec(id)?.slice(1).map(n => Number(n ?? 0)) ?? [0, 0]
-  const head = [...geminiGenerateModels(snapshot)].sort((a, b) => {
-    const left = generation(a.id)
-    const right = generation(b.id)
-    return right[0]! - left[0]! || right[1]! - left[1]!
-  })[0]
+  const head = newestGeminiGenerationFirst(geminiGenerateModels(snapshot), m => m.id)[0]
   if (!head) {
     throw new Error(
       snapshot?.lastError
