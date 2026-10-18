@@ -7,7 +7,7 @@ export const BRUSH_PACK_PATH = 'vendor/brush'
 export const BRUSH_PACK_NAME = 'brush'
 export const BRUSH_PACK_MANIFEST_FILE = '.vendor-manifest.json'
 
-export const BRUSH_PACK_PLATFORMS = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64', 'win-x64'] as const
+export const BRUSH_PACK_PLATFORMS = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-arm64'] as const
 export type BrushPackPlatform = (typeof BRUSH_PACK_PLATFORMS)[number]
 
 export function brushPackPlatform(platform: string = process.platform, arch: string = process.arch): BrushPackPlatform | null {
@@ -16,11 +16,12 @@ export function brushPackPlatform(platform: string = process.platform, arch: str
   if (platform === 'linux' && arch === 'x64') return 'linux-x64'
   if (platform === 'linux' && arch === 'arm64') return 'linux-arm64'
   if (platform === 'win32' && arch === 'x64') return 'win-x64'
+  if (platform === 'win32' && arch === 'arm64') return 'win-arm64'
   return null
 }
 
 export function brushBinaryFor(packPlatform: string): string {
-  return packPlatform === 'win-x64' ? 'brush.exe' : 'brush'
+  return packPlatform.startsWith('win-') ? 'brush.exe' : 'brush'
 }
 
 type BrushPackSource = 'release-archive' | 'cargo-build'
@@ -200,7 +201,7 @@ export function resolveBrushPackDir(moduleDir: string = path.dirname(fileURLToPa
     dir = parent
   }
   if (vendoredCheck.state === 'mismatch') return { state: 'unavailable', note: vendoredCheck.note }
-  const kind: BrushLockKind = lockPath !== null && existsSync(lockPath) ? brushLockKindFor(lockPath, platform) : platform === 'win-x64' ? 'build' : 'fetch'
+  const kind: BrushLockKind = lockPath !== null && existsSync(lockPath) ? brushLockKindFor(lockPath, platform) : platform.startsWith('win-') ? 'build' : 'fetch'
   return {
     state: 'unavailable',
     note: `no shell-engine pack for ${platform}: neither ${BRUSH_PACK_PATH}/${platform} beside the bundle nor the checkout's own (prepare it: ${brushPrepareCommand(kind, platform, false, null)}, then rebuild)`,

@@ -67,7 +67,7 @@ const packager = readFileSync(join(ROOT, 'scripts', 'release', 'package.mjs'), '
 check('packager derives NAME from the owner (archiveBaseNameFor), never a second spelling', packager.includes('const NAME = archiveBaseNameFor(VERSION, TARGET)') && !packager.includes('`mercury-v${VERSION}-${TARGET}`'))
 {
   const rt = await import('../../src/services/privateChannel/releaseTarget.ts')
-  check('the owner\'s base is the archive name without its extension, for every target', rt.RELEASE_TARGETS.every(t => rt.archiveNameFor(VERSION, t) === `${rt.archiveBaseNameFor(VERSION, t)}.${t === 'windows-x64' ? 'zip' : 'tar.gz'}`))
+  check('the owner\'s base is the archive name without its extension, for every target', rt.RELEASE_TARGETS.every(t => rt.archiveNameFor(VERSION, t) === `${rt.archiveBaseNameFor(VERSION, t)}.${t.startsWith('windows-') ? 'zip' : 'tar.gz'}`))
   check('the base carries the version and the target in the asset grammar', rt.archiveBaseNameFor(VERSION, 'macos-arm64') === `mercury-v${VERSION}-macos-arm64`)
 }
 

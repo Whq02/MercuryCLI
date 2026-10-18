@@ -21,15 +21,15 @@ Mercury is source-available. See [Licence](#licence) for the production-use term
 
 ## Install
 
-Release archives are available for Apple silicon and Intel Macs, Linux x64,
-and Windows x64. Install `git` separately; each archive includes Node and
-ripgrep, so a separate Node installation is unnecessary.
+Release archives are available for Apple silicon and Intel Macs, Linux x64
+and arm64, and Windows x64 and arm64. Install `git` separately; each archive
+includes Node and ripgrep, so a separate Node installation is unnecessary.
 
 Choose one installation method:
 
 ```sh
-curl -fsSL https://mercury-cli.ai/install | sh     # macOS and Linux x64
-irm https://mercury-cli.ai/install.ps1 | iex        # Windows x64, in PowerShell 7
+curl -fsSL https://mercury-cli.ai/install | sh     # macOS and Linux (x64 and arm64)
+irm https://mercury-cli.ai/install.ps1 | iex        # Windows (x64 and arm64), in PowerShell 7
 brew install Whq02/mercury/mercury                 # Homebrew: macOS and Linux x64
 npm install -g mercury-tech-cli                    # npm; `bun install -g mercury-tech-cli` is the same package
 mise use -g npm:mercury-tech-cli                   # mise, through the npm package

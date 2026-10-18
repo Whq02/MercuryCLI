@@ -105,10 +105,10 @@ binary and image processor for that platform, and the voice capture and
 on-device transcriber addons where they were built (the speech model is a
 one-time download into the config home, never in the archive). Every archive
 also bundles the `vendor/embed` addon built for its platform and the 118 MB
-`bge-base-en-v1.5` embedding model ([MNEME.md](MNEME.md)); on `linux-x64` and
-`windows-x64` the addon runs a vectorised maths kernel, about a tenth of a
+`bge-base-en-v1.5` embedding model ([MNEME.md](MNEME.md)); on the Linux and
+Windows archives the addon runs a vectorised maths kernel, about a tenth of a
 second per Recall by meaning (a few hundredths on macOS through Accelerate). The
-`windows-x64` archive bundles the `brush` shell engine, and the Windows
+two Windows archives bundle the `brush` shell engine, and the Windows
 recursive-delete safety rule
 enforces parity across drive roots, `Users`, system folders, share roots and
 PowerShell pipelines ([TRUST.md](TRUST.md)).
@@ -116,9 +116,11 @@ PowerShell pipelines ([TRUST.md](TRUST.md)).
 | target | archive | machines | built |
 | --- | --- | --- | --- |
 | `linux-x64` | `mercury-v<version>-linux-x64.tar.gz` | Linux on x86_64 | natively, on its own runner |
+| `linux-arm64` | `mercury-v<version>-linux-arm64.tar.gz` | Linux on arm64 (aarch64) | natively, on its own arm64 runner |
 | `macos-arm64` | `mercury-v<version>-macos-arm64.tar.gz` | macOS on Apple silicon | natively, on its own runner |
 | `macos-x64` | `mercury-v<version>-macos-x64.tar.gz` | macOS on Intel | cross-packaged on the Apple silicon runner with the Intel packs; booted under Rosetta 2 before it publishes |
 | `windows-x64` | `mercury-v<version>-windows-x64.zip` | Windows on x86_64 | natively, on its own runner |
+| `windows-arm64` | `mercury-v<version>-windows-arm64.zip` | Windows on arm64 | natively, on its own arm64 runner |
 
-Any other machine (Linux or Windows on arm64) builds from source (README.md);
-`mercury update` states that directly instead of guessing an archive.
+Any other machine builds from source (README.md); `mercury update` states that
+directly instead of guessing an archive.
