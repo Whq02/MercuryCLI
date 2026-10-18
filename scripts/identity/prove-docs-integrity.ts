@@ -46,6 +46,15 @@ function readSurface(root: string, rel: string, rev: string | null): string {
   return readFileSync(join(root, rel), 'utf8')
 }
 
+function readBaseSurface(root: string, rel: string, rev: string | null): string | undefined {
+  if (rev === null) return undefined
+  try {
+    return execFileSync('git', ['-C', root, 'show', `${rev}:${rel}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+  } catch {
+    return undefined
+  }
+}
+
 function tailWords(line: string, count: number): string {
   const words = line
     .replace(/[,:;—]/g, ' ')
@@ -598,7 +607,7 @@ const files = docFiles(ROOT)
 const allHits: IntegrityHit[] = []
 for (const rel of files) {
   const text = readSurface(ROOT, rel, REV)
-  const baseText = BASE_REV !== null ? readSurface(ROOT, rel, BASE_REV) : undefined
+  const baseText = readBaseSurface(ROOT, rel, BASE_REV)
   allHits.push(...scanMarkdownIntegrity(rel, text, baseText))
 }
 for (const h of allHits) {

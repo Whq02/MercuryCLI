@@ -12,6 +12,7 @@ the guides by task; each page describes the installed product.
 - [SESSIONS.md](SESSIONS.md): a session owns its conversation, model, permission mode, workspace and running work, hosted by the background daemon across the home screen, chat and Session Concourse.
 - [SETTINGS.md](SETTINGS.md): Mercury stores settings in JSON files, edited in `/config` or through `/model`, `/effort`, `/permissions`, `/memory` and the MCPs & Skills menu.
 - [TRUST.md](TRUST.md): workspace trust gates project hooks, credential helpers and project MCP servers until you trust the folder, alongside permission modes, built-in command safety rules and the safety floors.
+- [AUTOMATION.md](AUTOMATION.md): drive Mercury from a program through the `mercury run --format rows` one-shot stream or the `mercury runner` JSON-RPC session protocol over standard input and output.
 
 Keyboard interaction lives in the product: `/keys` shows the effective key
 map and `/keybindings` opens your keybindings file.
