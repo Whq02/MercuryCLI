@@ -48,7 +48,7 @@ async function checkRobots(url: string, signal: AbortSignal): Promise<void> {
 export async function fetchPage(url: string, signal: AbortSignal, robots = false, depth = 0): Promise<RawResponse | RedirectResult> {
   if (signal.aborted) throw new AbortError()
   if (depth > 10) throw new FetchRefusedError(508, 'This page redirects too many times; search for another source.')
-  await metadataSafeAddresses(url)
+  const addresses = await metadataSafeAddresses(url)
   const pace = sitePacing(url)
   const wait = pace.remaining()
   if (wait > 0) throw new FetchRefusedError(429, `This site is cooling down for ${Math.ceil(wait / 1000)}s; no request was sent. Search for another source and do not retry before the wait ends.`)
@@ -57,7 +57,7 @@ export async function fetchPage(url: string, signal: AbortSignal, robots = false
   try {
     response = await axios.get<ArrayBuffer>(url, {
       signal,
-      lookup: async (hostname: string) => [await metadataSafeAddresses('http://' + (hostname.includes(':') ? '[' + hostname + ']' : hostname))],
+      lookup: async () => [addresses],
       timeout: 60_000,
       maxRedirects: 0,
       responseType: 'arraybuffer',
@@ -66,6 +66,7 @@ export async function fetchPage(url: string, signal: AbortSignal, robots = false
     })
   } catch (error) {
     if (signal.aborted) throw new AbortError()
+    if (error instanceof FetchRefusedError) throw error
     if (!axios.isAxiosError(error) || !error.response) {
       const what = robots ? 'robots rules' : 'page'
       throw new FetchRefusedError(0, isPrivateReaderHost(new URL(url).hostname)

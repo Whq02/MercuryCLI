@@ -251,12 +251,14 @@ function isApolloPlanningDocument(paths: readonly string[]): boolean {
 }
 
 function isProductConfigPath(expandedPath: string, instructionEstate = false): boolean {
-  if (instructionEstate && INSTRUCTION_FILES.has(posixPath.basename(expandedPath.replace(/\\/g, '/')).toLowerCase())) return true
+  const normalized = expandedPath.replace(/\\/g, '/')
+  if (instructionEstate && INSTRUCTION_FILES.has(posixPath.basename(normalized).toLowerCase())) return true
   if (isSettingsFilePath(expandedPath)) return true
+  if (instructionEstate && /(?:^|\/)\.mercury(?:\/(?!worktrees(?:\/|$)).*|$)/i.test(normalized)) return true
   const cwd = getOriginalCwd()
   const folded = normalizeCaseForComparison(expandedPath)
   for (const home of PROJECT_CONFIG_DIR_NAMES) {
-    if (instructionEstate && protectedPathForms(joinWithSep(cwd, home)).some(base => expandedPath === base || expandedPath.startsWith(base + '/'))) return true
+    if (instructionEstate && [joinWithSep(cwd, home), getMercuryHome()].flatMap(dir => protectedPathForms(dir)).some(base => expandedPath === base || expandedPath.startsWith(base + '/'))) return true
     for (const sub of ['agents', 'skills']) {
       const base = normalizeCaseForComparison(joinWithSep(joinWithSep(cwd, home), sub))
       if (pathHasSegmentContainment(folded, base)) return true
@@ -813,9 +815,14 @@ export function checkWritePermissionForTool(
       const rule = matchingRuleForInput(resolved, context, 'edit', 'ask')
       if (rule) return ruleDecision('ask', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'ask'))
     }
-    const grant = resolutionSet.map(resolved => matchingRuleForInput(resolved, context, 'edit', 'allow')).find(rule => rule?.ruleValue.ruleContent)
+    const grant = resolutionSet.flatMap(resolved => matchingRulesForInput(resolved, context, 'edit', 'allow')).find(rule => {
+      const content = rule.ruleValue.ruleContent ?? ''
+      return content !== '' && !/[*?[\]{}]/.test(content) && rule.source !== 'projectSettings'
+    })
     if (grant) return allow(input, { type: 'rule', rule: grant })
-    if (!isApolloPlanningDocument(resolutionSet)) {
+    const estateGrant = sessionEstateAllow(path, context, input)
+    if (estateGrant) return estateGrant
+    if (!isApolloPlanningDocument([path, runtimeInput, ...resolutionSet])) {
       const message = `Permission to write ${path} is required: this file steers every later session.`
       return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false }, suggestions: generateSuggestions(path, 'write', context, resolutionSet) } as PermissionDecision
     }
@@ -831,7 +838,7 @@ export function checkWritePermissionForTool(
     const specForms = getResolvedWorkingDirPaths(apolloSpecDirectory(getOriginalCwd()))
     const inSpecDir = (candidate: string): boolean =>
       specForms.some(form => pathInWorkingPath(candidate, form))
-    if (resolutionSet.length > 0 && resolutionSet.every(inSpecDir)) {
+    if (resolutionSet.length > 0 && resolutionSet.every(inSpecDir) && isApolloPlanningDocument([path, runtimeInput, ...resolutionSet])) {
       return allow(input, { type: 'mode', mode: context.mode } as never)
     }
   }

@@ -266,9 +266,12 @@ export function getPathsForPermissionCheck(inputPath: string): string[] {
       visited.add(current)
       hops++
       if (!fsImpl.existsSync(current)) {
-        if (current === path) {
-          const deepest = resolveDeepestExistingAncestorSync(fsImpl, path)
-          if (deepest) results.add(deepest)
+        const next = resolveDeepestExistingAncestorSync(fsImpl, current)
+        if (next && !visited.has(next)) {
+          results.add(next)
+          if (isUncLikePath(next)) return [...results]
+          current = next
+          continue
         }
         break
       }

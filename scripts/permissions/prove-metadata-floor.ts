@@ -25,7 +25,7 @@ function check(label: string, ok: boolean, detail = '') {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const hosts = ['169.254.169.254', '169.254.170.2', '169.254.169.253', '100.100.100.200', '[fd00:ec2::254]', 'metadata.google.internal', 'metadata.goog', '169.254.0.1', '169.254.255.255', '2852039166', '0xa9fea9fe', '0251.0376.0251.0376', '[::ffff:169.254.169.254]', '[::ffff:a9fe:a9fe]']
+const hosts = ['169.254.169.254', '169.254.170.2', '169.254.169.253', '100.100.100.200', '[fd00:ec2::254]', 'metadata.google.internal', 'metadata.goog', '169.254.0.1', '169.254.255.255', '2852039166', '0xa9fea9fe', '0251.0376.0251.0376', '[::ffff:169.254.169.254]', '[::ffff:a9fe:a9fe]', '[::169.254.169.254]', '[64:ff9b::169.254.169.254]', '[::ffff:0:169.254.169.254]', '[::100.100.100.200]', '[64:ff9b::100.100.100.200]']
 const context = (mode: string) => ({ abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { session: ['WebFetch', 'Browser'] } } }), options: {}, messages: [] })
 try {
   console.log('refusals')
@@ -73,6 +73,7 @@ try {
       const proxy = await proxyModule.startMetadataProxy((reason: string) => refused.push(reason))
       const through = (path: string, method = 'GET') => new Promise<{ status: number; text: string }>((resolve, reject) => {
         const socket = connect(proxy.port, '127.0.0.1')
+        socket.setTimeout(500, () => { socket.destroy(); resolve({ status: 0, text: 'timeout' }) })
         let text = ''
         socket.on('connect', () => socket.write(method + ' ' + path + ' HTTP/1.1\r\nHost: fixture\r\nReferer: ' + local + '/\r\nConnection: close\r\n\r\n'))
         socket.on('data', chunk => {
@@ -108,10 +109,26 @@ try {
   const originalGet = axios.get
   const { tryStructuredFetch } = await load('src/tools/WebFetchTool/structuredHosts.ts')
   let structuredRefusal = ''
-  axios.get = async () => ({ status: 302, headers: { location: 'http://169.254.169.254/latest/' }, data: new ArrayBuffer(0) })
+  let pinnedPageLookup = false
+  let pinnedApiLookup = false
+  axios.get = async (_url: string, cfg?: { lookup?: (h: string) => Promise<unknown> }) => {
+    try {
+      const res = await cfg?.lookup?.('169.254.169.254')
+      if (Array.isArray(res)) pinnedApiLookup = true
+    } catch {}
+    return { status: 302, headers: { location: 'http://169.254.169.254/latest/' }, data: new ArrayBuffer(0) }
+  }
   try { await tryStructuredFetch('https://github.com/fixture/project', new AbortController().signal) } catch (error) { structuredRefusal = String(error) }
-  finally { axios.get = originalGet }
+  axios.get = async (_url: string, cfg?: { lookup?: (h: string) => Promise<unknown> }) => {
+    try {
+      const res = await cfg?.lookup?.('169.254.169.254')
+      if (Array.isArray(res)) pinnedPageLookup = true
+    } catch {}
+    return { status: 200, statusText: 'OK', headers: { 'content-type': 'text/plain' }, data: new ArrayBuffer(0) }
+  }
+  try { await fetchPage('http://127.0.0.1/robots.txt', new AbortController().signal, true) } finally { axios.get = originalGet }
   check('structured API metadata redirect refuses', /metadata/.test(structuredRefusal), structuredRefusal)
+  check('fetchPage and structuredHosts pin pre-checked addresses in socket lookup', pinnedPageLookup && pinnedApiLookup, `page=${pinnedPageLookup} api=${pinnedApiLookup}`)
   for (const file of ['src/tools/JourneyTool/JourneyTool.ts', 'src/tools/ServiceTool/ServiceTool.ts']) {
     let same = true
     try { execFileSync('git', ['diff', '--exit-code', '56946be6d5bedc71576dbd4123635e0e817bd560', '--', file], { cwd: root, stdio: 'pipe' }) } catch { same = false }

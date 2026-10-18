@@ -21,6 +21,8 @@ const load = (file: string) => import(pathToFileURL(join(root, file)).href)
 const { getEmptyToolPermissionContext } = await load('src/Tool.ts')
 const { decideToolPermission } = await load('src/utils/permissions/decision/engine.ts')
 const { FileReadTool } = await load('src/tools/FileReadTool/FileReadTool.ts')
+const { InspectTool } = await load('src/tools/InspectTool/InspectTool.ts')
+const { fileAdapter } = await load('src/services/resources/adapters/file.ts')
 const { GrepTool } = await load('src/tools/GrepTool/GrepTool.ts')
 const { GlobTool } = await load('src/tools/GlobTool/GlobTool.ts')
 const { glob } = await load('src/utils/glob.ts')
@@ -46,8 +48,9 @@ const names = ['.credentials.json', '.provider-secrets.json', '.openai-auth.json
 const needle = 'fixture-private-value-not-a-real-token'
 for (const name of names) writeFileSync(join(config, name), JSON.stringify({ value: needle }) + '\n', { mode: 0o600 })
 symlinkSync(join(config, '.credentials.json'), join(project, 'alias.txt'))
+symlinkSync(join(project, 'alias.txt'), join(project, 'alias-hop.txt'))
 symlinkSync(config, join(project, 'linked-config'))
-const secretPaths = [String.raw`C:\Users\Fixture\.mercury\.credentials.json`, '/mnt/c/Users/Fixture/.mercury/.provider-secrets.json', '/c/Users/Fixture/.mercury/.openai-auth.json', ...names.map(name => join(config, name)), join(project, 'alias.txt'), join(project, 'linked-config/.provider-secrets.json'), join(config, '../config/.credentials.json'), join(config, '.credentials.json:1-2'), 'mercury://file/' + join(config, '.credentials.json')]
+const secretPaths = [String.raw`C:\Users\Fixture\.mercury\.credentials.json`, '/mnt/c/Users/Fixture/.mercury/.provider-secrets.json', '/c/Users/Fixture/.mercury/.openai-auth.json', ...names.map(name => join(config, name)), join(project, 'alias.txt'), join(project, 'alias-hop.txt'), join(project, 'linked-config/.provider-secrets.json'), join(config, '../config/.credentials.json'), join(config, '.credentials.json:1-2'), join(config, '.credentials.json:1-'), join(config, '.credentials.json:1,-1'), ` ${join(config, '.credentials.json')} `, 'mercury://file/' + join(config, '.credentials.json'), ' mercury://file/' + join(config, '.credentials.json'), 'mercury://file//%ZZ/..' + join(config, '.credentials.json')]
 try {
   console.log('refusals')
   for (const mode of modes) for (const path of secretPaths) {
@@ -57,7 +60,12 @@ try {
       check(`${mode} ${tool.name} ${path}`, result.behavior === 'deny' && /credential|secret/i.test(result.message ?? ''), `${result.behavior}: ${result.message ?? ''}`)
       check(`${mode} refusal records no read evidence`, ctx.readFileState.size === 0)
     }
+    const inspectRef = path.trim().startsWith('mercury://file/') ? path : 'mercury://file/' + path.trim()
+    const inspectDecision = (await decideToolPermission(InspectTool, { ref: inspectRef }, context(mode, ['Inspect', 'Read']))).decision
+    check(`${mode} Inspect ${inspectRef}`, inspectDecision.behavior === 'deny' && /credential|secret/i.test(inspectDecision.message ?? ''), `${inspectDecision.behavior}: ${inspectDecision.message ?? ''}`)
   }
+  const adapterSecret = await fileAdapter.resolve({ raw: 'mercury://file/' + join(config, '.credentials.json'), canonical: 'mercury://file/' + join(config, '.credentials.json'), kind: 'file', id: join(config, '.credentials.json'), selectors: {} }, { owner: { kind: 'session', id: 's' }, cwd: project })
+  check('fileAdapter.resolve refuses direct secret read', adapterSecret.state === 'unavailable' && !JSON.stringify(adapterSecret).includes(needle), JSON.stringify(adapterSecret))
   for (const mode of modes) {
     const result = await runWithCwdOverride(config, () => decideToolPermission(FileReadTool, { file_path: '.credentials.json' }, context(mode, ['Read'])))
     check(`${mode} relative credential path refuses`, result.decision.behavior === 'deny', result.decision.message)
@@ -77,6 +85,12 @@ try {
       [BashTool, `node -e 'require("fs").readFileSync("${config}/.credentials.json")'`],
       [PowerShellTool, `[IO.File]::ReadAllText('${config}/.credentials.json')`],
       [BashTool, 'cat "$MERCURY_CONFIG_DIR/.credentials.json"'],
+      [BashTool, 'cd "$MERCURY_CONFIG_DIR" && cat .credentials.json'],
+      [BashTool, 'cd ~/.mercury && cat .provider-secrets.json'],
+      [BashTool, 'd="$MERCURY_CONFIG_DIR"; cat "$d/.credentials.json"'],
+      [BashTool, 'f=.credentials.json; cat ~/.mercury/$f'],
+      [PowerShellTool, 'Set-Location "$env:MERCURY_CONFIG_DIR"; Get-Content .credentials.json'],
+      [PowerShellTool, '$d="$env:MERCURY_CONFIG_DIR"; Get-Content "$d\\.credentials.json"'],
       [PowerShellTool, `Get-Content '${config}/.credentials.json'`],
       [PowerShellTool, `type '${config}/.provider-secrets.json'`],
       [PowerShellTool, `Copy-Item '${config}/.credentials.json' copy.txt`],
@@ -93,6 +107,12 @@ try {
   }
   console.log('search controls')
   writeFileSync(join(config, 'notes.json'), '{"value":"public-fixture"}\n')
+  const { renderDirectoryTarget } = await load('src/tools/FileReadTool/readTarget.ts')
+  const dirListing = renderDirectoryTarget(config)
+  check('Read directory listing hides secret files and keeps ordinary files', dirListing.content.includes('notes.json') && !names.some(name => dirListing.content.includes(name)), dirListing.content)
+  const inspectDir = await fileAdapter.resolve({ raw: 'mercury://file/' + config, canonical: 'mercury://file/' + config, kind: 'file', id: config, selectors: {} }, { owner: { kind: 'session', id: 's' }, cwd: project })
+  const inspectChildren = JSON.stringify(inspectDir)
+  check('Inspect directory listing hides secret files and keeps ordinary files', inspectDir.state === 'ok' && inspectChildren.includes('notes.json') && !names.some(name => inspectChildren.includes(name)), inspectChildren)
   for (const mode of modes) {
     const ctx = context(mode, ['Grep', 'Glob'])
     const single = await GrepTool.call({ path: join(config, 'notes.json'), pattern: 'public-fixture', output_mode: 'content' }, ctx)
@@ -134,6 +154,18 @@ try {
   const fileTarget = await glob('*.json', join(config, 'notes.json'), { limit: 100, offset: 0 }, new AbortController().signal, getEmptyToolPermissionContext())
   check('file search root lists the file without ENOTDIR', JSON.stringify(fileTarget.files) === JSON.stringify([join(config, 'notes.json')]) && fileTarget.incomplete === undefined, JSON.stringify(fileTarget))
   console.log('Eval read_file helpers')
+  const { EvalTool } = await load('src/tools/EvalTool/EvalTool.ts')
+  for (const mode of modes) {
+    for (const [language, code] of [
+      ['py', "open(os.environ['MERCURY_CONFIG_DIR'] + '/.credentials.json').read()"],
+      ['js', "require('fs').readFileSync(process.env.MERCURY_CONFIG_DIR + '/.credentials.json', 'utf8')"],
+      ['js', "require('fs').writeFileSync(os.homedir() + '/.ssh/authorized_keys', 'x')"],
+      ['js', "require('fs').unlinkSync(process.execPath)"],
+    ] as const) {
+      const verdict = (await decideToolPermission(EvalTool, { language, code }, context(mode, ['Eval']))).decision
+      check(`${mode} EvalTool.checkPermissions refuses direct protected I/O (${language})`, verdict.behavior === 'deny' && /refused/i.test(verdict.message ?? ''), `${code}: ${verdict.behavior}: ${verdict.message ?? ''}`)
+    }
+  }
   const { makeContext } = await load('scripts/eval/lib.ts')
   const { makeEvalBridgeServer } = await load('src/services/eval/evalBridge.ts')
   const { evalKernelManager } = await load('src/services/eval/kernelManager.ts')
@@ -148,6 +180,11 @@ try {
         : 'try:\n    read_file(' + path + ')\n    result = "unexpected read"\nexcept Exception as error:\n    result = str(error)\nresult'
       const result = await evalKernelManager.runCell({ owner: 'secret-' + mode + '-' + language, cwd: project, input: { language, code, timeoutSeconds: 30 }, abortSignal: cellAbort.signal, serveBridge })
       check(mode + ' ' + language + ' read_file refuses through the real bridge', result.status === 'ok' && /credential|refused/i.test(result.resultRepr ?? '') && !JSON.stringify(result).includes(needle), JSON.stringify(result))
+      const directCode = language === 'js'
+        ? 'let direct; try { require("node:fs").readFileSync(' + path + ', "utf8"); direct = "unexpected direct read" } catch (error) { direct = String(error.message) }\ndirect'
+        : 'try:\n    open(' + path + ').read()\n    direct = "unexpected direct read"\nexcept Exception as error:\n    direct = str(error)\ndirect'
+      const directResult = await evalKernelManager.runCell({ owner: 'secret-' + mode + '-' + language, cwd: project, input: { language, code: directCode, timeoutSeconds: 30 }, abortSignal: cellAbort.signal, serveBridge })
+      check(mode + ' ' + language + ' direct kernel file read refuses', directResult.status === 'ok' && /credential|refused/i.test(directResult.resultRepr ?? '') && !JSON.stringify(directResult).includes(needle), JSON.stringify(directResult))
       cellAbort.abort()
     }
   } finally { await evalKernelManager.disposeAll() }

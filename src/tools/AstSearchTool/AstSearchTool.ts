@@ -28,6 +28,7 @@ import { isENOENT } from '../../utils/errors.js'
 import { FILE_NOT_FOUND_CWD_NOTE, findSimilarFile, suggestPathUnderCwd } from '../../utils/file.js'
 import { expandPath } from '../../utils/path.js'
 import { checkReadPermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
+import { mercurySecretPath } from '../../utils/permissions/protectedPaths.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { plural } from '../../utils/stringUtils.js'
 import { AST_SEARCH_TOOL_NAME, getAstSearchDescription } from './prompt.js'
@@ -219,7 +220,7 @@ export const AstSearchTool = buildTool({
       ...(input.glob !== undefined && { glob: input.glob }),
       ...(input.lang !== undefined && { lang: input.lang }),
       cwd: getCwd(),
-      readable: abs => matchingRuleForInput(abs, permCtx, 'read', 'deny') === null,
+      readable: abs => mercurySecretPath(abs) === null && matchingRuleForInput(abs, permCtx, 'read', 'deny') === null,
     })
     if (isAstRefusal(scope)) throw new Error(scope.refused)
     scope.display = input.path === undefined || input.path === '' ? '.' : input.path

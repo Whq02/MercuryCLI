@@ -25,6 +25,8 @@ const { FileWriteTool } = await load('src/tools/FileWriteTool/FileWriteTool.ts')
 const { FileEditTool } = await load('src/tools/FileEditTool/FileEditTool.ts')
 const { NotebookEditTool } = await load('src/tools/NotebookEditTool/NotebookEditTool.ts')
 const { ChangeSetTool } = await load('src/tools/ChangeSetTool/ChangeSetTool.ts')
+const { AstEditTool } = await load('src/tools/AstEditTool/AstEditTool.ts')
+const { AstSearchTool } = await load('src/tools/AstSearchTool/AstSearchTool.ts')
 const { FileReadTool } = await load('src/tools/FileReadTool/FileReadTool.ts')
 const { RecordConventionTool } = await load('src/tools/RecordConventionTool/RecordConventionTool.ts')
 const { runWithCwdOverride } = await load('src/utils/cwd.ts')
@@ -75,6 +77,7 @@ try {
     '.mercury/apollo/AGENTS.md', '.mercury/apollo/MeRcUrY.local.md', '.mercury/apollo/MERCURY.md', '.mercury/apollo/SKILL.md',
     '.mercury/apollo/settings.json', '.mercury/apollo/launch.json', '.mercury/apollo/agents/helper.md', '.mercury/apollo/skills/helper/SKILL.md',
     '.mercury/apollo/.mercury/settings.json', '.mercury/apollo/linked-instruction.md', '.mercury/apollo/linked-settings.md', '.mercury/apollo/linked-outside.md', '.mercury/apollo-notes/spec.md',
+    'nested/.mercury/settings.json', 'nested/.mercury/agents/helper.md', join(process.env.MERCURY_CONFIG_DIR!, 'agents/helper.md'), join(process.env.MERCURY_CONFIG_DIR!, 'skills/helper/SKILL.md'),
   ]
   for (const mode of modes) for (const path of paths) for (const [tool, input] of bodies(path)) {
     const verdict = await decide(tool, input, mode, { allow: [tool.name] })
@@ -85,6 +88,11 @@ try {
     for (const [tool, input] of bodies(join(project, 'AGENTS.md'))) {
       const allowed = await decide(tool, input, mode, { allow: [rule] })
       check(`${mode} ${tool.name} named path grant honoured`, allowed.behavior === 'allow', allowed.message)
+      const wildcard = await decide(tool, input, mode, { allow: ['Edit(//**)', 'Edit(**)'] })
+      check(`${mode} ${tool.name} wildcard grant does not bypass instruction ask`, wildcard.behavior === (mode === 'sovereign' ? 'allow' : 'ask') && (mode === 'sovereign' || wildcard.message?.includes('steers every later session')), wildcard.message)
+      const projCtx = { ...context(mode), getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { projectSettings: [rule] } }, tasks: {}, sessionHooks: new Map() }) }
+      const projGrant = (await decideToolPermission(tool, input, projCtx)).decision
+      check(`${mode} ${tool.name} projectSettings grant does not bypass instruction ask`, projGrant.behavior === (mode === 'sovereign' ? 'allow' : 'ask') && (mode === 'sovereign' || projGrant.message?.includes('steers every later session')), projGrant.message)
       const denied = await decide(tool, input, mode, { allow: [rule], deny: [rule] })
       check(`${mode} ${tool.name} deny outranks grant`, denied.behavior === 'deny', denied.message)
       const asked = await decide(tool, input, mode, { allow: [rule], ask: [rule] })
@@ -106,6 +114,24 @@ try {
     const denied = await decide(FileWriteTool, { file_path: path, content: 'x' }, mode, { deny: ['Edit(/' + join(project, path) + ')'] })
     check(mode + ' planning consent never beats an explicit deny', denied.behavior === 'deny', denied.message)
   }
+  for (const path of ['.mercury/apollo/MERCURY.md', '.mercury/apollo/AGENTS.md', '.mercury/apollo/settings.json', '.mercury/apollo/SKILL.md', '.mercury/apollo/wards.json', '.mercury/apollo/.mercury/agents/x.md', '.mercury/apollo/linked-instruction.md']) {
+    const verdict = await decide(FileWriteTool, { file_path: path, content: 'x' }, 'apollo')
+    check('Apollo refuses instruction and control files inside planning tree: ' + path, verdict.behavior === 'deny', `${verdict.behavior}: ${verdict.message ?? ''}`)
+  }
+  writeFileSync(join(project, '.mercury/agents/helper.ts'), 'const x = 1\n')
+  const dryEdit = await AstEditTool.call({ path: join(project, '.mercury/agents/helper.ts'), pattern: 'const $X = 1', rewrite: 'const $X = 2' }, context('default'))
+  const planToken = /plan:\s*(ae-[a-z0-9]+)/i.exec(String(AstEditTool.mapToolResultToToolResultBlockParam(dryEdit.data, 't').content))?.[1] ?? ''
+  for (const mode of modes) {
+    const astVerdict = await decide(AstEditTool, { path: join(project, '.mercury/agents/helper.ts'), pattern: 'const $X = 1', rewrite: 'const $X = 2', apply: true, plan: planToken }, mode, { allow: ['AstEdit'] })
+    check(mode + ' AstEdit preserves steering safety ask on .mercury/agents/helper.ts', astVerdict.behavior === (mode === 'sovereign' ? 'allow' : 'ask') && (mode === 'sovereign' || astVerdict.message?.includes('steers every later session')), `${astVerdict.behavior}: ${astVerdict.message ?? ''}`)
+  }
+  mkdirSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true })
+  writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, '.credentials.json'), 'const secret = "do-not-parse-secret-fixture"\n')
+  symlinkSync(join(process.env.MERCURY_CONFIG_DIR!, '.credentials.json'), join(process.env.MERCURY_CONFIG_DIR!, 'secret-link.js'))
+  writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'public.js'), 'const pub = "visible-json"\n')
+  const astSearch = await AstSearchTool.call({ path: process.env.MERCURY_CONFIG_DIR!, pattern: 'const $NAME = $VAL' }, context('sovereign', { allow: ['AstSearch'] }))
+  const astOut = JSON.stringify(astSearch.data)
+  check('AstSearch directory walk excludes Mercury secret files', !astOut.includes('do-not-parse-secret-fixture') && astOut.includes('visible-json'), astOut)
   const apolloOutside = await decide(FileWriteTool, { file_path: join(outside, 'spec.md'), content: 'x' }, 'apollo')
   check('Apollo keeps the spec-only boundary', apolloOutside.behavior === 'deny', apolloOutside.message)
   const changingLink = join(project, 'changed-link')

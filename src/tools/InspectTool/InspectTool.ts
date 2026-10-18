@@ -12,6 +12,7 @@ import {
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
+import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -85,7 +86,18 @@ mercury://seat is this seat's own reference: the model this turn runs on (the id
   isConcurrencySafe() {
     return true
   },
-  async checkPermissions(input: Input) {
+  async checkPermissions(input: Input, context: ToolUseContext) {
+    const trimmed = input.ref.trim()
+    if (/^mercury:\/\/file\/.+/i.test(trimmed)) {
+      const raw = trimmed.replace(/^mercury:\/\/file\//i, '').split('?')[0]!
+      let filePath = raw
+      try { filePath = decodeURIComponent(raw) } catch {}
+      return checkReadPermissionForTool(
+        { name: INSPECT_TOOL_NAME, getPath: () => filePath },
+        input,
+        context.getAppState().toolPermissionContext,
+      )
+    }
     return { behavior: 'allow' as const, updatedInput: input }
   },
   async validateInput(input: Input) {

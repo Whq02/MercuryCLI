@@ -4,10 +4,10 @@ import { getCwd } from '../cwd.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
 import { getPathsForPermissionCheck } from '../fsOperations.js'
 
-function spelling(path: string): string {
+export function spelling(path: string): string {
   const home = process.env.HOME || process.env.USERPROFILE || homedir()
   const profile = process.env.USERPROFILE || home
-  return path.replace(/\\/g, '/')
+  return path.trim().replace(/\\/g, '/')
     .replace(/^~(?=\/|$)/, home.replace(/\\/g, '/'))
     .replace(/^(?:\$\{HOME\}|\$HOME|%HOME%)(?=\/|$)/i, home.replace(/\\/g, '/'))
     .replace(/^(?:%USERPROFILE%|\$\{?(?:env:)?USERPROFILE\}?)(?=\/|$)/i, profile.replace(/\\/g, '/'))
@@ -25,13 +25,15 @@ export function protectedPathForms(path: string, cwd = getCwd()): string[] {
   return [...new Set(getPathsForPermissionCheck(absolute).map(comparable))]
 }
 
-const HOME_TREES = ['.ssh', '.aws', '.gnupg', '.kube', '.docker', '.azure', '.config/gh', '.config/gcloud']
+const HOME_TREES = ['.ssh', '.aws', '.gnupg', '.kube', '.docker', '.azure', '.config/gh', '.config/gcloud', 'library/keychains', '.local/share/keyrings']
 const HOME_FILES = ['.netrc', '.pgpass', '.npmrc', '.pypirc', '.git-credentials']
-const SYSTEM_TREES = ['/etc/sudoers.d', '/etc/systemd']
+const SYSTEM_TREES = ['/etc/sudoers.d', '/etc/systemd', '/library/keychains']
 const SYSTEM_FILES = ['/etc/sudoers', '/etc/passwd', '/etc/shadow']
 const inside = (path: string, base: string): boolean => path === base || path.startsWith(base + '/')
 
 export function credentialStorePath(path: string, cwd = getCwd()): string | null {
+  const own = mercurySecretPath(path, cwd)
+  if (own !== null) return own
   const homes = [process.env.HOME, process.env.USERPROFILE, homedir()].filter((p): p is string => !!p).flatMap(p => protectedPathForms(p, cwd))
   for (const candidate of protectedPathForms(path, cwd)) {
     const system = candidate.replace(/^\/private\/etc(?=\/|$)/, '/etc')
@@ -52,8 +54,13 @@ export function mercurySecretReadIgnores(): Map<string, string[]> {
 }
 
 export function mercurySecretPath(path: string, cwd = getCwd()): string | null {
-  const target = path.startsWith('mercury://file/') ? decodeURIComponent(path.slice('mercury://file/'.length).split('?')[0]!) : path
-  const plain = target.replace(/:(?:-?\d+(?:[-+,]\d+)*)$/, '')
+  const trimmed = path.trim()
+  let target = trimmed
+  if (/^mercury:\/\/file\//i.test(trimmed)) {
+    const raw = trimmed.slice('mercury://file/'.length).split('?')[0]!
+    try { target = decodeURIComponent(raw) } catch { target = raw }
+  }
+  const plain = target.replace(/:[-\d+,]+$/, '')
   const homes = [...mercurySecretReadIgnores().keys()].map(comparable)
   for (const candidate of protectedPathForms(plain, cwd)) {
     const parent = posix.dirname(candidate)

@@ -218,7 +218,7 @@ async function fetchApiEndpoint(
   redirects = 0,
 ): Promise<ApiReadResult> {
   if (signal.aborted) throw new AbortError()
-  await metadataSafeAddresses(apiUrl)
+  const addresses = await metadataSafeAddresses(apiUrl)
   const pace = pacingFor(source)
   const outcome = await pace.run<ApiReadResult | { redirectTo: string }>(SOURCE_INTERVAL_MS[source], signal, async waitMs => {
     if (signal.aborted) throw new AbortError()
@@ -232,7 +232,7 @@ async function fetchApiEndpoint(
     try {
       response = await axios.get<ArrayBuffer>(apiUrl, {
         signal,
-        lookup: async (hostname: string) => [await metadataSafeAddresses('http://' + (hostname.includes(':') ? '[' + hostname + ']' : hostname))],
+        lookup: async () => [addresses],
         timeout: 20_000,
         maxRedirects: 0,
         responseType: 'arraybuffer',
@@ -245,6 +245,7 @@ async function fetchApiEndpoint(
       })
     } catch (error) {
       if (signal.aborted) throw new AbortError()
+      if (error instanceof FetchRefusedError) throw error
       if (axios.isAxiosError(error)) {
         if (error.code === 'ERR_FR_MAX_BODY_LENGTH_EXCEEDED' || /maxContentLength/i.test(error.message)) {
           if (mode !== 'required') return { ok: false, fallThrough: true, oversize: true }
