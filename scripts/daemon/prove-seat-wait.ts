@@ -58,7 +58,7 @@ console.log('§1 the refusal names who holds the seats and what frees one (the p
   const moves = refused.admit ? [] : (refused.moves ?? [])
   check('the moves say what frees a seat: stop or park a live session, or raise the ceiling with /seats N', moves.some(m => m.verb === 'pause-holder' && /stop or park a live session/.test(m.label)) && moves.some(m => /\/seats N/.test(m.label)), JSON.stringify(moves))
   const one = sup.evaluateConcourseAdmission([{ workspaceId: '/scratch/a' }], { workspaceId: '/scratch/b' }, 1)
-  check('one holder, one seat: the singular sentence, no title list', !one.admit && one.reason.includes('1 live session holds the 1 seat —'), one.admit ? '' : one.reason)
+  check('one holder, one seat: the singular sentence, no title list', !one.admit && one.reason.startsWith('every seat is taken: 1 live session holds the 1 seat (') && !one.reason.includes('“'), one.admit ? '' : one.reason)
   check('a sentence without titles names only the count', sup.seatHoldersWords([{ workspaceId: '/x' }, { workspaceId: '/y' }], 2) === '2 live sessions hold the 2 seats')
 }
 
