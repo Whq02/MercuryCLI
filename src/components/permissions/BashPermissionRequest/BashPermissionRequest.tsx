@@ -117,7 +117,7 @@ function BashCommandPermissionRequest(
     if (simple !== null) return `${simple} *`
     const first = getFirstWordPrefix(command)
     if (first !== null) return `${first} *`
-    return command
+    return command.includes('*') ? undefined : command
   }, [isCompound, gatedSuggestions, command])
 
   const [editablePrefix, setEditablePrefix] = useState<string | undefined>(initialSeed)

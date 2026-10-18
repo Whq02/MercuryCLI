@@ -1,4 +1,32 @@
 import type { PermissionUpdate } from '../../types/permissions.js'
+import { isDestructiveCommandVerb } from '../../tools/BashTool/destructiveCommandWarning.js'
+
+const COMMAND_PREFIX_ARITY: Readonly<Record<string, number>> = {
+  git: 2, npm: 2, pnpm: 2, yarn: 2, bun: 2, docker: 2, gh: 2, cargo: 2,
+  go: 2, dotnet: 2, pip: 2, pip3: 2, kubectl: 2, terraform: 2,
+  'npm run': 3, 'pnpm run': 3, 'yarn run': 3, 'bun run': 3,
+  'docker compose': 3, 'docker container': 3, 'docker image': 3,
+  'gh pr': 3, 'gh issue': 3, 'gh repo': 3, 'gh release': 3, 'gh run': 3,
+  aws: 3, az: 3, gcloud: 3, 'gcloud compute instances': 4,
+}
+const UNSCOPED_EXECUTORS = new Set(['sh', 'bash', 'zsh', 'fish', 'csh', 'tcsh', 'ksh', 'dash', 'cmd', 'powershell', 'pwsh', 'env', 'xargs', 'nice', 'stdbuf', 'nohup', 'timeout', 'time', 'sudo', 'doas', 'pkexec'])
+
+export function knownShellCommandPrefix(command: string): string | null {
+  if (/[;&|<>\\\n\r$`*]/.test(command) || isDestructiveCommandVerb(command)) return null
+  const words = command.trim().split(/\s+/)
+  if (!/^[a-z][a-z0-9-]*$/.test(words[0] ?? '') || UNSCOPED_EXECUTORS.has(words[0]!)) return null
+  let arity = 1
+  let longest = 0
+  for (const [prefix, count] of Object.entries(COMMAND_PREFIX_ARITY)) {
+    const parts = prefix.split(' ')
+    if (parts.length > longest && parts.every((part, index) => words[index] === part)) {
+      longest = parts.length
+      arity = count
+    }
+  }
+  if (words.length < arity || words.slice(0, arity).some(word => !/^[a-zA-Z0-9][a-zA-Z0-9:_-]*$/.test(word))) return null
+  return words.slice(0, arity).join(' ')
+}
 
 export type ShellPermissionRule =
   | { type: 'exact'; command: string }
@@ -105,7 +133,7 @@ function localAllowUpdate(toolName: string, content: string): PermissionUpdate {
 }
 
 export function suggestionForExactCommand(toolName: string, command: string): PermissionUpdate[] {
-  return [localAllowUpdate(toolName, command)]
+  return hasWildcards(command) ? [] : [localAllowUpdate(toolName, command)]
 }
 
 export function suggestionForPrefix(toolName: string, prefix: string): PermissionUpdate[] {

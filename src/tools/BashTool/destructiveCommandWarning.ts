@@ -107,6 +107,17 @@ function rmFirstCluster(command: string): string | null {
   return firstFlagCluster(match[1] as string)
 }
 
+const DESTRUCTIVE_VERBS = [
+  'rm', 'rmdir', 'del', 'erase', 'git reset', 'git clean', 'git checkout', 'git restore',
+  'git stash drop', 'git stash clear', 'git branch', 'kubectl delete', 'terraform destroy',
+  'drop', 'truncate', 'delete',
+]
+
+export function isDestructiveCommandVerb(command: string): boolean {
+  const text = command.trim().toLowerCase().replace(/\s+/g, ' ')
+  return DESTRUCTIVE_VERBS.some(verb => text === verb || text.startsWith(verb + ' ')) || getDestructiveCommandWarning(command) !== null
+}
+
 export function getDestructiveCommandWarning(command: string): string | null {
   for (const matcher of MATCHERS) {
     const warning = matcher(command)
