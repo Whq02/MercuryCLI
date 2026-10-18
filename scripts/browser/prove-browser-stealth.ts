@@ -514,24 +514,41 @@ try {
 
     const unapprovedOpen = { op: 'open', url: `${ORIGIN_C}/` } as ToolInput
     const openPlain = await decideToolPermission(BrowserTool as never, unapprovedOpen, engineCtx({ mode: 'default' }) as never)
-    const openImpl = await decideToolPermission(BrowserTool as never, unapprovedOpen, engineCtx({ mode: 'acceptEdits' }) as never)
+    const openImpl = await decideToolPermission(BrowserTool as never, unapprovedOpen, engineCtx({ mode: 'implement' }) as never)
     const openSov = await decideToolPermission(BrowserTool as never, unapprovedOpen, engineCtx({ mode: 'sovereign' }) as never)
-    check('permission law: unapproved origin open asks in plain (default) and implement (acceptEdits)', openPlain.decision.behavior === 'ask' && openImpl.decision.behavior === 'ask')
-    check('permission law: unapproved origin open runs without asking in sovereign', openSov.decision.behavior === 'allow')
+    check(
+      'permission law: unapproved origin open asks in plain (default) and implement',
+      openPlain.decision.behavior === 'ask' &&
+        openImpl.decision.behavior === 'ask' &&
+        openImpl.trace.mode === 'implement' &&
+        openImpl.trace.decidedBy === 'resolution',
+    )
+    check('permission law: unapproved origin open runs without asking in sovereign', openSov.decision.behavior === 'allow' && openSov.trace.decidedBy === 'bypassPosture')
 
     const denyRule = `Browser(origin:${ORIGIN_C})`
-    for (const mode of ['default', 'acceptEdits', 'sovereign'] as const) {
+    for (const mode of ['default', 'implement', 'sovereign'] as const) {
       const denied = await decideToolPermission(BrowserTool as never, unapprovedOpen, engineCtx({ mode, deny: [denyRule] }) as never)
-      check(`refusal: origin deny rule refuses in ${mode} mode`, denied.decision.behavior === 'deny', JSON.stringify(denied.decision))
+      check(
+        `refusal: origin deny rule refuses in ${mode} mode`,
+        denied.decision.behavior === 'deny' && denied.trace.mode === mode && denied.trace.decidedBy === 'toolVerdictDeny',
+        JSON.stringify(denied.decision),
+      )
     }
 
     await activeSession(OWNER)!.page.goto(`${ORIGIN_C}/`)
     const crossAct = { op: 'click', selector: '#click-target' } as ToolInput
     const crossToolAllow = await decideToolPermission(BrowserTool as never, crossAct, engineCtx({ mode: 'default', allow: ['Browser'] }) as never)
-    const crossImplAllow = await decideToolPermission(BrowserTool as never, crossAct, engineCtx({ mode: 'acceptEdits', allow: ['Browser'] }) as never)
+    const crossImplAllow = await decideToolPermission(BrowserTool as never, crossAct, engineCtx({ mode: 'implement', allow: ['Browser'] }) as never)
     const crossSov = await decideToolPermission(BrowserTool as never, crossAct, engineCtx({ mode: 'sovereign' }) as never)
-    check('refusal: crossing act asks with safetyCheck in plain and implement even under whole-tool Browser allow', crossToolAllow.decision.behavior === 'ask' && crossImplAllow.decision.behavior === 'ask')
-    check('permission law: crossing act runs in sovereign without asking', crossSov.decision.behavior === 'allow')
+    check(
+      'refusal: crossing act asks with safetyCheck in plain and implement even under whole-tool Browser allow',
+      crossToolAllow.decision.behavior === 'ask' &&
+        crossToolAllow.trace.decidedBy === 'safetyCheckAsk' &&
+        crossImplAllow.decision.behavior === 'ask' &&
+        crossImplAllow.trace.mode === 'implement' &&
+        crossImplAllow.trace.decidedBy === 'safetyCheckAsk',
+    )
+    check('permission law: crossing act runs in sovereign without asking', crossSov.decision.behavior === 'allow' && crossSov.trace.decidedBy === 'safetyCheckAsk')
 
     await run({ op: 'open', url: `${ORIGIN_A}/` })
     const pwRefusal = await run({ op: 'type', selector: '#pw-target', text: 'plain-password' })
