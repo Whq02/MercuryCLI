@@ -391,7 +391,7 @@ reason, until you release it.
 
 [docs/SESSIONS.md](docs/SESSIONS.md) covers the session lifecycle.
 
-## Providers and models: 13 provider sign-ins and `/localsetup`
+## Providers and models: 20 provider sign-ins and `/localsetup`
 
 Use `/logins` to connect a provider. It opens the same sign-in catalogue used
 during setup. `/accounts` manages connected provider slots afterwards.
@@ -408,8 +408,17 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **xAI (Grok):** sign in with your Grok subscription (SuperGrok / X Premium) or paste an API key through `/logins xai`.
 - **Meta (Muse):** Sign in with Meta (a Muse Code subscription, a device code in your browser) or a pay-as-you-go Model API key. Sign in with Meta exchanges the device code against Meta's OIDC endpoints (`https://auth.meta.com/oidc/device/authorization/` and `/oidc/device/token/`) under Muse Code's public client id, sends the resulting account token once to `https://api.meta.ai/muse-code/key` to mint the subscription's API key (and on bounded `/usage` reads for the plan's tier and usage windows), and sends only the minted key on every model request to `https://api.meta.ai/v1`. A pasted Model API key or `MODEL_API_KEY` / `META_API_KEY` bills pay-as-you-go.
 
+- **Qwen:** a QwenCloud key (Token Plan or pay-as-you-go) or an Alibaba Cloud
+  Model Studio key (pay-as-you-go, Token Plan or Coding Plan), checked on its
+  own endpoint before it is stored; a plan key lists the plan's models, Qwen3.8
+  Max first.
+- **MiniMax:** an Open Platform key or an M Plan subscription key.
+- **Together AI** and **Cohere:** API key.
+- **Groq**, **Cerebras** and **Fireworks AI:** API key; any family's key can
+  also come from a command named in `credentials.keyCommands.<family>`.
+
 Mistral, Nous Portal and OpenCode Zen connect through `/logins` as well, giving
-13 sign-in provider families in all. Local model servers (Ollama, LM Studio,
+20 sign-in provider families in all. Local model servers (Ollama, LM Studio,
 vLLM and llama.cpp) and custom OpenAI-compatible endpoints are discovered or
 configured without a provider sign-in; run `/localsetup` to install or start
 Ollama, pull a model sized to your machine's memory, set its context window,

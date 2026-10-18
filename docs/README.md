@@ -40,7 +40,7 @@ map and `/keybindings` opens your keybindings file.
 
 ## Providers and models
 
-- [ENGINES.md](ENGINES.md): Mercury runs models across 13 sign-in provider families plus local servers and custom endpoints, with per-family credentials, model lists, usage meters and web tools.
+- [ENGINES.md](ENGINES.md): Mercury runs models across 20 sign-in provider families plus local servers and custom endpoints, with per-family credentials, model lists, usage meters and web tools.
 - [LOCAL-SETUP.md](LOCAL-SETUP.md): `/localsetup` finds or installs Ollama, asks which model, sets its window and checks a reply.
 - [ADVISOR.md](ADVISOR.md): a second model's notes for the working chat, the per-chat switch, model choice, interval and spend.
 
