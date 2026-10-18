@@ -202,6 +202,7 @@ const CONFIG_PROVIDER_PRESENTATION: Record<
   groq: { label: 'Groq', absent: 'no key — /logins groq connects (or GROQ_API_KEY)', manage: '/accounts' },
   cerebras: { label: 'Cerebras', absent: 'no key — /logins cerebras connects (or CEREBRAS_API_KEY)', manage: '/accounts' },
   fireworks: { label: 'Fireworks', absent: 'no key — /logins fireworks connects (or FIREWORKS_API_KEY)', manage: '/accounts' },
+  qwen: { label: 'Qwen', absent: 'no key — /logins qwen connects (or DASHSCOPE_API_KEY)', manage: '/accounts' },
 }
 
 

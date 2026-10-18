@@ -91,6 +91,11 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         const row = cohereCatalogueRows().rows[0]
         return row ? { modelId: row.id, displayName: row.displayName, source: cohereCatalogueSourceWords() } : undefined
       }
+      case 'qwen': {
+        const { qwenCatalogueRows, qwenCatalogueSourceWords } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
+        const row = qwenCatalogueRows().rows[0]
+        return row ? { modelId: row.id, displayName: row.displayName, source: qwenCatalogueSourceWords() } : undefined
+      }
       case 'huggingface': {
         const { getCachedHuggingfaceCatalogue } =
           require('../../services/providers/huggingface/huggingfaceCatalogue.js') as typeof import('../../services/providers/huggingface/huggingfaceCatalogue.js')

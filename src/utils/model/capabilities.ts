@@ -56,6 +56,8 @@ import { isCerebrasModelId, cerebrasDisplayPin, cerebrasEffortVocabulary } from 
 import { cerebrasContextWindowFor, cerebrasOutputMaxFor } from '../../services/providers/cerebras/cerebrasCatalogue.js'
 import { isFireworksModelId, fireworksDisplayPin, fireworksEffortVocabulary } from '../../services/providers/fireworks/fireworksPins.js'
 import { fireworksContextWindowFor, fireworksOutputMaxFor } from '../../services/providers/fireworks/fireworksCatalogue.js'
+import { isQwenModelId, qwenDisplayPin } from '../../services/providers/qwen/qwenPins.js'
+import { qwenModelFacts } from '../../services/providers/qwen/qwenCatalogue.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -76,7 +78,7 @@ export function modelSupportsTemperature(model: string): boolean {
   if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   if (isMistralModelId(model)) return true
   if (isZenModelId(model)) return true
-  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model) || isFireworksModelId(model)) return true
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model) || isFireworksModelId(model) || isQwenModelId(model)) return true
   const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(model)
   if (!m) return true
   const family = m[1]!
@@ -92,7 +94,7 @@ export function modelSupportsISP(model: string): boolean {
   if (isXaiModelId(model)) return modelSupportsThinking(model)
   if (isMetaModelId(model)) return false
   if (isMistralModelId(model)) return false
-  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model) || isFireworksModelId(model)) return false
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model) || isFireworksModelId(model) || isQwenModelId(model)) return false
   return !getCanonicalName(model).includes('claude-3-')
 }
 
@@ -110,6 +112,7 @@ function baseModelSupportsThinking(model: string): boolean {
   if (isGroqModelId(model)) return ['included', 'parsed'].includes(groqDisplayPin(model)?.reasoning ?? '')
   if (isCerebrasModelId(model)) return ['included', 'parsed'].includes(cerebrasDisplayPin(model)?.reasoning ?? '')
   if (isFireworksModelId(model)) return ['included', 'parsed'].includes(fireworksDisplayPin(model)?.reasoning ?? '')
+  if (isQwenModelId(model)) return qwenModelFacts(model).thinking === 'hybrid'
   return !getCanonicalName(model).includes('claude-3-')
 }
 
@@ -117,7 +120,7 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
   if (isXaiModelId(model)) return false
   if (isMetaModelId(model)) return false
   if (isMistralModelId(model)) return false
-  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model) || isFireworksModelId(model)) return false
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model) || isFireworksModelId(model) || isQwenModelId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   if (canonical === 'claude-haiku-5-5' || canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return true
@@ -162,6 +165,7 @@ export function modelThinkingAlwaysOn(model: string): boolean {
     return pin !== undefined && pin.thinkingToggle !== true && !(pin.efforts?.includes('none') ?? false)
   }
   if (isMinimaxModelId(model)) return minimaxDisplayPin(model)?.thinking !== 'toggle'
+  if (isQwenModelId(model)) return false
   if (isTogetherModelId(model)) return togetherThinkingDial(model) === 'effort'
   if (isCohereModelId(model)) return false
   if (isCarrierShapedId(model)) return false
@@ -244,7 +248,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'operator' | 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'
+      source: 'operator' | 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -275,6 +279,7 @@ export type EffortVocabularyView =
         | 'groq'
         | 'cerebras'
         | 'fireworks'
+        | 'qwen'
       defaultEffort?: string
     }
 
@@ -387,6 +392,12 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
     return vocabulary.length > 0
       ? { kind: 'provider', source: 'fireworks', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'fireworks' }
+  }
+  if (isQwenModelId(model) || route === 'qwen') {
+    const vocabulary = qwenModelFacts(model).efforts
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'qwen', vocabulary, defaultEffort: 'xhigh', thinkingGated: true }
+      : { kind: 'none', source: 'qwen' }
   }
   if (route === 'openrouter') {
     const { openrouterEffortVocabularyFor } =
@@ -596,7 +607,7 @@ function baseResolveContextWindow(
   }
 
   if (has1mContext(model)) {
-    if (isCarrierShapedId(model) || isXaiModelId(model) || isMetaModelId(model) || isMistralModelId(model) || isMinimaxModelId(model) || isCohereModelId(model)) {
+    if (isCarrierShapedId(model) || isXaiModelId(model) || isMetaModelId(model) || isMistralModelId(model) || isMinimaxModelId(model) || isCohereModelId(model) || isQwenModelId(model)) {
       const base = resolveContextWindow(model.replace(/\[1m\]/i, ''), betas, requestedMode)
       return {
         ...base,
@@ -791,6 +802,7 @@ function baseResolveContextWindow(
     if (isGroqModelId(id)) return groqContextWindowFor(id)
     if (isCerebrasModelId(id)) return cerebrasContextWindowFor(id)
     if (isFireworksModelId(id)) return fireworksContextWindowFor(id)
+    if (isQwenModelId(id)) return qwenModelFacts(id).contextWindow
     return undefined
   })()
   if (enginePinnedWindow !== undefined) {
@@ -864,6 +876,8 @@ function baseGetModelMaxOutputTokens(model: string): {
   if (cerebrasOut !== undefined) return statedOutputTokens(cerebrasOut)
   const fireworksOut = isFireworksModelId(model) ? fireworksOutputMaxFor(model) : undefined
   if (fireworksOut !== undefined) return statedOutputTokens(fireworksOut)
+  const qwenOut = isQwenModelId(model) ? qwenModelFacts(model).outputMax : undefined
+  if (qwenOut !== undefined) return statedOutputTokens(qwenOut)
   let upperLimit: number | undefined
 
   const gptPinOut = gptDisplayPin(model)?.outputMax
@@ -1112,6 +1126,8 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
       return cerebrasDisplayPin(model)?.images === true
     case 'fireworks':
       return fireworksDisplayPin(model)?.images === true
+    case 'qwen':
+      return qwenDisplayPin(model)?.images === true
     case 'zai':
       return glmTakesImages(model)
     case 'openrouter':

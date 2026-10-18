@@ -149,6 +149,8 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
       return 'cerebras'
     case 'fireworks':
       return 'fireworks'
+    case 'qwen':
+      return 'qwen'
     default:
       return undefined
   }

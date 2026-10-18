@@ -119,6 +119,7 @@ type CompatLaneId =
   | 'groq'
   | 'cerebras'
   | 'fireworks'
+  | 'qwen'
 
 export function imagesSupportedForCompatModel(model: string): boolean {
   return modelReceivesImageBlocks(model) && imageRefusalOf(model) === null
@@ -265,7 +266,7 @@ function vendorWordClass(code: string): TypedError | undefined {
   const google = GOOGLE_STATUS_CLASS[word]
   if (google) return google
   if (/rate[-_]?limit|quota|exhausted/i.test(word)) return 'rate_limit'
-  if (/insufficient[-_]?(credit|balance|fund)|billing|payment|balance/i.test(word)) return 'billing_error'
+  if (/insufficient[-_]?(credit|balance|fund)|billing|payment|balance|arrearage/i.test(word)) return 'billing_error'
   if (/auth|api[-_]?key|permission|forbidden/i.test(word)) return 'authentication_failed'
   if (/invalid|bad[-_]?request|not[-_]?found|unsupported|unprocessable/i.test(word)) {
     return 'invalid_request'

@@ -297,7 +297,8 @@ export function AccountView({
                     slot.removal.route === 'cohere-stored-key' ||
                     slot.removal.route === 'groq-stored-key' ||
                     slot.removal.route === 'cerebras-stored-key' ||
-                    slot.removal.route === 'fireworks-stored-key'
+                    slot.removal.route === 'fireworks-stored-key' ||
+                    slot.removal.route === 'qwen-stored-key'
                   ? '⌫ clears'
                 : slot.removal.route === 'anthropic-managed-key'
                   ? '⌫ removes'

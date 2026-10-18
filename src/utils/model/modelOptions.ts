@@ -323,18 +323,19 @@ export const COHERE_MODEL_GROUP = 'Mercury — Cohere models'
 export const GROQ_MODEL_GROUP = 'Mercury — Groq models'
 export const CEREBRAS_MODEL_GROUP = 'Mercury — Cerebras models'
 export const FIREWORKS_MODEL_GROUP = 'Mercury — Fireworks models'
+export const QWEN_MODEL_GROUP = 'Mercury — Qwen models'
 
 export const KEY_CONNECT_PREFIX = '__mercury_connect__:'
-export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'): string {
+export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen'): string {
   return `${KEY_CONNECT_PREFIX}${provider}`
 }
 export function parseKeyConnectValue(
   value: string,
-): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | `compat/${string}` | undefined {
+): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen' | `compat/${string}` | undefined {
   if (!value.startsWith(KEY_CONNECT_PREFIX)) return undefined
   const provider = value.slice(KEY_CONNECT_PREFIX.length)
   if (/^compat\/[a-z0-9-]{1,32}$/.test(provider)) return provider as `compat/${string}`
-  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat' || provider === 'mistral' || provider === 'zen' || provider === 'minimax' || provider === 'together' || provider === 'cohere' || provider === 'groq' || provider === 'cerebras' || provider === 'fireworks'
+  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat' || provider === 'mistral' || provider === 'zen' || provider === 'minimax' || provider === 'together' || provider === 'cohere' || provider === 'groq' || provider === 'cerebras' || provider === 'fireworks' || provider === 'qwen'
     ? provider
     : undefined
 }
@@ -378,6 +379,7 @@ function providerOfModelOption(opt: ModelOption): string | undefined {
   if (opt.group === MINIMAX_MODEL_GROUP) return 'minimax'
   if (opt.group === TOGETHER_MODEL_GROUP) return 'together'
   if (opt.group === COHERE_MODEL_GROUP) return 'cohere'
+  if (opt.group === QWEN_MODEL_GROUP) return 'qwen'
   if (opt.group === OPENROUTER_MODEL_GROUP) return 'openrouter'
   if (opt.group === GEMINI_MODEL_GROUP) return 'gemini'
   if (opt.group === HUGGINGFACE_MODEL_GROUP) return 'huggingface'
@@ -523,7 +525,17 @@ export type KeyLaneListState =
   | { kind: 'pin' }
   | { kind: 'unread'; reading: boolean; error?: string }
 
-export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'): KeyLaneListState {
+export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen'): KeyLaneListState {
+  if (provider === 'qwen') {
+    const owner = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
+    const { source } = owner.qwenCatalogueRows()
+    if (source.kind === 'live') return { kind: 'live', count: source.count }
+    if (source.kind === 'pins') return { kind: 'pin' }
+    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const gate = catalogueTrafficVerdict('qwen')
+    const error = !gate.allowed ? gate.reason : owner.getCachedQwenCatalogue()?.lastError
+    return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
+  }
   if (provider === 'minimax' || provider === 'together' || provider === 'cohere') {
     const read = provider === 'minimax'
       ? (() => { const owner = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js'); return { snapshot: owner.getCachedMinimaxCatalogue(), source: owner.minimaxCatalogueRows().source } })()
@@ -640,6 +652,7 @@ export interface KeyLaneReads {
   groqKeyPresent?(): boolean
   cerebrasKeyPresent?(): boolean
   fireworksKeyPresent?(): boolean
+  qwenKeyPresent?(): boolean
   compat(): { label: string; models: string[]; keyPresent: boolean } | undefined
   namedCompat?(): ModelOption[]
 }
@@ -696,6 +709,10 @@ function liveKeyLaneReads(): KeyLaneReads {
       const { resolveFireworksApiKey } = require('../../services/providers/fireworks/fireworksAccounts.js') as typeof import('../../services/providers/fireworks/fireworksAccounts.js')
       return resolveFireworksApiKey() !== undefined
     },
+    qwenKeyPresent: () => {
+      const { resolveQwenApiKey } = require('../../services/providers/qwen/qwenAccounts.js') as typeof import('../../services/providers/qwen/qwenAccounts.js')
+      return resolveQwenApiKey() !== undefined
+    },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
         require('../../services/providers/deepseek/deepseekAccounts.js') as typeof import('../../services/providers/deepseek/deepseekAccounts.js')
@@ -716,7 +733,12 @@ function liveKeyLaneReads(): KeyLaneReads {
   }
 }
 
-export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'): KeyLanePin[] {
+export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen'): KeyLanePin[] {
+  if (provider === 'qwen') {
+    const { qwenCatalogueRows } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
+    const { qwenDisplayPin } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+    return qwenCatalogueRows().rows.map(row => ({ ...row, ...(qwenDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
+  }
   if (provider === 'minimax') {
     const { minimaxCatalogueRows } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
     const { minimaxDisplayPin } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
@@ -993,6 +1015,14 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
   } else {
     out.push(...keyLaneGroupRows({ group: FIREWORKS_MODEL_GROUP, providerName: 'Fireworks', connectValue: keyConnectValue('fireworks'), connectHint: 'opens /logins fireworks (FIREWORKS_API_KEY works too)', keyPresent: fireworksCredentialed, pins: fireworksRows, listState: fireworksState, engineWords: 'the Fireworks text models' }))
   }
+  const qwenRows = keyLanePins('qwen')
+  const qwenState = keyLaneListState('qwen')
+  const qwenCredentialed = reads.qwenKeyPresent?.() ?? false
+  if (qwenCredentialed && qwenRows.length === 0 && qwenState.kind === 'live') {
+    out.push({ value: keyConnectValue('qwen'), label: 'Qwen — no models listed', group: QWEN_MODEL_GROUP, description: "the bound endpoint's live list serves no text model — /logins qwen checks the key", descriptionForModel: 'The Model Studio endpoint returned an empty text model list; no Qwen model is selectable.' })
+  } else {
+    out.push(...keyLaneGroupRows({ group: QWEN_MODEL_GROUP, providerName: 'Qwen', connectValue: keyConnectValue('qwen'), connectHint: 'opens /logins qwen (a Model Studio API key) — DASHSCOPE_API_KEY works too', keyPresent: qwenCredentialed, pins: qwenRows, listState: qwenState, engineWords: 'the Model Studio text models' }))
+  }
   const compat = reads.compat()
   const namedCompat = reads.namedCompat?.() ?? []
   if (namedCompat.length > 0) out.push(...namedCompat)
@@ -1113,6 +1143,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     GROQ_MODEL_GROUP,
     CEREBRAS_MODEL_GROUP,
     FIREWORKS_MODEL_GROUP,
+    QWEN_MODEL_GROUP,
   ]
   const sectionRank = (opt: ModelOption): number => {
     const index = SECTION_ORDER.indexOf(opt.group ?? ANTHROPIC_MODEL_GROUP)

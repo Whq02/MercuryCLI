@@ -828,6 +828,10 @@ function laneCredentialedLive(provider: ProviderFamilyId): boolean {
     const { resolveCohereApiKey } = require('./cohere/cohereAccounts.js') as typeof import('./cohere/cohereAccounts.js')
     return resolveCohereApiKey() !== undefined
   }
+  if (provider === 'qwen') {
+    const { resolveQwenApiKey } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
+    return resolveQwenApiKey() !== undefined
+  }
   return false
 }
 
@@ -2005,6 +2009,10 @@ function deriveUsageForProvider(
   if (provider === 'fireworks') {
     const { fireworksUsageView } = require('./fireworks/fireworksUsageState.js') as typeof import('./fireworks/fireworksUsageState.js')
     return fireworksUsageView(spend, reads?.laneCredentialed?.(provider))
+  }
+  if (provider === 'qwen') {
+    const { qwenUsageView } = require('./qwen/qwenUsageState.js') as typeof import('./qwen/qwenUsageState.js')
+    return qwenUsageView(spend, reads?.laneCredentialed?.(provider))
   }
   if (provider === 'deepseek' || provider === 'openai-compat') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)

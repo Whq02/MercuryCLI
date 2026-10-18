@@ -33,6 +33,7 @@ import { isCerebrasModelId } from '../../services/providers/cerebras/cerebrasPin
 import { cerebrasCatalogueEntries, cerebrasCatalogueEntry } from '../../services/providers/cerebras/cerebrasAdapter.js'
 import { isFireworksModelId } from '../../services/providers/fireworks/fireworksPins.js'
 import { fireworksCatalogueEntries, fireworksCatalogueEntry } from '../../services/providers/fireworks/fireworksAdapter.js'
+import { qwenCatalogueEntries, qwenCatalogueEntry } from '../../services/providers/qwen/qwenAdapter.js'
 import { localLiveCatalogue } from '../../services/providers/local/localAdapter.js'
 import {
   HUGGINGFACE_MODEL_PREFIX,
@@ -59,7 +60,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -90,6 +91,7 @@ export function isExactEngineModelId(v: unknown): v is string {
   return (
     liveListedRouteOf(v) !== undefined ||
     /^(gpt|glm|kimi|moonshot|deepseek|grok|muse|gemini|mistral|ministral|codestral|minimax|command|north|c4ai-aya)-/i.test(v.trim()) ||
+    /^(?:qwen|qwq|qvq)(?:[0-9.]|-)/i.test(v.trim()) ||
     isCompatModelId(v) ||
     isHuggingfaceModelId(v) ||
     isLocalModelId(v) ||
@@ -104,7 +106,7 @@ export function isExactEngineModelId(v: unknown): v is string {
   )
 }
 
-function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'mistral' | 'minimax' | 'cohere' | undefined {
+function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'mistral' | 'minimax' | 'cohere' | 'qwen' | undefined {
   const listed = liveListedRouteOf(id)
   if (listed !== undefined) return listed
   if (/^gpt-/i.test(id)) return 'openai'
@@ -116,6 +118,7 @@ function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | '
   if (/^(mistral|ministral|codestral)-/i.test(id)) return 'mistral'
   if (/^minimax-/i.test(id)) return 'minimax'
   if (/^(command|north|c4ai-aya)-/i.test(id)) return 'cohere'
+  if (/^(?:qwen|qwq|qvq)(?:[0-9.]|-)/i.test(id)) return 'qwen'
   return undefined
 }
 
@@ -130,7 +133,7 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
 
 import { MODEL_LOOKUP_LADDER } from '../model/modelLookup.js'
 
-const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, google/*, mistral-*, minimax-*, command-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*, together/*'
+const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, google/*, mistral-*, minimax-*, command-*, qwen3*, qwen-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*, together/*'
 
 export function unrecognisedModelWordRefusal(model: string | undefined): string | null {
   if (model === undefined) return null
@@ -166,6 +169,7 @@ type EngineProvider =
   | 'groq'
   | 'cerebras'
   | 'fireworks'
+  | 'qwen'
 
 export interface EngineDispatch {
   backend: EngineProvider
@@ -193,6 +197,7 @@ const SIGN_IN_DOORS: Partial<Record<EngineProvider, string>> = {
   groq: '/logins groq',
   cerebras: '/logins cerebras',
   fireworks: '/logins fireworks',
+  qwen: '/logins qwen',
 }
 
 export function providerUnavailableRefusal(provider: EngineProvider, reason: string | undefined): string {
@@ -603,6 +608,10 @@ export async function resolveEngineDispatch(
       await requireProviderAvailable('cohere')
       return resolveKeyLaneExactModel('cohere', id, cohereCatalogueEntry, cohereCatalogueEntries)
     }
+    if (family === 'qwen') {
+      await requireProviderAvailable('qwen')
+      return resolveKeyLaneExactModel('qwen', id, qwenCatalogueEntry, qwenCatalogueEntries)
+    }
     if (family === 'deepseek') {
       await requireProviderAvailable('deepseek')
       return resolveKeyLaneExactModel('deepseek', id, deepseekCatalogueEntry, deepseekCatalogueEntries)
@@ -702,7 +711,7 @@ export async function resolveEngineDispatch(
   return null
 }
 
-type KeyLaneRoute = 'xai' | 'meta' | 'mistral' | 'deepseek' | 'zai' | 'minimax' | 'cohere'
+type KeyLaneRoute = 'xai' | 'meta' | 'mistral' | 'deepseek' | 'zai' | 'minimax' | 'cohere' | 'qwen'
 
 async function resolveKeyLaneExactModel(
   route: KeyLaneRoute,

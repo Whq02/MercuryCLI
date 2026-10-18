@@ -2,7 +2,7 @@
 # gate-class: cpu
 # gate-watch: scripts/gate/generated-assets.tsv scripts/lib/hermetic.ts src/services/providers/meta/metaPins.ts
 # gate-watch: src/services/providers/mistral/mistralPins.ts
-# gate-watch: src/services/providers/minimax/minimaxPins.ts src/services/providers/cohere/coherePins.ts src/services/providers/groq/groqPins.ts src/services/providers/cerebras/cerebrasPins.ts src/services/providers/fireworks/fireworksPins.ts
+# gate-watch: src/services/providers/minimax/minimaxPins.ts src/services/providers/cohere/coherePins.ts src/services/providers/groq/groqPins.ts src/services/providers/cerebras/cerebrasPins.ts src/services/providers/fireworks/fireworksPins.ts src/services/providers/qwen/qwenPins.ts
 # gate-watch: assets/splash/** scripts/ui/vshot.py src/substrate/startupMenu*
 # gate-watch: docs/INSTALL-WINDOWS-FROM-SOURCE.md scripts/engine-durability/harness.ts
 # gate-watch: scripts/lib/generated-assets-map.mjs src/components/mercury-ui/focalRamp.ts

@@ -50,6 +50,7 @@ import { CohereConnect } from './CohereConnect.js'
 import { GroqConnect } from '../services/providers/groq/GroqConnect.js'
 import { CerebrasConnect } from '../services/providers/cerebras/CerebrasConnect.js'
 import { FireworksConnect } from '../services/providers/fireworks/FireworksConnect.js'
+import { QwenConnect } from '../services/providers/qwen/QwenConnect.js'
 import { CompatConnect } from './CompatConnect.js'
 import type { LoginFamilyRow } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
@@ -91,6 +92,7 @@ type EngineLeg =
   | 'groq'
   | 'cerebras'
   | 'fireworks'
+  | 'qwen'
   | `compat/${string}`
 
 export type LoginFamilyFocus = LoginFamilyRow['value']
@@ -243,7 +245,7 @@ export function ConsoleOAuthFlow({
       return
     }
     if (value.startsWith('compat/') && loginFamilyRows({ engineLegs: true }).some(row => row.value === value)) { setLeg(value as `compat/${string}`); return }
-    if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'minimax' || value === 'together' || value === 'cohere' || value === 'groq' || value === 'cerebras' || value === 'fireworks' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') {
+    if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'minimax' || value === 'together' || value === 'cohere' || value === 'groq' || value === 'cerebras' || value === 'fireworks' || value === 'qwen' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') {
       setLeg(value)
       return
     }
@@ -338,6 +340,9 @@ export function ConsoleOAuthFlow({
       case 'fireworks':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>Fireworks login unavailable here.</Text>)
         return frame(<FireworksConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
+      case 'qwen':
+        if (onOpenaiDone === undefined) return frame(<Text dimColor>Qwen login unavailable here.</Text>)
+        return frame(<QwenConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
       case 'deepseek':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>DeepSeek login unavailable here.</Text>)
         return frame(<DeepseekConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
@@ -364,7 +369,7 @@ export function ConsoleOAuthFlow({
       const arms = popup ? loginsCatalogue() : []
       const intro =
         startingMessage ??
-        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen · MiniMax · Together AI · Cohere · Groq · Cerebras · Fireworks).'
+        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen · MiniMax · Together AI · Cohere · Groq · Cerebras · Fireworks · Qwen).'
       const refusalLayout = popup && facts !== null && Object.keys(facts.refusals ?? {}).length > 0
       const rosterCompact = compact || refusalLayout
       const statusWidth = !compact && setupBody !== null ? setupBody.width - 4 - READINESS_LABEL_WIDTH : null
@@ -650,6 +655,7 @@ export const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = 
   { id: 'groq', label: 'Groq' },
   { id: 'cerebras', label: 'Cerebras' },
   { id: 'fireworks', label: 'Fireworks' },
+  { id: 'qwen', label: 'Qwen' },
   { id: 'local', label: 'Local servers' },
   { id: 'openai-compat', label: 'OpenAI-compatible' },
   { id: 'nous', label: 'Nous Portal' },

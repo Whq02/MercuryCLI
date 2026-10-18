@@ -26,6 +26,7 @@ export type ProviderId =
   | 'groq'
   | 'cerebras'
   | 'fireworks'
+  | 'qwen'
 
 export interface ProviderUsability {
   provider: ProviderId | 'unrecognised'
@@ -65,6 +66,7 @@ export interface ProviderUsabilityReads {
   groqKeyPresent?: () => boolean
   cerebrasKeyPresent?: () => boolean
   fireworksKeyPresent?: () => boolean
+  qwenKeyPresent?: () => boolean
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
@@ -206,6 +208,10 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     fireworksKeyPresent: () => {
       const { resolveFireworksApiKey } = require('./fireworks/fireworksAccounts.js') as typeof import('./fireworks/fireworksAccounts.js')
       return resolveFireworksApiKey() !== undefined
+    },
+    qwenKeyPresent: () => {
+      const { resolveQwenApiKey } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
+      return resolveQwenApiKey() !== undefined
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
@@ -405,6 +411,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   const groq = keyLane('groq', reads.groqKeyPresent?.() ?? false, 'no Groq API key — /logins groq (or GROQ_API_KEY)')
   const cerebras = keyLane('cerebras', reads.cerebrasKeyPresent?.() ?? false, 'no Cerebras API key — /logins cerebras (or CEREBRAS_API_KEY)')
   const fireworks = keyLane('fireworks', reads.fireworksKeyPresent?.() ?? false, 'no Fireworks API key — /logins fireworks (or FIREWORKS_API_KEY)')
+  const qwen = keyLane('qwen', reads.qwenKeyPresent?.() ?? false, 'no Model Studio API key — /logins qwen (or DASHSCOPE_API_KEY)')
   const deepseek = keyLane(
     'deepseek',
     reads.deepseekKeyPresent?.() ?? false,
@@ -521,6 +528,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     groq: applyLaneBilling(groq),
     cerebras: applyLaneBilling(cerebras),
     fireworks: applyLaneBilling(fireworks),
+    qwen: applyLaneBilling(qwen),
   }
 }
 

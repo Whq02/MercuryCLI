@@ -72,6 +72,7 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
       if (route === 'groq') return 'Groq API billing'
       if (route === 'cerebras') return 'Cerebras API billing'
       if (route === 'fireworks') return 'Fireworks API billing'
+      if (route === 'qwen') return 'Model Studio pay-as-you-go or plan billing'
       if (route === null) return 'unrecognised model · no billed lane'
     } catch {
     }

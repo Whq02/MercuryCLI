@@ -73,6 +73,8 @@ export function parseDefaultProviderWord(token: string | undefined): string | un
       return 'cerebras'
     case 'fireworks':
       return 'fireworks'
+    case 'qwen':
+      return 'qwen'
     case 'local':
       return 'local'
     case 'compat':
@@ -159,7 +161,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
     const family = parseDefaultProviderWord(token)
     if (family === undefined) {
       onDone(
-        `Unknown provider '${token}' — the vocabulary: anthropic · openai · openrouter · gemini · huggingface · moonshot · zai · deepseek · xai · meta · mistral · compat · local · nous · zen · minimax · together · cohere · groq · cerebras · fireworks.`,
+        `Unknown provider '${token}' — the vocabulary: anthropic · openai · openrouter · gemini · huggingface · moonshot · zai · deepseek · xai · meta · mistral · compat · local · nous · zen · minimax · together · cohere · groq · cerebras · fireworks · qwen.`,
       )
       return null
     }

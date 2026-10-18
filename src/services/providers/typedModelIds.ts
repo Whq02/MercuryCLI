@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -368,6 +368,16 @@ function fireworksFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
     return { family: 'fireworks', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedFireworksCatalogue(env)) : { kind: 'no-credential' } }
   })
 }
+function qwenFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./qwen/qwenPins.js') as typeof import('./qwen/qwenPins.js')).QWEN_DISPLAY_PINS.filter(pin => !pin.planOnly).map(pin => pin.id)
+  return guarded('qwen', name, typed, () => {
+    const { resolveQwenAccount } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
+    const { getCachedQwenCatalogue } = require('./qwen/qwenCatalogue.js') as typeof import('./qwen/qwenCatalogue.js')
+    const account = resolveQwenAccount(env)
+    return { family: 'qwen', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedQwenCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
 export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelListFact[] {
   const { providerDisplayName } = require('./routeLaw.js') as typeof import('./routeLaw.js')
   const name = (family: ModelListFamily): string => providerDisplayName(family)
@@ -390,5 +400,6 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     groqFact(name('groq'), env),
     cerebrasFact(name('cerebras'), env),
     fireworksFact(name('fireworks'), env),
+    qwenFact(name('qwen'), env),
   ]
 }

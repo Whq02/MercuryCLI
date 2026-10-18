@@ -43,6 +43,7 @@ const PROVIDER_DISPLAY_NAMES: Record<CallModelRoute, string> = {
   groq: 'Groq',
   cerebras: 'Cerebras',
   fireworks: 'Fireworks',
+  qwen: 'Qwen',
 }
 
 export function providerDisplayName(route: string): string {

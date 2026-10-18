@@ -38,6 +38,7 @@ import { storeCohereApiKeyLogin } from '../services/providers/cohere/cohereLogin
 import { storeGroqApiKeyLogin } from '../services/providers/groq/groqLogin.js';
 import { storeCerebrasApiKeyLogin } from '../services/providers/cerebras/cerebrasLogin.js';
 import { storeFireworksApiKeyLogin } from '../services/providers/fireworks/fireworksLogin.js';
+import { storeQwenApiKeyLogin } from '../services/providers/qwen/qwenLogin.js';
 import {
   runKimiDeviceLogin,
   storeMoonshotApiKeyLogin,
@@ -491,6 +492,7 @@ export type FaceKeyLegId =
   | 'groq'
   | 'cerebras'
   | 'fireworks'
+  | 'qwen'
   | `compat/${string}`;
 
 export function geminiPickOptions(facts: GeminiConnectFacts): Array<{ label: string; value: string }> {
@@ -615,6 +617,8 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
       return 'Cerebras API key';
     case 'fireworks':
       return 'Fireworks API key';
+    case 'qwen':
+      return 'Model Studio API key';
     case 'zen':
       return 'OpenCode Zen API key';
     case 'minimax':
@@ -662,6 +666,8 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
       return 'Checked on the model list first; stored auth-scoped (mode 600); CEREBRAS_API_KEY wins. Text models only.';
     case 'fireworks':
       return 'Checked on the model list first; stored auth-scoped (mode 600); FIREWORKS_API_KEY wins. Text models only.';
+    case 'qwen':
+      return 'Bound to the endpoint that accepts it; stored auth-scoped (mode 600); DASHSCOPE_API_KEY wins. Text models only.';
     case 'zen':
       return 'Checked on the usage endpoint first; stored auth-scoped (mode 600); OPENCODE_API_KEY wins. One key, every model the gateway lists.';
     case 'minimax':
@@ -710,6 +716,8 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
       return { stores: 'a Cerebras API key' };
     case 'fireworks':
       return { stores: 'a Fireworks API key' };
+    case 'qwen':
+      return { stores: 'a Model Studio API key' };
     case 'zen':
       return { stores: 'an OpenCode Zen API key (sk-…)' };
     case 'minimax':
@@ -736,7 +744,7 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
   if (leg === 'mistral-admin' && note === null) lines.push(...wrapPlain(MISTRAL_ADMIN_KEY_PAGE, DETAIL_W));
   if (leg === 'nous' && note === null) lines.push(...wrapClauses(keyPageLine('nous'), DETAIL_W));
   if (leg === 'zen' && note === null) lines.push(...wrapClauses(keyPageLine('zen'), DETAIL_W));
-  if ((leg === 'minimax' || leg === 'together' || leg === 'cohere' || leg === 'groq' || leg === 'cerebras' || leg === 'fireworks') && note === null) lines.push(...wrapClauses(keyPageLine(leg), DETAIL_W));
+  if ((leg === 'minimax' || leg === 'together' || leg === 'cohere' || leg === 'groq' || leg === 'cerebras' || leg === 'fireworks' || leg === 'qwen') && note === null) lines.push(...wrapClauses(keyPageLine(leg), DETAIL_W));
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
   if (note !== null) {
@@ -1427,6 +1435,9 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       case 'fireworks':
         setFlow({ kind: 'key', leg: 'fireworks', note: null, storing: false });
         return;
+      case 'qwen':
+        setFlow({ kind: 'key', leg: 'qwen', note: null, storing: false });
+        return;
       case 'deepseek':
         setFlow({ kind: 'key', leg: 'deepseek', note: null, storing: false });
         return;
@@ -1579,6 +1590,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     else if (leg === 'groq') void storeGroqApiKeyLogin(value).then(settle);
     else if (leg === 'cerebras') void storeCerebrasApiKeyLogin(value).then(settle);
     else if (leg === 'fireworks') void storeFireworksApiKeyLogin(value).then(settle);
+    else if (leg === 'qwen') void storeQwenApiKeyLogin(value).then(settle);
     else if (leg === 'moonshot-key')
       void storeMoonshotApiKeyLogin(value).then(outcome => settle({ ok: outcome.ok, stored: outcome.stored, receipt: outcome.receipt }));
     else if (leg === 'hf-token') void storeHuggingfaceTokenLogin(value).then(settle);

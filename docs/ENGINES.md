@@ -1,6 +1,6 @@
 # Engines: the provider estate
 
-Mercury runs models across 19 sign-in provider families plus local servers
+Mercury runs models across 20 sign-in provider families plus local servers
 and custom endpoints, with per-family credentials, model lists, usage meters
 and web tools.
 
@@ -40,6 +40,7 @@ arm.
 | `groq` | `groq/<model-id>` (qualified; text models only) | Groq |
 | `cerebras` | `cerebras/<model-id>` (qualified; text models only) | Cerebras |
 | `fireworks` | `fireworks/<model-id>` (qualified; text models only) | Fireworks |
+| `qwen` | `qwen-*`, `qwen3*`, `qwen2*`, `qwq-*`, `qvq-*`, alias `qwen` (Alibaba Cloud Model Studio's own Qwen text models; the speech, image, video, embedding and rerank ids refuse here) | Qwen |
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
@@ -459,6 +460,36 @@ account credits and costs are shown in the Fireworks console. Sources read
 [rate limits](https://docs.fireworks.ai/serverless/rate-limits) and
 [Fire Pass](https://docs.fireworks.ai/firepass).
 
+Qwen connects through `/logins` with a Model Studio API key (`DASHSCOPE_API_KEY`
+works too), made in the Alibaba Cloud Model Studio console for the region the
+account lives in. A Model Studio key answers only the region and plan it was
+minted in, so the sign-in probes the documented endpoints in turn — International
+(Singapore), China (Beijing), China (Hong Kong), the Coding Plan (international and
+China) and the Token Plan (Singapore and Beijing) — keeps the first whose model
+list accepts the key, and stores that endpoint beside the key; a key no endpoint
+accepts is refused with the endpoints named and nothing is stored. `DASHSCOPE_BASE_URL`
+names an endpoint instead of the probe (a workspace-dedicated domain such as
+`https://<workspace>.us-east-1.maas.aliyuncs.com/compatible-mode/v1`), and
+`DASHSCOPE_WORKSPACE_ID` adds the six workspace-dedicated domains to the probe.
+The picker lists the text models the bound endpoint serves live, with dated pins
+for the context windows and prices of the rows this build knows (Qwen3.8 Max,
+Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash, Qwen3.7 Flash, Qwen3 Coder
+Flash), and falls to the pins, labelled as pins, when the list cannot be read.
+Requests carry Qwen's own `enable_thinking` switch and `preserve_thinking` on the
+rows that take them, the effort dial as `reasoning_effort` in Qwen's vocabulary
+(`low`, `medium`, `xhigh`) on the Qwen3.8 rows that document it, a stated
+`models.<id>.thinkingBudget` as `thinking_budget` in place of the effort word, the
+system prompt in `messages[0]` alone, and tool calls on the shared wire. A 401
+from the bound endpoint names the region and the re-bind road. `/usage` shows
+session spend; Model Studio documents no usage or balance endpoint an API key can
+read, so the account's balance and plan windows are shown in its console. Sources
+read **2026-10-18**: [regions and endpoints](https://www.alibabacloud.com/help/en/model-studio/regions),
+[Chat Completions](https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-openai-chat-completions),
+[deep thinking](https://www.alibabacloud.com/help/en/model-studio/deep-thinking),
+[models](https://www.alibabacloud.com/help/en/model-studio/getting-started/models),
+[text generation models](https://www.alibabacloud.com/help/en/model-studio/text-generation-model)
+and [error codes](https://www.alibabacloud.com/help/en/model-studio/error-code).
+
 Moonshot's default, picker and specialist choices follow the account's live
 model list. An API key reads the platform list; a Kimi sign-in reads its
 region's coding list with the same credential used for chat. The newest
@@ -523,7 +554,7 @@ Three wire families serve the providers:
   `thought_signature` parts across tool rounds on every Gemini credential).
 - **The OpenAI-compatible chat wire**: Moonshot/Kimi, DeepSeek, xAI's Grok
   models, Meta, Mistral, Nous Portal, OpenCode Zen (chat-completions rows),
-  MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI,
+  MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Qwen,
   custom `compat/` endpoints, OpenRouter,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.

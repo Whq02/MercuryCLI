@@ -8,6 +8,7 @@ const facts = () => z.object({
   efforts: z.array(z.enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])).optional(),
   images: z.boolean().optional(),
   reasoning: z.boolean().optional(),
+  thinkingBudget: z.number().int().positive().optional(),
 }).strict()
 
 export const ModelFactsSchema = lazySchema(() => z.record(z.string().min(1), z.union([facts(), z.record(z.string(), facts())])).superRefine((entries, ctx) => {

@@ -22,6 +22,7 @@ export type CallModelRoute =
   | 'groq'
   | 'cerebras'
   | 'fireworks'
+  | 'qwen'
 
 export interface ProviderIdSpace {
   route: Exclude<CallModelRoute, 'anthropic'>
@@ -51,14 +52,15 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'groq', qualifiedPrefix: 'groq/', innerGrammar: 'named' },
   { route: 'cerebras', qualifiedPrefix: 'cerebras/', innerGrammar: 'named' },
   { route: 'fireworks', qualifiedPrefix: 'fireworks/', innerGrammar: 'named' },
+  { route: 'qwen', barePrefixes: ['qwen-', 'qwen3', 'qwen2', 'qwq-', 'qvq-'], bareAliases: ['qwen', 'coder-model'] },
   { route: 'zen', qualifiedPrefix: 'zen/', innerGrammar: 'named' },
 ]
 
 export const COMPAT_MODEL_PREFIX = 'compat/'
 
-export type LiveListFamily = 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'openai' | 'gemini' | 'mistral' | 'minimax' | 'cohere'
+export type LiveListFamily = 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'openai' | 'gemini' | 'mistral' | 'minimax' | 'cohere' | 'qwen'
 
-export const LIVE_LIST_FAMILIES: readonly LiveListFamily[] = ['moonshot', 'deepseek', 'xai', 'meta', 'openai', 'gemini', 'mistral', 'minimax', 'cohere']
+export const LIVE_LIST_FAMILIES: readonly LiveListFamily[] = ['moonshot', 'deepseek', 'xai', 'meta', 'openai', 'gemini', 'mistral', 'minimax', 'cohere', 'qwen']
 
 type LiveIdsReader = { cachedLiveIds?: (env?: NodeJS.ProcessEnv) => ReadonlySet<string> }
 
@@ -82,6 +84,8 @@ function liveIdsReaderOf(family: LiveListFamily): LiveIdsReader {
       return require('./minimax/minimaxCatalogue.js') as LiveIdsReader
     case 'cohere':
       return require('./cohere/cohereCatalogue.js') as LiveIdsReader
+    case 'qwen':
+      return require('./qwen/qwenCatalogue.js') as LiveIdsReader
   }
 }
 

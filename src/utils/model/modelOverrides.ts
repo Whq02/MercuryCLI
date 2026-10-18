@@ -11,6 +11,7 @@ export interface OperatorModelFacts {
   efforts?: string[]
   images?: boolean
   reasoning?: boolean
+  thinkingBudget?: number
 }
 
 export function modelHasRecordedFacts(model: string): boolean {
@@ -30,6 +31,7 @@ export function modelHasRecordedFacts(model: string): boolean {
     case 'minimax': return Boolean(require('../../services/providers/minimax/minimaxPins.js').minimaxDisplayPin(model))
     case 'together': return Boolean(require('../../services/providers/together/togetherPins.js').togetherDisplayPin(model))
     case 'cohere': return Boolean(require('../../services/providers/cohere/coherePins.js').cohereDisplayPin(model))
+    case 'qwen': return Boolean(require('../../services/providers/qwen/qwenPins.js').qwenDisplayPin(model))
     default: {
       const route = declaredRouteOf(model)
       return route !== null && bareFamilyWordOfRoute(route)?.knownRow(model) !== undefined
@@ -46,7 +48,7 @@ export function operatorModelFacts(model: string, recorded: OperatorModelFacts =
   const defaults = table._default !== undefined && !modelHasRecordedFacts(model) && route !== null ? (table._default as Record<string, OperatorModelFacts> | undefined)?.[route] : undefined
   if (!explicit && !defaults) return undefined
   const gaps = { ...defaults }
-  for (const key of ['contextWindow', 'maxOutputTokens', 'efforts', 'images', 'reasoning'] as const) {
+  for (const key of ['contextWindow', 'maxOutputTokens', 'efforts', 'images', 'reasoning', 'thinkingBudget'] as const) {
     if (recorded[key] !== undefined) delete gaps[key]
   }
   const prices = { ...defaults?.prices }

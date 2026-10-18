@@ -6,7 +6,7 @@
       "type": "string"
     },
     "models": {
-      "description": "Model facts keyed by the full id: contextWindow, maxOutputTokens, prices, efforts, images and reasoning; _default maps provider families to facts for unknown ids; recorded capabilities are never reduced",
+      "description": "Model facts keyed by the full id: contextWindow, maxOutputTokens, prices, efforts, images, reasoning and thinkingBudget (the thinking-token cap a wire that documents one takes); _default maps provider families to facts for unknown ids; recorded capabilities are never reduced",
       "type": "object",
       "propertyNames": {
         "type": "string",
@@ -69,6 +69,11 @@
               },
               "reasoning": {
                 "type": "boolean"
+              },
+              "thinkingBudget": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
               }
             },
             "additionalProperties": false
@@ -133,6 +138,11 @@
                 },
                 "reasoning": {
                   "type": "boolean"
+                },
+                "thinkingBudget": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
                 }
               },
               "additionalProperties": false
