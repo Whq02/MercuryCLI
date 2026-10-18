@@ -4,7 +4,7 @@ import { resolveXaiApiKey, xaiApiBase, xaiInferenceBase } from './xaiAccounts.js
 import { startXaiDeviceAuth, pollXaiDeviceToken, writeXaiTokens, writePreferredXaiSource, type XaiDeviceAuthStart, type XaiOauthIo } from './xaiOauth.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { fetchXaiUsage, xaiUsageFailureWords, type XaiUsageIo } from './xaiUsageState.js'
-import { fetchXaiLiveModels, XaiCatalogueHttpError } from './xaiCatalogue.js'
+import { fetchXaiLiveModels, fetchXaiSubscriptionModels, XaiCatalogueHttpError } from './xaiCatalogue.js'
 
 export interface XaiKeyLoginOutcome {
   ok: boolean
@@ -24,8 +24,8 @@ export async function storeXaiApiKeyLogin(
     const result = await fetchXaiLiveModels({ baseUrl: xaiApiBase(env), key, ...(io?.fetchImpl ? { fetchImpl: io.fetchImpl } : {}) })
     note = `${result.models.length} chat ${result.models.length === 1 ? 'model' : 'models'} listed`
   } catch (error) {
-    if (error instanceof XaiCatalogueHttpError && (error.status === 401 || error.status === 403)) {
-      return { ok: false, stored: false, receipt: `xAI refused this key (HTTP ${error.status}) — nothing stored; check the key and its model-list permissions at console.x.ai and paste again.` }
+    if (error instanceof XaiCatalogueHttpError && error.refused) {
+      return { ok: false, stored: false, receipt: `xAI refused this key (HTTP ${error.status})${error.said ? ` — ${error.said}` : ''} — nothing stored; check the key and its model-list permissions at console.x.ai and paste again.` }
     }
     note = `UNVERIFIED — the model list could not confirm the key (${safe(errorMessageWithCause(error))})`
   }
@@ -106,7 +106,7 @@ export async function runXaiDeviceLogin(args: {
     if (cancelled()) return late()
     let note = 'UNVERIFIED — the model list did not answer; the first turn proves access'
     try {
-      const list = await fetchXaiLiveModels({ baseUrl: xaiInferenceBase('oauth', args.io?.env), key: result.tokens.accessToken, fetchImpl: args.io?.fetchImpl })
+      const list = await fetchXaiSubscriptionModels({ baseUrl: xaiInferenceBase('oauth', args.io?.env), key: result.tokens.accessToken, fetchImpl: args.io?.fetchImpl })
       note = `${list.models.length} chat models listed; inference is not yet verified`
     } catch (error) {
       if (error instanceof XaiCatalogueHttpError) note = `UNVERIFIED — model list HTTP ${error.status}; xAI decides subscription eligibility`

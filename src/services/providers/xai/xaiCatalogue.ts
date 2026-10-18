@@ -4,8 +4,8 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
-import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
-import { xaiInferenceBase, resolveXaiCredentialSnapshot, resolveXaiCredential } from './xaiAccounts.js'
+import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
+import { xaiGrokProxyListHeaders, xaiInferenceBase, resolveXaiCredentialSnapshot, resolveXaiCredential } from './xaiAccounts.js'
 import { isXaiChatModelId, xaiDisplayPin, xaiDisplayName, type XaiDisplayPin } from './xaiPins.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
@@ -59,27 +59,45 @@ export function decodeXaiModel(raw: unknown): XaiLiveModel | undefined {
 }
 
 export class XaiCatalogueHttpError extends Error {
-  constructor(readonly status: number) {
-    super(status === 401 || status === 403 ? `xAI models endpoint refused the credential (HTTP ${status})` : `xAI models endpoint returned HTTP ${status}`)
+  readonly refused: boolean
+  readonly said: string | undefined
+  constructor(readonly status: number, words: ServiceWords = {}, key = '') {
+    const refused = status === 401 || status === 403 || (status === 400 && wordsNameTheKey(words))
+    const said = (words.message ?? words.code)?.split(key || '\0').join('[redacted]')
+    super(`${refused ? `xAI models endpoint refused the credential (HTTP ${status})` : `xAI models endpoint returned HTTP ${status}`}${said ? ` — ${said}` : ''}`)
+    this.refused = refused
+    this.said = said
   }
 }
 
-export async function fetchXaiLiveModels(opts: {
+export function fetchXaiLiveModels(opts: {
   baseUrl: string
   key: string
   fetchImpl?: typeof fetch
 }): Promise<{ models: XaiLiveModel[]; fetchedAtMs: number }> {
+  return listXaiModels(opts, {})
+}
+
+export function fetchXaiSubscriptionModels(opts: {
+  baseUrl: string
+  key: string
+  fetchImpl?: typeof fetch
+}): Promise<{ models: XaiLiveModel[]; fetchedAtMs: number }> {
+  return listXaiModels(opts, xaiGrokProxyListHeaders())
+}
+
+async function listXaiModels(opts: { baseUrl: string; key: string; fetchImpl?: typeof fetch }, roadHeaders: Record<string, string>): Promise<{ models: XaiLiveModel[]; fetchedAtMs: number }> {
   let response: Response
   try {
     response = await fetchWithProviderDeadline(opts.fetchImpl ?? getApiFetch(), 'xai', CATALOGUE_FETCH_TIMEOUT_MS, `${opts.baseUrl.replace(/\/+$/, '')}/models`, {
       method: 'GET',
-      headers: { accept: 'application/json', authorization: `Bearer ${opts.key}`, 'user-agent': getUserAgent() },
+      headers: { accept: 'application/json', authorization: `Bearer ${opts.key}`, 'user-agent': getUserAgent(), ...roadHeaders },
       ...(opts.fetchImpl ? {} : getProxyFetchOptions()),
     } as RequestInit)
   } catch (error) {
     throw modelsEndpointUnreachable(error) ?? error
   }
-  if (!response.ok) throw new XaiCatalogueHttpError(response.status)
+  if (!response.ok) throw new XaiCatalogueHttpError(response.status, serviceWordsOf(await quietBodyJson(response)), opts.key)
   const parsed = await catalogueBodyJson(response) as Record<string, unknown>
   if (!Array.isArray(parsed?.data)) throw new Error('xAI models endpoint returned no data array')
   const models: XaiLiveModel[] = []
@@ -146,14 +164,14 @@ export function refreshXaiCatalogue(opts?: {
       const credential = await resolveXaiCredential({ ...opts, env })
       if (!credential) throw new Error('Grok sign-in expired — /logins xai reconnects it')
       resolvedKey = credential
-      const result = await fetchXaiLiveModels({ baseUrl: xaiInferenceBase(credential.source, env), key: credential.key, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) })
+      const result = await (credential.source === 'oauth' ? fetchXaiSubscriptionModels : fetchXaiLiveModels)({ baseUrl: xaiInferenceBase(credential.source, env), key: credential.key, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) })
       if (resolveXaiCredentialSnapshot(env)?.key !== credential.key) return null
       const snapshot: XaiCatalogueSnapshot = { keySource: credential.source, models: result.models, fetchedAtMs: now() }
       catalogueCache.set(catalogueIdentity(env), snapshot)
       return snapshot
     } catch (error) {
       if (resolveXaiCredentialSnapshot(env)?.key !== resolvedKey.key) return null
-      const refused = error instanceof XaiCatalogueHttpError && (error.status === 401 || error.status === 403)
+      const refused = error instanceof XaiCatalogueHttpError && error.refused
       const snapshot: XaiCatalogueSnapshot = {
         keySource: resolvedKey.source, models: refused ? [] : cached?.models ?? [],
         fetchedAtMs: refused ? 0 : cached?.fetchedAtMs ?? 0, lastAttemptAtMs: now(),

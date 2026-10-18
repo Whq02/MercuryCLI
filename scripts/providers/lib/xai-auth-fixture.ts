@@ -23,6 +23,9 @@ export const XAI_GROK_PROXY_BILLING_REPLY = {
   },
 }
 
+export const XAI_GROK_PROXY_NO_TOKEN_AUTH_REPLY = { error: 'Invalid or expired credentials (auth_kind=bearer, x_xai_token_auth=none, upstream=Unauthenticated, reason=no auth context)' }
+export const XAI_API_WRONG_KEY_REPLY = { code: 'invalid-argument', error: 'Incorrect API key provided. You can obtain an API key from https://console.x.ai.' }
+
 export function xaiAuthFixture() {
   const state = { polls: 0, refreshes: 0, starts: 0, deny: false, slow: true, failRefresh: false, billingStatus: 200, billingMalformed: false, prepaidCents: 0 as number | string, onToken: undefined as (() => void) | undefined, tokenHold: undefined as Promise<void> | undefined }
   const token = 'fixture-grok-access-not-real'
@@ -36,6 +39,7 @@ export function xaiAuthFixture() {
     if (path === '/v1/models') {
       assert.fail('a Grok subscription never lists on the API-key base')
     }
+    if (path.startsWith('/proxy/v1/') && req.headers.get('x-xai-token-auth') !== 'xai-grok-cli') return Response.json(XAI_GROK_PROXY_NO_TOKEN_AUTH_REPLY, { status: 401 })
     if (path === '/proxy/v1/models') {
       assert.ok([`Bearer ${token}`, `Bearer ${rotated}`].includes(req.headers.get('authorization') ?? ''))
       return Response.json(XAI_GROK_PROXY_MODELS_REPLY)

@@ -4,6 +4,7 @@ import { signInLedgerEpoch } from '../../../utils/accounts/signInLedger.js'
 import { noteUsageRecordChanged } from '../../anthropicLimits.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
+import { quietBodyJson, serviceWordsOf, wordsNameTheKey } from '../catalogueBody.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveXaiAccount, resolveXaiApiKey, resolveXaiCredential, resolveXaiManagementApiKey, xaiApiBase, xaiGrokProxyBase, xaiGrokProxyBillingHeaders, xaiManagementBase } from './xaiAccounts.js'
 import { xaiStoredTokens, type XaiOauthIo } from './xaiOauth.js'
@@ -34,6 +35,15 @@ export interface XaiUsageFailure {
   kind: 'refused' | 'unreachable' | 'invalid'
   endpoint: 'inference' | 'management' | 'subscription'
   status?: number
+  said?: string
+}
+
+async function refusalVerdict(response: Response, ...secrets: string[]): Promise<{ kind: 'refused' | 'unreachable'; said?: string }> {
+  const words = serviceWordsOf(await quietBodyJson(response))
+  const refused = response.status === 401 || response.status === 403 || (response.status === 400 && wordsNameTheKey(words))
+  let said = words.message ?? words.code
+  for (const secret of secrets) if (secret) said = said?.split(secret).join('[redacted]')
+  return { kind: refused ? 'refused' : 'unreachable', ...(said ? { said } : {}) }
 }
 
 export interface XaiSubscriptionCredits {
@@ -109,17 +119,18 @@ export function xaiUsageRequest(cycle: XaiObservedUsage['cycle'], nowMs: number)
 }
 
 export function xaiUsageFailureWords(failure: XaiUsageFailure): string {
+  const status = failure.status !== undefined ? ` (HTTP ${failure.status})${failure.said ? ` — ${failure.said}` : ''}` : ''
   if (failure.endpoint === 'subscription') {
-    if (failure.kind === 'refused') return `Grok refused the subscription pool read${failure.status !== undefined ? ` (HTTP ${failure.status})` : ''} — /logins xai reconnects the subscription`
+    if (failure.kind === 'refused') return `Grok refused the subscription pool read${status} — /logins xai reconnects the subscription`
     if (failure.kind === 'invalid') return 'Grok subscription pool read returned an unrecognised response — no new usage recorded'
-    return `Grok subscription pool read unavailable${failure.status !== undefined ? ` (HTTP ${failure.status})` : ''} — retry /usage`
+    return `Grok subscription pool read unavailable${status} — retry /usage`
   }
   const credential = failure.endpoint === 'management' ? 'management key' : 'API key team lookup'
   if (failure.kind === 'refused') {
-    return `xAI refused the ${credential} (HTTP ${failure.status}) — check the key and its team permissions; /logins xai`
+    return `xAI refused the ${credential}${status} — check the key and its team permissions; /logins xai`
   }
   if (failure.kind === 'invalid') return `xAI ${credential} usage read returned an unrecognised response — no new usage recorded`
-  return `xAI ${credential} usage read unavailable${failure.status !== undefined ? ` (HTTP ${failure.status})` : ''} — retry /usage`
+  return `xAI ${credential} usage read unavailable${status} — retry /usage`
 }
 
 function wireCents(value: unknown): number | undefined {
@@ -167,7 +178,7 @@ export async function fetchXaiSubscriptionCredits(token: string, io?: XaiUsageIo
   const now = io?.now?.() ?? Date.now()
   const fetchImpl = io?.fetchImpl ?? getApiFetch()
   const proxy = io?.fetchImpl ? {} : getProxyFetchOptions()
-  const failed = (kind: XaiUsageFailure['kind'], status?: number): XaiSubscriptionProbe => ({ state: 'failed', failure: { kind, endpoint: 'subscription', atMs: now, ...(status !== undefined ? { status } : {}) } })
+  const failed = (kind: XaiUsageFailure['kind'], status?: number, said?: string): XaiSubscriptionProbe => ({ state: 'failed', failure: { kind, endpoint: 'subscription', atMs: now, ...(status !== undefined ? { status } : {}), ...(said ? { said } : {}) } })
   let response: Response
   try {
     response = await fetchWithProviderDeadline(fetchImpl, 'xai', 10_000, `${xaiGrokProxyBase(env)}/billing?format=credits`, {
@@ -177,7 +188,10 @@ export async function fetchXaiSubscriptionCredits(token: string, io?: XaiUsageIo
       ...proxy,
     } as RequestInit)
   } catch { return failed('unreachable') }
-  if (!response.ok) return failed(response.status === 401 || response.status === 403 ? 'refused' : 'unreachable', response.status)
+  if (!response.ok) {
+    const verdict = await refusalVerdict(response, token)
+    return failed(verdict.kind, response.status, verdict.said)
+  }
   let body: unknown
   try { body = await response.json() } catch { return failed('invalid') }
   const credits = decodeXaiSubscriptionCredits(body, now)
@@ -203,7 +217,10 @@ export async function fetchXaiUsage(apiKey: string, managementKey: string, io?: 
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       ...proxy,
     } as RequestInit)
-    if (!response.ok) throw new UsageReadError({ kind: response.status === 401 || response.status === 403 ? 'refused' : 'unreachable', endpoint, atMs: now, status: response.status })
+    if (!response.ok) {
+      const verdict = await refusalVerdict(response, apiKey, managementKey)
+      throw new UsageReadError({ kind: verdict.kind, endpoint, atMs: now, status: response.status, ...(verdict.said ? { said: verdict.said } : {}) })
+    }
     try { return await response.json() } catch { return invalid() }
   }
   try {

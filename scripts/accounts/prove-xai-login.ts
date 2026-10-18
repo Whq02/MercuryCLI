@@ -34,6 +34,12 @@ try {
   check('401 refuses storage and names the real key door', !rejected.ok && !rejected.stored && readStoredXaiApiKey() === undefined && rejected.receipt.includes('console.x.ai'))
   const forbidden = await storeXaiApiKeyLogin(key, { env, fetchImpl: reply(403) })
   check('403 refuses storage without inventing a balance', !forbidden.stored && forbidden.receipt.includes('permissions'))
+  const { XAI_API_WRONG_KEY_REPLY } = await import('../providers/lib/xai-auth-fixture.ts')
+  const wrongKey = await storeXaiApiKeyLogin(key, { env, fetchImpl: reply(400, XAI_API_WRONG_KEY_REPLY) })
+  check("api.x.ai's HTTP 400 invalid-argument 'Incorrect API key provided' is a refusal with the service's words: nothing stored, never UNVERIFIED", !wrongKey.ok && !wrongKey.stored && readStoredXaiApiKey() === undefined && wrongKey.receipt.includes('xAI refused this key (HTTP 400) — Incorrect API key provided. You can obtain an API key from https://console.x.ai. — nothing stored') && !wrongKey.receipt.includes('UNVERIFIED') && !wrongKey.receipt.includes(key))
+  const otherArgument = await storeXaiApiKeyLogin(key, { env, fetchImpl: reply(400, { code: 'invalid-argument', error: 'Unsupported query parameter: client_version' }) })
+  check('a 400 whose words do not name the key is not a refusal: the key is stored UNVERIFIED with those words', otherArgument.ok && otherArgument.stored && otherArgument.receipt.includes('UNVERIFIED') && otherArgument.receipt.includes('HTTP 400 — Unsupported query parameter: client_version') && readStoredXaiApiKey() === key)
+  writeStoredXaiApiKey(null)
   const saved = await storeXaiApiKeyLogin(key, { env, fetchImpl: reply(200) })
   check('a listed key lands auth-scoped with no secret in its receipt', saved.ok && saved.stored && !saved.receipt.includes(key) && readStoredXaiApiKey() === key && saved.receipt.includes('1 chat model listed'))
   check('the stored key file is mode 600 and inside the proof home', providerSecretsPathForDisplay().startsWith(proofHome) && (statSync(providerSecretsPathForDisplay()).mode & 0o777) === 0o600)
@@ -64,6 +70,8 @@ try {
     fixture.state.status = 403
     const refused = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, io)
     check('a refused management key is named and not stored; inference key stays', !refused.stored && refused.receipt.includes('refused the management key') && !readStoredXaiManagementApiKey() && readStoredXaiApiKey() === key)
+    const wrongTeamKey = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, { ...io, env: { ...fixture.env, XAI_API_KEY: 'xai-wrong-inference-fixture-not-a-real-key' } })
+    check("the team lookup's HTTP 400 'Incorrect API key provided' refuses the management key with the service's words", !wrongTeamKey.ok && !wrongTeamKey.stored && wrongTeamKey.receipt.includes('xAI refused the API key team lookup (HTTP 400) — Incorrect API key provided. You can obtain an API key from https://console.x.ai. — check the key') && !readStoredXaiManagementApiKey())
     fixture.state.status = 200
     const managed = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, io)
     check('management key lands beside the API key without leaking or moving the model sign-in order', managed.stored && !managed.receipt.includes(XAI_FIXTURE_MANAGEMENT_KEY) && !managed.receipt.includes(XAI_FIXTURE_API_KEY) && readStoredXaiManagementApiKey() === XAI_FIXTURE_MANAGEMENT_KEY && JSON.stringify(readSignInLedger()) === savedLedger)
@@ -99,6 +107,7 @@ try {
     check('device code polls pending and slow_down before storing the approved grant', signed.ok && oauth.state.polls === 3 && waits.join(',') === '1000,1000,6000' && events.includes('waiting') && events.includes('finishing'))
     check('Grok token file is auth-scoped mode 600; receipt contains no token or device secret', auth.xaiAuthPathForDisplay() === `${proofHome}/scoped-grok/.xai-auth.json` && (statSync(auth.xaiAuthPathForDisplay()).mode & 0o777) === 0o600 && !signed.receipt.includes(oauth.token) && !signed.receipt.includes('fixture-device'))
     check('the sign-in receipt lists on the Grok proxy and names that host, never api.x.ai', signed.receipt.includes('1 chat models listed') && signed.receipt.includes('cli-chat-proxy.grok.com') && !signed.receipt.includes('api.x.ai') && oauth.seen.some(row => row.path === '/proxy/v1/models' && row.bearer === `Bearer ${oauth.token}`) && !oauth.seen.some(row => row.path === '/v1/models'))
+    check('the proxy list carries X-XAI-Token-Auth: xai-grok-cli and the CLI client version, as the chat road does (without the header the proxy answers 401 x_xai_token_auth=none)', oauth.seen.filter(row => row.path === '/proxy/v1/models').every(row => row.headers['x-xai-token-auth'] === 'xai-grok-cli' && Boolean(row.headers['x-grok-client-version'])))
     check('OAuth ledger and account identity name Grok, never an invented plan', readSignInLedger().xai?.kind === 'oauth' && resolveXaiAccount()?.kind === 'grok-subscription' && resolveXaiAccount()?.email === 'fixture@example.invalid')
     process.env.XAI_API_KEY = key
     check('subscription wins even over the env key like OpenAI', resolveXaiAccount()?.kind === 'grok-subscription')
@@ -120,7 +129,7 @@ try {
       await owner.refreshProviderUsage('xai', { ...io, force: true })
       const pool = owner.usageForProvider('xai')
       const billing = oauth.seen.find(row => row.path === '/proxy/v1/billing')
-      check('the subscription pool reads GET {proxy}/billing?format=credits with the rotated bearer and the CLI client headers, and paints the weekly window with its purchased credits', billing?.bearer === `Bearer ${oauth.rotated}` && billing.headers['x-grok-client-mode'] === 'cli' && pool.sourceKind === 'subscription-oauth' && pool.windows[0]?.label === 'wk' && pool.windows[0].usedPct === 100 && pool.windows[0].resetsAtMs === Date.parse('2026-10-04T20:25:36.625288+00:00') && pool.credits?.display === 'USD 0.00 purchased credits' && pool.tier === 'Grok subscription')
+      check('the subscription pool reads GET {proxy}/billing?format=credits with the rotated bearer, X-XAI-Token-Auth and the CLI client headers, and paints the weekly window with its purchased credits', billing?.bearer === `Bearer ${oauth.rotated}` && billing.headers['x-xai-token-auth'] === 'xai-grok-cli' && billing.headers['x-grok-client-mode'] === 'cli' && pool.sourceKind === 'subscription-oauth' && pool.windows[0]?.label === 'wk' && pool.windows[0].usedPct === 100 && pool.windows[0].resetsAtMs === Date.parse('2026-10-04T20:25:36.625288+00:00') && pool.credits?.display === 'USD 0.00 purchased credits' && pool.tier === 'Grok subscription')
     } finally { delete process.env.MERCURY_XAI_GROK_PROXY_BASE }
     const oauthSlot = deriveFamilySlotGroups().find(group => group.family.id === 'xai')?.slots.find(slot => slot.kind === 'oauth')
     check('account board shows an active OAuth slot with its own removal door', oauthSlot?.active && oauthSlot.removal.route === 'xai-oauth')

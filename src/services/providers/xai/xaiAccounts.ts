@@ -24,12 +24,18 @@ export function xaiChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env, sour
   return `${xaiInferenceBase(source, env)}/chat/completions`
 }
 
+const XAI_GROK_PROXY_TOKEN_AUTH = 'xai-grok-cli'
+
 export function xaiGrokProxyChatHeaders(model: string): Record<string, string> {
-  return { 'X-XAI-Token-Auth': 'xai-grok-cli', 'x-grok-client-version': XAI_GROK_PROXY_CHAT_CLIENT_VERSION, 'x-grok-model-override': model }
+  return { 'X-XAI-Token-Auth': XAI_GROK_PROXY_TOKEN_AUTH, 'x-grok-client-version': XAI_GROK_PROXY_CHAT_CLIENT_VERSION, 'x-grok-model-override': model }
+}
+
+export function xaiGrokProxyListHeaders(): Record<string, string> {
+  return { 'X-XAI-Token-Auth': XAI_GROK_PROXY_TOKEN_AUTH, 'x-grok-client-version': XAI_GROK_PROXY_CHAT_CLIENT_VERSION }
 }
 
 export function xaiGrokProxyBillingHeaders(): Record<string, string> {
-  return { 'x-grok-client-mode': 'cli', 'x-grok-client-version': XAI_GROK_PROXY_CLIENT_VERSION }
+  return { 'X-XAI-Token-Auth': XAI_GROK_PROXY_TOKEN_AUTH, 'x-grok-client-mode': 'cli', 'x-grok-client-version': XAI_GROK_PROXY_CLIENT_VERSION }
 }
 
 export function xaiManagementBase(env: NodeJS.ProcessEnv = process.env): string {

@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert'
-import { XAI_GROK_PROXY_BILLING_REPLY, XAI_GROK_PROXY_MODELS_REPLY } from './xai-auth-fixture.ts'
+import { XAI_API_WRONG_KEY_REPLY, XAI_GROK_PROXY_BILLING_REPLY, XAI_GROK_PROXY_MODELS_REPLY, XAI_GROK_PROXY_NO_TOKEN_AUTH_REPLY } from './xai-auth-fixture.ts'
 
 export const XAI_FIXTURE_API_KEY = 'xai-inference-fixture-not-a-real-key'
 export const XAI_FIXTURE_MANAGEMENT_KEY = 'xai-management-fixture-not-a-real-key'
@@ -30,6 +30,7 @@ export function xaiUsageFixture() {
       const path = url.pathname
       requests.push({ path, method: req.method, headers: Object.fromEntries(req.headers.entries()) })
       const auth = req.headers.get('authorization')
+      if (path.startsWith('/proxy/v1/') && req.headers.get('x-xai-token-auth') !== 'xai-grok-cli') return Response.json(XAI_GROK_PROXY_NO_TOKEN_AUTH_REPLY, { status: 401 })
       if (path === '/proxy/v1/models') {
         assert.equal(auth, `Bearer ${XAI_FIXTURE_SUBSCRIPTION_TOKEN}`)
         return Response.json(XAI_GROK_PROXY_MODELS_REPLY)
@@ -48,12 +49,9 @@ export function xaiUsageFixture() {
         return Response.json({ config: { ...config, ...(state.poolPercent !== undefined ? { creditUsagePercent: state.poolPercent } : {}), prepaidBalance: { val: state.poolPrepaidCents } } })
       }
       assert.ok(auth !== `Bearer ${XAI_FIXTURE_SUBSCRIPTION_TOKEN}`, 'a Grok subscription never reads the API-key or management roads')
-      if (path === '/inference/v1/models') {
-        assert.equal(auth, `Bearer ${XAI_FIXTURE_API_KEY}`)
-        return Response.json({ data: [{ id: 'grok-4.7' }] })
-      }
-      if (path === '/inference/v1/api-key') {
-        assert.equal(auth, `Bearer ${XAI_FIXTURE_API_KEY}`)
+      if (path === '/inference/v1/models' || path === '/inference/v1/api-key') {
+        if (auth !== `Bearer ${XAI_FIXTURE_API_KEY}`) return Response.json(XAI_API_WRONG_KEY_REPLY, { status: 400 })
+        if (path === '/inference/v1/models') return Response.json({ data: [{ id: 'grok-4.7' }] })
         assert.equal(req.method, 'GET')
         return Response.json({ team_id: 'team-fixture', api_key_id: 'id-not-stored', redacted_api_key: 'not-for-display' })
       }
