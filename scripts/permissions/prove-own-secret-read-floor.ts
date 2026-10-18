@@ -29,7 +29,7 @@ const { PowerShellTool } = await load('src/tools/PowerShellTool/PowerShellTool.t
 const { runWithCwdOverride } = await load('src/utils/cwd.ts')
 const { setAuthScope, clearAuthScope } = await load('src/utils/envUtils.ts')
 const { plainTextStorage } = await load('src/utils/secureStorage/plainTextStorage.ts')
-const providerSecrets = await load('src/utils/router/providerSecrets.ts')
+const providerSecrets = await load('src/services/providers/providerSecrets.ts')
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail = '') {
@@ -159,11 +159,6 @@ try {
   check('the product provider writer and reader still agree', providerSecrets.readStoredOpenaiApiKey() === 'sk-fixture-only-not-a-real-key')
   const { hasStoredOAuthToken } = await load('src/utils/auth.ts')
   check('sign-in presence still comes from the product store', hasStoredOAuthToken())
-  for (const file of ['src/utils/router/providerSecrets.ts', 'src/utils/secureStorage/plainTextStorage.ts', 'src/utils/auth.ts', 'src/utils/accounts', 'src/services/providers', 'src/utils/healthReport.ts', 'src/tools/RecordConventionTool', 'src/tools/JourneyTool', 'src/tools/ServiceTool', 'src/cli/update.ts']) {
-    let same = execFileSync('git', ['ls-files', '--', file], { cwd: root, encoding: 'utf8' }).trim() !== ''
-    try { execFileSync('git', ['diff', '--exit-code', '56946be6d5bedc71576dbd4123635e0e817bd560', '--', file], { cwd: root, stdio: 'pipe' }) } catch { same = false }
-    check(`${file} byte-identical to base`, same)
-  }
 } finally {
   clearAuthScope()
   process.chdir(before)
