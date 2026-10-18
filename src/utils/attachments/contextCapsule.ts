@@ -9,6 +9,7 @@ import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { cacheKeys } from '../fileStateCache.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
+import { markMemorySurfaced, memoryRecordId, memorySurfacedThisSession } from './memorySurfaced.js'
 
 interface PriorCapsule {
   digest: string
@@ -196,15 +197,19 @@ export async function getContextCapsuleAttachment(
       snapshotRead,
     })
     if (!capsule) return []
-    const memoryDigest = memoryRefsDigest(capsule.memoryRefs ?? [])
-    const memoryChanged = prior?.memoryDigest !== memoryDigest
+    const surfaced = memorySurfacedThisSession(toolUseContext, messages)
+    const memoryRefs = (capsule.memoryRefs ?? []).filter(ref => !surfaced.has(memoryRecordId(ref)))
+    const memoryDigest = memoryRefsDigest(memoryRefs)
+    const memoryChanged = memoryRefs.length > 0 && prior?.memoryDigest !== memoryDigest
     if (capsule.items.length === 0 && !memoryChanged) return []
-    if (!capsule.items.some(i => i.tier <= 4) && !(memoryChanged && (capsule.memoryRefs?.length || prior?.memoryDigest))) return []
+    if (!capsule.items.some(i => i.tier <= 4) && !memoryChanged) return []
 
     const refs = capsule.items.map(i => i.ref)
     const unseen = capsule.items.filter(i => i.reason !== RECENTLY_OBSERVED_REASON).map(i => i.ref)
-    if (!capsuleShouldEmit(prior, { digest: capsule.digest, semDigest, refs: unseen, memoryDigest })) return []
+    if (!capsuleShouldEmit(prior, { digest: capsule.digest, semDigest, refs: unseen, ...(memoryChanged ? { memoryDigest } : {}) })) return []
     const delta = prior ? deltaLine(prior, refs) : null
+    const memoryIds = memoryChanged ? memoryRefs.map(memoryRecordId) : undefined
+    if (memoryIds) markMemorySurfaced(toolUseContext, memoryIds)
     if (lastAttached.size > 64) {
       const oldest = lastAttached.keys().next().value
       if (oldest !== undefined) lastAttached.delete(oldest)
@@ -214,9 +219,10 @@ export async function getContextCapsuleAttachment(
     return [
       {
         type: 'context_capsule',
-        markdown: renderCapsule(capsule, memoryChanged ? prior?.memoryDigest ? 'changed' : 'include' : 'omit'),
+        markdown: renderCapsule({ ...capsule, memoryRefs }, memoryChanged ? 'include' : 'omit'),
         memoryDigest,
         memoryEmitted: memoryChanged,
+        ...(memoryIds ? { memoryIds } : {}),
         digest: capsule.digest,
         semDigest,
         refs,
@@ -320,6 +326,7 @@ export function foldAttachmentsIntoCapsule(
     semDigest: base?.semDigest ?? prior?.semDigest,
     memoryDigest: base?.memoryDigest ?? prior?.memoryDigest,
     memoryEmitted: base?.memoryEmitted ?? false,
+    ...(base?.memoryIds ? { memoryIds: base.memoryIds } : {}),
     refs: [...new Set([...(base?.refs ?? prior?.refs ?? []), ...workingSet.map(ref => ref.ref)])],
     delta: base?.delta ?? null,
     sections,

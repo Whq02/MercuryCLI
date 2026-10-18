@@ -327,7 +327,7 @@ export function memoryRefsDigest(refs: readonly CapsuleMemoryRef[]): string {
   return createHash('sha256').update(JSON.stringify(refs.map(r => ({ id: r.identity ?? r.refId, library: r.library ?? '', witness: r.witness ?? r.summary, status: r.status, grade: (r.grade ?? '').replace(/cited (?:\d+|unknown)/g, 'cited') })))).digest('hex')
 }
 
-export function renderCapsule(capsule: ContextCapsule, memory: 'include' | 'omit' | 'changed' = 'include'): string {
+export function renderCapsule(capsule: ContextCapsule, memory: 'include' | 'omit' = 'include'): string {
   const lines: string[] = [
     `# Working set (task-scoped, generation ${capsule.generation.treeDigest?.slice(0, 12) ?? 'no-digest'})`,
   ]
@@ -337,13 +337,12 @@ export function renderCapsule(capsule: ContextCapsule, memory: 'include' | 'omit
   if (capsule.caps.omitted.count > 0 || capsule.caps.omitted.reasons.length > 0) {
     lines.push(`(${capsule.caps.omitted.count} omitted: ${capsule.caps.omitted.reasons.join('; ')})`)
   }
-  if (memory !== 'omit' && capsule.memoryRefs && capsule.memoryRefs.length > 0) {
+  if (memory === 'include' && capsule.memoryRefs && capsule.memoryRefs.length > 0) {
     lines.push('Memory (task-scoped refs — dereference before relying; bodies stay in their stores):')
     for (const r of capsule.memoryRefs) {
       const status = r.status === 'current' ? '' : ` [${memoryStatusWords(r)}]`
       lines.push(`- ${r.refId}${status} — ${r.grade ?? memoryGrade({ kind: 'fact' })} ${r.summary} (${r.why})`)
     }
   }
-  if (memory === 'changed' && !capsule.memoryRefs?.length) lines.push('Memory: no task-scoped refs remain; the previous selection is no longer current.')
   return lines.join('\n')
 }

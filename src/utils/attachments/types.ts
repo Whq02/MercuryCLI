@@ -54,7 +54,7 @@ type ContextBodies = {
   context_capsule: {
     markdown: string; digest: string; refs: string[]; delta: string | null
     semDigest?: string; sectionDigest?: string; baseDigest?: string
-    memoryDigest?: string; memoryEmitted?: boolean
+    memoryDigest?: string; memoryEmitted?: boolean; memoryIds?: string[]
     memoryDeliveries?: MemoryDelivery[]
     sections?: CapsuleSection[]; workingSet?: CapsuleWorkingRef[]
   }
