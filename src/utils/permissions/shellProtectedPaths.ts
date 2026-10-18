@@ -132,6 +132,10 @@ async function shellProtectedPath(command: string, powershell: boolean, operands
 }
 
 function runtimeOperands(argv: string[]): Array<{ path: string; removesTree: boolean }> {
+  argv = argv.flatMap(word => {
+    const fused = /^(-(?:literalpath|path|destination|filepath|newname)):(.+)$/i.exec(word)
+    return fused ? [fused[1]!, fused[2]!] : [word]
+  })
   const name = verb(argv[0] ?? '')
   const args = argv.slice(1)
   if (args.some(arg => /^-whatif$/i.test(arg))) return []
@@ -151,10 +155,39 @@ function runtimeOperands(argv: string[]): Array<{ path: string; removesTree: boo
   return targets
 }
 
+function expandPowerShellConstants(text: string): string {
+  const values = new Map<string, string>()
+  let rest = text
+  for (;;) {
+    const assignment = /^\s*\$([a-z_]\w*)\s*=\s*(['"])([^'"$`\r\n]*)\2\s*[;\n]/i.exec(rest)
+    if (!assignment) break
+    values.set(assignment[1]!.toLowerCase(), assignment[3]!)
+    rest = rest.slice(assignment[0].length)
+  }
+  let quote = ''
+  return rest.replace(/`.|''|['"]|\$([a-z_]\w*)/gi, (token, key: string | undefined) => {
+    if (token.startsWith('`') || token === "''") return token
+    if (token === "'" || token === '"') {
+      if (!quote) quote = token
+      else if (quote === token) quote = ''
+      return token
+    }
+    const value = key && quote !== "'" ? values.get(key.toLowerCase()) : undefined
+    return value === undefined ? token : quote ? value : '"' + value + '"'
+  })
+}
+
 export async function shellSelfProtectionReason(command: string, powershell = false): Promise<string | null> {
   const pending = [{ text: command, cwd: getShellCwd(), powershell }]
   while (pending.length) {
     const current = pending.pop()!
+    if (current.powershell) {
+      current.text = expandPowerShellConstants(current.text)
+      for (const call of current.text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
+        const hit = runtimeWritePath(call[2]!, current.cwd, true)
+        if (hit) return 'Changing ' + call[2] + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
+      }
+    }
     const extracted = extractHeredocs(current.text)
     const text = extracted.processedCommand
     const views: string[] = []
@@ -172,6 +205,32 @@ export async function shellSelfProtectionReason(command: string, powershell = fa
       }
       visit(root)
     } else views.push(text)
+    if (!current.powershell && extracted.heredocs.size > 0) {
+      const original = await pinnedCommandAnalysis.parseCommandRaw(current.text)
+      if (original !== null && original !== PARSE_ABORTED) {
+        const substitutions = (node: Node): void => {
+          if (node.type === 'command_substitution') views.push(node.text)
+          else for (const child of node.children) substitutions(child)
+        }
+        substitutions(original)
+      }
+    }
+    if (!current.powershell && root !== null && root !== PARSE_ABORTED) {
+      const parsed = pinnedCommandAnalysis.parseForSecurityFromAst(text, root)
+      if (parsed.kind === 'simple') {
+        let cwd = current.cwd
+        for (const simple of parsed.commands) {
+          if (verb(simple.argv[0] ?? '') === 'cd' && simple.argv[1]) cwd = expandPath(simple.argv[1], cwd)
+          const reason = await runtimeProcessRefusal([simple.argv])
+          if (reason) return reason
+          const argv = [...simple.argv, ...simple.redirects.flatMap(redirect => ['>', '>>', '>|', '&>', '&>>'].includes(redirect.op) ? ['>', '', redirect.target] : [])]
+          for (const target of runtimeOperands(argv)) {
+            const hit = runtimeWritePath(target.path, cwd, target.removesTree)
+            if (hit) return 'Changing ' + target.path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
+          }
+        }
+      }
+    }
     let cwd = current.cwd
     for (const view of views) {
       const commands = groups(view, current.powershell).map(argv => {
@@ -198,7 +257,7 @@ export async function shellSelfProtectionReason(command: string, powershell = fa
         const shell = /^(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)$/.test(name)
         if (shell) {
           const flag = argv.findIndex((word, i) => i > 0 && /^(?:-(?:[a-z]*c|command)|\/[ck])$/i.test(word))
-          if (flag >= 0 && argv[flag + 1] && argv[flag + 1]!.length < current.text.length) pending.push({ text: argv[flag + 1]!, cwd, powershell: /^(?:pwsh|powershell)$/.test(name) })
+          if (flag >= 0 && argv[flag + 1] && argv[flag + 1]!.length < current.text.length) pending.push({ text: argv[flag + 1]!, cwd, powershell: /^(?:pwsh|powershell|cmd)$/.test(name) })
           for (const [placeholder, heredoc] of extracted.heredocs) {
             if (view.includes(placeholder)) pending.push({ text: current.text.slice(heredoc.contentStartIndex, heredoc.contentEndIndex), cwd, powershell: false })
           }

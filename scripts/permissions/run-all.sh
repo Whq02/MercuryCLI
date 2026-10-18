@@ -9,7 +9,7 @@
 # gate-watch: src/tools/BashTool/pathValidation* src/tools/BashTool/readOnlyValidation*
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/seedTranscript.ts scripts/lib/runnerHost.ts scripts/lib/scriptedTurn.ts
 # gate-watch: scripts/api/read-instruction-heading.ts
-# gate-watch: docs/TRUST.md
+# gate-watch: docs/TRUST.md AGENTS.md
 # gate-watch: src/tools/FileReadTool/FileReadTool.ts src/tools/GrepTool/GrepTool.ts src/tools/TransactionTool/TransactionTool.ts
 # gate-watch: src/services/ide/ideTransaction.ts src/utils/fsOperations.ts src/utils/shell/readOnlyCommandValidation.ts src/utils/projectHomeStores.ts
 # gate-watch: src/mneme/mnemeGates.ts src/mneme/paths.ts src/tools/MemoryTools/prompt.ts src/utils/collapseReadSearch.ts src/utils/memoryFileDetection.ts
@@ -45,7 +45,7 @@
 # gate-watch: src/services/tools/toolHooks.ts src/substrate/startupMenu.ts src/tools/ComputerTool/ComputerTool.ts
 # gate-watch: scripts/bash/floor-proof-helpers.ts
 # gate-watch: src/utils/wards/wards.ts src/utils/windowsPaths.ts
-# gate-watch: src/guards/** src/utils/artifactIdentity.ts src/daemon/ownerWatch.ts src/cli/update.ts src/tools/JourneyTool/JourneyTool.ts src/tools/ServiceTool/ServiceTool.ts
+# gate-watch: src/guards/** src/utils/artifactIdentity.ts src/utils/genericProcessUtils.ts src/utils/execFileNoThrow.ts src/daemon/ownerWatch.ts src/cli/update.ts src/tools/JourneyTool/JourneyTool.ts src/tools/ServiceTool/ServiceTool.ts
 # gate-watch: src/hooks/useCanUseTool.tsx src/keybindings/KeybindingContext.tsx
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 set -u

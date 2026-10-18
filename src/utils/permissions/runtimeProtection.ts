@@ -6,6 +6,8 @@ import { describeArtifactIdentity } from '../artifactIdentity.js'
 import { getMercuryHome } from '../envUtils.js'
 import { getShellCwd } from '../Shell.js'
 import { subprocessEnv } from '../subprocessEnv.js'
+import { execFileNoThrow } from '../execFileNoThrow.js'
+import { getAncestorPidsAsync } from '../genericProcessUtils.js'
 import { readDaemonState } from '../../daemon/controlSocket.js'
 import { getProcessStartTokenAsync, isProcessAlive } from '../../daemon/ownerWatch.js'
 import { protectedPathForms } from './protectedPaths.js'
@@ -15,12 +17,12 @@ const inside = (path: string, root: string): boolean => path === root || path.st
 
 function runtimeRoots(): string[] {
   const artifact = describeArtifactIdentity('')
-  const roots = [join(getMercuryHome(), 'runtime'), join(process.env.HOME || homedir(), '.mercury', 'runtime'), posix.dirname(process.execPath.replace(/\\/g, '/'))]
+  const roots = [join(getMercuryHome(), 'runtime'), join(process.env.HOME || homedir(), '.mercury', 'runtime'), ...protectedPathForms(process.execPath).map(path => posix.dirname(path))]
   if (artifact.entry && artifact.distribution !== 'source-run') roots.push(dirname(artifact.entry))
   return roots.flatMap(root => protectedPathForms(root))
 }
 
-export function runtimeWritePath(path: string, cwd = getShellCwd(), removesTree = false): string | null {
+export function runtimeWritePath(path: string, cwd = getShellCwd(), removesTree = true): string | null {
   const roots = runtimeRoots()
   for (const candidate of protectedPathForms(path, cwd)) {
     const conventional = candidate.match(/^(?:\/(?:users|home)\/[^/]+|\/root|[a-z]:\/users\/[^/]+)\/\.mercury\/runtime(?=\/|$)/)?.[0]
@@ -126,6 +128,14 @@ async function launchAgentReason(args: string[], pids: number[]): Promise<string
   return null
 }
 
+async function parentPid(pid: number): Promise<number | undefined> {
+  if (pid === process.pid) return process.ppid
+  if (process.platform === 'win32') return (await getAncestorPidsAsync(pid, 1))[0]
+  const result = await execFileNoThrow('ps', ['-o', 'ppid=', '-p', String(pid)])
+  const parent = Number(result.stdout.trim())
+  return result.code === 0 && parent > 0 ? parent : undefined
+}
+
 export async function runtimeProcessRefusal(commands: string[][]): Promise<string | null> {
   const kills = new Set(['kill', 'pkill', 'killall', 'taskkill', 'stop-process', 'spps', 'launchctl'])
   if (!commands.some(argv => kills.has(name(argv[0] ?? '')) || argv.some(word => kills.has(name(word))))) return null
@@ -139,20 +149,31 @@ export async function runtimeProcessRefusal(commands: string[][]): Promise<strin
       const target = await launchAgentReason(args, pids)
       if (target) return 'Stopping ' + target + ' is refused: it owns Mercury’s running process or daemon.'
     }
-    if (command === 'kill' || command === 'taskkill' || command === 'stop-process' || command === 'spps') {
+    const filters = command === 'taskkill' ? optionValues(args, /^\/fi$/i) : []
+    const filterPids = filters.flatMap(value => /^pid\s+eq\s+(\d+)$/i.exec(value)?.slice(1) ?? [])
+    if (command === 'kill' || command === 'taskkill' || command === 'stop-process' || command === 'spps' || (hasPipedKill && ['get-process', 'gps'].includes(command))) {
       if (command === 'kill' && (args.some(arg => /^-(?:l|L|0)$/.test(arg)) || optionValues(args, /^-(?:s|-signal)$/).some(value => /^(?:0|SIG0)$/i.test(value)))) continue
-      const targets = command === 'taskkill' ? optionValues(args, /^\/pid$/i)
+      if (command === 'kill' && (args.at(-1) === '-1' && args.length > 1 || args.includes('0'))) return 'Killing all processes or the shell process group is refused: it can terminate Mercury’s running process or daemon.'
+      const targets = command === 'taskkill' ? [...optionValues(args, /^\/pid$/i), ...filterPids]
         : command === 'kill' ? positionals(args, /^-(?:s|n|-signal)$/)
         : [...optionValues(args, /^-id$/i), ...positionals(args, /^-(?:name|n|inputobject|erroraction|ea)$/i)]
       const pid = targets.find(target => /^\d+$/.test(target) && pids.includes(Number(target)))
       if (pid) return 'Killing pid ' + pid + ' is refused: it is Mercury’s own process or daemon.'
     }
     if (!kills.has(command) && !(hasPipedKill && ['pgrep', 'get-process', 'gps'].includes(command))) continue
-    const regex = command === 'pkill' || command === 'pgrep'
+    if (filterPids.length && !filterPids.some(pid => pids.includes(Number(pid)))) continue
+    const parents = ['pkill', 'pgrep'].includes(command) ? optionValues(args, /^-(?:P|-parent)$/) : []
+    if (parents.length) {
+      const ownParents = await Promise.all(pids.map(parentPid))
+      if (ownParents.every(parent => parent !== undefined && !parents.includes(String(parent)))) continue
+    }
+    const regex = command === 'pkill' || command === 'pgrep' || (command === 'killall' && args.some(arg => /^-(?:r|-regexp)$/.test(arg)))
     const full = regex && args.some(arg => /^-[^-]*f/.test(arg) || arg === '--full')
     const insensitive = !regex || args.some(arg => /^-[^-]*i/.test(arg) || arg === '--ignore-case')
-    for (const image of selectedImages(argv)) {
-      if (imageMatches(image, regex, full, insensitive)) return 'Killing by image ' + image + ' is refused: it can terminate Mercury’s running process or daemon. Use the pid of the unrelated process instead.'
+    const images = [...selectedImages(argv), ...filters.flatMap(value => /^imagename\s+eq\s+(.+)$/i.exec(value)?.slice(1) ?? [])]
+    for (const image of images) {
+      const exact = regex && args.some(arg => /^-(?:[a-z]*x[a-z]*|-exact)$/.test(arg))
+      if (imageMatches(exact ? '^(?:' + image + ')$' : image, regex, full, insensitive)) return 'Killing by image ' + image + ' is refused: it can terminate Mercury’s running process or daemon. Use the pid of the unrelated process instead.'
     }
   }
   return null
