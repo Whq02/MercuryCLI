@@ -154,6 +154,15 @@ function linkedCrates(manifestPath: string, triple: string): CargoPackage[] {
 }
 
 const LICENSE_FILE = /^(LICENSE|LICENCE|COPYING|NOTICE)([-._].*)?$/i
+const WINDOWS_PATCHED_FILES = ['src/commands.rs', 'src/shell/fs.rs', 'src/sys/windows/fs.rs'] as const
+
+function tarBinary(): string {
+  if (process.platform === 'win32') {
+    const systemTar = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe')
+    if (existsSync(systemTar)) return systemTar
+  }
+  return 'tar'
+}
 
 async function prepareWindowsSource(entry: LockBuildEntry, installRoot: string): Promise<string> {
   if (entry.crate !== 'brush-shell' || entry.crateVersion !== '0.4.0' || entry.crateSha256 === null) fail('the Windows patch requires the pinned brush-shell 0.4.0 archive')
@@ -169,7 +178,7 @@ async function prepareWindowsSource(entry: LockBuildEntry, installRoot: string):
   if (sha256(bytes) !== entry.crateSha256) fail('crate archive sha256 mismatch before extraction')
   const archive = join(installRoot, leaf)
   writeFileSync(archive, bytes)
-  const unpack = run('tar', ['-xf', archive, '-C', installRoot], { capture: true })
+  const unpack = run(tarBinary(), ['-xf', leaf], { capture: true, cwd: installRoot })
   if (unpack.status !== 0) fail('crate extraction failed: ' + (unpack.error?.message ?? unpack.stderr))
   const source = join(installRoot, entry.crate + '-' + entry.crateVersion)
   const deps = join(installRoot, 'deps')
@@ -180,10 +189,12 @@ async function prepareWindowsSource(entry: LockBuildEntry, installRoot: string):
   const checksum = JSON.parse(readFileSync(checksumPath, 'utf8')) as { package: string; files: Record<string, string> }
   if (checksum.package !== '967a82f3b1bf090db686d5fb86424b19725073828532a42f960d5a13bff14ecb') fail('the Windows patch requires the pinned brush-core 0.5.0 archive')
   for (const check of [true, false]) {
-    const applied = run('git', ['apply', ...(check ? ['--check'] : []), '--directory', relative(ROOT, deps).replaceAll('\\', '/'), WINDOWS_PATCH], { capture: true })
+    const applied = run('git', ['-c', 'core.autocrlf=false', 'apply', ...(check ? ['--check'] : []), '--directory', relative(ROOT, deps).replaceAll('\\', '/'), WINDOWS_PATCH], { capture: true })
     if (applied.status !== 0) fail('Windows patch ' + (check ? 'check' : 'apply') + ' failed: ' + (applied.error?.message ?? applied.stderr))
   }
-  checksum.files['src/commands.rs'] = sha256(readFileSync(join(core, 'src', 'commands.rs')))
+  for (const rel of WINDOWS_PATCHED_FILES) {
+    checksum.files[rel] = sha256(readFileSync(join(core, ...rel.split('/'))))
+  }
   writeFileSync(checksumPath, JSON.stringify(checksum) + '\n')
   mkdirSync(join(source, '.cargo'), { recursive: true })
   writeFileSync(join(source, '.cargo', 'config.toml'), vendored.stdout)
