@@ -31,7 +31,7 @@ const WARD_DENIAL_CAP = 25
 
 const TARGET_HEAD_BYTES = 2048
 
-export function readTargetHead(path: string, work?: WardWork): string | undefined {
+export function readTargetHead(path: string, work?: WardWork, bytes = TARGET_HEAD_BYTES): string | undefined {
   let fd: number
   try {
     if (work) countWardWork(work, 'nonblockingOpens')
@@ -39,12 +39,12 @@ export function readTargetHead(path: string, work?: WardWork): string | undefine
   } catch {
     return undefined
   }
-  const buffer = Buffer.alloc(TARGET_HEAD_BYTES)
+  const buffer = Buffer.alloc(bytes)
   let read = 0
   try {
     if (!fstatSync(fd).isFile()) return undefined
     if (work) countWardWork(work, 'headReads')
-    read = readSync(fd, buffer, 0, TARGET_HEAD_BYTES, 0)
+    read = readSync(fd, buffer, 0, bytes, 0)
   } catch {
     return undefined
   } finally {
@@ -243,6 +243,15 @@ export function registerWardsGuard(
         pending.readHead = work === undefined ? readTargetHead : path => readTargetHead(path, work)
         pending.resolvePath = resolveTarget
         pending.startingFolder = startingFolder
+        pending.isMercurySource = path => {
+          const { root } = resolveTarget(path)
+          if (root === undefined || !existsSync(join(root, 'src', 'components', 'mercuryPalette.ts'))) return false
+          try {
+            return JSON.parse(readTargetHead(join(root, 'package.json'), work, 65_536) ?? 'null')?.name === 'mercury'
+          } catch {
+            return false
+          }
+        }
         const refusal = evaluateWards(REFUSAL_WARDS, pending, work)
         if (!refusal.allow && level !== 'warn') return { allow: false, reason: buildWardDenial(refusal, pending.toolName) }
         if (denials < WARD_DENIAL_CAP) {

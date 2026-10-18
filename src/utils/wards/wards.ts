@@ -29,6 +29,7 @@ export type WardRule = {
   otherUserHome?: boolean
   outsideStartingFolderOnly?: boolean
   unattendedOnly?: boolean
+  mercurySourceOnly?: boolean
 }
 
 export type WardVerdict =
@@ -68,6 +69,7 @@ export type PendingToolCall = {
   readHead?: (path: string) => string | undefined
   resolvePath?: (path: string) => ResolvedPath
   startingFolder?: string
+  isMercurySource?: (path: string) => boolean
 }
 
 const EDIT_TOOLS = new Set(['Edit', 'NotebookEdit'])
@@ -201,6 +203,7 @@ export const BUILTIN_WARDS: readonly WardRule[] = [
       '(components/mercuryPalette\\.ts|mercury-ui/sessionAccent\\.ts' +
       '|components/Spinner/(GlimmerMessage\\.tsx|SpinnerGlyph\\.tsx|utils\\.ts))$',
     newContentOnly: true,
+    mercurySourceOnly: true,
   },
   {
     name: 'no-emoji-in-tui-source',
@@ -213,6 +216,7 @@ export const BUILTIN_WARDS: readonly WardRule[] = [
     flags: 'u',
     pathPattern: 'src/(components|screens|commands)/.*\\.(ts|tsx)$',
     newContentOnly: true,
+    mercurySourceOnly: true,
   },
   {
     name: 'no-force-push-protected',
@@ -1197,6 +1201,7 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
         if (work && re !== null) regexWork(work, target.path)
         if (re !== null && re.test(target.path)) continue
       }
+      if (rule.mercurySourceOnly === true && pending.isMercurySource?.(target.path) !== true) continue
       if (rule.generatedPaths !== undefined && target.path) {
         if (bound === null) bound = bindPath(target, pending, work)
         for (const { re, row } of cachedGeneratedPaths(rule)) {
