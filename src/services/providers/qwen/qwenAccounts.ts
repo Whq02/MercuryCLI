@@ -20,6 +20,8 @@ export const QWEN_SHARED_ENDPOINTS: readonly QwenEndpoint[] = [
   { id: 'singapore', label: 'International (Singapore)', plan: 'pay-as-you-go', baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' },
   { id: 'beijing', label: 'China (Beijing)', plan: 'pay-as-you-go', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
   { id: 'hongkong', label: 'China (Hong Kong)', plan: 'pay-as-you-go', baseUrl: 'https://cn-hongkong.dashscope.aliyuncs.com/compatible-mode/v1' },
+  { id: 'qwencloud-token-plan', label: 'QwenCloud Token Plan', plan: 'token-plan', baseUrl: 'https://token-plan.maas.qwencloudapi.com/compatible-mode/v1' },
+  { id: 'qwencloud', label: 'QwenCloud (pay-as-you-go)', plan: 'pay-as-you-go', baseUrl: 'https://maas.qwencloudapi.com/compatible-mode/v1' },
   { id: 'coding-intl', label: 'Coding Plan (international)', plan: 'coding-plan', baseUrl: 'https://coding-intl.dashscope.aliyuncs.com/v1' },
   { id: 'coding-cn', label: 'Coding Plan (China)', plan: 'coding-plan', baseUrl: 'https://coding.dashscope.aliyuncs.com/v1' },
   { id: 'token-plan-intl', label: 'Token Plan (Singapore)', plan: 'token-plan', baseUrl: 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1' },
@@ -66,7 +68,7 @@ function qwenKeyIsCodingPlan(key: string): boolean {
 
 export function qwenProbeLane(key: string, env: NodeJS.ProcessEnv = process.env): QwenEndpoint[] {
   const coding = qwenKeyIsCodingPlan(key)
-  return qwenProbeEndpoints(env).filter(endpoint => (endpoint.plan === 'coding-plan') === coding)
+  return qwenProbeEndpoints(env).filter(endpoint => (endpoint.id === 'qwencloud-token-plan' || endpoint.plan === 'coding-plan') === coding)
 }
 
 function qwenEndpointForBase(baseUrl: string, env: NodeJS.ProcessEnv = process.env): QwenEndpoint | undefined {
@@ -190,6 +192,6 @@ function qwenEndpointListWords(env: NodeJS.ProcessEnv = process.env, key?: strin
 }
 
 export function qwenUnboundKeyRefusal(env: NodeJS.ProcessEnv = process.env, key?: string): string {
-  const lane = key === undefined ? '' : qwenKeyIsCodingPlan(key) ? ` (a key beginning ${QWEN_CODING_PLAN_KEY_PREFIX} is a Coding Plan key, read on the Coding Plan endpoints alone)` : ` (a Coding Plan key begins ${QWEN_CODING_PLAN_KEY_PREFIX}; this one does not, so the Coding Plan endpoints were not asked)`
+  const lane = key === undefined ? '' : qwenKeyIsCodingPlan(key) ? ` (a key beginning ${QWEN_CODING_PLAN_KEY_PREFIX} is a Token Plan or Coding Plan key, read on the QwenCloud Token Plan and the Coding Plan endpoints)` : ` (a Coding Plan key begins ${QWEN_CODING_PLAN_KEY_PREFIX}; this one does not, so the Coding Plan endpoints were not asked)`
   return `this key belongs to no Model Studio region or plan Mercury knows — it was minted for none of: ${qwenEndpointListWords(env, key)}${lane}; ${QWEN_BASE_OVERRIDE_ENV} names the endpoint it was minted for (a workspace-dedicated domain needs ${QWEN_WORKSPACE_ENV} or the full URL)`
 }

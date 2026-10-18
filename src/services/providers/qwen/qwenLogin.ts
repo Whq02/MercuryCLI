@@ -10,7 +10,7 @@ interface QwenKeyLoginOutcome {
   receipt: string
 }
 
-const QWEN_KEY_PAGE_WORDS = 'modelstudio.alibabacloud.com (API-KEY, in the region the key is for)'
+const QWEN_KEY_PAGE_WORDS = 'qwencloud.com (API Keys) or modelstudio.alibabacloud.com (API-KEY, in the region the key is for)'
 const QWEN_KEY_RECEIPT_TAIL = 'Text models only; the key is bound to the region and plan it was minted in, so requests ride that endpoint alone. Usage and balance are shown in the Model Studio console (no endpoint states them to an API key).'
 export const QWEN_KEY_KINDS_LINE = 'A Model Studio API key (pay-as-you-go or Token Plan) or a Coding Plan key (sk-sp-…): each binds to the endpoint that accepts it.'
 export const QWEN_KEY_KINDS_SHORT = 'Model Studio or Coding Plan (sk-sp-…) key'
