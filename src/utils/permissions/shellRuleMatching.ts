@@ -17,8 +17,8 @@ export function knownShellCommandPrefix(command: string): string | null {
   if (/[;&|<>\\\n\r$`*()]/.test(command) || isDestructiveCommandVerb(command)) return null
   const words = command.trim().split(/\s+/)
   const first = words[0] ?? ''
-  const isRelativeScript = /^\.\/[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(first) && !first.includes('//') && !first.split('/').includes('..')
-  const firstLeaf = (first.split('/').pop() ?? '').replace(/\.[a-z0-9]+$/i, '').toLowerCase()
+  const isRelativeScript = /^\.[\\/][a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(first) && !/[\\/]{2}/.test(first) && !first.split(/[\\/]/).includes('..')
+  const firstLeaf = (first.split(/[\\/]/).pop() ?? '').replace(/\.[a-z0-9]+$/i, '').toLowerCase()
   if ((!isRelativeScript && !/^[a-z][a-z0-9-]*$/.test(first)) || UNSCOPED_EXECUTORS.has(firstLeaf)) return null
   let arity = 1
   let longest = 0
@@ -29,7 +29,7 @@ export function knownShellCommandPrefix(command: string): string | null {
       arity = count
     }
   }
-  if (words.length < arity || words.slice(1, arity).some(word => !/^(?:\.\/)?[a-zA-Z0-9][a-zA-Z0-9:._/-]*$/.test(word) || word.includes('//') || word.split('/').includes('..'))) return null
+  if (words.length < arity || words.slice(1, arity).some(word => !/^(?:\.[\\/])?[a-zA-Z0-9][a-zA-Z0-9:._/-]*$/.test(word) || /[\\/]{2}/.test(word) || word.split(/[\\/]/).includes('..'))) return null
   return words.slice(0, arity).join(' ')
 }
 
