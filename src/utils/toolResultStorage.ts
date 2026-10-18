@@ -6,7 +6,8 @@ import { getOriginalCwd, getSessionId } from '../bootstrap/state.js'
 import type { Tool } from '../Tool.js'
 import type { Message } from '../types/message.js'
 import type { ToolResultBlockParam } from '../types/wire.js'
-import { DEFAULT_MAX_RESULT_SIZE_CHARS, MAX_TOOL_RESULTS_PER_MESSAGE_CHARS } from '../constants/toolLimits.js'
+import { DEFAULT_MAX_RESULT_SIZE_CHARS, toolResultBudgetsForWindow } from '../constants/toolLimits.js'
+import { resolveContextWindow } from './model/capabilities.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage, getErrnoCode, getErrnoPath } from './errors.js'
 import { formatFileSize } from './format.js'
@@ -52,9 +53,14 @@ export type ContentReplacementState = {
   budgetChars?: number
 }
 
-function getPersistenceThreshold(declaredMaxResultSizeChars: number): number {
+function getPersistenceThreshold(declaredMaxResultSizeChars: number, model?: string): number {
   if (!Number.isFinite(declaredMaxResultSizeChars)) return declaredMaxResultSizeChars
-  return Math.min(declaredMaxResultSizeChars, DEFAULT_MAX_RESULT_SIZE_CHARS)
+  return Math.min(declaredMaxResultSizeChars, resultBudgetsForModel(model).resultChars)
+}
+
+function resultBudgetsForModel(model?: string): ReturnType<typeof toolResultBudgetsForWindow> {
+  const window = model ? resolveContextWindow(model) : undefined
+  return toolResultBudgetsForWindow(window?.source === 'fallback' ? undefined : window?.effectiveWindow)
 }
 
 export function getToolResultsDir(): string {
@@ -227,13 +233,14 @@ export async function processToolResultBlock<T>(
   tool: Tool,
   toolUseResult: T,
   toolUseID: string,
+  model?: string,
 ): Promise<ToolResultBlockParam> {
   const block = (
     tool as unknown as {
       mapToolResultToToolResultBlockParam: (result: T, id: string) => ToolResultBlockParam
     }
   ).mapToolResultToToolResultBlockParam(toolUseResult, toolUseID)
-  const threshold = getPersistenceThreshold((tool as { maxResultSizeChars?: number }).maxResultSizeChars ?? DEFAULT_MAX_RESULT_SIZE_CHARS)
+  const threshold = getPersistenceThreshold((tool as { maxResultSizeChars?: number }).maxResultSizeChars ?? DEFAULT_MAX_RESULT_SIZE_CHARS, model)
   return applySizePersistence(block, tool.name, threshold)
 }
 
@@ -242,8 +249,9 @@ export async function processPreMappedToolResultBlock(
   toolName: string,
   maxResultSizeChars: number,
   room?: ResultRoomShare,
+  model?: string,
 ): Promise<ToolResultBlockParam> {
-  return applySizePersistence(block, toolName, getPersistenceThreshold(maxResultSizeChars), room)
+  return applySizePersistence(block, toolName, getPersistenceThreshold(maxResultSizeChars, model), room)
 }
 
 export function createContentReplacementState(): ContentReplacementState {
@@ -280,8 +288,9 @@ export async function enforceToolResultBudget(
   messages: Message[],
   state: ContentReplacementState,
   skipToolNames: ReadonlySet<string> = new Set(),
+  model?: string,
 ): Promise<{ messages: Message[]; replacements: ToolResultReplacementRecord[] }> {
-  const limit = state.budgetChars ?? MAX_TOOL_RESULTS_PER_MESSAGE_CHARS
+  const limit = state.budgetChars ?? resultBudgetsForModel(model).messageChars
 
   const groups: BudgetCandidate[][] = []
   let currentGroup: BudgetCandidate[] = []
@@ -434,9 +443,10 @@ export async function applyToolResultBudget(
   state: ContentReplacementState | undefined,
   writeToTranscript?: (records: ToolResultReplacementRecord[]) => void | Promise<void>,
   skipToolNames?: ReadonlySet<string>,
+  model?: string,
 ): Promise<Message[]> {
   if (!state) return messages
-  const result = await enforceToolResultBudget(messages, state, skipToolNames ?? new Set())
+  const result = await enforceToolResultBudget(messages, state, skipToolNames ?? new Set(), model)
   if (writeToTranscript && result.replacements.length > 0) {
     await writeToTranscript(result.replacements)
   }

@@ -1023,6 +1023,7 @@ async function* runEventMachine(
         messages,
         owner: ownerFromToolUseContext(toolUseContext),
         querySource,
+        engineModel: toolUseContext.options.engineModel,
         contentReplacementState: toolUseContext.contentReplacementState,
         persistReplacements: persistReplacements
           ? async records => {

@@ -620,10 +620,7 @@ export async function runHeadless(
   const messages: Message[] = loaded.messages
   resumeOf = loaded.resumedSessionId
   turnsRun = priorTurnCount(messages)
-  let contentReplacementState = {
-    ...reconstructContentReplacementState(messages, loaded.contentReplacements ?? []),
-    budgetChars: Infinity,
-  }
+  let contentReplacementState = reconstructContentReplacementState(messages, loaded.contentReplacements ?? [])
 
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
@@ -1802,10 +1799,7 @@ export async function runHeadless(
         restoreSessionMetadata(resumed)
         messages.splice(0, messages.length, ...resumed.messages)
         turnsRun = priorTurnCount(messages)
-        contentReplacementState = {
-          ...reconstructContentReplacementState(messages, resumed.contentReplacements ?? []),
-          budgetChars: Infinity,
-        }
+        contentReplacementState = reconstructContentReplacementState(messages, resumed.contentReplacements ?? [])
       } else {
         switchSession(sid as SessionId, claimedHome)
       }

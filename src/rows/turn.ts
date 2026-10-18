@@ -282,10 +282,7 @@ export class Conversation {
     this.config = config
     this.mutableMessages = [...(config.initialMessages ?? [])]
     this.readFileState = config.readFileState
-    this.contentReplacementState = config.contentReplacementState ?? {
-      ...reconstructContentReplacementState(this.mutableMessages, []),
-      budgetChars: Infinity,
-    }
+    this.contentReplacementState = config.contentReplacementState ?? reconstructContentReplacementState(this.mutableMessages, [])
     this.abortController = config.abortController ?? new AbortController()
     this.userSpecifiedModel = config.userSpecifiedModel
   }

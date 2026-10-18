@@ -42,6 +42,7 @@ interface RequestContextPlanInput {
   messages: Message[]
   owner: OwnerKey
   querySource: QuerySource
+  engineModel?: string
   contentReplacementState: ContentReplacementState | undefined
   persistReplacements?: (records: ToolResultReplacementRecord[]) => void | Promise<void>
   skipToolNames: ReadonlySet<string>
@@ -177,17 +178,17 @@ export async function buildRequestContextPlan(
   if (input.contentReplacementState) {
     const state =
       mode === 'apply'
-        ? input.preserveBodies ? cloneContentReplacementState(input.contentReplacementState) : input.contentReplacementState
+        ? input.contentReplacementState
         : cloneContentReplacementState(input.contentReplacementState)
-    if (input.preserveBodies) state.budgetChars = Infinity
-    const seenBefore = state.seenIds.size
+    const replacedBefore = state.replacements.size
     view = await applyToolResultBudget(
       view,
       state,
       mode === 'apply' ? input.persistReplacements : undefined,
       new Set([...(input.skipToolNames ?? []), ...PROTECTED_TOOL_NAMES]),
+      input.engineModel,
     )
-    budgetReplacements = input.preserveBodies ? 0 : state.seenIds.size - seenBefore
+    budgetReplacements = state.replacements.size - replacedBefore
     if (budgetReplacements > 0) {
       reasons.push(`tool-result budget replaced ${budgetReplacements} oversized result(s)`)
     }

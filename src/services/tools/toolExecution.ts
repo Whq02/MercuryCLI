@@ -848,6 +848,7 @@ async function runTransactionBody(args: {
         tool.name,
         tool.maxResultSizeChars,
         room === null || room.reserved(toolUseID) ? undefined : { shareChars: room.allowance(toolUseID) * 4, words: RESULT_ROOM_WORDS },
+        toolUseContext.options.engineModel,
       )
       if (room !== null) {
         const landed = (processed as { content?: unknown }).content
