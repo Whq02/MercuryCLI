@@ -26,7 +26,7 @@ const defaultIo: LspCliIo = {
   },
   run: argv =>
     new Promise(resolveCode => {
-      const child = spawn(argv[0]!, argv.slice(1), { stdio: 'inherit', env: subprocessEnv() })
+      const child = spawn(argv[0]!, argv.slice(1), { stdio: 'inherit', env: subprocessEnv(), windowsHide: true })
       child.on('error', () => resolveCode(null))
       child.on('exit', code => resolveCode(code))
     }),
