@@ -1,6 +1,6 @@
 
 import { ChildProcess } from 'node:child_process'
-import { startMetadataProxy } from './metadataProxy.js'
+import { chromeNetErrorFor, startMetadataProxy } from './metadataProxy.js'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Browser as DriverBrowser, HTTPRequest, LaunchOptions, Page } from 'puppeteer-core'
@@ -824,12 +824,26 @@ async function launchOwnerSession(
   let unhanded: DriverBrowser | null = null
   let proxyClose: (() => void) | undefined
   const networkRefusal: Session['networkRefusal'] = { count: 0, last: null }
+  const relayFailures = new Map<string, { code: string; at: number }>()
+  const relayFailureFor = (url: string): { code: string; at: number } | null => {
+    let origin = ''
+    try { origin = new URL(url).origin } catch { return null }
+    const hit = relayFailures.get(url) ?? relayFailures.get(origin)
+    if (hit === undefined || Date.now() - hit.at > 15_000) return null
+    return hit
+  }
   try {
     if (rotating !== null) {
       ;(rotating as { closeNetwork?: () => void }).closeNetwork?.()
       await closeChild(rotating.browser)
     }
-    const proxy = await startMetadataProxy(reason => { networkRefusal.last = reason; networkRefusal.count++ })
+    const proxy = await startMetadataProxy(
+      reason => { networkRefusal.last = reason; networkRefusal.count++ },
+      (target, code) => {
+        relayFailures.set(target, { code, at: Date.now() })
+        if (relayFailures.size > 32) relayFailures.delete(relayFailures.keys().next().value!)
+      },
+    )
     proxyClose = proxy.close
     const launch: LaunchDriver =
       launchDriverForProof ?? (async options => (await import('puppeteer-core')).default.launch(options))
@@ -1060,7 +1074,9 @@ async function launchOwnerSession(
       })()
     })
     page.on('requestfailed', request => {
-      const errorText = request.failure()?.errorText ?? ''
+      const chromeText = request.failure()?.errorText ?? ''
+      const relay = chromeText === 'net::ERR_ABORTED' ? null : relayFailureFor(request.url())
+      const errorText = relay === null ? chromeText : `net::${chromeNetErrorFor(relay.code)}`
       if (isMainNavigation(request)) {
         if (errorText === 'net::ERR_ABORTED') navWatch.abortedAt = Date.now()
         else navFailure.last = { url: redactUrl(request.url()), errorText, at: Date.now() }

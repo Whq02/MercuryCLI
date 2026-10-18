@@ -623,6 +623,10 @@ section('§9 write only (fs.writeTextFile: true, fs.readTextFile: false, termina
 
 section('§10 the sandbox is on: Bash stays in the local sandbox and is never sent to the editor terminal')
 {
+  const { SandboxManager } = await import('../../src/utils/sandbox/sandbox-adapter.ts')
+  const sandboxDeps = SandboxManager.checkDependencies()
+  const sandboxRunsHere = sandboxDeps.errors.length === 0
+  if (!sandboxRunsHere) console.log(`  this host cannot run the sandbox (${sandboxDeps.errors.join('; ')}): the setting does not take, so the command rides the editor terminal — the host's own law is read instead`)
   mkdirSync(join(projDir, '.mercury'), { recursive: true })
   writeFileSync(join(projDir, '.mercury', 'settings.local.json'), JSON.stringify({ guardrails: { sandbox: { enabled: true } } }))
   const api = await startFixtureApi([
@@ -644,8 +648,13 @@ section('§10 the sandbox is on: Bash stays in the local sandbox and is never se
     const res = await h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'sandboxed bash' }] })
     check('turn completes', res.stopReason === 'end_turn', j(res))
     const results = toolResultStrings(h.updates)
-    check('no terminal request reached the editor while the sandbox is on', h.termCalls.length === 0, j(h.termCalls.map(c => c.op)))
-    check('the command ran locally', results.some(r => r.includes('sandboxed-local')) && !results.some(r => r.includes('from-the-editor-terminal')), j(results))
+    if (sandboxRunsHere) {
+      check('no terminal request reached the editor while the sandbox is on', h.termCalls.length === 0, j(h.termCalls.map(c => c.op)))
+      check('the command ran locally', results.some(r => r.includes('sandboxed-local')) && !results.some(r => r.includes('from-the-editor-terminal')), j(results))
+    } else {
+      check('a host without the sandbox launcher keeps the sandbox off, so the command rides the editor terminal', h.termCalls.some(c => c.op === 'create'), j(h.termCalls.map(c => c.op)))
+      check('the editor terminal answered the command on that host', results.some(r => r.includes('from-the-editor-terminal')) && !results.some(r => r.includes('sandboxed-local')), j(results))
+    }
     await h.agent.request('session/close', { sessionId }).catch(() => {})
   } finally {
     h.close()

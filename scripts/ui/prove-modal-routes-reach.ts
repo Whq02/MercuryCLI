@@ -58,6 +58,8 @@ const { setActiveMission } = await import('../../src/guards/mission.ts')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
 const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+const { SandboxManager } = await import('../../src/utils/sandbox/sandbox-adapter.ts')
+const sandboxListsModes = SandboxManager.checkDependencies().errors.length === 0
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { mkdirSync: mkdirp } = await import('node:fs')
 const { dirname } = await import('node:path')
@@ -302,7 +304,7 @@ const boxedMarker = (lines: string[]): boolean => {
   const rows = region(lines)
   return rows.some((line, index) => /^│\s*╭─+╮\s*│/.test(line) && /^│\s*│ \S/.test(rows[index + 1] ?? ''))
 }
-const MARKER_ALWAYS = new Set(['accounts', 'appearance', 'caching', 'capabilities', 'console', 'critter', 'defaultprovider', 'effort', 'export', 'feedback', 'health', 'hooks', 'keys', 'logins', 'memory', 'model', 'palette', 'samples', 'sandbox', 'sessions', 'showcase', 'submodels'])
+const MARKER_ALWAYS = new Set(['accounts', 'appearance', 'caching', 'capabilities', 'console', 'critter', 'defaultprovider', 'effort', 'export', 'feedback', 'health', 'hooks', 'keys', 'logins', 'memory', 'model', 'palette', 'samples', ...(sandboxListsModes ? ['sandbox'] : []), 'sessions', 'showcase', 'submodels'])
 const MARKER_AFTER_WALK = new Set(['permissions'])
 const MARKER_WIDE_NAV = new Set(['extensions', 'workbench'])
 const diffListsFiles = (lines: string[]): boolean => region(lines).some(line => /Mercury — diff · \d+ files? /.test(line))

@@ -245,6 +245,18 @@ export function driverFailureWords(op: string, message: string): string | null {
   return null
 }
 
+function relayNamedFailure(s: LiveSession, url: string, err: unknown): unknown {
+  const last = s.navFailure.last
+  const message = (err as Error)?.message
+  if (last === null || typeof message !== 'string' || !/^net::ERR_[A-Z_]+ at /.test(message)) return err
+  const q = url.indexOf('?')
+  const spelled = q === -1 ? url : `${url.slice(0, q)}?…`
+  if (last.url !== spelled || message.startsWith(`${last.errorText} at `)) return err
+  const named = new Error(`${last.errorText} at ${url}`)
+  named.name = (err as Error).name
+  return named
+}
+
 export function browserGoneMidOpWords(op: string): string {
   return `${op}: the browser is gone (its process exited mid-op) — op:"open" starts a new one`
 }
@@ -1174,7 +1186,8 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               signal: signalFor(s),
             })
           } catch (err) {
-            if (!/net::ERR_ABORTED/.test((err as Error).message)) throw err
+            const message = (err as Error).message
+            if (!/net::ERR_ABORTED/.test(message)) throw relayNamedFailure(s, input.url!, err)
             await settleAfterAct(s, 1000, openMarks)
             if (s.downloads.count === openMarks.downloads || s.downloads.last === null) throw err
             result = `open failed: ${input.url} is ${downloadWords(s.downloads.last)}`

@@ -1,4 +1,4 @@
-import { createServer, request } from 'node:http'
+import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http'
 import { connect, type LookupFunction, type Socket } from 'node:net'
 import { metadataSafeAddresses } from '../../tools/WebFetchTool/privateHost.js'
 
@@ -10,8 +10,36 @@ async function destination(target: URL): Promise<{ host: string; lookup: LookupF
   } }
 }
 
-export async function startMetadataProxy(onRefusal: (reason: string) => void): Promise<{ port: number; close: () => void }> {
+const CHROME_NET_ERRORS: Record<string, string> = {
+  ECONNREFUSED: 'ERR_CONNECTION_REFUSED',
+  ECONNRESET: 'ERR_CONNECTION_RESET',
+  ECONNABORTED: 'ERR_CONNECTION_ABORTED',
+  ETIMEDOUT: 'ERR_CONNECTION_TIMED_OUT',
+  EHOSTUNREACH: 'ERR_ADDRESS_UNREACHABLE',
+  ENETUNREACH: 'ERR_ADDRESS_UNREACHABLE',
+  ENOTFOUND: 'ERR_NAME_NOT_RESOLVED',
+  EAI_AGAIN: 'ERR_NAME_NOT_RESOLVED',
+  EPIPE: 'ERR_CONNECTION_ABORTED',
+}
+
+export function chromeNetErrorFor(code: string): string {
+  return CHROME_NET_ERRORS[code] ?? 'ERR_CONNECTION_FAILED'
+}
+
+export type UpstreamUnreachable = (target: string, code: string) => void
+
+function dropBrowserSide(incoming: IncomingMessage, outgoing: ServerResponse): void {
+  const socket = incoming.socket as Socket | undefined
+  if (socket !== undefined && socket !== null && typeof socket.destroy === 'function') socket.destroy()
+  else outgoing.destroy()
+}
+
+export async function startMetadataProxy(onRefusal: (reason: string) => void, onUnreachable: UpstreamUnreachable = () => {}): Promise<{ port: number; close: () => void }> {
   const sockets = new Set<Socket>()
+  const unreachable = (target: string, error: unknown): void => {
+    const code = (error as { code?: unknown })?.code
+    onUnreachable(target, typeof code === 'string' && code.length > 0 ? code : 'EUNKNOWN')
+  }
   let closed = false
   const track = (socket: Socket): Socket => {
     sockets.add(socket)
@@ -38,8 +66,8 @@ export async function startMetadataProxy(onRefusal: (reason: string) => void): P
       })
       upstream.on('socket', track)
       upstream.on('error', error => {
-        if (!outgoing.headersSent) outgoing.writeHead(502)
-        outgoing.end(error.message)
+        unreachable(target.href, error)
+        dropBrowserSide(incoming, outgoing)
       })
       outgoing.on('close', () => upstream.destroy())
       incoming.pipe(upstream)
@@ -60,7 +88,10 @@ export async function startMetadataProxy(onRefusal: (reason: string) => void): P
         if (head.length) upstream.write(head)
         downstream.pipe(upstream).pipe(downstream)
       })
-      upstream.on('error', () => downstream.destroy())
+      upstream.on('error', error => {
+        unreachable(target.origin, error)
+        downstream.destroy()
+      })
       downstream.on('error', () => upstream.destroy())
       downstream.on('close', () => upstream.destroy())
     })().catch(error => {
@@ -81,7 +112,10 @@ export async function startMetadataProxy(onRefusal: (reason: string) => void): P
         if (head.length) upstream.write(head)
         downstream.pipe(upstream).pipe(downstream)
       })
-      upstream.on('error', () => downstream.destroy())
+      upstream.on('error', error => {
+        unreachable(target.href, error)
+        downstream.destroy()
+      })
       downstream.on('error', () => upstream.destroy())
       downstream.on('close', () => upstream.destroy())
     })().catch(error => {
