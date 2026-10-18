@@ -218,6 +218,9 @@ export function CrewView({
   }
 
   const width = popup ? Math.max(0, Math.min(columns, 120)) : Math.max(56, (columns || 80) - 6)
+  const bodyRows = Math.max(1, (termRows || 24) - 5)
+  const headerRows = (presence === 'blank' || presence === 'dormant' ? 1 : 0) + (pauseChip !== null ? 1 : 0) + 1 + (doorNote !== null ? 1 : 0)
+  const rowRoom = bodyRows - 1 - headerRows
   const visible = Math.max(4, (termRows || 24) - 9)
   const win = fitMeasuredWindow(rows.length, visible, span => paneWindow(rows.length, sel, span), window =>
     rows.slice(window.start, window.end).reduce((height, row) => height + 1 + (row.facts.state === 'paused' ? wrapText(crewStatusWords(row.facts, now), Math.max(1, width - 4), 'wrap').split('\n').length : 0), 0),
@@ -237,7 +240,7 @@ export function CrewView({
 
   return (
     <CommandCenter elevated view="crew" subtitle={crewCountLabel(crewmates)} onClose={onClose} footer={footer} captureInput={false}>
-      <Box marginTop={1} flexDirection="column">
+      <Box marginTop={rowRoom <= 0 ? 0 : 1} flexDirection="column">
         {presence === 'blank' ? (
           <Text color={tokens.textMuted}>no chat is focused — a session's crewmates list here</Text>
         ) : null}
@@ -256,18 +259,25 @@ export function CrewView({
           <Text color={tokens.textMuted}>
             {workUnreported(roster) ? `· ${WORK_UNREPORTED_LINE}` : `· ${CREW_EMPTY_LINE} — ${CREW_EMPTY_DOOR}`}
           </Text>
-        ) : null}
-        {win.above > 0 ? <Text color={tokens.textMuted}>  ↑ {win.above} earlier</Text> : null}
-        {rows.slice(win.start, win.end).map((row, wi) => {
-          const gi = win.start + wi
-          const on = gi === sel
-          return (
-            <React.Fragment key={row.id}>
-              <AgentRow facts={row.facts} on={on} now={now} width={width} billed={billed} asks={asks} />
-            </React.Fragment>
-          )
-        })}
-        {win.below > 0 ? <Text color={tokens.textMuted}>  ↓ {win.below} later</Text> : null}
+        ) : rowRoom <= 0 ? (
+          <Text color={tokens.textMuted} wrap="truncate-end">
+            {`· ${rows.length} crewmate${rows.length === 1 ? '' : 's'} cannot paint at this height — ↵ opens ${selectedRow?.facts.name ?? 'the first'}`}
+          </Text>
+        ) : (
+          <>
+            {win.above > 0 ? <Text color={tokens.textMuted}>  ↑ {win.above} earlier</Text> : null}
+            {rows.slice(win.start, win.end).map((row, wi) => {
+              const gi = win.start + wi
+              const on = gi === sel
+              return (
+                <React.Fragment key={row.id}>
+                  <AgentRow facts={row.facts} on={on} now={now} width={width} billed={billed} asks={asks} />
+                </React.Fragment>
+              )
+            })}
+            {win.below > 0 ? <Text color={tokens.textMuted}>  ↓ {win.below} later</Text> : null}
+          </>
+        )}
         {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted} wrap="truncate-middle">· {doorNote.text}</Text> : null}
       </Box>
     </CommandCenter>

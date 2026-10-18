@@ -310,11 +310,12 @@ section('§2 refusals: an empty roster, the stop chord, the monitor card')
   await scene.close()
 }
 
-section('§3 80x16: the list has no row to paint, ↵ still enters the selected row\'s view and the one-line band shows the card')
+section('§3 80x16: the list has no row to paint, says what it cannot paint, ↵ still enters the selected row\'s view and the one-line band shows the card')
 {
   const scene = await openScene(80, 16, false)
   openCrewView()
   await until(() => isCrewViewOpen() && scene.lines().some(line => line.includes('Crewmates (2)')))
+  check('80x16: the popup says what it cannot paint rather than nothing', scene.lines().some(line => line.includes('2 crewmates cannot paint at this height — ↵ opens scout one')), scene.lines().filter(l => l.trim() !== '').join(' | '))
   scene.push(ENTER)
   check('80x16: ↵ enters the first row\'s view', await until(() => viewing() === 'agent-1' && !isCrewViewOpen()), `viewing ${viewing()} · open ${isCrewViewOpen()}`)
   check('80x16: the one-line band names the crewmate and the way back', await until(() => scene.lines().some(line => line.includes('◉ scout one') && line.includes('esc'))), scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | '))
