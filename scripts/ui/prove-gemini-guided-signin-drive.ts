@@ -234,13 +234,14 @@ function composerEnd(receipt = true): Send[] {
 function walkSends(): Send[] {
   return [
     ...openCard(),
-    gate('Connect Google Gemini', '\r', 'card'),
-    gate('create a key', FIXTURE_KEY, 'key-leg'),
+    gate('Connect Google Gemini', '\x1b[B', 'card'),
+    gate('❯ 2. API key', '\r'),
+    gate('AI Studio opened: create a key there.', FIXTURE_KEY, 'key-leg'),
     after(4, '\r'),
     gate('Gemini API key stored', '', 'key-receipt'),
     ...reopenCard(),
-    gate('connected (stored locally)', '\x1b[B', 'card-connected'),
-    after(3, '\r'),
+    gate('connected (stored locally)', '\x1b[B\x1b[B', 'card-connected'),
+    gate('❯ 3. Google account', '\r'),
     gate('step 1 of 6', '\r', 'step1'),
     gate('step 2 of 6', '\r', 'step2'),
     gate('step 3 of 6', '\r', 'step3'),
@@ -248,15 +249,13 @@ function walkSends(): Send[] {
     gate('step 5 of 6', FIXTURE_CLIENT, 'step5'),
     after(4, '\r'),
     gate('Client secret', '\r', 'step5-secret', 3),
-    gate('step 6 of 6', '', 'step6'),
-    after(2, PASTED_CODE),
+    gate('If nothing opened, visit:', PASTED_CODE, 'step6'),
     after(3, '\r'),
     gate('Gemini connected: Google account', '', 'oauth-receipt'),
     ...reopenCard(),
-    gate('Google account — connected', '\x1b[B', 'card-after'),
-    after(3, '\r'),
-    gate('step 6 of 6', '', 'step6-direct'),
-    after(2, PASTED_CODE),
+    gate('Google account — connected', '\x1b[B\x1b[B', 'card-after'),
+    gate('❯ 3. Google account', '\r'),
+    gate('If nothing opened, visit:', PASTED_CODE, 'step6-direct'),
     after(3, '\r'),
     gate('Gemini connected: Google account', '', 'end-receipt', 6),
     ...composerEnd(),
@@ -266,17 +265,15 @@ function walkSends(): Send[] {
 function deniedSends(): Send[] {
   return [
     ...openCard(),
-    gate('the client id is stored', '\x1b[B', 'card-stored'),
-    after(3, '\r'),
-    gate('step 6 of 6', '', 'denied-step6-first'),
-    after(2, PASTED_REFUSAL),
+    gate('the client id is stored', '\x1b[B\x1b[B', 'card-stored'),
+    gate('❯ 3. Google account', '\r'),
+    gate('If nothing opened, visit:', PASTED_REFUSAL, 'denied-step6-first'),
     after(3, '\r'),
     gate('step 3 of 6', '\r', 'denied-step3', 6),
     gate('step 4 of 6', '\r', 'denied-step4'),
     gate('step 5 of 6', '\r', 'denied-step5'),
     gate('Client secret', '\r', undefined, 3),
-    gate('step 6 of 6', '', 'denied-step6'),
-    after(2, PASTED_CODE),
+    gate('If nothing opened, visit:', PASTED_CODE, 'denied-step6'),
     after(3, '\r'),
     gate('Gemini connected: Google account', '', 'denied-receipt'),
     ...composerEnd(),
@@ -284,7 +281,7 @@ function deniedSends(): Send[] {
 }
 
 function lookSends(): Send[] {
-  return [...openCard(), gate('Connect Google Gemini', '\x1b[B', 'card'), after(3, '\r'), after(15, '', 'second'), after(2, '\x1b'), after(4, '\x1b'), after(4, '\x1b'), ...composerEnd(false)]
+  return [...openCard(), gate('Connect Google Gemini', '\x1b[B\x1b[B', 'card'), gate('❯ 3. Google account', '\r'), gate('step 1 of 6', '', 'second'), after(2, '\x1b'), after(4, '\x1b'), after(4, '\x1b'), ...composerEnd(false)]
 }
 
 async function runLeg(leg: 'walk' | 'denied' | 'look'): Promise<{
@@ -474,7 +471,7 @@ if (LEG === 'walk' || LEG === 'all') {
   record('fixture hits', r.hits.join(' | ') || 'none')
   record('browser opens', r.opens.map(u => (isAuthorize(u) ? 'authorize(state)' : u)).join(' | ') || 'none')
   check('the walk delivered every step and returned to the composer', r.status === 0 && r.payload !== null && gridText(r.payload.grid).includes('Type a prompt'), r.stderr.slice(-600))
-  check('the card offers the API key first, with the ruled words, and the Google account second', card.includes('1. API key — the easiest: create one in AI Studio, paste it here') && card.includes('2. Google account — six steps, each opens its Console page'), tail(markText(r.payload, 'card'), 16) || r.stderr.slice(-600))
+  check('the card offers Sign in with Google first, the API key second, with the ruled words, and the Google account third', card.includes("1. Sign in with Google — your plan's quota: AI Pro, AI Ultra or a free account") && card.includes('2. API key — the easiest: create one in AI Studio, paste it here') && card.includes('3. Google account — six steps, each opens its Console page'), tail(markText(r.payload, 'card'), 16) || r.stderr.slice(-600))
   check('the key row opened AI Studio in the browser before the paste', r.opens[0] === AI_STUDIO && keyLeg.includes('AI Studio opened: create a key there.') && keyLeg.includes(AI_STUDIO), `${r.opens[0] ?? 'no open'} · ${tail(markText(r.payload, 'key-leg'), 8)}`)
   check('the pasted key was stored and proved on the live catalogue with the key itself', r.keyStored && r.hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && keyReceipt.includes('Gemini API key stored'), r.hits.join(' | '))
   check('the reopened card shows the key row as connected', cardConnected.includes('API key — connected (stored locally)'), tail(markText(r.payload, 'card-connected'), 12))
