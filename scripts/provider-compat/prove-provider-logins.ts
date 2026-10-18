@@ -122,6 +122,12 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       json(res, 200, { code: 0, data: { available_balance: 49.58894, voucher_balance: 46.58893, cash_balance: 3.00001 }, scode: '0x0', status: true })
       return
     }
+    if (req.method === 'GET' && path === '/zai/v4/models') {
+      hits.push({ path, bearer, body })
+      if (bearer === undefined || !validBearers.has(bearer)) return json(res, 401, { error: { code: '401', message: 'token expired or incorrect' } })
+      json(res, 200, { object: 'list', data: [{ id: 'glm-5.2', object: 'model', owned_by: 'zai' }, { id: 'glm-5-turbo', object: 'model', owned_by: 'zai' }] })
+      return
+    }
     if (req.method === 'GET' && path === '/deepseek/user/balance') {
       hits.push({ path, bearer, body })
       if (bearer !== DS_KEY) return json(res, 401, { error: { message: 'Authentication Fails', type: 'authentication_error' } })
@@ -380,7 +386,10 @@ section('§2 · the Moonshot key leg beside the sign-in')
 
 section('§3 · the GLM (Z.AI) key leg — the plan travels with the key')
 {
-  const coding = storeZaiApiKeyLogin(ZAI_KEY, 'coding')
+  const refusedZai = await storeZaiApiKeyLogin('zai-fixture-wrong-key-000009', 'coding')
+  check("a key Z.AI's models list refuses (HTTP 401 {\"error\":{\"code\":\"401\",\"message\":\"token expired or incorrect\"}}) is refused at /logins with the words, the plan named, nothing stored", !refusedZai.ok && !refusedZai.stored && refusedZai.receipt.includes('Z.AI refused this key on api.z.ai/api/coding/paas/v4 (HTTP 401 — token expired or incorrect) — nothing stored; a general key is refused on the Coding Plan base') && !refusedZai.receipt.includes('zai-fixture-wrong-key-000009') && secrets.readStoredZaiApiKey() === undefined && hits.filter(h => h.path === '/zai/v4/models').length === 1, refusedZai.receipt)
+  const coding = await storeZaiApiKeyLogin(ZAI_KEY, 'coding')
+  check("the stored key was proven on the models list before the store: the receipt counts the GLM rows", coding.receipt.includes('2 GLM models listed for the key') && hits.filter(h => h.path === '/zai/v4/models' && h.bearer === ZAI_KEY).length === 1, coding.receipt)
   check('a Coding Plan key stores WITH its plan; the receipt names the Coding Plan base', coding.ok && coding.stored && secrets.readStoredZaiApiKey() === ZAI_KEY && secrets.readStoredZaiKeyPlan() === 'coding' && coding.receipt.includes('GLM Coding Plan key stored') && coding.receipt.includes('api.z.ai/api/coding/paas/v4') && !coding.receipt.includes(ZAI_KEY), coding.receipt)
   const dispatch = resolveZaiDispatch()
   check('the lane resolves key + plan as ONE record', dispatch?.key === ZAI_KEY && dispatch.source === 'stored' && dispatch.plan === 'coding', JSON.stringify({ ...dispatch, key: '…' }))
@@ -391,7 +400,7 @@ section('§3 · the GLM (Z.AI) key leg — the plan travels with the key')
   check('the presence owner names the plan (the adapter account)', zaiPresence?.credentialed === true && zaiPresence.credentialLabel === 'GLM Coding Plan key (stored, auth-scoped)', JSON.stringify(zaiPresence))
   const turn = await drive('glm-5.2')
   check('a turn dispatches with the stored key on the pinned base', turn.errors.length === 0 && turn.settled.length > 0 && chatHits().length === 1 && chatHits()[0]?.path === '/zai/v4/chat/completions' && chatHits()[0]?.bearer === ZAI_KEY, JSON.stringify(chatHits()))
-  const general = storeZaiApiKeyLogin(ZAI_KEY_2, 'general')
+  const general = await storeZaiApiKeyLogin(ZAI_KEY_2, 'general')
   check('a general key clears the plan', general.ok && secrets.readStoredZaiKeyPlan() === undefined && resolveZaiDispatch()?.plan === 'general' && general.receipt.includes('Z.AI API key (general) stored'), general.receipt)
   process.env.ZAI_API_KEY = 'zai-fixture-env-key-000003'
   chatAnswers = [{ status: 401, body: { error: { message: 'invalid key', code: 1002 } } }]

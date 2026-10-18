@@ -44,7 +44,7 @@ const capture = (fiveHourReset: number, weekReset: number) => ({
   },
   success: true,
 })
-type Mode = 'both' | 'bearer-only' | 'raw-only' | 'bearer-only-http' | 'expired' | 'no-plan' | 'http-503' | 'garbage'
+type Mode = 'both' | 'bearer-only' | 'raw-only' | 'bearer-only-http' | 'bearer-only-401-body' | 'expired' | 'no-plan' | 'http-503' | 'garbage'
 let mode: Mode = 'both'
 const wire: Array<{ path: string; authorization: string | null; accept: string | null; language: string | null; agent: string | null }> = []
 const escaped: string[] = []
@@ -62,6 +62,7 @@ const server = Bun.serve({
     if (mode === 'bearer-only' && raw) return Response.json({ code: 1001, msg: 'Authorization Token Missing', success: false })
     if (mode === 'raw-only' && bearer) return Response.json({ code: 1000, msg: 'Authentication failed', success: false })
     if (mode === 'bearer-only-http' && raw) return new Response('unauthorized', { status: 401 })
+    if (mode === 'bearer-only-401-body' && raw) return Response.json({ code: 401, msg: 'token expired or incorrect', success: false })
     if (mode === 'expired') return Response.json({ code: 1309, msg: 'The coding plan has expired', success: false })
     if (mode === 'no-plan') return Response.json({ code: 1234, msg: 'The current user has no coding plan', success: false })
     if (mode === 'http-503') return new Response('busy', { status: 503 })
@@ -162,6 +163,12 @@ try {
     now += 1_000
     await owner.refreshProviderUsage('zai', { fetchImpl, now: clock, force: true })
     check('an HTTP 401 on the raw form also earns the one Bearer retry', sinceWire(http).join(' | ') === `${QUOTA_PATH} raw | ${QUOTA_PATH} bearer` && reader.zaiQuotaAuthForm() === 'bearer', JSON.stringify(sinceWire(http)))
+    reader.__resetZaiUsageForTest()
+    mode = 'bearer-only-401-body'
+    const body401 = wire.length
+    now += 1_000
+    await owner.refreshProviderUsage('zai', { fetchImpl, now: clock, force: true })
+    check("the wire's HTTP 200 {code:401, msg:'token expired or incorrect'} on the raw form earns the one Bearer retry too, and the Bearer answer confirms", sinceWire(body401).join(' | ') === `${QUOTA_PATH} raw | ${QUOTA_PATH} bearer` && reader.zaiQuotaAuthForm() === 'bearer' && owner.usageForProvider('zai').readerNote === undefined, JSON.stringify(sinceWire(body401)))
     mode = 'both'
     reader.__resetZaiUsageForTest()
     check('a reset forgets the form (raw first again)', reader.zaiQuotaAuthForm() === 'raw')

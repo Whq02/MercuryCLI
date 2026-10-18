@@ -102,8 +102,10 @@ export function zaiQuotaVerdict(body: unknown): ZaiQuotaVerdict {
   return { ok: false, ...(code !== undefined ? { code } : {}), ...(message !== undefined ? { message } : {}) }
 }
 
+const ZAI_AUTH_CODES: ReadonlySet<number> = new Set([401, 1000, 1001, 1002, 1003, 1005])
+
 export function isZaiAuthCode(code: number | undefined): boolean {
-  return code === 1000 || code === 1001
+  return code !== undefined && ZAI_AUTH_CODES.has(code)
 }
 
 const PLAN_EXPIRED_CODE = 1309

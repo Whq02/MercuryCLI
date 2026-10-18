@@ -279,7 +279,7 @@ section('§4 the live chain in a scratch home')
   check('an explicit choice outranks the default on the live chain', getEngineModel() === parseUserSpecifiedModel('sonnet') && getEngineModel() !== computedDefault().setting, getEngineModel())
   setEngineModelOverride(undefined)
 
-  const outcome = storeZaiApiKeyLogin('zai-proof-key-000000', 'general')
+  const outcome = await storeZaiApiKeyLogin('zai-proof-key-000000', 'general', undefined, { probeKey: async () => ({ state: 'accepted', models: 1 }) })
   check('the Z.AI key leg stores', outcome.ok && outcome.stored, outcome.receipt)
   const zaiRecord = readSignInLedger().zai
   check('…and the sign-in ledger records the family (kind api-key) in the plain home', zaiRecord !== undefined && zaiRecord.kind === 'api-key' && existsSync(join(home, SIGN_IN_LEDGER_FILE)), JSON.stringify(readSignInLedger()))
@@ -357,7 +357,7 @@ section('§4b a stored key the provider refuses is skipped by the default until 
     JSON.stringify({ provider: afterRefusal.provider, why: refusedRow?.verdict.why }),
   )
   await sleep(15)
-  const again = storeZaiApiKeyLogin('zai-proof-key-000001', 'general')
+  const again = await storeZaiApiKeyLogin('zai-proof-key-000001', 'general', undefined, { probeKey: async () => ({ state: 'accepted', models: 1 }) })
   resetComputedDefaultMemo()
   check(
     'a new sign-in of that family clears the refusal and the default returns to it',

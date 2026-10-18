@@ -992,8 +992,9 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
   const { storeGeminiApiKeyLogin } = await import('../../src/services/providers/gemini/geminiLogin.js')
   receipts.push((await storeGeminiApiKeyLogin(SECRET, { refreshCatalogue: async () => ({ models: [], lastError: 'x' }) })).receipt)
   const { storeZaiApiKeyLogin } = await import('../../src/services/providers/zai/zaiLogin.js')
-  receipts.push(storeZaiApiKeyLogin(SECRET, 'coding').receipt)
-  receipts.push(storeZaiApiKeyLogin(SECRET, 'general').receipt)
+  const zaiAccepted = async () => ({ state: 'accepted' as const, models: 1 })
+  receipts.push((await storeZaiApiKeyLogin(SECRET, 'coding', undefined, { probeKey: zaiAccepted })).receipt)
+  receipts.push((await storeZaiApiKeyLogin(SECRET, 'general', undefined, { probeKey: zaiAccepted })).receipt)
   const { storeDeepseekApiKeyLogin } = await import('../../src/services/providers/deepseek/deepseekLogin.js')
   const dsFetch = (async () => json(200, { balance_infos: [{ currency: 'USD', total_balance: '1.00' }], is_available: true })) as unknown as typeof fetch
   receipts.push((await storeDeepseekApiKeyLogin(SECRET, { fetchImpl: dsFetch })).receipt)

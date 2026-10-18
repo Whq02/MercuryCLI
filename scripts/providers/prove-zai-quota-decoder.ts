@@ -131,7 +131,9 @@ section('§4 the logical failures ride HTTP 200: the verdict and its one line')
 {
   const missing = reader.zaiQuotaVerdict(AUTH_MISSING)
   check('code 1001 is a refusal carrying its code and msg', missing.ok === false && missing.code === 1001 && missing.message === 'Authorization Token Missing', JSON.stringify(missing))
-  check('1000 and 1001 are the auth codes (the one Bearer retry fires on them); 1309 and the no-plan msg are not', reader.isZaiAuthCode(1000) && reader.isZaiAuthCode(1001) && !reader.isZaiAuthCode(1309) && !reader.isZaiAuthCode(1234) && !reader.isZaiAuthCode(undefined))
+  check("the auth codes (the one Bearer retry fires on them): the documented 1000, 1001, 1002, 1003, 1005 and the quota endpoint's own 401 ({code:401, msg:'token expired or incorrect'} on an HTTP 200 — the wire's answer to a wrong key, 2026-10-18); 1309 and the no-plan msg are not", [401, 1000, 1001, 1002, 1003, 1005].every(code => reader.isZaiAuthCode(code)) && !reader.isZaiAuthCode(1309) && !reader.isZaiAuthCode(1234) && !reader.isZaiAuthCode(undefined))
+  const wrongKey = reader.zaiQuotaVerdict({ code: 401, msg: 'token expired or incorrect', success: false })
+  check("the wire's wrong-key body is a refusal with code 401 and its words, read as an auth refusal", wrongKey.ok === false && wrongKey.code === 401 && wrongKey.message === 'token expired or incorrect' && reader.isZaiAuthCode(wrongKey.code), JSON.stringify(wrongKey))
   const words = (body: unknown, status = 200) => {
     const verdict = reader.zaiQuotaVerdict(body)
     return verdict.ok ? 'ok' : reader.zaiQuotaFailureWords({ kind: 'refused', status, atMs: NOW, ...(verdict.code !== undefined ? { code: verdict.code } : {}), ...(verdict.message !== undefined ? { message: verdict.message } : {}) })

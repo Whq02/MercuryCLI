@@ -231,7 +231,7 @@ export async function providerAuthLogin(
       outcome = await storeMoonshotApiKeyLogin(key)
       break
     case 'zai':
-      outcome = storeZaiApiKeyLogin(key, mode === 'coding' ? 'coding' : 'general')
+      outcome = await storeZaiApiKeyLogin(key, mode === 'coding' ? 'coding' : 'general')
       break
     case 'deepseek':
       outcome = await storeDeepseekApiKeyLogin(key)

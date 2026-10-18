@@ -4,8 +4,9 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
-import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
+import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
 import { resolveZaiDispatch } from './zaiAccounts.js'
+import { zaiApiBase, type ZaiApiPlan } from './zaiClient.js'
 import { GLM_STATIC_FLOOR_IDS, glmDisplayName, glmDisplayPin } from './glmPins.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
@@ -37,8 +38,29 @@ function decodeZaiModel(raw: unknown): ZaiLiveModel | undefined {
 }
 
 class ZaiCatalogueHttpError extends Error {
-  constructor(readonly status: number) {
-    super(status === 401 || status === 403 ? `Z.AI models endpoint refused the credential (HTTP ${status})` : `Z.AI models endpoint returned HTTP ${status}`)
+  readonly refused: boolean
+  readonly said: string | undefined
+  constructor(readonly status: number, words: ServiceWords = {}, key = '') {
+    const refused = status === 401 || status === 403 || (status === 400 && wordsNameTheKey(words))
+    const said = (words.message ?? words.code)?.split(key || '\0').join('[redacted]')
+    super(`${refused ? `Z.AI models endpoint refused the credential (HTTP ${status})` : `Z.AI models endpoint returned HTTP ${status}`}${said ? ` — ${said}` : ''}`)
+    this.refused = refused
+    this.said = said
+  }
+}
+
+export type ZaiKeyProbe =
+  | { state: 'accepted'; models: number }
+  | { state: 'refused'; status: number; message?: string }
+  | { state: 'unreachable'; message: string }
+
+export async function probeZaiKey(key: string, plan: ZaiApiPlan, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<ZaiKeyProbe> {
+  try {
+    const result = await fetchZaiLiveModels({ baseUrl: zaiApiBase(io?.env ?? process.env, plan), key, ...(io?.fetchImpl ? { fetchImpl: io.fetchImpl } : {}) })
+    return { state: 'accepted', models: result.models.length }
+  } catch (error) {
+    if (error instanceof ZaiCatalogueHttpError && error.refused) return { state: 'refused', status: error.status, ...(error.said ? { message: error.said } : {}) }
+    return { state: 'unreachable', message: (error instanceof Error ? error.message : String(error)).split(key).join('[redacted]') }
   }
 }
 
@@ -59,7 +81,7 @@ async function fetchZaiLiveModels(opts: {
   } catch (error) {
     throw modelsEndpointUnreachable(error) ?? error
   }
-  if (!response.ok) throw new ZaiCatalogueHttpError(response.status)
+  if (!response.ok) throw new ZaiCatalogueHttpError(response.status, serviceWordsOf(await quietBodyJson(response)), opts.key)
   const parsed = (await catalogueBodyJson(response)) as Record<string, unknown>
   if (typeof parsed !== 'object' || parsed === null || !Array.isArray(parsed.data)) throw new Error('Z.AI models endpoint returned no data array')
   const models: ZaiLiveModel[] = []
@@ -149,7 +171,7 @@ export function refreshZaiCatalogue(opts?: {
       catalogueCache.set(identity, snapshot)
       return snapshot
     } catch (error) {
-      const refused = error instanceof ZaiCatalogueHttpError && (error.status === 401 || error.status === 403)
+      const refused = error instanceof ZaiCatalogueHttpError && error.refused
       const snapshot: ZaiCatalogueSnapshot = {
         keySource: dispatch.source,
         plan: dispatch.plan,

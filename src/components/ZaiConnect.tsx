@@ -74,12 +74,14 @@ function ZaiKeyLeg({
       setNote(guard)
       return
     }
-    const outcome = storeZaiApiKeyLogin(key, plan)
-    if (!outcome.stored) {
-      setNote(outcome.receipt)
-      return
-    }
-    onResult({ ok: outcome.ok, receipt: outcome.receipt })
+    setNote('checking the key with Z.AI…')
+    void storeZaiApiKeyLogin(key, plan).then(outcome => {
+      if (!outcome.stored) {
+        setNote(outcome.receipt)
+        return
+      }
+      onResult({ ok: outcome.ok, receipt: outcome.receipt })
+    })
   }
   return (
     <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>

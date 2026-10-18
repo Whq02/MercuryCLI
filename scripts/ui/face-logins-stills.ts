@@ -278,7 +278,7 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
         flow: {
           kind: 'receipt',
           receipt:
-            'GLM Coding Plan key stored (auth-scoped, mode 600). Requests ride api.z.ai/api/coding/paas/v4 (the Coding Plan base); the GLM rows join /model; the first turn proves the key (no key-check endpoint is wired for Z.AI).',
+            'GLM Coding Plan key stored (auth-scoped, mode 600). Requests ride api.z.ai/api/coding/paas/v4 (the Coding Plan base); the GLM rows join /model; 2 GLM models listed for the key.',
           ok: true,
         },
       }),

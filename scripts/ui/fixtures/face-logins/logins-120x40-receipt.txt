@@ -15,10 +15,10 @@
    │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ (auth-scoped, mode 600). Requests ride     │
    │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ api.z.ai/api/coding/paas/v4 (the           │
    │                                                                │  │ Coding Plan base); the GLM rows join       │
-   │ available                                                      │  │ /model; the first turn proves the key      │
-   │ ❯ Usage-based billing — Anthropic Console…       not signed in │  │ (no key-check endpoint is wired for        │
-   │   OpenRouter — one credential, the whole …       not signed in │  │ Z.AI).                                     │
-   │   Google Gemini — Google sign-in, API key        not signed in │  │ ↵ done — the roster refreshes              │
+   │ available                                                      │  │ /model; 2 GLM models listed for the        │
+   │ ❯ Usage-based billing — Anthropic Console…       not signed in │  │ key.                                       │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ ↵ done — the roster refreshes              │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │                                            │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
    │   DeepSeek — API key                             not signed in │  │                                            │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

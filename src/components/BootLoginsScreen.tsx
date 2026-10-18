@@ -1609,7 +1609,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     else if (leg === 'hf-token') void storeHuggingfaceTokenLogin(value).then(settle);
     else if (leg === 'openrouter-key') void storeOpenrouterApiKeyLogin(value).then(settle);
     else if (leg === 'gemini-key') void storeGeminiApiKeyLogin(value).then(settle);
-    else settle(storeZaiApiKeyLogin(value, leg === 'zai-coding' ? 'coding' : 'general'));
+    else void storeZaiApiKeyLogin(value, leg === 'zai-coding' ? 'coding' : 'general').then(settle);
   };
 
   const keyEscape = (leg: FaceKeyLegId): void => {
