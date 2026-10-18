@@ -138,10 +138,10 @@ export function resolveProviderKeyCommand(family: string): string | undefined {
 
 export function providerKeyCommandFailure(family: string): { message: string; at: number } | null {
   syncEpoch()
-  const command = configuredProviderKeyCommand(family)
-  if (!command) return null
   const existing = cache.get(family)
-  return existing?.command === command ? existing.failure : null
+  if (!existing || existing.failure === null) return null
+  const command = configuredProviderKeyCommand(family)
+  return command !== undefined && existing.command === command ? existing.failure : null
 }
 
 export function invalidateProviderKeyCommand(family?: string): void {
