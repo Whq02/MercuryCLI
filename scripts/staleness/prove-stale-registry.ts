@@ -204,6 +204,7 @@ src/substrate/startupMenu.ts :: admissionSnapshot :: static-for-process
 src/tasks/taskOutcomeEnvelope.ts :: cacheBySession :: invalidator=recordTaskOutcome
 src/tools/AgentTool/loadAgentsDir.ts :: definitionsCache :: invalidator=clearAgentDefinitionsCache
 src/tools/FileReadTool/limits.ts :: getDefaultFileReadingLimits :: static-for-process
+src/tools/FileReadTool/outline.ts :: outlineCache :: keyed-by-truth
 src/tools/SkillTool/prompt.ts :: promptForRoot :: keyed-by-truth
 src/tools/SyntheticOutputTool/SyntheticOutputTool.ts :: schemaBoundCache :: keyed-by-truth
 src/tools/ToolSearchTool/ToolSearchTool.ts :: deferredSetCacheKey :: keyed-by-truth
@@ -417,6 +418,16 @@ check(
   check('self-test: the raw line scan WOULD have counted the block-comment and string lookalikes (the fault this extractor now refuses)', rawScan.some(l => l.includes('blockCommentCache')) && rawScan.some(l => l.includes('stringCache')))
   const anonymous = extractSites('anon.ts', "const wrapped = something(memoize(() => 1))\nconst plain = 'no memo here'\n")
   check('self-test: a genuinely nested/property memoize call is STILL an anonymous site (no blanket suppression)', anonymous.some(s => s.symbol === 'wrapped') && anonymous.length === 1, anonymous.map(s => s.symbol).join(','))
+}
+
+console.log('refusals — an outline never reuses different content or numbering')
+{
+  const { buildOutlineNumberedWindow } = await import('../../src/tools/FileReadTool/outline.js')
+  const before = await buildOutlineNumberedWindow('fixture.ts', 'export const first = 1', 1, 1, 1, false)
+  const after = await buildOutlineNumberedWindow('fixture.ts', 'export const second = 2', 1, 1, 1, false)
+  const moved = await buildOutlineNumberedWindow('fixture.ts', 'export const second = 2', 9, 1, 1, true)
+  check('changed content cannot reuse the earlier outline', before?.includes('first') === true && after?.includes('second') === true && !after.includes('first'))
+  check('changed line numbers and anchors cannot reuse a plain outline', moved !== null && /^9#[0-9a-f]+\t/.test(moved))
 }
 
 const dispositions = [...rows.values()].reduce<Record<string, number>>((acc, d) => {

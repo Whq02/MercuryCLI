@@ -112,6 +112,7 @@ async function main(): Promise<void> {
     try {
       const verdict = evaluateWards(BUILTIN_WARDS, {
         toolName: 'Edit',
+        isMercurySource: () => true,
         input: {
           file_path: 'src/components/Foo.tsx',
           old_string: '',

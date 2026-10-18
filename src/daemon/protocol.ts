@@ -315,6 +315,7 @@ export interface SignInFamilyViewV1 {
   row?: string
   why?: string
   unfetched?: boolean
+  catalogueReadAt?: number
   signedInAt?: number | null
   refused?: { status: 401 | 403; at: number }
 }

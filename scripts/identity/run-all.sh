@@ -22,6 +22,7 @@ if [ ! -f "$root/dist/mercury.mjs" ]; then
 fi
 
 echo "## bun proofs"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-memory-start-ranking-doc.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-memory-start-ranking-doc.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tester-door.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tester-door.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$root/scripts/substrate/prove-health-self-recognition.ts" || { __rc=$?; fail=1; }; prover_mark "$root/scripts/substrate/prove-health-self-recognition.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$root/scripts/substrate/prove-no-telemetry-egress.ts" || { __rc=$?; fail=1; }; prover_mark "$root/scripts/substrate/prove-no-telemetry-egress.ts" "$__t" "$__rc"

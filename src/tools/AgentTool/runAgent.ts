@@ -9,6 +9,7 @@ import {
   enhanceSystemPromptWithEnvDetails,
 } from '../../constants/prompts.js'
 import { query, type QueryParams } from '../../query.js'
+import { productionDeps } from '../../query/deps.js'
 import type { LegacyQueryYield } from '../../run-core/project-legacy.js'
 import { randomUUID } from 'node:crypto'
 import { connectToServer, fetchToolsForClient } from '../../services/mcp/client.js'
@@ -513,13 +514,13 @@ export function declaredRecoveryWaitMs(message: unknown): number {
   return Math.min(declared, DECLARED_RECOVERY_CAP_MS)
 }
 
-export function agentStalledError(args: { agentType: string; agentId: string; limitMs: number; elapsedMs: number; events: number; toolUses: number }): DeadlineExceededError {
+export function agentStalledError(args: { agentType: string; agentId: string; limitMs: number; elapsedMs: number; events: number; toolUses: number; retried?: boolean }): DeadlineExceededError {
   return new DeadlineExceededError(
     `crewmate ${args.agentType} (${args.agentId})`,
     args.limitMs,
     args.elapsedMs,
     args.events,
-    `${args.toolUses === 0 ? 'it never used a tool' : `${args.toolUses} tool use${args.toolUses === 1 ? '' : 's'} before the silence`}; the crewmate was stopped — re-dispatch with a narrower task, or tune MERCURY_AGENT_IDLE_MINUTES (0 disables)`,
+    `${args.toolUses === 0 ? 'it never used a tool' : `${args.toolUses} tool use${args.toolUses === 1 ? '' : 's'} before the silence`}; ${args.retried ? 'the first and second attempts of the same request stalled; ' : ''}the crewmate was stopped — re-dispatch with a narrower task, or tune MERCURY_AGENT_IDLE_MINUTES (0 disables)`,
   )
 }
 
@@ -637,14 +638,8 @@ export async function* runAgent(
   let toolUsesSeen = 0
   let deferredTouch: ReturnType<typeof setTimeout> | null = null
   const idleLimitMs = agentIdleLimitMs()
-  const watchdog = armInactivityDeadline({
-    seam: `crewmate ${agentDefinition.agentType} (${agentId})`,
-    limitMs: idleLimitMs,
-    onExpire: error => {
-      logForDebugging(`runAgent: ${agentId} stalled — ${error.message}`)
-      abortController.abort(error)
-    },
-  })
+  let retryStalledRequest: ((error: DeadlineExceededError) => boolean) | null = null
+  let stoppedAfterRetry = false
   const stalledError = (): DeadlineExceededError =>
     agentStalledError({
       agentType: agentDefinition.agentType,
@@ -653,7 +648,22 @@ export async function* runAgent(
       elapsedMs: Date.now() - startedAt,
       events: eventsSeen,
       toolUses: toolUsesSeen,
+      retried: stoppedAfterRetry,
     })
+  const armWatchdog = (): ReturnType<typeof armInactivityDeadline> => armInactivityDeadline({
+    seam: `crewmate ${agentDefinition.agentType} (${agentId})`,
+    limitMs: idleLimitMs,
+    onExpire: error => {
+      if (retryStalledRequest?.(error)) {
+        watchdog = armWatchdog()
+        return
+      }
+      const stalled = stalledError()
+      logForDebugging(`runAgent: ${agentId} stalled${stoppedAfterRetry ? ' on the first and second attempts' : ''} — ${stalled.message}`)
+      abortController.abort(stalled)
+    },
+  })
+  let watchdog = armWatchdog()
   const recovery = makeRecoveryBudget()
   let throttled: Error | null = null
   let cuttingWait = { declaredMs: 0, honoredMs: 0 }
@@ -1076,7 +1086,45 @@ export async function* runAgent(
     let lastRecordedUuid: string | undefined = messages[messages.length - 1]?.uuid
     const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
 
+    const deps = productionDeps()
+    const callModel: typeof deps.callModel = async function* (request) {
+      let retried = false
+      for (;;) {
+        const requestController = new AbortController()
+        const forwardAbort = (): void => requestController.abort(request.signal.reason)
+        if (request.signal.aborted) forwardAbort()
+        else request.signal.addEventListener('abort', forwardAbort, { once: true })
+        let produced = false
+        let resend = false
+        stoppedAfterRetry = false
+        retryStalledRequest = error => {
+          if (request.signal.aborted) return false
+          if (retried) stoppedAfterRetry = true
+          if (requestController.signal.aborted || produced || retried) return false
+          retried = true
+          resend = true
+          logForDebugging(`runAgent: ${agentId} stalled request — retrying the same request once on ${request.options.model}`, { level: 'warn' })
+          requestController.abort(error)
+          return true
+        }
+        try {
+          for await (const message of deps.callModel({ ...request, signal: requestController.signal })) {
+            if (resend) continue
+            if (message.type === 'assistant' || message.type === 'stream_event') produced = true
+            yield message
+          }
+        } catch (error) {
+          if (!resend || request.signal.aborted) throw error
+        } finally {
+          retryStalledRequest = null
+          request.signal.removeEventListener('abort', forwardAbort)
+          requestController.abort()
+        }
+        if (!resend || request.signal.aborted) return
+      }
+    }
     const queryParams: QueryParams = {
+      deps: { ...deps, callModel },
       messages,
       systemPrompt: asSystemPrompt(systemPrompt),
       userContext,

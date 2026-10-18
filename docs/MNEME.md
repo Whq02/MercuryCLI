@@ -184,34 +184,40 @@ words are not a conflict, so both stay.
 
 ## What rides at the start of a session
 
-The pinned shelf rides first and whole, whatever its size. Then, within an
-allowance of its own that the shelf never eats into, Mercury chooses what
-else a session should see at its start without calling a model.
-The project's state is the query: the name of the branch and its words,
-the files changed in the working tree and the files the last sessions
-touched, and the words of the last note left. Every unpinned fact (archived ones
-included) and every earlier note is scored against those state chunks using
-stemmed BM25 weighted by recency plus `1 / (60 + rank + 1)` from semantic
-ranking, then divided by its character length (`score / chars`).
-Stale facts sort last and carry their `stale` confirmation-date tag counted
-within the allowance; a short match (`score / chars`) packs ahead of a long one
-of equal relevance.
-Facts are taken in that order until the budget is full; a fact with
-nothing in common with the state never rides; the same inputs always compose
-the same page. The block (`# Memory at start`) has its own heading between the
-pinned shelf and the lineage page, and opens with one summary line (`Memory at
-start: <N> pinned rules (<chars> characters) and <k> of <M> facts, <j> of <L>
-earlier notes most relevant to branch <name>, the files touched lately and the
-last note; Recall finds the rest.`): how many rules are pinned and how much
-they weigh, how many of the facts and earlier notes rode and what they were
-matched against, and that Recall finds the rest. Leaving a fact off the page is
-not forgetting it.
+The pinned shelf rides first and whole, whatever its size. Mercury then chooses
+startup context without calling a model. Source-linked required records ride in
+full, outside the allowance for other matches. The remaining candidates are
+ranked in tiers: matches to the current prompt, then matches to a source-linked
+continuation. If neither channel finds a match, the fallback uses the branch,
+changed files, files touched in earlier sessions and the last note left.
 
-The allowance is `memory.startLimit` in settings (characters; the default is
-4000), and the **Memory at start, beyond the pins** row in `/config` moves it
-by a thousand. The page is composed once at the start of a session and never
-moves while the session runs; a fact saved or a file touched mid-session
-reaches the next session's page.
+Word and semantic rankings supply reciprocal-rank scores (`1 / (60 + rank + 1)`).
+Within each tier, historical matches and stale facts are deprioritized, then
+packing uses `score / √chars`: relevance divided by the square root of the
+record's character length. Shorter records still have an advantage at equal
+relevance, but the penalty for length is gentler than division by length itself.
+Stale tags count toward the record's size. The same inputs produce the same
+selection; records with no relevant match do not ride unless explicitly required.
+
+The allowance is the smaller of `memory.startLimit` and
+`600 × ⌈log2(1 + candidates)⌉` characters, where candidates counts positively
+scored, non-required records. `memory.startLimit` defaults to 4000 characters;
+**Memory at start, beyond the pins** in `/config` moves that setting by a thousand.
+The pinned shelf and required records do not consume this allowance.
+
+Records are packed in that order while they fit. When a fact matched the prompt
+or continuation but its full text does not fit, a shorter pointer can ride if
+there is room. That pointer names the record and asks the model to open it with
+Recall before the affected decision. An earlier note, or a project-state fallback
+match, does not get this pointer replacement. Selected records are displayed by
+tier and relevance.
+
+The block (`# Memory at start`) sits between the pinned shelf and the lineage
+page. Its summary names the pins, the facts, pending facts, pointers and earlier
+notes selected, and what they matched; Recall finds the rest. Leaving a fact off
+the page is not forgetting it. The page is composed once at the start of a session
+and does not move during the session; a new fact or file change can affect the
+next session's page.
 
 ## The journal
 

@@ -1,5 +1,6 @@
 import { readSignInRefusal, signInRefusalWords } from '../utils/accounts/signInRefusal.js'
 import { providerFamilyPresences } from '../services/providers/providerUsage.js'
+import { readModelListFacts } from '../services/providers/typedModelIds.js'
 import { dropCredentialMemos } from '../utils/auth.js'
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
 import { computedDefault, resetComputedDefaultMemo } from '../utils/model/computedDefault.js'
@@ -22,6 +23,7 @@ export function composeSignInView(opts?: { refresh?: boolean }): DaemonSignInVie
   const refreshed = refreshSignInReads(opts?.refresh === true)
   const decision = computedDefault()
   const considered = new Map(decision.considered.map(c => [c.family, c] as const))
+  const catalogueTimes = new Map<string, number>(readModelListFacts().flatMap(fact => fact.list.kind === 'list' ? [[fact.family, fact.list.fetchedAtMs] as const] : []))
   const families: SignInFamilyViewV1[] = decision.considered.map(c => ({
     family: c.family,
     credentialed: true,
@@ -31,6 +33,7 @@ export function composeSignInView(opts?: { refresh?: boolean }): DaemonSignInVie
     ...(!c.verdict.usable && c.verdict.unfetched === true ? { unfetched: true } : {}),
     why: c.verdict.why,
     signedInAt: c.at,
+    ...(catalogueTimes.has(c.family) ? { catalogueReadAt: catalogueTimes.get(c.family) } : {}),
     refused: readSignInRefusal(c.family),
   }))
   for (const presence of providerFamilyPresences()) {

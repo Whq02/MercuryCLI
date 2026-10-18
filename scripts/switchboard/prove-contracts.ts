@@ -171,7 +171,9 @@ console.log('E — ADVISORY ALWAYS (the poison: contract state blocking a tool, 
     check(`E3 ${guarded.split('/').pop()} never reads contract state`, !/\.contract\b/.test(read(guarded)))
   }
   const tool = read('src/tools/ContractTool/ContractTool.ts')
-  check('E4 the abide tool never refuses WORK — its only throws are its own malformed-input asks, and every contract-state face is words, not a gate', !/throw new Error\((?!'(acknowledge needs|check-in needs|propose-amend needs|close-against needs))/.test(tool))
+  const workGate = /throw new Error\((?!'(acknowledge requires|check-in needs|propose-amend needs|close-against needs))/
+  check('E4 the abide tool never refuses WORK — its only throws are its own malformed-input asks, and every contract-state face is words, not a gate', !workGate.test(tool))
+  check('E4 refusals: a planted contract-state work gate is still rejected', workGate.test("throw new Error('contract is not acknowledged')"))
   const toolsCat = read('src/tools.ts')
   check('E5 the catalogue gates ONLY the contract tool on the role stamp — no other tool’s membership mentions contract', (toolsCat.match(/contractToolHosted\(\)/g) ?? []).length === 1)
 }

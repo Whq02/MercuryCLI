@@ -133,7 +133,7 @@ section('§A ONE derivation: decline fails, promotion is labeled, report survive
   check('a declared failure before the first assistant reply finalizes without inventing output or usage', result?.outcome === failure && result.content.length === 0 && result.totalTokens === 0 && result.totalToolUseCount === 0)
 }
 
-section('§B the parent transcript speaks the same outcome')
+section('§B refusals — the parent transcript never presents partial work as a conclusion')
 type Mapper = (data: unknown, toolUseID: string) => { is_error?: boolean; content: Array<{ type: string; text: string }> }
 const map = (AgentTool as unknown as { mapToolResultToToolResultBlockParam: Mapper })
   .mapToolResultToToolResultBlockParam.bind(AgentTool)
@@ -158,7 +158,7 @@ const map = (AgentTool as unknown as { mapToolResultToToolResultBlockParam: Mapp
   const text = failed.content.map(c => c.text).join('\n')
   check('failed result carries the failure text', /Crewmate execution failed: API Error: 529/.test(text))
   check('failed result carries the partial report', /the real partial report/.test(text))
-  check('failed result labels the partial as not-final', /partial work, not a final answer/.test(text))
+  check('failed result labels the partial as not-final', /partial work and must not be read as a conclusion/.test(text), text)
 }
 {
   const promoted = map(

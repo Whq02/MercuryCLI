@@ -49,10 +49,12 @@ async function main(): Promise<void> {
   }
   const edit = (file_path: string, new_string: string, old_string = '') => ({
     toolName: 'Edit',
+    isMercurySource: () => true,
     input: { file_path, old_string, new_string },
   })
   const write = (file_path: string, content: string) => ({
     toolName: 'Write',
+    isMercurySource: () => true,
     input: { file_path, content },
   })
   const bash = (command: string) => ({ toolName: 'Bash', input: { command }, shellCommand: command })
@@ -570,6 +572,9 @@ async function main(): Promise<void> {
     check('warn: a benign call passes bare (no note)', (await cb(...ctx('Bash', { command: 'git log --oneline -3' }, 'toolu-warn-benign'))) === true)
     const project = mkScratch(joinScratch(scratchRoot(), 'wards-warn-project-'))
     mkProject(joinScratch(project, '.mercury'), { recursive: true })
+    mkProject(joinScratch(project, 'src', 'components'), { recursive: true })
+    writeProject(joinScratch(project, 'src', 'components', 'mercuryPalette.ts'), '')
+    writeProject(joinScratch(project, 'package.json'), JSON.stringify({ name: 'mercury' }))
     writeProject(joinScratch(project, '.mercury', 'wards.json'), JSON.stringify([{ name: 'no-example-invalid', teach: 'The fixture host example.invalid is never fetched from this project.', scope: 'bash', patterns: ['example\\.invalid'] }]))
     runWithCwdOverride(project, () => registerWardsGuard(store.setAppState, 'w-warn'))
     const cbWarn = judgeFor('w-warn')
