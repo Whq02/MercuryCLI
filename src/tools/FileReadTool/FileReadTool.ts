@@ -544,7 +544,7 @@ const IMAGE_TOKEN_BUDGET_DEFAULT = 25000
 
 type ImageOutput = Extract<Output, { type: 'image' }>
 
-export type CropBox = readonly [number, number, number, number]
+type CropBox = readonly [number, number, number, number]
 
 async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string): Promise<{ buffer: Buffer; full: { width: number; height: number } }> {
   const [x1, y1, x2, y2] = crop

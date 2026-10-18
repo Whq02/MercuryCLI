@@ -388,7 +388,7 @@ export function encodePng(image: RgbaImage, options: { compressionLevel?: number
 }
 
 
-export function cropRgba(image: RgbaImage, region: { left: number; top: number; width: number; height: number }): RgbaImage {
+function cropRgba(image: RgbaImage, region: { left: number; top: number; width: number; height: number }): RgbaImage {
   const out = new Uint8Array(region.width * region.height * 4)
   for (let y = 0; y < region.height; y++) {
     const from = ((region.top + y) * image.width + region.left) * 4

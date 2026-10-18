@@ -11,6 +11,7 @@ import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { deferralWireFormFor, toolReferenceWireAccepted } from '../services/providers/deferralWire.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
 import { inlineLocalSchemaRefs } from './inlineSchemaRefs.js'
+import { normalizeToolSchemaFor, rememberRenamedArgumentKeys, schemaLaneFor } from './normalizeToolSchema.js'
 import { userContextReminderBody } from './userContextReminder.js'
 
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
@@ -132,7 +133,9 @@ export async function toolToAPISchema(
       explicit === undefined
         ? inlineLocalSchemaRefs(zodToJsonSchema(tool.inputSchema as never) as Record<string, unknown>)
         : inlineLocalSchemaRefs(explicit, serializedSchemaKeys.get(explicit))
-    const input_schema = rawSchema as ToolInputSchema
+    const normalized = explicit === undefined ? null : normalizeToolSchemaFor(schemaLaneFor(declaredRouteOf(promptModel)), rawSchema, rawSchema === explicit ? serializedSchemaKeys.get(explicit) : undefined)
+    if (normalized !== null) rememberRenamedArgumentKeys(tool.name, normalized.renamed)
+    const input_schema = (normalized?.schema ?? rawSchema) as ToolInputSchema
 
     const built: ApiTool = { name: tool.name, description, input_schema }
     if (fineGrainedToolStreamingEnabled()) {

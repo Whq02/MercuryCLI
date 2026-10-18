@@ -39,7 +39,7 @@ type ForgivingRoad = 'exact' | 'quotes' | 'characters' | 'whitespace' | 'indenta
 
 const CONTROL_SEQUENCES: Readonly<Record<string, string>> = { n: '\n', t: '\t', r: '\r', '\\': '\\' }
 
-export function unescapeControlSequences(text: string): string {
+function unescapeControlSequences(text: string): string {
   if (!/\\[ntr]/.test(text)) return text
   let out = ''
   for (let i = 0; i < text.length; i++) {
