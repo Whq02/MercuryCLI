@@ -15,6 +15,7 @@ import {
   readSessionWorkers,
   recordCollisionEvidence,
   retirementFenced,
+  withDaemonStoreLock,
   type ConcourseAdmitRequest,
   type ConcourseAdmitResult,
   type ConcourseMoveV1,
@@ -173,57 +174,89 @@ export async function flushDeferredDispatchPublishes(): Promise<void> {
   await Promise.all([...deferredPublish.values()].map(e => e.done))
 }
 
+function mergeForeignDispatches(path: string, dispatches: Record<string, ConcourseDispatchRecordV1>): void {
+  const diskStamp = ledgerStamp(path)
+  if (diskStamp === null) return
+  const memo = ledgerMemo.get(path)
+  if (memo !== undefined && memo.stamp === diskStamp && memo.map === dispatches) return
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf8')) as DispatchFileV1
+    if (!raw || raw.version !== 1 || typeof raw.dispatches !== 'object' || raw.dispatches === null) return
+    for (const [id, diskRec] of Object.entries(raw.dispatches)) {
+      const n = normalizeHoldReason(diskRec.heldReason)
+      if (n !== undefined && diskRec.heldReason !== n) diskRec.heldReason = n
+      const local = dispatches[id]
+      if (
+        local === undefined ||
+        (diskRec.stateRevision ?? 0) > (local.stateRevision ?? 0) ||
+        (diskRec.state === 'failed' && local.state !== 'failed')
+      ) {
+        dispatches[id] = diskRec
+      }
+    }
+  } catch {}
+}
+
 function publishDispatches(dispatches: Record<string, ConcourseDispatchRecordV1>, dir?: string): void {
   if (!daemonHomeStands('the dispatch ledger', dir)) return
-  const settled = Object.values(dispatches)
-    .filter(r => (r.state === 'failed' || r.state === 'working') && r.heldReason === undefined)
-    .sort((a, b) => b.acceptedAt - a.acceptedAt)
-  for (const stale of settled.slice(200)) delete dispatches[stale.clientMessageId]
   const path = concourseDispatchesPath(dir)
-  try {
-    if (
-      publishInDaemonHome(
-        'the dispatch ledger',
-        path,
-        `${JSON.stringify({ version: 1, dispatches } satisfies DispatchFileV1, null, 1)}\n`,
-        { dir },
-      ) === 'home-gone'
-    )
-      return
-  } catch (err) {
-    ledgerMemo.delete(path)
-    throw err
-  }
-  const stamp = ledgerStamp(path)
-  if (stamp !== null) ledgerMemo.set(path, { stamp, map: dispatches })
-  else ledgerMemo.delete(path)
-  const pending = deferredPublish.get(path)
-  if (pending !== undefined && pending.map === dispatches) deferredPublish.delete(path)
+  withDaemonStoreLock('the dispatch ledger', path, dir, ({ homeGone, assertStillHeld }) => {
+    if (homeGone || !daemonHomeStands('the dispatch ledger', dir)) return
+    mergeForeignDispatches(path, dispatches)
+    const settled = Object.values(dispatches)
+      .filter(r => (r.state === 'failed' || r.state === 'working') && r.heldReason === undefined)
+      .sort((a, b) => b.acceptedAt - a.acceptedAt)
+    for (const stale of settled.slice(200)) delete dispatches[stale.clientMessageId]
+    assertStillHeld()
+    try {
+      if (
+        publishInDaemonHome(
+          'the dispatch ledger',
+          path,
+          `${JSON.stringify({ version: 1, dispatches } satisfies DispatchFileV1, null, 1)}\n`,
+          { dir },
+        ) === 'home-gone'
+      )
+        return
+    } catch (err) {
+      ledgerMemo.delete(path)
+      throw err
+    }
+    const stamp = ledgerStamp(path)
+    if (stamp !== null) ledgerMemo.set(path, { stamp, map: dispatches })
+    else ledgerMemo.delete(path)
+    const pending = deferredPublish.get(path)
+    if (pending !== undefined && pending.map === dispatches) deferredPublish.delete(path)
+  })
 }
 
 export function withdrawConcourseDispatch(clientMessageId: string, dir?: string): boolean {
-  const dispatches = readConcourseDispatches(dir)
-  const rec = dispatches[clientMessageId]
-  if (!rec || rec.sessionId !== undefined) return false
-  if (rec.state !== 'queued' && rec.heldReason === undefined) return false
-  rec.state = 'failed'
-  delete rec.heldReason
-  delete rec.heldOp
-  rec.reason = 'withdrawn by the operator (x on the queued row)'
-  publishDispatches(dispatches, dir)
-  return true
+  return withDaemonStoreLock('the dispatch ledger', concourseDispatchesPath(dir), dir, () => {
+    const dispatches = readConcourseDispatches(dir)
+    const rec = dispatches[clientMessageId]
+    if (!rec || rec.sessionId !== undefined) return false
+    if (rec.state !== 'queued' && rec.heldReason === undefined) return false
+    rec.state = 'failed'
+    delete rec.heldReason
+    delete rec.heldOp
+    rec.reason = 'withdrawn by the operator (x on the queued row)'
+    publishDispatches(dispatches, dir)
+    return true
+  })
 }
 
 export function failWorkingDispatchesForRunner(runnerId: string, reason: string, dir?: string): number {
-  const dispatches = readConcourseDispatches(dir)
-  let moved = 0
-  for (const rec of Object.values(dispatches)) {
-    if (rec.state !== 'working' || rec.workerId !== runnerId) continue
-    advance(rec, 'failed', { reason })
-    if (settledFailed(rec)) moved++
-  }
-  if (moved > 0) publishDispatches(dispatches, dir)
-  return moved
+  return withDaemonStoreLock('the dispatch ledger', concourseDispatchesPath(dir), dir, () => {
+    const dispatches = readConcourseDispatches(dir)
+    let moved = 0
+    for (const rec of Object.values(dispatches)) {
+      if (rec.state !== 'working' || rec.workerId !== runnerId) continue
+      advance(rec, 'failed', { reason })
+      if (settledFailed(rec)) moved++
+    }
+    if (moved > 0) publishDispatches(dispatches, dir)
+    return moved
+  })
 }
 
 function settledFailed(rec: ConcourseDispatchRecordV1): boolean {
@@ -234,18 +267,20 @@ export function reconcileWorkingDispatches(
   dir?: string,
   workersRead: (d?: string) => Record<string, { endedAt?: number }> = readSessionWorkers,
 ): number {
-  const dispatches = readConcourseDispatches(dir)
-  const workers = workersRead(dir)
-  let moved = 0
-  for (const rec of Object.values(dispatches)) {
-    if (rec.state !== 'working' || rec.workerId === undefined) continue
-    const worker = workers[rec.workerId]
-    if (worker === undefined || worker.endedAt === undefined) continue
-    advance(rec, 'failed', { reason: 'the worker ended without settling its dispatch — settled at boot reconcile' })
-    if (settledFailed(rec)) moved++
-  }
-  if (moved > 0) publishDispatches(dispatches, dir)
-  return moved
+  return withDaemonStoreLock('the dispatch ledger', concourseDispatchesPath(dir), dir, () => {
+    const dispatches = readConcourseDispatches(dir)
+    const workers = workersRead(dir)
+    let moved = 0
+    for (const rec of Object.values(dispatches)) {
+      if (rec.state !== 'working' || rec.workerId === undefined) continue
+      const worker = workers[rec.workerId]
+      if (worker === undefined || worker.endedAt === undefined) continue
+      advance(rec, 'failed', { reason: 'the worker ended without settling its dispatch — settled at boot reconcile' })
+      if (settledFailed(rec)) moved++
+    }
+    if (moved > 0) publishDispatches(dispatches, dir)
+    return moved
+  })
 }
 
 export function promptDigestOf(prompt: string): string {
@@ -328,11 +363,16 @@ export function readConcourseControlOps(dir?: string): Record<string, ConcourseC
 
 export function recordConcourseControlOp(rec: ConcourseControlOpRecordV1, dir?: string): void {
   if (!daemonHomeStands('the control-op ledger', dir)) return
-  const ops = readConcourseControlOps(dir)
-  ops[rec.clientOpId] = rec
-  const stale = Object.values(ops).sort((a, b) => b.atMs - a.atMs).slice(200)
-  for (const s of stale) delete ops[s.clientOpId]
-  publishInDaemonHome('the control-op ledger', concourseControlOpsPath(dir), `${JSON.stringify({ version: 1, ops }, null, 1)}\n`, { dir })
+  const path = concourseControlOpsPath(dir)
+  withDaemonStoreLock('the control-op ledger', path, dir, ({ homeGone, assertStillHeld }) => {
+    if (homeGone || !daemonHomeStands('the control-op ledger', dir)) return
+    const ops = readConcourseControlOps(dir)
+    ops[rec.clientOpId] = rec
+    const stale = Object.values(ops).sort((a, b) => b.atMs - a.atMs).slice(200)
+    for (const s of stale) delete ops[s.clientOpId]
+    assertStillHeld()
+    publishInDaemonHome('the control-op ledger', path, `${JSON.stringify({ version: 1, ops }, null, 1)}\n`, { dir })
+  })
 }
 
 export function envelopeDigestOf(req: ConcourseDispatchRequest): string {
