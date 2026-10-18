@@ -1,15 +1,78 @@
 
 export const JS_RUNNER_SOURCE: string = `// Mercury eval kernel runner (generated; do not edit in place)
 import { createInterface } from 'node:readline'
-import { createRequire } from 'node:module'
+import { createRequire, syncBuiltinESMExports } from 'node:module'
 import { pathToFileURL } from 'node:url'
-import { resolve as resolvePath, join as joinPath, isAbsolute, sep as pathSep } from 'node:path'
+import { resolve as resolvePath, join as joinPath, dirname as dirnamePath, basename as basenamePath, isAbsolute, sep as pathSep } from 'node:path'
+import { homedir as osHomedir } from 'node:os'
 import { createWriteStream } from 'node:fs'
 import { inspect } from 'node:util'
 
 const proto = createWriteStream('', { fd: 3 })
 let token = null
 let currentCell = null
+const cjsFs = createRequire(import.meta.url)('node:fs')
+const origRealpath = cjsFs.realpathSync.bind(cjsFs)
+function checkFloorPath(rawPath, writing) {
+  if (!currentCell || (typeof rawPath !== 'string' && !Buffer.isBuffer(rawPath) && !(rawPath instanceof URL))) return
+  const str = rawPath instanceof URL ? (rawPath.protocol === 'file:' ? decodeURIComponent(rawPath.pathname) : '') : String(rawPath).trim()
+  if (!str) return
+  const abs = isAbsolute(str) ? str : resolvePath(process.cwd(), str)
+  const forms = new Set([abs.replace(/\\\\/g, '/').replace(/\\/$/, '').toLowerCase()])
+  try { forms.add(origRealpath(abs).replace(/\\\\/g, '/').replace(/\\/$/, '').toLowerCase()) } catch {
+    try { forms.add(joinPath(origRealpath(dirnamePath(abs)), basenamePath(abs)).replace(/\\\\/g, '/').replace(/\\/$/, '').toLowerCase()) } catch {}
+  }
+  const dotHome = '.' + 'mercury'
+  const homes = [process.env.MERCURY_CONFIG_DIR, process.env.MERCURY_HOME, joinPath(process.env.HOME || osHomedir(), dotHome)].filter(Boolean).flatMap(h => {
+    const out = [String(h).replace(/\\\\/g, '/').replace(/\\/$/, '').toLowerCase()]
+    try { out.push(origRealpath(h).replace(/\\\\/g, '/').replace(/\\/$/, '').toLowerCase()) } catch {}
+    return out
+  })
+  const uHomes = [process.env.HOME, process.env.USERPROFILE, osHomedir()].filter(Boolean).flatMap(h => {
+    const out = [String(h).replace(/\\\\/g, '/').replace(/\\/$/, '').toLowerCase()]
+    try { out.push(origRealpath(h).replace(/\\\\/g, '/').replace(/\\/$/, '').toLowerCase()) } catch {}
+    return out
+  })
+  for (const c of forms) {
+    const parent = dirnamePath(c), name = basenamePath(c)
+    if ((homes.includes(parent) || parent.endsWith('/' + dotHome)) && (/^(?:\\.credentials\\.json|\\.provider-secrets\\.json)(?:\\.corrupt\\.[^/]+)?$/.test(name) || /^.+-auth\\.json$/.test(name) || name === 'browser-secrets.json')) {
+      throw new Error('Reading or writing ' + str + ' is refused: ' + c + " holds Mercury's own credentials.")
+    }
+    if (writing) {
+      if (homes.some(h => c === h + '/runtime' || c.startsWith(h + '/runtime/'))) throw new Error('Writing ' + str + ' is refused: ' + c + " is part of Mercury's running runtime.")
+      const sys = c.replace(/^\\/private\\/etc(?=\\/|$)/, '/etc')
+      if (['/etc/sudoers', '/etc/passwd', '/etc/shadow'].includes(sys) || ['/etc/sudoers.d', '/etc/systemd', '/library/keychains'].some(b => sys === b || sys.startsWith(b + '/'))) {
+        throw new Error('Writing ' + str + ' is refused: ' + c + ' is a protected system or credential path.')
+      }
+      for (const uh of uHomes) {
+        if (['.netrc', '.pgpass', '.npmrc', '.pypirc', '.git-credentials'].some(f => c === uh + '/' + f) || ['.ssh', '.aws', '.gnupg', '.kube', '.docker', '.azure', '.config/gh', '.config/gcloud', 'library/keychains', '.local/share/keyrings'].some(d => c === uh + '/' + d || c.startsWith(uh + '/' + d + '/'))) {
+          throw new Error('Writing ' + str + ' is refused: ' + c + ' is a protected system or credential path.')
+        }
+      }
+    }
+  }
+}
+for (const fn of ['readFileSync', 'readFile', 'createReadStream']) {
+  const orig = cjsFs[fn].bind(cjsFs)
+  cjsFs[fn] = (p, ...rest) => { checkFloorPath(p, false); return orig(p, ...rest) }
+}
+for (const fn of ['writeFileSync', 'writeFile', 'appendFileSync', 'appendFile', 'createWriteStream', 'unlinkSync', 'unlink', 'rmSync', 'rm', 'rmdirSync', 'rmdir', 'truncateSync', 'truncate', 'chmodSync', 'chmod']) {
+  const orig = cjsFs[fn].bind(cjsFs)
+  cjsFs[fn] = (p, ...rest) => { checkFloorPath(p, true); return orig(p, ...rest) }
+}
+for (const fn of ['copyFileSync', 'copyFile', 'renameSync', 'rename']) {
+  const orig = cjsFs[fn].bind(cjsFs)
+  cjsFs[fn] = (src, dst, ...rest) => { checkFloorPath(src, fn.startsWith('rename')); checkFloorPath(dst, true); return orig(src, dst, ...rest) }
+}
+if (cjsFs.promises) {
+  const origPRead = cjsFs.promises.readFile.bind(cjsFs.promises)
+  cjsFs.promises.readFile = async (p, ...rest) => { checkFloorPath(p, false); return origPRead(p, ...rest) }
+  for (const fn of ['writeFile', 'appendFile', 'unlink', 'rm', 'rmdir', 'truncate', 'chmod']) {
+    const orig = cjsFs.promises[fn].bind(cjsFs.promises)
+    cjsFs.promises[fn] = async (p, ...rest) => { checkFloorPath(p, true); return orig(p, ...rest) }
+  }
+}
+syncBuiltinESMExports()
 let execCount = 0
 let bridgeSeq = 0
 const bridgeWaits = new Map()

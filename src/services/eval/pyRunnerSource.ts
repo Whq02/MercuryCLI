@@ -29,6 +29,68 @@ _QUEUE = queue.Queue()
 _REAL_STDIN = sys.stdin.buffer
 
 
+def _check_floor_path(raw_path, writing=False):
+    if not _CURRENT_CELL[0] or not isinstance(raw_path, (str, bytes, os.PathLike)):
+        return
+    try:
+        p = os.fsdecode(raw_path)
+    except Exception:
+        return
+    if not p or not isinstance(p, str):
+        return
+    p = p.strip()
+    cands = []
+    for base in (os.path.abspath(p), os.path.realpath(p)):
+        n = base.replace("\\\\", "/").rstrip("/").lower()
+        if n not in cands:
+            cands.append(n)
+    dot_home = "." + "mercury"
+    homes = []
+    for h in (os.environ.get("MERCURY_CONFIG_DIR"), os.environ.get("MERCURY_HOME"), os.path.expanduser("~/" + dot_home)):
+        if h:
+            for form in (str(h), os.path.realpath(h)):
+                nf = form.replace("\\\\", "/").rstrip("/").lower()
+                if nf not in homes:
+                    homes.append(nf)
+    u_homes = []
+    for h in (os.environ.get("HOME"), os.environ.get("USERPROFILE"), os.path.expanduser("~")):
+        if h:
+            for form in (str(h), os.path.realpath(h)):
+                nf = form.replace("\\\\", "/").rstrip("/").lower()
+                if nf not in u_homes:
+                    u_homes.append(nf)
+    for c in cands:
+        parent, name = os.path.dirname(c), os.path.basename(c)
+        if parent in homes or parent.endswith("/" + dot_home):
+            if name in (".credentials.json", ".provider-secrets.json", "browser-secrets.json") or name.endswith("-auth.json") or name.startswith(".credentials.json.corrupt.") or name.startswith(".provider-secrets.json.corrupt."):
+                raise PermissionError(f"Reading or writing {p} is refused: {c} holds Mercury's own credentials.")
+        if writing:
+            if any(c == h + "/runtime" or c.startswith(h + "/runtime/") for h in homes):
+                raise PermissionError(f"Writing {p} is refused: {c} is part of Mercury's running runtime.")
+            sys_c = "/etc" + c[len("/private/etc"):] if c == "/private/etc" or c.startswith("/private/etc/") else c
+            if sys_c in ("/etc/sudoers", "/etc/passwd", "/etc/shadow") or any(sys_c == b or sys_c.startswith(b + "/") for b in ("/etc/sudoers.d", "/etc/systemd", "/library/keychains")):
+                raise PermissionError(f"Writing {p} is refused: {c} is a protected system or credential path.")
+            for uh in u_homes:
+                if any(c == f"{uh}/{f}" for f in (".netrc", ".pgpass", ".npmrc", ".pypirc", ".git-credentials")) or any(c == f"{uh}/{d}" or c.startswith(f"{uh}/{d}/") for d in (".ssh", ".aws", ".gnupg", ".kube", ".docker", ".azure", ".config/gh", ".config/gcloud", "library/keychains", ".local/share/keyrings")):
+                    raise PermissionError(f"Writing {p} is refused: {c} is a protected system or credential path.")
+
+
+def _audit_hook(event, args):
+    if not _CURRENT_CELL[0]:
+        return
+    if event == "open" and len(args) >= 2:
+        mode = str(args[1] or "r")
+        _check_floor_path(args[0], any(ch in mode for ch in "wax+"))
+    elif event in ("os.remove", "os.unlink", "os.rmdir", "os.truncate", "os.chmod") and len(args) >= 1:
+        _check_floor_path(args[0], True)
+    elif event in ("os.rename", "os.replace") and len(args) >= 2:
+        _check_floor_path(args[0], True)
+        _check_floor_path(args[1], True)
+
+
+sys.addaudithook(_audit_hook)
+
+
 def _emit(frame):
     frame["token"] = _TOKEN[0]
     with _PROTO_LOCK:

@@ -423,3 +423,25 @@ export async function shellSelfProtectionReason(command: string, powershell = fa
     return null
   })
 }
+
+export async function evalCodePermission(code: string, cwd = getShellCwd()): Promise<{ behavior: 'deny'; message: string; decisionReason: { type: 'other'; reason: string } } | null> {
+  const denyVerdict = (message: string) => ({ behavior: 'deny' as const, message, decisionReason: { type: 'other' as const, reason: message } })
+  for (const target of inlineScriptWrites(code)) {
+    const runtime = runtimeWritePath(target, cwd, true)
+    if (runtime !== null) return denyVerdict('Changing ' + target + ' is refused: ' + runtime + ' is part of Mercury’s running runtime.')
+  }
+  for (const killCall of code.matchAll(/\b(?:process|os)\.kill\s*\(\s*(\d+)/g)) {
+    const reason = await runtimeProcessRefusal([['kill', killCall[1]!]])
+    if (reason) return denyVerdict(reason)
+  }
+  const normalized = normalizeInlineScript(code)
+  for (const target of [...inlineScriptReads(code), ...[...normalized.matchAll(/(['"])([^'"\r\n]+)\1/g)].map(m => m[2]!)]) {
+    const secret = mercurySecretPath(target, cwd)
+    if (secret !== null) return denyVerdict('Reading ' + target + ' is refused: ' + secret + " holds Mercury's own credentials; use the product's sign-in and account surfaces instead.")
+  }
+  for (const target of inlineScriptWrites(code)) {
+    const credential = credentialStorePath(target, cwd)
+    if (credential !== null) return denyVerdict('Writing ' + target + ' is refused: ' + credential + ' is a protected system or credential path.')
+  }
+  return null
+}

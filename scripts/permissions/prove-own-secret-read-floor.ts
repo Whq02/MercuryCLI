@@ -154,6 +154,18 @@ try {
   const fileTarget = await glob('*.json', join(config, 'notes.json'), { limit: 100, offset: 0 }, new AbortController().signal, getEmptyToolPermissionContext())
   check('file search root lists the file without ENOTDIR', JSON.stringify(fileTarget.files) === JSON.stringify([join(config, 'notes.json')]) && fileTarget.incomplete === undefined, JSON.stringify(fileTarget))
   console.log('Eval read_file helpers')
+  const { EvalTool } = await load('src/tools/EvalTool/EvalTool.ts')
+  for (const mode of modes) {
+    for (const [language, code] of [
+      ['py', "open(os.environ['MERCURY_CONFIG_DIR'] + '/.credentials.json').read()"],
+      ['js', "require('fs').readFileSync(process.env.MERCURY_CONFIG_DIR + '/.credentials.json', 'utf8')"],
+      ['js', "require('fs').writeFileSync(os.homedir() + '/.ssh/authorized_keys', 'x')"],
+      ['js', "require('fs').unlinkSync(process.execPath)"],
+    ] as const) {
+      const verdict = (await decideToolPermission(EvalTool, { language, code }, context(mode, ['Eval']))).decision
+      check(`${mode} EvalTool.checkPermissions refuses direct protected I/O (${language})`, verdict.behavior === 'deny' && /refused/i.test(verdict.message ?? ''), `${code}: ${verdict.behavior}: ${verdict.message ?? ''}`)
+    }
+  }
   const { makeContext } = await load('scripts/eval/lib.ts')
   const { makeEvalBridgeServer } = await load('src/services/eval/evalBridge.ts')
   const { evalKernelManager } = await load('src/services/eval/kernelManager.ts')
@@ -168,6 +180,11 @@ try {
         : 'try:\n    read_file(' + path + ')\n    result = "unexpected read"\nexcept Exception as error:\n    result = str(error)\nresult'
       const result = await evalKernelManager.runCell({ owner: 'secret-' + mode + '-' + language, cwd: project, input: { language, code, timeoutSeconds: 30 }, abortSignal: cellAbort.signal, serveBridge })
       check(mode + ' ' + language + ' read_file refuses through the real bridge', result.status === 'ok' && /credential|refused/i.test(result.resultRepr ?? '') && !JSON.stringify(result).includes(needle), JSON.stringify(result))
+      const directCode = language === 'js'
+        ? 'let direct; try { require("node:fs").readFileSync(' + path + ', "utf8"); direct = "unexpected direct read" } catch (error) { direct = String(error.message) }\ndirect'
+        : 'try:\n    open(' + path + ').read()\n    direct = "unexpected direct read"\nexcept Exception as error:\n    direct = str(error)\ndirect'
+      const directResult = await evalKernelManager.runCell({ owner: 'secret-' + mode + '-' + language, cwd: project, input: { language, code: directCode, timeoutSeconds: 30 }, abortSignal: cellAbort.signal, serveBridge })
+      check(mode + ' ' + language + ' direct kernel file read refuses', directResult.status === 'ok' && /credential|refused/i.test(directResult.resultRepr ?? '') && !JSON.stringify(directResult).includes(needle), JSON.stringify(directResult))
       cellAbort.abort()
     }
   } finally { await evalKernelManager.disposeAll() }

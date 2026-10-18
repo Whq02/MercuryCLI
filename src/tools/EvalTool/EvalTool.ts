@@ -2,6 +2,7 @@
 import { z } from 'zod/v4'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { getCwd } from '../../utils/cwd.js'
+import { evalCodePermission } from '../../utils/permissions/shellProtectedPaths.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import {
   evalEnabled,
@@ -94,6 +95,8 @@ const evalToolDef = buildTool({
     return false
   },
   async checkPermissions(input: EvalToolInput) {
+    const floor = await evalCodePermission(input.code, getCwd())
+    if (floor) return floor
     return {
       behavior: 'ask' as const,
       message: `Run a ${input.language} cell${input.title ? ` — ${input.title}` : ''}`,
