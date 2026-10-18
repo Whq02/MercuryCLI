@@ -255,7 +255,7 @@ async function validateNonAnthropicModel(
   if (route === 'qwen') {
     const { resolveQwenAccount } = await import('../../services/providers/qwen/qwenAccounts.js')
     const qwenAccount = resolveQwenAccount()
-    if (!qwenAccount) return { valid: false, error: 'Qwen is unavailable — no Model Studio API key (/logins qwen, or set DASHSCOPE_API_KEY).' }
+    if (!qwenAccount) return { valid: false, error: 'Qwen is unavailable — no QwenCloud or Model Studio API key (/logins qwen, or set DASHSCOPE_API_KEY).' }
     const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
     await readCatalogueIfPending('qwen')
     const { getCachedQwenCatalogue, qwenListedModel, newestQwenModel, qwenPinScope } = await import('../../services/providers/qwen/qwenCatalogue.js')
@@ -266,8 +266,8 @@ async function validateNonAnthropicModel(
     if (id === 'qwen') return newestQwenModel() ? { valid: true, skipCache: true } : { valid: false, error: "Qwen's list has not served a text model for 'qwen' yet — /model refreshes it." }
     if (!isQwenTextModelId(id)) return { valid: false, error: 'This Qwen model is not on the text road; the speech, image, video, embedding and rerank lines are not supported here.' }
     if (qwenPinScope(process.env, snapshot) === 'coding-plan' || qwenDisplayPin(id)) return { valid: true, skipCache: true }
-    if (snapshot?.models.length && !qwenListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Model Studio endpoint's live catalogue.` }
-    if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0) return { valid: false, error: `Model "${trimmed}" is not listed by the Model Studio endpoint's live catalogue.` }
+    if (snapshot?.models.length && !qwenListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the ${snapshot.endpointLabel ?? 'bound'} endpoint's live catalogue.` }
+    if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0) return { valid: false, error: `Model "${trimmed}" is not listed by the ${snapshot.endpointLabel ?? 'bound'} endpoint's live catalogue.` }
     return { valid: true, skipCache: true }
   }
   if (route === 'together') {

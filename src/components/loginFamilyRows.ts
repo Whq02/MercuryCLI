@@ -61,7 +61,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'Groq — API key (text models)', value: 'groq' as const },
           { label: 'Cerebras — API key (text models)', value: 'cerebras' as const },
           { label: 'Fireworks — API key (text models)', value: 'fireworks' as const },
-          { label: 'Qwen — Model Studio API key (Qwen3.8 Max, Qwen3.7 Plus)', value: 'qwen' as const },
+          { label: 'Qwen — QwenCloud or Model Studio API key (Qwen3.8 Max, Qwen3.7 Plus)', value: 'qwen' as const },
           { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },
           ...configuredCompatEndpoints().filter(endpoint => endpoint.named).map(endpoint => ({ label: `${endpoint.label} (${endpoint.name}) — endpoint API key`, value: `compat/${endpoint.name}` as const })),
         ]

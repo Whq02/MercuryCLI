@@ -1632,7 +1632,7 @@ function routeSlotRemoval(
       return { note: 'stored Fireworks API key cleared from the auth-scoped store', mutated: true }
     case 'qwen-stored-key':
       ;(owners.clearStoredQwenKey ?? (() => writeStoredQwenApiKey(null)))()
-      return { note: 'stored Model Studio API key and its endpoint cleared from the auth-scoped store', mutated: true }
+      return { note: 'stored QwenCloud or Model Studio API key and its endpoint cleared from the auth-scoped store', mutated: true }
     case 'deepseek-stored-key':
       ;(owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null)))()
       return { note: 'stored DeepSeek API key cleared from the auth-scoped store', mutated: true }

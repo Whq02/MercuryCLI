@@ -615,7 +615,7 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
     case 'fireworks':
       return 'Fireworks API key';
     case 'qwen':
-      return 'Model Studio API key';
+      return 'QwenCloud or Model Studio API key';
     case 'zen':
       return 'OpenCode Zen API key';
     case 'minimax':
@@ -714,7 +714,7 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
     case 'fireworks':
       return { stores: 'a Fireworks API key' };
     case 'qwen':
-      return { stores: 'a Model Studio API key' };
+      return { stores: 'a QwenCloud or Model Studio API key' };
     case 'zen':
       return { stores: 'an OpenCode Zen API key (sk-…)' };
     case 'minimax':

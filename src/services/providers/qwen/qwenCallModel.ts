@@ -8,7 +8,7 @@ import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile }
 import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
-import { QWEN_BASE_OVERRIDE_ENV, QWEN_ENV_KEY, qwenBoundEndpointLabel, qwenChatCompletionsUrl, resolveQwenAccount, resolveQwenCredential } from './qwenAccounts.js'
+import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, QWEN_ENV_KEY, qwenBoundBase, qwenBoundConsole, qwenChatCompletionsUrl, qwenConsolePage, qwenConsoleWords, qwenEndpointWhere, resolveQwenAccount, resolveQwenCredential } from './qwenAccounts.js'
 import { getCachedQwenCatalogue, newestQwenModel, qwenListedModel, qwenModelFacts, qwenPinScope, qwenWireId } from './qwenCatalogue.js'
 import { isQwenTextModelId, qwenDisplayPin, qwenPinsFor, qwenPreservesThinking, qwenWireEffort } from './qwenPins.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
@@ -30,9 +30,9 @@ export function buildQwenExtras(args: LaneExtrasArgs): Record<string, unknown> {
   }
 }
 
-function qwenWrongRegionRemedy(endpointLabel: string | undefined): string {
-  const where = endpointLabel ? `Model Studio ${endpointLabel} refused the key` : 'Model Studio refused the key'
-  return `${where} — a Model Studio key answers only the region and plan it was minted in; /logins qwen re-binds the key to its endpoint, or ${QWEN_BASE_OVERRIDE_ENV} names the endpoint it was minted for. A 403 "Access to model denied" means the service or the model is not activated for the account — the Model Studio console (Model Gallery) activates it.`
+function qwenWrongRegionRemedy(boundBase: string | undefined): string {
+  const where = boundBase ? `${qwenEndpointWhere(boundBase)} refused the key` : `The ${QWEN_CONSOLES} endpoint refused the key`
+  return `${where} — a ${QWEN_CONSOLES} key answers only the region and plan it was minted in; /logins qwen re-binds the key to its endpoint, or ${QWEN_BASE_OVERRIDE_ENV} names the endpoint it was minted for. A 403 "Access to model denied" means the service or the model is not activated for the account — ${qwenBoundConsole() === 'Model Studio' ? 'the Model Studio console (Model Gallery)' : "the account's console"} activates it.`
 }
 
 const qwenLaneProfile: CompatLaneProfile = {
@@ -48,12 +48,15 @@ const qwenLaneProfile: CompatLaneProfile = {
   },
   get credentialHint(): string {
     const failure = providerKeyCommandFailure('qwen')
-    return failure ? `the configured ${failure.message} — no Model Studio API key detected.` : `no Model Studio API key detected — /logins qwen stores one (made at ${QWEN_KEY_PAGE}; a Coding Plan key is sk-sp-…); ${QWEN_ENV_KEY} works too.`
+    return failure ? `the configured ${failure.message} — no ${QWEN_CONSOLES} API key detected.` : `no ${QWEN_CONSOLES} API key detected — /logins qwen stores one (made at ${QWEN_KEY_PAGE}; a Coding Plan key is sk-sp-…); ${QWEN_ENV_KEY} works too.`
   },
   get authRemedy(): string {
-    return qwenWrongRegionRemedy(qwenBoundEndpointLabel())
+    return qwenWrongRegionRemedy(qwenBoundBase())
   },
-  billingRemedy: 'the Model Studio balance or plan quota is spent — top up or wait for the plan window at modelstudio.console.alibabacloud.com (Usage & Billing), then retry; /model picks another model meanwhile.',
+  get billingRemedy(): string {
+    const origin = qwenBoundConsole()
+    return `the ${qwenConsoleWords(origin)} balance or plan quota is spent — top up or wait for the plan window at ${qwenConsolePage(origin)}, then retry; /model picks another model meanwhile.`
+  },
   requestUrl: () => qwenChatCompletionsUrl(),
   wireModelId: model => qwenWireId(model),
   keepsReasoningHistory: model => qwenPreservesThinking(model),
@@ -104,8 +107,8 @@ export async function* qwenCallModel(params: CallModelParams): CallModelStream {
     return
   }
   const notes = snapshot?.lastError || !snapshot?.models.length
-    ? [`Qwen model list unavailable — the named id '${model}' is sent for Model Studio to decide.`]
-    : scope === 'pay-as-you-go' && !qwenListedModel(snapshot, chosen!) ? [`'${model}' is a pinned Model Studio id the endpoint's list does not name — sent for Model Studio to decide.`] : undefined
+    ? [`Qwen model list unavailable — the named id '${model}' is sent for ${qwenConsoleWords(qwenBoundConsole())} to decide.`]
+    : scope === 'pay-as-you-go' && !qwenListedModel(snapshot, chosen!) ? [`'${model}' is a pinned Model Studio id the endpoint's list does not name — sent for ${qwenConsoleWords(qwenBoundConsole())} to decide.`] : undefined
   yield* compatChatCallModel({
     ...qwenLaneProfile, ...(notes ? { leadingNotes: notes } : {}), wireModelId: () => model!,
   }, { ...params, options: { ...params.options, model: model! } })

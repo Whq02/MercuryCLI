@@ -28,7 +28,7 @@
    │   Groq — API key (text models)                   not signed in │  │ Signed in  0 of 20                         │
    │   Cerebras — API key (text models)               not signed in │  │ Ready      0 lanes                         │
    │   Fireworks — API key (text models)              not signed in │  ╰────────────────────────────────────────────╯
-   │   Qwen — Model Studio API key (Qwen3.8 Ma…       not signed in │  ╭────────────────────────────────────────────╮
+   │   Qwen — QwenCloud or Model Studio API ke…       not signed in │  ╭────────────────────────────────────────────╮
    │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ ENVIRONMENT                                │
    ╰────────────────────────────────────────────────────────────────╯  │ Mercury    Opus 5                          │
                                                                        │ Critter    Octopus                         │

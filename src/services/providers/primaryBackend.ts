@@ -341,7 +341,7 @@ const fireworksBackend: PrimaryAgentBackend = {
   },
 }
 const qwenBackend: PrimaryAgentBackend = {
-  id: 'qwen-chat', provider: 'qwen', label: 'Qwen (Model Studio, in-process)',
+  id: 'qwen-chat', provider: 'qwen', label: 'Qwen (QwenCloud or Model Studio, in-process)',
   callModel: qwenCallModel,
   readiness: (): BackendReadiness => {
     if (!resolveQwenCredentialSnapshot()) return { state: 'unavailable', reason: 'no sign-in or API key (/logins qwen, or DASHSCOPE_API_KEY)' }

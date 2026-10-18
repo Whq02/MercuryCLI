@@ -411,7 +411,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   const groq = keyLane('groq', reads.groqKeyPresent?.() ?? false, 'no Groq API key — /logins groq (or GROQ_API_KEY)')
   const cerebras = keyLane('cerebras', reads.cerebrasKeyPresent?.() ?? false, 'no Cerebras API key — /logins cerebras (or CEREBRAS_API_KEY)')
   const fireworks = keyLane('fireworks', reads.fireworksKeyPresent?.() ?? false, 'no Fireworks API key — /logins fireworks (or FIREWORKS_API_KEY)')
-  const qwen = keyLane('qwen', reads.qwenKeyPresent?.() ?? false, 'no Model Studio API key — /logins qwen (or DASHSCOPE_API_KEY)')
+  const qwen = keyLane('qwen', reads.qwenKeyPresent?.() ?? false, 'no QwenCloud or Model Studio API key — /logins qwen (or DASHSCOPE_API_KEY)')
   const deepseek = keyLane(
     'deepseek',
     reads.deepseekKeyPresent?.() ?? false,

@@ -289,7 +289,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     groq: 'no Groq API key — /logins groq (or GROQ_API_KEY)',
     cerebras: 'no Cerebras API key — /logins cerebras (or CEREBRAS_API_KEY)',
     fireworks: 'no Fireworks API key — /logins fireworks (or FIREWORKS_API_KEY)',
-    qwen: 'no Model Studio API key — /logins qwen (or DASHSCOPE_API_KEY)',
+    qwen: 'no QwenCloud or Model Studio API key — /logins qwen (or DASHSCOPE_API_KEY)',
   }
   for (const family of families) {
     const lane = map[family as keyof typeof map]
@@ -321,7 +321,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     groq: 'not connected — /logins groq adds a key',
     cerebras: 'not connected — /logins cerebras adds a key',
     fireworks: 'not connected — /logins fireworks adds a key',
-    qwen: 'not connected — /logins qwen adds a Model Studio key',
+    qwen: 'not connected — /logins qwen adds a QwenCloud or Model Studio key',
     local: 'no local server — start one, or set MERCURY_LOCAL_BASE_URL',
     nous: 'not connected — /logins nous adds a key',
   }

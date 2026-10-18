@@ -30,7 +30,7 @@
    │   Groq — API key (text models)                   not signed in │  ╰────────────────────────────────────────────╯
    │   Cerebras — API key (text models)               not signed in │  ╭────────────────────────────────────────────╮
    │   Fireworks — API key (text models)              not signed in │  │ ENVIRONMENT                                │
-   │   Qwen — Model Studio API key (Qwen3.8 Ma…       not signed in │  │ Mercury    Opus 5                          │
+   │   Qwen — QwenCloud or Model Studio API ke…       not signed in │  │ Mercury    Opus 5                          │
    │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Critter    Octopus                         │
    ╰────────────────────────────────────────────────────────────────╯  │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯

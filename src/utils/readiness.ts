@@ -968,7 +968,7 @@ function backendRemedy(backendId: string): string | undefined {
   if (backendId === 'groq-chat') return 'add a Groq API key via /logins groq (or set GROQ_API_KEY)'
   if (backendId === 'cerebras-chat') return 'add a Cerebras API key via /logins cerebras (or set CEREBRAS_API_KEY)'
   if (backendId === 'fireworks-chat') return 'add a Fireworks API key via /logins fireworks (or set FIREWORKS_API_KEY)'
-  if (backendId === 'qwen-chat') return 'add a Model Studio API key via /logins qwen (or set DASHSCOPE_API_KEY)'
+  if (backendId === 'qwen-chat') return 'add a QwenCloud or Model Studio API key via /logins qwen (or set DASHSCOPE_API_KEY)'
   return undefined
 }
 
