@@ -170,6 +170,7 @@ src/services/providers/cerebras/cerebrasCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/cohere/cohereCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/fireworks/fireworksCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/groq/groqCatalogue.ts :: cache :: ttl-bounded
+src/services/providers/qwen/qwenCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/deepseek/deepseekCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/deferralProbe.ts :: cache :: keyed-by-truth
 src/services/providers/gemini/geminiCatalogue.ts :: catalogueCache :: ttl-bounded
