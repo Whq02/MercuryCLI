@@ -142,6 +142,7 @@ export type Out = {
   dangerouslyDisableSandbox?: boolean
   returnCodeInterpretation?: string
   exitNote?: string
+  timeoutClampNotice?: string
   noOutputExpected?: boolean
   persistedOutputPath?: string
   persistedOutputSize?: number
@@ -368,6 +369,10 @@ async function* runBash(
 
   const requestedTimeout = input.timeout
   const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
+  const timeoutClampNotice =
+    requestedTimeout !== undefined && requestedTimeout > getMaxTimeoutMs()
+      ? `The timeout asked for (${formatDuration(requestedTimeout)}) is above the cap (${formatDuration(getMaxTimeoutMs())}), so ${formatDuration(getMaxTimeoutMs())} applied; a command that needs longer runs with run_in_background.`
+      : undefined
   const useSandbox = shouldUseSandbox(input)
   const firstSubcommand = pinnedCommandAnalysis.splitCommand(input.command)[0]?.trim() ?? input.command.trim()
   const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstCommandWord(firstSubcommand))
@@ -567,6 +572,7 @@ async function* runBash(
       backgroundTaskId: backgroundId,
       scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
       timeoutAutoBackgroundedAfterMs,
+      ...(timeoutClampNotice !== undefined ? { timeoutClampNotice } : {}),
       ...backgroundFacts(),
       ...(soFar.isTail ? { backgroundOutputIsTail: true } : {}),
     }
@@ -778,6 +784,7 @@ async function* runBash(
       isImage,
       returnCodeInterpretation,
       ...(exitNote !== undefined ? { exitNote } : {}),
+      ...(timeoutClampNotice !== undefined ? { timeoutClampNotice } : {}),
       ...(outputBudgetNotice !== undefined ? { outputBudgetNotice } : {}),
       ...(rerun !== undefined ? { sandboxRetryNotice: rerun.notice } : {}),
       noOutputExpected,
@@ -824,7 +831,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   }
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
   const scrubNotice = output.sessionEnvNotice ?? ''
-  const content = [stdout, errorText, output.exitNote ?? '', output.outputBudgetNotice ?? '', output.sandboxRetryNotice ?? '', backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
+  const content = [stdout, errorText, output.exitNote ?? '', output.timeoutClampNotice ?? '', output.outputBudgetNotice ?? '', output.sandboxRetryNotice ?? '', backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
   return { tool_use_id: toolUseID, type: 'tool_result', content, is_error: output.interrupted }
 }
 
