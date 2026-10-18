@@ -858,6 +858,7 @@ export async function* runAgent(
     const agentGetAppState: typeof parentGetAppState = () => {
       const state = parentGetAppState()
       return composeAgentAppState(state, {
+        definitionTools: agentDefinition,
         definitionMode,
         avoidPrompts,
         isAsync,

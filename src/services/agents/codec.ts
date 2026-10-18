@@ -1,3 +1,5 @@
+import { agentToolRuleProblem } from '../../tools/AgentTool/agentToolRules.js'
+import { parseToolListFromCLI } from '../../utils/permissions/permissionSetup.js'
 import { AGENT_COLORS, type AgentColorName } from '../../tools/AgentTool/agentColorManager.js'
 import type { AgentMemoryScope } from '../../tools/AgentTool/agentMemory.js'
 import { isInstructionProfile } from '../instructions/profile.js'
@@ -161,6 +163,14 @@ function extractFields(
     }
   }
 
+  for (const field of ['tools', 'disallowedTools'] as const) {
+    const raw = frontmatter[field]
+    const items = typeof raw === 'string' ? [raw] : Array.isArray(raw) ? raw.filter((item): item is string => typeof item === 'string') : raw && typeof raw === 'object' ? Object.keys(raw) : []
+    for (const spec of parseToolListFromCLI(items)) {
+      const problem = agentToolRuleProblem(spec)
+      if (problem !== null) diag('error', 'invalid-tool-rule', field, problem)
+    }
+  }
   const skills = parseSlashCommandToolsFromFrontmatter(frontmatter['skills'])
   if (skills.length > 0) fields.skills = skills
 

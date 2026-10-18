@@ -1,6 +1,7 @@
 import type { AppState } from '../../state/AppStateStore.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { EffortValue } from '../../utils/effort.js'
+import { scopedAgentToolRules } from './agentToolRules.js'
 import {
   modeBypassesPermissions,
   PERMISSION_MODES,
@@ -60,6 +61,7 @@ interface AgentAppStateFacts {
   isAsync: boolean
   allowedTools: readonly string[] | undefined
   effortValue: EffortValue | undefined
+  definitionTools?: { tools?: readonly string[]; disallowedTools?: readonly string[] }
 }
 
 export function definitionModeWithinConsent(
@@ -109,6 +111,20 @@ export function composeAgentAppState(
     : parentState
   if (facts.allowedTools && facts.allowedTools.length > 0) {
     next = withAllowedCommandRules(next, facts.allowedTools)
+  }
+  if (facts.definitionTools !== undefined) {
+    const rules = scopedAgentToolRules(facts.definitionTools)
+    if (rules.allow.length > 0 || rules.deny.length > 0) {
+      const permission = next.toolPermissionContext
+      next = {
+        ...next,
+        toolPermissionContext: {
+          ...permission,
+          alwaysAllowRules: { ...permission.alwaysAllowRules, toolsNarrowing: [...new Set([...(permission.alwaysAllowRules.toolsNarrowing ?? []), ...rules.allow])] },
+          alwaysDenyRules: { ...permission.alwaysDenyRules, toolsNarrowing: [...new Set([...(permission.alwaysDenyRules.toolsNarrowing ?? []), ...rules.deny])] },
+        },
+      }
+    }
   }
   if (facts.effortValue !== undefined && next.effortValue !== facts.effortValue) {
     next = { ...next, effortValue: facts.effortValue }
