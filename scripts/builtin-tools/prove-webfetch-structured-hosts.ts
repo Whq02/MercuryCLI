@@ -103,6 +103,12 @@ const server = Bun.serve({
       if (path === '/repositories/777') {
         return new Response(readFixture('github-repo.json'), { headers: { 'Content-Type': 'application/json' } })
       }
+      if (path === '/repos/acme/bigreadme') {
+        return new Response(readFixture('github-repo.json'), { headers: { 'Content-Type': 'application/json' } })
+      }
+      if (path === '/repos/acme/bigreadme/readme') {
+        return new Response(oversizedBytes, { headers: { 'Content-Type': 'application/json' } })
+      }
       if (path === '/repos/acme/loop') {
         return new Response('', { status: 301, headers: { Location: 'https://api.github.com/repos/acme/loop' } })
       }
@@ -130,6 +136,15 @@ const server = Bun.serve({
       if (path === '/@acme%2Fwidget') {
         return new Response(readFixture('npm-pkg.json'), { headers: { 'Content-Type': 'application/json' } })
       }
+      if (path === '/@acme%2Fhuge') {
+        return new Response(oversizedBytes, { headers: { 'Content-Type': 'application/json' } })
+      }
+      if (path === '/@acme%2Fhuge/latest') {
+        return new Response(
+          JSON.stringify({ name: '@acme/huge', version: '9.9.9', description: 'A package with thousands of published versions', license: 'MIT', dependencies: { left: '^1.0.0' } }),
+          { headers: { 'Content-Type': 'application/json' } },
+        )
+      }
       return new Response('{}', { status: 404 })
     }
 
@@ -142,6 +157,12 @@ const server = Bun.serve({
       }
       if (path === '/pypi/PyYAML-Case/json') {
         return new Response(readFixture('pypi-pkg.json'), { headers: { 'Content-Type': 'application/json' } })
+      }
+      if (path === '/pypi/hugeproj/json') {
+        return new Response(oversizedBytes, { headers: { 'Content-Type': 'application/json' } })
+      }
+      if (path === '/project/hugeproj/') {
+        return new Response('<article><h1>hugeproj on the PyPI project page</h1><p>The plain project page of a project whose JSON document is far too large to read whole.</p></article>', { headers: { 'Content-Type': 'text/html' } })
       }
       return new Response('{}', { status: 404 })
     }
@@ -471,6 +492,30 @@ try {
       'redirect: a redirect that loops on its own host is refused after a few requests, never followed without end',
       looped.code !== 200 && loopRequests >= 1 && loopRequests <= 4 && /redirect/i.test(looped.result),
       `${loopRequests} requests — ${looped.result.slice(0, 200)}`,
+    )
+
+    clearWebFetchCache()
+    const hugeNpm = await callFetch('https://www.npmjs.com/package/@acme/huge')
+    check(
+      'large: an npm package whose full registry document passes the ceiling is read from its version document',
+      hugeNpm.code === 200 && hugeNpm.result.includes('# @acme/huge (9.9.9)') && hugeNpm.result.includes('A package with thousands of published versions'),
+      hugeNpm.result.slice(0, 300),
+    )
+
+    clearWebFetchCache()
+    const hugePy = await callFetch('https://pypi.org/project/hugeproj/')
+    check(
+      'large: a PyPI project whose JSON document passes the ceiling is read from its project page, as before the structured road',
+      hugePy.code === 200 && hugePy.result.includes('hugeproj on the PyPI project page'),
+      hugePy.result.slice(0, 300),
+    )
+
+    clearWebFetchCache()
+    const bigReadme = await callFetch('https://github.com/acme/bigreadme')
+    check(
+      'large: a README over the ceiling is left out and the repository is still read',
+      bigReadme.code === 200 && bigReadme.result.includes('# acme/widget') && bigReadme.result.includes('Stars: 1420'),
+      bigReadme.result.slice(0, 300),
     )
 
     clearWebFetchCache()

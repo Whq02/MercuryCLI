@@ -204,14 +204,16 @@ function classifyStructuredFetchUrl(rawUrl: string): StructuredTarget | null {
 
 type ApiReadResult =
   | { ok: true; status: number; statusText: string; bytes: number; text: string; contentType: string; headers: Record<string, unknown> }
-  | { ok: false; fallThrough: true }
+  | { ok: false; fallThrough: true; oversize?: true }
+
+type ApiReadMode = 'required' | 'optional' | 'registry'
 
 async function fetchApiEndpoint(
   source: StructuredSource,
   apiUrl: string,
   signal: AbortSignal,
   accept: string,
-  optional = false,
+  mode: ApiReadMode = 'required',
   redirects = 0,
 ): Promise<ApiReadResult> {
   if (signal.aborted) throw new AbortError()
@@ -242,6 +244,7 @@ async function fetchApiEndpoint(
       if (signal.aborted) throw new AbortError()
       if (axios.isAxiosError(error)) {
         if (error.code === 'ERR_FR_MAX_BODY_LENGTH_EXCEEDED' || /maxContentLength/i.test(error.message)) {
+          if (mode !== 'required') return { ok: false, fallThrough: true, oversize: true }
           throw new FetchRefusedError(
             413,
             `${SOURCE_LABEL[source]} returned a response larger than ${MAX_API_BYTES} bytes; refused before decoding.`,
@@ -250,7 +253,6 @@ async function fetchApiEndpoint(
         if (error.response) {
           response = error.response
         } else {
-          if (optional) return { ok: false, fallThrough: true }
           return { ok: false, fallThrough: true }
         }
       } else {
@@ -298,11 +300,11 @@ async function fetchApiEndpoint(
         `${SOURCE_LABEL[source]} ${status === 403 ? 'refused or rate-limited' : 'is rate-limiting'} requests; backed off for ${Math.ceil(delay / 1000)}s. Search for another source and do not retry before the wait ends.`,
       )
     }
-    if (status === 404 && !optional) {
+    if (status === 404 && mode !== 'optional') {
       return { ok: false, fallThrough: true }
     }
     if (status < 200 || status >= 300) {
-      if (optional) return { ok: false, fallThrough: true }
+      if (mode === 'optional') return { ok: false, fallThrough: true }
       throw new FetchRefusedError(
         status,
         `${SOURCE_LABEL[source]} could not serve this request (${status}); search for another source — do not retry this URL.`,
@@ -310,6 +312,7 @@ async function fetchApiEndpoint(
     }
     const buf = Buffer.from(response.data)
     if (buf.byteLength > MAX_API_BYTES) {
+      if (mode !== 'required') return { ok: false, fallThrough: true, oversize: true }
       throw new FetchRefusedError(
         413,
         `${SOURCE_LABEL[source]} returned a response larger than ${MAX_API_BYTES} bytes; refused before decoding.`,
@@ -326,7 +329,7 @@ async function fetchApiEndpoint(
       headers,
     }
   })
-  if ('redirectTo' in outcome) return fetchApiEndpoint(source, outcome.redirectTo, signal, accept, optional, redirects + 1)
+  if ('redirectTo' in outcome) return fetchApiEndpoint(source, outcome.redirectTo, signal, accept, mode, redirects + 1)
   return outcome
 }
 
@@ -397,7 +400,7 @@ async function fetchGitHubStructured(
 
     let readmeText = ''
     let readmeBytes = 0
-    const readmeRes = await fetchApiEndpoint('github', `${base}/readme`, signal, 'application/vnd.github+json', true)
+    const readmeRes = await fetchApiEndpoint('github', `${base}/readme`, signal, 'application/vnd.github+json', 'optional')
     if (readmeRes.ok) {
       readmeBytes = readmeRes.bytes
       try {
@@ -483,7 +486,7 @@ async function fetchGitHubStructured(
   const commentsCount = num(item.comments) ?? 0
   if (commentsCount > 0) {
     const commentsUrl = `${base}/issues/${target.number}/comments?per_page=${MAX_COMMENTS}`
-    const commentsRes = await fetchApiEndpoint('github', commentsUrl, signal, 'application/vnd.github+json', true)
+    const commentsRes = await fetchApiEndpoint('github', commentsUrl, signal, 'application/vnd.github+json', 'optional')
     if (commentsRes.ok) {
       commentBytes = commentsRes.bytes
       try {
@@ -523,9 +526,18 @@ async function fetchNpmStructured(
     ? `@${encodeURIComponent(target.pkg.slice(1, slash))}%2F${encodeURIComponent(target.pkg.slice(slash + 1))}`
     : encodeURIComponent(target.pkg)
   const apiUrl = `https://registry.npmjs.org/${encodedPkg}`
-  const res = await fetchApiEndpoint('npm', apiUrl, signal, 'application/json')
-  if (!res.ok) return null
-  const packument = parseJsonBody('npm', res)
+  let res = await fetchApiEndpoint('npm', apiUrl, signal, 'application/json', 'registry')
+  let packument: Record<string, unknown>
+  if (!res.ok && res.oversize) {
+    res = await fetchApiEndpoint('npm', `${apiUrl}/${encodeURIComponent(target.version ?? 'latest')}`, signal, 'application/json')
+    if (!res.ok) return null
+    const doc = parseJsonBody('npm', res)
+    const docVersion = str(doc.version)
+    packument = { name: doc.name, 'dist-tags': target.version ? {} : { latest: docVersion }, versions: { [docVersion]: doc }, readme: doc.readme }
+  } else {
+    if (!res.ok) return null
+    packument = parseJsonBody('npm', res)
+  }
   const name = str(packument.name) || target.pkg
   const distTags = obj(packument['dist-tags'])
   const latest = str(distTags.latest)
@@ -579,7 +591,7 @@ async function fetchPypiStructured(
   const apiUrl = target.version
     ? `https://pypi.org/pypi/${encodeURIComponent(target.project)}/${encodeURIComponent(target.version)}/json`
     : `https://pypi.org/pypi/${encodeURIComponent(target.project)}/json`
-  const res = await fetchApiEndpoint('pypi', apiUrl, signal, 'application/json')
+  const res = await fetchApiEndpoint('pypi', apiUrl, signal, 'application/json', 'registry')
   if (!res.ok) return null
   const body = parseJsonBody('pypi', res)
   const info = obj(body.info)
@@ -786,7 +798,7 @@ async function fetchStackOverflowStructured(
   let ansBytes = 0
   if (answerCount > 0) {
     const aUrl = `https://api.stackexchange.com/2.3/questions/${encodeURIComponent(target.questionId)}/answers?order=desc&sort=votes&site=stackoverflow&pagesize=3&filter=withbody`
-    const aRes = await fetchApiEndpoint('stackoverflow', aUrl, signal, 'application/json', true)
+    const aRes = await fetchApiEndpoint('stackoverflow', aUrl, signal, 'application/json', 'optional')
     if (aRes.ok) {
       ansBytes = aRes.bytes
       try {
