@@ -1,4 +1,4 @@
-import { readStoredLocalApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredLocalApiKey } from '../providerSecrets.js'
 import { getCachedLocalDiscovery } from './localDiscovery.js'
 
 export const LOCAL_PULL_RECOMMENDATION = 'ollama pull qwen3.5:9b (tool-capable, ~6.6 GB; qwen3.5:27b for 48 GB and up)'

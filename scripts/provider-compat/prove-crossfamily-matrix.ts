@@ -338,10 +338,10 @@ const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { GLM_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/zai.ts')
-const { moonshotCatalogueEntries } = await import('../../src/utils/router/providers/moonshot.ts')
-const { DEEPSEEK_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/deepseek.ts')
-const { HUGGINGFACE_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/huggingface.ts')
+const { GLM_STATIC_CATALOGUE } = await import('../../src/services/providers/zai/zaiAdapter.ts')
+const { moonshotCatalogueEntries } = await import('../../src/services/providers/moonshot/moonshotAdapter.ts')
+const { DEEPSEEK_STATIC_CATALOGUE } = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')
+const { HUGGINGFACE_STATIC_CATALOGUE } = await import('../../src/services/providers/huggingface/huggingfaceAdapter.ts')
 type Message = import('../../src/types/message.ts').Message
 type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
 

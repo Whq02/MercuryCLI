@@ -1,4 +1,4 @@
-import { readStoredCohereApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredCohereApiKey } from '../providerSecrets.js'
 
 const COHERE_API_BASE_URL = 'https://api.cohere.ai/compatibility/v1'
 export const COHERE_ENV_KEY = 'COHERE_API_KEY'

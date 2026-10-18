@@ -90,7 +90,7 @@ const { frontierOperatorDecision } = await import('../../src/utils/model/frontie
 const { getModelOptions, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
 const { declaredRouteOf, providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
 const { storeZaiApiKeyLogin } = await import('../../src/services/providers/zai/zaiLogin.ts')
-const { writeStoredDeepseekApiKey } = await import('../../src/utils/router/providerSecrets.ts')
+const { writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const { switchDefaultProvider } = await import('../../src/utils/model/defaultProviderRung.ts')
 const { clearAuthScope, setAuthScope } = await import('../../src/utils/envUtils.ts')
 
@@ -370,7 +370,7 @@ section('§5 the sign-in owners — every credential-landing site records; the r
 {
   const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../src', rel), 'utf8')
   const count = (text: string, needle: string): number => text.split(needle).length - 1
-  const secrets = src('utils/router/providerSecrets.ts')
+  const secrets = src('services/providers/providerSecrets.ts')
   check('the key store records the Z.AI and OpenAI key writes', secrets.includes("recordSignIn('zai', 'api-key')") && secrets.includes("recordSignIn('openai', 'api-key')"))
   check('…and the generic key writer records through the field→family map', secrets.includes("recordSignIn(family, 'api-key')"))
   const map = secrets.slice(secrets.indexOf('const KEY_FIELD_FAMILY'), secrets.indexOf('function writeStoredKey'))

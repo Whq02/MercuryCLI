@@ -20,9 +20,9 @@ import {
   type ProviderFamilyPresence,
 } from '../../services/providers/providerUsage.js'
 import {
-  buildRouterModelSnapshot,
-  type RouterModelSnapshot,
-} from '../router/modelRegistry.js'
+  buildProviderSnapshot,
+  type ProviderSnapshot,
+} from '../../services/providers/modelRegistry.js'
 import {
   getModelOptions,
   isProviderActionRow,
@@ -158,7 +158,7 @@ export function subModelConnectHome(route: CallModelRoute | string): {
     case 'cohere':
       return { command: '/logins cohere', note: 'connect — /logins (API key)' }
     case 'openai-compat':
-      return { note: 'MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — /router key compat)' }
+      return { note: 'MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — MERCURY_COMPAT_API_KEY)' }
     case 'huggingface':
       return { command: '/logins huggingface', note: 'sign in — /logins' }
     case 'local':
@@ -175,11 +175,11 @@ export function subModelConnectHome(route: CallModelRoute | string): {
 export interface SubModelRegistryReads {
   options?: () => ModelOption[]
   presences?: () => ProviderFamilyPresence[]
-  providers?: () => RouterModelSnapshot['providers']
+  providers?: () => ProviderSnapshot['providers']
 }
 
 export function composeSubModelRegistry(reads: SubModelRegistryReads = {}): SubModelRegistry {
-  const providers = (reads.providers ?? (() => buildRouterModelSnapshot().providers))()
+  const providers = (reads.providers ?? (() => buildProviderSnapshot().providers))()
   const presences = (reads.presences ?? (() => providerFamilyPresences(providers)))()
   const presenceOf = new Map(presences.map(presence => [presence.id as string, presence]))
   const credentialed = (route: CallModelRoute | 'unrecognised'): boolean =>

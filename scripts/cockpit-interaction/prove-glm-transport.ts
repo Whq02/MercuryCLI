@@ -17,7 +17,7 @@ import {
   type ZaiStreamEvent,
 } from '../../src/services/providers/zai/zaiClient.ts'
 import { GLM_EFFORTS, glmAcceptsEffort, isGlmModelId } from '../../src/services/providers/zai/glmPins.ts'
-import { zaiProviderAdapter } from '../../src/utils/router/providers/zai.ts'
+import { zaiProviderAdapter } from '../../src/services/providers/zai/zaiAdapter.ts'
 
 const t = checker()
 

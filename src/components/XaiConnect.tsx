@@ -43,7 +43,7 @@ export function XaiConnect({
   const [apiReceipt, setApiReceipt] = useState('xAI API key kept.')
   const [storing, setStoring] = useState(false)
   const management = step === 'management'
-  const keep = (): void => onResult({ ok: true, receipt: `${apiReceipt} Management key unchanged; add one later through /logins xai or /router key xai-management.` })
+  const keep = (): void => onResult({ ok: true, receipt: `${apiReceipt} Management key unchanged; add one later through /logins xai.` })
   useInput((input, key, keyEvent) => {
     if (step === 'choice') return
     if (key.escape && !storing) {

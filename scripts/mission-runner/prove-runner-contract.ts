@@ -78,9 +78,9 @@ void referenceDir
 }
 
 {
-  const row = runTask('T18', 'router', { root: join(scratch, 'corpus-a'), outFile: rowsFile })
-  check('router headless is not-applicable', row.status === 'not-applicable')
-  check('NA reason typed', (row.naReason ?? '').includes('no current product path'))
+  const row = runTask('T18', 'collaboration', { root: join(scratch, 'corpus-a'), outFile: rowsFile })
+  check('the collaboration arm headless is not-applicable', row.status === 'not-applicable')
+  check('NA reason typed', (row.naReason ?? '').includes('no accepted path'))
   const workflowRow = runTask('T18', 'workflow', { root: join(scratch, 'corpus-a'), outFile: rowsFile })
   check('workflow on a solo family is not-applicable', workflowRow.status === 'not-applicable')
 }

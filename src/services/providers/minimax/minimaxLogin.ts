@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { writeStoredMinimaxApiKey } from '../../../utils/router/providerSecrets.js'
+import { writeStoredMinimaxApiKey } from '../providerSecrets.js'
 import { minimaxApiBase, minimaxEnvKey } from './minimaxAccounts.js'
 import { fetchMinimaxLiveModels, MinimaxCatalogueHttpError } from './minimaxCatalogue.js'
 import { fetchMinimaxPlanUsage, minimaxPlanWindowLine } from './minimaxUsageState.js'

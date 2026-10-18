@@ -86,7 +86,6 @@ src/commands.ts :: loadAllCommands :: invalidator=clearCommandMemoizationCaches
 src/commands/model/mercuryModel.tsx :: headingsMemo :: ttl-bounded
 src/components/HelmLanesRail.tsx :: lastKnownRecent :: subscription-fed
 src/components/HelmLanesRail.tsx :: lastKnownWakeGlance :: subscription-fed
-src/components/HelmLanesRail.tsx :: lastKnownWorkShape :: subscription-fed
 src/components/HighlightedCode/Fallback.tsx :: highlightCache :: keyed-by-truth
 src/components/Markdown.tsx :: tokenCache :: keyed-by-truth
 src/components/Spinner/utils.ts :: parseCache :: keyed-by-truth
@@ -288,8 +287,8 @@ src/utils/projectBoundary.ts :: refusalMemo :: ttl-bounded
 src/utils/proxy.ts :: proxyDispatcherCache :: keyed-by-truth
 src/utils/proxy.ts :: tunnelAgentCache :: keyed-by-truth
 src/utils/ripgrep.ts :: roundedCountMemo :: keyed-by-truth
-src/utils/router/modelRegistry.ts :: snapshotMemo :: ttl-bounded
-src/utils/router/providerDiscovery.ts :: cache :: ttl-bounded
+src/services/providers/modelRegistry.ts :: snapshotMemo :: ttl-bounded
+src/services/providers/providerDiscovery.ts :: cache :: ttl-bounded
 src/utils/sandbox/sandbox-adapter.ts :: cachedWorktreeMainRepo :: static-for-process
 src/utils/sandbox/sandbox-adapter.ts :: isSupportedPlatformMemo :: static-for-process
 src/utils/sandbox/sandbox-adapter.ts :: linuxSandboxTools :: static-for-process

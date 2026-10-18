@@ -50,7 +50,6 @@ A fast run certifies these sections (section id · title):
 | `coding-loop-fast` | CODING LOOP |
 | `flux` | TERMINAL FLUIDITY |
 | `tool-capability-fast` | TOOL CAPABILITY |
-| `router-fast` | ROUTER |
 | `architecture-fast` | ARCHITECTURE PRIMITIVES |
 
 ### Client contract
@@ -164,6 +163,13 @@ nobody asked for; the release-day check
 (`bun scripts/ops/check-typed-model-ids.ts`) fetches every list live and
 uses the same comparison.
 
+AUTH carries the `Provider slots` row (`provider-slots`): every engine family
+either reads configured or names one of its honest unavailable codes
+(`no-account:`, `no-api-key:`, `no-credential:`, `not-configured:`,
+`no-server:` and the like), and the Anthropic classes resolve to their
+own family's models; a row that cannot say which is a `fail` naming the
+broken invariant.
+
 AUTH also carries the `Web search` row (`web-search-door`): it reports the
 search cascade available to the session's model, including native provider
 search (`Anthropic web search (native, session account)` or `OpenAI web search
@@ -174,8 +180,8 @@ otherwise noted as `no metasearch instance configured`), and keyless DuckDuckGo
 page scraping (on by default). When no search door opens for the model (no
 native search, no Brave/Tavily key, no SearXNG instance, and DuckDuckGo page
 scraping turned off in `/config` or with `MERCURY_SEARCH_KEYLESS=0`), the row
-reads `info` (`no door opens for <model>`) and names `/router key brave` (or
-`tavily`) and `/config` to turn DuckDuckGo page scraping back on.
+reads `info` (`no door opens for <model>`) and names `BRAVE_API_KEY` (or
+`TAVILY_API_KEY`) and `/config` to turn DuckDuckGo page scraping back on.
 
 CREW & DAEMONS carries the `Store isolation` check, which reads the config
 home's harness records by Mercury's own fingerprint: a daemon-plane record carrying no Mercury

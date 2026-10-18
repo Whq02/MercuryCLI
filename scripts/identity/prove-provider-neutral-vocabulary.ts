@@ -31,7 +31,6 @@ const ROSTER = [
   'src/services/tokenEstimation.ts',
   'src/components/messages/AssistantTextMessage.tsx',
   'src/components/loginFamilyRows.ts',
-  'src/commands/router/router.tsx',
   'src/utils/model/defaultProviderRung.ts',
   'src/utils/model/validateModel.ts',
 ]
@@ -44,7 +43,6 @@ const FRAGMENTS: Array<[string, RegExp]> = [
   ['the ruled crew fence', new RegExp(J('seats stay ', 'Anth', 'ropic'))],
   ["the family's own /logins word", new RegExp(J('/logins adds ', 'Anth', 'ropic'))],
   ['the marketing-name table rows (a model name, not a sentence)', new RegExp(J("'Cla", 'ude 3'))],
-  ["the operator's ruled /router refusal — any provider word points at that family's own /logins door by name, never a silent fall to one lane", new RegExp(J('OpenAI and ', 'Anth', 'ropic keys attach through /logins'))],
 ]
 
 const isCommentLine = (line: string): boolean => /^\s*(\/\/|\*|\/\*)/.test(line)

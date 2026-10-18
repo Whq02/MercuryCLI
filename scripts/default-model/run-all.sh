@@ -3,7 +3,7 @@
 # gate-watch: src/utils/model/computedDefault* src/utils/accounts/signInLedger* src/utils/accounts/signInRefusal* src/services/providers/zai/zaiCatalogue.ts
 # gate-watch: scripts/lib/hermetic.ts src/bootstrap/state.ts src/commands/model/*
 # gate-watch: src/services/providers/routeLaw.ts src/services/providers/zai/zaiLogin.ts src/utils/config.ts
-# gate-watch: src/utils/envUtils.ts src/utils/model/* src/utils/router/providerSecrets.ts
+# gate-watch: src/utils/envUtils.ts src/utils/model/* src/services/providers/providerSecrets.ts
 # gate-watch: src/state/onChangeAppState.ts src/state/AppStateStore.ts
 # gate-watch: src/services/providers/gemini/geminiCatalogue.ts
 set -uo pipefail

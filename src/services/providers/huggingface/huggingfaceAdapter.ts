@@ -1,0 +1,110 @@
+import { getCachedProviderDiscovery, primeHuggingfaceDiscovery } from '../providerDiscovery.js'
+import {
+  getCachedHuggingfaceCatalogue,
+  huggingfaceLiveContextWindow,
+} from './huggingfaceCatalogue.js'
+import {
+  HUGGINGFACE_DISPLAY_PINS,
+  HUGGINGFACE_MODEL_PREFIX,
+} from './huggingfacePins.js'
+import type {
+  ProviderCatalogueEntry,
+  ProviderDescription,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
+  SpecialistRole,
+} from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
+
+const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
+
+export const HUGGINGFACE_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] = HUGGINGFACE_DISPLAY_PINS.map(pin => ({
+  id: `${HUGGINGFACE_MODEL_PREFIX}${pin.id}`,
+  displayLabel: pin.displayName,
+  modelClass: 'huggingface' as const,
+  ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}),
+  efforts: [],
+  roles: ALL_ROLES,
+}))
+
+export function huggingfaceLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+  const snapshot = getCachedHuggingfaceCatalogue()
+  if (!snapshot || snapshot.models.length === 0) return undefined
+  return {
+    fetchedAtMs: snapshot.fetchedAtMs,
+    entries: snapshot.models.map(model => {
+      const window = huggingfaceLiveContextWindow(model.id)
+      return {
+        id: `${HUGGINGFACE_MODEL_PREFIX}${model.id}`,
+        displayLabel: model.id,
+        modelClass: 'huggingface' as const,
+        ...(window !== undefined ? { contextWindow: window } : {}),
+        efforts: [],
+        roles: ALL_ROLES,
+      }
+    }),
+  }
+}
+
+function describeHuggingfaceProvider(): ProviderDescription {
+  const discovery = getCachedProviderDiscovery('huggingface') ?? primeHuggingfaceDiscovery()
+  const record = discovery?.provider === 'huggingface' ? discovery : undefined
+  const live = huggingfaceLiveCatalogue()
+  return {
+    transport: 'openai-compat-chat-completions',
+    capabilities: ['streaming', 'tool-calls', 'usage-accounting', 'cancellation', 'worktree-authoring'],
+    roles: ALL_ROLES,
+    account: record?.keyPresent
+      ? record.keySource === 'oauth'
+        ? { kind: 'provider-oauth', label: record.accountLabel ?? 'Hugging Face account (OAuth)' }
+        : { kind: 'api-key', label: record.accountLabel ?? (record.keySource === 'env' ? 'HF_TOKEN (env)' : 'Hugging Face token (stored, auth-scoped)') }
+      : { kind: 'none', label: 'no Hugging Face credential detected' },
+    catalogue: live?.entries ?? HUGGINGFACE_STATIC_CATALOGUE,
+    ...(live
+      ? { catalogueSource: 'live-discovery' as const, discoveredAtMs: live.fetchedAtMs }
+      : { catalogueSource: 'static-pin' as const }),
+  }
+}
+
+function huggingfaceStatus(): ProviderStatus {
+  const discovery = primeHuggingfaceDiscovery()
+  return discovery?.keyPresent ? { available: true } : { available: false, reason: 'no-api-key:huggingface' }
+}
+
+function listHuggingfaceModels(): ProviderModel[] {
+  if (!huggingfaceStatus().available) return []
+  const entries = huggingfaceLiveCatalogue()?.entries ?? HUGGINGFACE_STATIC_CATALOGUE
+  return entries.map(entry => ({
+    ref: {
+      provider: 'huggingface' as const,
+      model: entry.id,
+      modelClass: 'huggingface' as const,
+      effort: 'high' as const,
+      contextWindow: entry.contextWindow ?? 0,
+    },
+    displayLabel: entry.displayLabel,
+  }))
+}
+
+function resolveHuggingfaceModel(_modelClass: ProviderModelClass): ProviderModelRef | null {
+  return null
+}
+
+function buildHuggingfaceLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
+  throw new Error(
+    'seat: provider huggingface has no SEAT runtime — roster seats stay Anthropic; Hugging Face specialists dispatch through the AgentTool engine path',
+  )
+}
+
+export const huggingfaceProviderAdapter: ProviderAdapter = {
+  id: 'huggingface',
+  transport: 'openai-compat-chat-completions',
+  status: huggingfaceStatus,
+  describe: describeHuggingfaceProvider,
+  listModels: listHuggingfaceModels,
+  resolveModel: resolveHuggingfaceModel,
+  buildLaunchPatch: buildHuggingfaceLaunchPatch,
+}

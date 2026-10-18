@@ -1,0 +1,245 @@
+import * as React from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Box, Text, useInput } from '../ink.js'
+import TextInput from './TextInput.js'
+import { Select } from './CustomSelect/index.js'
+import { setClipboard } from '../ink/termio/osc.js'
+import { errorMessageWithCause } from '../utils/errors.js'
+import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
+import {
+  beginOpenrouterConnect,
+  type OpenrouterAccountRef,
+  type OpenrouterConnectHandles,
+} from '../services/providers/openrouter/openrouterAccounts.js'
+import {
+  OPENROUTER_CONNECT_CANCELLED_RECEIPT,
+  OPENROUTER_CONNECT_STOPPED_RECEIPT,
+  finishOpenrouterConnect,
+  openrouterConnectFailedReceipt,
+  storeOpenrouterApiKeyLogin,
+} from '../services/providers/openrouter/openrouterLogin.js'
+import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
+import { keyPageLine } from './loginFamilyRows.js'
+import { KeyCardTitle } from './KeyCardTitle.js'
+import { usePopupCompact } from '../context/popupFormContext.js'
+
+
+export function OpenrouterConnect({
+  onResult,
+}: {
+  onResult: (result: { ok: boolean; receipt: string }) => void
+}): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
+  const [leg, setLeg] = useState<'choice' | 'browser' | 'headless' | 'key'>('choice')
+  const [paste, setPasteState] = useState('')
+  const pasteRef = useRef('')
+  const setPaste = (next: string): void => {
+    pasteRef.current = next
+    setPasteState(next)
+  }
+  const [cursorOffset, setCursorOffset] = useState(0)
+  const [phase, setPhase] = useState<'starting' | 'waiting' | 'exchanging'>('starting')
+  const [listenerNote, setListenerNote] = useState<string | undefined>(undefined)
+  const [authorizeUrl, setAuthorizeUrl] = useState<string | undefined>(undefined)
+  const [copied, setCopied] = useState(false)
+  const handlesRef = useRef<OpenrouterConnectHandles | undefined>(undefined)
+  const settledRef = useRef(false)
+
+  const settle = (receipt: string, ok = false): void => {
+    if (settledRef.current) return
+    settledRef.current = true
+    onResult({ ok, receipt })
+  }
+
+  const finishConnected = async (ref: OpenrouterAccountRef): Promise<void> => {
+    const outcome = await finishOpenrouterConnect(ref)
+    settle(outcome.receipt, outcome.ok)
+  }
+
+  useEffect(() => {
+    if (leg !== 'browser' && leg !== 'headless') return
+    const handles = beginOpenrouterConnect({
+      mode: leg === 'browser' ? 'browser' : 'headless',
+      onListenerIssue: message => setListenerNote(message),
+    })
+    handlesRef.current = handles
+    setAuthorizeUrl(handles.authorizeUrl)
+    setPhase('waiting')
+    handles.result
+      .then(ref => void finishConnected(ref))
+      .catch(error => settle(openrouterConnectFailedReceipt(error)))
+    return () => {
+      handlesRef.current = undefined
+      handles.cancel('cancelled from the connect surface')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leg])
+
+  useInput((input, key, event) => {
+    if (leg === 'choice') return
+    if (key.escape) {
+      if (leg === 'key') {
+        setLeg('choice')
+        return
+      }
+      handlesRef.current?.cancel('cancelled from the connect surface')
+      settle(OPENROUTER_CONNECT_STOPPED_RECEIPT)
+      return
+    }
+    if (
+      input === 'c' &&
+      !key.ctrl && !key.meta &&
+      (leg === 'browser' || leg === 'headless') &&
+      pasteRef.current === '' &&
+      phase !== 'exchanging' &&
+      authorizeUrl
+    ) {
+      event.stopImmediatePropagation()
+      void setClipboard(authorizeUrl).then(sequence => {
+        if (sequence) process.stdout.write(sequence)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      })
+    }
+  })
+
+  const submitPaste = (raw: string): void => {
+    const value = raw.trim()
+    if (!value) return
+    setPhase('exchanging')
+    handlesRef.current?.completeWithRedirect(value)
+  }
+
+  if (leg === 'choice') {
+    return (
+      <Box flexDirection="column" paddingX={compact ? 0 : 1} gap={compact ? 0 : 1}>
+        <Text bold color={tokens.accent} wrap="truncate-end">
+          Connect OpenRouter
+        </Text>
+        {compact ? null : (
+          <Text color={tokens.textSecondary}>
+            One credential unlocks OpenRouter's whole multi-model catalogue (credits-billed).
+          </Text>
+        )}
+        <Select
+          options={[
+            { label: 'Sign in with the browser — OAuth mints a scoped key', value: 'browser' },
+            { label: 'Headless — OpenRouter shows a code you paste here', value: 'headless' },
+            { label: 'Paste an API key (stored locally, mode 600)', value: 'key' },
+          ]}
+          onChange={value => setLeg(value as 'browser' | 'headless' | 'key')}
+          onCancel={() => settle(OPENROUTER_CONNECT_CANCELLED_RECEIPT)}
+        />
+      </Box>
+    )
+  }
+
+  if (leg === 'key') {
+    return <OpenrouterKeyLeg onResult={settle} />
+  }
+
+  return (
+    <Box flexDirection="column" paddingX={compact ? 0 : 1}>
+      {compact ? null : (
+        <Text bold color={tokens.accent}>
+          Connect OpenRouter ({leg === 'browser' ? 'browser sign-in' : 'headless code'})
+        </Text>
+      )}
+      {compact && phase !== 'exchanging' ? null : (
+        <Text color={tokens.textSecondary}>
+          {phase === 'exchanging'
+            ? 'Exchanging the authorization code — OpenRouter mints the key…'
+            : leg === 'browser'
+              ? 'A browser window should be opening. Authorize Mercury and the loopback listener completes automatically.'
+              : 'Open this URL on any signed-in browser; OpenRouter displays an authorization code — paste it below.'}
+        </Text>
+      )}
+      {listenerNote ? <Text color={tokens.warning}>{listenerNote}</Text> : null}
+      {authorizeUrl && phase !== 'exchanging' ? (
+        <>
+          {compact ? null : (
+            <Text color={tokens.textMuted}>
+              {leg === 'browser' ? 'If nothing opened, visit:' : 'URL:'}
+            </Text>
+          )}
+          <Text color={tokens.info} wrap={compact ? 'truncate-end' : 'wrap'}>
+            {authorizeUrl}
+          </Text>
+          <Box>
+            <Text color={tokens.textMuted}>
+              {leg === 'browser' ? 'or paste the redirected URL: ' : 'paste the code: '}
+            </Text>
+            <TextInput
+              value={paste}
+              onChange={setPaste}
+              onSubmit={submitPaste}
+              cursorOffset={cursorOffset}
+              onChangeCursorOffset={setCursorOffset}
+              columns={48}
+            />
+          </Box>
+        </>
+      ) : null}
+      {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
+      <Text color={tokens.textMuted}>c copies the URL · ESC cancels.</Text>
+    </Box>
+  )
+}
+
+function OpenrouterKeyLeg({
+  onResult,
+}: {
+  onResult: (receipt: string, ok?: boolean) => void
+}): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
+  const [key, setKey] = useState('')
+  const [cursor, setCursor] = useState(0)
+  const [note, setNote] = useState<string | null>(null)
+  const [storing, setStoring] = useState(false)
+  const submit = (raw: string): void => {
+    const value = raw.trim()
+    if (!value) return
+    const guard = keyPasteGuardNote(value, { stores: 'an OpenRouter key (sk-or-…)' })
+    if (guard !== null) {
+      setNote(guard)
+      return
+    }
+    setStoring(true)
+    void storeOpenrouterApiKeyLogin(value).then(outcome => {
+      if (!outcome.stored) {
+        setStoring(false)
+        setNote(outcome.receipt)
+        return
+      }
+      onResult(outcome.receipt, outcome.ok)
+    })
+  }
+  return (
+    <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
+      {compact ? <KeyCardTitle family="openrouter">OpenRouter key</KeyCardTitle> : <Text>{keyPageLine('openrouter')}</Text>}
+      {compact ? null : (
+        <Text>
+          Paste your OpenRouter API key. Stored auth-scoped (mode 600), never logged; an
+          OPENROUTER_API_KEY env var always wins over the store.
+        </Text>
+      )}
+      <Box>
+        <Text>Key: </Text>
+        <TextInput
+          value={key}
+          onChange={setKey}
+          onSubmit={submit}
+          mask="*"
+          columns={48}
+          cursorOffset={cursor}
+          onChangeCursorOffset={setCursor}
+        />
+      </Box>
+      {storing ? <Text dimColor>Storing and checking the live catalogue…</Text> : null}
+      {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
+      {compact ? null : <Text dimColor>esc back</Text>}
+    </Box>
+  )
+}

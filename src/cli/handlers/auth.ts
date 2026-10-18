@@ -328,14 +328,14 @@ function routedProviderRows(anthropicPresent: boolean): {
   try {
     const { declaredRouteOf } = require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
     const { getEngineModel } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
-    const { buildRouterModelSnapshot } = require('../../utils/router/modelRegistry.js') as typeof import('../../utils/router/modelRegistry.js')
+    const { buildProviderSnapshot } = require('../../services/providers/modelRegistry.js') as typeof import('../../services/providers/modelRegistry.js')
     const { providerFamilyPresences } =
       require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
     const { sessionAccountFamily } =
       require('../../utils/accounts/sessionAccount.js') as typeof import('../../utils/accounts/sessionAccount.js')
     const engineModel = getEngineModel()
     const family = sessionAccountFamily(engineModel) ?? declaredRouteOf(engineModel) ?? 'anthropic'
-    const snapshot = buildRouterModelSnapshot()
+    const snapshot = buildProviderSnapshot()
     const presences = ((): ReturnType<typeof providerFamilyPresences> => {
       try {
         return providerFamilyPresences(snapshot.providers)

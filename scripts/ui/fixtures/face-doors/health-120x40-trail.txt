@@ -24,7 +24,7 @@
    │                                                                │  ╭────────────────────────────────────────────╮
    │   f — apply the safe remedy                                    │  │ CERTIFICATE                                │
    ╰────────────────────────────────────────────────────────────────╯  │ Verdict    ▲ caution                       │
-                                                                       │ Checks     7 · 1 stale · 1 warn · 1 unkno… │
+                                                                       │ Checks     6 · 1 stale · 1 warn · 1 unkno… │
                                                                        │ Issued     2m ago · 830ms                  │
                                                                        │ Build      1.0.0-beta.1 · main @ abcdef1   │
                                                                        ╰────────────────────────────────────────────╯
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  verdict caution · 7 checks · issued 2m ago · 830ms · read-only                              │
+   │ ● System ready  │  verdict caution · 6 checks · issued 2m ago · 830ms · read-only                              │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
                                               ↑↓ move · ↵ back · esc back

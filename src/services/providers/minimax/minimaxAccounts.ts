@@ -1,4 +1,4 @@
-import { readStoredMinimaxApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredMinimaxApiKey } from '../providerSecrets.js'
 
 const MINIMAX_API_BASE_URL = 'https://api.minimax.io/v1'
 export const MINIMAX_ENV_KEY = 'MINIMAX_API_KEY'

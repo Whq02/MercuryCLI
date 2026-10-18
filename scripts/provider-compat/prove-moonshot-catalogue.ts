@@ -15,13 +15,13 @@ process.env.MERCURY_MOONSHOT_CODING_BASE = 'http://127.0.0.1:1/coding'
 process.env.MERCURY_MOONSHOT_OAUTH_BASE = 'http://127.0.0.1:1/auth'
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { writeStoredMoonshotApiKey } = await import('../../src/utils/router/providerSecrets.ts')
+const { writeStoredMoonshotApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const { writeMoonshotTokens } = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
 const { keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
 const { computedDefault, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
 const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
-const { describeMoonshotProvider, listMoonshotModels } = await import('../../src/utils/router/providers/moonshot.ts')
+const { describeMoonshotProvider, listMoonshotModels } = await import('../../src/services/providers/moonshot/moonshotAdapter.ts')
 const catalogue = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts').catch(() => null)
 let failures = 0
 let checks = 0

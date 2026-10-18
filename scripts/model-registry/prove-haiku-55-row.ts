@@ -30,8 +30,8 @@ try {
   const cost = await import('../../src/utils/modelCost.ts')
   const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
   const { getModelOptions, focusedOptionSupports1m } = await import('../../src/utils/model/modelOptions.ts')
-  const { classOfModel } = await import('../../src/utils/router/modelRegistry.ts')
-  const { routeEffortsFor } = await import('../../src/utils/router/providers/anthropic.ts')
+  const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
+  const { routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
   const { sideQueryThinkingParam } = await import('../../src/utils/sideQuery.ts')
   const { getAgentModel } = await import('../../src/utils/model/agent.ts')
 

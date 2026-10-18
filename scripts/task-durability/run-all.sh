@@ -9,7 +9,7 @@
 # gate-watch: src/keybindings/writeBindings.ts src/mneme/mnemeConsolidate.ts
 # gate-watch: src/services/interview/decisionRecord.ts src/services/vulcan/addonInstaller.ts
 # gate-watch: src/tools/LSPTool/mercuryOps.ts src/utils/*
-# gate-watch: src/utils/observability/invocationTrace.ts src/utils/router/postures.ts
+# gate-watch: src/utils/observability/invocationTrace.ts
 # gate-watch: src/utils/sessionStorage/resumeSnapshot.ts src/utils/verification/verificationState.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

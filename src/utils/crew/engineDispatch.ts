@@ -5,29 +5,29 @@ import {
   GPT_DISPLAY_PINS,
 } from '../../services/providers/openai/openaiCatalogue.js'
 import { resolveOpenaiAccount } from '../../services/providers/openai/openaiAccounts.js'
-import { buildRouterModelSnapshot } from '../router/modelRegistry.js'
-import { refreshProviderDiscovery } from '../router/providerDiscovery.js'
-import { DEPRECATED_GPT_IDS } from '../router/providers/openai.js'
-import { zaiCatalogueEntries, zaiCatalogueEntry } from '../router/providers/zai.js'
+import { buildProviderSnapshot } from '../../services/providers/modelRegistry.js'
+import { refreshProviderDiscovery } from '../../services/providers/providerDiscovery.js'
+import { DEPRECATED_GPT_IDS } from '../../services/providers/openai/openaiAdapter.js'
+import { zaiCatalogueEntries, zaiCatalogueEntry } from '../../services/providers/zai/zaiAdapter.js'
 import { qualifyMoonshotModel } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
-import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../router/providers/deepseek.js'
-import { xaiCatalogueEntries, xaiCatalogueEntry } from '../router/providers/xai.js'
-import { metaCatalogueEntries, metaCatalogueEntry } from '../router/providers/meta.js'
-import { mistralCatalogueEntries, mistralCatalogueEntry } from '../router/providers/mistral.js'
+import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../../services/providers/deepseek/deepseekAdapter.js'
+import { xaiCatalogueEntries, xaiCatalogueEntry } from '../../services/providers/xai/xaiAdapter.js'
+import { metaCatalogueEntries, metaCatalogueEntry } from '../../services/providers/meta/metaAdapter.js'
+import { mistralCatalogueEntries, mistralCatalogueEntry } from '../../services/providers/mistral/mistralAdapter.js'
 import {
   compatSlotModelIds,
   resolveCompatSlotConfig,
 } from '../../services/providers/openaicompat/compatAccounts.js'
 import { COMPAT_MODEL_PREFIX, isCompatModelId } from '../../services/providers/routeLaw.js'
-import { HUGGINGFACE_STATIC_CATALOGUE, huggingfaceLiveCatalogue } from '../router/providers/huggingface.js'
-import { zenCatalogueEntries, zenCatalogueEntry } from '../router/providers/zen.js'
-import { minimaxCatalogueEntries, minimaxCatalogueEntry } from '../router/providers/minimax.js'
-import { togetherCatalogueEntries, togetherCatalogueEntry } from '../router/providers/together.js'
-import { cohereCatalogueEntries, cohereCatalogueEntry } from '../router/providers/cohere.js'
+import { HUGGINGFACE_STATIC_CATALOGUE, huggingfaceLiveCatalogue } from '../../services/providers/huggingface/huggingfaceAdapter.js'
+import { zenCatalogueEntries, zenCatalogueEntry } from '../../services/providers/zen/zenAdapter.js'
+import { minimaxCatalogueEntries, minimaxCatalogueEntry } from '../../services/providers/minimax/minimaxAdapter.js'
+import { togetherCatalogueEntries, togetherCatalogueEntry } from '../../services/providers/together/togetherAdapter.js'
+import { cohereCatalogueEntries, cohereCatalogueEntry } from '../../services/providers/cohere/cohereAdapter.js'
 import { isTogetherModelId } from '../../services/providers/together/togetherPins.js'
 import { isZenModelId } from '../../services/providers/zen/zenPins.js'
-import { localLiveCatalogue } from '../router/providers/local.js'
+import { localLiveCatalogue } from '../../services/providers/local/localAdapter.js'
 import {
   HUGGINGFACE_MODEL_PREFIX,
   isHuggingfaceModelId,
@@ -188,7 +188,7 @@ export function providerUnavailableRefusal(provider: EngineProvider, reason: str
 
 async function requireProviderAvailable(provider: EngineProvider): Promise<void> {
   await refreshProviderDiscovery(provider)
-  const snapshot = buildRouterModelSnapshot()
+  const snapshot = buildProviderSnapshot()
   const entry = snapshot.providers.find(p => p.id === provider)
   if (!entry?.available) {
     throw new Error(providerUnavailableRefusal(provider, entry?.reason))

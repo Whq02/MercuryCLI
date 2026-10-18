@@ -2,7 +2,6 @@
 # gate-class: pty
 # gate-watch: scripts/mission-runner/** scripts/lib/rows.ts
 # gate-watch: src/services/mission/** src/services/resources/adapters/mission.ts src/commands/verify.ts
-# gate-watch: src/substrate/routerOutcomeStore.ts src/substrate/routerRunStore.ts
 # gate-watch: src/services/providers/openai/openaiCatalogue.ts
 # gate-watch: src/services/providers/openai/qualificationStore.ts src/utils/sessionStoragePortable.ts
 set -uo pipefail

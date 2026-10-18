@@ -1,6 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
-import { readStoredBraveSearchApiKey } from '../../utils/router/providerSecrets.js'
+import { readStoredBraveSearchApiKey } from '../providers/providerSecrets.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { htmlToText } from './htmlText.js'
 import { liveSearchClock, noteRateLimited, secondsLeftLabel, serverSearchWaitMs, withSearchTurn, type SearchClock } from './searchPacing.js'
@@ -88,7 +88,7 @@ export async function braveSearch(request: SearchRequest, io: KeyedSearchIo = {}
 
 async function requestBraveSearch(request: SearchRequest, io: KeyedSearchIo): Promise<SearchOutcome> {
   const key = resolveBraveSearchApiKey(io.env ?? process.env)
-  if (!key) return searchFailure('no-backend', 'brave', 'no Brave Search key (BRAVE_API_KEY or /router key brave)')
+  if (!key) return searchFailure('no-backend', 'brave', 'no Brave Search key (set BRAVE_API_KEY)')
   const fetchImpl = io.fetchImpl ?? getApiFetch()
   const proxyOptions = io.fetchImpl ? {} : getProxyFetchOptions()
   const url = new URL(braveSearchUrl())
@@ -120,7 +120,7 @@ async function requestBraveSearch(request: SearchRequest, io: KeyedSearchIo): Pr
   const wait = Math.max(resetWait, serverSearchWaitMs(new Headers({ 'retry-after': response.headers.get('retry-after') ?? '0' }), clock.now()))
   if (wait > 0 || response.status === 429) noteRateLimited('brave', clock, wait)
   if (response.status === 401 || response.status === 403) {
-    return searchFailure('key-refused', 'brave', `HTTP ${response.status} — check the key at api-dashboard.search.brave.com, then /router key brave again`)
+    return searchFailure('key-refused', 'brave', `HTTP ${response.status} — check the key at api-dashboard.search.brave.com and set BRAVE_API_KEY again`)
   }
   if (response.status === 429) {
     return searchFailure('rate-limited', 'brave', 'HTTP 429 — the plan\'s rate or monthly quota is spent')

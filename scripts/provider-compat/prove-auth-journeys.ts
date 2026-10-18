@@ -201,7 +201,7 @@ const openaiAccounts = await import('../../src/services/providers/openai/openaiA
 const moonshotAccounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
 const huggingfaceAccounts = await import('../../src/services/providers/huggingface/huggingfaceAccounts.ts')
 const openrouterAccounts = await import('../../src/services/providers/openrouter/openrouterAccounts.ts')
-const providerSecrets = await import('../../src/utils/router/providerSecrets.ts')
+const providerSecrets = await import('../../src/services/providers/providerSecrets.ts')
 const { scanAccountScopes } = await import('../../src/utils/accounts/scopeScan.ts')
 const envUtils = await import('../../src/utils/envUtils.ts')
 const { deriveFamilySlotGroups, executeSlotRemoval, maskedKeyTail } = await import(
@@ -220,7 +220,7 @@ const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
 import type { Options } from '../../src/services/providers/anthropic/streamCore.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
-import type { RouterModelSnapshot } from '../../src/utils/router/modelRegistry.ts'
+import type { ProviderSnapshot } from '../../src/services/providers/modelRegistry.ts'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 
 
@@ -1072,7 +1072,7 @@ const fixtureProviders = FAMILIES.map(id => ({
     catalogue: [],
     catalogueSource: 'static-pin',
   },
-})) as unknown as RouterModelSnapshot['providers']
+})) as unknown as ProviderSnapshot['providers']
 
 const slotReads = {
   familyReads: {

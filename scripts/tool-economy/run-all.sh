@@ -8,7 +8,7 @@
 # gate-watch: src/tools/MCPTool/MCPTool.ts src/utils/attachments/orchestrator.ts
 # gate-watch: src/services/dap/dapClient.ts src/tools/LSPTool/LSPTool.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages.ts src/utils/messages/attachmentText.ts
-# gate-watch: src/utils/router/providers/* src/utils/sessionStorage/chain.ts src/utils/toolSchemaCache.ts
+# gate-watch: src/services/providers/** src/utils/sessionStorage/chain.ts src/utils/toolSchemaCache.ts
 # gate-watch: src/prompt/composer.ts src/utils/settings/settings.ts scripts/lib/hermetic.ts src/services/eval/interpreters.ts src/tools/ComputerTool/ComputerTool.ts
 # gate-watch: scripts/engine-durability/harness.ts
 # gate-watch: src/run-core/turn-machine.ts src/services/run/resolveOwner.ts src/state/AppStateStore.ts src/utils/fileStateCache.ts

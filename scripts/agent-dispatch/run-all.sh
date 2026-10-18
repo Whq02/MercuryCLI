@@ -3,7 +3,7 @@
 # gate-watch: README.md docs/ENGINES.md src/commands/model/mercuryModel.tsx
 # gate-watch: src/utils/model/agent.ts src/utils/model/bareFamilyWords.ts src/utils/model/model.ts src/utils/model/modelLookup.ts
 # gate-watch: src/utils/model/modelOptions.ts src/utils/model/validateModel.ts src/utils/model/modelNameRoad.ts
-# gate-watch: src/utils/router/** src/utils/crew/agentLaunchPlan*
+# gate-watch: src/services/providers/** src/utils/crew/agentLaunchPlan*
 # gate-watch: src/services/providers/**
 # gate-watch: src/query/deps* src/utils/crew/engineDispatch* src/tools/AgentTool/AgentTool*
 # gate-watch: src/Tool.ts src/bootstrap/state.ts src/cost-tracker.ts src/services/api/errors.ts
@@ -20,9 +20,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 export MERCURY_EVOLUTION_LEDGER=0
-scratch_state="$(mktemp -d "${TMPDIR:-/tmp}/orbit-proof-state.XXXXXX")"
-export MERCURY_ROUTER_STATE_DIR="$scratch_state"
-trap 'rm -rf "$scratch_state"; suite_home_cleanup' EXIT
+trap 'suite_home_cleanup' EXIT
 echo "############################################################"
 echo "# agent-dispatch — specialist-engine proof harness"
 echo "############################################################"

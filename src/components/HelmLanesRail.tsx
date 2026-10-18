@@ -38,7 +38,7 @@ import { getRunSnapshot, subscribeRuns } from '../services/run/runCoordinator.js
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { buildLanesModel, planningObjectiveOf, soloOf, wrapRailRows, type LanesInput, type LanesRowSpec, type LanesSectionSpec } from '../utils/cockpit/helmLanesModel.js'
+import { buildLanesModel, soloOf, wrapRailRows, type LanesInput, type LanesRowSpec, type LanesSectionSpec } from '../utils/cockpit/helmLanesModel.js'
 
 export { wrapRailRows }
 
@@ -282,7 +282,6 @@ function SectionHeader({ label, width }: { label: string; width: number }): Reac
 
 const lastKnownRecent = new Map<string, SessionListing[]>()
 let lastKnownWakeGlance: SaturnWakeGlanceV1 | null = null
-const lastKnownWorkShape = new Map<string, string>()
 
 function useRecentSessions(solo: boolean): SessionListing[] | null {
   const conversationId = useSyncExternalStore(subscribeFocusedSessionConnector, conversationIdHere, conversationIdHere)
@@ -346,30 +345,6 @@ function useWakeGlance(): SaturnWakeGlanceV1 | null {
   return wakeGlance
 }
 
-function useWorkShape(planningObjective: string | null): string | null {
-  const [workShape, setWorkShape] = useState<string | null>(() =>
-    planningObjective ? (lastKnownWorkShape.get(planningObjective) ?? null) : null,
-  )
-  useEffect(() => {
-    if (!planningObjective) return
-    let alive = true
-    void import('../services/mission/projection.js')
-      .then(async m => {
-        const d = await m.gatherPolicyDecision(planningObjective, 0)
-        if (alive && d) {
-          if (lastKnownWorkShape.size > 8) lastKnownWorkShape.clear()
-          lastKnownWorkShape.set(planningObjective, d.profile.id)
-          setWorkShape(d.profile.id)
-        }
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [planningObjective])
-  return workShape
-}
-
 export const HelmLanesRail = React.memo(HelmLanesRailImpl)
 
 function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: number; mergedVitals?: boolean; availRows?: number }): React.ReactNode {
@@ -393,8 +368,6 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
   }, [focusedRecords])
   const workRunSnap = useSyncExternalStore(subscribeRuns, () => getRunSnapshot(processMainOwner()), () => null)
   const workLaneOff = isEnvDefinedFalsy(flagEnv('MERCURY_WORK_LANE'))
-  const planningObjective = planningObjectiveOf(workRunSnap)
-  const workShape = useWorkShape(planningObjective)
   const tasks = useAppState(s => s.tasks)
   const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId)
   const mainChatTaskId = useAppState(s => s.mainChatTaskId)
@@ -420,7 +393,6 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
     accent,
     focusedRecords,
     workRunSnap,
-    workShape,
     tasks,
     roster,
     viewingAgentTaskId,
@@ -441,7 +413,6 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
     tasks,
     roster,
     workRunSnap: workLaneOff ? null : workRunSnap,
-    workShape,
     ledger: vitals.tasks,
     lastSentPrompt,
     filesOff,

@@ -1,5 +1,5 @@
 {
-  "note": "legacy write-route ratchet \u2014 may only SHRINK",
+  "note": "legacy write-route ratchet — may only SHRINK",
   "publish": [
     "src/components/Feedback.tsx",
     "src/daemon/concourseWorkers.ts",
@@ -55,8 +55,7 @@
     "src/utils/healthDeepProbes.ts",
     "src/utils/observability/invocationTrace.ts",
     "src/utils/realmRegistry.ts",
-    "src/utils/router/postures.ts",
-    "src/utils/router/providerSecrets.ts",
+    "src/services/providers/providerSecrets.ts",
     "src/utils/scratchLeases.ts",
     "src/utils/secureStorage/plainTextStorage.ts",
     "src/utils/sessionStorage/paths.ts",

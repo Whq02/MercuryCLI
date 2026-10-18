@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
-import { primeOpenaiDiscovery } from '../../../utils/router/providerDiscovery.js'
+import { primeOpenaiDiscovery } from '../providerDiscovery.js'
 import {
   openaiSourceIdentity,
   openaiSubscriptionPresence,

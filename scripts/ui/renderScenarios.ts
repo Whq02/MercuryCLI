@@ -2676,15 +2676,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
     writeSyntheticSession('gpt-thinking')
     return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
   }
-  if (name === 'router-connect-steer') {
-    writeSyntheticSession('short')
-    process.env.MERCURY_ROUTER = '1'
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [{ atTick: 30, data: '/router connect' }, { atTick: 38, data: '\r' }],
-      total: 56, cols, rows,
-    }
-  }
   if (name === 'login-card') {
     writeSyntheticSession('short')
     return {
@@ -3469,28 +3460,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       chromeMarkers: [`Mercury · ${view}`],
     }
   }
-  if (name === 'router-board') {
-    writeSyntheticSession('short')
-    writeRouterFixtures()
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [{ atTick: 30, data: '/router' }, { atTick: 36, data: '\r' }],
-      total: 80, cols, rows,
-    }
-  }
-  if (name === 'router-detail') {
-    writeSyntheticSession('short')
-    writeRouterFixtures()
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [
-        { atTick: 30, data: '/router' },
-        { atTick: 36, data: '\r' },
-        { atTick: 70, data: '\r' },
-      ],
-      total: 110, cols, rows,
-    }
-  }
   if (name === 'health' || name === 'health-detail') {
     writeSyntheticSession('short')
     const sends = [{ atTick: 30, data: '/health' }, { atTick: 36, data: '\r' }]
@@ -3845,81 +3814,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
   throw new Error(`unknown scenario: ${name}`)
 }
 
-export function routerFixtureDir(): string {
-  return join(tmpdir(), `mercury-router-fixture-${process.pid}`)
-}
-
-function writeRouterFixtures(): void {
-  const dir = routerFixtureDir()
-  mkdirSync(dir, { recursive: true })
-  process.env.MERCURY_ROUTER_STATE_DIR = dir
-  const now = Date.now()
-  const accept = (id: string): Array<{ id: string; description: string; kind: 'report' }> => [
-    { id: `${id}-a1`, description: 'tests green', kind: 'report' },
-  ]
-  const model = (cls: 'opus' | 'sonnet', m: string, effort: string) => ({
-    provider: 'anthropic', model: m, modelClass: cls, effort, contextWindow: 1_000_000,
-  })
-  const fanoutPlan = {
-    version: 1,
-    id: 'rp-fx-fanout',
-    revision: 1,
-    mode: 'fanout',
-    title: 'ship the three-stage migration',
-    objective: 'schema, then implementation and docs',
-    features: { taskShape: 'bounded', ambiguity: 0, coupling: 1, parallelism: 2, contextDemand: 1, verificationDemand: 1, estimatedFiles: 3, explicitPaths: [], requiresSynthesis: true },
-    profile: 'dependency-graph',
-    nodes: [
-      { id: 'n1', title: 'schema', task: 'migrate the schema', dependsOn: [], ownsPaths: ['src/schema.ts'], acceptance: accept('n1'), state: 'accepted', attempt: 1, assignedWorker: 'w1', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-r1', expectedResult: 'typed completion', completion: { summary: 'schema migrated, both checks green', checksReported: ['schema compiles: PASS'], changedAreas: ['src/schema.ts'], unresolved: [], reportedAt: now - 200_000, acceptedBy: 'planner', acceptedAt: now - 190_000 } },
-      { id: 'n2', title: 'implementation', task: 'implement against the new schema', dependsOn: ['n1'], ownsPaths: ['src/impl.ts'], acceptance: accept('n2'), state: 'working', attempt: 2, assignedWorker: 'w2', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-r2', workerGeneration: 2, expectedResult: 'typed completion' },
-      { id: 'n3', title: 'docs', task: 'update the docs', dependsOn: ['n1'], ownsPaths: ['docs/m.md'], acceptance: accept('n3'), state: 'held', attempt: 1, assignedWorker: 'w3', assignedModel: model('opus', 'claude-opus-4-8[1m]', 'xhigh'), busRequestId: 'fx-r3', expectedResult: 'typed completion' },
-    ],
-    synthesis: { required: true, owner: 'planner', acceptance: [{ id: 'synthesis-integrated', description: 'all required nodes accepted', kind: 'report' }] },
-    decision: {
-      policyVersion: 'router-1', source: 'structured-intent', posture: 'adaptive',
-      selectedProfile: 'dependency-graph',
-      selectedModels: [model('sonnet', 'claude-sonnet-5', 'high'), model('sonnet', 'claude-sonnet-5', 'high'), model('opus', 'claude-opus-4-8[1m]', 'xhigh')],
-      decisiveReasons: ['ordered-dependencies'], displayReasons: ['nodes are separable but ordered — dependency graph'],
-      adjustments: ['overlap-serialized'],
-      workerAffinity: { keptCurrentModel: false, changeoverPenalty: 1, reason: 'decisive signal outweighs the fresh-process cost' },
-    },
-    state: 'running', createdAt: now - 300_000, updatedAt: now - 20_000,
-  }
-  const sequentialPlan = {
-    version: 1,
-    id: 'rp-fx-sequential',
-    revision: 1,
-    mode: 'sequential',
-    title: 'status --json flag',
-    objective: 'add the missing --json output mode',
-    features: { taskShape: 'bounded', ambiguity: 0, coupling: 0, parallelism: 0, contextDemand: 1, verificationDemand: 1, estimatedFiles: 1, explicitPaths: ['src/commands/status.ts'], requiresSynthesis: false },
-    profile: 'sonnet-opus-review',
-    nodes: [
-      { id: 'n1', title: 'status --json', task: 'add the flag + one test', dependsOn: [], ownsPaths: ['src/commands/status.ts'], acceptance: accept('n1'), state: 'accepted', attempt: 1, assignedWorker: 'implementer', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-s1', expectedResult: 'typed completion', completion: { summary: 'flag added, test green', checksReported: ['new test: PASS'], changedAreas: ['src/commands/status.ts'], unresolved: [], reportedAt: now - 500_000, acceptedBy: 'scribe', acceptedAt: now - 490_000 } },
-    ],
-    synthesis: { required: false, owner: 'planner', acceptance: [] },
-    decision: {
-      policyVersion: 'router-1', source: 'structured-intent', posture: 'adaptive',
-      selectedProfile: 'sonnet-opus-review',
-      selectedModels: [model('sonnet', 'claude-sonnet-5', 'high')],
-      decisiveReasons: ['bounded-implementation', 'affinity-kept-model'],
-      displayReasons: ['well-specified implementation — executor lane with a review gate'],
-      adjustments: [],
-      workerAffinity: { keptCurrentModel: true, changeoverPenalty: 0, reason: 'current worker already runs the selected class' },
-    },
-    state: 'accepted', createdAt: now - 600_000, updatedAt: now - 480_000,
-  }
-  const events = [
-    { ts: now - 200_000, planId: 'rp-fx-fanout', nodeId: 'n1', from: 'working', to: 'reported' },
-    { ts: now - 190_000, planId: 'rp-fx-fanout', nodeId: 'n1', from: 'reported', to: 'accepted', reason: 'accepted by planner' },
-    { ts: now - 180_000, planId: 'rp-fx-fanout', nodeId: 'n3', from: 'dispatched', to: 'held', reason: 'reconfiguring w3 → claude-opus-4-8[1m]@xhigh' },
-    { ts: now - 20_000, planId: 'rp-fx-fanout', nodeId: 'n2', from: 'delivered', to: 'working' },
-  ]
-  writeFileSync(
-    join(dir, 'plans.json'),
-    JSON.stringify({ _v: 1, plans: [sequentialPlan, fanoutPlan], events, updatedAt: now - 20_000 }),
-  )
-}
 const MISSION_FIXTURE_LIST = `render_fixture_${process.pid}`
 const MISSION_TASKS_DIR = join(CONFIG_HOME, 'tasks', MISSION_FIXTURE_LIST)
 

@@ -83,7 +83,7 @@ export function AccountView({
 
   useEffect(() => {
     let alive = true
-    void import('../../../utils/router/providerDiscovery.js')
+    void import('../../../services/providers/providerDiscovery.js')
       .then(m => m.refreshProviderDiscovery('local'))
       .then(() => {
         if (alive) setVersion(v => v + 1)

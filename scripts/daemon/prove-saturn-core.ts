@@ -53,7 +53,7 @@ const okDeps = {
 const refusingDeps = {
   deriveAccount: (_modelKey: string) => ({
     ok: false as const,
-    reason: "no-credential:anthropic — /logins connects an account, or /router key connects an API key",
+    reason: "no-credential:anthropic — /logins anthropic connects an account or an API key",
   }),
 }
 
@@ -263,13 +263,13 @@ console.log('§P the preflight owner')
   const real = deriveScheduleAccountForModel('deepseek-chat')
   check('real-body keyless family refuses (never throws)', real.ok === false)
   if (!real.ok) {
-    check('the refusal names BOTH doors (L26)', real.reason.includes('/logins') && real.reason.includes('/router key'))
+    check('the refusal names the /logins door (L26)', real.reason.includes('/logins') && real.reason.includes('an API key'))
     check('the refusal is the typed no-credential class', real.reason.startsWith('no-credential:'))
     check('the refusal preflights the KEY\'S OWN family (deepseek, never a remainder)', real.reason.includes('deepseek'))
   }
   const malformed = deriveScheduleAccountForModel('deepseek:deepseek-chat')
   check('a key no family declares refuses unknown-family (the dead remainder cannot class it)', malformed.ok === false && !malformed.ok && malformed.reason.startsWith('unknown-family:'))
-  check('noCredentialRefusal spells the family into both doors', noCredentialRefusal('openai').includes('/router key openai'))
+  check('noCredentialRefusal spells the family into the door', noCredentialRefusal('openai').includes('/logins openai'))
 
   const EXP = Date.now() + 3_600_000
   const oauthReads = {

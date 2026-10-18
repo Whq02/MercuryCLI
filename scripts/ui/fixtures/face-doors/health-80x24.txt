@@ -12,7 +12,6 @@
            ❯ Keybindings file                              ▲ warn
            PROVIDERS
              Anthropic credential                          ◓ stale
-             Model route                                   · info
            ESTATE
              Daemon reachability                           ◌ unknown
              Certificate store                             · off

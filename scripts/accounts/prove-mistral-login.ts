@@ -8,7 +8,7 @@ for (const name of ['MISTRAL_API_KEY', 'MISTRAL_ADMIN_API_KEY']) delete process.
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { storeMistralApiKeyLogin, storeMistralAdminKeyLogin } = await import('../../src/services/providers/mistral/mistralLogin.ts')
 const { resolveMistralApiKey, resolveMistralAccount, resolveMistralAdminApiKey, mistralApiBase } = await import('../../src/services/providers/mistral/mistralAccounts.ts')
-const { readStoredMistralApiKey, writeStoredMistralApiKey, readStoredMistralAdminApiKey, writeStoredMistralAdminApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/utils/router/providerSecrets.ts')
+const { readStoredMistralApiKey, writeStoredMistralApiKey, readStoredMistralAdminApiKey, writeStoredMistralAdminApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/services/providers/providerSecrets.ts')
 const { readSignInLedger } = await import('../../src/utils/accounts/signInLedger.ts')
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS, PROVIDER_CREDENTIAL_VALUE_SHAPES } = await import('../../src/services/providers/credentialEnvSpellings.ts')
 const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')

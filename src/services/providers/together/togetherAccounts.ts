@@ -1,4 +1,4 @@
-import { readStoredTogetherApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredTogetherApiKey } from '../providerSecrets.js'
 
 const TOGETHER_API_BASE_URL = 'https://api.together.ai/v1'
 export const TOGETHER_ENV_KEY = 'TOGETHER_API_KEY'

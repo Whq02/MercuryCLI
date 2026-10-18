@@ -95,7 +95,7 @@ const RAW_ENV_SITES: readonly RegisteredRawEnvSite[] = [
     why: "the splash decision reads this process's env and spawns nothing; the enter-screen asset is this launch's own screen on this binary, reading the launch id and the config-home pins from the same env the boot will read",
   },
   {
-    file: 'src/utils/router/providerDiscovery.ts',
+    file: 'src/services/providers/providerDiscovery.ts',
     code: 'env: { ...process.env },',
     why: 'an own-process read seam for provider discovery; nothing is spawned',
   },

@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { writeStoredTogetherApiKey } from '../../../utils/router/providerSecrets.js'
+import { writeStoredTogetherApiKey } from '../providerSecrets.js'
 import { togetherApiBase, togetherEnvKey } from './togetherAccounts.js'
 import { fetchTogetherLiveModels, TogetherCatalogueHttpError } from './togetherCatalogue.js'
 

@@ -47,7 +47,7 @@ const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const accounts = await import('../../src/services/providers/openrouter/openrouterAccounts.js')
 const reader = await import('../../src/services/providers/openrouter/openrouterUsageState.js')
-const secrets = await import('../../src/utils/router/providerSecrets.js')
+const secrets = await import('../../src/services/providers/providerSecrets.js')
 const slots = await import('../../src/services/providers/accountSlots.js')
 const family = { id: 'openrouter', available: true, credentialed: true, credentialLabel: 'OpenRouter fixture' }
 await stub('../../src/services/providers/providerUsage.js', { providerFamilyPresences: () => [family] })

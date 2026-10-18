@@ -45,10 +45,10 @@ function jsonResponse(status: number, body: unknown): Response {
 
 const pins = await import('../../src/services/providers/deepseek/deepseekPins.ts')
 const catalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
-const router = await import('../../src/utils/router/providers/deepseek.ts')
+const router = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')
 const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
 const { providerFrontierLine } = await import('../../src/utils/model/providerFrontier.ts')
-const { writeStoredDeepseekApiKey } = await import('../../src/utils/router/providerSecrets.ts')
+const { writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
 
 type LiveIds = (env?: NodeJS.ProcessEnv) => ReadonlySet<string>
@@ -190,7 +190,7 @@ section('7 · the shape: the prefix decides nothing on the catalogue road')
   const pinsBody = between(options, 'export function keyLanePins', '\nexport function')
   const groupBody = between(options, 'export function keyLaneGroupRows', '\nexport function')
   check('no picker row composer re-filters the DeepSeek rows by prefix', pinsBody.includes('deepseekCatalogueRows') && !/isDeepseekModelId|startsWith\('deepseek|\/\^deepseek/.test(pinsBody + groupBody))
-  const adapter = readFileSync(join(ROOT, 'src/utils/router/providers/deepseek.ts'), 'utf8')
+  const adapter = readFileSync(join(ROOT, 'src/services/providers/deepseek/deepseekAdapter.ts'), 'utf8')
   check('the router adapter lists the catalogue rows without a prefix filter', adapter.includes('deepseekCatalogueRows()') && !/isDeepseekModelId|startsWith\('deepseek/.test(adapter))
 }
 

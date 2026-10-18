@@ -37,7 +37,7 @@ import {
   credentialEnvNames,
   readStoredHuggingfaceApiKey,
   readStoredOpenrouterApiKey,
-} from '../../utils/router/providerSecrets.js'
+} from '../providers/providerSecrets.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { providerDisplayName } from '../providers/routeLaw.js'
 

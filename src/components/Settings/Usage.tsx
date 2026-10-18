@@ -13,7 +13,7 @@ import { isClaudeAISubscriber } from '../../utils/auth.js'
 import { recentSignIns, mostRecentSignInFamily } from '../../utils/model/computedDefault.js'
 import { getEngineModel, renderModelName, getUserSpecifiedModelSetting, parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
-import type { RouterProviderId } from '../../utils/router/providers/types.js'
+import type { ProviderFamilyId } from '../../services/providers/providerAdapter.js'
 import {
   CREDITS_UNREPORTED_WORDS,
   anthropicPoolWindowViews,
@@ -183,7 +183,7 @@ function SlotHeading({ text }: { text: string }): React.ReactNode {
   return <Text bold color={tokens.textSecondary}>{text}</Text>
 }
 
-function IdentityLine({ family }: { family: RouterProviderId }): React.ReactNode {
+function IdentityLine({ family }: { family: ProviderFamilyId }): React.ReactNode {
   return <Box flexDirection="column">
     <Text dimColor wrap="truncate-end">{providerIdentitySentence(providerIdentityLine(family))}</Text>
     <UsageCredits usage={usageForProvider(family)} />
@@ -208,7 +208,7 @@ function workloadLines(spend: ProviderSessionSpend, withCost: boolean): string[]
 
 export const MODEL_ROW_INDENT = '  '
 
-export function sessionSpendLines(route: RouterProviderId, screenSpend: ProviderSessionSpend, withCost: boolean): string[] {
+export function sessionSpendLines(route: ProviderFamilyId, screenSpend: ProviderSessionSpend, withCost: boolean): string[] {
   const facts = getFocusedSessionConnector().usage()
   const session = sessionSpendOfFacts(facts, route)
   if (session === null) return workloadLines(screenSpend, withCost)
@@ -217,7 +217,7 @@ export function sessionSpendLines(route: RouterProviderId, screenSpend: Provider
   return [tokensLine(SESSION_SPEND_LABEL, session, withCost), ...perModel, ...workloadLines(session, withCost)]
 }
 
-function SlotSpend({ active, route, spend, withCost }: { active: boolean; route: RouterProviderId; spend: ProviderSessionSpend; withCost: boolean }): React.ReactNode {
+function SlotSpend({ active, route, spend, withCost }: { active: boolean; route: ProviderFamilyId; spend: ProviderSessionSpend; withCost: boolean }): React.ReactNode {
   if (!active) return <Text dimColor>{INACTIVE_SLOT_LINE}</Text>
   const lines = sessionSpendLines(route, spend, withCost)
   return lines.length === 0 ? null : <Text dimColor>{lines.join('\n')}</Text>
@@ -238,7 +238,7 @@ function ApiKeySlot({
 }: {
   presentLabel?: string
   isActive: boolean
-  route: RouterProviderId
+  route: ProviderFamilyId
   spend: ProviderSessionSpend
   note?: string
   creditsLine?: string
@@ -284,7 +284,7 @@ function FullWindowLine({ usage }: { usage: Pick<ActiveSourceUsage, 'windows' | 
   return line === undefined ? null : <Text dimColor>{line}</Text>
 }
 
-function useOwnerUsage(id: RouterProviderId, credentialed: boolean): ActiveSourceUsage {
+function useOwnerUsage(id: ProviderFamilyId, credentialed: boolean): ActiveSourceUsage {
   useUsageLayout()
   const [, setSample] = useState(0)
   useEffect(() => {
@@ -391,7 +391,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
   },
   'openai-compat': {
     title: 'Custom endpoint usage',
-    connect: 'set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)',
+    connect: 'set MERCURY_COMPAT_BASE_URL (key optional — MERCURY_COMPAT_API_KEY)',
     limitsNote: 'Usage bills to the endpoint you configured; no polled limit meter exists on this lane.',
   },
   mistral: {
@@ -437,7 +437,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
 }
 
 export interface UsageSection {
-  id: RouterProviderId
+  id: ProviderFamilyId
   kind: 'anthropic' | 'engine'
   title: string
   connect: string
@@ -1336,8 +1336,8 @@ export function usageBodyRows(budget: number, requestedJevRows = 1): { footerRow
 export type UsageCompactLine = { text: string; heading: boolean }
 
 export type UsageCompactReads = {
-  identity: (family: RouterProviderId) => string
-  usage: (family: RouterProviderId) => ActiveSourceUsage
+  identity: (family: ProviderFamilyId) => string
+  usage: (family: ProviderFamilyId) => ActiveSourceUsage
   anthropicWindows: () => UsageWindowView[]
   anthropicPools: () => UsageWindowView[]
   openaiWindows: () => UsageWindowView[]
@@ -1405,7 +1405,7 @@ function UsageCompact({ openToken, width, rowBudget }: { openToken?: number; wid
   const asks = plan.filter(section => section.family.credentialed).map(section => section.id).join('|')
   useEffect(() => {
     let disposed = false
-    for (const id of asks.split('|').filter(Boolean) as RouterProviderId[]) {
+    for (const id of asks.split('|').filter(Boolean) as ProviderFamilyId[]) {
       const operator = id === 'anthropic' && isClaudeAISubscriber() && openToken !== undefined && markOpenAsked(openToken)
       void refreshProviderUsage(id, { reason: operator ? 'operator' : 'open' }).then(() => {
         if (!disposed) setSample(s => s + 1)

@@ -1,0 +1,129 @@
+import { getCachedProviderDiscovery, primeDeepseekDiscovery } from '../providerDiscovery.js'
+import {
+  DEEPSEEK_DISPLAY_PINS,
+  DEEPSEEK_EFFORTS,
+  deepseekCurrentModelId,
+} from './deepseekPins.js'
+import { deepseekCatalogueRows } from './deepseekCatalogue.js'
+import type {
+  ProviderCatalogueEntry,
+  ProviderDescription,
+  ProviderModelRef,
+  ProviderModelClass,
+  ProviderAdapter,
+  ProviderModel,
+  ProviderStatus,
+  SpecialistRole,
+} from '../providerAdapter.js'
+import { SPECIALIST_ROLES } from '../providerAdapter.js'
+
+const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
+
+export const DEEPSEEK_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] =
+  DEEPSEEK_DISPLAY_PINS.map(pin => ({
+    id: pin.id,
+    displayLabel: pin.displayName,
+    modelClass: 'deepseek' as const,
+    ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}),
+    efforts: [...DEEPSEEK_EFFORTS],
+    roles: ALL_ROLES,
+  }))
+
+export function deepseekLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+  const { rows, source } = deepseekCatalogueRows()
+  if (source.kind !== 'live') return undefined
+  return {
+    fetchedAtMs: source.fetchedAtMs,
+    entries: rows.map(row => ({
+      id: row.id,
+      displayLabel: row.displayName,
+      modelClass: 'deepseek' as const,
+      ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}),
+      efforts: [...DEEPSEEK_EFFORTS],
+      roles: ALL_ROLES,
+    })),
+  }
+}
+
+export function deepseekCatalogueEntries(): readonly ProviderCatalogueEntry[] {
+  return deepseekLiveCatalogue()?.entries ?? DEEPSEEK_STATIC_CATALOGUE
+}
+
+export function deepseekCatalogueEntry(id: string): ProviderCatalogueEntry | undefined {
+  const current = deepseekCurrentModelId(id.trim().toLowerCase())
+  return deepseekCatalogueEntries().find(entry => entry.id === current)
+}
+
+export function describeDeepseekProvider(): ProviderDescription {
+  const discovery = getCachedProviderDiscovery('deepseek')
+  const record = discovery?.provider === 'deepseek' ? discovery : undefined
+  const live = deepseekLiveCatalogue()
+  return {
+    transport: 'openai-compat-chat-completions',
+    capabilities: [
+      'streaming',
+      'tool-calls',
+      'reasoning-deltas',
+      'usage-accounting',
+      'cancellation',
+      'worktree-authoring',
+    ],
+    roles: ALL_ROLES,
+    account: record?.keyPresent
+      ? {
+          kind: 'api-key',
+          label:
+            record.keySource === 'stored'
+              ? 'DeepSeek API key (stored, auth-scoped)'
+              : 'DEEPSEEK_API_KEY (env)',
+        }
+      : { kind: 'none', label: 'no DeepSeek API key detected' },
+    catalogue: live?.entries ?? DEEPSEEK_STATIC_CATALOGUE,
+    ...(live
+      ? { catalogueSource: 'live-discovery' as const, discoveredAtMs: live.fetchedAtMs }
+      : { catalogueSource: 'static-pin' as const }),
+  }
+}
+
+export function deepseekStatus(): ProviderStatus {
+  const discovery = primeDeepseekDiscovery()
+  return discovery?.keyPresent
+    ? { available: true }
+    : { available: false, reason: 'no-api-key:deepseek' }
+}
+
+export function listDeepseekModels(): ProviderModel[] {
+  if (!deepseekStatus().available) return []
+  return deepseekCatalogueEntries().map(entry => ({
+    ref: {
+      provider: 'deepseek' as const,
+      model: entry.id,
+      modelClass: 'deepseek' as const,
+      effort: 'high' as const,
+      contextWindow: entry.contextWindow ?? 0,
+    },
+    displayLabel: entry.displayLabel,
+  }))
+}
+
+export function resolveDeepseekModel(
+  _modelClass: ProviderModelClass,
+): ProviderModelRef | null {
+  return null
+}
+
+export function buildDeepseekLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
+  throw new Error(
+    'seat: provider deepseek has no SEAT runtime — roster seats stay Anthropic; DeepSeek specialists dispatch through the AgentTool engine path',
+  )
+}
+
+export const deepseekProviderAdapter: ProviderAdapter = {
+  id: 'deepseek',
+  transport: 'openai-compat-chat-completions',
+  status: deepseekStatus,
+  describe: describeDeepseekProvider,
+  listModels: listDeepseekModels,
+  resolveModel: resolveDeepseekModel,
+  buildLaunchPatch: buildDeepseekLaunchPatch,
+}

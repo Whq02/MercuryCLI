@@ -25,7 +25,7 @@ function exportsOf(path: string): Map<string, string> {
 let count = 0
 try {
   const pairs = ['CallModel', 'Catalogue', 'Login', 'Pins'].map(part => [`src/services/providers/deepseek/deepseek${part}.ts`, `src/services/providers/xai/xai${part}.ts`])
-  pairs.push(['src/utils/router/providers/deepseek.ts', 'src/utils/router/providers/xai.ts'])
+  pairs.push(['src/services/providers/deepseek/deepseekAdapter.ts', 'src/services/providers/xai/xaiAdapter.ts'])
   for (const [from, to] of pairs) {
     const expected = exportsOf(join(root, from!))
     const actual = exportsOf(join(root, to!))

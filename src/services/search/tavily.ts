@@ -1,6 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
-import { readStoredTavilyApiKey } from '../../utils/router/providerSecrets.js'
+import { readStoredTavilyApiKey } from '../providers/providerSecrets.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import type { KeyedSearchIo, SearchKeySource } from './brave.js'
 import {
@@ -80,7 +80,7 @@ export async function tavilySearch(request: SearchRequest, io: KeyedSearchIo = {
 
 async function requestTavilySearch(request: SearchRequest, io: KeyedSearchIo): Promise<SearchOutcome> {
   const key = resolveTavilyApiKey(io.env ?? process.env)
-  if (!key) return searchFailure('no-backend', 'tavily', 'no Tavily key (TAVILY_API_KEY or /router key tavily)')
+  if (!key) return searchFailure('no-backend', 'tavily', 'no Tavily key (set TAVILY_API_KEY)')
   const fetchImpl = io.fetchImpl ?? getApiFetch()
   const proxyOptions = io.fetchImpl ? {} : getProxyFetchOptions()
   let response: Response
@@ -105,7 +105,7 @@ async function requestTavilySearch(request: SearchRequest, io: KeyedSearchIo): P
   const wait = serverSearchWaitMs(response.headers, clock.now())
   if (wait > 0 || [429, 432, 433].includes(response.status)) noteRateLimited('tavily', clock, wait)
   if (response.status === 401 || response.status === 403) {
-    return searchFailure('key-refused', 'tavily', `HTTP ${response.status} — check the key at app.tavily.com, then /router key tavily again`)
+    return searchFailure('key-refused', 'tavily', `HTTP ${response.status} — check the key at app.tavily.com and set TAVILY_API_KEY again`)
   }
   if (response.status === 429 || response.status === 432 || response.status === 433) {
     return searchFailure('rate-limited', 'tavily', `HTTP ${response.status} — the plan's rate or monthly credits are spent`)

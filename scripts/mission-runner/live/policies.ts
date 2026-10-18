@@ -72,16 +72,6 @@ export const HELIX_POLICIES: HelixPolicy[] = [
     applicableFamilies: [7, 9],
   },
   {
-    id: 'router',
-    description:
-      'router-current — adaptive routing (the route fabric)',
-    model: 'claude-opus-4-8',
-    effort: 'high',
-    env: {},
-    headlessUnavailableReason:
-      'Route compilation engages via the operator-engaged routing surfaces (RouteWork over the coordination bus); a headless run has no routing seat — no current product path',
-  },
-  {
     id: 'collaboration',
     description:
       'collaboration-current — the accepted two-seat collaboration lab on the one collaboration task',

@@ -135,7 +135,7 @@ section('4 · unfetched falls back to the PIN, unchanged')
 
 section('5 · the LIVE router catalogue carries the SERVED window, not the pin')
 {
-  const providerSrc = readFileSync(join(ROOT, 'src/utils/router/providers/openai.ts'), 'utf8')
+  const providerSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiAdapter.ts'), 'utf8')
   check(
     'the live row prefers the source-served window',
     /candidate\.live\.contextWindow !== undefined\s*\n\s*\? \{ contextWindow: candidate\.live\.contextWindow \}/.test(providerSrc),
@@ -160,10 +160,6 @@ section('6 · the picker row states only the ACTIVE source (structural)')
   check(
     'the fabricated "an API key serves …" claim is GONE',
     !picker.includes('an API key serves'),
-  )
-  check(
-    'the row no longer routes the window question to /router connect (the SUBSCRIPTION verb)',
-    !/serves \$\{fmtCtx\([^)]*\)\} \(\/router connect\)/.test(picker) && !picker.includes('(/router connect)'),
   )
   check(
     'the row reads the source-declared ceiling accessor',

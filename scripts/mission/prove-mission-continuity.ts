@@ -172,13 +172,11 @@ section('§6 concourse: the card composes into the MissionView')
     workspace: '/tmp/ws',
     runObjective: null,
     runLifecycle: null,
-    plans: [],
     snapshot: null,
     memoryRefs: [],
     executions: [],
     evidenceDigest: null,
-    posture: null,
-    nodeAttemptCeiling: 3,
+    model: null,
     now: Date.now(),
   }
   const armed = composeMissionView({

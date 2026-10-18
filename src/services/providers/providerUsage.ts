@@ -13,9 +13,9 @@ import {
 } from '../../utils/auth.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { modelPricingBasis } from '../../utils/modelCost.js'
-import { buildRouterModelSnapshot, type RouterModelSnapshot } from '../../utils/router/modelRegistry.js'
-import { resolveZaiDispatch } from '../../utils/router/providerDiscovery.js'
-import type { RouterProviderId } from '../../utils/router/providers/types.js'
+import { buildProviderSnapshot, type ProviderSnapshot } from './modelRegistry.js'
+import { resolveZaiDispatch } from './providerDiscovery.js'
+import type { ProviderFamilyId } from './providerAdapter.js'
 import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
 import {
   anthropicWindowClosedUntil,
@@ -123,7 +123,7 @@ export interface ProviderUsageView {
 
 
 export interface ProviderFamilyPresence {
-  id: RouterProviderId
+  id: ProviderFamilyId
   available: boolean
   reason?: string
   credentialed: boolean
@@ -137,7 +137,7 @@ export interface ProviderFamilyReads {
   anthropicApiKeyPresent?: () => boolean
   bearerTokenSource?: () => { source: string; hasToken: boolean }
   anthropicEmail?: () => string | undefined
-  engineIdentity?: (id: RouterProviderId) => string | undefined
+  engineIdentity?: (id: ProviderFamilyId) => string | undefined
 }
 
 export function presenceIdentityWords(
@@ -149,7 +149,7 @@ export function presenceIdentityWords(
   return familyAccountWord(presence.id) ?? 'signed in'
 }
 
-function engineIdentityLive(id: RouterProviderId): string | undefined {
+function engineIdentityLive(id: ProviderFamilyId): string | undefined {
   try {
     if (id === 'openai') {
       const { resolveOpenaiAccount } =
@@ -232,7 +232,7 @@ function readBearerTokenSource(): { source: string; hasToken: boolean } {
 }
 
 export function providerFamilyPresences(
-  providers: RouterModelSnapshot['providers'] = buildRouterModelSnapshot().providers,
+  providers: ProviderSnapshot['providers'] = buildProviderSnapshot().providers,
   reads?: ProviderFamilyReads,
 ): ProviderFamilyPresence[] {
   return providers.map((provider): ProviderFamilyPresence => {
@@ -261,11 +261,11 @@ export function anyProviderCredentialed(): boolean {
   return providerFamilyPresences().some(family => family.credentialed)
 }
 
-export function providerSessionSpend(route: RouterProviderId): ProviderSessionSpend {
+export function providerSessionSpend(route: ProviderFamilyId): ProviderSessionSpend {
   return spendForRoute(route)
 }
 
-function spendForRoute(route: RouterProviderId | 'unrecognised'): ProviderSessionSpend {
+function spendForRoute(route: ProviderFamilyId | 'unrecognised'): ProviderSessionSpend {
   const admit = (model: string): boolean => (declaredRouteOf(model) ?? 'unrecognised') === route
   const spend = spendOf(getModelUsage(), getUnpricedTurns(), admit)
   const scheduled = spendOf(scheduledUsage(), scheduledUnpricedTurns(), admit)
@@ -293,7 +293,7 @@ function spendOfRows(rows: readonly ModelSpendRowV1[], admit: (model: string) =>
 
 export function sessionSpendOfFacts(
   facts: Pick<UsageFactsV1, 'modelSpend'>,
-  route: RouterProviderId | 'unrecognised',
+  route: ProviderFamilyId | 'unrecognised',
 ): ProviderSessionSpend | null {
   if (facts.modelSpend === undefined) return null
   const admit = (model: string): boolean => (declaredRouteOf(model) ?? 'unrecognised') === route
@@ -312,7 +312,7 @@ export interface ModelSessionSpend {
 
 export function sessionSpendByModel(
   facts: Pick<UsageFactsV1, 'modelSpend'>,
-  route: RouterProviderId | 'unrecognised',
+  route: ProviderFamilyId | 'unrecognised',
 ): ModelSessionSpend[] {
   if (facts.modelSpend === undefined) return []
   const own = facts.modelSpend.filter(row => row.workload === undefined && (declaredRouteOf(row.model) ?? 'unrecognised') === route)
@@ -449,7 +449,7 @@ export interface UsageFigureView {
 }
 
 export interface ActiveSourceUsage {
-  provider: RouterProviderId | 'unrecognised'
+  provider: ProviderFamilyId | 'unrecognised'
   sourceKind: 'subscription-oauth' | 'oauth' | 'api-key' | 'keyless' | 'none'
   label: string
   shape: ActiveUsageShape
@@ -475,7 +475,7 @@ export interface ActiveSourceUsage {
 }
 
 export interface ActiveUsageReads {
-  route?: (model: string) => RouterProviderId
+  route?: (model: string) => ProviderFamilyId
   activeEntry?: (provider: UsageProvider) => WalletEntry | undefined
   anthropicWindows?: () => { fiveHour: QuotaWindow; sevenDay: QuotaWindow }
   anthropicPoolWindows?: () => UsageWindowView[]
@@ -499,7 +499,7 @@ export interface ActiveUsageReads {
   huggingfaceAccountFacts?: () => HuggingfaceAccountFacts | null
   huggingfaceAccountFactsFailure?: () => HuggingfaceAccountFactsFailure | null
   localAccount?: () => LocalAccountRef | undefined
-  laneCredentialed?: (provider: RouterProviderId) => boolean
+  laneCredentialed?: (provider: ProviderFamilyId) => boolean
   deepseekBalance?: () => DeepseekObservedBalanceView | null
   xaiAccount?: () => { kind: 'grok-subscription' | 'api-key' } | undefined
   xaiManagementKeyPresent?: () => boolean
@@ -511,7 +511,7 @@ export interface ActiveUsageReads {
   moonshotBalance?: () => MoonshotObservedBalanceView | null
   kimiManagedUsage?: () => KimiManagedUsageView | null
   kimiManagedError?: () => string | undefined
-  spend?: (route: RouterProviderId) => ProviderSessionSpend
+  spend?: (route: ProviderFamilyId) => ProviderSessionSpend
   anthropicPlan?: () => string | null
   nousAccount?: () => NousObservedAccountView | null
   nousAccountFailure?: () => NousAccountFailureView | null
@@ -601,7 +601,7 @@ export interface UsageRefreshIo {
   reason?: 'open' | 'operator' | 'sign-in'
 }
 
-export async function refreshProviderUsage(provider: RouterProviderId, io?: UsageRefreshIo): Promise<void> {
+export async function refreshProviderUsage(provider: ProviderFamilyId, io?: UsageRefreshIo): Promise<void> {
   try {
     switch (provider) {
       case 'openai': {
@@ -709,7 +709,7 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
 }
 
 let shownMeters = 0
-let shownFamily: (() => RouterProviderId | 'unrecognised') | null = null
+let shownFamily: (() => ProviderFamilyId | 'unrecognised') | null = null
 let unsubscribeSignIns: (() => void) | null = null
 
 function readShownFamily(reason: 'open' | 'sign-in'): void {
@@ -718,7 +718,7 @@ function readShownFamily(reason: 'open' | 'sign-in'): void {
   void refreshProviderUsage(family, { reason })
 }
 
-export function watchProviderUsageWhileShown(opts: { family: () => RouterProviderId | 'unrecognised' }): () => void {
+export function watchProviderUsageWhileShown(opts: { family: () => ProviderFamilyId | 'unrecognised' }): () => void {
   shownFamily = opts.family
   shownMeters += 1
   if (unsubscribeSignIns === null) {
@@ -785,7 +785,7 @@ export interface ZaiQuotaFailureView {
   message?: string
 }
 
-function laneCredentialedLive(provider: RouterProviderId): boolean {
+function laneCredentialedLive(provider: ProviderFamilyId): boolean {
   if (provider === 'xai') {
     const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
     return resolveXaiAccount() !== undefined
@@ -1437,11 +1437,11 @@ export function activeSourceUsage(opts?: {
   return deriveActiveSourceUsage(opts)
 }
 
-const ALL_FAMILIES: readonly RouterProviderId[] = ['anthropic', ...PROVIDER_ID_SPACES.map(space => space.route)]
+const ALL_FAMILIES: readonly ProviderFamilyId[] = ['anthropic', ...PROVIDER_ID_SPACES.map(space => space.route)]
 
 const OTHER_USAGES_CACHE_MS = 2_000
 let otherUsagesCache: {
-  primary: RouterProviderId | 'unrecognised'
+  primary: ProviderFamilyId | 'unrecognised'
   atMs: number
   epoch: number
   record: number
@@ -1474,7 +1474,7 @@ export function windowSourceUsages(opts?: {
 }
 
 function deriveOtherWindowUsages(
-  primary: RouterProviderId | 'unrecognised',
+  primary: ProviderFamilyId | 'unrecognised',
   reads: ActiveUsageReads | undefined,
 ): ActiveSourceUsage[] {
   const others: ActiveSourceUsage[] = []
@@ -1582,7 +1582,7 @@ function deriveActiveSourceUsage(opts?: {
 }
 
 export function usageForProvider(
-  provider: RouterProviderId | 'unrecognised',
+  provider: ProviderFamilyId | 'unrecognised',
   reads?: ActiveUsageReads,
 ): ActiveSourceUsage {
   const view = deriveUsageForProvider(provider, reads)
@@ -1618,7 +1618,7 @@ export function metaMuseCodeUsage(spend: ProviderSessionSpend = providerSessionS
 }
 
 function deriveUsageForProvider(
-  provider: RouterProviderId | 'unrecognised',
+  provider: ProviderFamilyId | 'unrecognised',
   reads?: ActiveUsageReads,
 ): ActiveSourceUsage {
   const spend = provider === 'unrecognised' ? spendForRoute(provider) : (reads?.spend ?? spendForRoute)(provider)

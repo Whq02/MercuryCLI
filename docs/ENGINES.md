@@ -122,7 +122,7 @@ Meta's Muse Spark rows come only from the account's live `GET /v1/models`
 list, newest creation time first, with the id breaking ties. Connect through
 `/logins meta` (or `/logins muse`): the card’s first row is **Sign in with
 Meta (a Muse Code subscription, a device code in your browser)**, and the
-second is a pay-as-you-go Model API key (`/router key meta`, `MODEL_API_KEY`,
+second is a pay-as-you-go Model API key (`/logins meta`, `MODEL_API_KEY`,
 or `META_API_KEY`, which is accepted after `MODEL_API_KEY` and before the
 stored key). Sign in with Meta requests a device code from
 `https://auth.meta.com/oidc/device/authorization/` and polls
@@ -180,8 +180,8 @@ Ministral 3 sizes; and Codestral, `codestral-2508`), and any further chat row
 the list serves follows by creation time. The vendor's aliases
 (`mistral-medium-latest`, `mistral-small-latest`, `mistral-large-latest`,
 which still names Large 3, `codestral-latest`) are listed ids too and
-dispatch as the row they name. Connect through `/logins mistral`,
-`/router key mistral`, or `MISTRAL_API_KEY`; keys are made at
+dispatch as the row they name. Connect through `/logins mistral`
+or `MISTRAL_API_KEY`; keys are made at
 [console.mistral.ai/api-keys](https://console.mistral.ai/api-keys), and the
 key is proven on the model list and the identity endpoint before it is
 stored. `/accounts` manages the stored key. The family word `mistral`
@@ -212,8 +212,8 @@ Mercury does not use it. A standard key reads the account's identity
 included monthly usage is read in the console. The organisation meter
 (month-to-date usage against the monthly spend limit and the rate limits) is
 read through the Admin API with an optional **Admin API key** stored beside the
-inference key (`/logins mistral` prompts for it after the key; `/router key
-mistral-admin`; `MISTRAL_ADMIN_API_KEY`), which Mistral issues on Enterprise
+inference key (`/logins mistral` prompts for it after the key;
+`MISTRAL_ADMIN_API_KEY`), which Mistral issues on Enterprise
 plans at [backoffice.mistral.ai](https://backoffice.mistral.ai). Sources read
 on **2026-10-09**: the public OpenAPI specification and the model cards in
 [mistralai/platform-docs-public](https://github.com/mistralai/platform-docs-public),
@@ -233,7 +233,7 @@ third-party models (Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, Grok and
 more) at the Portal's own `vendor/model` slugs, plus `~vendor/<name>-latest`
 rows that always point at the newest model of a family. Mercury persists
 these ids as `nous/<vendor>/<model>`; the namespace detaches for the wire.
-Connect through `/logins nous`, `/router key nous`, or `NOUS_API_KEY`; the
+Connect through `/logins nous` or `NOUS_API_KEY`; the
 key is made at `portal.nousresearch.com` after adding credits or a
 subscription, and `/accounts` manages the stored key. The rows come only
 from the account's live `GET /v1/models` list: `/model` paints the Portal's
@@ -267,8 +267,8 @@ and [the live model list](https://inference-api.nousresearch.com/v1/models).
 OpenCode Zen (opencode.ai) is a model gateway: one API key, pasted, reaches
 every model the gateway lists, billed at the vendor's pay-as-you-go prices
 from a prepaid balance. Sign in at [opencode.ai/auth](https://opencode.ai/auth),
-add billing details, create a key, then `/logins zen` (or `/logins opencode`),
-`/router key zen`, or `OPENCODE_API_KEY`. The key is checked on the gateway's
+add billing details, create a key, then `/logins zen` (or `/logins opencode`)
+or `OPENCODE_API_KEY`. The key is checked on the gateway's
 usage endpoint before it is stored, and a refused key is never stored. Zen has no
 OAuth or device sign-in for a third-party client, and its keyless free tier
 answers third-party clients with a typed refusal; Mercury does not present
@@ -869,13 +869,13 @@ Run `/accounts` to see every connected account and API key across all providers:
   key on [the console's settings page](https://console.x.ai/team/default/management-keys)
   with the **Management Keys Read + Write** permission. Both keys are stored
   auth-scoped (mode 600); env pins `XAI_API_KEY` and `XAI_MANAGEMENT_API_KEY`
-  win independently. `/router key xai-management` adds the management key
-  directly, and its `clear` road or its own `/accounts` row removes only that
+  win independently. `/logins xai` adds the management key after the
+  inference key, and its own `/accounts` row removes only that
   key while keeping the inference key. A management key alone cannot run Grok;
 - **meta**: a Muse Code subscription sign-in (`.meta-auth.json`, mode 600, holding the account token, the minted key, the e-mail, the tier and the usage windows) or an API key (`MODEL_API_KEY`, `META_API_KEY` or stored key), the latest sign-in action active;
 - **zai, deepseek, zen, huggingface, local, compat, nous, minimax, together, cohere**: env pins and stored keys.
 - **mistral**: an env pin or a stored key, with an optional Admin API key
-  beside it (`MISTRAL_ADMIN_API_KEY`, `/router key mistral-admin`) that reads
+  beside it (`MISTRAL_ADMIN_API_KEY`, or `/logins mistral` after the key) that reads
   the organisation meter and never runs a turn; its own `/accounts` row
   removes only that key.
 
@@ -1055,9 +1055,8 @@ The automatic search order is:
    This spends the session's own account, never another provider's account.
    The provider's own answer reaches the model as a labelled, unverified note
    beside its links; the links carry no excerpt, because the wire carries none.
-2. Brave Search, then Tavily, when a key is available. `/router key brave` and
-   `/router key tavily` store keys; `BRAVE_API_KEY` and `TAVILY_API_KEY` override
-   the saved values. Keys are not included in results.
+2. Brave Search, then Tavily, when a key is available: `BRAVE_API_KEY` and
+   `TAVILY_API_KEY` in the environment. Keys are not included in results.
 3. An official API selected by explicit query words: an error message goes to
    Stack Exchange; `npm`, `PyPI` or `crates` plus a package name goes to that
    registry; a concept question goes to Wikipedia; news goes to Hacker News.

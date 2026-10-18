@@ -11,17 +11,17 @@ process.env.MERCURY_MISTRAL_API_BASE = 'http://127.0.0.1:1/v1'
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { refreshProviderDiscovery } = await import('../../src/utils/router/providerDiscovery.ts')
+const { refreshProviderDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
 const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
 const { parseDefaultProviderWord } = await import('../../src/commands/defaultprovider/defaultprovider.tsx')
 const { loginFamilyRows, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
 const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines } = await import('../../src/components/BootLoginsScreen.tsx')
-const { buildRouterModelSnapshot } = await import('../../src/utils/router/modelRegistry.ts')
+const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 const { MISTRAL_DISPLAY_PINS, mistralDisplayPin, isMistralChatModelId, isMistralModelId } = await import('../../src/services/providers/mistral/mistralPins.ts')
 const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
 const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
-const { credentialEnvNames } = await import('../../src/utils/router/providerSecrets.ts')
+const { credentialEnvNames } = await import('../../src/services/providers/providerSecrets.ts')
 const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
 const { __resetMistralUsageForTest, mistralObservedUsage } = await import('../../src/services/providers/mistral/mistralUsageState.ts')
 const root = join(import.meta.dir, '..', '..')
@@ -30,7 +30,7 @@ let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
 const fixture = mistralFixture()
 try {
-  check('Mistral is a primary provider, with a signed-out usage and readiness truth', buildRouterModelSnapshot().providers.some(provider => provider.id === 'mistral') && usageForProvider('mistral').sourceKind === 'none' && !resolveProviderUsability().mistral.usable)
+  check('Mistral is a primary provider, with a signed-out usage and readiness truth', buildProviderSnapshot().providers.some(provider => provider.id === 'mistral') && usageForProvider('mistral').sourceKind === 'none' && !resolveProviderUsability().mistral.usable)
   check('the family word focuses the sign-in and default-provider doors', parseFamilyFocus('mistral') === 'mistral' && parseDefaultProviderWord('mistral') === 'mistral')
   const row = loginFamilyRows({ engineLegs: true }).find(row => row.value === 'mistral')
   check('the sign-in row names the API-key road and the key page, never a browser sign-in', row?.label === 'Mistral — API key (Mistral Large 4)' && keyPageLine('mistral').includes('console.mistral.ai/api-keys') && !read('src/components/loginFamilyRows.ts').toLowerCase().includes('vibe'))
@@ -79,7 +79,7 @@ try {
   const uncapped = usageForProvider('mistral')
   check('no monthly limit states usage as the figure and invents no remainder', uncapped.figures?.some(figure => figure.key === 'month-limit' && figure.value === 'none set') && uncapped.balance === undefined && uncapped.credits.compact === 'no limit set')
   const files = ['Accounts', 'CallModel', 'Catalogue', 'Login', 'Pins', 'UsageState'].map(part => `src/services/providers/mistral/mistral${part}.ts`)
-  files.push('src/utils/router/providers/mistral.ts')
+  files.push('src/services/providers/mistral/mistralAdapter.ts')
   for (const file of files) {
     const source = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true)
     const names: string[] = []

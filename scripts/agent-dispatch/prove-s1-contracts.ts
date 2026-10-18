@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { getEmptyToolPermissionContext } from '../../src/Tool.js'
 import type { CustomAgentDefinition } from '../../src/tools/AgentTool/loadAgentsDir.js'
-import { anthropicProviderAdapter } from '../../src/utils/router/providers/anthropic.js'
-import { openaiProviderAdapter } from '../../src/utils/router/providers/openai.js'
-import { zaiProviderAdapter } from '../../src/utils/router/providers/zai.js'
+import { anthropicProviderAdapter } from '../../src/services/providers/anthropic/anthropicAdapter.js'
+import { openaiProviderAdapter } from '../../src/services/providers/openai/openaiAdapter.js'
+import { zaiProviderAdapter } from '../../src/services/providers/zai/zaiAdapter.js'
 import {
   buildAgentLaunchPlan,
   type AgentLaunchPlanInput,
@@ -29,7 +29,7 @@ console.log('============================================================')
 console.log(' S1 — contract freeze (adapter surface · launch plan)')
 console.log('============================================================')
 
-section('1 · RouterProviderAdapter — exactly the frozen member set')
+section('1 · ProviderAdapter — exactly the frozen member set')
 {
   const FROZEN_MEMBERS = [
     'id',

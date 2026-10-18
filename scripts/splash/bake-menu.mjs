@@ -8,7 +8,7 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-menu.mjs',
   check: 'bun scripts/splash/bake-menu.mjs --check',
-  sources: 'src/substrate/startupMenu.ts src/services/providers/xai/xaiPins.ts src/services/providers/meta/metaPins.ts src/services/providers/mistral/mistralPins.ts src/services/providers/minimax/minimaxPins.ts src/services/providers/cohere/coherePins.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/utils/router/providers/zai.ts',
+  sources: 'src/substrate/startupMenu.ts src/services/providers/xai/xaiPins.ts src/services/providers/meta/metaPins.ts src/services/providers/mistral/mistralPins.ts src/services/providers/minimax/minimaxPins.ts src/services/providers/cohere/coherePins.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/services/providers/zai/zaiAdapter.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
@@ -36,7 +36,7 @@ const { XAI_DISPLAY_PINS } = await import('../../src/services/providers/xai/xaiP
 const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } =
   await import('../../src/services/providers/deepseek/deepseekPins.ts')
 const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/services/providers/moonshot/kimiPins.ts')
-const { GLM_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/zai.ts')
+const { GLM_STATIC_CATALOGUE } = await import('../../src/services/providers/zai/zaiAdapter.ts')
 const GLM_DISPLAY_PINS = GLM_STATIC_CATALOGUE.map(entry => ({ id: entry.id, displayName: entry.displayLabel }))
 
 const { META_DISPLAY_PINS } = await import('../../src/services/providers/meta/metaPins.ts')

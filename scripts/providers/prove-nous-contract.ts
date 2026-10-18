@@ -11,12 +11,12 @@ process.env.MERCURY_NOUS_PORTAL_BASE = 'http://127.0.0.1:1'
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { refreshProviderDiscovery } = await import('../../src/utils/router/providerDiscovery.ts')
+const { refreshProviderDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
 const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
 const { parseDefaultProviderWord } = await import('../../src/commands/defaultprovider/defaultprovider.tsx')
 const { loginFamilyRows, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
 const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines } = await import('../../src/components/BootLoginsScreen.tsx')
-const { buildRouterModelSnapshot } = await import('../../src/utils/router/modelRegistry.ts')
+const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 const { declaredRouteOf, providerDisplayName, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
 const { PROVIDER_CREDENTIAL_ENV_VARS, PROVIDER_CREDENTIAL_VALUE_SHAPES } = await import('../../src/services/providers/credentialEnvSpellings.ts')
 const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
@@ -30,7 +30,7 @@ const read = (path: string): string => readFileSync(join(root, path), 'utf8')
 let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
 try {
-  check('Nous Portal is a primary provider with a signed-out usage and readiness truth', buildRouterModelSnapshot().providers.some(provider => provider.id === 'nous') && usageForProvider('nous').sourceKind === 'none' && !resolveProviderUsability().nous.usable)
+  check('Nous Portal is a primary provider with a signed-out usage and readiness truth', buildProviderSnapshot().providers.some(provider => provider.id === 'nous') && usageForProvider('nous').sourceKind === 'none' && !resolveProviderUsability().nous.usable)
   check('the family words focus the same sign-in and default-provider doors', ['nous', 'nous-portal'].every(word => parseFamilyFocus(word) === 'nous' && parseDefaultProviderWord(word) === 'nous'))
   check('nous/<vendor>/<model> is a declared carrier namespace with the Portal slug on the wire', declaredRouteOf('nous/anthropic/claude-sonnet-4.6') === 'nous' && providerDisplayName('nous') === 'Nous Portal' && canonicalWireModelId('nous/openai/gpt-5.5-pro').ok && (canonicalWireModelId('nous/openai/gpt-5.5-pro') as { wireId?: string }).wireId === 'openai/gpt-5.5-pro')
   check('the only credential spelling is the API key, redacted by its prefix', JSON.stringify(PROVIDER_CREDENTIAL_ENV_VARS.nous) === JSON.stringify(['NOUS_API_KEY']) && PROVIDER_CREDENTIAL_VALUE_SHAPES.nous?.marker === '[REDACTED_NOUS_KEY]')
@@ -52,7 +52,7 @@ try {
   const discovery = await refreshProviderDiscovery('nous', { force: true })
   check('discovery records Nous Portal rather than falling through to another family', discovery?.provider === 'nous' && discovery.keyPresent && discovery.keySource === 'env')
   const files = ['Accounts', 'CallModel', 'Catalogue', 'Login', 'UsageState', 'Oauth', 'ClientContract'].map(part => `src/services/providers/nous/nous${part}.ts`)
-  files.push('src/utils/router/providers/nous.ts')
+  files.push('src/services/providers/nous/nousAdapter.ts')
   for (const file of files) {
     const text = read(file)
     const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)

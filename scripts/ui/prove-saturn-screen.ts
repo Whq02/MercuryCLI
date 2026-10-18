@@ -257,7 +257,7 @@ t.section('§5 — THE FORM (seven facts · the verdict verbatim · honest previ
   const badWhen = saturnFormDetailLines({ ...FIXTURE_FORM, when: 'banana' }, compileWhenSpelling('banana', FIXED_NOW), READY_PREFLIGHT, FIXED_NOW).join(' ')
   t.check("§5 a refused when shows the compiler's own words", badWhen.includes('not a schedule spelling'))
   const refused = saturnFormDetailLines(FIXTURE_FORM, compiled, { derivation: { ok: false, reason: noCredentialRefusal('openai') }, verdict: null }, FIXED_NOW).join(' ')
-  t.check('§5 a credential-less family speaks the L26 two-door sentence verbatim', refused.includes('/logins connects an account') && refused.includes('/router key openai'))
+  t.check('§5 a credential-less family speaks the L26 door sentence verbatim', refused.includes('/logins openai connects an account or an API key'))
   const expired = saturnFormDetailLines(FIXTURE_FORM, compiled, EXPIRED_PREFLIGHT, FIXED_NOW).join(' ')
   t.check('§5 the expired preview carries the honesty line whole', expired.includes("re-login now (/logins) or it's born held"))
   const present = saturnFormDetailLines({ ...FIXTURE_FORM, presence: 'screen-present', opening: null }, compiled, READY_PREFLIGHT, FIXED_NOW).join(' ')
@@ -337,7 +337,7 @@ t.section('§6 — THE BOX WRITERS (stamps daemon-shaped · both presences · ca
 
   const fire = addBoxSchedule({ when: { kind: 'at', atMs: Date.now() + 1000 }, action: { kind: 'fire', prompt: 'x' } }, 'operator:test', deps, DIR)
   t.check("§6 a fire submission refuses — the box takes births only", !fire.ok && fire.reason.includes("'birth'"))
-  const refusedDeps = { deriveAccount: () => ({ ok: false as const, reason: 'no-credential:openai — /logins connects an account, or /router key openai connects an API key' }) }
+  const refusedDeps = { deriveAccount: () => ({ ok: false as const, reason: 'no-credential:openai — /logins openai connects an account or an API key' }) }
   const before = readBoxSchedules(DIR).schedules.length
   const noCred = addBoxSchedule(birth('headless'), 'operator:test', refusedDeps, DIR)
   t.check('§6 a failed derivation refuses typed and writes nothing', !noCred.ok && noCred.reason.includes('no-credential') && readBoxSchedules(DIR).schedules.length === before)

@@ -52,9 +52,9 @@ process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
 const { ENGINE_DISPATCH_MODELS, isExactEngineModelId, resolveEngineDispatch, unrecognisedModelWordRefusal } = await import(
   '../../src/utils/crew/engineDispatch.js'
 )
-const { DEPRECATED_GPT_IDS } = await import('../../src/utils/router/providers/openai.js')
+const { DEPRECATED_GPT_IDS } = await import('../../src/services/providers/openai/openaiAdapter.js')
 const { __resetProviderDiscoveryForTest, refreshProviderDiscovery } = await import(
-  '../../src/utils/router/providerDiscovery.js'
+  '../../src/services/providers/providerDiscovery.js'
 )
 const { __resetOpenaiCatalogueForTest, refreshOpenaiCatalogue, GPT_DISPLAY_PINS } = await import(
   '../../src/services/providers/openai/openaiCatalogue.js'

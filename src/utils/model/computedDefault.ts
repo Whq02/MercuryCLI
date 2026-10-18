@@ -335,11 +335,11 @@ function liveKeyless(): KeylessFact {
 export function recentSignIns(): CredentialFact[] {
   const { providerFamilyPresences } =
     require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
-  const { buildRouterModelSnapshot } =
-    require('../router/modelRegistry.js') as typeof import('../router/modelRegistry.js')
+  const { buildProviderSnapshot } =
+    require('../../services/providers/modelRegistry.js') as typeof import('../../services/providers/modelRegistry.js')
   const { configuredDefaultProvider } =
     require('./defaultProviderRung.js') as typeof import('./defaultProviderRung.js')
-  const providers = buildRouterModelSnapshot().providers
+  const providers = buildProviderSnapshot().providers
   const ledger = readSignInLedger()
   const credentials: CredentialFact[] = providerFamilyPresences(providers)
     .filter(presence => presence.credentialed)
@@ -371,13 +371,13 @@ export function mostRecentSignInFamily(): string | undefined {
 export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded: boolean } {
   const { providerFamilyPresences } =
     require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
-  const { buildRouterModelSnapshot } =
-    require('../router/modelRegistry.js') as typeof import('../router/modelRegistry.js')
+  const { buildProviderSnapshot } =
+    require('../../services/providers/modelRegistry.js') as typeof import('../../services/providers/modelRegistry.js')
   const { configuredDefaultProvider } =
     require('./defaultProviderRung.js') as typeof import('./defaultProviderRung.js')
   const { providerDisplayName } =
     require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
-  const providers = buildRouterModelSnapshot().providers
+  const providers = buildProviderSnapshot().providers
   const ledger = readSignInLedger()
   const credentials: CredentialFact[] = providerFamilyPresences(providers)
     .filter(presence => presence.credentialed)

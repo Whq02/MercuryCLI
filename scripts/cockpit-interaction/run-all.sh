@@ -5,7 +5,7 @@
 # gate-watch: src/utils/transcriptSearch* src/utils/cockpit/cockpitActivity*
 # gate-watch: src/input-core/command-queue* src/run-core/attachment-drain*
 # gate-watch: src/run-core/turn-machine*
-# gate-watch: src/tools/SleepTool/** src/services/providers/zai/** src/utils/router/providers/zai*
+# gate-watch: src/tools/SleepTool/** src/services/providers/zai/** src/services/providers/zai/zaiAdapter.ts
 # gate-watch: src/screens/Chat* design-system/readme.md src/tools.ts src/tools/**
 # gate-watch: src/services/workbench/** src/utils/artifacts/** src/commands/diff/**
 # gate-watch: scripts/engine-durability/bench-prompt-attribution.ts scripts/engine-durability/harness.ts

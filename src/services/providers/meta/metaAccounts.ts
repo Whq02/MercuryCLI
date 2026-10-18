@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { publishAuthScopedJson, readStoredMetaApiKey, signInLedgerPath } from '../../../utils/router/providerSecrets.js'
+import { publishAuthScopedJson, readStoredMetaApiKey, signInLedgerPath } from '../providerSecrets.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 

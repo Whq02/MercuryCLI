@@ -26,10 +26,10 @@ try {
   console.log(`  intro: ${intro}`)
   check('the /logins opening sentence names every family the list below it carries, by the row\'s own name', names.every(name => intro.includes(name)), `missing: ${names.filter(name => !intro.includes(name)).join(', ') || 'none'}`)
   check('the last family on the list is the last named (OpenCode Zen, the box\'s missing one)', intro.includes(`or ${names[names.length - 1]}.`), names[names.length - 1])
-  const named = intro.slice(intro.indexOf('or connect ') + 'or connect '.length, intro.indexOf('. To add an API key'))
+  const named = intro.slice(intro.indexOf('or connect ') + 'or connect '.length, intro.lastIndexOf('.'))
   const spoken = named.split(/, | or /).map(s => s.trim()).filter(Boolean)
   check('the sentence names the families in the list\'s order and nothing the list does not carry', spoken.join('|') === names.join('|'), `${spoken.join('|')} vs ${names.join('|')}`)
-  check('the three leading roads keep their words', intro.startsWith('Use a Claude or OpenAI subscription, usage-based billing, or connect ') && intro.endsWith('To add an API key from the terminal, run /router key <provider>.'), intro)
+  check('the three leading roads keep their words', intro.startsWith('Use a Claude or OpenAI subscription, usage-based billing, or connect ') && intro.endsWith('.') && !intro.includes('API key from the terminal'), intro)
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

@@ -431,11 +431,11 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
   const { writeFileSync, rmSync } = await import('node:fs')
   const home = process.env.MERCURY_CONFIG_DIR as string
   const authFile = join(home, '.openai-auth.json')
-  const discovery = await import('../../src/utils/router/providerDiscovery.ts')
+  const discovery = await import('../../src/services/providers/providerDiscovery.ts')
   const { providerFamilyPresences, anthropicCredentialPresence } = await import(
     '../../src/services/providers/providerUsage.ts'
   )
-  const { buildRouterModelSnapshot } = await import('../../src/utils/router/modelRegistry.ts')
+  const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
   const { resolveOpenaiAccount } = await import(
     '../../src/services/providers/openai/openaiAccounts.ts'
   )
@@ -470,7 +470,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
       'signed out: the family row is uncredentialed',
       composeSubModelRegistry().families.find(f => f.source === 'openai')?.credentialed === false,
     )
-    const provider = buildRouterModelSnapshot().providers.find(p => p.id === 'openai')
+    const provider = buildProviderSnapshot().providers.find(p => p.id === 'openai')
     check(
       'signed out: the dispatch gate reads the same truth (no-account:openai)',
       provider?.available === false && provider?.reason === 'no-account:openai',
@@ -525,7 +525,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
       family?.credentialed === true && family?.credentialLabel === 'ChatGPT plus subscription',
       JSON.stringify(family),
     )
-    const provider = buildRouterModelSnapshot().providers.find(p => p.id === 'openai')
+    const provider = buildProviderSnapshot().providers.find(p => p.id === 'openai')
     check('signed in: the dispatch gate opens on the same read', provider?.available === true)
   }
 
@@ -577,7 +577,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
   )
 
   const adapterSrc = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'utils', 'router', 'providers', 'openai.ts'),
+    join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'openai', 'openaiAdapter.ts'),
     'utf-8',
   )
   const catalogueSrc = readFileSync(

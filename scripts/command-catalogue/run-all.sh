@@ -3,7 +3,7 @@
 # gate-env: MERCURY_FEEDBACK_ROAD_CAPTURE_DIR
 # gate-watch: src/commands.ts src/commands/** src/components/HelpV2/** src/components/mercury-ui/** src/types/command* src/main* src/utils/processUserInput/** README.md
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/utils/config/globalConfig.ts src/types/message.ts
-# gate-watch: src/utils/redactSecrets.ts src/utils/secrets/secretScanner.ts src/utils/secureStorage/** src/utils/router/providerSecrets.ts src/utils/auth.ts src/services/providers/credentialEnvSpellings.ts
+# gate-watch: src/utils/redactSecrets.ts src/utils/secrets/secretScanner.ts src/utils/secureStorage/** src/services/providers/providerSecrets.ts src/utils/auth.ts src/services/providers/credentialEnvSpellings.ts
 # gate-watch: src/components/Feedback.tsx src/services/repoHost/** src/services/privateChannel/ghRelease.ts .github/ISSUE_TEMPLATE/**
 # gate-watch: mercury-skills/provider-apis/references/models.md package.json
 # gate-watch: src/rows/* src/runner/wire/*

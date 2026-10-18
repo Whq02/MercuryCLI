@@ -6,7 +6,7 @@ import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { readStoredHuggingfaceApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 
 

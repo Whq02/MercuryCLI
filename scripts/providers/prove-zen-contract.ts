@@ -12,12 +12,12 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { refreshProviderDiscovery } = await import('../../src/utils/router/providerDiscovery.ts')
+const { refreshProviderDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
 const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
 const { parseDefaultProviderWord } = await import('../../src/commands/defaultprovider/defaultprovider.tsx')
 const { loginFamilyRows, keyPageLine, KEY_PAGES } = await import('../../src/components/loginFamilyRows.ts')
 const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines } = await import('../../src/components/BootLoginsScreen.tsx')
-const { buildRouterModelSnapshot } = await import('../../src/utils/router/modelRegistry.ts')
+const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 const { getModelOptions, ZEN_MODEL_GROUP, parseKeyConnectValue, keyConnectValue } = await import('../../src/utils/model/modelOptions.ts')
 const { providerDisplayName, declaredRouteOf, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
 const { PROVIDER_ID_SPACES, declaredIdSpacesLine } = await import('../../src/services/providers/idSpaces.ts')
@@ -33,7 +33,7 @@ const check = (name: string, value: unknown): void => { assert.ok(value, name); 
 try {
   check('zen is a declared qualified id space at the END of the one table, named OpenCode Zen', PROVIDER_ID_SPACES.at(-1)?.route === 'zen' && PROVIDER_ID_SPACES.at(-1)?.qualifiedPrefix === 'zen/' && providerDisplayName('zen') === 'OpenCode Zen' && declaredIdSpacesLine().includes('zen/…'))
   check('zen/<id> routes to zen and strips for the wire; a dressed id heals; an empty inner name refuses', declaredRouteOf('zen/kimi-k3') === 'zen' && (canonicalWireModelId('zen/kimi-k3[1m]') as { wireId: string; healed?: true }).healed === true && canonicalWireModelId('zen/').ok === false)
-  check('Zen is a primary provider, with a signed-out usage and readiness truth', buildRouterModelSnapshot().providers.some(provider => provider.id === 'zen') && usageForProvider('zen').sourceKind === 'none' && !resolveProviderUsability().zen.usable)
+  check('Zen is a primary provider, with a signed-out usage and readiness truth', buildProviderSnapshot().providers.some(provider => provider.id === 'zen') && usageForProvider('zen').sourceKind === 'none' && !resolveProviderUsability().zen.usable)
   check('both family words focus the same sign-in and default-provider doors', ['zen', 'opencode'].every(word => parseFamilyFocus(word) === 'zen' && parseDefaultProviderWord(word) === 'zen'))
   const row = loginFamilyRows({ engineLegs: true }).find(row => row.value === 'zen')
   check('the sign-in row is the last engine row and names the API-key road and the console', loginFamilyRows({ engineLegs: true }).at(-1)?.value === 'zen' && row?.label === "OpenCode Zen — API key (one key, the gateway's model list)" && KEY_PAGES.zen === 'opencode.ai/auth' && keyPageLine('zen').includes('opencode.ai/auth'))
@@ -56,7 +56,7 @@ try {
   check('discovery records Zen rather than falling through to another family', discovery?.provider === 'zen' && discovery.keyPresent && discovery.keySource === 'env')
   check('the typed-id ledger carries a Zen fact beside the other families', readModelListFacts().some(fact => fact.family === 'zen' && fact.typed.length === 60))
   const files = ['Accounts', 'CallModel', 'Catalogue', 'Login', 'Pins', 'ResponsesTransport', 'UsageState'].map(part => `src/services/providers/zen/zen${part}.ts`)
-  files.push('src/utils/router/providers/zen.ts')
+  files.push('src/services/providers/zen/zenAdapter.ts')
   for (const file of files) {
     const source = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true)
     const names: string[] = []

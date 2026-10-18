@@ -13,7 +13,7 @@ function section(t: string): void {
 }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const src = readFileSync(join(root, 'src', 'components', 'mercury-ui', 'NavigablePanes.tsx'), 'utf-8')
-const board = readFileSync(join(root, 'src', 'components', 'RouterBoard.tsx'), 'utf-8')
+const boards = ['extensions/ExtensionsBoard.tsx', 'extensions/SourceView.tsx', 'prompts-panel/PromptsPanel.tsx', 'tasks/WorkflowsBoard.tsx'].map(name => [name, readFileSync(join(root, 'src', 'components', ...name.split('/')), 'utf-8')] as const)
 
 console.log('============================================================')
 console.log(' NavigablePanes React-level windowing (HB-0186)')
@@ -30,8 +30,8 @@ check('a trailing spacer Box carries N - winEnd rows', /winEnd < N \? <Box heigh
 check('the global index gi = winStart + i drives selected + rowRef (so sel stays addressable)', /const gi = winStart \+ i/.test(src) && /selected=\{gi === sel\}/.test(src) && /rowRef=\{gi === sel \?/.test(src))
 check('PaneRow stays height={1} (the spacer-height==row-count invariant the windowing relies on)', /height=\{1\} overflow="hidden">/.test(src))
 
-section('source: RouterBoard is NOT hard-capped (every row stays navigable)')
-check('RouterBoard does NOT .slice its plans to a hard cap', !/\.(slice)\(0, ?(MAX_|10|8)/.test(board))
+section('source: no board is hard-capped (every row stays navigable)')
+for (const [name, board] of boards) check(`${name} does NOT .slice its section rows to a hard cap`, !/rows: [^\n]*\.slice\(0, ?(MAX_|\d)/.test(board))
 
 section('behaviour: verbatim window math — sel always in-window, byte-identical small, last row reachable')
 const ROW_OVERSCAN = 12

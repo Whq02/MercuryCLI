@@ -109,7 +109,7 @@ console.log('============================================================')
 {
   const home = seedHome()
   const env = baseEnv(home)
-  const { text, flat, sends, receipts, marks } = capture(
+  const { text, sends, receipts, marks } = capture(
     {
       cols: 80,
       rows: 72,
@@ -117,34 +117,25 @@ console.log('============================================================')
       argv: ['node', DIST],
       sends: [
         { data: '\r', atTick: 999, awaitText: '↵ start', requireAwait: true, minTick: 8, awaitSettleTicks: 3, awaitStableTicks: 3 },
-        { data: '/router key\r', atTick: 999, awaitText: '1 session on', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
-        { data: KEY, atTick: 999, awaitText: 'Z.AI API key', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+        { data: '/logins zai\r', atTick: 999, awaitText: '1 session on', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+        { data: '\r', atTick: 999, awaitText: 'GLM (Z.AI)', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+        { data: '\r', atTick: 999, awaitText: 'GLM Coding Plan key', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+        { data: KEY, atTick: 999, awaitText: 'Key:', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
         { data: '\r', afterPrevTicks: 4 },
-        { data: '/router engines\r', atTick: 999, awaitText: 'Z.AI API key stored', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'receipt' },
-        { data: 'Q', atTick: 999, awaitText: 'every provider lane beside the home lane', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'report' },
+        { data: '\r', atTick: 999, awaitText: 'press Enter to continue', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'receipt' },
+        { data: 'Q', atTick: 999, awaitText: 'stored (auth-scoped, mode 600)', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'report' },
       ],
-      readyText: ['every provider lane beside the home lane'],
+      readyText: ['stored (auth-scoped, mode 600)'],
       stableTicks: 6,
     },
     env,
   )
-  console.log('\nsetup journey — default-on engines')
+  console.log('\nkey journey — /logins zai, default-on engines')
   check('first paint unregressed: every send became due (the composer painted its placeholder)', sends > 0 && receipts === sends)
-  check('save receipt names the auth-scoped path', (marks.receipt ?? '').includes('Z.AI API key stored (auth-scoped, mode 600)'), (marks.receipt ?? '(no receipt frame)').slice(0, 200))
+  check('save receipt names the auth-scoped store', (marks.receipt ?? '').includes('GLM Coding Plan key stored (auth-scoped, mode 600)'), (marks.receipt ?? '(no receipt frame)').slice(0, 200))
   check('the key VALUE never survives to the final grid', !text.includes(KEY))
   const report = marks.report ?? ''
-  const reportFlat = report.replace(/\s+/g, ' ')
-  check('engines receipt: the default-on header line', reportFlat.includes('engines — every provider lane beside the home lane'), report ? '' : '(no report frame)')
-  check('zai AVAILABLE from the stored key (credential present, auth-scoped)', reportFlat.includes('zai: available (credential present)') && reportFlat.includes('Z.AI API key (stored, auth-scoped)'))
-  check(
-    'openai reports the DETERMINISTIC no-account code (native lane)',
-    report.includes('no-account:openai'),
-  )
-  check(
-    "openai row carries the native transport + official pins",
-    report.includes('openai-responses'),
-  )
-  check('seats-stay-Anthropic line present', report.includes('roster seats stay Anthropic (the ruled crew fence)'))
+  check('the receipt lands on the chat as the one-line notice, the store named, the value absent', report.includes('GLM Coding Plan key stored (auth-scoped, mode 600)') && !report.includes(KEY), report ? report.slice(0, 200) : '(no report frame)')
   check('FIRST-KEY-KEPT: the post-receipt keypress landed in the composer', /❯ *Q/.test(text))
 
   const secretsPath = join(home, '.provider-secrets.json')

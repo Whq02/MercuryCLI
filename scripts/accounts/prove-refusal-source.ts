@@ -10,7 +10,7 @@ for (const key of Object.keys(process.env)) if (/API_KEY|AUTH_TOKEN|OAUTH_TOKEN|
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const { captureSignInRequest, observeSignInResponse, readSignInRefusal, signInRefusalWords } = await import('../../src/utils/accounts/signInRefusal.js')
-const { writeStoredOpenaiApiKey, writeStoredGeminiApiKey } = await import('../../src/utils/router/providerSecrets.js')
+const { writeStoredOpenaiApiKey, writeStoredGeminiApiKey } = await import('../../src/services/providers/providerSecrets.js')
 let failures = 0
 function check(label: string, ok: boolean) { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`) }
 try {

@@ -54,7 +54,6 @@ function inputs(over: Partial<CurrentWorkInputs>): CurrentWorkInputs {
     model: 'claude-fable-5',
     effortLabel: 'high',
     contextPct: 12,
-    executionShape: null,
     recovery: { state: 'none' },
     ...over,
   }
@@ -216,16 +215,6 @@ console.log('prove-current-work — the M1 projection laws')
   check('an UNRECONCILED sidecar still names the same runId (F1 made visible)', unrec.identity.runId === 'r1')
   const receipt = deriveCurrentWork(inputs({ recovery: { state: 'terminal-receipt', runId: 'r1' } }))
   check('a terminal receipt keeps the identity without reactivation', receipt.identity.runId === 'r1' && receipt.scale === 'none')
-}
-
-{
-  const shape = { profile: 'solo-default', source: 'measured-selector', reasonCodes: ['no-route-plan'] }
-  const idle = deriveCurrentWork(inputs({ executionShape: shape }))
-  check('execution shape is DROPPED when scale is none (no invented plans)', idle.executionShape === null)
-  const working = deriveCurrentWork(
-    inputs({ run: run([{ type: 'substantive', at: T0 + 1, reason: 'w' }]), executionShape: shape }),
-  )
-  check('execution shape passes through for substantive work', working.executionShape?.profile === 'solo-default')
 }
 
 {

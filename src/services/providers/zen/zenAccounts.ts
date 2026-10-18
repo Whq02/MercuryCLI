@@ -1,4 +1,4 @@
-import { readStoredZenApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredZenApiKey } from '../providerSecrets.js'
 
 export const ZEN_API_BASE_URL = 'https://opencode.ai/zen/v1'
 export const ZEN_GO_API_BASE_URL = 'https://opencode.ai/zen/go/v1'

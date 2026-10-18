@@ -9,7 +9,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 for (const key of Object.keys(process.env)) if (/API_KEY|AUTH_TOKEN|OAUTH_TOKEN|HF_TOKEN|MERCURY_MODEL/.test(key)) delete process.env[key]
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-const { writeStoredOpenrouterApiKey, writeStoredDeepseekApiKey } = await import('../../src/utils/router/providerSecrets.js')
+const { writeStoredOpenrouterApiKey, writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.js')
 const { captureSignInRequest, observeSignInResponse, readSignInRefusal } = await import('../../src/utils/accounts/signInRefusal.js')
 const { Box, Text } = await import('../../src/ink.js')
 const { AppStateProvider } = await import('../../src/state/AppState.js')

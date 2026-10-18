@@ -12,7 +12,7 @@
 # gate-watch: src/entrypoints/init.ts src/prompt/behaviourContract.ts
 # gate-watch: src/services/resources/adapters/seat.ts src/services/resources/registry.ts src/services/resources/contracts.ts src/services/run/resolveOwner.ts
 # gate-watch: src/services/resources/adapters/models.ts src/utils/model/modelNameRoad.ts src/utils/model/bareFamilyWords.ts src/services/providers/routeLaw.ts src/constants/product.ts
-# gate-watch: src/services/providers/xai/xaiCatalogue.ts src/services/providers/zai/zaiCatalogue.ts src/utils/router/providerDiscovery.ts src/services/providers/xai/xaiPins.ts src/services/providers/zai/glmPins.ts src/services/providers/moonshot/kimiPins.ts src/services/providers/openai/gptPins.ts
+# gate-watch: src/services/providers/xai/xaiCatalogue.ts src/services/providers/zai/zaiCatalogue.ts src/services/providers/providerDiscovery.ts src/services/providers/xai/xaiPins.ts src/services/providers/zai/glmPins.ts src/services/providers/moonshot/kimiPins.ts src/services/providers/openai/gptPins.ts
 # gate-watch: src/mneme/ledger.ts src/mneme/paths.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts scripts/lib/runnerHost.ts
 # gate-watch: src/mneme/entryPage.ts src/substrate/envStamps.ts
 # gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts

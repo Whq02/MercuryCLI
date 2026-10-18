@@ -30,13 +30,13 @@ const {
   providerSecretsPathForDisplay,
   readStoredZaiApiKey,
   writeStoredZaiApiKey,
-} = await import('../../src/utils/router/providerSecrets.js')
+} = await import('../../src/services/providers/providerSecrets.js')
 const {
   __resetProviderDiscoveryForTest,
   resolveZaiApiKey,
   zaiKeySource,
-} = await import('../../src/utils/router/providerDiscovery.js')
-const { zaiProviderAdapter } = await import('../../src/utils/router/providers/zai.js')
+} = await import('../../src/services/providers/providerDiscovery.js')
+const { zaiProviderAdapter } = await import('../../src/services/providers/zai/zaiAdapter.js')
 
 __resetProviderDiscoveryForTest()
 

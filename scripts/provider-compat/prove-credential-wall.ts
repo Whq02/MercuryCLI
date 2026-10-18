@@ -85,7 +85,7 @@ console.log('§1 — the pure classifier: two walls in every wire spelling; the 
   const headless = credentialWallLine('anthropic', 'sign-in', { nonInteractive: true })
   check('the headless spelling names the flag and the interactive door honestly', headless.includes('--model') && headless.includes('/logins anthropic') && headless.includes('interactive session') && !headless.includes('/model)'), headless)
   check('every family word gets its /logins door', ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek'].every(f => reconnectDoorFor(f) === `/logins ${f}`))
-  check('the compat slot and the local lane name their key door (no /logins leg exists for them)', reconnectDoorFor('openai-compat') === '/router key compat' && reconnectDoorFor('local') === '/router key local')
+  check('the compat slot and the local lane name their key variable (no /logins leg exists for them)', reconnectDoorFor('openai-compat') === 'MERCURY_COMPAT_API_KEY' && reconnectDoorFor('local') === 'MERCURY_LOCAL_API_KEY')
   check('an unknown family still gets a door the product has', reconnectDoorFor('nowhere') === '/logins')
   check('the line never carries a brace or a quote in any cause', [signIn, cap, headless].every(l => !/[{}"]/.test(l)))
 }

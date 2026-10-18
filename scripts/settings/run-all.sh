@@ -34,8 +34,8 @@
 # gate-watch: src/services/mcp/anthropicConnectors.ts src/services/providers/openai/openaiLimitState.ts
 # gate-watch: src/services/providers/usageFreshness.ts src/state/vitalsBus.ts src/utils/*
 # gate-watch: src/utils/cockpit/* src/utils/model/computedDefault.ts src/utils/permissions/PermissionUpdate.ts src/utils/permissions/PermissionMode.ts
-# gate-watch: src/utils/permissions/bypassPermissionsKillswitch.ts src/utils/permissions/permissionSetup.ts src/utils/router/providerDiscovery.ts
-# gate-watch: src/services/providers/providerIdentityLine.ts src/services/providers/moonshot/** src/services/providers/huggingface/** src/services/providers/gemini/** src/services/providers/openrouter/** src/services/providers/local/** src/services/providers/openaicompat/** src/services/providers/deepseek/** src/utils/router/providerSecrets.ts src/utils/router/modelRegistry.ts src/ink/events/input-event.ts src/ink/input/interpreter.ts
+# gate-watch: src/utils/permissions/bypassPermissionsKillswitch.ts src/utils/permissions/permissionSetup.ts src/services/providers/providerDiscovery.ts
+# gate-watch: src/services/providers/providerIdentityLine.ts src/services/providers/moonshot/** src/services/providers/huggingface/** src/services/providers/gemini/** src/services/providers/openrouter/** src/services/providers/local/** src/services/providers/openaicompat/** src/services/providers/deepseek/** src/services/providers/providerSecrets.ts src/services/providers/modelRegistry.ts src/ink/events/input-event.ts src/ink/input/interpreter.ts
 # gate-watch: src/services/localServer/** src/services/providers/catalogueOnDemand.ts src/services/search/searchSetting.ts
 # gate-watch: src/commands/localsetup/** src/components/LocalSetupDialog.tsx src/components/BootSaturnScreen.tsx src/components/HelpV2/commandDomains.ts src/components/MercuryModelPicker.tsx src/components/geminiConnectGuide.ts
 # gate-watch: src/utils/model/modelOptions.ts src/utils/model/model.ts src/commands/model/persistModelChoice.ts
@@ -43,7 +43,7 @@
 # gate-watch: src/rows/* src/runner/wire/* scripts/lib/rows.ts
 # gate-watch: docs/SETTINGS.md docs/SESSIONS.md scripts/lib/fixtureApi.ts src/utils/sessionStorage/paths.ts src/utils/cleanup.ts
 # gate-watch: src/schemas/hooks.ts src/utils/hooks/matching.ts src/utils/hooks/matcherGrammar.ts
-# gate-watch: src/services/api/errors.ts src/services/providers/anthropicRefusal.ts scripts/ui/saturn-screen-stills.ts scripts/ui/fixtures/settings-popup-header/* src/commands/model/mercuryModel.tsx src/commands/router/router.tsx
+# gate-watch: src/services/api/errors.ts src/services/providers/anthropicRefusal.ts scripts/ui/saturn-screen-stills.ts scripts/ui/fixtures/settings-popup-header/* src/commands/model/mercuryModel.tsx
 # gate-watch: scripts/providers/lib/nous-fixture.ts src/services/providers/nous/nousUsageState.ts src/services/providers/nous/nousAccounts.ts
 # gate-watch: src/components/Onboarding.tsx src/components/loginFamilyRows.ts
 # gate-watch: src/entrypoints/sandboxTypes.ts

@@ -9,7 +9,7 @@ import {
 } from '../../src/utils/model/model.js'
 import { getModelKnowledgeCutoff } from '../../src/utils/model/capabilities.js'
 import { gatherFrontierFacts } from '../../src/utils/model/frontierPolicy.js'
-import { buildRouterModelSnapshot, classOfModel } from '../../src/utils/router/modelRegistry.js'
+import { buildProviderSnapshot, classOfModel } from '../../src/services/providers/modelRegistry.js'
 
 for (const k of [
   'MERCURY_DEFAULT_OPUS_MODEL',
@@ -130,7 +130,7 @@ section('7. code-side model default census — literals resolve live, tiers trac
 
 section('8. prose surfaces — bundled skills + living docs track the owners')
 {
-  const catalogue = buildRouterModelSnapshot().providers.flatMap(provider => provider.description.catalogue)
+  const catalogue = buildProviderSnapshot().providers.flatMap(provider => provider.description.catalogue)
   const names = [...new Set(catalogue.flatMap(model => [model.id, model.displayLabel, getMarketingNameForModel(model.id)]).filter((name): name is string => typeof name === 'string' && name.length > 0))]
   const fixedRows = (text: string): string[] => text.split('\n').filter(line => {
     const prose = line.replace(/\]\([^)]*\)/g, ']')
@@ -156,7 +156,7 @@ section('8. prose surfaces — bundled skills + living docs track the owners')
 
 section('9. registry table truth — every imported adapter is registered (no future-slot fossil)')
 {
-  const registry = src('src/utils/router/modelRegistry.ts')
+  const registry = src('src/services/providers/modelRegistry.ts')
   const importedAdapters = [...registry.matchAll(/import \{ (\w+)ProviderAdapter \}/g)].map(m => m[1]!)
   const tableStart = registry.indexOf('const PROVIDER_ADAPTERS')
   const table = tableStart === -1 ? '' : registry.slice(tableStart, registry.indexOf('\n]', tableStart))

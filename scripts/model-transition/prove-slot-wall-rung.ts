@@ -49,7 +49,7 @@ section('§C the wall-row appendix words')
     openaiWallOf: () => ({ state: 'clear' }),
   }
   const ask = slotWallAppendix('openai', { reads: pair, posture: 'off' })
-  check('off: the appendix OFFERS — names the other slot, the one key, the words door', ask.includes('OpenAI API key (stored)') && ask.includes('signed in with headroom') && ask.includes('one key') && ask.includes('/router source'))
+  check('off: the appendix OFFERS — names the other slot, the one key, the /logins door', ask.includes('OpenAI API key (stored)') && ask.includes('signed in with headroom') && ask.includes('one key') && ask.includes("s on the family's row in /logins"))
   check('offer: same ask words', slotWallAppendix('openai', { reads: pair, posture: 'offer' }).includes('one key'))
   const auto = slotWallAppendix('openai', { reads: pair, posture: 'auto' })
   check("auto: the appendix RECEIPTS the armed switch ('switches … now · next turn rides it')", auto.includes("'auto' is armed") && auto.includes('switches to the OpenAI API key (stored) now') && auto.includes('next turn rides it'))
@@ -68,7 +68,7 @@ section('§C the wall-row appendix words')
     anthropicWall: () => ({ walled: false }),
   }
   const anthropicAsk = slotWallAppendix('anthropic', { reads: anthropicPair, posture: 'off' })
-  check('anthropic: the appendix names the managed key and ITS words door', anthropicAsk.includes('Anthropic API key (/logins managed key)') && anthropicAsk.includes('/router source anthropic'))
+  check('anthropic: the appendix names the managed key and the /logins door', anthropicAsk.includes('Anthropic API key (/logins managed key)') && anthropicAsk.includes("s on the family's row in /logins"))
   check('anthropic: an UNOBSERVABLE window is spoken as such — never "headroom"', anthropicAsk.includes('unobserved') && !anthropicAsk.includes('signed in with headroom'))
   const anthropicAuto = slotWallAppendix('anthropic', { reads: anthropicPair, posture: 'auto' })
   check('anthropic auto: the armed-switch receipt claims the switch, not headroom', anthropicAuto.includes("'auto' is armed") && !anthropicAuto.includes('headroom'))

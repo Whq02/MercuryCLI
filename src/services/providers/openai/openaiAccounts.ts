@@ -22,7 +22,7 @@ import {
   generateCodeVerifier,
   generateState,
 } from '../../oauth/crypto.js'
-import { readStoredOpenaiApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredOpenaiApiKey } from '../providerSecrets.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { forgetOpenaiLimitSource } from './openaiLimitState.js'
 

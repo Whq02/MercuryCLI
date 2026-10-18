@@ -63,7 +63,7 @@ import {
   writeStoredOpenaiApiKey,
   writeStoredOpenrouterApiKey,
   writeStoredZaiApiKey,
-} from '../../utils/router/providerSecrets.js'
+} from './providerSecrets.js'
 import {
   disconnectOpenrouterOauthKey,
   readMintedOpenrouterKey,
@@ -95,9 +95,9 @@ import {
 } from './huggingface/huggingfaceAccounts.js'
 import { resolveLocalAccount, type LocalAccountRef } from './local/localAccounts.js'
 import {
-  buildRouterModelSnapshot,
-  type RouterModelSnapshot,
-} from '../../utils/router/modelRegistry.js'
+  buildProviderSnapshot,
+  type ProviderSnapshot,
+} from './modelRegistry.js'
 import {
   disconnectOpenaiSubscription,
   openaiSubscriptionPresence,
@@ -1222,7 +1222,7 @@ function localSlots(reads: AccountSlotReads): AccountSlot[] {
 
 function genericSlots(
   family: ProviderFamilyPresence,
-  provider: RouterModelSnapshot['providers'][number] | undefined,
+  provider: ProviderSnapshot['providers'][number] | undefined,
 ): AccountSlot[] {
   const account = provider?.description.account
   if (!account || account.kind === 'none') return []
@@ -1252,7 +1252,7 @@ function genericSlots(
 }
 
 export function deriveFamilySlotGroups(
-  providers: RouterModelSnapshot['providers'] = buildRouterModelSnapshot().providers,
+  providers: ProviderSnapshot['providers'] = buildProviderSnapshot().providers,
   reads: AccountSlotReads = {},
 ): FamilySlotGroup[] {
   const presences = providerFamilyPresences(providers, reads.familyReads)

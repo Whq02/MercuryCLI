@@ -23,7 +23,7 @@ const accepted = (listMatch?.[1] ?? '')
   .map(s => s.trim().replace(/^'|'$/g, ''))
   .filter(Boolean)
 
-const providerFiles = ['src/utils/router/providers/openai.ts', 'src/utils/router/providers/zai.ts']
+const providerFiles = ['src/services/providers/openai/openaiAdapter.ts', 'src/services/providers/zai/zaiAdapter.ts']
 const emitted = new Set<string>()
 for (const f of providerFiles) {
   const src = readFileSync(join(ROOT, f), 'utf8')
@@ -53,8 +53,8 @@ check(
 )
 
 check(
-  'AUTH rows enumerate the catalogue (buildRouterModelSnapshot inside providerAuthChecks)',
-  /function providerAuthChecks\(\)[\s\S]{0,200}buildRouterModelSnapshot\(\)/.test(healthSrc),
+  'AUTH rows enumerate the catalogue (buildProviderSnapshot inside providerAuthChecks)',
+  /function providerAuthChecks\(\)[\s\S]{0,200}buildProviderSnapshot\(\)/.test(healthSrc),
 )
 check(
   'AUTH row ids derive from the enumerated provider id (never a literal row list)',

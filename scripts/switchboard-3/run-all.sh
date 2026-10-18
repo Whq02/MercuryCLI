@@ -9,7 +9,7 @@
 # gate-watch: src/services/crew/obligations.ts src/services/engine-connector/*
 # gate-watch: src/services/providers/openai/qualificationStore.ts src/services/providers/routeLaw.ts
 # gate-watch: src/utils/config.ts src/utils/config/globalConfig.ts src/utils/model/configs.ts
-# gate-watch: src/utils/model/model.ts src/utils/router/providers/zai.ts src/utils/sessionRestore.ts
+# gate-watch: src/utils/model/model.ts src/services/providers/zai/zaiAdapter.ts src/utils/sessionRestore.ts
 # gate-watch: src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts src/utils/sessionStorage/loading.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

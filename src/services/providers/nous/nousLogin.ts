@@ -1,5 +1,5 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredNousApiKey } from '../../../utils/router/providerSecrets.js'
+import { writeStoredNousApiKey } from '../providerSecrets.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { NOUS_API_KEY_ENV, nousApiBase, nousSigninIdentity } from './nousAccounts.js'
 import { peekNousClient } from './nousClientContract.js'

@@ -257,14 +257,13 @@ export function slotWallAppendix(
       view.other.resetsAtMs !== undefined ? ` (resets ${new Date(view.other.resetsAtMs).toLocaleTimeString()})` : ''
     } — no headroom to offer.`
   }
-  const wordsDoor = family === 'anthropic' ? '/router source anthropic' : '/router source'
   if (posture === 'auto') {
-    return ` Cap failover posture 'auto' is armed: the active slot switches to the ${view.other.label} now — the next turn rides it (${wordsDoor} switches back).`
+    return ` Cap failover posture 'auto' is armed: the active slot switches to the ${view.other.label} now — the next turn rides it (s on the family's row in /logins switches back).`
   }
   if (!view.other.wallKnown) {
-    return ` The ${view.other.label} slot is signed in (its usage window is unobserved here); press one key on the wall card or run ${wordsDoor} to switch while keeping this sign-in connected.`
+    return ` The ${view.other.label} slot is signed in (its usage window is unobserved here); press one key on the wall card or s on the family's row in /logins to switch while keeping this sign-in connected.`
   }
-  return ` The ${view.other.label} slot is signed in with headroom; press one key on the wall card or run ${wordsDoor} to switch while keeping this sign-in connected.`
+  return ` The ${view.other.label} slot is signed in with headroom; press one key on the wall card or s on the family's row in /logins to switch while keeping this sign-in connected.`
 }
 
 export type SlotSwitchOutcome =

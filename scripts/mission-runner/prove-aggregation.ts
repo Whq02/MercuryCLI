@@ -39,7 +39,7 @@ const FIXTURE: HelixRunRow[] = [
   row({ taskId: 'T24', family: 11, status: 'incomplete', accepted: false, timedOut: true, wallSeconds: 600 }),
   row({ taskId: 'T05', family: 2, status: 'indeterminate', accepted: false, isError: true }),
   row({ taskId: 'T20', family: 9, policyId: 'workflow', status: 'accepted', wallSeconds: 120 }),
-  row({ taskId: 'T18', policyId: 'router', status: 'not-applicable', accepted: false, naReason: 'headless' }),
+  row({ taskId: 'T18', policyId: 'collaboration', status: 'not-applicable', accepted: false, naReason: 'headless' }),
 ]
 
 const once = JSON.stringify(aggregate(FIXTURE))
@@ -56,8 +56,8 @@ check('incomplete counted', solo.incomplete === 1)
 check('indeterminate counted', solo.indeterminate === 1)
 check('accepted rate over EXECUTED runs', solo.acceptedRate === 0.25, String(solo.acceptedRate))
 check('incorrect claims separate', solo.incorrectClaims === 1)
-const routerPolicy = result.byPolicy.find(p => p.policyId === 'router')!
-check('NA separated from executed', routerPolicy.runs === 0 && routerPolicy.notApplicable === 1)
+const naPolicy = result.byPolicy.find(p => p.policyId === 'collaboration')!
+check('NA separated from executed', naPolicy.runs === 0 && naPolicy.notApplicable === 1)
 check('markdown renders', renderMarkdown(result).includes('| solo |'))
 
 {

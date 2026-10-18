@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { anthropicCredentialPresence } from '../services/providers/providerUsage.js'
-import { buildRouterModelSnapshot } from '../utils/router/modelRegistry.js'
+import { buildProviderSnapshot } from '../services/providers/modelRegistry.js'
 import { getClaudeAIOAuthTokens, isAnthropicOAuthSignInExpired, isClaudeAISubscriber } from '../utils/auth.js'
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
 import { readScopeIdentity, scopeIdentityFile } from '../utils/accounts/scopeScan.js'
@@ -41,7 +41,7 @@ function productionPresenceOf(family: string): FamilyCredentialPresenceV1 {
     }
   }
   try {
-    const provider = buildRouterModelSnapshot().providers.find(p => p.id === family)
+    const provider = buildProviderSnapshot().providers.find(p => p.id === family)
     const account = (provider?.description as { account?: { kind?: string } } | undefined)?.account
     if (!account || account.kind === 'none' || account.kind === undefined) {
       return { credentialed: false, kind: 'none' }
@@ -94,7 +94,7 @@ export type ScheduleAccountDerivation =
   | { ok: false; reason: string; code?: 'unreachable' }
 
 export function noCredentialRefusal(family: string): string {
-  return `no-credential:${family} — /logins connects an account, or /router key ${family} connects an API key`
+  return `no-credential:${family} — /logins ${family} connects an account or an API key`
 }
 
 export function localUnreachableRefusal(): string {

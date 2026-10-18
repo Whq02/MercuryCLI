@@ -16,7 +16,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
-const { GLM_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/zai.js')
+const { GLM_STATIC_CATALOGUE } = await import('../../src/services/providers/zai/zaiAdapter.js')
 const { KIMI_DISPLAY_PINS } = await import('../../src/services/providers/moonshot/kimiPins.js')
 const { ZEN_DISPLAY_PINS } = await import('../../src/services/providers/zen/zenPins.js')
 const { DEEPSEEK_DISPLAY_PINS } = await import('../../src/services/providers/deepseek/deepseekPins.js')

@@ -143,7 +143,7 @@ async function validateNonAnthropicModel(
     return { valid: true }
   }
   if (route === 'zai') {
-    const { resolveZaiApiKey } = await import('../router/providerDiscovery.js')
+    const { resolveZaiApiKey } = await import('../../services/providers/providerDiscovery.js')
     if (!resolveZaiApiKey()) {
       return { valid: false, error: 'Z.AI is unavailable — no API key (/logins zai, or set ZAI_API_KEY).' }
     }

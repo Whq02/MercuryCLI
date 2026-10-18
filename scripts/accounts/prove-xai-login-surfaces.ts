@@ -23,11 +23,10 @@ delete process.env.XAI_MANAGEMENT_API_KEY
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { XaiConnect } = await import('../../src/components/XaiConnect.tsx')
 const { BootLoginsScreen } = await import('../../src/components/BootLoginsScreen.tsx')
-const { RouterKeyEntry } = await import('../../src/components/RouterKeyEntry.tsx')
 const { AppStateProvider } = await import('../../src/state/AppState.tsx')
 const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
 const mount = (element: React.ReactNode, columns: number, rows: number) => mountOffscreen(React.createElement(AppStateProvider, { children: React.createElement(KeybindingSetup, { children: element }) }), columns, rows)
-const secrets = await import('../../src/utils/router/providerSecrets.ts')
+const secrets = await import('../../src/services/providers/providerSecrets.ts')
 const { signedOutFacts, STILLS, renderStill } = await import('../ui/face-logins-stills.ts')
 const framesArg = process.argv.indexOf('--frames')
 const frames = framesArg >= 0 ? process.argv[framesArg + 1] : undefined
@@ -88,15 +87,6 @@ try {
     compact.push(KEY.esc); await settle(30)
     check('escape from the optional compact step keeps both credentials', secrets.readStoredXaiApiKey() === XAI_FIXTURE_API_KEY && secrets.readStoredXaiManagementApiKey() === XAI_FIXTURE_MANAGEMENT_KEY)
   } finally { compact.unmount() }
-  let receipt = ''
-  const router = await mount(React.createElement(RouterKeyEntry, { provider: 'xai-management', onDone: value => { receipt = value } }), 120, 24)
-  try {
-    observedScreen = router.screen
-    await until(() => router.screen().includes('settings page'))
-    router.push(XAI_FIXTURE_MANAGEMENT_KEY); await settle(20); router.push(KEY.enter)
-    await until(() => receipt !== '')
-    check('router management entry saves to the independent slot with the console guidance', secrets.readStoredXaiManagementApiKey() === XAI_FIXTURE_MANAGEMENT_KEY && !receipt.includes(XAI_FIXTURE_MANAGEMENT_KEY))
-  } finally { router.unmount() }
   for (const still of STILLS.filter(s => s.id.includes('key-xai'))) {
     const text = renderStill(still.compose())
     check(`${still.id}: new still paints the key prompt and its exit`, text.includes(still.id.endsWith('management') ? 'xAI management key (optional)' : 'xAI API key') && text.includes('key:') && text.includes('esc') && !text.includes('RENDER ERROR'))

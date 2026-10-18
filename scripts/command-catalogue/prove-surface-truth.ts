@@ -37,7 +37,7 @@ const { getModelOptions } = await import('../../src/utils/model/modelOptions.js'
 const { MODEL_COSTS } = await import('../../src/utils/modelCost.js')
 const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.js')
 const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.js')
-const { resolveAnthropicModel } = await import('../../src/utils/router/providers/anthropic.js')
+const { resolveAnthropicModel } = await import('../../src/services/providers/anthropic/anthropicAdapter.js')
 const { gptDisplayName, GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
 const focusedSlot = await import('../../src/services/engine-connector/focusedConnector.js')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
@@ -175,7 +175,7 @@ check("a natively-1M frontier head wins as its bare id (no '[1m]' rider)", decis
 const suffixRow = frontier.evaluateFrontierDecision({ ...eligible, fableNatively1M: false })
 check("a suffix-1M row would keep its '[1m]' rider (parity for the older shape)", suffixRow.setting === `${head('fable')}[1m]`, suffixRow.setting)
 check("a crew record's legacy keys fold: the family word to the head; the exact-generation key to the same row while newest", foldLegacyWorkerModelKey('fable') === head('fable') && foldLegacyWorkerModelKey('opus') === head('opus') && foldLegacyWorkerModelKey('sonnet') === head('sonnet') && foldLegacyWorkerModelKey('fable51') === foldLegacyWorkerModelKey('fable'))
-const routed = resolveAnthropicModel('fable', 'adaptive')
+const routed = resolveAnthropicModel('fable')
 check("the router's fable class runs the head in its seat form (bare when natively 1M)", routed !== null && routed.model === (getContextWindowForModel(head('fable')) >= 1_000_000 ? head('fable') : `${head('fable')}[1m]`), String(routed?.model))
 const options = getModelOptions()
 check("the picker carries the family full-id row labelled with the head's display name", options.some(o => o.value === head('fable') && o.label === model.renderModelName(head('fable'))), options.filter(o => o.value === head('fable')).map(o => o.label).join(','))
@@ -184,7 +184,7 @@ check('the picker carries the previous large generations from the table', config
 const defaultsBody = src('src/utils/model/model.ts').match(/export function getDefault(Opus|Sonnet|Haiku|Fable)Model\(\)[\s\S]*?\n}/g) ?? []
 check('the four family defaults spell no table key (they read the table)', defaultsBody.length === 4 && defaultsBody.every(b => !/firstPartyString\('/.test(b)))
 check('the picker rows spell no generation (no literal previous-key list, no literal frontier row)', !has('src/utils/model/modelOptions.ts', 'PREVIOUS_LARGE_KEYS') && !has('src/utils/model/modelOptions.ts', 'getFable51Option') && !has('src/utils/model/modelOptions.ts', "strings.fable51"))
-check("the router's class defaults spell no id", !/'claude-[a-z0-9-]+(\[1m\])?'/.test(codeOnly(src('src/utils/router/providers/anthropic.ts')).split('function classDefaultModel')[1]?.split('\n}')[0] ?? "'claude-x'"))
+check("the router's class defaults spell no id", !/'claude-[a-z0-9-]+(\[1m\])?'/.test(codeOnly(src('src/services/providers/anthropic/anthropicAdapter.ts')).split('function classDefaultModel')[1]?.split('\n}')[0] ?? "'claude-x'"))
 check('the frontier policy spells no generation in code', !/Fable 5/.test(codeOnly(src('src/utils/model/frontierPolicy.ts'))))
 const DISPLAY_OWNERS = new Set(['src/utils/model/model.ts', 'src/services/providers/openai/gptPins.ts', 'src/substrate/flagRegistry.ts'])
 const strayDisplay = SRC_FILES.filter(f => !DISPLAY_OWNERS.has(f)).filter(f => {

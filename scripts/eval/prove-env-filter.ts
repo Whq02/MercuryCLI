@@ -3,7 +3,7 @@ import { execSync } from 'node:child_process'
 import { check, cleanup, finish, refusingBridge, loadEval, section, setup, within } from './lib.js'
 
 const { work } = setup()
-const { credentialEnvNames } = await import('../../src/utils/router/providerSecrets.js')
+const { credentialEnvNames } = await import('../../src/services/providers/providerSecrets.js')
 const { isDeniedKernelEnvName, buildKernelEnv } = await import('../../src/services/eval/kernelEnv.js')
 const { evalKernelManager } = await loadEval()
 
@@ -20,7 +20,7 @@ for (const name of names) {
       .split('\n')
       .map(line => line.trim())
       .filter(Boolean)
-      .filter(file => !file.includes('utils/router/providerSecrets.ts') && !file.includes('services/eval/'))
+      .filter(file => !file.includes('services/providers/providerSecrets.ts') && !file.includes('services/eval/'))
   } catch {
     hits = []
   }

@@ -1,12 +1,7 @@
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import {
   evaluateMissionCompletion,
   parseReviewResult,
-} from '../../src/services/mission/completion.js'
-import { composeMissionView } from '../../src/services/mission/projection.js'
-import type { TaskRoutePlan } from '../../src/utils/router/contracts.js'
+} from './live/completion.js'
 
 let failures = 0
 function check(label: string, ok: boolean, detail?: string): void {
@@ -62,130 +57,6 @@ check('review tail parses', parsed.verdict === 'revise' && parsed.requirementIds
 check('garbage parses to indeterminate', parseReviewResult('all done, looks great!').verdict === 'indeterminate')
 check('malformed verdict parses to indeterminate', parseReviewResult('REVIEW: shipit').verdict === 'indeterminate')
 check('the LAST review line wins', parseReviewResult('REVIEW: reject\nmore work\nREVIEW: accept').verdict === 'accept')
-
-const scratch = mkdtempSync(join(tmpdir(), 'helix-replan-'))
-process.env.MERCURY_ROUTER_STATE_DIR = scratch
-{
-  const { MISSION_REPLAN_CEILING, routerRunStore, routerStoreWriters } = await import(
-    '../../src/substrate/routerRunStore.js'
-  )
-  check('the ceiling is a small explicit number', MISSION_REPLAN_CEILING === 6)
-  const node = (id: string, attempt: number, state: string) => ({
-    id,
-    title: id,
-    task: id,
-    dependsOn: [],
-    ownsPaths: ['src/' + id + '.js'],
-    acceptance: [],
-    state,
-    attempt,
-    expectedResult: 'green',
-  })
-  const features = {
-    taskShape: 'bounded',
-    ambiguity: 1,
-    coupling: 1,
-    parallelism: 1,
-    contextDemand: 1,
-    verificationDemand: 1,
-    estimatedFiles: 2,
-    explicitPaths: [],
-    requiresSynthesis: false,
-  }
-  const plan = {
-    version: 1,
-    id: 'rp-ceiling',
-    revision: 1,
-    mode: 'sequential',
-    title: 'ceiling fixture',
-    objective: 'ceiling fixture',
-    features,
-    profile: 'sonnet-direct',
-    nodes: [node('n1', 3, 'failed'), node('n2', 3, 'failed'), node('n3', 3, 'failed'), node('n4', 1, 'failed')],
-    synthesis: { required: false, owner: 'planner', acceptance: [] },
-    decision: {
-      policyVersion: 'v1',
-      source: 'local-fallback',
-      posture: 'adaptive',
-      selectedProfile: 'sonnet-direct',
-      selectedModels: [],
-      decisiveReasons: [],
-      displayReasons: [],
-      adjustments: [],
-    },
-    state: 'running',
-    createdAt: 1,
-    updatedAt: 1,
-  } as unknown as TaskRoutePlan
-  await routerStoreWriters.commitPlan(plan, 10)
-  await routerStoreWriters.reviseNode('rp-ceiling', 'n4', 'the acceptance test failed again', 20)
-  const state = await routerRunStore().read()
-  const stored = state.plans.find(p => p.id === 'rp-ceiling')
-  check('the plan-wide ceiling refuses the revise', stored?.nodes.find(n => n.id === 'n4')?.state === 'failed')
-  check('the refusal is a NAMED echo', state.events.some(e => e.to === 'refused:revise' && (e.reason ?? '').includes('mission replan ceiling')))
-  await routerStoreWriters.reviseNode('rp-ceiling', 'n1', 'again', 30)
-  const after = await routerRunStore().read()
-  check('the per-node ceiling still refuses first', after.events.some(e => e.nodeId === 'n1' && (e.reason ?? '').includes('attempt ceiling')))
-}
-delete process.env.MERCURY_ROUTER_STATE_DIR
-rmSync(scratch, { recursive: true, force: true })
-
-{
-  const plan = {
-    version: 1,
-    id: 'rp-iso',
-    revision: 1,
-    mode: 'sequential',
-    title: 'iso',
-    objective: 'iso',
-    features: {
-      taskShape: 'bounded',
-      ambiguity: 1,
-      coupling: 1,
-      parallelism: 2,
-      contextDemand: 1,
-      verificationDemand: 1,
-      estimatedFiles: 2,
-      explicitPaths: [],
-      requiresSynthesis: true,
-    },
-    profile: 'parallel-sonnet',
-    nodes: [
-      { id: 'nA', title: 'lane A', task: 'a', dependsOn: [], ownsPaths: [], acceptance: [], state: 'failed', attempt: 3, expectedResult: 'x' },
-      { id: 'nB', title: 'lane B', task: 'b', dependsOn: [], ownsPaths: [], acceptance: [], state: 'working', attempt: 1, expectedResult: 'x' },
-    ],
-    synthesis: { required: true, owner: 'planner', acceptance: [] },
-    decision: {
-      policyVersion: 'v1',
-      source: 'structured-intent',
-      posture: 'adaptive',
-      selectedProfile: 'parallel-sonnet',
-      selectedModels: [],
-      decisiveReasons: [],
-      displayReasons: [],
-      adjustments: [],
-    },
-    state: 'running',
-    createdAt: 1,
-    updatedAt: 1,
-  } as unknown as TaskRoutePlan
-  const view = composeMissionView({
-    workspace: '/tmp/p',
-    runObjective: 'iso',
-    runLifecycle: 'active',
-    plans: [plan],
-    snapshot: null,
-    memoryRefs: [],
-    executions: [],
-    evidenceDigest: null,
-    posture: null,
-    nodeAttemptCeiling: 3,
-    now: 100,
-  })
-  check('a failed node becomes a NAMED synthesis gap', (view?.synthesisGaps ?? []).some(g => g.includes('nA') && g.includes('failed')))
-  check('sibling work continues (failure isolated)', view?.plans[0]?.nodes.find(n => n.nodeId === 'nB')?.state === 'working')
-  check('the mission stays live through a node failure', view?.outcome === null)
-}
 
 if (failures > 0) {
   console.error('prove-completion-replan: ' + failures + ' failure(s)')

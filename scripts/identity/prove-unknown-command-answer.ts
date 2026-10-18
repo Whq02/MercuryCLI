@@ -32,7 +32,7 @@ const domains = await import('../../src/components/HelpV2/commandDomains.ts')
 
 const roster = [...commands.builtinCommands()]
 const RETIRED = 'insights'
-const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'security-review', 'terminal-setup', 'pr-comments', 'cost', 'color', 'release-notes', 'heapdump', 'files', 'mock-limits', 'supervisor', 'view', 'harness', 'counsel', 'ledger', 'substrate', 'authority', 'sovereign', 'policy', 'provenance', 'home', 'fullscreen', 'cockpit', 'deck', 'monitor', 'fleet', 'live', 'capabilities-detail', 'agent-form', 'sessiontab', 'surfaces', 'manager', 'debrief', 'status', 'auto-compact-window', 'resume', 'continue', 'halt', 'speak', 'jevor', 'accent', 'branch', 'branches', 'fork', 'init']
+const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'security-review', 'terminal-setup', 'pr-comments', 'cost', 'color', 'release-notes', 'heapdump', 'files', 'mock-limits', 'supervisor', 'view', 'harness', 'counsel', 'ledger', 'substrate', 'authority', 'sovereign', 'policy', 'provenance', 'home', 'fullscreen', 'cockpit', 'deck', 'monitor', 'fleet', 'live', 'capabilities-detail', 'agent-form', 'sessiontab', 'surfaces', 'manager', 'debrief', 'status', 'auto-compact-window', 'resume', 'continue', 'halt', 'speak', 'jevor', 'accent', 'branch', 'branches', 'fork', 'init', 'router']
 const NEVER_HAD = 'frobnicate'
 const NOT_A_COMMAND: Record<string, string> = {
   'src/constants/changelog.ts': 'the release history: each release names what it shipped',

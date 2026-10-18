@@ -13,7 +13,7 @@ import {
   generateCodeChallenge,
   generateCodeVerifier,
 } from '../../oauth/crypto.js'
-import { readStoredOpenrouterApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredOpenrouterApiKey } from '../providerSecrets.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 
 

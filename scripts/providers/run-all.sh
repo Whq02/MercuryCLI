@@ -4,16 +4,16 @@
 # gate-watch: scripts/gate/ci-shard.sh scripts/lib/hermetic.ts
 # gate-watch: scripts/provider-compat/fixtures/gemini-usage-roads-2026-09-30.json scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json
 # gate-watch: src/commands/defaultprovider/defaultprovider.tsx src/state/AppState.tsx
-# gate-watch: src/utils/router/modelRegistry.ts src/utils/router/providerDiscovery.ts
-# gate-watch: src/utils/router/providers/deepseek.ts src/utils/router/providers/xai.ts
-# gate-watch: src/utils/router/providers/zai.ts src/services/providers/zai/zaiCatalogue.ts src/utils/crew/engineDispatch.ts scripts/providers/fixtures/zai-models-2026-10-05.json
+# gate-watch: src/services/providers/modelRegistry.ts src/services/providers/providerDiscovery.ts
+# gate-watch: src/services/providers/deepseek/deepseekAdapter.ts src/services/providers/xai/xaiAdapter.ts
+# gate-watch: src/services/providers/zai/zaiAdapter.ts src/services/providers/zai/zaiCatalogue.ts src/utils/crew/engineDispatch.ts scripts/providers/fixtures/zai-models-2026-10-05.json
 # gate-watch: src/services/providers/providerUsability* src/services/providers/providerUsage* src/services/providers/openai/openaiLimitState* src/services/engine-connector/daemonConnector*
 # gate-watch: src/services/providers/accountSlots* src/components/ConsoleOAuthFlow*
 # gate-watch: src/services/providers/sseDecoder*
 # gate-watch: docs/ENGINES.md scripts/lib/fixtureApi.ts scripts/staleness/prove-stale-registry.ts src/*
 # gate-watch: src/bootstrap/state.ts src/cli/run.ts src/cli/handlers/usage.ts src/commands/feedback/index.ts
 # gate-watch: src/commands/login/login.tsx
-# gate-watch: src/commands/model/mercuryModel.tsx src/commands/model/model.tsx src/commands/router/router.tsx
+# gate-watch: src/commands/model/mercuryModel.tsx src/commands/model/model.tsx
 # gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/Settings/Usage.tsx src/components/PromptInput/useComposerModelDoors.tsx
 # gate-watch: src/components/mercury-ui/RailPanel.tsx src/components/mercury-ui/components.tsx
 # gate-watch: src/components/mercury-ui/parity/AccountView.tsx src/components/tasks/useFocusedWork.ts
@@ -29,7 +29,7 @@
 # gate-watch: src/tools/AgentTool/runAgent.ts src/tools/WebFetchTool/utils.ts src/utils/*
 # gate-watch: src/utils/accounts/scopeScan.ts src/utils/accounts/signInLedger.ts
 # gate-watch: src/utils/cockpit/healthCertSnapshot.ts src/utils/cockpit/quota.ts
-# gate-watch: src/utils/config/globalConfig.ts src/utils/model/* src/utils/router/providerSecrets.ts
+# gate-watch: src/utils/config/globalConfig.ts src/utils/model/* src/services/providers/providerSecrets.ts
 # gate-watch: src/utils/settings/mdm/settings.ts src/utils/settings/settings.ts
 # gate-watch: src/utils/settings/settingsCache.ts
 # gate-watch: src/commands/usage/usage.tsx

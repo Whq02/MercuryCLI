@@ -75,7 +75,7 @@ const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispa
 const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
 const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
 const { keyLaneListState, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
-const { readStoredCohereApiKey } = await import('../../src/utils/router/providerSecrets.ts')
+const { readStoredCohereApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const { modelSupportsThinking, effortVocabularyFor, resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 function params(model = 'cohere', effortValue: string | undefined = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {

@@ -42,7 +42,7 @@ const { HUGGINGFACE_DISPLAY_PINS, splitHuggingfaceSlug, huggingfaceDisplayPin } 
 const { writeHuggingfaceTokens, huggingfaceChatCompletionsUrl } = await import(
   '../../src/services/providers/huggingface/huggingfaceAccounts.ts'
 )
-const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/router/providerSecrets.ts')
+const { writeStoredHuggingfaceApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const { resolveContextWindow, modelSupportsEffort, modelSupportsMaxEffort } = await import(
   '../../src/utils/model/capabilities.ts'
 )

@@ -39,7 +39,7 @@ const fixture = await exportFixture(samples.map(([, , text]) => text).join('\n')
 try {
   const { getSecureStorage } = await import('../../src/utils/secureStorage/index.js')
   check('the scratch credential store is planted', getSecureStorage().update({ trustedDeviceToken: stored, extensionSecrets: { proof: { value: 'otherOpaqueStoredValue' } } }).success)
-  const { writeStoredCompatApiKey } = await import('../../src/utils/router/providerSecrets.js')
+  const { writeStoredCompatApiKey } = await import('../../src/services/providers/providerSecrets.js')
   writeStoredCompatApiKey('opaqueProviderFixture')
   const { saveApiKey } = await import('../../src/utils/auth.js')
   await saveApiKey('opaqueManagedFixture')

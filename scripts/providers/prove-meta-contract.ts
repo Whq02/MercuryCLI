@@ -10,20 +10,20 @@ process.env.MERCURY_META_API_BASE = 'http://127.0.0.1:1/v1'
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { refreshProviderDiscovery } = await import('../../src/utils/router/providerDiscovery.ts')
+const { refreshProviderDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
 const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
 const { parseDefaultProviderWord } = await import('../../src/commands/defaultprovider/defaultprovider.tsx')
 const { loginFamilyRows, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
 const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines, loginsFlowStatusOf } = await import('../../src/components/BootLoginsScreen.tsx')
 const { keyLaneProviderRows, keyConnectValue } = await import('../../src/utils/model/modelOptions.ts')
 const { subModelConnectHome } = await import('../../src/utils/model/subModelSlots.ts')
-const { buildRouterModelSnapshot } = await import('../../src/utils/router/modelRegistry.ts')
+const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 const root = join(import.meta.dir, '..', '..')
 const read = (path: string): string => readFileSync(join(root, path), 'utf8')
 let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
 try {
-  check('Meta is a primary provider, with a signed-out usage and readiness truth', buildRouterModelSnapshot().providers.some(provider => provider.id === 'meta') && usageForProvider('meta').sourceKind === 'none' && !resolveProviderUsability().meta.usable)
+  check('Meta is a primary provider, with a signed-out usage and readiness truth', buildProviderSnapshot().providers.some(provider => provider.id === 'meta') && usageForProvider('meta').sourceKind === 'none' && !resolveProviderUsability().meta.usable)
   check('both family words focus the same sign-in and default-provider doors', ['meta', 'muse'].every(word => parseFamilyFocus(word) === 'meta' && parseDefaultProviderWord(word) === 'meta'))
   const row = loginFamilyRows({ engineLegs: true }).find(row => row.value === 'meta')
   check('both sign-in surfaces name Meta, Muse Code sign-in and the API-key road identically', row?.label === 'Meta — Muse Code sign-in or API key' && loginsFlowStatusOf({ kind: 'pick', pick: 'meta', pickSel: 0 }) === row.label && keyPageLine('meta').includes('dev.meta.ai'))
@@ -38,7 +38,7 @@ try {
   const discovery = await refreshProviderDiscovery('meta', { force: true })
   check('discovery records Meta rather than falling through to another family', discovery?.provider === 'meta' && discovery.keyPresent && discovery.keySource === 'env')
   const files = ['Accounts', 'CallModel', 'Catalogue', 'Login', 'Pins', 'UsageState'].map(part => `src/services/providers/meta/meta${part}.ts`)
-  files.push('src/utils/router/providers/meta.ts')
+  files.push('src/services/providers/meta/metaAdapter.ts')
   for (const file of files) {
     const source = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true)
     const names: string[] = []

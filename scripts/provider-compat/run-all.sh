@@ -5,7 +5,7 @@
 # gate-watch: src/services/providers/openrouter/** src/utils/settings/settings.ts scripts/lib/settingsPopupHarness.ts
 # gate-watch: src/services/providers/moonshot/** src/services/providers/deepseek/**
 # gate-watch: src/services/providers/huggingface/** src/services/providers/local/**
-# gate-watch: src/services/providers/zai/glmPins* src/utils/router/providers/**
+# gate-watch: src/services/providers/zai/glmPins* src/services/providers/**
 # gate-watch: src/utils/model/modelOptions* src/utils/model/capabilities*
 # gate-watch: src/utils/crew/engineDispatch.ts src/utils/config.ts
 # gate-watch: scripts/lib/hermetic.ts
@@ -14,7 +14,7 @@
 # gate-watch: src/services/providers/emptyStreamRetry.ts src/services/providers/streamIdleBudget.ts src/services/api/recoveryBudget.ts src/components/Spinner/liveCounterWords.ts
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/zai/zaiCallModel.ts src/services/providers/gemini/** src/services/providers/xai/** src/services/providers/meta/**
 # gate-watch: src/services/providers/mistral/** scripts/providers/lib/mistral-fixture.ts
-# gate-watch: src/services/providers/zen/** scripts/providers/lib/zen-fixture.ts src/utils/router/providers/zen.ts
+# gate-watch: src/services/providers/zen/** scripts/providers/lib/zen-fixture.ts src/services/providers/zen/zenAdapter.ts
 # gate-watch: scripts/tool-economy/fixtureMcpEstate.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/providers/lib/nous-fixture.ts src/services/providers/nous/**

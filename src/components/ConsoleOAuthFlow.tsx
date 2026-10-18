@@ -32,8 +32,8 @@ import {
   resolveProviderUsability,
   type ProviderId,
 } from '../services/providers/providerUsability.js'
-import { RouterOpenaiConnect } from './RouterOpenaiConnect.js'
-import { RouterOpenrouterConnect } from './RouterOpenrouterConnect.js'
+import { OpenaiConnect } from './OpenaiConnect.js'
+import { OpenrouterConnect } from './OpenrouterConnect.js'
 import { GeminiConnect } from './GeminiConnect.js'
 import { HuggingfaceConnect } from './HuggingfaceConnect.js'
 import { KimiConnect } from './KimiConnect.js'
@@ -270,7 +270,7 @@ export function ConsoleOAuthFlow({
       case 'openrouter':
         if (onOpenaiDone === undefined)
           return frame(<Text dimColor>OpenRouter login unavailable here.</Text>)
-        return frame(<RouterOpenrouterConnect onResult={settleLeg} />)
+        return frame(<OpenrouterConnect onResult={settleLeg} />)
 
       case 'gemini':
         if (onOpenaiDone === undefined)
@@ -344,7 +344,7 @@ export function ConsoleOAuthFlow({
       const arms = popup ? loginsCatalogue() : []
       const intro =
         startingMessage ??
-        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen · MiniMax · Together AI · Cohere). An API key also connects from the terminal: /router key <provider>.'
+        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen · MiniMax · Together AI · Cohere)..'
       const refusalLayout = popup && facts !== null && Object.keys(facts.refusals ?? {}).length > 0
       const rosterCompact = compact || refusalLayout
       const statusWidth = !compact && setupBody !== null ? setupBody.width - 4 - READINESS_LABEL_WIDTH : null
@@ -522,7 +522,7 @@ function OpenaiSubscriptionLeg({
 }): React.ReactNode {
   const [mode, setMode] = useState<'browser' | 'device'>('browser')
   return (
-    <RouterOpenaiConnect
+    <OpenaiConnect
       key={mode}
       mode={mode}
       onDone={() => {}}

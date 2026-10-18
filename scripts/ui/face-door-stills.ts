@@ -86,7 +86,6 @@ export const FIXED_CERT: HealthCertificate = {
           link: '/logins',
           remedy: { class: 'destructive', plan: 'drop the cached credential snapshot and force a fresh verification round-trip' },
         },
-        { id: 'router', label: 'Model route', status: 'info', evidence: 'main model routes to the Anthropic family' },
       ],
     },
     {

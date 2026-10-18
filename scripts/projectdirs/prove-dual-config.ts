@@ -26,7 +26,7 @@ const root = mkdtempSync(join(tmpdir(), 'dualdir-'))
   const fresh = join(root, 'fresh')
   mkdirSync(fresh, { recursive: true })
   check(
-    projectLocalPath(fresh, 'router') === join(fresh, '.mercury', 'router'),
+    projectLocalPath(fresh, 'reviews') === join(fresh, '.mercury', 'reviews'),
     'FRESH project: a Mercury store homes under .mercury/ (nothing ever writes .claude/)',
   )
   check(!existsSync(join(fresh, '.mercury')), '…and resolving is pure: no directory is created')

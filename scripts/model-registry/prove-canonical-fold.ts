@@ -8,7 +8,7 @@ const future = 'claude-fable-5-2'
 table.futureFixture = { firstParty: future }
 const { getCanonicalName, getPublicModelDisplayName } = await import('../../src/utils/model/model.ts')
 const { MODEL_COSTS } = await import('../../src/utils/modelCost.ts')
-const { classOfModel } = await import('../../src/utils/router/modelRegistry.ts')
+const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
 const { getLaunchDefaultEffort, isLaunchEffortPinned } = await import('../../src/utils/effort.ts')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()

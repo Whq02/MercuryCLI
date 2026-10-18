@@ -34,7 +34,7 @@ import { FLAG_REGISTRY, flagEnabled, flagEnv } from '../substrate/flagRegistry.j
 import { realEnvPin } from '../substrate/startupMenu.js'
 import { isRunOrphaned, listWorkflowRunsDetailed } from '../tools/WorkflowTool/runManifest.js'
 import { getAnthropicApiKeyWithSource, getAuthTokenSource } from './auth.js'
-import { buildRouterModelSnapshot } from './router/modelRegistry.js'
+import { buildProviderSnapshot } from '../services/providers/modelRegistry.js'
 import { binaryName, isMercurySubstrateProfileOn } from './config.js'
 import { getCwd } from './cwd.js'
 import {
@@ -567,7 +567,7 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
   },
   'openai-compat': {
     label: 'Custom endpoint',
-    signIn: 'Set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)',
+    signIn: 'Set MERCURY_COMPAT_BASE_URL (key optional — MERCURY_COMPAT_API_KEY)',
   },
 }
 
@@ -634,7 +634,7 @@ function editOutcomeHealthChecks(): CheckSpec[] {
 }
 
 function providerAuthChecks(): CheckSpec[] {
-  const snap = buildRouterModelSnapshot()
+  const snap = buildProviderSnapshot()
   const routedFamily = routedAuthFamily()
   return snap.providers.map((provider): CheckSpec => {
     const meta = PROVIDER_AUTH_PRESENTATION[provider.id] ?? {
@@ -845,6 +845,56 @@ function modelListsCheck(): CheckSpec {
   }
 }
 
+function providerSlotsCheck(): CheckSpec {
+  return {
+    id: 'provider-slots',
+    label: 'Provider slots',
+    run: async () => {
+      const { refreshProviderDiscovery } = await import('../services/providers/providerDiscovery.js')
+      await Promise.all([
+        refreshProviderDiscovery('openai'),
+        refreshProviderDiscovery('zai'),
+        refreshProviderDiscovery('local'),
+      ])
+      const { buildProviderSnapshot } = await import('../services/providers/modelRegistry.js')
+      const snap = buildProviderSnapshot()
+      const anthropic = snap.providers.find(p => p.id === 'anthropic')
+      const classes = (['opus', 'sonnet', 'fable'] as const).map(c => snap.resolve(c))
+      const engines = snap.providers.filter(p => p.id !== 'anthropic')
+      const ENGINE_UNAVAILABLE_CODES = [
+        'discovery-pending:',
+        'no-executable:',
+        'no-auth:',
+        'no-api-key:',
+        'no-account:',
+        'not-configured:',
+        'no-server:',
+        'no-credential:',
+      ]
+      const enginesHonest = engines.every(
+        p => p.available || ENGINE_UNAVAILABLE_CODES.some(code => p.reason?.startsWith(code)),
+      )
+      const gptRef = snap.resolve('gpt')
+      const glmRef = snap.resolve('glm')
+      const seatLawHolds =
+        (gptRef === null || (gptRef.provider === 'openai' && gptRef.modelClass === 'gpt')) &&
+        (glmRef === null || (glmRef.provider === 'zai' && glmRef.modelClass === 'glm'))
+      const ok = anthropic?.available === true && classes.every(c => c !== null) && enginesHonest && seatLawHolds
+      const engineLine = engines.map(p => `${p.id} ${p.available ? 'configured' : p.reason}`).join(' · ')
+      const seatLine = gptRef || glmRef
+        ? `engine seats: ${[gptRef ? `gpt→${gptRef.model}` : null, glmRef ? `glm→${glmRef.model}` : null].filter(Boolean).join(' · ')} (explicit slots only)`
+        : 'engine seats unresolved (no qualified candidate) — defaults stay Anthropic'
+      return {
+        status: ok ? ('ok' as const) : ('fail' as const),
+        evidence: ok
+          ? `anthropic configured (${classes.map(c => c!.model).join(' · ')}) · engines: ${engineLine} · ${seatLine}`
+          : `provider honesty broke: anthropic=${anthropic?.available} classes=[${classes.map(c => c?.model ?? 'null').join(',')}] engines-honest=${enginesHonest} seat-law=${seatLawHolds} (${engineLine})`,
+        ...(ok ? {} : { fix: 'Provider resolution broke an invariant — report this.' }),
+      }
+    },
+  }
+}
+
 function webSearchDoorCheck(): CheckSpec {
   return {
     id: 'web-search-door',
@@ -858,7 +908,7 @@ function webSearchDoorCheck(): CheckSpec {
         return {
           status: 'info' as const,
           evidence: `no door opens for ${model} — ${plan.closed.join('; ')}`,
-          fix: '/router key brave (or tavily) stores a search key; /config turns DuckDuckGo page scraping back on.',
+          fix: 'BRAVE_API_KEY (or TAVILY_API_KEY) sets a search key; /config turns DuckDuckGo page scraping back on.',
         }
       }
       return { status: 'ok' as const, evidence: `${model}: ${searchDoorFact(model)}` }
@@ -2785,7 +2835,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
     {
       id: 'auth',
       title: 'AUTH',
-      checks: [...providerAuthChecks(), ...providerUsageChecks(), modelListsCheck(), webSearchDoorCheck(), extraCaCertsCheck()],
+      checks: [...providerAuthChecks(), ...providerUsageChecks(), providerSlotsCheck(), modelListsCheck(), webSearchDoorCheck(), extraCaCertsCheck()],
     },
     {
       id: 'interface',
@@ -4016,123 +4066,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                   ? `intent index live — 'split changes into atomic commits' → ${hits.join(' · ')} (${deferred.length} deferred)`
                   : `intent ranking broke: got ${hits.join(' · ') || '(none)'} — expected Git first`,
               ...(hits[0] !== 'Git' ? { fix: 'Capability search ranked an unexpected tool first — report this.' } : {}),
-            }
-          },
-        },
-      ],
-    },
-    {
-      id: 'router-fast',
-      title: 'ROUTER',
-      checks: [
-        {
-          id: 'router-kernel',
-          label: 'Route kernel',
-          run: async () => {
-            const { routerEnabled } = await import('./router/routerGates.js')
-            if (!routerEnabled()) {
-              return { status: 'info' as const, evidence: 'MERCURY_ROUTER=0 — routing off' }
-            }
-            const { compileRoute } = await import('./router/routeCompiler.js')
-            const { buildRouterModelSnapshot } = await import('./router/modelRegistry.js')
-            const { decodeTaskRoutePlan, stableDigest, ROUTER_POLICY_VERSION } = await import('./router/contracts.js')
-            const { resolveRouterPosture } = await import('./router/postures.js')
-            const r = compileRoute({
-              mode: 'fanout',
-              mission: {
-                objective: 'health probe',
-                title: 'probe',
-                task: 'a hermetic three-node dependency compile',
-                taskShape: 'bounded',
-                ambiguity: 0,
-                coupling: 0,
-                parallelism: 1,
-                candidateNodes: [
-                  { id: 'a', title: 'a', task: 'a', ownsPaths: ['x/a.ts'], acceptance: ['a done'] },
-                  { id: 'b', title: 'b', task: 'b', dependsOn: ['a'], ownsPaths: ['x/b.ts'], acceptance: ['b done'] },
-                  { id: 'c', title: 'c', task: 'c', dependsOn: ['a'], ownsPaths: ['x/c.ts'], acceptance: ['c done'] },
-                ],
-              },
-              posture: resolveRouterPosture(),
-              models: buildRouterModelSnapshot(),
-              worker: { maxWidth: 3, sharedLane: false },
-              now: Date.now(),
-              planId: 'rp-health-probe',
-            })
-            if (!r.ok) {
-              return { status: 'fail' as const, evidence: `kernel probe REFUSED: [${r.refusal.reasonCodes.join(',')}] ${r.refusal.detail}`, fix: 'The route kernel refused its own probe — report this.' }
-            }
-            const decoded = decodeTaskRoutePlan(JSON.parse(JSON.stringify(r.plan)))
-            const roundTrip = decoded !== null && stableDigest(decoded) === stableDigest(r.plan)
-            return {
-              status: roundTrip ? ('ok' as const) : ('fail' as const),
-              evidence: `${ROUTER_POLICY_VERSION} · posture ${resolveRouterPosture()} · probe compiled ${r.plan.profile} (${r.plan.nodes.length} nodes) · decode ${roundTrip ? 'round-trips' : 'BROKE'}`,
-              ...(roundTrip ? {} : { fix: 'The stored route plan no longer round-trips — report this.' }),
-            }
-          },
-        },
-        {
-          id: 'router-store',
-          label: 'Route store',
-          run: async () => {
-            const { routerEnabled } = await import('./router/routerGates.js')
-            if (!routerEnabled()) return { status: 'info' as const, evidence: 'off (MERCURY_ROUTER=0)' }
-            const { routerRunStore, routerStateDir } = await import('../substrate/routerRunStore.js')
-            const { routerOutcomeStore } = await import('../substrate/routerOutcomeStore.js')
-            const s = await routerRunStore().read()
-            const outcomes = await routerOutcomeStore().read()
-            const active = s.plans.filter(p => p.state === 'running' || p.state === 'synthesizing').length
-            const refused = s.events.filter(e => e.to.startsWith('refused')).length
-            return {
-              status: 'ok' as const,
-              evidence: `${routerStateDir()} · ${s.plans.length} plan(s) (${active} active) · ${s.events.length} event(s)${refused > 0 ? ` · ${refused} refused transition(s) (inspect /router)` : ''} · outcome memory ${outcomes.rows.length} row(s)`,
-            }
-          },
-        },
-        {
-          id: 'router-providers',
-          label: 'Provider slots',
-          run: async () => {
-            const { refreshProviderDiscovery } = await import('./router/providerDiscovery.js')
-            await Promise.all([
-              refreshProviderDiscovery('openai'),
-              refreshProviderDiscovery('zai'),
-              refreshProviderDiscovery('local'),
-            ])
-            const { buildRouterModelSnapshot } = await import('./router/modelRegistry.js')
-            const snap = buildRouterModelSnapshot()
-            const anthropic = snap.providers.find(p => p.id === 'anthropic')
-            const classes = (['opus', 'sonnet', 'fable'] as const).map(c => snap.resolve(c, 'adaptive'))
-            const engines = snap.providers.filter(p => p.id !== 'anthropic')
-            const ENGINE_UNAVAILABLE_CODES = [
-              'discovery-pending:',
-              'no-executable:',
-              'no-auth:',
-              'no-api-key:',
-              'no-account:',
-              'not-configured:',
-              'no-server:',
-              'no-credential:',
-            ]
-            const enginesHonest = engines.every(
-              p => p.available || ENGINE_UNAVAILABLE_CODES.some(code => p.reason?.startsWith(code)),
-            )
-            const gptRef = snap.resolve('gpt', 'adaptive')
-            const glmRef = snap.resolve('glm', 'adaptive')
-            const seatLawHolds =
-              (gptRef === null || (gptRef.provider === 'openai' && gptRef.modelClass === 'gpt')) &&
-              (glmRef === null || (glmRef.provider === 'zai' && glmRef.modelClass === 'glm'))
-            const ok = anthropic?.available === true && classes.every(c => c !== null) && enginesHonest && seatLawHolds
-            const engineLine = engines.map(p => `${p.id} ${p.available ? 'configured' : p.reason}`).join(' · ')
-            const seatLine = gptRef || glmRef
-              ? `engine seats: ${[gptRef ? `gpt→${gptRef.model}` : null, glmRef ? `glm→${glmRef.model}` : null].filter(Boolean).join(' · ')} (explicit slots only)`
-              : 'engine seats unresolved (no qualified candidate) — defaults stay Anthropic'
-            return {
-              status: ok ? ('ok' as const) : ('fail' as const),
-              evidence: ok
-                ? `anthropic configured (${classes.map(c => c!.model).join(' · ')}) · engines: ${engineLine} · ${seatLine}`
-                : `provider honesty broke: anthropic=${anthropic?.available} classes=[${classes.map(c => c?.model ?? 'null').join(',')}] engines-honest=${enginesHonest} seat-law=${seatLawHolds} (${engineLine})`,
-              ...(ok ? {} : { fix: 'Provider resolution broke an invariant — report this.' }),
             }
           },
         },
