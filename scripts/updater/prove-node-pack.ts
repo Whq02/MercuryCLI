@@ -64,7 +64,7 @@ section('§1 the lock — one nodejs.org archive + sha256 per platform')
     const digests = new Set<string>()
     for (const platform of NODE_PACK_PLATFORMS) {
       const p = lock.platforms?.[platform]
-      const ext = platform === 'win-x64' ? 'zip' : 'tar.gz'
+      const ext = platform.startsWith('win-') ? 'zip' : 'tar.gz'
       const archive = `node-v${calibration}-${platform}.${ext}`
       check(`${platform}: archive is the official ${ext} for the calibration version`, p?.archive === archive, String(p?.archive))
       check(`${platform}: url is the nodejs.org distribution path of that archive`, p?.url === `https://nodejs.org/dist/v${calibration}/${archive}`, String(p?.url))
@@ -82,9 +82,10 @@ section('§2 the owner — platform keys, binaries, the record, the check, the c
   check('linux/x64 → linux-x64', nodePackPlatform('linux', 'x64') === 'linux-x64')
   check('linux/arm64 → linux-arm64', nodePackPlatform('linux', 'arm64') === 'linux-arm64')
   check('win32/x64 → win-x64', nodePackPlatform('win32', 'x64') === 'win-x64')
-  check('unpublished pairs answer null (freebsd/x64 · win32/arm64 · linux/ia32)', nodePackPlatform('freebsd', 'x64') === null && nodePackPlatform('win32', 'arm64') === null && nodePackPlatform('linux', 'ia32') === null)
+  check('win32/arm64 → win-arm64', nodePackPlatform('win32', 'arm64') === 'win-arm64')
+  check('unpublished pairs answer null (freebsd/x64 · linux/ia32 · linux/riscv64)', nodePackPlatform('freebsd', 'x64') === null && nodePackPlatform('linux', 'ia32') === null && nodePackPlatform('linux', 'riscv64') === null)
   check('the pack path is the fixed vendor/node', RUNTIME_PACK_PATH === 'vendor/node')
-  check('the binary is bin/node on every POSIX pack and node.exe on win-x64', NODE_PACK_PLATFORMS.every(p => runtimeBinaryFor(p) === (p === 'win-x64' ? 'node.exe' : 'bin/node')))
+  check('the binary is bin/node on every POSIX pack and node.exe on both Windows packs', NODE_PACK_PLATFORMS.every(p => runtimeBinaryFor(p) === (p.startsWith('win-') ? 'node.exe' : 'bin/node')))
   check('the pack members are the binary + LICENSE, nothing else (no npm, no headers)', NODE_PACK_PLATFORMS.every(p => JSON.stringify(packMembersFor(p)) === JSON.stringify([runtimeBinaryFor(p), 'LICENSE'])))
 
   const good = {

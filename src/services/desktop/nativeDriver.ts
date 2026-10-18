@@ -28,6 +28,9 @@ import {
   type DesktopPermissions,
   type DesktopPoint,
   type DesktopSessionKind,
+  type DesktopTree,
+  type DesktopTreeElement,
+  type DesktopTreeLimits,
   type DesktopTypeOptions,
 } from './driver.js'
 import {
@@ -41,6 +44,7 @@ import {
   type DesktopAddonApplication,
   type DesktopAddonCapture,
   type DesktopAddonPermissions,
+  type DesktopAddonTree,
 } from './pack.js'
 
 type DesktopDriverLoad =
@@ -65,6 +69,9 @@ const TERMINAL_IDENTITIES: Record<string, string> = {
   vscode: 'com.microsoft.VSCode',
 }
 const DESKTOP_TYPE_GAP_CAP_MS = 1_000
+const ABORTED_PREFIX = 'aborted'
+const TREE_SUBPROCESS_TIMEOUT_MS = 12_000
+const TREE_SUBPROCESS_BUFFER = 16 * 1024 * 1024
 
 export function desktopGrantWords(platform: string = process.platform): string {
   if (platform === 'darwin') return 'allow your terminal application under System Settings → Privacy & Security → Screen Recording and → Accessibility, then restart the terminal application'
@@ -375,6 +382,55 @@ class NativeDesktopDriver implements DesktopDriver {
     if (stillOwned !== undefined && !stillOwned()) return { ok: true, value: null }
     if (raw?.identity === terminal.identity && raw.tty === terminal.tty && typeof raw.windowId === 'string' && raw.windowId !== '') terminal = application(raw, terminal.identity)
     return { ok: true, value: terminal }
+  }
+
+  async accessibilityTree(app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>> {
+    const closed = this.closedRefusal<DesktopTree>()
+    if (closed !== null) return closed
+    if (signal.aborted) return desktopAbortedAnswer()
+    if (app.pid === null || !Number.isInteger(app.pid) || app.pid <= 0) return fail({ kind: 'input', note: `${app.name} has no process id to read the accessibility tree from` })
+    if (!Number.isInteger(limits.depth) || limits.depth < 0 || !Number.isInteger(limits.count) || limits.count < 1) return fail({ kind: 'input', note: `the tree limits must be a whole depth and a count of at least one (got depth ${String(limits.depth)}, count ${String(limits.count)})` })
+    const permissions = this.readPermissions()
+    if (!permissions.ok) return fail(permissions.error)
+    const refusal = inputRefusal(permissions.value)
+    if (refusal !== null) return this.refuseAndRequestGrants(refusal)
+    let raw: DesktopAddonTree
+    try {
+      raw = process.platform === 'darwin'
+        ? await new Promise<DesktopAddonTree>((resolve, reject) => {
+            const args = ['-e', 'const a=require(process.argv[1]); process.stdout.write(JSON.stringify(a.accessibilityTree(Number(process.argv[2]),Number(process.argv[3]),Number(process.argv[4]))))', this.addonPath, String(app.pid), String(limits.depth), String(limits.count)]
+            const child = execFile(process.execPath, args, { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
+              signal.removeEventListener('abort', onAbort)
+              if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
+              if (error) return reject(new Error(`the accessibility tree of ${app.name} could not be read within ${TREE_SUBPROCESS_TIMEOUT_MS / 1000} seconds (the application may not be responding)`))
+              try {
+                const answer: unknown = JSON.parse(stdout)
+                if (answer === null || typeof answer !== 'object') return reject(new Error('macOS returned no accessibility record'))
+                resolve(answer as DesktopAddonTree)
+              } catch {
+                reject(new Error('the accessibility tree query returned an unreadable record'))
+              }
+            })
+            const onAbort = (): void => {
+              child.kill('SIGKILL')
+            }
+            signal.addEventListener('abort', onAbort, { once: true })
+          })
+        : this.addon.accessibilityTree(app.pid, limits.depth, limits.count)
+    } catch (error) {
+      return fail(classifyThrown(error))
+    }
+    if (signal.aborted) return desktopAbortedAnswer()
+    if (!Array.isArray(raw.elements)) return fail(contractDefect('elements', typeof raw.elements))
+    if (raw.elements.length === 0) return fail({ kind: 'display', note: typeof raw.reason === 'string' && raw.reason !== '' ? raw.reason : `${app.name} answered no accessibility element` })
+    const elements: DesktopTreeElement[] = []
+    for (const e of raw.elements) {
+      if (typeof e.role !== 'string' || typeof e.depth !== 'number' || !Number.isInteger(e.depth)) return fail(contractDefect('element', JSON.stringify(e)))
+      const f = e.frame
+      const frame: DesktopBounds | null = f && [f.x, f.y, f.width, f.height].every(n => Number.isFinite(n)) ? { x: f.x, y: f.y, width: f.width, height: f.height } : null
+      elements.push({ depth: e.depth, role: e.role, title: typeof e.title === 'string' && e.title !== '' ? e.title : null, value: typeof e.value === 'string' && e.value !== '' ? e.value : null, frame })
+    }
+    return { ok: true, value: { elements, truncated: raw.truncated === true, reason: typeof raw.reason === 'string' && raw.reason !== '' ? raw.reason : null } }
   }
 
   async cursor(): Promise<DesktopAnswer<DesktopCursor>> {

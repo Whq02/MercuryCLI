@@ -17,7 +17,7 @@ import {
   formatDirectoryList,
   type FileOperationType,
 } from '../../utils/permissions/pathValidation.js'
-import { allWorkingDirectories, matchingRulesForInput, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
+import { allWorkingDirectories, envFileNameInGlob, envFileReadAsk, isProjectEnvFileName, matchingRulesForInput, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -78,6 +78,8 @@ const RG_CONSUMING = new Set([
   '--after-context', '-B', '--before-context', '-C', '--context',
 ])
 const PATTERN_ALREADY_SUPPLIED = new Set(['-e', '--regexp', '-f', '--file'])
+const FILE_NAME_FILTERS = new Set(['-g', '--glob', '--include'])
+const ENV_METADATA_COMMANDS: ReadonlySet<PathCommand> = new Set(['cd', 'ls', 'find', 'file', 'stat', 'wc', 'sha256sum', 'sha1sum', 'md5sum'])
 const JQ_CONSUMING = new Set([
   '-e', '--expression', '-f', '--from-file', '--arg', '--argjson', '--slurpfile',
   '--rawfile', '--args', '--jsonargs', '-L', '--library-path', '--indent', '--tab',
@@ -190,6 +192,11 @@ function extractFindOperands(args: string[]): string[] {
   return operands.length === 0 ? ['.'] : operands
 }
 
+function envFileNameFilter(value: string | undefined, operands: string[]): void {
+  const name = value === undefined ? null : envFileNameInGlob(value)
+  if (name !== null) operands.push(name)
+}
+
 function extractPatternCommand(
   args: string[],
   consuming: Set<string>,
@@ -208,7 +215,10 @@ function extractPatternCommand(
       if (consuming.has(arg)) {
         if (PATTERN_ALREADY_SUPPLIED.has(arg)) patternSeen = true
         i++
+        if (FILE_NAME_FILTERS.has(arg)) envFileNameFilter(args[i], operands)
       }
+      const fused = arg.match(/^(--glob|--include)=(.+)$/)
+      if (fused) envFileNameFilter(fused[2], operands)
       continue
     }
     if (!patternSeen) {
@@ -459,6 +469,7 @@ function runPathChecker(
   }
   const operands = PATH_EXTRACTORS[command](args)
   const flowRead = context.mode === 'flow' && operationType === 'read' && command !== 'cd'
+  const readsEnvContent = (operationType === 'read' && !ENV_METADATA_COMMANDS.has(command)) || command === 'cp' || command === 'mv'
   for (const operand of operands) {
     const check = validatePath(operand, cwd, context, operationType)
     if (!check.allowed) {
@@ -473,6 +484,8 @@ function runPathChecker(
         decisionReason: check.decisionReason,
       }
     }
+    const envAsk = readsEnvContent ? envFileReadAsk(check.resolvedPath, context) : null
+    if (envAsk) return { behavior: 'ask', message: envAsk.message, decisionReason: envAsk.decisionReason }
   }
   return { behavior: 'passthrough', message: `All ${command} operands are within the allowed directories.` }
 }
@@ -641,8 +654,25 @@ function validateInputRedirections(
         suggestions: [createReadRuleSuggestion(getDirectoryForPath(check.resolvedPath))].filter((rule): rule is PermissionUpdate => rule !== undefined),
       }
     }
+    const envAsk = envFileReadAsk(check.resolvedPath, context)
+    if (envAsk) return { behavior: 'ask', message: envAsk.message, decisionReason: envAsk.decisionReason }
   }
   return { behavior: 'passthrough', message: 'All input redirect targets are readable.' }
+}
+
+function sourcedEnvFile(argv: string[], cwd: string, context: ToolPermissionContext): PermissionResult | null {
+  const [base, file] = argv
+  if ((base !== 'source' && base !== '.') || file === undefined || !isProjectEnvFileName(file)) return null
+  const check = validatePath(file, cwd, context, 'read')
+  if (check.allowed) return envFileReadAsk(check.resolvedPath, context)
+  if (check.decisionReason?.type === 'rule') {
+    return ruleDeny(`The ${base} of ${check.resolvedPath}`, check.resolvedPath, 'read', context, check.decisionReason.rule)
+  }
+  const reason = check.decisionReason
+  const message = reason && (reason.type === 'other' || reason.type === 'safetyCheck')
+    ? reason.reason
+    : `Mercury needs permission to read ${check.resolvedPath}, outside the starting folder (${formatDirectoryList([...allWorkingDirectories(context)])}).`
+  return { behavior: 'ask', message, decisionReason: reason }
 }
 
 function composeWriteRefusal(context: ToolPermissionContext, resolvedPath: string, action: string): string {
@@ -702,6 +732,8 @@ function validateAstSimpleCommand(
   const argv = stripWrappersFromArgv(simple.argv)
   if (argv.length === 0) return { behavior: 'passthrough', message: 'Empty command.' }
   const base = argv[0] as string
+  const sourced = sourcedEnvFile(argv, cwd, context)
+  if (sourced) return sourced
   if (!(base in COMMAND_OPERATION_TYPE)) return { behavior: 'passthrough', message: 'Not a path command.' }
   const command = base as PathCommand
   const override = sedReadOverride(command, simple.text)

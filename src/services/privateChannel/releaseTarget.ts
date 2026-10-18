@@ -1,5 +1,5 @@
 
-export const RELEASE_TARGETS = ['linux-x64', 'macos-arm64', 'macos-x64', 'windows-x64'] as const
+export const RELEASE_TARGETS = ['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64', 'windows-x64', 'windows-arm64'] as const
 export type ReleaseTarget = (typeof RELEASE_TARGETS)[number]
 
 interface BuildPlatform {
@@ -9,9 +9,11 @@ interface BuildPlatform {
 
 const PLATFORM_OF: Record<ReleaseTarget, BuildPlatform> = {
   'linux-x64': { platform: 'linux', arch: 'x64' },
+  'linux-arm64': { platform: 'linux', arch: 'arm64' },
   'macos-arm64': { platform: 'darwin', arch: 'arm64' },
   'macos-x64': { platform: 'darwin', arch: 'x64' },
   'windows-x64': { platform: 'win32', arch: 'x64' },
+  'windows-arm64': { platform: 'win32', arch: 'arm64' },
 }
 
 export function isReleaseTarget(value: string): value is ReleaseTarget {
@@ -38,7 +40,7 @@ export function releaseTargetForUname(sysname: string, machine: string): Release
 }
 
 export function archiveNameFor(version: string, target: ReleaseTarget): string {
-  return `${archiveBaseNameFor(version, target)}.${target === 'windows-x64' ? 'zip' : 'tar.gz'}`
+  return `${archiveBaseNameFor(version, target)}.${target.startsWith('windows-') ? 'zip' : 'tar.gz'}`
 }
 
 export function archiveBaseNameFor(version: string, target: ReleaseTarget): string {

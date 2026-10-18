@@ -16,6 +16,7 @@ import {
   checkEditableInternalPath,
   checkReadableInternalPath,
   checkPathSafetyForAutoEdit,
+  envFileReadAsk,
   matchingRuleForInput,
   pathInAllowedWorkingPath,
 } from '../../utils/permissions/filesystem.js'
@@ -97,6 +98,7 @@ function r(paths: string[], sw: string, val: string): PathConfig {
 
 const REMOVAL_CANONICAL = 'remove-item'
 const OPTIONAL_WRITE = new Set(['invoke-webrequest', 'invoke-restmethod'])
+const ENV_CONTENT_CMDLETS = new Set(['get-content', 'select-string', 'format-hex', 'select-xml', 'copy-item', 'move-item'])
 
 function isComplexColonValue(value: string): boolean {
   return value.includes(',') || value.startsWith('(') || value.startsWith('[') || value.startsWith('@{') || value.includes('`') || value.includes('@(') || value.includes('$')
@@ -346,6 +348,8 @@ function checkOneCommand(command: ParsedCommandElement, cwd: string, context: To
       if (decision.reason?.type === 'rule') return { behavior: 'deny', message: pathMessage(canonical, decision, context), decisionReason: decision.reason }
       return askForPath(canonical, decision, extracted.operation, context)
     }
+    const envAsk = ENV_CONTENT_CMDLETS.has(canonical) ? envFileReadAsk(decision.resolvedPath, context) : null
+    if (envAsk) return { behavior: 'ask', message: envAsk.message, decisionReason: envAsk.decisionReason }
   }
   if (extracted.unvalidatable) {
     return { behavior: 'ask', message: `${canonical} has an argument (array literal, sub-expression, or unrecognised parameter) beyond static checking.`, decisionReason: other('An unvalidatable path argument.') }

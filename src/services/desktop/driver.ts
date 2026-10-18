@@ -85,6 +85,25 @@ export interface DesktopCursor {
   display: number | null
 }
 
+export interface DesktopTreeElement {
+  depth: number
+  role: string
+  title: string | null
+  value: string | null
+  frame: DesktopBounds | null
+}
+
+export interface DesktopTree {
+  elements: DesktopTreeElement[]
+  truncated: boolean
+  reason: string | null
+}
+
+export interface DesktopTreeLimits {
+  depth: number
+  count: number
+}
+
 export type DesktopGrant = 'granted' | 'denied' | 'not-required' | 'unknown'
 export type DesktopSessionKind = 'desktop' | 'no-display' | 'wayland' | 'locked' | 'service' | 'unknown'
 
@@ -142,6 +161,7 @@ export interface DesktopDriver {
   capture(display: number, signal: AbortSignal): Promise<DesktopAnswer<DesktopCapture>>
   frontmostApplication(): Promise<DesktopAnswer<DesktopApplication>>
   ownTerminalApplication(front?: DesktopApplication): Promise<DesktopAnswer<DesktopApplication | null>>
+  accessibilityTree(app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>>
   cursor(): Promise<DesktopAnswer<DesktopCursor>>
   mouseMove(to: DesktopPoint, signal: AbortSignal): Promise<DesktopAnswer<DesktopActReceipt>>
   mouseDown(button: DesktopButton, signal: AbortSignal): Promise<DesktopAnswer<DesktopActReceipt>>

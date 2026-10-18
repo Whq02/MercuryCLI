@@ -70,6 +70,29 @@ export function buildPruneOffer(
   }
 }
 
+export function buildSessionDeleteOffer(
+  row: { sessionId: string; fullPath: string; fileSize: number; modified: Date },
+  opts: { scopeLabel: string; liveSessionIds: ReadonlySet<string> },
+): PruneOffer | null {
+  if (opts.liveSessionIds.has(row.sessionId)) return null
+  const candidate: PruneCandidate = {
+    sessionId: row.sessionId,
+    transcriptPath: row.fullPath,
+    receiptsPath: receiptsPathBesideTranscript(row.fullPath),
+    snapshotPath: snapshotPathFor(row.fullPath),
+    bytes: row.fileSize,
+    modified: row.modified,
+  }
+  return {
+    scopeLabel: opts.scopeLabel,
+    windowDays: 0,
+    candidates: [candidate],
+    totalBytes: row.fileSize,
+    oldestModified: row.modified,
+    newestModified: row.modified,
+  }
+}
+
 export async function operatorPruneTranscripts(offer: PruneOffer): Promise<PruneReceipt> {
   const fs = getFsImplementation()
   const receipt: PruneReceipt = {

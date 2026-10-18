@@ -22,7 +22,7 @@ import { getSettingsFilePathForSource } from '../settings/settings.js'
 import { getEnabledSettingSources } from '../settings/constants.js'
 import type { PermissionRule, PermissionUpdate } from '../../types/permissions.js'
 import type { ToolPermissionContext } from '../../Tool.js'
-import type { PermissionDecision, PermissionResult } from './PermissionResult.js'
+import type { PermissionAskDecision, PermissionDecision, PermissionResult } from './PermissionResult.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from './PermissionUpdate.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from './ruleReason.js'
 import { uncPathRisk, uncPathMessage } from './uncPath.js'
@@ -48,6 +48,22 @@ export const DANGEROUS_DIRECTORIES: string[] = [
   '.idea',
   '.mercury',
 ]
+
+const ENV_FILE_TEMPLATE_WORDS: ReadonlySet<string> = new Set(['example', 'sample', 'template'])
+
+export function isProjectEnvFileName(path: string): boolean {
+  const segments = path.split(/[/\\]/)
+  const name = (segments[segments.length - 1] ?? '').toLowerCase()
+  if (name !== '.env' && !name.startsWith('.env.')) return false
+  return !name.slice('.env.'.length).split('.').some(part => ENV_FILE_TEMPLATE_WORDS.has(part))
+}
+
+export function envFileNameInGlob(glob: string): string | null {
+  if (glob.startsWith('!')) return null
+  const name = (glob.split(/[/\\]/).pop() ?? '').replace(/[*?[\]{}]+$/, '')
+  if (!isProjectEnvFileName(name)) return null
+  return name.endsWith('.') ? name.slice(0, -1) : name
+}
 
 
 export function normalizeCaseForComparison(path: string): string {
@@ -630,6 +646,25 @@ function ruleDecision(
   return kind === 'deny' ? deny(refusalWithReason(sentence, said.ruleValue.reason), reason) : ask(sentence, reason)
 }
 
+function envFileAsk(subject: string): PermissionAskDecision {
+  const reason = `${subject} needs approval: a .env file usually holds secrets (keys, tokens, passwords). Approve it here, or add a Read allow rule for the path to stop the question.`
+  return ask(reason, { type: 'safetyCheck', reason, operatorOnly: false }) as PermissionAskDecision
+}
+
+export function envFileReadAsk(
+  path: string,
+  context: ToolPermissionContext,
+  resolutionSet: readonly string[] = getResolvedWorkingDirPaths(path),
+): PermissionAskDecision | null {
+  const forms = [path, ...resolutionSet]
+  if (!forms.some(form => isProjectEnvFileName(expandPath(form)))) return null
+  if (!pathInAllowedWorkingPath(path, context, resolutionSet)) return null
+  for (const form of forms) {
+    if (matchingRuleForInput(form, context, 'read', 'allow') || matchingRuleForInput(form, context, 'edit', 'allow')) return null
+  }
+  return envFileAsk(`Reading ${path}`)
+}
+
 export function checkUncPathPermission(
   path: string,
   context: ToolPermissionContext,
@@ -684,6 +719,8 @@ export function checkReadPermissionForTool(
     const rule = matchingRuleForInput(resolved, context, 'read', 'ask')
     if (rule) return ruleDecision('ask', `Reading ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'read', 'ask'))
   }
+  const envAsk = envFileReadAsk(path, context, resolutionSet)
+  if (envAsk) return envAsk
   const writeDecision = checkWritePermissionForTool(tool, input, context, resolutionSet)
   if (writeDecision.behavior === 'allow') return writeDecision
   if (pathInAllowedWorkingPath(path, context, resolutionSet)) {

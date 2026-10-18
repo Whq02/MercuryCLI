@@ -13,12 +13,12 @@ import { collectVerifyReceiptFacts, decideVerifyReceiptBind, readLedgerRows } fr
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const argTarget = process.argv.indexOf('--target')
 const TARGET = argTarget !== -1 ? process.argv[argTarget + 1] : null
-const KNOWN = ['linux-x64', 'macos-arm64', 'macos-x64', 'windows-x64']
+const KNOWN = ['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64', 'windows-x64', 'windows-arm64']
 if (!TARGET || !KNOWN.includes(TARGET)) {
   console.error(`package.mjs: --target must be one of ${KNOWN.join(', ')}`)
   process.exit(2)
 }
-const IS_WIN = TARGET === 'windows-x64'
+const IS_WIN = TARGET.startsWith('windows-')
 const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
 const VERSION = PKG.version
 const NODE_POLICY = parseEnginesNode(PKG.engines?.node)
@@ -54,7 +54,7 @@ if (degraded.includes('on-device-transcriber')) ok('the on-device transcriber pa
 if (degraded.includes('desktop-driver')) ok('the desktop driver pack is absent from this build — the archive ships without computer use (degraded: desktop-driver, publishable)')
 const rgDirs = existsSync(join(dist, 'vendor', 'ripgrep')) ? readdirSync(join(dist, 'vendor', 'ripgrep')) : []
 if (rgDirs.length === 0) fail('dist/vendor/ripgrep missing — the build must vendor the platform rg')
-const TARGET_NODE_PACK = { 'linux-x64': 'linux-x64', 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'windows-x64': 'win-x64' }[TARGET]
+const TARGET_NODE_PACK = { 'linux-x64': 'linux-x64', 'linux-arm64': 'linux-arm64', 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'windows-x64': 'win-x64', 'windows-arm64': 'win-arm64' }[TARGET]
 if (manifest.target && typeof manifest.target === 'object' && manifest.target.release !== TARGET) {
   const builtFor = manifest.target.release ?? `${manifest.target.platform}/${manifest.target.arch} (no release archive exists for it)`
   fail(`dist was built for ${builtFor} but --target is ${TARGET} — build for the target: bun run build.ts --target ${TARGET}`)

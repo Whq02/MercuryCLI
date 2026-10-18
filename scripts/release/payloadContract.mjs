@@ -19,7 +19,7 @@ export function readCompatFloor() {
 }
 
 export function topAllowlist(target, floor) {
-  const isWin = target === 'windows-x64'
+  const isWin = target.startsWith('windows-')
   const members = [
     'mercury.mjs',
     'manifest.json',
@@ -49,7 +49,7 @@ export function memberRole(name) {
   return 'unknown'
 }
 
-export const launcherFor = target => (target === 'windows-x64' ? 'mercury.cmd' : 'mercury')
+export const launcherFor = target => (target.startsWith('windows-') ? 'mercury.cmd' : 'mercury')
 
 const sha256File = path => createHash('sha256').update(readFileSync(path)).digest('hex')
 
@@ -107,18 +107,19 @@ function readShellEngineLock() {
 }
 
 export function bundledVendorPacks(target) {
-  if (target !== 'windows-x64') return []
+  if (!target.startsWith('windows-')) return []
+  const platform = target === 'windows-arm64' ? 'win-arm64' : 'win-x64'
   const lock = readShellEngineLock()
-  const entry = lock.platforms['win-x64']
+  const entry = lock.platforms[platform]
   return [
     {
       name: lock.name,
       version: lock.version,
-      platform: 'win-x64',
+      platform,
       binary: 'brush.exe',
       degradation: 'shell-engine',
       manifestKey: 'shellEngine',
-      dir: 'vendor/brush/win-x64',
+      dir: `vendor/brush/${platform}`,
       files: ['brush.exe', '.vendor-manifest.json', 'NOTICES.json', `licenses/${entry.crate}-${entry.crateVersion}/LICENSE`],
     },
   ]

@@ -112,11 +112,12 @@ console.log("B — the frozen offer is the honest set; the door unlinks exactly 
   }
   walk(join(process.cwd(), 'src'))
   const expected = [
+    join(process.cwd(), 'src/cli/sessionsVerb.ts'),
     join(process.cwd(), 'src/components/BootResumeScreen.tsx'),
     join(process.cwd(), 'src/components/mercury-ui/screens/SessionManagerView.tsx'),
     join(process.cwd(), 'src/utils/sessionStorage/transcriptPruneDoor.ts'),
   ].sort()
-  check('the door has exactly its TWO named cards as callers (plus its own definition, nothing else)', callers.sort().join('|') === expected.join('|'), callers.join(', '))
+  check('the door has exactly its THREE named callers — the two cards and the sessions delete verb (plus its own definition, nothing else)', callers.sort().join('|') === expected.join('|'), callers.join(', '))
   const core = read('src/components/mercury-ui/screens/sessionPickerModel.ts')
   check('the shared picker core reaches no delete road (neither the function nor the module)', !core.includes('operatorPruneTranscripts') && !core.includes('transcriptPruneDoor'))
 }

@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 
 export const RUNTIME_PACK_PATH = 'vendor/node'
 
-export const NODE_PACK_PLATFORMS = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64', 'win-x64'] as const
+export const NODE_PACK_PLATFORMS = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-arm64'] as const
 export type NodePackPlatform = (typeof NODE_PACK_PLATFORMS)[number]
 
 export function nodePackPlatform(platform: string, arch: string): NodePackPlatform | null {
@@ -13,11 +13,12 @@ export function nodePackPlatform(platform: string, arch: string): NodePackPlatfo
   if (platform === 'linux' && arch === 'x64') return 'linux-x64'
   if (platform === 'linux' && arch === 'arm64') return 'linux-arm64'
   if (platform === 'win32' && arch === 'x64') return 'win-x64'
+  if (platform === 'win32' && arch === 'arm64') return 'win-arm64'
   return null
 }
 
 export function runtimeBinaryFor(packPlatform: string): string {
-  return packPlatform === 'win-x64' ? 'node.exe' : 'bin/node'
+  return packPlatform.startsWith('win-') ? 'node.exe' : 'bin/node'
 }
 
 export function packMembersFor(packPlatform: string): string[] {

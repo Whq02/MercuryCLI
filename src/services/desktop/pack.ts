@@ -226,6 +226,20 @@ interface DesktopAddonHeld {
   keys: string[]
 }
 
+interface DesktopAddonTreeElement {
+  depth: number
+  role: string
+  title?: string | null
+  value?: string | null
+  frame?: DesktopAddonBounds | null
+}
+
+export interface DesktopAddonTree {
+  elements: DesktopAddonTreeElement[]
+  truncated: boolean
+  reason?: string | null
+}
+
 export interface DesktopAddon {
   packVersion(): string
   permissions(): DesktopAddonPermissions
@@ -234,6 +248,7 @@ export interface DesktopAddon {
   capture(display: number): Promise<DesktopAddonCapture>
   frontmostApplication(): DesktopAddonApplication
   ownTerminalApplication(identity?: string, tty?: string, front?: number): DesktopAddonApplication
+  accessibilityTree(pid: number, maxDepth: number, maxCount: number): DesktopAddonTree
   cursor(): DesktopAddonCursor
   mouseMove(x: number, y: number): void
   mouseDown(button: string): void
@@ -258,6 +273,7 @@ export const DESKTOP_ADDON_EXPORTS = [
   'capture',
   'frontmostApplication',
   'ownTerminalApplication',
+  'accessibilityTree',
   'cursor',
   'mouseMove',
   'mouseDown',

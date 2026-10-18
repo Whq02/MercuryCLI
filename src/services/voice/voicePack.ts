@@ -26,6 +26,8 @@ export function voiceCargoTriple(packPlatform: string): string | null {
       return 'aarch64-unknown-linux-gnu'
     case 'win32-x64':
       return 'x86_64-pc-windows-msvc'
+    case 'win32-arm64':
+      return 'aarch64-pc-windows-msvc'
     default:
       return null
   }

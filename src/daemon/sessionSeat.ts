@@ -133,6 +133,7 @@ interface SeatState {
   tail: string | null
   tailMessageId: string | null
   tailPhase: TextPhase | null
+  tailWithdrawn: string | null
   tailTimer: ReturnType<typeof setTimeout> | null
   tailDirty: boolean
   streamedThisTurn: boolean
@@ -170,7 +171,7 @@ export function seatGenerationOf(short: string): number {
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, generation: seatGenerations.get(short) ?? 0, debounce: null, workPoll: null, lastBusy: false, lastFactsAtMs: 0, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, turnOutputTokens: null, messageOutputTokens: 0, turnThinkingChars: 0, turnThinkingBlocks: 0, firstByteAtMs: null, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, heldSpawnSwitches: {}, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, generation: seatGenerations.get(short) ?? 0, debounce: null, workPoll: null, lastBusy: false, lastFactsAtMs: 0, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailWithdrawn: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, turnOutputTokens: null, messageOutputTokens: 0, turnThinkingChars: 0, turnThinkingBlocks: 0, firstByteAtMs: null, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, heldSpawnSwitches: {}, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -196,6 +197,7 @@ function publishTailNow(seat: SeatState, dir?: string): void {
         ...(seat.firstByteAtMs !== null ? { firstByteAtMs: seat.firstByteAtMs } : {}),
         ...(seat.tailMessageId !== null ? { messageId: seat.tailMessageId } : {}),
         ...(seat.tailPhase !== null ? { phase: seat.tailPhase } : {}),
+        ...(seat.tailWithdrawn !== null ? { withdrawn: seat.tailWithdrawn } : {}),
         ...(seat.stateWord !== null ? { stateWord: seat.stateWord } : {}),
         ...(seat.stateWord === 'waiting-on-agents' ? { waitingOnAgents: seat.waitingOnAgents } : {}),
         ...(seat.fold !== null ? { fold: seat.fold } : {}),
@@ -213,6 +215,7 @@ function publishTailNow(seat: SeatState, dir?: string): void {
 
 function setSeatTail(seat: SeatState, text: string | null, dir?: string): void {
   seat.tail = text
+  if (text !== null) seat.tailWithdrawn = null
   if (text === null) {
     if (seat.tailTimer !== null) {
       clearTimeout(seat.tailTimer)
@@ -271,6 +274,7 @@ function onSeatPartialRow(seat: SeatState, row: SeatRow, dir?: string): void {
   noteSeatEvent(seat, dir)
   const messageId = typeof row.message_id === 'string' && row.message_id !== '' ? row.message_id : null
   if (row.type === 'retracted') {
+    seat.tailWithdrawn = messageId ?? seat.tailMessageId
     seat.tailMessageId = null
     seat.streamBlock = null
     seat.blockSinceMs = null
@@ -883,6 +887,7 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
       seat.firstByteAtMs = null
       seat.tailMessageId = null
       seat.tailPhase = null
+      seat.tailWithdrawn = null
       seat.stateWord = null
       seat.waitingOnAgents = 0
       seat.fold = null
@@ -935,6 +940,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   seat.firstByteAtMs = null
   seat.tailMessageId = null
   seat.tailPhase = null
+  seat.tailWithdrawn = null
   const hadWord = seat.stateWord !== null || seat.wait !== null
   seat.stateWord = null
   seat.waitingOnAgents = 0

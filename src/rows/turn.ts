@@ -61,6 +61,7 @@ import { fetchSystemPromptParts } from '../utils/queryContext.js'
 import { assertSingleRole } from '../utils/workerRole.js'
 import { flushSessionStorage, recordTranscript } from '../utils/sessionStorage.js'
 import { isEphemeralToolProgress } from '../utils/sessionStorage/paths.js'
+import { settleTranscriptMessage } from '../utils/sessionStorage/writer.js'
 import { setCwd } from '../utils/Shell.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
@@ -848,6 +849,7 @@ export class Conversation {
       if (event.kind === 'assistant_retracted') {
         const withdrawn = (event.message as AssistantMessage).message.id
         if (config.partialRows && typeof withdrawn === 'string') yield retractedRow(scope, withdrawn)
+        if (!persistenceDisabled) await settleTranscriptMessage({ ...(event.message as AssistantMessage), retracted: true })
         continue
       }
 

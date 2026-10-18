@@ -51,7 +51,7 @@ type ScriptedTurnBody =
   | { kind: 'error'; status: number; errorType: string; message: string; headers?: Record<string, string> }
   | { kind: 'hang'; deltas: string[] }
   | { kind: 'paced'; deltas: string[]; gapMs: number; stopReason?: string; startDelayMs?: number; settleDelayMs?: number }
-  | { kind: 'die'; deltas: string[] }
+  | { kind: 'die'; deltas: string[]; settled?: Array<string | { thinking: string }>; gapMs?: number }
   | {
       kind: 'paced_tool_use'
       preDeltas: string[]
@@ -674,24 +674,51 @@ export async function startFixtureApi(
         return
       }
       if (turn.kind === 'die') {
-        res.write(messageStart(`msg_fixture_${msgSeq}`))
-        res.write(
+        const settled = turn.settled ?? []
+        const dying = settled.length
+        const opening = [
+          messageStart(`msg_fixture_${msgSeq}`),
+          ...settled.flatMap((block, index) =>
+            typeof block === 'string'
+              ? [
+                  sseEvent('content_block_start', { type: 'content_block_start', index, content_block: { type: 'text', text: '' } }),
+                  sseEvent('content_block_delta', { type: 'content_block_delta', index, delta: { type: 'text_delta', text: block } }),
+                  sseEvent('content_block_stop', { type: 'content_block_stop', index }),
+                ]
+              : [signedThinkingBlock(index, block.thinking)],
+          ),
           sseEvent('content_block_start', {
             type: 'content_block_start',
-            index: 0,
+            index: dying,
             content_block: { type: 'text', text: '' },
           }),
+        ]
+        const deltaFrames = (turn.deltas ?? []).map(d =>
+          sseEvent('content_block_delta', {
+            type: 'content_block_delta',
+            index: dying,
+            delta: { type: 'text_delta', text: d },
+          }),
         )
-        for (const d of turn.deltas ?? []) {
-          res.write(
-            sseEvent('content_block_delta', {
-              type: 'content_block_delta',
-              index: 0,
-              delta: { type: 'text_delta', text: d },
-            }),
-          )
+        if (dying === 0 && !turn.gapMs) {
+          for (const frame of [...opening, ...deltaFrames]) res.write(frame)
+          res.destroy()
+          return
         }
-        res.destroy()
+        res.write(opening.join(''))
+        const gap = turn.gapMs ?? 0
+        const closeAfterMs = 150
+        if (gap === 0) {
+          res.write(deltaFrames.join(''))
+          setTimeout(() => req.socket.end(), closeAfterMs)
+        } else {
+          deltaFrames.forEach((frame, i) => {
+            setTimeout(() => {
+              if (!res.destroyed && !res.socket?.destroyed) res.write(frame)
+            }, gap * (i + 1))
+          })
+          setTimeout(() => req.socket.end(), gap * (deltaFrames.length + 1) + closeAfterMs)
+        }
         return
       }
       if (turn.kind === 'paced_tool_use') {

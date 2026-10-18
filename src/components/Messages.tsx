@@ -108,6 +108,9 @@ const EMPTY_COMPOSITION: TranscriptComposition = { collapsed: [], lookups: build
 
 type SliceAnchor = TranscriptAnchor
 
+const isFoldRow = (message: RenderableMessage): boolean =>
+  message.type === 'system' && (message as { subtype?: string }).subtype === 'compact_boundary'
+
 export function computeSliceStart(
   collapsed: RenderableMessage[],
   anchorRef: { current: SliceAnchor },
@@ -115,10 +118,13 @@ export function computeSliceStart(
   step: number = RENDER_CAP_STEP,
 ): number {
   const anchor = anchorRef.current
+  const folds = collapsed.reduce((count, message) => count + (isFoldRow(message) ? 1 : 0), 0)
   let start = 0
   if (anchor !== null) {
     const found = collapsed.findIndex(message => message.uuid === anchor.uuid)
-    if (found !== -1) {
+    if (folds > (anchor.folds ?? folds)) {
+      start = collapsed.findLastIndex(isFoldRow)
+    } else if (found !== -1) {
       start = found
     } else {
       start = Math.min(anchor.idx, Math.max(0, collapsed.length - 1))
@@ -128,7 +134,7 @@ export function computeSliceStart(
     start = collapsed.length - cap
   }
   const at = collapsed[start]
-  anchorRef.current = at ? { uuid: at.uuid, idx: start } : null
+  anchorRef.current = at ? { uuid: at.uuid, idx: start, folds } : null
   return start
 }
 

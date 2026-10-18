@@ -21,15 +21,15 @@ Mercury is source-available. See [Licence](#licence) for the production-use term
 
 ## Install
 
-Release archives are available for Apple silicon and Intel Macs, Linux x64,
-and Windows x64. Install `git` separately; each archive includes Node and
-ripgrep, so a separate Node installation is unnecessary.
+Release archives are available for Apple silicon and Intel Macs, Linux x64
+and arm64, and Windows x64 and arm64. Install `git` separately; each archive
+includes Node and ripgrep, so a separate Node installation is unnecessary.
 
 Choose one installation method:
 
 ```sh
-curl -fsSL https://mercury-cli.ai/install | sh     # macOS and Linux x64
-irm https://mercury-cli.ai/install.ps1 | iex        # Windows x64, in PowerShell 7
+curl -fsSL https://mercury-cli.ai/install | sh     # macOS and Linux (x64 and arm64)
+irm https://mercury-cli.ai/install.ps1 | iex        # Windows (x64 and arm64), in PowerShell 7
 brew install Whq02/mercury/mercury                 # Homebrew: macOS and Linux x64
 npm install -g mercury-tech-cli                    # npm; `bun install -g mercury-tech-cli` is the same package
 mise use -g npm:mercury-tech-cli                   # mise, through the npm package
@@ -694,6 +694,19 @@ Available commands include:
 - **`mercury daemon run|status|stop|restart`**: run, inspect, stop or restart
   the background daemon. Its session seats are `mercury runner` children; the
   daemon sends their prompts and hosts their permission asks.
+- **`mercury sessions delete <id>`**: delete one saved session on purpose —
+  its transcript and the records kept beside it (receipts, resume snapshot) —
+  after a question; `--yes` skips the question for scripts. A session the
+  daemon hosts now is refused, and an unknown id is refused with a hint to the
+  roster (`/sessions` inside Mercury). Saved sessions are otherwise never
+  deleted on their own.
+- **`mercury lsp list`** and **`mercury lsp install <server>`**: the
+  language-server catalogue, each server installed (with its binary) or
+  absent (with its install remedy); `install` shows a server's remedy, asks,
+  runs exactly it (`--yes` skips the question for scripts) and reports where
+  the binary landed. An unknown server is refused with the roster. Mercury
+  never installs a language server on its own; opening a file only starts a
+  server that is already installed.
 - **`mercury acp`**: serve an editor over the Agent Client Protocol, with a
   runner child for each session. `mercury bridge install` installs the
   VS Code extension; `mercury bridge status` checks it.

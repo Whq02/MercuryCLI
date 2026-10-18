@@ -8,6 +8,7 @@ prove-appearance-digit-and-config-theme.ts
 prove-atomic-session-switch.ts
 prove-chrome-hysteresis.ts
 prove-cockpit-continuity.ts
+prove-compaction-view-continues.ts
 prove-critter-idle.ts
 prove-critter-select.ts
 prove-density-budgets.ts

@@ -23,20 +23,21 @@ const check = (name: string, cond: boolean, detail = ''): void => {
 const section = (title: string): void => console.log(`\n── ${title} ──`)
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
-section('§1 the owner — four targets, the pair each ships for, the archive name, the uname map')
-check('exactly these four targets, in this order', JSON.stringify(RELEASE_TARGETS) === JSON.stringify(['linux-x64', 'macos-arm64', 'macos-x64', 'windows-x64']))
+section('§1 the owner — six targets, the pair each ships for, the archive name, the uname map')
+check('exactly these six targets, in this order', JSON.stringify(RELEASE_TARGETS) === JSON.stringify(['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64', 'windows-x64', 'windows-arm64']))
 for (const target of RELEASE_TARGETS) {
   const p = buildPlatformOf(target)
   check(`${target} round-trips through its pair (${p.platform}/${p.arch})`, releaseTargetFor(p.platform, p.arch) === target && isReleaseTarget(target))
 }
 check('darwin/x64 is the Intel Mac archive', releaseTargetFor('darwin', 'x64') === 'macos-x64')
-check('linux/arm64 and win32/arm64 have no archive', releaseTargetFor('linux', 'arm64') === null && releaseTargetFor('win32', 'arm64') === null)
-check('archive names: tar.gz on the three POSIX targets, zip on Windows', archiveNameFor('1.0.0-beta.3', 'macos-x64') === 'mercury-v1.0.0-beta.3-macos-x64.tar.gz' && archiveNameFor('1.0.0-beta.3', 'windows-x64') === 'mercury-v1.0.0-beta.3-windows-x64.zip')
+check('linux/arm64 and win32/arm64 are the two arm64 archives', releaseTargetFor('linux', 'arm64') === 'linux-arm64' && releaseTargetFor('win32', 'arm64') === 'windows-arm64')
+check('a pair no archive is published for still answers null (freebsd/x64, linux/riscv64)', releaseTargetFor('freebsd', 'x64') === null && releaseTargetFor('linux', 'riscv64') === null)
+check('archive names: tar.gz on the four POSIX targets, zip on both Windows targets', archiveNameFor('1.0.0-beta.3', 'macos-x64') === 'mercury-v1.0.0-beta.3-macos-x64.tar.gz' && archiveNameFor('1.0.0-beta.3', 'linux-arm64') === 'mercury-v1.0.0-beta.3-linux-arm64.tar.gz' && archiveNameFor('1.0.0-beta.3', 'windows-x64') === 'mercury-v1.0.0-beta.3-windows-x64.zip' && archiveNameFor('1.0.0-beta.3', 'windows-arm64') === 'mercury-v1.0.0-beta.3-windows-arm64.zip')
 check('uname map: Darwin/x86_64 → macos-x64, Darwin/arm64 → macos-arm64, Linux/x86_64 → linux-x64', releaseTargetForUname('Darwin', 'x86_64') === 'macos-x64' && releaseTargetForUname('Darwin', 'arm64') === 'macos-arm64' && releaseTargetForUname('Linux', 'x86_64') === 'linux-x64')
-check('uname map: Linux/aarch64 and FreeBSD/x86_64 have no archive', releaseTargetForUname('Linux', 'aarch64') === null && releaseTargetForUname('FreeBSD', 'x86_64') === null)
+check('uname map: Linux/aarch64 and Linux/arm64 → linux-arm64; FreeBSD/x86_64 has no archive', releaseTargetForUname('Linux', 'aarch64') === 'linux-arm64' && releaseTargetForUname('Linux', 'arm64') === 'linux-arm64' && releaseTargetForUname('FreeBSD', 'x86_64') === null)
 check('the manifest record decodes when the pair and the release agree', readBuildTargetRecord({ target: { platform: 'darwin', arch: 'x64', release: 'macos-x64', host: 'darwin-arm64' } })?.release === 'macos-x64')
 check('the manifest record is refused when the pair and the release disagree', readBuildTargetRecord({ target: { platform: 'darwin', arch: 'arm64', release: 'macos-x64', host: 'darwin-arm64' } }) === null)
-check('the manifest record decodes a pair with no archive as release null', readBuildTargetRecord({ target: { platform: 'linux', arch: 'arm64', release: null, host: 'linux-arm64' } })?.release === null)
+check('the manifest record decodes a pair with no archive as release null', readBuildTargetRecord({ target: { platform: 'linux', arch: 'riscv64', release: null, host: 'linux-riscv64' } })?.release === null)
 check('an older manifest without the record answers null', readBuildTargetRecord({ version: '1.0.0-beta.2' }) === null)
 for (const target of RELEASE_TARGETS) {
   const p = buildPlatformOf(target)
@@ -52,7 +53,7 @@ for (const target of RELEASE_TARGETS) {
   const p = buildPlatformOf(target)
   check(`${p.platform}/${p.arch} asks for ${archiveNameFor('1.2.0-beta.1', target)}`, assetNameFor('1.2.0-beta.1', p.platform, p.arch) === archiveNameFor('1.2.0-beta.1', target))
 }
-check('a pair with no archive answers null and the note names the four archives', assetNameFor('1.2.0-beta.1', 'linux', 'arm64') === null && platformNote('linux', 'arm64').includes('macos-x64') && platformNote('linux', 'arm64').includes('linux/arm64'))
+check('a pair with no archive answers null and the note names the six archives', assetNameFor('1.2.0-beta.1', 'linux', 'riscv64') === null && platformNote('linux', 'riscv64').includes('macos-x64') && platformNote('linux', 'riscv64').includes('linux-arm64') && platformNote('linux', 'riscv64').includes('windows-arm64') && platformNote('linux', 'riscv64').includes('linux/riscv64'))
 check('the channel no longer says the Intel Mac has no archive', !read('src/services/privateChannel/channelCore.ts').includes('has no channel archive'))
 
 section('§3 the packager — the same vocabulary, the declared target held')
@@ -174,8 +175,8 @@ section('§7 the release workflow — four arms, the Intel one cross-packaged an
   }
   const pkg = rowsOf('package')
   const triple = (r: Record<string, string>): string => `${r.os}/${r.target}/${r.node_pack}${r.cross ? '/cross' : ''}${r.rust_targets ? `/${r.rust_targets}` : ''}`
-  check('the package matrix has FOUR arms', pkg.length === 4, pkg.map(triple).join(' · '))
-  check('the three existing arms are unchanged (os · target · node_pack, no cross flag)', JSON.stringify(pkg.filter(r => !r.cross).map(triple)) === JSON.stringify(['ubuntu-latest/linux-x64/linux-x64', 'macos-14/macos-arm64/darwin-arm64', 'windows-latest/windows-x64/win-x64']))
+  check('the package matrix has SIX arms', pkg.length === 6, pkg.map(triple).join(' · '))
+  check('the five native arms (os · target · node_pack, no cross flag): the three of old and the two arm64 runners', JSON.stringify(pkg.filter(r => !r.cross).map(triple)) === JSON.stringify(['ubuntu-latest/linux-x64/linux-x64', 'macos-14/macos-arm64/darwin-arm64', 'windows-latest/windows-x64/win-x64', 'ubuntu-24.04-arm/linux-arm64/linux-arm64', 'windows-11-arm/windows-arm64/win-arm64']))
   const intel = pkg.find(r => r.target === 'macos-x64')
   check('the Intel arm is cross-packaged on the arm64 runner with the darwin-x64 runtime and the x86_64-apple-darwin rustup target', intel !== undefined && intel.os === 'macos-14' && intel.node_pack === 'darwin-x64' && intel.cross === 'true' && intel.rust_targets === 'x86_64-apple-darwin', intel ? triple(intel) : 'absent')
   check('every arm\'s node pack is the owner\'s projection of its target', pkg.every(r => isReleaseTarget(r.target ?? '') && nodePackPlatform(buildPlatformOf(r.target as never).platform, buildPlatformOf(r.target as never).arch) === r.node_pack))
@@ -191,7 +192,7 @@ section('§7 the release workflow — four arms, the Intel one cross-packaged an
   check('a cross arm ensures Rosetta 2 before the packager\'s smoke', /if: matrix\.cross\n\s+run: \|\n\s+arch -x86_64 \/usr\/bin\/true 2>\/dev\/null \|\| sudo softwareupdate --install-rosetta --agree-to-license\n\s+arch -x86_64 \/usr\/bin\/true/.test(wf))
   check('the vendor cache key covers the platform-package fetch and bun.lock', wf.includes("'scripts/vendor/fetch-platform-packages.ts'") && wf.includes("'bun.lock'"))
   const gate = rowsOf('bridge-gate')
-  check('the bridge gate has the same four arms', JSON.stringify(gate.map(r => r.target)) === JSON.stringify([...RELEASE_TARGETS]), gate.map(r => r.target).join(', '))
+  check('the bridge gate has the same six arms', JSON.stringify([...gate.map(r => r.target)].sort()) === JSON.stringify([...RELEASE_TARGETS].sort()), gate.map(r => r.target).join(', '))
   check('the bridge gate drives the Intel archive under Rosetta and fails on a skip', gate.find(r => r.target === 'macos-x64')?.cross === 'true' && wf.includes('bun run scripts/updater/prove-cross-archive-rosetta.ts --target ${{ matrix.target }} --require'))
   check('the previous-reader bridge gates the arm\'s own target', wf.includes('bun run scripts/updater/prove-release-bridge.ts --target ${{ matrix.target }}'))
   check('the release publishes every tar.gz and zip (the Intel archive rides the same glob)', wf.includes('assets/mercury-*.tar.gz assets/mercury-*.zip assets/SHA256SUMS.txt'))
@@ -206,7 +207,7 @@ section('§8 the words — the archive README, the release page, the compatibili
   const intelItem = /\*\*The Intel Mac build\*\*([\s\S]*?)(?=\n\d+\. \*\*|\n\n)/.exec(notes)?.[1] ?? ''
   check('the beta.3 page carries the Intel Mac build as done, naming the archive', intelItem.includes('`macos-x64`') && /\bDone\.\s*$/.test(intelItem) && !/In progress\./.test(intelItem), intelItem.slice(-80))
   const compat = read('docs/COMPATIBILITY.md')
-  check('the compatibility table carries the four archives with the Intel row', compat.includes('| `macos-x64` |') && compat.includes('| `macos-arm64` |') && compat.includes('| `linux-x64` |') && compat.includes('| `windows-x64` |'))
+  check('the compatibility table carries the six archives with the Intel row and the two arm64 rows', compat.includes('| `macos-x64` |') && compat.includes('| `macos-arm64` |') && compat.includes('| `linux-x64` |') && compat.includes('| `windows-x64` |') && compat.includes('| `linux-arm64` |') && compat.includes('| `windows-arm64` |'))
 }
 
 section('§9 the Windows archive carries the bundled shell engine — the contract, the packager, the verifier, the workflow')

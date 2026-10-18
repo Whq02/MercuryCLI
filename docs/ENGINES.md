@@ -233,9 +233,11 @@ third-party models (Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, Grok and
 more) at the Portal's own `vendor/model` slugs, plus `~vendor/<name>-latest`
 rows that always point at the newest model of a family. Mercury persists
 these ids as `nous/<vendor>/<model>`; the namespace detaches for the wire.
-Connect through `/logins nous` or `NOUS_API_KEY`; the
-key is made at `portal.nousresearch.com` after adding credits or a
-subscription, and `/accounts` manages the stored key. The rows come only
+Connect through `/logins nous`: sign in with your Nous Portal account (a
+browser approval, the device sign-in described below), or paste an API key
+made at `portal.nousresearch.com` after adding credits or a subscription;
+`NOUS_API_KEY` pins a key for a session, and `/accounts` shows and removes
+the sign-in or the stored key. The rows come only
 from the account's live `GET /v1/models` list: `/model` paints the Portal's
 recommended agentic rows first, then the catalogue's own order, with a door
 to the full list behind a filter; a typed `nous/<vendor>/<model>` id is
@@ -257,12 +259,23 @@ endpoint, `GET https://portal.nousresearch.com/api/oauth/account`: when it
 resolves the key it states the plan, the usable credits, the subscription and
 purchased credits and any organisation spend cap, and `/usage` paints them
 with their feed and age; when it does not, the reader note says what the
-endpoint answered and points at the Portal. The Portal's documented
-authentication for third-party clients is the API key (its OpenAPI spec,
-"Option 1: Using API keys & account credits", read **2026-10-09**); its
-sign-in flow is reserved for Nous's own clients.
-Sources: [the Portal OpenAPI spec](https://portal.nousresearch.com/api/openapi)
-and [the live model list](https://inference-api.nousresearch.com/v1/models).
+endpoint answered and points at the Portal. The sign-in is the Portal's
+OAuth device flow: Mercury asks
+`POST https://portal.nousresearch.com/api/oauth/device/code` for a device
+code, presenting the Portal client id that Nous's own Hermes agent presents
+(`hermes-cli`, scope `inference:invoke`, read from
+`hermes_cli/auth_constants.py` in the NousResearch/hermes-agent repository
+at its release **0.22.2** as of **2026-10-17**; Mercury re-reads that file
+once a day and presents a newer id or scope when it changes), you approve in
+the browser at the address the Portal names, Mercury polls
+`POST /api/oauth/token` with the device-code grant, keeps the tokens
+auth-scoped and refreshes them with the refresh token, and requests then
+carry that sign-in's access token. The API key is the other road, the one
+the Portal's OpenAPI spec documents as "Option 1: Using API keys & account
+credits" (read **2026-10-09**).
+Sources: [the Portal OpenAPI spec](https://portal.nousresearch.com/api/openapi),
+[the live model list](https://inference-api.nousresearch.com/v1/models) and
+[the Hermes agent's auth constants](https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/auth_constants.py).
 
 OpenCode Zen (opencode.ai) is a model gateway: one API key, pasted, reaches
 every model the gateway lists, billed at the vendor's pay-as-you-go prices
