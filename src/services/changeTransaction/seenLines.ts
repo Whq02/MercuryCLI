@@ -275,3 +275,83 @@ export function dropSeenLines(owner: OwnerKey, path: string): void {
 export function _resetSeenLinesForTesting(): void {
   store.clearAllForShutdown()
 }
+
+const NUMBERED_LINE = /^(\d+)(?:#[0-9a-f]+)?\t([\s\S]*)$/
+const TRUNCATED_TAIL = /… \[truncated \d+ characters\]$/
+
+function shownLinesOf(text: string): Map<number, string> {
+  const shown = new Map<number, string>()
+  for (const line of text.split('\n')) {
+    const match = NUMBERED_LINE.exec(line)
+    if (match === null) continue
+    const body = match[2]!
+    if (TRUNCATED_TAIL.test(body)) continue
+    shown.set(Number(match[1]), body)
+  }
+  return shown
+}
+
+function textOfResult(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content.map(block => (typeof (block as { text?: unknown }).text === 'string' ? (block as { text: string }).text : '')).join('\n')
+}
+
+export function rebuildSeenLinesFromTranscript(owner: OwnerKey, messages: ReadonlyArray<unknown>): { files: number; lines: number } {
+  const pathOfUse = new Map<string, { path: string; tool: string; content?: string }>()
+  const summary = { files: 0, lines: 0 }
+  const touched = new Set<string>()
+  const currentLines = new Map<string, { generation: string; lines: string[] } | null>()
+  const linesOf = (path: string): { generation: string; lines: string[] } | null => {
+    if (currentLines.has(path)) return currentLines.get(path)!
+    let state: { generation: string; lines: string[] } | null = null
+    try {
+      const generation = fileGeneration(path)
+      if (generation !== null) state = { generation, lines: readFileSync(path, 'utf8').split('\n') }
+    } catch {
+      state = null
+    }
+    currentLines.set(path, state)
+    return state
+  }
+  const credit = (path: string, shown: Map<number, string>): void => {
+    const state = linesOf(path)
+    if (state === null || shown.size === 0) return
+    for (const [line, body] of shown) {
+      if (line < 1 || line > state.lines.length || state.lines[line - 1] !== body) continue
+      recordSeenLines(owner, path, state.generation, line, 1)
+      summary.lines++
+      touched.add(path)
+    }
+  }
+  for (const row of messages) {
+    const message = row as { type?: string; message?: { content?: unknown } }
+    if (message.type !== 'assistant' && message.type !== 'user') continue
+    const content = message.message?.content
+    if (!Array.isArray(content)) continue
+    for (const block of content as Array<{ type?: string; id?: string; name?: string; input?: Record<string, unknown>; tool_use_id?: string; content?: unknown; is_error?: boolean }>) {
+      if (block.type === 'tool_use' && typeof block.id === 'string' && typeof block.name === 'string') {
+        const input = block.input ?? {}
+        const path = typeof input.file_path === 'string' ? input.file_path : typeof input.notebook_path === 'string' ? input.notebook_path : undefined
+        if (path === undefined) continue
+        pathOfUse.set(block.id, { path, tool: block.name, ...(block.name === 'Write' && typeof input.content === 'string' ? { content: input.content } : {}) })
+        continue
+      }
+      if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string' || block.is_error === true) continue
+      const use = pathOfUse.get(block.tool_use_id)
+      if (use === undefined) continue
+      if (use.tool === 'Write' && use.content !== undefined) {
+        const state = linesOf(use.path)
+        if (state !== null && state.lines.join('\n') === use.content) {
+          recordWholeFileSeen(owner, use.path, state.generation, use.content)
+          summary.lines += state.lines.length
+          touched.add(use.path)
+        }
+        continue
+      }
+      credit(use.path, shownLinesOf(textOfResult(block.content)))
+    }
+  }
+  summary.files = touched.size
+  return summary
+}

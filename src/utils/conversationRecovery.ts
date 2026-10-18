@@ -1,3 +1,6 @@
+import { rebuildSeenLinesFromTranscript } from '../services/changeTransaction/seenLines.js'
+import { logForDebugging } from './debug.js'
+import { processMainOwner } from '../services/run/resolveOwner.js'
 import type { UUID } from 'crypto'
 import { basename, relative } from 'node:path'
 
@@ -491,6 +494,12 @@ export async function loadConversationForResume(
     if (!hasConversationTurn(asMessages)) return null
     restoreSkillStateFromMessages(asMessages)
     restoreBoundPrefixFromMessages(asMessages)
+    try {
+      const rebuilt = rebuildSeenLinesFromTranscript(processMainOwner(), asMessages)
+      if (rebuilt.files > 0) logForDebugging(`read ledger: ${rebuilt.lines} line(s) of ${rebuilt.files} file(s) this session read or wrote before the restart still read the same and count as read`)
+    } catch (error) {
+      logForDebugging(`read ledger: the transcript could not be read back for the seen lines (${error instanceof Error ? error.message : String(error)})`)
+    }
     const { messages: deserialized, turnInterruptionState } = deserializeMessagesWithInterruptDetection(asMessages)
     const recordedModel = getEngineModelOverride() === undefined ? facts.model : undefined
     const hookMessages = await runSessionStartHooks('resumed', {

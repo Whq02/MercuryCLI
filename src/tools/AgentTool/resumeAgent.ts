@@ -1,4 +1,6 @@
 
+import { rebuildSeenLinesFromTranscript } from '../../services/changeTransaction/seenLines.js'
+import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { stat, utimes } from 'node:fs/promises'
 import { getEngineModel } from '../../utils/model/model.js'
 import { getAgentModel } from '../../utils/model/agent.js'
@@ -143,6 +145,12 @@ export async function resumeAgentBackground(args: {
     }
   }
   const restoredKey = restoreBoundPrefixFromMessages(transcript.messages, { rosterOnly: true })
+  try {
+    const rebuilt = rebuildSeenLinesFromTranscript(processOwnerForLane(agentId), transcript.messages)
+    if (rebuilt.files > 0) logForDebugging(`read ledger: crewmate ${agentId} read or wrote ${rebuilt.lines} line(s) of ${rebuilt.files} file(s) before this resume; they still read the same and count as read`)
+  } catch (error) {
+    logForDebugging(`read ledger: crewmate ${agentId}'s transcript could not be read back for the seen lines (${error instanceof Error ? error.message : String(error)})`)
+  }
   const restoredRoster = pendingToolRosterRestore()
   const structuredDefinition = restoredKey !== null && restoredRoster?.key === restoredKey
     ? restoredRoster.marks.find(mark => mark.name === STRUCTURED_OUTPUT_TOOL_NAME)?.definition
