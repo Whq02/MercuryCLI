@@ -6,7 +6,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { qwenAccountIdentity, qwenBaseOverride, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenProbeEndpoints, qwenSigninActive, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredential, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
-import { qwenPlanBase, qwenStoredTokens } from './qwenOauth.js'
+import { QWEN_SIGNIN_EXPIRED_LINE, qwenPlanBase, qwenSigninRefusal, qwenSigninRefusalNote, qwenStoredTokens } from './qwenOauth.js'
 import { QWEN_DISPLAY_PINS, QWEN_OBSERVED_AT, isQwenTextModelId, qwenDisplayName, qwenDisplayPin, qwenEffortVocabulary, qwenPreservesThinking, qwenThinkingDial, type QwenThinkingDial } from './qwenPins.js'
 
 export interface QwenLiveModel {
@@ -102,6 +102,11 @@ export interface QwenCatalogueSnapshot {
 
 const cache = new Map<string, QwenCatalogueSnapshot>()
 const inFlight = new Map<string, Promise<QwenCatalogueSnapshot | null>>()
+export function qwenCatalogueIdentity(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const identity = identityOf(env)
+  return identity === 'none' ? undefined : identity
+}
+
 function identityOf(env: NodeJS.ProcessEnv): string {
   if (qwenSigninActive(env)) return `signin:${qwenAccountIdentity(env)}:plan`
   const key = resolveQwenCredentialSnapshot(env)
@@ -149,7 +154,8 @@ export function refreshQwenCatalogue(opts?: { force?: boolean; fetchImpl?: typeo
       if (signin) {
         const credential = await resolveQwenCredential({ env, ...fetchImpl })
         if (credential === undefined) {
-          const snapshot: QwenCatalogueSnapshot = { keySource: 'signin', models: [], otherLines: 0, fetchedAtMs: 0, lastAttemptAtMs: now(), lastError: 'Model Studio refused the credential: the Qwen account sign-in is expired or revoked' }
+          const refusal = qwenSigninRefusal()
+          const snapshot: QwenCatalogueSnapshot = { keySource: 'signin', models: [], otherLines: 0, fetchedAtMs: 0, lastAttemptAtMs: now(), lastError: `the plan refused the credential: ${refusal ? qwenSigninRefusalNote(refusal) : QWEN_SIGNIN_EXPIRED_LINE}` }
           cache.set(identity, snapshot)
           return snapshot
         }

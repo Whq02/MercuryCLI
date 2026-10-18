@@ -119,8 +119,7 @@ import { getCachedCerebrasCatalogue, refreshCerebrasCatalogue, type CerebrasCata
 import { cerebrasApiBase, resolveCerebrasApiKey } from '../../services/providers/cerebras/cerebrasAccounts.js'
 import { getCachedFireworksCatalogue, refreshFireworksCatalogue, type FireworksCatalogueSnapshot } from '../../services/providers/fireworks/fireworksCatalogue.js'
 import { fireworksApiBase, resolveFireworksApiKey } from '../../services/providers/fireworks/fireworksAccounts.js'
-import { getCachedQwenCatalogue, refreshQwenCatalogue, type QwenCatalogueSnapshot } from '../../services/providers/qwen/qwenCatalogue.js'
-import { qwenApiBase, resolveQwenApiKey } from '../../services/providers/qwen/qwenAccounts.js'
+import { getCachedQwenCatalogue, qwenCatalogueIdentity, refreshQwenCatalogue, type QwenCatalogueSnapshot } from '../../services/providers/qwen/qwenCatalogue.js'
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
 import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../services/providers/local/localDiscovery.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
@@ -468,10 +467,7 @@ const FIREWORKS_ROAD: CatalogueRoad<FireworksCatalogueSnapshot> = {
 }
 const QWEN_ROAD: CatalogueRoad<QwenCatalogueSnapshot> = {
   family: 'Qwen',
-  identity: () => {
-    const key = resolveQwenApiKey()
-    return key ? `${key.source}:${credentialFingerprint(key.key)}:${qwenApiBase()}` : undefined
-  },
+  identity: () => qwenCatalogueIdentity(),
   cached: () => getCachedQwenCatalogue(),
   refresh: () => refreshQwenCatalogue({ force: true }),
   populated: snapshot => snapshot.fetchedAtMs > 0,
