@@ -1833,21 +1833,10 @@ async function opTypeDefinition(env: OpEnv): Promise<MercuryLspOpOutput> {
   }
 }
 
-async function opServerStatus(env: OpEnv): Promise<MercuryLspOpOutput> {
-  const rows = statusRowsFor(env.manager, env.input.filePath ? env.absolutePath : undefined)
-  if (rows.length === 0) {
-    return {
-      result: 'No LSP servers are configured for this workspace.',
-      resultCount: 0,
-      fileCount: 0,
-      effect: {
-        outcome: 'no-change',
-        changedPaths: [],
-        evidence: 'no servers configured',
-      },
-    }
-  }
-  const lines = rows.map(row => {
+export const NO_LSP_SERVERS_CONFIGURED = 'No LSP servers are configured for this workspace.'
+
+export function serverStatusLines(manager: LSPServerManager, filePath?: string): string[] {
+  return statusRowsFor(manager, filePath).map(row => {
     const claims = row.claimsFile ? ' · claims this file' : ''
     const impl = row.implementation
       ? ` · impl: ${row.implementation.source}${row.implementation.version ? ` ${row.implementation.version}` : ''}`
@@ -1862,8 +1851,25 @@ async function opServerStatus(env: OpEnv): Promise<MercuryLspOpOutput> {
         : '    capabilities: (none until running)'
     return `${row.name} — ${row.state} (gen ${row.generation}, restarts ${row.restartCount})${claims}${impl}${lastError}\n${capabilitiesLine}`
   })
+}
+
+async function opServerStatus(env: OpEnv): Promise<MercuryLspOpOutput> {
+  const filePath = env.input.filePath ? env.absolutePath : undefined
+  const rows = statusRowsFor(env.manager, filePath)
+  if (rows.length === 0) {
+    return {
+      result: NO_LSP_SERVERS_CONFIGURED,
+      resultCount: 0,
+      fileCount: 0,
+      effect: {
+        outcome: 'no-change',
+        changedPaths: [],
+        evidence: 'no servers configured',
+      },
+    }
+  }
   return {
-    result: lines.join('\n'),
+    result: serverStatusLines(env.manager, filePath).join('\n'),
     resultCount: rows.length,
     fileCount: 0,
     effect: {
