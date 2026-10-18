@@ -34,27 +34,27 @@ const run = (...args: string[]) => {
   const result = spawnSync('node', [SCRIPT, ...args], { encoding: 'utf8', timeout: 60_000 })
   return { rc: result.status ?? -1, out: `${result.stdout}${result.stderr}` }
 }
-const folder = join(out, 'manifests', 'm', 'MercuryCLI', 'Mercury', VERSION)
+const folder = join(out, 'manifests', 'm', 'MercuryCLI', 'MercuryCLI', VERSION)
 const read = (name: string): string => readFileSync(join(folder, name), 'utf8')
 
 section('§1 the manifests a release yields: three files in the winget-pkgs layout, from the release\'s checksum file')
 {
   const made = run('--version', VERSION, '--sums', sumsPath, '--out', out)
   check('the script exits 0 and names what it wrote', made.rc === 0 && made.out.includes('wrote 3 manifests') && made.out.includes(`x64: mercury-v${VERSION}-windows-x64.zip sha256 ${X64}`) && made.out.includes(`arm64: mercury-v${VERSION}-windows-arm64.zip sha256 ${ARM}`), made.out)
-  for (const name of ['MercuryCLI.Mercury.yaml', 'MercuryCLI.Mercury.installer.yaml', 'MercuryCLI.Mercury.locale.en-US.yaml']) {
-    check(`${name} exists under manifests/m/MercuryCLI/Mercury/${VERSION}`, existsSync(join(folder, name)))
+  for (const name of ['MercuryCLI.MercuryCLI.yaml', 'MercuryCLI.MercuryCLI.installer.yaml', 'MercuryCLI.MercuryCLI.locale.en-US.yaml']) {
+    check(`${name} exists under manifests/m/MercuryCLI/MercuryCLI/${VERSION}`, existsSync(join(folder, name)))
   }
-  const installer = read('MercuryCLI.Mercury.installer.yaml')
-  check('the installer manifest names the package, the version, the zip with its nested portable launcher and the command alias', installer.includes('PackageIdentifier: MercuryCLI.Mercury') && installer.includes(`PackageVersion: ${VERSION}`) && installer.includes('InstallerType: zip') && installer.includes('NestedInstallerType: portable') && installer.includes('RelativeFilePath: mercury\\mercury.cmd') && installer.includes('PortableCommandAlias: mercury'), installer)
+  const installer = read('MercuryCLI.MercuryCLI.installer.yaml')
+  check('the installer manifest names the package, the version, the zip with its nested portable launcher and the command alias', installer.includes('PackageIdentifier: MercuryCLI.MercuryCLI') && installer.includes(`PackageVersion: ${VERSION}`) && installer.includes('InstallerType: zip') && installer.includes('NestedInstallerType: portable') && installer.includes('RelativeFilePath: mercury\\mercury.cmd') && installer.includes('PortableCommandAlias: mercury'), installer)
   check('one installer per Windows architecture, each with the release asset url and the hash in upper-case hex', installer.includes('- Architecture: x64') && installer.includes(`InstallerUrl: https://github.com/Whq02/MercuryCLI/releases/download/v${VERSION}/mercury-v${VERSION}-windows-x64.zip`) && installer.includes(`InstallerSha256: ${X64.toUpperCase()}`) && installer.includes('- Architecture: arm64') && installer.includes(`InstallerSha256: ${ARM.toUpperCase()}`), installer)
   check('no switches: a zip of a portable needs none, and none are written', !/InstallerSwitches/.test(installer))
-  const version = read('MercuryCLI.Mercury.yaml')
+  const version = read('MercuryCLI.MercuryCLI.yaml')
   check('the version manifest names the default locale and its type', version.includes('DefaultLocale: en-US') && version.includes('ManifestType: version') && version.includes('ManifestVersion: 1.9.0'))
-  const locale = read('MercuryCLI.Mercury.locale.en-US.yaml')
-  check('the locale manifest carries the identity the owner set for every public page: publisher and name "Mercury CLI", the site, the licence, the moniker', locale.includes('Publisher: Mercury CLI') && locale.includes('PackageName: Mercury CLI') && locale.includes('PublisherUrl: https://mercury-cli.ai') && locale.includes('License: Business Source License 1.1 (BUSL-1.1)') && locale.includes('Moniker: mercury') && locale.includes(`ReleaseNotesUrl: https://github.com/Whq02/MercuryCLI/releases/tag/v${VERSION}`), locale)
+  const locale = read('MercuryCLI.MercuryCLI.locale.en-US.yaml')
+  check('the locale manifest carries the identity the owner set for every public page: publisher and name "Mercury CLI", the site, the licence, the moniker', locale.includes('Publisher: Mercury CLI') && locale.includes('PackageName: Mercury CLI') && locale.includes('PublisherUrl: https://mercury-cli.ai') && locale.includes('License: Business Source License 1.1 (BUSL-1.1)') && locale.includes('Moniker: mercurycli') && locale.includes('- mercury-cli') && locale.includes(`ReleaseNotesUrl: https://github.com/Whq02/MercuryCLI/releases/tag/v${VERSION}`), locale)
   check('a description with a colon is quoted (valid YAML)', /ShortDescription: "Mercury CLI: /.test(locale), locale)
   const again = run('--version', VERSION, '--sums', sumsPath, '--out', join(scratch, 'again'))
-  const twin = readFileSync(join(scratch, 'again', 'manifests', 'm', 'MercuryCLI', 'Mercury', VERSION, 'MercuryCLI.Mercury.installer.yaml'), 'utf8')
+  const twin = readFileSync(join(scratch, 'again', 'manifests', 'm', 'MercuryCLI', 'MercuryCLI', VERSION, 'MercuryCLI.MercuryCLI.installer.yaml'), 'utf8')
   check('control: the same release yields byte-identical manifests on a second run', again.rc === 0 && twin === installer)
 }
 
@@ -62,7 +62,7 @@ section('§2 --check: green against the release, red when a manifest drifts, whe
 {
   const green = run('--version', VERSION, '--sums', sumsPath, '--out', out, '--check')
   check('--check exits 0 against the checksum file the manifests came from', green.rc === 0 && green.out.includes('matches the release'), green.out)
-  const installerPath = join(folder, 'MercuryCLI.Mercury.installer.yaml')
+  const installerPath = join(folder, 'MercuryCLI.MercuryCLI.installer.yaml')
   const original = readFileSync(installerPath, 'utf8')
   writeFileSync(installerPath, original.replace(X64.toUpperCase(), 'F'.repeat(64)))
   const drifted = run('--version', VERSION, '--sums', sumsPath, '--out', out, '--check')
@@ -72,10 +72,10 @@ section('§2 --check: green against the release, red when a manifest drifts, whe
   writeFileSync(movedSums, sums.replace(X64, 'e'.repeat(64)))
   const moved = run('--version', VERSION, '--sums', movedSums, '--out', out, '--check')
   check('a release whose archive hash moved makes --check exit 1 (the manifest no longer matches the current release)', moved.rc === 1, moved.out)
-  rmSync(join(folder, 'MercuryCLI.Mercury.yaml'))
+  rmSync(join(folder, 'MercuryCLI.MercuryCLI.yaml'))
   const missing = run('--version', VERSION, '--sums', sumsPath, '--out', out, '--check')
-  check('a missing manifest file makes --check exit 1 and name it', missing.rc === 1 && missing.out.includes('missing') && missing.out.includes('MercuryCLI.Mercury.yaml'), missing.out)
-  check('--check wrote nothing (the missing file stays missing)', !existsSync(join(folder, 'MercuryCLI.Mercury.yaml')))
+  check('a missing manifest file makes --check exit 1 and name it', missing.rc === 1 && missing.out.includes('missing') && missing.out.includes('MercuryCLI.MercuryCLI.yaml'), missing.out)
+  check('--check wrote nothing (the missing file stays missing)', !existsSync(join(folder, 'MercuryCLI.MercuryCLI.yaml')))
 }
 
 section('§3 refusals: no Windows archive in the checksum file, a version or id that is not one, a checksum file that is not there, a malformed hash line')
