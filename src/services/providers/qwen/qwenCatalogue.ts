@@ -5,8 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
-import { qwenAccountIdentity, qwenBaseOverride, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenListAnswersEveryCaller, qwenProbeLane, qwenSigninActive, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredential, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
-import { QWEN_SIGNIN_EXPIRED_LINE, qwenPlanBase, qwenSigninRefusal, qwenSigninRefusalNote, qwenStoredTokens } from './qwenOauth.js'
+import { qwenBaseOverride, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenListAnswersEveryCaller, qwenProbeLane, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
 import { QWEN_DISPLAY_PINS, QWEN_OBSERVED_AT, isQwenTextModelId, qwenDisplayName, qwenDisplayPin, qwenEffortVocabulary, qwenPinWireId, qwenPinsFor, qwenPreservesThinking, qwenThinkingDial, type QwenPinScope, type QwenThinkingDial } from './qwenPins.js'
 
 export interface QwenLiveModel {
@@ -144,13 +143,12 @@ export function qwenCatalogueIdentity(env: NodeJS.ProcessEnv = process.env): str
 }
 
 function identityOf(env: NodeJS.ProcessEnv): string {
-  if (qwenSigninActive(env)) return `signin:${qwenAccountIdentity(env)}:plan`
   const key = resolveQwenCredentialSnapshot(env)
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${qwenBaseOverride(env) ?? 'bound'}` : 'none'
 }
 
 export function getCachedQwenCatalogue(env: NodeJS.ProcessEnv = process.env): QwenCatalogueSnapshot | null {
-  return resolveQwenCredentialSnapshot(env) || qwenSigninActive(env) ? cache.get(identityOf(env)) ?? null : null
+  return resolveQwenCredentialSnapshot(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
 const EMPTY_IDS: ReadonlySet<string> = new Set()
@@ -175,11 +173,10 @@ export function qwenListedModel(snapshot: QwenCatalogueSnapshot | null, id: stri
 export function refreshQwenCatalogue(opts?: { force?: boolean; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<QwenCatalogueSnapshot | null> {
   const env = opts?.env ?? process.env
   const now = opts?.now ?? Date.now
-  const signin = qwenSigninActive(env)
-  const key = signin ? undefined : resolveQwenCredentialSnapshot(env)
+  const key = resolveQwenCredentialSnapshot(env)
   const identity = identityOf(env)
-  const cached = key || signin ? cache.get(identity) ?? null : null
-  if ((!key && !signin) || !catalogueTrafficVerdict('qwen', env).allowed) return Promise.resolve(cached)
+  const cached = key ? cache.get(identity) ?? null : null
+  if (!key || !catalogueTrafficVerdict('qwen', env).allowed) return Promise.resolve(cached)
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
   if (!opts?.force && cached && now() - anchor < (cached.lastError ? 10_000 : 300_000)) return Promise.resolve(cached)
   const running = inFlight.get(identity)
@@ -187,45 +184,31 @@ export function refreshQwenCatalogue(opts?: { force?: boolean; fetchImpl?: typeo
   const fetchImpl = opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}
   const work = (async (): Promise<QwenCatalogueSnapshot | null> => {
     try {
-      if (signin) {
-        const credential = await resolveQwenCredential({ env, ...fetchImpl })
-        if (credential === undefined) {
-          const refusal = qwenSigninRefusal()
-          const snapshot: QwenCatalogueSnapshot = { keySource: 'signin', models: [], otherLines: 0, fetchedAtMs: 0, lastAttemptAtMs: now(), lastError: `the plan refused the credential: ${refusal ? qwenSigninRefusalNote(refusal) : QWEN_SIGNIN_EXPIRED_LINE}` }
-          cache.set(identity, snapshot)
-          return snapshot
-        }
-        const planBase = qwenPlanBase(qwenStoredTokens(), env)
-        const result = await fetchQwenLiveModels({ baseUrl: planBase, key: credential.apiKey, env, ...fetchImpl })
-        const snapshot: QwenCatalogueSnapshot = { keySource: 'signin', baseUrl: planBase, endpointLabel: 'the Qwen account plan', models: result.models, otherLines: result.otherLines, fetchedAtMs: now() }
-        cache.set(identity, snapshot)
-        return snapshot
-      }
       const bound = qwenBoundBase(env)
       if (bound !== undefined) {
-        const result = await fetchQwenLiveModels({ baseUrl: bound, key: key!.key, env, ...fetchImpl })
-        const snapshot: QwenCatalogueSnapshot = { keySource: key!.source, baseUrl: bound, endpointLabel: qwenEndpointLabelOf(bound, env), models: result.models, otherLines: result.otherLines, fetchedAtMs: now() }
+        const result = await fetchQwenLiveModels({ baseUrl: bound, key: key.key, env, ...fetchImpl })
+        const snapshot: QwenCatalogueSnapshot = { keySource: key.source, baseUrl: bound, endpointLabel: qwenEndpointLabelOf(bound, env), models: result.models, otherLines: result.otherLines, fetchedAtMs: now() }
         cache.set(identity, snapshot)
         return snapshot
       }
-      const probe = await probeQwenEndpoints({ key: key!.key, env, ...fetchImpl })
+      const probe = await probeQwenEndpoints({ key: key.key, env, ...fetchImpl })
       if (probe.kind === 'bound') {
-        rememberQwenBoundBase(key!.key, probe.baseUrl)
-        const snapshot: QwenCatalogueSnapshot = { keySource: key!.source, baseUrl: probe.baseUrl, endpointLabel: probe.endpoint.label, models: probe.models, otherLines: probe.otherLines, fetchedAtMs: now() }
+        rememberQwenBoundBase(key.key, probe.baseUrl)
+        const snapshot: QwenCatalogueSnapshot = { keySource: key.source, baseUrl: probe.baseUrl, endpointLabel: probe.endpoint.label, models: probe.models, otherLines: probe.otherLines, fetchedAtMs: now() }
         cache.set(identity, snapshot)
         return snapshot
       }
       const snapshot: QwenCatalogueSnapshot = {
-        keySource: key!.source, models: [], otherLines: 0, fetchedAtMs: 0, lastAttemptAtMs: now(),
+        keySource: key.source, models: [], otherLines: 0, fetchedAtMs: 0, lastAttemptAtMs: now(),
         lastError: probe.kind === 'refused' ? `Model Studio refused the credential on every endpoint: ${probe.words}` : probe.words,
       }
       cache.set(identity, snapshot)
       return snapshot
     } catch (error) {
       const refused = error instanceof QwenCatalogueHttpError && error.refused
-      const secret = key?.key ?? qwenStoredTokens()?.accessToken ?? ''
+      const secret = key.key
       const snapshot: QwenCatalogueSnapshot = {
-        keySource: key?.source ?? 'signin', ...(cached?.baseUrl !== undefined ? { baseUrl: cached.baseUrl, endpointLabel: cached.endpointLabel } : {}),
+        keySource: key.source, ...(cached?.baseUrl !== undefined ? { baseUrl: cached.baseUrl, endpointLabel: cached.endpointLabel } : {}),
         models: refused ? [] : cached?.models ?? [], otherLines: cached?.otherLines ?? 0, fetchedAtMs: refused ? 0 : cached?.fetchedAtMs ?? 0,
         lastAttemptAtMs: now(), lastError: secret ? (error instanceof Error ? error.message : String(error)).split(secret).join('[redacted]') : (error instanceof Error ? error.message : String(error)),
       }
@@ -250,7 +233,6 @@ export interface QwenCatalogueRow {
 export type QwenCatalogueSource = { kind: 'live'; count: number; otherLines: number; fetchedAtMs: number } | { kind: 'plan'; count: number; fetchedAtMs: number } | { kind: 'pins' } | { kind: 'unread' }
 
 export function qwenPinScope(env: NodeJS.ProcessEnv = process.env, snapshot: QwenCatalogueSnapshot | null = getCachedQwenCatalogue(env)): QwenPinScope {
-  if (snapshot ? snapshot.keySource === 'signin' : qwenSigninActive(env)) return 'account-plan'
   const base = snapshot?.baseUrl ?? qwenBoundBase(env)
   return base !== undefined && qwenListAnswersEveryCaller(base, env) ? 'coding-plan' : 'pay-as-you-go'
 }

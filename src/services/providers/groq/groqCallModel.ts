@@ -7,6 +7,7 @@ import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile }
 import { streamCompatChat, type CompatStreamOptions, type CompatStreamEvent } from '../openaicompat/compatChatClient.js'
 import { thinkingOffWireEffort, type LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { groqChatCompletionsUrl, resolveGroqApiKey } from './groqAccounts.js'
 import { getCachedGroqCatalogue, groqListedModel, groqOutputMaxFor } from './groqCatalogue.js'
 import { groqDisplayPin, groqEffortVocabulary, groqWireId, isGroqModelId, isGroqTextModelId } from './groqPins.js'
@@ -51,7 +52,15 @@ const groqLaneProfile: CompatLaneProfile = {
     const key = resolveGroqApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint: 'no Groq API key detected — /logins groq stores one from console.groq.com/keys; GROQ_API_KEY works too.',
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('groq')) return null
+    const fresh = recoverProviderKeyCommand('groq')
+    return fresh ? { apiKey: fresh } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('groq')
+    return failure ? `the configured ${failure.message} — no Groq API key detected.` : 'no Groq API key detected — /logins groq stores one from console.groq.com/keys; GROQ_API_KEY works too.'
+  },
   authRemedy: 'create a current key at console.groq.com/keys and store it with /logins groq, or set GROQ_API_KEY.',
   billingRemedy: 'the organization spend limit is reached — check console.groq.com/settings/billing/limits, then retry.',
   requestUrl: () => groqChatCompletionsUrl(),

@@ -36,11 +36,39 @@ type CatalogueRow = (typeof SERVER_CATALOGUE)[number]
 
 export type InstallCommand = { kind: 'command'; argv: string[]; tool: string } | { kind: 'words'; words: string }
 
+const INSTALL_TOOLS: ReadonlySet<string> = new Set(['rustup', 'go', 'brew', 'dotnet', 'gem', 'npm', 'ghcup', 'opam', 'cs', 'nix'])
+const TRAILING_NOTE = /\s+\((?:[^()]|\([^()]*\))*\)\s*$/
+
+function quotedWords(text: string): string[] | null {
+  const words: string[] = []
+  let word = ''
+  let begun = false
+  let quote: string | null = null
+  for (const char of text) {
+    if (quote !== null) {
+      if (char === quote) quote = null
+      else word += char
+    } else if (char === '"' || char === "'") {
+      quote = char
+      begun = true
+    } else if (/\s/.test(char)) {
+      if (begun) words.push(word)
+      word = ''
+      begun = false
+    } else {
+      word += char
+      begun = true
+    }
+  }
+  if (quote !== null) return null
+  if (begun) words.push(word)
+  return words
+}
+
 export function installCommandOf(remedy: string): InstallCommand {
-  const primary = remedy.split(' (or ')[0]!.trim()
-  const argv = primary.split(/\s+/).filter(Boolean)
-  const tool = argv[0] ?? ''
-  if (argv.length < 2 || !/^[a-z][a-z0-9.-]*$/i.test(tool) || /^(ships|download|see|use)$/i.test(tool)) return { kind: 'words', words: remedy }
+  const argv = quotedWords(remedy.replace(TRAILING_NOTE, '').trim())
+  const tool = argv?.[0] ?? ''
+  if (argv === null || argv.length < 2 || !INSTALL_TOOLS.has(tool)) return { kind: 'words', words: remedy }
   return { kind: 'command', argv, tool }
 }
 

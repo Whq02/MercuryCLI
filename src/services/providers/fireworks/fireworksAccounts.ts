@@ -1,4 +1,5 @@
 import { readStoredFireworksApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
 const FIREWORKS_API_BASE_URL = 'https://api.fireworks.ai/inference/v1'
 const FIREWORKS_ENV_KEY = 'FIREWORKS_API_KEY'
@@ -19,6 +20,8 @@ export function fireworksEnvKey(env: NodeJS.ProcessEnv = process.env): { key: st
 export function resolveFireworksApiKey(env: NodeJS.ProcessEnv = process.env): { key: string; source: 'env' | 'stored' } | undefined {
   const key = fireworksEnvKey(env)
   if (key) return { key: key.key, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('fireworks')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredFireworksApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

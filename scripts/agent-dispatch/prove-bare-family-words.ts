@@ -258,6 +258,11 @@ section('§4 one resolver by construction: neither road spells a family word of 
   check('the table reads each family through its own catalogue owner, required at call time', table.includes("require('../../services/providers/xai/xaiCatalogue.js')") && table.includes("require('../../services/providers/moonshot/moonshotCatalogue.js')") && table.includes("require('../../services/providers/deepseek/deepseekCatalogue.js')") && table.includes("require('../../services/providers/zai/zaiCatalogue.js')") && !/^import (?!type )/m.test(table))
   const tool = src('tools/AgentTool/AgentTool.tsx')
   check("the Crewmate tool's words say each family word means its newest row", tool.includes("'glm' (Z.AI's newest GLM row)") && tool.includes("'kimi' (Moonshot's newest Kimi row)") && tool.includes("'deepseek' (DeepSeek's newest row)") && tool.includes("'grok' (xAI's newest Grok row)"))
+  const aliases = /Class aliases: (.*?)\. To see the providers/.exec(tool)?.[1] ?? ''
+  const unnamed = engine.ENGINE_DISPATCH_MODELS.filter(word => !aliases.includes(`'${word}' (`))
+  check("the Crewmate tool's class-alias sentence names every word the dispatch grammar carries", aliases !== '' && unnamed.length === 0, `unnamed: ${unnamed.join(', ')}`)
+  check("the sentence says what 'groq', 'cerebras' and 'fireworks' resolve to: the session's own model, else the family's text-list head", aliases.includes("'groq' (the session's own Groq model, else the first row of the Groq text list)") && aliases.includes("'cerebras' (the session's own Cerebras model, else the first row of the Cerebras text list)") && aliases.includes("'fireworks' (the session's own Fireworks model, else the first row of the Fireworks text list)"))
+  check("the sentence says 'qwen' means Qwen's newest text row, the shape the table's words use", aliases.includes("'qwen' (Qwen's newest text row)") && table.includes("{ word: 'qwen', route: 'qwen'"))
   const engines = readFileSync(join(import.meta.dir, '../../docs/ENGINES.md'), 'utf8')
   check('docs/ENGINES.md says the three words mean the newest row beside grok', /the family word `grok` means the newest Grok row[\s\S]{0,80}`deepseek`, `kimi` and `glm` mean the newest row/.test(engines))
   const readme = readFileSync(join(import.meta.dir, '../../README.md'), 'utf8')

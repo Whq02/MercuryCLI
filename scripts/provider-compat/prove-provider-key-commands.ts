@@ -48,6 +48,9 @@ const server = Bun.serve({
 })
 const origin = `http://127.0.0.1:${server.port}`
 process.env.MERCURY_DEEPSEEK_API_BASE = `${origin}/deepseek`
+process.env.MERCURY_GROQ_API_BASE = `${origin}/groq`
+process.env.MERCURY_CEREBRAS_API_BASE = `${origin}/cerebras`
+process.env.MERCURY_FIREWORKS_API_BASE = `${origin}/fireworks`
 const nativeFetch = globalThis.fetch
 globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = new URL(input instanceof Request ? input.url : String(input))
@@ -157,6 +160,9 @@ try {
     ['huggingface', () => require(`${root}/src/services/providers/huggingface/huggingfaceAccounts.ts`).resolveHuggingfaceApiKey()?.key, () => secrets.writeStoredHuggingfaceApiKey('stored-huggingface'), () => secrets.writeStoredHuggingfaceApiKey(null), 'HF_TOKEN', 'env-huggingface'],
     ['local', () => require(`${root}/src/services/providers/local/localAccounts.ts`).resolveLocalApiKey()?.key, () => secrets.writeStoredLocalApiKey('stored-local'), () => secrets.writeStoredLocalApiKey(null), 'MERCURY_LOCAL_API_KEY', 'env-local'],
     ['zai', () => (existsSync(`${root}/src/services/providers/zai/zaiAccounts.ts`) ? require(`${root}/src/services/providers/zai/zaiAccounts.ts`) : require(`${root}/src/services/providers/providerDiscovery.ts`)).resolveZaiDispatch()?.key, () => secrets.writeStoredZaiApiKey('stored-zai'), () => secrets.writeStoredZaiApiKey(null), 'ZAI_API_KEY', 'env-zai'],
+    ['groq', () => require(`${root}/src/services/providers/groq/groqAccounts.ts`).resolveGroqApiKey()?.key, () => secrets.writeStoredGroqApiKey('stored-groq'), () => secrets.writeStoredGroqApiKey(null), 'GROQ_API_KEY', 'env-groq'],
+    ['cerebras', () => require(`${root}/src/services/providers/cerebras/cerebrasAccounts.ts`).resolveCerebrasApiKey()?.key, () => secrets.writeStoredCerebrasApiKey('stored-cerebras'), () => secrets.writeStoredCerebrasApiKey(null), 'CEREBRAS_API_KEY', 'env-cerebras'],
+    ['fireworks', () => require(`${root}/src/services/providers/fireworks/fireworksAccounts.ts`).resolveFireworksApiKey()?.key, () => secrets.writeStoredFireworksApiKey('stored-fireworks'), () => secrets.writeStoredFireworksApiKey(null), 'FIREWORKS_API_KEY', 'env-fireworks'],
   ]
 
   for (const [family, resolveKey, writeStored, clearStored, envName, envVal] of familyResolvers) {
@@ -208,20 +214,49 @@ try {
   )
   rejectKey = null
 
+  for (const [family, model, resolveKey] of [
+    ['groq', 'groq/llama-3.3-70b-versatile', () => require(`${root}/src/services/providers/groq/groqAccounts.ts`).resolveGroqApiKey()?.key],
+    ['cerebras', 'cerebras/gpt-oss-120b', () => require(`${root}/src/services/providers/cerebras/cerebrasAccounts.ts`).resolveCerebrasApiKey()?.key],
+    ['fireworks', 'fireworks/accounts/fireworks/models/gpt-oss-120b', () => require(`${root}/src/services/providers/fireworks/fireworksAccounts.ts`).resolveFireworksApiKey()?.key],
+  ] as Array<[string, string, () => string | undefined]>) {
+    clearExecutions()
+    rejectKey = `cmd-${family}-expired`
+    setHelperState({ key: rejectKey })
+    setSettings({ credentials: { keyCommands: { [family]: cmdLine } } })
+    const primed = resolveKey()
+    setHelperState({ key: `cmd-${family}-rotated` })
+    const rows = await run(model)
+    check(
+      `${family}: a 401 invalidates the cached command key, re-runs keyCommand once, and settles on the rotated key`,
+      primed === `cmd-${family}-expired` && executions() === 2 && seenAuth.at(-1)?.path === `/${family}/chat/completions` && seenAuth.at(-1)?.auth === `Bearer cmd-${family}-rotated` && rows.some(r => !r.isApiErrorMessage && r.message.content.some((b: any) => b.text === 'KEY-COMMAND-SETTLED')),
+    )
+    rejectKey = null
+  }
+
   console.log('refusals')
   clearExecutions()
   setHelperState({ failCode: 7, stderr: 'vault sealed' })
-  setSettings({ credentials: { keyCommands: { deepseek: cmdLine, openrouter: cmdLine, openai: cmdLine } } })
+  setSettings({ credentials: { keyCommands: { deepseek: cmdLine, openrouter: cmdLine, openai: cmdLine, groq: cmdLine, cerebras: cmdLine, fireworks: cmdLine } } })
   const failedResolve = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
   const backoffResolve = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
   const failedOpenrouterResolve = require(`${root}/src/services/providers/openrouter/openrouterAccounts.ts`).resolveOpenrouterApiKey()
   const failedOpenaiResolve = require(`${root}/src/services/providers/openai/openaiAccounts.ts`).resolveOpenaiApiKey()
-  check('a failing keyCommand leaves the family with no key and backs off without re-running immediately', failedResolve === undefined && backoffResolve === undefined && failedOpenrouterResolve === undefined && failedOpenaiResolve === undefined && executions() === 3)
+  const failedFastResolves = [
+    require(`${root}/src/services/providers/groq/groqAccounts.ts`).resolveGroqApiKey(),
+    require(`${root}/src/services/providers/cerebras/cerebrasAccounts.ts`).resolveCerebrasApiKey(),
+    require(`${root}/src/services/providers/fireworks/fireworksAccounts.ts`).resolveFireworksApiKey(),
+  ]
+  check('a failing keyCommand leaves the family with no key and backs off without re-running immediately', failedResolve === undefined && backoffResolve === undefined && failedOpenrouterResolve === undefined && failedOpenaiResolve === undefined && failedFastResolves.every(key => key === undefined) && executions() === 6)
   const failedTurn = await run('deepseek-v4-pro')
   const failedOpenrouter = JSON.stringify(await run('openrouter/openai/gpt-5.6-terra'))
   const failedOpenai = JSON.stringify(await run('gpt-6-astra'))
   const failedText = JSON.stringify(failedTurn)
   check('a turn on a failed keyCommand names the command exit once and sends no request', failedText.includes('exited with code 7') && failedText.includes('vault sealed') && failedOpenrouter.includes('exited with code 7') && failedOpenai.includes('exited with code 7'))
+  const requestsBefore = seenAuth.length
+  for (const [family, model] of [['groq', 'groq/llama-3.3-70b-versatile'], ['cerebras', 'cerebras/gpt-oss-120b'], ['fireworks', 'fireworks/accounts/fireworks/models/gpt-oss-120b']]) {
+    const failed = JSON.stringify(await run(model!))
+    check(`${family}: a turn on a failed keyCommand names credentials.keyCommands.${family} and its exit, and sends no request`, failed.includes(`credentials.keyCommands.${family} exited with code 7`) && failed.includes('vault sealed') && seenAuth.length === requestsBefore)
+  }
 
   clearExecutions()
   const marker = join(project, 'untrusted-marker')

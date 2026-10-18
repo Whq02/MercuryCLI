@@ -1,4 +1,5 @@
 import { readStoredCerebrasApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
 const CEREBRAS_API_BASE_URL = 'https://api.cerebras.ai/v1'
 const CEREBRAS_ENV_KEY = 'CEREBRAS_API_KEY'
@@ -19,6 +20,8 @@ export function cerebrasEnvKey(env: NodeJS.ProcessEnv = process.env): { key: str
 export function resolveCerebrasApiKey(env: NodeJS.ProcessEnv = process.env): { key: string; source: 'env' | 'stored' } | undefined {
   const key = cerebrasEnvKey(env)
   if (key) return { key: key.key, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('cerebras')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredCerebrasApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

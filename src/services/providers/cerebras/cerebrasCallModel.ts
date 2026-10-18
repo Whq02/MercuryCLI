@@ -9,6 +9,7 @@ import { streamCompatChat } from '../openaicompat/compatChatClient.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { thinkingOffWireEffort, type LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { cerebrasChatCompletionsUrl, resolveCerebrasApiKey } from './cerebrasAccounts.js'
 import { getCachedCerebrasCatalogue, cerebrasListedModel } from './cerebrasCatalogue.js'
 import { cerebrasDisplayPin, cerebrasEffortVocabulary, cerebrasWireId, isCerebrasModelId, isCerebrasTextModelId } from './cerebrasPins.js'
@@ -27,7 +28,15 @@ const cerebrasLaneProfile: CompatLaneProfile = {
     const key = resolveCerebrasApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint: 'no Cerebras API key detected — /logins cerebras stores one from cloud.cerebras.ai; CEREBRAS_API_KEY works too.',
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('cerebras')) return null
+    const fresh = recoverProviderKeyCommand('cerebras')
+    return fresh ? { apiKey: fresh } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('cerebras')
+    return failure ? `the configured ${failure.message} — no Cerebras API key detected.` : 'no Cerebras API key detected — /logins cerebras stores one from cloud.cerebras.ai; CEREBRAS_API_KEY works too.'
+  },
   authRemedy: 'create a current key at cloud.cerebras.ai and store it with /logins cerebras, or set CEREBRAS_API_KEY.',
   billingRemedy: 'the account credits are spent or the trial expired — check cloud.cerebras.ai, then retry.',
   requestUrl: () => cerebrasChatCompletionsUrl(),

@@ -1,7 +1,8 @@
 import { realpathSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 
+import picomatch from 'picomatch'
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
@@ -26,8 +27,8 @@ import {
 } from '../../utils/file.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte, toRelativePath } from '../../utils/path.js'
 import {
-  envFileNameInGlob,
   envFileReadAsk,
+  envFileTargetsInGlob,
   getFileReadIgnorePatterns,
   isProjectEnvFileName,
   normalizePatternsToPath,
@@ -140,18 +141,23 @@ const outputSchema = z.object({
 
 type OutputMode = NonNullable<Output['mode']>
 
-function envFileNameInGlobField(glob: string | undefined): string | null {
-  if (!glob) return null
-  for (const token of splitGrepGlobField(glob)) {
-    const name = envFileNameInGlob(token)
-    if (name !== null) return name
-  }
-  return null
+function envFileTargetsInGlobField(glob: string | undefined): string[] {
+  return glob ? splitGrepGlobField(glob).flatMap(envFileTargetsInGlob) : []
 }
 
 function envFilesWithheld(input: Input, permission: ToolPermissionContext, givenRoot: string): boolean {
   if (modeBypassesPermissions(permission.mode)) return false
-  return !isProjectEnvFileName(givenRoot) && envFileNameInGlobField(input.glob) === null
+  return !isProjectEnvFileName(givenRoot)
+}
+
+function envFileCoverage(glob: string | undefined, searchRoot: string): (file: string) => boolean {
+  const tokens = glob ? splitGrepGlobField(glob).filter(token => envFileTargetsInGlob(token).length > 0) : []
+  if (tokens.length === 0) return () => false
+  const named = picomatch(tokens.map(token => token.replace(/^(?:\.\/|\/)+/, '')), { dot: true, basename: true })
+  return file => {
+    const under = relative(searchRoot, file).replaceAll('\\', '/')
+    return under !== '' && !under.startsWith('..') && named(under)
+  }
 }
 
 function restoreSeparator(file: string, rest: string, numbered: boolean): string {
@@ -165,6 +171,7 @@ function withholdEnvFileLines(
   mode: OutputMode,
   numbered: boolean,
   permission: ToolPermissionContext,
+  covered: (file: string) => boolean,
 ): { lines: string[]; withheld: string | undefined } {
   const kept: string[] = []
   const counts = new Map<string, number>()
@@ -172,7 +179,7 @@ function withholdEnvFileLines(
   const withheld = (file: string): boolean => {
     let verdict = verdicts.get(file)
     if (verdict === undefined) {
-      verdict = isProjectEnvFileName(file) && envFileReadAsk(file, permission) !== null
+      verdict = isProjectEnvFileName(file) && !covered(file) && envFileReadAsk(file, permission) !== null
       verdicts.set(file, verdict)
     }
     return verdict
@@ -467,14 +474,13 @@ export const GrepTool = buildTool({
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
     const permission = context.getAppState().toolPermissionContext
     if (input.glob) {
-      const literal = checkReadPermissionForTool({ name: 'Grep', getPath: () => expandPath(input.glob!, input.path ? expandPath(input.path) : getCwd()) }, input, context.getAppState().toolPermissionContext)
+      const root = input.path ? expandPath(input.path) : getCwd()
+      const literal = checkReadPermissionForTool({ name: 'Grep', getPath: () => expandPath(input.glob!, root) }, input, permission)
       if (literal.behavior === 'deny') return literal
-    }
-    const envName = envFileNameInGlobField(input.glob)
-    if (envName !== null) {
-      const named = join(expandPath(input.path ?? getCwd()), envName)
-      const verdict = checkReadPermissionForTool({ name: GREP_TOOL_NAME, getPath: () => named }, input, permission)
-      if (verdict.behavior !== 'allow') return verdict
+      const verdicts = envFileTargetsInGlobField(input.glob).map(target =>
+        checkReadPermissionForTool({ name: GREP_TOOL_NAME, getPath: () => join(root, target) }, input, permission))
+      const refused = verdicts.find(verdict => verdict.behavior === 'deny') ?? verdicts.find(verdict => verdict.behavior !== 'allow')
+      if (refused) return refused
     }
     return checkReadPermissionForTool(GrepTool, input, permission)
   },
@@ -535,7 +541,7 @@ export const GrepTool = buildTool({
     const offset = input.offset ?? 0
 
     const { answer, engine } = await answerWithPcre2Fallback(input.pattern, args, searchRoot, context.abortController.signal)
-    const kept = withholding ? withholdEnvFileLines(answer.lines, mode, input['-n'] ?? true, permission) : { lines: answer.lines, withheld: undefined }
+    const kept = withholding ? withholdEnvFileLines(answer.lines, mode, input['-n'] ?? true, permission, envFileCoverage(input.glob, searchRoot)) : { lines: answer.lines, withheld: undefined }
     const withheld = kept.withheld
     const lines = searchRoot === givenRoot ? kept.lines : kept.lines.map(line => respellRoot(line, searchRoot, givenRoot))
     const incomplete = answer.complete ? undefined : (answer.reason ?? 'the search did not finish')

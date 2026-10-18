@@ -37,6 +37,8 @@ try {
     ['huggingface/huggingfacePins', 'HUGGINGFACE_DISPLAY_PINS', 'huggingface/'],
     ['zen/zenPins', 'ZEN_DISPLAY_PINS', 'zen/'], ['minimax/minimaxPins', 'MINIMAX_DISPLAY_PINS'],
     ['together/togetherPins', 'TOGETHER_DISPLAY_PINS', 'together/'], ['cohere/coherePins', 'COHERE_DISPLAY_PINS'],
+    ['groq/groqPins', 'GROQ_DISPLAY_PINS', 'groq/'], ['cerebras/cerebrasPins', 'CEREBRAS_DISPLAY_PINS', 'cerebras/'],
+    ['fireworks/fireworksPins', 'FIREWORKS_DISPLAY_PINS', 'fireworks/'],
   ]
   const pinnedIds = ['claude-opus-5-5']
   for (const [module, table, prefix = ''] of pinTables) {
@@ -45,9 +47,21 @@ try {
   }
   const recorded = pinnedIds.filter(id => factsOwner?.modelHasRecordedFacts(id))
   check('every recorded family pin is recognised by the capability-floor owner', recorded.length === pinnedIds.length)
+  if (recorded.length !== pinnedIds.length) console.log(`unrecognised pins: ${pinnedIds.filter(id => !recorded.includes(id)).join(', ')}`)
   const annotated = pinnedIds.filter(id => factsOwner?.modelHasRecordedFacts(`${id}[served]`))
   check('window annotations never turn a recorded pin into an unknown model', annotated.length === pinnedIds.length)
   if (annotated.length !== pinnedIds.length) console.log(`unrecognised annotated pins: ${pinnedIds.filter(id => !annotated.includes(id)).join(', ')}`)
+  for (const [family, id] of [['groq', 'groq/llama-3.3-70b-versatile'], ['cerebras', 'cerebras/gpt-oss-120b'], ['fireworks', 'fireworks/accounts/fireworks/models/gpt-oss-120b']]) {
+    set({})
+    const pinned = capabilities.resolveModelCapabilities(id!)
+    set({ [id!]: { contextWindow: pinned.context.window * 2, maxOutputTokens: pinned.context.outputMax * 2, prices: { input: 5, output: 15 } }, _default: { [family!]: { contextWindow: 7, maxOutputTokens: 7 } } })
+    const stated = capabilities.resolveModelCapabilities(id!)
+    check(`${family}: a stated fact for a pinned id merges over the pin — the window and ceiling rise, the prices land, the family default is not consulted`, stated.context.window === pinned.context.window * 2 && stated.context.outputMax === pinned.context.outputMax * 2 && pricing.resolveModelPricing(id!).costs.inputTokens === 5 && pricing.resolveModelPricing(id!).costs.outputTokens === 15)
+    set({ [id!]: { contextWindow: 1, maxOutputTokens: 1, efforts: [], images: false, reasoning: false } })
+    const smaller = capabilities.resolveModelCapabilities(id!)
+    check(`${family}: a smaller stated fact never lowers the pinned window, ceiling, reasoning or images`, smaller.context.window === pinned.context.window && smaller.context.outputMax === pinned.context.outputMax && smaller.thinking.supported === pinned.thinking.supported && smaller.media.images === pinned.media.images)
+  }
+  set({})
   const known = 'claude-opus-5-5'
   const fresh = 'deepseek-fixture-new'
   const before = capabilities.resolveModelCapabilities(known)

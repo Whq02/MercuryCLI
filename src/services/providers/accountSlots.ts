@@ -151,7 +151,6 @@ export type SlotRemoval =
   | { route: 'cerebras-stored-key' }
   | { route: 'fireworks-stored-key' }
   | { route: 'qwen-stored-key' }
-  | { route: 'qwen-signin' }
   | { route: 'compat-stored-key'; endpoint?: string }
   | { route: 'huggingface-oauth' }
   | { route: 'huggingface-stored-key' }
@@ -249,7 +248,6 @@ export interface AccountSlotReads {
   fireworksStoredKey?: () => string | undefined
   qwenEnvKey?: () => string | undefined
   qwenStoredKey?: () => string | undefined
-  qwenSignin?: typeof qwenStoredTokens
   compatEnvKey?: () => string | undefined
   compatStoredKey?: () => string | undefined
   huggingfaceEnvKey?: () => string | undefined
@@ -1106,15 +1104,6 @@ function qwenSlots(reads: AccountSlotReads): AccountSlot[] {
       slot.identity = label([slot.envPinned ? `DASHSCOPE_API_KEY (env, ${plan.endpoint})` : `${plan.kind} key (auth-scoped, ${plan.endpoint})`, maskedKeyTail(slot.envPinned ? envKey! : storedKey!)])
     }
   }
-  const signin = (reads.qwenSignin ?? qwenStoredTokens)()
-  if (signin) {
-    const active = !envKey && (readPreferredQwenSource() !== 'api-key' || !storedKey)
-    const expired = !signin.refreshToken || qwenSigninRefusal() !== undefined
-    if (active) for (const slot of slots) { slot.active = false; slot.stateNote = 'Qwen account sign-in selected' }
-    slots.unshift({ family: 'qwen', id: 'qwen:signin', name: 'sign-in', kind: 'oauth', kindLabel: 'Qwen account sign-in',
-      identity: 'Qwen account (the Qwen Coder plan)', active: active && !expired, envPinned: false, signedIn: !expired,
-      ...(expired ? { stateNote: QWEN_SIGNIN_EXPIRED_LINE } : {}), removal: { route: 'qwen-signin' } })
-  }
   return slots
 }
 function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
@@ -1133,7 +1122,6 @@ function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
 import { disconnectMetaMuseCode } from './meta/metaAccounts.js'
 import { xaiStoredTokens, clearStoredXaiSubscription, readPreferredXaiSource } from './xai/xaiOauth.js'
 import { NOUS_SIGNIN_EXPIRED_LINE, clearStoredNousSignin, nousSigninRefusal, nousStoredTokens, readPreferredNousSource } from './nous/nousOauth.js'
-import { QWEN_SIGNIN_EXPIRED_LINE, clearStoredQwenSignin, qwenSigninRefusal, qwenStoredTokens, readPreferredQwenSource } from './qwen/qwenOauth.js'
 import { qwenBoundPlanLabel } from './qwen/qwenAccounts.js'
 
 function xaiSlots(reads: AccountSlotReads): AccountSlot[] {
@@ -1409,7 +1397,6 @@ export interface SlotRemovalOwners {
   clearStoredCerebrasKey?: () => void
   clearStoredFireworksKey?: () => void
   clearStoredQwenKey?: () => void
-  clearQwenSignin?: () => void
   clearStoredCompatKey?: () => void
   disconnectHuggingfaceOauth?: () => void
   clearStoredHuggingfaceKey?: () => void
@@ -1641,9 +1628,6 @@ function routeSlotRemoval(
     case 'qwen-stored-key':
       ;(owners.clearStoredQwenKey ?? (() => writeStoredQwenApiKey(null)))()
       return { note: 'stored Model Studio API key and its endpoint cleared from the auth-scoped store', mutated: true }
-    case 'qwen-signin':
-      ;(owners.clearQwenSignin ?? clearStoredQwenSignin)()
-      return { note: 'Qwen account sign-in forgotten locally; the Qwen account page revokes the grant server-side', mutated: true }
     case 'deepseek-stored-key':
       ;(owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null)))()
       return { note: 'stored DeepSeek API key cleared from the auth-scoped store', mutated: true }
@@ -1713,7 +1697,6 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['cerebras-stored-key', owners.clearStoredCerebrasKey ?? (() => writeStoredCerebrasApiKey(null))],
     ['fireworks-stored-key', owners.clearStoredFireworksKey ?? (() => writeStoredFireworksApiKey(null))],
     ['qwen-stored-key', owners.clearStoredQwenKey ?? (() => writeStoredQwenApiKey(null))],
-    ['qwen-signin', owners.clearQwenSignin ?? clearStoredQwenSignin],
     ['compat-stored-key', owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null))],
     ['huggingface-oauth', owners.disconnectHuggingfaceOauth ?? disconnectHuggingfaceOauth],
     ['huggingface-stored-key', owners.clearStoredHuggingfaceKey ?? (() => writeStoredHuggingfaceApiKey(null))],

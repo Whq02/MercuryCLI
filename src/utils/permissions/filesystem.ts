@@ -60,11 +60,28 @@ export function isProjectEnvFileName(path: string): boolean {
   return !name.slice('.env.'.length).split('.').some(part => ENV_FILE_TEMPLATE_WORDS.has(part))
 }
 
-export function envFileNameInGlob(glob: string): string | null {
-  if (glob.startsWith('!')) return null
-  const name = (glob.split(/[/\\]/).pop() ?? '').replace(/[*?[\]{}]+$/, '')
-  if (!isProjectEnvFileName(name)) return null
-  return name.endsWith('.') ? name.slice(0, -1) : name
+const ENV_FILE_WILDCARD = '__wildcard__'
+const GLOB_WILDCARDS = /[*?[\]{}]+/g
+
+export function envFileTargetsInGlob(glob: string): string[] {
+  if (glob.startsWith('!')) return []
+  const token = glob.replace(/^(?:\.\/|\/)+/, '')
+  const cut = Math.max(token.lastIndexOf('/'), token.lastIndexOf('\\')) + 1
+  const dir = token.slice(0, cut)
+  const name = token.slice(cut)
+  const wildcardAt = name.search(GLOB_WILDCARDS)
+  const prefix = wildcardAt === -1 ? name : name.slice(0, wildcardAt)
+  const stem = prefix.endsWith('.') ? prefix.slice(0, -1) : prefix
+  if (!isProjectEnvFileName(stem)) return []
+  const plainDir = dir.search(GLOB_WILDCARDS) === -1
+  if (wildcardAt === -1 && plainDir) return [token]
+  const sibling = dir.replace(GLOB_WILDCARDS, ENV_FILE_WILDCARD) + (wildcardAt === -1 ? name : `${prefix}${prefix === '.env' ? '.' : ''}${ENV_FILE_WILDCARD}`)
+  const reachesStem = (plainDir || dir === '**/') && prefix === stem && name.slice(prefix.length).replace(GLOB_WILDCARDS, '') === ''
+  return reachesStem ? [(plainDir ? dir : '') + stem, sibling] : [sibling]
+}
+
+function envFileFamilySpelling(path: string): string {
+  return path.split(ENV_FILE_WILDCARD).join('*')
 }
 
 
@@ -682,7 +699,7 @@ export function envFileReadAsk(
   for (const form of forms) {
     if (matchingRuleForInput(form, context, 'read', 'allow') || matchingRuleForInput(form, context, 'edit', 'allow')) return null
   }
-  return envFileAsk(`Reading ${path}`)
+  return envFileAsk(`Reading ${envFileFamilySpelling(path)}`)
 }
 
 export function checkUncPathPermission(
