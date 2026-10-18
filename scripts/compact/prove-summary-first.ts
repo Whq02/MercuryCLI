@@ -16,7 +16,7 @@ console.log('PASS measured overflow chooses summary before 154-body prune')
 
 const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.js')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
-const { reconstructContentReplacementState } = await import('../../src/utils/toolResultStorage.js')
+const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.js')
 const { roughTokenCountEstimationForMessages } = await import('../../src/services/tokenEstimation.js')
 const { prepareFoldContext } = await import('../../src/services/compact/foldTransaction.js')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
@@ -27,7 +27,7 @@ for (let index = 0; index < 154; index++) {
   messages.push({ type: 'user', uuid: `result-${index}`, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `call-${index}`, content: 'x'.repeat(tokens * 4) }] } } as never)
 }
 const before = JSON.stringify(messages)
-const state = reconstructContentReplacementState(messages, [])
+const state = createContentReplacementState()
 let prunes = 0
 const plan = await buildRequestContextPlan({
   messages, owner: makeOwnerKey({ workspace: process.cwd(), sessionId: 'summary-first', lane: 'main' }), querySource: 'main_thread',
@@ -39,7 +39,7 @@ assert.equal(roughTokenCountEstimationForMessages(plan.messages), 740942)
 assert.equal(plan.messages.length, 154)
 assert.equal(prunes, 0)
 assert.equal(state.replacements.size, 0)
-assert.equal(state.seenIds.size, messages.length)
+assert.equal(state.seenIds.size, 0)
 assert.equal(JSON.stringify(messages), before)
 assert.equal(plan.reductions.toolResultBudgetReplacements, 0)
 const readFileState = createFileStateCacheWithSizeLimit(20)

@@ -8,8 +8,8 @@ export function toolResultBudgetsForWindow(tokens?: number): { resultChars: numb
     return { resultChars: DEFAULT_MAX_RESULT_SIZE_CHARS, messageChars: MAX_TOOL_RESULTS_PER_MESSAGE_CHARS }
   }
   return {
-    resultChars: Math.min(DEFAULT_MAX_RESULT_SIZE_CHARS, Math.max(8_000, Math.floor(tokens * 4 * 0.15))),
-    messageChars: Math.min(MAX_TOOL_RESULTS_PER_MESSAGE_CHARS, Math.max(16_000, Math.floor(tokens * 4 * 0.3))),
+    resultChars: Math.max(DEFAULT_MAX_RESULT_SIZE_CHARS, Math.floor(tokens * 4 * 0.15)),
+    messageChars: Math.max(MAX_TOOL_RESULTS_PER_MESSAGE_CHARS, Math.floor(tokens * 4 * 0.3)),
   }
 }
 export const TOOL_SUMMARY_MAX_LENGTH = 50
