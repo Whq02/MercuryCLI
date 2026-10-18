@@ -109,7 +109,7 @@ try {
   check('the picker filters speech and guard rows and qualifies every text row', cerebrasCatalogueRows().rows.length === 3 && keyLanePins('cerebras').every(pin => pin.id.startsWith('cerebras/')))
   check('Agent exact dispatch keeps the qualified model', (await resolveEngineDispatch('cerebras/gpt-oss-120b'))?.model === 'cerebras/gpt-oss-120b')
   check('the Agent family selector resolves to a qualified row without declaring a bare Cerebras model id', classifyModelRoute('cerebras').kind === 'unrecognised' && (await resolveEngineDispatch('cerebras'))?.model === 'cerebras/gpt-oss-120b')
-  check('the live resource and known resource both carry Cerebras models', (await liveModelsReference({ engineModel: 'cerebras/gpt-oss-120b' })).providers.find(row => row.provider === 'cerebras')?.models.length === 3 && (await knownModelsReference()).providers.find(row => row.provider === 'cerebras')?.models.length === 2)
+  check('the live resource and known resource both carry Cerebras models', (await liveModelsReference({ engineModel: 'cerebras/gpt-oss-120b' })).providers.find(row => row.provider === 'cerebras')?.models.length === 3 && (await knownModelsReference()).providers.find(row => row.provider === 'cerebras')?.models.length === 2 && (await knownModelsReference()).providers.find(row => row.provider === 'cerebras')?.familyWord === 'cerebras')
   const login = await storeCerebrasApiKeyLogin('proof-key-cerebras-login-fixture-not-a-real-key')
   check('the accepted key is stored with the environment-precedence receipt', login.ok && login.stored && readStoredCerebrasApiKey() === 'proof-key-cerebras-login-fixture-not-a-real-key' && login.receipt.includes('CEREBRAS_API_KEY is set and wins'))
   console.log('\nrefusals')
@@ -141,14 +141,16 @@ try {
   const refusedLogin = await storeCerebrasApiKeyLogin('proof-key-cerebras-refused-fixture-not-a-real-key')
   check('a refused login never overwrites the stored key', !refusedLogin.stored && refusedLogin.receipt.includes('HTTP 401') && readStoredCerebrasApiKey() === 'proof-key-cerebras-login-fixture-not-a-real-key')
   listStatus = 200; modelList = []; await refreshCerebrasCatalogue({ force: true })
-  check('a successful empty list stays empty and refuses a pinned id', cerebrasCatalogueRows().rows.length === 0 && (await run()).some(row => row.isApiErrorMessage) && captures.length === beforeAbsent)
+  const emptyBefore = captures.length
+  check('an empty live list falls to the 2 dated pins labelled as pins, admits a pinned id under the note, and refuses an unpinned id', cerebrasCatalogueRows().source.kind === 'pins' && cerebrasCatalogueRows().rows.length === 2 && cerebrasCatalogueRows().rows.every((row: any) => !row.listedLive && row.observedAt === '2026-10-18') && keyLaneListState('cerebras').kind === 'pin' && (cerebrasCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-18)') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === emptyBefore + 1 && (await run(params('cerebras/missing-fixture'))).some(row => row.isApiErrorMessage) && captures.length === emptyBefore + 1)
+  const beforeUnreachable = captures.length
   modelList = fixtures; __resetCerebrasCatalogueForTest(); const base = process.env.MERCURY_CEREBRAS_API_BASE
   process.env.MERCURY_CEREBRAS_API_BASE = 'http://127.0.0.1:1/v1'
   await refreshCerebrasCatalogue({ force: true })
   check('unreachable catalogue falls back to dated, explicitly labelled pins', cerebrasCatalogueRows().source.kind === 'pins' && keyLaneListState('cerebras').kind === 'pin' && cerebrasCatalogueRows().rows.every((row: any) => !row.listedLive && row.observedAt === '2026-10-18') && cerebrasCatalogueSourceWords().includes('pinned list'))
   process.env.MERCURY_CEREBRAS_API_BASE = base
   const controller = new AbortController(); controller.abort()
-  check('pre-aborted calls perform no inference', (await run({ ...params(), signal: controller.signal })).length === 0 && captures.length === beforeAbsent)
+  check('pre-aborted calls perform no inference', (await run({ ...params(), signal: controller.signal })).length === 0 && captures.length === beforeUnreachable)
   check('unknown rows get no invented reasoning field or output ceiling', JSON.stringify(buildCerebrasExtras({ wireModel: 'fixture-new-chat', effortValue: 'max', thinkingEnabled: true, maxOutputTokensOverride: undefined }, 'fixture-cache')) === '{"stream_options":{"include_usage":true},"prompt_cache_key":"fixture-cache"}')
   const { proveExistingCompatKnobs } = await import('../providers/lib/fast-infer-control.ts')
   await proveExistingCompatKnobs()

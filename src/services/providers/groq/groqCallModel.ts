@@ -81,13 +81,13 @@ export async function* groqCallModel(params: CallModelParams): CallModelStream {
   const snapshot = getCachedGroqCatalogue()
   const listed = groqListedModel(snapshot, verdict.wireId)
   const refused = snapshot?.lastError?.includes('refused the credential') === true
-  const known = snapshot?.fetchedAtMs ? listed !== undefined : groqDisplayPin(verdict.wireId) !== undefined
+  const known = snapshot?.models.length ? listed !== undefined : groqDisplayPin(verdict.wireId) !== undefined
   if (refused || !known) {
     yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${refused ? `${snapshot!.lastError} — /logins groq replaces the key.` : `Groq model '${verdict.wireId}' is not on the available text list; /model refreshes it.`}`, error: refused ? 'authentication_failed' : 'invalid_request' })
     return
   }
   const wire = listed?.id ?? groqDisplayPin(verdict.wireId)!.id
   yield* compatChatCallModel({ ...groqLaneProfile, wireModelId: () => wire,
-    ...(!snapshot?.fetchedAtMs ? { leadingNotes: ['Groq model list unavailable — using the dated pins; the provider decides account access.'] } : {}),
+    ...(!snapshot?.models.length ? { leadingNotes: ['Groq model list unavailable — using the dated pins; the provider decides account access.'] } : {}),
   }, params)
 }

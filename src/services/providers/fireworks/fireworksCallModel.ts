@@ -59,13 +59,13 @@ export async function* fireworksCallModel(params: CallModelParams): CallModelStr
   const snapshot = getCachedFireworksCatalogue()
   const listed = fireworksListedModel(snapshot, verdict.wireId)
   const refused = snapshot?.lastError?.includes('refused the credential') === true
-  const known = snapshot?.fetchedAtMs ? listed !== undefined : fireworksDisplayPin(verdict.wireId) !== undefined
+  const known = snapshot?.models.length ? listed !== undefined : fireworksDisplayPin(verdict.wireId) !== undefined
   if (refused || !known) {
     yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${refused ? `${snapshot!.lastError} — /logins fireworks replaces the key.` : `Fireworks model '${verdict.wireId}' is not on the available text list; /model refreshes it.`}`, error: refused ? 'authentication_failed' : 'invalid_request' })
     return
   }
   const wire = listed?.id ?? fireworksDisplayPin(verdict.wireId)!.id
   yield* compatChatCallModel({ ...fireworksLaneProfile, wireModelId: () => wire,
-    ...(!snapshot?.fetchedAtMs ? { leadingNotes: ['Fireworks model list unavailable — using the dated pins; the provider decides account access.'] } : {}),
+    ...(!snapshot?.models.length ? { leadingNotes: ['Fireworks model list unavailable — using the dated pins; the provider decides account access.'] } : {}),
   }, params)
 }

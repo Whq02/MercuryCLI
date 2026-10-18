@@ -112,7 +112,9 @@ try {
   check('the picker filters image rows and qualifies every text row', fireworksCatalogueRows().rows.length === 5 && keyLanePins('fireworks').every(pin => pin.id.startsWith('fireworks/')))
   check('Agent exact dispatch keeps the qualified model', (await resolveEngineDispatch('fireworks/gpt-oss-120b'))?.model === 'fireworks/accounts/fireworks/models/gpt-oss-120b')
   check('the Agent family selector resolves to a qualified row without declaring a bare Fireworks model id', classifyModelRoute('fireworks').kind === 'unrecognised' && (await resolveEngineDispatch('fireworks'))?.model === 'fireworks/accounts/fireworks/models/kimi-k3')
-  check('the live resource and known resource both carry Fireworks models', (await liveModelsReference({ engineModel: 'fireworks/gpt-oss-120b' })).providers.find(row => row.provider === 'fireworks')?.models.length === 5 && (await knownModelsReference()).providers.find(row => row.provider === 'fireworks')?.models.length === 11)
+  check('the live resource and known resource both carry Fireworks models', (await liveModelsReference({ engineModel: 'fireworks/gpt-oss-120b' })).providers.find(row => row.provider === 'fireworks')?.models.length === 5 && (await knownModelsReference()).providers.find(row => row.provider === 'fireworks')?.models.length === 11 && (await knownModelsReference()).providers.find(row => row.provider === 'fireworks')?.familyWord === 'fireworks')
+  const firepassLogin = await storeFireworksApiKeyLogin('fpk_proof_firepass_fixture_not_a_real_key')
+  check('a Fire Pass fpk_ key stores on the same login road', firepassLogin.ok && firepassLogin.stored && readStoredFireworksApiKey() === 'fpk_proof_firepass_fixture_not_a_real_key')
   const login = await storeFireworksApiKeyLogin('proof-key-fireworks-login-fixture-not-a-real-key')
   check('the accepted key is stored with the environment-precedence receipt', login.ok && login.stored && readStoredFireworksApiKey() === 'proof-key-fireworks-login-fixture-not-a-real-key' && login.receipt.includes('FIREWORKS_API_KEY is set and wins'))
   console.log('\nrefusals')
@@ -146,14 +148,16 @@ try {
   const refusedLogin = await storeFireworksApiKeyLogin('proof-key-fireworks-refused-fixture-not-a-real-key')
   check('a refused login never overwrites the stored key', !refusedLogin.stored && refusedLogin.receipt.includes('HTTP 401') && readStoredFireworksApiKey() === 'proof-key-fireworks-login-fixture-not-a-real-key')
   listStatus = 200; modelList = []; await refreshFireworksCatalogue({ force: true })
-  check('a successful empty list stays empty and refuses a pinned id', fireworksCatalogueRows().rows.length === 0 && (await run()).some(row => row.isApiErrorMessage) && captures.length === beforeAbsent)
+  const emptyBefore = captures.length
+  check('an empty live list falls to the 11 dated pins labelled as pins, admits a pinned id under the note, and refuses an unpinned id', fireworksCatalogueRows().source.kind === 'pins' && fireworksCatalogueRows().rows.length === 11 && fireworksCatalogueRows().rows.every((row: any) => !row.listedLive && row.observedAt === '2026-10-17') && keyLaneListState('fireworks').kind === 'pin' && (fireworksCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === emptyBefore + 1 && (await run(params('fireworks/missing-fixture'))).some(row => row.isApiErrorMessage) && captures.length === emptyBefore + 1)
+  const beforeUnreachable = captures.length
   modelList = fixtures; __resetFireworksCatalogueForTest(); const base = process.env.MERCURY_FIREWORKS_API_BASE
   process.env.MERCURY_FIREWORKS_API_BASE = 'http://127.0.0.1:1/inference/v1'
   await refreshFireworksCatalogue({ force: true })
   check('unreachable catalogue falls back to dated, explicitly labelled pins', fireworksCatalogueRows().source.kind === 'pins' && keyLaneListState('fireworks').kind === 'pin' && fireworksCatalogueRows().rows.every((row: any) => !row.listedLive && row.observedAt === '2026-10-17') && fireworksCatalogueSourceWords().includes('pinned list'))
   process.env.MERCURY_FIREWORKS_API_BASE = base
   const controller = new AbortController(); controller.abort()
-  check('pre-aborted calls perform no inference', (await run({ ...params(), signal: controller.signal })).length === 0 && captures.length === beforeAbsent)
+  check('pre-aborted calls perform no inference', (await run({ ...params(), signal: controller.signal })).length === 0 && captures.length === beforeUnreachable)
   check('unknown rows get no invented reasoning field or output ceiling', JSON.stringify(buildFireworksExtras({ wireModel: 'fixture-new-chat', effortValue: 'max', thinkingEnabled: true, maxOutputTokensOverride: undefined })) === '{"stream_options":{"include_usage":true}}')
   const { proveExistingCompatKnobs } = await import('../providers/lib/fast-infer-control.ts')
   await proveExistingCompatKnobs()

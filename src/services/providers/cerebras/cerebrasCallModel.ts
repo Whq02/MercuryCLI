@@ -56,7 +56,7 @@ export async function* cerebrasCallModel(params: CallModelParams): CallModelStre
   const snapshot = getCachedCerebrasCatalogue()
   const listed = cerebrasListedModel(snapshot, verdict.wireId)
   const refused = snapshot?.lastError?.includes('refused the credential') === true
-  const known = snapshot?.fetchedAtMs ? listed !== undefined : cerebrasDisplayPin(verdict.wireId) !== undefined
+  const known = snapshot?.models.length ? listed !== undefined : cerebrasDisplayPin(verdict.wireId) !== undefined
   if (refused || !known) {
     yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${refused ? `${snapshot!.lastError} — /logins cerebras replaces the key.` : `Cerebras model '${verdict.wireId}' is not on the available text list; /model refreshes it.`}`, error: refused ? 'authentication_failed' : 'invalid_request' })
     return
@@ -64,6 +64,6 @@ export async function* cerebrasCallModel(params: CallModelParams): CallModelStre
   const wire = listed?.id ?? cerebrasDisplayPin(verdict.wireId)!.id
   const cacheKey = createHash('sha256').update(JSON.stringify([getSessionId(), params.options.ownerKey ?? params.options.agentId ?? 'main', wire])).digest('hex')
   yield* compatChatCallModel({ ...cerebrasLaneProfile, wireModelId: () => wire, buildExtras: args => buildCerebrasExtras(args, cacheKey),
-    ...(!snapshot?.fetchedAtMs ? { leadingNotes: ['Cerebras model list unavailable — using the dated pins; the provider decides account access.'] } : {}),
+    ...(!snapshot?.models.length ? { leadingNotes: ['Cerebras model list unavailable — using the dated pins; the provider decides account access.'] } : {}),
   }, params)
 }

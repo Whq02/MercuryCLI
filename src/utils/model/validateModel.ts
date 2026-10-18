@@ -291,7 +291,7 @@ async function validateNonAnthropicModel(
     const { getCachedGroqCatalogue, groqListedModel } = await import('../../services/providers/groq/groqCatalogue.js')
     const snapshot = getCachedGroqCatalogue()
     if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins groq replaces the key.' }
-    if (snapshot?.fetchedAtMs ? !groqListedModel(snapshot, wire) : !groqDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Groq text catalogue.' }
+    if (snapshot?.models.length ? !groqListedModel(snapshot, wire) : !groqDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Groq text catalogue.' }
     return { valid: true, skipCache: true }
   }
   if (route === 'cerebras') {
@@ -305,7 +305,7 @@ async function validateNonAnthropicModel(
     const { getCachedCerebrasCatalogue, cerebrasListedModel } = await import('../../services/providers/cerebras/cerebrasCatalogue.js')
     const snapshot = getCachedCerebrasCatalogue()
     if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins cerebras replaces the key.' }
-    if (snapshot?.fetchedAtMs ? !cerebrasListedModel(snapshot, wire) : !cerebrasDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Cerebras text catalogue.' }
+    if (snapshot?.models.length ? !cerebrasListedModel(snapshot, wire) : !cerebrasDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Cerebras text catalogue.' }
     return { valid: true, skipCache: true }
   }
   if (route === 'fireworks') {
@@ -319,7 +319,7 @@ async function validateNonAnthropicModel(
     const { getCachedFireworksCatalogue, fireworksListedModel } = await import('../../services/providers/fireworks/fireworksCatalogue.js')
     const snapshot = getCachedFireworksCatalogue()
     if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins fireworks replaces the key.' }
-    if (snapshot?.fetchedAtMs ? !fireworksListedModel(snapshot, wire) : !fireworksDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Fireworks text catalogue.' }
+    if (snapshot?.models.length ? !fireworksListedModel(snapshot, wire) : !fireworksDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Fireworks text catalogue.' }
     return { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {

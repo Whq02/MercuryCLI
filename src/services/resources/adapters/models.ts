@@ -285,11 +285,11 @@ export async function knownModelsReference(): Promise<KnownModelsReference> {
   const { TOGETHER_DISPLAY_PINS, togetherQualifiedId } = await import('../../providers/together/togetherPins.js')
   providers.push({ provider: 'together', providerName: providerDisplayName('together'), familyWord: 'together', models: TOGETHER_DISPLAY_PINS.map(pin => ({ id: togetherQualifiedId(pin.id), displayName: pin.displayName })) })
   const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../providers/groq/groqPins.js')
-  providers.push({ provider: 'groq', providerName: providerDisplayName('groq'), models: GROQ_DISPLAY_PINS.map(pin => ({ id: groqQualifiedId(pin.id), displayName: pin.displayName })) })
+  providers.push({ provider: 'groq', providerName: providerDisplayName('groq'), familyWord: 'groq', models: GROQ_DISPLAY_PINS.map(pin => ({ id: groqQualifiedId(pin.id), displayName: pin.displayName })) })
   const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../providers/cerebras/cerebrasPins.js')
-  providers.push({ provider: 'cerebras', providerName: providerDisplayName('cerebras'), models: CEREBRAS_DISPLAY_PINS.map(pin => ({ id: cerebrasQualifiedId(pin.id), displayName: pin.displayName })) })
+  providers.push({ provider: 'cerebras', providerName: providerDisplayName('cerebras'), familyWord: 'cerebras', models: CEREBRAS_DISPLAY_PINS.map(pin => ({ id: cerebrasQualifiedId(pin.id), displayName: pin.displayName })) })
   const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../providers/fireworks/fireworksPins.js')
-  providers.push({ provider: 'fireworks', providerName: providerDisplayName('fireworks'), models: FIREWORKS_DISPLAY_PINS.map(pin => ({ id: fireworksQualifiedId(pin.id), displayName: pin.displayName })) })
+  providers.push({ provider: 'fireworks', providerName: providerDisplayName('fireworks'), familyWord: 'fireworks', models: FIREWORKS_DISPLAY_PINS.map(pin => ({ id: fireworksQualifiedId(pin.id), displayName: pin.displayName })) })
   return { version: MERCURY_VERSION, providers }
 }
 
