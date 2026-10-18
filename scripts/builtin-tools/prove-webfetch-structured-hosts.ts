@@ -110,6 +110,9 @@ const server = Bun.serve({
       if (path === '/repos/acme/bigreadme/readme') {
         return new Response(oversizedBytes, { headers: { 'Content-Type': 'application/json' } })
       }
+      if (path === '/repos/acme/walled') {
+        return new Response('blocked by the egress proxy', { status: 403, headers: { 'x-proxy-error': 'blocked-by-allowlist' } })
+      }
       if (path === '/repos/acme/loop') {
         return new Response('', { status: 301, headers: { Location: 'https://api.github.com/repos/acme/loop' } })
       }
@@ -521,6 +524,17 @@ try {
       'large: a README over the ceiling is left out and the repository is still read',
       bigReadme.code === 200 && bigReadme.result.includes('# acme/widget') && bigReadme.result.includes('Stars: 1420'),
       bigReadme.result.slice(0, 300),
+    )
+
+    clearWebFetchCache()
+    const walled = await callFetch('https://github.com/acme/walled').then(
+      response => response.result,
+      (error: Error) => `threw ${error.name}: ${error.message}`,
+    )
+    check(
+      'egress: an API host the egress proxy blocks leaves the page to the plain fetch, which the proxy may allow',
+      walled.includes('Fallback GitHub HTML'),
+      walled.slice(0, 240),
     )
 
     clearWebFetchCache()

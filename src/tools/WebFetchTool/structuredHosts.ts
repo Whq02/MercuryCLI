@@ -2,7 +2,7 @@ import axios from 'axios'
 import { AbortError } from '../../utils/errors.js'
 import { decodeHtmlEntities, htmlToText, readAttribute } from '../../services/search/htmlText.js'
 import { webUserAgent } from '../../utils/webUserAgent.js'
-import { EgressBlockedError, FetchRefusedError } from './fetchErrors.js'
+import { FetchRefusedError } from './fetchErrors.js'
 import { FetchPacing } from './fetchPacing.js'
 import { permittedFetchRedirect } from './fetchTransport.js'
 
@@ -263,7 +263,7 @@ async function fetchApiEndpoint(
     const status = response.status
     const headers = (response.headers ?? {}) as Record<string, unknown>
     if (status === 403 && headers['x-proxy-error'] === 'blocked-by-allowlist') {
-      throw new EgressBlockedError(new URL(apiUrl).hostname)
+      return { ok: false, fallThrough: true }
     }
     if (status >= 300 && status < 400) {
       const loc = typeof headers.location === 'string' ? headers.location : ''
