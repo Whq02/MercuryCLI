@@ -215,7 +215,7 @@ const inBounds = (frame: string, columns: number, rows: number): boolean =>
   frame.split('\n').length <= rows && frame.split('\n').every(line => stringWidth(line) <= columns)
 const lineWith = (frame: string, needle: string): string | undefined => frame.split('\n').find(line => line.includes(needle))
 const rosterRow = (frame: string): string => {
-  const label = 'Claude subscription account'
+  const label = 'Anthropic — Claude subscription'
   const rows = frame.split('\n').filter(line => line.includes(label))
   return rows.sort((a, b) => a.indexOf(label) - b.indexOf(label))[0] ?? ''
 }
@@ -260,7 +260,7 @@ async function paintSurfaces(size: { columns: number; rows: number }, tag: strin
 }
 function rosterWords(): { chip: string; detail: string[] } {
   const facts = logins.collectLoginsScreenFacts()
-  const arm = logins.loginsSortedArms(facts).find(candidate => candidate.familyId === 'anthropic' && candidate.arm === 'subscription')!
+  const arm = logins.loginsSortedArms(facts).find(candidate => candidate.familyId === 'anthropic')!
   return { chip: logins.loginsRowStateOf(arm, facts).chip, detail: logins.loginsDetailLines(arm, facts) }
 }
 const chipWords = (): string => {
@@ -311,7 +311,7 @@ section('§2 a long email clips with each surface\'s own tail marker, never past
     const stamp = `${size.columns}x${size.rows}`
     const frames = await paintSurfaces(size, 'long')
     const row = rosterRow(frames.logins)
-    check(`${stamp} logins: the row carries the clipped email with the ellipsis`, row.includes(`${LONG_EMAIL.slice(0, 25)}…`), row)
+    check(`${stamp} logins: the row carries the clipped email with the ellipsis, never the whole address`, /a-very-long-fixtur[\w-]*…/.test(row) && !row.includes(LONG_EMAIL), row)
     if (size.columns >= 100) {
       const acct = lineWith(frames.face, 'Acct') ?? ''
       check(`${stamp} face: the strip clips the email at 26 cells with an ellipsis`, acct.includes(`Acct ${LONG_EMAIL.slice(0, 25)}…`), acct)
@@ -356,8 +356,8 @@ section('§5 a key-based sign-in is unchanged')
   settleFixture({ envKey: true })
   const size = SIZES[0]
   const frames = await paintSurfaces(size, 'key')
-  const keyRow = lineWith(frames.logins, 'Usage-based billing') ?? ''
-  check('178x51 logins: the key row names the env key, no email', keyRow.includes('ANTHROPIC_API_KEY') && !frames.logins.includes('@'), keyRow)
+  const keyRow = rosterRow(frames.logins)
+  check('178x51 logins: the Anthropic row names the env key, no email', keyRow.includes('ANTHROPIC_API_KEY') && !frames.logins.includes('@'), keyRow)
   check('178x51 face: the chip names the key', frames.face.includes('Acct Anthropic API key') && !frames.face.includes('@'), lineWith(frames.face, 'Acct'))
   check('178x51 usage popup: the key slot, no identity line', frames.popup.includes('Anthropic API key (ANTHROPIC_API_KEY)') && !frames.popup.includes('Signed in as'), lineWith(frames.popup, 'API key'))
   check('178x51 usage card: API usage, no email', frames.card.includes('API usage') && !frames.card.includes('@'), lineWith(frames.card, 'usage'))

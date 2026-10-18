@@ -152,8 +152,9 @@ if (!existsSync(DIST)) {
   const COLS = 120
   const ROWS = 40
   const COMPOSER_READY = 'Type a prompt'
-  const MENU_ROW = 'Claude subscription account'
-  const MENU_PAINTED = 'Usage-based'
+  const MENU_ROW = 'Anthropic — Claude subscription'
+  const MENU_PAINTED = 'Anthropic'
+  const PICK_PAINTED = 'connect.'
   const OPENED = 'press c to copy the URL'
   const NO_CODE = 'No code arrived from the browser'
   const squash = (s: string): string => s.replace(/\s+/g, '')
@@ -166,7 +167,7 @@ if (!existsSync(DIST)) {
   }
   const run = await runArtifactArena({
     turns: [],
-    sends: [`after:${COMPOSER_READY}:1500:/logins`, `after:${COMPOSER_READY}:2300:\\r`, `after:${MENU_PAINTED}:900:\\x1b[B`, `after:${MENU_PAINTED}:1500:\\r`],
+    sends: [`after:${COMPOSER_READY}:1500:/logins`, `after:${COMPOSER_READY}:2300:\\r`, `after:${MENU_PAINTED}:900:\\x1b[B`, `after:${MENU_PAINTED}:1500:\\r`, `after:${PICK_PAINTED}:900:\\r`],
     seconds: Math.ceil(NO_CODE_DELAY_MS / 1000) + 45,
     cols: COLS,
     rows: ROWS,
@@ -179,16 +180,19 @@ if (!existsSync(DIST)) {
     const unfired = `${run.outcome.reason ?? 'complete'} · unfired ${JSON.stringify(run.outcome.report?.unfired ?? [])}`
     const chatPaint = painted(run, COMPOSER_READY)
     const menuPaint = painted(run, MENU_ROW, chatPaint?.ts ?? 0)
-    const waitingPaint = painted(run, 'A browser window has been opened', menuPaint?.ts ?? 0)
-    const openedPaint = painted(run, OPENED, menuPaint?.ts ?? 0)
+    const pickPaint = painted(run, PICK_PAINTED, menuPaint?.ts ?? 0)
+    const waitingPaint = painted(run, 'A browser window has been opened', pickPaint?.ts ?? 0)
+    const openedPaint = painted(run, OPENED, pickPaint?.ts ?? 0)
     const noCodePaint = painted(run, NO_CODE, openedPaint?.ts ?? 0)
     const menu = screenAfter(run, menuPaint)
+    const pick = screenAfter(run, pickPaint)
     const opened = screenAfter(run, openedPaint)
     const noCode = screenAfter(run, noCodePaint)
-    if (frameDir) for (const [label, rows] of [['menu', menu], ['opened', opened], ['no-code', noCode]] as const) if (rows) writeFileSync(join(frameDir, `card-${label}.txt`), rows.map(steady).join('\n') + '\n')
+    if (frameDir) for (const [label, rows] of [['menu', menu], ['pick', pick], ['opened', opened], ['no-code', noCode]] as const) if (rows) writeFileSync(join(frameDir, `card-${label}.txt`), rows.map(steady).join('\n') + '\n')
     const rowsWith = (rows: string[] | null, re: RegExp): string => (rows ?? []).filter(l => re.test(l)).join(' | ')
     check('the /logins card opened on its family menu', menu !== null && menu.some(l => l.includes(MENU_ROW)), unfired)
-    check('the Claude row opened the browser road: the card says a browser window has been opened and offers the URL and c', opened !== null && opened.some(l => l.includes('A browser window has been opened')) && opened.some(l => l.includes(OPENED)) && opened.some(l => l.includes('Paste code here if prompted')), opened === null ? unfired : rowsWith(opened, /browser|copy|Paste/))
+    check('the Anthropic row opened the arm pick offering both roads', pick !== null && pick.some(l => l.includes('Claude subscription — browser sign-in')) && pick.some(l => l.includes('Usage-based billing — Anthropic Console')), pick === null ? unfired : rowsWith(pick, /subscription|Usage-based/))
+    check('the subscription arm opened the browser road: the card says a browser window has been opened and offers the URL and c', opened !== null && opened.some(l => l.includes('A browser window has been opened')) && opened.some(l => l.includes(OPENED)) && opened.some(l => l.includes('Paste code here if prompted')), opened === null ? unfired : rowsWith(opened, /browser|copy|Paste/))
     check('after the wait with no code the card says so: "No code arrived from the browser yet"', noCode !== null && noCode.some(l => l.includes('No code arrived from the browser yet')), noCode === null ? `the words never painted · ${unfired}` : rowsWith(noCode, /browser|code/i))
     check('…it no longer says a browser window has been opened', noCode !== null && !noCode.some(l => l.includes('A browser window has been opened')), rowsWith(noCode, /browser/))
     check('…and the copy-the-URL road stands in the same card', noCode !== null && noCode.some(l => l.includes('press c to copy')) && noCode.some(l => l.includes('Paste code here if prompted')), rowsWith(noCode, /copy|Paste/))

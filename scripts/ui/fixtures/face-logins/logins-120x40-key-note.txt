@@ -9,31 +9,31 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ signed in                                                      │  │ ❯ Usage-based billing — Anthropic Console… │
+   │ signed in                                                      │  │ ❯ GLM (Z.AI) — API key (general or GLM Co… │
    │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
-   │   Claude subscription account                   op@example.com │  │ GLM Coding Plan key                        │
+   │   Anthropic — Claude subscription or Cons…      op@example.com │  │ GLM Coding Plan key                        │
    │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ Stored auth-scoped (mode 600), never       │
    │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ logged; ZAI_API_KEY wins over the          │
    │                                                                │  │ store.                                     │
    │ available                                                      │  │ key: •••••••••▌                            │
-   │ ❯ Usage-based billing — Anthropic Console…       not signed in │  │                                            │
-   │   OpenRouter — one credential, the whole …       not signed in │  │ That is an Anthropic API key               │
-   │   Google Gemini — Google sign-in, API key        not signed in │  │ (sk-ant-…) — this step stores a GLM        │
-   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ Coding Plan key.                           │
-   │   DeepSeek — API key                             not signed in │  │ ↵ stores it · esc back                     │
-   │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
-   │   Meta — Muse Code sign-in or API key            not signed in │  ╭────────────────────────────────────────────╮
-   │   Mistral — API key (Mistral Large 4)            not signed in │  │ LOGINS                                     │
-   │   Nous Portal — account sign-in or API ke…       not signed in │  │ Families   20                              │
-   │   MiniMax — API key or M Plan key (M3, M2…       not signed in │  │ Signed in  4 of 20                         │
-   │   Together AI — API key (the gateway's ch…       not signed in │  │ Ready      4 lanes                         │
-   │   Cohere — API key (Command A+, North)           not signed in │  ╰────────────────────────────────────────────╯
-   │   Groq — API key (text models)                   not signed in │  ╭────────────────────────────────────────────╮
-   │   Cerebras — API key (text models)               not signed in │  │ ENVIRONMENT                                │
-   │   Fireworks — API key (text models)              not signed in │  │ Mercury    Opus 5                          │
-   │   Qwen — Model Studio API key (Qwen3.8 Ma…       not signed in │  │ Critter    Octopus                         │
-   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Dir        orchard-src                     │
-   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
+   │   OpenRouter — one credential, the whole …       not signed in │  │                                            │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ That is an Anthropic API key               │
+   │ ❯ GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ (sk-ant-…) — this step stores a GLM        │
+   │   DeepSeek — API key                             not signed in │  │ Coding Plan key.                           │
+   │   xAI — Grok subscription sign-in or API …       not signed in │  │ ↵ stores it · esc back                     │
+   │   Meta — Muse Code sign-in or API key            not signed in │  ╰────────────────────────────────────────────╯
+   │   Mistral — API key (Mistral Large 4)            not signed in │  ╭────────────────────────────────────────────╮
+   │   Nous Portal — account sign-in or API ke…       not signed in │  │ LOGINS                                     │
+   │   MiniMax — API key or M Plan key (M3, M2…       not signed in │  │ Families   20                              │
+   │   Together AI — API key (the gateway's ch…       not signed in │  │ Signed in  4 of 20                         │
+   │   Cohere — API key (Command A+, North)           not signed in │  │ Ready      4 lanes                         │
+   │   Groq — API key (text models)                   not signed in │  ╰────────────────────────────────────────────╯
+   │   Cerebras — API key (text models)               not signed in │  ╭────────────────────────────────────────────╮
+   │   Fireworks — API key (text models)              not signed in │  │ ENVIRONMENT                                │
+   │   Qwen — Model Studio API key (Qwen3.8 Ma…       not signed in │  │ Mercury    Opus 5                          │
+   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Critter    Octopus                         │
+   ╰────────────────────────────────────────────────────────────────╯  │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  paste GLM Coding Plan key                                                                   │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

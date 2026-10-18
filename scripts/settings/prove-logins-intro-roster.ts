@@ -21,7 +21,7 @@ const { SIGN_IN_WORDS } = await import('../../src/components/Onboarding.tsx')
 try {
   const intro = SIGN_IN_WORDS.intro
   const rows = loginFamilyRows({ engineLegs: true })
-  const connect = rows.filter(row => row.value !== 'openai' && row.value !== 'claudeai' && row.value !== 'console')
+  const connect = rows.filter(row => row.value !== 'openai' && row.value !== 'anthropic')
   const names = connect.map(row => row.label.split(' — ')[0]!)
   console.log(`  intro: ${intro}`)
   check('the /logins opening sentence names every family the list below it carries, by the row\'s own name', names.every(name => intro.includes(name)), `missing: ${names.filter(name => !intro.includes(name)).join(', ') || 'none'}`)

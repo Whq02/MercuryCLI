@@ -178,13 +178,16 @@ section('§1 the Boot face’s logins layer — one c, one copy, an empty draft'
       fullScene: { columns: COLS, rows: ROWS },
     }),
   )
-  const rosterUp = await waitFor(() => m.screen().includes(ROSTER_LEGEND) && m.screen().includes('Claude subscription account'), 4000)
-  check('the roster mounted with the OpenAI row leading and the Claude row under it', rosterUp && m.screen().indexOf('OpenAI') < m.screen().indexOf('Claude subscription account'))
+  const rosterUp = await waitFor(() => m.screen().includes(ROSTER_LEGEND) && m.screen().includes('Anthropic — Claude subscription'), 4000)
+  check('the roster mounted with the OpenAI row leading and the Anthropic row under it', rosterUp && m.screen().indexOf('OpenAI') < m.screen().indexOf('Anthropic — Claude subscription'))
   m.push(DOWN)
   await settle(200)
   m.push('\r')
+  const pickUp = await waitFor(() => m.screen().includes('Claude subscription — browser sign-in') && m.screen().includes('Usage-based billing — Anthropic Console'), 4000)
+  check('↵ on the Anthropic row opened the arm pick with both roads', pickUp, pickUp ? '' : m.screen().split('\n').filter(l => l.includes('│')).slice(4, 12).map(l => l.trim()).join(' | '))
+  m.push('\r')
   const promptUp = await waitFor(() => m.screen().includes(FACE_HINT), 8000)
-  check('↵ opened the Anthropic flow and the paste prompt came up', promptUp, promptUp ? '' : m.screen().split('\n').filter(l => l.includes('│')).slice(4, 12).map(l => l.trim()).join(' | '))
+  check('↵ on the subscription arm opened the Anthropic flow and the paste prompt came up', promptUp, promptUp ? '' : m.screen().split('\n').filter(l => l.includes('│')).slice(4, 12).map(l => l.trim()).join(' | '))
   check('the draft is empty before any key', draftDots(m.screen()) === 0, String(draftDots(m.screen())))
   copies = 0
   m.push('c')

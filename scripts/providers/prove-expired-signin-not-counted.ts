@@ -25,7 +25,7 @@ const scope = { name: 'personal', dir: join(home, 'scope-personal'), isCurrent: 
 const providers = [{ id: 'anthropic', available: true, description: { account: { kind: 'oauth', label: 'Claude subscription' } } }] as never
 const familyReads = { claudeSubscriber: () => true, subscriptionType: () => 'pro', anthropicApiKeyPresent: () => false, bearerTokenSource: () => ({ source: 'claude.ai', hasToken: true }), anthropicEmail: () => 'op@example.com' }
 const world = (expired: boolean) => slots.deriveFamilySlotGroups(providers, { familyReads, scanScopes: () => [scope], anthropicApiKey: () => ({ key: null, source: 'none' as never }), anthropicSignInExpired: () => expired })
-const claudeArm = logins.loginsCatalogue().find(arm => arm.arm === 'subscription')!
+const claudeArm = logins.loginsCatalogue().find(arm => arm.familyId === 'anthropic')!
 const factsOf = (groups: ReturnType<typeof world>) => ({ groups, usability: {} as never }) as never
 const words = (slot: { signedIn: boolean; expired?: boolean; active: boolean; identity: string } | undefined) => slot === undefined ? '(absent)' : `signedIn=${slot.signedIn} expired=${slot.expired ?? false} active=${slot.active} identity=${slot.identity}`
 

@@ -18,6 +18,7 @@ prove-draft-per-session.ts
 prove-drive-witness-census.ts
 prove-fable-weekly-window.ts
 prove-face-logins.ts
+prove-logins-one-anthropic-row.ts
 prove-field-findings-composer.ts
 prove-field-findings-concourse.ts
 prove-field-findings-sededit.ts

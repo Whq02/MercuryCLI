@@ -240,6 +240,7 @@ function chatSends(): Send[] {
     { afterPrevTicks: 4, data: '\r' },
     { atTick: 320, awaitText: 'Sign in', awaitSettleTicks: 3, data: '\r', mark: 'menu' },
     { requireAwait: true, awaitText: 'Sign in / re-login', awaitSettleTicks: 3, data: '\r', mark: 'card' },
+    { requireAwait: true, awaitText: 'Claude subscription — browser sign-in', awaitSettleTicks: 3, data: '\r', mark: 'pick' },
     { atTick: 560, awaitText: 'Signed in as', awaitSettleTicks: 5, data: '\r', mark: 'pane' },
     { atTick: 640, awaitText: 'Login successful', awaitSettleTicks: 4, data: '', mark: 'receipt' },
   ]
@@ -256,6 +257,7 @@ function faceSends(): Send[] {
     down(),
     { afterPrevTicks: 3, data: '\r' },
     { atTick: 260, awaitText: 'CONTROL PLANE', awaitSettleTicks: 4, data: '\r', mark: 'roster-before' },
+    { requireAwait: true, awaitText: 'Claude subscription — browser sign-in', awaitSettleTicks: 3, data: '\r', mark: 'pick' },
     { atTick: 520, awaitText: 'Signed in as', awaitSettleTicks: 5, data: '\r', mark: 'pane' },
     { afterPrevTicks: 8, data: '', mark: 'roster' },
     { afterPrevTicks: 2, data: '\x1b' },
@@ -460,17 +462,18 @@ if (LEG === 'face' || LEG === 'both') {
     const roster = markText(r.payload, 'roster')
     const end = r.payload === null ? '' : gridText(r.payload.grid)
     const claudeRow = (text: string): string | undefined =>
-      text.split('\n').find(l => l.includes('Claude subscription account') && l.indexOf('Claude subscription account') < 60)
+      text.split('\n').find(l => l.includes('Anthropic — Claude subscription') && l.indexOf('Anthropic — Claude subscription') < 60)
+    const rowNames = (row: string | undefined, email: string): boolean => (row ?? '').includes(email) || new RegExp(`${email.slice(0, email.indexOf('@') + 5)}[\\w.]*…`).test(row ?? '')
     record('capture', `vshot=${r.status} end=${r.payload?.endReason ?? '?'} · ${r.daemon}`)
     record('fixture hits', r.hits.join(' | ') || 'none')
     record('the roster row before the sign-in', JSON.stringify(claudeRow(rosterBefore)?.trim() ?? null))
     record('the pane line', JSON.stringify(pane.split('\n').find(l => l.includes('Signed in')) ?? null))
     record('the roster row after ↵ done', JSON.stringify(claudeRow(roster)?.trim() ?? null))
-    check('the Logins layer opened on the stored sign-in', (claudeRow(rosterBefore) ?? '').includes(FIRST_EMAIL), tail(rosterBefore, 16) || r.stderr.slice(-600))
+    check('the Logins layer opened on the stored sign-in', rowNames(claudeRow(rosterBefore), FIRST_EMAIL), tail(rosterBefore, 16) || r.stderr.slice(-600))
     check('the loopback callback completed the flow and the profile was read with the minted token', r.hits.some(h => h.startsWith('POST /v1/oauth/token')) && r.hits.some(h => h.startsWith('GET /api/oauth/profile') && h.includes(`bearer=${SECOND_ACCESS}`)), r.hits.join(' | '))
     check('the success pane names the account that just signed in', pane.includes(`Signed in as ${SECOND_EMAIL}`), tail(pane, 14))
-    check('the roster row behind the open pane already names the account that signed in', (claudeRow(pane) ?? '').includes(SECOND_EMAIL), claudeRow(pane)?.trim() ?? 'no row')
-    check('↵ done leaves the roster naming the account that signed in', (claudeRow(roster) ?? '').includes(SECOND_EMAIL) && !(claudeRow(roster) ?? '').includes(FIRST_EMAIL), claudeRow(roster)?.trim() ?? 'no row')
+    check('the roster row behind the open pane already names the account that signed in', rowNames(claudeRow(pane), SECOND_EMAIL), claudeRow(pane)?.trim() ?? 'no row')
+    check('↵ done leaves the roster naming the account that signed in', rowNames(claudeRow(roster), SECOND_EMAIL) && !rowNames(claudeRow(roster), FIRST_EMAIL), claudeRow(roster)?.trim() ?? 'no row')
     const chipLine = end.split('\n').find(l => l.includes('Acct'))
     if (chipLine === undefined) {
       record('the face chip', `the chip strip is shed at ${COLS}x${ROWS}; the face carries no account chip on this frame`)

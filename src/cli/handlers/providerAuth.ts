@@ -288,13 +288,13 @@ export async function providerAuthList(opts: { json?: boolean } = {}, io: Provid
   const out = io.writeOut ?? defaultWriteOut
   const slots = allAccountSlots()
   const rows = loginFamilyRows({ engineLegs: true }).map(row => {
-    const familyId = row.value === 'claudeai' || row.value === 'console' ? 'anthropic' : row.value.startsWith('compat/') ? 'openai-compat' : row.value
+    const familyId = row.value.startsWith('compat/') ? 'openai-compat' : row.value
     const familySlots = slots.filter(slot => slot.family === familyId && (row.value.startsWith('compat/') ? slot.id.includes(row.value.slice('compat/'.length)) : true))
     const signedIn = familySlots.some(slot => slot.signedIn)
     const active = familySlots.find(slot => slot.active && slot.signedIn) ?? familySlots.find(slot => slot.signedIn)
     const refused = signedIn ? refusalWordsOf(refusalFamilyOf(familyId, row.value)) : undefined
     return {
-      id: row.value === 'claudeai' ? 'anthropic' : row.value,
+      id: row.value,
       name: row.label.split(' — ')[0] ?? row.value,
       label: row.label,
       signedIn,

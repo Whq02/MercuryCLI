@@ -346,15 +346,15 @@ const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = 
 
 section("§7 the surfaces name the session's family — never the first-party one by default")
 {
-  const { loginFamilyFocusFor, loginFamilyRows } = await import('../../src/components/loginFamilyRows.js')
-  check("the /logins card pre-focuses the recorded default provider's own row (anthropic → its subscription row; unset or row-less → the list's first)",
-    loginFamilyFocusFor('openrouter') === 'openrouter' && loginFamilyFocusFor('anthropic') === 'claudeai' && loginFamilyFocusFor(undefined) === undefined && loginFamilyFocusFor('local') === undefined)
+  const { anthropicArmPickRows, loginFamilyFocusFor, loginFamilyRows } = await import('../../src/components/loginFamilyRows.js')
+  check("the /logins card pre-focuses the recorded default provider's own row (anthropic → its one row; unset or row-less → the list's first)",
+    loginFamilyFocusFor('openrouter') === 'openrouter' && loginFamilyFocusFor('anthropic') === 'anthropic' && loginFamilyFocusFor(undefined) === undefined && loginFamilyFocusFor('local') === undefined)
   const rows = loginFamilyRows({ engineLegs: true })
-  const consoleRow = rows.find(r => r.value === 'console')
+  const consoleRow = anthropicArmPickRows.find(r => r.value === 'console')
   check('the usage-based door is purely Anthropic (OS-AUTH-1 split — a revived two-vendor door reds)', /Anthropic Console/.test(consoleRow?.label ?? '') && !/OpenAI/.test(consoleRow?.label ?? ''), consoleRow?.label)
   const openaiRow = rows.find(r => r.value === 'openai')
   check("…and the OpenAI key's home is the OpenAI family's own row", /OpenAI/.test(openaiRow?.label ?? '') && /API key/.test(openaiRow?.label ?? ''), openaiRow?.label)
-  check('…and the narrowed door names its one vendor', /Anthropic Console/.test(loginFamilyRows({ engineLegs: false }).find(r => r.value === 'console')?.label ?? ''))
+  check('…and the host without engine legs still offers the Anthropic row that carries the Console arm', loginFamilyRows({ engineLegs: false }).some(r => r.value === 'anthropic' && /Console/.test(r.label)))
   const { nonAnthropicBootNotice } = await import('../../src/services/providers/providerUsability.js')
   const lane = (provider: string, usable: boolean) => ({ provider, credential: usable ? 'api-key' : 'none', limit: 'unknown', usable, blockers: usable ? [] : ['x'] })
   const notice = nonAnthropicBootNotice({ anthropic: lane('anthropic', false), openai: lane('openai', false), openrouter: lane('openrouter', true) } as never)

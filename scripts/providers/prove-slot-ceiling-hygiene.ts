@@ -66,7 +66,7 @@ section('§B the structural universe — one scope, replace-on-save')
 section('§C the sign-in entry enumeration — one flow, headers read the ceiling')
 {
   const flow = readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
-  for (const leg of ["'claudeai'", "'console'", "'openai'", "'openrouter'", "'gemini'", "'huggingface'", "'moonshot'", "'zai'", "'deepseek'"]) {
+  for (const leg of ["'anthropic'", "'openai'", "'openrouter'", "'gemini'", "'huggingface'", "'moonshot'", "'zai'", "'deepseek'"]) {
     check(`the ${leg} sign-in leg lives in the ONE flow`, flow.includes(leg))
   }
   const board = readFileSync(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')

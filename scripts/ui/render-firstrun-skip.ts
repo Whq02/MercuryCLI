@@ -142,7 +142,7 @@ console.log('\n  ── C · /logins still opens, /accounts tells the truth @ 10
       ...THROUGH_TRUST,
       { requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 5, data: '/logins' },
       { afterPrevTicks: 5, data: '\r' },
-      { requireAwait: true, awaitText: 'Claude subscription account', awaitSettleTicks: 3, data: '\x1b' },
+      { requireAwait: true, awaitText: 'Anthropic — Claude subscription', awaitSettleTicks: 3, data: '\x1b' },
       { afterPrevTicks: 4, data: '/accounts' },
       { afterPrevTicks: 5, data: '\r' },
     ],

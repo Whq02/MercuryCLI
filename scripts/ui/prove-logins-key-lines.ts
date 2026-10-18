@@ -122,10 +122,10 @@ t.section('§1 — ONE OWNER: the family-row owner spells every key page once; t
     pages === undefined ? 'no KEY_PAGES export' : JSON.stringify(pages),
   )
   const rows = (owner['loginFamilyRows'] as (o: { engineLegs: boolean }) => Array<{ value: string }>)({ engineLegs: true })
-  const keyRows = rows.map(r => r.value).filter(v => v !== 'claudeai' && v !== 'console').sort()
+  const keyRows = rows.map(r => r.value).filter(v => v !== 'anthropic').sort()
   const families = owner['KEY_FAMILIES'] as string[] | undefined
   t.check(
-    'KEY_FAMILIES is the catalogue minus the two Anthropic rows (no key family invented, none forgotten)',
+    'KEY_FAMILIES is the catalogue minus the Anthropic row (no key family invented, none forgotten)',
     families !== undefined && JSON.stringify([...families].sort()) === JSON.stringify(keyRows),
     families === undefined ? 'no KEY_FAMILIES export' : families.join(','),
   )
