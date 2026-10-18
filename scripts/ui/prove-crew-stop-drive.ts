@@ -94,7 +94,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
   { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
-  { data: '\r', afterPrevTicks: 4 },
+  { data: '\r', atTick: 999, awaitText: ask, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
 ]
 
 const STATE_WORDS = /\b(running|idle|stopped|landed|failed|paused|waiting)\b|Sleeping for/
@@ -136,13 +136,13 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   const listGate = name === 'tasks' ? target : '1 running'
   const sends: Array<Record<string, unknown>> = [
     ...bootSends(ask),
-    { data: openView, atTick: 999, awaitText: target, requireAwait: true, minTick: 5, awaitSettleTicks: 4 },
-    { data: '\r', afterPrevTicks: 4 },
+    { data: openView, atTick: 999, awaitText: 'crew-stop: done.', requireAwait: true, minTick: 5, awaitSettleTicks: 4 },
+    { data: '\r', atTick: 999, awaitText: openView, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
     ...(name === 'card'
       ? [
           { data: '\r', atTick: 999, awaitText: listGate, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },
-          { data: openView, atTick: 999, awaitText: 'viewing', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'view-open' },
-          { data: '\r', afterPrevTicks: 4 },
+          { data: openView, atTick: 999, awaitText: `message ${target}`, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'view-open' },
+          { data: '\r', atTick: 999, awaitText: openView, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
           { data: 'x', atTick: 999, awaitText: listGate, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'list-again' },
         ]
       : [{ data: 'x', atTick: 999, awaitText: listGate, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'crew-running' }]),
@@ -150,17 +150,16 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
     { data: '\x1b', atTick: 999, awaitText: 'stopped', requireAwait: true, minTick: 1, awaitSettleTicks: 3, mark: 'crew-after' },
     ...(name === 'card'
       ? [
-          { data: '', afterPrevTicks: 6, mark: 'stopped-view' },
-          { data: '\x1b', afterPrevTicks: 1 },
+          { data: '\x1b', atTick: 999, awaitText: `↵ resumes ${target} with your line`, awaitPattern: `\\A(?![\\s\\S]*Crewmates)`, requireAwait: true, minTick: 1, awaitSettleTicks: 2, mark: 'stopped-view' },
         ]
       : []),
     { data: openView, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
-    { data: '\r', afterPrevTicks: 4 },
+    { data: '\r', atTick: 999, awaitText: openView, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
     { data: '\x1b', atTick: 999, awaitText: name === 'tasks' ? 'esc' : 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 12, mark: 'crew-later' },
   ]
   let cap: Capture | null = null
   try {
-    cap = await capture({ cols, rows, total: 500, cwd, argv: ['node', DIST], sends, stableTicks: 6 }, driveEnv(home, fixture.base))
+    cap = await capture({ cols, rows, total: 500, cwd, argv: ['node', DIST], sends, readyText: 'ype a prompt', stableTicks: 6 }, driveEnv(home, fixture.base))
   } finally {
     await fixture.close()
   }
