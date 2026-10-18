@@ -325,9 +325,12 @@ const dbPath = join(fixtures, 'app.sqlite')
     INSERT INTO logs (msg, level) VALUES ('boot', 'info'), ('ready', 'info');
     CREATE TABLE comp (a TEXT, b TEXT, note TEXT, PRIMARY KEY (a, b));
     INSERT INTO comp (a, b, note) VALUES ('x', 'y', 'first');
-    CREATE TABLE items (id INTEGER PRIMARY KEY, payload BLOB, big INTEGER, note TEXT);
-    INSERT INTO items (id, payload, big, note) VALUES (1, X'010203', 9007199254740993, 'keep');
+    CREATE TABLE items (id INTEGER PRIMARY KEY, payload BLOB, big INTEGER, score REAL, maybe TEXT, word TEXT, note TEXT);
+    INSERT INTO items (id, payload, big, score, maybe, word, note) VALUES (1, X'010203', 9007199254740993, 3.14159, NULL, 'null', 'keep');
+    INSERT INTO items (id, payload, big, score, maybe, word, note) VALUES (9007199254740993, NULL, 9007199254740995, 1.5, 'null', NULL, 'line 1\n"quoted" line 2');
     CREATE VIEW admins AS SELECT * FROM users WHERE role = 'admin';
+    CREATE VIRTUAL TABLE docs USING fts5(title, body);
+    INSERT INTO docs (title, body) VALUES ('hello', 'world');
   `)
   db.close()
   const query = <T>(sql: string, ...params: unknown[]): T[] => {
@@ -432,6 +435,31 @@ const dbPath = join(fixtures, 'app.sqlite')
       query<{ big: string }>('SELECT CAST(big AS TEXT) AS big FROM items WHERE id = 1')[0]?.big === '9007199254740993',
     `${words(itemRead)} / ${words(itemEdit)} / ${JSON.stringify(item, (_k, v) => (typeof v === 'bigint' ? String(v) : v))}`,
   )
+
+  const bigEdit = await edit({ file_path: `${dbPath}:items/1`, old_string: '"big": "9007199254740993"', new_string: '"big": "9007199254740995"' }, ctx)
+  const bigKeyRead = await read({ file_path: `${dbPath}:items/9007199254740993` }, ctx)
+  const bigKeyEdit = await edit({
+    file_path: `${dbPath}:items/9007199254740993`,
+    old_string: '"big": "9007199254740995",\n  "score": 1.5,\n  "maybe": "null",\n  "word": null,\n  "note": "line 1\\n\\"quoted\\" line 2"',
+    new_string: '"big": 9007199254740999,\n  "score": 2.71828,\n  "maybe": null,\n  "word": "null",\n  "note": "line A\\n\\"quoted\\" line B"',
+  }, ctx)
+  const bigKeyReread = await read({ file_path: `${dbPath}:items/9007199254740993` }, makeContext())
+  const bigRows = query<{ id: string; big: string; t: string; score: number; maybe: string | null; word: string | null; note: string }>(
+    'SELECT CAST(id AS TEXT) AS id, CAST(big AS TEXT) AS big, typeof(big) AS t, score, maybe, word, note FROM items ORDER BY id',
+  )
+  check(
+    'S2.12 64-bit big integers in keys and values (quoted or unquoted), NULL vs "null", floats, and text with newlines and quotes round-trip without rounding on a STRICT table',
+    bigEdit.ok && bigKeyRead.ok && bigKeyEdit.ok && bigKeyReread.ok &&
+      bigRows[0]?.big === '9007199254740995' && bigRows[0]?.t === 'integer' &&
+      bigRows[1]?.id === '9007199254740993' && bigRows[1]?.big === '9007199254740999' && bigRows[1]?.t === 'integer' &&
+      bigRows[1]?.score === 2.71828 && bigRows[1]?.maybe === null && bigRows[1]?.word === 'null' &&
+      bigRows[1]?.note === 'line A\n"quoted" line B' &&
+      bigKeyReread.text.includes('"big": "9007199254740999"') &&
+      bigKeyReread.text.includes('"maybe": null') &&
+      bigKeyReread.text.includes('"word": "null"') &&
+      bigKeyReread.text.includes('"note": "line A\\n\\"quoted\\" line B"'),
+    `${words(bigEdit)} / ${words(bigKeyEdit)} / rows=${JSON.stringify(bigRows)}`,
+  )
 }
 
 section('refusals. Every way to abuse or break the row, driven and refused')
@@ -521,6 +549,28 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     const view = await write({ file_path: `${dbPath}:admins/1`, content: '{"name": "x"}' }, ctx)
     const viewEdit = await edit({ file_path: `${dbPath}:admins/1`, old_string: 'a', new_string: 'b' }, ctx)
     check('R3.13 a view has no writable rows on Write or Edit', !view.ok && /view/.test(view.message) && !viewEdit.ok && /view/.test(viewEdit.message), `${words(view)} / ${words(viewEdit)}`)
+    const vtabWrite = await write({ file_path: `${dbPath}:docs/1`, content: '{"title": "x", "body": "y"}' }, ctx)
+    const vtabEdit = await edit({ file_path: `${dbPath}:docs/1`, old_string: 'hello', new_string: 'bye' }, ctx)
+    const vtabRead = await read({ file_path: `${dbPath}:docs/1` }, ctx)
+    check(
+      'R3.14 a virtual table (fts5) is refused on row Read, Write and Edit',
+      !vtabWrite.ok && /virtual table/i.test(vtabWrite.message) &&
+        !vtabEdit.ok && /virtual table/i.test(vtabEdit.message) &&
+        !vtabRead.ok && /virtual table/i.test(vtabRead.message),
+      `${words(vtabWrite)} / ${words(vtabEdit)} / ${words(vtabRead)}`,
+    )
+    await read({ file_path: `${dbPath}:items/1` }, ctx)
+    const blobOverwrite = await edit({ file_path: `${dbPath}:items/1`, old_string: '"payload": "<BLOB 3B>"', new_string: '"payload": "plain"' }, ctx)
+    const blobPlaceholderInsert = await write({
+      file_path: `${dbPath}:items/2`,
+      content: JSON.stringify({ payload: '<BLOB 3B>', big: 1, score: 1.0, maybe: null, word: 'ok', note: 'no' }),
+    }, ctx)
+    check(
+      'R3.15 overwriting a blob column or writing the "<BLOB nB>" placeholder is refused',
+      !blobOverwrite.ok && /binary data|BLOB/i.test(blobOverwrite.message) &&
+        !blobPlaceholderInsert.ok && /binary data|BLOB/i.test(blobPlaceholderInsert.message),
+      `${words(blobOverwrite)} / ${words(blobPlaceholderInsert)}`,
+    )
   }
 
   {
@@ -668,14 +718,20 @@ section('refusals. Every way to abuse or break the row, driven and refused')
         bodies === '1:updated in wal by holder,2:edited in the wal,3:written through sqlite',
       `${words(walWrite)} / ${words(walRead2)} / ${words(walEdit2)} / ${words(walStaleWrite)} / ${words(walStaleEdit)} rows=${bodies}`,
     )
+    await read({ file_path: `${dbPath}:users/1` }, ctx)
     const locker = new Database(dbPath)
     locker.exec('BEGIN IMMEDIATE')
     const locked = await write({ file_path: `${dbPath}:users/8`, content: '{"name": "Late", "role": "member"}' }, ctx)
+    const lockedEdit = await edit({ file_path: `${dbPath}:users/1`, old_string: '"role": "owner"', new_string: '"role": "locked"' }, ctx)
     locker.exec('ROLLBACK')
     const count = (locker.query('SELECT COUNT(*) AS c FROM users').get() as { c: number }).c
     const lockedIntegrity = (locker.query('PRAGMA integrity_check').get() as { integrity_check: string }).integrity_check
     locker.close()
-    check('R8.2 a database another connection holds locked refuses with the reason; nothing is written and the file is intact', !locked.ok && /locked/i.test(locked.message) && count === 4 && lockedIntegrity === 'ok', `${words(locked)} count=${count}`)
+    check(
+      'R8.2 a database another connection holds locked refuses both Write and Edit with the reason; nothing is written and the file is intact',
+      !locked.ok && /locked/i.test(locked.message) && !lockedEdit.ok && /locked/i.test(lockedEdit.message) && count === 4 && lockedIntegrity === 'ok',
+      `${words(locked)} / ${words(lockedEdit)} count=${count}`,
+    )
   }
 
   {

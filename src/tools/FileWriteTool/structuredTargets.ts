@@ -408,11 +408,14 @@ type SqliteRowState = {
 }
 
 function readSqliteRowState(db: SqliteWriteDb, hostPath: string, table: string, selector: SqliteRowSelector): SqliteRowState {
-  const object = db.prepare(`SELECT type FROM sqlite_master WHERE name = ? AND type IN ('table', 'view')`).all(table)[0] as
-    | { type: string }
+  const object = db.prepare(`SELECT type, sql FROM sqlite_master WHERE name = ? AND type IN ('table', 'view')`).all(table)[0] as
+    | { type: string; sql: string | null }
     | undefined
   if (object === undefined) throw new Error(`SQLite table "${table}" not found in ${hostPath}.`)
   if (object.type === 'view') throw new Error(`"${table}" is a view of ${hostPath}: a view has no writable rows.`)
+  if (/^\s*CREATE\s+VIRTUAL\s+TABLE\b/i.test(object.sql ?? '')) {
+    throw new Error(`"${table}" is a virtual table of ${hostPath}: a virtual table has no writable rows.`)
+  }
   const shape = sqliteTableShape(db, table)
   const { matchColumn, rows } = selectSqliteRows(db, table, shape, selector)
   if (rows.length > 1) throw new Error(sqliteRowAmbiguousMessage(table, matchColumn, selector.value))
@@ -420,10 +423,15 @@ function readSqliteRowState(db: SqliteWriteDb, hostPath: string, table: string, 
   return { shape, matchColumn, row, text: row === null ? '' : renderSqliteRow(row) }
 }
 
+const BIGINT_TOKEN_PREFIX = '__mercury_bigint__:'
+
 function parseRowObject(text: string): Record<string, unknown> {
+  const safeText = text.replace(/"(?:\\.|[^"\\])*"|(-?\b\d{16,20}\b)/g, (m, int: string | undefined) =>
+    int !== undefined ? JSON.stringify(`${BIGINT_TOKEN_PREFIX}${int}`) : m,
+  )
   let parsed: unknown
   try {
-    parsed = JSON.parse(text)
+    parsed = JSON.parse(safeText)
   } catch (err) {
     throw new Error(
       `A SQLite row is written as one JSON object of column values; the content does not parse: ${err instanceof Error ? err.message : String(err)}`,
@@ -432,18 +440,38 @@ function parseRowObject(text: string): Record<string, unknown> {
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     throw new Error('A SQLite row is written as one JSON object of column values (one row per target).')
   }
-  return parsed as Record<string, unknown>
+  const obj = parsed as Record<string, unknown>
+  for (const key of Object.keys(obj)) {
+    const val = obj[key]
+    if (typeof val === 'string' && val.startsWith(BIGINT_TOKEN_PREFIX)) {
+      try {
+        obj[key] = BigInt(val.slice(BIGINT_TOKEN_PREFIX.length))
+      } catch {
+        obj[key] = val.slice(BIGINT_TOKEN_PREFIX.length)
+      }
+    }
+  }
+  return obj
 }
 
-function bindable(value: unknown): string | number | null {
+function bindable(value: unknown, integerColumn = false): string | number | bigint | null {
   if (value === null) return null
-  if (typeof value === 'number' || typeof value === 'string') return value
+  if (typeof value === 'bigint') return value
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    if (integerColumn && /^-?\d{16,20}$/.test(value)) {
+      try {
+        const big = BigInt(value)
+        if (big >= -9223372036854775808n && big <= 9223372036854775807n) return big
+      } catch {}
+    }
+    return value
+  }
   if (typeof value === 'boolean') return value ? 1 : 0
-  if (typeof value === 'bigint') return Number(value)
   return JSON.stringify(value)
 }
 
-type RowChange = { column: string; value: string | number | null }
+type RowChange = { column: string; value: string | number | bigint | null }
 
 function plannedRowChanges(state: SqliteRowState, table: string, wanted: Record<string, unknown>): RowChange[] {
   const columnNames = state.shape.columns.map(c => c.name)
@@ -455,14 +483,19 @@ function plannedRowChanges(state: SqliteRowState, table: string, wanted: Record<
       throw new Error(`Table "${table}" has no column "${column}" (columns: ${columnNames.join(', ')}).`)
     }
     const next = wanted[column]
+    const current = state.row === null ? undefined : state.row[column]
     if (state.row !== null) {
-      const current = state.row[column]
       if (renderSqliteValue(next) === renderSqliteValue(current)) continue
       if (current instanceof Uint8Array || Buffer.isBuffer(current)) {
         throw new Error(`Column "${column}" of table "${table}" holds binary data; the text road does not overwrite it.`)
       }
     }
-    changes.push({ column, value: bindable(next) })
+    if (typeof next === 'string' && /^<BLOB \d+B>$/.test(next)) {
+      throw new Error(`Column "${column}" of table "${table}" cannot be written with the "<BLOB …>" placeholder; the text road does not write binary data.`)
+    }
+    const colInfo = state.shape.columns.find(c => c.name === column)
+    const intCol = typeof current === 'bigint' || column === 'rowid' || (colInfo !== undefined && /int/i.test(colInfo.type))
+    changes.push({ column, value: bindable(next, intCol) })
   }
   return changes
 }
@@ -473,7 +506,7 @@ function applyRowChanges(
   state: SqliteRowState,
   selector: SqliteRowSelector,
   changes: RowChange[],
-): { inserted: boolean; keyAfter: string | number | null } {
+): { inserted: boolean; keyAfter: string | number | bigint | null } {
   const q = (name: string) => `"${name}"`
   const keyBefore = state.row === null ? null : bindable(state.row[state.matchColumn])
   const keyChange = changes.find(c => c.column === state.matchColumn)
@@ -648,10 +681,14 @@ function rowAddressAfter(
   matchColumn: string,
   afterRow: Record<string, unknown>,
 ): { keys: string[]; resultPath: string; moved: string | null } {
-  const moved = `${target.table}/${matchColumn}=${String(afterRow[matchColumn])}`
+  const keyVal = String(afterRow[matchColumn])
+  const moved = `${target.table}/${matchColumn}=${keyVal}`
   const after = `${target.hostPath}:${moved}`
+  const bareAfter = `${target.hostPath}:${target.table}/${keyVal}`
   const stillAddressed = String(afterRow[target.selector.column ?? matchColumn]) === target.selector.value
-  return stillAddressed ? { keys: [target.canonicalPath, after], resultPath: target.canonicalPath, moved: null } : { keys: [after], resultPath: after, moved }
+  return stillAddressed
+    ? { keys: [target.canonicalPath, after, bareAfter], resultPath: target.canonicalPath, moved: null }
+    : { keys: [after, bareAfter], resultPath: after, moved }
 }
 
 async function withSqliteRow<T>(
@@ -673,15 +710,19 @@ function settleRow(
   state: SqliteRowState,
   changes: RowChange[],
 ): { afterText: string; evidence: string; inserted: boolean; resultPath: string } {
-  const applied = applyRowChanges(db, target.table, state, target.selector, changes)
-  const after = readSqliteRowState(
-    db,
-    target.hostPath,
-    target.table,
-    applied.inserted ? target.selector : { column: state.matchColumn, value: String(applied.keyAfter) },
-  )
-  if (after.row === null) throw new Error(`The row of "${target.table}" could not be read back after the write.`)
-  const address = rowAddressAfter(target, state.matchColumn, after.row)
+  const tx = db.transaction(() => {
+    const applied = applyRowChanges(db, target.table, state, target.selector, changes)
+    const after = readSqliteRowState(
+      db,
+      target.hostPath,
+      target.table,
+      applied.inserted ? target.selector : { column: state.matchColumn, value: String(applied.keyAfter) },
+    )
+    if (after.row === null) throw new Error(`The row of "${target.table}" could not be read back after the write.`)
+    return { applied, after }
+  })
+  const { applied, after } = tx()
+  const address = rowAddressAfter(target, state.matchColumn, after.row!)
   recordWritten(context, target, address.keys, after.text)
   const evidence = applied.inserted
     ? `inserted one row into ${target.table} of ${target.hostPath}`

@@ -1122,8 +1122,14 @@ export function sqliteTableShape(db: SqliteDb, table: string): { columns: Sqlite
   return { columns, address: { kind: 'rowid' } }
 }
 
-export function sqliteKeyBinding(value: string): number | string {
+export function sqliteKeyBinding(value: string): number | bigint | string {
   if (/^-?\d{1,15}$/.test(value)) return Number(value)
+  if (/^-?\d{16,20}$/.test(value)) {
+    try {
+      const big = BigInt(value)
+      if (big >= -9223372036854775808n && big <= 9223372036854775807n) return big
+    } catch {}
+  }
   return value
 }
 
@@ -1273,6 +1279,9 @@ export async function renderSqliteTarget(
         if (!targetObj) throw notFound(parsed.table)
         if (targetObj.type === 'view') {
           throw new Error(`"${targetObj.name}" is a view: a view has no addressable rows; read ${dbPath}:${targetObj.name} for its rows.`)
+        }
+        if (/^\s*CREATE\s+VIRTUAL\s+TABLE\b/i.test(targetObj.sql ?? '')) {
+          throw new Error(`"${targetObj.name}" is a virtual table: a virtual table has no addressable rows; read ${dbPath}:${targetObj.name} for its rows.`)
         }
         return { text: renderSqliteRowTarget(db, dbPath, targetObj.name, parsed.selector!), ownBytes: true }
       }
