@@ -1,5 +1,6 @@
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import { metadataRefusal, metadataSafeAddresses } from '../WebFetchTool/privateHost.js'
 import type { ElementHandle, SerializedAXNode } from 'puppeteer-core'
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
@@ -803,6 +804,8 @@ Downloads are never implicit: the driven session denies page-initiated downloads
     return 'cancel' as const
   },
   async checkPermissions(input: Input, context: ToolUseContext) {
+    const refused = input.url === undefined ? null : metadataRefusal(input.url)
+    if (refused !== null) return { behavior: 'deny' as const, message: refused, decisionReason: { type: 'other' as const, reason: refused } }
     if (input.op === 'provision') {
       try {
         const { installPlanLines, planBrowserInstall } = await import('../../services/browser/browserInstall.js')
@@ -1007,6 +1010,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
   async call(input: Input, context: ToolUseContext) {
     const startedAt = Date.now()
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
+    const networkMark = activeSession(owner)?.networkRefusal?.count ?? 0
     let result: string
     let outcome: ToolEffectOutcome = 'no-change'
     let imagePath: string | undefined
@@ -1022,6 +1026,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           break
         }
         case 'open': {
+          await metadataSafeAddresses(input.url!)
           const s = await ensureBrowserSession(owner, { signal: context.abortController?.signal })
           if ('state' in s) {
             result =
@@ -1733,6 +1738,11 @@ Downloads are never implicit: the driven session denies page-initiated downloads
     }
     if (secretInPlay !== null) {
       result = scrubSecretFromText(result!, secretInPlay.value, secretInPlay.ref)
+    }
+    const refusedNetwork = activeSession(owner)?.networkRefusal
+    if (refusedNetwork !== undefined && refusedNetwork.count > networkMark) {
+      result = `${input.op} refused: ${refusedNetwork.last}`
+      outcome = 'failed'
     }
     const output: Output = {
       op: input.op,

@@ -1,5 +1,6 @@
 
 import { ChildProcess } from 'node:child_process'
+import { startMetadataProxy } from './metadataProxy.js'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Browser as DriverBrowser, HTTPRequest, LaunchOptions, Page } from 'puppeteer-core'
@@ -36,6 +37,8 @@ interface Session {
   sandboxDowngraded: boolean
   popups: { count: number; last: string }
   navFailure: { last: NavFailure | null }
+  networkRefusal: { count: number; last: string | null }
+  closeNetwork: () => void
   downloads: { count: number; last: DownloadNotice | null; waiters: Array<() => void> }
   navWatch: { pendingUrl: string | null; abortedAt: number; waiters: Array<() => void> }
 }
@@ -178,6 +181,7 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     const session = state.session
     state.session = null
     if (!session) return
+    session.closeNetwork()
     await closeChild(session.browser)
   },
   retain: state => state.session !== null || state.launching,
@@ -255,6 +259,7 @@ function reapDeadSession(state: OwnerBrowserState): void {
 
 function markSessionGone(state: OwnerBrowserState, browser: DriverBrowser): void {
   if (state.session === null || state.session.browser !== browser) return
+  state.session.closeNetwork()
   state.session = null
   state.approvedOrigins.clear()
   state.approvedSecretPairings.clear()
@@ -350,10 +355,17 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
   }
   state.launching = true
   let unhanded: DriverBrowser | null = null
+  let proxyClose: (() => void) | undefined
+  const networkRefusal: Session['networkRefusal'] = { count: 0, last: null }
   try {
+    const proxy = await startMetadataProxy(reason => { networkRefusal.last = reason; networkRefusal.count++ })
+    proxyClose = proxy.close
     const launch: LaunchDriver =
       launchDriverForProof ?? (async options => (await import('puppeteer-core')).default.launch(options))
     const launchArgs = [
+      `--proxy-server=http://127.0.0.1:${proxy.port}`,
+      '--proxy-bypass-list=<-loopback>',
+      '--disable-quic',
       '--no-first-run',
       '--no-default-browser-check',
       '--disable-features=Translate',
@@ -530,6 +542,8 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       sandboxDowngraded,
       popups,
       navFailure,
+      networkRefusal,
+      closeNetwork: proxy.close,
       downloads,
       navWatch,
     }
@@ -537,6 +551,7 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
   } finally {
     state.launching = false
     if (unhanded !== null) await closeChild(unhanded)
+    if (state.session === null) proxyClose?.()
   }
   if (!exitHookInstalled) {
     exitHookInstalled = true
@@ -544,6 +559,7 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       for (const key of ownerStates.owners()) {
         const st = ownerStates.peek(key)
         if (!st?.session) continue
+        st.session.closeNetwork()
         killChild(st.session.browser)
         removeTempProfile(st.session.browser)
       }
@@ -567,6 +583,7 @@ export async function closeBrowserSessionDetailed(owner: OwnerKey): Promise<{ ou
     return { outcome: 'gone' }
   }
   const session = state.session
+  session.closeNetwork()
   const outcome = await closeChild(session.browser)
   state.session = null
   state.goneAt = null
