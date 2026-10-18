@@ -150,6 +150,18 @@ export function structuredTargetRefusal(target: StructuredWriteTarget, verb: 'wr
       errorCode: 4,
     }
   }
+  if (hostKind === true) {
+    try {
+      statBoundedContainer(target.hostPath)
+    } catch (err) {
+      return {
+        result: false,
+        behavior: 'ask',
+        message: err instanceof Error ? err.message : String(err),
+        errorCode: 4,
+      }
+    }
+  }
   if (hostKind === null && (target.kind === 'sqlite-row' || verb === 'edit')) {
     return {
       result: false,

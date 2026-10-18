@@ -176,11 +176,11 @@ type Verdict = { ok: true; text: string; isError: boolean; data: Record<string, 
 async function run(tool: unknown, input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> {
   serial++
   const t = tool as { validateInput?: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
-  if (t.validateInput) {
-    const verdict = await t.validateInput(input, ctx)
-    if (verdict.result === false) return { ok: false, message: String(verdict.message) }
-  }
   try {
+    if (t.validateInput) {
+      const verdict = await t.validateInput(input, ctx)
+      if (verdict.result === false) return { ok: false, message: String(verdict.message) }
+    }
     const out = await t.call(input, ctx, null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_${serial}` } })
     const block = t.mapToolResultToToolResultBlockParam(out.data, `toolu_${serial}`)
     return { ok: true, text: typeof block.content === 'string' ? block.content : JSON.stringify(block.content), isError: block.is_error === true, data: out.data }
@@ -550,8 +550,13 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     const noDb = await write({ file_path: `${join(fixtures, 'missing.sqlite')}:users/1`, content: '{"name": "x"}' }, ctx)
     check('R3.12 a row write never creates a database', !noDb.ok && /never creates a database/.test(noDb.message) && !existsSync(join(fixtures, 'missing.sqlite')), words(noDb))
     const view = await write({ file_path: `${dbPath}:admins/1`, content: '{"name": "x"}' }, ctx)
+    let viewEditNoThrow = false
+    try {
+      const v = await (FileEditTool as { validateInput: Function }).validateInput({ file_path: `${dbPath}:admins/1`, old_string: 'a', new_string: 'b' }, ctx)
+      viewEditNoThrow = v.result === false && /view/.test(String(v.message))
+    } catch {}
     const viewEdit = await edit({ file_path: `${dbPath}:admins/1`, old_string: 'a', new_string: 'b' }, ctx)
-    check('R3.13 a view has no writable rows on Write or Edit', !view.ok && /view/.test(view.message) && !viewEdit.ok && /view/.test(viewEdit.message), `${words(view)} / ${words(viewEdit)}`)
+    check('R3.13 a view has no writable rows on Write or Edit (and validateInput returns a refusal without throwing)', !view.ok && /view/.test(view.message) && !viewEdit.ok && /view/.test(viewEdit.message) && viewEditNoThrow, `${words(view)} / ${words(viewEdit)} noThrow=${viewEditNoThrow}`)
     const vtabWrite = await write({ file_path: `${dbPath}:docs/1`, content: '{"title": "x", "body": "y"}' }, ctx)
     const vtabEdit = await edit({ file_path: `${dbPath}:docs/1`, old_string: 'hello', new_string: 'bye' }, ctx)
     const vtabRead = await read({ file_path: `${dbPath}:docs/1` }, ctx)
@@ -582,8 +587,9 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     const fd = openSync(huge, 'w')
     ftruncateSync(fd, 17 * 1024 * 1024)
     closeSync(fd)
+    const overVal = await (FileWriteTool as { validateInput: Function }).validateInput({ file_path: `${huge}:a.txt`, content: 'x\n' }, ctx)
     const over = await write({ file_path: `${huge}:a.txt`, content: 'x\n' }, ctx)
-    check('R4.1 an archive over the 16 MiB container ceiling is refused by stat before it is read', !over.ok && /exceeds the maximum allowed container size/.test(over.message) && statSync(huge).size === 17 * 1024 * 1024, words(over))
+    check('R4.1 an archive over the 16 MiB container ceiling is refused by stat in validateInput before it is read', overVal.result === false && !over.ok && /exceeds the maximum allowed container size/.test(over.message) && statSync(huge).size === 17 * 1024 * 1024, `${JSON.stringify(overVal)} / ${words(over)}`)
 
     const bombPayload = Buffer.alloc(5 * 1024 * 1024, 0x41)
     const claimed = join(fixtures, 'claimed-bomb.zip')
