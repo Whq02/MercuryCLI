@@ -4,7 +4,8 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
-import { clearOpenrouterKeyRefusal, markOpenrouterKeyRefused, markOpenrouterMintedKeyExpired, openrouterAuthPathForDisplay, openrouterKeyRefusal, readMintedOpenrouterKey, resolveOpenrouterApiKey, resolveOpenrouterRequestAuth, type OpenrouterKeySource, type OpenrouterRequestAuth } from './openrouterAccounts.js'
+import { clearOpenrouterKeyRefusal, markOpenrouterKeyRefused, markOpenrouterMintedKeyExpired, openrouterApiBase, openrouterAuthPathForDisplay, openrouterKeyRefusal, readMintedOpenrouterKey, resolveOpenrouterApiKey, resolveOpenrouterRequestAuth, type OpenrouterKeySource, type OpenrouterRequestAuth } from './openrouterAccounts.js'
+import { wordsNameTheKey } from '../catalogueBody.js'
 
 const KEY_PROBE_TIMEOUT_MS = 10_000
 
@@ -125,6 +126,34 @@ async function keyErrorMessage(response: Response): Promise<string> {
     if (typeof message === 'string' && message.trim()) return message.trim().replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ')
   } catch {}
   return `key endpoint returned HTTP ${response.status}`
+}
+
+export type OpenrouterKeyProbe =
+  | { state: 'accepted'; usage: OpenrouterKeyUsage }
+  | { state: 'refused'; status: number; message: string }
+  | { state: 'unreachable'; message: string }
+
+export async function probeOpenrouterKey(key: string, opts?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<OpenrouterKeyProbe> {
+  const env = opts?.env ?? process.env
+  const now = opts?.now ?? Date.now
+  const fetchImpl = opts?.fetchImpl ?? getApiFetch()
+  let response: Response
+  try {
+    response = await fetchWithProviderDeadline(fetchImpl, 'openrouter', KEY_PROBE_TIMEOUT_MS, `${openrouterApiBase(env)}/key`, {
+      method: 'GET',
+      headers: { authorization: `Bearer ${key}`, 'user-agent': getProductUserAgent() },
+      ...(opts?.fetchImpl ? {} : (getProxyFetchOptions() as Record<string, unknown>)),
+    } as RequestInit)
+  } catch (error) {
+    return { state: 'unreachable', message: (error instanceof Error ? error.message : String(error)).split(key).join('[redacted]') }
+  }
+  if (!response.ok) {
+    const message = (await keyErrorMessage(response)).split(key).join('[redacted]')
+    const refused = response.status === 401 || response.status === 403 || (response.status === 400 && wordsNameTheKey({ message }))
+    return refused ? { state: 'refused', status: response.status, message } : { state: 'unreachable', message: `the key endpoint returned HTTP ${response.status}: ${message}` }
+  }
+  const usage = decodeKeyPayload(await response.json().catch(() => undefined), now)
+  return usage ? { state: 'accepted', usage } : { state: 'unreachable', message: 'key endpoint payload undecodable' }
 }
 
 export function refreshOpenrouterKeyUsage(opts?: {

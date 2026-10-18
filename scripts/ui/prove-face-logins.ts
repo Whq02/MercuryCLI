@@ -825,7 +825,7 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
   t.check('the openrouter settle receipt speaks the landed sentence', orLive.receipt.includes('OpenRouter connected: OAuth (scoped key)') && orLive.receipt.includes('/accounts manages the credential'))
   const gLive = await finishGeminiOauthConnect({ refreshCatalogue: async () => ({ models: [1, 2, 3] }) })
   t.check('the gemini settle receipt speaks the landed sentence', gLive.receipt.includes('Gemini connected: Google account (OAuth)') && gLive.receipt.includes('live catalogue: 3 model(s)'))
-  const orKey = await storeOpenrouterApiKeyLogin('or-abcdefgh12345678', { refreshCatalogue: async () => ({ models: [1, 2, 3, 4] }) })
+  const orKey = await storeOpenrouterApiKeyLogin('or-abcdefgh12345678', { probeKey: async () => ({ state: 'accepted', usage: { observedAtMs: 0 } }), refreshCatalogue: async () => ({ models: [1, 2, 3, 4] }) })
   const gKey = await storeGeminiApiKeyLogin('gk-abcdefgh12345678', { refreshCatalogue: async () => null })
   t.check('the key drivers store + prove (openrouter · gemini)', orKey.stored && orKey.receipt.includes('Live catalogue: 4 model(s)') && gKey.stored && gKey.receipt.endsWith('generativelanguage.googleapis.com.'))
 

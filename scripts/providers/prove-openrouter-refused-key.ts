@@ -224,6 +224,26 @@ try {
     check('a served turn answers', text === 'served', text)
     check('the lane stays usable after the served turn', usability.resolveProviderUsability().openrouter.usable === true)
   }
+
+  section('§5 /logins proves a pasted key on GET /key (the models list answers every key): a refused key is refused with the words and never stored; an accepted key is stored and confirmed')
+  {
+    const { storeOpenrouterApiKeyLogin } = await import('../../src/services/providers/openrouter/openrouterLogin.js')
+    secrets.writeStoredOpenrouterApiKey(STORED_KEY)
+    hits.length = 0
+    keyStatus = 401
+    const PASTED_KEY = 'proof-openrouter-stored-key-0003'
+    const refused = await storeOpenrouterApiKeyLogin(PASTED_KEY, { refreshCatalogue: () => catalogue.refreshOpenrouterCatalogue('stored', { force: true }) })
+    check("a key OpenRouter's /key endpoint refuses (HTTP 401) is refused with the service's words, nothing stored, the key stored before kept", !refused.ok && !refused.stored && refused.receipt === `OpenRouter refused this key (HTTP 401: ${WIRE_MESSAGE}) — nothing stored; keys are made at openrouter.ai/settings/keys, paste again.` && secrets.readStoredOpenrouterApiKey() === STORED_KEY, refused.receipt)
+    check('the refusal asked GET /key with the pasted key once and read no models list for it', hits.length === 1 && hits[0] === 'GET /key other' && !refused.receipt.includes(PASTED_KEY), j(hits))
+    hits.length = 0
+    keyStatus = 200
+    const accepted = await storeOpenrouterApiKeyLogin(PASTED_KEY, { refreshCatalogue: () => catalogue.refreshOpenrouterCatalogue('stored', { force: true }) })
+    check('a key /key accepts is stored, confirmed with its label, and the live catalogue counted', accepted.ok && accepted.stored && accepted.receipt.includes('The key endpoint confirmed it (fixture).') && accepted.receipt.includes('Live catalogue: 2 model(s)') && !accepted.receipt.includes(PASTED_KEY) && secrets.readStoredOpenrouterApiKey() === PASTED_KEY, accepted.receipt)
+    check('the acceptance asked GET /key with the pasted key before the store and the models list after it', hits[0] === 'GET /key other' && hits.slice(1).some(hit => hit.includes('/models')), j(hits))
+    const unreachable = await storeOpenrouterApiKeyLogin('proof-openrouter-stored-key-0004', { probeKey: async () => ({ state: 'unreachable', message: 'fixture unreachable' }), refreshCatalogue: async () => null })
+    check('a key endpoint that cannot be reached stores the key UNVERIFIED with the fault named (the control)', unreachable.ok && unreachable.stored && unreachable.receipt.includes('UNVERIFIED — the key endpoint could not confirm it (fixture unreachable)'), unreachable.receipt)
+    secrets.writeStoredOpenrouterApiKey(STORED_KEY)
+  }
 } finally {
   server.stop(true)
   globalThis.fetch = originalFetch

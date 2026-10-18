@@ -2,6 +2,7 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredOpenrouterApiKey } from '../providerSecrets.js'
 import { forgetOpenrouterKeyRefusal, type OpenrouterAccountRef } from './openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from './openrouterCatalogue.js'
+import { probeOpenrouterKey, type OpenrouterKeyProbe } from './openrouterUsageState.js'
 
 interface OpenrouterKeyLoginOutcome {
   ok: boolean
@@ -11,10 +12,20 @@ interface OpenrouterKeyLoginOutcome {
 
 export async function storeOpenrouterApiKeyLogin(
   key: string,
-  io?: { refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string } | null> },
+  io?: { refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string } | null>; probeKey?: (key: string) => Promise<OpenrouterKeyProbe> },
 ): Promise<OpenrouterKeyLoginOutcome> {
+  key = key.trim()
+  if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty OpenRouter API key.' }
   const refresh =
     io?.refreshCatalogue ?? (() => refreshOpenrouterCatalogue('stored', { force: true }).catch(() => null))
+  const probe = await (io?.probeKey ?? probeOpenrouterKey)(key)
+  if (probe.state === 'refused') {
+    return {
+      ok: false,
+      stored: false,
+      receipt: `OpenRouter refused this key (HTTP ${probe.status}: ${probe.message}) — nothing stored; keys are made at openrouter.ai/settings/keys, paste again.`,
+    }
+  }
   try {
     writeStoredOpenrouterApiKey(key)
     forgetOpenrouterKeyRefusal()
@@ -25,6 +36,9 @@ export async function storeOpenrouterApiKeyLogin(
       receipt: `Could not store the key: ${String((error as Error).message ?? error)}`,
     }
   }
+  const keyNote = probe.state === 'accepted'
+    ? ` The key endpoint confirmed it${probe.usage.label ? ` (${probe.usage.label})` : ''}.`
+    : ` UNVERIFIED — the key endpoint could not confirm it (${probe.message}); the first turn proves it.`
   const snapshot = await refresh()
   const catalogueNote = snapshot?.lastError
     ? ` The live catalogue did not answer (${snapshot.lastError}) — the key is stored; /model retries readiness.`
@@ -34,7 +48,7 @@ export async function storeOpenrouterApiKeyLogin(
   return {
     ok: true,
     stored: true,
-    receipt: `OpenRouter API key stored (auth-scoped, mode 600). Requests bill OpenRouter credits.${catalogueNote}`,
+    receipt: `OpenRouter API key stored (auth-scoped, mode 600). Requests bill OpenRouter credits.${keyNote}${catalogueNote}`,
   }
 }
 
