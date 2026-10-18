@@ -591,7 +591,7 @@ function OpenaiKeyLeg({
     const value = raw.trim()
     if (!value) return
     const guard = keyPasteGuardNote(value, {
-      stores: 'an OpenAI key. Anthropic usage-based billing signs in through the Console row instead',
+      stores: 'an OpenAI key. Anthropic usage-based billing signs in through the Anthropic row, under Usage-based billing, instead',
     })
     if (guard !== null) {
       setNote(guard)

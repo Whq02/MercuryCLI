@@ -706,7 +706,8 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
 
   t.check('the guard refuses an sk-ant key with the landed sentence (zai form)', keyPasteGuardNote('sk-ant-abc123', keyLegGuardOpts('zai-coding')) === `That is an Anthropic API key (sk-ant-…) — this step stores a ${zaiPlanLabel('coding')}.`)
   t.check('the guard refuses whitespace with the landed sentence', keyPasteGuardNote('two words', keyLegGuardOpts('deepseek')) === 'That does not look like an API key (it contains whitespace).')
-  t.check("the openai form carries the Console redirect clause verbatim", keyPasteGuardNote('sk-ant-x', keyLegGuardOpts('openai-key')) === 'That is an Anthropic API key (sk-ant-…) — this step stores an OpenAI key. Anthropic usage-based billing signs in through the Console row instead.')
+  t.check("the openai form's redirect clause names the one Anthropic row and its usage-based pick verbatim", keyPasteGuardNote('sk-ant-x', keyLegGuardOpts('openai-key')) === 'That is an Anthropic API key (sk-ant-…) — this step stores an OpenAI key. Anthropic usage-based billing signs in through the Anthropic row, under Usage-based billing, instead.')
+  t.check('the redirect clause no longer points at a Console row of its own', !(keyPasteGuardNote('sk-ant-x', keyLegGuardOpts('openai-key')) ?? '').includes('the Console row'))
   t.check('a clean draft passes the guard', keyPasteGuardNote('zk-9f2c3d4e5f6a7b8c', keyLegGuardOpts('zai-general')) === null && keyPasteGuardNote('  ', keyLegGuardOpts('deepseek')) === null)
   const skinFiles = ['ConsoleOAuthFlow.tsx', 'KimiConnect.tsx', 'HuggingfaceConnect.tsx', 'ZaiConnect.tsx', 'DeepseekConnect.tsx', 'XaiConnect.tsx', 'MetaConnect.tsx']
   const spellers = skinFiles.filter(f => read(`src/components/${f}`).includes('That is an Anthropic API key'))
