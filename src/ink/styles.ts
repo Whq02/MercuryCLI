@@ -1,45 +1,48 @@
 import type { BorderStyle } from './render-border.js'
 import { LayoutAlign, LayoutDisplay, LayoutEdge, LayoutFlexDirection, LayoutGutter, LayoutJustify, LayoutOverflow, LayoutPositionType, LayoutWrap, type LayoutNode } from './layout/node.js'
 
-type ColorSpellings = { rgb: `rgb(${string})`; hex: `#${string}`; ansi256: `ansi256(${string})`; ansi: `ansi:${string}` }
-export type HexColor = ColorSpellings['hex']
-export type Color = ColorSpellings[keyof ColorSpellings]
+type RGBColor = `rgb(${string})`
+type Hash = '#'
+export type HexColor = `${Hash}${string}`
+type Ansi256Color = `ansi256(${string})`
+type AnsiColor = `ansi:${string}`
+export type Color = HexColor | RGBColor | Ansi256Color | AnsiColor
 
-type Emphasis = 'dim' | 'bold' | 'italic' | 'underline' | 'strikethrough' | 'inverse'
-export type TextStyles = { color?: Color; backgroundColor?: Color } & { [Flag in Emphasis]?: boolean }
-
-type Side = 'Top' | 'Bottom' | 'Left' | 'Right'
-type Measure = number | string
-type RowGround = (row: number) => string | undefined
-type TextWrap = 'wrap' | 'wrap-trim' | 'end' | 'middle' | 'truncate-end' | 'truncate' | 'truncate-middle' | 'truncate-start'
-type BorderWords = { content: string; position: 'top' | 'bottom'; align: 'start' | 'end' | 'center'; offset?: number }
-type SelectionExclusion = boolean | 'from-left-edge'
-
-type Offsets = { readonly [Key in Lowercase<Side>]?: Measure }
-type Spacing<Name extends string> = { readonly [Key in Name | `${Name}X` | `${Name}Y` | `${Name}${Side}`]?: number }
-type Extents = { readonly [Key in 'width' | 'height' | `${'min' | 'max'}${'Width' | 'Height'}`]?: Measure }
-type Gaps = { readonly [Key in 'gap' | 'columnGap' | 'rowGap']?: number }
-type Overflows = { readonly [Key in 'overflow' | 'overflowX' | 'overflowY']?: LayoutOverflow }
-type BorderFlags = { readonly [Key in `border${Side}` | `border${'' | Side}DimColor`]?: boolean }
-type BorderColors = { readonly [Key in `border${'' | Side}Color`]?: Color }
-type FlexWeights = { readonly [Key in 'flexGrow' | 'flexShrink']?: number }
-
-type Placement = {
-  readonly textWrap?: TextWrap
-  readonly position?: LayoutPositionType
-  readonly flexBasis?: Measure
-  readonly flexDirection?: LayoutFlexDirection
-  readonly flexWrap?: LayoutWrap
-  readonly alignItems?: Exclude<LayoutAlign, 'auto'>
-  readonly alignSelf?: Exclude<LayoutAlign, 'stretch'>
-  readonly justifyContent?: LayoutJustify
-  readonly display?: LayoutDisplay
-  readonly borderStyle?: BorderStyle; readonly borderText?: BorderWords; readonly borderRowBg?: RowGround
-  readonly backgroundColor?: Color; readonly fillRowBg?: RowGround; readonly opaque?: boolean
-  readonly noSelect?: SelectionExclusion
+export type TextStyles = { color?: Color; backgroundColor?: Color
+  dim?: boolean; bold?: boolean; italic?: boolean
+  underline?: boolean; strikethrough?: boolean; inverse?: boolean
 }
 
-export type Styles = Placement & Offsets & Spacing<'margin'> & Spacing<'padding'> & Extents & Gaps & Overflows & BorderFlags & BorderColors & FlexWeights
+export type Styles = { readonly textWrap?: 'wrap' | 'wrap-trim' | 'end' | 'middle' | 'truncate-end' | 'truncate' | 'truncate-middle' | 'truncate-start'
+  readonly position?: 'absolute' | 'relative'; readonly top?: number | string; readonly bottom?: number | string
+  readonly left?: number | string; readonly right?: number | string
+  readonly gap?: number; readonly columnGap?: number; readonly rowGap?: number
+  readonly margin?: number; readonly marginX?: number; readonly marginY?: number
+  readonly marginTop?: number; readonly marginBottom?: number; readonly marginLeft?: number; readonly marginRight?: number
+  readonly padding?: number; readonly paddingX?: number; readonly paddingY?: number
+  readonly paddingTop?: number; readonly paddingBottom?: number; readonly paddingLeft?: number; readonly paddingRight?: number
+  readonly flexGrow?: number; readonly flexShrink?: number
+  readonly flexDirection?: 'row' | 'column' | 'row-reverse' | 'column-reverse'; readonly flexBasis?: number | string; readonly flexWrap?: 'nowrap' | 'wrap' | 'wrap-reverse'
+  readonly alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch'; readonly alignSelf?: 'flex-start' | 'center' | 'flex-end' | 'auto'
+  readonly justifyContent?: 'flex-start' | 'flex-end' | 'space-between' | 'space-around' | 'space-evenly' | 'center'
+  readonly width?: number | string; readonly height?: number | string
+  readonly minWidth?: number | string; readonly minHeight?: number | string
+  readonly maxWidth?: number | string; readonly maxHeight?: number | string
+  readonly display?: 'flex' | 'none'; readonly borderStyle?: BorderStyle
+  readonly borderTop?: boolean; readonly borderBottom?: boolean; readonly borderLeft?: boolean; readonly borderRight?: boolean
+  readonly borderColor?: Color; readonly borderTopColor?: Color; readonly borderBottomColor?: Color
+  readonly borderLeftColor?: Color; readonly borderRightColor?: Color
+  readonly borderDimColor?: boolean; readonly borderTopDimColor?: boolean; readonly borderBottomDimColor?: boolean
+  readonly borderLeftDimColor?: boolean; readonly borderRightDimColor?: boolean
+  readonly borderText?: { content: string; position: 'top' | 'bottom'; align: 'start' | 'end' | 'center'; offset?: number }
+  readonly borderRowBg?: (row: number) => string | undefined
+  readonly backgroundColor?: Color; readonly fillRowBg?: (row: number) => string | undefined; readonly opaque?: boolean
+  readonly overflow?: 'visible' | 'hidden' | 'scroll'; readonly overflowX?: 'visible' | 'hidden' | 'scroll'
+  readonly overflowY?: 'visible' | 'hidden' | 'scroll'; readonly noSelect?: boolean | 'from-left-edge'
+}
+
+type ExtentKey = 'width' | 'height' | 'minWidth' | 'minHeight' | 'maxWidth' | 'maxHeight'
+type Measure = number | string
 
 type Rule = (node: LayoutNode, style: Styles, resolved: Styles) => void
 
@@ -64,7 +67,7 @@ const PADDING_EDGES = [['padding', LayoutEdge.All], ['paddingX', LayoutEdge.Hori
 const BORDER_EDGES = [['borderTop', LayoutEdge.Top], ['borderBottom', LayoutEdge.Bottom], ['borderLeft', LayoutEdge.Left], ['borderRight', LayoutEdge.Right]] as const
 const GAP_GUTTERS = [['gap', LayoutGutter.All], ['columnGap', LayoutGutter.Column], ['rowGap', LayoutGutter.Row]] as const
 
-type ExtentRule = readonly [key: keyof Extents, exact: (node: LayoutNode, cells: number) => void, share: (node: LayoutNode, percent: number) => void, unsized: (node: LayoutNode) => void]
+type ExtentRule = readonly [key: ExtentKey, exact: (node: LayoutNode, cells: number) => void, share: (node: LayoutNode, percent: number) => void, unsized: (node: LayoutNode) => void]
 const EXTENT_RULES: readonly ExtentRule[] = [
   ['width', (node, cells) => node.setWidth(cells), (node, percent) => node.setWidthPercent(percent), node => node.setWidthAuto()],
   ['height', (node, cells) => node.setHeight(cells), (node, percent) => node.setHeightPercent(percent), node => node.setHeightAuto()],
