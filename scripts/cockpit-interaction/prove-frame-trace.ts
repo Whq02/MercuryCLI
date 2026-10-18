@@ -104,12 +104,12 @@ t.section('§3 — REAL BINARY: keystrokes fill the ring; /trace renders it')
       out,
       cwd: process.cwd(),
       sends: [
-        { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-        { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'x' },
+        { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 2, mark: 'boot-ready', data: '\r' },
+        { requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 3, mark: 'chat-ready', data: 'x' },
         { afterPrevTicks: 3, data: '' },
-        { atTick: 999, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 2, data: '/trace\r' },
+        { requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 2, mark: 'trace-requested', data: '/trace\r' },
       ],
-      readyText: 'input→frame',
+      readyText: ['input→frame', 'slowest ', 'compose ', 'profile '],
       readySettleTicks: 4,
     }
     const cfgPath = join(scratch, 'ftrace-cfg.json')
@@ -129,12 +129,16 @@ t.section('§3 — REAL BINARY: keystrokes fill the ring; /trace renders it')
       timeout: vshotBudgetMs(180_000),
     })
     let text = ''
+    let marks: string[] = []
     try {
-      const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>> }
+      const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>>; marks?: Array<{ label: string }> }
       text = payload.grid.map(row => row.map(c => c.c).join('')).join('\n')
+      marks = (payload.marks ?? []).map(mark => mark.label)
     } catch {
     }
     t.check('the journey completed (vshot exit 0)', r.status === 0, `exit=${r.status}`)
+    t.check('refusals: no navigation send runs before its product-ready mark', marks.join(',') === 'boot-ready,chat-ready,trace-requested', marks.join(','))
+    if (r.status !== 0) console.log(r.stdout, r.stderr, text)
     t.check(
       'the frames section renders the sample count over the cap and the live span',
       new RegExp(`n=\\d+/${FRAME_TRACE_RING_CAP} · last \\d+(?:\\.\\d+)?[sm] · p50 `).test(text),
@@ -148,5 +152,6 @@ t.section('§3 — REAL BINARY: keystrokes fill the ring; /trace renders it')
   }
 }
 
-rmSync(scratch, { recursive: true, force: true })
+if (t.failures() === 0) rmSync(scratch, { recursive: true, force: true })
+else console.log(`frame trace evidence kept at ${scratch}`)
 t.finish('prove-frame-trace')
