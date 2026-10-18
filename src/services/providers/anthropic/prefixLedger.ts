@@ -299,12 +299,24 @@ interface PersistedPrefixLedger {
   version: 1
   owner: string
   transcript?: string
+  build?: string
   record: Omit<PrefixRecord, 'dropped'> & { dropped: string[] }
   drops: unknown
 }
 
 const consultedOwners = new Set<string>()
 let persistedDrops: unknown = null
+let persistedBuild: string | undefined
+const recordedBuilds = new Map<string, string | undefined>()
+
+function productBuildWord(): string {
+  return typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' && MACRO.VERSION !== '' ? MACRO.VERSION : 'unknown'
+}
+
+export function recordedBuildFor(owner: string): { recorded: boolean; build: string | undefined } {
+  readSessionRecord(owner)
+  return recordedBuilds.has(owner) ? { recorded: true, build: recordedBuilds.get(owner) } : { recorded: false, build: undefined }
+}
 
 function ownsSessionRecord(owner: string): boolean {
   try {
@@ -402,6 +414,7 @@ async function writeSessionRecord(take: PendingRecordWrite): Promise<void> {
       version: 1,
       owner: take.owner,
       ...(transcript !== null ? { transcript } : {}),
+      build: productBuildWord(),
       record: { ...record, dropped: [...record.dropped] },
       drops: persistedDrops,
     }
@@ -442,7 +455,9 @@ function readSessionRecord(owner: string): void {
       dropped: new Set(Array.isArray(stored.dropped) ? stored.dropped.filter((mark): mark is string => typeof mark === 'string') : []),
     })
     persistedDrops = parsed.drops ?? null
-    logForDebugging(`preserved thinking: the prefix ledger's record was read back beside the session (${stored.messages.length} messages recorded by the previous process)`)
+    persistedBuild = typeof parsed.build === 'string' ? parsed.build : undefined
+    recordedBuilds.set(owner, persistedBuild)
+    logForDebugging(`preserved thinking: the prefix ledger's record was read back beside the session (${stored.messages.length} messages recorded by the previous process${persistedBuild !== undefined ? `, build ${persistedBuild}` : ''})`)
   } catch (error) {
     logForDebugging(`preserved thinking: the prefix ledger's record beside the session could not be read (${String(error)})`, { level: 'warn' })
   }
@@ -465,6 +480,8 @@ export function forgetPersistedDropState(): void {
 }
 
 export function resetPrefixLedger(): void {
+  recordedBuilds.clear()
+  persistedBuild = undefined
   records.clear()
   verdicts.clear()
   consultedOwners.clear()

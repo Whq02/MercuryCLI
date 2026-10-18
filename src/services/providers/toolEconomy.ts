@@ -120,6 +120,18 @@ function seedRosterLatchFromRestore(latchKey: string, restore: RosterRestore, to
   return missingBound
 }
 
+function rosterMovedWithBuild(owner: string, missing: readonly string[]): string | null {
+  const retired = missing.filter(name => expandLspFamily(name).length <= 1)
+  if (retired.length > 0) return `the recorded roster names ${retired.join(', ')}, which this build no longer offers`
+  const { recordedBuildFor } = require('./anthropic/prefixLedger.js') as typeof import('./anthropic/prefixLedger.js')
+  const { productBuild } = require('./anthropic/thinkingBinding.js') as typeof import('./anthropic/thinkingBinding.js')
+  const recorded = recordedBuildFor(owner)
+  if (!recorded.recorded) return null
+  const current = productBuild()
+  if (recorded.build === current) return null
+  return `the recorded roster was written by ${recorded.build ?? 'an earlier build'} and this is ${current}`
+}
+
 function firstConversationRow(messages: readonly Message[]): string {
   for (const message of messages) {
     if (message.type === 'assistant') return message.uuid
@@ -173,7 +185,15 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   let restoredMissingTools: string[] = []
   if (latchKey !== null && !rosterLatches.has(latchKey)) {
     const restore = armedRestoreFor(latchKey)
-    if (restore !== null) restoredMissingTools = seedRosterLatchFromRestore(latchKey, restore, tools)
+    if (restore !== null) {
+      restoredMissingTools = seedRosterLatchFromRestore(latchKey, restore, tools)
+      const moved = rosterMovedWithBuild(input.latchKey ?? '', restoredMissingTools)
+      if (moved !== null) {
+        rosterLatches.delete(latchKey)
+        getConversationToolSchemas(latchKey).clear()
+        logForDebugging(`tool roster: ${moved} — the conversation's roster is decided afresh from the live pool at this request`)
+      }
+    }
   }
   const latched = latchKey === null ? undefined : rosterLatches.get(latchKey)
 
