@@ -221,8 +221,21 @@ export function isSettingsFilePath(filePath: string): boolean {
   return false
 }
 
+const INSTRUCTION_FILES = new Set(['mercury.md', 'mercury.local.md', 'agents.md'])
+
+function isApolloPlanningDocument(paths: readonly string[]): boolean {
+  const roots = protectedPathForms(getOriginalCwd()).map(root => apolloSpecDirectory(root).replace(/\\/g, '/').toLowerCase() + '/')
+  const controls = new Set([...INSTRUCTION_FILES, ...DANGEROUS_FILES, 'skill.md', 'settings.json', 'settings.local.json', 'launch.json', 'wards.json'])
+  const forms = paths.flatMap(path => protectedPathForms(path))
+  return forms.length > 0 && forms.every(path => {
+    const root = roots.find(root => path.startsWith(root))
+    if (!root || controls.has(posixPath.basename(path))) return false
+    return !path.slice(root.length).split(/[\\/]/).some(part => [...DANGEROUS_DIRECTORIES, 'agents', 'skills'].includes(part))
+  })
+}
+
 function isProductConfigPath(expandedPath: string, instructionEstate = false): boolean {
-  if (instructionEstate && ['mercury.md', 'mercury.local.md', 'agents.md'].includes(posixPath.basename(expandedPath.replace(/\\/g, '/')).toLowerCase())) return true
+  if (instructionEstate && INSTRUCTION_FILES.has(posixPath.basename(expandedPath.replace(/\\/g, '/')).toLowerCase())) return true
   if (isSettingsFilePath(expandedPath)) return true
   const cwd = getOriginalCwd()
   const folded = normalizeCaseForComparison(expandedPath)
@@ -761,8 +774,10 @@ export function checkWritePermissionForTool(
     }
     const grant = resolutionSet.map(resolved => matchingRuleForInput(resolved, context, 'edit', 'allow')).find(rule => rule?.ruleValue.ruleContent)
     if (grant) return allow(input, { type: 'rule', rule: grant })
-    const message = `Permission to write ${path} is required: this file steers every later session.`
-    return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false }, suggestions: generateSuggestions(path, 'write', context, resolutionSet) } as PermissionDecision
+    if (!isApolloPlanningDocument(resolutionSet)) {
+      const message = `Permission to write ${path} is required: this file steers every later session.`
+      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false }, suggestions: generateSuggestions(path, 'write', context, resolutionSet) } as PermissionDecision
+    }
   }
   const internal = checkEditableInternalPath(expandPath(path), input)
   if ((internal as { behavior: string }).behavior !== 'passthrough') return internal as unknown as PermissionDecision

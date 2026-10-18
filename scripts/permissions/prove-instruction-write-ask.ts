@@ -58,6 +58,10 @@ writeFileSync(join(outside, 'AGENTS.md'), 'fixture-original\n')
 symlinkSync(join(outside, 'AGENTS.md'), join(project, 'innocent.txt'))
 symlinkSync(join(project, '.mercury'), join(project, 'linked-config'), process.platform === 'win32' ? 'junction' : 'dir')
 symlinkSync(join(outside, 'MERCURY.local.md'), join(project, 'missing-link'))
+symlinkSync(join(outside, 'AGENTS.md'), join(project, '.mercury/apollo/linked-instruction.md'))
+symlinkSync(join(project, '.mercury/settings.json'), join(project, '.mercury/apollo/linked-settings.md'))
+symlinkSync(join(outside, 'notes.md'), join(project, '.mercury/apollo/linked-outside.md'))
+symlinkSync(join(project, '.mercury/apollo/spec.md'), join(project, '.mercury/apollo/linked-plan.md'))
 try {
   console.log('refusals')
   const paths = [
@@ -67,7 +71,10 @@ try {
     String.raw`C:\Users\Fixture\workspace\MERCURY.md`, '/mnt/c/Users/Fixture/workspace/AGENTS.md', '/c/Users/Fixture/workspace/MERCURY.local.md',
     join(project, 'innocent.txt'), join(project, 'missing-link'),
     '.mercury/settings.json', '.mercury/settings.local.json', '.mercury/agents/helper.md', '.mercury/skills/helper/SKILL.md',
-    '.mercury/launch.json', '.mercury/wards.json', '.mercury/custom/file', '.mercury/apollo/spec.md', 'linked-config/new-file',
+    '.mercury/launch.json', '.mercury/wards.json', '.mercury/custom/file', 'linked-config/new-file',
+    '.mercury/apollo/AGENTS.md', '.mercury/apollo/MeRcUrY.local.md', '.mercury/apollo/MERCURY.md', '.mercury/apollo/SKILL.md',
+    '.mercury/apollo/settings.json', '.mercury/apollo/launch.json', '.mercury/apollo/agents/helper.md', '.mercury/apollo/skills/helper/SKILL.md',
+    '.mercury/apollo/.mercury/settings.json', '.mercury/apollo/linked-instruction.md', '.mercury/apollo/linked-settings.md', '.mercury/apollo/linked-outside.md', '.mercury/apollo-notes/spec.md',
   ]
   for (const mode of modes) for (const path of paths) for (const [tool, input] of bodies(path)) {
     const verdict = await decide(tool, input, mode, { allow: [tool.name] })
@@ -93,6 +100,14 @@ try {
     const denied = await decide(FileWriteTool, { file_path: 'innocent.txt', content: 'x' }, mode, { deny: [hostRule] })
     check(mode + ' real host deny survives linked filename', denied.behavior === 'deny', denied.message)
   }
+  for (const mode of [...modes, 'apollo']) for (const path of ['.mercury/apollo/spec.md', '.mercury/apollo/design/architecture.md', '.mercury/apollo/linked-plan.md']) {
+    const verdict = await decide(FileWriteTool, { file_path: path, content: 'x' }, mode)
+    check(mode + ' designated planning document keeps prior consent', verdict.behavior === (mode === 'default' ? 'ask' : 'allow') && !verdict.message?.includes('steers every later session'), verdict.message)
+    const denied = await decide(FileWriteTool, { file_path: path, content: 'x' }, mode, { deny: ['Edit(/' + join(project, path) + ')'] })
+    check(mode + ' planning consent never beats an explicit deny', denied.behavior === 'deny', denied.message)
+  }
+  const apolloOutside = await decide(FileWriteTool, { file_path: join(outside, 'spec.md'), content: 'x' }, 'apollo')
+  check('Apollo keeps the spec-only boundary', apolloOutside.behavior === 'deny', apolloOutside.message)
   const changingLink = join(project, 'changed-link')
   symlinkSync(join(outside, 'note.txt'), changingLink)
   const beforeLink = await decide(FileWriteTool, { file_path: changingLink, content: 'x' }, 'implement', { allow: ['Write'] })
