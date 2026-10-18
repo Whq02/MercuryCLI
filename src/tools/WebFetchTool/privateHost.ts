@@ -16,6 +16,12 @@ const metadataAddresses = new BlockList()
 metadataAddresses.addSubnet('169.254.0.0', 16, 'ipv4')
 metadataAddresses.addAddress('100.100.100.200', 'ipv4')
 metadataAddresses.addAddress('fd00:ec2::254', 'ipv6')
+metadataAddresses.addSubnet('::a9fe:0', 112, 'ipv6')
+metadataAddresses.addSubnet('64:ff9b::a9fe:0', 112, 'ipv6')
+metadataAddresses.addSubnet('::ffff:0:a9fe:0', 112, 'ipv6')
+metadataAddresses.addAddress('::6464:64c8', 'ipv6')
+metadataAddresses.addAddress('64:ff9b::6464:64c8', 'ipv6')
+metadataAddresses.addAddress('::ffff:0:6464:64c8', 'ipv6')
 
 function metadataHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '')
