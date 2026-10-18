@@ -131,6 +131,7 @@ section('§2 the LSP apply folds two spellings of one document into one target')
       savedFiles.push(f)
     },
     getServerForFile: () => undefined,
+    getDocumentVersion: () => undefined,
     sendRequest: async (_file: string, method: string) => {
       if (method === 'textDocument/rename') return { changes: { [plain]: [line0], [encoded]: [line1, line0] } }
       return undefined
