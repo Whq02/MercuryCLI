@@ -19,7 +19,7 @@ if (!existsSync(BIN)) {
 } else {
   const deltas = Array.from({ length: 200 }, (_, i) => `chunk-${i} filling the reading window steadily `)
   const fixture = await startFixtureApi([
-    { kind: 'paced', deltas, gapMs: 250, whenModel: 'opus' },
+    { kind: 'paced', deltas, gapMs: vshotBudgetMs(250), whenModel: 'opus' },
     ...Array.from({ length: 4 }, () => ({ kind: 'text' as const, text: 'ok' })),
   ])
 
@@ -44,8 +44,8 @@ if (!existsSync(BIN)) {
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 90, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'go\r' },
       { atTick: 999, awaitText: 'chunk-150 ', minTick: 2, awaitSettleTicks: 1, data: '\u001b[5~' },
-      { afterPrevTicks: 2, data: '\u001b[5~' },
-      { afterPrevTicks: 4, data: '', mark: 'anchorA' },
+      { requireAwait: true, awaitText: 'chunk-80 ', awaitStableTicks: 2, awaitStableRegion: [24, 5, 119, 32], data: '\u001b[5~' },
+      { requireAwait: true, awaitText: 'chunk-30 ', awaitStableTicks: 2, awaitStableRegion: [24, 5, 119, 32], data: '', mark: 'anchorA' },
       { afterPrevTicks: 20, data: '', mark: 'anchorB' },
       { afterPrevTicks: 2, data: '\u001b[1;5F' },
       { atTick: 999, awaitText: 'chunk-190 ', minTick: 2, awaitSettleTicks: 1, data: '', mark: 'tail' },
