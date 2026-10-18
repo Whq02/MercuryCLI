@@ -46,6 +46,8 @@ One number in the table is prompted, and it is marked as such. Every family, in 
 
 In 1.0.0-beta.32, two rules in the text every session read came straight out of these numbers: answering a new question as it was asked before consulting the record (aimed at the intrusion rows), and writing the note as a centre with a rim (the few things that mattered, with what was checked marked apart from what was not, aimed at the growth). The second rule held in form in every chain (the judge read every note as that shape) while notes still grew across sessions.
 
+Two later rules take the same lesson further. The model writes memory only when you ask it to remember something, so a session's passing detail does not land in the library on the model's own judgement; and a fact the automatic lookup finds appears once, the first time it becomes relevant, instead of on every turn. Both are described in [MNEME.md](MNEME.md#what-the-model-gets).
+
 Today's note is described in [MNEME.md](MNEME.md#the-journal).
 
 ## What this does not show
