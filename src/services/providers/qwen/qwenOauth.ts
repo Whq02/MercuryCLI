@@ -11,11 +11,10 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 
 export const QWEN_OAUTH_CLIENT_ID = 'f0304373b74a44d2b584a3fb70ca9e56'
-export const QWEN_OAUTH_SCOPE = 'openid profile email model.completion'
-export const QWEN_OAUTH_CLIENT_SOURCE = 'github.com/QwenLM/qwen-code packages/core/src/qwen/qwenOAuth2.ts, read 2026-10-18'
-export const QWEN_DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
+const QWEN_OAUTH_SCOPE = 'openid profile email model.completion'
+const QWEN_DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
 export const QWEN_SIGNIN_EXPIRED_LINE = 'Qwen account sign-in expired — sign in again (/logins qwen) or use a Model Studio API key'
-export const QWEN_PLAN_DEFAULT_RESOURCE = 'portal.qwen.ai'
+const QWEN_PLAN_DEFAULT_RESOURCE = 'portal.qwen.ai'
 const QWEN_PORTAL_BASE_URL = 'https://chat.qwen.ai'
 const QWEN_PORTAL_SEAM_ENV = 'MERCURY_QWEN_PORTAL_BASE'
 const DEVICE_CODE_PATH = '/api/v1/oauth2/device/code'
@@ -33,7 +32,7 @@ export interface QwenTokens {
   resourceUrl?: string
 }
 
-export interface QwenSigninRefusal {
+interface QwenSigninRefusal {
   fingerprint: string
   status: number
   code: string
@@ -41,7 +40,7 @@ export interface QwenSigninRefusal {
   observedAtMs: number
 }
 
-export type QwenPreferredSource = 'signin' | 'api-key'
+type QwenPreferredSource = 'signin' | 'api-key'
 
 interface AuthFile {
   version: number
@@ -130,7 +129,7 @@ export function qwenSigninRefusalNote(refusal: Pick<QwenSigninRefusal, 'status' 
   return `${QWEN_SIGNIN_EXPIRED_LINE} — the sign-in service answered HTTP ${refusal.status} (${refusal.code}${refusal.message ? `: ${refusal.message}` : ''})`
 }
 
-export function markQwenSigninRefused(tokens: QwenTokens, status: number, code: string, message: string, now: () => number = Date.now): void {
+function markQwenSigninRefused(tokens: QwenTokens, status: number, code: string, message: string, now: () => number = Date.now): void {
   const file = readAuth()
   const stored = tokensOf(file)
   if (stored === undefined || stored.accessToken !== tokens.accessToken) return
@@ -143,7 +142,7 @@ function positive(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
 }
 
-export function qwenPortalBase(env: NodeJS.ProcessEnv = process.env): string {
+function qwenPortalBase(env: NodeJS.ProcessEnv = process.env): string {
   return (env[QWEN_PORTAL_SEAM_ENV]?.trim() || QWEN_PORTAL_BASE_URL).replace(/\/+$/, '')
 }
 
@@ -188,7 +187,7 @@ export function tokensFromQwenBody(body: Record<string, unknown>, io?: QwenOauth
   }
 }
 
-export interface QwenPortalAnswer {
+interface QwenPortalAnswer {
   status: number
   body: Record<string, unknown>
 }
@@ -220,7 +219,7 @@ function described(body: Record<string, unknown>): string {
   return typeof body.error_description === 'string' && body.error_description.trim() ? body.error_description.trim() : typeof body.message === 'string' && body.message.trim() ? body.message.trim() : ''
 }
 
-export function qwenPkcePair(): { verifier: string; challenge: string } {
+function qwenPkcePair(): { verifier: string; challenge: string } {
   const verifier = randomBytes(32).toString('base64url')
   return { verifier, challenge: createHash('sha256').update(verifier).digest('base64url') }
 }
@@ -264,7 +263,7 @@ export async function startQwenDeviceAuth(io?: QwenOauthIo): Promise<QwenDeviceA
   }
 }
 
-export type QwenDevicePoll =
+type QwenDevicePoll =
   | { state: 'authorized'; tokens: QwenTokens }
   | { state: 'pending' }
   | { state: 'slow-down' }
