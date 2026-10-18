@@ -83,9 +83,6 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
       if (process.platform === 'win32') {
         overrides.MSYS2_ARG_CONV_EXCL = '*'
         overrides.MSYS_NO_PATHCONV = '1'
-        if (process.env.PYTHONIOENCODING === undefined) {
-          overrides.PYTHONIOENCODING = 'utf-8:replace'
-        }
         if ((await getPowerShellEdition()) === 'desktop') {
           const programFiles = process.env.ProgramFiles || 'C:\\Program Files'
           const systemRoot = process.env.SystemRoot || 'C:\\Windows'

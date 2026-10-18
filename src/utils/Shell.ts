@@ -21,7 +21,7 @@ import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
 import { wrapSpawn, createAbortedCommand, createFailedCommand, type ShellCommand } from './ShellCommand.js'
-import { TOOL_SHELL_PLAIN_OUTPUT, subprocessEnv } from './subprocessEnv.js'
+import { toolShellEnv, subprocessEnv } from './subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
 import { getTaskOutputDir } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
@@ -306,14 +306,10 @@ export async function exec(
     ? { env: subprocessEnv(), scrubbed: [] as string[] }
     : scrubSessionEnvStamps(subprocessEnv())
 
-  const childEnv: NodeJS.ProcessEnv = {
-    ...base.env,
+  const childEnv = toolShellEnv(base.env, {
     SHELL: shellType === 'bash' ? provider.shellPath : undefined,
-    GIT_EDITOR: 'true',
-    MERCURY: '1',
-    ...TOOL_SHELL_PLAIN_OUTPUT,
     ...environmentOverrides,
-  }
+  })
 
   const cwdBefore = cwd
   let outputFd: number | undefined
