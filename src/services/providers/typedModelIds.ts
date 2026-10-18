@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -350,7 +350,15 @@ function groqFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
     return { family: 'groq', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedGroqCatalogue(env)) : { kind: 'no-credential' } }
   })
 }
-
+function cerebrasFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./cerebras/cerebrasPins.js') as typeof import('./cerebras/cerebrasPins.js')).CEREBRAS_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('cerebras', name, typed, () => {
+    const { resolveCerebrasAccount } = require('./cerebras/cerebrasAccounts.js') as typeof import('./cerebras/cerebrasAccounts.js')
+    const { getCachedCerebrasCatalogue } = require('./cerebras/cerebrasCatalogue.js') as typeof import('./cerebras/cerebrasCatalogue.js')
+    const account = resolveCerebrasAccount(env)
+    return { family: 'cerebras', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedCerebrasCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
 export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelListFact[] {
   const { providerDisplayName } = require('./routeLaw.js') as typeof import('./routeLaw.js')
   const name = (family: ModelListFamily): string => providerDisplayName(family)
@@ -371,5 +379,6 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     togetherFact(name('together'), env),
     cohereFact(name('cohere'), env),
     groqFact(name('groq'), env),
+    cerebrasFact(name('cerebras'), env),
   ]
 }

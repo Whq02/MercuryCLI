@@ -24,6 +24,7 @@ export type ProviderId =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'cerebras'
 
 export interface ProviderUsability {
   provider: ProviderId | 'unrecognised'
@@ -61,6 +62,7 @@ export interface ProviderUsabilityReads {
   togetherKeyPresent?: () => boolean
   cohereKeyPresent?: () => boolean
   groqKeyPresent?: () => boolean
+  cerebrasKeyPresent?: () => boolean
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
@@ -194,6 +196,10 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     groqKeyPresent: () => {
       const { resolveGroqApiKey } = require('./groq/groqAccounts.js') as typeof import('./groq/groqAccounts.js')
       return resolveGroqApiKey() !== undefined
+    },
+    cerebrasKeyPresent: () => {
+      const { resolveCerebrasApiKey } = require('./cerebras/cerebrasAccounts.js') as typeof import('./cerebras/cerebrasAccounts.js')
+      return resolveCerebrasApiKey() !== undefined
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
@@ -391,6 +397,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   const together = keyLane('together', reads.togetherKeyPresent?.() ?? false, 'no Together AI API key — /logins together (or TOGETHER_API_KEY)')
   const cohere = keyLane('cohere', reads.cohereKeyPresent?.() ?? false, 'no Cohere API key — /logins cohere (or COHERE_API_KEY)')
   const groq = keyLane('groq', reads.groqKeyPresent?.() ?? false, 'no Groq API key — /logins groq (or GROQ_API_KEY)')
+  const cerebras = keyLane('cerebras', reads.cerebrasKeyPresent?.() ?? false, 'no Cerebras API key — /logins cerebras (or CEREBRAS_API_KEY)')
   const deepseek = keyLane(
     'deepseek',
     reads.deepseekKeyPresent?.() ?? false,
@@ -505,6 +512,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     together: applyLaneBilling(together),
     cohere: applyLaneBilling(cohere),
     groq: applyLaneBilling(groq),
+    cerebras: applyLaneBilling(cerebras),
   }
 }
 

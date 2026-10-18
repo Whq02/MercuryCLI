@@ -51,6 +51,8 @@ import { cohereModelFacts } from '../../services/providers/cohere/cohereCatalogu
 import { isCohereModelId } from '../../services/providers/cohere/coherePins.js'
 import { isGroqModelId, groqDisplayPin, groqEffortVocabulary } from '../../services/providers/groq/groqPins.js'
 import { groqContextWindowFor, groqOutputMaxFor } from '../../services/providers/groq/groqCatalogue.js'
+import { isCerebrasModelId, cerebrasDisplayPin, cerebrasEffortVocabulary } from '../../services/providers/cerebras/cerebrasPins.js'
+import { cerebrasContextWindowFor, cerebrasOutputMaxFor } from '../../services/providers/cerebras/cerebrasCatalogue.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -71,7 +73,7 @@ export function modelSupportsTemperature(model: string): boolean {
   if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   if (isMistralModelId(model)) return true
   if (isZenModelId(model)) return true
-  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model)) return true
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model)) return true
   const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(model)
   if (!m) return true
   const family = m[1]!
@@ -87,7 +89,7 @@ export function modelSupportsISP(model: string): boolean {
   if (isXaiModelId(model)) return modelSupportsThinking(model)
   if (isMetaModelId(model)) return false
   if (isMistralModelId(model)) return false
-  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model)) return false
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model)) return false
   return !getCanonicalName(model).includes('claude-3-')
 }
 
@@ -103,6 +105,7 @@ export function modelSupportsThinking(model: string): boolean {
   if (isTogetherModelId(model)) return togetherThinkingDial(model) !== 'none'
   if (isCohereModelId(model)) return cohereModelFacts(model).reasoning === true
   if (isGroqModelId(model)) return ['included', 'parsed'].includes(groqDisplayPin(model)?.reasoning ?? '')
+  if (isCerebrasModelId(model)) return ['included', 'parsed'].includes(cerebrasDisplayPin(model)?.reasoning ?? '')
   return !getCanonicalName(model).includes('claude-3-')
 }
 
@@ -110,7 +113,7 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
   if (isXaiModelId(model)) return false
   if (isMetaModelId(model)) return false
   if (isMistralModelId(model)) return false
-  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model)) return false
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   if (canonical === 'claude-haiku-5-5' || canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return true
@@ -140,6 +143,10 @@ export function modelThinkingAlwaysOn(model: string): boolean {
   if (isMistralModelId(model)) return false
   if (isGroqModelId(model)) {
     const pin = groqDisplayPin(model)
+    return pin !== undefined && pin.reasoning !== 'none' && !pin.efforts.includes('none')
+  }
+  if (isCerebrasModelId(model)) {
+    const pin = cerebrasDisplayPin(model)
     return pin !== undefined && pin.reasoning !== 'none' && !pin.efforts.includes('none')
   }
   if (isZenModelId(model)) {
@@ -229,7 +236,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq'
+      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -258,6 +265,7 @@ export type EffortVocabularyView =
         | 'together'
         | 'cohere'
         | 'groq'
+        | 'cerebras'
       defaultEffort?: string
     }
 
@@ -358,6 +366,12 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
     return vocabulary.length > 0
       ? { kind: 'provider', source: 'groq', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'groq' }
+  }
+  if (route === 'cerebras') {
+    const vocabulary = cerebrasEffortVocabulary(model)
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'cerebras', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
+      : { kind: 'none', source: 'cerebras' }
   }
   if (route === 'openrouter') {
     const { openrouterEffortVocabularyFor } =
@@ -759,6 +773,7 @@ export function resolveContextWindow(
     if (isTogetherModelId(id)) return togetherContextWindowFor(id)
     if (isCohereModelId(id)) return cohereModelFacts(id).contextWindow
     if (isGroqModelId(id)) return groqContextWindowFor(id)
+    if (isCerebrasModelId(id)) return cerebrasContextWindowFor(id)
     return undefined
   })()
   if (enginePinnedWindow !== undefined) {
@@ -828,6 +843,8 @@ export function getModelMaxOutputTokens(model: string): {
   if (cohereOut !== undefined) return statedOutputTokens(cohereOut)
   const groqOut = isGroqModelId(model) ? groqOutputMaxFor(model) : undefined
   if (groqOut !== undefined) return statedOutputTokens(groqOut)
+  const cerebrasOut = isCerebrasModelId(model) ? cerebrasOutputMaxFor(model) : undefined
+  if (cerebrasOut !== undefined) return statedOutputTokens(cerebrasOut)
   let upperLimit: number | undefined
 
   const gptPinOut = gptDisplayPin(model)?.outputMax
@@ -1072,6 +1089,8 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
       return cohereModelFacts(model).images === true
     case 'groq':
       return groqDisplayPin(model)?.images === true
+    case 'cerebras':
+      return cerebrasDisplayPin(model)?.images === true
     case 'zai':
       return glmTakesImages(model)
     case 'openrouter':

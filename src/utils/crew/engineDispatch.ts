@@ -29,6 +29,8 @@ import { isTogetherModelId } from '../../services/providers/together/togetherPin
 import { isZenModelId } from '../../services/providers/zen/zenPins.js'
 import { isGroqModelId } from '../../services/providers/groq/groqPins.js'
 import { groqCatalogueEntries, groqCatalogueEntry } from '../../services/providers/groq/groqAdapter.js'
+import { isCerebrasModelId } from '../../services/providers/cerebras/cerebrasPins.js'
+import { cerebrasCatalogueEntries, cerebrasCatalogueEntry } from '../../services/providers/cerebras/cerebrasAdapter.js'
 import { localLiveCatalogue } from '../../services/providers/local/localAdapter.js'
 import {
   HUGGINGFACE_MODEL_PREFIX,
@@ -54,7 +56,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -90,6 +92,7 @@ export function isExactEngineModelId(v: unknown): v is string {
     isZenModelId(v) ||
     isTogetherModelId(v) ||
     isGroqModelId(v) ||
+    isCerebrasModelId(v) ||
     isGoogleRosterModelId(v)
   )
 }
@@ -153,6 +156,7 @@ type EngineProvider =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'cerebras'
 
 export interface EngineDispatch {
   backend: EngineProvider
@@ -178,6 +182,7 @@ const SIGN_IN_DOORS: Partial<Record<EngineProvider, string>> = {
   together: '/logins together',
   cohere: '/logins cohere',
   groq: '/logins groq',
+  cerebras: '/logins cerebras',
 }
 
 export function providerUnavailableRefusal(provider: EngineProvider, reason: string | undefined): string {
@@ -381,6 +386,14 @@ async function resolveGroqClassDispatch(): Promise<EngineDispatch> {
   if (!head) throw new Error("The Groq text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
   return { backend: 'groq', model: head.id, displayLabel: head.displayLabel }
 }
+async function resolveCerebrasClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'cerebras') return { backend: 'cerebras', model: main, displayLabel: cerebrasCatalogueEntry(main)?.displayLabel ?? main }
+  if (!cerebrasCatalogueEntries().length) await readCatalogueIfPending('cerebras')
+  const head = cerebrasCatalogueEntries()[0]
+  if (!head) throw new Error("The Cerebras text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
+  return { backend: 'cerebras', model: head.id, displayLabel: head.displayLabel }
+}
 async function resolveOpenrouterClassDispatch(): Promise<EngineDispatch> {
   const main = getEngineModel()
   if (declaredRouteOf(main) === 'openrouter') {
@@ -522,6 +535,10 @@ export async function resolveEngineDispatch(
       await requireProviderAvailable('groq')
       return resolveGroqClassDispatch()
     }
+    if (modelParam === 'cerebras') {
+      await requireProviderAvailable('cerebras')
+      return resolveCerebrasClassDispatch()
+    }
     await requireProviderAvailable('openai-compat')
     const first = compatSlotModelIds()[0]
     if (!first) {
@@ -609,6 +626,13 @@ export async function resolveEngineDispatch(
       const row = groqCatalogueEntry(id)
       if (!row) throw new Error(`Groq model '${id}' is not on the available text list (${groqCatalogueEntries().map(row => row.id).join(', ')}) — mercury://models lists it; never switch to another provider on your own.`)
       return { backend: 'groq', model: row.id, displayLabel: row.displayLabel }
+    }
+    if (isCerebrasModelId(id)) {
+      await requireProviderAvailable('cerebras')
+      if (!cerebrasCatalogueEntry(id)) await readCatalogueIfPending('cerebras')
+      const row = cerebrasCatalogueEntry(id)
+      if (!row) throw new Error(`Cerebras model '${id}' is not on the available text list (${cerebrasCatalogueEntries().map(row => row.id).join(', ')}) — mercury://models lists it; never switch to another provider on your own.`)
+      return { backend: 'cerebras', model: row.id, displayLabel: row.displayLabel }
     }
     if (isZenModelId(id)) {
       await requireProviderAvailable('zen')

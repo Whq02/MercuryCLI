@@ -31,6 +31,7 @@ const FAMILY_ROADS = [
   'togetherCallModel',
   'cohereCallModel',
   'groqCallModel',
+  'cerebrasCallModel',
 ].sort()
 const SEAM_ROADS = ['routedCallModel']
 const SHARED_RUNTIMES = ['compatChatCallModel']

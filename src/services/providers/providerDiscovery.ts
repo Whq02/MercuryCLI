@@ -108,6 +108,12 @@ export interface GroqDiscovery {
   keyPresent: boolean
   keySource?: 'env' | 'stored'
 }
+export interface CerebrasDiscovery {
+  provider: 'cerebras'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
 export interface CompatDiscovery {
   provider: 'openai-compat'
   probedAtMs: number
@@ -156,6 +162,7 @@ export type ProviderDiscovery =
   | TogetherDiscovery
   | CohereDiscovery
   | GroqDiscovery
+  | CerebrasDiscovery
 
 export interface DiscoveryIo {
   env: Record<string, string | undefined>
@@ -330,6 +337,11 @@ function probeGroq(io: DiscoveryIo): GroqDiscovery {
   const key = resolveGroqApiKey(io.env as NodeJS.ProcessEnv)
   return { provider: 'groq', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
+function probeCerebras(io: DiscoveryIo): CerebrasDiscovery {
+  const { resolveCerebrasApiKey } = require('./cerebras/cerebrasAccounts.js') as typeof import('./cerebras/cerebrasAccounts.js')
+  const key = resolveCerebrasApiKey(io.env as NodeJS.ProcessEnv)
+  return { provider: 'cerebras', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
 function probeZen(io: DiscoveryIo): ZenDiscovery {
   const { resolveZenApiKey } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
   const key = resolveZenApiKey(io.env as NodeJS.ProcessEnv)
@@ -495,7 +507,9 @@ export function refreshProviderDiscovery(
                                         ? probeCohere(io)
                                         : id === 'groq'
                                           ? probeGroq(io)
-                                          : probeZai(io)
+                                          : id === 'cerebras'
+                                            ? probeCerebras(io)
+                                            : probeZai(io)
       cache.set(id, record)
       return record
     } finally {

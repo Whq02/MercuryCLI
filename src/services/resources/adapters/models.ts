@@ -58,7 +58,7 @@ export interface KnownModelsReference {
   providers: KnownProviderPage[]
 }
 
-const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq'] as const
+const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras'] as const
 
 function windowWords(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toString().replace(/\.0$/, '')}M window`
@@ -101,6 +101,14 @@ async function listFactsOf(route: string, env: NodeJS.ProcessEnv = process.env):
       if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
       if (source.kind === 'pins') return { kind: 'static', words: groqCatalogueSourceWords(env)! }
       const error = getCachedGroqCatalogue(env)?.lastError
+      return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
+    }
+    case 'cerebras': {
+      const { cerebrasCatalogueRows, cerebrasCatalogueSourceWords, getCachedCerebrasCatalogue } = await import('../../providers/cerebras/cerebrasCatalogue.js')
+      const { source } = cerebrasCatalogueRows(env)
+      if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
+      if (source.kind === 'pins') return { kind: 'static', words: cerebrasCatalogueSourceWords(env)! }
+      const error = getCachedCerebrasCatalogue(env)?.lastError
       return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
     }
     case 'openai': {
@@ -270,6 +278,8 @@ export async function knownModelsReference(): Promise<KnownModelsReference> {
   providers.push({ provider: 'together', providerName: providerDisplayName('together'), familyWord: 'together', models: TOGETHER_DISPLAY_PINS.map(pin => ({ id: togetherQualifiedId(pin.id), displayName: pin.displayName })) })
   const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../providers/groq/groqPins.js')
   providers.push({ provider: 'groq', providerName: providerDisplayName('groq'), models: GROQ_DISPLAY_PINS.map(pin => ({ id: groqQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../providers/cerebras/cerebrasPins.js')
+  providers.push({ provider: 'cerebras', providerName: providerDisplayName('cerebras'), models: CEREBRAS_DISPLAY_PINS.map(pin => ({ id: cerebrasQualifiedId(pin.id), displayName: pin.displayName })) })
   return { version: MERCURY_VERSION, providers }
 }
 

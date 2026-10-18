@@ -172,6 +172,8 @@ const MODEL_NAMES = {
   "groq/meta-models/muse-spark-open": "Muse Spark Open",
   "groq/llama-3.3-70b-versatile": "Llama 3.3 70B",
   "groq/llama-3.1-8b-instant": "Llama 3.1 8B",
+  "cerebras/gpt-oss-120b": "GPT OSS 120B",
+  "cerebras/qwen-3.8-27b": "Qwen 3.8 27B",
   "deepseek-v4-pro": "DeepSeek V4 Pro",
   "deepseek-flash": "DeepSeek V4.1 Flash",
   "deepseek-v4-flash": "DeepSeek V4.1 Flash",

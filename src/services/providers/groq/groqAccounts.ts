@@ -1,7 +1,7 @@
 import { readStoredGroqApiKey } from '../providerSecrets.js'
 
 const GROQ_API_BASE_URL = 'https://api.groq.com/openai/v1'
-export const GROQ_ENV_KEY = 'GROQ_API_KEY'
+const GROQ_ENV_KEY = 'GROQ_API_KEY'
 
 export function groqApiBase(env: NodeJS.ProcessEnv = process.env): string {
   return (env.MERCURY_GROQ_API_BASE?.trim() || GROQ_API_BASE_URL).replace(/\/+$/, '')

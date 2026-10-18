@@ -34,6 +34,7 @@ export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralW
   together: 'text',
   cohere: 'text',
   groq: 'text',
+  cerebras: 'text',
 }
 
 export interface DeferralWireReads {

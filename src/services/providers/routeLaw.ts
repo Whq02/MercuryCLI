@@ -40,6 +40,7 @@ const PROVIDER_DISPLAY_NAMES: Record<CallModelRoute, string> = {
   together: 'Together AI',
   cohere: 'Cohere',
   groq: 'Groq',
+  cerebras: 'Cerebras',
 }
 
 export function providerDisplayName(route: string): string {

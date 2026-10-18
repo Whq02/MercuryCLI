@@ -15,7 +15,7 @@
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/zai/zaiCallModel.ts src/services/providers/gemini/** src/services/providers/xai/** src/services/providers/meta/**
 # gate-watch: src/services/providers/mistral/** scripts/providers/lib/mistral-fixture.ts
 # gate-watch: src/services/providers/zen/** scripts/providers/lib/zen-fixture.ts src/services/providers/zen/zenAdapter.ts
-# gate-watch: src/services/providers/groq/** scripts/providers/lib/fast-infer-control.ts
+# gate-watch: src/services/providers/groq/** src/services/providers/cerebras/** scripts/providers/lib/fast-infer-control.ts
 # gate-watch: scripts/tool-economy/fixtureMcpEstate.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/providers/lib/nous-fixture.ts src/services/providers/nous/**

@@ -8,16 +8,16 @@ NEXT                │ │ esc back · from the menu, esc closes /logins       
 FILES · orchard     │ │                                                                          │ │
   ↵ or click · brow…│ │ Use a Claude or OpenAI subscription, usage-based billing, or connect     │ │
                     │ │ OpenRouter, Google Gemini, Hugging Face, Kimi (Moonshot), GLM (Z.AI),    │ │
-VITALS              │ │ DeepSeek, xAI, Meta, Mistral, Nous Portal or OpenCode Zen.               │ │
-  · spend —         │ │                                                                          │ │
-  · ctx — · —       │ │   OpenAI — ChatGPT subscription or API key                               │ │
-  · health — run /h…│ │ ❯ Claude subscription account                                            │ │
+VITALS              │ │ DeepSeek, xAI, Meta, Mistral, Nous Portal, MiniMax, Together AI, Cohere, │ │
+  · spend —         │ │ Groq, Cerebras or OpenCode Zen.                                          │ │
+  · ctx — · —       │ │                                                                          │ │
+  · health — run /h…│ │   OpenAI — ChatGPT subscription or API key                               │ │
+                    │ │ ❯ Claude subscription account                                            │ │
                     │ │   Usage-based billing — Anthropic Console sign-in or API key             │ │
                     │ │     ANTHROPIC_API_KEY (env) ……                                           │ │
                     │ │   OpenRouter — one credential, the whole catalogue (OAuth or key)        │ │
                     │ │   Google Gemini — Google sign-in, API key                                │ │
                     │ │   Hugging Face — device-code sign-in or a Hub token (open models)        │ │
-                    │ │   Kimi (Moonshot) — device-code sign-in or API key                       │ │
                     │ │                                                                          │ │
                     │ │ esc or click outside closes                                              │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

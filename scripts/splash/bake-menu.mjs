@@ -8,7 +8,7 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-menu.mjs',
   check: 'bun scripts/splash/bake-menu.mjs --check',
-  sources: 'src/substrate/startupMenu.ts src/services/providers/xai/xaiPins.ts src/services/providers/meta/metaPins.ts src/services/providers/mistral/mistralPins.ts src/services/providers/minimax/minimaxPins.ts src/services/providers/cohere/coherePins.ts src/services/providers/groq/groqPins.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/services/providers/zai/zaiAdapter.ts',
+  sources: 'src/substrate/startupMenu.ts src/services/providers/xai/xaiPins.ts src/services/providers/meta/metaPins.ts src/services/providers/mistral/mistralPins.ts src/services/providers/minimax/minimaxPins.ts src/services/providers/cohere/coherePins.ts src/services/providers/groq/groqPins.ts src/services/providers/cerebras/cerebrasPins.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/services/providers/zai/zaiAdapter.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
@@ -44,6 +44,7 @@ const { MISTRAL_DISPLAY_PINS } = await import('../../src/services/providers/mist
 const { MINIMAX_DISPLAY_PINS } = await import('../../src/services/providers/minimax/minimaxPins.ts')
 const { COHERE_DISPLAY_PINS } = await import('../../src/services/providers/cohere/coherePins.ts')
 const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../src/services/providers/groq/groqPins.ts')
+const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../src/services/providers/cerebras/cerebrasPins.ts')
 const SPLASH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs')
 
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -96,6 +97,7 @@ function modelNamesBlock() {
   for (const pin of COHERE_DISPLAY_PINS) names[pin.id.toLowerCase()] = pin.displayName
   names.cohere = 'Cohere'
   for (const pin of GROQ_DISPLAY_PINS) names[groqQualifiedId(pin.id).toLowerCase()] = pin.displayName
+  for (const pin of CEREBRAS_DISPLAY_PINS) names[cerebrasQualifiedId(pin.id).toLowerCase()] = pin.displayName
   const take = (id, name) => {
     const key = id.toLowerCase()
     if (names[key] === undefined) names[key] = name

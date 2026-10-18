@@ -18,6 +18,7 @@ export type LoginFamilyValue =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'cerebras'
 
 export interface LoginFamilyRow {
   label: string
@@ -56,6 +57,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'Together AI — API key (the gateway\'s chat models)', value: 'together' as const },
           { label: 'Cohere — API key (Command A+, North)', value: 'cohere' as const },
           { label: 'Groq — API key (text models)', value: 'groq' as const },
+          { label: 'Cerebras — API key (text models)', value: 'cerebras' as const },
           { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },
         ]
       : []),
@@ -98,6 +100,7 @@ export const KEY_PAGES: Record<KeyFamilyValue, string> = {
   together: 'api.together.ai/settings',
   cohere: 'dashboard.cohere.com/api-keys',
   groq: 'console.groq.com/keys',
+  cerebras: 'cloud.cerebras.ai',
 }
 
 export const KEY_FAMILIES = Object.keys(KEY_PAGES) as KeyFamilyValue[]
@@ -131,6 +134,7 @@ export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginF
     case 'together':
     case 'cohere':
     case 'groq':
+    case 'cerebras':
       return defaultProvider
     default:
       return undefined

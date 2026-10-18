@@ -35,6 +35,8 @@ import { cohereCallModel, cohereLiveProofState } from './cohere/cohereCallModel.
 import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
 import { groqCallModel, groqLiveProofState } from './groq/groqCallModel.js'
 import { resolveGroqApiKey } from './groq/groqAccounts.js'
+import { cerebrasCallModel, cerebrasLiveProofState } from './cerebras/cerebrasCallModel.js'
+import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -68,6 +70,7 @@ export type PrimaryBackendId =
   | 'together-chat'
   | 'cohere-chat'
   | 'groq-chat'
+  | 'cerebras-chat'
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
@@ -92,6 +95,7 @@ export interface AgentRuntimeRef {
     | 'together'
     | 'cohere'
     | 'groq'
+    | 'cerebras'
   route: CallModelRoute | 'unrecognised' | 'absence'
   canonicalModel: string
   family:
@@ -110,6 +114,7 @@ export interface AgentRuntimeRef {
     | { kind: 'mistral' }
     | { kind: 'zen' }
     | { kind: 'groq' }
+    | { kind: 'cerebras' }
     | { kind: 'unknown' }
     | { kind: 'nous' }
     | { kind: 'minimax' }
@@ -303,6 +308,17 @@ const groqBackend: PrimaryAgentBackend = {
       : { state: 'configured', detail: 'key present · no live turn proven this session' }
   },
 }
+const cerebrasBackend: PrimaryAgentBackend = {
+  id: 'cerebras-chat', provider: 'cerebras', label: 'Cerebras (gateway, in-process)',
+  callModel: cerebrasCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveCerebrasApiKey()) return { state: 'unavailable', reason: 'no API key (/logins cerebras, or CEREBRAS_API_KEY)' }
+    const proof = cerebrasLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
@@ -436,6 +452,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   together: togetherBackend,
   cohere: cohereBackend,
   groq: groqBackend,
+  cerebras: cerebrasBackend,
 }
 
 export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
@@ -496,6 +513,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'cohere' }
   } else if (route === 'groq') {
     family = { kind: 'groq' }
+  } else if (route === 'cerebras') {
+    family = { kind: 'cerebras' }
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }

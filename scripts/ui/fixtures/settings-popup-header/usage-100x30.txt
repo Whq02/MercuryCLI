@@ -17,7 +17,7 @@ VITALS              │ │ Subscription                                        
                     │ │ console is the view                                                      │ │
                     │ │                                                                          │ │
                     │ │                                                                          │ │
-                    │ │ ↓ 14 more · OpenAI · Z.AI · OpenRouter · Gemini · Moonshot · DeepSeek ·… │ │
+                    │ │ ↓ 19 more · OpenAI · Z.AI · OpenRouter · Gemini · Moonshot · DeepSeek ·… │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ scroll · esc or click outside closes                                  │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

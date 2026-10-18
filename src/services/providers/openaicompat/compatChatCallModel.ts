@@ -115,6 +115,7 @@ type CompatLaneId =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'cerebras'
 
 export function imagesSupportedForCompatModel(model: string): boolean {
   return modelReceivesImageBlocks(model) && imageRefusalOf(model) === null

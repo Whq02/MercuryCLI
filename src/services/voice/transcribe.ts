@@ -42,6 +42,7 @@ export const FAMILY_TRANSCRIBER: Record<CallModelRoute, { slot: 'api-key' } | { 
   together: { slot: 'none', why: 'no speech-to-text endpoint wired' },
   cohere: { slot: 'none', why: 'no speech-to-text endpoint' },
   groq: { slot: 'none', why: 'no speech-to-text endpoint wired' },
+  cerebras: { slot: 'none', why: 'no speech-to-text endpoint wired' },
 }
 
 

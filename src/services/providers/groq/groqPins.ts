@@ -1,5 +1,5 @@
 export const GROQ_OBSERVED_AT = '2026-10-18'
-export const GROQ_MODEL_PREFIX = 'groq/'
+const GROQ_MODEL_PREFIX = 'groq/'
 
 interface GroqDisplayPin {
   id: string

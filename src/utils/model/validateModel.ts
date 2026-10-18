@@ -30,7 +30,8 @@ async function validateNonAnthropicModel(
     | 'minimax'
     | 'together'
     | 'cohere'
-    | 'groq',
+    | 'groq'
+    | 'cerebras',
   trimmed: string,
 ): Promise<ValidateModelResult & { skipCache?: boolean }> {
   if (route !== 'openrouter') {
@@ -290,6 +291,20 @@ async function validateNonAnthropicModel(
     const snapshot = getCachedGroqCatalogue()
     if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins groq replaces the key.' }
     if (snapshot?.fetchedAtMs ? !groqListedModel(snapshot, wire) : !groqDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Groq text catalogue.' }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'cerebras') {
+    const { resolveCerebrasAccount } = await import('../../services/providers/cerebras/cerebrasAccounts.js')
+    if (!resolveCerebrasAccount()) return { valid: false, error: 'Cerebras is unavailable — no API key (/logins cerebras, or set CEREBRAS_API_KEY).' }
+    const { cerebrasWireId, isCerebrasTextModelId, cerebrasDisplayPin } = await import('../../services/providers/cerebras/cerebrasPins.js')
+    const wire = cerebrasWireId(trimmed)
+    if (!isCerebrasTextModelId(wire)) return { valid: false, error: 'Cerebras requires a text model qualified as cerebras/<id>.' }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('cerebras')
+    const { getCachedCerebrasCatalogue, cerebrasListedModel } = await import('../../services/providers/cerebras/cerebrasCatalogue.js')
+    const snapshot = getCachedCerebrasCatalogue()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins cerebras replaces the key.' }
+    if (snapshot?.fetchedAtMs ? !cerebrasListedModel(snapshot, wire) : !cerebrasDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Cerebras text catalogue.' }
     return { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {

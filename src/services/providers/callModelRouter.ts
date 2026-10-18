@@ -25,6 +25,7 @@ import { minimaxCallModel } from './minimax/minimaxCallModel.js'
 import { togetherCallModel } from './together/togetherCallModel.js'
 import { cohereCallModel } from './cohere/cohereCallModel.js'
 import { groqCallModel } from './groq/groqCallModel.js'
+import { cerebrasCallModel } from './cerebras/cerebrasCallModel.js'
 import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 import { withBackupVote } from '../api/backupEngines.js'
@@ -174,6 +175,9 @@ async function* dispatchRoute(params: CallModelParams): CallModelStream {
       return
     case 'groq':
       yield* groqCallModel(request)
+      return
+    case 'cerebras':
+      yield* cerebrasCallModel(request)
       return
   }
 }

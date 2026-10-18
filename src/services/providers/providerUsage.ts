@@ -1998,6 +1998,10 @@ function deriveUsageForProvider(
     const { groqUsageView } = require('./groq/groqUsageState.js') as typeof import('./groq/groqUsageState.js')
     return groqUsageView(spend, reads?.laneCredentialed?.(provider))
   }
+  if (provider === 'cerebras') {
+    const { cerebrasUsageView } = require('./cerebras/cerebrasUsageState.js') as typeof import('./cerebras/cerebrasUsageState.js')
+    return cerebrasUsageView(spend, reads?.laneCredentialed?.(provider))
+  }
   if (provider === 'deepseek' || provider === 'openai-compat') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
     const uncredentialedLabel = provider === 'deepseek' ? 'DeepSeek usage' : 'Endpoint usage'
