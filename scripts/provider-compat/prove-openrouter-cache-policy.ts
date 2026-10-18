@@ -39,6 +39,22 @@ try{
     check(model+' chat keeps system and conversation text unchanged',body.messages.map((m:any)=>flatten(m.content)).join('|')==='first systemlast system|tail')
   }
   console.log('\nrefusals and Responses road')
+  {
+    const opt=options('anthropic/claude-fable-5-1',false)
+    opt.request.messages=[
+      {role:'system',content:[{type:'text',text:''},{type:'text',text:'stable system'}]},
+      {role:'user',content:'cacheable user tail'},
+      {role:'assistant',content:'',reasoning_content:'thought only'},
+    ]
+    const transport=openrouterLaneProfile.streamTransport(opt,[])
+    if(transport!==undefined)for await(const _ of transport.events){}
+    else {const {streamCompatChat}=await load('src/services/providers/openaicompat/compatChatClient.ts'); for await(const _ of streamCompatChat(opt)){} }
+    const body=captured.at(-1)
+    const sysParts=Array.isArray(body?.messages?.[0]?.content)?body.messages[0].content:[]
+    const userParts=Array.isArray(body?.messages?.[1]?.content)?body.messages[1].content:[]
+    check('empty text blocks never receive cache_control',sysParts[0]?.cache_control===undefined&&sysParts[1]?.cache_control?.type==='ephemeral')
+    check('tail breakpoint skips a trailing empty-content message to mark the last cacheable message',userParts[0]?.cache_control?.type==='ephemeral')
+  }
   for(const model of ['anthropic/claude-fable-5-1','qwen/qwen3-coder-plus','google/gemini-4-argon-high','openai/gpt-6-astra']){
     const opt=options(model,true); opt.request.messages[0].content='stable instructions'
     const transport=openrouterResponsesTransport(opt,[createUserMessage({content:'tail'})])

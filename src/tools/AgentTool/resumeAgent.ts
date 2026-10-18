@@ -58,7 +58,7 @@ import { resolveEngineDispatch, unrecognisedModelWordRefusal } from '../../utils
 async function resumedModelOverride(model: string | undefined, parent: string): Promise<string | undefined> {
   if (model === undefined) return undefined
   if (model.trim() === '') throw new Error('Model is empty. Read mercury://models and name a model id.')
-  const matched = matchReachableModelName(model)
+  const matched = matchReachableModelName(model, 'pass')
   if (matched !== null && (matched.kind === 'none' || matched.kind === 'ambiguous')) {
     throw new Error(modelNameHeadlessRefusal(matched, 'model') + ' ' + MODEL_LOOKUP_LADDER)
   }
