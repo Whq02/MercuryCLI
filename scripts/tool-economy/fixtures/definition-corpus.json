@@ -1,5 +1,5 @@
 {
-  "base": "f7ba256c073e6405605c2e641f8e22896500be63",
+  "base": "3ef6898f70382cb4dbc7359a31e5fb8b4723565e",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2727,7 +2727,7 @@
     },
     {
       "name": "Computer",
-      "description": "Drive the operator's screen through the desktop driver. Coordinates are pixels of the last screenshot you received — take one before any act, and again after a compaction or when the result says the screenshot is gone. The result of every act carries a fresh screenshot after a short settle (settleMs; capture:false skips it) plus one line: the cursor, the application in front and the display size.\n\naction:\"screenshot\" (display?, label?) — the display under the cursor, or the numbered one from action:\"displays\".\naction:\"click\" | \"doubleClick\" | \"rightClick\" (x, y, modifiers?) · action:\"move\" (x, y) · action:\"drag\" (x, y, toX, toY, modifiers?) · action:\"scroll\" (x, y, dx?, dy? in wheel notches; positive dy scrolls down).\naction:\"type\" (text) — the characters as typed, up to 4000; newline and tab are the only control characters. action:\"key\" (key) — one chord: Enter, Escape, Tab, Space, Backspace, Delete, Home, End, PageUp, PageDown, ArrowUp/Down/Left/Right, F1–F12 or one character, with cmd/ctrl/alt/shift joined by + (cmd+shift+s). action:\"hold\" (key, durationMs) — the chord stays down for durationMs (cap 5000).\naction:\"wait\" (durationMs?) — pause (default 1000, cap 10000) then screenshot. action:\"cursor\" · action:\"displays\" · action:\"frontmost\" — cheap facts, no image.\n\nPermissions: the first act in an application this session asks the operator by the application's name; later acts in it ride the grant; an act that lands in another application asks for that one before the next act there. Reads (screenshot, wait, cursor, displays, frontmost) never ask. Keystrokes never go to the terminal running this session: with that terminal in front, type and hold refuse, key allows only the application switch chord, and clicks must land outside its window. One session drives the desktop at a time; a second is refused naming the first. The operator's esc or ctrl+c ends the act in flight (held keys released) and the turn.\n\nTake a screenshot after acts that change the screen, act on what the latest one shows, and prefer key chords over clicks on menus. Screenshots are not kept in the saved conversation; older ones leave the context as newer ones arrive.",
+      "description": "Drive the operator's screen. Coordinates are pixels of the last screenshot you received — take one before any act, and again after a compaction or when the result says the screenshot is gone. The result of every act carries a fresh screenshot after a short settle (settleMs; capture:false skips it) plus one line: the cursor, the application in front and the display size.\n\naction:\"screenshot\" (display?, label?) — the display under the cursor, or the numbered one from action:\"displays\".\naction:\"click\" | \"doubleClick\" | \"rightClick\" (x, y, modifiers?) · action:\"move\" (x, y) · action:\"drag\" (x, y, toX, toY, modifiers?) · action:\"scroll\" (x, y, dx?, dy? in wheel notches; positive dy scrolls down).\naction:\"type\" (text) — the characters as typed, up to 4000; newline and tab are the only control characters. action:\"key\" (key) — one chord: Enter, Escape, Tab, Space, Backspace, Delete, Home, End, PageUp, PageDown, ArrowUp/Down/Left/Right, F1–F12 or one character, with cmd/ctrl/alt/shift joined by + (cmd+shift+s). action:\"hold\" (key, durationMs) — the chord stays down for durationMs (cap 5000).\naction:\"wait\" (durationMs?) — pause (default 1000, cap 10000) then screenshot. action:\"cursor\" · action:\"displays\" · action:\"frontmost\" — cheap facts, no image.\naction:\"tree\" (depth?, limit?) — read-only: the accessibility tree of the application in front: role, title, value and frame per element, indented by depth (points; centre in px of the last screenshot); depth and limit (default 8, 200) bound it and a cut is said; no clipboard, no input.\n\nPermissions: the first act in an application this session asks the operator by the application's name; later acts in it ride the grant; an act that lands in another application asks for that one before the next act there. Reads (screenshot, wait, cursor, displays, frontmost) never ask; tree asks like an act. Keystrokes never go to the terminal running this session: with that terminal in front, type and hold refuse, key allows only the application switch chord, and clicks must land outside its window. One session drives the desktop at a time; a second is refused naming the first. The operator's esc or ctrl+c ends the act in flight (held keys released) and the turn.\n\nTake a screenshot after acts that change the screen, act on what the latest one shows, and prefer key chords over clicks on menus. Screenshots are not kept in the saved conversation; older ones leave the context as newer ones arrive.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2747,9 +2747,10 @@
               "wait",
               "cursor",
               "displays",
-              "frontmost"
+              "frontmost",
+              "tree"
             ],
-            "description": "screenshot · click · doubleClick · rightClick · move · drag · scroll · type · key · hold · wait · cursor · displays · frontmost"
+            "description": "screenshot · click · doubleClick · rightClick · move · drag · scroll · type · key · hold · wait · cursor · displays · frontmost · tree"
           },
           "x": {
             "description": "click/doubleClick/rightClick/move/drag/scroll: x in pixels of the last screenshot (drag: the start)",
@@ -2815,6 +2816,14 @@
           "label": {
             "description": "screenshot: a name for the saved file",
             "type": "string"
+          },
+          "depth": {
+            "description": "tree: how many levels below the application to read (default 8, cap 32)",
+            "type": "number"
+          },
+          "limit": {
+            "description": "tree: how many elements at most (default 200, cap 2000)",
+            "type": "number"
           }
         },
         "required": [
