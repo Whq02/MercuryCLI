@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { partiallySanitizeUnicode } from '../utils/sanitization.js'
 import { randomUUID } from '../utils/crypto.js'
 import { recordToEntry } from '../fabric/entryCodec.js'
@@ -7,6 +7,8 @@ import { billingSafeRetainedForm, servedModelOfAssistantRow, sessionModelOfEntry
 import { logForDebugging } from '../utils/debug.js'
 import { gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
 import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
+import { STORE_LOCK_OPTIONS } from '../substrate/fileStore.js'
+import { lockSync } from '../utils/lockfile.js'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
@@ -483,13 +485,140 @@ function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1
   stampConcourseDelta(dir)
 }
 
+const SESSION_RECORDS_LOCK_WAIT_MS = STORE_LOCK_OPTIONS.stale + 5_000
+
+class SessionRecordsLockError extends Error {
+  constructor(path: string, detail: string) {
+    super(`the session records at ${path} were not updated: ${detail}`)
+    this.name = 'SessionRecordsLockError'
+  }
+}
+
+function lockIdentityOf(lockDir: string): string | null {
+  try {
+    const st = statSync(lockDir)
+    return `${st.ino}:${st.mtimeMs}`
+  } catch {
+    return null
+  }
+}
+
+type SessionRecordsLock = { release: () => void; stillHeld: () => boolean }
+
+function abandonedLockReading(lockDir: string, ownerPath: string): string | null {
+  let owner: string
+  try {
+    owner = readFileSync(ownerPath, 'utf8')
+  } catch {
+    return null
+  }
+  const pid = Number(owner.trim())
+  if (!Number.isInteger(pid) || pid <= 0 || isProcessAlive(pid)) return null
+  const identity = lockIdentityOf(lockDir)
+  return identity === null ? null : `${identity}|${pid}`
+}
+
+function reclaimAbandonedLock(lockDir: string, ownerPath: string): boolean {
+  const judged = abandonedLockReading(lockDir, ownerPath)
+  if (judged === null) return false
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+  if (abandonedLockReading(lockDir, ownerPath) !== judged) return false
+  try {
+    unlinkSync(ownerPath)
+  } catch {}
+  if (lockIdentityOf(lockDir) !== judged.split('|')[0]) return false
+  try {
+    rmdirSync(lockDir)
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'ENOENT'
+  }
+  return true
+}
+
+function acquireSessionRecordsLock(path: string, dir: string | undefined): SessionRecordsLock | 'home-gone' {
+  const lockDir = `${path}.lock`
+  const ownerPath = `${lockDir}.owner`
+  const deadline = Date.now() + SESSION_RECORDS_LOCK_WAIT_MS
+  let backoffMs = 2
+  let parentCreated = false
+  for (;;) {
+    try {
+      const release = lockSync(path, {
+        lockfilePath: lockDir,
+        realpath: false,
+        stale: STORE_LOCK_OPTIONS.stale,
+        onCompromised: (err: Error) => {
+          logForDebugging(`[concourse] the session records lock was compromised: ${err.message}`, { level: 'warn' })
+        },
+      })
+      try {
+        writeFileSync(ownerPath, `${process.pid}\n`)
+      } catch {}
+      const identity = lockIdentityOf(lockDir)
+      return {
+        stillHeld: () => identity !== null && lockIdentityOf(lockDir) === identity,
+        release: () => {
+          try {
+            unlinkSync(ownerPath)
+          } catch {}
+          release()
+        },
+      }
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException | null)?.code
+      if (code === 'ENOENT') {
+        if (!daemonHomeStands('the session records', dir)) return 'home-gone'
+        if (parentCreated) throw err
+        mkdirSync(dirname(path), { recursive: true })
+        parentCreated = true
+        continue
+      }
+      if (code !== 'ELOCKED') throw err
+      if (reclaimAbandonedLock(lockDir, ownerPath)) continue
+      if (Date.now() >= deadline) {
+        throw new SessionRecordsLockError(path, `another writer held its lock for ${SESSION_RECORDS_LOCK_WAIT_MS} ms`)
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, backoffMs + Math.floor(Math.random() * backoffMs))
+      backoffMs = Math.min(backoffMs * 2, 50)
+    }
+  }
+}
+
+let sessionRecordsInFlight: { path: string; workers: Record<string, ConcourseWorkerRecordV1> } | null = null
+
 export function updateConcourseWorkers(
   mutate: (workers: Record<string, ConcourseWorkerRecordV1>) => void,
   dir?: string,
 ): Record<string, ConcourseWorkerRecordV1> {
-  const workers = readSessionWorkers(dir)
-  mutate(workers)
-  publishConcourseWorkers(workers, dir)
+  const path = concourseWorkersPath(dir)
+  if (sessionRecordsInFlight !== null && sessionRecordsInFlight.path === path) {
+    mutate(sessionRecordsInFlight.workers)
+    return sessionRecordsInFlight.workers
+  }
+  const lock = daemonHomeStands('the session records', dir) ? acquireSessionRecordsLock(path, dir) : 'home-gone'
+  let workers: Record<string, ConcourseWorkerRecordV1>
+  try {
+    workers = readSessionWorkers(dir)
+    const outer = sessionRecordsInFlight
+    sessionRecordsInFlight = { path, workers }
+    try {
+      mutate(workers)
+    } finally {
+      sessionRecordsInFlight = outer
+    }
+    if (lock !== 'home-gone' && !lock.stillHeld()) {
+      throw new SessionRecordsLockError(path, 'its lock was lost before the publish')
+    }
+    publishConcourseWorkers(workers, dir)
+  } finally {
+    if (lock !== 'home-gone' && lock.stillHeld()) {
+      try {
+        lock.release()
+      } catch (err) {
+        logForDebugging(`[concourse] the session records lock was not released: ${err}`, { level: 'warn' })
+      }
+    }
+  }
   observeSessionStates(workers)
   return workers
 }
