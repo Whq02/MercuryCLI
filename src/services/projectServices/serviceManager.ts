@@ -38,6 +38,7 @@ import {
 const RESTART_BACKOFF_BASE_MS = 500
 const RESTART_BACKOFF_MAX_MS = 15_000
 const MAX_AUTO_RESTARTS = 5
+const WAIT_REGISTRATION_GRACE_MS = 2_000
 
 
 function projectSlug(cwd: string): string {
@@ -102,6 +103,8 @@ const liveChildren = new Map<string, ChildProcess>()
 const projectChildren = new Set<string>()
 const restartTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const startedBy = new Map<string, { cwd: string; name: string; owner: OwnerKey }>()
+
+const projectKeyOf = (spec: ServiceSpec): string => spec.project ?? spec.cwd
 
 function childKey(cwd: string, name: string): string {
   return `${path.resolve(cwd)}::${name}`
@@ -313,9 +316,14 @@ export async function waitForReady(
   timeoutMs: number,
 ): Promise<{ ready: boolean; statuses: ReadinessStatus[]; record: ServiceRecord | null }> {
   const deadline = Date.now() + timeoutMs
+  const registrationGrace = Date.now() + Math.min(timeoutMs, WAIT_REGISTRATION_GRACE_MS)
   for (;;) {
     const record = reconcileRecord(cwd, name)
-    if (!record) return { ready: false, statuses: [], record: null }
+    if (!record) {
+      if (Date.now() >= registrationGrace) return { ready: false, statuses: [], record: null }
+      await new Promise(r => setTimeout(r, 100))
+      continue
+    }
     if (record.state === 'failed' || record.state === 'stopped') {
       const { statuses } = await evaluateReadiness(cwd, record)
       return { ready: false, statuses, record }
@@ -387,15 +395,16 @@ export async function startService(
   const { spec, sessionId, owner } = opts
   const invalid = validateSpec(spec)
   if (invalid) return { error: invalid }
-  const existing = reconcileRecord(spec.cwd, spec.name)
+  const project = projectKeyOf(spec)
+  const existing = reconcileRecord(project, spec.name)
   if (existing && ['starting', 'ready', 'running', 'stopping'].includes(existing.state)) {
     return {
       error: `service '${spec.name}' is already ${existing.state} (pid ${existing.pid}) — stop or restart it instead`,
     }
   }
 
-  mkdirSync(servicesDir(spec.cwd), { recursive: true })
-  const logFile = logPath(spec.cwd, spec.name)
+  mkdirSync(servicesDir(project), { recursive: true })
+  const logFile = logPath(project, spec.name)
   let logStartByte = 0
   try {
     logStartByte = statSync(logFile, { throwIfNoEntry: false })?.size ?? 0
@@ -451,17 +460,17 @@ export async function startService(
     logStartByte,
     updatedAt: Date.now(),
   }
-  writeRecord(spec.cwd, record)
-  liveChildren.set(childKey(spec.cwd, spec.name), child)
-  if (spec.lifecycle === 'project') projectChildren.add(childKey(spec.cwd, spec.name))
-  if (owner !== undefined && spec.lifecycle === 'session') startedBy.set(childKey(spec.cwd, spec.name), { cwd: spec.cwd, name: spec.name, owner })
-  captureStartTokenAsync(spec.cwd, spec.name, child.pid)
+  writeRecord(project, record)
+  liveChildren.set(childKey(project, spec.name), child)
+  if (spec.lifecycle === 'project') projectChildren.add(childKey(project, spec.name))
+  if (owner !== undefined && spec.lifecycle === 'session') startedBy.set(childKey(project, spec.name), { cwd: project, name: spec.name, owner })
+  captureStartTokenAsync(project, spec.name, child.pid)
 
   child.on('exit', (code, signal) => {
-    liveChildren.delete(childKey(spec.cwd, spec.name))
-    projectChildren.delete(childKey(spec.cwd, spec.name))
-    startedBy.delete(childKey(spec.cwd, spec.name))
-    const current = readRecord(spec.cwd, spec.name)
+    liveChildren.delete(childKey(project, spec.name))
+    projectChildren.delete(childKey(project, spec.name))
+    startedBy.delete(childKey(project, spec.name))
+    const current = readRecord(project, spec.name)
     if (!current) return
     const explicit = current.explicitStop
     const exited: ServiceRecord = {
@@ -473,7 +482,7 @@ export async function startService(
       lastExitCode: code ?? (signal ? -1 : null),
       updatedAt: Date.now(),
     }
-    writeRecord(spec.cwd, exited)
+    writeRecord(project, exited)
     if (
       !explicit &&
       exited.state === 'failed' &&
@@ -485,12 +494,12 @@ export async function startService(
         RESTART_BACKOFF_MAX_MS,
       )
       const timer = setTimeout(() => {
-        restartTimers.delete(childKey(spec.cwd, spec.name))
-        const latest = readRecord(spec.cwd, spec.name)
+        restartTimers.delete(childKey(project, spec.name))
+        const latest = readRecord(project, spec.name)
         if (!latest || latest.explicitStop) return
         void startService({ spec, sessionId, ...(owner !== undefined ? { owner } : {}) }).then(result => {
           if ('record' in result) {
-            writeRecord(spec.cwd, {
+            writeRecord(project, {
               ...result.record,
               restartCount: exited.restartCount + 1,
               updatedAt: Date.now(),
@@ -501,7 +510,7 @@ export async function startService(
         })
       }, backoff)
       timer.unref?.()
-      restartTimers.set(childKey(spec.cwd, spec.name), timer)
+      restartTimers.set(childKey(project, spec.name), timer)
     }
   })
 

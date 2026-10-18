@@ -3960,7 +3960,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return { status: 'off' as const, evidence: 'MERCURY_SERVICES=0' }
             }
             const { reconcileAll } = await import('../services/projectServices/serviceManager.js')
-            const records = reconcileAll(getCwd())
+            const { getOriginalCwd } = await import('../bootstrap/state.js')
+            const records = reconcileAll(getOriginalCwd())
             const live = records.filter(r => ['starting', 'ready', 'running'].includes(r.state))
             return {
               status: 'ok' as const,

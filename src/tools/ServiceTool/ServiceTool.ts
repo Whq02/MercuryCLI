@@ -21,6 +21,7 @@ import {
   waitForReady,
 } from '../../services/projectServices/serviceManager.js'
 import { getCwd } from '../../utils/cwd.js'
+import { getOriginalCwd } from '../../bootstrap/state.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -105,6 +106,7 @@ function describeRecord(r: ServiceRecord): string {
 
 async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<Output> {
   const cwd = getCwd()
+  const project = getOriginalCwd()
   const need = (field: string): never => {
     throw new Error(`${input.op} needs ${field}`)
   }
@@ -120,6 +122,7 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
           command: input.command!,
           args: input.args ?? [],
           cwd: input.cwd ?? cwd,
+          project,
           ...(input.env ? { env: input.env } : {}),
           readiness: (input.readiness ?? []) as ReadinessCondition[],
           readinessMode: input.readinessMode ?? 'all',
@@ -141,7 +144,7 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
       }
     }
     case 'list': {
-      const records = reconcileAll(input.cwd ?? cwd)
+      const records = reconcileAll(project)
       if (records.length === 0) {
         return { op: 'list', result: 'no services in this project (start one with op:"start")' }
       }
@@ -154,9 +157,9 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
     }
     case 'describe': {
       if (!input.name) need('name')
-      const record = reconcileRecord(input.cwd ?? cwd, input.name!)
+      const record = reconcileRecord(project, input.name!)
       if (!record) return { op: 'describe', result: `no service '${input.name}' in this project`, state: 'absent' }
-      const { ready, statuses } = await evaluateReadiness(input.cwd ?? cwd, record)
+      const { ready, statuses } = await evaluateReadiness(project, record)
       const readinessLines =
         statuses.length > 0
           ? '\nreadiness now:' + statuses.map(s => `\n  ${s.met ? '✓' : '·'} ${s.detail}`).join('')
@@ -172,7 +175,7 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
       if (!input.name) need('name')
       const wait = clampWait('timeoutMs', input.timeoutMs ?? WAIT_DEFAULT_MS, WAIT_MIN_MS, WAIT_MAX_MS, 'ms')
       const said = wait.clause === null ? '' : `\n${wait.clause}`
-      const outcome = await waitForReady(input.cwd ?? cwd, input.name!, wait.value)
+      const outcome = await waitForReady(project, input.name!, wait.value)
       if (!outcome.record) return { op: 'wait', result: `no service '${input.name}' in this project${said}`, state: 'absent' }
       if (outcome.ready) {
         return { op: 'wait', result: `service '${input.name}' is READY\n${describeRecord(outcome.record)}${said}`, state: outcome.record.state, name: input.name }
@@ -191,14 +194,14 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
     }
     case 'logs': {
       if (!input.name) need('name')
-      const logs = await readLogs(input.cwd ?? cwd, input.name!, {
+      const logs = await readLogs(project, input.name!, {
         cursor: input.cursor,
         limitLines: input.limitLines,
         filterRegex: input.filterRegex,
         tail: input.cursor === undefined,
       })
       if ('error' in logs) return { op: 'logs', result: logs.error, name: input.name }
-      const record = reconcileRecord(input.cwd ?? cwd, input.name!)
+      const record = reconcileRecord(project, input.name!)
       const lines = record?.spec.pty === true ? readableTerminalLines(logs.lines) : logs.lines
       return {
         op: 'logs',
@@ -212,7 +215,7 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
       if (!input.name) need('name')
       const mode: ServiceInputMode = input.mode ?? 'submit'
       if (input.text === undefined && mode !== 'eof') need('text')
-      const sent = sendInput(input.cwd ?? cwd, input.name!, input.text ?? '', sessionId, mode)
+      const sent = sendInput(project, input.name!, input.text ?? '', sessionId, mode)
       if ('error' in sent) return { op: 'input', result: sent.error, name: input.name }
       const where = sent.pty ? 'terminal' : 'stdin'
       return {
@@ -223,7 +226,7 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
     }
     case 'stop': {
       if (!input.name) need('name')
-      const result = await stopService(input.cwd ?? cwd, input.name!)
+      const result = await stopService(project, input.name!)
       if ('error' in result) return { op: 'stop', result: result.error, name: input.name }
       const note = result.note ?? result.record.stopNote
       return {
@@ -237,7 +240,7 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
     }
     case 'restart': {
       if (!input.name) need('name')
-      const result = await restartService(input.cwd ?? cwd, input.name!, sessionId, owner)
+      const result = await restartService(project, input.name!, sessionId, owner)
       if ('error' in result) return { op: 'restart', result: result.error, name: input.name }
       return {
         op: 'restart',
