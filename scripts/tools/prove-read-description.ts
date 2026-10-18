@@ -43,7 +43,7 @@ tally.section('5 — the input schema matches its recorded copy')
   const schema = JSON.stringify(zodToJsonSchema((FileReadTool as { inputSchema: never }).inputSchema))
   const stored = readFileSync(join(import.meta.dir, 'fixtures', 'read-input-schema-28.json'), 'utf8').replace(/\n$/, '')
   tally.check('the JSON Schema of inputSchema() equals fixtures/read-input-schema-28.json byte for byte', schema === stored, `${schema.length} vs ${stored.length}`)
-  tally.check('it is 1,506 bytes with the opt-in outline field, negative offset and bounded ranges', Buffer.byteLength(schema) === 1506, `${Buffer.byteLength(schema)} bytes`)
+  tally.check('it is 1,868 bytes with the opt-in outline field, negative offset, bounded ranges and the image crop box', Buffer.byteLength(schema) === 1868, `${Buffer.byteLength(schema)} bytes`)
   tally.check('the tool keeps its name', FileReadTool.name === 'Read')
 }
 
