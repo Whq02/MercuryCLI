@@ -1,7 +1,8 @@
 import * as React from 'react'
 import { Box, Text } from '../ink.js'
 import { crewElapsedLabel, crewModelLabel, crewStatusWords, crewTokensLabel, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
-import { crewmateCardKeys, MAIN_CHAT_CARD_LINE } from '../utils/cockpit/crewmateWords.js'
+import { useLayoutChrome } from '../context/layoutChromeContext.js'
+import { BACK_HINT, COMPACT_BACK_HINT, crewmateCardKeys, MAIN_CHAT_CARD_LINE } from '../utils/cockpit/crewmateWords.js'
 import { displayWidth, GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -21,12 +22,13 @@ function crewmateFactsLine(facts: CrewAgentFacts | null, nowMs: number): string[
 export function CrewmateCard({ crewmate, width }: { crewmate: CrewmateInView; width: number }): React.ReactNode {
   const tokens = useMercuryTokens()
   const { accent } = useSessionAccent()
+  const { isCompact } = useLayoutChrome()
   const now = useNowTick(1000)
   const facts = crewmate.facts
   const running = facts !== null ? facts.running : false
   const line = crewmateFactsLine(facts, now)
   const detail = facts?.description ?? (running ? facts?.activity ?? null : null)
-  const keys = crewmateCardKeys(crewmate.pinned, facts === null || running)
+  const keys = crewmateCardKeys(crewmate.pinned, facts === null || running, isCompact ? COMPACT_BACK_HINT : BACK_HINT)
   return (
     <Box flexDirection="column" flexShrink={0} width={width}>
       <Box flexDirection="row" width={width}>

@@ -7,7 +7,9 @@ import type { LocalJSXCommandContext } from '../../commands.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
-import { enterCrewmateView } from '../../state/crewmateViewHelpers.js'
+import { clearMainChat, enterCrewmateView, exitCrewmateView } from '../../state/crewmateViewHelpers.js'
+import { LEAD_ROW_NAME } from '../../utils/cockpit/crewmateWords.js'
+import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useVitals } from '../../state/vitalsBus.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useModalScrollRef } from '../../context/modalContext.js'
@@ -80,6 +82,7 @@ import { ShellDetailDialog, shellCardFactsOfRow, shellCardFactsOfTask } from './
 import { WorkflowDetailDialog } from './WorkflowDetailDialog.js'
 import { isManageableTask } from './taskStatusUtils.js'
 
+const LEAD_ROW_ID = 'lead'
 const WINDOW = 10
 const MISSION_IN_PROGRESS_CAP = 4
 const MISSION_PENDING_CAP = 6
@@ -91,6 +94,7 @@ type RowKind =
   | 'agent'
   | 'workflow'
   | 'sample'
+  | 'lead'
 
 type BoardItem = {
   id: string
@@ -293,6 +297,7 @@ export function BackgroundTasksDialog({
 }): React.ReactNode {
   void toolUseContext
   const tokens = useMercuryTokens()
+  const { accent } = useSessionAccent()
   const { columns } = useTerminalSize()
   const now = useNowTick()
   const allTasks = useAppState((state: AppState) => state.tasks)
@@ -347,11 +352,13 @@ export function BackgroundTasksDialog({
   const crewAgentItems: BoardItem[] = boardAgentRowsOf(roster.rows, sessionCrew.map(row => row.facts), screenIds).map(
     (w): BoardItem => ({ id: w.id, kind: 'agent', work: w }),
   )
+  const leadItems: BoardItem[] = viewingAgentTaskId !== undefined ? [{ id: LEAD_ROW_ID, kind: 'lead' }] : []
   const flat: BoardItem[] = [
     ...shellTasks.map((task): BoardItem => ({ id: task.id, kind: 'shell', task })),
     ...rosterOf('shell'),
     ...monitorTasks.map((task): BoardItem => ({ id: task.id, kind: 'monitor', task })),
     ...rosterOf('monitor'),
+    ...leadItems,
     ...agentTasks.map((task): BoardItem => ({ id: task.id, kind: 'agent', task })),
     ...crewAgentItems,
     ...workflowTasks.map((task): BoardItem => ({ id: task.id, kind: 'workflow', task })),
@@ -432,6 +439,16 @@ export function BackgroundTasksDialog({
   const openDetail = (item: BoardItem): void => {
     if (item.kind === 'sample') {
       if (item.sample?.url !== undefined) void openSampleUrl(item.sample.url)
+      return
+    }
+    if (item.kind === 'lead') {
+      exitCrewmateView(setAppState)
+      onDone()
+      return
+    }
+    if (item.kind === 'agent') {
+      enterCrewmateView(item.id, setAppState)
+      onDone()
       return
     }
     setDetailTaskId(item.id)
@@ -521,6 +538,11 @@ export function BackgroundTasksDialog({
     if (e.key === 'f' || e.key === 'm') {
       e.stopImmediatePropagation()
       if (selected === undefined) return
+      if (e.key === 'm' && selected.kind === 'lead') {
+        clearMainChat(setAppState)
+        onDone()
+        return
+      }
       const task = selected.task
       if (task === undefined) return
       if (task.type === 'local_agent') {
@@ -635,6 +657,21 @@ export function BackgroundTasksDialog({
           </Box>
           <Box flexShrink={0} marginLeft={1}>
             <Text color={tokens.textMuted}>↵ opens in your browser</Text>
+          </Box>
+        </CursorRow>
+      )
+    }
+    if (item.kind === 'lead') {
+      return (
+        <CursorRow key={item.id} selected={isSelected}>
+          <Text bold={isSelected} color={isSelected ? tokens.textPrimary : undefined}>
+            {isSelected ? `${figures.pointer} ` : '  '}
+          </Text>
+          <Box flexGrow={1} minWidth={0}>
+            <Text wrap="truncate-end">
+              <Text color={accent} bold>{GLYPH.spark} {LEAD_ROW_NAME}</Text>
+              <Text color={tokens.textMuted}> · the lead's own chat · ↵ goes back</Text>
+            </Text>
           </Box>
         </CursorRow>
       )
@@ -765,9 +802,10 @@ export function BackgroundTasksDialog({
                 {monitorItems.filter(inWin).map(rowFor)}
               </Box>
             ) : null}
-            {agentItems.length > 0 ? (
+            {agentItems.length > 0 || leadItems.length > 0 ? (
               <Box flexDirection="column">
                 <SectionHeader count={agentItems.length}>Crewmates</SectionHeader>
+                {leadItems.filter(inWin).map(rowFor)}
                 {agentItems.filter(inWin).map(rowFor)}
               </Box>
             ) : null}
@@ -797,7 +835,7 @@ export function BackgroundTasksDialog({
               <>
                 <KeyboardShortcutHint shortcut="↑/↓" action="select" />
                 {' · '}
-                <KeyboardShortcutHint shortcut="Enter" action={selected?.kind === 'sample' ? 'open' : 'view'} />
+                <KeyboardShortcutHint shortcut="Enter" action={selected?.kind === 'sample' ? 'open' : selected?.kind === 'lead' ? `back to ${LEAD_ROW_NAME}` : 'view'} />
                 {' · '}
               </>
             ) : null}

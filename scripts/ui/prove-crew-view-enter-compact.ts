@@ -263,6 +263,7 @@ async function pressTimes(scene: Scene, data: string, times: number): Promise<vo
 
 
 const viewing = (): string | undefined => (storeRef?.getState() as { viewingAgentTaskId?: string } | undefined)?.viewingAgentTaskId
+const mainChat = (): string | undefined => (storeRef?.getState() as { mainChatTaskId?: string } | undefined)?.mainChatTaskId
 const bandTop = (lines: string[]): string => lines.find(line => /✶ Mercury|◉ |★ /.test(line)) ?? ''
 const cardShown = (lines: string[]): boolean => lines.some(line => line.includes('◉ builder two')) && lines.some(line => line.includes('esc back to Mercury Lead'))
 
@@ -319,6 +320,54 @@ section('§3 80x16: the list has no row to paint, says what it cannot paint, ↵
   scene.push(ENTER)
   check('80x16: ↵ enters the first row\'s view', await until(() => viewing() === 'agent-1' && !isCrewViewOpen()), `viewing ${viewing()} · open ${isCrewViewOpen()}`)
   check('80x16: the one-line band names the crewmate and the way back', await until(() => scene.lines().some(line => line.includes('◉ scout one') && line.includes('esc'))), scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | '))
+  await scene.close()
+}
+
+section('§4 the activity screen (the strip\'s ↵) opens a crewmate in the view on ↵, never its facts card; esc from the view returns')
+for (const [cols, rows, zen] of [[80, 24, false], [100, 30, true]] as Array<[number, number, boolean]>) {
+  const label = `${cols}x${rows}${zen ? ' zen' : ''}`
+  const scene = await openScene(cols, rows, zen)
+  const activityUp = (): boolean => scene.focus() === 'detail' && scene.lines().some(line => line.includes('Mercury — activity'))
+  const cardUp = (name: string): boolean => scene.lines().some(line => line.includes(`agent › ${name}`))
+  const openActivity = async (): Promise<boolean> => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      scene.push(TOGGLE); await sleep(150); scene.push(ENTER)
+      if (await until(activityUp, 2500)) return true
+    }
+    return activityUp()
+  }
+  const walkTo = async (name: string, key = DOWN): Promise<boolean> => {
+    for (let step = 0; step < 6 && !scene.lines().some(line => new RegExp(`❯ .*${name}`).test(line)); step++) { scene.push(key); await sleep(150) }
+    return scene.lines().some(line => new RegExp(`❯ .*${name}`).test(line))
+  }
+  check(`${label}: ctrl+t then ↵ opens the activity screen`, await openActivity(), `focus ${scene.focus()} · ${scene.lines().filter(l => l.trim() !== '').slice(0, 4).join(' | ')}`)
+  check(`${label}: ↓ walks the cursor onto the running crewmate (scout one)`, await walkTo('scout one'), scene.lines().filter(line => line.includes('scout one')).join(' | '))
+  scene.push(ENTER)
+  check(`${label}: ↵ on the running crewmate enters its view and closes the activity screen (no facts card)`, await until(() => viewing() === 'agent-1' && scene.focus() === 'composer' && !scene.lines().some(line => line.includes('Mercury — activity')), 5000) && !cardUp('scout one'), `viewing ${viewing()} · focus ${scene.focus()} · card ${cardUp('scout one')} · ${scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | ')}`)
+  check(`${label}: the band shows the crewmate's card with its keys`, await until(() => scene.lines().some(line => line.includes('◉ scout one')) && scene.lines().some(line => line.includes('esc interrupts')), 5000), scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | '))
+  const stopsBefore = stops.length
+  check(`${label}: the activity screen opens again over the view`, await openActivity(), `focus ${scene.focus()}`)
+  check(`${label}: ↓ walks the cursor onto the lead's row, which heads the crewmates and names the way back`, await walkTo('Mercury Lead') && scene.lines().some(line => /❯ ✶ Mercury Lead · the lead's own chat · ↵ goes back/.test(line)) && (scene.lines().findIndex(line => line.includes('scout one')) < 0 || scene.lines().findIndex(line => line.includes('Mercury Lead')) < scene.lines().findIndex(line => line.includes('scout one'))), scene.lines().filter(l => l.includes('Crewmates') || l.includes('Mercury Lead') || l.includes('scout one')).join(' | '))
+  scene.push(ENTER)
+  check(`${label}: ↵ on the lead's row goes back to the lead's chat without stopping the crewmate`, await until(() => viewing() === undefined && scene.focus() === 'composer' && bandTop(scene.lines()).includes('✶ Mercury'), 5000) && stops.length === stopsBefore, `viewing ${viewing()} · focus ${scene.focus()} · stops ${stops.length - stopsBefore} · ${bandTop(scene.lines())}`)
+  check(`${label}: the lead's row is gone from the list once the lead is the view again`, await openActivity() && !scene.lines().some(line => line.includes('✶ Mercury Lead')), scene.lines().filter(l => l.includes('Mercury Lead')).join(' | '))
+  check(`${label}: ↓ walks the cursor onto the finished crewmate (builder two)`, await walkTo('builder two'), scene.lines().filter(line => line.includes('builder two')).join(' | '))
+  scene.push(ENTER)
+  check(`${label}: ↵ on the finished crewmate enters its view`, await until(() => viewing() === 'agent-2' && scene.focus() === 'composer', 5000) && !cardUp('builder two'), `viewing ${viewing()} · focus ${scene.focus()} · card ${cardUp('builder two')}`)
+  check(`${label}: the band names builder two with the way back`, await until(() => cardShown(scene.lines()), 5000), scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | '))
+  openCrewView()
+  await until(() => isCrewViewOpen() && scene.lines().some(line => line.includes('builder two')))
+  for (let step = 0; step < 4 && !scene.lines().some(line => /▸ . builder two/.test(line)); step++) { scene.push(DOWN); await sleep(200) }
+  scene.push('m')
+  check(`${label}: m in /crewmates pins builder two as the main chat`, await until(() => mainChat() === 'agent-2' && !isCrewViewOpen(), 5000), `main chat ${mainChat()} · open ${isCrewViewOpen()}`)
+  await sleep(300)
+  check(`${label}: the activity screen opens over the pinned view`, await openActivity(), `focus ${scene.focus()}`)
+  check(`${label}: ↓ walks the cursor onto the lead's row`, await walkTo('Mercury Lead'), scene.lines().filter(line => line.includes('Mercury Lead')).join(' | '))
+  scene.push('m')
+  check(`${label}: m on the lead's row hands the main chat back and keeps the view`, await until(() => mainChat() === undefined && scene.focus() === 'composer', 5000) && viewing() === 'agent-2', `main chat ${mainChat()} · viewing ${viewing()} · focus ${scene.focus()}`)
+  scene.push(ESC)
+  check(`${label}: esc leaves the view and the band is the session's own again`, await until(() => viewing() === undefined && bandTop(scene.lines()).includes('✶ Mercury') && !cardShown(scene.lines()), 5000), `viewing ${viewing()} · ${bandTop(scene.lines())}`)
+  check(`${label}: the monitor row's ↵ still opens its card`, await openActivity() && await walkTo('monitor 1', UP) && (scene.push(ENTER), await until(() => scene.lines().some(line => line.includes('monitor › monitor 1') || line.includes('tail -f build-1.log')), 5000)), scene.lines().filter(l => l.trim() !== '').slice(-6).join(' | '))
   await scene.close()
 }
 
