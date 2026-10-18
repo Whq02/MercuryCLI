@@ -3,7 +3,6 @@ import { getMaxOutputLength, getMinOutputLength } from '../../utils/shell/output
 import { PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { resolveShellEngine, resolveEngineSessionCeiling } from '../../utils/shell/engineSession.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
-import { getPlatform } from '../../utils/platform.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
@@ -119,11 +118,6 @@ function brushShellParagraphs(): string[] {
       ? 'The shell.sessions setting is 1: only the main conversation has an engine session. A crewmate\'s call is refused with the reason; a `run_in_background` call still runs, in its own system shell.'
       : `At most ${ceiling} engine sessions are kept alive at once (the shell.sessions setting): the main conversation's own and ${ceiling - 1} for crewmates. A crewmate that needs one when all are in use waits for a free session — never sharing another's — and the wait is bounded by the call's timeout.`,
   )
-  if (getPlatform() === 'windows') {
-    paragraphs.push(
-      'On Windows the engine has two known holes at this version: a `.cmd` shim such as `npm` or `npx` fails with os error 193 (exit 126) — run it through `cmd /c npm …`, or call `node` on the script directly — and a relative program path after a `cd` is not found — call it by its absolute path.',
-    )
-  }
   return paragraphs
 }
 
