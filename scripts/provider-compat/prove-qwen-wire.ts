@@ -13,10 +13,14 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.2'
 const KEY_INTL = 'proof-key-qwen-singapore-fixture-not-a-real-key'
 const KEY_CN = 'proof-key-qwen-beijing-fixture-not-a-real-key'
-const KEY_CODING = 'proof-key-qwen-coding-fixture-not-a-real-key'
+const KEY_CODING = 'sk-sp-proof-key-qwen-coding-fixture-not-a-real-key'
+const KEY_CODING_CN = 'sk-sp-proof-key-qwen-coding-cn-fixture-not-a-real-key'
+const KEY_CODING_NOWHERE = 'sk-sp-proof-key-qwen-coding-nowhere-fixture-not-a-real-key'
 const KEY_WORKSPACE = 'proof-key-qwen-virginia-workspace-fixture-not-a-real-key'
 const KEY_NOWHERE = 'proof-key-qwen-nowhere-fixture-not-a-real-key'
-const ACCEPTS: Record<string, string> = { [KEY_INTL]: 'singapore', [KEY_CN]: 'beijing', [KEY_CODING]: 'coding-intl', [KEY_WORKSPACE]: 'workspace-virginia' }
+const ACCEPTS: Record<string, string> = { [KEY_INTL]: 'singapore', [KEY_CN]: 'beijing', [KEY_CODING]: 'coding-intl', [KEY_CODING_CN]: 'coding-cn', [KEY_WORKSPACE]: 'workspace-virginia' }
+const CODING_ENDPOINTS = new Set(['coding-intl', 'coding-cn'])
+const CODING_PUBLIC_LIST = ['kimi-k2.5', 'qwen3.5-plus', 'glm-5', 'MiniMax-M2.5', 'qwen3.6-plus', 'qwen3.7-plus']
 const QWEN_CLIENT_ID = 'f0304373b74a44d2b584a3fb70ca9e56'
 const oauthCalls: Array<{ path: string; form: Record<string, string>; requestId: string | null }> = []
 let deviceChallenge = ''
@@ -55,6 +59,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   }
   if (path === '/models') {
     listReads.push(endpoint!)
+    if (CODING_ENDPOINTS.has(endpoint!)) return Response.json({ object: 'list', data: liveRows(CODING_PUBLIC_LIST) })
     if (!accepted || listStatus === 401) return refuse(401, 'invalid_api_key', 'Incorrect API key provided. ')
     if (listStatus !== 200) return refuse(listStatus, 'server_error', 'unavailable')
     return Response.json({ object: 'list', data: modelList })
@@ -90,6 +95,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   for (const key of Object.keys(ACCEPTS)) assert.ok(!raw.includes(key))
   const body = JSON.parse(raw) as Record<string, any>
   captures.push({ endpoint: endpoint!, body, bearer })
+  if (!accepted && CODING_ENDPOINTS.has(endpoint!)) return refuse(401, 'invalid_api_key', 'invalid access token or token expired')
   if (!accepted || boundRefusesChat || mode === 'auth') return refuse(401, 'invalid_api_key', 'Incorrect API key provided. ')
   for (const forbidden of ['max_completion_tokens', 'reasoning', 'thinking', 'temperature', 'top_p']) if (forbidden in body) return refuse(400, 'invalid_parameter', `unsupported parameter ${forbidden}`)
   if ('reasoning_effort' in body && 'thinking_budget' in body) return refuse(400, 'invalid_parameter', 'reasoning_effort and thinking_budget cannot be set at the same time')
@@ -259,15 +265,29 @@ try {
   check('the stored key dispatches on its bound endpoint, never on the first in the table', captures.length === beforeStored + 1 && captures.at(-1)?.endpoint === 'beijing' && captures.at(-1)?.bearer === KEY_CN)
   listReads.length = 0
   const nowhere = await storeQwenApiKeyLogin(KEY_NOWHERE)
-  check('a key no endpoint accepts is refused with the words, every endpoint tried, nothing stored', !nowhere.ok && !nowhere.stored && listReads.length === 7 && nowhere.receipt.includes('this key belongs to no Model Studio region or plan Mercury knows — it was minted for none of: International (Singapore) · China (Beijing) · China (Hong Kong) · Coding Plan (international) · Coding Plan (China) · Token Plan (Singapore) · Token Plan (Beijing)') && nowhere.receipt.includes('DASHSCOPE_BASE_URL') && readStoredQwenApiKey() === KEY_CN && readStoredQwenKeyBase() === `${seam}/beijing`)
+  check('a key no endpoint accepts is refused with the words and the service\'s own, the five authenticating endpoints tried and the Coding Plan ones (whose list answers every caller) never asked, nothing stored', !nowhere.ok && !nowhere.stored && JSON.stringify(listReads) === '["singapore","beijing","hongkong","token-plan-intl","token-plan-cn"]' && nowhere.receipt.includes('this key belongs to no Model Studio region or plan Mercury knows — it was minted for none of: International (Singapore) · China (Beijing) · China (Hong Kong) · Token Plan (Singapore) · Token Plan (Beijing) (a Coding Plan key begins sk-sp-; this one does not, so the Coding Plan endpoints were not asked)') && nowhere.receipt.includes('the service said: Incorrect API key provided. Keys are made at') && nowhere.receipt.includes('DASHSCOPE_BASE_URL') && readStoredQwenApiKey() === KEY_CN && readStoredQwenKeyBase() === `${seam}/beijing`)
   console.log(nowhere.receipt)
   check('the refusal words are the one owner the probe and the catalogue share', (await probeQwenEndpoints({ key: KEY_NOWHERE })).kind === 'refused' && qwenUnboundKeyRefusal().startsWith('this key belongs to no Model Studio region or plan Mercury knows'))
+  listReads.length = 0
+  let chatBefore = captures.length
+  const codingNowhere = await storeQwenApiKeyLogin(KEY_CODING_NOWHERE)
+  check('a Coding Plan key (sk-sp-) that both Coding Plan chat endpoints refuse is refused with their words — the public model list, which answered 200 to it, never binds; nothing stored', !codingNowhere.ok && !codingNowhere.stored && JSON.stringify(listReads) === '["coding-intl","coding-cn"]' && captures.length === chatBefore + 2 && captures.slice(chatBefore).every(row => CODING_ENDPOINTS.has(row.endpoint) && row.bearer === KEY_CODING_NOWHERE) && codingNowhere.receipt.includes('minted for none of: Coding Plan (international) · Coding Plan (China) (a key beginning sk-sp- is a Coding Plan key, read on the Coding Plan endpoints alone)') && codingNowhere.receipt.includes('the service said: invalid access token or token expired') && readStoredQwenApiKey() === KEY_CN)
+  console.log(codingNowhere.receipt)
+  listReads.length = 0
+  chatBefore = captures.length
+  const codingCn = await storeQwenApiKeyLogin(KEY_CODING_CN)
+  const codingProbes = captures.slice(chatBefore)
+  check('a Coding Plan key only China accepts binds to Coding Plan (China): the international chat endpoint refused it first, and the binding call is one user turn at max_tokens 1, unstreamed, on the first listed text model', codingCn.ok && codingCn.stored && JSON.stringify(listReads) === '["coding-intl","coding-cn"]' && codingProbes.length === 2 && codingProbes[0]?.endpoint === 'coding-intl' && codingProbes[1]?.endpoint === 'coding-cn' && codingProbes.every(row => row.bearer === KEY_CODING_CN && row.body.max_tokens === 1 && row.body.stream === false && row.body.model === 'qwen3.7-plus' && JSON.stringify(row.body.messages) === '[{"role":"user","content":"hi"}]') && codingCn.receipt.includes('bound to Coding Plan (China)') && codingCn.receipt.includes('3 text models listed (3 non-text rows set aside)') && readStoredQwenApiKey() === KEY_CODING_CN && readStoredQwenKeyBase() === `${seam}/coding-cn`)
+  chatBefore = captures.length
+  __resetQwenCatalogueForTest(); await refreshQwenCatalogue({ force: true }); await refreshQwenCatalogue({ force: true })
+  check('once bound, the first catalogue read of a process authenticates the Coding Plan key once more and later reads spend no call', qwenCatalogueRows().source.kind === 'live' && captures.length === chatBefore + 1 && captures.at(-1)?.endpoint === 'coding-cn' && captures.at(-1)?.body.max_tokens === 1)
+  check('no key without the sk-sp- shape ever reached a Coding Plan chat endpoint', captures.filter(row => CODING_ENDPOINTS.has(row.endpoint)).every(row => typeof row.bearer === 'string' && row.bearer.startsWith('sk-sp-')))
   process.env.DASHSCOPE_BASE_URL = `${seam}/coding-intl`
   listReads.length = 0
   const coding = await storeQwenApiKeyLogin(KEY_CODING)
   check('DASHSCOPE_BASE_URL wins over the probe: only the named endpoint is read and the key is bound to it', coding.ok && coding.stored && JSON.stringify(listReads) === '["coding-intl"]' && coding.receipt.includes('bound to Coding Plan (international)') && coding.receipt.includes('from DASHSCOPE_BASE_URL') && readStoredQwenKeyBase() === `${seam}/coding-intl`)
   const overrideRefused = await storeQwenApiKeyLogin(KEY_CN)
-  check('an override naming an endpoint that refuses the key stores nothing and names the host', !overrideRefused.ok && !overrideRefused.stored && overrideRefused.receipt.includes('Coding Plan (international) refused the credential (HTTP 401)') && overrideRefused.receipt.includes('not the endpoint this key was minted for') && readStoredQwenApiKey() === KEY_CODING)
+  check('an override naming a Coding Plan endpoint that refuses the key stores nothing and names the host with the service\'s words — the public list there cannot vouch for a key', !overrideRefused.ok && !overrideRefused.stored && overrideRefused.receipt.includes('Coding Plan (international) refused the credential (HTTP 401) — invalid access token or token expired') && overrideRefused.receipt.includes('not the endpoint this key was minted for') && readStoredQwenApiKey() === KEY_CODING)
   delete process.env.DASHSCOPE_BASE_URL
   process.env.DASHSCOPE_WORKSPACE_ID = 'llm-fixture'
   listReads.length = 0
@@ -331,7 +351,7 @@ try {
   forgetQwenBoundBases()
   await refreshQwenCatalogue({ force: true })
   const unreachable = qwenCatalogueRows()
-  check('with no endpoint reachable an unbound key falls to the pins, labelled as pins, and the words count the endpoints that could not be read', unreachable.source.kind === 'pins' && unreachable.rows.every(row => row.listedLive === false) && (getCachedQwenCatalogue()?.lastError ?? '').includes('7 could not be read') && keyLaneListState('qwen').kind === 'pin')
+  check('with no endpoint reachable an unbound key falls to the pins, labelled as pins, and the words count the endpoints that could not be read', unreachable.source.kind === 'pins' && unreachable.rows.every(row => row.listedLive === false) && (getCachedQwenCatalogue()?.lastError ?? '').includes('5 could not be read') && keyLaneListState('qwen').kind === 'pin')
   delete process.env.DASHSCOPE_API_KEY
   process.env.MERCURY_QWEN_API_BASE = seam
   __resetQwenCatalogueForTest(); forgetQwenBoundBases()

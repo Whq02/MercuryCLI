@@ -59,9 +59,24 @@ export function qwenProbeEndpoints(env: NodeJS.ProcessEnv = process.env): QwenEn
   return [...dedicated, ...QWEN_SHARED_ENDPOINTS]
 }
 
+const QWEN_CODING_PLAN_KEY_PREFIX = 'sk-sp-'
+
+function qwenKeyIsCodingPlan(key: string): boolean {
+  return key.trim().toLowerCase().startsWith(QWEN_CODING_PLAN_KEY_PREFIX)
+}
+
+export function qwenProbeLane(key: string, env: NodeJS.ProcessEnv = process.env): QwenEndpoint[] {
+  const coding = qwenKeyIsCodingPlan(key)
+  return qwenProbeEndpoints(env).filter(endpoint => (endpoint.plan === 'coding-plan') === coding)
+}
+
 function qwenEndpointForBase(baseUrl: string, env: NodeJS.ProcessEnv = process.env): QwenEndpoint | undefined {
   const wanted = baseUrl.replace(/\/+$/, '')
   return qwenProbeEndpoints(env).find(endpoint => qwenEndpointBase(endpoint, env) === wanted)
+}
+
+export function qwenListAnswersEveryCaller(baseUrl: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  return qwenEndpointForBase(baseUrl, env)?.plan === 'coding-plan'
 }
 
 export function qwenEndpointLabelOf(baseUrl: string, env: NodeJS.ProcessEnv = process.env): string {
@@ -202,10 +217,11 @@ export function qwenSigninActive(env: NodeJS.ProcessEnv = process.env): boolean 
   return signinWins(env)
 }
 
-function qwenEndpointListWords(env: NodeJS.ProcessEnv = process.env): string {
-  return qwenProbeEndpoints(env).map(endpoint => endpoint.label).join(' · ')
+function qwenEndpointListWords(env: NodeJS.ProcessEnv = process.env, key?: string): string {
+  return (key === undefined ? qwenProbeEndpoints(env) : qwenProbeLane(key, env)).map(endpoint => endpoint.label).join(' · ')
 }
 
-export function qwenUnboundKeyRefusal(env: NodeJS.ProcessEnv = process.env): string {
-  return `this key belongs to no Model Studio region or plan Mercury knows — it was minted for none of: ${qwenEndpointListWords(env)}; ${QWEN_BASE_OVERRIDE_ENV} names the endpoint it was minted for (a workspace-dedicated domain needs ${QWEN_WORKSPACE_ENV} or the full URL)`
+export function qwenUnboundKeyRefusal(env: NodeJS.ProcessEnv = process.env, key?: string): string {
+  const lane = key === undefined ? '' : qwenKeyIsCodingPlan(key) ? ` (a key beginning ${QWEN_CODING_PLAN_KEY_PREFIX} is a Coding Plan key, read on the Coding Plan endpoints alone)` : ` (a Coding Plan key begins ${QWEN_CODING_PLAN_KEY_PREFIX}; this one does not, so the Coding Plan endpoints were not asked)`
+  return `this key belongs to no Model Studio region or plan Mercury knows — it was minted for none of: ${qwenEndpointListWords(env, key)}${lane}; ${QWEN_BASE_OVERRIDE_ENV} names the endpoint it was minted for (a workspace-dedicated domain needs ${QWEN_WORKSPACE_ENV} or the full URL)`
 }

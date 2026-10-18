@@ -470,13 +470,16 @@ token names with the plan's own model list; a revoked or expired sign-in refuses
 the turn and names `/logins`. The other way is a Model Studio API key
 (`DASHSCOPE_API_KEY` works too), made in the Alibaba Cloud Model Studio console
 for the region the account lives in. A Model Studio key answers only the region
-and plan it was minted in, so the sign-in probes the documented endpoints in
-turn (International (Singapore), China (Beijing), China (Hong Kong), the Coding
-Plan for international and China accounts, and the Token Plan in Singapore and
-Beijing), keeps the first whose model list accepts the key, and stores that
-endpoint beside the key; a key no endpoint accepts is refused with the endpoints
-named and nothing is stored. `DASHSCOPE_BASE_URL` names an endpoint instead of
-the probe (a workspace-dedicated domain such as
+and plan it was minted in. A Coding Plan key begins `sk-sp-` and is read on the
+Coding Plan endpoints alone (international, then China): their model lists answer
+every caller, so the sign-in authenticates the key with one chat call of one
+token on the first listed model and binds the endpoint that accepted it. Any
+other key is probed on the endpoints whose model list authenticates it, in turn
+(International (Singapore), China (Beijing), China (Hong Kong), the Token Plan in
+Singapore and Beijing), and bound to the first that accepts it; the endpoint is
+stored beside the key. A key no endpoint accepts is refused with the endpoints
+and the service's words named, and nothing is stored. `DASHSCOPE_BASE_URL` names
+an endpoint instead of the probe (a workspace-dedicated domain such as
 `https://<workspace>.us-east-1.maas.aliyuncs.com/compatible-mode/v1`), and
 `DASHSCOPE_WORKSPACE_ID` adds the six workspace-dedicated domains to the probe.
 The picker lists the text models the bound endpoint (or the plan) serves live,

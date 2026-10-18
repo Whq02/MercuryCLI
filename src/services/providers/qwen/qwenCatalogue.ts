@@ -4,8 +4,8 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
-import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
-import { qwenAccountIdentity, qwenBaseOverride, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenProbeEndpoints, qwenSigninActive, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredential, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
+import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
+import { qwenAccountIdentity, qwenBaseOverride, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenListAnswersEveryCaller, qwenProbeLane, qwenSigninActive, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredential, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
 import { QWEN_SIGNIN_EXPIRED_LINE, qwenPlanBase, qwenSigninRefusal, qwenSigninRefusalNote, qwenStoredTokens } from './qwenOauth.js'
 import { QWEN_DISPLAY_PINS, QWEN_OBSERVED_AT, isQwenTextModelId, qwenDisplayName, qwenDisplayPin, qwenEffortVocabulary, qwenPreservesThinking, qwenThinkingDial, type QwenThinkingDial } from './qwenPins.js'
 
@@ -24,11 +24,42 @@ export function decodeQwenModel(raw: unknown): QwenLiveModel | undefined {
 }
 
 export class QwenCatalogueHttpError extends Error {
-  constructor(readonly status: number, readonly endpointLabel: string) {
-    super(status === 401 || status === 403
+  readonly refused: boolean
+  readonly said: string | undefined
+  constructor(readonly status: number, readonly endpointLabel: string, road: 'models' | 'chat' = 'models', words: ServiceWords = {}, key = '') {
+    const refused = status === 401 || status === 403 || (status === 400 && wordsNameTheKey(words))
+    const said = (words.message ?? words.code)?.split(key || '\0').join('[redacted]')
+    super(`${refused
       ? `Model Studio ${endpointLabel} refused the credential (HTTP ${status})`
-      : `Model Studio ${endpointLabel} models endpoint returned HTTP ${status}`)
+      : `Model Studio ${endpointLabel} ${road === 'chat' ? 'chat' : 'models'} endpoint returned HTTP ${status}`}${said ? ` — ${said}` : ''}`)
+    this.refused = refused
+    this.said = said
   }
+}
+
+const QWEN_CODING_PLAN_FALLBACK_MODEL = 'qwen3.5-plus'
+const authenticatedCodingKeys = new Set<string>()
+
+async function authenticateQwenCodingKey(opts: { baseUrl: string; key: string; model: string | undefined; fetchImpl?: typeof fetch; env: NodeJS.ProcessEnv }): Promise<void> {
+  const memo = `${credentialFingerprint(opts.key)} ${opts.baseUrl}`
+  if (authenticatedCodingKeys.has(memo)) return
+  const label = qwenEndpointLabelOf(opts.baseUrl, opts.env)
+  let response: Response
+  try {
+    response = await fetchWithProviderDeadline(opts.fetchImpl ?? getApiFetch(), 'qwen', 15_000, `${opts.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': 'application/json', authorization: `Bearer ${opts.key}`, 'user-agent': getUserAgent() },
+      body: JSON.stringify({ model: opts.model ?? QWEN_CODING_PLAN_FALLBACK_MODEL, messages: [{ role: 'user', content: 'hi' }], max_tokens: 1, stream: false }),
+      ...(opts.fetchImpl ? {} : getProxyFetchOptions()),
+    } as RequestInit)
+  } catch (error) {
+    throw new Error(`Model Studio ${label} chat endpoint could not be reached (${error instanceof Error ? error.message : String(error)})`)
+  }
+  if (response.ok || response.status === 429) {
+    authenticatedCodingKeys.add(memo)
+    return
+  }
+  throw new QwenCatalogueHttpError(response.status, label, 'chat', serviceWordsOf(await quietBodyJson(response)), opts.key)
 }
 
 export async function fetchQwenLiveModels(opts: { baseUrl: string; key: string; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<{ models: QwenLiveModel[]; otherLines: number; fetchedAtMs: number }> {
@@ -43,7 +74,7 @@ export async function fetchQwenLiveModels(opts: { baseUrl: string; key: string; 
   } catch (error) {
     throw modelsEndpointUnreachable(error) ?? error
   }
-  if (!response.ok) throw new QwenCatalogueHttpError(response.status, label)
+  if (!response.ok) throw new QwenCatalogueHttpError(response.status, label, 'models', serviceWordsOf(await quietBodyJson(response)), opts.key)
   const parsed = await catalogueBodyJson(response) as Record<string, unknown>
   if (!Array.isArray(parsed?.data)) throw new Error(`Model Studio ${label} models endpoint returned no data array`)
   const seen = new Set<string>()
@@ -61,6 +92,9 @@ export async function fetchQwenLiveModels(opts: { baseUrl: string; key: string; 
     return index === -1 ? QWEN_DISPLAY_PINS.length : index
   }
   models.sort((a, b) => pinRank(a.id) - pinRank(b.id) || b.created - a.created || a.id.localeCompare(b.id))
+  if (qwenListAnswersEveryCaller(opts.baseUrl, env)) {
+    await authenticateQwenCodingKey({ baseUrl: opts.baseUrl, key: opts.key, model: models[0]?.id, env, ...(opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) })
+  }
   return { models, otherLines, fetchedAtMs: Date.now() }
 }
 
@@ -71,8 +105,9 @@ export type QwenProbeOutcome =
 
 export async function probeQwenEndpoints(opts: { key: string; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<QwenProbeOutcome> {
   const env = opts.env ?? process.env
-  const endpoints = qwenProbeEndpoints(env)
+  const endpoints = qwenProbeLane(opts.key, env)
   const faults: string[] = []
+  const refusalWords: string[] = []
   let refusals = 0
   for (const endpoint of endpoints) {
     const baseUrl = qwenEndpointBase(endpoint, env)
@@ -80,12 +115,17 @@ export async function probeQwenEndpoints(opts: { key: string; fetchImpl?: typeof
       const result = await fetchQwenLiveModels({ baseUrl, key: opts.key, env, ...(opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) })
       return { kind: 'bound', endpoint, baseUrl, models: result.models, otherLines: result.otherLines, tried: faults.length + refusals + 1 }
     } catch (error) {
-      if (error instanceof QwenCatalogueHttpError && (error.status === 401 || error.status === 403)) { refusals++; continue }
+      if (error instanceof QwenCatalogueHttpError && error.refused) {
+        refusals++
+        const said = error.said?.replace(/\.+$/, '')
+        if (said && !refusalWords.includes(said)) refusalWords.push(said)
+        continue
+      }
       faults.push(`${endpoint.label}: ${(error instanceof Error ? error.message : String(error)).split(opts.key).join('[redacted]')}`)
     }
   }
   const tried = refusals + faults.length
-  if (faults.length === 0) return { kind: 'refused', words: qwenUnboundKeyRefusal(env), tried }
+  if (faults.length === 0) return { kind: 'refused', words: `${qwenUnboundKeyRefusal(env, opts.key)}${refusalWords.length > 0 ? `; the service said: ${refusalWords.join(' / ')}` : ''}`, tried }
   return { kind: 'unreachable', words: `${refusals} of ${endpoints.length} Model Studio endpoints refused the key and ${faults.length} could not be read (${faults.join('; ')})`, tried }
 }
 
@@ -186,7 +226,7 @@ export function refreshQwenCatalogue(opts?: { force?: boolean; fetchImpl?: typeo
       cache.set(identity, snapshot)
       return snapshot
     } catch (error) {
-      const refused = error instanceof QwenCatalogueHttpError && (error.status === 401 || error.status === 403)
+      const refused = error instanceof QwenCatalogueHttpError && error.refused
       const secret = key?.key ?? qwenStoredTokens()?.accessToken ?? ''
       const snapshot: QwenCatalogueSnapshot = {
         keySource: key?.source ?? 'signin', ...(cached?.baseUrl !== undefined ? { baseUrl: cached.baseUrl, endpointLabel: cached.endpointLabel } : {}),
@@ -264,4 +304,5 @@ export function forgetQwenCatalogue(): void {
 
 export function __resetQwenCatalogueForTest(): void {
   forgetQwenCatalogue()
+  authenticatedCodingKeys.clear()
 }
