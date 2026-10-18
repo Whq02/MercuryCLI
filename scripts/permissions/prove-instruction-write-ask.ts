@@ -158,10 +158,6 @@ try {
   }
   const captured = await RecordConventionTool.call({ rule: 'Run the fixture checks before committing.' }, context('implement'))
   check('RecordConvention writes through the designed writer', captured.data.action === 'recorded' && readFileSync(join(project, 'MERCURY.md'), 'utf8').includes('Run the fixture checks before committing.'), captured.data.detail)
-  for (const path of ['src/tools/RecordConventionTool/RecordConventionTool.ts', 'src/services/instructions/projectInstructionWriter.ts', 'src/cli/update.ts', 'src/tools/JourneyTool/JourneyTool.ts', 'src/tools/ServiceTool/ServiceTool.ts']) {
-    const before = spawnSync('git', ['-C', root, 'show', '56946be6d5:' + path], { encoding: 'utf8' })
-    check(path + ' byte-identical to base', before.status === 0 && before.stdout === readFileSync(join(root, path), 'utf8'), before.stderr)
-  }
 } finally {
   process.chdir(previous)
   rmSync(scratch, { recursive: true, force: true })

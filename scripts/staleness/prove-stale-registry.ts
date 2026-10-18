@@ -166,7 +166,10 @@ src/services/mcp/eraVerdictCache.ts :: readMemo :: invalidator=resetEraVerdictMe
 src/services/privateChannel/installProvenance.ts :: memoized :: static-for-process
 src/services/providers/anthropic/anthropicCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/anthropic/modelRefusal.ts :: modelRefusalCache :: keyed-by-truth
+src/services/providers/cerebras/cerebrasCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/cohere/cohereCatalogue.ts :: cache :: ttl-bounded
+src/services/providers/fireworks/fireworksCatalogue.ts :: cache :: ttl-bounded
+src/services/providers/groq/groqCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/deepseek/deepseekCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/deferralProbe.ts :: cache :: keyed-by-truth
 src/services/providers/gemini/geminiCatalogue.ts :: catalogueCache :: ttl-bounded
@@ -182,6 +185,7 @@ src/services/providers/openai/openaiCatalogue.ts :: catalogueCache :: ttl-bounde
 src/services/providers/openai/qualificationStore.ts :: wireMemoryCache :: ttl-bounded
 src/services/providers/openaicompat/compatCatalogue.ts :: cache :: keyed-by-truth
 src/services/providers/openrouter/openrouterCatalogue.ts :: catalogueCache :: ttl-bounded
+src/services/providers/providerKeyCommand.ts :: cache :: invalidator=invalidateProviderKeyCommand
 src/services/providers/providerIdentityLine.ts :: memo :: ttl-bounded
 src/services/providers/providerUsage.ts :: activeUsageCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: otherUsagesCache :: ttl-bounded

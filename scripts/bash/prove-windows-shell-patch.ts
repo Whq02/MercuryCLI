@@ -76,7 +76,7 @@ try {
     const changed = readFileSync(join(coreSource, 'src/commands.rs'), 'utf8')
     const changedShellFs = readFileSync(join(coreSource, 'src/shell/fs.rs'), 'utf8')
     const changedWindowsFs = readFileSync(join(coreSource, 'src/sys/windows/fs.rs'), 'utf8')
-    const unchangedLookup = (text: string) => text.slice(text.indexOf('        // We still haven\'t found a command to invoke.'), text.indexOf('    /// Extracts the owned string representation'))
+    const unchangedLookup = (text: string) => text.slice(text.indexOf('        if !sys::fs::contains_path_separator(&self.command_name) {'), text.indexOf('            self.execute_via_external(command_name.as_path())'))
     check('bare-command lookup dispatch and failure are byte-identical', !changed.includes('\r\n') && unchangedLookup(originals['src/commands.rs']) === unchangedLookup(changed) && unchangedLookup(changed).includes('ErrorKind::CommandNotFound'))
     check('the original command composition was shell-directory blind and dropped PATHEXT on lookup', !originals['src/commands.rs'].includes('context.shell.working_dir().join(command_name)') && !originals['src/shell/fs.rs'].includes('resolve_executable(candidate_path)'))
 

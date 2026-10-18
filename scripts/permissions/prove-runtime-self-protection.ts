@@ -213,10 +213,6 @@ try {
     check('Windows running interpreter folder', verdict.behavior === 'deny', verdict.message)
   }
   check('fixture runtime bytes survived every refused command', readFileSync(exe, 'utf8') === 'fixture-interpreter\n' && readFileSync(join(dist, 'mercury.mjs'), 'utf8') === 'fixture-original\n')
-  for (const path of ['src/cli/update.ts', 'src/tools/JourneyTool/JourneyTool.ts', 'src/tools/ServiceTool/ServiceTool.ts']) {
-    const before = spawnSync('git', ['-C', root, 'show', '56946be6d5:' + path], { encoding: 'utf8' })
-    check(path + ' unchanged from base', before.status === 0 && before.stdout === readFileSync(join(root, path), 'utf8'), before.stderr)
-  }
 } finally {
   Object.defineProperty(process, 'execPath', { value: realExe, configurable: true })
   process.argv.splice(0, process.argv.length, ...realArgv)

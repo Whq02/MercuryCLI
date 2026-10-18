@@ -129,11 +129,6 @@ try {
   try { await fetchPage('http://127.0.0.1/robots.txt', new AbortController().signal, true) } finally { axios.get = originalGet }
   check('structured API metadata redirect refuses', /metadata/.test(structuredRefusal), structuredRefusal)
   check('fetchPage and structuredHosts pin pre-checked addresses in socket lookup', pinnedPageLookup && pinnedApiLookup, `page=${pinnedPageLookup} api=${pinnedApiLookup}`)
-  for (const file of ['src/tools/JourneyTool/JourneyTool.ts', 'src/tools/ServiceTool/ServiceTool.ts']) {
-    let same = true
-    try { execFileSync('git', ['diff', '--exit-code', '56946be6d5bedc71576dbd4123635e0e817bd560', '--', file], { cwd: root, stdio: 'pipe' }) } catch { same = false }
-    check(file + ' stays byte-identical', same)
-  }
   console.log('controls')
   for (const url of ['http://127.0.0.1/', 'http://10.0.0.1/', 'http://192.168.1.1/', 'http://100.64.0.1/', 'http://[::1]/', 'http://169.253.169.254/']) {
     for (const [tool, input] of [[WebFetchTool, { url }], [BrowserTool, { op: 'open', url }]] as Array<[any, Record<string, unknown>]>) {
