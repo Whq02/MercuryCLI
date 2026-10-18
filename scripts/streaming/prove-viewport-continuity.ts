@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { markEpochs, runArtifactArena, type ArenaRun } from './artifactArena.ts'
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -37,7 +38,7 @@ console.log('── FLUX S6 viewport anchoring + scroll continuity (shipped arti
 
 {
   const run = await runArtifactArena({
-    turns: [{ kind: 'paced', deltas, gapMs: 40, whenModel: 'opus' }],
+    turns: [{ kind: 'paced', deltas, gapMs: vshotBudgetMs(40), whenModel: 'opus' }],
     sends: ['4500:hello', '5300:\\r'],
     seconds: 14,
     probe: true,
@@ -54,7 +55,7 @@ console.log('── FLUX S6 viewport anchoring + scroll continuity (shipped arti
 {
   const WHEEL = '\\x1b[<64;60;20M'
   const run = await runArtifactArena({
-    turns: [{ kind: 'paced', deltas, gapMs: 40, settleDelayMs: 1500, whenModel: 'opus' }],
+    turns: [{ kind: 'paced', deltas, gapMs: vshotBudgetMs(40), settleDelayMs: vshotBudgetMs(1500), whenModel: 'opus' }],
     sends: [
       '4500:hello',
       '5300:\\r',

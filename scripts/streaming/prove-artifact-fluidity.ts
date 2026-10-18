@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { DIST, firstPtyVisibility, observedEmissionWindow, runArtifactArena } from './artifactArena.ts'
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -30,7 +31,7 @@ const stagedDist = join(stage, 'mercury.mjs')
   }
   const run = await runArtifactArena({
     distPath: stagedDist,
-    turns: [{ kind: 'paced', deltas, gapMs: 40, whenModel: 'opus' }],
+    turns: [{ kind: 'paced', deltas, gapMs: vshotBudgetMs(40), whenModel: 'opus' }],
     sends: ['4500:hello', '5300:\\r', '7300:Ξ', '13500:Ψ'],
     seconds: 15,
     keep: true,

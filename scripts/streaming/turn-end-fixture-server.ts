@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync } from 'node:fs'
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const captureFile = process.argv[2]
 const fixtureCwd = process.argv[3] ?? process.cwd()
@@ -25,7 +26,7 @@ const SLOW_DELTAS = [
 const READ_THREE_ASK = 'read three files'
 const SLEEP_TOOL_ASK = 'run the long sleep'
 const STUBBORN_SLEEP_ASK = 'run the stubborn sleep'
-const READ_HOLD_MS = 6_000
+const READ_HOLD_MS = vshotBudgetMs(6_000)
 const SLEEP_SECONDS = 40
 const LAUNCH_AGENT_ASK = 'launch one agent'
 const SEAT_HOLD_PROMPT = 'crew-seat: hold the headers'
