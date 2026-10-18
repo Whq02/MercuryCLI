@@ -33,7 +33,7 @@ interface IdeToolDoor {
 export class IdeTerminalUnavailableError extends Error {}
 
 let activeDoor: IdeToolDoor | null = null
-const virtualGenerations = new Map<string, { generation: string; mtimeMs: number; content: string }>()
+const virtualGenerations = new Map<string, { generation: string; mtimeMs: number; digest: string }>()
 
 export function registerIdeToolDoor(door: IdeToolDoor | null): void {
   activeDoor = door
@@ -52,10 +52,12 @@ export function ideTerminalAvailable(): boolean {
   return activeDoor !== null && activeDoor.capabilities().terminal
 }
 
-function generationForContent(content: string, mtimeMs: number): string {
-  const bytes = Buffer.from(content, 'utf8')
-  const digest = runtimeKernel().hash.sha256Hex(bytes).slice(0, 12)
-  return `m${Math.floor(mtimeMs)}:${bytes.byteLength}:${digest}`
+function digestOfText(text: string): string {
+  return runtimeKernel().hash.sha256Hex(Buffer.from(text, 'utf8'))
+}
+
+function generationForContent(content: string, digest: string, mtimeMs: number): string {
+  return `m${Math.floor(mtimeMs)}:${Buffer.byteLength(content, 'utf8')}:${digest.slice(0, 12)}`
 }
 
 function recordIdeBufferGeneration(resolvedPath: string, content: string): { generation: string; mtimeMs: number } {
@@ -65,8 +67,9 @@ function recordIdeBufferGeneration(resolvedPath: string, content: string): { gen
   } catch {
     mtimeMs = Date.now()
   }
-  const generation = generationForContent(content, mtimeMs)
-  virtualGenerations.set(resolvedPath, { generation, mtimeMs, content })
+  const digest = digestOfText(content)
+  const generation = generationForContent(content, digest, mtimeMs)
+  virtualGenerations.set(resolvedPath, { generation, mtimeMs, digest })
   return { generation, mtimeMs }
 }
 
@@ -76,10 +79,10 @@ export function ideFileGeneration(resolvedPath: string): string | null {
   if (existsSync(resolvedPath)) {
     try {
       const disk = readFileSync(resolvedPath, 'utf8')
-      if (disk === entry.content) {
+      const diskDigest = digestOfText(disk)
+      if (diskDigest === entry.digest) {
         const st = statSync(resolvedPath)
-        const digest = runtimeKernel().hash.sha256Hex(Buffer.from(disk, 'utf8')).slice(0, 12)
-        return `m${Math.floor(st.mtimeMs)}:${st.size}:${digest}`
+        return `m${Math.floor(st.mtimeMs)}:${st.size}:${diskDigest.slice(0, 12)}`
       }
     } catch {
       return entry.generation
