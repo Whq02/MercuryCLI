@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { chmodSync, closeSync, existsSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, closeSync, existsSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { crc32, deflateRawSync, inflateRawSync } from 'node:zlib'
@@ -583,6 +583,16 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     hostEvidence.readFileState.set(zipPath, { content: 'whatever', timestamp: Date.now() + 1000 })
     const viaHost = await write({ file_path: `${zipPath}:config/app.json`, content: '{}\n' }, hostEvidence)
     check('R5.3 read evidence recorded against the host archive path unlocks no entry', !viaHost.ok && /read/i.test(viaHost.message), words(viaHost))
+    const tableCtx = makeContext()
+    const overview = await read({ file_path: dbPath }, tableCtx)
+    const wholeTable = await read({ file_path: `${dbPath}:users` }, tableCtx)
+    const rowWriteAfterTable = await write({ file_path: `${dbPath}:users/1`, content: '{"name": "Nobody", "role": "none"}' }, tableCtx)
+    const rowEditAfterTable = await edit({ file_path: `${dbPath}:users/1`, old_string: '"role": "owner"', new_string: '"role": "none"' }, tableCtx)
+    check(
+      'R5.4 reading the database overview or the whole table never unlocks Write or Edit on one row',
+      overview.ok && wholeTable.ok && !rowWriteAfterTable.ok && /read/i.test(rowWriteAfterTable.message) && !rowEditAfterTable.ok && /Read the file before editing/.test(rowEditAfterTable.message),
+      `${words(rowWriteAfterTable)} / ${words(rowEditAfterTable)}`,
+    )
   }
 
   {
@@ -640,13 +650,23 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     const filesBefore = readdirSync(walDir).sort().join(',')
     const ctx = makeContext()
     const walWrite = await write({ file_path: `${walPath}:notes/3`, content: '{"body": "written through sqlite"}' }, ctx)
+    const walRead2 = await read({ file_path: `${walPath}:notes/2` }, ctx)
+    const walEdit2 = await edit({ file_path: `${walPath}:notes/2`, old_string: '"body": "lives in the wal"', new_string: '"body": "edited in the wal"' }, ctx)
+    const walRead1 = await read({ file_path: `${walPath}:notes/1` }, ctx)
+    holder.exec("UPDATE notes SET body = 'updated in wal by holder' WHERE id = 1")
+    const walStaleWrite = await write({ file_path: `${walPath}:notes/1`, content: '{"body": "clobber"}' }, ctx)
+    const walStaleEdit = await edit({ file_path: `${walPath}:notes/1`, old_string: '"id": 1', new_string: '"id": 1,\n  "body": "clobber"' }, ctx)
     const integrity = holder.query('PRAGMA integrity_check').get() as { integrity_check: string }
     const bodies = (holder.query('SELECT id, body FROM notes ORDER BY id').all() as Array<{ id: number; body: string }>).map(r => `${r.id}:${r.body}`).join(',')
     holder.close()
     check(
-      'R8.1 a database in WAL mode with a live -wal beside it is written through SQLite\'s own API: integrity ok, the wal-resident row and the new row both stand',
-      walWrite.ok && filesBefore.includes('wal.sqlite-wal') && integrity.integrity_check === 'ok' && bodies === '1:in the main file,2:lives in the wal,3:written through sqlite',
-      `${words(walWrite)} files=${filesBefore} integrity=${integrity.integrity_check} rows=${bodies}`,
+      'R8.1 a database in WAL mode with a live -wal beside it is read and written through SQLite\'s own API: Read sees wal-resident rows, stale rows changed in the WAL refuse, integrity ok',
+      walWrite.ok && walRead2.ok && walEdit2.ok && walRead1.ok &&
+        !walStaleWrite.ok && /changed on disk after your last read/.test(walStaleWrite.message) &&
+        !walStaleEdit.ok && /changed on disk after your last read/.test(walStaleEdit.message) &&
+        filesBefore.includes('wal.sqlite-wal') && integrity.integrity_check === 'ok' &&
+        bodies === '1:updated in wal by holder,2:edited in the wal,3:written through sqlite',
+      `${words(walWrite)} / ${words(walRead2)} / ${words(walEdit2)} / ${words(walStaleWrite)} / ${words(walStaleEdit)} rows=${bodies}`,
     )
     const locker = new Database(dbPath)
     locker.exec('BEGIN IMMEDIATE')
@@ -708,12 +728,23 @@ section('refusals. Every way to abuse or break the row, driven and refused')
 
   {
     const ctx = makeContext()
-    writeFileSync(zipPath, buildZip([{ name: 'stale.txt', content: 'v1\n' }]))
+    writeFileSync(zipPath, buildZip([{ name: 'stale.txt', content: 'keep\nv1\n' }]))
+    const st0 = statSync(zipPath)
     await read({ file_path: `${zipPath}:stale.txt` }, ctx)
-    await new Promise(resolve => setTimeout(resolve, 1100))
-    writeFileSync(zipPath, buildZip([{ name: 'stale.txt', content: 'v2 from elsewhere\n' }]))
+    writeFileSync(zipPath, buildZip([{ name: 'stale.txt', content: 'keep\nv2 from elsewhere\n' }]))
+    utimesSync(zipPath, st0.atime, st0.mtime)
     const stale = await write({ file_path: `${zipPath}:stale.txt`, content: 'v3\n' }, ctx)
-    check('R11 an entry changed since the Read refuses as modified-since-read', !stale.ok && /changed on disk after your last read/.test(stale.message) && zipText(bytesOf(zipPath), 'stale.txt') === 'v2 from elsewhere\n', words(stale))
+    const staleEdit = await edit({ file_path: `${zipPath}:stale.txt`, old_string: 'keep', new_string: 'clobbered' }, ctx)
+    await read({ file_path: `${zipPath}:stale.txt` }, ctx)
+    const staleAnchor = await edit({ file_path: `${zipPath}:stale.txt`, old_string: 'keep', new_string: 'clobbered', expected_anchor: 'fa:000000000000' }, ctx)
+    check(
+      'R11 an entry changed since the Read (even within the same mtime tick) or given a stale expected_anchor refuses Write and Edit as modified-since-read',
+      !stale.ok && /changed on disk after your last read/.test(stale.message) &&
+        !staleEdit.ok && /changed on disk after your last read/.test(staleEdit.message) &&
+        !staleAnchor.ok && /changed on disk after your last read/.test(staleAnchor.message) &&
+        zipText(bytesOf(zipPath), 'stale.txt') === 'keep\nv2 from elsewhere\n',
+      `${words(stale)} / ${words(staleEdit)} / ${words(staleAnchor)}`,
+    )
   }
 
   {

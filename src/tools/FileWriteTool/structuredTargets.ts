@@ -524,14 +524,13 @@ function structuredReadEvidence(
   expectedAnchor?: string,
 ): ReadEvidence {
   const current = normalizeNewlines(currentText)
-  if (expectedAnchor !== undefined && expectedAnchor.startsWith('fa:') && checkAnchor(expectedAnchor, current, target.canonicalPath).ok) {
-    return 'known'
+  if (expectedAnchor !== undefined && expectedAnchor.startsWith('fa:')) {
+    return checkAnchor(expectedAnchor, current, target.canonicalPath).ok ? 'known' : 'stale'
   }
   const entry = context.readFileState.get(target.canonicalPath)
   if (entry === undefined || entry.isPartialView) return 'unread'
   if (fullReadEntry(entry)) {
-    if (entry.content === current) return 'known'
-    return getFileModificationTime(target.hostPath) > entry.timestamp ? 'stale' : 'known'
+    return entry.content === current ? 'known' : 'stale'
   }
   const start = Math.max(1, entry.offset ?? 1)
   const count = entry.content === '' ? 0 : entry.content.split('\n').length

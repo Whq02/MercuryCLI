@@ -1,4 +1,4 @@
-import { closeSync, copyFileSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs'
+import { closeSync, copyFileSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -1239,8 +1239,9 @@ export async function renderSqliteTarget(
       : new (await import('node:sqlite')).DatabaseSync(file, { open: true, readOnly: true } as never)
   let scratch: string | null = null
   let db: SqliteDb
+  const hasLiveJournal = existsSync(`${dbPath}-wal`) || existsSync(`${dbPath}-journal`)
   try {
-    db = await openReadOnly(`${pathToFileURL(dbPath).href}?immutable=1`)
+    db = await openReadOnly(hasLiveJournal ? dbPath : `${pathToFileURL(dbPath).href}?immutable=1`)
   } catch {
     scratch = mkdtempSync(join(tmpdir(), 'mercury-sqlite-read-'))
     const copy = join(scratch, basename(dbPath))
