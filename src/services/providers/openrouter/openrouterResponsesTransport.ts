@@ -31,6 +31,7 @@ import {
   type CompatStreamOptions,
   type CompatTool,
 } from '../openaicompat/compatChatClient.js'
+import { openrouterResponsesCache } from './openrouterCache.js'
 
 const OPENROUTER_TOOL_SEARCH_TYPE = 'openrouter:tool_search'
 
@@ -111,6 +112,7 @@ function buildOpenrouterResponsesBody(options: CompatStreamOptions, facts: Compa
   const reasoning = asRecord(extra.reasoning)
   return {
     model: request.model,
+    ...openrouterResponsesCache(request.model),
     ...(extra.provider !== undefined ? { provider: extra.provider } : {}),
     ...(instructions !== undefined ? { instructions } : {}),
     input: openrouterResponsesInput(messages, request.model, facts.imagesSupported),
