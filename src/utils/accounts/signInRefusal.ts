@@ -17,7 +17,7 @@ function keyCredential(value: { key: string; source: string } | undefined): Cred
   return value && !value.source.startsWith('env') ? { identity: credentialFingerprint(value.key), key: value.key, noun: 'key' } : undefined
 }
 
-export function serviceMessage(raw: string | undefined): string | undefined {
+function serviceMessage(raw: string | undefined): string | undefined {
   const line = raw?.replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ').trim() ?? ''
   if (line === '') return undefined
   return line.length > MESSAGE_CEILING ? `${line.slice(0, MESSAGE_CEILING - 1)}…` : line
