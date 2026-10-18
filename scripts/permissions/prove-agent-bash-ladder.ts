@@ -234,7 +234,7 @@ const ROWS: Row[] = [
     headless: { behavior: 'deny', wrapper: 'headlessAutoDeny' },
   },
   { label: 'sovereign · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule' } },
-  { label: 'default · whole-tool ask rule → the 1b road asks, the rule its reason', mode: 'default', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'ask', engine: 'toolAskRule' } },
+  { label: 'default · whole-tool ask rule → asks after the tool verdict, the rule its reason', mode: 'default', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'ask', engine: 'toolAskRuleCarried' } },
   { label: 'sovereign · whole-tool ask rule → the 1b road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'toolAskRuleCarried' } },
   { label: 'flow · ask rule · simple command → the floor keeps the human ask', mode: 'flow', rules: 'ask', command: ASKING, main: { behavior: 'ask', engine: 'contentAskRule' } },
 ]

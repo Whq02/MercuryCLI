@@ -1205,12 +1205,14 @@ Not this tool (refused by name): file creation (Write) · binary content · note
       return { behavior: 'allow', updatedInput: input }
     }
     let needsAsk = false
-    for (const p of paths) {
+    for (const p of new Set([...paths, ...remotePaths])) {
       const decision = checkWritePermissionForTool(pathShim, { file_path: p }, permCtx)
       if (decision.behavior === 'deny') {
         return {
           ...decision,
-          message: refusalWithReason(`Editing ${p} is denied${decision.decisionReason.type === 'rule' ? ` by ${ruleWords(decision.decisionReason.rule)}` : ''} — a denied path refuses the whole change set (zero writes).`, decision.decisionReason.type === 'rule' ? reasonForRule(permCtx, decision.decisionReason.rule) : undefined),
+          message: decision.decisionReason.type === 'rule'
+            ? refusalWithReason(`Editing ${p} is denied by ${ruleWords(decision.decisionReason.rule)} — a denied path refuses the whole change set (zero writes).`, reasonForRule(permCtx, decision.decisionReason.rule))
+            : `${decision.message} A denied path refuses the whole change set (zero writes).`,
         }
       }
       if (decision.behavior !== 'allow') needsAsk = true

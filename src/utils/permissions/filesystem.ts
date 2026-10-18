@@ -27,6 +27,7 @@ import { createEditRuleSuggestion, createReadRuleSuggestion } from './Permission
 import { refusalWithReason, ruleSentence, withRuleReason } from './ruleReason.js'
 import { uncPathRisk, uncPathMessage } from './uncPath.js'
 import { suspiciousWindowsPattern } from './windowsPath.js'
+import { credentialStorePath, protectedPathForms } from './protectedPaths.js'
 
 
 const DANGEROUS_FILES: string[] = [
@@ -720,6 +721,22 @@ export function checkWritePermissionForTool(
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, 'edit', 'deny')
     if (rule) return ruleDecision('deny', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'deny'))
+  }
+  const rawPath = typeof input === 'object' && input !== null && 'file_path' in input && typeof input.file_path === 'string' ? input.file_path : path
+  const credential = credentialStorePath(path) ?? credentialStorePath(rawPath)
+  if (credential !== null) {
+    const named = context.mode === 'default' || context.mode === 'implement'
+      ? matchingRulesForInput(path, context, 'edit', 'allow').find(rule => {
+          const content = rule.ruleValue.ruleContent ?? ''
+          if (content === '' || /[*?[\]{}]/.test(content) || rule.source === 'projectSettings') return false
+          const { root, relative } = rootForPattern(content, rule.source)
+          const target = content.startsWith('~/') ? content :             (root ?? getCwd()) + '/' + relative.replace(/^\/+/, '')
+          return protectedPathForms(target).includes(credential)
+        })
+      : undefined
+    if (named) return allow(input, { type: 'rule', rule: named })
+    const message = 'Writing ' + path + ' is refused: ' + credential + ' is a protected system or credential path.'
+    return deny(message, { type: 'other', reason: message })
   }
   const internal = checkEditableInternalPath(expandPath(path), input)
   if ((internal as { behavior: string }).behavior !== 'passthrough') return internal as unknown as PermissionDecision

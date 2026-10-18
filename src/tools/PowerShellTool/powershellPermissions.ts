@@ -37,6 +37,7 @@ import { checkPermissionMode, isSymlinkCreatingCommand } from './modeValidation.
 import { isGitInternalPathPS, isDotGitPathPS } from './gitSafety.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { getShellCwd } from '../../utils/Shell.js'
+import { shellCredentialWritePath } from '../../utils/permissions/shellProtectedPaths.js'
 
 const TOOL_NAME = 'PowerShell'
 
@@ -147,6 +148,11 @@ export async function powershellToolHasPermission(
   const prefixDeny = matchRules(command, toolPermissionContext, 'deny', 'prefix')
   if (prefixDeny) return ruledVerdict(toolPermissionContext, command, prefixDeny, 'deny')
   let deferredAsk: PermissionResult | null = null
+  const protectedWrite = await shellCredentialWritePath(command, true)
+  if (protectedWrite !== null) {
+    const message = 'Writing ' + protectedWrite + ' affects a credential store and requires approval.'
+    deferredAsk = { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
+  }
   const prefixAsk = matchRules(command, toolPermissionContext, 'ask', 'prefix')
   if (prefixAsk) deferredAsk = ruledVerdict(toolPermissionContext, command, prefixAsk, 'ask')
   const remote = uncPathRisk(command)
