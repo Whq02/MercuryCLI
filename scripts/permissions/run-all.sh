@@ -45,6 +45,7 @@
 # gate-watch: src/services/tools/toolHooks.ts src/substrate/startupMenu.ts src/tools/ComputerTool/ComputerTool.ts
 # gate-watch: scripts/bash/floor-proof-helpers.ts
 # gate-watch: src/utils/wards/wards.ts src/utils/windowsPaths.ts
+# gate-watch: src/utils/sessionStorage/logs.ts src/utils/sessionTitle.ts src/utils/sanitization.ts
 # gate-watch: src/guards/**
 # gate-watch: src/hooks/useCanUseTool.tsx src/keybindings/KeybindingContext.tsx
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts

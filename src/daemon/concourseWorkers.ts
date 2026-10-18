@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { partiallySanitizeUnicode } from '../utils/sanitization.js'
 import { randomUUID } from '../utils/crypto.js'
 import { recordToEntry } from '../fabric/entryCodec.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow, sessionModelOfEntry } from '../utils/model/retainedModel.js'
@@ -955,7 +956,7 @@ export function makeConcourseAdmitHandler(
             ...pidFieldsOf(claimed.pid),
             settingsSnapshot: snapshot,
             workspaceKind: workspaceKindOf(workspaceId),
-            ...(req.title !== undefined ? { title: req.title } : {}),
+            ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
             ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
             ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
             ...kitStampOf(kit),
@@ -1091,7 +1092,7 @@ export function makeConcourseAdmitHandler(
       effort,
       cwd: workerCwd,
       kit,
-      ...(req.title !== undefined ? { title: req.title } : {}),
+      ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
       ...(req.resumeSessionId !== undefined ? { resume: true } : {}),
       ...(req.permissionMode !== undefined ? { permissionMode: req.permissionMode } : {}),
       ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
@@ -1120,7 +1121,7 @@ export function makeConcourseAdmitHandler(
         workspaceKind,
         ...(worktreePath !== undefined ? { worktreePath } : {}),
         ...(worktreeBranch !== undefined ? { branchName: worktreeBranch } : {}),
-        ...(req.title !== undefined ? { title: req.title } : {}),
+        ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
         ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv: [...runnerArgv] } : {}),
         ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
         ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
@@ -2531,7 +2532,7 @@ export function setConcourseSessionTitle(
   dir?: string,
 ): { outcome: 'applied' | 'noop' | 'refused'; detail?: string } {
   void by
-  const title = rawTitle.replace(/\s+/g, ' ').trim().slice(0, 200)
+  const title = partiallySanitizeUnicode(rawTitle).replace(/\s+/g, ' ').trim().slice(0, 200)
   if (title.length === 0) return { outcome: 'refused', detail: 'a title needs words' }
   let out: { outcome: 'applied' | 'noop' | 'refused'; detail?: string } = {
     outcome: 'refused',

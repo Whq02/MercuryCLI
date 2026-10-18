@@ -7,6 +7,7 @@ import { logForDebugging } from './debug.js'
 import { extractTextContent } from './messages.js'
 import { safeParseJSON } from './json.js'
 import { asSystemPrompt } from './systemPromptType.js'
+import { partiallySanitizeUnicode } from './sanitization.js'
 
 
 const DESCRIPTION_BUDGET = 1000
@@ -69,7 +70,7 @@ export async function generateSessionTitle(description: string, signal: AbortSig
     const parsed = safeParseJSON(text, false)
     const validated = titleSchema.safeParse(parsed)
     if (!validated.success) return null
-    const title = validated.data.title.trim()
+    const title = partiallySanitizeUnicode(validated.data.title).trim()
     return title === '' ? null : title
   } catch (err) {
     logForDebugging(`generateSessionTitle failed: ${String(err)}`)

@@ -1,6 +1,7 @@
 import type { AppState } from '../../state/AppStateStore.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { EffortValue } from '../../utils/effort.js'
+import { scopedAgentToolRules } from './agentToolRules.js'
 import {
   modeBypassesPermissions,
   PERMISSION_MODES,
@@ -60,6 +61,7 @@ interface AgentAppStateFacts {
   isAsync: boolean
   allowedTools: readonly string[] | undefined
   effortValue: EffortValue | undefined
+  definitionTools?: { tools?: readonly string[]; disallowedTools?: readonly string[] }
 }
 
 export function definitionModeWithinConsent(
@@ -109,6 +111,25 @@ export function composeAgentAppState(
     : parentState
   if (facts.allowedTools && facts.allowedTools.length > 0) {
     next = withAllowedCommandRules(next, facts.allowedTools)
+  }
+  if (facts.definitionTools !== undefined) {
+    const rules = scopedAgentToolRules(facts.definitionTools)
+    const permission = next.toolPermissionContext
+    const allowNarrowing = rules.allow.length > 0 ? rules.allow : undefined
+    const mergedDeny = [...new Set([...(permission.alwaysDenyRules.toolsNarrowing ?? []), ...rules.deny])]
+    const denyNarrowing = mergedDeny.length > 0 ? mergedDeny : undefined
+    if (allowNarrowing !== permission.alwaysAllowRules.toolsNarrowing || denyNarrowing !== permission.alwaysDenyRules.toolsNarrowing) {
+      const { toolsNarrowing: _prevAllow, ...restAllow } = permission.alwaysAllowRules
+      const { toolsNarrowing: _prevDeny, ...restDeny } = permission.alwaysDenyRules
+      next = {
+        ...next,
+        toolPermissionContext: {
+          ...permission,
+          alwaysAllowRules: allowNarrowing ? { ...restAllow, toolsNarrowing: allowNarrowing } : restAllow,
+          alwaysDenyRules: denyNarrowing ? { ...restDeny, toolsNarrowing: denyNarrowing } : restDeny,
+        },
+      }
+    }
   }
   if (facts.effortValue !== undefined && next.effortValue !== facts.effortValue) {
     next = { ...next, effortValue: facts.effortValue }

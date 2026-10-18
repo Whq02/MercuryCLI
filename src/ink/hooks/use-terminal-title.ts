@@ -1,6 +1,7 @@
 
 import { useContext, useEffect } from 'react'
 import stripAnsi from 'strip-ansi'
+import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
 import { noteModeAcquired } from '../root/terminalModeLedger.js'
 import { OSC, osc } from '../termio/osc.js'
 import { TerminalWriteContext } from '../terminalWrite.js'
@@ -8,7 +9,7 @@ import { TerminalWriteContext } from '../terminalWrite.js'
 const CONTROL_BYTES_RE = /[\x00-\x1f\x7f-\x9f]/g
 
 function sanitizeTitle(title: string): string {
-  return stripAnsi(title).replace(CONTROL_BYTES_RE, '')
+  return partiallySanitizeUnicode(stripAnsi(title)).replace(CONTROL_BYTES_RE, '')
 }
 
 export function useTerminalTitle(title: string | null): void {

@@ -1,5 +1,6 @@
 
 import { z } from 'zod'
+import { agentToolRuleProblem } from './agentToolRules.js'
 import { decodeAgentDocument, validateAgentIdentifier } from '../../services/agents/codec.js'
 import { revisionDigest } from '../../services/agents/contracts.js'
 import {
@@ -249,7 +250,7 @@ function parseAgentFromMarkdown(
     if (errorDiagnostics.length > 0) {
       if (failures) {
         for (const diagnostic of errorDiagnostics) {
-          failures.push({ path: filePath, error: `[${diagnostic.code}] ${diagnostic.message}` })
+          failures.push({ path: filePath, error: `${diagnostic.line === undefined ? '' : `line ${diagnostic.line}: `}[${diagnostic.code}] ${diagnostic.message}` })
         }
       }
       return null
@@ -341,11 +342,15 @@ function readStandingRule(record: Record<string, unknown>): string | undefined {
 }
 
 
+const toolRuleSchema = z.string().superRefine((spec, context) => {
+  const problem = agentToolRuleProblem(spec)
+  if (problem !== null) context.addIssue({ code: 'custom', message: problem })
+})
 const jsonAgentSchema = z.object({
   description: z.string().min(1),
   prompt: z.string().min(1),
-  tools: z.array(z.string()).optional(),
-  disallowedTools: z.array(z.string()).optional(),
+  tools: z.array(toolRuleSchema).optional(),
+  disallowedTools: z.array(toolRuleSchema).optional(),
   model: z
     .string()
     .trim()

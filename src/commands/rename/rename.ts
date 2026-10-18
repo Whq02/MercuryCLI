@@ -5,6 +5,7 @@ import { getFocusedSessionConnector, hasFocusedSession } from '../../services/en
 import { getTranscriptPath, saveAgentName, saveCustomTitle } from '../../utils/sessionStorage.js'
 import { isCompactBoundaryMessage } from '../../utils/messages.js'
 import { generateSessionName } from './generateSessionName.js'
+import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
 
 export async function call(
   onDone: LocalJSXCommandOnDone,
@@ -32,6 +33,11 @@ export async function call(
     name = generated
   }
 
+  name = partiallySanitizeUnicode(name)
+  if (name.trim() === '') {
+    onDone('A session name needs visible text.', { display: 'system' })
+    return null
+  }
   if (hasFocusedSession()) {
     const sessionId = getFocusedSessionConnector().sessionId()
     try {

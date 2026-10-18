@@ -5,6 +5,8 @@ import type {
 } from '../../utils/permissions/PermissionResult.js'
 import type { PermissionRule } from '../../types/permissions.js'
 import { getShellCwd } from '../../utils/Shell.js'
+import { hiddenCommandCharacterReason } from '../../utils/sanitization.js'
+import { credentialUploadReason } from '../../utils/permissions/commandContent.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getPlatform } from '../../utils/platform.js'
 import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
@@ -12,6 +14,7 @@ import { windowsPathToPosixPath } from '../../utils/windowsPaths.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/decision/rules.js'
 import {
+  knownShellCommandPrefix,
   parsePermissionRule,
   matchWildcardPattern,
   permissionRuleExtractPrefix,
@@ -205,42 +208,23 @@ function consumeTrailingWhitespace(command: string, i: number): string {
 }
 
 
-const BARE_SHELL_BLOCKLIST = new Set([
-  'sh', 'bash', 'zsh', 'fish', 'csh', 'tcsh', 'ksh', 'dash', 'cmd', 'powershell',
-  'pwsh', 'env', 'xargs', 'nice', 'stdbuf', 'nohup', 'timeout', 'time', 'sudo',
-  'doas', 'pkexec',
-])
-
-const SUBCOMMAND_TOKEN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
+function suggestedCommandPrefix(command: string): string | null {
+  let current = command.trim()
+  for (;;) {
+    const next = stripLeadingSafeEnvVars(current)
+    if (next === current) return knownShellCommandPrefix(current)
+    current = next
+  }
+}
 
 export function getSimpleCommandPrefix(command: string): string | null {
-  const tokens = command.trim().split(/\s+/)
-  let i = 0
-  while (i < tokens.length && /^[A-Za-z_]\w*=/.test(tokens[i] as string)) {
-    const name = (tokens[i] as string).split('=')[0] as string
-    if (!SAFE_ENV_VARS.has(name)) return null
-    i++
-  }
-  const rest = tokens.slice(i)
-  if (rest.length < 2) return null
-  if (!SUBCOMMAND_TOKEN.test(rest[1] as string)) return null
-  return `${rest[0]} ${rest[1]}`
+  const prefix = suggestedCommandPrefix(command)
+  return prefix?.includes(' ') ? prefix : null
 }
 
 export function getFirstWordPrefix(command: string): string | null {
-  const tokens = command.trim().split(/\s+/)
-  let i = 0
-  while (i < tokens.length && /^[A-Za-z_]\w*=/.test(tokens[i] as string)) {
-    const name = (tokens[i] as string).split('=')[0] as string
-    if (!SAFE_ENV_VARS.has(name)) return null
-    i++
-  }
-  const word = tokens[i]
-  if (!word) return null
-  if (BARE_SHELL_BLOCKLIST.has(word)) return null
-  if (word.startsWith('-') || word.includes('/')) return null
-  if (!SUBCOMMAND_TOKEN.test(word)) return null
-  return word
+  const prefix = suggestedCommandPrefix(command)
+  return prefix !== null && !prefix.includes(' ') ? prefix : null
 }
 
 function normalizedWords(command: string): string[][] {
@@ -401,38 +385,8 @@ function askByRule(context: ToolPermissionContext, subject: string, ruleContent:
 
 
 function suggestionForCommand(command: string): ReturnType<typeof suggestionForExactCommand> {
-  const trimmed = command.trim()
-  const heredocAt = trimmed.search(/<<-?/)
-  if (heredocAt > 0) {
-    const before = trimmed.slice(0, heredocAt).trim()
-    if (before !== '') {
-      const twoWord = getSimpleCommandPrefix(before)
-      if (twoWord) return suggestionForPrefix(TOOL_NAME, twoWord)
-      const firstTwo = firstTwoTokensAfterAssignments(before)
-      if (firstTwo) return suggestionForPrefix(TOOL_NAME, firstTwo)
-      return []
-    }
-  }
-  if (trimmed.includes('\n')) {
-    const firstLine = (trimmed.split('\n')[0] as string).trim()
-    return suggestionForPrefix(TOOL_NAME, firstLine)
-  }
-  const twoWord = getSimpleCommandPrefix(trimmed)
-  if (twoWord) return suggestionForPrefix(TOOL_NAME, twoWord)
-  return suggestionForExactCommand(TOOL_NAME, trimmed)
-}
-
-function firstTwoTokensAfterAssignments(text: string): string | null {
-  const tokens = text.trim().split(/\s+/)
-  let i = 0
-  while (i < tokens.length && /^[A-Za-z_]\w*=/.test(tokens[i] as string)) {
-    const name = (tokens[i] as string).split('=')[0] as string
-    if (!SAFE_ENV_VARS.has(name)) return null
-    i++
-  }
-  const rest = tokens.slice(i)
-  if (rest.length === 0) return null
-  return rest.slice(0, 2).join(' ')
+  const prefix = suggestedCommandPrefix(command)
+  return prefix === null ? suggestionForExactCommand(TOOL_NAME, command.trim()) : suggestionForPrefix(TOOL_NAME, prefix)
 }
 
 
@@ -542,9 +496,7 @@ async function checkCommandAndSuggestRules(
   const check = bashToolCheckPermission(input, context, compoundHasCd, astCommand, shown)
   if (check.behavior === 'deny' || check.behavior === 'ask') return check
   if (check.behavior === 'allow') return check
-  const suggestions = prefixHint?.commandPrefix
-    ? suggestionForPrefix(TOOL_NAME, prefixHint.commandPrefix)
-    : suggestionForExactCommand(TOOL_NAME, input.command)
+  const suggestions = suggestionForCommand(input.command)
   return { ...check, suggestions } as PermissionResult
 }
 
@@ -632,6 +584,10 @@ async function decideBashPermission(
   prefixFn: PrefixFn,
 ): Promise<PermissionResult> {
   const command = input.command
+  const hidden = hiddenCommandCharacterReason(command)
+  if (hidden !== null) return { behavior: 'deny', message: hidden, decisionReason: { type: 'safetyCheck', reason: hidden, operatorOnly: true } }
+  const upload = credentialUploadReason(command)
+  const uploadAsk: PermissionResult | null = upload === null ? null : { behavior: 'ask', message: upload, decisionReason: { type: 'safetyCheck', reason: upload, operatorOnly: true } }
   const astRoot = await pinnedCommandAnalysis.parseCommandRaw(command) ?? undefined
   const remote = uncPathRisk(command, { command: true })
   if (remote.risky) {
@@ -653,17 +609,18 @@ async function decideBashPermission(
     const denied = astDenyCheck(input, context, astRoot)
     if (denied) return denied
     const parsed = await parseForSecurity(command)
-    if (parsed.kind === 'too-complex') return unprovenAsk(parsed.reason)
+    if (parsed.kind === 'too-complex') return uploadAsk ?? unprovenAsk(parsed.reason)
     if (parsed.kind === 'simple') {
       const early = semanticsDenyCheck(input, context, parsed.commands)
       if (early) return early
+      if (uploadAsk !== null) return uploadAsk
       const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
       if (!semantic.ok) return unprovenAsk(semantic.reason)
       astCommands = parsed.commands
       compoundHasCd = astCommands.some(simple => isNormalizedCdCommand(simple.text))
     }
   } else {
-    return earlyExitDenyCheck(input, context) ?? unprovenAsk('the shell parser is unavailable for this command; retry it, or approve')
+    return earlyExitDenyCheck(input, context) ?? uploadAsk ?? unprovenAsk('the shell parser is unavailable for this command; retry it, or approve')
   }
 
   if (astCommands === null) return unprovenAsk('the shell parser could not establish the commands; simplify the command, or approve')

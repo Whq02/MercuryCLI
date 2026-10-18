@@ -143,12 +143,10 @@ export function resolveAgentTools(
       })
 
   const deniedNames = new Set(
-    (definition.disallowedTools ?? []).flatMap(
-      spec => {
-        const rule = permissionRuleValueFromString(spec)
-        return rule.ruleContent === undefined ? expandLspFamily(rule.toolName) : [rule.toolName]
-      },
-    ),
+    (definition.disallowedTools ?? [])
+      .map(spec => permissionRuleValueFromString(spec))
+      .filter(rule => rule.ruleContent === undefined)
+      .flatMap(rule => expandLspFamily(rule.toolName)),
   )
   const inheritedDenials = new Set((definition.disallowedTools ?? [])
     .map(spec => permissionRuleValueFromString(spec))

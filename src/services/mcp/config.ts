@@ -26,6 +26,7 @@ import { parseServerRuntimeName } from '../../extensions/manifest.js'
 import { fetchAnthropicConnectorsIfEligible } from './anthropicConnectors.js'
 import { isMcpServerDisabledIn, withMcpServerEnabled } from './disabledRecord.js'
 import { expandEnvVarsInString } from './envExpansion.js'
+import { mcpStdioCommandRefusal } from './stdioCommandSafety.js'
 import {
   McpServerConfigSchema,
   type ConfigScope,
@@ -217,6 +218,11 @@ export function parseMcpConfig({
           severity: 'warning',
         })
       }
+    }
+    const refusal = mcpStdioCommandRefusal(serverName, effective)
+    if (refusal !== null) {
+      errors.push({ filePath: file, path: `mcpServers.${serverName}`, message: refusal, scope, serverName, severity: 'warning' })
+      continue
     }
     const npxWarning = windowsNpxWarning(serverName, effective, scope, file)
     if (npxWarning !== null) errors.push(npxWarning)
@@ -826,6 +832,8 @@ export async function addMcpConfig(
     throw new Error(`Invalid MCP server configuration: ${details}`)
   }
   const effective = validated.data
+  const refusal = mcpStdioCommandRefusal(name, effective) ?? mcpStdioCommandRefusal(name, expandServerConfig(effective).config)
+  if (refusal !== null) throw new Error(refusal)
 
   if (isServerDenied(name, effective)) {
     throw new Error(`MCP server "${name}" is explicitly blocked by enterprise policy`)

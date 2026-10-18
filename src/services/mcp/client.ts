@@ -58,6 +58,7 @@ import { hasMcpDiscoveryButNoToken, MercuryMcpAuthProvider, wrapFetchWithStepUpD
 import { markAnthropicConnectorConnected } from './anthropicConnectors.js'
 import { clearEraVerdict, readEraVerdict, recordEraVerdict } from './eraVerdictCache.js'
 import { getAllMcpConfigs } from './config.js'
+import { mcpStdioCommandRefusal } from './stdioCommandSafety.js'
 import { isMcpCatalogueMember } from './membership.js'
 import { elicitationPausedClock } from './elicitationHandler.js'
 import { getMcpServerHeaders } from './headersHelper.js'
@@ -531,6 +532,8 @@ function isTerminalErrorMessage(message: string): boolean {
 
 const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serverStats?: unknown): Promise<MCPServerConnection> => {
   void serverStats
+  const refusal = mcpStdioCommandRefusal(name, serverRef)
+  if (refusal !== null) return { name, type: 'failed', config: serverRef, error: refusal }
   const config = serverRef as RemoteConfig
   const type = config.type ?? 'stdio'
   const startedAt = Date.now()
@@ -544,6 +547,8 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     const prefix = flagEnv('MERCURY_SHELL_PREFIX')
     const command = prefix ? prefix : stdioConfig.command
     const args = prefix ? [[stdioConfig.command, ...(stdioConfig.args ?? [])].join(' ')] : (stdioConfig.args ?? [])
+    const refusal = mcpStdioCommandRefusal(name, { command, args })
+    if (refusal !== null) throw new Error(refusal)
     return new OwnedStdioClientTransport({
       command,
       args,
