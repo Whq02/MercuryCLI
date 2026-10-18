@@ -57,7 +57,7 @@ async function readChild(): Promise<NodeJS.ProcessEnv> {
 
 try {
   console.log('defaults')
-  check('one table owns pager, editor and package prompt defaults', defaults.GH_PAGER === 'cat' && defaults.EDITOR === 'true' && defaults.npm_config_yes === 'true')
+  check('one table owns pager, editor and package prompt defaults', defaults.GH_PAGER === 'cat' && defaults.EDITOR === 'true' && defaults.npm_config_yes === 'false')
   for (const platform of ['darwin', 'linux', 'win32']) {
     const input: NodeJS.ProcessEnv = { PATH: 'staged-path', UNRELATED: 'unchanged' }
     const child = compose(input, {}, platform)

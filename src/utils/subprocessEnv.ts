@@ -66,7 +66,7 @@ export const TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
   GIT_ASKPASS: '',
   SSH_ASKPASS: '',
   PYTHONUNBUFFERED: '1',
-  npm_config_yes: 'true',
+  npm_config_yes: 'false',
   npm_config_update_notifier: 'false',
   npm_config_fund: 'false',
   npm_config_audit: 'false',
@@ -81,7 +81,6 @@ export const TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
   TF_INPUT: '0',
   GH_PROMPT_DISABLED: '1',
   COMPOSER_NO_INTERACTION: '1',
-  CLOUDSDK_CORE_DISABLE_PROMPTS: '1',
   DEBIAN_FRONTEND: 'noninteractive',
 }
 
