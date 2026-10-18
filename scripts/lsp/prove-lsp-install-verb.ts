@@ -44,9 +44,10 @@ const catalogue = await import('../../src/services/lsp/serverCatalogue.ts')
 const verb = await import('../../src/cli/lspVerb.ts').catch(() => null)
 
 type Io = NonNullable<typeof verb>['lspListCli'] extends (io: infer I) => unknown ? I : never
-type Run = { out: string[]; err: string[]; asked: string[]; ran: string[][]; io: Io }
+type Plan = { file: string; args: string[]; windowsVerbatimArguments: boolean }
+type Run = { out: string[]; err: string[]; asked: string[]; ran: string[][]; plans: Plan[]; io: Io }
 function harness(options: { interactive?: boolean; answer?: boolean; exitCode?: number | null; onRun?: (argv: string[]) => void } = {}): Run {
-  const run: Run = { out: [], err: [], asked: [], ran: [], io: undefined as never }
+  const run: Run = { out: [], err: [], asked: [], ran: [], plans: [], io: undefined as never }
   run.io = {
     out: line => run.out.push(line),
     err: line => run.err.push(line),
@@ -55,7 +56,9 @@ function harness(options: { interactive?: boolean; answer?: boolean; exitCode?: 
       run.asked.push(question)
       return options.answer ?? true
     },
-    run: async argv => {
+    run: async (plan: Plan | string[]) => {
+      const argv = Array.isArray(plan) ? plan : [plan.file, ...plan.args]
+      if (!Array.isArray(plan)) run.plans.push(plan)
       run.ran.push(argv)
       options.onRun?.(argv)
       return options.exitCode === undefined ? 0 : options.exitCode
@@ -92,7 +95,7 @@ section('§2 lsp install shows the remedy, asks, runs exactly it, and reports wh
   check('the verb exits 0', code === 0, `${text(asked.out)}\n${text(asked.err)}`)
   check('it shows the remedy before asking', asked.out[0] === 'Install Marksman (Markdown) (markdown) by running:' && asked.out[1] === '  brew install marksman', text(asked.out))
   check('it asks once', asked.asked.length === 1 && asked.asked[0] === 'Run it?', JSON.stringify(asked.asked))
-  check('it runs exactly the remedy, as argv', JSON.stringify(asked.ran) === JSON.stringify([['brew', 'install', 'marksman']]), JSON.stringify(asked.ran))
+  check('it runs exactly the remedy, as argv, with the tool resolved to the file the PATH walk found', JSON.stringify(asked.ran) === JSON.stringify([[join(BIN, 'brew'), 'install', 'marksman']]) && asked.plans[0]?.windowsVerbatimArguments === false, JSON.stringify(asked.ran))
   check('the fake brew was invoked with those words', existsSync(brewLog) && readFileSync(brewLog, 'utf8').trim() === 'install marksman', existsSync(brewLog) ? readFileSync(brewLog, 'utf8') : 'no log')
   check('it reports where the binary landed and when Mercury offers it', asked.out[2] === `Installed Marksman (Markdown): ${join(BIN, 'marksman')} — Mercury offers it in projects that carry its files`, text(asked.out))
   const again = harness()
@@ -142,7 +145,52 @@ section('§3 refusals: an unknown server (with the roster), a failing remedy, a 
   }
 }
 
-section('§4 never an automatic install: nothing under the language service imports the verb, and the verb lives in the CLI alone')
+section('§4 the win32 scene: an npm delivered as npm.cmd beside the extensionless npm script (the Windows box\'s shape) is resolved through PATHEXT and started through cmd.exe, never spawned by its bare word')
+{
+  usePath(scratchPath())
+  const WINBIN = join(HOME, 'Program Files', 'nodejs')
+  mkdirSync(WINBIN, { recursive: true })
+  writeFileSync(join(WINBIN, 'npm'), '#!/bin/sh\nexec node "$(dirname "$0")/node_modules/npm/bin/npm-cli.js" "$@"\n')
+  writeFileSync(join(WINBIN, 'npm.cmd'), '@ECHO OFF\r\nnode "%~dp0\\node_modules\\npm\\bin\\npm-cli.js" %*\r\n')
+  writeFileSync(join(WINBIN, 'npm.ps1'), '& "$PSScriptRoot/node.exe" "$PSScriptRoot/node_modules/npm/bin/npm-cli.js" $args\n')
+  const win32 = { platform: 'win32', path: WINBIN, comSpec: 'C:\\Windows\\System32\\cmd.exe' }
+  const planner = await import('../../src/utils/spawnPlan.ts').catch(() => null)
+  check('the spawn plan module exists', planner !== null)
+  const plan = planner ? planner.spawnPlanOf(['npm', 'i', '-g', 'dockerfile-language-server-nodejs'], win32) : null
+  check('the plan resolves npm to npm.cmd (PATHEXT), never the extensionless script', plan !== null && 'file' in plan && plan.file === win32.comSpec, JSON.stringify(plan))
+  check('a .cmd rides cmd.exe /d /s /c with the whole line quoted once and every word carried verbatim', plan !== null && 'file' in plan && JSON.stringify(plan.args) === JSON.stringify(['/d', '/s', '/c', `""${join(WINBIN, 'npm.cmd')}" i -g dockerfile-language-server-nodejs"`]) && plan.windowsVerbatimArguments === true, JSON.stringify(plan))
+  const docker = harness({ onRun: () => { fakeBinary('docker-langserver') } })
+  const code = verb ? await verb.lspInstallCli('docker-langserver', { yes: true, world: win32 } as never, docker.io) : -1
+  check('the door installs the npm server on the win32 world: the remedy shown, the plan run once, the binary reported', code === 0 && docker.out[0] === 'Install Dockerfile LS (dockerfile) by running:' && docker.out[1] === '  npm i -g dockerfile-language-server-nodejs' && docker.plans.length === 1 && docker.plans[0]!.file === win32.comSpec && docker.out[2]?.startsWith('Installed Dockerfile LS: ') === true, `${code} ${text(docker.out)}\n${text(docker.err)}`)
+  rmSync(join(BIN, 'docker-langserver'), { force: true })
+  writeFileSync(join(WINBIN, 'go.exe'), '')
+  const goPlan = planner ? planner.spawnPlanOf(['go', 'install', 'golang.org/x/tools/gopls@latest'], win32) : null
+  check('a .exe tool is spawned directly by its resolved path, with its own argv and no cmd.exe', goPlan !== null && 'file' in goPlan && goPlan.file === join(WINBIN, 'go.exe') && JSON.stringify(goPlan.args) === JSON.stringify(['install', 'golang.org/x/tools/gopls@latest']) && goPlan.windowsVerbatimArguments === false, JSON.stringify(goPlan))
+  const spaced = planner ? planner.spawnPlanOf(['npm', 'i', '-g', '@vue/language-server'], win32) : null
+  check('a path with a space is quoted inside the cmd.exe line; a scoped package name passes unquoted', spaced !== null && 'file' in spaced && spaced.args[3] === `""${join(WINBIN, 'npm.cmd')}" i -g @vue/language-server"`, JSON.stringify(spaced))
+  rmSync(join(WINBIN, 'npm.cmd'))
+  const bareOnly = planner ? planner.spawnPlanOf(['npm', 'i', '-g', 'x'], win32) : null
+  check('with only the extensionless npm present the walk answers that file and no cmd.exe ride is invented', bareOnly !== null && 'file' in bareOnly && bareOnly.file === join(WINBIN, 'npm') && bareOnly.windowsVerbatimArguments === false, JSON.stringify(bareOnly))
+  writeFileSync(join(WINBIN, 'npm.cmd'), '')
+  const posix = planner ? planner.spawnPlanOf(['npm', 'i', '-g', 'x'], { platform: 'darwin', path: WINBIN }) : null
+  check('off win32 a .cmd is never a spelling: the same PATH answers not-on-PATH', posix !== null && 'refused' in posix && posix.missing === 'npm', JSON.stringify(posix))
+  console.log('refusals')
+  for (const word of ['50%off', 'say "hi"', 'two\nlines', 'bang!']) {
+    const unsafe = planner ? planner.spawnPlanOf(['npm', 'i', word], win32) : null
+    check(`a word cmd.exe would rewrite (${JSON.stringify(word)}) refuses the batch road, nothing spawned`, unsafe !== null && 'refused' in unsafe && unsafe.missing === undefined && unsafe.refused.includes('cmd.exe would rewrite'), JSON.stringify(unsafe))
+  }
+  const noTool = planner ? planner.spawnPlanOf(['', 'x'], win32) : null
+  check('an empty program word is refused', noTool !== null && 'refused' in noTool, JSON.stringify(noTool))
+  const absent = planner ? planner.spawnPlanOf(['cargo', 'install', 'x'], win32) : null
+  check('a tool with no spawnable spelling on the win32 PATH is reported missing (the door prints its needs-<tool> line)', absent !== null && 'refused' in absent && absent.missing === 'cargo', JSON.stringify(absent))
+  const absentDoor = harness()
+  const absentCode = verb ? await verb.lspInstallCli('zls', { yes: true, world: win32 } as never, absentDoor.io) : -1
+  check('the door on the win32 world refuses a remedy whose tool is absent, naming the tool, nothing run', absentCode === 2 && absentDoor.ran.length === 0 && absentDoor.err[0]?.startsWith('The install remedy for zls (Zig) needs ') === true, text(absentDoor.err))
+  const srcVerb = source('src/cli/lspVerb.ts')
+  check('the door spawns the plan (file + args + the verbatim flag), never argv[0] by its bare word and never shell:true', /spawn\(plan\.file, plan\.args, \{[^}]*windowsVerbatimArguments: plan\.windowsVerbatimArguments/.test(srcVerb) && !/shell: true/.test(srcVerb) && !/spawn\(argv\[0\]/.test(srcVerb))
+}
+
+section('§5 never an automatic install: nothing under the language service imports the verb, and the verb lives in the CLI alone')
 {
   const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry => (entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]))
   const importers = [...walk(join(ROOT, 'src', 'services', 'lsp')), ...walk(join(ROOT, 'src', 'tools', 'LSPTool'))].filter(file => /\.(ts|tsx)$/.test(file) && /cli\/lspVerb/.test(readFileSync(file, 'utf8')))

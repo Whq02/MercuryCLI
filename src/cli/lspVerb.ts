@@ -4,14 +4,16 @@ import { getOriginalCwd } from '../bootstrap/state.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { SERVER_CATALOGUE, probeCatalogueEntry } from '../services/lsp/serverCatalogue.js'
 import { binaryName } from '../utils/config/derived.js'
-import { whichSync } from '../utils/which.js'
+import { spawnPlanOf, type SpawnPlan, type SpawnWorld } from '../utils/spawnPlan.js'
+
+export type InstallSpawn = Exclude<SpawnPlan, { refused: string }>
 
 export type LspCliIo = {
   out: (line: string) => void
   err: (line: string) => void
   interactive: boolean
   ask: (question: string) => Promise<boolean>
-  run: (argv: string[]) => Promise<number | null>
+  run: (plan: InstallSpawn) => Promise<number | null>
 }
 
 const defaultIo: LspCliIo = {
@@ -24,9 +26,9 @@ const defaultIo: LspCliIo = {
     rl.close()
     return /^y(es)?$/i.test(answer.trim())
   },
-  run: argv =>
+  run: plan =>
     new Promise(resolveCode => {
-      const child = spawn(argv[0]!, argv.slice(1), { stdio: 'inherit', env: subprocessEnv(), windowsHide: true })
+      const child = spawn(plan.file, plan.args, { stdio: 'inherit', env: subprocessEnv(), windowsHide: true, windowsVerbatimArguments: plan.windowsVerbatimArguments })
       child.on('error', () => resolveCode(null))
       child.on('exit', code => resolveCode(code))
     }),
@@ -71,7 +73,7 @@ export async function lspListCli(io: LspCliIo = defaultIo): Promise<number> {
   return 0
 }
 
-export async function lspInstallCli(server: string, options: { yes: boolean }, io: LspCliIo = defaultIo): Promise<number> {
+export async function lspInstallCli(server: string, options: { yes: boolean; world?: SpawnWorld }, io: LspCliIo = defaultIo): Promise<number> {
   const entry = catalogueRowNamed(server)
   if (entry === null) {
     io.err(`No language server named "${server}" in the catalogue. ${rosterLine()}`)
@@ -88,8 +90,9 @@ export async function lspInstallCli(server: string, options: { yes: boolean }, i
     io.err(`${entry.label} has no install command to run: ${command.words}`)
     return 2
   }
-  if (whichSync(command.tool) === null) {
-    io.err(`The install remedy for ${entry.label} needs ${command.tool}, which is not on PATH: ${entry.remedy}`)
+  const plan: SpawnPlan = spawnPlanOf(command.argv, options.world)
+  if ('refused' in plan && plan.missing !== undefined) {
+    io.err(`The install remedy for ${entry.label} needs ${plan.missing}, which is not on PATH: ${entry.remedy}`)
     return 2
   }
   io.out(`Install ${entry.label} (${entry.languages.join(', ')}) by running:`)
@@ -104,7 +107,11 @@ export async function lspInstallCli(server: string, options: { yes: boolean }, i
       return 1
     }
   }
-  const code = await io.run(command.argv)
+  if ('refused' in plan) {
+    io.err(`The install command could not be started: ${command.argv.join(' ')} — ${plan.refused}`)
+    return 1
+  }
+  const code = await io.run(plan)
   if (code !== 0) {
     io.err(code === null ? `The install command could not be started: ${command.argv.join(' ')}` : `The install command exited ${code}; ${entry.label} was not installed`)
     return 1
