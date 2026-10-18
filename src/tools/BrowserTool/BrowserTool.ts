@@ -24,7 +24,6 @@ import {
   activeSession,
   approveWebOrigin,
   approvedOriginList,
-  browserProfileDirForOrigin,
   browserSessionCap,
   closeBrowserSessionDetailed,
   consumeCheckedActOrigin,
@@ -1146,7 +1145,6 @@ Downloads are never implicit: the driven session denies page-initiated downloads
         }
         case 'open': {
           const target = originOf(input.url!)
-          void browserProfileDirForOrigin(target, owner)
           const s = await ensureBrowserSession(owner, {
             signal: context.abortController?.signal,
             origin: target,

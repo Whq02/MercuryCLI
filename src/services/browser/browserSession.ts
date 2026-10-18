@@ -329,19 +329,36 @@ export function browserProfileDirForOrigin(urlOrOrigin: string, owner?: OwnerKey
   return candidate
 }
 
-function resolveHostLanguages(): { primary: string; languages: string[]; acceptLanguage: string } {
+export function resolveHostLanguages(localeOverride?: string): {
+  primary: string
+  languages: string[]
+  acceptLanguage: string
+} {
   let raw = 'en-US'
   try {
-    const resolved = Intl.DateTimeFormat().resolvedOptions().locale
+    const resolved = localeOverride ?? Intl.DateTimeFormat().resolvedOptions().locale
     if (resolved && /^[a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,8})*$/.test(resolved) && resolved !== 'C' && resolved !== 'POSIX') {
       const parts = resolved.split('-')
-      raw = parts.length >= 2 ? `${parts[0]!.toLowerCase()}-${parts[1]!.toUpperCase()}` : parts[0]!.toLowerCase()
+      const lang = parts[0]!.toLowerCase()
+      raw = parts.length >= 2 ? `${lang}-${parts[1]!.toUpperCase()}` : lang === 'en' ? 'en-US' : lang
     }
   } catch {}
   const base = raw.split('-')[0] || 'en'
   const languages = raw.includes('-') && base !== raw ? [raw, base] : [raw, 'en'].filter((v, i, a) => a.indexOf(v) === i)
   const acceptLanguage = languages.join(',')
   return { primary: languages[0]!, languages, acceptLanguage }
+}
+
+export function resolveNavigatorPlatform(
+  cleanUa: string,
+  platform: string = process.platform,
+  arch: string = process.arch,
+): string {
+  const isMac = cleanUa.includes('Macintosh') || platform === 'darwin'
+  if (isMac) return 'MacIntel'
+  const isWin = cleanUa.includes('Windows') || platform === 'win32'
+  if (isWin) return 'Win32'
+  return cleanUa.includes('aarch64') || arch === 'arm64' ? 'Linux aarch64' : 'Linux x86_64'
 }
 
 function resolveHostTimeZone(): string {
@@ -733,8 +750,7 @@ export async function ensureBrowserSession(
   const wantedOrigin = opts.origin && opts.origin.startsWith('http') ? originOf(opts.origin) : null
   if (state.session && state.session.browser.connected) {
     const sameHeadless = opts.headless === undefined || state.session.headless === opts.headless
-    const sameOrigin =
-      wantedOrigin === null || state.session.profileOrigin === null || state.session.profileOrigin === wantedOrigin
+    const sameOrigin = wantedOrigin === null || state.session.profileOrigin === wantedOrigin
     if (sameHeadless && sameOrigin) return state.session
   }
   if (state.launchFlight !== null) return awaitLaunch(state.launchFlight, opts.signal)
@@ -813,7 +829,15 @@ async function launchOwnerSession(
     const profileOrigin = opts.origin && opts.origin.startsWith('http') ? originOf(opts.origin) : null
     const profileDir = profileOrigin ? browserProfileDirForOrigin(profileOrigin, owner) : null
     if (profileDir && launchDriverForProof === null) {
-      fs.mkdirSync(profileDir, { recursive: true })
+      const profilesRoot = path.dirname(profileDir)
+      fs.mkdirSync(profilesRoot, { recursive: true, mode: 0o700 })
+      fs.mkdirSync(profileDir, { recursive: true, mode: 0o700 })
+      if (process.platform !== 'win32') {
+        try {
+          fs.chmodSync(profilesRoot, 0o700)
+          fs.chmodSync(profileDir, 0o700)
+        } catch {}
+      }
       const heldElsewhere = ownerStates.owners().some(other => {
         if (other === owner) return false
         const st = ownerStates.peek(other)
@@ -919,7 +943,7 @@ async function launchOwnerSession(
         const major = fullVersion.split('.')[0] || '155'
         const isMac = cleanUa.includes('Macintosh') || process.platform === 'darwin'
         const isWin = !isMac && (cleanUa.includes('Windows') || process.platform === 'win32')
-        const navigatorPlatform = isMac ? 'MacIntel' : isWin ? 'Win32' : 'Linux x86_64'
+        const navigatorPlatform = resolveNavigatorPlatform(cleanUa)
         const chPlatform = isMac ? 'macOS' : isWin ? 'Windows' : 'Linux'
         const chPlatformVersion = isMac
           ? (cleanUa.match(/Mac OS X ([0-9_]+)/)?.[1]?.replace(/_/g, '.') ?? '10.15.7')

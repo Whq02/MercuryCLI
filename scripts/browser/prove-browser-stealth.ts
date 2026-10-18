@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync } from 'node:fs'
 import http from 'node:http'
 import { tmpdir } from 'node:os'
-import { join, resolve, sep } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import type { Browser as DriverBrowser, LaunchOptions } from 'puppeteer-core'
 
 const ROOT = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '..', '..'))
@@ -40,10 +40,15 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const { resolveBrowser } = await import(join(ROOT, 'src/services/browser/browserResolver.ts'))
 const sessionMod = await import(join(ROOT, 'src/services/browser/browserSession.ts'))
-const { activeSession, closeBrowserSession, ensureBrowserSession, setBrowserLaunchDriverForProof } = sessionMod
-const browserProfileDirForOrigin: ((url: string, owner?: string) => string | null) | undefined = (
-  sessionMod as { browserProfileDirForOrigin?: (url: string, owner?: string) => string | null }
-).browserProfileDirForOrigin
+const {
+  activeSession,
+  browserProfileDirForOrigin,
+  closeBrowserSession,
+  ensureBrowserSession,
+  resolveHostLanguages,
+  resolveNavigatorPlatform,
+  setBrowserLaunchDriverForProof,
+} = sessionMod
 const { BrowserTool } = await import(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'))
 const { processOwnerForLane } = await import(join(ROOT, 'src/services/run/resolveOwner.ts'))
 const { decideToolPermission } = await import(join(ROOT, 'src/utils/permissions/decision/engine.ts'))
@@ -432,6 +437,15 @@ try {
         existsSync(userDataArgA),
       `arg=${userDataArgA} expected=${expectedProfileA}`,
     )
+    if (process.platform !== 'win32') {
+      const rootMode = statSync(dirname(userDataArgA)).mode & 0o777
+      const dirMode = statSync(userDataArgA).mode & 0o777
+      check(
+        'browser-profiles root and origin profile directory are created with owner-only mode 0700',
+        rootMode === 0o700 && dirMode === 0o700,
+        `root=${rootMode.toString(8)} dir=${dirMode.toString(8)}`,
+      )
+    }
 
     await liveA.page.evaluate(() => {
       localStorage.setItem('originMarker', 'alpha-persisted-value')
@@ -594,6 +608,16 @@ try {
       await sessionMod.disposeBrowserOwner(OWNER_VIS)
       await ensureBrowserSession(OWNER_VIS)
       check('headless default: ensureBrowserSession() passes headless: true by default', recordedLaunches.length === 2 && recordedLaunches[1]!.headless === true, JSON.stringify(recordedLaunches[1]?.headless))
+      const rotatedFromOriginless = await ensureBrowserSession(OWNER_VIS, { origin: 'http://127.0.0.1:61001' })
+      check(
+        'an originless session rotates to the origin persistent profile when ensureBrowserSession({ origin }) is called',
+        recordedLaunches.length === 3 &&
+          !('state' in rotatedFromOriginless) &&
+          rotatedFromOriginless.profileOrigin === 'http://127.0.0.1:61001' &&
+          typeof recordedLaunches[2]?.userDataDir === 'string' &&
+          recordedLaunches[2]!.userDataDir.endsWith('http-127.0.0.1-61001'),
+        JSON.stringify(recordedLaunches[2]?.userDataDir),
+      )
       await sessionMod.disposeBrowserOwner(OWNER_VIS)
 
       const OWNER_ROT = processOwnerForLane('rotation-safety-check')
@@ -652,6 +676,26 @@ try {
       setBrowserLaunchDriverForProof(null)
     }
 
+    const bareEn = resolveHostLanguages('en')
+    check(
+      'bare "en" host locale normalizes to en-US with two-element languages array',
+      bareEn.primary === 'en-US' &&
+        bareEn.languages.length === 2 &&
+        bareEn.languages[0] === 'en-US' &&
+        bareEn.languages[1] === 'en' &&
+        bareEn.acceptLanguage === 'en-US,en',
+      JSON.stringify(bareEn),
+    )
+    check(
+      'Linux arm64 resolves navigatorPlatform to Linux aarch64 and x64 to Linux x86_64',
+      resolveNavigatorPlatform('Mozilla/5.0 (X11; Linux aarch64) Chrome/155.0.0.0', 'linux', 'arm64') === 'Linux aarch64' &&
+        resolveNavigatorPlatform('Mozilla/5.0 (X11; Linux x86_64) Chrome/155.0.0.0', 'linux', 'x64') === 'Linux x86_64',
+    )
+    const toolSrc = readFileSync(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'), 'utf8')
+    check(
+      'BrowserTool.ts carries no dead void browserProfileDirForOrigin call',
+      !toolSrc.includes('void browserProfileDirForOrigin'),
+    )
     const desc = await BrowserTool.description({} as never)
     const prompt = await BrowserTool.prompt({} as never)
     check(
