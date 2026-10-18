@@ -93,7 +93,11 @@ try {
     await writeAgentMetadata(asAgentId(wtId), { agentType: 'mercury-crew', name: 'wt-child', description: 'wt-child', worktreePath: wtDir, model: LEAD_MODEL, effortOverride: 'medium', launchedAt: Date.now() })
     const wtCtx = { getAppState: () => state, setAppState: setState, setAppStateForTasks: setState, options: { tools: [], commands: [], mcpClients: [], engineModel: LEAD_MODEL, agentDefinitions: { activeAgents: [], allAgents: [] } }, messages: [], abortController: new AbortController(), readFileState: new Map() } as never
     const wtResumed = await DirectResumeTool.call({ to: 'wt-child', message: 'continue in worktree', model: 'claude-opus-4-7', effort: 'high' }, wtCtx, (async () => ({ behavior: 'allow', updatedInput: {} })) as never, { requestId: 'wt-proof' } as never)
-    const wtMeta = await readAgentMetadata(asAgentId(wtId))
+    let wtMeta = await readAgentMetadata(asAgentId(wtId))
+    for (let i = 0; i < 20 && wtMeta?.model !== 'claude-opus-4-7'; i++) {
+      await new Promise(resolve => setTimeout(resolve, 10))
+      wtMeta = await readAgentMetadata(asAgentId(wtId))
+    }
     killAsyncAgent(wtId, setState as never)
     check('resumed crewmate on an unlisted valid model id keeps its recorded worktree and updates model and effort', wtResumed.data.success && wtMeta?.worktreePath === wtDir && wtMeta?.model === 'claude-opus-4-7' && wtMeta?.effortOverride === 'high', JSON.stringify({ res: wtResumed.data, meta: wtMeta }))
   }

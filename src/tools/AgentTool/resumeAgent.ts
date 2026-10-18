@@ -245,6 +245,19 @@ export async function resumeAgentBackground(args: {
   })
   const owner = liveAgentOwner(agentId, tasksNow)
   if (owner !== null) throw new Error(owner.words)
+  void writeAgentMetadata(agentId as AgentId, {
+    agentType: definition.agentType,
+    ...(worktreePath ? { worktreePath } : {}),
+    ...(cwdPath ? { cwd: cwdPath } : {}),
+    description,
+    ...(launchName ? { name: launchName } : {}),
+    ...(launchedAt !== undefined ? { launchedAt } : {}),
+    ...(restoredModel ? { model: restoredModel } : {}),
+    ...(restoredEffort ? { effortOverride: restoredEffort } : {}),
+    ...(instructionProfileOverride
+      ? { instructionProfile: instructionProfileOverride }
+      : {}),
+  }).catch(() => {})
   if (args.automatic !== true) {
     cancelAutomaticResume(agentId)
     operatorPauseGate.lift(agentId)
@@ -261,19 +274,6 @@ export async function resumeAgentBackground(args: {
     toolUseId: toolUseContext.toolUseId,
     replyTarget,
   })
-  await writeAgentMetadata(agentId as AgentId, {
-    agentType: definition.agentType,
-    ...(worktreePath ? { worktreePath } : {}),
-    ...(cwdPath ? { cwd: cwdPath } : {}),
-    description,
-    ...(launchName ? { name: launchName } : {}),
-    ...(launchedAt !== undefined ? { launchedAt } : {}),
-    ...(restoredModel ? { model: restoredModel } : {}),
-    ...(restoredEffort ? { effortOverride: restoredEffort } : {}),
-    ...(instructionProfileOverride
-      ? { instructionProfile: instructionProfileOverride }
-      : {}),
-  }).catch(() => {})
 
   const querySource = getQuerySourceForAgent(
     definition.agentType,
