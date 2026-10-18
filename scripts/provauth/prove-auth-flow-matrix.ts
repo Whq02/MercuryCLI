@@ -201,9 +201,14 @@ const ABSENT: Partial<Record<string, Partial<Record<Arm, string>>>> = {
     refresh: 'a stored API key has no refresh protocol — honest absence',
     'expiry-at-rest': 'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
   },
+
+  qwen: {
+    refresh: 'a stored API key has no refresh protocol — honest absence',
+    'expiry-at-rest': 'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
+  },
 }
 
-check('the family set is the resolver’s twenty-one (including Anthropic)', families.length === 21, families.join(', '))
+check('the family set is the resolver’s twenty-two (including Anthropic)', families.length === 22, families.join(', '))
 {
   let driven = 0
   let absent = 0
@@ -254,6 +259,7 @@ const RECONNECT_DOORS: Record<string, string> = {
   groq: '/logins groq',
   cerebras: '/logins cerebras',
   fireworks: '/logins fireworks',
+  qwen: '/logins qwen',
 }
 
 section('§1 sign-in: the signed-out answers name the right door, every family')
@@ -283,6 +289,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     groq: 'no Groq API key — /logins groq (or GROQ_API_KEY)',
     cerebras: 'no Cerebras API key — /logins cerebras (or CEREBRAS_API_KEY)',
     fireworks: 'no Fireworks API key — /logins fireworks (or FIREWORKS_API_KEY)',
+    qwen: 'no Model Studio API key — /logins qwen (or DASHSCOPE_API_KEY)',
   }
   for (const family of families) {
     const lane = map[family as keyof typeof map]
@@ -314,6 +321,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     groq: 'not connected — /logins groq adds a key',
     cerebras: 'not connected — /logins cerebras adds a key',
     fireworks: 'not connected — /logins fireworks adds a key',
+    qwen: 'not connected — /logins qwen adds a Model Studio key',
     local: 'no local server — start one, or set MERCURY_LOCAL_BASE_URL',
     nous: 'not connected — /logins nous adds a key',
   }
@@ -360,9 +368,9 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
   check('the starting row follows display order, not a fixed index mapping', loginFamilyInitialFocus(reversed, undefined) === reversed[0]!.value)
   check('an empty list has no selected row', loginFamilyInitialFocus([], undefined) === undefined)
   check(
-    'the /logins catalogue carries the nineteen sign-in families (anthropic as claudeai+console)',
+    'the /logins catalogue carries the twenty sign-in families (anthropic as claudeai+console)',
     rows.join('|') ===
-      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'zen'].join('|'),
+      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen', 'zen'].join('|'),
     rows.join('|'),
   )
   check(
@@ -370,9 +378,9 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     loginFamilyFocusFor('openai-compat') === undefined && loginFamilyFocusFor('local') === undefined,
   )
   check(
-    "the nineteen sign-in families parse a /logins focus (anthropic → 'claudeai')",
+    "the twenty sign-in families parse a /logins focus (anthropic → 'claudeai')",
     loginFamilyFocusFor('anthropic') === 'claudeai' &&
-      (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks'] as const).every(
+      (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'] as const).every(
         family => loginFamilyFocusFor(family) === family,
       ),
   )

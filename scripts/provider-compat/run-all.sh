@@ -20,6 +20,7 @@
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/providers/lib/nous-fixture.ts src/services/providers/nous/**
 # gate-watch: scripts/providers/lib/openweights-fixture.ts src/services/providers/minimax/** src/services/providers/together/** src/services/providers/cohere/**
+# gate-watch: src/services/providers/qwen/**
 # gate-watch: scripts/compact/overflowFixture.ts src/services/api/outputFit.ts src/query/transitions.ts
 # gate-watch: src/services/providers/cacheFieldRetry.ts src/utils/config.ts src/utils/systemPromptType.ts src/Tool.ts
 set -u
