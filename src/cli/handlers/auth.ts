@@ -250,7 +250,7 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
     const properties = [...buildAccountProperties(), ...buildAPIProviderProperties()]
     let printed = 0
     const anthropicRefusal = routed.rows.find(row => row.id === 'anthropic')?.refused
-    if (anthropicRefusal) writeSync(1, `anthropic: ${signInRefusalWords(anthropicRefusal)}\n`)
+    if (anthropicRefusal) writeSync(1, `anthropic: ${signInRefusalWords(anthropicRefusal, 'anthropic')}\n`)
     for (const property of properties) {
       const value = property.value
       if (value === null || value === undefined || value === 'none') continue
@@ -271,7 +271,7 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
     const others = routed.rows.filter(row => row.id !== 'anthropic' && row.present)
     for (const row of others) {
       try {
-        writeSync(1, `${row.id}: ${row.refused ? signInRefusalWords(row.refused) : row.identity ?? row.source}\n`)
+        writeSync(1, `${row.id}: ${row.refused ? signInRefusalWords(row.refused, row.id) : row.identity ?? row.source}\n`)
       } catch {
       }
     }
@@ -353,7 +353,7 @@ function routedProviderRows(anthropicPresent: boolean): {
         kind: account.kind,
         source: account.label,
         present,
-        ...(refused ? { refused, status: signInRefusalWords(refused) } : {}),
+        ...(refused ? { refused, status: signInRefusalWords(refused, provider.id) } : {}),
         ...(identity !== undefined ? { identity } : {}),
       }
     })

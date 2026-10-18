@@ -112,11 +112,6 @@ export function openrouterObservedKeyUsage(env: NodeJS.ProcessEnv = process.env)
   }
 }
 
-export function openrouterKeyRecordedDead(source: OpenrouterKeySource, env: NodeJS.ProcessEnv = process.env): boolean {
-  const observed = openrouterObservedKeyUsage(env)
-  return observed.errorSource === source && (observed.errorStatus === 401 || observed.errorStatus === 403)
-}
-
 async function keyErrorMessage(response: Response): Promise<string> {
   try {
     const parsed: unknown = await response.json()

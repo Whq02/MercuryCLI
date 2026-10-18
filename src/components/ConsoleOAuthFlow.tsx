@@ -14,6 +14,7 @@ import { Spinner } from './Spinner.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { PopupFormContext, PopupCompactContext, usePopupCompact, usePopupMarker } from '../context/popupFormContext.js'
+import { PopupFrameContext } from './PopupGutter.js'
 import { settingsPopupMarker } from '../utils/cockpit/settingsPopup.js'
 import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import { LoginAccountCard } from './LoginAccountCard.js'
@@ -137,6 +138,7 @@ export function ConsoleOAuthFlow({
   const tokens = useMercuryTokens()
   const { columns, rows } = useTerminalSize()
   const popup = React.useContext(PopupFormContext)
+  const popupFrame = React.useContext(PopupFrameContext)
   const compact = usePopupCompact().compact && popup
   const setupBody = React.useContext(SetupFrameBody)
   const [rosterVisibleTo, setRosterVisibleTo] = useState<number | null>(null)
@@ -384,7 +386,7 @@ export function ConsoleOAuthFlow({
       const focusedArm = arms.find(arm => arm.row.value === idleRows[menuFocus]?.value)
       const focusedState = facts && focusedArm ? loginsRowStateOf(focusedArm, facts) : null
       const refusalText = rosterCompact && focusedState?.refusal ? focusedState.chip : null
-      const refusalRows = refusalText ? wrapText(refusalText, Math.max(1, columns), 'wrap').split('\n').length : 0
+      const refusalRows = refusalText ? wrapText(refusalText, Math.max(1, popupFrame ? popupFrame.width - 4 : columns), 'wrap').split('\n').length : 0
       const rosterWindow = rosterCompact ? Math.max(1, Math.min(rows - refusalRows, idleRows.length)) : Math.max(1, Math.floor(fit.roster / rowHeight))
       const rosterHidden = Math.max(0, idleRows.length - (rosterVisibleTo ?? Math.min(idleRows.length, rosterWindow)))
       const renderMenu = refusalLayout ? (children: React.ReactNode) => children : frame

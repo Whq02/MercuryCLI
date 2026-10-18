@@ -19,11 +19,16 @@ for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_/.test(key)) de
 
 let balanceStatus = 200
 let modelsStatus = 200
+let keyStatus = 200
 const server = Bun.serve({
   hostname: '127.0.0.1',
   port: 0,
   async fetch(request) {
     const path = new URL(request.url).pathname
+    if (path === '/openrouter/key') {
+      if (keyStatus === 401) return Response.json({ error: { message: 'API key expired', code: 401 } }, { status: 401 })
+      return Response.json({ data: { label: 'fixture', usage: 1, limit: null, limit_remaining: null } })
+    }
     if (path.endsWith('/user/balance')) {
       if (balanceStatus !== 200) return Response.json({ error: { message: 'invalid key' } }, { status: balanceStatus })
       return Response.json({ is_available: true, balance_infos: [{ currency: 'USD', total_balance: '25.00' }] })
@@ -60,6 +65,7 @@ process.env.MERCURY_XAI_API_BASE = `${origin}/xai`
 process.env.MERCURY_MISTRAL_API_BASE = `${origin}/mistral`
 process.env.MERCURY_MOONSHOT_OAUTH_BASE = `${origin}/kimi`
 process.env.MERCURY_MOONSHOT_CODING_BASE = `${origin}/kimi`
+process.env.MERCURY_OPENROUTER_API_BASE = `${origin}/openrouter`
 const nativeFetch = globalThis.fetch
 globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = new URL(input instanceof Request ? input.url : String(input))
@@ -121,6 +127,52 @@ try {
   outBuf = ''
   const dsLogout = await providerAuth?.providerAuthLogout('deepseek', io())
   check('mercury auth logout deepseek removes only the DeepSeek credential while keeping other families signed in', dsLogout?.ok === true && secrets.readStoredDeepseekApiKey() === undefined && secrets.readStoredCompatApiKey('east') === 'sk-compat-east-key')
+
+  console.log('one truth for a stored key the service refused: auth list, auth status, auth status <family> and the logins row agree')
+  const keyProbe = await import(`${root}/src/services/providers/openrouter/openrouterUsageState.ts`)
+  const logins = await import(`${root}/src/components/BootLoginsScreen.tsx`)
+  const loginsRow = () => logins.loginsRowStateOf(logins.loginsCatalogue().find((row: { familyId: string }) => row.familyId === 'openrouter')!, logins.collectLoginsScreenFacts())
+  const wholeStatus = (): { providers?: Array<{ id: string; present: boolean; status?: string; refused?: { status: number } }> } | null => {
+    const { spawnSync } = require('node:child_process') as typeof import('node:child_process')
+    const r = spawnSync(process.execPath, ['-e', `globalThis.MACRO={VERSION:'1.0.0'};const c=await import(${JSON.stringify(`${root}/src/utils/config.ts`)});c.enableConfigs();const a=await import(${JSON.stringify(`${root}/src/cli/handlers/auth.ts`)});await a.authStatus({json:true});`], { env: { ...process.env }, encoding: 'utf8', timeout: 60000 })
+    try { return JSON.parse(r.stdout) } catch { return null }
+  }
+  const listRow = async (json: boolean) => { outBuf = ''; const r = await providerAuth?.providerAuthList({ json }, io()); return json ? { code: r?.code, row: (JSON.parse(outBuf).families as Array<{ id: string; signedIn: boolean; source: string; refused?: string }>).find(f => f.id === 'openrouter') } : { code: r?.code, line: outBuf.split('\n').find(l => l.startsWith('openrouter:')) } }
+  const familyStatus = async (json: boolean) => { outBuf = ''; const r = await providerAuth?.providerAuthStatus('openrouter', { json }, io()); return { code: r?.code, text: outBuf, json: json ? JSON.parse(outBuf) as { signedIn: boolean; refused?: string; slots: Array<{ active: boolean; stateNote?: string }> } : undefined } }
+  secrets.writeStoredOpenrouterApiKey('sk-or-fixture-expired-key')
+  delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
+  keyStatus = 401
+  await keyProbe.refreshOpenrouterKeyUsage({ fetchImpl: globalThis.fetch, force: true })
+  const refusedList = await listRow(true)
+  const words = refusedList.row?.refused
+  check('auth list --json: the stored key is signed in AND refused, in the composer\'s words (status, the service\'s message, the time, the door)', refusedList.row?.signedIn === true && typeof words === 'string' && words.startsWith('key refused (HTTP 401: API key expired) at ') && words.endsWith(' · /logins openrouter reconnects'), JSON.stringify(refusedList.row))
+  const refusedLine = await listRow(false)
+  check('auth list: the line reads signed in — <the refusal words>', refusedLine.line === `openrouter: signed in — ${words}`, refusedLine.line)
+  const refusedFamily = await familyStatus(true)
+  check('auth status openrouter --json: signed in, the same refused words, the active slot noted, exit 1 (refused is not usable)', refusedFamily.code === 1 && refusedFamily.json?.signedIn === true && refusedFamily.json?.refused === words && refusedFamily.json?.slots.find(slot => slot.active)?.stateNote === words, refusedFamily.text)
+  const refusedFamilyText = await familyStatus(false)
+  check('auth status openrouter: the slot line carries the same words', refusedFamilyText.text.includes(`(active) · ${words}`), refusedFamilyText.text)
+  const whole = wholeStatus()
+  const wholeRow = whole?.providers?.find(p => p.id === 'openrouter')
+  check('auth status --json (the whole door, a fresh process): openrouter present, refused 401, the same words', wholeRow?.present === true && wholeRow?.refused?.status === 401 && wholeRow?.status === words, JSON.stringify(wholeRow))
+  const row = loginsRow()
+  check('the /logins row: signed in, loud, the same words', row.signedIn === true && row.loud === true && row.chip === words, JSON.stringify(row))
+  keyStatus = 200
+  await keyProbe.refreshOpenrouterKeyUsage({ fetchImpl: globalThis.fetch, force: true })
+  const acceptedList = await listRow(true)
+  const acceptedFamily = await familyStatus(true)
+  const acceptedRow = loginsRow()
+  check('after the service accepts the key every door drops the refusal together: list signed in with no refused, family status exit 0, the logins row quiet', acceptedList.row?.signedIn === true && acceptedList.row?.refused === undefined && acceptedFamily.code === 0 && acceptedFamily.json?.refused === undefined && acceptedRow.loud === false && acceptedRow.refusal === undefined, `${JSON.stringify(acceptedList.row)} ${acceptedFamily.text} ${JSON.stringify(acceptedRow)}`)
+  check('the control: a signed-in family with no refusal keeps its plain source line', (await listRow(false)).line === 'openrouter: signed in — API key (stored key (auth-scoped) …-key)', (await listRow(false)).line)
+  keyStatus = 401
+  await keyProbe.refreshOpenrouterKeyUsage({ fetchImpl: globalThis.fetch, force: true })
+  secrets.writeStoredOpenrouterApiKey('sk-or-fixture-replacement-key')
+  const replaced = await listRow(true)
+  check('a refusal belongs to the key it was recorded for: a replacement key reads signed in with no refusal on list, family status and the logins row, no network asked', replaced.row?.signedIn === true && replaced.row?.refused === undefined && (await familyStatus(true)).json?.refused === undefined && loginsRow().refusal === undefined, JSON.stringify(replaced.row))
+  secrets.writeStoredOpenrouterApiKey(null)
+  keyStatus = 200
+  process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
+  check('with the key removed the family is not signed in on every door', (await listRow(true)).row?.signedIn === false && (await familyStatus(true)).json?.signedIn === false && loginsRow().signedIn === false)
 
   console.log('refusals')
   outBuf = ''

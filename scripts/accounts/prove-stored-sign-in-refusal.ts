@@ -47,10 +47,10 @@ try {
   await refreshDeepseekCatalogue({ force: true })
   const refused = view().families.find(row => row.family === 'deepseek')
   check('a refused stored credential is not usable', refused?.usable === false, JSON.stringify(refused))
-  check('the health sign-in view names refusal, status and time', /refused \(HTTP 401\) at .+ — sign in again/.test(summarizeSignInView(view())), summarizeSignInView(view()))
-  check('the logins row names the stored refusal and time', /^stored · refused \(HTTP 401\) at .+ — sign in again$/.test(chip()), chip())
+  check('the health sign-in view names refusal, status, time and the door', /key refused \(HTTP 401(?::[^)]*)?\) at .+ · \/logins deepseek reconnects/.test(summarizeSignInView(view())), summarizeSignInView(view()))
+  check('the logins row names the stored refusal, time and the door', /^key refused \(HTTP 401(?::[^)]*)?\) at .+ · \/logins deepseek reconnects$/.test(chip()), chip())
   const auth = cli()
-  check('auth status reports the refusal and exits nonzero for that family', auth.status === 1 && /refused \(HTTP 401\) at .+ — sign in again/.test(auth.stdout), auth.stdout.slice(-800))
+  check('auth status reports the refusal and exits nonzero for that family', auth.status === 1 && /key refused \(HTTP 401(?::[^)]*)?\) at .+ · \/logins deepseek reconnects/.test(auth.stdout), auth.stdout.slice(-800))
   check('the refusal is an observed time, not the original sign-in time', ((refused as { refused?: { at: number } })?.refused?.at ?? 0) >= before)
   check('the computed default chooses another credentialed family instead', computedDefault().provider === 'zai', computedDefault().why)
   const bin = join(import.meta.dir, '../../dist/mercury.mjs')
@@ -71,7 +71,7 @@ try {
     check('the isolated daemon answers for the certificate', ready, daemonLog.slice(-500))
     if (ready) {
       const health = spawnSync('node', [bin, 'health', '--json', '--only', 'daemon-sign-ins'], { cwd: work, env: process.env, encoding: 'utf8', timeout: 30000 })
-      check('the built health certificate carries the timed refusal', health.stdout.includes('Daemon sign-in view') && /refused \(HTTP 401\) at .+ — sign in again/.test(health.stdout), health.stdout.slice(-1200))
+      check('the built health certificate carries the timed refusal', health.stdout.includes('Daemon sign-in view') && /key refused \(HTTP 401(?::[^)]*)?\) at .+ · \/logins deepseek reconnects/.test(health.stdout), health.stdout.slice(-1200))
     }
   } finally {
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 5000 })
@@ -83,7 +83,7 @@ try {
   check('a successful request on that credential clears the memo', view().families.find(row => row.family === 'deepseek')?.usable === true && !chip().includes('refused'))
   status = 403
   await refreshDeepseekCatalogue({ force: true })
-  check('403 is recorded as well', summarizeSignInView(view()).includes('refused (HTTP 403)'))
+  check('403 is recorded as well', summarizeSignInView(view()).includes('refused (HTTP 403'))
   secrets.writeStoredDeepseekApiKey('fixture-deepseek-new-stored-key')
   check('a new sign-in clears the refusal without a network request', !summarizeSignInView(view()).includes('refused') && !chip().includes('refused'))
   check('the loopback actually received the four list requests', requests === 4, String(requests))

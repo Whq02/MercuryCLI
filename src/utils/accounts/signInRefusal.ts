@@ -5,14 +5,22 @@ import { credentialFingerprint } from '../../services/providers/credentialIdenti
 import { getAuthConfigHomeDir } from '../envUtils.js'
 import { noteCredentialChange, publishSignInRecord } from './signInLedger.js'
 
-export type SignInRefusal = { status: 401 | 403; at: number }
+export type SignInRefusal = { status: 401 | 403; at: number; message?: string; credential?: 'key' | 'sign-in'; remedy?: string }
 type StoredRefusal = SignInRefusal & { identity: string }
 type RefusalFile = { version: number; generation: string; refusal?: StoredRefusal }
-type Credential = { identity: string; key?: string; matches?: (credential: string) => boolean }
+type Credential = { identity: string; key?: string; matches?: (credential: string) => boolean; noun?: 'key' | 'sign-in' }
 type Observation = { family: string; home: string; credential: Credential; generation: string }
 
+const MESSAGE_CEILING = 200
+
 function keyCredential(value: { key: string; source: string } | undefined): Credential | undefined {
-  return value && !value.source.startsWith('env') ? { identity: credentialFingerprint(value.key), key: value.key } : undefined
+  return value && !value.source.startsWith('env') ? { identity: credentialFingerprint(value.key), key: value.key, noun: 'key' } : undefined
+}
+
+export function serviceMessage(raw: string | undefined): string | undefined {
+  const line = raw?.replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ').trim() ?? ''
+  if (line === '') return undefined
+  return line.length > MESSAGE_CEILING ? `${line.slice(0, MESSAGE_CEILING - 1)}…` : line
 }
 
 function currentCredential(family: string): Credential | undefined {
@@ -47,25 +55,25 @@ function currentCredential(family: string): Credential | undefined {
         const owner = require('../../services/providers/moonshot/moonshotAccounts.js') as typeof import('../../services/providers/moonshot/moonshotAccounts.js')
         if (owner.resolveMoonshotAccount()?.kind !== 'kimi-oauth') return keyCredential(owner.resolveMoonshotApiKey())
         const tokens = owner.moonshotStoredTokens()
-        return tokens ? { identity: credentialFingerprint(tokens.accessToken), key: tokens.accessToken } : undefined
+        return tokens ? { identity: credentialFingerprint(tokens.accessToken), key: tokens.accessToken, noun: 'sign-in' } : undefined
       }
       case 'openai': {
         const owner = require('../../services/providers/openai/openaiAccounts.js') as typeof import('../../services/providers/openai/openaiAccounts.js')
         const account = owner.resolveOpenaiAccount()
         if (!account) return undefined
-        return account.kind === 'api-key' ? keyCredential(owner.resolveOpenaiApiKey()) : { identity: owner.openaiSourceIdentity(account.kind), matches: credential => owner.openaiSourceMatchesCredential(account.kind, credential) }
+        return account.kind === 'api-key' ? keyCredential(owner.resolveOpenaiApiKey()) : { identity: owner.openaiSourceIdentity(account.kind), matches: credential => owner.openaiSourceMatchesCredential(account.kind, credential), noun: 'sign-in' }
       }
       case 'gemini': {
         const owner = require('../../services/providers/gemini/geminiAccounts.js') as typeof import('../../services/providers/gemini/geminiAccounts.js')
         const account = owner.resolveGeminiAccount()
         if (!account) return undefined
-        return account.kind === 'api-key' ? keyCredential(owner.resolveGeminiApiKey()) : { identity: owner.geminiSourceIdentity(account.kind), matches: credential => owner.geminiSourceMatchesCredential(account.kind, credential) }
+        return account.kind === 'api-key' ? keyCredential(owner.resolveGeminiApiKey()) : { identity: owner.geminiSourceIdentity(account.kind), matches: credential => owner.geminiSourceMatchesCredential(account.kind, credential), noun: 'sign-in' }
       }
       case 'anthropic': {
         const owner = require('../auth.js') as typeof import('../auth.js')
         if (owner.getAuthTokenSource().source === 'claude.ai') {
           const tokens = owner.getClaudeAIOAuthTokens()
-          return tokens ? { identity: credentialFingerprint(tokens.accessToken), key: tokens.accessToken } : undefined
+          return tokens ? { identity: credentialFingerprint(tokens.accessToken), key: tokens.accessToken, noun: 'sign-in' } : undefined
         }
         const key = owner.getAnthropicApiKeyWithSource()
         return key.source === '/logins managed key' && key.key ? { identity: credentialFingerprint(key.key), key: key.key } : undefined
@@ -90,7 +98,20 @@ function readFile(family: string, home: string): RefusalFile | undefined {
 
 function readStored(family: string, home: string): StoredRefusal | undefined {
   const value = readFile(family, home)?.refusal
-  return value && (value.status === 401 || value.status === 403) && Number.isFinite(value.at) && value.at > 0 && value.at <= 8.64e15 && typeof value.identity === 'string' ? value : undefined
+  if (!(value && (value.status === 401 || value.status === 403) && Number.isFinite(value.at) && value.at > 0 && value.at <= 8.64e15 && typeof value.identity === 'string')) return undefined
+  const message = typeof value.message === 'string' ? serviceMessage(value.message) : undefined
+  const credential = value.credential === 'key' || value.credential === 'sign-in' ? value.credential : undefined
+  return { status: value.status, at: value.at, identity: value.identity, ...(message !== undefined ? { message } : {}), ...(credential !== undefined ? { credential } : {}) }
+}
+
+function openrouterKeyProbeRefusal(): SignInRefusal | undefined {
+  try {
+    const owner = require('../../services/providers/openrouter/openrouterAccounts.js') as typeof import('../../services/providers/openrouter/openrouterAccounts.js')
+    const refused = owner.openrouterKeyRefusal()
+    if (!refused || !(refused.status === 401 || refused.status === 403)) return undefined
+    const message = serviceMessage(refused.message)
+    return { status: refused.status, at: refused.observedAtMs > 0 ? refused.observedAtMs : Date.now(), ...(message !== undefined ? { message } : {}), credential: 'key', ...(refused.source === 'env' ? { remedy: 'update OPENROUTER_API_KEY' } : {}) }
+  } catch { return undefined }
 }
 
 export function clearSignInRefusal(family: string, home = getAuthConfigHomeDir()): void {
@@ -104,21 +125,30 @@ export function clearSignInRefusal(family: string, home = getAuthConfigHomeDir()
 export function readSignInRefusal(family: string): SignInRefusal | undefined {
   const home = getAuthConfigHomeDir()
   const record = readStored(family, home)
-  if (!record || record.identity !== currentCredential(family)?.identity) return undefined
-  return { status: record.status, at: record.at }
+  if (!record || record.identity !== currentCredential(family)?.identity) return family === 'openrouter' ? openrouterKeyProbeRefusal() : undefined
+  return { status: record.status, at: record.at, ...(record.message !== undefined ? { message: record.message } : {}), ...(record.credential !== undefined ? { credential: record.credential } : {}) }
 }
 
-export function signInRefusalWords(refusal: SignInRefusal): string {
-  return `stored · refused (HTTP ${refusal.status}) at ${new Date(refusal.at).toISOString()} — sign in again`
+function reconnectWords(family: string): string {
+  try {
+    const { reconnectDoorFor } = require('../../services/providers/credentialWall.js') as typeof import('../../services/providers/credentialWall.js')
+    const door = reconnectDoorFor(family.startsWith('compat-') ? 'openai-compat' : family)
+    return door.startsWith('/') ? `${door} reconnects` : `update ${door}`
+  } catch { return '/logins reconnects' }
+}
+
+export function signInRefusalWords(refusal: SignInRefusal, family: string): string {
+  const reason = `HTTP ${refusal.status}${refusal.message ? `: ${refusal.message}` : ''}`
+  return `${refusal.credential ?? 'sign-in'} refused (${reason}) at ${new Date(refusal.at).toISOString().replace(/\.\d{3}Z$/, 'Z')} · ${refusal.remedy ?? reconnectWords(family)}`
 }
 
 export function captureSignInRequest(family: string, wireCredential?: string): Observation | undefined {
   const credential = currentCredential(family)
   if (!credential || credential.identity === 'none' || (wireCredential !== undefined && (credential.matches ? !credential.matches(wireCredential) : wireCredential !== credential.key))) return undefined
-  return { family, home: getAuthConfigHomeDir(), credential: { identity: credential.identity }, generation: readFile(family, getAuthConfigHomeDir())?.generation ?? '' }
+  return { family, home: getAuthConfigHomeDir(), credential: { identity: credential.identity, ...(credential.noun !== undefined ? { noun: credential.noun } : {}) }, generation: readFile(family, getAuthConfigHomeDir())?.generation ?? '' }
 }
 
-export function observeSignInResponse(request: Observation | undefined, status: number | undefined): void {
+export function observeSignInResponse(request: Observation | undefined, status: number | undefined, message?: string): void {
   if (!request || status === undefined || !((status >= 200 && status < 300) || status === 401 || status === 403)) return
   try {
     const { family, home, credential, generation } = request
@@ -133,7 +163,9 @@ export function observeSignInResponse(request: Observation | undefined, status: 
       }
       return
     }
-    publishSignInRecord(path, JSON.stringify({ version: 1, generation, refusal: { status, at: Date.now(), identity: credential.identity } }) + '\n')
+    const words = serviceMessage(message)
+    const refusal: StoredRefusal = { status: status === 401 ? 401 : 403, at: Date.now(), identity: credential.identity, ...(words !== undefined ? { message: words } : {}), ...(credential.noun !== undefined ? { credential: credential.noun } : {}) }
+    publishSignInRecord(path, JSON.stringify({ version: 1, generation, refusal }) + '\n')
     noteCredentialChange()
   } catch { return }
 }

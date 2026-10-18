@@ -635,7 +635,7 @@ export async function* compatChatCallModel(
       return
     }
     if (outcome.kind === 'cancelled') return
-    observeSignInResponse(signInRequest, outcome.fault.status)
+    observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     const typed = compatFaultToTypedError(outcome.fault)
     if (
       typed === 'authentication_failed' &&

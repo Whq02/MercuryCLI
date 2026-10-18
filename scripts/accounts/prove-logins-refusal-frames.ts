@@ -33,13 +33,13 @@ try {
     const key = `fixture-${estate.family}-frame-key`
     estate.store(key)
     observeSignInResponse(captureSignInRequest(estate.family, key), 401)
-    const time = new Date(readSignInRefusal(estate.family)!.at).toISOString()
+    const time = new Date(readSignInRefusal(estate.family)!.at).toISOString().replace(/\.\d{3}Z$/, 'Z')
     for (const [cols, rows] of [[177, 49], [100, 30], [80, 24], [64, 20], [64, 12]]) {
       const ref = React.createRef<import('../../src/ink.js').DOMElement>()
       const element = h(AppStateProvider as never, {}, h(ThemeProvider as never, {}, h(KeybindingSetup, {}, h(Box, { width: cols, height: rows, flexDirection: 'column' }, h(Box, { ref, height: rows, flexDirection: 'column' }, ...Array.from({ length: rows }, (_, i) => h(Text, { key: i }, 'CONTEXT'))), h(SettingsPopupSlot, { overlay: true, hostRef: ref })))))
       const scene = await mountOffscreen(element, cols!, rows!)
       const flat = () => scene.screen().replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ')
-      const truth = () => flat().includes(`stored · refused (HTTP 401) at ${time} — sign in again`)
+      const truth = () => flat().includes(`key refused (HTTP 401) at ${time} · /logins ${estate.family} reconnects`)
       const save = (part: string) => { if (frames) writeFileSync(join(frames, `${estate.family}-${cols}x${rows}-${part}.txt`), scene.screen()) }
       try {
         await call(() => {}, { onChangeAPIKey() {}, setMessages() {}, getAppState: () => ({}), setAppState() {} } as never, estate.family)

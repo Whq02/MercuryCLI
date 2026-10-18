@@ -730,7 +730,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       attempt--
       continue
     }
-    observeSignInResponse(signInRequest, outcome.fault.status)
+    observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     const typed = openaiFaultToTypedError(outcome.fault)
     if (
       typed === 'authentication_failed' &&

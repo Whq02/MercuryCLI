@@ -353,7 +353,7 @@ section('§4b a stored key the provider refuses is skipped by the default until 
   const refusedRow = afterRefusal.considered.find(c => c.family === 'zai')
   check(
     '…and the computed default skips that family, the refusal in its why, the next timed sign-in chosen',
-    afterRefusal.provider === 'deepseek' && refusedRow !== undefined && refusedRow.verdict.usable === false && refusedRow.verdict.why.startsWith('stored · refused (HTTP 401) at '),
+    afterRefusal.provider === 'deepseek' && refusedRow !== undefined && refusedRow.verdict.usable === false && refusedRow.verdict.why.startsWith('key refused (HTTP 401'),
     JSON.stringify({ provider: afterRefusal.provider, why: refusedRow?.verdict.why }),
   )
   await sleep(15)

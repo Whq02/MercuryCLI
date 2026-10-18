@@ -60,7 +60,7 @@ export function describeSignInRead(family: string): string {
   const view = composeSignInView()
   const where = `the daemon read the ${view.store} credential store in ${view.home}`
   const entry = view.families.find(f => f.family === family)
-  if (entry?.refused) return `${where}; ${signInRefusalWords(entry.refused)}`
+  if (entry?.refused) return `${where}; ${signInRefusalWords(entry.refused, family)}`
   if (entry !== undefined && entry.credentialed && !entry.usable) {
     return `${where}; a credential is present for ${family} but no usable row (${entry.why ?? 'no row'}) — a catalogue fix, not a sign-in`
   }
@@ -70,7 +70,7 @@ export function describeSignInRead(family: string): string {
 export function summarizeSignInView(view: DaemonSignInViewV1): string {
   const signedIn = view.families.filter(f => f.credentialed)
   const none = view.families.filter(f => !f.credentialed).map(f => f.family)
-  const words = signedIn.map(f => `${f.family}: ${f.refused ? signInRefusalWords(f.refused) : f.usable ? `usable (${f.row ?? '?'})` : `no usable row (${f.why ?? '?'})`}`)
+  const words = signedIn.map(f => `${f.family}: ${f.refused ? signInRefusalWords(f.refused, f.family) : f.usable ? `usable (${f.row ?? '?'})` : `no usable row (${f.why ?? '?'})`}`)
   return `${words.length > 0 ? words.join(' · ') : 'no family signed in'}${none.length > 0 ? ` · no credential: ${none.join(', ')}` : ''}`
 }
 
