@@ -57,6 +57,14 @@ check('the earlier kotlin, php and elixir rows still stand beside the new ones',
 check('ids are unique', new Set(SERVER_CATALOGUE.map(entry => entry.id)).size === SERVER_CATALOGUE.length)
 check('every new row names at least one root marker (none is offered on a binary alone)', expected.every(([, id]) => (byId.get(id)?.rootMarkers.length ?? 0) > 0))
 check('the two rows hosted by a language runtime spawn that runtime with an argument vector, never a shell', ['julia-language-server', 'powershell-editor-services'].every(id => (byId.get(id)?.args ?? []).length > 0) && SERVER_CATALOGUE.every(row => !['sh', 'bash', 'zsh', 'cmd', 'cmd.exe'].some(shell => row.binaries.includes(shell))))
+const badRemedies = SERVER_CATALOGUE.filter(row => {
+  const primary = row.remedy.split(' (or ')[0]!.trim()
+  const argv = primary.split(/\s+/).filter(Boolean)
+  const tool = argv[0] ?? ''
+  if (argv.length < 2 || !/^[a-z][a-z0-9.-]*$/i.test(tool) || /^(ships|download|see|use)$/i.test(tool)) return false
+  return tool.toLowerCase() === 'install' || argv.some(arg => /['"();]/.test(arg))
+}).map(row => `${row.id}: ${row.remedy}`)
+check('every catalogue remedy is either prose (ships/download/see/use) or a clean unquoted argv before (or ...), never starting with install or carrying shell quotes/parentheses', badRemedies.length === 0, badRemedies.join(' | '))
 
 section('refusals: a table row never installs anything')
 const catalogueSource = readFileSync(join(ROOT, 'src/services/lsp/serverCatalogue.ts'), 'utf8')
