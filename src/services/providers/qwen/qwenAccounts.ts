@@ -163,10 +163,6 @@ export async function resolveQwenCredential(io?: { env?: NodeJS.ProcessEnv }): P
   return key ? { apiKey: key.key, source: key.source, requestUrl: qwenChatCompletionsUrl(env) } : undefined
 }
 
-export function qwenAccountIdentity(env: NodeJS.ProcessEnv = process.env): string {
-  return credentialFingerprint(resolveQwenApiKey(env)?.key)
-}
-
 function qwenEndpointListWords(env: NodeJS.ProcessEnv = process.env): string {
   return qwenProbeEndpoints(env).map(endpoint => endpoint.label).join(' · ')
 }
