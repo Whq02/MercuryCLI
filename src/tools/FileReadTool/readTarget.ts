@@ -1,7 +1,8 @@
 
 import { readdirSync, statSync } from 'node:fs'
-import { basename } from 'node:path'
+import { basename, join } from 'node:path'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
+import { mercurySecretPath } from '../../utils/permissions/protectedPaths.js'
 import { resolveResource } from '../../services/resources/registry.js'
 import type { ResourceContext } from '../../services/resources/contracts.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -43,6 +44,7 @@ export function renderDirectoryTarget(fullPath: string): RenderedTarget {
   let names: string[]
   try {
     const entries = readdirSync(fullPath, { withFileTypes: true })
+      .filter(e => mercurySecretPath(join(fullPath, e.name)) === null)
     names = entries
       .map(e => (e.isDirectory() ? `${e.name}/` : e.name))
       .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))

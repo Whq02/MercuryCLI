@@ -70,7 +70,20 @@ const paths = [
 ]
 symlinkSync(join(home, '.aws'), join(project, 'linked-store'))
 symlinkSync(join(home, '.ssh/config'), join(project, 'linked-config'))
-paths.push(join(project, 'linked-store/new-file'), join(project, 'linked-config'))
+symlinkSync(join(home, '.ssh/id_rsa'), join(project, 'hop-two'))
+symlinkSync(join(project, 'hop-two'), join(project, 'hop-one'))
+paths.push(
+  join(project, 'linked-store/new-file'),
+  join(project, 'linked-config'),
+  join(project, 'hop-one'),
+  ' ~/.ssh/id_rsa ',
+  ' $HOME/.ssh/id_rsa ',
+  join(process.env.MERCURY_CONFIG_DIR!, '.credentials.json'),
+  join(process.env.MERCURY_CONFIG_DIR!, '.provider-secrets.json'),
+  '~/.mercury/.credentials.json',
+  '~/.mercury/.openai-auth.json',
+  '~/.mercury/browser-secrets.json',
+)
 const bodies = (path: string): Array<[any, Record<string, unknown>]> => [
   [FileWriteTool, { file_path: path, content: 'new' }],
   [FileEditTool, { file_path: path, append: 'new' }],
@@ -112,6 +125,21 @@ try {
     [PowerShellTool, String.raw`Copy-Item source -Destination "$env:USERPROFILE\.ssh\config"`, '.ssh'],
     [PowerShellTool, String.raw`Set-Content -Path "$env:USERPROFILE\.aws\config" -Value x`, '.aws'],
     [PowerShellTool, String.raw`icacls "%USERPROFILE%\.ssh\config" /grant Everyone:F`, '.ssh'],
+    [BashTool, 'cd ~/.ssh && printf x > authorized_keys', '.ssh'],
+    [BashTool, 'f=~/.ssh/id_rsa; printf x > "$f"', '.ssh'],
+    [BashTool, 'eval "printf x > ~/.ssh/id_rsa"', '.ssh'],
+    [BashTool, "bash <<'EOF'\nprintf x > ~/.ssh/id_rsa\nEOF", '.ssh'],
+    [BashTool, 'command cp source ~/.ssh/config', '.ssh'],
+    [PowerShellTool, String.raw`cmd /c "copy source %USERPROFILE%\.ssh\config"`, '.ssh'],
+    [BashTool, 'install -m 600 source ~/.ssh/config', '.ssh'],
+    [BashTool, 'dd if=source of=~/.ssh/config', '.ssh'],
+    [BashTool, 'rsync source ~/.ssh/config', '.ssh'],
+    [BashTool, 'ln -sf source ~/.ssh/config', '.ssh'],
+    [BashTool, 'truncate -s 0 ~/.ssh/config', '.ssh'],
+    [BashTool, 'rm -f ~/.ssh/config', '.ssh'],
+    [BashTool, 'sqlite3 ~/.ssh/config "CREATE TABLE t(x);"', '.ssh'],
+    [BashTool, "python3 -c \"open('$HOME/.ssh/config', 'w').write('x')\"", '.ssh'],
+    [BashTool, "node -e \"require('fs').writeFileSync('$HOME/.ssh/config', 'x')\"", '.ssh'],
   ]
   for (const mode of modes) for (const [tool, command, named] of shellRows) {
     const verdict = await decide(tool, { command }, mode, { allow: [tool.name] })
