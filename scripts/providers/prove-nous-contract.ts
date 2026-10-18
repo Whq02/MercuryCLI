@@ -67,6 +67,7 @@ try {
     console.log(`[EXPORTS] ${file}: ${names.join(', ')}`)
   }
   check('the Portal bases and the client-source base are registered and pinned by the hermetic gate', read('src/substrate/flagRegistry.ts').includes("env: 'MERCURY_NOUS_API_BASE'") && read('src/substrate/flagRegistry.ts').includes("env: 'MERCURY_NOUS_PORTAL_BASE'") && read('src/substrate/flagRegistry.ts').includes("env: 'MERCURY_NOUS_CLIENT_SOURCE_BASE'") && read('scripts/gate/ci-shard.sh').includes('MERCURY_NOUS_API_BASE') && read('scripts/gate/ci-shard.sh').includes('MERCURY_NOUS_PORTAL_BASE') && read('scripts/gate/ci-shard.sh').includes('MERCURY_NOUS_CLIENT_SOURCE_BASE'))
-  check('the engines document carries the family row and the meter, and stays key-only in words', read('docs/ENGINES.md').includes('| `nous` | `nous/<vendor>/<model>`') && read('docs/ENGINES.md').includes('/api/oauth/account') && !/nous portal[^\n]*device.code|nous portal[^\n]*sign in with/i.test(read('docs/ENGINES.md')))
+  const engines = read('docs/ENGINES.md')
+  check('the engines document carries the family row and the meter, and describes the sign-in as it is: the device flow presenting the Portal client id, with the API key as the other road', engines.includes('| `nous` | `nous/<vendor>/<model>`') && engines.includes('/api/oauth/account') && engines.includes('/api/oauth/device/code') && engines.includes(`\`${NOUS_PORTAL_CLIENT_ID}\``) && /paste an API key/.test(engines) && !/sign-in flow is reserved for Nous/.test(engines))
   console.log(`NOUS CONTRACT GREEN (${count} checks; no provider request)`)
 } finally { rmSync(proofHome, { recursive: true, force: true }) }
