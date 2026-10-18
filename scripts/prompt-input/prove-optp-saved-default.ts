@@ -24,6 +24,7 @@ function section(title: string): void {
 }
 
 const SAVED = 'saved as your default'
+const READY_ROW = /ready · .+? · (max|xhigh|high|medium|low)\b/
 
 section('§1 by construction — the picker pick and /model share the one owner of the saved default')
 {
@@ -113,7 +114,7 @@ if (driver.kind !== 'posix-pty') {
   })
   const sends: Record<string, unknown>[] = [
     { atTick: 80, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
-    on(PROMPT, '', { awaitSettleTicks: 3, mark: 'idle' }),
+    on(PROMPT, '', { awaitPattern: READY_ROW.source, awaitSettleTicks: 3, mark: 'idle' }),
     on(PROMPT, `${ESC}p`, { awaitSettleTicks: 1 }),
     on(PICKER, `${ESC}[B`, { awaitSettleTicks: 1 }),
     on(PICKER, '', { awaitSettleTicks: 1, mark: 'picker' }),
@@ -150,7 +151,7 @@ if (driver.kind !== 'posix-pty') {
     const idle = marks.get('idle')
     const picker = marks.get('picker')
     const switched = marks.get('switched')
-    check('the hosted chat booted', idle !== undefined && rows(idle.grid).some(r => r.includes('ready ·')), idle ? rows(idle.grid).filter(r => r.includes('ready')).join(' | ') : 'no mark')
+    check('the hosted chat is admitted before the picker opens', idle !== undefined && rows(idle.grid).some(r => READY_ROW.test(r)), idle ? rows(idle.grid).filter(r => r.includes('ready')).join(' | ') : 'no mark')
     const pickedRow = picker === undefined ? undefined : rows(picker.grid).find(r => /❯\s+(?:\d+\.\s+)?claude-/.test(r))
     const pickedId = pickedRow === undefined ? undefined : /❯\s+(?:\d+\.\s+)?(\S+)/.exec(pickedRow)?.[1]
     check('the picker opened on opt+p and ↓ moved the cursor to a model row', pickedId !== undefined && pickedId.startsWith('claude-'), pickedRow ?? 'no ❯ row')

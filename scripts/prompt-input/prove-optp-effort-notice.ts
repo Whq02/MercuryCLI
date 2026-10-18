@@ -128,7 +128,7 @@ if (driver.kind !== 'posix-pty') {
   })
   const sends: Record<string, unknown>[] = [
     { atTick: 80, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
-    on(PROMPT, '', { awaitSettleTicks: 3, mark: 'idle' }),
+    on(PROMPT, '', { awaitPattern: READY_ROW.source, awaitSettleTicks: 3, mark: 'idle' }),
     on(PROMPT, `${ESC}p`, { awaitSettleTicks: 1 }),
     on(PICKER, `${ESC}[B`, { awaitSettleTicks: 1 }),
     on(PICKER, '\r', { awaitSettleTicks: 1 }),
@@ -182,6 +182,7 @@ if (driver.kind !== 'posix-pty') {
     const switched = marks.get('switched')
     const after = ['picked', 'switched', 'picked-later', 'picked-latest'].map(label => marks.get(label)).filter((m): m is Mark => m !== undefined)
     check('the hosted chat booted with an empty composer', idle !== undefined && rows(idle.grid).some(r => r.includes(PROMPT)), idle ? rows(idle.grid).filter(r => r.includes('❯')).join(' | ') : 'no mark')
+    check('the session has landed at max before the picker opens', idle !== undefined && statusWord(idle.grid) === 'max', idle ? rows(idle.grid).filter(r => READY_ROW.test(r)).join(' | ') : 'no mark')
     check('the four readings after the pick were taken', after.length === 4, after.map(m => m.label).join(','))
     const status = after.map(m => statusWord(m.grid))
     check('the status row carries the seat word max after the pick', status.every(w => w === 'max'), after.map(m => rows(m.grid).filter(r => r.includes('ready ·')).join(' | ')).join(' || '))
