@@ -58,7 +58,7 @@ import { resolveEngineDispatch, unrecognisedModelWordRefusal } from '../../utils
 async function resumedModelOverride(model: string | undefined, parent: string): Promise<string | undefined> {
   if (model === undefined) return undefined
   if (model.trim() === '') throw new Error('Model is empty. Read mercury://models and name a model id.')
-  const matched = matchReachableModelName(model)
+  const matched = matchReachableModelName(model, 'pass')
   if (matched !== null && (matched.kind === 'none' || matched.kind === 'ambiguous')) {
     throw new Error(modelNameHeadlessRefusal(matched, 'model') + ' ' + MODEL_LOOKUP_LADDER)
   }
@@ -245,19 +245,6 @@ export async function resumeAgentBackground(args: {
   })
   const owner = liveAgentOwner(agentId, tasksNow)
   if (owner !== null) throw new Error(owner.words)
-  void writeAgentMetadata(agentId as AgentId, {
-    agentType: definition.agentType,
-    ...(worktreePath ? { worktreePath } : {}),
-    ...(cwdPath ? { cwd: cwdPath } : {}),
-    description,
-    ...(launchName ? { name: launchName } : {}),
-    ...(launchedAt !== undefined ? { launchedAt } : {}),
-    ...(restoredModel ? { model: restoredModel } : {}),
-    ...(restoredEffort ? { effortOverride: restoredEffort } : {}),
-    ...(instructionProfileOverride
-      ? { instructionProfile: instructionProfileOverride }
-      : {}),
-  }).catch(() => {})
   if (args.automatic !== true) {
     cancelAutomaticResume(agentId)
     operatorPauseGate.lift(agentId)
@@ -274,6 +261,19 @@ export async function resumeAgentBackground(args: {
     toolUseId: toolUseContext.toolUseId,
     replyTarget,
   })
+  await writeAgentMetadata(agentId as AgentId, {
+    agentType: definition.agentType,
+    ...(worktreePath ? { worktreePath } : {}),
+    ...(cwdPath ? { cwd: cwdPath } : {}),
+    description,
+    ...(launchName ? { name: launchName } : {}),
+    ...(launchedAt !== undefined ? { launchedAt } : {}),
+    ...(restoredModel ? { model: restoredModel } : {}),
+    ...(restoredEffort ? { effortOverride: restoredEffort } : {}),
+    ...(instructionProfileOverride
+      ? { instructionProfile: instructionProfileOverride }
+      : {}),
+  }).catch(() => {})
 
   const querySource = getQuerySourceForAgent(
     definition.agentType,

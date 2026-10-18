@@ -1,4 +1,5 @@
-import { rmSync } from 'node:fs'
+import { mkdirSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
 import { makeWorld, bootLead, LEAD_MODEL, toolResultOf, userTextsOf } from './crew-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -48,7 +49,7 @@ try {
     lead.submit('parent-unknown')
     await lead.waitFor('unknown model refusal', () => toolResultOf(world, 'unknown-engine-child') !== null)
     const unknown = toolResultOf(world, 'unknown-engine-child')!
-    check('unknown model is refused with the model ladder', unknown.text.includes('could not be resumed') && unknown.text.includes('mercury://models'), unknown.text)
+    check('unknown model is refused with the model ladder', unknown.text.includes('could not be resumed') && unknown.text.includes('names no model: no provider family declares it') && unknown.text.includes('mercury://models'), unknown.text)
     lead.submit('parent-effort')
     await lead.waitFor('unsupported effort refusal', () => toolResultOf(world, 'effort-engine-child') !== null)
     const effort = toolResultOf(world, 'effort-engine-child')!
@@ -59,6 +60,42 @@ try {
     const third = childRequests()[2]
     check('omitting both overrides keeps the last model and effort', third.model === switched && third.output_config?.effort === 'max')
     check('the next resume carries both previous answers', JSON.stringify(third.messages).includes('CHILD-FIRST-COMPLETE') && JSON.stringify(third.messages).includes('CHILD-SWITCH-COMPLETE'))
+    const { ResumeAgentTool: DirectResumeTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
+    const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+    const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+    const { registerAsyncAgent, registerAgentName, killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
+    const { generateTaskId } = await import('../../src/Task.ts')
+    const { getAgentTranscriptPath, writeAgentMetadata, readAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
+    const { asAgentId } = await import('../../src/types/ids.ts')
+    const { getSessionId } = await import('../../src/bootstrap/state.ts')
+    const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
+    const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+    const { writeFileSync } = await import('node:fs')
+    const { dirname } = await import('node:path')
+    let state = { ...getDefaultAppState(), toolPermissionContext: getEmptyToolPermissionContext() }
+    const setState = (update: (prev: typeof state) => typeof state) => { state = update(state) }
+    const wtId = generateTaskId('local_agent')
+    const wtDir = join(world.dir, 'preserved-worktree')
+    mkdirSync(wtDir, { recursive: true })
+    registerAsyncAgent({ agentId: wtId, description: 'wt-child', prompt: 'work', setAppState: setState as never })
+    registerAgentName('wt-child', wtId, setState as never)
+    state = { ...state, tasks: { ...state.tasks, [wtId]: { ...state.tasks[wtId], status: 'completed' } as never } }
+    const wtTranscript = getAgentTranscriptPath(asAgentId(wtId))
+    mkdirSync(dirname(wtTranscript), { recursive: true })
+    const sid = String(getSessionId())
+    const firstUuid = crypto.randomUUID()
+    let ord = 0
+    const seedRows = [
+      { type: 'user', uuid: firstUuid, parentUuid: null, message: { role: 'user', content: 'work' } },
+      { type: 'assistant', uuid: crypto.randomUUID(), parentUuid: firstUuid, message: { id: 'msg_wt', role: 'assistant', model: LEAD_MODEL, content: [{ type: 'text', text: 'done' }], usage: { input_tokens: 1, output_tokens: 1 } } },
+    ]
+    writeFileSync(wtTranscript, seedRows.map(entry => JSON.stringify(entryToRecord({ ...entry, isSidechain: true, agentId: wtId, sessionId: sid, timestamp: new Date().toISOString() } as never, { sessionId: sid, nextOrdinal: () => ordinalOf(++ord), observedAt: new Date().toISOString(), source: { channel: 'interactive' } } as never))).join('\n') + '\n')
+    await writeAgentMetadata(asAgentId(wtId), { agentType: 'mercury-crew', name: 'wt-child', description: 'wt-child', worktreePath: wtDir, model: LEAD_MODEL, effortOverride: 'medium', launchedAt: Date.now() })
+    const wtCtx = { getAppState: () => state, setAppState: setState, setAppStateForTasks: setState, options: { tools: [], commands: [], mcpClients: [], engineModel: LEAD_MODEL, agentDefinitions: { activeAgents: [], allAgents: [] } }, messages: [], abortController: new AbortController(), readFileState: new Map() } as never
+    const wtResumed = await DirectResumeTool.call({ to: 'wt-child', message: 'continue in worktree', model: 'claude-opus-4-7', effort: 'high' }, wtCtx, (async () => ({ behavior: 'allow', updatedInput: {} })) as never, { requestId: 'wt-proof' } as never)
+    const wtMeta = await readAgentMetadata(asAgentId(wtId))
+    killAsyncAgent(wtId, setState as never)
+    check('resumed crewmate on an unlisted valid model id keeps its recorded worktree and updates model and effort', wtResumed.data.success && wtMeta?.worktreePath === wtDir && wtMeta?.model === 'claude-opus-4-7' && wtMeta?.effortOverride === 'high', JSON.stringify({ res: wtResumed.data, meta: wtMeta }))
   }
   check('the parent process closes cleanly', await lead.end() === 0)
   const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
