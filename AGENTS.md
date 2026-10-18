@@ -71,6 +71,11 @@ never a proof's home. `git config core.hooksPath .githooks`
 turns on the committed pre-push guard; the build never sets it.
 BUILD-NOTES.md covers the build itself.
 
+One convention the checks enforce: a retired spelling (a flag, key, environment
+name, command, word or path) ceases to exist and fails as an unknown input — no
+alias, no bespoke refusal line, no migration; the identity suite's forbidden
+lists are the only place a retired word may appear.
+
 ## Reporting a problem
 
 Inside Mercury, `/bug <what happened>` shows the exact report and files it
