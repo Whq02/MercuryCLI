@@ -83,7 +83,7 @@ const { resolvePrimaryAgentBackend } = await import('../../src/services/provider
 const { refreshMinimaxCatalogue, __resetMinimaxCatalogueForTest, minimaxCatalogueRows, minimaxCatalogueSourceWords } = await import('../../src/services/providers/minimax/minimaxCatalogue.ts')
 const { buildMinimaxExtras } = await import('../../src/services/providers/minimax/minimaxCallModel.ts')
 const { storeMinimaxApiKeyLogin } = await import('../../src/services/providers/minimax/minimaxLogin.ts')
-const { refreshMinimaxPlanUsage, minimaxObservedPlanUsage, __resetMinimaxUsageForTest } = await import('../../src/services/providers/minimax/minimaxUsageState.ts')
+const { fetchMinimaxPlanUsage, refreshMinimaxPlanUsage, minimaxObservedPlanUsage, minimaxPlanFailureWords, __resetMinimaxUsageForTest } = await import('../../src/services/providers/minimax/minimaxUsageState.ts')
 const { minimaxPlanWindowViews, usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
 const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
@@ -170,6 +170,18 @@ try {
     const nonPlanView = usageForProvider('minimax')
     check(`a ${status === 204 ? 'missing' : status} plan answer for a non-plan key paints NO window and NO error`, nonPlanLogin.ok && nonPlanLogin.stored && nonPlanLogin.receipt.includes('no M Plan window — pay-as-you-go') && nonPlanView.windows.length === 0 && nonPlanView.readerNote === undefined && minimaxObservedPlanUsage().failure === null)
   }
+  const LOGIN_FAIL = "login fail: Please carry the API secret key in the 'Authorization' field of the request header"
+  planStatus = 200; planBody = { base_resp: { status_code: 1004, status_msg: LOGIN_FAIL } }
+  __resetMinimaxUsageForTest()
+  const loginFail = await fetchMinimaxPlanUsage(process.env.MINIMAX_API_KEY!)
+  check("the plan endpoint's HTTP 200 with base_resp 1004 'login fail' (the wire's answer to a wrong key) is a credential refusal with the vendor's words, never 'no plan'", loginFail.state === 'refused' && loginFail.status === 401 && loginFail.message === LOGIN_FAIL && minimaxObservedPlanUsage().failure?.kind === 'refused' && minimaxObservedPlanUsage().failure?.message === LOGIN_FAIL && minimaxPlanFailureWords(minimaxObservedPlanUsage().failure!) === `MiniMax refused the key on the plan read (HTTP 401) — ${LOGIN_FAIL} — /logins minimax replaces it`)
+  await refreshProviderUsage('minimax', { force: true })
+  check('/usage carries that refusal with the words', (usageForProvider('minimax').readerNote ?? '').includes(`MiniMax refused the key on the plan read (HTTP 401) — ${LOGIN_FAIL}`))
+  const deadPlanLogin = await storeMinimaxApiKeyLogin('proof-key-minimax-deadplan-fixture-not-a-real-key')
+  check("a key the list accepts but the plan read answers 1004 'login fail' is refused at /logins with the words, nothing stored", !deadPlanLogin.ok && !deadPlanLogin.stored && deadPlanLogin.receipt.includes(`MiniMax refused this key on the plan read (HTTP 401, ${LOGIN_FAIL})`) && readStoredMinimaxApiKey() === 'proof-key-minimax-payg-fixture-not-a-real-key')
+  planBody = { base_resp: { status_code: 2049, status_msg: 'invalid API Key' } }
+  const invalidKey = await fetchMinimaxPlanUsage(process.env.MINIMAX_API_KEY!)
+  check("2049 'invalid API Key' on a 200 body is the same refusal", invalidKey.state === 'refused' && invalidKey.message === 'invalid API Key')
   planStatus = 200; planBody = MINIMAX_FIXTURE_PLAN
   __resetMinimaxUsageForTest()
   await refreshMinimaxPlanUsage({ force: true })

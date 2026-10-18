@@ -39,6 +39,12 @@ export function minimaxBaseRespFailure(body: unknown): { code: number; message: 
 }
 
 const MINIMAX_AUTH_CODES: ReadonlySet<number> = new Set([1004, 2049])
+const MINIMAX_OTHER_GROUP = /not match group/i
+
+export function minimaxPlanAnswerVerdict(vendor: { code: number; message: string } | undefined): 'refused' | 'other-group' | undefined {
+  if (!vendor || !MINIMAX_AUTH_CODES.has(vendor.code)) return undefined
+  return vendor.code === 1004 && MINIMAX_OTHER_GROUP.test(vendor.message) ? 'other-group' : 'refused'
+}
 
 export async function fetchMinimaxLiveModels(opts: { baseUrl: string; key: string; fetchImpl?: typeof fetch }): Promise<{ models: MinimaxLiveModel[]; otherLines: number; fetchedAtMs: number }> {
   let response: Response

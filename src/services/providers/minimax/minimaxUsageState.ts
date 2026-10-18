@@ -4,7 +4,7 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { minimaxPlanRemainsUrl, resolveMinimaxApiKey } from './minimaxAccounts.js'
-import { minimaxBaseRespFailure } from './minimaxCatalogue.js'
+import { minimaxBaseRespFailure, minimaxPlanAnswerVerdict } from './minimaxCatalogue.js'
 
 export const MINIMAX_BALANCE_NOTE = 'a pay-as-you-go key draws the Open Platform balance, shown at platform.minimax.io (the API states no balance to clients)'
 export const MINIMAX_PLAN_ABSENT_NOTE = 'no M Plan window on this key — turns draw the pay-as-you-go balance'
@@ -37,7 +37,7 @@ type MinimaxPlanProbe =
 interface MinimaxPlanObservation {
   usage: MinimaxPlanUsage | null
   plan: 'm-plan' | 'none' | 'unknown'
-  failure: { atMs: number; kind: 'refused' | 'unreachable' | 'invalid'; status?: number } | null
+  failure: { atMs: number; kind: 'refused' | 'unreachable' | 'invalid'; status?: number; message?: string } | null
 }
 
 let observation: MinimaxPlanObservation = { usage: null, plan: 'unknown', failure: null }
@@ -147,7 +147,8 @@ export async function fetchMinimaxPlanUsage(
       body = undefined
     }
     const vendor = minimaxBaseRespFailure(body)
-    if (vendor && vendor.code === 2049) probe = { state: 'refused', status: 401, message: vendor.message }
+    const verdict = minimaxPlanAnswerVerdict(vendor)
+    if (verdict === 'refused') probe = { state: 'refused', status: 401, message: vendor!.message }
     else if (response.status === 401) probe = { state: 'refused', status: 401, ...(vendor ? { message: vendor.message } : {}) }
     else if (response.status === 403 || response.status === 404 || vendor) probe = { state: 'no-plan' }
     else if (!response.ok) probe = { state: 'refused', status: response.status }
@@ -167,7 +168,7 @@ export async function fetchMinimaxPlanUsage(
       observation = { usage: null, plan: 'none', failure: null }
       break
     case 'refused':
-      observation = { usage: null, plan: observation.plan, failure: { atMs: nowMs, kind: 'refused', status: probe.status } }
+      observation = { usage: null, plan: observation.plan, failure: { atMs: nowMs, kind: 'refused', status: probe.status, ...(probe.message ? { message: probe.message.split(key).join('[redacted]') } : {}) } }
       break
     case 'invalid':
       observation = { usage: null, plan: observation.plan, failure: { atMs: nowMs, kind: 'invalid' } }
@@ -180,7 +181,7 @@ export async function fetchMinimaxPlanUsage(
 }
 
 export function minimaxPlanFailureWords(failure: NonNullable<MinimaxPlanObservation['failure']>): string {
-  if (failure.kind === 'refused') return `MiniMax refused the key on the plan read${failure.status !== undefined ? ` (HTTP ${failure.status})` : ''} — /logins minimax replaces it`
+  if (failure.kind === 'refused') return `MiniMax refused the key on the plan read${failure.status !== undefined ? ` (HTTP ${failure.status})` : ''}${failure.message ? ` — ${failure.message}` : ''} — /logins minimax replaces it`
   if (failure.kind === 'invalid') return 'MiniMax plan read returned an unrecognised response — no new usage recorded'
   return 'MiniMax plan read unavailable — retry /usage'
 }
