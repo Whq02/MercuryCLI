@@ -86,6 +86,7 @@ import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingS
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { streamOpenaiResponses, streamOpenaiResponsesRoad, type OpenaiLiveModel } from './openaiClient.js'
 import { openaiSocketRoadChosen } from './openaiSocketTransport.js'
+import { openaiCacheRetention, rejectOpenaiCacheRetention } from './openaiCacheRetention.js'
 import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { markUnknownModel } from '../../api/backupEngines.js'
@@ -628,7 +629,8 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     toolSchemaDigest: createHash('sha256').update(JSON.stringify(apiTools)).digest('hex').slice(0, 16),
     ...(options.agentId ? { profileId: `agent:${options.agentId}` } : {}),
   })
-  const buildRequest = (wireEffort: string | undefined) => buildOpenaiResponsesRequest({
+  const cacheSourceKind = auth.account.kind
+  const buildRequest = (wireEffort: string | undefined) => ({ ...buildOpenaiResponsesRequest({
     model: modelId,
     instructions: renderedInstructions,
     messages: bridge.rows,
@@ -639,7 +641,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}),
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
     ...(nativeDeferral ? { deferredToolNames: plan.deferredNames, toolSearch: true } : {}),
-  })
+  }), ...openaiCacheRetention(modelId, cacheSourceKind) })
   let request = buildRequest(profile.wireEffort)
   const effortOnWire = (): EffortStampV1 => effortStampOf(effortTruth.requested, openaiEffortWireFact(request, effortTruth.supportsEffort))
   const withEffort = (message: AssistantMessage): AssistantMessage => ({ ...message, effort: effortOnWire() })
@@ -716,6 +718,11 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       return
     }
     if (outcome.kind === 'cancelled') return
+    if (request.prompt_cache_retention !== undefined && rejectOpenaiCacheRetention(modelId, outcome.fault)) {
+      delete request.prompt_cache_retention
+      attempt--
+      continue
+    }
     observeSignInResponse(signInRequest, outcome.fault.status)
     const typed = openaiFaultToTypedError(outcome.fault)
     if (
