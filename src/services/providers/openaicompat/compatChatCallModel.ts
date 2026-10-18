@@ -503,12 +503,15 @@ export async function* compatChatCallModel(
           ...(profile.omitsToolChoice ? {} : { tool_choice: 'auto' as const }),
         }
       : {}),
-    extra: profile.buildExtras({
-      wireModel,
-      effortValue,
-      thinkingEnabled,
-      maxOutputTokensOverride: fittedOutputOverride,
-    }),
+    extra: {
+      ...profile.buildExtras({
+        wireModel,
+        effortValue,
+        thinkingEnabled,
+        maxOutputTokensOverride: fittedOutputOverride,
+      }),
+      ...(profile.lane === 'openai-compat' || profile.lane === 'openrouter' ? { prompt_cache_key: cacheDomainKey } : {}),
+    },
   }
   const effortView = effortVocabularyFor(modelId)
   const effortFact =
