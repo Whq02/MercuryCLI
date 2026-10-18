@@ -894,6 +894,23 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       await gracefulShutdown(await sessionsDeleteCli(id, { yes: options.yes === true }))
     })
 
+  const lsp = program.command('lsp').description('Language servers: list the catalogue, install one').helpCommand('help [command]', 'Show help for a command')
+  lsp
+    .command('list')
+    .description('List the language-server catalogue: each server installed (with its binary) or absent (with its install remedy); Mercury never installs one on its own')
+    .action(async () => {
+      const { lspListCli } = await import('./cli/lspVerb.js')
+      await gracefulShutdown(await lspListCli())
+    })
+  lsp
+    .command('install <server>')
+    .description('Install one language server from the catalogue by running its install remedy, shown first and run after a question; reports where the binary landed; an unknown server is refused with the roster')
+    .option('--yes', 'Run the remedy without the question (for scripts)')
+    .action(async (server: string, options: { yes?: boolean }) => {
+      const { lspInstallCli } = await import('./cli/lspVerb.js')
+      await gracefulShutdown(await lspInstallCli(server, { yes: options.yes === true }))
+    })
+
   program
     .command('version')
     .description('Print the version (the same line as --version)')
