@@ -640,19 +640,6 @@ export async function* runAgent(
   const idleLimitMs = agentIdleLimitMs()
   let retryStalledRequest: ((error: DeadlineExceededError) => boolean) | null = null
   let stoppedAfterRetry = false
-  const armWatchdog = (): ReturnType<typeof armInactivityDeadline> => armInactivityDeadline({
-    seam: `crewmate ${agentDefinition.agentType} (${agentId})`,
-    limitMs: idleLimitMs,
-    onExpire: error => {
-      if (retryStalledRequest?.(error)) {
-        watchdog = armWatchdog()
-        return
-      }
-      logForDebugging(`runAgent: ${agentId} stalled${stoppedAfterRetry ? ' on the first and second attempts' : ''} — ${error.message}`)
-      abortController.abort(error)
-    },
-  })
-  let watchdog = armWatchdog()
   const stalledError = (): DeadlineExceededError =>
     agentStalledError({
       agentType: agentDefinition.agentType,
@@ -663,6 +650,20 @@ export async function* runAgent(
       toolUses: toolUsesSeen,
       retried: stoppedAfterRetry,
     })
+  const armWatchdog = (): ReturnType<typeof armInactivityDeadline> => armInactivityDeadline({
+    seam: `crewmate ${agentDefinition.agentType} (${agentId})`,
+    limitMs: idleLimitMs,
+    onExpire: error => {
+      if (retryStalledRequest?.(error)) {
+        watchdog = armWatchdog()
+        return
+      }
+      const stalled = stalledError()
+      logForDebugging(`runAgent: ${agentId} stalled${stoppedAfterRetry ? ' on the first and second attempts' : ''} — ${stalled.message}`)
+      abortController.abort(stalled)
+    },
+  })
+  let watchdog = armWatchdog()
   const recovery = makeRecoveryBudget()
   let throttled: Error | null = null
   let cuttingWait = { declaredMs: 0, honoredMs: 0 }

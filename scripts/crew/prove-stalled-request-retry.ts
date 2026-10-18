@@ -69,7 +69,7 @@ process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${await ready}`
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 await import('../../src/tasks.ts')
-const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
+const { DEFAULT_AGENT_IDLE_MINUTES, agentIdleLimitMs, runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
@@ -83,7 +83,11 @@ async function drive(kind: string) {
   await command('reset', kind)
   let state = { ...getDefaultAppState(), effortValue: 'max' }
   const owner = new AbortController()
-  onRequest = kind === 'operator' ? () => owner.abort(new Error('operator stopped')) : undefined
+  let seenRequests = 0
+  onRequest = () => {
+    seenRequests++
+    if (kind === 'operator' || (kind === 'operator-resend' && seenRequests === 2)) owner.abort(new Error('operator stopped'))
+  }
   const previous = createAssistantMessage({ content: [{ type: 'thinking', thinking: 'prior thought', signature: 'fixture-signed-thinking' }, { type: 'text', text: 'previous answer' }] as never })
   previous.message.model = model
   const context = {
@@ -112,16 +116,24 @@ try {
   console.log('refusals')
   const twice = await drive('twice')
   check('two silent attempts stop the crewmate without a third request', twice.requests.length === 2 && /first and second/.test(twice.error), { requests: twice.requests.length, error: twice.error })
+  check('the watchdog stop log and abort reason carry the full stalled error naming both attempts', twice.log.includes('stalled on the first and second attempts —') && twice.log.includes('the first and second attempts of the same request stalled'), { lines: twice.log.split('\n').filter(line => /stalled/.test(line)) })
   const partial = await drive('partial')
-  check('content before silence is not replayed or sent to another model', partial.requests.length === 1 && partial.error.includes('no progress') && textOf(partial.rows).includes('partial answer'), { requests: partial.requests.length, error: partial.error, text: textOf(partial.rows) })
+  check('content before silence is not replayed or sent to another model', partial.requests.length === 1 && partial.error.includes('no progress') && !partial.error.includes('first and second') && textOf(partial.rows).includes('partial answer'), { requests: partial.requests.length, error: partial.error, text: textOf(partial.rows) })
   for (const kind of ['usage', 'tool', 'thinking']) {
     const produced = await drive(kind)
-    check(`${kind} before silence forbids replay`, produced.requests.length === 1 && produced.error.includes('no progress'), { requests: produced.requests.length, error: produced.error })
+    check(`${kind} before silence forbids replay`, produced.requests.length === 1 && produced.error.includes('no progress') && !produced.error.includes('first and second'), { requests: produced.requests.length, error: produced.error })
   }
   const active = await drive('active')
   check('a stream producing events stays alive beyond the watchdog interval', active.error === '' && active.requests.length === 1 && textOf(active.rows).includes('alive'), { requests: active.requests.length, error: active.error })
   const stopped = await drive('operator')
   check('an operator stop is never converted into a retry', stopped.ownerAborted && stopped.requests.length === 1 && !stopped.log.includes('stalled request — retrying'), { requests: stopped.requests.length, error: stopped.error })
+  const stoppedResend = await drive('operator-resend')
+  check('an operator stop during the resend cancels the second socket and stops cleanly', stoppedResend.ownerAborted && stoppedResend.requests.length === 2 && stoppedResend.cancelled === 2 && !stoppedResend.error.includes('no progress'), { requests: stoppedResend.requests.length, cancelled: stoppedResend.cancelled, error: stoppedResend.error })
+  delete process.env.MERCURY_AGENT_IDLE_MINUTES
+  const defaultIdleMs = agentIdleLimitMs()
+  process.env.MERCURY_AGENT_IDLE_MINUTES = '0'
+  const disabledIdleMs = agentIdleLimitMs()
+  check('MERCURY_AGENT_IDLE_MINUTES stays 15 minutes by default and 0 disables', DEFAULT_AGENT_IDLE_MINUTES === 15 && defaultIdleMs === 15 * 60_000 && disabledIdleMs === 0, { DEFAULT_AGENT_IDLE_MINUTES, defaultIdleMs, disabledIdleMs })
   console.log(`${failures ? 'FAIL' : 'PASS'} stalled request recovery; failures=${failures}`)
 } finally {
   const stopped = new Promise<void>(done => server.once('exit', () => done()))
