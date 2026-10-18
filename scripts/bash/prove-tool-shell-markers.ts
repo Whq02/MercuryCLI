@@ -35,7 +35,7 @@ const owner = await import('../../src/utils/subprocessEnv.ts') as {
 }
 const compose = owner.toolShellEnv ?? ((env: NodeJS.ProcessEnv, overrides: NodeJS.ProcessEnv = {}) => ({ ...env, ...overrides }))
 const { exec, setCwd } = await import('../../src/utils/Shell.ts')
-const { endEngineSession } = await import('../../src/utils/shell/engineSession.ts')
+const { endEngineSession, resolveShellEngine } = await import('../../src/utils/shell/engineSession.ts')
 const { quote } = await import('../../src/utils/bash/shellQuote.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 const { applyConfigEnvironmentVariables } = await import('../../src/utils/managedEnv.ts')
@@ -55,7 +55,8 @@ try {
     const env = compose({}, {}, platform)
     check(`${platform}: the three markers identify a tool shell`, Object.entries(markers).every(([key, value]) => env[key] === value))
   }
-  for (const engine of process.platform === 'win32' ? ['brush'] : ['system', 'brush']) {
+  const engines = process.platform === 'win32' ? ['brush'] : (resolveShellEngine('brush').engine === 'brush' ? ['system', 'brush'] : ['system'])
+  for (const engine of engines) {
     await endEngineSession()
     process.env.MERCURY_SHELL_ENGINE = engine
     const env = await childMarkers()
@@ -72,11 +73,18 @@ try {
   }
   const folded = compose({ agent: 'outer-agent', ai_agent: '', mercury: 'parent' }, {}, 'win32')
   check('Windows: casing never creates a competing marker', folded.agent === 'outer-agent' && folded.ai_agent === '' && folded.mercury === 'parent' && folded.AGENT === undefined && folded.AI_AGENT === undefined && folded.MERCURY === undefined)
+  process.env.AI_AGENT = 'outer-agent'
+  for (const engine of engines) {
+    await endEngineSession()
+    process.env.MERCURY_SHELL_ENGINE = engine
+    const env = await childMarkers()
+    check(`${engine}: a surrounding agent's AI_AGENT survives in a real child`, env.AI_AGENT === 'outer-agent' && env.MERCURY === '1' && env.AGENT === '1', JSON.stringify(env))
+  }
   const configured = { MERCURY: 'parent', AGENT: '0', AI_AGENT: '' }
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify({ environment: { values: configured } }))
   resetSettingsCache()
   applyConfigEnvironmentVariables()
-  for (const engine of process.platform === 'win32' ? ['brush'] : ['system', 'brush']) {
+  for (const engine of engines) {
     await endEngineSession()
     process.env.MERCURY_SHELL_ENGINE = engine
     const env = await childMarkers()

@@ -80,8 +80,6 @@ export const TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
   PIP_NO_INPUT: '1',
   TF_INPUT: '0',
   GH_PROMPT_DISABLED: '1',
-  COMPOSER_NO_INTERACTION: '1',
-  DEBIAN_FRONTEND: 'noninteractive',
 }
 
 const WINDOWS_TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
@@ -97,8 +95,15 @@ export function toolShellEnv(
   platform: string = process.platform,
 ): NodeJS.ProcessEnv {
   const keyOf = (key: string): string => platform === 'win32' || /^(?:npm|pnpm)_config_/i.test(key) ? key.toUpperCase() : key
-  const child: NodeJS.ProcessEnv = { ...env }
-  const names = new Map(Object.keys(child).map(key => [keyOf(key), key]))
+  const child: NodeJS.ProcessEnv = {}
+  const names = new Map<string, string>()
+  for (const [key, value] of Object.entries(env)) {
+    if (value === undefined) continue
+    const previous = names.get(keyOf(key))
+    if (previous !== undefined && previous !== key) delete child[previous]
+    child[key] = value
+    names.set(keyOf(key), key)
+  }
   for (const [key, value] of Object.entries(overrides)) {
     const previous = names.get(keyOf(key))
     if (previous !== undefined && previous !== key) delete child[previous]

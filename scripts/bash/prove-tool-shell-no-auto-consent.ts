@@ -22,7 +22,23 @@ for (const platform of ['darwin', 'linux', 'win32']) {
   check(`${platform}: an explicit user choice still wins`, compose({ npm_config_yes: 'true' }, {}, platform).npm_config_yes === 'true')
   check(`${platform}: cloud prompts are not auto-answered by default`, compose({}, {}, platform).CLOUDSDK_CORE_DISABLE_PROMPTS === undefined)
   check(`${platform}: an explicit cloud prompt choice still wins`, compose({ CLOUDSDK_CORE_DISABLE_PROMPTS: '1' }, {}, platform).CLOUDSDK_CORE_DISABLE_PROMPTS === '1')
+  check(`${platform}: debconf prompts are not auto-answered by default`, compose({}, {}, platform).DEBIAN_FRONTEND === undefined)
+  check(`${platform}: an explicit debconf frontend choice still wins`, compose({ DEBIAN_FRONTEND: 'noninteractive' }, {}, platform).DEBIAN_FRONTEND === 'noninteractive')
+  check(`${platform}: composer prompts are not auto-answered by default`, compose({}, {}, platform).COMPOSER_NO_INTERACTION === undefined)
+  check(`${platform}: an explicit composer interaction choice still wins`, compose({ COMPOSER_NO_INTERACTION: '1' }, {}, platform).COMPOSER_NO_INTERACTION === '1')
 }
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { bashToolCheckExactMatchPermission, bashToolCheckPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
+const { checkParsedCommand } = await import('./floor-proof-helpers.ts')
+const baseCtx = getEmptyToolPermissionContext()
+const allowPlainCtx = { ...baseCtx, alwaysAllowRules: { localSettings: ['Bash(npx mercury-fixture-no-auto-install)'] } }
+const denyFlagCtx = { ...baseCtx, alwaysDenyRules: { localSettings: ['Bash(npx --yes *)'] } }
+const plainAllowed = bashToolCheckExactMatchPermission({ command: 'npx mercury-fixture-no-auto-install' }, allowPlainCtx as never)
+const flagExact = bashToolCheckExactMatchPermission({ command: 'npx --yes mercury-fixture-no-auto-install' }, allowPlainCtx as never)
+const flagAsked = await bashToolCheckPermission({ command: 'npx --yes mercury-fixture-no-auto-install' }, allowPlainCtx as never)
+const flagDenied = await checkParsedCommand({ command: 'npx --yes mercury-fixture-no-auto-install' }, denyFlagCtx as never)
+check('permission layer: an allow rule for plain npx does not auto-allow explicit --yes', plainAllowed.behavior === 'allow' && flagExact.behavior === 'passthrough' && flagAsked.behavior === 'ask', `plain=${plainAllowed.behavior} exact=${flagExact.behavior} ask=${flagAsked.behavior}`)
+check('permission layer: a deny rule on npx --yes * refuses explicit --yes on the command line', flagDenied.behavior === 'deny', `flag=${flagDenied.behavior}`)
 const npm = whichSync('npm')
 const node = whichSync('node')
 const resolved = npm ? realpathSync(npm) : null

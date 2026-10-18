@@ -68,7 +68,8 @@ try {
   }
   check('an interactive non-tool child gets no tool defaults', owner.subprocessEnv().GH_PAGER === undefined && owner.subprocessEnv().EDITOR === undefined)
 
-  for (const engine of process.platform === 'win32' ? ['brush'] : ['system', 'brush']) {
+  const engines = process.platform === 'win32' ? ['brush'] : (resolveShellEngine('brush').engine === 'brush' ? ['system', 'brush'] : ['system'])
+  for (const engine of engines) {
     await endEngineSession()
     process.env.MERCURY_SHELL_ENGINE = engine
     check(`${engine}: the requested road is available`, resolveShellEngine().engine === engine)
@@ -88,26 +89,41 @@ try {
       const configured = compose(user, settings, platform)
       check(`${platform}: every explicit override survives`, Object.keys(table).every(key => configured[key] === settings[key]))
     }
+    const unsetValue = compose({ PAGER: undefined, GIT_EDITOR: undefined }, {}, platform)
+    check(`${platform}: undefined input entries count as absent and receive defaults`, unsetValue.PAGER === 'cat' && unsetValue.GIT_EDITOR === 'true', JSON.stringify({ PAGER: unsetValue.PAGER, GIT_EDITOR: unsetValue.GIT_EDITOR }))
     const packageUser = compose({ NPM_CONFIG_YES: 'false', pnpm_config_update_notifier: 'true' }, {}, platform)
     check(`${platform}: package config casing never shadows a user value`, packageUser.NPM_CONFIG_YES === 'false' && packageUser.npm_config_yes === undefined && packageUser.pnpm_config_update_notifier === 'true' && packageUser.PNPM_CONFIG_UPDATE_NOTIFIER === undefined, JSON.stringify({ NPM_CONFIG_YES: packageUser.NPM_CONFIG_YES, npm_config_yes: packageUser.npm_config_yes, pnpm_config_update_notifier: packageUser.pnpm_config_update_notifier, PNPM_CONFIG_UPDATE_NOTIFIER: packageUser.PNPM_CONFIG_UPDATE_NOTIFIER }))
+    const dedupedPackage = compose({ NPM_CONFIG_YES: 'true', npm_config_yes: 'false' }, {}, platform)
+    check(`${platform}: package config casing in input deduplicates to the latest key`, dedupedPackage.npm_config_yes === 'false' && dedupedPackage.NPM_CONFIG_YES === undefined, JSON.stringify({ NPM_CONFIG_YES: dedupedPackage.NPM_CONFIG_YES, npm_config_yes: dedupedPackage.npm_config_yes }))
     const exact = compose({ CI: 'operator-ci', TERM: 'operator-term' }, {}, platform)
     check(`${platform}: CI and TERM retain their exact values`, exact.CI === 'operator-ci' && exact.TERM === 'operator-term')
+  }
+  for (const platform of ['darwin', 'linux']) {
+    const distinct = compose({ pager: 'lower-pager', git_editor: 'lower-editor' }, {}, platform)
+    check(`${platform}: non-package POSIX keys remain case-sensitive`, distinct.pager === 'lower-pager' && distinct.PAGER === 'cat' && distinct.git_editor === 'lower-editor' && distinct.GIT_EDITOR === 'true')
   }
   const folded = compose({ pager: '', git_editor: 'custom editor', pythonutf8: '0' }, {}, 'win32')
   check('Windows: differently cased user keys are not shadowed', folded.pager === '' && folded.PAGER === undefined && folded.git_editor === 'custom editor' && folded.GIT_EDITOR === undefined && folded.pythonutf8 === '0' && folded.PYTHONUTF8 === undefined)
   const layered = compose({ PAGER: 'parent' }, { pager: 'settings' }, 'win32')
   check('Windows: an explicit override replaces the same key without a case twin', layered.pager === 'settings' && layered.PAGER === undefined)
 
-  const settings = { GIT_EDITOR: 'settings-editor', GH_PAGER: '', PAGER: 'settings-pager', NO_COLOR: 'settings-colour', FORCE_COLOR: '0', CI: 'keep-ci', TERM: 'keep-term' }
-  writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify({ environment: { values: settings } }))
+  state.setOriginalCwd(scratch)
+  mkdirSync(join(scratch, '.mercury'), { recursive: true })
+  const userLayer = { PAGER: 'user-pager', GIT_EDITOR: 'user-editor', GH_PAGER: 'user-gh-pager', NO_COLOR: 'user-colour', FORCE_COLOR: '0', CI: 'keep-ci', TERM: 'keep-term' }
+  const projectLayer = { GIT_EDITOR: 'project-editor', GH_PAGER: 'project-gh-pager', NO_COLOR: 'project-colour' }
+  const localLayer = { GH_PAGER: '', FORCE_COLOR: '0' }
+  const expectedSettings = { ...userLayer, ...projectLayer, ...localLayer }
+  writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify({ environment: { values: userLayer } }))
+  writeFileSync(join(scratch, '.mercury', 'settings.json'), JSON.stringify({ environment: { values: projectLayer } }))
+  writeFileSync(join(scratch, '.mercury', 'settings.local.json'), JSON.stringify({ environment: { values: localLayer } }))
   resetSettingsCache()
   applyConfigEnvironmentVariables()
-  check('the real settings loader applied the scratch environment values', Object.entries(settings).every(([key, value]) => process.env[key] === value))
-  for (const engine of process.platform === 'win32' ? ['brush'] : ['system', 'brush']) {
+  check('the real settings loader merged user, project and local environment layers', Object.entries(expectedSettings).every(([key, value]) => process.env[key] === value), JSON.stringify(Object.fromEntries(Object.keys(expectedSettings).map(key => [key, process.env[key]]))))
+  for (const engine of engines) {
     await endEngineSession()
     process.env.MERCURY_SHELL_ENGINE = engine
     const child = await readChild()
-    check(`${engine}: user settings survive shell defaults, including empty values`, Object.entries(settings).every(([key, value]) => child[key] === value), JSON.stringify(Object.fromEntries(Object.keys(settings).map(key => [key, child[key]]))))
+    check(`${engine}: user, project and local settings survive shell defaults, including empty values`, Object.entries(expectedSettings).every(([key, value]) => child[key] === value), JSON.stringify(Object.fromEntries(Object.keys(expectedSettings).map(key => [key, child[key]]))))
   }
 } finally {
   await endEngineSession()
