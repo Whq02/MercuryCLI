@@ -10,7 +10,7 @@ import { nearestSupportedWireEffort } from '../openai/gptPins.js'
 import { refreshProviderUsage } from '../providerUsage.js'
 import { MINIMAX_ENV_KEY, minimaxChatCompletionsUrl, resolveMinimaxAccount, resolveMinimaxApiKey } from './minimaxAccounts.js'
 import { getCachedMinimaxCatalogue, minimaxListedModel, minimaxModelFacts, minimaxWireId, newestMinimaxModel } from './minimaxCatalogue.js'
-import { isMinimaxTextModelId } from './minimaxPins.js'
+import { MINIMAX_DISPLAY_PINS, isMinimaxTextModelId, minimaxDisplayPin } from './minimaxPins.js'
 
 export function buildMinimaxExtras(args: LaneExtrasArgs): Record<string, unknown> {
   const facts = minimaxModelFacts(args.wireModel)
@@ -76,14 +76,16 @@ export async function* minimaxCallModel(params: CallModelParams): CallModelStrea
   if (credentialRefused) refusal = `${snapshot!.lastError} — /logins minimax replaces the key.`
   else if (!model) refusal = "MiniMax cannot resolve 'minimax' until the account's live list serves a text model; /model refreshes the list."
   else if (!isMinimaxTextModelId(model)) refusal = `MiniMax model '${model}' is not on the text road; the video, speech, music and image lines are not supported here.`
-  else if (snapshot && snapshot.fetchedAtMs > 0 && !minimaxListedModel(snapshot, model)) {
+  else if (snapshot && snapshot.models.length > 0 && !minimaxListedModel(snapshot, model)) {
     refusal = modelNotOfferedByCatalogue(model, account.label, snapshot.models.map(row => row.id))
+  } else if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !minimaxDisplayPin(model)) {
+    refusal = modelNotOfferedByCatalogue(model, account.label, MINIMAX_DISPLAY_PINS.map(pin => pin.wireId))
   }
   if (refusal) {
     yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${refusal}`, error: credentialRefused ? 'authentication_failed' : 'invalid_request' })
     return
   }
-  const notes = snapshot?.lastError || !snapshot?.fetchedAtMs ? [`MiniMax model list unavailable — the named id '${model}' is sent for the provider to decide.`] : undefined
+  const notes = snapshot?.lastError || !snapshot?.models.length ? [`MiniMax model list unavailable — the named id '${model}' is sent for the provider to decide.`] : undefined
   yield* compatChatCallModel({
     ...minimaxLaneProfile, ...(notes ? { leadingNotes: notes } : {}), wireModelId: () => model!,
   }, { ...params, options: { ...params.options, model: model! } })

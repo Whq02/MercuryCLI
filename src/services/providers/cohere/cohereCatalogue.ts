@@ -154,7 +154,7 @@ export function coherePinRows(): CohereCatalogueRow[] {
 export function cohereCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: CohereCatalogueRow[]; source: CohereCatalogueSource } {
   const snapshot = getCachedCohereCatalogue(env)
   if (!snapshot) return { rows: [], source: { kind: 'unread' } }
-  if (!snapshot.fetchedAtMs) return snapshot.lastError && !snapshot.lastError.includes('refused the credential') ? { rows: coherePinRows(), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
+  if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: coherePinRows(), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
   const rows = snapshot.models.map(model => {
     const pin = cohereDisplayPin(model.id)
     return { id: model.id, displayName: cohereDisplayName(model.id), observedAt: pin?.observedAt ?? new Date(snapshot.fetchedAtMs).toISOString().slice(0, 10),
@@ -170,7 +170,7 @@ export function newestCohereModel(env: NodeJS.ProcessEnv = process.env): string 
 export function cohereCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const snapshot = getCachedCohereCatalogue(env)
   const { source } = cohereCatalogueRows(env)
-  if (source.kind === 'pins') return `pinned list (observed ${COHERE_OBSERVED_AT}) — the live list could not be read: ${snapshot?.lastError}`
+  if (source.kind === 'pins') return `pinned list (observed ${COHERE_OBSERVED_AT}) — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no chat models'}`
   if (snapshot?.lastError) return snapshot.lastError
   return source.kind === 'live' ? `${source.count} ${source.count === 1 ? 'model' : 'models'} live` : undefined
 }

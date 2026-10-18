@@ -216,7 +216,8 @@ function mistralKnownRow(id: string): BareFamilyWordRow | undefined {
 
 function minimaxHeadRow(): BareFamilyWordRow | undefined {
   const { minimaxCatalogueRows } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
-  return minimaxCatalogueRows().rows[0]
+  const { rows, source } = minimaxCatalogueRows()
+  return source.kind === 'live' ? rows[0] : undefined
 }
 
 function minimaxPinnedDefault(): BareFamilyWordRow | undefined {
@@ -226,11 +227,10 @@ function minimaxPinnedDefault(): BareFamilyWordRow | undefined {
 }
 
 function minimaxListState(): BareFamilyListState {
-  const { minimaxCatalogueRows, getCachedMinimaxCatalogue } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
-  const { source } = minimaxCatalogueRows()
-  if (source.kind === 'live') return { kind: 'live', count: source.count, fetchedAtMs: source.fetchedAtMs }
-  if (source.kind === 'pins') return { kind: 'pin' }
-  const error = gateError('minimax') ?? getCachedMinimaxCatalogue()?.lastError
+  const { getCachedMinimaxCatalogue } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
+  const snapshot = getCachedMinimaxCatalogue()
+  if (snapshot && snapshot.fetchedAtMs > 0) return { kind: 'live', count: snapshot.models.length, fetchedAtMs: snapshot.fetchedAtMs }
+  const error = gateError('minimax') ?? snapshot?.lastError
   return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
 }
 
@@ -247,7 +247,8 @@ function minimaxKnownRow(id: string): BareFamilyWordRow | undefined {
 
 function cohereHeadRow(): BareFamilyWordRow | undefined {
   const { cohereCatalogueRows } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
-  return cohereCatalogueRows().rows[0]
+  const { rows, source } = cohereCatalogueRows()
+  return source.kind === 'live' ? rows[0] : undefined
 }
 
 function coherePinnedDefault(): BareFamilyWordRow | undefined {
@@ -257,11 +258,10 @@ function coherePinnedDefault(): BareFamilyWordRow | undefined {
 }
 
 function cohereListState(): BareFamilyListState {
-  const { cohereCatalogueRows, getCachedCohereCatalogue } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
-  const { source } = cohereCatalogueRows()
-  if (source.kind === 'live') return { kind: 'live', count: source.count, fetchedAtMs: source.fetchedAtMs }
-  if (source.kind === 'pins') return { kind: 'pin' }
-  const error = gateError('cohere') ?? getCachedCohereCatalogue()?.lastError
+  const { getCachedCohereCatalogue } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
+  const snapshot = getCachedCohereCatalogue()
+  if (snapshot && snapshot.fetchedAtMs > 0) return { kind: 'live', count: snapshot.models.length, fetchedAtMs: snapshot.fetchedAtMs }
+  const error = gateError('cohere') ?? snapshot?.lastError
   return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
 }
 

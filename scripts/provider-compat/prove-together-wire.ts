@@ -81,6 +81,7 @@ const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts
 const { keyLaneListState, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
 const { readStoredTogetherApiKey } = await import('../../src/utils/router/providerSecrets.ts')
 const { resolveContextWindow, modelThinkingAlwaysOn, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
+const { resolveEffortTruth } = await import('../../src/utils/effort.ts')
 const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 function params(model = 'together/moonshotai/Kimi-K3', effortValue: string | undefined = 'high', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
@@ -142,8 +143,8 @@ try {
   const dispatch = await resolveEngineDispatch('together')
   check("the Agent class word 'together' selects the gateway's first listed chat row, pinned first", dispatch?.backend === 'together' && dispatch.model === 'together/moonshotai/Kimi-K3')
   const exact = await resolveEngineDispatch('together/Prism-ML/Ternary-Bonsai-27B')
-  check('an exact together/ id dispatches as listed, labelled free', exact?.model === 'together/Prism-ML/Ternary-Bonsai-27B' && exact.displayLabel.includes('free'))
-  check('the context window, the always-on verdict and the effort vocabulary read the pins and the live list', resolveContextWindow('together/moonshotai/Kimi-K3').effectiveWindow === 1_048_576 && modelThinkingAlwaysOn('together/openai/gpt-oss-120b') && !modelThinkingAlwaysOn('together/moonshotai/Kimi-K3') && JSON.stringify(effortVocabularyFor('together/openai/gpt-oss-120b')).includes('"vocabulary":["low","medium","high"]') && resolveModelPricing('together/moonshotai/Kimi-K3').basis === 'recorded')
+  check('an exact together/ id dispatches as listed, labelled free without duplicating (free) in keyLanePins', exact?.model === 'together/Prism-ML/Ternary-Bonsai-27B' && exact.displayLabel === 'Ternary Bonsai 27B (free)' && keyLanePins('together').find(pin => pin.id === 'together/Prism-ML/Ternary-Bonsai-27B')?.displayName === 'Ternary Bonsai 27B (free)')
+  check('the context window, the always-on verdict, the thinking-off effort truth and the effort vocabulary read the pins and the live list', resolveContextWindow('together/moonshotai/Kimi-K3').effectiveWindow === 1_048_576 && modelThinkingAlwaysOn('together/openai/gpt-oss-120b') && !modelThinkingAlwaysOn('together/moonshotai/Kimi-K3') && JSON.stringify(effortVocabularyFor('together/openai/gpt-oss-120b')).includes('"vocabulary":["low","medium","high"]') && resolveEffortTruth('together/deepseek-ai/DeepSeek-V4-Pro-0813', 'max', { thinkingEnabled: false }).wire === undefined && resolveEffortTruth('together/openai/gpt-oss-120b', 'max', { thinkingEnabled: false }).wire === 'low' && resolveModelPricing('together/moonshotai/Kimi-K3').basis === 'recorded')
 
   section('the catalogue and the login')
   const rows = togetherCatalogueRows()
@@ -193,6 +194,11 @@ try {
   check('an id the gateway does not list refuses before inference', captures.length === before && absent.some(row => row.isApiErrorMessage))
   const bareNamespace = await run(params('together/'))
   check('an empty inner id refuses before inference, naming the namespace', captures.length === before && bareNamespace.some(row => row.isApiErrorMessage) && words(bareNamespace).includes('together/'))
+  modelList = []; __resetTogetherCatalogueForTest(); await refreshTogetherCatalogue({ force: true })
+  const emptyPins = togetherCatalogueRows()
+  check('an empty live list falls to the 19 pins labelled as pins, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 19 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17') && keyLaneListState('together').kind === 'pin' && (togetherCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && !(await run(params('together/zai-org/GLM-5.3'))).some(row => row.isApiErrorMessage) && captures.length === before + 1)
+  before = captures.length
+  modelList = TOGETHER_FIXTURE_MODELS
   listStatus = 401; __resetTogetherCatalogueForTest(); await refreshTogetherCatalogue({ force: true })
   const refusedList = await run()
   check('a refused list is an auth refusal with the key remedy, before any chat request', refusedList.some(row => row.isApiErrorMessage && row.error === 'authentication_failed') && words(refusedList).includes('/logins together') && captures.length === before)

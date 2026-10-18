@@ -236,7 +236,9 @@ try {
   const absent = await run(params('minimax-fixture-absent'))
   check('an id the account does not list refuses before inference', captures.length === before && absent.some(row => row.isApiErrorMessage) && words(absent).includes('minimax-fixture-absent'))
   modelList = []; await refreshMinimaxCatalogue({ force: true })
-  check("an empty list refuses 'minimax' rather than sending a pin", (await run()).some(row => row.isApiErrorMessage) && captures.length === before)
+  const emptyPins = minimaxCatalogueRows()
+  check('an empty live list falls to the pins labelled as pins, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 6 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17') && keyLaneListState('minimax').kind === 'pin' && (minimaxCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'MiniMax-M3')
+  before = captures.length
   modelList = MINIMAX_FIXTURE_MODELS
   listStatus = 299; await refreshMinimaxCatalogue({ force: true })
   const refusedList = await run()

@@ -236,19 +236,20 @@ async function validateNonAnthropicModel(
     const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
     await readCatalogueIfPending('minimax')
     const { getCachedMinimaxCatalogue, minimaxListedModel, newestMinimaxModel } = await import('../../services/providers/minimax/minimaxCatalogue.js')
-    const { isMinimaxTextModelId } = await import('../../services/providers/minimax/minimaxPins.js')
+    const { isMinimaxTextModelId, minimaxDisplayPin } = await import('../../services/providers/minimax/minimaxPins.js')
     const snapshot = getCachedMinimaxCatalogue()
     const id = trimmed.toLowerCase()
     if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins minimax replaces the key.` }
     if (id === 'minimax') return newestMinimaxModel() ? { valid: true, skipCache: true } : { valid: false, error: "MiniMax's live list has not served a text model for 'minimax' yet — /model refreshes it." }
     if (!isMinimaxTextModelId(id)) return { valid: false, error: 'This MiniMax model is not on the text road; the video, speech, music and image lines are not supported here.' }
-    if (snapshot?.fetchedAtMs && !minimaxListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the MiniMax account's live catalogue.` }
+    if (snapshot?.models.length && !minimaxListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the MiniMax account's live catalogue.` }
+    if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !minimaxDisplayPin(id)) return { valid: false, error: `Model "${trimmed}" is not listed by the MiniMax account's live catalogue.` }
     return { valid: true, skipCache: true }
   }
   if (route === 'together') {
     const { resolveTogetherAccount } = await import('../../services/providers/together/togetherAccounts.js')
     if (!resolveTogetherAccount()) return { valid: false, error: 'Together AI is unavailable — no API key (/logins together, or set TOGETHER_API_KEY).' }
-    const { togetherWireId } = await import('../../services/providers/together/togetherPins.js')
+    const { togetherDisplayPin, togetherWireId } = await import('../../services/providers/together/togetherPins.js')
     const wire = togetherWireId(trimmed)
     if (wire === '') return { valid: false, error: `'${trimmed}' names no model inside the together/ namespace — /model lists the live Together AI rows.` }
     const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
@@ -256,7 +257,8 @@ async function validateNonAnthropicModel(
     const { getCachedTogetherCatalogue, cachedLiveIds } = await import('../../services/providers/together/togetherCatalogue.js')
     const snapshot = getCachedTogetherCatalogue()
     if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins together replaces the key.` }
-    if (snapshot?.fetchedAtMs && !cachedLiveIds().has(wire.toLowerCase())) return { valid: false, error: `Model "${trimmed}" is not listed by the Together AI chat catalogue.` }
+    if (snapshot?.models.length && !cachedLiveIds().has(wire.toLowerCase())) return { valid: false, error: `Model "${trimmed}" is not listed by the Together AI chat catalogue.` }
+    if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !togetherDisplayPin(wire)) return { valid: false, error: `Model "${trimmed}" is not listed by the Together AI chat catalogue.` }
     return { valid: true, skipCache: true }
   }
   if (route === 'cohere') {
@@ -265,13 +267,14 @@ async function validateNonAnthropicModel(
     const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
     await readCatalogueIfPending('cohere')
     const { getCachedCohereCatalogue, cohereListedModel, newestCohereModel } = await import('../../services/providers/cohere/cohereCatalogue.js')
-    const { isCohereChatModelId } = await import('../../services/providers/cohere/coherePins.js')
+    const { cohereDisplayPin, isCohereChatModelId } = await import('../../services/providers/cohere/coherePins.js')
     const snapshot = getCachedCohereCatalogue()
     const id = trimmed.toLowerCase()
     if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins cohere replaces the key.` }
     if (id === 'cohere') return newestCohereModel() ? { valid: true, skipCache: true } : { valid: false, error: "Cohere's live list has not served a chat model for 'cohere' yet — /model refreshes it." }
     if (!isCohereChatModelId(id)) return { valid: false, error: 'This Cohere model is not on the chat-completions road.' }
-    if (snapshot?.fetchedAtMs && !cohereListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Cohere account's live catalogue.` }
+    if (snapshot?.models.length && !cohereListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Cohere account's live catalogue.` }
+    if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !cohereDisplayPin(id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Cohere account's live catalogue.` }
     return { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {

@@ -643,7 +643,7 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 
   if (provider === 'together') {
     const { togetherCatalogueRows } = require('../../services/providers/together/togetherCatalogue.js') as typeof import('../../services/providers/together/togetherCatalogue.js')
     const { togetherDisplayPin } = require('../../services/providers/together/togetherPins.js') as typeof import('../../services/providers/together/togetherPins.js')
-    return togetherCatalogueRows().rows.map(row => ({ id: row.id, displayName: row.free ? `${row.displayName} (free)` : row.displayName, observedAt: row.observedAt, ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}), listedLive: row.listedLive, ...(togetherDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
+    return togetherCatalogueRows().rows.map(row => ({ id: row.id, displayName: row.free && !row.displayName.endsWith('(free)') ? `${row.displayName} (free)` : row.displayName, observedAt: row.observedAt, ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}), listedLive: row.listedLive, ...(togetherDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'cohere') {
     const { cohereCatalogueRows } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')

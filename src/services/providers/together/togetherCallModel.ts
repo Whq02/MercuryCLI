@@ -9,7 +9,7 @@ import { thinkingOffWireEffort, type LaneExtrasArgs } from '../openaicompat/comp
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
 import { TOGETHER_ENV_KEY, resolveTogetherAccount, resolveTogetherApiKey, togetherChatCompletionsUrl } from './togetherAccounts.js'
 import { cachedLiveIds, getCachedTogetherCatalogue, togetherListedModel } from './togetherCatalogue.js'
-import { togetherEffortVocabulary, togetherThinkingDial, togetherWireId } from './togetherPins.js'
+import { TOGETHER_DISPLAY_PINS, togetherDisplayPin, togetherEffortVocabulary, togetherThinkingDial, togetherWireId } from './togetherPins.js'
 
 export function buildTogetherExtras(args: LaneExtrasArgs & { promptCacheKey?: string }): Record<string, unknown> {
   const dial = togetherThinkingDial(args.wireModel)
@@ -70,14 +70,16 @@ export async function* togetherCallModel(params: CallModelParams): CallModelStre
   const credentialRefused = snapshot?.lastError?.includes('refused the credential') === true
   if (credentialRefused) refusal = `${snapshot!.lastError} — /logins together replaces the key.`
   else if (wire === '') refusal = `'${params.options.model.trim()}' names no model inside the together/ namespace — /model lists the live Together AI rows.`
-  else if (snapshot && snapshot.fetchedAtMs > 0 && !cachedLiveIds().has(wire.toLowerCase())) {
+  else if (snapshot && snapshot.models.length > 0 && !cachedLiveIds().has(wire.toLowerCase())) {
     refusal = modelNotOfferedByCatalogue(wire, account.label, [...cachedLiveIds()])
+  } else if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !togetherDisplayPin(wire)) {
+    refusal = modelNotOfferedByCatalogue(wire, account.label, TOGETHER_DISPLAY_PINS.map(pin => pin.id))
   }
   if (refusal) {
     yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${refusal}`, error: credentialRefused ? 'authentication_failed' : 'invalid_request' })
     return
   }
-  const notes = snapshot?.lastError || !snapshot?.fetchedAtMs ? [`Together AI model list unavailable — the named id '${wire}' is sent for the gateway to decide.`] : undefined
+  const notes = snapshot?.lastError || !snapshot?.models.length ? [`Together AI model list unavailable — the named id '${wire}' is sent for the gateway to decide.`] : undefined
   yield* compatChatCallModel({
     ...togetherLaneProfile,
     ...(notes ? { leadingNotes: notes } : {}),

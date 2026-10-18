@@ -336,7 +336,7 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
   if (route === 'together') {
     const vocabulary = togetherEffortVocabulary(model)
     return vocabulary.length > 0
-      ? { kind: 'provider', source: 'together', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
+      ? { kind: 'provider', source: 'together', vocabulary, thinkingGated: true, thinkingOffWire: togetherThinkingDial(model) === 'effort' ? thinkingOffWireEffort(vocabulary) : undefined }
       : { kind: 'none', source: 'together' }
   }
   if (isCohereModelId(model) || route === 'cohere') {

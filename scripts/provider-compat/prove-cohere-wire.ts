@@ -178,7 +178,9 @@ try {
   const absent = await run(params('command-fixture-absent'))
   check('an id the account does not list refuses before inference', captures.length === before && absent.some(row => row.isApiErrorMessage) && words(absent).includes('command-fixture-absent'))
   modelList = []; await refreshCohereCatalogue({ force: true })
-  check("an empty list refuses 'cohere' rather than sending a pin", (await run()).some(row => row.isApiErrorMessage) && captures.length === before)
+  const emptyPins = cohereCatalogueRows()
+  check('an empty live list falls to the 9 pins labelled as pins, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 9 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17') && keyLaneListState('cohere').kind === 'pin' && (cohereCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'command-a-plus-05-2026')
+  before = captures.length
   modelList = COHERE_FIXTURE_MODELS
   listStatus = 401; __resetCohereCatalogueForTest(); await refreshCohereCatalogue({ force: true })
   const refusedList = await run()
