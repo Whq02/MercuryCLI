@@ -675,6 +675,45 @@ section('§11 output past the display budget: the editor terminal road saves the
   check('the file the editor road names holds the whole output', editor.saved === rowsText, `${editor.saved.length} of ${rowsText.length}`)
 }
 
+section('§12 output past the wire frame: a terminal that retains only what it was asked to keep still ends the command with its last lines')
+{
+  const rows = 3_300_000
+  const rowsText = Array.from({ length: rows }, (_, i) => `row ${i + 1}`).join('\n') + '\n'
+  const api = await startFixtureApi([
+    { kind: 'tool_use', name: 'Bash', input: { command: `seq 1 ${rows} | sed 's/^/row /'` }, preText: 'a flood of output' },
+    { kind: 'text', text: 'flood done' },
+  ])
+  const server = spawnServer(api.url)
+  let askedLimit = 0
+  const h = connectClient(server, {
+    onTerminalCreate: p => {
+      askedLimit = Number((p as unknown as { outputByteLimit?: number }).outputByteLimit ?? 0)
+      return { terminalId: 'flood-1' }
+    },
+    onTerminalOutput: () => {
+      const keep = askedLimit > 0 && askedLimit < rowsText.length
+      return { output: keep ? rowsText.slice(-askedLimit) : rowsText, truncated: keep, exitStatus: { exitCode: 0 } }
+    },
+    onTerminalWaitForExit: () => ({ exitCode: 0 }),
+  })
+  try {
+    await h.agent.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: true } })
+    const { sessionId } = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
+    const res = await h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'flood' }] })
+    check('turn completes', res.stopReason === 'end_turn', j(res))
+    check('the byte limit asked of the editor keeps one answer inside the 32 MiB wire frame', askedLimit > 0 && askedLimit <= 16 * 1024 * 1024, String(askedLimit))
+    const result = toolResultStrings(h.updates).join('\n')
+    const saved = /Full output saved to: (\S+)/.exec(result)?.[1] ?? ''
+    check('the result ends with the last line of the output', result.includes(`row ${rows}`), result.slice(-300))
+    check('the file the result names ends with the last line of the output', saved !== '' && existsSync(saved) && readFileSync(saved, 'utf8').endsWith(`row ${rows}\n`), saved)
+    await h.agent.request('session/close', { sessionId }).catch(() => {})
+  } finally {
+    h.close()
+    server.kill('SIGKILL')
+    await api.close()
+  }
+}
+
 console.log('')
 if (failures > 0) {
   console.error(`❌ prove-acp-ide-routing: ${failures} failure(s)`)

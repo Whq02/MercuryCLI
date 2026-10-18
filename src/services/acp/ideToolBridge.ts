@@ -11,7 +11,7 @@ import { TaskOutput } from '../../utils/task/TaskOutput.js'
 import { generateTaskId } from '../../Task.js'
 import { createAbortedCommand, type ExecResult, type ShellCommand } from '../../utils/ShellCommand.js'
 import type { ProcessTreeKillReceipt } from '../../utils/processGroup.js'
-import { getTaskOutputDir, MAX_TASK_OUTPUT_BYTES } from '../../utils/task/diskOutput.js'
+import { getTaskOutputDir } from '../../utils/task/diskOutput.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
 
@@ -33,6 +33,8 @@ interface IdeToolDoor {
 }
 
 export class IdeTerminalUnavailableError extends Error {}
+
+const IDE_TERMINAL_OUTPUT_BYTES = 8 * 1024 * 1024
 
 let activeDoor: IdeToolDoor | null = null
 const virtualGenerations = new Map<string, { generation: string; mtimeMs: number; digest: string }>()
@@ -276,7 +278,7 @@ export async function execViaIdeTerminal(
         command,
         cwd: options.cwd,
         env: envList,
-        output_byte_limit: MAX_TASK_OUTPUT_BYTES,
+        output_byte_limit: IDE_TERMINAL_OUTPUT_BYTES,
       },
       abortSignal,
     )
@@ -342,8 +344,10 @@ export async function execViaIdeTerminal(
   }, options.timeout)
   timeoutTimer.unref?.()
 
+  let polling = false
   let pollTimer: NodeJS.Timeout | undefined = setInterval(() => {
-    if (status !== 'running' && status !== 'backgrounded') return
+    if (polling || (status !== 'running' && status !== 'backgrounded')) return
+    polling = true
     void door
       .terminalOutput({ terminal_id: terminalId })
       .then(snap => {
@@ -354,6 +358,9 @@ export async function execViaIdeTerminal(
         }
       })
       .catch(() => {})
+      .finally(() => {
+        polling = false
+      })
   }, 150)
   pollTimer.unref?.()
 
