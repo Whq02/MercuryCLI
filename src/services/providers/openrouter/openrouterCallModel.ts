@@ -27,6 +27,8 @@ import { openrouterResponsesTransport } from './openrouterResponsesTransport.js'
 import { refreshProviderUsage } from '../providerUsage.js'
 import { getInitialSettings } from '../../../utils/settings/settings.js'
 import { openrouterProviderObject } from './openrouterRoutingPolicy.js'
+import { openrouterChatCache } from './openrouterCache.js'
+import { streamCompatChat } from '../openaicompat/compatChatClient.js'
 
 export function openrouterWireModelId(modelId: string): string {
   const slug = qualifiedWireId(modelId)
@@ -74,7 +76,7 @@ export const openrouterLaneProfile: CompatLaneProfile = {
       providerPolicy: openrouterProviderObject(getInitialSettings().routing?.openrouter),
     }),
   extraHeaders: () => ({ 'user-agent': getProductUserAgent() }),
-  streamTransport: (options, messages) => openrouterResponsesTransport(options, messages),
+  streamTransport: (options, messages) => openrouterResponsesTransport(options, messages) ?? { events: streamCompatChat({ ...options, request: openrouterChatCache(options.request) }) },
   policyFaultNote: (fault, extra) =>
     fault.status === 503 && /no available (model )?provider/i.test(fault.message) && extra?.provider !== undefined
       ? ' — no OpenRouter endpoint met your routing policy; /config → OpenRouter routing policy widens it'

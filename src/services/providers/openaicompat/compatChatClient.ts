@@ -1,4 +1,5 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
+import { sendWithCacheField } from '../cacheFieldRetry.js'
 import { wrapFetchWithWireDump } from '../../api/dumpPrompts.js'
 import type { ZaiContentPart } from '../zai/zaiClient.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -499,7 +500,7 @@ export async function* streamCompatChat(
       const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'compat')
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
       const { extra, ...core } = request
-      response = await fetchImpl(options.url, {
+      response = await sendWithCacheField({ body: { ...core, ...(extra ?? {}), stream: true }, url: options.url, field: 'prompt_cache_key' }, body => fetchImpl(options.url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -508,10 +509,10 @@ export async function* streamCompatChat(
           'user-agent': getUserAgent(),
           ...(options.extraHeaders ?? {}),
         },
-        body: JSON.stringify({ ...core, ...(extra ?? {}), stream: true }),
+        body: JSON.stringify(body),
         signal: controller.signal,
         ...(proxyOptions as Record<string, unknown>),
-      } as RequestInit)
+      } as RequestInit))
     } catch (error) {
       headersLanded = true
       if (firstByteTimer !== null) timers.clearTimeout(firstByteTimer)

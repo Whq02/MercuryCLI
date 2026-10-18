@@ -73,7 +73,7 @@ async function runEmbeddedCommand(
     lastResult = update
   }
   const result = (lastResult as { data?: unknown })?.data ?? lastResult
-  const block = await processToolResultBlock(tool as never, result as never, randomUUID())
+  const block = await processToolResultBlock(tool as never, result as never, randomUUID(), context.options.engineModel)
   const content = (block as { content?: unknown }).content
   if (typeof content === 'string') return content
   const shellResult = result as { stdout?: string; stderr?: string }

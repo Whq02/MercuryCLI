@@ -50,6 +50,26 @@ import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
 import { runAgent } from './runAgent.js'
 import { continuationDirectoryNote } from './continuationNote.js'
+import { EFFORT_LEVELS, isEffortLevel, resolveStampedEffortTruth, type EffortLevel } from '../../utils/effort.js'
+import { matchReachableModelName, modelNameHeadlessRefusal } from '../../utils/model/modelNameRoad.js'
+import { MODEL_LOOKUP_LADDER } from '../../utils/model/modelLookup.js'
+import { resolveEngineDispatch, unrecognisedModelWordRefusal } from '../../utils/crew/engineDispatch.js'
+
+async function resumedModelOverride(model: string | undefined, parent: string): Promise<string | undefined> {
+  if (model === undefined) return undefined
+  if (model.trim() === '') throw new Error('Model is empty. Read mercury://models and name a model id.')
+  const matched = matchReachableModelName(model)
+  if (matched !== null && (matched.kind === 'none' || matched.kind === 'ambiguous')) {
+    throw new Error(modelNameHeadlessRefusal(matched, 'model') + ' ' + MODEL_LOOKUP_LADDER)
+  }
+  const word = matched !== null && (matched.kind === 'match' || matched.kind === 'exact') ? matched.id : model
+  const resolved = getAgentModel(undefined, parent, word)
+  const dispatch = await resolveEngineDispatch(resolved)
+  if (dispatch !== null) return dispatch.model
+  const refusal = unrecognisedModelWordRefusal(word)
+  if (refusal !== null) throw new Error(refusal)
+  return resolved
+}
 
 type ResumeAgentResult = {
   agentId: string
@@ -98,6 +118,8 @@ export async function resumeAgentBackground(args: {
   canUseTool?: CanUseToolFn
   invokingRequestId?: string
   replyTarget?: 'parent' | 'operator'
+  model?: string
+  effort?: EffortLevel
   automatic?: boolean
 }): Promise<ResumeAgentResult> {
   const { agentId, prompt, toolUseContext, canUseTool } = args
@@ -108,6 +130,17 @@ export async function resumeAgentBackground(args: {
   ])
   if (!transcript || transcript.messages.length === 0) {
     throw new Error(`No transcript found for crewmate ${agentId}`)
+  }
+  const definitions = await getAgentDefinitionsWithOverrides(getCwdState())
+  const definition: AgentDefinition = definitionForStoredType(meta?.agentType, definitions.activeAgents)
+  const restoredModel = (await resumedModelOverride(args.model, toolUseContext.options.engineModel)) ?? meta?.model
+  const lifecycleModel = getAgentModel(restoredModel ?? definition.model, getEngineModel())
+  const restoredEffort = args.effort ?? meta?.effortOverride
+  if (args.effort !== undefined) {
+    const selectable = resolveStampedEffortTruth(lifecycleModel, args.effort, { thinkingEnabled: true }).selectable
+    if (!isEffortLevel(args.effort) || (args.effort !== 'max' && !selectable.includes(args.effort))) {
+      throw new Error(`Effort '${args.effort}' is not served by ${lifecycleModel}; available: ${selectable.length > 0 ? selectable.join(' | ') : 'no effort control'}. The ladder is ${EFFORT_LEVELS.join(' | ')}. Max is admitted; no lower tier was substituted. Read mercury://models for the model's choices.`)
+    }
   }
   const restoredKey = restoreBoundPrefixFromMessages(transcript.messages, { rosterOnly: true })
   const restoredRoster = pendingToolRosterRestore()
@@ -182,17 +215,9 @@ export async function resumeAgentBackground(args: {
     createUserMessage({ content: prompt + note }),
   ]
 
-  const definitions = await getAgentDefinitionsWithOverrides(getCwdState())
-  const definition: AgentDefinition = definitionForStoredType(meta?.agentType, definitions.activeAgents)
 
   const description = recordedDescription(meta?.description) || RESUMED_AGENT_DESCRIPTION
 
-  const restoredModel = meta?.model
-  const lifecycleModel = getAgentModel(
-    restoredModel ?? definition.model,
-    getEngineModel(),
-  )
-  const restoredEffort = meta?.effortOverride
   const instructionProfileOverride = meta?.instructionProfile
 
   const workerPermissionMode = (definition.permissionMode ?? 'implement') as NonNullable<AgentDefinition['permissionMode']>
@@ -210,6 +235,16 @@ export async function resumeAgentBackground(args: {
 
   const launchName = meta?.name
   const launchedAt = meta?.launchedAt
+
+  const rootSetAppState =
+    toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
+  let tasksNow: Record<string, unknown> | undefined
+  rootSetAppState(prev => {
+    tasksNow = prev.tasks
+    return prev
+  })
+  const owner = liveAgentOwner(agentId, tasksNow)
+  if (owner !== null) throw new Error(owner.words)
   void writeAgentMetadata(agentId as AgentId, {
     agentType: definition.agentType,
     ...(worktreePath ? { worktreePath } : {}),
@@ -223,16 +258,6 @@ export async function resumeAgentBackground(args: {
       ? { instructionProfile: instructionProfileOverride }
       : {}),
   }).catch(() => {})
-
-  const rootSetAppState =
-    toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
-  let tasksNow: Record<string, unknown> | undefined
-  rootSetAppState(prev => {
-    tasksNow = prev.tasks
-    return prev
-  })
-  const owner = liveAgentOwner(agentId, tasksNow)
-  if (owner !== null) throw new Error(owner.words)
   if (args.automatic !== true) {
     cancelAutomaticResume(agentId)
     operatorPauseGate.lift(agentId)
@@ -282,7 +307,7 @@ export async function resumeAgentBackground(args: {
           description,
           ...(launchName ? { name: launchName } : {}),
           ...(launchedAt !== undefined ? { launchedAt } : {}),
-          effortOverride: meta?.effortOverride,
+          effortOverride: restoredEffort,
           ...(instructionProfileOverride
             ? { instructionProfileOverride }
             : {}),

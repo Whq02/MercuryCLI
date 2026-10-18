@@ -90,11 +90,11 @@ section('§3 seam ratchets — the consumers actually carry the field')
   )
   check(
     'resume THREADS the persisted model into runAgent (resumeAgent)',
-    /restoredModel = meta\?\.model/.test(resumeSrc) && /model: restoredModel/.test(resumeSrc),
+    /restoredModel = \(await resumedModelOverride\(args\.model, toolUseContext\.options\.engineModel\)\) \?\? meta\?\.model/.test(resumeSrc) && /model: restoredModel/.test(resumeSrc),
   )
   check(
     'resume threads the persisted effort override (resumeAgent)',
-    /effortOverride: meta\?\.effortOverride/.test(resumeSrc),
+    /restoredEffort = args\.effort \?\? meta\?\.effortOverride/.test(resumeSrc) && /effortOverride: restoredEffort/.test(resumeSrc),
   )
   check(
     'the model:undefined resume hard-pin is GONE (the refuted seam)',

@@ -49,6 +49,7 @@ import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { getMarketingNameForModel } from '../../utils/model/model.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { taskRow } from '../../rows/project.js'
+import { NOTIFICATION_RESULT_CAP_CHARS } from '../../services/agentResults/summaryRoom.js'
 
 
 const DEFAULT_AGENT_TYPE = 'mercury-crew'
@@ -1005,7 +1006,7 @@ export function appendMessageToLocalAgent(
 }
 
 
-export const NOTIFICATION_RESULT_CAP_CHARS = 16_000
+export { NOTIFICATION_RESULT_CAP_CHARS } from '../../services/agentResults/summaryRoom.js'
 
 function landedWritesWords(paths: readonly string[]): string {
   if (paths.length === 0) return 'no file writes landed'
@@ -1085,11 +1086,12 @@ export function enqueueAgentNotification(args: {
     : ''
   const envelopeSection = args.envelopeBlock ? `\n${args.envelopeBlock}` : ''
 
-  const message = `<${TASK_NOTIFICATION_TAG}>
+  const prefix = `<${TASK_NOTIFICATION_TAG}>
 <${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>${toolUseIdLine}
 <${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
 <${STATUS_TAG}>${args.statusWord ?? args.status}</${STATUS_TAG}>
-<${SUMMARY_TAG}>${summary}</${SUMMARY_TAG}>${structuredSection}${resultSection}${usageSection}${worktreeSection}${envelopeSection}
+<${SUMMARY_TAG}>${summary}</${SUMMARY_TAG}>${structuredSection}`
+  const message = `${prefix}${resultSection}${usageSection}${worktreeSection}${envelopeSection}
 </${TASK_NOTIFICATION_TAG}>`
 
   enqueuePendingNotification({
@@ -1097,6 +1099,7 @@ export function enqueueAgentNotification(args: {
     mode: 'task-notification',
     priority: 'next',
     ...(completedAt !== undefined ? { sentAt: new Date(completedAt).toISOString() } : {}),
+    ...(resultSection !== '' ? { agentCompletion: { agentId: args.taskId, start: prefix.length + '\n<result>'.length, end: prefix.length + resultSection.length - '</result>'.length } } : {}),
   })
 }
 

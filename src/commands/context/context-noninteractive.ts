@@ -44,6 +44,7 @@ export async function buildContextInspectionPlan(params: {
       messages: params.messages,
       owner: params.owner,
       querySource: params.querySource ?? DEFAULT_QUERY_SOURCE,
+      engineModel: params.engineModel,
       contentReplacementState: params.contentReplacementState,
       skipToolNames: skipToolNamesFor(params.tools),
       harnessContextPolicy: null,

@@ -6,6 +6,8 @@ import type {
 } from '../../Tool.js'
 import { closestToolByName, findToolByName, toolMatchesName } from '../../Tool.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
+import { completionIdentity } from '../agentResults/summaryRoom.js'
 import { getLoggingSafeMcpBaseUrl } from '../mcp/utils.js'
 import type { McpServerConfig } from '../mcp/types.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
@@ -848,6 +850,7 @@ async function runTransactionBody(args: {
         tool.name,
         tool.maxResultSizeChars,
         room === null || room.reserved(toolUseID) ? undefined : { shareChars: room.allowance(toolUseID) * 4, words: RESULT_ROOM_WORDS },
+        toolUseContext.options.engineModel,
       )
       if (room !== null) {
         const landed = (processed as { content?: unknown }).content
@@ -862,7 +865,7 @@ async function runTransactionBody(args: {
       return {
         message: createUserMessage({
           content: blocks as never,
-          ...(isSubagent ? {} : { toolUseResult: result!.data }),
+          ...(isSubagent ? tool.name === AGENT_TOOL_NAME && completionIdentity(result!.data) !== null ? { toolUseResult: completionIdentity(result!.data) } : {} : { toolUseResult: result!.data }),
           ...(isSubagent || result!.mcpMeta === undefined
             ? {}
             : { mcpMeta: result!.mcpMeta }),

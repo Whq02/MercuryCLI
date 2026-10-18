@@ -285,6 +285,8 @@ import { getCwd } from '../utils/cwd.js'
 import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { streamIdleTimeoutMsForRoute } from '../services/providers/streamIdleBudget.js'
 import { runWithWorkload } from '../utils/workloadContext.js'
+import { fitCompletionCommands } from '../services/agentResults/summaryRoom.js'
+import { foldNotificationValues } from './headless/turnDriver.js'
 
 export { joinPromptValues, canBatchWith }
 export { removeInterruptedMessage }
@@ -635,10 +637,7 @@ export async function runHeadless(
   const messages: Message[] = loaded.messages
   resumeOf = loaded.resumedSessionId
   turnsRun = priorTurnCount(messages)
-  let contentReplacementState = {
-    ...reconstructContentReplacementState(messages, loaded.contentReplacements ?? []),
-    budgetChars: Infinity,
-  }
+  let contentReplacementState = reconstructContentReplacementState(messages, loaded.contentReplacements ?? [])
 
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
@@ -1106,6 +1105,8 @@ export async function runHeadless(
     onMessage: (message: RowDraft) => void,
     initialNotices: QueuedCommand[] = [],
   ): Promise<void> => {
+    const delivery = command.mode === 'task-notification' ? fitCompletionCommands(batch.length > 0 ? batch : [command], { messages, model: activeModel ?? getEngineModel() }) : []
+    const promptValue = delivery.length > 1 ? foldNotificationValues(delivery.map(member => member.value)) : delivery[0]?.value ?? command.value
     const batchUuids = batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined)
     const batchTail: BatchedPrompt[] =
       command.mode === 'prompt'
@@ -1170,7 +1171,7 @@ export async function runHeadless(
         tellFailedMcpServers()
         for await (const message of ask({
           commands: dedupedCommands,
-          prompt: command.value,
+          prompt: promptValue,
           ...(options.syntaxInput !== undefined && command.value === inputPrompt ? { syntaxInput: options.syntaxInput } : {}),
           promptUuid: command.uuid,
           ...(batchUuids.length > 0 ? { batchUuids } : {}),
@@ -1817,10 +1818,7 @@ export async function runHeadless(
         restoreSessionMetadata(resumed)
         messages.splice(0, messages.length, ...resumed.messages)
         turnsRun = priorTurnCount(messages)
-        contentReplacementState = {
-          ...reconstructContentReplacementState(messages, resumed.contentReplacements ?? []),
-          budgetChars: Infinity,
-        }
+        contentReplacementState = reconstructContentReplacementState(messages, resumed.contentReplacements ?? [])
       } else {
         switchSession(sid as SessionId, claimedHome)
       }

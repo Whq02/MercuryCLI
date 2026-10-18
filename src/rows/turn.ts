@@ -283,10 +283,7 @@ export class Conversation {
     this.config = config
     this.mutableMessages = [...(config.initialMessages ?? [])]
     this.readFileState = config.readFileState
-    this.contentReplacementState = config.contentReplacementState ?? {
-      ...reconstructContentReplacementState(this.mutableMessages, []),
-      budgetChars: Infinity,
-    }
+    this.contentReplacementState = config.contentReplacementState ?? reconstructContentReplacementState(this.mutableMessages, [])
     this.abortController = config.abortController ?? new AbortController()
     this.userSpecifiedModel = config.userSpecifiedModel
   }
@@ -464,7 +461,7 @@ export class Conversation {
       dynamicSkillDirTriggers: new Set<string>(),
     })
     if (options?.initialNotices?.length) {
-      const attachments = await getQueuedCommandAttachments(options.initialNotices)
+      const attachments = await getQueuedCommandAttachments(options.initialNotices, { messages: this.mutableMessages, model: resolvedModel })
       this.mutableMessages.push(...attachments.map(createAttachmentMessage))
       if (!persistenceDisabled) await this.recordDelta(this.mutableMessages)
     }

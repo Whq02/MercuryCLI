@@ -148,7 +148,7 @@ export async function carryRunnerAcrossRestart(ports: RestartCarryPorts): Promis
   enqueuePendingNotification({ value: wrapInSystemReminder(row), mode: 'task-notification', priority: 'next', ridesNextWords: true })
   for (const { receipt, notice } of deliveries) {
     if (notice.status !== 'killed') emitTaskEnded(receipt.agentId, notice.status, { toolUseId: receipt.toolUseId, summary: receipt.description })
-    enqueuePendingNotification({ value: notice.value, mode: 'task-notification', priority: 'next', ridesNextWords: true, ...(notice.at !== undefined ? { sentAt: notice.at } : {}) })
+    enqueuePendingNotification({ value: notice.value, mode: 'task-notification', priority: 'next', ridesNextWords: true, ...(notice.at !== undefined ? { sentAt: notice.at } : {}), ...(notice.agentCompletion !== undefined ? { agentCompletion: notice.agentCompletion } : {}) })
   }
   return { ...counts, requeued, recoveredCommandIds, row }
 }

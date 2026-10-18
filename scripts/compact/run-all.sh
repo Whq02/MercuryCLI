@@ -44,6 +44,7 @@
 # gate-watch: src/components/messages/SystemTextMessage.tsx src/ink/components/TerminalSizeContext.tsx src/ink/stringWidth.ts
 # gate-watch: src/services/tools/toolExecution.ts src/services/tools/toolOrchestration.ts src/services/run/resultRoom.ts src/tools/FileReadTool/limits.ts src/tools/BashTool/BashTool.tsx src/tools/GrepTool/GrepTool.ts src/utils/sessionStorage/logs.ts
 # gate-watch: src/services/providers/gemini/geminiCallModel.ts src/services/providers/local/localCallModel.ts src/services/api/outputFit.ts
+# gate-watch: src/constants/toolLimits.ts src/cli/run.ts src/commands/context/context-noninteractive.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

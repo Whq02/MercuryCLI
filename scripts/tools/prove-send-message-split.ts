@@ -171,7 +171,7 @@ check('SendMessage prompt equals the new contract without TaskUpdate', getPrompt
 check('TaskUpdate line remains conditional', getPrompt(new Set(['TaskUpdate'])) === expectedSend + '\n- Structured status updates belong in TaskUpdate, not in a SendMessage message.')
 const expectedSchemas = [
   { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to send to: the id its launch receipt names or the name its launch gave it; "main" from a background crewmate reaches the agent that launched it' }, message: { type: 'string', description: 'The message' } }, required: ['to', 'message'] },
-  { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to resume: the id its launch receipt names or the name its launch gave it' }, message: { type: 'string', description: 'Its next turn: what to do, written as you would brief it' } }, required: ['to', 'message'] },
+  { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to resume: the id its launch receipt names or the name its launch gave it' }, message: { type: 'string', description: 'Its next turn: what to do, written as you would brief it' }, model: { description: 'Model for the resumed turn of a finished crewmate; omitted, its recorded model stays. Read mercury://models for available ids.', type: 'string' }, effort: { description: 'Effort for the resumed turn; omitted, its recorded effort stays. Max is admitted; an unsupported lower tier is refused, not clamped.', type: 'string', enum: ['low', 'medium', 'high', 'xhigh', 'max'] } }, required: ['to', 'message'] },
 ]
 for (const [index, tool] of [SendMessageTool, ResumeAgentTool].entries()) {
   if (!tool) continue
@@ -181,7 +181,7 @@ for (const [index, tool] of [SendMessageTool, ResumeAgentTool].entries()) {
   const description = await tool.prompt({ tools: [] } as never)
   const bytes = Buffer.byteLength(JSON.stringify({ name: tool.name, description, input_schema: schema, eager_input_streaming: true, defer_loading: true }))
   console.log(`${tool.name} definition bytes=${bytes}`)
-  check(`${tool.name} definition has the specified byte budget`, bytes === [1346, 1393][index])
+  check(`${tool.name} definition has the specified byte budget`, bytes === [1346, 1783][index])
   check(`${tool.name} is deferred with a search hint`, tool.shouldDefer === true && Boolean(tool.searchHint))
 }
 for (const task of Object.values(state.tasks)) if (task.type === 'local_agent') stop(task.id)

@@ -102,6 +102,7 @@ export interface OpenaiResponsesRequest {
   stream: true
   include?: string[]
   prompt_cache_key?: string
+  prompt_cache_retention?: '24h'
   text?: {
     verbosity?: 'low' | 'medium' | 'high'
     format?: {

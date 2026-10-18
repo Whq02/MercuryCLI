@@ -10,6 +10,7 @@ import {
 import { AGENT_MESSAGE_STATUS } from '../../constants/agentMessage.js'
 import type { AppState } from '../../state/AppStateStore.js'
 import type { Message } from '../../types/message.js'
+import type { QueuedCommand } from '../../types/textInputTypes.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { sliceHeadAtGrapheme } from '../../utils/intl.js'
 import { isSaturnOrigin, type SaturnOrigin } from '../../utils/messages/noticeRows.js'
@@ -322,6 +323,7 @@ type QueueLogRow = {
   sentAt?: string
   at?: string
   origin?: SaturnOrigin
+  agentCompletion?: QueuedCommand['agentCompletion']
 }
 
 type QueueOperationLine = {
@@ -361,6 +363,7 @@ function queueLogRowOf(line: string): QueueLogRow | null {
     ...(typeof fields.sentAt === 'string' ? { sentAt: fields.sentAt } : {}),
     ...(typeof fields.timestamp === 'string' ? { at: fields.timestamp } : {}),
     ...(isSaturnOrigin(fields.origin) ? { origin: fields.origin } : {}),
+    ...(typeof fields.agentCompletion === 'object' && fields.agentCompletion !== null ? { agentCompletion: fields.agentCompletion as QueuedCommand['agentCompletion'] } : {}),
   }
 }
 
@@ -410,6 +413,7 @@ export type HeldAgentNotice = {
   value: string
   at?: string
   operatorStop: boolean
+  agentCompletion?: QueuedCommand['agentCompletion']
   landedWrites?: string
 }
 
@@ -433,6 +437,7 @@ export function heldAgentNotices(lines: Iterable<string>, agentIds: ReadonlySet<
       taskId,
       status: status as HeldAgentNotice['status'],
       value,
+      ...(row.agentCompletion !== undefined ? { agentCompletion: row.agentCompletion } : {}),
       ...(row.sentAt !== undefined ? { at: row.sentAt } : row.at !== undefined ? { at: row.at } : {}),
       operatorStop: operatorStopWords !== '' && summary.includes(operatorStopWords),
       ...(landed !== null ? { landedWrites: landed[1]!.trim() } : {}),

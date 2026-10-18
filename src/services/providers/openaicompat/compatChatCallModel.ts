@@ -544,9 +544,12 @@ export async function* compatChatCallModel(
           ...(profile.omitsToolChoice ? {} : { tool_choice: 'auto' as const }),
         }
       : {}),
-    extra: operatorEffort !== undefined && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined
-      ? { ...builtExtras, reasoning_effort: operatorEffort }
-      : builtExtras,
+    extra: {
+      ...(operatorEffort !== undefined && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined
+        ? { ...builtExtras, reasoning_effort: operatorEffort }
+        : builtExtras),
+      ...(profile.lane === 'openai-compat' || profile.lane === 'openrouter' ? { prompt_cache_key: cacheDomainKey } : {}),
+    },
   }
   const effortFact =
     profile.effortOnWire?.(request.extra ?? {}) ??
