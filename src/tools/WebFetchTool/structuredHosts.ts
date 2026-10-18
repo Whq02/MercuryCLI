@@ -103,6 +103,7 @@ function classifyStructuredFetchUrl(rawUrl: string): StructuredTarget | null {
   } catch {
     return null
   }
+  if (parsed.port !== '') return null
   const host = parsed.hostname.toLowerCase().replace(/^www\./, '')
   const decodedPath = decodeSafePath(parsed.pathname)
   if (decodedPath === null) return null

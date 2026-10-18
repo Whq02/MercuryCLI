@@ -10,6 +10,9 @@ const HOME = mkdtempSync(join(tmpdir(), 'webfetch-structured-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
+process.env.GITHUB_TOKEN = 'ghp_fixture_review_not_a_secret'
+process.env.GH_TOKEN = 'ghp_fixture_review_not_a_secret'
+process.env.NPM_TOKEN = 'npm_fixture_review_not_a_secret'
 
 const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.js')
 const { clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.js')
@@ -36,7 +39,7 @@ const ALLOWED_FIXTURE_HOSTS = new Set([
   'fixture.example',
 ])
 
-const seen: Array<{ url: string; accept: string | null; ua: string | null }> = []
+const seen: Array<{ url: string; accept: string | null; ua: string | null; headers: Record<string, string> }> = []
 let oversizedBytes = Buffer.alloc(2 * 1024 * 1024 + 4096, 0x61)
 
 const server = Bun.serve({
@@ -48,6 +51,7 @@ const server = Bun.serve({
       url: targetUrl,
       accept: request.headers.get('accept'),
       ua: request.headers.get('user-agent'),
+      headers: Object.fromEntries(request.headers),
     })
     const parsed = new URL(targetUrl)
     const host = parsed.hostname
@@ -91,6 +95,17 @@ const server = Bun.serve({
         return new Response('{"message":"API rate limit exceeded"}', {
           status: 429,
           headers: { 'Content-Type': 'application/json', 'Retry-After': '90' },
+        })
+      }
+      if (path === '/repos/acme/limited') {
+        return new Response('{"message":"API rate limit exceeded for 203.0.113.9."}', {
+          status: 403,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-ratelimit-limit': '60',
+            'x-ratelimit-remaining': '0',
+            'x-ratelimit-reset': String(Math.floor(Date.now() / 1000) + 3000),
+          },
         })
       }
       return new Response('{"message":"Not Found"}', { status: 404, headers: { 'Content-Type': 'application/json' } })
@@ -405,6 +420,54 @@ try {
       DESCRIPTION.startsWith('Reads a public page as markdown in the page’s own words.') &&
         getPrompt().includes(DESCRIPTION),
     )
+  }
+  section('§6 review — documented shapes only, redirects within the host, large registry documents, the rate-limit reset, no user credentials, deny rules in every mode')
+  {
+    clearWebFetchCache()
+    const beforePort = seen.length
+    const portPage = await callFetch('https://github.com:8443/acme/widget')
+    check(
+      'shape: a URL with an explicit port is read as the page it names, never answered by the GitHub API',
+      !seen.slice(beforePort).some(s => s.url.startsWith('https://api.github.com/')) && portPage.result.includes('Fallback GitHub HTML'),
+      JSON.stringify(seen.slice(beforePort).map(s => s.url)),
+    )
+
+    clearWebFetchCache()
+    const limited = await callFetch('https://github.com/acme/limited')
+    const requestsAfterLimit = seen.length
+    const limitedAgain = await callFetch('https://github.com/acme/limited')
+    check(
+      "rate limit: GitHub's unauthenticated 403 is read as a wait of about its reset (3000s); a repeat sends nothing",
+      limited.code === 403 && /backed off for 30\d\ds/.test(limited.result) && limitedAgain.code === 429 && seen.length === requestsAfterLimit,
+      `${limited.result}\n---\n${limitedAgain.result}`,
+    )
+
+    const apiCalls = seen.filter(s => /^https:\/\/(api\.github\.com|registry\.npmjs\.org|pypi\.org\/pypi|crates\.io\/api|export\.arxiv\.org|api\.stackexchange\.com)/.test(s.url))
+    check(
+      'credentials: no request to a structured host carries Authorization, Cookie or a proxy credential, with token variables set',
+      apiCalls.length >= 10 && apiCalls.every(s => s.headers.authorization === undefined && s.headers.cookie === undefined && s.headers['proxy-authorization'] === undefined),
+      JSON.stringify(apiCalls.filter(s => s.headers.authorization !== undefined || s.headers.cookie !== undefined).map(s => s.url)),
+    )
+
+    const { hasPermissionsToUseTool } = await import('../../src/utils/permissions/permissions.js')
+    for (const mode of ['default', 'sovereign'] as const) {
+      const context = {
+        abortController: new AbortController(),
+        getAppState: () => ({
+          toolPermissionContext: {
+            ...getEmptyToolPermissionContext(),
+            mode,
+            alwaysDenyRules: { userSettings: ['WebFetch(domain:github.com)'] },
+            isBypassPermissionsModeAvailable: mode === 'sovereign',
+          },
+        }),
+        setAppState: () => {},
+        messages: [],
+        options: { isNonInteractiveSession: true, tools: [] },
+      }
+      const verdict = await hasPermissionsToUseTool(WebFetchTool as never, { url: 'https://github.com/acme/widget' }, context as never, { message: { id: 'msg_review' } } as never, 'tu_review')
+      check(`deny: a host deny rule refuses a GitHub fetch through the permission engine in ${mode} mode`, verdict.behavior === 'deny', JSON.stringify(verdict).slice(0, 240))
+    }
   }
 } finally {
   axios.get = realGet
