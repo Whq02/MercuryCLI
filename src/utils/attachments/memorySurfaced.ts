@@ -18,7 +18,7 @@ function laneKey(context: Pick<ToolUseContext, 'owner' | 'agentId'>): string {
   return String(ownerFromToolUseContext(context))
 }
 
-export function surfacedMemoryIds(messages: readonly Message[] | undefined): Set<string> {
+function surfacedMemoryIds(messages: readonly Message[] | undefined): Set<string> {
   const ids = new Set<string>()
   const scan = (text: string): void => {
     for (const match of text.matchAll(RECORD_MARK)) ids.add(match[1] ? `seq:${match[1]}` : match[2]!)
