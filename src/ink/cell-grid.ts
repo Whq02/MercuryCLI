@@ -1,220 +1,223 @@
-import {
-  type AnsiCode,
-  ansiCodesToString,
-  diffAnsiCodes,
-} from '@alcalzone/ansi-tokenize'
-import {
-  type Point,
-  type Rectangle,
-  type Size,
-  unionRect,
-} from './layout/geometry.js'
+import { type AnsiCode, ansiCodesToString, diffAnsiCodes } from '@alcalzone/ansi-tokenize'
+import { type Point, type Rectangle, type Size, unionRect } from './layout/geometry.js'
 import { BEL, ESC, SEP } from './termio/ansi.js'
 import * as warn from './warn.js'
 
+export const enum CellWidth { Narrow = 0, Wide = 1, SpacerTail = 2, SpacerHead = 3 }
 
-export class CharPool {
-  private strings: string[] = [' ', '']
-  private byString = new Map<string, number>([
-    [' ', 0],
-    ['', 1],
-  ])
-  private ascii = new Int32Array(128).fill(-1)
+type Link = string
 
-  constructor() {
-    this.ascii[32] = 0
+export type Hyperlink = Link | undefined
+
+export type Cell = { char: string; styleId: number; width: CellWidth; hyperlink: Hyperlink }
+
+type CellPlanes = { cells: Int32Array; cells64: BigInt64Array; noSelect: Uint8Array }
+
+type GridPools = { charPool: CharPool; hyperlinkPool: HyperlinkPool }
+
+export type Screen = Size & CellPlanes & GridPools & { emptyStyleId: number; damage: Rectangle | undefined; softWrap: Int32Array }
+
+const STYLE_OFFSET = 17
+const LINK_OFFSET = 2
+const LINK_MASK = 0x7fff
+const WIDTH_BITS = 3
+const SPACE_VISIBLE_MASK = 0x3fffc
+const BLANK_GLYPH = 0
+const SPACER_GLYPH = 1
+const EMPTY_CELL = 0n
+
+const packWord = (styleId: number, linkId: number, width: number): number => (styleId << STYLE_OFFSET) | (linkId << LINK_OFFSET) | width
+const linkOf = (word: number): number => (word >>> LINK_OFFSET) & LINK_MASK
+
+const outside = (grid: Screen, column: number, row: number): boolean => column < 0 || row < 0 || column >= grid.width || row >= grid.height
+const spacer = (width: number): boolean => width === CellWidth.SpacerTail || width === CellWidth.SpacerHead
+
+interface Interning<Value> {
+  intern(value: Value): number
+  get(slot: number): Value
+}
+
+function asciiSlotTable(): Int32Array {
+  const slots = new Int32Array(128).fill(-1)
+  slots[32] = 0
+  return slots
+}
+
+export class CharPool implements Interning<string> {
+  private glyphs: string[] = [' ', '']
+  private slotOf = new Map<string, number>([[' ', 0], ['', 1]])
+  private asciiSlots = asciiSlotTable()
+
+  intern(glyph: string): number {
+    if (glyph.length === 1) {
+      const code = glyph.charCodeAt(0)
+      if (code < 128) return this.asciiSlots[code] === -1 ? this.rememberAscii(code, glyph) : this.asciiSlots[code]!
+    }
+    return this.slotOf.get(glyph) ?? this.remember(glyph)
   }
 
-  intern(char: string): number {
-    if (char.length === 1) {
-      const code = char.charCodeAt(0)
-      if (code < 128) {
-        const hit = this.ascii[code]!
-        if (hit !== -1) return hit
-        const id = this.strings.length
-        this.strings.push(char)
-        this.ascii[code] = id
-        return id
-      }
-    }
-    let id = this.byString.get(char)
-    if (id === undefined) {
-      id = this.strings.length
-      this.strings.push(char)
-      this.byString.set(char, id)
-    }
-    return id
+  private rememberAscii(code: number, glyph: string): number {
+    const slot = this.glyphs.length
+    this.glyphs.push(glyph)
+    this.asciiSlots[code] = slot
+    return slot
   }
 
-  get(index: number): string {
-    return this.strings[index] ?? ' '
+  private remember(glyph: string): number {
+    const slot = this.glyphs.length
+    this.glyphs.push(glyph)
+    this.slotOf.set(glyph, slot)
+    return slot
+  }
+
+  get(slot: number): string {
+    return this.glyphs[slot] ?? ' '
   }
 }
 
-export class HyperlinkPool {
-  private strings: string[] = ['']
-  private byString = new Map<string, number>()
+export class HyperlinkPool implements Interning<string | undefined> {
+  private links: string[] = ['']
+  private slotOf = new Map<string, number>()
 
-  intern(hyperlink: string | undefined): number {
-    if (!hyperlink) return 0
-    const known = this.byString.get(hyperlink)
+  intern(link: string | undefined): number {
+    if (!link) return 0
+    const known = this.slotOf.get(link)
     if (known !== undefined) return known
-    const id = this.byString.size + 1
-    this.byString.set(hyperlink, id)
-    this.strings[id] = hyperlink
-    return id
+    const slot = this.slotOf.size + 1
+    this.slotOf.set(link, slot)
+    this.links[slot] = link
+    return slot
   }
 
-  get(id: number): string | undefined {
-    return id === 0 ? undefined : this.strings[id]
+  get(slot: number): string | undefined {
+    return slot === 0 ? undefined : this.links[slot]
   }
 }
 
-const VISIBLE_ON_SPACE = new Set([
-  '\x1b[49m',
-  '\x1b[27m',
-  '\x1b[24m',
-  '\x1b[29m',
-  '\x1b[55m',
-])
-
-const INVERSE_CODE: AnsiCode = { type: 'ansi', code: '\x1b[7m', endCode: '\x1b[27m' }
-const BOLD_CODE: AnsiCode = { type: 'ansi', code: '\x1b[1m', endCode: '\x1b[22m' }
-const UNDERLINE_CODE: AnsiCode = { type: 'ansi', code: '\x1b[4m', endCode: '\x1b[24m' }
-const YELLOW_FG_CODE: AnsiCode = { type: 'ansi', code: '\x1b[33m', endCode: '\x1b[39m' }
-
+const FG_END = '\x1b[39m'
+const BG_END = '\x1b[49m'
 const INVERSE_END = '\x1b[27m'
 const BOLD_END = '\x1b[22m'
 const UNDERLINE_END = '\x1b[24m'
-const TRANSITION_KEY_SPAN = 0x100000
+const VISIBLE_ON_SPACE: ReadonlySet<string> = new Set([BG_END, INVERSE_END, UNDERLINE_END, '\x1b[29m', '\x1b[55m'])
+const INVERSE_CODE: AnsiCode = { type: 'ansi', code: '\x1b[7m', endCode: INVERSE_END }
+const BOLD_CODE: AnsiCode = { type: 'ansi', code: '\x1b[1m', endCode: BOLD_END }
+const UNDERLINE_CODE: AnsiCode = { type: 'ansi', code: '\x1b[4m', endCode: UNDERLINE_END }
+const MATCH_FG_CODE: AnsiCode = { type: 'ansi', code: '\x1b[33m', endCode: FG_END }
+const EMPHASIS_CODES: ReadonlyArray<readonly [string, AnsiCode]> = [[INVERSE_END, INVERSE_CODE], [BOLD_END, BOLD_CODE], [UNDERLINE_END, UNDERLINE_CODE]]
+const PAIR_KEY_SPAN = 0x100000
 
-function rememberPair(cache: Map<number, string>, a: number, b: number, compute: (a: number, b: number) => string): string {
-  const key = a * TRANSITION_KEY_SPAN + b
+const dropEnds = (codes: readonly AnsiCode[], ...ends: string[]): AnsiCode[] => codes.filter(code => !ends.includes(code.endCode))
+const carriesEnd = (codes: readonly AnsiCode[], end: string): boolean => codes.some(code => code.endCode === end)
+
+const currentMatchCodes = (base: readonly AnsiCode[]): AnsiCode[] => [
+  ...dropEnds(base, FG_END, BG_END),
+  MATCH_FG_CODE,
+  ...EMPHASIS_CODES.filter(([end]) => !carriesEnd(base, end)).map(([, code]) => code),
+]
+
+const rememberPair = (cache: Map<number, string>, from: number, to: number, serialise: (from: number, to: number) => string): string => {
+  const key = from * PAIR_KEY_SPAN + to
   const known = cache.get(key)
   if (known !== undefined) return known
-  const value = compute(a, b)
-  cache.set(key, value)
-  return value
+  const bytes = serialise(from, to)
+  cache.set(key, bytes)
+  return bytes
 }
 
-const withoutEnds = (codes: readonly AnsiCode[], ...ends: string[]): AnsiCode[] =>
-  codes.filter(code => !ends.includes(code.endCode))
-
-const carries = (codes: readonly AnsiCode[], end: string): boolean => codes.some(code => code.endCode === end)
-
-function currentMatchCodesOf(base: readonly AnsiCode[]): AnsiCode[] {
-  const emphasis: Array<[string, AnsiCode]> = [[INVERSE_END, INVERSE_CODE], [BOLD_END, BOLD_CODE], [UNDERLINE_END, UNDERLINE_CODE]]
-  return [
-    ...withoutEnds(base, FG_END, BG_END),
-    YELLOW_FG_CODE,
-    ...emphasis.filter(([end]) => !carries(base, end)).map(([, code]) => code),
-  ]
-}
-
-export class StylePool {
-  private ids = new Map<string, number>()
-  private styles: AnsiCode[][] = []
-  private transitionCache = new Map<number, string>()
-  readonly none: number
-
-  constructor() {
-    this.none = this.intern([])
-  }
-
-  intern(styles: AnsiCode[]): number {
-    const key = styles.length === 0 ? '' : styles.map(s => s.code).join('\0')
-    let id = this.ids.get(key)
-    if (id === undefined) {
-      const raw = this.styles.length
-      this.styles.push(styles.length === 0 ? [] : styles)
-      let visible = 0
-      for (const s of styles) {
-        if (VISIBLE_ON_SPACE.has(s.endCode)) {
-          visible = 1
-          break
-        }
-      }
-      id = (raw << 1) | visible
-      this.ids.set(key, id)
-    }
-    return id
-  }
-
-  get(id: number): AnsiCode[] {
-    return this.styles[id >>> 1] ?? []
-  }
-
-  private readonly serialiseTransition = (fromId: number, toId: number): string =>
-    ansiCodesToString(diffAnsiCodes(this.get(fromId), this.get(toId)))
-  transition(fromId: number, toId: number): string {
-    return fromId === toId ? '' : rememberPair(this.transitionCache, fromId, toId, this.serialiseTransition)
-  }
-
-
-  private inverseCache = new Map<number, number>()
-  withInverse(baseId: number): number {
-    let id = this.inverseCache.get(baseId)
-    if (id === undefined) {
-      const base = this.get(baseId)
-      const alreadyInverse = base.some(c => c.endCode === '\x1b[27m')
-      id = alreadyInverse ? baseId : this.intern([...base, INVERSE_CODE])
-      this.inverseCache.set(baseId, id)
-    }
-    return id
-  }
-
-  private derived(cache: Map<number, number>, baseId: number, build: (base: AnsiCode[]) => number): number {
-    const known = cache.get(baseId)
-    if (known !== undefined) return known
-    const id = build(this.get(baseId))
-    cache.set(baseId, id)
-    return id
-  }
-
-  private currentMatchCache = new Map<number, number>()
-  private readonly buildCurrentMatch = (base: AnsiCode[]): number => this.intern(currentMatchCodesOf(base))
-  withCurrentMatch(baseId: number): number {
-    return this.derived(this.currentMatchCache, baseId, this.buildCurrentMatch)
-  }
-
-  private selectionBgCode: AnsiCode | null = null
-  private selectionBgCache = new Map<number, number>()
-  setSelectionBg(bg: AnsiCode | null): void {
-    const held = this.selectionBgCode?.code ?? null
-    if (held === (bg?.code ?? null)) return
-    this.selectionBgCode = bg
-    this.selectionBgCache.clear()
-  }
-
-  private readonly buildSelectionBg = (base: AnsiCode[]): number =>
-    this.intern([...withoutEnds(base, BG_END, INVERSE_END), this.selectionBgCode!])
-  withSelectionBg(baseId: number): number {
-    if (this.selectionBgCode === null) return this.withInverse(baseId)
-    return this.derived(this.selectionBgCache, baseId, this.buildSelectionBg)
-  }
-
-
+export class StylePool implements Interning<AnsiCode[]> {
+  private idOfKey = new Map<string, number>()
+  private styles: Array<AnsiCode[]> = []
+  private transitions = new Map<number, string>()
+  readonly none = this.intern([])
+  private inverseOf = new Map<number, number>()
+  private currentMatchOf = new Map<number, number>()
+  private selectionGround: AnsiCode | null = null
+  private selectionBgOf = new Map<number, number>()
   private recessCfg: RecessTransform | null = null
   private recessCfgKey = ''
-  private recessCache = new Map<number, number>()
+  private recessOf = new Map<number, number>()
   private recessIds = new Set<number>()
   private recessBudgetWarned = false
 
+  intern(codes: AnsiCode[]): number {
+    const key = codes.length === 0 ? '' : codes.map(code => code.code).join('\0')
+    const known = this.idOfKey.get(key)
+    if (known !== undefined) return known
+    const raw = this.styles.length
+    this.styles.push(codes.length === 0 ? [] : codes)
+    const visible = codes.some(code => VISIBLE_ON_SPACE.has(code.endCode)) ? 1 : 0
+    const styleId = (raw << 1) | visible
+    this.idOfKey.set(key, styleId)
+    return styleId
+  }
+
+  get(styleId: number): AnsiCode[] {
+    const codes = this.styles[styleId >>> 1]
+    return codes === undefined ? [] : codes
+  }
+
+  private readonly serialiseTransition = (fromId: number, toId: number): string => ansiCodesToString(diffAnsiCodes(this.get(fromId), this.get(toId)))
+
+  transition(from: number, to: number): string {
+    return from === to ? '' : rememberPair(this.transitions, from, to, this.serialiseTransition)
+  }
+
+  private derive(cache: Map<number, number>, baseId: number, build: (base: AnsiCode[]) => number): number {
+    const known = cache.get(baseId)
+    if (known !== undefined) return known
+    const derived = build(this.get(baseId))
+    cache.set(baseId, derived)
+    return derived
+  }
+
+  private readonly buildInverse = (base: AnsiCode[]): number => this.intern([...base, INVERSE_CODE])
+  withInverse(styleId: number): number {
+    return this.derive(this.inverseOf, styleId, base => (carriesEnd(base, INVERSE_END) ? styleId : this.buildInverse(base)))
+  }
+
+  private readonly buildCurrentMatch = (base: AnsiCode[]): number => this.intern(currentMatchCodes(base))
+  withCurrentMatch(styleId: number): number {
+    return this.derive(this.currentMatchOf, styleId, this.buildCurrentMatch)
+  }
+
+  setSelectionBg(code: AnsiCode | null): void {
+    const held = this.selectionGround?.code ?? null
+    if (held === (code?.code ?? null)) return
+    this.selectionGround = code
+    this.selectionBgOf.clear()
+  }
+
+  private readonly buildSelectionBg = (base: AnsiCode[]): number => this.intern([...dropEnds(base, BG_END, INVERSE_END), this.selectionGround!])
+  withSelectionBg(styleId: number): number {
+    return this.selectionGround === null ? this.withInverse(styleId) : this.derive(this.selectionBgOf, styleId, this.buildSelectionBg)
+  }
+
   setRecessTransform(cfg: RecessTransform | null): void {
-    const key = cfg
-      ? `${cfg.canvas.join(',')}|${cfg.ink.join(',')}|${cfg.quantize256 ? 1 : 0}`
-      : ''
+    const key = cfg ? `${cfg.canvas.join(',')}|${cfg.ink.join(',')}|${cfg.quantize256 ? 1 : 0}` : ''
     if (key === this.recessCfgKey) return
     this.recessCfgKey = key
     this.recessCfg = cfg
-    this.recessCache.clear()
+    this.recessOf.clear()
     this.recessIds.clear()
+  }
+
+  private recessed(base: AnsiCode[], cfg: RecessTransform): number {
+    const codes: AnsiCode[] = []
+    let inked = false
+    for (const code of base) {
+      if (code.endCode === FG_END) inked = true
+      codes.push(code.endCode === FG_END ? recessColorCode(code, 38, cfg) : code.endCode === BG_END ? recessColorCode(code, 48, cfg) : code)
+    }
+    if (!inked) codes.push(colorCode(38, mixToward(cfg.ink, cfg.canvas, RECESS_MIX), cfg.quantize256))
+    const recessedId = this.intern(codes)
+    this.recessIds.add(recessedId)
+    return recessedId
   }
 
   withRecess(baseId: number): number {
     const cfg = this.recessCfg
-    if (cfg === null) return baseId
-    if (this.recessIds.has(baseId)) return baseId
+    if (cfg === null || this.recessIds.has(baseId)) return baseId
     if (this.styles.length >= 16000) {
       if (!this.recessBudgetWarned) {
         this.recessBudgetWarned = true
@@ -222,816 +225,540 @@ export class StylePool {
       }
       return baseId
     }
-    let id = this.recessCache.get(baseId)
-    if (id === undefined) {
-      const out: AnsiCode[] = []
-      let sawFg = false
-      for (const c of this.get(baseId)) {
-        if (c.endCode === FG_END) {
-          sawFg = true
-          out.push(recessColorCode(c, 38, cfg))
-        } else if (c.endCode === BG_END) {
-          out.push(recessColorCode(c, 48, cfg))
-        } else {
-          out.push(c)
-        }
-      }
-      if (!sawFg) {
-        const [r, g, b] = mixToward(cfg.ink, cfg.canvas, RECESS_MIX)
-        out.push(makeColorCode(38, r, g, b, cfg.quantize256))
-      }
-      id = this.intern(out)
-      this.recessIds.add(id)
-      this.recessCache.set(baseId, id)
-    }
-    return id
+    return this.derive(this.recessOf, baseId, base => this.recessed(base, cfg))
   }
 }
 
-
-export type RecessTransform = {
-  canvas: readonly [number, number, number]
-  ink: readonly [number, number, number]
-  quantize256: boolean
-}
+export type RecessTransform = { canvas: readonly [number, number, number]; ink: readonly [number, number, number]; quantize256: boolean }
 
 export const RECESS_MIX = 0.5
 
-const FG_END = '\x1b[39m'
-const BG_END = '\x1b[49m'
+type Rgb = [number, number, number]
 
-export function mixToward(
-  from: readonly [number, number, number],
-  to: readonly [number, number, number],
-  t: number,
-): [number, number, number] {
-  return [
-    Math.round(from[0] + (to[0] - from[0]) * t),
-    Math.round(from[1] + (to[1] - from[1]) * t),
-    Math.round(from[2] + (to[2] - from[2]) * t),
-  ]
+export function mixToward(from: readonly [number, number, number], to: readonly [number, number, number], t: number): Rgb {
+  const blend = (channel: 0 | 1 | 2): number => Math.round(from[channel] + (to[channel] - from[channel]) * t)
+  return [blend(0), blend(1), blend(2)]
 }
 
-export function xterm256ToRgb(n: number): [number, number, number] | null {
-  if (n < 16) return null
-  if (n <= 231) {
-    const i = n - 16
-    const step = (v: number): number => (v === 0 ? 0 : 55 + v * 40)
-    return [step(Math.floor(i / 36)), step(Math.floor((i % 36) / 6)), step(i % 6)]
-  }
-  if (n <= 255) {
-    const v = 8 + 10 * (n - 232)
-    return [v, v, v]
-  }
-  return null
+const cubeLevel = (v: number): number => (v === 0 ? 0 : 55 + v * 40)
+
+const cubeRgb = (i: number): Rgb => [cubeLevel(Math.floor(i / 36)), cubeLevel(Math.floor((i % 36) / 6)), cubeLevel(i % 6)]
+
+const grayRgb = (n: number): Rgb => {
+  const v = 8 + 10 * (n - 232)
+  return [v, v, v]
+}
+
+export function xterm256ToRgb(n: number): Rgb | null {
+  return n < 16 ? null : n <= 231 ? cubeRgb(n - 16) : n <= 255 ? grayRgb(n) : null
 }
 
 export function rgbToXterm256(r: number, g: number, b: number): number {
   const level = (v: number): number => (v < 48 ? 0 : v < 115 ? 1 : Math.min(5, Math.floor((v - 35) / 40)))
   const cube = [level(r), level(g), level(b)]
-  const cv = (v: number): number => (v === 0 ? 0 : 55 + v * 40)
-  const cubeRgb = [cv(cube[0]!), cv(cube[1]!), cv(cube[2]!)]
+  const nearestCube = [cubeLevel(cube[0]!), cubeLevel(cube[1]!), cubeLevel(cube[2]!)]
   const gray = Math.max(0, Math.min(23, Math.round((0.299 * r + 0.587 * g + 0.114 * b - 8) / 10)))
   const gv = 8 + 10 * gray
-  const dist = (a: number[], x: number, y: number, z: number): number =>
-    (a[0]! - x) ** 2 + (a[1]! - y) ** 2 + (a[2]! - z) ** 2
-  return dist(cubeRgb, r, g, b) <= dist([gv, gv, gv], r, g, b)
-    ? 16 + 36 * cube[0]! + 6 * cube[1]! + cube[2]!
-    : 232 + gray
+  const distance = (a: number[], x: number, y: number, z: number): number => (a[0]! - x) ** 2 + (a[1]! - y) ** 2 + (a[2]! - z) ** 2
+  return distance(nearestCube, r, g, b) <= distance([gv, gv, gv], r, g, b) ? 16 + 36 * cube[0]! + 6 * cube[1]! + cube[2]! : 232 + gray
 }
 
-function makeColorCode(
-  base: 38 | 48,
-  r: number,
-  g: number,
-  b: number,
-  quantize256: boolean,
-): AnsiCode {
-  const code = quantize256
-    ? `\x1b[${base};5;${rgbToXterm256(r, g, b)}m`
-    : `\x1b[${base};2;${r};${g};${b}m`
-  return { type: 'ansi', code, endCode: base === 38 ? FG_END : BG_END }
+type ColorChannel = 38 | 48
+
+const colorCode = (channel: ColorChannel, [r, g, b]: Rgb, quantize256: boolean): AnsiCode => {
+  const code = quantize256 ? `\x1b[${channel};5;${rgbToXterm256(r, g, b)}m` : `\x1b[${channel};2;${r};${g};${b}m`
+  return { type: 'ansi', code, endCode: channel === 38 ? FG_END : BG_END }
 }
 
-function recessColorCode(c: AnsiCode, base: 38 | 48, cfg: RecessTransform): AnsiCode {
-  const m24 = new RegExp(`^\\x1b\\[${base};2;(\\d+);(\\d+);(\\d+)m$`).exec(c.code)
-  if (m24) {
-    const [r, g, b] = mixToward(
-      [Number(m24[1]), Number(m24[2]), Number(m24[3])],
-      cfg.canvas,
-      RECESS_MIX,
-    )
-    return makeColorCode(base, r, g, b, cfg.quantize256)
-  }
-  const m256 = new RegExp(`^\\x1b\\[${base};5;(\\d+)m$`).exec(c.code)
-  if (m256) {
-    const rgb = xterm256ToRgb(Number(m256[1]))
-    if (rgb === null) return c
-    const [r, g, b] = mixToward(rgb, cfg.canvas, RECESS_MIX)
-    return makeColorCode(base, r, g, b, true)
-  }
-  return c
+const TRUECOLOR_FORM: Record<ColorChannel, RegExp> = { 38: /^\x1b\[38;2;(\d+);(\d+);(\d+)m$/, 48: /^\x1b\[48;2;(\d+);(\d+);(\d+)m$/ }
+const INDEXED_FORM: Record<ColorChannel, RegExp> = { 38: /^\x1b\[38;5;(\d+)m$/, 48: /^\x1b\[48;5;(\d+)m$/ }
+
+function recessColorCode(code: AnsiCode, channel: ColorChannel, cfg: RecessTransform): AnsiCode {
+  const truecolor = TRUECOLOR_FORM[channel].exec(code.code)
+  if (truecolor) return colorCode(channel, mixToward([Number(truecolor[1]), Number(truecolor[2]), Number(truecolor[3])], cfg.canvas, RECESS_MIX), cfg.quantize256)
+  const indexed = INDEXED_FORM[channel].exec(code.code)
+  const rgb = indexed ? xterm256ToRgb(Number(indexed[1])) : null
+  return rgb === null ? code : colorCode(channel, mixToward(rgb, cfg.canvas, RECESS_MIX), true)
 }
 
-export function remapStylesOutside(
-  screen: Screen,
-  rects: readonly Rectangle[],
-  remap: (styleId: number) => number,
-): number {
-  const cells = screen.cells
-  let changed = 0
-  let minX = 0
-  let minY = 0
-  let maxX = 0
-  let maxY = 0
-  for (let y = 0; y < screen.height; y++) {
-    for (let x = 0; x < screen.width; x++) {
-      let inside = false
-      for (const r of rects) {
-        if (x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height) {
-          inside = true
-          break
-        }
-      }
-      if (inside) continue
-      const ci = (y * screen.width + x) << 1
-      const word1 = cells[ci + 1]!
-      if (cells[ci] === 0 && word1 === 0) continue
-      const width = word1 & WIDTH_MASK
-      if (width === CellWidth.SpacerTail || width === CellWidth.SpacerHead) continue
-      const styleId = word1 >>> STYLE_SHIFT
+export function remapStylesOutside(grid: Screen, rects: readonly Rectangle[], remap: (styleId: number) => number): number {
+  const words = grid.cells
+  let restyled = 0
+  let boxLeft = 0
+  let boxTop = 0
+  let boxRight = 0
+  let boxBottom = 0
+  for (let row = 0; row < grid.height; row++) {
+    for (let column = 0; column < grid.width; column++) {
+      if (rects.some(rect => column >= rect.x && column < rect.x + rect.width && row >= rect.y && row < rect.y + rect.height)) continue
+      const at = (row * grid.width + column) << 1
+      const word = words[at + 1]!
+      if (words[at] === 0 && word === 0) continue
+      const width = word & WIDTH_BITS
+      if (spacer(width)) continue
+      const styleId = word >>> STYLE_OFFSET
       const next = remap(styleId)
       if (next === styleId) continue
-      cells[ci + 1] = packWord1(next, (word1 >>> HYPERLINK_SHIFT) & HYPERLINK_MASK, width)
-      if (changed === 0) {
-        minX = x
-        minY = y
-        maxX = x + 1
-        maxY = y + 1
+      words[at + 1] = packWord(next, linkOf(word), width)
+      if (restyled === 0) {
+        boxLeft = column
+        boxTop = row
+        boxRight = column + 1
+        boxBottom = row + 1
       } else {
-        if (x < minX) minX = x
-        if (x + 1 > maxX) maxX = x + 1
-        if (y < minY) minY = y
-        if (y + 1 > maxY) maxY = y + 1
+        if (column < boxLeft) boxLeft = column
+        if (column + 1 > boxRight) boxRight = column + 1
+        if (row < boxTop) boxTop = row
+        if (row + 1 > boxBottom) boxBottom = row + 1
       }
-      changed++
+      restyled++
     }
   }
-  if (changed > 0) trackDamage(screen, minX, minY, maxX, maxY)
-  return changed
+  if (restyled > 0) touch(grid, boxLeft, boxTop, boxRight, boxBottom)
+  return restyled
 }
 
-
-export const enum CellWidth {
-  Narrow = 0,
-  Wide = 1,
-  SpacerTail = 2,
-  SpacerHead = 3,
+const wholeCells = (count: number, label: string): number => {
+  warn.ifNotInteger(count, label)
+  return Number.isInteger(count) && count >= 0 ? count : Math.max(0, Math.floor(count) || 0)
 }
 
-export type Hyperlink = string | undefined
-
-export type Cell = {
-  char: string
-  styleId: number
-  width: CellWidth
-  hyperlink: Hyperlink
+function cellPlanes(cellCount: number): CellPlanes {
+  const bytes = new ArrayBuffer(cellCount << 3)
+  return { cells: new Int32Array(bytes), cells64: new BigInt64Array(bytes), noSelect: new Uint8Array(cellCount) }
 }
 
-const STYLE_SHIFT = 17
-const HYPERLINK_SHIFT = 2
-const HYPERLINK_MASK = 0x7fff
-const WIDTH_MASK = 3
-const SPACE_VISIBLE_MASK = 0x3fffc
-
-function packWord1(styleId: number, hyperlinkId: number, width: number): number {
-  return (styleId << STYLE_SHIFT) | (hyperlinkId << HYPERLINK_SHIFT) | width
+export function createScreen(width: number, height: number, styles: StylePool, charPool: CharPool, hyperlinkPool: HyperlinkPool): Screen {
+  const columns = wholeCells(width, 'createScreen width')
+  const rows = wholeCells(height, 'createScreen height')
+  const grid: Screen = { width: columns, height: rows, ...cellPlanes(columns * rows), charPool, hyperlinkPool, emptyStyleId: styles.none, damage: undefined, softWrap: new Int32Array(rows) }
+  return grid
 }
 
-const EMPTY_CHAR_INDEX = 0
-const SPACER_CHAR_INDEX = 1
-const EMPTY_CELL_VALUE = 0n
-
-export type Screen = Size & {
-  cells: Int32Array
-  cells64: BigInt64Array
-  charPool: CharPool
-  hyperlinkPool: HyperlinkPool
-  emptyStyleId: number
-  damage: Rectangle | undefined
-  noSelect: Uint8Array
-  softWrap: Int32Array
+export function resetScreen(grid: Screen, width: number, height: number): void {
+  const columns = wholeCells(width, 'resetScreen width')
+  const rows = wholeCells(height, 'resetScreen height')
+  const cellCount = columns * rows
+  if (grid.cells64.length < cellCount) Object.assign(grid, cellPlanes(cellCount))
+  if (grid.softWrap.length < rows) grid.softWrap = new Int32Array(rows)
+  grid.cells64.fill(EMPTY_CELL, 0, cellCount)
+  grid.noSelect.fill(0, 0, cellCount)
+  grid.softWrap.fill(0, 0, rows)
+  grid.width = columns
+  grid.height = rows
+  grid.damage = undefined
 }
 
-
-function sanitizeDim(v: number, label: string): number {
-  warn.ifNotInteger(v, label)
-  if (!Number.isInteger(v) || v < 0) return Math.max(0, Math.floor(v) || 0)
-  return v
+export function migrateScreenPools(grid: Screen, charPool: CharPool, hyperlinkPool: HyperlinkPool): void {
+  const oldGlyphs = grid.charPool
+  const oldLinks = grid.hyperlinkPool
+  if (oldGlyphs === charPool && oldLinks === hyperlinkPool) return
+  const words = grid.cells
+  const wordCount = (grid.width * grid.height) << 1
+  for (let at = 0; at < wordCount; at += 2) {
+    words[at] = charPool.intern(oldGlyphs.get(words[at]!))
+    const word = words[at + 1]!
+    const linkId = linkOf(word)
+    if (linkId !== 0) words[at + 1] = packWord(word >>> STYLE_OFFSET, hyperlinkPool.intern(oldLinks.get(linkId)), word & WIDTH_BITS)
+  }
+  grid.charPool = charPool
+  grid.hyperlinkPool = hyperlinkPool
 }
 
-function cellPlanes(size: number): Pick<Screen, 'cells' | 'cells64' | 'noSelect'> {
-  const buffer = new ArrayBuffer(size << 3)
-  return {
-    cells: new Int32Array(buffer),
-    cells64: new BigInt64Array(buffer),
-    noSelect: new Uint8Array(size),
+function touch(grid: Screen, left: number, top: number, right: number, bottom: number): void {
+  if (right <= left || bottom <= top) return
+  const box = grid.damage
+  if (box === undefined) {
+    grid.damage = { x: left, y: top, width: right - left, height: bottom - top }
+  } else {
+    const boxLeft = box.x < left ? box.x : left
+    const boxTop = box.y < top ? box.y : top
+    const boxRight = box.x + box.width > right ? box.x + box.width : right
+    const boxBottom = box.y + box.height > bottom ? box.y + box.height : bottom
+    box.x = boxLeft
+    box.y = boxTop
+    box.width = boxRight - boxLeft
+    box.height = boxBottom - boxTop
   }
 }
 
-export function createScreen(
-  width: number,
-  height: number,
-  styles: StylePool,
-  charPool: CharPool,
-  hyperlinkPool: HyperlinkPool,
-): Screen {
-  width = sanitizeDim(width, 'createScreen width')
-  height = sanitizeDim(height, 'createScreen height')
-  return {
-    width,
-    height,
-    ...cellPlanes(width * height),
-    charPool,
-    hyperlinkPool,
-    emptyStyleId: styles.none,
-    damage: undefined,
-    softWrap: new Int32Array(height),
-  }
+const decodeWords = (glyphs: CharPool, links: HyperlinkPool, glyphId: number, word: number): Cell => {
+  const linkId = linkOf(word)
+  return { char: glyphs.get(glyphId), styleId: word >>> STYLE_OFFSET, width: word & WIDTH_BITS, hyperlink: linkId === 0 ? undefined : links.get(linkId) }
 }
 
-export function resetScreen(screen: Screen, width: number, height: number): void {
-  width = sanitizeDim(width, 'resetScreen width')
-  height = sanitizeDim(height, 'resetScreen height')
-  const size = width * height
-  if (screen.cells64.length < size) Object.assign(screen, cellPlanes(size))
-  if (screen.softWrap.length < height) screen.softWrap = new Int32Array(height)
-  screen.cells64.fill(EMPTY_CELL_VALUE, 0, size)
-  screen.noSelect.fill(0, 0, size)
-  screen.softWrap.fill(0, 0, height)
-  screen.width = width
-  screen.height = height
-  screen.damage = undefined
+export function cellAt(grid: Screen, column: number, row: number): Cell | undefined {
+  return outside(grid, column, row) ? undefined : cellAtIndex(grid, row * grid.width + column)
 }
 
-export function migrateScreenPools(
-  screen: Screen,
-  charPool: CharPool,
-  hyperlinkPool: HyperlinkPool,
-): void {
-  const oldChars = screen.charPool
-  const oldLinks = screen.hyperlinkPool
-  if (oldChars === charPool && oldLinks === hyperlinkPool) return
-  const cells = screen.cells
-  const words = (screen.width * screen.height) << 1
-  for (let ci = 0; ci < words; ci += 2) {
-    cells[ci] = charPool.intern(oldChars.get(cells[ci]!))
-    const word1 = cells[ci + 1]!
-    const linkId = (word1 >>> HYPERLINK_SHIFT) & HYPERLINK_MASK
-    if (linkId !== 0) {
-      cells[ci + 1] = packWord1(
-        word1 >>> STYLE_SHIFT,
-        hyperlinkPool.intern(oldLinks.get(linkId)),
-        word1 & WIDTH_MASK,
-      )
-    }
-  }
-  screen.charPool = charPool
-  screen.hyperlinkPool = hyperlinkPool
+export function cellAtIndex(grid: Screen, index: number): Cell {
+  const at = index << 1
+  return decodeWords(grid.charPool, grid.hyperlinkPool, grid.cells[at]!, grid.cells[at + 1]!)
 }
 
-
-function trackDamage(screen: Screen, x0: number, y0: number, x1: number, y1: number): void {
-  if (x1 <= x0 || y1 <= y0) return
-  const d = screen.damage
-  if (d === undefined) {
-    screen.damage = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }
-    return
-  }
-  const nx0 = d.x < x0 ? d.x : x0
-  const ny0 = d.y < y0 ? d.y : y0
-  const right = d.x + d.width
-  const bottom = d.y + d.height
-  const nx1 = right > x1 ? right : x1
-  const ny1 = bottom > y1 ? bottom : y1
-  d.x = nx0
-  d.y = ny0
-  d.width = nx1 - nx0
-  d.height = ny1 - ny0
-}
-
-
-export function cellAt(screen: Screen, x: number, y: number): Cell | undefined {
-  if (x < 0 || y < 0 || x >= screen.width || y >= screen.height) return undefined
-  return cellAtIndex(screen, y * screen.width + x)
-}
-
-function decodeWords(charPool: CharPool, hyperlinkPool: HyperlinkPool, charId: number, word1: number): Cell {
-  const linkId = (word1 >>> HYPERLINK_SHIFT) & HYPERLINK_MASK
-  return {
-    char: charPool.get(charId),
-    styleId: word1 >>> STYLE_SHIFT,
-    width: word1 & WIDTH_MASK,
-    hyperlink: linkId === 0 ? undefined : hyperlinkPool.get(linkId),
-  }
-}
-
-export function cellAtIndex(screen: Screen, index: number): Cell {
-  const ci = index << 1
-  return decodeWords(screen.charPool, screen.hyperlinkPool, screen.cells[ci]!, screen.cells[ci + 1]!)
-}
-
-function paintsNothing(charId: number, word1: number, lastRenderedStyleId: number): boolean {
-  if (charId === SPACER_CHAR_INDEX) return true
-  if (charId !== EMPTY_CHAR_INDEX || (word1 & SPACE_VISIBLE_MASK) !== 0) return false
-  const styleId = word1 >>> STYLE_SHIFT
+const paintsNothing = (glyphId: number, word: number, lastRenderedStyleId: number): boolean => {
+  if (glyphId === SPACER_GLYPH) return true
+  if (glyphId !== BLANK_GLYPH || (word & SPACE_VISIBLE_MASK) !== 0) return false
+  const styleId = word >>> STYLE_OFFSET
   return styleId === 0 || styleId === lastRenderedStyleId
 }
 
-export function visibleCellAtIndex(
-  cells: Int32Array,
-  charPool: CharPool,
-  hyperlinkPool: HyperlinkPool,
-  index: number,
-  lastRenderedStyleId: number,
-): Cell | undefined {
-  const ci = index << 1
-  const charId = cells[ci]!
-  const word1 = cells[ci + 1]!
-  return paintsNothing(charId, word1, lastRenderedStyleId) ? undefined : decodeWords(charPool, hyperlinkPool, charId, word1)
+export function visibleCellAtIndex(cells: Int32Array, charPool: CharPool, hyperlinkPool: HyperlinkPool, index: number, lastRenderedStyleId: number): Cell | undefined {
+  const at = index << 1
+  const glyphId = cells[at]!
+  const word = cells[at + 1]!
+  return paintsNothing(glyphId, word, lastRenderedStyleId) ? undefined : decodeWords(charPool, hyperlinkPool, glyphId, word)
 }
 
-function decodeCellInto(screen: Screen, ci: number, out: Cell): void {
-  const word1 = screen.cells[ci + 1]!
-  out.char = screen.charPool.get(screen.cells[ci]!)
-  out.styleId = word1 >>> STYLE_SHIFT
-  out.width = word1 & WIDTH_MASK
-  const linkId = (word1 >>> HYPERLINK_SHIFT) & HYPERLINK_MASK
-  out.hyperlink = linkId === 0 ? undefined : screen.hyperlinkPool.get(linkId)
+function decodeInto(grid: Screen, at: number, view: Cell): void {
+  const word = grid.cells[at + 1]!
+  const linkId = linkOf(word)
+  view.char = grid.charPool.get(grid.cells[at]!)
+  view.styleId = word >>> STYLE_OFFSET
+  view.width = word & WIDTH_BITS
+  view.hyperlink = linkId === 0 ? undefined : grid.hyperlinkPool.get(linkId)
 }
 
-export function charInCellAt(screen: Screen, x: number, y: number): string | undefined {
-  if (x < 0 || y < 0 || x >= screen.width || y >= screen.height) return undefined
-  return screen.charPool.get(screen.cells[(y * screen.width + x) << 1]!)
+export function charInCellAt(grid: Screen, column: number, row: number): string | undefined {
+  return outside(grid, column, row) ? undefined : grid.charPool.get(grid.cells[(row * grid.width + column) << 1]!)
 }
 
-function isEmptyCellByIndex(screen: Screen, index: number): boolean {
-  const ci = index << 1
-  return screen.cells[ci] === 0 && screen.cells[ci + 1] === 0
+const emptyAt = (grid: Screen, index: number): boolean => grid.cells[index << 1] === 0 && grid.cells[(index << 1) + 1] === 0
+
+export function isEmptyCellAt(grid: Screen, column: number, row: number): boolean {
+  return outside(grid, column, row) || emptyAt(grid, row * grid.width + column)
 }
 
-export function isEmptyCellAt(screen: Screen, x: number, y: number): boolean {
-  if (x < 0 || y < 0 || x >= screen.width || y >= screen.height) return true
-  return isEmptyCellByIndex(screen, y * screen.width + x)
+function blankCell(grid: Screen, at: number): void {
+  grid.cells[at] = BLANK_GLYPH
+  grid.cells[at + 1] = packWord(grid.emptyStyleId, 0, CellWidth.Narrow)
 }
 
-
-function blankCell(screen: Screen, ci: number): void {
-  screen.cells[ci] = EMPTY_CHAR_INDEX
-  screen.cells[ci + 1] = packWord1(screen.emptyStyleId, 0, CellWidth.Narrow)
-}
-
-function repairWideSplit(screen: Screen, x: number, y: number, incomingWidth: CellWidth): number {
-  const cells = screen.cells
-  const ci = (y * screen.width + x) << 1
-  const prevWidth = cells[ci + 1]! & WIDTH_MASK
-  let minRepairedX = x
-
-  if (prevWidth === CellWidth.Wide && incomingWidth !== CellWidth.Wide) {
-    if (x + 1 < screen.width && (cells[ci + 3]! & WIDTH_MASK) === CellWidth.SpacerTail) {
-      blankCell(screen, ci + 2)
-      trackDamage(screen, x + 1, y, x + 2, y + 1)
-    }
+function mendWidePairs(grid: Screen, column: number, row: number, incomingWidth: CellWidth): number {
+  const words = grid.cells
+  const at = (row * grid.width + column) << 1
+  const standingWidth = words[at + 1]! & WIDTH_BITS
+  const tailAhead = column + 1 < grid.width
+  let leftmostMended = column
+  if (standingWidth === CellWidth.Wide && incomingWidth !== CellWidth.Wide && tailAhead && (words[at + 3]! & WIDTH_BITS) === CellWidth.SpacerTail) {
+    blankCell(grid, at + 2)
+    touch(grid, column + 1, row, column + 2, row + 1)
   }
-  if (prevWidth === CellWidth.SpacerTail && incomingWidth !== CellWidth.SpacerTail) {
-    if (x > 0 && (cells[ci - 1]! & WIDTH_MASK) === CellWidth.Wide) {
-      blankCell(screen, ci - 2)
-      minRepairedX = x - 1
-    }
+  if (standingWidth === CellWidth.SpacerTail && incomingWidth !== CellWidth.SpacerTail && column > 0 && (words[at - 1]! & WIDTH_BITS) === CellWidth.Wide) {
+    blankCell(grid, at - 2)
+    leftmostMended = column - 1
   }
-  if (incomingWidth === CellWidth.Wide && x + 1 < screen.width) {
-    if ((cells[ci + 3]! & WIDTH_MASK) === CellWidth.Wide) {
-      if (x + 2 < screen.width && (cells[ci + 5]! & WIDTH_MASK) === CellWidth.SpacerTail) {
-        blankCell(screen, ci + 4)
-        trackDamage(screen, x + 2, y, x + 3, y + 1)
-      }
-    }
+  if (incomingWidth === CellWidth.Wide && tailAhead && (words[at + 3]! & WIDTH_BITS) === CellWidth.Wide && column + 2 < grid.width && (words[at + 5]! & WIDTH_BITS) === CellWidth.SpacerTail) {
+    blankCell(grid, at + 4)
+    touch(grid, column + 2, row, column + 3, row + 1)
   }
-  return minRepairedX
+  return leftmostMended
 }
 
-
-export function setCellAt(screen: Screen, x: number, y: number, cell: Cell): void {
-  if (x < 0 || y < 0 || x >= screen.width || y >= screen.height) return
-  const cells = screen.cells
-  const ci = (y * screen.width + x) << 1
-
-  const minRepairedX = repairWideSplit(screen, x, y, cell.width)
-
-  cells[ci] = screen.charPool.intern(cell.char)
-  cells[ci + 1] = packWord1(
-    cell.styleId,
-    screen.hyperlinkPool.intern(cell.hyperlink),
-    cell.width,
-  )
-
-  let maxX = x + 1
-  if (cell.width === CellWidth.Wide && x + 1 < screen.width) {
-    cells[ci + 2] = SPACER_CHAR_INDEX
-    cells[ci + 3] = packWord1(screen.emptyStyleId, 0, CellWidth.SpacerTail)
-    maxX = x + 2
+export function setCellAt(grid: Screen, column: number, row: number, cell: Cell): void {
+  if (outside(grid, column, row)) return
+  const words = grid.cells
+  const at = (row * grid.width + column) << 1
+  const leftmostMended = mendWidePairs(grid, column, row, cell.width)
+  words[at] = grid.charPool.intern(cell.char)
+  words[at + 1] = packWord(cell.styleId, grid.hyperlinkPool.intern(cell.hyperlink), cell.width)
+  const tailWritten = cell.width === CellWidth.Wide && column + 1 < grid.width
+  if (tailWritten) {
+    words[at + 2] = SPACER_GLYPH
+    words[at + 3] = packWord(grid.emptyStyleId, 0, CellWidth.SpacerTail)
   }
-  trackDamage(screen, minRepairedX, y, maxX, y + 1)
+  touch(grid, leftmostMended, row, tailWritten ? column + 2 : column + 1, row + 1)
 }
 
-export function setCellStyleId(screen: Screen, x: number, y: number, styleId: number): void {
-  if (x < 0 || y < 0 || x >= screen.width || y >= screen.height) return
-  const ci = (y * screen.width + x) << 1
-  const word1 = screen.cells[ci + 1]!
-  const width = word1 & WIDTH_MASK
-  if (width === CellWidth.SpacerTail || width === CellWidth.SpacerHead) return
-  screen.cells[ci + 1] = packWord1(
-    styleId,
-    (word1 >>> HYPERLINK_SHIFT) & HYPERLINK_MASK,
-    width,
-  )
-  trackDamage(screen, x, y, x + 1, y + 1)
+export function setCellStyleId(grid: Screen, column: number, row: number, styleId: number): void {
+  if (outside(grid, column, row)) return
+  const at = (row * grid.width + column) << 1
+  const word = grid.cells[at + 1]!
+  const width = word & WIDTH_BITS
+  if (spacer(width)) return
+  grid.cells[at + 1] = packWord(styleId, linkOf(word), width)
+  touch(grid, column, row, column + 1, row + 1)
 }
 
-
-export function blitRegion(
-  dst: Screen,
-  src: Screen,
-  regionX: number,
-  regionY: number,
-  maxX: number,
-  maxY: number,
-): void {
-  regionX = Math.max(0, regionX)
-  regionY = Math.max(0, regionY)
-  if (regionX >= maxX || regionY >= maxY) return
-
-  const rowLen = maxX - regionX
-  const srcStride = src.width << 1
-  const dstStride = dst.width << 1
-
-  dst.softWrap.set(src.softWrap.subarray(regionY, maxY), regionY)
-
-  if (regionX === 0 && maxX === src.width && src.width === dst.width) {
-    const start = regionY * srcStride
-    dst.cells.set(src.cells.subarray(start, start + (maxY - regionY) * srcStride), start)
-    const nsStart = regionY * src.width
-    dst.noSelect.set(src.noSelect.subarray(nsStart, nsStart + (maxY - regionY) * src.width), nsStart)
+export function blitRegion(into: Screen, from: Screen, regionX: number, regionY: number, maxX: number, maxY: number): void {
+  const left = Math.max(0, regionX)
+  const top = Math.max(0, regionY)
+  if (left >= maxX || top >= maxY) return
+  const columns = maxX - left
+  const fromStride = from.width << 1
+  const intoStride = into.width << 1
+  into.softWrap.set(from.softWrap.subarray(top, maxY), top)
+  if (left === 0 && maxX === from.width && from.width === into.width) {
+    const firstWord = top * fromStride
+    into.cells.set(from.cells.subarray(firstWord, firstWord + (maxY - top) * fromStride), firstWord)
+    const firstCell = top * from.width
+    into.noSelect.set(from.noSelect.subarray(firstCell, firstCell + (maxY - top) * from.width), firstCell)
   } else {
-    let srcCI = regionY * srcStride + (regionX << 1)
-    let dstCI = regionY * dstStride + (regionX << 1)
-    let srcNS = regionY * src.width + regionX
-    let dstNS = regionY * dst.width + regionX
-    const rowWords = rowLen << 1
-    for (let y = regionY; y < maxY; y++) {
-      dst.cells.set(src.cells.subarray(srcCI, srcCI + rowWords), dstCI)
-      dst.noSelect.set(src.noSelect.subarray(srcNS, srcNS + rowLen), dstNS)
-      srcCI += srcStride
-      dstCI += dstStride
-      srcNS += src.width
-      dstNS += dst.width
+    let fromWord = top * fromStride + (left << 1)
+    let intoWord = top * intoStride + (left << 1)
+    let fromCell = top * from.width + left
+    let intoCell = top * into.width + left
+    const rowWords = columns << 1
+    for (let row = top; row < maxY; row++) {
+      into.cells.set(from.cells.subarray(fromWord, fromWord + rowWords), intoWord)
+      into.noSelect.set(from.noSelect.subarray(fromCell, fromCell + columns), intoCell)
+      fromWord += fromStride
+      intoWord += intoStride
+      fromCell += from.width
+      intoCell += into.width
     }
   }
-
-  let damageMaxX = maxX
-  if (maxX < dst.width) {
-    let srcHeadCI = (regionY * src.width + (maxX - 1)) << 1
-    let dstTailCI = (regionY * dst.width + maxX) << 1
-    let completed = false
-    for (let y = regionY; y < maxY; y++) {
-      if ((src.cells[srcHeadCI + 1]! & WIDTH_MASK) === CellWidth.Wide) {
-        dst.cells[dstTailCI] = SPACER_CHAR_INDEX
-        dst.cells[dstTailCI + 1] = packWord1(dst.emptyStyleId, 0, CellWidth.SpacerTail)
-        completed = true
+  let touchedRight = maxX
+  if (maxX < into.width) {
+    let headWord = (top * from.width + (maxX - 1)) << 1
+    let tailWord = (top * into.width + maxX) << 1
+    for (let row = top; row < maxY; row++) {
+      if ((from.cells[headWord + 1]! & WIDTH_BITS) === CellWidth.Wide) {
+        into.cells[tailWord] = SPACER_GLYPH
+        into.cells[tailWord + 1] = packWord(into.emptyStyleId, 0, CellWidth.SpacerTail)
+        touchedRight = maxX + 1
       }
-      srcHeadCI += srcStride
-      dstTailCI += dstStride
+      headWord += fromStride
+      tailWord += intoStride
     }
-    if (completed) damageMaxX = maxX + 1
   }
-  trackDamage(dst, regionX, regionY, damageMaxX, maxY)
+  touch(into, left, top, touchedRight, maxY)
 }
 
-export function clearRegion(
-  screen: Screen,
-  regionX: number,
-  regionY: number,
-  regionWidth: number,
-  regionHeight: number,
-): void {
-  const startX = Math.max(0, regionX)
-  const startY = Math.max(0, regionY)
-  const maxX = Math.min(regionX + regionWidth, screen.width)
-  const maxY = Math.min(regionY + regionHeight, screen.height)
-  if (startX >= maxX || startY >= maxY) return
-
-  const cells = screen.cells
-  const w = screen.width
-  let damageMinX = startX
-  let damageMaxX = maxX
-
-  if (startX === 0 && maxX === w) {
-    screen.cells64.fill(EMPTY_CELL_VALUE, startY * w, maxY * w)
+export function clearRegion(grid: Screen, regionX: number, regionY: number, regionWidth: number, regionHeight: number): void {
+  const left = Math.max(0, regionX)
+  const top = Math.max(0, regionY)
+  const right = Math.min(regionX + regionWidth, grid.width)
+  const bottom = Math.min(regionY + regionHeight, grid.height)
+  if (left >= right || top >= bottom) return
+  const words = grid.cells
+  const columns = grid.width
+  let touchedLeft = left
+  let touchedRight = right
+  if (left === 0 && right === columns) {
+    grid.cells64.fill(EMPTY_CELL, top * columns, bottom * columns)
   } else {
-    for (let y = startY; y < maxY; y++) {
-      const rowBase = y * w
-      if (startX > 0) {
-        const ci = (rowBase + startX) << 1
-        if (
-          (cells[ci + 1]! & WIDTH_MASK) === CellWidth.SpacerTail &&
-          (cells[ci - 1]! & WIDTH_MASK) === CellWidth.Wide
-        ) {
-          blankCell(screen, ci - 2)
-          damageMinX = startX - 1
-        }
+    for (let row = top; row < bottom; row++) {
+      const rowStart = row * columns
+      const leftWord = (rowStart + left) << 1
+      if (left > 0 && (words[leftWord + 1]! & WIDTH_BITS) === CellWidth.SpacerTail && (words[leftWord - 1]! & WIDTH_BITS) === CellWidth.Wide) {
+        blankCell(grid, leftWord - 2)
+        touchedLeft = left - 1
       }
-      if (maxX < w) {
-        const headCI = (rowBase + maxX - 1) << 1
-        if (
-          (cells[headCI + 1]! & WIDTH_MASK) === CellWidth.Wide &&
-          (cells[headCI + 3]! & WIDTH_MASK) === CellWidth.SpacerTail
-        ) {
-          blankCell(screen, headCI + 2)
-          damageMaxX = maxX + 1
-        }
+      const lastWord = (rowStart + right - 1) << 1
+      if (right < columns && (words[lastWord + 1]! & WIDTH_BITS) === CellWidth.Wide && (words[lastWord + 3]! & WIDTH_BITS) === CellWidth.SpacerTail) {
+        blankCell(grid, lastWord + 2)
+        touchedRight = right + 1
       }
-      screen.cells64.fill(EMPTY_CELL_VALUE, rowBase + startX, rowBase + maxX)
+      grid.cells64.fill(EMPTY_CELL, rowStart + left, rowStart + right)
     }
   }
-  trackDamage(screen, damageMinX, startY, damageMaxX, maxY)
+  touch(grid, touchedLeft, top, touchedRight, bottom)
 }
 
-export function shiftRows(screen: Screen, top: number, bottom: number, n: number): void {
-  if (n === 0 || top < 0 || bottom >= screen.height || top > bottom) return
-  const w = screen.width
-  const { cells64, noSelect, softWrap } = screen
-  const blank = (fromRow: number, toRow: number): void => {
-    cells64.fill(EMPTY_CELL_VALUE, fromRow * w, toRow * w)
-    noSelect.fill(0, fromRow * w, toRow * w)
+export function shiftRows(grid: Screen, top: number, bottom: number, n: number): void {
+  if (n === 0 || top < 0 || bottom >= grid.height || top > bottom) return
+  const columns = grid.width
+  const { cells64, noSelect, softWrap } = grid
+  const vacate = (fromRow: number, toRow: number): void => {
+    cells64.fill(EMPTY_CELL, fromRow * columns, toRow * columns)
+    noSelect.fill(0, fromRow * columns, toRow * columns)
     softWrap.fill(0, fromRow, toRow)
   }
-  const move = (toRow: number, fromRow: number, endRow: number): void => {
-    cells64.copyWithin(toRow * w, fromRow * w, endRow * w)
-    noSelect.copyWithin(toRow * w, fromRow * w, endRow * w)
+  const carry = (toRow: number, fromRow: number, endRow: number): void => {
+    cells64.copyWithin(toRow * columns, fromRow * columns, endRow * columns)
+    noSelect.copyWithin(toRow * columns, fromRow * columns, endRow * columns)
     softWrap.copyWithin(toRow, fromRow, endRow)
   }
   if (Math.abs(n) > bottom - top) {
-    blank(top, bottom + 1)
-    return
-  }
-  if (n > 0) {
-    move(top, top + n, bottom + 1)
-    blank(bottom - n + 1, bottom + 1)
+    vacate(top, bottom + 1)
+  } else if (n > 0) {
+    carry(top, top + n, bottom + 1)
+    vacate(bottom - n + 1, bottom + 1)
   } else {
-    move(top - n, top, bottom + n + 1)
-    blank(top, top - n)
+    carry(top - n, top, bottom + n + 1)
+    vacate(top, top - n)
   }
 }
 
-export function shiftRect(
-  screen: Screen,
-  top: number,
-  bottom: number,
-  x0: number,
-  x1: number,
-  n: number,
-): void {
-  if (n === 0 || top < 0 || bottom >= screen.height || top > bottom) return
-  const w = screen.width
-  const cx0 = Math.max(0, Math.floor(x0))
-  const cx1 = Math.min(w, Math.floor(x1))
-  if (cx1 <= cx0) return
-  const { cells64, noSelect: noSel, softWrap: sw } = screen
+export function shiftRect(grid: Screen, top: number, bottom: number, x0: number, x1: number, n: number): void {
+  if (n === 0 || top < 0 || bottom >= grid.height || top > bottom) return
+  const columns = grid.width
+  const left = Math.max(0, Math.floor(x0))
+  const right = Math.min(columns, Math.floor(x1))
+  if (right <= left) return
+  const { cells64, noSelect, softWrap } = grid
+  const vacateRow = (row: number): void => {
+    cells64.fill(EMPTY_CELL, row * columns + left, row * columns + right)
+    noSelect.fill(0, row * columns + left, row * columns + right)
+  }
+  const carryRow = (row: number): void => {
+    cells64.copyWithin(row * columns + left, (row + n) * columns + left, (row + n) * columns + right)
+    noSelect.copyWithin(row * columns + left, (row + n) * columns + left, (row + n) * columns + right)
+  }
   if (Math.abs(n) > bottom - top) {
-    for (let r = top; r <= bottom; r++) {
-      cells64.fill(EMPTY_CELL_VALUE, r * w + cx0, r * w + cx1)
-      noSel.fill(0, r * w + cx0, r * w + cx1)
-    }
-    sw.fill(0, top, bottom + 1)
-    return
-  }
-  if (n > 0) {
-    for (let r = top; r <= bottom - n; r++) {
-      cells64.copyWithin(r * w + cx0, (r + n) * w + cx0, (r + n) * w + cx1)
-      noSel.copyWithin(r * w + cx0, (r + n) * w + cx0, (r + n) * w + cx1)
-    }
-    for (let r = bottom - n + 1; r <= bottom; r++) {
-      cells64.fill(EMPTY_CELL_VALUE, r * w + cx0, r * w + cx1)
-      noSel.fill(0, r * w + cx0, r * w + cx1)
-    }
+    for (let row = top; row <= bottom; row++) vacateRow(row)
+  } else if (n > 0) {
+    for (let row = top; row <= bottom - n; row++) carryRow(row)
+    for (let row = bottom - n + 1; row <= bottom; row++) vacateRow(row)
   } else {
-    for (let r = bottom; r >= top - n; r--) {
-      cells64.copyWithin(r * w + cx0, (r + n) * w + cx0, (r + n) * w + cx1)
-      noSel.copyWithin(r * w + cx0, (r + n) * w + cx0, (r + n) * w + cx1)
-    }
-    for (let r = top; r < top - n; r++) {
-      cells64.fill(EMPTY_CELL_VALUE, r * w + cx0, r * w + cx1)
-      noSel.fill(0, r * w + cx0, r * w + cx1)
-    }
+    for (let row = bottom; row >= top - n; row--) carryRow(row)
+    for (let row = top; row < top - n; row++) vacateRow(row)
   }
-  sw.fill(0, top, bottom + 1)
+  softWrap.fill(0, top, bottom + 1)
 }
 
-export function markNoSelectRegion(
-  screen: Screen,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): void {
-  const maxX = Math.min(x + width, screen.width)
-  const maxY = Math.min(y + height, screen.height)
-  const stride = screen.width
-  for (let row = Math.max(0, y); row < maxY; row++) {
-    screen.noSelect.fill(1, row * stride + Math.max(0, x), row * stride + maxX)
-  }
+export function markNoSelectRegion(grid: Screen, x: number, y: number, width: number, height: number): void {
+  const right = Math.min(x + width, grid.width)
+  const bottom = Math.min(y + height, grid.height)
+  const left = Math.max(0, x)
+  for (let row = Math.max(0, y); row < bottom; row++) grid.noSelect.fill(1, row * grid.width + left, row * grid.width + right)
 }
 
+const OSC8_FORM = new RegExp(`^${ESC}\\]8${SEP}${SEP}([^${BEL}]*)${BEL}$`)
+export const OSC8_PREFIX = ESC + ']8' + SEP
 
-const OSC8_REGEX = new RegExp(`^${ESC}\\]8${SEP}${SEP}([^${BEL}]*)${BEL}$`)
-export const OSC8_PREFIX = `${ESC}]8${SEP}`
+const linkCode = (style: AnsiCode): boolean => style.code.startsWith(OSC8_PREFIX) && OSC8_FORM.test(style.code)
 
-export function extractHyperlinkFromStyles(styles: AnsiCode[]): Hyperlink | null {
-  for (const style of styles) {
-    const code = style.code
-    if (code.length < 5 || !code.startsWith(OSC8_PREFIX)) continue
-    const match = code.match(OSC8_REGEX)
-    if (match) return match[1] || null
-  }
-  return null
+export function extractHyperlinkFromStyles(codes: AnsiCode[]): Hyperlink | null {
+  const link = codes.find(style => style.code.length >= 5 && linkCode(style))
+  return link === undefined ? null : OSC8_FORM.exec(link.code)![1] || null
 }
 
-export function filterOutHyperlinkStyles(styles: AnsiCode[]): AnsiCode[] {
-  return styles.filter(
-    style => !style.code.startsWith(OSC8_PREFIX) || !OSC8_REGEX.test(style.code),
-  )
+export function filterOutHyperlinkStyles(codes: AnsiCode[]): AnsiCode[] {
+  return codes.filter(style => !linkCode(style))
 }
 
+type DiffCallback = (x: number, y: number, removed: Cell | undefined, added: Cell | undefined) => boolean | void
 
-type DiffCallback = (
-  x: number,
-  y: number,
-  removed: Cell | undefined,
-  added: Cell | undefined,
-) => boolean | void
+type DiffRow = [point: Point, removed: Cell | undefined, added: Cell | undefined]
 
-export function diff(
-  prev: Screen,
-  next: Screen,
-): [point: Point, removed: Cell | undefined, added: Cell | undefined][] {
-  const out: [Point, Cell | undefined, Cell | undefined][] = []
-  diffEach(prev, next, (x, y, removed, added) => {
-    out.push([{ x, y }, removed ? { ...removed } : undefined, added ? { ...added } : undefined])
+export function diff(prev: Screen, next: Screen): DiffRow[] {
+  const rows: DiffRow[] = []
+  diffEach(prev, next, (column, row, removed, added) => {
+    rows.push([{ x: column, y: row }, removed ? { ...removed } : undefined, added ? { ...added } : undefined])
   })
-  return out
+  return rows
+}
+
+const freshView = (): Cell => ({ char: ' ', styleId: 0, width: CellWidth.Narrow, hyperlink: undefined })
+
+function walkRegion(prev: Screen, next: Screen): Rectangle {
+  const untouched = { x: 0, y: 0, width: 0, height: 0 }
+  const everything = { x: 0, y: 0, width: next.width, height: next.height }
+  const damaged = next.damage ? (prev.damage ? unionRect(next.damage, prev.damage) : next.damage) : (prev.damage ?? untouched)
+  let region = prev.width === 0 && prev.height === 0 ? everything : damaged
+  if (prev.height > next.height) region = unionRect(region, { x: 0, y: next.height, width: prev.width, height: prev.height - next.height })
+  if (prev.width > next.width) region = unionRect(region, { x: next.width, y: 0, width: prev.width - next.width, height: prev.height })
+  return region
 }
 
 export function diffEach(prev: Screen, next: Screen, cb: DiffCallback): boolean {
-  let region: Rectangle
-  if (prev.width === 0 && prev.height === 0) {
-    region = { x: 0, y: 0, width: next.width, height: next.height }
-  } else if (next.damage) {
-    region = prev.damage ? unionRect(next.damage, prev.damage) : next.damage
-  } else if (prev.damage) {
-    region = prev.damage
-  } else {
-    region = { x: 0, y: 0, width: 0, height: 0 }
-  }
-  if (prev.height > next.height) {
-    region = unionRect(region, {
-      x: 0,
-      y: next.height,
-      width: prev.width,
-      height: prev.height - next.height,
-    })
-  }
-  if (prev.width > next.width) {
-    region = unionRect(region, {
-      x: next.width,
-      y: 0,
-      width: prev.width - next.width,
-      height: prev.height,
-    })
-  }
-
+  const region = walkRegion(prev, next)
   const endY = Math.min(region.y + region.height, Math.max(prev.height, next.height))
   const endX = Math.min(region.x + region.width, Math.max(prev.width, next.width))
-
-  const removedView: Cell = { char: ' ', styleId: 0, width: CellWidth.Narrow, hyperlink: undefined }
-  const addedView: Cell = { char: ' ', styleId: 0, width: CellWidth.Narrow, hyperlink: undefined }
-
-  if (prev.width === next.width) {
-    return walkSameWidth(prev, next, region.x, endX, region.y, endY, removedView, addedView, cb)
-  }
-  return walkResize(prev, next, region.x, endX, region.y, endY, removedView, addedView, cb)
+  const removedView = freshView()
+  const addedView = freshView()
+  const walk = prev.width === next.width ? walkSameWidth : walkResize
+  return walk(prev, next, region.x, endX, region.y, endY, removedView, addedView, cb)
 }
 
-function equalRun(a: Int32Array, b: Int32Array, w0: number, count: number): number {
-  for (let i = 0; i < count; i++, w0 += 2) {
-    if (a[w0] !== b[w0] || a[w0 + 1] !== b[w0 + 1]) return i
+function equalRun(a: Int32Array, b: Int32Array, firstWord: number, span: number): number {
+  let equal = 0
+  let at = firstWord
+  while (equal < span && a[at] === b[at] && a[at + 1] === b[at + 1]) {
+    equal++
+    at += 2
   }
-  return count
+  return equal
 }
 
-function walkSameWidth(
-  prev: Screen,
-  next: Screen,
-  startX: number,
-  endX: number,
-  startY: number,
-  endY: number,
-  removedView: Cell,
-  addedView: Cell,
-  cb: DiffCallback,
-): boolean {
-  const w = prev.width
-  const stride = w << 1
-  const rowEndX = Math.min(endX, w)
-  let rowCI = (startY * w + startX) << 1
-
-  for (let y = startY; y < endY; y++, rowCI += stride) {
-    const prevIn = y < prev.height
-    const nextIn = y < next.height
-    if (prevIn && nextIn) {
-      let x = startX
-      let ci = rowCI
-      while (x < rowEndX) {
-        const skip = equalRun(prev.cells, next.cells, ci, rowEndX - x)
-        x += skip
-        ci += skip << 1
-        if (x >= rowEndX) break
-        decodeCellInto(prev, ci, removedView)
-        decodeCellInto(next, ci, addedView)
-        if (cb(x, y, removedView, addedView)) return true
-        x++
-        ci += 2
+function walkSameWidth(prev: Screen, next: Screen, left: number, right: number, top: number, bottom: number, removedView: Cell, addedView: Cell, cb: DiffCallback): boolean {
+  const columns = prev.width
+  const stride = columns << 1
+  const rowEnd = Math.min(right, columns)
+  let rowWord = (top * columns + left) << 1
+  let halted = false
+  rows: for (let row = top; row < bottom; row++, rowWord += stride) {
+    const prevHasRow = row < prev.height
+    const nextHasRow = row < next.height
+    if (prevHasRow && nextHasRow) {
+      let column = left
+      let at = rowWord
+      while (column < rowEnd) {
+        const equal = equalRun(prev.cells, next.cells, at, rowEnd - column)
+        column += equal
+        at += equal << 1
+        if (column >= rowEnd) break
+        decodeInto(prev, at, removedView)
+        decodeInto(next, at, addedView)
+        if (cb(column, row, removedView, addedView)) {
+          halted = true
+          break rows
+        }
+        column++
+        at += 2
       }
-    } else if (prevIn) {
-      let ci = rowCI
-      for (let x = startX; x < rowEndX; x++, ci += 2) {
-        decodeCellInto(prev, ci, removedView)
-        if (cb(x, y, removedView, undefined)) return true
+    } else if (prevHasRow) {
+      let at = rowWord
+      for (let column = left; column < rowEnd; column++, at += 2) {
+        decodeInto(prev, at, removedView)
+        if (cb(column, row, removedView, undefined)) {
+          halted = true
+          break rows
+        }
       }
-    } else if (nextIn) {
-      let ci = rowCI
-      for (let x = startX; x < rowEndX; x++, ci += 2) {
-        if (next.cells[ci] === 0 && next.cells[ci + 1] === 0) continue
-        decodeCellInto(next, ci, addedView)
-        if (cb(x, y, undefined, addedView)) return true
+    } else if (nextHasRow) {
+      let at = rowWord
+      for (let column = left; column < rowEnd; column++, at += 2) {
+        if (next.cells[at] === 0 && next.cells[at + 1] === 0) continue
+        decodeInto(next, at, addedView)
+        if (cb(column, row, undefined, addedView)) {
+          halted = true
+          break rows
+        }
       }
     }
   }
-  return false
+  return halted
 }
 
-function walkResize(
-  prev: Screen,
-  next: Screen,
-  startX: number,
-  endX: number,
-  startY: number,
-  endY: number,
-  removedView: Cell,
-  addedView: Cell,
-  cb: DiffCallback,
-): boolean {
+function walkResize(prev: Screen, next: Screen, left: number, right: number, top: number, bottom: number, removedView: Cell, addedView: Cell, cb: DiffCallback): boolean {
   const prevStride = prev.width << 1
   const nextStride = next.width << 1
-  let prevRowCI = (startY * prev.width + startX) << 1
-  let nextRowCI = (startY * next.width + startX) << 1
-
-  for (let y = startY; y < endY; y++, prevRowCI += prevStride, nextRowCI += nextStride) {
-    const prevEndX = y < prev.height ? Math.min(endX, prev.width) : startX
-    const nextEndX = y < next.height ? Math.min(endX, next.width) : startX
-    const bothEndX = Math.min(prevEndX, nextEndX)
-
-    let prevCI = prevRowCI
-    let nextCI = nextRowCI
-    for (let x = startX; x < bothEndX; x++, prevCI += 2, nextCI += 2) {
-      if (
-        prev.cells[prevCI] === next.cells[nextCI] &&
-        prev.cells[prevCI + 1] === next.cells[nextCI + 1]
-      ) {
-        continue
+  let prevRowWord = (top * prev.width + left) << 1
+  let nextRowWord = (top * next.width + left) << 1
+  let halted = false
+  rows: for (let row = top; row < bottom; row++, prevRowWord += prevStride, nextRowWord += nextStride) {
+    const prevEnd = row < prev.height ? Math.min(right, prev.width) : left
+    const nextEnd = row < next.height ? Math.min(right, next.width) : left
+    const sharedEnd = Math.min(prevEnd, nextEnd)
+    let prevAt = prevRowWord
+    let nextAt = nextRowWord
+    for (let column = left; column < sharedEnd; column++, prevAt += 2, nextAt += 2) {
+      if (prev.cells[prevAt] === next.cells[nextAt] && prev.cells[prevAt + 1] === next.cells[nextAt + 1]) continue
+      decodeInto(prev, prevAt, removedView)
+      decodeInto(next, nextAt, addedView)
+      if (cb(column, row, removedView, addedView)) {
+        halted = true
+        break rows
       }
-      decodeCellInto(prev, prevCI, removedView)
-      decodeCellInto(next, nextCI, addedView)
-      if (cb(x, y, removedView, addedView)) return true
     }
-    for (let x = bothEndX; x < prevEndX; x++, prevCI += 2) {
-      decodeCellInto(prev, prevCI, removedView)
-      if (cb(x, y, removedView, undefined)) return true
+    for (let column = sharedEnd; column < prevEnd; column++, prevAt += 2) {
+      decodeInto(prev, prevAt, removedView)
+      if (cb(column, row, removedView, undefined)) {
+        halted = true
+        break rows
+      }
     }
-    for (let x = bothEndX; x < nextEndX; x++, nextCI += 2) {
-      if (next.cells[nextCI] === 0 && next.cells[nextCI + 1] === 0) continue
-      decodeCellInto(next, nextCI, addedView)
-      if (cb(x, y, undefined, addedView)) return true
+    for (let column = sharedEnd; column < nextEnd; column++, nextAt += 2) {
+      if (next.cells[nextAt] === 0 && next.cells[nextAt + 1] === 0) continue
+      decodeInto(next, nextAt, addedView)
+      if (cb(column, row, undefined, addedView)) {
+        halted = true
+        break rows
+      }
     }
   }
-  return false
+  return halted
 }
