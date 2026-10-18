@@ -898,52 +898,123 @@ for (const [faultLabel, faultResponse] of [
 }
 
 {
-  const polls = { denied: 0, pending: 0 }
-  const deviceFetch = (handler: (url: string) => Response): typeof fetch =>
-    (async (url: unknown) => handler(String(url))) as typeof fetch
-  const denied = await openaiAccounts.beginOpenaiDeviceConnect({
-    pollIntervalMsOverride: 1,
-    fetchImpl: deviceFetch(url => {
-      if (url.endsWith('/deviceauth/usercode')) {
-        return Response.json({ user_code: 'ABCD-1234', device_auth_id: 'dev-1', interval: 1 })
-      }
-      polls.denied++
-      return Response.json({ error: 'access_denied' }, { status: 403 })
-    }),
-  })
-  let refusal: Error | undefined
-  try {
-    await denied.result
-  } catch (error) {
-    refusal = error as Error
+  const ISSUER = 'https://oai-auth.fixture.invalid'
+  const ACCOUNTS = `${ISSUER}/api/accounts`
+  const STARTED = { device_auth_id: 'deviceauth_fixture0001', user_code: 'ABCD-1234', interval: '5', expires_at: '2026-10-18T11:21:24.088140+00:00' }
+  const PENDING = {
+    error: { message: 'Device authorization is pending. Please try again.', type: 'invalid_request_error', param: null, code: 'deviceauth_authorization_pending' },
   }
-  check(
-    'openai: a DENIED device approval ends the flow immediately with the honest refusal',
-    polls.denied === 1 &&
-      refusal !== undefined &&
-      refusal.message.includes('denied') &&
-      refusal.message.includes('access_denied'),
-    `polls=${polls.denied} message=${refusal?.message ?? '(resolved)'}`,
+  const challenge = (): Response =>
+    new Response('<!DOCTYPE html><html lang="en-US"><head><title>Just a moment...</title>', {
+      status: 403,
+      headers: { 'content-type': 'text/html; charset=UTF-8', 'cf-mitigated': 'challenge' },
+    })
+  const seen: { url: string; body: string }[] = []
+  const deviceFetch = (handler: (url: string) => Response): typeof fetch =>
+    (async (url: unknown, init?: RequestInit) => {
+      seen.push({ url: String(url), body: String(init?.body ?? '') })
+      return handler(String(url))
+    }) as typeof fetch
+  type DeviceStart = Awaited<ReturnType<typeof openaiAccounts.beginOpenaiDeviceConnect>>
+  const drive = async (
+    pollAnswer: (poll: number) => Response,
+  ): Promise<{ start?: DeviceStart; ref?: Awaited<DeviceStart['result']>; failure?: Error; polls: number }> => {
+    const state = { polls: 0 }
+    try {
+      const start = await openaiAccounts.beginOpenaiDeviceConnect({
+        pollIntervalMsOverride: 1,
+        fetchImpl: deviceFetch(url => {
+          if (url === `${ACCOUNTS}/deviceauth/usercode`) return Response.json(STARTED)
+          if (url === `${ACCOUNTS}/deviceauth/token`) return pollAnswer(++state.polls)
+          if (url === `${ISSUER}/oauth/token`) return Response.json({ id_token: '', access_token: fakeJwt(3600), refresh_token: 'rt-dev' })
+          return challenge()
+        }),
+      })
+      const ref = await start.result
+      return { start, ref, polls: state.polls }
+    } catch (error) {
+      return { failure: error as Error, polls: state.polls }
+    }
+  }
+
+  const approved = await drive(poll =>
+    poll === 1 ? Response.json(PENDING, { status: 403 }) : Response.json({ authorization_code: 'code-1', code_challenge: 'chal-1', code_verifier: 'ver-1' }),
   )
-  const approved = await openaiAccounts.beginOpenaiDeviceConnect({
-    pollIntervalMsOverride: 1,
-    fetchImpl: deviceFetch(url => {
-      if (url.endsWith('/deviceauth/usercode')) {
-        return Response.json({ user_code: 'ABCD-1234', device_auth_id: 'dev-2', interval: 1 })
-      }
-      if (url.endsWith('/deviceauth/token')) {
-        polls.pending++
-        if (polls.pending === 1) return new Response('', { status: 428 })
-        return Response.json({ authorization_code: 'code-1', code_verifier: 'ver-1' })
-      }
-      return Response.json({ id_token: '', access_token: fakeJwt(3600), refresh_token: 'rt-dev' })
-    }),
-  })
-  const ref = await approved.result
   check(
-    'openai: the pending statuses still poll through to an authorized exchange',
-    polls.pending === 2 && ref.kind === 'chatgpt-subscription',
-    `polls=${polls.pending}`,
+    'openai: the device start is answered on /api/accounts/deviceauth/usercode (the bare path is a Cloudflare challenge)',
+    approved.start?.userCode === 'ABCD-1234' && seen.some(s => s.url === `${ACCOUNTS}/deviceauth/usercode`),
+    approved.failure?.message ?? seen.map(s => s.url).join(' '),
+  )
+  check(
+    'openai: the hint names the issuer’s /codex/device page',
+    approved.start?.verifyHint.startsWith(`${ISSUER}/codex/device`) === true,
+    approved.start?.verifyHint ?? '(no start)',
+  )
+  check(
+    'openai: a 403 whose body code is deviceauth_authorization_pending is PENDING — the poll continues to the authorized exchange',
+    approved.polls === 2 && approved.ref?.kind === 'chatgpt-subscription',
+    `polls=${approved.polls} ${approved.failure?.message ?? approved.ref?.kind ?? ''}`,
+  )
+  const exchange = new URLSearchParams(seen.find(s => s.url === `${ISSUER}/oauth/token`)?.body ?? '')
+  check(
+    'openai: the device exchange carries the issuer’s deviceauth callback and the poll’s verifier',
+    exchange.get('redirect_uri') === `${ISSUER}/deviceauth/callback` && exchange.get('code_verifier') === 'ver-1' && exchange.get('code') === 'code-1' && exchange.get('grant_type') === 'authorization_code',
+    exchange.toString() || '(no exchange)',
+  )
+  check(
+    'openai: the poll posts the device_auth_id and user_code the start answered',
+    seen.some(s => s.url === `${ACCOUNTS}/deviceauth/token` && s.body === JSON.stringify({ device_auth_id: STARTED.device_auth_id, user_code: STARTED.user_code })),
+    seen.filter(s => s.url.endsWith('/deviceauth/token')).map(s => s.body).join(' | '),
+  )
+
+  const denied = await drive(() =>
+    Response.json({ error: { message: 'The user denied the request.', type: 'invalid_request_error', param: null, code: 'deviceauth_access_denied' } }, { status: 403 }),
+  )
+  check(
+    'openai: a DENIED device approval ends the flow on its first poll with the service’s words',
+    denied.polls === 1 && denied.failure !== undefined && denied.failure.message.includes('denied') && denied.failure.message.includes('deviceauth_access_denied') && denied.failure.message.includes('The user denied the request.'),
+    `polls=${denied.polls} message=${denied.failure?.message ?? '(resolved)'}`,
+  )
+  const rfcDenied = await drive(() => Response.json({ error: 'access_denied' }, { status: 400 }))
+  check(
+    'openai: the RFC 8628 access_denied spelling is the same terminal verdict',
+    rfcDenied.polls === 1 && rfcDenied.failure?.message.includes('access_denied') === true,
+    `polls=${rfcDenied.polls} message=${rfcDenied.failure?.message ?? '(resolved)'}`,
+  )
+  const expired = await drive(() =>
+    Response.json({ error: { message: 'Device authorization has expired.', type: 'invalid_request_error', param: null, code: 'deviceauth_expired' } }, { status: 403 }),
+  )
+  check(
+    'openai: an EXPIRED code ends the flow on its first poll as an expiry, never polled to the deadline',
+    expired.polls === 1 && expired.failure?.message.includes('expired') === true && expired.failure.message.includes('Device authorization has expired.'),
+    `polls=${expired.polls} message=${expired.failure?.message ?? '(resolved)'}`,
+  )
+  const statusPending = await drive(poll =>
+    poll === 1 ? new Response('', { status: 404 }) : poll === 2 ? new Response('', { status: 403 }) : Response.json({ authorization_code: 'code-2', code_verifier: 'ver-2' }),
+  )
+  check(
+    'openai: a bodiless 404 or 403 is still PENDING (the reference client’s status law)',
+    statusPending.polls === 3 && statusPending.ref?.kind === 'chatgpt-subscription',
+    `polls=${statusPending.polls} ${statusPending.failure?.message ?? ''}`,
+  )
+  const broken = await drive(() => Response.json({ error: { message: 'Invalid device_auth_id.', type: 'invalid_request_error', param: 'device_auth_id', code: 'invalid_device_auth_id' } }, { status: 400 }))
+  check(
+    'openai: an unclassified 4xx on the poll is terminal with the service’s words, never polled to the deadline',
+    broken.polls === 1 && broken.failure?.message.includes('HTTP 400') === true && broken.failure.message.includes('Invalid device_auth_id.'),
+    `polls=${broken.polls} message=${broken.failure?.message ?? '(resolved)'}`,
+  )
+  const slowed = await drive(poll =>
+    poll === 1 ? Response.json({ error: { message: 'Polling too fast.', type: 'invalid_request_error', param: null, code: 'deviceauth_slow_down' } }, { status: 403 }) : Response.json({ authorization_code: 'code-3', code_verifier: 'ver-3' }),
+  )
+  check(
+    'openai: a slow_down answer keeps polling (the interval widened) through to the exchange',
+    slowed.polls === 2 && slowed.ref?.kind === 'chatgpt-subscription',
+    `polls=${slowed.polls} ${slowed.failure?.message ?? ''}`,
+  )
+  check(
+    'openai: no device request left for the bare /deviceauth paths',
+    seen.every(s => !/\/deviceauth\/(usercode|token)$/.test(s.url) || s.url.startsWith(ACCOUNTS)),
+    seen.map(s => s.url).filter(u => !u.startsWith(ACCOUNTS)).join(' '),
   )
 }
 

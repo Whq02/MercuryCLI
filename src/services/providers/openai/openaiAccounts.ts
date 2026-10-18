@@ -720,6 +720,35 @@ export interface OpenaiDeviceConnectStart {
   result: Promise<OpenaiAccountRef>
 }
 
+type OpenaiDevicePollVerdict = 'pending' | 'slow-down' | 'denied' | 'expired' | 'transient' | 'failed'
+
+async function readOpenaiDevicePollError(poll: Response): Promise<{ code?: string; message?: string }> {
+  try {
+    const body = (await poll.json()) as Record<string, unknown>
+    if (typeof body.error === 'string') return body.error ? { code: body.error } : {}
+    if (body.error && typeof body.error === 'object') {
+      const error = body.error as Record<string, unknown>
+      return {
+        ...(typeof error.code === 'string' && error.code ? { code: error.code } : {}),
+        ...(typeof error.message === 'string' && error.message ? { message: error.message } : {}),
+      }
+    }
+  } catch {
+  }
+  return {}
+}
+
+function classifyOpenaiDevicePoll(status: number, code: string | undefined): OpenaiDevicePollVerdict {
+  const word = (code ?? '').toLowerCase().replace(/^deviceauth_/, '')
+  if (word.includes('pending')) return 'pending'
+  if (word.includes('slow')) return 'slow-down'
+  if (word.includes('denied')) return 'denied'
+  if (word.includes('expired')) return 'expired'
+  if (status === 403 || status === 404 || status === 428 || status === 425) return 'pending'
+  if (status === 429 || status >= 500) return 'transient'
+  return 'failed'
+}
+
 export async function beginOpenaiDeviceConnect(opts?: {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
@@ -729,7 +758,8 @@ export async function beginOpenaiDeviceConnect(opts?: {
   const env = opts?.env ?? process.env
   const fetchImpl = opts?.fetchImpl ?? getApiFetch()
   const base = openaiIssuerBase(env)
-  const startResponse = await fetchWithProviderDeadline(fetchImpl, 'openai', LOGIN_EXCHANGE_TIMEOUT_MS, `${base}/deviceauth/usercode`, {
+  const accountsBase = `${base}/api/accounts`
+  const startResponse = await fetchWithProviderDeadline(fetchImpl, 'openai', LOGIN_EXCHANGE_TIMEOUT_MS, `${accountsBase}/deviceauth/usercode`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'user-agent': getUserAgent() },
     body: JSON.stringify({ client_id: OPENAI_OAUTH_CLIENT_ID }),
@@ -746,7 +776,7 @@ export async function beginOpenaiDeviceConnect(opts?: {
 
   const result = (async (): Promise<OpenaiAccountRef> => {
     const deadline = Date.now() + (opts?.maxWaitMs ?? 15 * 60_000)
-    const intervalMs = opts?.pollIntervalMsOverride ?? Math.max(1, intervalS) * 1000
+    let intervalMs = opts?.pollIntervalMsOverride ?? Math.max(1, intervalS) * 1000
     for (;;) {
       if (Date.now() > deadline) {
         throw new Error('OpenAI sign-in expired before the code was approved — retry from /logins openai')
@@ -755,28 +785,30 @@ export async function beginOpenaiDeviceConnect(opts?: {
         const t = setTimeout(resolve, intervalMs)
         ;(t as { unref?: () => void }).unref?.()
       })
-      const poll = await fetchWithProviderDeadline(fetchImpl, 'openai', LOGIN_EXCHANGE_TIMEOUT_MS, `${base}/deviceauth/token`, {
+      const poll = await fetchWithProviderDeadline(fetchImpl, 'openai', LOGIN_EXCHANGE_TIMEOUT_MS, `${accountsBase}/deviceauth/token`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'user-agent': getUserAgent() },
         body: JSON.stringify({ device_auth_id: deviceAuthId, user_code: userCode }),
         ...(getProxyFetchOptions() as Record<string, unknown>),
       } as RequestInit)
-      if (poll.status === 404 || poll.status === 428 || poll.status === 425) continue
       if (!poll.ok) {
-        let verdict: string | undefined
-        try {
-          const errorBody = (await poll.json()) as Record<string, unknown>
-          if (typeof errorBody.error === 'string' && errorBody.error !== '') {
-            verdict = errorBody.error
-          }
-        } catch {
+        const error = await readOpenaiDevicePollError(poll)
+        const verdict = classifyOpenaiDevicePoll(poll.status, error.code)
+        const words = error.message ?? error.code ?? `HTTP ${poll.status}`
+        if (verdict === 'pending' || verdict === 'transient') continue
+        if (verdict === 'slow-down') {
+          intervalMs += 5000
+          continue
         }
-        if (verdict === 'access_denied' || verdict === 'expired_token' || poll.status === 403) {
+        if (verdict === 'denied') {
           throw new Error(
-            `openai device authorization denied (${verdict ?? `HTTP ${poll.status}`}) — the sign-in was refused; run the connect again to retry`,
+            `openai device authorization denied (${error.code ?? `HTTP ${poll.status}`}: ${words}) — the sign-in was refused; run the connect again to retry`,
           )
         }
-        continue
+        if (verdict === 'expired') {
+          throw new Error(`OpenAI sign-in expired before the code was approved (${words}) — retry from /logins openai`)
+        }
+        throw new Error(`openai device authorization failed (HTTP ${poll.status}: ${words}) — run the connect again to retry`)
       }
       const body = (await poll.json()) as Record<string, unknown>
       const code = typeof body.authorization_code === 'string' ? body.authorization_code : ''
@@ -785,7 +817,7 @@ export async function beginOpenaiDeviceConnect(opts?: {
       const exchange = new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: OPENAI_OAUTH_REDIRECT_URI,
+        redirect_uri: `${base}/deviceauth/callback`,
         client_id: OPENAI_OAUTH_CLIENT_ID,
         code_verifier: verifier,
       })
@@ -812,7 +844,7 @@ export async function beginOpenaiDeviceConnect(opts?: {
 
   return {
     userCode,
-    verifyHint: `${base} → sign in, then enter code ${userCode}`,
+    verifyHint: `${base}/codex/device → sign in, then enter code ${userCode}`,
     result,
   }
 }

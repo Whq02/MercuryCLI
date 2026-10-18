@@ -52,13 +52,13 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const auth = req.headers['authorization']
     const bearer = typeof auth === 'string' ? auth.replace(/^Bearer\s+/i, '') : undefined
     hits.push({ method: req.method ?? '', path, bearer, body })
-    if (req.method === 'POST' && path === '/openai/deviceauth/usercode') {
+    if (req.method === 'POST' && path === '/openai/api/accounts/deviceauth/usercode') {
       deviceStarts++
       pollsSinceStart = 0
       json(res, 200, { user_code: 'MERC-FIXT', device_auth_id: 'device-auth-1', interval: 1 })
       return
     }
-    if (req.method === 'POST' && path === '/openai/deviceauth/token') {
+    if (req.method === 'POST' && path === '/openai/api/accounts/deviceauth/token') {
       tokenPolls++
       pollsSinceStart++
       if (pollsSinceStart === 1) {

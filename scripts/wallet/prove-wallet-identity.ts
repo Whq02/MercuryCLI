@@ -158,11 +158,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       })
       return
     }
-    if (req.method === 'POST' && path === '/openai/deviceauth/usercode') {
+    if (req.method === 'POST' && path === '/openai/api/accounts/deviceauth/usercode') {
       json(res, 200, { user_code: 'MERC-IDNT', device_auth_id: DEVICE_CODES[2], interval: 1 })
       return
     }
-    if (req.method === 'POST' && path === '/openai/deviceauth/token') {
+    if (req.method === 'POST' && path === '/openai/api/accounts/deviceauth/token') {
       json(res, 200, { authorization_code: 'fixture-openai-auth-code', code_verifier: 'fixture-openai-verifier' })
       return
     }
