@@ -39,6 +39,7 @@ const PROVIDER_DISPLAY_NAMES: Record<CallModelRoute, string> = {
   minimax: 'MiniMax',
   together: 'Together AI',
   cohere: 'Cohere',
+  groq: 'Groq',
 }
 
 export function providerDisplayName(route: string): string {

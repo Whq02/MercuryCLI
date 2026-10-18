@@ -33,6 +33,8 @@ import { togetherCallModel, togetherLiveProofState } from './together/togetherCa
 import { resolveTogetherApiKey } from './together/togetherAccounts.js'
 import { cohereCallModel, cohereLiveProofState } from './cohere/cohereCallModel.js'
 import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
+import { groqCallModel, groqLiveProofState } from './groq/groqCallModel.js'
+import { resolveGroqApiKey } from './groq/groqAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -65,6 +67,7 @@ export type PrimaryBackendId =
   | 'minimax-chat'
   | 'together-chat'
   | 'cohere-chat'
+  | 'groq-chat'
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
@@ -88,6 +91,7 @@ export interface AgentRuntimeRef {
     | 'minimax'
     | 'together'
     | 'cohere'
+    | 'groq'
   route: CallModelRoute | 'unrecognised' | 'absence'
   canonicalModel: string
   family:
@@ -105,6 +109,7 @@ export interface AgentRuntimeRef {
     | { kind: 'local' }
     | { kind: 'mistral' }
     | { kind: 'zen' }
+    | { kind: 'groq' }
     | { kind: 'unknown' }
     | { kind: 'nous' }
     | { kind: 'minimax' }
@@ -287,6 +292,17 @@ const cohereBackend: PrimaryAgentBackend = {
       : { state: 'configured', detail: 'key present · no live turn proven this session' }
   },
 }
+const groqBackend: PrimaryAgentBackend = {
+  id: 'groq-chat', provider: 'groq', label: 'Groq (gateway, in-process)',
+  callModel: groqCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveGroqApiKey()) return { state: 'unavailable', reason: 'no API key (/logins groq, or GROQ_API_KEY)' }
+    const proof = groqLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
@@ -419,6 +435,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   minimax: minimaxBackend,
   together: togetherBackend,
   cohere: cohereBackend,
+  groq: groqBackend,
 }
 
 export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
@@ -477,6 +494,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'together' }
   } else if (route === 'cohere') {
     family = { kind: 'cohere' }
+  } else if (route === 'groq') {
+    family = { kind: 'groq' }
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }

@@ -1,6 +1,6 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
 
-export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere'] as const
+export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
 
 export const CATALOGUE_READ_BOUND_MS = 5_000
@@ -93,6 +93,13 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
         if (!catalogueTrafficVerdict('cohere').allowed) return false
         if (!force && !nothingUsable(getCachedCohereCatalogue())) return false
         await bounded(refreshCohereCatalogue({ force }), boundMs)
+        return true
+      }
+      case 'groq': {
+        const { getCachedGroqCatalogue, refreshGroqCatalogue } = await import('./groq/groqCatalogue.js')
+        if (!catalogueTrafficVerdict('groq').allowed) return false
+        if (!force && !nothingUsable(getCachedGroqCatalogue())) return false
+        await bounded(refreshGroqCatalogue({ force }), boundMs)
         return true
       }
       case 'moonshot': {

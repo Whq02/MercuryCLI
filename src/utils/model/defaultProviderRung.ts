@@ -19,6 +19,7 @@ const KNOWN_FAMILIES = new Set([
   'minimax',
   'together',
   'cohere',
+  'groq',
 ])
 
 interface DefaultProviderReads {

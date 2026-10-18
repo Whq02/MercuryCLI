@@ -199,6 +199,7 @@ const CONFIG_PROVIDER_PRESENTATION: Record<
   minimax: { label: 'MiniMax', absent: 'no key — /logins minimax connects (or MINIMAX_API_KEY)', manage: '/accounts' },
   together: { label: 'Together AI', absent: 'no key — /logins together connects (or TOGETHER_API_KEY)', manage: '/accounts' },
   cohere: { label: 'Cohere', absent: 'no key — /logins cohere connects (or COHERE_API_KEY)', manage: '/accounts' },
+  groq: { label: 'Groq', absent: 'no key — /logins groq connects (or GROQ_API_KEY)', manage: '/accounts' },
 }
 
 

@@ -23,6 +23,7 @@ export type ProviderId =
   | 'minimax'
   | 'together'
   | 'cohere'
+  | 'groq'
 
 export interface ProviderUsability {
   provider: ProviderId | 'unrecognised'
@@ -59,6 +60,7 @@ export interface ProviderUsabilityReads {
   minimaxKeyPresent?: () => boolean
   togetherKeyPresent?: () => boolean
   cohereKeyPresent?: () => boolean
+  groqKeyPresent?: () => boolean
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
@@ -188,6 +190,10 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     cohereKeyPresent: () => {
       const { resolveCohereApiKey } = require('./cohere/cohereAccounts.js') as typeof import('./cohere/cohereAccounts.js')
       return resolveCohereApiKey() !== undefined
+    },
+    groqKeyPresent: () => {
+      const { resolveGroqApiKey } = require('./groq/groqAccounts.js') as typeof import('./groq/groqAccounts.js')
+      return resolveGroqApiKey() !== undefined
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
@@ -384,6 +390,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   const minimax = keyLane('minimax', reads.minimaxKeyPresent?.() ?? false, 'no MiniMax API key — /logins minimax (or MINIMAX_API_KEY)')
   const together = keyLane('together', reads.togetherKeyPresent?.() ?? false, 'no Together AI API key — /logins together (or TOGETHER_API_KEY)')
   const cohere = keyLane('cohere', reads.cohereKeyPresent?.() ?? false, 'no Cohere API key — /logins cohere (or COHERE_API_KEY)')
+  const groq = keyLane('groq', reads.groqKeyPresent?.() ?? false, 'no Groq API key — /logins groq (or GROQ_API_KEY)')
   const deepseek = keyLane(
     'deepseek',
     reads.deepseekKeyPresent?.() ?? false,
@@ -497,6 +504,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     minimax: applyLaneBilling(minimax),
     together: applyLaneBilling(together),
     cohere: applyLaneBilling(cohere),
+    groq: applyLaneBilling(groq),
   }
 }
 

@@ -17,6 +17,7 @@ export type LoginFamilyValue =
   | 'minimax'
   | 'together'
   | 'cohere'
+  | 'groq'
 
 export interface LoginFamilyRow {
   label: string
@@ -54,6 +55,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'MiniMax — API key or M Plan key (M3, M2.7)', value: 'minimax' as const },
           { label: 'Together AI — API key (the gateway\'s chat models)', value: 'together' as const },
           { label: 'Cohere — API key (Command A+, North)', value: 'cohere' as const },
+          { label: 'Groq — API key (text models)', value: 'groq' as const },
           { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },
         ]
       : []),
@@ -95,6 +97,7 @@ export const KEY_PAGES: Record<KeyFamilyValue, string> = {
   minimax: 'platform.minimax.io',
   together: 'api.together.ai/settings',
   cohere: 'dashboard.cohere.com/api-keys',
+  groq: 'console.groq.com/keys',
 }
 
 export const KEY_FAMILIES = Object.keys(KEY_PAGES) as KeyFamilyValue[]
@@ -127,6 +130,7 @@ export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginF
     case 'minimax':
     case 'together':
     case 'cohere':
+    case 'groq':
       return defaultProvider
     default:
       return undefined

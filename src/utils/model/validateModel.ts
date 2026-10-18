@@ -29,7 +29,8 @@ async function validateNonAnthropicModel(
     | 'zen'
     | 'minimax'
     | 'together'
-    | 'cohere',
+    | 'cohere'
+    | 'groq',
   trimmed: string,
 ): Promise<ValidateModelResult & { skipCache?: boolean }> {
   if (route !== 'openrouter') {
@@ -275,6 +276,20 @@ async function validateNonAnthropicModel(
     if (!isCohereChatModelId(id)) return { valid: false, error: 'This Cohere model is not on the chat-completions road.' }
     if (snapshot?.models.length && !cohereListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Cohere account's live catalogue.` }
     if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !cohereDisplayPin(id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Cohere account's live catalogue.` }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'groq') {
+    const { resolveGroqAccount } = await import('../../services/providers/groq/groqAccounts.js')
+    if (!resolveGroqAccount()) return { valid: false, error: 'Groq is unavailable — no API key (/logins groq, or set GROQ_API_KEY).' }
+    const { groqWireId, isGroqTextModelId, groqDisplayPin } = await import('../../services/providers/groq/groqPins.js')
+    const wire = groqWireId(trimmed)
+    if (!isGroqTextModelId(wire)) return { valid: false, error: 'Groq requires a text model qualified as groq/<id>.' }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('groq')
+    const { getCachedGroqCatalogue, groqListedModel } = await import('../../services/providers/groq/groqCatalogue.js')
+    const snapshot = getCachedGroqCatalogue()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins groq replaces the key.' }
+    if (snapshot?.fetchedAtMs ? !groqListedModel(snapshot, wire) : !groqDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Groq text catalogue.' }
     return { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {

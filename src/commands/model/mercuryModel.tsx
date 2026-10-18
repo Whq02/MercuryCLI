@@ -22,7 +22,7 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { resolveProviderUsability, usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, MISTRAL_MODEL_GROUP, ZEN_MODEL_GROUP, MINIMAX_MODEL_GROUP, TOGETHER_MODEL_GROUP, COHERE_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, MISTRAL_MODEL_GROUP, ZEN_MODEL_GROUP, MINIMAX_MODEL_GROUP, TOGETHER_MODEL_GROUP, COHERE_MODEL_GROUP, GROQ_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
 import { nextBirthModel } from '../../services/switchboard/bootBirthFacts.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
@@ -113,6 +113,8 @@ import { getCachedTogetherCatalogue, refreshTogetherCatalogue, type TogetherCata
 import { resolveTogetherApiKey, togetherApiBase } from '../../services/providers/together/togetherAccounts.js'
 import { getCachedCohereCatalogue, refreshCohereCatalogue, type CohereCatalogueSnapshot } from '../../services/providers/cohere/cohereCatalogue.js'
 import { cohereApiBase, resolveCohereApiKey } from '../../services/providers/cohere/cohereAccounts.js'
+import { getCachedGroqCatalogue, refreshGroqCatalogue, type GroqCatalogueSnapshot } from '../../services/providers/groq/groqCatalogue.js'
+import { groqApiBase, resolveGroqApiKey } from '../../services/providers/groq/groqAccounts.js'
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
 import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../services/providers/local/localDiscovery.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
@@ -422,6 +424,19 @@ const COHERE_ROAD: CatalogueRoad<CohereCatalogueSnapshot> = {
   changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
 }
 
+const GROQ_ROAD: CatalogueRoad<GroqCatalogueSnapshot> = {
+  family: 'Groq',
+  identity: () => {
+    const key = resolveGroqApiKey()
+    return key ? `${key.source}:${credentialFingerprint(key.key)}:${groqApiBase()}` : undefined
+  },
+  cached: () => getCachedGroqCatalogue(),
+  refresh: () => refreshGroqCatalogue({ force: true }),
+  populated: snapshot => snapshot.fetchedAtMs > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
+
 const MISTRAL_ROAD: CatalogueRoad<MistralCatalogueSnapshot> = {
   family: 'Mistral',
   identity: () => {
@@ -571,6 +586,7 @@ const MODEL_GROUP_FAMILIES: Record<string, string> = {
   [MINIMAX_MODEL_GROUP]: 'minimax',
   [TOGETHER_MODEL_GROUP]: 'together',
   [COHERE_MODEL_GROUP]: 'cohere',
+  [GROQ_MODEL_GROUP]: 'groq',
   [COMPAT_MODEL_GROUP]: 'openai-compat',
   [MISTRAL_MODEL_GROUP]: 'mistral',
   [LOCAL_MODEL_GROUP]: 'local',
@@ -650,7 +666,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const doorsOf = (family: string): ProviderHeading['doors'] => (presences.has(family) && presences.get(family)!.credentialed === false ? [] : signedInDoorsOf(family, slotsOf(family), presences.get(family)?.identity))
   const gptAvailability = getGptSeatAvailability()
   const usability = resolveProviderUsability()
-  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere'): ProviderHeading => {
+  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq'): ProviderHeading => {
     const lane = usability[family]
     const doors = doorsOf(family)
     if (lane.credential === 'none' || doors.length === 0) return { name: nameOf(family), doors: [], reason: lane.blockers[0] ?? 'not connected' }
@@ -686,6 +702,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
     [MINIMAX_MODEL_GROUP]: keyLaneHeading('minimax'),
     [TOGETHER_MODEL_GROUP]: keyLaneHeading('together'),
     [COHERE_MODEL_GROUP]: keyLaneHeading('cohere'),
+    [GROQ_MODEL_GROUP]: keyLaneHeading('groq'),
     [OPENROUTER_MODEL_GROUP]:
       openrouterAvailability.state === 'ready'
         ? { name: nameOf('openrouter'), doors: doorsOf('openrouter') }
@@ -886,6 +903,7 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(MINIMAX_ROAD, setNotice)
   useCatalogueRefreshOnOpen(TOGETHER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1082,7 +1100,7 @@ function MercuryModelWrapper({
           return
         }
         onDone(
-          `${keyLane === 'zai' ? 'GLM (Z.AI)' : keyLane === 'xai' ? 'xAI' : keyLane === 'meta' ? 'Meta' : keyLane === 'mistral' ? 'Mistral' : keyLane === 'minimax' ? 'MiniMax' : keyLane === 'together' ? 'Together AI' : keyLane === 'cohere' ? 'Cohere' : 'DeepSeek'} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
+          `${keyLane === 'zai' ? 'GLM (Z.AI)' : keyLane === 'xai' ? 'xAI' : keyLane === 'meta' ? 'Meta' : keyLane === 'mistral' ? 'Mistral' : keyLane === 'minimax' ? 'MiniMax' : keyLane === 'together' ? 'Together AI' : keyLane === 'cohere' ? 'Cohere' : keyLane === 'groq' ? 'Groq' : 'DeepSeek'} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
           { nextInput: `/logins ${keyLane} --return=/model`, submitNextInput: true },
         )
         return
@@ -1256,6 +1274,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueRefreshOnOpen(MINIMAX_ROAD, setNotice)
   useCatalogueRefreshOnOpen(TOGETHER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1357,6 +1376,7 @@ export function MercurySessionModelPicker({
   useCatalogueRefreshOnOpen(MINIMAX_ROAD, setNotice)
   useCatalogueRefreshOnOpen(TOGETHER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1447,6 +1467,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   useCatalogueRefreshOnOpen(MINIMAX_ROAD, setNotice)
   useCatalogueRefreshOnOpen(TOGETHER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)

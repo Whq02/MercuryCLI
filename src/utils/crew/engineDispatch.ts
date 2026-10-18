@@ -27,6 +27,8 @@ import { togetherCatalogueEntries, togetherCatalogueEntry } from '../../services
 import { cohereCatalogueEntries, cohereCatalogueEntry } from '../../services/providers/cohere/cohereAdapter.js'
 import { isTogetherModelId } from '../../services/providers/together/togetherPins.js'
 import { isZenModelId } from '../../services/providers/zen/zenPins.js'
+import { isGroqModelId } from '../../services/providers/groq/groqPins.js'
+import { groqCatalogueEntries, groqCatalogueEntry } from '../../services/providers/groq/groqAdapter.js'
 import { localLiveCatalogue } from '../../services/providers/local/localAdapter.js'
 import {
   HUGGINGFACE_MODEL_PREFIX,
@@ -52,7 +54,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -87,6 +89,7 @@ export function isExactEngineModelId(v: unknown): v is string {
     isNousModelId(v) ||
     isZenModelId(v) ||
     isTogetherModelId(v) ||
+    isGroqModelId(v) ||
     isGoogleRosterModelId(v)
   )
 }
@@ -149,6 +152,7 @@ type EngineProvider =
   | 'minimax'
   | 'together'
   | 'cohere'
+  | 'groq'
 
 export interface EngineDispatch {
   backend: EngineProvider
@@ -173,6 +177,7 @@ const SIGN_IN_DOORS: Partial<Record<EngineProvider, string>> = {
   minimax: '/logins minimax',
   together: '/logins together',
   cohere: '/logins cohere',
+  groq: '/logins groq',
 }
 
 export function providerUnavailableRefusal(provider: EngineProvider, reason: string | undefined): string {
@@ -368,6 +373,14 @@ async function resolveTogetherClassDispatch(): Promise<EngineDispatch> {
   return { backend: 'together', model: head.id, displayLabel: head.displayLabel }
 }
 
+async function resolveGroqClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'groq') return { backend: 'groq', model: main, displayLabel: groqCatalogueEntry(main)?.displayLabel ?? main }
+  if (!groqCatalogueEntries().length) await readCatalogueIfPending('groq')
+  const head = groqCatalogueEntries()[0]
+  if (!head) throw new Error("The Groq text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
+  return { backend: 'groq', model: head.id, displayLabel: head.displayLabel }
+}
 async function resolveOpenrouterClassDispatch(): Promise<EngineDispatch> {
   const main = getEngineModel()
   if (declaredRouteOf(main) === 'openrouter') {
@@ -505,6 +518,10 @@ export async function resolveEngineDispatch(
       await requireProviderAvailable('together')
       return resolveTogetherClassDispatch()
     }
+    if (modelParam === 'groq') {
+      await requireProviderAvailable('groq')
+      return resolveGroqClassDispatch()
+    }
     await requireProviderAvailable('openai-compat')
     const first = compatSlotModelIds()[0]
     if (!first) {
@@ -585,6 +602,13 @@ export async function resolveEngineDispatch(
         )
       }
       return { backend: 'together', model: pin.id, displayLabel: pin.displayLabel }
+    }
+    if (isGroqModelId(id)) {
+      await requireProviderAvailable('groq')
+      if (!groqCatalogueEntry(id)) await readCatalogueIfPending('groq')
+      const row = groqCatalogueEntry(id)
+      if (!row) throw new Error(`Groq model '${id}' is not on the available text list (${groqCatalogueEntries().map(row => row.id).join(', ')}) — mercury://models lists it; never switch to another provider on your own.`)
+      return { backend: 'groq', model: row.id, displayLabel: row.displayLabel }
     }
     if (isZenModelId(id)) {
       await requireProviderAvailable('zen')

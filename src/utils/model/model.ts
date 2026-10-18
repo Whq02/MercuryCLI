@@ -303,6 +303,10 @@ export function getPublicModelDisplayName(model: string): string | null {
     const { togetherDisplayPin } = require('../../services/providers/together/togetherPins.js') as typeof import('../../services/providers/together/togetherPins.js')
     return togetherDisplayPin(bare)?.displayName ?? null
   }
+  if (/^groq\//i.test(bare)) {
+    const { groqDisplayPin } = require('../../services/providers/groq/groqPins.js') as typeof import('../../services/providers/groq/groqPins.js')
+    return groqDisplayPin(bare)?.displayName ?? null
+  }
   const gpt = gptDisplayName(bare)
   if (gpt !== undefined) {
     return gpt

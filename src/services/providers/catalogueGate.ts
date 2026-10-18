@@ -8,12 +8,13 @@ import { resolveZenApiKey } from './zen/zenAccounts.js'
 import { resolveMinimaxApiKey } from './minimax/minimaxAccounts.js'
 import { resolveTogetherApiKey } from './together/togetherAccounts.js'
 import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
+import { resolveGroqApiKey } from './groq/groqAccounts.js'
 import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
 import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
 import { resolveOpenrouterRequestAuth } from './openrouter/openrouterAccounts.js'
 
-export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere'
+export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq'
 
 type CatalogueGateVerdict =
   | { allowed: true; exempt?: 'local-endpoint' }
@@ -40,6 +41,7 @@ const FAMILY_NAMES: Record<Exclude<CatalogueFamily, 'local'>, string> = {
   minimax: 'MiniMax',
   together: 'Together AI',
   cohere: 'Cohere',
+  groq: 'Groq',
 }
 
 export function connectToBrowseReason(family: Exclude<CatalogueFamily, 'local'>): string {
@@ -88,6 +90,8 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
       return resolveTogetherApiKey(env) !== undefined
     case 'cohere':
       return resolveCohereApiKey(env) !== undefined
+    case 'groq':
+      return resolveGroqApiKey(env) !== undefined
   }
 }
 

@@ -52,6 +52,8 @@ import {
   writeStoredTogetherApiKey,
   readStoredCohereApiKey,
   writeStoredCohereApiKey,
+  readStoredGroqApiKey,
+  writeStoredGroqApiKey,
   readStoredHuggingfaceApiKey,
   readStoredLocalApiKey,
   readStoredMoonshotApiKey,
@@ -139,6 +141,7 @@ export type SlotRemoval =
   | { route: 'minimax-stored-key' }
   | { route: 'together-stored-key' }
   | { route: 'cohere-stored-key' }
+  | { route: 'groq-stored-key' }
   | { route: 'compat-stored-key' }
   | { route: 'huggingface-oauth' }
   | { route: 'huggingface-stored-key' }
@@ -228,6 +231,8 @@ export interface AccountSlotReads {
   togetherStoredKey?: () => string | undefined
   cohereEnvKey?: () => string | undefined
   cohereStoredKey?: () => string | undefined
+  groqEnvKey?: () => string | undefined
+  groqStoredKey?: () => string | undefined
   compatEnvKey?: () => string | undefined
   compatStoredKey?: () => string | undefined
   huggingfaceEnvKey?: () => string | undefined
@@ -1058,6 +1063,11 @@ function cohereSlots(reads: AccountSlotReads): AccountSlot[] {
   return keyLaneSlots({ family: 'cohere', envVar: process.env.COHERE_API_KEY?.trim() ? 'COHERE_API_KEY' : process.env.CO_API_KEY?.trim() ? 'CO_API_KEY' : 'COHERE_API_KEY', envKey, storedKey, storedRemoval: { route: 'cohere-stored-key' } })
 }
 
+function groqSlots(reads: AccountSlotReads): AccountSlot[] {
+  const envKey = reads.groqEnvKey ? reads.groqEnvKey() : process.env.GROQ_API_KEY?.trim() || undefined
+  const storedKey = (reads.groqStoredKey ?? readStoredGroqApiKey)()
+  return keyLaneSlots({ family: 'groq', envVar: 'GROQ_API_KEY', envKey, storedKey, storedRemoval: { route: 'groq-stored-key' } })
+}
 function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
     reads.deepseekEnvKey ? reads.deepseekEnvKey() : process.env.DEEPSEEK_API_KEY?.trim() || undefined
@@ -1285,6 +1295,8 @@ export function deriveFamilySlotGroups(
                             ? togetherSlots(reads)
                           : family.id === 'cohere'
                             ? cohereSlots(reads)
+                          : family.id === 'groq'
+                            ? groqSlots(reads)
                           : family.id === 'openai-compat'
                             ? compatSlots(reads)
                             : family.id === 'huggingface'
@@ -1327,6 +1339,7 @@ export interface SlotRemovalOwners {
   clearStoredMinimaxKey?: () => void
   clearStoredTogetherKey?: () => void
   clearStoredCohereKey?: () => void
+  clearStoredGroqKey?: () => void
   clearStoredCompatKey?: () => void
   disconnectHuggingfaceOauth?: () => void
   clearStoredHuggingfaceKey?: () => void
@@ -1546,6 +1559,9 @@ function routeSlotRemoval(
     case 'cohere-stored-key':
       ;(owners.clearStoredCohereKey ?? (() => writeStoredCohereApiKey(null)))()
       return { note: 'stored Cohere API key cleared from the auth-scoped store', mutated: true }
+    case 'groq-stored-key':
+      ;(owners.clearStoredGroqKey ?? (() => writeStoredGroqApiKey(null)))()
+      return { note: 'stored Groq API key cleared from the auth-scoped store', mutated: true }
     case 'deepseek-stored-key':
       ;(owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null)))()
       return { note: 'stored DeepSeek API key cleared from the auth-scoped store', mutated: true }
@@ -1611,6 +1627,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['minimax-stored-key', owners.clearStoredMinimaxKey ?? (() => writeStoredMinimaxApiKey(null))],
     ['together-stored-key', owners.clearStoredTogetherKey ?? (() => writeStoredTogetherApiKey(null))],
     ['cohere-stored-key', owners.clearStoredCohereKey ?? (() => writeStoredCohereApiKey(null))],
+    ['groq-stored-key', owners.clearStoredGroqKey ?? (() => writeStoredGroqApiKey(null))],
     ['compat-stored-key', owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null))],
     ['huggingface-oauth', owners.disconnectHuggingfaceOauth ?? disconnectHuggingfaceOauth],
     ['huggingface-stored-key', owners.clearStoredHuggingfaceKey ?? (() => writeStoredHuggingfaceApiKey(null))],

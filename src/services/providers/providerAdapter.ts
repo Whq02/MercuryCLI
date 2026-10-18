@@ -18,6 +18,7 @@ export type ProviderFamilyId =
   | 'minimax'
   | 'together'
   | 'cohere'
+  | 'groq'
 export type ProviderModelClass =
   | 'opus'
   | 'sonnet'
@@ -37,6 +38,7 @@ export type ProviderModelClass =
   | 'minimax'
   | 'together'
   | 'cohere'
+  | 'groq'
 export type ProviderEffortLevel = 'high' | 'xhigh' | 'max'
 
 

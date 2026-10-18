@@ -565,6 +565,7 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
     label: 'Cohere',
     signIn: 'Add a Cohere API key via /logins cohere, or export COHERE_API_KEY',
   },
+  groq: { label: 'Groq', signIn: 'Add a Groq API key via /logins groq, or export GROQ_API_KEY' },
   'openai-compat': {
     label: 'Custom endpoint',
     signIn: 'Set MERCURY_COMPAT_BASE_URL (key optional — MERCURY_COMPAT_API_KEY)',

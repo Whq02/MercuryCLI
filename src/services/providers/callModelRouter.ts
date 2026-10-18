@@ -24,6 +24,7 @@ import { zenCallModel } from './zen/zenCallModel.js'
 import { minimaxCallModel } from './minimax/minimaxCallModel.js'
 import { togetherCallModel } from './together/togetherCallModel.js'
 import { cohereCallModel } from './cohere/cohereCallModel.js'
+import { groqCallModel } from './groq/groqCallModel.js'
 import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 import { withBackupVote } from '../api/backupEngines.js'
@@ -170,6 +171,9 @@ async function* dispatchRoute(params: CallModelParams): CallModelStream {
       return
     case 'cohere':
       yield* cohereCallModel(request)
+      return
+    case 'groq':
+      yield* groqCallModel(request)
       return
   }
 }

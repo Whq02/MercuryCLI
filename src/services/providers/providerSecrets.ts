@@ -31,6 +31,7 @@ interface ProviderSecretsFile {
   minimaxApiKey?: string
   togetherApiKey?: string
   cohereApiKey?: string
+  groqApiKey?: string
   braveSearchApiKey?: string
   tavilyApiKey?: string
   typesafeApiKey?: string
@@ -180,6 +181,7 @@ type StoredKeyField =
   | 'huggingfaceApiKey'
   | 'localApiKey'
   | 'zenApiKey'
+  | 'groqApiKey'
   | 'braveSearchApiKey'
   | 'tavilyApiKey'
   | 'typesafeApiKey'
@@ -212,6 +214,7 @@ const KEY_FIELD_FAMILY: Partial<Record<StoredKeyField, string>> = {
   minimaxApiKey: 'minimax',
   togetherApiKey: 'together',
   cohereApiKey: 'cohere',
+  groqApiKey: 'groq',
 }
 
 function writeStoredKey(field: StoredKeyField, key: string | null): void {
@@ -331,6 +334,12 @@ export function readStoredCohereApiKey(): string | undefined {
 export function writeStoredCohereApiKey(key: string | null): void {
   writeStoredKey('cohereApiKey', key)
 }
+export function readStoredGroqApiKey(): string | undefined {
+  return readStoredKey('groqApiKey')
+}
+export function writeStoredGroqApiKey(key: string | null): void {
+  writeStoredKey('groqApiKey', key)
+}
 
 export function readStoredLocalApiKey(): string | undefined {
   return readStoredKey('localApiKey')
@@ -421,5 +430,6 @@ export function credentialEnvNames(): readonly string[] {
     'TOGETHER_AI_API_KEY',
     'COHERE_API_KEY',
     'CO_API_KEY',
+    'GROQ_API_KEY',
   ]
 }

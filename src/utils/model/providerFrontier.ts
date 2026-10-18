@@ -77,6 +77,7 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
       case 'local':
       case 'zen':
       case 'together':
+      case 'groq':
         return undefined
       case 'minimax': {
         const { minimaxCatalogueRows, minimaxCatalogueSourceWords } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
