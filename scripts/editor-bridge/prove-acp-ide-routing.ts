@@ -160,6 +160,17 @@ function toolResultStrings(updates: Array<Record<string, unknown>>): string[] {
     })
 }
 
+const EDITOR_TERMINAL_PARAGRAPH = /\n\nEditor terminal: [^\n]*/
+let plainBashDescription = ''
+function bashDescriptionOf(api: { requests: Array<{ body: unknown }> }): string {
+  for (const request of api.requests) {
+    const tools = (request.body as { tools?: Array<{ name?: string; description?: string }> } | null)?.tools
+    const bash = Array.isArray(tools) ? tools.find(tool => tool.name === 'Bash') : undefined
+    if (typeof bash?.description === 'string' && bash.description !== '') return bash.description
+  }
+  return ''
+}
+
 section('§1 control: when the ACP client advertises NO capabilities (none), Read, Write, Edit and Bash use disk/shell identically and send zero IDE RPCs')
 {
   const diskFile = join(projDir, 'control.txt')
@@ -188,6 +199,9 @@ section('§1 control: when the ACP client advertises NO capabilities (none), Rea
     check('disk Read returned numbered lines with anchor', results.some(r => r.includes('1\tline one') && r.includes('(anchor: fa:')), j(results))
     check('disk Edit updated the file on disk', readFileSync(diskFile, 'utf8') === 'line one\nline 2 edited\n')
     check('disk Bash ran in the local shell', results.some(r => r.includes('disk-shell-ok')), j(results))
+    plainBashDescription = bashDescriptionOf(api)
+    check('the Bash description the model received has no editor terminal paragraph', plainBashDescription !== '' && !EDITOR_TERMINAL_PARAGRAPH.test(plainBashDescription), plainBashDescription.slice(-300))
+    check('no Bash result carries the editor terminal note', !results.some(r => r.includes('ran in the editor terminal')), j(results))
     await h.agent.request('session/close', { sessionId }).catch(() => {})
   } finally {
     h.close()
@@ -277,6 +291,7 @@ section('§3 read+write capabilities (fs.readTextFile: true, fs.writeTextFile: t
       results.some(r => r.includes('formatted on save') && r.includes('const y = 3;')),
       j(results),
     )
+    check('files without a terminal leave the Bash description byte for byte as with no editor', plainBashDescription !== '' && bashDescriptionOf(api) === plainBashDescription)
     await h.agent.request('session/close', { sessionId }).catch(() => {})
   } finally {
     h.close()
@@ -475,6 +490,14 @@ section('§6 terminal only (fs.readTextFile: false, fs.writeTextFile: false, ter
     check('two terminals were created for the two commands, in the session folder', creates.length === 2 && creates.every(c => typeof c.payload.cwd === 'string' && (c.payload.cwd as string).endsWith(basename(projDir))), j(creates))
     check('both terminals were released after they exited', h.termCalls.filter(c => c.op === 'release').length === 2, j(h.termCalls.map(c => c.op)))
     const results = toolResultStrings(h.updates)
+    const terminalDescription = bashDescriptionOf(api)
+    check(
+      'the Bash description the model received carries the editor terminal paragraph: the folder and the shell variables do not carry to the next call',
+      EDITOR_TERMINAL_PARAGRAPH.test(terminalDescription) && /do not carry to the next call/.test(EDITOR_TERMINAL_PARAGRAPH.exec(terminalDescription)?.[0] ?? ''),
+      terminalDescription.slice(-400),
+    )
+    check('that paragraph is the only difference from the plain description', plainBashDescription !== '' && terminalDescription.replace(EDITOR_TERMINAL_PARAGRAPH, '') === plainBashDescription)
+    check('each Bash result that ran in the editor terminal says so, in the result itself', results.filter(r => r.includes('ran in the editor terminal') && r.includes('`cd dir && …`')).length === 2, j(results))
     check('the first result carries the terminal output', results.some(r => r.includes('hi')), j(results))
     check('the failing command names its exit code 3 and carries its output', results.some(r => r.includes('boom') && /\b3\b/.test(r)), j(results))
     await h.agent.request('session/close', { sessionId }).catch(() => {})

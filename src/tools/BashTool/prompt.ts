@@ -8,6 +8,7 @@ import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
+import { ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
 import { GLOB_TOOL_NAME } from '../GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from '../GrepTool/prompt.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
@@ -43,6 +44,12 @@ export function maxOutputCharsBullet(): string {
   return 'The optional `max_output_chars` parameter bounds this call\'s inline output to its head and tail (the field\'s description has the bounds): pass a small value for a huge log where only the beginning and the verdict at the end matter.'
 }
 
+export const EDITOR_TERMINAL_RESULT_NOTE =
+  'This command ran in the editor terminal: its working directory and shell variables end with the call; start a command that needs a directory with `cd dir && …` in the same call.'
+
+const EDITOR_TERMINAL_PARAGRAPH =
+  "Editor terminal: in this session a foreground command from the main conversation runs in a fresh terminal of the editor, in the session folder, not in the shell described above. The working directory and shell variables do not carry to the next call, so a command that needs a directory starts with `cd dir && …` in the same call. A `run_in_background` command, a crewmate's command and a command the sandbox covers run in the shell described above."
+
 
 export function getSimplePrompt(offered: ReadonlySet<string> | null = null): string {
   const embedded = hasEmbeddedSearchTools()
@@ -65,6 +72,7 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
       'Shell: the working directory persists between calls; variables, functions and options do not, and each call starts from your profile (bash or zsh). Prefer absolute paths to `cd`, and double-quote a path with spaces.',
     )
   }
+  if (ideTerminalAvailable()) sections.push(EDITOR_TERMINAL_PARAGRAPH)
   sections.push(buildToolsParagraph(embedded))
   if (embedded) {
     sections.push(

@@ -40,7 +40,7 @@ import {
 } from '../../utils/file.js'
 import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { interpretCommandResult } from './commandSemantics.js'
-import { describeCommandDescription, describeMaxOutputChars, describeRunInBackground, describeTimeout, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
+import { describeCommandDescription, describeMaxOutputChars, describeRunInBackground, describeTimeout, EDITOR_TERMINAL_RESULT_NOTE, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
 import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { isSedInPlaceEdit, parseSedEditCommand, applySedSubstitution } from './sedEditParser.js'
@@ -399,6 +399,7 @@ async function* runBash(
           return null
         })
       : null
+  if (ideShellCommand !== null) editorTerminalNote = EDITOR_TERMINAL_RESULT_NOTE
   const shellCommand =
     ideShellCommand ??
     (await exec(input.command, abortController.signal, 'bash', {
