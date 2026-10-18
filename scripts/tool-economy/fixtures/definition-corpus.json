@@ -1,5 +1,5 @@
 {
-  "base": "1f0b86456bcd69611260af84bb07ab2f6fa48604",
+  "base": "eaf59ae9e015d4dd1cc6cac3ce065c0710d435ad",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -153,7 +153,7 @@
     },
     {
       "name": "Grep",
-      "description": "Content search across the tree, powered by ripgrep\n\nUsage:\n- Pattern dialect: ripgrep's, not grep's — literal braces need escaping (`interface\\{\\}` reaches `interface{}` in Go code); lookaround and backreferences fall back to PCRE2\n  - Semantic shortcut: for code by its shape, AstSearch matches the parse tree rather than the text.",
+      "description": "Content search across the tree, powered by ripgrep\n\nUsage:\n- Pattern dialect: ripgrep's, not grep's — literal braces need escaping (`interface\\{\\}` reaches `interface{}` in Go code); lookaround and backreferences fall back to PCRE2\n- `literal: true` matches the pattern as exact text (rg -F): `foo(bar[0])`, `$VAR` or `a.b` need no escaping\n  - Semantic shortcut: for code by its shape, AstSearch matches the parse tree rather than the text.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -216,6 +216,10 @@
           },
           "multiline": {
             "description": "Let patterns span line boundaries, with . matching newlines (rg -U --multiline-dotall). Off by default.",
+            "type": "boolean"
+          },
+          "literal": {
+            "description": "Match the pattern as exact text, not a regex (rg -F) — for code with regex characters such as foo(bar[0]), $VAR or a.b, nothing escaped. Off by default.",
             "type": "boolean"
           }
         },
