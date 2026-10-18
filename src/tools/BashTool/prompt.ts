@@ -61,7 +61,8 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
   sections.push(buildTimeoutParagraph(brush, offers))
   sections.push(buildOutputParagraph())
   sections.push(
-    "Background: when a `run_in_background: true` command ends, a notice with its exit code reaches you after your next tool result, or in a new turn if the session outlives your turn. It is stopped when the run that started it ends: a crewmate's run when the crewmate finishes, and a `mercury run` given its prompt at launch when your turn ends (unless a crewmate is still running); then no notice comes. The start result says which applies and how to wait. Never poll with repeated calls.",
+    "Background: when a `run_in_background: true` command ends, a notice with its exit code reaches you after your next tool result, or in a new turn if the session outlives your turn. It is stopped when the run that started it ends: a crewmate's run when the crewmate finishes, and a `mercury run` given its prompt at launch when your turn ends (unless a crewmate is still running); then no notice comes. The start result says which applies and how to wait. Never poll with repeated calls." +
+      (offers('Service') ? ` A process that must stay up after the run that started it (a server something checks once the run has ended) is a \`Service\` with lifecycle project${offers('ToolSearch') ? ' (ToolSearch `select:Service` loads it when deferred)' : ''}, not a background shell.` : ''),
   )
   if (brush) {
     sections.push(...brushShellParagraphs())

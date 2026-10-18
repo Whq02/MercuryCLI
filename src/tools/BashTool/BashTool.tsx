@@ -7,6 +7,7 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getOriginalCwd, isRunInputClosed } from '../../bootstrap/state.js'
+import { servicesEnabled } from '../../services/projectServices/contracts.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { exec, getShellCwd } from '../../utils/Shell.js'
 import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
@@ -852,9 +853,10 @@ function backgroundNoticeFor(output: Out): string {
   const wait = output.backgroundPid !== undefined
     ? ` If you need its result, wait for it before you finish: one Bash call with a \`timeout\` longer than the wait, such as \`while kill -0 ${output.backgroundPid} 2>/dev/null; do sleep 1; done\`.`
     : ' If you need its result, wait for it before you finish: one Bash call with a `timeout` longer than the wait.'
+  const serviceRoad = servicesEnabled() ? ' A process that must stay up after this run (a server something checks once the run has ended) is a Service with lifecycle project, not a background shell.' : ''
   const lifetime =
     output.backgroundLifetime === 'turn'
-      ? ` This run ends when your turn ends (unless a crewmate is still running) and stops this command then, so its notice reaches you only while you are still working.${wait} Sleep runs its full time for a shell command.`
+      ? ` This run ends when your turn ends (unless a crewmate is still running) and stops this command then, so its notice reaches you only while you are still working.${serviceRoad}${wait} Sleep runs its full time for a shell command.`
       : output.backgroundLifetime === 'crewmate'
         ? ` It is stopped when you finish, so its notice reaches you only while you are still working.${wait}`
         : ' When it ends, a notice with its exit code reaches you after your next tool result, or in a new turn once yours is over; do not poll it.'

@@ -28,6 +28,7 @@
 # gate-watch: src/utils/messages/apiPlan.ts src/utils/messages/factories.ts
 # gate-watch: scripts/release/launcherTemplates.mjs package.json src/services/run/unansweredAsk.ts
 # gate-watch: src/run-core/attachment-drain.ts src/utils/sessionStorage/transcriptReader.ts src/services/resources/adapters/transcript.ts src/utils/messages/replyAddress.ts
+# gate-watch: src/tools/BashTool/prompt.ts src/tools/BashTool/BashTool.tsx src/tools/ServiceTool/ServiceTool.ts docs/SESSIONS.md
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
