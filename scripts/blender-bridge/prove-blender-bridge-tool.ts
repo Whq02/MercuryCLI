@@ -111,7 +111,7 @@ section('§3 · the permission ladder rides the contract classes')
   const install = await perm('blender_bridge_install')
   check('blender_bridge_install ⇒ mutate ask naming its writes + the enable act', install.behavior === 'ask' && /user addon home/.test(install.message ?? '') && /your act/.test(install.message ?? ''))
   const uninstall = await perm('blender_bridge_uninstall')
-  check('blender_bridge_uninstall ⇒ mutate ask naming WHOLE removal', uninstall.behavior === 'ask' && /WHOLE/.test(uninstall.message ?? ''))
+  check('blender_bridge_uninstall ⇒ mutate ask naming the entire add-on directory removal (token and config included)', uninstall.behavior === 'ask' && /removes the entire mercury_blender_bridge add-on directory \(token and config included\)/.test(uninstall.message ?? ''))
   check('unknown ⇒ allow (the teaching path never reaches Blender)', (await perm('made_up')).behavior === 'allow')
   check(
     'isReadOnly mirrors the classes (+ blender_status)',
