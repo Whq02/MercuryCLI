@@ -17,7 +17,7 @@
      Nous Portal — account sign-in or API ke…  not signed in
      MiniMax — API key or M Plan key (M3, M2…  not signed in
      Together AI — API key (the gateway's ch…  not signed in
-   ↓ 4 more
+   ↓ 5 more
 
    xAI · not signed in
    ↵ store key · empty/esc skip

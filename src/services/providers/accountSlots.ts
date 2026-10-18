@@ -56,6 +56,8 @@ import {
   writeStoredGroqApiKey,
   readStoredCerebrasApiKey,
   writeStoredCerebrasApiKey,
+  readStoredFireworksApiKey,
+  writeStoredFireworksApiKey,
   readStoredHuggingfaceApiKey,
   readStoredLocalApiKey,
   readStoredMoonshotApiKey,
@@ -145,6 +147,7 @@ export type SlotRemoval =
   | { route: 'cohere-stored-key' }
   | { route: 'groq-stored-key' }
   | { route: 'cerebras-stored-key' }
+  | { route: 'fireworks-stored-key' }
   | { route: 'compat-stored-key' }
   | { route: 'huggingface-oauth' }
   | { route: 'huggingface-stored-key' }
@@ -238,6 +241,8 @@ export interface AccountSlotReads {
   groqStoredKey?: () => string | undefined
   cerebrasEnvKey?: () => string | undefined
   cerebrasStoredKey?: () => string | undefined
+  fireworksEnvKey?: () => string | undefined
+  fireworksStoredKey?: () => string | undefined
   compatEnvKey?: () => string | undefined
   compatStoredKey?: () => string | undefined
   huggingfaceEnvKey?: () => string | undefined
@@ -1078,6 +1083,11 @@ function cerebrasSlots(reads: AccountSlotReads): AccountSlot[] {
   const storedKey = (reads.cerebrasStoredKey ?? readStoredCerebrasApiKey)()
   return keyLaneSlots({ family: 'cerebras', envVar: 'CEREBRAS_API_KEY', envKey, storedKey, storedRemoval: { route: 'cerebras-stored-key' } })
 }
+function fireworksSlots(reads: AccountSlotReads): AccountSlot[] {
+  const envKey = reads.fireworksEnvKey ? reads.fireworksEnvKey() : process.env.FIREWORKS_API_KEY?.trim() || undefined
+  const storedKey = (reads.fireworksStoredKey ?? readStoredFireworksApiKey)()
+  return keyLaneSlots({ family: 'fireworks', envVar: 'FIREWORKS_API_KEY', envKey, storedKey, storedRemoval: { route: 'fireworks-stored-key' } })
+}
 function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
     reads.deepseekEnvKey ? reads.deepseekEnvKey() : process.env.DEEPSEEK_API_KEY?.trim() || undefined
@@ -1309,6 +1319,8 @@ export function deriveFamilySlotGroups(
                             ? groqSlots(reads)
                           : family.id === 'cerebras'
                             ? cerebrasSlots(reads)
+                          : family.id === 'fireworks'
+                            ? fireworksSlots(reads)
                           : family.id === 'openai-compat'
                             ? compatSlots(reads)
                             : family.id === 'huggingface'
@@ -1353,6 +1365,7 @@ export interface SlotRemovalOwners {
   clearStoredCohereKey?: () => void
   clearStoredGroqKey?: () => void
   clearStoredCerebrasKey?: () => void
+  clearStoredFireworksKey?: () => void
   clearStoredCompatKey?: () => void
   disconnectHuggingfaceOauth?: () => void
   clearStoredHuggingfaceKey?: () => void
@@ -1578,6 +1591,9 @@ function routeSlotRemoval(
     case 'cerebras-stored-key':
       ;(owners.clearStoredCerebrasKey ?? (() => writeStoredCerebrasApiKey(null)))()
       return { note: 'stored Cerebras API key cleared from the auth-scoped store', mutated: true }
+    case 'fireworks-stored-key':
+      ;(owners.clearStoredFireworksKey ?? (() => writeStoredFireworksApiKey(null)))()
+      return { note: 'stored Fireworks API key cleared from the auth-scoped store', mutated: true }
     case 'deepseek-stored-key':
       ;(owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null)))()
       return { note: 'stored DeepSeek API key cleared from the auth-scoped store', mutated: true }
@@ -1645,6 +1661,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['cohere-stored-key', owners.clearStoredCohereKey ?? (() => writeStoredCohereApiKey(null))],
     ['groq-stored-key', owners.clearStoredGroqKey ?? (() => writeStoredGroqApiKey(null))],
     ['cerebras-stored-key', owners.clearStoredCerebrasKey ?? (() => writeStoredCerebrasApiKey(null))],
+    ['fireworks-stored-key', owners.clearStoredFireworksKey ?? (() => writeStoredFireworksApiKey(null))],
     ['compat-stored-key', owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null))],
     ['huggingface-oauth', owners.disconnectHuggingfaceOauth ?? disconnectHuggingfaceOauth],
     ['huggingface-stored-key', owners.clearStoredHuggingfaceKey ?? (() => writeStoredHuggingfaceApiKey(null))],

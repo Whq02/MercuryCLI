@@ -283,7 +283,7 @@ function messageText(m: AssistantMessage): string {
 section('S1 · the family roster derives from the route law (never hand-copied)')
 
 const FAMILIES = ['anthropic', ...PROVIDER_ID_SPACES.map(space => space.route)] as const
-check('the route law declares twenty families including Anthropic', FAMILIES.length === 20)
+check('the route law declares twenty-one families including Anthropic', FAMILIES.length === 21)
 check(
   'every family has a display name of its own (no fallthrough spelling)',
   FAMILIES.every(f => providerDisplayName(f) !== f || f === 'local'),
@@ -311,6 +311,7 @@ const FAMILY_MODEL: Record<string, string> = {
   cohere: 'command-a-plus-05-2026',
   groq: 'groq/openai/gpt-oss-120b',
   cerebras: 'cerebras/gpt-oss-120b',
+  fireworks: 'fireworks/gpt-oss-120b',
 }
 check('the journey matrix covers every declared family', FAMILIES.every(f => FAMILY_MODEL[f] !== undefined))
 for (const f of FAMILIES) {

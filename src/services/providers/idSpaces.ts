@@ -21,6 +21,7 @@ export type CallModelRoute =
   | 'cohere'
   | 'groq'
   | 'cerebras'
+  | 'fireworks'
 
 export interface ProviderIdSpace {
   route: Exclude<CallModelRoute, 'anthropic'>
@@ -49,6 +50,7 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'cohere', barePrefixes: ['command-', 'north-', 'c4ai-aya-'], bareAliases: ['cohere'] },
   { route: 'groq', qualifiedPrefix: 'groq/', innerGrammar: 'named' },
   { route: 'cerebras', qualifiedPrefix: 'cerebras/', innerGrammar: 'named' },
+  { route: 'fireworks', qualifiedPrefix: 'fireworks/', innerGrammar: 'named' },
   { route: 'zen', qualifiedPrefix: 'zen/', innerGrammar: 'named' },
 ]
 

@@ -10,7 +10,7 @@ NEXT                    │ ╭────────────────�
                         │ │                                                                                          │ │
 FILES · orchard         │ │ Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Google  │ │
   ↵ or click · browse   │ │ Gemini, Hugging Face, Kimi (Moonshot), GLM (Z.AI), DeepSeek, xAI, Meta, Mistral, Nous    │ │
-                        │ │ Portal, MiniMax, Together AI, Cohere, Groq, Cerebras or OpenCode Zen.                    │ │
+                        │ │ Portal, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks or OpenCode Zen.         │ │
 VITALS                  │ │                                                                                          │ │
   · spend —             │ │   OpenAI — ChatGPT subscription or API key                                               │ │
   · ctx — · —           │ │ ❯ Claude subscription account                                                            │ │

@@ -567,6 +567,7 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
   },
   groq: { label: 'Groq', signIn: 'Add a Groq API key via /logins groq, or export GROQ_API_KEY' },
   cerebras: { label: 'Cerebras', signIn: 'Add a Cerebras API key via /logins cerebras, or export CEREBRAS_API_KEY' },
+  fireworks: { label: 'Fireworks', signIn: 'Add a Fireworks API key via /logins fireworks, or export FIREWORKS_API_KEY' },
   'openai-compat': {
     label: 'Custom endpoint',
     signIn: 'Set MERCURY_COMPAT_BASE_URL (key optional — MERCURY_COMPAT_API_KEY)',

@@ -31,7 +31,8 @@ async function validateNonAnthropicModel(
     | 'together'
     | 'cohere'
     | 'groq'
-    | 'cerebras',
+    | 'cerebras'
+    | 'fireworks',
   trimmed: string,
 ): Promise<ValidateModelResult & { skipCache?: boolean }> {
   if (route !== 'openrouter') {
@@ -305,6 +306,20 @@ async function validateNonAnthropicModel(
     const snapshot = getCachedCerebrasCatalogue()
     if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins cerebras replaces the key.' }
     if (snapshot?.fetchedAtMs ? !cerebrasListedModel(snapshot, wire) : !cerebrasDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Cerebras text catalogue.' }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'fireworks') {
+    const { resolveFireworksAccount } = await import('../../services/providers/fireworks/fireworksAccounts.js')
+    if (!resolveFireworksAccount()) return { valid: false, error: 'Fireworks is unavailable — no API key (/logins fireworks, or set FIREWORKS_API_KEY).' }
+    const { fireworksWireId, isFireworksTextModelId, fireworksDisplayPin } = await import('../../services/providers/fireworks/fireworksPins.js')
+    const wire = fireworksWireId(trimmed)
+    if (!isFireworksTextModelId(wire)) return { valid: false, error: 'Fireworks requires a text model qualified as fireworks/<id>.' }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('fireworks')
+    const { getCachedFireworksCatalogue, fireworksListedModel } = await import('../../services/providers/fireworks/fireworksCatalogue.js')
+    const snapshot = getCachedFireworksCatalogue()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins fireworks replaces the key.' }
+    if (snapshot?.fetchedAtMs ? !fireworksListedModel(snapshot, wire) : !fireworksDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Fireworks text catalogue.' }
     return { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {

@@ -31,6 +31,7 @@ import { togetherProviderAdapter } from './together/togetherAdapter.js'
 import { cohereProviderAdapter } from './cohere/cohereAdapter.js'
 import { groqProviderAdapter } from './groq/groqAdapter.js'
 import { cerebrasProviderAdapter } from './cerebras/cerebrasAdapter.js'
+import { fireworksProviderAdapter } from './fireworks/fireworksAdapter.js'
 import { catalogueEpoch } from './catalogueEpoch.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { credentialEnvNames } from './providerSecrets.js'
@@ -69,6 +70,7 @@ const PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   cohereProviderAdapter,
   groqProviderAdapter,
   cerebrasProviderAdapter,
+  fireworksProviderAdapter,
 ]
 
 function classForCanonical(canonical: string): ProviderModelClass | null {

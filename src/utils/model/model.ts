@@ -311,6 +311,10 @@ export function getPublicModelDisplayName(model: string): string | null {
     const { cerebrasDisplayPin } = require('../../services/providers/cerebras/cerebrasPins.js') as typeof import('../../services/providers/cerebras/cerebrasPins.js')
     return cerebrasDisplayPin(bare)?.displayName ?? null
   }
+  if (/^fireworks\//i.test(bare)) {
+    const { fireworksDisplayPin } = require('../../services/providers/fireworks/fireworksPins.js') as typeof import('../../services/providers/fireworks/fireworksPins.js')
+    return fireworksDisplayPin(bare)?.displayName ?? null
+  }
   const gpt = gptDisplayName(bare)
   if (gpt !== undefined) {
     return gpt

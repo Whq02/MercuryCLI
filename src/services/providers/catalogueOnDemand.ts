@@ -1,6 +1,6 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
 
-export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras'] as const
+export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
 
 export const CATALOGUE_READ_BOUND_MS = 5_000
@@ -107,6 +107,13 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
         if (!catalogueTrafficVerdict('cerebras').allowed) return false
         if (!force && !nothingUsable(getCachedCerebrasCatalogue())) return false
         await bounded(refreshCerebrasCatalogue({ force }), boundMs)
+        return true
+      }
+      case 'fireworks': {
+        const { getCachedFireworksCatalogue, refreshFireworksCatalogue } = await import('./fireworks/fireworksCatalogue.js')
+        if (!catalogueTrafficVerdict('fireworks').allowed) return false
+        if (!force && !nothingUsable(getCachedFireworksCatalogue())) return false
+        await bounded(refreshFireworksCatalogue({ force }), boundMs)
         return true
       }
       case 'moonshot': {

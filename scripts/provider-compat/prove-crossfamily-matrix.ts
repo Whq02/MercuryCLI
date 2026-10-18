@@ -778,7 +778,7 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
     gpt: 'openai', glm: 'zai', kimi: 'moonshot', deepseek: 'deepseek', grok: 'xai', muse: 'meta',
     compat: 'openai-compat', huggingface: 'huggingface', local: 'local',
     gemini: 'gemini', openrouter: 'openrouter', mistral: 'mistral', nous: 'nous', zen: 'zen',
-    minimax: 'minimax', together: 'together', cohere: 'cohere', groq: 'groq', cerebras: 'cerebras',
+    minimax: 'minimax', together: 'together', cohere: 'cohere', groq: 'groq', cerebras: 'cerebras', fireworks: 'fireworks',
   }
   const declaredRoutes = [...new Set(PROVIDER_ID_SPACES.map(s => s.route))].sort()
   const grammarRoutes = [...new Set(engine.ENGINE_DISPATCH_MODELS.map(c => CLASS_TO_ROUTE[c]).filter(Boolean))].sort()

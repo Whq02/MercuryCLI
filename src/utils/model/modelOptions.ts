@@ -319,17 +319,18 @@ export const TOGETHER_MODEL_GROUP = 'Mercury — Together AI models'
 export const COHERE_MODEL_GROUP = 'Mercury — Cohere models'
 export const GROQ_MODEL_GROUP = 'Mercury — Groq models'
 export const CEREBRAS_MODEL_GROUP = 'Mercury — Cerebras models'
+export const FIREWORKS_MODEL_GROUP = 'Mercury — Fireworks models'
 
 export const KEY_CONNECT_PREFIX = '__mercury_connect__:'
-export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras'): string {
+export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'): string {
   return `${KEY_CONNECT_PREFIX}${provider}`
 }
 export function parseKeyConnectValue(
   value: string,
-): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | undefined {
+): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | undefined {
   if (!value.startsWith(KEY_CONNECT_PREFIX)) return undefined
   const provider = value.slice(KEY_CONNECT_PREFIX.length)
-  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat' || provider === 'mistral' || provider === 'zen' || provider === 'minimax' || provider === 'together' || provider === 'cohere' || provider === 'groq' || provider === 'cerebras'
+  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat' || provider === 'mistral' || provider === 'zen' || provider === 'minimax' || provider === 'together' || provider === 'cohere' || provider === 'groq' || provider === 'cerebras' || provider === 'fireworks'
     ? provider
     : undefined
 }
@@ -490,7 +491,7 @@ export type KeyLaneListState =
   | { kind: 'pin' }
   | { kind: 'unread'; reading: boolean; error?: string }
 
-export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras'): KeyLaneListState {
+export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'): KeyLaneListState {
   if (provider === 'minimax' || provider === 'together' || provider === 'cohere') {
     const read = provider === 'minimax'
       ? (() => { const owner = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js'); return { snapshot: owner.getCachedMinimaxCatalogue(), source: owner.minimaxCatalogueRows().source } })()
@@ -522,6 +523,16 @@ export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xa
     const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('cerebras')
     const error = !gate.allowed ? gate.reason : owner.getCachedCerebrasCatalogue()?.lastError
+    return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
+  }
+  if (provider === 'fireworks') {
+    const owner = require('../../services/providers/fireworks/fireworksCatalogue.js') as typeof import('../../services/providers/fireworks/fireworksCatalogue.js')
+    const { source } = owner.fireworksCatalogueRows()
+    if (source.kind === 'live') return { kind: 'live', count: source.count }
+    if (source.kind === 'pins') return { kind: 'pin' }
+    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const gate = catalogueTrafficVerdict('fireworks')
+    const error = !gate.allowed ? gate.reason : owner.getCachedFireworksCatalogue()?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'zai') {
@@ -596,6 +607,7 @@ export interface KeyLaneReads {
   cohereKeyPresent?(): boolean
   groqKeyPresent?(): boolean
   cerebrasKeyPresent?(): boolean
+  fireworksKeyPresent?(): boolean
   compat(): { label: string; models: string[]; keyPresent: boolean } | undefined
 }
 
@@ -647,6 +659,10 @@ function liveKeyLaneReads(): KeyLaneReads {
       const { resolveCerebrasApiKey } = require('../../services/providers/cerebras/cerebrasAccounts.js') as typeof import('../../services/providers/cerebras/cerebrasAccounts.js')
       return resolveCerebrasApiKey() !== undefined
     },
+    fireworksKeyPresent: () => {
+      const { resolveFireworksApiKey } = require('../../services/providers/fireworks/fireworksAccounts.js') as typeof import('../../services/providers/fireworks/fireworksAccounts.js')
+      return resolveFireworksApiKey() !== undefined
+    },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
         require('../../services/providers/deepseek/deepseekAccounts.js') as typeof import('../../services/providers/deepseek/deepseekAccounts.js')
@@ -666,7 +682,7 @@ function liveKeyLaneReads(): KeyLaneReads {
   }
 }
 
-export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras'): KeyLanePin[] {
+export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'): KeyLanePin[] {
   if (provider === 'minimax') {
     const { minimaxCatalogueRows } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
     const { minimaxDisplayPin } = require('../../services/providers/minimax/minimaxPins.js') as typeof import('../../services/providers/minimax/minimaxPins.js')
@@ -691,6 +707,11 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 
     const { cerebrasCatalogueRows } = require('../../services/providers/cerebras/cerebrasCatalogue.js') as typeof import('../../services/providers/cerebras/cerebrasCatalogue.js')
     const { cerebrasDisplayPin } = require('../../services/providers/cerebras/cerebrasPins.js') as typeof import('../../services/providers/cerebras/cerebrasPins.js')
     return cerebrasCatalogueRows().rows.map(row => ({ ...row, ...(cerebrasDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
+  }
+  if (provider === 'fireworks') {
+    const { fireworksCatalogueRows } = require('../../services/providers/fireworks/fireworksCatalogue.js') as typeof import('../../services/providers/fireworks/fireworksCatalogue.js')
+    const { fireworksDisplayPin } = require('../../services/providers/fireworks/fireworksPins.js') as typeof import('../../services/providers/fireworks/fireworksPins.js')
+    return fireworksCatalogueRows().rows.map(row => ({ ...row, ...(fireworksDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'xai') {
     const { xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
@@ -930,6 +951,14 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
   } else {
     out.push(...keyLaneGroupRows({ group: CEREBRAS_MODEL_GROUP, providerName: 'Cerebras', connectValue: keyConnectValue('cerebras'), connectHint: 'opens /logins cerebras (CEREBRAS_API_KEY works too)', keyPresent: cerebrasCredentialed, pins: cerebrasRows, listState: cerebrasState, engineWords: 'the Cerebras text models' }))
   }
+  const fireworksRows = keyLanePins('fireworks')
+  const fireworksState = keyLaneListState('fireworks')
+  const fireworksCredentialed = reads.fireworksKeyPresent?.() ?? false
+  if (fireworksCredentialed && fireworksRows.length === 0 && fireworksState.kind === 'live') {
+    out.push({ value: keyConnectValue('fireworks'), label: 'Fireworks — no models listed', group: FIREWORKS_MODEL_GROUP, description: 'the live list serves no text model — /logins fireworks checks the key', descriptionForModel: 'The Fireworks account returned an empty text model list; no Fireworks model is selectable.' })
+  } else {
+    out.push(...keyLaneGroupRows({ group: FIREWORKS_MODEL_GROUP, providerName: 'Fireworks', connectValue: keyConnectValue('fireworks'), connectHint: 'opens /logins fireworks (FIREWORKS_API_KEY works too)', keyPresent: fireworksCredentialed, pins: fireworksRows, listState: fireworksState, engineWords: 'the Fireworks text models' }))
+  }
   const compat = reads.compat()
   if (compat === undefined) {
     out.push({
@@ -1047,6 +1076,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     COHERE_MODEL_GROUP,
     GROQ_MODEL_GROUP,
     CEREBRAS_MODEL_GROUP,
+    FIREWORKS_MODEL_GROUP,
   ]
   const sectionRank = (opt: ModelOption): number => {
     const index = SECTION_ORDER.indexOf(opt.group ?? ANTHROPIC_MODEL_GROUP)

@@ -22,7 +22,7 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { resolveProviderUsability, usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, MISTRAL_MODEL_GROUP, ZEN_MODEL_GROUP, MINIMAX_MODEL_GROUP, TOGETHER_MODEL_GROUP, COHERE_MODEL_GROUP, GROQ_MODEL_GROUP, CEREBRAS_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, MISTRAL_MODEL_GROUP, ZEN_MODEL_GROUP, MINIMAX_MODEL_GROUP, TOGETHER_MODEL_GROUP, COHERE_MODEL_GROUP, GROQ_MODEL_GROUP, CEREBRAS_MODEL_GROUP, FIREWORKS_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
 import { nextBirthModel } from '../../services/switchboard/bootBirthFacts.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
@@ -117,6 +117,8 @@ import { getCachedGroqCatalogue, refreshGroqCatalogue, type GroqCatalogueSnapsho
 import { groqApiBase, resolveGroqApiKey } from '../../services/providers/groq/groqAccounts.js'
 import { getCachedCerebrasCatalogue, refreshCerebrasCatalogue, type CerebrasCatalogueSnapshot } from '../../services/providers/cerebras/cerebrasCatalogue.js'
 import { cerebrasApiBase, resolveCerebrasApiKey } from '../../services/providers/cerebras/cerebrasAccounts.js'
+import { getCachedFireworksCatalogue, refreshFireworksCatalogue, type FireworksCatalogueSnapshot } from '../../services/providers/fireworks/fireworksCatalogue.js'
+import { fireworksApiBase, resolveFireworksApiKey } from '../../services/providers/fireworks/fireworksAccounts.js'
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
 import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../services/providers/local/localDiscovery.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
@@ -450,6 +452,18 @@ const CEREBRAS_ROAD: CatalogueRoad<CerebrasCatalogueSnapshot> = {
   failed: snapshot => snapshot.lastError !== undefined,
   changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
 }
+const FIREWORKS_ROAD: CatalogueRoad<FireworksCatalogueSnapshot> = {
+  family: 'Fireworks',
+  identity: () => {
+    const key = resolveFireworksApiKey()
+    return key ? `${key.source}:${credentialFingerprint(key.key)}:${fireworksApiBase()}` : undefined
+  },
+  cached: () => getCachedFireworksCatalogue(),
+  refresh: () => refreshFireworksCatalogue({ force: true }),
+  populated: snapshot => snapshot.fetchedAtMs > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
 const MISTRAL_ROAD: CatalogueRoad<MistralCatalogueSnapshot> = {
   family: 'Mistral',
   identity: () => {
@@ -601,6 +615,7 @@ const MODEL_GROUP_FAMILIES: Record<string, string> = {
   [COHERE_MODEL_GROUP]: 'cohere',
   [GROQ_MODEL_GROUP]: 'groq',
   [CEREBRAS_MODEL_GROUP]: 'cerebras',
+  [FIREWORKS_MODEL_GROUP]: 'fireworks',
   [COMPAT_MODEL_GROUP]: 'openai-compat',
   [MISTRAL_MODEL_GROUP]: 'mistral',
   [LOCAL_MODEL_GROUP]: 'local',
@@ -680,7 +695,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const doorsOf = (family: string): ProviderHeading['doors'] => (presences.has(family) && presences.get(family)!.credentialed === false ? [] : signedInDoorsOf(family, slotsOf(family), presences.get(family)?.identity))
   const gptAvailability = getGptSeatAvailability()
   const usability = resolveProviderUsability()
-  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras'): ProviderHeading => {
+  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'): ProviderHeading => {
     const lane = usability[family]
     const doors = doorsOf(family)
     if (lane.credential === 'none' || doors.length === 0) return { name: nameOf(family), doors: [], reason: lane.blockers[0] ?? 'not connected' }
@@ -718,6 +733,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
     [COHERE_MODEL_GROUP]: keyLaneHeading('cohere'),
     [GROQ_MODEL_GROUP]: keyLaneHeading('groq'),
     [CEREBRAS_MODEL_GROUP]: keyLaneHeading('cerebras'),
+    [FIREWORKS_MODEL_GROUP]: keyLaneHeading('fireworks'),
     [OPENROUTER_MODEL_GROUP]:
       openrouterAvailability.state === 'ready'
         ? { name: nameOf('openrouter'), doors: doorsOf('openrouter') }
@@ -920,6 +936,7 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
   useCatalogueRefreshOnOpen(CEREBRAS_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(FIREWORKS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1116,7 +1133,7 @@ function MercuryModelWrapper({
           return
         }
         onDone(
-          `${keyLane === 'zai' ? 'GLM (Z.AI)' : keyLane === 'xai' ? 'xAI' : keyLane === 'meta' ? 'Meta' : keyLane === 'mistral' ? 'Mistral' : keyLane === 'minimax' ? 'MiniMax' : keyLane === 'together' ? 'Together AI' : keyLane === 'cohere' ? 'Cohere' : keyLane === 'groq' ? 'Groq' : keyLane === 'cerebras' ? 'Cerebras' : 'DeepSeek'} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
+          `${keyLane === 'zai' ? 'GLM (Z.AI)' : keyLane === 'xai' ? 'xAI' : keyLane === 'meta' ? 'Meta' : keyLane === 'mistral' ? 'Mistral' : keyLane === 'minimax' ? 'MiniMax' : keyLane === 'together' ? 'Together AI' : keyLane === 'cohere' ? 'Cohere' : keyLane === 'groq' ? 'Groq' : keyLane === 'cerebras' ? 'Cerebras' : keyLane === 'fireworks' ? 'Fireworks' : 'DeepSeek'} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
           { nextInput: `/logins ${keyLane} --return=/model`, submitNextInput: true },
         )
         return
@@ -1292,6 +1309,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
   useCatalogueRefreshOnOpen(CEREBRAS_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(FIREWORKS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1395,6 +1413,7 @@ export function MercurySessionModelPicker({
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
   useCatalogueRefreshOnOpen(CEREBRAS_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(FIREWORKS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1487,6 +1506,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
   useCatalogueRefreshOnOpen(CEREBRAS_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(FIREWORKS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)

@@ -20,6 +20,7 @@ export type ProviderFamilyId =
   | 'cohere'
   | 'groq'
   | 'cerebras'
+  | 'fireworks'
 export type ProviderModelClass =
   | 'opus'
   | 'sonnet'
@@ -41,6 +42,7 @@ export type ProviderModelClass =
   | 'cohere'
   | 'groq'
   | 'cerebras'
+  | 'fireworks'
 export type ProviderEffortLevel = 'high' | 'xhigh' | 'max'
 
 

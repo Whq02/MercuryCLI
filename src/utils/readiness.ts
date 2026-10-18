@@ -947,6 +947,7 @@ function backendRemedy(backendId: string): string | undefined {
   if (backendId === 'cohere-chat') return 'add a Cohere API key via /logins cohere (or set COHERE_API_KEY)'
   if (backendId === 'groq-chat') return 'add a Groq API key via /logins groq (or set GROQ_API_KEY)'
   if (backendId === 'cerebras-chat') return 'add a Cerebras API key via /logins cerebras (or set CEREBRAS_API_KEY)'
+  if (backendId === 'fireworks-chat') return 'add a Fireworks API key via /logins fireworks (or set FIREWORKS_API_KEY)'
   return undefined
 }
 
@@ -970,6 +971,7 @@ const BACKEND_ROUTE_PROBES: readonly string[] = [
   'cohere',
   'groq/probe',
   'cerebras/probe',
+  'fireworks/probe',
 ]
 
 function backendRecords(): ReadinessRecord[] {

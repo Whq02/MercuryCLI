@@ -71,6 +71,7 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
       if (route === 'cohere') return 'Cohere pay-as-you-go billing'
       if (route === 'groq') return 'Groq API billing'
       if (route === 'cerebras') return 'Cerebras API billing'
+      if (route === 'fireworks') return 'Fireworks API billing'
       if (route === null) return 'unrecognised model · no billed lane'
     } catch {
     }

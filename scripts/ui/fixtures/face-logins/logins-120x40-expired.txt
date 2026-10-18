@@ -24,17 +24,17 @@
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
    │   Meta — Muse Code sign-in or API key            not signed in │  ╭────────────────────────────────────────────╮
    │   Mistral — API key (Mistral Large 4)            not signed in │  │ LOGINS                                     │
-   │   Nous Portal — account sign-in or API ke…       not signed in │  │ Families   18                              │
-   │   MiniMax — API key or M Plan key (M3, M2…       not signed in │  │ Signed in  3 of 18                         │
+   │   Nous Portal — account sign-in or API ke…       not signed in │  │ Families   19                              │
+   │   MiniMax — API key or M Plan key (M3, M2…       not signed in │  │ Signed in  3 of 19                         │
    │   Together AI — API key (the gateway's ch…       not signed in │  │ Ready      3 lanes                         │
    │   Cohere — API key (Command A+, North)           not signed in │  ╰────────────────────────────────────────────╯
    │   Groq — API key (text models)                   not signed in │  ╭────────────────────────────────────────────╮
    │   Cerebras — API key (text models)               not signed in │  │ ENVIRONMENT                                │
-   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Mercury    Opus 5                          │
-   ╰────────────────────────────────────────────────────────────────╯  │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
+   │   Fireworks — API key (text models)              not signed in │  │ Mercury    Opus 5                          │
+   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Critter    Octopus                         │
+   ╰────────────────────────────────────────────────────────────────╯  │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  3 of 18 families signed in · 3 ready                                                        │
+   │ ● System ready  │  3 of 19 families signed in · 3 ready                                                        │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
                                              ↑↓ move · ↵ sign in · esc back

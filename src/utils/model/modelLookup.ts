@@ -18,5 +18,6 @@ export const PROVIDER_MODEL_PAGES: Readonly<Record<string, string>> = {
   cohere: 'https://docs.cohere.com/docs/models',
   groq: 'https://console.groq.com/docs/models',
   cerebras: 'https://inference-docs.cerebras.ai/models/overview',
+  fireworks: 'https://fireworks.ai/models',
 }
 const MODEL_PAGES_CHECKED = '2026-10-13'

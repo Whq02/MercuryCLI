@@ -26,6 +26,7 @@ import { togetherCallModel } from './together/togetherCallModel.js'
 import { cohereCallModel } from './cohere/cohereCallModel.js'
 import { groqCallModel } from './groq/groqCallModel.js'
 import { cerebrasCallModel } from './cerebras/cerebrasCallModel.js'
+import { fireworksCallModel } from './fireworks/fireworksCallModel.js'
 import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 import { withBackupVote } from '../api/backupEngines.js'
@@ -178,6 +179,9 @@ async function* dispatchRoute(params: CallModelParams): CallModelStream {
       return
     case 'cerebras':
       yield* cerebrasCallModel(request)
+      return
+    case 'fireworks':
+      yield* fireworksCallModel(request)
       return
   }
 }

@@ -3,7 +3,7 @@ import { isModelFamilyWord } from './modelFamilies.js'
 import { matchModelName, type ModelNameEntry, type ModelNameMatch } from './modelNameMatcher.js'
 import { getModelOptions, isProviderActionRow } from './modelOptions.js'
 
-const CLASS_WORDS = new Set(['default', 'gpt', 'glm', 'kimi', 'deepseek', 'grok', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'meta', 'inherit'])
+const CLASS_WORDS = new Set(['default', 'gpt', 'glm', 'kimi', 'deepseek', 'grok', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'meta', 'inherit'])
 
 export function reachableModelEntries(): ModelNameEntry[] {
   return getModelOptions()

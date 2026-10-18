@@ -37,6 +37,8 @@ import { groqCallModel, groqLiveProofState } from './groq/groqCallModel.js'
 import { resolveGroqApiKey } from './groq/groqAccounts.js'
 import { cerebrasCallModel, cerebrasLiveProofState } from './cerebras/cerebrasCallModel.js'
 import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
+import { fireworksCallModel, fireworksLiveProofState } from './fireworks/fireworksCallModel.js'
+import { resolveFireworksApiKey } from './fireworks/fireworksAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -71,6 +73,7 @@ export type PrimaryBackendId =
   | 'cohere-chat'
   | 'groq-chat'
   | 'cerebras-chat'
+  | 'fireworks-chat'
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
@@ -96,6 +99,7 @@ export interface AgentRuntimeRef {
     | 'cohere'
     | 'groq'
     | 'cerebras'
+    | 'fireworks'
   route: CallModelRoute | 'unrecognised' | 'absence'
   canonicalModel: string
   family:
@@ -115,6 +119,7 @@ export interface AgentRuntimeRef {
     | { kind: 'zen' }
     | { kind: 'groq' }
     | { kind: 'cerebras' }
+    | { kind: 'fireworks' }
     | { kind: 'unknown' }
     | { kind: 'nous' }
     | { kind: 'minimax' }
@@ -319,6 +324,17 @@ const cerebrasBackend: PrimaryAgentBackend = {
       : { state: 'configured', detail: 'key present · no live turn proven this session' }
   },
 }
+const fireworksBackend: PrimaryAgentBackend = {
+  id: 'fireworks-chat', provider: 'fireworks', label: 'Fireworks (gateway, in-process)',
+  callModel: fireworksCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveFireworksApiKey()) return { state: 'unavailable', reason: 'no API key (/logins fireworks, or FIREWORKS_API_KEY)' }
+    const proof = fireworksLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
@@ -453,6 +469,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   cohere: cohereBackend,
   groq: groqBackend,
   cerebras: cerebrasBackend,
+  fireworks: fireworksBackend,
 }
 
 export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
@@ -515,6 +532,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'groq' }
   } else if (route === 'cerebras') {
     family = { kind: 'cerebras' }
+  } else if (route === 'fireworks') {
+    family = { kind: 'fireworks' }
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }

@@ -201,6 +201,7 @@ const CONFIG_PROVIDER_PRESENTATION: Record<
   cohere: { label: 'Cohere', absent: 'no key — /logins cohere connects (or COHERE_API_KEY)', manage: '/accounts' },
   groq: { label: 'Groq', absent: 'no key — /logins groq connects (or GROQ_API_KEY)', manage: '/accounts' },
   cerebras: { label: 'Cerebras', absent: 'no key — /logins cerebras connects (or CEREBRAS_API_KEY)', manage: '/accounts' },
+  fireworks: { label: 'Fireworks', absent: 'no key — /logins fireworks connects (or FIREWORKS_API_KEY)', manage: '/accounts' },
 }
 
 

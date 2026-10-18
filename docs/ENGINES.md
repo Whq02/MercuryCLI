@@ -1,6 +1,6 @@
 # Engines: the provider estate
 
-Mercury runs models across 18 sign-in provider families plus local servers
+Mercury runs models across 19 sign-in provider families plus local servers
 and custom endpoints, with per-family credentials, model lists, usage meters
 and web tools.
 
@@ -39,6 +39,7 @@ arm.
 | `cohere` | `command-*`, `north-*`, `c4ai-aya-*`, alias `cohere` (the embed, rerank and classify ids refuse here) | Cohere |
 | `groq` | `groq/<model-id>` (qualified; text models only) | Groq |
 | `cerebras` | `cerebras/<model-id>` (qualified; text models only) | Cerebras |
+| `fireworks` | `fireworks/<model-id>` (qualified; text models only) | Fireworks |
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
@@ -429,6 +430,22 @@ and paid accounts have different context and rate limits. Sources read
 [rate limits](https://inference-docs.cerebras.ai/support/rate-limits) and
 [errors](https://inference-docs.cerebras.ai/support/error).
 
+Fireworks AI connects through `/logins fireworks` or `FIREWORKS_API_KEY`,
+with keys from [app.fireworks.ai/api-keys](https://app.fireworks.ai/api-keys).
+The live text catalogue uses qualified resource ids; `fireworks/kimi-k3`
+also names `fireworks/accounts/fireworks/models/kimi-k3`, while
+`fireworks/kimi-fast-latest` names the Fire Pass router. Dated pins are
+labelled when the catalogue is unavailable. Requests carry top-level
+reasoning effort, tool calls and a stable session-affinity header for prompt
+caching. `/usage` shows session spend and the three reported TPM limits;
+account credits and costs are shown in the Fireworks console. Sources read
+**2026-10-18**: [API reference](https://docs.fireworks.ai/api-reference/post-chatcompletions),
+[reasoning](https://docs.fireworks.ai/guides/reasoning),
+[prompt caching](https://docs.fireworks.ai/guides/prompt-caching),
+[serverless pricing](https://docs.fireworks.ai/serverless/pricing),
+[rate limits](https://docs.fireworks.ai/serverless/rate-limits) and
+[Fire Pass](https://docs.fireworks.ai/firepass).
+
 Moonshot's default, picker and specialist choices follow the account's live
 model list. An API key reads the platform list; a Kimi sign-in reads its
 region's coding list with the same credential used for chat. The newest
@@ -493,7 +510,7 @@ Three wire families serve the providers:
   `thought_signature` parts across tool rounds on every Gemini credential).
 - **The OpenAI-compatible chat wire**: Moonshot/Kimi, DeepSeek, xAI's Grok
   models, Meta, Mistral, Nous Portal, OpenCode Zen (chat-completions rows),
-  MiniMax, Together AI, Cohere, Groq, Cerebras,
+  MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI,
   custom `compat/` endpoints, OpenRouter,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.

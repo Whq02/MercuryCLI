@@ -31,6 +31,7 @@ function currentCredential(family: string): Credential | undefined {
       case 'cohere': return keyCredential(require('../../services/providers/cohere/cohereAccounts.js').resolveCohereApiKey())
       case 'groq': return keyCredential(require('../../services/providers/groq/groqAccounts.js').resolveGroqApiKey())
       case 'cerebras': return keyCredential(require('../../services/providers/cerebras/cerebrasAccounts.js').resolveCerebrasApiKey())
+      case 'fireworks': return keyCredential(require('../../services/providers/fireworks/fireworksAccounts.js').resolveFireworksApiKey())
       case 'zai': return keyCredential(require('../../services/providers/providerDiscovery.js').resolveZaiDispatch())
       case 'local': return keyCredential(require('../../services/providers/local/localAccounts.js').resolveLocalApiKey())
       case 'openai-compat': return keyCredential(require('../../services/providers/openaicompat/compatAccounts.js').resolveCompatApiKey())

@@ -53,6 +53,8 @@ import { isGroqModelId, groqDisplayPin, groqEffortVocabulary } from '../../servi
 import { groqContextWindowFor, groqOutputMaxFor } from '../../services/providers/groq/groqCatalogue.js'
 import { isCerebrasModelId, cerebrasDisplayPin, cerebrasEffortVocabulary } from '../../services/providers/cerebras/cerebrasPins.js'
 import { cerebrasContextWindowFor, cerebrasOutputMaxFor } from '../../services/providers/cerebras/cerebrasCatalogue.js'
+import { isFireworksModelId, fireworksDisplayPin, fireworksEffortVocabulary } from '../../services/providers/fireworks/fireworksPins.js'
+import { fireworksContextWindowFor, fireworksOutputMaxFor } from '../../services/providers/fireworks/fireworksCatalogue.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -73,7 +75,7 @@ export function modelSupportsTemperature(model: string): boolean {
   if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   if (isMistralModelId(model)) return true
   if (isZenModelId(model)) return true
-  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model)) return true
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model) || isFireworksModelId(model)) return true
   const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(model)
   if (!m) return true
   const family = m[1]!
@@ -89,7 +91,7 @@ export function modelSupportsISP(model: string): boolean {
   if (isXaiModelId(model)) return modelSupportsThinking(model)
   if (isMetaModelId(model)) return false
   if (isMistralModelId(model)) return false
-  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model)) return false
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model) || isFireworksModelId(model)) return false
   return !getCanonicalName(model).includes('claude-3-')
 }
 
@@ -106,6 +108,7 @@ export function modelSupportsThinking(model: string): boolean {
   if (isCohereModelId(model)) return cohereModelFacts(model).reasoning === true
   if (isGroqModelId(model)) return ['included', 'parsed'].includes(groqDisplayPin(model)?.reasoning ?? '')
   if (isCerebrasModelId(model)) return ['included', 'parsed'].includes(cerebrasDisplayPin(model)?.reasoning ?? '')
+  if (isFireworksModelId(model)) return ['included', 'parsed'].includes(fireworksDisplayPin(model)?.reasoning ?? '')
   return !getCanonicalName(model).includes('claude-3-')
 }
 
@@ -113,7 +116,7 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
   if (isXaiModelId(model)) return false
   if (isMetaModelId(model)) return false
   if (isMistralModelId(model)) return false
-  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model)) return false
+  if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isCerebrasModelId(model) || isFireworksModelId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   if (canonical === 'claude-haiku-5-5' || canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return true
@@ -147,6 +150,10 @@ export function modelThinkingAlwaysOn(model: string): boolean {
   }
   if (isCerebrasModelId(model)) {
     const pin = cerebrasDisplayPin(model)
+    return pin !== undefined && pin.reasoning !== 'none' && !pin.efforts.includes('none')
+  }
+  if (isFireworksModelId(model)) {
+    const pin = fireworksDisplayPin(model)
     return pin !== undefined && pin.reasoning !== 'none' && !pin.efforts.includes('none')
   }
   if (isZenModelId(model)) {
@@ -236,7 +243,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras'
+      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -266,6 +273,7 @@ export type EffortVocabularyView =
         | 'cohere'
         | 'groq'
         | 'cerebras'
+        | 'fireworks'
       defaultEffort?: string
     }
 
@@ -372,6 +380,12 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
     return vocabulary.length > 0
       ? { kind: 'provider', source: 'cerebras', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'cerebras' }
+  }
+  if (route === 'fireworks') {
+    const vocabulary = fireworksEffortVocabulary(model)
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'fireworks', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
+      : { kind: 'none', source: 'fireworks' }
   }
   if (route === 'openrouter') {
     const { openrouterEffortVocabularyFor } =
@@ -774,6 +788,7 @@ export function resolveContextWindow(
     if (isCohereModelId(id)) return cohereModelFacts(id).contextWindow
     if (isGroqModelId(id)) return groqContextWindowFor(id)
     if (isCerebrasModelId(id)) return cerebrasContextWindowFor(id)
+    if (isFireworksModelId(id)) return fireworksContextWindowFor(id)
     return undefined
   })()
   if (enginePinnedWindow !== undefined) {
@@ -845,6 +860,8 @@ export function getModelMaxOutputTokens(model: string): {
   if (groqOut !== undefined) return statedOutputTokens(groqOut)
   const cerebrasOut = isCerebrasModelId(model) ? cerebrasOutputMaxFor(model) : undefined
   if (cerebrasOut !== undefined) return statedOutputTokens(cerebrasOut)
+  const fireworksOut = isFireworksModelId(model) ? fireworksOutputMaxFor(model) : undefined
+  if (fireworksOut !== undefined) return statedOutputTokens(fireworksOut)
   let upperLimit: number | undefined
 
   const gptPinOut = gptDisplayPin(model)?.outputMax
@@ -1091,6 +1108,8 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
       return groqDisplayPin(model)?.images === true
     case 'cerebras':
       return cerebrasDisplayPin(model)?.images === true
+    case 'fireworks':
+      return fireworksDisplayPin(model)?.images === true
     case 'zai':
       return glmTakesImages(model)
     case 'openrouter':

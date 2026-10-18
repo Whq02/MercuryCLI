@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -359,6 +359,15 @@ function cerebrasFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
     return { family: 'cerebras', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedCerebrasCatalogue(env)) : { kind: 'no-credential' } }
   })
 }
+function fireworksFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./fireworks/fireworksPins.js') as typeof import('./fireworks/fireworksPins.js')).FIREWORKS_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('fireworks', name, typed, () => {
+    const { resolveFireworksAccount } = require('./fireworks/fireworksAccounts.js') as typeof import('./fireworks/fireworksAccounts.js')
+    const { getCachedFireworksCatalogue } = require('./fireworks/fireworksCatalogue.js') as typeof import('./fireworks/fireworksCatalogue.js')
+    const account = resolveFireworksAccount(env)
+    return { family: 'fireworks', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedFireworksCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
 export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelListFact[] {
   const { providerDisplayName } = require('./routeLaw.js') as typeof import('./routeLaw.js')
   const name = (family: ModelListFamily): string => providerDisplayName(family)
@@ -380,5 +389,6 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     cohereFact(name('cohere'), env),
     groqFact(name('groq'), env),
     cerebrasFact(name('cerebras'), env),
+    fireworksFact(name('fireworks'), env),
   ]
 }

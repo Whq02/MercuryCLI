@@ -2002,6 +2002,10 @@ function deriveUsageForProvider(
     const { cerebrasUsageView } = require('./cerebras/cerebrasUsageState.js') as typeof import('./cerebras/cerebrasUsageState.js')
     return cerebrasUsageView(spend, reads?.laneCredentialed?.(provider))
   }
+  if (provider === 'fireworks') {
+    const { fireworksUsageView } = require('./fireworks/fireworksUsageState.js') as typeof import('./fireworks/fireworksUsageState.js')
+    return fireworksUsageView(spend, reads?.laneCredentialed?.(provider))
+  }
   if (provider === 'deepseek' || provider === 'openai-compat') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
     const uncredentialedLabel = provider === 'deepseek' ? 'DeepSeek usage' : 'Endpoint usage'

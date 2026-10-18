@@ -53,6 +53,7 @@ export type CacheLane =
   | 'cohere'
   | 'groq'
   | 'cerebras'
+  | 'fireworks'
 
 type PromptStateSnapshot = {
   system: NeutralSystemBlock[]
