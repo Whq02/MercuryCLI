@@ -152,7 +152,7 @@ function capture(cfgPath: string, env: NodeJS.ProcessEnv, budgetMs: number): Pro
 }
 const fixture = await startFixture()
 const browser = join(ROOT, 'browser.sh')
-writeFileSync(browser, ['#!/bin/sh', 'url="$1"', `state=$(printf '%s' "$url" | sed -n 's/.*[?&]state=\\([^&]*\\).*/\\1/p')`, `(sleep 1; curl -s "http://127.0.0.1:51121/oauth-callback?code=OK&state=$state" >/dev/null 2>&1) &`, 'exit 0', ''].join('\n'))
+writeFileSync(browser, ['#!/bin/sh', 'url="$1"', `state=$(printf '%s' "$url" | sed -n 's/.*[?&]state=\\([^&]*\\).*/\\1/p')`, `(i=0; while [ ! -s "$MERCURY_CLIPBOARD_FILE" ] && [ "$i" -lt 300 ]; do sleep 0.05; i=$((i + 1)); done; curl -s "http://127.0.0.1:51121/oauth-callback?code=OK&state=$state" >/dev/null 2>&1) &`, 'exit 0', ''].join('\n'))
 chmodSync(browser, 0o755)
 try {
   console.log(`bundle ${BIN}; scratch ${ROOT}; Google + Code Assist fixture on 127.0.0.1:${fixture.port}`)
@@ -162,7 +162,7 @@ try {
     seedFirstRun(home, [CWD])
     writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } }, engine: { roster: ['claude-opus-5', 'gemini'] } }))
     const base = `http://127.0.0.1:${fixture.port}`
-    const env: NodeJS.ProcessEnv = { ...process.env, ANTHROPIC_API_KEY: FIXTURE_API_KEY, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: browser, MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_HOME: join(home, 'home'), MERCURY_HEALTH_STATE_DIR: join(home, 'health'), MERCURY_BOOT_PREFLIGHT: '0', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0', TERM_PROGRAM: 'vscode', MERCURY_GEMINI_API_BASE: 'http://127.0.0.1:1', MERCURY_GEMINI_OAUTH_TOKEN_BASE: `${base}/token`, MERCURY_GEMINI_OAUTH_AUTH_BASE: `${base}/auth`, MERCURY_GOOGLE_USERINFO_BASE: base, MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE: base, MERCURY_ANTIGRAVITY_MANIFEST_BASE: 'http://127.0.0.1:1' }
+    const env: NodeJS.ProcessEnv = { ...process.env, ANTHROPIC_API_KEY: FIXTURE_API_KEY, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: browser, MERCURY_CLIPBOARD_FILE: join(home, 'clipboard.txt'), MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_HOME: join(home, 'home'), MERCURY_HEALTH_STATE_DIR: join(home, 'health'), MERCURY_BOOT_PREFLIGHT: '0', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0', TERM_PROGRAM: 'vscode', MERCURY_GEMINI_API_BASE: 'http://127.0.0.1:1', MERCURY_GEMINI_OAUTH_TOKEN_BASE: `${base}/token`, MERCURY_GEMINI_OAUTH_AUTH_BASE: `${base}/auth`, MERCURY_GOOGLE_USERINFO_BASE: base, MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE: base, MERCURY_ANTIGRAVITY_MANIFEST_BASE: 'http://127.0.0.1:1' }
     for (const k of ['ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_MODEL', 'NODE_ENV']) delete env[k]
     const sends: Send[] = [
       gate('↑↓ choose', SHIFT_RIGHT),
@@ -174,7 +174,7 @@ try {
       gate('↵ sign in · esc back', '\r'),
       witness("your plan's quota", 'card'),
       gate("your plan's quota", '\r'),
-      witness('If nothing opened, visit:', 'wait'),
+      gate('If nothing opened, visit:', 'c', 'wait'),
       witness('Gemini connected: Google sign-in', 'receipt'),
       gate('↵ returns to the picker', '\r'),
       witness(`GEMINI · Google sign-in · ${EMAIL}`, 'returned'),

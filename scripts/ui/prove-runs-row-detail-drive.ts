@@ -95,7 +95,7 @@ async function capture(cfg: Record<string, unknown>, env: Record<string, string>
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
   { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 5, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
-  { data: '\r', afterPrevTicks: 4 },
+  { data: '\r', atTick: 999, awaitText: ask, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
 ]
 
 function scriptedFixture(): Promise<ScriptedFixture> {
@@ -140,7 +140,7 @@ for (const { cols, rows } of sizes) {
         ]
       : [
           { data: '/tasks', atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
-          { data: '\r', afterPrevTicks: 4 },
+          { data: '\r', atTick: 999, awaitText: '/tasks', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
         ]
     cap = await capture(
       {
@@ -153,10 +153,11 @@ for (const { cols, rows } of sizes) {
           ...bootSends(ASK),
           { data: '', atTick: 999, awaitText: LANDED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'landed' },
           ...open,
-          { data: '', atTick: 999, awaitText: 'Mercury — shell', requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'card' },
-          { data: '', afterPrevTicks: 25, mark: 'card-later' },
-          { data: '\x1b', afterPrevTicks: 2 },
+          { data: '', atTick: 999, awaitText: 'Mercury — shell', awaitPattern: 'runs-row line \\d of the background run', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'card' },
+          { data: '', atTick: 999, awaitText: 'Mercury — shell', requireAwait: true, minTick: 2, awaitSettleTicks: 25, mark: 'card-later' },
+          { data: '\x1b', atTick: 999, awaitText: 'Mercury — shell', requireAwait: true, minTick: 1, awaitSettleTicks: 2 },
         ],
+        readyText: 'ype a prompt',
         stableTicks: 4,
       },
       driveEnv(home, fixture.base),
@@ -221,14 +222,12 @@ for (const { cols, rows } of sizes) {
         argv: ['node', DIST, '--sovereign'],
         sends: [
           ...bootSends(ASK2),
-          { data: '', afterPrevTicks: 20 * PACE, mark: 'settled-chat' },
-          { data: '/tasks', afterPrevTicks: 2 },
-          { data: '\r', afterPrevTicks: 4 },
-          { data: '', afterPrevTicks: 8, mark: 'settled-board' },
-          { data: '', atTick: 999, awaitText: 'Mercury — shell', requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'settled-card' },
-          { data: '\x1b', afterPrevTicks: 2 },
+          { data: '/tasks', atTick: 999, awaitText: '[Background] the failing run · failed', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'settled-chat' },
+          { data: '\r', atTick: 999, awaitText: '/tasks', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+          { data: '\x1b', atTick: 999, awaitText: 'Mercury — shell', awaitPattern: 'failed \\(exit 3\\)', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'settled-card' },
           { data: '', atTick: 999, awaitText: LANDED2, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'settled-landed' },
         ],
+        readyText: LANDED2,
         stableTicks: 4,
       },
       driveEnv(home, fixture.base),
@@ -238,7 +237,6 @@ for (const { cols, rows } of sizes) {
   }
   const card = cap.marks['settled-card']
   dump(`${label} · the chat while the turn holds`, cap.marks['settled-chat'], cols)
-  dump(`${label} · after /tasks`, cap.marks['settled-board'], cols)
   dump(`${label} · the settled card (the run ended with exit 3 while the turn still runs)`, card, cols)
   if (FRAMES) {
     mkdirSync(FRAMES, { recursive: true })

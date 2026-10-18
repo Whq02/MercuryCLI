@@ -30,14 +30,14 @@ async function capture(tag: string, cols: number, rows: number, wayBack: boolean
   const sends = [
     { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
     { atTick: 999, awaitText: IDLE_COUNTS, minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: '', mark: 'idle' },
-    { afterPrevTicks: 1, data: '/model' },
-    { afterPrevTicks: 2, data: '\r' },
+    { atTick: 999, awaitText: IDLE_COUNTS, minTick: 1, awaitSettleTicks: 1, requireAwait: true, data: '/model' },
+    { atTick: 999, awaitText: '/model', minTick: 2, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
     { atTick: 999, awaitText: MODEL_PICKER_EXIT_WORDS, minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '\u001b[A' },
-    { afterPrevTicks: 3, data: '\r' },
-    { atTick: 999, awaitText: NOTICE_HEAD, minTick: 3, awaitSettleTicks: 1, requireAwait: true, data: '', mark: 'notice' },
+    { atTick: 999, awaitText: MODEL_PICKER_EXIT_WORDS, minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: '\r' },
+    { atTick: 999, awaitText: NOTICE_HEAD, awaitPattern: 'Model now:[\\s\\S]*Set model to', minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: '', mark: 'notice' },
     { atTick: 999, awaitText: '0 crewmates here', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'later' },
   ]
-  writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST], cwd: leg.cwd, cols, rows, sends, resizes: [], total: 320, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST], cwd: leg.cwd, cols, rows, sends, resizes: [], readyText: IDLE_COUNTS, readySettleTicks: 2, total: 320, out }))
   const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: leg.cwd, env: childEnv(leg, { TMPDIR: '.', MERCURY_DESKTOP_DRIVER: 'none', MERCURY_CRITTER: 'clam' }), stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   child.stdout.on('data', chunk => { output += String(chunk) })
@@ -88,7 +88,8 @@ for (const [cols, rows] of [[80, 21], [80, 24]] as const) {
     const hintAt = cols - stringWidth(WAY_BACK)
     check(`${tag}: the way back wears the ink the idle row paints it in`, inkOf((onNotice.grid[last] ?? []).slice(hintAt)) === inkOf((onIdle.grid[last] ?? []).slice(hintAt)), inkOf((onNotice.grid[last] ?? []).slice(hintAt)))
     check(`${tag}: the notice wears the ink the counts wear`, inkOf((onNotice.grid[last] ?? []).slice(0, 1)) === inkOf((onIdle.grid[last] ?? []).slice(0, 1)), inkOf((onNotice.grid[last] ?? []).slice(0, 1)))
-    check(`${tag}: every row above the bottom row is the same in both states`, onRows.slice(0, last).join('|') === offRows.slice(0, last).join('|'), trimmed(onRows).filter((r, i) => r !== (offRows[i] ?? '').replace(/\s+$/, '')).slice(0, 3).join(' | '))
+    const maskSwitchClock = (row: string): string => row.replace(/(Model now:[^\n]*· )\d{2}:\d{2}/, '$1HH:MM')
+    check(`${tag}: every row above the bottom row is the same in both states`, onRows.slice(0, last).map(maskSwitchClock).join('|') === offRows.slice(0, last).map(maskSwitchClock).join('|'), trimmed(onRows).filter((r, i) => maskSwitchClock(r) !== maskSwitchClock((offRows[i] ?? '').replace(/\s+$/, ''))).slice(0, 3).join(' | '))
     const laterRow = textRows(onLater.grid)[last] ?? ''
     check(`${tag}: the counts return beside the way back when the notice clears`, laterRow.startsWith(IDLE_COUNTS) && laterRow.trimEnd().endsWith(WAY_BACK) && !laterRow.includes(NOTICE_HEAD), JSON.stringify(laterRow.trimEnd()))
     check(`${tag}: the drives stayed on loopback`, nonLoopback(netlines(on.leg.netlog)).length === 0 && nonLoopback(netlines(off.leg.netlog)).length === 0)
