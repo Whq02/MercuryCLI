@@ -1,4 +1,5 @@
 import { readStoredGroqApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
 const GROQ_API_BASE_URL = 'https://api.groq.com/openai/v1'
 const GROQ_ENV_KEY = 'GROQ_API_KEY'
@@ -19,6 +20,8 @@ export function groqEnvKey(env: NodeJS.ProcessEnv = process.env): { key: string;
 export function resolveGroqApiKey(env: NodeJS.ProcessEnv = process.env): { key: string; source: 'env' | 'stored' } | undefined {
   const key = groqEnvKey(env)
   if (key) return { key: key.key, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('groq')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredGroqApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

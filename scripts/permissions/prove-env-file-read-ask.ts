@@ -50,7 +50,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const filesystem = await import('../../src/utils/permissions/filesystem.ts')
 const { checkReadPermissionForTool } = filesystem
 const isProjectEnvFileName: (path: string) => boolean = filesystem.isProjectEnvFileName ?? (() => false)
-const envFileNameInGlob: (glob: string) => string | null = filesystem.envFileNameInGlob ?? (() => null)
+const envFileTargetsInGlob: (glob: string) => string[] = filesystem.envFileTargetsInGlob ?? (() => [])
 const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
@@ -108,15 +108,23 @@ section('§0 the name law: .env and .env.* are the row; the templates, .envrc an
   for (const name of ['.env.example', '.env.sample', '.env.template', '.env.production.example', '.env.example.local', '.envrc', 'env', 'env/config.ts', 'environment.ts', 'notes.txt', 'foo.env', 'production.env', '']) {
     check(`not this row: ${name === '' ? '(empty)' : name}`, !isProjectEnvFileName(name))
   }
-  check('a glob naming the file: .env → .env', envFileNameInGlob('.env') === '.env')
-  check('a glob naming the file: **/.env → .env', envFileNameInGlob('**/.env') === '.env')
-  check('a glob naming the family: .env* → .env', envFileNameInGlob('.env*') === '.env')
-  check('a glob naming the family: .env.* → .env', envFileNameInGlob('.env.*') === '.env')
-  check('a glob naming one sibling: .env.local → .env.local', envFileNameInGlob('.env.local') === '.env.local')
-  check('an exclusion is not a target: !.env', envFileNameInGlob('!.env') === null)
-  check('a template glob is not a target: .env.example', envFileNameInGlob('.env.example') === null)
-  check('an ordinary glob is not a target: *.ts', envFileNameInGlob('*.ts') === null)
-  check('a glob that only happens to match (*.env) is not a named target — its hits are withheld instead', envFileNameInGlob('*.env') === null)
+  const targets = (glob: string): string => j(envFileTargetsInGlob(glob))
+  check('a glob naming the file: .env → [.env]', targets('.env') === j(['.env']), targets('.env'))
+  check('an anchored spelling names the same file: /.env and ./.env → [.env]', targets('/.env') === j(['.env']) && targets('./.env') === j(['.env']), targets('/.env'))
+  check('a glob naming the file under a folder keeps the folder: api/.env → [api/.env]', targets('api/.env') === j(['api/.env']), targets('api/.env'))
+  check('a glob naming the family: .env* → the file and a sibling no single-file rule covers', targets('.env*') === j(['.env', '.env.__wildcard__']), targets('.env*'))
+  check('a glob naming the siblings: .env.* → the sibling alone', targets('.env.*') === j(['.env.__wildcard__']), targets('.env.*'))
+  check('a brace glob names the siblings: .env.{local,production}', targets('.env.{local,production}') === j(['.env.__wildcard__']), targets('.env.{local,production}'))
+  check('a folder wildcard reaches every folder: **/.env → the root file and a sibling under any folder', targets('**/.env') === j(['.env', '__wildcard__/.env']), targets('**/.env'))
+  check('a folder wildcard below the root: src/*/.env → a sibling under any folder, never the root file', targets('src/*/.env') === j(['src/__wildcard__/.env']), targets('src/*/.env'))
+  check('a glob naming one sibling: .env.local → [.env.local]', targets('.env.local') === j(['.env.local']), targets('.env.local'))
+  check('a sibling with a wildcard tail: .env.local* → the file and the wider siblings', targets('.env.local*') === j(['.env.local', '.env.local__wildcard__']), targets('.env.local*'))
+  check('a wildcard that cannot spell the file itself: .env*rc → the siblings alone', targets('.env*rc') === j(['.env.__wildcard__']), targets('.env*rc'))
+  check('every synthetic sibling is an env-file name by the name law', ['.env.__wildcard__', '__wildcard__/.env', '.env.local__wildcard__'].every(isProjectEnvFileName))
+  check('an exclusion is not a target: !.env, !.env*', targets('!.env') === j([]) && targets('!.env*') === j([]), targets('!.env*'))
+  check('a template glob is not a target: .env.example, .env.example*', targets('.env.example') === j([]) && targets('.env.example*') === j([]), targets('.env.example*'))
+  check('an ordinary glob is not a target: *.ts', targets('*.ts') === j([]), targets('*.ts'))
+  check('a glob that only happens to match (*.env) is not a named target — its hits are withheld instead', targets('*.env') === j([]), targets('*.env'))
 }
 
 section('§1 the file tools: Read of the project .env asks with the reason in default and implement; the look-alikes never ask')
@@ -197,6 +205,41 @@ section('§4 the Grep tool: a search that names .env asks first; a folder-wide s
   const allowedGlob = await grepVerdict({ pattern: 'API', path: PROJ, glob: '.env' }, 'default', { allow: ['Read(.env)'] })
   check('Grep with glob .env under the user\'s allow rule runs', allowedGlob.behavior === 'allow', j(allowedGlob))
 
+  const narrow: Rules = { allow: ['Read(.env)'] }
+  const rootOnly: Rules = { allow: [`Read(//${PROJ.replace(/^\/+/, '')}/.env)`] }
+  for (const glob of ['.env*', '.env.*', '.env .env.local', '.env,.env.local', '.env.{local,production}', '*.ts .env.local', '**/.env*']) {
+    const verdict = await grepVerdict({ pattern: 'API', path: PROJ, glob }, 'default', narrow)
+    check(`the rule for .env does not cover glob ${j(glob)}: it asks`, isEnvAsk(verdict) && !(verdict.message ?? '').includes('__wildcard__'), j(verdict))
+  }
+  const family = await grepVerdict({ pattern: 'API', path: PROJ, glob: '.env*' }, 'default', narrow)
+  check('the ask for .env* under the rule names the siblings as a family', (family.message ?? '').startsWith(`Reading ${join(PROJ, '.env.*')} needs approval`), family.message)
+  const second = await grepVerdict({ pattern: 'API', path: PROJ, glob: '.env .env.local' }, 'default', narrow)
+  check('the ask for ".env .env.local" under the rule names the second file', (second.message ?? '').startsWith(`Reading ${join(PROJ, '.env.local')} needs approval`), second.message)
+  const folder = await grepVerdict({ pattern: 'API', path: PROJ, glob: 'api/.env' }, 'default', rootOnly)
+  check('a rule for the root .env alone does not cover api/.env: the ask names the file under its folder', isEnvAsk(folder) && (folder.message ?? '').startsWith(`Reading ${join(PROJ, 'api', '.env')} needs approval`), j(folder))
+  const rootGlob = await grepVerdict({ pattern: 'API', path: PROJ, glob: '/.env' }, 'default', rootOnly)
+  check('control: the root rule covers the anchored glob /.env', rootGlob.behavior === 'allow', j(rootGlob))
+  const familyRule = await grepVerdict({ pattern: 'API', path: PROJ, glob: '.env*' }, 'default', { allow: ['Read(.env)', 'Read(.env.*)'] })
+  check('the user\'s rule for the siblings beside the file lets .env* run', familyRule.behavior === 'allow', j(familyRule))
+  const wideRule = await grepVerdict({ pattern: 'API', path: PROJ, glob: '.env* .env.{local,production}' }, 'default', { allow: ['Read(.env*)'] })
+  check('the user\'s rule spelled as the family lets .env* run', wideRule.behavior === 'allow', j(wideRule))
+  const folderRule = await grepVerdict({ pattern: 'API', path: PROJ, glob: '.env* **/.env src/*/.env' }, 'default', { allow: [`Read(//${PROJ.replace(/^\/+/, '')}/**)`] })
+  check('a folder-wide rule covers every target', folderRule.behavior === 'allow', j(folderRule))
+  const anchored = await grepVerdict({ pattern: 'API', path: PROJ, glob: '**/.env' }, 'default', { allow: [`Read(//${PROJ.replace(/^\/+/, '')}/.env)`] })
+  check('a rule for the root .env alone does not cover **/.env (api/.env is in reach): it asks', isEnvAsk(anchored) && (anchored.message ?? '').startsWith(`Reading ${join(PROJ, '*', '.env')} needs approval`), j(anchored))
+  const anywhere = await grepVerdict({ pattern: 'API', path: PROJ, glob: '**/.env' }, 'default', narrow)
+  check('the rule Read(.env) covers .env in every folder, so **/.env runs', anywhere.behavior === 'allow', j(anywhere))
+  const denyFamily = await grepVerdict({ pattern: 'API', path: PROJ, glob: '.env*' }, 'default', { deny: ['Read(.env.*)'] })
+  check('a deny rule for the siblings refuses .env* before the ask for .env', denyFamily.behavior === 'deny' && denyFamily.decisionReason?.type === 'rule', j(denyFamily))
+  const denySecond = await grepVerdict({ pattern: 'API', path: PROJ, glob: '.env .env.local' }, 'default', { deny: ['Read(.env.local)'] })
+  check('a deny rule on the second token refuses before the first token asks', denySecond.behavior === 'deny' && denySecond.decisionReason?.type === 'rule', j(denySecond))
+  const decideGrep = (input: Record<string, unknown>, mode: Mode, rules: Rules = {}): Promise<Outcome> =>
+    decideToolPermission(GrepTool as never, input, contextOf(mode, rules)) as unknown as Promise<Outcome>
+  const familyUnder = await decideGrep({ pattern: 'API', path: PROJ, glob: '.env*' }, 'sovereign', narrow)
+  check('sovereign: the family ask stands down (never a card)', familyUnder.decision.behavior === 'allow' && familyUnder.decision.decisionReason?.type === 'bypassedAsk', j(familyUnder))
+  const familyAsked = await decideGrep({ pattern: 'API', path: PROJ, glob: '.env*' }, 'implement', narrow)
+  check('implement: the family ask reaches the engine as the safety road', familyAsked.decision.behavior === 'ask' && familyAsked.trace.decidedBy === 'safetyCheckAsk', j(familyAsked))
+
   const search = async (input: Record<string, unknown>, mode: Mode = 'default', rules: Rules = {}): Promise<string> => {
     const parsed = GrepTool.inputSchema.parse(input)
     const result = (await GrepTool.call(parsed as never, contextOf(mode, rules))) as { data: unknown }
@@ -253,6 +296,26 @@ section('§4 the Grep tool: a search that names .env asks first; a folder-wide s
   check('a search whose glob named .env shows it, with no note', namedGlob.includes('.env:1:API_KEY=sk-live-fixture') && !namedGlob.includes('Withheld'), namedGlob)
   const plain = await search({ pattern: 'in-code', path: PROJ, output_mode: 'content' })
   check('control: a search with no .env hit carries no note', plain.includes('environment.ts:1:') && !plain.includes('Withheld'), plain)
+
+  const control = await search({ pattern: 'API_KEY', path: PROJ, output_mode: 'content', glob: '/.env' }, 'default', narrow)
+  check('control: the narrow rule with the anchored glob /.env reads .env alone, with no note', control.includes('.env:1:API_KEY=sk-live-fixture') && !control.includes('sk-local-fixture') && !control.includes('sk-prod-fixture') && !control.includes('sk-api-fixture') && !control.includes('Withheld'), control)
+  const anyDepth = await search({ pattern: 'API_KEY', path: PROJ, output_mode: 'content', glob: '.env' }, 'default', narrow)
+  check('control: the rule Read(.env) and the glob .env both reach .env in every folder, so api/.env shows too, with no note', anyDepth.includes('.env:1:API_KEY=sk-live-fixture') && anyDepth.includes('api/.env:1:') && !anyDepth.includes('sk-local-fixture') && !anyDepth.includes('Withheld'), anyDepth)
+  const beside = await search({ pattern: 'API_KEY', path: PROJ, output_mode: 'content', glob: '* .env' }, 'default', narrow)
+  check('a glob naming .env beside a catch-all shows .env and withholds the siblings the catch-all reached, naming them', beside.includes('.env:1:API_KEY=sk-live-fixture') && !beside.includes('sk-local-fixture') && !beside.includes('sk-prod-fixture') && /Withheld: .*\.env\.local \(1 line\)/.test(beside) && /\.env\.production \(1 line\)/.test(beside) && !/Withheld: \.env \(/.test(beside) && !/Withheld: .*api\/\.env/.test(beside), beside)
+  const besideFiles = await search({ pattern: 'API_KEY', path: PROJ, glob: '* .env' }, 'default', narrow)
+  check('files mode: the same search lists .env and names the withheld siblings', /^\.env$/m.test(besideFiles) && !/^\.env\.local$/m.test(besideFiles) && /Withheld: .*\.env\.local/.test(besideFiles), besideFiles)
+  const familyShown = await search({ pattern: 'API_KEY', path: PROJ, output_mode: 'content', glob: '.env*' }, 'default', narrow)
+  check('a search whose glob named the family (and so was asked for it) shows every sibling, with no note', familyShown.includes('sk-live-fixture') && familyShown.includes('sk-local-fixture') && familyShown.includes('sk-prod-fixture') && familyShown.includes('api/.env:1:') && !familyShown.includes('Withheld'), familyShown)
+  const twoNamed = await search({ pattern: 'API_KEY', path: PROJ, output_mode: 'content', glob: '.env .env.local' }, 'default', narrow)
+  check('a search naming two files shows the two and nothing else, with no note', twoNamed.includes('sk-live-fixture') && twoNamed.includes('sk-local-fixture') && !twoNamed.includes('sk-prod-fixture') && !twoNamed.includes('Withheld'), twoNamed)
+  const braces = await search({ pattern: 'API_KEY', path: PROJ, output_mode: 'content', glob: '.env.{local,production}' }, 'default', narrow)
+  check('a brace glob shows the siblings it names, with no note', braces.includes('sk-local-fixture') && braces.includes('sk-prod-fixture') && !braces.includes('sk-live-fixture') && !braces.includes('Withheld'), braces)
+  const nested = await search({ pattern: 'API_KEY', path: PROJ, output_mode: 'content', glob: '**/.env' }, 'default', narrow)
+  check('**/.env shows the root file and api/.env, with no note', nested.includes('.env:1:API_KEY=sk-live-fixture') && nested.includes('api/.env:1:') && !nested.includes('sk-local-fixture') && !nested.includes('Withheld'), nested)
+  const counted = await search({ pattern: 'API_KEY', path: PROJ, output_mode: 'count', glob: '* .env' }, 'default', narrow)
+  check('count mode: the named .env is counted, the siblings withheld and named', /^\.env:1$/m.test(counted) && !/^\.env\.local:/m.test(counted) && /Withheld: .*\.env\.local/.test(counted), counted)
+  check('the synthetic sibling never reaches a result', ![control, beside, besideFiles, familyShown, twoNamed, braces, nested, counted].some(text => text.includes('__wildcard__')))
 }
 
 section('§5 the Bash road: a command that cats, pipes, sources or copies the project .env asks the same way; the look-alikes and the metadata commands do not')
@@ -297,6 +360,24 @@ section('§5 the Bash road: a command that cats, pipes, sources or copies the pr
   check('the user\'s allow rule lets cat .env pass', allowedCat.behavior === 'passthrough', j(allowedCat))
   const outsideCat = await bashPath(`cat ${join(OUTSIDE, '.env')}`)
   check('a .env outside the project keeps the outside-folder ask', outsideCat.behavior === 'ask' && !isEnvAsk(outsideCat) && (outsideCat.message ?? '').includes('outside the starting folder'), j(outsideCat))
+
+  const narrow: Rules = { allow: ['Read(.env)'] }
+  for (const command of ["rg -g '.env*' API", "rg --glob='.env.*' API", 'rg -g .env -g .env.local API', "grep -r --include='.env*' API .", "rg -g '**/.env*' API"]) {
+    const verdict = await bashPath(command, 'default', narrow)
+    check(`the rule for .env does not cover ${command}: it asks`, isEnvAsk(verdict) && !(verdict.message ?? '').includes('__wildcard__'), j(verdict))
+  }
+  const folderRg = await bashPath('rg -g api/.env API', 'default', { allow: [`Read(//${PROJ.replace(/^\/+/, '')}/.env)`] })
+  check('a rule for the root .env alone does not cover rg -g api/.env: it asks for the file under its folder', isEnvAsk(folderRg) && (folderRg.message ?? '').startsWith(`Reading ${join(PROJ, 'api', '.env')} needs approval`), j(folderRg))
+  const familyRg = await bashPath("rg -g '.env*' API", 'default', narrow)
+  check('the ask for rg -g .env* under the rule names the siblings as a family', (familyRg.message ?? '').startsWith(`Reading ${join(PROJ, '.env.*')} needs approval`), familyRg.message)
+  const secondRg = await bashPath('rg -g .env -g .env.local API', 'default', narrow)
+  check('the ask for the second -g value names its file', (secondRg.message ?? '').startsWith(`Reading ${join(PROJ, '.env.local')} needs approval`), secondRg.message)
+  const controlRg = await bashPath('rg -g .env API', 'default', narrow)
+  check('control: the narrow rule lets rg -g .env pass (it reads .env alone)', controlRg.behavior === 'passthrough', j(controlRg))
+  const familyRuleRg = await bashPath("rg -g '.env*' API", 'default', { allow: ['Read(.env)', 'Read(.env.*)'] })
+  check('the user\'s rule for the siblings beside the file lets rg -g .env* pass', familyRuleRg.behavior === 'passthrough', j(familyRuleRg))
+  const denyFamilyRg = await bashPath("rg -g '.env*' API", 'default', { allow: ['Read(.env)'], deny: ['Read(.env.*)'] })
+  check('a deny rule for the siblings refuses rg -g .env*', denyFamilyRg.behavior === 'deny' && denyFamilyRg.decisionReason?.type === 'rule', j(denyFamilyRg))
 
   const whole = async (command: string, mode: Mode = 'default', rules: Rules = {}): Promise<Decision> =>
     (await bashToolHasPermission({ command } as never, permissionOf(mode, rules) as never)) as unknown as Decision

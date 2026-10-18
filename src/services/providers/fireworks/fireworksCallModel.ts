@@ -8,6 +8,7 @@ import { streamCompatChat } from '../openaicompat/compatChatClient.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { thinkingOffWireEffort, type LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { fireworksChatCompletionsUrl, resolveFireworksApiKey } from './fireworksAccounts.js'
 import { getCachedFireworksCatalogue, fireworksListedModel, fireworksOutputMaxFor } from './fireworksCatalogue.js'
 import { fireworksDisplayPin, fireworksEffortVocabulary, fireworksWireId, isFireworksModelId, isFireworksTextModelId } from './fireworksPins.js'
@@ -28,7 +29,15 @@ const fireworksLaneProfile: CompatLaneProfile = {
     const key = resolveFireworksApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint: 'no Fireworks API key detected — /logins fireworks stores one from app.fireworks.ai/api-keys; FIREWORKS_API_KEY works too.',
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('fireworks')) return null
+    const fresh = recoverProviderKeyCommand('fireworks')
+    return fresh ? { apiKey: fresh } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('fireworks')
+    return failure ? `the configured ${failure.message} — no Fireworks API key detected.` : 'no Fireworks API key detected — /logins fireworks stores one from app.fireworks.ai/api-keys; FIREWORKS_API_KEY works too.'
+  },
   authRemedy: 'create a current key at app.fireworks.ai/api-keys and store it with /logins fireworks, or set FIREWORKS_API_KEY.',
   billingRemedy: 'check account credits, payment status and monthly limits at app.fireworks.ai/account/billing, then retry.',
   requestUrl: () => fireworksChatCompletionsUrl(),

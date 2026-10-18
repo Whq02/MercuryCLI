@@ -142,6 +142,44 @@ section('§3 refusals: an unknown server (with the roster), a failing remedy, a 
   }
 }
 
+section('§3b the install grammar: only the package managers the catalogue uses run; a quoted span is one word; a trailing note is dropped; the 34 remedies parse as pinned')
+{
+  const verdictOf = (remedy: string): string => {
+    const command = verb ? verb.installCommandOf(remedy) : { kind: 'words' as const, words: remedy }
+    return JSON.stringify(command.kind === 'command' ? command.argv : 'words')
+  }
+  const PINNED: Record<string, string[] | 'words'> = {
+    'rust-analyzer': ['rustup', 'component', 'add', 'rust-analyzer'], gopls: ['go', 'install', 'golang.org/x/tools/gopls@latest'], zls: ['brew', 'install', 'zls'], jdtls: ['brew', 'install', 'jdtls'],
+    'kotlin-language-server': ['brew', 'install', 'kotlin-language-server'], csharp: ['dotnet', 'tool', 'install', '--global', 'csharp-ls'], 'sourcekit-lsp': 'words', 'ruby-lsp': ['gem', 'install', 'ruby-lsp'],
+    intelephense: ['npm', 'i', '-g', 'intelephense'], 'lua-language-server': ['brew', 'install', 'lua-language-server'], 'bash-language-server': ['npm', 'i', '-g', 'bash-language-server'],
+    'yaml-language-server': ['npm', 'i', '-g', 'yaml-language-server'], marksman: ['brew', 'install', 'marksman'], 'terraform-ls': ['brew', 'install', 'hashicorp/tap/terraform-ls'],
+    'docker-langserver': ['npm', 'i', '-g', 'dockerfile-language-server-nodejs'], 'elixir-ls': ['brew', 'install', 'elixir-ls'], 'helm-ls': ['brew', 'install', 'helm-ls'], vue: ['npm', 'i', '-g', '@vue/language-server'],
+    svelte: ['npm', 'i', '-g', 'svelte-language-server'], astro: ['npm', 'i', '-g', '@astrojs/language-server'], tailwind: ['npm', 'i', '-g', '@tailwindcss/language-server'], 'powershell-editor-services': 'words',
+    'haskell-language-server': ['ghcup', 'install', 'hls'], ocamllsp: ['opam', 'install', 'ocaml-lsp-server'], metals: ['cs', 'install', 'metals'], nil: ['nix', 'profile', 'install', 'nixpkgs#nil'], dart: 'words',
+    gleam: ['brew', 'install', 'gleam'], 'prisma-language-server': ['npm', 'i', '-g', '@prisma/language-server'], 'clojure-lsp': ['brew', 'install', 'clojure-lsp/brew/clojure-lsp-native'], 'julia-language-server': 'words',
+    'kotlin-lsp': ['brew', 'install', 'JetBrains/utils/kotlin-lsp'], phpactor: ['brew', 'install', 'phpactor'], expert: 'words',
+  }
+  check('the pin table names every catalogue row and nothing else', JSON.stringify(Object.keys(PINNED).sort()) === JSON.stringify(catalogue.SERVER_CATALOGUE.map(entry => entry.id).sort()), JSON.stringify(Object.keys(PINNED)))
+  for (const entry of catalogue.SERVER_CATALOGUE) {
+    check(`${entry.id} parses as pinned`, verdictOf(entry.remedy) === JSON.stringify(PINNED[entry.id]), `${verdictOf(entry.remedy)} for ${entry.remedy}`)
+  }
+  const tools = new Set(catalogue.SERVER_CATALOGUE.map(entry => (verb ? verb.installCommandOf(entry.remedy) : { kind: 'words' as const })).flatMap(command => (command.kind === 'command' ? [command.tool] : [])))
+  check('the commands run exactly the ten package managers the catalogue uses', JSON.stringify([...tools].sort()) === JSON.stringify(['brew', 'cs', 'dotnet', 'gem', 'ghcup', 'go', 'nix', 'npm', 'opam', 'rustup']), JSON.stringify([...tools].sort()))
+  check('refusal: an "install …" remedy is words, never the install binary', verdictOf('install the server from its release page') === '"words"' && verdictOf('install -m 755 server /usr/local/bin') === '"words"')
+  for (const remedy of ['pip install the-server', 'pipx install the-server', 'cargo install the-server', 'apt install the-server', 'curl -fsSL https://example.invalid/get | sh', 'sudo brew install zls', 'xcrun sourcekit-lsp', 'Brew install zls']) {
+    check(`refusal: a remedy opening with a tool the catalogue never uses is words: ${remedy}`, verdictOf(remedy) === '"words"', verdictOf(remedy))
+  }
+  check('a single-quoted span is one word, its quotes dropped', verdictOf("npm i -g 'a package' extra") === JSON.stringify(['npm', 'i', '-g', 'a package', 'extra']), verdictOf("npm i -g 'a package' extra"))
+  check('a double-quoted span is one word, a single quote inside it kept', verdictOf('brew install "it\'s here"') === JSON.stringify(['brew', 'install', "it's here"]), verdictOf('brew install "it\'s here"'))
+  check('a double quote inside a single-quoted span is kept', verdictOf('gem install \'say "hi"\'') === JSON.stringify(['gem', 'install', 'say "hi"']), verdictOf('gem install \'say "hi"\''))
+  check('refusal: an unclosed quote is words', verdictOf("npm i -g 'a package") === '"words"', verdictOf("npm i -g 'a package"))
+  check('a trailing note in parentheses is dropped', verdictOf('brew install gleam (or gleam.run/getting-started/installing)') === JSON.stringify(['brew', 'install', 'gleam']))
+  check('a trailing note with a nested pair is dropped whole', verdictOf('brew install zls (or download it (the release zip))') === JSON.stringify(['brew', 'install', 'zls']), verdictOf('brew install zls (or download it (the release zip))'))
+  check('a parenthesis inside a quoted word is not a note', verdictOf("npm i -g 'pkg (beta)'") === JSON.stringify(['npm', 'i', '-g', 'pkg (beta)']), verdictOf("npm i -g 'pkg (beta)'"))
+  check('the julia remedy stays words (it opens with "use")', verdictOf('use julia -e \'using Pkg; Pkg.add("LanguageServer")\' (from the Julia SDK at julialang.org/downloads)') === '"words"')
+  check('extra whitespace between words is not a word', verdictOf('npm   i  -g   intelephense') === JSON.stringify(['npm', 'i', '-g', 'intelephense']))
+}
+
 section('§4 never an automatic install: nothing under the language service imports the verb, and the verb lives in the CLI alone')
 {
   const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry => (entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]))

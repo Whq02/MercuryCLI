@@ -32,6 +32,9 @@ export function modelHasRecordedFacts(model: string): boolean {
     case 'together': return Boolean(require('../../services/providers/together/togetherPins.js').togetherDisplayPin(model))
     case 'cohere': return Boolean(require('../../services/providers/cohere/coherePins.js').cohereDisplayPin(model))
     case 'qwen': return Boolean(require('../../services/providers/qwen/qwenPins.js').qwenDisplayPin(model))
+    case 'groq': return Boolean(require('../../services/providers/groq/groqPins.js').groqDisplayPin(model))
+    case 'cerebras': return Boolean(require('../../services/providers/cerebras/cerebrasPins.js').cerebrasDisplayPin(model))
+    case 'fireworks': return Boolean(require('../../services/providers/fireworks/fireworksPins.js').fireworksDisplayPin(model))
     default: {
       const route = declaredRouteOf(model)
       return route !== null && bareFamilyWordOfRoute(route)?.knownRow(model) !== undefined
