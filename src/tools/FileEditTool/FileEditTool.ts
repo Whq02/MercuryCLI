@@ -727,6 +727,25 @@ export const FileEditTool = buildTool({
     if (hasNulByte(input.file_path)) {
       return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
     }
+    const structuredTarget = parseStructuredWriteTarget(input.file_path)
+    if (structuredTarget !== null) {
+      const permissionContext = context.getAppState().toolPermissionContext
+      const editDeny = matchingRuleForInput(structuredTarget.hostPath, permissionContext, 'edit', 'deny')
+      if (editDeny) {
+        return {
+          result: false as const,
+          behavior: 'ask' as const,
+          message: ruleSentence(`Editing ${input.file_path}`, 'deny', editDeny),
+          errorCode: 2,
+        }
+      }
+      const memoryRefusal = memoryWriteRefusal(structuredTarget.hostPath)
+      if (memoryRefusal) {
+        return { result: false as const, message: memoryRefusal, errorCode: 2 }
+      }
+      if (windowsPathNeedsPermission(structuredTarget.hostPath)) return { result: true as const }
+      return validateStructuredEditTarget(structuredTarget, input, context, notUniqueRefusal)
+    }
     const usingHunks = hunksInUse(input)
     const mode = editMode(input)
 
@@ -787,8 +806,7 @@ export const FileEditTool = buildTool({
       }
     }
 
-    const structuredTarget = parseStructuredWriteTarget(input.file_path)
-    const expandedPath = structuredTarget ? structuredTarget.hostPath : expandPath(input.file_path)
+    const expandedPath = expandPath(input.file_path)
 
     const proposedBodies = usingHunks
       ? (input.hunks ?? []).map(hunk => hunk.replace)
@@ -825,9 +843,6 @@ export const FileEditTool = buildTool({
     }
 
     if (windowsPathNeedsPermission(input.file_path)) return { result: true as const }
-    if (structuredTarget !== null) {
-      return validateStructuredEditTarget(structuredTarget, input, context, notUniqueRefusal)
-    }
 
     let generationAtStat: string | null = null
     try {

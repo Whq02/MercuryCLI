@@ -1090,14 +1090,19 @@ export function parseSqliteSubtarget(
   const eq = rest.indexOf('=')
   const column = eq === -1 ? null : rest.slice(0, eq).trim()
   const value = (eq === -1 ? rest : rest.slice(eq + 1)).trim()
+  const sqlLike = (s: string): boolean =>
+    /[;'"`\u0000-\u001f]|--|\/\*|\s+(?:OR|AND|UNION|SELECT|INSERT|UPDATE|DELETE|DROP|WHERE)\b/i.test(s)
   if (column !== null && !SQLITE_IDENTIFIER.test(column)) {
+    if (/\s|--|\/\*|;/.test(column)) {
+      return { ok: false, reason: `The row selector "${rest}" is a key value, never SQL: quotes, SQL clauses, semicolons and control characters are refused.` }
+    }
     return { ok: false, reason: `"${column}" is not a column name: a column is named with letters, digits and underscores only (${table}/<column>=<value>).` }
   }
   if (value === '') {
     return { ok: false, reason: `The row selector "${rest}" names no value: write ${table}/<key> or ${table}/<column>=<value>.` }
   }
-  if (/[;\u0000-\u001f]/.test(value)) {
-    return { ok: false, reason: `The row selector "${rest}" is a key value, never SQL: a semicolon or control character is refused.` }
+  if (sqlLike(value)) {
+    return { ok: false, reason: `The row selector "${rest}" is a key value, never SQL: quotes, SQL clauses, semicolons and control characters are refused.` }
   }
   return { ok: true, table, selector: { column, value } }
 }

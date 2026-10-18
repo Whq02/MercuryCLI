@@ -65,13 +65,14 @@ function normalizeNewlines(text: string): string {
 }
 
 function zipEntryNameRefusal(name: string): string | null {
-  if (/[\u0000-\u001f]/.test(name)) return `The zip entry name "${name}" carries a control character.`
-  if (name.includes('\\')) return `The zip entry name "${name}" uses a backslash: entry paths inside an archive are separated by "/".`
-  if (name.startsWith('/')) return `The zip entry name "${name}" is absolute: an entry path is relative to the archive root.`
-  if (/^[A-Za-z]:/.test(name)) return `The zip entry name "${name}" starts with a drive letter: an entry path is relative to the archive root.`
-  if (name.endsWith('/')) return `The zip entry name "${name}" names a directory: write a file entry (${name}<file>).`
-  if (/(?:^|\/)\.\.(?:\/|$)/.test(name)) return `The zip entry name "${name}" climbs out of the archive with "..".`
-  if (/(?:^|\/)\.?(?:\/|$)/.test(name)) return `The zip entry name "${name}" has an empty or "." segment.`
+  const decoded = name.replace(/%[0-9a-fA-F]{2}/g, m => String.fromCharCode(Number.parseInt(m.slice(1), 16)))
+  if (/[\u0000-\u001f]/.test(name) || /[\u0000-\u001f]/.test(decoded)) return `The zip entry name "${name}" carries a control character.`
+  if (name.includes('\\') || decoded.includes('\\')) return `The zip entry name "${name}" uses a backslash: entry paths inside an archive are separated by "/".`
+  if (name.startsWith('/') || decoded.startsWith('/')) return `The zip entry name "${name}" is absolute: an entry path is relative to the archive root.`
+  if (/^[A-Za-z]:/.test(name) || /^[A-Za-z]:/.test(decoded)) return `The zip entry name "${name}" starts with a drive letter: an entry path is relative to the archive root.`
+  if (name.endsWith('/') || decoded.endsWith('/')) return `The zip entry name "${name}" names a directory: write a file entry (${name}<file>).`
+  if (/(?:^|\/)\.\.(?:\/|$)/.test(name) || /(?:^|\/)\.\.(?:\/|$)/.test(decoded)) return `The zip entry name "${name}" climbs out of the archive with "..".`
+  if (/(?:^|\/)\.?(?:\/|$)/.test(name) || /(?:^|\/)\.?(?:\/|$)/.test(decoded)) return `The zip entry name "${name}" has an empty or "." segment.`
   if (Buffer.byteLength(name, 'utf8') > 0xffff) return 'The zip entry name is longer than an archive can store (65535 bytes).'
   return null
 }
@@ -761,17 +762,34 @@ export async function validateStructuredEditTarget(
   if ((Array.isArray(input.hunks) && input.hunks.length > 0) || (input.section ?? '') !== '' || (input.append ?? '') !== '') {
     return { result: false, behavior: 'ask', message: STRUCTURED_EDIT_MODES_NOTE, errorCode: 13 }
   }
-  const oldString = input.old_string ?? ''
-  const newString = input.new_string ?? ''
+  if (input.old_string === undefined || input.new_string === undefined) {
+    return {
+      result: false,
+      behavior: 'ask',
+      message: 'old_string and new_string are required unless hunks, append or section are provided.',
+      errorCode: 13,
+    }
+  }
+  const oldString = input.old_string
+  const newString = input.new_string
   if (oldString !== '' && oldString === newString) {
     return { result: false, behavior: 'ask', message: 'old_string and new_string are identical — there is no edit to apply.', errorCode: 1 }
   }
   let current: { exists: boolean; text: string }
-  if (target.kind === 'zip-entry') {
-    const state = readZipEntryState(target.hostPath, target.entryName)
-    current = state.exists ? { exists: true, text: state.text } : { exists: false, text: '' }
-  } else {
-    current = await withSqliteRow(target, async (_db, state) => ({ exists: state.row !== null, text: state.text }))
+  try {
+    if (target.kind === 'zip-entry') {
+      const state = readZipEntryState(target.hostPath, target.entryName)
+      current = state.exists ? { exists: true, text: state.text } : { exists: false, text: '' }
+    } else {
+      current = await withSqliteRow(target, async (_db, state) => ({ exists: state.row !== null, text: state.text }))
+    }
+  } catch (err) {
+    return {
+      result: false,
+      behavior: 'ask',
+      message: err instanceof Error ? err.message : String(err),
+      errorCode: 4,
+    }
   }
   if (!current.exists) {
     if (oldString === '') return { result: true }
@@ -783,15 +801,12 @@ export async function validateStructuredEditTarget(
     }
   }
   if (oldString === '') {
-    if (current.text.trim() !== '') {
-      return {
-        result: false,
-        behavior: 'ask',
-        message: 'Cannot create a new file — a file already exists at this path with content in it.',
-        errorCode: 3,
-      }
+    return {
+      result: false,
+      behavior: 'ask',
+      message: 'Cannot create a new file — a file already exists at this path with content in it.',
+      errorCode: 3,
     }
-    return { result: true }
   }
   const located = locateActualString(current.text, oldString)
   if (located.kind === 'none') {

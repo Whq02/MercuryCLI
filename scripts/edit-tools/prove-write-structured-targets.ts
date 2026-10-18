@@ -173,11 +173,11 @@ type Verdict = { ok: true; text: string; isError: boolean; data: Record<string, 
 async function run(tool: unknown, input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> {
   serial++
   const t = tool as { validateInput?: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
+  if (t.validateInput) {
+    const verdict = await t.validateInput(input, ctx)
+    if (verdict.result === false) return { ok: false, message: String(verdict.message) }
+  }
   try {
-    if (t.validateInput) {
-      const verdict = await t.validateInput(input, ctx)
-      if (verdict.result === false) return { ok: false, message: String(verdict.message) }
-    }
     const out = await t.call(input, ctx, null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_${serial}` } })
     const block = t.mapToolResultToToolResultBlockParam(out.data, `toolu_${serial}`)
     return { ok: true, text: typeof block.content === 'string' ? block.content : JSON.stringify(block.content), isError: block.is_error === true, data: out.data }
@@ -212,6 +212,11 @@ section('S0. The grammar is the Read side\'s; a path that merely carries !, :: o
     'S0.5 the four delimiter spellings the Read side accepts (":", "!", "::", "!/") name the same zip entry on the write side',
     parsed.every(p => p !== null && p.kind === 'zip-entry' && p.hostPath === join(fixtures, 'bundle.zip')),
     JSON.stringify(parsed),
+  )
+  check(
+    'S0.6 a Windows drive-letter plain path "C:\\\\dir\\\\file.txt" is not treated as a container target',
+    structured !== null && structured.parseStructuredWriteTarget('C:\\dir\\file.txt') === null,
+    JSON.stringify(structured?.parseStructuredWriteTarget('C:\\dir\\file.txt')),
   )
 }
 
@@ -436,6 +441,10 @@ section('refusals. Every way to abuse or break the row, driven and refused')
   const folderBefore = readdirSync(fixtures).sort().join(',')
   const escapes: Array<[string, RegExp]> = [
     [`${zipPath}:../escaped.txt`, /climbs out of the archive/],
+    [`${zipPath}:a/../escaped.txt`, /climbs out of the archive/],
+    [`${zipPath}:%2e%2e/escaped.txt`, /climbs out of the archive/],
+    [`${zipPath}:a/%2E%2E/b.txt`, /climbs out of the archive/],
+    [`${zipPath}:%2e%2e%2fescaped.txt`, /climbs out of the archive/],
     [`${zipPath}:/etc/passwd`, /absolute/],
     [`${zipPath}:C:/evil.txt`, /drive letter/],
     [`${zipPath}:dir\\evil.txt`, /backslash/],
@@ -444,6 +453,7 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     [`${zipPath}:`, /no entry or row inside it/],
     [`${zipPath}!../escaped.txt`, /climbs out of the archive/],
     [`${zipPath}::../escaped.txt`, /climbs out of the archive/],
+    [`${zipPath}!//etc/passwd`, /absolute/],
   ]
   for (const [idx, [target, reason]] of escapes.entries()) {
     const ctx = makeContext()
@@ -458,20 +468,30 @@ section('refusals. Every way to abuse or break the row, driven and refused')
   {
     const ctx = makeContext()
     const nul = await write({ file_path: `${zipPath}:ok\u0000.txt`, content: 'x\n' }, ctx)
-    check('R1.10 a NUL byte in the entry name is refused as a path', !nul.ok && /NUL|null byte|not allowed/i.test(nul.message), words(nul))
+    check('R1.15 a NUL byte in the entry name is refused as a path', !nul.ok && /NUL|null byte|not allowed/i.test(nul.message), words(nul))
     const tar = await write({ file_path: `${join(fixtures, 'x.tar')}:a.txt`, content: 'x\n' }, ctx)
-    check('R1.11 writing inside a .tar archive is refused by name, never a plain file named "x.tar:a.txt"', !tar.ok && /\.tar archive is not supported/.test(tar.message) && !existsSync(`${join(fixtures, 'x.tar')}:a.txt`), words(tar))
+    check('R1.16 writing inside a .tar archive is refused by name, never a plain file named "x.tar:a.txt"', !tar.ok && /\.tar archive is not supported/.test(tar.message) && !existsSync(`${join(fixtures, 'x.tar')}:a.txt`), words(tar))
   }
 
   for (const mode of ['default', 'implement', 'sovereign'] as const) {
     const ctx = makeContext([], mode)
     const w = await write({ file_path: `${zipPath}:../escaped.txt`, content: 'x\n' }, ctx)
-    check(`R2 the escaping-name refusal holds in ${mode} mode (a ward, never an ask)`, !w.ok && /climbs out of the archive/.test(w.message) && !existsSync(join(fixtures, 'escaped.txt')), words(w))
+    const wp = await write({ file_path: `${zipPath}:%2e%2e/escaped.txt`, content: 'x\n' }, ctx)
+    const ws = await write({ file_path: `${dbPath}:users/name='Ada'`, content: '{"role": "x"}' }, ctx)
+    check(
+      `R2 the escaping-name and SQL/quote-selector refusals hold in ${mode} mode (a ward in validateInput, never a host or DB write)`,
+      !w.ok && /climbs out of the archive/.test(w.message) && !wp.ok && /climbs out of the archive/.test(wp.message) && !ws.ok && /never SQL/.test(ws.message) && !existsSync(join(fixtures, 'escaped.txt')),
+      `${words(w)} / ${words(wp)} / ${words(ws)}`,
+    )
   }
 
   const sqlSelectors: Array<[string, RegExp]> = [
     [`${dbPath}:users;DROP TABLE users/1`, /not a table name/],
     [`${dbPath}:users/id=1;DROP TABLE users`, /never SQL/],
+    [`${dbPath}:users/name='Ada'`, /never SQL/],
+    [`${dbPath}:users/name="Ada"`, /never SQL/],
+    [`${dbPath}:users/1' OR '1'='1`, /never SQL/],
+    [`${dbPath}:users/1--comment`, /never SQL/],
     [`${dbPath}:users/na"me=1`, /not a column name/],
     [`${dbPath}:users/`, /row selector after "users\/" is empty/],
     [`${dbPath}:users`, /address one row/],
@@ -482,7 +502,7 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     const w = await write({ file_path: target, content: '{"name": "x", "role": "y"}' }, ctx)
     const e = await edit({ file_path: target, old_string: 'a', new_string: 'b' }, ctx)
     check(
-      `R3.${idx + 1} selector "${target.slice(dbPath.length)}": Write and Edit refuse with the reason; the table is intact`,
+      `R3.${idx + 1} selector "${target.slice(dbPath.length)}": Write and Edit refuse in validateInput with the reason; the table is intact`,
       !w.ok && reason.test(w.message) && !e.ok && reason.test(e.message) && new Database(dbPath, { readonly: true }).query('SELECT COUNT(*) AS c FROM users').get() !== null,
       `${words(w)} / ${words(e)}`,
     )
@@ -492,14 +512,15 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     const injected = await write({ file_path: `${dbPath}:users/1 OR 1=1`, content: '{"name": "x", "role": "y"}' }, ctx)
     const rows = new Database(dbPath, { readonly: true }).query('SELECT id, name FROM users ORDER BY id').all() as Array<{ id: number; name: string }>
     check(
-      'R3.7 a key value with SQL in it binds as a literal: no row matches, the insert is refused by the integer key, every row is as it was',
-      !injected.ok && rows.map(r => `${r.id}:${r.name}`).join(',') === "1:Ada,3:Zed,5:Bob'); DROP TABLE users; --",
+      'R3.11 a selector value with SQL clauses ("1 OR 1=1") is refused in validateInput; every row is as it was',
+      !injected.ok && /never SQL/.test(injected.message) && rows.map(r => `${r.id}:${r.name}`).join(',') === "1:Ada,3:Zed,5:Bob'); DROP TABLE users; --",
       `${words(injected)} rows=${JSON.stringify(rows)}`,
     )
     const noDb = await write({ file_path: `${join(fixtures, 'missing.sqlite')}:users/1`, content: '{"name": "x"}' }, ctx)
-    check('R3.8 a row write never creates a database', !noDb.ok && /never creates a database/.test(noDb.message) && !existsSync(join(fixtures, 'missing.sqlite')), words(noDb))
+    check('R3.12 a row write never creates a database', !noDb.ok && /never creates a database/.test(noDb.message) && !existsSync(join(fixtures, 'missing.sqlite')), words(noDb))
     const view = await write({ file_path: `${dbPath}:admins/1`, content: '{"name": "x"}' }, ctx)
-    check('R3.9 a view has no writable rows', !view.ok && /view/.test(view.message), words(view))
+    const viewEdit = await edit({ file_path: `${dbPath}:admins/1`, old_string: 'a', new_string: 'b' }, ctx)
+    check('R3.13 a view has no writable rows on Write or Edit', !view.ok && /view/.test(view.message) && !viewEdit.ok && /view/.test(viewEdit.message), `${words(view)} / ${words(viewEdit)}`)
   }
 
   {
@@ -566,7 +587,7 @@ section('refusals. Every way to abuse or break the row, driven and refused')
 
   {
     const ctx = makeContext()
-    writeFileSync(zipPath, buildZip([{ name: 'dup.txt', content: 'same\nsame\nother\n' }, { name: 'config/app.json', content: '{\n  "port": 3000\n}\n' }]))
+    writeFileSync(zipPath, buildZip([{ name: 'dup.txt', content: 'same\nsame\nother\n' }, { name: 'blank.txt', content: '  \n' }, { name: 'config/app.json', content: '{\n  "port": 3000\n}\n' }]))
     const plainPath = join(fixtures, 'dup.txt')
     writeFileSync(plainPath, 'same\nsame\nother\n')
     await read({ file_path: `${zipPath}:dup.txt` }, ctx)
@@ -581,7 +602,7 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     )
     const before = bytesOf(zipPath)
     const modes: Array<[string, Record<string, unknown>]> = [
-      ['hunks', { hunks: [{ lines: '1', replace: 'gone' }], expected_anchor: 'fa:000000000000' }],
+      ['hunks', { hunks: [{ lines: '1', replace: 'gone' }] }],
       ['append', { append: 'more\n' }],
       ['section', { section: '## Head', new_string: 'x' }],
     ]
@@ -594,7 +615,17 @@ section('refusals. Every way to abuse or break the row, driven and refused')
       )
     }
     const emptyOld = await edit({ file_path: `${zipPath}:dup.txt`, old_string: '', new_string: '' }, ctx)
-    check('R7.4 an empty old_string on an existing entry refuses (never wipes it)', !emptyOld.ok && /already exists/.test(emptyOld.message) && zipText(bytesOf(zipPath), 'dup.txt') === 'same\nsame\nother\n', words(emptyOld))
+    const emptyOldBlank = await edit({ file_path: `${zipPath}:blank.txt`, old_string: '', new_string: '' }, ctx)
+    const emptyOldRow = await edit({ file_path: `${dbPath}:users/1`, old_string: '', new_string: '' }, ctx)
+    check(
+      'R7.4 an empty old_string on an existing entry (including whitespace-only) or row refuses and never wipes it',
+      !emptyOld.ok && /already exists/.test(emptyOld.message) &&
+        !emptyOldBlank.ok && /already exists/.test(emptyOldBlank.message) &&
+        !emptyOldRow.ok && /already exists/.test(emptyOldRow.message) &&
+        zipText(bytesOf(zipPath), 'dup.txt') === 'same\nsame\nother\n' &&
+        zipText(bytesOf(zipPath), 'blank.txt') === '  \n',
+      `${words(emptyOld)} / ${words(emptyOldBlank)} / ${words(emptyOldRow)}`,
+    )
   }
 
   {

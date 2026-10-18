@@ -167,13 +167,13 @@ export const FileWriteTool = buildTool({
     if (memoryRefusal) {
       return { result: false as const, message: memoryRefusal, errorCode: 3 }
     }
-    if (windowsPathNeedsPermission(input.file_path)) return { result: true as const }
     const structuredTarget = parseStructuredWriteTarget(input.file_path)
     if (structuredTarget !== null) {
       const refusal = structuredTargetRefusal(structuredTarget, 'write')
       if (refusal !== null) return { result: false as const, message: refusal.message, errorCode: refusal.errorCode }
       return { result: true as const }
     }
+    if (windowsPathNeedsPermission(input.file_path)) return { result: true as const }
     let isDirectory = false
     try {
       isDirectory = getFsImplementation().statSync(expandedPath).isDirectory()
