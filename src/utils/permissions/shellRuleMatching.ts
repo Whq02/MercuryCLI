@@ -4,6 +4,7 @@ import { isDestructiveCommandVerb } from '../../tools/BashTool/destructiveComman
 const COMMAND_PREFIX_ARITY: Readonly<Record<string, number>> = {
   git: 2, npm: 2, pnpm: 2, yarn: 2, bun: 2, docker: 2, gh: 2, cargo: 2,
   go: 2, dotnet: 2, pip: 2, pip3: 2, kubectl: 2, terraform: 2,
+  python: 2, python3: 2, node: 2, ruby: 2, perl: 2, php: 2, tsx: 2, 'ts-node': 2,
   'npm run': 3, 'pnpm run': 3, 'yarn run': 3, 'bun run': 3,
   'docker compose': 3, 'docker container': 3, 'docker image': 3,
   'gh pr': 3, 'gh issue': 3, 'gh repo': 3, 'gh release': 3, 'gh run': 3,
@@ -13,9 +14,12 @@ const COMMAND_PREFIX_ARITY: Readonly<Record<string, number>> = {
 const UNSCOPED_EXECUTORS = new Set(['sh', 'bash', 'zsh', 'fish', 'csh', 'tcsh', 'ksh', 'dash', 'cmd', 'powershell', 'pwsh', 'env', 'xargs', 'nice', 'stdbuf', 'nohup', 'timeout', 'time', 'sudo', 'doas', 'pkexec'])
 
 export function knownShellCommandPrefix(command: string): string | null {
-  if (/[;&|<>\\\n\r$`*]/.test(command) || isDestructiveCommandVerb(command)) return null
+  if (/[;&|<>\\\n\r$`*()]/.test(command) || isDestructiveCommandVerb(command)) return null
   const words = command.trim().split(/\s+/)
-  if (!/^[a-z][a-z0-9-]*$/.test(words[0] ?? '') || UNSCOPED_EXECUTORS.has(words[0]!)) return null
+  const first = words[0] ?? ''
+  const isRelativeScript = /^\.\/[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(first) && !first.includes('//') && !first.split('/').includes('..')
+  const firstLeaf = (first.split('/').pop() ?? '').replace(/\.[a-z0-9]+$/i, '').toLowerCase()
+  if ((!isRelativeScript && !/^[a-z][a-z0-9-]*$/.test(first)) || UNSCOPED_EXECUTORS.has(firstLeaf)) return null
   let arity = 1
   let longest = 0
   for (const [prefix, count] of Object.entries(COMMAND_PREFIX_ARITY)) {
@@ -25,7 +29,7 @@ export function knownShellCommandPrefix(command: string): string | null {
       arity = count
     }
   }
-  if (words.length < arity || words.slice(0, arity).some(word => !/^[a-zA-Z0-9][a-zA-Z0-9:_-]*$/.test(word))) return null
+  if (words.length < arity || words.slice(1, arity).some(word => !/^(?:\.\/)?[a-zA-Z0-9][a-zA-Z0-9:._/-]*$/.test(word) || word.includes('//') || word.split('/').includes('..'))) return null
   return words.slice(0, arity).join(' ')
 }
 
