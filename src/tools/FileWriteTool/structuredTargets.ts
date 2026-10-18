@@ -191,9 +191,13 @@ function readZipArchive(hostPath: string): ZipArchive {
       `${hostPath} lists ${totalEntries} entries in its central directory but only ${entries.length} could be read, so it cannot be rewritten safely.`,
     )
   }
+  const seenNames = new Set<string>()
   for (const entry of entries) {
     if (entry.central === undefined) {
       throw new Error(`${hostPath} lists "${entry.name}" outside its central directory, so it cannot be rewritten safely.`)
+    }
+    if (bytes.readUInt16LE(entry.central.offset + 34) !== 0) {
+      throw new Error(`${hostPath} spans more than one disk, which the entry writer does not rewrite.`)
     }
     if (entry.compressedSize === 0xffffffff || entry.uncompressedSize === 0xffffffff || entry.localHeaderOffset === 0xffffffff) {
       throw new Error(`${hostPath} is a Zip64 archive, which the entry writer does not rewrite.`)
@@ -201,6 +205,10 @@ function readZipArchive(hostPath: string): ZipArchive {
     if (entry.localHeaderOffset + 30 > bytes.length || bytes.readUInt32LE(entry.localHeaderOffset) !== LOC_SIG) {
       throw new Error(`${hostPath} has no local header for "${entry.name}", so it cannot be rewritten safely.`)
     }
+    if (seenNames.has(entry.name)) {
+      throw new Error(`"${entry.name}" appears more than once in ${hostPath}, so the entry writer cannot tell which to replace.`)
+    }
+    seenNames.add(entry.name)
   }
   return { bytes, entries, eocd }
 }
@@ -347,9 +355,20 @@ type ZipEntryState =
   | { exists: false; archive: ZipArchive | null }
   | { exists: true; archive: ZipArchive; entry: ArchiveEntryMeta; text: string }
 
+function isZipSymlink(entry: ArchiveEntryMeta): boolean {
+  return (((entry.central?.externalAttrs ?? 0) >>> 16) & 0o170000) === 0o120000
+}
+
 function readZipEntryState(hostPath: string, entryName: string): ZipEntryState {
   if (!existsSync(hostPath)) return { exists: false, archive: null }
   const archive = readZipArchive(hostPath)
+  for (const e of archive.entries) {
+    if (!isZipSymlink(e)) continue
+    const prefix = e.name.endsWith('/') ? e.name : `${e.name}/`
+    if (e.name === entryName || entryName.startsWith(prefix)) {
+      throw new Error(`"${e.name}" in ${hostPath} is a symbolic link entry; the entry writer never writes through a symlink.`)
+    }
+  }
   const matching = archive.entries.filter(e => e.name === entryName)
   if (matching.length > 1) {
     throw new Error(`"${entryName}" appears ${matching.length} times in ${hostPath}, so the entry writer cannot tell which to replace.`)

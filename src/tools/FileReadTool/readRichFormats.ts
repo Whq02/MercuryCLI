@@ -89,7 +89,7 @@ export interface ArchiveEntryMeta {
   method: number
   localHeaderOffset: number
   data?: Buffer
-  central?: { offset: number; length: number; flags: number; crc32: number }
+  central?: { offset: number; length: number; flags: number; crc32: number; externalAttrs: number }
 }
 
 export function findEocdOffset(buf: Buffer): number {
@@ -126,6 +126,7 @@ export function readZipEntries(buf: Buffer, filePath = 'archive.zip'): ArchiveEn
       const nameLen = buf.readUInt16LE(pos + 28)
       const extraLen = buf.readUInt16LE(pos + 30)
       const commentLen = buf.readUInt16LE(pos + 32)
+      const externalAttrs = buf.readUInt32LE(pos + 38)
       const localHeaderOffset = buf.readUInt32LE(pos + 42)
       const name = buf.subarray(pos + 46, pos + 46 + nameLen).toString('utf8')
       const length = 46 + nameLen + extraLen + commentLen
@@ -136,7 +137,7 @@ export function readZipEntries(buf: Buffer, filePath = 'archive.zip'): ArchiveEn
         isDirectory: name.endsWith('/'),
         method,
         localHeaderOffset,
-        central: { offset: pos, length, flags, crc32: entryCrc },
+        central: { offset: pos, length, flags, crc32: entryCrc, externalAttrs },
       })
       pos += length
     }

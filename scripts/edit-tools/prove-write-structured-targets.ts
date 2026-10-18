@@ -43,7 +43,7 @@ function section(t: string): void {
 
 const fixtures = mkdtempSync(join(tmpdir(), 'write-structured-targets-fixtures-'))
 
-type ZipSpec = { name: string; content: Buffer | string; stored?: boolean; extra?: Buffer; claimedSize?: number; comment?: Buffer }
+type ZipSpec = { name: string; content: Buffer | string; stored?: boolean; extra?: Buffer; claimedSize?: number; comment?: Buffer; flags?: number; externalAttrs?: number; disk?: number }
 function buildZip(entries: ZipSpec[], archiveComment = Buffer.alloc(0)): Buffer {
   const localParts: Buffer[] = []
   const centralParts: Buffer[] = []
@@ -57,11 +57,13 @@ function buildZip(entries: ZipSpec[], archiveComment = Buffer.alloc(0)): Buffer 
     const extra = e.extra ?? Buffer.alloc(0)
     const comment = e.comment ?? Buffer.alloc(0)
     const usize = e.claimedSize ?? raw.length
+    const flags = e.flags ?? 0x0800
+    const extAttrs = e.externalAttrs ?? 0x81a40000
 
     const loc = Buffer.alloc(30)
     loc.writeUInt32LE(0x04034b50, 0)
     loc.writeUInt16LE(20, 4)
-    loc.writeUInt16LE(0x0800, 6)
+    loc.writeUInt16LE(flags, 6)
     loc.writeUInt16LE(method, 8)
     loc.writeUInt16LE(0x6a3c, 10)
     loc.writeUInt16LE(0x5a21, 12)
@@ -76,7 +78,7 @@ function buildZip(entries: ZipSpec[], archiveComment = Buffer.alloc(0)): Buffer 
     cen.writeUInt32LE(0x02014b50, 0)
     cen.writeUInt16LE(0x031e, 4)
     cen.writeUInt16LE(20, 6)
-    cen.writeUInt16LE(0x0800, 8)
+    cen.writeUInt16LE(flags, 8)
     cen.writeUInt16LE(method, 10)
     cen.writeUInt16LE(0x6a3c, 12)
     cen.writeUInt16LE(0x5a21, 14)
@@ -86,7 +88,8 @@ function buildZip(entries: ZipSpec[], archiveComment = Buffer.alloc(0)): Buffer 
     cen.writeUInt16LE(nameBytes.length, 28)
     cen.writeUInt16LE(extra.length, 30)
     cen.writeUInt16LE(comment.length, 32)
-    cen.writeUInt32LE(0x81a40000, 38)
+    cen.writeUInt16LE(e.disk ?? 0, 34)
+    cen.writeUInt32LE(extAttrs, 38)
     cen.writeUInt32LE(offset, 42)
     centralParts.push(cen, nameBytes, extra, comment)
 
@@ -608,6 +611,47 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     const png = await write({ file_path: `${binZip}:image.png`, content: 'text\n' }, ctx)
     const raw = await write({ file_path: `${binZip}:raw.txt`, content: 'text\n' }, ctx)
     check('R4.6 a binary entry (by extension or by its bytes) is never overwritten through the text road', !png.ok && /binary file/.test(png.message) && !raw.ok && /binary content/.test(raw.message) && bytesOf(binZip).equals(binBytes), `${words(png)} / ${words(raw)}`)
+
+    const z64Zip = join(fixtures, 'z64.zip')
+    const z64Buf = buildZip([{ name: 'a.txt', content: 'hi\n' }])
+    z64Buf.writeUInt16LE(0xffff, z64Buf.length - 12)
+    writeFileSync(z64Zip, z64Buf)
+    const diskZip = join(fixtures, 'disk.zip')
+    writeFileSync(diskZip, buildZip([{ name: 'a.txt', content: 'hi\n', disk: 1 }]))
+    const dupZip = join(fixtures, 'dup-names.zip')
+    writeFileSync(dupZip, buildZip([{ name: 'dup.txt', content: 'one\n' }, { name: 'dup.txt', content: 'two\n' }]))
+    const encZip = join(fixtures, 'enc.zip')
+    writeFileSync(encZip, buildZip([{ name: 'secret.txt', content: 'cipher\n', flags: 0x0801 }]))
+    const z64Res = await write({ file_path: `${z64Zip}:a.txt`, content: 'x\n' }, ctx)
+    const diskRes = await write({ file_path: `${diskZip}:a.txt`, content: 'x\n' }, ctx)
+    const dupDirect = await write({ file_path: `${dupZip}:dup.txt`, content: 'x\n' }, ctx)
+    const dupSibling = await write({ file_path: `${dupZip}:other.txt`, content: 'x\n' }, ctx)
+    const encRes = await write({ file_path: `${encZip}:secret.txt`, content: 'x\n' }, ctx)
+    check(
+      'R4.7 Zip64, multi-disk, duplicate-entry (on the entry or a sibling) and encrypted archives are refused with reasons',
+      !z64Res.ok && /Zip64/i.test(z64Res.message) &&
+        !diskRes.ok && /more than one disk/i.test(diskRes.message) &&
+        !dupDirect.ok && /appears/i.test(dupDirect.message) &&
+        !dupSibling.ok && /appears/i.test(dupSibling.message) &&
+        !encRes.ok && /encrypted/i.test(encRes.message),
+      `${words(z64Res)} / ${words(diskRes)} / ${words(dupDirect)} / ${words(dupSibling)} / ${words(encRes)}`,
+    )
+
+    const symZip = join(fixtures, 'sym.zip')
+    const symMode = (0o120777 << 16) >>> 0
+    writeFileSync(symZip, buildZip([{ name: 'link.txt', content: '../outside.txt', stored: true, externalAttrs: symMode }, { name: 'symdir', content: '/etc', stored: true, externalAttrs: symMode }]))
+    const symBytes = bytesOf(symZip)
+    const symWrite = await write({ file_path: `${symZip}:link.txt`, content: 'overwritten\n' }, ctx)
+    const symEdit = await edit({ file_path: `${symZip}:link.txt`, old_string: 'outside', new_string: 'inside' }, ctx)
+    const symChildWrite = await write({ file_path: `${symZip}:symdir/child.txt`, content: 'through symlink\n' }, ctx)
+    check(
+      'R4.8 a symlink entry (direct or an ancestor segment) inside a zip archive is never written through or overwritten',
+      !symWrite.ok && /symbolic link|symlink/i.test(symWrite.message) &&
+        !symEdit.ok && /symbolic link|symlink/i.test(symEdit.message) &&
+        !symChildWrite.ok && /symbolic link|symlink/i.test(symChildWrite.message) &&
+        bytesOf(symZip).equals(symBytes),
+      `${words(symWrite)} / ${words(symEdit)} / ${words(symChildWrite)}`,
+    )
   }
 
   {
@@ -749,10 +793,23 @@ section('refusals. Every way to abuse or break the row, driven and refused')
     } finally {
       chmodSync(sealedDir, 0o755)
     }
+    let renameFailedOk = true
+    const chflags = Bun.which('chflags')
+    if (chflags !== null) {
+      const lock = Bun.spawnSync([chflags, 'uchg', sealedZip])
+      if (lock.exitCode === 0) {
+        try {
+          const mid = await write({ file_path: `${sealedZip}:a.txt`, content: 'gamma\n' }, ctx)
+          renameFailedOk = !mid.ok && bytesOf(sealedZip).equals(before) && readdirSync(sealedDir).join(',') === 'sealed.zip'
+        } finally {
+          Bun.spawnSync([chflags, 'nouchg', sealedZip])
+        }
+      }
+    }
     check(
-      'R9 a rewrite that cannot complete leaves the original archive byte-identical and no temporary file behind (the write goes to a temp file and renames)',
-      !failed.ok && bytesOf(sealedZip).equals(before) && readdirSync(sealedDir).join(',') === 'sealed.zip',
-      `${words(failed)} files=${readdirSync(sealedDir).join(',')}`,
+      'R9 a rewrite that cannot complete (in an unwritable folder or on a failed rename mid-rewrite) leaves the original archive byte-identical and no temporary file behind',
+      !failed.ok && renameFailedOk && bytesOf(sealedZip).equals(before) && readdirSync(sealedDir).join(',') === 'sealed.zip',
+      `${words(failed)} renameFailedOk=${renameFailedOk} files=${readdirSync(sealedDir).join(',')}`,
     )
   }
 
