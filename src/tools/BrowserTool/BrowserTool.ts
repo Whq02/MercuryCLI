@@ -24,6 +24,7 @@ import {
   activeSession,
   approveWebOrigin,
   approvedOriginList,
+  browserProfileDirForOrigin,
   browserSessionCap,
   closeBrowserSessionDetailed,
   consumeCheckedActOrigin,
@@ -1022,7 +1023,12 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           break
         }
         case 'open': {
-          const s = await ensureBrowserSession(owner, { signal: context.abortController?.signal })
+          const target = originOf(input.url!)
+          void browserProfileDirForOrigin(target, owner)
+          const s = await ensureBrowserSession(owner, {
+            signal: context.abortController?.signal,
+            origin: target,
+          })
           if ('state' in s) {
             result =
               s.state === 'unavailable'
@@ -1032,7 +1038,6 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             break
           }
           s.nav.seen = s.nav.seq
-          const target = originOf(input.url!)
           const ringMark = s.consoleRing.length
           const openMarks = markAct(s)
           let response: Awaited<ReturnType<typeof s.page.goto>>
