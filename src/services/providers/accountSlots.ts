@@ -139,7 +139,7 @@ export type SlotRemoval =
   | { route: 'minimax-stored-key' }
   | { route: 'together-stored-key' }
   | { route: 'cohere-stored-key' }
-  | { route: 'compat-stored-key' }
+  | { route: 'compat-stored-key'; endpoint?: string }
   | { route: 'huggingface-oauth' }
   | { route: 'huggingface-stored-key' }
   | { route: 'local-stored-key' }
@@ -1104,6 +1104,15 @@ function xaiSlots(reads: AccountSlotReads): AccountSlot[] {
 }
 
 function compatSlots(reads: AccountSlotReads): AccountSlot[] {
+  if (!reads.compatEnvKey && !reads.compatStoredKey) {
+    const { configuredCompatEndpoints, compatKeyEnvName } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
+    const endpoints = configuredCompatEndpoints().filter(endpoint => endpoint.named)
+    if (endpoints.length > 0) return endpoints.flatMap(endpoint => {
+      const envVar = endpoint.name === 'default' && process.env.MERCURY_COMPAT_API_KEY?.trim() ? 'MERCURY_COMPAT_API_KEY' : compatKeyEnvName(endpoint.name)
+      return keyLaneSlots({ family: 'openai-compat', envVar, envKey: process.env[envVar]?.trim() || undefined, storedKey: readStoredCompatApiKey(endpoint.name), storedRemoval: { route: 'compat-stored-key', endpoint: endpoint.name } })
+        .map(slot => ({ ...slot, id: `openai-compat:${endpoint.name}:${slot.id}`, name: endpoint.name, kindLabel: `${endpoint.label} · ${slot.kindLabel}` }))
+    })
+  }
   const envKey =
     reads.compatEnvKey ? reads.compatEnvKey() : process.env.MERCURY_COMPAT_API_KEY?.trim() || undefined
   const storedKey = (reads.compatStoredKey ?? readStoredCompatApiKey)()
@@ -1565,7 +1574,7 @@ function routeSlotRemoval(
       ;(owners.clearNousSignin ?? clearStoredNousSignin)()
       return { note: 'Nous Portal sign-in forgotten locally; the Portal account page ends it server-side', mutated: true }
     case 'compat-stored-key':
-      ;(owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null)))()
+      ;(owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null, removal.endpoint)))()
       return { note: 'stored endpoint API key cleared from the auth-scoped store', mutated: true }
     case 'huggingface-oauth':
       ;(owners.disconnectHuggingfaceOauth ?? disconnectHuggingfaceOauth)()

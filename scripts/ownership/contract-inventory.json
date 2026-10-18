@@ -420,6 +420,7 @@
     "type:MessageUpdateLazy"
    ],
    "src/services/tools/toolOrchestration.ts": [
+    "openResultRoomForRound",
     "runTools"
    ],
    "src/services/run/effectObserver.ts": [
@@ -649,6 +650,7 @@
   "apollo",
   "briefs",
   "channels",
+  "compatProvider",
   "context",
   "credentials",
   "credit",

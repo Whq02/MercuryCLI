@@ -178,6 +178,7 @@ src/services/providers/moonshot/moonshotCatalogue.ts :: identityMemo :: keyed-by
 src/services/providers/nous/nousCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/openai/openaiCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/openai/qualificationStore.ts :: wireMemoryCache :: ttl-bounded
+src/services/providers/openaicompat/compatCatalogue.ts :: cache :: keyed-by-truth
 src/services/providers/openrouter/openrouterCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/providerIdentityLine.ts :: memo :: ttl-bounded
 src/services/providers/providerUsage.ts :: activeUsageCache :: ttl-bounded

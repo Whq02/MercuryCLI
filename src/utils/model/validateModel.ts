@@ -290,16 +290,9 @@ async function validateNonAnthropicModel(
     return { valid: true }
   }
   if (route === 'openai-compat') {
-    const { resolveCompatSlotConfig } = await import(
-      '../../services/providers/openaicompat/compatAccounts.js'
-    )
-    if (!resolveCompatSlotConfig()) {
-      return {
-        valid: false,
-        error: 'The OpenAI-compatible endpoint slot is not configured — set MERCURY_COMPAT_BASE_URL.',
-      }
-    }
-    return { valid: true }
+    const { compatModelRefusal } = await import('../../services/providers/openaicompat/compatAccounts.js')
+    const error = compatModelRefusal(trimmed)
+    return error ? { valid: false, error } : { valid: true, skipCache: true }
   }
   const { resolveOpenaiAccount } = await import(
     '../../services/providers/openai/openaiAccounts.js'

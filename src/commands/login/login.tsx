@@ -22,6 +22,7 @@ import {
   resetSovereignCheck,
 } from '../../utils/permissions/bypassPermissionsKillswitch.js'
 import { resetUserCache } from '../../utils/user.js'
+import { loginFamilyFocusFor } from '../../components/loginFamilyRows.js'
 
 export function Login({
   onDone,
@@ -92,6 +93,7 @@ function runPostLoginRefresh(context: LocalJSXCommandContext): void {
 }
 
 export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | undefined {
+  if (token?.startsWith('compat/')) return loginFamilyFocusFor(token)
   switch ((token ?? '').toLowerCase()) {
     case 'anthropic':
     case 'claude':

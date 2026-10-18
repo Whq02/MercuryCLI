@@ -38,6 +38,7 @@ import {
 } from './settingsCache.js'
 import type { SettingsJson } from './types.js'
 import { SettingsSchema } from './types.js'
+import { duplicateCompatEndpointNames } from './compatProvider.js'
 import type { ValidationError, SettingsWithErrors } from './validation.js'
 import { filterInvalidPermissionRules, formatZodError, unknownKeyWarnings } from './validation.js'
 import { forgetHiddenCharacters, recordHiddenCharacters } from '../text/hiddenCharacterFindings.js'
@@ -101,7 +102,14 @@ function readSettingsFileUncached(filePath: string): { settings: SettingsJson | 
   }
   const shared = safeParseJSON(stripBOM(raw), false)
   const parsed = typeof shared === 'object' && shared !== null ? (structuredClone(shared) as unknown) : shared
-  const warnings = filterInvalidPermissionRules(parsed, filePath)
+  const duplicates = duplicateCompatEndpointNames(raw)
+  if (duplicates.length > 0 && typeof parsed === 'object' && parsed !== null) {
+    delete (parsed as Record<string, unknown>).compatProvider
+  }
+  const warnings = [
+    ...duplicates.map(name => ({ file: filePath, path: `compatProvider.${name}`, message: `duplicate endpoint name '${name}'; compatProvider was not loaded`, severity: 'warning' as const })),
+    ...filterInvalidPermissionRules(parsed, filePath),
+  ]
   const result = SettingsSchema().safeParse(parsed)
   if (!result.success) {
     const { settings: salvaged, issues } = salvageValidSettings(parsed, result.error)

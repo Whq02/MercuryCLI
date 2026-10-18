@@ -10,6 +10,8 @@ import { declaredRouteOf, providerDisplayName } from '../../providers/routeLaw.j
 import { readCataloguesForOtherFamilies } from '../../providers/catalogueOnDemand.js'
 import { presenceIdentityWords, providerFamilyPresences } from '../../providers/providerUsage.js'
 import type { ParsedRef, ResourceAdapter, ResourceContext, ResourceResult } from '../contracts.js'
+import { configuredCompatEndpoints, resolveCompatAccount } from '../../providers/openaicompat/compatAccounts.js'
+import { cachedCompatCatalogue } from '../../providers/openaicompat/compatCatalogue.js'
 
 export const MODELS_REF = 'mercury://models'
 export const KNOWN_MODELS_REF = 'mercury://models/known'
@@ -184,6 +186,20 @@ export async function liveModelsReference(ctx: Pick<ResourceContext, 'engineMode
   const providers: LiveProviderPage[] = []
   for (const presence of signedIn) {
     const route = presence.id
+    if (route === 'openai-compat') {
+      const endpoints = configuredCompatEndpoints(env).filter(endpoint => endpoint.named)
+      if (endpoints.length > 0) {
+        for (const endpoint of endpoints) {
+          const cached = cachedCompatCatalogue(endpoint, env)
+          const list: LiveListFacts = endpoint.models.length > 0 ? { kind: 'static', words: 'the models named in settings' }
+            : cached?.fetchedAtMs ? { kind: 'live', count: cached.models.length, readAt: stampLocal(new Date(cached.fetchedAtMs).toISOString()) }
+              : { kind: 'unread', ...(cached?.error ? { error: cached.error } : {}) }
+          providers.push({ provider: `openai-compat/${endpoint.name}`, providerName: `${endpoint.label} (${endpoint.name})`, account: resolveCompatAccount(env, endpoint.name)?.label ?? 'keyless endpoint', list,
+            models: (byRoute.get(route) ?? []).filter(option => option.value.startsWith(`compat/${endpoint.name}/`)).map(option => rowOf(option, ctx.engineModel, familyWordHeads)) })
+        }
+        continue
+      }
+    }
     const list = await listFactsOf(route, env)
     const knownDefault = list.kind === 'live' ? undefined : knownDefaultOf(route)
     providers.push({

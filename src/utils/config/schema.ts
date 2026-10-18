@@ -175,11 +175,7 @@ type Credentials = {
   oauthAccount?: AccountInfo
   anthropicPreferredSource?: 'subscription' | 'api-key'
   defaultProvider?: string
-  compatProvider?: {
-    baseUrl?: string
-    label?: string
-    models?: string[]
-  }
+  compatProvider?: import('../settings/compatProvider.js').CompatProviderSettings
 }
 
 type Servers = {

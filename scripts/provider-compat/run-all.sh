@@ -2,12 +2,12 @@
 # gate-class: pure
 # gate-watch: src/services/providers/busyRetry.ts src/services/providers/temporaryStreamError.ts src/services/providers/openai/** src/services/providers/xai/xaiResponsesTransport.ts src/services/providers/openrouter/openrouterResponsesTransport.ts
 # gate-watch: src/services/providers/routeLaw* src/services/providers/openaicompat/**
-# gate-watch: src/services/providers/openrouter/** src/utils/settings/settings.ts scripts/lib/settingsPopupHarness.ts
+# gate-watch: src/services/providers/openrouter/** src/utils/settings/** scripts/lib/settingsPopupHarness.ts
 # gate-watch: src/services/providers/moonshot/** src/services/providers/deepseek/**
 # gate-watch: src/services/providers/huggingface/** src/services/providers/local/**
 # gate-watch: src/services/providers/zai/glmPins* src/services/providers/**
 # gate-watch: src/utils/model/modelOptions* src/utils/model/capabilities*
-# gate-watch: src/utils/crew/engineDispatch.ts src/utils/config.ts
+# gate-watch: src/utils/crew/engineDispatch.ts src/utils/config.ts src/utils/config/schema.ts src/types/message.ts src/services/resources/adapters/models.ts src/components/CompatConnect.tsx src/components/ConsoleOAuthFlow.tsx src/components/BootLoginsScreen.tsx src/components/loginFamilyRows.ts src/commands/login/login.tsx
 # gate-watch: scripts/lib/hermetic.ts
 # gate-watch: src/services/localServer/** src/utils/settings/types.ts scripts/settings/settings-schema.json
 # gate-watch: scripts/lib/fixtureApi.ts scripts/local-setup/fixtures/fake-ollama.ts

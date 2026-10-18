@@ -324,9 +324,10 @@ export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai
 }
 export function parseKeyConnectValue(
   value: string,
-): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | undefined {
+): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | `compat/${string}` | undefined {
   if (!value.startsWith(KEY_CONNECT_PREFIX)) return undefined
   const provider = value.slice(KEY_CONNECT_PREFIX.length)
+  if (/^compat\/[a-z0-9-]{1,32}$/.test(provider)) return provider as `compat/${string}`
   return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat' || provider === 'mistral' || provider === 'zen' || provider === 'minimax' || provider === 'together' || provider === 'cohere'
     ? provider
     : undefined
@@ -573,6 +574,7 @@ export interface KeyLaneReads {
   togetherKeyPresent?(): boolean
   cohereKeyPresent?(): boolean
   compat(): { label: string; models: string[]; keyPresent: boolean } | undefined
+  namedCompat?(): ModelOption[]
 }
 
 function liveKeyLaneReads(): KeyLaneReads {
@@ -620,6 +622,7 @@ function liveKeyLaneReads(): KeyLaneReads {
         require('../../services/providers/deepseek/deepseekAccounts.js') as typeof import('../../services/providers/deepseek/deepseekAccounts.js')
       return resolveDeepseekApiKey() !== undefined
     },
+    namedCompat: () => (require('../../services/providers/openaicompat/compatCatalogue.js') as typeof import('../../services/providers/openaicompat/compatCatalogue.js')).namedCompatModelOptions(),
     compat: () => {
       const { resolveCompatSlotConfig, resolveCompatApiKey } =
         require('../../services/providers/openaicompat/compatAccounts.js') as typeof import('../../services/providers/openaicompat/compatAccounts.js')
@@ -873,7 +876,9 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
     }
   }
   const compat = reads.compat()
-  if (compat === undefined) {
+  const namedCompat = reads.namedCompat?.() ?? []
+  if (namedCompat.length > 0) out.push(...namedCompat)
+  else if (compat === undefined) {
     out.push({
       value: keyConnectValue('compat'),
       label: 'Custom endpoint — configure',

@@ -29,7 +29,7 @@ async function scene(
 ): Promise<void> {
   const run = await runArtifactArena({ ...opts, keep: true })
   const fin = finalScreen(run, opts.cols ?? 120, opts.rows ?? 40)
-  check(`${name}: composer usable at settle`, /type a prompt|↵ sends|\? for shortcuts/.test(fin))
+  check(`${name}: composer usable at settle`, /type a prompt|↵ sends|\? for shortcuts/i.test(fin))
   check(`${name}: no residual spinner`, !/\(\d+s · ↑/.test(fin))
   asserts(fin, run)
   run.cleanup()
@@ -103,7 +103,7 @@ await scene(
     resizes: ['7000:100:30', '7400:140:45', '7800:90:28', '8200:120:40'],
   })
   const fin = finalScreen(run, 120, 40)
-  check('F5 resize storm: composer usable at settle', /type a prompt|↵ sends|\? for shortcuts/.test(fin))
+  check('F5 resize storm: composer usable at settle', /type a prompt|↵ sends|\? for shortcuts/i.test(fin))
   check('F5: no residual spinner', !/\(\d+s · ↑/.test(fin))
   check('F5: the stream settled at the final geometry', fin.includes('rs99'))
   run.cleanup()

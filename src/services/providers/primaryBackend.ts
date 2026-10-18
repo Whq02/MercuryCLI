@@ -34,7 +34,7 @@ import { resolveTogetherApiKey } from './together/togetherAccounts.js'
 import { cohereCallModel, cohereLiveProofState } from './cohere/cohereCallModel.js'
 import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
-import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
+import { configuredCompatEndpoints } from './openaicompat/compatAccounts.js'
 import {
   HUGGINGFACE_UNVERIFIED_NOTE,
   huggingfaceCallModel,
@@ -293,7 +293,7 @@ const compatBackend: PrimaryAgentBackend = {
   label: 'OpenAI-compatible endpoint (operator-named)',
   callModel: compatCallModel,
   readiness: (): BackendReadiness => {
-    if (!resolveCompatSlotConfig()) {
+    if (configuredCompatEndpoints().length === 0) {
       return { state: 'unavailable', reason: 'no endpoint configured (MERCURY_COMPAT_BASE_URL)' }
     }
     const proof = compatSlotLiveProofState()

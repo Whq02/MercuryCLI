@@ -1,4 +1,5 @@
 import { normalizeModelStringForAPI } from '../../utils/model/model.js'
+import { compatModelEndpoint, configuredCompatEndpoints } from './openaicompat/compatAccounts.js'
 import {
   classifyModelRoute,
   COMPAT_MODEL_PREFIX,
@@ -76,6 +77,8 @@ function normalizedRaw(model: string): string {
 }
 
 export function stripCompatModelPrefix(model: string): string {
+  const resolved = compatModelEndpoint(model)
+  if (resolved) return resolved.wireId
   const trimmed = model.trim()
   return trimmed.toLowerCase().startsWith(COMPAT_MODEL_PREFIX)
     ? trimmed.slice(COMPAT_MODEL_PREFIX.length)
@@ -119,6 +122,11 @@ export function canonicalWireModelId(model: string): WireIdVerdict {
       }
     }
     return wireId === trimmed ? { ok: true, wireId } : { ok: true, wireId, healed: true }
+  }
+  if (space.route === 'openai-compat' && configuredCompatEndpoints().some(endpoint => endpoint.named)) {
+    const resolved = compatModelEndpoint(trimmed)
+    if (!resolved) return { ok: false, reason: `'${trimmed}' names no configured endpoint/model in compatProvider; use compat/<name>/<id>.` }
+    return { ok: true, wireId: resolved.wireId, ...(trimmed.replace(MERCURY_ANNOTATION_RE, '') !== trimmed ? { healed: true as const } : {}) }
   }
   const inner = trimmed.slice(space.qualifiedPrefix.length)
   const stripped = inner.replace(MERCURY_ANNOTATION_RE, '')

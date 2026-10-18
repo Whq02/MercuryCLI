@@ -599,6 +599,13 @@ export async function resolveEngineDispatch(
     }
     if (isCompatModelId(id)) {
       await requireProviderAvailable('openai-compat')
+      const { compatModelEndpoint, compatModelRefusal } = await import('../../services/providers/openaicompat/compatAccounts.js')
+      const endpoint = compatModelEndpoint(id)
+      if (endpoint?.endpoint.named) {
+        const refusal = compatModelRefusal(id)
+        if (refusal) throw new Error(refusal)
+        return { backend: 'openai-compat', model: id, displayLabel: `${endpoint.wireId} (${endpoint.endpoint.label})` }
+      }
       const named = compatSlotModelIds()
       if (named.length > 0 && !named.includes(id.toLowerCase())) {
         throw new Error(

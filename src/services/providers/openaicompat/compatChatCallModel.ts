@@ -422,6 +422,7 @@ export async function* compatChatCallModel(
   params: CompatCallModelParams,
 ): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
   const { messages, systemPrompt, thinkingConfig, tools, signal, options } = params
+  if (signal.aborted) return
   const modelId = compatDispatchModelId(options.model)
 
   const wireVerdict = canonicalWireModelId(options.model)

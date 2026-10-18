@@ -5,6 +5,109 @@
     "$schema": {
       "type": "string"
     },
+    "compatProvider": {
+      "description": "Custom endpoints keyed by name, or one endpoint named default: baseUrl, label, models, headers, sessionAffinityHeader and dialect; keys are kept by /logins, not in settings",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "baseUrl": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "headers": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+              },
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "sessionAffinityHeader": {
+              "type": "string",
+              "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+            },
+            "dialect": {
+              "type": "string",
+              "enum": [
+                "chat-completions",
+                "responses",
+                "ollama",
+                "lmstudio",
+                "vllm",
+                "llamacpp"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,32}$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "baseUrl": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "models": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "headers": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "sessionAffinityHeader": {
+                "type": "string",
+                "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+              },
+              "dialect": {
+                "type": "string",
+                "enum": [
+                  "chat-completions",
+                  "responses",
+                  "ollama",
+                  "lmstudio",
+                  "vllm",
+                  "llamacpp"
+                ]
+              }
+            },
+            "required": [
+              "baseUrl"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
     "credentials": {
       "type": "object",
       "properties": {

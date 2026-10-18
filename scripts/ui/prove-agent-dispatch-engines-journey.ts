@@ -117,6 +117,7 @@ console.log('============================================================')
       argv: ['node', DIST],
       sends: [
         { data: '\r', atTick: 999, awaitText: '↵ start', requireAwait: true, minTick: 8, awaitSettleTicks: 3, awaitStableTicks: 3 },
+        { data: '\r', atTick: 999, awaitText: '1 session on', requireAwait: true, repeatEveryTicks: 5 },
         { data: '/logins zai\r', atTick: 999, awaitText: '1 session on', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\r', atTick: 999, awaitText: 'GLM (Z.AI)', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\r', atTick: 999, awaitText: 'GLM Coding Plan key', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },

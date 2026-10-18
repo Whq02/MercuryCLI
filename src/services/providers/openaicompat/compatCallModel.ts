@@ -1,5 +1,11 @@
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { stripCompatModelPrefix } from '../routeLaw.js'
+import { getSessionId } from '../../../bootstrap/state.js'
+import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
+import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
+import { compatKeyEnvName, compatModelEndpoint, compatModelRefusal } from './compatAccounts.js'
+import { compatResponsesTransport } from './compatResponsesTransport.js'
+import { buildLocalExtras } from './compatWire.js'
 import {
   compatChatCallModel,
   compatLaneLiveProofState,
@@ -8,7 +14,6 @@ import {
 import {
   compatChatCompletionsUrl,
   resolveCompatApiKey,
-  resolveCompatSlotConfig,
 } from './compatAccounts.js'
 import { buildCompatSlotExtras } from './compatWire.js'
 
@@ -40,10 +45,41 @@ export function compatSlotLiveProofState(): { at: number; model: string } | null
 }
 
 export async function* compatCallModel(params: CallModelParams): CallModelStream {
-  const label = resolveCompatSlotConfig()?.label
-  const profile: CompatLaneProfile =
-    label !== undefined && label !== compatSlotLaneProfile.providerLabel
-      ? { ...compatSlotLaneProfile, providerLabel: label }
-      : compatSlotLaneProfile
+  let resolved: ReturnType<typeof compatModelEndpoint>
+  try { resolved = compatModelEndpoint(params.options.model) } catch (error) {
+    yield createAssistantAPIErrorMessage({ content: String(error instanceof Error ? error.message : error), error: 'invalid_request' })
+    return
+  }
+  if (!resolved) {
+    yield* compatChatCallModel(compatSlotLaneProfile, params)
+    return
+  }
+  const refusal = compatModelRefusal(params.options.model)
+  if (refusal) {
+    yield createAssistantAPIErrorMessage({ content: refusal, error: 'invalid_request' })
+    return
+  }
+  const { endpoint, wireId } = resolved
+  const dialect = endpoint.dialect ?? 'chat-completions'
+  let observation: ReturnType<typeof captureSignInRequest>
+  const profile: CompatLaneProfile = {
+    ...compatSlotLaneProfile,
+    providerLabel: endpoint.label,
+    ...(endpoint.named ? { authRemedy: `/logins compat/${endpoint.name} replaces this endpoint's key; ${compatKeyEnvName(endpoint.name)} takes precedence when set.` } : {}),
+    resolveCredential: () => {
+      const key = resolveCompatApiKey(process.env, endpoint.name)
+      if (endpoint.named) observation = captureSignInRequest(`compat-${endpoint.name}`, key?.key)
+      return key ? { apiKey: key.key } : {}
+    },
+    requestUrl: () => `${endpoint.baseUrl}/chat/completions`,
+    wireModelId: () => wireId,
+    ...(endpoint.named ? { onResponseHeaders: (_headers: Headers, status?: number) => observeSignInResponse(observation, status) } : {}),
+    extraHeaders: () => ({ ...endpoint.headers, ...(endpoint.sessionAffinityHeader ? { [endpoint.sessionAffinityHeader]: getSessionId() } : {}) }),
+    ...(dialect === 'responses' ? { streamTransport: (options, messages) => compatResponsesTransport(options, messages, `${endpoint.name}:${endpoint.baseUrl}`) } : {}),
+    ...(dialect === 'ollama' ? { omitsToolChoice: true } : {}),
+    buildExtras: args => dialect === 'chat-completions' || dialect === 'responses'
+      ? buildCompatSlotExtras(args)
+      : buildLocalExtras({ ...args, server: dialect, acceptsEffort: true }),
+  }
   yield* compatChatCallModel(profile, params)
 }

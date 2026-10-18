@@ -84,6 +84,29 @@ A resumed chat keeps its model and effort unless the launch explicitly
 chooses them. [ENGINES.md](ENGINES.md) describes provider routing;
 [SESSIONS.md](SESSIONS.md) describes saved defaults and resumes.
 
+## Custom endpoints
+
+`compatProvider` names custom endpoints in user, launch or managed-policy
+settings. Project settings cannot redirect their credentials. Each map key
+is 1–32 lowercase letters, digits or hyphens; select a model as
+`compat/<name>/<id>`. A single endpoint block names `default` and uses
+`compat/<id>`.
+
+| Key | What it sets |
+| --- | --- |
+| `compatProvider.<name>.baseUrl` | The HTTP(S) API base, without credentials, query or fragment. |
+| `compatProvider.<name>.label` | The endpoint name shown in the model picker and Logins. |
+| `compatProvider.<name>.models` | Vendor model ids. Without a list, named endpoints read `/models` when catalogue traffic is on. |
+| `compatProvider.<name>.headers` | Extra request headers; credential and transport headers are reserved. |
+| `compatProvider.<name>.sessionAffinityHeader` | A header carrying the session id on model requests. |
+| `compatProvider.<name>.dialect` | `chat-completions` (default), `responses`, `ollama`, `lmstudio`, `vllm` or `llamacpp`; server dialects use their Chat Completions profiles. |
+
+`/logins compat/<name>` stores a key for that endpoint alone.
+`MERCURY_COMPAT_<NAME>_API_KEY` takes precedence: uppercase the name and
+replace hyphens with underscores. The default endpoint also honours
+`MERCURY_COMPAT_API_KEY`, `MERCURY_COMPAT_BASE_URL`,
+`MERCURY_COMPAT_LABEL` and `MERCURY_COMPAT_MODELS`.
+
 ## Permissions and the sandbox
 
 | Key | What it sets |
