@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { getAllLspServers } from './config.js'
+import { noteOutOfBandWrite } from './LSPDiagnosticRegistry.js'
 import { createLSPServerInstance, isLspStartFailure, type LSPServerInstance } from './LSPServerInstance.js'
 import { MERCURY_PYRIGHT_SERVER_NAME, pyrightWorkspaceConfiguration } from './pyrightLane.js'
 
@@ -311,7 +312,7 @@ export function createLSPServerManager(): LSPServerManager {
   async function revalidateOpenDocuments(): Promise<LspRevalidationReport> {
     const report: LspRevalidationReport = { checked: 0, resynced: [], closed: [], failed: [] }
     const entries = [...tracking.entries()].map(
-      ([uri, perDocument]) => [uri, [...perDocument.values()]] as const,
+      ([uri, perDocument]) => [uri, [...perDocument.entries()].map(([serverName, entry]) => ({ serverName, ...entry }))] as const,
     )
     for (const [uri, perServer] of entries) {
       let path: string
@@ -350,7 +351,9 @@ export function createLSPServerManager(): LSPServerManager {
       }
       try {
         const text = readFileSync(path, 'utf8')
+        const versions = perServer.map(entry => ({ serverName: entry.serverName, docVersion: entry.version }))
         await changeFile(path, text)
+        noteOutOfBandWrite(path, versions)
         report.resynced.push(path)
       } catch {
         report.failed.push(path)
