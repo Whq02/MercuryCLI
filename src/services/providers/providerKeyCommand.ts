@@ -1,11 +1,12 @@
 import { spawnSync } from 'node:child_process'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import { checkHasTrustDialogAccepted, untrustedWorkspaceHeadless } from '../../utils/config.js'
+import { checkHasTrustDialogAccepted } from '../../utils/config.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isBareMode } from '../../utils/envUtils.js'
 import { logError } from '../../utils/log.js'
 import { getEnabledSettingSources, type SettingSource } from '../../utils/settings/constants.js'
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 
 const OUTSIDE_CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set([
@@ -58,7 +59,7 @@ function allowedSources(family: string): readonly SettingSource[] {
   if (family.startsWith('compat:')) return ['userSettings', 'flagSettings', 'policySettings']
   if (isBareMode()) return ['flagSettings']
   const enabled = getEnabledSettingSources()
-  if (untrustedWorkspaceHeadless()) return enabled.filter(source => OUTSIDE_CHECKOUT_SOURCES.has(source))
+  if (!checkHasTrustDialogAccepted()) return enabled.filter(source => OUTSIDE_CHECKOUT_SOURCES.has(source))
   return enabled
 }
 
@@ -92,7 +93,7 @@ function runCommandSync(command: string, label: string): { key: string | null; f
   const result = spawnSync(command, {
     shell: true,
     cwd: getCwd(),
-    env: process.env,
+    env: subprocessEnv(),
     timeout: KEY_COMMAND_TIMEOUT_MS,
     encoding: 'utf8',
     maxBuffer: 1024 * 1024,
@@ -100,7 +101,7 @@ function runCommandSync(command: string, label: string): { key: string | null; f
   })
   const now = Date.now()
   const timedOut = Boolean((result.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || /timed out/i.test(result.error?.message ?? ''))
-  if (timedOut || result.status !== 0) {
+  if (timedOut || result.error || result.status !== 0) {
     const stderr = (result.stderr ?? '').trim()
     const code = result.status ?? 1
     const why = timedOut ? 'timed out after 10s' : `exited with code ${code}`

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { z } from 'zod/v4'
@@ -6,7 +6,7 @@ import { z } from 'zod/v4'
 const root = resolve(process.env.PLUMBING_PROOF_ROOT ?? join(import.meta.dir, '../..'))
 const parent = process.env.MERCURY_CONFIG_DIR ?? tmpdir()
 mkdirSync(parent, { recursive: true })
-const scratch = mkdtempSync(join(parent, 'provider-key-commands-'))
+const scratch = realpathSync(mkdtempSync(join(parent, 'provider-key-commands-')))
 const home = join(scratch, 'home')
 const project = join(scratch, 'project')
 mkdirSync(home, { recursive: true })
@@ -185,9 +185,13 @@ try {
     compatProvider: {
       east: { baseUrl: `${origin}/east`, models: ['Fixture'], keyCommand: cmdLine },
     },
+    credentials: {
+      keyCommands: { zai: cmdLine },
+    },
   })
   const compatAccounts = await import(`${root}/src/services/providers/openaicompat/compatAccounts.ts`)
-  check('named custom endpoint resolves its own keyCommand and caches it', compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && executions() === 1)
+  const providerDiscovery = await import(`${root}/src/services/providers/providerDiscovery.ts`)
+  check('named custom endpoint resolves its own keyCommand and caches it', compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && providerDiscovery.primeZaiDiscovery()?.keyPresent === true && executions() === 2)
 
   clearExecutions()
   nextKey = 'cmd-deepseek-expired'
@@ -207,13 +211,17 @@ try {
   console.log('refusals')
   clearExecutions()
   setHelperState({ failCode: 7, stderr: 'vault sealed' })
-  setSettings({ credentials: { keyCommands: { deepseek: cmdLine } } })
+  setSettings({ credentials: { keyCommands: { deepseek: cmdLine, openrouter: cmdLine, openai: cmdLine } } })
   const failedResolve = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
   const backoffResolve = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
-  check('a failing keyCommand leaves the family with no key and backs off without re-running immediately', failedResolve === undefined && backoffResolve === undefined && executions() === 1)
+  const failedOpenrouterResolve = require(`${root}/src/services/providers/openrouter/openrouterAccounts.ts`).resolveOpenrouterApiKey()
+  const failedOpenaiResolve = require(`${root}/src/services/providers/openai/openaiAccounts.ts`).resolveOpenaiApiKey()
+  check('a failing keyCommand leaves the family with no key and backs off without re-running immediately', failedResolve === undefined && backoffResolve === undefined && failedOpenrouterResolve === undefined && failedOpenaiResolve === undefined && executions() === 3)
   const failedTurn = await run('deepseek-v4-pro')
+  const failedOpenrouter = JSON.stringify(await run('openrouter/openai/gpt-5.6-terra'))
+  const failedOpenai = JSON.stringify(await run('gpt-6-astra'))
   const failedText = JSON.stringify(failedTurn)
-  check('a turn on a failed keyCommand names the command exit once and sends no request', failedText.includes('exited with code 7') && failedText.includes('vault sealed'))
+  check('a turn on a failed keyCommand names the command exit once and sends no request', failedText.includes('exited with code 7') && failedText.includes('vault sealed') && failedOpenrouter.includes('exited with code 7') && failedOpenai.includes('exited with code 7'))
 
   clearExecutions()
   const marker = join(project, 'untrusted-marker')
@@ -227,7 +235,11 @@ try {
   setSessionTrustAccepted(false)
   resetTrustDialogAcceptedCacheForTesting()
   const untrustedKey = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
-  check('an untrusted project-scope keyCommand is refused and never executed', untrustedKey === undefined && !existsSync(marker))
+  setIsInteractive(true)
+  const untrustedInteractive = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
+  const untrustedConfigured = keyCommandOwner?.configuredProviderKeyCommand('deepseek')
+  setIsInteractive(false)
+  check('an untrusted project-scope keyCommand is refused and never executed', untrustedKey === undefined && untrustedInteractive === undefined && untrustedConfigured === undefined && !existsSync(marker))
   rmSync(join(project, '.mercury'), { recursive: true, force: true })
   setSessionTrustAccepted(true)
   resetTrustDialogAcceptedCacheForTesting()

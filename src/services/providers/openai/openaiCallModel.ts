@@ -97,6 +97,7 @@ import { isTemporaryStreamFault } from '../temporaryStreamError.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { getModelMaxOutputTokens } from '../../../utils/model/capabilities.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import {
   buildOpenaiResponsesRequest,
   decodeOpenaiTurnRecord,
@@ -513,8 +514,10 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
 
   const account = resolveOpenaiAccount()
   if (!account) {
+    const failure = providerKeyCommandFailure('openai')
+    const hint = failure ? `the configured ${failure.message} — no OpenAI account source is connected.` : 'no OpenAI account source is connected — /logins signs in to this account or attaches an API key.'
     yield apiErrorMessage(
-      `${API_ERROR_MESSAGE_PREFIX}: no OpenAI account source is connected — /logins signs in to this account or attaches an API key. Model '${requestedId}' cannot run.`,
+      `${API_ERROR_MESSAGE_PREFIX}: ${hint} Model '${requestedId}' cannot run.`,
     )
     return
   }
@@ -726,20 +729,31 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       typed === 'authentication_failed' &&
       outcome.retryEligible &&
       recovery === undefined &&
-      auth.account.kind === 'chatgpt-subscription' &&
       attempt < OPENAI_MAX_ATTEMPTS
     ) {
-      const fresh = await resolveOpenaiRequestAuth({
-        sourceKind: 'chatgpt-subscription',
-        forceRefresh: true,
-      }).catch(() => undefined)
-      if (signal.aborted) return
-      if (fresh && fresh.headers.authorization !== auth.headers.authorization) {
-        recovery = 'retried'
-        auth = fresh
-        continue
+      if (auth.account.kind === 'chatgpt-subscription') {
+        const fresh = await resolveOpenaiRequestAuth({
+          sourceKind: 'chatgpt-subscription',
+          forceRefresh: true,
+        }).catch(() => undefined)
+        if (signal.aborted) return
+        if (fresh && fresh.headers.authorization !== auth.headers.authorization) {
+          recovery = 'retried'
+          auth = fresh
+          continue
+        }
+        recovery = 'no-new-credential'
+      } else if (configuredProviderKeyCommand('openai')) {
+        const freshKey = recoverProviderKeyCommand('openai', auth.headers.authorization?.replace(/^Bearer /i, ''))
+        const fresh = freshKey ? await resolveOpenaiRequestAuth({ sourceKind: 'api-key' }).catch(() => undefined) : undefined
+        if (signal.aborted) return
+        if (fresh && fresh.headers.authorization !== auth.headers.authorization) {
+          recovery = 'retried'
+          auth = fresh
+          continue
+        }
+        recovery = 'no-new-credential'
       }
-      recovery = 'no-new-credential'
     }
     if (
       nativeDeferral &&
