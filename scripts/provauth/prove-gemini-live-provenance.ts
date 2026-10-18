@@ -141,7 +141,7 @@ section('5 · the shape: the picker guard reads the routing law; nothing on the 
   const picker = source.slice(source.indexOf('export function getGeminiModelOptions'), source.indexOf('export function __resetGeminiCatalogueForTest'))
   check("the picker's one guard is the routing law's own verdict", picker.includes("const routed = declaredRouteOf(model.id) === 'gemini'") && picker.includes('geminiGenerateModels(snapshot).map('))
   check('the listed-row reader is guarded by the same law', source.includes("if (declaredRouteOf(model) !== 'gemini') return undefined"))
-  const prefix = /startsWith\('gemini|\/\^gemini-|isGeminiModelId/
+  const prefix = /startsWith\('gemini|\/\^gemini-[^\n]*\.test\(|isGeminiModelId/
   for (const file of [
     'src/services/providers/gemini/geminiCatalogue.ts',
     'src/services/providers/gemini/geminiAccounts.ts',

@@ -27,7 +27,7 @@ section('§1 THE LAUNCH BUDGET')
   const withBudget = client.withMcpLaunchBudget as ((work: Promise<unknown>, ms: number) => Promise<string>) | undefined
   const budgetMs = client.mcpLaunchBudgetMs as (() => number) | undefined
   check('the budget helper is exported from the MCP owner', typeof withBudget === 'function')
-  check('the budget reads the connect deadline (MERCURY_MCP_TIMEOUT_MS, live)', budgetMs?.() === 1500, String(budgetMs?.()))
+  check('the budget reads the connect deadline (MERCURY_MCP_TIMEOUT_MS, live) plus the spawn grace, so a server that never answers is told inside it', budgetMs?.() === 1500 + client.MCP_LAUNCH_SPAWN_GRACE_MS && client.MCP_LAUNCH_SPAWN_GRACE_MS === 1_000, String(budgetMs?.()))
   if (withBudget) {
     const t0 = Date.now()
     const verdict = await withBudget(new Promise(() => {}), 120)

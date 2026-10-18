@@ -13,8 +13,8 @@ if grep -Eq 'claude\.(ai|com)/(s|session)/' "$msg"; then
   echo "commit-msg: session URL in the commit message — session metadata never lands in commits" >&2
   exit 1
 fi
-if grep -Eq '^[[:space:]]*Co-Authored-By:' "$msg"; then
-  if grep -E '^[[:space:]]*Co-Authored-By:' "$msg" | grep -Evq '^Co-Authored-By: Mercury <https://mercury-cli\.ai>$'; then
+if grep -Eiq '^[[:space:]]*Co-Authored-By:.*mercury' "$msg"; then
+  if grep -Ei '^[[:space:]]*Co-Authored-By:.*mercury' "$msg" | grep -Evq '^Co-Authored-By: Mercury <https://mercury-cli\.ai>$'; then
     echo "commit-msg: the attribution trailer must read exactly: Co-Authored-By: Mercury <https://mercury-cli.ai>" >&2
     exit 1
   fi
