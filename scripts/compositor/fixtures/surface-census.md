@@ -29,7 +29,7 @@
 | Chat cockpit (direct boot / --continue / --resume <id>) | `src/screens/Chat.tsx → src/ink/components/AlternateScreen.tsx` | claims the held screen (outermost mount consumes + arms the takeover erase) |
 | non-takeover argv paths (run · --help · subcommands · piped stdout) | `src/entrypoints/cli.tsx` | releases the hold before any output |
 
-## Slash routes — modal-slot views (local-jsx: 48)
+## Slash routes — modal-slot views (local-jsx: 49)
 
 Host: the FullscreenLayout modal slot (opaque claim; SURFACE-CLAIM
 INVARIANT forces height = terminalRows at peek 0). Kernel signals name
@@ -40,6 +40,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /accounts | ilist irow | `src/commands/accounts` |
 | /agents | flat | `src/commands/agents` |
 | /appearance | irow | `src/commands/appearance` |
+| /browse | — | `src/commands/browse` |
 | /caching | irow | `src/commands/caching` |
 | /capabilities | — | `src/commands/capabilities` |
 | /console | irow | `src/commands/console` |
@@ -86,9 +87,9 @@ the interaction primitives the view actually mounts (1-hop join).
 | /workflows | panes | `src/commands/workflows` |
 | /zen | — | `src/commands/zen` |
 
-## Slash routes — transcript prints (local: 18)
+## Slash routes — transcript prints (local: 19)
 
-`/advise` · `/bootmenu` · `/browser` · `/clear` · `/compact` · `/concourse` · `/config` · `/jev` · `/keybindings` · `/kill` · `/localsetup` · `/mouse` · `/rewind` · `/seats` · `/update-notes` · `/usage` · `/vim` · `/voice`
+`/advise` · `/bootmenu` · `/browser` · `/clear` · `/compact` · `/concourse` · `/config` · `/jev` · `/keybindings` · `/kill` · `/localsetup` · `/lsp` · `/mouse` · `/rewind` · `/seats` · `/update-notes` · `/usage` · `/vim` · `/voice`
 
 ## Slash routes — model turns (prompt: 2)
 
