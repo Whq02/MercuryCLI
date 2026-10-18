@@ -35,12 +35,30 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const slowTurn = [
-  { kind: 'paced_tool_use', preDeltas: ['stage-01 live-body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 8; echo one', description: 'pause one' } }] },
-  { kind: 'paced_tool_use', preDeltas: ['stage-02 live-body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 8; echo two', description: 'pause two' } }] },
-  { kind: 'paced', deltas: ['stage-03 live-body. ', 'stage-04 live-body. '], gapMs: 400, settleDelayMs: 1500 },
-] as const
-const api = await startFixtureApi([...slowTurn, ...slowTurn, { kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }] as never)
+const sessionTurns = (id: string) => [
+  {
+    kind: 'paced_tool_use' as const,
+    whenModel: 'opus',
+    whenBody: id,
+    preDeltas: ['stage-01 live-body. '],
+    gapMs: 100,
+    tools: [{ name: 'Bash', input: { command: 'echo one', description: 'pause one' } }],
+  },
+  {
+    kind: 'hang' as const,
+    whenModel: 'opus',
+    whenBody: id,
+    deltas: ['stage-02 live-body. '],
+  },
+]
+const api = await startFixtureApi([
+  ...sessionTurns('click-twice-a'),
+  ...sessionTurns('click-twice-b'),
+  { kind: 'text', text: 'Spare.' },
+  { kind: 'text', text: 'Spare.' },
+  { kind: 'text', text: 'Spare.' },
+  { kind: 'text', text: 'Spare.' },
+] as never)
 
 const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
 let daemon: ReturnType<typeof spawn> | null = null
@@ -93,12 +111,12 @@ try {
   const run = await runArtifactArena({
     turns: [],
     sends: [
-      { awaitText: ['SESSION CONCOURSE', TITLE], targetHeader: 'STATUS & TITLE', targetText: TITLE },
+      { awaitText: ['SESSION CONCOURSE', TITLE], targetHeader: 'STATUS & TITLE', targetText: TITLE, settleMs: 120 } as never,
       { awaitText: ['SESSION CONCOURSE', 'enter session'], targetHeader: 'STATUS & TITLE', targetText: TITLE, settleMs: 60, arrivedText: ['live-body', 'Type a prompt'], arrivedAbsent: 'SESSION CONCOURSE' } as never,
-      { awaitText: ['live-body', 'Type a prompt'], awaitAbsent: 'SESSION CONCOURSE', text: '\x1b[1;2D' },
-      { awaitText: ['SESSION CONCOURSE', TITLE_B], targetHeader: 'STATUS & TITLE', targetText: TITLE_B },
+      { awaitText: ['live-body', 'Type a prompt'], awaitAbsent: 'SESSION CONCOURSE', text: '\x1b[1;2D', settleMs: 120 } as never,
+      { awaitText: ['SESSION CONCOURSE', TITLE_B], targetHeader: 'STATUS & TITLE', targetText: TITLE_B, settleMs: 120 } as never,
       { awaitText: ['SESSION CONCOURSE', 'enter session'], targetHeader: 'STATUS & TITLE', targetText: TITLE_B, settleMs: 60, arrivedText: ['live-body', 'Type a prompt'], arrivedAbsent: 'SESSION CONCOURSE' } as never,
-      { awaitText: ['live-body', 'Type a prompt'], awaitAbsent: 'SESSION CONCOURSE', text: '' },
+      { awaitText: ['live-body', 'Type a prompt'], awaitAbsent: 'SESSION CONCOURSE', text: '', settleMs: 120 } as never,
     ],
     seconds: 34,
     anchor: null,
@@ -122,7 +140,7 @@ try {
         const dispatched = (await daemonControlRpc({
           op: 'concourseDispatch',
           clientMessageId: id,
-          prompt: 'stream a long body',
+          prompt: `stream a long body ${id}`,
           workspaceDir: cwd,
           title,
           modelKey: 'claude-opus-5',
