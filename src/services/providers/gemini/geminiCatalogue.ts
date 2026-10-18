@@ -5,6 +5,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { GEMINI_REASONING_EFFORTS } from '../openaicompat/compatWire.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
+import { serviceWordsOf } from '../catalogueBody.js'
 import { catalogueTrafficVerdict, connectToBrowseReason } from '../catalogueGate.js'
 import { declaredRouteOf } from '../routeLaw.js'
 import { logForDebugging } from '../../../utils/debug.js'
@@ -105,18 +106,39 @@ const GEMINI_PAGE_SIZE = 1000
 const GEMINI_MAX_PAGES = 5
 const CATALOGUE_ERROR_BODY_LIMIT = 600
 
+const GOOGLE_KEY_REFUSAL = /API_KEY_INVALID|API key not valid|API key expired|API_KEY_SERVICE_BLOCKED|REFERRER_BLOCKED/
+
+function googleErrorWords(body: string): string | undefined {
+  try {
+    const words = serviceWordsOf(JSON.parse(body))
+    return words.message ?? words.code
+  } catch {
+    return undefined
+  }
+}
+
+export function geminiCredentialRefused(status: number, body: string): boolean {
+  return status === 401 || status === 403 || (status === 400 && GOOGLE_KEY_REFUSAL.test(body))
+}
+
 export class GeminiCatalogueHttpError extends Error {
   readonly status: number
   readonly body: string
+  readonly refused: boolean
+  readonly said: string | undefined
   constructor(status: number, body: string) {
+    const refused = geminiCredentialRefused(status, body)
+    const said = refused ? googleErrorWords(body) : undefined
     super(
-      status === 401 || status === 403
-        ? `gemini models endpoint refused the credential (HTTP ${status})`
+      refused
+        ? `gemini models endpoint refused the credential (HTTP ${status})${said ? ` — ${said}` : ''}`
         : `gemini models endpoint returned HTTP ${status}`,
     )
     this.name = 'GeminiCatalogueHttpError'
     this.status = status
     this.body = body
+    this.refused = refused
+    this.said = said
   }
 }
 
@@ -170,6 +192,7 @@ export interface GeminiCatalogueSnapshot {
   lastAttemptAtMs?: number
   lastError?: string
   lastStatus?: number
+  lastSaid?: string
 }
 
 const catalogueCache = new Map<string, GeminiCatalogueSnapshot>()
@@ -253,7 +276,7 @@ export function refreshGeminiCatalogue(
     } catch (error) {
       const answer = error instanceof GeminiCatalogueHttpError ? error : error instanceof GeminiPlanHttpError ? new GeminiCatalogueHttpError(error.status, error.body) : undefined
       if (answer !== undefined) {
-        const verb = answer.status === 401 || answer.status === 403 ? 'refused the credential' : 'read failed'
+        const verb = answer.refused ? 'refused the credential' : 'read failed'
         logForDebugging(
           `[gemini] catalogue ${verb} · source=${source ?? sourceKind} · HTTP ${answer.status} · body=${maskGeminiSecrets(answer.body === '' ? '(empty)' : answer.body, opts?.env)}`,
         )
@@ -275,6 +298,7 @@ export function refreshGeminiCatalogue(
         lastAttemptAtMs: now(),
         lastError,
         ...(answer !== undefined ? { lastStatus: answer.status } : {}),
+        ...(answer?.said !== undefined ? { lastSaid: answer.said } : {}),
       }
       storeSnapshot(identity, snapshot)
       return snapshot
@@ -458,8 +482,8 @@ export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet
   return ids
 }
 
-export function geminiCredentialRefusedReason(account: Pick<GeminiAccountRef, 'kind' | 'keySource'>, status: number | undefined): string {
-  const http = status === undefined ? '' : ` (HTTP ${status})`
+export function geminiCredentialRefusedReason(account: Pick<GeminiAccountRef, 'kind' | 'keySource'>, status: number | undefined, said?: string): string {
+  const http = status === undefined ? '' : ` (HTTP ${status}${said ? `: ${said}` : ''})`
   if (account.kind === 'plan') return `the Google sign-in was refused by Google's Code Assist endpoint${http} · /logins signs in with Google again`
   if (account.kind === 'oauth') return `the Google account's token was refused${http} · /logins re-connects`
   if (account.keySource === 'env-google') return `the Gemini API key from GOOGLE_API_KEY was refused${http} · update GOOGLE_API_KEY`
@@ -515,7 +539,7 @@ export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): Gem
       return {
         state: 'disabled',
         why: 'auth-invalid',
-        reason: geminiCredentialRefusedReason(account, snapshot.lastStatus ?? httpStatusIn(snapshot.lastError)),
+        reason: geminiCredentialRefusedReason(account, snapshot.lastStatus ?? httpStatusIn(snapshot.lastError), snapshot.lastSaid),
       }
     }
     return {

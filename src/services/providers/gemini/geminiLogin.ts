@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredGeminiApiKey } from '../providerSecrets.js'
-import { geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
+import { readStoredGeminiApiKey, writeStoredGeminiApiKey } from '../providerSecrets.js'
+import { geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, readPreferredGeminiSource, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
 import { geminiPlanTierWords } from './geminiPlanAccess.js'
 import { geminiGenerateModels, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'
 
@@ -86,10 +86,12 @@ interface GeminiKeyLoginOutcome {
 
 export async function storeGeminiApiKeyLogin(
   key: string,
-  io?: { refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string } | null> },
+  io?: { refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string; lastStatus?: number; lastSaid?: string } | null> },
 ): Promise<GeminiKeyLoginOutcome> {
   const refresh =
     io?.refreshCatalogue ?? (() => refreshGeminiCatalogue('api-key', { force: true }).catch(() => null))
+  const previousKey = readStoredGeminiApiKey() ?? null
+  const previousSource = readPreferredGeminiSource()
   try {
     writeStoredGeminiApiKey(key)
     writePreferredGeminiSource('api-key')
@@ -101,6 +103,15 @@ export async function storeGeminiApiKeyLogin(
     }
   }
   const snapshot = await refresh()
+  if (snapshot?.lastError?.includes('refused the credential')) {
+    writeStoredGeminiApiKey(previousKey)
+    writePreferredGeminiSource(previousSource ?? null)
+    return {
+      ok: false,
+      stored: false,
+      receipt: `Google refused this key${snapshot.lastStatus !== undefined ? ` (HTTP ${snapshot.lastStatus})` : ''}${snapshot.lastSaid ? ` — ${snapshot.lastSaid}` : ''} — nothing stored${previousKey ? '; the key stored before stays' : ''}; keys are made at aistudio.google.com, paste again.`,
+    }
+  }
   const catalogueNote = snapshot?.lastError
     ? ` The live catalogue did not answer (${snapshot.lastError}) — the key is stored; /model retries readiness.`
     : snapshot && snapshot.models.length > 0
