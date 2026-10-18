@@ -32,12 +32,17 @@ function fetchPipedToShell(script: string): boolean {
 
 export function mcpStdioCommandRefusal(name: string, config: { type?: string; command?: string; args?: string[] }): string | null {
   if (config.type !== undefined && config.type !== 'stdio' || typeof config.command !== 'string') return null
-  const shell = leaf(config.command)
+  const rawWords = [config.command, ...(config.args ?? [])]
+  const peeled = peelWrappers(rawWords)
+  const words = Array.isArray(peeled) && peeled.length > 0 ? peeled : rawWords
+  const shell = leaf(words[0] ?? '')
   if (!SHELLS.has(shell)) return null
-  const args = config.args ?? []
-  const at = args.findIndex(arg => shell === 'cmd' ? /^\/[ck]$/i.test(arg) : ['powershell', 'pwsh'].includes(shell) ? /^-(?:c|command)$/i.test(arg) : /^-[a-z]*c[a-z]*$/.test(arg))
-  if (at < 0) return null
-  const script = shell === 'cmd' || ['powershell', 'pwsh'].includes(shell) ? args.slice(at + 1).join(' ') : args[at + 1] ?? ''
+  const args = words.slice(1)
+  const isPs = ['powershell', 'pwsh'].includes(shell)
+  const at = args.findIndex(arg => shell === 'cmd' ? /^\/[ck]$/i.test(arg) : isPs ? /^-(?:c|command)$/i.test(arg) : /^-[a-z]*c[a-z]*$/.test(arg))
+  const psPositional = isPs && at < 0 && !args.some(arg => /^-(?:f|file)$/i.test(arg)) ? args.filter(arg => !arg.startsWith('-')).join(' ') : ''
+  if (at < 0 && psPositional === '') return null
+  const script = at < 0 ? psPositional : shell === 'cmd' || isPs ? args.slice(at + 1).join(' ') : args[at + 1] ?? ''
   if (!fetchPipedToShell(script)) return null
   return `MCP server ${JSON.stringify(name)} refused: its shell command fetches code from the network and pipes it into a shell. Configure a local server executable or a package runner instead.`
 }
