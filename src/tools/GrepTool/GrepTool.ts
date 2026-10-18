@@ -1,9 +1,10 @@
 import { realpathSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
+import { join } from 'node:path'
 
 import { z } from 'zod/v4'
 
-import { buildTool, type ToolUseContext } from '../../Tool.js'
+import { buildTool, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
@@ -25,10 +26,14 @@ import {
 } from '../../utils/file.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte, toRelativePath } from '../../utils/path.js'
 import {
+  envFileNameInGlob,
+  envFileReadAsk,
   getFileReadIgnorePatterns,
+  isProjectEnvFileName,
   normalizePatternsToPath,
 } from '../../utils/permissions/filesystem.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
+import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
 import { ripGrepAnswer, RipgrepUsageError, type RipgrepAnswer } from '../../utils/ripgrep.js'
@@ -113,6 +118,7 @@ type Output = {
   appliedOffset?: number
   incomplete?: string
   engine?: string
+  withheld?: string
 }
 
 const outputSchema = z.object({
@@ -126,7 +132,71 @@ const outputSchema = z.object({
   appliedOffset: z.number().optional(),
   incomplete: z.string().optional(),
   engine: z.string().optional(),
+  withheld: z.string().optional(),
 })
+
+type OutputMode = NonNullable<Output['mode']>
+
+function envFileNameInGlobField(glob: string | undefined): string | null {
+  if (!glob) return null
+  for (const token of splitGrepGlobField(glob)) {
+    const name = envFileNameInGlob(token)
+    if (name !== null) return name
+  }
+  return null
+}
+
+function envFilesWithheld(input: Input, permission: ToolPermissionContext, givenRoot: string): boolean {
+  if (modeBypassesPermissions(permission.mode)) return false
+  return !isProjectEnvFileName(givenRoot) && envFileNameInGlobField(input.glob) === null
+}
+
+function restoreSeparator(file: string, rest: string, numbered: boolean): string {
+  const number = /^(\d+)([:-])/.exec(rest)
+  if (!number) return `${file}:${rest}`
+  return numbered ? `${file}${number[2]}${rest}` : `${file}${number[2]}${rest.slice(number[0].length)}`
+}
+
+function withholdEnvFileLines(
+  lines: readonly string[],
+  mode: OutputMode,
+  numbered: boolean,
+  permission: ToolPermissionContext,
+): { lines: string[]; withheld: string | undefined } {
+  const kept: string[] = []
+  const counts = new Map<string, number>()
+  const verdicts = new Map<string, boolean>()
+  const withheld = (file: string): boolean => {
+    let verdict = verdicts.get(file)
+    if (verdict === undefined) {
+      verdict = isProjectEnvFileName(file) && envFileReadAsk(file, permission) !== null
+      verdicts.set(file, verdict)
+    }
+    return verdict
+  }
+  for (const raw of lines) {
+    const nul = mode === 'files_with_matches' ? raw.length : raw.indexOf('\0')
+    if (nul === -1) {
+      if (raw !== '--' || (kept.length > 0 && kept[kept.length - 1] !== '--')) kept.push(raw)
+      continue
+    }
+    const file = raw.slice(0, nul)
+    if (withheld(file)) {
+      counts.set(file, (counts.get(file) ?? 0) + 1)
+      continue
+    }
+    kept.push(mode === 'files_with_matches' ? raw : restoreSeparator(file, raw.slice(nul + 1), numbered))
+  }
+  if (kept[kept.length - 1] === '--') kept.pop()
+  if (counts.size === 0) return { lines: kept, withheld: undefined }
+  const named = [...counts].map(([file, count]) =>
+    mode === 'files_with_matches' ? toRelativePath(file) : `${toRelativePath(file)} (${count} ${plural(count, 'line')})`,
+  )
+  return {
+    lines: kept,
+    withheld: `Withheld: ${named.join(', ')} — Mercury asks before reading a .env file; search it by name (path or glob) to be asked.`,
+  }
+}
 
 function effectiveLimit(headLimit: number | undefined): number | undefined {
   if (headLimit === 0) return undefined
@@ -255,7 +325,7 @@ function respellRoot(line: string, real: string, given: string): string {
   return next === '' || next === '/' || next === '\\' || next === ':' || next === '-' ? `${given}${line.slice(real.length)}` : line
 }
 
-async function buildArgs(input: Input, context: ToolUseContext, searchRoot: string): Promise<string[]> {
+async function buildArgs(input: Input, context: ToolUseContext, searchRoot: string, withholdEnvFiles: boolean): Promise<string[]> {
   const mode = input.output_mode ?? 'files_with_matches'
   const args: string[] = ['--hidden']
   for (const dir of VCS_EXCLUDED_DIRECTORIES) {
@@ -267,7 +337,8 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   if (input['-i']) args.push('-i')
   if (mode === 'files_with_matches') args.push('-l')
   if (mode === 'count') args.push('-c')
-  if ((input['-n'] ?? true) && mode === 'content') args.push('-n')
+  if (withholdEnvFiles && mode !== 'files_with_matches') args.push('--null')
+  if (((input['-n'] ?? true) || withholdEnvFiles) && mode === 'content') args.push('-n')
   if (mode === 'content') {
     args.push('--with-filename')
     if (input.context !== undefined) {
@@ -389,7 +460,14 @@ export const GrepTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
-    return checkReadPermissionForTool(GrepTool, input, context.getAppState().toolPermissionContext)
+    const permission = context.getAppState().toolPermissionContext
+    const envName = envFileNameInGlobField(input.glob)
+    if (envName !== null) {
+      const named = join(expandPath(input.path ?? getCwd()), envName)
+      const verdict = checkReadPermissionForTool({ name: GREP_TOOL_NAME, getPath: () => named }, input, permission)
+      if (verdict.behavior !== 'allow') return verdict
+    }
+    return checkReadPermissionForTool(GrepTool, input, permission)
   },
   isSearchOrReadCommand: () => ({ isSearch: true, isRead: false }),
   userFacingName: () => 'Search',
@@ -442,11 +520,15 @@ export const GrepTool = buildTool({
     const mode = input.output_mode ?? 'files_with_matches'
     const givenRoot = input.path !== undefined ? expandPath(input.path) : getCwd()
     const searchRoot = realSearchRoot(givenRoot)
-    const args = await buildArgs(input, context, searchRoot)
+    const permission = context.getAppState().toolPermissionContext
+    const withholding = envFilesWithheld(input, permission, givenRoot)
+    const args = await buildArgs(input, context, searchRoot, withholding)
     const offset = input.offset ?? 0
 
     const { answer, engine } = await answerWithPcre2Fallback(input.pattern, args, searchRoot, context.abortController.signal)
-    const lines = searchRoot === givenRoot ? answer.lines : answer.lines.map(line => respellRoot(line, searchRoot, givenRoot))
+    const kept = withholding ? withholdEnvFileLines(answer.lines, mode, input['-n'] ?? true, permission) : { lines: answer.lines, withheld: undefined }
+    const withheld = kept.withheld
+    const lines = searchRoot === givenRoot ? kept.lines : kept.lines.map(line => respellRoot(line, searchRoot, givenRoot))
     const incomplete = answer.complete ? undefined : (answer.reason ?? 'the search did not finish')
 
     if (mode === 'content') {
@@ -482,6 +564,7 @@ export const GrepTool = buildTool({
           ...(appliedOffset !== undefined ? { appliedOffset } : {}),
           ...(incomplete !== undefined ? { incomplete } : {}),
           ...(engine !== undefined ? { engine } : {}),
+          ...(withheld !== undefined ? { withheld } : {}),
         } satisfies Output,
       }
     }
@@ -523,6 +606,7 @@ export const GrepTool = buildTool({
           ...(appliedOffset !== undefined ? { appliedOffset } : {}),
           ...(incomplete !== undefined ? { incomplete } : {}),
           ...(engine !== undefined ? { engine } : {}),
+          ...(withheld !== undefined ? { withheld } : {}),
         } satisfies Output,
       }
     }
@@ -553,13 +637,14 @@ export const GrepTool = buildTool({
         ...(appliedOffset !== undefined ? { appliedOffset } : {}),
         ...(incomplete !== undefined ? { incomplete } : {}),
         ...(engine !== undefined ? { engine } : {}),
+        ...(withheld !== undefined ? { withheld } : {}),
       } satisfies Output,
     }
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     const note = paginationNote(data.appliedLimit, data.appliedOffset)
     const incompleteNote = data.incomplete !== undefined ? `\n(INCOMPLETE SEARCH — ${data.incomplete})` : ''
-    const engineNote = data.engine !== undefined ? `\n(${data.engine})` : ''
+    const engineNote = (data.engine !== undefined ? `\n(${data.engine})` : '') + (data.withheld !== undefined ? `\n(${data.withheld})` : '')
     let text: string
     switch (data.mode) {
       case 'content':
