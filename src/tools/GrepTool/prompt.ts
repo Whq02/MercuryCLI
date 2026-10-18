@@ -17,5 +17,6 @@ export function getDescription(offered: ReadonlySet<string> | null = null): stri
   return `Content search across the tree, powered by ripgrep
 
 Usage:
-- Pattern dialect: ripgrep's, not grep's — literal braces need escaping (\`interface\\{\\}\` reaches \`interface{}\` in Go code); lookaround and backreferences fall back to PCRE2${steeringSuffix(offered)}`
+- Pattern dialect: ripgrep's, not grep's — literal braces need escaping (\`interface\\{\\}\` reaches \`interface{}\` in Go code); lookaround and backreferences fall back to PCRE2
+- \`literal: true\` matches the pattern as exact text (rg -F): \`foo(bar[0])\`, \`$VAR\` or \`a.b\` need no escaping${steeringSuffix(offered)}`
 }
