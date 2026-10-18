@@ -88,6 +88,8 @@ try {
       const configured = compose(user, settings, platform)
       check(`${platform}: every explicit override survives`, Object.keys(table).every(key => configured[key] === settings[key]))
     }
+    const packageUser = compose({ NPM_CONFIG_YES: 'false', pnpm_config_update_notifier: 'true' }, {}, platform)
+    check(`${platform}: package config casing never shadows a user value`, packageUser.NPM_CONFIG_YES === 'false' && packageUser.npm_config_yes === undefined && packageUser.pnpm_config_update_notifier === 'true' && packageUser.PNPM_CONFIG_UPDATE_NOTIFIER === undefined, JSON.stringify({ NPM_CONFIG_YES: packageUser.NPM_CONFIG_YES, npm_config_yes: packageUser.npm_config_yes, pnpm_config_update_notifier: packageUser.pnpm_config_update_notifier, PNPM_CONFIG_UPDATE_NOTIFIER: packageUser.PNPM_CONFIG_UPDATE_NOTIFIER }))
     const exact = compose({ CI: 'operator-ci', TERM: 'operator-term' }, {}, platform)
     check(`${platform}: CI and TERM retain their exact values`, exact.CI === 'operator-ci' && exact.TERM === 'operator-term')
   }

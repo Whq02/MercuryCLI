@@ -97,7 +97,7 @@ export function toolShellEnv(
   overrides: NodeJS.ProcessEnv = {},
   platform: string = process.platform,
 ): NodeJS.ProcessEnv {
-  const keyOf = (key: string): string => platform === 'win32' ? key.toUpperCase() : key
+  const keyOf = (key: string): string => platform === 'win32' || /^(?:npm|pnpm)_config_/i.test(key) ? key.toUpperCase() : key
   const child: NodeJS.ProcessEnv = { ...env }
   const names = new Map(Object.keys(child).map(key => [keyOf(key), key]))
   for (const [key, value] of Object.entries(overrides)) {
