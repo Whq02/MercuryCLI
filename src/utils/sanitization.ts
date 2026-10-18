@@ -39,9 +39,15 @@ export function recursivelySanitizeUnicode(value: unknown): unknown {
   return value
 }
 
-export function hiddenCommandCharacterReason(command: string): string | null {
-  if (/[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/.test(command)) return 'Contains control characters'
-  if (/[\u00A0\u1680\u2000-\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF]/.test(command)) return 'Contains invisible Unicode whitespace characters'
-  if (/[\u200C-\u200F\u202A-\u202E\u2060-\u2069]/.test(command)) return 'Contains invisible Unicode direction or zero-width characters'
-  return null
+export function hiddenCommandCharacterReason(command: string, includeCodePoint = true): string | null {
+  const tag = (match: RegExpExecArray | null, base: string): string | null => {
+    if (match === null) return null
+    const code = match[0]!.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')
+    return includeCodePoint ? `${base} (U+${code})` : base
+  }
+  return (
+    tag(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/.exec(command), 'Contains control characters') ??
+    tag(/[\u00A0\u1680\u2000-\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF]/.exec(command), 'Contains invisible Unicode whitespace characters') ??
+    tag(/[\u200C-\u200F\u202A-\u202E\u2060-\u2069]/.exec(command), 'Contains invisible Unicode direction or zero-width characters')
+  )
 }

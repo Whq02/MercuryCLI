@@ -190,7 +190,7 @@ const PRE_CHECKS: ReadonlyArray<readonly [(command: string) => boolean, string]>
 ]
 
 function preCheckReason(command: string): string | null {
-  const hidden = hiddenCommandCharacterReason(command)
+  const hidden = hiddenCommandCharacterReason(command, false)
   if (hidden !== null) return hidden
   for (const [trips, reason] of PRE_CHECKS) if (trips(command)) return reason
   return null
