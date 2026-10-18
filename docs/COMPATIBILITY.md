@@ -1,7 +1,7 @@
 # Compatibility
 
 Mercury keeps configuration in its `.mercury` homes, reads `MERCURY_*`
-switches from `src/substrate/flagRegistry.ts`, and ships four platform archives.
+switches from `src/substrate/flagRegistry.ts`, and ships six platform archives.
 
 Providers and platforms also have their own variables, such as
 `ANTHROPIC_API_KEY` and `PATH`. [SETTINGS.md](SETTINGS.md) covers the settings

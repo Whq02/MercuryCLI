@@ -202,6 +202,16 @@ builtin rules still deny, even a call that matches both; `MERCURY_WARDS=0`
 turns every ward off; project rules in `.mercury/wards.json` add to the list
 and never remove from it.
 
+## Safety floors
+
+Five safety floors hold alongside the permission modes and wards:
+
+- Writes to credential stores are refused unless an exact path rule grants them.
+- Agent reads of Mercury's own stored credentials are refused.
+- Cloud-metadata addresses are refused in `WebFetch` and `Browser`.
+- Mercury's running binary and daemon are protected against writes, deletes and kills.
+- Writing project instruction files or reading `.env` files asks for approval first.
+
 ## Non-interactive sessions
 
 Headless sessions have no trust dialog. In a folder without a recorded trust

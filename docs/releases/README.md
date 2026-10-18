@@ -1,14 +1,10 @@
 # Releases — one page per tag
 
 One file per release tag, kept up to date from the moment a version is queued
-until the tag after it ships. Each page carries the same four parts:
-
-1. **State** — queued · tagged · published · superseded, with dates.
-2. **Verdict** — the hosted gate run and the gate-ledger row the tag stands on.
-3. **What shipped** — the user-facing notes (the bundled changelog is the one
-   source; this page points at it and adds what a reader of the tree wants).
-4. **Known gaps and the queue** — what this version does not do, and what is
-   lined up for the next one, each item with its reason.
+until the tag after it ships. Each page opens with its **State** (queued, ready
+for the tag, tagged or published, with dates). From 1.0.0-beta.13 it carries
+**What changed**: the user-facing notes as Added, Changed and Fixed. The
+bundled changelog is the one source; the page points at it.
 
 | tag | state | page |
 | --- | --- | --- |

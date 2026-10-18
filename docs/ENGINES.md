@@ -847,8 +847,8 @@ Run `/accounts` to see every connected account and API key across all providers:
   and Google AI Pro and available on Google AI Ultra and Enterprise, a
   Google AI Pro roster served `gemini-4-argon-disabled` ("Gemini 4 Argon",
   no quota) and no other Argon row, and that id sent verbatim under the
-  current client version (2.23.0, the newest the update manifest publishes)
-  answered 404 "Requested entity was not found." (the gate is the plan,
+  then-current client version (2.23.0, the newest the update manifest
+  published on 2026-10-14) answered 404 "Requested entity was not found." (the gate is the plan,
   and the public Antigravity client has no override). Such a row is listed under the Google sign-in with its
   state (`"withheld from Google AI Pro today — Google's roster names it …
   and answers 404 to the id; antigravity.google/docs/models says which plans
@@ -898,7 +898,7 @@ Run `/accounts` to see every connected account and API key across all providers:
   words. A chat goes to that endpoint's `streamGenerateContent` under
   Antigravity's own User-Agent (`antigravity/hub/<version> …`), whose version
   follows Antigravity's update manifest (one bounded read a day, the shipped
-  2.23.1 as the fallback, skipped under traffic-off) because Google gates
+  2.24.0 as the fallback, skipped under traffic-off) because Google gates
   newer models on it; the request wraps the Gemini request with the project
   and a request id, the system instruction tagged as a user part, the tools'
   schemas in the shape the endpoint accepts. What leaves the machine on this
@@ -990,7 +990,9 @@ Run `/accounts` to see every connected account and API key across all providers:
   inference key, and its own `/accounts` row removes only that
   key while keeping the inference key. A management key alone cannot run Grok;
 - **meta**: a Muse Code subscription sign-in (`.meta-auth.json`, mode 600, holding the account token, the minted key, the e-mail, the tier and the usage windows) or an API key (`MODEL_API_KEY`, `META_API_KEY` or stored key), the latest sign-in action active;
-- **zai, deepseek, zen, huggingface, local, compat, nous, minimax, together, cohere**: env pins and stored keys.
+- **zai, deepseek, zen, local, compat, minimax, together, cohere, groq, cerebras, fireworks, qwen**: env pins and stored keys.
+- **huggingface**: a device-code sign-in or a stored Hub token (`HF_TOKEN` pins one).
+- **nous**: a browser device sign-in or a stored API key (`NOUS_API_KEY` pins one).
 - **mistral**: an env pin or a stored key, with an optional Admin API key
   beside it (`MISTRAL_ADMIN_API_KEY`, or `/logins mistral` after the key) that reads
   the organisation meter and never runs a turn; its own `/accounts` row
@@ -1113,8 +1115,8 @@ to the screen, so the rail's figure becomes the list's and the mark goes the
 moment the runner reports it, with no picker opened. The model picker paints
 its cached rows at once and refreshes every signed-in family's list in the
 background on every open, even when that cache is fresh: the Anthropic list
-through each signed-in door, the GPT, OpenRouter, Gemini and Hugging Face
-catalogues, and the local servers' discovery. The `/logins` card asks for the
+through each signed-in door, every other signed-in family's catalogue, and the
+local servers' discovery. The `/logins` card asks for the
 lists its readiness rows read when it opens and repaints them as they land,
 so an OpenAI sign-in on a Claude session reads its catalogue's own state
 there within one refresh instead of "not fetched yet" until `/model` opens. The
@@ -1234,6 +1236,10 @@ cells separated by `·` when cells span or nest); navigation, footers and
 scripts are filtered out. A `prompt` asks for a labelled model
 reading instead: the session family's helper first, then the session model
 if needed. If neither can answer, the page text comes back with that fact.
+
+For GitHub, npm, PyPI, crates.io, arXiv and Stack Overflow pages, `WebFetch`
+reads the site's public, keyless API first and falls back to the page itself
+when that API cannot answer.
 
 Fetch requests leave your machine for the site and use the standard
 `HTTPS_PROXY` / `HTTP_PROXY` and `NO_PROXY` settings. When sparse HTML needs a
@@ -1404,10 +1410,13 @@ balance and billing-cycle usage with a management key, Mistral's organisation
 usage against its monthly limit with an Admin API key, a Nous Portal key's
 plan and usable credits when the Portal account endpoint resolves the key,
 a Meta Muse Code sign-in's tier and rolling/weekly windows (bounded re-read
-through `POST https://api.meta.ai/muse-code/key`), and an honest one-line
-absence for a lane whose provider publishes no usage Mercury can read
-(a general Z.AI key, Gemini, Hugging Face, a Meta API key, a custom endpoint, an API key
-on a subscription lane, a local server).
+through `POST https://api.meta.ai/muse-code/key`), a MiniMax M Plan key's
+5-hour and weekly windows per model, an OpenCode Go key's plan windows, the
+observed rate limits of Groq and Fireworks AI and the observed retry waits of
+Cerebras, and an honest one-line absence for a lane whose provider publishes
+no usage Mercury can read (a general Z.AI key, a Gemini API key or your own
+OAuth client, a Meta API key, a custom endpoint, an API key on a subscription
+lane, a local server).
 Every API-key slot carries a credits line: the provider-stated balance with
 its feed and age where the family exposes one (the DeepSeek and Moonshot
 balance endpoints, xAI's management-key balance, the Nous Portal account
@@ -1471,7 +1480,7 @@ OpenRouter OAuth-minted keys show the same remaining credit under the key cap as
 
 The ChatGPT sign-in shows OpenAI's credit balance or unlimited credits beside its usage windows, with the last read's age, in `/usage`, the rail and its account row.
 
-A window that reads reached (100%, or a refused request) says what carries the requests from there, from the vendor's own statement: a Claude subscription on extra usage names its figure (`"on extra usage · USD 12.40 of 50.00 this month"`) or says `"extra usage off — nothing carries requests until the reset"` with the reason Anthropic gives, a ChatGPT sign-in says `"on credits · 62,500 left"` or `"no credits — nothing carries requests until the reset"`, a Kimi sign-in names its Extra Usage balance, and a family that states nothing about it says so in one clause; the words ride the rail's and `/deck`'s reached line, the `/usage` tab's reached sentence, the strip warning at 100%, the account-slot offer, the handoff notice, the refusal rows and blockers, and the health check's usage row.
+A window that reads reached (100%, or a refused request) says what carries the requests from there, from the vendor's own statement: a Claude subscription on extra usage names its figure (`"on extra usage · USD 12.40 of 50.00 this month"`) or says `"extra usage off — nothing carries requests until the reset"` with the reason Anthropic gives, a ChatGPT sign-in says `"on credits · 62,500 left"` or `"no credits — nothing carries requests until the reset"`, a Kimi sign-in names its Extra Usage balance, and a family that states nothing about it says so in one clause; the words ride the rail's and the deck's reached line, the `/usage` tab's reached sentence, the strip warning at 100%, the account-slot offer, the handoff notice, the refusal rows and blockers, and the health check's usage row.
 
 A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
 5-hour and weekly credit windows as used-percent bars with their resets, on
@@ -1492,9 +1501,10 @@ no plan reads "usage: not on a coding plan".
 
 The cost ledger prices every request at its own provider's published rates
 from one pricing owner per family: the first-party tier table; the GPT,
-DeepSeek, Meta, Mistral, Kimi, GLM and Gemini price tables (a longer-prompt tier applied per
-request); the OpenRouter catalogue row when the wire states no cost of its
-own; the Hugging Face listed floor as a flagged estimate; a recorded zero for
+DeepSeek, xAI, Meta, Mistral, Kimi, GLM, Gemini, OpenCode Zen, MiniMax,
+Together AI, Cohere, Groq, Cerebras, Fireworks AI and Qwen price tables (a
+longer-prompt tier applied per request); the OpenRouter catalogue row when the
+wire states no cost of its own, and the Nous Portal catalogue row; the Hugging Face listed floor as a flagged estimate; a recorded zero for
 a local server. A turn on a model with no rate on file lands in the ledger
 with its tokens counted and its cost unrecorded: it is counted as an unpriced
 turn, never priced at zero, and every cost readout says so (a lane that

@@ -63,8 +63,10 @@ or finished, and notes through SendMessage while it runs; an unnamed one works
 its prompt once and returns its report, and is reached afterwards by the id
 its launch receipt names. The model is the one the launch names, or the
 configured crewmate default from `/config`; no crewmate's model is chosen for
-it or changed in a resume. When a Crewmate call names the parent's own model
-family, its crewmate keeps the parent's exact model. A different family keeps
+it. A resume keeps the crewmate's recorded model and effort unless the
+`ResumeCrewmate` call names `model` or `effort` for a finished crewmate. When a
+Crewmate call names the parent's own model family, its crewmate keeps the
+parent's exact model. A different family keeps
 that family's preferred model; an exact model id keeps its explicit choice.
 
 The model that launches a crewmate reads what you can see: the page

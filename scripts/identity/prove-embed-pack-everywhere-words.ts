@@ -52,7 +52,7 @@ console.log('============================================================')
 console.log('\n§0 self-test: the shapes trip on the old words and stay silent on the new')
 {
   const old = 'the model (bge-base, bundled in the macOS Apple silicon release\narchive; other platforms run word match only in this release)'
-  const fresh = 'bundled in every release archive for macOS Apple silicon and Intel, Linux x86-64 and Windows x86-64'
+  const fresh = 'bundled in every release archive, built for its platform'
   check('the old README shape trips twice (bundled in the Apple silicon archive alone, other platforms word match only)', macOnlyHits(old).length === 2, macOnlyHits(old).join(' · '))
   check('the old MNEME shape trips across a line break', macOnlyHits('that arrives with the\nmacOS Apple silicon release archive').length === 1)
   check('the new words stay silent', macOnlyHits(fresh).length === 0, macOnlyHits(fresh).join(' · '))
@@ -64,10 +64,10 @@ console.log('\n§1 every page says the pack rides every release archive')
   const mneme = read('docs/MNEME.md')
   const windows = read('docs/INSTALL-WINDOWS-FROM-SOURCE.md')
   const compat = read('docs/COMPATIBILITY.md')
-  check('README: Build from source says every release archive carries the pack, the four platforms named', /Every release archive carries the embedding pack \(macOS Apple silicon and\s+Intel, Linux x86-64, Windows x86-64\)/.test(readme))
-  check('README: What is inside says the model is bundled in every release archive', /bundled in every release archive for macOS\s+Apple silicon and Intel, Linux x86-64 and Windows x86-64/.test(readme))
+  check('README: Build from source says every release archive carries the pack built for its platform', /Every release archive carries the embedding pack built for its\s+platform/.test(readme))
+  check('README: What is inside says the model is bundled in every release archive, built for its platform', /bundled in every release archive,\s+built for its platform/.test(readme))
   check('README: the source-build words name setup, build-embed.ts and the --default model fetch, and word match only without cargo', readme.includes('`setup` also builds the local embedding addon') && readme.includes('bun run scripts/vendor/build-embed.ts') && readme.includes('bun run scripts/vendor/fetch-embed-models.ts --default') && /without cargo the\s+pack is skipped, setup says so, and Mneme memory lookup runs word match only/.test(readme))
-  check('MNEME.md: the model arrives with every release archive, the four platforms named', /arrives with\s+every release archive: macOS Apple silicon and Intel, Linux x86-64 and Windows\s+x86-64/.test(mneme) && mneme.includes('fetch-embed-models.ts --default'))
+  check('MNEME.md: the model arrives with every release archive, built for its platform', /arrives with\s+every release archive, built for its platform/.test(mneme) && mneme.includes('fetch-embed-models.ts --default'))
   check('the Windows source page: a release archive carries the engine, the pack and the model; --default named', /archive always carries the engine, the embedding pack and the model/.test(windows) && windows.includes('fetch-embed-models.ts --default'))
   check('COMPATIBILITY.md: every archive bundles the addon built for its platform and the model', /Every archive\s+also bundles the `vendor\/embed` addon built for its platform and the 118 MB\s+`bge-base-en-v1\.5` embedding model/.test(compat))
 }

@@ -43,11 +43,11 @@ Beside the word match, Recall ranks by meaning: a small embedding model runs
 in-process on your machine, so "the laptop's clock" finds "the notebook's time
 zone" with no word in common. The shipped model is a 118 MB BGE base encoder
 (`bge-base-en-v1.5` `q8_0`, MIT licence, 768 dimensions) that arrives with
-every release archive: macOS Apple silicon and Intel, Linux x86-64 and Windows
-x86-64 (in a source checkout with Rust installed, `bun run setup` builds
-`native/embed` through `bun run scripts/vendor/build-embed.ts` and fetches the
-model through `bun run scripts/vendor/fetch-embed-models.ts --default`);
-nothing leaves the machine and no account or paid model call is involved. On
+every release archive, built for its platform (in a source checkout with Rust
+installed, `bun run setup` builds `native/embed` through `bun run
+scripts/vendor/build-embed.ts` and fetches the model through `bun run
+scripts/vendor/fetch-embed-models.ts --default`); nothing leaves the machine
+and no account or paid model call is involved. On
 Linux and Windows the maths runs a vectorised kernel, so a Recall by meaning
 takes about a tenth of a second; on macOS Accelerate answers in a few
 hundredths. The model loads when memory needs it (a build, a Retain
