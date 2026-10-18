@@ -70,8 +70,8 @@ try {
     fixture.state.status = 403
     const refused = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, io)
     check('a refused management key is named and not stored; inference key stays', !refused.stored && refused.receipt.includes('refused the management key') && !readStoredXaiManagementApiKey() && readStoredXaiApiKey() === key)
-    const wrongTeamKey = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, { ...io, env: { ...fixture.env, XAI_API_KEY: 'xai-wrong-inference-fixture-not-a-real-key' } })
-    check("the team lookup's HTTP 400 'Incorrect API key provided' refuses the management key with the service's words", !wrongTeamKey.ok && !wrongTeamKey.stored && wrongTeamKey.receipt.includes('xAI refused the API key team lookup (HTTP 400) — Incorrect API key provided. You can obtain an API key from https://console.x.ai. — check the key') && !readStoredXaiManagementApiKey())
+    const wrongLookupKey = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, { ...io, env: { ...fixture.env, XAI_API_KEY: 'xai-wrong-inference-fixture-not-a-real-key' } })
+    check("the API-key lookup's HTTP 400 'Incorrect API key provided' refuses the management key with the service's words", !wrongLookupKey.ok && !wrongLookupKey.stored && wrongLookupKey.receipt.startsWith('xAI refused the API key ') && wrongLookupKey.receipt.includes('lookup (HTTP 400) — Incorrect API key provided. You can obtain an API key from https://console.x.ai. — check the key') && !readStoredXaiManagementApiKey())
     fixture.state.status = 200
     const managed = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, io)
     check('management key lands beside the API key without leaking or moving the model sign-in order', managed.stored && !managed.receipt.includes(XAI_FIXTURE_MANAGEMENT_KEY) && !managed.receipt.includes(XAI_FIXTURE_API_KEY) && readStoredXaiManagementApiKey() === XAI_FIXTURE_MANAGEMENT_KEY && JSON.stringify(readSignInLedger()) === savedLedger)

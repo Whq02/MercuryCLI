@@ -470,8 +470,8 @@ token names with the plan's own model list; a revoked or expired sign-in refuses
 the turn and names `/logins`. The other way is a Model Studio API key
 (`DASHSCOPE_API_KEY` works too), made in the Alibaba Cloud Model Studio console
 for the region the account lives in. A Model Studio key answers only the region
-and plan it was minted in. A Coding Plan key begins `sk-sp-` and is read on the
-Coding Plan endpoints alone (international, then China): their model lists answer
+and plan it was minted in. A Coding Plan key begins `sk-sp-` and is read only on
+the Coding Plan endpoints (international, then China): their model lists answer
 every caller, so the sign-in authenticates the key with one chat call of one
 token on the first listed model and binds the endpoint that accepted it. Any
 other key is probed on the endpoints whose model list authenticates it, in turn
@@ -485,16 +485,17 @@ an endpoint instead of the probe (a workspace-dedicated domain such as
 On a pay-as-you-go endpoint the picker lists the text models the endpoint
 serves live together with the dated pins this build knows (Qwen3.8 Max,
 Qwen3.7 Max, Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash, Qwen3.7 Flash,
-Qwen3.6 Flash, Qwen3 Coder Flash — their context windows and prices): a live
-row wins on a shared id, a pinned id the list does not name still shows from
-the pin and is sent for Model Studio to decide, and the pins alone stand,
+Qwen3.6 Flash and Qwen3 Coder Flash, with their context windows and prices): a
+live row wins on a shared id, a pinned id the list does not name still shows
+from the pin and is sent for Model Studio to decide, and the pins alone stand,
 labelled as pins, when the list cannot be read. On a Coding Plan endpoint the
-rows are the plan's documented models — Qwen3.8 Max, Qwen3.7 Max, Qwen3.7 Plus,
-Qwen3.8 Flash, Qwen3.6 Flash and the plan's own Auto row (`qwen-auto`, sent as
-`auto`) — because that endpoint's model list answers every caller and is not
+rows are the plan's documented models (Qwen3.8 Max, Qwen3.7 Max, Qwen3.7 Plus,
+Qwen3.8 Flash, Qwen3.6 Flash and the plan's own Auto row, `qwen-auto`, sent as
+`auto`), because that endpoint's model list answers every caller and is not
 the plan's list; the account and `/usage` rows name the plan. The family word
 `qwen` runs Qwen3.8 Max wherever it is a row. Requests carry Qwen's own
-`enable_thinking` switch and `preserve_thinking` on the rows that take them, the effort dial as
+`enable_thinking` switch and `preserve_thinking` on the rows that take them,
+the effort dial as
 `reasoning_effort` in Qwen's vocabulary (`low`, `medium`, `xhigh`) on the Qwen3.8
 rows that document it, a stated `models.<id>.thinkingBudget` as `thinking_budget`
 in place of the effort word, the system prompt in `messages[0]` alone, and tool

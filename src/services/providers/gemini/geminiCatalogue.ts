@@ -110,8 +110,7 @@ const GOOGLE_KEY_REFUSAL = /API_KEY_INVALID|API key not valid|API key expired|AP
 
 function googleErrorWords(body: string): string | undefined {
   try {
-    const words = serviceWordsOf(JSON.parse(body))
-    return words.message ?? words.code
+    return serviceWordsOf(JSON.parse(body)).message
   } catch {
     return undefined
   }
@@ -128,7 +127,7 @@ export class GeminiCatalogueHttpError extends Error {
   readonly said: string | undefined
   constructor(status: number, body: string) {
     const refused = geminiCredentialRefused(status, body)
-    const said = refused ? googleErrorWords(body) : undefined
+    const said = refused && status === 400 ? googleErrorWords(body) : undefined
     super(
       refused
         ? `gemini models endpoint refused the credential (HTTP ${status})${said ? ` — ${said}` : ''}`
