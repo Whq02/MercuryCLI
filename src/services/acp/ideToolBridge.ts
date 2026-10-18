@@ -1,4 +1,6 @@
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { constants as fsConstants, existsSync, readFileSync, statSync } from 'node:fs'
+import { writeFile } from 'node:fs/promises'
+import { getFsImplementation } from '../../utils/fsOperations.js'
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
 import type { ParamsOf, ResultOf } from '../../runner/wire/methods.js'
 import type { ReadFileRangeResult } from '../../utils/readFileInRange.js'
@@ -9,7 +11,7 @@ import { TaskOutput } from '../../utils/task/TaskOutput.js'
 import { generateTaskId } from '../../Task.js'
 import { createAbortedCommand, type ExecResult, type ShellCommand } from '../../utils/ShellCommand.js'
 import type { ProcessTreeKillReceipt } from '../../utils/processGroup.js'
-import { MAX_TASK_OUTPUT_BYTES } from '../../utils/task/diskOutput.js'
+import { getTaskOutputDir, MAX_TASK_OUTPUT_BYTES } from '../../utils/task/diskOutput.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
 
@@ -225,6 +227,24 @@ export async function writeTextViaIdeWithReadBack(
   return { finalContent, diverged, mtimeMs, generation }
 }
 
+async function settleCapturedOutput(text: string): Promise<Pick<ExecResult, 'stdout' | 'outputFilePath' | 'outputFileSize' | 'outputTaskId'>> {
+  try {
+    const outputTaskId = generateTaskId('local_bash')
+    const output = new TaskOutput(outputTaskId, null, true)
+    await getFsImplementation().mkdir(getTaskOutputDir())
+    const noFollow = typeof fsConstants.O_NOFOLLOW === 'number' ? fsConstants.O_NOFOLLOW : 0
+    await writeFile(output.path, text, { flag: fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_TRUNC | noFollow })
+    const stdout = await output.getStdout()
+    if (output.outputFileRedundant) {
+      await output.deleteOutputFile()
+      return { stdout }
+    }
+    return { stdout, outputFilePath: output.path, outputFileSize: output.outputFileSize, outputTaskId }
+  } catch {
+    return { stdout: text }
+  }
+}
+
 export async function execViaIdeTerminal(
   command: string,
   abortSignal: AbortSignal,
@@ -358,7 +378,7 @@ export async function execViaIdeTerminal(
       const code = typeof exit.exit_code === 'number' ? exit.exit_code : killedByUs ? 137 : 1
       const stderr = killedByTimeout ? `Command timed out after ${Math.round(options.timeout / 1000)}s` : ''
       return {
-        stdout: finalSnap,
+        ...(backgroundTaskId === undefined ? await settleCapturedOutput(finalSnap) : { stdout: finalSnap }),
         stderr,
         code,
         interrupted: killedByUs && !killedByTimeout,

@@ -632,6 +632,49 @@ section('§10 the sandbox is on: Bash stays in the local sandbox and is never se
   }
 }
 
+section('§11 output past the display budget: the editor terminal road saves the whole output and states its size, as the local shell road does')
+{
+  const rows = 8000
+  const rowsText = Array.from({ length: rows }, (_, i) => `row ${i + 1}`).join('\n') + '\n'
+  const runOnce = async (withTerminal: boolean): Promise<{ text: string; saved: string }> => {
+    const api = await startFixtureApi([
+      { kind: 'tool_use', name: 'Bash', input: { command: `seq 1 ${rows} | sed 's/^/row /'` }, preText: 'a long listing' },
+      { kind: 'text', text: 'listing done' },
+    ])
+    const server = spawnServer(api.url)
+    const h = connectClient(
+      server,
+      withTerminal
+        ? {
+            onTerminalCreate: () => ({ terminalId: 'long-out' }),
+            onTerminalOutput: () => ({ output: rowsText, truncated: false, exitStatus: { exitCode: 0 } }),
+            onTerminalWaitForExit: () => ({ exitCode: 0 }),
+          }
+        : {},
+    )
+    try {
+      await h.agent.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: withTerminal } })
+      const { sessionId } = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
+      await h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'list rows' }] })
+      const text = toolResultStrings(h.updates).join('\n')
+      const path = /Full output saved to: (\S+)/.exec(text)?.[1] ?? ''
+      const saved = path !== '' && existsSync(path) ? readFileSync(path, 'utf8') : ''
+      await h.agent.request('session/close', { sessionId }).catch(() => {})
+      return { text, saved }
+    } finally {
+      h.close()
+      server.kill('SIGKILL')
+      await api.close()
+    }
+  }
+  const local = await runOnce(false)
+  const editor = await runOnce(true)
+  const sizeOf = (text: string): string => /Output of ([\d.]+\s?[KMG]?B)/.exec(text)?.[1] ?? ''
+  check('the local road states the size of the whole output', sizeOf(local.text) === '69.2KB' && local.saved === rowsText, local.text.slice(0, 200))
+  check('the editor road states the same size', sizeOf(editor.text) === sizeOf(local.text), `${sizeOf(editor.text)} vs ${sizeOf(local.text)}`)
+  check('the file the editor road names holds the whole output', editor.saved === rowsText, `${editor.saved.length} of ${rowsText.length}`)
+}
+
 console.log('')
 if (failures > 0) {
   console.error(`❌ prove-acp-ide-routing: ${failures} failure(s)`)
