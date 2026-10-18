@@ -58,6 +58,7 @@ import { KeyCardTitle } from './KeyCardTitle.js'
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import {
+  anthropicArmPickRows,
   keyPageLine,
   localRoadOpen,
   loginFamilyFocusFor,
@@ -73,6 +74,7 @@ import { refreshLocalDiscovery } from '../services/providers/local/localDiscover
 import { armFaceDoorDeepLink } from '../substrate/splashHandover.js'
 
 type EngineLeg =
+  | 'anthropic'
   | 'openai'
   | 'openai-subscription'
   | 'openai-key'
@@ -247,11 +249,7 @@ export function ConsoleOAuthFlow({
       return
     }
     if (value.startsWith('compat/') && loginFamilyRows({ engineLegs: true }).some(row => row.value === value)) { setLeg(value as `compat/${string}`); return }
-    if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'minimax' || value === 'together' || value === 'cohere' || value === 'groq' || value === 'cerebras' || value === 'fireworks' || value === 'qwen' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') {
-      setLeg(value)
-      return
-    }
-    model.start(value === 'claudeai')
+    if (value === 'anthropic' || value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'minimax' || value === 'together' || value === 'cohere' || value === 'groq' || value === 'cerebras' || value === 'fireworks' || value === 'qwen' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') setLeg(value)
   }
   if (accountFamily !== null) return frame(
     <LoginAccountCard
@@ -265,6 +263,21 @@ export function ConsoleOAuthFlow({
   if (leg?.startsWith('compat/')) return frame(<CompatConnect name={leg.slice(7)} onResult={settleLeg} onBack={() => setLeg(null)} />)
   if (leg !== null) {
     switch (leg) {
+      case 'anthropic':
+        return frame(
+          <Box flexDirection="column" gap={compact ? 0 : 1}>
+            <Text wrap="truncate-end">Anthropic — pick the credential to connect.</Text>
+            <Select
+              options={[...anthropicArmPickRows]}
+              onChange={value => {
+                setLeg(null)
+                model.start(value === 'claudeai')
+              }}
+              onCancel={() => setLeg(null)}
+            />
+          </Box>,
+        )
+
       case 'openai':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenAI login unavailable here.</Text>)
         return frame(

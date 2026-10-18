@@ -5,7 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
-import { qwenBaseOverride, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenListAnswersEveryCaller, qwenProbeLane, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
+import { QWEN_CONSOLES, qwenBaseOverride, qwenBoundBase, qwenEndpointBase, qwenEndpointLabelOf, qwenEndpointWhere, qwenListAnswersEveryCaller, qwenProbeLane, qwenUnboundKeyRefusal, rememberQwenBoundBase, resolveQwenCredentialSnapshot, type QwenCredentialSource, type QwenEndpoint } from './qwenAccounts.js'
 import { QWEN_DISPLAY_PINS, QWEN_OBSERVED_AT, isQwenTextModelId, qwenDisplayName, qwenDisplayPin, qwenEffortVocabulary, qwenPinWireId, qwenPinsFor, qwenPreservesThinking, qwenThinkingDial, type QwenPinScope, type QwenThinkingDial } from './qwenPins.js'
 
 export interface QwenLiveModel {
@@ -29,8 +29,8 @@ export class QwenCatalogueHttpError extends Error {
     const refused = status === 401 || status === 403 || (status === 400 && wordsNameTheKey(words))
     const said = (words.message ?? words.code)?.split(key || '\0').join('[redacted]')
     super(`${refused
-      ? `Model Studio ${endpointLabel} refused the credential (HTTP ${status})`
-      : `Model Studio ${endpointLabel} ${road === 'chat' ? 'chat' : 'models'} endpoint returned HTTP ${status}`}${said ? ` — ${said}` : ''}`)
+      ? `${endpointLabel} refused the credential (HTTP ${status})`
+      : `${endpointLabel} ${road === 'chat' ? 'chat' : 'models'} endpoint returned HTTP ${status}`}${said ? ` — ${said}` : ''}`)
     this.refused = refused
     this.said = said
   }
@@ -42,7 +42,7 @@ const authenticatedCodingKeys = new Set<string>()
 async function authenticateQwenCodingKey(opts: { baseUrl: string; key: string; model: string | undefined; fetchImpl?: typeof fetch; env: NodeJS.ProcessEnv }): Promise<void> {
   const memo = `${credentialFingerprint(opts.key)} ${opts.baseUrl}`
   if (authenticatedCodingKeys.has(memo)) return
-  const label = qwenEndpointLabelOf(opts.baseUrl, opts.env)
+  const label = qwenEndpointWhere(opts.baseUrl, opts.env)
   let response: Response
   try {
     response = await fetchWithProviderDeadline(opts.fetchImpl ?? getApiFetch(), 'qwen', 15_000, `${opts.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
@@ -52,7 +52,7 @@ async function authenticateQwenCodingKey(opts: { baseUrl: string; key: string; m
       ...(opts.fetchImpl ? {} : getProxyFetchOptions()),
     } as RequestInit)
   } catch (error) {
-    throw new Error(`Model Studio ${label} chat endpoint could not be reached (${error instanceof Error ? error.message : String(error)})`)
+    throw new Error(`${label} chat endpoint could not be reached (${error instanceof Error ? error.message : String(error)})`)
   }
   if (response.ok || response.status === 429) {
     authenticatedCodingKeys.add(memo)
@@ -63,7 +63,7 @@ async function authenticateQwenCodingKey(opts: { baseUrl: string; key: string; m
 
 export async function fetchQwenLiveModels(opts: { baseUrl: string; key: string; fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<{ models: QwenLiveModel[]; otherLines: number; fetchedAtMs: number }> {
   const env = opts.env ?? process.env
-  const label = qwenEndpointLabelOf(opts.baseUrl, env)
+  const label = qwenEndpointWhere(opts.baseUrl, env)
   let response: Response
   try {
     response = await fetchWithProviderDeadline(opts.fetchImpl ?? getApiFetch(), 'qwen', 15_000, `${opts.baseUrl.replace(/\/+$/, '')}/models`, {
@@ -75,7 +75,7 @@ export async function fetchQwenLiveModels(opts: { baseUrl: string; key: string; 
   }
   if (!response.ok) throw new QwenCatalogueHttpError(response.status, label, 'models', serviceWordsOf(await quietBodyJson(response)), opts.key)
   const parsed = await catalogueBodyJson(response) as Record<string, unknown>
-  if (!Array.isArray(parsed?.data)) throw new Error(`Model Studio ${label} models endpoint returned no data array`)
+  if (!Array.isArray(parsed?.data)) throw new Error(`${label} models endpoint returned no data array`)
   const seen = new Set<string>()
   const models: QwenLiveModel[] = []
   let otherLines = 0
@@ -121,7 +121,7 @@ export async function probeQwenEndpoints(opts: { key: string; fetchImpl?: typeof
   }
   const tried = refusals + faults.length
   if (faults.length === 0) return { kind: 'refused', words: `${qwenUnboundKeyRefusal(env, opts.key)}${refusalWords.length > 0 ? `; the service said: ${refusalWords.join(' / ')}` : ''}`, tried }
-  return { kind: 'unreachable', words: `${refusals} of ${endpoints.length} Model Studio endpoints refused the key and ${faults.length} could not be read (${faults.join('; ')})`, tried }
+  return { kind: 'unreachable', words: `${refusals} of ${endpoints.length} QwenCloud and Model Studio endpoints refused the key and ${faults.length} could not be read (${faults.join('; ')})`, tried }
 }
 
 export interface QwenCatalogueSnapshot {
@@ -200,7 +200,7 @@ export function refreshQwenCatalogue(opts?: { force?: boolean; fetchImpl?: typeo
       }
       const snapshot: QwenCatalogueSnapshot = {
         keySource: key.source, models: [], otherLines: 0, fetchedAtMs: 0, lastAttemptAtMs: now(),
-        lastError: probe.kind === 'refused' ? `Model Studio refused the credential on every endpoint: ${probe.words}` : probe.words,
+        lastError: probe.kind === 'refused' ? `No ${QWEN_CONSOLES} endpoint accepted the credential: ${probe.words}` : probe.words,
       }
       cache.set(identity, snapshot)
       return snapshot
@@ -286,7 +286,7 @@ export function qwenCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): 
   if (source.kind === 'plan') return `the Coding Plan's documented models (observed ${QWEN_OBSERVED_AT}) on ${snapshot?.endpointLabel ?? 'the Coding Plan endpoint'} — its model list answers every caller and is not the plan's list`
   if (source.kind === 'pins') return `pinned list (observed ${QWEN_OBSERVED_AT}) — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`
   if (snapshot?.lastError) return snapshot.lastError
-  return source.kind === 'live' ? `${source.count} text ${source.count === 1 ? 'model' : 'models'} live on ${snapshot?.endpointLabel ?? 'Model Studio'}${source.otherLines > 0 ? ` · ${source.otherLines} of other lines not listed` : ''}` : undefined
+  return source.kind === 'live' ? `${source.count} text ${source.count === 1 ? 'model' : 'models'} live on ${snapshot?.endpointLabel ?? QWEN_CONSOLES}${source.otherLines > 0 ? ` · ${source.otherLines} of other lines not listed` : ''}` : undefined
 }
 
 export function qwenModelFacts(id: string): { contextWindow?: number; outputMax?: number; thinking: QwenThinkingDial; preservesThinking: boolean; efforts: readonly string[]; images?: boolean } {

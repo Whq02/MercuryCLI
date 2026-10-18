@@ -84,6 +84,34 @@ export function qwenEndpointLabelOf(baseUrl: string, env: NodeJS.ProcessEnv = pr
   return qwenEndpointForBase(baseUrl, env)?.label ?? baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')
 }
 
+export type QwenConsole = 'QwenCloud' | 'Model Studio'
+export const QWEN_CONSOLES = 'QwenCloud or Model Studio'
+
+function qwenEndpointConsole(endpoint: QwenEndpoint): QwenConsole {
+  return endpoint.id === 'qwencloud' || endpoint.id === 'qwencloud-token-plan' ? 'QwenCloud' : 'Model Studio'
+}
+
+export function qwenConsoleOfBase(baseUrl: string | undefined, env: NodeJS.ProcessEnv = process.env): QwenConsole | undefined {
+  const endpoint = baseUrl === undefined ? undefined : qwenEndpointForBase(baseUrl, env)
+  return endpoint === undefined ? undefined : qwenEndpointConsole(endpoint)
+}
+
+export function qwenConsoleWords(origin: QwenConsole | undefined): string {
+  return origin ?? QWEN_CONSOLES
+}
+
+export function qwenConsolePage(origin: QwenConsole | undefined): string {
+  if (origin === 'QwenCloud') return 'qwencloud.com'
+  if (origin === 'Model Studio') return 'modelstudio.console.alibabacloud.com (Usage & Billing)'
+  return 'qwencloud.com or modelstudio.console.alibabacloud.com (Usage & Billing)'
+}
+
+export function qwenEndpointWhere(baseUrl: string, env: NodeJS.ProcessEnv = process.env): string {
+  const endpoint = qwenEndpointForBase(baseUrl, env)
+  if (endpoint === undefined) return baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')
+  return qwenEndpointConsole(endpoint) === 'QwenCloud' ? endpoint.label : `Model Studio ${endpoint.label}`
+}
+
 export function qwenBaseOverride(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const raw = env[QWEN_BASE_OVERRIDE_ENV]?.trim()
   if (!raw) return undefined
@@ -151,6 +179,10 @@ export function qwenBoundEndpointLabel(env: NodeJS.ProcessEnv = process.env): st
   return base === undefined ? undefined : qwenEndpointLabelOf(base, env)
 }
 
+export function qwenBoundConsole(env: NodeJS.ProcessEnv = process.env): QwenConsole | undefined {
+  return qwenConsoleOfBase(qwenBoundBase(env), env)
+}
+
 export function qwenBoundPlanLabel(env: NodeJS.ProcessEnv = process.env): { kind: 'Coding Plan' | 'QwenCloud Token Plan'; endpoint: string } | undefined {
   const base = qwenBoundBase(env)
   if (base === undefined) return undefined
@@ -172,7 +204,7 @@ export function resolveQwenAccount(env: NodeJS.ProcessEnv = process.env): QwenAc
   const key = resolveQwenApiKey(env)
   if (!key) return undefined
   const plan = qwenBoundPlanLabel(env)
-  return { kind: 'api-key', label: key.source === 'env' ? `${QWEN_ENV_KEY} (env${plan ? `, ${plan.kind}` : ''})` : plan?.kind === 'QwenCloud Token Plan' ? 'QwenCloud Token Plan key (stored, auth-scoped)' : `Model Studio ${plan ? plan.kind : 'API'} key (stored, auth-scoped)`, keySource: key.source }
+  return { kind: 'api-key', label: key.source === 'env' ? `${QWEN_ENV_KEY} (env${plan ? `, ${plan.kind}` : ''})` : plan?.kind === 'QwenCloud Token Plan' ? 'QwenCloud Token Plan key (stored, auth-scoped)' : plan ? `Model Studio ${plan.kind} key (stored, auth-scoped)` : `${qwenConsoleWords(qwenBoundConsole(env))} API key (stored, auth-scoped)`, keySource: key.source }
 }
 
 export function resolveQwenCredentialSnapshot(env: NodeJS.ProcessEnv = process.env): { key: string; source: QwenCredentialSource } | undefined {
@@ -197,5 +229,5 @@ function qwenEndpointListWords(env: NodeJS.ProcessEnv = process.env, key?: strin
 
 export function qwenUnboundKeyRefusal(env: NodeJS.ProcessEnv = process.env, key?: string): string {
   const lane = key === undefined ? '' : qwenKeyIsCodingPlan(key) ? ` (a key beginning ${QWEN_CODING_PLAN_KEY_PREFIX} is a Token Plan or Coding Plan key, read on the QwenCloud Token Plan and the Coding Plan endpoints)` : ` (a Coding Plan key begins ${QWEN_CODING_PLAN_KEY_PREFIX}; this one does not, so the Coding Plan endpoints were not asked)`
-  return `this key belongs to no Model Studio region or plan Mercury knows — it was minted for none of: ${qwenEndpointListWords(env, key)}${lane}; ${QWEN_BASE_OVERRIDE_ENV} names the endpoint it was minted for (a workspace-dedicated domain needs ${QWEN_WORKSPACE_ENV} or the full URL)`
+  return `this key belongs to no ${QWEN_CONSOLES} region or plan Mercury knows — it was minted for none of: ${qwenEndpointListWords(env, key)}${lane}; ${QWEN_BASE_OVERRIDE_ENV} names the endpoint it was minted for (a workspace-dedicated domain needs ${QWEN_WORKSPACE_ENV} or the full URL)`
 }

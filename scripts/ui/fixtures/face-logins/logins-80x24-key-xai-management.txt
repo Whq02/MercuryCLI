@@ -5,8 +5,8 @@
    XAI_MANAGEMENT_API_KEY wins. key: ▌ ↵ stores · empty/esc skips; API key
    stays
 
-   ↑ 6 more
-     Usage-based billing — Anthropic Console…  not signed in
+   ↑ 5 more
+   available
      OpenRouter — one credential, the whole …  not signed in
      Google Gemini — Google sign-in, API key   not signed in
      GLM (Z.AI) — API key (general or GLM Co…  not signed in

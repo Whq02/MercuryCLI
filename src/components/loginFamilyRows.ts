@@ -1,9 +1,8 @@
 
 import { configuredCompatEndpoints } from '../services/providers/openaicompat/compatAccounts.js'
 export type LoginFamilyValue =
-  | 'claudeai'
+  | 'anthropic'
   | 'openai'
-  | 'console'
   | 'openrouter'
   | 'gemini'
   | 'huggingface'
@@ -30,14 +29,14 @@ export interface LoginFamilyRow {
 
 export const META_SIGN_IN_ROADS = 'Muse Code sign-in or API key'
 export const META_LOGIN_FAMILY_LABEL = `Meta — ${META_SIGN_IN_ROADS}`
+export const ANTHROPIC_FAMILY_ROW_LABEL = 'Anthropic — Claude subscription or Console sign-in / API key'
 
 export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginFamilyRow[] {
   return [
     ...(engineLegs
       ? [{ label: 'OpenAI — ChatGPT subscription or API key', value: 'openai' as const }]
       : []),
-    { label: 'Claude subscription account', value: 'claudeai' },
-    { label: 'Usage-based billing — Anthropic Console sign-in or API key', value: 'console' },
+    { label: ANTHROPIC_FAMILY_ROW_LABEL, value: 'anthropic' },
     ...(engineLegs
       ? [
           {
@@ -62,7 +61,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'Groq — API key (text models)', value: 'groq' as const },
           { label: 'Cerebras — API key (text models)', value: 'cerebras' as const },
           { label: 'Fireworks — API key (text models)', value: 'fireworks' as const },
-          { label: 'Qwen — Model Studio API key (Qwen3.8 Max, Qwen3.7 Plus)', value: 'qwen' as const },
+          { label: 'Qwen — QwenCloud or Model Studio API key (Qwen3.8 Max, Qwen3.7 Plus)', value: 'qwen' as const },
           { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },
           ...configuredCompatEndpoints().filter(endpoint => endpoint.named).map(endpoint => ({ label: `${endpoint.label} (${endpoint.name}) — endpoint API key`, value: `compat/${endpoint.name}` as const })),
         ]
@@ -87,7 +86,12 @@ export const openaiArmPickRows = [
   { label: 'OpenAI API key — paste one (stored locally, mode 600)', value: 'key' },
 ] as const
 
-export type KeyFamilyValue = Exclude<LoginFamilyValue, 'claudeai' | 'console'>
+export const anthropicArmPickRows = [
+  { label: 'Claude subscription — browser sign-in', value: 'claudeai' },
+  { label: 'Usage-based billing — Anthropic Console sign-in or API key', value: 'console' },
+] as const
+
+export type KeyFamilyValue = Exclude<LoginFamilyValue, 'anthropic'>
 
 export const KEY_PAGES: Record<KeyFamilyValue, string> = {
   openai: 'platform.openai.com/api-keys',
@@ -126,7 +130,6 @@ export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginF
   if (defaultProvider?.startsWith('compat/') && configuredCompatEndpoints().some(endpoint => `compat/${endpoint.name}` === defaultProvider)) return defaultProvider as `compat/${string}`
   switch (defaultProvider) {
     case 'anthropic':
-      return 'claudeai'
     case 'openai':
     case 'openrouter':
     case 'gemini':
@@ -180,7 +183,7 @@ export function loginFamilyNameOf(row: LoginFamilyRow): string {
 
 export function connectableLoginFamilyWords(): string {
   const names = loginFamilyRows({ engineLegs: true })
-    .filter(row => row.value !== 'openai' && row.value !== 'claudeai' && row.value !== 'console')
+    .filter(row => row.value !== 'openai' && row.value !== 'anthropic')
     .map(loginFamilyNameOf)
   return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`
 }

@@ -9,31 +9,31 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ signed in                                                      │  │ ❯ Claude subscription account              │
+   │ signed in                                                      │  │ ❯ Anthropic — Claude subscription or Cons… │
    │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
-   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ Anthropic · subscription arm               │
+   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ Anthropic                                  │
    │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │                                            │
-   │                                                                │  │ Claude subscription account                │
-   │ available                                                      │  │                                            │
-   │ ❯ Claude subscription account         op@example.com · expired │  │ state: op@example.com · expired            │
-   │   Usage-based billing — Anthropic Console…       not signed in │  │ · claude.ai sign-in — op@example.com ·     │
-   │   OpenRouter — one credential, the whole …       not signed in │  │ active · not signed in                     │
-   │   Google Gemini — Google sign-in, API key        not signed in │  │                                            │
-   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ · the claude.ai sign-in has expired —      │
-   │   DeepSeek — API key                             not signed in │  │ /logins re-authenticates it                │
-   │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
-   │   Meta — Muse Code sign-in or API key            not signed in │  ╭────────────────────────────────────────────╮
-   │   Mistral — API key (Mistral Large 4)            not signed in │  │ LOGINS                                     │
-   │   Nous Portal — account sign-in or API ke…       not signed in │  │ Families   20                              │
-   │   MiniMax — API key or M Plan key (M3, M2…       not signed in │  │ Signed in  3 of 20                         │
-   │   Together AI — API key (the gateway's ch…       not signed in │  │ Ready      3 lanes                         │
-   │   Cohere — API key (Command A+, North)           not signed in │  ╰────────────────────────────────────────────╯
-   │   Groq — API key (text models)                   not signed in │  ╭────────────────────────────────────────────╮
-   │   Cerebras — API key (text models)               not signed in │  │ ENVIRONMENT                                │
-   │   Fireworks — API key (text models)              not signed in │  │ Mercury    Opus 5                          │
-   │   Qwen — Model Studio API key (Qwen3.8 Ma…       not signed in │  │ Critter    Octopus                         │
-   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Dir        orchard-src                     │
-   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
+   │                                                                │  │ Anthropic — Claude subscription or         │
+   │ available                                                      │  │ Console sign-in / API key                  │
+   │ ❯ Anthropic — Claude subscription or Cons… op@example.com · e… │  │                                            │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ state: op@example.com · expired            │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ · claude.ai sign-in — op@example.com ·     │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ active · not signed in                     │
+   │   DeepSeek — API key                             not signed in │  │ · API key — present · not signed in        │
+   │   xAI — Grok subscription sign-in or API …       not signed in │  │ … (the trail continues — a taller termina… │
+   │   Meta — Muse Code sign-in or API key            not signed in │  ╰────────────────────────────────────────────╯
+   │   Mistral — API key (Mistral Large 4)            not signed in │  ╭────────────────────────────────────────────╮
+   │   Nous Portal — account sign-in or API ke…       not signed in │  │ LOGINS                                     │
+   │   MiniMax — API key or M Plan key (M3, M2…       not signed in │  │ Families   20                              │
+   │   Together AI — API key (the gateway's ch…       not signed in │  │ Signed in  3 of 20                         │
+   │   Cohere — API key (Command A+, North)           not signed in │  │ Ready      3 lanes                         │
+   │   Groq — API key (text models)                   not signed in │  ╰────────────────────────────────────────────╯
+   │   Cerebras — API key (text models)               not signed in │  ╭────────────────────────────────────────────╮
+   │   Fireworks — API key (text models)              not signed in │  │ ENVIRONMENT                                │
+   │   Qwen — QwenCloud or Model Studio API ke…       not signed in │  │ Mercury    Opus 5                          │
+   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Critter    Octopus                         │
+   ╰────────────────────────────────────────────────────────────────╯  │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  3 of 20 families signed in · 3 ready                                                        │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

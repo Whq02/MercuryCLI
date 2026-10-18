@@ -20,9 +20,10 @@ const { reconnectDoorFor } = await import('../../src/services/providers/credenti
 section('§1 the family-focus vocabulary (pure)')
 {
   const rows: Array<[string, string]> = [
-    ['anthropic', 'claudeai'],
-    ['claude', 'claudeai'],
-    ['console', 'console'],
+    ['anthropic', 'anthropic'],
+    ['claude', 'anthropic'],
+    ['claudeai', 'anthropic'],
+    ['console', 'anthropic'],
     ['openai', 'openai'],
     ['chatgpt', 'openai'],
     ['gpt', 'openai'],

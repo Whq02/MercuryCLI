@@ -243,15 +243,15 @@ section('§0 · the card and the vocabulary')
   check('the owner carries the Kimi row as a device-code sign-in OR API key', rows.some(r => r.label === 'Kimi (Moonshot) — device-code sign-in or API key' && r.value === 'moonshot'))
   check('the owner carries the GLM row as API key only (honest asymmetry)', rows.some(r => r.label === 'GLM (Z.AI) — API key (general or GLM Coding Plan)' && r.value === 'zai'))
   check('the owner carries the DeepSeek row as API key only', rows.some(r => r.label === 'DeepSeek — API key' && r.value === 'deepseek'))
-  check('twenty-one reachable family rows: the card derives its count and row-height budget from the owner list', rows.length === 21 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'].every(family => rows.some(row => row.value === family)) && card.includes('loginFamilyRows({ engineLegs: onOpenaiDone !== undefined })') && card.includes('rosterRows: idleRows.length') && card.includes('Math.floor(fit.roster / rowHeight)') && card.includes('Math.min(rows - refusalRows, idleRows.length)') && card.includes('visibleOptionCount={rosterWindow}'))
+  check('twenty reachable family rows: the card derives its count and row-height budget from the owner list', rows.length === 20 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'].every(family => rows.some(row => row.value === family)) && card.includes('loginFamilyRows({ engineLegs: onOpenaiDone !== undefined })') && card.includes('rosterRows: idleRows.length') && card.includes('Math.floor(fit.roster / rowHeight)') && card.includes('Math.min(rows - refusalRows, idleRows.length)') && card.includes('visibleOptionCount={rosterWindow}'))
   check('/logins <family> knows the vendors\' names', parseFamilyFocus('kimi') === 'moonshot' && parseFamilyFocus('moonshot') === 'moonshot' && parseFamilyFocus('glm') === 'zai' && parseFamilyFocus('z.ai') === 'zai' && parseFamilyFocus('zai') === 'zai' && parseFamilyFocus('deepseek') === 'deepseek')
   const command = readFileSync(join(import.meta.dir, '../../src/commands/login/index.ts'), 'utf8')
   check('the command names the three families and the words', command.includes('Kimi · GLM · DeepSeek') && command.includes('kimi|glm|deepseek'))
   check(
     '/logins <family> knows the WHOLE household vocabulary',
-    parseFamilyFocus('anthropic') === 'claudeai' && parseFamilyFocus('claude') === 'claudeai' &&
+    parseFamilyFocus('anthropic') === 'anthropic' && parseFamilyFocus('claude') === 'anthropic' &&
       parseFamilyFocus('chatgpt') === 'openai' && parseFamilyFocus('gpt') === 'openai' &&
-      parseFamilyFocus('console') === 'console' && parseFamilyFocus('openrouter') === 'openrouter' &&
+      parseFamilyFocus('console') === 'anthropic' && parseFamilyFocus('openrouter') === 'openrouter' &&
       parseFamilyFocus('google') === 'gemini' && parseFamilyFocus('hf') === 'huggingface' &&
       parseFamilyFocus('HuggingFace') === 'huggingface' && parseFamilyFocus(undefined) === undefined &&
       parseFamilyFocus('unknown-word') === undefined,

@@ -12,12 +12,12 @@ VITALS              │ │ DeepSeek, xAI, Meta, Mistral, Nous Portal, MiniMax, 
   · spend —         │ │ Groq, Cerebras, Fireworks, Qwen or OpenCode Zen.                         │ │
   · ctx — · —       │ │                                                                          │ │
   · health — run /h…│ │   OpenAI — ChatGPT subscription or API key                               │ │
-                    │ │ ❯ Claude subscription account                                            │ │
-                    │ │   Usage-based billing — Anthropic Console sign-in or API key             │ │
+                    │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key           │ │
                     │ │     ANTHROPIC_API_KEY (env) ……                                           │ │
                     │ │   OpenRouter — one credential, the whole catalogue (OAuth or key)        │ │
                     │ │   Google Gemini — Google sign-in, API key                                │ │
                     │ │   Hugging Face — device-code sign-in or a Hub token (open models)        │ │
+                    │ │   Kimi (Moonshot) — device-code sign-in or API key                       │ │
                     │ │                                                                          │ │
                     │ │ esc or click outside closes                                              │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredQwenApiKey } from '../providerSecrets.js'
-import { QWEN_BASE_OVERRIDE_ENV, qwenBaseOverride, qwenEndpointLabelOf, qwenEnvKey, rememberQwenBoundBase } from './qwenAccounts.js'
+import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, qwenBaseOverride, qwenConsoleOfBase, qwenConsoleWords, qwenEndpointLabelOf, qwenEnvKey, rememberQwenBoundBase, type QwenConsole } from './qwenAccounts.js'
 import { fetchQwenLiveModels, forgetQwenCatalogue, probeQwenEndpoints, qwenPinRows, QwenCatalogueHttpError } from './qwenCatalogue.js'
 import { qwenDisplayName } from './qwenPins.js'
 
@@ -11,7 +11,7 @@ interface QwenKeyLoginOutcome {
 }
 
 const QWEN_KEY_PAGE_WORDS = 'qwencloud.com (API Keys) or modelstudio.alibabacloud.com (API-KEY, in the region the key is for)'
-const QWEN_KEY_RECEIPT_TAIL = 'Text models only; the key is bound to the region and plan it was minted in, so requests ride that endpoint alone. Usage and balance are shown in the Model Studio console (no endpoint states them to an API key).'
+const qwenKeyReceiptTail = (origin: QwenConsole | undefined): string => `Text models only; the key is bound to the region and plan it was minted in, so requests ride that endpoint alone. Usage and balance are shown in the ${qwenConsoleWords(origin)} console (no endpoint states them to an API key).`
 export const QWEN_KEY_KINDS_LINE = 'A QwenCloud (qwencloud.com) or Model Studio API key (pay-as-you-go or Token Plan), or a QwenCloud Token Plan or Coding Plan key (sk-sp-…): each binds to the endpoint that accepts it.'
 export const QWEN_KEY_KINDS_SHORT = 'Model Studio, QwenCloud or Coding Plan (sk-sp-…) key'
 
@@ -21,7 +21,7 @@ function hostOf(baseUrl: string): string {
 
 export async function storeQwenApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv }): Promise<QwenKeyLoginOutcome> {
   key = key.trim()
-  if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty Model Studio API key.' }
+  if (!key) return { ok: false, stored: false, receipt: `Paste a non-empty ${QWEN_CONSOLES} API key.` }
   const env = io?.env ?? process.env
   const fetchImpl = io?.fetchImpl ? { fetchImpl: io.fetchImpl } : {}
   const safe = (message: string): string => message.split(key).join('[redacted]')
@@ -41,7 +41,7 @@ export async function storeQwenApiKeyLogin(key: string, io?: { fetchImpl?: typeo
     }
   } else {
     const probe = await probeQwenEndpoints({ key, env, ...fetchImpl })
-    if (probe.kind === 'refused') return { ok: false, stored: false, receipt: `Model Studio refused this key on every endpoint — nothing stored; ${probe.words}. Keys are made at ${QWEN_KEY_PAGE_WORDS}.` }
+    if (probe.kind === 'refused') return { ok: false, stored: false, receipt: `No ${QWEN_CONSOLES} endpoint accepted this key — nothing stored; ${probe.words}. Keys are made at ${QWEN_KEY_PAGE_WORDS}.` }
     if (probe.kind === 'bound') {
       boundBase = probe.baseUrl
       note = probe.endpoint.plan === 'coding-plan'
@@ -60,5 +60,6 @@ export async function storeQwenApiKeyLogin(key: string, io?: { fetchImpl?: typeo
   }
   const ambient = qwenEnvKey(env)
   const shadow = ambient ? ` NOTE: ${ambient.name} is set and wins over this stored key.` : ''
-  return { ok: true, stored: true, receipt: `Model Studio API key stored (auth-scoped, mode 600) · ${note}. ${QWEN_KEY_RECEIPT_TAIL}${shadow}` }
+  const origin = qwenConsoleOfBase(boundBase, env)
+  return { ok: true, stored: true, receipt: `${qwenConsoleWords(origin)} API key stored (auth-scoped, mode 600) · ${note}. ${qwenKeyReceiptTail(origin)}${shadow}` }
 }

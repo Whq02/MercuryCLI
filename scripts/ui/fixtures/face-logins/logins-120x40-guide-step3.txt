@@ -11,29 +11,29 @@
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
    │ signed in                                                      │  │ ❯ Google Gemini — Google sign-in, API key  │
    │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
-   │   Claude subscription account                   op@example.com │  │ Connect a Google account — step 3 of 6     │
+   │   Anthropic — Claude subscription or Cons…      op@example.com │  │ Connect a Google account — step 3 of 6     │
    │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ › 3. Set up the consent screen for         │
    │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ testing                                    │
    │                                                                │  │ https://console.developers.google.com/     │
    │ available                                                      │  │ auth/audience                              │
-   │   Usage-based billing — Anthropic Console…       not signed in │  │ the overview page:                         │
-   │   OpenRouter — one credential, the whole …       not signed in │  │ https://console.developers.google.com/     │
-   │ ❯ Google Gemini — Google sign-in, API key        not signed in │  │ auth/overview                              │
-   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ opened in your browser                     │
-   │   DeepSeek — API key                             not signed in │  │ … (the trail continues — a taller termina… │
-   │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
-   │   Meta — Muse Code sign-in or API key            not signed in │  ╭────────────────────────────────────────────╮
-   │   Mistral — API key (Mistral Large 4)            not signed in │  │ LOGINS                                     │
-   │   Nous Portal — account sign-in or API ke…       not signed in │  │ Families   20                              │
-   │   MiniMax — API key or M Plan key (M3, M2…       not signed in │  │ Signed in  4 of 20                         │
-   │   Together AI — API key (the gateway's ch…       not signed in │  │ Ready      4 lanes                         │
-   │   Cohere — API key (Command A+, North)           not signed in │  ╰────────────────────────────────────────────╯
-   │   Groq — API key (text models)                   not signed in │  ╭────────────────────────────────────────────╮
-   │   Cerebras — API key (text models)               not signed in │  │ ENVIRONMENT                                │
-   │   Fireworks — API key (text models)              not signed in │  │ Mercury    Opus 5                          │
-   │   Qwen — Model Studio API key (Qwen3.8 Ma…       not signed in │  │ Critter    Octopus                         │
-   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Dir        orchard-src                     │
-   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
+   │   OpenRouter — one credential, the whole …       not signed in │  │ the overview page:                         │
+   │ ❯ Google Gemini — Google sign-in, API key        not signed in │  │ https://console.developers.google.com/     │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ auth/overview                              │
+   │   DeepSeek — API key                             not signed in │  │ opened in your browser                     │
+   │   xAI — Grok subscription sign-in or API …       not signed in │  │ … (the trail continues — a taller termina… │
+   │   Meta — Muse Code sign-in or API key            not signed in │  ╰────────────────────────────────────────────╯
+   │   Mistral — API key (Mistral Large 4)            not signed in │  ╭────────────────────────────────────────────╮
+   │   Nous Portal — account sign-in or API ke…       not signed in │  │ LOGINS                                     │
+   │   MiniMax — API key or M Plan key (M3, M2…       not signed in │  │ Families   20                              │
+   │   Together AI — API key (the gateway's ch…       not signed in │  │ Signed in  4 of 20                         │
+   │   Cohere — API key (Command A+, North)           not signed in │  │ Ready      4 lanes                         │
+   │   Groq — API key (text models)                   not signed in │  ╰────────────────────────────────────────────╯
+   │   Cerebras — API key (text models)               not signed in │  ╭────────────────────────────────────────────╮
+   │   Fireworks — API key (text models)              not signed in │  │ ENVIRONMENT                                │
+   │   Qwen — QwenCloud or Model Studio API ke…       not signed in │  │ Mercury    Opus 5                          │
+   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Critter    Octopus                         │
+   ╰────────────────────────────────────────────────────────────────╯  │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  Google account — step 3 of 6                                                                │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

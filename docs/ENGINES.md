@@ -487,7 +487,7 @@ serves live together with the dated pins this build knows (Qwen3.8 Max,
 Qwen3.7 Max, Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash, Qwen3.7 Flash,
 Qwen3.6 Flash and Qwen3 Coder Flash, with their context windows and prices): a
 live row wins on a shared id, a pinned id the list does not name still shows
-from the pin and is sent for Model Studio to decide, and the pins alone stand,
+from the pin and is sent for the bound endpoint's console to decide, and the pins alone stand,
 labelled as pins, when the list cannot be read. On the QwenCloud Token Plan
 endpoint the picker unites the live Qwen text rows with the plan's documented
 pins (Qwen3.8 Max first, Qwen3.7 Max, Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.6

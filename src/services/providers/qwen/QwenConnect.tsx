@@ -9,7 +9,7 @@ import { keyPageLine } from '../../../components/loginFamilyRows.js'
 import { KeyCardTitle } from '../../../components/KeyCardTitle.js'
 import { usePopupCompact } from '../../../context/popupFormContext.js'
 
-const QWEN_CONNECT_BILLING_LINE = 'Text models only. The key is bound to the Model Studio region and plan it was minted in: Mercury probes the documented endpoints and keeps the one that accepts it. Usage and balance are shown in the Model Studio console.'
+const QWEN_CONNECT_BILLING_LINE = 'Text models only. The key is bound to the QwenCloud or Model Studio region and plan it was minted in: Mercury probes the documented endpoints and keeps the one that accepts it. Usage and balance are shown in that console.'
 const QWEN_CONNECT_STORE_LINE = 'Checked on the model list first (a key no endpoint accepts is never stored); stored auth-scoped (mode 600) with its endpoint, never logged. DASHSCOPE_API_KEY wins over the store; DASHSCOPE_BASE_URL names the endpoint instead of the probe.'
 
 export function QwenConnect({ onResult, onBack }: {
@@ -27,7 +27,7 @@ export function QwenConnect({ onResult, onBack }: {
     if (storing) return
     const key = raw.trim()
     if (!key) return
-    const guard = keyPasteGuardNote(key, { stores: 'a Model Studio API key' })
+    const guard = keyPasteGuardNote(key, { stores: 'a QwenCloud or Model Studio API key' })
     if (guard !== null) { setNote(guard); return }
     setStoring(true)
     void storeQwenApiKeyLogin(key).then(outcome => {
@@ -37,7 +37,7 @@ export function QwenConnect({ onResult, onBack }: {
   }
   return (
     <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
-      <KeyCardTitle family="qwen" short="Qwen key">Connect Qwen — Model Studio API key</KeyCardTitle>
+      <KeyCardTitle family="qwen" short="Qwen key">Connect Qwen — QwenCloud or Model Studio API key</KeyCardTitle>
       {compact ? null : <Text>{keyPageLine('qwen')}</Text>}
       {compact ? null : <Text>{QWEN_KEY_KINDS_LINE}</Text>}
       {compact ? null : <Text>{QWEN_CONNECT_BILLING_LINE}</Text>}
@@ -46,7 +46,7 @@ export function QwenConnect({ onResult, onBack }: {
         <Text>Key: </Text>
         <TextInput value={value} onChange={setValue} onSubmit={submit} mask="*" columns={48} cursorOffset={cursor} onChangeCursorOffset={setCursor} />
       </Box>
-      {storing ? <Text dimColor>Finding the Model Studio region and plan this key belongs to…</Text> : null}
+      {storing ? <Text dimColor>Finding the QwenCloud or Model Studio region and plan this key belongs to…</Text> : null}
       {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
       {compact ? null : <Text dimColor>esc back</Text>}
     </Box>

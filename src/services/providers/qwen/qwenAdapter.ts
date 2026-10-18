@@ -28,7 +28,7 @@ function describeQwenProvider(): ProviderDescription {
     transport: 'openai-compat-chat-completions',
     capabilities: ['streaming', 'tool-calls', 'usage-accounting', 'cancellation', 'worktree-authoring'],
     roles: SPECIALIST_ROLES,
-    account: account ? { kind: 'api-key', label: account.label } : { kind: 'none', label: 'no Model Studio API key detected' },
+    account: account ? { kind: 'api-key', label: account.label } : { kind: 'none', label: 'no QwenCloud or Model Studio API key detected' },
     catalogue: live?.entries ?? [],
     ...(live ? { catalogueSource: 'live-discovery' as const, discoveredAtMs: live.fetchedAtMs } : { catalogueSource: 'static-pin' as const }),
   }

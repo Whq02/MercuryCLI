@@ -116,6 +116,7 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { renderModelChip } from '../utils/model/model.js';
 import { wrapPlain } from './BootHealthScreen.js';
 import {
+  anthropicArmPickRows,
   keyPageLine,
   loginFamilyFocusFor,
   loginFamilyRows,
@@ -164,14 +165,12 @@ export function collectLoginsScreenFacts(): LoginsScreenFactsV1 {
 export interface LoginsArmV1 {
   row: LoginFamilyRow;
   familyId: ProviderId;
-  arm: 'subscription' | 'key' | 'family';
 }
 
 export function loginsCatalogue(): LoginsArmV1[] {
   return loginFamilyRows({ engineLegs: true }).map(row => ({
     row,
-    familyId: row.value.startsWith('compat/') ? 'openai-compat' : row.value === 'claudeai' || row.value === 'console' ? 'anthropic' : (row.value as ProviderId),
-    arm: row.value === 'claudeai' ? 'subscription' : row.value === 'console' ? 'key' : 'family',
+    familyId: row.value.startsWith('compat/') ? 'openai-compat' : (row.value as ProviderId),
   }));
 }
 
@@ -184,8 +183,6 @@ export function loginsFamilyCounts(groups: readonly FamilySlotGroup[]): { family
 export function loginsArmSlots(arm: LoginsArmV1, group: FamilySlotGroup | undefined): AccountSlot[] {
   const slots = group?.slots ?? [];
   if (arm.row.value.startsWith('compat/')) return slots.filter(slot => slot.id.startsWith(`openai-compat:${arm.row.value.slice(7)}:`));
-  if (arm.arm === 'subscription') return slots.filter(s => s.kind !== 'api-key');
-  if (arm.arm === 'key') return slots.filter(s => s.kind === 'api-key');
   return slots;
 }
 
@@ -224,12 +221,11 @@ export function loginsRowStateOf(arm: LoginsArmV1, facts: LoginsScreenFactsV1): 
   const signedInSlots = slots.filter(s => s.signedIn);
   const signedIn = signedInSlots.length > 0;
   const refusal = facts.refusals?.[arm.familyId];
-  if (refusal && slots.length > 0 && (arm.arm === 'family' || slots.some(slot => slot.active))) return { chip: signInRefusalWords(refusal, arm.familyId), loud: true, signedIn, refusal };
-  const expiredSlot = arm.arm === 'subscription' ? slots.find(s => s.expired === true) : undefined;
+  if (refusal && slots.length > 0) return { chip: signInRefusalWords(refusal, arm.familyId), loud: true, signedIn, refusal };
+  const expiredSlot = slots.find(s => s.expired === true);
   const expired =
-    arm.arm === 'subscription' &&
-    (expiredSlot !== undefined ||
-      (group.family as ProviderFamilyPresence & { expired?: boolean }).expired === true);
+    expiredSlot !== undefined ||
+    (group.family as ProviderFamilyPresence & { expired?: boolean }).expired === true;
   let chip: string;
   if (!signedIn) {
     chip =
@@ -299,10 +295,7 @@ export function loginsEntryOf(arm: LoginsArmV1, facts: LoginsScreenFactsV1): Log
 export function loginsDetailLines(arm: LoginsArmV1, facts: LoginsScreenFactsV1): string[] {
   const group = facts.groups.find(g => g.family.id === arm.familyId);
   const state = loginsRowStateOf(arm, facts);
-  const lines: string[] = [
-    `${familyDisplayName(arm.familyId)}${arm.arm === 'subscription' ? ' · subscription arm' : arm.arm === 'key' ? ' · usage-based arm' : ''}`,
-    '',
-  ];
+  const lines: string[] = [familyDisplayName(arm.familyId), ''];
   lines.push(...wrapPlain(arm.row.label, DETAIL_W));
   lines.push('');
   lines.push(`state: ${state.chip}`);
@@ -352,7 +345,7 @@ export function loginsSummaryRows(facts: LoginsScreenFactsV1, notice?: string | 
     { key: 'Families', value: `${familyIds.length}` },
     { key: 'Signed in', value: `${signed} of ${familyIds.length}`, tone: signed > 0 ? 'teal' : 'faint' },
     { key: 'Ready', value: `${ready} lane${ready === 1 ? '' : 's'}`, tone: ready > 0 ? 'teal' : 'faint' },
-    ...(recorded !== undefined ? [{ key: 'Default', value: familyDisplayName(recorded === 'claudeai' || recorded === 'console' ? 'anthropic' : recorded) }] : []),
+    ...(recorded !== undefined ? [{ key: 'Default', value: familyDisplayName(recorded) }] : []),
   ];
 }
 
@@ -469,7 +462,7 @@ export function anthropicFlowStatusOf(snap: AnthropicLoginSnapshot, backToPicker
 }
 
 
-export type LoginsPickId = 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous' | 'meta';
+export type LoginsPickId = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous' | 'meta';
 export type FaceKeyLegId =
   | 'openai-key'
   | 'zai-general'
@@ -523,6 +516,8 @@ export function loginsPickOptions(
       ];
     case 'gemini':
       return geminiPickOptions(geminiFacts ?? liveGeminiConnectFacts());
+    case 'anthropic':
+      return [...anthropicArmPickRows];
     case 'openai':
       return [...openaiArmPickRows];
     case 'zai':
@@ -557,6 +552,8 @@ export function loginsPickPaneLines(pick: LoginsPickId, pickSel = 0): string[] {
         return 'Sign in with your Nous Portal account in the browser, or paste an API key. Either one bills the Portal credits or subscription behind it.';
       case 'meta':
         return 'Sign in with Meta for a Muse Code subscription (device code in your browser), or paste a pay-as-you-go Model API key.';
+      case 'anthropic':
+        return 'One Anthropic family, two credentials: the Claude subscription signs in with the browser; usage-based billing signs in to the Anthropic Console, which mints an API key.';
       case 'openai':
         return 'One OpenAI family, two credentials: the ChatGPT subscription signs in with the browser (d on the wait switches to a device code); an API key bills usage-based.';
       case 'zai':
@@ -575,7 +572,7 @@ export function loginsPickPaneLines(pick: LoginsPickId, pickSel = 0): string[] {
   })();
   return [
     ...(body ? wrapPlain(body, DETAIL_W) : []),
-    ...(pick === 'kimi-region' ? [] : wrapClauses(keyPageLine(pick), DETAIL_W)),
+    ...(pick === 'kimi-region' || pick === 'anthropic' ? [] : wrapClauses(keyPageLine(pick), DETAIL_W)),
     '',
     pick === 'kimi-region' ? 'esc — back to the Kimi choice' : 'esc — back to the roster',
   ];
@@ -618,7 +615,7 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
     case 'fireworks':
       return 'Fireworks API key';
     case 'qwen':
-      return 'Model Studio API key';
+      return 'QwenCloud or Model Studio API key';
     case 'zen':
       return 'OpenCode Zen API key';
     case 'minimax':
@@ -717,7 +714,7 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
     case 'fireworks':
       return { stores: 'a Fireworks API key' };
     case 'qwen':
-      return { stores: 'a Model Studio API key' };
+      return { stores: 'a QwenCloud or Model Studio API key' };
     case 'zen':
       return { stores: 'an OpenCode Zen API key (sk-…)' };
     case 'minimax':
@@ -984,6 +981,8 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
           return 'Nous Portal — account sign-in or API key';
         case 'meta':
           return META_LOGIN_FAMILY_LABEL;
+        case 'anthropic':
+          return 'Anthropic — subscription or usage-based billing';
         case 'openai':
           return 'OpenAI — subscription or key';
         case 'zai':
@@ -1079,7 +1078,9 @@ export function loginsMenuModelOf(
             label: option.label,
             group: 'pick',
             groupTitle:
-              pick.pick === 'openai'
+              pick.pick === 'anthropic'
+                ? 'Anthropic'
+                : pick.pick === 'openai'
                 ? 'OpenAI'
                 : pick.pick === 'zai'
                   ? 'which key is this?'
@@ -1397,15 +1398,8 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       return;
     }
     switch (arm.row.value) {
-      case 'claudeai':
-        setFlow({ kind: 'anthropic' });
-        model.reset();
-        model.start(true);
-        return;
-      case 'console':
-        setFlow({ kind: 'anthropic' });
-        model.reset();
-        model.start(false);
+      case 'anthropic':
+        openPick('anthropic');
         return;
       case 'zai':
         openPick('zai');
@@ -1466,6 +1460,11 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const resolvePick = (pick: LoginsPickId, value: string): void => {
     setDraft('');
     switch (pick) {
+      case 'anthropic':
+        setFlow({ kind: 'anthropic' });
+        model.reset();
+        model.start(value === 'claudeai');
+        return;
       case 'xai':
         if (value === 'key') setFlow({ kind: 'key', leg: 'xai', note: null, storing: false });
         else startDeviceRun('xai');

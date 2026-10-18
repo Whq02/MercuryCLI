@@ -6,7 +6,7 @@
   wins. Enterprise plans issue it at backoffice.mistral.ai. key: ▌ ↵ stores ·
   empty/esc skips; API key stays
 
-  ↑ 8 more
+  ↑ 7 more
     Google Gemini — Google sign-in, API key   not signed in
     GLM (Z.AI) — API key (general or GLM Co…  not signed in
     DeepSeek — API key                        not signed in

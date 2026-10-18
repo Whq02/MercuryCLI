@@ -502,20 +502,19 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   )
 
   const arms = loginsCatalogue()
-  t.check('the catalogue is the row owner’s twenty-one, engine legs offered', arms.length === 21 && arms.map(a => a.row.value).join(',') === 'openai,claudeai,console,openrouter,gemini,huggingface,moonshot,zai,deepseek,xai,meta,mistral,nous,minimax,together,cohere,groq,cerebras,fireworks,qwen,zen')
+  t.check('the catalogue is the row owner’s twenty, engine legs offered', arms.length === 20 && arms.map(a => a.row.value).join(',') === 'openai,anthropic,openrouter,gemini,huggingface,moonshot,zai,deepseek,xai,meta,mistral,nous,minimax,together,cohere,groq,cerebras,fireworks,qwen,zen')
   const { loginFamilyInitialFocus, loginFamilyFocusFor } = await import('../../src/components/loginFamilyRows.js')
   const signedOutRows = loginsSortedArms(signedOutFacts()).map(arm => arm.row)
   t.check('signed-out opening focus is the first displayed row', loginFamilyInitialFocus(signedOutRows, undefined) === signedOutRows[0]!.value && signedOutRows[0]!.value === 'openai')
-  t.check('recent Anthropic sign-in retains named-row focus', loginFamilyInitialFocus(signedOutRows, loginFamilyFocusFor('anthropic')) === 'claudeai')
-  const claudeArm = arms.find(a => a.row.value === 'claudeai')!
-  const consoleArm = arms.find(a => a.row.value === 'console')!
+  t.check('recent Anthropic sign-in retains named-row focus', loginFamilyInitialFocus(signedOutRows, loginFamilyFocusFor('anthropic')) === 'anthropic')
+  const claudeArm = arms.find(a => a.row.value === 'anthropic')!
   const geminiArm = arms.find(a => a.row.value === 'gemini')!
-  t.check('the two Anthropic rows read one family through two arms', claudeArm.familyId === 'anthropic' && claudeArm.arm === 'subscription' && consoleArm.familyId === 'anthropic' && consoleArm.arm === 'key')
+  t.check('the one Anthropic row reads the one anthropic family', claudeArm.familyId === 'anthropic' && arms.filter(a => a.familyId === 'anthropic').length === 1 && !('arm' in claudeArm))
   t.check("the walk's sign-in-later row is structurally absent", !arms.some(a => (a.row.value as string) === 'later'))
 
   const facts = mixedFacts()
   t.check('a signed-in arm wears its slot identity', loginsRowStateOf(claudeArm, facts).chip === 'op@example.com' && loginsRowStateOf(claudeArm, facts).signedIn === true)
-  t.check('the key arm of a subscription-signed family stays honestly absent', loginsRowStateOf(consoleArm, facts).chip === 'not signed in' && loginsRowStateOf(consoleArm, facts).signedIn === false)
+  t.check('the Anthropic row lists the empty key slot beside the signed-in subscription in its detail, honestly absent', loginsDetailLines(claudeArm, facts).some(line => line.startsWith('· claude.ai sign-in — op@example.com')) && loginsDetailLines(claudeArm, facts).some(line => line.startsWith('· API key — present · not signed in')))
   t.check('absence is a DEFAULT tone, never loud', loginsRowStateOf(geminiArm, facts).loud === false)
   const kimi = arms.find(a => a.row.value === 'moonshot')!
   t.check('a reached window is LOUD on the chip', loginsRowStateOf(kimi, facts).chip.endsWith('· window reached') && loginsRowStateOf(kimi, facts).loud === true)
@@ -524,9 +523,9 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the expired pane carries the typed blocker VERBATIM', loginsDetailLines(claudeArm, expired).join('\n').includes('the claude.ai sign-in has expired —\n/logins re-authenticates it'))
 
   const sorted = loginsSortedArms(facts)
-  t.check('signed-in rows float first, catalogue order within each class', sorted.map(a => a.row.value).join(',') === 'openai,claudeai,huggingface,moonshot,console,openrouter,gemini,zai,deepseek,xai,meta,mistral,nous,minimax,together,cohere,groq,cerebras,fireworks,qwen,zen')
+  t.check('signed-in rows float first, catalogue order within each class', sorted.map(a => a.row.value).join(',') === 'openai,anthropic,huggingface,moonshot,openrouter,gemini,zai,deepseek,xai,meta,mistral,nous,minimax,together,cohere,groq,cerebras,fireworks,qwen,zen')
   const entry = loginsEntryOf(claudeArm, facts)
-  t.check('an entry groups under its state class with the owner’s row label', entry.group === 'signed in' && entry.label === 'Claude subscription account' && entry.valueLabel === 'op@example.com')
+  t.check('an entry groups under its state class with the owner’s row label (clamped to the entry width)', entry.group === 'signed in' && entry.label === 'Anthropic — Claude subscription or Cons…' && entry.valueLabel === 'op@example.com')
 
   t.check('the summary counts distinct families (20), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=20', 'Signed in=4 of 20', 'Ready=4 lanes']))
   t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 20 families signed in · 4 ready')
@@ -564,7 +563,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
-  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 20', 'xAI — Grok subscription sign-in or API …', 'Meta — Muse Code sign-in or API key', 'Mistral — API key (Mistral Large 4)', 'Nous Portal — account sign-in or API ke…', 'MiniMax — API key or M Plan key (M3, M2…', 'Together AI — API key (the gateway\'s ch…', 'Cohere — API key (Command A+, North)', 'Groq — API key (text models)', 'Cerebras — API key (text models)', 'Fireworks — API key (text models)', 'Qwen — Model Studio API key (Qwen3.8 Ma…', 'OpenCode Zen — API key (one key, the ga…'].every(s => wide.includes(s)))
+  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 20', 'xAI — Grok subscription sign-in or API …', 'Meta — Muse Code sign-in or API key', 'Mistral — API key (Mistral Large 4)', 'Nous Portal — account sign-in or API ke…', 'MiniMax — API key or M Plan key (M3, M2…', 'Together AI — API key (the gateway\'s ch…', 'Cohere — API key (Command A+, North)', 'Groq — API key (text models)', 'Cerebras — API key (text models)', 'Fireworks — API key (text models)', 'Qwen — QwenCloud or Model Studio API ke…', 'OpenCode Zen — API key (one key, the ga…'].every(s => wide.includes(s)))
   const floor = composeLogins(64, 12, { sel: 0 }).join('\n')
   t.check('the 64×12 floor frame WARNS and keeps the way out', floor.includes('wants at least') && floor.includes('esc back'))
 
@@ -597,7 +596,7 @@ t.section('§5 — THE REAL MOUNT (staticRender with injected facts; the route c
   const routeHits = routeTokens.filter(tok => screenSrc.includes(tok))
   t.check('the logins layer module never touches the surface-route bridge', routeHits.length === 0, routeHits.join(','))
   t.check('the module imports the row owner and the two truth owners', screenSrc.includes("from './loginFamilyRows.js'") && screenSrc.includes('deriveFamilySlotGroups') && screenSrc.includes('resolveProviderUsability'))
-  t.check('no second enumeration: the module never spells a family list literal', !/'anthropic',\s*'openai'/.test(screenSrc) && !screenSrc.includes("['claudeai'"))
+  t.check('no second enumeration: the module never spells a family list literal', !/'anthropic',\s*'openai'/.test(screenSrc) && !screenSrc.includes("['anthropic'"))
   t.check('the layer needs no notification queue and no AppState provider', !screenSrc.includes('context/notifications') && !screenSrc.includes('useAppState('))
 }
 
@@ -680,25 +679,30 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   const { keyPasteGuardNote } = await import('../../src/components/mercury-ui/screens/keyPasteGuards.js')
   const { zaiPlanLabel } = await import('../../src/services/providers/zai/zaiLogin.js')
 
-  t.check('↵ is live on EVERY catalogue row (the set closed at A6b)', ['claudeai', 'console', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'moonshot', 'huggingface', 'openai', 'openrouter', 'gemini'].every(v => loginsFlowReady(v as never)))
+  t.check('↵ is live on EVERY catalogue row (the set closed at A6b)', ['anthropic', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'moonshot', 'huggingface', 'openai', 'openrouter', 'gemini'].every(v => loginsFlowReady(v as never)))
 
-  const { openaiArmPickRows } = await import('../../src/components/loginFamilyRows.js')
+  const { anthropicArmPickRows, openaiArmPickRows } = await import('../../src/components/loginFamilyRows.js')
   t.check('the openai pick is the row owner\'s two-arm pair, byte-same labels', JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(openaiArmPickRows.map(o => o.label)) && JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(['ChatGPT subscription — browser sign-in', 'OpenAI API key — paste one (stored locally, mode 600)']))
+  t.check('the anthropic pick is the row owner\'s two-arm pair, byte-same labels, the roads in their values', JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify(anthropicArmPickRows) && JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify([{ label: 'Claude subscription — browser sign-in', value: 'claudeai' }, { label: 'Usage-based billing — Anthropic Console sign-in or API key', value: 'console' }]))
   const consoleFlowSrc = read('src/components/ConsoleOAuthFlow.tsx')
   t.check(
-    'the in-chat pick renders the row owner by construction (ConsoleOAuthFlow spreads openaiArmPickRows; walk + card mount it)',
+    'the in-chat pick renders the row owner by construction (ConsoleOAuthFlow spreads openaiArmPickRows and anthropicArmPickRows; walk + card mount it)',
     consoleFlowSrc.includes('options={[...openaiArmPickRows]}') &&
+      consoleFlowSrc.includes('options={[...anthropicArmPickRows]}') &&
       read('src/components/Onboarding.tsx').includes('ConsoleOAuthFlow') &&
       read('src/commands/login/login.tsx').includes('ConsoleOAuthFlow'),
   )
   t.check(
-    'no render site spells an arm label by hand (the pair lives ONLY in the row owner)',
+    'no render site spells an arm label by hand (the pairs live ONLY in the row owner)',
     !consoleFlowSrc.includes('ChatGPT subscription — browser sign-in') &&
+      !consoleFlowSrc.includes('Claude subscription — browser sign-in') &&
       !read('src/components/BootLoginsScreen.tsx').includes('ChatGPT subscription — browser sign-in') &&
-      read('src/components/loginFamilyRows.ts').includes("{ label: 'ChatGPT subscription — browser sign-in', value: 'subscription' }"),
+      !read('src/components/BootLoginsScreen.tsx').includes('Claude subscription — browser sign-in') &&
+      read('src/components/loginFamilyRows.ts').includes("{ label: 'ChatGPT subscription — browser sign-in', value: 'subscription' }") &&
+      read('src/components/loginFamilyRows.ts').includes("{ label: 'Claude subscription — browser sign-in', value: 'claudeai' }"),
   )
   t.check('the zai pick is the landed plan question, byte-same labels', JSON.stringify(loginsPickOptions('zai').map(o => o.label)) === JSON.stringify(['GLM Coding Plan key — api.z.ai/api/coding/paas/v4', 'Z.AI API key (general, pay-as-you-go) — api.z.ai/api/paas/v4']))
-  t.check('the pick panes explain and name the way out', loginsPickPaneLines('openai').join(' ').includes('One OpenAI family, two credentials') && loginsPickPaneLines('zai').join(' ').includes('the answer picks the base') && [loginsPickPaneLines('openai'), loginsPickPaneLines('zai')].every(l => l[l.length - 1] === 'esc — back to the roster'))
+  t.check('the pick panes explain and name the way out', loginsPickPaneLines('anthropic').join(' ').includes('One Anthropic family, two credentials') && loginsPickPaneLines('openai').join(' ').includes('One OpenAI family, two credentials') && loginsPickPaneLines('zai').join(' ').includes('the answer picks the base') && [loginsPickPaneLines('anthropic'), loginsPickPaneLines('openai'), loginsPickPaneLines('zai')].every(l => l[l.length - 1] === 'esc — back to the roster'))
 
   t.check('the guard refuses an sk-ant key with the landed sentence (zai form)', keyPasteGuardNote('sk-ant-abc123', keyLegGuardOpts('zai-coding')) === `That is an Anthropic API key (sk-ant-…) — this step stores a ${zaiPlanLabel('coding')}.`)
   t.check('the guard refuses whitespace with the landed sentence', keyPasteGuardNote('two words', keyLegGuardOpts('deepseek')) === 'That does not look like an API key (it contains whitespace).')
@@ -728,7 +732,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   t.check("a receipt whose door a picker's row opened names the picker as the way out; a refused key still returns to the roster; the face's own door keeps its line", receiptPaneLines('r', true, true).at(-1) === '↵ done — back to the picker' && receiptPaneLines('r', false, true).at(-1) === '↵ done — the roster refreshes' && receiptPaneLines('r', true).at(-1) === '↵ done — the roster refreshes' && loginsFlowPaneLines({ kind: 'receipt', receipt: 'r', ok: true, backToPicker: true }).at(-1) === '↵ done — back to the picker' && loginsFlowPaneLines({ kind: 'receipt', receipt: 'r', ok: true }).at(-1) === '↵ done — the roster refreshes')
   t.check("the receipt status names the picker exactly when a picker's row opened the door; a refused key and the face's own door keep the roster", loginsFlowStatusOf({ kind: 'receipt', receipt: 'r', ok: true, backToPicker: true }) === 'connected — ↵ returns to the picker' && loginsFlowStatusOf({ kind: 'receipt', receipt: 'r', ok: false, backToPicker: true }) === 'not connected — ↵ returns to the roster' && loginsFlowStatusOf({ kind: 'receipt', receipt: 'r', ok: true }) === 'connected — ↵ returns to the roster' && loginsFlowStatusOf({ kind: 'anthropic', snap: { flow: { name: 'success' }, pastePromptUp: false, copied: false, shadowWarning: null, accountLabel: null } as never, draftLen: 0, backToPicker: true }) === 'signed in — ↵ returns to the picker')
 
-  t.check('the pick/key/receipt legends name only the moves that exist', loginsFlowLegendOf({ kind: 'pick', pick: 'console', pickSel: 0 }) === '↑↓ move · ↵ pick · esc back' && loginsFlowLegendOf({ kind: 'key', leg: 'deepseek', note: null, draftLen: 0, storing: false }) === '↵ store key · esc back' && loginsFlowLegendOf({ kind: 'key', leg: 'deepseek', note: null, draftLen: 0, storing: true }) === 'checking…' && loginsFlowLegendOf({ kind: 'receipt', receipt: 'r', ok: true }) === '↵ done')
+  t.check('the pick/key/receipt legends name only the moves that exist', loginsFlowLegendOf({ kind: 'pick', pick: 'anthropic', pickSel: 0 }) === '↑↓ move · ↵ pick · esc back' && loginsFlowStatusOf({ kind: 'pick', pick: 'anthropic', pickSel: 0 }) === 'Anthropic — subscription or usage-based billing' && loginsFlowLegendOf({ kind: 'key', leg: 'deepseek', note: null, draftLen: 0, storing: false }) === '↵ store key · esc back' && loginsFlowLegendOf({ kind: 'key', leg: 'deepseek', note: null, draftLen: 0, storing: true }) === 'checking…' && loginsFlowLegendOf({ kind: 'receipt', receipt: 'r', ok: true }) === '↵ done')
   t.check('the status words track the sub-view', loginsFlowStatusOf({ kind: 'pick', pick: 'zai', pickSel: 0 }) === 'which Z.AI key is this?' && loginsFlowStatusOf({ kind: 'receipt', receipt: 'r', ok: false }) === 'not connected — ↵ returns to the roster')
 
   const src = read('src/components/BootLoginsScreen.tsx')

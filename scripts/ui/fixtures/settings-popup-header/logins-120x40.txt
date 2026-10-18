@@ -13,9 +13,8 @@ FILES · orchard         │ │ Use a Claude or OpenAI subscription, usage-base
                         │ │ Portal, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks, Qwen or OpenCode Zen.   │ │
 VITALS                  │ │                                                                                          │ │
   · spend —             │ │   OpenAI — ChatGPT subscription or API key                                               │ │
-  · ctx — · —           │ │ ❯ Claude subscription account                                                            │ │
-  · health — run /health│ │   Usage-based billing — Anthropic Console sign-in or API key                             │ │
-                        │ │     ANTHROPIC_API_KEY (env) ……                                                           │ │
+  · ctx — · —           │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key                           │ │
+  · health — run /health│ │     ANTHROPIC_API_KEY (env) ……                                                           │ │
                         │ │   OpenRouter — one credential, the whole catalogue (OAuth or key)                        │ │
                         │ │   Google Gemini — Google sign-in, API key                                                │ │
                         │ │   Hugging Face — device-code sign-in or a Hub token (open models)                        │ │
@@ -28,6 +27,7 @@ VITALS                  │ │                                                 
                         │ │   Nous Portal — account sign-in or API key (model gateway)                               │ │
                         │ │   MiniMax — API key or M Plan key (M3, M2.7)                                             │ │
                         │ │   Together AI — API key (the gateway's chat models)                                      │ │
+                        │ │   Cohere — API key (Command A+, North)                                                   │ │
                         │ │                                                                                          │ │
                         │ │ esc or click outside closes                                                              │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

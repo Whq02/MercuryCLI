@@ -98,13 +98,12 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
     case 'anthropic':
     case 'claude':
     case 'claudeai':
-      return 'claudeai'
+    case 'console':
+      return 'anthropic'
     case 'openai':
     case 'chatgpt':
     case 'gpt':
       return 'openai'
-    case 'console':
-      return 'console'
     case 'openrouter':
       return 'openrouter'
     case 'gemini':

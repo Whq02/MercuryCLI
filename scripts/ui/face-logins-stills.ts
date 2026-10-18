@@ -177,16 +177,16 @@ const FLOW_SUCCESS_SNAP: AnthropicLoginSnapshot = {
 }
 
 export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
-  { id: 'logins-120x40-key-gemini', compose: () => composeLogins(120, 40, { sel: 6, flow: { kind: 'key', leg: 'gemini-key', note: null, draftLen: 0, storing: false, opened: 'opened' } }) },
-  { id: 'logins-120x40-pick-xai', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'pick', pick: 'xai', pickSel: 0 } }) },
-  { id: 'logins-80x24-pick-xai', compose: () => composeLogins(80, 24, { sel: 9, flow: { kind: 'pick', pick: 'xai', pickSel: 0 } }) },
-  { id: 'logins-120x40-device-xai', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'device', nowMs: 0, device: { family: 'xai', phase: 'waiting', userCode: 'GROK-TEST', verificationUri: 'https://accounts.x.ai/device', expiresAtMs: 300000, polls: 1, copied: false } } }) },
-  { id: 'logins-120x40-key-xai', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'key', leg: 'xai', note: null, draftLen: 0, storing: false } }) },
-  { id: 'logins-120x40-key-xai-management', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'key', leg: 'xai-management', note: null, draftLen: 0, storing: false } }) },
-  { id: 'logins-80x24-key-xai-management', compose: () => composeLogins(80, 24, { sel: 9, flow: { kind: 'key', leg: 'xai-management', note: null, draftLen: 0, storing: false } }) },
-  { id: 'logins-120x40-key-mistral', compose: () => composeLogins(120, 40, { sel: 11, flow: { kind: 'key', leg: 'mistral', note: null, draftLen: 0, storing: false } }) },
-  { id: 'logins-120x40-key-mistral-admin', compose: () => composeLogins(120, 40, { sel: 11, flow: { kind: 'key', leg: 'mistral-admin', note: null, draftLen: 0, storing: false } }) },
-  { id: 'logins-80x24-key-mistral-admin', compose: () => composeLogins(80, 24, { sel: 11, flow: { kind: 'key', leg: 'mistral-admin', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-120x40-key-gemini', compose: () => composeLogins(120, 40, { sel: 5, flow: { kind: 'key', leg: 'gemini-key', note: null, draftLen: 0, storing: false, opened: 'opened' } }) },
+  { id: 'logins-120x40-pick-xai', compose: () => composeLogins(120, 40, { sel: 8, flow: { kind: 'pick', pick: 'xai', pickSel: 0 } }) },
+  { id: 'logins-80x24-pick-xai', compose: () => composeLogins(80, 24, { sel: 8, flow: { kind: 'pick', pick: 'xai', pickSel: 0 } }) },
+  { id: 'logins-120x40-device-xai', compose: () => composeLogins(120, 40, { sel: 8, flow: { kind: 'device', nowMs: 0, device: { family: 'xai', phase: 'waiting', userCode: 'GROK-TEST', verificationUri: 'https://accounts.x.ai/device', expiresAtMs: 300000, polls: 1, copied: false } } }) },
+  { id: 'logins-120x40-key-xai', compose: () => composeLogins(120, 40, { sel: 8, flow: { kind: 'key', leg: 'xai', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-120x40-key-xai-management', compose: () => composeLogins(120, 40, { sel: 8, flow: { kind: 'key', leg: 'xai-management', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-80x24-key-xai-management', compose: () => composeLogins(80, 24, { sel: 8, flow: { kind: 'key', leg: 'xai-management', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-120x40-key-mistral', compose: () => composeLogins(120, 40, { sel: 10, flow: { kind: 'key', leg: 'mistral', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-120x40-key-mistral-admin', compose: () => composeLogins(120, 40, { sel: 10, flow: { kind: 'key', leg: 'mistral-admin', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-80x24-key-mistral-admin', compose: () => composeLogins(80, 24, { sel: 10, flow: { kind: 'key', leg: 'mistral-admin', note: null, draftLen: 0, storing: false } }) },
   { id: 'logins-120x40', compose: () => composeLogins(120, 40, { sel: 0 }) },
   { id: 'logins-80x24', compose: () => composeLogins(80, 24, { sel: 0 }) },
   { id: 'logins-64x12', compose: () => composeLogins(64, 12, { sel: 0 }) },
@@ -196,11 +196,12 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
   { id: 'logins-120x40-flow-waiting', compose: () => composeLogins(120, 40, { sel: 1, flow: { kind: 'anthropic', snap: FLOW_WAITING_SNAP, draftLen: 6 } }) },
   { id: 'logins-120x40-flow-success', compose: () => composeLogins(120, 40, { sel: 1, flow: { kind: 'anthropic', snap: FLOW_SUCCESS_SNAP, draftLen: 0 } }) },
   { id: 'logins-120x40-pick-openai', compose: () => composeLogins(120, 40, { sel: 0, flow: { kind: 'pick', pick: 'openai', pickSel: 0 } }) },
+  { id: 'logins-120x40-pick-anthropic', compose: () => composeLogins(120, 40, { sel: 1, flow: { kind: 'pick', pick: 'anthropic', pickSel: 0 } }) },
   {
     id: 'logins-120x40-key-note',
     compose: () =>
       composeLogins(120, 40, {
-        sel: 4,
+        sel: 6,
         flow: {
           kind: 'key',
           leg: 'zai-coding',
@@ -248,7 +249,7 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
     id: 'logins-120x40-client-secret',
     compose: () =>
       composeLogins(120, 40, {
-        sel: 6,
+        sel: 5,
         flow: {
           kind: 'client',
           client: { step: 5, from: 'walk', field: 'secret', clientId: 'my-client.apps.example', note: null },
@@ -261,7 +262,7 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
     id: 'logins-120x40-guide-step3',
     compose: () =>
       composeLogins(120, 40, {
-        sel: 6,
+        sel: 5,
         flow: {
           kind: 'client',
           client: { step: 3, from: 'walk', field: 'id', clientId: '', note: null, opened: 'opened' },
@@ -274,7 +275,7 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
     id: 'logins-120x40-receipt',
     compose: () =>
       composeLogins(120, 40, {
-        sel: 4,
+        sel: 6,
         flow: {
           kind: 'receipt',
           receipt:
