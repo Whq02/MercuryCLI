@@ -17,7 +17,7 @@ import {
   formatDirectoryList,
   type FileOperationType,
 } from '../../utils/permissions/pathValidation.js'
-import { allWorkingDirectories, envFileNameInGlob, envFileReadAsk, isProjectEnvFileName, matchingRulesForInput, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
+import { allWorkingDirectories, envFileReadAsk, envFileTargetsInGlob, isProjectEnvFileName, matchingRulesForInput, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -193,8 +193,7 @@ function extractFindOperands(args: string[]): string[] {
 }
 
 function envFileNameFilter(value: string | undefined, operands: string[]): void {
-  const name = value === undefined ? null : envFileNameInGlob(value)
-  if (name !== null) operands.push(name)
+  if (value !== undefined) operands.push(...envFileTargetsInGlob(value))
 }
 
 function extractPatternCommand(
