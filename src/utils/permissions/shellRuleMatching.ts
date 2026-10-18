@@ -8,6 +8,7 @@ const COMMAND_PREFIX_ARITY: Readonly<Record<string, number>> = {
   'docker compose': 3, 'docker container': 3, 'docker image': 3,
   'gh pr': 3, 'gh issue': 3, 'gh repo': 3, 'gh release': 3, 'gh run': 3,
   aws: 3, az: 3, gcloud: 3, 'gcloud compute instances': 4,
+  vssadmin: 2, wbadmin: 2, reg: 2, sc: 2, bcdedit: 2,
 }
 const UNSCOPED_EXECUTORS = new Set(['sh', 'bash', 'zsh', 'fish', 'csh', 'tcsh', 'ksh', 'dash', 'cmd', 'powershell', 'pwsh', 'env', 'xargs', 'nice', 'stdbuf', 'nohup', 'timeout', 'time', 'sudo', 'doas', 'pkexec'])
 
