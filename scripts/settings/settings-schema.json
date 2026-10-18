@@ -650,6 +650,13 @@
             "type": "string"
           }
         },
+        "disabledProviders": {
+          "description": "Provider families switched off: their rows leave the model picker and mercury://models, their bare words stop resolving, their stored keys remain untouched, and a session already on a disabled family keeps running",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "backups": {
           "description": "The backup engines, in order: when the engine in use cannot answer a turn (its provider overloaded past the retry ladder, unreachable, refusing the sign-in after a refresh, or not serving the model), the turn hops to the first backup, then the next; a --backup-model heads the list; each engine is tried once per turn, and with no list nothing changes",
           "type": "array",

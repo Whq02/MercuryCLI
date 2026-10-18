@@ -1070,6 +1070,11 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
         require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
       return modalitiesAdmitImages(nousListedModel(model)?.inputModalities)
     }
+    case 'openai': {
+      const { liveGptInputModalities } =
+        require('../../services/providers/openai/openaiCatalogue.js') as typeof import('../../services/providers/openai/openaiCatalogue.js')
+      return modalitiesAdmitImages(liveGptInputModalities(normalizeForEnginePins(model)))
+    }
     case 'gemini': {
       const { geminiListedModel } =
         require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
@@ -1182,14 +1187,24 @@ export function modelSupportsThinking(model: string): boolean {
 
 export function modelReceivesImageBlocks(model: string): boolean {
   const base = baseModelReceivesImageBlocks(model)
-  const stated = operatorModelFacts(model)?.images
-  return stated === undefined ? base : stated || (modelHasRecordedFacts(model) && base)
+  const routeVerdict = classifyModelRoute(model)
+  const recordedImages =
+    routeVerdict.kind === 'route' && routeVerdict.route === 'openai'
+      ? (() => {
+          const { liveGptInputModalities } =
+            require('../../services/providers/openai/openaiCatalogue.js') as typeof import('../../services/providers/openai/openaiCatalogue.js')
+          const mods = liveGptInputModalities(normalizeForEnginePins(model))
+          return mods !== undefined ? mods.includes('image') : undefined
+        })()
+      : undefined
+  const stated = operatorModelFacts(model, ...(recordedImages !== undefined ? [{ images: recordedImages }] : []))?.images
+  return stated === undefined ? base : stated || ((modelHasRecordedFacts(model) || recordedImages === true) && base)
 }
 
 export function effortVocabularyFor(model: string): EffortVocabularyView {
   const base = baseEffortVocabularyFor(model)
   const stated = operatorModelFacts(model)?.efforts
-  if (stated === undefined) return base
+  if (stated === undefined || (base.kind === 'provider' && base.source === 'gpt-live')) return base
   const floor = modelHasRecordedFacts(model) ? ('vocabulary' in base ? base.vocabulary : base.kind === 'offered' ? EFFORT_LEVELS : []) : []
   const vocabulary = [...new Set([...floor, ...stated])]
   return { kind: 'provider', source: 'operator', vocabulary, thinkingGated: base.kind === 'provider' && base.thinkingGated,
@@ -1198,7 +1213,7 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
 
 export function resolveContextWindow(model: string, betas?: string[], requestedMode: ContextRequestedMode = 'default'): ContextResolution {
   const base = baseResolveContextWindow(model, betas, requestedMode)
-  const stated = operatorModelFacts(model)?.contextWindow
+  const stated = operatorModelFacts(model, base.source === 'live-current' ? { contextWindow: base.effectiveWindow } : {})?.contextWindow
   if (stated === undefined) return base
   const floor = modelHasRecordedFacts(model) || base.source === 'live-current' ? base.effectiveWindow : 0
   return { ...base, effectiveWindow: Math.max(stated, floor), source: 'operator', pinAwaitingLive: false, fallbackReason: undefined }

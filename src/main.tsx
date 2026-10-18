@@ -708,29 +708,41 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       await setupTokenHandler(await createRoot())
     })
   auth
-    .command('login')
-    .description('Sign in')
+    .command('login [family]')
+    .description('Sign in to Anthropic or a named provider family')
     .option('--email <email>', 'Account email')
     .option('--sso', 'Use SSO')
     .option('--console', 'Sign in with an Anthropic Console (API) account; the default is the subscription sign-in')
-    .action(async options => {
-      const { authLogin } = await import('./cli/handlers/auth.js')
-      await authLogin(options)
+    .option('--key <key>', 'API key or token')
+    .option('--device', 'Use device-code sign-in where offered')
+    .option('--coding', 'Store as a GLM Coding Plan key')
+    .option('--region <region>', 'Kimi region: global or mainland-cn')
+    .action(async (family, options) => {
+      const { providerAuthLogin } = await import('./cli/handlers/providerAuth.js')
+      await providerAuthLogin(family, options, { exit: code => process.exit(code) })
     })
   auth
-    .command('status')
+    .command('list')
+    .description('List provider families and their sign-in state')
+    .option('--json', 'JSON output')
+    .action(async options => {
+      const { providerAuthList } = await import('./cli/handlers/providerAuth.js')
+      await providerAuthList(options, { exit: code => process.exit(code) })
+    })
+  auth
+    .command('status [family]')
     .description('Show authentication status')
     .option('--json', 'JSON output (the default when stdout is not a terminal)')
-    .action(async options => {
-      const { authStatus } = await import('./cli/handlers/auth.js')
-      await authStatus(options)
+    .action(async (family, options) => {
+      const { providerAuthStatus } = await import('./cli/handlers/providerAuth.js')
+      await providerAuthStatus(family, options, { exit: code => process.exit(code) })
     })
   auth
-    .command('logout')
+    .command('logout [family]')
     .description('Sign out')
-    .action(async () => {
-      const { authLogout } = await import('./cli/handlers/auth.js')
-      await authLogout()
+    .action(async family => {
+      const { providerAuthLogout } = await import('./cli/handlers/providerAuth.js')
+      await providerAuthLogout(family, { exit: code => process.exit(code) })
     })
 
   const extensions = program.command('extensions').description('Install extensions and manage their sources').helpCommand('help [command]', 'Show help for a command')
@@ -862,6 +874,16 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .action(async (name, options) => {
       const { initVerb } = await import('./extensions/cli.js')
       process.exitCode = (await initVerb(name, options)).exit
+    })
+
+  program
+    .command('models')
+    .description('Print the models the signed-in accounts reach (the mercury://models reference)')
+    .option('--json', 'JSON output')
+    .action(async options => {
+      const { modelsCli } = await import('./cli/handlers/models.js')
+      await modelsCli({ json: options.json === true })
+      process.exit(0)
     })
 
   program

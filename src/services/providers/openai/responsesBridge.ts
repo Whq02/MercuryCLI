@@ -317,6 +317,7 @@ interface BuildOpenaiRequestInput {
   nativeWebSearch?: NativeWebSearchRequest
   deferredToolNames?: ReadonlySet<string>
   toolSearch?: boolean
+  maxOutputTokens?: number
 }
 
 function webSearchToolFor(request: NativeWebSearchRequest): OpenaiWebSearchTool {
@@ -354,6 +355,7 @@ export function buildOpenaiResponsesRequest(
     store: false,
     stream: true,
     include: ['reasoning.encrypted_content'],
+    ...(i.maxOutputTokens !== undefined ? { max_output_tokens: i.maxOutputTokens } : {}),
     ...(i.promptCacheKey ? { prompt_cache_key: i.promptCacheKey } : {}),
     ...(i.outputFormat
       ? {

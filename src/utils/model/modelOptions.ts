@@ -30,7 +30,10 @@ import {
 import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../../services/providers/local/localCatalogue.js'
 import { kickMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { kickDeepseekCatalogue } from '../../services/providers/deepseek/deepseekCatalogue.js'
-import { modelSupports1M } from './capabilities.js'
+import { getContextWindowForModel, modelSupports1M } from './capabilities.js'
+import { operatorModelFacts } from './modelOverrides.js'
+import { isProviderDisabled } from '../../services/providers/disabledProviders.js'
+import { declaredRouteOf } from '../../services/providers/routeLaw.js'
 import {
   getBestModel,
   getCanonicalName,
@@ -353,7 +356,35 @@ export function isProviderActionRow(value: string): boolean {
   )
 }
 
+function providerOfModelOption(opt: ModelOption): string | undefined {
+  const action = signInFamilyOfRow(opt.value)
+  if (action !== undefined) return action.startsWith('compat/') ? 'openai-compat' : action
+  if (opt.value === `${KEY_CONNECT_PREFIX}compat`) return 'openai-compat'
+  const expand = /^__mercury_([a-z0-9-]+)_expand__$/.exec(opt.value)?.[1]
+  if (expand !== undefined) return expand
+  if (opt.group === ANTHROPIC_MODEL_GROUP || (opt.group === undefined && !isSentinelValue(opt.value))) return 'anthropic'
+  if (opt.group === OPENAI_MODEL_GROUP) return 'openai'
+  if (opt.group === ZAI_MODEL_GROUP) return 'zai'
+  if (opt.group === MOONSHOT_MODEL_GROUP) return 'moonshot'
+  if (opt.group === DEEPSEEK_MODEL_GROUP) return 'deepseek'
+  if (opt.group === XAI_MODEL_GROUP) return 'xai'
+  if (opt.group === META_MODEL_GROUP) return 'meta'
+  if (opt.group === MISTRAL_MODEL_GROUP) return 'mistral'
+  if (opt.group === COMPAT_MODEL_GROUP || opt.group?.startsWith('Custom endpoint · ')) return 'openai-compat'
+  if (opt.group === ZEN_MODEL_GROUP) return 'zen'
+  if (opt.group === MINIMAX_MODEL_GROUP) return 'minimax'
+  if (opt.group === TOGETHER_MODEL_GROUP) return 'together'
+  if (opt.group === COHERE_MODEL_GROUP) return 'cohere'
+  if (opt.group === OPENROUTER_MODEL_GROUP) return 'openrouter'
+  if (opt.group === GEMINI_MODEL_GROUP) return 'gemini'
+  if (opt.group === HUGGINGFACE_MODEL_GROUP) return 'huggingface'
+  if (opt.group === LOCAL_MODEL_GROUP) return 'local'
+  if (opt.group === NOUS_MODEL_GROUP) return 'nous'
+  return declaredRouteOf(stripContext1m(opt.value)) ?? undefined
+}
+
 export function applyModelAllowlist(options: ModelOption[]): ModelOption[] {
+  options = options.filter(opt => !isProviderDisabled(providerOfModelOption(opt)))
   if (getInitialSettings().engine?.roster === undefined) return options
   return options.filter(opt => {
     if (isProviderActionRow(opt.value)) return true
@@ -957,7 +988,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
 
   options = applyModelAllowlist(options)
 
-  if (!(reads.anthropicCredentialed ?? liveAnthropicCredentialed)()) {
+  if (!isProviderDisabled('anthropic') && !(reads.anthropicCredentialed ?? liveAnthropicCredentialed)()) {
     const reason = anthropicNotSignedInReason()
     options = options.map(opt =>
       opt.group === undefined && !isSentinelValue(opt.value)
@@ -1003,7 +1034,11 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
       options.filter(o => sectionRank(o) === 0),
     )
 
-  return options
+  return options.map(opt =>
+    !isProviderActionRow(opt.value) && !isSentinelValue(opt.value) && operatorModelFacts(opt.value)?.contextWindow !== undefined
+      ? { ...opt, statedContextWindow: getContextWindowForModel(opt.value) }
+      : opt,
+  )
 }
 
 

@@ -6,6 +6,8 @@ import { asSystemPrompt } from '../systemPromptType.js'
 import { createUserMessage } from '../messages.js'
 import { isModelAlias } from './aliases.js'
 import { isModelAllowed } from './modelAllowlist.js'
+import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
+import { routeOfFamilyWord } from './modelFamilies.js'
 
 type ValidateModelResult = { valid: boolean; error?: string }
 
@@ -336,6 +338,11 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
   const trimmed = model.trim()
   if (trimmed === '') {
     return { valid: false, error: 'Model name cannot be empty' }
+  }
+  const lowered = trimmed.toLowerCase()
+  const rawRoute = routeOfFamilyWord(lowered)
+  if ((rawRoute && isProviderDisabled(rawRoute)) || isModelFromDisabledProvider(trimmed)) {
+    return { valid: false, error: `Model not found — ${trimmed}` }
   }
   if (!isModelAllowed(trimmed)) {
     return { valid: false, error: `Model "${trimmed}" is not in the list of available models` }

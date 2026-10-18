@@ -412,6 +412,10 @@ export function liveGptContextCeiling(modelId: string): number | undefined {
   return maxContextWindow
 }
 
+export function liveGptInputModalities(modelId: string): readonly string[] | undefined {
+  return liveGptModel(modelId)?.inputModalities
+}
+
 function liveGptModel(modelId: string): OpenaiLiveModel | undefined {
   const canonicalId = liveGptCanonicalId(modelId)
   if (canonicalId === undefined) return undefined

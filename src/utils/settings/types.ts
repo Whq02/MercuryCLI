@@ -132,6 +132,7 @@ export const SettingsSchema = lazySchema(() => {
     engine: z.object({
       model: z.string().optional(),
       roster: z.array(z.string()).optional(),
+      disabledProviders: z.array(z.string()).optional().describe('Provider families switched off: their rows leave the model picker and mercury://models, their bare words stop resolving, their stored keys remain untouched, and a session already on a disabled family keeps running'),
       backups: z.array(z.string()).optional().describe('The backup engines, in order: when the engine in use cannot answer a turn (its provider overloaded past the retry ladder, unreachable, refusing the sign-in after a refresh, or not serving the model), the turn hops to the first backup, then the next; a --backup-model heads the list; each engine is tried once per turn, and with no list nothing changes'),
       pins: z.record(z.string(), z.string()).optional(),
       effort: z.enum(EFFORT_LEVELS).optional(),

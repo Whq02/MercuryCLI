@@ -111,6 +111,7 @@ export interface OpenaiResponsesRequest {
       strict?: boolean
     }
   }
+  max_output_tokens?: number
 }
 
 

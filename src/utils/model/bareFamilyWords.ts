@@ -1,3 +1,4 @@
+import { isProviderDisabled } from '../../services/providers/disabledProviders.js'
 import type { CallModelRoute } from '../../services/providers/idSpaces.js'
 
 export interface BareFamilyWordRow {
@@ -288,6 +289,7 @@ export const BARE_FAMILY_WORDS: readonly BareFamilyWord[] = [
 ]
 
 export function bareFamilyWordOfRoute(route: string): BareFamilyWord | undefined {
+  if (isProviderDisabled(route)) return undefined
   return BARE_FAMILY_WORDS.find(entry => entry.route === route)
 }
 
@@ -300,7 +302,9 @@ export function bareFamilyListWords(word: BareFamilyWord, providerName: string):
 
 export function bareFamilyWordOf(word: string): BareFamilyWord | undefined {
   const lowered = word.trim().toLowerCase()
-  return BARE_FAMILY_WORDS.find(entry => entry.word === lowered)
+  const entry = BARE_FAMILY_WORDS.find(item => item.word === lowered)
+  if (entry && isProviderDisabled(entry.route)) return undefined
+  return entry
 }
 
 export function isBareFamilyWord(word: string): boolean {

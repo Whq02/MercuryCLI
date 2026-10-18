@@ -40,6 +40,7 @@ import { bareFamilyListWords, bareFamilyWordOf, bareFamilyWordOfRoute, bareModel
 import { isModelAlias } from '../model/aliases.js'
 import { isModelFamilyWord, modelFamilyWords } from '../model/modelFamilies.js'
 import { canonicalWireModelId, classifyModelRoute, declaredRouteOf, providerDisplayName } from '../../services/providers/routeLaw.js'
+import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
 import { LIVE_LIST_FAMILIES, liveListedRouteOf, qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
 import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
 import { resolveGeminiAccount } from '../../services/providers/gemini/geminiAccounts.js'
@@ -56,7 +57,9 @@ export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok',
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
-  return typeof v === 'string' && (ENGINE_DISPATCH_MODELS as readonly string[]).includes(v)
+  if (typeof v !== 'string' || !(ENGINE_DISPATCH_MODELS as readonly string[]).includes(v)) return false
+  const route = v === 'gpt' ? 'openai' : v === 'glm' ? 'zai' : v === 'kimi' ? 'moonshot' : v === 'grok' ? 'xai' : v === 'muse' ? 'meta' : v === 'compat' ? 'openai-compat' : v
+  return !isProviderDisabled(route)
 }
 
 const OPENROUTER_MODEL_PREFIX = 'openrouter/'
@@ -77,6 +80,7 @@ function isGoogleRosterModelId(v: string): boolean {
 
 export function isExactEngineModelId(v: unknown): v is string {
   if (typeof v !== 'string') return false
+  if (isModelFromDisabledProvider(v)) return false
   return (
     liveListedRouteOf(v) !== undefined ||
     /^(gpt|glm|kimi|moonshot|deepseek|grok|muse|gemini|mistral|ministral|codestral|minimax|command|north|c4ai-aya)-/i.test(v.trim()) ||
@@ -125,9 +129,10 @@ export function unrecognisedModelWordRefusal(model: string | undefined): string 
   if (word === '') return null
   const lowered = word.toLowerCase()
   if (isEngineDispatchModel(lowered) || isExactEngineModelId(word)) return null
-  if (isModelFamilyWord(lowered) || isModelAlias(lowered)) return null
+  if (isModelFamilyWord(lowered) || (!isProviderDisabled('anthropic') && isModelAlias(lowered))) return null
   const parsed = parseUserSpecifiedModel(word)
-  if (classifyModelRoute(parsed).kind === 'route') return null
+  const routeVerdict = classifyModelRoute(parsed)
+  if (routeVerdict.kind === 'route' && !isProviderDisabled(routeVerdict.route)) return null
   return `model '${word}' names no model: no provider family declares it. Pass a family word (${modelFamilyWords().join(' · ')}), a first-party alias, an exact id of a listed row, or an engine id (${ENGINE_ID_SHAPES}). mercury://models lists the providers the operator is signed into and the models each reaches. ${MODEL_LOOKUP_LADDER}`
 }
 
