@@ -714,6 +714,36 @@ section('§12 output past the wire frame: a terminal that retains only what it w
   }
 }
 
+section('§13 an editor read that fails is reported to the model; the disk copy is never read in its place')
+{
+  const diskFile = join(projDir, 'failing-buffer.txt')
+  writeFileSync(diskFile, 'the stale disk copy\n')
+  const api = await startFixtureApi([
+    { kind: 'tool_use', name: 'Read', input: { file_path: diskFile }, preText: 'read while the editor fails' },
+    { kind: 'text', text: 'failing read done' },
+  ])
+  const server = spawnServer(api.url)
+  const h = connectClient(server, {
+    onReadTextFile: () => {
+      throw new acp.RequestError(-32603, 'the editor buffer is unavailable')
+    },
+  })
+  try {
+    await h.agent.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION, clientCapabilities: { fs: { readTextFile: true, writeTextFile: false }, terminal: false } })
+    const { sessionId } = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
+    const res = await h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'read failing' }] })
+    check('turn completes', res.stopReason === 'end_turn', j(res))
+    const results = toolResultStrings(h.updates)
+    check('the editor was asked for the buffer', h.fsReads.some(r => r.path === diskFile), j(h.fsReads))
+    check('the model is told the read failed and the disk copy is not returned', results.length > 0 && !results.some(r => r.includes('the stale disk copy')) && results.some(r => /unavailable|error/i.test(r)), j(results))
+    await h.agent.request('session/close', { sessionId }).catch(() => {})
+  } finally {
+    h.close()
+    server.kill('SIGKILL')
+    await api.close()
+  }
+}
+
 console.log('')
 if (failures > 0) {
   console.error(`❌ prove-acp-ide-routing: ${failures} failure(s)`)
