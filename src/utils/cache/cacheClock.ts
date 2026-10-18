@@ -17,6 +17,7 @@ import {
   type SimCacheState,
   type TtlChoice,
   CACHE_COST,
+  TTL_MS,
   classifyGap,
   decideInitialTtl,
   newSimCacheState,
@@ -32,6 +33,7 @@ const PRIOR_SCAN_LIMIT = 100
 interface ClockState {
   initialized: boolean
   decision: Decision | null
+  ineligible: string | null
   sessionsDir: string
   cls: CacheClockClass
   startedIso: string
@@ -53,6 +55,7 @@ function freshState(): ClockState {
   return {
     initialized: false,
     decision: null,
+    ineligible: null,
     sessionsDir: '',
     cls: 'interactive',
     startedIso: new Date().toISOString(),
@@ -209,19 +212,30 @@ function flushRollup(state: ClockState): void {
   }
 }
 
-function ensureLatch(eligible: boolean): ClockState {
+function decide(state: ClockState, eligible: boolean, ineligible: string | null): Decision | null {
+  const decision = decideInitialTtl({
+    enabled: true,
+    pin: resolvePin(),
+    eligible,
+    cls: state.cls,
+    prior: readPrior(state.sessionsDir),
+  })
+  state.decision = decision
+  state.ineligible = decision === null ? (eligible ? null : ineligible ?? 'the session is not eligible for the 1h tier') : null
+  return decision
+}
+
+function coldBoundary(lastCompletionAt: number | null, now: number): boolean {
+  return lastCompletionAt === null || now - lastCompletionAt > TTL_MS['5m']
+}
+
+function ensureLatch(eligible: boolean, ineligible: string | null): ClockState {
   if (clock === null) clock = freshState()
   if (!clock.initialized) {
     clock.initialized = true
     clock.sessionsDir = sessionsDir()
     clock.cls = resolveClass()
-    clock.decision = decideInitialTtl({
-      enabled: true,
-      pin: resolvePin(),
-      eligible,
-      cls: clock.cls,
-      prior: readPrior(clock.sessionsDir),
-    })
+    decide(clock, eligible, ineligible)
     reapOldRollups(clock.sessionsDir)
     if (!rollupTeardownRegistered) {
       rollupTeardownRegistered = true
@@ -260,12 +274,19 @@ function accountGap(
 
 export function cacheClockTtlDecision(args: {
   eligible: boolean
+  ineligible?: string
   lastCompletionAt: number | null
   now: number
 }): TtlChoice | null {
   try {
     if (!clockEnabled()) return null
-    const state = ensureLatch(args.eligible)
+    const state = ensureLatch(args.eligible, args.ineligible ?? null)
+    if (state.decision === null && state.ineligible !== null) {
+      if (args.eligible && coldBoundary(args.lastCompletionAt, args.now)) {
+        const engaged = decide(state, true, null)
+        if (engaged !== null) logForDebugging(`[cache-clock] engaged at a cold boundary: the session became eligible for the 1h tier (ttl ${engaged.ttl}, ${state.cls})`)
+      } else if (!args.eligible && args.ineligible !== undefined) state.ineligible = args.ineligible
+    }
     accountGap(state, args.lastCompletionAt, args.now)
     return state.decision === null ? null : state.decision.ttl
   } catch (e: unknown) {
@@ -325,15 +346,18 @@ export function cacheClockSnapshot(): {
   ttl: TtlChoice | null
   cls: CacheClockClass | null
   escalated: boolean
+  reason: string | null
 } {
-  if (!clockEnabled() || clock === null || !clock.initialized) {
-    return { engaged: false, ttl: null, cls: null, escalated: false }
+  if (!clockEnabled()) return { engaged: false, ttl: null, cls: null, escalated: false, reason: 'the clock is off (MERCURY_CACHE_CLOCK=0)' }
+  if (clock === null || !clock.initialized) {
+    return { engaged: false, ttl: null, cls: null, escalated: false, reason: 'no Anthropic request has gone out in this process' }
   }
   return {
     engaged: clock.decision !== null,
     ttl: clock.decision?.ttl ?? null,
     cls: clock.cls,
     escalated: clock.escalatedAtIso !== null,
+    reason: clock.decision !== null ? null : (clock.ineligible ?? 'the session is not eligible for the 1h tier'),
   }
 }
 

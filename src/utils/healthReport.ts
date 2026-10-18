@@ -1998,7 +1998,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             )
             const snap = cacheClockSnapshot()
             if (!snap.engaged) {
-              return { status: 'off', evidence: 'clock not engaged this session' }
+              return { status: 'off', evidence: `clock not engaged this session: ${snap.reason ?? 'the session is not eligible for the 1h tier'}` }
             }
             const c = getCacheClockFlushHealth()
             if (c.streak >= 3) {
