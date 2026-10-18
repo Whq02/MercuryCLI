@@ -72,10 +72,10 @@ try {
       const refusal = readSignInRefusal(row.family)
       check(`${row.family}: HTTP ${status} persists for the stored credential`, refusal?.status === status, JSON.stringify(refusal))
       const view = composeSignInView({ refresh: true })
-      check(`${row.family}: health view reads refused instead of usable`, view.families.find(f => f.family === row.family)?.usable === false && summarizeSignInView(view).includes(`refused (HTTP ${status})`))
+      check(`${row.family}: health view reads refused instead of usable`, view.families.find(f => f.family === row.family)?.usable === false && summarizeSignInView(view).includes(`refused (HTTP ${status}`))
       const facts = collectLoginsScreenFacts()
       const arm = loginsCatalogue().find(arm => arm.familyId === row.family)!
-      check(`${row.family}: logins carries the same timestamp`, !!refusal && loginsRowStateOf(arm, facts).chip.includes(new Date(refusal.at).toISOString()))
+      check(`${row.family}: logins carries the same timestamp`, !!refusal && loginsRowStateOf(arm, facts).chip.includes(new Date(refusal.at).toISOString().replace(/\.\d{3}Z$/, 'Z')))
       statuses.set(row.family, 200)
       const reply = await turn(row.model)
       check(`${row.family}: retry is sent and settles after refusal`, reply === 'OK', reply)

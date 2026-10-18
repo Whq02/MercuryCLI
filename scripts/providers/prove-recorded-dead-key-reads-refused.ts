@@ -20,7 +20,7 @@ const status: Record<'minted' | 'stored' | 'env', number> = { minted: 200, store
 const payload = { data: { label: 'fixture credits', usage: 12.5, limit: 50, limit_remaining: 37.5 } }
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
   const bearer = request.headers.get('authorization')
-  const source = bearer === `Bearer ${mintedKey}` ? 'minted' : bearer === `Bearer ${storedKey}` ? 'stored' : bearer === `Bearer ${envKey}` ? 'env' : undefined
+  const source = bearer === `Bearer ${mintedKey}` ? 'minted' : bearer === `Bearer ${storedKey}` || bearer === `Bearer ${storedKey}-fresh` ? 'stored' : bearer === `Bearer ${envKey}` ? 'env' : undefined
   const path = new URL(request.url).pathname
   if (request.method !== 'GET' || path !== '/key' || source === undefined) return new Response(null, { status: 404 })
   const code = status[source]
@@ -52,6 +52,10 @@ const slots = await import('../../src/services/providers/accountSlots.js')
 const family = { id: 'openrouter', available: true, credentialed: true, credentialLabel: 'OpenRouter fixture' }
 await stub('../../src/services/providers/providerUsage.js', { providerFamilyPresences: () => [family] })
 const logins = await import('../../src/components/BootLoginsScreen.js')
+const refusals = await import('../../src/utils/accounts/signInRefusal.js')
+const WORDS_401 = 'key refused (HTTP 401: API key expired) at '
+const RECONNECT = ' · /logins openrouter reconnects'
+const rowState = () => logins.loginsRowStateOf(logins.loginsCatalogue().find(row => row.familyId === 'openrouter')!, logins.collectLoginsScreenFacts())
 const seedMint = () => writeFileSync(accounts.openrouterAuthPathForDisplay(), JSON.stringify({ version: 1, minted: { key: mintedKey, mintedAtMs: 1, label: 'fixture mint' } }), { mode: 0o600 })
 const readSlots = () => slots.deriveFamilySlotGroups([]).find(group => group.family.id === 'openrouter')!.slots
 const slot = (id: string) => readSlots().find(entry => entry.id === id)
@@ -64,33 +68,41 @@ const check = (label: string, ok: boolean, detail = '') => {
 }
 const words = (entry: ReturnType<typeof slot>) => entry === undefined ? '(absent)' : `signedIn=${entry.signedIn} active=${entry.active} note=${entry.stateNote ?? '(none)'}`
 try {
-  console.log('§1 a stored key the key endpoint refused with 401 is present, not signed in')
+  console.log('§1 a stored key the key endpoint refused with 401 is present, signed in, and carries the refusal in the one composer\'s words')
   secrets.writeStoredOpenrouterApiKey(storedKey)
   status.stored = 401
   await refresh()
   const refusedStored = slot('openrouter:stored-key')
   console.log(`  stored slot: ${words(refusedStored)}`)
-  check('the slot still exists (the key is stored) and keeps the recorded refusal as its note', refusedStored !== undefined && refusedStored.stateNote === 'API key expired', words(refusedStored))
-  check('the slot is NOT signed in', refusedStored?.signedIn === false, words(refusedStored))
-  check('the Boot face counts no OpenRouter family as signed in', signedFamilies() === 0, `signed=${signedFamilies()}`)
-  check('the ledger records the refusal with its status', reader.openrouterObservedKeyUsage().errorStatus === 401 && reader.openrouterKeyRecordedDead('stored'), JSON.stringify(reader.openrouterObservedKeyUsage()))
+  check('the slot still exists (the key is stored) and its note is the refusal: the status, the service\'s words, the time, the door', refusedStored !== undefined && refusedStored.stateNote?.startsWith(WORDS_401) === true && refusedStored.stateNote.endsWith(RECONNECT), words(refusedStored))
+  check('the slot IS signed in — a credential exists; the refusal is its state, not its absence', refusedStored?.signedIn === true, words(refusedStored))
+  check('the one owner answers the same refusal for the family: 401, the service\'s message, a key', JSON.stringify(((r) => r && [r.status, r.message, r.credential])(refusals.readSignInRefusal('openrouter'))) === JSON.stringify([401, 'API key expired', 'key']), JSON.stringify(refusals.readSignInRefusal('openrouter')))
+  check('the Boot face counts the family as signed in and its row is the refusal, loud', signedFamilies() === 1 && rowState().signedIn === true && rowState().loud === true && rowState().chip === refusedStored?.stateNote, `signed=${signedFamilies()} ${JSON.stringify(rowState())}`)
+  check('the ledger records the refusal with its status', reader.openrouterObservedKeyUsage().errorStatus === 401 && reader.openrouterObservedKeyUsage().errorSource === 'stored', JSON.stringify(reader.openrouterObservedKeyUsage()))
 
-  console.log('§2 a probe that failed without refusing the key (503) says nothing about the key')
+  console.log('§2 a probe that failed without refusing the key (503) says nothing about the key: the recorded refusal stands until the service accepts it')
   status.stored = 503
   await refresh()
   const flakyStored = slot('openrouter:stored-key')
   console.log(`  stored slot: ${words(flakyStored)}`)
-  check('the slot carries the probe failure as its note', flakyStored?.stateNote === 'Fixture credits temporarily unavailable', words(flakyStored))
-  check('the slot stays signed in — a failed probe is not a dead key', flakyStored?.signedIn === true, words(flakyStored))
-  check('the Boot face still counts the family', signedFamilies() === 1, `signed=${signedFamilies()}`)
-  check('the ledger does not call it dead', !reader.openrouterKeyRecordedDead('stored'), JSON.stringify(reader.openrouterObservedKeyUsage()))
+  check('the slot keeps the standing refusal as its note — the 503 is a probe failure, not a word about the key', flakyStored?.stateNote?.startsWith(WORDS_401) === true, words(flakyStored))
+  check('the slot stays signed in', flakyStored?.signedIn === true, words(flakyStored))
+  check('the Boot face counts the family and its row still reads the refusal', signedFamilies() === 1 && rowState().loud === true && rowState().chip === flakyStored?.stateNote, `signed=${signedFamilies()} ${JSON.stringify(rowState())}`)
+  check('the usage ledger carries the 503 as the latest probe failure', reader.openrouterObservedKeyUsage().errorStatus === 503 && reader.openrouterObservedKeyUsage().lastError === 'Fixture credits temporarily unavailable', JSON.stringify(reader.openrouterObservedKeyUsage()))
+  console.log('§2b a probe failure on a key with no recorded refusal is the failure alone')
+  secrets.writeStoredOpenrouterApiKey(`${storedKey}-fresh`)
+  await refresh()
+  const freshFlaky = slot('openrouter:stored-key')
+  console.log(`  stored slot: ${words(freshFlaky)}`)
+  check('a fresh key under a 503 carries the probe failure as its note and no refusal anywhere', freshFlaky?.signedIn === true && freshFlaky.stateNote === 'Fixture credits temporarily unavailable' && refusals.readSignInRefusal('openrouter') === undefined && rowState().loud === false, `${words(freshFlaky)} ${JSON.stringify(rowState())}`)
+  secrets.writeStoredOpenrouterApiKey(storedKey)
 
   console.log('§3 a 403 is a refusal like a 401')
   status.stored = 403
   await refresh()
   const disabledStored = slot('openrouter:stored-key')
   console.log(`  stored slot: ${words(disabledStored)}`)
-  check('a 403 refusal is not signed in', disabledStored?.signedIn === false && disabledStored.stateNote === 'Key disabled', words(disabledStored))
+  check('a 403 refusal reads signed in with the 403 and the service\'s words', disabledStored?.signedIn === true && disabledStored.stateNote?.startsWith('key refused (HTTP 403: Key disabled) at ') === true && disabledStored.stateNote.endsWith(RECONNECT), words(disabledStored))
 
   console.log('§4 a successful read brings the slot back')
   status.stored = 200
@@ -98,7 +110,7 @@ try {
   const liveStored = slot('openrouter:stored-key')
   console.log(`  stored slot: ${words(liveStored)}`)
   check('the slot is signed in again with no note', liveStored?.signedIn === true && liveStored.stateNote === undefined, words(liveStored))
-  check('the Boot face counts the family again', signedFamilies() === 1, `signed=${signedFamilies()}`)
+  check('the Boot face counts the family again, the row quiet', signedFamilies() === 1 && rowState().loud === false && refusals.readSignInRefusal('openrouter') === undefined, `signed=${signedFamilies()}`)
 
   console.log('§5 an OAuth-minted key the product recorded as expired is not signed in')
   seedMint()
@@ -125,17 +137,18 @@ try {
   check('no slot is signed in', readSlots().every(entry => entry.signedIn === false), readSlots().map(entry => `${entry.id}:${entry.signedIn}`).join(' '))
   check('the Boot face counts the family out', signedFamilies() === 0, `signed=${signedFamilies()}`)
 
-  console.log('§8 an env-pinned key the endpoint refused is not signed in either')
+  console.log('§8 an env-pinned key the endpoint refused reads signed in and refused, with the env remedy')
   process.env.OPENROUTER_API_KEY = envKey
   status.env = 401
   await refresh()
   const refusedEnv = slot('openrouter:env-key')
   console.log(`  env slot: ${words(refusedEnv)}`)
-  check('the env slot is present, active for the wire, and NOT signed in', refusedEnv !== undefined && refusedEnv.active && refusedEnv.signedIn === false && refusedEnv.stateNote === 'API key expired', words(refusedEnv))
+  check('the env slot is present, active for the wire, signed in, and its note names the refusal and the env var to update', refusedEnv !== undefined && refusedEnv.active && refusedEnv.signedIn === true && refusedEnv.stateNote?.startsWith(WORDS_401) === true && refusedEnv.stateNote.endsWith(' · update OPENROUTER_API_KEY'), words(refusedEnv))
+  check('the one owner carries the env remedy', refusals.readSignInRefusal('openrouter')?.remedy === 'update OPENROUTER_API_KEY', JSON.stringify(refusals.readSignInRefusal('openrouter')))
   delete process.env.OPENROUTER_API_KEY
 } finally {
   server.stop(true)
   globalThis.fetch = originalFetch
 }
-console.log(failures === 0 ? 'PASS: a key the product recorded dead is never counted as signed in' : `FAIL: ${failures} check(s) failed`)
+console.log(failures === 0 ? 'PASS: a key the service refused stays signed in and every reader names the refusal' : `FAIL: ${failures} check(s) failed`)
 process.exit(failures === 0 ? 0 : 1)

@@ -77,7 +77,8 @@ import {
   readMintedOpenrouterKey,
   type OpenrouterMintedKey,
 } from './openrouter/openrouterAccounts.js'
-import { openrouterKeyRecordedDead, openrouterObservedKeyUsage } from './openrouter/openrouterUsageState.js'
+import { openrouterObservedKeyUsage } from './openrouter/openrouterUsageState.js'
+import { readSignInRefusal, signInRefusalWords } from '../../utils/accounts/signInRefusal.js'
 import {
   disconnectGeminiOauth,
   disconnectGeminiPlan,
@@ -714,8 +715,12 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
   const storedKey = (reads.openrouterStoredKey ?? readStoredOpenrouterApiKey)()
   const usableMinted = minted !== undefined && !minted.expiredMessage
   const observed = openrouterObservedKeyUsage()
-  const failure = (source: 'env' | 'stored' | 'oauth') => observed.errorSource === source ? observed.lastError : undefined
-  const dead = (source: 'env' | 'stored' | 'oauth') => openrouterKeyRecordedDead(source)
+  const refusal = readSignInRefusal('openrouter')
+  const activeSource = envKey ? 'env' : usableMinted ? 'oauth' : storedKey ? 'stored' : undefined
+  const failure = (source: 'env' | 'stored' | 'oauth') => {
+    if (refusal !== undefined && source === activeSource) return signInRefusalWords(refusal, 'openrouter')
+    return observed.errorSource === source ? observed.lastError : undefined
+  }
   const slots: AccountSlot[] = []
   if (envKey) {
     slots.push({
@@ -727,7 +732,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       identity: label(['OPENROUTER_API_KEY (env)', maskedKeyTail(envKey)]),
       active: true,
       envPinned: true,
-      signedIn: !dead('env'),
+      signedIn: true,
       ...(failure('env') ? { stateNote: failure('env')! } : {}),
       removal: { route: 'env', envVar: 'OPENROUTER_API_KEY' },
     })
@@ -745,7 +750,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       ]),
       active: !envKey && usableMinted,
       envPinned: false,
-      signedIn: usableMinted && !dead('oauth'),
+      signedIn: usableMinted,
       ...(minted.expiredMessage
         ? { stateNote: `${minted.expiredMessage} · /logins openrouter: ⌫ removes it` }
         : envKey ? { stateNote: 'shadowed — the env pin wins' }
@@ -763,7 +768,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       identity: label(['stored key (auth-scoped)', maskedKeyTail(storedKey)]),
       active: !envKey && !usableMinted,
       envPinned: false,
-      signedIn: !dead('stored'),
+      signedIn: true,
       ...(envKey
         ? { stateNote: 'shadowed — the env pin wins' }
         : usableMinted

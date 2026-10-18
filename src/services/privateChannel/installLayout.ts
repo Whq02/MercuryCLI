@@ -798,9 +798,9 @@ export function powershellEntryContent(): string {
     '}',
     '$dir = Join-Path $root $ver',
     "$entry = Join-Path $dir 'mercury.ps1'",
-    'if (Test-Path -LiteralPath $entry -PathType Leaf) { & $entry @args; exit $LASTEXITCODE }',
+    'if (Test-Path -LiteralPath $entry -PathType Leaf) { if ($MyInvocation.ExpectingInput) { $input | & $entry @args } else { & $entry @args }; exit $LASTEXITCODE }',
     "$cmdEntry = Join-Path $dir 'mercury.cmd'",
-    'if (Test-Path -LiteralPath $cmdEntry -PathType Leaf) { & $cmdEntry @args; exit $LASTEXITCODE }',
+    'if (Test-Path -LiteralPath $cmdEntry -PathType Leaf) { if ($MyInvocation.ExpectingInput) { $input | & $cmdEntry @args } else { & $cmdEntry @args }; exit $LASTEXITCODE }',
     "[Console]::Error.WriteLine('mercury: current.txt does not name an installed version under ' + $root + ' - edit it to an installed version directory name')",
     'exit 1',
   ].join('\r\n') + '\r\n'

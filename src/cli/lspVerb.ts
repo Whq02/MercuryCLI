@@ -2,16 +2,18 @@ import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
-import { SERVER_CATALOGUE, probeCatalogueEntry } from '../services/lsp/serverCatalogue.js'
+import { SERVER_CATALOGUE, probeCatalogueEntry, remedyFor } from '../services/lsp/serverCatalogue.js'
 import { binaryName } from '../utils/config/derived.js'
-import { whichSync } from '../utils/which.js'
+import { spawnPlanOf, type SpawnPlan, type SpawnWorld } from '../utils/spawnPlan.js'
+
+export type InstallSpawn = Exclude<SpawnPlan, { refused: string }>
 
 export type LspCliIo = {
   out: (line: string) => void
   err: (line: string) => void
   interactive: boolean
   ask: (question: string) => Promise<boolean>
-  run: (argv: string[]) => Promise<number | null>
+  run: (plan: InstallSpawn) => Promise<number | null>
 }
 
 const defaultIo: LspCliIo = {
@@ -24,9 +26,9 @@ const defaultIo: LspCliIo = {
     rl.close()
     return /^y(es)?$/i.test(answer.trim())
   },
-  run: argv =>
+  run: plan =>
     new Promise(resolveCode => {
-      const child = spawn(argv[0]!, argv.slice(1), { stdio: 'inherit', env: subprocessEnv(), windowsHide: true })
+      const child = spawn(plan.file, plan.args, { stdio: 'inherit', env: subprocessEnv(), windowsHide: true, windowsVerbatimArguments: plan.windowsVerbatimArguments })
       child.on('error', () => resolveCode(null))
       child.on('exit', code => resolveCode(code))
     }),
@@ -36,7 +38,7 @@ type CatalogueRow = (typeof SERVER_CATALOGUE)[number]
 
 export type InstallCommand = { kind: 'command'; argv: string[]; tool: string } | { kind: 'words'; words: string }
 
-const INSTALL_TOOLS: ReadonlySet<string> = new Set(['rustup', 'go', 'brew', 'dotnet', 'gem', 'npm', 'ghcup', 'opam', 'cs', 'nix'])
+const INSTALL_TOOLS: ReadonlySet<string> = new Set(['rustup', 'go', 'brew', 'dotnet', 'gem', 'npm', 'ghcup', 'opam', 'cs', 'nix', 'winget', 'scoop'])
 const TRAILING_NOTE = /\s+\((?:[^()]|\([^()]*\))*\)\s*$/
 
 function quotedWords(text: string): string[] | null {
@@ -82,11 +84,11 @@ export function rosterLine(): string {
   return `Known servers: ${SERVER_CATALOGUE.map(entry => entry.id).join(', ')}`
 }
 
-export function lspListLines(cwd: string = getOriginalCwd()): string[] {
+export function lspListLines(cwd: string = getOriginalCwd(), platform: string = process.platform): string[] {
   const rows = SERVER_CATALOGUE.map(entry => ({ entry, probe: probeCatalogueEntry(entry, cwd) }))
   const width = Math.max(...rows.map(row => row.entry.id.length))
   const lines = rows.map(({ entry, probe }) => {
-    const state = probe.binaryPath ? `installed  ${probe.binaryPath}${probe.binarySource === 'project-local' ? ' (project-local)' : ''}` : `absent     ${entry.remedy}`
+    const state = probe.binaryPath ? `installed  ${probe.binaryPath}${probe.binarySource === 'project-local' ? ' (project-local)' : ''}` : `absent     ${remedyFor(entry, platform)}`
     return `${entry.id.padEnd(width)}  ${state}  [${entry.languages.join(', ')}]`
   })
   const installed = rows.filter(row => row.probe.binaryPath).length
@@ -94,12 +96,12 @@ export function lspListLines(cwd: string = getOriginalCwd()): string[] {
   return lines
 }
 
-export async function lspListCli(io: LspCliIo = defaultIo): Promise<number> {
-  for (const line of lspListLines()) io.out(line)
+export async function lspListCli(io: LspCliIo = defaultIo, platform: string = process.platform): Promise<number> {
+  for (const line of lspListLines(getOriginalCwd(), platform)) io.out(line)
   return 0
 }
 
-export async function lspInstallCli(server: string, options: { yes: boolean }, io: LspCliIo = defaultIo): Promise<number> {
+export async function lspInstallCli(server: string, options: { yes: boolean; world?: SpawnWorld }, io: LspCliIo = defaultIo): Promise<number> {
   const entry = catalogueRowNamed(server)
   if (entry === null) {
     io.err(`No language server named "${server}" in the catalogue. ${rosterLine()}`)
@@ -111,13 +113,15 @@ export async function lspInstallCli(server: string, options: { yes: boolean }, i
     io.out(`${entry.label} is already installed: ${present.binaryPath}${present.binarySource === 'project-local' ? ' (project-local)' : ''} — nothing to run`)
     return 0
   }
-  const command = installCommandOf(entry.remedy)
+  const remedy = remedyFor(entry, options.world?.platform ?? process.platform)
+  const command = installCommandOf(remedy)
   if (command.kind === 'words') {
     io.err(`${entry.label} has no install command to run: ${command.words}`)
     return 2
   }
-  if (whichSync(command.tool) === null) {
-    io.err(`The install remedy for ${entry.label} needs ${command.tool}, which is not on PATH: ${entry.remedy}`)
+  const plan: SpawnPlan = spawnPlanOf(command.argv, options.world)
+  if ('refused' in plan && plan.missing !== undefined) {
+    io.err(`The install remedy for ${entry.label} needs ${plan.missing}, which is not on PATH: ${remedy}`)
     return 2
   }
   io.out(`Install ${entry.label} (${entry.languages.join(', ')}) by running:`)
@@ -132,7 +136,11 @@ export async function lspInstallCli(server: string, options: { yes: boolean }, i
       return 1
     }
   }
-  const code = await io.run(command.argv)
+  if ('refused' in plan) {
+    io.err(`The install command could not be started: ${command.argv.join(' ')} — ${plan.refused}`)
+    return 1
+  }
+  const code = await io.run(plan)
   if (code !== 0) {
     io.err(code === null ? `The install command could not be started: ${command.argv.join(' ')}` : `The install command exited ${code}; ${entry.label} was not installed`)
     return 1

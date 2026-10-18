@@ -326,7 +326,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       return
     }
     if (outcome.kind === 'cancelled') return
-    observeSignInResponse(signInRequest, outcome.fault.status)
+    observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     const askedMs = outcome.fault.retryAfterMs
     const typed = compatFaultToTypedError(outcome.fault)
     if (

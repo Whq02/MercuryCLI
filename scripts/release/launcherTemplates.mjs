@@ -409,6 +409,7 @@ $env:MERCURY_LAUNCHER = 'ps1'
 try {
   [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
   [Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false
+  $OutputEncoding = New-Object System.Text.UTF8Encoding $false
   $env:MERCURY_WIN32_UTF8_PRESET = '1'
 } catch { }
 # -- the runtime (three rungs, first hit wins): MERCURY_NODE (an explicit
@@ -463,7 +464,7 @@ if ($args.Count -gt 0 -and ($skipVerbs -ccontains [string]$args[0])) { $takeover
 if ($args.Count -gt 0 -and ([string]$args[0]).StartsWith('-')) { $takeover = $false }
 foreach ($mercuryArg in $args) { if ($skipFlags -ccontains [string]$mercuryArg) { $takeover = $false } }
 $interactive = $false
-try { $interactive = (-not [Console]::IsInputRedirected) -and (-not [Console]::IsOutputRedirected) } catch { }
+try { $interactive = (-not [Console]::IsInputRedirected) -and (-not [Console]::IsOutputRedirected) -and (-not $MyInvocation.ExpectingInput) } catch { }
 # -- artifact provenance (LANE LW: bare interactive boots; warn-only, never a gate)
 # One stderr line on unsigned/tampered/unknown-key, silence when signed; the
 # exit code is deliberately never consulted and a crash is swallowed — a
@@ -497,7 +498,7 @@ if ($takeover -and $interactive -and (Test-Path $splashPath) -and ($noBanner -ne
   }
   if (($saExit -eq 0) -and ($env:MERCURY_FULLSCREEN -ne '0')) { $env:MERCURY_ALT_HELD = '1' }
 }
-& $nodeBin (Join-Path $dir 'mercury.mjs') @args
+if ($MyInvocation.ExpectingInput) { $input | & $nodeBin (Join-Path $dir 'mercury.mjs') @args } else { & $nodeBin (Join-Path $dir 'mercury.mjs') @args }
 $rtExit = $LASTEXITCODE
 # post-child heal: TTY-gated, abnormal-exit only, code preserved. Focus
 # tracking (?1004l) is re-reset AFTER ?1049l: on win32 a reset written before

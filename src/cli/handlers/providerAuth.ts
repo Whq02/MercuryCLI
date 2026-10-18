@@ -25,6 +25,7 @@ import { storeTogetherApiKeyLogin } from '../../services/providers/together/toge
 import { runXaiDeviceLogin, storeXaiApiKeyLogin } from '../../services/providers/xai/xaiLogin.js'
 import { storeZaiApiKeyLogin } from '../../services/providers/zai/zaiLogin.js'
 import { storeZenApiKeyLogin } from '../../services/providers/zen/zenLogin.js'
+import { readSignInRefusal, signInRefusalWords } from '../../utils/accounts/signInRefusal.js'
 import { saveApiKey } from '../../utils/auth.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { authLogin, authLogout, authStatus } from './auth.js'
@@ -274,7 +275,16 @@ function allAccountSlots(): AccountSlot[] {
   return deriveFamilySlotGroups().flatMap(group => group.slots)
 }
 
-export async function providerAuthList(opts: { json?: boolean } = {}, io: ProviderAuthIo = {}): Promise<{ code: number; rows: Array<{ id: string; name: string; label: string; signedIn: boolean; source: string }> }> {
+function refusalFamilyOf(familyId: string, rowValue: string): string {
+  return rowValue.startsWith('compat/') ? `compat-${rowValue.slice('compat/'.length)}` : familyId
+}
+
+function refusalWordsOf(family: string): string | undefined {
+  const refusal = readSignInRefusal(family)
+  return refusal === undefined ? undefined : signInRefusalWords(refusal, family)
+}
+
+export async function providerAuthList(opts: { json?: boolean } = {}, io: ProviderAuthIo = {}): Promise<{ code: number; rows: Array<{ id: string; name: string; label: string; signedIn: boolean; source: string; refused?: string }> }> {
   const out = io.writeOut ?? defaultWriteOut
   const slots = allAccountSlots()
   const rows = loginFamilyRows({ engineLegs: true }).map(row => {
@@ -282,12 +292,14 @@ export async function providerAuthList(opts: { json?: boolean } = {}, io: Provid
     const familySlots = slots.filter(slot => slot.family === familyId && (row.value.startsWith('compat/') ? slot.id.includes(row.value.slice('compat/'.length)) : true))
     const signedIn = familySlots.some(slot => slot.signedIn)
     const active = familySlots.find(slot => slot.active && slot.signedIn) ?? familySlots.find(slot => slot.signedIn)
+    const refused = signedIn ? refusalWordsOf(refusalFamilyOf(familyId, row.value)) : undefined
     return {
       id: row.value === 'claudeai' ? 'anthropic' : row.value,
       name: row.label.split(' — ')[0] ?? row.value,
       label: row.label,
       signedIn,
       source: active ? `${active.kindLabel} (${active.identity})` : 'not signed in',
+      ...(refused !== undefined ? { refused } : {}),
     }
   }).filter((row, index, all) => all.findIndex(other => other.id === row.id) === index)
 
@@ -295,7 +307,7 @@ export async function providerAuthList(opts: { json?: boolean } = {}, io: Provid
     out(`${jsonStringify({ families: rows }, undefined, 2)}\n`)
   } else {
     for (const row of rows) {
-      out(`${row.id}: ${row.signedIn ? `signed in — ${row.source}` : 'not signed in'}\n`)
+      out(`${row.id}: ${row.signedIn ? `signed in — ${row.refused ?? row.source}` : 'not signed in'}\n`)
     }
   }
   io.exit?.(0)
@@ -322,12 +334,15 @@ export async function providerAuthStatus(familyRaw?: string, opts: { json?: bool
     slot => slot.family === targetFamily && (endpointFilter === undefined || slot.id.includes(endpointFilter)),
   )
   const signedIn = familySlots.some(slot => slot.signedIn)
+  const refused = signedIn ? refusalWordsOf(endpointFilter === undefined ? targetFamily : `compat-${endpointFilter}`) : undefined
+  const noteOf = (slot: AccountSlot): string | undefined => slot.stateNote ?? (slot.active ? refused : undefined)
   if (opts.json) {
     out(
       `${jsonStringify(
         {
           family: normalized,
           signedIn,
+          ...(refused !== undefined ? { refused } : {}),
           slots: familySlots.map(slot => ({
             id: slot.id,
             kind: slot.kind,
@@ -335,7 +350,7 @@ export async function providerAuthStatus(familyRaw?: string, opts: { json?: bool
             identity: slot.identity,
             active: slot.active,
             signedIn: slot.signedIn,
-            ...(slot.stateNote ? { stateNote: slot.stateNote } : {}),
+            ...(noteOf(slot) ? { stateNote: noteOf(slot) } : {}),
           })),
         },
         undefined,
@@ -346,10 +361,10 @@ export async function providerAuthStatus(familyRaw?: string, opts: { json?: bool
     out(`${normalized}: not signed in\n`)
   } else {
     for (const slot of familySlots.filter(s => s.signedIn)) {
-      out(`${normalized}: ${slot.kindLabel} — ${slot.identity}${slot.active ? ' (active)' : ''}${slot.stateNote ? ` · ${slot.stateNote}` : ''}\n`)
+      out(`${normalized}: ${slot.kindLabel} — ${slot.identity}${slot.active ? ' (active)' : ''}${noteOf(slot) ? ` · ${noteOf(slot)}` : ''}\n`)
     }
   }
-  const code = signedIn ? 0 : 1
+  const code = signedIn && refused === undefined ? 0 : 1
   io.exit?.(code)
   return { code }
 }

@@ -133,6 +133,27 @@ console.log('§4 back onto a dead server is the same failure')
   check('open on the dead server is the failure it always was', open.outcome === 'failed' && /ERR_CONNECTION_REFUSED/.test(open.result), open.result)
 }
 
+console.log("§4b a back onto a page the browser kept (no no-store header) is a success that says where the page came from")
+{
+  const plain = (res: http.ServerResponse, body: string): void => {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+    res.end(body)
+  }
+  const c = await serve(0, (url, res) => (url === '/b.html' ? plain(res, '<!doctype html><title>Page B</title><h1>Page B</h1>') : plain(res, '<!doctype html><title>Page A</title><h1>Page A</h1>')))
+  const C = `http://127.0.0.1:${c.port}`
+  const first = await run({ op: 'open', url: `${C}/a.html` })
+  check('the cacheable page opens while its server is up', first.outcome === 'succeeded' && first.result.includes('Page A'), first.result)
+  await run({ op: 'open', url: `${C}/b.html` })
+  await kill(c)
+  const back = await run({ op: 'back' })
+  check('back succeeds — the page IS on screen', back.outcome === 'succeeded', `${back.outcome} · ${back.result}`)
+  check("the line names the page and says it came from the browser's cache without asking the server", back.result.startsWith(`back: ${C}/a.html`) && back.result.includes('— Page A') && /the browser's cache; the server was not asked/.test(back.result), back.result)
+  check('a status appears only when a response was read, and then the cache words still say the server was not asked', !/\[\d{3}\]/.test(back.result) || /served from the browser's cache/.test(back.result), back.result)
+  check("the browser's own copy is the page", (await page().title()) === 'Page A' && page().url() === `${C}/a.html`)
+  const reload = await run({ op: 'reload' })
+  check('the control: a reload of that page asks the server and fails honestly (the server really is gone)', reload.outcome === 'failed' && /ERR_CONNECTION_REFUSED/.test(reload.result), reload.result)
+}
+
 console.log('§5 a link the session refuses as a download is named: type, size, filename, and what to use instead')
 const d = await serve(0, (url, res) => {
   if (url === '/dl.bin') {

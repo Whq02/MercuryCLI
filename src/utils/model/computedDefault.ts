@@ -398,7 +398,7 @@ export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded:
     registryOrder: providers.map(provider => provider.id),
     laneRow: family => {
       const refusal = readSignInRefusal(family)
-      if (refusal) return { usable: false, why: signInRefusalWords(refusal) }
+      if (refusal) return { usable: false, why: signInRefusalWords(refusal, family) }
       if (family === 'anthropic') return liveFirstPartyRow()
       if (KEY_LANES.has(family)) return keyLaneRow(family as 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen')
       if (rows === undefined) {

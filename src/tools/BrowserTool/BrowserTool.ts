@@ -1572,7 +1572,16 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             break
           }
           const backStatus = response === null ? '' : ` [${response.status()}]`
-          result = `back: ${after}${backStatus} — ${await s.page.title()}`
+          const sameDocument = response === null && after.split('#')[0] === before.split('#')[0]
+          const pageOrigin =
+            response === null
+              ? sameDocument
+                ? ' (the same page, only its fragment changed; the server was not asked)'
+                : " (restored from the browser's cache; the server was not asked)"
+              : response.fromCache()
+                ? " (served from the browser's cache; the server was not asked)"
+                : ''
+          result = `back: ${after}${backStatus} — ${await s.page.title()}${pageOrigin}`
           outcome = 'succeeded'
           break
         }

@@ -35,7 +35,7 @@ try {
     writeFileSync(path, JSON.stringify(record))
     const corrupt = readSignInRefusal(family)
     check(`${family}: an out-of-range time is ignored rather than crashing a status surface`, corrupt === undefined)
-    if (!corrupt) check(`${family}: the valid status formatter stays deterministic`, signInRefusalWords({ status: 401, at: 1 }).includes('1970-01-01T00:00:00.001Z'))
+    if (!corrupt) check(`${family}: the valid status formatter stays deterministic`, signInRefusalWords({ status: 401, at: 1 }, family).includes('1970-01-01T00:00:00Z') && signInRefusalWords({ status: 401, at: 1, message: 'API key expired', credential: 'key' }, family) === `key refused (HTTP 401: API key expired) at 1970-01-01T00:00:00Z · /logins ${family} reconnects`)
   }
 } finally { rmSync(home, { recursive: true, force: true }) }
 console.log(failures ? `refusal-source: ${failures} FAILURE(S)` : 'refusal-source: ALL LAWS HOLD')
