@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, utimesSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { partiallySanitizeUnicode } from '../utils/sanitization.js'
 import { randomUUID } from '../utils/crypto.js'
@@ -9,7 +9,7 @@ import { gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js
 import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { STORE_LOCK_OPTIONS } from '../substrate/fileStore.js'
 import { lockSync } from '../utils/lockfile.js'
-import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
+import { daemonHomeStands, publishInDaemonHome, publishTransientInDaemonHome } from './daemonHome.js'
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
 import { getProcessStartToken, getProcessStartTokenCachedOrRefresh, isProcessAlive } from './ownerWatch.js'
@@ -578,7 +578,7 @@ function acquireSessionRecordsLock(
         },
       })
       try {
-        writeFileSync(ownerPath, `${process.pid}\n`)
+        publishTransientInDaemonHome(where, ownerPath, `${process.pid}\n`, dir)
       } catch {}
       identity = lockIdentityOf(lockDir)
       acquired = true
