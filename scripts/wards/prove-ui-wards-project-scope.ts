@@ -20,10 +20,10 @@ const check = (label: string, good: boolean, answer: unknown): void => {
   console.log(`${good ? 'PASS' : 'FAIL'} ${label}: ${JSON.stringify(answer)}`)
   if (!good) failures++
 }
-const project = (name: string, packageName: string, palette: boolean): string => {
+const project = (name: string, packageName: string, palette: boolean, git = true): string => {
   const dir = join(scratch, name)
   mkdirSync(join(dir, 'src', 'components'), { recursive: true })
-  mkdirSync(join(dir, '.git'))
+  if (git) mkdirSync(join(dir, '.git'))
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: packageName }))
   writeFileSync(join(dir, 'src', 'components', 'Button.tsx'), 'export const color = "blue"\n')
   if (palette) copyFileSync(join(root, 'src', 'components', 'mercuryPalette.ts'), join(dir, 'src', 'components', 'mercuryPalette.ts'))
@@ -41,9 +41,12 @@ const judge = async (cwd: string, file: string, text: string, mode = 'default', 
 
 try {
   const react = project('react', 'button-app', false)
+  mkdirSync(join(react, '.mercury'), { recursive: true })
+  writeFileSync(join(react, '.mercury', 'wards.json'), JSON.stringify([{ name: 'no-legacy-token', teach: 'Use the current token.', scope: 'edit', patterns: ['LEGACY_BUTTON_TOKEN'] }]))
   const copied = project('copied-palette', 'button-app', true)
   const nameOnly = project('same-name', 'mercury', false)
   const foreign = project('foreign', 'another-app', false)
+  const untracked = project('untracked-react', 'another-app', false, false)
   const mirror = join(scratch, 'mercury-link')
   symlinkSync(root, mirror, 'dir')
   const color = 'export const color = "#fff"\n'
@@ -68,10 +71,16 @@ try {
     }
     const away = await judge(root, join(foreign, 'src', 'components', 'Button.tsx'), color, mode)
     check(`${mode}: Mercury cwd does not impose its UI rule on another project`, !away.refused, away)
+    const awayUntracked = await judge(root, join(untracked, 'src', 'components', 'Button.tsx'), color, mode)
+    check(`${mode}: Mercury cwd does not impose its UI rule on an untracked project outside the repo`, !awayUntracked.refused, awayUntracked)
+    const nested = await judge(root, join(root, 'scratch', 'react', 'src', 'components', 'Button.tsx'), color, mode)
+    check(`${mode}: a nested subproject path outside root src/ is not treated as Mercury TUI source`, !nested.refused, nested)
     const palette = await judge(root, join(root, 'src', 'components', 'mercuryPalette.ts'), color, mode)
     check(`${mode}: the sanctioned palette still accepts colors`, !palette.refused, palette)
     const omission = await judge(react, join(react, 'src', 'components', 'Button.tsx'), '// rest of code ...', mode)
     check(`${mode}: the non-UI omission ward still refuses`, omission.refused && omission.reason.includes('no-omission-placeholder'), omission)
+    const customRule = await judge(react, join(react, 'src', 'components', 'Button.tsx'), 'export const x = "LEGACY_BUTTON_TOKEN"\n', mode)
+    check(`${mode}: a user project's own .mercury/wards.json rule still refuses`, customRule.refused && customRule.reason.includes('no-legacy-token'), customRule)
   }
   for (const malformed of ['{', 'null', JSON.stringify({ nested: { name: 'mercury' } }), JSON.stringify({ name: 'another-app', padding: 'x'.repeat(80_000) })]) {
     writeFileSync(join(copied, 'package.json'), malformed)

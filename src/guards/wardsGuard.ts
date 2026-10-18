@@ -244,8 +244,8 @@ export function registerWardsGuard(
         pending.resolvePath = resolveTarget
         pending.startingFolder = startingFolder
         pending.isMercurySource = path => {
-          const { root } = resolveTarget(path)
-          if (root === undefined || !existsSync(join(root, 'src', 'components', 'mercuryPalette.ts'))) return false
+          const { path: resolved, root } = resolveTarget(path)
+          if (root === undefined || !resolved.startsWith(`${join(root, 'src')}${sep}`) || !existsSync(join(root, 'src', 'components', 'mercuryPalette.ts'))) return false
           try {
             return JSON.parse(readTargetHead(join(root, 'package.json'), work, 65_536) ?? 'null')?.name === 'mercury'
           } catch {
