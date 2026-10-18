@@ -23,7 +23,7 @@ VITALS                  │ │ ╭───────────────
                         │ │ ▾ OPENAI · connect OpenAI to browse its models — /logins connects                        │ │
                         │ │   GPT — sign in                                                                          │ │
                         │ │ ▾ OPENROUTER · connect OpenRouter to browse its models — /logins connects                │ │
-                        │ │   ↓ 45 more                                                                              │ │
+                        │ │   ↓ 47 more                                                                              │ │
                         │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                               │ │
                         │ │                                                                                          │ │
                         │ │ context —  · tier API billing                                                            │ │

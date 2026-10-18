@@ -460,37 +460,39 @@ account credits and costs are shown in the Fireworks console. Sources read
 [rate limits](https://docs.fireworks.ai/serverless/rate-limits) and
 [Fire Pass](https://docs.fireworks.ai/firepass).
 
-Qwen connects through `/logins` two ways: a Qwen account sign-in (a device code
-approved in the browser, which runs the Qwen Coder plan behind chat.qwen.ai on
-Qwen Code's public OAuth client — Mercury runs the device flow itself, stores the
+Qwen connects through `/logins` two ways. A Qwen account sign-in is a device
+code approved in the browser; it runs the Qwen Coder plan behind chat.qwen.ai on
+Qwen Code's public OAuth client. Mercury runs the device flow itself, stores the
 tokens auth-scoped at mode 600, refreshes them before they expire, and never reads
 another tool's credential file; the plan's terms are the account holder's own, and
-the road ships as it is), or a Model Studio API key (`DASHSCOPE_API_KEY` works
-too), made in the Alibaba Cloud Model Studio console for the region the account
-lives in. A signed-in account dispatches on the plan endpoint the token names with
-the plan's own model list; a revoked or expired sign-in refuses the turn and names
-`/logins`. A Model Studio key answers only the region and plan it was
-minted in, so the sign-in probes the documented endpoints in turn — International
-(Singapore), China (Beijing), China (Hong Kong), the Coding Plan (international and
-China) and the Token Plan (Singapore and Beijing) — keeps the first whose model
-list accepts the key, and stores that endpoint beside the key; a key no endpoint
-accepts is refused with the endpoints named and nothing is stored. `DASHSCOPE_BASE_URL`
-names an endpoint instead of the probe (a workspace-dedicated domain such as
+the road ships as it is. A signed-in account dispatches on the plan endpoint the
+token names with the plan's own model list; a revoked or expired sign-in refuses
+the turn and names `/logins`. The other way is a Model Studio API key
+(`DASHSCOPE_API_KEY` works too), made in the Alibaba Cloud Model Studio console
+for the region the account lives in. A Model Studio key answers only the region
+and plan it was minted in, so the sign-in probes the documented endpoints in
+turn (International (Singapore), China (Beijing), China (Hong Kong), the Coding
+Plan for international and China accounts, and the Token Plan in Singapore and
+Beijing), keeps the first whose model list accepts the key, and stores that
+endpoint beside the key; a key no endpoint accepts is refused with the endpoints
+named and nothing is stored. `DASHSCOPE_BASE_URL` names an endpoint instead of
+the probe (a workspace-dedicated domain such as
 `https://<workspace>.us-east-1.maas.aliyuncs.com/compatible-mode/v1`), and
 `DASHSCOPE_WORKSPACE_ID` adds the six workspace-dedicated domains to the probe.
-The picker lists the text models the bound endpoint (or the plan) serves live, with dated pins
-for the context windows and prices of the rows this build knows (Qwen3.8 Max,
-Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash, Qwen3.7 Flash, Qwen3 Coder
-Flash), and falls to the pins, labelled as pins, when the list cannot be read.
-Requests carry Qwen's own `enable_thinking` switch and `preserve_thinking` on the
-rows that take them, the effort dial as `reasoning_effort` in Qwen's vocabulary
-(`low`, `medium`, `xhigh`) on the Qwen3.8 rows that document it, a stated
-`models.<id>.thinkingBudget` as `thinking_budget` in place of the effort word, the
-system prompt in `messages[0]` alone, and tool calls on the shared wire. A 401
-from the bound endpoint names the region and the re-bind road. `/usage` shows
-session spend; Model Studio documents no usage or balance endpoint an API key can
-read, so the account's balance and plan windows are shown in its console. Sources
-read **2026-10-18**: [regions and endpoints](https://www.alibabacloud.com/help/en/model-studio/regions),
+The picker lists the text models the bound endpoint (or the plan) serves live,
+with dated pins for the context windows and prices of the rows this build knows
+(Qwen3.8 Max, Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash, Qwen3.7 Flash,
+Qwen3 Coder Flash), and falls to the pins, labelled as pins, when the list cannot
+be read. Requests carry Qwen's own `enable_thinking` switch and
+`preserve_thinking` on the rows that take them, the effort dial as
+`reasoning_effort` in Qwen's vocabulary (`low`, `medium`, `xhigh`) on the Qwen3.8
+rows that document it, a stated `models.<id>.thinkingBudget` as `thinking_budget`
+in place of the effort word, the system prompt in `messages[0]` alone, and tool
+calls on the shared wire. A 401 from the bound endpoint names the region and the
+re-bind road. `/usage` shows session spend; Model Studio documents no usage or
+balance endpoint an API key can read, so the account's balance and plan windows
+are shown in its console. Sources read **2026-10-18**:
+[regions and endpoints](https://www.alibabacloud.com/help/en/model-studio/regions),
 [Chat Completions](https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-openai-chat-completions),
 [deep thinking](https://www.alibabacloud.com/help/en/model-studio/deep-thinking),
 [models](https://www.alibabacloud.com/help/en/model-studio/getting-started/models),
