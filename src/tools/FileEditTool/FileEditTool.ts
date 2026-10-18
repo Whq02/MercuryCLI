@@ -71,6 +71,13 @@ import type { UUID } from 'node:crypto'
 import type { FileState } from '../../utils/fileStateCache.js'
 import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
 import { checkIntroducedParseError } from '../FileWriteTool/parseCheck.js'
+import {
+  callStructuredEditTarget,
+  expandStructuredTargetPath,
+  hostPathOfWriteTarget,
+  parseStructuredWriteTarget,
+  validateStructuredEditTarget,
+} from '../FileWriteTool/structuredTargets.js'
 import { FILE_EDIT_TOOL_NAME } from './constants.js'
 import { modifiedSinceReadMessage, otherLiveSessionsClause, UNREAD_EXISTING_FILE_NOTE } from './otherSession.js'
 import { getEditToolDescription, localSpanRefusalMessage } from './prompt.js'
@@ -664,18 +671,21 @@ export const FileEditTool = buildTool({
     return input?.file_path ? `Editing ${input.file_path}` : 'Editing a file'
   },
   getPath(input: Partial<FileEditInput> | undefined): string {
-    return input?.file_path || getCwd()
+    return input?.file_path ? hostPathOfWriteTarget(input.file_path) : getCwd()
   },
   async checkPermissions(input: FileEditInput, context: ToolUseContext) {
     return checkWritePermissionForTool(
-      { name: FILE_EDIT_TOOL_NAME, getPath: (i: Partial<FileEditInput> | undefined) => i?.file_path || getCwd() },
+      {
+        name: FILE_EDIT_TOOL_NAME,
+        getPath: (i: Partial<FileEditInput> | undefined) => (i?.file_path ? hostPathOfWriteTarget(i.file_path) : getCwd()),
+      },
       input,
       context.getAppState().toolPermissionContext,
     )
   },
   backfillObservableInput(input: FileEditInput): void {
     if (hasNulByte(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
-    input.file_path = expandPath(input.file_path)
+    input.file_path = expandStructuredTargetPath(input.file_path)
   },
   inputsEquivalent(a: FileEditInput, b: FileEditInput): boolean {
     const mode = editMode(a)
@@ -716,6 +726,25 @@ export const FileEditTool = buildTool({
   async validateInput(input: FileEditInput, context: ToolUseContext) {
     if (hasNulByte(input.file_path)) {
       return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
+    }
+    const structuredTarget = parseStructuredWriteTarget(input.file_path)
+    if (structuredTarget !== null) {
+      const permissionContext = context.getAppState().toolPermissionContext
+      const editDeny = matchingRuleForInput(structuredTarget.hostPath, permissionContext, 'edit', 'deny')
+      if (editDeny) {
+        return {
+          result: false as const,
+          behavior: 'ask' as const,
+          message: ruleSentence(`Editing ${input.file_path}`, 'deny', editDeny),
+          errorCode: 2,
+        }
+      }
+      const memoryRefusal = memoryWriteRefusal(structuredTarget.hostPath)
+      if (memoryRefusal) {
+        return { result: false as const, message: memoryRefusal, errorCode: 2 }
+      }
+      if (windowsPathNeedsPermission(structuredTarget.hostPath)) return { result: true as const }
+      return validateStructuredEditTarget(structuredTarget, input, context, notUniqueRefusal)
     }
     const usingHunks = hunksInUse(input)
     const mode = editMode(input)
@@ -1059,6 +1088,18 @@ export const FileEditTool = buildTool({
   },
   async call(input: FileEditInput, context: ToolUseContext, _canUseTool, parentMessage) {
     const startedAt = Date.now()
+    const structuredTarget = parseStructuredWriteTarget(input.file_path)
+    if (structuredTarget !== null) {
+      if (structuredTarget.kind === 'refused') throw new Error(structuredTarget.reason)
+      if (fileHistoryEnabled()) {
+        await fileHistoryTrackEdit(
+          context.updateFileHistoryState,
+          structuredTarget.hostPath,
+          parentMessage.uuid as UUID,
+        )
+      }
+      return callStructuredEditTarget(structuredTarget, input, context, startedAt)
+    }
     const expandedPath = expandPath(input.file_path)
     const usingHunks = hunksInUse(input)
     const mode = editMode(input)
