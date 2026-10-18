@@ -41,8 +41,8 @@ section('§1 the family list derives from routeLaw')
 
 const declaredRoutes = PROVIDER_ID_SPACES.map(s => s.route)
 const FAMILIES = ['anthropic', ...declaredRoutes] as const
-check('the id-space table declares fourteen non-anthropic families', declaredRoutes.length === 14, String(declaredRoutes.length))
-check('fifteen families with the anthropic home lane', FAMILIES.length === 15, FAMILIES.join(','))
+check('the id-space table declares twenty non-anthropic families', declaredRoutes.length === 20, String(declaredRoutes.length))
+check('twenty-one families with the anthropic home lane', FAMILIES.length === 21, FAMILIES.join(','))
 check('no duplicate family ids', new Set(FAMILIES).size === FAMILIES.length)
 
 const EXEMPLARS: Record<string, string> = {
@@ -61,12 +61,18 @@ const EXEMPLARS: Record<string, string> = {
   zen: 'zen/glm-5.3',
   mistral: 'mistral-large-4',
   nous: 'nous/anthropic/claude-sonnet-4.6',
+  together: 'together/moonshotai/Kimi-K3',
+  minimax: 'minimax-m3',
+  cohere: 'command-a-plus-05-2026',
+  groq: 'groq/openai/gpt-oss-120b',
+  cerebras: 'cerebras/gpt-oss-120b',
+  fireworks: 'fireworks/accounts/fireworks/models/kimi-k3',
 }
 for (const family of FAMILIES) {
   check(
     `exemplar '${EXEMPLARS[family]}' resolves to its family`,
-    declaredRouteOf(EXEMPLARS[family]!) === family,
-    declaredRouteOf(EXEMPLARS[family]!),
+    Boolean(EXEMPLARS[family]) && declaredRouteOf(EXEMPLARS[family]!) === family,
+    declaredRouteOf(EXEMPLARS[family] ?? '') ?? 'null',
   )
 }
 

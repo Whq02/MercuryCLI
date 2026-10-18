@@ -98,7 +98,7 @@ section('4. uninstall — the dir goes WHOLE (token and config ride along)')
   delete process.env.MERCURY_BLENDER_BRIDGE_PORT
   check('precondition: dir + token + config all exist', existsSync(dir) && existsSync(path.join(dir, 'token')) && existsSync(path.join(dir, 'config.json')))
   const receipt = installer.applyBlenderBridgeUninstall()
-  check('receipt says removed WHOLE', /removed WHOLE/.test(receipt))
+  check('receipt names the whole removal (add-on files, token, and any config.json)', /removed from .* \(add-on files, token, and any config\.json\)/.test(receipt))
   check('the directory is gone entirely', !existsSync(dir))
   check('the addon home itself survives (only OUR dir is removed)', existsSync(home))
   const again = installer.applyBlenderBridgeUninstall()
