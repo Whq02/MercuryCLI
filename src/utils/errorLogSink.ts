@@ -12,8 +12,15 @@ import { attachErrorLogSink, dateToFilename } from './log.js'
 
 const LOG_FILE_NAME = `${dateToFilename(new Date())}.jsonl`
 
-export function getErrorsPath(): string {
-  return join(CACHE_PATHS.errors(), LOG_FILE_NAME)
+function localDayFilename(date: Date = new Date()): string {
+  const year = String(date.getFullYear()).padStart(4, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}.jsonl`
+}
+
+export function getErrorsPath(now: Date = new Date()): string {
+  return join(CACHE_PATHS.errors(), localDayFilename(now))
 }
 
 function getMCPLogsPath(serverName: string): string {
@@ -44,16 +51,21 @@ function fileSize(fs: ReturnType<typeof getFsImplementation>, path: string): num
 function appendBounded(path: string, content: string): void {
   if (closedPaths.has(path)) return
   const fs = getFsImplementation()
-  const size = fileSize(fs, path)
-  if (size + content.length > LOG_FILE_BYTE_CEILING) {
-    closePath(path, `reached its ${LOG_FILE_BYTE_CEILING} byte ceiling`)
-    return
-  }
-  try {
-    fs.mkdirSync(dirname(path))
-    fs.appendFileSync(path, content)
-  } catch (error) {
-    closePath(path, `cannot be written (${getErrnoCode(error) ?? deriveErrorString(error)})`)
+  const lines = content.match(/[^\n]*\n/g) ?? [content]
+  for (const line of lines) {
+    if (closedPaths.has(path)) return
+    const size = fileSize(fs, path)
+    if (size + line.length > LOG_FILE_BYTE_CEILING) {
+      closePath(path, `reached its ${LOG_FILE_BYTE_CEILING} byte ceiling`)
+      return
+    }
+    try {
+      fs.mkdirSync(dirname(path))
+      fs.appendFileSync(path, line)
+    } catch (error) {
+      closePath(path, `cannot be written (${getErrnoCode(error) ?? deriveErrorString(error)})`)
+      return
+    }
   }
 }
 

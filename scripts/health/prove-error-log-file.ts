@@ -3,6 +3,20 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+if (process.argv.includes('--writer')) {
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  const tag = process.argv[process.argv.indexOf('--writer') + 1] as string
+  const { initializeErrorLogSink } = await import('../../src/utils/errorLogSink.js')
+  const { logError } = await import('../../src/utils/log.js')
+  const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.js')
+  initializeErrorLogSink()
+  for (let i = 0; i < 40; i++) {
+    logError(new Error(`${tag}-${i}-${'p'.repeat(500)}`))
+  }
+  await runCleanupFunctions()
+  process.exit(0)
+}
+
 if (!process.argv.includes('--child')) {
   const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'errlog-')))
   const HOME = join(SCRATCH, 'home')
@@ -35,6 +49,7 @@ const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.js
 const { getDebugLogPath } = await import('../../src/utils/debug.js')
 const { getSessionId } = await import('../../src/bootstrap/state.js')
 const { CACHE_PATHS } = await import('../../src/utils/cachePaths.js')
+const { getFsImplementation, setFsImplementation, setOriginalFsImplementation } = await import('../../src/utils/fsOperations.js')
 
 const errorsPath = getErrorsPath()
 if (!errorsPath.startsWith(SCRATCH) || !getDebugLogPath().startsWith(CONFIG)) {
@@ -42,7 +57,7 @@ if (!errorsPath.startsWith(SCRATCH) || !getDebugLogPath().startsWith(CONFIG)) {
   process.exit(1)
 }
 check('the errors file lives under the scratch cache home', true, errorsPath)
-check('…in the errors folder, named by the day, .jsonl', /[\\/]errors[\\/]\d{4}-\d{2}-\d{2}T[\d-]+Z\.jsonl$/.test(errorsPath), errorsPath)
+check('…in the errors folder, named by the local day (<YYYY-MM-DD>.jsonl)', /[\\/]errors[\\/]\d{4}-\d{2}-\d{2}\.jsonl$/.test(errorsPath), errorsPath)
 
 const readRecords = (): Array<Record<string, unknown>> =>
   existsSync(errorsPath)
@@ -72,6 +87,24 @@ console.log('§1 a logged error lands as one JSONL record')
 
 console.log('\n§2 bounded')
 {
+  let stats = 0
+  const realFs = getFsImplementation()
+  setFsImplementation({
+    ...realFs,
+    statSync(p: string) {
+      if (p === errorsPath) stats++
+      return realFs.statSync(p)
+    },
+  })
+  try {
+    logError(new Error('batch-one'))
+    logError(new Error('batch-two'))
+    logError(new Error('batch-three'))
+    await flush()
+  } finally {
+    setOriginalFsImplementation()
+  }
+  check('the 8 MiB ceiling is read by stat on every record append', stats === 3, `stats=${stats}`)
   logError(new Error('x'.repeat(40_000)))
   await flush()
   const last = readRecords().at(-1) ?? {}
@@ -93,6 +126,57 @@ console.log('\n§2 bounded')
   await flush()
   check('…once only, however many errors follow', debugLines().filter(line => line.includes('byte ceiling')).length === 1)
   check('the records before the ceiling stand', text.split('\n').filter(l => l.startsWith('{')).length === before, String(before))
+}
+{
+  const RealDate = globalThis.Date
+  const mockClock = (local: Date): void => {
+    globalThis.Date = new Proxy(RealDate, {
+      construct(_target, args) {
+        return args.length === 0 ? new RealDate(local.getTime()) : new RealDate(...(args as [number]))
+      },
+      apply() {
+        return local.toString()
+      },
+    }) as DateConstructor
+  }
+  try {
+    mockClock(new RealDate(2026, 9, 19, 23, 59, 59, 900))
+    const beforeMidnight = getErrorsPath()
+    logError(new Error('before local midnight'))
+    await flush()
+    mockClock(new RealDate(2026, 9, 20, 0, 0, 0, 100))
+    const afterMidnight = getErrorsPath()
+    logError(new Error('after local midnight'))
+    await flush()
+    check('the day rolls at local midnight (2026-10-19.jsonl → 2026-10-20.jsonl)', beforeMidnight.endsWith('2026-10-19.jsonl') && afterMidnight.endsWith('2026-10-20.jsonl') && existsSync(beforeMidnight) && existsSync(afterMidnight) && readFileSync(beforeMidnight, 'utf8').includes('before local midnight') && readFileSync(afterMidnight, 'utf8').includes('after local midnight'), `${beforeMidnight} → ${afterMidnight}`)
+  } finally {
+    globalThis.Date = RealDate
+  }
+}
+{
+  const errorsDir = CACHE_PATHS.errors()
+  rmSync(errorsDir, { recursive: true, force: true })
+  const { resetErrorLogSinkForTest: resetSink } = await import('../../src/utils/errorLogSink.js')
+  resetSink()
+  const p1 = Bun.spawn([process.execPath, import.meta.path, '--writer', 'sessA'], { env: process.env, stdout: 'ignore', stderr: 'ignore' })
+  const p2 = Bun.spawn([process.execPath, import.meta.path, '--writer', 'sessB'], { env: process.env, stdout: 'ignore', stderr: 'ignore' })
+  await Promise.all([p1.exited, p2.exited])
+  const files = existsSync(errorsDir) ? readdirSync(errorsDir).filter(f => f.endsWith('.jsonl')) : []
+  const lines = files.length === 1 ? readFileSync(join(errorsDir, files[0]!), 'utf8').split('\n').filter(Boolean) : []
+  let parsedA = 0
+  let parsedB = 0
+  let intact = lines.length === 80
+  for (const line of lines) {
+    try {
+      const rec = JSON.parse(line) as { message?: string }
+      if (rec.message?.includes('sessA-')) parsedA++
+      else if (rec.message?.includes('sessB-')) parsedB++
+      else intact = false
+    } catch {
+      intact = false
+    }
+  }
+  check('two sessions appending to the same day .jsonl at once share one file and never interleave a record', files.length === 1 && intact && parsedA === 40 && parsedB === 40, `files=${files.join(',')} lines=${lines.length} A=${parsedA} B=${parsedB}`)
 }
 
 console.log('\n§3 refusals: an unwritable errors path never throws, is named once')
