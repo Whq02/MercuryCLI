@@ -829,8 +829,8 @@ function laneCredentialedLive(provider: ProviderFamilyId): boolean {
     return resolveCohereApiKey() !== undefined
   }
   if (provider === 'qwen') {
-    const { resolveQwenApiKey } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
-    return resolveQwenApiKey() !== undefined
+    const { resolveQwenCredentialSnapshot } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
+    return resolveQwenCredentialSnapshot() !== undefined
   }
   return false
 }

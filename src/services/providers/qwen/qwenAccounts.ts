@@ -1,13 +1,14 @@
 import { readStoredQwenApiKey, readStoredQwenKeyBase } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
+import { QwenRefreshRefusedError, qwenPlanBase, qwenSigninIdentity, qwenSigninRefusal, qwenStoredTokens, readPreferredQwenSource, refreshQwenTokens, type QwenOauthIo, type QwenTokens } from './qwenOauth.js'
 
 export const QWEN_ENV_KEY = 'DASHSCOPE_API_KEY'
 export const QWEN_BASE_OVERRIDE_ENV = 'DASHSCOPE_BASE_URL'
-export const QWEN_WORKSPACE_ENV = 'DASHSCOPE_WORKSPACE_ID'
+const QWEN_WORKSPACE_ENV = 'DASHSCOPE_WORKSPACE_ID'
 const QWEN_PROBE_SEAM_ENV = 'MERCURY_QWEN_API_BASE'
 
-export type QwenPlan = 'pay-as-you-go' | 'coding-plan' | 'token-plan'
+type QwenPlan = 'pay-as-you-go' | 'coding-plan' | 'token-plan'
 
 export interface QwenEndpoint {
   id: string
@@ -35,7 +36,7 @@ const WORKSPACE_REGIONS: readonly { id: string; label: string; region: string }[
   { id: 'workspace-tokyo', label: 'Japan (Tokyo) workspace', region: 'ap-northeast-1' },
 ]
 
-export function qwenWorkspaceId(env: NodeJS.ProcessEnv = process.env): string | undefined {
+function qwenWorkspaceId(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const raw = env[QWEN_WORKSPACE_ENV]?.trim().toLowerCase()
   return raw && /^[a-z0-9][a-z0-9-]{0,63}$/.test(raw) ? raw : undefined
 }
@@ -58,7 +59,7 @@ export function qwenProbeEndpoints(env: NodeJS.ProcessEnv = process.env): QwenEn
   return [...dedicated, ...QWEN_SHARED_ENDPOINTS]
 }
 
-export function qwenEndpointForBase(baseUrl: string, env: NodeJS.ProcessEnv = process.env): QwenEndpoint | undefined {
+function qwenEndpointForBase(baseUrl: string, env: NodeJS.ProcessEnv = process.env): QwenEndpoint | undefined {
   const wanted = baseUrl.replace(/\/+$/, '')
   return qwenProbeEndpoints(env).find(endpoint => qwenEndpointBase(endpoint, env) === wanted)
 }
@@ -95,7 +96,7 @@ export function resolveQwenApiKey(env: NodeJS.ProcessEnv = process.env): { key: 
 
 const boundBases = new Map<string, string>()
 
-export function qwenBindingIdentity(key: string): string {
+function qwenBindingIdentity(key: string): string {
   return credentialFingerprint(key)
 }
 
@@ -134,18 +135,74 @@ export function qwenBoundEndpointLabel(env: NodeJS.ProcessEnv = process.env): st
   return base === undefined ? undefined : qwenEndpointLabelOf(base, env)
 }
 
+export type QwenCredentialSource = 'env' | 'stored' | 'signin'
+
 interface QwenAccountRef {
-  kind: 'api-key'
+  kind: 'api-key' | 'signin'
   label: string
-  keySource: 'env' | 'stored'
+  keySource?: 'env' | 'stored'
+  expired?: boolean
+}
+
+function signinWins(env: NodeJS.ProcessEnv): boolean {
+  if (qwenEnvKey(env)) return false
+  if (qwenStoredTokens() === undefined) return false
+  return !(readPreferredQwenSource() === 'api-key' && (resolveProviderKeyCommand('qwen') !== undefined || readStoredQwenApiKey() !== undefined))
 }
 
 export function resolveQwenAccount(env: NodeJS.ProcessEnv = process.env): QwenAccountRef | undefined {
+  if (signinWins(env)) {
+    const tokens = qwenStoredTokens()
+    const expired = tokens === undefined || tokens.refreshToken.length === 0 || qwenSigninRefusal() !== undefined
+    return { kind: 'signin', label: 'Qwen account sign-in', ...(expired ? { expired: true } : {}) }
+  }
   const key = resolveQwenApiKey(env)
   return key ? { kind: 'api-key', label: key.source === 'env' ? `${QWEN_ENV_KEY} (env)` : 'Model Studio API key (stored, auth-scoped)', keySource: key.source } : undefined
 }
 
-export function qwenEndpointListWords(env: NodeJS.ProcessEnv = process.env): string {
+export function resolveQwenCredentialSnapshot(env: NodeJS.ProcessEnv = process.env): { key: string; source: QwenCredentialSource } | undefined {
+  if (signinWins(env)) {
+    const tokens = qwenStoredTokens()
+    return tokens?.refreshToken && qwenSigninRefusal() === undefined ? { key: tokens.accessToken, source: 'signin' } : undefined
+  }
+  return resolveQwenApiKey(env)
+}
+
+interface QwenDispatchCredential {
+  apiKey: string
+  source: QwenCredentialSource
+  requestUrl: string
+}
+
+export async function resolveQwenCredential(io?: QwenOauthIo): Promise<QwenDispatchCredential | undefined> {
+  const env = io?.env ?? process.env
+  if (signinWins(env)) {
+    if (qwenSigninRefusal() !== undefined) return undefined
+    let tokens: QwenTokens | undefined
+    try {
+      tokens = await refreshQwenTokens(io)
+    } catch (error) {
+      if (error instanceof QwenRefreshRefusedError) return undefined
+      const stored = qwenStoredTokens()
+      const now = io?.now?.() ?? Date.now()
+      tokens = stored?.refreshToken && stored.expiresAtMs !== undefined && stored.expiresAtMs > now ? stored : undefined
+    }
+    return tokens?.refreshToken ? { apiKey: tokens.accessToken, source: 'signin', requestUrl: `${qwenPlanBase(tokens, env)}/chat/completions` } : undefined
+  }
+  const key = resolveQwenApiKey(env)
+  return key ? { apiKey: key.key, source: key.source, requestUrl: qwenChatCompletionsUrl(env) } : undefined
+}
+
+export function qwenAccountIdentity(env: NodeJS.ProcessEnv = process.env): string {
+  if (signinWins(env)) return qwenSigninIdentity(qwenStoredTokens())
+  return credentialFingerprint(resolveQwenApiKey(env)?.key)
+}
+
+export function qwenSigninActive(env: NodeJS.ProcessEnv = process.env): boolean {
+  return signinWins(env)
+}
+
+function qwenEndpointListWords(env: NodeJS.ProcessEnv = process.env): string {
   return qwenProbeEndpoints(env).map(endpoint => endpoint.label).join(' · ')
 }
 

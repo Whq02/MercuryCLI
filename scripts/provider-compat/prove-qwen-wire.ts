@@ -1,7 +1,8 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
-import { readFileSync, rmSync } from 'node:fs'
+import { readFileSync, rmSync, statSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { z } from 'zod/v4'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
@@ -16,6 +17,12 @@ const KEY_CODING = 'proof-key-qwen-coding-fixture-not-a-real-key'
 const KEY_WORKSPACE = 'proof-key-qwen-virginia-workspace-fixture-not-a-real-key'
 const KEY_NOWHERE = 'proof-key-qwen-nowhere-fixture-not-a-real-key'
 const ACCEPTS: Record<string, string> = { [KEY_INTL]: 'singapore', [KEY_CN]: 'beijing', [KEY_CODING]: 'coding-intl', [KEY_WORKSPACE]: 'workspace-virginia' }
+const QWEN_CLIENT_ID = 'f0304373b74a44d2b584a3fb70ca9e56'
+const oauthCalls: Array<{ path: string; form: Record<string, string>; requestId: string | null }> = []
+let deviceChallenge = ''
+let pollScript: string[] = []
+let tokenSerial = 0
+let refreshMode = 'ok'
 process.env.DASHSCOPE_API_KEY = KEY_INTL
 const liveRows = (ids: string[]): unknown[] => ids.map(id => ({ id, object: 'model', created: 1, owned_by: 'system' }))
 const TEXT_IDS = ['qwen3.8-max', 'qwen3.7-plus', 'qwen3-coder-plus', 'qwen3.8-flash', 'qwen3.7-flash', 'qwen3-coder-flash', 'qwen3.8-omni-flash', 'qwen-plus']
@@ -34,11 +41,49 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   const path = `/${rest.join('/')}`
   const bearer = req.headers.get('authorization')?.replace(/^Bearer /, '') ?? null
   const accepted = bearer !== null && ACCEPTS[bearer] === endpoint
+  if (endpoint === 'plan') {
+    const planBearer = bearer === `proof-token-qwen-access-${tokenSerial}-not-real`
+    if (path === '/models') { listReads.push('plan'); return planBearer ? Response.json({ object: 'list', data: liveRows(['coder-model', 'qwen3-coder-plus']) }) : refuse(401, 'invalid_api_key', 'Incorrect API key provided. ') }
+    if (path === '/chat/completions' && req.method === 'POST') {
+      const raw = await req.text()
+      assert.ok(!raw.includes('proof-token-qwen'))
+      const body = JSON.parse(raw) as Record<string, any>
+      captures.push({ endpoint: 'plan', body, bearer })
+      if (!planBearer) return refuse(401, 'invalid_api_key', 'Incorrect API key provided. ')
+      return new Response(`data: ${JSON.stringify({ id: 'chatcmpl-plan', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{ index: 0, delta: { role: 'assistant', content: 'PLAN-SETTLED' }, finish_reason: 'stop' }] })}\n\ndata: ${JSON.stringify({ id: 'chatcmpl-plan', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [], usage: { prompt_tokens: 10, completion_tokens: 3, total_tokens: 13 } })}\n\ndata: [DONE]\n\n`, { headers: { 'content-type': 'text/event-stream' } })
+    }
+  }
   if (path === '/models') {
     listReads.push(endpoint!)
     if (!accepted || listStatus === 401) return refuse(401, 'invalid_api_key', 'Incorrect API key provided. ')
     if (listStatus !== 200) return refuse(listStatus, 'server_error', 'unavailable')
     return Response.json({ object: 'list', data: modelList })
+  }
+  if (url.pathname === '/api/v1/oauth2/device/code' || url.pathname === '/api/v1/oauth2/token') {
+    const form = Object.fromEntries(new URLSearchParams(await req.text()))
+    oauthCalls.push({ path: url.pathname, form, requestId: req.headers.get('x-request-id') })
+    if (url.pathname === '/api/v1/oauth2/device/code') {
+      if (form.client_id !== QWEN_CLIENT_ID || form.scope !== 'openid profile email model.completion' || form.code_challenge_method !== 'S256' || !/^[A-Za-z0-9_-]{43}$/.test(form.code_challenge ?? '')) return Response.json({ error: 'invalid_request', error_description: 'bad device request' }, { status: 400 })
+      deviceChallenge = form.code_challenge!
+      return Response.json({ device_code: 'proof-device-code-qwen-not-real', user_code: 'ABCD-1234', verification_uri: `${seam}/device`, verification_uri_complete: `${seam}/device?user_code=ABCD-1234`, expires_in: 300 })
+    }
+    if (form.grant_type === 'urn:ietf:params:oauth:grant-type:device_code') {
+      const verifierMatches = typeof form.code_verifier === 'string' && createHash('sha256').update(form.code_verifier).digest('base64url') === deviceChallenge
+      if (form.client_id !== QWEN_CLIENT_ID || form.device_code !== 'proof-device-code-qwen-not-real' || !verifierMatches) return Response.json({ error: 'invalid_grant', error_description: 'bad poll' }, { status: 400 })
+      const step = pollScript.shift() ?? 'authorized'
+      if (step === 'pending') return Response.json({ error: 'authorization_pending', error_description: 'waiting' }, { status: 400 })
+      if (step === 'slow') return Response.json({ error: 'slow_down', error_description: 'slower' }, { status: 429 })
+      if (step === 'denied') return Response.json({ error: 'access_denied', error_description: 'declined in the browser' }, { status: 400 })
+      tokenSerial++
+      return Response.json({ access_token: `proof-token-qwen-access-${tokenSerial}-not-real`, refresh_token: `proof-token-qwen-refresh-${tokenSerial}-not-real`, token_type: 'Bearer', expires_in: 3600, scope: 'openid profile email model.completion', resource_url: 'portal.qwen.ai' })
+    }
+    if (form.grant_type === 'refresh_token') {
+      if (refreshMode === 'revoked') return Response.json({ error: 'invalid_grant', error_description: 'the refresh token was revoked' }, { status: 400 })
+      if (form.client_id !== QWEN_CLIENT_ID || form.refresh_token !== `proof-token-qwen-refresh-${tokenSerial}-not-real`) return Response.json({ error: 'invalid_grant', error_description: 'unknown refresh token' }, { status: 400 })
+      tokenSerial++
+      return Response.json({ access_token: `proof-token-qwen-access-${tokenSerial}-not-real`, refresh_token: `proof-token-qwen-refresh-${tokenSerial}-not-real`, token_type: 'Bearer', expires_in: 3600, resource_url: 'portal.qwen.ai' })
+    }
+    return Response.json({ error: 'unsupported_grant_type' }, { status: 400 })
   }
   if (path !== '/chat/completions' || req.method !== 'POST') return new Response('not found', { status: 404 })
   const raw = await req.text()
@@ -76,6 +121,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 const seam = `http://127.0.0.1:${server.port}`
 process.env.MERCURY_QWEN_API_BASE = seam
+process.env.MERCURY_QWEN_PORTAL_BASE = seam
 process.env.MERCURY_GROQ_API_BASE = `${seam}/groq-fixture/openai/v1`
 let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
@@ -291,6 +337,51 @@ try {
   __resetQwenCatalogueForTest(); forgetQwenBoundBases()
   const aborted = new AbortController(); aborted.abort()
   check('pre-aborted calls perform no inference', (await run({ ...params(), signal: aborted.signal })).length === 0 && captures.length === before)
+  section('the Qwen account sign-in: the device code, the token, the refresh, the revocation')
+  const { runQwenDeviceLogin, QWEN_CONNECT_ROWS } = await import('../../src/services/providers/qwen/qwenLogin.ts')
+  const { qwenStoredTokens, qwenAuthPathForDisplay, writeQwenTokens, qwenSigninRefusal, tokensFromQwenBody, clearStoredQwenSignin, QWEN_OAUTH_CLIENT_ID } = await import('../../src/services/providers/qwen/qwenOauth.ts')
+  const { resolveQwenAccount, resolveQwenCredential } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
+  const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
+  check('the sign-in card offers the device road first and the key second, and the face layer carries the pick', QWEN_CONNECT_ROWS[0]?.value === 'device' && QWEN_CONNECT_ROWS[1]?.value === 'key' && QWEN_OAUTH_CLIENT_ID === QWEN_CLIENT_ID)
+  check('a token body with a Qwen resource host is trusted and a foreign host is dropped', tokensFromQwenBody({ access_token: 'a', refresh_token: 'r', expires_in: 60, resource_url: 'portal.qwen.ai' }, { env: {} }).resourceUrl === 'https://portal.qwen.ai' && tokensFromQwenBody({ access_token: 'a', refresh_token: 'r', expires_in: 60, resource_url: 'https://evil.example/v1' }, { env: {} }).resourceUrl === undefined)
+  pollScript = ['pending', 'slow', 'authorized']
+  const events: string[] = []
+  __resetQwenCatalogueForTest(); forgetQwenBoundBases()
+  const signin = await runQwenDeviceLogin({ sleep: async () => {}, onEvent: event => events.push(event.phase === 'waiting' ? `waiting:${event.polls}:${event.start.userCode}` : event.phase) })
+  const device = oauthCalls.find(call => call.path === '/api/v1/oauth2/device/code')
+  const polls = oauthCalls.filter(call => call.path === '/api/v1/oauth2/token' && call.form.grant_type === 'urn:ietf:params:oauth:grant-type:device_code')
+  check('the device request carries the public client id, the scope, an S256 challenge and a request id; the polls carry the device code and the verifier that hashes to it', device?.form.client_id === QWEN_CLIENT_ID && device.form.scope === 'openid profile email model.completion' && device.form.code_challenge_method === 'S256' && device.requestId !== null && polls.length === 3 && polls.every(call => call.form.device_code === 'proof-device-code-qwen-not-real' && createHash('sha256').update(call.form.code_verifier!).digest('base64url') === deviceChallenge))
+  check('pending and slow_down keep polling until the approval lands, and the events show the code', signin.ok && events[0] === 'starting' && events[1] === 'waiting:0:ABCD-1234' && events.includes('finishing') && signin.receipt.includes('Qwen account sign-in stored (auth-scoped, mode 600)') && signin.receipt.includes('2 text models listed on the plan endpoint') && signin.receipt.includes("the Qwen Coder plan's own terms"))
+  console.log(signin.receipt)
+  const stored = qwenStoredTokens()
+  check('the tokens rest in the auth-scoped file at mode 600 with the resource host, and the sign-in is the account now', stored?.accessToken === 'proof-token-qwen-access-1-not-real' && stored.refreshToken === 'proof-token-qwen-refresh-1-not-real' && stored.resourceUrl === 'https://portal.qwen.ai' && (statSync(qwenAuthPathForDisplay()).mode & 0o777) === 0o600 && resolveQwenAccount()?.kind === 'signin' && readStoredQwenApiKey() === KEY_INTL)
+  const qwenSlots = deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots ?? []
+  check('/accounts shows the sign-in slot active beside the stored key, which steps aside', qwenSlots.some(slot => slot.id === 'qwen:signin' && slot.active && slot.signedIn && slot.kind === 'oauth') && qwenSlots.some(slot => slot.kind === 'api-key' && !slot.active && slot.stateNote === 'Qwen account sign-in selected'))
+  before = captures.length
+  const plan = await run(params('qwen'))
+  check("the family word under the sign-in runs the plan's head row on the plan endpoint with the bearer token, never a Model Studio endpoint", captures.length === before + 1 && captures.at(-1)?.endpoint === 'plan' && captures.at(-1)?.bearer === 'proof-token-qwen-access-1-not-real' && captures.at(-1)?.body.model === 'coder-model' && textOf(plan) === 'PLAN-SETTLED' && !('enable_thinking' in captures.at(-1)!.body))
+  check('the plan catalogue is live and the picker lists its rows under the sign-in', qwenCatalogueRows().source.kind === 'live' && qwenCatalogueRows().rows.map(row => row.id).join(',') === 'coder-model,qwen3-coder-plus' && (qwenCatalogueSourceWords() ?? '').includes('live on the Qwen account plan') && usageForProvider('qwen').sourceKind === 'oauth')
+  writeQwenTokens({ ...stored!, expiresAtMs: Date.now() - 1 })
+  before = captures.length
+  await run(params('coder-model'))
+  const refreshCalls = oauthCalls.filter(call => call.form.grant_type === 'refresh_token')
+  check('an expired token is refreshed before the turn with the refresh grant and the client id, the fresh token rides the wire and rests in the file', refreshCalls.length === 1 && refreshCalls[0]?.form.client_id === QWEN_CLIENT_ID && refreshCalls[0].form.refresh_token === 'proof-token-qwen-refresh-1-not-real' && captures.length === before + 1 && captures.at(-1)?.bearer === 'proof-token-qwen-access-2-not-real' && qwenStoredTokens()?.accessToken === 'proof-token-qwen-access-2-not-real')
+  refreshMode = 'revoked'
+  writeQwenTokens({ ...qwenStoredTokens()!, expiresAtMs: Date.now() - 1 })
+  before = captures.length
+  const revoked = await run(params('coder-model'))
+  check('a revoked refresh token refuses the turn before any request, names /logins qwen, and the account reads expired on every surface', captures.length === before && revoked.some(row => row.isApiErrorMessage) && words(revoked).includes('/logins qwen') && words(revoked).includes('expired') && qwenSigninRefusal()?.code === 'invalid_grant' && (await resolveQwenCredential()) === undefined && resolveQwenAccount()?.expired === true && resolveProviderUsability().qwen.usable === false && resolveProviderUsability().qwen.blockers.some(line => line.includes('/logins qwen')) && (deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots.find(slot => slot.id === 'qwen:signin')?.signedIn === false))
+  console.log(words(revoked))
+  const removal = deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots.find(slot => slot.id === 'qwen:signin')
+  check('/accounts removes the sign-in and the stored key becomes the account again', removal !== undefined && executeSlotRemoval(removal).mutated && qwenStoredTokens() === undefined && resolveQwenAccount()?.kind === 'api-key')
+  refreshMode = 'ok'; pollScript = ['authorized']
+  const terminalDevice: string[] = []
+  const deviceLogin = await providerAuthLogin('qwen', { device: true }, { writeOut: text => terminalDevice.push(text), writeErr: text => terminalDevice.push(text), exit: () => {} })
+  check('mercury auth login qwen --device prints the URL and the code, and stores the sign-in', deviceLogin.ok && terminalDevice.join('').includes('Visit') && terminalDevice.join('').includes('ABCD-1234') && qwenStoredTokens()?.accessToken === 'proof-token-qwen-access-3-not-real')
+  pollScript = ['denied']
+  const declined = await runQwenDeviceLogin({ sleep: async () => {} })
+  check('a sign-in declined in the browser stores nothing new and offers the key leg', !declined.ok && declined.receipt.includes('declined in the browser') && declined.receipt.includes('/logins qwen') && qwenStoredTokens()?.accessToken === 'proof-token-qwen-access-3-not-real')
+  clearStoredQwenSignin(); __resetQwenCatalogueForTest(); forgetQwenBoundBases()
   const { proveExistingCompatKnobs } = await import('../providers/lib/fast-infer-control.ts')
   await proveExistingCompatKnobs()
   console.log(`QWEN WIRE GREEN (${count} checks; loopback fixture only)`)

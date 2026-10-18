@@ -124,7 +124,7 @@ export interface QwenDiscovery {
   provider: 'qwen'
   probedAtMs: number
   keyPresent: boolean
-  keySource?: 'env' | 'stored'
+  keySource?: 'env' | 'stored' | 'signin'
 }
 export interface CompatDiscovery {
   provider: 'openai-compat'
@@ -362,8 +362,8 @@ function probeFireworks(io: DiscoveryIo): FireworksDiscovery {
   return { provider: 'fireworks', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 function probeQwen(io: DiscoveryIo): QwenDiscovery {
-  const { resolveQwenApiKey } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
-  const key = resolveQwenApiKey(io.env as NodeJS.ProcessEnv)
+  const { resolveQwenCredentialSnapshot } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
+  const key = resolveQwenCredentialSnapshot(io.env as NodeJS.ProcessEnv)
   return { provider: 'qwen', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 function probeZen(io: DiscoveryIo): ZenDiscovery {

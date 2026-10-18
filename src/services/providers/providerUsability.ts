@@ -67,6 +67,8 @@ export interface ProviderUsabilityReads {
   cerebrasKeyPresent?: () => boolean
   fireworksKeyPresent?: () => boolean
   qwenKeyPresent?: () => boolean
+  qwenAccount?: () => { kind: 'signin' | 'api-key'; expired?: boolean } | undefined
+  qwenSigninRefused?: () => string | undefined
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
@@ -210,8 +212,17 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
       return resolveFireworksApiKey() !== undefined
     },
     qwenKeyPresent: () => {
-      const { resolveQwenApiKey } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
-      return resolveQwenApiKey() !== undefined
+      const { resolveQwenAccount } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
+      return resolveQwenAccount() !== undefined
+    },
+    qwenAccount: () => {
+      const { resolveQwenAccount } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
+      return resolveQwenAccount()
+    },
+    qwenSigninRefused: () => {
+      const { qwenSigninRefusal, qwenSigninRefusalNote } = require('./qwen/qwenOauth.js') as typeof import('./qwen/qwenOauth.js')
+      const refused = qwenSigninRefusal()
+      return refused === undefined ? undefined : qwenSigninRefusalNote(refused)
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
@@ -411,7 +422,10 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   const groq = keyLane('groq', reads.groqKeyPresent?.() ?? false, 'no Groq API key — /logins groq (or GROQ_API_KEY)')
   const cerebras = keyLane('cerebras', reads.cerebrasKeyPresent?.() ?? false, 'no Cerebras API key — /logins cerebras (or CEREBRAS_API_KEY)')
   const fireworks = keyLane('fireworks', reads.fireworksKeyPresent?.() ?? false, 'no Fireworks API key — /logins fireworks (or FIREWORKS_API_KEY)')
-  const qwen = keyLane('qwen', reads.qwenKeyPresent?.() ?? false, 'no Model Studio API key — /logins qwen (or DASHSCOPE_API_KEY)')
+  const qwenAccount = reads.qwenAccount?.()
+  const qwenPresent = keyLane('qwen', reads.qwenKeyPresent?.() ?? qwenAccount !== undefined, 'no Model Studio API key — /logins qwen (or DASHSCOPE_API_KEY)', qwenAccount?.kind === 'signin' ? 'oauth' : 'api-key')
+  const qwenRefused = qwenAccount?.kind === 'signin' && qwenPresent.credential !== 'none' ? reads.qwenSigninRefused?.() ?? (qwenAccount.expired ? 'Qwen account sign-in expired — sign in again (/logins qwen) or use a Model Studio API key' : undefined) : undefined
+  const qwen: ProviderUsability = qwenRefused === undefined ? qwenPresent : { ...qwenPresent, usable: false, blockers: [...qwenPresent.blockers, qwenRefused] }
   const deepseek = keyLane(
     'deepseek',
     reads.deepseekKeyPresent?.() ?? false,

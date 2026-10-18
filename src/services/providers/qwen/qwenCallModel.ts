@@ -8,12 +8,13 @@ import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile }
 import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
-import { QWEN_BASE_OVERRIDE_ENV, QWEN_ENV_KEY, qwenBoundEndpointLabel, qwenChatCompletionsUrl, resolveQwenAccount, resolveQwenApiKey } from './qwenAccounts.js'
+import { QWEN_BASE_OVERRIDE_ENV, QWEN_ENV_KEY, qwenBoundEndpointLabel, qwenChatCompletionsUrl, qwenSigninActive, resolveQwenAccount, resolveQwenCredential } from './qwenAccounts.js'
+import { QWEN_SIGNIN_EXPIRED_LINE, qwenSigninRefusal, qwenSigninRefusalNote, refreshQwenTokens } from './qwenOauth.js'
 import { getCachedQwenCatalogue, newestQwenModel, qwenListedModel, qwenModelFacts, qwenWireId } from './qwenCatalogue.js'
 import { QWEN_DISPLAY_PINS, isQwenTextModelId, qwenDisplayPin, qwenPreservesThinking, qwenWireEffort } from './qwenPins.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 
-export const QWEN_KEY_PAGE = 'modelstudio.alibabacloud.com (API-KEY)'
+const QWEN_KEY_PAGE = 'modelstudio.alibabacloud.com (API-KEY)'
 
 export function buildQwenExtras(args: LaneExtrasArgs): Record<string, unknown> {
   const facts = qwenModelFacts(args.wireModel)
@@ -30,27 +31,38 @@ export function buildQwenExtras(args: LaneExtrasArgs): Record<string, unknown> {
   }
 }
 
-export function qwenWrongRegionRemedy(endpointLabel: string | undefined): string {
+function qwenWrongRegionRemedy(endpointLabel: string | undefined): string {
   const where = endpointLabel ? `Model Studio ${endpointLabel} refused the key` : 'Model Studio refused the key'
   return `${where} — a Model Studio key answers only the region and plan it was minted in; /logins qwen re-binds the key to its endpoint, or ${QWEN_BASE_OVERRIDE_ENV} names the endpoint it was minted for. A 403 "Access to model denied" means the service or the model is not activated for the account — the Model Studio console (Model Gallery) activates it.`
 }
 
 const qwenLaneProfile: CompatLaneProfile = {
   lane: 'qwen', providerLabel: 'Qwen',
-  resolveCredential: () => {
-    const key = resolveQwenApiKey()
-    return key ? { apiKey: key.key } : undefined
+  resolveCredential: async () => {
+    const credential = await resolveQwenCredential()
+    return credential ? { apiKey: credential.apiKey, requestUrl: credential.requestUrl } : undefined
   },
   recoverCredential: async () => {
+    if (qwenSigninActive()) {
+      const fresh = await refreshQwenTokens(undefined, true).catch(() => undefined)
+      if (!fresh) return undefined
+      const credential = await resolveQwenCredential()
+      return credential ? { apiKey: credential.apiKey, requestUrl: credential.requestUrl } : undefined
+    }
     if (!configuredProviderKeyCommand('qwen')) return null
     const fresh = recoverProviderKeyCommand('qwen')
     return fresh ? { apiKey: fresh } : undefined
   },
   get credentialHint(): string {
+    if (qwenSigninActive()) {
+      const refusal = qwenSigninRefusal()
+      return refusal ? `${qwenSigninRefusalNote(refusal)}.` : `${QWEN_SIGNIN_EXPIRED_LINE}.`
+    }
     const failure = providerKeyCommandFailure('qwen')
-    return failure ? `the configured ${failure.message} — no Model Studio API key detected.` : `no Model Studio API key detected — /logins qwen stores one (made at ${QWEN_KEY_PAGE}); ${QWEN_ENV_KEY} works too.`
+    return failure ? `the configured ${failure.message} — no Model Studio API key detected.` : `no Model Studio API key detected — /logins qwen stores one (made at ${QWEN_KEY_PAGE}) or signs in with a Qwen account; ${QWEN_ENV_KEY} works too.`
   },
   get authRemedy(): string {
+    if (qwenSigninActive()) return `${QWEN_SIGNIN_EXPIRED_LINE}.`
     return qwenWrongRegionRemedy(qwenBoundEndpointLabel())
   },
   billingRemedy: 'the Model Studio balance or plan quota is spent — top up or wait for the plan window at modelstudio.console.alibabacloud.com (Usage & Billing), then retry; /model picks another model meanwhile.',

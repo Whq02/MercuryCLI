@@ -104,7 +104,7 @@ const { composeLogins, renderStill, signedOutFacts } = await import('./face-logi
 
 const DETAIL_W = 38
 const WAY_OUT: Record<'pick' | 'key', string> = { pick: 'esc — back to the roster', key: '↵ stores it · esc back' }
-const isKeyOnly = (family: Family): family is 'deepseek' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen' => family === 'deepseek' || family === 'mistral' || family === 'nous' || family === 'zen' || family === 'minimax' || family === 'together' || family === 'cohere' || family === 'groq' || family === 'cerebras' || family === 'fireworks' || family === 'qwen'
+const isKeyOnly = (family: Family): family is 'deepseek' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' => family === 'deepseek' || family === 'mistral' || family === 'nous' || family === 'zen' || family === 'minimax' || family === 'together' || family === 'cohere' || family === 'groq' || family === 'cerebras' || family === 'fireworks'
 const cardKind = (family: Family): 'pick' | 'key' => (isKeyOnly(family) ? 'key' : 'pick')
 const cardLines = (family: Family): string[] =>
   isKeyOnly(family) ? screen.keyPromptPaneLines(family, null, 0, false) : screen.loginsPickPaneLines(family)

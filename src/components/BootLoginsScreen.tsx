@@ -38,7 +38,7 @@ import { storeCohereApiKeyLogin } from '../services/providers/cohere/cohereLogin
 import { storeGroqApiKeyLogin } from '../services/providers/groq/groqLogin.js';
 import { storeCerebrasApiKeyLogin } from '../services/providers/cerebras/cerebrasLogin.js';
 import { storeFireworksApiKeyLogin } from '../services/providers/fireworks/fireworksLogin.js';
-import { storeQwenApiKeyLogin } from '../services/providers/qwen/qwenLogin.js';
+import { storeQwenApiKeyLogin, runQwenDeviceLogin, QWEN_CONNECT_ROWS, QWEN_FACE_PICK_LINE } from '../services/providers/qwen/qwenLogin.js';
 import {
   runKimiDeviceLogin,
   storeMoonshotApiKeyLogin,
@@ -469,7 +469,7 @@ export function anthropicFlowStatusOf(snap: AnthropicLoginSnapshot, backToPicker
 }
 
 
-export type LoginsPickId = 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous' | 'meta';
+export type LoginsPickId = 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous' | 'meta' | 'qwen';
 export type FaceKeyLegId =
   | 'openai-key'
   | 'zai-general'
@@ -513,6 +513,8 @@ export function loginsPickOptions(
       return XAI_CONNECT_ROWS;
     case 'nous':
       return NOUS_CONNECT_ROWS;
+    case 'qwen':
+      return QWEN_CONNECT_ROWS;
     case 'meta':
       return metaPickOptions(metaFacts ?? liveMetaConnectFacts());
     case 'openrouter':
@@ -555,6 +557,8 @@ export function loginsPickPaneLines(pick: LoginsPickId, pickSel = 0): string[] {
         return 'Sign in with your Grok account (SuperGrok / X Premium) or paste an API key. xAI decides subscription eligibility; consent may say Grok Build.';
       case 'nous':
         return 'Sign in with your Nous Portal account in the browser, or paste an API key. Either one bills the Portal credits or subscription behind it.';
+      case 'qwen':
+        return QWEN_FACE_PICK_LINE;
       case 'meta':
         return 'Sign in with Meta for a Muse Code subscription (device code in your browser), or paste a pay-as-you-go Model API key.';
       case 'openai':
@@ -772,7 +776,7 @@ export function signedInStatusWayOut(backToPicker: boolean): string {
 }
 
 
-export type FaceDeviceFamily = 'moonshot' | 'huggingface' | 'xai' | 'nous' | 'meta';
+export type FaceDeviceFamily = 'moonshot' | 'huggingface' | 'xai' | 'nous' | 'meta' | 'qwen';
 
 export interface DeviceWaitStateV1 {
   family: FaceDeviceFamily;
@@ -789,6 +793,7 @@ export interface DeviceWaitStateV1 {
 export function deviceFamilyWords(family: FaceDeviceFamily, regionWords?: string): string {
   if (family === 'xai') return 'Grok (device code)';
   if (family === 'nous') return 'Nous Portal (browser approval)';
+  if (family === 'qwen') return 'Qwen (device code)';
   if (family === 'meta') return 'Meta (device code)';
   return family === 'moonshot'
     ? `Kimi (device code${regionWords !== undefined ? ` · ${regionWords}` : ''})`
@@ -811,8 +816,8 @@ export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number): string
       '',
       d.family === 'moonshot'
         ? 'Authorized — storing the sign-in and'
-        : d.family === 'xai' ? 'Authorized — storing your Grok sign-in' : d.family === 'nous' ? 'Approved — storing the sign-in' : d.family === 'meta' ? 'Authorized — minting the Muse Code key' : 'Authorized — reading your Hub identity',
-      d.family === 'moonshot' ? 'reading your usage…' : d.family === 'nous' ? 'and reading your account…' : d.family === 'meta' ? 'and reading your plan…' : 'and the live catalogue…',
+        : d.family === 'xai' ? 'Authorized — storing your Grok sign-in' : d.family === 'nous' || d.family === 'qwen' ? 'Approved — storing the sign-in' : d.family === 'meta' ? 'Authorized — minting the Muse Code key' : 'Authorized — reading your Hub identity',
+      d.family === 'moonshot' ? 'reading your usage…' : d.family === 'nous' ? 'and reading your account…' : d.family === 'qwen' ? "and reading the plan's model list…" : d.family === 'meta' ? 'and reading your plan…' : 'and the live catalogue…',
     ];
   }
   const lines: string[] = ['On the sign-in page, enter this code:'];
@@ -982,6 +987,8 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
           return 'xAI — Grok subscription or API key';
         case 'nous':
           return 'Nous Portal — account sign-in or API key';
+        case 'qwen':
+          return 'Qwen — account sign-in or Model Studio API key';
         case 'meta':
           return META_LOGIN_FAMILY_LABEL;
         case 'openai':
@@ -1005,7 +1012,7 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
     case 'device':
       return pane.device.phase === 'finishing'
         ? 'authorized — settling the sign-in'
-        : `waiting on the ${pane.device.family === 'moonshot' ? 'Kimi' : pane.device.family === 'xai' ? 'Grok' : pane.device.family === 'nous' ? 'Nous Portal' : pane.device.family === 'meta' ? 'Meta' : 'Hub'} device code`;
+        : `waiting on the ${pane.device.family === 'moonshot' ? 'Kimi' : pane.device.family === 'xai' ? 'Grok' : pane.device.family === 'nous' ? 'Nous Portal' : pane.device.family === 'qwen' ? 'Qwen' : pane.device.family === 'meta' ? 'Meta' : 'Hub'} device code`;
     case 'handles':
       return pane.handles.phase === 'exchanging'
         ? 'exchanging the authorization code'
@@ -1276,6 +1283,8 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       void runXaiDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
     } else if (family === 'nous') {
       void runNousDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
+    } else if (family === 'qwen') {
+      void runQwenDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
     } else if (family === 'meta') {
       void runMetaDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
     } else {
@@ -1436,7 +1445,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         setFlow({ kind: 'key', leg: 'fireworks', note: null, storing: false });
         return;
       case 'qwen':
-        setFlow({ kind: 'key', leg: 'qwen', note: null, storing: false });
+        openPick('qwen');
         return;
       case 'deepseek':
         setFlow({ kind: 'key', leg: 'deepseek', note: null, storing: false });
@@ -1473,6 +1482,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       case 'nous':
         if (value === 'key') setFlow({ kind: 'key', leg: 'nous', note: null, storing: false });
         else startDeviceRun('nous');
+        return;
+      case 'qwen':
+        if (value === 'key') setFlow({ kind: 'key', leg: 'qwen', note: null, storing: false });
+        else startDeviceRun('qwen');
         return;
       case 'meta':
         if ((value === 'key' || value === 'device') && metaConnectRowAction(liveMetaConnectFacts(), value) === 'activate') {

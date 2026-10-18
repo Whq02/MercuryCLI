@@ -40,7 +40,7 @@ import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
 import { fireworksCallModel, fireworksLiveProofState } from './fireworks/fireworksCallModel.js'
 import { resolveFireworksApiKey } from './fireworks/fireworksAccounts.js'
 import { qwenCallModel, qwenLiveProofState } from './qwen/qwenCallModel.js'
-import { resolveQwenApiKey } from './qwen/qwenAccounts.js'
+import { resolveQwenCredentialSnapshot } from './qwen/qwenAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { configuredCompatEndpoints } from './openaicompat/compatAccounts.js'
 import {
@@ -344,7 +344,7 @@ const qwenBackend: PrimaryAgentBackend = {
   id: 'qwen-chat', provider: 'qwen', label: 'Qwen (Model Studio, in-process)',
   callModel: qwenCallModel,
   readiness: (): BackendReadiness => {
-    if (!resolveQwenApiKey()) return { state: 'unavailable', reason: 'no API key (/logins qwen, or DASHSCOPE_API_KEY)' }
+    if (!resolveQwenCredentialSnapshot()) return { state: 'unavailable', reason: 'no sign-in or API key (/logins qwen, or DASHSCOPE_API_KEY)' }
     const proof = qwenLiveProofState()
     return proof
       ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }

@@ -11,7 +11,7 @@ import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
 import { resolveGroqApiKey } from './groq/groqAccounts.js'
 import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
 import { resolveFireworksApiKey } from './fireworks/fireworksAccounts.js'
-import { resolveQwenApiKey } from './qwen/qwenAccounts.js'
+import { resolveQwenCredentialSnapshot } from './qwen/qwenAccounts.js'
 import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
 import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
@@ -108,7 +108,7 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
     case 'fireworks':
       return resolveFireworksApiKey(env) !== undefined
     case 'qwen':
-      return resolveQwenApiKey(env) !== undefined
+      return resolveQwenCredentialSnapshot(env) !== undefined
   }
 }
 

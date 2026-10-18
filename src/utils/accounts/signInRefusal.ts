@@ -36,7 +36,7 @@ function currentCredential(family: string): Credential | undefined {
       case 'groq': return keyCredential(require('../../services/providers/groq/groqAccounts.js').resolveGroqApiKey())
       case 'cerebras': return keyCredential(require('../../services/providers/cerebras/cerebrasAccounts.js').resolveCerebrasApiKey())
       case 'fireworks': return keyCredential(require('../../services/providers/fireworks/fireworksAccounts.js').resolveFireworksApiKey())
-      case 'qwen': return keyCredential(require('../../services/providers/qwen/qwenAccounts.js').resolveQwenApiKey())
+      case 'qwen': return keyCredential(require('../../services/providers/qwen/qwenAccounts.js').resolveQwenCredentialSnapshot())
       case 'zai': return keyCredential(require('../../services/providers/zai/zaiAccounts.js').resolveZaiDispatch())
       case 'local': return keyCredential(require('../../services/providers/local/localAccounts.js').resolveLocalApiKey())
       case 'openai-compat': {

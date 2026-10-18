@@ -460,9 +460,16 @@ account credits and costs are shown in the Fireworks console. Sources read
 [rate limits](https://docs.fireworks.ai/serverless/rate-limits) and
 [Fire Pass](https://docs.fireworks.ai/firepass).
 
-Qwen connects through `/logins` with a Model Studio API key (`DASHSCOPE_API_KEY`
-works too), made in the Alibaba Cloud Model Studio console for the region the
-account lives in. A Model Studio key answers only the region and plan it was
+Qwen connects through `/logins` two ways: a Qwen account sign-in (a device code
+approved in the browser, which runs the Qwen Coder plan behind chat.qwen.ai on
+Qwen Code's public OAuth client — Mercury runs the device flow itself, stores the
+tokens auth-scoped at mode 600, refreshes them before they expire, and never reads
+another tool's credential file; the plan's terms are the account holder's own, and
+the road ships as it is), or a Model Studio API key (`DASHSCOPE_API_KEY` works
+too), made in the Alibaba Cloud Model Studio console for the region the account
+lives in. A signed-in account dispatches on the plan endpoint the token names with
+the plan's own model list; a revoked or expired sign-in refuses the turn and names
+`/logins`. A Model Studio key answers only the region and plan it was
 minted in, so the sign-in probes the documented endpoints in turn — International
 (Singapore), China (Beijing), China (Hong Kong), the Coding Plan (international and
 China) and the Token Plan (Singapore and Beijing) — keeps the first whose model
@@ -471,7 +478,7 @@ accepts is refused with the endpoints named and nothing is stored. `DASHSCOPE_BA
 names an endpoint instead of the probe (a workspace-dedicated domain such as
 `https://<workspace>.us-east-1.maas.aliyuncs.com/compatible-mode/v1`), and
 `DASHSCOPE_WORKSPACE_ID` adds the six workspace-dedicated domains to the probe.
-The picker lists the text models the bound endpoint serves live, with dated pins
+The picker lists the text models the bound endpoint (or the plan) serves live, with dated pins
 for the context windows and prices of the rows this build knows (Qwen3.8 Max,
 Qwen3.7 Plus, Qwen3.8 Flash, Qwen3.8 Omni Flash, Qwen3.7 Flash, Qwen3 Coder
 Flash), and falls to the pins, labelled as pins, when the list cannot be read.

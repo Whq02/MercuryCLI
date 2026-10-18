@@ -1,6 +1,6 @@
 export const QWEN_OBSERVED_AT = '2026-10-18'
-export const QWEN_PLAN_MODEL_ID = 'coder-model'
-export const QWEN_EFFORTS: readonly string[] = ['low', 'medium', 'xhigh']
+const QWEN_PLAN_MODEL_ID = 'coder-model'
+const QWEN_EFFORTS: readonly string[] = ['low', 'medium', 'xhigh']
 
 export type QwenThinkingDial = 'hybrid' | 'none'
 

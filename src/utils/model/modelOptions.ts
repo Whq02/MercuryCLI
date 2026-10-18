@@ -710,8 +710,8 @@ function liveKeyLaneReads(): KeyLaneReads {
       return resolveFireworksApiKey() !== undefined
     },
     qwenKeyPresent: () => {
-      const { resolveQwenApiKey } = require('../../services/providers/qwen/qwenAccounts.js') as typeof import('../../services/providers/qwen/qwenAccounts.js')
-      return resolveQwenApiKey() !== undefined
+      const { resolveQwenCredentialSnapshot } = require('../../services/providers/qwen/qwenAccounts.js') as typeof import('../../services/providers/qwen/qwenAccounts.js')
+      return resolveQwenCredentialSnapshot() !== undefined
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
