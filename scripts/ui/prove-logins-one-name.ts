@@ -23,7 +23,7 @@ const IDENTIFIERS = [
   "aliases: ['login']",
   "mode = 'login'",
   "mode?: 'login' | 'setup-token'",
-  ".command('login')",
+  ".command('login [family]')",
   "item('login', 'Login'",
   'MERCURY_LOGIN_COMMAND',
 ]
