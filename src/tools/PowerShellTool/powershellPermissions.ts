@@ -37,6 +37,8 @@ import { checkPermissionMode, isSymlinkCreatingCommand } from './modeValidation.
 import { isGitInternalPathPS, isDotGitPathPS } from './gitSafety.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { getShellCwd } from '../../utils/Shell.js'
+import { hiddenCommandCharacterReason } from '../../utils/sanitization.js'
+import { credentialUploadReason } from '../../utils/permissions/commandContent.js'
 import { getDestructiveCommandWarning } from '../BashTool/destructiveCommandWarning.js'
 
 const TOOL_NAME = 'PowerShell'
@@ -137,6 +139,8 @@ export async function powershellToolHasPermission(
   context: ToolUseContext,
 ): Promise<PermissionResult> {
   const toolPermissionContext = context.getAppState().toolPermissionContext as ToolPermissionContext
+  const hidden = hiddenCommandCharacterReason(input.command.replace(/\r\n/g, '\n'))
+  if (hidden !== null) return { behavior: 'deny', message: hidden, decisionReason: { type: 'safetyCheck', reason: hidden, operatorOnly: true } }
   const command = input.command.trim()
 
   if (command === '') return { behavior: 'allow', updatedInput: input, decisionReason: other('Nothing to run.') }
@@ -147,7 +151,7 @@ export async function powershellToolHasPermission(
   if (exact.behavior === 'deny') return exact
   const prefixDeny = matchRules(command, toolPermissionContext, 'deny', 'prefix')
   if (prefixDeny) return ruledVerdict(toolPermissionContext, command, prefixDeny, 'deny')
-  const warning = getDestructiveCommandWarning(command)
+  const warning = credentialUploadReason(command) ?? getDestructiveCommandWarning(command)
   let deferredAsk: PermissionResult | null = warning === null ? null : {
     behavior: 'ask', message: warning, decisionReason: { type: 'safetyCheck', reason: warning, operatorOnly: true },
   }

@@ -3,6 +3,7 @@ import type { UUID } from 'crypto'
 import type { Dirent } from 'fs'
 import { readdir, stat } from 'fs/promises'
 import { basename, join } from 'path'
+import { partiallySanitizeUnicode } from '../sanitization.js'
 import {
   getOriginalCwd,
   getSessionId,
@@ -157,6 +158,7 @@ export async function saveCustomTitle(
   fullPath?: string,
   source: 'user' | 'auto' = 'user',
 ) {
+  customTitle = partiallySanitizeUnicode(customTitle)
   const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
   getProject().metadata.write({ type: 'custom-title', customTitle, sessionId }, resolvedPath)
   invalidateSessionListingMemo()
@@ -165,7 +167,7 @@ export async function saveCustomTitle(
 export function saveAiGeneratedTitle(sessionId: UUID, aiTitle: string): void {
   appendEntryToFile(getTranscriptPathForSession(sessionId), {
     type: 'ai-title',
-    aiTitle,
+    aiTitle: partiallySanitizeUnicode(aiTitle),
     sessionId,
   })
 }
@@ -250,7 +252,7 @@ export function saveAgentSetting(agentSetting: string): void {
 }
 
 export function cacheSessionTitle(customTitle: string): void {
-  getProject().currentSessionTitle = customTitle
+  getProject().currentSessionTitle = partiallySanitizeUnicode(customTitle)
 }
 
 export function saveMode(mode: 'coordinator' | 'normal'): void {

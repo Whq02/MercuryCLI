@@ -5,6 +5,8 @@ import type {
 } from '../../utils/permissions/PermissionResult.js'
 import type { PermissionRule } from '../../types/permissions.js'
 import { getShellCwd } from '../../utils/Shell.js'
+import { hiddenCommandCharacterReason } from '../../utils/sanitization.js'
+import { credentialUploadReason } from '../../utils/permissions/commandContent.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getPlatform } from '../../utils/platform.js'
 import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
@@ -582,6 +584,10 @@ async function decideBashPermission(
   prefixFn: PrefixFn,
 ): Promise<PermissionResult> {
   const command = input.command
+  const hidden = hiddenCommandCharacterReason(command)
+  if (hidden !== null) return { behavior: 'deny', message: hidden, decisionReason: { type: 'safetyCheck', reason: hidden, operatorOnly: true } }
+  const upload = credentialUploadReason(command)
+  const uploadAsk: PermissionResult | null = upload === null ? null : { behavior: 'ask', message: upload, decisionReason: { type: 'safetyCheck', reason: upload, operatorOnly: true } }
   const astRoot = await pinnedCommandAnalysis.parseCommandRaw(command) ?? undefined
   const remote = uncPathRisk(command, { command: true })
   if (remote.risky) {
@@ -603,17 +609,18 @@ async function decideBashPermission(
     const denied = astDenyCheck(input, context, astRoot)
     if (denied) return denied
     const parsed = await parseForSecurity(command)
-    if (parsed.kind === 'too-complex') return unprovenAsk(parsed.reason)
+    if (parsed.kind === 'too-complex') return uploadAsk ?? unprovenAsk(parsed.reason)
     if (parsed.kind === 'simple') {
       const early = semanticsDenyCheck(input, context, parsed.commands)
       if (early) return early
+      if (uploadAsk !== null) return uploadAsk
       const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
       if (!semantic.ok) return unprovenAsk(semantic.reason)
       astCommands = parsed.commands
       compoundHasCd = astCommands.some(simple => isNormalizedCdCommand(simple.text))
     }
   } else {
-    return earlyExitDenyCheck(input, context) ?? unprovenAsk('the shell parser is unavailable for this command; retry it, or approve')
+    return earlyExitDenyCheck(input, context) ?? uploadAsk ?? unprovenAsk('the shell parser is unavailable for this command; retry it, or approve')
   }
 
   if (astCommands === null) return unprovenAsk('the shell parser could not establish the commands; simplify the command, or approve')

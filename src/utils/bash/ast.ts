@@ -1,4 +1,5 @@
 import { SHELL_KEYWORDS } from './bashParser.js'
+import { hiddenCommandCharacterReason } from '../sanitization.js'
 import { PARSE_ABORTED, parseCommandRaw, preparedCommandRoot, type Node } from './parser.js'
 
 export type Redirect = {
@@ -129,8 +130,6 @@ const SHELL_VARIABLES: ReadonlySet<string> = new Set([
 
 const SPECIAL_VARIABLES: ReadonlySet<string> = new Set(['?', '$', '!', '#', '0', '-'])
 
-const CONTROL_CHARACTER_RE = /[\u0000-\u0008\u000B-\u001F\u007F]/
-const UNICODE_WHITESPACE_RE = /[\u00A0\u1680\u2000-\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF]/
 const ESCAPED_BLANK_RE = /\\[ \t]/
 const MIDWORD_CONTINUATION_RE = /[^ \t\n\\]\\\n/
 const ZSH_EQUALS_EXPANSION_RE = /(^|[ \t\n;&|])=[A-Za-z_]/
@@ -178,8 +177,6 @@ function maskQuotedBraces(command: string): string {
 }
 
 const PRE_CHECKS: ReadonlyArray<readonly [(command: string) => boolean, string]> = [
-  [command => CONTROL_CHARACTER_RE.test(command), 'Contains control characters'],
-  [command => UNICODE_WHITESPACE_RE.test(command), 'Contains invisible Unicode whitespace characters'],
   [
     command => ESCAPED_BLANK_RE.test(command) || MIDWORD_CONTINUATION_RE.test(command),
     'Contains backslash-escaped whitespace, which the shell and the parser tokenize differently',
@@ -193,6 +190,8 @@ const PRE_CHECKS: ReadonlyArray<readonly [(command: string) => boolean, string]>
 ]
 
 function preCheckReason(command: string): string | null {
+  const hidden = hiddenCommandCharacterReason(command)
+  if (hidden !== null) return hidden
   for (const [trips, reason] of PRE_CHECKS) if (trips(command)) return reason
   return null
 }

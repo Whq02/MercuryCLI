@@ -38,3 +38,10 @@ export function recursivelySanitizeUnicode(value: unknown): unknown {
   }
   return value
 }
+
+export function hiddenCommandCharacterReason(command: string): string | null {
+  if (/[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/.test(command)) return 'Contains control characters'
+  if (/[\u00A0\u1680\u2000-\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF]/.test(command)) return 'Contains invisible Unicode whitespace characters'
+  if (/[\u200C-\u200F\u202A-\u202E\u2060-\u2069]/.test(command)) return 'Contains invisible Unicode direction or zero-width characters'
+  return null
+}

@@ -128,7 +128,7 @@ export function getDestructiveCommandWarning(command: string): string | null {
   return null
 }
 
-function windowsCommandSegments(command: string): { words: string[]; piped: boolean }[] {
+export function shellCommandSegments(command: string): { words: string[]; piped: boolean }[] {
   const segments: { words: string[]; piped: boolean }[] = []
   let words: string[] = []
   let word = ''
@@ -164,7 +164,7 @@ function windowsCommandSegments(command: string): { words: string[]; piped: bool
 
 function windowsCommandWarning(command: string): string | null {
   let downloader = false
-  for (const segment of windowsCommandSegments(command)) {
+  for (const segment of shellCommandSegments(command)) {
     const words = segment.words.map(word => word.toLowerCase())
     const name = (words[0]?.split(/[\\/]/).pop() ?? '').replace(/\.(exe|com)$/, '')
     const args = words.slice(1)

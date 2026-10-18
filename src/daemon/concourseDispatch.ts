@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { partiallySanitizeUnicode } from '../utils/sanitization.js'
 import { recordRefusedDurableFile } from '../substrate/storeRecovery.js'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -774,7 +775,7 @@ export function makeConcourseDispatchHandler(
         }
     delete rec.heldReason
     delete rec.heldOp
-    if (req.title !== undefined && req.title.length > 0) rec.title = req.title.slice(0, 120)
+    if (req.title !== undefined && req.title.length > 0) rec.title = partiallySanitizeUnicode(req.title).slice(0, 120)
     rec.workspaceId = canonicalWorkspaceId(req.workspaceDir)
     if (req.by !== undefined && req.by.length > 0) rec.by = req.by.slice(0, 64)
     if (Array.isArray(req.content)) {
