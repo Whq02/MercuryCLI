@@ -50,6 +50,7 @@ export interface BrushCargoBuildManifest extends BrushPackManifestBase {
   crate: string
   crateVersion: string
   crateSha256: string | null
+  patchSha256?: string
   cargo: string
 }
 
@@ -135,7 +136,8 @@ export function readBrushPackManifest(dir: string): BrushPackManifest | null {
   if (m.source === 'cargo-build') {
     if (typeof m.crate !== 'string' || typeof m.crateVersion !== 'string' || typeof m.cargo !== 'string') return null
     if (m.crateSha256 !== null && (typeof m.crateSha256 !== 'string' || !HEX64.test(m.crateSha256))) return null
-    return { ...base, source: 'cargo-build', crate: m.crate, crateVersion: m.crateVersion, crateSha256: m.crateSha256 as string | null, cargo: m.cargo }
+    if (m.patchSha256 !== undefined && (typeof m.patchSha256 !== 'string' || !HEX64.test(m.patchSha256))) return null
+    return { ...base, source: 'cargo-build', crate: m.crate, crateVersion: m.crateVersion, crateSha256: m.crateSha256 as string | null, cargo: m.cargo, ...(typeof m.patchSha256 === 'string' ? { patchSha256: m.patchSha256 } : {}) }
   }
   return null
 }

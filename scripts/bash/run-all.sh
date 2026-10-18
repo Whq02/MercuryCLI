@@ -27,7 +27,7 @@
 # gate-watch: src/tools/WorkflowTool/WorkflowTool.tsx src/utils/* src/utils/bash/shellQuote.ts
 # gate-watch: src/utils/bash/specs/** src/utils/hooks/commandRunner.ts src/utils/hooks/fire.ts src/utils/permissions/**
 # gate-watch: src/utils/processUserInput/processBashCommand.tsx src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/shell/*
-# gate-watch: src/utils/task/diskOutput.ts vendor/brush.lock.json
+# gate-watch: src/utils/task/diskOutput.ts vendor/brush.lock.json scripts/vendor/build-brush.ts scripts/vendor/patches/brush-0.4.0-windows.patch src/services/privateChannel/releaseTarget.ts .gitattributes
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/tools/BashTool/pathValidation.ts src/tools/BashTool/bashCommandHelpers.ts src/tools/BashTool/sedEditParser.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts
 # gate-watch: src/utils/permissions/decision/wrapper.ts src/utils/permissions/decision/engine.ts src/utils/permissions/decision/requestMessage.ts src/utils/config.ts
@@ -80,6 +80,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-session-env.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tool-shell-defaults.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tool-shell-defaults.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tool-shell-markers.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tool-shell-markers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tool-shell-no-auto-consent.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tool-shell-no-auto-consent.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-shell-patch.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-shell-patch.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-pack.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-session.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-exec.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-exec.ts" "$__t" "$__rc"
