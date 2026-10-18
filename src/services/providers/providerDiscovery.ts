@@ -386,11 +386,12 @@ export function primeXaiDiscovery(io?: DiscoveryIo): XaiDiscovery | null {
 
 function probeCompat(io: DiscoveryIo): CompatDiscovery {
   const {
-    resolveCompatSlotConfig,
+    configuredCompatEndpoints,
     resolveCompatApiKey,
   } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
-  const config = resolveCompatSlotConfig(io.env as NodeJS.ProcessEnv)
-  const key = resolveCompatApiKey(io.env)
+  const endpoints = configuredCompatEndpoints(io.env as NodeJS.ProcessEnv)
+  const config = endpoints[0]
+  const key = config ? resolveCompatApiKey(io.env, config.name) : undefined
   return {
     provider: 'openai-compat',
     probedAtMs: io.now(),

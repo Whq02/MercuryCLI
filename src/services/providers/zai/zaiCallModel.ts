@@ -53,7 +53,8 @@ import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { addToTotalSessionCost } from '../../../cost-tracker.js'
 import { calculateUSDCost } from '../../../utils/modelCost.js'
 import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
-import { resolveZaiDispatch } from '../providerDiscovery.js'
+import { resolveZaiDispatch } from './zaiAccounts.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../emptyReply.js'
 import {
   renderGenericInstructions,
@@ -213,12 +214,14 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
 
   const dispatch = resolveZaiDispatch()
   if (!dispatch) {
+    const failure = providerKeyCommandFailure('zai')
+    const hint = failure ? `the configured ${failure.message} — no Z.AI API key detected.` : ZAI_FAULT_PROFILE.credentialHint
     yield apiErrorMessage(
-      `${API_ERROR_MESSAGE_PREFIX}: ${ZAI_FAULT_PROFILE.credentialHint} Model '${modelId}' cannot run.`,
+      `${API_ERROR_MESSAGE_PREFIX}: ${hint} Model '${modelId}' cannot run.`,
     )
     return
   }
-  const apiKey = dispatch.key
+  let apiKey = dispatch.key
 
   const plan = await planToolPayload({
     model: modelId,
@@ -294,6 +297,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
   let busy: { ladder: BusyRetryLadder; fault: ZaiFault } | undefined
   let reconnect: ReconnectLadder | undefined
   let emptyEnds = 0
+  let recovery: 'retried' | 'no-new-credential' | undefined
   for (let attempt = 1; attempt <= ZAI_MAX_ATTEMPTS || busy !== undefined; attempt++) {
     attemptStartedAtMs = Date.now()
     const signInRequest = captureSignInRequest('zai', apiKey)
@@ -325,6 +329,21 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     observeSignInResponse(signInRequest, outcome.fault.status)
     const askedMs = outcome.fault.retryAfterMs
     const typed = compatFaultToTypedError(outcome.fault)
+    if (
+      typed === 'authentication_failed' &&
+      outcome.retryEligible &&
+      recovery === undefined &&
+      configuredProviderKeyCommand('zai') &&
+      attempt < ZAI_MAX_ATTEMPTS
+    ) {
+      const fresh = recoverProviderKeyCommand('zai', apiKey)
+      if (fresh) {
+        recovery = 'retried'
+        apiKey = fresh
+        continue
+      }
+      recovery = 'no-new-credential'
+    }
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
     const singleShot = options.querySource === 'overload_probe'
     const outage = outcome.retryEligible && !singleShot ? outcome.fault.outage : undefined

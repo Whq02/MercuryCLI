@@ -2,14 +2,18 @@ import { MERCURY_VERSION } from '../../../constants/product.js'
 import { stampLocal } from '../../../mneme/entryPage.js'
 import { BARE_FAMILY_WORDS, bareFamilyWordOfRoute, type BareFamilyWordRow } from '../../../utils/model/bareFamilyWords.js'
 import { getModelOptions, isProviderActionRow, stripContext1m, type ModelOption } from '../../../utils/model/modelOptions.js'
-import { modelSupportsEffort } from '../../../utils/model/capabilities.js'
+import { getContextWindowForModel, modelSupportsEffort } from '../../../utils/model/capabilities.js'
+import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 import { liveCount } from '../../../utils/model/modelPickerGroups.js'
 import { selectableEffortLevels } from '../../../utils/effort.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { declaredRouteOf, providerDisplayName } from '../../providers/routeLaw.js'
 import { readCataloguesForOtherFamilies } from '../../providers/catalogueOnDemand.js'
+import { isProviderDisabled } from '../../providers/disabledProviders.js'
 import { presenceIdentityWords, providerFamilyPresences } from '../../providers/providerUsage.js'
 import type { ParsedRef, ResourceAdapter, ResourceContext, ResourceResult } from '../contracts.js'
+import { configuredCompatEndpoints, resolveCompatAccount } from '../../providers/openaicompat/compatAccounts.js'
+import { cachedCompatCatalogue } from '../../providers/openaicompat/compatCatalogue.js'
 
 export const MODELS_REF = 'mercury://models'
 export const KNOWN_MODELS_REF = 'mercury://models/known'
@@ -176,12 +180,13 @@ function rowOf(option: ModelOption, current: string | undefined, familyWordHeads
     efforts = undefined
   }
   const familyWord = familyWordHeads.get(bare.toLowerCase())
+  const contextWindow = operatorModelFacts(bare)?.contextWindow !== undefined ? getContextWindowForModel(bare) : option.statedContextWindow
   return {
     id,
     displayName: option.label,
     ...(current !== undefined && (normalizeModelStringForAPI(current) === bare || current === id) ? { current: true } : {}),
     ...(familyWord !== undefined ? { familyWord } : {}),
-    ...(option.statedContextWindow !== undefined ? { contextWindow: option.statedContextWindow } : {}),
+    ...(contextWindow !== undefined ? { contextWindow } : {}),
     ...(efforts !== undefined && efforts.length > 0 ? { efforts } : {}),
     ...(option.unavailable !== undefined ? { unavailable: option.unavailable } : {}),
     ...(option.liveUnknown === true ? { liveUnknown: true } : {}),
@@ -191,10 +196,11 @@ function rowOf(option: ModelOption, current: string | undefined, familyWordHeads
 export async function liveModelsReference(ctx: Pick<ResourceContext, 'engineModel'>, opts?: { boundMs?: number; env?: NodeJS.ProcessEnv }): Promise<LiveModelsReference> {
   const env = opts?.env ?? process.env
   await readCataloguesForOtherFamilies(null, { boundMs: opts?.boundMs ?? 5_000 })
-  const presences = providerFamilyPresences()
+  const presences = providerFamilyPresences().filter(presence => !isProviderDisabled(presence.id))
   const options = getModelOptions().filter(option => !isProviderActionRow(option.value))
   const familyWordHeads = new Map<string, string>()
   for (const entry of BARE_FAMILY_WORDS) {
+    if (isProviderDisabled(entry.route)) continue
     const head = entry.headRow() ?? entry.pinnedDefault()
     if (head !== undefined) familyWordHeads.set(head.id.toLowerCase(), entry.word)
   }
@@ -208,6 +214,20 @@ export async function liveModelsReference(ctx: Pick<ResourceContext, 'engineMode
   const providers: LiveProviderPage[] = []
   for (const presence of signedIn) {
     const route = presence.id
+    if (route === 'openai-compat') {
+      const endpoints = configuredCompatEndpoints(env).filter(endpoint => endpoint.named)
+      if (endpoints.length > 0) {
+        for (const endpoint of endpoints) {
+          const cached = cachedCompatCatalogue(endpoint, env)
+          const list: LiveListFacts = endpoint.models.length > 0 ? { kind: 'static', words: 'the models named in settings' }
+            : cached?.fetchedAtMs ? { kind: 'live', count: cached.models.length, readAt: stampLocal(new Date(cached.fetchedAtMs).toISOString()) }
+              : { kind: 'unread', ...(cached?.error ? { error: cached.error } : {}) }
+          providers.push({ provider: `openai-compat/${endpoint.name}`, providerName: `${endpoint.label} (${endpoint.name})`, account: resolveCompatAccount(env, endpoint.name)?.label ?? 'keyless endpoint', list,
+            models: (byRoute.get(route) ?? []).filter(option => option.value.startsWith(`compat/${endpoint.name}/`)).map(option => rowOf(option, ctx.engineModel, familyWordHeads)) })
+        }
+        continue
+      }
+    }
     const list = await listFactsOf(route, env)
     const knownDefault = list.kind === 'live' ? undefined : knownDefaultOf(route)
     providers.push({

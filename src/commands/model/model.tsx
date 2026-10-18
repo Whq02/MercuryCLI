@@ -21,6 +21,9 @@ import {
 } from '../../utils/model/modelTransition.js'
 import { isModelAlias } from '../../utils/model/aliases.js'
 import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
+import { isModelFromDisabledProvider } from '../../services/providers/disabledProviders.js'
+import { BARE_FAMILY_WORDS } from '../../utils/model/bareFamilyWords.js'
+import { isProviderDisabled } from '../../services/providers/disabledProviders.js'
 import { validateModel } from '../../utils/model/validateModel.js'
 import { checkOpus1mAccess, checkSonnet1mAccess } from '../../utils/model/check1mAccess.js'
 import {
@@ -191,6 +194,12 @@ function ModelSet({
     if (ranRef.current) return
     ranRef.current = true
     void (async () => {
+      const lowered = raw.trim().toLowerCase()
+      const disabledBare = BARE_FAMILY_WORDS.find(entry => entry.word === lowered && isProviderDisabled(entry.route))
+      if (disabledBare !== undefined || (target !== null && isModelFromDisabledProvider(target))) {
+        onDone(`Model ${raw} not found.`, { display: 'system' })
+        return
+      }
       if (target !== null && !isModelAllowed(target)) {
         onDone(
           `${raw} isn't available: your organization restricts model selection.`,
@@ -198,7 +207,6 @@ function ModelSet({
         )
         return
       }
-      const lowered = raw.trim().toLowerCase()
       if (target !== null) {
         if (
           lowered.includes('opus') &&

@@ -152,6 +152,7 @@ reg(
  'src/components/concourse/ManagerCards.tsx',
  'src/components/concourse/NeedsYouRail.tsx',
     'src/components/SwitchboardTagBar.tsx',
+    'src/components/CompatConnect.tsx',
     'src/components/ConsoleOAuthFlow.tsx',
     'src/components/GeminiConnect.tsx',
     'src/components/HuggingfaceConnect.tsx',

@@ -95,6 +95,8 @@ import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, 
 import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../emptyStreamRetry.js'
 import { isTemporaryStreamFault } from '../temporaryStreamError.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
+import { getModelMaxOutputTokens } from '../../../utils/model/capabilities.js'
+import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 import {
   buildOpenaiResponsesRequest,
   decodeOpenaiTurnRecord,
@@ -628,12 +630,14 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     toolSchemaDigest: createHash('sha256').update(JSON.stringify(apiTools)).digest('hex').slice(0, 16),
     ...(options.agentId ? { profileId: `agent:${options.agentId}` } : {}),
   })
+  const statedMaxOut = auth.account.kind === 'api-key' && operatorModelFacts(modelId)?.maxOutputTokens !== undefined ? getModelMaxOutputTokens(modelId).default : undefined
   const buildRequest = (wireEffort: string | undefined) => buildOpenaiResponsesRequest({
     model: modelId,
     instructions: renderedInstructions,
     messages: bridge.rows,
     tools: apiTools,
     ...(wireEffort ? { reasoningEffort: wireEffort } : {}),
+    ...(statedMaxOut !== undefined ? { maxOutputTokens: statedMaxOut } : {}),
     promptCacheKey,
     imagesSupported: imagesRide,
     ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}),

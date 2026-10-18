@@ -14,6 +14,7 @@ import {
   generateCodeVerifier,
 } from '../../oauth/crypto.js'
 import { readStoredOpenrouterApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 
 
@@ -192,6 +193,8 @@ export function resolveOpenrouterApiKey(
   if (envKey) return { key: envKey, source: 'env' }
   const minted = readMintedOpenrouterKey()
   if (minted && !minted.expiredMessage) return { key: minted.key, source: 'oauth' }
+  const fromCommand = resolveProviderKeyCommand('openrouter')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredOpenrouterApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

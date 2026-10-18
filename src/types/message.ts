@@ -129,6 +129,7 @@ export type AssistantMessage = {
   }
   xaiProviderTurn?: { model: string; items: unknown[]; responseId?: string }
   zenProviderTurn?: { model: string; items: unknown[]; responseId?: string }
+  compatProviderTurn?: { endpoint: string; model: string; items: unknown[]; responseId?: string }
   openrouterProviderTurn?: {
     model: string
     items: unknown[]

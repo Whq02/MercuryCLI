@@ -1,4 +1,5 @@
 import { setHasUnknownModelCost } from '../bootstrap/state.js'
+import { operatorModelFacts } from './model/modelOverrides.js'
 import { deepseekDisplayPin } from '../services/providers/deepseek/deepseekPins.js'
 import { xaiModelFacts } from '../services/providers/xai/xaiCatalogue.js'
 import { metaDisplayPin } from '../services/providers/meta/metaPins.js'
@@ -264,7 +265,12 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
 export function resolveModelPricing(model: string, opts?: { promptTokens?: number }): ResolvedModelPricing {
   const route = declaredRouteOf(model)
   const resolved = route === null ? undefined : PRICING_OWNERS[route](model, opts?.promptTokens)
-  return resolved ?? { costs: COST_UNPRICED, basis: 'unpriced' }
+  const base = resolved ?? { costs: COST_UNPRICED, basis: 'unpriced' as const }
+  const prices = operatorModelFacts(model)?.prices
+  if (!prices) return base
+  return { costs: { ...base.costs, inputTokens: prices.input ?? base.costs.inputTokens, outputTokens: prices.output ?? base.costs.outputTokens,
+    promptCacheReadTokens: prices.cacheRead ?? base.costs.promptCacheReadTokens, promptCacheWriteTokens: prices.cacheWrite ?? base.costs.promptCacheWriteTokens },
+    basis: prices.input !== undefined && prices.output !== undefined ? 'recorded' : base.basis }
 }
 
 export function modelPricingBasis(model: string): PricingBasis {
@@ -289,7 +295,7 @@ export function calculateUSDCost(resolvedModel: string, usage: UsageLike): numbe
     (usage.output_tokens * modelCosts.outputTokens) / 1e6 +
     ((usage.cache_read_input_tokens ?? 0) * modelCosts.promptCacheReadTokens) / 1e6 +
     (fiveMinute * modelCosts.promptCacheWriteTokens) / 1e6 +
-    (oneHour * (modelCosts.inputTokens * 2)) / 1e6 +
+    (oneHour * (operatorModelFacts(resolvedModel)?.prices?.cacheWrite ?? modelCosts.inputTokens * 2)) / 1e6 +
     (usage.server_tool_use?.web_search_requests ?? 0) * modelCosts.webSearchRequests
   )
 }

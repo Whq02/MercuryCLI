@@ -1,6 +1,6 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
 
-export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks'] as const
+export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'openai-compat'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
 
 export const CATALOGUE_READ_BOUND_MS = 5_000
@@ -30,6 +30,12 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
   const force = opts?.force === true
   try {
     switch (family) {
+      case 'openai-compat': {
+        if (!catalogueTrafficVerdict('openai-compat').allowed) return false
+        const { refreshCompatCatalogues } = await import('./openaicompat/compatCatalogue.js')
+        await bounded(refreshCompatCatalogues({ force }), boundMs)
+        return true
+      }
       case 'openai': {
         const { readOpenaiCatalogueIfPending } = await import('./openai/openaiCatalogue.js')
         return await readOpenaiCatalogueIfPending({ boundMs, force })

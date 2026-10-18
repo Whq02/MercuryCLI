@@ -808,9 +808,9 @@ function laneCredentialedLive(provider: ProviderFamilyId): boolean {
     return resolveDeepseekApiKey() !== undefined
   }
   if (provider === 'openai-compat') {
-    const { resolveCompatSlotConfig } =
+    const { configuredCompatEndpoints } =
       require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
-    return resolveCompatSlotConfig() !== undefined
+    return configuredCompatEndpoints().length > 0
   }
   if (provider === 'zen') {
     const { resolveZenApiKey } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')

@@ -221,9 +221,9 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
       return resolveXaiCredentialSnapshot() !== undefined
     },
     compatConfigured: () => {
-      const { resolveCompatSlotConfig } =
+      const { configuredCompatEndpoints } =
         require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
-      return resolveCompatSlotConfig() !== undefined
+      return configuredCompatEndpoints().length > 0
     },
     compatAccount: () => {
       const { resolveCompatAccount } =

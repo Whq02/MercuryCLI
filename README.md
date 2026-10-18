@@ -674,11 +674,12 @@ Available commands include:
 - **`mercury health`**: diagnostic report, also called the
   health certificate. `--json` returns the full report, `--deep` runs the deep
   inventory, and `--fix` runs guided fixes.
-- **`mercury auth login|status|logout|mint`**: sign in or mint a long-lived
-  token for an Anthropic account (`login`, `mint`), check authentication
-  across all 13 provider families and exit 0 when the active model's provider
-  is signed in (`status`), or sign out (`logout`). Connect other provider
-  families through `/logins`.
+- **`mercury auth login [<family>]|list|status [<family>]|logout [<family>]|mint`**:
+  sign in (`login [<family>]`), list provider families (`list`), check whether
+  an account is signed in (`status [<family>]`), sign out (`logout [<family>]`),
+  or mint a long-lived Anthropic token (`mint`).
+- **`mercury models [--json]`**: print the models the signed-in accounts reach
+  (the same facts as `mercury://models`).
 - **`mercury mcp`**: manage MCP servers with `add`, `import`, `list`, `get`,
   `remove`, `trust-reset` and `serve`.
 - **`mercury extensions`**: install extensions and manage their sources.

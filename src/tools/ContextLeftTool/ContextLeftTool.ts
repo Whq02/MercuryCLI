@@ -27,6 +27,7 @@ export const CONTEXT_LEFT_UNKNOWN_LINE = 'Context: unknown until the model has a
 export const CONTEXT_LEFT_NO_FOLD_LINE = 'No early fold line: autocompact is off; emergency folding can still recover an overflow unless compaction is disabled.'
 
 const WINDOW_SOURCE_WORDS: Record<ContextFillView['windowSource'], string> = {
+  operator: 'the window stated in settings',
   'live-current': "the provider's live catalogue",
   'static-pin': 'the pinned window for this model',
   capability: "the model's capability record",

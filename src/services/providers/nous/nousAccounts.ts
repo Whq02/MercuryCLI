@@ -1,4 +1,5 @@
 import { readStoredNousApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { NousRefreshRefusedError, nousStoredTokens, nousSigninRefusal, readPreferredNousSource, refreshNousTokens, type NousOauthIo, type NousTokens } from './nousOauth.js'
 
@@ -34,6 +35,8 @@ export function resolveNousApiKey(
 ): { key: string; source: 'env' | 'stored' } | undefined {
   const envKey = env[NOUS_API_KEY_ENV]?.trim()
   if (envKey) return { key: envKey, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('nous')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredNousApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }
@@ -50,7 +53,7 @@ function signinWins(env: Record<string, string | undefined>): boolean {
   if (env[NOUS_API_KEY_ENV]?.trim()) return false
   const tokens = nousStoredTokens()
   if (tokens === undefined) return false
-  return !(readPreferredNousSource() === 'api-key' && readStoredNousApiKey() !== undefined)
+  return !(readPreferredNousSource() === 'api-key' && (resolveProviderKeyCommand('nous') !== undefined || readStoredNousApiKey() !== undefined))
 }
 
 export function resolveNousAccount(env: NodeJS.ProcessEnv = process.env): NousAccountRef | undefined {

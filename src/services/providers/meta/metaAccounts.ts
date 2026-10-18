@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { publishAuthScopedJson, readStoredMetaApiKey, signInLedgerPath } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 
@@ -210,6 +211,8 @@ export function resolveMetaRawApiKey(
 ): { key: string; source: 'env' | 'stored'; envName?: 'MODEL_API_KEY' | 'META_API_KEY' } | undefined {
   const key = metaEnvKey(env)
   if (key) return { key: key.key, source: 'env', envName: key.name }
+  const fromCommand = resolveProviderKeyCommand('meta')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredMetaApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

@@ -29,6 +29,7 @@ console.log('============================================================')
 
 const WAY_OUT = [/mercury:\/\/models/, /\/logins/, /ask the operator/, /\/health ROUTER/, /MERCURY_LOCAL_BASE_URL/, /MERCURY_COMPAT_MODELS/]
 const OWNERS_WORDS = new Set(['verdict.reason', 'qualification.message', 'authority.reason'])
+const compatOwner = readFileSync(join(import.meta.dir, '../../src/services/providers/openaicompat/compatAccounts.ts'), 'utf8')
 const path = join(import.meta.dir, '../../src/utils/crew/engineDispatch.ts')
 const source = readFileSync(path, 'utf8')
 const ast = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
@@ -54,7 +55,7 @@ section('§1 the census: each refusal thrown by the road')
   for (const refusal of refusals) {
     if (refusal.dynamic) {
       const callee = refusal.text.replace(/\(.*$/s, '')
-      check(`engineDispatch.ts:${refusal.line} throws its owner's words (${refusal.text.slice(0, 60)})`, OWNERS_WORDS.has(refusal.text) || callee === 'providerUnavailableRefusal', refusal.text)
+      check(`engineDispatch.ts:${refusal.line} throws its owner's words (${refusal.text.slice(0, 60)})`, OWNERS_WORDS.has(refusal.text) || callee === 'providerUnavailableRefusal' || (refusal.text === 'refusal' && source.includes('const refusal = compatModelRefusal(id)') && compatOwner.includes('mercury://models lists the available endpoint models.')), refusal.text)
       continue
     }
     const named = WAY_OUT.some(way => way.test(refusal.text))

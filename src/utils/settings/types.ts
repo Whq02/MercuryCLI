@@ -1,5 +1,7 @@
 import { z } from 'zod/v4'
 
+import { CompatProviderSchema } from './compatProvider.js'
+import { ModelFactsSchema } from './modelFacts.js'
 import { SandboxSettingsSchema } from '../../entrypoints/sandboxTypes.js'
 import { EFFORT_LEVELS } from '../effortLadder.js'
 import { HooksSchema } from '../../schemas/hooks.js'
@@ -90,8 +92,11 @@ export const ExtensionsSettingsSchema = lazySchema(() =>
 export const SettingsSchema = lazySchema(() => {
   const base = z.object({
     $schema: z.string().optional(),
+    models: ModelFactsSchema().optional().describe('Model facts keyed by the full id: contextWindow, maxOutputTokens, prices, efforts, images and reasoning; _default maps provider families to facts for unknown ids; recorded capabilities are never reduced'),
+    compatProvider: CompatProviderSchema().optional().describe('Custom endpoints keyed by name, or one endpoint named default: baseUrl, label, models, headers, sessionAffinityHeader and dialect; keys are kept by /logins, not in settings'),
     credentials: z.object({
       keyCommand: z.string().optional(),
+      keyCommands: z.record(z.string().min(1), z.string()).optional(),
       signInRoute: z.enum(['claudeai', 'console']).optional(),
       organisation: z.string().optional(),
     }).passthrough().optional(),
@@ -127,6 +132,7 @@ export const SettingsSchema = lazySchema(() => {
     engine: z.object({
       model: z.string().optional(),
       roster: z.array(z.string()).optional(),
+      disabledProviders: z.array(z.string()).optional().describe('Provider families switched off: their rows leave the model picker and mercury://models, their bare words stop resolving, their stored keys remain untouched, and a session already on a disabled family keeps running'),
       backups: z.array(z.string()).optional().describe('The backup engines, in order: when the engine in use cannot answer a turn (its provider overloaded past the retry ladder, unreachable, refusing the sign-in after a refresh, or not serving the model), the turn hops to the first backup, then the next; a --backup-model heads the list; each engine is tried once per turn, and with no list nothing changes'),
       pins: z.record(z.string(), z.string()).optional(),
       effort: z.enum(EFFORT_LEVELS).optional(),

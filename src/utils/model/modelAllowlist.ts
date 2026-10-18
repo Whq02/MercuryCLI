@@ -1,4 +1,5 @@
 import { getInitialSettings } from '../settings/settings.js'
+import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
 import { classifyModelRoute } from '../../services/providers/idSpaces.js'
 import { isModelAlias } from './aliases.js'
 import { FIRST_PARTY_FAMILY_WORDS, isModelFamilyWord, routeOfFamilyWord } from './modelFamilies.js'
@@ -33,13 +34,17 @@ function hasMoreSpecificEntry(word: string, entries: string[]): boolean {
 }
 
 export function isModelAllowed(model: string): boolean {
+  const candidate = normalize(resolveOverriddenModel(model))
+  const candidateResolved = resolvedOf(candidate)
+  const familyRoute = routeOfFamilyWord(candidate)
+  if ((familyRoute && isProviderDisabled(familyRoute)) || isModelFromDisabledProvider(candidateResolved) || isModelFromDisabledProvider(candidate)) {
+    return false
+  }
   const raw = getInitialSettings().engine?.roster
   if (raw === undefined) return true
   if (!Array.isArray(raw) || raw.length === 0) return false
 
   const entries = raw.map(entry => normalize(String(entry)))
-  const candidate = normalize(resolveOverriddenModel(model))
-  const candidateResolved = resolvedOf(candidate)
 
   for (const entry of entries) {
     if (entry !== candidate) continue

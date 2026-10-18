@@ -650,6 +650,7 @@
   "apollo",
   "briefs",
   "channels",
+  "compatProvider",
   "context",
   "credentials",
   "credit",

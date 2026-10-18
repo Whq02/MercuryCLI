@@ -68,7 +68,7 @@ export function isAnthropicAuthEnabled(): boolean {
   }
 
   if (process.env.ANTHROPIC_AUTH_TOKEN) return false
-  if (getInitialSettings().credentials?.keyCommand) return false
+  if (getInitialSettings().credentials?.keyCommand || getInitialSettings().credentials?.keyCommands?.anthropic) return false
   if (process.env.MERCURY_API_KEY_FILE_DESCRIPTOR) return false
   try {
     const { source } = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
@@ -117,7 +117,7 @@ export function getAuthTokenSource(): { source: AuthTokenSource; hasToken: boole
     hasToken: source !== 'none',
   })
   if (isBareMode()) {
-    return getSettingsForSource('flagSettings')?.credentials?.keyCommand ? wrap('credentials.keyCommand') : wrap('none')
+    return getSettingsForSource('flagSettings')?.credentials?.keyCommand || getSettingsForSource('flagSettings')?.credentials?.keyCommands?.anthropic ? wrap('credentials.keyCommand') : wrap('none')
   }
   if (process.env.ANTHROPIC_AUTH_TOKEN) return wrap('ANTHROPIC_AUTH_TOKEN')
   if (process.env.MERCURY_OAUTH_TOKEN) return wrap('MERCURY_OAUTH_TOKEN')
@@ -187,7 +187,7 @@ export function getAnthropicApiKeyWithSource(opts?: {
     if (process.env.ANTHROPIC_API_KEY) {
       return { key: process.env.ANTHROPIC_API_KEY, source: 'ANTHROPIC_API_KEY' }
     }
-    if (getSettingsForSource('flagSettings')?.credentials?.keyCommand) {
+    if (getSettingsForSource('flagSettings')?.credentials?.keyCommand || getSettingsForSource('flagSettings')?.credentials?.keyCommands?.anthropic) {
       if (skipHelper) return { key: null, source: 'credentials.keyCommand' }
       return { key: getApiKeyFromApiKeyHelperCached(), source: 'credentials.keyCommand' }
     }
@@ -265,12 +265,17 @@ export function isCustomApiKeyApproved(key: string): boolean {
 
 
 export function getConfiguredApiKeyHelper(): string | undefined {
-  if (isBareMode()) return getSettingsForSource('flagSettings')?.credentials?.keyCommand
+  if (isBareMode()) {
+    const flag = getSettingsForSource('flagSettings')?.credentials
+    return flag?.keyCommand ?? flag?.keyCommands?.anthropic
+  }
   if (untrustedWorkspaceHeadless()) return getApiKeyHelperFromOutsideCheckoutSources()
-  return getInitialSettings().credentials?.keyCommand
+  const credentials = getInitialSettings().credentials
+  return credentials?.keyCommand ?? credentials?.keyCommands?.anthropic
 }
 
 const DEFAULT_HELPER_TTL_MS = 5 * 60 * 1000
+const HELPER_FAILURE_BACKOFF_MS = 30_000
 
 function calculateApiKeyHelperTTL(): number {
   const raw = process.env.MERCURY_API_KEY_HELPER_TTL_MS
@@ -331,7 +336,7 @@ function execOutcomeTimedOut(error: string | undefined): boolean {
 async function executeApiKeyHelper(helper: string): Promise<string> {
   const result = await execFileNoThrowWithCwd(helper, [], {
     shell: true,
-    timeout: 10 * 60_000,
+    timeout: 10_000,
     preserveOutputOnError: true,
     cwd: getCwd(),
   })
@@ -348,9 +353,11 @@ async function executeApiKeyHelper(helper: string): Promise<string> {
 function helperBlockedByTrust(): boolean {
   const configured = getConfiguredApiKeyHelper()
   if (!configured) return false
+  const proj = getSettingsForSource('projectSettings')?.credentials
+  const local = getSettingsForSource('localSettings')?.credentials
   const fromProjectScope =
-    configured === getSettingsForSource('projectSettings')?.credentials?.keyCommand ||
-    configured === getSettingsForSource('localSettings')?.credentials?.keyCommand
+    configured === (proj?.keyCommand ?? proj?.keyCommands?.anthropic) ||
+    configured === (local?.keyCommand ?? local?.keyCommands?.anthropic)
   if (!fromProjectScope) return false
   if (getIsNonInteractiveSession()) return false
   return !checkHasTrustDialogAccepted()
@@ -371,7 +378,7 @@ export async function getApiKeyFromApiKeyHelper(
   }
 
   const now = Date.now()
-  const ttl = calculateApiKeyHelperTTL()
+  const ttl = helperCache.value === HELPER_SENTINEL ? HELPER_FAILURE_BACKOFF_MS : calculateApiKeyHelperTTL()
   const fresh = helperCache.value !== null && now - helperCache.fetchedAt < ttl
 
   if (fresh) return publicHelperValue(helperCache.value)

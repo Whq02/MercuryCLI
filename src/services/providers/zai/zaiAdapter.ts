@@ -1,4 +1,5 @@
 import { getCachedProviderDiscovery, primeZaiDiscovery } from '../providerDiscovery.js'
+import { resolveZaiDispatch } from './zaiAccounts.js'
 import { GLM_STATIC_FLOOR_IDS, glmDisplayPin, glmEffortsFor } from './glmPins.js'
 import { zaiCatalogueRows } from './zaiCatalogue.js'
 import type {
@@ -48,7 +49,10 @@ export function zaiCatalogueEntry(id: string): ProviderCatalogueEntry | undefine
 
 export function describeZaiProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('zai')
-  const keyPresent = discovery?.provider === 'zai' ? discovery.keyPresent : false
+  const dispatch = resolveZaiDispatch()
+  const keyPresent = (discovery?.provider === 'zai' ? discovery.keyPresent : false) || dispatch !== undefined
+  const keySource = (discovery?.provider === 'zai' ? discovery.keySource : undefined) ?? dispatch?.source
+  const keyPlan = (discovery?.provider === 'zai' ? discovery.keyPlan : undefined) ?? (dispatch?.plan === 'coding' ? 'coding' : undefined)
   const live = zaiLiveCatalogue()
   return {
     transport: 'zai-chat-completions',
@@ -65,8 +69,8 @@ export function describeZaiProvider(): ProviderDescription {
       ? {
           kind: 'api-key',
           label:
-            discovery?.provider === 'zai' && discovery.keySource === 'stored'
-              ? discovery.keyPlan === 'coding'
+            keySource === 'stored'
+              ? keyPlan === 'coding'
                 ? 'GLM Coding Plan key (stored, auth-scoped)'
                 : 'Z.AI API key (stored, auth-scoped)'
               : 'ZAI_API_KEY (env)',
@@ -81,7 +85,7 @@ export function describeZaiProvider(): ProviderDescription {
 
 export function zaiStatus(): ProviderStatus {
   const discovery = primeZaiDiscovery()
-  return discovery?.keyPresent
+  return discovery?.keyPresent || resolveZaiDispatch() !== undefined
     ? { available: true }
     : { available: false, reason: 'no-api-key:zai' }
 }

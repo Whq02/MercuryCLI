@@ -1,4 +1,5 @@
 import { readStoredTogetherApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
 const TOGETHER_API_BASE_URL = 'https://api.together.ai/v1'
 export const TOGETHER_ENV_KEY = 'TOGETHER_API_KEY'
@@ -26,6 +27,8 @@ export function togetherEnvKey(env: NodeJS.ProcessEnv = process.env): { key: str
 export function resolveTogetherApiKey(env: NodeJS.ProcessEnv = process.env): { key: string; source: 'env' | 'stored' } | undefined {
   const key = togetherEnvKey(env)
   if (key) return { key: key.key, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('together')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredTogetherApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

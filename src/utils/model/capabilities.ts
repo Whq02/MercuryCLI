@@ -1,4 +1,5 @@
 import memoize from 'lodash-es/memoize.js'
+import { modelHasRecordedFacts, operatorModelFacts } from './modelOverrides.js'
 import { flagEnabled } from 'src/substrate/flagRegistry.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../effortLadder.js'
 import { getSdkBetas } from '../../bootstrap/state.js'
@@ -95,7 +96,7 @@ export function modelSupportsISP(model: string): boolean {
   return !getCanonicalName(model).includes('claude-3-')
 }
 
-export function modelSupportsThinking(model: string): boolean {
+function baseModelSupportsThinking(model: string): boolean {
   if (isXaiModelId(model)) {
     const facts = xaiModelFacts(model)
     return facts?.reasoning ?? (facts?.efforts?.some(effort => effort !== 'none') === true)
@@ -243,7 +244,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'
+      source: 'operator' | 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -281,7 +282,7 @@ const FIRST_PARTY_FULL_LADDER: readonly EffortLevel[] = ['low', 'medium', 'high'
 const FIRST_PARTY_LADDER_TO_MAX: readonly EffortLevel[] = ['low', 'medium', 'high', 'max']
 const UNKNOWN_ID_LADDER: readonly EffortLevel[] = ['low', 'medium', 'high']
 
-export function effortVocabularyFor(model: string): EffortVocabularyView {
+function baseEffortVocabularyFor(model: string): EffortVocabularyView {
   const gpt = gptEffortVocabularyView(model)
   switch (gpt.state) {
     case 'live':
@@ -547,6 +548,7 @@ export interface ContextResolution {
   activation: ContextActivation
   effectiveWindow: number
   source:
+    | 'operator'
     | 'suffix-1m'
     | 'live-current'
     | 'static-pin'
@@ -562,7 +564,7 @@ function normalizeForEnginePins(model: string): string {
   return model.trim().toLowerCase().replace(/\[[^\]]*\]/g, '')
 }
 
-export function resolveContextWindow(
+function baseResolveContextWindow(
   model: string,
   betas?: string[],
   requestedMode: ContextRequestedMode = 'default',
@@ -844,7 +846,7 @@ export function getContextWindowForModel(
   return resolveContextWindow(model, betas).effectiveWindow
 }
 
-export function getModelMaxOutputTokens(model: string): {
+function baseGetModelMaxOutputTokens(model: string): {
   default: number
   upperLimit: number
 } {
@@ -1077,7 +1079,7 @@ export function modelSupportsPDF(model: string): boolean {
   return !model.toLowerCase().includes('claude-3-haiku')
 }
 
-export function modelReceivesImageBlocks(model: string): boolean {
+function baseModelReceivesImageBlocks(model: string): boolean {
   const verdict = classifyModelRoute(model)
   if (verdict.kind === 'unrecognised') return true
   if (verdict.kind === 'absence') return false
@@ -1124,6 +1126,11 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
       const { nousListedModel } =
         require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
       return modalitiesAdmitImages(nousListedModel(model)?.inputModalities)
+    }
+    case 'openai': {
+      const { liveGptInputModalities } =
+        require('../../services/providers/openai/openaiCatalogue.js') as typeof import('../../services/providers/openai/openaiCatalogue.js')
+      return modalitiesAdmitImages(liveGptInputModalities(normalizeForEnginePins(model)))
     }
     case 'gemini': {
       const { geminiListedModel } =
@@ -1227,4 +1234,52 @@ export function resolveModelCapabilities(model: string): ModelCapabilityRecord {
       headers: Object.freeze([...getModelBetas(model)]),
     }),
   })
+}
+
+export function modelSupportsThinking(model: string): boolean {
+  const base = baseModelSupportsThinking(model)
+  const stated = operatorModelFacts(model)?.reasoning
+  return stated === undefined ? base : stated || (modelHasRecordedFacts(model) && base)
+}
+
+export function modelReceivesImageBlocks(model: string): boolean {
+  const base = baseModelReceivesImageBlocks(model)
+  const routeVerdict = classifyModelRoute(model)
+  const recordedImages =
+    routeVerdict.kind === 'route' && routeVerdict.route === 'openai'
+      ? (() => {
+          const { liveGptInputModalities } =
+            require('../../services/providers/openai/openaiCatalogue.js') as typeof import('../../services/providers/openai/openaiCatalogue.js')
+          const mods = liveGptInputModalities(normalizeForEnginePins(model))
+          return mods !== undefined ? mods.includes('image') : undefined
+        })()
+      : undefined
+  const stated = operatorModelFacts(model, ...(recordedImages !== undefined ? [{ images: recordedImages }] : []))?.images
+  return stated === undefined ? base : stated || ((modelHasRecordedFacts(model) || recordedImages === true) && base)
+}
+
+export function effortVocabularyFor(model: string): EffortVocabularyView {
+  const base = baseEffortVocabularyFor(model)
+  const stated = operatorModelFacts(model)?.efforts
+  if (stated === undefined || (base.kind === 'provider' && base.source === 'gpt-live')) return base
+  const floor = modelHasRecordedFacts(model) ? ('vocabulary' in base ? base.vocabulary : base.kind === 'offered' ? EFFORT_LEVELS : []) : []
+  const vocabulary = [...new Set([...floor, ...stated])]
+  return { kind: 'provider', source: 'operator', vocabulary, thinkingGated: base.kind === 'provider' && base.thinkingGated,
+    ...(base.kind === 'provider' && base.thinkingOffWire !== undefined ? { thinkingOffWire: base.thinkingOffWire } : {}) }
+}
+
+export function resolveContextWindow(model: string, betas?: string[], requestedMode: ContextRequestedMode = 'default'): ContextResolution {
+  const base = baseResolveContextWindow(model, betas, requestedMode)
+  const stated = operatorModelFacts(model, base.source === 'live-current' ? { contextWindow: base.effectiveWindow } : {})?.contextWindow
+  if (stated === undefined) return base
+  const floor = modelHasRecordedFacts(model) || base.source === 'live-current' ? base.effectiveWindow : 0
+  return { ...base, effectiveWindow: Math.max(stated, floor), source: 'operator', pinAwaitingLive: false, fallbackReason: undefined }
+}
+
+export function getModelMaxOutputTokens(model: string): { default: number; upperLimit: number } {
+  const base = baseGetModelMaxOutputTokens(model)
+  const stated = operatorModelFacts(model)?.maxOutputTokens
+  if (stated === undefined) return base
+  const upperLimit = Math.max(stated, modelHasRecordedFacts(model) ? base.upperLimit : 0)
+  return { default: upperLimit, upperLimit }
 }

@@ -52,7 +52,9 @@ import {
 } from '../../../utils/messages.js'
 import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
 import { effortStampOf, type EffortStampV1, type EffortWireFact } from '../../../utils/effortStamp.js'
-import { compatEffortWireFact } from './compatWire.js'
+import { compatEffortWireFact, thinkingOffWireEffort } from './compatWire.js'
+import { nearestSupportedWireEffort } from '../openai/gptPins.js'
+import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
@@ -71,7 +73,7 @@ import type { SystemPrompt } from '../../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../../utils/thinking.js'
 import { imageRefusalWords, mapMessagesToZai, mapToolsToZai, toolDeclarationRowAsText, type ApiShapedTool, type ToolDeclarationRowBuilder } from '../zai/zaiCodec.js'
 import type { ZaiWireMessage } from '../zai/zaiClient.js'
-import { effortVocabularyFor, getContextWindowForModel, modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
+import { effortVocabularyFor, getContextWindowForModel, getModelMaxOutputTokens, modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
 import { imageRefusalOf, noteImageRefusal } from '../../desktop/desktopSession.js'
 import type { MediaRefusal } from '../../api/mediaRefusal.js'
 import {
@@ -425,6 +427,7 @@ export async function* compatChatCallModel(
   params: CompatCallModelParams,
 ): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
   const { messages, systemPrompt, thinkingConfig, tools, signal, options } = params
+  if (signal.aborted) return
   const modelId = compatDispatchModelId(options.model)
 
   const wireVerdict = canonicalWireModelId(options.model)
@@ -499,9 +502,13 @@ export async function* compatChatCallModel(
       ? fittedImages.messages
       : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
   const preparedMessages = healWalkableForWire(wireMessagesForBridge)
-  const outputFit = options.maxOutputTokensOverride === undefined
+  const statedMaxOut = operatorModelFacts(modelId)?.maxOutputTokens !== undefined ? getModelMaxOutputTokens(modelId).default : undefined
+  const askedOut = options.maxOutputTokensOverride !== undefined
+    ? (statedMaxOut !== undefined ? Math.max(options.maxOutputTokensOverride, statedMaxOut) : options.maxOutputTokensOverride)
+    : statedMaxOut
+  const outputFit = askedOut === undefined
     ? undefined
-    : fitOutputTokensForRequest({ asked: options.maxOutputTokensOverride, messages, model: modelId, fixed: [systemText, apiTools] })
+    : fitOutputTokensForRequest({ asked: askedOut, messages, model: modelId, fixed: [systemText, apiTools] })
   if (outputFit?.clamped === true) logForDebugging(outputFitWords(outputFit, modelId))
   const fittedOutputOverride = outputFit?.tokens
   const wireTools = mapToolsToZai(apiTools)
@@ -511,6 +518,23 @@ export async function* compatChatCallModel(
     imagesSupported: imagesSupportedForCompatModel(modelId),
     ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
   })
+  const effortView = effortVocabularyFor(modelId)
+  const builtExtras = profile.buildExtras({
+    wireModel,
+    effortValue,
+    thinkingEnabled,
+    maxOutputTokensOverride: fittedOutputOverride,
+  })
+  const operatorEffort =
+    effortView.kind === 'provider' && effortView.source === 'operator' && effortView.vocabulary.length > 0
+      ? !thinkingEnabled && effortView.thinkingGated
+        ? thinkingOffWireEffort(effortView.vocabulary)
+        : effortValue !== undefined
+          ? effortView.vocabulary.includes(effortValue)
+            ? effortValue
+            : nearestSupportedWireEffort(effortValue, effortView.vocabulary)
+          : undefined
+      : undefined
   const request: CompatChatRequest = {
     model: wireModel,
     messages: toolsInPrompt ? renderToolDialectHistory(mappedMessages) : mappedMessages,
@@ -520,14 +544,10 @@ export async function* compatChatCallModel(
           ...(profile.omitsToolChoice ? {} : { tool_choice: 'auto' as const }),
         }
       : {}),
-    extra: profile.buildExtras({
-      wireModel,
-      effortValue,
-      thinkingEnabled,
-      maxOutputTokensOverride: fittedOutputOverride,
-    }),
+    extra: operatorEffort !== undefined && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined
+      ? { ...builtExtras, reasoning_effort: operatorEffort }
+      : builtExtras,
   }
-  const effortView = effortVocabularyFor(modelId)
   const effortFact =
     profile.effortOnWire?.(request.extra ?? {}) ??
     compatEffortWireFact(request.extra ?? {}, {

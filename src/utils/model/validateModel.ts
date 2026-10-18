@@ -6,6 +6,8 @@ import { asSystemPrompt } from '../systemPromptType.js'
 import { createUserMessage } from '../messages.js'
 import { isModelAlias } from './aliases.js'
 import { isModelAllowed } from './modelAllowlist.js'
+import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
+import { routeOfFamilyWord } from './modelFamilies.js'
 
 type ValidateModelResult = { valid: boolean; error?: string }
 
@@ -335,16 +337,9 @@ async function validateNonAnthropicModel(
     return { valid: true }
   }
   if (route === 'openai-compat') {
-    const { resolveCompatSlotConfig } = await import(
-      '../../services/providers/openaicompat/compatAccounts.js'
-    )
-    if (!resolveCompatSlotConfig()) {
-      return {
-        valid: false,
-        error: 'The OpenAI-compatible endpoint slot is not configured — set MERCURY_COMPAT_BASE_URL.',
-      }
-    }
-    return { valid: true }
+    const { compatModelRefusal } = await import('../../services/providers/openaicompat/compatAccounts.js')
+    const error = compatModelRefusal(trimmed)
+    return error ? { valid: false, error } : { valid: true, skipCache: true }
   }
   const { resolveOpenaiAccount } = await import(
     '../../services/providers/openai/openaiAccounts.js'
@@ -388,6 +383,11 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
   const trimmed = model.trim()
   if (trimmed === '') {
     return { valid: false, error: 'Model name cannot be empty' }
+  }
+  const lowered = trimmed.toLowerCase()
+  const rawRoute = routeOfFamilyWord(lowered)
+  if ((rawRoute && isProviderDisabled(rawRoute)) || isModelFromDisabledProvider(trimmed)) {
+    return { valid: false, error: `Model not found — ${trimmed}` }
   }
   if (!isModelAllowed(trimmed)) {
     return { valid: false, error: `Model "${trimmed}" is not in the list of available models` }

@@ -302,11 +302,26 @@ export function writeStoredNousApiKey(key: string | null): void {
   writeStoredKey('nousApiKey', key)
 }
 
-export function readStoredCompatApiKey(): string | undefined {
-  return readStoredKey('compatApiKey')
+export function readStoredCompatApiKey(name = 'default'): string | undefined {
+  if (name === 'default') return readStoredKey('compatApiKey')
+  const keys = readFile()?.compatEndpointKeys
+  if (typeof keys !== 'object' || keys === null || !Object.hasOwn(keys, name)) return undefined
+  const key = (keys as Record<string, unknown>)[name]
+  return typeof key === 'string' ? key.trim() || undefined : undefined
 }
-export function writeStoredCompatApiKey(key: string | null): void {
-  writeStoredKey('compatApiKey', key)
+export function writeStoredCompatApiKey(key: string | null, name?: string): void {
+  if (name !== undefined) {
+    const { configuredCompatEndpoints } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
+    if (!/^[a-z0-9-]{1,32}$/.test(name) || !configuredCompatEndpoints().some(endpoint => endpoint.name === name)) throw new Error(`compatProvider.${name}: unknown endpoint; no key was stored`)
+  }
+  if (name === undefined || name === 'default') { writeStoredKey('compatApiKey', key); return }
+  publishSecrets(next => {
+    const keys = typeof next.compatEndpointKeys === 'object' && next.compatEndpointKeys !== null ? { ...next.compatEndpointKeys as Record<string, unknown> } : {}
+    if (key === null || key.trim() === '') delete keys[name]
+    else keys[name] = key.trim()
+    next.compatEndpointKeys = keys
+  })
+  if (key?.trim()) recordSignIn('openai-compat', 'api-key')
 }
 
 export function readStoredHuggingfaceApiKey(): string | undefined {
@@ -451,5 +466,6 @@ export function credentialEnvNames(): readonly string[] {
     'GROQ_API_KEY',
     'CEREBRAS_API_KEY',
     'FIREWORKS_API_KEY',
+    ...Object.keys(process.env).filter(name => /^MERCURY_COMPAT_[A-Z0-9_]+_API_KEY$/.test(name)),
   ]
 }

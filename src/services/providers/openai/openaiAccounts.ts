@@ -23,6 +23,7 @@ import {
   generateState,
 } from '../../oauth/crypto.js'
 import { readStoredOpenaiApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { forgetOpenaiLimitSource } from './openaiLimitState.js'
 
@@ -207,6 +208,8 @@ export function resolveOpenaiApiKey(
 ): { key: string; source: 'env' | 'stored' } | undefined {
   const envKey = env.OPENAI_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('openai')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredOpenaiApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

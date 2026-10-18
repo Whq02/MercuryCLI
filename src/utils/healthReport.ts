@@ -873,6 +873,7 @@ function providerSlotsCheck(): CheckSpec {
         'not-configured:',
         'no-server:',
         'no-credential:',
+        'disabled:',
       ]
       const enginesHonest = engines.every(
         p => p.available || ENGINE_UNAVAILABLE_CODES.some(code => p.reason?.startsWith(code)),
@@ -2534,6 +2535,9 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 ? describeComputedDefault(decision, providerDisplayName)
                 : `fresh-session default ${renderModelChip(decision.setting)} · ${describeComputedDefault(decision, providerDisplayName)}`
             const pinned = getUserSpecifiedModelSetting()
+            const { disabledProvidersHealthSummary } = require('../services/providers/disabledProviders.js') as typeof import('../services/providers/disabledProviders.js')
+            const disabledNote = disabledProvidersHealthSummary()?.evidence
+            const suffix = disabledNote ? ` · ${disabledNote}` : ''
             if (pinned !== null) {
               let resolved = pinned
               try {
@@ -2545,14 +2549,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               const pinSource = getEngineModelOverride() !== undefined ? 'the --model flag' : process.env.MERCURY_MODEL ? 'MERCURY_MODEL' : 'the settings pin engine.model'
               return {
                 status: 'info' as const,
-                evidence: `fresh-session default ${renderModelChip(resolved)} · ${pinSource}${resolved !== pinned ? ` '${pinned}' (resolved)` : ''} — without the pin: ${computed.replace(/^fresh-session default /, '')}`,
+                evidence: `fresh-session default ${renderModelChip(resolved)} · ${pinSource}${resolved !== pinned ? ` '${pinned}' (resolved)` : ''} — without the pin: ${computed.replace(/^fresh-session default /, '')}${suffix}`,
                 detail: `first-party gating: ${describeFrontierDecision(firstParty)} — candidates: ${order}`,
                 link: '/model',
               }
             }
             return {
               status: 'info' as const,
-              evidence: computed,
+              evidence: `${computed}${suffix}`,
               detail: `first-party gating: ${describeFrontierDecision(firstParty)} — candidates: ${order}`,
               link: '/model',
             }

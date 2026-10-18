@@ -1,7 +1,7 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { noteUsageRecordChanged } from '../../anthropicLimits.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { resolveZaiDispatch } from '../providerDiscovery.js'
+import { resolveZaiDispatch } from './zaiAccounts.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { usagePollTtlMs } from '../usageFreshness.js'

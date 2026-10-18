@@ -33,6 +33,7 @@ import { groqProviderAdapter } from './groq/groqAdapter.js'
 import { cerebrasProviderAdapter } from './cerebras/cerebrasAdapter.js'
 import { fireworksProviderAdapter } from './fireworks/fireworksAdapter.js'
 import { catalogueEpoch } from './catalogueEpoch.js'
+import { isProviderDisabled, resolveDisabledProviders } from './disabledProviders.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { credentialEnvNames } from './providerSecrets.js'
 
@@ -99,7 +100,8 @@ let snapshotMemo: { at: number; key: string; snapshot: ProviderSnapshot } | null
 function snapshotKey(): string {
   let env = ''
   for (const name of credentialEnvNames()) env += `${name}=${process.env[name] ?? ''}\u0000`
-  return `${signInLedgerEpoch()}:${catalogueEpoch()}:${env}`
+  const disabled = [...resolveDisabledProviders().disabled].sort().join(',')
+  return `${signInLedgerEpoch()}:${catalogueEpoch()}:${disabled}:${env}`
 }
 
 export function resetProviderSnapshotMemo(): void {
@@ -118,7 +120,11 @@ export function buildProviderSnapshot(): ProviderSnapshot {
 }
 
 function composeProviderSnapshot(): ProviderSnapshot {
-  const statuses = PROVIDER_ADAPTERS.map(adapter => adapter.status())
+  const statuses = PROVIDER_ADAPTERS.map(adapter =>
+    isProviderDisabled(adapter.id)
+      ? { available: false as const, reason: `disabled:${adapter.id}` }
+      : adapter.status(),
+  )
   const providers = PROVIDER_ADAPTERS.map((adapter, i) => {
     const status = statuses[i]!
     return {

@@ -5,11 +5,266 @@
     "$schema": {
       "type": "string"
     },
+    "models": {
+      "description": "Model facts keyed by the full id: contextWindow, maxOutputTokens, prices, efforts, images and reasoning; _default maps provider families to facts for unknown ids; recorded capabilities are never reduced",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "contextWindow": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxOutputTokens": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "prices": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "output": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "cacheRead": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "cacheWrite": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false
+              },
+              "efforts": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "minimal",
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              },
+              "images": {
+                "type": "boolean"
+              },
+              "reasoning": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "contextWindow": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "maxOutputTokens": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "prices": {
+                  "type": "object",
+                  "properties": {
+                    "input": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "output": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "cacheRead": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "cacheWrite": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "efforts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "minimal",
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max"
+                    ]
+                  }
+                },
+                "images": {
+                  "type": "boolean"
+                },
+                "reasoning": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        ]
+      }
+    },
+    "compatProvider": {
+      "description": "Custom endpoints keyed by name, or one endpoint named default: baseUrl, label, models, headers, sessionAffinityHeader and dialect; keys are kept by /logins, not in settings",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "baseUrl": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "keyCommand": {
+              "type": "string"
+            },
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "headers": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+              },
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "sessionAffinityHeader": {
+              "type": "string",
+              "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+            },
+            "dialect": {
+              "type": "string",
+              "enum": [
+                "chat-completions",
+                "responses",
+                "ollama",
+                "lmstudio",
+                "vllm",
+                "llamacpp"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,32}$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "baseUrl": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "keyCommand": {
+                "type": "string"
+              },
+              "models": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "headers": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "sessionAffinityHeader": {
+                "type": "string",
+                "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+              },
+              "dialect": {
+                "type": "string",
+                "enum": [
+                  "chat-completions",
+                  "responses",
+                  "ollama",
+                  "lmstudio",
+                  "vllm",
+                  "llamacpp"
+                ]
+              }
+            },
+            "required": [
+              "baseUrl"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
     "credentials": {
       "type": "object",
       "properties": {
         "keyCommand": {
           "type": "string"
+        },
+        "keyCommands": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "signInRoute": {
           "type": "string",
@@ -390,6 +645,13 @@
           "type": "string"
         },
         "roster": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "disabledProviders": {
+          "description": "Provider families switched off: their rows leave the model picker and mercury://models, their bare words stop resolving, their stored keys remain untouched, and a session already on a disabled family keeps running",
           "type": "array",
           "items": {
             "type": "string"

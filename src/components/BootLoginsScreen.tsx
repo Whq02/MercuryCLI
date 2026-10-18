@@ -11,6 +11,8 @@ import {
   type AnthropicLoginSnapshot,
 } from './mercury-ui/screens/anthropicLoginModel.js';
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js';
+import { storeCompatApiKeyLogin } from '../services/providers/openaicompat/compatLogin.js';
+import { compatKeyEnvName } from '../services/providers/openaicompat/compatAccounts.js';
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js';
 import { storeZaiApiKeyLogin, zaiPlanLabel } from '../services/providers/zai/zaiLogin.js';
 import { storeDeepseekApiKeyLogin } from '../services/providers/deepseek/deepseekLogin.js';
@@ -167,7 +169,7 @@ export interface LoginsArmV1 {
 export function loginsCatalogue(): LoginsArmV1[] {
   return loginFamilyRows({ engineLegs: true }).map(row => ({
     row,
-    familyId: row.value === 'claudeai' || row.value === 'console' ? 'anthropic' : (row.value as ProviderId),
+    familyId: row.value.startsWith('compat/') ? 'openai-compat' : row.value === 'claudeai' || row.value === 'console' ? 'anthropic' : (row.value as ProviderId),
     arm: row.value === 'claudeai' ? 'subscription' : row.value === 'console' ? 'key' : 'family',
   }));
 }
@@ -180,6 +182,7 @@ export function loginsFamilyCounts(groups: readonly FamilySlotGroup[]): { family
 
 export function loginsArmSlots(arm: LoginsArmV1, group: FamilySlotGroup | undefined): AccountSlot[] {
   const slots = group?.slots ?? [];
+  if (arm.row.value.startsWith('compat/')) return slots.filter(slot => slot.id.startsWith(`openai-compat:${arm.row.value.slice(7)}:`));
   if (arm.arm === 'subscription') return slots.filter(s => s.kind !== 'api-key');
   if (arm.arm === 'key') return slots.filter(s => s.kind === 'api-key');
   return slots;
@@ -487,7 +490,8 @@ export type FaceKeyLegId =
   | 'cohere'
   | 'groq'
   | 'cerebras'
-  | 'fireworks';
+  | 'fireworks'
+  | `compat/${string}`;
 
 export function geminiPickOptions(facts: GeminiConnectFacts): Array<{ label: string; value: string }> {
   return geminiConnectRows(facts);
@@ -619,6 +623,7 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
       return 'Together AI API key';
     case 'cohere':
       return 'Cohere API key';
+    default: return `${leg.slice(7)} endpoint API key`;
   }
 }
 
@@ -665,6 +670,7 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
       return 'Proven on the model list first; stored auth-scoped (mode 600); TOGETHER_API_KEY wins. One key, every chat model the gateway lists.';
     case 'cohere':
       return 'Proven on the model list first; stored auth-scoped (mode 600); COHERE_API_KEY wins.';
+    default: return `Stored for ${leg.slice(7)} only (auth-scoped, mode 600); ${compatKeyEnvName(leg.slice(7))} wins over the store.`;
   }
 }
 
@@ -712,6 +718,7 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
       return { stores: 'a Together AI API key' };
     case 'cohere':
       return { stores: 'a Cohere API key' };
+    default: return { stores: `the key for endpoint ${leg.slice(7)}` };
   }
 }
 
@@ -1377,6 +1384,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const openFlow = (arm: LoginsArmV1): void => {
     setDraft('');
     setNotice(null);
+    if (arm.row.value.startsWith('compat/')) {
+      setFlow({ kind: 'key', leg: arm.row.value as `compat/${string}`, note: null, storing: false });
+      return;
+    }
     switch (arm.row.value) {
       case 'claudeai':
         setFlow({ kind: 'anthropic' });
@@ -1552,7 +1563,8 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         setFlow({ kind: 'key', leg: 'mistral-admin', note: null, storing: false });
       } else setFlow({ kind: 'receipt', receipt: leg === 'xai-management' ? `${xaiApiReceipt.current} ${outcome.receipt}` : leg === 'mistral-admin' ? `${mistralApiReceipt.current} ${outcome.receipt}` : outcome.receipt, ok: outcome.ok });
     };
-    if (leg === 'openai-key') void storeOpenaiApiKeyLogin(value).then(settle);
+    if (leg.startsWith('compat/')) void storeCompatApiKeyLogin(leg.slice(7), value).then(settle);
+    else if (leg === 'openai-key') void storeOpenaiApiKeyLogin(value).then(settle);
     else if (leg === 'deepseek') void storeDeepseekApiKeyLogin(value).then(settle);
     else if (leg === 'xai') void storeXaiApiKeyLogin(value).then(settle);
     else if (leg === 'xai-management') void storeXaiManagementKeyLogin(value).then(settle);

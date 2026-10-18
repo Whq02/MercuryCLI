@@ -1,4 +1,5 @@
 
+import { configuredCompatEndpoints } from '../services/providers/openaicompat/compatAccounts.js'
 export type LoginFamilyValue =
   | 'claudeai'
   | 'openai'
@@ -23,7 +24,7 @@ export type LoginFamilyValue =
 
 export interface LoginFamilyRow {
   label: string
-  value: LoginFamilyValue
+  value: LoginFamilyValue | `compat/${string}`
 }
 
 export const META_SIGN_IN_ROADS = 'Muse Code sign-in or API key'
@@ -61,6 +62,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'Cerebras — API key (text models)', value: 'cerebras' as const },
           { label: 'Fireworks — API key (text models)', value: 'fireworks' as const },
           { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },
+          ...configuredCompatEndpoints().filter(endpoint => endpoint.named).map(endpoint => ({ label: `${endpoint.label} (${endpoint.name}) — endpoint API key`, value: `compat/${endpoint.name}` as const })),
         ]
       : []),
   ]
@@ -117,7 +119,8 @@ export function keyPageLine(family: KeyFamilyValue): string {
   return `${family === 'huggingface' ? 'Token' : 'API key'}: ${KEY_PAGES[family]} — sign in, ${keyPageMenuWord(family)}, create, paste it here.`
 }
 
-export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginFamilyValue | undefined {
+export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginFamilyRow['value'] | undefined {
+  if (defaultProvider?.startsWith('compat/') && configuredCompatEndpoints().some(endpoint => `compat/${endpoint.name}` === defaultProvider)) return defaultProvider as `compat/${string}`
   switch (defaultProvider) {
     case 'anthropic':
       return 'claudeai'

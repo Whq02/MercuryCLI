@@ -17,6 +17,10 @@ function keyCredential(value: { key: string; source: string } | undefined): Cred
 
 function currentCredential(family: string): Credential | undefined {
   try {
+    if (/^compat-[a-z0-9-]{1,32}$/.test(family)) {
+      const owner = require('../../services/providers/openaicompat/compatAccounts.js') as typeof import('../../services/providers/openaicompat/compatAccounts.js')
+      return owner.configuredCompatEndpoints().some(endpoint => endpoint.name === family.slice(7)) ? keyCredential(owner.resolveCompatApiKey(process.env, family.slice(7))) : undefined
+    }
     switch (family) {
       case 'deepseek': return keyCredential(require('../../services/providers/deepseek/deepseekAccounts.js').resolveDeepseekApiKey())
       case 'openrouter': return keyCredential(require('../../services/providers/openrouter/openrouterAccounts.js').resolveOpenrouterApiKey())
@@ -32,9 +36,12 @@ function currentCredential(family: string): Credential | undefined {
       case 'groq': return keyCredential(require('../../services/providers/groq/groqAccounts.js').resolveGroqApiKey())
       case 'cerebras': return keyCredential(require('../../services/providers/cerebras/cerebrasAccounts.js').resolveCerebrasApiKey())
       case 'fireworks': return keyCredential(require('../../services/providers/fireworks/fireworksAccounts.js').resolveFireworksApiKey())
-      case 'zai': return keyCredential(require('../../services/providers/providerDiscovery.js').resolveZaiDispatch())
+      case 'zai': return keyCredential(require('../../services/providers/zai/zaiAccounts.js').resolveZaiDispatch())
       case 'local': return keyCredential(require('../../services/providers/local/localAccounts.js').resolveLocalApiKey())
-      case 'openai-compat': return keyCredential(require('../../services/providers/openaicompat/compatAccounts.js').resolveCompatApiKey())
+      case 'openai-compat': {
+        const owner = require('../../services/providers/openaicompat/compatAccounts.js') as typeof import('../../services/providers/openaicompat/compatAccounts.js')
+        return owner.configuredCompatEndpoints().some(endpoint => endpoint.named) ? undefined : keyCredential(owner.resolveCompatApiKey())
+      }
       case 'moonshot': {
         const owner = require('../../services/providers/moonshot/moonshotAccounts.js') as typeof import('../../services/providers/moonshot/moonshotAccounts.js')
         if (owner.resolveMoonshotAccount()?.kind !== 'kimi-oauth') return keyCredential(owner.resolveMoonshotApiKey())
@@ -68,7 +75,7 @@ function currentCredential(family: string): Credential | undefined {
 }
 
 function pathOf(family: string, home: string): string | undefined {
-  return /^[a-z][a-z0-9-]{0,31}$/.test(family) ? join(home, '.sign-in-refusals', `${family}.json`) : undefined
+  return /^(?:[a-z][a-z0-9-]{0,31}|compat-[a-z0-9-]{1,32})$/.test(family) ? join(home, '.sign-in-refusals', `${family}.json`) : undefined
 }
 
 function readFile(family: string, home: string): RefusalFile | undefined {

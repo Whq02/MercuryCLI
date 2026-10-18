@@ -40,7 +40,7 @@ import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
 import { fireworksCallModel, fireworksLiveProofState } from './fireworks/fireworksCallModel.js'
 import { resolveFireworksApiKey } from './fireworks/fireworksAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
-import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
+import { configuredCompatEndpoints } from './openaicompat/compatAccounts.js'
 import {
   HUGGINGFACE_UNVERIFIED_NOTE,
   huggingfaceCallModel,
@@ -341,7 +341,7 @@ const compatBackend: PrimaryAgentBackend = {
   label: 'OpenAI-compatible endpoint (operator-named)',
   callModel: compatCallModel,
   readiness: (): BackendReadiness => {
-    if (!resolveCompatSlotConfig()) {
+    if (configuredCompatEndpoints().length === 0) {
       return { state: 'unavailable', reason: 'no endpoint configured (MERCURY_COMPAT_BASE_URL)' }
     }
     const proof = compatSlotLiveProofState()

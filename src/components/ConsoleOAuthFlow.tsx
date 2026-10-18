@@ -50,6 +50,8 @@ import { CohereConnect } from './CohereConnect.js'
 import { GroqConnect } from '../services/providers/groq/GroqConnect.js'
 import { CerebrasConnect } from '../services/providers/cerebras/CerebrasConnect.js'
 import { FireworksConnect } from '../services/providers/fireworks/FireworksConnect.js'
+import { CompatConnect } from './CompatConnect.js'
+import type { LoginFamilyRow } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
@@ -89,8 +91,9 @@ type EngineLeg =
   | 'groq'
   | 'cerebras'
   | 'fireworks'
+  | `compat/${string}`
 
-export type LoginFamilyFocus = LoginFamilyValue
+export type LoginFamilyFocus = LoginFamilyRow['value']
 
 export const MORE_BELOW_ROW = (hidden: number): string => `…and ${hidden} more below`
 
@@ -239,6 +242,7 @@ export function ConsoleOAuthFlow({
       onSkip?.()
       return
     }
+    if (value.startsWith('compat/') && loginFamilyRows({ engineLegs: true }).some(row => row.value === value)) { setLeg(value as `compat/${string}`); return }
     if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'minimax' || value === 'together' || value === 'cohere' || value === 'groq' || value === 'cerebras' || value === 'fireworks' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') {
       setLeg(value)
       return
@@ -254,6 +258,7 @@ export function ConsoleOAuthFlow({
     />,
   )
 
+  if (leg?.startsWith('compat/')) return frame(<CompatConnect name={leg.slice(7)} onResult={settleLeg} onBack={() => setLeg(null)} />)
   if (leg !== null) {
     switch (leg) {
       case 'openai':
@@ -399,8 +404,8 @@ export function ConsoleOAuthFlow({
             onVisibleWindowChange={(_, to) => setRosterVisibleTo(to)}
             onChange={value => {
               const arm = arms.find(candidate => candidate.row.value === value)
-              if (facts && arm && loginsArmSlots(arm, facts.groups.find(group => group.family.id === arm.familyId)).length > 0) {
-                setAccountFamily(arm.row.value)
+              if (facts && arm && !arm.row.value.startsWith('compat/') && loginsArmSlots(arm, facts.groups.find(group => group.family.id === arm.familyId)).length > 0) {
+                setAccountFamily(arm.row.value as LoginFamilyValue)
                 return
               }
               startFamily(value)

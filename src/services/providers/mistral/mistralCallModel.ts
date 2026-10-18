@@ -7,6 +7,7 @@ import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { mistralChatCompletionsUrl, resolveMistralAccount, resolveMistralApiKey } from './mistralAccounts.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { getCachedMistralCatalogue, mistralListedModel, mistralModelFacts, newestMistralModel } from './mistralCatalogue.js'
 import { isMistralChatModelId } from './mistralPins.js'
 
@@ -25,7 +26,15 @@ export const mistralLaneProfile: CompatLaneProfile = {
     const key = resolveMistralApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint: 'no Mistral API key detected — /logins mistral stores one; MISTRAL_API_KEY works too.',
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('mistral')) return null
+    const fresh = recoverProviderKeyCommand('mistral')
+    return fresh ? { apiKey: fresh } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('mistral')
+    return failure ? `the configured ${failure.message} — no Mistral API key detected.` : 'no Mistral API key detected — /logins mistral stores one; MISTRAL_API_KEY works too.'
+  },
   authRemedy: 'set a valid MISTRAL_API_KEY, or /logins mistral stores a new key from console.mistral.ai/api-keys.',
   billingRemedy: 'the included monthly usage or the spend limit is exhausted — check admin.mistral.ai/subscription (pay-as-you-go is a switch there), then retry; /model picks another model meanwhile.',
   requestUrl: () => mistralChatCompletionsUrl(),

@@ -1,4 +1,5 @@
 import { readStoredDeepseekApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
 const DEEPSEEK_API_BASE_URL = 'https://api.deepseek.com'
 
@@ -17,6 +18,8 @@ export function resolveDeepseekApiKey(
 ): { key: string; source: 'env' | 'stored' } | undefined {
   const envKey = env.DEEPSEEK_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('deepseek')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredDeepseekApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

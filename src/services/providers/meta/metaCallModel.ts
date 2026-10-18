@@ -8,6 +8,7 @@ import { compatChatCallModel, compatLaneLiveProofState, type CompatCallModelPara
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
 import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { metaChatCompletionsUrl, resolveMetaApiKey, resolveMetaAccount } from './metaAccounts.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { getCachedMetaCatalogue, newestMetaModel } from './metaCatalogue.js'
 import { isMetaChatModelId, metaDisplayPin } from './metaPins.js'
 
@@ -30,7 +31,15 @@ export const metaLaneProfile: CompatLaneProfile = {
     const key = resolveMetaApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint: 'no Meta Model API key detected — /logins meta stores one; MODEL_API_KEY works too.',
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('meta')) return null
+    const fresh = recoverProviderKeyCommand('meta')
+    return fresh ? { apiKey: fresh } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('meta')
+    return failure ? `the configured ${failure.message} — no Meta Model API key detected.` : 'no Meta Model API key detected — /logins meta stores one; MODEL_API_KEY works too.'
+  },
   get authRemedy(): string {
     return resolveMetaAccount()?.kind === 'muse-code'
       ? 'the Muse Code key was refused — /logins signs in with Meta again.'

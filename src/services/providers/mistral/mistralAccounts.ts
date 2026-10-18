@@ -1,4 +1,5 @@
 import { readStoredMistralAdminApiKey, readStoredMistralApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
 export function mistralApiBase(env: NodeJS.ProcessEnv = process.env): string {
   return (env.MERCURY_MISTRAL_API_BASE?.trim() || 'https://api.mistral.ai/v1').replace(/\/+$/, '')
@@ -16,6 +17,8 @@ export function mistralEnvKey(env: NodeJS.ProcessEnv = process.env): { key: stri
 export function resolveMistralApiKey(env: NodeJS.ProcessEnv = process.env): { key: string; source: 'env' | 'stored' } | undefined {
   const key = mistralEnvKey(env)
   if (key) return { key: key.key, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('mistral')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredMistralApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

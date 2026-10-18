@@ -6,6 +6,7 @@ import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import { buildXaiExtras } from '../openaicompat/compatWire.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { xaiChatCompletionsUrl, xaiGrokProxyChatHeaders, resolveXaiCredential, resolveXaiAccount } from './xaiAccounts.js'
 import { getCachedXaiCatalogue, xaiModelFacts } from './xaiCatalogue.js'
 import { isXaiChatModelId } from './xaiPins.js'
@@ -21,7 +22,15 @@ export const xaiLaneProfile: CompatLaneProfile = {
       return key ? { apiKey: key.key, requestUrl: xaiChatCompletionsUrl(undefined, key.source) } : undefined
     } catch { return undefined }
   },
-  credentialHint: 'no usable Grok sign-in or xAI API key — /logins xai reconnects the subscription or stores a key; XAI_API_KEY works too.',
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('xai')) return null
+    const fresh = recoverProviderKeyCommand('xai')
+    return fresh ? { apiKey: fresh, requestUrl: xaiChatCompletionsUrl(undefined, 'stored') } : undefined
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('xai')
+    return failure ? `the configured ${failure.message} — no usable Grok sign-in or xAI API key.` : 'no usable Grok sign-in or xAI API key — /logins xai reconnects the subscription or stores a key; XAI_API_KEY works too.'
+  },
   authRemedy: 'set a valid XAI_API_KEY, or store a new key via /logins xai (console.x.ai issues them).',
   billingRemedy: 'check credits and billing at console.x.ai, then retry; /model picks another model meanwhile.',
   requestUrl: () => xaiChatCompletionsUrl(),

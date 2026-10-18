@@ -412,6 +412,10 @@ export function liveGptContextCeiling(modelId: string): number | undefined {
   return maxContextWindow
 }
 
+export function liveGptInputModalities(modelId: string): readonly string[] | undefined {
+  return liveGptModel(modelId)?.inputModalities
+}
+
 function liveGptModel(modelId: string): OpenaiLiveModel | undefined {
   const canonicalId = liveGptCanonicalId(modelId)
   if (canonicalId === undefined) return undefined
@@ -434,6 +438,15 @@ function liveGptCanonicalId(modelId: string): string | undefined {
 }
 
 export function rowAsWireServes(live: OpenaiLiveModel, sourceKind: OpenaiAccountSourceKind): OpenaiLiveModel {
+  const { operatorModelFacts, modelHasRecordedFacts } = require('../../../utils/model/modelOverrides.js') as typeof import('../../../utils/model/modelOverrides.js')
+  const facts = operatorModelFacts(live.id, {
+    contextWindow: live.contextWindow,
+    ...(live.reasoningEffortsStated ? { efforts: live.supportedReasoningEfforts } : {}),
+    ...(live.inputModalities !== undefined ? { images: live.inputModalities.includes('image') } : {}),
+  })
+  if (facts?.efforts !== undefined) live = { ...live, supportedReasoningEfforts: [...new Set([...live.supportedReasoningEfforts, ...facts.efforts])], reasoningEffortsStated: true }
+  if (facts?.images === true && !live.inputModalities?.includes('image')) live = { ...live, inputModalities: [...(live.inputModalities ?? ['text']), 'image'] }
+  if (facts?.images === false && live.inputModalities === undefined && !modelHasRecordedFacts(live.id)) live = { ...live, inputModalities: ['text'] }
   const { wireEffortVocabularyOf } =
     require('./qualificationStore.js') as typeof import('./qualificationStore.js')
   const memory = wireEffortVocabularyOf(live.id, sourceKind)

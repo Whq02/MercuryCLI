@@ -6,6 +6,7 @@ import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { readStoredMoonshotApiKey } from '../providerSecrets.js'
+import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
@@ -197,7 +198,7 @@ export function moonshotAccountIdentity(env: NodeJS.ProcessEnv = process.env): s
   if (envKey) return credentialFingerprint(envKey)
   const tokens = moonshotStoredTokens()
   if (tokens) return tokenIdentity(tokens)
-  const stored = readStoredMoonshotApiKey()
+  const stored = resolveProviderKeyCommand('moonshot') ?? readStoredMoonshotApiKey()
   return stored ? credentialFingerprint(stored) : undefined
 }
 
@@ -503,6 +504,8 @@ export function resolveMoonshotApiKey(
 ): { key: string; source: 'env' | 'stored' } | undefined {
   const envKey = env.MOONSHOT_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env' }
+  const fromCommand = resolveProviderKeyCommand('moonshot')
+  if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredMoonshotApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }
@@ -520,7 +523,7 @@ export function resolveMoonshotAccount(
       region,
     }
   }
-  const stored = readStoredMoonshotApiKey()
+  const stored = resolveProviderKeyCommand('moonshot') ?? readStoredMoonshotApiKey()
   if (stored) {
     return { kind: 'api-key', label: 'Moonshot API key (stored, auth-scoped)', keySource: 'stored' }
   }
@@ -575,6 +578,6 @@ export async function resolveMoonshotDispatchCredential(
       return signedIn(oauth)
     }
   }
-  const stored = readStoredMoonshotApiKey()
+  const stored = resolveProviderKeyCommand('moonshot') ?? readStoredMoonshotApiKey()
   return stored ? { apiKey: stored, requestUrl: moonshotChatCompletionsUrl(env), source: 'stored', accountIdentity: credentialFingerprint(stored) } : undefined
 }

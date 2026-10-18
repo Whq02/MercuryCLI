@@ -75,6 +75,7 @@ For example:
 | `engine.reasoning` | Whether thinking is requested, on every provider that reads it (Anthropic, Z.AI where thinking-locked models keep it on, and the OpenAI-compatible chat roads; GPT models take the effort dial instead). A model that always reasons keeps its own rule. |
 | `engine.agent` | The agent definition used for the session; `--agent` chooses one for a launch. |
 | `engine.roster` | A list limiting which models can be selected. |
+| `engine.disabledProviders` | A list of provider families to switch off. Their rows leave `/model` and `mercury://models`, their bare family words stop resolving, their stored keys remain untouched, and a session already running on a disabled family keeps running; `/health` records the disabled families and any unknown names as info. |
 | `engine.backups` | The backup engines, in order. When the engine in use cannot answer a turn (its provider overloaded past the retry ladder, unreachable, refusing the sign-in after a refresh, or no longer serving the model), the turn hops to the first backup, then the next, each tried once per turn, and says so in one line. A `--backup-model` heads the list. With no list nothing changes. |
 | `engine.pins` | An object mapping known canonical Anthropic model ids to the ids your endpoint serves. |
 | `engine.sessionDefaults` | Whether the home screen and board show the model-default key; on unless set to `false`. |
@@ -83,6 +84,53 @@ For example:
 A resumed chat keeps its model and effort unless the launch explicitly
 chooses them. [ENGINES.md](ENGINES.md) describes provider routing;
 [SESSIONS.md](SESSIONS.md) describes saved defaults and resumes.
+
+### Model facts
+
+`models` is keyed by the full model id, including its provider or
+endpoint prefix. State only the facts you know; omitted fields keep the
+provider's or model table's facts. These entries do not sign in a provider
+or make an unavailable model selectable.
+
+| Key under `models.<id>` | What it states |
+| --- | --- |
+| `contextWindow` | The context window in tokens, a positive integer. |
+| `maxOutputTokens` | The output ceiling in tokens, a positive integer. |
+| `prices.input`, `prices.output` | Input and output prices in USD per million tokens; zero is allowed. |
+| `prices.cacheRead`, `prices.cacheWrite` | Cache-read and cache-write prices in USD per million tokens. |
+| `efforts` | The supported words from `none`, `minimal`, `low`, `medium`, `high`, `xhigh` and `max`. |
+| `images`, `reasoning` | Whether the model accepts images and supports reasoning. |
+
+A lower window or output value, an omitted effort rung, or `false` cannot
+remove a capability already recorded for that model. Other stated facts,
+including prices, still apply. `models._default.<family>` accepts
+the same fields for unknown model ids in that family and fills only facts
+that have not been stated. An explicit model entry takes priority over the
+family default.
+
+## Custom endpoints
+
+`compatProvider` names custom endpoints in user, launch or managed-policy
+settings. Project settings cannot redirect their credentials. Each map key
+is 1–32 lowercase letters, digits or hyphens; select a model as
+`compat/<name>/<id>`. A single endpoint block names `default` and uses
+`compat/<id>`.
+
+| Key | What it sets |
+| --- | --- |
+| `compatProvider.<name>.baseUrl` | The HTTP(S) API base, without credentials, query or fragment. |
+| `compatProvider.<name>.label` | The endpoint name shown in the model picker and Logins. |
+| `compatProvider.<name>.keyCommand` | A shell command supplying the API key for this endpoint (10 s timeout, cached for the process, 30 s back-off after a failure, invalidated on HTTP 401). |
+| `compatProvider.<name>.models` | Vendor model ids. Without a list, named endpoints read `/models` when catalogue traffic is on. |
+| `compatProvider.<name>.headers` | Extra request headers; credential and transport headers are reserved. |
+| `compatProvider.<name>.sessionAffinityHeader` | A header carrying the session id on model requests. |
+| `compatProvider.<name>.dialect` | `chat-completions` (default), `responses`, `ollama`, `lmstudio`, `vllm` or `llamacpp`; server dialects use their Chat Completions profiles. |
+
+`/logins compat/<name>` stores a key for that endpoint alone.
+`MERCURY_COMPAT_<NAME>_API_KEY` takes precedence: uppercase the name and
+replace hyphens with underscores. The default endpoint also honours
+`MERCURY_COMPAT_API_KEY`, `MERCURY_COMPAT_BASE_URL`,
+`MERCURY_COMPAT_LABEL` and `MERCURY_COMPAT_MODELS`.
 
 ## Permissions and the sandbox
 
@@ -162,7 +210,8 @@ learned across sessions; [MNEME.md](MNEME.md) describes its tools and shelf.
 
 | Key | What it sets |
 | --- | --- |
-| `credentials.keyCommand` | A shell command supplying an Anthropic API key. Project-scope helpers wait for workspace trust. |
+| `credentials.keyCommand` | A shell command supplying an Anthropic API key (10 s timeout, cached for the process, 30 s back-off after a failure, invalidated on HTTP 401). Project-scope helpers wait for workspace trust. |
+| `credentials.keyCommands` | A map of provider family names (`openai`, `openrouter`, `gemini`, `moonshot`, `deepseek`, `xai`, `meta`, `mistral`, `nous`, `zen`, `minimax`, `together`, `cohere`, `huggingface`, `local`, `zai`, `anthropic`, or `compat/<name>`) to shell commands supplying their API keys, under the same timeout, cache, back-off, 401 invalidation and workspace-trust rules. |
 | `credentials.signInRoute` | The required Anthropic sign-in route: `claudeai` or `console`. |
 | `credentials.organisation` | The required organisation for Anthropic sign-in. |
 | `environment.values` | Environment variable names and values for Mercury; string, number and boolean values become strings. |

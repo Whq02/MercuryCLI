@@ -103,7 +103,7 @@ try {
   const rowOwnerSrc = readFileSync(join(import.meta.dir, '../../src/components/loginFamilyRows.ts'), 'utf8')
   check('the flow accepts every family focus through ONE union (huggingface · moonshot · zai · deepseek), no silent drop',
     flowSrc.includes('initialFocus?: LoginFamilyFocus') &&
-      flowSrc.includes('LoginFamilyFocus = LoginFamilyValue') &&
+      flowSrc.includes("LoginFamilyFocus = LoginFamilyRow['value']") &&
       ["| 'huggingface'", "| 'moonshot'", "| 'zai'", "| 'deepseek'"].every(member => rowOwnerSrc.includes(member)))
 } finally {
   rmSync(home, { recursive: true, force: true })
