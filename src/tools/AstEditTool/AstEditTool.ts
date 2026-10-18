@@ -45,6 +45,7 @@ import {
   checkWritePermissionForTool,
   matchingRuleForInput,
 } from '../../utils/permissions/filesystem.js'
+import { mercurySecretPath } from '../../utils/permissions/protectedPaths.js'
 import { reasonForRule, refusalWithReason, ruleWords } from '../../utils/permissions/ruleReason.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { plural } from '../../utils/stringUtils.js'
@@ -115,7 +116,7 @@ function scopeFor(input: Input, context: ToolUseContext): AstScope {
     ...(input.glob !== undefined && { glob: input.glob }),
     ...(input.lang !== undefined && { lang: input.lang }),
     cwd: getCwd(),
-    readable: abs => matchingRuleForInput(abs, permCtx, 'read', 'deny') === null,
+    readable: abs => mercurySecretPath(abs) === null && matchingRuleForInput(abs, permCtx, 'read', 'deny') === null,
   })
   if (isAstRefusal(scope)) throw new Error(scope.refused)
   scope.display = input.path === undefined || input.path === '' ? '.' : input.path
@@ -296,22 +297,27 @@ export const AstEditTool = buildTool({
       return { behavior: 'allow', updatedInput: input } as PermissionDecision
     }
     let needsAsk = false
+    let safetyAsk: Extract<PermissionDecision, { behavior: 'ask' }> | undefined
     for (const f of targets) {
       const decision = checkWritePermissionForTool(pathShim, { file_path: f.abs }, permCtx)
       if (decision.behavior === 'deny') {
         return {
           ...decision,
-          message: refusalWithReason(`Editing ${f.rel} is denied${decision.decisionReason.type === 'rule' ? ` by ${ruleWords(decision.decisionReason.rule)}` : ''} — a denied file refuses the whole structural edit (zero writes).`, decision.decisionReason.type === 'rule' ? reasonForRule(permCtx, decision.decisionReason.rule) : undefined),
+          message: decision.decisionReason.type === 'rule'
+            ? refusalWithReason(`Editing ${f.rel} is denied by ${ruleWords(decision.decisionReason.rule)} — a denied file refuses the whole structural edit (zero writes).`, reasonForRule(permCtx, decision.decisionReason.rule))
+            : `${decision.message} A denied file refuses the whole structural edit (zero writes).`,
         } as PermissionDecision
       }
       if (decision.behavior !== 'allow') needsAsk = true
+      if (decision.behavior === 'ask' && decision.decisionReason?.type === 'safetyCheck') safetyAsk ??= decision
     }
     if (needsAsk) {
       const shown = targets.slice(0, 3).map(f => f.rel).join(', ')
       const more = targets.length > 3 ? ` and ${targets.length - 3} more` : ''
       return {
         behavior: 'ask',
-        message: `Rewrite ${planned.plan.matchCount} ${plural(planned.plan.matchCount, 'match', 'matches')} of ${JSON.stringify(input.pattern)} in ${targets.length} ${plural(targets.length, 'file')} (${shown}${more})? One decision covers every file; a denied file means zero writes.`,
+        ...(safetyAsk ? { decisionReason: safetyAsk.decisionReason } : {}),
+        message: `Rewrite ${planned.plan.matchCount} ${plural(planned.plan.matchCount, 'match', 'matches')} of ${JSON.stringify(input.pattern)} in ${targets.length} ${plural(targets.length, 'file')} (${shown}${more})? One decision covers every file; a denied file means zero writes.${safetyAsk ? ' ' + safetyAsk.message : ''}`,
       } as PermissionDecision
     }
     return { behavior: 'allow', updatedInput: input } as PermissionDecision
