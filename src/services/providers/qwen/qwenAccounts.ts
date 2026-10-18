@@ -85,7 +85,7 @@ export function qwenEnvKey(env: NodeJS.ProcessEnv = process.env): { key: string;
   return key ? { key, name: QWEN_ENV_KEY } : undefined
 }
 
-export function resolveQwenApiKey(env: NodeJS.ProcessEnv = process.env): { key: string; source: 'env' | 'stored' } | undefined {
+function resolveQwenApiKey(env: NodeJS.ProcessEnv = process.env): { key: string; source: 'env' | 'stored' } | undefined {
   const key = qwenEnvKey(env)
   if (key) return { key: key.key, source: 'env' }
   const fromCommand = resolveProviderKeyCommand('qwen')
@@ -122,7 +122,7 @@ export function qwenBoundBase(env: NodeJS.ProcessEnv = process.env): string | un
   return undefined
 }
 
-export function qwenApiBase(env: NodeJS.ProcessEnv = process.env): string {
+function qwenApiBase(env: NodeJS.ProcessEnv = process.env): string {
   return qwenBoundBase(env) ?? qwenEndpointBase(QWEN_SHARED_ENDPOINTS[0]!, env)
 }
 

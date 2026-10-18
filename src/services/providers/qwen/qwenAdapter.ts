@@ -1,5 +1,5 @@
 import { qwenCatalogueRows } from './qwenCatalogue.js'
-import { resolveQwenAccount } from './qwenAccounts.js'
+import { resolveQwenAccount, resolveQwenCredentialSnapshot } from './qwenAccounts.js'
 import type { ProviderCatalogueEntry, ProviderDescription, ProviderModelRef, ProviderModelClass, ProviderAdapter, ProviderModel, ProviderStatus } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
@@ -28,14 +28,16 @@ function describeQwenProvider(): ProviderDescription {
     transport: 'openai-compat-chat-completions',
     capabilities: ['streaming', 'tool-calls', 'usage-accounting', 'cancellation', 'worktree-authoring'],
     roles: SPECIALIST_ROLES,
-    account: account ? { kind: 'api-key', label: account.label } : { kind: 'none', label: 'no Model Studio API key detected' },
+    account: account ? { kind: account.kind === 'signin' ? 'provider-oauth' : 'api-key', label: account.label } : { kind: 'none', label: 'no Qwen account sign-in or Model Studio API key detected' },
     catalogue: live?.entries ?? [],
     ...(live ? { catalogueSource: 'live-discovery' as const, discoveredAtMs: live.fetchedAtMs } : { catalogueSource: 'static-pin' as const }),
   }
 }
 
 function qwenStatus(): ProviderStatus {
-  return resolveQwenAccount() ? { available: true } : { available: false, reason: 'no-api-key:qwen' }
+  const account = resolveQwenAccount()
+  if (account?.expired) return { available: false, reason: 'signin-expired:qwen' }
+  return resolveQwenCredentialSnapshot() ? { available: true } : { available: false, reason: 'no-api-key:qwen' }
 }
 
 function listQwenModels(): ProviderModel[] {

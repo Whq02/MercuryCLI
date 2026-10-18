@@ -154,6 +154,7 @@ section('§2 the four account states — the rows each family paints on /model')
         'Mercury — Groq models',
         'Mercury — Cerebras models',
         'Mercury — Fireworks models',
+        'Mercury — Qwen models',
       ]
       check(`[${tag}] the first sections are OpenAI, Anthropic, OpenRouter`, JSON.stringify(groups.slice(0, 3)) === JSON.stringify(expectedGroups.slice(0, 3)), JSON.stringify(groups))
       check(`[${tag}] every provider section is contiguous and retains its order`, new Set(groups).size === groups.length && JSON.stringify(groups) === JSON.stringify(expectedGroups.filter(group => groups.includes(group))), JSON.stringify(groups))

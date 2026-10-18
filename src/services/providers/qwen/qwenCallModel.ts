@@ -100,7 +100,7 @@ export async function* qwenCallModel(params: CallModelParams): CallModelStream {
   const model = asked.trim().toLowerCase() === 'qwen' ? newestQwenModel() : qwenListedModel(snapshot, asked)?.id ?? qwenWireId(asked)
   let refusal: string | undefined
   const credentialRefused = snapshot?.lastError?.includes('refused the credential') === true
-  if (credentialRefused) refusal = `${snapshot!.lastError} — /logins qwen re-binds the key.`
+  if (credentialRefused) refusal = qwenSigninActive() ? `${qwenSigninRefusal() ? qwenSigninRefusalNote(qwenSigninRefusal()!) : QWEN_SIGNIN_EXPIRED_LINE}.` : `${snapshot!.lastError} — /logins qwen re-binds the key.`
   else if (!model) refusal = "Qwen cannot resolve 'qwen' until the account's live list serves a text model; /model refreshes the list."
   else if (!isQwenTextModelId(model)) refusal = `Qwen model '${model}' is not on the text road; the speech, image, video, embedding and rerank lines are not supported here.`
   else if (snapshot && snapshot.models.length > 0 && !qwenListedModel(snapshot, model)) {

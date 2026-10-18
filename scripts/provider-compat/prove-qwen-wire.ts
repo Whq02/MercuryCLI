@@ -340,8 +340,12 @@ try {
   section('the Qwen account sign-in: the device code, the token, the refresh, the revocation')
   const { runQwenDeviceLogin, QWEN_CONNECT_ROWS } = await import('../../src/services/providers/qwen/qwenLogin.ts')
   const { qwenStoredTokens, qwenAuthPathForDisplay, writeQwenTokens, qwenSigninRefusal, tokensFromQwenBody, clearStoredQwenSignin, QWEN_OAUTH_CLIENT_ID } = await import('../../src/services/providers/qwen/qwenOauth.ts')
-  const { resolveQwenAccount, resolveQwenCredential } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
+  const { resolveQwenAccount, resolveQwenCredential, qwenAccountIdentity } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
   const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
+  const { qwenCatalogueIdentity } = await import('../../src/services/providers/qwen/qwenCatalogue.ts')
+  const { qwenProviderAdapter } = await import('../../src/services/providers/qwen/qwenAdapter.ts')
+  const { validateModel } = await import('../../src/utils/model/validateModel.ts')
+  check("the /model pickers' refresh road reads the catalogue's own identity, which is the stored key's while no account is signed in", readFileSync(new URL('../../src/commands/model/mercuryModel.tsx', import.meta.url), 'utf8').includes('identity: () => qwenCatalogueIdentity()') && qwenCatalogueIdentity()?.startsWith('stored:') === true && qwenCatalogueIdentity()?.endsWith(':bound') === true)
   check('the sign-in card offers the device road first and the key second, and the face layer carries the pick', QWEN_CONNECT_ROWS[0]?.value === 'device' && QWEN_CONNECT_ROWS[1]?.value === 'key' && QWEN_OAUTH_CLIENT_ID === QWEN_CLIENT_ID)
   check('a token body with a Qwen resource host is trusted and a foreign host is dropped', tokensFromQwenBody({ access_token: 'a', refresh_token: 'r', expires_in: 60, resource_url: 'portal.qwen.ai' }, { env: {} }).resourceUrl === 'https://portal.qwen.ai' && tokensFromQwenBody({ access_token: 'a', refresh_token: 'r', expires_in: 60, resource_url: 'https://evil.example/v1' }, { env: {} }).resourceUrl === undefined)
   pollScript = ['pending', 'slow', 'authorized']
@@ -357,6 +361,7 @@ try {
   check('the tokens rest in the auth-scoped file at mode 600 with the resource host, and the sign-in is the account now', stored?.accessToken === 'proof-token-qwen-access-1-not-real' && stored.refreshToken === 'proof-token-qwen-refresh-1-not-real' && stored.resourceUrl === 'https://portal.qwen.ai' && (statSync(qwenAuthPathForDisplay()).mode & 0o777) === 0o600 && resolveQwenAccount()?.kind === 'signin' && readStoredQwenApiKey() === KEY_INTL)
   const qwenSlots = deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots ?? []
   check('/accounts shows the sign-in slot active beside the stored key, which steps aside', qwenSlots.some(slot => slot.id === 'qwen:signin' && slot.active && slot.signedIn && slot.kind === 'oauth') && qwenSlots.some(slot => slot.kind === 'api-key' && !slot.active && slot.stateNote === 'Qwen account sign-in selected'))
+  check('with the account signed in beside the key, the pickers\' refresh road identity is the sign-in\'s plan identity, the adapter reports the sign-in as a provider sign-in and available', qwenCatalogueIdentity() === `signin:${qwenAccountIdentity()}:plan` && qwenProviderAdapter.describe().account.kind === 'provider-oauth' && qwenProviderAdapter.describe().account.label === 'Qwen account sign-in' && qwenProviderAdapter.status().available === true)
   before = captures.length
   const plan = await run(params('qwen'))
   check("the family word under the sign-in runs the plan's head row on the plan endpoint with the bearer token, never a Model Studio endpoint", captures.length === before + 1 && captures.at(-1)?.endpoint === 'plan' && captures.at(-1)?.bearer === 'proof-token-qwen-access-1-not-real' && captures.at(-1)?.body.model === 'coder-model' && textOf(plan) === 'PLAN-SETTLED' && !('enable_thinking' in captures.at(-1)!.body))
@@ -368,10 +373,17 @@ try {
   check('an expired token is refreshed before the turn with the refresh grant and the client id, the fresh token rides the wire and rests in the file', refreshCalls.length === 1 && refreshCalls[0]?.form.client_id === QWEN_CLIENT_ID && refreshCalls[0].form.refresh_token === 'proof-token-qwen-refresh-1-not-real' && captures.length === before + 1 && captures.at(-1)?.bearer === 'proof-token-qwen-access-2-not-real' && qwenStoredTokens()?.accessToken === 'proof-token-qwen-access-2-not-real')
   refreshMode = 'revoked'
   writeQwenTokens({ ...qwenStoredTokens()!, expiresAtMs: Date.now() - 1 })
+  __resetQwenCatalogueForTest()
   before = captures.length
   const revoked = await run(params('coder-model'))
-  check('a revoked refresh token refuses the turn before any request, names /logins qwen, and the account reads expired on every surface', captures.length === before && revoked.some(row => row.isApiErrorMessage) && words(revoked).includes('/logins qwen') && words(revoked).includes('expired') && qwenSigninRefusal()?.code === 'invalid_grant' && (await resolveQwenCredential()) === undefined && resolveQwenAccount()?.expired === true && resolveProviderUsability().qwen.usable === false && resolveProviderUsability().qwen.blockers.some(line => line.includes('/logins qwen')) && (deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots.find(slot => slot.id === 'qwen:signin')?.signedIn === false))
+  check('a revoked refresh token on a COLD catalogue cache refuses the turn before any request with the sign-in words (never the key road), and the account reads expired on every surface', captures.length === before && revoked.some(row => row.isApiErrorMessage) && words(revoked).includes('Qwen account sign-in expired') && words(revoked).includes('/logins qwen') && !words(revoked).includes('re-binds the key') && qwenSigninRefusal()?.code === 'invalid_grant' && (await resolveQwenCredential()) === undefined && resolveQwenAccount()?.expired === true && resolveProviderUsability().qwen.usable === false && resolveProviderUsability().qwen.blockers.some(line => line.includes('/logins qwen')) && (deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots.find(slot => slot.id === 'qwen:signin')?.signedIn === false))
   console.log(words(revoked))
+  __resetQwenCatalogueForTest()
+  const revokedValidation = await validateModel('coder-model')
+  check('the model validator on a cold cache answers the same sign-in words, and the adapter reports the revoked sign-in unavailable and the pickers\' road identity gone', !revokedValidation.valid && (revokedValidation.error ?? '').includes('Qwen account sign-in expired') && !(revokedValidation.error ?? '').includes('re-binds the key') && qwenProviderAdapter.status().available === false && qwenProviderAdapter.status().reason === 'signin-expired:qwen' && qwenCatalogueIdentity() === `signin:${qwenAccountIdentity()}:plan`)
+  __resetQwenCatalogueForTest()
+  const revokedWarm = await run(params('coder-model'))
+  check('the warm-cache path answers the same words', words(revokedWarm).includes('Qwen account sign-in expired') && !words(revokedWarm).includes('re-binds the key') && captures.length === before)
   const removal = deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots.find(slot => slot.id === 'qwen:signin')
   check('/accounts removes the sign-in and the stored key becomes the account again', removal !== undefined && executeSlotRemoval(removal).mutated && qwenStoredTokens() === undefined && resolveQwenAccount()?.kind === 'api-key')
   refreshMode = 'ok'; pollScript = ['authorized']
