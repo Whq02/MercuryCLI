@@ -184,8 +184,23 @@ section('§4 the win32 scene: an npm delivered as npm.cmd beside the extensionle
   const absent = planner ? planner.spawnPlanOf(['cargo', 'install', 'x'], win32) : null
   check('a tool with no spawnable spelling on the win32 PATH is reported missing (the door prints its needs-<tool> line)', absent !== null && 'refused' in absent && absent.missing === 'cargo', JSON.stringify(absent))
   const absentDoor = harness()
-  const absentCode = verb ? await verb.lspInstallCli('zls', { yes: true, world: win32 } as never, absentDoor.io) : -1
-  check('the door on the win32 world refuses a remedy whose tool is absent, naming the tool, nothing run', absentCode === 2 && absentDoor.ran.length === 0 && absentDoor.err[0]?.startsWith('The install remedy for zls (Zig) needs ') === true, text(absentDoor.err))
+  const absentCode = verb ? await verb.lspInstallCli('lua-language-server', { yes: true, world: win32 } as never, absentDoor.io) : -1
+  check('the door on the win32 world refuses a remedy whose tool is absent, naming the tool and the Windows remedy, nothing run', absentCode === 2 && absentDoor.ran.length === 0 && absentDoor.err[0] === 'The install remedy for Lua LS needs scoop, which is not on PATH: scoop install lua-language-server', text(absentDoor.err))
+  const brewDoor = harness()
+  const brewCode = verb ? await verb.lspInstallCli('zls', { yes: true, world: win32 } as never, brewDoor.io) : -1
+  check('a server whose Mac remedy is brew shows its Windows road on the win32 world — the download, as words, never brew', brewCode === 2 && brewDoor.ran.length === 0 && brewDoor.err[0] === 'zls (Zig) has no install command to run: download the prebuilt zls.exe from zigtools.org/zls/install and put it on PATH', text(brewDoor.err))
+  writeFileSync(join(WINBIN, 'winget.exe'), '')
+  const gleamDoor = harness()
+  const gleamCode = verb ? await verb.lspInstallCli('gleam', { yes: true, world: win32 } as never, gleamDoor.io) : -1
+  check('a vendor-documented winget road is the plan on the win32 world: winget.exe spawned by its resolved path with the documented argv, the scoop alternative shown as words only', gleamCode === 1 && gleamDoor.out[1] === '  winget install --id Gleam.Gleam' && gleamDoor.plans[0]?.file === join(WINBIN, 'winget.exe') && JSON.stringify(gleamDoor.plans[0]?.args) === JSON.stringify(['install', '--id', 'Gleam.Gleam']) && gleamDoor.err[0]?.startsWith('The install command finished, but no gleam is on PATH yet') === true, `${gleamCode} ${text(gleamDoor.out)}\n${text(gleamDoor.err)}`)
+  const winList = verb ? verb.lspListLines(PROJ, 'win32') : []
+  check('lsp list on the win32 world shows no brew remedy on any row', winList.length > 0 && !winList.some(line => /(^|[\s(])brew\s/.test(line)), winList.filter(line => /brew/.test(line)).join('\n'))
+  check('lsp list on the win32 world carries the Windows road for a brew-only server (zls) and the shared road for an npm server', winList.some(line => /^zls\s+absent\s+download the prebuilt zls\.exe from zigtools\.org\/zls\/install/.test(line)) && winList.some(line => /^docker-langserver\s+absent\s+npm i -g dockerfile-language-server-nodejs/.test(line)), winList.filter(line => /^(zls|docker-langserver)\s/.test(line)).join('\n'))
+  const macList = verb ? verb.lspListLines(PROJ, 'darwin') : []
+  check('the control: the Mac list keeps every brew remedy as it was', macList.some(line => /^zls\s+absent\s+brew install zls \(or download from github\.com\/zigtools\/zls\)/.test(line)) && macList.some(line => /^marksman\s+absent\s+brew install marksman/.test(line)), macList.filter(line => /^(zls|marksman)\s/.test(line)).join('\n'))
+  const WINDOWS_TOOLS = /^(scoop|winget|cs|rustup|npm|go|dotnet|gem|cargo|pip|ghcup|opam)$/
+  const winRemedies = catalogue.SERVER_CATALOGUE.filter(entry => entry.remedyWin32 !== undefined).map(entry => ({ id: entry.id, parsed: verb ? verb.installCommandOf(entry.remedyWin32!) : null }))
+  check('every Windows remedy parses as the one grammar: words, or a clean argv whose tool is one Windows carries', winRemedies.length >= 16 && winRemedies.every(({ parsed }) => parsed !== null && (parsed.kind === 'words' || WINDOWS_TOOLS.test(parsed.tool))), winRemedies.map(({ id, parsed }) => `${id}: ${JSON.stringify(parsed)}`).join('\n'))
   const srcVerb = source('src/cli/lspVerb.ts')
   check('the door spawns the plan (file + args + the verbatim flag), never argv[0] by its bare word and never shell:true', /spawn\(plan\.file, plan\.args, \{[^}]*windowsVerbatimArguments: plan\.windowsVerbatimArguments/.test(srcVerb) && !/shell: true/.test(srcVerb) && !/spawn\(argv\[0\]/.test(srcVerb))
 }

@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
-import { SERVER_CATALOGUE, probeCatalogueEntry } from '../services/lsp/serverCatalogue.js'
+import { SERVER_CATALOGUE, probeCatalogueEntry, remedyFor } from '../services/lsp/serverCatalogue.js'
 import { binaryName } from '../utils/config/derived.js'
 import { spawnPlanOf, type SpawnPlan, type SpawnWorld } from '../utils/spawnPlan.js'
 
@@ -56,11 +56,11 @@ export function rosterLine(): string {
   return `Known servers: ${SERVER_CATALOGUE.map(entry => entry.id).join(', ')}`
 }
 
-export function lspListLines(cwd: string = getOriginalCwd()): string[] {
+export function lspListLines(cwd: string = getOriginalCwd(), platform: string = process.platform): string[] {
   const rows = SERVER_CATALOGUE.map(entry => ({ entry, probe: probeCatalogueEntry(entry, cwd) }))
   const width = Math.max(...rows.map(row => row.entry.id.length))
   const lines = rows.map(({ entry, probe }) => {
-    const state = probe.binaryPath ? `installed  ${probe.binaryPath}${probe.binarySource === 'project-local' ? ' (project-local)' : ''}` : `absent     ${entry.remedy}`
+    const state = probe.binaryPath ? `installed  ${probe.binaryPath}${probe.binarySource === 'project-local' ? ' (project-local)' : ''}` : `absent     ${remedyFor(entry, platform)}`
     return `${entry.id.padEnd(width)}  ${state}  [${entry.languages.join(', ')}]`
   })
   const installed = rows.filter(row => row.probe.binaryPath).length
@@ -68,8 +68,8 @@ export function lspListLines(cwd: string = getOriginalCwd()): string[] {
   return lines
 }
 
-export async function lspListCli(io: LspCliIo = defaultIo): Promise<number> {
-  for (const line of lspListLines()) io.out(line)
+export async function lspListCli(io: LspCliIo = defaultIo, platform: string = process.platform): Promise<number> {
+  for (const line of lspListLines(getOriginalCwd(), platform)) io.out(line)
   return 0
 }
 
@@ -85,14 +85,15 @@ export async function lspInstallCli(server: string, options: { yes: boolean; wor
     io.out(`${entry.label} is already installed: ${present.binaryPath}${present.binarySource === 'project-local' ? ' (project-local)' : ''} — nothing to run`)
     return 0
   }
-  const command = installCommandOf(entry.remedy)
+  const remedy = remedyFor(entry, options.world?.platform ?? process.platform)
+  const command = installCommandOf(remedy)
   if (command.kind === 'words') {
     io.err(`${entry.label} has no install command to run: ${command.words}`)
     return 2
   }
   const plan: SpawnPlan = spawnPlanOf(command.argv, options.world)
   if ('refused' in plan && plan.missing !== undefined) {
-    io.err(`The install remedy for ${entry.label} needs ${plan.missing}, which is not on PATH: ${entry.remedy}`)
+    io.err(`The install remedy for ${entry.label} needs ${plan.missing}, which is not on PATH: ${remedy}`)
     return 2
   }
   io.out(`Install ${entry.label} (${entry.languages.join(', ')}) by running:`)
