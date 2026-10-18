@@ -694,6 +694,12 @@ Available commands include:
 - **`mercury daemon run|status|stop|restart`**: run, inspect, stop or restart
   the background daemon. Its session seats are `mercury runner` children; the
   daemon sends their prompts and hosts their permission asks.
+- **`mercury sessions delete <id>`**: delete one saved session on purpose —
+  its transcript and the records kept beside it (receipts, resume snapshot) —
+  after a question; `--yes` skips the question for scripts. A session the
+  daemon hosts now is refused, and an unknown id is refused with a hint to the
+  roster (`/sessions` inside Mercury). Saved sessions are otherwise never
+  deleted on their own.
 - **`mercury acp`**: serve an editor over the Agent Client Protocol, with a
   runner child for each session. `mercury bridge install` installs the
   VS Code extension; `mercury bridge status` checks it.

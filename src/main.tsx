@@ -884,6 +884,16 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exit(0)
     })
 
+  const sessions = program.command('sessions').description('Saved sessions: delete').helpCommand('help [command]', 'Show help for a command')
+  sessions
+    .command('delete <id>')
+    .description('Delete one saved session on purpose — its transcript and the records kept beside it (receipts, resume snapshot) — after a question; a session the daemon hosts now is refused')
+    .option('--yes', 'Delete without the question (for scripts)')
+    .action(async (id: string, options: { yes?: boolean }) => {
+      const { sessionsDeleteCli } = await import('./cli/sessionsVerb.js')
+      await gracefulShutdown(await sessionsDeleteCli(id, { yes: options.yes === true }))
+    })
+
   program
     .command('version')
     .description('Print the version (the same line as --version)')
