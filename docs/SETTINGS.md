@@ -84,6 +84,29 @@ A resumed chat keeps its model and effort unless the launch explicitly
 chooses them. [ENGINES.md](ENGINES.md) describes provider routing;
 [SESSIONS.md](SESSIONS.md) describes saved defaults and resumes.
 
+### Model facts
+
+`models` is keyed by the full model id, including its provider or
+endpoint prefix. State only the facts you know; omitted fields keep the
+provider's or model table's facts. These entries do not sign in a provider
+or make an unavailable model selectable.
+
+| Key under `models.<id>` | What it states |
+| --- | --- |
+| `contextWindow` | The context window in tokens, a positive integer. |
+| `maxOutputTokens` | The output ceiling in tokens, a positive integer. |
+| `prices.input`, `prices.output` | Input and output prices in USD per million tokens; zero is allowed. |
+| `prices.cacheRead`, `prices.cacheWrite` | Cache-read and cache-write prices in USD per million tokens. |
+| `efforts` | The supported words from `none`, `minimal`, `low`, `medium`, `high`, `xhigh` and `max`. |
+| `images`, `reasoning` | Whether the model accepts images and supports reasoning. |
+
+A lower window or output value, an omitted effort rung, or `false` cannot
+remove a capability already recorded for that model. Other stated facts,
+including prices, still apply. `models._default.<family>` accepts
+the same fields for unknown model ids in that family and fills only facts
+that have not been stated. An explicit model entry takes priority over the
+family default.
+
 ## Custom endpoints
 
 `compatProvider` names custom endpoints in user, launch or managed-policy

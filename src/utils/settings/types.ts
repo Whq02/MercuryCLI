@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 
 import { CompatProviderSchema } from './compatProvider.js'
+import { ModelFactsSchema } from './modelFacts.js'
 import { SandboxSettingsSchema } from '../../entrypoints/sandboxTypes.js'
 import { EFFORT_LEVELS } from '../effortLadder.js'
 import { HooksSchema } from '../../schemas/hooks.js'
@@ -91,6 +92,7 @@ export const ExtensionsSettingsSchema = lazySchema(() =>
 export const SettingsSchema = lazySchema(() => {
   const base = z.object({
     $schema: z.string().optional(),
+    models: ModelFactsSchema().optional().describe('Model facts keyed by the full id: contextWindow, maxOutputTokens, prices, efforts, images and reasoning; _default maps provider families to facts for unknown ids; recorded capabilities are never reduced'),
     compatProvider: CompatProviderSchema().optional().describe('Custom endpoints keyed by name, or one endpoint named default: baseUrl, label, models, headers, sessionAffinityHeader and dialect; keys are kept by /logins, not in settings'),
     credentials: z.object({
       keyCommand: z.string().optional(),

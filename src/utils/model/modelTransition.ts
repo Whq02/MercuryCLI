@@ -203,7 +203,7 @@ export type TransitionPlanItem = {
   detail?: string
 }
 
-type TransitionWindowSource = 'live-current' | 'static-pin' | 'capability' | 'fallback' | 'suffix-1m' | 'beta-header'
+type TransitionWindowSource = 'operator' | 'live-current' | 'static-pin' | 'capability' | 'fallback' | 'suffix-1m' | 'beta-header'
 
 export type TransitionWindowFact = {
   count: number
