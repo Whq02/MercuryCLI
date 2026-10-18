@@ -1,4 +1,5 @@
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { statSync } from 'node:fs'
 import { resolveRelativePatternPrefix } from './globPrefix.js'
 
 import type { ToolPermissionContext } from '../Tool.js'
@@ -84,13 +85,19 @@ export async function glob(
   }
 
   const ignoreByRoot = getFileReadIgnorePatterns(toolPermissionContext)
-  const ignores = normalizePatternsToPath(ignoreByRoot as never, searchDir)
+  const relativeRules = ignoreByRoot.get(null) ?? []
+  const sessionRoot = safeResolvePath(getFsImplementation(), process.cwd()).resolvedPath
+  ignoreByRoot.set(null, relativeRules.filter(pattern => !pattern.includes('/')))
+  ignoreByRoot.set(sessionRoot, [...(ignoreByRoot.get(sessionRoot) ?? []), ...relativeRules.filter(pattern => pattern.includes('/'))])
+  let walkRoot = searchDir
+  try { if (!statSync(walkRoot).isDirectory()) walkRoot = dirname(walkRoot) } catch {}
+  const ignores = normalizePatternsToPath(ignoreByRoot as never, walkRoot)
   for (const ignore of ignores) {
     args.push('--iglob', `!${ignore}`)
     universeArgs.push('--iglob', `!${ignore}`)
   }
 
-  const anchor = { cwd: searchDir }
+  const anchor = { cwd: walkRoot }
   const matches = await ripGrepAnswer(args, searchDir, abortSignal, anchor)
   const universe = await ripGrepAnswer(universeArgs, searchDir, abortSignal, anchor)
   const listed = new Set(universe.lines)
