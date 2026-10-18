@@ -75,6 +75,14 @@ console.log('── §1 the composer and the arm ladder are pure ──')
   check('the pin outranks the setting both ways', ladder('brush', 'system', false) === want('brush', 'pin') && ladder('system', 'brush', false) === want('system', 'pin'))
   check('a pin with another word is no pin: the setting, then the road, decide', ladder('nope', 'brush', false) === want('brush', 'setting') && ladder('nope', undefined, true) === want('brush', 'no-bash'))
   check('each arm has its words', shellEngineArmWords('pin').includes(ENGINE_PIN) && /Shell engine setting/.test(shellEngineArmWords('setting')) && /no bash\.exe/.test(shellEngineArmWords('no-bash')) && shellEngineArmWords('default') === 'the default')
+  const windowsLadder = (pin: string | undefined, setting: 'system' | 'brush' | undefined, bashAbsent: boolean): string => JSON.stringify(shellEngineRequest(pin, setting, bashAbsent, true))
+  check('on the Windows road with a bash found, nothing set ⇒ the engine is the default (arm windows)', windowsLadder(undefined, undefined, false) === want('brush', 'windows'))
+  check('on the Windows road with no bash found, the no-bash arm still names the reason', windowsLadder(undefined, undefined, true) === want('brush', 'no-bash'))
+  check('on the Windows road the system pin and the system setting keep bash.exe', windowsLadder('system', undefined, false) === want('system', 'pin') && windowsLadder(undefined, 'system', false) === want('system', 'setting'))
+  check('the windows arm names the pin and the setting that keep bash.exe', /Windows default/.test(shellEngineArmWords('windows')) && shellEngineArmWords('windows').includes('MERCURY_SHELL_ENGINE=system') && /Shell engine setting/.test(shellEngineArmWords('windows')))
+  const readme = read('README.md')
+  const runtime = read('docs/TERMINAL-RUNTIME.md')
+  check('README and TERMINAL-RUNTIME say the engine is the Windows default and no longer name the cmd /c npm hole', readme.includes('on Windows it serves the Bash tool by default') && !readme.includes('cmd /c npm') && runtime.includes('On Windows the default is the bundled **brush**') && !runtime.includes('Two\nthings the engine cannot do') && !runtime.includes('cmd /c npm'))
 }
 
 console.log('── §2 the locator: typed answers, one loud refusal ──')
@@ -133,8 +141,17 @@ console.log('── §3 the roster follows the road ──')
 
   const withBash = roster({ [SEAM]: 'locate', [PIN]: import.meta.path })
   const wb = withBash.r
-  check('on the road WITH a bash: git-bash is the road whatever the pack — the Bash tool stands, PowerShell keeps its opt-in, no notice', wb?.active === true && wb.kind === 'git-bash' && wb.bash === true && wb.ps === false && wb.notice === null, JSON.stringify(wb) || withBash.err)
-  check("…and /health's line names the found bash", /git-bash at .*found on this machine/.test(wb?.line ?? ''), wb?.line)
+  if (PACK_PRESENT) {
+    check('on the road WITH a bash and the pack: the bundled engine is the Windows default — the Bash tool stands under it, PowerShell keeps its opt-in, no notice', wb?.active === true && wb.kind === 'engine' && wb.bash === true && wb.ps === false && wb.notice === null, JSON.stringify(wb) || withBash.err)
+    check("…and /health's line names the engine and the Windows default, with the pin and the setting that keep bash.exe", /the shell engine at .*the Windows default/.test(wb?.line ?? '') && (wb?.line ?? '').includes('MERCURY_SHELL_ENGINE=system or the Shell engine setting keeps bash.exe'), wb?.line)
+  } else {
+    check('on the road WITH a bash and no pack: git-bash is the road — the Bash tool stands, PowerShell keeps its opt-in, no notice', wb?.active === true && wb.kind === 'git-bash' && wb.bash === true && wb.ps === false && wb.notice === null, JSON.stringify(wb) || withBash.err)
+    check("…and /health's line names the found bash", /git-bash at .*found on this machine/.test(wb?.line ?? ''), wb?.line)
+  }
+  const withBashKept = roster({ [SEAM]: 'locate', [PIN]: import.meta.path, [ENGINE_PIN]: 'system' })
+  const wk = withBashKept.r
+  check('on the road WITH a bash, MERCURY_SHELL_ENGINE=system keeps bash.exe whatever the pack: git-bash is the road, no notice', wk?.active === true && wk.kind === 'git-bash' && wk.bash === true && wk.ps === false && wk.notice === null, JSON.stringify(wk) || withBashKept.err)
+  check("…and /health's line names the found bash", /git-bash at .*found on this machine/.test(wk?.line ?? ''), wk?.line)
   const withBashOptIn = roster({ [SEAM]: 'locate', [PIN]: import.meta.path, MERCURY_USE_POWERSHELL_TOOL: '1' })
   check('…and the opt-in still turns PowerShell on beside Bash', withBashOptIn.r?.bash === true && withBashOptIn.r?.ps === true)
 
@@ -173,7 +190,10 @@ console.log('── §4 a bash-lane hook follows the road ──')
   check('forced off, the hook lane throws (never exits) on the road without bash', forced.status === 0 && forced.stdout.startsWith('THREW '), forced.stdout.slice(0, 120) || forced.stderr.slice(0, 200))
   check('…naming the hook command and the remedy', forced.stdout.includes('Hook "echo hi"') && forced.stdout.includes(GIT_BASH_REMEDY))
   const hookWithBash = roadSubprocess("console.log(road.hookBashShell('echo hi'))", { [SEAM]: 'locate', [PIN]: import.meta.path })
-  check('with a bash the hook spawns under it', hookWithBash.status === 0 && hookWithBash.stdout === import.meta.path)
+  if (PACK_PRESENT) check('with a bash and the pack the hook spawns under the bundled engine (the Windows default)', hookWithBash.status === 0 && /brush/.test(hookWithBash.stdout), hookWithBash.stdout.slice(0, 160) || hookWithBash.stderr.slice(0, 200))
+  else check('with a bash and no pack the hook spawns under it', hookWithBash.status === 0 && hookWithBash.stdout === import.meta.path)
+  const hookWithBashKept = roadSubprocess("console.log(road.hookBashShell('echo hi'))", { [SEAM]: 'locate', [PIN]: import.meta.path, [ENGINE_PIN]: 'system' })
+  check('with a bash and the engine kept off the hook spawns under bash.exe', hookWithBashKept.status === 0 && hookWithBashKept.stdout === import.meta.path, hookWithBashKept.stdout.slice(0, 160) || hookWithBashKept.stderr.slice(0, 200))
 }
 
 console.log('── §5 the built bundle boots headless through the seam ──')
@@ -291,7 +311,7 @@ console.log('── §6 the consumers are wired (source) ──')
   const road = read('src/utils/shell/windowsShellRoad.ts')
   check('the road reads the engine owner — the arm is the resolved engine with its arm, required lazily', road.includes("require('./engineSession.js')") && road.includes("resolved.engine === 'brush' ? { path: resolved.binaryPath, arm: resolved.arm } : null"))
   const engine = read('src/utils/shell/engineSession.ts')
-  check('the engine owner asks the road whether bash is absent and walks the one ladder', engine.includes('shellEngineRequest(process.env.MERCURY_SHELL_ENGINE, setting, windowsBashAbsent())'))
+  check('the engine owner asks the road whether bash is absent and whether this is the Windows road, and walks the one ladder', engine.includes('shellEngineRequest(process.env.MERCURY_SHELL_ENGINE, setting, windowsBashAbsent(), windowsShellRoadActive())'))
 }
 
 rmSync(SUB_HOME, { recursive: true, force: true })
