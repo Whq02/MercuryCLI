@@ -310,8 +310,8 @@ address (a Go key on the Zen base draws the balance).
 
 MiniMax (platform.minimax.io) serves its M-series text models on an
 OpenAI-compatible Chat Completions endpoint at
-`https://api.minimax.io/v1/chat/completions`. Connect through `/logins minimax`,
-`/router key minimax`, or `MINIMAX_API_KEY`; the key is a pay-as-you-go API key
+`https://api.minimax.io/v1/chat/completions`. Connect through `/logins minimax`
+or `MINIMAX_API_KEY`; the key is a pay-as-you-go API key
 from the Open Platform's key page or an M Plan Subscription Key from
 `platform.minimax.io/console/plan` (the two are separate keys on the same base).
 The key is checked on the account's `GET /v1/models` list before it is stored,
@@ -348,7 +348,7 @@ prepaid balance at each model's price, serves a live catalogue of open-weights
 models (Kimi, GLM, DeepSeek, Qwen, MiniMax, Muse, GPT-OSS and more) at the
 gateway's `org/model` slugs. Mercury persists these ids as
 `together/<org>/<model>`; the namespace detaches for the wire. Connect through
-`/logins together`, `/router key together`, `TOGETHER_API_KEY` or
+`/logins together`, `TOGETHER_API_KEY` or
 `TOGETHER_AI_API_KEY`; the key is made at the project's API-keys page and
 checked on the account's `GET /v1/models` list before it is stored. Only the
 list's chat rows are offered (its image, video, audio and moderation rows are
@@ -375,7 +375,7 @@ a beta the vendor enables per organisation, which this build does not read).
 Cohere (cohere.com) serves its Command, North and Aya chat models on an
 OpenAI-compatible endpoint at
 `https://api.cohere.ai/compatibility/v1/chat/completions`. Connect through
-`/logins cohere`, `/router key cohere`, `COHERE_API_KEY` or `CO_API_KEY`; the
+`/logins cohere`, `COHERE_API_KEY` or `CO_API_KEY`; the
 key is made at `dashboard.cohere.com/api-keys` (a trial key is free,
 rate-limited and for evaluation; a production key bills pay-as-you-go) and
 checked on the account's `GET /compatibility/v1/models` list before it is
