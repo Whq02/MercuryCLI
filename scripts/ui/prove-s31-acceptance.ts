@@ -239,13 +239,17 @@ check(
 }
 
 {
-  const blocks = [{ context: 'Global', bindings: { 'ctrl+j': 'command:model' } }]
+  const blocks = [{ context: 'Settings', bindings: { 'ctrl+j': 'command:model' } }]
   const warnings = validateUserConfig(blocks)
   check(
     '12. non-Chat command binding warns without erroring',
     warnings.length === 1 && warnings[0]!.severity === 'warning',
   )
   check('12. the config still loads', parseBindings(blocks).length === 1)
+  check(
+    '12. a Global command binding is the shipped shape (the chat handler resolves Global) and raises nothing',
+    validateUserConfig([{ context: 'Global', bindings: { 'ctrl+j': 'command:model' } }]).length === 0,
+  )
 }
 
 {

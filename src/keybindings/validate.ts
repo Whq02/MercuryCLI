@@ -169,15 +169,15 @@ function validateBlock(block: unknown, index: number): KeybindingWarning[] {
           action,
           ...(context !== undefined ? { context } : {}),
         })
-      } else if (context !== undefined && context !== 'Chat') {
+      } else if (context !== undefined && context !== 'Chat' && context !== 'Global') {
         warnings.push({
           type: 'invalid_action',
           severity: 'warning',
-          message: `Command binding "${action}" is declared in the ${context} context but commands only run from the chat input`,
+          message: `Command binding "${action}" is declared in the ${context} context but commands only run from the chat input (a Chat or Global binding)`,
           key: keystroke,
           action,
           context,
-          suggestion: 'Move it into a "Chat" block',
+          suggestion: 'Move it into a "Chat" or "Global" block',
         })
       }
     }
@@ -249,6 +249,13 @@ export function checkDuplicateKeysInJson(jsonString: string): KeybindingWarning[
   return warnings
 }
 
+const CASE_KEPT_CONTEXTS: ReadonlySet<string> = new Set(['Extensions'])
+
+function duplicateKeyOf(context: string, key: string): string {
+  const bare = key.trim()
+  return CASE_KEPT_CONTEXTS.has(context) && bare.length === 1 ? bare : normalizeKeyForComparison(key)
+}
+
 function checkDuplicates(blocks: KeybindingBlock[]): KeybindingWarning[] {
   const warnings: KeybindingWarning[] = []
   const seen = new Map<string, Map<string, string>>()
@@ -256,7 +263,7 @@ function checkDuplicates(blocks: KeybindingBlock[]): KeybindingWarning[] {
     const perContext = seen.get(block.context) ?? new Map<string, string>()
     seen.set(block.context, perContext)
     for (const [key, value] of Object.entries(block.bindings)) {
-      const normalized = normalizeKeyForComparison(key)
+      const normalized = duplicateKeyOf(block.context, key)
       const action = value === null ? 'null' : value
       const previous = perContext.get(normalized)
       if (previous !== undefined && previous !== action) {
