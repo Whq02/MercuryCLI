@@ -26,7 +26,7 @@ export function bareModelIdOf(id: string): string {
   return id.trim().toLowerCase().replace(ANNOTATION_RE, '')
 }
 
-function gateError(family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'minimax' | 'cohere'): string | undefined {
+function gateError(family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'minimax' | 'cohere' | 'qwen'): string | undefined {
   const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
   const verdict = catalogueTrafficVerdict(family)
   return verdict.allowed ? undefined : verdict.reason
@@ -276,6 +276,37 @@ function cohereKnownRow(id: string): BareFamilyWordRow | undefined {
   return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
 }
 
+function qwenHeadRow(): BareFamilyWordRow | undefined {
+  const { qwenCatalogueRows } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
+  const { rows, source } = qwenCatalogueRows()
+  return source.kind === 'live' ? rows[0] : undefined
+}
+
+function qwenPinnedDefault(): BareFamilyWordRow | undefined {
+  const { QWEN_DISPLAY_PINS } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+  const pin = QWEN_DISPLAY_PINS.find(row => !row.planOnly)
+  return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
+}
+
+function qwenListState(): BareFamilyListState {
+  const { getCachedQwenCatalogue } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
+  const snapshot = getCachedQwenCatalogue()
+  if (snapshot && snapshot.fetchedAtMs > 0) return { kind: 'live', count: snapshot.models.length, fetchedAtMs: snapshot.fetchedAtMs }
+  const error = gateError('qwen') ?? snapshot?.lastError
+  return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
+}
+
+function qwenKnownRows(): BareFamilyWordRow[] {
+  const { QWEN_DISPLAY_PINS } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+  return QWEN_DISPLAY_PINS.filter(pin => !pin.planOnly).map(pin => ({ id: pin.id, displayName: pin.displayName }))
+}
+
+function qwenKnownRow(id: string): BareFamilyWordRow | undefined {
+  const { qwenDisplayPin } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+  const pin = qwenDisplayPin(bareModelIdOf(id))
+  return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
+}
+
 export const BARE_FAMILY_WORDS: readonly BareFamilyWord[] = [
   { word: 'glm', route: 'zai', headRow: glmHeadRow, pinnedDefault: glmPinnedDefault, listState: glmListState, knownRows: glmKnownRows, knownRow: glmKnownRow },
   { word: 'kimi', route: 'moonshot', headRow: kimiHeadRow, pinnedDefault: kimiPinnedDefault, listState: kimiListState, knownRows: kimiKnownRows, knownRow: kimiKnownRow },
@@ -285,6 +316,7 @@ export const BARE_FAMILY_WORDS: readonly BareFamilyWord[] = [
   { word: 'mistral', route: 'mistral', headRow: mistralHeadRow, pinnedDefault: mistralPinnedDefault, listState: mistralListState, knownRows: mistralKnownRows, knownRow: mistralKnownRow },
   { word: 'minimax', route: 'minimax', headRow: minimaxHeadRow, pinnedDefault: minimaxPinnedDefault, listState: minimaxListState, knownRows: minimaxKnownRows, knownRow: minimaxKnownRow },
   { word: 'cohere', route: 'cohere', headRow: cohereHeadRow, pinnedDefault: coherePinnedDefault, listState: cohereListState, knownRows: cohereKnownRows, knownRow: cohereKnownRow },
+  { word: 'qwen', route: 'qwen', headRow: qwenHeadRow, pinnedDefault: qwenPinnedDefault, listState: qwenListState, knownRows: qwenKnownRows, knownRow: qwenKnownRow },
 ]
 
 function disabled(route: string): boolean {

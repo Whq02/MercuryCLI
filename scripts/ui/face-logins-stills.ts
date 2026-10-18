@@ -86,6 +86,7 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     { family: presence('groq'), slots: [] },
     { family: presence('cerebras'), slots: [] },
     { family: presence('fireworks'), slots: [] },
+    { family: presence('qwen'), slots: [] },
   ]
   const usability: Record<ProviderId, ProviderUsability> = {
     anthropic: usable('anthropic', { credential: 'oauth', limit: 'allowed', usable: true, blockers: [] }),
@@ -109,6 +110,7 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     groq: usable('groq'),
     cerebras: usable('cerebras'),
     fireworks: usable('fireworks'),
+    qwen: usable('qwen'),
   }
   return { groups, usability }
 }

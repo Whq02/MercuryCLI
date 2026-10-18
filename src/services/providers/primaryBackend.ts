@@ -39,6 +39,8 @@ import { cerebrasCallModel, cerebrasLiveProofState } from './cerebras/cerebrasCa
 import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
 import { fireworksCallModel, fireworksLiveProofState } from './fireworks/fireworksCallModel.js'
 import { resolveFireworksApiKey } from './fireworks/fireworksAccounts.js'
+import { qwenCallModel, qwenLiveProofState } from './qwen/qwenCallModel.js'
+import { resolveQwenCredentialSnapshot } from './qwen/qwenAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { configuredCompatEndpoints } from './openaicompat/compatAccounts.js'
 import {
@@ -74,6 +76,7 @@ export type PrimaryBackendId =
   | 'groq-chat'
   | 'cerebras-chat'
   | 'fireworks-chat'
+  | 'qwen-chat'
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
@@ -100,6 +103,7 @@ export interface AgentRuntimeRef {
     | 'groq'
     | 'cerebras'
     | 'fireworks'
+    | 'qwen'
   route: CallModelRoute | 'unrecognised' | 'absence'
   canonicalModel: string
   family:
@@ -120,6 +124,7 @@ export interface AgentRuntimeRef {
     | { kind: 'groq' }
     | { kind: 'cerebras' }
     | { kind: 'fireworks' }
+    | { kind: 'qwen' }
     | { kind: 'unknown' }
     | { kind: 'nous' }
     | { kind: 'minimax' }
@@ -335,6 +340,17 @@ const fireworksBackend: PrimaryAgentBackend = {
       : { state: 'configured', detail: 'key present · no live turn proven this session' }
   },
 }
+const qwenBackend: PrimaryAgentBackend = {
+  id: 'qwen-chat', provider: 'qwen', label: 'Qwen (Model Studio, in-process)',
+  callModel: qwenCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveQwenCredentialSnapshot()) return { state: 'unavailable', reason: 'no sign-in or API key (/logins qwen, or DASHSCOPE_API_KEY)' }
+    const proof = qwenLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
@@ -470,6 +486,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   groq: groqBackend,
   cerebras: cerebrasBackend,
   fireworks: fireworksBackend,
+  qwen: qwenBackend,
 }
 
 export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
@@ -534,6 +551,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'cerebras' }
   } else if (route === 'fireworks') {
     family = { kind: 'fireworks' }
+  } else if (route === 'qwen') {
+    family = { kind: 'qwen' }
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }

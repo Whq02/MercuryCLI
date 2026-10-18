@@ -6,7 +6,10 @@ import { readCatalogueIfPending } from '../../services/providers/catalogueOnDema
 import { configuredCompatEndpoints } from '../../services/providers/openaicompat/compatAccounts.js'
 import { storeCompatApiKeyLogin } from '../../services/providers/openaicompat/compatLogin.js'
 import { providerDisplayName, PROVIDER_ID_SPACES } from '../../services/providers/routeLaw.js'
+import { storeCerebrasApiKeyLogin } from '../../services/providers/cerebras/cerebrasLogin.js'
 import { storeCohereApiKeyLogin } from '../../services/providers/cohere/cohereLogin.js'
+import { storeFireworksApiKeyLogin } from '../../services/providers/fireworks/fireworksLogin.js'
+import { storeGroqApiKeyLogin } from '../../services/providers/groq/groqLogin.js'
 import { storeDeepseekApiKeyLogin } from '../../services/providers/deepseek/deepseekLogin.js'
 import { storeGeminiApiKeyLogin } from '../../services/providers/gemini/geminiLogin.js'
 import { runHuggingfaceDeviceLogin, storeHuggingfaceTokenLogin } from '../../services/providers/huggingface/huggingfaceLogin.js'
@@ -17,6 +20,7 @@ import { runKimiDeviceLogin, storeMoonshotApiKeyLogin } from '../../services/pro
 import { runNousDeviceLogin, storeNousApiKeyLogin } from '../../services/providers/nous/nousLogin.js'
 import { storeOpenaiApiKeyLogin } from '../../services/providers/openai/openaiLogin.js'
 import { storeOpenrouterApiKeyLogin } from '../../services/providers/openrouter/openrouterLogin.js'
+import { runQwenDeviceLogin, storeQwenApiKeyLogin } from '../../services/providers/qwen/qwenLogin.js'
 import { storeTogetherApiKeyLogin } from '../../services/providers/together/togetherLogin.js'
 import { runXaiDeviceLogin, storeXaiApiKeyLogin } from '../../services/providers/xai/xaiLogin.js'
 import { storeZaiApiKeyLogin } from '../../services/providers/zai/zaiLogin.js'
@@ -178,6 +182,15 @@ export async function providerAuthLogin(
       if (outcome.ok) await readCatalogueIfPending('nous', { force: true })
       return finish(outcome.ok, outcome.receipt)
     }
+    if (normalized === 'qwen') {
+      const outcome = await runQwenDeviceLogin({
+        onEvent: ev => {
+          if (ev.phase === 'waiting' && ev.polls === 0) out(`Visit ${ev.start.verificationUriComplete ?? ev.start.verificationUri} and enter code ${ev.start.userCode}\n`)
+        },
+      })
+      if (outcome.ok) await readCatalogueIfPending('qwen', { force: true })
+      return finish(outcome.ok, outcome.receipt)
+    }
   }
 
   const promptFn = io.promptKey ?? (text => promptSecretWithoutEcho(text))
@@ -246,6 +259,18 @@ export async function providerAuthLogin(
       break
     case 'cohere':
       outcome = await storeCohereApiKeyLogin(key)
+      break
+    case 'groq':
+      outcome = await storeGroqApiKeyLogin(key)
+      break
+    case 'cerebras':
+      outcome = await storeCerebrasApiKeyLogin(key)
+      break
+    case 'fireworks':
+      outcome = await storeFireworksApiKeyLogin(key)
+      break
+    case 'qwen':
+      outcome = await storeQwenApiKeyLogin(key)
       break
     default:
       return finish(false, unknownAuthFamilyMessage(familyRaw), 1)

@@ -19,5 +19,6 @@ export const PROVIDER_MODEL_PAGES: Readonly<Record<string, string>> = {
   groq: 'https://console.groq.com/docs/models',
   cerebras: 'https://inference-docs.cerebras.ai/models/overview',
   fireworks: 'https://fireworks.ai/models',
+  qwen: 'https://www.alibabacloud.com/help/en/model-studio/getting-started/models',
 }
 const MODEL_PAGES_CHECKED = '2026-10-13'

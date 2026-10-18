@@ -34,6 +34,8 @@ interface ProviderSecretsFile {
   groqApiKey?: string
   cerebrasApiKey?: string
   fireworksApiKey?: string
+  qwenApiKey?: string
+  qwenKeyBase?: string
   braveSearchApiKey?: string
   tavilyApiKey?: string
   typesafeApiKey?: string
@@ -186,6 +188,7 @@ type StoredKeyField =
   | 'groqApiKey'
   | 'cerebrasApiKey'
   | 'fireworksApiKey'
+  | 'qwenApiKey'
   | 'braveSearchApiKey'
   | 'tavilyApiKey'
   | 'typesafeApiKey'
@@ -221,6 +224,7 @@ const KEY_FIELD_FAMILY: Partial<Record<StoredKeyField, string>> = {
   groqApiKey: 'groq',
   cerebrasApiKey: 'cerebras',
   fireworksApiKey: 'fireworks',
+  qwenApiKey: 'qwen',
 }
 
 function writeStoredKey(field: StoredKeyField, key: string | null): void {
@@ -373,6 +377,27 @@ export function readStoredFireworksApiKey(): string | undefined {
 export function writeStoredFireworksApiKey(key: string | null): void {
   writeStoredKey('fireworksApiKey', key)
 }
+export function readStoredQwenApiKey(): string | undefined {
+  return readStoredKey('qwenApiKey')
+}
+export function readStoredQwenKeyBase(): string | undefined {
+  const file = readFile()
+  const base = typeof file?.qwenKeyBase === 'string' ? file.qwenKeyBase.trim() : ''
+  return base && readStoredQwenApiKey() !== undefined ? base : undefined
+}
+export function writeStoredQwenApiKey(key: string | null, baseUrl?: string): void {
+  publishSecrets(next => {
+    if (key === null || key.trim() === '') {
+      delete next.qwenApiKey
+      delete next.qwenKeyBase
+    } else {
+      next.qwenApiKey = key.trim()
+      if (baseUrl?.trim()) next.qwenKeyBase = baseUrl.trim().replace(/\/+$/, '')
+      else delete next.qwenKeyBase
+    }
+  })
+  if (key !== null && key.trim() !== '') recordSignIn('qwen', 'api-key')
+}
 
 export function readStoredLocalApiKey(): string | undefined {
   return readStoredKey('localApiKey')
@@ -466,6 +491,7 @@ export function credentialEnvNames(): readonly string[] {
     'GROQ_API_KEY',
     'CEREBRAS_API_KEY',
     'FIREWORKS_API_KEY',
+    'DASHSCOPE_API_KEY',
     ...Object.keys(process.env).filter(name => /^MERCURY_COMPAT_[A-Z0-9_]+_API_KEY$/.test(name)),
   ]
 }

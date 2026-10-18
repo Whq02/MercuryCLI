@@ -22,6 +22,7 @@ export const PROVIDER_CREDENTIAL_ENV_VARS: Record<CallModelRoute, readonly strin
   groq: ['GROQ_API_KEY'],
   cerebras: ['CEREBRAS_API_KEY'],
   fireworks: ['FIREWORKS_API_KEY'],
+  qwen: ['DASHSCOPE_API_KEY'],
 }
 
 export const ALL_PROVIDER_CREDENTIAL_ENV_VARS: readonly string[] = [
@@ -52,6 +53,7 @@ export const PROVIDER_CREDENTIAL_VALUE_SHAPES: Record<CallModelRoute, Credential
   groq: null,
   cerebras: null,
   fireworks: null,
+  qwen: null,
 }
 
 export const REPOSITORY_HOST_TOKEN_SHAPE: NonNullable<CredentialValueShape> = {

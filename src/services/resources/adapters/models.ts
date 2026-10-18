@@ -62,7 +62,7 @@ export interface KnownModelsReference {
   providers: KnownProviderPage[]
 }
 
-const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks'] as const
+const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'] as const
 
 function windowWords(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toString().replace(/\.0$/, '')}M window`
@@ -121,6 +121,14 @@ async function listFactsOf(route: string, env: NodeJS.ProcessEnv = process.env):
       if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
       if (source.kind === 'pins') return { kind: 'static', words: fireworksCatalogueSourceWords(env)! }
       const error = getCachedFireworksCatalogue(env)?.lastError
+      return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
+    }
+    case 'qwen': {
+      const { qwenCatalogueRows, qwenCatalogueSourceWords, getCachedQwenCatalogue } = await import('../../providers/qwen/qwenCatalogue.js')
+      const { source } = qwenCatalogueRows(env)
+      if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
+      if (source.kind === 'pins') return { kind: 'static', words: qwenCatalogueSourceWords(env)! }
+      const error = getCachedQwenCatalogue(env)?.lastError
       return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
     }
     case 'openai': {
@@ -310,6 +318,8 @@ export async function knownModelsReference(): Promise<KnownModelsReference> {
   providers.push({ provider: 'cerebras', providerName: providerDisplayName('cerebras'), familyWord: 'cerebras', models: CEREBRAS_DISPLAY_PINS.map(pin => ({ id: cerebrasQualifiedId(pin.id), displayName: pin.displayName })) })
   const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../providers/fireworks/fireworksPins.js')
   providers.push({ provider: 'fireworks', providerName: providerDisplayName('fireworks'), familyWord: 'fireworks', models: FIREWORKS_DISPLAY_PINS.map(pin => ({ id: fireworksQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { QWEN_DISPLAY_PINS } = await import('../../providers/qwen/qwenPins.js')
+  providers.push({ provider: 'qwen', providerName: providerDisplayName('qwen'), familyWord: 'qwen', models: QWEN_DISPLAY_PINS.filter(pin => !pin.planOnly).map(pin => ({ id: pin.id, displayName: pin.displayName })) })
   return { version: MERCURY_VERSION, providers }
 }
 

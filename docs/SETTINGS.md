@@ -100,6 +100,7 @@ or make an unavailable model selectable.
 | `prices.cacheRead`, `prices.cacheWrite` | Cache-read and cache-write prices in USD per million tokens. |
 | `efforts` | The supported words from `none`, `minimal`, `low`, `medium`, `high`, `xhigh` and `max`. |
 | `images`, `reasoning` | Whether the model accepts images and supports reasoning. |
+| `thinkingBudget` | The thinking-token cap, a positive integer, sent only on a wire that documents one (Qwen's `thinking_budget`); with it stated, the effort dial stays off that request. |
 
 A lower window or output value, an omitted effort rung, or `false` cannot
 remove a capability already recorded for that model. Other stated facts,

@@ -32,6 +32,7 @@ import { cohereProviderAdapter } from './cohere/cohereAdapter.js'
 import { groqProviderAdapter } from './groq/groqAdapter.js'
 import { cerebrasProviderAdapter } from './cerebras/cerebrasAdapter.js'
 import { fireworksProviderAdapter } from './fireworks/fireworksAdapter.js'
+import { qwenProviderAdapter } from './qwen/qwenAdapter.js'
 import { catalogueEpoch } from './catalogueEpoch.js'
 import { isProviderDisabled, resolveDisabledProviders } from './disabledProviders.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
@@ -72,6 +73,7 @@ const PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   groqProviderAdapter,
   cerebrasProviderAdapter,
   fireworksProviderAdapter,
+  qwenProviderAdapter,
 ]
 
 function classForCanonical(canonical: string): ProviderModelClass | null {

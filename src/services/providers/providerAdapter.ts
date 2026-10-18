@@ -21,6 +21,7 @@ export type ProviderFamilyId =
   | 'groq'
   | 'cerebras'
   | 'fireworks'
+  | 'qwen'
 export type ProviderModelClass =
   | 'opus'
   | 'sonnet'
@@ -43,6 +44,7 @@ export type ProviderModelClass =
   | 'groq'
   | 'cerebras'
   | 'fireworks'
+  | 'qwen'
 export type ProviderEffortLevel = 'high' | 'xhigh' | 'max'
 
 

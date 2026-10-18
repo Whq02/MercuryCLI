@@ -256,8 +256,8 @@ section('4 · snapshot — additive surface; uncredentialed never resolves an en
 {
   const snap = buildProviderSnapshot()
   check(
-    'providers[] carries twenty-one families (Anthropic and twenty engine spaces)',
-    snap.providers.length === 21 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks'].every(id => snap.providers.some(provider => provider.id === id)),
+    'providers[] carries twenty-two families (Anthropic and twenty-one engine spaces)',
+    snap.providers.length === 22 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'].every(id => snap.providers.some(provider => provider.id === id)),
   )
   for (const p of snap.providers) {
     check(

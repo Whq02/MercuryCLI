@@ -1,6 +1,6 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
 
-export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'openai-compat'] as const
+export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen', 'openai-compat'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
 
 export const CATALOGUE_READ_BOUND_MS = 5_000
@@ -120,6 +120,13 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
         if (!catalogueTrafficVerdict('fireworks').allowed) return false
         if (!force && !nothingUsable(getCachedFireworksCatalogue())) return false
         await bounded(refreshFireworksCatalogue({ force }), boundMs)
+        return true
+      }
+      case 'qwen': {
+        const { getCachedQwenCatalogue, refreshQwenCatalogue } = await import('./qwen/qwenCatalogue.js')
+        if (!catalogueTrafficVerdict('qwen').allowed) return false
+        if (!force && !nothingUsable(getCachedQwenCatalogue())) return false
+        await bounded(refreshQwenCatalogue({ force }), boundMs)
         return true
       }
       case 'moonshot': {

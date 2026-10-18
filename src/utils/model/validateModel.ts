@@ -34,7 +34,8 @@ async function validateNonAnthropicModel(
     | 'cohere'
     | 'groq'
     | 'cerebras'
-    | 'fireworks',
+    | 'fireworks'
+    | 'qwen',
   trimmed: string,
 ): Promise<ValidateModelResult & { skipCache?: boolean }> {
   if (route !== 'openrouter') {
@@ -249,6 +250,22 @@ async function validateNonAnthropicModel(
     if (!isMinimaxTextModelId(id)) return { valid: false, error: 'This MiniMax model is not on the text road; the video, speech, music and image lines are not supported here.' }
     if (snapshot?.models.length && !minimaxListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the MiniMax account's live catalogue.` }
     if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !minimaxDisplayPin(id)) return { valid: false, error: `Model "${trimmed}" is not listed by the MiniMax account's live catalogue.` }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'qwen') {
+    const { resolveQwenAccount } = await import('../../services/providers/qwen/qwenAccounts.js')
+    if (!resolveQwenAccount()) return { valid: false, error: 'Qwen is unavailable — no Model Studio API key (/logins qwen, or set DASHSCOPE_API_KEY).' }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('qwen')
+    const { getCachedQwenCatalogue, qwenListedModel, newestQwenModel } = await import('../../services/providers/qwen/qwenCatalogue.js')
+    const { isQwenTextModelId, qwenDisplayPin } = await import('../../services/providers/qwen/qwenPins.js')
+    const snapshot = getCachedQwenCatalogue()
+    const id = trimmed.toLowerCase()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins qwen re-binds the key.` }
+    if (id === 'qwen') return newestQwenModel() ? { valid: true, skipCache: true } : { valid: false, error: "Qwen's live list has not served a text model for 'qwen' yet — /model refreshes it." }
+    if (!isQwenTextModelId(id)) return { valid: false, error: 'This Qwen model is not on the text road; the speech, image, video, embedding and rerank lines are not supported here.' }
+    if (snapshot?.models.length && !qwenListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Model Studio endpoint's live catalogue.` }
+    if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !qwenDisplayPin(id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Model Studio endpoint's live catalogue.` }
     return { valid: true, skipCache: true }
   }
   if (route === 'together') {

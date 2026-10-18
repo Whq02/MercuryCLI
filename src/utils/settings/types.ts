@@ -92,7 +92,7 @@ export const ExtensionsSettingsSchema = lazySchema(() =>
 export const SettingsSchema = lazySchema(() => {
   const base = z.object({
     $schema: z.string().optional(),
-    models: ModelFactsSchema().optional().describe('Model facts keyed by the full id: contextWindow, maxOutputTokens, prices, efforts, images and reasoning; _default maps provider families to facts for unknown ids; recorded capabilities are never reduced'),
+    models: ModelFactsSchema().optional().describe('Model facts keyed by the full id: contextWindow, maxOutputTokens, prices, efforts, images, reasoning and thinkingBudget (the thinking-token cap a wire that documents one takes); _default maps provider families to facts for unknown ids; recorded capabilities are never reduced'),
     compatProvider: CompatProviderSchema().optional().describe('Custom endpoints keyed by name, or one endpoint named default: baseUrl, label, models, headers, sessionAffinityHeader and dialect; keys are kept by /logins, not in settings'),
     credentials: z.object({
       keyCommand: z.string().optional(),

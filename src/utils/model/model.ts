@@ -299,6 +299,10 @@ export function getPublicModelDisplayName(model: string): string | null {
     const { cohereDisplayPin } = require('../../services/providers/cohere/coherePins.js') as typeof import('../../services/providers/cohere/coherePins.js')
     return cohereDisplayPin(bare)?.displayName ?? null
   }
+  if (/^(?:qwen|qwq|qvq)(?:[0-9.]|-)/i.test(bare)) {
+    const { qwenDisplayPin } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
+    return qwenDisplayPin(bare)?.displayName ?? null
+  }
   if (/^together\//i.test(bare)) {
     const { togetherDisplayPin } = require('../../services/providers/together/togetherPins.js') as typeof import('../../services/providers/together/togetherPins.js')
     return togetherDisplayPin(bare)?.displayName ?? null

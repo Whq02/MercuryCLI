@@ -17,7 +17,7 @@
    Meta — Muse Code sign-in or API key       not signed in
    Mistral — API key (Mistral Large 4)       not signed in
    Nous Portal — account sign-in or API ke…  not signed in
- ↓ 7 more
+ ↓ 8 more
 
  OpenAI · ChatGPT Plus
  ↑↓ move · ↵ sign in · esc back

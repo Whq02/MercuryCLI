@@ -422,6 +422,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
   groq: { title: 'Groq usage', connect: '/logins groq adds an API key (GROQ_API_KEY works too)', limitsNote: 'Rate limits are read from response headers; account spend is shown at console.groq.com/dashboard/usage.' },
   cerebras: { title: 'Cerebras usage', connect: '/logins cerebras adds an API key (CEREBRAS_API_KEY works too)', limitsNote: 'The session ledger counts tokens and spend; the cloud console shows account limits and credits.' },
   fireworks: { title: 'Fireworks usage', connect: '/logins fireworks adds an API key (FIREWORKS_API_KEY works too)', limitsNote: 'The session ledger counts spend and response headers state TPM limits; app.fireworks.ai/account/billing shows account credits.' },
+  qwen: { title: 'Qwen usage', connect: '/logins qwen adds a Model Studio API key (DASHSCOPE_API_KEY works too)', limitsNote: 'Model Studio states no usage, balance or quota endpoint an API key can read; the session ledger counts this key\'s tokens and spend, and the Model Studio console shows the account.' },
   zen: {
     title: 'OpenCode Zen usage',
     connect: '/logins zen adds an OpenCode Zen API key (OPENCODE_API_KEY works too)',
