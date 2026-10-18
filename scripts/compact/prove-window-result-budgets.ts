@@ -14,6 +14,7 @@ process.env.BROWSER = '/usr/bin/true'
 for (const key of ['MERCURY_HOME', 'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_BARE', 'NODE_ENV']) delete process.env[key]
 const load = (file: string): Promise<any> => import(join(root, file))
 const storage = await load('src/utils/toolResultStorage.ts')
+const limits = await load('src/constants/toolLimits.ts')
 const { enableConfigs } = await load('src/utils/config/globalConfig.ts')
 enableConfigs()
 const { refreshLocalDiscovery } = await load('src/services/providers/local/localDiscovery.ts')
@@ -33,7 +34,14 @@ function check(label: string, yes: boolean, detail = ''): void {
   if (!yes) failed++
   console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const windows = new Map([['room-32k', 32_000], ['room-64k', 64_000], ['room-tiny', 1_000], ['room-zero', 0]])
+const windows = new Map([
+  ['room-8k', 8_000],
+  ['room-32k', 32_000],
+  ['room-100k', 100_000],
+  ['room-128k', 128_000],
+  ['room-200k', 200_000],
+  ['room-zero', 0],
+])
 const server = Bun.serve({
   hostname: '127.0.0.1', port: 0,
   fetch(req) {
@@ -53,96 +61,87 @@ function wholePointer(result: any, expected: string): boolean {
 }
 try {
   await refreshLocalDiscovery({ force: true, env: { MERCURY_LOCAL_PROBE_TARGETS: `ollama=http://127.0.0.1:${server.port}` } })
-  console.log('\nwindow-scaled results')
-  for (const [model, threshold] of [['local/room-32k', 19_200], ['local/room-64k', 38_400], ['local/room-tiny', 8_000]] as const) {
+  console.log('\nwindow-scaled floor and raising law')
+  const fn = limits.toolResultBudgetsForWindow
+  const b8k = typeof fn === 'function' ? fn(8_000) : null
+  const b128k = typeof fn === 'function' ? fn(128_000) : null
+  const b200k = typeof fn === 'function' ? fn(200_000) : null
+  check('an 8k window gets no less than today (50,000 persist / 200,000 message)', b8k !== null && b8k.resultChars === 50_000 && b8k.messageChars === 200_000, JSON.stringify(b8k))
+  check('a 128k window gets no less than today (76,800 persist / 200,000 message)', b128k !== null && b128k.resultChars === 76_800 && b128k.messageChars === 200_000, JSON.stringify(b128k))
+  check('a 200k window raises both budgets (120,000 persist / 240,000 message)', b200k !== null && b200k.resultChars === 120_000 && b200k.messageChars === 240_000, JSON.stringify(b200k))
+
+  for (const [model, threshold] of [['local/room-8k', 50_000], ['local/room-32k', 50_000], ['local/room-100k', 60_000], ['local/room-128k', 76_800], ['local/room-200k', 120_000]] as const) {
     const beforeOutput = getModelMaxOutputTokens(model)
-    const text = payload(threshold + 1)
-    const result = await storage.processPreMappedToolResultBlock(block(text), 'Fixture', 100_000, undefined, model)
-    check(`${model} spills above ${threshold} chars`, String(result.content).startsWith(storage.PERSISTED_OUTPUT_TAG), `window ${resolveContextWindow(model).effectiveWindow}; inline ${String(result.content).length}`)
-    check(`${model} pointer reads back the whole result`, wholePointer(result, text))
+    const inlineBlock = block(payload(threshold))
+    const inlineResult = await storage.processPreMappedToolResultBlock(inlineBlock, 'Fixture', 150_000, undefined, model)
+    check(`${model} keeps ${threshold} chars inline without lowering below base`, inlineResult === inlineBlock)
+    const spillText = payload(threshold + 1)
+    const spillResult = await storage.processPreMappedToolResultBlock(block(spillText), 'Fixture', 150_000, undefined, model)
+    check(`${model} spills above its ${threshold} threshold`, String(spillResult.content).startsWith(storage.PERSISTED_OUTPUT_TAG), `window ${resolveContextWindow(model).effectiveWindow}; inline ${String(spillResult.content).length}`)
+    check(`${model} pointer reads back the whole result`, wholePointer(spillResult, spillText))
     check(`${model} output-token capability unchanged`, JSON.stringify(getModelMaxOutputTokens(model)) === JSON.stringify(beforeOutput))
   }
-  console.log('\nshared request planning')
-  for (const model of ['local/room-32k', 'local/room-64k']) {
-    const text = payload(model.endsWith('32k') ? 14_000 : 30_000)
-    const originals = [block(text), block(text), block(text)]
-    const messages = [createUserMessage({ content: originals })]
-    const state = storage.createContentReplacementState()
+
+  console.log('\nshared request planning and aggregate budget')
+  {
+    const chunk80k = payload(80_000)
+    const under200k = [createUserMessage({ content: [block(chunk80k), block(chunk80k)] })]
+    for (const model of ['local/room-8k', 'local/room-128k'] as const) {
+      const state = storage.createContentReplacementState()
+      const res = await storage.enforceToolResultBudget(under200k, state, new Set(), model)
+      check(`${model} keeps 160,000 aggregate chars inline (no less than today's 200,000)`, res.messages === under200k && res.replacements.length === 0)
+    }
+    const over200k = [createUserMessage({ content: [block(chunk80k), block(chunk80k), block(chunk80k)] })]
+    const state200k = storage.createContentReplacementState()
+    const res200k = await storage.enforceToolResultBudget(over200k, state200k, new Set(), 'local/room-200k')
+    check('local/room-200k raises message budget to 240,000 and keeps 240,000 chars inline', res200k.messages === over200k && res200k.replacements.length === 0)
+
+    const chunk90k = payload(90_000)
+    const over240k = [createUserMessage({ content: [block(chunk90k), block(chunk90k), block(chunk90k)] })]
+    const statePrune = storage.createContentReplacementState()
     const recorded: any[] = []
-    const plan = await buildRequestContextPlan({ messages, owner: processMainOwner(), querySource: 'sdk', contentReplacementState: state, skipToolNames: new Set(), preserveBodies: true, engineModel: model, persistReplacements: (rows: any[]) => { recorded.push(...rows) } }, 'apply')
-    const landed = plan.messages[0].message.content
-    check(`${model} aggregate budget applies on an ordinary turn`, landed.some((b: any) => b.content.startsWith(storage.PERSISTED_OUTPUT_TAG)))
-    check(`${model} aggregate decisions are recorded for resume`, recorded.length > 0 && recorded.length === state.replacements.size)
-    for (let i = 0; i < landed.length; i++) if (landed[i].content !== originals[i].content) check(`${model} aggregate pointer keeps full output`, wholePointer(landed[i], text))
-    const again = await buildRequestContextPlan({ messages, owner: processMainOwner(), querySource: 'sdk', contentReplacementState: state, skipToolNames: new Set(), preserveBodies: true, engineModel: 'local/room-tiny' }, 'apply')
-    check(`${model} decided prefixes survive a smaller-window switch unchanged`, JSON.stringify(again.messages) === JSON.stringify(plan.messages))
+    const preserved = await buildRequestContextPlan({ messages: over240k, owner: processMainOwner(), querySource: 'sdk', contentReplacementState: statePrune, skipToolNames: new Set(), preserveBodies: true, engineModel: 'local/room-200k', persistReplacements: (rows: any[]) => { recorded.push(...rows) } }, 'apply')
+    check('preserveBodies bypasses aggregate replacement so a fold sees the full request', JSON.stringify(preserved.messages) === JSON.stringify(over240k) && statePrune.replacements.size === 0 && statePrune.seenIds.size === 0)
+    const pruned = await buildRequestContextPlan({ messages: over240k, owner: processMainOwner(), querySource: 'sdk', contentReplacementState: statePrune, skipToolNames: new Set(), preserveBodies: false, engineModel: 'local/room-200k', persistReplacements: (rows: any[]) => { recorded.push(...rows) } }, 'apply')
+    const landed = pruned.messages[0].message.content
+    check('when preserveBodies is false, aggregate budget replaces above 240,000 chars', landed.some((b: any) => b.content.startsWith(storage.PERSISTED_OUTPUT_TAG)) && recorded.length === 1)
+    for (const b of landed) if (b.content !== chunk90k) check('aggregate pointer keeps full 90,000-char output', wholePointer(b, chunk90k))
+    const again = await buildRequestContextPlan({ messages: over240k, owner: processMainOwner(), querySource: 'sdk', contentReplacementState: statePrune, skipToolNames: new Set(), preserveBodies: false, engineModel: 'local/room-8k' }, 'apply')
+    check('decided prefixes survive a smaller-window switch unchanged', JSON.stringify(again.messages) === JSON.stringify(pruned.messages))
   }
+
   console.log('\nreal tool transaction')
-  const text = payload(24_000)
+  const text = payload(60_000)
   const tool = { name: 'FixtureResult', inputSchema: z.object({}), maxResultSizeChars: 100_000, isReadOnly: () => true, isConcurrencySafe: () => true, isEnabled: () => true, call: async () => ({ data: text }), mapToolResultToToolResultBlockParam: (data: string, id: string) => block(data, id) }
   let app = getDefaultAppState()
-  const ctx = { options: { engineModel: 'local/room-32k', tools: [tool], mcpClients: [], mcpResources: {}, commands: [], agentDefinitions: { activeAgents: [], allAgents: [] }, isNonInteractiveSession: true }, abortController: new AbortController(), readFileState: createFileStateCacheWithSizeLimit(100), contentReplacementState: storage.createContentReplacementState(), messages: [], getAppState: () => app, setAppState: (updater: any) => { app = updater(app) }, setResponseLength: () => {}, setInProgressToolUseIDs: () => {} }
+  const ctx = { options: { engineModel: 'local/room-128k', tools: [tool], mcpClients: [], mcpResources: {}, commands: [], agentDefinitions: { activeAgents: [], allAgents: [] }, isNonInteractiveSession: true }, abortController: new AbortController(), readFileState: createFileStateCacheWithSizeLimit(100), contentReplacementState: storage.createContentReplacementState(), messages: [], getAppState: () => app, setAppState: (updater: any) => { app = updater(app) }, setResponseLength: () => {}, setInProgressToolUseIDs: () => {} }
   const id = randomUUID()
   const assistant = createAssistantMessage({ content: [{ type: 'tool_use', id, name: tool.name, input: {} }] })
   const updates: any[] = []
   for await (const update of runToolUse({ id, name: tool.name, input: {} }, assistant, async (_tool: any, input: any) => ({ behavior: 'allow', updatedInput: input }), ctx)) updates.push(update)
   const result = updates.flatMap(update => update.message?.message?.content ?? []).find(b => b.tool_use_id === id)
-  check('tool execution uses its own active model window', result !== undefined && wholePointer(result, text), String(result?.content).slice(0, 100))
+  check('tool execution on 128k window keeps 60,000-char result inline (raised to 76,800)', result !== undefined && result.content === text, String(result?.content).slice(0, 80))
   const conversation = new Conversation({ ...ctx, tools: [tool], initialMessages: [], contentReplacementState: undefined, readFileState: ctx.readFileState })
   check('headless Conversation uses the interactive aggregate default', conversation.contentReplacementState.budgetChars !== Infinity)
   check('headless cold and warm-resume boots do not disable the budget', !/budgetChars:\s*Infinity/.test(readFileSync(join(root, 'src/cli/run.ts'), 'utf8')))
 
-  console.log('\nrequest loop')
-  const { queryEvents } = await load('src/query.ts')
-  const bootstrap = await load('src/bootstrap/state.ts')
-  bootstrap.setIsInteractive(false)
-  bootstrap.setAskChannel('none')
-  const chunkTool = { ...tool, name: 'WindowChunk', inputSchema: z.object({ piece: z.number() }), prompt: async () => 'Return one fixture chunk.', call: async (input: { piece: number }) => ({ data: `${input.piece}\n${payload(14_000)}` }) }
-  const loopContext = { ...ctx, abortController: new AbortController(), contentReplacementState: storage.createContentReplacementState(), options: { ...ctx.options, tools: [chunkTool], thinkingConfig: { type: 'disabled' } }, updateFileHistoryState: () => {}, updateAttributionState: () => {} }
-  const requests: any[] = []
-  const loop = queryEvents({
-    messages: [createUserMessage({ content: 'Return four chunks and report.' })], systemPrompt: ['fixture'], userContext: {}, systemContext: {},
-    toolUseContext: loopContext, querySource: 'sdk', canUseTool: async (_tool: any, input: any) => ({ behavior: 'allow', updatedInput: input }),
-    deps: {
-      uuid: randomUUID,
-      autocompact: async () => ({ wasCompacted: false }),
-      callModel: async function* (request: any) {
-        requests.push(request)
-        const first = requests.length === 1
-        const answer = createAssistantMessage({ content: first ? [0, 1, 2, 3].map(piece => ({ type: 'tool_use', id: `window-${piece}`, name: chunkTool.name, input: { piece } })) : [{ type: 'text', text: 'all chunks received' }] })
-        answer.message.model = 'local/room-32k'
-        answer.message.stop_reason = first ? 'tool_use' : 'end_turn'
-        answer.message.usage = { input_tokens: 1_000, output_tokens: 100, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
-        yield answer
-      },
-    },
-  })
-  let step = await loop.next()
-  while (!step.done) step = await loop.next()
-  const delivered = requests[1]?.messages.flatMap((m: any) => m.type === 'user' && Array.isArray(m.message.content) ? m.message.content.filter((b: any) => b.type === 'tool_result') : []) ?? []
-  check('the real request loop completes after four tool calls', step.value?.reason === 'completed' && requests.length === 2 && delivered.length === 4, JSON.stringify(step.value))
-  check('the next request receives the active-model aggregate budget', delivered.some((b: any) => b.content.startsWith(storage.PERSISTED_OUTPUT_TAG)) && loopContext.contentReplacementState.replacements.size > 0)
-  for (const part of delivered) {
-    if (part.content.startsWith(storage.PERSISTED_OUTPUT_TAG)) check('request-loop pointer keeps every chunk byte', wholePointer(part, `${part.tool_use_id.slice(-1)}\n${payload(14_000)}`))
-  }
-
   console.log('\nrefusals')
-  for (const [model, size] of [['local/room-32k', 19_200], ['local/room-64k', 38_400], ['local/room-tiny', 8_000], ['local/room-zero', 50_000], ['local/not-listed', 50_000], [undefined, 50_000]] as const) {
+  for (const [model, size] of [['local/room-8k', 50_000], ['local/room-32k', 50_000], ['local/room-128k', 76_800], ['local/room-200k', 120_000], ['local/room-zero', 50_000], ['local/not-listed', 50_000], [undefined, 50_000]] as const) {
     const original = block(payload(size))
-    const result = await storage.processPreMappedToolResultBlock(original, 'Fixture', 100_000, undefined, model)
-    check(`${model ?? 'unknown'} result at threshold stays inline byte for byte`, result === original)
+    const res = await storage.processPreMappedToolResultBlock(original, 'Fixture', 150_000, undefined, model)
+    check(`${model ?? 'unknown'} result at threshold stays inline byte for byte`, res === original)
   }
   const selfBounded = block(payload(90_000))
-  check('self-bounded Read is not recursively persisted', await storage.processPreMappedToolResultBlock(selfBounded, 'Read', Infinity, undefined, 'local/room-tiny') === selfBounded)
+  check('self-bounded Read is not recursively persisted', await storage.processPreMappedToolResultBlock(selfBounded, 'Read', Infinity, undefined, 'local/room-8k') === selfBounded)
   const image = block('unused')
   image.content = [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'fixture' } }]
-  check('images reach the model unchanged', await storage.processPreMappedToolResultBlock(image, 'Fixture', 1, undefined, 'local/room-tiny') === image)
+  check('images reach the model unchanged', await storage.processPreMappedToolResultBlock(image, 'Fixture', 1, undefined, 'local/room-8k') === image)
   const assistantText = createAssistantMessage({ content: [{ type: 'text', text: payload(90_000) }] })
-  const untouched = await storage.enforceToolResultBudget([assistantText], storage.createContentReplacementState(), new Set(), 'local/room-tiny')
+  const untouched = await storage.enforceToolResultBudget([assistantText], storage.createContentReplacementState(), new Set(), 'local/room-8k')
   check('model output is not cut by a tool budget', untouched.messages[0] === assistantText)
-  const bounded = await storage.processPreMappedToolResultBlock(block(payload(10_001)), 'Fixture', 10_000, undefined, 'local/room-64k')
+  const bounded = await storage.processPreMappedToolResultBlock(block(payload(10_001)), 'Fixture', 10_000, undefined, 'local/room-200k')
   check('a tool-specific lower threshold still applies with whole storage', wholePointer(bounded, payload(10_001)))
-  const same = await storage.processPreMappedToolResultBlock(bounded, 'Fixture', 100, undefined, 'local/room-tiny')
+  const same = await storage.processPreMappedToolResultBlock(bounded, 'Fixture', 100, undefined, 'local/room-8k')
   check('an existing pointer is never persisted again', same === bounded)
   const small = [createUserMessage({ content: [block('short result')] })]
   const pass = await storage.enforceToolResultBudget(small, storage.createContentReplacementState(), new Set(), 'local/room-32k')

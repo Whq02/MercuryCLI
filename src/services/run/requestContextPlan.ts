@@ -179,9 +179,10 @@ export async function buildRequestContextPlan(
   if (input.contentReplacementState) {
     const state =
       mode === 'apply'
-        ? input.contentReplacementState
+        ? input.preserveBodies ? cloneContentReplacementState(input.contentReplacementState) : input.contentReplacementState
         : cloneContentReplacementState(input.contentReplacementState)
-    const replacedBefore = state.replacements.size
+    if (input.preserveBodies) state.budgetChars = Infinity
+    const seenBefore = state.seenIds.size
     const completionRecords = await fitCompletionResults(view, state, input.engineModel)
     if (mode === 'apply' && completionRecords.length > 0) await input.persistReplacements?.(completionRecords)
     view = await applyToolResultBudget(
@@ -191,7 +192,7 @@ export async function buildRequestContextPlan(
       new Set([...(input.skipToolNames ?? []), ...PROTECTED_TOOL_NAMES]),
       input.engineModel,
     )
-    budgetReplacements = state.replacements.size - replacedBefore
+    budgetReplacements = input.preserveBodies ? 0 : state.seenIds.size - seenBefore
     if (budgetReplacements > 0) {
       reasons.push(`tool-result budget replaced ${budgetReplacements} oversized result(s)`)
     }
