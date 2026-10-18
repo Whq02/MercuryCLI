@@ -90,8 +90,12 @@ export function clearForSubmit(submittedText?: string): void {
   deleteDraft(owningSessionId ?? getSessionId())
   if (submittedText !== undefined) {
     staged = { text: submittedText, at: Date.now() }
+    lastSubmitted = { text: submittedText.replace(/\s+$/, ''), at: Date.now() }
   }
 }
+
+let lastSubmitted: { text: string; at: number } | null = null
+const SUBMITTED_PAGE_WINDOW_MS = 15_000
 
 
 export const subscribePendingInput = changed.subscribe
@@ -159,7 +163,17 @@ export async function rekeyToSession(sessionId: string | null, opts?: { landing?
   await flushDraftSaves()
   owningSessionId = sessionId
   if (opts?.landing === true && sessionId !== null) await migrateOrphanedDraft(sessionId)
-  const saved = readDraftSync(sessionId)
+  let saved = readDraftSync(sessionId)
+  if (
+    opts?.landing === true &&
+    saved &&
+    lastSubmitted !== null &&
+    Date.now() - lastSubmitted.at < SUBMITTED_PAGE_WINDOW_MS &&
+    saved.text.replace(/\s+$/, '') === lastSubmitted.text
+  ) {
+    deleteDraft(sessionId)
+    saved = null
+  }
   if (editSeq !== fence) return
   if (typedWhileLanding !== '' && (!saved || saved.text === '')) return
   const text = sanitizeComposerText(saved?.text ?? '')
