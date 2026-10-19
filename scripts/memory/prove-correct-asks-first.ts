@@ -29,6 +29,7 @@ const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
 const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const dir = mnemeLibraryDir()
+const REPO = join(import.meta.dir, '..', '..')
 
 let n = 0
 const user = (text: string) => ({ type: 'user', uuid: `u-${++n}`, timestamp: '2026-10-19T11:30:00.000Z', message: { role: 'user', content: text } }) as never
@@ -110,6 +111,11 @@ try {
   section('§4 the words say so')
   check('the Correct prompt tells the model the tool refuses an unasked change and a crewmate always', CORRECT_PROMPT.includes("The tool refuses a change when the user's latest message does not ask for a memory to be remembered or changed") && CORRECT_PROMPT.includes("a crewmate's always"), CORRECT_PROMPT)
   check('the Correct prompt says a replaced draft keeps the old words as history', CORRECT_PROMPT.includes('the new row keeps the old words as its history'), CORRECT_PROMPT)
+  const mneme = readFileSync(join(REPO, 'docs', 'MNEME.md'), 'utf8')
+  check('docs/MNEME.md says the rule covers Retain and Correct, and a crewmate\'s either is refused', /The model writes or changes memory only when you ask it to/.test(mneme) && /crewmate's Retain or Correct is refused always/.test(mneme), mneme.split('\n').find(l => l.includes('writes or changes memory')) ?? '')
+  check('docs/MNEME.md says a superseded pending draft keeps the old words as its history', /A superseded or amended pending draft\s+\(`pending:<ts>`\) is replaced by a new draft that keeps the old words as its\s+history/.test(mneme), mneme.split('\n').find(l => l.includes('superseded or amended pending')) ?? '')
+  const findings = readFileSync(join(REPO, 'docs', 'MEMORY-FINDINGS.md'), 'utf8')
+  check('docs/MEMORY-FINDINGS.md says the rule covers Retain and Correct and links it to the four verbs', findings.includes('The model writes or changes memory only when you ask it to, through Retain or Correct') && findings.includes('(MNEME.md#the-four-verbs)'), findings.split('\n').find(l => l.includes('Two later rules')) ?? '')
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

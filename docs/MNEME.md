@@ -103,14 +103,24 @@ only` and both the front page and `Recall` say so in one line.
 
 ## The four verbs
 
-The model writes memory only when you ask it to remember something: a
-preference about how to work, a constraint you state, a fact you name, in your
-words. The tool holds that rule itself: Retain refuses a write unless your
-latest message asks for something to be remembered ("remember …", "don't
-forget …", "note this down", "from now on …", "pin this" and the like), and
-refuses a crewmate's write always; a crewmate's finding goes in its report. A
-decision or an outcome belongs in the project's records. The model works its
-memory through four tools:
+The model writes or changes memory only when you ask it to: a preference
+about how to work, a constraint you state, a fact you name, in your words.
+The tools hold that rule themselves. Retain and Correct read your latest typed
+message for the asking words and refuse otherwise, quoting the message they
+read. The words that ask: any "remember" or "memorise"; "don't forget" and
+"never forget"; "from now on", "standing rule", "make this a rule", "pin this";
+"keep this", "keep this in mind", "bear in mind", "keep track of", "keep a
+note of"; "note:", "note to self", "note this down", "make a note", "take a
+note"; "write this down", "jot down", "log this"; "save", "add", "store",
+"put" or "record" something "to memory", "store this fact", "use the Retain
+tool"; "remind me", "next time", "for future sessions", "for future
+reference"; and, in German, French, Spanish, Italian and Portuguese, "merke
+dir", "n'oublie pas", "souviens-toi", "recuerda", "no olvides", "ricorda",
+"non dimenticare" and "lembre-se". "Don't remember", "do you remember" and an
+ask withdrawn in the same message ("no wait", "never mind", "scratch that",
+"forget it") never pass. A crewmate's Retain or Correct is refused always; a
+crewmate's finding goes in its report. A decision or an outcome belongs in the
+project's records. The model works its memory through four tools:
 
 - **Retain** saves a fact (up to 2,000 characters of content and context per
   item) for future sessions into `current.jsonl`. It is findable in the staging
@@ -125,8 +135,11 @@ memory through four tools:
 - **Correct** supersedes a wrong fact with the right one (`op: "supersede"`),
   amends its wording after a full read (`op: "amend"`), or retracts it
   (`op: "retract"`). A consolidated fact is kept as history under `## history`
-  on the page, never deleted; retracting a pending draft (`pending:<ts>`)
-  strikes it from the buffer before it reaches a page.
+  on the page, never deleted. A superseded or amended pending draft
+  (`pending:<ts>`) is replaced by a new draft that keeps the old words as its
+  history (a read of the new id shows them) until consolidation files the
+  fact; retracting a pending draft strikes it from the buffer before it
+  reaches a page.
 
 Before writing, `Retain` and `Correct` check each candidate against live,
 archived and pending records for contradictions: high stem overlap (`>= 0.75`)
