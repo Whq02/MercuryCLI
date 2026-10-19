@@ -8,6 +8,7 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { registerCleanup } from '../../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getTranscriptPath } from '../../../utils/sessionStorage/paths.js'
+import { runningBuildTree } from '../../../utils/artifactIdentity.js'
 import { processMainOwner } from '../../run/resolveOwner.js'
 import { isDeadThinkingPlaceholder } from './deadThinkingPlaceholder.js'
 import { PREFIX_LEDGER_FILE, prefixLedgerPath } from './prefixRecordStore.js'
@@ -300,6 +301,7 @@ interface PersistedPrefixLedger {
   owner: string
   transcript?: string
   build?: string
+  buildTree?: string
   record: Omit<PrefixRecord, 'dropped'> & { dropped: string[] }
   drops: unknown
 }
@@ -307,15 +309,16 @@ interface PersistedPrefixLedger {
 const consultedOwners = new Set<string>()
 let persistedDrops: unknown = null
 let persistedBuild: string | undefined
-const recordedBuilds = new Map<string, string | undefined>()
+const recordedBuilds = new Map<string, { build: string | undefined; tree: string | undefined }>()
 
 function productBuildWord(): string {
   return typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' && MACRO.VERSION !== '' ? MACRO.VERSION : 'unknown'
 }
 
-export function recordedBuildFor(owner: string): { recorded: boolean; build: string | undefined } {
+export function recordedBuildFor(owner: string): { recorded: boolean; build: string | undefined; tree: string | undefined } {
   readSessionRecord(owner)
-  return recordedBuilds.has(owner) ? { recorded: true, build: recordedBuilds.get(owner) } : { recorded: false, build: undefined }
+  const recorded = recordedBuilds.get(owner)
+  return recorded !== undefined ? { recorded: true, ...recorded } : { recorded: false, build: undefined, tree: undefined }
 }
 
 function ownsSessionRecord(owner: string): boolean {
@@ -410,11 +413,13 @@ async function writeSessionRecord(take: PendingRecordWrite): Promise<void> {
     const path = prefixLedgerPath(take.sessionId)
     await mkdir(dirname(path), { recursive: true })
     const transcript = transcriptStamp()
+    const tree = runningBuildTree()
     const body: PersistedPrefixLedger = {
       version: 1,
       owner: take.owner,
       ...(transcript !== null ? { transcript } : {}),
       build: productBuildWord(),
+      ...(tree !== null ? { buildTree: tree } : {}),
       record: { ...record, dropped: [...record.dropped] },
       drops: persistedDrops,
     }
@@ -456,8 +461,9 @@ function readSessionRecord(owner: string): void {
     })
     persistedDrops = parsed.drops ?? null
     persistedBuild = typeof parsed.build === 'string' ? parsed.build : undefined
-    recordedBuilds.set(owner, persistedBuild)
-    logForDebugging(`preserved thinking: the prefix ledger's record was read back beside the session (${stored.messages.length} messages recorded by the previous process${persistedBuild !== undefined ? `, build ${persistedBuild}` : ''})`)
+    const persistedTree = typeof parsed.buildTree === 'string' ? parsed.buildTree : undefined
+    recordedBuilds.set(owner, { build: persistedBuild, tree: persistedTree })
+    logForDebugging(`preserved thinking: the prefix ledger's record was read back beside the session (${stored.messages.length} messages recorded by the previous process${persistedBuild !== undefined ? `, build ${persistedBuild}` : ''}${persistedTree !== undefined ? `, tree ${persistedTree}` : ''})`)
   } catch (error) {
     logForDebugging(`preserved thinking: the prefix ledger's record beside the session could not be read (${String(error)})`, { level: 'warn' })
   }

@@ -22,7 +22,7 @@ import { getCwd } from './cwd.js'
 import { createUserMessage } from './messages.js'
 import { getPlatform } from './platform.js'
 import { jsonStringify } from './slowOperations.js'
-import { getConversationToolSchemas, getToolSchemaCache, requestedToolSchemaChange, settleToolSchemaChange } from './toolSchemaCache.js'
+import { getConversationToolSchemas, getToolSchemaCache, requestedToolSchemaChange, restoredToolSchemaPending, settleRestoredToolSchema, settleToolSchemaChange } from './toolSchemaCache.js'
 import { declareLawfulPrefixChange } from '../services/providers/lawfulPrefixChange.js'
 import { windowsPathToPosixPath } from './windowsPaths.js'
 import type { Tool, Tools, ToolPermissionContext } from '../Tool.js'
@@ -110,7 +110,8 @@ export async function toolToAPISchema(
   const snapshots = options.conversationKey === undefined ? undefined : getConversationToolSchemas(options.conversationKey)
   const previous = snapshots?.get(tool.name)
   const requested = options.conversationKey === undefined ? undefined : requestedToolSchemaChange(options.conversationKey, tool)
-  if (previous !== undefined && requested === undefined) {
+  const restored = previous !== undefined && requested === undefined && typeof tool.prompt === 'function' && restoredToolSchemaPending(options.conversationKey!, tool.name)
+  if (previous !== undefined && requested === undefined && !restored) {
     return { ...JSON.parse(previous), ...(options.cacheControl !== undefined ? { cache_control: options.cacheControl } : {}) } as ApiToolUnion
   }
   const cache = getToolSchemaCache()
@@ -187,6 +188,13 @@ export async function toolToAPISchema(
     if (requested !== undefined && settleToolSchemaChange(options.conversationKey!, requested)) {
       snapshots.set(tool.name, serialized)
       if (serialized !== requested.previous) declareLawfulPrefixChange(requested.scope, requested.reason)
+    } else if (restored) {
+      const moved = JSON.stringify((JSON.parse(previous!) as { input_schema?: unknown }).input_schema ?? null) !== JSON.stringify(definition.input_schema ?? null)
+      const names = settleRestoredToolSchema(options.conversationKey!, tool.name, moved)
+      if (moved) {
+        snapshots.set(tool.name, serialized)
+        declareLawfulPrefixChange(options.conversationKey!.split('|').slice(0, -2).join('|'), `a tool the earlier session offered takes different input now (${names.join(', ')})`)
+      }
     } else if (!snapshots.has(tool.name)) snapshots.set(tool.name, serialized)
     return { ...JSON.parse(snapshots.get(tool.name)!), ...(options.cacheControl !== undefined ? { cache_control: options.cacheControl } : {}) } as ApiToolUnion
   }
