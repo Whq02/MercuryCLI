@@ -109,6 +109,15 @@ Windows counter, or the runtime's own free figure before any sample); a
 facts answer never takes a sample, and `mercury://health/box` takes a fresh
 one.
 
+RUNTIME's `Session kind` row names the kind of the focused session, read
+from its record on the daemon: oculus (a screen belongs to it — the operator
+is there and may switch away and come back; an ask waits for the screen
+without expiry) or headless (unattended — an ask nobody answers expires on
+its clock, and a question nobody can answer ends the run as blocked). A
+record without a kind reads as headless until the session is resumed from
+the screen; with no chat open the row says so. The row is `info` and never
+moves the verdict. [SESSIONS.md](SESSIONS.md) defines the two kinds.
+
 RUNTIME's `OS Bash sandbox` row reads the one OS-level boundary in the stack.
 Off, the shipped default, reads `info`: `off — Bash runs unconfined (no OS
 filesystem/network boundary)`. Enabled but unavailable (an unsupported

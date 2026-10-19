@@ -92,12 +92,13 @@ saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allow
 
 const roster = new TaskRoster({ dir: daemonHome, breaker: {} as never, maxInflight: 3 })
 const warmDeps = { roster: () => roster, dir: daemonHome }
-const admit = sup.makeConcourseAdmitHandler({
+const admitDoor = sup.makeConcourseAdmitHandler({
   roster: () => roster,
   dir: daemonHome,
   claimWarm: args => warm.claimWarmRunner({ ...args, answerDeadlineMs: 5_000 }, warmDeps),
   ensureWarm: () => {},
 })
+const admit: typeof admitDoor = req => admitDoor({ by: 'operator', ...req })
 
 let failures = 0
 let checks = 0

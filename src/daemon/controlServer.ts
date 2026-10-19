@@ -79,6 +79,7 @@ export interface ControlServerDeps {
     kitPreset?: string
     vacatingSessionId?: string
     birthKey?: string
+    by?: string
   }) => Promise<
     | {
         ok: true
@@ -770,6 +771,7 @@ async function routeControlRequest(
         ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
         ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
         ...(raw.bornBlank === true ? { bornBlank: true } : {}),
+        ...(typeof raw.by === 'string' && raw.by ? { by: raw.by } : {}),
         ...(kit !== undefined ? { kit } : {}),
         ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
         ...(typeof raw.vacatingSessionId === 'string' && raw.vacatingSessionId !== '' ? { vacatingSessionId: raw.vacatingSessionId } : {}),

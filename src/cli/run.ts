@@ -29,6 +29,7 @@ import {
   isSessionPersistenceDisabled,
   setAskChannel,
   setRunInputClosed,
+  setSessionKind,
   switchSession,
 } from '../bootstrap/state.js'
 import { existsSync } from 'node:fs'
@@ -260,6 +261,7 @@ import { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, enqueueAgentReceiptRow,
 import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
 import { markSessionBootRules, markSessionNonInteractive, markSessionPermissionMode } from '../utils/cockpit/runtimePosture.js'
+import { consumeSessionKindPin } from '../utils/sessionKind.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainRows, subscribeRows } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
@@ -401,6 +403,14 @@ export async function runHeadless(
 ): Promise<void> {
   const maxTime = options.maxTimeMs === undefined ? undefined : { limitMs: options.maxTimeMs, at: Date.now() + options.maxTimeMs }
   setAskChannel(options.door === 'wire' ? 'sdk' : 'none')
+  const kindPin = consumeSessionKindPin()
+  if (kindPin.kind === undefined && kindPin.raw !== undefined && kindPin.raw.trim() !== '') {
+    process.stderr.write(`${GLYPH.warn} MERCURY_SESSION_KIND=${kindPin.raw} is not a session kind (the two are oculus and headless) — this run is headless\n`)
+  }
+  if (kindPin.kind === 'oculus' && options.door !== 'wire') {
+    process.stderr.write(`${GLYPH.warn} MERCURY_SESSION_KIND=oculus names a screen, but this run has no host to carry its asks there — this run is headless\n`)
+  }
+  setSessionKind(kindPin.kind === 'oculus' && options.door === 'wire' ? 'oculus' : 'headless')
   markSessionNonInteractive(getAppState().toolPermissionContext?.mode)
   markSessionBootRules(getAppState().toolPermissionContext)
   const shellRoadNotice = windowsShellRoadNotice()

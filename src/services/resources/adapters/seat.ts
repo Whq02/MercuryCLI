@@ -1,4 +1,4 @@
-import { canAnswerAsks, getAskChannel, getSessionId } from '../../../bootstrap/state.js'
+import { canAnswerAsks, getAskChannel, getSessionId, getSessionKind } from '../../../bootstrap/state.js'
 import { stampLocal } from '../../../mneme/entryPage.js'
 import { ledgerEntryOf } from '../../../mneme/ledger.js'
 import { mnemeProjectKey } from '../../../mneme/paths.js'
@@ -15,14 +15,18 @@ export interface SeatReference {
   engines: LedgerEngine[]
 }
 
+export const OCULUS_SEAT_WORDS = 'oculus: a screen belongs to this session — a permission ask or a question travels to the operator on the screen and waits for their answer, however long they are away; nothing expires it'
+
 export function seatPostureWords(permissionMode: string | null): string {
   const channel = getAskChannel()
   const asks =
     channel === 'operator'
       ? 'interactive: a permission ask or a question reaches the operator at the prompt'
-      : canAnswerAsks()
-        ? 'a host holds the asks: a permission ask or a question travels to the connected client, which answers allow or deny'
-        : 'non-interactive: no host answers an ask, so a call that would need an interactive approval is denied; a denial is policy, not tool failure'
+      : canAnswerAsks() && getSessionKind() === 'oculus'
+        ? OCULUS_SEAT_WORDS
+        : canAnswerAsks()
+          ? 'headless, a host holds the asks: a permission ask or a question travels to the connected client, which answers allow or deny'
+          : 'headless, non-interactive: no host answers an ask, so a call that would need an interactive approval is denied; a denial is policy, not tool failure'
   return permissionMode === null ? asks : `${asks}; permission mode ${permissionMode}`
 }
 

@@ -224,13 +224,16 @@ A hosted session (a daemon-hosted session, an editor session or another
 `mercury runner`) puts a call that needs approval to its host as
 `permission/request`. The host answers allow or deny. A host declaring
 `holds_asks` holds the ask; otherwise the runner's no-progress limit
-applies. In either case the runner refuses an ask nobody answers within its
-clock (ten minutes in Flow, three in Sovereign; a crewmate's ask ten minutes
-in every other mode; a session's own ask in Default, Implement or Apollo
-waits for you) and withdraws the ask with `$/cancel_request` naming the
-expiry. `MERCURY_PERMISSION_ASK_EXPIRY_MINUTES` replaces every clock that
-exists (0 disables them). The daemon declines an ask when no user is
-connected; the absence of a user never grants permission.
+applies. In either case a headless runner refuses an ask nobody answers
+within its clock (ten minutes in Flow, three in Sovereign; a crewmate's ask
+ten minutes in every other mode; a session's own ask in Default, Implement
+or Apollo waits for you) and withdraws the ask with `$/cancel_request`
+naming the expiry. `MERCURY_PERMISSION_ASK_EXPIRY_MINUTES` replaces every
+clock that exists (0 disables them). An oculus session — one you started
+from the screen ([SESSIONS.md](SESSIONS.md), Oculus) — has no clock in any
+mode: its ask waits for the screen until you answer it or end the session.
+The daemon declines an ask when no user is connected; the absence of a user
+never grants permission.
 
 No push is ever allowed by default under flow. A call Flow's rules leave
 over goes to that host, `git push` among them. It needs a present user unless a permission rule

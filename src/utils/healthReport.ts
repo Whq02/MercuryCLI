@@ -3567,6 +3567,23 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return { status: 'ok' as const, evidence: `${dir}: ${boxLockStateWords(state)}` }
           },
         },
+        {
+          id: 'session-kind',
+          label: 'Session kind',
+          run: async () => {
+            const { sessionKindWords } = await import('./sessionKind.js')
+            const { getFocusedSessionConnector, hasFocusedSession } = await import('../services/engine-connector/focusedConnector.js')
+            if (!hasFocusedSession()) {
+              return { status: 'info' as const, evidence: 'no session is focused here — a session is one of two kinds (oculus: a screen belongs to it; headless: unattended), read from its record when a chat is open and named on its own mercury://seat' }
+            }
+            const sessionId = getFocusedSessionConnector().sessionId()
+            const { readSessionWorkers } = await import('../daemon/concourseWorkers.js')
+            const record = Object.values(readSessionWorkers()).find(rec => rec.sessionId === sessionId && rec.endedAt === undefined)
+            if (record === undefined) return { status: 'info' as const, evidence: 'the focused session has no record on the daemon (its kind is read from the record)' }
+            if (record.kind === undefined) return { status: 'info' as const, evidence: 'the focused session carries no kind on its record: it runs headless until it is resumed from the screen' }
+            return { status: 'info' as const, evidence: `the focused session is ${sessionKindWords(record.kind)}` }
+          },
+        },
       ],
     },
     {

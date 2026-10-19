@@ -1,6 +1,7 @@
 import { resetSettingsCache } from 'src/utils/settings/settingsCache.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { SessionPermissionModeResolution } from '../../utils/permissions/permissionSetup.js'
+import type { SessionKind } from '../../utils/sessionKind.js'
 
 function isPostureEnvTruthy(v: string | undefined): boolean {
   if (!v) return false
@@ -13,6 +14,7 @@ export class PostureOwner {
   headlessOneShot = false
   runInputClosed = false
   askChannel: 'operator' | 'sdk' | 'none' = 'operator'
+  sessionKind: SessionKind = 'headless'
   assistantSessionActive = false
   strictToolResultPairing = false
   sdkAgentProgressSummariesEnabled = false

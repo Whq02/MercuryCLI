@@ -7,6 +7,7 @@ import type { ApiRequestParams } from '../types/wire.js'
 import type { ModelSetting } from '../utils/model/model.js'
 import type { SessionPermissionModeResolution } from '../utils/permissions/permissionSetup.js'
 import type { ModelStrings } from '../utils/model/modelStrings.js'
+import type { SessionKind } from '../utils/sessionKind.js'
 import type { SettingSource } from '../utils/settings/constants.js'
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
 import { ApiCaptureOwner } from './runtime/api-capture.js'
@@ -419,6 +420,14 @@ export function getAskChannel(): AskChannel {
 
 export function canAnswerAsks(): boolean {
   return posture.askChannel !== 'none'
+}
+
+export function setSessionKind(kind: SessionKind): void {
+  posture.sessionKind = kind
+}
+
+export function getSessionKind(): SessionKind {
+  return posture.sessionKind
 }
 
 export function setIsInteractive(value: boolean): void {

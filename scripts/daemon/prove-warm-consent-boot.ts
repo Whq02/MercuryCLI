@@ -126,7 +126,7 @@ try {
   check('exactly ONE warm runner was pre-spawned across the boot (not two)', logLines('warm runner pre-spawned').length === 1, logLines('warm runner pre-spawned').join(' | '))
 
   section('the first admission CLAIMS the boot-warmed runner')
-  const admit = (await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: work, isolation: 'shared', bornBlank: true, bypassConsent: true } as never, { timeoutMs: 30_000 })) as { ok?: boolean; runnerId?: string; error?: string }
+  const admit = (await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: work, isolation: 'shared', bornBlank: true, bypassConsent: true, by: 'operator' } as never, { timeoutMs: 30_000 })) as { ok?: boolean; runnerId?: string; error?: string }
   check('the admission is served', admit.ok === true, JSON.stringify(admit))
   check('the admission claimed the warm runner (no cold spawn for the first chat)', await untilAsync(() => logLines('warm claim acked').length >= 1, 20_000), logLines('warm').slice(-8).join(' | '))
 } finally {

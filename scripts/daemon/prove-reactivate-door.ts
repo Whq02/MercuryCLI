@@ -100,7 +100,7 @@ const roster = new FakeRoster()
 const warmDeps = { roster: () => roster, dir }
 const rewarmed: string[] = []
 const spawned: Array<{ runnerId: string; pid: number | undefined }> = []
-const admit = sup.makeConcourseAdmitHandler({
+const admitDoor = sup.makeConcourseAdmitHandler({
   roster: () => roster,
   dir,
   claimWarm: args => warm.claimWarmRunner({ ...args, answerDeadlineMs: 1_500 }, warmDeps),
@@ -111,6 +111,7 @@ const admit = sup.makeConcourseAdmitHandler({
     spawned.push({ runnerId, pid })
   },
 })
+const admit: typeof admitDoor = req => admitDoor({ by: 'operator', ...req })
 const registryDefault = await validateWorkerModelChoice(undefined, 'session')
 if (!registryDefault.ok) throw new Error(`the registry default is unavailable in this home: ${registryDefault.reason}`)
 const MODEL = registryDefault.entry.modelId
