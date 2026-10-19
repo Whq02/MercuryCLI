@@ -91,7 +91,7 @@ try {
   const askedPins = readPins(dir).filter(p => p.asked)
   check('each of those lands on the shelf marked asked for by the owner', askedPins.length >= 4, JSON.stringify(askedPins))
   const crewmatePin = await pin('pin this: deploys go through the release script', 'deploys go through the release script', { agentId: 'child' })
-  check('a crewmate typing the same asking words still cannot pin', crewmatePin.refused === 1 && crewmatePin.stored === 0 && JSON.stringify(crewmatePin.outcomes).includes('a crewmate cannot pin'), JSON.stringify(crewmatePin.outcomes))
+  check('a crewmate typing the same asking words still cannot pin: its Retain is refused whole, the finding sent to its report', crewmatePin.refused === 1 && crewmatePin.stored === 0 && JSON.stringify(crewmatePin.outcomes).includes('a crewmate never writes memory'), JSON.stringify(crewmatePin.outcomes))
   for (const [text, content] of [
     ['do not pin this: deploys go through the release script', 'deploys go through the release script'],
     ['the draft says pin this: deploys go through the release script', 'deploys go through the release script'],

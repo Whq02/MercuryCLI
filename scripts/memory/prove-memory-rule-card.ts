@@ -98,7 +98,7 @@ function contextOf(mode: Mode, opts: { allow?: string[]; headless?: boolean } = 
   return {
     options: { tools: [], commands: [], verbose: false, mcpClients: [], isNonInteractiveSession: opts.headless === true, agentDefinitions: { activeAgents: [], allAgents: [] } },
     abortController: new AbortController(),
-    messages: [],
+    messages: [{ type: 'user', uuid: 'rule-card-ask', timestamp: '2026-10-19T09:00:00.000Z', message: { role: 'user', content: `From now on, ${NEW_D} — that replaces the old rule.` } }],
     readFileState: new Map(),
     toolUseId: 'toolu_rule_card',
     getAppState: () => state,

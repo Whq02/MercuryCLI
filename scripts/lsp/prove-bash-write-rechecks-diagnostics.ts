@@ -76,7 +76,7 @@ registry.resetAllLSPDiagnosticState()
 section('§3 the manager tells the registry about a re-sync, with the document versions it knew')
 {
   const manager = readFileSync(join(ROOT, 'src/services/lsp/LSPServerManager.ts'), 'utf8')
-  check('revalidateOpenDocuments notes the out-of-band write after the change reaches the servers', manager.includes('noteOutOfBandWrite(path, versions)') && manager.indexOf('await changeFile(path, text)') < manager.indexOf('noteOutOfBandWrite(path, versions)'), '')
+  check('revalidateOpenDocuments notes the out-of-band write after the change reaches the servers', manager.includes('await changeFile(path, text)') && manager.includes('noteOutOfBandWrite(path, versions)') && manager.indexOf('await changeFile(path, text)') < manager.indexOf('noteOutOfBandWrite(path, versions)'), '')
   const road = readFileSync(join(ROOT, 'src/utils/attachments/diagnostics.ts'), 'utf8')
   check('the attachment road delivers after the revalidation report, waiting on the re-synced files', road.includes('deliverAfterRevalidation(resynced)'), '')
 }

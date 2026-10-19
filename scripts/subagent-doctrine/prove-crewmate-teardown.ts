@@ -69,7 +69,7 @@ section('§1 THE SEAM — the run\'s finally ends the lane\'s live processes bes
   for (const [file, name] of [['src/services/eval/kernelManager.ts', 'eval-kernels'], ['src/services/browser/browserSession.ts', 'browser-sessions'], ['src/services/projectServices/serviceManager.ts', 'project-services']] as const) {
     check(`${name} is a live store`, new RegExp(`name: '${name}',\\s*live: true,`).test(src(file)))
   }
-  check('the Service tool hands the lane owner to start and restart', /startService\(\{\s*sessionId,\s*owner,/.test(src('src/tools/ServiceTool/ServiceTool.ts')) && src('src/tools/ServiceTool/ServiceTool.ts').includes('restartService(input.cwd ?? cwd, input.name!, sessionId, owner)'))
+  check('the Service tool hands the lane owner to start and restart (restart under the session\'s project)', /startService\(\{\s*sessionId,\s*owner,/.test(src('src/tools/ServiceTool/ServiceTool.ts')) && src('src/tools/ServiceTool/ServiceTool.ts').includes('restartService(project, input.name!, sessionId, owner)') && src('src/tools/ServiceTool/ServiceTool.ts').includes('const project = getOriginalCwd()'))
   check('the journey runner hands its owner to the services it starts', src('src/services/journeys/runner.ts').includes('startService({ spec, sessionId: ctx.sessionId, owner: ctx.owner })'))
   check('the Debug tool registers each adapter under the lane owner (dap:<id>)', src('src/services/dap/dapClient.ts').includes('registerOwnerDisposer(options.owner, `dap:${options.id}`') && src('src/tools/DebugTool/DebugTool.ts').includes('ownerFromToolUseContext'))
 }

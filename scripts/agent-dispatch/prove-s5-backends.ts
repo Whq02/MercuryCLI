@@ -364,10 +364,21 @@ section('3 · honest refusals + fault mapping (never a throw, never a fallthroug
 
   process.env.ZAI_API_KEY = 'zai-proof-fake-key'
   let fetchCalls = 0
-  patchFetch(() => {
-    fetchCalls++
-    return responseFromChunks([], { status: 401, body: { error: { code: 1002, message: 'auth failed' } } })
-  })
+  const refusedUrls: string[] = []
+  const patchRefusal = (): void => {
+    fetchCalls = 0
+    refusedUrls.length = 0
+    patchFetch(() => {
+      fetchCalls++
+      return responseFromChunks([], { status: 401, body: { error: { code: 1002, message: 'auth failed' } } })
+    })
+    const patched = globalThis.fetch
+    globalThis.fetch = (async (url: unknown, init?: { body?: unknown }) => {
+      refusedUrls.push(String(url))
+      return patched(url as never, init as never)
+    }) as unknown as typeof fetch
+  }
+  patchRefusal()
   const httpFail = await collectCall('glm-5.2')
   restoreFetch()
   check(
@@ -377,7 +388,13 @@ section('3 · honest refusals + fault mapping (never a throw, never a fallthroug
       JSON.stringify(httpFail[0]).includes('zai-1002'),
     JSON.stringify(httpFail[0]).slice(0, 160),
   )
-  check('non-retryable fault: exactly one attempt', fetchCalls === 1, String(fetchCalls))
+  check('a plan-less key refused on the base it was assumed under is answered once by the other base before the fault is reported: two attempts, two bases', fetchCalls === 2 && refusedUrls.length === 2 && refusedUrls[0] !== refusedUrls[1] && refusedUrls.some(url => url.includes('/coding/')) && refusedUrls.some(url => !url.includes('/coding/')), `${fetchCalls}: ${refusedUrls.join(' → ')}`)
+  process.env.ZAI_KEY_PLAN = 'general'
+  patchRefusal()
+  const knownPlanFail = await collectCall('glm-5.2')
+  restoreFetch()
+  delete process.env.ZAI_KEY_PLAN
+  check('with the plan known (ZAI_KEY_PLAN) a non-retryable fault is exactly one attempt, then ONE API-error assistant message', fetchCalls === 1 && knownPlanFail.length === 1 && isApiErrorAssistant(knownPlanFail[0]) && JSON.stringify(knownPlanFail[0]).includes('zai-1002'), `${fetchCalls}: ${refusedUrls.join(' → ')}`)
 
   fetchCalls = 0
   patchFetch(() => {

@@ -34,6 +34,7 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 const workDir = mkdtempSync(join(tmpdir(), 'axiom-graph-work-'))
+;(await import('../../src/bootstrap/state.ts')).setOriginalCwd(workDir)
 const owner = P.makeOwnerKey({ workspace: workDir, sessionId: 'graph-proof', lane: P.MAIN_LANE })
 const ctx = { owner, cwd: workDir }
 

@@ -464,7 +464,7 @@ console.log('\n── source contracts ─────────────�
   const rekey = rekeyAt === -1 ? '' : pending.slice(rekeyAt, pending.indexOf('\n}\n', rekeyAt))
   const flushAt = rekey.indexOf('await flushDraftSaves()')
   const rekeyOwnerAt = rekey.indexOf('owningSessionId = sessionId')
-  check('the switch tail RESTORES the target draft (never blind-clears)', rekeyOwnerAt !== -1 && rekey.includes('const saved = readDraftSync(sessionId)') && !rekey.includes("draft = { text: ''"))
+  check('the switch tail RESTORES the target draft (never blind-clears)', rekeyOwnerAt !== -1 && /(?:const|let) saved = readDraftSync\(sessionId\)/.test(rekey) && !rekey.includes("draft = { text: ''"))
   check('pending source-owned saves flush during STAGE', flushAt !== -1 && rekeyOwnerAt !== -1 && flushAt < rekeyOwnerAt)
 }
 

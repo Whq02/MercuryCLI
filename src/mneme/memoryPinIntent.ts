@@ -27,6 +27,17 @@ export function latestPinIntent(messages: readonly Message[], agentId?: string):
   return latest
 }
 
+const MEMORY_ASK = /\b(?:remember|memori[sz]e|(?:do\s*n['’]?t|never|do\s+not)\s+forget|from\s+now\s+on|keep\s+(?:this|that|it|these)\s+(?:as\s+a\s+rule|in\s+mind)|(?:keep|bear)\s+in\s+mind|make\s+(?:this|that|it)\s+a\s+rule|standing\s+rule|pin\s+(?:this|that|it|these)|note\s+(?:this|that|it|these|down)|(?:write|jot)\s+(?:this|that|it|these)\s+down|(?:save|store|put)\s+(?:this|that|it|these)\s+(?:to|in|into)\s+memory|retain\s+(?:this|that|it|these)|take\s+(?:a\s+)?note|for\s+(?:future|later)\s+(?:sessions?|reference)|for\s+next\s+time|(?:that|this|it)\s+replaces\s+the\s+(?:old|earlier|previous)\s+(?:rule|one)|instead\s+of\s+the\s+(?:old|earlier|previous)\s+(?:rule|one))\b/i
+
+export const MEMORY_ASK_REFUSAL = "Retain is refused: the operator's latest message does not ask to remember anything — a decision or an outcome belongs in the project's records; memory is written on \"remember …\", \"don't forget …\", \"note this down\", \"from now on …\" or \"pin this\""
+export const CREWMATE_RETAIN_REFUSAL = 'Retain is refused: a crewmate never writes memory — put the finding in your report; the lead decides what is remembered'
+
+export function memoryAskRefusal(messages: readonly Message[], agentId?: string): string | null {
+  if (agentId) return CREWMATE_RETAIN_REFUSAL
+  const latest = latestPinIntent(messages)
+  return latest !== undefined && MEMORY_ASK.test(latest.text) ? null : MEMORY_ASK_REFUSAL
+}
+
 const FILLER = /^(?:(?:ok(?:ay)?|also|and|so|oh|right|cool|yes|yeah|btw|well|then)[\s,.:!-]+)*/i
 const NEGATED = /^(?:please\s+|pls\s+)?(?:do\s+not|don['’]t|never|no\s+need\s+to|stop)\s+(?:remember|pin|save|keep|make|retain)\b/i
 const DIRECTIVE_HEAD = /^(?:please\s+|pls\s+)?(?:remember(?:\s+(?:this|that|these))?\b|from\s+now\s+on\b|always\b|never\b|(?:i|we)\s+(?:like|prefer|want)\b|(?:standing\s+)?rule\b|every\s+(?:time|release|session|chat)\b)/i

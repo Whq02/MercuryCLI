@@ -274,7 +274,7 @@ for (const [old, fresh] of subjectPairs) {
   check(`both distinct facts are stored: ${fresh}`, result.every(outcome => outcome.status === 'stored') && pendingRows(pairDir).length === 2, j(result))
 }
 _resetMemoryVerbSessionStateForTesting()
-const batchResult = await RetainTool.call({ items: drawerFacts.map(content => ({ content })) }, { messages: [] } as never, undefined as never, undefined as never)
+const batchResult = await RetainTool.call({ items: drawerFacts.map(content => ({ content })) }, { messages: [{ type: 'user', uuid: 'drawer-ask', timestamp: '2026-10-19T09:00:00.000Z', message: { role: 'user', content: 'Remember these twenty drawer facts exactly as I give them.' } }] } as never, undefined as never, undefined as never)
 check('one real Retain call stores all twenty exact drawer facts', 'data' in batchResult && batchResult.data.stored === 20 && batchResult.data.refused === 0, j(batchResult))
 check('all twenty drawer facts read back verbatim from pending rows', drawerFacts.every(text => pendingRows(dir).some(row => row.text === text)))
 if ('data' in batchResult) {

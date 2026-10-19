@@ -73,7 +73,7 @@ function contextOf(mode: 'default' | 'sovereign') {
   return {
     options: { tools: [], commands: [], verbose: false, mcpClients: [], isNonInteractiveSession: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
     abortController: new AbortController(),
-    messages: [],
+    messages: [{ type: 'user', uuid: 'rule-sovereign-ask', timestamp: '2026-10-19T09:00:00.000Z', message: { role: 'user', content: `From now on, ${NEW_D} — that replaces the old rule.` } }],
     readFileState: new Map(),
     toolUseId: 'toolu_rule_sovereign',
     getAppState: () => state,

@@ -128,6 +128,8 @@ console.log('\n§2 bounded')
   check('the records before the ceiling stand', text.split('\n').filter(l => l.startsWith('{')).length === before, String(before))
 }
 {
+  rmSync(CACHE_PATHS.errors(), { recursive: true, force: true })
+  ;(await import('../../src/utils/errorLogSink.js')).resetErrorLogSinkForTest()
   const RealDate = globalThis.Date
   const mockClock = (local: Date): void => {
     globalThis.Date = new Proxy(RealDate, {
