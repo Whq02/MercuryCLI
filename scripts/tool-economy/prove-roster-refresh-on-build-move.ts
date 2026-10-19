@@ -41,7 +41,7 @@ type Message = import('../../src/types/message.ts').Message
 
 const tool = (name: string): Tool => ({ name, searchHint: `${name.toLowerCase()} fixture`, description: async () => name, prompt: async () => name, inputSchema: { parse: (v: unknown) => v, safeParse: (v: unknown) => ({ success: true, data: v }) } as never, call: async () => ({ data: null }) } as unknown as Tool)
 const livePool: Tool[] = [tool('Bash'), tool('Read'), tool('Crewmate')]
-const RETIRED = 'Agent'
+const RETIRED = 'RetiredDispatch'
 const owner = String(processMainOwner())
 const first = createUserMessage({ content: 'the session that began on the earlier build' }) as unknown as Message
 const model = 'claude-opus-4-8'
