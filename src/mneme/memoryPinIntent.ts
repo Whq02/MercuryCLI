@@ -28,12 +28,12 @@ export function latestPinIntent(messages: readonly Message[], agentId?: string):
 }
 
 const NOT_AN_ASK = [
-  "(?:do\\s*n['’]?t|do\\s+not|never|cannot|can['’]?t|can\\s+never|no\\s+need\\s+to|stop)\\s+(?:remember|memori[sz]e|save|store|note|log|keep|retain|record|pin)",
+  "(?:do\\s*n['’]?t|do\\s+not|never|cannot|can['’]?t|can\\s+never|no\\s+need\\s+to|stop)\\s+(?:remember(?:ed|ing|s)?|memori[sz](?:e|ed|es|ing)|sav(?:e|ed|es|ing)|stor(?:e|ed|es|ing)|not(?:e|ed|es|ing)|log(?:ged|ging|s)?|keep(?:ing|s)?|retain(?:ed|ing|s)?|record(?:ed|ing|s)?|pin(?:ned|ning|s)?)",
   '(?:do|did|can|could|would)\\s+you\\s+(?:still\\s+|even\\s+)?remember',
 ].join('|')
 const MEMORY_ASK_WORDS = [
-  'remember',
-  'memori[sz]e',
+  'remember(?:ed|ing|s)?',
+  'memori[sz](?:e|ed|es|ing)',
   "(?:do\\s*n['’]?t|do\\s+not|never|please\\s+do\\s+not)\\s+forget",
   'from\\s+now\\s+on',
   'standing\\s+rule',

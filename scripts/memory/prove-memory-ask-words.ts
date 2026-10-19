@@ -112,6 +112,9 @@ try {
     'Never forget: the db is heron',
     'put this in memory: the db is heron',
     'memorise this: the db is heron',
+    "I'd like this remembered: the build box is called kestrel.",
+    'this should be memorized: the db is heron',
+    'keep remembering that the db is heron',
   ]) check(`asks: "${words}"`, memoryAskRefusal([user(words)]) === null, memoryAskRefusal([user(words)]) ?? '')
   for (const words of [
     "don't remember this: the db is heron",
@@ -120,6 +123,7 @@ try {
     'remember the db is heron. Actually never mind.',
     'remember the db is heron — scratch that. What files are here?',
     'Did you remember to run the tests?',
+    'he never remembers this, but the db is heron. What files are here?',
     'What files are here?',
     'By the way, the staging database is called osprey now, not heron. What files are in this folder?',
   ]) check(`not an ask: "${words}"`, memoryAskRefusal([user(words)]) !== null)
