@@ -24,7 +24,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed Edit after a crewmate's Write and after a resume: the session's written lines are credited across crewmates and after a restart
 - Fixed an OpenRouter 401 on Jev's requests: the sign-in refusal reaches /logins
 - Fixed /model's Qwen rows naming Model Studio for every key
-- Fixed the sk-ant key pasted on the OpenAI row: the redirect names the Anthropic row
 - Fixed the first-run sign-in card at 64×20: rows paint single-line when the frame cannot hold a wrapped row, and the cursor row keeps its mark
 - Fixed the boot screen dropping an informational receipt when only a warnings listener was attached: untaken receipts queue for the chat
 - Fixed mercury sessions list ordering two sessions written in the same instant on Linux: ties break on the transcript's recorded time
