@@ -14,8 +14,8 @@ or rent hardware.
 
 1. **The server address.** Enter the OpenAI-compatible API base, such as
    `http://127.0.0.1:30000/v1`. A bare server address gets `/v1` appended;
-   include the full base path when using a reverse proxy. Mercury reads only
-   the address you give, not a list of nearby servers.
+   include the full base path when using a reverse proxy. Mercury contacts
+   only the address you give.
 2. **The server dialect.** Mercury looks for SGLang, vLLM, llama.cpp or Ollama
    metadata. Confirm the detected dialect, or choose SGLang, vLLM, llama.cpp,
    Ollama, LM Studio, chat completions or Responses. If the server does not
@@ -38,15 +38,14 @@ or rent hardware.
 
 Escape stops the current operation. Before registration, nothing is saved.
 After registration, the provider stays saved even if you stop the reply check
-or the server refuses it. A failed check is shown as a failure, not readiness.
+or the server refuses it. A failed check remains marked as failed.
 
 ## What Mercury saves
 
 The endpoint lives under `compatProvider.<name>` in user settings: its API
 base, label, dialect and, for SGLang, `sessionAffinityHeader: "x-session-id"`.
-The model list and served windows are refreshed from the server rather than
-written as fixed limits. An explicit per-model `contextWindow` setting takes
-precedence over the server's reading.
+The model list and served windows are refreshed from the server. An explicit
+per-model `contextWindow` setting takes precedence over the server's reading.
 
 A supplied key uses the same auth-scoped credential store as `/logins`.
 `MERCURY_COMPAT_<NAME>_API_KEY` takes precedence when set; for a hyphenated
@@ -89,7 +88,7 @@ Open `/llmhost` again to see registered servers. Choose one to:
 - **Remove the provider and its stored key:** confirm removal from Mercury.
   The server keeps running, and environment variables are not changed.
 
-A reply check measures one request, not sustained GPU throughput. For rented
-hardware, read the rental provider's dashboard for elapsed rental time,
-storage charges and the bill; the model server's token counts are not a
-measurement of those charges.
+A reply check reports one request's duration and token count. Use the model
+server's metrics for sustained GPU throughput. For rented hardware, read the
+rental provider's dashboard for elapsed rental time, storage charges and
+the bill.

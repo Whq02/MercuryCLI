@@ -383,7 +383,7 @@ Every session is hosted by the daemon as a runner, and every session is one
 of two kinds. An oculus session is one a screen belongs to: the Mercury
 screen in your terminal is the window onto it, you are there, and you may
 switch to another session and come back. Every session you start from the
-screen is oculus — New Session, `--chat`, a resume, a session the board's
+screen is oculus: New Session, `--chat`, a resume, a session the board's
 composer launches. The kind is decided once, when the daemon admits the
 session, from who asked for it, and it is stamped on the session's record
 and on its runner; it is never guessed from a terminal later, so switching
@@ -398,7 +398,7 @@ session; `MERCURY_PERMISSION_ASK_EXPIRY_MINUTES` never applies to it. And a
 turn that ends on a question is not blocked: the question waits on the
 screen, and you answer next. The model's tools, the permission decisions,
 the rows the runner emits and the wire bodies are the same as a headless
-session's, byte for byte, and a proof holds them to it.
+session's, byte for byte.
 
 ## Headless
 

@@ -228,9 +228,9 @@ within its clock (ten minutes in Flow, three in Sovereign; a crewmate's ask
 ten minutes in every other mode; a session's own ask in Default, Implement
 or Apollo waits for you) and withdraws the ask with `$/cancel_request`
 naming the expiry. `MERCURY_PERMISSION_ASK_EXPIRY_MINUTES` replaces every
-clock that exists (0 disables them). An oculus session — one you started
-from the screen ([SESSIONS.md](SESSIONS.md), Oculus) — has no clock in any
-mode: its ask waits for the screen until you answer it or end the session.
+clock that exists (0 disables them). An oculus session is one you started
+from the screen ([SESSIONS.md](SESSIONS.md), Oculus). Its asks have no expiry
+in any mode and wait until you answer or end the session.
 The daemon declines an ask when no user is connected; the absence of a user
 never grants permission.
 

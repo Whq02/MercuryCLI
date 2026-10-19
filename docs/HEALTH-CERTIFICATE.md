@@ -109,14 +109,14 @@ Windows counter, or the runtime's own free figure before any sample); a
 facts answer never takes a sample, and `mercury://health/box` takes a fresh
 one.
 
-RUNTIME's `Session kind` row names the kind of the focused session, read
-from its record on the daemon: oculus (a screen belongs to it — the operator
-is there and may switch away and come back; an ask waits for the screen
-without expiry) or headless (unattended — an ask nobody answers expires on
-its clock, and a question nobody can answer ends the run as blocked). A
-record without a kind reads as headless until the session is resumed from
-the screen; with no chat open the row says so. The row is `info` and never
-moves the verdict. [SESSIONS.md](SESSIONS.md) defines the two kinds.
+RUNTIME's `Session kind` row reads the focused session's kind from its daemon
+record. An oculus session belongs to a screen; its questions wait until you
+answer them or end the session, including while you switch to another chat.
+A headless session is unattended. Its unanswered asks expire on their clock,
+and an unanswered question ends the run as blocked. A record without a kind
+reads as headless until the session is resumed from the screen. With no chat
+open the row says so. The row is `info` and leaves the verdict unchanged.
+[SESSIONS.md](SESSIONS.md) defines the two kinds.
 
 TOOL CAPABILITY carries the `Tools withheld` check: every built-in tool kept
 out of the model's catalog because a machine dependency is absent (a debug

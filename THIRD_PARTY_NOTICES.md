@@ -12,7 +12,7 @@ The built artifact (`dist/mercury.mjs`) is a self-contained bundle that inlines 
 - **@puppeteer/browsers** 3.2.1 — https://github.com/puppeteer/puppeteer/tree/main/packages/browsers
 - **fuse.js** 7.5.0 — http://fusejs.io
 - **puppeteer-core** 25.9.0 — https://github.com/puppeteer/puppeteer/tree/main/packages/puppeteer-core
-- **sharp** 0.35.4 — https://sharp.pixelplumbing.com
+- **sharp** 0.35.5 — https://sharp.pixelplumbing.com
 
 ### BlueOak-1.0.0
 
@@ -27,16 +27,16 @@ The built artifact (`dist/mercury.mjs`) is a self-contained bundle that inlines 
 
 - **semver** 7.8.5 — git+https://github.com/npm/node-semver.git
 - **signal-exit** 4.1.0 — https://github.com/tapjs/signal-exit.git
-- **yaml** 2.9.0 — https://eemeli.org/yaml/
+- **yaml** 2.9.1 — https://eemeli.org/yaml/
 
 ### MIT
 
-- **@alcalzone/ansi-tokenize** 0.3.0
+- **@alcalzone/ansi-tokenize** 0.3.1 — https://github.com/AlCalzone/ansi-tokenize
 - **@commander-js/extra-typings** 15.0.0 — https://github.com/commander-js/extra-typings#readme
 - **@modelcontextprotocol/client** 2.0.0 — https://modelcontextprotocol.io
 - **@modelcontextprotocol/core** 2.0.0 — https://modelcontextprotocol.io
 - **@modelcontextprotocol/server** 2.0.0 — https://modelcontextprotocol.io
-- **acorn** 8.18.0 — https://github.com/acornjs/acorn
+- **acorn** 8.19.0 — https://github.com/acornjs/acorn
 - **acorn-walk** 8.3.5 — https://github.com/acornjs/acorn
 - **ajv** 8.20.0 — https://ajv.js.org
 - **auto-bind** 5.0.1 — sindresorhus/auto-bind
@@ -78,7 +78,7 @@ The built artifact (`dist/mercury.mjs`) is a self-contained bundle that inlines 
 - **wrap-ansi** 10.0.1 — chalk/wrap-ansi
 - **ws** 8.21.3 — https://github.com/websockets/ws
 - **yaml-language-server** 1.24.0 — git+https://github.com/redhat-developer/yaml-language-server.git
-- **zod** 4.5.1 — https://zod.dev
+- **zod** 4.5.4 — https://zod.dev
 
 ## Vendored tool payloads (`dist/vendor/`)
 
@@ -96,7 +96,7 @@ The built artifact (`dist/mercury.mjs`) is a self-contained bundle that inlines 
 - **desktop driver pack** (`dist/vendor/desktop/<platform>/mercury_desktop.node`) — Mercury's own Node-API addon, built from the repository's native/desktop sources with cargo (never fetched). It drives the platform's own screen and input layers and statically links the Rust crates it depends on, chiefly png (MIT OR Apache-2.0, https://github.com/image-rs/image-png), napi-rs (MIT, https://github.com/napi-rs/napi-rs), the objc2 family on macOS (MIT, https://github.com/madsmtm/objc2), the windows crate on Windows (MIT OR Apache-2.0, https://github.com/microsoft/windows-rs) and x11rb on Linux (MIT OR Apache-2.0, https://github.com/psychon/x11rb); the full per-platform crate inventory ships beside the addon as `NOTICES.json`, with every linked crate's licence text under `licenses/<crate>-<version>/`.
 - **semantic embedder pack** (`dist/vendor/embed/<platform>/mercury_embed.node`) — Mercury's own Node-API addon, built from the repository's native/embed sources with cargo (never fetched). It reads GGUF embedding weights and runs the model on the CPU (Accelerate on macOS). Its Rust crates and their licence texts ship beside the addon in `dist/vendor/embed/<platform>/NOTICES.json` and `licenses/` (MIT, Apache-2.0, ISC and Unlicense crates, the napi bindings among them).
 - **embedding model** (`dist/vendor/embed-models/bge-base-en-v1.5-q8_0.gguf`, 118 MB) — BAAI BGE base en v1.5 weights (Copyright BAAI, MIT, https://huggingface.co/BAAI/bge-base-en-v1.5), 8-bit GGUF conversion from https://huggingface.co/CompendiumLabs/bge-base-en-v1.5-gguf, verified against the sha256 in vendor/embed-models.lock.json before it ships. The other models the lock names (GTE base, MIT; all-MiniLM-L6-v2, Apache-2.0; Nomic Embed Text v1.5, Apache-2.0) are fetched on demand into the config home and never ship in the archive.
-- **image-processor pack** (`dist/vendor/image-processor/<platform>/node_modules/@img/`) — sharp's prebuilt binding (@img/sharp-<platform> 0.35.4, Apache-2.0, https://github.com/lovell/sharp) and the libvips library it links (@img/sharp-libvips-<platform>, LGPL-3.0-or-later, https://github.com/lovell/sharp-libvips — its bundled dependencies and their licences are inventoried upstream at https://github.com/lovell/sharp-libvips/blob/main/THIRD-PARTY-NOTICES.md; on Windows the binding package carries the libraries itself). Redistributed unmodified from the pinned dependency; each package's LICENSE, README and versions.json ship inside the pack.
+- **image-processor pack** (`dist/vendor/image-processor/<platform>/node_modules/@img/`) — sharp's prebuilt binding (@img/sharp-<platform> 0.35.5, Apache-2.0, https://github.com/lovell/sharp) and the libvips library it links (@img/sharp-libvips-<platform>, LGPL-3.0-or-later, https://github.com/lovell/sharp-libvips — its bundled dependencies and their licences are inventoried upstream at https://github.com/lovell/sharp-libvips/blob/main/THIRD-PARTY-NOTICES.md; on Windows the binding package carries the libraries itself). Redistributed unmodified from the pinned dependency; each package's LICENSE, README and versions.json ship inside the pack.
 - **shell engine pack** (`dist/vendor/brush/<platform>/brush`, `brush.exe` on Windows) — brush, a bash-compatible shell written in Rust, MIT (https://github.com/reubeno/brush). Receipt: vendor/brush.lock.json (one upstream release archive + sha256 per platform, every digest copied from that release's published `<archive>.sha256` asset; for win-x64, where upstream publishes no binary, the published crate `brush-shell` at the same version and its crate archive's sha256). A macOS or Linux archive ships the platform's engine binary and upstream's own `LICENSE` + `THIRD_PARTY_LICENSES.html` (the crate notices of everything linked into the binary) at dist/vendor/brush/<platform>/; the Windows archive ships the binary built from that crate with `NOTICES.json` (every linked crate: name, version, licence, repository) and `licenses/<crate>-<version>/` (each crate's own licence text) beside it, and carries the pack on every Windows install, since a box with no bash runs the Bash tool through it.
 
 ## Preserved NOTICE files (Apache-2.0 §4(d))
