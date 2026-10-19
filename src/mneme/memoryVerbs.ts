@@ -523,7 +523,8 @@ export function readMemoryRecord(
     if (!row) return { found: false, id, note: 'that pending row is gone (consolidated, struck or never existed) — recall again' }
     seenPendingRows.add(ts)
     noteMemoryOpened([id], dir)
-    return { found: true, id, content: `${row.text} [unconsolidated, ${row.ts}, ${row.source}]`, renderedContent: `${recordGrade(id, row.source, dir)} ${row.text} [unconsolidated, ${row.ts}, ${row.source}]`, note: 'full record read — amend is now unlocked for this pending row' }
+    const history = row.history === undefined ? '' : `\n  history: replaced pending:${row.history.ts} — ${row.history.text}`
+    return { found: true, id, content: `${row.text} [unconsolidated, ${row.ts}, ${row.source}]${history}`, renderedContent: `${recordGrade(id, row.source, dir)} ${row.text} [unconsolidated, ${row.ts}, ${row.source}]${history}`, note: 'full record read — amend is now unlocked for this pending row' }
   }
   return { found: false, id, note: 'unrecognized id — use seq:<n>, doc:<slug>, pending:<ts>, or ledger:<ordinal>' }
 }

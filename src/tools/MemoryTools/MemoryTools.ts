@@ -19,7 +19,7 @@ import {
   type RuleAuthority,
 } from '../../mneme/memoryVerbs.js'
 import { mnemeLibraryDir } from '../../mneme/mnemeGates.js'
-import { latestPinIntent, memoryAskRefusal } from '../../mneme/memoryPinIntent.js'
+import { CREWMATE_CORRECT_REFUSAL, correctAskRefusal, latestPinIntent, memoryAskRefusal } from '../../mneme/memoryPinIntent.js'
 import { gradeLines, MEMORY_EVIDENCE_CONTRACT, recordGrade } from '../../mneme/memoryEvidence.js'
 import { askedReplacements, askedRuleOf, askRuleCard, correctionChange, ruleCardAsk, ruleCardText } from './ruleCard.js'
 import { confirmCitedFacts, renderFootnotes } from '../../mneme/mnemeFootnotes.js'
@@ -448,6 +448,7 @@ export const CorrectTool = buildTool({
     return ruleCardAsk(context) ?? { behavior: 'allow' as const, updatedInput: input }
   },
   async call(input: z.infer<CorrectSchema>, context: ToolUseContext, canUseTool, parentMessage) {
+    if (context.agentId) return { data: { ok: false as const, op: input.op, code: 'crewmate', message: CREWMATE_CORRECT_REFUSAL } }
     const dir = mnemeLibraryDir()
     const consolidated = consolidatedIdOf(input.id, dir)
     const id = consolidated ?? input.id
@@ -461,7 +462,11 @@ export const CorrectTool = buildTool({
       session: safeSession(),
     }
     const rule = askedRuleOf(id, dir)
-    if (rule === null) return { data: { ...(await correctMemoryJudged(correction, abortOf(context))), ...followed } }
+    if (rule === null) {
+      const unasked = correctAskRefusal(context.messages ?? [])
+      if (unasked !== null) return { data: { ok: false as const, op: input.op, code: 'not-asked', message: unasked, ...followed } }
+      return { data: { ...(await correctMemoryJudged(correction, abortOf(context))), ...followed } }
+    }
     const early = correctionPreflight(correction, dir)
     if (early !== null) return { data: { ...early, ...followed } }
     const verdict = await askRuleCard({
@@ -482,17 +487,20 @@ export const CorrectTool = buildTool({
     if (!output.ok && output.code === 'user-kept-rule') {
       return { tool_use_id: toolUseID, type: 'tool_result', content: `${output.message}${followed}` }
     }
+    if (!output.ok && (output.code === 'not-asked' || output.code === 'crewmate')) {
+      return { tool_use_id: toolUseID, type: 'tool_result', content: output.message, is_error: true }
+    }
     if (output.ok && 'draft' in output) {
       const tail =
         output.newId !== null
-          ? `the draft was replaced by ${output.newId}`
+          ? `the draft was replaced by ${output.newId}, which keeps the old draft's words as its history (read it with Recall read:"${output.newId}") until consolidation files the fact`
           : output.replacedBy !== undefined
-            ? `the draft was struck; seq ${output.replacedBy} carries the truth`
-            : 'the draft was struck'
+            ? `the draft was struck and seq ${output.replacedBy} carries the truth; a draft that is struck is gone, it leaves no history and its bytes are gone from the buffer`
+            : 'the draft was struck; a draft that is struck is gone, it leaves no history and its bytes are gone from the buffer'
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
-        content: `${output.op} landed on the pending row ${output.targetId}: ${tail}. A pending row is a draft — it leaves no history and its bytes are gone from the buffer.${ruleAnswerWords(output.via, verb, false)}`,
+        content: `${output.op} landed on the pending row ${output.targetId}: ${tail}.${ruleAnswerWords(output.via, verb, false)}`,
       }
     }
     if (output.ok) {

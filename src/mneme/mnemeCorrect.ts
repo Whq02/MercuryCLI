@@ -462,6 +462,7 @@ export function replacePendingRow(input: { ts: string; text: string; source: str
       ...(struck.struck.pin === true ? { pin: true } : {}),
       ...(struck.struck.asked === true ? { asked: true } : {}),
       ...(struck.struck.replaces !== undefined ? { replaces: struck.struck.replaces } : {}),
+      history: { ts: struck.struck.ts, text: struck.struck.text },
     },
     dir,
   )

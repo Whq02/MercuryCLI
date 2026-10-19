@@ -27,15 +27,88 @@ export function latestPinIntent(messages: readonly Message[], agentId?: string):
   return latest
 }
 
-const MEMORY_ASK = /\b(?:remember|memori[sz]e|(?:do\s*n['’]?t|never|do\s+not)\s+forget|from\s+now\s+on|keep\s+(?:this|that|it|these)\s+(?:as\s+a\s+rule|in\s+mind)|(?:keep|bear)\s+in\s+mind|make\s+(?:this|that|it)\s+a\s+rule|standing\s+rule|pin\s+(?:this|that|it|these)|note\s+(?:this|that|it|these|down)|(?:write|jot)\s+(?:this|that|it|these)\s+down|(?:save|store|put)\s+(?:this|that|it|these)\s+(?:to|in|into)\s+memory|retain\s+(?:this|that|it|these)|take\s+(?:a\s+)?note|for\s+(?:future|later)\s+(?:sessions?|reference)|for\s+next\s+time|(?:that|this|it)\s+replaces\s+the\s+(?:old|earlier|previous)\s+(?:rule|one)|instead\s+of\s+the\s+(?:old|earlier|previous)\s+(?:rule|one))\b/i
+const NOT_AN_ASK = [
+  "(?:do\\s*n['’]?t|do\\s+not|never|cannot|can['’]?t|can\\s+never|no\\s+need\\s+to|stop)\\s+(?:remember|memori[sz]e|save|store|note|log|keep|retain|record|pin)",
+  '(?:do|did|can|could|would)\\s+you\\s+(?:still\\s+|even\\s+)?remember',
+].join('|')
+const MEMORY_ASK_WORDS = [
+  'remember',
+  'memori[sz]e',
+  "(?:do\\s*n['’]?t|do\\s+not|never|please\\s+do\\s+not)\\s+forget",
+  'from\\s+now\\s+on',
+  'standing\\s+rule',
+  'make\\s+(?:this|that|it)\\s+a\\s+rule',
+  '(?:keep|bear)\\s+(?:(?:this|that|it|these)\\s+)?in\\s+mind',
+  'keep\\s+(?:this|that|it|these)',
+  'keep\\s+(?:a\\s+)?(?:note|track)\\s+of',
+  'pin\\s+(?:this|that|it|these)',
+  'retain\\s+(?:this|that|it|these)',
+  '(?:use|call)\\s+(?:the\\s+)?retain(?:\\s+tool)?',
+  'note(?=\\s*:)',
+  'note\\s+to\\s+self',
+  'note\\s+(?:this|that|it|these|down)',
+  '(?:make|take|keep)\\s+a\\s+note',
+  '(?:write|jot)\\s+(?:(?:this|that|it|these)\\s+)?down',
+  '(?:save|add|store|put|record|log|keep)\\s+(?:(?:this|that|it|these)\\s+)?(?:facts?\\s+)?(?:to|in|into)\\s+(?:your\\s+|the\\s+)?memory',
+  '(?:save|store|record)\\s+(?:this|that|these)\\s+facts?',
+  'log\\s+(?:this|that|it)',
+  'remind\\s+me',
+  'next\\s+time',
+  'for\\s+(?:future|later)\\s+(?:sessions?|reference|runs?)',
+  '(?:that|this|it)\\s+replaces\\s+the\\s+(?:old|earlier|previous)\\s+(?:rule|one)',
+  'instead\\s+of\\s+the\\s+(?:old|earlier|previous)\\s+(?:rule|one)',
+  '(?:update|change|fix|correct)\\s+(?:the|that|this|my|your)\\s+(?:memory|note|fact|record|rule)',
+  'merke?\\s+dir',
+  "n['’]oublie\\s+pas",
+  'souviens[-\\s]toi',
+  'recuerda',
+  'no\\s+(?:lo\\s+|te\\s+)?olvides',
+  'ricorda(?:ti)?',
+  'non\\s+dimenticare',
+  'lembre(?:-se)?',
+].join('|')
+const WITHDRAWN = ['no\\s+wait', 'never\\s*mind', 'scratch\\s+that', 'forget\\s+(?:this|that|it|these|what\\s+i\\s+(?:just\\s+)?said)', 'ignore\\s+what\\s+i\\s+(?:just\\s+)?said'].join('|')
+const MEMORY_ASK_SCAN = new RegExp(`\\b(?:(?<deny>${NOT_AN_ASK})|(?<ask>${MEMORY_ASK_WORDS})|(?<withdraw>${WITHDRAWN}))\\b`, 'gi')
 
-export const MEMORY_ASK_REFUSAL = "Retain is refused: the operator's latest message does not ask to remember anything — a decision or an outcome belongs in the project's records; memory is written on \"remember …\", \"don't forget …\", \"note this down\", \"from now on …\" or \"pin this\""
+export function asksForMemory(text: string): boolean {
+  let asked = -1
+  let withdrawn = -1
+  for (const match of text.matchAll(MEMORY_ASK_SCAN)) {
+    if (match.groups?.ask !== undefined) asked = match.index
+    else if (match.groups?.withdraw !== undefined) withdrawn = match.index
+  }
+  return asked >= 0 && withdrawn < asked
+}
+
+const MEMORY_ASK_CLIP = 120
+function quotedAsk(text: string): string {
+  const line = text.replace(/\s+/g, ' ').trim()
+  return line.length > MEMORY_ASK_CLIP ? `${line.slice(0, MEMORY_ASK_CLIP - 1)}…` : line
+}
+
+const RETAIN_ROAD = 'say "remember: …" (or "note this down: …", "save to memory: …") for a memory.'
+const CORRECT_ROAD = 'say "remember: … instead of …" or correct it in /memory.'
+export const retainAskRefusal = (latest: string | undefined): string =>
+  latest === undefined
+    ? `Retain is refused: no typed message of yours precedes this call, so nothing asks to remember anything; ${RETAIN_ROAD}`
+    : `Retain is refused: your latest message — "${quotedAsk(latest)}" — does not ask to remember anything; ${RETAIN_ROAD}`
+const correctAskRefusalText = (latest: string | undefined): string =>
+  latest === undefined
+    ? `Correct is refused: no typed message of yours precedes this call, so nothing asks to change a memory; ${CORRECT_ROAD}`
+    : `Correct is refused: your latest message — "${quotedAsk(latest)}" — does not ask to change a memory; ${CORRECT_ROAD}`
 export const CREWMATE_RETAIN_REFUSAL = 'Retain is refused: a crewmate never writes memory — put the finding in your report; the lead decides what is remembered'
+export const CREWMATE_CORRECT_REFUSAL = 'Correct is refused: a crewmate never writes memory — put the finding in your report; the lead decides what is remembered'
 
 export function memoryAskRefusal(messages: readonly Message[], agentId?: string): string | null {
   if (agentId) return CREWMATE_RETAIN_REFUSAL
   const latest = latestPinIntent(messages)
-  return latest !== undefined && MEMORY_ASK.test(latest.text) ? null : MEMORY_ASK_REFUSAL
+  return latest !== undefined && asksForMemory(latest.text) ? null : retainAskRefusal(latest?.text)
+}
+
+export function correctAskRefusal(messages: readonly Message[], agentId?: string): string | null {
+  if (agentId) return CREWMATE_CORRECT_REFUSAL
+  const latest = latestPinIntent(messages)
+  return latest !== undefined && asksForMemory(latest.text) ? null : correctAskRefusalText(latest?.text)
 }
 
 const FILLER = /^(?:(?:ok(?:ay)?|also|and|so|oh|right|cool|yes|yeah|btw|well|then)[\s,.:!-]+)*/i

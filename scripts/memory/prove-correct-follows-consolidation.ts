@@ -45,7 +45,7 @@ const context = (): never => {
   return {
     options: { tools: [], commands: [], verbose: false, mcpClients: [], isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [] } },
     abortController: new AbortController(),
-    messages: [],
+    messages: [{ type: 'user', uuid: 'follow-ask', timestamp: '2026-10-19T09:00:00.000Z', message: { role: 'user', content: 'remember: the deploy moved to Thursday; drop the Wednesday note' } }],
     readFileState: new Map(),
     toolUseId: 'toolu_follow',
     getAppState: () => state,

@@ -65,7 +65,7 @@ export function correctionChange(
     return draft ? `unpinned and struck; seq ${seq}, "${words}", carries the truth` : `replaced by seq ${seq}, "${words}"; the old wording goes to history and the pin moves to seq ${seq}`
   }
   const next = said(input.content ?? '')
-  return draft ? `corrected to "${next}"; the draft is struck and the new wording takes its place, pinned` : `corrected to "${next}"; the old wording goes to history and the pin follows the new one`
+  return draft ? `corrected to "${next}"; the new wording takes the draft's place, pinned, with the old words kept as its history` : `corrected to "${next}"; the old wording goes to history and the pin follows the new one`
 }
 
 export function askedReplacements(items: readonly RetainItemInput[], dir: string): Array<{ index: number; change: RuleChange }> {
