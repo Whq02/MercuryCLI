@@ -12,7 +12,7 @@ step. Nothing publishes: the archive lands in release-out/ as the packager write
 
 options
   --target <t>             linux-x64 | linux-arm64 | macos-arm64 | macos-x64
-                           (the Windows targets build on a Windows machine: field/inbox packet)
+                           (the Windows targets build on a Windows machine)
   --root <tree>            the checkout to build (default: the tree this script sits in)
   --out <dir>              copy the archive there and refresh <dir>/SHA256SUMS.txt
   --logs <dir>             per-step logs (default: <root>/release-out/release-local-logs/<target>)
