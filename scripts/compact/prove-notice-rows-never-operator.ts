@@ -54,6 +54,29 @@ section('§2 the fold carries his words, never a notice, and the budget is his')
   check('no notice text rides the carry', texts.every(text => !text.includes('<task-notification>')), j(texts.map(t => t.slice(0, 40))))
 }
 
+section('§4 a carry written before the move is filtered on read: the first fold after the move re-admits his words only (the field row 2B-03)')
+{
+  const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+  const { OPERATOR_MESSAGES_ATTACHMENT_TYPE } = await import('../../src/services/compact/operatorMessages.ts')
+  const assistant = (text: string): AnyMsg => createAssistantMessage({ content: text }) as unknown as AnyMsg
+  const olderCarry = createAttachmentMessage({
+    type: OPERATOR_MESSAGES_ATTACHMENT_TYPE,
+    messages: [
+      { ordinal: 3, text: NOTICE.replace('a1b2c3', 'older-build-2') },
+      { ordinal: 2, text: `<system-reminder>\n${NOTICE.replace('a1b2c3', 'older-build-1')}\n</system-reminder>` },
+      { ordinal: 1, text: OPENING },
+    ],
+    omitted: 0,
+  } as never) as unknown as AnyMsg
+  const summary = createUserMessage({ content: 'the fold summary', isCompactSummary: true } as never) as unknown as AnyMsg
+  const history: AnyMsg[] = [summary, olderCarry, createUserMessage({ content: HIS }) as unknown as AnyMsg, assistant('ok')]
+  const selected = selectOperatorMessages(history, { tokenBudget: 20_000 })
+  const texts = selected?.messages.map(entry => entry.text) ?? []
+  check("the next fold's carry holds his opening words and his new words", texts.includes(OPENING) && texts.includes(HIS), j(texts.map(t => t.slice(0, 40))))
+  check('the two notices the older build carried are not re-admitted', texts.every(text => !text.includes('<task-notification>') && !text.includes('<system-reminder>')), j(texts.map(t => t.slice(0, 40))))
+  check('the ordinals keep their places: his new words are message 4, the notices are counted among the earlier folds and not carried', selected !== null && selected.messages.some(entry => entry.ordinal === 4 && entry.text === HIS) && selected.messages.length === 2 && selected.omitted === 2, j(selected))
+}
+
 section('§3 the run objective reads the same predicate: never a queued notice')
 {
   const observer = readFileSync(join(ROOT, 'src/services/run/runTurnObserver.ts'), 'utf8')

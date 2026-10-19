@@ -2,7 +2,7 @@ import { TERMINAL_OUTPUT_TAGS } from '../../constants/xml.js'
 import type { Message, UserMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { Attachment } from '../../utils/attachments/types.js'
-import { isOperatorTurn } from '../../utils/messages/operatorTurns.js'
+import { isCommandEcho, isOperatorTurn } from '../../utils/messages/operatorTurns.js'
 
 export const OPERATOR_MESSAGES_ATTACHMENT_TYPE = 'compact_operator_messages' as const
 
@@ -79,7 +79,9 @@ export function earlierOperatorEntries(messages: readonly Message[]): OperatorMe
     latest = message.attachment
   }
   if (latest === null) return []
-  return [...latest.messages].filter(entry => entry.truncated !== true).sort((a, b) => a.ordinal - b.ordinal)
+  return [...latest.messages]
+    .filter(entry => entry.truncated !== true && entry.text.trim() !== '' && !isCommandEcho(entry.text) && !isTerminalOutputText(entry.text))
+    .sort((a, b) => a.ordinal - b.ordinal)
 }
 
 export function collectOperatorTexts(messages: Message[], keptUuids?: ReadonlySet<string>): string[] {
