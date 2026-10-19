@@ -680,7 +680,7 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
 export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?: string } {
   switch (leg) {
     case 'openai-key':
-      return { stores: 'an OpenAI key. Anthropic usage-based billing signs in through the Console row instead' };
+      return { stores: 'an OpenAI key. Anthropic usage-based billing signs in through the Anthropic row, under Usage-based billing, instead' };
     case 'zai-general':
       return { stores: `a ${zaiPlanLabel('general')}` };
     case 'zai-coding':

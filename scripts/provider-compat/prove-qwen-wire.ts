@@ -117,7 +117,8 @@ try {
   const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
   const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
   const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
-  const { keyLaneListState, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
+  const { keyLaneListState, keyLanePins, keyLaneProviderRows, QWEN_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
+  const pickerWords = (): string[] => keyLaneProviderRows().filter(row => row.group === QWEN_MODEL_GROUP).map(row => row.descriptionForModel ?? '')
   const { readStoredQwenApiKey, readStoredQwenKeyBase } = await import('../../src/services/providers/providerSecrets.ts')
   const { liveModelsReference, knownModelsReference } = await import('../../src/services/resources/adapters/models.ts')
   const { loginFamilyRows, KEY_PAGES, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
@@ -292,10 +293,21 @@ try {
   const payg = await storeQwenApiKeyLogin(KEY_QWENCLOUD)
   check('a key QwenCloud pay-as-you-go accepts is stored as a QwenCloud key: the receipt names QwenCloud alone and the QwenCloud console', payg.ok && payg.stored && JSON.stringify(listReads) === '["singapore","beijing","hongkong","qwencloud"]' && payg.receipt.startsWith('QwenCloud API key stored (auth-scoped, mode 600) · bound to QwenCloud (pay-as-you-go) (127.0.0.1:') && payg.receipt.includes('Usage and balance are shown in the QwenCloud console (no endpoint states them to an API key).') && !payg.receipt.includes('Model Studio') && readStoredQwenKeyBase() === `${seam}/qwencloud`, payg.receipt)
   check('…and the account label and /usage name QwenCloud alone, the console page being qwencloud.com', resolveQwenAccount()?.label === 'QwenCloud API key (stored, auth-scoped)' && usageForProvider('qwen').credits?.reason === 'no balance endpoint answers an API key — qwencloud.com shows it' && (usageForProvider('qwen').absence ?? '').startsWith('QwenCloud and Model Studio document no usage, balance or quota endpoint an API key can read') && (usageForProvider('qwen').absence ?? '').includes('qwencloud.com shows the account') && (usageForProvider('qwen').absence ?? '').endsWith('The key is bound to QwenCloud (pay-as-you-go).'), `${resolveQwenAccount()?.label} · ${usageForProvider('qwen').credits?.reason} · ${usageForProvider('qwen').absence}`)
+  __resetQwenCatalogueForTest(); await refreshQwenCatalogue({ force: true })
+  const qcPicker = pickerWords()
+  check('…and the /model picker says its Qwen rows run on the QwenCloud text models, never Model Studio', qcPicker.length > 0 && qcPicker.every(words => words.includes('on the QwenCloud text models') && !words.includes('Model Studio')), qcPicker.join(' | '))
   forgetQwenBoundBases(); __resetQwenCatalogueForTest(); listReads.length = 0
   const msBound = await storeQwenApiKeyLogin(KEY_CN)
   check('a key a Model Studio region accepts is stored as a Model Studio key: the receipt, the account label and /usage name Model Studio alone', msBound.ok && msBound.receipt.startsWith('Model Studio API key stored (auth-scoped, mode 600) · bound to China (Beijing) (') && msBound.receipt.includes('Usage and balance are shown in the Model Studio console (no endpoint states them to an API key).') && !msBound.receipt.includes('QwenCloud') && resolveQwenAccount()?.label === 'Model Studio API key (stored, auth-scoped)' && usageForProvider('qwen').credits?.reason === 'no balance endpoint answers an API key — modelstudio.console.alibabacloud.com (Usage & Billing) shows it' && (usageForProvider('qwen').absence ?? '').endsWith('The key is bound to China (Beijing).'), `${msBound.receipt} · ${resolveQwenAccount()?.label} · ${usageForProvider('qwen').credits?.reason}`)
   check('a key no console accepts is refused in both consoles\' names, never Model Studio alone', !nowhere.ok && nowhere.receipt.startsWith('No QwenCloud or Model Studio endpoint accepted this key') && !nowhere.receipt.includes('Model Studio refused') && !nowhere.receipt.includes('no Model Studio region'), nowhere.receipt)
+  __resetQwenCatalogueForTest(); await refreshQwenCatalogue({ force: true })
+  const msPicker = pickerWords()
+  check('with a Model Studio key the /model picker says its Qwen rows run on the Model Studio text models, never QwenCloud', msPicker.length > 0 && msPicker.every(words => words.includes('on the Model Studio text models') && !words.includes('QwenCloud')), msPicker.join(' | '))
+  process.env.DASHSCOPE_API_KEY = 'proof-key-qwen-unbound-fixture-not-a-real-key'
+  __resetQwenCatalogueForTest(); await refreshQwenCatalogue({ force: true })
+  const unboundPicker = pickerWords()
+  check('with a key no endpoint accepted the /model picker names both consoles on every Qwen row', unboundPicker.length > 0 && unboundPicker.every(words => words.includes('on the QwenCloud or Model Studio text models')), unboundPicker.join(' | '))
+  delete process.env.DASHSCOPE_API_KEY
   process.env.DASHSCOPE_BASE_URL = `${seam}/coding-intl`
   listReads.length = 0
   const coding = await storeQwenApiKeyLogin(KEY_CODING)

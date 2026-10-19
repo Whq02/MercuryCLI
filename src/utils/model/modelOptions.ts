@@ -1018,10 +1018,12 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
   const qwenRows = keyLanePins('qwen')
   const qwenState = keyLaneListState('qwen')
   const qwenCredentialed = reads.qwenKeyPresent?.() ?? false
+  const { qwenBoundConsole, qwenConsoleWords } = require('../../services/providers/qwen/qwenAccounts.js') as typeof import('../../services/providers/qwen/qwenAccounts.js')
+  const qwenConsole = qwenConsoleWords(qwenBoundConsole())
   if (qwenCredentialed && qwenRows.length === 0 && qwenState.kind === 'live') {
-    out.push({ value: keyConnectValue('qwen'), label: 'Qwen — no models listed', group: QWEN_MODEL_GROUP, description: "the bound endpoint's live list serves no text model — /logins qwen checks the key", descriptionForModel: 'The bound QwenCloud or Model Studio endpoint returned an empty text model list; no Qwen model is selectable.' })
+    out.push({ value: keyConnectValue('qwen'), label: 'Qwen — no models listed', group: QWEN_MODEL_GROUP, description: "the bound endpoint's live list serves no text model — /logins qwen checks the key", descriptionForModel: `The bound ${qwenConsole} endpoint returned an empty text model list; no Qwen model is selectable.` })
   } else {
-    out.push(...keyLaneGroupRows({ group: QWEN_MODEL_GROUP, providerName: 'Qwen', connectValue: keyConnectValue('qwen'), connectHint: 'opens /logins qwen (a QwenCloud or Model Studio API key) — DASHSCOPE_API_KEY works too', keyPresent: qwenCredentialed, pins: qwenRows, listState: qwenState, engineWords: 'the Model Studio text models' }))
+    out.push(...keyLaneGroupRows({ group: QWEN_MODEL_GROUP, providerName: 'Qwen', connectValue: keyConnectValue('qwen'), connectHint: 'opens /logins qwen (a QwenCloud or Model Studio API key) — DASHSCOPE_API_KEY works too', keyPresent: qwenCredentialed, pins: qwenRows, listState: qwenState, engineWords: `the ${qwenConsole} text models` }))
   }
   const compat = reads.compat()
   const namedCompat = reads.namedCompat?.() ?? []
