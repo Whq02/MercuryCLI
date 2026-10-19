@@ -20,7 +20,7 @@ export interface MnemeObservation {
   history?: PendingHistory
 }
 
-export interface PendingHistory {
+interface PendingHistory {
   ts: string
   text: string
 }

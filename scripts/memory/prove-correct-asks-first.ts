@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/memoryPinIntent.ts src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeBuffer.ts src/tools/MemoryTools/prompt.ts docs/MNEME.md
+// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/memoryPinIntent.ts src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeBuffer.ts src/tools/MemoryTools/prompt.ts docs/MNEME.md docs/MEMORY-FINDINGS.md
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

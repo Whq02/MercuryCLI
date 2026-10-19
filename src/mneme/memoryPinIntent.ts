@@ -80,8 +80,8 @@ export function asksForMemory(text: string): boolean {
   return asked >= 0 && withdrawn < asked
 }
 
-export const MEMORY_ASK_CLIP = 120
-export function quotedAsk(text: string): string {
+const MEMORY_ASK_CLIP = 120
+function quotedAsk(text: string): string {
   const line = text.replace(/\s+/g, ' ').trim()
   return line.length > MEMORY_ASK_CLIP ? `${line.slice(0, MEMORY_ASK_CLIP - 1)}…` : line
 }
@@ -92,7 +92,7 @@ export const retainAskRefusal = (latest: string | undefined): string =>
   latest === undefined
     ? `Retain is refused: no typed message of yours precedes this call, so nothing asks to remember anything; ${RETAIN_ROAD}`
     : `Retain is refused: your latest message — "${quotedAsk(latest)}" — does not ask to remember anything; ${RETAIN_ROAD}`
-export const correctAskRefusalText = (latest: string | undefined): string =>
+const correctAskRefusalText = (latest: string | undefined): string =>
   latest === undefined
     ? `Correct is refused: no typed message of yours precedes this call, so nothing asks to change a memory; ${CORRECT_ROAD}`
     : `Correct is refused: your latest message — "${quotedAsk(latest)}" — does not ask to change a memory; ${CORRECT_ROAD}`
