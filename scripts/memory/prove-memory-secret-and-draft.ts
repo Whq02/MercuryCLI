@@ -69,11 +69,12 @@ const v1Id = v1[0]?.status === 'stored' ? v1[0].id : ''
 const fixed = correctMemory({ op: 'supersede', id: v1Id, content: 'the hunt API lives at https://api.hunt-verbs.example/v2', reason: 'the user said v1 was wrong', session: 'secret-draft' }, dir)
 check('supersede on the pending id lands with a new pending id', fixed.ok === true && (fixed as { newId?: string | null }).newId?.startsWith('pending:') === true, JSON.stringify(fixed))
 check('the old draft is gone, the new one carries the topic', !pendingRows(dir).some(r => r.text.includes('/v1')) && pendingRows(dir).some(r => r.text.includes('/v2') && r.topicHint === 'api'), JSON.stringify(pendingRows(dir)))
-check('nothing on disk says /v1 any more', !libraryBytes().includes('example/v1'))
+check('the old words stay on disk only as the new draft\'s history pointer', libraryBytes().includes('example/v1') && pendingRows(dir).find(r => r.text.includes('/v2'))?.history?.text.includes('example/v1') === true && pendingRows(dir).find(r => r.text.includes('/v2'))?.history?.ts === v1Id.slice('pending:'.length), JSON.stringify(pendingRows(dir)))
 maybeConsolidate({ force: true, dir })
 const apiDoc = listTopicDocs(dir).find(d => d.slug === 'api')
 const live = apiDoc ? apiDoc.sections.flatMap(s => s.entries) : []
 check('after consolidation the topic holds one current fact (v2) and no history', live.length === 1 && live[0]!.text.includes('/v2') && (apiDoc?.history.length ?? 0) === 0, JSON.stringify({ live: live.map(e => e.text), history: apiDoc?.history.length }))
+check('after consolidation nothing on disk says /v1 any more', !libraryBytes().includes('example/v1'))
 check('recall finds v2 and not v1', recallQuery('hunt API', { dir }).hits.some(h => h.preview.includes('/v2')) && !recallQuery('hunt API', { dir }).hits.some(h => h.preview.includes('/v1')))
 
 section('§4 amend on a draft keeps the evidence law: read the full row first')

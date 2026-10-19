@@ -17,6 +17,19 @@ export interface MnemeObservation {
   asked?: true
   applicability?: MemoryApplicability
   replaces?: number
+  history?: PendingHistory
+}
+
+export interface PendingHistory {
+  ts: string
+  text: string
+}
+
+function validatedHistory(input: unknown): PendingHistory | undefined {
+  if (typeof input !== 'object' || input === null) return undefined
+  const { ts, text } = input as Record<string, unknown>
+  if (typeof ts !== 'string' || typeof text !== 'string' || !ts.trim() || !text.trim()) return undefined
+  return { ts, text: clamp(text, OBSERVATION_TEXT_LIMIT) }
 }
 
 const OBSERVATION_TEXT_LIMIT = 2000
@@ -49,7 +62,7 @@ function observationStamp(): string {
 }
 
 export function appendObservation(
-  input: { text: string; source: string; topicHint?: string; pin?: boolean; asked?: boolean; replaces?: number; applicability?: MemoryApplicability },
+  input: { text: string; source: string; topicHint?: string; pin?: boolean; asked?: boolean; replaces?: number; applicability?: MemoryApplicability; history?: PendingHistory },
   dir: string = mnemeLibraryDir(),
 ): boolean {
   if (!mnemeEnabled()) return false
@@ -67,6 +80,7 @@ export function appendObservation(
       ...(input.pin === true && input.asked === true ? { asked: true as const } : {}),
       ...replaces,
       ...(input.pin && input.asked && validatedApplicability(input.applicability) ? { applicability: validatedApplicability(input.applicability) } : {}),
+      ...(validatedHistory(input.history) ? { history: validatedHistory(input.history) } : {}),
     }
     mkdirSync(dir, { recursive: true })
     appendFileSync(currentBufferPath(dir), JSON.stringify(row) + '\n', 'utf8')

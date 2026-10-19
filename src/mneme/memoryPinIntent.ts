@@ -87,16 +87,28 @@ export function quotedAsk(text: string): string {
 }
 
 const RETAIN_ROAD = 'say "remember: …" (or "note this down: …", "save to memory: …") for a memory.'
+const CORRECT_ROAD = 'say "remember: … instead of …" or correct it in /memory.'
 export const retainAskRefusal = (latest: string | undefined): string =>
   latest === undefined
     ? `Retain is refused: no typed message of yours precedes this call, so nothing asks to remember anything; ${RETAIN_ROAD}`
     : `Retain is refused: your latest message — "${quotedAsk(latest)}" — does not ask to remember anything; ${RETAIN_ROAD}`
+export const correctAskRefusalText = (latest: string | undefined): string =>
+  latest === undefined
+    ? `Correct is refused: no typed message of yours precedes this call, so nothing asks to change a memory; ${CORRECT_ROAD}`
+    : `Correct is refused: your latest message — "${quotedAsk(latest)}" — does not ask to change a memory; ${CORRECT_ROAD}`
 export const CREWMATE_RETAIN_REFUSAL = 'Retain is refused: a crewmate never writes memory — put the finding in your report; the lead decides what is remembered'
+export const CREWMATE_CORRECT_REFUSAL = 'Correct is refused: a crewmate never writes memory — put the finding in your report; the lead decides what is remembered'
 
 export function memoryAskRefusal(messages: readonly Message[], agentId?: string): string | null {
   if (agentId) return CREWMATE_RETAIN_REFUSAL
   const latest = latestPinIntent(messages)
   return latest !== undefined && asksForMemory(latest.text) ? null : retainAskRefusal(latest?.text)
+}
+
+export function correctAskRefusal(messages: readonly Message[], agentId?: string): string | null {
+  if (agentId) return CREWMATE_CORRECT_REFUSAL
+  const latest = latestPinIntent(messages)
+  return latest !== undefined && asksForMemory(latest.text) ? null : correctAskRefusalText(latest?.text)
 }
 
 const FILLER = /^(?:(?:ok(?:ay)?|also|and|so|oh|right|cool|yes|yeah|btw|well|then)[\s,.:!-]+)*/i
