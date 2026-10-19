@@ -109,7 +109,7 @@ try {
   check('memoryAskRefusal is the one judge: no window ⇒ refused, an asking window ⇒ allowed, a crewmate ⇒ refused', memoryAskRefusal([]) === MEMORY_ASK_REFUSAL && memoryAskRefusal([user('remember this')]) === null && memoryAskRefusal([user('remember this')], 'c') === CREWMATE_RETAIN_REFUSAL)
   check('the Retain prompt tells the model the tool refuses an unasked write', RETAIN_PROMPT.includes('The tool refuses a write when the user\'s latest message does not ask for something to be remembered'), RETAIN_PROMPT.split('\n').at(-1) ?? '')
   const mneme = readFileSync(join(REPO, 'docs', 'MNEME.md'), 'utf8')
-  check('docs/MNEME.md says the refusal is the tool\'s, not guidance', /Retain refuses a\s+write unless your latest message asks for something to be remembered/.test(mneme) && /refuses a crewmate's write always/.test(mneme), mneme.split('\n').find(l => l.includes('Retain refuses')) ?? '')
+  check('docs/MNEME.md says the refusal is the tool\'s, not guidance', /Retain refuses a write unless your\s+latest message asks for something to be remembered/.test(mneme) && /refuses a crewmate's write always/.test(mneme), mneme.split('\n').find(l => l.includes('Retain refuses')) ?? '')
 } finally {
   rmSync(home, { recursive: true, force: true })
 }
