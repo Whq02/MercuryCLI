@@ -26,7 +26,7 @@ setOriginalCwd(cwd)
 console.log('the command-privacy law: screen-seat commands never enter a model turn')
 const all = [...builtinCommands()]
 const byName = (name: string) => all.find(command => command.name === name)
-const privateNames = ['usage', 'config', 'localsetup', 'jev'] as const
+const privateNames = ['usage', 'config', 'localsetup', 'llmhost', 'jev'] as const
 for (const name of [...privateNames, 'crew']) {
   const command = byName(name)
   check(`/${name} is registered and SCREEN-seat`, command !== undefined && commandSeat(command) === 'screen')
@@ -48,7 +48,7 @@ const context = {
 }
 const dispatch = (input: string) => processUserInput({ input, mode: 'prompt', setToolJSX: () => {}, context: context as never, messages: [], querySource: 'sdk' })
 try {
-  for (const name of ['usage', 'config']) {
+  for (const name of ['usage', 'config', 'llmhost']) {
     const result = await dispatch(`/${name}`)
     check(`a stray /${name} creates zero conversation rows`, result.messages.length === 0, String(result.messages.length))
     check(`…and starts no query`, result.shouldQuery === false)

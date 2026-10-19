@@ -88,7 +88,8 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
     const detected: CompatDialect | undefined = typeof sglang?.model_path === 'string' && windowTokens(sglang.context_length) ? 'sglang'
       : record(llama?.default_generation_settings) ? 'llamacpp'
       : Array.isArray(ollama?.models) ? 'ollama'
-      : rows.some(row => record(row)?.owned_by === 'vllm') ? 'vllm' : undefined
+      : rows.some(row => record(row)?.owned_by === 'sglang') ? 'sglang'
+      : rows.some(row => record(row)?.owned_by === 'vllm' || windowTokens(record(row)?.max_model_len)) ? 'vllm' : undefined
     const dialect = endpoint.dialect ?? detected
     if (dialect === 'sglang') {
       const tokens = windowTokens(sglang?.context_length)
