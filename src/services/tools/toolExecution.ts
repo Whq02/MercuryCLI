@@ -4,7 +4,7 @@ import type {
   ToolResult,
   ToolUseContext,
 } from '../../Tool.js'
-import { closestToolByName, findToolByName, toolMatchesName } from '../../Tool.js'
+import { closestToolByName, findToolByName, offeredToolNamesClause, toolMatchesName } from '../../Tool.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { completionIdentity } from '../agentResults/summaryRoom.js'
@@ -368,7 +368,7 @@ export async function* runToolUse(
       withheldByRule !== null
         ? withheldByRule
         : closest === undefined
-          ? `No such tool available: ${requestedName}. It is not in this session's tool list — call one of the tools you were given (a ToolSearch query loads a deferred tool when one is offered).`
+          ? `No such tool available: ${requestedName}. It is not in this session's tool list — call one of the tools you were given${offeredToolNamesClause(toolUseContext.options.tools)} (a ToolSearch query loads a deferred tool when one is offered).`
           : loadRoad
             ? `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? It is a deferred tool this session has not loaded yet. ${loadRoadSentence(closest.name)}`
             : `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? Call it by that exact name.`

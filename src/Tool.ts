@@ -545,6 +545,16 @@ export function closestToolByName(tools: Tools, name: string): Tool | undefined 
   return closest
 }
 
+const OFFERED_TOOL_NAMES_SHOWN = 64
+
+export function offeredToolNamesClause(tools: ReadonlyArray<{ name: string }>): string {
+  const names = tools.map(tool => tool.name).filter(name => name !== '')
+  if (names.length === 0) return ''
+  const shown = names.slice(0, OFFERED_TOOL_NAMES_SHOWN)
+  const rest = names.length - shown.length
+  return `: ${shown.join(', ')}${rest > 0 ? ` and ${rest} more` : ''}`
+}
+
 export function safeUserFacingName(
   tool: { name: string; userFacingName?: (input?: any) => string },
   input: unknown,

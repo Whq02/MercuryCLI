@@ -114,7 +114,7 @@ const ROSTER = (): FakeTool[] => [
   makeTool('mcp__filesys__read_file', { isMcp: true }),
 ]
 
-const BARE_TAIL = "It is not in this session's tool list — call one of the tools you were given (a ToolSearch query loads a deferred tool when one is offered)."
+const BARE_TAIL = "It is not in this session's tool list — call one of the tools you were given: Read, Bash, Grep, Glob, Edit, ToolSearch, WebFetch, mcp__filesys__read_file (a ToolSearch query loads a deferred tool when one is offered)."
 
 console.log('============================================================')
 console.log(' Tool-name recovery — the fold, the suggestion, the bound')
@@ -173,6 +173,14 @@ section('§5 a miss beyond the bound keeps today\'s refusal wording, with no sug
   check('`Frobnicate` is refused with no suggestion', frob.isError && !/did you mean/i.test(frob.text) && frob.text.endsWith(BARE_TAIL), frob.text)
   const empty = await call(ROSTER(), '')
   check('an empty name is refused with no suggestion', empty.isError && !/did you mean/i.test(empty.text), empty.text)
+}
+
+section('§5b a retired spelling fails as an unknown input, and the refusal names the current tools so a resumed session recovers in one step (the field row 2B-05)')
+{
+  const retired = await call([...ROSTER(), makeTool('Crewmate')], 'Agent')
+  check('`Agent` is refused as unknown — no alias, no refusal line of its own', retired.isError && retired.text.startsWith('No such tool available: Agent.') && !/did you mean/i.test(retired.text), retired.text)
+  check('…and the refusal lists the tools this session was given, the current tool among them', /call one of the tools you were given: [^(]*\bCrewmate\b/.test(retired.text), retired.text)
+  check('…and nothing ran', retired.started.length === 0, j(retired.started))
 }
 
 section('§6 the exact road is untouched')

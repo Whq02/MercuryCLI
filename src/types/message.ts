@@ -44,6 +44,7 @@ export type RefusedToolCall = {
   argumentsLength?: number
   code: 'unknown-tool' | 'missing-id' | 'invalid-json' | 'not-an-object' | 'schema' | 'duplicate-id'
   reason: string
+  offered?: string[]
 }
 
 export type PartialCompactDirection = 'from' | 'up_to'
