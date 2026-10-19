@@ -63,17 +63,27 @@ section('§2 a seat that becomes eligible: the clock engages at a cold boundary,
   check('once engaged, a later eligibility move never un-engages the clock (the latch holds)', next === '1h' && snapshot().engaged === true, j({ next, snap: snapshot() }))
 }
 
-section('§3 the reading when no request has gone out, and the health probe words')
+section('§3 the reading when no request has gone out: the gate of this home is readable in any process (the field rows 2B-06, 2B-07)')
 {
   clock.resetCacheClockForTesting()
   const fresh = snapshot()
-  check('before any Anthropic request the reading says so, not "not eligible"', fresh.engaged === false && fresh.reason === 'no Anthropic request has gone out in this process', j(fresh))
+  check('before any Anthropic request the snapshot says so, not "not eligible"', fresh.engaged === false && fresh.reason === 'no Anthropic request has gone out in this process', j(fresh))
+  const gateWords = (clock as { cacheClockGateWords?: (gate: { eligible: boolean; reason: string | null }) => string }).cacheClockGateWords
+  const reading = (params as { promptCache1hEligibility?: () => { eligible: boolean; reason: string | null } }).promptCache1hEligibility?.()
+  const shut = gateWords === undefined || reading === undefined ? '' : gateWords(reading)
+  check('the words name the process state and the gate that holds the 1h tier shut for this home (the console key, no claude.ai sign-in)', shut.includes('no Anthropic request has gone out in this process') && shut.includes('the 1h gate for this home is shut: no claude.ai sign-in is stored for this home') && shut.includes('MERCURY_CACHE_TTL=1h pins it as billing consent'), shut)
+  const open = gateWords === undefined ? '' : gateWords({ eligible: true, reason: null })
+  check('an eligible home reads open, with the moment the clock engages', open.includes('the 1h gate for this home is open') && open.includes('engages at the first request'), open)
+  process.env.MERCURY_CACHE_TTL = '1h'
+  const pinned = gateWords === undefined ? '' : gateWords({ eligible: false, reason: 'the console key (fixture)' })
+  check('a 1h pin outranks the gate and the words say it is the billing consent', pinned.includes('MERCURY_CACHE_TTL=1h pins the 1h tier') && pinned.includes('billing consent') && !pinned.includes('is shut'), pinned)
+  delete process.env.MERCURY_CACHE_TTL
   process.env.MERCURY_CACHE_CLOCK = '0'
   const off = snapshot()
   check('with the clock off the reading names the flag', off.engaged === false && off.reason === 'the clock is off (MERCURY_CACHE_CLOCK=0)', j(off))
   delete process.env.MERCURY_CACHE_CLOCK
   const health = readFileSync(join(repoRoot, 'src/utils/healthReport.ts'), 'utf8')
-  check("the health probe's off row carries the reason", health.includes('clock not engaged this session: ${snap.reason'), '')
+  check("the health probe's row reads the gate through promptCache1hEligibility when no request has gone out, and the session's reason otherwise", health.includes('cacheClockGateWords(promptCache1hEligibility())') && health.includes('clock not engaged this session: ${snap.reason'), '')
 }
 
 console.log(`\n${count} checks, ${failures} failures`)

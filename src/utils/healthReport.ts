@@ -2000,10 +2000,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'cache-clock',
           label: 'Usage metering',
           run: async () => {
-            const { cacheClockSnapshot, getCacheClockFlushHealth } = await import(
+            const { cacheClockGateWords, cacheClockSnapshot, getCacheClockFlushHealth, NO_REQUEST_YET } = await import(
               './cache/cacheClock.js'
             )
             const snap = cacheClockSnapshot()
+            if (!snap.engaged && snap.reason === NO_REQUEST_YET) {
+              const { promptCache1hEligibility } = await import('../services/providers/anthropic/requestParams.js')
+              return { status: 'off', evidence: `clock not engaged in this process: ${cacheClockGateWords(promptCache1hEligibility())}` }
+            }
             if (!snap.engaged) {
               return { status: 'off', evidence: `clock not engaged this session: ${snap.reason ?? 'the session is not eligible for the 1h tier'}` }
             }

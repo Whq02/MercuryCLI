@@ -350,7 +350,7 @@ export function cacheClockSnapshot(): {
 } {
   if (!clockEnabled()) return { engaged: false, ttl: null, cls: null, escalated: false, reason: 'the clock is off (MERCURY_CACHE_CLOCK=0)' }
   if (clock === null || !clock.initialized) {
-    return { engaged: false, ttl: null, cls: null, escalated: false, reason: 'no Anthropic request has gone out in this process' }
+    return { engaged: false, ttl: null, cls: null, escalated: false, reason: NO_REQUEST_YET }
   }
   return {
     engaged: clock.decision !== null,
@@ -359,6 +359,17 @@ export function cacheClockSnapshot(): {
     escalated: clock.escalatedAtIso !== null,
     reason: clock.decision !== null ? null : (clock.ineligible ?? 'the session is not eligible for the 1h tier'),
   }
+}
+
+export const NO_REQUEST_YET = 'no Anthropic request has gone out in this process'
+
+export function cacheClockGateWords(gate: { eligible: boolean; reason: string | null }): string {
+  const where = `${NO_REQUEST_YET} (a daemon-hosted session sends its requests from its worker)`
+  const pin = resolvePin()
+  if (pin === '1h') return `${where}; MERCURY_CACHE_TTL=1h pins the 1h tier for every request of this home, the operator's billing consent`
+  if (pin === '5m') return `${where}; MERCURY_CACHE_TTL=5m pins the 5m tier for every request of this home`
+  if (gate.eligible) return `${where}; the 1h gate for this home is open (a claude.ai subscription, not on extra usage): the clock engages at the first request and moves to the 1h tier after a gap past the 5m tier`
+  return `${where}; the 1h gate for this home is shut: ${gate.reason ?? 'the session is not eligible for the 1h tier'}`
 }
 
 export function resetCacheClockForTesting(): void {
