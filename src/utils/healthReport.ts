@@ -106,7 +106,6 @@ import { getMacOsKeychainStorageServiceName } from './secureStorage/macOsKeychai
 import { gitSnapshot } from './cockpit/gitSnapshot.js'
 import { mcpGauge } from './cockpit/mcpGauge.js'
 import { substrateSnapshot } from './cockpit/substrateSnapshot.js'
-import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { describeUntrustedMcpHardening, getMcpPolicyRejects } from '../services/mcp/toolPolicy.js'
 import { getEnabledSettingSources } from './settings/constants.js'
 import { getSettingsForSource } from './settings/settings.js'
@@ -2405,8 +2404,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'managed-policy',
           label: 'Managed policy',
           run: async () => {
-            const { detectLinuxGlobPatternWarnings, detectManagedSettingsWarnings, managedPolicyPath, managedPolicyPresent } = await import('./healthDiagnostic.js')
-            const warnings = [...detectManagedSettingsWarnings(), ...detectLinuxGlobPatternWarnings()]
+            const { detectManagedSettingsWarnings, managedPolicyPath, managedPolicyPresent } = await import('./healthDiagnostic.js')
+            const warnings = detectManagedSettingsWarnings()
             if (warnings.length > 0) {
               return { status: 'warn', evidence: warnings.map(w => w.issue).join(' · '), fix: warnings.map(w => w.fix).join('\n') }
             }
@@ -3156,45 +3155,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return { status: 'info', evidence }
             }
             return { status: 'ok', evidence }
-          },
-        },
-        {
-          id: 'sandbox',
-          label: 'OS Bash sandbox',
-          run: () => {
-            let enabled = false
-            try {
-              enabled = SandboxManager.isSandboxingEnabled()
-            } catch {
-              return { status: 'unknown', evidence: 'sandbox state unreadable' }
-            }
-            if (enabled) {
-              const filter = SandboxManager.getUnixSocketFilter()
-              const boundary = filter === null
-                ? 'seatbelt/bubblewrap'
-                : {
-                    blocked: 'bubblewrap; unix sockets blocked',
-                    'open-no-helper': 'bubblewrap; unix sockets open — no seccomp helper',
-                    'open-by-setting': 'bubblewrap; unix sockets open — guardrails.sandbox.network.allowAllUnixSockets',
-                  }[filter]
-              return {
-                status: 'ok',
-                evidence: `ON — Bash filesystem + network confined (${boundary})`,
-              }
-            }
-            const reason = SandboxManager.getSandboxUnavailableReason()
-            if (reason) {
-              return {
-                status: 'warn',
-                evidence: reason,
-                fix: 'Run /sandbox for details, or unset guardrails.sandbox.enabled if intentional.',
-              }
-            }
-            return {
-              status: 'info',
-              evidence: 'off — Bash runs unconfined (no OS filesystem/network boundary)',
-              fix: 'Set guardrails.sandbox.enabled: true in settings.json to confine Bash (macOS seatbelt / Linux bubblewrap).',
-            }
           },
         },
         {

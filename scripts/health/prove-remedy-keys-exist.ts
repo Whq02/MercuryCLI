@@ -57,14 +57,26 @@ function healthJson(): { sections?: Array<{ checks?: Array<{ id: string; fix?: s
   }
 }
 
-section('§1 the sandbox row names a key the settings schema declares')
+function keysNamedBy(text: string): string[] {
+  if (!/settings\.json/.test(text)) return []
+  const keys: string[] = []
+  for (const m of text.matchAll(/\b([a-z][A-Za-z0-9]*(?:\.[a-z][A-Za-z0-9]*)+)\b/g)) {
+    const key = m[1]!
+    if (key.endsWith('.json') || key.endsWith('.md') || key.endsWith('.ts') || key.startsWith('settings.')) continue
+    keys.push(key)
+  }
+  return keys
+}
+
+section('§1 the remedy reader finds the keys a remedy names, and the report source names no retired key')
 {
   const source = readFileSync(join(REPO, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check('the schema declares guardrails.sandbox.enabled', keyExists('guardrails.sandbox.enabled'))
-  check('…and declares no top-level sandbox key (the old remedy named one the validator rejects)', !keyExists('sandbox.enabled'))
-  check('the off-row remedy names guardrails.sandbox.enabled', source.includes("Set guardrails.sandbox.enabled: true in settings.json"), source.split('\n').filter(l => l.includes('sandbox.enabled')).join(' | '))
-  check('the unavailable-row remedy names guardrails.sandbox.enabled', source.includes('unset guardrails.sandbox.enabled if intentional'), source.split('\n').filter(l => l.includes('sandbox.enabled')).join(' | '))
-  check('no remedy in the report source names a bare sandbox.enabled', !/[^.]sandbox\.enabled/.test(source.replace(/guardrails\.sandbox\.enabled/g, '')), source.split('\n').filter(l => /[^.]sandbox\.enabled/.test(l)).join(' | '))
+  check('a remedy that names a dotted key under settings.json yields that key', keysNamedBy('Set guardrails.allow in settings.json to permit it.').join(',') === 'guardrails.allow')
+  check('a remedy that names no settings.json yields nothing', keysNamedBy('Set guardrails.allow to permit it.').length === 0)
+  check('file names and the settings.* prefix are not keys', keysNamedBy('Edit settings.json (settings.local.json, docs/SETTINGS.md).').length === 0)
+  check('the schema declares guardrails.allow', keyExists('guardrails.allow'))
+  check('the schema declares no top-level sandbox key', !keyExists('sandbox.enabled'))
+  check('no remedy in the report source names a sandbox key', !/sandbox\.enabled|guardrails\.sandbox/.test(source), source.split('\n').filter(l => /sandbox\.enabled|guardrails\.sandbox/.test(l)).join(' | '))
 }
 
 section('§2 every settings key a live certificate\'s remedies name exists in the schema')
@@ -73,16 +85,8 @@ section('§2 every settings key a live certificate\'s remedies name exists in th
   check('health --json answered a certificate', cert !== null)
   const checks = (cert?.sections ?? []).flatMap(s => s.checks ?? [])
   const named: Array<{ id: string; key: string }> = []
-  for (const row of checks) {
-    const text = `${row.fix ?? ''}`
-    if (!/settings\.json/.test(text)) continue
-    for (const m of text.matchAll(/\b([a-z][A-Za-z0-9]*(?:\.[a-z][A-Za-z0-9]*)+)\b/g)) {
-      const key = m[1]!
-      if (key.endsWith('.json') || key.endsWith('.md') || key.endsWith('.ts') || key.startsWith('settings.')) continue
-      named.push({ id: row.id, key })
-    }
-  }
-  check('at least one remedy names a settings key (the sandbox row on a bare home)', named.some(n => n.id === 'sandbox'), JSON.stringify(named))
+  for (const row of checks) for (const key of keysNamedBy(`${row.fix ?? ''}`)) named.push({ id: row.id, key })
+  console.log(`  remedies naming a settings key on a bare home: ${named.length === 0 ? 'none' : JSON.stringify(named)}`)
   const missing = named.filter(n => !keyExists(n.key))
   check('every key a remedy tells the user to set exists in the schema', missing.length === 0, JSON.stringify(missing))
 }

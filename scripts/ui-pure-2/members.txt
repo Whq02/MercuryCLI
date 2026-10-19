@@ -47,7 +47,6 @@ prove-recess-law.ts
 prove-row-fills-its-pane.ts
 prove-s24-acceptance.ts
 prove-s31-acceptance.ts
-prove-sandbox-dependency-paths.ts
 prove-saturn-screen.ts
 prove-select-mouse.ts
 prove-select-commit.ts

@@ -33,7 +33,6 @@ section('§1 source — the notice leaves the column for the hint row')
   const column = readFileSync('src/components/PromptInput/Notifications.tsx', 'utf8')
   const footer = readFileSync('src/components/PromptInput/PromptInputFooterLeftSide.tsx', 'utf8')
   const summary = readFileSync('src/components/tasks/CompactWorkSummary.tsx', 'utf8')
-  const sandbox = readFileSync('src/components/PromptInput/SandboxPromptFooterHint.tsx', 'utf8')
   const handler = readFileSync('src/components/ScrollKeybindingHandler.tsx', 'utf8')
   check(
     'the notifications column paints no transient row',
@@ -77,10 +76,6 @@ section('§1 source — the notice leaves the column for the hint row')
   check(
     "the copy receipt is raised from the clipboard service's own words for the predicted road, and the unsettled correction from the same owner",
     handler.includes('...copyReceipt(path),') && handler.includes("...copyReceipt('unsettled'),") && !handler.includes('${where}'),
-  )
-  check(
-    'the sandbox notice rides the notification queue instead of a row of its own',
-    sandbox.includes("key: 'sandbox-blocked'") && !sandbox.includes('recentCount') && sandbox.includes('return null'),
   )
 }
 

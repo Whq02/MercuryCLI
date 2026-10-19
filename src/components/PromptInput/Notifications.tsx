@@ -36,7 +36,6 @@ import { RowErrorBoundary } from '../RowErrorBoundary.js'
 import { TokenWarning } from '../TokenWarning.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { SandboxPromptFooterHint } from './SandboxPromptFooterHint.js'
 
 export const FOOTER_TEMPORARY_STATUS_TIMEOUT = 5000
 
@@ -230,7 +229,6 @@ function NotificationsColumn({
         </Text>
       ) : null}
       <TokenWarning tokenUsage={tokenUsage} model={engineModel ?? ''} />
-      <SandboxPromptFooterHint />
     </Box>
   )
 }

@@ -35,7 +35,6 @@ import { CardQueuedWords } from '../components/permissions/CardQueuedWords.js';
 import { PermissionRequest, type ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
 import { isVimModeEnabled } from '../components/PromptInput/utils.js';
-import { SandboxViolationExpandedView } from '../components/SandboxViolationExpandedView.js';
 import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
 import { MessageActionsBar } from '../components/messageActions.js';
 import { setMessageCursor, useMessageCursorActive } from '../components/messageCursorStore.js';
@@ -2439,7 +2438,6 @@ export function Chat({
     <Box flexDirection="column">
       {messagesList}
       {inlineToolJsx}
-      <SandboxViolationExpandedView />
     </Box>
   ) : (
     <Box flexDirection="column">
@@ -2480,7 +2478,6 @@ export function Chat({
         <Box flexDirection="column">
           {messagesList}
           {toolJSX?.jsx ?? null}
-          <SandboxViolationExpandedView />
           <TranscriptFooter
             toggleChord={getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o')}
             expandChord={getShortcutDisplay('transcript:toggleShowAll', 'Transcript', 'ctrl+e')}

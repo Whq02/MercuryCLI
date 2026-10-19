@@ -55,7 +55,6 @@ import vim from './commands/vim/index.js'
 import permissions from './commands/permissions/index.js'
 import hooks from './commands/hooks/index.js'
 import exportCommand from './commands/export/index.js'
-import sandboxToggle from './commands/sandbox-toggle/index.js'
 import logout from './commands/logout/index.js'
 import loginFactory from './commands/login/index.js'
 import tasks from './commands/tasks/index.js'
@@ -184,7 +183,6 @@ const COMMANDS = memoize((): Command[] => [
   permissions,
   hooks,
   exportCommand,
-  sandboxToggle,
   logout,
   loginFactory(),
   tasks,
