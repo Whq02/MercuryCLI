@@ -22,7 +22,7 @@ const section = (title: string): void => console.log(`\n${title}`)
 const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
 const { RETAIN_PROMPT } = await import('../../src/tools/MemoryTools/prompt.ts')
 const pinIntentModule = await import('../../src/mneme/memoryPinIntent.ts') as Record<string, unknown>
-const MEMORY_ASK_REFUSAL = (pinIntentModule.MEMORY_ASK_REFUSAL ?? 'absent on this base') as string
+const retainAskRefusal = (pinIntentModule.retainAskRefusal ?? (() => 'absent on this base')) as (latest: string | undefined) => string
 const CREWMATE_RETAIN_REFUSAL = (pinIntentModule.CREWMATE_RETAIN_REFUSAL ?? 'absent on this base') as string
 const memoryAskRefusal = (pinIntentModule.memoryAskRefusal ?? (() => 'absent on this base')) as (messages: unknown[], agentId?: string) => string | null
 const { _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
@@ -66,11 +66,11 @@ try {
   section('§1 the field case: a fact mentioned in passing, no ask — refused whole, nothing stored, the refusal says why')
   const byTheWay = await retain([user('By the way, the staging database is called heron. What files are in this folder?')], [{ content: 'The staging database is called heron.', topic: 'project' }])
   check('the one item is refused and nothing is stored', byTheWay.data.stored === 0 && byTheWay.data.refused === 1 && byTheWay.data.outcomes[0]?.status === 'refused', JSON.stringify(byTheWay.data))
-  check("the refusal says the operator's latest message does not ask to remember anything, and where a decision or an outcome belongs", byTheWay.data.outcomes[0]?.reason === MEMORY_ASK_REFUSAL && byTheWay.text.includes("does not ask to remember anything") && byTheWay.text.includes("belongs in the project's records"), byTheWay.text)
+  check("the refusal quotes the operator's latest message, says it does not ask to remember anything, and names the words that do", byTheWay.data.outcomes[0]?.reason === retainAskRefusal('By the way, the staging database is called heron. What files are in this folder?') && byTheWay.text.includes('your latest message — "By the way, the staging database is called heron. What files are in this folder?" — does not ask to remember anything; say "remember: …"'), byTheWay.text)
   check('the tool result is an error result (0 stored · 1 refused)', byTheWay.isError && byTheWay.text.startsWith('0 stored · 1 refused'), byTheWay.text)
   check('the library holds no pending row', stored().length === 0, stored().join(' | '))
   const later = await retain([user('remember the bridge is closed on Sundays'), assistantSaid('Noted.'), user('what files are in this folder?')], [{ content: 'The bridge is closed on Sundays.' }])
-  check('the LATEST operator message is the one read: an earlier ask does not carry a later turn', later.data.stored === 0 && later.data.refused === 1 && later.data.outcomes[0]?.reason === MEMORY_ASK_REFUSAL, JSON.stringify(later.data))
+  check('the LATEST operator message is the one read: an earlier ask does not carry a later turn', later.data.stored === 0 && later.data.refused === 1 && later.data.outcomes[0]?.reason === retainAskRefusal('what files are in this folder?'), JSON.stringify(later.data))
 
   section('§2 the asking words: a plain "remember:" is a fact, stored without pin; the generous forms pass')
   const plain = await retain([user('remember: the deploy box is the mini')], [{ content: 'The deploy box is the mini.', topic: 'project' }])
@@ -106,7 +106,7 @@ try {
   check('nothing of the crewmate\'s landed', !stored().includes('The crewmate found the cache dir.'))
 
   section('§5 the words: the gate is stated once, where the model reads it')
-  check('memoryAskRefusal is the one judge: no window ⇒ refused, an asking window ⇒ allowed, a crewmate ⇒ refused', memoryAskRefusal([]) === MEMORY_ASK_REFUSAL && memoryAskRefusal([user('remember this')]) === null && memoryAskRefusal([user('remember this')], 'c') === CREWMATE_RETAIN_REFUSAL)
+  check('memoryAskRefusal is the one judge: no window ⇒ refused, an asking window ⇒ allowed, a crewmate ⇒ refused', memoryAskRefusal([]) === retainAskRefusal(undefined) && memoryAskRefusal([user('remember this')]) === null && memoryAskRefusal([user('remember this')], 'c') === CREWMATE_RETAIN_REFUSAL)
   check('the Retain prompt tells the model the tool refuses an unasked write', RETAIN_PROMPT.includes('The tool refuses a write when the user\'s latest message does not ask for something to be remembered'), RETAIN_PROMPT.split('\n').at(-1) ?? '')
   const mneme = readFileSync(join(REPO, 'docs', 'MNEME.md'), 'utf8')
   check('docs/MNEME.md says the refusal is the tool\'s, not guidance', /Retain refuses a write unless your\s+latest message asks for something to be remembered/.test(mneme) && /refuses a crewmate's write always/.test(mneme), mneme.split('\n').find(l => l.includes('Retain refuses')) ?? '')
