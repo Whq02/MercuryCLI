@@ -4,6 +4,7 @@ import {
   resolveCompatSlotConfig,
 } from './compatAccounts.js'
 import { stripCompatModelPrefix } from '../routeLaw.js'
+import { compatContextWindowFor } from './compatCatalogue.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
@@ -22,6 +23,7 @@ function compatSlotCatalogue(): readonly ProviderCatalogueEntry[] {
   return compatSlotModelIds().map(id => ({
     id,
     displayLabel: stripCompatModelPrefix(id),
+    contextWindow: compatContextWindowFor(id),
     modelClass: 'compat' as const,
     efforts: [],
     roles: ALL_ROLES,

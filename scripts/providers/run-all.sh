@@ -57,4 +57,7 @@ for proof in "$here"/prove-*.ts; do
   echo "── $(basename "$proof") ──"
   __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
 done
+for mode in reasoning sglang; do
+  __t=$SECONDS; __rc=0; "$bun" run "$here/prove-llmhost-wire.ts" "$mode" || { __rc=$?; fail=1; }; prover_mark "$here/prove-llmhost-wire.ts ($mode)" "$__t" "$__rc"
+done
 exit "$fail"

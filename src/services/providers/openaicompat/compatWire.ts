@@ -146,32 +146,34 @@ export function buildHuggingfaceExtras(args: LaneExtrasArgs): Record<string, unk
 
 export type LocalServerKind = 'ollama' | 'lmstudio' | 'vllm' | 'llamacpp' | 'openai-compatible'
 
-export const LOCAL_SERVER_EFFORTS: Readonly<Record<LocalServerKind, readonly string[]>> = {
+export const LOCAL_SERVER_EFFORTS: Readonly<Record<LocalServerKind | 'sglang', readonly string[]>> = {
   ollama: ['none', 'low', 'medium', 'high', 'max'],
   vllm: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+  sglang: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
   llamacpp: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
   lmstudio: [],
   'openai-compatible': [],
 }
 
-export const LOCAL_SERVER_STATES_THINKING: Readonly<Record<LocalServerKind, boolean>> = {
+export const LOCAL_SERVER_STATES_THINKING: Readonly<Record<LocalServerKind | 'sglang', boolean>> = {
   ollama: true,
   lmstudio: true,
   vllm: false,
+  sglang: false,
   llamacpp: false,
   'openai-compatible': false,
 }
 
-export function localThinkingOff(args: { server: LocalServerKind; acceptsEffort: boolean; thinkingEnabled: boolean }): boolean {
+export function localThinkingOff(args: { server: LocalServerKind | 'sglang'; acceptsEffort: boolean; thinkingEnabled: boolean }): boolean {
   return !args.thinkingEnabled && args.acceptsEffort && LOCAL_SERVER_STATES_THINKING[args.server]
 }
 
-export function localThinkingOffWireEffort(server: LocalServerKind): string | undefined {
+export function localThinkingOffWireEffort(server: LocalServerKind | 'sglang'): string | undefined {
   return LOCAL_SERVER_STATES_THINKING[server] ? thinkingOffWireEffort(LOCAL_SERVER_EFFORTS[server]) : undefined
 }
 
 export function buildLocalExtras(
-  args: LaneExtrasArgs & { server: LocalServerKind; acceptsEffort: boolean },
+  args: LaneExtrasArgs & { server: LocalServerKind | 'sglang'; acceptsEffort: boolean },
 ): Record<string, unknown> {
   const vocabulary = LOCAL_SERVER_EFFORTS[args.server]
   const wireEffort =
@@ -187,6 +189,7 @@ export function buildLocalExtras(
   return {
     stream_options: { include_usage: true },
     ...(wireEffort !== undefined ? { reasoning_effort: wireEffort } : {}),
+    ...(args.server === 'sglang' ? { chat_template_kwargs: { clear_thinking: false } } : {}),
     ...(args.maxOutputTokensOverride !== undefined ? { max_tokens: args.maxOutputTokensOverride } : {}),
   }
 }

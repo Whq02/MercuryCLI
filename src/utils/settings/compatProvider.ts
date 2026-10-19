@@ -21,7 +21,7 @@ const endpointShape = () => ({
   models: z.array(z.string().trim().min(1)).optional(),
   headers: z.record(headerName(), z.string().refine(value => !/[\r\n\0]/.test(value), 'header values cannot contain line breaks')).optional(),
   sessionAffinityHeader: headerName().optional(),
-  dialect: z.enum(['chat-completions', 'responses', 'ollama', 'lmstudio', 'vllm', 'llamacpp']).optional(),
+  dialect: z.enum(['chat-completions', 'responses', 'ollama', 'lmstudio', 'vllm', 'sglang', 'llamacpp']).optional(),
 })
 
 export const CompatEndpointSchema = lazySchema(() => z.object(endpointShape()).strict())
@@ -38,7 +38,7 @@ export interface CompatEndpointSettings {
   models?: string[]
   headers?: Record<string, string>
   sessionAffinityHeader?: string
-  dialect?: 'chat-completions' | 'responses' | 'ollama' | 'lmstudio' | 'vllm' | 'llamacpp'
+  dialect?: 'chat-completions' | 'responses' | 'ollama' | 'lmstudio' | 'vllm' | 'sglang' | 'llamacpp'
 }
 
 export function duplicateCompatEndpointNames(raw: string): string[] {

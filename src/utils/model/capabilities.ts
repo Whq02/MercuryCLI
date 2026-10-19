@@ -787,6 +787,11 @@ function baseResolveContextWindow(
       return finish({ effectiveWindow: is1mContextDisabled() ? Math.min(window, MODEL_CONTEXT_WINDOW_DEFAULT) : window, source: 'live-current', catalogueCurrent: window })
     }
   }
+  if (carrierRoute === 'openai-compat') {
+    const { compatContextWindowFor } = require('../../services/providers/openaicompat/compatCatalogue.js') as typeof import('../../services/providers/openaicompat/compatCatalogue.js')
+    const window = compatContextWindowFor(model)
+    if (window !== undefined) return finish({ effectiveWindow: window, source: 'live-current', catalogueCurrent: window })
+  }
   const enginePinnedWindow = (() => {
     const id = normalizeForEnginePins(model)
     if (isGlmModelId(id)) return glmDisplayPin(id)?.contextWindow
@@ -1288,7 +1293,7 @@ export function resolveContextWindow(model: string, betas?: string[], requestedM
   const base = baseResolveContextWindow(model, betas, requestedMode)
   const stated = operatorModelFacts(model, base.source === 'live-current' ? { contextWindow: base.effectiveWindow } : {})?.contextWindow
   if (stated === undefined) return base
-  const floor = modelHasRecordedFacts(model) || base.source === 'live-current' ? base.effectiveWindow : 0
+  const floor = declaredRouteOf(model) !== 'openai-compat' && (modelHasRecordedFacts(model) || base.source === 'live-current') ? base.effectiveWindow : 0
   return { ...base, effectiveWindow: Math.max(stated, floor), source: 'operator', pinAwaitingLive: false, fallbackReason: undefined }
 }
 

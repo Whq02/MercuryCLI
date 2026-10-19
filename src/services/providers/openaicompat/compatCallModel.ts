@@ -74,6 +74,8 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
   const profile: CompatLaneProfile = {
     ...compatSlotLaneProfile,
     providerLabel: endpoint.label,
+    keepsReasoningHistory: () => dialect === 'vllm' || dialect === 'sglang',
+    keepsReasoningOnContinuations: () => dialect === 'vllm' || dialect === 'sglang',
     ...(endpoint.named ? { authRemedy: `/logins compat/${endpoint.name} replaces this endpoint's key; ${compatKeyEnvName(endpoint.name)} takes precedence when set.` } : {}),
     resolveCredential: () => {
       const key = resolveCompatApiKey(process.env, endpoint.name)
