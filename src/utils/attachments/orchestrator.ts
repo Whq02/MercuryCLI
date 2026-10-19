@@ -42,7 +42,6 @@ import {
   getMaxBudgetUsdAttachment,
   getUsageLimitNoticeAttachment,
 } from './sessionContext.js'
-import { getRelevantMemoryAttachments } from './memorySurfacing.js'
 import {
   getDynamicSkillAttachments,
   getSkillListingAttachments,
@@ -100,14 +99,6 @@ export async function getAttachments(
                 input,
                 toolUseContext.options.agentDefinitions.activeAgents,
               ),
-            ),
-          { inputScoped: true },
-        ),
-        maybe(
-          'relevant_memories',
-          () =>
-            Promise.resolve(
-              options?.localSubmission ? [] : getRelevantMemoryAttachments(input, messages, toolUseContext),
             ),
           { inputScoped: true },
         ),
@@ -175,7 +166,6 @@ export async function getAttachments(
         })(),
       ),
     ),
-    ...(!input ? [maybe('relevant_memories', () => Promise.resolve(options?.localSubmission ? [] : getRelevantMemoryAttachments(null, messages, toolUseContext)))] : []),
     maybe('changed_files', () => getChangedFiles(context)),
     maybe('nested_memory', () => getNestedMemoryAttachments(context)),
     maybe('dynamic_skill', () => getDynamicSkillAttachments(context)),

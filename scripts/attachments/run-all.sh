@@ -18,7 +18,6 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fail=0
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-capsule-memory-digest.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capsule-memory-digest.ts" "$__t" "$__rc"
 echo "── context-assembly proofs ──"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-attachments-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-attachments-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-mention-grammar.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mention-grammar.ts" "$__t" "$__rc"

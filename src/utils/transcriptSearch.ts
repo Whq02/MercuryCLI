@@ -108,13 +108,6 @@ function computeSearchText(message: RenderableMessage): string {
   if (message.type === 'attachment') {
     const attachment = (message as { attachment?: { type?: string } }).attachment
     if (!attachment) return ''
-    if (attachment.type === 'relevant_memories') {
-      const memories = (attachment as { memories?: Array<{ content?: unknown }> }).memories
-      if (!Array.isArray(memories)) return ''
-      return memories
-        .map(memory => (typeof memory.content === 'string' ? memory.content : ''))
-        .join('\n')
-    }
     if (attachment.type === 'queued_command') {
       const queued = attachment as { prompt?: unknown; commandMode?: string; isMeta?: boolean }
       if (queued.commandMode === 'task-notification') return ''

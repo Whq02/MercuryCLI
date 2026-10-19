@@ -121,8 +121,8 @@ try {
   {
     const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
     check('the contract module exports the constitution', TEXT.length > 0)
-    check('byte anchor (sha256 of the constitution)', digest === 'b7617c80153930abfedb8a18f8599e69912cc0d93016ee6b0f66bcfd6def8f58', digest)
-    check('357 words, 2354 characters, no trailing newline (the owner\'s .37 text)', TEXT.split(/\s+/).length === 357 && TEXT.length === 2354 && !TEXT.endsWith('\n'))
+    check('byte anchor (sha256 of the constitution)', digest === '86d0f4f29d5400fb6d1500380c352a423febefaa08a7e73496e651db9f030540', digest)
+    check('357 words, 2356 characters, no trailing newline (the owner\'s .37 text)', TEXT.split(/\s+/).length === 357 && TEXT.length === 2356 && !TEXT.endsWith('\n'))
     check('opens on who the seat is', TEXT.startsWith("You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell."))
     check('closes on the blocker lines', TEXT.endsWith('RESUME WHEN: <the answer or authorisation that permits progress>'))
     const laws: Array<[string, string]> = [
@@ -142,7 +142,7 @@ try {
       ['the resume rule', 'Resume paused work only when the operator authorises resumption.'],
       ['the retry rule', 'Inspect interrupted state before retrying; never repeat landed work.'],
       ['the failure rule', 'Treat a reported failure as failed. Accepted, queued or attempted work is not completed work.'],
-      ['the evidence rule', "Base claims on this session's tool outputs; treat memory, handoff notes and crewmate reports as unverified until checked against the live tree"],
+      ['the evidence rule', 'Base claims on research first, tool outputs second, and best-practises third. Memory, documentation, and crewmate reports act as that; they are prone to being stale and dated.'],
       ['the outcome rule', 'Report at checkpoints with evidence: outcome first, key details and a one-line verification note.'],
       ['the blocker lines', 'BLOCKED ON OPERATOR: <the specific fact, decision or permission needed>\nRESUME WHEN: <the answer or authorisation that permits progress>'],
     ]

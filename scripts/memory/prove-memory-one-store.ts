@@ -65,7 +65,7 @@ check('the sub-agent doctrine carries no card doctrine', !/cardDoctrine|experien
 const agentMemory = read('src/tools/AgentTool/agentMemory.ts')
 check('a memory-enabled agent is pointed at the shared memory through the tools', agentMemory.includes('Retain saves a durable fact') && !agentMemory.includes('buildMemoryPrompt'))
 const orchestrator = read('src/utils/attachments/orchestrator.ts')
-check('the lookup rides the input lane of the attachment orchestrator', orchestrator.includes("'relevant_memories'") && orchestrator.includes('getRelevantMemoryAttachments(input, messages, toolUseContext)'))
+check('no per-turn memory attachment is produced', !orchestrator.includes('relevant_memories') && !orchestrator.includes('getRelevantMemoryAttachments'))
 check('no taste attachment is produced', !orchestrator.includes('taste_recall'))
 
 section('an old index on disk is an ordinary file nobody opens')

@@ -19,7 +19,6 @@ const add = (exportName: string, caseName: string, fn: () => unknown) => {
 for (const c of [
   'TASK_REMINDER_CONFIG',
   'FLOW_ATTACHMENT_CONFIG',
-  'RELEVANT_MEMORIES_CONFIG',
   'CONTRACT_REMINDER_CONFIG',
 ] as const) {
   add(c, 'value', () => (A as Record<string, unknown>)[c])
@@ -50,19 +49,6 @@ add('parseAtMentionedFileLines', 'shapes', () =>
   ),
 )
 
-add('memoryHeader', 'one-fact-page', () =>
-  A.memoryHeader('/mem/library/topic-deploy.md', 0, 1, 'deploy'),
-)
-add('memoryHeader', 'many-facts-page', () =>
-  A.memoryHeader('/mem/library/topic-deploy.md', 0, 3, 'deploy'),
-)
-add('memoryHeader', 'recent-rows', () =>
-  A.memoryHeader('/mem/library/current.jsonl', 0, 2, '(recent)'),
-)
-add('memoryHeader', 'no-slug', () =>
-  A.memoryHeader('/mem/example.md', 0),
-)
-
 
 add('createAttachmentMessage', 'shape', () =>
   A.createAttachmentMessage({ type: 'todo', itemCount: 1, context: 'x' } as never),
@@ -88,8 +74,6 @@ const SKIPPED: Record<string, string> = {
   getMcpInstructionsDeltaAttachment: 'reads MCP connection state',
   memoryFilesToAttachments: 'filesystem-coupled (mneme reads)',
   getChangedFiles: 'reads readFileState vs disk mtimes',
-  collectSurfacedMemories: 'reads the live message history for the attachments already surfaced',
-  getRelevantMemoryAttachments: 'reads the memory library on disk (the automatic lookup) — pinned by the memory suite (prove-memory-front-page, prove-memory-always-on)',
   resetSentSkillNames: 'module-state mutator',
   suppressNextSkillListing: 'module-state mutator',
   tryGetPDFReference: 'filesystem stat-coupled',

@@ -12,7 +12,7 @@ Mercury config home. Mercury changes them through its memory tools; use
 
 ## What the model gets
 
-Four things are in front of the model without anyone asking:
+Three things are in front of the model without anyone asking:
 
 - **The front page**, loaded at the start of every chat. It is the index of
   the library (each topic on one line with its fact count), built by Mercury
@@ -29,17 +29,11 @@ Four things are in front of the model without anyone asking:
   the facts and earlier notes most relevant to the branch you are on, the files
   touched lately and the last note left, each word for word. One line above them
   says how much rode and that Recall finds the rest.
-- **The automatic lookup** on every message: up to two facts that match what
-  you just said, or a rule that names a file the model has in hand, are
-  attached before the model answers, each pointing at the page it lives on. A
-  fact is attached once, the first time it becomes relevant in a session; after
-  that it is a Recall away, and a compaction does not bring it back. The
-  working-set capsule lists memory the same way: a record once, the first time
-  it matches, on whichever of the two surfaces sees it first.
 
-Mercury publishes the front page when the library or its pinned rules change.
-Between those changes the same page loads into each chat, preserving the
-provider's prompt cache.
+Memory reaches the model at the start of a session and through `Recall`; nothing
+from memory is attached on each turn. Mercury publishes the front page when the
+library or its pinned rules change. Between those changes the same page loads
+into each chat, preserving the provider's prompt cache.
 
 ## Ranking by meaning
 

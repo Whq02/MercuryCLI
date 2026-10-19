@@ -4,7 +4,7 @@
 # gate-watch: docs/MNEME.md docs/MEMORY-FINDINGS.md src/utils/detectSecrets.ts
 # gate-watch: src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/commands/memory/memory.tsx src/services/compact/compact.ts
 # gate-watch: src/services/eval/evalBridge.ts src/services/instructions/engine.ts src/services/instructions/sourceText.ts
-# gate-watch: src/tools.ts src/tools/MemoryTools/MemoryTools.ts src/utils/attachments/memorySurfacing.ts
+# gate-watch: src/tools.ts src/tools/MemoryTools/MemoryTools.ts
 # gate-watch: src/utils/attachments/orchestrator.ts src/constants/prompts.ts src/constants/subagentDoctrine.ts
 # gate-watch: src/utils/statusNoticeDefinitions.tsx src/substrate/flagRegistry.ts src/substrate/startupMenu.ts
 # gate-watch: src/utils/capability/declarations.ts src/query/stopHooks.ts
@@ -13,7 +13,7 @@
 # gate-watch: src/components/mercury-ui/useFlatList.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts scripts/lib/spawnCapture.ts
 # gate-watch: scripts/hooks/lib/runDoor.ts src/services/projectIntel/capsule.ts
-# gate-watch: src/utils/attachments/memorySurfaced.ts src/utils/attachments/contextCapsule.ts scripts/project-intel/fixtures/materialize.ts
+# gate-watch: src/utils/attachments/contextCapsule.ts scripts/project-intel/fixtures/materialize.ts
 # gate-watch: scripts/ui/** scripts/memory-study/**
 # gate-watch: scripts/jev/lib/jevStandin.ts src/services/jev/jevClient.ts src/services/jev/jevSetting.ts src/services/jev/jevKey.ts src/services/jev/jevLedger.ts src/tools/MemoryTools/UI.tsx src/tools/MemoryTools/prompt.ts
 # gate-watch: src/tools/MemoryTools/ruleCard.ts src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx src/components/permissions/PermissionRequest.tsx src/hooks/toolPermission/PermissionContext.ts src/hooks/toolPermission/handlers/interactiveHandler.ts

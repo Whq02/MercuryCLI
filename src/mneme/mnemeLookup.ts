@@ -255,7 +255,7 @@ export function rankCandidates(query: string, pool: readonly LookupCandidate[], 
   return rankAllCandidates(query, pool, opts).slice(0, limit)
 }
 
-export interface AutomaticMemoryHit extends LookupHit {
+interface AutomaticMemoryHit extends LookupHit {
   witness: string
   admission: 'stems' | 'rare-stem' | 'semantic' | 'constraint' | 'companion' | 'rare-tier'
   bm25: number

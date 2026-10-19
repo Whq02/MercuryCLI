@@ -1,7 +1,6 @@
 
 import React from 'react'
-import { Ansi, Box, Text } from '../../ink.js'
-import Link from '../../ink/components/Link.js'
+import { Box, Text } from '../../ink.js'
 import type { Attachment } from '../../utils/attachments/types.js'
 import { formatFileSize } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
@@ -153,38 +152,6 @@ export function AttachmentMessage({
           Loaded instruction file <Text bold>{attachment.displayPath}</Text>
         </AttachmentLine>
       )
-
-    case 'relevant_memories': {
-      const count = attachment.memories.length
-      if (count === 0) return null
-      if (!verbose && !isTranscriptMode) {
-        return (
-          <AttachmentLine>
-            Recalled {count} {plural(count, 'memory')} <CtrlOToExpand />
-          </AttachmentLine>
-        )
-      }
-      return (
-        <Box flexDirection="column">
-          <AttachmentLine>
-            Recalled {count} {plural(count, 'memory')}
-          </AttachmentLine>
-          {attachment.memories.map(memory => {
-            const basename = memory.path.split(/[\\/]/).pop() ?? memory.path
-            return (
-              <Box key={memory.path} flexDirection="column" paddingLeft={2}>
-                <Text dimColor>
-                  <Link url={`file://${memory.path}`} fallback={basename}>
-                    {basename}
-                  </Link>
-                </Text>
-                {isTranscriptMode ? <Ansi dimColor>{memory.content}</Ansi> : null}
-              </Box>
-            )
-          })}
-        </Box>
-      )
-    }
 
     case 'dynamic_skill':
       return (

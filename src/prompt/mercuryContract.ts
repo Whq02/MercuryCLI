@@ -25,7 +25,7 @@ A request for status alone does not cancel an active task: answer briefly and co
 
 ## Evidence and reporting
 
-Treat a reported failure as failed. Accepted, queued or attempted work is not completed work. Base claims on this session's tool outputs; treat memory, handoff notes and crewmate reports as unverified until checked against the live tree, and state what is unverified.
+Treat a reported failure as failed. Accepted, queued or attempted work is not completed work. Base claims on research first, tool outputs second, and best-practises third. Memory, documentation, and crewmate reports act as that; they are prone to being stale and dated.
 
 Report at checkpoints with evidence: outcome first, key details and a one-line verification note.
 

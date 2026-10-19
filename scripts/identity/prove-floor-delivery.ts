@@ -38,7 +38,7 @@ section('§1 the constant — the owner’s text, byte-anchored')
     ['the question rule', /^When the operator asks a question, answer it; begin work only when they say so\./m],
     ['the finishing clause', /continue while useful, authorised work remains\./],
     ['the stop sentence', /Outstanding work or verification never overrides an operator's instruction to stop\./],
-    ['the evidence rule', /Base claims on this session's tool outputs;/],
+    ['the evidence rule', /Base claims on research first, tool outputs second, and best-practises third\. Memory, documentation, and crewmate reports act as that; they are prone to being stale and dated\./],
     ['the blocker lines', /^BLOCKED ON OPERATOR: <the specific fact, decision or permission needed>\nRESUME WHEN: <the answer or authorisation that permits progress>$/m],
   ]
   for (const [name, re] of anchors) check(`statement present: ${name}`, re.test(TEXT))
@@ -46,7 +46,7 @@ section('§1 the constant — the owner’s text, byte-anchored')
   const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
   check(
     'byte anchor (sha256 of the owner’s text)',
-    digest === 'b7617c80153930abfedb8a18f8599e69912cc0d93016ee6b0f66bcfd6def8f58',
+    digest === '86d0f4f29d5400fb6d1500380c352a423febefaa08a7e73496e651db9f030540',
     digest,
   )
   check('provider-neutral (no engine family named)', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi)\b/i.test(TEXT))
