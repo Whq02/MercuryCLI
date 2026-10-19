@@ -65,25 +65,22 @@ export const InitializeResultSchema = lazySchema(() =>
 export type InitializeResult = z.infer<ReturnType<typeof InitializeResultSchema>>
 
 export const PermissionRequestParamsSchema = lazySchema(() =>
-  z.discriminatedUnion('kind', [
-    z.object({
-      kind: z.literal('tool'),
-      tool_use_id: z.string(),
-      tool_name: z.string(),
-      input: z.record(z.string(), z.unknown()),
-      title: z.string().optional(),
-      display_name: z.string().optional(),
-      description: z.string().optional(),
-      suggestions: z.array(permissionUpdateSchema()).optional(),
-      blocked_path: z.string().optional(),
-      cwd: z.string().optional(),
-      reason: z.string().optional(),
-      reason_detail: z.unknown().optional(),
-      agent_id: z.string().optional(),
-      mode: permissionModeSchema().optional(),
-    }),
-    z.object({ kind: z.literal('network'), host: z.string() }),
-  ]),
+  z.object({
+    kind: z.literal('tool'),
+    tool_use_id: z.string(),
+    tool_name: z.string(),
+    input: z.record(z.string(), z.unknown()),
+    title: z.string().optional(),
+    display_name: z.string().optional(),
+    description: z.string().optional(),
+    suggestions: z.array(permissionUpdateSchema()).optional(),
+    blocked_path: z.string().optional(),
+    cwd: z.string().optional(),
+    reason: z.string().optional(),
+    reason_detail: z.unknown().optional(),
+    agent_id: z.string().optional(),
+    mode: permissionModeSchema().optional(),
+  }),
 )
 export type PermissionRequestParams = z.infer<ReturnType<typeof PermissionRequestParamsSchema>>
 

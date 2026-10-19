@@ -138,12 +138,16 @@ section('§3 the asks ride permission/request, typed both ways')
   answers.push(await first)
   check("the runner's request resolves with the typed allow and the card's edited input", j(answers[0]) === j({ outcome: 'allow', input: { command: 'rm -rf build/tmp' } }), j(answers[0]))
 
-  const second = stand.ask({ kind: 'network', host: 'example.org' })
+  const second = stand.ask({ kind: 'network', host: 'example.org' } as never).then(() => 'answered', (error: unknown) => error)
   await tick()
-  const net = asks.listPendingPermissionAsks().find(a => a.workerId === RUNNER)
-  check('a network ask parks under the sandbox tool name with the host as its input', net !== undefined && net.toolName === 'SandboxNetworkAccess', j(net))
-  asks.answerPermissionAsk(net!.requestId, false, 'operator', undefined, { feedback: 'not now', interrupt: true })
-  const denied = await second
+  check('a network ask (a kind the wire no longer has) parks nothing in the daemon’s table', asks.listPendingPermissionAsks().filter(a => a.workerId === RUNNER).length === 0, j(asks.listPendingPermissionAsks()))
+  const refused = await second
+  check('…and is refused as invalid params, the protocol’s ordinary answer to an unknown input', refused instanceof Error && /invalid params|kind/i.test(refused.message), j(refused instanceof Error ? refused.message : refused))
+  const stopped = stand.ask({ kind: 'tool', tool_use_id: 'toolu_2a', tool_name: 'Bash', input: { command: 'curl example.org' } })
+  await tick()
+  const parkedStop = asks.listPendingPermissionAsks().find(a => a.workerId === RUNNER)
+  asks.answerPermissionAsk(parkedStop!.requestId, false, 'operator', undefined, { feedback: 'not now', interrupt: true })
+  const denied = await stopped
   check('a deny with the abort verb resolves deny with stop', denied.outcome === 'deny' && denied.stop === true && (denied.message ?? '').includes('not now'), j(denied))
 
   const emptied = stand.ask({ kind: 'tool', tool_use_id: 'toolu_2b', tool_name: 'Write', input: { file_path: '/x', content: 'the original bytes' } })

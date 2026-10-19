@@ -7,7 +7,6 @@ import type { PermissionRequestParams, SessionAppliedParams } from '../runner/wi
 import type { RpcError } from '../runner/wire/errors.js'
 import { RunnerConnection, type HeldAsk, type RunnerDoor } from './runnerConnection.js'
 import { UNANSWERED_ASK_REJECT_MESSAGE } from '../utils/messages/rejectionText.js'
-import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from './runnerFrames.js'
 import { killProcessGroup } from '../utils/processGroup.js'
 import { logForDebugging } from '../utils/debug.js'
 import { assertSpawnCwd, recordSpawn, recordSpawnExit } from '../utils/spawnLedger.js'
@@ -639,8 +638,7 @@ export class TaskRoster {
         logForDebugging(`[daemon] onAsk(${short}) hook threw: ${e}`)
       }
     }
-    const toolName = params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME
-    return { answer: Promise.resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(toolName, 'no ask owner stands behind this roster') }), withdraw: () => {} }
+    return { answer: Promise.resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(params.tool_name, 'no ask owner stands behind this roster') }), withdraw: () => {} }
   }
 
   private refuseRunner(short: string, ll: LongLivedSeat, child: ChildProcess, error: RpcError): void {

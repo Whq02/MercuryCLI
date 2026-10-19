@@ -133,11 +133,11 @@ is answered `-32600` with `id: null`.
   host (`permission/request`) from `1` as well, so a message with `id: 1` is
   either the reply to your `initialize` or the runner's first ask. A reply
   carries `result` or `error` and no `method`; a request carries `method`.
-- **Answer a permission ask:** When a tool call or network connection needs
-  approval, the runner sends a `permission/request` request to the host with
-  `kind: "tool"` (`tool_use_id`, `tool_name`, `input`, optional `title`,
-  `display_name`, `description`, `suggestions`, `cwd`, `reason`, `agent_id`,
-  `mode`) or `kind: "network"` (`host`). Reply with the request's `id` and
+- **Answer a permission ask:** When a tool call needs approval, the runner
+  sends a `permission/request` request to the host with `kind: "tool"`
+  (`tool_use_id`, `tool_name`, `input`, optional `title`, `display_name`,
+  `description`, `suggestions`, `cwd`, `reason`, `agent_id`, `mode`); that is
+  the one kind of ask. Reply with the request's `id` and
   `{"outcome":"allow"}` (with optional modified `input` and `rules`) or
   `{"outcome":"deny"}` (with optional `message` and `stop`). When the runner
   withdraws a pending ask, it sends a `$/cancel_request` notification with

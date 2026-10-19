@@ -16,7 +16,7 @@ export interface TurnEndDetail {
   errors: string[]
 }
 
-export type ToolAsk = Extract<PermissionRequestParams, { kind: 'tool' }>
+export type ToolAsk = PermissionRequestParams
 
 interface ChildEventHandlers {
   onInit: (mercurySessionId: string) => void
@@ -33,7 +33,6 @@ interface ChildEventHandlers {
     turnCostUsd?: number,
   ) => void
   onPermissionAsk: (requestId: number, ask: ToolAsk, withdrawn: AbortSignal) => Promise<PermissionAnswer>
-  onNetworkAsk?: (host: string, withdrawn: AbortSignal) => Promise<boolean>
   onElicitation?: (params: ElicitationRequestParams, withdrawn: AbortSignal) => Promise<ElicitationAnswer>
   onElicitationComplete?: (server: string, elicitationId: string) => void
   onReadTextFile?: (params: ParamsOf<'fs/read_text_file'>, withdrawn: AbortSignal) => Promise<ResultOf<'fs/read_text_file'>>
@@ -164,14 +163,7 @@ export class MercuryChildSession {
     this.peer = createPeer(peerOptions)
     this.peer.onNotification('row', row => this.onRow(row as LooseRow))
     this.peer.onNotification('elicitation/complete', params => this.handlers.onElicitationComplete?.(params.server, params.elicitation_id))
-    this.peer.onRequest('permission/request', (params, ctx) => {
-      if (params.kind === 'network') {
-        const ask = this.handlers.onNetworkAsk
-        if (ask === undefined) return { outcome: 'deny', message: 'the editor cannot answer a network ask' }
-        return ask(params.host, ctx.signal).then(allowed => (allowed ? { outcome: 'allow' as const } : { outcome: 'deny' as const, message: 'denied by the ACP client' }))
-      }
-      return this.handlers.onPermissionAsk(ctx.id, params, ctx.signal)
-    })
+    this.peer.onRequest('permission/request', (params, ctx) => this.handlers.onPermissionAsk(ctx.id, params, ctx.signal))
     this.peer.onRequest('elicitation/request', (params, ctx) => {
       const ask = this.handlers.onElicitation
       if (ask === undefined) return { action: 'cancel' }
