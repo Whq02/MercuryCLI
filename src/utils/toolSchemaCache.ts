@@ -62,8 +62,43 @@ export function getConversationToolSchemas(key: string): Map<string, string> {
   return schemas
 }
 
+const restoredSchemas = new Map<string, Set<string>>()
+const movedRestoredSchemas = new Map<string, Set<string>>()
+
+export function restoreConversationToolSchema(key: string, name: string, definition: string): void {
+  getConversationToolSchemas(key).set(name, definition)
+  let names = restoredSchemas.get(key)
+  if (names === undefined) {
+    names = new Set()
+    restoredSchemas.set(key, names)
+  }
+  names.add(name)
+}
+
+export function restoredToolSchemaPending(key: string, name: string): boolean {
+  return restoredSchemas.get(key)?.has(name) === true
+}
+
+export function settleRestoredToolSchema(key: string, name: string, moved: boolean): string[] {
+  restoredSchemas.get(key)?.delete(name)
+  if (!moved) return []
+  let names = movedRestoredSchemas.get(key)
+  if (names === undefined) {
+    names = new Set()
+    movedRestoredSchemas.set(key, names)
+  }
+  names.add(name)
+  return [...names]
+}
+
+export function resetConversationToolSchemas(key: string): void {
+  conversationSchemas.get(key)?.clear()
+  restoredSchemas.delete(key)
+  movedRestoredSchemas.delete(key)
+}
+
 export function clearConversationToolSchemas(prefix?: string): void {
-  for (const store of [conversationSchemas, requestedSchemaChanges]) {
+  for (const store of [conversationSchemas, requestedSchemaChanges, restoredSchemas, movedRestoredSchemas]) {
     if (prefix === undefined) store.clear()
     else for (const key of store.keys()) if (key.startsWith(prefix + '|')) store.delete(key)
   }

@@ -10,6 +10,7 @@ import type { InputTransformation } from '../../../types/wire.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getGlobalConfig } from '../../../utils/config/globalConfig.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
+import { runningBuildTree } from '../../../utils/artifactIdentity.js'
 import { thinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
 import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
@@ -124,6 +125,7 @@ interface PrefixMark {
   model: string
   settings: string
   build?: string
+  buildTree?: string
   thinkingClearActive: boolean
   contextEditActive: boolean
 }
@@ -205,6 +207,7 @@ export function prefixMarkOf(
     }
     if (compactBoundary !== null && modelTransition !== null && rosterTransition !== null) break
   }
+  const tree = runningBuildTree()
   return {
     firstRow,
     compactBoundary,
@@ -214,6 +217,7 @@ export function prefixMarkOf(
     model,
     settings: spellOperatorSettings(live),
     build: productBuild(),
+    ...(tree !== null ? { buildTree: tree } : {}),
     thinkingClearActive: context?.thinkingClearActive === true,
     contextEditActive: context?.requestPlan?.mode === 'apply' &&
       (context.requestPlan.reductions.timeBasedCleared > 0 || (context.requestPlan.reductions.pressurePruned?.cleared ?? 0) > 0),
@@ -305,7 +309,7 @@ export function classifyThinkingDrops(
     lawful = 'declared'
     detail = declared
   } else if (previous !== undefined) {
-    if (previous.mark.build !== mark.build) {
+    if (previous.mark.build !== mark.build || (previous.mark.buildTree ?? null) !== (mark.buildTree ?? null)) {
       lawful = 'build-update'
       detail = describeBuildMove(previous.mark.build, mark.build ?? productBuild())
     } else if (previous.mark.firstRow !== mark.firstRow || previous.mark.compactBoundary !== mark.compactBoundary) {

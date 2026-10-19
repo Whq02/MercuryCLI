@@ -19,8 +19,16 @@ function realEntryPath(entry: string | null): string | null {
   }
 }
 
-export function describeArtifactIdentity(version: string): ArtifactIdentity {
-  const entry = realEntryPath(process.argv[1] ?? null)
+const bootEntry = realEntryPath(process.argv[1] ?? null)
+let runningTree: { tree: string | null } | null = null
+
+export function runningBuildTree(): string | null {
+  runningTree ??= { tree: describeArtifactIdentity('', bootEntry).buildTree }
+  return runningTree.tree
+}
+
+export function describeArtifactIdentity(version: string, entryPath: string | null = process.argv[1] ?? null): ArtifactIdentity {
+  const entry = realEntryPath(entryPath)
   const base: ArtifactIdentity = {
     version,
     distribution: 'source-run',

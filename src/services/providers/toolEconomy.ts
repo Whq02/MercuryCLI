@@ -4,7 +4,8 @@ import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { isDeferredTool, loadsInFullFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { clearConversationToolSchemas, getConversationToolSchemas } from '../../utils/toolSchemaCache.js'
+import { clearConversationToolSchemas, resetConversationToolSchemas, restoreConversationToolSchema } from '../../utils/toolSchemaCache.js'
+import { runningBuildTree } from '../../utils/artifactIdentity.js'
 import {
   extractDiscoveredToolNames,
   isToolReferenceBlock,
@@ -106,7 +107,7 @@ function seedRosterLatchFromRestore(latchKey: string, restore: RosterRestore, to
       continue
     }
     if (expanded.has(mark.name)) continue
-    if (mark.definition !== undefined) getConversationToolSchemas(latchKey).set(mark.name, mark.definition)
+    if (mark.definition !== undefined) restoreConversationToolSchema(latchKey, mark.name, mark.definition)
     const tool = byName.get(mark.name) ?? (mark.definition !== undefined ? { name: mark.name } as Tool : undefined)
     if (tool === undefined) {
       if (!mark.deferred) missingBound.push(mark.name)
@@ -128,8 +129,10 @@ function rosterMovedWithBuild(owner: string, missing: readonly string[]): string
   const recorded = recordedBuildFor(owner)
   if (!recorded.recorded) return null
   const current = productBuild()
-  if (recorded.build === current) return null
-  return `the recorded roster was written by ${recorded.build ?? 'an earlier build'} and this is ${current}`
+  const tree = runningBuildTree()
+  if (recorded.build === current && (recorded.tree ?? null) === tree) return null
+  const spell = (build: string | undefined, buildTree: string | null | undefined): string => `${build ?? 'an earlier build'}${buildTree ? ` (tree ${buildTree})` : ''}`
+  return `the recorded roster was written by ${spell(recorded.build, recorded.tree)} and this is ${spell(current, tree)}`
 }
 
 function firstConversationRow(messages: readonly Message[]): string {
@@ -190,7 +193,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
       const moved = rosterMovedWithBuild(input.latchKey ?? '', restoredMissingTools)
       if (moved !== null) {
         rosterLatches.delete(latchKey)
-        getConversationToolSchemas(latchKey).clear()
+        resetConversationToolSchemas(latchKey)
         logForDebugging(`tool roster: ${moved} — the conversation's roster is decided afresh from the live pool at this request`)
       }
     }

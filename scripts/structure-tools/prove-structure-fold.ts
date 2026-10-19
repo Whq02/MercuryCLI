@@ -114,15 +114,22 @@ Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Ins
   }
   const first = createUserMessage({ content: 'resume fixture' })
   const model = getEngineModel()
-  const key = conversationRosterKey('ast-resume', [first], model)
-  const definition = JSON.stringify({ name: 'Structure', description: 'saved definition', input_schema: { type: 'object', properties: { op: { type: 'string' }, pattern: { type: 'string' }, lang: { type: 'string' }, out: { type: 'string' } }, required: ['op'], additionalProperties: false }, defer_loading: true })
-  const record = createAttachmentMessage({ type: 'bound_prefix', boundKey: key, rosterEnabled: true, roster: [{ name: 'Structure', deferred: true, definition }], sections: [], systemContext: {} })
-  clearToolRosterLatches()
-  clearToolRosterRestore()
-  restoreBoundPrefixFromMessages([first, record], { rosterOnly: true })
-  const plan = await planToolPayload({ model, tools: [StructureTool, ToolSearchTool] as never, messages: [first, record], latchKey: 'ast-resume', getToolPermissionContext: async () => permission, agents: [] })
-  const restored = await toolToAPISchema(StructureTool as never, { ...options, conversationKey: key, deferLoading: plan.deferredNames.has('Structure') })
-  check('resume replays the recorded Structure definition and deferred mark byte-for-byte', getConversationToolSchemas(key).get('Structure') === definition && JSON.stringify(restored) === definition && plan.deferredNames.has('Structure'))
+  const live = await toolToAPISchema(StructureTool as never, { ...options, deferLoading: true }) as any
+  const resumeWith = async (latch: string, inputSchema: unknown): Promise<{ key: string; definition: string; plan: any; restored: any }> => {
+    const key = conversationRosterKey(latch, [first], model)
+    const definition = JSON.stringify({ name: 'Structure', description: 'saved definition', input_schema: inputSchema, defer_loading: true })
+    const record = createAttachmentMessage({ type: 'bound_prefix', boundKey: key, rosterEnabled: true, roster: [{ name: 'Structure', deferred: true, definition }], sections: [], systemContext: {} })
+    clearToolRosterLatches()
+    clearToolRosterRestore()
+    restoreBoundPrefixFromMessages([first, record], { rosterOnly: true })
+    const plan = await planToolPayload({ model, tools: [StructureTool, ToolSearchTool] as never, messages: [first, record], latchKey: latch, getToolPermissionContext: async () => permission, agents: [] })
+    const restored = await toolToAPISchema(StructureTool as never, { ...options, conversationKey: key, deferLoading: plan.deferredNames.has('Structure') })
+    return { key, definition, plan, restored }
+  }
+  const kept = await resumeWith('ast-resume', live.input_schema)
+  check('resume replays the recorded Structure definition and deferred mark byte-for-byte', getConversationToolSchemas(kept.key).get('Structure') === kept.definition && JSON.stringify(kept.restored) === kept.definition && kept.plan.deferredNames.has('Structure'))
+  const moved = await resumeWith('ast-resume-moved', { type: 'object', properties: { op: { type: 'string' }, pattern: { type: 'string' }, lang: { type: 'string' }, out: { type: 'string' } }, required: ['op'], additionalProperties: false })
+  check('a recorded Structure definition whose input schema the live tool no longer has goes out with the live schema, deferred mark kept', JSON.stringify(moved.restored.input_schema) === JSON.stringify(live.input_schema) && moved.restored.description !== 'saved definition' && moved.plan.deferredNames.has('Structure'), JSON.stringify(moved.restored).slice(0, 300))
   clearToolRosterLatches()
   clearToolRosterRestore()
 } finally {
