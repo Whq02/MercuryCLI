@@ -27,7 +27,9 @@ async function call(name: string): Promise<string[]> {
 const retiredResult = await call(retired)
 const unknownResult = await call(nonsense)
 check('one generic unknown-tool result, byte-identical after name substitution', retiredResult.length === 1 && JSON.stringify(retiredResult) === JSON.stringify(unknownResult), JSON.stringify(retiredResult))
-check('the result names ordinary absence rather than a redirect', retiredResult[0]?.includes('No such tool available: <name>') === true && !retiredResult[0]?.includes('Eval'))
+const ROSTER_WORDS = 'call one of the tools you were given:'
+const beforeRoster = (retiredResult[0] ?? '').split(ROSTER_WORDS)[0] ?? ''
+check('the result names ordinary absence rather than a redirect: Eval is not named before the roster of the tools the session was given, where every tool is listed', retiredResult[0]?.includes('No such tool available: <name>') === true && retiredResult[0]?.includes(ROSTER_WORDS) === true && !beforeRoster.includes('Eval') && !/\b(?:use|instead|replaced by|now called)\b[^.]*\bEval\b/.test(retiredResult[0] ?? ''), retiredResult[0] ?? '')
 for (const name of [retired, nonsense]) {
   const verdict = gateToolCall(tools, { id: 'gate', name, argumentsRaw: '{}' })
   check('the provider-neutral gate takes its ordinary unknown-tool road', !verdict.ok && verdict.refusal.code === 'unknown-tool' && verdict.refusal.reason === `No such tool available: ${name}`)
