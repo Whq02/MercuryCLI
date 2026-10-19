@@ -19,6 +19,7 @@
 # gate-watch: src/substrate/flagRegistry* scripts/bash/shell-engine-parity*
 # gate-watch: src/utils/shell/windowsShellRoad.ts src/utils/windowsPaths.ts src/utils/shell/shellToolUtils.ts
 # gate-watch: src/utils/shell/shellEngineArm.ts README.md docs/TERMINAL-RUNTIME.md
+# gate-watch: src/components/Settings/Config.tsx
 # gate-watch: .github/workflows/shell-windows-probe.yml .github/workflows/private-release.yml
 # gate-watch: src/utils/Shell.ts src/substrate/envStamps.ts src/tools/shared/sessionEnvNotice.ts src/tools/PowerShellTool/PowerShellTool.tsx
 # gate-watch: src/utils/toolErrors.ts src/utils/waitCeiling.ts src/tools/BashTool/utils.ts src/tools/BashTool/maxOutputChars.ts src/tools/PowerShellTool/prompt.ts
@@ -89,6 +90,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-rules.ts" || { __rc=$
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-census.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-census.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-shell-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-shell-road.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-engine-roads.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-engine-roads.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-windows-pack-layout.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-windows-pack-layout.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-input-redirect-read.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-input-redirect-read.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-approval-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-approval-words.ts" "$__t" "$__rc"

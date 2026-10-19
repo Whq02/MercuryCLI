@@ -1,9 +1,13 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { createAndSaveSnapshot } from '../bash/ShellSnapshot.js'
 import { quote } from '../bash/shellQuote.js'
+import { quoteShellCommand } from '../bash/shellQuoting.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
+import type { ShellProvider } from './shellProvider.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
@@ -104,6 +108,36 @@ export function resetShellEngineResolution(): void {
   packResolution = null
 }
 
+export function perCommandEngineBinary(setting?: 'system' | 'brush'): string | null {
+  if (!windowsBashAbsent()) return null
+  const resolution = resolveShellEngine(setting)
+  return resolution.engine === 'brush' ? resolution.binaryPath : null
+}
+
+export function createEngineCommandProvider(binaryPath: string): ShellProvider {
+  return {
+    type: 'bash',
+    shellPath: binaryPath,
+    detached: getPlatform() !== 'windows',
+    async buildExecCommand(command, options) {
+      const record = join(tmpdir(), `mercury-cwd-${options.id}`)
+      const target = quote([record])
+      const seeds: string[] = []
+      const snapshot = await getSnapshot(binaryPath)
+      if (snapshot) seeds.push(`source ${quote([snapshot])}`)
+      const sessionScript = await getSessionEnvironmentScript()
+      if (sessionScript) seeds.push(sessionScript)
+      const preamble = getGlobPreambleCommand(binaryPath)
+      if (preamble) seeds.push(preamble)
+      const lines = seeds.length === 0 ? [] : [`{\n${seeds.join('\n')}\n} >| ${target} 2>&1 || :`, `: >| ${target}`]
+      lines.push(`eval ${quoteShellCommand(command, false)} && { __mercury_cwd=$(pwd -P 2>&1) && printf '%s' "$__mercury_cwd" >| ${target} || :; }`)
+      return { commandString: lines.join('\n'), cwdFilePath: record }
+    },
+    getSpawnArgs: commandString => [...ENGINE_FLAGS, '-c', commandString],
+    getEnvironmentOverrides: async () => envOverrides(),
+  }
+}
+
 
 type LiveSession = {
   child: ChildProcess
@@ -166,7 +200,7 @@ async function admitAgentSession(
   const share = ceiling - 1
   if (share <= 0) {
     return {
-      refused: `no shell engine session is free for a crewmate: the ceiling is ${ceiling} (${CEILING_WORDS}), the main conversation's own session; raise the ceiling, or run this call with run_in_background (its own system shell)`,
+      refused: `no shell engine session is free for a crewmate: the ceiling is ${ceiling} (${CEILING_WORDS}), the main conversation's own session; raise the ceiling, or run this call with run_in_background (its own ${windowsBashAbsent() ? 'engine process' : 'system shell'})`,
     }
   }
   if (liveAgentSessions() < share) {

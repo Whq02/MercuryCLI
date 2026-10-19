@@ -71,6 +71,7 @@ import {
   resolveEngineSessionCeiling,
   resolveShellEngine,
 } from '../../utils/shell/engineSession.js'
+import { windowsBashAbsent } from '../../utils/shell/windowsShellRoad.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import {
   providerFamilyPresences,
@@ -845,7 +846,7 @@ export function Config({
       warning: pinned
         ? 'The env pin MERCURY_SHELL_ENGINE_SESSIONS decides the ceiling for this process; a value written here applies once the pin is gone.'
         : ceiling === 1
-          ? "A ceiling of 1 keeps the main conversation's session only: a crewmate's engine call is refused with the reason (a run_in_background call still runs, in its own system shell)."
+          ? `A ceiling of 1 keeps the main conversation's session only: a crewmate's engine call is refused with the reason (a run_in_background call still runs, in its own ${windowsBashAbsent() ? 'engine process' : 'system shell'}).`
           : undefined,
       change: direction => {
         const next = nextSessionCeiling(merged.shell?.sessions ?? ENGINE_SESSION_CEILING_DEFAULT, direction)

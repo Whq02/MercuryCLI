@@ -13,7 +13,7 @@ import { logError } from './log.js'
 import { getPlatform } from './platform.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
-import { resolveShellEngine, runEngineCommand, resolveEngineSessionCeiling } from './shell/engineSession.js'
+import { createEngineCommandProvider, perCommandEngineBinary, resolveShellEngine, runEngineCommand, resolveEngineSessionCeiling } from './shell/engineSession.js'
 import { getInitialSettings } from './settings/settings.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
@@ -230,7 +230,8 @@ export async function exec(
     }
   }
 
-  const provider = await PROVIDER_TABLE[shellType]()
+  const engineBinary = shellType === 'bash' ? perCommandEngineBinary(getInitialSettings().shell?.engine) : null
+  const provider = engineBinary === null ? await PROVIDER_TABLE[shellType]() : createEngineCommandProvider(engineBinary)
 
   const invocationId = Math.floor(Math.random() * 0x10000)
     .toString(16)
@@ -307,7 +308,7 @@ export async function exec(
       abortSignal,
       timeout,
       taskOutput,
-      options.shouldAutoBackground ?? false,
+      engineBinary === null && (options.shouldAutoBackground ?? false),
     )
     shellCommand.scrubbedSessionEnv = base.scrubbed
 
