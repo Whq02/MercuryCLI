@@ -133,11 +133,15 @@ t(
   provider.includes(providerSource) && provider.includes(providerPreamble) && provider.indexOf(providerSource) < provider.indexOf(providerPreamble),
 )
 const engine = readFileSync(join(ROOT, 'src/utils/shell/engineSession.ts'), 'utf8')
-const engineSource = 'seeds.push(`source ${quote([snapshot])} 2>&1 || :`)'
 const enginePreamble = 'if (preamble) seeds.push(preamble)'
+const perCommandSource = 'seeds.push(`source ${quote([snapshot])}`)'
+const sessionSource = 'seeds.push(`source ${quote([snapshot])} 2>&1 || :`)'
+const perCommandAt = engine.indexOf(perCommandSource)
+const sessionAt = engine.indexOf(sessionSource)
+const preambleAfter = (from: number): number => engine.indexOf(enginePreamble, from)
 t(
-  'engineSession seeds the sourced snapshot, then the preamble, in one frame',
-  engine.includes(engineSource) && engine.includes(enginePreamble) && engine.indexOf(engineSource) < engine.indexOf(enginePreamble),
+  'engineSession seeds the sourced snapshot, then the preamble, in one frame — on the per-command road and on the session road alike',
+  perCommandAt >= 0 && sessionAt >= 0 && preambleAfter(perCommandAt) > perCommandAt && preambleAfter(perCommandAt) < sessionAt && preambleAfter(sessionAt) > sessionAt,
 )
 
 rmSync(scratch, { recursive: true, force: true })

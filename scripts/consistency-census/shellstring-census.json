@@ -66,6 +66,69 @@
       "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
     },
     {
+      "file": "scripts/bash/prove-engine-roads.ts",
+      "mechanism": "exec-string",
+      "excerpt": "await (await exec('export ROADS_MARK=kept', signal(), 'bash', { timeout: 30_000 })).result",
+      "cls": "test-fixture",
+      "why": "drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-engine-roads.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const plainHandle = await exec(`echo \"plain:${SERVED}:\\${ROADS_MARK:-none}:\\${MERCURY_ENTRYPOINT:-scrubbed}\"`, signal(), 'bash', { timeout: ",
+      "cls": "test-fixture",
+      "why": "drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-engine-roads.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const monitorHandle = await exec(`echo \"tick1:${SERVED}:$SHELL\"; while [ ! -f ${q(monitorGate)} ]; do sleep 0.05; done; echo \"tick2:${SERVED",
+      "cls": "test-fixture",
+      "why": "drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-engine-roads.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const backgroundHandle = await exec(`while [ ! -f ${q(backgroundGate)} ]; do sleep 0.05; done; echo \"background:${SERVED}:\\${ROADS_MARK:-non",
+      "cls": "test-fixture",
+      "why": "drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-engine-roads.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const inheritHandle = await exec(`echo \"inherit:${SERVED}:\\${ROADS_MARK:-none}:\\${MERCURY_ENTRYPOINT:-scrubbed}:\\${ROADS_SEEDED:-unseeded}:$",
+      "cls": "test-fixture",
+      "why": "drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-engine-roads.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const slowHandle = await exec('sleep 5; echo late', signal(), 'bash', { timeout: 1_000, shouldAutoBackground: true, inheritSessionEnv: true ",
+      "cls": "test-fixture",
+      "why": "drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-engine-roads.ts",
+      "mechanism": "exec-string",
+      "excerpt": "await (await exec(`cd ${q(target)} && echo moved`, signal(), 'bash', { timeout: 30_000, inheritSessionEnv: true })).result",
+      "cls": "test-fixture",
+      "why": "drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-engine-roads.ts",
+      "mechanism": "exec-string",
+      "excerpt": "await (await exec(`cd ${q(other)} && false`, signal(), 'bash', { timeout: 30_000, inheritSessionEnv: true })).result",
+      "cls": "test-fixture",
+      "why": "drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-engine-roads.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const crewmate = await (await exec('echo crewmate-ran', signal(), 'bash', { timeout: 10_000, owner: 'agent-engine-roads' })).result",
+      "cls": "test-fixture",
+      "why": "drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test"
+    },
+    {
       "file": "scripts/bash/prove-session-shell-guard-drive.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
@@ -1055,7 +1118,7 @@
     {
       "file": "scripts/mcp/prove-mcp-failure-surfaces.ts",
       "mechanism": "execSync-string",
-      "excerpt": "const files = execSync(\"git ls-files 'src/**/*.ts' 'src/**/*.tsx'\", { cwd: ROOT, encoding: 'utf8' }).split('\\n').filter(Boolean)",
+      "excerpt": "const files = execSync(\"git ls-files 'src/**/*.ts' 'src/**/*.tsx'\", { cwd: ROOT, encoding: 'utf8' }).split('\\n').filter(Boolean).filter(file",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },

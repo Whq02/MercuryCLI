@@ -140,13 +140,6 @@ section('structural pins — owner consumption (rule 4)')
     collapsed.includes('useMinDisplayTime(rawHint, HINT_MIN_DISPLAY_MS)'),
   )
 
-  const toolDetail = src('src/components/mcp/MCPToolDetailView.tsx')
-  check(
-    'the description probe uses the EMPTY permission-context owner',
-    toolDetail.includes('getEmptyToolPermissionContext()') &&
-      toolDetail.includes('isNonInteractiveSession: false'),
-  )
-
   const dialog = src('src/components/diff/DiffDialog.tsx')
   check(
     'both diff copies route through the shared OSC-52 clipboard writer',

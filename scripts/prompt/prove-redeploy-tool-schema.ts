@@ -73,7 +73,7 @@ function buildOldDist(version: string): string {
     if (name === 'desktop' || existsSync(join(tree, 'vendor', name))) continue
     symlinkSync(join(root, 'vendor', name), join(tree, 'vendor', name))
   }
-  const out = join(scratch, 'old-dist')
+  const out = mkdtempSync(join(scratch, 'old-dist-'))
   const build = spawnSync('nice', ['-n', '10', process.execPath, 'run', 'build.ts'], { cwd: tree, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'build-home'), MERCURY_BUILD_OUTDIR: out }, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
   if (build.status !== 0) throw new Error(`the ${sha} tree did not build here (pass --old-node-modules <an install of that tree> or --old-dist <its bundle>): ${(build.stdout + build.stderr).slice(-1500)}`)
   return join(out, 'mercury.mjs')

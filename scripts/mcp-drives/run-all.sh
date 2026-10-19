@@ -5,6 +5,7 @@
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/mcp/_fixture-stdio-server.mjs
 # gate-watch: scripts/mcp/prove-mcp-live-connect.ts scripts/mcp/prove-mcp-popup-drive.ts scripts/ui/vshot.py
 # gate-watch: src/commands/mcp/* src/components/mcp/* src/daemon/sessionKit* src/daemon/sessionSeat.ts src/daemon/controlServer.ts src/cli/run.ts src/services/engine-connector/*
+# gate-watch: src/daemon/concourseWorkers.ts src/daemon/controlSocket.ts src/utils/sessionStorage/paths.ts
 # gate-watch: scripts/lib/crossfamilyConcourseFixture.ts scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

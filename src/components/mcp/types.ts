@@ -58,11 +58,3 @@ export type AgentMcpServerInfo =
   | (AgentMcpServerInfoBase & { transport: 'sse'; url?: string })
   | (AgentMcpServerInfoBase & { transport: 'http'; url?: string })
   | (AgentMcpServerInfoBase & { transport: 'ws'; url?: string })
-
-
-export type MCPViewState =
-  | { type: 'list'; defaultTab?: string }
-  | { type: 'server-menu'; server: ServerInfo }
-  | { type: 'server-tools'; server: ServerInfo }
-  | { type: 'server-tool-detail'; server: ServerInfo; toolIndex: number }
-  | { type: 'agent-server-menu'; agentServer: AgentMcpServerInfo }

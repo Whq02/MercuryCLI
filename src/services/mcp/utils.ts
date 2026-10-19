@@ -366,62 +366,6 @@ export function getProjectMcpServerStatus(
 }
 
 
-type AgentMcpServerRow = {
-  name: string
-  sourceAgents: string[]
-  transport: 'stdio' | 'sse' | 'http' | 'ws'
-  command?: string
-  url?: string
-  needsAuth: boolean
-}
-
-type AgentWithMcpServers = {
-  agentType: string
-  mcpServers?: Array<string | Record<string, McpServerConfig>>
-}
-
-export function extractAgentMcpServers(agents: AgentWithMcpServers[]): AgentMcpServerRow[] {
-  const byName = new Map<string, { config: McpServerConfig; agents: string[] }>()
-  for (const agent of agents) {
-    for (const declaration of agent.mcpServers ?? []) {
-      if (typeof declaration === 'string') continue
-      const keys = Object.keys(declaration)
-      if (keys.length !== 1) continue
-      const name = keys[0] as string
-      const config = declaration[name] as McpServerConfig
-      const existing = byName.get(name)
-      if (existing) {
-        if (!existing.agents.includes(agent.agentType)) existing.agents.push(agent.agentType)
-        continue
-      }
-      byName.set(name, { config, agents: [agent.agentType] })
-    }
-  }
-  const rows: AgentMcpServerRow[] = []
-  for (const [name, entry] of byName) {
-    const config = entry.config as { type?: string; command?: string; url?: string }
-    const rawTransport = config.type ?? 'stdio'
-    if (
-      rawTransport !== 'stdio' &&
-      rawTransport !== 'sse' &&
-      rawTransport !== 'http' &&
-      rawTransport !== 'ws'
-    ) {
-      continue
-    }
-    const transport = rawTransport
-    rows.push({
-      name,
-      sourceAgents: entry.agents,
-      transport,
-      ...(transport === 'stdio' ? { command: config.command } : { url: config.url }),
-      needsAuth: transport === 'sse' || transport === 'http',
-    })
-  }
-  return rows.sort((a, b) => a.name.localeCompare(b.name))
-}
-
-
 export function getLoggingSafeMcpBaseUrl(
   config: McpServerConfig | ScopedMcpServerConfig,
 ): string | undefined {
