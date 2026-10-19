@@ -108,11 +108,23 @@ try {
   const rowOnDisk = readFileSync(join(dir, 'current.jsonl'), 'utf8').split('\n').find(line => line.includes(NEW)) ?? ''
   check('the history rides on the row on disk', rowOnDisk.includes(`"history":{"ts":"${draft?.ts}","text":"${OLD}"}`), rowOnDisk)
 
+  section('§3b the pin card road is untouched: a rule the operator asked for is changed on the card, not on the words')
+  _resetMemoryVerbSessionStateForTesting()
+  const RULE = 'Answer every question in British English.'
+  const pinned = (await RetainTool.call({ items: [{ content: RULE, pin: true, topic: 'user-preferences' }] } as never, contextOf([user(`From now on, ${RULE} Pin this.`)]), door, assistant)) as { data: { stored: number; outcomes: Array<{ id?: string }> } }
+  const ruleId = pinned.data.outcomes[0]?.id ?? ''
+  check('a standing rule the operator asked for is pinned', pinned.data.stored === 1 && ruleId !== '', JSON.stringify(pinned.data))
+  const keep = (async () => ({ behavior: 'deny', message: 'the user kept the rule' })) as never
+  const cardRoad = (await CorrectTool.call({ op: 'retract', id: ruleId, reason: 'not a rule' } as never, contextOf([user('That is not a rule, remove it.')]), keep, assistant)) as { data: CorrectData }
+  check('a by-the-way change to an asked rule goes to the card (here answered No), never to the words gate', cardRoad.data.code === 'user-kept-rule', JSON.stringify(cardRoad.data))
+  const crewOnRule = await correct('That is not a rule, remove it.', { op: 'retract', id: ruleId, reason: 'not a rule' }, 'child-3')
+  check('a crewmate is refused on the card road too', !crewOnRule.data.ok && crewOnRule.data.code === 'crewmate', JSON.stringify(crewOnRule.data))
+
   section('§4 the words say so')
   check('the Correct prompt tells the model the tool refuses an unasked change and a crewmate always', CORRECT_PROMPT.includes("The tool refuses a change when the user's latest message does not ask for a memory to be remembered or changed") && CORRECT_PROMPT.includes("a crewmate's always"), CORRECT_PROMPT)
   check('the Correct prompt says a replaced draft keeps the old words as history', CORRECT_PROMPT.includes('the new row keeps the old words as its history'), CORRECT_PROMPT)
   const mneme = readFileSync(join(REPO, 'docs', 'MNEME.md'), 'utf8')
-  check('docs/MNEME.md says the rule covers Retain and Correct, and a crewmate\'s either is refused', /The model writes or changes memory only when you ask it to/.test(mneme) && /crewmate's Retain or Correct is refused always/.test(mneme), mneme.split('\n').find(l => l.includes('writes or changes memory')) ?? '')
+  check('docs/MNEME.md says the rule covers Retain and Correct, and a crewmate\'s either is refused', /The model writes or changes memory only when you ask it to/.test(mneme) && /crewmate's\s+Retain or Correct is refused always/.test(mneme), mneme.split('\n').find(l => l.includes('writes or changes memory')) ?? '')
   check('docs/MNEME.md says a superseded pending draft keeps the old words as its history', /A superseded or amended pending draft\s+\(`pending:<ts>`\) is replaced by a new draft that keeps the old words as its\s+history/.test(mneme), mneme.split('\n').find(l => l.includes('superseded or amended pending')) ?? '')
   const findings = readFileSync(join(REPO, 'docs', 'MEMORY-FINDINGS.md'), 'utf8')
   check('docs/MEMORY-FINDINGS.md says the rule covers Retain and Correct and links it to the four verbs', findings.includes('The model writes or changes memory only when you ask it to, through Retain or Correct') && findings.includes('(MNEME.md#the-four-verbs)'), findings.split('\n').find(l => l.includes('Two later rules')) ?? '')

@@ -118,9 +118,11 @@ reference"; and, in German, French, Spanish, Italian and Portuguese, "merke
 dir", "n'oublie pas", "souviens-toi", "recuerda", "no olvides", "ricorda",
 "non dimenticare" and "lembre-se". "Don't remember", "do you remember" and an
 ask withdrawn in the same message ("no wait", "never mind", "scratch that",
-"forget it") never pass. A crewmate's Retain or Correct is refused always; a
-crewmate's finding goes in its report. A decision or an outcome belongs in the
-project's records. The model works its memory through four tools:
+"forget it") never pass. A pinned rule you asked for is the exception: a
+change to it goes to its card (or to `/memory`), as before. A crewmate's
+Retain or Correct is refused always; a crewmate's finding goes in its report.
+A decision or an outcome belongs in the project's records. The model works
+its memory through four tools:
 
 - **Retain** saves a fact (up to 2,000 characters of content and context per
   item) for future sessions into `current.jsonl`. It is findable in the staging

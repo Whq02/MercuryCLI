@@ -19,7 +19,7 @@ import {
   type RuleAuthority,
 } from '../../mneme/memoryVerbs.js'
 import { mnemeLibraryDir } from '../../mneme/mnemeGates.js'
-import { correctAskRefusal, latestPinIntent, memoryAskRefusal } from '../../mneme/memoryPinIntent.js'
+import { CREWMATE_CORRECT_REFUSAL, correctAskRefusal, latestPinIntent, memoryAskRefusal } from '../../mneme/memoryPinIntent.js'
 import { gradeLines, MEMORY_EVIDENCE_CONTRACT, recordGrade } from '../../mneme/memoryEvidence.js'
 import { askedReplacements, askedRuleOf, askRuleCard, correctionChange, ruleCardAsk, ruleCardText } from './ruleCard.js'
 import { confirmCitedFacts, renderFootnotes } from '../../mneme/mnemeFootnotes.js'
@@ -445,12 +445,10 @@ export const CorrectTool = buildTool({
     return CORRECT_PROMPT
   },
   async checkPermissions(input: z.infer<CorrectSchema>, context: ToolUseContext) {
-    if (correctAskRefusal(context.messages ?? [], context.agentId ? String(context.agentId) : undefined) !== null) return { behavior: 'allow' as const, updatedInput: input }
     return ruleCardAsk(context) ?? { behavior: 'allow' as const, updatedInput: input }
   },
   async call(input: z.infer<CorrectSchema>, context: ToolUseContext, canUseTool, parentMessage) {
-    const unasked = correctAskRefusal(context.messages ?? [], context.agentId ? String(context.agentId) : undefined)
-    if (unasked !== null) return { data: { ok: false as const, op: input.op, code: context.agentId ? 'crewmate' : 'not-asked', message: unasked } }
+    if (context.agentId) return { data: { ok: false as const, op: input.op, code: 'crewmate', message: CREWMATE_CORRECT_REFUSAL } }
     const dir = mnemeLibraryDir()
     const consolidated = consolidatedIdOf(input.id, dir)
     const id = consolidated ?? input.id
@@ -464,7 +462,11 @@ export const CorrectTool = buildTool({
       session: safeSession(),
     }
     const rule = askedRuleOf(id, dir)
-    if (rule === null) return { data: { ...(await correctMemoryJudged(correction, abortOf(context))), ...followed } }
+    if (rule === null) {
+      const unasked = correctAskRefusal(context.messages ?? [])
+      if (unasked !== null) return { data: { ok: false as const, op: input.op, code: 'not-asked', message: unasked, ...followed } }
+      return { data: { ...(await correctMemoryJudged(correction, abortOf(context))), ...followed } }
+    }
     const early = correctionPreflight(correction, dir)
     if (early !== null) return { data: { ...early, ...followed } }
     const verdict = await askRuleCard({

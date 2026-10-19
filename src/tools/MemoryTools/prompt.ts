@@ -38,7 +38,7 @@ export const REFLECT_PROMPT = `Answer a question by synthesizing over recalled m
 
 export const CORRECT_PROMPT = `Correct one memory record by its id from Recall.
 
-- Only when the user asks for a memory to be remembered or changed, in their words ("remember: … instead of …", "update the note about …"). Never on your own judgement: a change said in passing is not an ask. The tool refuses a change when the user's latest message does not ask for a memory to be remembered or changed, and a crewmate's always: a crewmate's finding goes in its report.
+- Only when the user asks for a memory to be remembered or changed, in their words ("remember: … instead of …", "update the note about …"). Never on your own judgement: a change said in passing is not an ask. The tool refuses a change when the user's latest message does not ask for a memory to be remembered or changed (a pinned rule the user asked for goes to its card instead, as below), and a crewmate's always: a crewmate's finding goes in its report.
 - op 'supersede' — a new truth replaces the fact; pass content (or replacementId naming an existing seq that already carries the truth). The old fact moves to history with a superseded-by pointer.
 - op 'amend' — fix the record's own wording; requires the full record to have been read this session (Recall read:"<id>" first) so a clipped preview can never destroy an unseen tail.
 - op 'retract' — mark the fact wrong with a reason. A consolidated fact is never hard-deleted: history is the audit spine.
