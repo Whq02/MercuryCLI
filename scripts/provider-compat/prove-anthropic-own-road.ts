@@ -72,5 +72,9 @@ if (process.argv.includes('--record')) {
     console.log(`PASS ${current.arm}: ordered requests, transcript, usage, client identity and errors equal`)
   }
   assert.deepEqual(imports, [], 'product still imports the vendor SDK')
+  for (const capture of actual) for (const request of capture.requests) {
+    for (const header of Object.keys(HEADER_ALLOW_LIST).filter(name => name !== 'host')) assert.equal(request.headers[header], undefined, `${header}: vendor telemetry survived`)
+  }
   console.log('PASS no vendor SDK import remains under src/')
+  await import('./anthropicTransportChecks.ts')
 }

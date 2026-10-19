@@ -28,19 +28,7 @@ function sdkImporters(): string[] {
     .sort()
 }
 
-const ALLOWLIST = [
-  'src/services/providers/anthropic/cacheAndUsage.ts',
-  'src/services/providers/anthropic/requestParams.ts',
-  'src/services/providers/anthropic/streamCore.ts',
-  'src/services/api/client.ts',
-  'src/services/api/errors.ts',
-  'src/services/api/errorUtils.ts',
-  'src/services/api/sdkErrors.ts',
-  'src/services/api/withRetry.ts',
-  'src/services/rateLimitMocking.ts',
-  'src/services/vcr.ts',
-  'src/utils/model/validateModel.ts',
-].sort()
+const ALLOWLIST: string[] = []
 
 section('§A the exact SDK-importer allowlist (B01)')
 {
@@ -69,8 +57,8 @@ section('§B provider lanes are direct codecs (B03/B04)')
   check('zero SDK references under src/services/providers/** outside the Anthropic transport', routed.length === 0, routed.join(', '))
   const transport = hits.filter(f => f.startsWith(ANTHROPIC_HOME))
   check(
-    "the Anthropic transport's SDK importers are exactly the §A transport leaves",
-    transport.length > 0 && transport.every(f => ALLOWLIST.includes(f)),
+    'the Anthropic transport also has zero SDK references',
+    transport.length === 0,
     transport.join(', '),
   )
 }
@@ -96,10 +84,8 @@ section('§D the wire vocabulary is self-contained (B07)')
 section('§E sdkErrors.ts is the zero-dependency identity leaf')
 {
   const src = readFileSync(join(ROOT, 'src/services/api/sdkErrors.ts'), 'utf8')
-  const nonSdk = (src.match(/(^|\n)\s*(import|export)[^;]*from\s+'[^']*'/g) ?? []).filter(
-    stmt => !stmt.includes("'@anthropic-ai/sdk'"),
-  )
-  check('sdkErrors.ts imports/re-exports ONLY from the SDK', nonSdk.length === 0, nonSdk.join(' | '))
+  const imports = src.match(/(^|\n)\s*(import|export)[^;]*from\s+'[^']*'/g) ?? []
+  check('the owned error identity leaf imports nothing', imports.length === 0, imports.join(' | '))
 }
 
 section('§F the versioned machine contract + the named projection (E03/E04), on the live homes')

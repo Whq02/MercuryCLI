@@ -7,9 +7,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
 const idle = await import('../../src/services/providers/streamIdleBudget.js')
-const { Stream } = (await import(pathToFileURL(join(ROOT, 'node_modules/@anthropic-ai/sdk/core/streaming.mjs')).href)) as {
-  Stream: { fromSSEResponse(response: Response, controller: AbortController): AsyncIterable<{ type?: string }> }
-}
+const { AnthropicStream: Stream } = await import('../../src/services/providers/anthropic/anthropicStream.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

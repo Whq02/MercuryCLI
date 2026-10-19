@@ -1,4 +1,4 @@
-import { APIError } from '@anthropic-ai/sdk'
+import { APIError } from './sdkErrors.js'
 
 
 type ConnectionErrorDetails = {

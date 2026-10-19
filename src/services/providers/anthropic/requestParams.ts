@@ -1,8 +1,6 @@
 import { flagEnabled } from '../../../substrate/flagRegistry.js'
-import {
-  type BetaMessageParam as MessageParam,
-  type BetaOutputConfig,
-} from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
+import type { MessageParam } from '../../../types/wire.js'
+import type { AnthropicOutputConfig as BetaOutputConfig } from './anthropicWire.js'
 import {
   getLastApiCompletionTimestamp,
   getPromptCache1hEligible,

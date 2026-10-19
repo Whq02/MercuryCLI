@@ -29,7 +29,7 @@ const transport = await import('../../src/services/api/transportEvidence.js')
 const apiClient = await import('../../src/services/api/client.js')
 const REPO = resolve(import.meta.dir, '..', '..')
 const undiciErrors = (await import(join(REPO, 'node_modules/undici/lib/core/errors.js'))) as { ConnectTimeoutError: new (message?: string) => Error }
-const { default: Anthropic } = await import('@anthropic-ai/sdk')
+const { AnthropicClient: Anthropic } = await import('../../src/services/providers/anthropic/anthropicClient.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -311,8 +311,8 @@ if (ladder === null) {
 const NODE_SHAPE_SCRIPT = `
 import net from 'node:net'
 import { pathToFileURL } from 'node:url'
-const [repo, mode] = process.argv.slice(2)
-const { default: Anthropic } = await import(pathToFileURL(repo + '/node_modules/@anthropic-ai/sdk/index.mjs').href)
+const [repo, mode, clientPath] = process.argv.slice(2)
+const { AnthropicClient: Anthropic } = await import(pathToFileURL(clientPath).href)
 const undici = await import(pathToFileURL(repo + '/node_modules/undici/index.js').href)
 const held = []
 const server = net.createServer(c => { c.on('error', () => {}); held.push(c) })
@@ -336,13 +336,16 @@ server.close()
 `
 
 type NodeShape = { top?: string; hasCause?: boolean; message?: string; ms?: number; answered?: boolean; ring?: Array<{ name?: string; ctor?: string; code?: string; codeCtor?: string }> }
-function nodeRuntimeShape(mode: 'stall' | 'accepted'): NodeShape | { failed: string } {
+async function nodeRuntimeShape(mode: 'stall' | 'accepted'): Promise<NodeShape | { failed: string }> {
   const node = Bun.which('node')
   if (node === null) return { failed: 'no node on PATH' }
   const dir = mkdtempSync(join(tmpdir(), 'reconnect-shape-'))
   const script = join(dir, 'shape.mjs')
   writeFileSync(script, NODE_SHAPE_SCRIPT)
-  const run = spawnSync(node, [script, REPO, mode], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, NODE_OPTIONS: '' } })
+  const clientPath = join(dir, 'anthropicClient.mjs')
+  const built = await Bun.build({ entrypoints: [join(REPO, 'src/services/providers/anthropic/anthropicClient.ts')], target: 'node', format: 'esm', naming: 'anthropicClient.mjs', outdir: dir })
+  if (!built.success) return { failed: built.logs.join('\n') }
+  const run = spawnSync(node, [script, REPO, mode, clientPath], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, NODE_OPTIONS: '' } })
   const line = run.stdout.trim().split('\n').at(-1) ?? ''
   try {
     return JSON.parse(line) as NodeShape
@@ -354,8 +357,8 @@ function nodeRuntimeShape(mode: 'stall' | 'accepted'): NodeShape | { failed: str
 section('S6 — connect timeouts: the SDK drops their cause on the production runtime; the transport ring the client wrapper fills tells them from an accepted connection that stalled')
 {
   process.env.MERCURY_RECONNECT_SCALE = '0.01'
-  const stall = nodeRuntimeShape('stall')
-  const accepted = nodeRuntimeShape('accepted')
+  const stall = await nodeRuntimeShape('stall')
+  const accepted = await nodeRuntimeShape('accepted')
   const stallShape = stall as NodeShape
   const acceptedShape = accepted as NodeShape
   check('node + undici: a TLS handshake that never answers ends in undici\'s connect timeout — the SDK rethrows it as a bare timeout with the cause dropped', !('failed' in stall) && stallShape.top === 'APIConnectionTimeoutError' && stallShape.hasCause === false && (stallShape.ms ?? 9_999) < 2_500, JSON.stringify(stall))

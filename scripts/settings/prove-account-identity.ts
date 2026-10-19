@@ -506,7 +506,7 @@ section('§6 the other mints: the Saturn trail, the window refusal and the sign-
   check('hidden: the window refusal names the signed-in account, no address', hiddenWords.includes('reached for the signed-in account') && !hiddenWords.includes('@'), hiddenWords)
   limits.__setAnthropicOwnerResolverForTest(null)
   limits.resetLimitsForCredentialSwitch()
-  const { APIError } = await import('@anthropic-ai/sdk')
+  const { APIError } = await import('../../src/services/api/sdkErrors.js')
   const errors = await import(join(ROOT, 'src/services/api/errors.ts'))
   const RECORD = 'record@example.com'
   config.saveGlobalConfig((current: Record<string, unknown>) => ({ ...current, oauthAccount: { accountUuid: 'uuid-record-fixture', emailAddress: RECORD, organizationUuid: 'org-record-fixture' } }))

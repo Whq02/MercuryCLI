@@ -1596,7 +1596,7 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
         'Anthropic sign-in expired — switch providers (/model) or reconnect (/logins anthropic)',
     credentialWallLineForModel('claude-fable-5'),
   )
-  const { APIError } = await import('@anthropic-ai/sdk')
+  const { APIError } = await import('../../src/services/api/sdkErrors.js')
   const { getAssistantMessageFromError } = await import('../../src/services/api/errors.js')
   const { API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errorPrefix.js')
   const { getIsNonInteractiveSession } = await import('../../src/bootstrap/state.js')

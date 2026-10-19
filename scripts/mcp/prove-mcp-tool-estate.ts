@@ -151,7 +151,7 @@ t('a schema beyond the former size bound keeps every field instead of becoming p
 const fullDefinition = await toolToAPISchema(awkward, { getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools, agents: [], model: 'claude-sonnet-5' })
 t('the model wire keeps the complete MCP description and schema', fullDefinition.description === prompt && JSON.stringify(fullDefinition.input_schema) === JSON.stringify(wireSchema))
 {
-  const { APIError } = await import('@anthropic-ai/sdk')
+  const { APIError } = await import('../../src/services/api/sdkErrors.js')
   const { getAssistantMessageFromError } = await import('../../src/services/api/errors.ts')
   const providerWords = 'tools.3.custom.input_schema: the JSON schema is too large for this request'
   const refused = new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: providerWords } }, undefined, undefined as never)

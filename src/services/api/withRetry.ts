@@ -1,5 +1,5 @@
 import { OUTPUT_FIT_FLOOR_TOKENS, OUTPUT_FIT_HEADWAY_TOKENS } from './outputFit.js'
-import type Anthropic from '@anthropic-ai/sdk'
+import type { AnthropicClient as Anthropic } from '../providers/anthropic/anthropicClient.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 import type { FailoverCause, SystemAPIErrorMessage } from '../../types/message.js'

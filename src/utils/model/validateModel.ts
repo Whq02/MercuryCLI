@@ -1,4 +1,4 @@
-import { APIError, AuthenticationError, APIConnectionError, NotFoundError } from '@anthropic-ai/sdk'
+import { APIError, AuthenticationError, APIConnectionError, NotFoundError } from '../../services/api/sdkErrors.js'
 
 import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { queryModelWithoutStreaming } from '../../services/providers/anthropic/index.js'
