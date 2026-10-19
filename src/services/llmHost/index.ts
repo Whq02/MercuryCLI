@@ -26,7 +26,7 @@ export interface LlmHostQuestion {
 }
 export interface LlmHostEvent { title: string; words: string }
 export interface LlmHostResult { ok: boolean; words: string; model?: string; reply?: string; elapsedMs?: number; registered?: boolean }
-export type LlmHostAsk = (question: LlmHostQuestion) => Promise<string | null>
+type LlmHostAsk = (question: LlmHostQuestion) => Promise<string | null>
 export type LlmHostRoad = (ask: LlmHostAsk, emit: (event: LlmHostEvent) => void, signal: AbortSignal) => Promise<LlmHostResult>
 
 function editable(): void {
@@ -61,7 +61,7 @@ function writeEndpoint(name: string, endpoint: CompatEndpointSettings | undefine
   bumpCatalogueEpoch()
 }
 
-export async function checkLlmHostReply(model: string, signal: AbortSignal): Promise<LlmHostResult> {
+async function checkLlmHostReply(model: string, signal: AbortSignal): Promise<LlmHostResult> {
   const started = performance.now()
   let reply = ''
   let fault: string | undefined

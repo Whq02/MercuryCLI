@@ -18,6 +18,7 @@ const WHOLE_TREE: Record<string, string> = {
   'command-catalogue': 'prove-no-literal-disabled-branches, prove-settings-popup-commands and prove-surface-truth walk src and scripts (command surfaces)',
   compositor: 'prove-uiux-wave0-census walks scripts (its proof roster)',
   'consistency-census': 'prove-ordering-pin-teeth walks scripts; a whole-tree ratchet owed by every fold',
+  distribution: 'prove-no-os-sandbox walks src (no OS-sandbox import may return); a whole-tree ratchet owed by every fold',
   'core-runtime': 'prove-provider-contract walks src (provider edges)',
   critters: 'prove-small-critter-estate scans src/**/*.{ts,tsx} (the critter estate)',
   daemon: 'prove-daemon-dir-seam walks src (daemon-dir readers)',
