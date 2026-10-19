@@ -19,7 +19,7 @@ process.chdir(mkdtempSync(join(tmpdir(), 'cache-clock-gate-')))
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'cache-clock-gate-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-for (const k of ['MERCURY_CACHE_CLOCK', 'MERCURY_CACHE_TTL', 'MERCURY_TANK', 'MERCURY_HEALER', 'MERCURY_DAEMON_PERMISSION_MODE', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'MERCURY_OAUTH_TOKEN', 'MERCURY_API_UNIX_SOCKET']) delete process.env[k]
+for (const k of ['CI', 'NODE_ENV', 'MERCURY_CACHE_CLOCK', 'MERCURY_CACHE_TTL', 'MERCURY_TANK', 'MERCURY_HEALER', 'MERCURY_DAEMON_PERMISSION_MODE', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'MERCURY_OAUTH_TOKEN', 'MERCURY_API_UNIX_SOCKET']) delete process.env[k]
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 
 const state = await import('../../src/bootstrap/state.ts')
