@@ -88,6 +88,10 @@ await guarded(async () => {
   check('the warm pool spawns its runner oculus (the pool exists for the screen\'s next birth)', /kind: 'oculus',\n\s*\}\)\n\s*const reg = roster\.registerLongLived\(short, spec\)/.test(warmSrc))
   const runSrc = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
   check('the runner consumes the pin at its preflight, between the ask channel and the interactivity mark', /setAskChannel\(options\.door === 'wire' \? 'sdk' : 'none'\)\n\s*const kindPin = consumeSessionKindPin\(\)/.test(runSrc) && /setSessionKind\(kindPin\.kind === 'oculus' && options\.door === 'wire' \? 'oculus' : 'headless'\)\n\s*markSessionNonInteractive\(getAppState\(\)\.toolPermissionContext\?\.mode\)/.test(runSrc))
+  const healthSrc = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
+  const healthRow = healthSrc.slice(healthSrc.indexOf("id: 'session-kind'"), healthSrc.indexOf("id: 'session-kind'") + 2000)
+  check("/health carries the Session kind row, read from the focused session's record and spoken in the vocabulary's words", healthSrc.includes("id: 'session-kind'") && /readSessionWorkers\(\)\)\.find\(rec => rec\.sessionId === sessionId/.test(healthRow) && /sessionKindWords\(record\.kind\)/.test(healthRow))
+  check('the two kinds have two sentences, each leading with its word', kinds.sessionKindWords('oculus').startsWith('oculus — a screen belongs to this session') && kinds.sessionKindWords('headless').startsWith('headless — unattended'))
   const saved = process.env.MERCURY_SESSION_KIND
   process.env.MERCURY_SESSION_KIND = 'oculus'
   const pin = kinds.consumeSessionKindPin()
