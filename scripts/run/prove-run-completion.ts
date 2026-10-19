@@ -239,69 +239,13 @@ async function main(): Promise<void> {
     }
   }
 
-  section('7. the typed blocker declaration grammar (task #74 — the reachable escape)')
+  section('7. the blocked lifecycle is a run event, never a grammar: no fixed-lines module remains, and a blocker outranks the budget brake')
   {
-    const { parseBlockerDeclaration, MAX_FIELD_CHARS } = await import(
-      '../../src/services/run/blockerDeclaration.js'
-    )
-    const good = parseBlockerDeclaration(
-      'Tried the migration; the staging credentials are not in the repo.\n\n' +
-        'BLOCKED ON OPERATOR: need the staging DB password\n' +
-        'RESUME WHEN: operator provides the password',
-    )
+    const { existsSync } = await import('node:fs')
+    const { join } = await import('node:path')
     check(
-      'well-formed declaration → declared with both fields',
-      good.kind === 'declared' &&
-        good.description === 'need the staging DB password' &&
-        good.resumeCondition === 'operator provides the password',
-      good.kind,
-    )
-    const decorated = parseBlockerDeclaration(
-      'status\n\n- **Blocked on operator: need your API key choice**\n- **Resume when: operator names the key**',
-    )
-    check(
-      'bulleted/bolded/case-insensitive declaration still parses',
-      decorated.kind === 'declared' && decorated.description.includes('API key choice'),
-      decorated.kind,
-    )
-    const noResume = parseBlockerDeclaration('BLOCKED ON OPERATOR: need the staging DB password')
-    check(
-      'missing RESUME WHEN line → refused, reason names the line',
-      noResume.kind === 'refused' && /RESUME WHEN/.test(noResume.reason),
-      noResume.kind,
-    )
-    const wrongSecond = parseBlockerDeclaration(
-      'BLOCKED ON OPERATOR: need the staging DB password\nI will wait here.',
-    )
-    check('wrong second line → refused', wrongSecond.kind === 'refused', wrongSecond.kind)
-    const trailing = parseBlockerDeclaration(
-      'BLOCKED ON OPERATOR: need the staging DB password\nRESUME WHEN: operator provides the password\n\nMeanwhile I could also refactor the parser.',
-    )
-    check(
-      'content after the declaration → refused (must end the message)',
-      trailing.kind === 'refused' && /final lines/.test(trailing.reason),
-      trailing.kind,
-    )
-    const thin = parseBlockerDeclaration('BLOCKED ON OPERATOR: stuck\nRESUME WHEN: operator provides the password')
-    check(
-      'no-substance description → refused (the lazy-exit bound)',
-      thin.kind === 'refused' && /substance/.test(thin.reason),
-      thin.kind,
-    )
-    const thinResume = parseBlockerDeclaration(
-      'BLOCKED ON OPERATOR: need the staging DB password\nRESUME WHEN: operator answers',
-    )
-    check('no-substance resume condition → refused', thinResume.kind === 'refused', thinResume.kind)
-    check(
-      'plain prose (no marker) → none',
-      parseBlockerDeclaration('All done — the gate is green and pushed.').kind === 'none',
-    )
-    const long = parseBlockerDeclaration(
-      `BLOCKED ON OPERATOR: ${'need the thing '.repeat(40)}\nRESUME WHEN: operator provides the thing`,
-    )
-    check(
-      'oversized field is clamped (bounded fold)',
-      long.kind === 'declared' && long.description.length <= MAX_FIELD_CHARS,
+      'the fixed-lines grammar module is gone from the tree (the prompt asks for no such lines)',
+      !existsSync(join(import.meta.dir, '..', '..', 'src', 'services', 'run', 'blockerDeclaration.ts')),
     )
     const blockedAtBudget = kernel.reduceRunEvent(
       fold([{ type: 'substantive', at: 2, reason: 'x' }]),
@@ -320,7 +264,7 @@ async function main(): Promise<void> {
     check('blocker outranks the budget brake → blocked', dOrder.kind === 'blocked', dOrder.kind)
   }
 
-  section('8. the escape END-TO-END: declare → blocked once → surfaced → cleared on the answer')
+  section('8. the blocked lifecycle END-TO-END: no words read → a run event blocks once → surfaced → cleared on the answer')
   {
     const { mkdtempSync, rmSync } = await import('node:fs')
     const { tmpdir } = await import('node:os')
@@ -346,8 +290,8 @@ async function main(): Promise<void> {
       const mkOwner = (sessionId: string) =>
         ok.makeOwnerKey({ workspace: scratch, sessionId, lane: 'main' })
 
-      const abuseOwner = mkOwner('run-blocker-abuse')
-      coord.acceptUserRequest(abuseOwner, { objective: 'ship the widget', rootMessageId: 'u1' })
+      const wordsOwner = mkOwner('run-blocker-words')
+      coord.acceptUserRequest(wordsOwner, { objective: 'ship the widget', rootMessageId: 'u1' })
       const tid = await tasksMod.createTask(listId, {
         subject: 'wire the escape',
         description: 'the deliverable',
@@ -355,48 +299,55 @@ async function main(): Promise<void> {
         blocks: [],
         blockedBy: [],
       })
-      const abuseVerdict = await adapter.evaluateStopAttempt(
-        mkMessages([
-          { role: 'user', text: 'ship the widget' },
-          { role: 'assistant', text: 'BLOCKED ON OPERATOR: stuck\nRESUME WHEN: operator provides the password' },
-        ]),
-        { maxBlocks: 3, wordingUnfinished: false, owner: abuseOwner },
-      )
-      check(
-        'abuse: no-substance declaration does NOT block — the decision stays continue and the stop stands',
-        abuseVerdict.decision.kind === 'continue' && abuseVerdict.allowStop === true,
-        abuseVerdict.decision.kind,
-      )
-      const abuseSnap = coord.getRunSnapshot(abuseOwner)
-      check(
-        'abuse: no blocked event minted, lifecycle stays active',
-        abuseSnap?.lifecycle === 'active' && abuseSnap.blocker === null,
-        String(abuseSnap?.lifecycle),
-      )
-      check(
-        "abuse: the refusal reason rides the continue decision's reason",
-        abuseVerdict.decision.kind === 'continue' &&
-          /blocker declaration refused/.test(abuseVerdict.decision.reason) &&
-          /substance/.test(abuseVerdict.decision.reason),
-      )
-      check(
-        'abuse: the refusal is recorded on the /run timeline (stop-decision detail)',
-        /blocker declaration refused/.test(abuseSnap?.lastStopDecision?.detail ?? ''),
-      )
-      check(
-        'the adapter composes no re-prompt and claims no continuation: a continue decision is a stop that stands',
-        !('repromptWithNextAction' in adapter) && !('boundRepromptField' in adapter) && !('REPROMPT_FIELD_BUDGET' in adapter) && !(abuseSnap?.recentEvents ?? []).some(e => e.type === 'continuation'),
-      )
-
-      const escOwner = mkOwner('run-blocker-esc')
-      coord.acceptUserRequest(escOwner, { objective: 'ship the widget', rootMessageId: 'u1' })
       const declTail =
         'Tried the migration; the credentials are operator-held.\n\n' +
         'BLOCKED ON OPERATOR: need the staging DB password\n' +
         'RESUME WHEN: operator provides the password'
+      const wordsVerdict = await adapter.evaluateStopAttempt(
+        mkMessages([
+          { role: 'user', text: 'ship the widget' },
+          { role: 'assistant', text: declTail },
+        ]),
+        { maxBlocks: 3, wordingUnfinished: false, owner: wordsOwner },
+      )
+      check(
+        'RED ON THE BASE: the old two lines in the final text mint NO blocker — the decision stays continue and the stop stands',
+        wordsVerdict.decision.kind === 'continue' && wordsVerdict.allowStop === true,
+        wordsVerdict.decision.kind,
+      )
+      const wordsSnap = coord.getRunSnapshot(wordsOwner)
+      check(
+        'no blocked event minted, lifecycle stays active, blocker null',
+        wordsSnap?.lifecycle === 'active' && wordsSnap.blocker === null && !(wordsSnap.recentEvents ?? []).some(e => e.type === 'blocked'),
+        String(wordsSnap?.lifecycle),
+      )
+      check(
+        'no declaration vocabulary on the decision or the /run timeline (the adapter has no grammar to refuse)',
+        wordsVerdict.decision.kind === 'continue' &&
+          !/declaration/.test(wordsVerdict.decision.reason) &&
+          !/declaration/.test(wordsSnap?.lastStopDecision?.detail ?? ''),
+      )
+      check(
+        'the adapter composes no re-prompt and claims no continuation: a continue decision is a stop that stands',
+        !('repromptWithNextAction' in adapter) && !('boundRepromptField' in adapter) && !('REPROMPT_FIELD_BUDGET' in adapter) && !(wordsSnap?.recentEvents ?? []).some(e => e.type === 'continuation'),
+      )
+
+      const escOwner = mkOwner('run-blocker-esc')
+      coord.acceptUserRequest(escOwner, { objective: 'ship the widget', rootMessageId: 'u1' })
+      const blockedAt = Date.now()
+      coord.noteRunEvent(escOwner, {
+        type: 'blocked',
+        at: blockedAt,
+        blocker: {
+          description: 'need the staging DB password',
+          ownedBy: 'operator',
+          resumeCondition: 'operator provides the password',
+          at: blockedAt,
+        },
+      })
       const escMessages = mkMessages([
         { role: 'user', text: 'ship the widget' },
-        { role: 'assistant', text: declTail },
+        { role: 'assistant', text: 'Tried the migration; the credentials are operator-held. Which password should I use?' },
       ])
       const escVerdict = await adapter.evaluateStopAttempt(escMessages, {
         maxBlocks: 3,
@@ -404,7 +355,7 @@ async function main(): Promise<void> {
         owner: escOwner,
       })
       check(
-        'declared → the evaluator answers blocked and the stop is ALLOWED (loop terminated)',
+        'a blocked run event → the evaluator answers blocked and the stop is ALLOWED (loop terminated)',
         escVerdict.decision.kind === 'blocked' && escVerdict.allowStop === true,
         escVerdict.decision.kind,
       )
@@ -450,7 +401,7 @@ async function main(): Promise<void> {
       const resumedVerdict = await adapter.evaluateStopAttempt(
         mkMessages([
           { role: 'user', text: 'ship the widget' },
-          { role: 'assistant', text: declTail },
+          { role: 'assistant', text: 'Tried the migration; the credentials are operator-held. Which password should I use?' },
           { role: 'user', text: 'password is in your env now' },
           { role: 'assistant', text: 'Resuming the migration.' },
         ]),

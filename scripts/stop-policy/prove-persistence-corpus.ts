@@ -18,7 +18,6 @@ async function main(): Promise<void> {
   const ok = await import('../../src/services/run/ownerKey.js')
   const kernel = await import('../../src/services/run/runKernel.js')
   const { evaluateStop } = await import('../../src/services/run/completionEvaluator.js')
-  const { parseBlockerDeclaration } = await import('../../src/services/run/blockerDeclaration.js')
   const mission = await import('../../src/guards/mission.js')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/speedster', sessionId: 'corpus', lane: 'main' })
@@ -60,14 +59,8 @@ async function main(): Promise<void> {
     check('C8: substantive read-only run with closed deliverables completes', d.kind === 'complete', d.kind)
   }
 
-  section('class 10 — the typed operator blocker terminates the loop honestly')
+  section('class 10 — an operator blocker folded by the run\'s own event terminates the loop honestly (no grammar: the blocker is never read from the answer)')
   {
-    const declared = parseBlockerDeclaration(
-      'I need the staging API key to continue.\nBLOCKED ON OPERATOR: the staging API key\nRESUME WHEN: the key is provided in the environment',
-    )
-    check('C10: well-formed declaration parses as declared', declared.kind === 'declared')
-    const malformed = parseBlockerDeclaration('BLOCKED ON OPERATOR: everything is hard')
-    check('C10: malformed declaration (no RESUME WHEN) is refused with a reason', malformed.kind === 'refused')
     const blockedRun = fold('ship the widget', [
       { type: 'substantive', at: 2, reason: 'implementation' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'wire the API', state: 'open' },

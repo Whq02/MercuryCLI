@@ -576,9 +576,10 @@ exits 1. If a later tool call in the same turn succeeds, the turn recovers and
 finishes `completed` (exit 0) with a warning `notice` (`"<Tool> was not
 approved; the run continued with other tools."`). A refusal you did
 answer (through a deny rule, a hook, or a host that said no) leaves a completed turn
-completed. A run whose final answer ends with the two lines `BLOCKED ON
-OPERATOR: …` and `RESUME WHEN: …` is `blocked` the same way: `error` carries
-the blocker and the resume condition, and the run exits 1. An unknown slash
+completed. A question to the operator (`AskUserQuestion`) that nobody could
+answer is `blocked` the same way, with the question itself quoted in `error`;
+the outcome is read from the run's own asks, never from the words of the
+answer, so a question written only in the answer reads as `completed`. An unknown slash
 command is `refused` with the same sentence the interactive screen gives (`Unknown
 command: /name · /help lists commands`) and exits 1.
 

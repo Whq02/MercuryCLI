@@ -34,9 +34,7 @@ import { engageCommitGate } from '../guards/commitGate.js'
 import { registerForcedReadGuard } from '../guards/forcedRead.js'
 import { registerStructuredOutputGuard } from '../guards/structuredOutput.js'
 import { registerRunStopGuard } from '../guards/runStop.js'
-import { lastAssistantText } from '../guards/runStopAdapter.js'
 import { registerWardsGuard } from '../guards/wardsGuard.js'
-import { parseBlockerDeclaration } from '../services/run/blockerDeclaration.js'
 import { askNobodyAnswered, unansweredAsksBlocker } from '../services/run/unansweredAsk.js'
 import type { PermissionDecision } from '../types/permissions.js'
 import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
@@ -1098,16 +1096,11 @@ export class Conversation {
     const endedOnApiError = terminal.reason === 'completed' && lastAssistant?.isApiErrorMessage === true
     const settled = endedOnApiError ? { status: 'failed' as const, errorClass: 'model' as const } : statusOfTerminal(terminal, cut)
     if (settled.status === 'completed') {
-      const blocker = parseBlockerDeclaration(lastAssistantText(lastAssistant === undefined ? [] : [lastAssistant]))
-      if (blocker.kind === 'declared') {
-        yield* endTurn('blocked', { answer, error: { message: `Blocked on the operator: ${blocker.description}`, class: 'blocked', detail: [`resume when: ${blocker.resumeCondition}`] } })
-        return
-      }
       const unanswered = this.denials.slice(denialsBefore).filter(denial => this.unansweredAsks.has(denial.call_id))
       if (unanswered.length > 0) {
         const tools = [...new Set(unanswered.map(denial => denial.tool))]
         if (!recoveredUnansweredAsk) {
-          yield* endTurn('blocked', { answer, error: unansweredAsksBlocker(tools) })
+          yield* endTurn('blocked', { answer, error: unansweredAsksBlocker(unanswered) })
           return
         }
         notices.push({ level: 'warning', text: `${tools.join(', ')} was not approved; the run continued with other tools.` })

@@ -194,7 +194,9 @@ section('main and sub-agent instructions match the available interaction model')
     process.env.MERCURY_ENTRYPOINT = 'headless'
     clearSystemPromptSections()
     const headless = (await getSystemPrompt(tools, 'claude-fable-5-1')).join('\n\n')
-    check('headless guidance names no interactive-only command and no question prompt', !headless.includes('AskUserQuestion') && !headless.includes('/kill') && !headless.includes('starts with `!`'))
+    check('headless guidance names no interactive-only command', !headless.includes('/kill') && !headless.includes('starts with `!`'))
+    const askMentions = headless.split('AskUserQuestion').length - 1
+    check('the question tool is named once in the headless prompt, on the posture line as the road to a blocked outcome, with no ask hint', askMentions === 1 && /still ask through AskUserQuestion and end your turn: that unanswered question ends the run as blocked/.test(headless) && !/use AskUserQuestion to ask rather than guessing/.test(headless), String(askMentions))
     resetRuntimePostureForTest()
     setAskChannel('sdk')
     markSessionNonInteractive('default')

@@ -1,5 +1,4 @@
 
-import { parseBlockerDeclaration } from '../services/run/blockerDeclaration.js'
 import { parseOperatorPauseDirective } from '../services/run/operatorPause.js'
 import { evaluateStop, type StopDecision } from '../services/run/completionEvaluator.js'
 import {
@@ -124,33 +123,6 @@ export async function evaluateStopAttempt(
     }
   }
 
-  let blockerRefusal: string | null = null
-  {
-    const declared = parseBlockerDeclaration(lastAssistantText(messages))
-    if (declared.kind === 'declared') {
-      const snap = getRunSnapshot(owner)
-      if (
-        snap &&
-        snap.substantive &&
-        !isTerminalLifecycle(snap.lifecycle) &&
-        snap.lifecycle !== 'blocked'
-      ) {
-        const declaredAt = Date.now()
-        noteRunEvent(owner, {
-          type: 'blocked',
-          at: declaredAt,
-          blocker: {
-            description: declared.description,
-            ownedBy: 'operator',
-            resumeCondition: declared.resumeCondition,
-            at: declaredAt,
-          },
-        })
-      }
-    } else if (declared.kind === 'refused') {
-      blockerRefusal = declared.reason
-    }
-  }
   const snapshot = getRunSnapshot(owner)
 
   let verification:
@@ -177,7 +149,7 @@ export async function evaluateStopAttempt(
     interactive: safeIsInteractive(),
     missionArmed: missionArmedForSession(),
   })
-  let decision = evaluateStop({
+  const decision = evaluateStop({
     snapshot,
     wordingUnfinished: opts.wordingUnfinished,
     continuationsThisTurn: continuationsThisTurn(owner, turnIdx),
@@ -189,12 +161,6 @@ export async function evaluateStopAttempt(
     surface: contract.surface,
     terminalPolicy: contract.terminalPolicy,
   })
-  if (blockerRefusal && decision.kind === 'continue') {
-    decision = {
-      ...decision,
-      reason: `${decision.reason} — blocker declaration refused: ${blockerRefusal}`,
-    }
-  }
 
   const at = Date.now()
   if (snapshot) {

@@ -111,14 +111,14 @@ export function getRuntimePostureSection(): string | null {
 
   if (nonInteractive && canAnswerAsks()) {
     lines.push(
-      '- Session: non-interactive (mercury runner) with a host that holds the asks: a tool call that needs approval is put to the connected host, which answers allow or deny; a question to the operator travels the same door. A denial is policy, not tool failure: prefer tools your rules allow, or state the blocker plainly in your output.' +
+      '- Session: non-interactive (mercury runner) with a host that holds the asks: a tool call that needs approval is put to the connected host, which answers allow or deny; a question to the operator travels the same door. A denial is policy, not tool failure: prefer tools your rules allow. An ask the host leaves unanswered ends the run as blocked, with the question on its outcome row.' +
         (bootPermissionMode ? ` Permission mode for this run: ${bootPermissionMode}.` : ''),
     )
     const needs = composeOperatorNeedsLine(bootPermissionMode, bootRules)
     if (needs !== null) lines.push(needs)
   } else if (nonInteractive) {
     lines.push(
-      '- Session: non-interactive (mercury run): no human is at a prompt and no host answers an ask, so a tool call that would need an interactive approval is denied automatically and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. A denial is policy, not tool failure: prefer tools your rules allow, or state the blocker plainly in your output.',
+      '- Session: non-interactive (mercury run): no human is at a prompt and no host answers an ask, so a tool call that would need an interactive approval is denied automatically and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. A denial is policy, not tool failure: prefer tools your rules allow. When nothing reasonable remains without the operator, still ask through AskUserQuestion and end your turn: that unanswered question ends the run as blocked with your question on its outcome row, which is how a scripted run tells stuck from done — a question written only in your answer reads as done.',
     )
   }
 

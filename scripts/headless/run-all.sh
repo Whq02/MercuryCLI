@@ -23,7 +23,7 @@
 # gate-watch: src/daemon/runnerConnection.ts src/daemon/headlessRun.ts src/services/acp/childSession.ts
 # gate-watch: src/daemon/verbs.ts src/utils/settings/validationTips.ts
 # gate-watch: src/cli/headless/restartCarry.ts src/tasks/LocalAgentTask/launchReceipts.ts
-# gate-watch: sdk/src/rows.ts src/services/run/blockerDeclaration.ts
+# gate-watch: sdk/src/rows.ts src/services/run/unansweredAsk.ts
 # gate-watch: src/mneme/* src/types/textInputTypes.ts
 # gate-watch: src/utils/messages/apiPlan.ts src/utils/messages/factories.ts
 # gate-watch: scripts/release/launcherTemplates.mjs package.json src/services/run/unansweredAsk.ts

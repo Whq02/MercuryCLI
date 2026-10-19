@@ -17,11 +17,12 @@ for (const shape of ['recovered', 'discovery-only', 'still-blocked'] as const) {
   seedFirstRun(home, [cwd])
   writeFileSync(join(cwd, 'package.json'), JSON.stringify({ scripts: { test: 'node --test' } }))
   writeFileSync(join(cwd, 'sum.test.cjs'), "const { test } = require('node:test'); for (const name of ['one','two','three']) test(name,()=>{});\n")
-  const answer = shape === 'still-blocked' ? 'BLOCKED ON OPERATOR: permission to publish\nRESUME WHEN: publishing is approved' : shape === 'recovered' ? '3 passed, 0 failed, 0 skipped, 0 errored.' : 'The execution is unavailable.'
+  const answer = shape === 'still-blocked' ? '3 passed, 0 failed, 0 skipped, 0 errored. Publishing needs your go.' : shape === 'recovered' ? '3 passed, 0 failed, 0 skipped, 0 errored.' : 'The execution is unavailable.'
   const turns: ScriptedTurn[] = [
     { kind: 'tool_use', name: 'Bash', input: { command: 'node --test', description: 'Run project tests' } },
     { kind: 'tool_use', name: 'ToolSearch', input: { query: 'select:Test' } },
     ...(shape === 'discovery-only' ? [] : [{ kind: 'tool_use' as const, name: 'Test', input: { op: 'run', framework: 'node-test' } }]),
+    ...(shape === 'still-blocked' ? [{ kind: 'tool_use' as const, name: 'AskUserQuestion', input: { questions: [{ question: 'Publish the package now?', header: 'Publish', options: [{ label: 'yes', description: 'publish' }, { label: 'no', description: 'hold' }], multiSelect: false }] } }] : []),
     { kind: 'text', text: answer }, handoffTurn(), handoffTurn(),
   ]
   const api = await startFixtureApi(turns)
@@ -42,6 +43,7 @@ for (const shape of ['recovered', 'discovery-only', 'still-blocked'] as const) {
       check('work delivered after the denial completes with exit zero', code === 0 && outcome?.status === 'completed' && outcome.answer === answer, { code, outcome, stderr })
       check('the closing outcome keeps a note about the routed-around denial', outcome?.notices?.some((n: { text: string }) => n.text.includes('Bash') && n.text.includes('continued')) === true, outcome?.notices)
     } else check(`${shape}: an unanswered operation still blocks`, code === 1 && outcome?.status === 'blocked', { code, outcome, stderr })
+    if (shape === 'still-blocked') check('RED ON THE BASE: the question nobody answered is quoted on the outcome, read from the ask (the Test tool that ran before it recovers nothing)', String(outcome?.error?.message ?? '').includes('«Publish the package now?»') && outcome?.denials?.some((d: { tool: string }) => d.tool === 'AskUserQuestion') === true, outcome?.error)
   } finally { await api.close(); rmSync(home, { recursive: true, force: true }) }
 }
 if (failures) process.exit(1)
