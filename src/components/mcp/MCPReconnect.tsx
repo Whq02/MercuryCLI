@@ -1,61 +1,18 @@
-
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Box, Text } from '../../ink.js'
-import { useMcpReconnect } from '../../services/mcp/MCPConnectionManager.js'
-import { useAppState } from '../../state/AppState.js'
+import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import { Spinner } from '../Spinner.js'
-import { describeReconnectOutcome } from './utils/reconnectHelpers.js'
 
-export function MCPReconnect({
-  serverName,
-  onComplete,
-}: {
-  serverName: string
-  onComplete: LocalJSXCommandOnDone
-}): React.ReactNode {
-  const reconnect = useMcpReconnect()
-  const clients = useAppState(state => state.mcp.clients)
-  const [waiting, setWaiting] = useState(true)
-  const startedRef = useRef(false)
-
+export function MCPReconnect({ serverName, onComplete }: { serverName: string; onComplete: LocalJSXCommandOnDone }): React.ReactNode {
+  const started = useRef(false)
   useEffect(() => {
-    if (startedRef.current) return
-    startedRef.current = true
-
-    const known = clients.some(client => client.name === serverName)
-    if (!known) {
-      setWaiting(false)
-      onComplete(`MCP server ${serverName} was not found.`)
-      return
-    }
-
-    void (async () => {
-      try {
-        const result = await reconnect(serverName)
-        const outcome = describeReconnectOutcome(serverName, result.client)
-        onComplete(outcome.message)
-      } catch (error) {
-        onComplete(
-          `Reconnecting to ${serverName} failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        )
-      } finally {
-        setWaiting(false)
-      }
-    })()
-  }, [clients, onComplete, reconnect, serverName])
-
-  if (!waiting) return null
-  return (
-    <Box>
-      <Spinner />
-      <Text dimColor>
-        {' '}
-        Reconnecting to {serverName} — this can take a moment…
-      </Text>
-    </Box>
-  )
+    if (started.current) return
+    started.current = true
+    void getFocusedSessionConnector().mcpAction(serverName, 'reconnect').then(result => {
+      onComplete(result.detail ?? `${serverName}: ${result.outcome}`)
+    })
+  }, [serverName, onComplete])
+  return <Box><Spinner /><Text dimColor> Reconnecting to {serverName}…</Text></Box>
 }

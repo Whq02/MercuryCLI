@@ -1,5 +1,7 @@
 import { existsSync } from 'node:fs'
-import { dirname, resolve, sep } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
+import { getCwd } from '../cwd.js'
+import { projectConfigDirs } from '../projectConfig.js'
 
 import * as chokidar from 'chokidar'
 
@@ -125,10 +127,17 @@ async function initialize(): Promise<void> {
   const files = new Map<string, SettingSource>()
   const directories = new Set<string>()
   const awaited = new Set<string>()
+  const targets: Array<[string, SettingSource]> = []
+  for (let dir = getCwd(); dirname(dir) !== dir; dir = dirname(dir)) {
+    for (const root of projectConfigDirs(dir)) targets.push([join(root, 'mcp.json'), 'projectSettings'])
+  }
   for (const source of SETTING_SOURCES) {
     if (source === 'flagSettings') continue
     const filePath = getSettingsFilePathForSource(source)
     if (filePath === undefined) continue
+    targets.push([filePath, source])
+  }
+  for (const [filePath, source] of targets) {
     const normalized = resolve(filePath)
     files.set(normalized, source)
     const parent = dirname(normalized)

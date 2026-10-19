@@ -1,13 +1,15 @@
 import * as React from 'react'
 import { useEffect, useRef } from 'react'
-import { McpRosterCard } from '../../components/mcp/McpRosterCard.js'
+import { CommandPopupLease } from '../../components/CommandPopupSlot.js'
+import { claimCommandPopup } from '../../utils/cockpit/commandPopup.js'
+import { mcpPopupShape } from './McpPopup.js'
 import { MCPReconnect } from '../../components/mcp/MCPReconnect.js'
 import { MCPSettings } from '../../components/mcp/MCPSettings.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
-import { kitDialLine, MCP_ORGAN_LINE, mcpRosterLine, mcpRouteArm } from './route.js'
+import { kitDialLine, MCP_ORGAN_LINE } from './route.js'
 
 function McpToggle({
   action,
@@ -75,14 +77,7 @@ export async function call(
     const target = rest.length > 0 ? rest.join(' ') : 'all'
     return <McpToggle action={first} target={target} onDone={onDone} />
   }
-  const { getFocusedSessionConnector } = await import('../../services/engine-connector/focusedConnector.js')
-  const roster = getFocusedSessionConnector().mcpRoster()
-  if (mcpRouteArm(roster, context.getAppState().mcp.clients.length) === 'facts') {
-    if (roster.clients.length === 0) {
-      onDone(mcpRosterLine(roster))
-      return null
-    }
-    return <McpRosterCard roster={roster} onDone={onDone} />
-  }
-  return <MCPSettings onComplete={onDone} />
+  void context
+  const token = claimCommandPopup(mcpPopupShape)
+  return <CommandPopupLease token={token}><MCPSettings onComplete={onDone} /></CommandPopupLease>
 }

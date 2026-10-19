@@ -3,10 +3,11 @@ import { setNextSessionFacts } from '../switchboard/bootBirthFacts.js'
 import { kitRowView, type KitRow, type KitStates } from './kitTypes.js'
 
 export function resolvedKitOf(rows: readonly KitRow[], states: KitStates): SessionKitV1 {
-  const kit: SessionKitV1 = { schema: 1, mcp: [], skills: [], invocable: [] }
+  const kit: SessionKitV1 = { schema: 1, mcp: [], skills: [], invocable: [], mcpKnown: [] }
   const extensions: Record<string, 'on' | 'off'> = {}
   for (const row of rows) {
     if (row.kind === 'mcp') {
+      if (!kit.mcpKnown!.includes(row.name)) kit.mcpKnown!.push(row.name)
       if (kitRowView(row, states).effective === 'on' && !kit.mcp.includes(row.name)) kit.mcp.push(row.name)
     } else if (row.kind === 'skill') {
       const effective = kitRowView(row, states).effective

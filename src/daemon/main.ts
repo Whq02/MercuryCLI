@@ -61,6 +61,7 @@ import {
   rewindSession,
   setSessionEffort,
   setSessionKitDial,
+  actOnSessionMcp,
   setSessionModel,
   setSessionPermissionMode,
   setSessionSpawnSwitch,
@@ -627,7 +628,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
-        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, effort, mode, contract, kitEdit, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused }) => {
+        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, effort, mode, contract, kitEdit, mcpAction, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused }) => {
           void reason
           if (clientOpId !== undefined) {
             const prior = readConcourseControlOps()[clientOpId]
@@ -740,6 +741,10 @@ async function daemonRun(args: string[]): Promise<void> {
           if (action === 'set-schedule') {
             if (scheduleEdit === undefined) return { outcome: 'refused' as const, detail: 'set-schedule requires { scheduleEdit: { op, schedule? | scheduleId? } }' }
             return settle(applySeatScheduleControl(sessionId, scheduleEdit, by, roster))
+          }
+          if (action === 'mcp-action') {
+            if (!mcpAction || !roster) return { outcome: 'refused' as const, detail: 'the MCP action or runner is unavailable' }
+            return actOnSessionMcp(sessionId, mcpAction, roster)
           }
           if (action === 'set-kit') {
             if (kitEdit === undefined) return { outcome: 'refused' as const, detail: 'set-kit requires { kitEdit: { mcp?, skills?, extensions? } }' }

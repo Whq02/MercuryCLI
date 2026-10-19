@@ -45,7 +45,9 @@ import type { PermissionMode as WirePermissionMode } from '../types/permissions.
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
 import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
-import { declareLawfulPrefixChangeForEveryOwner } from '../services/providers/lawfulPrefixChange.js'
+import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
+import { watchLiveMcpConfig } from '../services/mcp/liveConfig.js'
+import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../services/mcp/dynamicMcpSeed.js'
 import { modelRefusalBeforeAnyRequest } from '../services/providers/callModelRouter.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { isToolResultMessage } from '../utils/messages/merge.js'
@@ -113,6 +115,7 @@ import {
   fetchCommandsForClient,
   fetchResourcesForClient,
   fetchToolsForClient,
+  reconnectMcpServerImpl,
 } from '../services/mcp/client.js'
 import { withElicitationEntered } from '../services/mcp/elicitationHandler.js'
 import { getMcpPrefix } from '../services/mcp/mcpStringUtils.js'
@@ -137,8 +140,10 @@ import { offSkillNamesOf } from '../skills/kitGovernance.js'
 import { disabledMcpServerNamesIn } from '../services/mcp/disabledRecord.js'
 import {
   getMcpConfigByName,
+  getMercuryMcpConfigs,
+  filterMcpServersByPolicy,
 } from '../services/mcp/config.js'
-import { revokeServerTokens } from '../services/mcp/auth.js'
+import { performMCPOAuthFlow } from '../services/mcp/auth.js'
 import type {
   ConnectedMCPServer,
   MCPServerConnection,
@@ -1606,6 +1611,7 @@ export async function runHeadless(
       fetchResourcesForClient(client),
     ])
     const prefix = getMcpPrefix(serverName)
+    if (tools.length > 0) requestDeliberateToolChange(String(processMainOwner()), tools, `the MCP server ${serverName} joined or reconnected`)
     setAppState(previous => ({
       ...previous,
       mcp: {
@@ -1632,6 +1638,58 @@ export async function runHeadless(
       },
     }))
   }
+
+  const mcpSignIns = new Map<string, { controller: AbortController; authorizationUrl?: string }>()
+  const permittedMcpConfig = async (name: string): Promise<ScopedMcpServerConfig | null> => {
+    const dynamic = dynamicMcpConfigSnapshot() ?? {}
+    const resolved = isStrictMcpConfigSeed() ? { servers: {} } : await getMercuryMcpConfigs(dynamic)
+    const { allowed } = filterMcpServersByPolicy({ ...resolved.servers, ...dynamic })
+    return allowed[name] ?? null
+  }
+  const reconnectLiveMcp = async (name: string, config: ScopedMcpServerConfig): Promise<MCPServerConnection> => {
+    const result = await reconnectMcpServerImpl(name, config)
+    await applyReconnectedClient(name, result.client)
+    registerPerTurnHandlers([result.client])
+    return result.client
+  }
+  const liveMcp = watchLiveMcpConfig({
+    hosted: isConcourseWorker,
+    initial: Object.fromEntries(getAppState().mcp.clients.map(client => [client.name, client.config])),
+    ready: () => !awaitingSessionClaim,
+    approve: async (name, config) => {
+      const target = 'url' in config ? config.url : config.command
+      const key = `mcp-project-${randomUUID()}`
+      const result = await asks.askPermission({
+        kind: 'tool', tool_use_id: key, tool_name: 'MCP', title: `Trust new project MCP server ${name}`,
+        input: { server: name, target, scope: 'project' },
+        reason: 'MCP servers may execute code or access external systems. Use this project server?',
+      }, { key })
+      return result.outcome === 'allow'
+    },
+    reconcile: (next, previous) => serializeMcpChange(async () => {
+      for (const row of getAppState().mcp.clients) {
+        const configuredScope = ['user', 'local', 'project', 'enterprise'].includes(row.config.scope) || row.name in previous
+        if (!configuredScope || row.name in next) continue
+        mcpSignIns.get(row.name)?.controller.abort()
+        await clearServerCache(row.name, row.config).catch(() => {})
+        elicitationRegistered.delete(row.name)
+        setAppState(state => {
+          const pruned = dropMcpServerFromAppState(state, row.name, row.config)
+          return { ...pruned, mcp: { ...pruned.mcp, clients: pruned.mcp.clients.filter(client => client.name !== row.name) } }
+        })
+      }
+      for (const [name, config] of Object.entries(next)) {
+        if (!isMcpCatalogueMember(name)) continue
+        const row = getAppState().mcp.clients.find(client => client.name === name)
+        if (row && JSON.stringify(row.config) === JSON.stringify(config)) continue
+        await reconnectLiveMcp(name, config)
+      }
+    }),
+  })
+  registerCleanup(async () => {
+    liveMcp.stop()
+    for (const flow of mcpSignIns.values()) flow.controller.abort()
+  })
 
   const SEAT_VERB_AT = (held: boolean): 'now' | 'turn_end' => (held ? 'turn_end' : 'now')
   const acceptInput = async (
@@ -1825,6 +1883,7 @@ export async function runHeadless(
       if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason
       if (params.resume === true) await hydrateResumedRun()
       awaitingSessionClaim = false
+      void liveMcp.refresh()
       sessionFactsHoldSpent = false
       sessionFactsHold = null
       releaseQueueUntilClaimed?.()
@@ -1897,7 +1956,12 @@ export async function runHeadless(
           accountEmail: anthropicSignInEmail() ?? null,
         },
         skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
-        mcp: mcpRosterEntriesOf(state.mcp.clients, []),
+        mcp: mcpRosterEntriesOf(state.mcp.clients, []).map(row => ({
+          ...row,
+          toolCount: state.mcp.tools.filter(tool => tool.mcpInfo?.serverName === row.name).length,
+          ...(liveMcp.addedAt.has(row.name) ? { addedAt: liveMcp.addedAt.get(row.name) } : {}),
+          ...(mcpSignIns.has(row.name) ? { signingIn: true, authorizationUrl: mcpSignIns.get(row.name)?.authorizationUrl } : {}),
+        })),
         permissionMode: state.toolPermissionContext.mode,
         ...((): { effortSent?: string | null } => {
           const sent = effortSentOf(resolveEffortTruth(activeModel ?? getEngineModel(), state.effortValue))
@@ -2003,6 +2067,42 @@ export async function runHeadless(
       readOpenaiAccountAgain()
       noteCrewAccountChange()
     },
+    'mcp/action': async (params, _ref, signal) => {
+      const { name, action } = params
+      if (action === 'cancel-auth') {
+        mcpSignIns.get(name)?.controller.abort()
+        return { outcome: 'applied' as const }
+      }
+      const config = await permittedMcpConfig(name)
+      if (!config || !isMcpCatalogueMember(name)) return { outcome: 'refused' as const, detail: 'the server is off, unapproved, denied by policy, or no longer configured' }
+      if (action === 'authenticate' && config.type !== 'http' && config.type !== 'sse') return { outcome: 'refused' as const, detail: 'this server does not use browser sign-in' }
+      if (mcpSignIns.has(name)) return { outcome: 'refused' as const, detail: 'sign-in is already in progress' }
+      const controller = new AbortController()
+      const cancel = (): void => controller.abort(signal.reason)
+      signal.addEventListener('abort', cancel, { once: true })
+      try {
+        if (action === 'authenticate') {
+          const flow: { controller: AbortController; authorizationUrl?: string } = { controller }
+          mcpSignIns.set(name, flow)
+          enqueueRow(noticeRow(liveScope(), 'warning', `Signing in to ${name} (browser)`))
+          await performMCPOAuthFlow(name, config, url => {
+            flow.authorizationUrl = url
+            enqueueRow(noticeRow(liveScope(), 'warning', `Sign-in ready for ${name} (browser)`))
+          }, controller.signal)
+        }
+        const stillAllowed = await permittedMcpConfig(name)
+        if (controller.signal.aborted || !stillAllowed || JSON.stringify(stillAllowed) !== JSON.stringify(config) || !isMcpCatalogueMember(name)) return { outcome: 'refused' as const, detail: 'the server configuration or permission changed during sign-in' }
+        const client = await serializeMcpChange(() => reconnectLiveMcp(name, config))
+        return client.type === 'connected'
+          ? { outcome: 'applied' as const, detail: `${name} connected` }
+          : { outcome: 'refused' as const, detail: client.type === 'failed' ? client.error ?? 'connection failed' : `${name} needs sign-in` }
+      } catch (error) {
+        return { outcome: 'refused' as const, detail: errorMessage(error) }
+      } finally {
+        signal.removeEventListener('abort', cancel)
+        mcpSignIns.delete(name)
+      }
+    },
     'session/set_kit': params =>
       serializeMcpChange(async () => {
         const verdict = validateSessionKit(sessionKitFromWire(params.kit))
@@ -2032,7 +2132,7 @@ export async function runHeadless(
           disconnected.push(name)
         }
         for (const name of delta.connect) {
-          const config = resolveServerConfigFromAllSources(name)
+          const config = await permittedMcpConfig(name)
           if (!config) {
             errors[name] = 'no configuration found for this server'
             continue

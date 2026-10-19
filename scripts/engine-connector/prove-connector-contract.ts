@@ -31,6 +31,7 @@ const DOORS = [
   'identity',
   'skillsRoster',
   'mcpRoster',
+  'mcpAction',
   'workRoster',
   'subscribeWork',
   'permissionMode',

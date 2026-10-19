@@ -796,6 +796,7 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
     case 'task':
     case 'mission_updated':
     case 'samples_updated':
+    case 'notice':
       requestSessionFacts(short, roster, undefined, dir)
       return
     case 'session':
@@ -1440,6 +1441,19 @@ export async function setSessionEffort(sessionId: string, effort: string, roster
 }
 
 export const KIT_DIAL_QUEUED_DETAIL = 'the dials apply when this turn ends'
+
+export async function actOnSessionMcp(sessionId: string, action: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' }, roster: SeatRosterPort): Promise<SeatVerbOutcome> {
+  const rec = liveRecordBySession(sessionId)
+  const door = rec ? roster.door(rec.runnerId) : undefined
+  if (!rec || !door || door.closed) return { outcome: 'refused', detail: 'the session has no live runner' }
+  try {
+    const result = await door.request('mcp/action', action, { deadlineMs: 300_000 })
+    requestSessionFacts(rec.runnerId, roster, { immediate: true })
+    return result
+  } catch (error) {
+    return { outcome: 'refused', detail: error instanceof Error ? error.message : String(error) }
+  }
+}
 
 export function setSessionKitDial(
   sessionId: string,

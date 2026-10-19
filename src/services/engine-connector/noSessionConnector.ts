@@ -151,6 +151,9 @@ export class NoSessionConnector implements EngineConnectorV1 {
   mcpRoster(): McpRosterV1 {
     return NO_MCP
   }
+  async mcpAction(): Promise<KitDialReceiptV1> {
+    return KIT_REFUSED_NO_CHAT
+  }
   async setKit(): Promise<KitDialReceiptV1> {
     return KIT_REFUSED_NO_CHAT
   }

@@ -306,7 +306,7 @@ function lockedProjectMcpFile(): string {
   return path
 }
 
-function getProjectMcpConfigs(): ScopeRead {
+export function getProjectMcpConfigs(): ScopeRead {
   if (!isSettingSourceEnabled('projectSettings')) return { servers: {}, errors: [] }
   const servers: Record<string, ScopedMcpServerConfig> = {}
   const errors: McpConfigError[] = []

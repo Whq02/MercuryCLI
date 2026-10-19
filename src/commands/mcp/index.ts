@@ -5,7 +5,7 @@ const mcp = {
   name: 'mcp',
   description: 'MCP servers — status, tools, and per-server enable/disable',
   immediate: true,
-  argumentHint: '[enable|disable [server-name]]',
+  argumentHint: '[enable|disable|reconnect [server-name]]',
   load: () => import('./mcp.js'),
 } satisfies Command
 

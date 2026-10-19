@@ -339,6 +339,7 @@ export function parseHeaders(headerArray: string[]): Record<string, string> {
 
 export function getProjectMcpServerStatus(
   serverName: string,
+  requireExplicitApproval = false,
 ): 'approved' | 'rejected' | 'pending' {
   const settings = getInitialSettings()
   const normalized = normalizeNameForMCP(serverName)
@@ -357,7 +358,7 @@ export function getProjectMcpServerStatus(
   )
   if (consentSkip && projectSourceEnabled) return 'approved'
 
-  if (getIsNonInteractiveSession() && projectSourceEnabled && checkHasTrustDialogAccepted()) {
+  if (!requireExplicitApproval && getIsNonInteractiveSession() && projectSourceEnabled && checkHasTrustDialogAccepted()) {
     return 'approved'
   }
 

@@ -236,6 +236,10 @@ export type SkillsRosterV1 = {
 export type McpRosterEntryV1 = {
   name: string
   type: MCPServerConnection['type']
+  toolCount?: number
+  addedAt?: number
+  signingIn?: boolean
+  authorizationUrl?: string
   error?: string
 }
 
@@ -430,6 +434,7 @@ export interface EngineConnectorV1 {
 
   skillsRoster(): SkillsRosterV1
   mcpRoster(): McpRosterV1
+  mcpAction(name: string, action: 'authenticate' | 'reconnect' | 'cancel-auth'): Promise<KitDialReceiptV1>
 
   setKit(edit: SessionKitEditV1): Promise<KitDialReceiptV1>
 

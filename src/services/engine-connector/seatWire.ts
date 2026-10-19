@@ -151,6 +151,7 @@ const SAMPLE_ROW: KeyTable = {
   updatedAt: 'updated_at',
 }
 const KIT: KeyTable = {
+  mcpKnown: 'mcp_known',
   skillsOff: 'skills_off',
 }
 const KIT_DELTAS: KeyTable = {
