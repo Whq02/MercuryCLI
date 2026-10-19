@@ -2,7 +2,6 @@ import { z } from 'zod/v4'
 
 import { CompatProviderSchema } from './compatProvider.js'
 import { ModelFactsSchema } from './modelFacts.js'
-import { SandboxSettingsSchema } from '../../entrypoints/sandboxTypes.js'
 import { EFFORT_LEVELS } from '../effortLadder.js'
 import { HooksSchema } from '../../schemas/hooks.js'
 import { lazySchema } from '../lazySchema.js'
@@ -52,7 +51,6 @@ export const PermissionsSchema = lazySchema(() =>
     reasons: z.record(z.string(), z.string()).optional().describe('The words a refusal or a consent card says for a rule, keyed by the rule spelling as written in allow, deny or ask'),
     managedOnly: z.boolean().optional(),
     sovereignConsentSeen: z.boolean().optional().describe('True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)'),
-    sandbox: SandboxSettingsSchema().optional(),
   }).passthrough(),
 )
 

@@ -14,12 +14,10 @@ import {
 } from '../../../tools/BashTool/bashPermissions.js'
 import { getDestructiveCommandWarning } from '../../../tools/BashTool/destructiveCommandWarning.js'
 import { parseSedEditCommand } from '../../../tools/BashTool/sedEditParser.js'
-import { shouldUseSandbox } from '../../../tools/BashTool/shouldUseSandbox.js'
 import { getCompoundCommandPrefixesStatic } from '../../../utils/bash/prefix.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
 import { toTildePath } from '../../../utils/path.js'
 import { useFocusedWorkspaceCwd } from '../../../hooks/useFocusedWorkspaceCwd.js'
-import { SandboxManager } from '../../../utils/sandbox/sandbox-adapter.js'
 import type { Message } from '../../../types/message.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'
 import { PermissionDialog } from '../PermissionDialog.js'
@@ -80,14 +78,7 @@ function BashCommandPermissionRequest(
     onReject,
   })
 
-  const derived = useMemo(() => {
-    return {
-      warning: getDestructiveCommandWarning(command),
-      unsandboxed:
-        SandboxManager.isSandboxingEnabled() &&
-        !shouldUseSandbox(toolUseConfirm.input as { command?: string }),
-    }
-  }, [command, toolUseConfirm.input])
+  const warning = useMemo(() => getDestructiveCommandWarning(command), [command])
 
   const explainer = usePermissionExplainerUI({
     toolName: toolUseConfirm.tool.name,
@@ -210,7 +201,7 @@ function BashCommandPermissionRequest(
   return (
     <Box flexDirection="column">
       <PermissionDialog
-        title={derived.unsandboxed ? 'Bash command (unsandboxed)' : 'Bash command'}
+        title="Bash command"
         workerBadge={workerBadge}
       >
         <Box flexDirection="column">
@@ -244,7 +235,7 @@ function BashCommandPermissionRequest(
             />
           ) : (
             <>
-              {derived.warning ? <Text color="warning">{derived.warning}</Text> : null}
+              {warning ? <Text color="warning">{warning}</Text> : null}
               <PermissionRuleExplanation
                 permissionResult={toolUseConfirm.permissionResult}
               />

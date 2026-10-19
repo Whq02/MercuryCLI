@@ -6,7 +6,6 @@ import { toTildePath } from '../../../utils/path.js'
 import { permissionRuleValueToString } from '../../../utils/permissions/permissionRuleParser.js'
 import { applyPermissionUpdate, persistPermissionUpdate } from '../../../utils/permissions/PermissionUpdate.js'
 import { detectUnreachableRules, type UnreachableRule } from '../../../utils/permissions/shadowedRuleDetection.js'
-import { SandboxManager } from '../../../utils/sandbox/sandbox-adapter.js'
 import { SOURCES, type EditableSettingSource } from '../../../utils/settings/constants.js'
 import { getRelativeSettingsFilePathForSource, getSettingsFilePathForSource } from '../../../utils/settings/settings.js'
 import { plural } from '../../../utils/stringUtils.js'
@@ -36,11 +35,8 @@ const destinationOption = (source: EditableSettingSource): OptionWithDescription
 const sameSpelling = (a: PermissionRuleValue, b: PermissionRuleValue): boolean =>
   a.toolName === b.toolName && a.ruleContent === b.ruleContent
 
-const sandboxAutoAllows = (): boolean =>
-  SandboxManager.isSandboxingEnabled() && SandboxManager.isAutoAllowBashIfSandboxedEnabled()
-
 function newlyUnreachable(context: ToolPermissionContext, added: PermissionRuleValue[]): UnreachableRule[] | undefined {
-  const findings = detectUnreachableRules(context, { sandboxAutoAllowEnabled: sandboxAutoAllows() }).filter(finding =>
+  const findings = detectUnreachableRules(context).filter(finding =>
     added.some(value => sameSpelling(value, finding.rule.ruleValue)),
   )
   return findings.length > 0 ? findings : undefined

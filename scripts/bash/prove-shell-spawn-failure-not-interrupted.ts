@@ -104,7 +104,7 @@ async function failure(tool: ToolLike, input: Record<string, unknown>): Promise<
 
 section('§1 the exec seam: a spawn the platform refuses settles as a command that never ran')
 {
-  const handle = await exec(oversized, new AbortController().signal, 'bash', { timeout: 20_000, shouldUseSandbox: false, shouldAutoBackground: false })
+  const handle = await exec(oversized, new AbortController().signal, 'bash', { timeout: 20_000, shouldAutoBackground: false })
   const settled = await handle.result
   note(`status ${handle.status}, code ${settled.code}, interrupted ${settled.interrupted}, stderr ${clip(settled.stderr, 120)}`)
   check('the oversized command is refused by the platform inside the spawn call itself, before any shell runs', REFUSAL.test(settled.stderr), clip(settled.stderr))
@@ -113,7 +113,7 @@ section('§1 the exec seam: a spawn the platform refuses settles as a command th
   check('nothing ran: no output reached the result', settled.stdout === '', clip(settled.stdout))
   const aborted = new AbortController()
   aborted.abort('interrupt')
-  const pre = await exec('echo never', aborted.signal, 'bash', { timeout: 20_000, shouldUseSandbox: false, shouldAutoBackground: false })
+  const pre = await exec('echo never', aborted.signal, 'bash', { timeout: 20_000, shouldAutoBackground: false })
   const preSettled = await pre.result
   check('control: an operator abort before the spawn is still an interruption, killed and untyped', preSettled.interrupted === true && pre.status === 'killed' && preSettled.preSpawnError === undefined, JSON.stringify({ interrupted: preSettled.interrupted, status: pre.status, preSpawnError: preSettled.preSpawnError }))
 }

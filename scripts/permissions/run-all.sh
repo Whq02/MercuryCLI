@@ -33,7 +33,7 @@
 # gate-watch: src/utils/capability/declarations.ts src/utils/cockpit/runtimePosture.ts src/utils/config/**
 # gate-watch: src/utils/config.ts src/utils/cwd.ts src/utils/envUtils.ts src/utils/errors.ts src/utils/glob.ts
 # gate-watch: src/utils/healthReport.ts src/utils/messages/factories.ts src/utils/messages.ts src/utils/permissions/**
-# gate-watch: src/utils/platform.ts src/utils/sandbox/sandbox-adapter.ts src/utils/sessionStoragePortable.ts
+# gate-watch: src/utils/platform.ts src/utils/sessionStoragePortable.ts
 # gate-watch: src/utils/settings/** src/utils/subprocessEnv.ts src/utils/suggestions/directoryCompletion.ts
 # gate-watch: src/utils/crew/agentLaunchPlan.ts
 # gate-watch: src/utils/processUserInput/processSlashCommand.tsx src/utils/conversationRecovery.ts

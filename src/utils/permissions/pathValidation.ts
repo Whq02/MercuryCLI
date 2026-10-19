@@ -1,8 +1,7 @@
 import type { ToolPermissionContext } from '../../Tool.js'
-import { isAbsolute, resolve as resolvePath, sep as platformSep } from 'node:path'
+import { isAbsolute, resolve as resolvePath } from 'node:path'
 import { getFsImplementation, safeResolvePath } from '../fsOperations.js'
 import { getPlatform } from '../platform.js'
-import { SandboxManager } from '../sandbox/sandbox-adapter.js'
 import type { PermissionDecisionReason } from '../../types/permissions.js'
 import {
   checkEditableInternalPath,
@@ -48,26 +47,6 @@ export function expandTilde(path: string): string {
   return path
 }
 
-export function isPathInSandboxWriteAllowlist(resolvedPath: string): boolean {
-  if (!SandboxManager.isSandboxingEnabled()) return false
-  const config = SandboxManager.getFsWriteConfig()
-  if (!config) return false
-  const allowEntries = (config.allowOnly ?? []).flatMap(getResolvedWorkingDirPaths)
-  const denyEntries = (config.denyWithinAllow ?? []).flatMap(getResolvedWorkingDirPaths)
-  const resolvedForms = getResolvedWorkingDirPaths(resolvedPath)
-  return resolvedForms.every(
-    form =>
-      !denyEntries.some(deny => isUnder(form, deny)) &&
-      allowEntries.some(allow => isUnder(form, allow)),
-  )
-}
-
-function isUnder(path: string, base: string): boolean {
-  if (path === base) return true
-  const baseWithSep = base.endsWith('/') || base.endsWith(platformSep) ? base : base + platformSep
-  return path.startsWith(baseWithSep) || path.startsWith(base + '/')
-}
-
 export function isPathAllowed(
   resolvedPath: string,
   context: ToolPermissionContext,
@@ -104,9 +83,6 @@ export function isPathAllowed(
   if (operationType === 'read') {
     const internal = checkReadableInternalPath(resolvedPath, undefined)
     if ((internal as { behavior: string }).behavior === 'allow') return { allowed: true }
-  }
-  if (operationType !== 'read' && !inside && isPathInSandboxWriteAllowlist(resolvedPath)) {
-    return { allowed: true, decisionReason: { type: 'other', reason: 'path is in sandbox write allowlist' } }
   }
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, permType, 'allow')

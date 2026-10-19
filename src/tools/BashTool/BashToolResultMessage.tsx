@@ -6,7 +6,6 @@ import { MessageResponse } from '../../components/MessageResponse.js'
 import { OutputLine } from '../../components/shell/OutputLine.js'
 import { ShellTimeDisplay } from '../../components/shell/ShellTimeDisplay.js'
 import { ToolCardMarker, ToolCardMeta } from '../../components/mercury-ui/toolCardMeta.js'
-import { removeSandboxViolationTags } from '../../utils/sandbox/sandbox-ui-utils.js'
 import { formatFileSize } from '../../utils/format.js'
 
 type BashResultContent = {
@@ -31,14 +30,13 @@ export default function BashToolResultMessage({
   timeoutMs?: number
 }): React.ReactNode {
   const stdout = content.stdout ?? ''
+  const stderr = content.stderr ?? ''
 
-  const stderrWithoutViolations = removeSandboxViolationTags(content.stderr ?? '')
-
-  const resetMatch = stderrWithoutViolations.match(CWD_RESET_NOTICE)
+  const resetMatch = stderr.match(CWD_RESET_NOTICE)
   const cwdResetNotice = resetMatch ? resetMatch[0].replace(/^\n/, '') : null
   const remainingStderr = resetMatch
-    ? stderrWithoutViolations.slice(0, resetMatch.index).trimEnd()
-    : stderrWithoutViolations
+    ? stderr.slice(0, resetMatch.index).trimEnd()
+    : stderr
 
   if (content.isImage) {
     return (

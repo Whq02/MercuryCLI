@@ -4,9 +4,6 @@ import { PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { resolveShellEngine, resolveEngineSessionCeiling } from '../../utils/shell/engineSession.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
-import { jsonStringify } from '../../utils/slowOperations.js'
-import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
-import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
 import { GLOB_TOOL_NAME } from '../GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from '../GrepTool/prompt.js'
@@ -47,7 +44,7 @@ export const EDITOR_TERMINAL_RESULT_NOTE =
   'This command ran in the editor terminal: its working directory and shell variables end with the call; start a command that needs a directory with `cd dir && …` in the same call.'
 
 const EDITOR_TERMINAL_PARAGRAPH =
-  "Editor terminal: in this session a foreground command from the main conversation runs in a fresh terminal of the editor, in the session folder, not in the shell described above. The working directory and shell variables do not carry to the next call, so a command that needs a directory starts with `cd dir && …` in the same call. A `run_in_background` command, a crewmate's command and a command the sandbox covers run in the shell described above."
+  "Editor terminal: in this session a foreground command from the main conversation runs in a fresh terminal of the editor, in the session folder, not in the shell described above. The working directory and shell variables do not carry to the next call, so a command that needs a directory starts with `cd dir && …` in the same call. A `run_in_background` command and a crewmate's command run in the shell described above."
 
 
 export function getSimplePrompt(offered: ReadonlySet<string> | null = null): string {
@@ -84,8 +81,6 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
       `To drive a web page, use the \`Browser\` tool${offers('ToolSearch') ? ' (ToolSearch `select:Browser` loads it when deferred)' : ''}; never install a browser driver for a one-off check.`,
     )
   }
-  const sandbox = buildSandboxSection()
-  if (sandbox !== '') sections.push(sandbox)
   return sections.join('\n\n')
 }
 
@@ -120,88 +115,4 @@ function brushShellParagraphs(): string[] {
       : `At most ${ceiling} engine sessions are kept alive at once (the shell.sessions setting): the main conversation's own and ${ceiling - 1} for crewmates. A crewmate that needs one when all are in use waits for a free session — never sharing another's — and the wait is bounded by the call's timeout.`,
   )
   return paragraphs
-}
-
-function buildSandboxSection(): string {
-  if (!SandboxManager.isSandboxingEnabled()) return ''
-  const unsandboxedAllowed = SandboxManager.areUnsandboxedCommandsAllowed()
-  const lines: string[] = ['# Command sandbox']
-  lines.push(
-    'Commands run in a sandbox by default: it bounds which directories and network hosts a command can touch or change unless explicitly overridden.',
-  )
-  lines.push('The active restrictions are:')
-
-  const fsWrite = SandboxManager.getFsWriteConfig()
-  const fsRead = SandboxManager.getFsReadConfig()
-  const tempDir = getMercuryTempDir()
-  const filesystem: Record<string, unknown> = {
-    read: fsRead.allowWithinDeny
-      ? { denyOnly: dedupe(fsRead.denyOnly), allowWithinDeny: dedupe(fsRead.allowWithinDeny) }
-      : { denyOnly: dedupe(fsRead.denyOnly) },
-    write: {
-      allowOnly: dedupeAndNormaliseTemp(fsWrite.allowOnly, tempDir),
-      denyWithinAllow: dedupe(fsWrite.denyWithinAllow),
-    },
-  }
-  lines.push(`- Filesystem: ${jsonStringify(filesystem)}`)
-
-  const network = SandboxManager.getNetworkRestrictionConfig()
-  const sockets = SandboxManager.getAllowUnixSockets()
-  const networkObject: Record<string, unknown> = {}
-  if (network.allowedHosts && network.allowedHosts.length > 0) networkObject.allowedHosts = dedupe(network.allowedHosts)
-  if (network.deniedHosts && network.deniedHosts.length > 0) networkObject.deniedHosts = dedupe(network.deniedHosts)
-  if (sockets && sockets.length > 0) networkObject.allowedUnixSockets = dedupe(sockets)
-  if (Object.keys(networkObject).length > 0) lines.push(`- Network: ${jsonStringify(networkObject)}`)
-
-  const ignored = SandboxManager.getIgnoreViolations()
-  if (ignored) lines.push(`- Ignored violations: ${jsonStringify(ignored)}`)
-
-  if (unsandboxedAllowed) {
-    lines.push(
-      '- Default to running inside the sandbox. Reach for `dangerouslyDisableSandbox: true` only when the user has asked outright for an unsandboxed run (most failures have nothing to do with the sandbox).',
-    )
-    lines.push(
-      '- When a sandboxed command fails on a recorded violation, the harness itself asks once, inside the same call, whether to rerun it outside the sandbox, and the result says how that went; never retry by hand with the override. A failure with no recorded violation is not a sandbox failure. The `/sandbox` command manages the restrictions.',
-    )
-    lines.push('- Treat each overridden command individually; a recent override does not carry forward.')
-    lines.push(
-      '- Never suggest adding sensitive paths to the sandbox allowlist (`~/.bashrc`, `~/.zshrc`, `~/.ssh/*`, credential files).',
-    )
-  } else {
-    lines.push('- Every command here runs sandboxed; policy has switched the `dangerouslyDisableSandbox` parameter off.')
-    lines.push('- There is no circumstance in which a command runs outside the sandbox.')
-    lines.push('- Resolve a sandbox-caused failure by adjusting the sandbox settings with the user.')
-  }
-  lines.push(
-    'Temporary files belong under `$TMPDIR` — it already points at the sandbox-writable temp directory; never spell /tmp paths yourself.',
-  )
-  return lines.join('\n')
-}
-
-
-function dedupe(list: string[] | undefined): string[] | undefined {
-  if (!list || list.length === 0) return list
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const item of list) {
-    if (!seen.has(item)) {
-      seen.add(item)
-      out.push(item)
-    }
-  }
-  return out
-}
-
-function dedupeAndNormaliseTemp(list: string[] | undefined, tempDir: string): string[] | undefined {
-  if (!list || list.length === 0) return list
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const item of list) {
-    const value = item === tempDir ? '$TMPDIR' : item
-    if (!seen.has(value)) {
-      seen.add(value)
-      out.push(value)
-    }
-  }
-  return out
 }

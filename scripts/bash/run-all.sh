@@ -13,10 +13,10 @@
 # gate-watch: src/utils/worktree.ts src/services/projectLocal/paths.ts
 # gate-watch: src/utils/bash/ShellSnapshot.ts src/utils/shell/engineSession.ts src/utils/shell/brushPack.ts
 # gate-watch: src/services/lsp/LSPClient.ts src/services/dap/dapClient.ts
-# gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider* src/utils/sandbox/sandbox-adapter*
+# gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider*
 # gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider* src/utils/shell/shellProvider*
-# gate-watch: src/tools/BashTool/bashPermissions* src/tools/BashTool/readOnlyValidation* src/tools/BashTool/shouldUseSandbox* src/tools/BashTool/prompt*
-# gate-watch: src/utils/sandbox/sandbox-adapter* src/substrate/flagRegistry* scripts/bash/shell-engine-parity*
+# gate-watch: src/tools/BashTool/bashPermissions* src/tools/BashTool/readOnlyValidation* src/tools/BashTool/prompt*
+# gate-watch: src/substrate/flagRegistry* scripts/bash/shell-engine-parity*
 # gate-watch: src/utils/shell/windowsShellRoad.ts src/utils/windowsPaths.ts src/utils/shell/shellToolUtils.ts
 # gate-watch: src/utils/shell/shellEngineArm.ts README.md docs/TERMINAL-RUNTIME.md
 # gate-watch: .github/workflows/shell-windows-probe.yml .github/workflows/private-release.yml
@@ -86,7 +86,6 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-pack.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-session.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-exec.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-exec.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-rules.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-rules.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-sandbox.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-sandbox.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-census.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-census.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-shell-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-shell-road.ts" "$__t" "$__rc"

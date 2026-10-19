@@ -33,11 +33,6 @@ function protectBackslashRunsFromMsysArgv(script: string): string {
   return script.replace(MSYS_ARGV_HALVED_BACKSLASH_RUN_RE, run => run + run)
 }
 
-export function sandboxTempEnv(sandboxTmpDir: string): Record<string, string> {
-  const dir = getPlatform() === 'windows' ? windowsPathToPosixPath(sandboxTmpDir) : sandboxTmpDir
-  return { TMPDIR: dir, MERCURY_TMPDIR: dir, TMPPREFIX: posixPath.join(dir, 'zsh') }
-}
-
 export async function createBashShellProvider(
   shellPath: string,
   options?: { skipSnapshot?: boolean },
@@ -47,7 +42,6 @@ export async function createBashShellProvider(
     snapshotPath = await createAndSaveSnapshot(shellPath).catch(() => undefined)
   }
   let usedSnapshotThisExecution = false
-  let pendingSandboxTmp: string | undefined
 
   const provider: ShellProvider = {
     type: 'bash',
@@ -55,7 +49,6 @@ export async function createBashShellProvider(
     detached: getPlatform() !== 'windows',
 
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
-      pendingSandboxTmp = opts.useSandbox ? opts.sandboxTmpDir : undefined
       let snapshot = snapshotPath
       if (snapshot && !existsSync(snapshot)) {
         logForDebugging(`shell snapshot ${snapshot} vanished; falling back to login shell`)
@@ -66,20 +59,11 @@ export async function createBashShellProvider(
 
       const name = cwdFileName(opts.id)
       const isWindows = getPlatform() === 'windows'
-      let cwdFileInShell: string
-      let cwdFileForEngine: string
-      if (opts.useSandbox && opts.sandboxTmpDir) {
-        const inSandbox = posixPath.join(opts.sandboxTmpDir, name)
-        cwdFileInShell = inSandbox
-        cwdFileForEngine = inSandbox
-      } else {
-        const nativeTmp = tmpdir()
-        const posixPathInShell = isWindows
-          ? posixPath.join(windowsPathToPosixPath(nativeTmp), name)
-          : posixPath.join(nativeTmp, name)
-        cwdFileInShell = posixPathInShell
-        cwdFileForEngine = isWindows ? posixPathInShell : join(nativeTmp, name)
-      }
+      const nativeTmp = tmpdir()
+      const cwdFileInShell = isWindows
+        ? posixPath.join(windowsPathToPosixPath(nativeTmp), name)
+        : posixPath.join(nativeTmp, name)
+      const cwdFileForEngine = isWindows ? cwdFileInShell : join(nativeTmp, name)
 
       const normalised = rewriteWindowsNullRedirect(command)
       const addStdin = shouldAddStdinRedirect(normalised)
@@ -96,14 +80,6 @@ export async function createBashShellProvider(
       if (sessionScript) parts.push(sessionScript)
       const preamble = getGlobPreambleCommand(shellPath)
       if (preamble) parts.push(preamble)
-      if (opts.useSandbox && opts.sandboxTmpDir) {
-        const temp = sandboxTempEnv(opts.sandboxTmpDir)
-        parts.push(
-          `export ${Object.entries(temp)
-            .map(([name, value]) => `${name}=${quote([value])}`)
-            .join(' ')}`,
-        )
-      }
       parts.push(`eval ${quotedCommand}`)
       parts.push(`{ pwd -P >| ${quote([cwdFileInShell])} 2>/dev/null || true; }`)
       if (isWindows) {
@@ -128,8 +104,6 @@ export async function createBashShellProvider(
 
     async getEnvironmentOverrides(_command: string): Promise<Record<string, string>> {
       const overrides: Record<string, string> = {}
-      const sandboxTmp = pendingSandboxTmp
-      if (sandboxTmp) Object.assign(overrides, sandboxTempEnv(sandboxTmp))
       for (const [key, value] of getSessionEnvVars()) overrides[key] = value
       return overrides
     },

@@ -30,7 +30,7 @@ export function SovereignModeDialog({
           running potentially dangerous commands.
         </Text>
         <Text>
-          This mode should only be used in a sandboxed container or VM that has
+          This mode should only be used in an isolated container or VM that has
           restricted internet access and can easily be restored if damaged.
         </Text>
         <Text>

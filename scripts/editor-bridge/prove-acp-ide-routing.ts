@@ -621,21 +621,17 @@ section('§9 write only (fs.writeTextFile: true, fs.readTextFile: false, termina
   }
 }
 
-section('§10 the sandbox is on: Bash stays in the local sandbox and is never sent to the editor terminal')
+section('§10 a settings file still carrying guardrails.sandbox changes nothing: Bash rides the editor terminal as on any host')
 {
-  const { SandboxManager } = await import('../../src/utils/sandbox/sandbox-adapter.ts')
-  const sandboxDeps = SandboxManager.checkDependencies()
-  const sandboxRunsHere = sandboxDeps.errors.length === 0
-  if (!sandboxRunsHere) console.log(`  this host cannot run the sandbox (${sandboxDeps.errors.join('; ')}): the setting does not take, so the command rides the editor terminal — the host's own law is read instead`)
   mkdirSync(join(projDir, '.mercury'), { recursive: true })
   writeFileSync(join(projDir, '.mercury', 'settings.local.json'), JSON.stringify({ guardrails: { sandbox: { enabled: true } } }))
   const api = await startFixtureApi([
-    { kind: 'tool_use', name: 'Bash', input: { command: 'printf "sandboxed-local\\n"' }, preText: 'bash under the sandbox' },
-    { kind: 'text', text: 'sandbox done' },
+    { kind: 'tool_use', name: 'Bash', input: { command: 'printf "ran-locally\\n"' }, preText: 'bash with a retired key in the settings' },
+    { kind: 'text', text: 'retired key done' },
   ])
   const server = spawnServer(api.url)
   const h = connectClient(server, {
-    onTerminalCreate: () => ({ terminalId: 'term-sandbox' }),
+    onTerminalCreate: () => ({ terminalId: 'term-retired' }),
     onTerminalOutput: () => ({ output: 'from-the-editor-terminal\n', truncated: false, exitStatus: { exitCode: 0 } }),
     onTerminalWaitForExit: () => ({ exitCode: 0 }),
   })
@@ -645,16 +641,11 @@ section('§10 the sandbox is on: Bash stays in the local sandbox and is never se
       clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: true },
     })
     const { sessionId } = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
-    const res = await h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'sandboxed bash' }] })
+    const res = await h.agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'bash with a retired key' }] })
     check('turn completes', res.stopReason === 'end_turn', j(res))
     const results = toolResultStrings(h.updates)
-    if (sandboxRunsHere) {
-      check('no terminal request reached the editor while the sandbox is on', h.termCalls.length === 0, j(h.termCalls.map(c => c.op)))
-      check('the command ran locally', results.some(r => r.includes('sandboxed-local')) && !results.some(r => r.includes('from-the-editor-terminal')), j(results))
-    } else {
-      check('a host without the sandbox launcher keeps the sandbox off, so the command rides the editor terminal', h.termCalls.some(c => c.op === 'create'), j(h.termCalls.map(c => c.op)))
-      check('the editor terminal answered the command on that host', results.some(r => r.includes('from-the-editor-terminal')) && !results.some(r => r.includes('sandboxed-local')), j(results))
-    }
+    check('the retired key is an unknown key: the command rides the editor terminal', h.termCalls.some(c => c.op === 'create'), j(h.termCalls.map(c => c.op)))
+    check('the editor terminal answered the command', results.some(r => r.includes('from-the-editor-terminal')) && !results.some(r => r.includes('ran-locally')), j(results))
     await h.agent.request('session/close', { sessionId }).catch(() => {})
   } finally {
     h.close()

@@ -73,7 +73,7 @@ section('flag validator — a write flag flips a read-only command to NOT-safe')
   check('validateFlags("git diff --output=/tmp/x") === false (write flag rejected)', ro.validateFlags(['git', 'diff', '--output=/tmp/x'], 2, gitDiff, { commandName: 'git', rawCommand: 'git diff --output=/tmp/x' }) === false)
 }
 
-section('dist ships the owned-file decision boundaries (cd+git gate, read-only / sandbox reasons)')
+section('dist ships the owned-file decision boundaries (cd+git gate, read-only reasons)')
 {
   const dist = join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs')
   if (!existsSync(dist)) {
@@ -84,7 +84,6 @@ section('dist ships the owned-file decision boundaries (cd+git gate, read-only /
     check('cd+git bare-repo ASK gate ships in dist', present('A compound command pairing cd with git needs approval — the cd could land the git call inside a hostile bare repository'))
     check('read-only bare-repo git guard ships in dist', present('This directory has bare-repository structure, so git commands here go through the permission gate'))
     check("read-only auto-allow reason ('Read-only command is allowed') ships in dist", present('Read-only command is allowed'))
-    check("sandbox auto-allow reason ('Auto-allowed with sandbox') ships in dist", present('Auto-allowed with sandbox'))
     check("the read-only help spellings and the resume hints are the CLI's own: no other tool's spelling ships in dist", !present('claude -h') && !present('claude --help') && !present('claude -r '))
   }
 }

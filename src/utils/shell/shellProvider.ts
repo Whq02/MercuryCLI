@@ -9,8 +9,6 @@ type BuildExecCommandResult = { commandString: string; cwdFilePath: string }
 
 export type BuildExecCommandOptions = {
   id: number | string
-  sandboxTmpDir?: string
-  useSandbox: boolean
 }
 
 export type ShellProvider = {

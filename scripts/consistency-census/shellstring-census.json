@@ -10,13 +10,6 @@
       "why": "the documented darwin system-python fallback candidate (the pyexpat class) — a candidate list entry, not a temp/exec decision"
     },
     {
-      "file": "src/utils/Shell.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "process.env.MERCURY_TMPDIR || '/tmp',",
-      "cls": "platform-owner",
-      "why": "POSIX-scoped runtime path behind a platform gate (audited per site in the census review)"
-    },
-    {
       "file": "src/utils/bootCardFacts.ts",
       "mechanism": "hardcoded-tmp",
       "excerpt": "n.startsWith('/tmp/') ||",
@@ -68,20 +61,6 @@
     {
       "file": "scripts/bash/prove-bash-tool-seams.ts",
       "mechanism": "hardcoded-tmp",
-      "excerpt": "const tempRoot = posix.join(process.env.MERCURY_TMPDIR || '/tmp', getMercuryTempDirName())",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
-      "file": "scripts/bash/prove-bash-tool-seams.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "const OUTSIDE = realpathSync(mkdtempSync('/tmp/bash-tool-seams-outside-'))",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
-      "file": "scripts/bash/prove-bash-tool-seams.ts",
-      "mechanism": "hardcoded-tmp",
       "excerpt": "const away = realpathSync(mkdtempSync('/tmp/bash-tool-seams-away-'))",
       "cls": "platform-owner",
       "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
@@ -122,13 +101,6 @@
       "why": "shell parsing is the subject under test"
     },
     {
-      "file": "scripts/bash/prove-shell-engine-sandbox.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "const OUTSIDE = realpathSync(mkdtempSync('/tmp/shell-engine-sandbox-outside-'))",
-      "cls": "test-fixture",
-      "why": "shell parsing is the subject under test"
-    },
-    {
       "file": "scripts/bash/prove-shell-session-env.ts",
       "mechanism": "exec-string",
       "excerpt": "const handle = await exec(`env > ${JSON.stringify(out)}`, new AbortController().signal, 'bash', {",
@@ -138,7 +110,7 @@
     {
       "file": "scripts/bash/prove-shell-spawn-failure-not-interrupted.ts",
       "mechanism": "exec-string",
-      "excerpt": "const pre = await exec('echo never', aborted.signal, 'bash', { timeout: 20_000, shouldUseSandbox: false, shouldAutoBackground: false })",
+      "excerpt": "const pre = await exec('echo never', aborted.signal, 'bash', { timeout: 20_000, shouldAutoBackground: false })",
       "cls": "test-fixture",
       "why": "shell parsing is the subject under test"
     },
@@ -1914,13 +1886,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/tools/prove-parity2-sandbox-bump.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const out = execSync(wrapped, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000 })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/tools/prove-parity2-tier1w.ts",
       "mechanism": "exec-string",
       "excerpt": "const handle = await exec('cat', new AbortController().signal, 'bash', { timeout: 6_000 })",
@@ -1933,20 +1898,6 @@
       "excerpt": "const ok = await exec('echo still-fine', new AbortController().signal, 'bash', { timeout: 6_000 })",
       "cls": "test-fixture",
       "why": "drives Shell.exec through the REAL bash path deliberately — stdin-EOF settlement is the subject under test"
-    },
-    {
-      "file": "scripts/tools/prove-sandbox-monitor-lines.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "execSync(wrapped, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000 })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/tools/prove-sandbox-retry-ask.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "execSync(wrapped, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000 })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
       "file": "scripts/transcript-rows/prove-clear-empties-transcript.ts",

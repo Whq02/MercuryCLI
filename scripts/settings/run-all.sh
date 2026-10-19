@@ -46,7 +46,6 @@
 # gate-watch: src/services/api/errors.ts src/services/providers/anthropicRefusal.ts scripts/ui/saturn-screen-stills.ts scripts/ui/fixtures/settings-popup-header/* src/commands/model/mercuryModel.tsx
 # gate-watch: scripts/providers/lib/nous-fixture.ts src/services/providers/nous/nousUsageState.ts src/services/providers/nous/nousAccounts.ts
 # gate-watch: src/components/Onboarding.tsx src/components/loginFamilyRows.ts
-# gate-watch: src/entrypoints/sandboxTypes.ts
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/scriptedTurn.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

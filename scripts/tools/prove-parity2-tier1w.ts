@@ -51,7 +51,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 {
   const { createPowerShellProvider, UTF8_OUTPUT_PRELUDE } = await import('../../src/utils/shell/powershellProvider.ts')
   const provider = createPowerShellProvider('pwsh')
-  const assembled = await provider.buildExecCommand('Get-ChildItem', { id: 'e005', useSandbox: false } as never)
+  const assembled = await provider.buildExecCommand('Get-ChildItem', { id: 'e005' })
   const command = assembled.commandString
   const plainAt = command.indexOf('$PSStyle.OutputRendering')
   const utf8At = command.indexOf("$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'")
@@ -61,9 +61,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   t('the prelude pins Set-Content and Add-Content too', UTF8_OUTPUT_PRELUDE.includes("'Set-Content:Encoding'] = 'utf8'") && UTF8_OUTPUT_PRELUDE.includes("'Add-Content:Encoding'] = 'utf8'"))
   t('the prelude pins the console output encoding to UTF-8 without a BOM', UTF8_OUTPUT_PRELUDE.includes('[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)'))
   t('the prelude never fails the command (try/catch wrapped)', /^try \{.*\} catch \{\}\n$/s.test(UTF8_OUTPUT_PRELUDE))
-  const sandboxed = await provider.buildExecCommand('Get-ChildItem', { id: 'e005s', useSandbox: true, sandboxTmpDir: '/tmp/sb' } as never)
-  const decoded = Buffer.from((sandboxed.commandString.match(/-EncodedCommand (\S+)/)?.[1] ?? ''), 'base64').toString('utf16le')
-  t('the sandboxed (encoded) lane carries the same prelude', decoded.includes("$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'") && decoded.indexOf('$PSStyle.OutputRendering') !== -1 && decoded.indexOf('$PSStyle.OutputRendering') < decoded.indexOf('Out-File:Encoding'))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

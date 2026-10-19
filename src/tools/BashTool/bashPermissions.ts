@@ -46,8 +46,6 @@ import { checkPermissionMode } from './modeValidation.js'
 import { checkPathConstraints } from './pathValidation.js'
 import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
-import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
-import { shouldUseSandbox } from './shouldUseSandbox.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix }
@@ -86,8 +84,6 @@ const SAFE_ENV_VARS = new Set([
 ])
 
 const SAFE_ASSIGN_VALUE = String.raw`[A-Za-z0-9_./:@%+,=-]*`
-
-export const BINARY_HIJACK_VARS: RegExp = /^(?:LD_|DYLD_|PATH$)/
 
 const WRAPPER_COMMANDS = ['timeout', 'time', 'nice', 'stdbuf', 'nohup']
 
@@ -502,38 +498,6 @@ async function checkCommandAndSuggestRules(
 }
 
 
-function sandboxAutoAllow(input: BashInput, context: ToolPermissionContext, astCommands?: SimpleCommand[] | null): PermissionResult {
-  const command = input.command
-  const fullDeny = matchRules(command, context, 'deny', 'prefix', true)
-  if (fullDeny !== null) {
-    return denyByRule(context, command, fullDeny, () => matchAllRules(command, context, 'deny', 'prefix', true))
-  }
-  const subcommands = astCommands ? astCommands.map(simple => simple.text) : pinnedCommandAnalysis.splitCommand(command)
-  let stashedAsk: string | null = null
-  if (subcommands.length > 1) {
-    for (const raw of subcommands) {
-      const sub = raw.trim()
-      const subDeny = matchRules(sub, context, 'deny', 'prefix', true)
-      if (subDeny !== null) {
-        return denyByRule(context, command, subDeny, () => matchAllRules(sub, context, 'deny', 'prefix', true))
-      }
-      if (stashedAsk === null) {
-        const subAsk = matchRules(sub, context, 'ask', 'prefix', true)
-        if (subAsk !== null) stashedAsk = subAsk
-      }
-    }
-  }
-  const fullAsk = matchRules(command, context, 'ask', 'prefix', true)
-  if (stashedAsk !== null) {
-    return askByRule(context, command, stashedAsk)
-  }
-  if (fullAsk !== null) {
-    return askByRule(context, command, fullAsk)
-  }
-  return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'Auto-allowed with sandbox' } }
-}
-
-
 type PrefixFn = (
   command: string,
   signal: AbortSignal,
@@ -640,15 +604,6 @@ async function decideBashPermission(
 
   if (astCommands === null) return unprovenAsk('the shell parser could not establish the commands; simplify the command, or approve')
   if (astCommands.some(simple => simple.globOperand === true && !wildcardAnswered(simple, context, compoundHasCd))) return unprovenAsk(WILDCARD_REASON)
-
-  if (
-    SandboxManager.isSandboxingEnabled() &&
-    SandboxManager.isAutoAllowBashIfSandboxedEnabled() &&
-    shouldUseSandbox(input)
-  ) {
-    const auto = sandboxAutoAllow(input, context, astCommands)
-    if (auto.behavior !== 'passthrough') return auto
-  }
 
   const exact = bashToolCheckExactMatchPermission(input, context)
   if (exact.behavior === 'deny') return exact

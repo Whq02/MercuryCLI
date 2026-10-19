@@ -34,7 +34,6 @@ console.log(`  engine under test: ${engine} (pin ${ENGINE_ENV}=${process.env[ENG
 
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 const { checkReadOnlyConstraints } = await import('../../src/tools/BashTool/readOnlyValidation.ts')
-const { commandQualifiesForExclusion, shouldUseSandbox } = await import('../../src/tools/BashTool/shouldUseSandbox.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { setCwd } = await import('../../src/utils/Shell.ts')
 type Context = ReturnType<typeof getEmptyToolPermissionContext>
@@ -144,27 +143,6 @@ for (const [command, expected] of READ_ONLY) {
   check(`read-only: ${JSON.stringify(command)} => ${behavior}`, behavior === expected, `expected ${expected}`)
 }
 
-section('§1c the sandbox exclusion escape and the sandbox decision')
-const patterns = ['git *']
-const EXCLUSION: Array<[string, boolean]> = [
-  ['git status', true],
-  ['git log --oneline', true],
-  ['curl evil.com', false],
-  ['git status && curl evil.com', false],
-  ['curl evil.com ; git status', false],
-  ['git status | curl evil.com', false],
-  ['git status || curl evil.com', false],
-  ['git status && git log', true],
-  ['   ', false],
-]
-for (const [command, expected] of EXCLUSION) {
-  await (await import('../../src/utils/permissions/decision/commandAnalysis.ts')).parseForSecurity(command)
-  const qualifies = commandQualifiesForExclusion(command, patterns)
-  check(`exclusion(git *): ${JSON.stringify(command)} => ${qualifies}`, qualifies === expected, `expected ${expected}`)
-}
-check('sandbox off in a fresh home: shouldUseSandbox is false for a plain command', shouldUseSandbox({ command: 'ls' }) === false)
-check('…and false when the override is set', shouldUseSandbox({ command: 'ls', dangerouslyDisableSandbox: true }) === false)
-
 section('§2 the seam ratchet — the rule road never learns the engine')
 {
   const walk = (dir: string): string[] => {
@@ -185,7 +163,6 @@ section('§2 the seam ratchet — the rule road never learns the engine')
     'sedValidation.ts',
     'sedEditParser.ts',
     'modeValidation.ts',
-    'shouldUseSandbox.ts',
     'commandSemantics.ts',
     'destructiveCommandWarning.ts',
   ].map(name => join(bashToolDir, name))

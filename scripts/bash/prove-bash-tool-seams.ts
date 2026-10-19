@@ -4,7 +4,7 @@ import '../lib/hermetic.ts'
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, posix, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
@@ -37,29 +37,14 @@ console.log('============================================================')
 
 const HOME = process.env.MERCURY_CONFIG_DIR as string
 mkdirSync(HOME, { recursive: true })
-const SANDBOX_SETTINGS = {
-  guardrails: {
-    sandbox: {
-      enabled: true,
-      autoAllowBashIfSandboxed: true,
-      ...(process.env.SEAMS_SANDBOX_UNAVAILABLE === '1' ? { enabledPlatforms: [] as string[] } : {}),
-    },
-  },
-}
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify(SANDBOX_SETTINGS, null, 2))
+writeFileSync(join(HOME, 'settings.json'), '{}\n')
 
 const { exec, setCwd, getShellCwd } = await import('../../src/utils/Shell.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
 const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
-const { SandboxManager } = await import('../../src/utils/sandbox/sandbox-adapter.ts')
-const { shouldUseSandbox } = await import('../../src/tools/BashTool/shouldUseSandbox.ts')
-const { getMercuryTempDirName } = await import('../../src/utils/permissions/filesystem.ts')
-const tempRoot = posix.join(process.env.MERCURY_TMPDIR || '/tmp', getMercuryTempDirName())
-const platformTemp: string | null = process.platform === 'darwin' ? realpathSync(execFileSync('/usr/bin/getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8' }).trim()) : null
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-')))
 const PROJECT = join(SCRATCH, 'project')
-const OUTSIDE = realpathSync(mkdtempSync('/tmp/bash-tool-seams-outside-'))
 mkdirSync(join(PROJECT, 'sub'), { recursive: true })
 process.chdir(PROJECT)
 setCwd(PROJECT)
@@ -71,10 +56,9 @@ interface Outcome {
   stderr: string
   cwd: string
 }
-async function run(command: string, sandboxed: boolean): Promise<Outcome> {
+async function run(command: string): Promise<Outcome> {
   const handle = await exec(command, new AbortController().signal, 'bash', {
     timeout: 20_000,
-    shouldUseSandbox: sandboxed,
     shouldAutoBackground: false,
   })
   const result = await handle.result
@@ -82,70 +66,9 @@ async function run(command: string, sandboxed: boolean): Promise<Outcome> {
 }
 
 {
-  const probe = await run('echo "${BRUSH_VERSION:-system}"', false)
+  const probe = await run('echo "${BRUSH_VERSION:-system}"')
   const answered = probe.out.trim()
   note(`the shell that answered: ${answered === 'system' ? 'the system shell' : `brush ${answered}`}`)
-}
-
-section('§1 the sandbox law — through exec')
-const platformOk = process.platform === 'darwin' || process.platform === 'linux'
-const enabledInSettings = SandboxManager.isSandboxEnabledInSettings()
-check('the hermetic home turned the sandbox on in settings', enabledInSettings)
-const unavailable = SandboxManager.getSandboxUnavailableReason()
-const ready = platformOk && enabledInSettings && unavailable === null && SandboxManager.isSandboxingEnabled()
-note(`availability: ${ready ? 'the platform sandbox is live' : `unavailable — ${unavailable ?? 'unsupported platform'}`}`)
-if (!ready) {
-  console.log(`  [SKIP] the live boundary rows — platform ${process.platform}, reason ${unavailable ?? 'unsupported platform'}`)
-  section('§1-degraded the sandbox is enabled but unavailable: honest, never silent')
-  check('the owner names the reason', typeof unavailable === 'string' && unavailable.length > 10, String(unavailable))
-  check('the owner reports the sandbox as not enabled (a cold default never answers "enabled")', SandboxManager.isSandboxingEnabled() === false)
-  check('the tool never claims a sandbox for a command', shouldUseSandbox({ command: 'ls' }) === false)
-  const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
-  check("the tool's description carries no sandbox section", !getSimplePrompt().includes('# Command sandbox'))
-  const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check('the health row warns with the reason', /getSandboxUnavailableReason\(\)[\s\S]{0,300}status: 'warn'/.test(health))
-  const runMode = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
-  check('run mode says the sandbox is OFF for the session, or refuses under failIfUnavailable', /sandboxing is OFF for this session/.test(runMode) && /isSandboxRequired\(\)/.test(runMode))
-  const degraded = await run('echo degraded-ok', shouldUseSandbox({ command: 'echo degraded-ok' }))
-  check('a command runs unconfined with its own status (never a missing-binary failure graded as a sandbox)', degraded.code === 0 && /degraded-ok/.test(degraded.out), `code ${degraded.code} ${JSON.stringify(degraded.out.slice(0, 120))}`)
-} else {
-  check('shouldUseSandbox says yes for a plain command', shouldUseSandbox({ command: 'ls' }) === true)
-  check('shouldUseSandbox honours the explicit override', shouldUseSandbox({ command: 'ls', dangerouslyDisableSandbox: true }) === false)
-  const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check('/health names the mechanism (seatbelt / bubblewrap)', /seatbelt\/bubblewrap/.test(health))
-  await SandboxManager.initialize()
-  const writeSet = SandboxManager.getFsWriteConfig() as { allowWrite?: string[] }
-  note(`allow-write set: ${JSON.stringify(writeSet.allowWrite ?? writeSet)}`)
-
-  const echo = await run('echo sandboxed-ok', true)
-  check('a sandboxed command runs and keeps its own status (the cwd record landed inside the boundary)', echo.code === 0 && /^sandboxed-ok\s*$/.test(echo.out), `code ${echo.code} ${JSON.stringify(echo.out.slice(0, 160))}`)
-  const moved = await run(`cd "${PROJECT}/sub" && echo moved`, true)
-  check('a cd inside a sandboxed command moves the shell and leaves the session where it was', moved.code === 0 && moved.shellCwd === join(PROJECT, 'sub') && moved.cwd === PROJECT, `code ${moved.code} shell ${moved.shellCwd} session ${moved.cwd} ${JSON.stringify(moved.out.slice(0, 120))}`)
-  await run(`cd "${PROJECT}"`, true)
-  const inside = await run(`echo in > "${PROJECT}/in.txt"`, true)
-  check('a write inside the session directory lands with status 0', inside.code === 0 && existsSync(join(PROJECT, 'in.txt')), `code ${inside.code} ${JSON.stringify(inside.out.slice(0, 120))}`)
-  const tempVar = await run('echo "$TMPDIR"', true)
-  check("the sandboxed child's TMPDIR is the product temp root", tempVar.code === 0 && tempVar.out.trim() === tempRoot, `${JSON.stringify(tempVar.out.trim())} vs ${tempRoot}`)
-  const temp = await run('f=$(mktemp "$TMPDIR/probe.XXXXXX") && echo "$f" && rm -f "$f"', true)
-  check('a temp file made under $TMPDIR succeeds inside the sandbox', temp.code === 0 && temp.out.trim().startsWith(`${tempRoot}/probe.`), `code ${temp.code} ${JSON.stringify(temp.out.trim().slice(0, 160))}`)
-  const bare = await run('f=$(mktemp) && echo "$f" && rm -f "$f"', true)
-  check("a bare mktemp succeeds under the sandbox (the platform's per-user temp directory is writable)", bare.code === 0 && bare.out.trim() !== '' && (platformTemp === null || realpathSync(dirname(bare.out.trim())) === platformTemp), `code ${bare.code} ${JSON.stringify(bare.out.trim().slice(0, 160))} (platform temp ${platformTemp})`)
-  const outside = await run(`echo out > "${OUTSIDE}/out.txt"`, true)
-  check('a write outside the allow-write set is refused and the file never appears', outside.code !== 0 && !existsSync(join(OUTSIDE, 'out.txt')), `code ${outside.code} ${JSON.stringify(outside.out.slice(0, 160))}`)
-  note(`refusal text: ${JSON.stringify((outside.out + outside.stderr).trim().slice(0, 160))}`)
-  const child = await run(`sh -c 'echo child > "${OUTSIDE}/child.txt"'; echo rc=$?`, true)
-  check('a child process of the command is inside the boundary too', !existsSync(join(OUTSIDE, 'child.txt')) && /rc=[1-9]/.test(child.out), JSON.stringify(child.out.slice(0, 160)))
-  await run(`(sleep 0.4; echo late > "${OUTSIDE}/late.txt") >/dev/null 2>&1 &`, true)
-  await new Promise(resolveWait => setTimeout(resolveWait, 1200))
-  check('a process left running in the background stays inside the boundary', !existsSync(join(OUTSIDE, 'late.txt')))
-  const control = await run(`echo control > "${OUTSIDE}/control.txt"`, false)
-  check('an unsandboxed call writes outside (the control: the sandbox is what refuses)', control.code === 0 && existsSync(join(OUTSIDE, 'control.txt')), `code ${control.code}`)
-  const again = await run(`echo again > "${OUTSIDE}/again.txt"`, true)
-  check('the next sandboxed call is refused again (the policy is the call\'s)', again.code !== 0 && !existsSync(join(OUTSIDE, 'again.txt')), `code ${again.code}`)
-  try {
-    SandboxManager.reset()
-  } catch {
-  }
 }
 
 interface Plain {
@@ -160,7 +83,6 @@ async function plain(command: string, opts: { timeout?: number } = {}): Promise<
   const started = Date.now()
   const handle = await exec(command, new AbortController().signal, 'bash', {
     timeout: opts.timeout ?? 20_000,
-    shouldUseSandbox: false,
     shouldAutoBackground: false,
   })
   const result = await handle.result
@@ -320,20 +242,6 @@ section('§5 the timed-out note reaches the result')
   check("the tool folds the result's note into the text the model reads (the error path throws that text)", /accumulator\.append\(result\.stderr\.trimEnd\(\) \+ '\\n'\)/.test(tool))
 }
 
-section("§6 the sandbox auto-allow keeps the model's whole input")
-if (!ready) {
-  console.log('  [SKIP] no live sandbox on this machine — the auto-allow road is not taken')
-} else {
-  const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const input = { command: 'sleep 30', timeout: 3000, description: 'a sleep', run_in_background: false }
-  const verdict = await bashToolHasPermission(input, getEmptyToolPermissionContext())
-  const updated = ((verdict as { updatedInput?: Record<string, unknown> }).updatedInput ?? {}) as Record<string, unknown>
-  const reason = (verdict as { decisionReason?: { reason?: string } }).decisionReason?.reason ?? ''
-  check('a sandboxed command is auto-allowed by the sandbox road', verdict.behavior === 'allow' && reason === 'Auto-allowed with sandbox', `${verdict.behavior} ${reason}`)
-  check("…and the allow carries the model's timeout, description and background flag", updated.timeout === 3000 && updated.description === 'a sleep' && updated.run_in_background === false && updated.command === 'sleep 30', JSON.stringify(updated))
-}
-
 section('§7 the never-auto-background list matches the command word')
 {
   const { firstCommandWord } = await import('../../src/utils/shell/shellToolUtils.ts')
@@ -348,7 +256,7 @@ section('§7 the never-auto-background list matches the command word')
   check('the PowerShell tool takes its first token from the same owner', /const firstToken = firstCommandWord\(/.test(psTool) && /NEVER_AUTO_BACKGROUND\.has\(resolveToCanonical\(firstToken\)\)/.test(psTool))
 }
 
-section('§1b the sandbox law — the artifact under node')
+section('§1b the execution seams — the artifact under node')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const vendoredNode = join(ROOT, 'dist', 'vendor', 'node', 'bin', 'node')
 const nodeBin = existsSync(vendoredNode) ? vendoredNode : Bun.which('node')
@@ -366,19 +274,19 @@ if (!existsSync(DIST) || !nodeBin) {
   writeFileSync(join(globDir, 'x.m4a'), 'recorded-audio')
   const configDir = join(home, '.mercury')
   seedFirstRun(configDir, [cwd])
-  writeFileSync(join(configDir, 'settings.json'), JSON.stringify(SANDBOX_SETTINGS, null, 2))
+  writeFileSync(join(configDir, 'settings.json'), '{}\n')
   const MODEL = 'claude-opus-4-8'
   const turns: ScriptedTurn[] = [
-    { kind: 'tool_use', name: 'Bash', input: { command: `cd "${cwd}/sub" && echo moved`, description: 'cd inside the sandbox' }, whenModel: MODEL },
+    { kind: 'tool_use', name: 'Bash', input: { command: `cd "${cwd}/sub" && echo moved`, description: 'cd into a subdirectory' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `pwd && echo in > "${cwd}/in.txt" && echo written`, description: 'read the directory, write inside' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `echo out > "${away}/out.txt"`, description: 'write outside' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 30', timeout: 3000, description: 'a command past its timeout' }, whenModel: MODEL },
-    { kind: 'tool_use', name: 'Bash', input: { command: 't=$(mktemp) && echo "$t" && rm -f "$t" && echo "TMPDIR=$TMPDIR"', description: 'a temp file under the sandbox' }, whenModel: MODEL },
+    { kind: 'tool_use', name: 'Bash', input: { command: 't=$(mktemp) && echo "$t" && rm -f "$t" && echo "TMPDIR=$TMPDIR"', description: 'a temp file' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `cp "${globDir}/"*.m4a "${globOut}/" && echo 'copied:' && find "${globOut}" -name '*.m4a' | wc -l | tr -d ' '`, description: 'copy a quoted audio glob through a pipe' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `ls "${globDir}/"*.m4a | head -1`, description: 'list a quoted audio glob through a pipe' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `ls "${globDir}/"*.none 2>&1 | head -1`, description: 'retain an unmatched quoted glob in the error text' }, whenModel: MODEL },
-    { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
-    { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
+    { kind: 'text', text: 'seams-probe: done', whenModel: MODEL },
+    { kind: 'text', text: 'seams-probe: done', whenModel: MODEL },
   ]
   const fixture = await startFixtureApi(turns)
   const env = {
@@ -403,8 +311,8 @@ if (!existsSync(DIST) || !nodeBin) {
     ? { outcome: 'allow', input: params.input }
     : { outcome: 'deny', message: 'Only fixture Bash approvals are expected.' })
   await host.initialize()
-  await host.prompt('sandbox-probe: run the eight')
-  await host.waitFor('sandbox probe outcome', isOutcome, 90_000)
+  await host.prompt('seams-probe: run the eight')
+  await host.waitFor('seams probe outcome', isOutcome, 90_000)
   const exit = await host.stop(5_000)
   const outcome = { exit, stdout: host.rows.map(row => JSON.stringify(row)).join('\n'), stderr: host.stderr(), ms: Date.now() - startedAt }
   for (const turn of turns.slice(4, 8)) {
@@ -437,7 +345,7 @@ if (!existsSync(DIST) || !nodeBin) {
     const result = blocks.find(b => b.type === 'tool_result')
     if (result) note(`request ${index + 1} carried a tool result${result.is_error ? ' (error)' : ''}: ${JSON.stringify(typeof result.content === 'string' ? result.content.slice(0, 120) : JSON.stringify(result.content).slice(0, 120))}`)
   }
-  check('the artifact ran the eight calls and closed the turn', outcome.exit === 0 && /sandbox-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
+  check('the artifact ran the eight calls and closed the turn', outcome.exit === 0 && /seams-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
   check('the artifact showed the model eight tool results', results.length === 8, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
   const [first, second, third, fourth, fifth, copied, listed, noMatch] = results
   check('artifact: a quoted space-and-ampersand audio glob copies through a pipeline', copied !== undefined && !copied.isError && copied.text.split('\n').slice(0, 2).join('\n') === 'copied:\n1' && existsSync(join(globOut, 'x.m4a')) && readFileSync(join(globOut, 'x.m4a'), 'utf8') === 'recorded-audio', JSON.stringify(copied))
@@ -449,23 +357,16 @@ if (!existsSync(DIST) || !nodeBin) {
   check('artifact: a cd keeps its status and its text', first !== undefined && !first.isError && /moved/.test(first.text) && !/Operation not permitted/.test(first.text), JSON.stringify(first?.text.slice(0, 160)))
   check('artifact: the cd propagated and a write inside the session directory landed', second !== undefined && !second.isError && second.text.trim().startsWith(join(cwd, 'sub')) && /written/.test(second.text) && existsSync(join(cwd, 'in.txt')), JSON.stringify(second?.text.slice(0, 160)))
   const descriptions = fixture.messageRequests().map(r => ((r.body as { tools?: Array<{ name?: string; description?: string }> })?.tools ?? []).find(t => t.name === 'Bash')?.description ?? '')
-  if (ready) {
-    check("artifact: a bare mktemp succeeds under the sandbox and the child's TMPDIR reads the product root", fifth !== undefined && !fifth.isError && fifthPath.startsWith('/') && (platformTemp === null || realpathSync(dirname(fifthPath)) === platformTemp) && fifth.text.includes(`TMPDIR=${tempRoot}`), JSON.stringify(fifth?.text.slice(0, 160)))
-    check('artifact: a write outside the allow-write set is refused by the sandbox; under the bypass posture the rerun ask is auto-answered, the command runs outside and the result says so', third !== undefined && /^\[ran outside the sandbox after the ask: the sandboxed run exited [1-9]\d* on .*file-write/.test(third.text) && existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
-    check("artifact: the tool's description tells the model commands run in a sandbox", descriptions.length > 0 && descriptions.every(d => d.includes('# Command sandbox')))
-  } else {
-    check('artifact (unavailable sandbox): run mode says the sandbox is OFF for the session, with the reason', /sandboxing is OFF for this session/.test(outcome.stderr), JSON.stringify(outcome.stderr.slice(0, 300)))
-    check("artifact (unavailable sandbox): the tool's description never claims a sandbox", descriptions.length > 0 && descriptions.every(d => !d.includes('# Command sandbox')))
-    check('artifact (unavailable sandbox): the outside write lands — unconfined, and said so above', third !== undefined && !third.isError && existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
-    check('artifact (unavailable sandbox): a bare mktemp succeeds unconfined', fifth !== undefined && !fifth.isError && fifthPath.startsWith('/'), JSON.stringify(fifth?.text.slice(0, 160)))
-  }
+  check("artifact: the tool's description names no sandbox", descriptions.length > 0 && descriptions.every(d => !/sandbox/i.test(d)))
+  check('artifact: run mode says nothing about a sandbox', !/sandbox/i.test(outcome.stderr), JSON.stringify(outcome.stderr.slice(0, 300)))
+  check('artifact: a write outside the session directory lands with its own status', third !== undefined && !third.isError && existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
+  check('artifact: a bare mktemp succeeds', fifth !== undefined && !fifth.isError && fifthPath.startsWith('/'), JSON.stringify(fifth?.text.slice(0, 160)))
   rmSync(home, { recursive: true, force: true })
   rmSync(cwd, { recursive: true, force: true })
   rmSync(away, { recursive: true, force: true })
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
-rmSync(OUTSIDE, { recursive: true, force: true })
 
 console.log('\n============================================================')
 if (failures === 0) console.log(' ✅ ALL BASH TOOL SEAM PROOFS PASS')

@@ -71,7 +71,7 @@ t('a plain absolute mention still resolves', plainAttachments.length > 0)
 const { createPowerShellProvider } = await import('../../src/utils/shell/powershellProvider.ts')
 const provider = createPowerShellProvider('/usr/local/bin/pwsh')
 
-const plain = await provider.buildExecCommand('Write-Output hi', { id: 7, useSandbox: false })
+const plain = await provider.buildExecCommand('Write-Output hi', { id: 7 })
 const prelude = "$PSStyle.OutputRendering = 'PlainText'"
 const preludeAt = plain.commandString.indexOf(prelude)
 const commandAt = plain.commandString.indexOf('Write-Output hi')
@@ -81,18 +81,6 @@ t('plain lane: the cwd/exit trailer still follows the command', trailerAt > comm
 t(
   'plain lane: the 5.1 guard wraps the pin',
   plain.commandString.includes('Get-Variable -Name PSStyle -ErrorAction SilentlyContinue'),
-)
-
-const sandboxed = await provider.buildExecCommand('Write-Output hi', {
-  id: 8,
-  useSandbox: true,
-  sandboxTmpDir: '/tmp/sbx',
-})
-const encodedMatch = /-EncodedCommand\s+(\S+)/.exec(sandboxed.commandString)
-const decoded = encodedMatch ? Buffer.from(encodedMatch[1]!, 'base64').toString('utf16le') : ''
-t(
-  'sandbox lane: the encoded command carries the same pin ahead of the command',
-  decoded.indexOf(prelude) !== -1 && decoded.indexOf('Write-Output hi') > decoded.indexOf(prelude),
 )
 
 const overrides = await provider.getEnvironmentOverrides('Write-Output hi')
