@@ -183,7 +183,7 @@ if (POISON_DIST === undefined) {
   const armed = regionKeysFor('list', { newSession: true, selection: 'live', armed: true })
   check('the ARMED legend keeps the chord row with its stage-true label — no letter, no relabel', armed.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · archive · delete'))
   const docs = readFileSync(join(REPO, 'docs', 'SESSIONS.md'), 'utf8')
-  check('docs/SESSIONS.md teaches the chord and the typing truth in the same breath', docs.includes('ctrl+x ctrl+x stops the selected') && docs.includes('typing is never a control'))
+  check('docs/SESSIONS.md teaches the chord and the typing truth in the same breath', docs.includes('`ctrl+x ctrl+x` stops the selected') && docs.includes('typing is never a control'))
   check('docs/SESSIONS.md no longer advertises a bare-x board verb', !/`x` on a|`x` stops|second `x`/.test(docs))
   const driveMembers = readFileSync(join(REPO, 'scripts', 'switchboard-drives', 'members.txt'), 'utf8')
     .split('\n')
