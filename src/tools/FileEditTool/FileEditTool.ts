@@ -14,7 +14,7 @@ import {
   spanText,
   type EditHunkInput,
 } from '../../services/changeTransaction/hunks.js'
-import { fileGeneration, generationOfWrittenBytes, recordSeenLines, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
+import { fileGeneration, generationOfWrittenBytes, recordLinesWritten, recordSeenLines, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
 import {
   recordNoChangeOutcome,
 } from '../../services/changeTransaction/repetitionPolicy.js'
@@ -387,9 +387,11 @@ function stampOwnEditAsSeen(
   if (generation === null) return
   const lastLine = Math.max(1, lineCountOf(updatedFile))
   const shifted = patch.length === 0 ? [...known] : mapRangesThroughPatch(known, patch, lastLine)
-  for (const range of coalesceLineRanges([...shifted, ...authoredLinesOf(patch)])) {
+  const authored = authoredLinesOf(patch)
+  for (const range of coalesceLineRanges([...shifted, ...authored])) {
     recordSeenLines(owner, expandedPath, generation, range.start, range.end - range.start + 1)
   }
+  recordLinesWritten(owner, expandedPath, generation, authored)
 }
 
 type SameCallReadThrough = { text: string; sentence: string; ranges: LineRange[] }
@@ -547,7 +549,7 @@ function readKnowledge(
     checking = 'file generation'
     generation = fileGeneration(expandedPath)
     checking = 'read ledger'
-    ledger = seenLinesOf(owner, expandedPath)
+    ledger = seenLinesOf(owner, expandedPath, generation ?? undefined)
   } catch (error) {
     throw new Error(`Read-knowledge ${checking} check failed for ${displayPath}: ${error instanceof Error ? error.message : String(error)}. No edit was applied; retry the Read and edit after that check is available.`, { cause: error })
   }

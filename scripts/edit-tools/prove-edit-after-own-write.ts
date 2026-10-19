@@ -34,6 +34,7 @@ mock.module(managerPath, () => ({ ...realManagerModule, getLspServerManager: () 
 
 const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
 const { processMainOwner, processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+const { MAIN_LANE, makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/FileEditTool/constants.ts')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
@@ -187,7 +188,7 @@ section('D. THE LAW KEPT — bytes the owner never observed still refuse, word f
   check('D9 an old_string that does not match the current bytes is refused as not found and nothing is written', !wrong.ok && wrong.message.includes('the old_string was not found in the current content') && contentOf(mismatch) === body(10), messageOf(wrong))
 }
 
-section('E. ANOTHER OWNER\'S WRITE IS NOT THIS OWNER\'S READ — a sub-agent\'s Write does not vouch for the main owner\'s edit')
+section('E. A CREWMATE\'S WRITE IS THE SESSION\'S KNOWLEDGE; ANOTHER SESSION\'S WRITE IS NOT — a sub-agent\'s Write vouches for the main owner\'s edit, a foreign session\'s does not')
 {
   _resetSeenLinesForTesting()
   const file = join(fixtures, 'agent-written.ts')
@@ -196,8 +197,13 @@ section('E. ANOTHER OWNER\'S WRITE IS NOT THIS OWNER\'S READ — a sub-agent\'s 
   const agentLedger = seenLinesOf(processOwnerForLane('agentfixture'), file)
   check('E1 the sub-agent\'s Write stamps the sub-agent owner\'s ledger (RED on the base)', agentWrite.ok && agentLedger !== undefined && agentLedger.generation === fileGeneration(file), JSON.stringify(agentLedger))
   const parent = await edit({ file_path: file, old_string: 'const w2 = 2', new_string: 'const w2 = 22' }, makeContext())
-  check('E2 the main owner\'s fresh context is refused naming another session\'s possible work: it never observed the bytes, and the refusal shows none', !parent.ok && parent.message.startsWith(unreadLead(file)) && parent.message.includes(`No lines of ${file} were read this session`) && noRows(parent.message), messageOf(parent))
-  check('E3 …and nothing was written', !contentOf(file).includes('const w2 = 22'))
+  check('E2 the main owner\'s fresh context edits the file its own crewmate wrote in this process (the field row 2A-02)', parent.ok && contentOf(file).includes('const w2 = 22'), messageOf(parent))
+  const foreignFile = join(fixtures, 'foreign-written.ts')
+  const foreign = { ...makeContext(), owner: makeOwnerKey({ workspace: process.cwd(), sessionId: '00000000-0000-4000-8000-00000000f0e1', lane: MAIN_LANE }) } as Ctx
+  const foreignWrite = await write(foreignFile, body(15), foreign)
+  const stranger = await edit({ file_path: foreignFile, old_string: 'const w2 = 2', new_string: 'const w2 = 22' }, makeContext())
+  check('E3 another session\'s Write does not vouch: the main owner\'s fresh context is refused naming another session\'s possible work, and the refusal shows no rows', foreignWrite.ok && !stranger.ok && stranger.message.startsWith(unreadLead(foreignFile)) && stranger.message.includes(`No lines of ${foreignFile} were read this session`) && noRows(stranger.message), messageOf(stranger))
+  check('E4 …and nothing was written', !contentOf(foreignFile).includes('const w2 = 22'))
 }
 
 section('F. THE ONE-CONTEXT ROAD — Write then Edit in the same context lands, base and tip alike')

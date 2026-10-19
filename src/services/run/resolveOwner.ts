@@ -31,6 +31,14 @@ export function processMainOwner(): OwnerKey {
   })
 }
 
+export function mainOwnerOfSession(sessionId: string): OwnerKey {
+  return makeOwnerKey({
+    workspace: safeWorkspace(),
+    sessionId,
+    lane: MAIN_LANE,
+  })
+}
+
 export function processOwnerForLane(agentId?: string | null): OwnerKey {
   return makeOwnerKey({
     workspace: safeWorkspace(),

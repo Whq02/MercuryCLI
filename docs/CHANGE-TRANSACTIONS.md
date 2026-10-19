@@ -106,6 +106,14 @@ keyed on the file's modification time, its size and a digest of its bytes,
 so a rewrite that keeps the size and lands in the same millisecond is still
 another generation.
 
+The lines a session's own crewmate writes, through Write or Edit in the same
+process, are the session's knowledge: the main thread and every other lane
+of that session edit them without a Read, while a crewmate's Read stays its
+own. A session resumed in a new process, and a crewmate resumed with
+`ResumeCrewmate`, keep the lines their own earlier process read or wrote
+(a windowed Read included) while those lines still read the same; a changed
+line stays unread, and another session's lines are never credited.
+
 A Read of lines 1–5 followed by a file change and a search showing lines
 6–10 does not establish current knowledge of lines 1–10. The refusal names
 which anchor, generation or ownership/coverage check failed. It counts only
