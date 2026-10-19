@@ -134,6 +134,7 @@ sha256_of() {
 }
 red() {
   echo "TARGET $TARGET RED at $1 rc=$2 log=$3"
+  rm -rf "$WORK"
   exit 1
 }
 step() {
