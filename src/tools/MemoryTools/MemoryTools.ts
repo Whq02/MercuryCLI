@@ -19,7 +19,7 @@ import {
   type RuleAuthority,
 } from '../../mneme/memoryVerbs.js'
 import { mnemeLibraryDir } from '../../mneme/mnemeGates.js'
-import { latestPinIntent } from '../../mneme/memoryPinIntent.js'
+import { latestPinIntent, memoryAskRefusal } from '../../mneme/memoryPinIntent.js'
 import { gradeLines, MEMORY_EVIDENCE_CONTRACT, recordGrade } from '../../mneme/memoryEvidence.js'
 import { askedReplacements, askedRuleOf, askRuleCard, correctionChange, ruleCardAsk, ruleCardText } from './ruleCard.js'
 import { confirmCitedFacts, renderFootnotes } from '../../mneme/mnemeFootnotes.js'
@@ -124,9 +124,15 @@ export const RetainTool = buildTool({
     return RETAIN_PROMPT
   },
   async checkPermissions(input: z.infer<RetainSchema>, context: ToolUseContext) {
+    if (memoryAskRefusal(context.messages ?? [], context.agentId ? String(context.agentId) : undefined) !== null) return { behavior: 'allow' as const, updatedInput: input }
     return ruleCardAsk(context) ?? { behavior: 'allow' as const, updatedInput: input }
   },
   async call(input: z.infer<RetainSchema>, context: ToolUseContext, canUseTool, parentMessage) {
+    const unasked = memoryAskRefusal(context.messages ?? [], context.agentId ? String(context.agentId) : undefined)
+    if (unasked !== null) {
+      const outcomes: RetainItemOutcome[] = input.items.map((_, index) => ({ index, status: 'refused', reason: unasked }))
+      return { data: { outcomes, stored: 0, refused: outcomes.length } }
+    }
     const asked = askedReplacements(input.items, mnemeLibraryDir())
     const verdict =
       asked.length === 0

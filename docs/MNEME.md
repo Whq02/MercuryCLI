@@ -105,9 +105,12 @@ only` and both the front page and `Recall` say so in one line.
 
 The model writes memory only when you ask it to remember something: a
 preference about how to work, a constraint you state, a fact you name, in your
-words. It never saves a decision or an outcome on its own judgement; those
-belong in the project's records. The model works its memory through four
-tools:
+words. That is the tool's own rule, not advice to the model: Retain refuses a
+write unless your latest message asks for something to be remembered
+("remember …", "don't forget …", "note this down", "from now on …", "pin this"
+and the like), and refuses a crewmate's write always — a crewmate's finding
+goes in its report. A decision or an outcome belongs in the project's records.
+The model works its memory through four tools:
 
 - **Retain** saves a fact (up to 2,000 characters of content and context per
   item) for future sessions into `current.jsonl`. It is findable in the staging
