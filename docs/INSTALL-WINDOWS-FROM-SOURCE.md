@@ -98,26 +98,26 @@ winget install --id Git.Git --source winget
 
 Close the terminal, open a new one, run the check again.
 
-Git for Windows also installs `bash.exe`, the shell Mercury's Bash tool runs
-under when it is found. A release archive carries its own bash-compatible
-shell engine as well (brush, built from its published crate), and a box
-with no `bash.exe` runs the Bash tool through it with nothing to set: the
-`health` report's **Bash tool shell** row (check id `shell`) then reports the
-bundled shell engine when no `bash.exe` was found, or `git-bash` when Git for
-Windows is present. A source build gets the same engine once step 7 builds it. Two
-things the engine cannot do on Windows at this version: run a `.cmd` shim
-such as `npm` or `npx` directly (`cmd /c npm …` works, or `node` on the
-script), and find a program named by a relative path after a `cd` (use its
-absolute path). Without either shell (no Git for Windows and no engine
+Git for Windows also installs `bash.exe`. A release archive carries its own
+bash-compatible shell engine as well (brush, built from its published crate),
+and on Windows the Bash tool runs through it by default whenever its pack is
+present, with nothing to set: it finds a `.cmd` or `.bat` program such as
+`npm` by its bare name through PATHEXT, passes `%VAR%` and `^` to a batch
+file unchanged, and runs a program named by a relative path after a `cd`.
+The `health` report's **Bash tool shell** row (check id `shell`) reports the
+bundled shell engine and why (the Windows default, or no `bash.exe` found),
+or `git-bash` when the engine is turned off or its pack is absent. A source
+build gets the same engine once step 7 builds it; until then the Bash tool
+runs under `bash.exe` when Git for Windows is present. Without either shell (no Git for Windows and no engine
 pack), Mercury still starts, but the Bash tool is missing from the model's
 tool list (the PowerShell tool stays), the **Bash tool shell** row warns,
 and a notice at the start of a session names the ways out: install Git for
 Windows; set `MERCURY_GIT_BASH_PATH` to your `bash.exe` when Git is
 installed somewhere Mercury does not look; or build the engine (step 7).
 `$env:MERCURY_SHELL_ENGINE = "system"` (or the `shell.engine` setting written
-as `system`) keeps the Bash tool on `bash.exe` alone, and `brush` runs it on
-the engine even when `bash.exe` is present; the `/config` row **Shell
-engine** shows `system` for the default, which lets the engine arm itself.
+as `system`) keeps the Bash tool on `bash.exe` alone; the `/config` row
+**Shell engine** shows `system` for the default, which lets the engine arm
+itself.
 A `MERCURY_GIT_BASH_PATH` that points at a file that does not exist stops
 Mercury at start with a message saying so; fix the path.
 ---

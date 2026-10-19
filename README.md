@@ -168,21 +168,23 @@ is missing, the launcher reports an error.
 
 ### Windows shells
 
-Git for Windows supplies `bash.exe`, which the Bash tool uses when available.
-Release archives also include Mercury's bash-compatible shell engine. It is
-used automatically on Windows when `bash.exe` is missing.
+Release archives include Mercury's bash-compatible shell engine (`brush`),
+and on Windows it serves the Bash tool by default: it finds a `.cmd` or
+`.bat` program such as `npm` by its bare name through PATHEXT, passes `%VAR%`
+and `^` to a batch file unchanged, runs a program named by a relative path
+after `cd`, and keeps shell state between calls. Git for Windows' `bash.exe`
+is not required; when it is installed, `MERCURY_SHELL_ENGINE=system` or
+`system` in `/config` under Shell engine runs the Bash tool on `bash.exe`
+alone.
 
-Read the health check's `shell` row to see which shell is active and why. It shows
-Git Bash when `bash.exe` is available, or the bundled engine when it is
-missing. The bundled engine requires `cmd /c npm …` to run a `.cmd` shim
-such as `npm`; running the shim directly fails. After `cd`, give the engine
-an absolute path to the program you want to run.
+Read the health check's `shell` row to see which shell is active and why: the
+bundled engine (the Windows default, or armed by the pin or the setting), or
+Git Bash when the engine was turned off or its pack is absent.
 
-Set `MERCURY_SHELL_ENGINE=brush`, or choose `brush` in `/config` under Shell
-engine, to use the bundled Rust shell engine (`brush`, optional on macOS and
-Linux where the system shell is the default) for Bash tool calls with
-persistent shell state even when `bash.exe` is available.
-`MERCURY_SHELL_ENGINE=system` uses only the system `bash.exe`.
+On macOS and Linux the system shell is the default; set
+`MERCURY_SHELL_ENGINE=brush`, or choose `brush` in `/config` under Shell
+engine, to run the Bash tool on the bundled engine there too, with persistent
+shell state.
 
 A source build without the engine pack or Git for Windows still starts, but
 the Bash tool is unavailable. The PowerShell tool remains available, and the
@@ -706,6 +708,11 @@ Available commands include:
 - **`mercury daemon run|status|stop|restart`**: run, inspect, stop or restart
   the background daemon. Its session seats are `mercury runner` children; the
   daemon sends their prompts and hosts their permission asks.
+- **`mercury sessions list`** (also a bare `mercury sessions`): list this
+  project's saved sessions, newest first: the id, when it was last written,
+  its size, `live` when the daemon hosts it now, and its title or first
+  prompt; `--all` reads every project, `--limit <n>` bounds the list. The id
+  is what `mercury --resume <id>` reopens and `sessions delete` removes.
 - **`mercury sessions delete <id>`**: delete one saved session on purpose —
   its transcript and the records kept beside it (receipts, resume snapshot) —
   after a question; `--yes` skips the question for scripts. A session the

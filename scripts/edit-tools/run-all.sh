@@ -4,6 +4,7 @@
 # gate-watch: src/tools/FileReadTool/** src/tools/FileEditTool/** src/tools/FileWriteTool/**
 # gate-watch: src/services/changeTransaction/** src/services/ide/** src/services/resources/**
 # gate-watch: src/tools/TransactionTool/** src/utils/verification/**
+# gate-watch: src/tools/AgentTool/resumeAgent.ts src/utils/conversationRecovery.ts
 # gate-watch: scripts/ide/prove-transaction-capture.ts scripts/ide/transactionProof.ts
 # gate-watch: src/services/repoHost/** src/tools/GitTool/** src/tools/TestTool/** src/tools/LaunchTool/** src/utils/healthReport.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/scriptedTurn.ts scripts/lib/fixtureApi.ts src/Tool.ts

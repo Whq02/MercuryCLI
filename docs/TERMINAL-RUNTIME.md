@@ -262,12 +262,13 @@ disables the check, the cache and both notices.
 
 ## The shell engine
 
-The Bash tool runs commands through a shell engine. The default is the
-**system** shell: the platform's bash or zsh (Git for Windows' `bash.exe`
-on Windows), spawning a fresh child per command where the working directory carries from
-call to call and everything else resets. On a Windows machine where no
-`bash.exe` is found, Mercury selects the bundled **brush** engine automatically
-(every release archive includes it).
+The Bash tool runs commands through a shell engine. On macOS and Linux the
+default is the **system** shell: the platform's bash or zsh, spawning a fresh
+child per command where the working directory carries from call to call and
+everything else resets. On Windows the default is the bundled **brush**
+engine whenever its pack is present (every release archive includes it);
+`bash.exe` from Git for Windows serves only when the engine is turned off by
+the pin or the setting, or its pack is absent.
 In both modes, the Bash tool tracks its own shell working directory across
 calls: a `cd` inside a Bash command moves where subsequent shell commands run
 without changing the session's starting folder.
@@ -281,11 +282,10 @@ long-lived brush process serves the main conversation and a separate process ser
 each crewmate: variables, functions, aliases and options persist between
 calls for their owner (state set by one crewmate is isolated from other crewmates and
 the main conversation, and a crewmate's shell process exits when the crewmate finishes), and
-the same shell runs on every OS without requiring Git for Windows. Two
-things the engine cannot do on Windows at this version (the Bash tool's own
-description notes both): run a `.cmd` shim such as `npm` or `npx`
-directly (`cmd /c npm …` works, or `node` on the script), and find a
-program named by a relative path after a `cd` (use its absolute path).
+the same shell runs on every OS without requiring Git for Windows. On
+Windows it finds a `.cmd` or `.bat` program such as `npm` or `npx` by its
+bare name through PATHEXT, passes `%VAR%` and `^` to a batch file unchanged,
+and runs a program named by a relative path after a `cd`.
 
 The sessions have a ceiling: the `shell.sessions` setting (a whole
 number, 8 by default: the main conversation plus seven crewmates), the
@@ -308,16 +308,17 @@ ends.
 
 Select it with the **Shell engine** row in `/config` (setting `shell.engine`:
 `system` | `brush`) or the `MERCURY_SHELL_ENGINE=brush` env pin, which
-outranks the setting; the system shell stays the default. A `brush` choice
-whose pack is absent degrades to the system shell and the `health` row names
-why, never falling back silently. On a Windows box with no `bash.exe`, `system`
-written as the setting's value or as the env pin turns the engine off and
-the Bash tool leaves the roster; the `/config` row's `system` is the
-default, which lets the engine arm itself. The `health` report's **Bash
-tool shell** row (check id `shell`) says which shell runs and why (a found
-`bash.exe`, the bundled engine because none was found, or the engine selected by the
-setting or env pin), and its **Shell engine** row (`iface-shell-engine`)
-says the same from the engine's side. The Bash tool's own description
+outranks the setting; on macOS and Linux the system shell stays the default,
+on Windows the engine is the default. A `brush` choice whose pack is absent
+degrades to the system shell and the `health` row names why, never falling
+back silently. On a Windows box with no `bash.exe`, `system` written as the
+setting's value or as the env pin turns the engine off and the Bash tool
+leaves the roster; the `/config` row's `system` is the default, which lets
+the engine arm itself. The `health` report's **Bash tool shell** row (check
+id `shell`) says which shell runs and why (the engine as the Windows default,
+the engine because no `bash.exe` was found, the engine selected by the
+setting or env pin, or a found `bash.exe`), and its **Shell engine** row
+(`iface-shell-engine`) says the same from the engine's side. The Bash tool's own description
 always states which engine is live, and the command parser and permission
 rules judge the command text identically on either engine.
 

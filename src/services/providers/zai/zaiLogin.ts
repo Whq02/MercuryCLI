@@ -34,7 +34,7 @@ export async function storeZaiApiKeyLogin(
     return { ok: false, stored: false, receipt: `Could not store the key: ${errorMessageWithCause(error).split(key).join('[redacted]')}` }
   }
   const shadowNote = env.ZAI_API_KEY?.trim()
-    ? ' (ZAI_API_KEY is set in the environment and overrides the stored key this session, using the general base.)'
+    ? ' (ZAI_API_KEY is set in the environment and overrides the stored key this session; its plan is ZAI_KEY_PLAN, or read from its own models list.)'
     : ''
   const proof = probe.state === 'accepted'
     ? `${probe.models} GLM ${probe.models === 1 ? 'model' : 'models'} listed for the key`

@@ -1,3 +1,4 @@
+import { captureSignInRequest, observeSignInResponse } from '../../utils/accounts/signInRefusal.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { retryAfterHeaderMs } from '../api/retryAfter.js'
@@ -189,6 +190,7 @@ export async function jevSystemOne(input: JevRequestInput, key: string, io: JevC
     if (deadline.aborted) return { ok: false, failure: { kind: 'provider-down', detail: deadlineBreachLine(road === 'openrouter' ? 'OpenRouter' : JEV_PROVIDER_NAME, timeoutMs) } }
     return { ok: false, failure: { kind: 'provider-down', detail: scrub(`no connection — ${error instanceof Error ? error.message : String(error)}`) } }
   }
+  const signIn = road === 'openrouter' ? captureSignInRequest('openrouter', key) : undefined
   let response: Response
   try {
     response = await fetchImpl(jevSystemOneUrl(road), {
@@ -213,6 +215,7 @@ export async function jevSystemOne(input: JevRequestInput, key: string, io: JevC
     return failed(error)
   }
   const parsed = parseJson(text)
+  observeSignInResponse(signIn, response.status, response.status < 200 || response.status >= 300 ? scrub(jevFailureDetail(text)) : undefined)
   const headerId = response.headers.get(road === 'openrouter' ? 'x-generation-id' : JEV_REQUEST_ID_HEADER)?.trim()
   const bodyId = road === 'openrouter' && isRecord(parsed) && typeof parsed.id === 'string' ? parsed.id.trim() : undefined
   const rawId = headerId || bodyId

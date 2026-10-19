@@ -5,8 +5,9 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
-import { resolveZaiDispatch } from './zaiAccounts.js'
+import { resolveZaiDispatch, type ZaiDispatch } from './zaiAccounts.js'
 import { zaiApiBase, type ZaiApiPlan } from './zaiClient.js'
+import { rememberZaiKeyPlan, type ZaiKeyPlanWord } from './zaiKeyPlan.js'
 import { GLM_STATIC_FLOOR_IDS, glmDisplayName, glmDisplayPin } from './glmPins.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
@@ -40,10 +41,10 @@ function decodeZaiModel(raw: unknown): ZaiLiveModel | undefined {
 class ZaiCatalogueHttpError extends Error {
   readonly refused: boolean
   readonly said: string | undefined
-  constructor(readonly status: number, words: ServiceWords = {}, key = '') {
+  constructor(readonly status: number, words: ServiceWords = {}, key = '', where = '') {
     const refused = status === 401 || status === 403 || (status === 400 && wordsNameTheKey(words))
     const said = (words.message ?? words.code)?.split(key || '\0').join('[redacted]')
-    super(`${refused ? `Z.AI models endpoint refused the credential (HTTP ${status})` : `Z.AI models endpoint returned HTTP ${status}`}${said ? ` — ${said}` : ''}`)
+    super(`${refused ? `Z.AI models endpoint refused the credential (HTTP ${status})` : `Z.AI models endpoint returned HTTP ${status}`}${where}${said ? ` — ${said}` : ''}`)
     this.refused = refused
     this.said = said
   }
@@ -94,6 +95,49 @@ async function fetchZaiLiveModels(opts: {
   }
   if (parsed.data.length > 0 && models.length === 0) throw new Error('the models endpoint answered a non-catalogue view (no listed row carries a model id)')
   return { models, fetchedAtMs: Date.now() }
+}
+
+type ZaiPlanLearning =
+  | { plan: ZaiKeyPlanWord; models: ZaiLiveModel[]; fetchedAtMs: number }
+  | { plan: undefined; refused: boolean; error: Error }
+
+export async function learnZaiKeyPlan(key: string, io?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): Promise<ZaiPlanLearning> {
+  const env = io?.env ?? process.env
+  const fetchImpl = io?.fetchImpl ? { fetchImpl: io.fetchImpl } : {}
+  const asked = new Set<string>()
+  let refusal: ZaiCatalogueHttpError | undefined
+  for (const plan of ['general', 'coding'] as const) {
+    const baseUrl = zaiApiBase(env, plan)
+    if (asked.has(baseUrl)) continue
+    asked.add(baseUrl)
+    try {
+      const result = await fetchZaiLiveModels({ baseUrl, key, ...fetchImpl })
+      rememberZaiKeyPlan(key, plan)
+      return { plan, models: result.models, fetchedAtMs: result.fetchedAtMs }
+    } catch (error) {
+      if (error instanceof ZaiCatalogueHttpError && error.refused) {
+        refusal ??= error
+        continue
+      }
+      return { plan: undefined, refused: false, error: error instanceof Error ? error : new Error(String(error).split(key).join('[redacted]')) }
+    }
+  }
+  const first = refusal ?? new ZaiCatalogueHttpError(401)
+  return {
+    plan: undefined,
+    refused: true,
+    error: asked.size > 1 ? new ZaiCatalogueHttpError(first.status, first.said !== undefined ? { message: first.said } : {}, '', ' on the general base and on the Coding Plan base') : first,
+  }
+}
+
+async function listForDispatch(dispatch: ZaiDispatch, env: NodeJS.ProcessEnv, fetchImpl: { fetchImpl?: typeof fetch }): Promise<{ plan: ZaiKeyPlanWord; models: ZaiLiveModel[]; fetchedAtMs: number }> {
+  if (dispatch.planSource !== 'assumed') {
+    const result = await fetchZaiLiveModels({ baseUrl: listBase(env, dispatch.plan), key: dispatch.key, ...fetchImpl })
+    return { plan: dispatch.plan, models: result.models, fetchedAtMs: result.fetchedAtMs }
+  }
+  const learned = await learnZaiKeyPlan(dispatch.key, { env, ...fetchImpl })
+  if (learned.plan === undefined) throw learned.error
+  return learned
 }
 
 export interface ZaiCatalogueSnapshot {
@@ -162,13 +206,9 @@ export function refreshZaiCatalogue(opts?: {
   if (existing) return existing
   const work = (async (): Promise<ZaiCatalogueSnapshot | null> => {
     try {
-      const result = await fetchZaiLiveModels({
-        baseUrl: listBase(env, dispatch.plan),
-        key: dispatch.key,
-        ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
-      })
-      const snapshot: ZaiCatalogueSnapshot = { keySource: dispatch.source, plan: dispatch.plan, models: result.models, fetchedAtMs: now() }
-      catalogueCache.set(identity, snapshot)
+      const result = await listForDispatch(dispatch, env, opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {})
+      const snapshot: ZaiCatalogueSnapshot = { keySource: dispatch.source, plan: result.plan, models: result.models, fetchedAtMs: now() }
+      catalogueCache.set(catalogueIdentity(env), snapshot)
       return snapshot
     } catch (error) {
       const refused = error instanceof ZaiCatalogueHttpError && error.refused

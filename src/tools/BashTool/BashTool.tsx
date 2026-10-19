@@ -7,6 +7,7 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getOriginalCwd, isRunInputClosed } from '../../bootstrap/state.js'
+import { servicesEnabled } from '../../services/projectServices/contracts.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { exec, getShellCwd } from '../../utils/Shell.js'
 import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
@@ -141,6 +142,7 @@ export type Out = {
   dangerouslyDisableSandbox?: boolean
   returnCodeInterpretation?: string
   exitNote?: string
+  timeoutClampNotice?: string
   noOutputExpected?: boolean
   persistedOutputPath?: string
   persistedOutputSize?: number
@@ -367,6 +369,10 @@ async function* runBash(
 
   const requestedTimeout = input.timeout
   const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
+  const timeoutClampNotice =
+    requestedTimeout !== undefined && requestedTimeout > getMaxTimeoutMs()
+      ? `The timeout asked for (${formatDuration(requestedTimeout)}) is above the cap (${formatDuration(getMaxTimeoutMs())}), so ${formatDuration(getMaxTimeoutMs())} applied; a command that needs longer runs with run_in_background.`
+      : undefined
   const useSandbox = shouldUseSandbox(input)
   const firstSubcommand = pinnedCommandAnalysis.splitCommand(input.command)[0]?.trim() ?? input.command.trim()
   const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstCommandWord(firstSubcommand))
@@ -566,6 +572,7 @@ async function* runBash(
       backgroundTaskId: backgroundId,
       scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
       timeoutAutoBackgroundedAfterMs,
+      ...(timeoutClampNotice !== undefined ? { timeoutClampNotice } : {}),
       ...backgroundFacts(),
       ...(soFar.isTail ? { backgroundOutputIsTail: true } : {}),
     }
@@ -777,6 +784,7 @@ async function* runBash(
       isImage,
       returnCodeInterpretation,
       ...(exitNote !== undefined ? { exitNote } : {}),
+      ...(timeoutClampNotice !== undefined ? { timeoutClampNotice } : {}),
       ...(outputBudgetNotice !== undefined ? { outputBudgetNotice } : {}),
       ...(rerun !== undefined ? { sandboxRetryNotice: rerun.notice } : {}),
       noOutputExpected,
@@ -823,7 +831,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   }
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
   const scrubNotice = output.sessionEnvNotice ?? ''
-  const content = [stdout, errorText, output.exitNote ?? '', output.outputBudgetNotice ?? '', output.sandboxRetryNotice ?? '', backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
+  const content = [stdout, errorText, output.exitNote ?? '', output.timeoutClampNotice ?? '', output.outputBudgetNotice ?? '', output.sandboxRetryNotice ?? '', backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
   return { tool_use_id: toolUseID, type: 'tool_result', content, is_error: output.interrupted }
 }
 
@@ -852,9 +860,10 @@ function backgroundNoticeFor(output: Out): string {
   const wait = output.backgroundPid !== undefined
     ? ` If you need its result, wait for it before you finish: one Bash call with a \`timeout\` longer than the wait, such as \`while kill -0 ${output.backgroundPid} 2>/dev/null; do sleep 1; done\`.`
     : ' If you need its result, wait for it before you finish: one Bash call with a `timeout` longer than the wait.'
+  const serviceRoad = servicesEnabled() ? ' A process that must stay up after this run (a server something checks once the run has ended) is a Service with lifecycle project, not a background shell.' : ''
   const lifetime =
     output.backgroundLifetime === 'turn'
-      ? ` This run ends when your turn ends (unless a crewmate is still running) and stops this command then, so its notice reaches you only while you are still working.${wait} Sleep runs its full time for a shell command.`
+      ? ` This run ends when your turn ends (unless a crewmate is still running) and stops this command then, so its notice reaches you only while you are still working.${serviceRoad}${wait} Sleep runs its full time for a shell command.`
       : output.backgroundLifetime === 'crewmate'
         ? ` It is stopped when you finish, so its notice reaches you only while you are still working.${wait}`
         : ' When it ends, a notice with its exit code reaches you after your next tool result, or in a new turn once yours is over; do not poll it.'

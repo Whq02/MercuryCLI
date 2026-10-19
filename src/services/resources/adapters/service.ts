@@ -1,4 +1,5 @@
 
+import { getOriginalCwd } from '../../../bootstrap/state.js'
 import {
   describeCondition,
   servicesEnabled,
@@ -25,7 +26,7 @@ const serviceAdapter: ResourceAdapter = {
       return { state: 'unavailable', note: 'project services are disabled (MERCURY_SERVICES=0)' }
     }
     if (ref.id === '') {
-      const records = reconcileAll(ctx.cwd)
+      const records = reconcileAll(getOriginalCwd())
       return {
         state: 'ok',
         resource: {
@@ -42,12 +43,12 @@ const serviceAdapter: ResourceAdapter = {
         },
       }
     }
-    const record = reconcileRecord(ctx.cwd, ref.id)
+    const record = reconcileRecord(getOriginalCwd(), ref.id)
     if (!record) {
       return { state: 'absent', note: `no service '${ref.id}' in this project` }
     }
     if (ref.selectors.child === 'logs') {
-      const logs = await readLogs(ctx.cwd, ref.id, {
+      const logs = await readLogs(getOriginalCwd(), ref.id, {
         cursor: ref.selectors.cursor,
         limitLines: ref.selectors.limit ?? 100,
         filterRegex: ref.selectors.q,

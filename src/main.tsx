@@ -906,7 +906,25 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exit(0)
     })
 
-  const sessions = program.command('sessions').description('Saved sessions: delete').helpCommand('help [command]', 'Show help for a command')
+  const sessions = program
+    .command('sessions')
+    .description('Saved sessions: list, delete')
+    .helpCommand('help [command]', 'Show help for a command')
+    .option('--all', 'List the saved sessions of every project, not only this one')
+    .option('--limit <n>', 'The most sessions to list (default 50)', value => Number.parseInt(value, 10))
+    .action(async (options: { all?: boolean; limit?: number }) => {
+      const { sessionsListCli } = await import('./cli/sessionsVerb.js')
+      await gracefulShutdown(await sessionsListCli({ all: options.all === true, ...(options.limit !== undefined ? { limit: options.limit } : {}) }))
+    })
+  sessions
+    .command('list')
+    .description('List the saved sessions of this project, newest first, with the id a resume or a delete takes; --all reads every project')
+    .option('--all', 'List the saved sessions of every project, not only this one')
+    .option('--limit <n>', 'The most sessions to list (default 50)', value => Number.parseInt(value, 10))
+    .action(async (options: { all?: boolean; limit?: number }) => {
+      const { sessionsListCli } = await import('./cli/sessionsVerb.js')
+      await gracefulShutdown(await sessionsListCli({ all: options.all === true, ...(options.limit !== undefined ? { limit: options.limit } : {}) }))
+    })
   sessions
     .command('delete <id>')
     .description('Delete one saved session on purpose — its transcript and the records kept beside it (receipts, resume snapshot) — after a question; a session the background process (the daemon) hosts now is refused')

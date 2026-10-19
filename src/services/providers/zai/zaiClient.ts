@@ -23,7 +23,8 @@ export const ZAI_CODING_API_BASE_URL = 'https://api.z.ai/api/coding/paas/v4'
 export type ZaiApiPlan = 'general' | 'coding'
 export function zaiApiBase(env: NodeJS.ProcessEnv = process.env, plan: ZaiApiPlan = 'general'): string {
   const production = plan === 'coding' ? ZAI_CODING_API_BASE_URL : ZAI_API_BASE_URL
-  return (env['MERCURY_ZAI_API_BASE']?.trim() || production).replace(/\/+$/, '')
+  const pinned = (plan === 'coding' ? env['MERCURY_ZAI_CODING_API_BASE']?.trim() : undefined) || env['MERCURY_ZAI_API_BASE']?.trim()
+  return (pinned || production).replace(/\/+$/, '')
 }
 export function zaiChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env, plan: ZaiApiPlan = 'general'): string {
   return `${zaiApiBase(env, plan)}/chat/completions`

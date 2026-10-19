@@ -17,6 +17,7 @@ export interface ServiceSpec {
   command: string
   args: string[]
   cwd: string
+  project?: string
   env?: Record<string, string>
   readiness: ReadinessCondition[]
   readinessMode: 'all' | 'any'

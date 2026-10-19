@@ -851,7 +851,10 @@ on the first turn after the window reopens; ticks that arrive within 200 ms
 of each other fold into one notice. A monitor started
 without `persistent` ends at its deadline with one notice explaining how to
 start it again. A headless run whose input closes ends every monitor and every
-background shell when the session exits, whether `persistent` is set or not.
+background shell when the session exits, whether `persistent` is set or not; a
+process that must stay up after such a run (a server something checks once the
+run has ended) is a Service started with lifecycle `project`, which outlives
+the session that started it.
 
 Every other notice bound for the session's main thread waits the same way
 while the usage window is reached (including a crewmate's or a shell's completion), and

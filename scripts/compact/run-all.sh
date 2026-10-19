@@ -3,7 +3,7 @@
 # gate-watch: src/tools/ContextLeftTool/ContextLeftTool.ts src/utils/cockpit/ctxForecast.ts
 # gate-watch: src/services/compact/** src/run-core/turn-machine.ts src/services/run/requestGauge.ts src/services/run/contextCalibration.ts src/services/run/contextEpochs.ts
 # gate-watch: src/tools/CheckpointTool/** src/tools/RewindTool/**
-# gate-watch: src/context.ts
+# gate-watch: src/context.ts src/services/run/runTurnObserver.ts src/utils/messages/operatorTurns.ts
 # gate-watch: scripts/api/wire-prefix-replay.ts scripts/daemon/dupline-world.ts scripts/lib/* scripts/messages/dialectFixture.ts
 # gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json src/* src/bootstrap/state.ts
 # gate-watch: src/commands/compact/** src/components/* src/components/PromptInput/Notifications.tsx

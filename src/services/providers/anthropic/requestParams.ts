@@ -9,7 +9,7 @@ import {
   getSessionId,
   setPromptCache1hEligible,
 } from 'src/bootstrap/state.js'
-import { getOauthAccountInfo, isClaudeAISubscriber } from '../../../utils/auth.js'
+import { getOauthAccountInfo, hasStoredOAuthToken, isAnthropicAuthEnabled, isClaudeAISubscriber, readAnthropicPreferredSource } from '../../../utils/auth.js'
 import {
   getModelBetas,
   modelSupportsTemperature,
@@ -85,18 +85,27 @@ export function getCacheControl(): {
   }
 }
 
-function latched1hEligibility(): boolean {
-  let userEligible = getPromptCache1hEligible()
-  if (userEligible === null) {
-    userEligible = isClaudeAISubscriber() && !currentLimits.isUsingOverage
-    setPromptCache1hEligible(userEligible)
+export function promptCache1hEligibility(): { eligible: boolean; reason: string | null } {
+  const reading = eligibilityReading()
+  setPromptCache1hEligible(reading.eligible)
+  return reading
+}
+
+function eligibilityReading(): { eligible: boolean; reason: string | null } {
+  if (isClaudeAISubscriber()) {
+    if (currentLimits.isUsingOverage) return { eligible: false, reason: 'the claude.ai account is on extra usage, billed per token — the 1h tier costs 2x on writes; MERCURY_CACHE_TTL=1h pins it as billing consent' }
+    return { eligible: true, reason: null }
   }
-  return userEligible
+  if (!isAnthropicAuthEnabled()) return { eligible: false, reason: 'the Anthropic seat is a console key (ANTHROPIC_API_KEY, a key command or an auth token), billed per token — the 1h tier costs 2x on writes; MERCURY_CACHE_TTL=1h pins it as billing consent' }
+  if (hasStoredOAuthToken() && readAnthropicPreferredSource() === 'api-key') return { eligible: false, reason: 'the stored claude.ai sign-in yields the seat to the managed key (/logins), billed per token — the 1h tier costs 2x on writes; MERCURY_CACHE_TTL=1h pins it as billing consent' }
+  return { eligible: false, reason: 'no claude.ai sign-in is stored for this home — the 1h tier rides a claude.ai subscription; MERCURY_CACHE_TTL=1h pins it as billing consent' }
 }
 
 function should1hCacheTTL(): boolean {
+  const eligibility = getPromptCache1hEligible() === true ? { eligible: true, reason: null } : promptCache1hEligibility()
   const clockTtl = cacheClockTtlDecision({
-    eligible: latched1hEligibility(),
+    eligible: eligibility.eligible,
+    ...(eligibility.reason !== null ? { ineligible: eligibility.reason } : {}),
     lastCompletionAt: getLastApiCompletionTimestamp(),
     now: Date.now(),
   })

@@ -253,6 +253,28 @@ export function snapshotDiagnosticsBeforeWrite(path: string, before: string | nu
   logForDebugging(`LSP diagnostics: baseline for ${fileKey} snapshotted before the write (${[...next.keys()].join(', ')}; document version ${docVersion ?? 'unknown'})`)
 }
 
+export function noteOutOfBandWrite(path: string, versions: ReadonlyArray<{ serverName: string; docVersion: number }>): void {
+  const fileKey = plainPathKey(path)
+  for (const [pendingId, entry] of pending) {
+    const kept = entry.files.filter(file => plainPathKey(file.uri) !== fileKey)
+    if (kept.length === entry.files.length) continue
+    if (kept.length === 0) pending.delete(pendingId)
+    else entry.files = kept
+    logForDebugging(`LSP diagnostics: ${entry.serverName}'s publish for ${fileKey} predates a write outside the tools — no data until it publishes the re-synced text`)
+  }
+  const previous = writeBaselines.peek(fileKey)
+  const next = new Map<string, WriteBaseline>(previous ?? [])
+  for (const { serverName, docVersion } of versions) {
+    const report = lastReports.get(`${serverName}::${fileKey}`) ?? lastReports.get(`${serverName}::file://${fileKey}`)
+    if (report === undefined) continue
+    const earlier = previous?.get(serverName)
+    next.set(serverName, earlier !== undefined && earlier.report === report ? { ...earlier, docVersion } : { report, steps: [], docVersion })
+  }
+  if (next.size === 0) return
+  writeBaselines.set(fileKey, next)
+  logForDebugging(`LSP diagnostics: baseline for ${fileKey} pinned at a write outside the tools (${[...next.keys()].join(', ')}; document version ${versions.map(row => row.docVersion).join('/')})`)
+}
+
 export function _writeBaselineForTesting(path: string): Array<{ serverName: string; steps: number; docVersion: number | undefined }> {
   const baselines = writeBaselines.peek(plainPathKey(path))
   if (baselines === undefined) return []

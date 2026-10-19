@@ -61,7 +61,7 @@ _mercury() {
       compadd -- '--advise' '--agent' '--agent-defs' '--allow-sovereign' '--allowed-tools' '--backup-model' '--block-tools' '--brief' '--brief-add' '--budget' '--config' '--config-layers' '--continue' '--debug' '--effort' '--ephemeral' '--extension' '--fork' '--help' '--lean' '--log-file' '--max-time' '--mcp' '--mode' '--model' '--no-commands' '--only-mcp' '--project' '--provider-preview' '--resume' '--schema' '--session-id' '--sovereign' '--title' '--toolset' '--version' '--worktree'
       ;;
     sessions)
-      compadd -- '--help'
+      compadd -- '--all' '--help' '--limit'
       ;;
     update)
       compadd -- '--allow-unsigned' '--check' '--help' '--json' '--rollback' '--status' '--yes'

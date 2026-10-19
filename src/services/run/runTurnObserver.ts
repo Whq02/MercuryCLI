@@ -9,6 +9,7 @@ import {
 import { acceptUserRequest, noteTurnEnd } from './runCoordinator.js'
 import { ownerFromToolUseContext } from './resolveOwner.js'
 import { markTreeSuspectAfterTurn } from '../../utils/verification/verificationState.js'
+import { isOperatorTurn } from '../../utils/messages/operatorTurns.js'
 
 function turnOwningSource(querySource: QuerySource | undefined): boolean {
   if (querySource === undefined) return false
@@ -29,7 +30,7 @@ function lastRealUserMessage(messages: Message[]): { id: string | null; text: st
           message?: { content?: unknown }
         }
       | undefined
-    if (!m || m.type !== 'user' || m.isMeta) continue
+    if (!m || m.type !== 'user' || m.isMeta || !isOperatorTurn(messages[i]!)) continue
     const content = m.message?.content
     if (typeof content === 'string') {
       return { id: m.uuid ?? null, text: content }

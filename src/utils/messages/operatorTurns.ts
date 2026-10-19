@@ -3,6 +3,7 @@ import {
   COMMAND_NAME_TAG,
   LOCAL_COMMAND_STDERR_TAG,
   LOCAL_COMMAND_STDOUT_TAG,
+  TASK_NOTIFICATION_TAG,
 } from '../../constants/xml.js'
 import type { Message } from '../../types/message.js'
 
@@ -11,6 +12,8 @@ const COMMAND_ECHO_PREFIXES = [
   `<${COMMAND_NAME_TAG}>`,
   `<${LOCAL_COMMAND_STDOUT_TAG}>`,
   `<${LOCAL_COMMAND_STDERR_TAG}>`,
+  `<${TASK_NOTIFICATION_TAG}>`,
+  '<system-reminder>',
 ]
 
 export function isCommandEcho(text: string): boolean {
@@ -21,6 +24,8 @@ export function isCommandEcho(text: string): boolean {
 export function isOperatorTurn(message: Message): boolean {
   if (message.type !== 'user') return false
   if ('isMeta' in message && message.isMeta) return false
+  const origin = (message as { origin?: { kind?: string } }).origin
+  if (origin !== undefined && origin.kind !== 'human') return false
   const flags = message as { isCompactSummary?: boolean; isVisibleInTranscriptOnly?: boolean }
   if (flags.isCompactSummary === true || flags.isVisibleInTranscriptOnly === true) return false
   const content = message.message.content

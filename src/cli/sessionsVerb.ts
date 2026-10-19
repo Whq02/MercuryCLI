@@ -108,3 +108,26 @@ export async function sessionsDeleteCli(
   io.out(`Deleted session ${sessionId}: the transcript${sidecars.length > 0 ? ` and ${sidecars.join(' and ')}` : ''} — ${kib(receipt.bytesFreed)} freed.`)
   return 0
 }
+
+export async function sessionsListCli(options: { all?: boolean; limit?: number }, io: SessionsCliIo = defaultIo): Promise<number> {
+  const cli = binaryName()
+  const { listSessions, listSessionsAcrossProjectsProgressive, enrichSessionListings } = await import('../utils/sessionStorage/logs.js')
+  const limit = options.limit !== undefined && Number.isFinite(options.limit) && options.limit > 0 ? Math.floor(options.limit) : 50
+  const lite = options.all === true ? (await listSessionsAcrossProjectsProgressive(limit, 0)).allStatLogs.slice(0, limit) : await listSessions(limit)
+  const { logs } = await enrichSessionListings(lite, 0, lite.length)
+  const live = liveSessionIds()
+  if (logs.length === 0) {
+    io.out(options.all === true ? `No saved sessions under ${getProjectsDir()}.` : `No saved sessions for this project (${getProjectDir(getOriginalCwd())}); ${cli} sessions list --all reads every project.`)
+    return 0
+  }
+  io.out(`${logs.length} saved session${logs.length === 1 ? '' : 's'}${options.all === true ? ' across every project' : ' for this project'}, newest first (id · modified · size · title):`)
+  for (const log of logs) {
+    const id = log.sessionId ?? (log.fullPath ?? '').split(/[\\/]/).pop()?.replace(/\.jsonl$/, '') ?? '?'
+    const title = (log.customTitle ?? log.summary ?? log.firstPrompt ?? '').replace(/\s+/g, ' ').trim()
+    const words = title.length > 80 ? `${title.slice(0, 77)}…` : title
+    const place = options.all === true && log.projectPath ? ` · ${log.projectPath}` : ''
+    io.out(`${id}  ${log.modified.toISOString()}  ${kib(log.fileSize ?? 0)}${live.has(id) ? '  live' : ''}  ${words}${place}`)
+  }
+  io.out(`${cli} --resume <id> reopens one; ${cli} sessions delete <id> removes one.`)
+  return 0
+}

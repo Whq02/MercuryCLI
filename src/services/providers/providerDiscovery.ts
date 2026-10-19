@@ -1,4 +1,6 @@
 import { readStoredZaiApiKey, readStoredZaiKeyPlan } from './providerSecrets.js'
+import { planlessZaiKeyPlan } from './zai/zaiKeyPlan.js'
+import type { ZaiDispatch } from './zai/zaiAccounts.js'
 import type { MoonshotAccountRef } from './moonshot/moonshotAccounts.js'
 import type { ProviderFamilyId } from './providerAdapter.js'
 import {
@@ -213,15 +215,15 @@ export function zaiKeySource(
 
 export function resolveZaiDispatch(
   env: Record<string, string | undefined> = process.env,
-): { key: string; source: 'env' | 'stored'; plan: 'general' | 'coding' } | undefined {
+): ZaiDispatch | undefined {
   const envKey = env.ZAI_API_KEY?.trim()
-  if (envKey) return { key: envKey, source: 'env', plan: 'general' }
+  if (envKey) return { key: envKey, source: 'env', ...planlessZaiKeyPlan(envKey, env) }
   const { resolveProviderKeyCommand } = require('./providerKeyCommand.js') as typeof import('./providerKeyCommand.js')
   const fromCommand = resolveProviderKeyCommand('zai')
-  if (fromCommand) return { key: fromCommand, source: 'stored', plan: 'general' }
+  if (fromCommand) return { key: fromCommand, source: 'stored', ...planlessZaiKeyPlan(fromCommand, env) }
   const stored = readStoredZaiApiKey()
   if (!stored) return undefined
-  return { key: stored, source: 'stored', plan: readStoredZaiKeyPlan() === 'coding' ? 'coding' : 'general' }
+  return { key: stored, source: 'stored', plan: readStoredZaiKeyPlan() === 'coding' ? 'coding' : 'general', planSource: 'stored' }
 }
 
 function probeZai(io: DiscoveryIo): ZaiDiscovery {
