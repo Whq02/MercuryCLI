@@ -2,6 +2,7 @@ import { getDefaultBashTimeoutMs, getMaxBashTimeoutMs } from '../../utils/timeou
 import { getMaxOutputLength, getMinOutputLength } from '../../utils/shell/outputLimits.js'
 import { PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { resolveShellEngine, resolveEngineSessionCeiling } from '../../utils/shell/engineSession.js'
+import { windowsBashAbsent } from '../../utils/shell/windowsShellRoad.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
 import { ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
@@ -111,7 +112,7 @@ function brushShellParagraphs(): string[] {
   const ceiling = resolveEngineSessionCeiling(getInitialSettings().shell?.sessions)
   paragraphs.push(
     ceiling === 1
-      ? 'The shell.sessions setting is 1: only the main conversation has an engine session. A crewmate\'s call is refused with the reason; a `run_in_background` call still runs, in its own system shell.'
+      ? `The shell.sessions setting is 1: only the main conversation has an engine session. A crewmate's call is refused with the reason; a \`run_in_background\` call still runs, in its own ${windowsBashAbsent() ? 'engine process' : 'system shell'}.`
       : `At most ${ceiling} engine sessions are kept alive at once (the shell.sessions setting): the main conversation's own and ${ceiling - 1} for crewmates. A crewmate that needs one when all are in use waits for a free session — never sharing another's — and the wait is bounded by the call's timeout.`,
   )
   return paragraphs

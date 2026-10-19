@@ -267,8 +267,8 @@ default is the **system** shell: the platform's bash or zsh, spawning a fresh
 child per command where the working directory carries from call to call and
 everything else resets. On Windows the default is the bundled **brush**
 engine whenever its pack is present (every release archive includes it);
-`bash.exe` from Git for Windows serves only when the engine is turned off by
-the pin or the setting, or its pack is absent.
+`bash.exe` from Git for Windows serves the Bash tool when the engine is turned
+off by the pin or the setting, or its pack is absent.
 In both modes, the Bash tool tracks its own shell working directory across
 calls: a `cd` inside a Bash command moves where subsequent shell commands run
 without changing the session's starting folder.
@@ -287,6 +287,13 @@ Windows it finds a `.cmd` or `.bat` program such as `npm` or `npx` by its
 bare name through PATHEXT, passes `%VAR%` and `^` to a batch file unchanged,
 and runs a program named by a relative path after a `cd`.
 
+A call the long-lived process cannot take runs in a process of its own: a
+Monitor watch, a `run_in_background` command, and a command with
+`inherit_session_env`. That process is the system shell on macOS and Linux,
+and on Windows the `bash.exe` from Git for Windows when one is found; on a
+Windows box with no `bash.exe` it is the engine itself, so every Bash call
+runs without Git for Windows.
+
 The sessions have a ceiling: the `shell.sessions` setting (a whole
 number, 8 by default: the main conversation plus seven crewmates), the
 `MERCURY_SHELL_ENGINE_SESSIONS` env pin over it, and the `/config` row
@@ -296,7 +303,7 @@ share is full waits for a release (a crewmate ending releases its own), the
 wait shown on its row and bounded by the call's timeout, and never shares
 another's. A ceiling of 1 leaves no session for crewmates: their engine
 calls are refused at once with the reason, and a `run_in_background` call
-still runs, in its own system shell.
+still runs, in a process of its own.
 
 The engine is a child process. A command that hangs is killed by the tool's
 timeout and the session respawns with the working directory restored, the
