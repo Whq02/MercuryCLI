@@ -227,7 +227,6 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
         description?: string
         timeout?: number
         run_in_background?: boolean
-        dangerouslyDisableSandbox?: boolean
         inherit_session_env?: boolean
         max_output_chars?: number
       }>(tool, input)
@@ -237,9 +236,6 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
       if (parsed.timeout !== undefined) rebuilt.timeout = parsed.timeout
       if ('run_in_background' in parsed && parsed.run_in_background !== undefined) {
         rebuilt.run_in_background = parsed.run_in_background
-      }
-      if (parsed.dangerouslyDisableSandbox !== undefined) {
-        rebuilt.dangerouslyDisableSandbox = parsed.dangerouslyDisableSandbox
       }
       if (parsed.inherit_session_env !== undefined) {
         rebuilt.inherit_session_env = parsed.inherit_session_env

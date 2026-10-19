@@ -407,7 +407,7 @@ const CASES: Case[] = [
   {
     label: 'empty placeholders on optional fields are dropped at the decode and the call is ACCEPTED (the empty-optional law)',
     script: {
-      calls: [{ id: 'call_empties', name: BASH, args: '{"command":"echo ok","timeout":"","description":"","run_in_background":"","dangerouslyDisableSandbox":null}' }],
+      calls: [{ id: 'call_empties', name: BASH, args: '{"command":"echo ok","timeout":"","description":"","run_in_background":"","inherit_session_env":null}' }],
     },
     expect: { accepted: 1, refused: [], stop: 'tool_use' },
   },

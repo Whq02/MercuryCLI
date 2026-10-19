@@ -45,7 +45,6 @@ type ReasonPayloads = {
   hook: { hookName: string; hookSource?: string; reason?: string }
   guard: { guard: string; reason: string }
   asyncAgent: { reason: string }
-  sandboxOverride: { reason: 'excludedCommand' | 'sandboxDisabled' }
   workingDir: { reason: string }
   safetyCheck: { reason: string; operatorOnly: boolean }
   other: { reason: string }

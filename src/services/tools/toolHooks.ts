@@ -82,7 +82,6 @@ export function deciderOf(reason: PermissionDecisionReason | undefined): 'rule' 
       return 'safety'
     case 'permissionPromptTool':
     case 'asyncAgent':
-    case 'sandboxOverride':
     case 'workingDir':
     case 'other':
     case 'subcommandResults':

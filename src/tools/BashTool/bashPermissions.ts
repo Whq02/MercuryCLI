@@ -60,7 +60,6 @@ type BashInput = {
   command: string
   timeout?: number
   description?: string
-  dangerouslyDisableSandbox?: boolean
   _simulatedSedEdit?: unknown
 }
 

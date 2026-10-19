@@ -23,7 +23,7 @@ const GIT_INTERNAL_CREATORS = new Set<PathCommand>(['mkdir', 'touch', 'mv', 'cp'
 const OUTPUT_OPERATORS = new Set(['>', '>>', '>|', '&>', '&>>', '>&'])
 
 export type NotReadOnly = {
-  kind: 'unparseable' | 'sandbox' | 'not-on-list' | 'form' | 'writes' | 'screen' | 'git-guard'
+  kind: 'unparseable' | 'simulated-edit' | 'not-on-list' | 'form' | 'writes' | 'screen' | 'git-guard'
   part: string
   word?: string
   target?: string
@@ -73,7 +73,7 @@ export function notReadOnlyClause(reason: NotReadOnly): string {
     case 'writes': return `it writes to \`${reason.target}\``
     case 'screen': return `the command could not be verified as read-only — ${reason.detail ?? ''}`
     case 'git-guard': return reason.detail ?? ''
-    case 'sandbox': return 'it leaves the sandbox or carries a simulated sed edit'
+    case 'simulated-edit': return 'it carries a simulated sed edit'
     case 'unparseable': return reason.detail ?? 'the command could not be parsed, so it cannot be verified as read-only'
   }
 }

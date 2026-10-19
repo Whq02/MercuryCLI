@@ -131,7 +131,7 @@ try {
   for (const command of ['bun -e "1"', 'bun install', `bun "${source}"`, 'bun scripts/checks/prove-link.ts', 'bash -c "true"', `cd "${scratch}" && bun scripts/checks/prove-read.ts`, 'bun scripts/checks/prove-read.ts > output.txt', `bash "${lock}" check bash -c "true"`, `bun scripts/checks/prove-read.ts && printf changed > '${other}'`]) {
     check('inline programs, installs, outside scripts, redirects and wrapper escapes refuse', await reviewerRefusal(BashTool as Tool, { command }, canonical, frozen) !== null)
   }
-  for (const input of [{ command: commands[0], dangerouslyDisableSandbox: true }, { command: 'pwd', _simulatedSedEdit: { filePath: other, newContent: 'changed' } }]) await assert.rejects(() => shell.call(input, shellContext), /write protection/)
+  await assert.rejects(() => shell.call({ command: 'pwd', _simulatedSedEdit: { filePath: other, newContent: 'changed' } }, shellContext), /write protection/)
   writeFileSync(report, '# Report\n\n## Scope\nuntouched\n')
   await edit.call({ file_path: report, append: '## Review\n\n- Initial review.\n' }, context())
   check('a missing Review section can be created once', readFileSync(report, 'utf8').endsWith('## Review\n\n- Initial review.\n'))

@@ -104,9 +104,6 @@ function buildModelSchema() {
     timeout: semanticNumber(z.number().optional()).describe(describeTimeout()),
     description: z.string().optional().describe(describeCommandDescription()),
     run_in_background: semanticBoolean(z.boolean().optional()).describe(describeRunInBackground()),
-    dangerouslyDisableSandbox: semanticBoolean(z.boolean().optional()).describe(
-      'An explicit, dangerous override that runs the command without sandboxing.',
-    ),
     inherit_session_env: semanticBoolean(z.boolean().optional()).describe(
       "Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process); by default they are scrubbed, since a proof or a build must not see them.",
     ),
@@ -137,7 +134,6 @@ export type Out = {
   backgroundOutputIsTail?: boolean
   backgroundedByUser?: boolean
   timeoutAutoBackgroundedAfterMs?: number
-  dangerouslyDisableSandbox?: boolean
   returnCodeInterpretation?: string
   exitNote?: string
   timeoutClampNotice?: string
@@ -706,7 +702,6 @@ async function* runBash(
       ...(timeoutClampNotice !== undefined ? { timeoutClampNotice } : {}),
       ...(outputBudgetNotice !== undefined ? { outputBudgetNotice } : {}),
       noOutputExpected,
-      dangerouslyDisableSandbox: input.dangerouslyDisableSandbox,
       ...(persistedOutputPath ? { persistedOutputPath, persistedOutputSize } : {}),
       ...(shellCommand.scrubbedSessionEnv && shellCommand.scrubbedSessionEnv.length > 0
         ? { scrubbedSessionEnv: shellCommand.scrubbedSessionEnv }

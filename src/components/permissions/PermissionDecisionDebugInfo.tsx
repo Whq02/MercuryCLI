@@ -70,8 +70,6 @@ function ReasonView({
       )
     case 'mode':
       return <Text wrap="truncate-middle">{permissionModeTitle(reason.mode)}</Text>
-    case 'sandboxOverride':
-      return <Text wrap="truncate-middle">Permission is needed to run outside the sandbox</Text>
     case 'workingDir':
     case 'safetyCheck':
     case 'other':
