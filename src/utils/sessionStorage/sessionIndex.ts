@@ -139,6 +139,7 @@ function sessionLabelFacts(head: string, tail: string, builtIn: (name: string) =
     prUrl: last('prUrl'),
     prRepository: last('prRepository'),
     endedOnError: scanTailForEndedOnError(tail),
+    lastTimestamp: last('timestamp') ?? first('timestamp'),
   }
 }
 

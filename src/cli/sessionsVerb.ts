@@ -112,9 +112,11 @@ export async function sessionsDeleteCli(
 export async function sessionsListCli(options: { all?: boolean; limit?: number }, io: SessionsCliIo = defaultIo): Promise<number> {
   const cli = binaryName()
   const { listSessions, listSessionsAcrossProjectsProgressive, enrichSessionListings } = await import('../utils/sessionStorage/logs.js')
+  const { sortSessionListings } = await import('../types/logs.js')
   const limit = options.limit !== undefined && Number.isFinite(options.limit) && options.limit > 0 ? Math.floor(options.limit) : 50
-  const lite = options.all === true ? (await listSessionsAcrossProjectsProgressive(limit, 0)).allStatLogs.slice(0, limit) : await listSessions(limit)
-  const { logs } = await enrichSessionListings(lite, 0, lite.length)
+  const lite = options.all === true ? (await listSessionsAcrossProjectsProgressive(undefined, 0)).allStatLogs : await listSessions()
+  const { logs: enriched } = await enrichSessionListings(lite, 0, lite.length)
+  const logs = sortSessionListings(enriched).slice(0, limit)
   const live = liveSessionIds()
   if (logs.length === 0) {
     io.out(options.all === true ? `No saved sessions under ${getProjectsDir()}.` : `No saved sessions for this project (${getProjectDir(getOriginalCwd())}); ${cli} sessions list --all reads every project.`)

@@ -56,7 +56,20 @@ mkdir -p dist
 rm -f "$OUT"
 if command -v zip >/dev/null 2>&1; then
   (cd "$STAGE" && zip -X -q -r -o "$OLDPWD/$OUT" "[Content_Types].xml" extension.vsixmanifest extension)
-else
+elif command -v 7z >/dev/null 2>&1; then
   (cd "$STAGE" && 7z a -tzip -bso0 -bsp0 "$OLDPWD/$OUT" "[Content_Types].xml" extension.vsixmanifest extension >/dev/null)
+else
+  python3 - "$STAGE" "$OUT" <<'PY'
+import os, sys, zipfile
+stage, out = sys.argv[1], sys.argv[2]
+members = ["[Content_Types].xml", "extension.vsixmanifest"]
+for root, dirs, files in os.walk(os.path.join(stage, "extension")):
+    dirs.sort()
+    for f in sorted(files):
+        members.append(os.path.relpath(os.path.join(root, f), stage))
+with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+    for rel in members:
+        zf.write(os.path.join(stage, rel), rel)
+PY
 fi
 echo "built $OUT ($(du -h "$OUT" | cut -f1 | tr -d ' '))"

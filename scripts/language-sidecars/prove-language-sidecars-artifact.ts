@@ -94,12 +94,15 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
   const hosted = resolveExecutionProfile(ROOT).kind === 'hosted-gate'
   const desktop = manifest.desktopDriver as { vendored?: boolean } | undefined
   const embedder = manifest.semanticEmbedder as { vendored?: boolean } | undefined
+  const runtime = manifest.nodeRuntime as { vendored?: boolean } | undefined
+  const shell = manifest.shellEngine as { vendored?: boolean } | undefined
   const allowedAbsences = new Set<unknown>([
     'voice-input',
     'on-device-transcriber',
     ...(desktop?.vendored === false ? ['desktop-driver'] : []),
     ...(embedder?.vendored === false ? ['semantic-embedder'] : []),
-    ...(hosted ? ['runtime'] : []),
+    ...(runtime?.vendored === false || hosted ? ['runtime'] : []),
+    ...(shell?.vendored === false ? ['shell-engine'] : []),
   ])
   const degraded = Array.isArray(manifest.degraded) ? (manifest.degraded as unknown[]) : null
   check(

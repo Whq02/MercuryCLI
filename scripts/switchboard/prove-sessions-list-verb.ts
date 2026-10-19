@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -35,11 +35,13 @@ mkdirSync(OTHER_STORE, { recursive: true })
 const ids = { older: '11111111-1111-4111-8111-111111111111', newer: '22222222-2222-4222-8222-222222222222', elsewhere: '33333333-3333-4333-8333-333333333333' }
 const line = (sessionId: string, stamp: string, words: string): string =>
   JSON.stringify({ type: 'user', sessionId, uuid: `${sessionId}-u1`, timestamp: stamp, cwd: PROJ, message: { role: 'user', content: words } }) + '\n'
+const sameTick = new Date('2026-10-10T00:00:00.000Z')
 const seed = (store: string, sessionId: string, stamp: string, words: string, title?: string): void => {
   const path = join(store, `${sessionId}.jsonl`)
   let body = line(sessionId, stamp, words)
   if (title !== undefined) body += JSON.stringify({ type: 'custom-title', customTitle: title, sessionId }) + '\n'
   writeFileSync(path, body)
+  utimesSync(path, sameTick, sameTick)
 }
 seed(STORE, ids.older, '2026-10-01T00:00:00.000Z', 'fix the login page')
 seed(STORE, ids.newer, '2026-10-02T00:00:00.000Z', 'write the release notes', 'release notes for .39')

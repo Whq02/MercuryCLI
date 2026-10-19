@@ -249,7 +249,7 @@ for (const [cols, rows, zen] of [[80, 24, false], [64, 20, false], [64, 20, true
   const scene = await openScene(cols, rows)
   await scene.settle(300)
   section(`§1 ${label}: ↓ on the empty composer's last line hands focus to the strip; ↑ returns`)
-  check(`${label}: the strip is the last row, unfocused`, STRIP.test(stripRow(scene.lines())) && !stripFocused(scene.lines()), stripRow(scene.lines()))
+  check(`${label}: the strip is the last row, unfocused`, await until(() => STRIP.test(stripRow(scene.lines())) && !stripFocused(scene.lines())), stripRow(scene.lines()))
   scene.push(DOWN)
   check(`${label}: ↓ focuses the strip (its hint reads ${FOCUSED_HINT})`, await until(() => stripFocused(scene.lines())), stripRow(scene.lines()))
   scene.push(UP)

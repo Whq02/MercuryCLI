@@ -66,7 +66,14 @@ const newestFirst =
   (a: SessionListing, b: SessionListing): number =>
     when(b).getTime() - when(a).getTime()
 
-const LISTING_ORDER = [newestFirst(log => log.modified), newestFirst(log => log.created)]
+const newestDate = (a: SessionListing, b: SessionListing): number => {
+  const ta = Date.parse(a.date)
+  const tb = Date.parse(b.date)
+  if (Number.isFinite(ta) && Number.isFinite(tb) && tb !== ta) return tb - ta
+  return b.date.localeCompare(a.date)
+}
+
+const LISTING_ORDER = [newestFirst(log => log.modified), newestFirst(log => log.created), newestDate]
 
 export function sortSessionListings(logs: SessionListing[]): SessionListing[] {
   return logs.sort((a, b) => LISTING_ORDER.reduce((order, compare) => order || compare(a, b), 0))

@@ -790,6 +790,7 @@ type LiteMetadata = {
   prNumber?: number
   prUrl?: string
   prRepository?: string
+  lastTimestamp?: string
   endedOnError?: boolean
 }
 
@@ -886,6 +887,7 @@ async function enrichLog(
   const enriched: SessionListing = {
     ...log,
     isLite: false,
+    date: meta.lastTimestamp ?? log.date,
     firstPrompt: meta.firstPrompt || (meta.customTitle ? '' : '(session)'),
     gitBranch: meta.gitBranch,
     isSidechain: meta.isSidechain,
