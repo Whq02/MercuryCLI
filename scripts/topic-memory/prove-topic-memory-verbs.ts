@@ -53,7 +53,8 @@ section('§2 the four tools, with nothing set, round-trip through the isolated h
   check('the row landed in the ISOLATED home', libDir.startsWith(memoryDir) && existsSync(join(libDir, 'current.jsonl')), libDir)
   const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
   const everyField = RetainTool.inputSchema.parse({ items: [{ content: 'a fact from a model that fills every optional field', context: '', topic: '', pin: false, replaces: '' }] })
-  const filled = (await RetainTool.call(everyField as never, {} as never)) as { data: { outcomes: Array<{ status: string }>; stored: number; refused: number } }
+  const asked = { messages: [{ type: 'user', uuid: 'verbs-ask', timestamp: '2026-10-19T09:00:00.000Z', message: { role: 'user', content: 'remember: a fact from a model that fills every optional field' } }] }
+  const filled = (await RetainTool.call(everyField as never, asked as never)) as { data: { outcomes: Array<{ status: string }>; stored: number; refused: number } }
   check('an item whose optional fields are empty strings is stored (an empty replaces replaces nothing)', filled.data.stored === 1 && filled.data.refused === 0 && filled.data.outcomes[0]?.status === 'stored', JSON.stringify(filled.data))
   const filledRow = pendingRows(libDir).find(r => r.text.startsWith('a fact from a model that fills every optional field'))
   check('the row carries no pin, no asked mark, no replacement and no topic hint from the empty fields', filledRow !== undefined && filledRow.pin === undefined && filledRow.asked === undefined && filledRow.replaces === undefined && filledRow.topicHint === undefined && filledRow.text === 'a fact from a model that fills every optional field', JSON.stringify(filledRow))

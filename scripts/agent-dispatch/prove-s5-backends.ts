@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
+process.env.MERCURY_ZAI_API_BASE = 'https://zai.fixture.invalid/general/v4'
+process.env.MERCURY_ZAI_CODING_API_BASE = 'https://zai.fixture.invalid/coding/v4'
 
 import { z } from 'zod'
 import type { AssistantMessage, Message, StreamEvent } from '../../src/types/message.js'
