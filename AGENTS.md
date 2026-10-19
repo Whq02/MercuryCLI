@@ -32,10 +32,10 @@ with cmake beside cargo the on-device transcriber; the health check names a skip
 The cockpit needs a real TTY, with no minimum terminal size. The full layout
 starts at 100 columns and 26 rows; smaller windows use the compact layout.
 The first run walks theme and sign-in. Every interactive boot with no explicit
-journey lands on the Boot face — the ten-row card: New Session, Continue Last
-Session (once history exists), Boot Menu, MCPs & Skills, Agents, Health Check,
-Saturn Scheduler, Logins, Session Concourse, Sessions · Projects. How the
-screens connect and the flags that shape a boot are [docs/SESSIONS.md](docs/SESSIONS.md);
+journey lands on the Boot face — the ten-row card: New Session,
+Continue Last Session (once history exists), Boot Menu, MCPs & Skills, Agents,
+Health Check, Saturn Scheduler, Logins, Session Concourse, Sessions · Projects.
+How the screens connect and the flags that shape a boot are [docs/SESSIONS.md](docs/SESSIONS.md);
 `node dist/mercury.mjs --help` lists the headless verbs. Windows runs
 `node dist\mercury.mjs` directly; the guide is [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
 
