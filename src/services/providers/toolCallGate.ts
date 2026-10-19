@@ -1,5 +1,5 @@
 import type { Tools } from '../../Tool.js'
-import { findToolByName } from '../../Tool.js'
+import { findToolByName, offeredToolNamesClause } from '../../Tool.js'
 import type { AssistantMessage, RefusedToolCall } from '../../types/message.js'
 import { formatZodValidationError } from '../../utils/toolErrors.js'
 import { stripNullArgs } from './openai/openaiWire.js'
@@ -102,10 +102,10 @@ export function straightenQuoteArgs(
   return out ?? input
 }
 
-function refused(call: IncomingToolCall, code: RefusedToolCall['code'], reason: string): ToolCallVerdict {
+function refused(call: IncomingToolCall, code: RefusedToolCall['code'], reason: string, offered?: string[]): ToolCallVerdict {
   return {
     ok: false,
-    refusal: { id: call.id, name: call.name, argumentsRaw: call.argumentsRaw, argumentsLength: call.argumentsRaw.length, code, reason },
+    refusal: { id: call.id, name: call.name, argumentsRaw: call.argumentsRaw, argumentsLength: call.argumentsRaw.length, code, reason, ...(offered === undefined ? {} : { offered }) },
   }
 }
 
@@ -134,7 +134,7 @@ export function gateToolCall(tools: Tools, call: IncomingToolCall, hints?: ToolC
   }
   const tool = findToolByName(tools, call.name)
   if (!tool) {
-    return refused(call, 'unknown-tool', `No such tool available: ${call.name}`)
+    return refused(call, 'unknown-tool', `No such tool available: ${call.name}`, tools.map(offered => offered.name))
   }
   const raw = call.argumentsRaw.trim() === '' ? '{}' : call.argumentsRaw
   let parsed: unknown
@@ -215,7 +215,7 @@ export function toolCallRefusalNote(lane: string, refusal: RefusedToolCall): str
   const name = refusal.name.trim() === '' ? 'unnamed' : refusal.name
   switch (refusal.code) {
     case 'unknown-tool':
-      return `[${lane}] No such tool available: ${name} — it is not in this session's tool list, so it was not executed. Call one of the tools you were given (a ToolSearch query loads a deferred tool when one is offered).`
+      return `[${lane}] No such tool available: ${name} — it is not in this session's tool list, so it was not executed. Call one of the tools you were given${offeredToolNamesClause((refusal.offered ?? []).map(offered => ({ name: offered })))} (a ToolSearch query loads a deferred tool when one is offered).`
     case 'missing-id':
       return `[${lane}] the provider emitted a malformed tool call (${name}): it carried no call id, so it was not executed.`
     case 'invalid-json':

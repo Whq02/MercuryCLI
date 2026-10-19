@@ -508,7 +508,10 @@ The output row types, by their `type` field:
 - `outcome`: the turn's result, described below.
 - `close`: the note left for the next session at close: `state` (`stored`,
   `skipped` or `none`), `note_chars`, and the `usage` of the model calls that
-  wrote it, so a reader summing every row's usage reaches the outcome's.
+  wrote it, so a reader summing every row's usage reaches the outcome's. With
+  the prompt given as an argument the note is asked inside the last turn and
+  `close` precedes that turn's `outcome`; with `--input rows` it follows the
+  last `outcome` once stdin closes.
 - `wait`: a wait on the model: `state` (`first_byte`, `retry`, `silence`,
   `loading` or `done`) with the figures that state carries, such as
   `since_ms`, `attempt` and `of`, `delay_ms`, `reason` and `http_status`.
@@ -660,9 +663,10 @@ with `id: null`, so number requests from 1.
 
 `queue/add` takes the same prompt, shell or note object as the row input
 above. Output arrives in `row` notifications. `session/facts` reads the
-session's state; `session/set_model`, `session/set_effort` and
-`session/set_mode` change its choices. A change held until the turn ends
-answers with `at: "turn_end"`, then `session/applied` announces it.
+session's state; `session/set_mode` changes the permission mode at once;
+`session/set_model` and `session/set_effort` change the model and the effort,
+and a change made while a turn runs is held until the turn ends: it answers
+with `at: "turn_end"`, then `session/applied` announces it.
 `turn/interrupt` stops a turn; close stdin to end the session.
 
 Permission asks arrive as `permission/request`, with `kind: "tool"` or

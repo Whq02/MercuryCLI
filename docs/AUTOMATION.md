@@ -24,15 +24,22 @@ blocks and progress rows (`text`, `reasoning`, `tool_call`, `tool_result`,
 `retracted`) ahead of each settled block.
 
 Each turn ends with an `outcome` row (`status`, `turn_id`, `steps`, `wall_ms`,
-optional `api_ms` and `cost_usd`, `usage`, `models`, `denials`, `answer` on
-completion, `error` with `message`, `class` and optional `detail` on failure,
-and optional `structured` and `notices`), followed by a `close` row (`state`:
+optional `api_ms` and `cost_usd`, `usage`, `models`, `denials`, `answer` when
+the turn produced one, `error` with `message`, `class` and optional `detail`
+on failure, and optional `structured` and `notices`). A `close` row (`state`:
 `"stored"`, `"skipped"` or `"none"`, optional `note_chars`, `usage` and
-`models`) when the session closes. A completed run (`status: "completed"`)
-exits `0`, other turn outcomes exit `1`, and a command-line usage error exits
-`2`. A one-shot run has no host to answer interactive permission asks; pass
-`--mode` (`sovereign`, `flow`, `implement` or `dontAsk`) or `--allowed-tools`
-to grant what the run needs up front.
+`models`) carries the note left for the next session: with the prompt given
+as an argument the note is asked inside the last turn, so `close` precedes
+that turn's `outcome` and the close ask's usage is counted in the outcome's
+totals; with `--input rows` it follows the last `outcome` once `stdin`
+closes. A completed run (`status: "completed"`) exits `0`, other turn
+outcomes exit `1`, and a command-line usage error exits `2`. A one-shot run
+has no host to answer interactive permission asks: a tool call that would ask
+is refused, and a turn whose later tool calls never succeed ends `blocked`
+with its `answer` kept and `error.message` naming the tool. Pass `--mode`
+(`sovereign`, `flow`, `implement` or `dontAsk`) or `--allowed-tools` to grant
+what the run needs up front, and read `error.message` beside `answer` on an
+outcome that is not `completed`.
 
 Pass `--input rows` with `--format rows` to send one JSON input row per line on
 `stdin`:
@@ -56,15 +63,18 @@ and is skipped; a line that is not valid JSON ends the run with exit `1`.
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 
-const proc = spawn('mercury', ['run', '--input', 'rows', '--format', 'rows'], {
+const proc = spawn('mercury', ['run', '--input', 'rows', '--format', 'rows', '--allowed-tools', 'Read', 'Glob', 'Grep'], {
   stdio: ['pipe', 'pipe', 'inherit'],
 })
 proc.stdin.write(`${JSON.stringify({ type: 'prompt', content: 'Summarise this repository.' })}\n`)
 for await (const line of createInterface({ input: proc.stdout })) {
   const row = JSON.parse(line)
   if (row.type === 'outcome') {
-    if (row.status !== 'completed') process.exitCode = 1
-    else console.log(row.answer)
+    if (row.status !== 'completed') {
+      console.error(row.error?.message ?? row.status)
+      process.exitCode = 1
+    }
+    if (row.answer) console.log(row.answer)
     proc.stdin.end()
   }
 }
@@ -73,10 +83,10 @@ for await (const line of createInterface({ input: proc.stdout })) {
 ### Python (3.10+, standard library only)
 
 ```py
-import json, subprocess
+import json, subprocess, sys
 
 proc = subprocess.Popen(
-    ["mercury", "run", "--input", "rows", "--format", "rows"],
+    ["mercury", "run", "--input", "rows", "--format", "rows", "--allowed-tools", "Read", "Glob", "Grep"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     text=True,
@@ -87,8 +97,10 @@ proc.stdin.flush()
 for line in proc.stdout:
     row = json.loads(line)
     if row.get("type") == "outcome":
-        if row.get("status") == "completed":
-            print(row.get("answer", ""))
+        if row.get("status") != "completed":
+            print(row.get("error", {}).get("message", row.get("status")), file=sys.stderr)
+        if row.get("answer"):
+            print(row["answer"])
         proc.stdin.close()
 raise SystemExit(proc.wait())
 ```
@@ -107,14 +119,20 @@ is answered `-32600` with `id: null`.
   `-32002`.
 - **Send a prompt and read rows:** Call `queue/add` with a `prompt`, `shell` or
   `note` input row; the runner answers `{"accepted":true}` (or
-  `{"accepted":false,"reason":"duplicate"}` when `id` was already processed).
-  `queue/withdraw` recalls an unconsumed queued row by `id`. Session rows
-  arrive from the runner as `row` notifications
-  (`{"jsonrpc":"2.0","method":"row","params":<Row>}`). `session/facts` reads
-  the current session state; `session/set_model`, `session/set_effort`,
-  `session/set_mode` and `session/set_spawn_switch` update session settings
-  (answering `at: "turn_end"` when a turn is running, followed by a
-  `session/applied` notification when the turn ends).
+  `{"accepted":false,"reason":"duplicate"}` when `id` was already processed, so
+  give each row an `id` and a resend is harmless). `queue/withdraw` recalls an
+  unconsumed queued row by `id`. Session rows arrive from the runner as `row`
+  notifications (`{"jsonrpc":"2.0","method":"row","params":<Row>}`).
+  `session/facts` reads the current session state. `session/set_mode` changes
+  the permission mode at once, during a turn included, and answers
+  `{"mode":"..."}`. `session/set_model`, `session/set_effort` and
+  `session/set_spawn_switch` answer `at: "now"` when no turn is running; while
+  a turn runs they answer `at: "turn_end"` and a `session/applied` notification
+  (`request_id`, `verb`) follows when the turn ends.
+- **Tell a reply from a request:** The runner numbers its own requests to the
+  host (`permission/request`) from `1` as well, so a message with `id: 1` is
+  either the reply to your `initialize` or the runner's first ask. A reply
+  carries `result` or `error` and no `method`; a request carries `method`.
 - **Answer a permission ask:** When a tool call or network connection needs
   approval, the runner sends a `permission/request` request to the host with
   `kind: "tool"` (`tool_use_id`, `tool_name`, `input`, optional `title`,
@@ -154,13 +172,14 @@ send({
 })
 for await (const line of createInterface({ input: proc.stdout })) {
   const msg = JSON.parse(line)
-  if (msg.id === 1) send({ jsonrpc: '2.0', id: 2, method: 'queue/add', params: { type: 'prompt', content: 'Write note.txt and confirm.' } })
+  const reply = msg.method === undefined
+  if (reply && msg.id === 1) send({ jsonrpc: '2.0', id: 2, method: 'queue/add', params: { type: 'prompt', id: 'note-1', content: 'Write note.txt and confirm.' } })
   if (msg.method === 'permission/request') send({ jsonrpc: '2.0', id: msg.id, result: { outcome: 'allow' } })
   if (msg.method === 'row' && msg.params.type === 'outcome') {
     console.log(msg.params.answer)
     send({ jsonrpc: '2.0', id: 3, method: 'session/leave', params: {} })
   }
-  if (msg.id === 3) proc.stdin.end()
+  if (reply && msg.id === 3) proc.stdin.end()
 }
 ```
 
@@ -184,14 +203,15 @@ send({
 assert proc.stdout is not None
 for line in proc.stdout:
     msg = json.loads(line)
-    if msg.get("id") == 1:
-        send({"jsonrpc": "2.0", "id": 2, "method": "queue/add", "params": {"type": "prompt", "content": "Write note.txt and confirm."}})
+    reply = "method" not in msg
+    if reply and msg.get("id") == 1:
+        send({"jsonrpc": "2.0", "id": 2, "method": "queue/add", "params": {"type": "prompt", "id": "note-1", "content": "Write note.txt and confirm."}})
     if msg.get("method") == "permission/request":
         send({"jsonrpc": "2.0", "id": msg["id"], "result": {"outcome": "allow"}})
     if msg.get("method") == "row" and msg["params"].get("type") == "outcome":
         print(msg["params"].get("answer", ""))
         send({"jsonrpc": "2.0", "id": 3, "method": "session/leave", "params": {}})
-    if msg.get("id") == 3 and proc.stdin is not None:
+    if reply and msg.get("id") == 3 and proc.stdin is not None:
         proc.stdin.close()
 raise SystemExit(proc.wait())
 ```

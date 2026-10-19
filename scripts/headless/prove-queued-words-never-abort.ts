@@ -63,6 +63,24 @@ try {
     check('the queued prompt ran after the first turn ended, in its own turn', secondOutcome !== null && texts.some(t => t.includes('SECOND-DONE')), j(texts))
   }
 
+  section('§3 a state command queued while a request is in flight runs at the next boundary; the request is never aborted (the field row 2D-21)')
+  {
+    const from = runner.frames.length
+    void runner.prompt(SLOW_ASK, randomUUID())
+    const opened = await runner.waitFor('the slow turn opened', f => f.type === 'turn' && f.state === 'started', bound(30_000), from)
+    check('the slow turn is running', opened !== null)
+    await new Promise(r => setTimeout(r, 600))
+    const accepted = await runner.host.prompt('/advise on', { id: randomUUID() })
+    check('the command is queued without a priority word, as a typed slash command reaches the worker', (accepted as { accepted?: boolean }).accepted === true, j(accepted))
+    const firstOutcome = await runner.waitFor('the slow outcome', isOutcome, bound(60_000), from)
+    const texts = framesSince(from).filter(f => f.type === 'text').map(textOf)
+    check('the request in flight finished with its own answer — the queued command aborted nothing', firstOutcome !== null && firstOutcome.status === 'completed' && texts.some(t => t.includes('FIRST-DONE')), j({ outcome: firstOutcome?.status, texts }))
+    check('no interrupted outcome was written', !framesSince(from).some(f => isOutcome(f) && f.status === 'interrupted'), j(framesSince(from).filter(isOutcome).map(f => f.status)))
+    const output = await runner.waitFor('the command ran at the boundary', f => f.type === 'command_output' && String((f as { text?: unknown }).text ?? '').toLowerCase().includes('advis'), bound(30_000), from)
+    check('the command ran after the turn ended and answered in its own row', output !== null, j(framesSince(from).map(f => f.type)))
+    await runner.waitFor("the command's own turn settled", f => isOutcome(f) && framesSince(from).filter(isOutcome).length >= 2, bound(30_000), from)
+  }
+
   section('§2 an explicit priority "now" prompt is the one road that interrupts, and the row says so in the operator\'s words')
   {
     const from = runner.frames.length

@@ -59,6 +59,7 @@ const PINS: Array<[string, string]> = [
   ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', "an older build's transcript rows, unedited by design"],
   ['scripts/bash/parser-corpus-parity.json', 'a parser corpus: a recorded command text parsed again against its recorded tree'],
   ['scripts/crew/prove-old-tool-name-rows.ts', 'the pin that drives an old transcript row under the old name'],
+  ['scripts/tools/prove-tool-name-recovery.ts', 'the proof that the retired spelling fails as an unknown input and the refusal names the current tools'],
 ]
 
 const NOT_THE_TOOL: Array<[string, string, string]> = [

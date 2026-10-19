@@ -96,7 +96,7 @@ section('§2 a line that changed since the read stays unread; a file written who
   const crew = processOwnerForLane('a-crewmate-1')
   const rebuiltWrite = ledger.rebuildSeenLinesFromTranscript?.(crew, transcriptOf([{ use: { id: 'w1', name: 'Write', input: { file_path: writtenPath, content: body } }, result: `File written: ${writtenPath}` }]))
   check("a crewmate's own Write whose content still stands counts the whole file as seen for that crewmate", rebuiltWrite !== undefined && rebuiltWrite.files === 1 && ledger.wholeFileSeen(crew, writtenPath, body), j(rebuiltWrite))
-  check("…and only for that owner: the main thread's ledger is untouched", !ledger.wholeFileSeen(owner, writtenPath, body))
+  check("…and the session knows the bytes its crewmate wrote: the main thread's Write over the same file is not refused", ledger.wholeFileSeen(owner, writtenPath, body))
   writeFileSync(writtenPath, body + 'a fifth line\n')
   ledger._resetSeenLinesForTesting()
   const stale = ledger.rebuildSeenLinesFromTranscript?.(crew, transcriptOf([{ use: { id: 'w2', name: 'Write', input: { file_path: writtenPath, content: body } }, result: 'ok' }]))
@@ -108,7 +108,7 @@ section('§3 the resume roads call the rebuild')
   const ROOT = join(import.meta.dir, '..', '..')
   const recovery = readFileSync(join(ROOT, 'src/utils/conversationRecovery.ts'), 'utf8')
   const resume = readFileSync(join(ROOT, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')
-  check("the session's resume rebuilds the main thread's ledger from its transcript", recovery.includes('rebuildSeenLinesFromTranscript(processMainOwner(), asMessages)'))
+  check("the session's resume rebuilds the main thread's ledger from its transcript under the resumed session's own id", recovery.includes('rebuildSeenLinesFromTranscript(sessionId === undefined ? processMainOwner() : mainOwnerOfSession(String(sessionId)), asMessages)'))
   check("a resumed crewmate's ledger is rebuilt from its own transcript under its own owner", resume.includes('rebuildSeenLinesFromTranscript(processOwnerForLane(agentId), transcript.messages)'))
 }
 

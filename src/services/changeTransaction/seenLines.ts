@@ -3,7 +3,7 @@ import { readFileSync, statSync } from 'node:fs'
 import { ideFileGeneration } from '../acp/ideToolBridge.js'
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
-import type { OwnerKey } from '../run/ownerKey.js'
+import { parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 import type { HunkSpan } from './hunks.js'
 
@@ -69,6 +69,51 @@ function ledgerFor(owner: OwnerKey, path: string): Map<string, FileLedger> {
   return state.files
 }
 
+const SESSION_WRITES_CAP = 32
+const sessionWrites = new Map<string, Map<string, FileLedger>>()
+
+function sessionOf(owner: OwnerKey): string {
+  try {
+    const id = parseOwnerKey(owner)
+    return `${id.workspace}|${id.sessionId}`
+  } catch {
+    return owner
+  }
+}
+
+function recordSessionWrite(owner: OwnerKey, path: string, generation: string, ranges: SeenRange[]): void {
+  if (ranges.length === 0) return
+  const key = sessionOf(owner)
+  let files = sessionWrites.get(key)
+  if (files === undefined) {
+    files = new Map()
+    sessionWrites.set(key, files)
+    while (sessionWrites.size > SESSION_WRITES_CAP) {
+      const oldest = sessionWrites.keys().next().value as string | undefined
+      if (oldest === undefined) break
+      sessionWrites.delete(oldest)
+    }
+  }
+  const entry = files.get(path)
+  const kept = entry !== undefined && entry.generation === generation ? entry.ranges : []
+  files.delete(path)
+  files.set(path, { generation, ranges: coalesce([...kept, ...ranges]).slice(0, SEEN_LINES_BOUNDS.rangeCap) })
+  while (files.size > SEEN_LINES_BOUNDS.fileCap) {
+    const oldest = files.keys().next().value as string | undefined
+    if (oldest === undefined) break
+    files.delete(oldest)
+  }
+}
+
+export function recordLinesWritten(owner: OwnerKey, path: string, generation: string, ranges: readonly SeenRange[]): void {
+  recordSessionWrite(owner, path, generation, [...ranges])
+}
+
+function sessionWrittenRanges(owner: OwnerKey, path: string, generation: string): SeenRange[] {
+  const entry = sessionWrites.get(sessionOf(owner))?.get(path)
+  return entry !== undefined && entry.generation === generation ? entry.ranges : []
+}
+
 export function recordSeenLines(
   owner: OwnerKey,
   path: string,
@@ -106,9 +151,14 @@ export function recordSeenLines(
 export function seenLinesOf(
   owner: OwnerKey,
   path: string,
+  generation?: string,
 ): { generation: string; ranges: readonly SeenRange[] } | undefined {
   const entry = store.peek(owner)?.files.get(path)
-  return entry === undefined ? undefined : { generation: entry.generation, ranges: entry.ranges }
+  const at = generation ?? entry?.generation ?? fileGeneration(path) ?? undefined
+  const written = at === undefined ? [] : sessionWrittenRanges(owner, path, at)
+  const own = entry !== undefined && entry.generation === at ? entry.ranges : []
+  if (own.length === 0 && written.length === 0) return entry === undefined ? undefined : { generation: entry.generation, ranges: entry.ranges }
+  return { generation: at!, ranges: coalesce([...own, ...written]) }
 }
 
 function lineCountOfText(text: string): number {
@@ -127,16 +177,18 @@ export function generationOfWrittenBytes(path: string, bytes: Uint8Array): strin
 }
 
 export function recordWholeFileSeen(owner: OwnerKey, path: string, generation: string, content: string): void {
-  recordSeenLines(owner, path, generation, 1, lineCountOfText(content))
+  const lines = lineCountOfText(content)
+  recordSeenLines(owner, path, generation, 1, lines)
+  if (lines > 0) recordSessionWrite(owner, path, generation, [{ start: 1, end: lines }])
 }
 
 export function wholeFileSeen(owner: OwnerKey, path: string, content: string): boolean {
   const generation = fileGeneration(path)
   if (generation === null) return false
-  const entry = store.peek(owner)?.files.get(path)
-  if (entry === undefined || entry.generation !== generation) return false
+  const ranges = seenLinesOf(owner, path, generation)
+  if (ranges === undefined || ranges.generation !== generation) return false
   const lastLine = lineCountOfText(content)
-  return lastLine > 0 && entry.ranges.some(range => range.start <= 1 && range.end >= lastLine)
+  return lastLine > 0 && ranges.ranges.some(range => range.start <= 1 && range.end >= lastLine)
 }
 
 type SeenLinesVerdict =
@@ -158,8 +210,8 @@ export function checkSeenLines(
   spans: readonly HunkSpan[],
   displayPath?: string,
 ): SeenLinesVerdict {
-  const entry = store.peek(owner)?.files.get(path)
-  const ranges = entry && entry.generation === generation ? entry.ranges : []
+  const seen = seenLinesOf(owner, path, generation)
+  const ranges = seen !== undefined && seen.generation === generation ? seen.ranges : []
   const unseen: SeenRange[] = []
   for (const span of spans) {
     const t = touchedRange(span)
@@ -238,29 +290,38 @@ export function shiftSeenLinesAfterApply(
     if (!dropped && end >= start) newRanges.push({ start: start + delta, end: end + delta })
   }
 
+  const authored: SeenRange[] = []
   let running = 0
   for (const s of events) {
     const repLines = replacementLineCount(s)
     if (s.insert === 'before') {
-      if (repLines > 0) newRanges.push({ start: s.start + running, end: s.start + running + repLines - 1 })
+      if (repLines > 0) authored.push({ start: s.start + running, end: s.start + running + repLines - 1 })
       running += repLines
       continue
     }
     if (s.insert === 'after') {
-      if (repLines > 0) newRanges.push({ start: s.end + 1 + running, end: s.end + running + repLines })
+      if (repLines > 0) authored.push({ start: s.end + 1 + running, end: s.end + running + repLines })
       running += repLines
       continue
     }
     const removed = s.end - s.start + 1
-    if (repLines > 0) newRanges.push({ start: s.start + running, end: s.start + running + repLines - 1 })
+    if (repLines > 0) authored.push({ start: s.start + running, end: s.start + running + repLines - 1 })
     running += repLines - removed
   }
+  newRanges.push(...authored)
 
   files.delete(path)
   files.set(path, { generation: newGeneration, ranges: coalesce(newRanges).slice(0, SEEN_LINES_BOUNDS.rangeCap) })
+  recordSessionWrite(owner, path, newGeneration, authored)
 }
 
 export function moveSeenLines(owner: OwnerKey, fromPath: string, toPath: string, newGeneration: string): void {
+  const written = sessionWrites.get(sessionOf(owner))
+  const writtenEntry = written?.get(fromPath)
+  if (written !== undefined && writtenEntry !== undefined) {
+    written.delete(fromPath)
+    written.set(toPath, { generation: newGeneration, ranges: writtenEntry.ranges })
+  }
   const files = ledgerFor(owner, fromPath)
   const entry = files.get(fromPath)
   if (!entry) return
@@ -270,10 +331,12 @@ export function moveSeenLines(owner: OwnerKey, fromPath: string, toPath: string,
 
 export function dropSeenLines(owner: OwnerKey, path: string): void {
   store.peek(owner)?.files.delete(path)
+  sessionWrites.get(sessionOf(owner))?.delete(path)
 }
 
 export function _resetSeenLinesForTesting(): void {
   store.clearAllForShutdown()
+  sessionWrites.clear()
 }
 
 const NUMBERED_LINE = /^(\d+)(?:#[0-9a-f]+)?\t([\s\S]*)$/
