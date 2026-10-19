@@ -1,0 +1,1733 @@
+{
+  "base": "5107b4f082287dfc6cb0ca7614f3caa7319d18c0",
+  "captures": [
+    {
+      "arm": "key",
+      "requests": [
+        {
+          "path": "/v1/messages?beta=true",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "user-agent": "mercury/1.0.0 (sdk-road-proof, host-app/fixture)",
+            "x-claude-code-session-id": "11111111-1111-4111-8111-111111111111",
+            "x-proof-header": "fixture:exact",
+            "x-stainless-arch": "arm64",
+            "x-stainless-lang": "js",
+            "x-stainless-os": "MacOS",
+            "x-stainless-package-version": "0.122.0",
+            "x-stainless-retry-count": "0",
+            "x-stainless-runtime": "node",
+            "x-stainless-runtime-version": "v24.3.0",
+            "x-stainless-timeout": "360",
+            "anthropic-beta": "claude-code-20250219",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "anthropic-version": "2023-06-01",
+            "x-anthropic-additional-protection": "true",
+            "x-api-key": "proof-key-ci-gate-not-a-real-key",
+            "x-app": "cli",
+            "x-client-app": "fixture",
+            "connection": "keep-alive",
+            "host": "127.0.0.1:52372",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "content-length": "942"
+          },
+          "body": {
+            "model": "claude-opus-4-8",
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Read this image and then look up its value."
+                  },
+                  {
+                    "type": "image",
+                    "source": {
+                      "type": "base64",
+                      "media_type": "image/png",
+                      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII="
+                    },
+                    "cache_control": {
+                      "type": "ephemeral"
+                    }
+                  }
+                ]
+              }
+            ],
+            "system": [
+              {
+                "type": "text",
+                "text": "x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;"
+              },
+              {
+                "type": "text",
+                "text": "You inspect fixture data, then call FixtureLookup.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "tools": [
+              {
+                "name": "FixtureLookup",
+                "description": "Read fixture data",
+                "input_schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "user_id": "{\"account_uuid\":\"\",\"session_id\":\"11111111-1111-4111-8111-111111111111\"}"
+            },
+            "max_tokens": 128000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "max"
+            },
+            "stream": true
+          },
+          "raw": "{\"model\":\"claude-opus-4-8\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read this image and then look up its value.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII=\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;\"},{\"type\":\"text\",\"text\":\"You inspect fixture data, then call FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"FixtureLookup\",\"description\":\"Read fixture data\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}}],\"metadata\":{\"user_id\":\"{\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"11111111-1111-4111-8111-111111111111\\\"}\"},\"max_tokens\":128000,\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"max\"},\"stream\":true}"
+        },
+        {
+          "path": "/v1/messages?beta=true",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "user-agent": "mercury/1.0.0 (sdk-road-proof, host-app/fixture)",
+            "x-claude-code-session-id": "11111111-1111-4111-8111-111111111111",
+            "x-proof-header": "fixture:exact",
+            "x-stainless-arch": "arm64",
+            "x-stainless-lang": "js",
+            "x-stainless-os": "MacOS",
+            "x-stainless-package-version": "0.122.0",
+            "x-stainless-retry-count": "0",
+            "x-stainless-runtime": "node",
+            "x-stainless-runtime-version": "v24.3.0",
+            "x-stainless-timeout": "360",
+            "anthropic-beta": "claude-code-20250219",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "anthropic-version": "2023-06-01",
+            "x-anthropic-additional-protection": "true",
+            "x-api-key": "proof-key-ci-gate-not-a-real-key",
+            "x-app": "cli",
+            "x-client-app": "fixture",
+            "connection": "keep-alive",
+            "host": "127.0.0.1:52372",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "content-length": "1187"
+          },
+          "body": {
+            "model": "claude-opus-4-8",
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Read this image and then look up its value."
+                  },
+                  {
+                    "type": "image",
+                    "source": {
+                      "type": "base64",
+                      "media_type": "image/png",
+                      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII="
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": [
+                  {
+                    "type": "thinking",
+                    "thinking": "Read the image carefully.",
+                    "signature": "fixture-signature"
+                  },
+                  {
+                    "type": "text",
+                    "text": "I can inspect that."
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Now use FixtureLookup.",
+                    "cache_control": {
+                      "type": "ephemeral"
+                    }
+                  }
+                ]
+              }
+            ],
+            "system": [
+              {
+                "type": "text",
+                "text": "x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;"
+              },
+              {
+                "type": "text",
+                "text": "You inspect fixture data, then call FixtureLookup.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "tools": [
+              {
+                "name": "FixtureLookup",
+                "description": "Read fixture data",
+                "input_schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "user_id": "{\"account_uuid\":\"\",\"session_id\":\"11111111-1111-4111-8111-111111111111\"}"
+            },
+            "max_tokens": 128000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "max"
+            },
+            "stream": true
+          },
+          "raw": "{\"model\":\"claude-opus-4-8\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read this image and then look up its value.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII=\"}}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"Read the image carefully.\",\"signature\":\"fixture-signature\"},{\"type\":\"text\",\"text\":\"I can inspect that.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Now use FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;\"},{\"type\":\"text\",\"text\":\"You inspect fixture data, then call FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"FixtureLookup\",\"description\":\"Read fixture data\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}}],\"metadata\":{\"user_id\":\"{\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"11111111-1111-4111-8111-111111111111\\\"}\"},\"max_tokens\":128000,\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"max\"},\"stream\":true}"
+        },
+        {
+          "path": "/v1/messages?beta=true",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "user-agent": "mercury/1.0.0 (sdk-road-proof, host-app/fixture)",
+            "x-claude-code-session-id": "11111111-1111-4111-8111-111111111111",
+            "x-proof-header": "fixture:exact",
+            "x-stainless-arch": "arm64",
+            "x-stainless-lang": "js",
+            "x-stainless-os": "MacOS",
+            "x-stainless-package-version": "0.122.0",
+            "x-stainless-retry-count": "0",
+            "x-stainless-runtime": "node",
+            "x-stainless-runtime-version": "v24.3.0",
+            "x-stainless-timeout": "360",
+            "anthropic-beta": "claude-code-20250219",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "anthropic-version": "2023-06-01",
+            "x-anthropic-additional-protection": "true",
+            "x-api-key": "proof-key-ci-gate-not-a-real-key",
+            "x-app": "cli",
+            "x-client-app": "fixture",
+            "connection": "keep-alive",
+            "host": "127.0.0.1:52372",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "content-length": "1509"
+          },
+          "body": {
+            "model": "claude-opus-4-8",
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Read this image and then look up its value."
+                  },
+                  {
+                    "type": "image",
+                    "source": {
+                      "type": "base64",
+                      "media_type": "image/png",
+                      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII="
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": [
+                  {
+                    "type": "thinking",
+                    "thinking": "Read the image carefully.",
+                    "signature": "fixture-signature"
+                  },
+                  {
+                    "type": "text",
+                    "text": "I can inspect that."
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Now use FixtureLookup."
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": [
+                  {
+                    "type": "thinking",
+                    "thinking": "Look up the value.",
+                    "signature": "fixture-signature"
+                  },
+                  {
+                    "type": "tool_use",
+                    "id": "tool_fixture",
+                    "name": "FixtureLookup",
+                    "input": {
+                      "value": "é\nquoted \"text\""
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "tool_result",
+                    "tool_use_id": "tool_fixture",
+                    "content": "confirmed",
+                    "cache_control": {
+                      "type": "ephemeral"
+                    }
+                  }
+                ]
+              }
+            ],
+            "system": [
+              {
+                "type": "text",
+                "text": "x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;"
+              },
+              {
+                "type": "text",
+                "text": "You inspect fixture data, then call FixtureLookup.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "tools": [
+              {
+                "name": "FixtureLookup",
+                "description": "Read fixture data",
+                "input_schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "user_id": "{\"account_uuid\":\"\",\"session_id\":\"11111111-1111-4111-8111-111111111111\"}"
+            },
+            "max_tokens": 128000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "max"
+            },
+            "stream": true
+          },
+          "raw": "{\"model\":\"claude-opus-4-8\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read this image and then look up its value.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII=\"}}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"Read the image carefully.\",\"signature\":\"fixture-signature\"},{\"type\":\"text\",\"text\":\"I can inspect that.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Now use FixtureLookup.\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"Look up the value.\",\"signature\":\"fixture-signature\"},{\"type\":\"tool_use\",\"id\":\"tool_fixture\",\"name\":\"FixtureLookup\",\"input\":{\"value\":\"é\\nquoted \\\"text\\\"\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"tool_fixture\",\"content\":\"confirmed\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;\"},{\"type\":\"text\",\"text\":\"You inspect fixture data, then call FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"FixtureLookup\",\"description\":\"Read fixture data\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}}],\"metadata\":{\"user_id\":\"{\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"11111111-1111-4111-8111-111111111111\\\"}\"},\"max_tokens\":128000,\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"max\"},\"stream\":true}"
+        }
+      ],
+      "outputs": [
+        [
+          {
+            "id": "msg_fixture_1",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Read the image carefully.",
+                "signature": "fixture-signature"
+              }
+            ],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "output_tokens": 1
+            }
+          },
+          {
+            "id": "msg_fixture_1",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "text",
+                "text": "I can inspect that."
+              }
+            ],
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "output_tokens": 12,
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "",
+              "iterations": null,
+              "speed": "standard",
+              "output_tokens_details": null
+            }
+          }
+        ],
+        [
+          {
+            "id": "msg_fixture_2",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Look up the value.",
+                "signature": "fixture-signature"
+              }
+            ],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "output_tokens": 1
+            }
+          },
+          {
+            "id": "msg_fixture_2",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "tool_fixture",
+                "name": "FixtureLookup",
+                "input": {
+                  "value": "é\nquoted \"text\""
+                }
+              }
+            ],
+            "stop_reason": "tool_use",
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "output_tokens": 12,
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "",
+              "iterations": null,
+              "speed": "standard",
+              "output_tokens_details": null
+            }
+          }
+        ],
+        [
+          {
+            "id": "msg_fixture_3",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Use the returned value.",
+                "signature": "fixture-signature"
+              }
+            ],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "output_tokens": 1
+            }
+          },
+          {
+            "id": "msg_fixture_3",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "text",
+                "text": "The value is confirmed."
+              }
+            ],
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "output_tokens": 12,
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "",
+              "iterations": null,
+              "speed": "standard",
+              "output_tokens_details": null
+            }
+          }
+        ]
+      ],
+      "errors": {
+        "401": {
+          "class": "AuthenticationError",
+          "message": "401 {\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"fixture credential rejected\"}}",
+          "status": 401,
+          "retryAfter": null
+        },
+        "429": {
+          "class": "RateLimitError",
+          "message": "429 {\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"fixture wait\"}}",
+          "status": 429,
+          "retryAfter": "0.01"
+        },
+        "500": {
+          "class": "InternalServerError",
+          "message": "500 {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"fixture server failure\"}}",
+          "status": 500,
+          "retryAfter": null
+        },
+        "dropped": {
+          "class": "Error",
+          "message": "The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+          "status": null,
+          "retryAfter": null
+        },
+        "timeout": {
+          "class": "APIConnectionTimeoutError",
+          "message": "Request timed out.",
+          "status": null,
+          "retryAfter": null
+        },
+        "abort": {
+          "class": "APIUserAbortError",
+          "message": "Request was aborted.",
+          "status": null,
+          "retryAfter": null
+        }
+      }
+    },
+    {
+      "arm": "subscriber",
+      "requests": [
+        {
+          "path": "/v1/messages?beta=true",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer fixture-subscriber",
+            "content-type": "application/json",
+            "user-agent": "mercury/1.0.0 (sdk-road-proof, host-app/fixture)",
+            "x-claude-code-session-id": "11111111-1111-4111-8111-111111111111",
+            "x-proof-header": "fixture:exact",
+            "x-stainless-arch": "arm64",
+            "x-stainless-lang": "js",
+            "x-stainless-os": "MacOS",
+            "x-stainless-package-version": "0.122.0",
+            "x-stainless-retry-count": "0",
+            "x-stainless-runtime": "node",
+            "x-stainless-runtime-version": "v24.3.0",
+            "x-stainless-timeout": "360",
+            "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "anthropic-version": "2023-06-01",
+            "x-anthropic-additional-protection": "true",
+            "x-app": "cli",
+            "x-client-app": "fixture",
+            "connection": "keep-alive",
+            "host": "127.0.0.1:52386",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "content-length": "942"
+          },
+          "body": {
+            "model": "claude-opus-4-8",
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Read this image and then look up its value."
+                  },
+                  {
+                    "type": "image",
+                    "source": {
+                      "type": "base64",
+                      "media_type": "image/png",
+                      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII="
+                    },
+                    "cache_control": {
+                      "type": "ephemeral"
+                    }
+                  }
+                ]
+              }
+            ],
+            "system": [
+              {
+                "type": "text",
+                "text": "x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;"
+              },
+              {
+                "type": "text",
+                "text": "You inspect fixture data, then call FixtureLookup.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "tools": [
+              {
+                "name": "FixtureLookup",
+                "description": "Read fixture data",
+                "input_schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "user_id": "{\"account_uuid\":\"\",\"session_id\":\"11111111-1111-4111-8111-111111111111\"}"
+            },
+            "max_tokens": 128000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "max"
+            },
+            "stream": true
+          },
+          "raw": "{\"model\":\"claude-opus-4-8\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read this image and then look up its value.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII=\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;\"},{\"type\":\"text\",\"text\":\"You inspect fixture data, then call FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"FixtureLookup\",\"description\":\"Read fixture data\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}}],\"metadata\":{\"user_id\":\"{\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"11111111-1111-4111-8111-111111111111\\\"}\"},\"max_tokens\":128000,\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"max\"},\"stream\":true}"
+        },
+        {
+          "path": "/v1/messages?beta=true",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer fixture-subscriber",
+            "content-type": "application/json",
+            "user-agent": "mercury/1.0.0 (sdk-road-proof, host-app/fixture)",
+            "x-claude-code-session-id": "11111111-1111-4111-8111-111111111111",
+            "x-proof-header": "fixture:exact",
+            "x-stainless-arch": "arm64",
+            "x-stainless-lang": "js",
+            "x-stainless-os": "MacOS",
+            "x-stainless-package-version": "0.122.0",
+            "x-stainless-retry-count": "0",
+            "x-stainless-runtime": "node",
+            "x-stainless-runtime-version": "v24.3.0",
+            "x-stainless-timeout": "360",
+            "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "anthropic-version": "2023-06-01",
+            "x-anthropic-additional-protection": "true",
+            "x-app": "cli",
+            "x-client-app": "fixture",
+            "connection": "keep-alive",
+            "host": "127.0.0.1:52386",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "content-length": "1187"
+          },
+          "body": {
+            "model": "claude-opus-4-8",
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Read this image and then look up its value."
+                  },
+                  {
+                    "type": "image",
+                    "source": {
+                      "type": "base64",
+                      "media_type": "image/png",
+                      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII="
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": [
+                  {
+                    "type": "thinking",
+                    "thinking": "Read the image carefully.",
+                    "signature": "fixture-signature"
+                  },
+                  {
+                    "type": "text",
+                    "text": "I can inspect that."
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Now use FixtureLookup.",
+                    "cache_control": {
+                      "type": "ephemeral"
+                    }
+                  }
+                ]
+              }
+            ],
+            "system": [
+              {
+                "type": "text",
+                "text": "x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;"
+              },
+              {
+                "type": "text",
+                "text": "You inspect fixture data, then call FixtureLookup.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "tools": [
+              {
+                "name": "FixtureLookup",
+                "description": "Read fixture data",
+                "input_schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "user_id": "{\"account_uuid\":\"\",\"session_id\":\"11111111-1111-4111-8111-111111111111\"}"
+            },
+            "max_tokens": 128000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "max"
+            },
+            "stream": true
+          },
+          "raw": "{\"model\":\"claude-opus-4-8\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read this image and then look up its value.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII=\"}}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"Read the image carefully.\",\"signature\":\"fixture-signature\"},{\"type\":\"text\",\"text\":\"I can inspect that.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Now use FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;\"},{\"type\":\"text\",\"text\":\"You inspect fixture data, then call FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"FixtureLookup\",\"description\":\"Read fixture data\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}}],\"metadata\":{\"user_id\":\"{\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"11111111-1111-4111-8111-111111111111\\\"}\"},\"max_tokens\":128000,\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"max\"},\"stream\":true}"
+        },
+        {
+          "path": "/v1/messages?beta=true",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer fixture-subscriber",
+            "content-type": "application/json",
+            "user-agent": "mercury/1.0.0 (sdk-road-proof, host-app/fixture)",
+            "x-claude-code-session-id": "11111111-1111-4111-8111-111111111111",
+            "x-proof-header": "fixture:exact",
+            "x-stainless-arch": "arm64",
+            "x-stainless-lang": "js",
+            "x-stainless-os": "MacOS",
+            "x-stainless-package-version": "0.122.0",
+            "x-stainless-retry-count": "0",
+            "x-stainless-runtime": "node",
+            "x-stainless-runtime-version": "v24.3.0",
+            "x-stainless-timeout": "360",
+            "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "anthropic-version": "2023-06-01",
+            "x-anthropic-additional-protection": "true",
+            "x-app": "cli",
+            "x-client-app": "fixture",
+            "connection": "keep-alive",
+            "host": "127.0.0.1:52386",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "content-length": "1509"
+          },
+          "body": {
+            "model": "claude-opus-4-8",
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Read this image and then look up its value."
+                  },
+                  {
+                    "type": "image",
+                    "source": {
+                      "type": "base64",
+                      "media_type": "image/png",
+                      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII="
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": [
+                  {
+                    "type": "thinking",
+                    "thinking": "Read the image carefully.",
+                    "signature": "fixture-signature"
+                  },
+                  {
+                    "type": "text",
+                    "text": "I can inspect that."
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Now use FixtureLookup."
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": [
+                  {
+                    "type": "thinking",
+                    "thinking": "Look up the value.",
+                    "signature": "fixture-signature"
+                  },
+                  {
+                    "type": "tool_use",
+                    "id": "tool_fixture",
+                    "name": "FixtureLookup",
+                    "input": {
+                      "value": "é\nquoted \"text\""
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "tool_result",
+                    "tool_use_id": "tool_fixture",
+                    "content": "confirmed",
+                    "cache_control": {
+                      "type": "ephemeral"
+                    }
+                  }
+                ]
+              }
+            ],
+            "system": [
+              {
+                "type": "text",
+                "text": "x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;"
+              },
+              {
+                "type": "text",
+                "text": "You inspect fixture data, then call FixtureLookup.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "tools": [
+              {
+                "name": "FixtureLookup",
+                "description": "Read fixture data",
+                "input_schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "user_id": "{\"account_uuid\":\"\",\"session_id\":\"11111111-1111-4111-8111-111111111111\"}"
+            },
+            "max_tokens": 128000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "max"
+            },
+            "stream": true
+          },
+          "raw": "{\"model\":\"claude-opus-4-8\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read this image and then look up its value.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII=\"}}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"Read the image carefully.\",\"signature\":\"fixture-signature\"},{\"type\":\"text\",\"text\":\"I can inspect that.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Now use FixtureLookup.\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"Look up the value.\",\"signature\":\"fixture-signature\"},{\"type\":\"tool_use\",\"id\":\"tool_fixture\",\"name\":\"FixtureLookup\",\"input\":{\"value\":\"é\\nquoted \\\"text\\\"\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"tool_fixture\",\"content\":\"confirmed\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;\"},{\"type\":\"text\",\"text\":\"You inspect fixture data, then call FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"FixtureLookup\",\"description\":\"Read fixture data\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}}],\"metadata\":{\"user_id\":\"{\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"11111111-1111-4111-8111-111111111111\\\"}\"},\"max_tokens\":128000,\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"max\"},\"stream\":true}"
+        }
+      ],
+      "outputs": [
+        [
+          {
+            "id": "msg_fixture_1",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Read the image carefully.",
+                "signature": "fixture-signature"
+              }
+            ],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "output_tokens": 1
+            }
+          },
+          {
+            "id": "msg_fixture_1",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "text",
+                "text": "I can inspect that."
+              }
+            ],
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "output_tokens": 12,
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "",
+              "iterations": null,
+              "speed": "standard",
+              "output_tokens_details": null
+            }
+          }
+        ],
+        [
+          {
+            "id": "msg_fixture_2",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Look up the value.",
+                "signature": "fixture-signature"
+              }
+            ],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "output_tokens": 1
+            }
+          },
+          {
+            "id": "msg_fixture_2",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "tool_fixture",
+                "name": "FixtureLookup",
+                "input": {
+                  "value": "é\nquoted \"text\""
+                }
+              }
+            ],
+            "stop_reason": "tool_use",
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "output_tokens": 12,
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "",
+              "iterations": null,
+              "speed": "standard",
+              "output_tokens_details": null
+            }
+          }
+        ],
+        [
+          {
+            "id": "msg_fixture_3",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Use the returned value.",
+                "signature": "fixture-signature"
+              }
+            ],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "output_tokens": 1
+            }
+          },
+          {
+            "id": "msg_fixture_3",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "text",
+                "text": "The value is confirmed."
+              }
+            ],
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "output_tokens": 12,
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "",
+              "iterations": null,
+              "speed": "standard",
+              "output_tokens_details": null
+            }
+          }
+        ]
+      ],
+      "errors": {
+        "401": {
+          "class": "AuthenticationError",
+          "message": "401 {\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"fixture credential rejected\"}}",
+          "status": 401,
+          "retryAfter": null
+        },
+        "429": {
+          "class": "RateLimitError",
+          "message": "429 {\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"fixture wait\"}}",
+          "status": 429,
+          "retryAfter": "0.01"
+        },
+        "500": {
+          "class": "InternalServerError",
+          "message": "500 {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"fixture server failure\"}}",
+          "status": 500,
+          "retryAfter": null
+        },
+        "dropped": {
+          "class": "Error",
+          "message": "The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+          "status": null,
+          "retryAfter": null
+        },
+        "timeout": {
+          "class": "APIConnectionTimeoutError",
+          "message": "Request timed out.",
+          "status": null,
+          "retryAfter": null
+        },
+        "abort": {
+          "class": "APIUserAbortError",
+          "message": "Request was aborted.",
+          "status": null,
+          "retryAfter": null
+        }
+      }
+    },
+    {
+      "arm": "bearer",
+      "requests": [
+        {
+          "path": "/v1/messages?beta=true",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer fixture-bearer",
+            "content-type": "application/json",
+            "user-agent": "mercury/1.0.0 (sdk-road-proof, host-app/fixture)",
+            "x-claude-code-session-id": "11111111-1111-4111-8111-111111111111",
+            "x-proof-header": "fixture:exact",
+            "x-stainless-arch": "arm64",
+            "x-stainless-lang": "js",
+            "x-stainless-os": "MacOS",
+            "x-stainless-package-version": "0.122.0",
+            "x-stainless-retry-count": "0",
+            "x-stainless-runtime": "node",
+            "x-stainless-runtime-version": "v24.3.0",
+            "x-stainless-timeout": "360",
+            "anthropic-beta": "claude-code-20250219",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "anthropic-version": "2023-06-01",
+            "x-anthropic-additional-protection": "true",
+            "x-app": "cli",
+            "x-client-app": "fixture",
+            "connection": "keep-alive",
+            "host": "127.0.0.1:52400",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "content-length": "942"
+          },
+          "body": {
+            "model": "claude-opus-4-8",
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Read this image and then look up its value."
+                  },
+                  {
+                    "type": "image",
+                    "source": {
+                      "type": "base64",
+                      "media_type": "image/png",
+                      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII="
+                    },
+                    "cache_control": {
+                      "type": "ephemeral"
+                    }
+                  }
+                ]
+              }
+            ],
+            "system": [
+              {
+                "type": "text",
+                "text": "x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;"
+              },
+              {
+                "type": "text",
+                "text": "You inspect fixture data, then call FixtureLookup.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "tools": [
+              {
+                "name": "FixtureLookup",
+                "description": "Read fixture data",
+                "input_schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "user_id": "{\"account_uuid\":\"\",\"session_id\":\"11111111-1111-4111-8111-111111111111\"}"
+            },
+            "max_tokens": 128000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "max"
+            },
+            "stream": true
+          },
+          "raw": "{\"model\":\"claude-opus-4-8\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read this image and then look up its value.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII=\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;\"},{\"type\":\"text\",\"text\":\"You inspect fixture data, then call FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"FixtureLookup\",\"description\":\"Read fixture data\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}}],\"metadata\":{\"user_id\":\"{\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"11111111-1111-4111-8111-111111111111\\\"}\"},\"max_tokens\":128000,\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"max\"},\"stream\":true}"
+        },
+        {
+          "path": "/v1/messages?beta=true",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer fixture-bearer",
+            "content-type": "application/json",
+            "user-agent": "mercury/1.0.0 (sdk-road-proof, host-app/fixture)",
+            "x-claude-code-session-id": "11111111-1111-4111-8111-111111111111",
+            "x-proof-header": "fixture:exact",
+            "x-stainless-arch": "arm64",
+            "x-stainless-lang": "js",
+            "x-stainless-os": "MacOS",
+            "x-stainless-package-version": "0.122.0",
+            "x-stainless-retry-count": "0",
+            "x-stainless-runtime": "node",
+            "x-stainless-runtime-version": "v24.3.0",
+            "x-stainless-timeout": "360",
+            "anthropic-beta": "claude-code-20250219",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "anthropic-version": "2023-06-01",
+            "x-anthropic-additional-protection": "true",
+            "x-app": "cli",
+            "x-client-app": "fixture",
+            "connection": "keep-alive",
+            "host": "127.0.0.1:52400",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "content-length": "1187"
+          },
+          "body": {
+            "model": "claude-opus-4-8",
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Read this image and then look up its value."
+                  },
+                  {
+                    "type": "image",
+                    "source": {
+                      "type": "base64",
+                      "media_type": "image/png",
+                      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII="
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": [
+                  {
+                    "type": "thinking",
+                    "thinking": "Read the image carefully.",
+                    "signature": "fixture-signature"
+                  },
+                  {
+                    "type": "text",
+                    "text": "I can inspect that."
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Now use FixtureLookup.",
+                    "cache_control": {
+                      "type": "ephemeral"
+                    }
+                  }
+                ]
+              }
+            ],
+            "system": [
+              {
+                "type": "text",
+                "text": "x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;"
+              },
+              {
+                "type": "text",
+                "text": "You inspect fixture data, then call FixtureLookup.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "tools": [
+              {
+                "name": "FixtureLookup",
+                "description": "Read fixture data",
+                "input_schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "user_id": "{\"account_uuid\":\"\",\"session_id\":\"11111111-1111-4111-8111-111111111111\"}"
+            },
+            "max_tokens": 128000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "max"
+            },
+            "stream": true
+          },
+          "raw": "{\"model\":\"claude-opus-4-8\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read this image and then look up its value.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII=\"}}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"Read the image carefully.\",\"signature\":\"fixture-signature\"},{\"type\":\"text\",\"text\":\"I can inspect that.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Now use FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;\"},{\"type\":\"text\",\"text\":\"You inspect fixture data, then call FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"FixtureLookup\",\"description\":\"Read fixture data\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}}],\"metadata\":{\"user_id\":\"{\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"11111111-1111-4111-8111-111111111111\\\"}\"},\"max_tokens\":128000,\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"max\"},\"stream\":true}"
+        },
+        {
+          "path": "/v1/messages?beta=true",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer fixture-bearer",
+            "content-type": "application/json",
+            "user-agent": "mercury/1.0.0 (sdk-road-proof, host-app/fixture)",
+            "x-claude-code-session-id": "11111111-1111-4111-8111-111111111111",
+            "x-proof-header": "fixture:exact",
+            "x-stainless-arch": "arm64",
+            "x-stainless-lang": "js",
+            "x-stainless-os": "MacOS",
+            "x-stainless-package-version": "0.122.0",
+            "x-stainless-retry-count": "0",
+            "x-stainless-runtime": "node",
+            "x-stainless-runtime-version": "v24.3.0",
+            "x-stainless-timeout": "360",
+            "anthropic-beta": "claude-code-20250219",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "anthropic-version": "2023-06-01",
+            "x-anthropic-additional-protection": "true",
+            "x-app": "cli",
+            "x-client-app": "fixture",
+            "connection": "keep-alive",
+            "host": "127.0.0.1:52400",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "content-length": "1509"
+          },
+          "body": {
+            "model": "claude-opus-4-8",
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Read this image and then look up its value."
+                  },
+                  {
+                    "type": "image",
+                    "source": {
+                      "type": "base64",
+                      "media_type": "image/png",
+                      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII="
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": [
+                  {
+                    "type": "thinking",
+                    "thinking": "Read the image carefully.",
+                    "signature": "fixture-signature"
+                  },
+                  {
+                    "type": "text",
+                    "text": "I can inspect that."
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Now use FixtureLookup."
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "content": [
+                  {
+                    "type": "thinking",
+                    "thinking": "Look up the value.",
+                    "signature": "fixture-signature"
+                  },
+                  {
+                    "type": "tool_use",
+                    "id": "tool_fixture",
+                    "name": "FixtureLookup",
+                    "input": {
+                      "value": "é\nquoted \"text\""
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "tool_result",
+                    "tool_use_id": "tool_fixture",
+                    "content": "confirmed",
+                    "cache_control": {
+                      "type": "ephemeral"
+                    }
+                  }
+                ]
+              }
+            ],
+            "system": [
+              {
+                "type": "text",
+                "text": "x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;"
+              },
+              {
+                "type": "text",
+                "text": "You inspect fixture data, then call FixtureLookup.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "tools": [
+              {
+                "name": "FixtureLookup",
+                "description": "Read fixture data",
+                "input_schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "user_id": "{\"account_uuid\":\"\",\"session_id\":\"11111111-1111-4111-8111-111111111111\"}"
+            },
+            "max_tokens": 128000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "max"
+            },
+            "stream": true
+          },
+          "raw": "{\"model\":\"claude-opus-4-8\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read this image and then look up its value.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0S8AAAAASUVORK5CYII=\"}}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"Read the image carefully.\",\"signature\":\"fixture-signature\"},{\"type\":\"text\",\"text\":\"I can inspect that.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Now use FixtureLookup.\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"Look up the value.\",\"signature\":\"fixture-signature\"},{\"type\":\"tool_use\",\"id\":\"tool_fixture\",\"name\":\"FixtureLookup\",\"input\":{\"value\":\"é\\nquoted \\\"text\\\"\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"tool_fixture\",\"content\":\"confirmed\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.303.a1d;cc_entrypoint=sdk-road-proof;\"},{\"type\":\"text\",\"text\":\"You inspect fixture data, then call FixtureLookup.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"FixtureLookup\",\"description\":\"Read fixture data\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}}],\"metadata\":{\"user_id\":\"{\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"11111111-1111-4111-8111-111111111111\\\"}\"},\"max_tokens\":128000,\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"max\"},\"stream\":true}"
+        }
+      ],
+      "outputs": [
+        [
+          {
+            "id": "msg_fixture_1",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Read the image carefully.",
+                "signature": "fixture-signature"
+              }
+            ],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "output_tokens": 1
+            }
+          },
+          {
+            "id": "msg_fixture_1",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "text",
+                "text": "I can inspect that."
+              }
+            ],
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "output_tokens": 12,
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "",
+              "iterations": null,
+              "speed": "standard",
+              "output_tokens_details": null
+            }
+          }
+        ],
+        [
+          {
+            "id": "msg_fixture_2",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Look up the value.",
+                "signature": "fixture-signature"
+              }
+            ],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "output_tokens": 1
+            }
+          },
+          {
+            "id": "msg_fixture_2",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "tool_fixture",
+                "name": "FixtureLookup",
+                "input": {
+                  "value": "é\nquoted \"text\""
+                }
+              }
+            ],
+            "stop_reason": "tool_use",
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "output_tokens": 12,
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "",
+              "iterations": null,
+              "speed": "standard",
+              "output_tokens_details": null
+            }
+          }
+        ],
+        [
+          {
+            "id": "msg_fixture_3",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Use the returned value.",
+                "signature": "fixture-signature"
+              }
+            ],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "output_tokens": 1
+            }
+          },
+          {
+            "id": "msg_fixture_3",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-8",
+            "content": [
+              {
+                "type": "text",
+                "text": "The value is confirmed."
+              }
+            ],
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 25,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "output_tokens": 12,
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "",
+              "iterations": null,
+              "speed": "standard",
+              "output_tokens_details": null
+            }
+          }
+        ]
+      ],
+      "errors": {
+        "401": {
+          "class": "AuthenticationError",
+          "message": "401 {\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"fixture credential rejected\"}}",
+          "status": 401,
+          "retryAfter": null
+        },
+        "429": {
+          "class": "RateLimitError",
+          "message": "429 {\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"fixture wait\"}}",
+          "status": 429,
+          "retryAfter": "0.01"
+        },
+        "500": {
+          "class": "InternalServerError",
+          "message": "500 {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"fixture server failure\"}}",
+          "status": 500,
+          "retryAfter": null
+        },
+        "dropped": {
+          "class": "Error",
+          "message": "The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+          "status": null,
+          "retryAfter": null
+        },
+        "timeout": {
+          "class": "APIConnectionTimeoutError",
+          "message": "Request timed out.",
+          "status": null,
+          "retryAfter": null
+        },
+        "abort": {
+          "class": "APIUserAbortError",
+          "message": "Request was aborted.",
+          "status": null,
+          "retryAfter": null
+        }
+      }
+    }
+  ]
+}
