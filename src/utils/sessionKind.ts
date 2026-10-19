@@ -10,7 +10,7 @@ export function parseSessionKind(raw: unknown): SessionKind | undefined {
   return raw === 'oculus' || raw === 'headless' ? raw : undefined
 }
 
-export function isOperatorAsker(by: string | undefined): boolean {
+function isOperatorAsker(by: string | undefined): boolean {
   return by === 'operator' || (typeof by === 'string' && by.startsWith('operator:'))
 }
 
