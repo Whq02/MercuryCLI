@@ -918,7 +918,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
   sessions
     .command('list')
-    .description('List the saved sessions of this project, newest first, with the id --resume takes and sessions delete needs; --all reads every project')
+    .description('List the saved sessions of this project, newest first, with the id a resume or a delete takes; --all reads every project')
     .option('--all', 'List the saved sessions of every project, not only this one')
     .option('--limit <n>', 'The most sessions to list (default 50)', value => Number.parseInt(value, 10))
     .action(async (options: { all?: boolean; limit?: number }) => {

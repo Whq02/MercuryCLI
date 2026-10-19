@@ -709,7 +709,7 @@ Available commands include:
   the background daemon. Its session seats are `mercury runner` children; the
   daemon sends their prompts and hosts their permission asks.
 - **`mercury sessions list`** (also a bare `mercury sessions`): list this
-  project's saved sessions, newest first — the id, when it was last written,
+  project's saved sessions, newest first: the id, when it was last written,
   its size, `live` when the daemon hosts it now, and its title or first
   prompt; `--all` reads every project, `--limit <n>` bounds the list. The id
   is what `mercury --resume <id>` reopens and `sessions delete` removes.

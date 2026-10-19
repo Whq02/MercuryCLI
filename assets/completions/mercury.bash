@@ -70,7 +70,7 @@ _mercury_completions() {
       return 0
       ;;
     sessions)
-      COMPREPLY=( $(compgen -W "--help" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--all --help --limit" -- "$cur") )
       return 0
       ;;
     update)
