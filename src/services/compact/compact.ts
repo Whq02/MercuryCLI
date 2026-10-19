@@ -1690,7 +1690,7 @@ export async function compactConversation(
     const capsuleProbe = buildRunContinuationCapsule(owner)
     const ledger = buildFoldLedger(messages, owner, getContextEpoch(owner).epoch + 1)
     const gauge = readRequestGauge(messages, context.options.engineModel)
-    landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1)
+    landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1, gauge?.density.residuals)
     const landingCount = (rows: Message[]): number => {
       const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
       return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density) : estimateContextTokens(request)
@@ -1756,7 +1756,7 @@ export async function compactConversation(
     const prose = proseSkipped ?? rawSummary
     if (overflow?.source === 'provider' && overflow.limitTokens !== undefined) {
       ceiling = Math.min(ceiling ?? Infinity, overflow.limitTokens)
-      landing = Math.min(landing ?? Infinity, foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1))
+      landing = Math.min(landing ?? Infinity, foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1, gauge?.density.residuals))
     }
     context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
     const memory = retireFoldToMemory({

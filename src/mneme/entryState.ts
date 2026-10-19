@@ -1,6 +1,7 @@
 import { basename, isAbsolute, relative } from 'node:path'
 import { execFileNoThrowWithCwd } from '../utils/execFileNoThrow.js'
 import { gitExe } from '../utils/git.js'
+import { projectScopePathspec } from '../utils/projectBoundary.js'
 import { readGitHead, resolveGitDir } from '../utils/git/gitFilesystem.js'
 import { readLedger } from './ledger.js'
 import { lookupTerms } from './mnemeLookup.js'
@@ -124,7 +125,7 @@ export function parseStatusPaths(porcelain: string): string[] {
 
 async function readModifiedFiles(root: string): Promise<string[]> {
   try {
-    const result = await execFileNoThrowWithCwd(gitExe(), ['--no-optional-locks', 'status', '--porcelain', '--untracked-files=normal'], {
+    const result = await execFileNoThrowWithCwd(gitExe(), ['--no-optional-locks', 'status', '--porcelain', '--untracked-files=normal', ...projectScopePathspec(root)], {
       cwd: root,
       preserveOutputOnError: false,
       timeout: STATUS_TIMEOUT_MS,

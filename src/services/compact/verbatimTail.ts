@@ -68,13 +68,14 @@ export function computeVerbatimRecentTail(
   throw new Error('The latest complete round does not fit with the fold obligations; the original context is kept.')
 }
 
-export function foldLandingCeiling(threshold: number, messages: readonly Message[], ratio = 1): number {
+export function foldLandingCeiling(threshold: number, messages: readonly Message[], ratio = 1, residuals: readonly number[] = []): number {
   let largest = 0
   for (const group of groupMessagesByApiRound(messages as Message[])) {
     largest = Math.max(largest, roughTokenCountEstimationForMessages(group.filter(preservable)))
   }
   const scale = Number.isFinite(ratio) && ratio > 0 ? ratio : 1
-  const room = Math.min(Math.max(Math.ceil(largest * scale), LANDING_ROOM_FLOOR_TOKENS), Math.floor(threshold / LANDING_ROOM_MAX_SHARE))
+  const uncertainty = Math.max(0, ...residuals.filter(Number.isFinite))
+  const room = Math.min(Math.max(Math.ceil(largest * scale + uncertainty), LANDING_ROOM_FLOOR_TOKENS), Math.floor(threshold / LANDING_ROOM_MAX_SHARE))
   return Math.max(1, threshold - room)
 }
 

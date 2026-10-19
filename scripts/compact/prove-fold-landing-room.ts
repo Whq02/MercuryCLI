@@ -22,7 +22,7 @@ const { groupMessagesByApiRound } = await import('../../src/services/compact/gro
 const LANDING_ROOM_FLOOR_TOKENS = (tailModule.LANDING_ROOM_FLOOR_TOKENS as number | undefined) ?? 20_000
 const LANDING_ROOM_MAX_SHARE = (tailModule.LANDING_ROOM_MAX_SHARE as number | undefined) ?? 2
 const FOLDED_RESULT_KEY = (tailModule.FOLDED_RESULT_KEY as string | undefined) ?? '[result folded into the summary above'
-const foldLandingCeiling = (tailModule.foldLandingCeiling as ((threshold: number, messages: readonly Message[], ratio?: number) => number) | undefined) ?? ((threshold: number, messages: readonly Message[], ratio = 1): number => {
+const foldLandingCeiling = (tailModule.foldLandingCeiling as ((threshold: number, messages: readonly Message[], ratio?: number, residuals?: readonly number[]) => number) | undefined) ?? ((threshold: number, messages: readonly Message[], ratio = 1): number => {
   const largest = Math.max(0, ...groupMessagesByApiRound([...messages]).map(group => estimateContextTokens(group)))
   return Math.max(1, threshold - Math.min(Math.max(Math.ceil(largest * ratio), LANDING_ROOM_FLOOR_TOKENS), Math.floor(threshold / LANDING_ROOM_MAX_SHARE)))
 })
@@ -138,6 +138,9 @@ try {
     check(`the rig binds a gauge whose density ratio is ${ratio} (the largest round: ${largestRaw} raw tokens, ${largestGauge} as the gauge counts it)`, gauge !== null && gauge.density.ratio === ratio && largestRaw > LANDING_ROOM_FLOOR_TOKENS, JSON.stringify(gauge?.density))
     const landing = foldLandingCeiling(threshold, gauged, ratio)
     check(`the landing line takes the room in the gauge's units: ${landing} = ${threshold} − ${largestGauge} (red before: the room was the raw ${largestRaw})`, landing === threshold - Math.min(Math.max(largestGauge, LANDING_ROOM_FLOOR_TOKENS), Math.floor(threshold / LANDING_ROOM_MAX_SHARE)), String(landing))
+    const guarded = foldLandingCeiling(threshold, gauged, ratio, [585, 225, -80, Number.NaN])
+    check('the room includes the largest measured positive underestimate', guarded === threshold - Math.ceil(largestRaw * ratio + 585), String(guarded))
+    check('negative or invalid residuals never reduce the existing room', foldLandingCeiling(threshold, gauged, ratio, [-80, Number.NaN]) === landing)
     const result = await fold(gauged, context(), threshold)
     const post = result.truePostCompactTokenCount ?? Infinity
     const rounds = roundsOf(result)

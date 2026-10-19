@@ -39,7 +39,7 @@ function seatReasonParts(reply: Record<string, unknown>): { head: string; tail: 
 
 export function seatRefusalWords(reply: Record<string, unknown>): string {
   const { head, tail } = seatReasonParts(reply)
-  return `${head} — ${SEAT_LEVERS}${tail === '' ? '' : ` — ${tail}`} · ↵ waits for a seat again`
+  return `${SEAT_LEVERS} — ${head}${tail === '' ? '' : ` — ${tail}`} · ↵ waits for a seat again`
 }
 
 export function seatWaitWords(reply: Record<string, unknown>): string {
