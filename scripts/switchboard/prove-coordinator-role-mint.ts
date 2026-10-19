@@ -154,7 +154,7 @@ const proposal = await liveCoordinatorCallModel(
   check('the seat fact rides the wire behind it', seatAt > floorAt, `${floorAt} vs ${seatAt}`)
   check('the persona rides the wire', personaAt >= 0, instructions.slice(0, 160))
   check('the constitution LEADS the persona (the composition stays intact)', floorAt >= 0 && personaAt > seatAt, `${floorAt} vs ${personaAt}`)
-  check('exactly ONE identity statement on the wire (the constitution’s; the seat fact states no second one)', (instructions.match(/^You are /gm) ?? []).length === 1 && instructions.startsWith("You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell."))
+  check('exactly ONE identity statement on the wire (the constitution’s; the seat fact states no second one)', (instructions.match(/^You are /gm) ?? []).length === 1 && instructions.startsWith("You are Mercury, the coding agent working in the operator's terminal."))
   const declared = coordinatorToolSet().map(d => d.name)
   const wired = Array.isArray(body.tools) ? (body.tools as Array<{ name?: string }>).map(t => t.name) : []
   check('every declared coordinator tool rides the wire', declared.length > 0 && declared.every(n => wired.includes(n)), `${declared.length} declared / ${wired.length} wired`)

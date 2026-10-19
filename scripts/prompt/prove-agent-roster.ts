@@ -21,8 +21,8 @@ console.log('prove-agent-roster')
 {
   const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
   const contract = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
-  check('§1 the identity is stated by the constitution, once: the part supplier carries no identity line of its own', !/You are Mercury/.test(prompts) && contract.includes("You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell."))
-  check('§1 the constitution names the operator and the honesty line', contract.includes("The operator's directions on scope, approach, delegation and stopping override your plans and defaults.") && contract.includes('and never mislead.'))
+  check('§1 the identity is stated by the constitution, once: the part supplier carries no identity line of its own', !/You are Mercury/.test(prompts) && contract.includes("You are Mercury, the coding agent working in the operator's terminal."))
+  check('§1 the constitution names the operator and the honesty line', contract.includes("Follow the operator's stated preferences on scope, approach, delegation and communication ahead of your defaults.") && contract.includes('Never invent a result or present an assumption as an observation.'))
 }
 
 const agents = getBuiltInAgents()

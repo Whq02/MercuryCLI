@@ -516,7 +516,7 @@ const RING: Array<{ parent: Family; worker: Family }> = [
   { parent: 'zen', worker: 'anthropic' },
 ]
 
-const IDENTITY_ANCHOR = "You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell."
+const IDENTITY_ANCHOR = "You are Mercury, the coding agent working in the operator's terminal."
 
 function assertWorkerLeg(tag: string, workerFamily: Family, o: DriveOutcome, expectedWireId: string, expectedResolved: string): void {
   const workerHits = o.wire.filter(h => h.family === workerFamily)

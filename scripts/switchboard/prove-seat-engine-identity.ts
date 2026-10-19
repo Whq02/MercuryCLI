@@ -184,7 +184,7 @@ section('§4 — the coordinator, LIVE: prompt id === dispatch stamp')
     idInPrompt(instructions) !== null && idInPrompt(instructions) === body.model,
     `${String(idInPrompt(instructions))} vs ${String(body.model)}`,
   )
-  const floorAt = instructions.indexOf("You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell.")
+  const floorAt = instructions.indexOf("You are Mercury, the coding agent working in the operator's terminal.")
   const seatAt = instructions.indexOf('This seat is the Mercury coordinator')
   const engineAt = instructions.indexOf('the model you run through Mercury is')
   const personaAt = instructions.indexOf('Your seat is the Mercury switchboard')

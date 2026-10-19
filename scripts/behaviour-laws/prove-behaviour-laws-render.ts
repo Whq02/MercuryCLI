@@ -49,15 +49,15 @@ check('the constitution rides the OpenAI render too', openai.includes(MERCURY_CO
 section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
 {
   const sentinels: Array<[string, RegExp]> = [
-    ['the identity (You are Mercury)', /^You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell\./m],
-    ['the stop sentence', /Outstanding work or verification never overrides an operator's instruction to stop\./],
-    ['the blocker lines', /^RESUME WHEN: <the answer or authorisation that permits progress>$/m],
+    ['the identity (You are Mercury)', /^You are Mercury, the coding agent working in the operator's terminal\./m],
+    ['the stop sentence', /Outstanding work and verification never override that instruction\./],
+    ['the evidence rule', /Use evidence appropriate to the claim\./],
     ['the instruction file (MERCURY.md)', /MERCURY\.md is the project's standing instruction file/],
     ['pinned memory (the user\'s own rule)', /is pinned memory instead/],
     ['the hooks fact', /Hooks are shell commands the user set up in settings/],
     ['the model-currency rule', /^Model currency:/m],
-    ['the blocker form', /BLOCKED ON OPERATOR/],
-    ['the failure rule', /Treat a reported failure as failed\./],
+    ['the smallest-question rule', /ask the smallest direct question and briefly explain what depends on the answer\./],
+    ['the failure rule', /Take reported failures seriously and investigate them\./],
   ]
   for (const [label, re] of sentinels) {
     const owners = contract.sections.filter(s => re.test(s.text)).map(s => s.name)

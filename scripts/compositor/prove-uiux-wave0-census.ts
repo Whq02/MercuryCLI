@@ -449,7 +449,7 @@ section('RV — reasoning depth is not answer length; one balanced default + one
   check(
     'RV-06: persistence is ONE clause on the crewmate seat; the session seat\'s finishing clause is the constitution\'s (never a parallel clause, no separate law constant)',
     contract.MERCURY_SUBAGENT_CONTRACT.includes(PERSIST) &&
-      contract.MERCURY_CONSTITUTION.includes('carry it through investigation, execution and proportionate verification without asking again') &&
+      contract.MERCURY_CONSTITUTION.includes('Before ending, finish any useful work that remains both requested and authorised.') &&
       !src('src/prompt/mercuryContract.ts').includes('PERSISTENCE_LAW'),
   )
   check(
@@ -458,7 +458,7 @@ section('RV — reasoning depth is not answer length; one balanced default + one
   )
   check(
     'RV-03/04/05: the stated-preferences rule is the constitution\'s; no narration or appendix rule rides any seat text',
-    /directions on scope, approach, delegation and stopping override your plans and defaults/.test(contract.MERCURY_CONSTITUTION) &&
+    /stated preferences on scope, approach, delegation and communication ahead of your defaults/.test(contract.MERCURY_CONSTITUTION) &&
       !/narration|appendix/.test([contract.MERCURY_CONSTITUTION, contract.MERCURY_COORDINATOR_CONTRACT, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')),
   )
   check(

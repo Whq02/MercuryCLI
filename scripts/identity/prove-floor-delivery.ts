@@ -30,27 +30,27 @@ const TEXT = contract.MERCURY_CONSTITUTION
 section('§1 the constant — the owner’s text, byte-anchored')
 {
   const anchors: Array<[string, RegExp]> = [
-    ['identity (You are Mercury, an expert software engineer working in the operator\'s terminal)', /^You are Mercury, an expert software engineer working in the operator's terminal, with an IDE's tools beside the shell\./],
-    ['the engine line', /Your underlying AI model is your engine;/],
-    ['the attribution', /Mercury was not built by the model's maker, and the model can be swapped\./],
-    ['the peer line', /Speak plainly as a direct peer, without jargon, and never mislead\./],
-    ['operator control', /^The operator's directions on scope, approach, delegation and stopping override your plans and defaults\./m],
-    ['the question rule', /^When the operator asks a question, answer it; begin work only when they say so\./m],
-    ['the finishing clause', /continue while useful, authorised work remains\./],
-    ['the stop sentence', /Outstanding work or verification never overrides an operator's instruction to stop\./],
-    ['the evidence rule', /Base claims on research first, tool outputs second, and best-practises third\. Memory, documentation, and crewmate reports act as that; they are prone to being stale and dated\./],
-    ['the blocker lines', /^BLOCKED ON OPERATOR: <the specific fact, decision or permission needed>\nRESUME WHEN: <the answer or authorisation that permits progress>$/m],
+    ['identity (You are Mercury, the coding agent working in the operator\'s terminal)', /^You are Mercury, the coding agent working in the operator's terminal\./],
+    ['the engine line', /The model running you is your engine and can be swapped;/],
+    ['the attribution', /Mercury is the harness and was not built by the model's maker\./],
+    ['the peer line', /Work as a capable colleague: use judgement, speak plainly, and be honest about what you know and what you have done\./],
+    ['operator control', /Follow the operator's stated preferences on scope, approach, delegation and communication ahead of your defaults\./],
+    ['the question rule', /^Respond to the meaning of the request\. Questions asking you to read, check, compare, research or diagnose authorise the investigation needed to answer\./m],
+    ['the finishing clause', /Before ending, finish any useful work that remains both requested and authorised\./],
+    ['the stop sentence', /Outstanding work and verification never override that instruction\./],
+    ['the evidence rule', /Use evidence appropriate to the claim\. Ground statements about the project's current state in inspected files and observed behaviour, and statements about actions taken in their actual results\./],
+    ['the smallest-question rule', /ask the smallest direct question and briefly explain what depends on the answer\. Keep paused work paused until they authorise resumption\.$/],
   ]
   for (const [name, re] of anchors) check(`statement present: ${name}`, re.test(TEXT))
 
   const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
   check(
     'byte anchor (sha256 of the owner’s text)',
-    digest === '86d0f4f29d5400fb6d1500380c352a423febefaa08a7e73496e651db9f030540',
+    digest === 'f80d7ee7262d810d0709829bda4327f31e9c492f5935f6f8cf35e61ba1a54f40',
     digest,
   )
   check('provider-neutral (no engine family named)', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi)\b/i.test(TEXT))
-  check('the blocker lines are the LAST statement', TEXT.trimEnd().endsWith('RESUME WHEN: <the answer or authorisation that permits progress>'))
+  check('the smallest-question rule is the LAST statement (no trailer: a run\'s blocked outcome is the runner\'s to decide)', TEXT.trimEnd().endsWith('Keep paused work paused until they authorise resumption.'))
   check('exactly ONE identity statement, stated positively and nowhere negated', (TEXT.match(/^You are /gm) ?? []).length === 1 && !/claim to be human|misrepresent what you are|not a person/i.test(TEXT))
 }
 
