@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 const HERE = import.meta.dir
 const REPO = resolve(HERE, '..', '..')
@@ -55,7 +56,7 @@ async function startFixture(name: string, plan: string): Promise<Fixture> {
     writeFileSync(join(dir, 'cert.pem'), readFileSync(join(SCRATCH, 'cert.pem')))
   }
   writeFileSync(join(dir, 'seen.jsonl'), '')
-  const child = spawn(NODE, [FIXTURE, '--dir', dir, '--plan', plan, ...(TLS ? ['--tls'] : [])], { stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(NODE, [FIXTURE, '--dir', dir, '--plan', plan, '--handoff-mark', HANDOFF_ASK_MARK, ...(TLS ? ['--tls'] : [])], { stdio: ['ignore', 'pipe', 'pipe'] })
   const port = await new Promise<number>((resolvePort, reject) => {
     const killer = setTimeout(() => reject(new Error('fixture never printed its port')), 20_000)
     child.stdout!.on('data', (chunk: Buffer) => {
@@ -153,7 +154,9 @@ section('D1 · the reply is cut mid-stream, the reissue is cut, the collected fa
   const fixture = await startFixture('triple-cut', 'rst,rst,rst,full')
   const run = runProduct(fixture, 'say hi')
   fixture.kill()
-  const seen = fixture.seen()
+  const requests = fixture.seen()
+  check('the completed run writes its handoff once', requests.filter(s => s.step === 'handoff').length === 1, seenWords(requests))
+  const seen = requests.filter(s => s.step !== 'handoff')
   console.log(`  wire seen by the fixture: ${seenWords(seen)}`)
   check('the run exits 0 with the collected reply, never "Execution error: API Error: terminated"', run.status === 0 && run.stdout.includes('recovered without streaming') && !run.stderr.includes('API Error: terminated'), `rc=${run.status} stdout=${run.stdout.trim().slice(0, 120)} stderr=${run.stderr.trim().slice(0, 200)}`)
   check('four requests reached the fixture: the stream, its reissue, the collected fallback, the fallback retried', seen.map(s => `${s.step}${s.stream ? '' : '(collected)'}`).join(',') === 'rst,rst,rst(collected),full(collected)', seenWords(seen))
@@ -169,7 +172,9 @@ section('D2 · one cut mid-stream: the reply streams again on a fresh connection
   const fixture = await startFixture('single-cut', 'rst,full')
   const run = runProduct(fixture, 'say hi')
   fixture.kill()
-  const seen = fixture.seen()
+  const requests = fixture.seen()
+  check('the completed run writes its handoff once', requests.filter(s => s.step === 'handoff').length === 1, seenWords(requests))
+  const seen = requests.filter(s => s.step !== 'handoff')
   console.log(`  wire seen by the fixture: ${seenWords(seen)}`)
   check('the run exits 0 with the STREAMED reply', run.status === 0 && run.stdout.includes('the whole reply'), `rc=${run.status} stdout=${run.stdout.trim().slice(0, 120)} stderr=${run.stderr.trim().slice(0, 200)}`)
   check('two streaming requests, no collected request', seen.map(s => `${s.step}${s.stream ? '' : '(collected)'}`).join(',') === 'rst,full', seenWords(seen))

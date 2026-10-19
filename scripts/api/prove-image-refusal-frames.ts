@@ -273,7 +273,7 @@ if (process.argv[2] === '--serve') {
     fixture.kill()
   }
 
-  type Send = { atTick: number; minTick?: number; afterPrevTicks?: number; awaitText?: string; awaitSettleTicks?: number; data: string; mark?: string }
+  type Send = { atTick?: number; minTick?: number; afterPrevTicks?: number; awaitText?: string; awaitRaw?: string; requireAwait?: boolean; awaitSettleTicks?: number; data: string; mark?: string }
   type Grid = Array<Array<{ c: string }>>
   type Payload = { grid: Grid; marks?: Array<{ label: string; atTick: number; grid: Grid }>; endReason?: string }
   const gridText = (grid: Grid): string => grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
@@ -284,9 +284,8 @@ if (process.argv[2] === '--serve') {
     const fixture = await startFixture(`${label}-${cols}x${rows}`, [REFUSAL, REFUSAL, REFUSAL])
     const out = join(SCRATCH, `capture-${label}-${cols}x${rows}.json`)
     const sends: Send[] = [
-      { atTick: 120, minTick: 3, awaitText: 'Yes, I accept', awaitSettleTicks: 2, data: '\x1b[B\r' },
-      { atTick: 250, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r' },
-      { atTick: 420, minTick: 10, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: 'again\r' },
+      { requireAwait: true, awaitRaw: '\x1b[?2004h', minTick: 10, data: 'again' },
+      { afterPrevTicks: 3, data: '\r' },
       { atTick: 620, minTick: 10, awaitText: needle, awaitSettleTicks: 6, data: '', mark: 'row' },
     ]
     const cfg = { argv: [nodeFor(dist), dist, '--model', MODEL, '--resume', sessionId], cwd: CWD, sends, readyText: needle, stableTicks: 4, total: 700, cols, rows, out }

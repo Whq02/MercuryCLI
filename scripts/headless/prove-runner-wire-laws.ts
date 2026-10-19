@@ -209,7 +209,7 @@ section('W6 method not found and invalid params')
   await w.initialize()
   const unknown = (await rejection(w.host.request('nope' as never, {} as never))) as InstanceType<typeof errors.RpcError>
   check('an unknown method is -32601 naming the method', unknown?.code === errors.RPC_METHOD_NOT_FOUND && (unknown.data as { method: string }).method === 'nope')
-  const wrongWay = (await rejection(w.host.request('permission/request' as never, { kind: 'network', host: 'x' } as never))) as InstanceType<typeof errors.RpcError>
+  const wrongWay = (await rejection(w.host.request('permission/request' as never, { kind: 'tool', tool_use_id: 'toolu_wire', tool_name: 'Bash', input: { command: 'ls' } } as never))) as InstanceType<typeof errors.RpcError>
   check('a runner-to-host method sent to the runner is -32601', wrongWay?.code === errors.RPC_METHOD_NOT_FOUND)
   const unserved = (await rejection(w.host.request('session/rewind', { user_message_id: 'u', mode: 'code' }))) as InstanceType<typeof errors.RpcError>
   check('a table method this runner has no handler for is -32601', unserved?.code === errors.RPC_METHOD_NOT_FOUND)
@@ -324,7 +324,7 @@ section('W10 the ordered writer: rows, requests and responses leave in productio
   w.host.onRequest('permission/request', () => ({ outcome: 'deny', message: 'no' }))
   const mark = w.hostSaw.length
   w.runner.notify('row', row(1, 'A') as never)
-  const ask = w.runner.request('permission/request', { kind: 'network', host: 'example.test' })
+  const ask = w.runner.request('permission/request', { kind: 'tool', tool_use_id: 'toolu_ordered', tool_name: 'Bash', input: { command: 'ls' } })
   w.runner.notify('row', row(2, 'B') as never)
   await ask
   const kinds = w.hostSaw.slice(mark).map(f => (f.method === 'row' ? `row:${(f.params as Frame).text}` : f.method))
@@ -411,7 +411,7 @@ section('W13 close settles every pending request; a closed peer refuses new requ
   const w2 = world()
   await w2.initialize()
   w2.host.onRequest('permission/request', () => new Promise(() => {}))
-  const ask = w2.runner.request('permission/request', { kind: 'network', host: 'h' })
+  const ask = w2.runner.request('permission/request', { kind: 'tool', tool_use_id: 'toolu_wire', tool_name: 'Bash', input: { command: 'ls' } })
   await settle(10)
   w2.host.end('session over')
   await w2.runner.done
@@ -487,7 +487,7 @@ section('W15 cancellation before send and before dispatch cannot apply a request
   let asks = 0
   held.host.onRequest('permission/request', () => { asks++; return { outcome: 'allow' } })
   const signal = new AbortController()
-  const answer = rejection(held.runner.request('permission/request', { kind: 'network', host: 'proof.test' }, { signal: signal.signal }))
+  const answer = rejection(held.runner.request('permission/request', { kind: 'tool', tool_use_id: 'toolu_wire', tool_name: 'Bash', input: { command: 'ls' } }, { signal: signal.signal }))
   signal.abort()
   await answer
   await held.initialize()
@@ -513,7 +513,7 @@ section('W16 incompatible versions refuse explicitly and settle the connection')
     let aborted = false
     host.onNotification('row', () => { delivered++ })
     host.onRequest('permission/request', (_params, ctx) => { ctx.signal.addEventListener('abort', () => { aborted = true }); return new Promise(() => {}) })
-    input.write(j({ jsonrpc: '2.0', id: 99, method: 'permission/request', params: { kind: 'network', host: 'proof.test' } }) + '\n')
+    input.write(j({ jsonrpc: '2.0', id: 99, method: 'permission/request', params: { kind: 'tool', tool_use_id: 'toolu_wire', tool_name: 'Bash', input: { command: 'ls' } } }) + '\n')
     const pending = rejection(host.request('session/facts', {}, { deadlineMs: 1000 }))
     input.write(j({ jsonrpc: '2.0', method: 'row', params: { type, schema: 2, session_id: 's' } }) + '\n')
     const error = await pending as InstanceType<typeof errors.RpcError>

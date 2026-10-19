@@ -154,14 +154,12 @@ try {
   const entered = frames.some(f => f.text.includes('gpt-live body') || f.text.includes('gpt-landed body') || f.text.includes('seat-task-gpt'))
   check('the seat was entered from the board (its own body on screen)', entered, `frames: ${frames.length}`)
 
-  const sliderFrames = distinct.filter(f => f.text.includes('Faster') && f.text.includes('Smarter'))
-  check('U1 the bare /effort opened the slider (Faster ← effort → Smarter)', sliderFrames.length > 0, `distinct frames: ${distinct.length}`)
-  const wordRow = sliderFrames.flatMap(f => f.text.split('\n')).find(r => /\blow\b/.test(r) && /\bmedium\b/.test(r) && /\bmax\b/.test(r))
-  check(`U1 the tier row reads the five ladder words in order (${LADDER.join(' · ')})`, wordRow !== undefined && new RegExp(LADDER.map(w => `\\b${w}\\b`).join('.*')).test(wordRow), String(wordRow).trim())
-  check(`U1 the list's word above max paints nowhere on the slider`, !sliderFrames.some(f => new RegExp(`\\b${LIST_WORD}\\b`).test(f.text)), sliderFrames.map(f => rowsWith(f.text, LIST_WORD).join(' | ')).join(' || ').slice(0, 200))
-  const railRow = sliderFrames.flatMap(f => f.text.split('\n')).find(r => r.includes('△') || r.includes('▲'))
-  const stops = railRow === undefined ? 0 : (railRow.match(/[△▲]/g) ?? []).length
-  check('U1 the rail carries five stops and ends at max — no junction, nothing past it', stops === 5 && railRow !== undefined && !railRow.includes('┆'), `stops=${stops} rail=${String(railRow).trim()}`)
+  const popupFrames = distinct.filter(f => f.text.includes('effort low…max') && f.text.includes('↑↓ move') && f.text.includes('esc or click outside closes'))
+  check('U1 the bare /effort opened its popup with the served ladder and exit hint', popupFrames.length > 0, 'distinct frames: ' + distinct.length)
+  const tierRows = (frame: { text: string }): string[] => frame.text.split('\n').flatMap(row => { const match = /│\s*[❯ ]?\s*(low|medium|high|xhigh|max)\s{2,}/.exec(row); return match ? [match[1]!] : [] })
+  check('U1 the popup reads the five ladder words in order', popupFrames.some(frame => JSON.stringify(tierRows(frame)) === JSON.stringify(LADDER)), JSON.stringify(popupFrames.map(tierRows)))
+  check('U1 the list word above max paints nowhere in the popup', popupFrames.every(frame => !new RegExp('\\b' + LIST_WORD + '\\b').test(frame.text)))
+  check('U1 the popup carries auto beside five tiers and ends at max', popupFrames.some(frame => /│\s*auto\s{2,}/.test(frame.text) && tierRows(frame).length === 5 && tierRows(frame).at(-1) === TOP), JSON.stringify(popupFrames.map(tierRows)))
   check('U1 esc closed the slider with the running word (the seat runs the admission word, high)', anyFrame(`Effort unchanged (${SEAT_EFFORT})`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort unchanged')).map(t => t.slice(t.indexOf('Effort unchanged'), t.indexOf('Effort unchanged') + 60)).join(' | ').slice(0, 200))
 
   check(`U2 "/effort ${LIST_WORD}" is refused as not an effort option (the ladder leads, the refused word follows)`, anyFrame(`|max|auto — "${LIST_WORD}`), distinct.map(f => flat(f.text)).filter(t => t.includes('not an effort option')).map(t => t.slice(t.indexOf('"'), t.indexOf('"') + 120)).join(' | ').slice(0, 400))

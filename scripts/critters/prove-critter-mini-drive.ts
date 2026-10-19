@@ -284,7 +284,7 @@ try {
   check('the wordmark starts three rows under the box', text(boot)[bx.bottom + 3]!.includes('█▄▄▄█'))
   check('● ready six rows under the box', text(boot)[bx.bottom + 6]!.includes('● ready · type a prompt, or / for commands'))
   check('model · critter · dir eight, nine and ten rows under the box', text(boot)[bx.bottom + 8]!.includes('model') && text(boot)[bx.bottom + 9]!.includes('critter') && text(boot)[bx.bottom + 10]!.includes('dir'))
-  check('the ↵ sends row twelve rows under the box', text(boot)[bx.bottom + 12]!.includes('❯ ↵ sends'))
+  check('the memory row follows the directory and the send hint follows its blank line', text(boot)[bx.bottom + 11]!.includes('memory') && text(boot)[bx.bottom + 13]!.includes('❯ ↵ sends'))
 
   console.log('§4 /view is an unknown command like any other')
   check('typed, /view on answers the ordinary unknown-command line', rowWith(typed, 'Unknown command: /view') >= 0)

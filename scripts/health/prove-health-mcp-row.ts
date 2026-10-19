@@ -78,6 +78,8 @@ try {
   console.log('J health --json names the fixture server on the mcp row')
   const j = healthJson(BIN)
   const row = mcpRowOf(j.text)
+  const certificate = JSON.parse(j.text) as { sections: Array<{ checks: Row[] }> }
+  const mcpIndex = certificate.sections.flatMap(section => section.checks).findIndex(check => check.id === 'mcp')
   check('health --json produces the record (0/3 by verdict — FC-044) and carries the mcp row', (j.status === 0 || j.status === 3) && row !== undefined, `status=${String(j.status)}`)
   check('the row names the server with its state', typeof row?.evidence === 'string' && /\bfixture-echo \((configured|starting|failed|ready|needs-auth|disabled)\)/.test(row.evidence), row?.evidence?.slice(0, 120) ?? '')
   check('no evidence anywhere reads [object Object]', !j.text.includes('[object Object]'))
@@ -98,8 +100,12 @@ try {
       sends: [
         { atTick: 140, awaitRaw: `${ESC}[?2004h`, minTick: 30, data: '/health' },
         { afterPrevTicks: 6, data: '\r' },
+        { requireAwait: true, awaitText: '↑↓ move · ↵ unfold', awaitSettleTicks: 3, data: '\x1b[B'.repeat(mcpIndex) },
+        { requireAwait: true, awaitText: 'MCP policy', awaitSettleTicks: 3, data: '\r' },
       ],
-      total: 110,
+      readyText: 'fixture-echo',
+      readySettleTicks: 3,
+      total: 160,
       out,
     }
     const vcfgPath = join(SCRATCH, 'vshot-cfg.json')
@@ -123,8 +129,8 @@ try {
       writeFileSync(join(captureDir, 'health-mcp-row-120x40.txt'), lines.join('\n') + '\n')
     }
     const mcpLine = lines.find(l => l.includes('MCP policy')) ?? ''
-    check('/health painted its certificate', lines.some(l => l.includes('health certificate')))
-    check('the MCP policy row is on screen and names the fixture server', mcpLine.includes('fixture-echo'), mcpLine.trim().slice(0, 120))
+    check('/health painted its certificate', lines.some(l => l.includes('Mercury · health')))
+    check('the MCP policy row is on screen and names the fixture server', mcpLine !== '' && lines.slice(lines.indexOf(mcpLine), lines.indexOf(mcpLine) + 3).some(line => line.includes('fixture-echo')), mcpLine.trim().slice(0, 120))
     check('no grid cell holds [object Object]', !lines.some(l => l.includes('[object Object]')))
   }
 

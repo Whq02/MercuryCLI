@@ -50,7 +50,7 @@ const BLOCK_REASON = 'park-probe: the fixture safety check blocks the probe comm
 const REPORT_LEAD = 'park-probe: sha='
 const MODEL = 'claude-opus-5'
 const FIXTURE_API_KEY = 'fixture-key-000'
-const WAIT_WORDS = 'waiting for your answer'
+const WAIT_WORDS = 'headless · waiting'
 const BOARD_WORDS = 'STATUS & TITLE'
 const CARD_WORDS = 'Do you want to proceed?'
 const CARD_BLOCK_WORDS = "Flow's safety check blocked this"

@@ -288,7 +288,8 @@ try {
           check(`${label}: the sign-in card keeps its outline (its bottom edge is on screen)`, lines.filter(row => row.includes('╰')).length === 2)
           const readinessWhole = readinessPart.includes('Nous Portal') && readinessPart.includes('OpenAI-compatible') && !readinessPart.includes('more below')
           const readinessClipped = /…and \d+ more below/.test(readinessPart)
-          check(`${label}: the readiness block is on screen — whole, or clipped to the rows left with its tail naming the rest`, readinessAt >= 0 && (readinessWhole || readinessClipped), lines.filter(row => row.includes('more below') || row.includes('Nous Portal')).join(' | '))
+          const readinessFits = rosterFit(cols, rows).readiness > 0
+          check(`${label}: readiness follows the available rows after the full provider roster`, readinessFits ? readinessAt >= 0 && (readinessWhole || readinessClipped) : readinessAt < 0, `available=${rosterFit(cols, rows).readiness}; ${readinessPart}`)
           console.log(`       ${label}: ${box.height} rows; readiness ${readinessWhole ? 'whole' : readinessClipped ? 'clipped' : 'absent'}`)
         }
         if (state === 'centred') {

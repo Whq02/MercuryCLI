@@ -25,10 +25,8 @@ for (const [cols, rows] of sizes) {
     const cfg = {
       argv: [nodeFor(dist), dist, '--model', MODEL, '--resume', session], cwd: world.cwd,
       sends: [
-        { atTick: 70, minTick: 3, awaitText: 'Yes, I accept', awaitSettleTicks: 2, data: '\x1b[B\r' },
-        { atTick: 100, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r' },
-        { atTick: 150, minTick: 10, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: ASK },
-        { atTick: 160, afterPrevTicks: 3, awaitText: ASK, awaitSettleTicks: 2, data: '\r' },
+        { requireAwait: true, awaitRaw: '\x1b[?2004h', minTick: 10, data: ASK },
+        { afterPrevTicks: 3, data: '\r' },
         { atTick: 240, minTick: 10, awaitText: needle, awaitSettleTicks: 4, data: '', mark: 'row' },
       ],
       readyText: needle, readySettleTicks: 2, total: 260, cols, rows, out,

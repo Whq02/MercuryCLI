@@ -130,6 +130,7 @@ try {
   const dispatch = async (workspaceDir: string, id: string): Promise<{ sessionId: string; workerId: string }> => {
     const d = (await daemonControlRpc({
       op: 'concourseDispatch',
+      by: 'operator',
       clientMessageId: id,
       prompt: 'run the parity turn',
       workspaceDir,

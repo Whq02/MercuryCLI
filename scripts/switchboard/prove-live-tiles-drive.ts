@@ -184,10 +184,10 @@ try {
     const tokenOf = (g: { rows: string[] }): number => Math.max(-1, ...[...alphaRowText(g).matchAll(/tile-alpha (\d{3})/g)].map(m => Number(m[1])))
     const toks = streamFrames.map(tokenOf)
     check('§2 …and the line SCROLLS (later frames carry later tokens)', toks.length >= 2 && toks[toks.length - 1]! > toks[0]!, `tokens: ${toks.join(',')}`)
-    const toolFrames = boardFrames.filter(g => /running Bash/.test(alphaRowText(g)))
+    const toolFrames = boardFrames.filter(g => /headless · running(?: Bash|…)/.test(alphaRowText(g)))
     check('§1 the running-tool tile (`running Bash …`)', toolFrames.length > 0, `frames: ${toolFrames.map(g => g.atMs).join(',') || 'none'}`)
     const betaBoardRow = (g: { rows: string[] }): string => g.rows.find(r => /◆ (NEEDS YOU )?Beta asker\s{2,}/.test(r)) ?? ''
-    const askAndStream = boardFrames.filter(g => /waiting for you/.test(betaBoardRow(g)) && /tile-alpha|running Bash/.test(alphaRowText(g)))
+    const askAndStream = boardFrames.filter(g => /headless · waiting/.test(betaBoardRow(g)) && /tile-alpha|running Bash/.test(alphaRowText(g)))
     check('§6 needs-you shows FIRST beside a streaming tile', askAndStream.length > 0, `frames: ${askAndStream.map(g => g.atMs).join(',') || 'none'}`)
     const listBandRows = (g: { rows: string[] }): string[] => {
       const start = g.rows.findIndex(r => r.includes('STATUS & TITLE'))
@@ -207,7 +207,7 @@ try {
     const mirrorText = (g: { rows: string[] }): string => mirrorRows(g).join('\n')
     const peekFrames = grabs.filter(g => g.atMs >= 14000 && g.atMs <= 17000 && text(g).includes('SESSIONS'))
     const bodyNeedle = (t: string): boolean => /tile-beta prelude|try a cleanup|rm -rf scratchling|Running 1 bash/.test(t)
-    const opened = peekFrames.filter(g => bodyNeedle(mirrorText(g)) && /waiting for you/.test(bandText(g)) && /Beta asker/.test(mirrorText(g)))
+    const opened = peekFrames.filter(g => bodyNeedle(mirrorText(g)) && /headless · waiting/.test(bandText(g)) && /Beta asker/.test(mirrorText(g)))
     check("§5 the selected row's chat paints in the mirror below the list (the ask on its row, the transcript rows in the pane)", opened.length > 0, `frames: ${opened.map(g => g.atMs).join(',') || 'none'}`)
     check('§5 the peek is not a hop (the board frame stays)', opened.every(g => text(g).includes('SESSIONS')))
     check('§5 the list band keeps its rows under the mirror (nothing displaced)', opened.every(g => /Alpha stream/.test(bandText(g)) && /Beta asker/.test(bandText(g))))

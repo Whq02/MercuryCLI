@@ -208,7 +208,7 @@ try {
     const downs = Array.from({ length: rowIndex }, () => ({ afterPrevTicks: 1, data: '\x1b[B' }))
     const walk = rowIndex === 0 ? [] : [{ afterPrevTicks: 45, data: '\x1b[B' }, ...downs.slice(1)]
     const before = capture(`row-${size}`, cols, termRows, [...walk, { afterPrevTicks: 3, data: '\r' }], 150 + rowIndex)
-    check(`${size}: /health painted its certificate`, before.some(l => l.includes('health certificate')))
+    check(`${size}: /health painted its certificate`, before.some(l => l.includes('Mercury · health')))
     check(`${size}: the Mercury processes row is on screen`, before.some(l => l.includes('Mercury processes')), before.find(l => l.includes('Mercury processes'))?.trim().slice(0, 120))
     check(`${size}: the row's trail lists the stale stand-in with pid, terminal and age`, before.some(l => l.includes(`pid ${target} · no terminal ·`)), before.find(l => l.includes(`pid ${target}`))?.trim().slice(0, 120))
     check(`${size}: the read-only row ended nothing`, alive(target))

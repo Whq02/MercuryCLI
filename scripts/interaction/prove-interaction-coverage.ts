@@ -215,6 +215,7 @@ reg(
     'src/components/HelpV2/Commands.tsx',
     'src/components/Settings/Jev.tsx',
     'src/components/Settings/LocalServer.tsx',
+    'src/components/LlmHostDialog.tsx',
     'src/components/LocalSetupDialog.tsx',
     'src/components/tasks/AsyncAgentDetailDialog.tsx',
     'src/components/tasks/BackgroundTasksDialog.tsx',

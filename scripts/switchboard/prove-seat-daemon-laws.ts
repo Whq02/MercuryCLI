@@ -289,6 +289,7 @@ try {
     }, 30_000))
     const w2 = (await daemonControlRpc({
       op: 'concourseDispatch',
+      by: 'operator',
       clientMessageId: 'warm-claim-live',
       prompt: 'first words into the warm runner',
       workspaceDir: work2,

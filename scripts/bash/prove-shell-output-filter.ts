@@ -158,8 +158,9 @@ section('§5 one law, two shells, one schema row')
   const bash = readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8')
   const ps = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
   const CALL = 'out = await applyShellOutputFilter(out, { taskId: shellCommand.taskOutput.taskId, spilledPath: result.outputFilePath })'
+  const BASH_CALL = 'let out = await applyShellOutputFilter(accumulator.toString(), { taskId: shellCommand.taskOutput.taskId, spilledPath: result.outputFilePath })'
   const CUT = 'const budget = resolveOutputBudget'
-  check('the Bash tool applies the filter before the budget cut', bash.includes(CALL) && bash.includes(CUT) && bash.indexOf(CALL) < bash.indexOf(CUT))
+  check('the Bash tool applies the filter before the budget cut', bash.includes(BASH_CALL) && bash.includes(CUT) && bash.indexOf(BASH_CALL) < bash.indexOf(CUT))
   check('the PowerShell tool applies the same call at the same place', ps.includes(CALL) && ps.includes(CUT) && ps.indexOf(CALL) < ps.indexOf(CUT))
   const schema = JSON.parse(readFileSync(join(ROOT, 'scripts/settings/settings-schema.json'), 'utf8')) as { properties?: { shell?: { properties?: Record<string, { type?: string }> } } }
   check('the settings schema carries shell.filterOutput as a boolean', schema.properties?.shell?.properties?.filterOutput?.type === 'boolean')

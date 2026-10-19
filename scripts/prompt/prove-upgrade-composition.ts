@@ -44,7 +44,8 @@ try {
     assert.equal(archive.status, 0, archive.stderr.toString())
     const unpack = spawnSync('tar', ['-xf', '-', '-C', base], { input: archive.stdout })
     assert.equal(unpack.status, 0, unpack.stderr.toString())
-    symlinkSync(join(root, 'node_modules'), join(base, 'node_modules'))
+    const install = spawnSync(process.execPath, ['install', '--frozen-lockfile'], { cwd: base, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
+    assert.equal(install.status, 0, install.stdout + install.stderr)
     for (const name of readdirSync(join(root, 'vendor'))) {
       if (name === 'desktop' || existsSync(join(base, 'vendor', name))) continue
       symlinkSync(join(root, 'vendor', name), join(base, 'vendor', name))

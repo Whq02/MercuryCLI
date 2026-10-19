@@ -88,7 +88,7 @@ if (!existsSync(DIST)) {
     return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= CLOCK_TOLERANCE_MS / 1000
   }
   const queuedRows = operatorRows(marks.queued)
-  check('while the sub-agent runs, the line paints once, as a queued row', queuedRows.length === 1 && /(^|[^A-Za-z])queued\s+\[sam\]/.test(queuedRows[0]!), j(queuedRows))
+  check('while the crewmate runs, the line paints once, queued or delivered after the foreground handoff', queuedRows.length === 1 && (/(^|[^A-Za-z])queued\s+\[sam\]/.test(queuedRows[0]!) || clockNear(queuedRows[0]!)), j(queuedRows))
   for (const label of ['end', 'end+10s', 'end+14s', 'end+30s']) {
     const rows = operatorRows(marks[label])
     check(`at ${label}: exactly one row carries the line, stamped with the clock it was sent at (${sendClock})`, rows.length === 1 && clockNear(rows[0]!), j(rows))

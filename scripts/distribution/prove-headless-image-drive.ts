@@ -3,7 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { handoffTurn, isHandoffRequest, startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PLATFORM = 'linux/amd64'
@@ -76,10 +76,13 @@ try {
   const before = readdirSync(work).sort()
   const turns: ScriptedTurn[] = [
     { kind: 'text', text: 'The fixture answered from inside the container.' },
+    handoffTurn(),
     { kind: 'text', text: 'The fixture answered the root run.' },
+    handoffTurn(),
     { kind: 'hang', deltas: ['The turn is open.'] },
   ]
   const api = await startFixtureApi(turns)
+  const workRequests = () => api.messageRequests().filter(request => !isHandoffRequest(request))
   const base = `http://${hostRoad.hostName}:${new URL(api.url).port}`
   const common = ['--platform', PLATFORM, ...hostRoad.network, '-e', `ANTHROPIC_BASE_URL=${base}`, '-v', `${work}:/work`]
   const key = ['-e', 'ANTHROPIC_API_KEY=proof-key-ci-gate-not-a-real-key']
@@ -88,7 +91,8 @@ try {
     containers.push(name)
     const run = await dockerRun(['run', '--name', name, ...common, ...key, TAG, 'run', 'Summarise this repository in one line.', '--format', 'text'])
     check(`the keyed run answers the fixture's text and exits 0 (${run.ms}ms)`, run.code === 0 && run.out === 'The fixture answered from inside the container.\n' && run.err === '', JSON.stringify(run))
-    check('the run reached the provider once through the container network', api.messageRequests().length === 1, String(api.messageRequests().length))
+    check('the run reached the provider once through the container network', workRequests().length === 1, String(workRequests().length))
+    check('the completed run wrote one handoff', api.messageRequests().filter(isHandoffRequest).length === 1)
     const diff = docker(['diff', name])
     const changed = diff.stdout.split('\n').filter(l => l !== '').map(l => l.slice(2))
     const outside = changed.filter(p => !(p === '/home' || p === '/home/mercury' || p.startsWith('/home/mercury/') || p === '/tmp' || p.startsWith('/tmp/')))
@@ -98,17 +102,18 @@ try {
     const noKey = await dockerRun(['run', '--rm', ...common, TAG, 'run', 'Summarise this repository in one line.', '--format', 'text'])
     const noKeyLines = noKey.err.split('\n').filter(l => l !== '')
     check(`a run with no key refuses in one plain stderr line and exits 1 (${noKey.ms}ms)`, noKey.code === 1 && noKey.out === '' && noKeyLines.length === 1, JSON.stringify(noKey))
-    check('the no-key run never reached the provider', api.messageRequests().length === 1, String(api.messageRequests().length))
+    check('the no-key run never reached the provider', workRequests().length === 1 && api.messageRequests().length === 2, String(api.messageRequests().length))
 
     const root = await dockerRun(['run', '--rm', '--user', '0', ...common, ...key, TAG, 'run', 'Summarise this repository in one line.', '--format', 'text', '--sovereign'])
     const rootLines = root.err.split('\n').filter(l => l !== '')
     check(`a root run in sovereign mode carries the product's one root notice on stderr and continues (${root.ms}ms)`, root.code === 0 && root.out === 'The fixture answered the root run.\n' && rootLines.length === 1 && /root/.test(rootLines[0] ?? '') && /sovereign/.test(rootLines[0] ?? ''), JSON.stringify(root))
+    check('both completed runs wrote their handoffs', workRequests().length === 2 && api.messageRequests().filter(isHandoffRequest).length === 2)
 
     const hangName = `headless-image-drive-stop-${process.pid}`
     containers.push(hangName)
     const stopped = { at: 0, rc: -1 }
     const hang = dockerRun(['run', '--name', hangName, ...common, ...key, TAG, 'run', 'Keep the turn open.', '--format', 'rows'])
-    await api.messageRequestStarted(3)
+    await api.messageRequestStarted(5)
     const stopStarted = Date.now()
     const stop = docker(['stop', '-t', '20', hangName], 60_000)
     stopped.at = Date.now() - stopStarted

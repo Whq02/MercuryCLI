@@ -11,6 +11,7 @@ const argAfter = flag => {
 const dir = argAfter('--dir')
 const plan = (argAfter('--plan') ?? 'full').split(',')
 const tls = process.argv.includes('--tls')
+const handoffMark = argAfter('--handoff-mark')
 if (!dir) {
   console.error('usage: streamCutFixture.mjs --dir <dir> --plan rst,full [--tls]')
   process.exit(2)
@@ -46,7 +47,8 @@ function answer(out, request) {
     body = JSON.parse(request.body)
   } catch {}
   const stream = body.stream === true
-  const step = plan.shift() ?? 'full'
+  const handoff = handoffMark !== undefined && JSON.stringify(body.messages ?? []).includes(handoffMark)
+  const step = handoff ? 'handoff' : plan.shift() ?? 'full'
   appendFileSync(seenFile, `${JSON.stringify({ stream, step, protocol: request.protocol, connection: request.connection })}\n`)
   if (!stream) {
     out.head(200, 'application/json')

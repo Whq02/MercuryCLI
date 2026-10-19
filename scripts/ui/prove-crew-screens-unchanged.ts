@@ -75,6 +75,7 @@ const SUBSTITUTIONS: ReadonlyArray<readonly [string, string]> = [
 const VOLATILE: ReadonlyArray<readonly [string, RegExp]> = [
   ['a duration', /\b(?:\d+h )?(?:\d+m )?\d+(?:\.\d)?s\b|\b\d+h(?: \d+m)?\b|\b\d+m\b/g],
   ['a relative age', /\b\d+[smhd] (?:ago|old)\b/g],
+  ['a clipped start age', /(?<=started )\d+(?:[smhd])?…/g],
   ['a wall clock', /\b\d{1,2}:\d{2}(?::\d{2})?(?: ?[AP]M)?\b/g],
   ['a calendar day', /\b\d{4}-\d{2}-\d{2}\b|\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}\b/g],
   ["the composer caret's blink phase", /\u258c/g],
