@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { execFileSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync, statSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,6 +19,19 @@ if (!existsSync(DIST)) {
 }
 
 const KEY = 'zai-journey-proof-key-123456'
+const modelsListReads: string[] = []
+const zaiFixture = Bun.serve({
+  hostname: '127.0.0.1',
+  port: 0,
+  fetch(request) {
+    const path = new URL(request.url).pathname
+    if (request.method === 'GET' && path === '/v4/models') {
+      modelsListReads.push(request.headers.get('authorization') ?? '')
+      return Response.json({ object: 'list', data: [{ id: 'glm-5.3', object: 'model', owned_by: 'zai' }, { id: 'glm-5.3-flash', object: 'model', owned_by: 'zai' }] })
+    }
+    return Response.json({ error: { code: '404', message: 'unexpected fixture road' } }, { status: 404 })
+  },
+})
 
 interface CaptureResult {
   text: string
@@ -28,7 +41,23 @@ interface CaptureResult {
   marks: Record<string, string>
 }
 
-function capture(cfg: Record<string, unknown>, env: Record<string, string>): CaptureResult {
+function runVshot(cfgPath: string, env: Record<string, string>): Promise<string> {
+  return new Promise(resolve => {
+    const child = spawn('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {
+      env: { ...process.env, ...env },
+      stdio: ['ignore', 'ignore', 'pipe'],
+    })
+    let stderr = ''
+    child.stderr.on('data', chunk => { stderr += String(chunk) })
+    const wall = setTimeout(() => { stderr += '\ncapture deadline exceeded'; child.kill('SIGKILL') }, vshotBudgetMs(180_000))
+    child.on('close', code => {
+      clearTimeout(wall)
+      resolve(code === 0 ? '' : (stderr.trim() || `vshot exited ${code}`))
+    })
+  })
+}
+
+async function capture(cfg: Record<string, unknown>, env: Record<string, string>): Promise<CaptureResult> {
   const dir = mkdtempSync(join(tmpdir(), 'orbit-journey-cfg-'))
   const cfgPath = join(dir, 'cfg.json')
   const outPath = join(dir, 'grid.json')
@@ -39,17 +68,7 @@ function capture(cfg: Record<string, unknown>, env: Record<string, string>): Cap
       .map(row => row.map(c => (typeof c === 'object' && c !== null ? (c.c ?? ' ') : String(c))).join('').trimEnd())
       .join('\n')
   type Payload = { grid: Grid; sendReceipts?: unknown[]; marks?: Array<{ label: string; grid: Grid }> }
-  let refusal = ''
-  try {
-    execFileSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {
-      env: { ...process.env, ...env },
-      stdio: ['ignore', 'ignore', 'pipe'],
-      timeout: vshotBudgetMs(180_000),
-    })
-  } catch (error) {
-    const stderr = (error as { stderr?: Buffer | string }).stderr
-    refusal = stderr ? String(stderr).trim() : String(error)
-  }
+  const refusal = await runVshot(cfgPath, env)
   if (refusal !== '') {
     console.log(`  [FAIL] the capture settled — ${refusal.split('\n')[0]}`)
     if (existsSync(outPath)) {
@@ -99,6 +118,8 @@ function baseEnv(home: string): Record<string, string> {
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_CRITTER_GAZE: '0',
     OPENAI_API_KEY: '',
+    MERCURY_ZAI_API_BASE: `http://127.0.0.1:${zaiFixture.port}/v4`,
+    MERCURY_LOCAL_PROBE_TARGETS: 'none',
   }
 }
 
@@ -109,7 +130,7 @@ console.log('============================================================')
 {
   const home = seedHome()
   const env = baseEnv(home)
-  const { text, sends, receipts, marks } = capture(
+  const { text, sends, receipts, marks } = await capture(
     {
       cols: 80,
       rows: 72,
@@ -134,6 +155,7 @@ console.log('============================================================')
   console.log('\nkey journey — /logins zai, default-on engines')
   check('first paint unregressed: every send became due (the composer painted its placeholder)', sends > 0 && receipts === sends)
   check('save receipt names the auth-scoped store', (marks.receipt ?? '').includes('GLM Coding Plan key stored (auth-scoped, mode 600)'), (marks.receipt ?? '(no receipt frame)').slice(0, 200))
+  check('the key was proven on the loopback models list with the pasted value as the bearer before it was stored, and the receipt counts the two GLM models listed', modelsListReads.length >= 1 && modelsListReads.every(bearer => bearer === `Bearer ${KEY}`) && (marks.receipt ?? '').includes('2 GLM models listed for the key'), `${modelsListReads.length} list read(s) · ${(marks.receipt ?? '').slice(0, 200)}`)
   check('the key VALUE never survives to the final grid', !text.includes(KEY))
   const report = marks.report ?? ''
   check('the receipt lands on the chat as the one-line notice, the store named, the value absent', report.includes('GLM Coding Plan key stored (auth-scoped, mode 600)') && !report.includes(KEY), report ? report.slice(0, 200) : '(no report frame)')
@@ -167,6 +189,7 @@ console.log('============================================================')
   )
 }
 
+zaiFixture.stop(true)
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('ENGINES JOURNEY GREEN')
 else console.log(`${failures} ENGINES JOURNEY CHECK(S) FAILED`)

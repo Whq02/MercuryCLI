@@ -400,13 +400,15 @@ export function ConsoleOAuthFlow({
       const focusedState = facts && focusedArm ? loginsRowStateOf(focusedArm, facts) : null
       const refusalText = rosterCompact && focusedState?.refusal ? focusedState.chip : null
       const refusalRows = refusalText ? wrapText(refusalText, Math.max(1, popupFrame ? popupFrame.width - 4 : columns), 'wrap').split('\n').length : 0
-      const rosterWindow = rosterCompact ? Math.max(1, Math.min(rows - refusalRows, idleRows.length)) : Math.max(1, Math.floor(fit.roster / rowHeight))
+      const singleLineRows = !rosterCompact && setupBody !== null && fit.roster < rowHeight
+      const rosterWindow = rosterCompact ? Math.max(1, Math.min(rows - refusalRows, idleRows.length)) : Math.max(1, Math.floor(fit.roster / (singleLineRows ? 1 : rowHeight)))
       const rosterHidden = Math.max(0, idleRows.length - (rosterVisibleTo ?? Math.min(idleRows.length, rosterWindow)))
       const renderMenu = refusalLayout ? (children: React.ReactNode) => children : frame
       return renderMenu(
         <Box flexDirection="column" gap={rosterCompact ? 0 : 1}>
           {rosterCompact ? null : <Text>{intro}</Text>}
-          <PopupCompactContext.Provider value={{ compact: rosterCompact, setMarker: () => {} }}>
+          <PopupFormContext.Provider value={popup || singleLineRows}>
+          <PopupCompactContext.Provider value={{ compact: rosterCompact || singleLineRows, setMarker: () => {} }}>
           <Select
             hideIndexes
             disableSelection="numeric"
@@ -433,6 +435,7 @@ export function ConsoleOAuthFlow({
             onCancel={onCancel}
           />
           </PopupCompactContext.Provider>
+          </PopupFormContext.Provider>
           {refusalText ? <Text>{refusalText}</Text> : null}
           {!rosterCompact && rosterWindow < idleRows.length && rosterHidden > 0 ? <Text dimColor>{MORE_BELOW_ROW(rosterHidden)}</Text> : null}
           {rosterCompact || fit.readiness === 0 ? null : <ProviderReadinessBlock rows={fit.readiness} statusWidth={statusWidth} />}

@@ -31,7 +31,7 @@
                              │ │ ▾ Z.AI · no Z.AI API key — /logins zai (or ZAI_API_KEY)                                        │ │
                              │ │   Z.AI — attach a key                                                                          │ │
                              │ │   GLM-5.3               glm-5.3                       unavailable  1M ctx                      │ │
-                             │ │   ↓ 25 more                                                                                    │ │
+                             │ │   ↓ 39 more                                                                                    │ │
                              │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                                     │ │
                              │ │                                                                                                │ │
                              │ │ context —  · tier API billing                                                                  │ │

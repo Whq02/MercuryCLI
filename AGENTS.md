@@ -23,23 +23,21 @@ node dist/mercury.mjs
 node dist/mercury.mjs health --json
 ```
 
+`setup` fetches the vendored packs (pyright · debugpy · js-debug · grammars ·
+this machine's Node runtime · brush, the optional shell engine); with cargo it
+builds the voice capture addon, the desktop driver addon that computer use runs
+through and the local embedding addon (`native/embed`, with its 118 MB model), and
+with cmake beside cargo the on-device transcriber; the health check names a skipped pack.
+
 The cockpit needs a real TTY, with no minimum terminal size. The full layout
 starts at 100 columns and 26 rows; smaller windows use the compact layout.
-
-`setup` fetches the vendored packs (pyright · debugpy · js-debug · grammars ·
-this machine's Node runtime · brush, the optional shell engine) and, with cargo
-present, builds the voice capture addon and, with cmake beside it, the on-device
-transcriber; with cargo it also builds the desktop driver addon that computer use
-runs through and the local embedding addon (`native/embed`, with its 118 MB model), and a skipped pack is named by the health check.
-
 The first run walks theme and sign-in. Every interactive boot with no explicit
-journey lands on the Boot face — the ten-row card: New Session,
-Continue Last Session (once history exists), Boot Menu, MCPs & Skills, Agents,
-Health Check, Saturn Scheduler, Logins, Session Concourse,
-Sessions · Projects. How the screens connect and the flags that shape a boot are
-[docs/SESSIONS.md](docs/SESSIONS.md); `node dist/mercury.mjs --help` lists the
-headless verbs. Windows runs `node dist\mercury.mjs` directly; the guide is
-[docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
+journey lands on the Boot face — the ten-row card: New Session, Continue Last
+Session (once history exists), Boot Menu, MCPs & Skills, Agents, Health Check,
+Saturn Scheduler, Logins, Session Concourse, Sessions · Projects. How the
+screens connect and the flags that shape a boot are [docs/SESSIONS.md](docs/SESSIONS.md);
+`node dist/mercury.mjs --help` lists the headless verbs. Windows runs
+`node dist\mercury.mjs` directly; the guide is [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
 
 ## The launcher and the config home
 
@@ -64,17 +62,14 @@ bash scripts/run-drives.sh         # the drive suites (*-drives), once, as a bac
 bun run artifact:smoke             # the built bundle, isolated, outside the repo
 ```
 
-Run the suite nearest your change while iterating; `bun run verify` closes,
-and its exit status is the verdict. A suite run by hand gets a fresh scratch
-config home unless MERCURY_CONFIG_DIR names one; the operator's ~/.mercury is
-never a proof's home. `git config core.hooksPath .githooks`
-turns on the committed pre-push guard; the build never sets it.
-BUILD-NOTES.md covers the build itself.
-
-One convention the checks enforce: a retired spelling (a flag, key, environment
-name, command, word or path) ceases to exist and fails as an unknown input — no
-alias, no bespoke refusal line, no migration; the identity suite's forbidden
-lists are the only place a retired word may appear.
+Run the suite nearest your change while iterating; `bun run verify` closes, and its exit
+status is the verdict. A suite run by hand gets a fresh scratch config home unless
+MERCURY_CONFIG_DIR names one; the operator's ~/.mercury is never a proof's home.
+`git config core.hooksPath .githooks` turns on the committed pre-push guard; the build
+never sets it. BUILD-NOTES.md covers the build itself. One convention the checks enforce:
+a retired spelling (a flag, key, environment name, command, word or path) ceases to exist
+and fails as an unknown input — no alias, no bespoke refusal line, no migration; the
+identity suite's forbidden lists are the only place a retired word may appear.
 
 ## Reporting a problem
 

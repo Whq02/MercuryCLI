@@ -6,9 +6,9 @@ NEXT                    ││  ▀▄▄▄▀▄▄▄▀                     
   · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
   · /health — health ce…│                                                                                                                  │
   · /memory — memory    │                                                                                                                  │
-  · /mission — set a mi…│ 13:09:20 [sam] ❯ start                                                                                           │
+  · /mission — set a mi…│ 06:17:40 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-FILES · project         │ 13:09:20 [Mercury] Command rows ready.                                                                           │
+FILES · project         │ 06:17:40 [Mercury] Command rows ready.                                                                           │
   ↵ or click · browse   │                                                                                                                  │
                         │ ❯ /crewmates off                                                                                                 │
 VITALS                  │   └ crewmates off for this session                                                                               │
@@ -16,21 +16,21 @@ VITALS                  │   └ crewmates off for this session                
   · ctx 0% · 1000k      │     running finishes                                                                                             │
   · health — run /health│ you turned crewmates off: the Crewmate tool has left the roster; reasoning restarts on the next turn             │
                         │                                                                                                                  │
-                        │ 13:09:37 [sam] ❯ run the cell                                                                                    │
+                        │ 06:17:57 [sam] ❯ run the cell                                                                                    │
                         │ │                                                                                                                │
-                        │ │ 13:09:37 [Mercury] ✕ Eval         js · Calculate the value                                                     │
+                        │ │ 06:17:57 [Mercury] ✕ Eval         js · Calculate the value                                                     │
                         │ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. Do not try to reach │
                         │ │     the same effect by another route. If the task cannot continue without this action, stop and say plainly    │
                         │ │     what was not run and why the task needs it, then wait for the operator.                                    │
                         │                                                                                                                  │
-                        │ 13:09:39 [Mercury] Cell was declined.                                                                            │
+                        │ 06:17:58 [Mercury] Cell was declined.                                                                            │
                         │                                                                                                                  │
                         │ ❯ /model sonnet 5.5                                                                                              │
                         │   └ sonnet 5.5 → claude-sonnet-5-5                                                                               │
                         │     Model set to Sonnet 5.5 · saved as your default — this session's next message runs it                        │
                         │                                                                                                                  │
                         │ ❯ /model sonnet 5.5                                                                                              │
-                        │   └ sonnet 5.5 → claude-sonnet-5-5 · 13:09 BST · saved as your default for new sessions — /model claude-opus-5-5 │
+                        │   └ sonnet 5.5 → claude-sonnet-5-5 · 06:18 BST · saved as your default for new sessions — /model claude-opus-5-5 │
                         │     switches back to Opus 5.5                                                                                    │
                         │                                                                                                                  │
                         │                                                                                                                  │
@@ -46,5 +46,5 @@ VITALS                  │   └ crewmates off for this session                
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │❯                                                                                                                                         │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-Help closed
+? for shortcuts · ctrl+x p for commands + files
 shift + ↵ for a new line · shift + ← concourse
