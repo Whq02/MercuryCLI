@@ -39,7 +39,8 @@ function roadSubprocess(body: string, env: Record<string, string | undefined>): 
   return { status: r.status, stdout: (r.stdout ?? '').trim(), stderr: (r.stderr ?? '').trim() }
 }
 
-const { composeWindowsBashRoad, WINDOWS_BASH_NOTICE, WINDOWS_BASH_NOTICE_NO_PACK } = await import('../../src/utils/shell/windowsShellRoad.ts')
+const road = await import('../../src/utils/shell/windowsShellRoad.ts')
+const { composeWindowsBashRoad, WINDOWS_BASH_NOTICE, WINDOWS_BASH_NOTICE_NO_PACK } = road
 const { shellEngineArmWords, shellEngineRequest } = await import('../../src/utils/shell/shellEngineArm.ts')
 const { GIT_BASH_REMEDY, findGitBashPath, locateGitBash } = await import('../../src/utils/windowsPaths.ts')
 const { resolveBrushPackDir } = await import('../../src/utils/shell/brushPack.ts')
@@ -54,6 +55,9 @@ console.log('── §1 the composer and the arm ladder are pure ──')
   check('no engine ⇒ git-bash with the located path', gitBash.kind === 'git-bash' && gitBash.path === 'C:\\Git\\bin\\bash.exe')
   const absent = composeWindowsBashRoad({ absent: true }, null)
   check('neither ⇒ a typed absence', absent.kind === 'absent')
+  const shellFor = (road as { shellEnvForRoad?: (r: unknown, g: unknown) => string | null }).shellEnvForRoad
+  check('RED ON THE BASE (F39W-7L-01/02): on the engine road with a git-bash located, SHELL still points at that bash — a streamed, background or env-inheriting command does not ride the engine and must find one', typeof shellFor === 'function' && shellFor(engine, { path: 'C:\\Git\\bin\\bash.exe' }) === 'C:\\Git\\bin\\bash.exe')
+  check('on the git-bash road SHELL is that bash; on the engine road with no bash at all, and on the absence, nothing is exported', typeof shellFor === 'function' && shellFor(gitBash, { path: 'C:\\Git\\bin\\bash.exe' }) === 'C:\\Git\\bin\\bash.exe' && shellFor(composeWindowsBashRoad({ absent: true }, { path: 'brush.exe', arm: 'no-bash' }), { absent: true }) === null && shellFor(absent, { absent: true }) === null)
   const remedy = absent.kind === 'absent' ? absent.remedy : ''
   check('the remedy names Git for Windows', /git-scm\.com\/downloads\/win/.test(remedy))
   check('the remedy names the MERCURY_GIT_BASH_PATH= pin', remedy.includes(`${PIN}=`))

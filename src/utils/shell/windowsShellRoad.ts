@@ -104,17 +104,24 @@ export function describeWindowsShellRoad(): {
   }
 }
 
+export function shellEnvForRoad(road: WindowsBashRoad, gitBash: GitBashLocation): string | null {
+  if (road.kind === 'git-bash') return road.path
+  if (road.kind === 'engine' && 'path' in gitBash) return gitBash.path
+  return null
+}
+
 export function armWindowsShellRoad(): void {
   if (!windowsShellRoadActive()) return
   const road = windowsBashRoad()
-  if (road.kind === 'git-bash') {
-    process.env.SHELL = road.path
-    logForDebugging(`windows shell road: SHELL set to ${road.path}`)
-    return
+  const shell = shellEnvForRoad(road, locatedWindowsBash())
+  if (shell !== null) {
+    process.env.SHELL = shell
+    logForDebugging(`windows shell road: SHELL set to ${shell}`)
   }
   if (road.kind === 'engine') {
     logForDebugging(`windows shell road: the shell engine at ${road.path} (${shellEngineArmWords(road.arm)})`)
     return
   }
+  if (road.kind === 'git-bash') return
   logForDebugging(`windows shell road: ${WINDOWS_BASH_NOTICE}`, { level: 'warn' })
 }
