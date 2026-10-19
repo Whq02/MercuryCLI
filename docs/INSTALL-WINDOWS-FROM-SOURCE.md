@@ -101,7 +101,7 @@ Close the terminal, open a new one, run the check again.
 Git for Windows also installs `bash.exe`. A release archive carries its own
 bash-compatible shell engine as well (brush, built from its published crate),
 and on Windows the Bash tool runs through it by default whenever its pack is
-present, with nothing to set — it finds a `.cmd` or `.bat` program such as
+present, with nothing to set: it finds a `.cmd` or `.bat` program such as
 `npm` by its bare name through PATHEXT, passes `%VAR%` and `^` to a batch
 file unchanged, and runs a program named by a relative path after a `cd`.
 The `health` report's **Bash tool shell** row (check id `shell`) reports the
