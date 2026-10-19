@@ -74,6 +74,7 @@ for (const [cols, rows, shrink] of [[177, 49, false], [100, 30, false], [80, 24,
   const focused = async (index: number, why: string) => {
     const visible = await waitFor(() => at(index) && scene.lines().filter(line => line.includes('╰')).length >= 2, 2000)
     check(`${tag}: ${why}: cursor on ${options[index]!.value}`, visible, cursor() || 'no visible cursor')
+    check(`${tag}: ${why}: the cursor row keeps the glyph's gap and ends inside the frame`, /❯ \S/.test(cursor()) && stringWidth(cursor()) <= liveCols, cursor())
     const lines = scene.lines()
     check(`${tag}: closed frame stays within the terminal`, lines.length <= liveRows && lines.every(line => stringWidth(line) <= liveCols) && lines.some(line => line.includes('↑↓ move')) && lines.filter(line => line.includes('╰')).length >= 2)
   }
