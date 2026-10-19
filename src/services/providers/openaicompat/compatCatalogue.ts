@@ -1,12 +1,10 @@
 import { createHash } from 'node:crypto'
-import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
-import { getUserAgent } from '../../../utils/http.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
-import { configuredCompatEndpoints, resolveCompatApiKey, type CompatEndpoint } from './compatAccounts.js'
+import { configuredCompatEndpoints, compatModelEndpoint, resolveCompatApiKey, type CompatEndpoint } from './compatAccounts.js'
+import { inspectCompatServer, type CompatServerReading } from './compatProbe.js'
 
-interface CompatCatalogue {
-  models: string[]
+interface CompatCatalogue extends CompatServerReading {
   fetchedAtMs: number
   attemptedAtMs: number
   error?: string
@@ -15,7 +13,7 @@ const cache = new Map<string, CompatCatalogue>()
 const inFlight = new Map<string, Promise<CompatCatalogue>>()
 
 function identity(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv): string {
-  return createHash('sha256').update(JSON.stringify([endpoint.name, endpoint.baseUrl, endpoint.headers, resolveCompatApiKey(env, endpoint.name)?.key])).digest('hex')
+  return createHash('sha256').update(JSON.stringify([endpoint.name, endpoint.baseUrl, endpoint.headers, endpoint.dialect, resolveCompatApiKey(env, endpoint.name)?.key])).digest('hex')
 }
 
 export function cachedCompatCatalogue(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv = process.env): CompatCatalogue | undefined {
@@ -26,39 +24,20 @@ export function compatEndpointModelIds(endpoint: CompatEndpoint, env: NodeJS.Pro
   return endpoint.models.length > 0 ? endpoint.models : cachedCompatCatalogue(endpoint, env)?.models ?? []
 }
 
-async function readModels(response: Response): Promise<string[]> {
-  const ceiling = 4 * 1024 * 1024
-  if (Number(response.headers.get('content-length')) > ceiling) {
-    await response.body?.cancel()
-    throw new Error('models response exceeds 4194304 bytes')
-  }
-  const reader = response.body?.getReader()
-  if (!reader) throw new Error('models endpoint returned no body')
-  const chunks: Uint8Array[] = []
-  let bytes = 0
-  try {
-    for (;;) {
-      const part = await reader.read()
-      if (part.done) break
-      bytes += part.value.byteLength
-      if (bytes > ceiling) throw new Error('models response exceeds 4194304 bytes')
-      chunks.push(part.value)
-    }
-  } finally {
-    await reader.cancel().catch(() => {})
-  }
-  let body: unknown
-  try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')) } catch { throw new Error('models endpoint returned invalid JSON') }
-  if (typeof body !== 'object' || body === null || !Array.isArray((body as { data?: unknown }).data)) throw new Error('models endpoint returned no data array')
-  const rows = (body as { data: unknown[] }).data
-  if (rows.some(row => typeof row !== 'object' || row === null || typeof (row as { id?: unknown }).id !== 'string' || !(row as { id: string }).id.trim())) throw new Error('models endpoint returned a row without a model id')
-  return [...new Set(rows.map(row => (row as { id: string }).id.trim()))]
+export function compatContextWindowFor(model: string): number | undefined {
+  const resolved = compatModelEndpoint(model)
+  return resolved ? cachedCompatCatalogue(resolved.endpoint)?.contextWindows[resolved.wireId] : undefined
 }
 
-export async function refreshCompatCatalogues(opts: { force?: boolean; env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch } = {}): Promise<void> {
+export function rememberCompatCatalogue(endpoint: CompatEndpoint, reading: CompatServerReading): void {
+  cache.set(identity(endpoint, process.env), { ...reading, fetchedAtMs: Date.now(), attemptedAtMs: Date.now() })
+  bumpCatalogueEpoch()
+}
+
+export async function refreshCompatCatalogues(opts: { force?: boolean; env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch; name?: string; signal?: AbortSignal } = {}): Promise<void> {
   const env = opts.env ?? process.env
   await Promise.all(configuredCompatEndpoints(env).map(async endpoint => {
-    if (!endpoint.named || endpoint.models.length > 0 || !catalogueTrafficVerdict('openai-compat', env).allowed) return
+    if (!endpoint.named || (opts.name !== undefined && endpoint.name !== opts.name) || !catalogueTrafficVerdict('openai-compat', env).allowed) return
     const id = identity(endpoint, env)
     const cached = cache.get(id)
     if (!opts.force && cached && Date.now() - cached.attemptedAtMs < (cached.error ? 10_000 : 300_000)) return
@@ -66,31 +45,17 @@ export async function refreshCompatCatalogues(opts: { force?: boolean; env?: Nod
     if (pending) { await pending; return }
     const key = resolveCompatApiKey(env, endpoint.name)?.key
     const work = (async (): Promise<CompatCatalogue> => {
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 15_000)
-      timer.unref?.()
       try {
-        const response = await (opts.fetchImpl ?? getApiFetch())(`${endpoint.baseUrl}/models`, {
-          headers: { ...endpoint.headers, accept: 'application/json', 'user-agent': getUserAgent(), ...(key ? { authorization: `Bearer ${key}` } : {}) },
-          signal: controller.signal,
-          redirect: 'error',
-          ...getProxyFetchOptions(),
-        } as RequestInit)
-        if (!response.ok) {
-          await response.body?.cancel()
-          throw new Error(`models endpoint returned HTTP ${response.status}`)
-        }
-        const models = await readModels(response)
-        const result = { models, fetchedAtMs: Date.now(), attemptedAtMs: Date.now() }
+        const reading = await inspectCompatServer(endpoint, { key, fetchImpl: opts.fetchImpl, signal: opts.signal })
+        const result = { ...reading, fetchedAtMs: Date.now(), attemptedAtMs: Date.now() }
         cache.set(id, result)
         return result
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error)
-        const result = { models: [], fetchedAtMs: 0, attemptedAtMs: Date.now(), error: key ? detail.split(key).join('[redacted]') : detail }
+        const result = { models: [], contextWindows: {}, fetchedAtMs: 0, attemptedAtMs: Date.now(), error: key ? detail.split(key).join('[redacted]') : detail }
         cache.set(id, result)
         return result
       } finally {
-        clearTimeout(timer)
         inFlight.delete(id)
         bumpCatalogueEpoch()
       }
@@ -110,7 +75,7 @@ export function namedCompatModelOptions(): import('../../../utils/model/modelOpt
     const snapshot = cachedCompatCatalogue(endpoint)
     return models.length ? models.map(id => ({ value: `compat/${endpoint.name}/${id}`, label: id, description: '', group })) : [{
       value: `__mercury_connect__:compat/${endpoint.name}`, label: `${endpoint.label} — no models listed`, group,
-      description: snapshot?.error ?? 'The endpoint has not listed a model; set compatProvider models or refresh /model.',
+      description: snapshot?.error ?? 'The endpoint has not listed a model; /llmhost checks the server or refresh /model.',
     }]
   })
 }

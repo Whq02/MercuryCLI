@@ -394,7 +394,7 @@ reason, until you release it.
 
 [docs/SESSIONS.md](docs/SESSIONS.md) covers the session lifecycle.
 
-## Providers and models: 20 provider sign-ins and `/localsetup`
+## Providers and models: sign-ins, `/localsetup` and `/llmhost`
 
 Use `/logins` to connect a provider. It opens the same sign-in catalogue used
 during setup. `/accounts` manages connected provider slots afterwards.
@@ -428,6 +428,13 @@ or connect a running LM Studio, vLLM or llama.cpp server
 ([docs/LOCAL-SETUP.md](docs/LOCAL-SETUP.md)). Each provider has its own
 protocol, credentials and error handling. A request does not fall back from
 one provider to another. See [docs/ENGINES.md](docs/ENGINES.md).
+
+For a server you already run, open `/llmhost`: give its address, confirm the
+dialect, enter a key if needed, choose a listed model and check a reply. The
+server's context window is read automatically, and the named provider appears
+in `/model` and `/logins` without editing settings. This also works with a
+rented pod reached through an SSH tunnel; [docs/LLM-HOST.md](docs/LLM-HOST.md)
+walks through the steps.
 
 New sessions use your most recently connected provider and the newest model
 available to that account. Models the account cannot access are skipped.
@@ -881,7 +888,7 @@ commands.
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
-| config & setup | `/config` `/jev` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
+| config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
 | appearance & cockpit | `/appearance` `/critter` `/palette` `/zen` `/browse` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 

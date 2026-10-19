@@ -1,7 +1,7 @@
 import type * as React from 'react'
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 
-export type SettingsPopupView = 'config' | 'usage' | 'status' | 'jev' | 'localsetup' | 'logins' | 'memory'
+export type SettingsPopupView = 'config' | 'usage' | 'status' | 'jev' | 'localsetup' | 'llmhost' | 'logins' | 'memory'
 
 export type SettingsPopupGeometry = { width: number; inner: number; rowBudget: number; compact: boolean }
 
