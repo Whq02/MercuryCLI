@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = process.cwd()
@@ -14,29 +14,35 @@ function section(t: string): void {
   console.log(`\n${t}`)
 }
 
-section('§1 the /mcp answer is a card on every seat')
+section('§1 the /mcp answer is the popup on every seat')
 {
-  const card = await import(join(ROOT, 'src/components/mcp/McpRosterCard.tsx'))
+  const popup = await import(join(ROOT, 'src/commands/mcp/McpPopup.tsx'))
   const failed = { name: 'dies', type: 'failed' as const, error: 'MCP error -32000: Connection closed — server stderr: boot failed: missing API key' }
   const bare = { name: 'mute', type: 'failed' as const }
   const disabled = { name: 'off', type: 'disabled' as const }
   const pending = { name: 'slow', type: 'pending' as const }
   const connected = { name: 'ok', type: 'connected' as const }
-  check('a row is the name and its state; the reason never rides the row', card.mcpRosterCardRow(failed) === 'dies · failed' && card.mcpRosterCardRow(connected) === 'ok · connected')
-  check("a failed row's detail is its own reason and the retry verb", card.mcpRosterCardDetail(failed) === `${failed.error} · /mcp reconnect dies retries`)
-  check('a failed row with no recorded reason says so instead of standing bare', card.mcpRosterCardDetail(bare) === 'failed — no reason was recorded · /mcp reconnect mute retries')
-  check('a disabled row names its on-dial', card.mcpRosterCardDetail(disabled) === 'off in this session · /mcp enable off turns it on')
-  check('a pending row says it is connecting', card.mcpRosterCardDetail(pending) === 'connecting…')
-  check('a connected row names its off-dial', card.mcpRosterCardDetail(connected) === 'connected · /mcp disable ok turns it off for this session')
-  check('no selection paints an empty detail', card.mcpRosterCardDetail(null) === '')
-  const cardSrc = read('src/components/mcp/McpRosterCard.tsx')
-  check('the card lists the failed rows first (the route owner orders them)', cardSrc.includes('mcpRosterRowsFailedFirst(roster)'))
-  check('the card windows long rosters with overflow counters', cardSrc.includes('paneWindow(rows.length, list.selectedIndex, rowCap)') && cardSrc.includes('↑ {win.above} more') && cardSrc.includes('↓ {win.below} more'))
-  check("the card's close echoes nothing onto the footer behind it", cardSrc.includes("onDone(undefined, { display: 'skip' })"))
+  const needsAuth = { name: 'runpod', type: 'needs-auth' as const }
+  const signingIn = { name: 'runpod', type: 'needs-auth' as const, signingIn: true }
+  check("a failed row's state carries its own reason", popup.mcpServerState(failed) === `failed: ${failed.error}`)
+  check('a failed row with no recorded reason says so instead of standing bare', popup.mcpServerState(bare) === 'failed: connection failed')
+  check('a disabled row reads off', popup.mcpServerState(disabled) === 'off')
+  check('a pending row says it is connecting', popup.mcpServerState(pending) === 'connecting…')
+  check('a connected row reads connected', popup.mcpServerState(connected) === 'connected')
+  check('a row that needs sign-in says so (↵ signs in)', popup.mcpServerState(needsAuth) === 'needs sign-in')
+  check('a row mid sign-in names the browser', popup.mcpServerState(signingIn) === 'signing in… (browser)')
+  const popupSrc = read('src/commands/mcp/McpPopup.tsx')
+  check("the selected failed row's reason paints whole on the detail line", popupSrc.includes("rows[at]?.server.type === 'failed' ? rows[at]?.server.error ?? 'connection failed' : ''"))
+  check('the popup lists the failed rows first (the route owner orders them)', popupSrc.includes('mcpRosterRowsFailedFirst('))
+  check('the popup windows long rosters', popupSrc.includes('paneWindow(rows.length, at, Math.max(1, height - 7))') && popupSrc.includes('rows.slice(win.start, win.end)'))
+  check('↵ on a row acts: sign in, reconnect, or unfold the dials', popupSrc.includes("auth ? 'authenticate' : 'reconnect'") && popupSrc.includes("connector.setKit({ mcp: [{ name: server.name, on: action === 'enable' }] })"))
+  check('a sign-in left mid-flight is cancelled when the popup closes', popupSrc.includes("void connector.mcpAction(signingIn.current, 'cancel-auth')"))
+  check('esc closes with no footer echo', popupSrc.includes('if (key.escape) { onDone(); return }'))
+  check('an empty roster keeps its one honest line', popupSrc.includes("'No MCP servers · mercury mcp add to add one'"))
   const mcpSrc = read('src/commands/mcp/mcp.tsx')
-  const factsArm = mcpSrc.slice(mcpSrc.indexOf("=== 'facts') {"), mcpSrc.indexOf('return <MCPSettings'))
-  check('the facts arm renders the card when the roster has rows', factsArm.includes('return <McpRosterCard roster={roster} onDone={onDone} />'))
-  check('an empty roster keeps its one honest line', factsArm.includes('if (roster.clients.length === 0) {') && factsArm.includes('onDone(mcpRosterLine(roster))'))
+  check('the /mcp command opens the popup under the command-popup lease', mcpSrc.includes('<CommandPopupLease token={token}><MCPSettings onComplete={onDone} /></CommandPopupLease>'))
+  const settingsSrc = read('src/components/mcp/MCPSettings.tsx')
+  check('the settings surface is the popup (one /mcp, not two)', settingsSrc.includes("import { McpPopup } from '../../commands/mcp/McpPopup.js'"))
 }
 
 section('§2 a tool call that dies mid-call names the server and the next step')
@@ -60,7 +66,7 @@ section('§3 every failed re-mark carries a reason')
   const menuSrc = read('src/components/mcp/MCPRemoteServerMenu.tsx')
   check('a cleared sign-in names itself on the failed row', menuSrc.includes('error: `signed out of ${server.name} — /mcp reconnect ${server.name} signs in again`'))
   const { execSync } = await import('node:child_process')
-  const files = execSync("git ls-files 'src/**/*.ts' 'src/**/*.tsx'", { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean)
+  const files = execSync("git ls-files 'src/**/*.ts' 'src/**/*.tsx'", { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean).filter(file => existsSync(join(ROOT, file)))
   const bareMints: string[] = []
   for (const file of files) {
     const src = readFileSync(join(ROOT, file), 'utf8')

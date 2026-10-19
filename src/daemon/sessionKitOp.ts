@@ -18,6 +18,7 @@ function describeEdit(edit: SessionKitEditV1): string {
   for (const dial of edit.mcp ?? []) words.push(`mcp ${dial.name} ${dial.on ? 'on' : 'off'}`)
   for (const dial of edit.skills ?? []) words.push(`skill ${dial.name} ${dial.state}`)
   for (const dial of edit.extensions ?? []) words.push(`extension ${dial.name} ${dial.on ? 'on' : 'off'}`)
+  if (edit.mcpKnown !== undefined) words.push(`configured MCPs: ${edit.mcpKnown.join(', ') || 'none'}`)
   return words.join(' · ')
 }
 

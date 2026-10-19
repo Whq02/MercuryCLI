@@ -5,3 +5,4 @@
 # only by editing this list. A name listed here but missing on disk is a
 # loud red in this runner.
 prove-mcp-live-connect.ts
+prove-mcp-popup-drive.ts

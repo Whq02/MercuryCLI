@@ -1,4 +1,6 @@
 import type { ScopedMcpServerConfig } from './types.js'
+import { getGlobalConfig, subscribeGlobalConfigCache } from '../../utils/config/globalConfig.js'
+import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 
 let current: Record<string, ScopedMcpServerConfig> | undefined
 let strict = false
@@ -19,6 +21,18 @@ export function seedDynamicMcpConfig(
 ): void {
   current = initial
   strict = isStrict
+  bump()
+}
+
+export function watchMcpConfigChanges(onChange: () => void): () => void {
+  getGlobalConfig()
+  const global = subscribeGlobalConfigCache(onChange)
+  const settings = settingsChangeDetector.subscribe(onChange)
+  return () => { global(); settings() }
+}
+
+export function refreshDynamicMcpConfig(): void {
+  current = { ...(current ?? {}) }
   bump()
 }
 

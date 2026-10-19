@@ -10,6 +10,7 @@ import type { ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 export interface SessionKitV1 {
   schema: 1
   mcp: string[]
+  mcpKnown?: string[]
   skills: string[]
   invocable: string[]
   skillsOff?: string[]
@@ -86,6 +87,11 @@ export function validateSessionKit(raw: unknown): KitValidation {
   const both = skills.names.find(name => invocable.names.includes(name))
   if (both !== undefined) return { ok: false, reason: `skill ${JSON.stringify(both)} is listed both ambient and invocable — a skill has one state` }
   const kit: SessionKitV1 = { schema: 1, mcp: mcp.names, skills: skills.names, invocable: invocable.names }
+  if (raw.mcpKnown !== undefined) {
+    const known = validateNames(raw.mcpKnown, 'mcpKnown', isKitMcpName, MCP_GRAMMAR)
+    if (!known.ok) return known
+    kit.mcpKnown = known.names
+  }
   if (raw.skillsOff !== undefined) {
     const skillsOff = validateNames(raw.skillsOff, 'skillsOff', isKitSkillName, SKILL_GRAMMAR)
     if (!skillsOff.ok) return skillsOff
@@ -174,6 +180,7 @@ export function noteRecordlessResumeKit(
 
 export interface SessionKitEditV1 {
   mcp?: Array<{ name: string; on: boolean }>
+  mcpKnown?: string[]
   skills?: Array<{ name: string; state: 'on' | 'invocable' | 'off' }>
   extensions?: Array<{ name: string; on: boolean }>
 }
@@ -190,6 +197,12 @@ export function validateSessionKitEdit(raw: unknown): KitEditValidation {
     if (!Array.isArray(v)) return `kitEdit.${field} must be an array of dials`
     if (v.length > KIT_LIST_CAP) return `kitEdit.${field} names ${v.length} dials (cap ${KIT_LIST_CAP})`
     return v
+  }
+  if (raw.mcpKnown !== undefined) {
+    const known = validateNames(raw.mcpKnown, 'kitEdit.mcpKnown', isKitMcpName, MCP_GRAMMAR)
+    if (!known.ok) return known
+    edit.mcpKnown = known.names
+    dials++
   }
   const mcp = bounded('mcp')
   if (typeof mcp === 'string') return { ok: false, reason: mcp }
@@ -254,6 +267,10 @@ export function applyKitEdit(kit: SessionKitV1, edit: SessionKitEditV1): Session
   const next = cloneSessionKit(kit)
   let changed = false
   const without = (list: string[], name: string): string[] => list.filter(entry => entry !== name)
+  if (edit.mcpKnown !== undefined && JSON.stringify(next.mcpKnown) !== JSON.stringify(edit.mcpKnown)) {
+    next.mcpKnown = [...edit.mcpKnown]
+    changed = true
+  }
   if (next.resolved === false) {
     const deltas = next.deltas ?? { mcpOff: [], skillStates: {}, extensionsOff: [] }
     next.deltas = deltas

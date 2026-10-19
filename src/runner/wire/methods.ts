@@ -211,6 +211,15 @@ export const METHODS = {
     scope: 'session',
     deadlineMs: 5_000,
   }),
+  'mcp/action': method({
+    name: 'mcp/action',
+    from: 'host',
+    kind: 'request',
+    params: lazySchema(() => z.object({ name: z.string().min(1).max(200), action: z.enum(['authenticate', 'reconnect', 'cancel-auth']) })),
+    result: lazySchema(() => z.object({ outcome: z.enum(['applied', 'refused']), detail: z.string().optional() })),
+    scope: 'none',
+    deadlineMs: 300_000,
+  }),
   'session/set_kit': method({
     name: 'session/set_kit',
     from: 'host',

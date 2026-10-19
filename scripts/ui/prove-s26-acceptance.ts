@@ -222,13 +222,17 @@ section('structural pins — OAuth surfaces + elicitation')
     elicit.includes('content[field.name] = field.value'),
   )
   const settings = src('src/components/mcp/MCPSettings.tsx')
+  const popup = src('src/commands/mcp/McpPopup.tsx')
   check(
-    'the auth probe is time-boxed at 3000 ms',
-    settings.includes('AUTH_PROBE_TIMEOUT_MS = 3_000') && settings.includes('Promise.race'),
+    'the /mcp surface reads the roster the runner owns — no in-process auth probe to time-box',
+    settings.includes("import { McpPopup } from '../../commands/mcp/McpPopup.js'") &&
+      popup.includes('connector.mcpRoster()') &&
+      !popup.includes('MercuryMcpAuthProvider'),
   )
   check(
-    'preparation is cancellable',
-    settings.includes('if (!cancelled) setServers(prepared)'),
+    'a sign-in left mid-flight is cancelled on unmount and a late answer never paints',
+    popup.includes("void connector.mcpAction(signingIn.current, 'cancel-auth')") &&
+      popup.includes('if (alive.current && result.outcome !== \'applied\')'),
   )
 }
 
@@ -248,7 +252,7 @@ section('structural pins — /help + misc')
     'the stdio menu keeps BOTH config-location reads',
     stdio.includes('getMcpConfigByName(server.name)') && stdio.includes("?? 'dynamic'"),
   )
-  const list = src('src/components/mcp/MCPListPanel.tsx')
+  const list = src('src/commands/mcp/McpPopup.tsx')
   check(
     'the /mcp empty-state and list carry no upstream doc links or binary names',
     !/claude\s+mcp|docs\.anthropic|https?:\/\/docs/.test(list),

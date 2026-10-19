@@ -3,7 +3,7 @@
 # gate-env: MERCURY_PROOF_DIST
 # gate-watch: src/bootstrap/state* src/services/mcp/** src/state/AppState* src/utils/Shell*
 # gate-watch: src/utils/config/** src/utils/mcp/elicitationValidation*
-# gate-watch: src/cli/handlers/mcp.tsx src/commands/mcp/addCommand.ts src/components/mcp/* src/utils/redactHeaders.ts
+# gate-watch: src/cli/handlers/mcp.tsx src/commands/mcp/* src/components/mcp/* src/utils/redactHeaders.ts
 # gate-watch: src/components/MCPServerApprovalDialog.tsx src/components/MCPServerMultiselectDialog.tsx src/services/mcpServerApproval.tsx src/utils/projectConfig.ts src/commands/mcp/route.ts
 # gate-watch: src/utils/env.ts src/utils/staticRender.tsx src/ink/components/TerminalSizeContext.tsx
 # gate-watch: assets/splash/splash-core.mjs package.json scripts/daemon/dupline-world.ts

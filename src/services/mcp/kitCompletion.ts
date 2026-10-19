@@ -48,6 +48,7 @@ export function completeSessionKitFromRoster(unresolved: SessionKitV1, roster: K
     if (isKitExtensionName(name) && !(name in extensions)) extensions[name] = 'off'
   }
   const resolved: SessionKitV1 = { schema: 1, mcp, skills, invocable }
+  resolved.mcpKnown = [...new Set(roster.mcpNames.filter(name => isKitMcpName(name) && !isMcpOrgan(name))) ]
   const skillsOff = Object.entries(deltas.skillStates)
     .filter(([, state]) => state === 'off')
     .map(([name]) => name)

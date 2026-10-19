@@ -1700,9 +1700,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
 
-  private async rpc(req: Record<string, unknown>): Promise<Record<string, unknown>> {
+  private async rpc(req: Record<string, unknown>, timeoutMs = RPC_TIMEOUT_MS): Promise<Record<string, unknown>> {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    return (await daemonControlRpc(req as never, { timeoutMs: RPC_TIMEOUT_MS })) as Record<string, unknown>
+    return (await daemonControlRpc(req as never, { timeoutMs })) as Record<string, unknown>
   }
 
   private verbChain: Promise<unknown> = Promise.resolve()
@@ -2285,6 +2285,17 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   mcpRoster(): McpRosterV1 {
     return { clients: this.facts?.mcp ?? [] }
+  }
+
+  async mcpAction(name: string, action: 'authenticate' | 'reconnect' | 'cancel-auth'): Promise<KitDialReceiptV1> {
+    try {
+      const reply = await this.rpc({ op: 'sessionControl', action: 'mcp-action', sessionId: this.record.sessionId, by: 'operator', mcpAction: { name, action } }, 300_000)
+      return reply.ok === true && reply.outcome === 'applied'
+        ? { outcome: 'applied', ...(typeof reply.detail === 'string' ? { detail: reply.detail } : {}) }
+        : { outcome: 'refused', detail: String(reply.detail ?? reply.error ?? 'the MCP action refused') }
+    } catch (error) {
+      return { outcome: 'refused', detail: error instanceof Error ? error.message : String(error) }
+    }
   }
 
   async setKit(edit: SessionKitEditV1): Promise<KitDialReceiptV1> {
