@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+const { zaiApiBase } = await import('../../src/services/providers/zai/zaiClient.ts')
 const { FIXTURE_API_KEY, seedFirstRun } = await import('../lib/firstRunSeed.ts')
 
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -206,12 +207,20 @@ const box = dump.ANTHROPIC_BASE_URL ?? ''
 const boxPort = portOf(box)
 check('the runner exports ONE loopback address, http://127.0.0.1:<port>', /^http:\/\/127\.0\.0\.1:\d+$/.test(box), box || '(unset)')
 check('an inherited gateway base is overridden, never honoured', box !== INHERITED_GATEWAY)
-const families = FLAG_REGISTRY.filter(r => FAMILY_BASE.test(r.env) && !r.consumer.startsWith('scripts/')).map(r => r.env)
-const unpinned = families.filter(k => dump[k] !== box)
+const familyRows = FLAG_REGISTRY.filter(r => FAMILY_BASE.test(r.env) && !r.consumer.startsWith('scripts/'))
+const families = familyRows.map(r => r.env)
+const parentOf = (row: { off?: string }): string | undefined => /unset ⇒ (MERCURY_[A-Z0-9_]+) when set/.exec(row.off ?? '')?.[1]
+const derived = familyRows.filter(r => parentOf(r) !== undefined).map(r => r.env)
+const unpinned = familyRows.filter(r => (derived.includes(r.env) ? dump[r.env] !== undefined || dump[parentOf(r)!] !== box : dump[r.env] !== box)).map(r => r.env)
 check(
-  `every provider-family base the registry lists rides the box (${families.length} registry rows + the SDK's own)`,
+  `every provider-family base the registry lists rides the box (${families.length} registry rows + the SDK's own; a seam that follows another when unset is left unset and its parent rides the box)`,
   families.length >= 10 && unpinned.length === 0,
   unpinned.length > 0 ? `unpinned: ${unpinned.join(' ')}` : `only ${families.length} family rows found`,
+)
+check(
+  `the derived seams are the Z.AI Coding Plan base alone, and the product resolves the Coding Plan base to the box under the shard's env (${derived.join(' ') || 'none'})`,
+  derived.length === 1 && derived[0] === 'MERCURY_ZAI_CODING_API_BASE' && zaiApiBase(dump, 'coding') === box && zaiApiBase(dump, 'general') === box,
+  `coding → ${zaiApiBase(dump, 'coding')}, general → ${zaiApiBase(dump, 'general')}, box ${box}`,
 )
 check(`the update channel's anonymous road rides the box (${UPDATE_SEAM})`, dump[UPDATE_SEAM] === box, `dump=${dump[UPDATE_SEAM] ?? '(unset)'}`)
 for (const k of SLOTS) check(`${k} is left as the runner found it (a base there configures a slot, or throws)`, dump[k] === baseEnv[k], `dump=${dump[k] ?? '(unset)'} env=${baseEnv[k] ?? '(unset)'}`)
