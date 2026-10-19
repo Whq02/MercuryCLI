@@ -110,7 +110,12 @@ raise SystemExit(proc.wait())
 `mercury runner` serves a multi-turn session over `stdin` and `stdout` using
 newline-delimited JSON-RPC 2.0 messages (`protocol: 1`). Every request `id` is
 a positive integer (`1`, `2`, `3`, and so on); a request with any other `id`
-is answered `-32600` with `id: null`.
+is answered `-32600` with `id: null`. A runner your script or the SDK drives
+is a headless session: an ask the host leaves unanswered expires on its
+clock, and a turn that ends on a question nobody answers ends `blocked`. The
+sessions the Mercury screen hosts through the same door are oculus
+([SESSIONS.md](SESSIONS.md), Oculus); the door and its frames are the same
+for both.
 
 - **Initialise:** Send `initialize` first with
   `{"protocol":1,"host":{"name":"...","version":"..."},"capabilities":{"holds_asks":true,"elicitation":false,"partial_rows":false}}`

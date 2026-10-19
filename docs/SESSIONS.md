@@ -377,6 +377,48 @@ seconds. A running tool is never called stuck. The chat pane carries no
 clock: every row of the chat carries its own timestamp, and a clock that
 ticks is a repaint a second on an idle screen.
 
+## Oculus
+
+Every session is hosted by the daemon as a runner, and every session is one
+of two kinds. An oculus session is one a screen belongs to: the Mercury
+screen in your terminal is the window onto it, you are there, and you may
+switch to another session and come back. Every session you start from the
+screen is oculus — New Session, `--chat`, a resume, a session the board's
+composer launches. The kind is decided once, when the daemon admits the
+session, from who asked for it, and it is stamped on the session's record
+and on its runner; it is never guessed from a terminal later, so switching
+away from an oculus session does not change what it is.
+
+Three things follow from the kind, and nothing else does. The model is told,
+in one line, that the operator is on the screen and may be away for a while,
+so it asks as it normally would and a slow answer is not "nobody is here". A
+permission ask or a question from an oculus session waits for the screen
+without expiry, in every permission mode, until you answer it or end the
+session; `MERCURY_PERMISSION_ASK_EXPIRY_MINUTES` never applies to it. And a
+turn that ends on a question is not blocked: the question waits on the
+screen, and you answer next. The model's tools, the permission decisions,
+the rows the runner emits and the wire bodies are the same as a headless
+session's, byte for byte, and a proof holds them to it.
+
+## Headless
+
+A headless session is unattended: nobody is at a screen for it. `mercury run`
+from a script, `mercury runner` under a script or the SDK, a session a
+schedule starts ([SATURN.md](SATURN.md)), and a session the coordinator
+launches for a lane are headless. The model is told so: with a host that
+holds the asks, a tool call that needs approval is put to the host and a
+question travels the same door; with no host, an ask is denied and no
+question can reach anyone. An ask nobody answers expires on its clock (ten
+minutes in Flow, three in Sovereign; a crewmate's ask ten minutes in every
+other mode), and a turn that ends on a question nobody could answer ends
+`blocked` with the question quoted on its outcome row, which is how a script
+tells stuck from done.
+
+The Session Concourse row of a headless session leads its NOW cell with the
+word `headless`; a session's own `mercury://seat` reference names its kind in
+its posture line. A session record that carries no kind runs as headless
+until the session is resumed from the screen.
+
 ## The concourse shows the project you are in
 
 `/concourse`, the home screen's Session Concourse row, or `Shift+→` from the
