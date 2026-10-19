@@ -126,6 +126,21 @@ section('§4 the seam’s order — a listener gone before the mint never sees i
   stopFace()
   seam.__resetSeatReceiptsForTests()
   check('the reset clears the retained warning', seam.recentWarningReceipt() === null)
+  const warnings: string[] = []
+  const stopWarningFace = seam.subscribeSeatReceipts(r => warnings.push(r.text), r => r.level === 'warning')
+  seam.mintImmediateReceipt("--model Sonnet 5 wins over the session's Opus 5")
+  seam.mintImmediateReceipt('▲ a warning the face takes', 'warning')
+  check('a face that takes warnings alone never consumes an info receipt: the hop receipt stays queued while the warning lands on the face', warnings.length === 1 && warnings[0] === '▲ a warning the face takes', text(warnings))
+  const lateChat: string[] = []
+  const stopLateChat = seam.subscribeSeatReceipts(r => lateChat.push(r.text))
+  check('the chat that mounts after the mint drains the hop receipt it was minted for, in order, once', lateChat.length === 1 && lateChat[0] === "--model Sonnet 5 wins over the session's Opus 5", text(lateChat))
+  seam.mintImmediateReceipt('--effort high wins over the session\'s max')
+  check('with the chat mounted an info receipt reaches it at once, and the face still sees none', lateChat.length === 2 && warnings.length === 1, text(lateChat))
+  stopLateChat()
+  stopWarningFace()
+  seam.__resetSeatReceiptsForTests()
+  const face2 = read('src/components/BootSplashScreen.tsx')
+  check('the boot face declares that it takes warnings alone', face2.includes("}, r => r.level === 'warning'),"))
 }
 
 section('§5 the drive — a keyless one-seat home: ↵ paints the cockpit; a second ↵ is refused and the face wears the receipt')

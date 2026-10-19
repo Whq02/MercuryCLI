@@ -187,7 +187,7 @@ export function BootSplashScreen(): React.ReactNode {
     () =>
       subscribeSeatReceipts(r => {
         if (r.level === 'warning') setBirthReceipt(r.text);
-      }),
+      }, r => r.level === 'warning'),
     [],
   );
 
