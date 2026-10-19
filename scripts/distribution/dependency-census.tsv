@@ -1,0 +1,62 @@
+package	class	purpose
+@agentclientprotocol/sdk	protocol-sdk	the Agent Client Protocol: `mercury acp` serves editors
+@alcalzone/ansi-tokenize	library	ANSI escape tokenising for the renderer
+@anthropic-ai/sandbox-runtime	vendor-platform	the OS sandbox around a shell command (leaving: lane sandbox-out-40)
+@anthropic-ai/sdk	vendor-model-sdk	the Anthropic road's client (leaving: lane sdk-road-40)
+@commander-js/extra-typings	library	typed command definitions for commander
+@modelcontextprotocol/client	protocol-sdk	MCP client: tools, resources, the OAuth client
+@modelcontextprotocol/core	protocol-sdk	MCP types and schemas
+@modelcontextprotocol/server	protocol-sdk	Mercury's own MCP server
+@puppeteer/browsers	tool	fetching the managed Chrome for Testing
+acorn	library	JavaScript parser
+acorn-walk	library	AST walking for acorn
+ajv	library	JSON-schema validation
+auto-bind	library	method binding
+axios	library	HTTP client
+bidi-js	library	bidirectional text for the renderer
+chalk	library	terminal colours
+chokidar	library	file watching
+cli-boxes	library	box-drawing characters
+commander	library	the command-line parser
+diff	library	text diffs
+emoji-regex	library	emoji matching for the renderer
+env-paths	library	platform config and cache paths
+execa	library	child processes
+fflate	library	zip and gzip (the extensions reader)
+figures	library	terminal glyph fallbacks
+fuse.js	library	fuzzy search for pickers
+get-east-asian-width	library	character widths for the renderer
+highlight.js	library	syntax highlighting
+https-proxy-agent	library	proxy support
+ignore	library	.gitignore matching
+indent-string	library	indentation
+jsonc-parser	library	JSON with comments (settings)
+lodash-es	library	utilities
+lru-cache	library	bounded caches
+marked	library	Markdown parsing
+p-map	library	bounded concurrency
+picomatch	library	glob matching
+proper-lockfile	library	file locks
+puppeteer-core	tool	the browser driver behind the Browser tool
+react	library	the UI
+react-reconciler	library	the terminal renderer
+semver	library	version comparison
+sharp	tool	image processing
+shell-quote	library	shell parsing and quoting
+signal-exit	library	exit hooks
+strip-ansi	library	ANSI stripping
+supports-hyperlinks	library	terminal hyperlink detection
+turndown	library	HTML to Markdown
+undici	library	fetch and HTTP dispatchers
+usehooks-ts	library	React hooks
+vscode-css-languageservice	tool	the CSS language service
+vscode-html-languageservice	tool	the HTML language service
+vscode-json-languageservice	tool	the JSON language service
+vscode-jsonrpc	library	JSON-RPC for the language-server client
+vscode-languageserver-protocol	library	the LSP types
+vscode-languageserver-textdocument	library	text documents for the LSP client
+wrap-ansi	library	wrapping ANSI text
+ws	library	WebSockets
+yaml	library	YAML parsing
+yaml-language-server	tool	the YAML language service
+zod	library	schemas
