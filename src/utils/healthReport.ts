@@ -885,7 +885,14 @@ function providerSlotsCheck(): CheckSpec {
         (gptRef === null || (gptRef.provider === 'openai' && gptRef.modelClass === 'gpt')) &&
         (glmRef === null || (glmRef.provider === 'zai' && glmRef.modelClass === 'glm'))
       const ok = anthropic?.available === true && classes.every(c => c !== null) && enginesHonest && seatLawHolds
-      const engineLine = engines.map(p => `${p.id} ${p.available ? 'configured' : p.reason}`).join(' · ')
+      const engineWords = new Map<string, string[]>()
+      for (const p of engines) {
+        const word = p.available ? 'configured' : (p.reason ?? 'unavailable')
+        const colon = word.indexOf(':')
+        const key = colon >= 0 && word.slice(colon + 1) === p.id ? word.slice(0, colon + 1) : word
+        engineWords.set(key, [...(engineWords.get(key) ?? []), p.id])
+      }
+      const engineLine = [...engineWords].map(([word, ids]) => `${word} ${ids.join(', ')}`).join(' · ')
       const seatLine = gptRef || glmRef
         ? `engine seats: ${[gptRef ? `gpt→${gptRef.model}` : null, glmRef ? `glm→${glmRef.model}` : null].filter(Boolean).join(' · ')} (explicit slots only)`
         : 'engine seats unresolved (no qualified candidate) — defaults stay Anthropic'
