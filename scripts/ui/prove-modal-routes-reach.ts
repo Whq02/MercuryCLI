@@ -258,7 +258,7 @@ async function openRoute(command: (typeof routes)[number], cols: number, rows: n
   ink.render(h(App, { initialState: state, getFpsMetrics: () => undefined } as never, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
   const mark = markOf(command.name)
-  const painted = await until(() => lines().some(line => mark.test(line)) && !lines().some(line => /Loading conversations|loading…/.test(line)) && (!markerExpected(command.name, cols, 'open', lines()) || markerPainted(lines(), command.name)))
+  const painted = await until(() => lines().some(line => mark.test(line)) && !lines().some(line => /Loading conversations|loading…|examining the harness/.test(line)) && (!markerExpected(command.name, cols, 'open', lines()) || markerPainted(lines(), command.name)))
   check(`/${command.name} paints its own mark at ${cols}x${rows} (${mark.source})`, painted, lines().slice(0, 8).map(line => line.replace(/\s+$/, '')).join(' | ').slice(0, 300))
   await settled(lines)
   return {

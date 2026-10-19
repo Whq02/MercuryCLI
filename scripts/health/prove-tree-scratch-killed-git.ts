@@ -180,6 +180,7 @@ section('§4 an exit right after the checks gave up, or while reads still run, l
   const code = await new Promise<number | null>(resolve => run.on('close', resolve))
   check('the child exited by itself', code === 0, `exit ${code}: ${err.slice(-300)}`)
   for (const job of jobs) {
+    await until(() => existsSync(job.dir) && storesIn(job.dir).length === 0, 15_000)
     const left = existsSync(job.dir) ? storesIn(job.dir) : ['(never started)']
     check(`${job.label}: its gate-tree-* store is gone after the exit`, left.length === 0, left.join(','))
   }
