@@ -4,9 +4,9 @@ import { createHash } from 'node:crypto'
 import { memoryGrade, recordGrade } from './memoryEvidence.js'
 import { isAbsolute, join, resolve, sep } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
-import { automaticMemoryCandidates, lookupTokens } from './mnemeLookup.js'
+import { lookupTokens } from './mnemeLookup.js'
 import { escapeRegExp } from '../utils/stringUtils.js'
-import { ledgerPointers, memoryPointerForId, type MemoryPointer } from './mnemePointers.js'
+import { ledgerPointers, type MemoryPointer } from './mnemePointers.js'
 import { catalogDocs, grepLibrary, grepPending, PENDING_SLUG } from './mnemeRetrieval.js'
 import type { LedgerEntry } from './types.js'
 import type { MnemeEntry } from './mnemeTopicDocs.js'
@@ -260,13 +260,3 @@ export function memoryStatusWords(r: Pick<MemoryRef, 'status' | 'confirmedAt' | 
 }
 
 export { PENDING_SLUG }
-
-export function collectAutomaticMemoryRefs(query: string, opts: CollectOpts & { files?: readonly string[] } = {}): MemoryRef[] {
-  const dir = opts.libraryDir ?? mnemeLibraryDir()
-  if (!mnemeEnabled()) return []
-  return automaticMemoryCandidates(query, { dir, files: opts.files, now: opts.now?.getTime() }).flatMap(hit => {
-    const pointer = memoryPointerForId(hit.id, { dir, sessions: opts.sessions, query, now: opts.now })
-    if (!pointer) return []
-    return [{ refId: hit.id.startsWith('seq:') ? `mneme:${hit.id.slice(4)}` : `mneme-pending:${hit.id.slice(8)}`, kind: hit.pending ? 'mneme-pending' as const : 'mneme-fact' as const, store: 'mneme' as const, scope: 'project' as const, status: pointer.freshness?.status ?? 'current', summary: pointer.title, source: pointer.source?.source, capturedAt: pointer.source?.time, why: hit.admission === 'constraint' ? 'source-linked task constraint' : 'clears the relevance gate', deref: `Recall read:"${pointer.id}"`, tier: 1, grade: pointer.source?.grade, library: dir, identity: pointer.id, witness: hit.witness }]
-  })
-}

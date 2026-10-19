@@ -175,7 +175,6 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
     files: z.array(z.looseObject({ uri: z.string(), diagnostics: z.array(z.looseObject({ range: z.looseObject({ start: z.looseObject({}) }) })) })),
   }),
   invoked_skills: z.looseObject({ skills: objectList }),
-  relevant_memories: z.looseObject({ memories: objectList }),
   nested_memory: z.looseObject({ content: z.looseObject({}) }),
   queued_command: z.looseObject({ prompt: z.union([z.string(), objectList]) }),
   agent_roster: z.looseObject({ rows: z.array(z.looseObject({ agents: objectList.nullish() })) }),

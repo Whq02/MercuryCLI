@@ -12,7 +12,7 @@ import type { InstructionSourceEntry } from '../../services/instructions/contrac
 import type { Task } from '../tasks.js'
 
 export type CapsuleWorkingRef = {
-  reason: 'read' | 'mentioned' | 'edited' | 'instructions' | 'memory'
+  reason: 'read' | 'mentioned' | 'edited' | 'instructions'
   ref: string; path: string
 }
 export type CapsuleSection = {
@@ -31,8 +31,6 @@ export type AgentRosterRow = {
 type FileLocation = { filename: string; displayPath: string }
 type ReadFileBody = FileLocation & { content: FileReadToolOutput; truncated?: boolean }
 type PathLocation = { path: string; displayPath: string }
-export type MemoryDelivery = { key: string; ids: string[]; chars: number; reserve?: boolean; event?: boolean }
-type MemoryFactPage = { delivery?: MemoryDelivery; path: string; content: string; mtimeMs: number; header?: string; ids?: string[] }
 type RosterDelta = { addedNames: string[]; removedNames: string[] }
 
 type FileBodies = {
@@ -49,13 +47,10 @@ type FileBodies = {
 
 type ContextBodies = {
   nested_memory: PathLocation & { content: InstructionSourceEntry }
-  relevant_memories: { memories: MemoryFactPage[] }
   current_session_memory: { path: string; content: string; tokenCount: number }
   context_capsule: {
     markdown: string; digest: string; refs: string[]; delta: string | null
     semDigest?: string; sectionDigest?: string; baseDigest?: string
-    memoryDigest?: string; memoryEmitted?: boolean; memoryIds?: string[]
-    memoryDeliveries?: MemoryDelivery[]
     sections?: CapsuleSection[]; workingSet?: CapsuleWorkingRef[]
   }
   user_context: { body: string }
@@ -129,4 +124,3 @@ export type HookRowOutcome = (typeof HOOK_ROW_OUTCOMES)[number]
 export const TASK_REMINDER_CONFIG = { TURNS_SINCE_WRITE: 10, TURNS_BETWEEN_REMINDERS: 10 } as const
 export const CONTRACT_REMINDER_CONFIG = { TURNS_SINCE_TOUCH: 12, TURNS_BETWEEN_REMINDERS: 12 } as const
 export const FLOW_ATTACHMENT_CONFIG = { TURNS_BETWEEN_ATTACHMENTS: 5, FULL_REMINDER_EVERY_N_ATTACHMENTS: 5 } as const
-export const RELEVANT_MEMORIES_CONFIG = { MAX_SESSION_BYTES: 60 * 1024 } as const

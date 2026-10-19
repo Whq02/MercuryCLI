@@ -35,7 +35,6 @@ src/utils/attachments.ts
 src/utils/attachments/deltas.ts
 src/utils/attachments/diagnostics.ts
 src/utils/attachments/fileAttachments.ts
-src/utils/attachments/memorySurfacing.ts
 src/utils/attachments/mentionResolvers.ts
 src/utils/attachments/mentions.ts
 src/utils/attachments/modeLifecycles.ts

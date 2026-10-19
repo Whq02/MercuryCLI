@@ -9,7 +9,8 @@ process.env.MERCURY_CONFIG_DIR = home
 try {
   const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
   const { usagePath } = await import('../../src/mneme/mnemeUsage.js')
-  const { getRelevantMemoryAttachments } = await import('../../src/utils/attachments/memorySurfacing.js')
+  const { automaticMemoryCandidates, lookupFacts } = await import('../../src/mneme/mnemeLookup.js')
+  const { memoryGrade } = await import('../../src/mneme/memoryEvidence.js')
   const dir = mnemeLibraryDir()
   mkdirSync(dir, { recursive: true })
   const text = [
@@ -21,24 +22,14 @@ try {
   writeFileSync(page, text)
   const usage = JSON.stringify({ version: 1, rows: { '1': { last: '2026-10-01T00:00:00.000Z', count: 4 } } })
   writeFileSync(usagePath(dir), usage)
-  const attachments = getRelevantMemoryAttachments('deploying service', [], {} as never)
-  assert.equal(attachments.length, 1)
-  const surfaced = attachments[0]!
-  assert.equal(surfaced.type, 'relevant_memories')
-  if (surfaced.type === 'relevant_memories') {
-    const { memoryGrade } = await import('../../src/mneme/memoryEvidence.js')
-    assert.deepEqual(surfaced.memories[0]!.ids, ['seq:1'])
-    assert.equal(surfaced.memories[0]!.content, `- ${memoryGrade({ id: 'seq:1', dir })} The service deployed after a smoke check. <seq=1, time=2026-10-12T00:00:00.000Z, source=proof>`)
-    assert.match(surfaced.memories[0]!.content, /^- \[fact · cited (?:\d+|unknown) · unverified\] The service deployed/)
-    assert.deepEqual(Object.keys(surfaced.memories[0]!).sort(), ['content', 'delivery', 'header', 'ids', 'mtimeMs', 'path'])
-    assert.deepEqual(surfaced.memories[0]!.delivery?.ids, ['seq:1'])
-    assert.ok((surfaced.memories[0]!.delivery?.chars ?? 0) > surfaced.memories[0]!.content.length, 'the delivery receipt counts the header and framing with the body')
-  }
-  const { lookupFacts } = await import('../../src/mneme/mnemeLookup.js')
+  const candidates = automaticMemoryCandidates('deploying service', { dir })
+  assert.equal(candidates.length, 1)
+  assert.equal(candidates[0]?.id, 'seq:1')
+  assert.match(memoryGrade({ id: 'seq:1', dir }), /^\[fact · cited (?:\d+|unknown) · unverified\]$/)
   assert.equal(lookupFacts('deploying service', { dir })[0]?.id, 'seq:1')
   assert.equal(readFileSync(usagePath(dir), 'utf8'), usage)
   assert.equal(readFileSync(page, 'utf8'), text)
-  console.log('PASS: surfacing carries the graded fact with its delivery receipt and never counts a listing as an open')
+  console.log('PASS: lookup carries the graded fact and never counts a listing as an open')
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

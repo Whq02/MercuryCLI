@@ -14,12 +14,6 @@ export {
 } from './attachments/nestedMemory.js'
 
 export {
-  collectSurfacedMemories,
-  getRelevantMemoryAttachments,
-  memoryHeader,
-} from './attachments/memorySurfacing.js'
-
-export {
   generateFileAttachment,
   getChangedFiles,
   tryGetPDFReference,

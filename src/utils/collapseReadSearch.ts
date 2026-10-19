@@ -498,22 +498,6 @@ export function collapseReadSearchGroups(
 
     if (message.type === 'attachment') {
       const attachment = message.attachment as { type?: string }
-      if (attachment.type === 'relevant_memories' && groupOpen()) {
-        const memories = (
-          message as AttachmentMessage<{
-            type: 'relevant_memories'
-            memories: Array<{ path: string; content: string; mtimeMs: number }>
-          }>
-        ).attachment.memories
-        group.relevantMemories.push(
-          ...memories.map(memory => ({
-            path: memory.path,
-            content: memory.content,
-            mtimeMs: memory.mtimeMs,
-          })),
-        )
-        continue
-      }
       if (attachment.type === 'nested_memory' && groupOpen()) {
         out.push(message)
         continue

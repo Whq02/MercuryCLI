@@ -1,6 +1,6 @@
 import type { Attachment } from './types.js'
 
-export type CapsuleSectionName = 'Files' | 'Mentions' | 'Instructions' | 'Memory' | 'Skills' | 'Tasks' | 'Diagnostics' | 'Reminders' | 'Crew' | 'Date'
+export type CapsuleSectionName = 'Files' | 'Mentions' | 'Instructions' | 'Skills' | 'Tasks' | 'Diagnostics' | 'Reminders' | 'Crew' | 'Date'
 
 const capsuleKinds = {
   file: { section: 'Files', cadence: 'event' },
@@ -13,7 +13,6 @@ const capsuleKinds = {
   agent_mention: { section: 'Mentions', cadence: 'event' },
   mcp_resource: { section: 'Mentions', cadence: 'event' },
   nested_memory: { section: 'Instructions', cadence: 'state' },
-  relevant_memories: { section: 'Memory', cadence: 'state' },
   skill_listing: { section: 'Skills', cadence: 'state' },
   dynamic_skill: { section: 'Skills', cadence: 'state' },
   diagnostics: { section: 'Diagnostics', cadence: 'event' },

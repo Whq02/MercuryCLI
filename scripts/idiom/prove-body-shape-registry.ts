@@ -57,7 +57,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
     ],
   },
   invoked_skills: { good: { skills: [{ name: 'n', path: 'p', content: 'c' }] }, bad: [{ label: 'skills is text', field: 'skills', fields: { skills: 'n' } }] },
-  relevant_memories: { good: { memories: [{ path: 'p', content: 'c', mtimeMs: 1 }] }, bad: [{ label: 'memories is null', field: 'memories', fields: { memories: null } }] },
   nested_memory: { good: { content: { path: 'p', content: 'c' } }, bad: [{ label: 'content is text', field: 'content', fields: { content: 'c' } }] },
   queued_command: {
     good: { prompt: 'hello' },

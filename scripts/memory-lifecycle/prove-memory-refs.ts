@@ -71,40 +71,7 @@ section('§3 scope + the memory switch')
   )
 }
 
-section('§4 capsule integration: refs ride the working set, digest-joined')
-{
-  const { execFileSync } = await import('node:child_process')
-  const base = mkdtempSync(join(tmpdir(), 'refs-membase-'))
-  const ws = mkdtempSync(join(tmpdir(), 'refs-ws-'))
-  writeFileSync(join(ws, 'main.ts'), 'export const releaseGate = 1\n')
-  const git = (...a: string[]): void => {
-    execFileSync('git', ['-C', ws, '-c', 'user.email=memory@bench', '-c', 'user.name=memory-bench', ...a], { stdio: 'pipe' })
-  }
-  git('init', '-q', '-b', 'main')
-  git('add', '-A')
-  git('commit', '-q', '-m', 'baseline')
-  const { getMnemeHome } = await import('../../src/mneme/paths.ts')
-  const capMemoryDir = getMnemeHome()
-  mkdirSync(capMemoryDir, { recursive: true })
-  const capLib = join(capMemoryDir, 'library')
-  appendObservation({ text: 'release gate opens after the smoke suite', source: 'operator', topicHint: 'releases' }, capLib)
-  maybeConsolidate({ force: true, dir: capLib })
-  const { assembleContextCapsule, renderCapsule } = await import('../../src/services/projectIntel/capsule.ts')
-  const cap1 = assembleContextCapsule({ workspace: ws, task: 'harden the release gate in main.ts' })
-  check('capsule assembled', cap1 !== null)
-  check('memory refs ride the capsule', (cap1?.memoryRefs?.length ?? 0) > 0, JSON.stringify(cap1?.memoryRefs))
-  check('refs are refs — no bodies (summary-bounded)', (cap1?.memoryRefs ?? []).every(r => r.summary.length <= 140))
-  const rendered = renderCapsule(cap1!)
-  check('render carries the labeled memory section', /Memory \(task-scoped refs/.test(rendered) && /dereference before relying/.test(rendered), rendered.split('\n').slice(-3).join(' | '))
-  const corr = correctFactLocal(capLib)
-  check('correction applied for the digest probe', corr)
-  const cap2 = assembleContextCapsule({ workspace: ws, task: 'harden the release gate in main.ts' })
-  check('memory-only change changes the capsule digest (dedup honesty)', cap1 !== null && cap2 !== null && cap1.digest !== cap2.digest, `${cap1?.digest} vs ${cap2?.digest}`)
-  const capIrr = assembleContextCapsule({ workspace: ws, task: 'explain bloom filters' })
-  check('irrelevant task → no memory refs in the capsule', (capIrr?.memoryRefs?.length ?? 0) === 0, JSON.stringify(capIrr?.memoryRefs))
-}
-
-section('§5 filler words select nothing; a real word still finds its topic and its lines')
+section('§4 filler words select nothing; a real word still finds its topic and its lines')
 {
   const noiseLib = join(mkdtempSync(join(tmpdir(), 'refs-noise-')), 'library')
   appendObservation({ text: 'handover notes ride the command line', source: 'operator', topicHint: 'handover' }, noiseLib)
@@ -126,15 +93,6 @@ section('§5 filler words select nothing; a real word still finds its topic and 
   check('filler words beside a real word add nothing', JSON.stringify(mixed) === JSON.stringify(control), mixed.map(r => r.why).join(' | '))
   const command = refsOf('the command and')
   check('every why-line names the real word', command.length > 0 && command.every(r => r.why.endsWith("'command'")), command.map(r => r.why).join(' | '))
-}
-
-function correctFactLocal(lib: string): boolean {
-  const { listTopicDocs } = require('../../src/mneme/mnemeConsolidate.ts') as typeof import('../../src/mneme/mnemeConsolidate.ts')
-  const { correctFact } = require('../../src/mneme/mnemeCorrect.ts') as typeof import('../../src/mneme/mnemeCorrect.ts')
-  const doc = listTopicDocs(lib).find(d => d.slug === 'releases')
-  const seq = doc?.sections[0]?.entries[0]?.seq
-  if (!seq) return false
-  return correctFact({ targetSeq: seq, text: 'release gate opens after smoke AND soak suites', source: 'operator', dir: lib }).ok
 }
 
 if (failures) {

@@ -4,10 +4,7 @@ import { readFileSync, statSync } from 'node:fs'
 import { dirname, join, normalize } from 'node:path'
 import { getProjectSnapshot } from './snapshot.js'
 import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from './contracts.js'
-import { collectAutomaticMemoryRefs, memoryStatusWords, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { lookupTokens } from '../../mneme/mnemeLookup.js'
-import { isMnemeEnabled } from '../../mneme/paths.js'
-import { memoryGrade } from '../../mneme/memoryEvidence.js'
 
 type CapsuleRole =
   | 'primary edit'
@@ -28,18 +25,6 @@ interface CapsuleItem {
   bodyPresent: false
 }
 
-interface CapsuleMemoryRef {
-  refId: string
-  status: MemoryRef['status']
-  confirmedAt?: string
-  summary: string
-  why: string
-  grade?: string
-  library?: string
-  identity?: string
-  witness?: string
-}
-
 interface ContextCapsule {
   schema: 1
   workspace: string
@@ -47,7 +32,6 @@ interface ContextCapsule {
   task: string
   goal: string | null
   items: CapsuleItem[]
-  memoryRefs?: CapsuleMemoryRef[]
   caps: {
     maxItems: number
     maxBytes: number
@@ -75,7 +59,6 @@ const DEFAULT_MAX_ITEMS = 12
 const DEFAULT_MAX_BYTES = 4096
 const IMPORT_SCAN_FILES = 8
 const IMPORT_SCAN_LINES = 60
-const MEMORY_REF_CAP = 4
 export const RECENTLY_OBSERVED_REASON = 'recently observed this session'
 
 const TEST_PATH_RE = /(^|\/)((tests?|__tests__|spec)\/|test_[^/]+\.py$)|\.(test|spec)\.[a-z]+$/
@@ -260,22 +243,6 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
     }
   }
 
-  let memoryRefs: CapsuleMemoryRef[] | undefined
-  try {
-    if (isMnemeEnabled()) {
-      const collected = collectAutomaticMemoryRefs([input.task, input.goal ?? ''].join(' '), {
-        maxRefs: MEMORY_REF_CAP,
-        projectRoot: input.workspace,
-        files: input.recentFiles,
-      })
-      if (collected.length > 0) {
-        memoryRefs = collected.map(r => ({ refId: r.refId, status: r.status, confirmedAt: r.confirmedAt, summary: r.summary, why: r.why, grade: r.grade, library: r.library, identity: r.identity, witness: r.witness }))
-      }
-    }
-  } catch {
-    memoryRefs = undefined
-  }
-
   candidates.sort((a, b) => a.tier - b.tier || a.path.localeCompare(b.path))
 
   const omittedReasons: string[] = []
@@ -301,7 +268,6 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
 
   const digest = createHash('sha1')
     .update(items.map(i => `${i.ref}·${i.role}·${i.tier}`).join('|'))
-    .update('||' + memoryRefsDigest(memoryRefs ?? []))
     .digest('hex')
     .slice(0, 16)
 
@@ -312,7 +278,6 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
     task: input.task.slice(0, 400),
     goal: input.goal ?? null,
     items,
-    ...(memoryRefs ? { memoryRefs } : {}),
     caps: {
       maxItems,
       maxBytes,
@@ -323,11 +288,7 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
   }
 }
 
-export function memoryRefsDigest(refs: readonly CapsuleMemoryRef[]): string {
-  return createHash('sha256').update(JSON.stringify(refs.map(r => ({ id: r.identity ?? r.refId, library: r.library ?? '', witness: r.witness ?? r.summary, status: r.status, grade: (r.grade ?? '').replace(/cited (?:\d+|unknown)/g, 'cited') })))).digest('hex')
-}
-
-export function renderCapsule(capsule: ContextCapsule, memory: 'include' | 'omit' = 'include'): string {
+export function renderCapsule(capsule: ContextCapsule): string {
   const lines: string[] = [
     `# Working set (task-scoped, generation ${capsule.generation.treeDigest?.slice(0, 12) ?? 'no-digest'})`,
   ]
@@ -336,13 +297,6 @@ export function renderCapsule(capsule: ContextCapsule, memory: 'include' | 'omit
   }
   if (capsule.caps.omitted.count > 0 || capsule.caps.omitted.reasons.length > 0) {
     lines.push(`(${capsule.caps.omitted.count} omitted: ${capsule.caps.omitted.reasons.join('; ')})`)
-  }
-  if (memory === 'include' && capsule.memoryRefs && capsule.memoryRefs.length > 0) {
-    lines.push('Memory (task-scoped refs — dereference before relying; bodies stay in their stores):')
-    for (const r of capsule.memoryRefs) {
-      const status = r.status === 'current' ? '' : ` [${memoryStatusWords(r)}]`
-      lines.push(`- ${r.refId}${status} — ${r.grade ?? memoryGrade({ kind: 'fact' })} ${r.summary} (${r.why})`)
-    }
   }
   return lines.join('\n')
 }

@@ -46,7 +46,7 @@ One number in the table is prompted, and it is marked as such. Every family, in 
 
 In 1.0.0-beta.32, two rules in the text every session read came straight out of these numbers: answering a new question as it was asked before consulting the record (aimed at the intrusion rows), and writing the note as a centre with a rim (the few things that mattered, with what was checked marked apart from what was not, aimed at the growth). The second rule held in form in every chain (the judge read every note as that shape) while notes still grew across sessions.
 
-Two later rules take the same lesson further. The model writes or changes memory only when you ask it to, through Retain or Correct, so a session's passing detail does not land in the library on the model's own judgement (the rule and its words are under [The four verbs](MNEME.md#the-four-verbs)); and a fact the automatic lookup finds appears once, the first time it becomes relevant, instead of on every turn (under [What the model gets](MNEME.md#what-the-model-gets)).
+Two later rules take the same lesson further. The model writes or changes memory only when you ask it to, through Retain or Correct, so a session's passing detail does not land in the library on the model's own judgement (the rule and its words are under [The four verbs](MNEME.md#the-four-verbs)); and memory reaches the model at the start of a session and through Recall, with nothing attached on each turn (under [What the model gets](MNEME.md#what-the-model-gets)).
 
 Today's note is described in [MNEME.md](MNEME.md#the-journal).
 

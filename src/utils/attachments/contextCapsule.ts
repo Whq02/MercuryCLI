@@ -9,13 +9,11 @@ import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { cacheKeys } from '../fileStateCache.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
-import { markMemorySurfaced, memoryRecordId, memorySurfacedThisSession } from './memorySurfaced.js'
 
 interface PriorCapsule {
   digest: string
   refs: string[]
   semDigest?: string
-  memoryDigest?: string
 }
 
 const lastAttached = new Map<string, { digest: string; refs: string[] }>()
@@ -64,15 +62,6 @@ function latestUserTaskText(messages: readonly Message[] | undefined): string | 
   return null
 }
 
-function priorMemoryDigest(messages: readonly Message[] | undefined): string | undefined {
-  for (let i = (messages?.length ?? 0) - 1; i >= 0; i--) {
-    const message = messages![i]!
-    if (message.type === 'system' && message.subtype === 'compact_boundary') break
-    if (message.type === 'attachment' && message.attachment.type === 'context_capsule' && message.attachment.memoryEmitted) return message.attachment.memoryDigest
-  }
-  return undefined
-}
-
 export function priorCapsuleFromTranscript(messages: readonly Message[] | undefined): PriorCapsule | null {
   if (!messages) return null
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -86,7 +75,6 @@ export function priorCapsuleFromTranscript(messages: readonly Message[] | undefi
       return {
         digest: m.attachment.baseDigest ?? m.attachment.digest ?? '',
         refs: m.attachment.refs ?? [],
-        memoryDigest: priorMemoryDigest(messages),
         ...(m.attachment.semDigest !== undefined ? { semDigest: m.attachment.semDigest } : {}),
       }
     }
@@ -96,10 +84,9 @@ export function priorCapsuleFromTranscript(messages: readonly Message[] | undefi
 
 export function capsuleShouldEmit(
   prior: PriorCapsule | null,
-  next: { digest: string; semDigest: string; refs: readonly string[]; memoryDigest?: string },
+  next: { digest: string; semDigest: string; refs: readonly string[] },
 ): boolean {
   if (!prior) return true
-  if (next.memoryDigest !== undefined && next.memoryDigest !== prior.memoryDigest) return true
   if (prior.digest === next.digest) return false
   const priorRefs = new Set(prior.refs)
   if (
@@ -142,7 +129,7 @@ export async function getContextCapsuleAttachment(
     const task = inputTask ?? latestUserTaskText(messages)
     if (!task) return []
 
-    const { assembleContextCapsule, renderCapsule, RECENTLY_OBSERVED_REASON, memoryRefsDigest } =
+    const { assembleContextCapsule, renderCapsule, RECENTLY_OBSERVED_REASON } =
       require('../../services/projectIntel/capsule.js') as typeof import('../../services/projectIntel/capsule.js')
     const { getActiveMission } =
       require('../../guards/mission.js') as typeof import('../../guards/mission.js')
@@ -197,19 +184,13 @@ export async function getContextCapsuleAttachment(
       snapshotRead,
     })
     if (!capsule) return []
-    const surfaced = memorySurfacedThisSession(toolUseContext, messages)
-    const memoryRefs = (capsule.memoryRefs ?? []).filter(ref => !surfaced.has(memoryRecordId(ref)))
-    const memoryDigest = memoryRefsDigest(memoryRefs)
-    const memoryChanged = memoryRefs.length > 0 && prior?.memoryDigest !== memoryDigest
-    if (capsule.items.length === 0 && !memoryChanged) return []
-    if (!capsule.items.some(i => i.tier <= 4) && !memoryChanged) return []
+    if (capsule.items.length === 0) return []
+    if (!capsule.items.some(i => i.tier <= 4)) return []
 
     const refs = capsule.items.map(i => i.ref)
     const unseen = capsule.items.filter(i => i.reason !== RECENTLY_OBSERVED_REASON).map(i => i.ref)
-    if (!capsuleShouldEmit(prior, { digest: capsule.digest, semDigest, refs: unseen, ...(memoryChanged ? { memoryDigest } : {}) })) return []
+    if (!capsuleShouldEmit(prior, { digest: capsule.digest, semDigest, refs: unseen })) return []
     const delta = prior ? deltaLine(prior, refs) : null
-    const memoryIds = memoryChanged ? memoryRefs.map(memoryRecordId) : undefined
-    if (memoryIds) markMemorySurfaced(toolUseContext, memoryIds)
     if (lastAttached.size > 64) {
       const oldest = lastAttached.keys().next().value
       if (oldest !== undefined) lastAttached.delete(oldest)
@@ -219,10 +200,7 @@ export async function getContextCapsuleAttachment(
     return [
       {
         type: 'context_capsule',
-        markdown: renderCapsule({ ...capsule, memoryRefs }, memoryChanged ? 'include' : 'omit'),
-        memoryDigest,
-        memoryEmitted: memoryChanged,
-        ...(memoryIds ? { memoryIds } : {}),
+        markdown: renderCapsule(capsule),
         digest: capsule.digest,
         semDigest,
         refs,
@@ -252,13 +230,6 @@ function capsuleBody(text: string): string {
 }
 
 function workingRefs(attachment: Attachment): CapsuleWorkingRef[] {
-  if (attachment.type === 'relevant_memories') {
-    return attachment.memories.flatMap(memory => (memory.ids?.length ? memory.ids : [memory.path]).map(id => ({
-      ref: id.startsWith('seq:') ? `mneme:${id.slice(4)}` : id.startsWith('pending:') ? `mneme-pending:${id.slice(8)}` : id,
-      path: memory.path,
-      reason: 'memory' as const,
-    })))
-  }
   const path = 'filename' in attachment ? attachment.filename : 'path' in attachment ? attachment.path : undefined
   if (typeof path !== 'string') return []
   const workspace = getOriginalCwd()
@@ -324,14 +295,10 @@ export function foldAttachmentsIntoCapsule(
     baseDigest,
     sectionDigest,
     semDigest: base?.semDigest ?? prior?.semDigest,
-    memoryDigest: base?.memoryDigest ?? prior?.memoryDigest,
-    memoryEmitted: base?.memoryEmitted ?? false,
-    ...(base?.memoryIds ? { memoryIds: base.memoryIds } : {}),
     refs: [...new Set([...(base?.refs ?? prior?.refs ?? []), ...workingSet.map(ref => ref.ref)])],
     delta: base?.delta ?? null,
     sections,
     workingSet,
-    memoryDeliveries: [...members].flatMap(attachment => attachment.type === 'relevant_memories' ? attachment.memories.flatMap(row => row.delivery ? [row.delivery] : []) : []),
   }
   if (context) {
     const { ownerFromToolUseContext } = require('../../services/run/resolveOwner.js') as typeof import('../../services/run/resolveOwner.js')
