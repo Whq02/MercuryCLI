@@ -239,7 +239,7 @@ lines.push(
 )
 lines.push('')
 lines.push(
-  '- The extensions estate: archive sources are decompressed with **fflate** (MIT; a direct dependency) through the hardened reader at `src/utils/archive/zip.ts`. **@anthropic-ai/mcpb** (MIT) is retained as a dependency deliberately; the extensions estate reads no bundle files — an extension declares its servers in its own manifest — and the package stays available, with this notice, for a later bundle-backed server kind.',
+  '- The extensions estate: archive sources are decompressed with **fflate** (MIT; a direct dependency) through the hardened reader at `src/utils/archive/zip.ts`; the extensions estate reads no bundle files — an extension declares its servers in its own manifest.',
 )
 lines.push('')
 lines.push('## Bundled skills')
