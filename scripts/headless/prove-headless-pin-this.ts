@@ -14,7 +14,7 @@ const STATED = 'Deploys go through the release script.'
 const CREWMATE_PROMPT = `pin this: ${RULE}`
 const ASKED_GRADE = '[pinned · asked by the owner]'
 const TODAYS_NOTE = 'pin needs the originating owner message asking for these words as a standing rule (none found in this turn); nothing was stored — retain the fact without pin, or the owner pins it in /memory'
-const CREWMATE_NOTE = "a crewmate cannot pin: a standing rule needs the owner's own words in the main chat; nothing was stored — retain the fact without pin"
+const CREWMATE_NOTE = 'Retain is refused: a crewmate never writes memory — put the finding in your report; the lead decides what is remembered'
 let failures = 0
 function check(label: string, ok: boolean, detail: unknown): void {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${JSON.stringify(detail)?.slice(0, 700)}`}`)
@@ -38,7 +38,7 @@ const cells: Record<string, Cell> = {
     expect: 'pinned',
   },
   'vague words': {
-    prompt: `we deploy through the release script these days`,
+    prompt: `remember: we deploy through the release script these days`,
     answer: `Saved as a fact: ${STATED}`,
     main: step => (step === 0 ? [retain(true)] : step === 1 ? [retain(false)] : [text(`Saved as a fact: ${STATED}`)]),
     expect: 'fact',
