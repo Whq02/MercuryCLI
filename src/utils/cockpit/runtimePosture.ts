@@ -2,7 +2,7 @@
 import { listCapabilityKills } from '../permissions/capabilityGate.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { canAnswerAsks } from '../../bootstrap/state.js'
+import { canAnswerAsks, getSessionKind } from '../../bootstrap/state.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionResult } from '../permissions/PermissionResult.js'
 
@@ -29,6 +29,12 @@ export function markSessionPermissionMode(permissionMode: string | undefined): v
   bootPermissionMode = permissionMode
   memo = undefined
 }
+
+export const OCULUS_POSTURE_LINE =
+  '- Session: oculus (a screen belongs to this session): the operator is on the screen; ask them as you normally would — a question to the operator (AskUserQuestion) or a tool call that needs approval travels to the screen and waits for their answer, and nothing expires it. They may be away for a while, so a slow answer is not "nobody is here". A denial is policy, not tool failure: prefer tools your rules allow.'
+
+export const OCULUS_DOCTRINE_LINE =
+  'Runtime posture: this process is an oculus session: a screen belongs to it, so a permission ask or a question travels to the operator\'s screen and waits for their answer (they may be away for a while — a slow answer is not "nobody is here"); a denial is policy, not tool failure; a file-lease denial means another agent holds those paths (coordinate, do not force).'
 
 const PUSH_PROBE = 'git push'
 const PUSH_RULE_SHAPE = '`Bash(git push *)`'
@@ -109,7 +115,14 @@ export function getRuntimePostureSection(): string | null {
 
   const lines: string[] = []
 
-  if (nonInteractive && canAnswerAsks()) {
+  if (nonInteractive && canAnswerAsks() && getSessionKind() === 'oculus') {
+    lines.push(
+      OCULUS_POSTURE_LINE +
+        (bootPermissionMode ? ` Permission mode for this run: ${bootPermissionMode}.` : ''),
+    )
+    const needs = composeOperatorNeedsLine(bootPermissionMode, bootRules)
+    if (needs !== null) lines.push(needs)
+  } else if (nonInteractive && canAnswerAsks()) {
     lines.push(
       '- Session: non-interactive (mercury runner) with a host that holds the asks: a tool call that needs approval is put to the connected host, which answers allow or deny; a question to the operator travels the same door. A denial is policy, not tool failure: prefer tools your rules allow. An ask the host leaves unanswered ends the run as blocked, with the question on its outcome row.' +
         (bootPermissionMode ? ` Permission mode for this run: ${bootPermissionMode}.` : ''),
@@ -140,6 +153,7 @@ export function getRuntimePostureSection(): string | null {
 
 export function getRuntimePostureDoctrineLine(): string | null {
   if (!runtimePostureEnabled() || !nonInteractive) return null
+  if (canAnswerAsks() && getSessionKind() === 'oculus') return OCULUS_DOCTRINE_LINE
   return 'Runtime posture: this process is headless: an unanswerable permission ask is denied automatically, and a denial is policy, not tool failure; a file-lease denial means another agent holds those paths (coordinate, do not force).'
 }
 

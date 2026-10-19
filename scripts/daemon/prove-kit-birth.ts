@@ -192,12 +192,13 @@ if (ENSURE_SKIP !== '') {
     const roster = new FakeRoster()
     const warmDeps = { roster: () => roster, dir: recordsDir }
     const rewarms: Array<{ ws: string; kit: Kit | undefined }> = []
-    const admit = makeConcourseAdmitHandler({
+    const admitDoor = makeConcourseAdmitHandler({
       roster: () => roster as never,
       dir: recordsDir,
       claimWarm: args => warm.claimWarmRunner({ ...args, answerDeadlineMs: 1_500 }, warmDeps),
       ensureWarm: (ws, kit) => rewarms.push({ ws, kit: kit as Kit | undefined }),
     })
+    const admit: typeof admitDoor = req => admitDoor({ by: 'operator', ...req })
     const wsI = realpathSync(mkdtempSync(join(tmpdir(), 'kit-birth-ws-i-')))
     setMcpServerEnabledForWorkspace(wsI, 'beta', false)
     const ensured = await warm.ensureWarmRunner({ workspaceDir: wsI }, warmDeps)
@@ -228,11 +229,12 @@ if (ENSURE_SKIP !== '') {
   {
     const roster = new FakeRoster()
     const warmDeps = { roster: () => roster, dir: recordsDir }
-    const admit = makeConcourseAdmitHandler({
+    const admitDoor = makeConcourseAdmitHandler({
       roster: () => roster as never,
       dir: recordsDir,
       claimWarm: args => warm.claimWarmRunner({ ...args, answerDeadlineMs: 1_500 }, warmDeps),
     })
+    const admit: typeof admitDoor = req => admitDoor({ by: 'operator', ...req })
     const wsK = realpathSync(mkdtempSync(join(tmpdir(), 'kit-birth-ws-k-')))
     setMcpServerEnabledForWorkspace(wsK, 'alpha', false)
     const OLD: Kit = { schema: 1, mcp: ['old-server'], skills: [], invocable: [] }

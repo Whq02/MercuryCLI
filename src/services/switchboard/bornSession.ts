@@ -163,6 +163,7 @@ async function admitAndEnter(
         op: 'sessionAdmit',
         workspaceDir: req.workspaceDir,
         birthKey,
+        by: 'operator',
         ...(waitForSeatMs > 0 ? { waitForSeatMs } : {}),
         isolation: 'shared',
         ...(model !== undefined ? { model } : {}),

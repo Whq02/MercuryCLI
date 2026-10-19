@@ -269,7 +269,7 @@ export function holdWorkerAsk(
     }
   }
   const askMode = params.kind === 'tool' && params.mode !== undefined ? params.mode : rec.permissionMode
-  const limitMs = expiryMs ?? askLimitMs({ mode: askMode, crewmate: true })
+  const limitMs = expiryMs ?? askLimitMs({ mode: askMode, crewmate: true, kind: rec.kind ?? 'headless' })
   const input = params.kind === 'tool' ? params.input : { host: params.host }
   const suggestions = params.kind === 'tool' ? (params.suggestions as PermissionUpdate[] | undefined) : undefined
   const ask: PendingAsk = {

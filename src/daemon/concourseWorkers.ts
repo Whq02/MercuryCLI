@@ -50,6 +50,7 @@ import { writeSessionCloseReceipts } from '../services/switchboard/sessionReceip
 import { RetirementFence } from './runnerQuiescence.js'
 import type { RunnerDoor } from './runnerConnection.js'
 import { deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitStampOf, noteRecordlessResumeKit, restampSessionKit, type KitStampSource, type SessionKitV1 } from './sessionKit.js'
+import { parseSessionKind, SESSION_KIND_ENV, sessionKindOfAsker, type SessionKind } from '../utils/sessionKind.js'
 import type { ConcourseRowV1 } from '../components/concourse/contracts.js'
 
 
@@ -151,6 +152,7 @@ export interface ConcourseWorkerRecordV1 {
   effort?: string
   permissionMode?: SeatPermissionMode
   bypassConsent?: true
+  kind?: SessionKind
   spawnedAt: number
   endedAt?: number
   pausedAt?: number
@@ -690,6 +692,7 @@ export function concourseWorkerStripEnv(): string[] {
     'MERCURY_ALT_HELD',
     'MERCURY_LAUNCH_ID',
     'MERCURY_SESSION_KIT',
+    SESSION_KIND_ENV,
   ].flatMap(flagSpellings)
 }
 
@@ -728,6 +731,7 @@ export function buildConcourseWorkerSpec(args: {
   warm?: boolean
   kit?: SessionKitV1
   restartReason?: string
+  kind?: SessionKind
 }): RunnerChildSpec {
   const runnerArgv = splitAppendSystemPrompt(args.runnerArgv ?? [])
   return {
@@ -749,6 +753,7 @@ export function buildConcourseWorkerSpec(args: {
       MERCURY_SEATS: String(effectiveSeatCeiling()),
       ...(args.kit !== undefined ? { MERCURY_SESSION_KIT: JSON.stringify(args.kit) } : {}),
       ...(args.restartReason !== undefined ? { MERCURY_RUNNER_RESTART_REASON: args.restartReason } : {}),
+      ...(args.kind !== undefined ? { [SESSION_KIND_ENV]: args.kind } : {}),
     },
     permissionMode: seatInitialPermissionMode(args.permissionMode),
     ...(args.bypassConsent === true ? { allowBypass: true as const } : {}),
@@ -768,17 +773,25 @@ export function buildConcourseWorkerSpec(args: {
   }
 }
 
-export function spawnPostureOf(spec: Pick<RunnerChildSpec, 'permissionMode' | 'allowBypass'>): { permissionMode: SeatPermissionMode; bypassConsent?: true } {
+export function spawnPostureOf(spec: Pick<RunnerChildSpec, 'permissionMode' | 'allowBypass' | 'extraEnv'>): { permissionMode: SeatPermissionMode; bypassConsent?: true; kind?: SessionKind } {
+  const kind = sessionKindOfSpec(spec)
   return {
     permissionMode: getHeadlessPermissionMode(spec.permissionMode),
     ...(spec.allowBypass === true ? { bypassConsent: true as const } : {}),
+    ...(kind !== undefined ? { kind } : {}),
   }
 }
 
-export function stampSpawnPosture(rec: ConcourseWorkerRecordV1, posture: { permissionMode: SeatPermissionMode; bypassConsent?: true }): void {
+export function stampSpawnPosture(rec: ConcourseWorkerRecordV1, posture: { permissionMode: SeatPermissionMode; bypassConsent?: true; kind?: SessionKind }): void {
   rec.permissionMode = posture.permissionMode
   if (posture.bypassConsent === true) rec.bypassConsent = true
   else delete rec.bypassConsent
+  if (posture.kind !== undefined) rec.kind = posture.kind
+  else delete rec.kind
+}
+
+export function sessionKindOfSpec(spec: Pick<RunnerChildSpec, 'extraEnv'>): SessionKind | undefined {
+  return parseSessionKind(spec.extraEnv?.[SESSION_KIND_ENV])
 }
 
 
@@ -879,6 +892,7 @@ export interface ConcourseAdmitRequest {
   kit?: SessionKitV1
   kitPreset?: string
   bypassConsent?: true
+  by?: string
 }
 
 export type ConcourseRefusalCode =
@@ -1015,6 +1029,7 @@ export function makeConcourseAdmitHandler(
     const roster = deps.roster()
     if (!roster) return { ok: false, code: 'not-ready', error: 'daemon roster not ready' }
 
+    const kind = sessionKindOfAsker(req.by)
     const workspaceId = canonicalWorkspaceId(req.workspaceDir)
     let preset: { name: string; kit: SessionKitV1; note?: string } | undefined
     if (req.kitPreset !== undefined) {
@@ -1073,6 +1088,7 @@ export function makeConcourseAdmitHandler(
             ...(req.kit !== undefined ? { kit: req.kit } : {}),
             ...(preset !== undefined ? { preset } : {}),
             by: 'operator',
+            kind,
           },
           others,
           deps,
@@ -1104,6 +1120,7 @@ export function makeConcourseAdmitHandler(
     const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)
     if (
       deps.claimWarm !== undefined &&
+      kind === 'oculus' &&
       !keyless &&
       req.resumeSessionId === undefined &&
       (effectiveIsolation === 'exclusive' || effectiveIsolation === 'shared') &&
@@ -1151,6 +1168,7 @@ export function makeConcourseAdmitHandler(
             ...kitStampOf(kit),
             permissionMode: claimPosture,
             ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
+            kind,
           }
         }, deps.dir)
         deps.onSpawned?.(runnerId, claimed.spec, claimed.pid)
@@ -1286,6 +1304,7 @@ export function makeConcourseAdmitHandler(
       ...(req.permissionMode !== undefined ? { permissionMode: req.permissionMode } : {}),
       ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
       ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv } : {}),
+      kind,
     })
     const reg = roster.registerLongLived(runnerId, spec)
     if (!reg.ok) return { ok: false, code: 'spawn-failed', error: reg.error ?? 'registerLongLived refused' }
@@ -1837,6 +1856,7 @@ export function detachRespawnConcourseSession(
     ...(rec.title !== undefined ? { title: rec.title } : {}),
     ...(rec.runnerArgv !== undefined ? { runnerArgv: rec.runnerArgv } : {}),
     ...(rec.kit !== undefined ? { kit: rec.kit } : {}),
+    ...(rec.kind !== undefined ? { kind: rec.kind } : {}),
     resume: true,
     cwd: rec.worktreePath ?? rec.workspaceId,
   })
@@ -1918,6 +1938,7 @@ export function reviveConcourseWorker(
     modelOverride?: string
     permissionMode?: PermissionMode
     bypassConsent?: boolean
+    kind?: SessionKind
   },
   dir?: string,
 ): ConcourseReviveOutcome {
@@ -1951,6 +1972,7 @@ export function reviveConcourseWorker(
   const reviveModel = opts?.modelOverride ?? rec.modelKey
   const revivePosture = opts?.permissionMode ?? rec.permissionMode
   const reviveConsent = opts?.bypassConsent ?? rec.bypassConsent === true
+  const reviveKind = opts?.kind ?? rec.kind ?? sessionKindOfAsker(by)
   const spec = buildConcourseWorkerSpec({
     runnerId: rec.runnerId,
     sessionId: rec.sessionId,
@@ -1965,6 +1987,7 @@ export function reviveConcourseWorker(
     restartReason: runnerRestartReasonOf(rec),
     resume: true,
     cwd: rec.worktreePath ?? rec.workspaceId,
+    kind: reviveKind,
   })
   const reg = roster.registerLongLived(rec.runnerId, spec)
   if (!reg.ok)
@@ -2041,12 +2064,14 @@ export async function reactivateConcourseSession(
     kit?: SessionKitV1
     preset?: { name: string; kit: SessionKitV1; note?: string }
     by: string
+    kind?: SessionKind
   },
   live: ReadonlyArray<{ workspaceId: string; isolation?: WorkspaceIsolation }>,
   deps: ConcourseAdmitDeps,
 ): Promise<ConcourseAdmitResult> {
   const roster = deps.roster()
   if (!roster) return refuseReactivate(rec, 'not-ready', 'parked — the daemon roster is not ready · ↵ again retries', deps.dir)
+  const kind = args.kind ?? sessionKindOfAsker(args.by)
   const display = args.modelDisplayName !== undefined ? { modelDisplayName: args.modelDisplayName } : {}
   const alive = workerPidAlive(rec)
   const held = roster.list().some(r => r.short === rec.runnerId && r.outcome === undefined)
@@ -2084,6 +2109,7 @@ export async function reactivateConcourseSession(
   const kitSource: KitStampSource = args.kit !== undefined ? 'carried' : args.preset !== undefined ? 'preset' : 'derived'
   if (
     deps.claimWarm !== undefined &&
+    kind === 'oculus' &&
     ((rec.isolation ?? 'exclusive') === 'exclusive' || rec.isolation === 'shared') &&
     rec.worktreePath === undefined &&
     (rec.runnerArgv === undefined || rec.runnerArgv.length === 0)
@@ -2124,7 +2150,7 @@ export async function reactivateConcourseSession(
         if (isolationDrift) next.isolation = claimIsolation
         clearReactivatedFields(next)
         restampSessionKit(next, kit, kitSource, args.by)
-        stampSpawnPosture(next, { permissionMode: claimPosture, ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}) })
+        stampSpawnPosture(next, { permissionMode: claimPosture, ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}), kind })
         workers[short] = next
       }, deps.dir)
       deps.onSpawned?.(short, claimed.spec, claimed.pid)
@@ -2178,6 +2204,7 @@ export async function reactivateConcourseSession(
       kitOverride: kit,
       ...(args.permissionMode !== undefined ? { permissionMode: args.permissionMode } : {}),
       bypassConsent: args.bypassConsent === true,
+      kind,
     },
     deps.dir,
   )
@@ -2210,6 +2237,7 @@ export async function reactivateConcourseSession(
       ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}),
       resume: true,
       cwd: rec.worktreePath ?? rec.workspaceId,
+      kind,
     }),
     pid,
   )

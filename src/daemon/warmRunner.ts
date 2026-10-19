@@ -304,6 +304,7 @@ async function ensureWarmRunnerFlight(
     warm: true,
     ...(bypassConsent ? { bypassConsent: true as const } : {}),
     kit,
+    kind: 'oculus',
   })
   const reg = roster.registerLongLived(short, spec)
   if (!reg.ok) return { state: 'refused', detail: reg.error ?? 'registerLongLived refused' }

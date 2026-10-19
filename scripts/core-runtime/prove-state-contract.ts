@@ -134,6 +134,7 @@ const OBSERVABLES: Array<{
   { key: 'lastEmittedDate', family: 'caches', scope: 'session', read: () => state.getLastEmittedDate() },
   { key: 'isInteractive', family: 'posture', scope: 'session', read: () => state.getIsInteractive() },
   { key: 'isNonInteractive', family: 'posture', scope: 'derived', read: () => state.getIsNonInteractiveSession() },
+  { key: 'sessionKind', family: 'posture', scope: 'session', read: () => state.getSessionKind() },
   { key: 'preferThirdPartyAuth', family: 'posture', scope: 'derived', read: () => state.preferThirdPartyAuthentication() },
   { key: 'assistantSessionActive', family: 'posture', scope: 'session', read: () => state.isAssistantSessionActive() },
   { key: 'assistantAvailable', family: 'posture', scope: 'derived', read: () => state.isAssistantFamilyAvailable() },
@@ -253,6 +254,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
   const EXPECTED_VALUE_EXPORTS = [
     'addInvokedSkill', 'addToToolDuration',
     'canAnswerAsks', 'getAskChannel', 'setAskChannel',
+    'getSessionKind', 'setSessionKind',
     'addToTotalCostState', 'addToTotalDurationState', 'addToTotalLinesChanged',
     'addToWorkloadUsageState', 'getWorkloadUnpricedTurns', 'getWorkloadUsage', 'recordWorkloadUnpricedTurn',
     'addToTurnHookDuration', 'canAnswerAsks', 'clearBetaHeaderLatches',

@@ -85,6 +85,35 @@ section('headless posture (the daemon-child / run truth)')
   check('doctrine line carries lease semantics', /file-lease denial/.test(line))
 }
 
+section('oculus posture (a screen belongs to the session) — one line in plain words; the headless half untouched')
+{
+  const { setAskChannel, setSessionKind } = await import('../../src/bootstrap/state.ts')
+  resetRuntimePostureForTest()
+  setAskChannel('sdk')
+  setSessionKind('oculus')
+  markSessionNonInteractive('implement')
+  const text = getRuntimePostureSection() ?? ''
+  check('an oculus seat says a screen belongs to this session and the operator is on it', /Session: oculus \(a screen belongs to this session\): the operator is on the screen/.test(text), text)
+  check('…asks travel to the screen and wait without expiry; a slow answer is not "nobody is here"', /ask them as you normally would/.test(text) && /nothing expires it/.test(text) && /a slow answer is not "nobody is here"/.test(text))
+  check('…a denial is policy, not tool failure', /A denial is policy, not tool failure/.test(text))
+  check('…never the headless words', !/non-interactive/.test(text) && !/no human is at a prompt/.test(text) && !/denied automatically/.test(text) && !/ends the run as blocked/.test(text))
+  check('…the boot mode rides it as on any hosted seat', /Permission mode for this run: implement/.test(text))
+  check("an oculus parent's doctrine line says the screen holds the session", /^Runtime posture: this process is an oculus session: a screen belongs to it/.test(getRuntimePostureDoctrineLine() ?? '') && /file-lease denial/.test(getRuntimePostureDoctrineLine() ?? ''))
+  setSessionKind('headless')
+  resetRuntimePostureForTest()
+  markSessionNonInteractive('implement')
+  check('a headless seat under the same host keeps its own words', /Session: non-interactive \(mercury runner\) with a host that holds the asks/.test(getRuntimePostureSection() ?? ''))
+  check("a headless parent's doctrine line keeps its own words", /^Runtime posture: this process is headless: an unanswerable permission ask is denied automatically/.test(getRuntimePostureDoctrineLine() ?? ''))
+  setSessionKind('oculus')
+  setAskChannel('none')
+  resetRuntimePostureForTest()
+  markSessionNonInteractive('implement')
+  check('an oculus stamp with no host composes the bare headless line (a screen needs a door)', /Session: non-interactive \(mercury run\)/.test(getRuntimePostureSection() ?? ''))
+  setSessionKind('headless')
+  setAskChannel('operator')
+  resetRuntimePostureForTest()
+}
+
 section('boot-state capture — kills + MCP cap render when armed at boot')
 {
   const { killCapability, restoreCapability } = await import(
@@ -126,6 +155,17 @@ section('composition into the subagent doctrine (both chokepoints share the seam
     'fable-exempt agents still get the posture (it is scope-neutral)',
     exempt.some(s => s.startsWith('Runtime posture:')),
   )
+  const { setSessionKind } = await import('../../src/bootstrap/state.ts')
+  resetRuntimePostureForTest()
+  setAskChannel('sdk')
+  setSessionKind('oculus')
+  markSessionNonInteractive('default')
+  const oculusChild = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
+  check(
+    "an oculus parent's child carries the oculus posture line, never the headless one",
+    oculusChild.some(s => s.startsWith('Runtime posture: this process is an oculus session')) && oculusChild.every(s => !s.startsWith('Runtime posture: this process is headless')),
+  )
+  setSessionKind('headless')
   setAskChannel('operator')
   resetRuntimePostureForTest()
 }

@@ -37,6 +37,7 @@ export interface ConcourseRowV1 {
   nowLabel?: string | null
   finishedUnseen?: true
   workflowsAllowed?: boolean
+  kind?: 'oculus' | 'headless'
   scheduleNextFireMs?: number
   workspaceDir?: string
   worktreeBranch?: string

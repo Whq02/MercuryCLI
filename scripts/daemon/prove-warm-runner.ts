@@ -106,7 +106,7 @@ const wsG = mkdtempSync(join(tmpdir(), 'warm-ws-g-'))
 const roster = new FakeRoster()
 const warmDeps = { roster: () => roster, dir: recordsDir }
 const rewarmed: string[] = []
-const admit = makeConcourseAdmitHandler({
+const admitDoor = makeConcourseAdmitHandler({
   roster: () => roster,
   dir: recordsDir,
   claimWarm: args => warm.claimWarmRunner({ ...args, answerDeadlineMs: 1_500 }, warmDeps),
@@ -114,6 +114,7 @@ const admit = makeConcourseAdmitHandler({
     rewarmed.push(workspaceDir)
   },
 })
+const admit: typeof admitDoor = req => admitDoor({ by: 'operator', ...req })
 
 console.log('============================================================')
 console.log(' warm-runner — the pool laws on the real policy')

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.js'
+import { getSessionId, getSessionKind, isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import type { Command } from '../commands.js'
 import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
 import { armWorkerParentWatch } from '../daemon/workerParentWatch.js'
@@ -1097,7 +1097,7 @@ export class Conversation {
     const settled = endedOnApiError ? { status: 'failed' as const, errorClass: 'model' as const } : statusOfTerminal(terminal, cut)
     if (settled.status === 'completed') {
       const unanswered = this.denials.slice(denialsBefore).filter(denial => this.unansweredAsks.has(denial.call_id))
-      if (unanswered.length > 0) {
+      if (unanswered.length > 0 && getSessionKind() !== 'oculus') {
         const tools = [...new Set(unanswered.map(denial => denial.tool))]
         if (!recoveredUnansweredAsk) {
           yield* endTurn('blocked', { answer, error: unansweredAsksBlocker(unanswered) })

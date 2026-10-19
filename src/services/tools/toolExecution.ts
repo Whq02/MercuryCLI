@@ -11,7 +11,7 @@ import { completionIdentity } from '../agentResults/summaryRoom.js'
 import { getLoggingSafeMcpBaseUrl } from '../mcp/utils.js'
 import type { McpServerConfig } from '../mcp/types.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { addToToolDuration, canAnswerAsks, getSessionId, getStatsStore } from '../../bootstrap/state.js'
+import { addToToolDuration, canAnswerAsks, getSessionId, getSessionKind, getStatsStore } from '../../bootstrap/state.js'
 import { judgeToolCall } from '../../guards/guards.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
@@ -696,7 +696,7 @@ async function runTransactionBody(args: {
         ? `Tool execution was stopped by a pre-tool hook${stopReason ? `: ${stopReason}` : ''}`
         : `Permission to use ${tool.name} was denied.`)
     const cannotPrompt =
-      toolUseContext.options.isNonInteractiveSession === true ||
+      (toolUseContext.options.isNonInteractiveSession === true && getSessionKind() !== 'oculus') ||
       toolUseContext.getAppState().toolPermissionContext.shouldAvoidPermissionPrompts === true
     const asksTheOperator = tool.requiresUserInteraction?.(input as never) === true
     const headlessAskNote =

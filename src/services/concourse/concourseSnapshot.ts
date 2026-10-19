@@ -1010,6 +1010,7 @@ export async function buildConcourseSnapshot(
       ...(rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined ? { newborn: true as const } : {}),
       ...(state === 'ready-to-review' && rec.lastTurnSettledAt !== undefined && rec.lastTurnSettledAt > (seenAt[rec.sessionId] ?? 0) ? { finishedUnseen: true as const } : {}),
       ...(rec.workflowsAllowed === true ? { workflowsAllowed: true } : {}),
+      ...(rec.kind !== undefined ? { kind: rec.kind } : {}),
       ...((): { scheduleNextFireMs?: number } => {
         const next = saturnSoonestFireMs(rec, nowMs)
         return next !== null ? { scheduleNextFireMs: next } : {}

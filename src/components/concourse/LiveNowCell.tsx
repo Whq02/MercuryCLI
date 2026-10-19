@@ -17,10 +17,13 @@ export const LiveNowCell = React.memo(function LiveNowCell({
   const t = useMercuryTokens()
   const live = row.state === 'working' || row.state === 'needs-you' || row.state === 'starting'
   const { now, degraded } = useLiveTile(row.sessionId, row.workspaceDir, live)
+  const headlessLead = (trail: boolean): React.ReactNode =>
+    row.kind === 'headless' ? <Text color={t.textSecondary}>headless{trail ? ' · ' : ''}</Text> : null
   const workflowsLead = (trail: boolean): React.ReactNode =>
     row.workflowsAllowed === true ? (
       <Text color={t.textSecondary}>workflows allowed{trail ? ' · ' : ''}</Text>
     ) : null
+  const hasWorkflows = row.workflowsAllowed === true
   const hasNextFire = row.scheduleNextFireMs !== undefined
   const nextFireLead = (trail: boolean): React.ReactNode =>
     row.scheduleNextFireMs !== undefined ? (
@@ -29,6 +32,7 @@ export const LiveNowCell = React.memo(function LiveNowCell({
   if (row.state === 'queued') {
     return (
       <Text wrap="truncate-end">
+        {headlessLead(true)}
         {workflowsLead(true)}
         {nextFireLead(true)}
         <Text color={t.textMuted}>{concourseWaitCopy(row.waitReason, row.waitDetail)}</Text>
@@ -39,6 +43,7 @@ export const LiveNowCell = React.memo(function LiveNowCell({
     const question = askTileCopy(row.title, ask)
     return (
       <Text wrap="truncate-end">
+        {headlessLead(true)}
         {workflowsLead(true)}
         {nextFireLead(true)}
         <Text color={t.warning}>{CREW_ASK_WAIT_WORDS} · {question}</Text>
@@ -48,6 +53,7 @@ export const LiveNowCell = React.memo(function LiveNowCell({
   if (row.state === 'needs-you') {
     return (
       <Text wrap="truncate-end">
+        {headlessLead(hasWorkflows || hasNextFire || (row.nowLabel ?? '') !== '')}
         {workflowsLead(hasNextFire || (row.nowLabel ?? '') !== '')}
         {nextFireLead((row.nowLabel ?? '') !== '')}
         <Text color={t.warning}>{row.nowLabel ?? ''}</Text>
@@ -57,6 +63,7 @@ export const LiveNowCell = React.memo(function LiveNowCell({
   if (live && !degraded && now.kind !== 'still') {
     return (
       <Text wrap={now.kind === 'streaming' ? 'truncate-start' : 'truncate-end'}>
+        {headlessLead(true)}
         {workflowsLead(true)}
         {nextFireLead(true)}
         <Text color={t.textMuted}>{now.kind === 'tool' ? `running ${now.line}` : now.line}</Text>
@@ -65,6 +72,7 @@ export const LiveNowCell = React.memo(function LiveNowCell({
   }
   return (
     <Text wrap="truncate-end">
+      {headlessLead(hasWorkflows || hasNextFire || (row.nowLabel ?? '') !== '' || (live && degraded))}
       {workflowsLead(hasNextFire || (row.nowLabel ?? '') !== '' || (live && degraded))}
       {nextFireLead((row.nowLabel ?? '') !== '' || (live && degraded))}
       {live && degraded ? <Text color={t.textMuted}>· </Text> : null}

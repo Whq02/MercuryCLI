@@ -228,7 +228,7 @@ class StubRoster {
         return { claimed: true, short: 'concourse-w9', pid: process.pid, spec: buildConcourseWorkerSpec({ runnerId: 'concourse-w9', sessionId: args.sessionId, workspaceId: args.workspaceId, modelKey: args.modelKey, effort: args.effort }) }
       },
     })
-    const claimed = await warmAdmit({ workspaceDir: WS_WARM, modelKey: MODEL, bornBlank: true, kit: K2 })
+    const claimed = await warmAdmit({ workspaceDir: WS_WARM, modelKey: MODEL, bornBlank: true, kit: K2, by: 'operator' })
     check('A9 the WARM-claim mint stamps the carried kit too (one writer, two mints)', claimed.ok && claimed.runnerId === 'concourse-w9' && deepEq(recOf('concourse-w9')?.kit, K2), claimed.ok ? '' : claimed.error)
   }
 }

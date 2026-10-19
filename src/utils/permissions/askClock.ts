@@ -1,7 +1,9 @@
 import type { PermissionMode } from '../../types/permissions.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { getSessionKind } from '../../bootstrap/state.js'
 import { formatLimit, minutesKnobToMs } from '../deadline.js'
 import { DENIAL_WORKAROUND_GUIDANCE } from '../messages/rejectionText.js'
+import type { SessionKind } from '../sessionKind.js'
 
 export const FLOW_ASK_LIMIT_MINUTES = 10
 export const SOVEREIGN_ASK_LIMIT_MINUTES = 3
@@ -10,6 +12,7 @@ export const CREWMATE_ASK_LIMIT_MINUTES = 10
 interface AskClockSubject {
   mode: PermissionMode | string | undefined
   crewmate: boolean
+  kind?: SessionKind
 }
 
 function askLimitMinutes(subject: AskClockSubject): number {
@@ -19,6 +22,7 @@ function askLimitMinutes(subject: AskClockSubject): number {
 }
 
 export function askLimitMs(subject: AskClockSubject): number {
+  if ((subject.kind ?? getSessionKind()) === 'oculus') return 0
   const minutes = askLimitMinutes(subject)
   if (minutes === 0) return 0
   return minutesKnobToMs(flagEnv('MERCURY_PERMISSION_ASK_EXPIRY_MINUTES'), minutes)
