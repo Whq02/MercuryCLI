@@ -27,7 +27,6 @@
     "@agentclientprotocol/sdk": "1.4.0",
     "@alcalzone/ansi-tokenize": "^0.3.0",
     "@anthropic-ai/mcpb": "2.1.2",
-    "@anthropic-ai/sandbox-runtime": "0.0.74",
     "@anthropic-ai/sdk": "0.122.0",
     "@commander-js/extra-typings": "~15.0.0",
     "@modelcontextprotocol/client": "2.0.0",
