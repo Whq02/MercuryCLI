@@ -33,7 +33,7 @@ enableConfigs()
 const auth = await import('../../src/utils/auth.ts')
 const limits = await import('../../src/services/anthropicLimits.ts')
 const { quotaWindows } = await import('../../src/utils/cockpit/quota.ts')
-const { APIError } = await import('@anthropic-ai/sdk')
+const { APIError } = await import('../../src/services/api/sdkErrors.js')
 
 auth.clearOAuthTokenCache()
 writeFileSync(

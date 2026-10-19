@@ -19,7 +19,7 @@ const { enableConfigs, saveGlobalConfig } = await import(join(src, 'utils/config
 enableConfigs()
 saveGlobalConfig((config: Record<string, unknown>) => ({ ...config, oauthAccount: { accountUuid: 'fixture-account', emailAddress: 'fixture@example.invalid', organizationUuid: 'fixture-organization' } }))
 const auth = await import(join(src, 'utils/auth.ts'))
-const { APIError } = await import('@anthropic-ai/sdk')
+const { APIError } = await import(join(src, 'services/api/sdkErrors.ts'))
 const { getAssistantMessageFromError } = await import(join(src, 'services/api/errors.ts'))
 const { isRetryableError, withRetry, CannotRetryError } = await import(join(src, 'services/api/withRetry.ts'))
 let failures = 0

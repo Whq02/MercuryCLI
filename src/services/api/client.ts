@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import Anthropic from '@anthropic-ai/sdk'
+import { AnthropicClient as Anthropic } from '../providers/anthropic/anthropicClient.js'
 
 import { getSessionId } from '../../bootstrap/state.js'
 import {
@@ -161,5 +161,5 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
     ...(subscriber && oauthAccessToken ? { authToken: oauthAccessToken } : {}),
   }
   attachStderrLogger(firstPartyOptions)
-  return new Anthropic(firstPartyOptions as never)
+  return new Anthropic(firstPartyOptions)
 }

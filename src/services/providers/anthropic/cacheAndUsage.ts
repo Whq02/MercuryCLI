@@ -1,6 +1,5 @@
-import { type BetaMessageParam as MessageParam, type BetaRawMessageStreamEvent } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
-import { type TextBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
-import { type Stream } from '@anthropic-ai/sdk/streaming.mjs'
+import type { MessageParam, TextBlockParam } from '../../../types/wire.js'
+import type { AnthropicStream } from './anthropicStream.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { isWholeRecordedComposition } from '../../../prompt/recordedComposition.js'
 import {
@@ -164,7 +163,7 @@ export function accumulateUsage(totalUsage: Readonly<NonNullableUsage>, messageU
   return foldUsage(totalUsage, messageUsage, true, server)
 }
 
-export function cleanupStream(stream: Stream<BetaRawMessageStreamEvent> | undefined): void {
+export function cleanupStream(stream: AnthropicStream | undefined): void {
   try {
     const controller = stream?.controller
     if (controller && !controller.signal.aborted) controller.abort()

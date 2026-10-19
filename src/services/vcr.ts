@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-import type { BetaRawMessageStreamEvent } from '@anthropic-ai/sdk/resources/beta/messages/messages'
+import type { ApiStreamEvent as BetaRawMessageStreamEvent } from '../types/wire.js'
 
 import { addToTotalSessionCost } from '../cost-tracker.js'
 import type { AssistantMessage, Message } from '../types/message.js'

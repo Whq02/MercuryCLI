@@ -1,4 +1,4 @@
-import { APIConnectionError, APIConnectionTimeoutError, APIError } from '@anthropic-ai/sdk'
+import { APIConnectionError, APIConnectionTimeoutError, APIError } from './sdkErrors.js'
 
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'

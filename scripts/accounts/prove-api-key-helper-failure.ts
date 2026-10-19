@@ -39,8 +39,7 @@ writeFileSync(OK, "import { appendFileSync } from 'node:fs'\nappendFileSync(proc
 const executions = (): number => (existsSync(COUNT) ? readFileSync(COUNT, 'utf8').length : 0)
 const helperLine = (script: string): string => `"${process.execPath}" "${script}"`
 
-const bunApi = (globalThis as { Bun?: { resolveSync: (specifier: string, from: string) => string } }).Bun
-const sdkEntry = bunApi ? bunApi.resolveSync('@anthropic-ai/sdk', join(SRC, 'services', 'api')) : '@anthropic-ai/sdk'
+const sdkEntry = join(SRC, 'services/api/sdkErrors.ts')
 
 const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
 enableConfigs()

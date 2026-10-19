@@ -1,4 +1,4 @@
-import { APIError } from '@anthropic-ai/sdk'
+import { APIError } from './api/sdkErrors.js'
 
 import {
   applyMockHeaders,

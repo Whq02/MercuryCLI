@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { APIError } from '@anthropic-ai/sdk'
+import { APIError } from '../../src/services/api/sdkErrors.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'

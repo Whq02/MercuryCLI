@@ -336,7 +336,7 @@ section('§5 · the ANTHROPIC lane: an OBSERVED-expired claude.ai sign-in fails 
   const { isRetryableError } = await import('../../src/services/api/withRetry.js')
   const { getAssistantMessageFromError } = await import('../../src/services/api/errors.js')
   const { anthropicCredentialPresence } = await import('../../src/services/providers/providerUsage.js')
-  const { APIError } = await import('@anthropic-ai/sdk')
+  const { APIError } = await import('../../src/services/api/sdkErrors.js')
   const seed = (oauth: Record<string, unknown> | null): void => {
     __resetKnownDeadRefreshTokensForTest()
     clearOAuthTokenCache()

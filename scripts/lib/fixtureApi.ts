@@ -429,6 +429,7 @@ export async function startFixtureApi(
     bindingCheck?: boolean
     messageHeaders?: Record<string, string>
     jsonForNonStream?: boolean
+    captureAllHeaders?: boolean
   },
 ): Promise<FixtureApi> {
   const queue = [...turns]
@@ -479,7 +480,7 @@ export async function startFixtureApi(
         body = { unparseable: raw.slice(0, 200) }
       }
       const headers: Record<string, string> = {}
-      for (const name of ['anthropic-beta', 'anthropic-version', 'user-agent', 'x-app', 'content-type']) {
+      for (const name of opts?.captureAllHeaders ? Object.keys(req.headers) : ['anthropic-beta', 'anthropic-version', 'user-agent', 'x-app', 'content-type']) {
         const value = req.headers[name]
         if (typeof value === 'string') headers[name] = value
       }

@@ -41,7 +41,7 @@ const { getAssistantMessageFromError, isClientContractGateText, clientContractGa
   '../../src/services/api/errors.js'
 )
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
-const { APIError } = await import('@anthropic-ai/sdk')
+const { APIError } = await import('../../src/services/api/sdkErrors.js')
 
 const CONTRACT = ANTHROPIC_CLIENT_CONTRACT_VERSION
 const AS_OF = ANTHROPIC_CLIENT_CONTRACT_AS_OF

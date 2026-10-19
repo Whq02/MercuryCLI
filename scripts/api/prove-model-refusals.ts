@@ -17,7 +17,7 @@ writeFileSync(join(home, '.mercury.json'), JSON.stringify({ customApiKeyResponse
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const refusals = await import('../../src/services/providers/anthropic/modelRefusal.js')
-const { APIError } = await import('@anthropic-ai/sdk')
+const { APIError } = await import('../../src/services/api/sdkErrors.js')
 const MODEL = 'claude-opus-5-5'
 const DOOR = 'Claude subscription (max)'
 const WIRE = '2.1.280 does not support this model; version 2.1.290 or newer is required. Run claude update.'

@@ -1,24 +1,23 @@
 
-import type { ClientOptions } from '@anthropic-ai/sdk'
+import type { AnthropicClientOptions as ClientOptions } from './anthropicClient.js'
 import {
   APIConnectionError,
   APIConnectionTimeoutError,
   APIError,
   APIUserAbortError,
-} from '@anthropic-ai/sdk/error'
+} from '../../api/sdkErrors.js'
 import type {
-  BetaContentBlock,
-  BetaJSONOutputFormat,
-  BetaMessage,
-  BetaMessageStreamParams,
-  BetaOutputConfig,
-  BetaRawMessageStreamEvent,
-  BetaStopReason,
-  BetaToolChoiceAuto,
-  BetaToolChoiceTool,
-  BetaToolUnion,
-} from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
-import type { Stream } from '@anthropic-ai/sdk/streaming.mjs'
+  ContentBlock as BetaContentBlock,
+  JsonOutputFormat as BetaJSONOutputFormat,
+  ApiMessage as BetaMessage,
+  ApiStreamEvent as BetaRawMessageStreamEvent,
+  ApiToolUnion as BetaToolUnion,
+} from '../../../types/wire.js'
+import type { AnthropicMessageParams as BetaMessageStreamParams, AnthropicOutputConfig as BetaOutputConfig } from './anthropicWire.js'
+import type { AnthropicStream } from './anthropicStream.js'
+type BetaStopReason = NonNullable<BetaMessage['stop_reason']>
+type BetaToolChoiceAuto = Extract<BetaMessageStreamParams['tool_choice'], { type: 'auto' }>
+type BetaToolChoiceTool = Extract<BetaMessageStreamParams['tool_choice'], { type: 'tool' }>
 import { randomUUID } from 'crypto'
 import {
   getCacheEditingHeaderLatched,
@@ -604,7 +603,7 @@ async function* queryModel(
   const startIncludingRetries = Date.now()
   let start = Date.now()
   let settledNormally = false
-  let stream: Stream<BetaRawMessageStreamEvent> | undefined = undefined
+  let stream: AnthropicStream | undefined = undefined
   let streamRequestId: string | null | undefined = undefined
   let clientRequestId: string | undefined = undefined
   // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins -- the SDK returns a fetch Response
@@ -993,7 +992,7 @@ async function* queryModel(
         yield e.value
       }
     } while (!e.done)
-    stream = e.value as Stream<BetaRawMessageStreamEvent>
+    stream = e.value as AnthropicStream
 
     settleUnpricedAttempt()
     newMessages.length = 0

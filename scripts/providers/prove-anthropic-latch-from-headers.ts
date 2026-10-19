@@ -34,7 +34,7 @@ const auth = await import('../../src/utils/auth.ts')
 const limits = await import('../../src/services/anthropicLimits.ts')
 const mocking = await import('../../src/services/rateLimitMocking.ts')
 const { quotaWindows } = await import('../../src/utils/cockpit/quota.ts')
-const { APIError } = await import('@anthropic-ai/sdk')
+const { APIError } = await import('../../src/services/api/sdkErrors.js')
 
 const credsPath = join(HOME, '.credentials.json')
 const seed = (oauth: Record<string, unknown> | null): void => {
