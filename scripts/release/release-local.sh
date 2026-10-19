@@ -72,6 +72,7 @@ esac
 [ -n "$ROOT" ] || ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 ROOT=$(cd "$ROOT" && pwd) || { echo "release-local: --root $ROOT is not a directory" >&2; exit 2; }
 [ -f "$ROOT/scripts/release/package.mjs" ] || { echo "release-local: $ROOT carries no scripts/release/package.mjs" >&2; exit 2; }
+git -C "$ROOT" rev-parse --verify HEAD > /dev/null 2>&1 || { echo "release-local: git cannot read $ROOT as a repository with a HEAD (the build stamps its content tree from git, and the packager binds that tree to the gate ledger): $(git -C "$ROOT" rev-parse HEAD 2>&1 | head -1)" >&2; exit 2; }
 [ -n "$LOGS" ] || LOGS="$ROOT/release-out/release-local-logs/$TARGET"
 mkdir -p "$LOGS" || exit 2
 LOGS=$(cd "$LOGS" && pwd)
