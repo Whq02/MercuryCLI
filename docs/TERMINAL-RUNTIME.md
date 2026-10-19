@@ -298,10 +298,9 @@ another's. A ceiling of 1 leaves no session for crewmates: their engine
 calls are refused at once with the reason, and a `run_in_background` call
 still runs, in its own system shell.
 
-The engine is a child process, so the OS sandbox still wraps it and
-everything it spawns. A command that hangs is killed by the tool's timeout
-and the session respawns with the working directory restored, the model
-told the earlier state was lost; a stop from you while a command
+The engine is a child process. A command that hangs is killed by the tool's
+timeout and the session respawns with the working directory restored, the
+model told the earlier state was lost; a stop from you while a command
 runs ends that command and resets the session, and the result says so; a
 message typed while a command runs is queued and delivered when the command
 ends.
