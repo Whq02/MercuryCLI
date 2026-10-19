@@ -162,7 +162,6 @@ import {
   type FileState,
 } from '../utils/fileStateCache.js'
 import { saveCacheSafeParams, getLastCacheSafeParams } from '../utils/forkedAgent.js'
-import { SandboxManager } from '../utils/sandbox/sandbox-adapter.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned } from '../utils/gracefulShutdown.js'
@@ -599,32 +598,6 @@ export async function runHeadless(
     installWireStdoutGuard()
   }
   noteRunPhase('invocation_resolution')
-
-  {
-    const unavailableReason = SandboxManager.getSandboxUnavailableReason()
-    if (unavailableReason && SandboxManager.isSandboxRequired()) {
-      process.stderr.write(
-        `${GLYPH.fail} Sandbox is unavailable (${unavailableReason}) and the failIfUnavailable sandbox setting requires it\n`,
-      )
-      gracefulShutdownSync(1)
-      return
-    }
-    if (unavailableReason) {
-      process.stderr.write(
-        `${GLYPH.warn} Warning: sandboxing is OFF for this session (${unavailableReason}) — commands run with no network or filesystem confinement\n`,
-      )
-    } else if (SandboxManager.isSandboxingEnabled()) {
-      try {
-        await SandboxManager.initialize(asks.createSandboxAskCallback())
-      } catch (error) {
-        process.stderr.write(
-          `${GLYPH.fail} Sandbox initialization failed: ${errorMessage(error)}\n`,
-        )
-        gracefulShutdownSync(1, 'closed')
-        return
-      }
-    }
-  }
 
   const loaded = await loadInitialMessages(setAppState, {
     continue: options.continue,

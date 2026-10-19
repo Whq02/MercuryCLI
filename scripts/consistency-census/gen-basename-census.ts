@@ -108,9 +108,9 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: 'the MANAGED estate projection (the managed root mirrors the canonical .mercury layout)',
   },
   {
-    test: f => f === 'src/services/projectIntel/impact.ts' || f === 'src/utils/sandbox/sandbox-adapter.ts' || f === 'src/utils/verification/verificationState.ts',
+    test: f => f === 'src/services/projectIntel/impact.ts' || f === 'src/utils/verification/verificationState.ts',
     cls: 'own-guard',
-    why: "Mercury's home held as protection vocabulary (the scan's walk-skips, the sandbox deny-writes, the tree digest's exclusions) — never a read or a write path",
+    why: "Mercury's home held as protection vocabulary (the scan's walk-skips, the tree digest's exclusions) — never a read or a write path",
   },
   {
     test: f => f === 'src/entrypoints/cli.tsx',

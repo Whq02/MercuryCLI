@@ -300,10 +300,6 @@ src/utils/proxy.ts :: tunnelAgentCache :: keyed-by-truth
 src/utils/ripgrep.ts :: roundedCountMemo :: keyed-by-truth
 src/services/providers/modelRegistry.ts :: snapshotMemo :: ttl-bounded
 src/services/providers/providerDiscovery.ts :: cache :: ttl-bounded
-src/utils/sandbox/sandbox-adapter.ts :: cachedWorktreeMainRepo :: static-for-process
-src/utils/sandbox/sandbox-adapter.ts :: isSupportedPlatformMemo :: static-for-process
-src/utils/sandbox/sandbox-adapter.ts :: linuxSandboxTools :: static-for-process
-src/utils/sandbox/sandbox-adapter.ts :: platformUserTempDir :: static-for-process
 src/utils/savedPrompts/savedPromptsStore.ts :: cache :: subscription-fed
 src/utils/secureStorage/macOsKeychainHelpers.ts :: keychainCacheState :: invalidator=clearKeychainCache
 src/utils/secureStorage/macOsKeychainStorage.ts :: keychainLockedMemo :: static-for-process
