@@ -425,7 +425,8 @@ section('serialized tool definitions remain fixed across refresh and reconstruct
   check('the same durable record is not duplicated after reconstruction', await boundPrefixRecordToEmit(key, [...messages, persisted] as never, model) === null)
   freshProcess()
   restoreBoundPrefixFromMessages([persisted])
-  check('a fork restores definitions under its new conversation identity', j(await schemas(await plan(livePool, 'forked-conversation'))) === j(first))
+  const forked = await schemas(await plan(livePool, 'forked-conversation'))
+  check('a fork restores definitions under its new conversation identity; the one whose live input schema moved goes out live', j(forked.slice(1)) === j(first.slice(1)) && j(forked[0]).includes('"after"') && !j(forked[0]).includes('"before"') && j(forked[0]).includes('Changed description'))
   const late = tool('LateFixture', 'lookup', 'Late description', true)
   await schemas(await plan([...livePool, late], 'forked-conversation'))
   const expanded = await boundPrefixRecordToEmit('forked-conversation', [...messages, persisted] as never, model)
@@ -433,7 +434,7 @@ section('serialized tool definitions remain fixed across refresh and reconstruct
   freshProcess()
   restoreBoundPrefixFromMessages([persisted, JSON.parse(j(expanded))])
   const expandedRestore = await schemas(await plan(livePool, 'forked-conversation'))
-  check('reconstruction uses the newest recorded definition set', expandedRestore.some(t => t.name === late.name) && j(expandedRestore.slice(0, first.length)) === j(first))
+  check('reconstruction uses the newest recorded definition set', expandedRestore.some(t => t.name === late.name) && j(expandedRestore.slice(0, first.length)) === j(forked))
   freshProcess()
   const corrupt = JSON.parse(j(persisted))
   corrupt.attachment.roster[0].definition = 'not-json'
