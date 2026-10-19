@@ -21,13 +21,11 @@ import {
 import { ShellError, errorMessage } from '../../utils/errors.js'
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js'
 import { formatDuration } from '../../utils/format.js'
-import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { detectGitOperation, trackGitOperations } from '../../tools/shared/gitOperationTracking.js'
 import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { interpretCommandResult } from './commandSemantics.js'
 import { getPrompt, getDefaultTimeoutMs, getMaxTimeoutMs } from './prompt.js'
 import { describeMaxOutputChars } from '../BashTool/prompt.js'
-import { shouldUseSandbox } from '../BashTool/shouldUseSandbox.js'
 import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
 import { windowedError } from '../../utils/toolErrors.js'
 import { getCachedPowerShellPath } from '../../utils/shell/powershellDetection.js'
@@ -98,7 +96,6 @@ function buildModelSchema() {
     timeout: semanticNumber(z.number().optional()).describe(`Optional timeout in milliseconds (max ${getMaxTimeoutMs()})`),
     description: z.string().optional().describe('A short description of what the command does, in active voice.'),
     run_in_background: semanticBoolean(z.boolean().optional()).describe('Set to true to run the command in the background and read its output later.'),
-    dangerouslyDisableSandbox: semanticBoolean(z.boolean().optional()).describe('An explicit, dangerous override that runs the command without sandboxing.'),
     inherit_session_env: semanticBoolean(z.boolean().optional()).describe("Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process); by default they are scrubbed, since a proof or a build must not see them."),
     max_output_chars: maxOutputCharsField.describe(describeMaxOutputChars()),
   })
@@ -159,7 +156,6 @@ async function* runPowerShell(
   const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
   const firstToken = firstCommandWord(pinnedCommandAnalysis.splitCommand(input.command)[0] ?? '')
   const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(resolveToCanonical(firstToken))
-  const useSandbox = getPlatform() === 'windows' ? false : shouldUseSandbox(input)
 
   let progressResolve: (() => void) | null = null
   let latest = { recent: '', all: '', lines: 0, bytes: 0, incomplete: false }
@@ -181,7 +177,6 @@ async function* runPowerShell(
     shellCommand = await exec(input.command, abortController.signal, 'powershell', {
       timeout: effectiveTimeout,
       preventCwdChanges: !isMainThread,
-      shouldUseSandbox: useSandbox,
       shouldAutoBackground,
       inheritSessionEnv: input.inherit_session_env === true,
       onProgress: (recent, all, lines, bytes, incomplete) => {
@@ -360,8 +355,7 @@ async function* runPowerShell(
       throw new ShellError('', result.preSpawnError, result.code, result.interrupted)
     }
     if (interpretation.isError && !interruptedByUser) {
-      const annotated = SandboxManager.annotateStderrWithSandboxFailures(input.command, out)
-      const thrown = budget.requested === undefined ? annotated : windowed ? formatOutput(annotated, { maxLength: budget.effective }).truncatedContent : formatExcerpt(annotated, budget.effective)
+      const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)
       const error = new ShellError('', [thrown, clause].filter(Boolean).join('\n'), result.code, result.interrupted, true, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command }))
       throw budget.requested === undefined ? error : windowedError(error)
     }
@@ -452,9 +446,6 @@ export const PowerShellTool = buildTool({
     return { isSearch, isRead }
   },
   async validateInput(input: PowerShellToolInput) {
-    if (getPlatform() === 'windows' && input.dangerouslyDisableSandbox && !SandboxManager.areUnsandboxedCommandsAllowed()) {
-      return { result: false as const, message: 'Unsandboxed commands are not permitted by policy.', errorCode: 11 }
-    }
     if (sleepGatePreconditions(input)) {
       const blocked = detectSleep(input.command)
       if (blocked) {

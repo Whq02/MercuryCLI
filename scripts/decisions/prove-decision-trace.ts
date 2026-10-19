@@ -275,17 +275,6 @@ section('DecisionPorts are honored')
   )
   checkPrefixLaw('kill-switch', r.trace)
 
-  const sandboxPorts = { ...defaultDecisionPorts, sandboxAutoAllows: () => true }
-  r = await full(makeTool(), makeContext({ ask: ['FakeTool'] }), sandboxPorts)
-  const askRecord = r.trace.stages.find(s => s.stage === 'toolAskRule')
-  check(
-    'sandbox policy lets the ask rule fall through (noted in the trace)',
-    r.trace.decidedBy === 'resolution' &&
-      askRecord?.outcome === 'pass' &&
-      (askRecord?.note ?? '').includes('sandbox'),
-    j(r.trace),
-  )
-
   const failPorts = {
     ...defaultDecisionPorts,
     resolveToolVerdict: async () => {

@@ -1,7 +1,7 @@
 import { execFile, spawn } from 'node:child_process'
-import { closeSync, constants as fsConstants, mkdirSync, openSync, readFileSync } from 'node:fs'
+import { closeSync, constants as fsConstants, openSync, readFileSync } from 'node:fs'
 import { access } from 'node:fs/promises'
-import { isAbsolute, join, posix as posixPath, resolve as resolvePath } from 'node:path'
+import { isAbsolute, join, resolve as resolvePath } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
@@ -10,9 +10,7 @@ import { logForDebugging } from './debug.js'
 import { errorMessage, isENOENT } from './errors.js'
 import { getFsImplementation } from './fsOperations.js'
 import { logError } from './log.js'
-import { getMercuryTempDirName } from './permissions/filesystem.js'
 import { getPlatform } from './platform.js'
-import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
 import { resolveShellEngine, runEngineCommand, resolveEngineSessionCeiling } from './shell/engineSession.js'
@@ -182,7 +180,6 @@ type ExecOptions = {
     isIncomplete: boolean,
   ) => void
   preventCwdChanges?: boolean
-  shouldUseSandbox?: boolean
   shouldAutoBackground?: boolean
   backgroundIntent?: boolean
   onStdout?: (chunk: string) => void
@@ -206,12 +203,6 @@ export async function exec(
 ): Promise<ShellCommand> {
   const timeout = options.timeout || DEFAULT_TIMEOUT_MS
 
-  const sandboxTmpDir = posixPath.join(
-    process.env.MERCURY_TMPDIR || '/tmp',
-    getMercuryTempDirName(),
-  )
-  const useSandbox = options.shouldUseSandbox === true
-
   if (shellType === 'bash' && options.onStdout === undefined && options.backgroundIntent !== true && options.inheritSessionEnv !== true) {
     const engine = resolveShellEngine(getInitialSettings().shell?.engine)
     if (engine.engine === 'brush') {
@@ -219,7 +210,6 @@ export async function exec(
       return runEngineCommand(engine.binaryPath, command, {
         timeout,
         signal: abortSignal,
-        sandbox: useSandbox ? { enabled: true, tmpDir: sandboxTmpDir } : { enabled: false },
         onProgress: options.onProgress,
         owner: options.owner,
         sessionCeiling: resolveEngineSessionCeiling(getInitialSettings().shell?.sessions),
@@ -246,12 +236,7 @@ export async function exec(
     .toString(16)
     .padStart(4, '0')
 
-  const built = await provider.buildExecCommand(
-    command,
-    useSandbox
-      ? { id: invocationId, sandboxTmpDir, useSandbox }
-      : { id: invocationId, useSandbox },
-  )
+  const built = await provider.buildExecCommand(command, { id: invocationId })
 
   let cwd = getShellCwd()
   if (!directoryResolves(cwd)) {
@@ -274,26 +259,8 @@ export async function exec(
     return createAbortedCommand()
   }
 
-  let finalCommand = built.commandString
-  if (useSandbox) {
-    const innerShell = shellType === 'powershell' ? '/bin/sh' : provider.shellPath
-    finalCommand = await SandboxManager.wrapWithSandbox(finalCommand, innerShell, abortSignal, { commandId: command, commandText: command })
-    try {
-      mkdirSync(sandboxTmpDir, { mode: 0o700 })
-    } catch (mkdirError) {
-      logForDebugging(`could not create sandbox temp directory ${sandboxTmpDir}: ${errorMessage(mkdirError)}`)
-    }
-  }
-
-  let spawnFile: string
-  let spawnArgs: string[]
-  if (useSandbox && shellType === 'powershell') {
-    spawnFile = '/bin/sh'
-    spawnArgs = ['-c', finalCommand]
-  } else {
-    spawnFile = provider.shellPath
-    spawnArgs = provider.getSpawnArgs(finalCommand)
-  }
+  const spawnFile = provider.shellPath
+  const spawnArgs = provider.getSpawnArgs(built.commandString)
 
   const environmentOverrides = await provider.getEnvironmentOverrides(command)
 
@@ -377,14 +344,6 @@ export async function exec(
   }
 
   void shellCommand.result.then(result => {
-    if (useSandbox) {
-      try {
-        SandboxManager.cleanupAfterCommand()
-      } catch (cleanupError) {
-        logForDebugging(`sandbox cleanup failed: ${errorMessage(cleanupError)}`)
-      }
-    }
-
     const cwdFilePath =
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 

@@ -61,7 +61,6 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.js')
 const { bashToolCheckExactMatchPermission, bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
 const { checkParsedCommand: bashToolCheckPermission } = await import('../bash/floor-proof-helpers.ts')
-const { SandboxManager } = await import('../../src/utils/sandbox/sandbox-adapter.js')
 const { PermissionRuleExplanation } = await import('../../src/components/permissions/PermissionRuleExplanation.js')
 const { FallbackPermissionRequest } = await import('../../src/components/permissions/FallbackPermissionRequest.js')
 const { AppStoreContext } = await import('../../src/state/AppState.js')
@@ -283,23 +282,6 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
   check('…in either order', longFirst.message === `git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(longFirst))
   const fetchSaid = (await perSub('git fetch origin', bashCtx(['Bash(git *)', 'Bash(git push *)'], bothPrefixes)))
   check('a command only the short prefix covers gets the short prefix\'s words', fetchSaid.message === `git fetch origin is denied by the rule Bash(git *) in your user settings: ${R_GIT}.`, j(fetchSaid))
-
-  const gates = { enabled: SandboxManager.isSandboxingEnabled, auto: SandboxManager.isAutoAllowBashIfSandboxedEnabled, unsandboxed: SandboxManager.areUnsandboxedCommandsAllowed }
-  SandboxManager.isSandboxingEnabled = () => true
-  SandboxManager.isAutoAllowBashIfSandboxedEnabled = () => true
-  SandboxManager.areUnsandboxedCommandsAllowed = () => false
-  try {
-    const fullPlain = await whole('git push origin main', bashCtx(['Bash(git push *)']))
-    check('control: the sandbox road\'s full-command deny without a reason speaks the rule sentence', fullPlain.behavior === 'deny' && fullPlain.message === 'git push origin main is denied by the rule Bash(git push *) in your user settings.', j(fullPlain))
-    const fullSaid = await whole('git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
-    check('3 the sandbox road\'s full-command deny says the words', fullSaid.behavior === 'deny' && fullSaid.message === `git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(fullSaid))
-    const subSandboxSaid = await whole('echo ok && git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
-    check('4 the sandbox road\'s subcommand deny names the whole command and says the words', subSandboxSaid.behavior === 'deny' && subSandboxSaid.message === `echo ok && git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(subSandboxSaid))
-  } finally {
-    SandboxManager.isSandboxingEnabled = gates.enabled
-    SandboxManager.isAutoAllowBashIfSandboxedEnabled = gates.auto
-    SandboxManager.areUnsandboxedCommandsAllowed = gates.unsandboxed
-  }
 
   parseRoutes.set('git push origin {main,dev}', { kind: 'too-complex', reason: 'contains brace expansion syntax' })
   const earlyPlain = await whole('git push origin {main,dev}', bashCtx(['Bash(git push *)']))

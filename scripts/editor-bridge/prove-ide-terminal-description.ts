@@ -62,8 +62,8 @@ try {
       paragraph,
     )
     check(
-      `${label}: the paragraph names the three commands that still run in the local shell`,
-      paragraph.includes('`run_in_background`') && paragraph.includes("crewmate's command") && paragraph.includes('sandbox'),
+      `${label}: the paragraph names the two commands that still run in the local shell`,
+      paragraph.includes('`run_in_background`') && paragraph.includes("crewmate's command") && !/sandbox/.test(paragraph),
       paragraph,
     )
   }

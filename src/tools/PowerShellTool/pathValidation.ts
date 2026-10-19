@@ -20,7 +20,7 @@ import {
   matchingRuleForInput,
   pathInAllowedWorkingPath,
 } from '../../utils/permissions/filesystem.js'
-import { expandTilde, isDangerousRemovalPath, isPathInSandboxWriteAllowlist } from '../../utils/permissions/pathValidation.js'
+import { expandTilde, isDangerousRemovalPath } from '../../utils/permissions/pathValidation.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { getDirectoryForPath } from '../../utils/path.js'
 import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
@@ -240,9 +240,6 @@ function decideResolved(resolved: string, context: ToolPermissionContext, operat
   if (operation === 'read') {
     const readable = checkReadableInternalPath(resolved, {})
     if (readable.behavior === 'allow') return { allowed: true, resolvedPath: resolved, reason: readable.decisionReason }
-  }
-  if (operation !== 'read' && !inside && isPathInSandboxWriteAllowlist(resolved)) {
-    return { allowed: true, resolvedPath: resolved, reason: other('The path is in the sandbox write allowlist.') }
   }
   const allow = matchingRuleForInput(resolved, context, permType, 'allow')
   if (allow) return { allowed: true, resolvedPath: resolved, reason: { type: 'rule', rule: allow } }

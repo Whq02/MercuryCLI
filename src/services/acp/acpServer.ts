@@ -899,18 +899,6 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             return { outcome: 'deny', message: `the editor did not answer the permission request: ${e}` }
           }
         },
-        onNetworkAsk: async (host, withdrawn) => {
-          try {
-            const result = await ctx.request(
-              methods.client.session.requestPermission,
-              permissionAskWire({ toolName: `network access to ${host}`, input: { host } }, `network-${host}`, acpSessionId),
-              { cancellationSignal: withdrawn },
-            )
-            return permissionAllowedOf(result)
-          } catch {
-            return false
-          }
-        },
         onElicitation: async (params, withdrawn) => {
           if (params.mode === 'url' ? !clientUrlElicitation : !clientFormElicitation) return { action: 'cancel' }
           try {

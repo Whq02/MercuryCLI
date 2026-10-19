@@ -133,7 +133,7 @@ replace hyphens with underscores. The default endpoint also honours
 `MERCURY_COMPAT_API_KEY`, `MERCURY_COMPAT_BASE_URL`,
 `MERCURY_COMPAT_LABEL` and `MERCURY_COMPAT_MODELS`.
 
-## Permissions and the sandbox
+## Permissions
 
 | Key | What it sets |
 | --- | --- |
@@ -151,35 +151,7 @@ Rules use `Tool(pattern)`: `Bash(bun run typecheck)` is one exact command,
 `Bash(bun run *)` covers that command prefix and its arguments,
 `Read(~/docs/**)` covers a path, and `WebFetch(domain:example.com)` covers a
 host. A bare tool name covers every use of that tool. `/permissions` shows
-where each rule came from. Workspace trust and permission modes are separate
-from the OS sandbox.
-
-Sandbox settings live under `guardrails.sandbox`:
-
-| Key | What it sets |
-| --- | --- |
-| `guardrails.sandbox.enabled` | Turns OS sandboxing on. |
-| `guardrails.sandbox.enabledPlatforms` | The platforms it runs on: `macos`, `linux`, `wsl`; absent means every supported platform. |
-| `guardrails.sandbox.failIfUnavailable` | Refuses a run when the sandbox cannot be established. |
-| `guardrails.sandbox.autoAllowBashIfSandboxed` | Allows sandboxed shell commands without a separate permission question. |
-| `guardrails.sandbox.allowUnsandboxedCommands` | Permits the consented unsandboxed execution path. |
-| `guardrails.sandbox.excludedCommands` | Command patterns that run outside the sandbox. |
-| `guardrails.sandbox.ignoreViolations` | Violation patterns grouped by command. |
-| `guardrails.sandbox.enableWeakerNestedSandbox` | Allows the weaker nested-sandbox option. |
-| `guardrails.sandbox.enableWeakerNetworkIsolation` | Allows the weaker network-isolation option. |
-| `guardrails.sandbox.ripgrep.command`, `guardrails.sandbox.ripgrep.args` | The sandbox's search binary and its arguments. |
-| `guardrails.sandbox.network.allowedDomains` | Hosts a sandboxed process may reach. |
-| `guardrails.sandbox.network.allowManagedDomainsOnly` | Restricts the domain list to managed policy. |
-| `guardrails.sandbox.network.allowUnixSockets` | Allowed Unix socket paths. |
-| `guardrails.sandbox.network.allowAllUnixSockets` | Allows every Unix socket. |
-| `guardrails.sandbox.network.allowLocalBinding` | Allows binding local ports. |
-| `guardrails.sandbox.network.httpProxyPort`, `guardrails.sandbox.network.socksProxyPort` | Proxy ports for sandboxed traffic. |
-| `guardrails.sandbox.filesystem.allowWrite`, `guardrails.sandbox.filesystem.denyWrite` | Writable and write-denied path patterns. |
-| `guardrails.sandbox.filesystem.allowRead`, `guardrails.sandbox.filesystem.denyRead` | Readable and read-denied path patterns. |
-| `guardrails.sandbox.filesystem.allowManagedReadPathsOnly` | Restricts allowed read paths to managed policy. |
-
-Use `/sandbox` and `/health` to check what the platform can establish before
-relying on these boundaries.
+where each rule came from.
 
 ## Instructions, files and memory
 

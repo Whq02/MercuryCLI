@@ -134,7 +134,7 @@ section('§1 the roads that already stand down: every plain ask verdict is ALLOW
   }
   const askRule = stubTool('Stub', { behavior: 'allow', updatedInput: {} })
   const carried = await decide(askRule, {}, contextOf('sovereign', { ask: ['Stub'] }))
-  check('a whole-tool ask rule is carried past the verdict and allowed (the sandbox is absent on Windows: sandboxAutoAllows is false, the carry is the road)', carried.decision.behavior === 'allow' && carried.trace.decidedBy === 'toolAskRuleCarried' && carried.decision.decisionReason?.type === 'bypassedAsk', JSON.stringify(carried))
+  check('a whole-tool ask rule is carried past the verdict and allowed (the carry is the road)', carried.decision.behavior === 'allow' && carried.trace.decidedBy === 'toolAskRuleCarried' && carried.decision.decisionReason?.type === 'bypassedAsk', JSON.stringify(carried))
   const denied = await decide(askRule, {}, contextOf('sovereign', { deny: ['Stub'] }))
   check('a deny rule still refuses under sovereign (a refusal is not a card)', denied.decision.behavior === 'deny' && denied.trace.decidedBy === 'toolDenyRule')
   const wrapped = await decideToolPermissionWithModes(stubTool('Stub', { behavior: 'ask', message: 'ask', decisionReason: { type: 'other', reason: 'x' } }), { op: 'x' }, contextOf('sovereign'), assistant, 'toolu_wrapped')

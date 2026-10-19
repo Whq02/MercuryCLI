@@ -26,7 +26,6 @@
   "dependencies": {
     "@agentclientprotocol/sdk": "1.4.0",
     "@alcalzone/ansi-tokenize": "^0.3.0",
-    "@anthropic-ai/sandbox-runtime": "0.0.74",
     "@commander-js/extra-typings": "~15.0.0",
     "@modelcontextprotocol/client": "2.0.0",
     "@modelcontextprotocol/core": "2.0.0",

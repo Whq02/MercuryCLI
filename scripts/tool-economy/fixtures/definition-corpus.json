@@ -1,5 +1,5 @@
 {
-  "base": "51f5b1a6ee87a8b17f1fce1a468ae230b64ec842",
+  "base": "a8017ae070263394b396dcc10cb4f9de0beb4bb9",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -105,10 +105,6 @@
           },
           "run_in_background": {
             "description": "Start the command and return at once with a task id and an output file; the tool description says when its end is reported and when it is stopped.",
-            "type": "boolean"
-          },
-          "dangerouslyDisableSandbox": {
-            "description": "An explicit, dangerous override that runs the command without sandboxing.",
             "type": "boolean"
           },
           "inherit_session_env": {

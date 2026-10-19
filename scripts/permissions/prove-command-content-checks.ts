@@ -27,7 +27,7 @@ async function decide(command: string, tool: string, mode: 'default' | 'implemen
   const permission = { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { session: [tool] }, alwaysDenyRules: deny ? { session: [`${tool}(curl *)`] } : {} }
   const context = { getAppState: () => ({ toolPermissionContext: permission }), abortController: new AbortController() }
   return (await decideToolPermission({ name: tool } as never, { command }, context as never, {
-    isToolKilled: () => false, sandboxAutoAllows: () => false,
+    isToolKilled: () => false,
     resolveToolVerdict: (_tool, input, ctx) => tool === 'Bash' ? bashToolHasPermission(input as { command: string }, permission) : powershellToolHasPermission(input as { command: string }, ctx),
   })).decision
 }

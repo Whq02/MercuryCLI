@@ -37,7 +37,6 @@ section('(1) the seam ratchet — no direct parser imports in the entry consumer
     'src/utils/permissions/shellRuleMatching.ts',
     'src/tools/BashTool/bashPermissions.ts',
     'src/tools/PowerShellTool/powershellPermissions.ts',
-    'src/tools/BashTool/shouldUseSandbox.ts',
     'src/tools/BashTool/modeValidation.ts',
     'src/tools/BashTool/pathValidation.ts',
     'src/tools/BashTool/sedValidation.ts',

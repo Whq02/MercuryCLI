@@ -1,7 +1,6 @@
 package	class	purpose
 @agentclientprotocol/sdk	protocol-sdk	the Agent Client Protocol: `mercury acp` serves editors
 @alcalzone/ansi-tokenize	library	ANSI escape tokenising for the renderer
-@anthropic-ai/sandbox-runtime	vendor-platform	the OS sandbox around a shell command (leaving: lane sandbox-out-40)
 @commander-js/extra-typings	library	typed command definitions for commander
 @modelcontextprotocol/client	protocol-sdk	MCP client: tools, resources, the OAuth client
 @modelcontextprotocol/core	protocol-sdk	MCP types and schemas

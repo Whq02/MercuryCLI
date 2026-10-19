@@ -118,7 +118,7 @@ async function inBatches<T, R>(items: T[], size: number, work: (item: T) => Prom
 type Provider = Awaited<ReturnType<typeof createBashShellProvider>>
 async function primed(shell: string): Promise<Provider> {
   const provider = await createBashShellProvider(shell)
-  await provider.buildExecCommand('true', { id: 'prime', useSandbox: false })
+  await provider.buildExecCommand('true', { id: 'prime' })
   return provider
 }
 
@@ -130,7 +130,7 @@ async function raw(provider: Provider, shell: string, script: string, want: stri
 
 let buildCount = 0
 async function built(provider: Provider, shell: string, content: string): Promise<Round> {
-  const { commandString } = await provider.buildExecCommand(printing(content), { id: `bytes-${++buildCount}`, useSandbox: false })
+  const { commandString } = await provider.buildExecCommand(printing(content), { id: `bytes-${++buildCount}` })
   const shot = await runShell(shell, provider.getSpawnArgs(commandString))
   return { want: content, got: shot.out }
 }
@@ -165,7 +165,7 @@ section('§2 the composed command string — the eval wrapper the tool builds, t
   const randomBuilt = await inBatches(RANDOM.slice(0, 16), 4, content => built(provider, primary, content))
   check('…and for a random subset of 16', randomBuilt.every(row => row.got === row.want), firstMiss(randomBuilt))
   const command = String.raw`printf '%s\n' 'a\\b' 'c\\\\d'`
-  const { commandString } = await provider.buildExecCommand(command, { id: 'shape', useSandbox: false })
+  const { commandString } = await provider.buildExecCommand(command, { id: 'shape' })
   check('the model command still sits verbatim inside the eval quotes of the composed string', commandString.includes(`eval '${command.split("'").join(`'\\''`)}'`), commandString.slice(0, 200))
   check('the working-directory record still ends the composed string', commandString.includes('pwd -P >|') && (getPlatform() !== 'windows' || commandString.trimEnd().endsWith('|| true; }')))
 }

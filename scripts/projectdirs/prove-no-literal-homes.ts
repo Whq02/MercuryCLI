@@ -12,7 +12,6 @@ const JOIN_ALLOWLIST: Record<string, string> = {
   'src/entrypoints/cli.tsx':
     'pre-import compile-cache arm — mirrors the LAUNCHER config-home rungs with builtin-only imports before any src module can load; the seam is unreachable here by construction',
   'src/utils/permissions/filesystem.ts': 'guard vocabulary — DANGEROUS_DIRECTORIES + scope tuples NAME the home',
-  'src/utils/sandbox/sandbox-adapter.ts': 'OS sandbox deny-write vocabulary names the home',
   'src/utils/verification/verificationState.ts': 'tree-digest exclusion names the project home',
   'src/services/projectIntel/impact.ts': 'scan-ignore vocabulary names the home',
   'src/skills/loadSkillsDir.ts': 'managed-policy dir joins; project paths ride the seam',

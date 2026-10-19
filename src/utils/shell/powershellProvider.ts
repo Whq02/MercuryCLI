@@ -19,10 +19,6 @@ function cwdFileName(id: number | string): string {
   return `mercury-cwd-${id}`
 }
 
-function posixSingleQuote(text: string): string {
-  return `'${text.split("'").join("'\\''")}'`
-}
-
 function buildTrailer(cwdFileInShell: string): string {
   const literal = cwdFileInShell.split("'").join("''")
   return [
@@ -34,38 +30,14 @@ function buildTrailer(cwdFileInShell: string): string {
 }
 
 export function createPowerShellProvider(shellPath: string): ShellProvider {
-  let pendingSandboxTmp: string | undefined
-  let pendingUseSandbox = false
-
   return {
     type: 'powershell',
     shellPath,
     detached: getPlatform() !== 'windows',
 
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
-      pendingUseSandbox = opts.useSandbox
-      pendingSandboxTmp = opts.useSandbox ? opts.sandboxTmpDir : undefined
-
-      const name = cwdFileName(opts.id)
-      const cwdFileInShell =
-        opts.useSandbox && opts.sandboxTmpDir
-          ? posixPath.join(opts.sandboxTmpDir, name)
-          : posixPath.join(tmpdir(), name)
-
+      const cwdFileInShell = posixPath.join(tmpdir(), cwdFileName(opts.id))
       const assembled = PLAIN_RENDER_PRELUDE + UTF8_OUTPUT_PRELUDE + command + buildTrailer(cwdFileInShell)
-
-      if (opts.useSandbox) {
-        const encoded = Buffer.from(assembled, 'utf16le').toString('base64')
-        const commandString = [
-          posixSingleQuote(shellPath),
-          '-NoProfile',
-          '-NonInteractive',
-          '-EncodedCommand',
-          encoded,
-        ].join(' ')
-        return { commandString, cwdFilePath: cwdFileInShell }
-      }
-
       return { commandString: assembled, cwdFilePath: cwdFileInShell }
     },
 
@@ -76,10 +48,6 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
     async getEnvironmentOverrides(_command: string): Promise<Record<string, string>> {
       const overrides: Record<string, string> = {}
       for (const [key, value] of getSessionEnvVars()) overrides[key] = value
-      if (pendingUseSandbox && pendingSandboxTmp) {
-        overrides.TMPDIR = pendingSandboxTmp
-        overrides.MERCURY_TMPDIR = pendingSandboxTmp
-      }
       if (process.platform === 'win32') {
         overrides.MSYS2_ARG_CONV_EXCL = '*'
         overrides.MSYS_NO_PATHCONV = '1'

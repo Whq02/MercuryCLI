@@ -27,7 +27,6 @@ const FILES = [
   'MercuryHooks.tsx',
   'MercuryKeybindings.tsx',
   'MercuryTasks.tsx',
-  'MercurySandbox.tsx',
   'MercurySkills.tsx',
 ]
 let imported = 0
@@ -55,7 +54,6 @@ const CELLS: [string, number][] = [
   ['tool.before', 13], ['tool.after', 13], ['turn.answer', 13],
   ['↑↓', 6], ['↵', 6], ['esc', 6], ['^c', 6], ['^d', 6], ['^r', 6], ['^t', 6], ['^⇧o', 6], ['^o', 6],
   ['build dist', 14], ['run tests', 14], ['deploy', 14],
-  ['network', 12], ['filesystem', 12], ['exec', 12],
   ['compoundv', 14], ['loop', 14], ['anti-lazy', 14],
 ]
 let identical = 0

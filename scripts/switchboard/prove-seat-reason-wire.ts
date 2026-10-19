@@ -31,7 +31,6 @@ const plain: Reason[] = [
   { type: 'safetyCheck', reason: 'a sensitive path', operatorOnly: false },
   { type: 'other', reason: 'free text' },
   { type: 'asyncAgent', reason: 'a background agent asks' },
-  { type: 'sandboxOverride', reason: 'excludedCommand' },
   { type: 'permissionPromptTool', permissionPromptToolName: 'stdio' },
 ]
 for (const r of plain) {
@@ -59,6 +58,7 @@ const poison: Array<[string, unknown]> = [
   ['a string', 'The rule Bash(rm *) in your user settings asks first.'],
   ['null', null],
   ['an unknown type', { type: 'legend', reason: 'x' }],
+  ['the retired sandboxOverride kind', { type: 'sandboxOverride', reason: 'excludedCommand' }],
   ['a rule without a ruleValue', { type: 'rule', rule: { source: 'userSettings' } }],
   ['a hook without a name', { type: 'hook', reason: 'x' }],
   ['a safetyCheck without the approvable bit', { type: 'safetyCheck', reason: 'x' }],

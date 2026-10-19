@@ -12,7 +12,7 @@
   "counts": {
     "owner-internal": 6,
     "guide-probe": 10,
-    "own-guard": 6,
+    "own-guard": 5,
     "baked-mirror": 3
   },
   "sites": [
@@ -70,7 +70,7 @@
       "needle": ".mercury",
       "excerpt": "'__pycache__', '.cache', 'coverage', '.mercury',",
       "cls": "own-guard",
-      "why": "Mercury's home held as protection vocabulary (the scan's walk-skips, the sandbox deny-writes, the tree digest's exclusions) — never a read or a write path"
+      "why": "Mercury's home held as protection vocabulary (the scan's walk-skips, the tree digest's exclusions) — never a read or a write path"
     },
     {
       "file": "src/services/projectIntel/snapshot.ts",
@@ -178,18 +178,11 @@
       "why": "the project-dirs owner — the ONE place project basenames join paths"
     },
     {
-      "file": "src/utils/sandbox/sandbox-adapter.ts",
-      "needle": ".mercury",
-      "excerpt": "const CONFIG_HOMES = ['.mercury']",
-      "cls": "own-guard",
-      "why": "Mercury's home held as protection vocabulary (the scan's walk-skips, the sandbox deny-writes, the tree digest's exclusions) — never a read or a write path"
-    },
-    {
       "file": "src/utils/verification/verificationState.ts",
       "needle": ".mercury",
       "excerpt": "const HARNESS_DIRS = ['.mercury'] as const",
       "cls": "own-guard",
-      "why": "Mercury's home held as protection vocabulary (the scan's walk-skips, the sandbox deny-writes, the tree digest's exclusions) — never a read or a write path"
+      "why": "Mercury's home held as protection vocabulary (the scan's walk-skips, the tree digest's exclusions) — never a read or a write path"
     }
   ]
 }

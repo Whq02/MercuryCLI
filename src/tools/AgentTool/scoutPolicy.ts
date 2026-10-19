@@ -24,8 +24,8 @@ function scoutShellRefusal(reason: NotReadOnly): string {
         return `the command could not be verified as read-only — ${reason.detail ?? ''}`
       case 'unparseable':
         return 'the command could not be parsed, so it cannot be verified as read-only.'
-      case 'sandbox':
-        return 'a shell call that leaves the sandbox or carries a simulated sed edit does not run here.'
+      case 'simulated-edit':
+        return 'a shell call that carries a simulated sed edit does not run here.'
       case 'git-guard':
         return `${(reason.detail ?? '').replace(/\.$/, '')}.`
     }
@@ -62,8 +62,8 @@ async function shellNotReadOnly(input: Record<string, unknown>): Promise<NotRead
 export async function scoutRefusal(tool: Tool, input: Record<string, unknown>): Promise<string | null> {
   if (SCOUT_DENIED_TOOLS.has(tool.name)) return scoutToolRefusal(tool.name)
   if (tool.name === BASH_TOOL_NAME) {
-    if (input._simulatedSedEdit !== undefined || input.dangerouslyDisableSandbox === true) {
-      return scoutShellRefusal({ kind: 'sandbox', part: cutPart(typeof input.command === 'string' ? input.command : '') })
+    if (input._simulatedSedEdit !== undefined) {
+      return scoutShellRefusal({ kind: 'simulated-edit', part: cutPart(typeof input.command === 'string' ? input.command : '') })
     }
     await tool.prepare?.(input)
     if (readsOnly(tool, input)) return null

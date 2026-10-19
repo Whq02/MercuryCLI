@@ -14,7 +14,6 @@ import {
 } from '../services/engine-connector/seatProjections.js'
 import type { PermissionUpdate } from '../types/permissions.js'
 import type { PermissionAnswer, PermissionRequestParams } from '../runner/wire/methods.js'
-import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from './runnerFrames.js'
 import type { HeldAsk } from './runnerConnection.js'
 import {
   DENIAL_WORKAROUND_GUIDANCE,
@@ -249,7 +248,7 @@ export function holdWorkerAsk(
   expiryMs?: number,
   presence: (dir?: string) => OperatorClientPresence = operatorClientPresence,
 ): HeldAsk {
-  const toolName = params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME
+  const toolName = params.tool_name
   if (!short.startsWith('concourse-w')) {
     // eslint-disable-next-line no-console
     console.error(`[daemon] permission ask (${toolName} for ${short}) denied at once — ${NO_SEAT_OWNER_CAUSE}`)
@@ -268,27 +267,26 @@ export function holdWorkerAsk(
       break
     }
   }
-  const askMode = params.kind === 'tool' && params.mode !== undefined ? params.mode : rec.permissionMode
+  const askMode = params.mode !== undefined ? params.mode : rec.permissionMode
   const limitMs = expiryMs ?? askLimitMs({ mode: askMode, crewmate: true, kind: rec.kind ?? 'headless' })
-  const input = params.kind === 'tool' ? params.input : { host: params.host }
-  const suggestions = params.kind === 'tool' ? (params.suggestions as PermissionUpdate[] | undefined) : undefined
+  const input = params.input
+  const suggestions = params.suggestions as PermissionUpdate[] | undefined
   const ask: PendingAsk = {
     workerId: short,
     sessionId: rec.sessionId,
     workspaceId: rec.workspaceId,
     toolName,
     input,
-    ...(params.kind === 'tool' ? { toolUseId: params.tool_use_id } : {}),
-    ...(params.kind === 'tool' && params.agent_id !== undefined && params.agent_id !== '' ? { agentId: params.agent_id } : {}),
+    toolUseId: params.tool_use_id,
+    ...(params.agent_id !== undefined && params.agent_id !== '' ? { agentId: params.agent_id } : {}),
     ...(suggestions !== undefined && suggestions.length > 0 ? { suggestions } : {}),
-    ...(params.kind === 'tool' && params.blocked_path !== undefined ? { blockedPath: params.blocked_path } : {}),
-    ...(params.kind === 'tool' && params.cwd !== undefined ? { cwd: params.cwd } : {}),
-    ...(params.kind === 'tool' && params.reason !== undefined ? { decisionReason: params.reason } : {}),
-    ...(params.kind === 'tool' && decodeDecisionReasonFromWire(params.reason_detail) !== undefined
+    ...(params.blocked_path !== undefined ? { blockedPath: params.blocked_path } : {}),
+    ...(params.cwd !== undefined ? { cwd: params.cwd } : {}),
+    ...(params.reason !== undefined ? { decisionReason: params.reason } : {}),
+    ...(decodeDecisionReasonFromWire(params.reason_detail) !== undefined
       ? { decisionReasonDetail: params.reason_detail as DecisionReasonWireV1 }
       : {}),
-    ...(params.kind === 'tool' && params.description !== undefined ? { description: params.description } : {}),
-    ...(params.kind === 'network' ? { description: `Allow network access to ${params.host}?` } : {}),
+    ...(params.description !== undefined ? { description: params.description } : {}),
     askedAt: Date.now(),
     limitMs,
   }

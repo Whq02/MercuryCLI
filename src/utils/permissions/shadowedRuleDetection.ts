@@ -1,6 +1,5 @@
 import type { ToolPermissionContext } from '../../Tool.js'
-import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
-import type { PermissionRule, PermissionRuleSource } from '../../types/permissions.js'
+import type { PermissionRule } from '../../types/permissions.js'
 import { getAllowRules, getAskRules, getDenyRules, permissionRuleSourceDisplayString } from './permissions.js'
 
 type ShadowType = 'ask' | 'deny'
@@ -13,28 +12,11 @@ export type UnreachableRule = {
   fix: string
 }
 
-type DetectUnreachableRulesOptions = {
-  sandboxAutoAllowEnabled: boolean
-}
-
-const SHARED_SOURCES: ReadonlySet<PermissionRuleSource> = new Set<PermissionRuleSource>([
-  'projectSettings',
-  'policySettings',
-  'command',
-])
-
-function isSharedSettingSource(source: PermissionRuleSource): boolean {
-  return SHARED_SOURCES.has(source)
-}
-
 function isToolWide(rule: PermissionRule): boolean {
   return rule.ruleValue.ruleContent === undefined || rule.ruleValue.ruleContent === ''
 }
 
-export function detectUnreachableRules(
-  context: ToolPermissionContext,
-  options: DetectUnreachableRulesOptions,
-): UnreachableRule[] {
+export function detectUnreachableRules(context: ToolPermissionContext): UnreachableRule[] {
   const allowRules = getAllowRules(context)
   const denyRules = getDenyRules(context)
   const askRules = getAskRules(context)
@@ -54,16 +36,7 @@ export function detectUnreachableRules(
     }
 
     const askShadow = askRules.find(rule => rule.ruleValue.toolName === toolName && isToolWide(rule))
-    if (askShadow) {
-      if (
-        options.sandboxAutoAllowEnabled &&
-        toolName === BASH_TOOL_NAME &&
-        !isSharedSettingSource(askShadow.source)
-      ) {
-        continue
-      }
-      findings.push(makeFinding(allow, askShadow, 'ask'))
-    }
+    if (askShadow) findings.push(makeFinding(allow, askShadow, 'ask'))
   }
 
   return findings

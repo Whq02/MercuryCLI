@@ -139,8 +139,8 @@ async function runSeat(tag: string, extraArgs: string[], channel: boolean, scrip
       })
     : null
   host?.onAsk(params => {
-    asks.push(params.kind === 'tool' ? params.tool_name : 'SandboxNetworkAccess')
-    return params.kind === 'tool' ? { outcome: 'allow', input: params.input } : { outcome: 'allow' }
+    asks.push(params.tool_name)
+    return { outcome: 'allow', input: params.input }
   })
   const child = host?.child ?? spawn(NODE, [DIST, 'run', `probe refuse-list ${tag}`, '--model', MODEL, ...extraArgs], { cwd: world.cwd, env: world.env })
   const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)

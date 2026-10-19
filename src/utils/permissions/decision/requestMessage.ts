@@ -51,7 +51,6 @@ const REASON_TABLE: ReasonLines<ReasonByType> = {
     return `Several parts of this ${toolName} command need approval`
   },
   permissionPromptTool: (toolName, prompt) => `Tool '${prompt.permissionPromptToolName}' requires approval for this ${toolName} command`,
-  sandboxOverride: () => 'Run outside of the sandbox',
   workingDir: (_toolName, reason) => reason.reason,
   safetyCheck: (_toolName, reason) => reason.reason,
   other: (_toolName, reason) => reason.reason,

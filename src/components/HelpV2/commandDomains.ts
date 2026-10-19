@@ -69,7 +69,6 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'config & setup',
     names: [
       'config', 'jev', 'localsetup', 'bootmenu', 'permissions', 'hooks', 'mcp', 'extensions', 'skills',
-      'sandbox',
       'keysetup', 'keybindings', 'keys',
       'vim', 'mouse', 'browser',
       'orient',

@@ -36,7 +36,7 @@ async function decide(command: string, mode: 'default' | 'implement' | 'sovereig
   const permission = { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { session: ['PowerShell'] }, alwaysDenyRules: deny ? { session: ['PowerShell(vssadmin *)'] } : {} }
   const context = { getAppState: () => ({ toolPermissionContext: permission }), abortController: new AbortController() }
   return (await decideToolPermission({ name: 'PowerShell' } as never, { command }, context as never, {
-    isToolKilled: () => false, sandboxAutoAllows: () => false,
+    isToolKilled: () => false,
     resolveToolVerdict: (_tool, input, ctx) => powershellToolHasPermission(input as { command: string }, ctx),
   })).decision
 }

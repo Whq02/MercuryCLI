@@ -1,5 +1,4 @@
 import { getMaxExposedRisk, isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
-import { isEnvTruthy } from '../envUtils.js'
 import { listCapabilityKills } from '../permissions/capabilityGate.js'
 import { withState, type Snapshot } from './types.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -11,7 +10,6 @@ export type PermissionsData = {
   mcpPolicyHint: string
   kills: string[]
   trusted: string[]
-  sandbox: string
 }
 
 export function permissionsSnapshot(opts?: { mode?: string }): Snapshot<{ data: PermissionsData }> {
@@ -27,10 +25,6 @@ export function permissionsSnapshot(opts?: { mode?: string }): Snapshot<{ data: 
       .split(',')
       .map(s => s.trim())
       .filter(Boolean)
-    const sandbox =
-      isEnvTruthy(flagEnv('MERCURY_SANDBOX'))
-        ? 'workspace-write'
-        : 'off'
     return {
       state: 'live',
       source: 'toolPolicy + capabilityGate',
@@ -41,13 +35,12 @@ export function permissionsSnapshot(opts?: { mode?: string }): Snapshot<{ data: 
         mcpPolicyHint: describeMcpPolicy(),
         kills,
         trusted,
-        sandbox,
       },
     }
   } catch {
     return withState(
       'unavailable',
-      { mode: opts?.mode ?? 'default', mcpMaxRisk: 'high', mcpPolicyActive: false, mcpPolicyHint: 'high · permissive', kills: [], trusted: [], sandbox: 'off' },
+      { mode: opts?.mode ?? 'default', mcpMaxRisk: 'high', mcpPolicyActive: false, mcpPolicyHint: 'high · permissive', kills: [], trusted: [] },
       'governance state unreadable',
     )
   }

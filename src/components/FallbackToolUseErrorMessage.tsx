@@ -2,7 +2,6 @@ import type { ToolResultBlockParam } from '../types/wire.js'
 import * as React from 'react'
 import { stripUnderlineAnsi } from 'src/components/shell/OutputLine.js'
 import { extractTag } from 'src/utils/messages.js'
-import { removeSandboxViolationTags } from 'src/utils/sandbox/sandbox-ui-utils.js'
 import { OUTPUT_CONNECTOR } from '../constants/figures.js'
 import { Box, Text } from '../ink.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
@@ -47,8 +46,7 @@ function deriveDisplayedError(
     return 'Tool execution failed'
   }
   const extractedError = extractTag(text, 'tool_use_error') ?? text
-  const withoutSandboxViolations = removeSandboxViolationTags(extractedError)
-  const withoutErrorTags = withoutSandboxViolations.replace(/<\/?error>/g, '')
+  const withoutErrorTags = extractedError.replace(/<\/?error>/g, '')
   const trimmed = withoutErrorTags.trim()
   if (trimmed.startsWith('Error: ') || trimmed.startsWith('Cancelled: ')) {
     return trimmed

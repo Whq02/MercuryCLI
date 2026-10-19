@@ -12,7 +12,7 @@ delete process.env.MERCURY_BARE
 
 import { z } from 'zod/v4'
 
-const { createRunnerAsks, unansweredAskCause, DOOR_CLOSED_CAUSE, SANDBOX_NETWORK_ACCESS_TOOL_NAME } = await import('../../src/cli/headless/runnerAsks.ts')
+const { createRunnerAsks, unansweredAskCause, DOOR_CLOSED_CAUSE } = await import('../../src/cli/headless/runnerAsks.ts')
 const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
 const { UNANSWERED_ASK_REJECT_MESSAGE, isDenialResultText, turnCutOf } = await import('../../src/utils/messages/rejectionText.ts')
 const { createPeer } = await import('../../src/runner/wire/peer.ts')
@@ -312,32 +312,18 @@ section('R9 — the host closes the door while an ask is parked: the ask settles
   check('the runner peer is closed and nothing stays pending', h.runnerClosed() && h.asks.parkedAsks() === 0 && h.asks.pendingControlRequestCount() === 0)
 }
 
-section('N1 — the network ask rides permission/request {kind: network, host}; allow → true, deny → false, a closed door → false')
+section("N1 — the ask has one kind: the wire schema refuses kind: network as any unknown kind, and the ask host carries no network callback")
 {
+  const { PermissionRequestParamsSchema } = await import('../../src/runner/wire/methods.ts')
+  const schema = PermissionRequestParamsSchema()
+  const network = schema.safeParse({ kind: 'network', host: 'example.com' })
+  const unknown = schema.safeParse({ kind: 'legend', host: 'example.com' })
+  check("kind: network is refused", !network.success)
+  check('…with the same verdict an unknown kind gets', !unknown.success && network.success === unknown.success)
   const h = makeHarness()
-  const sandboxAsk = h.asks.createSandboxAskCallback()
-  const p1 = sandboxAsk({ host: 'example.com', port: 443 })
-  const ask1 = await h.waitAsk()
-  check('the ask is kind network carrying the host and never the port', ask1.params.kind === 'network' && ask1.params.host === 'example.com' && !('port' in ask1.params), j(ask1.params))
-  h.answer(ask1.id, { outcome: 'allow' })
-  check('allow → true', (await p1) === true)
-  const p2 = sandboxAsk({ host: 'denied.example' })
-  const ask2 = await new Promise<Ask>(resolve => {
-    const poll = setInterval(() => {
-      const next = h.hostSaw.find(a => a.params.host === 'denied.example')
-      if (next) {
-        clearInterval(poll)
-        resolve(next)
-      }
-    }, 10)
-  })
-  h.answer(ask2.id, { outcome: 'deny', message: 'no network' })
-  check('deny → false', (await p2) === false)
-  check('the network ask parks like a tool ask while open and clears after the answer', h.asks.parkedAsks() === 0)
+  check('the ask host has no network callback', !('createSandboxAskCallback' in h.asks))
   h.closeHost()
   await settle(20)
-  check('a closed door → false (fail closed)', (await sandboxAsk({ host: 'late.example' })) === false)
-  check('network permission receipts identify SandboxNetworkAccess', SANDBOX_NETWORK_ACCESS_TOOL_NAME === 'SandboxNetworkAccess')
 }
 
 section('E1 — elicitation: answered cancel at once when the host declared none; forwarded as elicitation/request when it did')

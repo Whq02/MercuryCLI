@@ -9,7 +9,7 @@ const CLASSES = ['library', 'tool', 'protocol-sdk', 'vendor-platform', 'vendor-m
 type Class = (typeof CLASSES)[number]
 
 const VENDOR_MODEL_SDK_RATCHET: readonly string[] = []
-const VENDOR_PLATFORM_RATCHET: readonly string[] = ['@anthropic-ai/sandbox-runtime']
+const VENDOR_PLATFORM_RATCHET: readonly string[] = []
 const VENDOR_NAME_MARKS: readonly RegExp[] = [
   /^@anthropic-ai\//,
   /^openai$/,

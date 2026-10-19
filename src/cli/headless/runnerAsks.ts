@@ -17,12 +17,9 @@ import { applyPermissionUpdates, persistPermissionUpdates } from '../../utils/pe
 import { flowUserAllowUpdates } from '../../utils/permissions/flowPolicy.js'
 import { askExpiredCause, askLimitMs, unansweredAskRefusal } from '../../utils/permissions/askClock.js'
 import { notifySessionStateChanged, type RequiresActionDetails } from '../../utils/sessionState.js'
-import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from '../../daemon/runnerFrames.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { getShellCwd } from '../../utils/Shell.js'
-
-export { SANDBOX_NETWORK_ACCESS_TOOL_NAME }
 
 export const DOOR_CLOSED_CAUSE = 'the host closed the runner door while the ask was pending'
 
@@ -42,7 +39,7 @@ class AskAborted extends Error {
   }
 }
 
-type ToolAskParams = Extract<PermissionRequestParams, { kind: 'tool' }>
+type ToolAskParams = PermissionRequestParams
 
 type AskAnswer = PermissionAnswer & { unanswered?: true }
 
@@ -54,7 +51,6 @@ interface AskChannel {
 export interface AskHost extends AskChannel {
   createCanUseTool(onPermissionPrompt?: (details: RequiresActionDetails) => void): CanUseToolFn
   handleElicitation(serverName: string, message: string, requestedSchema?: Record<string, unknown>, signal?: AbortSignal, mode?: 'form' | 'url', url?: string, elicitationId?: string): Promise<ElicitResult>
-  createSandboxAskCallback(): (ask: { host: string; port?: number }) => Promise<boolean>
   denyPendingPermissionRequests(cause: string): number
   pendingControlRequestCount(): number
   setOnControlRequestSent(cb: (() => void) | undefined): void
@@ -238,17 +234,6 @@ function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (details
   return canUseTool
 }
 
-function createSandboxAsk(channel: AskChannel): (ask: { host: string; port?: number }) => Promise<boolean> {
-  return async ask => {
-    try {
-      const answer = await channel.askPermission({ kind: 'network', host: ask.host }, { key: randomUUID() })
-      return answer.outcome === 'allow'
-    } catch {
-      return false
-    }
-  }
-}
-
 type ParkedAsk = {
   id: number | null
   toolName: string
@@ -267,7 +252,7 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
       let settled = false
       const entry: ParkedAsk = {
         id: null,
-        toolName: params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME,
+        toolName: params.tool_name,
         settle: answer => {
           if (settled) return
           settled = true
@@ -310,7 +295,6 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
   return {
     ...channel,
     createCanUseTool: onPermissionPrompt => createHostCanUseTool(channel, onPermissionPrompt),
-    createSandboxAskCallback: () => createSandboxAsk(channel),
     async handleElicitation(serverName, message, requestedSchema, signal, mode, url, elicitationId): Promise<ElicitResult> {
       if (!capabilities().elicitation) {
         logForDebugging(`elicitation for ${serverName}: the host declared no elicitation; answered cancel`)
@@ -359,11 +343,10 @@ export function createRuleOnlyAsks(): AskHost {
   const canUseTool: CanUseToolFn = async (tool, input, toolUseContext, assistantMessage, toolUseId, forceDecision) =>
     settleUnansweredAsk(tool as Tool, input, (forceDecision ?? (await hasPermissionsToUseTool(tool, input, toolUseContext, assistantMessage, toolUseId))) as PermissionDecision)
   return {
-    askPermission: params => Promise.resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME, 'this run has no host to answer it'), unanswered: true }),
+    askPermission: params => Promise.resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(params.tool_name, 'this run has no host to answer it'), unanswered: true }),
     parkedAsks: () => 0,
     createCanUseTool: () => canUseTool,
     handleElicitation: () => Promise.resolve({ action: 'cancel' } as ElicitResult),
-    createSandboxAskCallback: () => () => Promise.resolve(false),
     denyPendingPermissionRequests: () => 0,
     pendingControlRequestCount: () => 0,
     setOnControlRequestSent: () => {},

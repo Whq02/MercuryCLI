@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { chmodSync, copyFileSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -83,10 +83,7 @@ try {
       checks.filter(c => !c.evidence).map(c => c.id).join(','))
     check('every status is in the 7-status enum', checks.every(c => STATUSES.has(c.status)))
     check('no gate in a bare project reads info (not fabricated ok/unknown)', byId(cert, 'gate')?.status === 'info')
-    const sandbox = byId(cert, 'sandbox')
-    check('sandbox check present in RUNTIME', !!sandbox)
-    check('sandbox off (default) reads info, not ok/fail', sandbox?.status === 'info', JSON.stringify(sandbox))
-    check('sandbox evidence names the unconfined state', /unconfined/.test(String(sandbox?.evidence)))
+    check('no sandbox row in RUNTIME', byId(cert, 'sandbox') === undefined)
     const mcp = byId(cert, 'mcp')
     check('mcp evidence carries the untrusted-hardening state', /untrusted-hardening off|untrusted servers clamped/.test(String(mcp?.evidence)))
     check('no retired estate row lingers in the certificate', byId(cert, 'party') === undefined && byId(cert, 'multiplayer') === undefined && byId(cert, 'room-snapshots') === undefined)
@@ -221,74 +218,6 @@ try {
     check('…and ONLY that row', (pipedOut.match(/^\s*\[[A-Z]+\]/gm) ?? []).length === 1, pipedOut.slice(0, 300))
     check('…with the verdict line', /verdict: [A-Z]+/.test(pipedOut))
 
-  }
-
-  console.log('\n§sandbox-row: the OS Bash sandbox row reads its three states, and on Linux the ON row says what the helper answers about unix sockets')
-  {
-    const ON_MAC = 'ON — Bash filesystem + network confined (seatbelt/bubblewrap)'
-    const ON_LINUX_BLOCKED = 'ON — Bash filesystem + network confined (bubblewrap; unix sockets blocked)'
-    const ON_LINUX_NO_HELPER = 'ON — Bash filesystem + network confined (bubblewrap; unix sockets open — no seccomp helper)'
-    const ON_LINUX_BY_SETTING = 'ON — Bash filesystem + network confined (bubblewrap; unix sockets open — guardrails.sandbox.network.allowAllUnixSockets)'
-    const schema = JSON.parse(readFileSync(join(REPO, 'scripts', 'settings', 'settings-schema.json'), 'utf8')) as { properties?: Record<string, unknown> }
-    const schemaDeclares = (dotted: string): boolean => {
-      let node: unknown = schema
-      for (const part of dotted.split('.')) {
-        const props = (node as { properties?: Record<string, unknown> } | undefined)?.properties
-        if (!props || !(part in props)) return false
-        node = props[part]
-      }
-      return true
-    }
-    const tab = readFileSync(join(REPO, 'src', 'components', 'sandbox', 'SandboxDependenciesTab.tsx'), 'utf8')
-    const keysNamedByTab = [...tab.matchAll(/\b((?:\w+\.)+allow(?:All)?UnixSockets)\b/g)].map(m => m[1])
-    check('the /sandbox tab names its two socket keys with their guardrails group, both declared', keysNamedByTab.length === 2 && keysNamedByTab.every(k => k.startsWith('guardrails.') && schemaDeclares(k)), keysNamedByTab.join(' '))
-    const dir = join(scratch, 'sandbox-row', 'cwd')
-    const home = join(scratch, 'sandbox-row', 'home')
-    const settings = join(home, 'settings.json')
-    const bin = join(scratch, 'sandbox-row', 'bin')
-    const bundleDir = join(scratch, 'sandbox-row', 'dist')
-    mkdirSync(dir, { recursive: true })
-    mkdirSync(home, { recursive: true })
-    mkdirSync(bin, { recursive: true })
-    mkdirSync(bundleDir, { recursive: true })
-    const shim = (path: string): void => {
-      mkdirSync(dirname(path), { recursive: true })
-      writeFileSync(path, '#!/bin/sh\nexit 0\n')
-      chmodSync(path, 0o755)
-    }
-    for (const tool of ['bwrap', 'socat', 'rg']) shim(join(bin, tool))
-    copyFileSync(BIN, join(bundleDir, 'mercury.mjs'))
-    const helper = join(bundleDir, 'vendor', 'seccomp', process.arch, 'apply-seccomp')
-    const sandboxRow = (sandbox: Record<string, unknown>, linux: boolean, bundle: string = BIN): Check | undefined => {
-      writeFileSync(settings, JSON.stringify({ guardrails: { sandbox } }))
-      const env: Record<string, string> = { MERCURY_CONFIG_DIR: home, PATH: `${bin}:${process.env.PATH ?? ''}` }
-      if (linux) {
-        env.SANDBOX_PATHS_PLATFORM = 'linux'
-        env.NODE_OPTIONS = `--require=${join(REPO, 'scripts', 'ui', 'fixtures', 'sandbox-paths', 'platform.cjs')}`
-      }
-      const r = runHealth(dir, env, 'health', ['--only', 'sandbox'], bundle)
-      return r.json ? byId(r.json as Cert, 'sandbox') : undefined
-    }
-
-    const off = sandboxRow({}, false)
-    check('off: the row reads info with the unconfined words, byte for byte', off?.status === 'info' && off.evidence === 'off — Bash runs unconfined (no OS filesystem/network boundary)', JSON.stringify(off))
-    const unavailable = sandboxRow({ enabled: true, enabledPlatforms: [] }, false)
-    check('enabled but unavailable: the row reads warn with the reason and a fix', unavailable?.status === 'warn' && /sandbox\.enabledPlatforms/.test(String(unavailable.evidence)) && typeof unavailable.fix === 'string', JSON.stringify(unavailable))
-    if (process.platform === 'darwin') {
-      const mac = sandboxRow({ enabled: true }, false)
-      check('macOS ON: the seatbelt words stay byte for byte, nothing said about sockets', mac?.status === 'ok' && mac.evidence === ON_MAC, JSON.stringify(mac))
-    } else {
-      console.log(`  [SKIP] the host is ${process.platform}; the macOS ON row is read on a Mac`)
-    }
-    const noHelper = sandboxRow({ enabled: true }, true, join(bundleDir, 'mercury.mjs'))
-    check('Linux ON, no apply-seccomp beside the bundle: the row says unix sockets are open and why', noHelper?.status === 'ok' && noHelper.evidence === ON_LINUX_NO_HELPER, JSON.stringify(noHelper))
-    shim(helper)
-    const blocked = sandboxRow({ enabled: true }, true, join(bundleDir, 'mercury.mjs'))
-    check('Linux ON, apply-seccomp beside the bundle: the row says unix sockets are blocked', blocked?.status === 'ok' && blocked.evidence === ON_LINUX_BLOCKED, JSON.stringify(blocked))
-    const bySetting = sandboxRow({ enabled: true, network: { allowAllUnixSockets: true } }, true, join(bundleDir, 'mercury.mjs'))
-    check('Linux ON, the helper present but allowAllUnixSockets set: the row says the sockets are open by that setting', bySetting?.status === 'ok' && bySetting.evidence === ON_LINUX_BY_SETTING, JSON.stringify(bySetting))
-    const keyNamedByRow = String(bySetting?.evidence ?? '').match(/open — ([\w.]+)\)$/)?.[1] ?? ''
-    check('the settings key that row names is one the settings schema declares', keyNamedByRow !== '' && schemaDeclares(keyNamedByRow), keyNamedByRow)
   }
 
   console.log('\n§slow-reader: a consumer slower than the writer still reads exactly one record')

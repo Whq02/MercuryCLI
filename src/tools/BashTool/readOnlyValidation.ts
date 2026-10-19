@@ -13,7 +13,6 @@ import {
 import { LISTED_WORDS, formRuleFor, walkFlags, walkedRuleFor } from '../../utils/shell/readOnlyCommandValidation.js'
 import { PATH_EXTRACTORS, COMMAND_OPERATION_TYPE, type PathCommand } from './pathValidation.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
-import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { getShellCwd } from '../../utils/Shell.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { getPlatform } from '../../utils/platform.js'
@@ -24,7 +23,7 @@ const GIT_INTERNAL_CREATORS = new Set<PathCommand>(['mkdir', 'touch', 'mv', 'cp'
 const OUTPUT_OPERATORS = new Set(['>', '>>', '>|', '&>', '&>>', '>&'])
 
 export type NotReadOnly = {
-  kind: 'unparseable' | 'sandbox' | 'not-on-list' | 'form' | 'writes' | 'screen' | 'git-guard'
+  kind: 'unparseable' | 'simulated-edit' | 'not-on-list' | 'form' | 'writes' | 'screen' | 'git-guard'
   part: string
   word?: string
   target?: string
@@ -33,7 +32,7 @@ export type NotReadOnly = {
 
 type ReadOnlyVerdict = PermissionResult & { notReadOnly?: NotReadOnly }
 const PART_WIDTH = 120
-type PreparedRead = { root: Node | null; command: string; cwd: string; originalCwd: string; platform: string; bare: ReturnType<typeof isCurrentDirectoryBareGitRepo>; sandboxed: boolean; verdict: ReadOnlyVerdict; children: PreparedRead[] }
+type PreparedRead = { root: Node | null; command: string; cwd: string; originalCwd: string; platform: string; bare: ReturnType<typeof isCurrentDirectoryBareGitRepo>; verdict: ReadOnlyVerdict; children: PreparedRead[] }
 const preparedReads = new Map<string, WeakRef<PreparedRead>>()
 const inputReads = new WeakMap<object, PreparedRead>()
 const reclaimedReads = new FinalizationRegistry<{ command: string; reference: WeakRef<PreparedRead> }>(({ command, reference }) => {
@@ -44,7 +43,7 @@ export async function prepareBashReadOnly(input: { command: string }): Promise<v
   const command = input.command
   const parsed = await parseForSecurity(command)
   const root = preparedCommandRoot(command)
-  const snapshot = { root, cwd: getShellCwd(), originalCwd: getOriginalCwd(), platform: getPlatform(), bare: isCurrentDirectoryBareGitRepo(getShellCwd()), sandboxed: SandboxManager.isSandboxingEnabled() }
+  const snapshot = { root, cwd: getShellCwd(), originalCwd: getOriginalCwd(), platform: getPlatform(), bare: isCurrentDirectoryBareGitRepo(getShellCwd()) }
   const remember = (text: string, verdict: ReadOnlyVerdict, children: PreparedRead[] = []): PreparedRead => {
     const prepared = { ...snapshot, command: text, verdict, children }
     const reference = new WeakRef(prepared)
@@ -58,7 +57,7 @@ export async function prepareBashReadOnly(input: { command: string }): Promise<v
 
 export function preparedBashReadsOnly(input: { command: string }): boolean {
   const prepared = inputReads.get(input) ?? preparedReads.get(input.command)?.deref()
-  return prepared !== undefined && prepared.command === input.command && prepared.cwd === getShellCwd() && prepared.originalCwd === getOriginalCwd() && prepared.platform === getPlatform() && prepared.bare === isCurrentDirectoryBareGitRepo(getShellCwd()) && prepared.sandboxed === SandboxManager.isSandboxingEnabled() && prepared.verdict.behavior === 'allow'
+  return prepared !== undefined && prepared.command === input.command && prepared.cwd === getShellCwd() && prepared.originalCwd === getOriginalCwd() && prepared.platform === getPlatform() && prepared.bare === isCurrentDirectoryBareGitRepo(getShellCwd()) && prepared.verdict.behavior === 'allow'
 }
 
 export function cutPart(text: string): string {
@@ -74,7 +73,7 @@ export function notReadOnlyClause(reason: NotReadOnly): string {
     case 'writes': return `it writes to \`${reason.target}\``
     case 'screen': return `the command could not be verified as read-only — ${reason.detail ?? ''}`
     case 'git-guard': return reason.detail ?? ''
-    case 'sandbox': return 'it leaves the sandbox or carries a simulated sed edit'
+    case 'simulated-edit': return 'it carries a simulated sed edit'
     case 'unparseable': return reason.detail ?? 'the command could not be parsed, so it cannot be verified as read-only'
   }
 }
@@ -106,7 +105,6 @@ function gitGuard(commands: SimpleCommand[], compoundHasCd: boolean): string | n
   if (compoundHasCd) return 'A cd combined with git is not auto-allowed.'
   if (isCurrentDirectoryBareGitRepo(getShellCwd())) return 'This directory has bare-repository structure, so git commands here go through the permission gate'
   if (writesToGitInternalPath(commands)) return 'A git command combined with a git-internal write is not auto-allowed.'
-  if (SandboxManager.isSandboxingEnabled() && getShellCwd() !== getOriginalCwd()) return 'A sandboxed git command outside the original directory is not auto-allowed.'
   return null
 }
 

@@ -48,9 +48,8 @@ Each row names the screen, how to reach it, and what it must look like.
    clicking the turn's answer or opening `ctrl+o` shows the withheld-thinking
    line once for the turn. No green star, no square tile.
 3. **The warning row.** A warning is a plain triangle `▲`, never a yellow
-   sign. Places that show one: `/sandbox` when a sandbox dependency is
-   missing, the notice when a retired model is selected, the account pane
-   (`/accounts`) when a family's usage window is capped, the "Not every
+   sign. Places that show one: the notice when a retired model is selected,
+   the account pane (`/accounts`) when a family's usage window is capped, the "Not every
    question is answered" line of the interview card (Apollo mode), and the
    memory centre's degraded maintenance row.
 4. **The check marks.** Answered questions and the Submit tab of the

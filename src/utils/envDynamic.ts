@@ -12,10 +12,6 @@ const getIsDocker = memoize(async (): Promise<boolean> => {
   return result.code === 0
 })
 
-function getIsBubblewrapSandbox(): boolean {
-  return false
-}
-
 let muslProbeResult = false
 if (process.platform === 'linux') {
   const arch = process.arch === 'x64' ? 'x86_64' : 'aarch64'
@@ -37,6 +33,5 @@ function isMuslEnvironment(): boolean {
 export const envDynamic = {
   ...env,
   getIsDocker,
-  getIsBubblewrapSandbox,
   isMuslEnvironment,
 }

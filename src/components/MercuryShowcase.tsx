@@ -14,7 +14,6 @@ import { MercuryDiff } from './MercuryDiff.js'
 import { MercurySkills } from './MercurySkills.js'
 import { MercuryHooks } from './MercuryHooks.js'
 import { MercuryTrust } from './MercuryTrust.js'
-import { MercurySandbox } from './MercurySandbox.js'
 import { MercuryTasks } from './MercuryTasks.js'
 import { MercuryAgents } from './MercuryAgents.js'
 import { MercuryCompact } from './MercuryCompact.js'
@@ -123,7 +122,6 @@ const ITEMS: GalleryItem[] = [
     'Permissions & safety',
     item('permission-card', 'Permission request card', <MercuryPermissionCard />),
     item('trust', 'Trust dialog', <MercuryTrust />),
-    item('sandbox', 'Sandbox', <MercurySandbox />),
     item('notices', 'Notices', <MercuryNotices />),
     item('degraded-banner', 'Degraded banner', <MercuryDegradedBanner />),
   ),

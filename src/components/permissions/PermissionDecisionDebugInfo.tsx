@@ -4,7 +4,6 @@ import { Ansi } from '../../ink/Ansi.js'
 import { StatusIcon } from '../design-system/StatusIcon.js'
 import { STATE_STYLE } from '../mercury-ui/theme.js'
 import { useAppState } from '../../state/AppState.js'
-import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { detectUnreachableRules } from '../../utils/permissions/shadowedRuleDetection.js'
 import { ruleSourceWords } from '../../utils/permissions/ruleReason.js'
 import { permissionRuleValueToString } from '../../utils/permissions/permissionRuleParser.js'
@@ -71,8 +70,6 @@ function ReasonView({
       )
     case 'mode':
       return <Text wrap="truncate-middle">{permissionModeTitle(reason.mode)}</Text>
-    case 'sandboxOverride':
-      return <Text wrap="truncate-middle">Permission is needed to run outside the sandbox</Text>
     case 'workingDir':
     case 'safetyCheck':
     case 'other':
@@ -160,9 +157,7 @@ export function PermissionDecisionDebugInfo({
   const reason =
     'decisionReason' in permissionResult ? permissionResult.decisionReason : undefined
 
-  const sandboxAutoAllowEnabled =
-    SandboxManager.isSandboxingEnabled() && SandboxManager.isAutoAllowBashIfSandboxedEnabled()
-  let unreachable = detectUnreachableRules(toolPermissionContext, { sandboxAutoAllowEnabled })
+  let unreachable = detectUnreachableRules(toolPermissionContext)
   if (suggestedRules.length > 0) {
     unreachable = unreachable.filter(candidate =>
       suggestedRules.some(

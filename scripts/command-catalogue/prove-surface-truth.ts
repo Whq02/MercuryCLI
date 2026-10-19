@@ -84,8 +84,6 @@ const describedLive = all.filter(c => {
   return d.includes('(currently') || d.includes('(1M context)') || displayWords.some(w => d.includes(w)) || /\S+@\S+\.\S+/.test(d)
 })
 check('no built-in description carries a live model, window, or account word', describedLive.length === 0, describedLive.map(c => `${c.name}: ${c.description}`).join(' | '))
-const sandboxCmd = byName('sandbox')
-check("/sandbox's live state moved to the value column (a static description, a currentValue)", sandboxCmd?.description === 'Sandboxing — Enter opens the configuration' && typeof sandboxCmd?.currentValue === 'function')
 
 section("§2 THE VALUE COLUMN READS THE ONE OWNER (the focused session's facts)")
 type Facts = ReturnType<typeof focusedSlot.getFocusedSessionConnector>['modelFacts'] extends () => infer F ? F : never

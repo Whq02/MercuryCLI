@@ -5,7 +5,7 @@
 # gate-watch: assets/splash/launcher-action-block.sh
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/ops/launcher-mercury.sh scripts/splash/deploy.sh
 # gate-watch: scripts/lib/scriptedTurn.ts scripts/hooks/lib/runDoor.ts src/utils/text/hiddenCodePoints.ts src/utils/text/hiddenCharacterFindings.ts
-# gate-watch: scripts/ui/fixtures/sandbox-paths/platform.cjs scripts/ui/renderScenarios.ts
+# gate-watch: scripts/ui/renderScenarios.ts
 # gate-watch: src/bootstrap/state.ts src/cli/handlers/auth.ts src/cli/handlers/util.tsx src/cli/healthPresentation.ts src/cli/update.ts
 # gate-watch: src/commands/health/HealthCertificate.tsx src/commands/health/health.tsx src/daemon/*
 # gate-watch: src/history.ts src/keybindings/loadUserBindings.ts src/main.tsx
@@ -25,7 +25,7 @@
 # gate-watch: src/services/providers/openai/gptPins.ts src/services/providers/openai/openaiCatalogue.ts
 # gate-watch: src/services/providers/typedModelIds.ts src/substrate/flagRegistry.ts
 # gate-watch: src/substrate/launchMilestones.ts src/context/surfaceRoute.ts src/boot/launchGraph.ts
-# gate-watch: src/components/sandbox/SandboxDependenciesTab.tsx scripts/settings/settings-schema.json
+# gate-watch: scripts/settings/settings-schema.json
 # gate-watch: scripts/lib/hermetic.ts src/services/privateChannel/installPath.ts scripts/daemon/dupline-world.ts
 # gate-watch: src/mneme/embedModels.ts src/mneme/embedPack.ts
 set -u

@@ -1,11 +1,8 @@
 import { APIUserAbortError } from '../../../services/api/sdkErrors.js'
 import type { Tool, ToolUseContext } from '../../../Tool.js'
-import { shouldUseSandbox } from '../../../tools/BashTool/shouldUseSandbox.js'
-import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
 import { AbortError } from '../../errors.js'
 import { logForDebugging } from '../../debug.js'
 import { logError } from '../../log.js'
-import { SandboxManager } from '../../sandbox/sandbox-adapter.js'
 import { jsonStringify } from '../../slowOperations.js'
 import { isToolKilled } from '../capabilityGate.js'
 import { modeBypassesPermissions } from '../PermissionMode.js'
@@ -33,7 +30,6 @@ import type {
 
 interface DecisionPorts {
   isToolKilled(tool: Tool, agentType: string | undefined): boolean
-  sandboxAutoAllows(tool: Tool, input: Record<string, unknown>): boolean
   resolveToolVerdict(
     tool: Tool,
     input: Record<string, unknown>,
@@ -43,11 +39,6 @@ interface DecisionPorts {
 
 export const defaultDecisionPorts: DecisionPorts = {
   isToolKilled: (tool, agentType) => isToolKilled(tool, agentType),
-  sandboxAutoAllows: (tool, input) =>
-    tool.name === BASH_TOOL_NAME &&
-    SandboxManager.isSandboxingEnabled() &&
-    SandboxManager.isAutoAllowBashIfSandboxedEnabled() &&
-    shouldUseSandbox(input),
   resolveToolVerdict: async (tool, input, context) =>
     tool.checkPermissions(tool.inputSchema.parse(input), context),
 }
@@ -159,15 +150,9 @@ async function runDecisionChain(
   }
   pass('toolDenyRule')
 
-  const askRule = getAskRuleForTool(permissionContext, tool)
-  let carriedAskRule: typeof askRule | null = null
-  if (askRule) {
-    if (!ports.sandboxAutoAllows(tool, input)) {
-      carriedAskRule = askRule
-      pass('toolAskRule', `mode: ${permissionContext.mode} — carried past the tool verdict`)
-    } else {
-      pass('toolAskRule', 'sandbox-auto-allow fallthrough')
-    }
+  const carriedAskRule = getAskRuleForTool(permissionContext, tool)
+  if (carriedAskRule) {
+    pass('toolAskRule', `mode: ${permissionContext.mode} — carried past the tool verdict`)
   } else {
     pass('toolAskRule')
   }

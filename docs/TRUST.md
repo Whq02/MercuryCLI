@@ -115,8 +115,7 @@ starting folder.
 On Windows, a UNC path can send this machine's login to a remote SMB/WebDAV host: shell and file tools ask before opening it, including a share-hosted workspace, unless an explicit path or command rule grants access (in every mode that asks; Sovereign mode does not).
 
 Sensitive files, such as credentials and Mercury configuration, retain their
-own permission checks. The sandbox is a separate setting and keeps its own
-filesystem restrictions. A hosted runner puts a permission ask to its host;
+own permission checks. A hosted runner puts a permission ask to its host;
 without an answer, it is not approval. A hostless `mercury run` denies a
 call that still needs approval after its rules and mode are applied.
 
@@ -133,7 +132,7 @@ feeding a recursive delete, a path supplied at runtime, and syntax the parser
 cannot read. An unavailable parser returns an ordinary permission ask instead of
 a read-only approval. Sovereign mode may answer that ask; a mode that still asks
 needs a host to approve it, and a hostless call is refused. Deny rules still
-win over an ask or an allow; file and sandbox restrictions still apply.
+win over an ask or an allow; file restrictions still apply.
 
 ## Commands that never reach the model
 

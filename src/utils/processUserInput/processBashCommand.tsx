@@ -110,10 +110,7 @@ export async function processBashCommand(
   const startedAt = Date.now()
   try {
     const result = await tool.call(
-      {
-        command: inputString,
-        dangerouslyDisableSandbox: true,
-      } as never,
+      { command: inputString } as never,
       nestedContext as never,
       (async () => ({ behavior: 'allow' as const, updatedInput: {} })) as never,
       createAssistantMessage({ content: `! ${inputString}` }),

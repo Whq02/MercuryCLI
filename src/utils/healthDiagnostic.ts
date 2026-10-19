@@ -1,27 +1,10 @@
 import { join } from 'node:path'
 
-import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { getFsImplementation } from './fsOperations.js'
-import { getPlatform } from './platform.js'
 import { CUSTOMIZATION_SURFACES } from './settings/types.js'
 import { getManagedFilePath } from './settings/managedPath.js'
 
 type ManagedPolicyWarning = { issue: string; fix: string }
-
-export function detectLinuxGlobPatternWarnings(): ManagedPolicyWarning[] {
-  if (getPlatform() !== 'linux') return []
-  const patterns = SandboxManager.getLinuxGlobPatternWarnings()
-  if (patterns.length === 0) return []
-  const shown = patterns.slice(0, 3).join(', ')
-  const remainder = patterns.length - 3
-  const remainderNote = remainder > 0 ? ` (and ${remainder} more)` : ''
-  return [
-    {
-      issue: 'Wildcard patterns inside sandbox permission rules are only partially honoured on Linux.',
-      fix: `${patterns.length} pattern(s) found: ${shown}${remainderNote}. Such patterns in the file-edit and file-read rule families are dropped.`,
-    },
-  ]
-}
 
 export function managedPolicyPath(): string {
   return join(getManagedFilePath(), 'managed-settings.json')

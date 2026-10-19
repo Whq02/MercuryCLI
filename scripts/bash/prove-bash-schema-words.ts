@@ -43,14 +43,13 @@ const props = schema.properties ?? {}
 const bytes = (value: unknown): number => Buffer.byteLength(JSON.stringify(value), 'utf8')
 const field = (name: string): string => props[name]?.description ?? ''
 
-section('§1 the shape: seven fields, their names and types, command required, nothing else allowed')
-check('exactly the seven property names, in order', JSON.stringify(Object.keys(props)) === JSON.stringify(['command', 'timeout', 'description', 'run_in_background', 'dangerouslyDisableSandbox', 'inherit_session_env', 'max_output_chars']), JSON.stringify(Object.keys(props)))
+section('§1 the shape: six fields, their names and types, command required, nothing else allowed')
+check('exactly the six property names, in order', JSON.stringify(Object.keys(props)) === JSON.stringify(['command', 'timeout', 'description', 'run_in_background', 'inherit_session_env', 'max_output_chars']), JSON.stringify(Object.keys(props)))
 check('required is ["command"]', JSON.stringify(schema.required) === JSON.stringify(['command']), JSON.stringify(schema.required))
 check('additionalProperties is false (a strict object)', schema.additionalProperties === false, String(schema.additionalProperties))
-check('the types are unchanged: string, number, string, boolean, boolean, boolean, integer', ['command', 'timeout', 'description', 'run_in_background', 'dangerouslyDisableSandbox', 'inherit_session_env', 'max_output_chars'].map(n => props[n]?.type).join(',') === 'string,number,string,boolean,boolean,boolean,integer', Object.values(props).map(f => f.type).join(','))
+check('the types are unchanged: string, number, string, boolean, boolean, integer', ['command', 'timeout', 'description', 'run_in_background', 'inherit_session_env', 'max_output_chars'].map(n => props[n]?.type).join(',') === 'string,number,string,boolean,boolean,integer', Object.values(props).map(f => f.type).join(','))
 check('max_output_chars keeps its exclusiveMinimum 0 and its maximum', props.max_output_chars?.exclusiveMinimum === 0 && typeof props.max_output_chars?.maximum === 'number')
 check('command keeps its text', field('command') === 'The command to execute', field('command'))
-check('dangerouslyDisableSandbox keeps its text', field('dangerouslyDisableSandbox') === 'An explicit, dangerous override that runs the command without sandboxing.', field('dangerouslyDisableSandbox'))
 check('inherit_session_env keeps its text', field('inherit_session_env') === "Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process); by default they are scrubbed, since a proof or a build must not see them.", field('inherit_session_env'))
 
 section('§2 the size: the compact schema is at most 1,600 bytes')
