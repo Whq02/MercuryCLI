@@ -130,7 +130,7 @@ rmSync(scratch, { recursive: true, force: true })
   const src95 = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
   check(
     "FC-095: the router row's engine word is 'configured' (never LIVE without a probe)",
-    src95.includes("p.available ? 'configured' : p.reason") && src95.includes('anthropic configured ('),
+    src95.includes("p.available ? 'configured' : (p.reason ?? 'unavailable')") && src95.includes('anthropic configured ('),
   )
   check('FC-095: the LIVE spelling is out of the router row', !src95.includes("p.available ? 'LIVE'") && !src95.includes('anthropic LIVE ('))
 }
