@@ -1,6 +1,35 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.39
+- Added mercury sessions list (or bare sessions): lists this project's saved sessions newest first, --all for every project, --limit N for the newest N
+- Added docs/AUTOMATION.md: runnable TypeScript and Python examples that drive mercury run --format rows and mercury runner, with the order of the rows a run emits and how to tell a reply from a request
+- Added ZAI_KEY_PLAN (general or coding) for a Z.AI key supplied through the environment or a key command; without it the plan is learned from the key's models list and corrected by the chat's own refusal
+- Added thirty thinking words to the spinner's desert set
+- Changed memory writes: Mercury writes or changes memory only when you ask it to — a Retain or Correct whose latest message carries no asking words is refused with the words it read, and a crewmate's is refused always; the asking words take their endings ("remembered", "memorized")
+- Changed what the model sees of memory: nothing per turn — the task-matched memory block and the working-set capsule's memory list are gone; memory reaches the model at session start and through Recall
+- Changed the system prompt's evidence rule to: "Base claims on research first, tool outputs second, and best-practises third. Memory, documentation, and crewmate reports act as that; they are prone to being stale and dated."
+- Changed /logins to one Anthropic row — Claude subscription (browser sign-in) or usage-based billing (Console sign-in or API key) — on the in-chat card and the boot screen alike
+- Changed Qwen's words to name the console a key belongs to, QwenCloud or Model Studio, from the endpoint that accepted it, or both while none has
+- Changed the shell engine's default on Windows to the bundled engine when its pack is present; MERCURY_SHELL_ENGINE=system keeps Git Bash
+- Changed a headless run's shell tasks: every background shell ends with the run; a process that must outlive it is a Service with lifecycle project, and the start result says so
+- Changed the 1h prompt-cache gate to name the condition that holds and to read live while off; /health prints the reason, and a daemon-hosted session's requests are reported from its worker
+- Changed named services to be keyed by the session's project, so a follow-up finds its service whatever the shell's working directory
+- Changed the tool-name refusal to list the session's tools, so a resumed session recovers in one step
+- Changed the Bash timeout clamp to name the value asked, the cap and the run_in_background option
+- Changed /keybindings to name the editor it opened, that it returned at once, that it failed, or that the file was saved; the shipped default file validates clean
+- Fixed stale diagnostics after a Bash command wrote a file: the next read waits for the server's fresh report
+- Fixed a notice row counting as an operator turn after compaction, and an older build's carried notice re-admitted on read
+- Fixed the tool roster after a build move: a restored session decides its roster from the live pool
+- Fixed Edit after a crewmate's Write and after a resume: the session's written lines are credited across crewmates and after a restart
+- Fixed an OpenRouter 401 on Jev's requests: the sign-in refusal reaches /logins
+- Fixed /model's Qwen rows naming Model Studio for every key
+- Fixed the sk-ant key pasted on the OpenAI row: the redirect names the Anthropic row
+- Fixed the first-run sign-in card at 64×20: rows paint single-line when the frame cannot hold a wrapped row, and the cursor row keeps its mark
+- Fixed the boot screen dropping an informational receipt when only a warnings listener was attached: untaken receipts queue for the chat
+- Fixed mercury sessions list ordering two sessions written in the same instant on Linux: ties break on the transcript's recorded time
+- Fixed the npm wrapper's unpack on Windows: the system tar, then Windows PowerShell's Expand-Archive, never Git's tar (shipped as 1.0.0-beta.38.2)
+
 ## 1.0.0-beta.38
 - Added Qwen (/logins qwen or DASHSCOPE_API_KEY): connects with a QwenCloud key (Token Plan or pay-as-you-go) or an Alibaba Cloud Model Studio key (pay-as-you-go, Token Plan or Coding Plan); a key is checked on its own endpoint before it is stored, a plan key lists the plan's models with Qwen3.8 Max first and an Auto row that lets the plan pick, and the bare word qwen runs Qwen3.8 Max
 - Added MiniMax (/logins minimax or MINIMAX_API_KEY): runs M-series text models with per-model thinking controls; M Plan usage windows show in /usage
