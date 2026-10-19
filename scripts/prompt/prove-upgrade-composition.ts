@@ -87,7 +87,9 @@ try {
       if (sidecar) {
         check('the complete recorded prompt replays byte-equal', JSON.stringify(replay) === JSON.stringify(systemTexts(original.body)))
         check('the recorded whole carries neither the constitution nor lineage', !replay.join('\n').includes(MERCURY_CONSTITUTION) && !replay.join('\n').includes('# Lineage'))
-        check('the recorded prompt drops no thinking', drops.every(count => count === 0), JSON.stringify(drops))
+        const toolNames = (body: unknown): string[] => ((body as { tools?: Array<{ name?: string }> }).tools ?? []).map(tool => tool.name ?? '')
+        check('on a moved build the roster is decided afresh at the first request: the resumed request offers the live tools, not the recorded roster', JSON.stringify(toolNames(requests[1]?.body)) !== JSON.stringify(toolNames(original.body)) && toolNames(requests[1]?.body).includes('Crewmate') && !toolNames(requests[1]?.body).includes('Agent'), toolNames(requests[1]?.body).join(','))
+        check('the recorded thinking, minted over the old roster, is dropped once at that request and never on the next (the prefix moved by its tools alone; the system replayed whole)', drops[0] === 1 && drops.slice(1).every(count => count === 0) && JSON.stringify(bindingDropsFor(requests[1]?.body)).includes('prefix_binding_mismatch'), JSON.stringify(drops))
       } else {
         const text = replay.join('\n')
         check('the missing-record leg sends the constitution whole with one identity and no old floor', text.includes(MERCURY_CONSTITUTION) && !text.includes(oldWords) && (text.match(/You are/g) ?? []).length === 1)
