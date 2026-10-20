@@ -1,13 +1,16 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { EffortLevel, PermissionMode } from './door.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
-import { parseRow } from './parse.js'
-import type { OutcomeRow, Row, SessionRow } from './rows.js'
+import { inputRowOf, parseRow, type StreamRow } from './parse.js'
+import type { InputRow, PromptRow, ShellRow, NoteRow, OutcomeRow, SessionRow } from './rows.js'
 
 export type ConfigLayer = 'user' | 'project' | 'local'
 
 export interface RunOptions {
-  prompt: string
+  prompt?: string
+  input?: 'rows'
+  agentDefs?: Record<string, unknown>
+  maxTime?: string
   stdin?: string
   mercury?: string | readonly string[]
   cwd?: string
@@ -74,6 +77,9 @@ export function argvOf(options: RunOptions): RunArgv {
   value('--effort', options.effort)
   value('--backup-model', options.backupModel)
   value('--agent', options.agent)
+  value('--agent-defs', json(options.agentDefs))
+  value('--max-time', options.maxTime)
+  value('--input', options.input)
   value('--mode', options.mode)
   flag('--sovereign', options.sovereign)
   flag('--allow-sovereign', options.allowSovereign)
@@ -103,22 +109,23 @@ export function argvOf(options: RunOptions): RunArgv {
   list('--provider-preview', options.providerPreview)
   value('--log-file', options.logFile)
   args.push(...(options.extraArgs ?? []))
-  args.push('--', options.prompt)
+  if (options.prompt !== undefined) args.push('--', options.prompt)
   return { command, args }
 }
 
-type RowListener<T extends Row['type']> = (row: Extract<Row, { type: T }>) => void
+type RowListener<T extends StreamRow['type']> = (row: Extract<StreamRow, { type: T }>) => void
 type Listener = (payload: never) => void
 
-export class MercuryRun implements AsyncIterable<Row> {
+export class MercuryRun implements AsyncIterable<StreamRow> {
   readonly command: string
   readonly args: readonly string[]
-  readonly rows: Row[] = []
+  readonly rows: StreamRow[] = []
   readonly outcome: Promise<OutcomeRow>
   readonly session: Promise<SessionRow>
   readonly exit: Promise<RunExit>
   readonly child: ChildProcess
 
+  #streaming: boolean
   #listeners = new Map<string, Set<Listener>>()
   #buffer = ''
   #stderr = ''
@@ -132,11 +139,13 @@ export class MercuryRun implements AsyncIterable<Row> {
   #resolveSession!: (row: SessionRow) => void
   #rejectSession!: (error: MercuryError) => void
   #resolveExit!: (exit: RunExit) => void
-  #waiters: Array<{ resolve: (next: IteratorResult<Row>) => void; reject: (error: MercuryError) => void }> = []
-  #queue: Row[] = []
+  #waiters: Array<{ resolve: (next: IteratorResult<StreamRow>) => void; reject: (error: MercuryError) => void }> = []
+  #queue: StreamRow[] = []
   #done = false
 
   constructor(options: RunOptions) {
+    if (options.input === 'rows' && options.stdin !== undefined) throw new MercuryError('stdin text cannot be combined with input rows', null)
+    this.#streaming = options.input === 'rows'
     const { command, args } = argvOf(options)
     this.command = command
     this.args = args
@@ -172,15 +181,15 @@ export class MercuryRun implements AsyncIterable<Row> {
     })
     this.child.on('close', (code, signal) => this.#settle(code, signal))
     if (options.stdin !== undefined) this.child.stdin!.write(options.stdin)
-    this.child.stdin!.end()
+    if (options.input !== 'rows') this.child.stdin!.end()
     if (options.signal !== undefined) {
       if (options.signal.aborted) this.interrupt()
       else options.signal.addEventListener('abort', () => this.interrupt(), { once: true })
     }
   }
 
-  on<T extends Row['type']>(type: T, listener: RowListener<T>): this
-  on(type: 'row', listener: (row: Row) => void): this
+  on<T extends StreamRow['type']>(type: T, listener: RowListener<T>): this
+  on(type: 'row', listener: (row: StreamRow) => void): this
   on(type: 'error', listener: (error: MercuryError) => void): this
   on(type: 'end', listener: (exit: RunExit) => void): this
   on(type: string, listener: (payload: never) => void): this {
@@ -197,6 +206,18 @@ export class MercuryRun implements AsyncIterable<Row> {
     this.#listeners.get(type)?.delete(listener as Listener)
     return this
   }
+
+  send(row: InputRow): Promise<void> {
+    if (!this.#streaming || this.child.stdin!.writableEnded) return Promise.reject(new MercuryError('input rows is not open', null))
+    const read = inputRowOf(row)
+    if (!read.ok) return Promise.reject(new MercuryWireError(JSON.stringify(row), read.reason, read.type, read.issues, null))
+    return new Promise((resolve, reject) => this.child.stdin!.write(JSON.stringify(row) + '\n', error => error ? reject(new MercuryError(error.message, null, { cause: error })) : resolve()))
+  }
+
+  sendPrompt(content: PromptRow['content'], options: Omit<PromptRow, 'type' | 'content'> = {}): Promise<void> { return this.send({ ...options, type: 'prompt', content }) }
+  sendShell(command: string, options: Omit<ShellRow, 'type' | 'command'> = {}): Promise<void> { return this.send({ ...options, type: 'shell', command }) }
+  sendNote(to: string, content: string, options: Omit<NoteRow, 'type' | 'to' | 'content'> = {}): Promise<void> { return this.send({ ...options, type: 'note', to, content }) }
+  closeInput(): void { this.child.stdin!.end() }
 
   interrupt(): boolean {
     return this.child.kill('SIGINT')
@@ -218,19 +239,19 @@ export class MercuryRun implements AsyncIterable<Row> {
     return this.#stderr
   }
 
-  [Symbol.asyncIterator](): AsyncIterator<Row> {
+  [Symbol.asyncIterator](): AsyncIterator<StreamRow> {
     return {
-      next: (): Promise<IteratorResult<Row>> => {
+      next: (): Promise<IteratorResult<StreamRow>> => {
         const queued = this.#queue.shift()
         if (queued !== undefined) return Promise.resolve({ value: queued, done: false })
         if (this.#done) return this.#endOfRows()
         return new Promise((resolve, reject) => this.#waiters.push({ resolve, reject }))
       },
-      return: (): Promise<IteratorResult<Row>> => Promise.resolve({ value: undefined, done: true }),
+      return: (): Promise<IteratorResult<StreamRow>> => Promise.resolve({ value: undefined, done: true }),
     }
   }
 
-  #endOfRows(): Promise<IteratorResult<Row>> {
+  #endOfRows(): Promise<IteratorResult<StreamRow>> {
     if (this.#error !== null) return Promise.reject(this.#error)
     return Promise.resolve({ value: undefined, done: true })
   }

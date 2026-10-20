@@ -1,0 +1,57 @@
+import { createServer } from 'node:http'
+import { randomBytes } from 'node:crypto'
+import type { EffortLevel, PermissionMode } from './door.js'
+import type { JsonSchema } from './rows.js'
+import { validate } from './validate.js'
+
+export type AgentDefinition = { description: string; prompt: string; model?: string; effort?: EffortLevel | number; tools?: string[]; disallowedTools?: string[]; permissionMode?: PermissionMode; instructionProfile?: 'auto' | 'native'; mcpServers?: unknown[]; hooks?: unknown; maxTurns?: number; skills?: string[]; initialPrompt?: string; standingRule?: string; memory?: 'user' | 'project' | 'local'; background?: boolean; isolation?: 'worktree' }
+export function defineAgent(definition: AgentDefinition): AgentDefinition {
+  if (!definition.description.trim() || !definition.prompt.trim()) throw new Error('an agent needs description and prompt')
+  return { ...definition }
+}
+export type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean }
+export type ToolDefinition<T = Record<string, unknown>> = { name: string; description: string; inputSchema: JsonSchema; execute: (input: T) => ToolResult | string | Promise<ToolResult | string> }
+export function defineTool<T = Record<string, unknown>>(definition: ToolDefinition<T>): ToolDefinition<T> {
+  if (!definition.name.trim()) throw new Error('a tool needs a name')
+  return definition
+}
+
+export async function serveTools(tools: readonly ToolDefinition<any>[], name = 'sdk-tools') {
+  if (new Set(tools.map(t => t.name)).size !== tools.length) throw new Error('duplicate tool name')
+  const token = randomBytes(32).toString('hex')
+  const server = createServer(async (req, res) => {
+    if (req.headers.authorization !== `Bearer ${token}` || req.headers.origin) { res.writeHead(403).end(); return }
+    if (req.method === 'DELETE') { res.writeHead(200).end(); return }
+    if (req.method !== 'POST') { res.writeHead(405).end(); return }
+    let id: unknown = null
+    try {
+      const chunks: Buffer[] = []
+      for await (const chunk of req) chunks.push(Buffer.from(chunk))
+      const message = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+      id = message.id
+      if (id === undefined) { res.writeHead(202).end(); return }
+      let result: unknown
+      if (message.method === 'initialize') result = { protocolVersion: message.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name, version: '0.1.0' } }
+      else if (message.method === 'ping') result = {}
+      else if (message.method === 'tools/list') result = { tools: tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) }
+      else if (message.method === 'tools/call') {
+        const tool = tools.find(t => t.name === message.params.name)
+        if (!tool) throw new Error('unknown tool')
+        const issues = validate(tool.inputSchema, message.params.arguments ?? {})
+        if (issues.length) throw new Error(JSON.stringify(issues))
+        try {
+          const value = await tool.execute(message.params.arguments ?? {})
+          result = typeof value === 'string' ? { content: [{ type: 'text', text: value }] } : value
+        } catch (error) { result = { content: [{ type: 'text', text: String(error) }], isError: true } }
+      } else {
+        res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32601, message: 'unknown method' } })); return
+      }
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id, result }))
+    } catch (error) { res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32602, message: String(error) } })) }
+  })
+  await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve) })
+  const address = server.address() as { port: number }
+  const config = { type: 'http' as const, url: `http://127.0.0.1:${address.port}`, headers: { Authorization: `Bearer ${token}` } }
+  const close = async () => { if (!server.listening) return; await new Promise<void>((resolve, reject) => { server.close(e => e ? reject(e) : resolve()); server.closeAllConnections() }) }
+  return { config, mcp: JSON.stringify({ mcpServers: { [name]: config } }), close, [Symbol.asyncDispose]: close }
+}

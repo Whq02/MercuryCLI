@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: sdk/** src/rows/** src/cli/run.ts src/cli/sessionArgs.ts src/cli/structuredIO.ts src/cli/headless/refusalEnvelope.ts
+# gate-watch: sdk/** sdk-py/** src/rows/** src/cli/run.ts src/cli/sessionArgs.ts src/cli/structuredIO.ts src/cli/headless/refusalEnvelope.ts
+# gate-watch: src/runner/wire/** src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts src/utils/lazySchema.ts
 # gate-watch: src/main.tsx src/types/permissions.ts src/utils/effortLadder.ts
 # gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/generated-assets-map.mjs scripts/gate/generated-assets.tsv
 set -uo pipefail
@@ -11,7 +12,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 echo "############################################################"
-echo "# sdk — the parked package: build, drift, the run door through it"
+echo "# sdk — TypeScript and Python: build, drift, run, runner and testing"
 echo "############################################################"
 [ -d "$here/../../sdk/src" ] || { echo "the SDK is parked and not on this tree (the published lineage carries no sdk/): nothing to prove here"; exit 0; }
 for f in "$here"/prove-*.ts; do

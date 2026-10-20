@@ -1,0 +1,99 @@
+from __future__ import annotations
+import json
+import math
+from dataclasses import dataclass, field
+from typing import Any, Literal, TypedDict
+from .generated import ROWS_SCHEMA, ROW_SCHEMAS, INPUT_ROW_SCHEMAS, Row, InputRow
+
+
+class UnknownRow(TypedDict):
+    type: Literal['unknown_row']
+    original_type: str
+    raw: dict[str, Any]
+
+
+StreamRow = Row | UnknownRow
+
+
+@dataclass(frozen=True)
+class Issue:
+    path: str
+    message: str
+
+
+@dataclass(frozen=True)
+class RowRead:
+    ok: bool
+    row: StreamRow | InputRow | None = None
+    reason: str | None = None
+    type: str | None = None
+    issues: list[Issue] = field(default_factory=list)
+
+
+def validate(schema: dict, value: Any, path: str = '') -> list[Issue]:
+    union = schema.get('oneOf', schema.get('anyOf'))
+    if union is not None:
+        attempts = [validate(s, value, path) for s in union]
+        return [] if any(not a for a in attempts) else [Issue(path, 'matches no union member')]
+    tests = {
+        'object': lambda v: isinstance(v, dict), 'array': lambda v: isinstance(v, list),
+        'string': lambda v: isinstance(v, str), 'boolean': lambda v: isinstance(v, bool),
+        'number': lambda v: type(v) in (int, float) and math.isfinite(v),
+        'integer': lambda v: type(v) in (int, float) and math.isfinite(v) and int(v) == v,
+        'null': lambda v: v is None,
+    }
+    if 'type' in schema:
+        types = schema['type'] if isinstance(schema['type'], list) else [schema['type']]
+        if not any(tests[t](value) for t in types):
+            return [Issue(path, f'expected {types}')]
+    if 'const' in schema and (value != schema['const'] or isinstance(value, bool) != isinstance(schema['const'], bool)):
+        return [Issue(path, f"expected constant {schema['const']!r}")]
+    if 'enum' in schema and value not in schema['enum']:
+        return [Issue(path, f"expected one of {schema['enum']!r}")]
+    issues = []
+    if type(value) in (int, float):
+        for key, bad in [('minimum', lambda x: value < x), ('maximum', lambda x: value > x), ('exclusiveMinimum', lambda x: value <= x), ('exclusiveMaximum', lambda x: value >= x)]:
+            if key in schema and bad(schema[key]): issues.append(Issue(path, key))
+    if isinstance(value, str):
+        if len(value) < schema.get('minLength', 0): issues.append(Issue(path, 'string too short'))
+        if 'maxLength' in schema and len(value) > schema['maxLength']: issues.append(Issue(path, 'string too long'))
+    if isinstance(value, list) and 'items' in schema:
+        for i, item in enumerate(value): issues.extend(validate(schema['items'], item, f'{path}[{i}]'))
+    if isinstance(value, dict):
+        props = schema.get('properties', {})
+        for key in schema.get('required', []):
+            if key not in value: issues.append(Issue(f'{path}.{key}'.lstrip('.'), 'required'))
+        for key, item in value.items():
+            p = f'{path}.{key}'.lstrip('.')
+            if key in props: issues.extend(validate(props[key], item, p))
+            elif schema.get('additionalProperties') is False: issues.append(Issue(p, 'not a declared key'))
+            elif isinstance(schema.get('additionalProperties'), dict): issues.extend(validate(schema['additionalProperties'], item, p))
+    return issues
+
+
+def _read(value: Any, inputs: bool = False) -> RowRead:
+    if not isinstance(value, dict): return RowRead(False, reason='not_an_object')
+    t = value.get('type')
+    if not isinstance(t, str): return RowRead(False, reason='no_type')
+    schemas = INPUT_ROW_SCHEMAS if inputs else ROW_SCHEMAS
+    if t not in schemas:
+        return RowRead(False, reason='unknown_type', type=t) if inputs else RowRead(True, row={'type': 'unknown_row', 'original_type': t, 'raw': value})
+    if not inputs and t in ('session', 'outcome') and value.get('schema') != ROWS_SCHEMA:
+        return RowRead(False, reason='schema_mismatch', type=t)
+    issues = validate(schemas[t], value)
+    return RowRead(not issues, row=value if not issues else None, reason='invalid' if issues else None, type=t, issues=issues)
+
+
+def row_of(value: Any) -> RowRead:
+    return _read(value)
+
+
+def input_row_of(value: Any) -> RowRead:
+    return _read(value, True)
+
+
+def parse_row(line: str) -> RowRead:
+    try:
+        return row_of(json.loads(line))
+    except (ValueError, TypeError):
+        return RowRead(False, reason='not_json')

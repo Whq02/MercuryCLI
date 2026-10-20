@@ -28,6 +28,10 @@ export type JsonSchema = {
   anyOf?: readonly JsonSchema[]
   minimum?: number
   maximum?: number
+  exclusiveMinimum?: number
+  exclusiveMaximum?: number
+  minLength?: number
+  maxLength?: number
 }
 export type HookEnding = {
   status: 'ok'

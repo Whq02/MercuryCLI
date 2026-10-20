@@ -6,6 +6,8 @@ export type RunExit = { code: number | null; signal: NodeJS.Signals | null; stde
 
 export class MercuryError extends Error {
   override readonly name: string = 'MercuryError'
+  code?: number
+  data?: unknown
   readonly exit: RunExit | null
   constructor(message: string, exit: RunExit | null, options?: ErrorOptions) {
     super(message, options)
@@ -15,14 +17,16 @@ export class MercuryError extends Error {
 
 export class MercuryRefusal extends MercuryError {
   override readonly name = 'MercuryRefusal'
-  readonly outcome: OutcomeRow
+  readonly outcome: OutcomeRow | null
   readonly errorClass: ErrorClass
   readonly detail: readonly string[]
-  constructor(outcome: OutcomeRow, exit: RunExit) {
-    super(outcome.error?.message ?? 'The request was refused', exit)
+  constructor(outcome: OutcomeRow | null, exit: RunExit | null, rpc?: { message: string; code: number; data?: unknown }) {
+    super(rpc?.message ?? outcome?.error?.message ?? 'The request was refused', exit)
+    this.code = rpc?.code
+    this.data = rpc?.data
     this.outcome = outcome
-    this.errorClass = outcome.error?.class ?? 'option'
-    this.detail = outcome.error?.detail ?? []
+    this.errorClass = outcome?.error?.class ?? 'option'
+    this.detail = outcome?.error?.detail ?? []
   }
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import ts from 'typescript'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0' }
@@ -14,16 +14,19 @@ const argValue = (name: string): string | undefined => {
 }
 const ROOT = resolve(argValue('--root') ?? resolve(import.meta.dir, '..', '..'))
 const OUT_DIR = resolve(argValue('--out') ?? join(ROOT, 'sdk', 'src'))
+const PY_OUT = resolve(argValue('--python-out') ?? join(ROOT, 'sdk-py', 'src', 'mercury_cli_sdk'))
+const WIRE = 'src/runner/wire/methods.ts'
+const ERRORS = 'src/runner/wire/errors.ts'
 const VOCABULARY = 'src/rows/vocabulary.ts'
 const PERMISSIONS = 'src/types/permissions.ts'
 const EFFORT = 'src/utils/effortLadder.ts'
 const MAIN = 'src/main.tsx'
 const GENERATOR = 'scripts/sdk/generate.ts'
 const ROW = {
-  assets: 'sdk/src/rows.ts sdk/src/door.ts',
+  assets: 'sdk/src/rows.ts sdk/src/door.ts sdk/src/wire.ts sdk-py/src/mercury_cli_sdk/generated.py sdk/README.md sdk-py/README.md',
   generator: `bun ${GENERATOR}`,
   check: 'bun scripts/sdk/prove-rows-drift.ts',
-  sources: `${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN}`,
+  sources: `${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN} ${WIRE} ${ERRORS} src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts`,
 }
 if (argv.includes('--register')) {
   const { registerGeneratedAsset } = (await import(join(ROOT, 'scripts/lib/generated-assets-map.mjs'))) as { registerGeneratedAsset: (row: typeof ROW) => { action: string; line: string } }
@@ -38,7 +41,7 @@ const permissions = (await import(join(ROOT, PERMISSIONS))) as { PERMISSION_MODE
 const effort = (await import(join(ROOT, EFFORT))) as { EFFORT_LEVELS: readonly string[] }
 
 type Schema = Record<string, unknown>
-const KEYWORDS = new Set(['type', 'const', 'enum', 'properties', 'required', 'additionalProperties', 'propertyNames', 'items', 'oneOf', 'anyOf', 'minimum', 'maximum'])
+const KEYWORDS = new Set(['type', 'const', 'enum', 'properties', 'required', 'additionalProperties', 'propertyNames', 'items', 'oneOf', 'anyOf', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength'])
 const TYPES = new Set(['object', 'array', 'string', 'number', 'integer', 'boolean', 'null'])
 
 function fail(message: string): never {
@@ -312,6 +315,7 @@ rows.push('  oneOf?: readonly JsonSchema[]')
 rows.push('  anyOf?: readonly JsonSchema[]')
 rows.push('  minimum?: number')
 rows.push('  maximum?: number')
+for (const key of ['exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength']) rows.push(`  ${key}?: number`)
 rows.push('}')
 for (const [, entry] of named) {
   const body = typeOf(entry.schema, '', true)
@@ -350,10 +354,90 @@ door.push('] as const satisfies readonly RunOption[]')
 door.push("export type RunOptionFlag = (typeof RUN_OPTIONS)[number]['flag']")
 door.push('')
 
+
+const wireSource = await import(join(ROOT, WIRE))
+const wireErrors = await import(join(ROOT, ERRORS))
+const methodSchemas = Object.fromEntries(Object.entries(wireSource.METHODS).map(([name, spec]: [string, any]) => [name, {
+  from: spec.from, kind: spec.kind, scope: spec.scope, deadlineMs: spec.deadlineMs,
+  ...(spec.capability ? { capability: spec.capability } : {}),
+  params: jsonSchemaOf(spec.params, `${name}.params`), result: jsonSchemaOf(spec.result, `${name}.result`),
+}]))
+const wire = ["import type * as Rows from './rows.js'", "import type { JsonSchema } from './rows.js'", `export const RUNNER_PROTOCOL = ${wireSource.RUNNER_PROTOCOL} as const`]
+for (const [name, value] of Object.entries(wireErrors)) if (/^(RPC_\w+|BAD_LINE_LIMIT|MAX_LINE_BYTES|REFUSAL_KINDS)$/.test(name) && typeof value !== 'function') wire.push(`export const ${name} = ${JSON.stringify(value)} as const`)
+const rowRefs = new Set([...named.values()].map(e => e.typeName))
+const wireType = (schema: Schema): string => typeOf(schema, '', true).replace(/\b[A-Za-z]\w*\b/g, word => rowRefs.has(word) ? `Rows.${word}` : word)
+wire.push('export interface MethodParams {')
+for (const [name, spec] of Object.entries(methodSchemas)) wire.push(`  ${JSON.stringify(name)}: ${wireType(spec.params)}`)
+wire.push('}', 'export interface MethodResults {')
+for (const [name, spec] of Object.entries(methodSchemas)) wire.push(`  ${JSON.stringify(name)}: ${wireType(spec.result)}`)
+wire.push('}', 'export type MethodName = keyof MethodParams', 'export type ParamsOf<M extends MethodName> = MethodParams[M]', 'export type ResultOf<M extends MethodName> = MethodResults[M]')
+for (const [alias, side, kind] of [['HostRequestName', 'host', 'request'], ['HostNotificationName', 'host', 'notification'], ['RunnerRequestName', 'runner', 'request'], ['RunnerNotificationName', 'runner', 'notification']]) wire.push(`export type ${alias} = ${Object.entries(methodSchemas).filter(([, s]) => (s.from === side || s.from === 'both') && s.kind === kind).map(([n]) => JSON.stringify(n)).join(' | ')}`)
+wire.push('export type MethodSchema = { from: string; kind: string; scope: string; deadlineMs: number | null; capability?: string; params: JsonSchema; result: JsonSchema }')
+wire.push(`export const METHODS: Record<MethodName, MethodSchema> = ${JSON.stringify(methodSchemas, null, 2)}`, '')
+const py = ['from __future__ import annotations', 'import json', 'from typing import Any, Literal, NotRequired, TypeAlias, TypedDict', '']
+const pyNames: string[] = []
+const pyLit = (value: unknown): string => value === null ? 'None' : value === true ? 'True' : value === false ? 'False' : JSON.stringify(value)
+function pyType(schema: Schema, name: string, top = false): string {
+  if (!top) { const known = byText.get(JSON.stringify(schema)); if (known) return known }
+  const union = (schema.oneOf ?? schema.anyOf) as Schema[] | undefined
+  if (union) return union.map((s, i) => pyType(s, `${name}Choice${i}`)).join(' | ')
+  if (schema.const !== undefined) return `Literal[${pyLit(schema.const)}]`
+  if (schema.enum) return `Literal[${(schema.enum as unknown[]).map(pyLit).join(', ')}]`
+  const type = schema.type
+  if (Array.isArray(type)) return type.map(t => pyType({ ...schema, type: t }, name)).join(' | ')
+  if (type === 'string') return 'str'
+  if (type === 'integer') return 'int'
+  if (type === 'number') return 'float'
+  if (type === 'boolean') return 'bool'
+  if (type === 'null') return 'None'
+  if (type === 'array') return `list[${pyType(schema.items as Schema, name + 'Item')}]`
+  if (type !== 'object') return 'Any'
+  const props = (schema.properties ?? {}) as Record<string, Schema>
+  if (Object.keys(props).length === 0) return `dict[str, ${typeof schema.additionalProperties === 'object' ? pyType(schema.additionalProperties as Schema, name + 'Value') : 'Any'}]`
+  const required = new Set((schema.required ?? []) as string[])
+  const fields = Object.entries(props).map(([key, value]) => {
+    const t = pyType(value, name + key.replace(/[^a-z0-9]/gi, '_').replace(/^./, c => c.toUpperCase()))
+    return `    ${JSON.stringify(key)}: ${JSON.stringify(required.has(key) ? t : `NotRequired[${t}]`)},`
+  })
+  py.push(`${name} = TypedDict(${JSON.stringify(name)}, {`, ...fields, '})', '')
+  pyNames.push(name)
+  return name
+}
+for (const [, entry] of named) {
+  const t = pyType(entry.schema, entry.typeName, true)
+  if (t !== entry.typeName) { py.push(`${entry.typeName}: TypeAlias = ${t}`, ''); pyNames.push(entry.typeName) }
+}
+for (const [method, spec] of Object.entries(methodSchemas)) {
+  const prefix = method.replace(/[^a-z0-9]+/gi, '_').split('_').filter(Boolean).map(s => s[0]!.toUpperCase() + s.slice(1)).join('')
+  for (const [suffix, schema] of [['Params', spec.params], ['Result', spec.result]] as const) {
+    const name = prefix + suffix
+    const t = pyType(schema, name, true)
+    if (t !== name) { py.push(`${name}: TypeAlias = ${t}`, ''); pyNames.push(name) }
+  }
+}
+const pyData = { ROWS_SCHEMA: rowsSchema, ...listValues, OUTCOME_EXIT_CODES: exitCodes,
+  ROW_SCHEMAS: Object.fromEntries([...rowSchemas].map(([type, name]) => [type, named.get(name)!.schema])),
+  INPUT_ROW_SCHEMAS: Object.fromEntries([...inputSchemas].map(([type, name]) => [type, named.get(name)!.schema])),
+  PERMISSION_MODES: permissions.PERMISSION_MODES, EFFORT_LEVELS: effort.EFFORT_LEVELS, RUN_OPTIONS: runOptions,
+  RUNNER_PROTOCOL: wireSource.RUNNER_PROTOCOL, METHODS: methodSchemas,
+  ...Object.fromEntries(Object.entries(wireErrors).filter(([n, v]) => /^(RPC_\w+|BAD_LINE_LIMIT|MAX_LINE_BYTES|REFUSAL_KINDS)$/.test(n) && typeof v !== 'function')) }
+for (const [name, value] of Object.entries(pyData)) py.push(`${name} = json.loads(${JSON.stringify(JSON.stringify(value))})`)
+py.push(`__all__ = ${JSON.stringify([...pyNames, ...Object.keys(pyData)])}`, '')
+
 const outputs: Array<[string, string]> = [
+  [join(OUT_DIR, 'wire.ts'), wire.join('\n')],
+  [join(PY_OUT, 'generated.py'), py.join('\n')],
   [join(OUT_DIR, 'rows.ts'), rows.join('\n')],
   [join(OUT_DIR, 'door.ts'), door.join('\n')],
 ]
+if (!argValue('--out') && !argValue('--python-out')) {
+  const table = ['| Row | Required fields |', '| --- | --- |', ...[...rowSchemas].map(([type, name]) => `| \`${type}\` | ${(named.get(name)!.schema.required as string[]).map(key => `\`${key}\``).join(', ')} |`)].join('\n')
+  for (const dir of ['sdk', 'sdk-py']) {
+    const path = join(ROOT, dir, 'README.md')
+    const readme = readFileSync(path, 'utf8')
+    outputs.push([path, readme.replace(/<!-- vocabulary:start -->[\s\S]*?<!-- vocabulary:end -->/, `<!-- vocabulary:start -->\n${table}\n<!-- vocabulary:end -->`)])
+  }
+}
 if (argv.includes('--check')) {
   let drift = 0
   for (const [path, content] of outputs) {
@@ -371,6 +455,7 @@ if (argv.includes('--check')) {
   process.exit(drift === 0 ? 0 : 1)
 }
 for (const [path, content] of outputs) {
+  mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, content)
   console.log(`wrote ${path} (${content.length} bytes)`)
 }
