@@ -14,6 +14,7 @@ export interface HostRecord {
   generation?: string; jobStartedAt?: number; advancedAt?: number; step?: string; log?: string; error?: string
   steps?: { step: string; at: number }[]
   recipeRow?: HostRecipe
+  volumeId?: string; prepareWeightsOnly?: boolean; verifyWeightsFully?: boolean; weightsCheck?: string
 }
 export function readHostRecord(id: string): HostRecord | undefined {
   try { return JSON.parse(readFileSync(recordPath(id), 'utf8')) as HostRecord } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error }

@@ -39,6 +39,7 @@ const hostRecipeObject = z.object({
   count: z.number().int().positive(),
   vramGb: z.number().positive(),
   diskGb: z.number().positive(),
+  weightsGb: z.number().positive(),
   image: z.string().regex(printable),
   cuda: z.string().regex(printable),
   flags: z.array(z.string()),

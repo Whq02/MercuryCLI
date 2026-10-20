@@ -1,0 +1,88 @@
+import { mkdirSync, readdirSync, readFileSync, unlinkSync } from 'node:fs'
+import { join } from 'node:path'
+import { createHash, randomUUID } from 'node:crypto'
+import { acquirePidLock, noteLockRelease, releasePidLock } from '../../substrate/pidLock.js'
+import { z } from 'zod/v4'
+import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { hostDirectory } from './store.js'
+import type { HostRecipe } from './recipes.js'
+import { createRefusal, type RunpodClient, type HostVolume } from './runpod.js'
+
+const volumeRecordSchema = z.object({
+  id: z.string().regex(/^[A-Za-z0-9_-]+$/), name: z.string(), model: z.string(), include: z.string(),
+  kind: z.enum(['network', 'global']), dataCenter: z.string(), size: z.number().positive(), price: z.number().nonnegative(), createdAt: z.string(),
+  state: z.enum(['creating', 'preparing', 'kept', 'gone', 'failed']), filledBy: z.string().optional(), error: z.string().optional(),
+  verifiedSums: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), sampleManifestSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), check: z.enum(['full', 'sampled']).optional(), files: z.number().int().positive(), bytes: z.number().positive(), at: z.string() }).optional(),
+})
+export type KeptVolume = z.infer<typeof volumeRecordSchema>
+const directory = (): string => { const path = join(hostDirectory(), 'volumes'); mkdirSync(path, { recursive: true, mode: 0o700 }); return path }
+const pathOf = (id: string): string => { if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error('Invalid volume id'); return join(directory(), id + '.json') }
+export const volumeModel = (recipe: HostRecipe): string => recipe.model + '\n' + (recipe.include ?? '')
+export const matchesVolume = (volume: KeptVolume, recipe: HostRecipe): boolean => volume.model === recipe.model && volume.include === (recipe.include ?? '')
+export function keptVolumes(): KeptVolume[] { return readdirSync(directory()).filter(name => name.endsWith('.json')).map(name => volumeRecordSchema.parse(JSON.parse(readFileSync(join(directory(), name), 'utf8')))) }
+export function readKeptVolume(id: string): KeptVolume | undefined { try { return volumeRecordSchema.parse(JSON.parse(readFileSync(pathOf(id), 'utf8'))) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error } }
+export function writeKeptVolume(record: KeptVolume): void { durableAtomicPublishSync(pathOf(record.id), JSON.stringify(volumeRecordSchema.parse(record)) + '\n', { mode: 0o600 }) }
+const removeRecord = (id: string): void => { try { unlinkSync(pathOf(id)) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error } }
+export const networkMonthly = (size: number): number => Math.min(size, 1000) * 0.07 + Math.max(0, size - 1000) * 0.05
+export const volumePrice = (record: Pick<KeptVolume, 'kind' | 'price'>): string => (record.kind === 'global' ? '~' : '') + '$' + record.price.toFixed(2) + '/month' + (record.kind === 'global' ? ' + IOPS (actual usage)' : '')
+export function volumeLabel(volume: HostVolume): string {
+  const own = readKeptVolume(volume.id)
+  const amount = own ? volumePrice(own) : volume.kind === 'global' ? '$0.09/GB/month + IOPS · size not reported by Runpod' : volume.type === 'STANDARD' ? '$' + networkMonthly(volume.size!).toFixed(2) + '/month' : 'monthly price depends on storage tier; see Runpod billing'
+  return volume.name + ' · ' + volume.id + ' · ' + (volume.dataCenter ?? 'any DC') + ' · ' + amount + (own ? ' · weights disk' : ' · created outside Mercury · read-only')
+}
+export async function reconcileVolumes(api: RunpodClient, signal?: AbortSignal): Promise<HostVolume[]> {
+  const live = await api.volumes(signal)
+  for (const record of keptVolumes()) {
+    const found = record.state === 'creating' ? live.filter(row => row.name === record.name && row.kind === record.kind) : live.filter(row => row.id === record.id && row.kind === record.kind)
+    if (found.length > 1) throw new Error(record.name + ' has multiple matches in Runpod; inspect the account before retrying.')
+    const row = found[0]
+    if (row) {
+      const next = { ...record, id: row.id, size: row.size ?? record.size, dataCenter: row.dataCenter ?? 'any DC', ...(record.state === 'creating' || record.state === 'gone' ? { state: 'preparing' as const, verifiedSums: undefined, error: undefined } : {}) }
+      writeKeptVolume(next)
+      if (record.id !== row.id) removeRecord(record.id)
+    } else if (record.state !== 'creating' && record.state !== 'gone') writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined })
+  }
+  return live
+}
+export async function rentalVolume(api: RunpodClient, recipe: HostRecipe, signal?: AbortSignal): Promise<KeptVolume | undefined> {
+  await reconcileVolumes(api, signal)
+  const rows = keptVolumes().filter(row => matchesVolume(row, recipe) && row.state !== 'gone')
+  if (rows.length > 1) throw new Error('Multiple weights disks for this model; open Fast-load before renting.')
+  const volume = rows[0]
+  if (volume?.state === 'creating') throw new Error(volume.name + ' may exist; refresh Fast-load before renting. No retry was sent.')
+  return volume
+}
+async function createKeptVolumeLocked(api: RunpodClient, recipe: HostRecipe, kind: KeptVolume['kind'], dataCenter: string, signal: AbortSignal): Promise<KeptVolume> {
+  const existing = await rentalVolume(api, recipe, signal)
+  if (existing) throw new Error('This model already has a weights disk: ' + existing.id)
+  signal.throwIfAborted()
+  const suffix = randomUUID()
+  const record: KeptVolume = { id: 'pending-' + suffix, name: 'mercury-weights-' + suffix, model: recipe.model, include: recipe.include ?? '', kind, dataCenter: kind === 'global' ? 'any DC' : dataCenter, size: recipe.diskGb, price: kind === 'global' ? recipe.weightsGb * 0.09 : networkMonthly(recipe.diskGb), createdAt: new Date().toISOString(), state: 'creating' }
+  writeKeptVolume(record)
+  try {
+    const volume = await api.createVolume(kind, record.name, record.size, dataCenter)
+    const created = { ...record, id: volume.id, state: 'preparing' as const }
+    writeKeptVolume(created)
+    removeRecord(record.id)
+    return created
+  } catch (error) {
+    if (createRefusal(error)) { removeRecord(record.id); throw new Error('Runpod refused the weights disk. ' + String(error)) }
+    throw new Error(record.name + ' may exist and bill: Runpod gave no clear create answer. Refresh Fast-load or Pods I’m paying for before retrying. ' + String(error))
+  }
+}
+export async function createKeptVolume(api: RunpodClient, recipe: HostRecipe, kind: KeptVolume['kind'], dataCenter: string, signal: AbortSignal): Promise<KeptVolume> {
+  const owner = randomUUID()
+  const lock = join(directory(), createHash('sha256').update(volumeModel(recipe)).digest('hex') + '.lock')
+  if (!(await acquirePidLock(lock, owner, { liveness: 'assume-alive' })).held) throw new Error('Another fast-load creation is in progress for this model. Refresh the catalogue; do not create another disk.')
+  try { return await createKeptVolumeLocked(api, recipe, kind, dataCenter, signal) } finally { noteLockRelease('fast-load creation', await releasePidLock(lock, owner)) }
+}
+export async function deleteKeptVolume(api: RunpodClient, id: string): Promise<void> {
+  const record = readKeptVolume(id)
+  if (!record || record.state === 'creating') throw new Error('This volume was created outside Mercury or its identity is not yet confirmed; it is read-only.')
+  await api.deleteVolume(record.kind, id)
+  if ((await api.volumes()).some(row => row.id === id)) throw new Error('Runpod still lists the disk; deletion is not yet verified and storage may still bill.')
+  writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined })
+}
+export function fastLoadEstimate(recipe: HostRecipe, volume?: KeptVolume): string {
+  return (recipe.install ? 'builds the engine ~10 min' : 'image pull ~1 min') + ' · ' + (volume?.state === 'kept' ? 'weights kept ~0 download · sampled check' : 'weights ~' + Math.max(1, Math.ceil(recipe.weightsGb / 60)) + ' min at 1 GB/s') + ' · load ~3 min'
+}

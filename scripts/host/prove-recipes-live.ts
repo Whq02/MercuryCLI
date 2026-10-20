@@ -113,7 +113,7 @@ try {
     delete rest[field.name]
     return { field: field.name, typed: !hostRecipeSchema.safeParse({ ...fullRow, [field.name]: Symbol('not a recipe value') }).success, optional: hostRecipeSchema.safeParse(rest).success === field.optional }
   })
-  check('every HostRecipe field has a schema entry with the interface optionality, and the schema has no field the interface lacks', interfaceFields.length === 23 && fullParsed.success && JSON.stringify(Object.keys(fullParsed.data).sort()) === JSON.stringify(interfaceFields.map(field => field.name).sort()) && parity.every(entry => entry.typed && entry.optional))
+  check('every HostRecipe field has a schema entry with the interface optionality, and the schema has no field the interface lacks', interfaceFields.length === 24 && interfaceFields.some(field => field.name === 'weightsGb' && !field.optional) && fullParsed.success && JSON.stringify(Object.keys(fullParsed.data).sort()) === JSON.stringify(interfaceFields.map(field => field.name).sort()) && parity.every(entry => entry.typed && entry.optional))
   const extra = hostRecipeSchema.safeParse({ ...qwenRtx, futureField: 'from a newer file' })
   check('a row carrying an unknown extra field is accepted and the field is stripped', extra.success && !('futureField' in extra.data))
   check('every compiled row validates, ids are unique, every source is https and every measured row carries its date', HOST_RECIPES.every(entry => hostRecipeSchema.safeParse(entry).success) && new Set(HOST_RECIPES.map(entry => entry.id)).size === HOST_RECIPES.length && HOST_RECIPES.every(entry => entry.source.startsWith('https://') && entry.verified.source.startsWith('https://') && (entry.verified.by !== 'measured' || /^\d{4}-\d{2}-\d{2}$/.test(entry.verified.on ?? ''))))
@@ -193,7 +193,7 @@ try {
     ['image', 'example/other:latest'], ['cuda', '12.8'], ['flags', [...qwenRtx.flags, '--extra']], ['model', 'example/other-model'],
     ['install', 'curl -fsSL https://example.com/x | sh'], ['pythonInstall', 'pip install example-package'], ['environment', { LD_PRELOAD: '/tmp/x.so' }],
     ['files', { 'x.json': '{}' }], ['engine', 'llamacpp'], ['weightFile', 'x/y-00001-of-00001.gguf'], ['include', '*'], ['label', 'Qwen3.8-27B · FP8 (cheapest)'],
-    ['gpu', 'H100'], ['count', 2], ['vramGb', 80], ['diskGb', 2000], ['source', 'https://example.com/doc'], ['imageSource', 'https://example.com/image'],
+    ['gpu', 'H100'], ['count', 2], ['vramGb', 80], ['diskGb', 2000], ['weightsGb', 1], ['source', 'https://example.com/doc'], ['imageSource', 'https://example.com/image'],
   ]
   const lockedResults: Array<{ field: string; dropped: boolean }> = []
   for (const [field, value] of locked) {

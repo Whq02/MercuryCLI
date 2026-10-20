@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from './recipes.js'
 import { currentHostRecipes, refreshHostRecipes } from './recipesFile.js'
 
-const podSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name: z.string(), status: z.string(), cost: z.number().nonnegative(), createdAt: z.string(), startedAt: z.string().nullable().optional(), ssh: z.object({ direct: z.object({ host: z.string(), port: z.number().int().min(1).max(65535), username: z.string() }).nullable().optional() }).nullable().optional() })
+const podSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name: z.string(), status: z.string(), cost: z.number().nonnegative(), createdAt: z.string(), startedAt: z.string().nullable().optional(), ssh: z.object({ direct: z.object({ host: z.string(), port: z.number().int().min(1).max(65535), username: z.string() }).nullable().optional() }).nullable().optional(), mounts: z.object({ network: z.array(z.object({ volumeId: z.string() })).optional(), global: z.array(z.object({ volumeId: z.string() })).optional() }).nullish() })
 export type HostPod = z.infer<typeof podSchema>
 export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; dataCenter?: string; availability?: string }
 const gpuSchema = z.object({ id: z.string(), name: z.string(), memory: z.number(), secure: z.boolean(), price: z.object({ secure: z.number().nonnegative() }), maxCount: z.object({ secure: z.number() }), availability: z.string().optional(), dataCenters: z.array(z.object({ id: z.string(), availability: z.string() })).optional() })
@@ -25,7 +25,8 @@ export class RunpodClient {
     if (url.username || url.password || url.search || url.hash || !(url.origin === 'https://api.runpod.io' || url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname))) throw new Error('Runpod uses its official API or a loopback fixture only.')
   }
   private async response(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<Response> {
-    const create = method === 'POST' && path === '/pods'
+    const create = method === 'POST' && ['/pods', '/network-volumes', '/global-volumes'].includes(path)
+    const resource = path === '/pods' ? 'pod' : 'volume'
     const response = await fetch(this.base + path, { method, headers: { Authorization: 'Bearer ' + this.key, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...(create ? { keepalive: false } : {}), redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000) })
     this.policy = response.headers.get('ratelimit-policy') ?? undefined
     if (!response.ok) {
@@ -34,7 +35,7 @@ export class RunpodClient {
       try { const problem = JSON.parse(text) as { detail?: unknown; error?: unknown; title?: unknown }; detail = String(problem.detail ?? problem.error ?? problem.title ?? '') } catch { detail = text.trimStart().startsWith('<') ? '' : text }
       detail = detail.split(this.key).join('[redacted]').replace(/\s+/g, ' ').trim().slice(0, 240)
       const wait = Number(response.headers.get('retry-after'))
-      throw new RunpodHttpError('Runpod ' + method + ' ' + path.split('?')[0] + ' returned HTTP ' + response.status + (detail ? ' · ' + detail : '') + (response.status === 401 || response.status === 403 ? ' — check the key and its Pods, Catalog and billing read permissions.' : create && refusalStatuses.includes(response.status) ? ' · Runpod refused it; no pod was created.' : create ? ' — no retry was sent. Refresh pods before choosing another fitting shape; creation may have reached the account.' : ''), response.status, detail, Number.isFinite(wait) && wait > 0 ? wait : undefined)
+      throw new RunpodHttpError('Runpod ' + method + ' ' + path.split('?')[0] + ' returned HTTP ' + response.status + (detail ? ' · ' + detail : '') + (response.status === 401 || response.status === 403 ? ' — check the key and its Pods, Catalog and billing read permissions.' : create && refusalStatuses.includes(response.status) ? ' · Runpod refused it; no ' + resource + ' was created.' : create ? ' — no retry was sent. Refresh ' + resource + 's before retrying; creation may have reached the account.' : ''), response.status, detail, Number.isFinite(wait) && wait > 0 ? wait : undefined)
     }
     return response
   }
@@ -94,9 +95,10 @@ export class RunpodClient {
     return pods
   }
   async get(id: string, signal?: AbortSignal): Promise<HostPod> { return podSchema.parse(await (await this.response('/pods/' + encodeURIComponent(id), 'GET', undefined, signal)).json()) }
-  async create(offer: HostOffer, publicKey: string, name: string): Promise<HostPod> {
+  async create(offer: HostOffer, publicKey: string, name: string, volume?: HostVolumeMount): Promise<HostPod> {
+    if (volume?.kind === 'network' && offer.dataCenter && offer.dataCenter !== volume.dataCenter) throw new Error('The kept weights disk requires a pod in ' + volume.dataCenter + '. Choose a fitting shape in that data centre.')
     const args = 'bash -lc ' + JSON.stringify('apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server tmux curl && mkdir -p /root/.ssh /run/sshd && chmod 700 /root/.ssh && printf "%s\n" "$PUBLIC_KEY" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys && ssh-keygen -A && service ssh start && sleep infinity')
-    return podSchema.parse(await (await this.response('/pods', 'POST', { name, image: offer.recipe.image, args, disk: 30, cloud: 'SECURE', ...(offer.dataCenter ? { dataCenterIds: [offer.dataCenter] } : {}), gpu: { id: offer.gpuId, count: offer.recipe.count, minCudaVersion: offer.recipe.cuda }, mounts: { persistent: { size: offer.recipe.diskGb, path: '/workspace' } }, ports: ['22/tcp'], env: { PUBLIC_KEY: publicKey, HF_HOME: '/workspace/huggingface' } })).json())
+    return podSchema.parse(await (await this.response('/pods', 'POST', { name, image: offer.recipe.image, args, disk: 30, cloud: 'SECURE', ...(volume?.kind === 'network' ? { dataCenterIds: [volume.dataCenter] } : offer.dataCenter ? { dataCenterIds: [offer.dataCenter] } : {}), gpu: { id: offer.gpuId, count: offer.recipe.count, minCudaVersion: offer.recipe.cuda }, mounts: volume ? { [volume.kind]: [{ volumeId: volume.id, path: '/workspace' }] } : { persistent: { size: offer.recipe.diskGb, path: '/workspace' } }, ports: ['22/tcp'], env: { PUBLIC_KEY: publicKey, HF_HOME: '/workspace/huggingface' } })).json())
   }
   async stop(id: string): Promise<HostPod> { return podSchema.parse(await (await this.response('/pods/' + encodeURIComponent(id) + '/action', 'POST', { action: 'stop' })).json()) }
   async terminate(id: string): Promise<void> { await this.response('/pods/' + encodeURIComponent(id), 'DELETE') }
@@ -111,4 +113,37 @@ export class RunpodClient {
     } catch { if (!text) text = 'Log tail unavailable; open this pod in Runpod to read its container logs.' } finally { clearTimeout(timer) }
     return text.split(this.key).join('[redacted]').split('\n').filter(Boolean).slice(-12).join('\n')
   }
+  async volumes(signal?: AbortSignal): Promise<HostVolume[]> {
+    const result: HostVolume[] = []
+    for (const kind of ['network', 'global'] as const) {
+      let cursor: string | undefined
+      const seen = new Set<string>()
+      do {
+        const response = await this.response('/' + kind + '-volumes' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : ''), 'GET', undefined, signal)
+        const page = z.object({ networkVolumes: z.array(networkVolumeSchema).optional(), globalVolumes: z.array(globalVolumeSchema).optional(), pagination: z.object({ hasNextPage: z.boolean(), nextCursor: z.string().nullable() }) }).parse(await response.json())
+        const rows = kind === 'network' ? page.networkVolumes : page.globalVolumes
+        if (!rows) throw new Error('Runpod returned an incomplete ' + kind + ' volume list.')
+        result.push(...rows.map(row => ({ ...row, kind })))
+        cursor = page.pagination.hasNextPage ? page.pagination.nextCursor ?? undefined : undefined
+        if (page.pagination.hasNextPage && !cursor || cursor && seen.has(cursor)) throw new Error('Runpod volume pagination is incomplete. Storage may still bill.')
+        if (cursor) seen.add(cursor)
+      } while (cursor)
+    }
+    return result
+  }
+  async dataCenters(signal?: AbortSignal): Promise<{ id: string; name: string; networkVolumeTypes: string[] }[]> {
+    return z.object({ dataCenters: z.array(z.object({ id: z.string(), name: z.string(), networkVolumeTypes: z.array(z.string()) })) }).parse(await (await this.response('/catalog/datacenters', 'GET', undefined, signal)).json()).dataCenters
+  }
+  async createVolume(kind: HostVolumeMount['kind'], name: string, size: number, dataCenter: string): Promise<HostVolume> {
+    const body = kind === 'network' ? { name, size, dataCenter, type: 'STANDARD' } : { name }
+    const response = await this.response('/' + kind + '-volumes', 'POST', body)
+    return { ...(kind === 'network' ? networkVolumeSchema.parse(await response.json()) : globalVolumeSchema.parse(await response.json())), kind }
+  }
+  async deleteVolume(kind: HostVolumeMount['kind'], id: string): Promise<void> { await this.response('/' + kind + '-volumes/' + encodeURIComponent(id), 'DELETE') }
 }
+
+const volumeId = z.string().regex(/^[A-Za-z0-9_-]+$/)
+const networkVolumeSchema = z.object({ id: volumeId, name: z.string(), size: z.number().int().positive(), dataCenter: z.string(), type: z.string() })
+const globalVolumeSchema = z.object({ id: volumeId, name: z.string(), createdAt: z.string() })
+export interface HostVolumeMount { id: string; kind: 'network' | 'global'; dataCenter?: string }
+export interface HostVolume extends HostVolumeMount { name: string; size?: number; type?: string; createdAt?: string }
