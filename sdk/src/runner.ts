@@ -71,7 +71,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
 
   on<T extends StreamRow['type']>(type: T, listener: (row: Extract<StreamRow, { type: T }>) => void): this
   on(type: 'row', listener: (row: StreamRow) => void): this
-  on(type: 'error', listener: (error: Error) => void): this
+  on(type: 'error', listener: (error: MercuryError) => void): this
   on(type: 'notification', listener: (message: { method: string; params: unknown }) => void): this
   on(type: string, listener: (value: any) => void): this {
     if (!this.#listeners.has(type)) this.#listeners.set(type, new Set())
