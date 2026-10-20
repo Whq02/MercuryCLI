@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import ts from 'typescript'
@@ -355,6 +355,10 @@ const outputs: Array<[string, string]> = [
   [join(OUT_DIR, 'door.ts'), door.join('\n')],
 ]
 if (argv.includes('--check')) {
+  if (!existsSync(OUT_DIR)) {
+    console.log('PARKED the SDK is not on this tree (the published lineage carries no sdk/): nothing to check')
+    process.exit(0)
+  }
   let drift = 0
   for (const [path, content] of outputs) {
     let current = ''

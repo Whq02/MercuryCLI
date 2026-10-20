@@ -1,13 +1,14 @@
 import { execFile } from 'node:child_process'
 import { existsSync, realpathSync } from 'node:fs'
-import { delimiter, join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
+import { getCachedPowerShellPath } from '../utils/shell/powershellDetection.js'
 
 const READ_WAIT_MS = 4_000
 
-function commandLineOf(pid: number, platform: NodeJS.Platform): Promise<string | null> {
+async function commandLineOf(pid: number, platform: NodeJS.Platform): Promise<string | null> {
+  const file = platform === 'win32' ? (await getCachedPowerShellPath()) ?? 'powershell.exe' : 'ps'
   return new Promise(done => {
-    const file = platform === 'win32' ? powerShellPath() : 'ps'
     const args = platform === 'win32'
       ? ['-NoProfile', '-Command', `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CommandLine`]
       : ['-ww', '-o', 'args=', '-p', String(pid)]
@@ -18,25 +19,6 @@ function commandLineOf(pid: number, platform: NodeJS.Platform): Promise<string |
   })
 }
 
-let powerShellCached: string | null = null
-
-function powerShellPath(): string {
-  if (powerShellCached !== null) return powerShellCached
-  const fromPath = (process.env.PATH ?? '')
-    .split(delimiter)
-    .filter(Boolean)
-    .map(dir => join(dir, 'pwsh.exe'))
-    .find(p => {
-      try {
-        return existsSync(p)
-      } catch {
-        return false
-      }
-    })
-  const fixed = join(process.env.ProgramFiles ?? 'C:\\Program Files', 'PowerShell', '7', 'pwsh.exe')
-  powerShellCached = fromPath ?? (existsSync(fixed) ? fixed : 'powershell.exe')
-  return powerShellCached
-}
 
 function bundleArgumentOf(commandLine: string): string | null {
   const quoted = /"([^"]*mercury\.mjs)"/.exec(commandLine)

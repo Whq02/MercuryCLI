@@ -140,9 +140,12 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
   check(
     'B9 the line paints first under the column header with the empty entry\'s words and door tail, its cursor mark following the selection',
     layoutSrc.includes('const out: React.ReactNode[] = [columnHeaderRow]\n        if (lineShown) {') &&
-      layoutSrc.includes('<Text color={t.info}>{NEW_SESSION_DOOR_WORDS}</Text>') &&
+      layoutSrc.includes('<Text color={t.info}>{newSessionDoorWords({ region, filtering })}</Text>') &&
       layoutSrc.includes("{lineSelected ? <Text color={region === 'list' ? t.info : t.textPrimary}>{'▸ '}</Text> : <Text>{'  '}</Text>}") &&
       layout.NEW_SESSION_DOOR_WORDS === 'n starts a blank session in this project' &&
+      layout.newSessionDoorWords({ region: 'list', filtering: false }) === 'n starts a blank session in this project' &&
+      layout.newSessionDoorWords({ region: 'composer', filtering: false }) === 'tab to the list, then n starts a blank session in this project' &&
+      layout.newSessionDoorWords({ region: 'list', filtering: true }) === 'tab to the list, then n starts a blank session in this project' &&
       layout.newSessionDoorTail({ modelLabel: 'Opus 5', effortLevel: 'high' }) === ' · Opus 5 · ● high',
   )
   check(

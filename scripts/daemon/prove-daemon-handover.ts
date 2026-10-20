@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
 import net from 'node:net'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -133,7 +134,7 @@ section("§1b the screen's heal hands over when the restart is armed and the dep
       runtime: () => ({ script: '/deployed/runtime/dist/mercury.mjs', buildTree: 'new0000000000' }),
       spawn: (script: string, dir: string, env: Record<string, string | undefined>, ownerPipe: boolean, persist: boolean) => {
         spawned.push({ script, dir, env, ownerPipe, persist })
-        return 777
+        return process.pid
       },
     }
     hs.resetHandoverAsksForTesting()
@@ -149,6 +150,13 @@ section("§1b the screen's heal hands over when the restart is armed and the dep
     check('a daemon already on the deployed build is left alone', matched === null && spawned.length === 1)
     const restarting = await hs.handoverDaemonVersion(verdict, { state: 'restarting', live: 0 }, opts)
     check('a daemon restarting itself is left alone', restarting === null && spawned.length === 1)
+    hs.resetHandoverAsksForTesting()
+    const gone = spawnSync('true').pid ?? 1
+    const spawnedDead: number[] = []
+    const deadOpts = { ...opts, spawn: () => { spawnedDead.push(gone); return gone } }
+    await hs.handoverDaemonVersion(verdict, { state: 'armed', live: 2 }, deadOpts)
+    const afterDead = await hs.handoverDaemonVersion(verdict, { state: 'armed', live: 2 }, deadOpts)
+    check('a successor that died is not remembered: the next ask spawns again (a screen is never stuck behind one failed successor)', typeof afterDead === 'string' && spawnedDead.length === 2)
     hs.resetHandoverAsksForTesting()
     await sock.writeDaemonState({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: Date.now(), dir: work, controlSock: sock.controlSockPath() })
     const already = await hs.handoverDaemonVersion(verdict, { state: 'armed', live: 2 }, opts)
