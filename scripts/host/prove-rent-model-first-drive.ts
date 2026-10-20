@@ -85,8 +85,12 @@ try {
   const modelLines = m.lines().filter(line => distinctModels.some(name => line.includes(name + ' · ')))
   check('model list shows one row per distinct model across recipes', modelLines.length === distinctModels.length && distinctModels.every(name => m.lines().filter(line => line.includes(' ' + name + ' · ')).length === 1))
   check('model rows show cheapest in-stock price or no stock now', m.screen().includes('Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · llama.cpp (GGUF) · $2.49/hr') && m.screen().includes('Qwen3.8-27B · FP8 · verified · $2.49/hr') && m.screen().includes('GLM-5.3-Flash · UD-Q4_K_XL / NVFP4 / FP8 · llama.cpp (GGUF) · no stock now'))
+  const stockedAt = modelLines.flatMap((line, index) => line.includes('no stock now') ? [] : [index])
+  const emptyAt = modelLines.flatMap((line, index) => line.includes('no stock now') ? [index] : [])
+  check('models in stock sort above the no-stock-now rows, cheapest first', stockedAt.length > 0 && emptyAt.length > 0 && Math.max(...stockedAt) < Math.min(...emptyAt))
   const cursorLine = m.lines().find(line => line.includes('› ')) ?? ''
   check('cursor starts on the cheapest model that has stock', cursorLine.includes('Nemotron 3.5 Super VL 120B') && cursorLine.includes('$2.49/hr'))
+  check('a pre-chosen cursor says it starts on a suggestion, never that nothing is pre-chosen', m.screen().includes('↑↓ then ↵ · the cursor starts on a suggestion') && !m.screen().includes('nothing is pre-chosen'))
 
   rp.state.customGpus = [
     { ...liveCatalogue.gpus.find((g: any) => g.id === 'NVIDIA H200'), availability: 'HIGH', price: { secure: 5.29 } },
@@ -103,7 +107,11 @@ try {
   await heading('Confirm the hourly price')
   await until('Qwen3.8-27B · FP8 · 1× RTX PRO 6000 · $2.49/hr')
   check('a model with one in-stock shape goes straight to confirm with the shape named', !m.screen().includes('Choose a GPU shape') && m.screen().includes('1× RTX PRO 6000'))
-  await choose('keep things as they are')
+  const selected = () => m.lines().find(line => line.includes('› ')) ?? ''
+  check('the price confirmation pre-chooses nothing and says so', m.screen().includes('↑↓ then ↵ · nothing is pre-chosen') && !selected())
+  for (let n = 0; n < 5; n++) { const before = selected(); m.push(KEY.down); await waitFor(() => selected() !== before, 300) }
+  check('pressing ↓ repeatedly on the price confirmation settles on keep things as they are, never back on Confirm', selected().includes('keep things as they are') && rp.state.creates === 0)
+  m.push(KEY.enter)
   await close()
 
   const defaultWatch = queueHostWatch({ id: 'watch-defaults-probe', name: 'GLM-5.3-Flash', recipe: 'glm53-flash-gguf-b300', price: 8.99, startedAt: new Date().toISOString(), status: 'WATCHING' })
@@ -189,11 +197,28 @@ try {
   await until('Qwen3.8-27B · FP8 · 1× RTX PRO 6000 · $2.49/hr')
   const postsAfterConfirm = rp.requests.filter((r: any) => r.method === 'POST' && r.path === '/v2/pods').length
   check('confirm never re-reads stock before creating and create refusal returns to fresh offers with no pod created', postsAfterConfirm === postsBeforeConfirm + 1 && rp.state.creates === 1 && rp.state.catalogReads === readsBeforeConfirm + 3 && m.screen().includes('Choose a GPU shape · live Runpod stock'))
+  await close()
+
+  rp.state.customGpus = [
+    { ...liveCatalogue.gpus.find((g: any) => g.id === 'NVIDIA RTX PRO 6000 Blackwell Server Edition'), availability: 'HIGH' },
+    { ...liveCatalogue.gpus.find((g: any) => g.id === 'NVIDIA H200'), availability: 'HIGH', price: { secure: 5.29 } },
+  ]
+  open()
+  await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
+  await heading('Choose a model · live Runpod stock')
+  await choose('Nemotron 3.5 Super VL 120B')
+  await heading('Confirm the hourly price')
+  rp.state.customGpus = [{ ...liveCatalogue.gpus.find((g: any) => g.id === 'NVIDIA H200'), availability: 'HIGH', price: { secure: 5.29 } }]
+  await choose('Confirm $2.49/hr')
+  await heading('Choose a GPU shape · live Runpod stock')
+  await until('Nemotron 3.5 Super VL 120B · no stock now')
+  check('after a refusal the shape list shows only the chosen model’s shapes, and offers the watch when it has none', !m.screen().includes('Qwen3.8-27B') && !m.screen().includes('GLM-5.3 · FP8') && m.screen().includes('Watch for stock and rent at this price or less') && rp.state.creates === 1)
   rp.state.failCreate = false
+  rp.state.customGpus = null
   await close()
   if (bundlePath) {
     const bundleText = readFileSync(resolve(bundlePath), 'utf8')
-    check('built bundle carries model-first and watch-and-rent words', bundleText.includes('Watch for stock and rent at this price or less') && bundleText.includes('Choose a GPU shape · live Runpod stock') && bundleText.includes('5-second poll is 12 requests a minute against Runpod documented 60/min limit'))
+    check('built bundle carries model-first and watch-and-rent words', bundleText.includes('Watch for stock and rent at this price or less') && bundleText.includes('Choose a GPU shape · live Runpod stock') && bundleText.includes('5-second poll is 12 requests a minute against Runpod documented 60/min limit') && bundleText.includes('the cursor starts on a suggestion'))
   }
 
   await Promise.all(images)

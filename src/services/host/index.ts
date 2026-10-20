@@ -154,8 +154,8 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
               const summary = [variants, lead.verification.split(' · ')[0]].filter(Boolean).join(' · ')
               const stockText = cheapest ? price(cheapest.price) + (budget ? ' · ~' + (budget / cheapest.price).toFixed(1) + 'h for $' + budget : '') : 'no stock now'
               return { name, recipes, modelOffers, cheapest, label: name + ' · ' + summary + ' · ' + stockText }
-            })
-            const cheapestModel = [...modelGroups].filter(group => group.cheapest).sort((a, b) => a.cheapest!.price - b.cheapest!.price)[0]?.name
+            }).sort((a, b) => Number(!a.cheapest) - Number(!b.cheapest) || (a.cheapest?.price ?? 0) - (b.cheapest?.price ?? 0))
+            const cheapestModel = modelGroups[0]?.cheapest ? modelGroups[0].name : undefined
             const selectedModel = await question({ step: 'models', title: words.offers, found: offers.length ? words.offersHelp : words.noStock, willRun: '', initial: cheapestModel, rows: [...modelGroups.map(group => ({ value: group.name, label: group.label })), { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'cancel', label: words.cancel }] })
             if (!selectedModel || selectedModel === 'cancel') return stopped()
             if (selectedModel === 'refresh') continue
@@ -199,13 +199,12 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           if (modelOffers.length === 1 && !forceShapeList) {
             offer = modelOffers[0]!
           } else {
-            const shownOffers = modelOffers.length ? modelOffers : offers
-            const selectedShape = await question({ step: 'offers', title: words.shapes, found: shownOffers.length ? chosenModel + ' · ' + words.offersHelp : words.noStock, willRun: '', initial: shownOffers.length ? '0' : undefined, rows: [...shownOffers.map((row, index) => ({ value: String(index), label: row.recipe.label + ' · ' + shape(row.recipe) + ' · ' + price(row.price) + ' · Secure Cloud' + (row.dataCenter ? ' · ' + row.dataCenter : '') + (budget ? ' · ~' + (budget / row.price).toFixed(1) + 'h for $' + budget : '') })), ...(modelOffers.length === 0 ? [{ value: 'watch', label: words.watchConfirm }] : []), { value: 'models', label: 'Choose another model' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'cancel', label: words.cancel }] })
+            const selectedShape = await question({ step: 'offers', title: words.shapes, found: chosenModel + ' · ' + (modelOffers.length ? words.offersHelp : 'no stock now'), willRun: '', initial: modelOffers.length ? '0' : undefined, rows: [...modelOffers.map((row, index) => ({ value: String(index), label: row.recipe.label + ' · ' + shape(row.recipe) + ' · ' + price(row.price) + ' · Secure Cloud' + (row.dataCenter ? ' · ' + row.dataCenter : '') + (budget ? ' · ~' + (budget / row.price).toFixed(1) + 'h for $' + budget : '') })), ...(modelOffers.length === 0 ? [{ value: 'watch', label: words.watchConfirm }] : []), { value: 'models', label: 'Choose another model' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'cancel', label: words.cancel }] })
             if (!selectedShape || selectedShape === 'cancel') return stopped()
             if (selectedShape === 'models') { chosenModel = undefined; forceShapeList = false; continue }
             if (selectedShape === 'refresh') continue
             if (selectedShape === 'watch') { forceShapeList = false; continue }
-            offer = shownOffers[Number(selectedShape)]
+            offer = modelOffers[Number(selectedShape)]
             if (!offer) throw new Error(words.inputError)
           }
           const ctx = (offer.recipe as HostRecipe & { contextPerSlot?: number }).contextPerSlot ?? offer.recipe.context

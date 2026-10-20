@@ -76,7 +76,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
     if (key.upArrow || key.downArrow || key.wheelUp || key.wheelDown) {
       event.stopImmediatePropagation()
       const down = key.downArrow || key.wheelDown
-      setCursor(current => !question.rows!.length ? null : current === null ? down ? 0 : question.rows!.length - 1 : (current + (down ? 1 : question.rows!.length - 1)) % question.rows!.length)
+      setCursor(current => current === null ? down ? 0 : question.rows!.length - 1 : Math.max(0, Math.min(question.rows!.length - 1, current + (down ? 1 : -1))))
     } else if (key.return) {
       event.stopImmediatePropagation()
       if (pastOpenEvent() && cursor !== null && question.rows[cursor]) answer(question.rows[cursor]!.value)
@@ -95,7 +95,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
       {budget > 1 ? <Text bold color={tokens.textPrimary} wrap="truncate-end">{question.title}</Text> : null}
       {!compact ? <Text color={tokens.textSecondary} wrap="truncate-end">{question.found}</Text> : null}
       {!compact && question.willRun ? <Text color={tokens.textSecondary} wrap="truncate-end">will run · {question.willRun}</Text> : null}
-      {!compact ? <Text color={tokens.textMuted}>{question.rows ? words.choose : words.input}</Text> : null}
+      {!compact ? <Text color={tokens.textMuted}>{question.rows ? question.rows.some(row => row.value === question.initial) ? words.suggested : words.choose : words.input}</Text> : null}
       {question.rows ? <>
         {!compact && window.offset > 0 ? <Text color={tokens.textMuted}>↑ {window.offset} more</Text> : null}
         {rows.slice(window.offset, window.offset + choices).map((row, index) => <Text key={row.value} color={cursor === window.offset + index ? tokens.textPrimary : tokens.textSecondary} bold={cursor === window.offset + index} wrap="truncate-end">{cursor === window.offset + index ? '›' : ' '} {row.label}</Text>)}

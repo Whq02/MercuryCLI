@@ -39,6 +39,7 @@ export const LLM_HOST_WORDS = {
   opening: 'model server set-up · rental setup continues in the background',
   hint: '↑↓ choose · ↵ continue · esc or click outside closes',
   choose: '↑↓ then ↵ · nothing is pre-chosen',
+  suggested: '↑↓ then ↵ · the cursor starts on a suggestion',
   input: '↵ continue · esc closes',
   running: 'running… · esc closes',
   stopped: 'stopped · nothing more runs · esc closes',
