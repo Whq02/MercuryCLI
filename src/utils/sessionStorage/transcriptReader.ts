@@ -12,8 +12,7 @@ import {
   SKIP_PRECOMPACT_THRESHOLD,
 } from '../sessionStoragePortable.js'
 import {
-  buildConversationChain,
-  findLatestMessage,
+  buildScreenConversation,
   removeExtraFields,
 } from './chain.js'
 import { applyTranscriptEntry, emptyFoldState, finishTranscriptFold, type TranscriptFoldState } from './fold.js'
@@ -541,10 +540,7 @@ export function chainRowSigner(): (row: unknown) => string {
 
 function deriveChainRows(fold: TranscriptFoldState, prev: readonly SerializedMessage[] | undefined): readonly SerializedMessage[] {
   transcriptReaderCensus.chainDerivations++
-  const messages = fold.messages
-  const leaves = computeResumeLeaves(messages)
-  const leaf = findLatestMessage(messages.values(), m => leaves.has(m.uuid) && (m.type === 'user' || m.type === 'assistant'))
-  const rows = leaf ? buildConversationChain(messages, leaf).map(rowFor) : []
+  const rows = buildScreenConversation(fold.messages).map(rowFor)
   if (prev !== undefined && prev.length === rows.length && rows.every((r, i) => r === prev[i])) return prev
   return rows
 }
@@ -632,6 +628,81 @@ export function readTranscriptBytesAfter(path: string, cursor: TranscriptByteCur
     rewound,
     size: st.size,
   }
+}
+
+interface RecordIdScan {
+  ino: number
+  offset: number
+  carry: Buffer
+  ids: Set<string>
+}
+
+const recordIdScans = new Map<string, RecordIdScan>()
+const RECORD_ID_SCAN_CHUNK = 1024 * 1024
+const RECORD_ID_HEAD = /^\{"schemaVersion":\d+,"recordId":"([^"]+)"/
+
+function recordIdOfLine(line: string): string | null {
+  const head = RECORD_ID_HEAD.exec(line)
+  if (head !== null) return head[1]!
+  try {
+    const parsed = JSON.parse(line) as { recordId?: unknown; uuid?: unknown; annotations?: { uuid?: unknown } }
+    if (typeof parsed.recordId === 'string') return parsed.recordId
+    if (typeof parsed.annotations?.uuid === 'string') return parsed.annotations.uuid
+    if (typeof parsed.uuid === 'string') return parsed.uuid
+  } catch {
+    return null
+  }
+  return null
+}
+
+function takeRecordIds(scan: RecordIdScan, bytes: Buffer): void {
+  const combined = scan.carry.length === 0 ? bytes : Buffer.concat([scan.carry, bytes])
+  const lastNewline = combined.lastIndexOf(NEWLINE)
+  if (lastNewline === -1) {
+    scan.carry = Buffer.from(combined)
+    return
+  }
+  scan.carry = Buffer.from(combined.subarray(lastNewline + 1))
+  for (const line of combined.subarray(0, lastNewline).toString('utf8').split('\n')) {
+    if (line === '') continue
+    const id = recordIdOfLine(line)
+    if (id !== null) scan.ids.add(id)
+  }
+}
+
+export async function readTranscriptRecordIds(path: string): Promise<Set<string>> {
+  const st = io.statSync(path)
+  if (st === null) {
+    recordIdScans.delete(path)
+    return new Set()
+  }
+  let scan = recordIdScans.get(path)
+  if (scan === undefined || scan.ino !== st.ino || st.size < scan.offset) {
+    scan = { ino: st.ino, offset: 0, carry: EMPTY, ids: new Set() }
+    recordIdScans.set(path, scan)
+  }
+  if (st.size > scan.offset) {
+    const handle = await open(path, 'r')
+    try {
+      const chunk = Buffer.allocUnsafe(RECORD_ID_SCAN_CHUNK)
+      let position = scan.offset
+      while (position < st.size) {
+        const { bytesRead } = await handle.read(chunk, 0, Math.min(RECORD_ID_SCAN_CHUNK, st.size - position), position)
+        if (bytesRead === 0) break
+        position += bytesRead
+        transcriptReaderCensus.bytesRead += bytesRead
+        takeRecordIds(scan, chunk.subarray(0, bytesRead))
+      }
+      scan.offset = position
+    } finally {
+      await handle.close()
+    }
+  }
+  return new Set(scan.ids)
+}
+
+export function _resetTranscriptRecordIdScansForTesting(): void {
+  recordIdScans.clear()
 }
 
 export function readTranscriptTailSync(path: string, bytes: number): string {

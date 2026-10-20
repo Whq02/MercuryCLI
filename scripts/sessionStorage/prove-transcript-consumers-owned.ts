@@ -38,7 +38,7 @@ section('the resume load reads the fold through the reader')
   const recovery = src('utils/conversationRecovery.ts')
   check('the resume pipeline walks files through loadTranscriptFile only', recovery.includes('await loadTranscriptFile(path)') && !/from ['"](node:)?fs/.test(recovery))
   const writer = src('utils/sessionStorage/writer.ts')
-  check('the writer\'s dedup set comes from loadSessionFile (the reader), not a parse of its own', writer.includes('const { messages } = await loadSessionFile(sessionId)'))
+  check('the writer\'s dedup set is the reader\'s record-id scan of the whole file (every id on disk, pruned by nothing), not a parse of its own and not the pruned fold', writer.includes('await readTranscriptRecordIds(sessionFilePath(sessionId))') && !writer.includes('await loadSessionFile(sessionId)') && src('utils/sessionStorage/transcriptReader.ts').includes('export async function readTranscriptRecordIds('))
 }
 
 section('the daemon connector reads the chain since its cursor')

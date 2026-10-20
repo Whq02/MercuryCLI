@@ -107,6 +107,12 @@ export function buildConversationChain(
   return transcriptRows(messages).chain(leafMessage)
 }
 
+export function buildScreenConversation(
+  messages: Map<UUID, TranscriptMessage>,
+): TranscriptMessage[] {
+  return transcriptRows(messages).screenConversation()
+}
+
 export function checkResumeConsistency(chain: Message[]): void {
   for (let i = chain.length - 1; i >= 0; i--) {
     const row = chain[i]!

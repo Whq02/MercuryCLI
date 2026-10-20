@@ -32,7 +32,7 @@ import type { Message } from '../../types/message.js'
 import { storageRowPolicy } from '../../rows/storage.js'
 import { SessionMeta, SESSION_META_COMPAT_FIELDS } from './sessionMeta.js'
 import { promptLabel } from './sessionIndex.js'
-import { readTranscriptTailSync } from './transcriptReader.js'
+import { readTranscriptRecordIds, readTranscriptTailSync } from './transcriptReader.js'
 import type { QueueOperationMessage } from '../../types/messageQueueTypes.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { registerExitCliffSeam } from '../exitCliffDrain.js'
@@ -58,7 +58,7 @@ import {
   getFirstMeaningfulUserMessageTextContent,
   type Transcript,
 } from './chain.js'
-import { loadSessionFile } from './loading.js'
+import { sessionFilePath } from './loading.js'
 import {
   getAgentTranscriptPath,
   getEntrypoint,
@@ -78,8 +78,8 @@ const MAX_TOMBSTONE_REWRITE_BYTES = 50 * 1024 * 1024
 
 export const getSessionMessages = memoize(
   async (sessionId: UUID): Promise<Set<UUID>> => {
-    const { messages } = await loadSessionFile(sessionId)
-    return new Set(messages.keys())
+    const ids = await readTranscriptRecordIds(sessionFilePath(sessionId))
+    return ids as Set<UUID>
   },
   (sessionId: UUID) => sessionId,
 )
