@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
@@ -16,7 +16,7 @@ const bundle = option('--bundle')
 if (bundle) {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const { vshotBudgetMs } = await import('../lib/captureDriver.ts')
-  const arena = await runArtifactArena({ distPath: bundle, turns: [], sends: ['4500:/llmhost', '5300:\r'], seconds: 14, cols: 120, rows: 44, keep: true })
+  const arena = await runArtifactArena({ distPath: resolve(bundle), turns: [], sends: ['4500:/llmhost', '5300:\r'], seconds: 14, cols: 120, rows: 44, keep: true })
   try {
     const shots = grabScreens(arena, 120, 44, [7000, 9000, 11000, 13000].map(vshotBudgetMs))
     if (frames) shots.forEach((shot, index) => writeFileSync(join(frames, 'bundle-' + index + '.txt'), shot.rows.join('\n')))

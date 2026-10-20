@@ -6,7 +6,7 @@ import { readStoredRunpodApiKey } from '../providers/providerSecrets.js'
 import { runLlmHost } from '../llmHost/index.js'
 import { LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 import { RunpodClient, RunpodHttpError, createRefusal, type HostOffer, type HostPod } from './runpod.js'
-import { HOST_RECIPES } from './recipes.js'
+import { hostRecipeOfRecord } from './recipesFile.js'
 import { hostNotice } from './notices.js'
 import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord } from './store.js'
 import { activeHostWatches, queueHostSetup, watchModel, watchRateWords } from './jobs.js'
@@ -39,7 +39,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   let logBusy = false
   let target: SshTarget | undefined
   let offset = 0
-  const recipe = HOST_RECIPES.find(row => row.id === initial.recipe)
+  const recipe = hostRecipeOfRecord(initial)
   patchHostRecord(id, { jobState: 'running', error: undefined })
   const timer = setInterval(() => {
     const current = readHostRecord(id)

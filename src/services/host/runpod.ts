@@ -1,5 +1,6 @@
 import { z } from 'zod/v4'
-import { HOST_RECIPES, recipeFits, type HostRecipe } from './recipes.js'
+import { recipeFits, type HostRecipe } from './recipes.js'
+import { currentHostRecipes, refreshHostRecipes } from './recipesFile.js'
 
 const podSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name: z.string(), status: z.string(), cost: z.number().nonnegative(), createdAt: z.string(), startedAt: z.string().nullable().optional(), ssh: z.object({ direct: z.object({ host: z.string(), port: z.number().int().min(1).max(65535), username: z.string() }).nullable().optional() }).nullable().optional() })
 export type HostPod = z.infer<typeof podSchema>
@@ -7,6 +8,7 @@ export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; d
 const gpuSchema = z.object({ id: z.string(), name: z.string(), memory: z.number(), secure: z.boolean(), price: z.object({ secure: z.number().nonnegative() }), maxCount: z.object({ secure: z.number() }), availability: z.string().optional(), dataCenters: z.array(z.object({ id: z.string(), availability: z.string() })).optional() })
 const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === 'MEDIUM' ? 2 : value === 'LOW' ? 1 : 0
 const stock = (value?: string): boolean => stockRank(value) > 0
+const unverifiedRank = (recipe: HostRecipe): number => recipe.verified?.by === 'unverified' ? 1 : 0
 const refusalStatuses = [400, 401, 402, 403, 413, 422, 429]
 
 export class RunpodHttpError extends Error {
@@ -39,14 +41,16 @@ export class RunpodClient {
   rateLimitPolicy(): string | undefined { return this.policy }
   shapes(): readonly HostOffer[] { return this.lastShapes }
   async offers(signal: AbortSignal): Promise<HostOffer[]> {
+    void refreshHostRecipes()
+    const recipes = currentHostRecipes()
     const offers: HostOffer[] = []
     const shapes: HostOffer[] = []
-    const groups = [...new Set(HOST_RECIPES.map(recipe => recipe.count + ':' + recipe.cuda))]
+    const groups = [...new Set(recipes.map(recipe => recipe.count + ':' + recipe.cuda))].sort((a, b) => Number(a.split(':')[0]) - Number(b.split(':')[0]))
     for (const group of groups) {
       const [count, cuda] = group.split(':')
       const response = await this.response('/catalog/gpus?include=AVAILABILITY&product=POD&cloud=SECURE&count=' + count + '&minCudaVersion=' + cuda, 'GET', undefined, signal)
       const { gpus } = z.object({ gpus: z.array(gpuSchema) }).parse(await response.json())
-      for (const recipe of HOST_RECIPES.filter(recipe => recipe.count === Number(count) && recipe.cuda === cuda)) for (const gpu of gpus) {
+      for (const recipe of recipes.filter(recipe => recipe.count === Number(count) && recipe.cuda === cuda)) for (const gpu of gpus) {
         if (!gpu.secure || gpu.price.secure <= 0 || !recipeFits(recipe, gpu.id, gpu.memory, gpu.maxCount.secure)) continue
         const price = gpu.price.secure * recipe.count
         shapes.push({ recipe, gpuId: gpu.id, price, availability: gpu.availability })
@@ -56,14 +60,14 @@ export class RunpodClient {
         } else offers.push({ recipe, gpuId: gpu.id, price, availability: gpu.availability })
       }
     }
-    this.lastShapes = shapes.sort((a, b) => a.price - b.price || a.recipe.id.localeCompare(b.recipe.id))
-    return offers.sort((a, b) => stockRank(b.availability) - stockRank(a.availability) || a.price - b.price || a.recipe.id.localeCompare(b.recipe.id) || (a.dataCenter ?? '').localeCompare(b.dataCenter ?? ''))
+    this.lastShapes = shapes.sort((a, b) => unverifiedRank(a.recipe) - unverifiedRank(b.recipe) || a.price - b.price || a.recipe.id.localeCompare(b.recipe.id))
+    return offers.sort((a, b) => unverifiedRank(a.recipe) - unverifiedRank(b.recipe) || stockRank(b.availability) - stockRank(a.availability) || a.price - b.price || a.recipe.id.localeCompare(b.recipe.id) || (a.dataCenter ?? '').localeCompare(b.dataCenter ?? ''))
   }
   async watchOffer(recipe: HostRecipe, maxPrice: number, signal?: AbortSignal): Promise<HostOffer | undefined> {
     const response = await this.response('/catalog/gpus?include=AVAILABILITY&product=POD&cloud=SECURE&count=' + recipe.count + '&minCudaVersion=' + recipe.cuda, 'GET', undefined, signal)
     const { gpus } = z.object({ gpus: z.array(gpuSchema) }).parse(await response.json())
     const model = recipe.label.split(' · ')[0]
-    const candidates = HOST_RECIPES.filter(row => row.label.split(' · ')[0] === model && row.count === recipe.count && row.cuda === recipe.cuda)
+    const candidates = currentHostRecipes().filter(row => row.label.split(' · ')[0] === model && row.count === recipe.count && row.cuda === recipe.cuda)
     const offers: HostOffer[] = []
     for (const candidate of candidates.length ? candidates : [recipe]) for (const gpu of gpus) {
       if (!gpu.secure || gpu.price.secure <= 0 || !stock(gpu.availability) || !recipeFits(candidate, gpu.id, gpu.memory, gpu.maxCount.secure)) continue

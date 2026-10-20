@@ -95,7 +95,7 @@ try {
 
   const modelLines = m.lines().filter(line => distinctModels.some(name => line.includes(name + ' · ')))
   check('model list shows one row per distinct model across recipes', modelLines.length === distinctModels.length && distinctModels.every(name => m.lines().filter(line => line.includes(' ' + name + ' · ')).length === 1))
-  check('model rows show cheapest in-stock price or no stock now', m.screen().includes('Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · llama.cpp (GGUF) · $2.49/hr') && m.screen().includes('Qwen3.8-27B · FP8 · verified · $2.49/hr') && m.screen().includes('GLM-5.3-Flash · UD-Q4_K_XL / NVFP4 / FP8 · llama.cpp (GGUF) · no stock now'))
+  check('model rows show cheapest in-stock price or no stock now', m.screen().includes('Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · llama.cpp (GGUF) · $2.49/hr') && m.screen().includes('Qwen3.8-27B · FP8 · verified · $2.49/hr') && m.screen().includes('GLM-5.3-Flash · UD-Q4_K_XL / FP8 / NVFP4 · llama.cpp (GGUF) · no stock now'))
   const stockedAt = modelLines.flatMap((line, index) => line.includes('no stock now') ? [] : [index])
   const emptyAt = modelLines.flatMap((line, index) => line.includes('no stock now') ? [index] : [])
   check('models in stock sort above the no-stock-now rows, cheapest first', stockedAt.length > 0 && emptyAt.length > 0 && Math.max(...stockedAt) < Math.min(...emptyAt))

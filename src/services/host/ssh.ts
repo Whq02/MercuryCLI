@@ -70,10 +70,10 @@ export async function ensureHostKey(runner: HostRunner, signal: AbortSignal): Pr
   return { path, publicKey }
 }
 export async function inspectSsh(target: SshTarget, runner: HostRunner, signal: AbortSignal): Promise<{ gpus: { name: string; memory: number }[]; docker: boolean }> {
-  const output = await runner.run('ssh', [...sshArguments(target), 'nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits && if command -v docker >/dev/null && docker info >/dev/null 2>&1; then echo MERCURY_DOCKER; fi'], signal)
+  const output = await runner.run('ssh', [...sshArguments(target), 'nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits && if command -v docker >/dev/null && docker info >/dev/null 2>&1; then echo DOCKER_ENGINE_PRESENT; fi'], signal)
   const gpus = output.split('\n').flatMap(line => { const match = /^(.+),\s*([0-9.]+)\s*$/.exec(line); return match ? [{ name: match[1]!.trim(), memory: Math.ceil(Number(match[2]) / 1024) }] : [] })
   if (!gpus.length) throw new Error('nvidia-smi did not report a GPU. Check the SSH user and NVIDIA driver.')
-  return { gpus, docker: output.includes('MERCURY_DOCKER') }
+  return { gpus, docker: output.includes('DOCKER_ENGINE_PRESENT') }
 }
 export function fitsSsh(recipe: HostRecipe, gpus: { name: string; memory: number }[]): boolean { return gpus.filter(gpu => recipeFits(recipe, gpu.name, gpu.memory, recipe.count)).length >= recipe.count }
 export async function startHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, docker: boolean, pod: boolean, bank?: string): Promise<void> {

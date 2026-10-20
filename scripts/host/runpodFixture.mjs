@@ -91,7 +91,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner) {
         assert.equal(parse.status, 0, parse.stderr)
       }
       let output = ''
-      if (remote.includes('nvidia-smi')) output = Array.from({ length: 4 }, () => 'NVIDIA B200, 196608').join('\n') + (state.docker ? '\nMERCURY_DOCKER' : '')
+      if (remote.includes('nvidia-smi')) output = Array.from({ length: 4 }, () => 'NVIDIA B200, 196608').join('\n') + (state.docker ? '\nDOCKER_ENGINE_PRESENT' : '')
       if (remote.includes('/health')) {
         if (state.holdHealth) throw new Error('fixture model loading')
         assert.equal((await fetch(modelBaseUrl + '/models')).status, 200)

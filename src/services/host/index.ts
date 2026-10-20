@@ -3,7 +3,8 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { LLM_HOST_WORDS as words } from '../../commands/llmhost/words.js'
 import { runLlmHost, type LlmHostRoad, type LlmHostResult } from '../llmHost/index.js'
 import { readStoredRunpodApiKey, writeStoredRunpodApiKey } from '../providers/providerSecrets.js'
-import { HOST_RECIPES, type HostRecipe } from './recipes.js'
+import { formatHostOfferLabel, hostRecipeVerificationWord, type HostRecipe } from './recipes.js'
+import { currentHostRecipes } from './recipesFile.js'
 import { RunpodClient, cents, createRefusal, type HostOffer, type HostPod } from './runpod.js'
 import { closeHostTunnel, ensureHostKey, fitsSsh, hostRunner, inspectSsh, localKeyPath, openHostTunnel, sshAliases, sshArguments, startHostEngine, waitHostEngine, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRecords, readHostRecord, removeHostRecord, writeHostRecord, type HostRecord } from './store.js'
@@ -16,6 +17,7 @@ const price = (amount: number): string => '$' + amount.toFixed(2) + '/hr'
 const shape = (recipe: HostRecipe): string => recipe.count + '× ' + recipe.gpu
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === 'MEDIUM' ? 2 : value === 'LOW' ? 1 : 0
+const verifiedRank = (recipe: HostRecipe): number => ['measured', 'documented', 'community', 'unverified'].indexOf(hostRecipeVerificationWord(recipe))
 const keepWords = (pod: HostPod): string => pod.id + ' · ' + (pod.status === 'EXITED' ? words.stoppedDisk : 'pod still running · /llmhost → Pods I’m paying for → Stop or Terminate')
 
 export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
@@ -154,8 +156,9 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         for (;;) {
           const offers = await api.offers(signal)
           if (!chosenModel) {
-            const modelGroups = [...new Set(HOST_RECIPES.map(modelTitle))].map(name => {
-              const recipes = HOST_RECIPES.filter(row => modelTitle(row) === name)
+            const table = currentHostRecipes()
+            const modelGroups = [...new Set(table.map(modelTitle))].map(name => {
+              const recipes = table.filter(row => modelTitle(row) === name).sort((a, b) => verifiedRank(a) - verifiedRank(b) || a.id.localeCompare(b.id))
               const modelOffers = offers.filter(row => modelTitle(row.recipe) === name)
               const cheapest = [...modelOffers].sort((a, b) => a.price - b.price || stockRank(b.availability) - stockRank(a.availability))[0]
               const variants = [...new Set(recipes.map(row => row.label.split(' · ').slice(1).join(' · ')).filter(Boolean))].join(' / ')
@@ -176,7 +179,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           if (modelOffers.length === 0 && !forceShapeList) {
             const watching = activeWatches().find(row => watchModel(row) === chosenModel)
             if (watching) { emit({ title: words.paid, words: 'A stock watch for ' + chosenModel + ' is already running · ' + watching.id }); return finishWatch(watching.id) }
-            const modelRecipes = HOST_RECIPES.filter(row => modelTitle(row) === chosenModel)
+            const modelRecipes = currentHostRecipes().filter(row => modelTitle(row) === chosenModel)
             const knownShape = api.shapes().filter(row => modelTitle(row.recipe) === chosenModel).sort((a, b) => a.price - b.price)[0]
             const watchRecipe = knownShape?.recipe ?? modelRecipes[0]!
             const cataloguePrice = knownShape?.price
@@ -213,7 +216,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           if (modelOffers.length === 1 && !forceShapeList) {
             offer = modelOffers[0]!
           } else {
-            const selectedShape = await question({ step: 'offers', title: words.shapes, found: chosenModel + ' · ' + (modelOffers.length ? words.offersHelp : 'no stock now'), willRun: '', initial: modelOffers.length ? '0' : undefined, rows: [...modelOffers.map((row, index) => ({ value: String(index), label: row.recipe.label + ' · ' + shape(row.recipe) + ' · ' + price(row.price) + ' · Secure Cloud' + (row.dataCenter ? ' · ' + row.dataCenter : '') + (budget ? ' · ~' + (budget / row.price).toFixed(1) + 'h for $' + budget : '') })), ...(modelOffers.length === 0 ? [{ value: 'watch', label: words.watchConfirm }] : []), { value: 'models', label: 'Choose another model' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'cancel', label: words.cancel }] })
+            const selectedShape = await question({ step: 'offers', title: words.shapes, found: chosenModel + ' · ' + (modelOffers.length ? words.offersHelp : 'no stock now'), willRun: '', initial: modelOffers.length ? '0' : undefined, rows: [...modelOffers.map((row, index) => ({ value: String(index), label: formatHostOfferLabel(row.recipe, shape(row.recipe) + ' · ' + price(row.price) + ' · Secure Cloud' + (row.dataCenter ? ' · ' + row.dataCenter : '') + (budget ? ' · ~' + (budget / row.price).toFixed(1) + 'h for $' + budget : '')) })), ...(modelOffers.length === 0 ? [{ value: 'watch', label: words.watchConfirm }] : []), { value: 'models', label: 'Choose another model' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'cancel', label: words.cancel }] })
             if (!selectedShape || selectedShape === 'cancel') return stopped()
             if (selectedShape === 'models') { chosenModel = undefined; forceShapeList = false; continue }
             if (selectedShape === 'refresh') continue
@@ -222,7 +225,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
             if (!offer) throw new Error(words.inputError)
           }
           const ctx = (offer.recipe as HostRecipe & { contextPerSlot?: number }).contextPerSlot ?? offer.recipe.context
-          const confirm = await question({ step: 'rent-confirm', title: words.rentalConfirm, found: offer.recipe.label + ' · ' + shape(offer.recipe) + ' · ' + price(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + (budget ? ' · ~' + (budget / offer.price).toFixed(1) + 'h for $' + budget : ''), willRun: offer.recipe.verification + ' · ' + (ctx ? ctx.toLocaleString('en-US') + ' context · ' : '') + offer.recipe.diskGb + ' GB disk (extra). Ready may take 20–90 min; billing starts now.', rows: [{ value: 'rent', label: 'Confirm ' + price(offer.price) + ' + storage · create this pod' }, { value: 'cancel', label: words.cancel }] })
+          const confirm = await question({ step: 'rent-confirm', title: words.rentalConfirm, found: offer.recipe.label + ' · ' + shape(offer.recipe) + ' · ' + price(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + (budget ? ' · ~' + (budget / offer.price).toFixed(1) + 'h for $' + budget : ''), willRun: hostRecipeVerificationWord(offer.recipe) + ' · ' + offer.recipe.verification + ' · ' + (ctx ? ctx.toLocaleString('en-US') + ' context · ' : '') + offer.recipe.diskGb + ' GB disk (extra). Ready may take 20–90 min; billing starts now.', rows: [{ value: 'rent', label: 'Confirm ' + price(offer.price) + ' + storage · create this pod' }, { value: 'cancel', label: words.cancel }] })
           if (confirm !== 'rent' || signal.aborted) return stopped()
           if (!options.startJob) await requireHostJobOwner()
           recipe = offer.recipe
@@ -257,7 +260,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         target = { host: host.trim(), ...(user.trim() ? { user: user.trim() } : {}), ...(port.trim() ? { port: Number(port) } : {}), key: localKeyPath(path.trim()) }
         const hardware = await inspectSsh(target, runner, signal)
         docker = hardware.docker
-        const fits = HOST_RECIPES.filter(row => fitsSsh(row, hardware.gpus) && (docker || Boolean(row.pythonInstall)))
+        const fits = currentHostRecipes().filter(row => fitsSsh(row, hardware.gpus) && (docker || Boolean(row.pythonInstall)))
         const selected = await question({ step: 'ssh-recipe', title: 'Recipes that fit this SSH box', found: hardware.gpus.map(gpu => gpu.name + ' ' + gpu.memory + ' GB').join(' · '), willRun: fits.length ? 'Choose a documented recipe.' : 'No documented recipe fits these GPUs and this engine installation.', rows: fits.map(row => ({ value: row.id, label: row.label + ' · ' + shape(row) + ' · ' + row.verification })) })
         if (!selected) return stopped()
         recipe = fits.find(row => row.id === selected)!

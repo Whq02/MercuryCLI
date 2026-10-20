@@ -9,7 +9,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { reconcileRecord, startService, stopService } from '../projectServices/serviceManager.js'
 import { hostDirectory, hostRecords, patchHostRecord, readHostRecord, writeHostRecord, type HostRecord } from './store.js'
 import { hostNotice } from './notices.js'
-import { HOST_RECIPES } from './recipes.js'
+import { currentHostRecipes } from './recipesFile.js'
 
 const serviceName = (id: string): string => 'host-' + id.toLowerCase()
 const serviceHome = (): string => hostDirectory()
@@ -21,7 +21,7 @@ const watchPollIntervalMs = 5000
 const watchPollWindowMs = 12 * 3600_000
 const quota = (policy: string): string => [...policy.matchAll(/"(minute|hour|day)";q=(\d+)/g)].map(([, window, allowed]) => allowed + (window === 'hour' ? ' an ' : ' a ') + window).join(', ')
 export const watchRateWords = (pollMs: number, policy?: string): string => 'one catalogue read every ' + pollMs / 1000 + ' s (' + Math.round(60_000 / pollMs) + ' a minute) · ' + (policy === undefined ? 'Runpod meters each account per minute, hour and day' : quota(policy) ? 'this account’s Runpod quota: ' + quota(policy) : 'Runpod sent no rate-limit policy for this account')
-export const watchModel = (record: HostRecord): string => (HOST_RECIPES.find(recipe => recipe.id === record.recipe)?.label ?? record.name).split(' · ')[0]!
+export const watchModel = (record: HostRecord): string => (currentHostRecipes().find(recipe => recipe.id === record.recipe)?.label ?? record.name).split(' · ')[0]!
 export const activeHostWatches = (): HostRecord[] => hostRecords().filter(row => row.jobKind === 'watch' && ['queued', 'starting', 'running'].includes(row.jobState ?? ''))
 
 export async function requireHostJobOwner(): Promise<void> {
@@ -30,6 +30,7 @@ export async function requireHostJobOwner(): Promise<void> {
 }
 export function queueHostSetup(record: HostRecord): HostRecord {
   if (active(record)) return readHostRecord(record.id) ?? record
+  record = { ...record, recipeRow: currentHostRecipes().find(row => row.id === record.recipe) ?? record.recipeRow }
   const now = Date.now()
   const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })
   const queued: HostRecord = { ...record, jobKind: 'setup', generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step: 'waiting for SSH', error: undefined, log: join(logs, record.id + '.log'), steps: [{ step: 'waiting for SSH', at: now }] }
