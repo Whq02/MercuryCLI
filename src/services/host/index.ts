@@ -158,6 +158,34 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       }
     }
     try {
+      const { runModelDoor, isHostDoorReentry, initialDoorModel, modelTitle } = await import('./door.js')
+      const { tuneBudget } = await import('./tune.js')
+      const { listBoxes } = await import('./boxes.js')
+      const { BOX_RECIPES } = await import('./boxRecipes.js')
+      const sameModel = (a: string, b: string): boolean => a.replace(/[^a-z0-9]/gi, '').toLowerCase() === b.replace(/[^a-z0-9]/gi, '').toLowerCase()
+      if (!isHostDoorReentry(ask)) return await runModelDoor(question, emit, signal, {
+        initialModel: initialDoorModel(ask),
+        offers: () => key ? (api ??= new RunpodClient(key, options.apiBaseUrl)).offers(signal) : Promise.resolve(undefined),
+        pods: () => key ? (api ??= new RunpodClient(key, options.apiBaseUrl)).pods(signal) : Promise.resolve(undefined),
+        records: hostRecords,
+        road: createHostRoad(options),
+        boxes: () => listBoxes().map(box => ({ name: box.name, kind: box.kind, os: box.os, memoryGb: box.memoryGb, unifiedMemory: box.unifiedMemory, engines: box.engines.map(engine => ({ kind: engine.kind, version: engine.version, port: engine.port })) })),
+        startBox: (box, recipe, boxAsk, boxEmit, boxSignal) => {
+          const boxRecipe = BOX_RECIPES.find(row => sameModel(row.label.split(' · ')[0]!, modelTitle(recipe)))
+          const preset: Record<string, string | undefined> = { boxes: box.name, 'box-controls': 'model', 'box-recipes': boxRecipe?.id }
+          return createBoxRoad(runner)(plan => { const answer = preset[plan.step]; if (answer !== undefined && (!plan.rows || plan.rows.some(row => row.value === answer))) { delete preset[plan.step]; return Promise.resolve(answer) } return boxAsk(plan) }, boxEmit, boxSignal)
+        },
+        budgetLines: (recipe, gpuMemoryGb) => { const budget = tuneBudget(recipe, gpuMemoryGb / Math.max(1, recipe.count), recipe.count); return [budget.words, ...budget.candidates.filter(row => row.fits).slice(0, 4).map(row => row.label)] },
+        connect: async () => {
+          const entered = await question({ step: 'runpod-key', title: words.runpodKey, found: words.runpodKeyHelp, willRun: words.runpodKeySave, secret: true })
+          if (!entered?.trim()) return false
+          const client = new RunpodClient(entered.trim(), options.apiBaseUrl)
+          await client.pods(signal)
+          key = entered.trim(); api = client
+          writeStoredRunpodApiKey(key)
+          return true
+        },
+      })
       let pods: HostPod[] = []
       if (key) { api = new RunpodClient(key, options.apiBaseUrl); try { pods = await listHostResources(api, signal, detail => emit({ title: words.paid, words: detail })); for (const line of await forgetEndedPods(pods)) emit({ title: words.paid, words: line }) } catch (error) { emit({ title: words.paid, words: String(error) }); if (/HTTP 401|HTTP 403/.test(String(error))) { key = undefined; api = undefined } } }
       let volumes: Awaited<ReturnType<RunpodClient['volumes']>> = []

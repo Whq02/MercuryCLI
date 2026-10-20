@@ -60,7 +60,10 @@ try {
   mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 44 }, React.createElement(SettingsPopupSlot)))), 120, 44)
   const m = mounted
   const until = async (needle: string) => assert.ok(await waitFor(() => m.screen().includes(needle), 15_000), 'screen reaches ' + needle + '\n' + m.screen())
-  const heading = async (needle: string) => assert.ok(await waitFor(() => m.lines().slice(0, 10).join(' ').includes(needle), 15_000), 'active question reaches ' + needle + '\n' + m.screen())
+  const heading = async (needle: string) => {
+    if (needle === 'Where should the model run?') { await until('Which model?'); await choose('Other roads →') }
+    assert.ok(await waitFor(() => m.lines().slice(0, 10).join(' ').includes(needle), 15_000), 'active question reaches ' + needle + '\n' + m.screen())
+  }
   const selected = () => m.lines().find(line => line.includes('› ')) ?? ''
   const capture = (name: string) => {
     check(name + ' paints without errors or a key', !m.screen().includes('RENDER ERROR') && !m.screen().includes(rp.key))
@@ -86,18 +89,19 @@ try {
   const rent = async () => { open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70'); await heading('Choose a model · live Runpod stock') }
 
   const distinctModels = [...new Set(HOST_RECIPES.map(row => row.label.split(' · ')[0]!))]
-  await heading('Where should the model run?')
-  await choose('Rent a GPU')
+  await heading('Which model?')
+  await choose('Qwen3.8-27B'); await heading('Qwen3.8-27B'); await choose('Connect Runpod')
   await until('Runpod API key'); m.push(rp.key); await until('********'); m.push(KEY.enter)
-  await text('Optional spending budget', '70')
-  await heading('Choose a model · live Runpod stock')
+  await heading('Qwen3.8-27B'); await choose('Back to models')
+  await heading('Which model?')
   capture('01-model-list')
 
-  const modelLines = m.lines().filter(line => distinctModels.some(name => line.includes(name + ' · ')))
-  check('model list shows one row per distinct model across recipes', modelLines.length === distinctModels.length && distinctModels.every(name => m.lines().filter(line => line.includes(' ' + name + ' · ')).length === 1))
-  check('model rows show cheapest in-stock price or no stock now', m.screen().includes('Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · llama.cpp (GGUF) · $2.49/hr') && m.screen().includes('Qwen3.8-27B · FP8 · verified · $2.49/hr') && m.screen().includes('GLM-5.3-Flash · UD-Q4_K_XL / FP8 / NVFP4 · llama.cpp (GGUF) · no stock now'))
-  const stockedAt = modelLines.flatMap((line, index) => line.includes('no stock now') ? [] : [index])
-  const emptyAt = modelLines.flatMap((line, index) => line.includes('no stock now') ? [index] : [])
+  const modelLabel = (name: string) => name.padEnd(Math.max(...distinctModels.map(name => name.length))) + ' · '
+  const modelLines = m.lines().filter(line => distinctModels.some(name => line.includes(modelLabel(name))))
+  check('model list shows one row per distinct model across recipes', modelLines.length === distinctModels.length && distinctModels.every(name => m.lines().filter(line => line.includes(modelLabel(name))).length === 1))
+  check('model rows show cheapest in-stock price or no stock now', m.screen().includes(modelLabel('Nemotron 3.5 Super VL 120B') + 'Runpod 1× RTX PRO 6000 · $2.49/hr · in stock') && m.screen().includes(modelLabel('Qwen3.8-27B') + 'Runpod 1× RTX PRO 6000 · $2.49/hr · in stock') && m.screen().includes(modelLabel('GLM-5.3-Flash') + 'no stock · watch →'))
+  const stockedAt = modelLines.flatMap((line, index) => line.includes('no stock') ? [] : [index])
+  const emptyAt = modelLines.flatMap((line, index) => line.includes('no stock') ? [index] : [])
   check('models in stock sort above the no-stock-now rows, cheapest first', stockedAt.length > 0 && emptyAt.length > 0 && Math.max(...stockedAt) < Math.min(...emptyAt))
   check('cursor starts on the cheapest model that has stock', selected().includes('Nemotron 3.5 Super VL 120B') && selected().includes('$2.49/hr'))
   check('a pre-chosen cursor says it starts on a suggestion, never that nothing is pre-chosen', m.screen().includes('↑↓ then ↵ · the cursor starts on a suggestion') && !m.screen().includes('nothing is pre-chosen'))
@@ -113,13 +117,13 @@ try {
   await choose('Refresh stock and prices')
   await until('$2.49/hr')
 
-  await choose('Qwen3.8-27B')
-  await heading('Confirm the hourly price')
-  await until('Qwen3.8-27B · FP8 · 1× RTX PRO 6000 · $2.49/hr')
-  check('a model with one in-stock shape goes straight to confirm with the shape named', !m.screen().includes('Choose a GPU shape') && m.screen().includes('1× RTX PRO 6000'))
+  await choose('Qwen3.8-27B'); await heading('Qwen3.8-27B'); await choose('Rent · Runpod')
+  await heading('Confirm the rental')
+  await until('Rent 1× RTX PRO 6000 at $2.49/hr')
+  check('the model’s WHERE row opens confirm with the chosen shape named', !m.screen().includes('Choose a GPU shape') && m.screen().includes('1× RTX PRO 6000'))
   check('the price confirmation pre-chooses nothing and says so', m.screen().includes('↑↓ then ↵ · nothing is pre-chosen') && !selected())
   for (let n = 0; n < 5; n++) { const before = selected(); m.push(KEY.down); await waitFor(() => selected() !== before, 300) }
-  check('pressing ↓ repeatedly on the price confirmation settles on keep things as they are, never back on Confirm', selected().includes('keep things as they are') && rp.state.creates === 0)
+  check('pressing ↓ repeatedly on the price confirmation settles on keep things as they are, never back on Confirm', selected().includes('Keep things as they are') && rp.state.creates === 0)
   m.push(KEY.enter)
   await close()
 

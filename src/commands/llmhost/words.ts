@@ -114,7 +114,7 @@ export function hostSetupEstimate(recipe: { engine?: string; pythonInstall?: str
   const fast = Math.max(5, Math.ceil(size / 60 / 5) * 5)
   const slow = Math.max(5, Math.ceil(size / 30 / 5) * 5)
   const loadMinutes = Math.max(3, Math.ceil(size / 70))
-  const weights = kept ? `weights kept ~0 download · ${kept.check}` : `downloads ${+size.toFixed(2)} GB ~${fast}–${slow} min`
+  const weights = kept ? `weights kept ~0 download · ${kept.check}` : `downloads ${+size.toFixed(2)} GB ~${fast === slow ? fast : fast + '–' + slow} min`
   const total = Math.ceil((engineMinutes + (kept ? 0 : slow) + loadMinutes) / 5) * 5
   return `${engine} · ${weights} · loads ~${loadMinutes} min · ~${total} min total (estimate at a sustained 0.5–1 GB/s; stock and network can add time)`
 }

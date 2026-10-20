@@ -25,7 +25,20 @@ try {
   assert.equal(popup.settingsPopupRequest().view, 'llmhost')
   mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 44 }, React.createElement(SettingsPopupSlot)))), 120, 44)
   const m = mounted
-  const until = async (text: string) => assert.ok(await waitFor(() => m.screen().includes(text), 10_000), `screen reaches ${text}\n${m.screen()}`)
+  const untilPlain = async (text: string) => assert.ok(await waitFor(() => m.screen().includes(text), 10_000), `screen reaches ${text}\n${m.screen()}`)
+  const choose = async (text: string) => {
+    for (let n = 0; n < 40; n++) {
+      const selected = m.lines().find(line => line.includes('› ')) ?? ''
+      if (selected.includes(text)) { m.push(KEY.enter); return }
+      m.push(KEY.down)
+      assert.ok(await waitFor(() => (m.lines().find(line => line.includes('› ')) ?? '') !== selected, 3000), `selection moves toward ${text}\n${m.screen()}`)
+    }
+    throw new Error('choice absent: ' + text)
+  }
+  const until = async (text: string) => {
+    if (text.startsWith('Where should the model run')) { await untilPlain('Which model?'); await choose('Other roads →') }
+    await untilPlain(text)
+  }
   const capture = (name: string) => {
     const at = process.argv.indexOf('--frames')
     const dir = at >= 0 ? process.argv[at + 1] : undefined

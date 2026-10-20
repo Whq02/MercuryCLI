@@ -74,7 +74,13 @@ try {
   const open = () => popup.openSettingsPopup(llmHostPopupRequest(road))
   open()
   m = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 44 }, React.createElement(SettingsPopupSlot)))), 120, 44)
-  const screen = async (text: string) => assert.ok(await waitFor(() => m!.screen().includes(text), 15000), text + '\n' + m!.screen() + '\n' + daemonLog)
+  const screen = async (text: string) => {
+    if (text === 'Where should the model run?') {
+      assert.ok(await waitFor(() => m!.screen().includes('Which model?'), 15000), m!.screen())
+      await choose('Other roads →')
+    }
+    assert.ok(await waitFor(() => m!.screen().includes(text), 15000), text + '\n' + m!.screen() + '\n' + daemonLog)
+  }
   const choose = async (text: string) => {
     assert.ok(await waitFor(() => {
       const selected = m!.lines().find(line => line.includes('› ')) ?? ''

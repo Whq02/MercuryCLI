@@ -126,7 +126,7 @@ try {
         throw new Error('Choice not found: ' + text + '\n' + m.screen())
       }
       try {
-        await until(podId); await choose(podId); await until('Pod controls'); await choose('Terminate'); await until('Confirm terminate')
+        await until('Which model?'); await choose('Pods I’m paying for'); await until(podId); await choose(podId); await until('Pod controls'); await choose('Terminate'); await until('Confirm terminate')
         await saveFrame(m, cols, 'terminate-confirm')
         await choose('Confirm terminate'); await until('Pod terminated'); await saveFrame(m, cols, 'terminated')
         const settings = getSettingsForSource('userSettings')!

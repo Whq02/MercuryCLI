@@ -111,6 +111,7 @@ export type ModelChoice = {
   enableFlag?: string
   gatedReason?: string
   action?: boolean
+  searchableAction?: boolean
   expand?: CatalogueDoorFacet
   choice?: string
 }

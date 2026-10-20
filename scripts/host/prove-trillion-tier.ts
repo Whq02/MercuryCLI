@@ -62,7 +62,7 @@ try {
     const podOnly = await api.offers(new AbortController().signal)
     const clusterReadWords = api.clusterReadError() ?? ''
     const refusedEvents: any[] = []
-    await createHostRoad({ apiBaseUrl: rp.baseUrl, runner: ssh.runner, startJob: () => {}, sessionId: 'trillion-proof' })(async q => q.step === 'where' ? 'rent' : q.step === 'budget' ? '' : null, event => refusedEvents.push(event), new AbortController().signal)
+    await createHostRoad({ apiBaseUrl: rp.baseUrl, runner: ssh.runner, startJob: () => {}, sessionId: 'trillion-proof' })(async q => q.step === 'door-models' ? 'other' : q.step === 'where' ? 'rent' : q.step === 'budget' ? '' : null, event => refusedEvents.push(event), new AbortController().signal)
     rp.state.failClusterCatalogue = false
     check('a refused cluster catalogue read keeps the single-machine offers, offers no cluster, and says why', podOnly.some(row => (row.recipe.nodes ?? 1) === 1) && !podOnly.some(row => (row.recipe.nodes ?? 1) > 1) && clusterReadWords.includes('cluster catalogue refused this count') && refusedEvents.some(event => String(event.words).startsWith('Cluster stock could not be read, so multi-node shapes are not offered this time')))
     const frames: any[] = []
@@ -70,7 +70,7 @@ try {
     const road = createHostRoad({ apiBaseUrl: rp.baseUrl, runner: ssh.runner, startJob: row => { queued = row; ids.add(row.id) }, sessionId: 'trillion-proof' })
     const result = await road(async question => {
       frames.push(question)
-      if (question.step === 'where') return 'rent'
+      if (question.step === 'door-models') return 'other'; if (question.step === 'where') return 'rent'
       if (question.step === 'budget') return ''
       if (question.step === 'models') return 'Kimi K3'
       if (question.step === 'offers') return question.rows!.find(row => row.label.includes('2 nodes × 8× B200'))!.value
@@ -116,18 +116,18 @@ try {
     const families = await listHostResources(api)
     check('paid list shows one family with summed compute, not member pods', families.length === 1 && families[0]!.id === id && families[0]!.cost === 127.84 && families[0]!.nodes?.length === 2)
     const paidFrames: any[] = []
-    await road(async q => { paidFrames.push(q); return q.step === 'where' ? 'pods' : q.step === 'paid-pods' ? id : 'close' }, () => {}, new AbortController().signal)
+    await road(async q => { paidFrames.push(q); return q.step === 'door-models' ? 'other' : q.step === 'where' ? 'pods' : q.step === 'paid-pods' ? id : 'close' }, () => {}, new AbortController().signal)
     check('paid family row names all nodes and has no unsupported Stop action', paidFrames.find(q => q.step === 'paid-pods').rows[0].label.includes('2 nodes × 8× B200') && !paidFrames.find(q => q.step === 'pod-controls').rows.some((row: any) => row.value === 'stop'))
     rp.state.holdClusterDelete = true
     await assert.rejects(() => terminateHostResource(api, families[0]!), /not yet verified/)
     check('a delete response alone never proves cluster termination', rp.state.clusters.has(id))
     rp.state.holdClusterDelete = false
-    const terminated = await road(async q => q.step === 'where' ? 'pods' : q.step === 'paid-pods' ? id : q.step === 'pod-controls' || q.step === 'pod-confirm' ? 'terminate' : null, () => {}, new AbortController().signal)
+    const terminated = await road(async q => q.step === 'door-models' ? 'other' : q.step === 'where' ? 'pods' : q.step === 'paid-pods' ? id : q.step === 'pod-controls' || q.step === 'pod-confirm' ? 'terminate' : null, () => {}, new AbortController().signal)
     check('confirmed termination routes to cluster delete and verifies absence', terminated.ok && !readHostRecord(id) && !rp.state.clusters.has(id) && rp.state.deletes === 0)
     for (const outcome of ['lost', 'http503', 'http402']) {
       rp.state.clusterCreateOutcomes.push(outcome)
       const before = rp.state.clusterCreates
-      const ambiguous = await road(async q => q.step === 'where' ? 'rent' : q.step === 'budget' ? '' : q.step === 'models' ? 'Kimi K3' : q.step === 'offers' ? q.rows!.find(row => row.label.includes('2 nodes × 8× B200'))!.value : q.step === 'rent-confirm' ? 'rent' : null, () => {}, new AbortController().signal)
+      const ambiguous = await road(async q => q.step === 'door-models' ? 'other' : q.step === 'where' ? 'rent' : q.step === 'budget' ? '' : q.step === 'models' ? 'Kimi K3' : q.step === 'offers' ? q.rows!.find(row => row.label.includes('2 nodes × 8× B200'))!.value : q.step === 'rent-confirm' ? 'rent' : null, () => {}, new AbortController().signal)
       check(outcome + ' is ambiguous, never retried or called a non-create', !ambiguous.ok && ambiguous.words.includes('may exist') && !ambiguous.words.includes('no cluster was created') && rp.state.clusterCreates === before + 1)
       const created = (await listHostResources(api)).at(-1)!
       await terminateHostResource(api, created)

@@ -59,7 +59,11 @@ try {
   open()
   mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { width: cols, height, flexDirection: 'column' }, React.createElement(SettingsPopupSlot)))), cols, height)
   const m = mounted
-  const until = async (text: string) => assert.ok(await waitFor(() => m.screen().includes(text), 15000), 'screen reaches ' + text + '\n' + m.screen())
+  const untilPlain = async (text: string) => assert.ok(await waitFor(() => m.screen().includes(text), 15000), 'screen reaches ' + text + '\n' + m.screen())
+  const until = async (text: string) => {
+    if (text.startsWith('Where should the model run')) { await untilPlain('Which model?'); await choose('Other roads →') }
+    await untilPlain(text)
+  }
   const choose = async (text: string) => {
     for (let n = 0; n < 30; n++) {
       const selected = m.lines().find(line => line.includes('› ')) ?? ''
@@ -88,7 +92,7 @@ try {
   await until('downloading weights'); await capture(m, 'host-setup-log')
   check('setup tells Escape closes without cancelling the job', m.screen().includes('setup keeps running'))
   await close()
-  open(); await until('fixture-pod-1'); await choose('Pods I’m paying for'); await until('Live account list'); await until('fixture-pod-1'); await capture(m, 'host-paid-pods')
+  open(); await untilPlain('Pods I’m paying for'); await choose('Pods I’m paying for'); await until('Live account list'); await until('fixture-pod-1'); await capture(m, 'host-paid-pods')
   check('paid pod rows name the step, elapsed time and estimated cost so far', m.screen().includes('downloading') && m.screen().includes('so far') && /1[.:]00|1\.0h|60 min/.test(m.screen()))
   await close()
   ssh.state.holdHealth = false
@@ -101,7 +105,7 @@ try {
   check('ready notice names its /model row and how to pick it', ready.includes('/model') && ready.includes('pod-fixture-pod-1') && /pick|select|choose/.test(ready))
   const notice = await mountOffscreen(React.createElement(Text, null, ready), cols, height)
   try { await waitFor(() => notice.screen().includes('ready'), 3000); await capture(notice, 'host-ready-notice') } finally { notice.unmount() }
-  open(); await until('fixture-pod-1'); await choose('fixture-pod-1'); await until('Pod controls'); await capture(m, 'host-ready-controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Pod terminated'); await close()
+  open(); await untilPlain('Pods I’m paying for'); await choose('Pods I’m paying for'); await until('fixture-pod-1'); await choose('fixture-pod-1'); await until('Pod controls'); await capture(m, 'host-ready-controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Pod terminated'); await close()
   writeHostRecord({ id: 'watch-polish', name: 'GLM-5.3-Flash', recipe: 'glm53-flash-gguf-b300', jobKind: 'watch', jobState: 'queued', price: 8.99, maxPrice: 8.99, startedAt: new Date(Date.now() - 300_000).toISOString(), status: 'WATCHING', step: 'Waiting for stock at $8.99/hr or less' })
   open(); await until('Where should the model run?'); await choose('Pods I’m paying for'); await until('Live account list'); await until('watch-polish'); await capture(m, 'host-watch-row'); await close()
   rp.state.customGpus = liveCatalogue.gpus.filter((row: any) => ['NVIDIA H200', 'NVIDIA RTX PRO 6000 Blackwell Server Edition'].includes(row.id)).map((row: any) => ({ ...row, availability: 'HIGH', dataCenters: [{ id: 'EU-FIXTURE', availability: 'HIGH' }] }))

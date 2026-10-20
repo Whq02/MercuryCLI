@@ -59,7 +59,7 @@ try {
   check('every shipped recipe has exact on-disk bytes from its pinned HF files', table.every(row => weightManifest(row).files.reduce((sum, file) => sum + file.size, 0) === Math.round(row.weightsGb * 1e9)))
   check('catalogue has one row for each model and weight variant, not duplicate GPU rows', fastLoadRecipes().length === new Set(table.map(volumes.volumeModel)).size)
   let catalogue: any
-  await road(async q => { if (q.step === 'where') return 'fast-load'; catalogue = q; return null }, () => {}, signal)
+  await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'fast-load'; catalogue = q; return null }, () => {}, signal)
   check('catalogue lists every known model with its size and not kept', fastLoadRecipes().every(recipe => catalogue.rows.some((row: any) => row.value === recipe.id && row.label.includes(recipe.weightsGb.toFixed(2) + ' GB') && row.label.endsWith('not kept'))))
   check('opening or cancelling catalogue creates no disk and rents no pod', rp.state.volumeCreates === 0 && rp.state.creates === 0)
   rp.state.customGpus = [
@@ -71,7 +71,10 @@ try {
   mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 160, height: 44 }, React.createElement(SettingsPopupSlot)))), 160, 44)
   const m = mounted
   const until = async (needle: string) => assert.ok(await waitFor(() => m.screen().includes(needle), 15000), 'screen reaches ' + needle + '\n' + m.screen())
-  const heading = async (needle: string) => assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(needle), 15000), 'active screen reaches ' + needle + '\n' + m.screen())
+  const heading = async (needle: string) => {
+    if (needle.startsWith('Where should the model run')) { await until('Which model?'); await choose('Other roads →') }
+    assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(needle), 15000), 'active screen reaches ' + needle + '\n' + m.screen())
+  }
   const choose = async (needle: string) => {
     for (let i = 0; i < 25; i++) {
       const selected = m.lines().find(line => line.includes('› ')) ?? ''
@@ -111,8 +114,8 @@ try {
   await volumes.reconcileVolumes(api, signal)
   check('worker records verified sums, sizes, fill pod and private record permissions', Boolean(kept.verifiedSums?.sha256) && kept.verifiedSums!.bytes === Math.round(qwen.weightsGb * 1e9) && kept.filledBy === 'fixture-pod-1' && (statSync(join(f.home, 'host/volumes', kept.id + '.json')).mode & 0o777) === 0o600)
   check('preparation does not build or start an inference engine', ssh.state.weightFetches === 1 && !ssh.commands.some((r: any) => r.args.at(-1)?.includes('nohup setsid')))
-  await close(); open(); await heading('Where should'); await choose('Fast-load'); await heading('Fast-load (keep weights'); await until('kept on ' + kept.id); await capture('04-kept-catalogue'); await close()
-  open(); await heading('Where should'); await choose('Rent a GPU'); await heading('Optional spending budget'); m.push(KEY.enter); await until('Qwen3.8-27B'); await choose('Qwen3.8-27B'); await heading('Choose a GPU shape'); await choose('RTX PRO 6000'); await heading('Confirm the hourly price'); await capture('05-kept-rental-confirm')
+  await close(); open(); await heading('Where should the model run?'); await choose('Fast-load'); await heading('Fast-load (keep weights'); await until('kept on ' + kept.id); await capture('04-kept-catalogue'); await close()
+  open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await heading('Optional spending budget'); m.push(KEY.enter); await until('Qwen3.8-27B'); await choose('Qwen3.8-27B'); await heading('Choose a GPU shape'); await choose('RTX PRO 6000'); await heading('Confirm the hourly price'); await capture('05-kept-rental-confirm')
   check('rental confirm gives per-step short estimate and monthly disk charge', m.screen().includes('weights kept ~0') && m.screen().includes('loads ~3 min') && m.screen().includes('$5.60/month'))
   await choose('Confirm $2.49/hr'); assert.ok(await waitFor(() => readHostRecord('fixture-pod-2')?.jobState === 'ready', 15000), 'kept model reaches ready')
   check('kept rental reattaches same disk and skips weight fetch', rp.state.createBodies[1].mounts.network[0].volumeId === kept.id && ssh.state.weightFetches === 1)
@@ -122,10 +125,10 @@ try {
   await heading('Pod controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await heading('Keep the weights disk'); await capture('06-terminate-weights')
   check('terminate does not delete pod or disk before keep-or-delete answer', rp.state.deletes === 1 && rp.state.volumeDeletes === 0)
   await choose('Keep the weights disk'); await until('Pod terminated'); check('keep terminates the pod while retaining the billed disk', rp.state.pods.size === 0 && rp.state.volumes.has(kept.id)); await close()
-  open(); await heading('Where should'); check('first-screen paid count includes a volume with no pod', m.screen().includes('Pods I’m paying for · 1')); await choose('Pods I’m paying for'); await until(kept.id); await choose(kept.id); await heading('Delete weights disk?')
+  open(); await until('Which model?'); check('first-screen paid count includes a volume with no pod', m.screen().includes('Pods I’m paying for · 1')); await choose('Pods I’m paying for'); await until(kept.id); await choose(kept.id); await heading('Delete weights disk?')
   check('Delete warns that the next rental downloads again before removal', m.screen().includes('next rental downloads') && rp.state.volumeDeletes === 0)
   await choose('Cancel'); await close(); check('cancelled Delete leaves the disk intact', rp.state.volumes.has(kept.id))
-  open(); await heading('Where should'); await choose('Pods I’m paying for'); await until(kept.id); await choose(kept.id); await heading('Delete weights disk?'); await choose('Confirm Delete'); await until('Weights disk deleted'); await close()
+  open(); await until('Which model?'); await choose('Pods I’m paying for'); await until(kept.id); await choose(kept.id); await heading('Delete weights disk?'); await choose('Confirm Delete'); await until('Weights disk deleted'); await close()
   check('confirmed Delete removes and verifies the live disk', !rp.state.volumes.has(kept.id) && rp.state.volumeDeletes === 1 && volumes.readKeptVolume(kept.id)?.state === 'gone')
   const nemotron = table.find(row => row.id.startsWith('nemotron'))!
   let nextConfirm: any
@@ -197,7 +200,7 @@ try {
   check('stock-watch rental carries the opted-in volume through setup', watched?.volumeId === failVolume.id && watched.jobState === 'ready' && rp.state.createBodies.at(-1).mounts.network[0].volumeId === failVolume.id)
   let deleteAsked = false
   const bothDeleted = await road(async q => {
-    if (q.step === 'where') return 'pod:' + watched.id
+    if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'pod:' + watched.id
     if (q.step === 'pod-controls') return 'terminate'
     if (q.step === 'pod-confirm') return 'terminate'
     if (q.step === 'terminate-weights') { deleteAsked = true; return 'delete' }
@@ -209,7 +212,7 @@ try {
   const otherPod = await api.create(failOffer, sshKey.publicKey, 'fixture-shared-two', shared)
   let liveMountAsked = false
   const failedDelete = await road(async q => {
-    if (q.step === 'where') return 'pod:' + sharedPod.id
+    if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'pod:' + sharedPod.id
     if (q.step === 'pod-controls') return 'terminate'
     if (q.step === 'pod-confirm') return 'terminate'
     if (q.step === 'terminate-weights') { liveMountAsked = true; return 'delete' }
@@ -392,15 +395,15 @@ try {
   check('a model with a disk is not rented blind while the volume list is unreadable', blindRental.includes('cannot be confirmed while Runpod’s volume list is unavailable; no pod was created'))
   let sawUnavailable = false
   let reachedSsh = false
-  await road(async q => { if (q.step === 'where') { sawUnavailable = Boolean(q.rows?.some(row => row.label.includes('volumes unread'))); return 'ssh' } if (q.step === 'ssh-host') reachedSsh = true; return null }, () => {}, signal)
+  await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') { sawUnavailable = Boolean(q.rows?.some(row => row.label.includes('volumes unread'))); return 'ssh' } if (q.step === 'ssh-host') reachedSsh = true; return null }, () => {}, signal)
   check('volume-list failure admits the unknown count without blocking the SSH road', sawUnavailable && reachedSsh)
   const plainPod = await api.create(failOffer, sshKey.publicKey, 'fixture-plain')
   const paidWords: string[] = []
   let paidRows: string[] = []
-  await road(async q => { if (q.step === 'where') return 'pods'; if (q.step === 'paid-pods') paidRows = (q.rows ?? []).map(row => row.value); return null }, update => { paidWords.push(update.words) }, signal)
+  await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'pods'; if (q.step === 'paid-pods') paidRows = (q.rows ?? []).map(row => row.value); return null }, update => { paidWords.push(update.words) }, signal)
   check('an unreadable volume list still lists billed pods for Stop or Terminate and says disks are not shown', paidRows.includes(plainPod.id) && paidWords.some(words => words.includes('Volume list unavailable; weights disks are not shown and may still bill')))
   let reachedRentConfirm = false
-  await road(async q => { if (q.step === 'where') return 'rent'; if (q.step === 'budget') return ''; if (q.step === 'models') return 'Qwen3.8-27B'; if (q.step === 'offers') return '0'; if (q.step === 'rent-confirm') reachedRentConfirm = true; return null }, () => {}, signal)
+  await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'rent'; if (q.step === 'budget') return ''; if (q.step === 'models') return 'Qwen3.8-27B'; if (q.step === 'offers') return '0'; if (q.step === 'rent-confirm') reachedRentConfirm = true; return null }, () => {}, signal)
   check('renting a model without a weights disk needs no volume read, so a volume outage does not block it', reachedRentConfirm)
   rp.state.failVolumeRead = false
   await api.terminate(plainPod.id)

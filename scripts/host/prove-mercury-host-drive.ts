@@ -54,7 +54,10 @@ try {
   const m = mounted
   const flat = () => m.screen().replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ')
   const until = async (text: string) => assert.ok(await waitFor(() => flat().includes(text), 20000), 'screen reaches ' + text + '\n' + m.screen())
-  const heading = async (text: string) => assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(text), 20000), 'heading reaches ' + text + '\n' + m.screen())
+  const heading = async (text: string) => {
+    if (text.startsWith('Where should the model run')) { await until('Which model?'); await choose('Other roads →') }
+    assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(text), 20000), 'heading reaches ' + text + '\n' + m.screen())
+  }
   const capture = (name: string, cols = 140, rows = 44) => {
     assert.ok(!m.screen().includes('RENDER ERROR')); checks++
     if (!frames) return
@@ -95,10 +98,10 @@ try {
   await choose('Choose a model'); await heading('Choose a model for'); await choose('GGUF Q4_K_M'); await heading('Where are the weights?'); await choose('Download to a folder')
   await heading('Download folder'); capture('24-download-destination'); m.push(KEY.enter); await heading('Confirm model service'); await until('~17 GB'); capture('25-download-size-confirm'); await choose('Keep things as they are'); await heading('Computer · this-computer'); await close()
   assert.equal(readFileSync(join(fixture.bank, file), 'utf8').startsWith('virtual bank'), true)
-  open(); await heading('Where should'); await choose('One of my computers'); await heading('One of my computers'); await choose('Add a box over SSH')
+  open(); await heading('Where should the model run?'); await choose('One of my computers'); await heading('One of my computers'); await choose('Add a box over SSH')
   for (const [title, text, frame] of [['Name this computer','drive-remote','16-box-name'],['SSH host','fixture.invalid','17-box-host'],['SSH user','','18-box-user'],['SSH port','','19-box-port'],['Private key path','','20-box-key']] as const) { await heading(title); capture(frame); if(text) { m.push(text); await until(text) } m.push(KEY.enter) }
   await heading('Operating system'); capture('21-box-os'); await choose('macOS'); await heading('Computer · drive-remote'); capture('22-remote-recorded'); await close()
-  open(); await heading('Where should'); await choose('One of my computers'); await heading('One of my computers'); await until('drive-remote'); capture('23-saved-box'); await close()
+  open(); await heading('Where should the model run?'); await choose('One of my computers'); await heading('One of my computers'); await until('drive-remote'); capture('23-saved-box'); await close()
   await Promise.all(images)
   console.log('MERCURY HOST DRIVE GREEN · ' + checks + ' frames; real popup, fixture service binary, no live SSH or model downloads')
 } finally { mounted?.unmount(); await fixture.close() }

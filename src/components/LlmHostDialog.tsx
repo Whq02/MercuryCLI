@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Box, Text, useInput } from '../ink.js'
+import { Box, Text, useInput, wrapText } from '../ink.js'
 import TextInput from './TextInput.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
@@ -79,19 +79,23 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const compact = budget < 10 && !question?.fullDetails
   const rows = question?.rows ?? []
   const titleLines = onLine || !question ? [] : wrapPlain(question.title, width)
-  const baseDetails = compact || !question ? [] : [...wrapPlain(question.found, width), ...wrapPlain(question.willRun, width)].filter(Boolean)
+  const modelDoor = question?.step.startsWith('door-') === true
+  const wrapRow = (text: string, columns: number): string[] => modelDoor ? wrapText(text, Math.max(1, columns), 'wrap').split('\n') : wrapPlain(text, columns)
+  const baseDetails = compact || !question ? [] : [...wrapRow(question.found, width), ...wrapRow(question.willRun, width)].filter(Boolean)
   const disclosure = compact || question?.step !== 'rent-confirm' ? [] : (question.lines ?? []).flatMap(text => wrapPlain(text, width))
   const choiceHint = question?.rows ? rows.some(row => row.value === question.initial) ? words.suggested : words.choose : words.input
   const hours = host ? Math.max(0, now - Date.parse(host.startedAt)) / 3600_000 : 0
   const meter = !host ? '' : host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : host.status === 'WATCHING' ? 'Watching for stock ≤ $' + host.price.toFixed(2) + '/hr · $0.00 billed while watching' : '$' + host.price.toFixed(2) + '/hr × ' + (Number.isFinite(hours) ? hours.toFixed(2) + 'h = $' + (host.price * hours).toFixed(2) + ' so far (estimate; storage extra)' : 'elapsed time unknown')
   const hostLines = compact ? [] : [...wrapPlain(meter, width), ...(host?.step && host.status !== 'TERMINATED' ? wrapPlain(host.step, width) : [])].filter(Boolean)
-  const rowLines = rows.map(row => compact ? [truncateToWidth(row.label, Math.max(1, width - 2))] : wrapPlain(row.label, Math.max(1, width - 2)))
+  const rowDividers = rows.map(row => modelDoor && row.label.startsWith('─') ? row.label.split('\n')[0]! : undefined)
+  const rowLabels = rows.map((row, index) => rowDividers[index] ? row.label.slice(rowDividers[index]!.length + 1) : row.label)
+  const rowLines = rowLabels.map((label, index) => [...(rowDividers[index] ? [rowDividers[index]!] : []), ...(compact ? [truncateToWidth(label, Math.max(1, width - 2))] : wrapRow(label, Math.max(1, width - 2)))])
   const rowsHeight = rowLines.reduce((sum, lines) => sum + lines.length, 0)
   const minimumChoices = question?.rows ? Math.min(8, rowsHeight) : question ? 1 : 3
   const detailLines = [...baseDetails, ...disclosure.slice(0, Math.max(0, budget - titleLines.length - baseDetails.length - hostLines.length - 1 - minimumChoices))]
   const fixed = titleLines.length + detailLines.length + hostLines.length + (question && !compact ? 1 : 0)
   const detailsFit = !question?.fullDetails || !compact && budget >= fixed + rowsHeight
-  const allHistory = compact ? [] : history.flatMap(row => wrapPlain(row.words, width))
+  const allHistory = compact || modelDoor ? [] : history.flatMap(row => wrapPlain(row.words, width))
   const historyBudget = Math.max(0, budget - fixed - minimumChoices - 2)
   const maxLogOffset = Math.max(0, allHistory.length - historyBudget)
   const logEnd = Math.max(historyBudget, allHistory.length - Math.min(logOffset, maxLogOffset))
@@ -129,7 +133,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
       {!compact && detailsFit ? <Text color={tokens.textMuted}>{choiceHint}</Text> : null}
       {!detailsFit ? null : question.rows ? <>
         {!compact && window.above > 0 ? <Text color={tokens.textMuted}>↑ {window.above} more</Text> : null}
-        {rowLines.slice(window.start, window.end).map((lines, index) => <Box key={rows[window.start + index]!.value} flexDirection="column">{lines.map((text, part) => <Text key={part} color={cursor === window.start + index ? tokens.textPrimary : tokens.textSecondary} bold={cursor === window.start + index}>{part === 0 && cursor === window.start + index ? '› ' : '  '}{text}</Text>)}</Box>)}
+        {rowLines.slice(window.start, window.end).map((lines, index) => { const at = window.start + index; const first = rowDividers[at] ? 1 : 0; return <Box key={rows[at]!.value} flexDirection="column">{lines.map((text, part) => part < first ? <Text key={part} color={tokens.textMuted}>{text}</Text> : <Text key={part} color={cursor === at ? tokens.textPrimary : tokens.textSecondary} bold={cursor === at}>{part === first && cursor === at ? '› ' : '  '}{text}</Text>)}</Box> })}
         {!compact && window.below > 0 ? <Text color={tokens.textMuted}>↓ {window.below} more</Text> : null}
       </> : <TextInput key={question.step} value={value} onChange={setValue} cursorOffset={offset} onChangeCursorOffset={setOffset} columns={Math.max(1, width - 2)} maxVisibleLines={1} mask={question.secret ? '*' : undefined} multiline={false} onSubmit={text => { if (pastOpenEvent()) answer(text) }} onEscape={stop} disableEscapeDoublePress />}
     </> : result ? <>

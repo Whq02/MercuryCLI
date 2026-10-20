@@ -20,8 +20,8 @@ if (bundle) {
   try {
     const shots = grabScreens(arena, 120, 44, [7000, 9000, 11000, 13000].map(vshotBudgetMs))
     if (frames) shots.forEach((shot, index) => writeFileSync(join(frames, 'bundle-' + index + '.txt'), shot.rows.join('\n')))
-    check('built /llmhost opens the three-door popup', shots.some(shot => shot.rows.join(' ').includes('Where should the model run?')))
-    check('built popup includes rental, SSH and existing-server roads', shots.some(shot => { const text = shot.rows.join(' '); return text.includes('Rent a GPU') && text.includes('reach by SSH') && text.includes('already running') }))
+    check('built /llmhost opens the model-first popup', shots.some(shot => shot.rows.join(' ').includes('Which model?')))
+    check('built popup includes model choices and the existing roads link', shots.some(shot => { const text = shot.rows.join(' '); return text.includes('GLM-5.3-Flash') && text.includes('My computers') && text.includes('Other roads') }))
   } finally { arena.cleanup() }
 }
 const f = await llmhostFixture()
@@ -50,7 +50,10 @@ try {
   mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 44 }, React.createElement(SettingsPopupSlot)))), 120, 44)
   const m = mounted
   const until = async (needle: string) => assert.ok(await waitFor(() => m.screen().includes(needle), 15_000), 'screen reaches ' + needle + '\n' + m.screen())
-  const heading = async (needle: string) => assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(needle), 15000), 'active question reaches ' + needle + '\n' + m.screen())
+  const heading = async (needle: string) => {
+    if (needle === 'Where should the model run?') { await until('Which model?'); await choose('Other roads →') }
+    assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(needle), 15000), 'active question reaches ' + needle + '\n' + m.screen())
+  }
   const images: Promise<unknown>[] = []
   const capture = (name: string) => {
     check(name + ' paints without errors or a key', !m.screen().includes('RENDER ERROR') && !m.screen().includes(rp.key))

@@ -126,7 +126,7 @@ try {
   let job: Promise<void> | undefined
   let confirmWords = ''
   const road = createHostRoad({ apiBaseUrl: rp.baseUrl, runner: ssh.runner, pauseMs: 5, readyTimeoutMs: 3000, startJob: record => { job = runHostJob(record.id, record.generation!, { runner: ssh!.runner, pauseMs: 10, timeoutMs: 3000, keepAlive: false }) } })
-  const answers: Record<string, string> = { where: 'rent', budget: '', models: modelTitle, offers: '0' }
+  const answers: Record<string, string> = { 'door-models': 'other', where: 'rent', budget: '', models: modelTitle, offers: '0' }
   const rented = await road(async question => {
     if (question.step === 'rent-confirm') { confirmWords = question.willRun; check('rent road exposes Tune', question.rows?.some(row => row.value === 'tune')); return 'rent' }
     if (question.step === 'pod-controls') return 'close'
@@ -175,7 +175,7 @@ try {
   let sawTune = false
   let enteredTune = false
   await road(async question => {
-    if (question.step === 'where') return 'pod:' + record.id
+    if (question.step === 'door-models') return 'other'; if (question.step === 'where') return 'pod:' + record.id
     if (question.step === 'pod-controls') { sawTune = question.rows?.some(row => row.value === 'tune') ?? false; if (enteredTune) return 'close'; enteredTune = true; return 'tune' }
     if (question.step === 'tune-quality') return glm.id
     if (question.step === 'tune-context') return question.rows?.find(row => row.label.startsWith('1 × 1M'))?.value ?? null
