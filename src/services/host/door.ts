@@ -40,7 +40,7 @@ interface ModelDoorDeps {
   budgetLines?: typeof budgetLines
   qualityWords?: (recipe: HostRecipe) => string
   thinkingWords?: (recipe: HostRecipe) => string
-  confirmRental?: (offer: HostOffer, offers: readonly HostOffer[], ask: Ask, emit: Emit, signal: AbortSignal) => Promise<boolean>
+  confirmRental?: Ask
   initialModel?: string
 }
 type RecipeFacts = HostRecipe & { weightsGb?: number; setup?: { engineMinutes?: number; weightsMinutes?: number; loadMinutes?: number } }
@@ -177,12 +177,16 @@ async function enterRoad(deps: ModelDoorDeps, ask: Ask, emit: Emit, signal: Abor
       return selected.value
     }
     if (plan.step === 'rent-confirm' && chosenOffer && selecting) {
+      if (deps.confirmRental) {
+        selecting = false
+        chosenOffer = undefined
+        return deps.confirmRental(plan)
+      }
       const expected = chosenOffer.recipe.label + ' · ' + shape(chosenOffer.recipe) + ' · ' + hourly(chosenOffer.price) + (chosenOffer.dataCenter ? ' · ' + chosenOffer.dataCenter : '')
       if (plan.found !== expected) throw new Error('That offer changed. Open the model again for fresh stock and prices; no pod was created.')
       const picked = chosenOffer
       selecting = false
       chosenOffer = undefined
-      if (deps.confirmRental) return await deps.confirmRental(picked, offers, ask, emit, signal) ? 'rent' : 'cancel'
       const disclosure = vendor ? vendor.label + ' · Rent ' + shape(picked.recipe) + ' at ' + hourly(picked.price) + (picked.dataCenter ? ' in ' + picked.dataCenter : '') + ' · ' + modelTitle(picked.recipe) + ' · ' + qualityWords(picked.recipe) + ' · ' + conversationWords(picked.recipe) + ' · thinking ' + (deps.thinkingWords ?? thinkingWords)(picked.recipe) + ' · ' + readyWords(picked.recipe) + '\n' + vendorStorage(vendor.vendor as HostVendorId) + '\n' + vendorKeyNotice(vendor.vendor as HostVendorId) + '\nBilling starts now. Closing this window does not stop it. Mercury tells you when it’s ready. If initial setup fails, Mercury terminates the instance and verifies it is gone.' : rentalSentence(picked, (deps.thinkingWords ?? thinkingWords)(picked.recipe))
       return ask({ step: 'door-confirm', title: 'Confirm the rental', found: disclosure, willRun: 'Escape keeps things as they are.', rows: [{ value: 'rent', label: 'Confirm ' + hourly(picked.price) + (vendor ? '' : ' + storage') }, { value: 'cancel', label: 'Keep things as they are' }] })
     }
@@ -194,7 +198,7 @@ async function enterRoad(deps: ModelDoorDeps, ask: Ask, emit: Emit, signal: Abor
 }
 
 export function rentDoorVendor(road: LlmHostRoad, vendor: DoorVendor, offer: HostOffer, ask: Ask, emit: Emit, signal: AbortSignal): Promise<LlmHostResult> {
-  return enterRoad({ road, offers: async () => [offer], pods: async () => [], records: () => [] }, ask, emit, signal, 'rent', offer.recipe, offer, [offer], vendor)
+  return enterRoad({ road, confirmRental: ask, offers: async () => [offer], pods: async () => [], records: () => [] }, ask, emit, signal, 'rent', offer.recipe, offer, [offer], vendor)
 }
 
 export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, deps: ModelDoorDeps): Promise<LlmHostResult> {

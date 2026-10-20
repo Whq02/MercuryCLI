@@ -95,7 +95,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const detailLines = [...baseDetails, ...disclosure.slice(0, Math.max(0, budget - titleLines.length - baseDetails.length - hostLines.length - 1 - minimumChoices))]
   const fixed = titleLines.length + detailLines.length + hostLines.length + (question && !compact ? 1 : 0)
   const detailsFit = !question?.fullDetails || !compact && budget >= fixed + rowsHeight
-  const allHistory = compact ? [] : history.flatMap(row => wrapPlain(row.words, width))
+  const allHistory = compact || modelDoor || question?.step === 'rent-confirm' || question?.step.startsWith('tune-') ? [] : history.flatMap(row => wrapPlain(row.words, width))
   const historyBudget = Math.max(0, budget - fixed - minimumChoices - 2)
   const maxLogOffset = Math.max(0, allHistory.length - historyBudget)
   const logEnd = Math.max(historyBudget, allHistory.length - Math.min(logOffset, maxLogOffset))

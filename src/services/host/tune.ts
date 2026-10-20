@@ -189,7 +189,7 @@ export async function confirmTunedRental(initial: HostOffer, offers: readonly Ho
     const decor = decorate ? await decorate(offer) : {}
     const confirm = await ask({ step: 'rent-confirm', ...(decor.lines ? { lines: decor.lines } : {}), title: words.rentalConfirm + (decor.titleSuffix ?? ''), found: recipe.label + ' · ' + hostShape(recipe) + ' · ' + rate(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + (budget ? ' · ~' + (budget / offer.price).toFixed(1) + 'h for $' + budget : ''), willRun: refusal || (decor.willRun ?? recipe.verified.by + ' · ' + recipe.verification + ' · ' + (context ? context.toLocaleString('en-US') + ' context · ' : '') + recipe.diskGb + ' GB disk (extra). Billing starts now.') + ' · Tune: ' + tuneSummary(prefs, recipe), rows: [{ value: 'tune', label: 'Tune: ' + tuneSummary(prefs, recipe) + ' — change' }, ...(refusal ? [] : [{ value: 'rent', label: decor.confirmLabel ?? 'Confirm ' + rate(offer.price) + ' + storage · create this pod' }]), { value: 'cancel', label: words.cancel }] })
     if (signal.aborted) return
-    if (confirm === 'tune') { await runTune(title, { recipes: currentHostRecipes(), offers, signal }, ask, emit); continue }
+    if (confirm === 'tune') { await runTune(title, { recipes: [recipe, ...currentHostRecipes().filter(row => row.id !== recipe.id)], offers, signal }, ask, emit); continue }
     if (confirm !== 'rent') return
     if (refusal) continue
     saveTunePreferences(title, prefs)
