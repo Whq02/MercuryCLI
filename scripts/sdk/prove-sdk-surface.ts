@@ -47,11 +47,18 @@ const permission = { jsonrpc: '2.0', id: 901, method: 'permission/request', para
 const methods: Record<string, any[]> = Object.fromEntries(Object.entries(sdk.METHODS).filter(([, s]) => s.from === 'host' && s.kind === 'request').map(([name, s]) => [name, [{ result: example(s.result) }]]))
 methods.initialize = [{ result: { protocol: 1, runner: { version: 'fixture', pid: 1 }, session_id: 'fixture' } }]
 methods['queue/add'] = [{ result: { accepted: true }, after: [permission] }]
+const reverse = Object.entries(sdk.METHODS).filter(([, s]) => s.from === 'runner' && s.kind === 'request')
+methods['session/facts']![0].before = reverse.map(([name, spec], i) => ({ jsonrpc: '2.0', id: 1000 + i, method: name, params: example(spec.params) }))
+const notifications = Object.entries(sdk.METHODS).filter(([, spec]) => spec.from === 'runner' && spec.kind === 'notification' && spec !== sdk.METHODS.row)
+methods['session/facts']![0].before.push(...notifications.map(([method, spec]) => ({ jsonrpc: '2.0', method, params: example(spec.params) })))
+const handlers = Object.fromEntries(reverse.map(([name, spec]) => [name, () => example(spec.result)])) as sdk.HostHandlers
 const rpc = await startFixtureServer({ methods, answers: { '901': [{ jsonrpc: '2.0', method: 'row', params: future }, { jsonrpc: '2.0', method: 'row', params: outcome }] } })
 try {
   let askSeen = false
-  const s = await sdk.connect({ mercury: rpc.mercury, onPermissionRequest: async ask => { askSeen = ask.tool_name === 'Read'; return { outcome: 'deny', message: 'fixture policy' } } })
+  const s = await sdk.connect({ mercury: rpc.mercury, handlers, onPermissionRequest: async ask => { askSeen = ask.tool_name === 'Read'; return { outcome: 'deny', message: 'fixture policy' } } })
   try {
+    const notices: string[] = []
+    s.on('notification', n => notices.push(n.method))
     const result = await s.prompt('hello')
     assert.equal(result.status, 'completed')
     assert.equal(askSeen, true)
@@ -60,8 +67,12 @@ try {
       if (spec.from !== 'host' || spec.kind !== 'request' || ['initialize', 'queue/add'].includes(name)) continue
       assert.deepEqual(await s.request(name as sdk.HostRequestName, example(spec.params)), example(spec.result), name)
     }
+    for (const [name, spec] of Object.entries(sdk.METHODS)) if (spec.from !== 'runner' && spec.kind === 'notification') s.notify(name as sdk.HostNotificationName, example(spec.params))
+    assert(notifications.every(([name]) => notices.includes(name)))
+    for (let i = 0; i < reverse.length; i++) assert(rpc.received.some(r => r.id === 1000 + i && 'result' in r), reverse[i]![0])
     assert(rpc.received.some(r => r.id === 901 && (r.result as any)?.outcome === 'deny'))
   } finally { await s.close() }
+  for (const [name, spec] of Object.entries(sdk.METHODS)) if (spec.from !== 'runner' && spec.kind === 'notification') assert(rpc.received.some(r => r.method === name), name)
 } finally { await rpc.close() }
 
 const tools = await sdk.serveTools([sdk.defineTool({ name: 'echo', description: 'Echo', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, execute: (input: { text: string }) => input.text })])

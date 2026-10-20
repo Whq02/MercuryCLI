@@ -66,7 +66,7 @@ try {
 
 `onPermissionRequest` and `onElicitation` answer asks. `handlers` covers all runner-to-host requests, including files, terminals and schedules; explicitly advertise the corresponding capabilities when supplying those handlers. No permission handler means deny; no elicitation handler means decline. The callback receives an abort signal when the runner cancels its ask. Input rewriting and rule grants use generated answer types. `claim` works only when the runner permits it; a normal standalone runner already has a session identity.
 
-Both doors accept `mercury: ['ssh', 'host', 'mercury']` or another executable/argument array. `argvOf()` previews run arguments. `extraArgs` passes additional CLI flags without a shell. Close sessions in `finally`, or use `await using`. `close()` ends stdin and terminates an unresponsive child after five seconds.
+Both doors accept `mercury: ['ssh', 'host', 'mercury']` or another executable/argument array. `argvOf()` previews run arguments. `extraArgs` passes additional CLI flags without a shell. Close sessions in `finally`, or use `await using`. `close()` ends stdin and terminates an unresponsive child after five seconds, then kills it after ten seconds if it still has not exited.
 
 ## Inline tools and agents
 

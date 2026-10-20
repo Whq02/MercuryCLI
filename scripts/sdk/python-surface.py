@@ -1,10 +1,15 @@
 import asyncio
 import json
 import sys
+import typing
+import mercury_cli_sdk.generated as generated
 import urllib.request
 from mercury_cli_sdk import *
 from mercury_cli_sdk.testing import start_fixture_server
 
+for name in generated.__all__:
+    value = getattr(generated, name)
+    if typing.is_typeddict(value): typing.get_type_hints(value)
 fixture = json.load(open(sys.argv[1]))
 for row in fixture['rows']:
     read = parse_row(json.dumps(row))
@@ -42,13 +47,24 @@ async def main():
     async def guard(ask, context):
         asks.append(ask)
         return {'outcome': 'deny', 'message': 'fixture policy'}
+    handlers = {name: (lambda params, context, spec=spec: sample(spec['result'])) for name, spec in METHODS.items() if spec['from'] == 'runner' and spec['kind'] == 'request'}
     async with await start_fixture_server({'methods': methods, 'answers': {'901': [{'jsonrpc': '2.0', 'method': 'row', 'params': fixture['outcome']}]}}) as server:
-        async with await connect(mercury=server.mercury, on_permission_request=guard) as session:
+        async with await connect(mercury=server.mercury, handlers=handlers, on_permission_request=guard) as session:
             assert (await session.prompt('hello'))['status'] == 'completed'
             assert asks[0]['tool_name'] == 'Read'
+            notices = []
+            session.on('notification', lambda message: notices.append(message['method']))
             for name, spec in METHODS.items():
                 if spec['from'] != 'host' or spec['kind'] != 'request' or name in ('initialize', 'queue/add'): continue
                 assert await session.request(name, sample(spec['params'])) == sample(spec['result']), name
+            for name, spec in METHODS.items():
+                if spec['from'] != 'runner' and spec['kind'] == 'notification': await session.notify(name, sample(spec['params']))
+            assert {'session/applied', 'elicitation/complete'}.issubset(notices)
+            await asyncio.sleep(0)
+            answers = [r for r in server.received if isinstance(r.get('id'), int) and r['id'] >= 1000 and 'result' in r]
+            assert len(answers) == len(handlers), answers
+        for name, spec in METHODS.items():
+            if spec['from'] != 'runner' and spec['kind'] == 'notification': assert any(r.get('method') == name for r in server.received), name
     async with await start_fixture_server({'rows': rows}) as server:
         result = await asyncio.to_thread(run_sync, 'hello', mercury=server.mercury)
         assert result.outcome['answer'] == 'fixture answer' and result.exit.code == 0

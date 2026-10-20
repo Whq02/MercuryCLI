@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -26,6 +26,9 @@ try {
     const source = readFileSync(join(scratch, 'sdk/dist', name.replace('.ts', '.js')), 'utf8')
     for (const m of source.matchAll(/from ['"]([^'"]+)['"]/g)) assert(m[1]!.startsWith('node:') || m[1]!.startsWith('./'), m[1])
   }
+  const pyright = [join(root, 'vendor/pyright/extracted/index.js'), join(root, 'vendor/pyright/index.js')].find(existsSync)
+  assert(pyright, 'the vendored Python type checker must be installed')
+  command('node', [pyright, '--pythonversion', '3.11', '--level', 'error', join(scratch, 'sdk-py/src/mercury_cli_sdk')], scratch)
   command('python3', ['-I', '-S', join(scratch, 'sdk-py/build_backend.py'), join(scratch, 'artifacts')], scratch)
   const wheel = readdirSync(join(scratch, 'artifacts')).find(f => f.endsWith('.whl'))!
   command('python3', ['-I', '-S', '-c', `import sys,zipfile;sys.path.insert(0,${JSON.stringify(join(scratch, 'artifacts', wheel))});import mercury_cli_sdk as s;assert s.__version__=='0.1.0';assert len(s.ROW_SCHEMAS)==25;assert callable(s.connect_sync);z=zipfile.ZipFile(sys.path[0]);assert 'mercury_cli_sdk/py.typed' in z.namelist();assert b'Requires-Dist:' not in z.read('mercury_cli_sdk-0.1.0.dist-info/METADATA')`], scratch)

@@ -1,25 +1,16 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { connect, run, defineAgent, defineTool, serveTools, MercuryRefusal, type MercurySession, type StreamRow } from '../../sdk/src/index.ts'
+import { connect, run, defineAgent, defineTool, serveTools, MercuryRefusal } from '../../sdk/src/index.ts'
+import { startFixtureServer } from '../../sdk/src/testing.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const mercury = ['node', join(root, 'dist/mercury.mjs')]
 const guard = setTimeout(() => { console.error('FAIL SDK live doors timed out'); process.exit(1) }, 240000)
-const wait = (session: MercurySession, predicate: (row: StreamRow) => boolean) => {
-  const old = session.rows.find(predicate)
-  if (old) return Promise.resolve(old)
-  return new Promise<StreamRow>((resolve, reject) => {
-    const timer = setTimeout(() => { cleanup(); reject(new Error('row deadline')) }, 60000)
-    const onRow = (row: StreamRow) => { if (predicate(row)) { cleanup(); resolve(row) } }
-    const cleanup = () => { clearTimeout(timer); session.off('row', onRow) }
-    session.on('row', onRow)
-  })
-}
 async function context(turns: (cwd: string) => ScriptedTurn[]) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'sdk-live-')))
   const cwd = join(home, 'project'); mkdirSync(cwd)
@@ -64,6 +55,8 @@ try {
     await task.sendPrompt('hello from rows'); task.closeInput()
     assert.equal((await task.outcome).answer, 'Streaming input arrived.')
     assert.equal((await task.exit).code, 0)
+    const replay = await startFixtureServer({ rows: task.rows as unknown as Record<string, unknown>[] })
+    try { assert.deepEqual(await run({ mercury: replay.mercury, prompt: 'replay' }).outcome, await task.outcome) } finally { await replay.close() }
     console.log('PASS TypeScript live streaming input')
   } finally { await streaming.close() }
 
@@ -82,6 +75,8 @@ try {
     { kind: 'tool_use', name: 'Write', input: { file_path: join(cwd, 'denied-python.txt'), content: 'never' } },
     { kind: 'text', text: 'Python host answered.' },
     { kind: 'hang', deltas: ['python open'] },
+    { kind: 'tool_use', name: 'mcp__sdktools__echo', input: { text: 'Python inline result' } },
+    { kind: 'text', text: 'Python inline finished.' },
   ])
   try {
     const child = spawn('python3', [join(root, 'scripts/sdk/python-live.py'), JSON.stringify(mercury), py.cwd], { env: { ...py.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })

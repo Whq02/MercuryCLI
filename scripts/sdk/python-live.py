@@ -2,7 +2,9 @@ import asyncio
 import json
 from pathlib import Path
 import sys
-from mercury_cli_sdk import run, connect, MercuryRefusal
+from mercury_cli_sdk import run, connect, MercuryRefusal, serve_tools, define_tool, define_agent
+
+from mercury_cli_sdk.testing import start_fixture_server
 
 mercury = json.loads(sys.argv[1])
 cwd = sys.argv[2]
@@ -14,7 +16,10 @@ async def main():
     task.close_input()
     outcome = await asyncio.wait_for(task.outcome, 60)
     assert outcome['answer'] == 'Python run works.' and (await task.exit).code == 0
-    print('PASS Python live run streaming input', flush=True)
+    async with await start_fixture_server({'rows': task.rows}) as replay:
+        consumer = await run('replay', mercury=replay.mercury)
+        assert await consumer.outcome == outcome
+    print('PASS Python live run streaming input and recorded-row replay', flush=True)
     asks = []
     async def guard(ask, context):
         asks.append(ask)
@@ -40,5 +45,13 @@ async def main():
         assert (await session.interrupt())['interrupted']
         assert (await asyncio.wait_for(second, 60))['status'] == 'interrupted'
     print('PASS Python live runner initialize, host permission, mid-turn queue/add, withdrawal, interrupt, facts and refusal', flush=True)
+    tool = define_tool('echo', 'Echo', {'type': 'object', 'properties': {'text': {'type': 'string'}}, 'required': ['text']}, lambda p: p['text'])
+    async with await serve_tools([tool], 'sdktools') as tools:
+        agent = define_agent({'description': 'SDK reader', 'prompt': 'Use echo.'})
+        task = await run('Use echo', mercury=mercury, cwd=cwd, mode='sovereign', ephemeral=True, mcp=[tools.mcp], agent='sdk-reader', agent_defs={'sdk-reader': agent})
+        assert (await task.outcome)['status'] == 'completed'
+        assert any(r['type'] == 'tool_result' and 'Python inline result' in r['output'] for r in task.rows)
+        assert 'sdk-reader' in (await task.session)['agents']
+    print('PASS Python live inline MCP callback and agent definition', flush=True)
 
 asyncio.run(main())

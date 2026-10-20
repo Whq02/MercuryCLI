@@ -26,7 +26,7 @@ const ROW = {
   assets: 'sdk/src/rows.ts sdk/src/door.ts sdk/src/wire.ts sdk-py/src/mercury_cli_sdk/generated.py sdk/README.md sdk-py/README.md',
   generator: `bun ${GENERATOR}`,
   check: 'bun scripts/sdk/prove-rows-drift.ts',
-  sources: `${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN} ${WIRE} ${ERRORS} src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts`,
+  sources: `${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN} ${WIRE} ${ERRORS} src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts src/types/message.ts src/utils/deadline.ts src/utils/lazySchema.ts src/components/mercury-ui/glyphs.ts src/ink/stringWidth.ts src/ink/wrap-text.ts src/ink/wrapAnsi.ts src/utils/intl.ts src/utils/sliceAnsi.ts src/utils/truncate.ts`,
 }
 if (argv.includes('--register')) {
   const { registerGeneratedAsset } = (await import(join(ROOT, 'scripts/lib/generated-assets-map.mjs'))) as { registerGeneratedAsset: (row: typeof ROW) => { action: string; line: string } }
@@ -422,6 +422,10 @@ const pyData = { ROWS_SCHEMA: rowsSchema, ...listValues, OUTCOME_EXIT_CODES: exi
   RUNNER_PROTOCOL: wireSource.RUNNER_PROTOCOL, METHODS: methodSchemas,
   ...Object.fromEntries(Object.entries(wireErrors).filter(([n, v]) => /^(RPC_\w+|BAD_LINE_LIMIT|MAX_LINE_BYTES|REFUSAL_KINDS)$/.test(n) && typeof v !== 'function')) }
 for (const [name, value] of Object.entries(pyData)) py.push(`${name} = json.loads(${JSON.stringify(JSON.stringify(value))})`)
+for (const [name, values] of Object.entries({ RowType: listValues.ROW_TYPES, PartialRowType: listValues.PARTIAL_ROW_TYPES, InputRowType: listValues.INPUT_ROW_TYPES, OutcomeStatus: listValues.OUTCOME_STATUSES, StopWord: listValues.STOP_WORDS, ErrorClass: listValues.ERROR_CLASSES, PermissionMode: permissions.PERMISSION_MODES, EffortLevel: effort.EFFORT_LEVELS, RunFormat: formatOption.choices! })) {
+  py.push(`${name}: TypeAlias = Literal[${values.map(pyLit).join(', ')}]`)
+  pyNames.push(name)
+}
 py.push(`__all__ = ${JSON.stringify([...pyNames, ...Object.keys(pyData)])}`, '')
 
 const outputs: Array<[string, string]> = [

@@ -5,7 +5,7 @@ import json
 import signal
 import uuid
 from dataclasses import dataclass
-from typing import Any, Callable, AsyncIterator
+from typing import Any, Callable, AsyncIterator, cast
 from .client import RunOptions, argv_of
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryWireError, RunExit
 from .generated import METHODS, RUNNER_PROTOCOL, RPC_REFUSED, MAX_LINE_BYTES, InputRow, OutcomeRow
@@ -21,6 +21,10 @@ class RequestContext:
 class MercurySession:
     def __init__(self, child: asyncio.subprocess.Process, handlers: dict[str, Callable]):
         self.child = child
+        assert child.stdin is not None and child.stdout is not None and child.stderr is not None
+        self._stdin = child.stdin
+        self._stdout = child.stdout
+        self._stderr = child.stderr
         self.handlers = handlers
         self.initialized: dict = {}
         self.rows: list[StreamRow] = []
@@ -48,8 +52,8 @@ class MercurySession:
 
     async def _write(self, value: Any) -> None:
         if self._closed: raise self._closed
-        self.child.stdin.write((json.dumps(value) + '\n').encode())
-        await self.child.stdin.drain()
+        self._stdin.write((json.dumps(value) + '\n').encode())
+        await self._stdin.drain()
 
     async def request(self, method: str, params: Any = None, *, timeout: float | None = None) -> Any:
         spec = METHODS.get(method)
@@ -111,14 +115,19 @@ class MercurySession:
             self._asks.pop(id, None)
 
     async def _read(self) -> None:
-        stderr = asyncio.create_task(self.child.stderr.read())
+        stderr = asyncio.create_task(self._stderr.read())
         try:
-            async for data in self.child.stdout:
+            async for data in self._stdout:
                 line = data.decode('utf-8')
                 message = json.loads(line)
                 if not isinstance(message, dict) or message.get('jsonrpc') != '2.0': raise MercuryWireError(line, 'invalid')
                 method, id = message.get('method'), message.get('id')
                 if method is None:
+                    if not isinstance(id, int) or isinstance(id, bool) or id <= 0: raise MercuryWireError(line, 'invalid')
+                    if ('result' in message) == ('error' in message): raise MercuryWireError(line, 'invalid')
+                    if 'error' in message:
+                        error = message['error']
+                        if not isinstance(error, dict) or type(error.get('code')) is not int or not isinstance(error.get('message'), str): raise MercuryWireError(line, 'invalid')
                     entry = self._pending.get(id)
                     if entry is None: continue
                     sent, future = entry
@@ -137,13 +146,15 @@ class MercurySession:
                         ask[0].cancelled.set()
                         ask[1].cancel()
                 elif id is not None:
+                    if type(id) is not int or id <= 0: raise MercuryWireError(line, 'invalid')
                     context = RequestContext(id, asyncio.Event())
                     task = asyncio.create_task(self._answer(message, context))
                     self._asks[id] = (context, task)
                 elif method == 'row':
                     read = row_of(message.get('params'))
-                    if not read.ok: raise MercuryWireError(line, read.reason, read.type, read.issues)
+                    if not read.ok: raise MercuryWireError(line, read.reason or 'invalid', read.type, read.issues)
                     row = read.row
+                    assert row is not None
                     self.rows.append(row)
                     self._queue.put_nowait(row)
                     self._emit('row', row)
@@ -173,7 +184,7 @@ class MercurySession:
         return await self.request('queue/add', row)
 
     async def send_prompt(self, content: Any, **options: Any) -> dict:
-        return await self.send({**options, 'type': 'prompt', 'content': content})
+        return await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content}))
 
     async def send_shell(self, command: str) -> dict:
         return await self.send({'type': 'shell', 'command': command})
@@ -214,11 +225,14 @@ class MercurySession:
     async def claim(self, **params: Any) -> dict: return await self.request('session/claim', params)
 
     async def close(self) -> None:
-        if not self._closed: self.child.stdin.close()
+        self._stdin.close()
         try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
         except asyncio.TimeoutError:
             if self.child.returncode is None: self.child.terminate()
-            await self.exit
+            try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
+            except asyncio.TimeoutError:
+                if self.child.returncode is None: self.child.kill()
+                await self.exit
 
     async def __aenter__(self) -> MercurySession: return self
     async def __aexit__(self, *exc: Any) -> None: await self.close()
@@ -234,7 +248,7 @@ async def connect(*, on_permission_request: Callable | None = None, on_elicitati
     opts = options or RunOptions(**kwargs)
     if opts.session_id is None: opts.session_id = str(uuid.uuid4())
     args = argv_of(opts)
-    i = args.index('run')
+    i = (1 if isinstance(opts.mercury, str) else len(opts.mercury)) + (2 if opts.project is not None else 0)
     args[i:i + 3] = ['runner']
     callbacks = dict(handlers or {})
     if on_permission_request: callbacks['permission/request'] = on_permission_request

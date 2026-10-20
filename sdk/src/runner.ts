@@ -38,7 +38,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
 
   constructor(options: ConnectOptions = {}) {
     const argv = argvOf({ ...options, sessionId: options.sessionId ?? randomUUID() })
-    const door = argv.args.indexOf('run')
+    const lead = Array.isArray(options.mercury) ? options.mercury.length - 1 : 0
+    const door = lead + (options.project !== undefined ? 2 : 0)
     argv.args.splice(door, 3, 'runner')
     this.#handlers = { ...options.handlers }
     if (options.onPermissionRequest) this.#handlers['permission/request'] = options.onPermissionRequest
@@ -112,6 +113,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     try { msg = JSON.parse(line) } catch { throw new MercuryWireError(line, 'not_json', undefined, [], null) }
     if (!msg || msg.jsonrpc !== '2.0') throw new MercuryWireError(line, 'invalid', undefined, [], null)
     if (typeof msg.method !== 'string') {
+      if (!Number.isInteger(msg.id) || msg.id <= 0 || ('result' in msg) === ('error' in msg)) throw new MercuryWireError(line, 'invalid', undefined, [], null)
+      if ('error' in msg && (!msg.error || typeof msg.error.message !== 'string' || !Number.isInteger(msg.error.code))) throw new MercuryWireError(line, 'invalid', undefined, [], null)
       const pending = this.#pending.get(msg.id)
       if (!pending) return
       this.#pending.delete(msg.id); pending.cleanup()
@@ -138,6 +141,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       } else this.#emit('notification', { method: msg.method, params: msg.params })
       return
     }
+    if (!Number.isInteger(msg.id) || msg.id <= 0) throw new MercuryWireError(line, 'invalid', msg.method, [], null)
     const method = msg.method as RunnerRequestName
     const spec = METHODS[method as MethodName]
     const controller = new AbortController()
@@ -209,9 +213,10 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   }
 
   async close(): Promise<void> {
-    if (!this.#closed) this.child.stdin!.end()
-    const timer = setTimeout(() => this.child.kill('SIGTERM'), 5000)
-    try { await this.exit } finally { clearTimeout(timer) }
+    this.child.stdin!.end()
+    const terminate = setTimeout(() => this.child.kill('SIGTERM'), 5000)
+    const kill = setTimeout(() => this.child.kill('SIGKILL'), 10000)
+    try { await this.exit } finally { clearTimeout(terminate); clearTimeout(kill) }
   }
   async [Symbol.asyncDispose](): Promise<void> { await this.close() }
 }

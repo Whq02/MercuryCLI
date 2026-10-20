@@ -125,6 +125,7 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
   readonly exit: Promise<RunExit>
   readonly child: ChildProcess
 
+  #abortCleanup: (() => void) | undefined
   #streaming: boolean
   #listeners = new Map<string, Set<Listener>>()
   #buffer = ''
@@ -184,7 +185,11 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
     if (options.input !== 'rows') this.child.stdin!.end()
     if (options.signal !== undefined) {
       if (options.signal.aborted) this.interrupt()
-      else options.signal.addEventListener('abort', () => this.interrupt(), { once: true })
+      else {
+        const abort = () => { this.interrupt() }
+        options.signal.addEventListener('abort', abort, { once: true })
+        this.#abortCleanup = () => options.signal!.removeEventListener('abort', abort)
+      }
     }
   }
 
@@ -297,6 +302,7 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
   #settle(code: number | null, signal: NodeJS.Signals | null): void {
     if (this.#settled) return
     this.#settled = true
+    this.#abortCleanup?.()
     if (this.#buffer.trim() !== '') this.#line(this.#buffer)
     this.#buffer = ''
     const exit: RunExit = { code, signal, stderr: this.#stderr }

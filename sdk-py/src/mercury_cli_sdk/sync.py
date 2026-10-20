@@ -53,6 +53,14 @@ class SyncSession:
         if inspect.iscoroutinefunction(value): return lambda *args, **kwargs: self._wait(value(*args, **kwargs))
         return value
 
+    def on(self, type: str, listener: Any) -> SyncSession:
+        self._loop.call_soon_threadsafe(self.session.on, type, listener)
+        return self
+
+    def off(self, type: str, listener: Any) -> SyncSession:
+        self._loop.call_soon_threadsafe(self.session.off, type, listener)
+        return self
+
     def _stop(self) -> None:
         self._loop.call_soon_threadsafe(self._loop.stop)
         self._thread.join()

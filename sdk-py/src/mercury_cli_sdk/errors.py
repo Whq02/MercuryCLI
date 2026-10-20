@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Mapping
+from .generated import OutcomeRow
 
 
 @dataclass(frozen=True)
@@ -19,8 +20,8 @@ class MercuryError(Exception):
 
 
 class MercuryRefusal(MercuryError):
-    def __init__(self, outcome: dict | None, exit: RunExit | None = None, *, rpc: dict | None = None):
-        error = rpc or (outcome or {}).get('error', {})
+    def __init__(self, outcome: OutcomeRow | None, exit: RunExit | None = None, *, rpc: dict | None = None):
+        error: Mapping[str, Any] = rpc or (outcome.get('error', {}) if outcome is not None else {})
         super().__init__(error.get('message', 'The request was refused'), exit, code=error.get('code'), data=error.get('data'))
         self.outcome = outcome
         self.error_class = error.get('class', 'option')

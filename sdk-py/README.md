@@ -66,7 +66,7 @@ asyncio.run(main())
 
 Use `send_prompt` rather than overlapping `prompt` calls to queue words during a turn. `prompt` awaits the next outcome; use a single active turn when you need that association. `on_permission_request` and `on_elicitation` may be sync or async functions. Other runner requests use the `handlers` mapping; explicitly advertise corresponding file/terminal capabilities. No permission handler means deny; no elicitation handler means decline. `RequestContext.cancelled` is set and the callback task cancelled when the runner cancels its ask. `claim` works only when the runner permits it; a normal standalone runner already has a session identity.
 
-Both doors accept `mercury=['ssh', 'host', 'mercury']` or another executable/argument array. `RunOptions` collects options; `argv_of(options)` previews arguments. `extra_args` passes CLI flags without a shell. `close()` ends stdin and terminates an unresponsive child after five seconds.
+Both doors accept `mercury=['ssh', 'host', 'mercury']` or another executable/argument array. `RunOptions` collects options; `argv_of(options)` previews arguments. `extra_args` passes CLI flags without a shell. `close()` ends stdin and terminates an unresponsive child after five seconds, then kills it after ten seconds if it still has not exited.
 
 ### Synchronous programs
 

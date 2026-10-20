@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass, field
-from typing import Any, Literal, TypedDict
+from typing import Any, Generic, Literal, TypedDict, TypeVar, cast
 from .generated import ROWS_SCHEMA, ROW_SCHEMAS, INPUT_ROW_SCHEMAS, Row, InputRow
 
 
@@ -21,10 +21,13 @@ class Issue:
     message: str
 
 
+T = TypeVar('T')
+
+
 @dataclass(frozen=True)
-class RowRead:
+class RowRead(Generic[T]):
     ok: bool
-    row: StreamRow | InputRow | None = None
+    row: T | None = None
     reason: str | None = None
     type: str | None = None
     issues: list[Issue] = field(default_factory=list)
@@ -71,7 +74,7 @@ def validate(schema: dict, value: Any, path: str = '') -> list[Issue]:
     return issues
 
 
-def _read(value: Any, inputs: bool = False) -> RowRead:
+def _read(value: Any, inputs: bool = False) -> RowRead[StreamRow | InputRow]:
     if not isinstance(value, dict): return RowRead(False, reason='not_an_object')
     t = value.get('type')
     if not isinstance(t, str): return RowRead(False, reason='no_type')
@@ -81,18 +84,18 @@ def _read(value: Any, inputs: bool = False) -> RowRead:
     if not inputs and t in ('session', 'outcome') and value.get('schema') != ROWS_SCHEMA:
         return RowRead(False, reason='schema_mismatch', type=t)
     issues = validate(schemas[t], value)
-    return RowRead(not issues, row=value if not issues else None, reason='invalid' if issues else None, type=t, issues=issues)
+    return RowRead(not issues, row=cast(StreamRow | InputRow, value) if not issues else None, reason='invalid' if issues else None, type=t, issues=issues)
 
 
-def row_of(value: Any) -> RowRead:
-    return _read(value)
+def row_of(value: Any) -> RowRead[StreamRow]:
+    return cast(RowRead[StreamRow], _read(value))
 
 
-def input_row_of(value: Any) -> RowRead:
-    return _read(value, True)
+def input_row_of(value: Any) -> RowRead[InputRow]:
+    return cast(RowRead[InputRow], _read(value, True))
 
 
-def parse_row(line: str) -> RowRead:
+def parse_row(line: str) -> RowRead[StreamRow]:
     try:
         return row_of(json.loads(line))
     except (ValueError, TypeError):

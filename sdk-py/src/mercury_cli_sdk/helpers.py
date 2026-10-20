@@ -8,16 +8,17 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable, NotRequired, TypedDict
 from .parse import validate
+from .generated import PermissionMode, EffortLevel
 
 
 class AgentDefinition(TypedDict):
     description: str
     prompt: str
     model: NotRequired[str]
-    effort: NotRequired[str | int]
+    effort: NotRequired[EffortLevel | int]
     tools: NotRequired[list[str]]
     disallowedTools: NotRequired[list[str]]
-    permissionMode: NotRequired[str]
+    permissionMode: NotRequired[PermissionMode]
     instructionProfile: NotRequired[str]
     mcpServers: NotRequired[list[Any]]
     hooks: NotRequired[Any]
@@ -32,7 +33,7 @@ class AgentDefinition(TypedDict):
 
 def define_agent(definition: AgentDefinition) -> AgentDefinition:
     if not definition['description'].strip() or not definition['prompt'].strip(): raise ValueError('an agent needs description and prompt')
-    return dict(definition)
+    return definition.copy()
 
 
 @dataclass(frozen=True)
@@ -78,7 +79,7 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
             return {'content': [{'type': 'text', 'text': str(error)}], 'isError': True}
 
     class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *args: Any) -> None: pass
+        def log_message(self, format: str, *args: Any) -> None: pass
         def do_GET(self) -> None: self.send_error(405)
         def do_DELETE(self) -> None:
             if self.headers.get('Authorization') != f'Bearer {token}': self.send_error(403); return

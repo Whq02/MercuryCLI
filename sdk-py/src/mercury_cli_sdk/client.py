@@ -1,12 +1,11 @@
 from __future__ import annotations
 import asyncio
 import json
-import os
 import signal
 from dataclasses import dataclass, field
-from typing import Any, Callable, AsyncIterator
+from typing import Any, Callable, AsyncIterator, cast
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit
-from .generated import InputRow, OutcomeRow, MAX_LINE_BYTES
+from .generated import InputRow, OutcomeRow, MAX_LINE_BYTES, PermissionMode, EffortLevel, InputBlock
 from .parse import StreamRow, parse_row, input_row_of
 
 
@@ -20,8 +19,8 @@ class RunOptions:
     stdin: str | None = None
     project: str | None = None
     model: str | None = None
-    effort: str | None = None
-    mode: str | None = None
+    effort: EffortLevel | None = None
+    mode: PermissionMode | None = None
     agent: str | None = None
     agent_defs: dict[str, Any] | None = None
     backup_model: str | None = None
@@ -83,6 +82,10 @@ def argv_of(options: RunOptions) -> list[str]:
 class MercuryRun:
     def __init__(self, child: asyncio.subprocess.Process, options: RunOptions):
         self.child = child
+        assert child.stdin is not None and child.stdout is not None and child.stderr is not None
+        self._stdin = child.stdin
+        self._stdout = child.stdout
+        self._stderr = child.stderr
         self.options = options
         self.rows: list[StreamRow] = []
         self.stderr = ''
@@ -108,17 +111,18 @@ class MercuryRun:
         for listener in tuple(self._listeners.get(type, [])): listener(value)
 
     async def _read(self) -> None:
-        stderr = asyncio.create_task(self.child.stderr.read())
-        last = None
+        stderr = asyncio.create_task(self._stderr.read())
+        last: OutcomeRow | None = None
         try:
-            async for data in self.child.stdout:
+            async for data in self._stdout:
                 line = data.decode('utf-8')
                 if not line.strip(): continue
                 read = parse_row(line)
                 if not read.ok:
-                    self.error = self.error or MercuryWireError(line, read.reason, read.type, read.issues)
+                    self.error = self.error or MercuryWireError(line, read.reason or 'invalid', read.type, read.issues)
                     continue
                 row = read.row
+                assert row is not None
                 self.rows.append(row)
                 if row['type'] == 'session' and not self.session.done(): self.session.set_result(row)
                 if row['type'] == 'outcome': last = row
@@ -140,6 +144,7 @@ class MercuryRun:
             if not self.session.done(): self.session.set_exception(self.error)
             self._emit('error', self.error)
         else:
+            assert last is not None
             self.outcome.set_result(last)
             if not self.session.done(): self.session.set_exception(MercuryExitError(exit))
         self.exit.set_result(exit)
@@ -147,23 +152,23 @@ class MercuryRun:
         self._emit('end', exit)
 
     async def send(self, row: InputRow) -> None:
-        if self.options.input != 'rows' or self.child.stdin.is_closing(): raise MercuryError('input rows is not open')
+        if self.options.input != 'rows' or self._stdin.is_closing(): raise MercuryError('input rows is not open')
         read = input_row_of(row)
-        if not read.ok: raise MercuryWireError(json.dumps(row), read.reason, read.type, read.issues)
-        self.child.stdin.write((json.dumps(row) + '\n').encode())
-        await self.child.stdin.drain()
+        if not read.ok: raise MercuryWireError(json.dumps(row), read.reason or 'invalid', read.type, read.issues)
+        self._stdin.write((json.dumps(row) + '\n').encode())
+        await self._stdin.drain()
 
-    async def send_prompt(self, content: Any, **options: Any) -> None:
-        await self.send({**options, 'type': 'prompt', 'content': content})
+    async def send_prompt(self, content: str | list[InputBlock], **options: Any) -> None:
+        await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content}))
 
     async def send_shell(self, command: str, **options: Any) -> None:
-        await self.send({**options, 'type': 'shell', 'command': command})
+        await self.send(cast(InputRow, {**options, 'type': 'shell', 'command': command}))
 
     async def send_note(self, to: str, content: str, **options: Any) -> None:
-        await self.send({**options, 'type': 'note', 'to': to, 'content': content})
+        await self.send(cast(InputRow, {**options, 'type': 'note', 'to': to, 'content': content}))
 
     def close_input(self) -> None:
-        self.child.stdin.close()
+        self._stdin.close()
 
     def interrupt(self) -> None:
         if self.child.returncode is None: self.child.send_signal(signal.SIGINT)
@@ -179,7 +184,10 @@ class MercuryRun:
         try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
         except asyncio.TimeoutError:
             self.terminate()
-            await self.exit
+            try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
+            except asyncio.TimeoutError:
+                self.kill()
+                await self.exit
 
     async def __aenter__(self) -> MercuryRun:
         return self
@@ -210,6 +218,7 @@ async def run(prompt: str | None = None, *, options: RunOptions | None = None, *
         child = await asyncio.create_subprocess_exec(*args, cwd=opts.cwd, env=opts.env, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, limit=MAX_LINE_BYTES)
     except OSError as error:
         raise MercurySpawnError(args[0], error) from error
+    assert child.stdin is not None
     handle = MercuryRun(child, opts)
     if opts.stdin is not None:
         child.stdin.write(opts.stdin.encode())
