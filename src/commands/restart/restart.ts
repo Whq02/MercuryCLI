@@ -1,5 +1,6 @@
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import type { LocalCommandCall } from '../../types/command.js'
+import { RESTART_DURING_TURN, restartAlreadyCurrentWords } from './words.js'
 
 type RestartOutcome = { ok: true; line: string } | { ok: false; reason: string }
 
@@ -12,7 +13,7 @@ export async function restartSessionOnInstalledBuild(args: {
   tell: (line: string) => void
   resume: (sessionId: string) => Promise<string | null>
 }): Promise<RestartOutcome> {
-  if (args.turnActive) return { ok: false, reason: 'this session is mid-turn — esc to interrupt it, then /restart' }
+  if (args.turnActive) return { ok: false, reason: RESTART_DURING_TURN }
   const { deployedRuntime } = await import('../../daemon/handover.js')
   const installed = deployedRuntime()
   if (installed === null || installed.buildTree === null) {
@@ -24,7 +25,7 @@ export async function restartSessionOnInstalledBuild(args: {
     Object.values(workers.readSessionWorkers()).find(r => r.sessionId === args.sessionId && r.endedAt === undefined)
   const rec = standing()
   if (rec === undefined) return { ok: false, reason: 'no daemon record owns this chat, so there is no runner to move' }
-  if (rec.buildTree === tree) return { ok: false, reason: `this session already runs the installed build (${tree}) — nothing to move` }
+  if (rec.buildTree === tree) return { ok: false, reason: restartAlreadyCurrentWords(tree) }
   const { endingWorkWords } = await import('../../tools/MonitorTool/watchReceipts.js')
   const ending = endingWorkWords(args.work)
   const { moveDaemonToDeployedBuild } = await import('../../daemon/handshake.js')
@@ -57,7 +58,7 @@ export async function restartSessionOnInstalledBuild(args: {
   }
   const refusal = await args.resume(args.sessionId)
   if (refusal !== null) return { ok: false, reason: `the session stopped but did not resume on the installed build — ${refusal}; the board's ↵ resumes it` }
-  return { ok: true, line: `Restarted on the installed build (${tree}) — ended: ${ending} · re-arm what you still want` }
+  return { ok: true, line: `Restarted on the installed build (${tree}) — ended: ${ending} · restart any watches or background commands you still need` }
 }
 
 export const call: LocalCommandCall = async () => {

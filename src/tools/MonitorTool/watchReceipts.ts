@@ -211,34 +211,34 @@ function orphanedBackgroundShells(messages: readonly Message[], liveTaskIds: Rea
 
 function restartEndedWords(reason?: RunnerRestartReason): string {
   return reason === 'crash'
-    ? "the runner's restart after a crash"
+    ? "the session's restart after a crash"
     : reason === 'stop'
-      ? "the runner's restart after a stop"
+      ? "the session's restart after a stop"
       : reason === 'settings'
-        ? "the runner's restart after a settings change"
+        ? "the session's restart after a settings change"
         : reason === 'relaunch'
-          ? "the runner's restart after a relaunch"
+          ? "the session's restart after a relaunch"
           : reason === 'update'
-            ? "the runner's restart after an update"
+            ? "the session's restart after an update"
             : reason === 'ended'
-              ? "the runner's restart after it ended around an update"
+              ? "the session's restart after it ended around an update"
               : "the session's pause"
 }
 
 export function deadWatchLine(receipt: WatchReceipt, reason?: RunnerRestartReason): string {
   const cmd = commandWords(receipt.command)
-  return `[Monitor "${receipt.description}" (task ${receipt.taskId}) did not survive ${restartEndedWords(reason)}: its process ended with the runner, so nothing it would have reported since then is known. Re-arm it by calling Monitor again with the same command${cmd !== '' ? ` (${cmd})` : ''} if the watch is still wanted.]`
+  return `[Monitor "${receipt.description}" (task ${receipt.taskId}) did not survive ${restartEndedWords(reason)}: its process ended with the session, so nothing it would have reported since then is known. Start it again by calling Monitor with the same command${cmd !== '' ? ` (${cmd})` : ''} if the watch is still wanted.]`
 }
 
 function deadShellLine(receipt: BackgroundShellReceipt, reason?: RunnerRestartReason): string {
   const cmd = commandWords(receipt.command)
   const desc = labelWords(receipt.description)
   const kept = receipt.outputPath !== null ? `; what it printed until then stays in ${receipt.outputPath}` : ''
-  return `[Background shell ${receipt.taskId}${desc !== '' ? ` "${desc}"` : ''} did not survive ${restartEndedWords(reason)}: its process ended with the runner${kept}. Re-arm it by running Bash again with the same command${cmd !== '' ? ` (${cmd})` : ''} if it is still wanted.]`
+  return `[Background shell ${receipt.taskId}${desc !== '' ? ` "${desc}"` : ''} did not survive ${restartEndedWords(reason)}: its process ended with the session${kept}. Start it again by running Bash with the same command${cmd !== '' ? ` (${cmd})` : ''} if it is still wanted.]`
 }
 
 function moreShellsLine(receipts: readonly BackgroundShellReceipt[], reason?: RunnerRestartReason): string {
-  return `[Background shells ${receipts.map(r => r.taskId).join(', ')} did not survive ${restartEndedWords(reason)} either (${receipts.length} more, named here by task id only). Re-arm any that is still wanted by running Bash again with its command.]`
+  return `[Background shells ${receipts.map(r => r.taskId).join(', ')} did not survive ${restartEndedWords(reason)} either (${receipts.length} more, named here by task id only). Restart any that is still wanted by running Bash again with its command.]`
 }
 
 export function composeRestartLine(opts: {
@@ -261,8 +261,8 @@ export function composeRestartLine(opts: {
   const more = items.length - shown.length
   const endedText = items.length === 0 ? 'none (0)' : `${shown.join(', ')}${more > 0 ? `, and ${more} more` : ''} (${items.length})`
   return opts.reason === 'update'
-    ? `Mercury updated to ${opts.build} · this session's runner restarted · ended by the restart: ${endedText} · re-arm what you still want`
-    : `This session's runner ended with its daemon around an update to ${opts.build} — the cause is not known · ended with it: ${endedText} · re-arm what you still want`
+    ? `Mercury updated to ${opts.build} · this chat restarted · ended by the restart: ${endedText} · restart any watches or background commands you still need`
+    : `This chat's process ended around an update to ${opts.build} — the cause is not known · ended with it: ${endedText} · restart any watches or background commands you still need`
 }
 
 export function endingWorkWords(rows: ReadonlyArray<{ id: string; kind: string; name: string; status: string; description?: string; command?: string }>): string {
@@ -281,7 +281,7 @@ export function endingWorkWords(rows: ReadonlyArray<{ id: string; kind: string; 
 }
 
 export function composeBuildBehindLine(installedTree: string, runningTree: string, newer: boolean): string {
-  return `${newer ? 'A newer' : 'Another'} Mercury build is installed (${installedTree}) · this session still runs ${runningTree} · /restart moves it (watches and background shells end and are named)`
+  return `${newer ? 'A newer' : 'Another'} Mercury build is installed (${installedTree}). This chat still uses ${runningTree}. /restart switches to it; watches and background shells will stop and be listed.`
 }
 
 export function reconcileWatchesOnResume(
