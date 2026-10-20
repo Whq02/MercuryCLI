@@ -169,13 +169,14 @@ export function decideHandshake(outcome: HelloOutcome, client: ClientVersionFact
     const v: DaemonHandshakeVerdict = { ...base, state: 'rebuilt', daemon, ...counts, heal: ordered ? 'restart-when-idle' : 'operator', healState: ordered ? healState : 'operator', line: null }
     return { ...v, line: honestLine(v) }
   }
+  const skewed = screenIsOlder(daemon, client, installed)
   const v: DaemonHandshakeVerdict = {
     ...base,
     state: r.proto < client.proto ? 'older' : 'newer',
     daemon,
     ...counts,
-    heal: 'restart-when-idle',
-    healState,
+    heal: skewed ? 'reopen' : 'restart-when-idle',
+    healState: skewed ? 'none' : healState,
     line: null,
   }
   return { ...v, line: honestLine(v) }
@@ -221,7 +222,13 @@ export function honestLine(v: DaemonHandshakeVerdict): string | null {
     return null
   }
   if (v.state !== 'older' && v.state !== 'newer') return null
-  const who = v.state === 'newer' ? `daemon v${d.version} (newer than this Mercury v${v.client.version})` : `daemon v${d.version}`
+  if (v.heal === 'reopen') return reopenLine(v)
+  const who =
+    v.state === 'newer'
+      ? d.version === v.client.version
+        ? `daemon v${d.version} (protocol ${d.proto}, newer than this Mercury's ${v.client.proto})`
+        : `daemon v${d.version} (newer than this Mercury v${v.client.version})`
+      : `daemon v${d.version}`
   const wait = v.state === 'newer' ? "this Mercury's features wait until it restarts" : 'new features wait until it restarts'
   if (v.healState === 'refused') return `${who} — ${wait} · ${v.healDetail ?? 'it cannot restart itself'}`
   if (v.healState === 'restarting') return null
