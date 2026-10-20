@@ -87,6 +87,16 @@ try {
     console.log('PASS live inline MCP tool and inline agent definition')
   } finally { await tools.close(); await inline.close() }
 
+  const cancelled = await context(() => [{ kind: 'hang', deltas: ['open'] }])
+  try {
+    const task = run({ mercury, cwd: cancelled.cwd, env: cancelled.env, prompt: 'cancel', signal: AbortSignal.abort(), ephemeral: true })
+    assert.equal((await task.outcome).status, 'interrupted')
+    console.log('PASS real run handles pre-aborted AbortSignal after boot')
+    const script = `import asyncio,json,sys\nfrom mercury_cli_sdk import run\nasync def main():\n event=asyncio.Event();event.set()\n task=await run('cancel',mercury=json.loads(sys.argv[1]),cwd=sys.argv[2],cancel=event,ephemeral=True)\n assert (await task.outcome)['status']=='interrupted'\n print('PASS Python real run pre-set cancellation event',flush=True)\nasyncio.run(main())`
+    const child = spawn('python3', ['-c', script, JSON.stringify(mercury), cancelled.cwd], { env: { ...cancelled.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
+    assert.equal(await new Promise(r => child.once('close', r)), 0)
+  } finally { await cancelled.close() }
+
   const py = await context(cwd => [
     { kind: 'text', text: 'Python run works.' },
     { kind: 'tool_use', name: 'Write', input: { file_path: join(cwd, 'denied-python.txt'), content: 'never' } },

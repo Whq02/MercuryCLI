@@ -1,7 +1,7 @@
 import { INPUT_ROW_SCHEMAS, INPUT_ROW_TYPES, PARTIAL_ROW_TYPES, ROW_SCHEMAS, ROW_TYPES, ROWS_SCHEMA, type InputRow, type InputRowType, type OutcomeRow, type PartialRowType, type Row, type RowType, type SessionRow, type StepRow, type TurnRow } from './rows.js'
 import { validate, type Issue } from './validate.js'
 
-export type UnknownRow = { type: 'unknown_row'; originalType: string; raw: Record<string, unknown>; seq?: number; timestamp?: string; parent_call_id?: string }
+export type UnknownRow = { type: 'unknown_row'; original_type: string; session_id?: string; turn?: number; raw: Record<string, unknown>; seq?: number; timestamp?: string; parent_call_id?: string }
 export type StreamRow = Row | UnknownRow
 
 export type RowReadFailure = 'not_json' | 'not_an_object' | 'no_type' | 'unknown_type' | 'schema_mismatch' | 'invalid'
@@ -19,7 +19,12 @@ export function rowOf(value: unknown): RowRead {
   const record = value as Record<string, unknown>
   if (typeof record.type !== 'string') return { ok: false, reason: 'no_type', issues: [] }
   const type = record.type
-  if (!isRowType(type)) return { ok: true, row: { type: 'unknown_row', originalType: type, raw: record } }
+  if (!isRowType(type)) {
+    const row: UnknownRow = { type: 'unknown_row', original_type: type, raw: record }
+    for (const key of ['seq', 'turn'] as const) if (typeof record[key] === 'number') row[key] = record[key]
+    for (const key of ['timestamp', 'parent_call_id', 'session_id'] as const) if (typeof record[key] === 'string') row[key] = record[key]
+    return { ok: true, row }
+  }
   if ((type === 'session' || type === 'outcome') && record.schema !== ROWS_SCHEMA) return { ok: false, reason: 'schema_mismatch', type, schema: record.schema, issues: [] }
   const issues = validate(ROW_SCHEMAS[type], record)
   if (issues.length > 0) return { ok: false, reason: 'invalid', type, issues }
@@ -45,6 +50,11 @@ export function inputRowOf(value: unknown): InputRowRead {
   const type = record.type
   if (!isInputRowType(type)) return { ok: false, reason: 'unknown_type', type, issues: [] }
   const issues = validate(INPUT_ROW_SCHEMAS[type], record)
+  if (!issues.length) {
+    if (type === 'prompt' && (record.content === '' || (Array.isArray(record.content) && record.content.length === 0))) issues.push({ path: 'content', message: 'a prompt row with no content' })
+    if (type === 'shell' && String(record.command).trim() === '') issues.push({ path: 'command', message: 'a shell row with no command' })
+    if (type === 'note' && (record.to === '' || record.content === '')) issues.push({ path: '', message: 'a note row with no agent or no content' })
+  }
   if (issues.length > 0) return { ok: false, reason: 'invalid', type, issues }
   return { ok: true, row: record as unknown as InputRow }
 }

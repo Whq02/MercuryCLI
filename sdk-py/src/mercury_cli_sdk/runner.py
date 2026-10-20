@@ -4,18 +4,25 @@ import inspect
 import json
 import signal
 import uuid
+from contextlib import suppress
 from dataclasses import dataclass, replace
 from typing import Any, Callable, AsyncIterator, cast
 from .client import RunOptions, argv_of
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryWireError, RunExit
 from .generated import METHODS, RUNNER_PROTOCOL, RPC_REFUSED, MAX_LINE_BYTES, InputRow, OutcomeRow
-from .parse import StreamRow, row_of, validate
+from .framing import read_lines
+from .parse import Issue, StreamRow, row_of, input_row_of, validate
+
+
+class _DefaultTimeout: pass
+_DEFAULT_TIMEOUT = _DefaultTimeout()
 
 
 @dataclass
 class RequestContext:
     id: int
     cancelled: asyncio.Event
+    reason: str | None = None
 
 
 class MercurySession:
@@ -57,27 +64,34 @@ class MercurySession:
 
     async def _write(self, value: Any) -> None:
         if self._closed: raise self._closed
-        self._stdin.write((json.dumps(value) + '\n').encode())
-        await self._stdin.drain()
+        if self.child.returncode is not None or self._stdin.is_closing(): raise MercuryError('runner input is not open', self.exit.result() if self.exit.done() else None)
+        try:
+            self._stdin.write((json.dumps(value) + '\n').encode())
+            await self._stdin.drain()
+        except OSError as error: raise MercuryError(str(error), self.exit.result() if self.exit.done() else None) from error
 
-    async def request(self, method: str, params: Any = None, *, timeout: float | None = None) -> Any:
+    async def request(self, method: str, params: Any = None, *, timeout: float | None | _DefaultTimeout = _DEFAULT_TIMEOUT) -> Any:
         spec = METHODS.get(method)
         if not spec or spec['kind'] != 'request' or spec['from'] == 'runner': raise MercuryError(f'not a host request: {method}')
         if self._closed: raise self._closed
         params = {} if params is None else params
+        if method == 'queue/add':
+            read = input_row_of(params)
+            if not read.ok: raise MercuryWireError(json.dumps(params), read.reason or 'invalid', read.type, read.issues)
         issues = validate(spec['params'], params)
         if issues: raise MercuryWireError(json.dumps(params), 'invalid', method, issues)
         self._next += 1
         id = self._next
         future = asyncio.get_running_loop().create_future()
         self._pending[id] = (method, future)
+        limit = (None if spec['deadlineMs'] is None else spec['deadlineMs'] / 1000) if isinstance(timeout, _DefaultTimeout) else timeout
         try:
             await self._write({'jsonrpc': '2.0', 'id': id, 'method': method, 'params': params})
-            limit = timeout if timeout is not None else None if spec['deadlineMs'] is None else spec['deadlineMs'] / 1000
             return await asyncio.wait_for(future, limit)
-        except (asyncio.TimeoutError, asyncio.CancelledError):
-            if not self._closed:
+        except (asyncio.TimeoutError, asyncio.CancelledError) as error:
+            with suppress(Exception):
                 await self.notify('$/cancel_request', {'request_id': id, 'reason': 'host request cancelled'})
+            if isinstance(error, asyncio.TimeoutError): raise MercuryError(f'{method}: no answer within {limit} seconds') from error
             raise
         finally:
             self._pending.pop(id, None)
@@ -123,12 +137,19 @@ class MercurySession:
     async def _read(self) -> None:
         stderr = asyncio.create_task(self._stderr.read())
         try:
-            async for data in self._stdout:
-                line = data.decode('utf-8')
-                message = json.loads(line)
+            async for line in read_lines(self._stdout):
+                if not line.strip(): continue
+                try: message = json.loads(line)
+                except json.JSONDecodeError as error: raise MercuryWireError(line, 'not_json') from error
                 if not isinstance(message, dict) or message.get('jsonrpc') != '2.0': raise MercuryWireError(line, 'invalid')
                 method, id = message.get('method'), message.get('id')
+                if 'method' in message and not isinstance(method, str): raise MercuryWireError(line, 'invalid')
+                params: dict = message['params'] if isinstance(message.get('params'), dict) else {}
                 if method is None:
+                    if id is None and 'id' in message and 'result' not in message and isinstance(message.get('error'), dict):
+                        error = message['error']
+                        if type(error.get('code')) is int and isinstance(error.get('message'), str):
+                            raise MercuryError(error['message'], code=error['code'], data=error.get('data'))
                     if not isinstance(id, int) or isinstance(id, bool) or id <= 0: raise MercuryWireError(line, 'invalid')
                     if ('result' in message) == ('error' in message): raise MercuryWireError(line, 'invalid')
                     if 'error' in message:
@@ -147,8 +168,10 @@ class MercurySession:
                         if issues: future.set_exception(MercuryWireError(line, 'invalid', sent, issues))
                         else: future.set_result(result)
                 elif method == '$/cancel_request':
-                    ask = self._asks.get(message.get('params', {}).get('request_id'))
+                    request_id = params.get('request_id')
+                    ask = self._asks.get(request_id) if type(request_id) is int else None
                     if ask:
+                        ask[0].reason = params.get('reason')
                         ask[0].cancelled.set()
                         ask[1].cancel()
                 elif id is not None:
@@ -172,9 +195,9 @@ class MercurySession:
                     if row['type'] == 'outcome' and 'parent_call_id' not in row:
                         ids = [id for id, turn in self._prompt_turns.items() if turn == row['turn_id']] if self._correlated_turns else list(self._prompt_turns)[:1]
                         for id in ids: self._prompt_turns.pop(id, None)
-                else: self._emit('notification', message)
+                else: self._emit('notification', {'method': method, 'params': message.get('params')})
         except Exception as error:
-            self._fail(error if isinstance(error, MercuryError) else MercuryWireError('', 'invalid', issues=[str(error)]))
+            self._fail(error if isinstance(error, MercuryError) else MercuryWireError('', 'invalid', issues=[Issue('', str(error))]))
             if self.child.returncode is None: self.child.terminate()
         code = await self.child.wait()
         self.stderr = (await stderr).decode('utf-8', errors='replace')
@@ -210,11 +233,11 @@ class MercurySession:
     async def send_prompt(self, content: Any, **options: Any) -> dict:
         return await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content}))
 
-    async def send_shell(self, command: str) -> dict:
-        return await self.send({'type': 'shell', 'command': command})
+    async def send_shell(self, command: str, **options: Any) -> dict:
+        return await self.send(cast(InputRow, {**options, 'type': 'shell', 'command': command}))
 
-    async def send_note(self, to: str, content: str) -> dict:
-        return await self.send({'type': 'note', 'to': to, 'content': content})
+    async def send_note(self, to: str, content: str, **options: Any) -> dict:
+        return await self.send(cast(InputRow, {**options, 'type': 'note', 'to': to, 'content': content}))
 
     async def prompt(self, content: Any) -> OutcomeRow:
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
@@ -248,8 +271,8 @@ class MercurySession:
     async def set_mode(self, mode: str) -> dict: return await self.request('session/set_mode', {'mode': mode})
     async def set_kit(self, kit: Any) -> dict: return await self.request('session/set_kit', {'kit': kit})
     async def rewind(self, user_message_id: str, mode: str, dry_run: bool = False) -> dict: return await self.request('session/rewind', {'user_message_id': user_message_id, 'mode': mode, 'dry_run': dry_run})
-    async def stop_agent(self, agent_id: str, note: str = '') -> dict: return await self.request('agent/stop', {'agent_id': agent_id, 'note': note})
-    async def resume_agent(self, agent_id: str, note: str = '') -> dict: return await self.request('agent/resume', {'agent_id': agent_id, 'note': note})
+    async def stop_agent(self, agent_id: str, note: str | None = None) -> dict: return await self.request('agent/stop', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
+    async def resume_agent(self, agent_id: str, note: str | None = None) -> dict: return await self.request('agent/resume', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
     async def claim(self, **params: Any) -> dict: return await self.request('session/claim', params)
 
     async def close(self) -> None:

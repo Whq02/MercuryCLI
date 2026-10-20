@@ -1,11 +1,11 @@
 /// <reference lib="esnext.disposable" preserve="true" />
 import { spawn, type ChildProcess } from 'node:child_process'
-import { createInterface } from 'node:readline'
+import { readLines } from './framing.js'
 import { randomUUID } from 'node:crypto'
 import { argvOf, type RunOptions } from './client.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryWireError, type RunExit } from './errors.js'
-import { rowOf, type StreamRow } from './parse.js'
-import type { InputRow, OutcomeRow, PromptRow } from './rows.js'
+import { inputRowOf, rowOf, type StreamRow } from './parse.js'
+import type { InputRow, OutcomeRow, PromptRow, ShellRow, NoteRow } from './rows.js'
 import { METHODS, RUNNER_PROTOCOL, RPC_REFUSED, type HostRequestName, type HostNotificationName, type RunnerRequestName, type MethodName, type ParamsOf, type ResultOf } from './wire.js'
 import { validate } from './validate.js'
 
@@ -34,6 +34,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   #waiters: Array<{ resolve: (v: IteratorResult<StreamRow>) => void; reject: (e: Error) => void }> = []
   #closed: Error | null = null
   #next = 0
+  #stopTimer: ReturnType<typeof setTimeout> | undefined
   #handlers: HostHandlers
   #prompting = false
   #promptTurns = new Map<string, string | undefined>()
@@ -54,12 +55,11 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     this.child.stderr!.setEncoding('utf8').on('data', (s: string) => { this.stderr += s })
     this.child.stdin!.on('error', e => this.#fail(new MercuryError(e.message, null, { cause: e })))
     this.child.on('error', e => this.#fail(new MercurySpawnError(argv.command, e)))
-    const lines = createInterface({ input: this.child.stdout!, crlfDelay: Infinity })
-    lines.on('line', line => { void this.#read(line).catch(e => this.#fail(e)) })
+    readLines(this.child.stdout!, line => { if (!this.#closed) void this.#read(line).catch(e => this.#fail(e)) }, error => this.#fail(error))
     this.exit = new Promise(resolve => this.child.once('close', (code, signal) => {
       const exit = { code, signal, stderr: this.stderr }
       this.#fail(new MercuryExitError(exit), this.#closing)
-      lines.close()
+      clearTimeout(this.#stopTimer)
       resolve(exit)
     }))
   }
@@ -84,6 +84,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     if (this.#closed) return Promise.reject(this.#closed)
     const spec = METHODS[method]
     if (!spec || spec.kind !== 'request' || spec.from === 'runner') return Promise.reject(new MercuryError(`not a host request: ${method}`, null))
+    const input = method === 'queue/add' ? inputRowOf(params) : undefined
+    if (input && !input.ok) return Promise.reject(new MercuryWireError(JSON.stringify(params), input.reason, input.type, input.issues, null))
     const issues = validate(spec.params, params)
     if (issues.length) return Promise.reject(new MercuryWireError(JSON.stringify(params), 'invalid', method, issues, null))
     const id = ++this.#next
@@ -115,10 +117,17 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   }
 
   async #read(line: string): Promise<void> {
+    if (line.trim() === '') return
     let msg: any
     try { msg = JSON.parse(line) } catch { throw new MercuryWireError(line, 'not_json', undefined, [], null) }
     if (!msg || msg.jsonrpc !== '2.0') throw new MercuryWireError(line, 'invalid', undefined, [], null)
+    if ('method' in msg && typeof msg.method !== 'string') throw new MercuryWireError(line, 'invalid', undefined, [], null)
     if (typeof msg.method !== 'string') {
+      if (msg.id === null && !('result' in msg) && msg.error && Number.isInteger(msg.error.code) && typeof msg.error.message === 'string') {
+        const error = new MercuryError(msg.error.message, null)
+        error.code = msg.error.code; error.data = msg.error.data
+        throw error
+      }
       if (!Number.isInteger(msg.id) || msg.id <= 0 || ('result' in msg) === ('error' in msg)) throw new MercuryWireError(line, 'invalid', undefined, [], null)
       if ('error' in msg && (!msg.error || typeof msg.error.message !== 'string' || !Number.isInteger(msg.error.code))) throw new MercuryWireError(line, 'invalid', undefined, [], null)
       const pending = this.#pending.get(msg.id)
@@ -135,7 +144,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       }
       return
     }
-    if (msg.method === '$/cancel_request') { this.#asks.get(msg.params?.request_id)?.abort(); return }
+    if (msg.method === '$/cancel_request') { this.#asks.get(msg.params?.request_id)?.abort(msg.params?.reason); return }
     if (msg.id === undefined) {
       if (msg.method === 'row') {
         const read = rowOf(msg.params)
@@ -187,7 +196,13 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     this.#pending.clear()
     for (const ask of this.#asks.values()) ask.abort()
     for (const waiter of this.#waiters.splice(0)) { if (graceful) waiter.resolve({ value: undefined, done: true }); else waiter.reject(error) }
-    if (!graceful) this.#emit('error', error)
+    if (!graceful) {
+      this.child.stdin!.end()
+      this.child.kill('SIGTERM')
+      this.#stopTimer = setTimeout(() => this.child.kill('SIGKILL'), 1000)
+      this.#stopTimer.unref()
+      this.#emit('error', error)
+    }
   }
   [Symbol.asyncIterator](): AsyncIterator<StreamRow> {
     return { next: () => {
@@ -211,8 +226,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     }
   }
   sendPrompt(content: PromptRow['content'], options: Omit<PromptRow, 'type' | 'content'> = {}) { return this.send({ ...options, type: 'prompt', content }) }
-  sendShell(command: string) { return this.send({ type: 'shell', command }) }
-  sendNote(to: string, content: string) { return this.send({ type: 'note', to, content }) }
+  sendShell(command: string, options: Omit<ShellRow, 'type' | 'command'> = {}) { return this.send({ ...options, type: 'shell', command }) }
+  sendNote(to: string, content: string, options: Omit<NoteRow, 'type' | 'to' | 'content'> = {}) { return this.send({ ...options, type: 'note', to, content }) }
   withdraw(id: string) { return this.request('queue/withdraw', { id }) }
   interrupt(options: ParamsOf<'turn/interrupt'> = {}) { return this.request('turn/interrupt', options) }
   facts() { return this.request('session/facts', {}) }

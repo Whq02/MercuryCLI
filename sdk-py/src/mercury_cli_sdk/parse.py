@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass, field
-from typing import Any, Generic, Literal, TypedDict, TypeVar, cast
+from typing import Any, Generic, Literal, NotRequired, TypedDict, TypeVar, cast
 from .generated import ROWS_SCHEMA, ROW_SCHEMAS, INPUT_ROW_SCHEMAS, Row, InputRow
 
 
@@ -10,6 +10,11 @@ class UnknownRow(TypedDict):
     type: Literal['unknown_row']
     original_type: str
     raw: dict[str, Any]
+    seq: NotRequired[int]
+    timestamp: NotRequired[str]
+    parent_call_id: NotRequired[str]
+    session_id: NotRequired[str]
+    turn: NotRequired[int]
 
 
 StreamRow = Row | UnknownRow
@@ -31,6 +36,7 @@ class RowRead(Generic[T]):
     reason: str | None = None
     type: str | None = None
     issues: list[Issue] = field(default_factory=list)
+    schema: Any = None
 
 
 def validate(schema: dict, value: Any, path: str = '') -> list[Issue]:
@@ -42,7 +48,7 @@ def validate(schema: dict, value: Any, path: str = '') -> list[Issue]:
         'object': lambda v: isinstance(v, dict), 'array': lambda v: isinstance(v, list),
         'string': lambda v: isinstance(v, str), 'boolean': lambda v: isinstance(v, bool),
         'number': lambda v: type(v) in (int, float) and math.isfinite(v),
-        'integer': lambda v: type(v) in (int, float) and math.isfinite(v) and int(v) == v,
+        'integer': lambda v: type(v) is int,
         'null': lambda v: v is None,
     }
     if 'type' in schema:
@@ -80,10 +86,20 @@ def _read(value: Any, inputs: bool = False) -> RowRead[StreamRow | InputRow]:
     if not isinstance(t, str): return RowRead(False, reason='no_type')
     schemas = INPUT_ROW_SCHEMAS if inputs else ROW_SCHEMAS
     if t not in schemas:
-        return RowRead(False, reason='unknown_type', type=t) if inputs else RowRead(True, row={'type': 'unknown_row', 'original_type': t, 'raw': value})
-    if not inputs and t in ('session', 'outcome') and value.get('schema') != ROWS_SCHEMA:
-        return RowRead(False, reason='schema_mismatch', type=t)
+        if inputs: return RowRead(False, reason='unknown_type', type=t)
+        unknown = {'type': 'unknown_row', 'original_type': t, 'raw': value}
+        for key in ('seq', 'turn'):
+            if type(value.get(key)) is int: unknown[key] = value[key]
+        for key in ('timestamp', 'parent_call_id', 'session_id'):
+            if isinstance(value.get(key), str): unknown[key] = value[key]
+        return RowRead(True, row=cast(UnknownRow, unknown))
+    if not inputs and t in ('session', 'outcome') and (type(value.get('schema')) is not int or value.get('schema') != ROWS_SCHEMA):
+        return RowRead(False, reason='schema_mismatch', type=t, schema=value.get('schema'))
     issues = validate(schemas[t], value)
+    if inputs and not issues:
+        if t == 'prompt' and value['content'] in ('', []): issues.append(Issue('content', 'a prompt row with no content'))
+        if t == 'shell' and not value['command'].strip(): issues.append(Issue('command', 'a shell row with no command'))
+        if t == 'note' and (value['to'] == '' or value['content'] == ''): issues.append(Issue('', 'a note row with no agent or no content'))
     return RowRead(not issues, row=cast(StreamRow | InputRow, value) if not issues else None, reason='invalid' if issues else None, type=t, issues=issues)
 
 
@@ -97,6 +113,6 @@ def input_row_of(value: Any) -> RowRead[InputRow]:
 
 def parse_row(line: str) -> RowRead[StreamRow]:
     try:
-        return row_of(json.loads(line))
+        return row_of(json.loads(line.lstrip('\ufeff')))
     except (ValueError, TypeError):
         return RowRead(False, reason='not_json')

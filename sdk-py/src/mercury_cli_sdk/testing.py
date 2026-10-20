@@ -5,6 +5,7 @@ import secrets
 import sys
 from dataclasses import dataclass, field
 from typing import Any
+from .generated import OUTCOME_EXIT_CODES
 
 
 @dataclass
@@ -76,19 +77,25 @@ async def start_fixture_server(fixture: dict) -> FixtureServer:
     port = server.sockets[0].getsockname()[1]
     bridge = f'''import socket,sys,threading,json
 s=socket.create_connection(('127.0.0.1',{port}))
-s.sendall((json.dumps({{'token':{token!r},'door':'runner' if 'runner' in sys.argv else 'run'}})+'\\n').encode())
+args=sys.argv[1:]
+head=args[:next((i for i,a in enumerate(args) if a in ('--','--format')),len(args))]
+door='runner' if any(a=='runner' and (i==0 or head[i-1]!='--project') for i,a in enumerate(head)) else 'run'
+s.sendall((json.dumps({{'token':{token!r},'door':door}})+'\\n').encode())
 def feed():
     try:
         for line in sys.stdin.buffer: s.sendall(line)
         s.shutdown(socket.SHUT_WR)
     except OSError: pass
 threading.Thread(target=feed,daemon=True).start()
+code=0
 try:
-    while True:
-        data=s.recv(65536)
-        if not data: break
+    for data in s.makefile('rb'):
         sys.stdout.buffer.write(data)
         sys.stdout.buffer.flush()
+        if door=='run':
+            row=json.loads(data)
+            if row.get('type')=='outcome': code={OUTCOME_EXIT_CODES!r}.get(row.get('status'),1)
 finally: s.close()
+sys.exit(code)
 '''
     return FixtureServer([sys.executable, '-u', '-c', bridge], received, server, writers)

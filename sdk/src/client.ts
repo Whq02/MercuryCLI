@@ -1,4 +1,5 @@
 /// <reference types="node" preserve="true" />
+import { readLines } from './framing.js'
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { EffortLevel, PermissionMode } from './door.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
@@ -129,7 +130,8 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
   #abortCleanup: (() => void) | undefined
   #streaming: boolean
   #listeners = new Map<string, Set<Listener>>()
-  #buffer = ''
+  #stopTimer: ReturnType<typeof setTimeout> | undefined
+  #abortRequested = false
   #stderr = ''
   #settled = false
   #error: MercuryError | null = null
@@ -170,9 +172,8 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     })
-    this.child.stdout!.setEncoding('utf8')
     this.child.stderr!.setEncoding('utf8')
-    this.child.stdout!.on('data', (chunk: string) => this.#feed(chunk))
+    readLines(this.child.stdout!, line => this.#line(line), error => this.#fatal(error))
     this.child.stderr!.on('data', (chunk: string) => {
       this.#stderr += chunk
     })
@@ -185,9 +186,9 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
     if (options.stdin !== undefined) this.child.stdin!.write(options.stdin)
     if (options.input !== 'rows') this.child.stdin!.end()
     if (options.signal !== undefined) {
-      if (options.signal.aborted) this.interrupt()
+      if (options.signal.aborted) this.#abortRequested = true
       else {
-        const abort = () => { this.interrupt() }
+        const abort = () => { if (this.#sessionRow) this.interrupt(); else this.#abortRequested = true }
         options.signal.addEventListener('abort', abort, { once: true })
         this.#abortCleanup = () => options.signal!.removeEventListener('abort', abort)
       }
@@ -214,7 +215,7 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
   }
 
   send(row: InputRow): Promise<void> {
-    if (!this.#streaming || this.child.stdin!.writableEnded) return Promise.reject(new MercuryError('input rows is not open', null))
+    if (this.#settled || this.child.exitCode !== null || this.child.signalCode !== null || !this.#streaming || this.child.stdin!.writableEnded || this.child.stdin!.destroyed) return Promise.reject(new MercuryError('input rows is not open', null))
     const read = inputRowOf(row)
     if (!read.ok) return Promise.reject(new MercuryWireError(JSON.stringify(row), read.reason, read.type, read.issues, null))
     return new Promise((resolve, reject) => this.child.stdin!.write(JSON.stringify(row) + '\n', error => error ? reject(new MercuryError(error.message, null, { cause: error })) : resolve()))
@@ -266,24 +267,20 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
     for (const listener of this.#listeners.get(type) ?? []) (listener as (payload: unknown) => void)(payload)
   }
 
-  #feed(chunk: string): void {
-    this.#buffer += chunk
-    let newline: number
-    while ((newline = this.#buffer.indexOf('\n')) >= 0) {
-      const line = this.#buffer.slice(0, newline)
-      this.#buffer = this.#buffer.slice(newline + 1)
-      this.#line(line)
-    }
+  #fatal(error: MercuryWireError): void {
+    if (this.#error) return
+    this.#error = error
+    this.child.stdin!.end()
+    this.terminate()
+    this.#stopTimer = setTimeout(() => this.kill(), 1000)
+    this.#stopTimer.unref()
   }
 
   #line(line: string): void {
-    if (line.trim() === '') return
+    if (this.#error || line.trim() === '') return
     const read = parseRow(line)
     if (!read.ok) {
-      if (this.#error === null) {
-        this.#error = new MercuryWireError(line, read.reason, read.type, read.issues, null)
-        this.#emit('error', this.#error)
-      }
+      this.#fatal(new MercuryWireError(line, read.reason, read.type, read.issues, null))
       return
     }
     const row = read.row
@@ -291,6 +288,7 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
     if (row.type === 'session' && this.#sessionRow === null) {
       this.#sessionRow = row
       this.#resolveSession(row)
+      if (this.#abortRequested) this.interrupt()
     }
     if (row.type === 'outcome') this.#outcomeRow = row
     this.#emit('row', row)
@@ -304,18 +302,15 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
     if (this.#settled) return
     this.#settled = true
     this.#abortCleanup?.()
-    if (this.#buffer.trim() !== '') this.#line(this.#buffer)
-    this.#buffer = ''
+    clearTimeout(this.#stopTimer)
     const exit: RunExit = { code, signal, stderr: this.#stderr }
     if (this.#error === null) {
       if (this.#spawnFailure !== undefined && this.#outcomeRow === null) this.#error = new MercurySpawnError(this.command, this.#spawnFailure)
       else if (this.#outcomeRow !== null && this.#outcomeRow.status === 'refused') this.#error = new MercuryRefusal(this.#outcomeRow, exit)
       else if (this.#outcomeRow === null && code === 2) this.#error = new MercuryUsageError(exit)
       else if (this.#outcomeRow === null) this.#error = new MercuryExitError(exit)
-      if (this.#error !== null) this.#emit('error', this.#error)
-    } else if (this.#error instanceof MercuryWireError) {
-      this.#error = new MercuryWireError(this.#error.line, this.#error.reason, this.#error.rowType, this.#error.issues, exit)
     }
+    if (this.#error !== null) { this.#error.exit = exit; this.#emit('error', this.#error) }
     if (this.#error !== null) {
       this.#rejectOutcome(this.#error)
       if (this.#sessionRow === null) this.#rejectSession(this.#error)

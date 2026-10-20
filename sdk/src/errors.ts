@@ -8,7 +8,7 @@ export class MercuryError extends Error {
   override readonly name: string = 'MercuryError'
   code?: number
   data?: unknown
-  readonly exit: RunExit | null
+  exit: RunExit | null
   constructor(message: string, exit: RunExit | null, options?: ErrorOptions) {
     super(message, options)
     this.exit = exit
