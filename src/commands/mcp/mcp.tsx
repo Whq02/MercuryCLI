@@ -2,7 +2,8 @@ import * as React from 'react'
 import { useEffect, useRef } from 'react'
 import { CommandPopupLease } from '../../components/CommandPopupSlot.js'
 import { claimCommandPopup } from '../../utils/cockpit/commandPopup.js'
-import { mcpPopupShape } from './McpPopup.js'
+import { mcpPopupShapeFor } from './McpPopup.js'
+import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { MCPReconnect } from '../../components/mcp/MCPReconnect.js'
 import { MCPSettings } from '../../components/mcp/MCPSettings.js'
 import type {
@@ -25,7 +26,6 @@ function McpToggle({
     if (ranRef.current) return
     ranRef.current = true
     void (async () => {
-      const { getFocusedSessionConnector } = await import('../../services/engine-connector/focusedConnector.js')
       const { isMcpOrgan } = await import('../../services/mcp/membership.js')
       const connector = getFocusedSessionConnector()
       const roster = connector.mcpRoster()
@@ -78,6 +78,6 @@ export async function call(
     return <McpToggle action={first} target={target} onDone={onDone} />
   }
   void context
-  const token = claimCommandPopup(mcpPopupShape)
+  const token = claimCommandPopup(mcpPopupShapeFor(getFocusedSessionConnector().mcpRoster().clients.length))
   return <CommandPopupLease token={token}><MCPSettings onComplete={onDone} /></CommandPopupLease>
 }

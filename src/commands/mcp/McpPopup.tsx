@@ -33,10 +33,14 @@ export function mcpServerState(server: McpRosterEntryV1): string {
   if (server.type === 'pending') return 'connecting…'
   return server.type
 }
-export const mcpPopupShape: CommandPopupShape = {
-  view: 'mcp',
-  width: columns => panelWidth(columns, { cap: WIDTH, min: 24 }),
-  rows: rows => Math.min(22, rows - 4),
+const MCP_POPUP_CHROME_ROWS = 8
+const MCP_POPUP_UNFOLD_ROWS = 2
+export function mcpPopupShapeFor(serverCount: number): CommandPopupShape {
+  return {
+    view: 'mcp',
+    width: columns => panelWidth(columns, { cap: WIDTH, min: 24 }),
+    rows: rows => Math.min(rows - 4, MCP_POPUP_CHROME_ROWS + Math.max(1, serverCount) + MCP_POPUP_UNFOLD_ROWS),
+  }
 }
 
 type Row = { key: string; server: McpRosterEntryV1; action?: 'disable' | 'enable' | 'reconnect' }
@@ -78,7 +82,7 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
     return rows
   })
   const at = Math.min(cursor, Math.max(0, rows.length - 1))
-  const win = paneWindow(rows.length, at, Math.max(1, height - 7))
+  const win = paneWindow(rows.length, at, Math.max(1, height - MCP_POPUP_CHROME_ROWS))
   const run = async (row: Row): Promise<void> => {
     if (busy !== null) return
     const { server, action } = row
