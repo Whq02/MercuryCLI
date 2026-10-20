@@ -83,6 +83,7 @@ try {
     for (const [name, text] of [['shape row', shapeRow], ['model row', modelRow], ['confirmation', confirm.found + ' ' + confirm.willRun]]) {
       check(name + ' discloses node count, total compute price, weight size and download assumption', ['2 nodes × 8× B200', '$127.84/hr', '1.56 TB', '30–60 min', '0.5–1 GB/s', '2 × 2 TB disk', 'also served per token by Kimi', 'https://platform.kimi.ai', 'stopped pod still bills its disk'].every(word => text.includes(word)))
     }
+    check('Qwen names its model-card per-token alternative without a pinned API price', hostStorageWords(HOST_RECIPES.find(row => row.id === 'qwen38-24t-fp8-b200')!, 127.84).includes('also served per token by Qwen Cloud (https://www.qwencloud.com)'))
     check('single-machine price line computes the requested 8× B300 example', hostStorageWords(HOST_RECIPES.find(row => row.id === 'kimi-k3-b300')!, 8.99 * 8).includes('$71.92/hr'))
     const frameOut = process.argv.indexOf('--frames')
     if (frameOut >= 0) writeFileSync(process.argv[frameOut + 1]!, JSON.stringify(frames, null, 2) + '\n')

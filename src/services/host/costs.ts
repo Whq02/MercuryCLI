@@ -13,6 +13,7 @@ export function hostDownloadWords(recipe: HostRecipe): string {
 
 export function hostPerTokenWords(recipe: HostRecipe, price?: number): string {
   const vendor = recipe.model === 'moonshotai/Kimi-K3' ? ['Kimi', 'https://platform.kimi.ai']
+    : /^(Qwen|RadixArk)\/Qwen3\.8-2\.4T-A95B/.test(recipe.model) ? ['Qwen Cloud', 'https://www.qwencloud.com']
     : recipe.model.startsWith('zai-org/GLM-5.3') ? ['Z.AI', 'https://z.ai']
     : recipe.model.startsWith('deepseek-ai/DeepSeek-V4-Pro') ? ['DeepSeek', 'https://www.deepseek.com/']
     : recipe.model.startsWith('XiaomiMiMo/MiMo-V2.6') ? ['Xiaomi MiMo', 'https://platform.xiaomimimo.com'] : undefined
