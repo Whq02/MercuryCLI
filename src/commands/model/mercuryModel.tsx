@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { hostEndpointChoice, hostRunModelRows, modelDoorRoad, retryHostEndpoint } from '../../services/host/door.js'
+import { hostEndpointChoice, hostRunModelRows, modelDoorRoad, removeHostEndpoint, retryHostEndpoint } from '../../services/host/door.js'
 import { runHostedModel } from '../../services/host/index.js'
 import { llmHostPopupRequest } from '../llmhost/llmhost.js'
 import { openSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
@@ -903,7 +903,7 @@ function MercuryModelWrapper({
   }
 
   const options = getModelOptions()
-  const listedModels: ModelChoice[] = options.map(opt => hostEndpointChoice(modelChoiceOf(opt, betas)))
+  const listedModels: ModelChoice[] = options.flatMap(opt => hostEndpointChoice(modelChoiceOf(opt, betas)))
   const expandRows = (group: string): ModelChoice[] => expandRowsOf(group, betas)
   const labelOf = (id: string): string => pickLabelOf(options, id)
   const current = focusedSeat?.effective ?? engineModelForSession ?? engineModel ?? getEngineModel()
@@ -971,6 +971,10 @@ function MercuryModelWrapper({
     if (id.startsWith('host-retry:')) {
       setNotice('Checking this server…')
       void retryHostEndpoint(id.slice('host-retry:'.length)).then(setNotice)
+      return
+    }
+    if (id.startsWith('host-remove:')) {
+      void removeHostEndpoint(id.slice('host-remove:'.length)).then(setNotice)
       return
     }
     if (id.startsWith('host-run:')) {

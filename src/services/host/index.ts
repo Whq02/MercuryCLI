@@ -27,18 +27,25 @@ const verifiedRank = (recipe: HostRecipe): number => ['measured', 'documented', 
 const keepWords = (pod: HostPod): string => pod.id + ' · ' + (pod.family ? 'cluster still billable · /llmhost → Pods I’m paying for → Terminate' : pod.status === 'EXITED' ? words.stoppedDisk : 'pod still running · /llmhost → Pods I’m paying for → Stop or Terminate')
 
 async function forgetEndedPods(live: readonly HostPod[]): Promise<string[]> {
+  const { configuredCompatEndpoints } = await import('../providers/openaicompat/compatAccounts.js')
+  const { removeLlmHostProvider } = await import('../llmHost/index.js')
   const lines: string[] = []
+  const listed = (id: string): boolean => live.some(row => row.id === id || row.nodes?.some(node => node.id === id))
+  const removed = (name: string): void => {
+    removeLlmHostProvider(name)
+    lines.push(name + ' is no longer in the account — its model entry was removed')
+  }
   for (const record of hostRecords()) {
     if (record.jobKind === 'watch' || record.creating) continue
-    if (live.some(row => row.id === record.id || row.nodes?.some(node => node.id === record.id))) continue
+    if (listed(record.id)) continue
     if (record.jobState === 'queued' || record.jobState === 'starting' || hostJobRunning(record)) continue
-    if (record.provider) {
-      const { removeLlmHostProvider } = await import('../llmHost/index.js')
-      removeLlmHostProvider(record.provider)
-    }
+    if (record.provider) removed(record.provider)
     closeHostTunnel(record.id)
     removeHostRecord(record.id)
-    lines.push(record.name + ' · ' + record.id + ' is no longer in the account' + (record.provider ? ' — its model entry was removed' : ''))
+    if (!record.provider) lines.push(record.name + ' · ' + record.id + ' is no longer in the account')
+  }
+  for (const endpoint of configuredCompatEndpoints()) {
+    if (endpoint.hostPodId && !listed(endpoint.hostPodId) && !readHostRecord(endpoint.hostPodId)) removed(endpoint.name)
   }
   return lines
 }
@@ -166,7 +173,12 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       if (!isHostDoorReentry(ask)) return await runModelDoor(question, emit, signal, {
         initialModel: initialDoorModel(ask),
         offers: () => key ? (api ??= new RunpodClient(key, options.apiBaseUrl)).offers(signal) : Promise.resolve(undefined),
-        pods: () => key ? (api ??= new RunpodClient(key, options.apiBaseUrl)).pods(signal) : Promise.resolve(undefined),
+        pods: async () => {
+          if (!key) return undefined
+          const pods = await listHostResources(api ??= new RunpodClient(key, options.apiBaseUrl), signal)
+          for (const line of await forgetEndedPods(pods)) emit({ title: words.paid, words: line })
+          return pods
+        },
         records: hostRecords,
         road: createHostRoad(options),
         boxes: () => listBoxes().map(box => ({ name: box.name, kind: box.kind, os: box.os, memoryGb: box.memoryGb, unifiedMemory: box.unifiedMemory, engines: box.engines.map(engine => ({ kind: engine.kind, version: engine.version, port: engine.port })) })),
