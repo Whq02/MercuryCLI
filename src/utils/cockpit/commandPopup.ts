@@ -4,7 +4,7 @@ export type CommandPopupShape = {
   rows: (terminalRows: number) => number
 }
 
-type CommandPopupClaim = { token: number; shape: CommandPopupShape }
+type CommandPopupClaim = { token: number; shape: CommandPopupShape; minimumRows?: number }
 
 let claim: CommandPopupClaim | null = null
 let nextToken = 1
@@ -20,6 +20,14 @@ export function claimCommandPopup(shape: CommandPopupShape): number {
   claim = { token, shape }
   notify()
   return token
+}
+
+export function growCommandPopup(token: number, minimumRows: number): void {
+  if (claim === null || claim.token !== token || !Number.isFinite(minimumRows) || minimumRows <= (claim.minimumRows ?? 0)) return
+  const previous = claim.shape.rows
+  const floor = Math.floor(minimumRows)
+  claim = { ...claim, minimumRows: floor, shape: { ...claim.shape, rows: terminalRows => Math.min(terminalRows - 4, Math.max(previous(terminalRows), floor)) } }
+  notify()
 }
 
 export function releaseCommandPopup(token: number): void {
