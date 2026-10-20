@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, existsSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dir, '../..')
-const scratch = mkdtempSync(join(tmpdir(), 'sdk-package-review-'))
+const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'sdk-package-review-')))
 function run(command: string, args: string[], env = process.env, cwd = scratch) {
   const result = spawnSync(command, args, { cwd, env: { ...env, PYTHONDONTWRITEBYTECODE: '1' }, encoding: 'utf8', timeout: 120000 })
   assert.equal(result.status, 0, `${command}: ${result.stdout}${result.stderr}`)
