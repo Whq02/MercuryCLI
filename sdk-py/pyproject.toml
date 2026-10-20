@@ -13,7 +13,18 @@ license = "Apache-2.0"
 license-files = ["LICENSE"]
 keywords = ["mercury-cli", "mercury"]
 dependencies = []
-classifiers = ["Programming Language :: Python :: 3", "Typing :: Typed"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Framework :: AsyncIO",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries",
+  "Typing :: Typed",
+]
 
 [project.urls]
 Homepage = "https://mercury-cli.ai"

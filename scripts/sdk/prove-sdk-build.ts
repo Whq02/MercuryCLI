@@ -6,6 +6,50 @@ import { join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'sdk-build-'))
+const STRICT_CONSUMER = String.raw`import { run, connect, defineAgent, defineTool, serveTools, MercuryRefusal, argvOf, rowOf, parseRow, validate, type StreamRow, type OutcomeRow, type SessionRow, type RunOptions, type ConnectOptions, type HostHandlers, type MercuryRun, type MercurySession } from 'mercury-cli-sdk'
+import { startFixtureServer } from 'mercury-cli-sdk/testing'
+
+const options: RunOptions = { prompt: 'Explain', mode: 'default', partial: true, mercury: ['ssh', 'host', 'mercury'], schema: { type: 'object' } }
+const task: MercuryRun = run(options)
+task.on('text', row => process.stdout.write(row.text))
+task.on('row', (row: StreamRow) => { if (row.type === 'unknown_row') console.log(row.original_type, row.seq) })
+for await (const row of task) {
+  if (row.type === 'tool_call') console.log(row.tool, row.input)
+  if (row.type === 'outcome') console.log(row.status satisfies string)
+}
+const outcome: OutcomeRow = await task.outcome
+console.log(outcome.status, outcome.answer ?? outcome.error?.message)
+const sessionRow: SessionRow = await task.session
+console.log(sessionRow.model, (await task.exit).code, argvOf(options).args)
+const handlers: HostHandlers = { 'fs/write_text_file': async () => {}, 'permission/request': () => ({ outcome: 'deny', message: 'no' }) }
+const connectOptions: ConnectOptions = { handlers, partial: true, onElicitation: () => ({ action: 'decline' }) }
+const session: MercurySession = await connect(connectOptions)
+try {
+  const first = await session.prompt('Inspect')
+  console.log(first.status, first.denials.length)
+  const facts = await session.facts()
+  console.log(facts.queue, facts.usage)
+  const receipt = await session.sendPrompt('more', { id: 'abc', priority: 'next' })
+  console.log(receipt.accepted)
+  await session.request('session/pause_gate', { paused: false })
+  session.on('notification', n => console.log(n.method, n.params))
+} catch (error) {
+  if (error instanceof MercuryRefusal) console.log(error.outcome?.status, error.errorClass, error.detail, error.code)
+} finally { await session.close() }
+const tools = await serveTools([defineTool({ name: 'greeting', description: 'Return a greeting', inputSchema: { type: 'object', properties: {} }, execute: () => 'Hello' })])
+try {
+  const agent = defineAgent({ description: 'Reviewer', prompt: 'Review.', tools: ['Read'] })
+  console.log(run({ prompt: 'Review', agent: 'reviewer', agentDefs: { reviewer: agent }, mcp: [tools.mcp] }).args)
+} finally { await tools.close() }
+const fixture = await startFixtureServer({ rows: task.rows })
+try { console.log((await run({ mercury: fixture.mercury, prompt: 'test' }).outcome).status, fixture.received.length) } finally { await fixture.close() }
+const read = parseRow('{}')
+if (read.ok) console.log(read.row.type)
+else console.log(read.reason, read.issues)
+console.log(rowOf({ type: 'x' }).ok, validate({ type: 'string' }, 1))
+await using disposable = await connect()
+console.log(disposable.initialized.protocol)
+`
 const command = (cmd: string, args: string[], cwd: string, env = process.env) => {
   const result = spawnSync(cmd, args, { cwd, env, encoding: 'utf8', timeout: 180000 })
   assert.equal(result.status, 0, `${cmd} ${args.join(' ')}\n${result.stdout}${result.stderr}`)
@@ -33,6 +77,21 @@ try {
   writeFileSync(join(scratch, 'pyrightconfig.json'), JSON.stringify({ extraPaths: [join(scratch, 'sdk-py/src')], include: ['consumer.py'], pythonVersion: '3.11' }))
   command('node', [pyright, '--project', join(scratch, 'pyrightconfig.json'), '--level', 'error'], scratch)
   console.log('PASS Python consumer types: session/exit futures, fifteen convenience methods and generated constants')
+  cpSync(join(root, 'scripts/sdk/python-strict.py'), join(scratch, 'strict.py'))
+  writeFileSync(join(scratch, 'pyrightconfig.json'), JSON.stringify({ extraPaths: [join(scratch, 'sdk-py/src')], include: ['strict.py'], pythonVersion: '3.11', typeCheckingMode: 'strict' }))
+  command('node', [pyright, '--project', join(scratch, 'pyrightconfig.json')], scratch)
+  console.log('PASS a pyright-strict consumer of the whole public Python surface reports nothing')
+  mkdirSync(join(scratch, 'consumer/node_modules'), { recursive: true })
+  cpSync(join(scratch, 'sdk'), join(scratch, 'consumer/node_modules/mercury-cli-sdk'), { recursive: true, filter: p => !p.includes('/src/') })
+  symlinkSync(join(root, 'node_modules/@types'), join(scratch, 'consumer/node_modules/@types'))
+  symlinkSync(join(root, 'node_modules/undici-types'), join(scratch, 'consumer/node_modules/undici-types'))
+  writeFileSync(join(scratch, 'consumer/package.json'), JSON.stringify({ type: 'module' }))
+  writeFileSync(join(scratch, 'consumer/consumer.ts'), STRICT_CONSUMER)
+  for (const resolution of ['Node16', 'NodeNext', 'Bundler']) {
+    writeFileSync(join(scratch, 'consumer/tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2022', module: resolution === 'Bundler' ? 'ESNext' : resolution, moduleResolution: resolution, strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false, noEmit: true }, files: ['consumer.ts'] }))
+    command('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(scratch, 'consumer/tsconfig.json')], scratch)
+  }
+  console.log('PASS a strict TypeScript consumer of the whole public surface compiles under Node16, NodeNext and Bundler with exactOptionalPropertyTypes')
   command('python3', ['-I', '-S', join(scratch, 'sdk-py/build_backend.py'), join(scratch, 'artifacts')], scratch)
   const wheel = readdirSync(join(scratch, 'artifacts')).find(f => f.endsWith('.whl'))!
   command('python3', ['-I', '-S', '-c', `import sys,zipfile;sys.path.insert(0,${JSON.stringify(join(scratch, 'artifacts', wheel))});import mercury_cli_sdk as s;assert s.__version__=='0.1.0';assert len(s.ROW_SCHEMAS)==25;assert callable(s.connect_sync);z=zipfile.ZipFile(sys.path[0]);assert 'mercury_cli_sdk/py.typed' in z.namelist();assert b'Requires-Dist:' not in z.read('mercury_cli_sdk-0.1.0.dist-info/METADATA')`], scratch)
