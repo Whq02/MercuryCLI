@@ -27,6 +27,7 @@ export const NameplateAccentContext = React.createContext<string | null>(null)
 export const CrewmatePlateContext = React.createContext<{ agent: string; user: string } | null>(null)
 
 type MessageMeta = {
+  uuid?: string
   timestamp?: string
   role: MessageRole
   attachedAuthor?: AttachedAuthor
@@ -46,7 +47,7 @@ export function MessageMetaProvider({
   message,
   children,
 }: {
-  message: { type?: string; timestamp?: string; queued?: true; heldFor?: 'compaction'; attachment?: { type?: string; commandMode?: string; sentAt?: string; deliveredAt?: string } }
+  message: { uuid?: string; type?: string; timestamp?: string; queued?: true; heldFor?: 'compaction'; attachment?: { type?: string; commandMode?: string; sentAt?: string; deliveredAt?: string } }
   children: React.ReactNode
 }): React.ReactNode {
   const role: MessageRole =
@@ -65,8 +66,8 @@ export function MessageMetaProvider({
   const attachedAuthor: AttachedAuthor | undefined =
     attachedClassify !== null ? (role === 'assistant' ? 'agent' : attachedClassify(message)) : undefined
   const value = React.useMemo<MessageMeta>(
-    () => ({ timestamp, role, attachedAuthor, queued, ...(heldFor !== undefined ? { heldFor } : {}) }),
-    [timestamp, role, attachedAuthor, queued, heldFor],
+    () => ({ uuid: message.uuid, timestamp, role, attachedAuthor, queued, ...(heldFor !== undefined ? { heldFor } : {}) }),
+    [message.uuid, timestamp, role, attachedAuthor, queued, heldFor],
   )
   return (
     <MessageMetaContext.Provider value={value}>

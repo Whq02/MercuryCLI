@@ -101,6 +101,8 @@ export async function processBashCommand(
   renderDisplay()
   const nestedContext = {
     ...context,
+    toolUseId: commandMessage.uuid,
+    shellInputId: commandMessage.uuid,
     setToolJSX: (next: Parameters<SetToolJSXFn>[0]) => {
       progressJsx = next?.jsx ?? null
       renderDisplay()

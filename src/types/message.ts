@@ -608,6 +608,7 @@ export type NormalizedAssistantMessage<
 }
 
 export type NormalizedUserMessage = Omit<UserMessage, 'message'> & {
+  sourceUuid?: string
   message: {
     role: 'user'
     content: ContentBlockParam[]

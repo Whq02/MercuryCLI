@@ -54,6 +54,7 @@ function userTextRow(parent: UserMessage, text: string, latched: boolean): Norma
     {
       ...parent,
       uuid: uuidOfRow(parent, latched, 0),
+      sourceUuid: parent.uuid,
       message: { ...parent.message, content: [{ type: 'text', text }] },
     } as NormalizedMessage,
   ]
@@ -81,6 +82,7 @@ function userBlockRows(parent: UserMessage, blocks: (ContentBlock | ContentBlock
       }),
       ...dress,
       uuid: uuidOfRow(parent, latched, index),
+      sourceUuid: parent.uuid,
     } as NormalizedMessage
   })
 }
