@@ -777,6 +777,7 @@ async function routeControlRequest(
         ...(kit !== undefined ? { kit } : {}),
         ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
         ...(typeof raw.vacatingSessionId === 'string' && raw.vacatingSessionId !== '' ? { vacatingSessionId: raw.vacatingSessionId } : {}),
+        ...(raw.restartReason === 'update' ? { restartReason: 'update' as const } : {}),
       }
       let r = await deps.concourseAdmit(admitRequest)
       const seatDeadline = Date.now() + waitForSeatMs

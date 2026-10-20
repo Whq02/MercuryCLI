@@ -158,7 +158,6 @@ export interface RunnerChildSpec {
   stripEnv?: readonly string[]
   sessionPin?: { sessionId: string; cwd: string }
   partialRows?: true
-  entry?: { node?: string; script: string }
 }
 
 export function daemonCapabilities(spec: Pick<RunnerChildSpec, 'partialRows'>): Capabilities {
@@ -201,9 +200,7 @@ export function buildRunnerInvocation(
   env: NodeJS.ProcessEnv
   capabilities: Capabilities
 } {
-  const self = getSelfInvocation()
-  const node = spec.entry?.node ?? self.node
-  const script = spec.entry?.script ?? self.script
+  const { node, script } = getSelfInvocation()
   const model = spec.model
   const argv = [
     script,

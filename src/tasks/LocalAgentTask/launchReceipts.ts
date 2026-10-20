@@ -47,10 +47,10 @@ export interface BackgroundLaunchReceipt {
   launchedAt: number
 }
 
-export type RunnerRestartReason = 'crash' | 'stop' | 'settings' | 'relaunch' | 'update'
+export type RunnerRestartReason = 'crash' | 'stop' | 'settings' | 'relaunch' | 'update' | 'ended'
 
 export function coerceRestartReason(value: unknown): RunnerRestartReason | undefined {
-  return value === 'crash' || value === 'stop' || value === 'settings' || value === 'relaunch' || value === 'update' ? value : undefined
+  return value === 'crash' || value === 'stop' || value === 'settings' || value === 'relaunch' || value === 'update' || value === 'ended' ? value : undefined
 }
 
 function restartBecause(reason?: RunnerRestartReason): string {
@@ -64,7 +64,9 @@ function restartBecause(reason?: RunnerRestartReason): string {
           ? ' after a relaunch'
           : reason === 'update'
             ? ' after an update'
-            : ''
+            : reason === 'ended'
+              ? ' after it ended around an update'
+              : ''
 }
 
 export function restartStopSummary(description: string, reason?: RunnerRestartReason): string {
@@ -308,7 +310,7 @@ export type RestartCarryCounts = { relaunched: number; delivered: number; stoppe
 export { RESTART_CARRY_ROW_PREFIX }
 
 export function restartCarryRow(reason: RunnerRestartReason | undefined, counts: RestartCarryCounts): string {
-  const because = reason === 'stop' ? 'after a stop' : reason === 'update' ? 'after an update' : 'after a crash'
+  const because = reason === 'stop' ? 'after a stop' : reason === 'update' ? 'after an update' : reason === 'ended' ? 'after it ended around an update' : 'after a crash'
   return `${RESTART_CARRY_ROW_PREFIX}${because}: ${counts.relaunched} background crewmates relaunched, ${counts.delivered} delivered from their receipts, ${counts.stopped} stopped`
 }
 

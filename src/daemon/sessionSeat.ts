@@ -528,11 +528,6 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
     ...saturnFactsOf(rec, Date.now()),
     ...(boxAnswer !== undefined ? { box: boxAnswer } : {}),
     ...(runnerFact !== undefined ? { runner: runnerFact } : {}),
-    ...(answerRest.buildTree !== undefined
-      ? { buildTree: answerRest.buildTree }
-      : rec.buildTree !== undefined
-        ? { buildTree: rec.buildTree }
-        : {}),
   }
   seat.lastBusy = facts.busy
   try {

@@ -175,6 +175,7 @@ export type DaemonRequest =
       birthKey?: string
       waitForSeatMs?: number
       by?: string
+      restartReason?: 'update'
     }
   | { op: 'sessionList'; proto: number; auth?: string }
   | { op: 'concourseWithdraw'; proto: number; auth?: string; clientMessageId: string }
