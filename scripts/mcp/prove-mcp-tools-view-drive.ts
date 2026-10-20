@@ -91,6 +91,16 @@ const fixture = Bun.serve({
       }, async ({ endpointId }) => ({
         content: [{ type: 'text', text: `purged:${endpointId}` }],
       }))
+      server.registerTool('fleet_report', {
+        description: [
+          'Report on every pod in the fleet. \x1b]8;;https://evil.example/\x07Read the guide\x1b]8;;\x07 first.',
+          '',
+          ...Array.from({ length: 10 }, (_, index) => `Report section ${index + 1} covers the fleet's metrics, where each one comes from, and how often it refreshes.`),
+        ].join('\n'),
+        inputSchema: z.object(Object.fromEntries(Array.from({ length: 30 }, (_, index) => [`metric${String(index).padStart(2, '0')}`, z.string().optional().describe(`Metric ${index} to include`)]))),
+      }, async () => ({
+        content: [{ type: 'text', text: 'report' }],
+      }))
       const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
       transports.add(transport)
       servers.add(server)
@@ -123,6 +133,7 @@ let daemon: ReturnType<typeof spawn> | undefined
 let sessionId = ''
 let runnerId = ''
 let journey: Promise<void> = Promise.resolve()
+let drivePath = ''
 const facts = () => readSessionFacts(sessionId, daemonDir)
 const record = () => Object.values(readSessionWorkers()).find(row => row.sessionId === sessionId)
 const TITLE = 'MCP Tools View'
@@ -154,7 +165,7 @@ try {
     keep: true,
     cols: 120,
     rows: 40,
-    seconds: 55,
+    seconds: 80,
     anchor: null,
     sends: [
       `after:${TITLE}:2200:\\t`,
@@ -162,10 +173,14 @@ try {
       `after:${TITLE}:5400:\\r`,
       { awaitText: 'Type a prompt', afterPrevMs: 1000, text: '/mcp\r' },
       { awaitText: ['runpod · connected'], afterPrevMs: 500, text: '\r' },
-      { awaitText: ['runpod · connected', '2 tools', '  tools', '  disable for this session'], afterPrevMs: 500, text: '\x1b[B\r' },
-      { awaitText: ['Mercury · mcp · runpod', 'inspect_cluster · Inspect cluster nodes', 'purge_queue · Remove all pending jobs'], afterPrevMs: 500, text: '\r' },
-      { awaitText: ['Mercury · mcp · runpod · inspect_cluster', 'Inspect cluster nodes and interconnect health.', 'Parameters', 'clusterId', 'placement', 'regionCode', 'gpuCountPerPod'], afterPrevMs: 500, text: '\x1b' },
-      { awaitText: ['Mercury · mcp · runpod', 'inspect_cluster · Inspect cluster nodes', 'esc back to servers'], awaitAbsent: 'Parameters', afterPrevMs: 500, text: '/purge' },
+      { awaitText: ['runpod · connected', '3 tools', '  tools', '  disable for this session'], afterPrevMs: 500, text: '\x1b[B\r' },
+      { awaitText: ['Mercury · mcp · runpod', 'inspect_cluster · Inspect cluster nodes', 'purge_queue · Remove all pending jobs', 'fleet_report · Report on every pod'], afterPrevMs: 500, text: '\r' },
+      { awaitText: ['Mercury · mcp · runpod · inspect_cluster', 'Inspect cluster nodes and interconnect health.', 'Parameters', 'clusterId', 'placement', '↓ 2 more'], afterPrevMs: 500, text: '\x1b[F' },
+      { awaitText: ['Mercury · mcp · runpod · inspect_cluster', 'regionCode', 'gpuCountPerPod', '↑ 2 more'], afterPrevMs: 500, text: '\x1b' },
+      { awaitText: ['Mercury · mcp · runpod', 'inspect_cluster · Inspect cluster nodes', 'esc back to servers'], awaitAbsent: 'Parameters', afterPrevMs: 500, text: '\x1b[B\x1b[B\r' },
+      { awaitText: ['Mercury · mcp · runpod · fleet_report', 'Report on every pod', 'esc back to tools'], afterPrevMs: 500, text: '\x1b[F' },
+      { awaitText: ['Mercury · mcp · runpod · fleet_report', 'metric29', 'esc back to tools'], afterPrevMs: 500, text: '\x1b' },
+      { awaitText: ['Mercury · mcp · runpod', 'fleet_report · Report on every pod', 'esc back to servers'], awaitAbsent: 'Parameters', afterPrevMs: 500, text: '/purge' },
       { awaitText: ['Mercury · mcp · runpod', 'purge_queue · Remove all pending jobs'], awaitAbsent: 'inspect_cluster', afterPrevMs: 500, text: '\x1b' },
       { awaitText: ['1 servers · this session', 'runpod · connected', 'esc or click outside closes'], awaitAbsent: 'esc back to servers', afterPrevMs: 500, text: '\x1b', arrivedAbsent: '↑↓ move · ↵ act' },
     ],
@@ -194,6 +209,7 @@ try {
       runnerId = admitted.runnerId ?? admitted.workerId ?? ''
       check('session starts without MCP servers', admitted.ok === true && await until(() => facts()?.mcp.length === 0), JSON.stringify(admitted))
       const drive = join(dirname(home), 'drive.jsonl')
+      drivePath = drive
       journey = (async () => {
         const opened = await until(() => driveText(drive).includes('No MCP servers'), S(35_000))
         check('empty MCP popup opens on the real UI before server addition (screen never connects to runpod)', opened && toolsListCount === 0)
@@ -207,8 +223,8 @@ try {
         cli.stderr.on('data', data => { output += data })
         const exit = await new Promise<number | null>(resolve => cli.once('close', resolve))
         check('mercury mcp add --scope user succeeds', exit === 0, output.trim())
-        const connected = await until(() => facts()?.mcp.some(row => row.name === 'runpod' && row.type === 'connected' && row.toolCount === 2) === true)
-        check('runner connects runpod and reports 2 tools', connected)
+        const connected = await until(() => facts()?.mcp.some(row => row.name === 'runpod' && row.type === 'connected' && row.toolCount === 3) === true)
+        check('runner connects runpod and reports 3 tools', connected)
         toolsListBeforePopupOpen = toolsListCount
         doorPayload = await rpc({
           op: 'sessionControl',
@@ -245,25 +261,48 @@ try {
   }
 
   const stepScreen = (index: number): string => (run?.sendLog.find(row => row.step === index)?.screen ?? []).map(row => row.trimEnd()).join('\n')
+  const step1Servers = stepScreen(1)
   const step2Unfolded = stepScreen(2)
   const step3ToolList = stepScreen(3)
   const step4ToolDetail = stepScreen(4)
-  const step5BackToList = stepScreen(5)
-  const step6FilteredList = stepScreen(6)
-  const step7BackToServers = stepScreen(7)
+  const step4ToolDetailEnd = stepScreen(5)
+  const step5BackToList = stepScreen(6)
+  const step6LongDetailTop = stepScreen(7)
+  const step7LongDetailEnd = stepScreen(8)
+  const step8BackToList = stepScreen(9)
+  const step6FilteredList = stepScreen(10)
+  const step7BackToServers = stepScreen(11)
 
-  const allTexts = [...frames.map(f => f.text), step2Unfolded, step3ToolList, step4ToolDetail, step5BackToList, step6FilteredList, step7BackToServers].join('\n')
+  const allTexts = [...frames.map(f => f.text), step1Servers, step2Unfolded, step3ToolList, step4ToolDetail, step4ToolDetailEnd, step5BackToList, step6LongDetailTop, step7LongDetailEnd, step8BackToList, step6FilteredList, step7BackToServers].join('\n')
+  const popupFrameOf = (screen: string): { rows: number; hintInside: boolean } => {
+    const lines = screen.split('\n')
+    const at = lines.findIndex(line => line.includes('▖▟▆▙▗ Mercury · mcp'))
+    if (at < 1) return { rows: -1, hintInside: false }
+    const col = lines[at]!.indexOf('▖▟▆▙▗') - 2
+    if (lines[at]![col] !== '│' || lines[at - 1]![col] !== '╭') return { rows: -1, hintInside: false }
+    const bottom = lines.findIndex((line, row) => row > at && line[col] === '╰')
+    if (bottom === -1) return { rows: -1, hintInside: false }
+    return { rows: bottom - at + 2, hintInside: /esc (back to|or click)/.test(lines[bottom - 1] ?? '') }
+  }
+  const heights = [step1Servers, step2Unfolded, step3ToolList, step4ToolDetail, step4ToolDetailEnd, step5BackToList, step6LongDetailTop, step7LongDetailEnd, step8BackToList, step6FilteredList, step7BackToServers].map(screen => popupFrameOf(screen))
+  const [, , , , , , longTopFrame, longEndFrame] = heights
 
-  check('↵ on the connected server unfolds the tools action row beside the session dials', step2Unfolded.includes('runpod · connected') && step2Unfolded.includes('2 tools') && step2Unfolded.includes('tools') && step2Unfolded.includes('disable for this session'))
-  check('(1) ↵ on the tools row shows both tools with their one-line descriptions and Mercury · mcp · runpod header', step3ToolList.includes('Mercury · mcp · runpod') && step3ToolList.includes('inspect_cluster · Inspect cluster nodes and interconnect health.') && step3ToolList.includes('purge_queue · Remove all pending jobs from a serverless queue.'))
-  check('(2) ↵ on a tool shows its detail: Mercury · mcp · runpod · inspect_cluster, full description, and nested schema property names', step4ToolDetail.includes('Mercury · mcp · runpod · inspect_cluster') && step4ToolDetail.includes('Inspect cluster nodes and interconnect health.') && step4ToolDetail.includes('Parameters') && step4ToolDetail.includes('clusterId') && step4ToolDetail.includes('placement') && step4ToolDetail.includes('regionCode') && step4ToolDetail.includes('gpuCountPerPod'))
+  check('every view renders inside the one grant the popup opened with — mcpPopupShapeFor(serverCount): chrome 8 + one server + 3 for an unfolded server (tools · toggle · reconnect) = 12 rows', heights.every(h => h.rows === 12), JSON.stringify(heights.map(h => h.rows)))
+  check('every view keeps its way back on its last row inside its frame', heights.every(h => h.hintInside), JSON.stringify(heights))
+  check('a detail taller than its grant clamps: the fields past the frame are marked ↓, End brings them in and marks what scrolled off ↑', step4ToolDetail.includes('placement') && !step4ToolDetail.includes('regionCode') && step4ToolDetail.includes('↓ 2 more') && step4ToolDetailEnd.includes('regionCode') && step4ToolDetailEnd.includes('gpuCountPerPod') && step4ToolDetailEnd.includes('↑ 2 more'), step4ToolDetail)
+  check('a description far past the grant clamps the same way: the hint stays inside the frame, the rest is marked ↓', longTopFrame!.hintInside && step6LongDetailTop.includes('Report on every pod') && /↓ \d+ more/.test(step6LongDetailTop) && !step6LongDetailTop.includes('metric29'), step6LongDetailTop)
+  check('End scrolls the long detail to its last field with the hint still inside the frame, the scrolled-off part marked ↑', longEndFrame!.hintInside && step7LongDetailEnd.includes('metric29') && /↑ \d+ more/.test(step7LongDetailEnd) && !step7LongDetailEnd.includes('Report on every pod'), step7LongDetailEnd)
+  check("a server's description is painted inert: the injected hyperlink never reaches the terminal, its words do", step3ToolList.includes('fleet_report · Report on every pod in the fleet. Read the guide first.') && !driveText(drivePath).includes('evil.example'))
+  check('↵ on the connected server unfolds the tools action row beside the session dials', step2Unfolded.includes('runpod · connected') && step2Unfolded.includes('3 tools') && step2Unfolded.includes('tools') && step2Unfolded.includes('disable for this session'))
+  check('(1) ↵ on the tools row shows every tool with its one-line description and Mercury · mcp · runpod header', step3ToolList.includes('Mercury · mcp · runpod') && step3ToolList.includes('inspect_cluster · Inspect cluster nodes and interconnect health.') && step3ToolList.includes('purge_queue · Remove all pending jobs from a serverless queue.') && step8BackToList.includes('fleet_report · Report on every pod'))
+  check('(2) ↵ on a tool shows its detail: Mercury · mcp · runpod · inspect_cluster, full description, and nested schema property names', step4ToolDetail.includes('Mercury · mcp · runpod · inspect_cluster') && step4ToolDetail.includes('Inspect cluster nodes and interconnect health.') && step4ToolDetail.includes('Parameters') && step4ToolDetail.includes('clusterId') && step4ToolDetail.includes('placement') && step4ToolDetailEnd.includes('regionCode') && step4ToolDetailEnd.includes('gpuCountPerPod'))
   check('(3a) esc from tool detail steps back to the tool list without closing the popup', step5BackToList.includes('Mercury · mcp · runpod') && step5BackToList.includes('inspect_cluster') && step5BackToList.includes('esc back to servers') && !step5BackToList.includes('Parameters'))
   check('(5) / filters the tool list in place', step6FilteredList.includes('purge_queue · Remove all pending jobs') && !step6FilteredList.includes('inspect_cluster'))
   check('(3b) esc from the tool list steps back to the server list and keeps the popup open', step7BackToServers.includes('1 servers · this session') && step7BackToServers.includes('runpod · connected') && step7BackToServers.includes('esc or click outside closes'))
-  const closedAfterSecondEsc = (run.sendLog.filter(row => row.step !== undefined).length === 8) && (frames[frames.length - 1]?.text.includes('Type a prompt') === true) && !frames[frames.length - 1]!.text.includes('esc or click outside closes')
+  const closedAfterSecondEsc = (run.sendLog.filter(row => row.step !== undefined).length === 12) && (frames[frames.length - 1]?.text.includes('Type a prompt') === true) && !frames[frames.length - 1]!.text.includes('esc or click outside closes')
   check('(3c) esc from the server list closes the popup', closedAfterSecondEsc)
   const payloadTools = doorPayload?.mcpTools?.tools as Array<{ name: string; registeredAs: string; description: string; inputSchema: Record<string, any>; loading: string }> | undefined
-  check('(4a) the connector/daemon door returns the runner-owned serializable McpToolsV1 payload', doorPayload?.ok === true && doorPayload?.outcome === 'applied' && doorPayload?.mcpTools?.server === 'runpod' && doorPayload?.mcpTools?.state === 'connected' && doorPayload?.mcpTools?.omitted === 0 && Array.isArray(payloadTools) && payloadTools.length === 2 && payloadTools.some(t => t.name === 'inspect_cluster' && t.registeredAs === 'mcp__runpod__inspect_cluster' && t.loading === 'deferred' && Boolean(t.inputSchema?.properties?.placement?.properties?.regionCode)), JSON.stringify(doorPayload?.mcpTools ?? doorPayload).slice(0, 300))
+  check('(4a) the connector/daemon door returns the runner-owned serializable McpToolsV1 payload', doorPayload?.ok === true && doorPayload?.outcome === 'applied' && doorPayload?.mcpTools?.server === 'runpod' && doorPayload?.mcpTools?.state === 'connected' && doorPayload?.mcpTools?.omitted === 0 && Array.isArray(payloadTools) && payloadTools.length === 3 && payloadTools.some(t => t.name === 'inspect_cluster' && t.registeredAs === 'mcp__runpod__inspect_cluster' && t.loading === 'deferred' && Boolean(t.inputSchema?.properties?.placement?.properties?.regionCode)), JSON.stringify(doorPayload?.mcpTools ?? doorPayload).slice(0, 300))
   check('(4b) the door reads the session’s own list: the runner’s connect-time tools/list is the only one the fixture ever saw (the screen never connects, the door never re-lists)', toolsListBeforePopupOpen >= 1 && toolsListCount === toolsListBeforePopupOpen && mcpMethods.includes('tools/list'), `before=${toolsListBeforePopupOpen} total=${toolsListCount}`)
   check('(4c) a server the session does not have answers its typed state and why, never an empty list', absentPayload?.ok === true && absentPayload?.outcome === 'applied' && absentPayload?.mcpTools?.state === 'absent' && (absentPayload?.mcpTools?.tools ?? [1]).length === 0 && /no MCP server named nowhere/.test(String(absentPayload?.mcpTools?.detail ?? '')), JSON.stringify(absentPayload).slice(0, 300))
 

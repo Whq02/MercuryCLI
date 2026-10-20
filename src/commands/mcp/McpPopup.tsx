@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
@@ -7,10 +7,11 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import type { McpRosterEntryV1, McpToolEntryV1 } from '../../services/engine-connector/types.js'
 import { isMcpOrgan } from '../../services/mcp/membership.js'
+import { MCP_TOOLS_ANSWER_BYTES, MCP_TOOL_DESCRIPTION_CHARS } from '../../services/mcp/toolsAnswer.js'
 import { mcpRosterRowsFailedFirst } from './route.js'
 import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
 import { ProductLockup } from '../../components/mercury-ui/components.js'
-import { paneWindow, panelWidth } from '../../components/mercury-ui/geometry.js'
+import { paneWindow, panelWidth, scrolledWindow } from '../../components/mercury-ui/geometry.js'
 import { MenuFilterLine, cutToWidth } from '../../components/mercury-ui/menuFold.js'
 import { decodeNavKey } from '../../components/mercury-ui/navSemantics.js'
 import { useElevatedSurface } from '../../components/mercury-ui/useElevatedSurface.js'
@@ -20,6 +21,8 @@ import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.j
 import { PopupFrameContext } from '../../components/PopupGutter.js'
 import { estateGroundBg } from '../../utils/mercuryTokens.js'
 import type { CommandPopupShape } from '../../utils/cockpit/commandPopup.js'
+import { wrapPlain } from '../../utils/cockpit/helmConsoleText.js'
+import { stripTerminalControls } from '../../utils/stringUtils.js'
 
 const subscribe = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const WIDTH = 78
@@ -31,6 +34,11 @@ const MCP_TOOL_LOADING_WORDS: Record<McpToolEntryV1['loading'], string> = {
   listed: 'always loaded',
   held: 'held · joins the tool list at the next compaction or /clear',
 }
+const SCHEMA_DEPTH_SHOWN = 8
+
+const inert = (text: string): string => stripTerminalControls(text)
+const inertLine = (text: string): string => stripTerminalControls(text).replace(/\s+/g, ' ').trim()
+const kilobytes = (bytes: number): string => `${Math.max(1, Math.round(bytes / 1024)).toLocaleString('en-US')} KB`
 
 type SchemaNode = {
   type?: string | string[]
@@ -51,10 +59,12 @@ type SchemaPropertyLine = {
 }
 
 function collectSchemaProperties(node: SchemaNode | undefined, prefix = '', depth = 0): SchemaPropertyLine[] {
-  const properties = Object.entries(node?.properties ?? {})
-  const required = new Set(Array.isArray(node?.required) ? node.required : [])
+  const fields = node?.properties
+  const properties = typeof fields === 'object' && fields !== null && !Array.isArray(fields) ? Object.entries(fields) : []
+  const required = new Set(Array.isArray(node?.required) ? node.required.filter(name => typeof name === 'string') : [])
   const out: SchemaPropertyLine[] = []
-  for (const [name, prop] of properties) {
+  for (const [name, entry] of properties) {
+    const prop = typeof entry === 'object' && entry !== null && !Array.isArray(entry) ? entry : undefined
     const key = prefix ? `${prefix}.${name}` : name
     const typeLabel = Array.isArray(prop?.type)
       ? prop.type.join(' | ')
@@ -75,10 +85,43 @@ function collectSchemaProperties(node: SchemaNode | undefined, prefix = '', dept
       type: typeLabel,
       ...(typeof prop?.description === 'string' && prop.description !== '' ? { description: prop.description } : {}),
     })
-    if (prop?.properties) out.push(...collectSchemaProperties(prop, key, depth + 1))
-    else if (prop?.items?.properties) out.push(...collectSchemaProperties(prop.items, `${key}[]`, depth + 1))
+    const nested = prop?.properties ? prop : prop?.items?.properties ? prop.items : undefined
+    if (nested !== undefined && depth + 1 >= SCHEMA_DEPTH_SHOWN) out.push({ key: `${key}:deeper`, indent: '  '.repeat(depth + 2), name: '…', required: false, type: 'deeper fields not shown' })
+    else if (nested !== undefined) out.push(...collectSchemaProperties(nested, nested === prop ? key : `${key}[]`, depth + 1))
   }
   return out
+}
+
+type DetailSegment = { text: string; tone: 'primary' | 'muted' | 'warning'; bold?: true }
+type DetailLine = { key: string; segments: DetailSegment[] }
+
+function mcpToolDetailLines(tool: McpToolEntryV1, width: number): DetailLine[] {
+  const prose = (key: string, text: string, tone: DetailSegment['tone']): DetailLine[] =>
+    wrapPlain(text, width).map((line, index) => ({ key: `${key}:${index}`, segments: [{ text: line === '' ? ' ' : line, tone }] }))
+  const lines = prose('description', inert(tool.description).trim() || 'No description.', 'primary')
+  if (tool.descriptionCut === true) lines.push(...prose('cut', `(the description is cut at ${MCP_TOOL_DESCRIPTION_CHARS.toLocaleString('en-US')} characters)`, 'muted'))
+  if (tool.schemaWithheldBytes !== undefined) {
+    lines.push({ key: 'gap', segments: [{ text: ' ', tone: 'muted' }] })
+    lines.push(...prose('withheld', `The input schema (${kilobytes(tool.schemaWithheldBytes)}) did not fit this view's ${kilobytes(MCP_TOOLS_ANSWER_BYTES)} read of the server, so its parameters are not listed here.`, 'warning'))
+    return lines
+  }
+  const props = collectSchemaProperties(tool.inputSchema as SchemaNode)
+  if (props.length === 0) return lines
+  lines.push({ key: 'gap', segments: [{ text: ' ', tone: 'muted' }] })
+  lines.push({ key: 'parameters', segments: [{ text: 'Parameters', tone: 'muted' }] })
+  for (const prop of props) {
+    lines.push({
+      key: `field:${prop.key}`,
+      segments: [
+        { text: prop.indent, tone: 'muted' },
+        { text: inertLine(prop.name), tone: 'primary', bold: true },
+        ...(prop.required ? [{ text: '*', tone: 'warning' as const }] : []),
+        { text: ` ${inertLine(prop.type)}`, tone: 'muted' },
+        ...(prop.description ? [{ text: ` — ${inertLine(prop.description)}`, tone: 'muted' as const }] : []),
+      ],
+    })
+  }
+  return lines
 }
 
 export function mcpServerState(server: McpRosterEntryV1): string {
@@ -90,7 +133,8 @@ export function mcpServerState(server: McpRosterEntryV1): string {
   return server.type
 }
 const MCP_POPUP_CHROME_ROWS = 8
-const MCP_POPUP_UNFOLD_ROWS = 6
+const MCP_POPUP_UNFOLD_ROWS = 3
+const MCP_DETAIL_CHROME_ROWS = 6
 export function mcpPopupShapeFor(serverCount: number): CommandPopupShape {
   return {
     view: 'mcp',
@@ -100,7 +144,7 @@ export function mcpPopupShapeFor(serverCount: number): CommandPopupShape {
 }
 
 type Row = { key: string; server: McpRosterEntryV1; action?: 'tools' | 'disable' | 'enable' | 'reconnect' }
-type ToolViewState = { server: string; tools: readonly McpToolEntryV1[]; tool: McpToolEntryV1 | null }
+type ToolViewState = { server: string; tools: readonly McpToolEntryV1[]; omitted: number; reason: string | null; tool: McpToolEntryV1 | null }
 
 export function McpPopup({ onDone }: { onDone: (message?: string) => void }): React.ReactNode {
   const [, repaint] = useState(0)
@@ -123,12 +167,13 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
   const [filterFocus, setFilterFocus] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [listing, setListing] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [toolView, setToolView] = useState<ToolViewState | null>(null)
   const [toolCursor, setToolCursor] = useState(0)
   const [toolFilter, setToolFilter] = useState('')
   const [toolFilterFocus, setToolFilterFocus] = useState(false)
-  const [detailCursor, setDetailCursor] = useState(0)
+  const [detailScroll, setDetailScroll] = useState(0)
   const alive = useRef(true)
   const signingIn = useRef<string | null>(null)
   const filterFocusRef = useRef(false)
@@ -148,16 +193,26 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
   })
   const at = Math.min(cursor, Math.max(0, rows.length - 1))
   const win = paneWindow(rows.length, at, Math.max(1, height - MCP_POPUP_CHROME_ROWS))
+  const needle = toolFilter.toLowerCase()
   const filteredTools = toolView
-    ? toolView.tools.filter(tool => tool.name.toLowerCase().includes(toolFilter.toLowerCase()) || tool.description.toLowerCase().includes(toolFilter.toLowerCase()))
+    ? toolView.tools.filter(tool => inertLine(tool.name).toLowerCase().includes(needle) || inertLine(tool.description).toLowerCase().includes(needle))
     : []
   const toolAt = Math.min(toolCursor, Math.max(0, filteredTools.length - 1))
   const toolWin = paneWindow(filteredTools.length, toolAt, Math.max(1, height - MCP_POPUP_CHROME_ROWS))
-  const schemaProps = toolView?.tool ? collectSchemaProperties(toolView.tool.inputSchema as SchemaNode) : []
-  const descText = toolView?.tool ? (toolView.tool.description || 'No description.') : ''
-  const descLines = Math.max(1, Math.ceil(descText.length / Math.max(1, inner)))
-  const detailAt = Math.min(detailCursor, Math.max(0, schemaProps.length - 1))
-  const detailWin = paneWindow(schemaProps.length, detailAt, Math.max(1, height - 6 - descLines - (schemaProps.length > 0 ? 1 : 0)))
+  const reasonLines = useMemo(() => (toolView?.reason ? wrapPlain(inert(toolView.reason), inner) : []), [toolView?.reason, inner])
+  const reasonRows = Math.max(1, height - MCP_POPUP_CHROME_ROWS)
+  const reasonSpan = reasonLines.length > reasonRows ? Math.max(1, reasonRows - 1) : reasonRows
+  const reasonWin = scrolledWindow(reasonLines.length, detailScroll, reasonSpan)
+  const activeTool = toolView?.tool ?? null
+  const detailLines = useMemo(() => (activeTool ? mcpToolDetailLines(activeTool, inner) : []), [activeTool, inner])
+  const bodyRows = Math.max(1, height - MCP_DETAIL_CHROME_ROWS)
+  const detailSpan = detailLines.length > bodyRows ? Math.max(1, bodyRows - 1) : bodyRows
+  const detailWin = scrolledWindow(detailLines.length, detailScroll, detailSpan)
+  const scrollDetail = (to: number): void => setDetailScroll(Math.max(0, Math.min(Math.max(0, detailLines.length - detailSpan), to)))
+  const openTool = (view: ToolViewState, tool: McpToolEntryV1): void => {
+    setDetailScroll(0)
+    setToolView({ ...view, tool })
+  }
   const run = async (row: Row): Promise<void> => {
     if (busy !== null) return
     const { server, action } = row
@@ -168,12 +223,14 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
     if (action === 'tools') {
       setMessage('')
       setBusy(server.name)
+      setListing(server.name)
       try {
         const result = await connector.mcpTools(server.name)
-        if (alive.current && result.state !== 'connected') setMessage(result.detail ?? mcpServerState(server))
-        else if (alive.current) {
+        if (alive.current) {
+          const reason = result.state === 'connected' ? null : result.detail ?? mcpServerState(server)
           toolFilterFocusRef.current = false
-          setToolView({ server: server.name, tools: result.tools, tool: null })
+          setToolView({ server: server.name, tools: reason === null ? result.tools : [], omitted: reason === null ? result.omitted : 0, reason, tool: null })
+          setDetailScroll(0)
           setToolCursor(0)
           setToolFilter('')
           setToolFilterFocus(false)
@@ -181,7 +238,10 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
       } catch (error) {
         if (alive.current) setMessage(error instanceof Error ? error.message : String(error))
       } finally {
-        if (alive.current) setBusy(null)
+        if (alive.current) {
+          setBusy(null)
+          setListing(null)
+        }
       }
       return
     }
@@ -206,13 +266,22 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
     event.stopImmediatePropagation()
     if (toolView?.tool) {
       if (key.escape) { setToolView({ ...toolView, tool: null }); return }
-      if (key.upArrow || key.downArrow) { setDetailCursor(Math.max(0, Math.min(schemaProps.length - 1, detailAt + (key.downArrow ? 1 : -1)))); return }
+      const nav = decodeNavKey(input, key, { orientation: 'vertical', pageKeys: true })
+      if (nav === 'movePrevious' || nav === 'moveNext') scrollDetail(detailWin.start + (nav === 'moveNext' ? 1 : -1))
+      else if (nav === 'pagePrevious' || nav === 'pageNext') scrollDetail(detailWin.start + (nav === 'pageNext' ? detailSpan : -detailSpan))
+      else if (nav === 'first') scrollDetail(0)
+      else if (nav === 'last') scrollDetail(detailLines.length)
       return
     }
     if (toolView) {
       if (key.escape) { toolFilterFocusRef.current = false; setToolView(null); setToolFilter(''); setToolFilterFocus(false); setToolCursor(0); return }
+      if (toolView.reason !== null) {
+        const nav = decodeNavKey(input, key, { orientation: 'vertical' })
+        if (nav === 'movePrevious' || nav === 'moveNext') setDetailScroll(Math.max(0, Math.min(Math.max(0, reasonLines.length - reasonSpan), reasonWin.start + (nav === 'moveNext' ? 1 : -1))))
+        return
+      }
       if (key.upArrow || key.downArrow) { setToolCursor(Math.max(0, Math.min(filteredTools.length - 1, toolAt + (key.downArrow ? 1 : -1)))); return }
-      if (key.return) { if (pastOpenEvent() && filteredTools[toolAt]) { setDetailCursor(0); setToolView({ ...toolView, tool: filteredTools[toolAt]! }) }; return }
+      if (key.return) { if (pastOpenEvent() && filteredTools[toolAt]) openTool(toolView, filteredTools[toolAt]!); return }
       if (toolFilterFocus || toolFilterFocusRef.current) {
         if (key.backspace || key.delete) setToolFilter(current => current.slice(0, -1))
         else if (input && !key.ctrl && !key.meta && !key.tab && pastOpenEvent()) setToolFilter(current => current + input)
@@ -257,33 +326,25 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
   })
   const stateOf = (server: McpRosterEntryV1): string => {
     if (server.signingIn || signingIn.current === server.name) return 'signing in… (browser)'
+    if (listing === server.name) return 'listing tools…'
     if (busy === server.name) return 'connecting…'
     return mcpServerState(server)
   }
   const detail = message || (rows[at]?.server.type === 'failed' ? rows[at]?.server.error ?? 'connection failed' : '')
   const ground = estateGroundBg(tokens)
   if (toolView?.tool) {
-    const activeTool = toolView.tool
+    const shownTool = toolView.tool
     return (
       <Box ref={surface} flexDirection="column" width={width} height={height} borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} opaque flexShrink={0} {...(ground !== undefined ? { backgroundColor: ground } : {})}>
-        <ProductLockup view="mcp" subtitle={`${toolView.server} · ${activeTool.name}`} separator=" · " />
-        <Text color={tokens.textMuted} wrap="truncate-end">{activeTool.registeredAs} · {MCP_TOOL_LOADING_WORDS[activeTool.loading]}</Text>
+        <ProductLockup view="mcp" subtitle={`${inertLine(toolView.server)} · ${inertLine(shownTool.name)}`} separator=" · " />
+        <Text color={tokens.textMuted} wrap="truncate-end">{inertLine(shownTool.registeredAs)} · {MCP_TOOL_LOADING_WORDS[shownTool.loading]}</Text>
         <Box height={1} />
-        <Text color={tokens.textPrimary} wrap="wrap">{descText}</Text>
-        {schemaProps.length > 0 ? (
-          <Box flexDirection="column" marginTop={1}>
-            <Text color={tokens.textMuted}>Parameters</Text>
-            {schemaProps.slice(detailWin.start, detailWin.end).map(prop => (
-              <Text key={prop.key} wrap="truncate-end">
-                {prop.indent}
-                <Text bold color={tokens.textPrimary}>{prop.name}</Text>
-                {prop.required ? <Text color={tokens.warning}>*</Text> : null}
-                <Text color={tokens.textMuted}> {prop.type}</Text>
-                {prop.description ? <Text color={tokens.textMuted}> — {prop.description}</Text> : null}
-              </Text>
-            ))}
-          </Box>
-        ) : null}
+        {detailLines.slice(detailWin.start, detailWin.end).map(line => (
+          <Text key={line.key} wrap="truncate-end">
+            {line.segments.map((segment, index) => <Text key={index} bold={segment.bold === true} color={segment.tone === 'warning' ? tokens.warning : segment.tone === 'muted' ? tokens.textMuted : tokens.textPrimary}>{segment.text}</Text>)}
+          </Text>
+        ))}
+        {detailLines.length > detailSpan ? <Text color={tokens.textMuted} wrap="truncate-end">{[detailWin.above > 0 ? `↑ ${detailWin.above} more` : '', detailWin.below > 0 ? `↓ ${detailWin.below} more` : ''].filter(Boolean).join(' · ')}</Text> : null}
         <Box flexGrow={1} />
         <Text color={tokens.textMuted}>{cutToWidth(MCP_DETAIL_HINT, inner)}</Text>
       </Box>
@@ -291,16 +352,19 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
   }
   if (toolView) {
     const selectedTool = filteredTools[toolAt]
+    const total = toolView.tools.length + toolView.omitted
     return (
       <Box ref={surface} flexDirection="column" width={width} height={height} borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} opaque flexShrink={0} {...(ground !== undefined ? { backgroundColor: ground } : {})}>
-        <ProductLockup view="mcp" subtitle={toolView.server} separator=" · " />
-        <Text color={tokens.textMuted}>{toolView.tools.length} {toolView.tools.length === 1 ? 'tool' : 'tools'} · this session</Text>
+        <ProductLockup view="mcp" subtitle={inertLine(toolView.server)} separator=" · " />
+        <Text color={tokens.textMuted} wrap="truncate-end">{toolView.reason !== null ? 'tools not listed' : `${total} ${total === 1 ? 'tool' : 'tools'} · this session${toolView.omitted > 0 ? ` · ${toolView.tools.length} shown, the rest past the ${kilobytes(MCP_TOOLS_ANSWER_BYTES)} read` : ''}`}</Text>
         <Box height={1} />
-        {filteredTools.length === 0 ? <Text color={tokens.textMuted}>{toolFilter ? 'No matching tools' : 'This server exposes no tools.'}</Text> : filteredTools.slice(toolWin.start, toolWin.end).map((tool, index) => {
+        {toolView.reason !== null ? reasonLines.slice(reasonWin.start, reasonWin.end).map((line, index) => <Text key={reasonWin.start + index} color={tokens.warning} wrap="truncate-end">{line === '' ? ' ' : line}</Text>) : null}
+        {toolView.reason !== null && reasonLines.length > reasonSpan ? <Text color={tokens.textMuted} wrap="truncate-end">{[reasonWin.above > 0 ? `↑ ${reasonWin.above} more` : '', reasonWin.below > 0 ? `↓ ${reasonWin.below} more` : ''].filter(Boolean).join(' · ')}</Text> : null}
+        {toolView.reason !== null ? null : filteredTools.length === 0 ? <Text color={tokens.textMuted}>{toolFilter ? 'No matching tools' : 'This server exposes no tools.'}</Text> : filteredTools.slice(toolWin.start, toolWin.end).map((tool, index) => {
           const selected = toolWin.start + index === toolAt
-          const oneLine = tool.description.replace(/\s+/g, ' ').trim()
-          const label = oneLine ? `${tool.name} · ${oneLine}` : tool.name
-          return <InteractiveRow key={tool.name} id={`mcp:tool:${toolView.server}:${tool.name}`} selected={selected} onSelect={() => setToolCursor(toolWin.start + index)} onActivate={() => { setDetailCursor(0); setToolView({ ...toolView, tool }) }} width={inner} height={1}><Text color={selected ? accent : tokens.textPrimary} wrap="truncate-end">{selected ? '› ' : '  '}{cutToWidth(label, Math.max(1, inner - 2))}</Text></InteractiveRow>
+          const oneLine = inertLine(tool.description)
+          const label = oneLine ? `${inertLine(tool.name)} · ${oneLine}` : inertLine(tool.name)
+          return <InteractiveRow key={tool.name} id={`mcp:tool:${toolView.server}:${tool.name}`} selected={selected} onSelect={() => setToolCursor(toolWin.start + index)} onActivate={() => openTool(toolView, tool)} width={inner} height={1}><Text color={selected ? accent : tokens.textPrimary} wrap="truncate-end">{selected ? '› ' : '  '}{cutToWidth(label, Math.max(1, inner - 2))}</Text></InteractiveRow>
         })}
         <Box flexGrow={1} />
         <Box minHeight={1} width={inner}><Text color={tokens.textMuted}>{selectedTool ? MCP_TOOL_LOADING_WORDS[selectedTool.loading] : ''}</Text></Box>
