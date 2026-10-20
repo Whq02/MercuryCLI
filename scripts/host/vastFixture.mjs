@@ -3,7 +3,7 @@ import { createServer } from 'node:http'
 export async function vastFixture() {
   const key = 'fixture-vast-key'
   const requests = []
-  const state = { noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, stops: 0, pods: new Map(), customOffers: null, createStatus: 0, holdTerminate: false, badRead: false, logUrl: null }
+  const state = { noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, stops: 0, pods: new Map(), customOffers: null, createStatus: 0, holdTerminate: false, badRead: false, logUrl: null, keys: [], keyCreates: 0, ambiguousKey: false, mismatchKey: false, noDirect: false }
   const server = createServer(async (req, res) => {
     let raw = ''
     for await (const chunk of req) raw += chunk
@@ -26,14 +26,23 @@ export async function vastFixture() {
         { ...common, id: 104, gpu_name: 'B300', gpu_ram: 288 * 1024, num_gpus: 1, dph_total: 5.5 },
         { ...common, id: 105, gpu_name: 'GB300', gpu_ram: 288 * 1024, num_gpus: 4, dph_total: 20 },
       ]
-      json({ offers: state.noStock ? [] : offers.filter(row => row.num_gpus === body.num_gpus.eq).map(row => ({ ...row, dph_total: row.dph_total + body.allocated_storage / 10000 })) }); return
+      json({ offers: state.noStock ? [] : offers.filter(row => row.num_gpus === body.num_gpus.eq && (state.customOffers !== null || row.gpu_ram >= (body.gpu_ram?.gte ?? 0))).map(row => ({ ...row, dph_total: row.dph_total + body.allocated_storage / 10000 })) }); return
+    }
+    if (url.pathname === '/api/v0/ssh/' && req.method === 'GET') { json(state.keys.map(row => ({ id: row.id, user_id: 1, key: row.key, created_at: '2026-10-20T09:00:00Z', deleted_at: row.deleted_at ?? null }))); return }
+    if (url.pathname === '/api/v0/ssh/' && req.method === 'POST') {
+      state.keyCreates++
+      if (typeof body?.ssh_key !== 'string' || !body.ssh_key.startsWith('ssh-')) { fail(400, 'Invalid ssh key'); return }
+      const row = { id: 500 + state.keyCreates, key: state.mismatchKey ? 'ssh-ed25519 ZGlmZmVyZW50' : body.ssh_key }
+      state.keys.push(row)
+      if (state.ambiguousKey) { req.socket.destroy(); return }
+      json({ success: true, key: { id: row.id, user_id: 1, public_key: row.key, created_at: '2026-10-20T09:00:00Z', deleted_at: null } }); return
     }
     if (create) {
       if (state.stockLoss) { fail(410, 'no_such_ask: offer is no longer available'); return }
       if (state.createStatus) { fail(state.createStatus, 'fixture refusal'); return }
-      if (body.runtype !== 'ssh_direct' || !body.env?.PUBLIC_KEY || typeof body.env !== 'object' || !body.image || !body.disk || !body.onstart || 'price' in body) { fail(400, 'Invalid args'); return }
+      if (body.runtype !== 'ssh_direct' || typeof body.env !== 'object' || body.env === null || !body.image || !body.disk || !body.onstart || 'price' in body) { fail(400, 'Invalid args'); return }
       const id = 7000 + state.creates
-      state.pods.set(id, { id, label: body.label, actual_status: 'running', start_date: 1792490400, dph_total: 9.315, ssh_host: '127.0.0.1', ssh_port: 2222 })
+      state.pods.set(id, { id, label: body.label, actual_status: 'running', start_date: 1792490400, dph_total: 9.315, ssh_host: 'ssh5.fixture.invalid', ssh_port: 10000 + id, public_ipaddr: '127.0.0.1' })
       if (state.ambiguousCreate === 'disconnect') { req.socket.destroy(); return }
       if (state.ambiguousCreate === 'timeout') return
       if (state.ambiguousCreate === 'malformed') { res.writeHead(200); res.end('{'); return }
@@ -41,14 +50,15 @@ export async function vastFixture() {
       if (state.ambiguousCreate) { fail(503, 'upstream failed after accepting'); return }
       json({ success: true, new_contract: id }); return
     }
-    if (url.pathname === '/api/v0/instances/' && req.method === 'GET') { json({ instances_found: state.pods.size, instances: [...state.pods.values()] }); return }
+    const shown = pod => ({ ...pod, ports: state.noDirect ? {} : { '22/tcp': [{ HostIp: '0.0.0.0', HostPort: '2222' }] } })
+    if (url.pathname === '/api/v0/instances/' && req.method === 'GET') { json({ instances_found: state.pods.size, instances: [...state.pods.values()].map(shown) }); return }
     const log = /^\/api\/v0\/instances\/request_logs\/(\d+)\/$/.exec(url.pathname)
     if (log && req.method === 'PUT') { json({ success: true, result_url: state.logUrl ?? origin + '/fixture-logs/' + log[1] }); return }
     const match = /^\/api\/v0\/instances\/(\d+)\/$/.exec(url.pathname)
     const id = Number(match?.[1])
     const pod = state.pods.get(id)
     if (!pod) { fail(404, 'Instance not found'); return }
-    if (req.method === 'GET') { json(state.badRead ? {} : { instances: pod }); return }
+    if (req.method === 'GET') { json(state.badRead ? {} : { instances: shown(pod) }); return }
     if (req.method === 'PUT' && body.state === 'stopped') { state.stops++; pod.actual_status = 'stopped'; json({ success: true }); return }
     if (req.method === 'DELETE') { state.deletes++; if (!state.holdTerminate) state.pods.delete(id); json({ success: true }); return }
     fail(400, 'unknown request')

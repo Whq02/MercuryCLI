@@ -32,7 +32,7 @@ export async function lambdaFixture() {
     if (create) {
       if (state.stockLoss) { fail(400, 'instance-operations/launch/insufficient-capacity', 'Insufficient capacity'); return }
       if (state.createStatus) { fail(state.createStatus, 'global/invalid-parameters', 'fixture refusal'); return }
-      if (body.ssh_key_names?.length !== 1 || body.ssh_key_names[0] !== 'mercury-host' || !state.keys.some(row => row.name === 'mercury-host') || !regions.some(row => row.name === body.region_name)) { fail(400, 'global/invalid-parameters', 'Invalid launch arguments'); return }
+      if (body.ssh_key_names?.length !== 1 || !state.keys.some(row => row.name === body.ssh_key_names[0]) || !regions.some(row => row.name === body.region_name)) { fail(400, 'global/invalid-parameters', 'Invalid launch arguments'); return }
       const instance_type = state.types.find(row => row.name === body.instance_type_name)
       if (!instance_type) { fail(404, 'instance-operations/launch/resource-not-found', 'Instance type not found'); return }
       const id = 'lambda-' + state.creates
