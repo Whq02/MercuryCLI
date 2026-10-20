@@ -225,7 +225,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       keptWeights = await prepareKeptWeights(initial, recipe, api, target, runner, signal, mark)
       if (initial.prepareWeightsOnly) return
     }
-    mark('installing')
+    mark(recipe.engine === 'llamacpp' ? 'checking engine' : 'installing')
     await startHostEngine(target, recipe, runner, signal, false, true, undefined, keptWeights)
     await waitHostEngine(target, recipe, runner, signal, pause, timeout)
     }

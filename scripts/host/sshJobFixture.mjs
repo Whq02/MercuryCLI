@@ -40,7 +40,9 @@ if (args.includes('-N')) {
     assert.ok(!remote.includes('bash -lc'))
     if (config.failLaunch) { console.error('launch.log: fixture outer launch permission denied'); process.exit(1) }
   }
-  if (remote.includes('/health')) {
+  if (remote.includes('command -v llama-server')) {
+    console.log('MERCURY_PREBUILT_ENGINE yes')
+  } else if (remote.includes('/health')) {
     if (config.hold) { console.error('fixture model loading'); process.exit(1) }
     console.log('healthy models')
   } else if (remote.startsWith('dd if=')) {

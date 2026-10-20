@@ -377,7 +377,9 @@ try {
   const movedCheck = spawnSync('python3', ['-c', weightCheckScript(sparseManifest, sparse, false, { sampleManifestSha256: createHash('sha256').update(movedRaw).digest('hex') })], { encoding: 'utf8', timeout: 120_000 })
   check('the warm check hashes the positions written in the anchored manifest, not positions re-derived on the pod', movedCheck.status === 0 && movedCheck.stdout.includes('sampled check passed') && !movedCheck.stdout.includes('full check running'))
   const engineWords = volumes.fastLoadEstimate(gguf, { ...kept, state: 'kept' })
-  check('GGUF estimate admits the retained build instead of promising image-only startup', engineWords.includes('builds the engine ~10 min') && engineWords.includes('weights kept ~0') && engineWords.includes('load ~3 min'))
+  check('GGUF estimate names the prebuilt engine image and the kept weights', engineWords.includes('Engine from image ~1 min · no engine build') && !engineWords.includes('builds the engine') && engineWords.includes('weights kept ~0') && engineWords.includes('load ~3 min'))
+  const builtWords = volumes.fastLoadEstimate({ ...gguf, image: 'nvidia/cuda:13.0.2-devel-ubuntu24.04' }, { ...kept, state: 'kept' })
+  check('a GGUF row without the prebuilt image still admits the retained build instead of promising image-only startup', builtWords.includes('builds the engine ~10 min') && builtWords.includes('weights kept ~0'))
   const filling = await volumes.createKeptVolume(api, nemotron, 'global', 'any DC', signal)
   const fillOffer = (await api.offers(signal)).find(row => row.recipe.id === nemotron.id)!
   const fillPod = await api.create(fillOffer, sshKey.publicKey, 'fixture-filling', filling)

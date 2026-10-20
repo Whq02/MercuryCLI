@@ -14,7 +14,26 @@ const frames = option('--frames')
 if (frames) mkdirSync(frames, { recursive: true })
 let checks = 0
 const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
+const { startHostEngine } = await import('../../src/services/host/ssh.ts')
+const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+const llamaRecipe = HOST_RECIPES.find(row => row.engine === 'llamacpp')!
+check('shipped llama.cpp images are digest-pinned', HOST_RECIPES.filter(row => row.engine === 'llamacpp').every(row => /^ghcr\.io\/whq02\/mercury-llamacpp@sha256:[a-f0-9]{64}$/.test(row.image)))
+const imageCommands: string[] = []
+const imageRunner = {
+  async run(_command: string, args: string[]) { const remote = args.at(-1)!; imageCommands.push(remote); return remote.includes('command -v llama-server') ? 'MERCURY_PREBUILT_ENGINE yes\n' : '' },
+  tunnel() { throw new Error('No tunnel in the engine launch check') },
+}
+await startHostEngine({ host: '127.0.0.1' }, llamaRecipe, imageRunner, new AbortController().signal, false, true)
+check('prebuilt engine is detected before launch and sends no compiler command', imageCommands.some(command => command.includes('command -v llama-server')) && imageCommands.every(command => !command.includes('cmake') && !command.includes('git clone')))
+check('prebuilt image launches llama-server directly with its downloader and all recipe flags', imageCommands.some(command => command.includes('nohup setsid') && command.includes('llama-server') && command.includes('hf download') && command.includes('524288') && command.includes('reasoning_effort') && !command.includes('/llama.cpp/build/bin/')))
+const sourceCommands: string[] = []
+await startHostEngine({ host: '127.0.0.1' }, { ...llamaRecipe, image: 'nvidia/cuda:13.0.2-devel-ubuntu24.04' }, { ...imageRunner, async run(_command: string, args: string[]) { sourceCommands.push(args.at(-1)!); return '' } }, new AbortController().signal, false, true)
+check('a source image without llama-server still builds the pinned engine', sourceCommands.some(command => command.includes('cmake') && command.includes('3bb63cbcbfb62056c84fe9e521b0f3d756d29c32') && command.includes('MERCURY_STEP building llama.cpp') && command.includes('/llama.cpp/build/bin/llama-server')))
 const f = await llmhostFixture()
+const previousRecipes = process.env.MERCURY_HOST_RECIPES_FILE
+const imageRecipes = join(f.home, 'image-recipes.json')
+writeFileSync(imageRecipes, JSON.stringify({ version: 1, publishedAt: '2026-10-20', recipes: HOST_RECIPES }))
+process.env.MERCURY_HOST_RECIPES_FILE = imageRecipes
 f.state.dialect = 'llamacpp'; f.state.window = 131072; f.state.slots = 4
 const rp = await runpodFixture()
 const { settingsChangeDetector } = await import('../../src/utils/settings/changeDetector.ts')
@@ -23,7 +42,7 @@ let m: Mounted | undefined
 let daemon: ChildProcess | undefined
 let daemonLog = ''
 const workers = new Set<string>()
-const config = { modelBaseUrl: f.baseUrl, hold: true, failLaunch: false, log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\nfixture weights are downloading\n' }
+const config = { modelBaseUrl: f.baseUrl, hold: true, failLaunch: false, log: 'MERCURY_STEP using prebuilt engine\nMERCURY_STEP downloading weights\nfixture weights are downloading\n' }
 const save = () => writeFileSync(join(f.home, 'ssh-fixture.json'), JSON.stringify(config))
 save()
 const bin = join(f.home, 'bin'); mkdirSync(bin)
@@ -83,7 +102,7 @@ try {
   assert.deepEqual(offers.map(row => row.recipe.id).sort(), ['nemotron35-super-gguf-rtx-pro-6000', 'qwen38-27b-rtx-pro-6000'])
   check('catalogue is the live snapshot, including zero Secure prices and the live RTX PRO 6000 name', liveCatalogue.gpus.some((gpu: any) => gpu.price.secure === 0) && offers.every(row => row.price === 2.49))
   check('no paid action before price confirmation', rp.state.creates === 0)
-  await choose('UD-Q3_K_XL'); await screen('Confirm the hourly price'); await choose('Confirm $2.49/hr')
+  await choose('UD-Q3_K_XL'); await screen('Confirm the hourly price'); await screen('Engine from image ~1 min'); await screen('no engine build'); check('image confirmation excludes a compile step', !m!.screen().includes('20–90')); await choose('Confirm $2.49/hr')
   check('rental is recorded before popup dismissal', await waitFor(() => hostRecords().length === 1, 15000))
   const id = hostRecords()[0]!.id; workers.add(id)
   const generation = readHostRecord(id)!.generation
@@ -106,7 +125,7 @@ try {
   config.hold = false; config.log += 'MERCURY_STEP starting engine\n'; save()
   check('closed popup job reaches ready on the built worker', await waitFor(() => readHostRecord(id)?.jobState === 'ready', 25000))
   const ready = readHostRecord(id)!
-  assert.deepEqual(ready.steps!.filter(row => !row.step.startsWith('downloading weights ') && !row.step.startsWith('tunnel on ')).map(row => row.step), ['waiting for SSH', 'installing', 'building llama.cpp', 'downloading weights', 'starting engine', 'ready'])
+  assert.deepEqual(ready.steps!.filter(row => !row.step.startsWith('downloading weights ') && !row.step.startsWith('tunnel on ')).map(row => row.step), ['waiting for SSH', 'checking engine', 'using prebuilt engine', 'downloading weights', 'starting engine', 'ready'])
   check('durable step sequence and local log survive runner ownership changes', readFileSync(ready.log!, 'utf8').includes('fixture weights are downloading'))
   const settings = JSON.parse(readFileSync(join(f.home, 'settings.json'), 'utf8'))
   const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
@@ -172,6 +191,7 @@ try {
   open(); await screen('Where should the model run?'); await choose(rented.id); await screen('Pod controls'); await choose('Terminate'); await screen('Confirm terminate'); await choose('Confirm terminate'); await screen('Pod terminated')
   rp.state.stockAfterReads = 0
   const calls = readFileSync(join(f.home, 'ssh-fixture-calls.jsonl'), 'utf8')
+  check('detached image workers send no source-build command', !calls.includes('cmake') && !calls.includes('git clone') && calls.includes('MERCURY_PREBUILT_ENGINE') && calls.includes('llama-server'))
   check('API key never appears in command, URL, log, settings or pod record', !calls.includes(rp.key) && !JSON.stringify(rp.requests).includes(rp.key) && !JSON.stringify(settings).includes(rp.key) && !JSON.stringify(ready).includes(rp.key))
   console.log('HOST JOB DRIVE GREEN — ' + checks + ' checks; built daemon + project worker, real popup, live-shape REST fixture and SSH process shim; zero billable calls')
 } finally {
@@ -182,4 +202,6 @@ try {
   if (frames) writeFileSync(join(frames, 'daemon.log'), daemonLog)
   await settingsChangeDetector.dispose()
   await rp.close(); f.close()
+  if (previousRecipes === undefined) delete process.env.MERCURY_HOST_RECIPES_FILE
+  else process.env.MERCURY_HOST_RECIPES_FILE = previousRecipes
 }

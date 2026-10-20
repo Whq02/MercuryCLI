@@ -5,7 +5,7 @@ import { acquirePidLock, noteLockRelease, releasePidLock } from '../../substrate
 import { z } from 'zod/v4'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { hostDirectory } from './store.js'
-import type { HostRecipe } from './recipes.js'
+import { prebuiltEngine, type HostRecipe } from './recipes.js'
 import { createRefusal, RunpodHttpError, type HostPod, type RunpodClient, type HostVolume } from './runpod.js'
 
 const volumeRecordSchema = z.object({
@@ -97,5 +97,5 @@ export async function deleteKeptVolume(api: RunpodClient, id: string): Promise<v
   writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined, error: undefined, partialBytes: undefined })
 }
 export function fastLoadEstimate(recipe: HostRecipe, volume?: KeptVolume): string {
-  return (recipe.install ? 'builds the engine ~10 min' : 'image pull ~1 min') + ' · ' + (volume?.state === 'kept' ? 'weights kept ~0 download · ' + (volume.verifiedSums?.sampleManifestSha256 ? 'sampled check' : 'full check ' + fullCheckMinutes(recipe.weightsGb)) : 'weights ~' + Math.max(1, Math.ceil(recipe.weightsGb / 60)) + ' min at 1 GB/s') + ' · load ~3 min'
+  return (prebuiltEngine(recipe) ? 'Engine from image ~1 min · no engine build' : recipe.install ? 'builds the engine ~10 min' : 'image pull ~1 min') + ' · ' + (volume?.state === 'kept' ? 'weights kept ~0 download · ' + (volume.verifiedSums?.sampleManifestSha256 ? 'sampled check' : 'full check ' + fullCheckMinutes(recipe.weightsGb)) : 'weights ~' + Math.max(1, Math.ceil(recipe.weightsGb / 60)) + ' min at 1 GB/s') + ' · load ~3 min'
 }

@@ -4,7 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { LLM_HOST_WORDS as words } from '../../commands/llmhost/words.js'
 import { runLlmHost, type LlmHostRoad, type LlmHostResult } from '../llmHost/index.js'
 import { readStoredRunpodApiKey, writeStoredRunpodApiKey } from '../providers/providerSecrets.js'
-import { formatHostOfferLabel, hostRecipeVerificationWord, type HostRecipe } from './recipes.js'
+import { formatHostOfferLabel, hostRecipeVerificationWord, prebuiltEngine, type HostRecipe } from './recipes.js'
 import { currentHostRecipes } from './recipesFile.js'
 import { compatModelEndpoint } from '../providers/openaicompat/compatAccounts.js'
 import { createHostResource, getHostResource, listHostResources, terminateHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostResourceLabel, hostShape } from './cluster.js'
@@ -262,7 +262,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           offer = await confirmTunedRental(offer, offers, budget, question, emit, signal, async row => {
             const kept = await rentalVolume(client, row.recipe, signal)
             return {
-              titleSuffix: kept?.state === 'kept' ? ' · weights kept · ~5 min' + (row.recipe.install ? ' + engine build' : '') : ' · cold rental ~45 min',
+              titleSuffix: kept?.state === 'kept' ? ' · weights kept · ~5 min' + (row.recipe.install && !prebuiltEngine(row.recipe) ? ' + engine build' : '') : ' · cold rental ~45 min',
               willRun: fastLoadEstimate(row.recipe, kept) + ' · ' + hostStorageWords(row.recipe, row.price),
               lines: hostPriceLines(row.recipe, row.price),
               confirmLabel: 'Confirm ' + price(row.price) + (kept ? ' + ' + volumePrice(kept) + ' disk (bills without a pod)' : ' + storage') + ' · create this ' + hostResourceKind(row.recipe),
