@@ -52,6 +52,7 @@ import type { RunnerDoor } from './runnerConnection.js'
 import { deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitStampOf, noteRecordlessResumeKit, restampSessionKit, type KitStampSource, type SessionKitV1 } from './sessionKit.js'
 import { parseSessionKind, SESSION_KIND_ENV, sessionKindOfAsker, type SessionKind } from '../utils/sessionKind.js'
 import type { ConcourseRowV1 } from '../components/concourse/contracts.js'
+import { runningBuildTree } from '../utils/artifactIdentity.js'
 
 
 export const CONCOURSE_SHORT_PREFIX = 'concourse-w'
@@ -215,6 +216,8 @@ export interface ConcourseWorkerRecordV1 {
   kit?: import('./sessionKit.js').SessionKitV1
   schedules?: import('./saturn.js').SaturnScheduleV1[]
   heldFires?: import('./saturn.js').HeldFireV1[]
+  buildTree?: string
+  restartReason?: 'ended' | 'update'
 }
 
 export function sessionActivityOf(
@@ -419,6 +422,7 @@ export function markConcourseWorkerCrash(
       const rec = workers[runnerId]
       if (rec && rec.endedAt === undefined) {
         rec.crash = { at: Date.now(), reason: crash.reason, respawning: crash.respawning }
+        delete rec.restartReason
       }
     }, dir)
   } catch {
@@ -429,6 +433,11 @@ function pidFieldsOf(pid: number | undefined): { pid?: number; procStart?: strin
   if (pid === undefined) return {}
   const token = getProcessStartToken(pid) ?? getProcessStartTokenCachedOrRefresh(pid)
   return { pid, ...(token !== null && token !== '' ? { procStart: token } : {}) }
+}
+
+function buildTreeFields(): { buildTree?: string } {
+  const tree = runningBuildTree()
+  return tree !== null ? { buildTree: tree } : {}
 }
 
 import { workerPidAlive } from './workerIdentity.js'
@@ -893,6 +902,7 @@ export interface ConcourseAdmitRequest {
   kitPreset?: string
   bypassConsent?: true
   by?: string
+  restartReason?: 'update'
 }
 
 export type ConcourseRefusalCode =
@@ -1089,6 +1099,7 @@ export function makeConcourseAdmitHandler(
             ...(preset !== undefined ? { preset } : {}),
             by: 'operator',
             kind,
+            ...(req.restartReason === 'update' ? { restartReason: 'update' as const } : {}),
           },
           others,
           deps,
@@ -1160,6 +1171,7 @@ export function makeConcourseAdmitHandler(
             spawnedAt: Date.now(),
             lastLiveAt: Date.now(),
             ...pidFieldsOf(claimed.pid),
+            ...buildTreeFields(),
             settingsSnapshot: snapshot,
             workspaceKind: workspaceKindOf(workspaceId),
             ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
@@ -1325,6 +1337,7 @@ export function makeConcourseAdmitHandler(
         spawnedAt: Date.now(),
         lastLiveAt: Date.now(),
         ...pidFieldsOf(reg.pid),
+        ...buildTreeFields(),
         settingsSnapshot: snapshot,
         workspaceKind,
         ...(worktreePath !== undefined ? { worktreePath } : {}),
@@ -1681,11 +1694,16 @@ export function reconcileConcourseWorkers(
         }
         continue
       }
+      const ownTree = runningBuildTree()
+      const acrossBuilds = rec.buildTree !== undefined && ownTree !== null && rec.buildTree !== ownTree
       rec.crash = {
         at: Date.now(),
-        reason: 'crashed — found dead with its daemon; enter to resume, or x x releases it',
+        reason: acrossBuilds
+          ? `ended with its daemon around an update to ${ownTree} — the cause is not known; enter to resume, or x x releases it`
+          : 'crashed — found dead with its daemon; enter to resume, or x x releases it',
         respawning: false,
       }
+      if (acrossBuilds) rec.restartReason = 'ended'
       receipt.settled.push(rec.runnerId)
     }
   }, dir)
@@ -1913,7 +1931,8 @@ export function concourseTranscriptPath(rec: Pick<ConcourseWorkerRecordV1, 'sess
   return join(getProjectDir(rec.workspaceId), `${rec.sessionId}.jsonl`)
 }
 
-export function runnerRestartReasonOf(rec: Pick<ConcourseWorkerRecordV1, 'crash' | 'turnCutAt'>): 'crash' | 'stop' | 'relaunch' {
+export function runnerRestartReasonOf(rec: Pick<ConcourseWorkerRecordV1, 'crash' | 'turnCutAt' | 'restartReason'>): 'crash' | 'stop' | 'relaunch' | 'ended' | 'update' {
+  if (rec.restartReason !== undefined) return rec.restartReason
   if (rec.crash !== undefined) return 'crash'
   return turnCutStanding(rec) ? 'stop' : 'relaunch'
 }
@@ -1939,6 +1958,7 @@ export function reviveConcourseWorker(
     permissionMode?: PermissionMode
     bypassConsent?: boolean
     kind?: SessionKind
+    restartReason?: 'update'
   },
   dir?: string,
 ): ConcourseReviveOutcome {
@@ -1973,6 +1993,7 @@ export function reviveConcourseWorker(
   const revivePosture = opts?.permissionMode ?? rec.permissionMode
   const reviveConsent = opts?.bypassConsent ?? rec.bypassConsent === true
   const reviveKind = opts?.kind ?? rec.kind ?? sessionKindOfAsker(by)
+  if (opts?.restartReason !== undefined) rec.restartReason = opts.restartReason
   const spec = buildConcourseWorkerSpec({
     runnerId: rec.runnerId,
     sessionId: rec.sessionId,
@@ -2004,6 +2025,7 @@ export function reviveConcourseWorker(
     delete w.retired
     delete w.turnCutAt
     delete w.turnCutBy
+    delete w.restartReason
     clearParkedFields(w)
     if (opts?.clearCrash === true) delete w.crash
     if (opts?.modelOverride !== undefined) {
@@ -2013,6 +2035,7 @@ export function reviveConcourseWorker(
     stampSpawnPosture(w, spawnPostureOf(spec))
     w.lastLiveAt = Date.now()
     if (reg.pid !== undefined) Object.assign(w, pidFieldsOf(reg.pid))
+    Object.assign(w, buildTreeFields())
   }, dir)
   return {
     outcome: 'applied',
@@ -2030,6 +2053,7 @@ function clearReactivatedFields(rec: ConcourseWorkerRecordV1): void {
   delete rec.turnCutAt
   delete rec.turnCutBy
   delete rec.crash
+  delete rec.restartReason
   delete rec.pausedAt
   delete rec.pausedBy
   delete rec.attachRequestedAt
@@ -2065,6 +2089,7 @@ export async function reactivateConcourseSession(
     preset?: { name: string; kit: SessionKitV1; note?: string }
     by: string
     kind?: SessionKind
+    restartReason?: 'update'
   },
   live: ReadonlyArray<{ workspaceId: string; isolation?: WorkspaceIsolation }>,
   deps: ConcourseAdmitDeps,
@@ -2107,6 +2132,7 @@ export async function reactivateConcourseSession(
   const effort = args.effort ?? rec.effort ?? 'high'
   const kit = args.kit ?? args.preset?.kit ?? deriveSessionKitForWorkspace(rec.workspaceId)
   const kitSource: KitStampSource = args.kit !== undefined ? 'carried' : args.preset !== undefined ? 'preset' : 'derived'
+  if (args.restartReason !== undefined) rec.restartReason = args.restartReason
   if (
     deps.claimWarm !== undefined &&
     kind === 'oculus' &&
@@ -2149,6 +2175,7 @@ export async function reactivateConcourseSession(
         }
         if (isolationDrift) next.isolation = claimIsolation
         clearReactivatedFields(next)
+        Object.assign(next, buildTreeFields())
         restampSessionKit(next, kit, kitSource, args.by)
         stampSpawnPosture(next, { permissionMode: claimPosture, ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}), kind })
         workers[short] = next
@@ -2205,6 +2232,7 @@ export async function reactivateConcourseSession(
       ...(args.permissionMode !== undefined ? { permissionMode: args.permissionMode } : {}),
       bypassConsent: args.bypassConsent === true,
       kind,
+      ...(args.restartReason !== undefined ? { restartReason: args.restartReason } : {}),
     },
     deps.dir,
   )

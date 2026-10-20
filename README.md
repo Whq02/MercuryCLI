@@ -883,7 +883,7 @@ commands.
 | --- | --- |
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
-| session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` |
+| session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
 | git & review | `/review` `/audit` |

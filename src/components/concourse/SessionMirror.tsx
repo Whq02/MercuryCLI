@@ -87,7 +87,9 @@ function receiptRowText(e: SessionReceiptEntry): string {
         ? `kit: ${flat}`
         : e.kind === 'schedule-set' || e.kind === 'schedule-fire' || e.kind === 'schedule-held'
           ? `schedule: ${flat}`
-          : `contract: ${flat}`
+          : e.kind === 'runner-restart' || e.kind === 'build-behind'
+            ? `build: ${flat}`
+            : `contract: ${flat}`
 }
 
 

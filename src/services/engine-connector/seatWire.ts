@@ -203,6 +203,7 @@ const FACTS: KeyTable = {
   openaiCatalogue: 'openai_catalogue',
   pauseGate: 'pause_gate',
   editOutcomes: 'edit_outcomes',
+  buildTree: 'build_tree',
 }
 const BOX: KeyTable = {
   atMs: 'at_ms',

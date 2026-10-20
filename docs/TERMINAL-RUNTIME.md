@@ -206,6 +206,19 @@ sessions finish. In `mercury daemon status`, pre-booted runners in the warm
 pool are listed as `warm runner · pre-booted, unclaimed` (and summarized on the
 `warm:` line) and are never counted as live sessions.
 
+A session keeps the build its runner started on. Within a minute of an install,
+a live session on an older build says so once in its chat: `A newer Mercury
+build is installed (<tree>) · this session still runs <tree> · /restart moves
+it (watches and background shells end and are named)`. `/restart` in that chat
+names the Monitor watches and background shells that will end, moves the
+background daemon to the installed build if it is not already there, then stops
+the session and resumes it on that build. The resumed chat, its next turn and
+its receipts get one line naming the build and every watch and background shell
+the restart ended. `/restart` refuses while a turn is running and when the
+session already runs the installed build. A runner found dead with its daemon
+after the installed build changed is recorded as ended around an update, not as
+a crash, because the cause is not known.
+
 The activation law:
 
 1. single-update lock;

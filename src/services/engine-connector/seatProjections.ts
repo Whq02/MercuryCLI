@@ -62,6 +62,7 @@ export interface SessionFactsAnswerV1 {
   pauseGate?: PauseGateFactsV1
   advisor?: AdvisorFactsV1
   editOutcomes?: EditOutcomeRowV1[]
+  buildTree?: string | null
 }
 
 export interface FileCheckpointFactsV1 {
