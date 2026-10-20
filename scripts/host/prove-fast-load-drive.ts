@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, readdirSync, readFileSync, writeFileSync, statSync, unlinkSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, writeFileSync, statSync, truncateSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
@@ -354,6 +354,28 @@ try {
   check('a real download past its deadline exits 75 and reports the deadline', late.status === 75 && late.report?.reason === 'deadline')
   const blind = fill('fill-unmeasured', 'stall', { netDevPath: join(f.home, 'missing-net-dev'), deadlineSeconds: 2 })
   check('without a readable transfer counter the stall rule stays off and only the deadline stops the download', blind.status === 75 && blind.report?.reason === 'deadline' && blind.seconds >= 2)
+  const MiB = 1024 * 1024
+  const zerosHash = (size: number) => { const hash = createHash('sha256'); const block = Buffer.alloc(16 * MiB); for (let left = size; left > 0; left -= block.length) hash.update(left >= block.length ? block : block.subarray(0, left)); return hash.digest('hex') }
+  const sparse = join(f.home, 'sparse-weights'); mkdirSync(sparse)
+  const sparseFiles = [{ path: 'big.gguf', size: 2048 * MiB }, { path: 'mid.gguf', size: 300 * MiB + 7 }, { path: 'small.json', size: 1000 }]
+  for (const file of sparseFiles) { writeFileSync(join(sparse, file.path), ''); truncateSync(join(sparse, file.path), file.size) }
+  const sparseManifest = { model: 'fixture/sparse', include: '', revision: 'fixture', files: sparseFiles.map(file => ({ ...file, sha256: zerosHash(file.size) })) }
+  const counted = "import pathlib as _pl, atexit as _ax\n_read = [0]\n_open = _pl.Path.open\nclass _Counted:\n    def __init__(self, f): self.f = f\n    def read(self, n=-1):\n        b = self.f.read(n)\n        _read[0] += len(b)\n        return b\n    def __getattr__(self, name): return getattr(self.f, name)\n    def __enter__(self): return self\n    def __exit__(self, *a): return self.f.__exit__(*a)\ndef _counted_open(self, mode='r', *a, **k):\n    f = _open(self, mode, *a, **k)\n    return _Counted(f) if 'r' in mode and 'b' in mode else f\n_pl.Path.open = _counted_open\n_ax.register(lambda: print('BYTES_READ ' + str(_read[0])))\n"
+  const sparseFill = spawnSync('python3', ['-c', weightCheckScript(sparseManifest, sparse, false)], { encoding: 'utf8', timeout: 120_000 })
+  const sparseAnchor = JSON.parse(sparseFill.stdout.split('\n').find(line => line.startsWith('MERCURY_WEIGHTS '))!.slice('MERCURY_WEIGHTS '.length)).sampleManifestSha256 as string
+  const samplesRaw = readFileSync(join(sparse, 'SAMPLES.json'), 'utf8')
+  const recorded = JSON.parse(samplesRaw) as { samples: { path: string; size: number; mtimeNs: string; regions: number[][]; sampleSha256: string }[] }
+  check('the fill records each file’s sample positions: head, tail and eight fixed-seed 1 MB blocks, or the whole of a small file', recorded.samples[0]!.regions.length === 10 && JSON.stringify(recorded.samples[0]!.regions.slice(0, 2)) === JSON.stringify([[0, 64 * MiB], [2048 * MiB - 64 * MiB, 64 * MiB]]) && recorded.samples[0]!.regions.slice(2).every(([offset, count]) => count === MiB && offset! >= 0 && offset! + MiB <= 2048 * MiB) && JSON.stringify(recorded.samples[2]!.regions) === JSON.stringify([[0, 1000]]))
+  const warmCount = spawnSync('python3', ['-c', counted + weightCheckScript(sparseManifest, sparse, false, { sampleManifestSha256: sparseAnchor })], { encoding: 'utf8', timeout: 120_000 })
+  const bytesRead = Number(/BYTES_READ (\d+)/.exec(warmCount.stdout)?.[1])
+  const regionBytes = recorded.samples.reduce((sum, row) => sum + row.regions.reduce((n, [, count]) => n + count!, 0), 0)
+  const expectedRead = regionBytes + Buffer.byteLength(samplesRaw) + readFileSync(join(sparse, 'SHA256SUMS')).length
+  check('a warm check reads exactly the recorded samples and its two receipts, not the weights (counted bytes)', warmCount.status === 0 && warmCount.stdout.includes('sampled check passed') && bytesRead === expectedRead && regionBytes === 2 * 136 * MiB + 1000 && bytesRead < sparseFiles.reduce((sum, file) => sum + file.size, 0) / 8)
+  const moved = recorded.samples.map(row => row.path !== 'big.gguf' ? row : (() => { const regions = [...row.regions.slice(0, 2), ...Array.from({ length: 8 }, (_, index) => [(index + 1) * 200 * MiB, MiB])]; const hash = createHash('sha256'); for (const [offset, count] of regions) { hash.update(offset + ':' + count + ':'); hash.update(Buffer.alloc(count!)) } return { ...row, regions, sampleSha256: hash.digest('hex') } })())
+  const movedRaw = JSON.stringify({ ...JSON.parse(samplesRaw), samples: moved })
+  writeFileSync(join(sparse, 'SAMPLES.json'), movedRaw)
+  const movedCheck = spawnSync('python3', ['-c', weightCheckScript(sparseManifest, sparse, false, { sampleManifestSha256: createHash('sha256').update(movedRaw).digest('hex') })], { encoding: 'utf8', timeout: 120_000 })
+  check('the warm check hashes the positions written in the anchored manifest, not positions re-derived on the pod', movedCheck.status === 0 && movedCheck.stdout.includes('sampled check passed') && !movedCheck.stdout.includes('full check running'))
   const engineWords = volumes.fastLoadEstimate(gguf, { ...kept, state: 'kept' })
   check('GGUF estimate admits the retained build instead of promising image-only startup', engineWords.includes('builds the engine ~10 min') && engineWords.includes('weights kept ~0') && engineWords.includes('load ~3 min'))
   const filling = await volumes.createKeptVolume(api, nemotron, 'global', 'any DC', signal)
