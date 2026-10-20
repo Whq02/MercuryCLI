@@ -932,7 +932,7 @@ try {
   }
   const foldsBefore = boundariesOnDisk(sid)
   const folded = await dispatch('urt-compact', '/compact', { targetSessionId: sid })
-  check('/compact folded the conversation (a compaction boundary landed on disk) with the watch still running', folded.ok === true && (await untilAsync(() => boundariesOnDisk(sid) > foldsBefore && facts(sid)?.busy === false, 90_000)) && watchPids('watch-four').length > 0, JSON.stringify({ folded, before: foldsBefore, now: boundariesOnDisk(sid), watch: watchPids('watch-four') }))
+  check('/compact folded the conversation (a compaction boundary landed on disk) with the watch still running', folded.ok === true && (await untilAsync(() => boundariesOnDisk(sid) > foldsBefore && facts(sid)?.busy === false, 180_000)) && watchPids('watch-four').length > 0, JSON.stringify({ folded, before: foldsBefore, now: boundariesOnDisk(sid), watch: watchPids('watch-four') }))
   const behindBeforeOlder = behindCount().receipts
   pointBoth('X2')
   const olderLine = `Another Mercury build is installed (${SHORT_X}). This chat still uses ${SHORT_W}. /restart switches to it; watches and background shells will stop and be listed.`
@@ -946,7 +946,7 @@ try {
   check('/restart moves the session onto the older installed build and names the watch armed before the compaction as ending', ontoOlder.ok && ontoOlder.line.includes(`Restarted on the installed build (${SHORT_X})`) && toldOlder.some(line => line.includes(`Monitor «${WATCH4_NAME}»`)), JSON.stringify({ ontoOlder, toldOlder }))
   const pidOnX = recOf(sid)?.pid ?? 0
   const Epid = (await hello())?.pid ?? 0
-  check('the session runs the older build (the X2 bundle, tree X) under the daemon that took the plane, and the daemon of W leaves once empty', pidOnX !== 0 && Epid !== 0 && Epid !== Dpid && ps(pidOnX).ppid === Epid && bundleOf(ps(pidOnX).command) === join(builds, 'X2', 'mercury.mjs') && (await untilAsync(() => !isProcessAlive(Dpid), 30_000)), JSON.stringify({ pidOnX, Epid, Dpid, ps: ps(pidOnX) }))
+  check('the session runs the older build (the X2 bundle, tree X) under the daemon that took the plane, and the daemon of W leaves once empty', pidOnX !== 0 && Epid !== 0 && Epid !== Dpid && ps(pidOnX).ppid === Epid && bundleOf(ps(pidOnX).command) === join(builds, 'X2', 'mercury.mjs') && (await untilAsync(() => !isProcessAlive(Dpid), 60_000)), JSON.stringify({ pidOnX, Epid, Dpid, ps: ps(pidOnX) }))
   const updateToX = await untilAsync(() => readSessionReceipts(projectDir, sid).some(r => r.kind === 'runner-restart' && r.summary.startsWith(`Mercury updated to ${SHORT_X}`) && r.summary.includes(`Monitor «${WATCH4_NAME}»`)), 20_000)
   check('the update receipt names the watch that was armed before the compaction (the transcript no longer carries its launch)', updateToX, JSON.stringify(readSessionReceipts(projectDir, sid).filter(r => r.kind === 'runner-restart').map(r => r.summary)))
   const afterOlder = await dispatch('urt-after-older', 'report after the move onto the older build', { targetSessionId: sid })

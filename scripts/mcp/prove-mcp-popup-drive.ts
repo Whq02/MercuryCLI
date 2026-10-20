@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { McpServer, WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/server'
@@ -166,9 +166,7 @@ const driveText = (path: string): string => {
 }
 const screenNow = (path: string): string => {
   if (!existsSync(path)) return ''
-  const grab = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'streaming', 'screengrab.py'), path, '120', '40', '-1'], { encoding: 'utf8', timeout: S(30_000), maxBuffer: 64 * 1024 * 1024 })
-  if (grab.status !== 0) return ''
-  try { return ((JSON.parse(grab.stdout) as { screens: { rows: string[] }[] }).screens[0]?.rows ?? []).join('\n') } catch { return '' }
+  try { return grabScreens({ paths: { drive: path }, anchorShiftMs: 0 } as never, 120, 40, [-1])[0]?.rows.join('\n') ?? '' } catch { return '' }
 }
 let run: Awaited<ReturnType<typeof runArtifactArena>> | undefined
 try {
