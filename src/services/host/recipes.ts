@@ -62,8 +62,8 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
   },
   {
     id: 'glm53-flash-b200-community', label: 'GLM-5.3-Flash · NVFP4', model: 'RadixArk/GLM-5.3-Flash-NVFP4', gpu: 'B200', count: 4, vramGb: 183, diskGb: 300,
-    image: 'lmsysorg/sglang:glm-5.3-flash', cuda: '13.0', source: 'https://github.com/caiovicentino/glm-5.3-flash-sglang-4x-b200', verification: 'community recipe',
-    verified: { by: 'community', note: 'community 4× B200 SGLang NVFP4 recipe', source: 'https://github.com/caiovicentino/glm-5.3-flash-sglang-4x-b200' },
+    image: 'lmsysorg/sglang:glm-5.3-flash', cuda: '13.0', source: 'https://github.com/caiovicentino/glm-5.3-flash-sglang-4x-b200', verification: 'community recipe · SGLang prefill in thousands of tok/s vs 1-GPU llama.cpp (not measured)',
+    verified: { by: 'community', note: 'community 4× B200 SGLang NVFP4 recipe · SGLang prefill in thousands of tok/s vs 1-GPU llama.cpp (not measured)', source: 'https://github.com/caiovicentino/glm-5.3-flash-sglang-4x-b200' },
     context: 524288,
     environment: { PYTORCH_CUDA_ALLOC_CONF: 'expandable_segments:True' },
     files: { 'adaptive.json': JSON.stringify({ '1': { candidate_steps: [3], up_hysteresis: 0, down_hysteresis: 0, ceiling_coeff: 0 }, '40': { candidate_steps: [2], up_hysteresis: 0, down_hysteresis: 0, ceiling_coeff: 0 } }) },

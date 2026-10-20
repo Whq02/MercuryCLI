@@ -22,6 +22,12 @@ export function streamIdleWarningMsOf(timeoutMs: number): number {
   return Math.min(timeoutMs, Math.max(STREAM_IDLE_WARNING_FLOOR_MS, timeoutMs / 2))
 }
 
+const SELF_HOSTED_COMPAT_DIALECTS: ReadonlySet<string> = new Set(['llamacpp', 'vllm', 'sglang', 'ollama', 'lmstudio'])
+
+function isSelfHostedCompatDialect(dialect: string | null | undefined): boolean {
+  return typeof dialect === 'string' && SELF_HOSTED_COMPAT_DIALECTS.has(dialect)
+}
+
 function streamIdleSettingForRoute(route: string | null): 'streamIdleMs' | 'quietStreamIdleMs' | null {
   switch (route) {
     case 'anthropic':
@@ -53,11 +59,15 @@ function streamIdleSettingForRoute(route: string | null): 'streamIdleMs' | 'quie
   }
 }
 
-export function streamIdleTimeoutMsForRoute(route: string | null): number {
+export function streamIdleTimeoutMsForRoute(route: string | null, dialect?: string | null): number {
   const pinned = pinnedStreamIdleTimeoutMs()
   if (pinned !== null) return pinned
+  const numbers = currentPatience().numbers
+  if (isSelfHostedCompatDialect(dialect) || isSelfHostedCompatDialect(route)) {
+    return Math.max(numbers.streamIdleMs, numbers.quietStreamIdleMs)
+  }
   const setting = streamIdleSettingForRoute(route)
-  return setting === null ? STREAM_IDLE_DEFAULT_MS : currentPatience().numbers[setting]
+  return setting === null ? STREAM_IDLE_DEFAULT_MS : numbers[setting]
 }
 
 export interface StreamTimers {
@@ -117,7 +127,8 @@ function pinnedSilentAfterHeadersMs(): number | null {
   return Number.isFinite(parsed) && parsed >= SILENT_AFTER_HEADERS_FLOOR_MS ? parsed : null
 }
 
-export function silentAfterHeadersMsForRoute(route: string | null): number | null {
+export function silentAfterHeadersMsForRoute(route: string | null, dialect?: string | null): number | null {
+  if (isSelfHostedCompatDialect(dialect) || isSelfHostedCompatDialect(route)) return null
   const setting = streamIdleSettingForRoute(route)
   if (setting === null || route === 'local') return null
   const pinned = pinnedSilentAfterHeadersMs()
@@ -126,8 +137,8 @@ export function silentAfterHeadersMsForRoute(route: string | null): number | nul
   return Math.max(SILENT_AFTER_HEADERS_DEFAULT_MS, Math.round(SILENT_AFTER_HEADERS_DEFAULT_MS * scale))
 }
 
-export function silentAfterHeadersWindowMs(args: { route: string | null; cold: boolean; promptTokens: number; idleMs: number }): number | null {
-  const base = silentAfterHeadersMsForRoute(args.route)
+export function silentAfterHeadersWindowMs(args: { route: string | null; dialect?: string | null; cold: boolean; promptTokens: number; idleMs: number }): number | null {
+  const base = silentAfterHeadersMsForRoute(args.route, args.dialect)
   if (base === null) return null
   const tokens = Number.isFinite(args.promptTokens) && args.promptTokens > 0 ? args.promptTokens : 0
   const allowance = args.cold && pinnedSilentAfterHeadersMs() === null ? Math.round((tokens / 1000) * COLD_INGEST_MS_PER_1K_TOKENS) : 0

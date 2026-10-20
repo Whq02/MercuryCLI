@@ -1,6 +1,10 @@
+import { createHash } from 'node:crypto'
+import { outageCauseOfFetchFailure } from '../../api/reconnectLadder.js'
+import { deepestErrorDetail, isStaleSocketCode } from '../../api/transportEvidence.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { CompatEndpointSchema, type CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'
+import type { CompatLivenessReading } from './compatChatClient.js'
 
 export type CompatDialect = NonNullable<CompatEndpointSettings['dialect']>
 export interface CompatServerReading {
@@ -15,6 +19,216 @@ export class CompatProbeError extends Error {
 
 const record = (value: unknown): Record<string, any> | undefined => typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, any> : undefined
 const windowTokens = (value: unknown): number | undefined => typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined
+const llamacppSlotsCache = new Map<string, number>()
+const llamacppSlotsInFlight = new Map<string, Promise<number | undefined>>()
+const llamacppSlotHolders = new Map<string, Map<string, { slot: number; crewmate: boolean }>>()
+const LLAMACPP_SLOT_HOLDERS_KEPT = 64
+const LLAMACPP_SLOT_PROBE_MS = 5_000
+
+function llamacppEndpointKey(endpoint: CompatEndpointSettings & { name?: string; baseUrl: string }): string {
+  return `${endpoint.name ?? 'default'}:${compatServerBase(endpoint.baseUrl)}`
+}
+
+export function assignLlamacppSlot(
+  endpoint: CompatEndpointSettings & { name?: string; baseUrl: string },
+  conversationKey: string,
+  totalSlots: number,
+  crewmate: boolean,
+): number {
+  const endpointKey = llamacppEndpointKey(endpoint)
+  let holders = llamacppSlotHolders.get(endpointKey)
+  if (holders === undefined) {
+    holders = new Map()
+    llamacppSlotHolders.set(endpointKey, holders)
+  }
+  const held = holders.get(conversationKey)
+  holders.delete(conversationKey)
+  let slot = held !== undefined && held.slot < totalSlots ? held.slot : undefined
+  if (slot === undefined) {
+    const taken = new Set<number>()
+    for (const holder of holders.values()) if (holder.slot < totalSlots) taken.add(holder.slot)
+    const preferred = createHash('sha256').update(conversationKey).digest().readUInt32BE(0) % totalSlots
+    for (let step = 0; step < totalSlots && slot === undefined; step++) {
+      const candidate = (preferred + step) % totalSlots
+      if (!taken.has(candidate)) slot = candidate
+    }
+    if (slot === undefined) {
+      let victim: string | undefined
+      let victimIsCrewmate = false
+      for (const [key, holder] of holders) {
+        if (holder.slot >= totalSlots) continue
+        if (victim === undefined || (!victimIsCrewmate && holder.crewmate)) {
+          victim = key
+          victimIsCrewmate = holder.crewmate
+          slot = holder.slot
+        }
+        if (victimIsCrewmate) break
+      }
+      if (victim !== undefined) holders.delete(victim)
+    }
+  }
+  const assigned = slot ?? 0
+  holders.set(conversationKey, { slot: assigned, crewmate: crewmate && held?.crewmate !== false })
+  while (holders.size > LLAMACPP_SLOT_HOLDERS_KEPT) holders.delete(holders.keys().next().value!)
+  return assigned
+}
+
+export function invalidateLlamacppTotalSlots(endpoint: CompatEndpointSettings & { name?: string; baseUrl: string }): void {
+  try { llamacppSlotsCache.delete(llamacppEndpointKey(endpoint)) } catch {}
+}
+
+export async function resolveLlamacppTotalSlots(
+  endpoint: CompatEndpointSettings & { name?: string; baseUrl: string },
+  opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
+): Promise<number | undefined> {
+  let cacheKey: string
+  try { cacheKey = llamacppEndpointKey(endpoint) } catch { return undefined }
+  const cached = llamacppSlotsCache.get(cacheKey)
+  if (cached !== undefined) return cached
+  const pending = llamacppSlotsInFlight.get(cacheKey)
+  if (pending) return pending
+  const work = (async (): Promise<number | undefined> => {
+    const controller = new AbortController()
+    const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal
+    const timer = setTimeout(() => controller.abort(), 5_000)
+    timer.unref?.()
+    try {
+      const root = compatServerBase(endpoint.baseUrl).replace(/\/v1$/, '')
+      const response = await (opts.fetchImpl ?? getApiFetch())(`${root}/props`, {
+        ...getProxyFetchOptions(),
+        method: 'GET',
+        headers: {
+          ...endpoint.headers,
+          accept: 'application/json',
+          'user-agent': getUserAgent(),
+          ...(opts.key ? { authorization: `Bearer ${opts.key}` } : {}),
+        },
+        signal,
+        redirect: 'error',
+      } as RequestInit)
+      if (!response.ok) {
+        await response.body?.cancel()
+        return undefined
+      }
+      const body = record(await readJson(response))
+      const totalSlots = windowTokens(body?.total_slots)
+      if (totalSlots !== undefined) llamacppSlotsCache.set(cacheKey, totalSlots)
+      return totalSlots
+    } catch {
+      return undefined
+    } finally {
+      clearTimeout(timer)
+      llamacppSlotsInFlight.delete(cacheKey)
+    }
+  })()
+  llamacppSlotsInFlight.set(cacheKey, work)
+  return work
+}
+
+type LivenessAnswer =
+  | { kind: 'answer'; status: number; body?: unknown }
+  | { kind: 'timeout' }
+  | { kind: 'unreachable'; words: string }
+  | { kind: 'reset'; words: string }
+  | { kind: 'error'; words: string }
+
+const SELF_HOSTED_NAMES: Readonly<Record<string, string>> = { llamacpp: 'llama.cpp', vllm: 'vLLM', sglang: 'SGLang', ollama: 'Ollama', lmstudio: 'LM Studio' }
+
+export async function readSelfHostedLiveness(
+  endpoint: CompatEndpointSettings & { baseUrl: string },
+  dialect: string,
+  pinnedSlot: number | undefined,
+  opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
+): Promise<CompatLivenessReading> {
+  const name = `the ${SELF_HOSTED_NAMES[dialect] ?? 'self-hosted'} server`
+  let base: string
+  try {
+    base = compatServerBase(endpoint.baseUrl)
+  } catch {
+    return { state: 'unknown', answered: false, words: `${name} has no readable address` }
+  }
+  const root = base.replace(/\/v1$/, '')
+  const server = `${name} at ${root}`
+  const attempt = async (url: string, json: boolean): Promise<LivenessAnswer> => {
+    const controller = new AbortController()
+    const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal
+    const timer = setTimeout(() => controller.abort(), LLAMACPP_SLOT_PROBE_MS)
+    timer.unref?.()
+    try {
+      const response = await (opts.fetchImpl ?? getApiFetch())(url, {
+        ...getProxyFetchOptions(),
+        method: 'GET',
+        headers: {
+          ...endpoint.headers,
+          accept: 'application/json',
+          'user-agent': getUserAgent(),
+          ...(opts.key ? { authorization: `Bearer ${opts.key}` } : {}),
+        },
+        signal,
+        redirect: 'error',
+      } as RequestInit)
+      if (!json || !response.ok) {
+        await response.body?.cancel()
+        return { kind: 'answer', status: response.status }
+      }
+      try {
+        return { kind: 'answer', status: response.status, body: await readJson(response) }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return { kind: 'answer', status: response.status }
+      }
+    } catch (error) {
+      if (controller.signal.aborted && opts.signal?.aborted !== true) return { kind: 'timeout' }
+      const outage = outageCauseOfFetchFailure(error)
+      if (outage !== null) return outage.words === 'connect timed out' ? { kind: 'timeout' } : { kind: 'unreachable', words: outage.words }
+      const deep = deepestErrorDetail(error)
+      if (isStaleSocketCode(deep.code)) return { kind: 'reset', words: deep.code ?? deep.message }
+      return { kind: 'error', words: deep.message }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+  const ask = async (url: string, json: boolean): Promise<LivenessAnswer> => {
+    const first = await attempt(url, json)
+    return first.kind === 'reset' ? attempt(url, json) : first
+  }
+  const unanswered = (answer: Exclude<LivenessAnswer, { kind: 'answer' }>, read: string): CompatLivenessReading => {
+    switch (answer.kind) {
+      case 'timeout':
+        return { state: 'unknown', answered: false, words: `${server} did not answer ${read} within ${LLAMACPP_SLOT_PROBE_MS / 1000} s` }
+      case 'unreachable':
+        return { state: 'dead', answered: false, words: `${server} could not be reached for ${read} (${answer.words})` }
+      case 'reset':
+        return { state: 'dead', answered: false, words: `${server} reset the connection twice for ${read} (${answer.words})` }
+      case 'error':
+        return { state: 'unknown', answered: false, words: `${server} could not be read with ${read} (${answer.words})` }
+    }
+  }
+  if (dialect === 'llamacpp' && pinnedSlot !== undefined) {
+    let answer = await ask(`${root}/slots`, true)
+    if (answer.kind !== 'answer') return unanswered(answer, 'GET /slots')
+    if (answer.body === undefined) {
+      const legacy = await attempt(`${root}/health?include_slots=1`, true)
+      const slots = legacy.kind === 'answer' ? record(legacy.body)?.slots : undefined
+      if (Array.isArray(slots)) answer = { kind: 'answer', status: answer.status, body: slots }
+    }
+    if (answer.body === undefined) {
+      return { state: 'unknown', answered: true, words: `${server} does not report slots (GET /slots answered HTTP ${answer.status}), so this silence runs to the idle budget` }
+    }
+    const list = Array.isArray(answer.body) ? answer.body.map(record) : []
+    if (list.length === 0) return { state: 'unknown', answered: true, words: `${server} answered GET /slots without a slot list, so this silence runs to the idle budget` }
+    const slot = pinnedSlot % list.length
+    const row = list.find(entry => entry?.id === slot)
+    if (row === undefined) return { state: 'unknown', answered: true, words: `${server} lists no slot ${slot}, so this silence runs to the idle budget` }
+    return row.is_processing === true
+      ? { state: 'working', answered: true, words: `${server} reports slot ${slot} processing` }
+      : { state: 'dead', answered: true, words: `${server} reports slot ${slot} idle: nothing on the server is working on this request` }
+  }
+  const path = dialect === 'ollama' ? '/' : dialect === 'lmstudio' ? '/v1/models' : '/health'
+  const answer = await ask(dialect === 'lmstudio' ? `${base}/models` : `${root}${path}`, false)
+  if (answer.kind !== 'answer') return unanswered(answer, `GET ${path}`)
+  return { state: 'alive', answered: true, words: `${server} answers GET ${path} (HTTP ${answer.status}): the process is up, though it does not say whether it is working on this request` }
+}
 
 export function compatServerBase(address: string): string {
   const base = address.trim().replace(/\/+$/, '')
@@ -95,11 +309,13 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
       const tokens = windowTokens(sglang?.context_length)
       if (tokens) for (const id of models) if (models.length === 1 || id === sglang?.model_path || id === sglang?.served_model_name) contextWindows[id] = tokens
     }
-    if (dialect === 'llamacpp' && models.length === 1) {
-      const slots = windowTokens(llama?.total_slots) ?? 1
-      const tokens = windowTokens(llama?.default_generation_settings?.n_ctx)
-      const perSlot = tokens ? windowTokens(Math.floor(tokens / slots)) : undefined
-      if (perSlot) contextWindows[models[0]!] = perSlot
+    if (dialect === 'llamacpp') {
+      const slots = windowTokens(llama?.total_slots)
+      if (slots !== undefined) llamacppSlotsCache.set(llamacppEndpointKey(endpoint), slots)
+      if (models.length === 1) {
+        const tokens = windowTokens(llama?.default_generation_settings?.n_ctx)
+        if (tokens) contextWindows[models[0]!] = tokens
+      }
     }
     if (dialect === 'ollama') {
       const ps = await optional('/api/ps')

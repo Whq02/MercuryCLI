@@ -6,6 +6,7 @@ import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { compatKeyEnvName, compatModelEndpoint, compatModelRefusal } from './compatAccounts.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { compatResponsesTransport } from './compatResponsesTransport.js'
+import { assignLlamacppSlot, invalidateLlamacppTotalSlots, readSelfHostedLiveness, resolveLlamacppTotalSlots } from './compatProbe.js'
 import { buildLocalExtras } from './compatWire.js'
 import {
   compatChatCallModel,
@@ -71,16 +72,24 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
   const { endpoint, wireId } = resolved
   const dialect = endpoint.dialect ?? 'chat-completions'
   let observation: ReturnType<typeof captureSignInRequest>
+  let totalSlots: number | undefined
+  let slotReads = 0
   const profile: CompatLaneProfile = {
     ...compatSlotLaneProfile,
+    dialect,
     providerLabel: endpoint.label,
     keepsReasoningHistory: () => dialect === 'vllm' || dialect === 'sglang' || dialect === 'llamacpp',
     keepsReasoningOnContinuations: () => dialect === 'vllm' || dialect === 'sglang' || dialect === 'llamacpp',
     ...(endpoint.named ? { authRemedy: `/logins compat/${endpoint.name} replaces this endpoint's key; ${compatKeyEnvName(endpoint.name)} takes precedence when set.` } : {}),
-    resolveCredential: () => {
+    resolveCredential: async () => {
       const key = resolveCompatApiKey(process.env, endpoint.name)
       if (!key && providerKeyCommandFailure(`compat:${endpoint.name}`)) return undefined
       if (endpoint.named) observation = captureSignInRequest(`compat-${endpoint.name}`, key?.key)
+      if (dialect === 'llamacpp') {
+        if (slotReads > 0) invalidateLlamacppTotalSlots(endpoint)
+        slotReads += 1
+        totalSlots = await resolveLlamacppTotalSlots(endpoint, { key: key?.key, signal: params.signal })
+      }
       return key ? { apiKey: key.key } : {}
     },
     recoverCredential: async () => {
@@ -94,13 +103,32 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     },
     requestUrl: () => `${endpoint.baseUrl}/chat/completions`,
     wireModelId: () => wireId,
-    ...(endpoint.named ? { onResponseHeaders: (_headers: Headers, status?: number) => observeSignInResponse(observation, status) } : {}),
+    ...(endpoint.named || dialect === 'llamacpp'
+      ? {
+          onResponseHeaders: (_headers: Headers, status?: number) => {
+            if (endpoint.named) observeSignInResponse(observation, status)
+            if (dialect === 'llamacpp' && status !== undefined && status >= 500) invalidateLlamacppTotalSlots(endpoint)
+          },
+        }
+      : {}),
+    ...(dialect !== 'chat-completions' && dialect !== 'responses'
+      ? {
+          liveness: (pinnedSlot: number | undefined) =>
+            readSelfHostedLiveness(endpoint, dialect, pinnedSlot, {
+              key: resolveCompatApiKey(process.env, endpoint.name)?.key,
+              signal: params.signal,
+            }),
+        }
+      : {}),
     extraHeaders: () => ({ ...endpoint.headers, ...(endpoint.sessionAffinityHeader ? { [endpoint.sessionAffinityHeader]: getSessionId() } : {}) }),
     ...(dialect === 'responses' ? { streamTransport: (options, messages) => compatResponsesTransport(options, messages, `${endpoint.name}:${endpoint.baseUrl}`) } : {}),
     ...(dialect === 'ollama' ? { omitsToolChoice: true } : {}),
-    buildExtras: args => dialect === 'chat-completions' || dialect === 'responses'
-      ? buildCompatSlotExtras(args)
-      : buildLocalExtras({ ...args, server: dialect, acceptsEffort: true }),
+    buildExtras: args => {
+      if (dialect === 'chat-completions' || dialect === 'responses') return buildCompatSlotExtras(args)
+      const slotKey = args.conversationKey ?? args.cacheDomainKey
+      const idSlot = dialect === 'llamacpp' && totalSlots !== undefined && slotKey ? assignLlamacppSlot(endpoint, slotKey, totalSlots, args.crewmate === true) : undefined
+      return buildLocalExtras({ ...args, server: dialect, acceptsEffort: true, ...(idSlot !== undefined ? { idSlot } : {}) })
+    },
   }
   yield* compatChatCallModel(profile, params)
 }

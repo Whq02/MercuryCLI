@@ -141,7 +141,7 @@ try {
   await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Pod terminated')
   check('final fixture account has no leftover pods', rp.state.pods.size === 0)
   await close()
-  f.state.dialect = 'llamacpp'; f.state.window = 524288; f.state.slots = 4
+  f.state.dialect = 'llamacpp'; f.state.window = 131072; f.state.slots = 4
   open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
   await until('live Runpod stock'); await choose('UD-Q3_K_XL'); await heading('Confirm the hourly price'); await until('1× RTX PRO 6000'); await until('llama.cpp (GGUF)'); capture('15-gguf-one-gpu-confirm'); await choose('Confirm $2.49/hr')
   assert.ok(await waitFor(() => readHostRecord('fixture-pod-3')?.jobState === 'ready', 15000)); await heading('Pod controls'); capture('16-gguf-ready')

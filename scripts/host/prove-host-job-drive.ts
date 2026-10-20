@@ -15,7 +15,7 @@ if (frames) mkdirSync(frames, { recursive: true })
 let checks = 0
 const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
 const f = await llmhostFixture()
-f.state.dialect = 'llamacpp'; f.state.window = 524288; f.state.slots = 4
+f.state.dialect = 'llamacpp'; f.state.window = 131072; f.state.slots = 4
 const rp = await runpodFixture()
 const { settingsChangeDetector } = await import('../../src/utils/settings/changeDetector.ts')
 await settingsChangeDetector.initialize()

@@ -20,6 +20,9 @@ export interface LaneExtrasArgs {
   effortValue: string | undefined
   thinkingEnabled: boolean
   maxOutputTokensOverride: number | undefined
+  conversationKey?: string
+  cacheDomainKey?: string
+  crewmate?: boolean
 }
 
 export function compatEffortWireFact(
@@ -173,7 +176,7 @@ export function localThinkingOffWireEffort(server: LocalServerKind | 'sglang'): 
 }
 
 export function buildLocalExtras(
-  args: LaneExtrasArgs & { server: LocalServerKind | 'sglang'; acceptsEffort: boolean },
+  args: LaneExtrasArgs & { server: LocalServerKind | 'sglang'; acceptsEffort: boolean; idSlot?: number },
 ): Record<string, unknown> {
   const vocabulary = LOCAL_SERVER_EFFORTS[args.server]
   const wireEffort =
@@ -190,6 +193,7 @@ export function buildLocalExtras(
     stream_options: { include_usage: true },
     ...(wireEffort !== undefined ? { reasoning_effort: wireEffort } : {}),
     ...(args.server === 'sglang' ? { chat_template_kwargs: { clear_thinking: false } } : {}),
+    ...(args.server === 'llamacpp' && args.idSlot !== undefined ? { id_slot: args.idSlot, cache_prompt: true } : {}),
     ...(args.maxOutputTokensOverride !== undefined ? { max_tokens: args.maxOutputTokensOverride } : {}),
   }
 }

@@ -254,10 +254,10 @@
         "1024"
       ],
       "source": "https://github.com/caiovicentino/glm-5.3-flash-sglang-4x-b200",
-      "verification": "community recipe",
+      "verification": "community recipe · SGLang prefill in thousands of tok/s vs 1-GPU llama.cpp (not measured)",
       "verified": {
         "by": "community",
-        "note": "community 4× B200 SGLang NVFP4 recipe",
+        "note": "community 4× B200 SGLang NVFP4 recipe · SGLang prefill in thousands of tok/s vs 1-GPU llama.cpp (not measured)",
         "source": "https://github.com/caiovicentino/glm-5.3-flash-sglang-4x-b200"
       },
       "context": 524288,
