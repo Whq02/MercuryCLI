@@ -411,8 +411,8 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **Google Gemini:** Sign in with Google, an API key, or your own OAuth client. Sign in with Google runs Gemini on the quota of the plan the Google account holds (a free account, Google AI Pro or Google AI Ultra) through Google's own Antigravity client: the prompt, the tool schemas and the tool results go to Google's Code Assist endpoint under that client and the signed-in account, and `/model` lists the roster Google serves the account. An API key or your own OAuth client bills a Cloud project instead.
 - **Hugging Face:** device-code sign-in or Hub token.
 - **Kimi (Moonshot):** device-code sign-in or API key.
-- **GLM (Z.AI):** API key.
-- **DeepSeek:** API key.
+- **GLM (Z.AI):** a GLM Coding Plan subscription key or a general pay-as-you-go API key — `/logins zai` stores either and records which plan it is; `ZAI_API_KEY` works too (`ZAI_KEY_PLAN=coding|general` names the plan, or Mercury reads it from the key's own model list).
+- **DeepSeek:** an API key from the DeepSeek platform (`/logins deepseek`, or `DEEPSEEK_API_KEY`).
 - **xAI (Grok):** sign in with your Grok subscription (SuperGrok / X Premium) or paste an API key through `/logins xai`.
 - **Meta (Muse):** Sign in with Meta (a Muse Code subscription, a device code in your browser) or a pay-as-you-go Model API key. Sign in with Meta exchanges the device code against Meta's OIDC endpoints (`https://auth.meta.com/oidc/device/authorization/` and `/oidc/device/token/`) under Muse Code's public client id, sends the resulting account token once to `https://api.meta.ai/muse-code/key` to mint the subscription's API key (and on bounded `/usage` reads for the plan's tier and usage windows), and sends only the minted key on every model request to `https://api.meta.ai/v1`. A pasted Model API key or `MODEL_API_KEY` / `META_API_KEY` bills pay-as-you-go.
 
