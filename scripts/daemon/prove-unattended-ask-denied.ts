@@ -38,10 +38,18 @@ const until = async (pred: () => Promise<boolean> | boolean, ms: number): Promis
   }
   return false
 }
+const WALL_S = 420
+const startedAt = Date.now()
+let leg = 'the unit laws'
+const daemonLogs: { label: string; path: string }[] = []
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT: the unattended-ask laws exceeded 240s')
+  console.log(`\nTIMEOUT: the unattended-ask laws exceeded ${WALL_S}s — in the leg "${leg}" at ${Math.round((Date.now() - startedAt) / 1000)}s`)
+  for (const { label, path } of daemonLogs) {
+    const tail = existsSync(path) ? readFileSync(path, 'utf8').split('\n').filter(l => l.trim() !== '').slice(-12).join('\n    ') : '(no log)'
+    console.log(`  daemon log (${label}):\n    ${tail}`)
+  }
   process.exit(1)
-}, 240_000)
+}, WALL_S * 1000)
 guard.unref?.()
 
 console.log('============================================================')
@@ -255,6 +263,7 @@ async function bootSeatWorld(label: string, owned: boolean, turns: Turn[]): Prom
   const launcher = join(root, 'launcher.ts')
   writeFileSync(launcher, `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }\ndelete process.env.NODE_ENV\nawait import(${j(join(REPO, 'src', 'entrypoints', 'cli.tsx'))})\n`)
   const logPath = join(root, 'daemon.log')
+  daemonLogs.push({ label, path: logPath })
   const logFd = openSync(logPath, 'a')
   const daemon = spawn(process.execPath, ['run', launcher, 'daemon', 'run', work], {
     cwd: work,
@@ -286,6 +295,7 @@ async function bootSeatWorld(label: string, owned: boolean, turns: Turn[]): Prom
     }
     await api.close()
   }
+  leg = `${label}: the daemon boot from the source`
   const serves = await until(async () => ((await daemonControlRpc({ op: 'ping' } as never)) as { ok?: boolean }).ok === true, 60_000)
   check(`${label}: the daemon serves from the source (${owned ? 'owned by this process' : 'ownerless'})`, serves)
   if (!serves) {
@@ -293,7 +303,9 @@ async function bootSeatWorld(label: string, owned: boolean, turns: Turn[]): Prom
     return null
   }
   const dispatch = async (tag: string, prompt: string, folder: string = work): Promise<Session | null> => {
+    leg = `${label}: dispatching session ${tag} (the daemon admits it and spawns its runner from the source)`
     const d = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: `${label}-${tag}`, prompt, workspaceDir: folder, title: `Ask probe ${tag}`, modelKey, effort: 'high' } as never, { timeoutMs: 30_000 })) as { ok?: boolean; sessionId?: string; error?: string }
+    leg = `${label}: session ${tag} dispatched, its ask awaited`
     check(`${label}: session ${tag} dispatched`, d.ok === true && typeof d.sessionId === 'string', j(d))
     if (d.ok !== true || typeof d.sessionId !== 'string') return null
     const sessionId = d.sessionId

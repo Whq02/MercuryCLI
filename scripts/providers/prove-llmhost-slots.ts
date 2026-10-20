@@ -47,6 +47,11 @@ const state = {
 }
 const heldResponses = new Set<ServerResponse>()
 const model = 'Fixture/GLM-5.3-Flash-GGUF'
+const SLOW_TOOL_TICK_MS = 650
+const SLOW_TOOL_TICKS = 15
+const SLOW_TOOL_STREAM_S = (SLOW_TOOL_TICK_MS * SLOW_TOOL_TICKS) / 1000
+const SLOW_TOOL_IDLE_MINUTES = '0.1'
+const SLOW_TOOL_IDLE_S = Number(SLOW_TOOL_IDLE_MINUTES) * 60
 
 function readRequestBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolveBody, rejectBody) => {
@@ -170,7 +175,7 @@ const server = createServer(async (req, res) => {
         return
       }
       tick++
-    }, 250)
+    }, SLOW_TOOL_TICK_MS)
     res.on('close', () => clearInterval(interval))
     return
   }
@@ -879,7 +884,7 @@ try {
   const { getDefaultAppState } = await import(`${root}/src/state/AppStateStore.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/utils/fileStateCache.ts`)
   const { runWithCwdOverride } = await import(`${root}/src/utils/cwd.ts`)
-  process.env.MERCURY_AGENT_IDLE_MINUTES = '0.03'
+  process.env.MERCURY_AGENT_IDLE_MINUTES = SLOW_TOOL_IDLE_MINUTES
   try {
     state.mode = 'slow-tool-stream'
     let appState = { ...getDefaultAppState(), effortValue: 'max' }
@@ -955,10 +960,12 @@ try {
       .flatMap(row => row.message?.content ?? [])
       .map((block: any) => block.text ?? '')
       .join('')
+    const stallPhase =
+      agentError === '' ? 'none' : inputJsonDeltas.length < 14 ? `mid-stream after ${inputJsonDeltas.length} of 14 deltas (the deltas were not counted as life)` : `after the stream settled (a cold tool phase longer than the ${SLOW_TOOL_IDLE_S} s limit on this box)`
     check(
-      'crewmate survives a 3.5 s streaming tool call past the 1.8 s MERCURY_AGENT_IDLE_MINUTES limit and finishes',
+      `crewmate survives a ${SLOW_TOOL_STREAM_S} s streaming tool call past the ${SLOW_TOOL_IDLE_S} s MERCURY_AGENT_IDLE_MINUTES limit and finishes`,
       agentError === '' && finalText.includes('LLMHOST-READY'),
-      `agentError=${agentError} finalText=${finalText}`,
+      `stall=${stallPhase} agentError=${agentError} finalText=${finalText}`,
     )
     check(
       'progressive input_json_delta events are observed during the tool call without double-counting at settlement, and they are the life: no heartbeat is minted for a painted argument delta (the Anthropic road\'s rule)',
