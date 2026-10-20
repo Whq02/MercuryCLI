@@ -101,15 +101,16 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const rowLabels = rows.map((row, index) => rowDividers[index] ? row.label.slice(rowDividers[index]!.length + 1) : row.label)
   const rowLines = rowLabels.map((label, index) => [...(rowDividers[index] ? [rowDividers[index]!] : []), ...(compact ? [truncateToWidth(label, Math.max(1, width - 2))] : wrapRow(label, Math.max(1, width - 2)))])
   const rowsHeight = rowLines.reduce((sum, lines) => sum + lines.length, 0)
-  const minimumChoices = question?.rows ? Math.min(8, rowsHeight) : question ? 1 : 3
-  const allDetails = [...baseDetails, ...disclosure]
-  const detailRoom = Math.max(0, budget - titleLines.length - hostLines.length - (question && !compact ? 1 : 0) - minimumChoices - 2)
+  const minimumChoices = question?.rows ? Math.min(8, rowsHeight, Math.max(1, budget - titleLines.length - hostLines.length - (compact ? 1 : 3))) : question ? 1 : 3
+  const allDetails = question?.step === 'rent-confirm' ? [...wrapRow(question.found, width), ...disclosure, ...wrapRow(question.willRun, width)].filter(Boolean) : baseDetails
+  const detailRoom = Math.max(0, budget - titleLines.length - hostLines.length - (question && !compact ? 1 : 0) - minimumChoices - (compact ? 0 : 2))
   const scrollDetails = !question?.fullDetails && allDetails.length > detailRoom
-  const detailPage = scrollDetails ? Math.max(1, detailRoom - 1) : allDetails.length
+  const detailMarker = scrollDetails && detailRoom > 1
+  const detailPage = scrollDetails ? Math.max(0, detailRoom - (detailMarker ? 1 : 0)) : allDetails.length
   const maxDetailOffset = scrollDetails ? Math.max(0, allDetails.length - detailPage) : 0
   const detailOffset = Math.min(logOffset, maxDetailOffset)
   const detailLines = scrollDetails ? allDetails.slice(detailOffset, detailOffset + detailPage) : allDetails
-  const fixed = titleLines.length + detailLines.length + hostLines.length + (question && !compact ? 1 : 0) + (scrollDetails ? 1 : 0)
+  const fixed = titleLines.length + detailLines.length + hostLines.length + (question && !compact ? 1 : 0) + (detailMarker ? 1 : 0)
   const detailsFit = !question?.fullDetails || !compact && budget >= fixed + rowsHeight
   const allHistory = compact || scrollDetails || modelDoor || question?.step === 'rent-confirm' || question?.step.startsWith('tune-') ? [] : history.flatMap(row => wrapPlain(row.words, width))
   const historyBudget = Math.max(0, budget - fixed - minimumChoices - 2)
@@ -145,7 +146,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
     {question ? <>
       {titleLines.map((text, index) => <Text key={'title-' + index} bold color={tokens.textPrimary}>{text}</Text>)}
       {detailLines.map((text, index) => <Text key={'detail-' + index} color={tokens.textSecondary}>{text}</Text>)}
-      {scrollDetails ? <Text color={tokens.textMuted}>Details {detailOffset + 1}–{detailOffset + detailLines.length} of {allDetails.length} · pgup/pgdn</Text> : null}
+      {detailMarker ? <Text color={tokens.textMuted}>Details {detailOffset + 1}–{detailOffset + detailLines.length} of {allDetails.length} · pgup/pgdn</Text> : null}
       {!detailsFit ? <Text color={tokens.warning} wrap="wrap">Enlarge the terminal to see the full setup plan before confirming · esc closes</Text> : null}
       {!compact && detailsFit ? <Text color={tokens.textMuted}>{choiceHint}</Text> : null}
       {!detailsFit ? null : question.rows ? <>

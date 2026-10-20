@@ -62,7 +62,7 @@ try {
     const podOnly = await api.offers(new AbortController().signal)
     const clusterReadWords = api.clusterReadError() ?? ''
     const refusedEvents: any[] = []
-    await createHostRoad({ apiBaseUrl: rp.baseUrl, runner: ssh.runner, startJob: () => {}, sessionId: 'trillion-proof' })(async q => q.step === 'door-models' ? 'other' : q.step === 'where' ? 'rent' : q.step === 'budget' ? '' : null, event => refusedEvents.push(event), new AbortController().signal)
+    await createHostRoad({ apiBaseUrl: rp.baseUrl, runner: ssh.runner, startJob: () => {}, sessionId: 'trillion-proof' })(async q => q.step === 'door-models' ? 'other' : q.step === 'where' ? 'rent' : q.step === 'rental-vendor' ? 'runpod' : q.step === 'budget' ? '' : null, event => refusedEvents.push(event), new AbortController().signal)
     rp.state.failClusterCatalogue = false
     check('a refused cluster catalogue read keeps the single-machine offers, offers no cluster, and says why', podOnly.some(row => (row.recipe.nodes ?? 1) === 1) && !podOnly.some(row => (row.recipe.nodes ?? 1) > 1) && clusterReadWords.includes('cluster catalogue refused this count') && refusedEvents.some(event => String(event.words).startsWith('Cluster stock could not be read, so multi-node shapes are not offered this time')))
     const frames: any[] = []
@@ -71,6 +71,7 @@ try {
     const result = await road(async question => {
       frames.push(question)
       if (question.step === 'door-models') return 'other'; if (question.step === 'where') return 'rent'
+      if (question.step === 'rental-vendor') return 'runpod'
       if (question.step === 'budget') return ''
       if (question.step === 'models') return 'Kimi K3'
       if (question.step === 'offers') return question.rows!.find(row => row.label.includes('2 nodes × 8× B200'))!.value
@@ -127,7 +128,7 @@ try {
     for (const outcome of ['lost', 'http503', 'http402']) {
       rp.state.clusterCreateOutcomes.push(outcome)
       const before = rp.state.clusterCreates
-      const ambiguous = await road(async q => q.step === 'door-models' ? 'other' : q.step === 'where' ? 'rent' : q.step === 'budget' ? '' : q.step === 'models' ? 'Kimi K3' : q.step === 'offers' ? q.rows!.find(row => row.label.includes('2 nodes × 8× B200'))!.value : q.step === 'rent-confirm' ? 'rent' : null, () => {}, new AbortController().signal)
+      const ambiguous = await road(async q => q.step === 'door-models' ? 'other' : q.step === 'where' ? 'rent' : q.step === 'rental-vendor' ? 'runpod' : q.step === 'budget' ? '' : q.step === 'models' ? 'Kimi K3' : q.step === 'offers' ? q.rows!.find(row => row.label.includes('2 nodes × 8× B200'))!.value : q.step === 'rent-confirm' ? 'rent' : null, () => {}, new AbortController().signal)
       check(outcome + ' is ambiguous, never retried or called a non-create', !ambiguous.ok && ambiguous.words.includes('may exist') && !ambiguous.words.includes('no cluster was created') && rp.state.clusterCreates === before + 1)
       const created = (await listHostResources(api)).at(-1)!
       await terminateHostResource(api, created)
