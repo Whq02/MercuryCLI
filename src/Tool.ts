@@ -286,6 +286,7 @@ export type ToolUseContext = ToolTerminalOptions & ToolCallChainCarrier & {
   renderedSystemPrompt?: SystemPrompt
   globLimits?: { maxResults?: number }
   toolUseId?: string
+  shellInputId?: string
   userModifiedInput?: boolean
   standingRule?: string
 }

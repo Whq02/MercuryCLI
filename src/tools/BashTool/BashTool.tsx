@@ -461,6 +461,13 @@ async function* runBash(
   })
   try {
   const completed = shellCommand.result.then(() => 'done' as const)
+  if (context.shellInputId !== undefined) {
+    foregroundTaskId = registerForeground(
+      { command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.shellInputId },
+      setTaskState,
+      context.shellInputId,
+    )
+  }
 
   let quietTimerHandle: ReturnType<typeof setTimeout> | undefined
   const quietTimer = new Promise<'timer'>(resolve => {
@@ -609,6 +616,7 @@ async function* runBash(
     TaskOutput.stopPolling(shellCommand.taskOutput.taskId)
   }
   } finally {
+    if (foregroundTaskId !== null) unregisterForeground(foregroundTaskId, setTaskState)
     unregisterRun()
   }
 

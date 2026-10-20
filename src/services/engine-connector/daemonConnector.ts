@@ -1765,7 +1765,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const mode: 'prompt' | 'bash' = opts.mode === 'bash' ? 'bash' : 'prompt'
     const provisionalId =
       this.retainedSend !== null && this.retainedSend.text === expanded ? this.retainedSend.id : randomUUID()
-    const echo = createUserMessage({ content: mode === 'bash' ? `<${BASH_INPUT_TAG}>${expanded}</${BASH_INPUT_TAG}>` : expanded }) as unknown as Message
+    const echo = createUserMessage({ uuid: provisionalId, content: mode === 'bash' ? `<${BASH_INPUT_TAG}>${expanded}</${BASH_INPUT_TAG}>` : expanded }) as unknown as Message
     this.echoRows.set(provisionalId, this.factsBusy ? ({ ...echo, queued: true } as Message) : echo)
     this.paint()
     const answering = await this.openQuestion()

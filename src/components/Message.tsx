@@ -340,6 +340,7 @@ function MessageInner({
   const wrapped = (
     <MessageMetaProvider
       message={{
+        uuid: (message as { sourceUuid?: string }).sourceUuid ?? message.uuid,
         type: message.type,
         timestamp: (display as { timestamp?: string } | null)?.timestamp,
         ...((display as { queued?: true } | null)?.queued === true ? { queued: true as const } : {}),
