@@ -144,3 +144,43 @@ export async function openHostTunnel(id: string, target: SshTarget, runner: Host
   } catch (error) { tunnel.stop(); throw error }
 }
 export function closeHostTunnel(id: string): void { tunnels.get(id)?.stop(); tunnels.delete(id) }
+
+export const boxInspectionScript = `set -eu
+printf 'OS '; uname -s
+printf 'ARCH '; uname -m
+printf 'HOME %s\\n' "$HOME"
+printf 'UID '; id -u
+case "$(uname -s)" in
+Darwin) printf 'MEMORY '; sysctl -n hw.memsize; printf 'DISPLAYS '; system_profiler SPDisplaysDataType -json | tr '\\n' ' '; printf '\\n' ;;
+Linux) awk '/MemTotal:/ {printf "MEMORY %.0f\\n", $2 * 1024}' /proc/meminfo ;;
+esac
+if command -v nvidia-smi >/dev/null; then nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits | sed 's/^/GPU /'; fi
+if command -v docker >/dev/null && docker info >/dev/null 2>&1; then echo DOCKER_ENGINE_PRESENT; fi
+for pair in ollama:ollama:11434 llamacpp:llama-server:30000 lmstudio:lms:1234 vllm:vllm:8000 sglang:sglang:30000; do
+kind=$(printf %s "$pair" | cut -d: -f1); bin=$(printf %s "$pair" | cut -d: -f2); port=$(printf %s "$pair" | cut -d: -f3)
+path=$(command -v "$bin" || true)
+if test -n "$path"; then version=$("$path" --version 2>&1 | head -n 1 || true); printf 'ENGINE %s|%s|%s|%s\\n' "$kind" "$path" "$version" "$port"; fi
+done
+for bank in "$HOME/mercury-model-bank" "$HOME/models" /Volumes/*/mercury-model-bank /mnt/*/mercury-model-bank; do
+if test -d "$bank"; then printf 'BANK %s\\n' "$bank"; fi
+done`
+
+export const windowsBoxInspectionScript = `$ErrorActionPreference = 'Stop'
+'OS windows'
+'ARCH ' + $env:PROCESSOR_ARCHITECTURE
+'HOME ' + $HOME
+'MEMORY ' + (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory
+Get-CimInstance Win32_VideoController | ForEach-Object { 'GPU ' + $_.Name + ', ' + ([double]$_.AdapterRAM / 1MB) }
+if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) { & nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits | ForEach-Object { 'GPU ' + $_ } }
+foreach ($row in @(@('ollama','ollama',11434),@('llamacpp','llama-server',30000),@('lmstudio','lms',1234),@('vllm','vllm',8000),@('sglang','sglang',30000))) {
+$cmd = Get-Command $row[1] -ErrorAction SilentlyContinue
+if ($cmd) { $version = (& $cmd.Source --version 2>&1 | Select-Object -First 1); 'ENGINE ' + $row[0] + '|' + $cmd.Source + '|' + $version + '|' + $row[2] }
+}
+foreach ($path in @((Join-Path $HOME 'mercury-model-bank'),(Join-Path $HOME 'models'))) { if (Test-Path -LiteralPath $path -PathType Container) { 'BANK ' + $path } }`
+
+export async function inspectBoxMachine(target: SshTarget | undefined, os: 'darwin' | 'linux' | 'windows' | undefined, runner: HostRunner, signal: AbortSignal): Promise<string> {
+  const windows = os === 'windows' || !target && process.platform === 'win32'
+  const args = windows ? ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(windowsBoxInspectionScript, 'utf16le').toString('base64')] : ['-c', boxInspectionScript]
+  if (target) return runner.run('ssh', [...sshArguments(target), windows ? 'powershell.exe ' + args.join(' ') : '/bin/sh -c ' + quote(boxInspectionScript)], signal, 60_000)
+  return runner.run(windows ? 'powershell.exe' : '/bin/sh', args, signal, 60_000)
+}
