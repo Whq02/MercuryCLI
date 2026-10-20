@@ -110,6 +110,7 @@ try {
     check('door creates one pod carrying its confirmed preferences', record.jobState === 'ready' && record.tune?.quality === recipe.id && record.tune.conversations === conversations && record.tune.contextPerConversation === context && record.tune.effort === 'high')
     check('door setup launches the chosen total context and conversation count', ssh!.state.script.includes("'--ctx-size' '1048576'") && ssh!.state.script.includes("'--parallel' '" + conversations + "'"))
     check('stored preferences match the created rental', readTunePreferences(model)?.conversations === conversations)
+    check('ready pod controls expose Tune without closing and reopening', await waitFor(() => mounted!.screen().includes('Tune · quality'), 4000))
     await capture('controls'); await close()
     popup.openSettingsPopup(llmHostPopupRequest(observed)); await step('door-models'); await choose('Pods I’m paying for'); await step('paid-pods'); await choose(record.id); await step('pod-controls')
     await choose('Tune ·'); await step('tune-quality'); await choose('Balanced'); await step('tune-context'); await choose('4 × 128k'); await step('tune-thinking'); await choose('max'); await step('tune-confirm'); await capture('reload-confirm'); await choose('Confirm · reload'); await step('pod-controls')

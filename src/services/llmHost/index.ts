@@ -28,7 +28,7 @@ export interface LlmHostQuestion {
   secret?: boolean
   fullDetails?: boolean
 }
-export interface LlmHostEvent { title: string; words: string; host?: { id: string; price: number; startedAt: string; status: string; step?: string; canResume?: boolean } }
+export interface LlmHostEvent { title: string; words: string; host?: { id: string; price: number; startedAt: string; status: string; step?: string; canResume?: boolean; canTune?: boolean } }
 export interface LlmHostResult { ok: boolean; words: string; model?: string; reply?: string; elapsedMs?: number; registered?: boolean }
 type LlmHostAsk = (question: LlmHostQuestion) => Promise<string | null>
 export type LlmHostRoad = (ask: LlmHostAsk, emit: (event: LlmHostEvent) => void, signal: AbortSignal) => Promise<LlmHostResult>

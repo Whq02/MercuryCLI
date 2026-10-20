@@ -1,5 +1,7 @@
 import type { LlmHostResult, LlmHostRoad } from '../llmHost/index.js'
 import { keptVolumes } from './volumes.js'
+import { hostShape } from './cluster.js'
+import { heavyWeights, hostShortStorageWords } from './costs.js'
 import { HOST_VENDORS, vendorLabel, vendorStorage, vendorKeyNotice, type HostVendorId } from './vendors/client.js'
 import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
@@ -19,6 +21,7 @@ interface DoorBox {
   os: string
   memoryGb: number
   unifiedMemory: boolean
+  models?: readonly string[]
   engines: readonly { kind: string; version?: string; port?: number }[]
 }
 interface DoorVendor extends Pick<RunpodClient, 'offers' | 'watchOffer' | 'create' | 'pods' | 'get' | 'stop' | 'terminate' | 'logs' | 'rateLimitPolicy' | 'shapes'> {
@@ -50,7 +53,7 @@ export const isHostDoorReentry = (ask: Ask): boolean => legacyAsks.has(ask)
 export const initialDoorModel = (ask: Ask): string | undefined => initialModels.get(ask)
 export const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const hourly = (price: number): string => '$' + price.toFixed(2) + '/hr'
-const shape = (recipe: HostRecipe): string => recipe.count + '× ' + recipe.gpu
+const shape = hostShape
 const flag = (recipe: HostRecipe, name: string): string | undefined => {
   const at = recipe.flags.indexOf(name)
   return at < 0 ? undefined : recipe.flags[at + 1]
@@ -82,7 +85,7 @@ function thinkingWords(recipe: HostRecipe): string {
   return 'engine default'
 }
 const requiredMemory = (recipe: HostRecipe): number => positive((recipe as RecipeFacts).weightsGb) ?? recipe.vramGb * recipe.count
-const fits = (box: DoorBox, recipe: HostRecipe): boolean => box.memoryGb >= requiredMemory(recipe)
+const fits = (box: DoorBox, recipe: HostRecipe): boolean => (box.models === undefined || box.models.includes(modelTitle(recipe))) && box.memoryGb >= requiredMemory(recipe)
 const boxName = (box: DoorBox): string => box.kind === 'this-computer' ? 'this computer' : box.name
 const verification = (recipe: HostRecipe): string => recipe.verified.by === 'measured'
   ? 'verified ' + recipe.verified.on
@@ -172,7 +175,7 @@ async function enterRoad(deps: ModelDoorDeps, ask: Ask, emit: Emit, signal: Abor
     if (selecting && plan.step === 'budget') return ''
     if (selecting && plan.step === 'models') return modelTitle(recipe!)
     if (selecting && chosenOffer && plan.step === 'offers') {
-      const selected = plan.rows?.find(row => row.label.startsWith(chosenOffer!.recipe.label + ' · ' + shape(chosenOffer!.recipe) + ' · ' + hourly(chosenOffer!.price) + ' · ' + (vendor?.label ?? 'Secure Cloud') + (chosenOffer!.dataCenter ? ' · ' + chosenOffer!.dataCenter : '')))
+      const selected = plan.rows?.find(row => row.label.startsWith(chosenOffer!.recipe.label + ' · ' + shape(chosenOffer!.recipe) + ' · ' + hourly(chosenOffer!.price) + (heavyWeights(chosenOffer!.recipe) ? ' · ' + hostShortStorageWords(chosenOffer!.recipe) : '') + ' · ' + (vendor?.label ?? 'Secure Cloud') + (chosenOffer!.dataCenter ? ' · ' + chosenOffer!.dataCenter : '')))
       if (!selected) throw new Error('That offer changed. Open the model again for fresh stock and prices; no pod was created.')
       return selected.value
     }
@@ -265,13 +268,13 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       const quality = deps.qualityWords ?? qualityWords
       const facts = [recipeFacts(recipe), 'QUALITY', ...variants.map(variant => {
         const cheapest = allOffers.filter(offer => offer.recipe.id === variant.id).sort((a, b) => a.price - b.price)[0]
-        return (variant.id === recipe.id ? 'Selected: ' : '') + quality(variant) + ' · needs ' + shape(variant) + ' (' + requiredMemory(variant) + ' GB) · ' + (cheapest ? 'from ' + hourly(cheapest.price) : 'price unavailable') + ' · ' + tokens(context(variant))
+        return (variant.id === recipe.id ? 'Selected: ' : '') + quality(variant) + ' · needs ' + shape(variant) + ' (' + requiredMemory(variant).toLocaleString('en-US', { maximumFractionDigits: 1 }) + ' GB) · ' + (cheapest ? 'from ' + hourly(cheapest.price) : 'price unavailable') + ' · ' + tokens(context(variant))
       }), 'CONVERSATIONS × CONTEXT', ...(deps.budgetLines ?? budgetLines)(recipe, recipe.vramGb * recipe.count), 'THINKING', (deps.thinkingWords ?? thinkingWords)(recipe) + ' (change any time with /effort)', 'WHERE'].join('\n')
       const choice = await ask({ step: 'door-model', title, found: facts, willRun: '', initial: live.length ? 'running:0' : undefined, rows: [
         ...live.map((record, i) => ({ value: 'running:' + i, label: 'Already running · pod ' + record.id + ' · switch now · nothing to pay' })),
         ...modelOffers.map((offer, i) => ({ value: 'rent:' + i, label: 'Rent · Runpod ' + shape(offer.recipe) + ' · ' + hourly(offer.price) + ' · ' + (offer.dataCenter ?? 'data centre unknown') + ' in stock · ' + 'ready in ' + (/~(\d+) min total/.exec(readyWords(offer.recipe))?.[1] ?? '?') + ' min' })),
         ...vendorOffers.filter(row => modelTitle(row.offer.recipe) === title && qualityKey(row.offer.recipe) === qualityKey(recipe)).map((row, i) => ({ value: 'vendor:' + i, label: 'Rent · ' + row.vendor.label + ' ' + shape(row.offer.recipe) + ' · ' + hourly(row.offer.price) + (row.offer.dataCenter ? ' · ' + row.offer.dataCenter : '') + ' · in stock' })),
-        ...boxes.map((box, i) => ({ value: 'box:' + i, label: boxName(box) + (fits(box, recipe) ? ' · fits (' + box.memoryGb + ' GB) — start here →' : ' · too small: ' + box.memoryGb + ' GB, needs ' + requiredMemory(recipe)) })),
+        ...boxes.map((box, i) => ({ value: 'box:' + i, label: boxName(box) + (box.models && !box.models.includes(modelTitle(recipe)) ? ' · no local recipe for this model' : fits(box, recipe) ? ' · fits (' + box.memoryGb + ' GB) — start here →' : ' · too small: ' + box.memoryGb + ' GB, needs ' + requiredMemory(recipe).toLocaleString('en-US', { maximumFractionDigits: 1 })) })),
         ...(offers === undefined ? [{ value: 'connect', label: offerError ? 'Runpod stock could not be read · Retry →' : 'Connect Runpod →' }] : modelOffers.length ? [] : [{ value: 'watch', label: 'No stock · watch → (Runpod-only)' }]),
         ...(deps.connectVendor ? HOST_VENDORS.filter(id => id !== 'runpod' && !vendors.some(row => row.vendor === id)).map(id => ({ value: 'connect:' + id, label: 'Connect ' + vendorLabel(id) + ' →' })) : []),
         ...vendors.filter(row => vendorErrors.has(row.vendor) || !vendorOffers.some(item => item.vendor === row && modelTitle(item.offer.recipe) === title && qualityKey(item.offer.recipe) === qualityKey(recipe))).map(row => ({ value: 'retry:' + row.vendor, label: vendorErrors.get(row.vendor) ?? row.label + ' · no stock for this quality · Refresh → (watches are Runpod-only)' })),

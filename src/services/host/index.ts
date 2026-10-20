@@ -102,7 +102,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
     }
     const mark = (): void => {
       if (!pod) return
-      emit({ title: words.manage, words: [record?.weightsCheck, record?.step, record?.error, record ? hostLogTail(record) : ''].filter(Boolean).join(' · ') || keepWords(pod, vendor), host: { id: pod.id, price: pod.cost, startedAt: pod.startedAt ?? pod.createdAt, status: record?.status ?? pod.status, canResume: Boolean(record && !hostJobRunning(record) && record.status === 'RUNNING'), step: record?.step === 'building llama.cpp' ? record.step + ' ' + Math.floor((Date.now() - (record.advancedAt ?? Date.now())) / 60_000) + ' min' : record?.step } })
+      emit({ title: words.manage, words: [record?.weightsCheck, record?.step, record?.error, record ? hostLogTail(record) : ''].filter(Boolean).join(' · ') || keepWords(pod, vendor), host: { id: pod.id, price: pod.cost, startedAt: pod.startedAt ?? pod.createdAt, status: record?.status ?? pod.status, canResume: Boolean(record && !hostJobRunning(record) && record.status === 'RUNNING'), canTune: Boolean(vendor === 'runpod' && record?.provider && record.target && record.status === 'RUNNING' && !pod.family), step: record?.step === 'building llama.cpp' ? record.step + ' ' + Math.floor((Date.now() - (record.advancedAt ?? Date.now())) / 60_000) + ' min' : record?.step } })
     }
     const finish = async (): Promise<LlmHostResult> => {
       if (!pod || !api) return saved ?? stopped()
@@ -225,10 +225,11 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         rentVendor: (client, offer, rentAsk, rentEmit, rentSignal) => rentDoorVendor(createHostRoad({ ...options, rental: { client: clientFor(client.vendor as HostVendorId), offer } }), client, offer, rentAsk, rentEmit, rentSignal),
         records: hostRecords,
         road: createHostRoad(options),
-        boxes: () => listBoxes().map(box => ({ name: box.name, kind: box.kind, os: box.os, memoryGb: box.memoryGb, unifiedMemory: box.unifiedMemory, engines: box.engines.map(engine => ({ kind: engine.kind, version: engine.version, port: engine.port })) })),
+        boxes: () => listBoxes().map(box => ({ name: box.name, kind: box.kind, os: box.os, memoryGb: box.memoryGb, unifiedMemory: box.unifiedMemory, engines: box.engines.map(engine => ({ kind: engine.kind, version: engine.version, port: engine.port })), models: currentHostRecipes().filter(recipe => BOX_RECIPES.some(row => sameModel(row.label.split(' · ')[0]!, modelTitle(recipe)))).map(modelTitle) })),
         startBox: (box, recipe, boxAsk, boxEmit, boxSignal) => {
           const boxRecipe = BOX_RECIPES.find(row => sameModel(row.label.split(' · ')[0]!, modelTitle(recipe)))
-          const preset: Record<string, string | undefined> = { boxes: box.name, 'box-controls': 'model', 'box-recipes': boxRecipe?.id }
+          if (!boxRecipe) return Promise.resolve({ ok: false, words: modelTitle(recipe) + ' has no local recipe. Nothing was started.' })
+          const preset: Record<string, string | undefined> = { boxes: box.name, 'box-controls': 'model', 'box-recipes': boxRecipe.id }
           return createBoxRoad(runner)(plan => { const answer = preset[plan.step]; if (answer !== undefined && (!plan.rows || plan.rows.some(row => row.value === answer))) { delete preset[plan.step]; return Promise.resolve(answer) } return boxAsk(plan) }, boxEmit, boxSignal)
         },
         budgetLines: (recipe, gpuMemoryGb) => { const budget = tuneBudget(recipe, gpuMemoryGb / Math.max(1, recipe.count), recipe.count); return [budget.words, ...budget.candidates.filter(row => row.fits).slice(0, 4).map(row => row.label)] },
