@@ -335,12 +335,31 @@ try {
   check('without a readable transfer counter the stall rule stays off and only the deadline stops the download', blind.status === 75 && blind.report?.reason === 'deadline' && blind.seconds >= 2)
   const engineWords = volumes.fastLoadEstimate(gguf, { ...kept, state: 'kept' })
   check('GGUF estimate admits the retained build instead of promising image-only startup', engineWords.includes('builds the engine ~10 min') && engineWords.includes('weights kept ~0') && engineWords.includes('load ~3 min'))
+  const filling = await volumes.createKeptVolume(api, nemotron, 'global', 'any DC', signal)
+  const fillOffer = (await api.offers(signal)).find(row => row.recipe.id === nemotron.id)!
+  const fillPod = await api.create(fillOffer, sshKey.publicKey, 'fixture-filling', filling)
+  volumes.writeKeptVolume({ ...volumes.readKeptVolume(filling.id)!, state: 'preparing', preparingPod: fillPod.id })
+  const whileFilling = await volumes.rentalVolume(api, nemotron, signal).then(() => '', error => String(error))
+  await api.terminate(fillPod.id)
+  check('a rental never attaches a disk another pod is still filling, and attaches it once that pod is gone', whileFilling.includes('Pod ' + fillPod.id + ' is still filling weights disk ' + filling.id + '; rent when Fast-load shows it kept') && (await volumes.rentalVolume(api, nemotron, signal))?.id === filling.id)
   rp.state.failVolumeRead = true
+  const blindRental = await volumes.rentalVolume(api, nemotron, signal).then(() => '', error => String(error))
+  check('a model with a disk is not rented blind while the volume list is unreadable', blindRental.includes('cannot be confirmed while Runpod’s volume list is unavailable; no pod was created'))
   let sawUnavailable = false
   let reachedSsh = false
   await road(async q => { if (q.step === 'where') { sawUnavailable = Boolean(q.rows?.some(row => row.label.includes('volumes unread'))); return 'ssh' } if (q.step === 'ssh-host') reachedSsh = true; return null }, () => {}, signal)
   check('volume-list failure admits the unknown count without blocking the SSH road', sawUnavailable && reachedSsh)
+  const plainPod = await api.create(failOffer, sshKey.publicKey, 'fixture-plain')
+  const paidWords: string[] = []
+  let paidRows: string[] = []
+  await road(async q => { if (q.step === 'where') return 'pods'; if (q.step === 'paid-pods') paidRows = (q.rows ?? []).map(row => row.value); return null }, update => { paidWords.push(update.words) }, signal)
+  check('an unreadable volume list still lists billed pods for Stop or Terminate and says disks are not shown', paidRows.includes(plainPod.id) && paidWords.some(words => words.includes('Volume list unavailable; weights disks are not shown and may still bill')))
+  let reachedRentConfirm = false
+  await road(async q => { if (q.step === 'where') return 'rent'; if (q.step === 'budget') return ''; if (q.step === 'models') return 'Qwen3.8-27B'; if (q.step === 'offers') return '0'; if (q.step === 'rent-confirm') reachedRentConfirm = true; return null }, () => {}, signal)
+  check('renting a model without a weights disk needs no volume read, so a volume outage does not block it', reachedRentConfirm)
   rp.state.failVolumeRead = false
+  await api.terminate(plainPod.id)
+  await volumes.deleteKeptVolume(api, filling.id)
   check('proof refused all non-loopback traffic and attempted none', external.length === 0)
   check('only opted-in models have records and no preparation pod remains', volumes.keptVolumes().every(row => [qwen.model, nemotron.model, gguf.model].includes(row.model)) && rp.state.pods.size === 0)
   console.log('FAST LOAD DRIVE GREEN — ' + checks + ' checks; catalogue, opt-in, prepare-now, kept rental, disk deletion, reconciliation, corruption, watch and failure cleanup; zero billable calls')

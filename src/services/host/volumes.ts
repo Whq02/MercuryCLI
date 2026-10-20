@@ -50,11 +50,13 @@ export async function reconcileVolumes(api: RunpodClient, signal?: AbortSignal):
   return live
 }
 export async function rentalVolume(api: RunpodClient, recipe: HostRecipe, signal?: AbortSignal): Promise<KeptVolume | undefined> {
-  await reconcileVolumes(api, signal)
+  if (!keptVolumes().some(row => matchesVolume(row, recipe) && row.state !== 'gone')) return
+  try { await reconcileVolumes(api, signal) } catch (error) { throw new Error('The weights disk for this model cannot be confirmed while Runpod’s volume list is unavailable; no pod was created. ' + String(error)) }
   const rows = keptVolumes().filter(row => matchesVolume(row, recipe) && row.state !== 'gone')
   if (rows.length > 1) throw new Error('Multiple weights disks for this model; open Fast-load before renting.')
   const volume = rows[0]
   if (volume?.state === 'creating') throw new Error(volume.name + ' may exist; refresh Fast-load before renting. No retry was sent.')
+  if (volume?.state === 'preparing' && volume.preparingPod && (await api.pods(signal)).some(pod => pod.id === volume.preparingPod)) throw new Error('Pod ' + volume.preparingPod + ' is still filling weights disk ' + volume.id + '; rent when Fast-load shows it kept, or terminate that pod in Pods I’m paying for. No pod was created.')
   return volume
 }
 async function createKeptVolumeLocked(api: RunpodClient, recipe: HostRecipe, kind: KeptVolume['kind'], dataCenter: string, signal: AbortSignal): Promise<KeptVolume> {
