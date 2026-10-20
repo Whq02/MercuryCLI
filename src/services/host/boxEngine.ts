@@ -109,14 +109,18 @@ export async function boxEngineStatus(box: HostBox, runner: HostRunner = hostRun
   if (!record || record.state === 'uninstalled') return { record, words: 'box ' + box.name + ' · no service installed' }
   const running = await boxServiceRunning(box, runner, signal)
   if (!running) { record.state = 'stopped'; writeBoxService(record); return { record, words: 'box ' + box.name + ' · engine stopped — /llmhost starts it' } }
+  try {
+    const list = await boxHttp(box, record.port, '/v1/models', runner, signal) as { data?: { id: string }[] }
+    if (!list.data?.some(row => row.id === record.model)) return { record, words: 'box ' + box.name + ' · service running · selected model not loaded yet' }
+  } catch (error) { return { record, words: 'box ' + box.name + ' · service running · model endpoint not answering · mercury host logs ' + box.name } }
   if (record.engine === 'llamacpp') {
     const slots = await boxHttp(box, record.port, '/slots', runner, signal).catch(() => undefined) as { is_processing?: boolean; timings?: { predicted_per_second?: number } }[] | undefined
     const rates = Array.isArray(slots) ? slots.map(slot => slot.timings?.predicted_per_second).filter((rate): rate is number => typeof rate === 'number' && Number.isFinite(rate) && rate > 0) : []
-    if (rates.length) { record.tokensPerSecond = rates.at(-1); writeBoxService(record) }
+    if (rates.length && record.rateKind !== 'whole-turn') { record.tokensPerSecond = rates.at(-1); record.rateKind = 'generation'; writeBoxService(record) }
     const busy = Array.isArray(slots) ? slots.filter(slot => slot.is_processing).length : undefined
-    return { record, ...(busy === undefined ? {} : { busy, slots: slots!.length }), tokensPerSecond: record.tokensPerSecond, words: 'box ' + box.name + ' · ' + record.engine + ' · ' + record.model + ' · ' + (busy === undefined ? 'slots not reported' : busy + '/' + slots!.length + ' slots busy') + ' · ' + (record.tokensPerSecond === undefined ? 'tokens/s not reported yet' : record.tokensPerSecond.toFixed(1) + ' tokens/s · last turn') }
+    return { record, ...(busy === undefined ? {} : { busy, slots: slots!.length }), tokensPerSecond: record.tokensPerSecond, words: 'box ' + box.name + ' · ' + record.engine + ' · ' + record.model + ' · ' + (busy === undefined ? 'slots not reported' : busy + '/' + slots!.length + ' slots busy') + ' · ' + (record.tokensPerSecond === undefined ? 'tokens/s not reported yet' : record.tokensPerSecond.toFixed(1) + ' tokens/s · last ' + (record.rateKind === 'whole-turn' ? 'whole turn' : 'generation')) }
   }
-  return { record, words: 'box ' + box.name + ' · Ollama · ' + record.model + ' · slots not reported by Ollama · ' + (record.tokensPerSecond === undefined ? 'tokens/s not reported yet' : record.tokensPerSecond.toFixed(1) + ' tokens/s · last turn') }
+  return { record, words: 'box ' + box.name + ' · Ollama · ' + record.model + ' · slots not reported by Ollama · ' + (record.tokensPerSecond === undefined ? 'tokens/s not reported yet' : record.tokensPerSecond.toFixed(1) + ' tokens/s · last ' + (record.rateKind === 'whole-turn' ? 'whole turn' : 'generation')) }
 }
 export async function stopBoxEngine(box: HostBox, runner: HostRunner = hostRunner, signal: AbortSignal = new AbortController().signal, uninstall = false): Promise<void> {
   const record = readBoxService(box.name)

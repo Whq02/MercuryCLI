@@ -1011,6 +1011,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   for (const [name, description, usage] of [
     ['daemon [subcommand]', 'The background process that hosts your sessions and runs scheduled jobs (the daemon): run | status | stop | restart', `Usage: ${cliName} daemon <run|status|stop|restart>`],
     ['acp', 'Serve an editor over the Agent Client Protocol on stdio', `Usage: ${cliName} acp`],
+    ['host [subcommand]', 'Run a model on one of your computers: start | status | stop | restart | logs | uninstall | add | recipes', `Usage: ${cliName} host --help`],
   ] as const) {
     program
       .command(name)

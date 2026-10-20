@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { z } from 'zod/v4'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { hostDirectory } from './store.js'
-import { hostRunner, inspectBoxMachine, type HostRunner, type SshTarget } from './ssh.js'
+import { hostRunner, inspectBoxMachine, inspectSsh, type HostRunner, type SshTarget } from './ssh.js'
 
 export const boxNameSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,27}$/)
 const engineKind = z.enum(['ollama', 'llamacpp', 'lmstudio', 'vllm', 'sglang'])
@@ -58,10 +58,12 @@ export function boxFacts(input: BoxInput, text: string): HostBox {
 }
 export async function discoverBox(input: BoxInput, runner: HostRunner = hostRunner, signal: AbortSignal = new AbortController().signal): Promise<HostBox> {
   boxNameSchema.parse(input.name)
+  if (input.kind === 'ssh' && input.name === 'this-computer') throw new Error('The name this-computer is reserved for the computer running Mercury.')
   if (input.kind === 'ssh' && !input.target || input.kind === 'this-computer' && input.target) throw new Error('Choose this computer or an SSH target, not both.')
   const previous = readBox(input.name)
   if (previous && (previous.kind !== input.kind || JSON.stringify(previous.target) !== JSON.stringify(input.target))) throw new Error('That name belongs to another computer. Choose a different name.')
-  const box = boxFacts(input, await inspectBoxMachine(input.target, input.os, runner, signal))
+  const text = input.target ? (await inspectSsh(input.target, runner, signal, input.os ?? 'linux')).facts! : await inspectBoxMachine(undefined, input.os, runner, signal)
+  const box = boxFacts(input, text)
   writeBox(box)
   return box
 }

@@ -10,7 +10,7 @@ export interface BoxServiceRecord {
   name: string; recipe: string; model: string; engine: 'ollama' | 'llamacpp'; destination: string; bank: boolean
   port: number; localPort?: number; baseUrl?: string; unit: string; script: string; log: string
   state: 'starting' | 'running' | 'stopped' | 'failed' | 'uninstalled'; error?: string
-  contextPerSlot?: number; tokensPerSecond?: number
+  contextPerSlot?: number; tokensPerSecond?: number; rateKind?: 'whole-turn' | 'generation'
 }
 const recordPath = (name: string): string => {
   boxNameSchema.parse(name)
@@ -34,7 +34,7 @@ export function boxServiceDocument(box: HostBox, name = box.name): string {
   const label = boxServiceLabel(name)
   if (box.os === 'darwin') return '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>Label</key><string>' + label + '</string><key>ProgramArguments</key><array><string>/bin/sh</string><string>' + xml(files.script) + '</string></array><key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>ThrottleInterval</key><integer>10</integer><key>StandardOutPath</key><string>' + xml(files.log) + '</string><key>StandardErrorPath</key><string>' + xml(files.log) + '</string></dict></plist>\n'
   if (box.os === 'linux') return '[Unit]\nDescription=Mercury model host ' + name + '\nAfter=network-online.target\n\n[Service]\nType=simple\nExecStart=/bin/sh ' + unitQuote(files.script) + '\nRestart=on-failure\nRestartSec=10\nStandardOutput=append:' + files.log.replaceAll('%', '%%') + '\nStandardError=append:' + files.log.replaceAll('%', '%%') + '\n\n[Install]\nWantedBy=default.target\n'
-  return '<?xml version="1.0" encoding="UTF-16"?>\n<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task"><Triggers><LogonTrigger><Enabled>true</Enabled></LogonTrigger></Triggers><Principals><Principal id="Author"><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals><Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><StartWhenAvailable>true</StartWhenAvailable><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><RestartOnFailure><Interval>PT1M</Interval><Count>99</Count></RestartOnFailure></Settings><Actions Context="Author"><Exec><Command>powershell.exe</Command><Arguments>-NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;' + xml(files.script) + '&quot;</Arguments></Exec></Actions></Task>\n'
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task"><Triggers><LogonTrigger><Enabled>true</Enabled></LogonTrigger></Triggers><Principals><Principal id="Author"><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals><Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><StartWhenAvailable>true</StartWhenAvailable><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><RestartOnFailure><Interval>PT1M</Interval><Count>99</Count></RestartOnFailure></Settings><Actions Context="Author"><Exec><Command>powershell.exe</Command><Arguments>-NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File &quot;' + xml(files.script) + '&quot;</Arguments></Exec></Actions></Task>\n'
 }
 export function boxServiceCommand(box: HostBox, action: 'start' | 'stop' | 'status' | 'uninstall', name = box.name): string {
   const label = boxServiceLabel(name)
@@ -55,7 +55,7 @@ export function boxServiceCommand(box: HostBox, action: 'start' | 'stop' | 'stat
   }
   const task = psQuote(label)
   if (action === 'status') return '$task=Get-ScheduledTask -TaskName ' + task + ' -ErrorAction SilentlyContinue; if ($task -and $task.State -eq "Running") { "running" } else { "stopped" }'
-  if (action === 'start') return '$task=Get-ScheduledTask -TaskName ' + task + ' -ErrorAction SilentlyContinue; if ($task) { Stop-ScheduledTask -TaskName ' + task + ' }; Register-ScheduledTask -TaskName ' + task + ' -Xml (Get-Content -LiteralPath ' + psQuote(files.unit) + ' -Raw) -Force | Out-Null; Enable-ScheduledTask -TaskName ' + task + ' | Out-Null; Start-ScheduledTask -TaskName ' + task
+  if (action === 'start') return '$task=Get-ScheduledTask -TaskName ' + task + ' -ErrorAction SilentlyContinue; if ($task) { Stop-ScheduledTask -TaskName ' + task + ' }; Register-ScheduledTask -TaskName ' + task + ' -Xml (Get-Content -LiteralPath ' + psQuote(files.unit) + ' -Raw) -User ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name) -Force | Out-Null; Enable-ScheduledTask -TaskName ' + task + ' | Out-Null; Start-ScheduledTask -TaskName ' + task
   return '$task=Get-ScheduledTask -TaskName ' + task + ' -ErrorAction SilentlyContinue; if ($task) { Stop-ScheduledTask -TaskName ' + task + '; Disable-ScheduledTask -TaskName ' + task + ' | Out-Null' + (action === 'uninstall' ? '; Unregister-ScheduledTask -TaskName ' + task + ' -Confirm:$false' : '') + ' }' + (action === 'uninstall' ? '; Remove-Item -LiteralPath ' + psQuote(files.unit) + ',' + psQuote(files.script) + ' -ErrorAction SilentlyContinue' : '')
 }
 export async function installBoxService(box: HostBox, script: string, runner: HostRunner, signal: AbortSignal, name = box.name): Promise<void> {
@@ -71,4 +71,21 @@ export async function boxServiceRunning(box: HostBox, runner: HostRunner, signal
   const answer = (await runBoxScript(box, boxServiceCommand(box, 'status', name), runner, signal)).trim()
   if (answer !== 'running' && answer !== 'stopped') throw new Error('The service manager did not report its state.')
   return answer === 'running'
+}
+
+export function boxEndpointNotice(name: string, baseUrl: string, unreachable = false): string | undefined {
+  if (!name.startsWith('box-') || !boxNameSchema.safeParse(name.slice(4)).success) return
+  const record = readBoxService(name.slice(4))
+  if (!record || record.baseUrl !== baseUrl) return
+  if (record.state === 'stopped' || record.state === 'uninstalled') return 'box ' + record.name + ' · engine stopped — /llmhost starts it'
+  if (record.state === 'starting') return 'box ' + record.name + ' · engine starting — /llmhost shows progress'
+  if (record.state === 'failed' || unreachable) return 'box ' + record.name + ' · engine unreachable — /llmhost checks it'
+}
+export function noteBoxTurn(name: string, baseUrl: string, model: string, tokens: number, elapsedMs: number): void {
+  if (!name.startsWith('box-') || !boxNameSchema.safeParse(name.slice(4)).success || !Number.isFinite(tokens) || tokens <= 0 || elapsedMs <= 0) return
+  const record = readBoxService(name.slice(4))
+  if (!record || record.baseUrl !== baseUrl || record.model !== model) return
+  record.tokensPerSecond = tokens / (elapsedMs / 1000)
+  record.rateKind = 'whole-turn'
+  writeBoxService(record)
 }

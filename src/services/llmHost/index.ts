@@ -23,6 +23,7 @@ export interface LlmHostQuestion {
   rows?: ReadonlyArray<{ value: string; label: string }>
   initial?: string
   secret?: boolean
+  fullDetails?: boolean
 }
 export interface LlmHostEvent { title: string; words: string; host?: { id: string; price: number; startedAt: string; status: string; step?: string; canResume?: boolean } }
 export interface LlmHostResult { ok: boolean; words: string; model?: string; reply?: string; elapsedMs?: number; registered?: boolean }

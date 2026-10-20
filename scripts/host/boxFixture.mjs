@@ -52,6 +52,29 @@ if(!process.argv.includes('fixture.invalid')) throw new Error('No real SSH in a 
 const spec=process.argv[process.argv.indexOf('-L')+1].split(':')
 createServer(client=>{const remote=connect(Number(spec[3]),spec[2]);client.pipe(remote).pipe(client);remote.on('error',()=>client.destroy());client.on('error',()=>remote.destroy())}).listen(Number(spec[1]),spec[0])
 `, {mode:0o700})
+  writeFileSync(join(bin, 'ollama'), `#!/usr/bin/env node
+import {createServer} from 'node:http'
+import {mkdirSync,writeFileSync,readFileSync} from 'node:fs'
+import {join} from 'node:path'
+const host=process.env.OLLAMA_HOST||'127.0.0.1:30000'
+if(process.argv.includes('--version')){console.log('fixture-ollama');process.exit(0)}
+if(process.argv[2]==='pull'){const r=await fetch('http://'+host+'/fixture/pull',{method:'POST',body:process.argv[3]});if(!r.ok)process.exit(1);process.exit(0)}
+if(process.argv[2]!=='serve')throw new Error('fixture supports serve and pull only')
+const dir=process.env.OLLAMA_MODELS;mkdirSync(dir,{recursive:true});const file=join(dir,'.fixture-model')
+let model='';try{model=readFileSync(file,'utf8')}catch{}
+let loaded=false
+createServer(async(req,res)=>{
+ const path=new URL(req.url,'http://localhost').pathname
+ let body='';for await(const bytes of req)body+=bytes
+ const json=x=>{res.setHeader('content-type','application/json');res.end(JSON.stringify(x))}
+ if(path==='/fixture/pull'){model=body;writeFileSync(file,model);return json({ok:true})}
+ if(path==='/api/generate'){loaded=true;return json({done:true})}
+ if(path==='/api/tags')return json({models:model?[{name:model}]:[]})
+ if(path==='/api/ps')return json({models:loaded?[{name:model,context_length:Number(process.env.OLLAMA_CONTEXT_LENGTH||262144)}]:[]})
+ if(path==='/v1/models')return json({data:model?[{id:model}]:[]})
+ res.statusCode=404;res.end('fixture not found')
+}).listen(Number(host.split(':')[1]),'127.0.0.1')
+`, {mode:0o700})
   const bank = join(home, 'bank')
   mkdirSync(bank)
   const content = 'a fixture weight file, never a downloaded model'

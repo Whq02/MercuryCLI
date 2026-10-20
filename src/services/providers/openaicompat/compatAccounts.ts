@@ -155,6 +155,9 @@ export function compatSlotModelIds(env: NodeJS.ProcessEnv = process.env): string
 export function compatModelRefusal(model: string): string | undefined {
   const resolved = compatModelEndpoint(model)
   if (!resolved) return `Model '${model}' has no configured endpoint in compatProvider; mercury://models lists the available endpoint models.`
+  const { boxEndpointNotice } = require('../../host/boxService.js') as typeof import('../../host/boxService.js')
+  const boxNotice = boxEndpointNotice(resolved.endpoint.name, resolved.endpoint.baseUrl)
+  if (boxNotice) return boxNotice
   if (!resolved.endpoint.named) return undefined
   const { cachedCompatCatalogue, compatEndpointModelIds } = require('./compatCatalogue.js') as typeof import('./compatCatalogue.js')
   const listed = compatEndpointModelIds(resolved.endpoint)

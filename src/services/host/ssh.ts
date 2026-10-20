@@ -69,7 +69,12 @@ export async function ensureHostKey(runner: HostRunner, signal: AbortSignal): Pr
   if (!/^ssh-ed25519 [A-Za-z0-9+/=]+(?: |$)/.test(publicKey)) throw new Error('Could not read the host SSH public key.')
   return { path, publicKey }
 }
-export async function inspectSsh(target: SshTarget, runner: HostRunner, signal: AbortSignal): Promise<{ gpus: { name: string; memory: number }[]; docker: boolean }> {
+export async function inspectSsh(target: SshTarget, runner: HostRunner, signal: AbortSignal, boxOs?: 'darwin' | 'linux' | 'windows'): Promise<{ gpus: { name: string; memory: number }[]; docker: boolean; facts?: string }> {
+  if (boxOs) {
+    const facts = await inspectBoxMachine(target, boxOs, runner, signal)
+    const gpus = facts.split('\n').flatMap(line => { const match = /^GPU (.+),\s*([0-9.]+)\s*$/.exec(line); return match ? [{ name: match[1]!.trim(), memory: Math.ceil(Number(match[2]) / 1024) }] : [] })
+    return { facts, gpus, docker: facts.includes('DOCKER_ENGINE_PRESENT') }
+  }
   const output = await runner.run('ssh', [...sshArguments(target), 'nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits && if command -v docker >/dev/null && docker info >/dev/null 2>&1; then echo DOCKER_ENGINE_PRESENT; fi'], signal)
   const gpus = output.split('\n').flatMap(line => { const match = /^(.+),\s*([0-9.]+)\s*$/.exec(line); return match ? [{ name: match[1]!.trim(), memory: Math.ceil(Number(match[2]) / 1024) }] : [] })
   if (!gpus.length) throw new Error('nvidia-smi did not report a GPU. Check the SSH user and NVIDIA driver.')
@@ -146,6 +151,7 @@ export async function openHostTunnel(id: string, target: SshTarget, runner: Host
 export function closeHostTunnel(id: string): void { tunnels.get(id)?.stop(); tunnels.delete(id) }
 
 export const boxInspectionScript = `set -eu
+export PATH=$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/.lmstudio/bin:/Applications/Ollama.app/Contents/Resources
 printf 'OS '; uname -s
 printf 'ARCH '; uname -m
 printf 'HOME %s\\n' "$HOME"

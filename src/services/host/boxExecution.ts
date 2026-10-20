@@ -12,6 +12,7 @@ export function boxAbsolutePath(box: HostBox, path: string): string {
 export async function runBoxScript(box: Pick<HostBox, 'os' | 'target'>, script: string, runner: HostRunner, signal: AbortSignal, timeoutMs = 30_000): Promise<string> {
   const windows = box.os === 'windows'
   const executable = windows ? 'powershell.exe' : '/bin/sh'
+  if (!windows) script = 'export PATH=$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin\n' + script
   const args = windows ? ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from("$ErrorActionPreference='Stop'\n" + script, 'utf16le').toString('base64')] : ['-c', 'set -eu\n' + script]
   return box.target ? runner.run('ssh', [...sshArguments(box.target), windows ? executable + ' ' + args.join(' ') : executable + ' -c ' + shQuote('set -eu\n' + script)], signal, timeoutMs) : runner.run(executable, args, signal, timeoutMs)
 }

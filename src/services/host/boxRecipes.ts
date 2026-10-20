@@ -16,7 +16,7 @@ export interface BoxRecipe {
 }
 const ollama = (id: string, label: string, model: string, downloadGb: number, memoryGb: number): BoxRecipe => ({ id, label, model, engine: 'ollama', memoryGb, downloadGb, verified: { by: 'documented', source: 'https://ollama.com/library/' + model, note: 'Weights fit; context and working memory are verified when the engine loads.' } })
 export const BOX_RECIPES: readonly BoxRecipe[] = [
-  { ...ollama('nemotron35-bolt', 'Nemotron 3.5 Bolt 74B · IQ2_XXS', 'nemotron-3.5-bolt:74b-a9b', 25, 32), contextPerSlot: 262144, verified: { by: 'measured', on: '2026-10-19', source: 'https://ollama.com/library/nemotron-3.5-bolt:74b-a9b', note: '7–11 tok/s in one measured run; upstream still labels Apple Silicon unsupported. Not a general compatibility claim.' } },
+  { ...ollama('nemotron35-bolt', 'Nemotron 3.5 Bolt 74B · IQ2_XXS', 'nemotron-3.5-bolt:74b-a9b', 25, 32), contextPerSlot: 262144, verified: { by: 'measured', on: '2026-10-19', source: 'https://ollama.com/library/nemotron-3.5-bolt:74b-a9b', note: '7–11 tok/s in one Ollama 0.40.5 run; upstream still labels Apple Silicon unsupported. Not a general compatibility claim.' } },
   ollama('qwen38-27b', 'Qwen3.8 27B · Q4_K_M', 'qwen3.8:27b-mtp-q4_K_M', 18, 26),
   ollama('gemma4-26b', 'Gemma 4 26B', 'gemma4:26b', 19, 28),
   ollama('gemma4-31b', 'Gemma 4 31B', 'gemma4:31b', 20, 32),
