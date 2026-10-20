@@ -232,6 +232,7 @@ export interface CompatStreamOptions {
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
   silentAfterHeadersMs?: number | null
+  isSlotProcessing?: () => Promise<boolean>
   onStreamActivity?: (atMs: number) => void
   firstByte?: {
     cold: boolean
@@ -443,11 +444,31 @@ export async function* streamCompatChat(
       }
     }
     if (local === undefined) {
-      firstByteTimer = timers.setTimeout(() => {
-        firstByteFired = true
-        controller.abort()
-      }, firstByteBudget)
-      unrefTimer(firstByteTimer)
+      const armFirstByteTimer = (): void => {
+        firstByteTimer = timers.setTimeout(() => {
+          if (headersLanded || options.signal?.aborted || cut.cap) return
+          if (options.isSlotProcessing !== undefined) {
+            void options.isSlotProcessing().then(alive => {
+              if (headersLanded || options.signal?.aborted || cut.cap) return
+              if (alive) {
+                armFirstByteTimer()
+                return
+              }
+              firstByteFired = true
+              controller.abort()
+            }).catch(() => {
+              if (headersLanded) return
+              firstByteFired = true
+              controller.abort()
+            })
+            return
+          }
+          firstByteFired = true
+          controller.abort()
+        }, firstByteBudget)
+        unrefTimer(firstByteTimer)
+      }
+      armFirstByteTimer()
     } else {
       const law = local
       let promisedMs = law.promiseMs
@@ -587,7 +608,7 @@ export async function* streamCompatChat(
     const decoder = new SseDecoder()
     let rawHead = ''
     let sawEvent = false
-    const watchdog = local === undefined ? createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null }) : null
+    let watchdog = local === undefined ? createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null }) : null
     idleWatchdog = watchdog
     if (local !== undefined) {
       const law = local
@@ -605,15 +626,31 @@ export async function* streamCompatChat(
       })
     }
     const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
+    let pendingRead: Promise<ReadableStreamReadResult<Uint8Array>> | null = null
 
     readLoop: for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
-        chunk = await (watchdog !== null ? watchdog.guard(reader.read()) : reader.read())
+        pendingRead ??= reader.read()
+        chunk = await (watchdog !== null ? watchdog.guard(pendingRead) : pendingRead)
+        pendingRead = null
         if (!chunk.done && chunk.value.byteLength > 0) watchdog?.noteActivity()
         silenceWatch?.noteActivity()
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
+        if (
+          isIdle &&
+          !options.signal?.aborted &&
+          !cut.cap &&
+          options.isSlotProcessing !== undefined &&
+          (await options.isSlotProcessing().catch(() => false))
+        ) {
+          watchdog?.stop()
+          watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: null })
+          idleWatchdog = watchdog
+          continue readLoop
+        }
+        pendingRead = null
         const noBytes = isIdle && error.noBytes
         const cancelled = options.signal?.aborted === true
         yield {

@@ -15,6 +15,111 @@ export class CompatProbeError extends Error {
 
 const record = (value: unknown): Record<string, any> | undefined => typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, any> : undefined
 const windowTokens = (value: unknown): number | undefined => typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined
+const llamacppSlotsCache = new Map<string, number>()
+const llamacppSlotsInFlight = new Map<string, Promise<number | undefined>>()
+
+function llamacppEndpointKey(endpoint: CompatEndpointSettings & { name?: string; baseUrl: string }): string {
+  return `${endpoint.name ?? 'default'}:${compatServerBase(endpoint.baseUrl)}`
+}
+
+export function invalidateLlamacppTotalSlots(endpoint: CompatEndpointSettings & { name?: string; baseUrl: string }): void {
+  try { llamacppSlotsCache.delete(llamacppEndpointKey(endpoint)) } catch {}
+}
+
+export async function resolveLlamacppTotalSlots(
+  endpoint: CompatEndpointSettings & { name?: string; baseUrl: string },
+  opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
+): Promise<number | undefined> {
+  let cacheKey: string
+  try { cacheKey = llamacppEndpointKey(endpoint) } catch { return undefined }
+  const cached = llamacppSlotsCache.get(cacheKey)
+  if (cached !== undefined) return cached
+  const pending = llamacppSlotsInFlight.get(cacheKey)
+  if (pending) return pending
+  const work = (async (): Promise<number | undefined> => {
+    const controller = new AbortController()
+    const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal
+    const timer = setTimeout(() => controller.abort(), 5_000)
+    timer.unref?.()
+    try {
+      const root = compatServerBase(endpoint.baseUrl).replace(/\/v1$/, '')
+      const response = await (opts.fetchImpl ?? getApiFetch())(`${root}/props`, {
+        ...getProxyFetchOptions(),
+        method: 'GET',
+        headers: {
+          ...endpoint.headers,
+          accept: 'application/json',
+          'user-agent': getUserAgent(),
+          ...(opts.key ? { authorization: `Bearer ${opts.key}` } : {}),
+        },
+        signal,
+        redirect: 'error',
+      } as RequestInit)
+      if (!response.ok) {
+        await response.body?.cancel()
+        return undefined
+      }
+      const body = record(await readJson(response))
+      const totalSlots = windowTokens(body?.total_slots)
+      if (totalSlots !== undefined) llamacppSlotsCache.set(cacheKey, totalSlots)
+      return totalSlots
+    } catch {
+      return undefined
+    } finally {
+      clearTimeout(timer)
+      llamacppSlotsInFlight.delete(cacheKey)
+    }
+  })()
+  llamacppSlotsInFlight.set(cacheKey, work)
+  return work
+}
+
+export async function probeLlamacppSlotProcessing(
+  endpoint: CompatEndpointSettings & { baseUrl: string },
+  slotId: number | undefined,
+  opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
+): Promise<boolean> {
+  const controller = new AbortController()
+  const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal
+  const timer = setTimeout(() => controller.abort(), 5_000)
+  timer.unref?.()
+  try {
+    const root = compatServerBase(endpoint.baseUrl).replace(/\/v1$/, '')
+    const fetchUrl = async (path: string): Promise<unknown> => {
+      const response = await (opts.fetchImpl ?? getApiFetch())(`${root}${path}`, {
+        ...getProxyFetchOptions(),
+        method: 'GET',
+        headers: {
+          ...endpoint.headers,
+          accept: 'application/json',
+          'user-agent': getUserAgent(),
+          ...(opts.key ? { authorization: `Bearer ${opts.key}` } : {}),
+        },
+        signal,
+        redirect: 'error',
+      } as RequestInit)
+      if (!response.ok) {
+        await response.body?.cancel()
+        return undefined
+      }
+      return readJson(response)
+    }
+    const body = (await fetchUrl('/slots')) ?? (await fetchUrl('/health?include_slots=1'))
+    const list = Array.isArray(body) ? body : Array.isArray(record(body)?.slots) ? (record(body)!.slots as unknown[]) : undefined
+    if (list) {
+      if (slotId !== undefined) {
+        const matched = list.map(record).find(row => row?.id === slotId || row?.id_slot === slotId)
+        if (matched) return matched.is_processing === true
+      }
+      return list.some(row => record(row)?.is_processing === true)
+    }
+    return typeof record(body)?.slots_processing === 'number' && record(body)!.slots_processing > 0
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 export function compatServerBase(address: string): string {
   const base = address.trim().replace(/\/+$/, '')
@@ -95,9 +200,13 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
       const tokens = windowTokens(sglang?.context_length)
       if (tokens) for (const id of models) if (models.length === 1 || id === sglang?.model_path || id === sglang?.served_model_name) contextWindows[id] = tokens
     }
-    if (dialect === 'llamacpp' && models.length === 1) {
-      const tokens = windowTokens(llama?.default_generation_settings?.n_ctx)
-      if (tokens) contextWindows[models[0]!] = tokens
+    if (dialect === 'llamacpp') {
+      const slots = windowTokens(llama?.total_slots)
+      if (slots !== undefined) llamacppSlotsCache.set(llamacppEndpointKey(endpoint), slots)
+      if (models.length === 1) {
+        const tokens = windowTokens(llama?.default_generation_settings?.n_ctx)
+        if (tokens) contextWindows[models[0]!] = tokens
+      }
     }
     if (dialect === 'ollama') {
       const ps = await optional('/api/ps')

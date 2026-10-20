@@ -137,6 +137,8 @@ interface CompatCredential {
 
 export interface CompatLaneProfile {
   lane: CompatLaneId
+  dialect?: string
+  isSlotProcessing?(slotId: number | undefined): Promise<boolean>
   streamTransport?(options: CompatStreamOptions, messages: readonly Message[]): {
     events: AsyncGenerator<CompatStreamEvent>
     settle?(messages: readonly AssistantMessage[]): void
@@ -166,6 +168,8 @@ export interface CompatLaneProfile {
     effortValue: string | undefined
     thinkingEnabled: boolean
     maxOutputTokensOverride: number | undefined
+    conversationKey?: string
+    cacheDomainKey?: string
   }): Record<string, unknown>
   keepsReasoningHistory?(wireModel: string): boolean
   keepsReasoningOnContinuations?(wireModel: string): boolean
@@ -520,12 +524,6 @@ export async function* compatChatCallModel(
     ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
   })
   const effortView = effortVocabularyFor(modelId)
-  const builtExtras = profile.buildExtras({
-    wireModel,
-    effortValue,
-    thinkingEnabled,
-    maxOutputTokensOverride: fittedOutputOverride,
-  })
   const operatorEffort =
     effortView.kind === 'provider' && effortView.source === 'operator' && effortView.vocabulary.length > 0
       ? !thinkingEnabled && effortView.thinkingGated
@@ -536,6 +534,23 @@ export async function* compatChatCallModel(
             : nearestSupportedWireEffort(effortValue, effortView.vocabulary)
           : undefined
       : undefined
+  const slotKey = plan.conversationKey ?? cacheDomainKey
+  const makeRequestExtra = (): Record<string, unknown> => {
+    const builtExtras = profile.buildExtras({
+      wireModel,
+      effortValue,
+      thinkingEnabled,
+      maxOutputTokensOverride: fittedOutputOverride,
+      conversationKey: slotKey,
+      cacheDomainKey,
+    })
+    return {
+      ...(operatorEffort !== undefined && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined
+        ? { ...builtExtras, reasoning_effort: operatorEffort }
+        : builtExtras),
+      ...(profile.lane === 'openai-compat' || profile.lane === 'openrouter' ? { prompt_cache_key: cacheDomainKey } : {}),
+    }
+  }
   const request: CompatChatRequest = {
     model: wireModel,
     messages: toolsInPrompt ? renderToolDialectHistory(mappedMessages) : mappedMessages,
@@ -545,12 +560,7 @@ export async function* compatChatCallModel(
           ...(profile.omitsToolChoice ? {} : { tool_choice: 'auto' as const }),
         }
       : {}),
-    extra: {
-      ...(operatorEffort !== undefined && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined
-        ? { ...builtExtras, reasoning_effort: operatorEffort }
-        : builtExtras),
-      ...(profile.lane === 'openai-compat' || profile.lane === 'openrouter' ? { prompt_cache_key: cacheDomainKey } : {}),
-    },
+    extra: makeRequestExtra(),
   }
   const effortFact =
     profile.effortOnWire?.(request.extra ?? {}) ??
@@ -601,6 +611,7 @@ export async function* compatChatCallModel(
       }
       const refreshed = await profile.resolveCredential()
       if (refreshed) credential = refreshed
+      request.extra = makeRequestExtra()
     }
     attemptStartedAtMs = Date.now()
     const signInRequest = captureSignInRequest(profile.lane, credential.apiKey)
@@ -933,9 +944,10 @@ async function* streamOneCompatAttempt(ctx: {
   }
 
   const extraHeaders = profile.extraHeaders?.()
-  const idleTimeoutMs = streamIdleTimeoutMsForRoute(profile.lane)
+  const idleTimeoutMs = streamIdleTimeoutMsForRoute(profile.lane, profile.dialect)
   const cold = coldPrefixOf(ctx.messages, modelId)
   const promptTokens = estimateRequestTokens(request)
+  const pinnedSlot = typeof request.extra?.id_slot === 'number' ? request.extra.id_slot : undefined
   const streamOptions: CompatStreamOptions = {
     ...(apiKey !== undefined ? { apiKey } : {}),
     ...(profile.onResponseHeaders ? { onResponseHeaders: profile.onResponseHeaders } : {}),
@@ -944,7 +956,8 @@ async function* streamOneCompatAttempt(ctx: {
     request,
     signal,
     idleTimeoutMs,
-    silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: profile.lane, cold, promptTokens, idleMs: idleTimeoutMs }),
+    silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: profile.lane, dialect: profile.dialect, cold, promptTokens, idleMs: idleTimeoutMs }),
+    ...(profile.isSlotProcessing ? { isSlotProcessing: () => profile.isSlotProcessing!(pinnedSlot) } : {}),
     ...(options.onStreamActivity ? { onStreamActivity: options.onStreamActivity } : {}),
     firstByte: {
       cold,

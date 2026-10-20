@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
 import {
   kimiAcceptsEffort,
@@ -20,6 +21,8 @@ export interface LaneExtrasArgs {
   effortValue: string | undefined
   thinkingEnabled: boolean
   maxOutputTokensOverride: number | undefined
+  conversationKey?: string
+  cacheDomainKey?: string
 }
 
 export function compatEffortWireFact(
@@ -172,8 +175,13 @@ export function localThinkingOffWireEffort(server: LocalServerKind | 'sglang'): 
   return LOCAL_SERVER_STATES_THINKING[server] ? thinkingOffWireEffort(LOCAL_SERVER_EFFORTS[server]) : undefined
 }
 
+function llamacppSlotId(key: string | undefined, totalSlots: number | undefined): number | undefined {
+  if (!key || typeof totalSlots !== 'number' || !Number.isSafeInteger(totalSlots) || totalSlots <= 0) return undefined
+  return createHash('sha256').update(key).digest().readUInt32BE(0) % totalSlots
+}
+
 export function buildLocalExtras(
-  args: LaneExtrasArgs & { server: LocalServerKind | 'sglang'; acceptsEffort: boolean },
+  args: LaneExtrasArgs & { server: LocalServerKind | 'sglang'; acceptsEffort: boolean; totalSlots?: number },
 ): Record<string, unknown> {
   const vocabulary = LOCAL_SERVER_EFFORTS[args.server]
   const wireEffort =
@@ -186,10 +194,12 @@ export function buildLocalExtras(
             ? args.effortValue
             : nearestSupportedWireEffort(args.effortValue, vocabulary)
           : undefined
+  const slotId = args.server === 'llamacpp' ? llamacppSlotId(args.conversationKey ?? args.cacheDomainKey, args.totalSlots) : undefined
   return {
     stream_options: { include_usage: true },
     ...(wireEffort !== undefined ? { reasoning_effort: wireEffort } : {}),
     ...(args.server === 'sglang' ? { chat_template_kwargs: { clear_thinking: false } } : {}),
+    ...(slotId !== undefined ? { id_slot: slotId, cache_prompt: true } : {}),
     ...(args.maxOutputTokensOverride !== undefined ? { max_tokens: args.maxOutputTokensOverride } : {}),
   }
 }
