@@ -10,7 +10,7 @@ import type { AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 import type { AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
-import type { SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
+import type { McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
 import type { JevStatusKind } from '../jev/jevContract.js'
 
 export type EngineCarrierKind = 'in-process' | 'daemon'
@@ -247,17 +247,7 @@ export type McpRosterV1 = {
   clients: readonly McpRosterEntryV1[]
 }
 
-export type McpToolEntryV1 = {
-  name: string
-  description: string
-  inputSchema: Record<string, unknown>
-  deferred: boolean
-}
-
-export type McpToolsV1 = {
-  server: string
-  tools: readonly McpToolEntryV1[]
-}
+export type { McpToolEntryV1, McpToolsV1 } from '../../daemon/protocol.js'
 
 
 export type KitDialReceiptV1 = {

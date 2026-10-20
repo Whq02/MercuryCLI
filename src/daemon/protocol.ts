@@ -134,6 +134,28 @@ export interface SessionRewindOutcomeV1 {
   }
 }
 
+export type McpToolLoadingV1 = 'deferred' | 'listed' | 'held'
+
+export interface McpToolEntryV1 {
+  name: string
+  registeredAs: string
+  description: string
+  descriptionCut?: true
+  inputSchema: Record<string, unknown>
+  schemaWithheldBytes?: number
+  loading: McpToolLoadingV1
+}
+
+export type McpToolsStateV1 = 'connected' | 'needs-auth' | 'failed' | 'disabled' | 'pending' | 'absent' | 'unavailable'
+
+export interface McpToolsV1 {
+  server: string
+  state: McpToolsStateV1
+  tools: readonly McpToolEntryV1[]
+  omitted: number
+  detail?: string
+}
+
 export type DaemonRequest =
   | { op: 'ping'; proto?: number }
   | { op: 'nudge'; proto?: number }
@@ -440,7 +462,7 @@ export type DaemonReply =
       presetNote?: string
     }
   | { ok: true; op: 'sessionRelease' | 'concourseRelease'; settled: boolean; killed: boolean }
-  | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true; withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown'; mcpTools?: { server: string; tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown>; deferred: boolean }> } }
+  | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true; withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown'; mcpTools?: McpToolsV1 }
   | ({ ok: true; op: 'sessionRewind' } & SessionRewindOutcomeV1)
   | { ok: true; op: 'concourseWithdraw'; withdrawn: boolean }
   | { ok: true; op: 'concourseWarm'; state: 'warmed' | 'kept' | 'refused'; detail?: string }

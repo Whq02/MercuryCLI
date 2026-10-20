@@ -17,6 +17,7 @@ import {
   type DaemonReply,
   type DaemonSignInViewV1,
   type LeaseClient,
+  type McpToolsV1,
   type SessionRewindMode,
   type SessionRewindOutcomeV1,
 } from './protocol.js'
@@ -43,7 +44,7 @@ export type ControlOutcome = {
   withdrawn?: boolean
   text?: string
   reason?: 'taken' | 'unknown'
-  mcpTools?: { server: string; tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown>; deferred: boolean }> }
+  mcpTools?: McpToolsV1
 }
 
 export type ShutdownReceipt = {

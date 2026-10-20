@@ -285,6 +285,9 @@ import { filterToolsByDenyRules, getAllBaseTools, getTools, toolsWithheldByDeny 
 import { ruleSourceWords, ruleSpelling, withheldByRuleWords } from '../utils/permissions/ruleReason.js'
 import { MCP_SERVER_FAILED_CODE, TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
 import { filterToolsByServer, mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
+import { withoutMcpToolCardHeader } from '../services/mcp/toolCard.js'
+import { mcpToolsAnswerOf, mcpToolsUnlistedAnswer } from '../services/mcp/toolsAnswer.js'
+import { heldToolsAtLastPlan } from '../services/providers/toolEconomy.js'
 import { isDeferredToolFor } from '../tools/ToolSearchTool/prompt.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { expandPath } from '../utils/path.js'
@@ -2111,15 +2114,12 @@ export async function runHeadless(
       const { name } = params
       const state = getAppState()
       const client = state.mcp.clients.find(entry => entry.name === name)
-      let tools = filterToolsByServer(state.mcp.tools, name)
-      if (client?.type === 'connected') {
-        fetchToolsForClient.cache.delete(name)
-        const fresh = await fetchToolsForClient(client)
-        if (fresh.length > 0 || tools.length === 0) tools = fresh
-      }
-      const entries = await Promise.all(
-        tools.map(async tool => {
-          const rawDescription = await tool
+      if (client?.type !== 'connected') return mcpToolsUnlistedAnswer(name, client)
+      const model = activeModel ?? getEngineModel()
+      const held = new Set(heldToolsAtLastPlan(String(processMainOwner()), messages))
+      const tools = await Promise.all(
+        filterToolsByServer(state.mcp.tools, name).map(async tool => {
+          const carded = await tool
             .description(
               {},
               {
@@ -2130,14 +2130,19 @@ export async function runHeadless(
             )
             .catch(() => '')
           return {
-            name: tool.mcpInfo?.toolName ?? tool.name.replace(getMcpPrefix(name), ''),
-            description: rawDescription.replace(/^\[mcp:[^\n]*\](?:\n+|$)/, '').trim(),
-            input_schema: ((tool.inputJSONSchema as Record<string, unknown> | undefined) ?? {}),
-            deferred: isDeferredToolFor(tool, getEngineModel(), state.toolPermissionContext.mode, messages),
+            name: tool.mcpInfo?.toolName ?? tool.name,
+            registeredAs: tool.name,
+            description: withoutMcpToolCardHeader(name, carded, { openWorldHint: tool.isOpenWorld?.() === true }).trim(),
+            inputSchema: (tool.inputJSONSchema as Record<string, unknown> | undefined) ?? {},
+            loading: held.has(tool.name)
+              ? ('held' as const)
+              : isDeferredToolFor(tool, model, state.toolPermissionContext.mode, messages)
+                ? ('deferred' as const)
+                : ('listed' as const),
           }
         }),
       )
-      return { server: name, tools: entries }
+      return mcpToolsAnswerOf(name, tools)
     },
     'session/set_kit': params =>
       serializeMcpChange(async () => {

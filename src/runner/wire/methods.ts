@@ -228,18 +228,24 @@ export const METHODS = {
     result: lazySchema(() =>
       z.object({
         server: z.string(),
+        state: z.enum(['connected', 'needs-auth', 'failed', 'disabled', 'pending', 'absent']),
         tools: z.array(
           z.object({
             name: z.string(),
+            registered_as: z.string(),
             description: z.string(),
+            description_cut: z.literal(true).optional(),
             input_schema: z.record(z.string(), z.unknown()),
-            deferred: z.boolean(),
+            schema_withheld_bytes: z.number().int().nonnegative().optional(),
+            loading: z.enum(['deferred', 'listed', 'held']),
           }),
         ),
+        omitted: z.number().int().nonnegative(),
+        detail: z.string().optional(),
       }),
     ),
     scope: 'none',
-    deadlineMs: 30_000,
+    deadlineMs: 10_000,
   }),
   'session/set_kit': method({
     name: 'session/set_kit',

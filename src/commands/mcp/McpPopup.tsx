@@ -6,7 +6,6 @@ import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import type { McpRosterEntryV1, McpToolEntryV1 } from '../../services/engine-connector/types.js'
-import { buildMcpToolName } from '../../services/mcp/mcpStringUtils.js'
 import { isMcpOrgan } from '../../services/mcp/membership.js'
 import { mcpRosterRowsFailedFirst } from './route.js'
 import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
@@ -27,6 +26,11 @@ const WIDTH = 78
 const MCP_POPUP_HINT = '↑↓ move · ↵ act · / filter · esc or click outside closes'
 const MCP_TOOLS_HINT = '↑↓ move · ↵ detail · / filter · esc back to servers'
 const MCP_DETAIL_HINT = '↑↓ scroll · esc back to tools'
+const MCP_TOOL_LOADING_WORDS: Record<McpToolEntryV1['loading'], string> = {
+  deferred: 'deferred · schema loads on demand',
+  listed: 'always loaded',
+  held: 'held · joins the tool list at the next compaction or /clear',
+}
 
 type SchemaNode = {
   type?: string | string[]
@@ -166,7 +170,8 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
       setBusy(server.name)
       try {
         const result = await connector.mcpTools(server.name)
-        if (alive.current) {
+        if (alive.current && result.state !== 'connected') setMessage(result.detail ?? mcpServerState(server))
+        else if (alive.current) {
           toolFilterFocusRef.current = false
           setToolView({ server: server.name, tools: result.tools, tool: null })
           setToolCursor(0)
@@ -262,7 +267,7 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
     return (
       <Box ref={surface} flexDirection="column" width={width} height={height} borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} opaque flexShrink={0} {...(ground !== undefined ? { backgroundColor: ground } : {})}>
         <ProductLockup view="mcp" subtitle={`${toolView.server} · ${activeTool.name}`} separator=" · " />
-        <Text color={tokens.textMuted}>{buildMcpToolName(toolView.server, activeTool.name)} · {activeTool.deferred ? 'deferred' : 'always loaded'}</Text>
+        <Text color={tokens.textMuted} wrap="truncate-end">{activeTool.registeredAs} · {MCP_TOOL_LOADING_WORDS[activeTool.loading]}</Text>
         <Box height={1} />
         <Text color={tokens.textPrimary} wrap="wrap">{descText}</Text>
         {schemaProps.length > 0 ? (
@@ -298,7 +303,7 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
           return <InteractiveRow key={tool.name} id={`mcp:tool:${toolView.server}:${tool.name}`} selected={selected} onSelect={() => setToolCursor(toolWin.start + index)} onActivate={() => { setDetailCursor(0); setToolView({ ...toolView, tool }) }} width={inner} height={1}><Text color={selected ? accent : tokens.textPrimary} wrap="truncate-end">{selected ? '› ' : '  '}{cutToWidth(label, Math.max(1, inner - 2))}</Text></InteractiveRow>
         })}
         <Box flexGrow={1} />
-        <Box minHeight={1} width={inner}><Text color={tokens.textMuted}>{selectedTool ? (selectedTool.deferred ? 'deferred · schema loads on demand' : 'always loaded') : ''}</Text></Box>
+        <Box minHeight={1} width={inner}><Text color={tokens.textMuted}>{selectedTool ? MCP_TOOL_LOADING_WORDS[selectedTool.loading] : ''}</Text></Box>
         <MenuFilterLine focused={toolFilterFocus} text={toolFilter} placeholder="filter tools" accent={accent} muted={tokens.textMuted} primary={tokens.textPrimary} />
         <Text color={tokens.textMuted}>{cutToWidth(MCP_TOOLS_HINT, inner)}</Text>
       </Box>

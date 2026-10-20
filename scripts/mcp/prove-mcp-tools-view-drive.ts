@@ -145,6 +145,7 @@ const driveText = (path: string): string => {
 
 let run: Awaited<ReturnType<typeof runArtifactArena>> | undefined
 let doorPayload: Record<string, any> | undefined
+let absentPayload: Record<string, any> | undefined
 
 try {
   run = await runArtifactArena({
@@ -216,6 +217,13 @@ try {
           by: 'proof',
           mcpServer: 'runpod',
         })
+        absentPayload = await rpc({
+          op: 'sessionControl',
+          action: 'mcp-tools',
+          sessionId,
+          by: 'proof',
+          mcpServer: 'nowhere',
+        })
       })()
     },
   })
@@ -254,9 +262,10 @@ try {
   check('(3b) esc from the tool list steps back to the server list and keeps the popup open', step7BackToServers.includes('1 servers · this session') && step7BackToServers.includes('runpod · connected') && step7BackToServers.includes('esc or click outside closes'))
   const closedAfterSecondEsc = (run.sendLog.filter(row => row.step !== undefined).length === 8) && (frames[frames.length - 1]?.text.includes('Type a prompt') === true) && !frames[frames.length - 1]!.text.includes('esc or click outside closes')
   check('(3c) esc from the server list closes the popup', closedAfterSecondEsc)
-  const payloadTools = doorPayload?.mcpTools?.tools as Array<{ name: string; description: string; inputSchema: Record<string, any>; deferred: boolean }> | undefined
-  check('(4a) the connector/daemon door returns the runner-owned serializable McpToolsV1 payload', doorPayload?.ok === true && doorPayload?.outcome === 'applied' && doorPayload?.mcpTools?.server === 'runpod' && Array.isArray(payloadTools) && payloadTools.length === 2 && payloadTools.some(t => t.name === 'inspect_cluster' && t.deferred === true && Boolean(t.inputSchema?.properties?.placement?.properties?.regionCode)))
-  check('(4b) the fixture logged the runner’s tools/list calls when connecting and when serving the connector door', toolsListBeforePopupOpen >= 1 && toolsListCount > toolsListBeforePopupOpen && mcpMethods.includes('tools/list'), `before=${toolsListBeforePopupOpen} total=${toolsListCount}`)
+  const payloadTools = doorPayload?.mcpTools?.tools as Array<{ name: string; registeredAs: string; description: string; inputSchema: Record<string, any>; loading: string }> | undefined
+  check('(4a) the connector/daemon door returns the runner-owned serializable McpToolsV1 payload', doorPayload?.ok === true && doorPayload?.outcome === 'applied' && doorPayload?.mcpTools?.server === 'runpod' && doorPayload?.mcpTools?.state === 'connected' && doorPayload?.mcpTools?.omitted === 0 && Array.isArray(payloadTools) && payloadTools.length === 2 && payloadTools.some(t => t.name === 'inspect_cluster' && t.registeredAs === 'mcp__runpod__inspect_cluster' && t.loading === 'deferred' && Boolean(t.inputSchema?.properties?.placement?.properties?.regionCode)), JSON.stringify(doorPayload?.mcpTools ?? doorPayload).slice(0, 300))
+  check('(4b) the door reads the session’s own list: the runner’s connect-time tools/list is the only one the fixture ever saw (the screen never connects, the door never re-lists)', toolsListBeforePopupOpen >= 1 && toolsListCount === toolsListBeforePopupOpen && mcpMethods.includes('tools/list'), `before=${toolsListBeforePopupOpen} total=${toolsListCount}`)
+  check('(4c) a server the session does not have answers its typed state and why, never an empty list', absentPayload?.ok === true && absentPayload?.outcome === 'applied' && absentPayload?.mcpTools?.state === 'absent' && (absentPayload?.mcpTools?.tools ?? [1]).length === 0 && /no MCP server named nowhere/.test(String(absentPayload?.mcpTools?.detail ?? '')), JSON.stringify(absentPayload).slice(0, 300))
 
   writeFileSync(join(CAPTURES, 'evidence.json'), JSON.stringify({
     checks,
@@ -267,6 +276,7 @@ try {
     toolsListBeforePopupOpen,
     toolsListCount,
     doorPayload,
+    absentPayload,
     record: record(),
     facts: facts(),
     sends: run.sendLog,

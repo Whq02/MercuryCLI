@@ -66,6 +66,7 @@ import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../com
 import { workChipLine, workCounts } from './workCounts.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
+import { mcpToolsOfReply } from '../mcp/toolsAnswer.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
 import type {
   AdvisorFactsV1,
@@ -2300,15 +2301,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   async mcpTools(serverName: string): Promise<McpToolsV1> {
+    const unavailable = (detail: string): McpToolsV1 => ({ server: serverName, state: 'unavailable', tools: [], omitted: 0, detail })
     try {
-      const reply = await this.rpc({ op: 'sessionControl', action: 'mcp-tools', sessionId: this.record.sessionId, by: 'operator', mcpServer: serverName }, 30_000)
-      const mcpTools = reply.mcpTools as McpToolsV1 | undefined
-      if (reply.ok === true && reply.outcome === 'applied' && mcpTools && typeof mcpTools.server === 'string' && Array.isArray(mcpTools.tools)) {
-        return mcpTools
-      }
-      return { server: serverName, tools: [] }
-    } catch {
-      return { server: serverName, tools: [] }
+      const reply = await this.rpc({ op: 'sessionControl', action: 'mcp-tools', sessionId: this.record.sessionId, by: 'operator', mcpServer: serverName })
+      if (reply.ok !== true) return unavailable(String(reply.error ?? 'the daemon refused the MCP tools list'))
+      if (reply.outcome !== 'applied') return unavailable(typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : `unexpected outcome ${String(reply.outcome)}`)
+      return mcpToolsOfReply(reply.mcpTools) ?? unavailable('the daemon answered the MCP tools list with a payload this screen cannot read')
+    } catch (e) {
+      return unavailable(`the daemon is not answering — ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 

@@ -158,7 +158,7 @@ export class NoSessionConnector implements EngineConnectorV1 {
     return KIT_REFUSED_NO_CHAT
   }
   async mcpTools(serverName: string): Promise<McpToolsV1> {
-    return { server: serverName, tools: EMPTY_MCP_TOOLS }
+    return { server: serverName, state: 'unavailable', tools: EMPTY_MCP_TOOLS, omitted: 0, detail: NO_CHAT_OPEN }
   }
   async setKit(): Promise<KitDialReceiptV1> {
     return KIT_REFUSED_NO_CHAT
