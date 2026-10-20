@@ -24,6 +24,7 @@ export function writeBoxService(record: BoxServiceRecord): void { durableAtomicP
 const xml = (text: string): string => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;')
 const unitQuote = (text: string): string => '"' + text.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('%', '%%').replaceAll('$', '$$') + '"'
 export const boxServiceLabel = (name: string): string => 'ai.mercury-cli.host.' + boxNameSchema.parse(name)
+export const boxServiceLifetimeWords = (box: HostBox): string => 'runs while you are logged in on ' + box.name + ' and returns at login after a reboot' + (box.os === 'linux' ? '; loginctl enable-linger keeps it running without a login' : '')
 export function boxServiceFiles(box: HostBox, name = box.name): { unit: string; script: string; log: string } {
   const dir = boxJoin(box, box.home, '.local', 'share', 'mercury-host', name)
   const label = boxServiceLabel(name)

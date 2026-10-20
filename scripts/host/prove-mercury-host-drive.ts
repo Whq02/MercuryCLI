@@ -76,6 +76,7 @@ try {
   await heading('Verified bank folder'); capture('06-bank-folder'); m.push(KEY.enter)
   await heading('Confirm model service'); await until('no weights download'); capture('07-start-confirm')
   assert.ok(m.screen().includes('huggingface.co/unsloth/Qwen3.8-27B-GGUF'), 'source is visible on full confirmation')
+  assert.ok(m.screen().replace(/[│\s]+/g, ' ').includes('runs while you are logged in on this-computer and returns at login after a reboot'), 'the confirmation says how long the service runs')
   m.resize(element(64, 16), 64, 16); await until('Enlarge the terminal')
   m.push(KEY.down); m.push(KEY.enter); await new Promise(resolve => setImmediate(resolve))
   assert.ok(!fixture.commands.some((c: any) => c.args.at(-1)?.includes('launchctl bootstrap')), 'hidden confirmation details cannot start a service')

@@ -2,7 +2,7 @@ import type { LlmHostRoad } from '../llmHost/index.js'
 import { BOX_RECIPES, boxFitWords, boxWeightsWords, fitsBox } from './boxRecipes.js'
 import { boxAbsolutePath, boxJoin } from './boxExecution.js'
 import { boxEngineLogs, boxEngineStatus, restartBoxEngine, startBoxEngine, stopBoxEngine } from './boxEngine.js'
-import { readBoxService } from './boxService.js'
+import { boxServiceLifetimeWords, readBoxService } from './boxService.js'
 import { registerBoxServer, stopBoxTunnel } from './boxRegistration.js'
 import { boxHardwareWords, discoverBox, listBoxes, readBox, type HostBox } from './boxes.js'
 import { hostRunner, localKeyPath, type HostRunner } from './ssh.js'
@@ -62,7 +62,7 @@ export function createBoxRoad(runner: HostRunner = hostRunner): LlmHostRoad {
         const path = await question({ step: 'box-bank', title: source === 'bank' ? 'Verified bank folder on ' + box.name : 'Download folder on ' + box.name, found: box.bankPaths.join(' · ') || 'No bank folder discovered.', willRun: source === 'bank' ? 'SHA256SUMS must cover the selected model; every required file is checked.' : '~' + recipe.downloadGb + ' GB of weights; the next screen confirms before downloading.', initial: box.bankPaths[0] ?? boxJoin(box, box.home, 'mercury-model-bank', recipe.id) })
         if (!path) continue
         const destination = boxAbsolutePath(box, path.trim())
-        const confirm = await question({ step: 'box-start-confirm', fullDetails: true, title: 'Confirm model service', found: boxWeightsWords(recipe, destination, source === 'bank'), willRun: 'Install/start ' + recipe.engine + ' · returns at login after reboot · ' + recipe.verified.by + ' · ' + (recipe.verified.note ?? '') + ' · ' + recipe.verified.source, rows: [{ value: 'start', label: 'Confirm installation and start' }, { value: 'cancel', label: 'Keep things as they are' }] })
+        const confirm = await question({ step: 'box-start-confirm', fullDetails: true, title: 'Confirm model service', found: boxWeightsWords(recipe, destination, source === 'bank'), willRun: 'Install/start ' + recipe.engine + ' · ' + boxServiceLifetimeWords(box) + ' · ' + recipe.verified.by + ' · ' + (recipe.verified.note ?? '') + ' · ' + recipe.verified.source, rows: [{ value: 'start', label: 'Confirm installation and start' }, { value: 'cancel', label: 'Keep things as they are' }] })
         if (confirm !== 'start') continue
         emit({ title: 'Preparing ' + box.name, words: 'Installing engine, checking weights and starting service · closing stops waiting, not an installed service.' })
         await startBoxEngine(box, recipe, { destination, bank: source === 'bank', confirmed: true, runner, signal, port: readBoxService(box.name)?.port })

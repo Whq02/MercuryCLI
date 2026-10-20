@@ -3,9 +3,10 @@ import { registerBoxServer, stopBoxTunnel } from '../../services/host/boxRegistr
 import { discoverBox, listBoxes, readBox, type HostBox } from '../../services/host/boxes.js'
 import { BOX_RECIPES, boxFitWords, boxWeightsWords, fitsBox } from '../../services/host/boxRecipes.js'
 import { boxEngineLogs, boxEngineStatus, restartBoxEngine, startBoxEngine, stopBoxEngine } from '../../services/host/boxEngine.js'
+import { boxServiceLifetimeWords } from '../../services/host/boxService.js'
 import { hostRunner, localKeyPath, type HostRunner } from '../../services/host/ssh.js'
 
-export const HOST_HELP = 'Usage: mercury host start <box|this-computer> <recipe> (--bank <folder> | --download <folder>) [--yes]\n       mercury host add <name> --ssh <host> --os darwin|linux|windows [--user <user>] [--port <port>] [--key <path>]\n       mercury host status [box]\n       mercury host stop|restart|logs|uninstall <box>\n       mercury host recipes [box]\n\nBank paths belong to the selected computer. Without --yes, start prints the size and destination only. Uninstall removes the service, never weights. Services return at login after reboot; Linux user services can run before login when lingering is enabled.\n'
+export const HOST_HELP = 'Usage: mercury host start <box|this-computer> <recipe> (--bank <folder> | --download <folder>) [--yes]\n       mercury host add <name> --ssh <host> --os darwin|linux|windows [--user <user>] [--port <port>] [--key <path>]\n       mercury host status [box]\n       mercury host stop|restart|logs|uninstall <box>\n       mercury host recipes [box]\n\nBank paths belong to the selected computer. Without --yes, start prints the size and destination only. Uninstall removes the service, never weights. A service runs while you are logged in on that computer and returns at login after a reboot; on Linux, loginctl enable-linger keeps it running without a login.\n'
 export async function hostCommand(args: string[], options: { runner?: HostRunner; signal?: AbortSignal; print?: (text: string) => void } = {}): Promise<number> {
   const print = options.print ?? console.log
   const runner = options.runner ?? hostRunner
@@ -39,7 +40,7 @@ export async function hostCommand(args: string[], options: { runner?: HostRunner
       if (Boolean(value.bank) === Boolean(value.download)) throw new Error('Choose exactly one of --bank <verified folder> or --download <destination>.')
       const destination = (value.bank ?? value.download)!
       print(boxWeightsWords(recipe, destination, Boolean(value.bank)))
-      print('Install/start ' + recipe.engine + ' as a private loopback service; returns at login after reboot.')
+      print('Install/start ' + recipe.engine + ' as a private loopback service; it ' + boxServiceLifetimeWords(box) + '.')
       if (!value.yes) { print('Add --yes to confirm this plan. No service changed.'); return 0 }
       await startBoxEngine(box, recipe, { destination, bank: Boolean(value.bank), confirmed: true, runner, signal })
     } else if (action === 'stop' || action === 'uninstall') {

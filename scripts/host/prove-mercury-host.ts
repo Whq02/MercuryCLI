@@ -186,6 +186,12 @@ try {
   const lines: string[] = []
   assert.equal(await hostCommand(['status', machine.name], { runner: fixture.runner, print: text => lines.push(text) }), 0)
   assert.ok(lines.some(line => line.includes('0/2 slots busy') && line.includes('tokens/s')))
+  const { boxServiceLifetimeWords } = await import('../../src/services/host/boxService.js')
+  const { HOST_HELP } = await import('../../src/commands/host/index.js')
+  assert.match(boxServiceLifetimeWords({ ...machine, os: 'linux' }), /runs while you are logged in on service-fixture.*loginctl enable-linger/)
+  assert.doesNotMatch(boxServiceLifetimeWords(machine), /linger/)
+  assert.match(HOST_HELP, /runs while you are logged in on that computer.*loginctl enable-linger keeps it running without a login/)
+  console.log('MERCURY HOST GREEN · the service lifetime is told as it is: while logged in, back at login, lingering on Linux')
   const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.js')
   const { createUserMessage } = await import('../../src/utils/messages.js')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
