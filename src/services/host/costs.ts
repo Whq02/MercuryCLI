@@ -22,8 +22,15 @@ function hostPerTokenWords(recipe: HostRecipe, price?: number): string {
   return vendor ? 'also served per token by ' + vendor[0] + ' (' + vendor[1] + ') — ' + (price === undefined ? 'a rented machine' : 'a $' + price.toFixed(2) + '/hr machine') + ' is cheaper only when kept busy' : ''
 }
 
+export function hostShortStorageWords(recipe: HostRecipe): string {
+  if (!heavyWeights(recipe)) return ''
+  const fast = Math.ceil(recipe.weightsGb / 60 / 10) * 10
+  const slow = Math.ceil(recipe.weightsGb / 30 / 10) * 10
+  return '+ ' + ((recipe.nodes ?? 1) > 1 ? recipe.nodes + ' × ' : '') + hostSize(recipe.diskGb) + ' disk · weights ' + hostSize(recipe.weightsGb) + ' · download ~' + fast + '–' + slow + ' min' + ((recipe.nodes ?? 1) > 1 ? ' per node · no Stop' : '')
+}
+
 export function hostStorageWords(recipe: HostRecipe, price?: number): string {
-  if (!heavyWeights(recipe)) return recipe.diskGb + ' GB disk (extra). Ready may take 20–90 min; billing starts now.'
+  if (!heavyWeights(recipe)) return recipe.diskGb + ' GB disk (extra). Billing starts now.'
   return '+ ' + ((recipe.nodes ?? 1) > 1 ? recipe.nodes + ' × ' : '') + hostSize(recipe.diskGb) + ' disk (extra) · ' + hostDownloadWords(recipe) + '; loading is additional; billing starts now; ' + ((recipe.nodes ?? 1) > 1 ? 'a cluster has no Stop and bills until Terminate; cluster networking is additional; cluster GPUs can bill above this catalogue rate (runpod.io/pricing)' : 'a stopped pod still bills its disk') + '. ' + hostPerTokenWords(recipe, price)
 }
 

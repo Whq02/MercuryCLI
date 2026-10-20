@@ -22,6 +22,7 @@ try {
     assert.ok(!JSON.stringify(events).includes(f.key))
     return result
   }
+  f.state.modelIds = [f.model, f.model + '-second']
   for (const stopAt of ['servers', 'address', 'dialect', 'key', 'model', 'name', 'confirm']) {
     const before = readFileSync(settingsPath, 'utf8')
     const result = await drive({ ...defaults, [stopAt]: null })
@@ -29,7 +30,8 @@ try {
     assert.equal(readFileSync(settingsPath, 'utf8'), before, `stop at ${stopAt} writes nothing`)
     assert.equal(readStoredCompatApiKey('llmhost'), undefined)
   }
-  assert.equal((await drive(defaults)).ok, true)
+  f.state.modelIds = [f.model]
+  assert.equal((await drive(defaults, question => assert.notEqual(question.step, 'model', 'one listed model skips the model question'))).ok, true)
   const saved = readFileSync(settingsPath, 'utf8')
   assert.ok(saved.includes('neighbor') && saved.includes('dark') && !saved.includes(f.key))
   assert.equal(readStoredCompatApiKey('llmhost'), f.key)

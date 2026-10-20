@@ -1,5 +1,6 @@
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import type { LocalCommandCall } from '../../types/command.js'
+import { RESTART_DURING_TURN, restartAlreadyCurrentWords } from './words.js'
 
 type RestartOutcome = { ok: true; line: string } | { ok: false; reason: string }
 
@@ -12,7 +13,7 @@ export async function restartSessionOnInstalledBuild(args: {
   tell: (line: string) => void
   resume: (sessionId: string, reason?: 'update') => Promise<string | null>
 }): Promise<RestartOutcome> {
-  if (args.turnActive) return { ok: false, reason: 'this session is mid-turn — wait for the turn to finish, then /restart' }
+  if (args.turnActive) return { ok: false, reason: RESTART_DURING_TURN }
   const { readSessionFacts } = await import('../../services/engine-connector/seatProjections.js')
   const facts = readSessionFacts(args.sessionId)
   if (facts?.buildTree === null) return { ok: false, reason: 'this session runs a source build; /restart moves installed builds only' }
@@ -28,7 +29,7 @@ export async function restartSessionOnInstalledBuild(args: {
   const rec = standing()
   const runningTree = facts?.buildTree ?? rec?.buildTree
   const { sameBuildTree } = await import('../../daemon/planeBoot.js')
-  if (typeof runningTree === 'string' && sameBuildTree(runningTree, tree)) return { ok: false, reason: `this session already runs the installed build (${tree}) — nothing to move` }
+  if (typeof runningTree === 'string' && sameBuildTree(runningTree, tree)) return { ok: false, reason: restartAlreadyCurrentWords(tree) }
   if (rec === undefined) return { ok: false, reason: 'no daemon record owns this chat, so there is no runner to move' }
   if (runningTree == null) return { ok: false, reason: 'this session runs a source build; /restart moves installed builds only' }
   const { endingWorkWords } = await import('../../tools/MonitorTool/watchReceipts.js')
@@ -72,7 +73,7 @@ export async function restartSessionOnInstalledBuild(args: {
   }
   const refusal = await args.resume(args.sessionId, 'update')
   if (refusal !== null) return { ok: false, reason: `the session stopped but did not resume on the installed build — ${refusal}; the board's ↵ resumes it` }
-  return { ok: true, line: `Restarted on the installed build (${tree}) — ended: ${ending} · re-arm what you still want` }
+  return { ok: true, line: `Restarted on the installed build (${tree}) — ended: ${ending} · restart any watches or background commands you still need` }
 }
 
 export const call: LocalCommandCall = async () => {

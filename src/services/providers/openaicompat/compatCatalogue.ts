@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { boxEndpointNotice } from '../../host/boxService.js'
+import { readHostRecord } from '../../host/store.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { configuredCompatEndpoints, compatModelEndpoint, isCompatEndpointCredentialed, resolveCompatApiKey, type CompatEndpoint } from './compatAccounts.js'
@@ -66,6 +67,17 @@ export async function refreshCompatCatalogues(opts: { force?: boolean; env?: Nod
   }))
 }
 
+export function compatEndpointPodTerminated(endpoint: CompatEndpoint): boolean {
+  return Boolean(endpoint.hostPodId && !readHostRecord(endpoint.hostPodId))
+}
+
+export function compatCatalogueStatusWords(endpoint: CompatEndpoint): string {
+  if (compatEndpointPodTerminated(endpoint)) return `${endpoint.label} · pod terminated — /llmhost rents again`
+  const snapshot = cachedCompatCatalogue(endpoint)
+  if (snapshot?.error) return `${endpoint.label} · server at ${new URL(endpoint.baseUrl).host} not answering (${snapshot.error}) — ↵ retries · /llmhost checks it`
+  return `${endpoint.label} · ${snapshot ? 'no models listed' : 'reading models'} — ↵ retries · /llmhost checks it`
+}
+
 export function namedCompatModelOptions(): import('../../../utils/model/modelOptions.js').ModelOption[] {
   const endpoints = configuredCompatEndpoints().filter(endpoint => endpoint.named)
   if (endpoints.length === 0) return []
@@ -76,15 +88,17 @@ export function namedCompatModelOptions(): import('../../../utils/model/modelOpt
     const snapshot = cachedCompatCatalogue(endpoint)
     const credentialed = isCompatEndpointCredentialed(endpoint)
     const boxNotice = boxEndpointNotice(endpoint.name, endpoint.baseUrl, Boolean(snapshot?.error))
-    return models.length ? models.map(id => ({
+    if (!credentialed) return [{ value: `__mercury_connect__:compat/${endpoint.name}`, label: `${endpoint.label} · needs a key — /logins compat/${endpoint.name}`, group, description: `The endpoint '${endpoint.name}' needs a key: /logins compat/${endpoint.name}` }]
+    const unavailable = Boolean(snapshot?.error || compatEndpointPodTerminated(endpoint))
+    return models.length && !unavailable ? models.map(id => ({
       value: `compat/${endpoint.name}/${id}`,
       label: id,
-      description: '',
+      description: resolveCompatApiKey(process.env, endpoint.name) ? '' : 'no key (local/auth-free endpoint)',
       group,
-      ...(boxNotice ? { unavailable: boxNotice } : credentialed ? {} : { unavailable: `the endpoint '${endpoint.name}' needs a key: /logins compat/${endpoint.name}` }),
+      ...(boxNotice ? { unavailable: boxNotice } : {}),
     })) : [{
-      value: `__mercury_connect__:compat/${endpoint.name}`, label: `${endpoint.label} — no models listed`, group,
-      description: snapshot?.error ?? 'The endpoint has not listed a model; /llmhost checks the server or refresh /model.',
+      value: `__mercury_connect__:compat/${endpoint.name}`, label: boxNotice ?? compatCatalogueStatusWords(endpoint), group,
+      description: boxNotice ?? compatCatalogueStatusWords(endpoint),
     }]
   })
 }

@@ -44,6 +44,7 @@
 # gate-watch: scripts/crew/crew-world.ts
 # gate-watch: src/commands/effort/** src/services/providers/openaicompat/compatEffort.ts src/services/host/recipesFile.ts assets/host/recipes.json scripts/providers/prove-host-effort.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts scripts/providers/lib/llmhostFixture.ts scripts/providers/prove-llmhost-slots.ts src/services/host/recipes.ts src/services/llmHost/** src/commands/llmhost/** src/components/LlmHostDialog.tsx
+# gate-watch: scripts/host/fixtures/pod-get-running.json scripts/host/runpodFixture.mjs scripts/ui/gridToPng.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

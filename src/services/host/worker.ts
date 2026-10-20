@@ -5,8 +5,8 @@ import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
 import { setTimeout as delay } from 'node:timers/promises'
 import { readStoredRunpodApiKey } from '../providers/providerSecrets.js'
-import { runLlmHost } from '../llmHost/index.js'
-import { LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
+import { linkLlmHostPod, runLlmHost } from '../llmHost/index.js'
+import { hostReadyWords, LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 import { RunpodClient, RunpodHttpError, createRefusal, cents, type HostOffer, type HostPod } from './runpod.js'
 import { HostClusterEnded, createHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostShape, startHostCluster } from './cluster.js'
 import { hostSetupTimeout } from './costs.js'
@@ -250,11 +250,14 @@ export async function runHostJob(id: string, generation: string, options: { runn
       }
       throw new Error('Setup needs input at ' + question.title + '. Resume from /llmhost.')
     }, () => {}, signal)
+    if (result.registered) {
+      patchHostRecord(id, { provider })
+      linkLlmHostPod(provider, id)
+    }
     if (!result.ok || !result.registered || !result.model) throw new Error(result.words)
-    patchHostRecord(id, { provider })
     mark('ready')
     const record = patchHostRecord(id, { jobState: 'ready' })!
-    hostNotice(record, 'ready', recipe.label + ' is ready on ' + result.model + ' · $' + (record.price * Math.max(0, Date.now() - Date.parse(record.startedAt)) / 3600_000).toFixed(2) + ' so far (estimate; storage extra)')
+    hostNotice(record, 'ready', hostReadyWords(recipe.label, result.model, record))
     if (options.keepAlive !== false) while (!signal.aborted) {
       await delay(pause, undefined, { signal })
       const observed = readHostRecord(id)

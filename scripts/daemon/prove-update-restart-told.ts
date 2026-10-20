@@ -68,7 +68,7 @@ for (const d of [home, daemonDir, work, builds]) mkdirSync(d, { recursive: true 
 writeFileSync(watchedLog, '')
 
 process.env.MERCURY_CONFIG_DIR = home
-process.env.MERCURY_DAEMON_DIR = daemonDir
+process.env.MERCURY_DAEMON_DIR = '../daemon'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 for (const k of [
   'MERCURY_HOME',
@@ -269,7 +269,7 @@ const daemonEnv: NodeJS.ProcessEnv = {
   ...process.env,
   HOME: home,
   MERCURY_CONFIG_DIR: home,
-  MERCURY_DAEMON_DIR: daemonDir,
+  MERCURY_DAEMON_DIR: '../daemon',
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_DAEMON_PERMISSION_MODE: 'sovereign',
   MERCURY_OPERATOR: 'sam',
@@ -459,7 +459,7 @@ try {
   await askFactsFor(4500)
   check('a pointer that moves away and back within the confirmation window tells nothing', behindCount().receipts === 0 && behindCount().transcript === 0, JSON.stringify(behindCount()))
   pointBoth('Y')
-  const expectedBehindLine = `A newer Mercury build is installed (${SHORT_Y}) · this session still runs ${SHORT_X} · /restart moves it (watches and background shells end and are named)`
+  const expectedBehindLine = `A newer Mercury build is installed (${SHORT_Y}). This chat still uses ${SHORT_X}. /restart switches to it; watches and background shells will stop and be listed.`
   const gotBehind = await untilAsync(
     async () => {
       await askFacts(sid)
@@ -475,7 +475,7 @@ try {
   section('§2b field: source builds refuse, and current runner facts win without a worker record')
   for (const [name, buildTree, words] of [
     ['source-only', null, 'this session runs a source build; /restart moves installed builds only'],
-    ['current-only', SHORT_Y, 'already runs the installed build'],
+    ['current-only', SHORT_Y, 'already uses the installed Mercury build'],
   ] as const) {
     const fakeSid = 'field-' + name
     writeFileSync(join(daemonDir, 'session-facts', fakeSid + '.json'), JSON.stringify({ schema: 1, sessionId: fakeSid, model: { effective: 'fixture' }, usage: {}, queue: [], buildTree }))
@@ -528,7 +528,7 @@ try {
   const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
   const painted = await renderToAnsiString(React.createElement(AppStateProvider, { initialState: getDefaultAppState() }, React.createElement(SystemTextMessage, { addMargin: false, message: notice as never, verbose: false })), 100)
   const paintedFlat = painted.replace(/\s+/g, ' ')
-  check('notice words and /restart paint without ctrl+o', paintedFlat.includes(BEHIND_WORDS) && paintedFlat.includes('/restart moves it') && !paintedFlat.includes('1 line ›'), painted)
+  check('notice words and /restart paint without ctrl+o', paintedFlat.includes(BEHIND_WORDS) && paintedFlat.includes('/restart switches to it') && !paintedFlat.includes('1 line ›'), painted)
 
   section('§3 /restart names what ends before the stop and lands the session on the installed build through the existing doors')
   const told: Array<{ line: string; oldRunnerAlive: boolean; daemonCount: number }> = []
@@ -538,7 +538,7 @@ try {
   const midTurn = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: true, work: [], tell, resume: resumeAsTheScreenDoes })
   check(
     '/restart refuses while a turn is running and touches nothing',
-    !midTurn.ok && /mid-turn/.test(midTurn.reason) && midTurn.reason.includes('wait for the turn to finish') && !midTurn.reason.includes('esc') && told.length === 0 && recOf(sid)?.pid === pidBefore && isProcessAlive(pidBefore) && daemonPids().length === 1,
+    !midTurn.ok && /still working.*Press esc/.test(midTurn.reason) && told.length === 0 && recOf(sid)?.pid === pidBefore && isProcessAlive(pidBefore) && daemonPids().length === 1,
     JSON.stringify({ midTurn, pid: recOf(sid)?.pid, daemons: daemonPids() }),
   )
   const workRows = facts(sid)?.work ?? []
@@ -585,15 +585,15 @@ try {
   check(
     'the session receipt carries the update line naming the build, the ended watch and shell with their commands, and the re-arm',
     gotUpdateReceipt &&
-      updateSummary.includes("· this session's runner restarted · ended by the restart:") &&
+      updateSummary.includes("· this chat restarted · ended by the restart:") &&
       updateSummary.includes(`Monitor «${WATCH_NAME}» (${WATCH_CMD_SHOWN})`) &&
       updateSummary.includes(`background shell «${shellTaskId}» "${SHELL_DESC}" (${SHELL_CMD})`) &&
-      updateSummary.includes('(2) · re-arm what you still want') &&
+      updateSummary.includes('(2) · restart any watches or background commands you still need') &&
       !updateSummary.includes(SECRET),
     updateSummary,
   )
   const again = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: false, work: [], tell: () => {}, resume: resumeAsTheScreenDoes })
-  check('a second /restart says the session already runs the installed build and moves nothing', !again.ok && again.reason.includes('already runs the installed build') && recOf(sid)?.pid === pidAfter, JSON.stringify(again))
+  check('a second /restart says the session already runs the installed build and moves nothing', !again.ok && again.reason.includes('already uses the installed Mercury build') && recOf(sid)?.pid === pidAfter, JSON.stringify(again))
   const afterTurn = await dispatch('urt-after', AFTER_PROMPT, { targetSessionId: sid })
   check('post-restart prompt dispatched', afterTurn.ok === true, JSON.stringify(afterTurn))
   check(
@@ -609,12 +609,12 @@ try {
   )
   check(
     'the ended shell is named with its command and its kept output file, which still stands',
-    newTurnContextText.includes(`[Background shell ${shellTaskId} \\"${SHELL_DESC}\\" did not survive the runner's restart after an update`) &&
+    newTurnContextText.includes(`[Background shell ${shellTaskId} \\"${SHELL_DESC}\\" did not survive the session's restart after an update`) &&
       newTurnContextText.includes(`what it printed until then stays in ${shellOutput}`) &&
       existsSync(shellOutput),
     newTurnContextText.slice(-900),
   )
-  const watchLineAt = newTurnContextText.indexOf(`[Monitor \\"${WATCH_NAME}\\" (task ${monitorTaskId}) did not survive the runner's restart after an update`)
+  const watchLineAt = newTurnContextText.indexOf(`[Monitor \\"${WATCH_NAME}\\" (task ${monitorTaskId}) did not survive the session's restart after an update`)
   check(
     'the ended watch is named with the update reason and its redacted command',
     watchLineAt !== -1 && newTurnContextText.slice(watchLineAt, watchLineAt + 600).includes('token=[redacted]') && !newTurnContextText.slice(watchLineAt, watchLineAt + 600).includes(SECRET),
@@ -672,9 +672,9 @@ try {
   check(
     'the revived runner names the re-armed watch as ended around an update, and its chat line says the cause is not known',
     endedContext.includes(`[Monitor \\"${WATCH2_NAME}\\"`) &&
-      endedContext.includes("did not survive the runner's restart after it ended around an update") &&
-      endedContext.includes(`This session's runner ended with its daemon around an update to ${SHORT_Z} — the cause is not known`) &&
-      readSessionReceipts(projectDir, sid).some(r => r.kind === 'runner-restart' && r.summary.startsWith("This session's runner ended with its daemon around an update")),
+      endedContext.includes("did not survive the session's restart after it ended around an update") &&
+      endedContext.includes(`This chat's process ended around an update to ${SHORT_Z} — the cause is not known`) &&
+      readSessionReceipts(projectDir, sid).some(r => r.kind === 'runner-restart' && r.summary.startsWith("This chat's process ended around an update")),
     endedContext.slice(-900),
   )
   check(

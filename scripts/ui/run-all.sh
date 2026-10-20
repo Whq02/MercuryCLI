@@ -36,6 +36,7 @@
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/queuedNotices.ts src/tasks/LocalAgentTask/LocalAgentTask.tsx src/input-core/command-queue.ts
 # gate-watch: src/Tool.ts src/types/message.ts src/tools/BashTool/BashTool.tsx src/tasks/LocalShellTask/LocalShellTask.tsx
 # gate-watch: scripts/ui/fixtures/shell-live-tail/*
+# gate-watch: scripts/host/runpodFixture.mjs scripts/providers/lib/llmhostFixture.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

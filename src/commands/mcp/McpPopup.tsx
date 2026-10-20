@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
@@ -20,7 +20,7 @@ import { useSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { PopupFrameContext } from '../../components/PopupGutter.js'
 import { estateGroundBg } from '../../utils/mercuryTokens.js'
-import type { CommandPopupShape } from '../../utils/cockpit/commandPopup.js'
+import { commandPopupClaim, growCommandPopup, type CommandPopupShape } from '../../utils/cockpit/commandPopup.js'
 import { wrapPlain } from '../../utils/cockpit/helmConsoleText.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
 
@@ -28,7 +28,7 @@ const subscribe = subscribeThroughFocused((connector, listener) => connector.sub
 const WIDTH = 78
 const MCP_POPUP_HINT = '↑↓ move · ↵ act · / filter · esc or click outside closes'
 const MCP_TOOLS_HINT = '↑↓ move · ↵ detail · / filter · esc back to servers'
-const MCP_DETAIL_HINT = '↑↓ scroll · esc back to tools'
+const MCP_DETAIL_HINT = '↑↓ scroll · pgup/pgdn page · esc back to tools'
 const MCP_TOOL_LOADING_WORDS: Record<McpToolEntryV1['loading'], string> = {
   deferred: 'deferred · schema loads on demand',
   listed: 'always loaded',
@@ -124,6 +124,14 @@ function mcpToolDetailLines(tool: McpToolEntryV1, width: number): DetailLine[] {
   return lines
 }
 
+function mcpToolsFailureWords(server: string, detail: string): string {
+  if (/older|too old/i.test(detail)) return 'This Mercury background process is too old to list tools. Update Mercury. Run /restart, then open /mcp again.'
+  if (/not connected/i.test(detail)) return `The MCP server '${inertLine(server)}' is not connected. Reconnect it from the servers list, then open tools again.`
+  if (/no chat is open/i.test(detail)) return 'No chat is open. Choose New Session from the boot menu, then open /mcp.'
+  const text = inert(detail).trim()
+  return text ? text[0]!.toUpperCase() + text.slice(1) + (/[.!?]$/.test(text) ? '' : '.') : 'The tool list is unavailable. Return to the servers list and reconnect.'
+}
+
 export function mcpServerState(server: McpRosterEntryV1): string {
   if (server.signingIn) return 'signing in… (browser)'
   if (server.type === 'needs-auth') return 'needs sign-in'
@@ -170,6 +178,11 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
   const [listing, setListing] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [toolView, setToolView] = useState<ToolViewState | null>(null)
+  const popupToken = useRef(commandPopupClaim()?.token)
+  const browsingTools = toolView !== null
+  useLayoutEffect(() => {
+    if (browsingTools && popupToken.current !== undefined) growCommandPopup(popupToken.current, 26)
+  }, [browsingTools])
   const [toolCursor, setToolCursor] = useState(0)
   const [toolFilter, setToolFilter] = useState('')
   const [toolFilterFocus, setToolFilterFocus] = useState(false)
@@ -227,7 +240,7 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
       try {
         const result = await connector.mcpTools(server.name)
         if (alive.current) {
-          const reason = result.state === 'connected' ? null : result.detail ?? mcpServerState(server)
+          const reason = result.state === 'connected' ? null : mcpToolsFailureWords(server.name, result.detail ?? `The server is ${result.state}`)
           toolFilterFocusRef.current = false
           setToolView({ server: server.name, tools: reason === null ? result.tools : [], omitted: reason === null ? result.omitted : 0, reason, tool: null })
           setDetailScroll(0)

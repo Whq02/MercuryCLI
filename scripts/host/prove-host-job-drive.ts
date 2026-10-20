@@ -135,7 +135,7 @@ try {
   resetCommandQueue(); deliverHostNotices('other-session')
   check('notice is addressed to the renting session, not the focused stranger', getCommandQueue().length === 0)
   deliverHostNotices('rental-session')
-  check('ready notice reaches the session completion channel', getCommandQueue().some(row => row.mode === 'task-notification' && String(row.value).includes('is ready on compat/' + ready.provider) && String(row.value).includes('so far')))
+  check('ready notice reaches the session completion channel', getCommandQueue().some(row => row.mode === 'task-notification' && String(row.value).includes('is ready') && String(row.value).includes('/model compat/' + ready.provider + '/') && String(row.value).includes('so far')))
   deliverHostNotices('rental-session'); check('one ready notice, not one per popup open', getCommandQueue().length === 1)
   open(); await screen('Where should the model run?'); await choose(id); await screen('ready'); await capture('02-ready')
   await choose('Stop ·'); await screen('Confirm stop'); check('Stop has a separate confirmation', rp.state.stops === 0)

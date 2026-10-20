@@ -174,8 +174,8 @@ try {
       { awaitText: ['runpod · connected'], afterPrevMs: 500, text: '\r' },
       { awaitText: ['runpod · connected', '3 tools', '  tools', '  disable for this session'], afterPrevMs: 500, text: '\x1b[B\r' },
       { awaitText: ['Mercury · mcp · runpod', 'inspect_cluster · Inspect cluster nodes', 'purge_queue · Remove all pending jobs', 'fleet_report · Report on every pod'], afterPrevMs: 500, text: '\r' },
-      { awaitText: ['Mercury · mcp · runpod · inspect_cluster', 'Inspect cluster nodes and interconnect health.', 'Parameters', 'clusterId', 'placement', '↓ 2 more'], afterPrevMs: 500, text: '\x1b[F' },
-      { awaitText: ['Mercury · mcp · runpod · inspect_cluster', 'regionCode', 'gpuCountPerPod', '↑ 2 more'], afterPrevMs: 500, text: '\x1b' },
+      { awaitText: ['Mercury · mcp · runpod · inspect_cluster', 'Inspect cluster nodes and interconnect health.', 'Parameters', 'clusterId', 'placement', 'regionCode', 'gpuCountPerPod'], afterPrevMs: 500, text: '\x1b[F' },
+      { awaitText: ['Mercury · mcp · runpod · inspect_cluster', 'regionCode', 'gpuCountPerPod', 'esc back to tools'], afterPrevMs: 500, text: '\x1b' },
       { awaitText: ['Mercury · mcp · runpod', 'inspect_cluster · Inspect cluster nodes', 'esc back to servers'], awaitAbsent: 'Parameters', afterPrevMs: 500, text: '\x1b[B\x1b[B\r' },
       { awaitText: ['Mercury · mcp · runpod · fleet_report', 'Report on every pod', 'esc back to tools'], afterPrevMs: 500, text: '\x1b[F' },
       { awaitText: ['Mercury · mcp · runpod · fleet_report', 'metric29', 'esc back to tools'], afterPrevMs: 500, text: '\x1b' },
@@ -286,9 +286,9 @@ try {
   const heights = [step1Servers, step2Unfolded, step3ToolList, step4ToolDetail, step4ToolDetailEnd, step5BackToList, step6LongDetailTop, step7LongDetailEnd, step8BackToList, step6FilteredList, step7BackToServers].map(screen => popupFrameOf(screen))
   const [, , , , , , longTopFrame, longEndFrame] = heights
 
-  check('every view renders inside the one grant the popup opened with — mcpPopupShapeFor(serverCount): chrome 8 + one server + 3 for an unfolded server (tools · toggle · reconnect) = 12 rows', heights.every(h => h.rows === 12), JSON.stringify(heights.map(h => h.rows)))
+  check('the server view opens at 12 rows; opening tools grows the same popup to 26 and no return shrinks it', heights.slice(0, 2).every(h => h.rows === 12) && heights.slice(2).every(h => h.rows === 26), JSON.stringify(heights.map(h => h.rows)))
   check('every view keeps its way back on its last row inside its frame', heights.every(h => h.hintInside), JSON.stringify(heights))
-  check('a detail taller than its grant clamps: the fields past the frame are marked ↓, End brings them in and marks what scrolled off ↑', step4ToolDetail.includes('placement') && !step4ToolDetail.includes('regionCode') && step4ToolDetail.includes('↓ 2 more') && step4ToolDetailEnd.includes('regionCode') && step4ToolDetailEnd.includes('gpuCountPerPod') && step4ToolDetailEnd.includes('↑ 2 more'), step4ToolDetail)
+  check('the grown detail shows the complete short schema without scrolling; End preserves all its fields', ['placement', 'regionCode', 'gpuCountPerPod'].every(field => step4ToolDetail.includes(field) && step4ToolDetailEnd.includes(field)) && !step4ToolDetail.includes('↓ 2 more'), step4ToolDetail)
   check('a description far past the grant clamps the same way: the hint stays inside the frame, the rest is marked ↓', longTopFrame!.hintInside && step6LongDetailTop.includes('Report on every pod') && /↓ \d+ more/.test(step6LongDetailTop) && !step6LongDetailTop.includes('metric29'), step6LongDetailTop)
   check('End scrolls the long detail to its last field with the hint still inside the frame, the scrolled-off part marked ↑', longEndFrame!.hintInside && step7LongDetailEnd.includes('metric29') && /↑ \d+ more/.test(step7LongDetailEnd) && !step7LongDetailEnd.includes('Report on every pod'), step7LongDetailEnd)
   check("a server's description is painted inert: the injected hyperlink never reaches the terminal, its words do", step3ToolList.includes('fleet_report · Report on every pod in the fleet. Read the guide first.') && !driveText(drivePath).includes('evil.example'))

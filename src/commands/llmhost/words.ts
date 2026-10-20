@@ -1,6 +1,6 @@
 export const LLM_HOST_WORDS = {
   command: '/llmhost',
-  description: 'Run a model on a rented GPU, an SSH box, or connect a server already running',
+  description: 'Rent a GPU, use SSH, or connect a running model server',
   where: 'Where should the model run?',
   rent: 'Rent a GPU (Runpod)',
   ssh: 'A box I can reach by SSH',
@@ -104,4 +104,31 @@ export function hostWindowWords(window: number | undefined): string {
 export function hostReplyWords(model: string, reply: string, elapsedMs: number, outputTokens?: number): string {
   const seconds = Math.max(0.001, elapsedMs / 1000)
   return `${model} · ${JSON.stringify(reply)} · ${seconds.toFixed(2)} s${outputTokens === undefined ? '' : ` · ${outputTokens} output tokens · ${(outputTokens / seconds).toFixed(1)} tokens/s (whole turn)`}`
+}
+
+export function hostSetupEstimate(recipe: { engine?: string; pythonInstall?: string; install?: string; image?: string; diskGb: number; weightsGb?: number }, kept?: { check: string }): string {
+  const size = recipe.weightsGb
+  const engineMinutes = recipe.engine === 'llamacpp' && /^ghcr\.io\/whq02\/mercury-llamacpp[:@]/.test(recipe.image ?? '') ? 1 : recipe.engine === 'llamacpp' || recipe.pythonInstall ? 10 : 5
+  const engine = engineMinutes === 1 ? 'Engine from image ~1 min · no engine build' : recipe.engine === 'llamacpp' ? 'builds llama.cpp ~10 min' : recipe.pythonInstall ? 'installs SGLang ~10 min' : 'starts the engine ~5 min'
+  if (size === undefined || !Number.isFinite(size) || size <= 0) return `${engine} · downloads weights (size unknown) · loads model (time unknown). Total depends on the download; ${recipe.diskGb} GB is disk space, not download size`
+  const fast = Math.max(5, Math.ceil(size / 60 / 5) * 5)
+  const slow = Math.max(5, Math.ceil(size / 30 / 5) * 5)
+  const loadMinutes = Math.max(3, Math.ceil(size / 70))
+  const weights = kept ? `weights kept ~0 download · ${kept.check}` : `downloads ${+size.toFixed(2)} GB ~${fast}–${slow} min`
+  const total = Math.ceil((engineMinutes + (kept ? 0 : slow) + loadMinutes) / 5) * 5
+  return `${engine} · ${weights} · loads ~${loadMinutes} min · ~${total} min total (estimate at a sustained 0.5–1 GB/s; stock and network can add time)`
+}
+
+export function hostPaidPodWords(pod: { id: string; name: string; status: string; cost: number; startedAt?: string | null; createdAt: string }, record?: { step?: string; startedAt: string }, now = Date.now()): string {
+  if (pod.status === 'EXITED') return `${pod.name} · ${pod.id} · stopped · storage still bills`
+  const started = Date.parse(record?.startedAt ?? pod.startedAt ?? pod.createdAt)
+  const hours = Number.isFinite(started) ? Math.max(0, now - started) / 3600_000 : undefined
+  const cost = hours === undefined ? 'elapsed time and cost unknown' : `${Math.floor(hours * 60)} min · $${(pod.cost * hours).toFixed(2)} so far (estimate; storage extra)`
+  return `${pod.name} · ${pod.id} · ${record?.step ?? pod.status.toLowerCase()} · $${pod.cost.toFixed(2)}/hr · ${cost}`
+}
+
+export function hostReadyWords(label: string, model: string, record: { price: number; startedAt: string }): string {
+  const [, provider, ...wire] = model.split('/')
+  const hours = Math.max(0, Date.now() - Date.parse(record.startedAt)) / 3600_000
+  return `${label} is ready. In /model, choose ${wire.join('/')} under Custom endpoint · ${provider}.\nOr run /model ${model}.\n$${(record.price * hours).toFixed(2)} so far (estimate; storage extra).`
 }

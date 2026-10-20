@@ -18,14 +18,14 @@ export async function llmhostFixture(options: { model?: string } = {}) {
   for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_.*_API_KEY$/.test(key)) delete process.env[key]
   const events: any[] = []
   const captures: Array<{ path: string; body: any; auth: string | null; affinity: string | null }> = []
-  const state = { dialect: 'vllm', window: 1_048_576, slots: 1, field: 'max_model_len', mode: 'reply', auth: false, listed: true, requests: 0, thinkingValues: [] as Array<string | boolean> }
+  const state = { dialect: 'vllm', window: 1_048_576, slots: 1, field: 'max_model_len', mode: 'reply', auth: false, listed: true, requests: 0, thinkingValues: [] as Array<string | boolean>, modelIds: [options.model ?? 'Fixture/Reasoner'] }
   const model = options.model ?? 'Fixture/Reasoner'
   const key = 'proof-key-llmhost-fixture-not-a-real-key'
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
     state.requests++
     const path = new URL(req.url).pathname
     if (state.auth && req.headers.get('authorization') !== `Bearer ${key}`) return Response.json({ error: { message: 'fixture key required' } }, { status: 401 })
-    if (path === '/v1/models') return Response.json({ data: state.listed ? [{ id: model, owned_by: state.dialect, ...(state.field ? { [state.field]: state.window } : {}) }] : [] })
+    if (path === '/v1/models') return Response.json({ data: state.listed ? state.modelIds.map(id => ({ id, owned_by: state.dialect, ...(state.field ? { [state.field]: state.window } : {}) })) : [] })
     if (path === '/get_model_info' && state.dialect === 'sglang') return Response.json({ model_path: model, context_length: state.window })
     if (path === '/props' && state.dialect === 'llamacpp') return Response.json({ default_generation_settings: { n_ctx: state.window }, total_slots: state.slots })
     if (path === '/api/tags' && state.dialect === 'ollama') return Response.json({ models: [{ name: model }] })
