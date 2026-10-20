@@ -159,6 +159,19 @@ try {
     check(outcome + ' create reconciles once without claiming nothing was created', reconciled.state === 'preparing' && rp.state.volumeCreates === before)
     await volumes.deleteKeptVolume(api, reconciled.id)
   }
+  rp.state.volumeOutcomes.push('drop')
+  await assert.rejects(volumes.createKeptVolume(api, gguf, 'global', 'any DC', signal), /may exist and bill/)
+  const dropped = volumes.keptVolumes().find(row => row.model === gguf.model && row.state === 'creating')!
+  await volumes.reconcileVolumes(api, signal)
+  await assert.rejects(volumes.rentalVolume(api, gguf, signal), /may exist/)
+  check('an unanswered create that Runpod does not list yet still blocks a second create and the rental', volumes.readKeptVolume(dropped.id)?.state === 'creating' && fastLoadState(gguf).includes('may exist and bill'))
+  volumes.writeKeptVolume({ ...dropped, createdAt: new Date(Date.now() - 11 * 60_000).toISOString() })
+  await volumes.reconcileVolumes(api, signal)
+  check('ten minutes on, a create Runpod never listed is resolved and no longer blocks renting that model', volumes.readKeptVolume(dropped.id)?.state === 'gone' && volumes.readKeptVolume(dropped.id)?.error === 'Runpod never listed ' + dropped.name + '; no disk was created' && fastLoadState(gguf).startsWith('not kept') && await volumes.rentalVolume(api, gguf, signal) === undefined)
+  rp.state.volumes.set('late-volume', { id: 'late-volume', name: dropped.name, createdAt: new Date().toISOString(), kind: 'global' })
+  await volumes.reconcileVolumes(api, signal)
+  check('a disk that appears after it was given up is adopted by name and shown as billed again', volumes.readKeptVolume('late-volume')?.state === 'preparing' && !volumes.readKeptVolume(dropped.id) && volumes.volumeLabel(rp.state.volumes.get('late-volume')).includes('weights disk'))
+  await volumes.deleteKeptVolume(api, 'late-volume')
   rp.state.volumes.set('external-disk', { id: 'external-disk', name: 'External', size: 80, dataCenter: 'EU-NL-1', type: 'STANDARD', kind: 'network' })
   const deletes = rp.state.volumeDeletes
   const externalDisk = await volumeDeleteDoor(api, 'external-disk', async () => { throw new Error('External disks must not offer Delete') }, signal)

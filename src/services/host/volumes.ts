@@ -33,17 +33,19 @@ export function volumeLabel(volume: HostVolume): string {
   const amount = own ? keptDiskPrice(own) : volume.kind === 'global' ? '$0.09/GB/month + IOPS · size not reported by Runpod' : volume.type === 'STANDARD' ? '$' + networkMonthly(volume.size!).toFixed(2) + '/month' : 'monthly price depends on storage tier; see Runpod billing'
   return volume.name + ' · ' + volume.id + ' · ' + (volume.dataCenter ?? 'any DC') + ' · ' + amount + (own ? ' · weights disk' + (own.state === 'kept' ? '' : ' · ' + own.state + (own.partialBytes !== undefined ? ' · ' + gigabytes(own.partialBytes) + ' downloaded' : '')) : ' · created outside Mercury · read-only')
 }
+const pendingGraceMs = 10 * 60_000
 export async function reconcileVolumes(api: RunpodClient, signal?: AbortSignal): Promise<HostVolume[]> {
   const live = await api.volumes(signal)
   for (const record of keptVolumes()) {
-    const found = record.state === 'creating' ? live.filter(row => row.name === record.name && row.kind === record.kind) : live.filter(row => row.id === record.id && row.kind === record.kind)
+    const found = record.id.startsWith('pending-') ? live.filter(row => row.name === record.name && row.kind === record.kind) : live.filter(row => row.id === record.id && row.kind === record.kind)
     if (found.length > 1) throw new Error(record.name + ' has multiple matches in Runpod; inspect the account before retrying.')
     const row = found[0]
     if (row) {
-      const next = { ...record, id: row.id, size: row.size ?? record.size, price: row.kind === 'network' && row.size ? networkMonthly(row.size) : record.price, dataCenter: row.dataCenter ?? 'any DC', ...(record.state === 'creating' || record.state === 'gone' ? { state: 'preparing' as const, verifiedSums: undefined, error: undefined } : {}) }
+      const next = { ...record, id: row.id, size: row.size ?? record.size, price: row.kind === 'network' && row.size ? networkMonthly(row.size) : record.price, dataCenter: row.dataCenter ?? 'any DC', ...(record.state === 'creating' || record.state === 'gone' ? { state: 'preparing' as const, verifiedSums: undefined, error: undefined, partialBytes: undefined } : {}) }
       writeKeptVolume(next)
       if (record.id !== row.id) removeRecord(record.id)
-    } else if (record.state !== 'creating' && record.state !== 'gone') writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined })
+    } else if (record.state === 'creating' && Date.now() - Date.parse(record.createdAt) >= pendingGraceMs) writeKeptVolume({ ...record, state: 'gone', error: 'Runpod never listed ' + record.name + '; no disk was created' })
+    else if (record.state !== 'creating' && record.state !== 'gone') writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined, error: undefined, partialBytes: undefined })
   }
   return live
 }
@@ -84,7 +86,7 @@ export async function deleteKeptVolume(api: RunpodClient, id: string): Promise<v
   if (!record || record.state === 'creating') throw new Error('This volume was created outside Mercury or its identity is not yet confirmed; it is read-only.')
   await api.deleteVolume(record.kind, id)
   if ((await api.volumes()).some(row => row.id === id)) throw new Error('Runpod still lists the disk; deletion is not yet verified and storage may still bill.')
-  writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined })
+  writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined, error: undefined, partialBytes: undefined })
 }
 export function fastLoadEstimate(recipe: HostRecipe, volume?: KeptVolume): string {
   return (recipe.install ? 'builds the engine ~10 min' : 'image pull ~1 min') + ' · ' + (volume?.state === 'kept' ? 'weights kept ~0 download · ' + (volume.verifiedSums?.sampleManifestSha256 ? 'sampled check' : 'full check ' + fullCheckMinutes(recipe.weightsGb)) : 'weights ~' + Math.max(1, Math.ceil(recipe.weightsGb / 60)) + ' min at 1 GB/s') + ' · load ~3 min'

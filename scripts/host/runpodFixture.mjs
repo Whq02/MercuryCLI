@@ -55,6 +55,7 @@ export async function runpodFixture() {
       if (req.method === 'POST') {
         const outcome = state.volumeOutcomes.shift()
         if (outcome === 'refuse') return problem(422, 'Unprocessable Entity', 'fixture volume refusal')
+        if (outcome === 'drop') return req.socket.destroy()
         state.volumeCreates++; state.volumeBodies.push(body)
         assert.deepEqual(Object.keys(body).sort(), kind === 'network' ? ['dataCenter', 'name', 'size', 'type'] : ['name'])
         if (kind === 'network') { assert.equal(body.type, 'STANDARD'); assert.ok(body.size >= 10); assert.ok(['EU-NL-1', 'US-CA-2'].includes(body.dataCenter)) }

@@ -18,7 +18,7 @@ export const fastLoadRecipes = (): HostRecipe[] => [...new Map(currentHostRecipe
 export function fastLoadState(recipe: HostRecipe): string {
   const row = keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone') ?? keptVolumes().find(row => matchesVolume(row, recipe))
   if (!row) return 'not kept'
-  if (row.state === 'gone') return 'not kept · disk gone'
+  if (row.state === 'gone') return 'not kept · ' + (row.error ?? 'disk gone')
   if (row.state === 'creating') return 'preparing · create answer unclear; disk may exist and bill'
   if (row.state === 'kept') return 'kept on ' + row.id + ' in ' + row.dataCenter + ' since ' + row.createdAt.slice(0, 10) + ' · ' + volumePrice(row) + (row.verifiedSums?.check ? ' · ' + row.verifiedSums.check + ' check passed' : '') + (row.verifiedSums?.sampleManifestSha256 ? '' : ' · next check is full ' + fullCheckMinutes(recipe.weightsGb))
   if (row.state === 'failed') return 'failed · ' + row.id + ' in ' + row.dataCenter + ' · ' + keptDiskPrice(row) + (row.error ? ' · ' + row.error : '') + ' · the next rental downloads again'
