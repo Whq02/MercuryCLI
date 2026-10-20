@@ -619,8 +619,8 @@ export async function* compatChatCallModel(
       if (refreshed) credential = refreshed
       if (profile.dialect === 'llamacpp') {
         const slot = makeRequestExtra().id_slot
-        if (typeof slot === 'number') request.extra = { ...request.extra, id_slot: slot }
-        else if (request.extra) delete request.extra.id_slot
+        if (typeof slot === 'number') request.extra = { ...request.extra, id_slot: slot, cache_prompt: true }
+        else if (request.extra) { delete request.extra.id_slot; delete request.extra.cache_prompt }
       }
     }
     attemptStartedAtMs = Date.now()
