@@ -7,7 +7,7 @@ import { hostRunner, inspectBoxMachine, inspectSsh, type HostRunner, type SshTar
 
 export const boxNameSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,27}$/)
 const engineKind = z.enum(['ollama', 'llamacpp', 'lmstudio', 'vllm', 'sglang'])
-export const boxSchema = z.object({
+const boxSchema = z.object({
   name: boxNameSchema,
   kind: z.enum(['this-computer', 'ssh']),
   target: z.object({ host: z.string(), user: z.string().optional(), key: z.string().optional(), port: z.number().int().min(1).max(65535).optional() }).optional(),
@@ -19,7 +19,7 @@ export const boxSchema = z.object({
   bankPaths: z.array(z.string()), discoveredAt: z.string(),
 }).refine(box => box.kind === 'this-computer' ? !box.target : Boolean(box.target), 'SSH boxes require a target; this computer has none')
 export type HostBox = z.infer<typeof boxSchema>
-export type BoxInput = { name: string; kind: HostBox['kind']; target?: SshTarget; os?: HostBox['os'] }
+type BoxInput = { name: string; kind: HostBox['kind']; target?: SshTarget; os?: HostBox['os'] }
 
 function boxPath(name: string): string {
   boxNameSchema.parse(name)

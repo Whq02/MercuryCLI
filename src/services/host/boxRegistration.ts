@@ -8,11 +8,11 @@ import { psQuote, shQuote } from './boxExecution.js'
 import { boxServiceRunning, controlBoxService, installBoxService, readBoxService, writeBoxService, type BoxServiceRecord } from './boxService.js'
 import { hostRunner, sshArguments, type HostRunner } from './ssh.js'
 
-export function boxTunnelHome(box: HostBox): HostBox {
+function boxTunnelHome(box: HostBox): HostBox {
   const os = process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'darwin' : 'linux'
   return { name: 'link-' + createHash('sha256').update(box.name).digest('hex').slice(0, 20), kind: 'this-computer', os, home: homedir(), arch: arch(), uid: process.getuid?.(), memoryGb: totalmem() / 1024 ** 3, unifiedMemory: os === 'darwin' && arch() === 'arm64', gpus: [], engines: [], bankPaths: [], discoveredAt: new Date().toISOString() }
 }
-export function boxTunnelScript(box: HostBox, record: BoxServiceRecord, local: HostBox): string {
+function boxTunnelScript(box: HostBox, record: BoxServiceRecord, local: HostBox): string {
   if (!box.target || !record.localPort) throw new Error('A remote computer and a local tunnel port are required.')
   const args = ['-N', '-o', 'ExitOnForwardFailure=yes', '-o', 'ServerAliveInterval=30', '-o', 'ServerAliveCountMax=3', '-L', '127.0.0.1:' + record.localPort + ':127.0.0.1:' + record.port, ...sshArguments(box.target)]
   return local.os === 'windows' ? "$ErrorActionPreference='Stop'\n& ssh.exe " + args.map(psQuote).join(' ') + '\nexit $LASTEXITCODE\n' : 'exec ssh ' + args.map(shQuote).join(' ') + '\n'

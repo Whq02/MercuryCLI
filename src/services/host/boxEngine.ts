@@ -6,7 +6,7 @@ import { sealDownloadedBank, verifyBoxBank } from './boxBank.js'
 import { boxServiceFiles, boxServiceRunning, controlBoxService, installBoxService, readBoxService, writeBoxService, type BoxServiceRecord } from './boxService.js'
 import { hostRunner, type HostRunner } from './ssh.js'
 
-export interface BoxStartOptions { runner?: HostRunner; signal?: AbortSignal; timeoutMs?: number; pauseMs?: number; port?: number; bank: boolean; destination: string; confirmed: boolean }
+interface BoxStartOptions { runner?: HostRunner; signal?: AbortSignal; timeoutMs?: number; pauseMs?: number; port?: number; bank: boolean; destination: string; confirmed: boolean }
 export function boxEngineScript(box: HostBox, recipe: BoxRecipe, executable: string, destination: string, port: number, loadModel = true): string {
   const env: Record<string, string> = recipe.engine === 'ollama' ? { OLLAMA_HOST: '127.0.0.1:' + port, OLLAMA_MODELS: destination, OLLAMA_KEEP_ALIVE: '-1', ...(recipe.contextPerSlot ? { OLLAMA_CONTEXT_LENGTH: String(recipe.contextPerSlot) } : {}) } : {}
   const args = recipe.engine === 'ollama' ? ['serve'] : ['--model', boxJoin(box, destination, recipe.files![0]!), '--alias', recipe.model, '--host', '127.0.0.1', '--port', String(port), '--jinja', '--n-gpu-layers', 'all', '--ctx-size', String(recipe.contextPerSlot! * (recipe.slots ?? 1)), '--parallel', String(recipe.slots ?? 1), '--flash-attn', 'on', '--cache-type-k', 'q8_0', '--cache-type-v', 'q8_0', '--metrics']
@@ -41,7 +41,7 @@ async function engineBinary(box: HostBox, recipe: BoxRecipe, runner: HostRunner,
   await runBoxScript(box, script, runner, signal, 60 * 60_000)
   return source + '/build/bin/llama-server'
 }
-export async function boxHttp(box: HostBox, port: number, path: string, runner: HostRunner, signal: AbortSignal): Promise<unknown> {
+async function boxHttp(box: HostBox, port: number, path: string, runner: HostRunner, signal: AbortSignal): Promise<unknown> {
   const url = 'http://127.0.0.1:' + port + path
   const text = await runBoxScript(box, box.os === 'windows' ? '[Text.Encoding]::UTF8.GetString((Invoke-WebRequest -UseBasicParsing -Uri ' + psQuote(url) + ' -TimeoutSec 5).RawContentStream.ToArray())' : 'curl -fsS --max-time 5 ' + shQuote(url), runner, signal, 10_000)
   return JSON.parse(text)
