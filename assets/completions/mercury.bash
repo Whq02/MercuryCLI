@@ -2,7 +2,7 @@ _mercury_completions() {
   local cur prev
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[1]}"
-  local subcommands="acp auth bridge daemon extensions godot health help image install lsp mcp models roster run runner sessions update upgrade usage version"
+  local subcommands="acp auth bridge daemon extensions godot health help host image install lsp mcp models roster run runner sessions update upgrade usage version"
   local root_opts="--advise --agent --agent-defs --allow-sovereign --allowed-tools --backup-model --block-tools --brief --brief-add --budget --chat --concourse-off --concourse-on --config --config-layers --continue --debug --effort --ephemeral --extension --fork --format --help --input --lean --log-file --max-time --mcp --mode --model --multiplex --no-commands --only-mcp --partial --pr --project --provider-preview --resume --schema --session-id --sovereign --title --toolset --version --worktree"
   case "$prev" in
     acp)
@@ -35,6 +35,10 @@ _mercury_completions() {
       ;;
     help)
       COMPREPLY=( $(compgen -W "--help" -- "$cur") )
+      return 0
+      ;;
+    host)
+      COMPREPLY=( $(compgen -W "--download --os --ssh --yes" -- "$cur") )
       return 0
       ;;
     image)
