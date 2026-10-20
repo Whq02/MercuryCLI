@@ -401,15 +401,18 @@ export function primeXaiDiscovery(io?: DiscoveryIo): XaiDiscovery | null {
 function probeCompat(io: DiscoveryIo): CompatDiscovery {
   const {
     configuredCompatEndpoints,
+     isCompatEndpointCredentialed,
+    resolveCompatAccount,
     resolveCompatApiKey,
   } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
-  const endpoints = configuredCompatEndpoints(io.env as NodeJS.ProcessEnv)
-  const config = endpoints[0]
+  const env = io.env as NodeJS.ProcessEnv
+  const endpoints = configuredCompatEndpoints(env)
+  const config = endpoints.find(entry => isCompatEndpointCredentialed(entry, env)) ?? endpoints[0]
   const key = config ? resolveCompatApiKey(io.env, config.name) : undefined
   return {
     provider: 'openai-compat',
     probedAtMs: io.now(),
-    configured: config !== undefined,
+    configured: resolveCompatAccount(env) !== undefined,
     keyPresent: key !== undefined,
     ...(key ? { keySource: key.source } : {}),
     ...(config ? { label: config.label } : {}),

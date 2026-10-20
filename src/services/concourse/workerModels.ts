@@ -37,9 +37,19 @@ export interface WorkerRegistryReads {
 const WORKER_MODEL_LEGACY_KEY_NAMES = new Set(['opus', 'sonnet', 'fable', 'fable51'])
 
 const LOGINS_FAMILY_WORDS = new Set(['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'])
-export function loginsActionFor(family: string): string {
+export function loginsActionFor(family: string, modelId?: string): string {
   if (LOGINS_FAMILY_WORDS.has(family)) return `ask the operator to run /logins ${family}`
-  if (family === 'openai-compat') return 'ask the operator to set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY if the endpoint needs one)'
+  if (family === 'openai-compat') {
+    try {
+      const { compatKeyEnvName, compatRefusalEndpointName } =
+        require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')
+      const endpoint = compatRefusalEndpointName(modelId)
+      if (endpoint !== undefined) {
+        return `the endpoint '${endpoint}' needs a key: /logins compat/${endpoint} (or set ${compatKeyEnvName(endpoint)})`
+      }
+    } catch {}
+    return 'ask the operator to set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY if the endpoint needs one)'
+  }
   if (family === 'local') return 'ask the operator to start a local server, or set MERCURY_LOCAL_BASE_URL'
   return 'ask the operator to run /logins'
 }
@@ -84,8 +94,8 @@ function familySeatSetting(family: string): string | undefined {
   return seatFamilyChoices().find(c => c.family === family)?.setting
 }
 
-export function noCredentialAction(family: string): string {
-  const door = loginsActionFor(family)
+export function noCredentialAction(family: string, modelId?: string): string {
+  const door = loginsActionFor(family, modelId)
   const other = seatFamilyChoices().find(c => c.family !== family)
   if (other === undefined) return door
   let name = other.family
@@ -166,7 +176,14 @@ function composeArms(
     }
     return { session: refused, crew: refused }
   }
-  const credentialed = credentials.get(route) === true
+  const credentialed =
+    route === 'openai-compat'
+      ? (require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')).isCompatModelCredentialed(modelId)
+      : credentials.get(route) === true
+  const compatEndpoint =
+    !credentialed && route === 'openai-compat'
+      ? (require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')).compatRefusalEndpointName(modelId)
+      : undefined
   const session: WorkerArmAvailabilityV1 = credentialed
     ? { availability: 'available' }
     : route === 'local'
@@ -179,8 +196,11 @@ function composeArms(
       : {
           availability: 'refused',
           refusal: `no-credential:${route}`,
-          detail: `the ${route} family holds no credential on this account`,
-          action: noCredentialAction(route),
+          detail:
+            compatEndpoint !== undefined
+              ? `the endpoint '${compatEndpoint}' (${route} family) holds no credential on this account`
+              : `the ${route} family holds no credential on this account`,
+          action: noCredentialAction(route, modelId),
         }
   return { session, crew: session }
 }
@@ -389,39 +409,23 @@ export async function validateWorkerModelChoice(
         }
       }
       const credentials = await readCredentialPresences()
-      if (credentials.get(route) === true) {
-        const arms = composeArms(id, credentials, route)
-        const synthesized: WorkerModelEntryV1 = {
-          modelId: id,
-          displayName: id,
-          ...arms,
-          ...(arms.session.availability === 'available' ? ({ effort: 'high' } as const) : {}),
-        }
-        const verdict = synthesized[arm]
-        if (verdict.availability !== 'available') {
-          return {
-            ok: false,
-            reason: verdict.refusal,
-            ...(verdict.detail !== undefined ? { detail: verdict.detail } : {}),
-            ...(verdict.action !== undefined ? { action: verdict.action } : {}),
-          }
-        }
-        return { ok: true, entry: synthesized }
-      }
-      if (route === 'local') {
+      const arms = composeArms(id, credentials, route)
+      const verdict = arms[arm]
+      if (verdict.availability !== 'available') {
         return {
           ok: false,
-          reason: 'unreachable:local',
-          detail: 'no local server is discovered on this box',
-          action: loginsActionFor(route),
+          reason: verdict.refusal,
+          ...(verdict.detail !== undefined ? { detail: verdict.detail } : {}),
+          ...(verdict.action !== undefined ? { action: verdict.action } : {}),
         }
       }
-      return {
-        ok: false,
-        reason: `no-credential:${route}`,
-        detail: `the ${route} family holds no credential on this account`,
-        action: noCredentialAction(route),
+      const synthesized: WorkerModelEntryV1 = {
+        modelId: id,
+        displayName: id,
+        ...arms,
+        ...(arms.session.availability === 'available' ? ({ effort: 'high' } as const) : {}),
       }
+      return { ok: true, entry: synthesized }
     }
   }
   const verdict = entry[arm]

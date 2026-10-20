@@ -1,6 +1,7 @@
 import { getCachedProviderDiscovery, primeCompatDiscovery } from '../providerDiscovery.js'
 import {
   compatSlotModelIds,
+  resolveCompatAccount,
   resolveCompatSlotConfig,
 } from './compatAccounts.js'
 import { stripCompatModelPrefix } from '../routeLaw.js'
@@ -33,6 +34,7 @@ function compatSlotCatalogue(): readonly ProviderCatalogueEntry[] {
 function describeCompatProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('openai-compat')
   const record = discovery?.provider === 'openai-compat' ? discovery : undefined
+  const account = record?.configured ? resolveCompatAccount() : undefined
   const label = record?.label ?? resolveCompatSlotConfig()?.label ?? 'Custom endpoint'
   return {
     transport: 'openai-compat-chat-completions',
@@ -40,7 +42,7 @@ function describeCompatProvider(): ProviderDescription {
     roles: ALL_ROLES,
     account: !record?.configured
       ? { kind: 'none', label: 'no endpoint configured (MERCURY_COMPAT_BASE_URL)' }
-      : record.keyPresent
+      : account ?? (record.keyPresent
         ? {
             kind: 'api-key',
             label:
@@ -48,7 +50,7 @@ function describeCompatProvider(): ProviderDescription {
                 ? `${label} — API key (stored, auth-scoped)`
                 : `${label} — MERCURY_COMPAT_API_KEY (env)`,
           }
-        : { kind: 'keyless', label: `${label} — no key (local/auth-free endpoint)` },
+        : { kind: 'keyless', label: `${label} — no key (local/auth-free endpoint)` }),
     catalogue: compatSlotCatalogue(),
     catalogueSource: 'static-pin',
   }
