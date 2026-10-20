@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -50,32 +50,38 @@ const bashOf = (body: unknown): ToolRow | undefined => toolsOf(body).find(tool =
 const propertiesOf = (schema: unknown): string[] => Object.keys((schema as { properties?: Record<string, unknown> } | null)?.properties ?? {})
 
 function buildOldDist(version: string): string {
-  const spellings = ['5107b4f082', 'v1.0.0-beta.39']
-  const sha = spellings.find(spelling => spawnSync('git', ['rev-parse', '--verify', '--quiet', `${spelling}^{commit}`], { cwd: root }).status === 0)
-  if (sha === undefined) throw new Error(`no 1.0.0-beta.39 tree on ${spellings.join(' / ')}; pass --old-dist <a bundle whose Bash tool still declares ${RETIRED}>`)
   const tree = join(scratch, 'old-tree')
   mkdirSync(tree)
-  const archive = spawnSync('git', ['archive', sha], { cwd: root, maxBuffer: 512 * 1024 * 1024 })
-  if (archive.status !== 0) throw new Error(archive.stderr.toString())
-  const unpack = spawnSync('tar', ['-xf', '-', '-C', tree], { input: archive.stdout })
-  if (unpack.status !== 0) throw new Error(unpack.stderr.toString())
-  const modules = arg('--old-node-modules')
-  if (modules !== undefined) symlinkSync(resolve(modules), join(tree, 'node_modules'))
-  else {
-    const install = spawnSync(process.execPath, ['install', '--frozen-lockfile'], { cwd: tree, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
-    if (install.status !== 0) throw new Error(`the ${sha} tree's own dependencies did not install (pass --old-node-modules <an install of that tree> or --old-dist <its bundle>): ${(install.stdout + install.stderr).slice(-1500)}`)
+  const files = spawnSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
+  if (files.status !== 0) throw new Error(files.stderr)
+  for (const file of files.stdout.split('\0').filter(Boolean)) {
+    const target = join(tree, file)
+    mkdirSync(dirname(target), { recursive: true })
+    cpSync(join(root, file), target)
   }
+  symlinkSync(resolve(arg('--old-node-modules') ?? join(root, 'node_modules')), join(tree, 'node_modules'))
+  const bashPath = join(tree, 'src/tools/BashTool/BashTool.tsx')
+  const bash = readFileSync(bashPath, 'utf8')
+  const schemaStart = 'function buildModelSchema() {\n  return z.strictObject({'
+  if (bash.split(schemaStart).length !== 2 || bash.includes(RETIRED)) throw new Error('The predecessor fixture must add exactly one field to the current Bash schema')
+  writeFileSync(bashPath, bash.replace(schemaStart, schemaStart + '\n    ' + RETIRED + ": semanticBoolean(z.boolean().optional()).describe('An explicit, dangerous override that runs the command without sandboxing.'),"))
+  const normalizerPath = join(tree, 'src/utils/api.ts')
+  const normalizer = readFileSync(normalizerPath, 'utf8')
+  const rebuild = 'const rebuilt: Record<string, unknown> = { command, description: parsed.description }'
+  if (normalizer.split(rebuild).length !== 2) throw new Error('The predecessor fixture needs exactly one Bash input normalizer')
+  writeFileSync(normalizerPath, normalizer.replace(rebuild, rebuild + '\n      if (' + JSON.stringify(RETIRED) + ' in parsed) rebuilt[' + JSON.stringify(RETIRED) + '] = parsed[' + JSON.stringify(RETIRED) + ']'))
   const pkgPath = join(tree, 'package.json')
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version?: string }
   if (version !== '') pkg.version = version
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
   for (const name of readdirSync(join(root, 'vendor'))) {
     if (name === 'desktop' || existsSync(join(tree, 'vendor', name))) continue
-    symlinkSync(join(root, 'vendor', name), join(tree, 'vendor', name))
+    if (name === 'embed' || name === 'embed-models') cpSync(join(root, 'vendor', name), join(tree, 'vendor', name), { recursive: true, dereference: true })
+    else symlinkSync(join(root, 'vendor', name), join(tree, 'vendor', name))
   }
   const out = mkdtempSync(join(scratch, 'old-dist-'))
   const build = spawnSync('nice', ['-n', '10', process.execPath, 'run', 'build.ts'], { cwd: tree, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'build-home'), MERCURY_BUILD_OUTDIR: out }, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-  if (build.status !== 0) throw new Error(`the ${sha} tree did not build here (pass --old-node-modules <an install of that tree> or --old-dist <its bundle>): ${(build.stdout + build.stderr).slice(-1500)}`)
+  if (build.status !== 0) throw new Error('the predecessor fixture did not build: ' + (build.stdout + build.stderr).slice(-1500))
   return join(out, 'mercury.mjs')
 }
 
@@ -189,6 +195,7 @@ const handoffs = () => [handoffTurn('The note.'), handoffTurn('The note.'), hand
 
 try {
   section(`§0 the two builds: a session recorded by an earlier build, resumed by ${dist}`)
+  console.log('  The published lineage rewrites history; the scratch predecessor restores the old Bash schema field and its normalizer passthrough.')
   const newManifest = manifestOf(dist)
   const oldDist = arg('--old-dist') !== undefined ? resolve(arg('--old-dist')!) : buildOldDist(newManifest.version ?? '')
   const oldManifest = manifestOf(oldDist)
