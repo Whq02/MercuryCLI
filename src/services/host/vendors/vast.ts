@@ -29,11 +29,11 @@ const directPort = (ports: unknown): number | undefined => {
 const idSchema = z.number().int().positive()
 const offerSchema = z.object({
   id: idSchema, gpu_name: z.string(), gpu_ram: z.number().positive(), num_gpus: z.number().int().positive(), dph_total: z.number().positive(),
-  verification: z.string(), reliability2: z.number().optional(), reliability: z.number().optional(), direct_port_count: z.number(),
-  rentable: z.boolean(), rented: z.boolean(), cuda_max_good: z.number(), disk_space: z.number(), geolocation: z.string().optional(),
+  verification: z.string(), reliability2: z.number().nullable().optional(), reliability: z.number().nullable().optional(), direct_port_count: z.number(),
+  rentable: z.boolean(), rented: z.boolean(), cuda_max_good: z.number(), disk_space: z.number(), geolocation: z.string().nullable().optional(),
 })
 const instanceSchema = z.object({
-  id: idSchema, label: z.string().nullable().optional(), actual_status: z.string().nullable(), dph_total: z.number().nonnegative(), start_date: z.number().nonnegative(),
+  id: idSchema, label: z.string().nullable().optional(), actual_status: z.string().nullable().optional(), dph_total: z.number().nonnegative(), start_date: z.number().nonnegative().nullable().optional(),
   public_ipaddr: z.string().nullable().optional(), ports: z.unknown().optional(),
 })
 const keyListSchema = z.array(z.object({ key: z.string(), deleted_at: z.string().nullable().optional() }))
@@ -85,7 +85,7 @@ export class VastClient implements HostVendor {
       }, signal)
       for (const hardware of found) {
         const reliability = hardware.reliability2 ?? hardware.reliability ?? 0
-        if (hardware.verification !== 'verified' || reliability < 0.99 || reliability > 1 || (hardware.reliability !== undefined && hardware.reliability < 0.99) || hardware.direct_port_count < 1 || !hardware.rentable || hardware.rented || hardware.num_gpus !== first.count || hardware.cuda_max_good < Number(first.cuda) || hardware.disk_space < first.diskGb) continue
+        if (hardware.verification !== 'verified' || reliability < 0.99 || reliability > 1 || (hardware.reliability != null && hardware.reliability < 0.99) || hardware.direct_port_count < 1 || !hardware.rentable || hardware.rented || hardware.num_gpus !== first.count || hardware.cuda_max_good < Number(first.cuda) || hardware.disk_space < first.diskGb) continue
         const gpuId = gpuName(hardware.gpu_name)
         if (!gpuId) {
           const name = this.api.redact(hardware.gpu_name).replace(/[\p{Cc}\p{Cf}]+/gu, ' ').trim().slice(0, 48) || 'unnamed GPU'
@@ -120,10 +120,10 @@ export class VastClient implements HostVendor {
   private pod(row: z.infer<typeof instanceSchema>): HostPod {
     const host = row.public_ipaddr?.trim()
     const port = directPort(row.ports)
-    const direct = host && isIP(host) && port ? { host, port, username: 'root' } : null
+    const direct = row.actual_status === 'running' && host && isIP(host) && port ? { host, port, username: 'root' } : null
     const status = row.actual_status === 'running' ? 'RUNNING' : row.actual_status === 'stopped' ? 'EXITED' : ['exited', 'unknown', 'offline'].includes(row.actual_status ?? '') ? 'ERROR' : (row.actual_status ?? 'PENDING').toUpperCase()
-    const createdAt = new Date(row.start_date * 1000).toISOString()
-    return { id: String(row.id), name: this.api.redact(row.label ?? String(row.id)), status, cost: row.dph_total, createdAt, startedAt: createdAt, ssh: { direct } }
+    const createdAt = row.start_date != null && row.start_date > 0 ? new Date(row.start_date * 1000).toISOString() : ''
+    return { id: String(row.id), name: this.api.redact(row.label ?? String(row.id)), status, cost: row.dph_total, createdAt, startedAt: createdAt || null, ssh: { direct } }
   }
   async pods(signal?: AbortSignal): Promise<HostPod[]> {
     const page = await this.api.request('/instances/', z.object({ instances: z.array(instanceSchema), instances_found: z.number().optional(), total_instances: z.number().optional(), next_token: z.string().nullable().optional() }), 'GET', undefined, signal)
@@ -172,7 +172,9 @@ export class VastClient implements HostVendor {
       throw error
     }
     const id = String(contract)
-    return this.api.readBack(id, () => this.get(id))
+    const launchedAt = new Date().toISOString()
+    const pod = await this.api.readBack(id, () => this.get(id))
+    return pod.createdAt ? pod : { ...pod, createdAt: launchedAt }
   }
   async stop(id: string): Promise<HostPod> {
     if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Vast.ai requires a numeric instance ID.')

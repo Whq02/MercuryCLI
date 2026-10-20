@@ -123,10 +123,12 @@ export class VendorApi {
         let detail = ''
         let code = ''
         try {
-          const problem = JSON.parse(text) as { msg?: unknown; detail?: unknown; error?: { message?: unknown; code?: unknown } | string }
-          detail = String(problem.msg ?? problem.detail ?? (typeof problem.error === 'string' ? problem.error : problem.error?.message) ?? '')
+          const problem = JSON.parse(text) as { msg?: unknown; message?: unknown; detail?: unknown; error?: { message?: unknown; code?: unknown } | string }
+          detail = String(problem.msg ?? problem.message ?? problem.detail ?? (typeof problem.error === 'string' ? problem.error : problem.error?.message) ?? '')
           code = String((typeof problem.error === 'string' ? problem.error : problem.error?.code) ?? '')
-        } catch {}
+        } catch {
+          if (!/^\s*</.test(text)) detail = text
+        }
         detail = this.redact(detail).replace(/[\p{Cc}\p{Cf}]+/gu, ' ').trim().slice(0, 240)
         code = this.redact(code).replace(/[^\w./-]+/g, '').slice(0, 80)
         if (paid && !this.refusals.includes(response.status)) throw this.ambiguous(response.status)

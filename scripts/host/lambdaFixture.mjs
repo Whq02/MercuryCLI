@@ -6,7 +6,7 @@ export async function lambdaFixture() {
   const key = 'fixture-lambda-key'
   const requests = []
   const types = [type('gpu_4x_b200', 'B200 (180 GB SXM6)', 4, 1196), type('gpu_8x_b200', 'B200 (180 GB SXM6)', 8, 2392, 22528), type('gpu_1x_h100_sxm5', 'H100 (80 GB SXM5)', 1, 299, 2816)]
-  const state = { noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, keyCreates: 0, pods: new Map(), keys: [], types, bootReads: 1, createStatus: 0, holdTerminate: false, badRead: false, mismatchKey: false, retryAfter: '1', ambiguousKey: false }
+  const state = { noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, keyCreates: 0, pods: new Map(), keys: [], types, bootReads: 1, bootIp: null, createStatus: 0, holdTerminate: false, badRead: false, mismatchKey: false, retryAfter: '1', ambiguousKey: false }
   const server = createServer(async (req, res) => {
     let raw = ''
     for await (const chunk of req) raw += chunk
@@ -34,9 +34,9 @@ export async function lambdaFixture() {
       if (state.createStatus) { fail(state.createStatus, 'global/invalid-parameters', 'fixture refusal'); return }
       if (body.ssh_key_names?.length !== 1 || !state.keys.some(row => row.name === body.ssh_key_names[0]) || !regions.some(row => row.name === body.region_name)) { fail(400, 'global/invalid-parameters', 'Invalid launch arguments'); return }
       const instance_type = state.types.find(row => row.name === body.instance_type_name)
-      if (!instance_type) { fail(404, 'instance-operations/launch/resource-not-found', 'Instance type not found'); return }
+      if (!instance_type) { fail(404, 'global/object-does-not-exist', 'Instance type not found'); return }
       const id = 'lambda-' + state.creates
-      state.pods.set(id, { id, name: body.name, status: 'booting', ssh_key_names: body.ssh_key_names, file_system_names: [], region: regions[0], instance_type, first_healthy: null, actions: {}, reads: 0 })
+      state.pods.set(id, { id, name: body.name ?? null, ip: state.bootIp, status: 'booting', ssh_key_names: body.ssh_key_names, file_system_names: [], region: regions[0], instance_type, first_healthy: null, actions: {}, reads: 0 })
       if (state.ambiguousCreate === 'disconnect') { req.socket.destroy(); return }
       if (state.ambiguousCreate === 'timeout') return
       if (state.ambiguousCreate === 'malformed') { res.writeHead(200); res.end('{'); return }
@@ -44,11 +44,11 @@ export async function lambdaFixture() {
       if (state.ambiguousCreate) { fail(503, 'provider/internal-unavailable', 'Provider unavailable'); return }
       json({ data: { instance_ids: [id] } }); return
     }
-    if (path === '/api/v1/instances' && req.method === 'GET') { json({ data: [...state.pods.values()] }); return }
+    if (path === '/api/v1/instances' && req.method === 'GET') { json({ data: [...state.pods.values()], page_token: null }); return }
     if (path === '/api/v1/instance-operations/terminate' && req.method === 'POST') {
       const terminated_instances = []
       state.deletes++
-      for (const id of body.instance_ids) { const row = state.pods.get(id); if (row) { terminated_instances.push({ ...row, status: 'terminated' }); if (!state.holdTerminate) state.pods.delete(id) } }
+      for (const id of body.instance_ids) { const row = state.pods.get(id); if (row) { terminated_instances.push({ ...row, status: 'terminating', ip: row.ip ?? '127.0.0.1' }); if (!state.holdTerminate) state.pods.delete(id) } }
       json({ data: { terminated_instances } }); return
     }
     const id = path.split('/').at(-1)

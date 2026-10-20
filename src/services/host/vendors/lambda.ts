@@ -16,11 +16,11 @@ export const LAMBDA_USER_DATA = '#cloud-config\n' + JSON.stringify({
 const idSchema = z.string().regex(/^[a-zA-Z0-9_-]+$/)
 const typeSchema = z.object({
   name: z.string().min(1), gpu_description: z.string(), price_cents_per_hour: z.number().int().nonnegative(), architecture: z.string(),
-  specs: z.object({ gpus: z.number().int().positive(), storage_gib: z.number().positive() }),
+  specs: z.object({ gpus: z.number().int().nonnegative(), storage_gib: z.number().nonnegative() }),
 })
 const instanceSchema = z.object({
-  id: idSchema, name: z.string().optional(), status: z.string(), ip: z.string().optional(),
-  first_healthy: z.string().datetime({ offset: true }).nullable(), instance_type: typeSchema,
+  id: idSchema, name: z.string().nullable().optional(), status: z.string(), ip: z.string().nullable().optional(),
+  first_healthy: z.string().datetime({ offset: true }).nullable().optional(), instance_type: typeSchema,
 })
 const keySchema = z.object({ id: idSchema, name: z.string(), public_key: z.string() })
 const catalogueSchema = z.object({ data: z.record(z.string(), z.object({ instance_type: typeSchema, regions_with_capacity_available: z.array(z.object({ name: z.string().min(1) })) })) })
@@ -55,7 +55,7 @@ export class LambdaClient implements HostVendor {
     const unreadable: string[] = []
     for (const [name, entry] of Object.entries(data)) {
       const type = entry.instance_type
-      if (type.name !== name || type.architecture !== 'x86_64' || type.price_cents_per_hour <= 0) continue
+      if (type.name !== name || type.architecture !== 'x86_64' || type.price_cents_per_hour <= 0 || type.specs.gpus <= 0 || type.specs.storage_gib <= 0) continue
       const gpu = lambdaGpu(type.gpu_description)
       if (!gpu) { unreadable.push(this.api.redact(type.gpu_description).replace(/[\p{Cc}\p{Cf}]+/gu, ' ').trim().slice(0, 48) || name); continue }
       for (const recipe of recipes) {
@@ -87,8 +87,8 @@ export class LambdaClient implements HostVendor {
   private pod(row: z.infer<typeof instanceSchema>): HostPod {
     const status = row.status === 'active' ? 'RUNNING' : row.status === 'unhealthy' || row.status === 'preempted' ? 'ERROR' : row.status.toUpperCase()
     return { id: row.id, name: this.api.redact(row.name ?? row.id), status, cost: row.instance_type.price_cents_per_hour / 100,
-      createdAt: row.first_healthy ?? '', startedAt: row.first_healthy,
-      ssh: { direct: row.ip && isIP(row.ip) === 4 ? { host: row.ip, port: 22, username: 'ubuntu' } : null } }
+      createdAt: row.first_healthy ?? '', startedAt: row.first_healthy ?? null,
+      ssh: { direct: row.status === 'active' && row.ip && isIP(row.ip) === 4 ? { host: row.ip, port: 22, username: 'ubuntu' } : null } }
   }
   async pods(signal?: AbortSignal): Promise<HostPod[]> {
     const page = await this.api.request('/instances', z.object({ data: z.array(instanceSchema), page_token: z.string().nullable().optional() }), 'GET', undefined, signal)
@@ -125,7 +125,7 @@ export class LambdaClient implements HostVendor {
     const placement = this.placements.get(offer)
     if (!placement || placement.fingerprint !== JSON.stringify(offer) || !offer.dataCenter) throw new Error('Choose an unchanged regional offer returned by this Lambda client before renting.')
     if (name.length > 64) throw new Error('Lambda instance names must be 64 characters or fewer; no launch was sent.')
-    if (!isOpenSshKey(publicKey)) throw new Error('Lambda needs one OpenSSH public key.')
+    if (!isOpenSshKey(publicKey) || publicKey.trim().length > 4096) throw new Error('Lambda needs one OpenSSH public key of 4096 characters or fewer.')
     await this.api.reconcile(() => this.pods())
     const key = await this.registerKey(publicKey)
     let id: string

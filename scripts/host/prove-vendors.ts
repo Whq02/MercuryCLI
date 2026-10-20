@@ -90,7 +90,17 @@ try {
     vast.state.logUrl = 'https://example.com/log'
     check('Vast log URL is constrained rather than an arbitrary fetch', /unavailable/.test(await v.logs(p.id)))
     const stopped = await v.stop(p.id)
-    check('Vast stop maps observed stopped state and retains instance disk', stopped.status === 'EXITED' && vast.state.stops === 1 && vast.state.pods.has(Number(p.id)))
+    check('Vast stop maps observed stopped state, withholds direct SSH while stopped, and retains instance disk', stopped.status === 'EXITED' && stopped.ssh?.direct === null && vast.state.stops === 1 && vast.state.pods.has(Number(p.id)))
+    vast.state.provisioningRead = true
+    const loadingPod = await v.get(p.id)
+    check('Vast loading instance with null start_date parses cleanly and withholds direct SSH until running', loadingPod.status === 'LOADING' && loadingPod.ssh?.direct === null && loadingPod.createdAt === '')
+    vast.state.plainTextError = true
+    const plainErr = await expectFailure(() => v.pods(), /HTTP 429.*API requests too frequent: endpoint threshold=4\.5/)
+    vast.state.plainTextError = false
+    vast.state.messageOnlyError = true
+    const msgErr = await expectFailure(() => v.pods(), /HTTP 400.*Offer unavailable/)
+    vast.state.messageOnlyError = false
+    check('Vast plain-text 429 and top-level message error bodies preserve detail and redact key', !plainErr.message.includes(vast.key) && !msgErr.message.includes(vast.key))
     await v.terminate(p.id)
     check('Vast termination is verified with a list read', vast.state.deletes === 2 && !vast.state.pods.size && vast.requests.at(-1)!.path === '/api/v0/instances/')
     check('Vast watch chooses a fitting recipe at the exact price ceiling', (await v.watchOffer(b200.recipe, b200.price))?.recipe.id === b200.recipe.id && await v.watchOffer(b200.recipe, b200.price - 0.0001) === undefined)
@@ -98,7 +108,7 @@ try {
     check('Vast no-stock clears stale shapes', (await v.offers(signal())).length === 0 && v.shapes().length === 0)
     vast.state.noStock = false
     const safe = { id: 101, gpu_name: 'H200', gpu_ram: 141 * 1024, num_gpus: 1, dph_total: 2, verification: 'verified', reliability2: 0.999, direct_port_count: 1, rentable: true, rented: false, cuda_max_good: 13, disk_space: 2000 }
-    check('a 140 GiB row is 150 decimal GB and fits a 141 GB recipe: MiB are not read as GB', ((vast.state.customOffers = [{ ...safe, gpu_ram: 140 * 1024 }]), (await v.offers(signal())).some(row => row.gpuId === 'NVIDIA H200' && row.recipe.vramGb > 140)))
+    check('a 140 GiB row is 150 decimal GB and fits a 141 GB recipe: MiB are not read as GB', ((vast.state.customOffers = [{ ...safe, gpu_ram: 140 * 1024, geolocation: null, reliability: null }]), (await v.offers(signal())).some(row => row.gpuId === 'NVIDIA H200' && row.recipe.vramGb > 140)))
     for (const patch of [{ verification: 'unverified' }, { reliability2: 0.98 }, { direct_port_count: 0 }, { gpu_ram: 131 * 1024 }, { cuda_max_good: 12.9 }, { disk_space: 10 }, { rentable: false }, { rented: true }, { gpu_name: 'RTX 6000 Ada' }]) {
       vast.state.customOffers = [{ ...safe, ...patch }]
       check('Vast locally rejects unsafe or non-fitting row ' + Object.keys(patch)[0], !(await v.offers(signal())).length)
@@ -117,12 +127,14 @@ try {
     const first = regional[0]!
     check('Lambda maps documented type-list shape to one fitting offer per stocked region', regional.length === 2 && regional.every(row => row.price === 11.96 && recipeFits(row.recipe, row.gpuId, 180, 4)) && regional.map(row => row.dataCenter).join(',') === 'us-east-1,us-west-1')
     check('Lambda reads per-GPU VRAM from description, not system RAM or a guessed GPU capacity', lambdaGpu('H100 (80 GB SXM5)')?.memory === 80 && lambdaGpu('B200') === undefined)
+    lambda.state.bootIp = '127.0.0.1'
     const launched = await l.create(first, key, 'mercury-lambda')
+    lambda.state.bootIp = null
     const launch = lambda.requests.find(row => row.path.endsWith('/launch'))!
     check('Lambda registers exactly one key named mercury-host- plus the key’s fingerprint and launches with region/type/that key/cloud-init', lambda.state.keyCreates === 1 && lambda.state.keys[0]!.name === lambdaKeyName && launch.body.instance_type_name === 'gpu_4x_b200' && launch.body.region_name === first.dataCenter && launch.body.ssh_key_names.join(',') === lambdaKeyName && launch.body.user_data === LAMBDA_USER_DATA && !launch.body.file_system_names && !launch.body.image)
     const cloudInit = JSON.parse(LAMBDA_USER_DATA.split('\n').slice(1).join('\n'))
     check('Lambda cloud-init prepares writable root workspace and VM container execution', cloudInit.packages.includes('tmux') && cloudInit.packages.includes('curl') && cloudInit.runcmd.some((cmd: string[]) => cmd.join(' ') === 'chown ubuntu:ubuntu /workspace') && cloudInit.runcmd.some((cmd: string[]) => cmd.join(' ') === 'usermod -aG docker ubuntu'))
-    check('Lambda create returns the accepted instance while it boots, as Runpod’s does, with the launch time as its creation time; the worker’s own wait applies', launched.id === 'lambda-1' && launched.status === 'BOOTING' && launched.ssh?.direct === null && !Number.isNaN(Date.parse(launched.createdAt)) && lambda.requests.filter(row => row.path === '/api/v1/instances/' + launched.id).length === 1)
+    check('Lambda create returns the accepted instance while it boots, withholding direct SSH even when an IP is already assigned, with the launch time as its creation time', launched.id === 'lambda-1' && launched.status === 'BOOTING' && launched.ssh?.direct === null && !Number.isNaN(Date.parse(launched.createdAt)) && lambda.requests.filter(row => row.path === '/api/v1/instances/' + launched.id).length === 1)
     const active = await l.get(launched.id)
     check('a later read maps active to RUNNING with ubuntu SSH on port 22, the first-healthy time and the whole-instance cost', active.status === 'RUNNING' && active.ssh?.direct?.username === 'ubuntu' && active.ssh.direct.port === 22 && active.ssh.direct.host === '127.0.0.1' && active.cost === 11.96 && active.startedAt === '2026-10-20T09:00:00Z')
     const beforeStop = lambda.requests.length
@@ -146,8 +158,10 @@ try {
       check('Lambda rejects non-fitting or unverified hardware ' + JSON.stringify(patch), !(await l.offers(signal())).length)
     }
     check('a GPU description with no stated memory is named in the offers note instead of vanishing', l.offersNote() === 'Skipped 1 Lambda instance type whose GPU description states no memory: B200.')
+    lambda.state.types = [...originalTypes, { ...originalTypes[0]!, name: 'cpu_only', gpu_description: 'None (0 GB)', specs: { ...originalTypes[0]!.specs, gpus: 0, storage_gib: 0 } }]
+    check('a readable catalogue leaves the note empty and ignores zero-GPU entries without failing schema validation', (await l.offers(signal())).length === 2 && l.offersNote() === '')
     lambda.state.types = originalTypes
-    check('a readable catalogue leaves the note empty', (await l.offers(signal())).length === 2 && l.offersNote() === '')
+    await expectFailure(() => l.create(first, 'ssh-ed25519 ' + 'A'.repeat(4100), 'oversized-key'), /4096|OpenSSH public key/)
     check('Lambda watch respects the whole-instance price ceiling', (await l.watchOffer(fixtureRecipe, 11.96))?.price === 11.96 && await l.watchOffer(fixtureRecipe, 11.95) === undefined)
     lambda.state.keys[0]!.public_key = 'ssh-ed25519 ZGlmZmVyZW50'
     const beforeConflict = lambda.state.creates
