@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { McpServer, WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/server'
@@ -164,6 +164,12 @@ const driveText = (path: string): string => {
     try { const row = JSON.parse(line); return row.ts ? [Buffer.from(row.b64, 'base64').toString()] : [] } catch { return [] }
   }).join('')
 }
+const screenNow = (path: string): string => {
+  if (!existsSync(path)) return ''
+  const grab = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'streaming', 'screengrab.py'), path, '120', '40', '-1'], { encoding: 'utf8', timeout: S(30_000), maxBuffer: 64 * 1024 * 1024 })
+  if (grab.status !== 0) return ''
+  try { return ((JSON.parse(grab.stdout) as { screens: { rows: string[] }[] }).screens[0]?.rows ?? []).join('\n') } catch { return '' }
+}
 let run: Awaited<ReturnType<typeof runArtifactArena>> | undefined
 try {
   run = await runArtifactArena({
@@ -208,7 +214,7 @@ try {
         check('Enter starts the existing OAuth flow', auth)
         const authorizationUrl = facts()?.mcp.find(row => row.name === 'runpod')?.authorizationUrl
         if (authorizationUrl) {
-          check('the signing-in screen is painted before the callback', await until(() => driveText(drive).includes('signing in')))
+          check('the signing-in screen is painted before the callback', await until(() => screenNow(drive).includes('signing in… (browser)')))
           const response = await fetch(authorizationUrl)
           check('loopback OAuth callback completes', response.status === 200)
         } else check('loopback OAuth callback completes', false)

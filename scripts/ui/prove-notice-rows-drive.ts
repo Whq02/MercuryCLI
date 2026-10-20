@@ -467,7 +467,7 @@ for (const journey of JOURNEYS) {
   check(`${tag}: no frame paints the notice's raw wrapper`, raw.length === 0, raw.length === 0 ? '' : `${raw.length} frames, first: ${firstRunOf(raw, r => r.includes('<monitor') || r.includes('</monitor>'))}`)
   check(`${tag}: no frame paints a notice under the operator's caret`, runFrames(frames, r => r.includes('❯ <monitor')).length === 0, firstRunOf(frames, r => r.includes('❯ <monitor')))
   if (journey.name === 'forty-line-delivery') {
-    const plate = '[Monitor] the forty-line watch · 40 lines ›'
+    const plate = '[Monitor] the forty-line watch · 40 lines · last: event-40 ›'
     check(`${tag}: the model received all forty watch lines at the tool boundary`, fixture.hits.some(hit => hit.facts.fortyLines && hit.facts.step >= 2), JSON.stringify(fixture.hits))
     const laterFrames = frames.filter(frame => paneRows(frame.lines).some(row => row.includes('typed after the watch delivery') && row.includes('❯')))
     check(`${tag}: the delivered fold stays above every later typed row while the turn continues`, laterFrames.length > 0 && laterFrames.every(frame => { const rows = paneRows(frame.lines); return rows.findIndex(row => row.includes(plate)) >= 0 && rows.findIndex(row => row.includes(plate)) < rows.findIndex(row => row.includes('typed after the watch delivery') && row.includes('❯')) }), `frames=${laterFrames.length}`)

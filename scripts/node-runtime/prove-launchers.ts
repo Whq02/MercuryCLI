@@ -559,15 +559,15 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     const rawSites = (mainTsx.match(/\bprogram\s*\.command\('/g) ?? []).length
     const loopBlock = /for \(const \[name, (?:description, )?usage\] of \[([\s\S]*?)\] as const\)/.exec(mainTsx)
     const rawLoopRows = loopBlock ? (loopBlock[1]!.match(/^\s*\['/gm) ?? []).length : 0
-    check(`the census is complete against the raw registration count (${rawSites} sites + ${rawLoopRows} loop rows)`, rawSites + rawLoopRows === surface.commands.length && rawSites >= 10 && rawLoopRows === 2, `${surface.commands.length} censused: ${names.join(',')}`)
-    for (const verb of ['health', 'image', 'bridge', 'update', 'install', 'mcp', 'auth', 'extensions', 'roster', 'daemon', 'acp']) {
+    check(`the census is complete against the raw registration count (${rawSites} sites + ${rawLoopRows} loop rows)`, rawSites + rawLoopRows === surface.commands.length && rawSites >= 10 && rawLoopRows === 3, `${surface.commands.length} censused: ${names.join(',')}`)
+    for (const verb of ['health', 'image', 'bridge', 'update', 'install', 'mcp', 'auth', 'extensions', 'roster', 'daemon', 'acp', 'host']) {
       check(`the census reads the registered verb '${verb}'`, names.includes(verb))
     }
     check("the census reads the alias 'upgrade' (of update) and no alias on health", aliases.includes('upgrade') && surface.commands.find(c => c.name === 'update')?.aliases.includes('upgrade') === true && (surface.commands.find(c => c.name === 'health')?.aliases.length ?? 0) === 0)
-    check("the census reads cli.tsx's fast-path routes (daemon · acp)", ['daemon', 'acp'].every(v => surface.fastPath.includes(v)))
+    check("the census reads cli.tsx's fast-path routes (daemon · acp · host)", ['daemon', 'acp', 'host'].every(v => surface.fastPath.includes(v)))
     const derived = skipFrom(surface)
     check('SPLASH_SKIP_VERBS IS the derived set (sorted, unique)', JSON.stringify([...SPLASH_SKIP_VERBS]) === JSON.stringify(derived), `${SPLASH_SKIP_VERBS.join(' ')} ≠ ${derived.join(' ')}`)
-    for (const verb of ['health', 'image', 'bridge', 'update', 'upgrade', 'install', 'daemon', 'acp']) {
+    for (const verb of ['health', 'image', 'bridge', 'update', 'upgrade', 'install', 'daemon', 'acp', 'host']) {
       check(`the skip set carries '${verb}'`, SPLASH_SKIP_VERBS.includes(verb))
     }
     check('every registered name and alias is in the skip set (nothing registered can meet the enter screen)', [...names, ...aliases].every(v => SPLASH_SKIP_VERBS.includes(v)))
