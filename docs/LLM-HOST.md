@@ -123,14 +123,14 @@ Open `/llmhost` and choose **My computers** (or `Other roads →` → **One of m
 computers**), or run `mercury host` from the command line:
 
 ```sh
-mercury host status
+mercury host status [box]
 mercury host recipes [box]
-mercury host add <name> --host <host> [--user <user>] [--port <port>] [--key <path>]
-mercury host start [box] [--recipe <id>] [--bank <path> | --download <dir>] [--yes]
-mercury host stop [box]
-mercury host restart [box]
-mercury host logs [box]
-mercury host uninstall [box] [--yes]
+mercury host add <name> --ssh <host> --os darwin|linux|windows [--user <user>] [--port <port>] [--key <path>]
+mercury host start <box|this-computer> <recipe> (--bank <folder> | --download <folder>) [--yes]
+mercury host stop <box>
+mercury host restart <box>
+mercury host logs <box>
+mercury host uninstall <box>
 ```
 
 Mercury checks this computer (or a saved SSH computer on macOS, Linux or
