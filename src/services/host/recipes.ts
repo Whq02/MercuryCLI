@@ -44,7 +44,7 @@ const llamaInstall = 'export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/c
 export const HOST_RECIPES: readonly HostRecipe[] = [
   {
     id: 'glm53-flash-gguf-b300', label: 'GLM-5.3-Flash · UD-Q4_K_XL', model: 'unsloth/GLM-5.3-Flash-GGUF', gpu: 'B300', count: 1, vramGb: 288, diskGb: 300,
-    engine: 'llamacpp', image: 'nvidia/cuda:13.0.2-devel-ubuntu24.04', cuda: '13.0', imageSource: 'https://hub.docker.com/layers/nvidia/cuda/13.0.2-devel-ubuntu24.04/images/sha256-5dc1bca23d05bd37b011be68ec470c03b403a5da07ec3a86e41af9470e9d0cc6', source: 'https://unsloth.ai/docs/models/glm-5.3-flash', verification: 'llama.cpp (GGUF) · verified on 1× B300 (67 tok/s)',
+    engine: 'llamacpp', image: 'ghcr.io/whq02/mercury-llamacpp@sha256:80f998adbacedc15e9f3c704e3ed3dca5a718fa90de29eb311c2b678a727c9b8', cuda: '13.0', imageSource: 'https://github.com/users/Whq02/packages/container/mercury-llamacpp/1415353988?tag=cuda13-3bb63cb', source: 'https://unsloth.ai/docs/models/glm-5.3-flash', verification: 'llama.cpp (GGUF) · verified on 1× B300 (67 tok/s)',
     verified: { by: 'measured', on: '2026-10-20', note: '1× B300 · upstream llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 · 67 tok/s single-stream, ~23 tok/s per stream with two busy · 193 GB VRAM · 524,288 ctx across 4 slots (131,072 per slot)', source: 'https://unsloth.ai/docs/models/glm-5.3-flash' },
     context: 131072, contextPerSlot: 131072,
     install: llamaInstall,
@@ -53,7 +53,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
   },
   {
     id: 'nemotron35-super-gguf-rtx-pro-6000', label: 'Nemotron 3.5 Super VL 120B · UD-Q3_K_XL', model: 'unsloth/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-GGUF', gpu: 'RTX PRO 6000', count: 1, vramGb: 96, diskGb: 120,
-    engine: 'llamacpp', image: 'nvidia/cuda:13.0.2-devel-ubuntu24.04', cuda: '13.0', imageSource: 'https://hub.docker.com/layers/nvidia/cuda/13.0.2-devel-ubuntu24.04/images/sha256-5dc1bca23d05bd37b011be68ec470c03b403a5da07ec3a86e41af9470e9d0cc6', source: 'https://unsloth.ai/docs/models/nemotron-3.5-super-vl', verification: 'llama.cpp (GGUF) · the road the model card names for RTX PRO 6000 · 65.8 GB, documented minimum 96 GB · GPU run not measured',
+    engine: 'llamacpp', image: 'ghcr.io/whq02/mercury-llamacpp@sha256:80f998adbacedc15e9f3c704e3ed3dca5a718fa90de29eb311c2b678a727c9b8', cuda: '13.0', imageSource: 'https://github.com/users/Whq02/packages/container/mercury-llamacpp/1415353988?tag=cuda13-3bb63cb', source: 'https://unsloth.ai/docs/models/nemotron-3.5-super-vl', verification: 'llama.cpp (GGUF) · the road the model card names for RTX PRO 6000 · 65.8 GB, documented minimum 96 GB · GPU run not measured',
     verified: { by: 'documented', note: "NVIDIA's model card names llama.cpp for RTX PRO 6000; Unsloth's 96 GB minimum", source: 'https://unsloth.ai/docs/models/nemotron-3.5-super-vl' },
     context: 131072, contextPerSlot: 131072,
     install: llamaInstall,

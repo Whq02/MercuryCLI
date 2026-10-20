@@ -17,12 +17,13 @@ const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks
 const { startHostEngine } = await import('../../src/services/host/ssh.ts')
 const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
 const llamaRecipe = HOST_RECIPES.find(row => row.engine === 'llamacpp')!
+check('shipped llama.cpp images are digest-pinned', HOST_RECIPES.filter(row => row.engine === 'llamacpp').every(row => /^ghcr\.io\/whq02\/mercury-llamacpp@sha256:[a-f0-9]{64}$/.test(row.image)))
 const imageCommands: string[] = []
 const imageRunner = {
   async run(_command: string, args: string[]) { const remote = args.at(-1)!; imageCommands.push(remote); return remote.includes('command -v llama-server') ? 'MERCURY_PREBUILT_ENGINE\n' : '' },
   tunnel() { throw new Error('No tunnel in the engine launch check') },
 }
-await startHostEngine({ host: '127.0.0.1' }, { ...llamaRecipe, image: 'ghcr.io/whq02/mercury-llamacpp:cuda13-3bb63cb' }, imageRunner, new AbortController().signal, false, true)
+await startHostEngine({ host: '127.0.0.1' }, llamaRecipe, imageRunner, new AbortController().signal, false, true)
 check('prebuilt engine is detected before launch and sends no compiler command', imageCommands.some(command => command.includes('command -v llama-server')) && imageCommands.every(command => !command.includes('cmake') && !command.includes('git clone')))
 check('prebuilt image launches llama-server directly with its downloader and all recipe flags', imageCommands.some(command => command.includes('nohup setsid') && command.includes('llama-server') && command.includes('hf download') && command.includes('524288') && command.includes('reasoning_effort') && !command.includes('/llama.cpp/build/bin/')))
 const sourceCommands: string[] = []
@@ -31,7 +32,7 @@ check('a source image without llama-server still builds the pinned engine', sour
 const f = await llmhostFixture()
 const previousRecipes = process.env.MERCURY_HOST_RECIPES_FILE
 const imageRecipes = join(f.home, 'image-recipes.json')
-writeFileSync(imageRecipes, JSON.stringify({ version: 1, publishedAt: '2026-10-20', recipes: HOST_RECIPES.map(row => row.engine === 'llamacpp' ? { ...row, image: 'ghcr.io/whq02/mercury-llamacpp:cuda13-3bb63cb', imageSource: 'https://github.com/Whq02/MercuryCLI/blob/main/.github/workflows/engine-image.yml' } : row) }))
+writeFileSync(imageRecipes, JSON.stringify({ version: 1, publishedAt: '2026-10-20', recipes: HOST_RECIPES }))
 process.env.MERCURY_HOST_RECIPES_FILE = imageRecipes
 f.state.dialect = 'llamacpp'; f.state.window = 131072; f.state.slots = 4
 const rp = await runpodFixture()
@@ -101,7 +102,7 @@ try {
   assert.deepEqual(offers.map(row => row.recipe.id).sort(), ['nemotron35-super-gguf-rtx-pro-6000', 'qwen38-27b-rtx-pro-6000'])
   check('catalogue is the live snapshot, including zero Secure prices and the live RTX PRO 6000 name', liveCatalogue.gpus.some((gpu: any) => gpu.price.secure === 0) && offers.every(row => row.price === 2.49))
   check('no paid action before price confirmation', rp.state.creates === 0)
-  await choose('UD-Q3_K_XL'); await screen('Confirm the hourly price'); await screen('no engine build'); check('image confirmation excludes a compile step', !m!.screen().includes('20–90')); await choose('Confirm $2.49/hr')
+  await choose('UD-Q3_K_XL'); await screen('Confirm the hourly price'); await screen('Engine from image ~1 min'); await screen('no engine build'); check('image confirmation excludes a compile step', !m!.screen().includes('20–90')); await choose('Confirm $2.49/hr')
   check('rental is recorded before popup dismissal', await waitFor(() => hostRecords().length === 1, 15000))
   const id = hostRecords()[0]!.id; workers.add(id)
   const generation = readHostRecord(id)!.generation
