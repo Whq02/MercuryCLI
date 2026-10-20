@@ -57,6 +57,9 @@ try {
         await openTools(); await capture('mcp-tools')
         const grown = geometry()
         check(cols + ': tools gain reading room without taking another popup grant', grown.rows > initial.rows && claims.commandPopupClaim()!.token === originalToken)
+        const grownShape = claims.commandPopupClaim()!.shape
+        const short = commandPopupGeometry({ left: 0, top: 0, columns: cols, rows: 24 }, 24, grownShape)
+        check(cols + ': the grown tools view on a 24-row terminal stays inside it (26 asked, ' + short.rows + ' given, four rows left for the chat)', short.rows <= 20 && short.rows > 0 && grownShape.rows(24) === 20 && grownShape.rows(40) === 26)
         check(cols + ': list shows at least ten tools at a time', m.lines().filter(line => line.includes('fixture_tool_')).length >= 10)
         console.log('MEASURE mcp ' + cols + ': servers=' + initial.rows + ' list=' + grown.rows + ' tool rows=' + m.lines().filter(line => line.includes('fixture_tool_')).length)
         m.push(KEY.enter); await until('esc back to tools'); await capture('mcp-detail')

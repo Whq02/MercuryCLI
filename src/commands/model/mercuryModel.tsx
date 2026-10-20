@@ -1153,8 +1153,9 @@ function MercuryModelWrapper({
           })()
           return
         }
+        const keyLaneLabels: Record<Exclude<typeof keyLane, 'compat' | 'moonshot' | `compat/${string}`>, string> = { zai: 'GLM (Z.AI)', deepseek: 'DeepSeek', xai: 'xAI', meta: 'Meta', mistral: 'Mistral', zen: 'OpenCode Zen', minimax: 'MiniMax', together: 'Together AI', cohere: 'Cohere', groq: 'Groq', cerebras: 'Cerebras', fireworks: 'Fireworks', qwen: 'Qwen' }
         onDone(
-          `${keyLane === 'zai' ? 'GLM (Z.AI)' : keyLane === 'xai' ? 'xAI' : keyLane === 'meta' ? 'Meta' : keyLane === 'mistral' ? 'Mistral' : keyLane === 'minimax' ? 'MiniMax' : keyLane === 'together' ? 'Together AI' : keyLane === 'cohere' ? 'Cohere' : keyLane === 'groq' ? 'Groq' : keyLane === 'cerebras' ? 'Cerebras' : keyLane === 'fireworks' ? 'Fireworks' : keyLane === 'qwen' ? 'Qwen' : 'DeepSeek'} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
+          `${keyLaneLabels[keyLane as keyof typeof keyLaneLabels] ?? keyLane} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
           { nextInput: `/logins ${keyLane} --return=/model`, submitNextInput: true },
         )
         return

@@ -154,6 +154,14 @@ try {
       } finally { free.unmount() }
     }
   } finally { await rp.close() }
+  {
+    const picker = readFileSync(new URL('../../src/commands/model/mercuryModel.tsx', import.meta.url), 'utf8')
+    const options = readFileSync(new URL('../../src/utils/model/modelOptions.ts', import.meta.url), 'utf8')
+    const lanes = [...(/export function parseKeyConnectValue\([\s\S]*?\): ([^{]+)\{/.exec(options)?.[1] ?? '').matchAll(/'([a-z]+)'/g)].map(match => match[1]!).filter(lane => lane !== 'compat' && lane !== 'moonshot')
+    const labels = /const keyLaneLabels[^=]*= \{([^}]*)\}/.exec(picker)?.[1] ?? ''
+    const labelled = [...labels.matchAll(/\b([a-z]+): '/g)].map(match => match[1]!)
+    check('every key lane the picker can route to /logins names itself in its sign-in line; none falls through to another family', lanes.length >= 13 && lanes.every(lane => labelled.includes(lane)) && labels.includes("zen: 'OpenCode Zen'") && !/: 'DeepSeek'\} sign-in/.test(picker))
+  }
   console.log('GHOST ENDPOINT ' + (failures ? 'RED' : 'GREEN') + ' — ' + failures + ' failures')
   process.exitCode = failures ? 1 : 0
 } finally { globalThis.fetch = realFetch; f.close() }
