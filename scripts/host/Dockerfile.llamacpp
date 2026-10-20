@@ -26,6 +26,6 @@ COPY --from=build /opt/llama.cpp/build/bin/llama-server /usr/local/bin/llama-ser
 COPY --from=build /opt/llama.cpp/build/cuda-architectures.txt /usr/local/share/llama.cpp/cuda-architectures.txt
 COPY --from=build /opt/llama.cpp/LICENSE /usr/local/share/llama.cpp/LICENSE
 ENV PATH="/opt/mercury-hf/bin:${PATH}"
-RUN llama-server --version && hf version && ldd /usr/local/bin/llama-server
+RUN --mount=type=bind,from=build,source=/usr/local/cuda/targets/x86_64-linux/lib/stubs,target=/opt/cuda-stubs mkdir -p /opt/cuda-driver && ln -s /opt/cuda-stubs/libcuda.so /opt/cuda-driver/libcuda.so.1 && LD_LIBRARY_PATH=/opt/cuda-driver:$LD_LIBRARY_PATH llama-server --version && hf version && LD_LIBRARY_PATH=/opt/cuda-driver:$LD_LIBRARY_PATH ldd /usr/local/bin/llama-server > /opt/runtime-libraries.txt && cat /opt/runtime-libraries.txt && ! grep -q "not found" /opt/runtime-libraries.txt && rm -rf /opt/cuda-driver /opt/runtime-libraries.txt
 EXPOSE 22
 CMD ["bash", "-lc", "sleep infinity"]
