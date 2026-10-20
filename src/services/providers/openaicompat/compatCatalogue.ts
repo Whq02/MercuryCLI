@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
-import { configuredCompatEndpoints, compatModelEndpoint, resolveCompatApiKey, type CompatEndpoint } from './compatAccounts.js'
+import { configuredCompatEndpoints, compatModelEndpoint, isCompatEndpointCredentialed, resolveCompatApiKey, type CompatEndpoint } from './compatAccounts.js'
 import { inspectCompatServer, type CompatServerReading } from './compatProbe.js'
 
 interface CompatCatalogue extends CompatServerReading {
@@ -73,7 +73,14 @@ export function namedCompatModelOptions(): import('../../../utils/model/modelOpt
     const models = compatEndpointModelIds(endpoint)
     const group = `Custom endpoint · ${endpoint.label} (${endpoint.name})`
     const snapshot = cachedCompatCatalogue(endpoint)
-    return models.length ? models.map(id => ({ value: `compat/${endpoint.name}/${id}`, label: id, description: '', group })) : [{
+    const credentialed = isCompatEndpointCredentialed(endpoint)
+    return models.length ? models.map(id => ({
+      value: `compat/${endpoint.name}/${id}`,
+      label: id,
+      description: '',
+      group,
+      ...(credentialed ? {} : { unavailable: `the endpoint '${endpoint.name}' needs a key: /logins compat/${endpoint.name}` }),
+    })) : [{
       value: `__mercury_connect__:compat/${endpoint.name}`, label: `${endpoint.label} — no models listed`, group,
       description: snapshot?.error ?? 'The endpoint has not listed a model; /llmhost checks the server or refresh /model.',
     }]

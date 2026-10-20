@@ -633,6 +633,8 @@ export function clearOAuthTokenCache(): void {
 }
 
 export function dropCredentialMemos(): void {
+  const { resetSettingsCache } = require('./settings/settingsCache.js') as typeof import('./settings/settingsCache.js')
+  resetSettingsCache()
   clearOAuthTokenCache()
   signedOutOAuthMemoStamp = null
   signedOutKeyMemoStamp = null

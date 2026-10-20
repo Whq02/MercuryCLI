@@ -2,7 +2,7 @@ import { getGlobalConfig } from '../../../utils/config.js'
 import { getSettingsForSource } from '../../../utils/settings/settings.js'
 import { COMPAT_ENDPOINT_NAME, CompatEndpointSchema, CompatProviderSchema, type CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'
 import { readStoredCompatApiKey } from '../providerSecrets.js'
-import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
+import { configuredProviderKeyCommand, resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { COMPAT_MODEL_PREFIX } from '../idSpaces.js'
 
 export interface CompatEndpoint extends CompatEndpointSettings {
@@ -56,11 +56,11 @@ export function resolveCompatSlotConfig(env: NodeJS.ProcessEnv = process.env, na
   return endpoint ? { baseUrl: endpoint.baseUrl, label: endpoint.label, models: endpoint.models } : undefined
 }
 
-export function compatModelEndpoint(model: string, env: NodeJS.ProcessEnv = process.env): { endpoint: CompatEndpoint; wireId: string } | undefined {
+export function compatModelEndpoint(model: string, env: NodeJS.ProcessEnv = process.env, known?: CompatEndpoint[]): { endpoint: CompatEndpoint; wireId: string } | undefined {
   const raw = model.trim().replace(/\[(?:[0-9]+m|served)\]/gi, '')
   if (!raw.toLowerCase().startsWith(COMPAT_MODEL_PREFIX)) return undefined
   const inner = raw.slice(COMPAT_MODEL_PREFIX.length)
-  const endpoints = configuredCompatEndpoints(env)
+  const endpoints = known ?? configuredCompatEndpoints(env)
   const named = endpoints.some(endpoint => endpoint.named)
   if (!named) {
     const endpoint = endpoints.find(entry => entry.name === 'default')
@@ -93,15 +93,58 @@ export function resolveCompatApiKey(env: Record<string, string | undefined> = pr
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export function resolveCompatAccount(env: NodeJS.ProcessEnv = process.env, name?: string): { kind: 'api-key' | 'keyless'; label: string; keySource?: 'env' | 'stored' } | undefined {
-  const config = configuredCompatEndpoints(env).find(entry => name === undefined || entry.name === name)
-  if (!config) return undefined
-  const key = resolveCompatApiKey(env, config.name)
+function compatEndpointAccount(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv): { kind: 'api-key' | 'keyless'; label: string; keySource?: 'env' | 'stored' } | undefined {
+  const key = resolveCompatApiKey(env, endpoint.name)
   if (key) {
-    const envName = config.name === 'default' && env.MERCURY_COMPAT_API_KEY?.trim() ? 'MERCURY_COMPAT_API_KEY' : compatKeyEnvName(config.name)
-    return { kind: 'api-key', label: key.source === 'env' ? `${config.label} — ${envName} (env)` : `${config.label} — API key (stored, auth-scoped)`, keySource: key.source }
+    const envName = endpoint.name === 'default' && env.MERCURY_COMPAT_API_KEY?.trim() ? 'MERCURY_COMPAT_API_KEY' : compatKeyEnvName(endpoint.name)
+    return { kind: 'api-key', label: key.source === 'env' ? `${endpoint.label} — ${envName} (env)` : `${endpoint.label} — API key (stored, auth-scoped)`, keySource: key.source }
   }
-  return { kind: 'keyless', label: `${config.label} — no key (local/auth-free endpoint)` }
+  if (configuredProviderKeyCommand(`compat:${endpoint.name}`)) return undefined
+  return { kind: 'keyless', label: `${endpoint.label} — no key (local/auth-free endpoint)` }
+}
+
+export function resolveCompatAccount(env: NodeJS.ProcessEnv = process.env, name?: string): { kind: 'api-key' | 'keyless'; label: string; keySource?: 'env' | 'stored' } | undefined {
+  for (const endpoint of configuredCompatEndpoints(env)) {
+    if (name !== undefined && endpoint.name !== name) continue
+    const account = compatEndpointAccount(endpoint, env)
+    if (account) return account
+  }
+  return undefined
+}
+
+export function isCompatEndpointCredentialed(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv = process.env): boolean {
+  return compatEndpointAccount(endpoint, env) !== undefined
+}
+
+export function compatCredentialReader(env: NodeJS.ProcessEnv = process.env): { credentialed(model: string): boolean; refusalEndpoint(model?: string): string | undefined } {
+  const endpoints = configuredCompatEndpoints(env)
+  const verdicts = new Map<string, boolean>()
+  const endpointCredentialed = (endpoint: CompatEndpoint): boolean => {
+    let verdict = verdicts.get(endpoint.name)
+    if (verdict === undefined) {
+      verdict = compatEndpointAccount(endpoint, env) !== undefined
+      verdicts.set(endpoint.name, verdict)
+    }
+    return verdict
+  }
+  return {
+    credentialed(model) {
+      if (model === 'openai-compat') return endpoints.some(endpointCredentialed)
+      const resolved = compatModelEndpoint(model, env, endpoints)
+      return resolved !== undefined && endpointCredentialed(resolved.endpoint)
+    },
+    refusalEndpoint(model) {
+      if (model !== undefined && model !== 'openai-compat') {
+        const resolved = compatModelEndpoint(model, env, endpoints)
+        return resolved?.endpoint.named ? resolved.endpoint.name : undefined
+      }
+      return endpoints.find(endpoint => endpoint.named && !endpointCredentialed(endpoint))?.name
+    },
+  }
+}
+
+export function isCompatModelCredentialed(model: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  return compatCredentialReader(env).credentialed(model)
 }
 
 export function compatSlotModelIds(env: NodeJS.ProcessEnv = process.env): string[] {
