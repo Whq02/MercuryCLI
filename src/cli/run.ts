@@ -154,7 +154,7 @@ import { OAuthService } from '../services/oauth/index.js'
 import { installOAuthTokens } from './handlers/auth.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
-import type { Tool, ToolUseContext } from '../Tool.js'
+import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../Tool.js'
 import { noteHeadlessActivity } from '../utils/activityLedger.js'
 import { logForDebugging } from '../utils/debug.js'
 import { fileHistoryEnabled } from '../utils/fileHistory.js'
@@ -284,7 +284,11 @@ import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tool
 import { filterToolsByDenyRules, getAllBaseTools, getTools, toolsWithheldByDeny } from '../tools.js'
 import { ruleSourceWords, ruleSpelling, withheldByRuleWords } from '../utils/permissions/ruleReason.js'
 import { MCP_SERVER_FAILED_CODE, TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
-import { mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
+import { filterToolsByServer, mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
+import { withoutMcpToolCardHeader } from '../services/mcp/toolCard.js'
+import { mcpToolsAnswerOf, mcpToolsUnlistedAnswer } from '../services/mcp/toolsAnswer.js'
+import { heldToolsAtLastPlan } from '../services/providers/toolEconomy.js'
+import { isDeferredToolFor } from '../tools/ToolSearchTool/prompt.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { expandPath } from '../utils/path.js'
 import { getCwd } from '../utils/cwd.js'
@@ -2105,6 +2109,40 @@ export async function runHeadless(
         signal.removeEventListener('abort', cancel)
         mcpSignIns.delete(name)
       }
+    },
+    'mcp/tools': async params => {
+      const { name } = params
+      const state = getAppState()
+      const client = state.mcp.clients.find(entry => entry.name === name)
+      if (client?.type !== 'connected') return mcpToolsUnlistedAnswer(name, client)
+      const model = activeModel ?? getEngineModel()
+      const held = new Set(heldToolsAtLastPlan(String(processMainOwner()), messages))
+      const tools = await Promise.all(
+        filterToolsByServer(state.mcp.tools, name).map(async tool => {
+          const carded = await tool
+            .description(
+              {},
+              {
+                isNonInteractiveSession: true,
+                toolPermissionContext: getEmptyToolPermissionContext(),
+                tools: [],
+              },
+            )
+            .catch(() => '')
+          return {
+            name: tool.mcpInfo?.toolName ?? tool.name,
+            registeredAs: tool.name,
+            description: withoutMcpToolCardHeader(name, carded, { openWorldHint: tool.isOpenWorld?.() === true }).trim(),
+            inputSchema: (tool.inputJSONSchema as Record<string, unknown> | undefined) ?? {},
+            loading: held.has(tool.name)
+              ? ('held' as const)
+              : isDeferredToolFor(tool, model, state.toolPermissionContext.mode, messages)
+                ? ('deferred' as const)
+                : ('listed' as const),
+          }
+        }),
+      )
+      return mcpToolsAnswerOf(name, tools)
     },
     'session/set_kit': params =>
       serializeMcpChange(async () => {

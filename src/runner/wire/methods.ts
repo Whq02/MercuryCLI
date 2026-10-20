@@ -220,6 +220,33 @@ export const METHODS = {
     scope: 'none',
     deadlineMs: 300_000,
   }),
+  'mcp/tools': method({
+    name: 'mcp/tools',
+    from: 'host',
+    kind: 'request',
+    params: lazySchema(() => z.object({ name: z.string().min(1).max(200) })),
+    result: lazySchema(() =>
+      z.object({
+        server: z.string(),
+        state: z.enum(['connected', 'needs-auth', 'failed', 'disabled', 'pending', 'absent']),
+        tools: z.array(
+          z.object({
+            name: z.string(),
+            registered_as: z.string(),
+            description: z.string(),
+            description_cut: z.literal(true).optional(),
+            input_schema: z.record(z.string(), z.unknown()),
+            schema_withheld_bytes: z.number().int().nonnegative().optional(),
+            loading: z.enum(['deferred', 'listed', 'held']),
+          }),
+        ),
+        omitted: z.number().int().nonnegative(),
+        detail: z.string().optional(),
+      }),
+    ),
+    scope: 'none',
+    deadlineMs: 10_000,
+  }),
   'session/set_kit': method({
     name: 'session/set_kit',
     from: 'host',

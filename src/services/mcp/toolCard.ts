@@ -36,3 +36,13 @@ export function withMcpToolCardHeader(
   if (!header) return body
   return body ? `${header}\n\n${body}` : header
 }
+
+export function withoutMcpToolCardHeader(
+  serverName: string,
+  text: string,
+  annotations?: McpToolAnnotations,
+): string {
+  const header = mcpToolCardHeader(serverName, annotations)
+  if (!header || !text.startsWith(header)) return text
+  return text.slice(header.length).replace(/^\n\n/, '')
+}

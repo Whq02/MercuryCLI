@@ -44,7 +44,8 @@ import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVer
 import { applyConcourseKitOp } from './sessionKitOp.js'
 import { retireWorkerAsks, RUNNER_ENDED_ASK_CAUSE, RUNNER_RESTARTED_ASK_CAUSE } from './permissionAsks.js'
 import type { QuiescenceAnswer, QuiescenceRequest } from './runnerQuiescence.js'
-import type { SessionRewindMode, SessionRewindOutcomeV1 } from './protocol.js'
+import type { McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from './protocol.js'
+import { mcpToolsFromWire } from '../services/mcp/toolsAnswer.js'
 
 export interface SeatRosterPort {
   door(short: string): RunnerDoor | undefined
@@ -1453,6 +1454,22 @@ export async function actOnSessionMcp(sessionId: string, action: { name: string;
   } catch (error) {
     return { outcome: 'refused', detail: error instanceof Error ? error.message : String(error) }
   }
+}
+
+const MCP_TOOLS_ANSWER_DEADLINE_MS = 10_000
+
+export async function listSessionMcpTools(
+  sessionId: string,
+  name: string,
+  roster: SeatRosterPort,
+  dir?: string,
+  opts?: { deadlineMs?: number },
+): Promise<SeatVerbOutcome & { mcpTools?: McpToolsV1 }> {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
+  const asked = await askSeat(roster, rec.runnerId, 'mcp/tools', { name }, 'MCP tools list', opts?.deadlineMs ?? MCP_TOOLS_ANSWER_DEADLINE_MS)
+  if (asked.ok) return { outcome: 'applied', mcpTools: mcpToolsFromWire(asked.result) }
+  return crewVerbRefusal(asked.failure, "the session's runner predates the MCP tools list — /daemon restart when ready, then reopen the session")
 }
 
 export function setSessionKitDial(

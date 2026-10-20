@@ -10,7 +10,7 @@ import type { AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 import type { AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
-import type { SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
+import type { McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
 import type { JevStatusKind } from '../jev/jevContract.js'
 
 export type EngineCarrierKind = 'in-process' | 'daemon'
@@ -247,6 +247,8 @@ export type McpRosterV1 = {
   clients: readonly McpRosterEntryV1[]
 }
 
+export type { McpToolEntryV1, McpToolsV1 } from '../../daemon/protocol.js'
+
 
 export type KitDialReceiptV1 = {
   outcome: 'applied' | 'queued' | 'noop' | 'refused'
@@ -435,6 +437,7 @@ export interface EngineConnectorV1 {
   skillsRoster(): SkillsRosterV1
   mcpRoster(): McpRosterV1
   mcpAction(name: string, action: 'authenticate' | 'reconnect' | 'cancel-auth'): Promise<KitDialReceiptV1>
+  mcpTools(serverName: string): Promise<McpToolsV1>
 
   setKit(edit: SessionKitEditV1): Promise<KitDialReceiptV1>
 

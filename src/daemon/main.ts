@@ -62,6 +62,7 @@ import {
   setSessionEffort,
   setSessionKitDial,
   actOnSessionMcp,
+  listSessionMcpTools,
   setSessionModel,
   setSessionPermissionMode,
   setSessionSpawnSwitch,
@@ -629,7 +630,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
-        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, effort, mode, contract, kitEdit, mcpAction, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused }) => {
+        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, effort, mode, contract, kitEdit, mcpAction, mcpServer, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused }) => {
           void reason
           if (clientOpId !== undefined) {
             const prior = readConcourseControlOps()[clientOpId]
@@ -746,6 +747,10 @@ async function daemonRun(args: string[]): Promise<void> {
           if (action === 'mcp-action') {
             if (!mcpAction || !roster) return { outcome: 'refused' as const, detail: 'the MCP action or runner is unavailable' }
             return actOnSessionMcp(sessionId, mcpAction, roster)
+          }
+          if (action === 'mcp-tools') {
+            if (!mcpServer || !roster) return { outcome: 'refused' as const, detail: 'the MCP server or runner is unavailable' }
+            return listSessionMcpTools(sessionId, mcpServer, roster)
           }
           if (action === 'set-kit') {
             if (kitEdit === undefined) return { outcome: 'refused' as const, detail: 'set-kit requires { kitEdit: { mcp?, skills?, extensions? } }' }

@@ -6,3 +6,4 @@
 # loud red in this runner.
 prove-mcp-live-connect.ts
 prove-mcp-popup-drive.ts
+prove-mcp-tools-view-drive.ts

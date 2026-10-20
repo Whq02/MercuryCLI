@@ -32,6 +32,7 @@ const DOORS = [
   'skillsRoster',
   'mcpRoster',
   'mcpAction',
+  'mcpTools',
   'workRoster',
   'subscribeWork',
   'permissionMode',
@@ -94,6 +95,11 @@ const DOORS = [
   check("both carriers read 'daemon' — one kind of session", resting.carrier === 'daemon' && seat.carrier === 'daemon')
   const typesSource = readFileSync(join(process.cwd(), 'src/services/engine-connector/types.ts'), 'utf8')
   check('the MCP roster carries name+state rows (no live client crosses the doorway)', typesSource.includes('clients: readonly McpRosterEntryV1[]'))
+  const restingTools = await resting.mcpTools('runpod')
+  const protocolSource = readFileSync(join(process.cwd(), 'src/daemon/protocol.ts'), 'utf8')
+  const { NO_CHAT_OPEN } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  check('the MCP tools door answers a serialisable server+tools payload (no live client crosses the doorway)', typesSource.includes('mcpTools(serverName: string): Promise<McpToolsV1>') && protocolSource.includes('tools: readonly McpToolEntryV1[]') && restingTools.server === 'runpod' && Array.isArray(restingTools.tools) && restingTools.tools.length === 0)
+  check('the resting MCP tools door says why it lists nothing (unavailable, the one no-chat sentence)', restingTools.state === 'unavailable' && restingTools.detail === NO_CHAT_OPEN)
   const boot = getFocusedSessionConnector()
   check('the focused slot rests on no session (no chat behind the boot menu)', !hasFocusedSession() && boot instanceof NoSessionConnector && boot.sessionId() === '')
   check('the resting slot owns no records and no turn', boot.records().length === 0 && boot.turnActive() === false)
