@@ -315,7 +315,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
   check('every roster witness prints a hint itself', blindWitness.length === 0, blindWitness.join(' · '))
   const llmHost = read('src/components/LlmHostDialog.tsx')
   const llmHostWords = read('src/commands/llmhost/words.ts')
-  check('/llmhost renders the imported running, input and finished exit hints', llmHost.includes("import { LLM_HOST_WORDS as words } from '../commands/llmhost/words.js'") && ['{words.running}', '{words.finished}', 'words.choose : words.input'].every(text => llmHost.includes(text)) && ["running: 'running… · esc stops'", "input: '↵ continue · esc stop'", "finished: 'esc closes'"].every(text => llmHostWords.includes(text)))
+  check('/llmhost renders the imported running, input and finished exit hints', llmHost.includes("import { LLM_HOST_WORDS as words } from '../commands/llmhost/words.js'") && ['{words.running}', '{words.finished}', 'words.choose : words.input'].every(text => llmHost.includes(text)) && ["running: 'running… · esc closes'", "input: '↵ continue · esc closes'", "finished: 'esc closes'"].every(text => llmHostWords.includes(text)))
 }
 
 section('§5 the session switcher keeps its exit live while the swap lands (the dead-esc trap, closed)')
