@@ -764,8 +764,13 @@ export async function runHeadless(
       const { coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
       const reason = coerceRestartReason(runnerRestartReason)
       const liveIds = new Set(Object.keys(getAppState().tasks ?? {}))
-      const deadWatches = reconcileWatchesOnResume(messages, liveIds, reason)
-      const deadShells = reconcileBackgroundShellsOnResume(messages, liveIds, reason)
+      const { reconcileTaskLaunchesOnResume } = await import('../tasks/taskLaunchLedger.js')
+      const launches = await reconcileTaskLaunchesOnResume(String(getSessionId()), liveIds)
+      if (launches.endedPids.length > 0) {
+        logForDebugging(`[session-runner] resume: ${launches.endedPids.length} background process(es) had outlived the runner and were ended — pids ${launches.endedPids.join(', ')}`)
+      }
+      const deadWatches = reconcileWatchesOnResume(messages, liveIds, reason, launches.orphans, launches.settledTaskIds)
+      const deadShells = reconcileBackgroundShellsOnResume(messages, liveIds, reason, launches.orphans, launches.settledTaskIds)
       if (deadWatches.length > 0 || deadShells.length > 0) {
         logForDebugging(`[session-runner] resume: ${deadWatches.length} watch(es) and ${deadShells.length} background shell(s) without a live process — dead notices written`)
       }

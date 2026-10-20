@@ -400,6 +400,28 @@ section('F · the pure grammar: the newer mirror, the refused line, the evidence
   )
   check('F3 same version, other build stays visible and does not invent chronology', rebuilt.state === 'rebuilt' && rebuilt.heal === 'operator' && rebuilt.line?.includes('build order unknown') === true)
   check('F4 rebuilt evidence names both trees', hsMod.daemonHandshakeEvidence(rebuilt).includes('tree cccc vs aaaa'), hsMod.daemonHandshakeEvidence(rebuilt))
+  const installedOlderProto = hsMod.decideHandshake(
+    {
+      kind: 'hello',
+      reply: { ok: true, op: 'hello', proto: 1, minProto: 1, ready: true, version: '1.6.0', buildTree: 'dddd', pid: 9, startedAt: 1, ownerPid: null, foreground: false, live: 1, liveSessions: 1, warm: 0, restartArmed: false } as never,
+    },
+    client,
+    Date.now(),
+    { buildTree: 'dddd', version: '1.6.0', buildTime: null },
+  )
+  check(
+    'F6 a daemon of an older protocol that IS the installed build, talking to a screen that is not: the line says this chat runs on the installed build and how to reopen — never "/daemon restart when ready" (the Air\'s 7R-04 words)',
+    installedOlderProto.state === 'older' && installedOlderProto.heal === 'reopen' && installedOlderProto.line !== null && installedOlderProto.line.includes("this chat runs on the installed build's engine (tree dddd), not this Mercury's (tree aaaa)") && !installedOlderProto.line.includes('/daemon restart'),
+    String(installedOlderProto.line),
+  )
+  const sameVersionNewer = hsMod.decideHandshake(
+    {
+      kind: 'hello',
+      reply: { ok: true, op: 'hello', proto: 3, minProto: 1, ready: true, version: '1.6.0', buildTree: 'eeee', pid: 9, startedAt: 1, ownerPid: null, foreground: false, live: 1, liveSessions: 1, warm: 0, restartArmed: false } as never,
+    },
+    client,
+  )
+  check('F7 a newer-protocol daemon of the same version string names the protocols, never "v1.6.0 newer than v1.6.0"', sameVersionNewer.state === 'newer' && sameVersionNewer.line !== null && sameVersionNewer.line.includes("daemon v1.6.0 (protocol 3, newer than this Mercury's 2)") && !sameVersionNewer.line.includes('newer than this Mercury v1.6.0'), String(sameVersionNewer.line))
   const restarting = hsMod.applyHeal({ ...rebuilt, heal: 'restart-when-idle' }, { state: 'restarting', live: 0 })
   check('F5 the heal status words: idle-restarted', hsMod.daemonHandshakeEvidence(restarting).includes('idle-restarted'))
 }

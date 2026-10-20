@@ -70,6 +70,7 @@ export type LocalShellSpawnInput = {
   toolUseId?: string
   agentId?: string
   kind?: 'bash' | 'monitor'
+  persistent?: boolean
 }
 
 export type TaskKillReceipt = { settled: boolean } & Partial<

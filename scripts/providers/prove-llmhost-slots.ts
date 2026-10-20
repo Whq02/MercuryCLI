@@ -610,8 +610,10 @@ try {
     const slotsBefore = state.slotsRequests
     state.mode = 'delayed-first-token'
     state.firstTokenDelayMs = 1_450
+    const slotTicks: number[] = []
     const slotAliveReplies = await runTurn(llamaId, [createUserMessage({ content: 'prefill guarded by /slots is_processing' })], {
       querySource: 'overload_probe',
+      onStreamActivity: (atMs: number) => slotTicks.push(atMs),
     })
     check(
       'llamacpp counts the request as alive when the idle deadline fires while /slots reports the pinned slot is_processing',
@@ -619,6 +621,11 @@ try {
         slotAliveReplies.every(row => !row.isApiErrorMessage) &&
         state.slotsRequests > slotsBefore,
       `slotsRequestsDelta=${state.slotsRequests - slotsBefore} errors=${JSON.stringify(slotAliveReplies.filter(r => r.isApiErrorMessage))}`,
+    )
+    check(
+      'a slot that reports is_processing is heard by the crewmate watchdog: every working reading ticks onStreamActivity, so a long prefill is never read as crewmate silence',
+      slotTicks.length >= 1 && slotTicks.length >= state.slotsRequests - slotsBefore,
+      `ticks=${slotTicks.length} slotsRequestsDelta=${state.slotsRequests - slotsBefore}`,
     )
 
     state.propsAvailable = false
@@ -954,8 +961,8 @@ try {
       `agentError=${agentError} finalText=${finalText}`,
     )
     check(
-      'stream_activity and progressive input_json_delta events are observed during the tool call without double-counting at settlement',
-      streamActivities.length > 0 && inputJsonDeltas.length === 14 && inputJsonDeltas.join('') === expectedJson,
+      'progressive input_json_delta events are observed during the tool call without double-counting at settlement, and they are the life: no heartbeat is minted for a painted argument delta (the Anthropic road\'s rule)',
+      streamActivities.length === 0 && inputJsonDeltas.length === 14 && inputJsonDeltas.join('') === expectedJson,
       `streamActivities=${streamActivities.length} deltas=${inputJsonDeltas.length} joined=${inputJsonDeltas.join('')}`,
     )
   } finally {

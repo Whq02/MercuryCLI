@@ -50,7 +50,8 @@ export const nodeTranscriptReaderIo: TranscriptReaderIo = {
       const st = statSync(path)
       return { size: st.size, ino: st.ino }
     } catch (e) {
-      if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return null
+      const code = (e as NodeJS.ErrnoException)?.code
+      if (code === 'ENOENT' || code === 'ENOTDIR') return null
       throw e
     }
   },

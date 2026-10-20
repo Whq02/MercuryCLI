@@ -19,7 +19,7 @@ const WATCH_NAME = 'the appended log'
 const BEFORE_LINE = 'the line before the park'
 const PARKED_LINES = ['the first line while parked', 'the second line while parked', 'the third line while parked']
 const DEAD_WORDS = 'did not survive'
-const REARM_WORDS = 'calling Monitor again with the same command'
+const REARM_WORDS = 'Start it again by calling Monitor with the same command'
 
 type Block = { type?: string; text?: string; content?: unknown }
 type Item = { role?: string; content?: unknown }

@@ -416,6 +416,33 @@ section('§A5 the writer\'s dedup set — the ids this process wrote survive a d
   check('a line cut from the scanned prefix, then the file grows past the old offset: the incremental scan holds every id a whole-file scan finds', missing.length === 0 && incremental.size === whole.size, j({ missing: missing.length, incremental: incremental.size, whole: whole.size }))
 }
 
+section('§A6 the growth read — the first row after the fold lands alone, parented onto the summary: the kept tail stays on the chain (the Linux pool\'s §G red: a screen reading between the summary and the next row lost the whole kept tail)')
+{
+  const w = stampedWorld('growth-anchor')
+  const u1 = w.user('u1', 'the first words, folded', null, '2026-10-20T03:00:01.000Z')
+  const a1 = w.assistant('a1', 'the first reply, folded', u1.uuid, '2026-10-20T03:00:02.000Z')
+  const u2 = w.user('u2', 'the kept words', a1.uuid, '2026-10-20T03:00:03.000Z')
+  const a2 = w.assistant('a2', 'the kept reply', u2.uuid, '2026-10-20T03:00:04.000Z')
+  const B = w.boundary('B', '2026-10-20T03:00:05.000Z')
+  const S = w.summary('S', B, '2026-10-20T03:00:06.000Z')
+  w.keepTail(B, { headUuid: u2.uuid, anchorUuid: S.uuid, tailUuid: a2.uuid })
+  const u3 = w.user('u3', 'the first words after the fold', S.uuid, '2026-10-20T03:00:07.000Z')
+  const a3 = w.assistant('a3', 'the reply after the fold', u3.uuid, '2026-10-20T03:00:08.000Z')
+  const u4 = w.user('u4', 'the next words', a3.uuid, '2026-10-20T03:00:09.000Z')
+  const a4 = w.assistant('a4', 'the next reply', u4.uuid, '2026-10-20T03:00:10.000Z')
+  reader._resetTranscriptReaderForTesting()
+  w.write([u1, a1, u2, a2, B, S])
+  let chain = await reader.readTranscriptChainSince(w.path, null)
+  check('a read that ends on the summary holds the boundary, the summary and the kept tail', j(w.named(chain.rows)) === j(['B', 'S', 'u2', 'a2']), j(w.named(chain.rows)))
+  w.write([u3])
+  chain = await reader.readTranscriptChainSince(w.path, chain.cursor)
+  check('the first row after the fold, read alone, chains onto the kept tail — the kept tail is not lost to the growth read', j(w.named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3']), j(w.named(chain.rows)))
+  w.write([a3, u4, a4])
+  chain = await reader.readTranscriptChainSince(w.path, chain.cursor)
+  check('the turns that follow stay on the one chain, every row once', j(w.named(chain.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3', 'u4', 'a4']), j(w.named(chain.rows)))
+  check('a cold read of the same file agrees with the grown one', j(await w.screen()) === j(w.named(chain.rows)), j(await w.screen()))
+}
+
 if (!existsSync(DIST) || NODE === '') {
   console.log(`\nFAIL ${!existsSync(DIST) ? `dist missing at ${DIST} — run \`bun run build.ts\` first` : 'no node on PATH'}`)
   failures++

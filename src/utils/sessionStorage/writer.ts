@@ -75,6 +75,7 @@ import {
 const VERSION = typeof MACRO !== 'undefined' ? MACRO.VERSION : 'unknown'
 
 const MAX_TOMBSTONE_REWRITE_BYTES = 50 * 1024 * 1024
+const RECENT_CHAIN_LINKS = 512
 
 const sessionRecordIds = new Map<string, Set<UUID>>()
 
@@ -352,6 +353,7 @@ class Project {
   currentSessionAgentColor: string | undefined
   currentSessionLastPrompt: string | undefined
   currentSessionChainLeaf: UUID | undefined
+  private readonly recentChainLinks = new Map<UUID, { parent: UUID | null; quiet: boolean }>()
   currentSessionAgentSetting: string | undefined
   currentSessionMode: 'coordinator' | 'normal' | undefined
   currentSessionAdvisor: boolean | undefined
@@ -685,6 +687,26 @@ class Project {
     for (const entry of this.pendingEntries.splice(0)) await this.appendEntry(entry)
   }
 
+  private noteChainLink(uuid: UUID, parent: UUID | null, quiet: boolean): void {
+    this.recentChainLinks.set(uuid, { parent, quiet })
+    while (this.recentChainLinks.size > RECENT_CHAIN_LINKS) {
+      const oldest = this.recentChainLinks.keys().next().value
+      if (oldest === undefined) break
+      this.recentChainLinks.delete(oldest)
+    }
+  }
+
+  private leafDescendsQuietly(leaf: UUID | null, source: UUID): boolean {
+    let cursor = leaf
+    for (let steps = 0; cursor !== null && steps < RECENT_CHAIN_LINKS; steps++) {
+      if (cursor === source) return true
+      const link = this.recentChainLinks.get(cursor)
+      if (link === undefined || !link.quiet) return false
+      cursor = link.parent
+    }
+    return false
+  }
+
   async insertMessageChain(
     messages: Transcript,
     isSidechain: boolean = false,
@@ -725,7 +747,7 @@ class Project {
           'sourceToolAssistantUUID' in message &&
           message.sourceToolAssistantUUID
         ) {
-          effectiveParentUuid = message.sourceToolAssistantUUID
+          effectiveParentUuid = this.leafDescendsQuietly(parentUuid, message.sourceToolAssistantUUID) ? parentUuid : message.sourceToolAssistantUUID
         }
 
         const transcriptMessage: TranscriptMessage = {
@@ -749,6 +771,7 @@ class Project {
         }
         await this.appendEntry(transcriptMessage)
         if (isChainParticipant(message)) {
+          this.noteChainLink(message.uuid as UUID, transcriptMessage.parentUuid, !isCompactBoundary && (message.type === 'attachment' || message.type === 'system'))
           parentUuid = message.uuid
           if (!isSidechain) this.currentSessionChainLeaf = message.uuid as UUID
         }

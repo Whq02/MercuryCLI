@@ -169,13 +169,14 @@ export function decideHandshake(outcome: HelloOutcome, client: ClientVersionFact
     const v: DaemonHandshakeVerdict = { ...base, state: 'rebuilt', daemon, ...counts, heal: ordered ? 'restart-when-idle' : 'operator', healState: ordered ? healState : 'operator', line: null }
     return { ...v, line: honestLine(v) }
   }
+  const skewed = screenIsOlder(daemon, client, installed)
   const v: DaemonHandshakeVerdict = {
     ...base,
     state: r.proto < client.proto ? 'older' : 'newer',
     daemon,
     ...counts,
-    heal: 'restart-when-idle',
-    healState,
+    heal: skewed ? 'reopen' : 'restart-when-idle',
+    healState: skewed ? 'none' : healState,
     line: null,
   }
   return { ...v, line: honestLine(v) }
@@ -221,7 +222,13 @@ export function honestLine(v: DaemonHandshakeVerdict): string | null {
     return null
   }
   if (v.state !== 'older' && v.state !== 'newer') return null
-  const who = v.state === 'newer' ? `daemon v${d.version} (newer than this Mercury v${v.client.version})` : `daemon v${d.version}`
+  if (v.heal === 'reopen') return reopenLine(v)
+  const who =
+    v.state === 'newer'
+      ? d.version === v.client.version
+        ? `daemon v${d.version} (protocol ${d.proto}, newer than this Mercury's ${v.client.proto})`
+        : `daemon v${d.version} (newer than this Mercury v${v.client.version})`
+      : `daemon v${d.version}`
   const wait = v.state === 'newer' ? "this Mercury's features wait until it restarts" : 'new features wait until it restarts'
   if (v.healState === 'refused') return `${who} — ${wait} · ${v.healDetail ?? 'it cannot restart itself'}`
   if (v.healState === 'restarting') return null
@@ -487,7 +494,7 @@ export async function healDaemonVersion(
 }
 
 let healAskInFlight: { pid: number | null; answer: Promise<{ state: HealState; live: number; detail?: string }> } | null = null
-const handoverAsked = new Set<number>()
+const handoverAsked = new Map<number, number>()
 let handoverInFlight: number | null = null
 
 export function resetHandoverAsksForTesting(): void {
@@ -516,8 +523,8 @@ export async function handoverDaemonVersion(
     handoverInFlight = d.pid
     return `a successor (pid ${record.pid}) is taking the plane from daemon v${d.version} (pid ${d.pid}), which keeps its ${liveNoun({ live: heal.live, liveSessions: Math.min(v.liveSessions, heal.live) })} ${untilFinished(heal.live)}`
   }
-  if (handoverAsked.has(d.pid)) return null
-  handoverAsked.add(d.pid)
+  const earlier = handoverAsked.get(d.pid)
+  if (earlier !== undefined && isProcessAlive(earlier)) return null
   handoverInFlight = d.pid
   const dir = record?.dir ?? process.cwd()
   const ownsIt = d.ownerPid === process.pid
@@ -534,6 +541,7 @@ export async function handoverDaemonVersion(
     })
   const pid = await spawn(runtime.script, dir, env, ownsIt, !ownsIt, runtime.node)
   if (pid === undefined) return null
+  handoverAsked.set(d.pid, pid)
   logForDebugging(`[daemon] handover: ${decision.why} — successor pid ${pid} from ${runtime.script}`)
   return `handing over to the deployed build (tree ${runtime.buildTree ?? '?'}, pid ${pid}) — daemon v${d.version} keeps its ${liveNoun({ live: heal.live, liveSessions: Math.min(v.liveSessions, heal.live) })} ${untilFinished(heal.live)}`
 }

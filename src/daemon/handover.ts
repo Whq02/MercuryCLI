@@ -114,9 +114,14 @@ export interface HandoverDecisionInput {
   deployedBuildTree: string | null
   healState: 'none' | 'restarting' | 'armed' | 'refused' | 'operator'
   live: number
+  platform?: NodeJS.Platform
 }
 
 export type HandoverDecision = { handover: true; why: string } | { handover: false; why: string }
+
+export function pipeHeldWords(live: number): string {
+  return `on Windows the installed build's daemon cannot take the control pipe while this daemon serves ${live} live session${live === 1 ? '' : 's'} — it takes over once they close`
+}
 
 export function decideHandover(input: HandoverDecisionInput): HandoverDecision {
   if (input.deployedBuildTree === null) return { handover: false, why: 'no deployed runtime to move onto' }
@@ -124,6 +129,7 @@ export function decideHandover(input: HandoverDecisionInput): HandoverDecision {
   if (input.daemonBuildTree === input.deployedBuildTree) return { handover: false, why: 'the daemon already runs the deployed build' }
   if (input.healState === 'restarting') return { handover: false, why: 'the daemon is restarting itself as the deployed build' }
   if (input.healState === 'none') return { handover: false, why: 'no heal was asked' }
+  if ((input.platform ?? process.platform) === 'win32' && input.live > 0) return { handover: false, why: pipeHeldWords(input.live) }
   return {
     handover: true,
     why: `the daemon's build ${input.daemonBuildTree} is not the deployed ${input.deployedBuildTree} and its restart ${input.healState === 'armed' ? `waits on ${input.live} live worker(s)` : `was refused`} — a successor on the deployed build takes the plane and the old daemon keeps what it holds`,
