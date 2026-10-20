@@ -10,6 +10,7 @@
       "count": 4,
       "vramGb": 192,
       "diskGb": 650,
+      "weightsGb": 510.311045295,
       "image": "lmsysorg/sglang:dev-dsv41",
       "cuda": "13.0",
       "flags": [
@@ -60,6 +61,7 @@
       "count": 4,
       "vramGb": 288,
       "diskGb": 650,
+      "weightsGb": 510.311045295,
       "image": "lmsysorg/sglang:dev-dsv41",
       "cuda": "13.0",
       "flags": [
@@ -110,6 +112,7 @@
       "count": 4,
       "vramGb": 288,
       "diskGb": 650,
+      "weightsGb": 510.311045295,
       "image": "lmsysorg/sglang:dev-dsv41",
       "cuda": "13.0",
       "flags": [
@@ -160,6 +163,7 @@
       "count": 8,
       "vramGb": 192,
       "diskGb": 950,
+      "weightsGb": 755.663689302,
       "image": "lmsysorg/sglang:latest",
       "cuda": "13.0",
       "flags": [
@@ -210,6 +214,7 @@
       "count": 8,
       "vramGb": 288,
       "diskGb": 950,
+      "weightsGb": 755.663689302,
       "image": "lmsysorg/sglang:latest",
       "cuda": "13.0",
       "flags": [
@@ -260,6 +265,7 @@
       "count": 4,
       "vramGb": 183,
       "diskGb": 300,
+      "weightsGb": 202.951815003,
       "image": "lmsysorg/sglang:glm-5.3-flash",
       "cuda": "13.0",
       "flags": [
@@ -354,6 +360,7 @@
       "count": 8,
       "vramGb": 288,
       "diskGb": 450,
+      "weightsGb": 328.366173639,
       "image": "lmsysorg/sglang:latest",
       "cuda": "13.0",
       "flags": [
@@ -410,6 +417,7 @@
       "count": 4,
       "vramGb": 288,
       "diskGb": 450,
+      "weightsGb": 328.366173639,
       "image": "lmsysorg/sglang:latest",
       "cuda": "13.0",
       "flags": [
@@ -466,6 +474,7 @@
       "count": 1,
       "vramGb": 288,
       "diskGb": 300,
+      "weightsGb": 199.716751456,
       "image": "nvidia/cuda:13.0.2-devel-ubuntu24.04",
       "cuda": "13.0",
       "flags": [
@@ -528,6 +537,7 @@
       "count": 4,
       "vramGb": 288,
       "diskGb": 950,
+      "weightsGb": 755.663689302,
       "image": "lmsysorg/sglang:latest",
       "cuda": "13.0",
       "flags": [
@@ -578,6 +588,7 @@
       "count": 8,
       "vramGb": 141,
       "diskGb": 950,
+      "weightsGb": 755.663689302,
       "image": "lmsysorg/sglang:latest",
       "cuda": "13.0",
       "flags": [
@@ -628,6 +639,7 @@
       "count": 1,
       "vramGb": 96,
       "diskGb": 120,
+      "weightsGb": 65.761541032,
       "image": "nvidia/cuda:13.0.2-devel-ubuntu24.04",
       "cuda": "13.0",
       "flags": [
@@ -689,6 +701,7 @@
       "count": 1,
       "vramGb": 141,
       "diskGb": 80,
+      "weightsGb": 30.890049597,
       "image": "lmsysorg/sglang:latest",
       "cuda": "13.0",
       "flags": [
@@ -738,6 +751,7 @@
       "count": 1,
       "vramGb": 96,
       "diskGb": 80,
+      "weightsGb": 30.890049597,
       "image": "lmsysorg/sglang:latest",
       "cuda": "13.0",
       "flags": [

@@ -1,11 +1,13 @@
 import { appendFileSync } from 'node:fs'
+import { keptWeightsPath, prepareKeptWeights } from './keptWeights.js'
+import { matchesVolume, rentalVolume, readKeptVolume, writeKeptVolume, type KeptVolume } from './volumes.js'
 import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
 import { setTimeout as delay } from 'node:timers/promises'
 import { readStoredRunpodApiKey } from '../providers/providerSecrets.js'
 import { runLlmHost } from '../llmHost/index.js'
 import { LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
-import { RunpodClient, RunpodHttpError, createRefusal, type HostOffer, type HostPod } from './runpod.js'
+import { RunpodClient, RunpodHttpError, createRefusal, cents, type HostOffer, type HostPod } from './runpod.js'
 import { hostRecipeOfRecord } from './recipesFile.js'
 import { hostNotice } from './notices.js'
 import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord } from './store.js'
@@ -46,11 +48,11 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (!current || current.generation !== generation || current.jobState === 'stopped') controller.abort()
     if (initial.jobKind === 'watch' || !target || !recipe || logBusy || signal.aborted || current?.jobState === 'ready') return
     logBusy = true
-    void runner.run('ssh', [...sshArguments(target), 'dd if=/workspace/mercury-host/' + recipe.id + '/engine.log bs=1 skip=' + offset + ' count=8192 status=none'], signal)
+    void runner.run('ssh', [...sshArguments(target), current?.volumeId && !current.weightsCheck ? 'tail -n 1 /workspace/mercury-host/' + recipe.id + '/weights-check.log 2>/dev/null || true' : 'dd if=/workspace/mercury-host/' + recipe.id + '/engine.log bs=1 skip=' + offset + ' count=8192 status=none'], signal)
       .then(async text => {
-        offset += Buffer.byteLength(text); log(text)
+        if (!current?.volumeId || current.weightsCheck) offset += Buffer.byteLength(text); log(text)
         if (readHostRecord(id)?.step?.startsWith('downloading weights')) {
-          const size = await runner.run('ssh', [...sshArguments(target!), 'du -sb /workspace/mercury-host/' + recipe.id + '/weights 2>/dev/null || true'], signal)
+          const size = await runner.run('ssh', [...sshArguments(target!), 'du -sb ' + (current?.volumeId ? keptWeightsPath(recipe) : '/workspace/mercury-host/' + recipe.id + '/weights') + ' 2>/dev/null || true'], signal)
           const bytes = Number(/^(\d+)/.exec(size)?.[1])
           if (Number.isFinite(bytes)) mark('downloading weights ' + (bytes / 1e9).toFixed(2) + ' GB')
         }
@@ -90,12 +92,23 @@ export async function runHostJob(id: string, generation: string, options: { runn
         }
         patchHostRecord(id, { advancedAt: Date.now() })
         let offer: HostOffer | undefined
+        let volume: KeptVolume | undefined
+        let outside: string | undefined
+        let stage = 'Runpod read failed'
         try {
           offer = await api.watchOffer(recipe, maxPrice, signal)
+          stage = 'weights disk not ready'
+          volume = offer ? await rentalVolume(api, offer.recipe, signal) : undefined
+          stage = 'Runpod read failed'
+          const disk = volume
+          if (offer && disk?.kind === 'network' && offer.dataCenter && offer.dataCenter !== disk.dataCenter) {
+            outside = offer.dataCenter
+            offer = (await api.offers(signal)).filter(row => matchesVolume(disk, row.recipe) && row.dataCenter === disk.dataCenter && cents(row.price) <= cents(maxPrice)).sort((a, b) => a.price - b.price)[0]
+          }
         } catch (error) {
           if (signal.aborted || error instanceof RunpodHttpError && (error.status === 401 || error.status === 403)) throw error
           wait = Math.max(Math.min(60_000, wait * 2), (error instanceof RunpodHttpError ? error.retryAfterSeconds ?? 0 : 0) * 1000)
-          const step = 'Runpod read failed · next read in ' + Math.ceil(wait / 1000) + ' s · ' + clean(String(error)).slice(0, 200)
+          const step = (error instanceof RunpodHttpError ? 'Runpod read failed' : stage) + ' · next read in ' + Math.ceil(wait / 1000) + ' s · ' + clean(String(error)).slice(0, 200)
           log(step)
           patchHostRecord(id, { step })
           await rest(wait)
@@ -106,6 +119,13 @@ export async function runHostJob(id: string, generation: string, options: { runn
         const afterPoll = readHostRecord(id)
         if (!afterPoll || afterPoll.generation !== generation || afterPoll.jobState === 'stopped') return
         if (afterPoll.rateLimit !== rateLimit) patchHostRecord(id, { rateLimit })
+        if (!offer && outside && volume) {
+          const step = 'stock only in ' + outside + ' · weights disk ' + volume.id + ' lives in ' + volume.dataCenter + ' · next read in ' + Math.ceil(pollMs * 12 / 1000) + ' s'
+          log(step)
+          patchHostRecord(id, { step })
+          await rest(pollMs * 12)
+          continue
+        }
         if (!offer) { await rest(pollMs); continue }
         const podName = 'mercury-' + randomUUID().slice(0, 12)
         const shapeWords = offer.recipe.count + '× ' + offer.recipe.gpu + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '')
@@ -113,7 +133,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         if (!marked || marked.generation !== generation || marked.jobState === 'stopped') return
         let pod: HostPod
         try {
-          pod = await api.create(offer, sshKey.publicKey, podName)
+          pod = await api.create(offer, sshKey.publicKey, podName, volume)
         } catch (error) {
           const refusal = createRefusal(error)
           if (!refusal) {
@@ -146,6 +166,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           workspace: afterPoll.workspace,
           sshKey: sshKey.path,
           watchedFrom: id,
+          volumeId: volume?.id,
           ...(afterPoll.apiBaseUrl ? { apiBaseUrl: afterPoll.apiBaseUrl } : {}),
         })
         hostNotice(setupRecord, 'rented', rentedWords)
@@ -191,8 +212,13 @@ export async function runHostJob(id: string, generation: string, options: { runn
     }
     if (!target) throw new Error(last)
     patchHostRecord(id, { target, status: 'RUNNING' })
+    let keptWeights: string | undefined
+    if (initial.volumeId) {
+      keptWeights = await prepareKeptWeights(initial, recipe, api, target, runner, signal, mark)
+      if (initial.prepareWeightsOnly) return
+    }
     mark('installing')
-    await startHostEngine(target, recipe, runner, signal, false, true)
+    await startHostEngine(target, recipe, runner, signal, false, true, undefined, keptWeights)
     await waitHostEngine(target, recipe, runner, signal, pause, timeout)
     mark('starting engine')
     const port = await openHostTunnel(id, target, runner, signal)
@@ -226,9 +252,22 @@ export async function runHostJob(id: string, generation: string, options: { runn
       await response.body?.cancel()
     }
   } catch (error) {
+    let failure = error
+    if (initial.prepareWeightsOnly && readHostRecord(id)) {
+      const volume = initial.volumeId && readKeptVolume(initial.volumeId)
+      if (volume && volume.state !== 'kept' && volume.state !== 'failed') writeKeptVolume({ ...volume, state: 'failed', error: clean(String(error)), preparingPod: id })
+      try {
+        if (!key) throw new Error('The saved Runpod key is unavailable for cleanup.')
+        const cleanupApi = new RunpodClient(key, initial.apiBaseUrl)
+        await cleanupApi.terminate(id)
+        if ((await cleanupApi.pods()).some(row => row.id === id)) throw new Error('Runpod still lists the pod.')
+        hostNotice(initial, 'failed', 'Preparation failed; temporary pod ' + id + ' terminated. The weights disk still bills. ' + clean(String(error)))
+        removeHostRecord(id)
+      } catch (cleanup) { failure = new Error(id + ' may still bill: preparation failed and termination was not verified. Pods I’m paying for → Terminate. ' + clean(String(error)) + ' · ' + clean(String(cleanup))) }
+    }
     const current = readHostRecord(id)
     if (current && current.generation === generation && current.jobState !== 'stopped') {
-      const detail = clean(String(error))
+      const detail = clean(String(failure))
       const record = patchHostRecord(id, { jobState: 'failed', error: detail })!
       log(detail)
       hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Pods I’m paying for → Resume or Terminate')
