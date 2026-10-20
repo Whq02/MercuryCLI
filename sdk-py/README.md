@@ -21,19 +21,22 @@ async def main():
     )
     try:
         async for row in task:
-            if row['type'] == 'text':
-                print(row['text'])
+            if row['type'] == 'text_delta':
+                print(row['text'], end='', flush=True)
+            if row['type'] == 'tool_call':
+                print(row['tool'])
             if row['type'] == 'unknown_row':
                 print(row['original_type'])
         outcome = await task.outcome
-        print(outcome['status'], outcome['answer'])
-        print((await task.exit).code)
+        if outcome['status'] != 'completed':
+            print(outcome['status'], outcome.get('error', {}).get('message'))
+        print(outcome.get('answer'), outcome['usage'], (await task.exit).code)
     except MercuryRefusal as error:
         print(error)
 asyncio.run(main())
 ```
 
-`run()` creates `MercuryRun`, an async row iterator with `.on()` listeners. `.session`, `.outcome` and `.exit` are awaitable; `.rows` retains received rows. `interrupt()`, `terminate()` and `kill()` signal the child. A failed model turn resolves an outcome with a non-completed status; a refused request raises `MercuryRefusal`. `async with await run(...)` closes the child on exit.
+`run()` creates `MercuryRun`, an async row iterator with `.on()` listeners. `.session`, `.outcome` and `.exit` are awaitable; `.rows` retains received rows. `interrupt()`, `terminate()` and `kill()` signal the child; `close()` ends stdin and waits for the exit, and `async with await run(...)` does that on exit. `cancel=asyncio.Event()` in the options interrupts the run when set. A turn that did not complete resolves an outcome with another status and an `error` (a CLI that is not signed in answers `failed` with `error['class'] == 'auth'`); `answer` is absent then, so read it with `.get()`. A refused request raises `MercuryRefusal`. `text` rows carry whole blocks; with `partial=True` the `text_delta` rows stream them as they arrive. The row dictionaries are the generated `TypedDict`s, so `row['type'] == 'text'` narrows them under pyright.
 
 For streaming stdin, use `await run(input='rows')`, then await `send_prompt(content)`, `send_shell(command)` or `send_note(agent_id, content)`. `send(row)` accepts any generated `InputRow`. Call `close_input()` when input is complete. The process stays open while stdin is open; `.outcome` resolves to its final outcome when it exits. Observe individual outcomes with `.on('outcome', ...)`.
 
@@ -41,32 +44,29 @@ For streaming stdin, use `await run(input='rows')`, then await `send_prompt(cont
 
 ```python
 import asyncio
-from mercury_cli_sdk import connect
+from mercury_cli_sdk import PermissionRequestParams, PermissionRequestResult, RequestContext, connect
 
-async def guard(ask, context):
+async def guard(ask: PermissionRequestParams, context: RequestContext) -> PermissionRequestResult:
     print(ask['tool_name'], ask['input'])
     return {'outcome': 'deny', 'message': 'This host is read-only'}
 
 async def main():
-    session = await connect(on_permission_request=guard)
-    try:
+    async with await connect(on_permission_request=guard) as session:
         session.on('text', lambda row: print(row['text']))
         first = await session.prompt('Inspect the tests')
         print(first['status'])
         second = await session.prompt('Explain the result')
-        print(second['answer'])
+        print(second.get('answer'))
         print(await session.facts())
         await session.request('session/pause_gate', {'paused': False})
-    finally:
-        await session.close()
 asyncio.run(main())
 ```
 
-`connect()` initializes JSON-RPC protocol 1. `MercurySession` exposes `prompt`, `send_prompt`, `send_shell`, `send_note`, `withdraw`, `interrupt`, `facts`, `set_model`, `set_effort`, `set_mode`, `set_kit`, `rewind`, `stop_agent`, `resume_agent` and `claim`. `request(method, params)` and `notify(method, params)` validate all declared host methods, including MCP inspection, pause/quiesce/leave and schedule updates. Their parameter and result TypedDicts are generated in `mercury_cli_sdk.generated` and exported from the package.
+`connect()` initializes JSON-RPC protocol 1. `MercurySession` exposes `prompt`, `send_prompt`, `send_shell`, `send_note`, `withdraw`, `interrupt`, `facts`, `set_model`, `set_effort`, `set_mode`, `set_kit`, `rewind`, `stop_agent`, `resume_agent` and `claim`. `request(method, params)` and `notify(method, params)` validate all declared host methods, including MCP inspection, pause/quiesce/leave and schedule updates. Their parameter and result TypedDicts are generated in `mercury_cli_sdk.generated` and exported from the package; `request(..., timeout=seconds)` overrides a method's declared deadline (`timeout=None` disables it).
 
-Use `send_prompt` rather than overlapping `prompt` calls to queue words during a turn. `prompt` awaits the next outcome; use a single active turn when you need that association. `on_permission_request` and `on_elicitation` may be sync or async functions. Other runner requests use the `handlers` mapping; explicitly advertise corresponding file/terminal capabilities. No permission handler means deny; no elicitation handler means decline. `RequestContext.cancelled` is set and the callback task cancelled when the runner cancels its ask. `claim` works only when the runner permits it; a normal standalone runner already has a session identity.
+`prompt` resolves with the outcome of the turn its words started, even when other input is queued; a second `prompt` while one is pending raises, so queue mid-turn words with `send_prompt`. Cancelling the awaiting task (`asyncio.wait_for`) stops the wait, not the turn; `interrupt()` ends the turn. `on_permission_request` and `on_elicitation` may be sync or async functions (`PermissionHandler`, `ElicitationHandler`). Other runner requests use the `handlers` mapping; explicitly advertise corresponding file/terminal capabilities. No permission handler means deny; no elicitation handler means decline. `RequestContext.cancelled` is set and the callback task cancelled when the runner cancels its ask. `claim` works only when the runner permits it; a normal standalone runner already has a session identity.
 
-Both doors accept `mercury=['ssh', 'host', 'mercury']` or another executable/argument array. `RunOptions` collects options; `argv_of(options)` previews arguments. `extra_args` passes CLI flags without a shell. `close()` ends stdin and terminates an unresponsive child after five seconds, then kills it after ten seconds if it still has not exited.
+Both doors accept `mercury=['ssh', 'host', 'mercury']` or another executable/argument array. `RunOptions` collects options (`continue_=True` is `--continue`); `argv_of(options)` previews arguments. `extra_args` passes CLI flags without a shell. `close()` ends stdin and terminates an unresponsive child after five seconds, then kills it after ten seconds if it still has not exited. A host that exits normally or through an exception sends SIGTERM to the children it still has (an `atexit` hook); a host killed by a signal it does not handle cannot, so handle `SIGTERM` and close sessions in long-running hosts.
 
 ### Synchronous programs
 
@@ -90,14 +90,15 @@ async def review():
     tool = define_tool('greeting', 'Return a greeting',
                        {'type': 'object', 'properties': {}}, lambda _: 'Hello')
     async with await serve_tools([tool]) as tools:
-        agent = define_agent({'description': 'Read-only reviewer',
-                              'prompt': 'Review; do not edit.', 'tools': ['Read']})
-        task = await run('Review the README', agent='reviewer',
-                         agent_defs={'reviewer': agent}, mcp=[tools.mcp])
-        print((await task.outcome)['answer'])
+        agent = define_agent({'description': 'Read-only reviewer', 'prompt': 'Review; do not edit.',
+                              'tools': ['Read', 'mcp__sdk-tools__greeting']})
+        task = await run('Review the README', agent='reviewer', agent_defs={'reviewer': agent},
+                         mcp=[tools.mcp], allowed_tools=['mcp__sdk-tools__greeting'])
+        outcome = await task.outcome
+        print(outcome['status'], outcome.get('answer', outcome['denials']))
 ```
 
-Tools use authenticated loopback MCP HTTP through the existing `--mcp` option, not a private runner method. `ToolServer` exposes `.config`, `.mcp` and async `.close()`. Keep the host event loop running while tools execute. Agent definitions become `--agent-defs` JSON. Normal Mercury tool permissions still apply.
+Tools use authenticated loopback MCP HTTP through the existing `--mcp` option, not a private runner method. `serve_tools(tools, name='sdk-tools')` returns a `ToolServer` with `.config`, `.mcp` and async `.close()`; each tool is named `mcp__<name>__<tool>` in the session. Keep the host event loop running while tools execute. Agent definitions become `--agent-defs` JSON; an agent's `tools` list is an allowlist, so name the inline tool there or omit `tools` to inherit everything. Normal Mercury tool permissions still apply: a headless run cannot ask, so grant the tool with `allowed_tools` (or host a session and answer the ask), otherwise the call is denied and the outcome is `blocked` with the call in `denials`.
 
 ## Test without a model
 
@@ -115,9 +116,9 @@ Supply rows captured from `task.rows`. The loopback replay server uses neither a
 
 ## Rows and errors
 
-The same generator emits both language packages' schema tables and types. `parse_row`, `row_of`, `input_row_of` return `RowRead`; `validate` returns `Issue` objects. Known malformed rows fail validation; a changed session/outcome schema version is rejected. An unfamiliar type becomes `{'type': 'unknown_row', 'original_type': ..., 'raw': ...}` without losing its payload. Extra fields on known rows are retained.
+The same generator emits both language packages' schema tables and types. `parse_row`, `row_of`, `input_row_of` return `RowRead`; `validate` returns `Issue` objects; `is_main_thread(row)` tells the main conversation's rows from a subagent's. Known malformed rows fail validation; a changed session/outcome schema version is rejected. An unfamiliar type becomes `{'type': 'unknown_row', 'original_type': ..., 'raw': ...}` with its envelope fields copied beside it, without losing its payload. Extra fields on known rows are retained.
 
-Five specific errors derive from `MercuryError`: `MercuryRefusal`, `MercuryUsageError`, `MercuryExitError`, `MercurySpawnError` and `MercuryWireError`. RPC errors retain `.code` and `.data`; RPC refusals have `.outcome is None`. Read the outcome's status rather than treating an exit code alone as a completed turn.
+Five specific errors derive from `MercuryError`: `MercuryRefusal` (run outcome or RPC refusal), `MercuryUsageError` (the CLI refused the command line, exit 2), `MercuryExitError` (the process ended before an outcome row or before the session was closed), `MercurySpawnError` (cannot launch: no such executable or working directory) and `MercuryWireError` (invalid frame). `MercuryUsageError` and `MercuryExitError` carry `.door` (`'run'` or `'runner'`) and `.exit` (code, signal, stderr) and quote the CLI's own stderr line; RPC errors retain `.code` and `.data`; RPC refusals have `.outcome is None`. Read the outcome's status rather than treating an exit code alone as a completed turn.
 
 <!-- vocabulary:start -->
 | Row | Required fields |
