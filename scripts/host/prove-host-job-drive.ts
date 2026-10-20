@@ -89,6 +89,11 @@ try {
       return false
     }, 3000), 'selection reaches ' + text + '\n' + m!.screen())
     m!.push(KEY.enter)
+    if (text === 'Rent a GPU') {
+      await screen('Rent from which vendor?')
+      check('where-first rental offers all three vendors', ['Runpod', 'Vast.ai', 'Lambda'].every(label => m!.screen().includes(label)))
+      await choose('Runpod')
+    }
   }
   const capture = async (name: string) => {
     if (!frames) return

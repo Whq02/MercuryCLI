@@ -3,7 +3,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
-import type { HostOffer, HostPod, HostVendor } from './vendor.js'
+import { HOST_VENDOR_INFO, type HostOffer, type HostPod, type HostVendor } from './vendor.js'
 import { HostCreateError, HostVendorHttpError, VendorApi, isOpenSshKey, keyMaterial, type VendorTiming } from './http.js'
 
 export const VAST_STORAGE_NOTICE = '/workspace uses the instance container disk. Stop retains data and storage billing, and a restart waits until the host’s GPUs are free; terminate deletes the disk and its data. No separate volume is created.'
@@ -43,8 +43,8 @@ const sortOffers = (a: HostOffer, b: HostOffer): number => Number(a.recipe.verif
 
 export class VastClient implements HostVendor {
   readonly vendor = 'vast' as const
-  readonly label = 'Vast.ai'
-  readonly keyHelp = 'Create a Vast.ai API key at https://cloud.vast.ai/manage-keys/.'
+  readonly label = HOST_VENDOR_INFO.vast.label
+  readonly keyHelp = HOST_VENDOR_INFO.vast.keyHelp
   readonly capabilities = { stop: true, dataCenters: false, persistentDisk: 'root' } as const
   private api: VendorApi
   private lastShapes: HostOffer[] = []

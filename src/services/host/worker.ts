@@ -4,10 +4,10 @@ import { matchesVolume, rentalVolume, readKeptVolume, writeKeptVolume, type Kept
 import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
 import { setTimeout as delay } from 'node:timers/promises'
-import { readStoredRunpodApiKey } from '../providers/providerSecrets.js'
+import { vendorClient, vendorKey, vendorLabel, runpodOnly } from './vendors/client.js'
 import { linkLlmHostPod, runLlmHost } from '../llmHost/index.js'
 import { hostReadyWords, LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
-import { RunpodClient, RunpodHttpError, createRefusal, cents, type HostOffer, type HostPod } from './runpod.js'
+import { RunpodHttpError, cents, type HostOffer, type HostPod } from './runpod.js'
 import { HostClusterEnded, createHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostShape, startHostCluster } from './cluster.js'
 import { hostSetupTimeout } from './costs.js'
 import { hostRecipeOfRecord } from './recipesFile.js'
@@ -15,7 +15,7 @@ import { hostNotice } from './notices.js'
 import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord } from './store.js'
 import { activeHostWatches, queueHostSetup, watchModel, watchRateWords } from './jobs.js'
 import { reconcileRecord } from '../projectServices/serviceManager.js'
-import { ensureHostKey, hostRunner, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
+import { ensureHostKey, hostRunner, inspectSsh, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRetuneLive, reconcileHostTune, tunedRecipe } from './tune.js'
 
 export async function runHostJob(id: string, generation: string, options: { runner?: HostRunner; pauseMs?: number; timeoutMs?: number; signal?: AbortSignal; keepAlive?: boolean } = {}): Promise<void> {
@@ -26,7 +26,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const runner = options.runner ?? hostRunner
   const pause = options.pauseMs ?? 5000
   const timeout = options.timeoutMs ?? hostSetupTimeout(hostRecipeOfRecord(initial))
-  const key = readStoredRunpodApiKey()
+  const vendor = initial.vendor ?? 'runpod'
+  const key = vendorKey(vendor)
   const clean = (text: string): string => key ? text.split(key).join('[redacted]') : text
   const mark = (step: string): void => {
     const record = readHostRecord(id)
@@ -67,9 +68,9 @@ export async function runHostJob(id: string, generation: string, options: { runn
   if (initial.jobKind === 'watch') {
     let created: HostPod | undefined
     try {
-      if (!key) throw new Error('The saved Runpod key is unavailable.')
+      if (!key) throw new Error('The saved ' + vendorLabel(vendor) + ' key is unavailable.')
       if (!recipe) throw new Error('The saved host recipe is unavailable.')
-      const api = new RunpodClient(key, initial.apiBaseUrl)
+      const api = runpodOnly(vendorClient(initial), 'Stock watches')
       const sshKey = await ensureHostKey(runner, signal)
       const pollMs = options.pauseMs ?? initial.pollIntervalMs ?? 5000
       const watchWindowMs = options.timeoutMs ?? initial.pollWindowMs ?? 12 * 3600_000
@@ -200,11 +201,11 @@ export async function runHostJob(id: string, generation: string, options: { runn
     return
   }
   try {
-    if (!key) throw new Error('The saved Runpod key is unavailable.')
+    if (!key) throw new Error('The saved ' + vendorLabel(vendor) + ' key is unavailable.')
     if (!recipe) throw new Error('The saved host recipe is unavailable.')
-    const api = new RunpodClient(key, initial.apiBaseUrl)
+    const api = vendorClient(initial)
     if (initial.cluster) {
-      target = await startHostCluster(api, initial, recipe, runner, signal, pause, timeout, mark, head => { target = head })
+      target = await startHostCluster(runpodOnly(api, 'Clusters'), initial, recipe, runner, signal, pause, timeout, mark, head => { target = head })
     } else {
     const deadline = Date.now() + timeout
     let last = 'SSH address not yet assigned'
@@ -214,7 +215,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       if (pod.status === 'EXITED' || pod.status === 'ERROR') throw new Error('Pod is ' + pod.status + '. ' + await api.logs(id))
       if (direct && pod.status === 'RUNNING') {
         const candidate = { host: direct.host, port: direct.port, user: direct.username, key: initial.sshKey ?? initial.target?.key }
-        try { await runner.run('ssh', [...sshArguments(candidate), 'true'], signal); target = candidate; break } catch (error) { last = String(error) }
+        try { await runner.run('ssh', [...sshArguments(candidate), vendor === 'lambda' ? 'cloud-init status --wait >/dev/null && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : 'true'], signal); target = candidate; break } catch (error) { last = String(error) }
       }
       await delay(pause, undefined, { signal })
     }
@@ -222,11 +223,13 @@ export async function runHostJob(id: string, generation: string, options: { runn
     patchHostRecord(id, { target, status: 'RUNNING' })
     let keptWeights: string | undefined
     if (initial.volumeId) {
-      keptWeights = await prepareKeptWeights(initial, recipe, api, target, runner, signal, mark)
+      keptWeights = await prepareKeptWeights(initial, recipe, runpodOnly(api, 'Fast-load weights disks'), target, runner, signal, mark)
       if (initial.prepareWeightsOnly) return
     }
     mark(recipe.engine === 'llamacpp' ? 'checking engine' : 'installing')
-    await startHostEngine(target, recipe, runner, signal, false, true, undefined, keptWeights)
+    const vm = vendor === 'lambda'
+    const docker = vm ? (await inspectSsh(target, runner, signal)).docker : false
+    await startHostEngine(target, recipe, runner, signal, docker, !vm, undefined, keptWeights)
     await waitHostEngine(target, recipe, runner, signal, pause, timeout)
     }
     patchHostRecord(id, { target, status: 'RUNNING' })
@@ -275,16 +278,21 @@ export async function runHostJob(id: string, generation: string, options: { runn
     }
   } catch (error) {
     let failure = error
-    if (initial.prepareWeightsOnly && readHostRecord(id)) {
+    const failedSetup = readHostRecord(id)
+    if (failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped' && (initial.prepareWeightsOnly || vendor !== 'runpod' && failedSetup.jobState !== 'ready')) {
       const volume = initial.volumeId && readKeptVolume(initial.volumeId)
       if (volume && volume.state !== 'kept' && volume.state !== 'failed') writeKeptVolume({ ...volume, state: 'failed', error: clean(String(error)), preparingPod: id })
       try {
-        if (!key) throw new Error('The saved Runpod key is unavailable for cleanup.')
-        const cleanupApi = new RunpodClient(key, initial.apiBaseUrl)
+        const cleanupApi = vendorClient(initial)
         await cleanupApi.terminate(id)
-        if ((await cleanupApi.pods()).some(row => row.id === id)) throw new Error('Runpod still lists the pod.')
-        hostNotice(initial, 'failed', 'Preparation failed; temporary pod ' + id + ' terminated. The weights disk still bills. ' + clean(String(error)))
-        removeHostRecord(id)
+        if ((await cleanupApi.pods()).some(row => row.id === id)) throw new Error(cleanupApi.label + ' still lists the pod.')
+        if (failedSetup.provider) { const { removeLlmHostProvider } = await import('../llmHost/index.js'); removeLlmHostProvider(failedSetup.provider) }
+        const ended = (initial.prepareWeightsOnly ? 'Preparation failed; temporary pod ' : 'Setup failed; ' + cleanupApi.label + ' pod ') + id + ' terminated and verified absent. ' + (initial.volumeId ? 'The weights disk still bills. ' : '') + clean(String(error))
+        hostNotice(initial, 'failed', ended)
+        if (initial.prepareWeightsOnly) removeHostRecord(id)
+        else patchHostRecord(id, { status: 'TERMINATED', jobState: 'failed', step: 'setup failed · instance terminated', error: ended })
+        closeHostTunnel(id)
+        return
       } catch (cleanup) { failure = new Error(id + ' may still bill: preparation failed and termination was not verified. Pods I’m paying for → Terminate. ' + clean(String(error)) + ' · ' + clean(String(cleanup))) }
     }
     const current = readHostRecord(id)

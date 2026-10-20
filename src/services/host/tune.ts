@@ -126,6 +126,7 @@ export function tunedRecipe(recipe: HostRecipe, prefs: HostTunePreferences): Hos
 }
 
 export async function runTune(modelTitle: string, options: { recipes: readonly HostRecipe[]; offers?: readonly HostOffer[]; pod?: HostRecord; runner?: HostRunner; signal?: AbortSignal; pauseMs?: number; timeoutMs?: number }, ask: Ask, emit: Emit): Promise<HostTunePreferences | undefined> {
+  if (options.pod?.vendor && options.pod.vendor !== 'runpod') { emit({ title: 'Tune', words: 'Tune reload is Runpod-only. Nothing was changed on this instance.' }); return }
   const recipes = options.recipes.filter(row => titleOf(row) === modelTitle)
   if (!recipes.length) throw new Error('No recipes for ' + modelTitle)
   const signal = options.signal ?? new AbortController().signal
@@ -240,6 +241,7 @@ export async function reconcileHostTune(id: string, runner: HostRunner, signal: 
 
 export async function retuneHostEngine(record: HostRecord, prefs: HostTunePreferences, runner: HostRunner, options: { signal?: AbortSignal; pauseMs?: number; timeoutMs?: number; emit?: Emit } = {}): Promise<{ ok: boolean; words: string }> {
   const signal = options.signal ?? new AbortController().signal
+  if (record.vendor && record.vendor !== 'runpod') return { ok: false, words: 'Tune reload is Runpod-only. Nothing was changed on this instance.' }
   const busy = { ok: false, words: 'This pod is already reloading its engine; no change made.' }
   if (retuning.has(record.id)) return busy
   const current = await reconcileHostTune(record.id, runner, signal) ?? record

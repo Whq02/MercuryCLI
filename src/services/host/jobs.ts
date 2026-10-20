@@ -40,7 +40,7 @@ export function queueHostSetup(record: HostRecord): HostRecord {
     tune = preference?.quality === recipe?.id ? preference : undefined
     if (recipe && tune) tunedRecipe(recipe, tune)
   } catch { tune = undefined }
-  record = { ...record, recipeRow: recipe, tune }
+  record = { ...record, vendor: record.vendor ?? 'runpod', recipeRow: recipe, tune }
   const now = Date.now()
   const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })
   const queued: HostRecord = { ...record, jobKind: 'setup', generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step: 'waiting for SSH', error: undefined, log: join(logs, record.id + '.log'), steps: [{ step: 'waiting for SSH', at: now }] }
@@ -48,6 +48,7 @@ export function queueHostSetup(record: HostRecord): HostRecord {
   return queued
 }
 export function queueHostWatch(record: HostRecord): HostRecord {
+  if (record.vendor && record.vendor !== 'runpod') throw new Error('Stock watches are Runpod-only. Nothing was queued or rented.')
   const watching = activeHostWatches().find(row => row.id !== record.id && watchModel(row) === watchModel(record))
   if (watching) return watching
   if (active(record)) return readHostRecord(record.id) ?? record
