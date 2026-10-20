@@ -99,7 +99,7 @@ function epochOf(entries: Entry[]): Epoch | null {
   })
   const boundaries = [...latest.values()]
     .filter(e => e.type === 'system' && e.subtype === 'compact_boundary')
-    .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp) || firstAt.get(a.uuid)! - firstAt.get(b.uuid)!)
+    .sort((a, b) => firstAt.get(a.uuid)! - firstAt.get(b.uuid)!)
   const boundary = boundaries.at(-1)
   if (boundary === undefined) return null
   const parentOf = new Map<string, string | null>()
@@ -207,6 +207,215 @@ section('§A the reader law — a record re-emitted after a compaction never mov
   check('the synthesized record carries the re-emissions the owner\'s file carries (the shape under test)', twice.length === 8, j(twice.length))
 }
 
+type Stamped = Record<string, unknown> & { uuid: string; timestamp: string }
+type Seg = { headUuid: string; anchorUuid: string; tailUuid: string }
+const loadingMod = await import(join(SRC, 'utils/sessionStorage/loading.ts'))
+const chainMod = await import(join(SRC, 'utils/sessionStorage/chain.ts'))
+function stampedWorld(label: string) {
+  const dir = join(SCRATCH, label)
+  mkdirSync(dir, { recursive: true })
+  const names = new Map<string, string>()
+  const stamp = (iso: string): string => new Date(iso).toISOString()
+  const keep = (name: string, row: Stamped): Stamped => {
+    names.set(row.uuid, name)
+    return row
+  }
+  const user = (name: string, text: string, parentUuid: string | null, at: string, extra: Record<string, unknown> = {}): Stamped => keep(name, { ...(factories.createUserMessage({ content: text, ...extra }) as Stamped), parentUuid, isSidechain: false, timestamp: stamp(at) })
+  const assistant = (name: string, text: string, parentUuid: string | null, at: string): Stamped => keep(name, { ...(factories.createAssistantMessage({ content: [{ type: 'text', text }] }) as Stamped), parentUuid, isSidechain: false, timestamp: stamp(at) })
+  const boundary = (name: string, at: string): Stamped => keep(name, { ...(compactMod.createCompactBoundaryMessage('manual', 1000) as Stamped), parentUuid: null, isSidechain: false, timestamp: stamp(at) })
+  const summary = (name: string, of: Stamped, at: string): Stamped => user(name, `the summary under ${names.get(of.uuid)}`, of.uuid, at, { isCompactSummary: true })
+  const keepTail = (b: Stamped, segment: Seg): void => {
+    ;(b as { compactMetadata: { preservedSegment?: Seg } }).compactMetadata.preservedSegment = segment
+  }
+  const path = join(dir, `${randomUUID()}.jsonl`)
+  const write = (rows: Stamped[], settle = false): void => {
+    for (const row of rows) appendFileSync(path, (vnext.encodeTranscriptLine(path, row, settle ? { settleCreationOrdinal: '1' } : undefined) as { line: string }).line)
+  }
+  const named = (rows: ReadonlyArray<{ uuid: string }>): string[] => rows.map(r => names.get(r.uuid) ?? r.uuid.slice(0, 4))
+  const screen = async (file = path): Promise<string[]> => {
+    reader._resetTranscriptReaderForTesting()
+    return named((await reader.readTranscriptChainSince(file, null)).rows)
+  }
+  const resume = async (file = path): Promise<string[]> => {
+    reader._resetTranscriptReaderForTesting()
+    const fold = await loadingMod.loadTranscriptFile(file)
+    const leaf = chainMod.findLatestMessage(fold.messages.values(), (m: { isSidechain?: boolean }) => !m.isSidechain)
+    return leaf === undefined ? [] : named(chainMod.buildConversationChain(fold.messages, leaf))
+  }
+  return { path, user, assistant, boundary, summary, keepTail, write, named, screen, resume }
+}
+
+section('§A2 clocks — the newest compaction is the latest boundary in file order, whatever its stamp says')
+{
+  const w = stampedWorld('clock-behind')
+  const u1 = w.user('u1', 'first words on the first machine', null, '2026-10-20T11:00:00Z')
+  const a1 = w.assistant('a1', 'first reply on the first machine', u1.uuid, '2026-10-20T11:01:00Z')
+  const B1 = w.boundary('B1', '2026-10-20T11:02:00Z')
+  const S1 = w.summary('S1', B1, '2026-10-20T11:02:01Z')
+  w.keepTail(B1, { headUuid: u1.uuid, anchorUuid: S1.uuid, tailUuid: a1.uuid })
+  const u2 = w.user('u2', 'words after the first fold, first machine', S1.uuid, '2026-10-20T11:03:00Z')
+  const a2 = w.assistant('a2', 'reply after the first fold, first machine', u2.uuid, '2026-10-20T11:04:00Z')
+  const u3 = w.user('u3', 'words on the second machine, its clock an hour behind', a2.uuid, '2026-10-20T10:10:00Z')
+  const a3 = w.assistant('a3', 'reply on the second machine', u3.uuid, '2026-10-20T10:11:00Z')
+  const B2 = w.boundary('B2', '2026-10-20T10:15:00Z')
+  const S2 = w.summary('S2', B2, '2026-10-20T10:15:01Z')
+  w.keepTail(B2, { headUuid: u3.uuid, anchorUuid: S2.uuid, tailUuid: a3.uuid })
+  const u4 = w.user('u4', 'the live words after the second fold', S2.uuid, '2026-10-20T10:16:00Z')
+  const a4 = w.assistant('a4', 'the live reply after the second fold', u4.uuid, '2026-10-20T10:17:00Z')
+  w.write([u1, a1, B1, S1, u2, a2, u3, a3, B2, S2, u4, a4])
+  const screen = await w.screen()
+  check('a fold written on a machine whose clock runs an hour behind the previous fold\'s: the screen holds that fold, its kept tail and the live turn', j(screen) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4']), j(screen))
+  const resume = await w.resume()
+  check('the same file resumed: the model gets the newest fold\'s chain, never the epoch it folded', j(resume) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4']), j(resume))
+}
+{
+  const w = stampedWorld('clock-behind-no-tail')
+  const u1 = w.user('u1', 'first words', null, '2026-10-20T11:00:00Z')
+  const a1 = w.assistant('a1', 'first reply', u1.uuid, '2026-10-20T11:01:00Z')
+  const B1 = w.boundary('B1', '2026-10-20T11:02:00Z')
+  const S1 = w.summary('S1', B1, '2026-10-20T11:02:01Z')
+  const u2 = w.user('u2', 'words after the first fold', S1.uuid, '2026-10-20T11:03:00Z')
+  const a2 = w.assistant('a2', 'reply after the first fold', u2.uuid, '2026-10-20T11:04:00Z')
+  const B2 = w.boundary('B2', '2026-10-20T10:15:00Z')
+  const S2 = w.summary('S2', B2, '2026-10-20T10:15:01Z')
+  const u3 = w.user('u3', 'the live words', S2.uuid, '2026-10-20T10:16:00Z')
+  const a3 = w.assistant('a3', 'the live reply', u3.uuid, '2026-10-20T10:17:00Z')
+  w.write([u1, a1, B1, S1, u2, a2, B2, S2, u3, a3])
+  const screen = await w.screen()
+  check('the same move with folds that keep no tail: the screen holds the later fold and the live turn', j(screen) === j(['B2', 'S2', 'u3', 'a3']), j(screen))
+}
+{
+  const w = stampedWorld('clock-tie')
+  const u1 = w.user('u1', 'words', null, '2026-10-20T10:00:00Z')
+  const a1 = w.assistant('a1', 'reply', u1.uuid, '2026-10-20T10:01:00Z')
+  const B1 = w.boundary('B1', '2026-10-20T10:02:00.000Z')
+  const S1 = w.summary('S1', B1, '2026-10-20T10:02:00.000Z')
+  const B2 = w.boundary('B2', '2026-10-20T10:02:00.000Z')
+  const S2 = w.summary('S2', B2, '2026-10-20T10:02:00.000Z')
+  w.keepTail(B1, { headUuid: u1.uuid, anchorUuid: S1.uuid, tailUuid: a1.uuid })
+  const u2 = w.user('u2', 'the live words', S2.uuid, '2026-10-20T10:03:00Z')
+  const a2 = w.assistant('a2', 'the live reply', u2.uuid, '2026-10-20T10:04:00Z')
+  w.write([u1, a1, B1, S1, B2, S2, u2, a2])
+  const screen = await w.screen()
+  check('two folds stamped in the same millisecond: the later one in the file is the newest', j(screen) === j(['B2', 'S2', 'u2', 'a2']), j(screen))
+}
+
+section('§A3 the resume snapshot — a record keeps its first position through the snapshot, and a snapshot an older reader wrote is not trusted')
+{
+  const w = stampedWorld('snapshot-positions')
+  const pad = 'x'.repeat(300 * 1024)
+  const u1 = w.user('u1', 'first words', null, '2026-10-20T10:00:00Z')
+  const a1 = w.assistant('a1', 'first reply', u1.uuid, '2026-10-20T10:01:00Z')
+  const B1 = w.boundary('B1', '2026-10-20T10:02:00Z')
+  const S1 = w.summary('S1', B1, '2026-10-20T10:02:01Z')
+  w.keepTail(B1, { headUuid: u1.uuid, anchorUuid: S1.uuid, tailUuid: a1.uuid })
+  const u2 = w.user('u2', 'second words ' + pad, S1.uuid, '2026-10-20T10:03:00Z')
+  const a2 = w.assistant('a2', 'second reply', u2.uuid, '2026-10-20T10:04:00Z')
+  const u3 = w.user('u3', 'third words', a2.uuid, '2026-10-20T10:05:00Z')
+  const a3 = w.assistant('a3', 'third reply', u3.uuid, '2026-10-20T10:06:00Z')
+  const B2 = w.boundary('B2', '2026-10-20T10:07:00Z')
+  const S2 = w.summary('S2', B2, '2026-10-20T10:07:01Z')
+  w.keepTail(B2, { headUuid: u3.uuid, anchorUuid: S2.uuid, tailUuid: a3.uuid })
+  const u4 = w.user('u4', 'fourth words', S2.uuid, '2026-10-20T10:08:00Z')
+  const a4 = w.assistant('a4', 'fourth reply', u4.uuid, '2026-10-20T10:09:00Z')
+  w.write([u1, a1, B1, S1, u2, a2, u3, a3, B2, S2, u4, a4])
+  const before = await w.screen()
+  check('a cold read before any re-emission wrote the resume snapshot', j(before) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4']) && existsSync(`${w.path}.resume-snapshot.json`), j(before))
+  w.write([{ ...B1 }, { ...S1 }, { ...u2 }, { ...a2 }])
+  const u5 = w.user('u5', 'the words chained onto the re-emitted row', a2.uuid, '2026-10-20T10:10:00Z')
+  const a5 = w.assistant('a5', 'the reply after them', u5.uuid, '2026-10-20T10:11:00Z')
+  w.write([u5, a5])
+  const copy = `${w.path}.no-snapshot.jsonl`
+  copyFileSync(w.path, copy)
+  const cold = await w.screen(copy)
+  check('a cold read of the re-emitted record adopts the live turn the re-emission cut', j(cold) === j(['B2', 'S2', 'u3', 'a3', 'u4', 'a4', 'u5', 'a5']), j(cold))
+  const viaSnapshot = await w.screen()
+  check('a read through the snapshot written before the re-emission paints exactly the cold read\'s rows', j(viaSnapshot) === j(cold), j(viaSnapshot))
+  const resumeVia = await w.resume()
+  const resumeCold = await w.resume(copy)
+  check('the resume chain through the snapshot is the cold read\'s', j(resumeVia) === j(resumeCold), j({ resumeVia, resumeCold }))
+}
+{
+  const { createHash } = await import('node:crypto')
+  const w = stampedWorld('snapshot-old-reader')
+  const pad = 'x'.repeat(300 * 1024)
+  const u1 = w.user('u1', 'first words ' + pad, null, '2026-10-20T10:00:00Z')
+  const a1 = w.assistant('a1', 'first reply', u1.uuid, '2026-10-20T10:01:00Z')
+  const u2 = w.user('u2', 'the live words an older reader had dropped', a1.uuid, '2026-10-20T10:02:00Z')
+  const a2 = w.assistant('a2', 'the live reply', u2.uuid, '2026-10-20T10:03:00Z')
+  w.write([u1, a1, u2, a2])
+  const bytes = readFileSync(w.path)
+  const cursor = bytes.length
+  const kept = entriesOf(w.path).filter(e => e.uuid !== u2.uuid).map(e => [e.uuid, e])
+  writeFileSync(`${w.path}.resume-snapshot.json`, JSON.stringify({ schemaVersion: 4, byteCursor: cursor, prefixDigest: createHash('sha256').update(bytes.subarray(Math.max(0, cursor - 4096), cursor)).digest('hex'), fold: { messages: { '«map»': kept } } }))
+  const screen = await w.screen()
+  check('a snapshot written by the reader before this one (the owner\'s file carries one that lost three live rows) is not trusted: the live words paint', screen.includes('u2'), j(screen))
+}
+
+section('§A4 settlement — a settlement re-publication wins over the first copy; a folded row stays folded; a byte-identical re-append changes nothing')
+{
+  const w = stampedWorld('settlement')
+  const u1 = w.user('u1', 'words', null, '2026-10-20T10:00:00Z')
+  const a1 = w.assistant('a1', 'the folded reply', u1.uuid, '2026-10-20T10:01:00Z')
+  const u2 = w.user('u2', 'the kept words', a1.uuid, '2026-10-20T10:02:00Z')
+  const a2 = w.assistant('a2', 'the kept reply', u2.uuid, '2026-10-20T10:03:00Z')
+  const B = w.boundary('B', '2026-10-20T10:04:00Z')
+  const S = w.summary('S', B, '2026-10-20T10:04:01Z')
+  w.keepTail(B, { headUuid: u2.uuid, anchorUuid: S.uuid, tailUuid: a2.uuid })
+  const u3 = w.user('u3', 'live words', S.uuid, '2026-10-20T10:05:00Z')
+  const a3 = w.assistant('a3', 'live reply, streaming', u3.uuid, '2026-10-20T10:06:00Z')
+  w.write([u1, a1, u2, a2, B, S, u3, a3])
+  reader._resetTranscriptReaderForTesting()
+  const first = await reader.readTranscriptChainSince(w.path, null)
+  const settled = (row: Stamped, text: string): Stamped => ({ ...row, message: { ...(row.message as Record<string, unknown>), content: [{ type: 'text', text }] } })
+  w.write([settled(a3, 'live reply, settled'), settled(a2, 'the kept reply, settled'), settled(a1, 'the folded reply, settled')], true)
+  w.write([{ ...u3 }])
+  const next = await reader.readTranscriptChainSince(w.path, first.cursor)
+  const bodies = next.rows.map(r => j((r as { message?: unknown }).message ?? ''))
+  check('the rows and their order stand after three settlements and a byte-identical re-append', j(w.named(next.rows)) === j(['B', 'S', 'u2', 'a2', 'u3', 'a3']), j(w.named(next.rows)))
+  check('the settled live reply paints its settled body, the first copy\'s body is gone', bodies.some(b => b.includes('live reply, settled')) && !bodies.some(b => b.includes('live reply, streaming')))
+  check('the settled kept reply paints its settled body', bodies.some(b => b.includes('the kept reply, settled')))
+  check('a settlement of a folded row does not bring it back', !bodies.some(b => b.includes('the folded reply')))
+  const cold = await w.screen()
+  check('a cold read paints the same rows', j(cold) === j(w.named(next.rows)), j(cold))
+}
+
+section('§A5 the writer\'s dedup set — the ids this process wrote survive a dropped memo; the incremental scan survives a cut')
+{
+  const writerMod = await import(join(SRC, 'utils/sessionStorage/writer.ts'))
+  const logsMod = await import(join(SRC, 'utils/sessionStorage/logs.ts'))
+  const pathsMod = await import(join(SRC, 'utils/sessionStorage/paths.ts'))
+  const u1 = factories.createUserMessage({ content: 'the first words, on disk' })
+  await writerMod.recordTranscript([u1] as never)
+  await writerMod.flushSessionStorage()
+  const a1 = factories.createAssistantMessage({ content: [{ type: 'text', text: 'the first reply, still in the write queue' }] })
+  const u2 = factories.createUserMessage({ content: 'the second words, still in the write queue' })
+  await writerMod.recordTranscript([u1, a1, u2] as never)
+  logsMod.clearSessionMessagesCache()
+  const u3 = factories.createUserMessage({ content: 'the third words' })
+  await writerMod.recordTranscript([u1, a1, u2, u3] as never)
+  await writerMod.flushSessionStorage()
+  const file = pathsMod.getTranscriptPath() as string
+  const twice = createdTwice(file)
+  check('the memo dropped while the last rows still sit in the write queue: the whole array recorded again writes nothing twice', twice.length === 0 && entriesOf(file).length === 4, j({ twice: twice.length, rows: entriesOf(file).length }))
+}
+{
+  const dir = join(SCRATCH, 'scan-cut')
+  mkdirSync(dir, { recursive: true })
+  const path = join(dir, `${randomUUID()}.jsonl`)
+  const line = (uuid: string): string => (vnext.encodeTranscriptLine(path, { type: 'user', uuid, parentUuid: null, isSidechain: false, timestamp: new Date().toISOString(), message: { role: 'user', content: 'x'.repeat(200) } }) as { line: string }).line
+  for (let i = 0; i < 20; i++) appendFileSync(path, line(`00000000-0000-4000-8000-${String(i).padStart(12, '0')}`))
+  reader._resetTranscriptRecordIdScansForTesting()
+  await reader.readTranscriptRecordIds(path)
+  writeFileSync(path, readFileSync(path, 'utf8').split('\n').filter((_, i) => i !== 5).join('\n'))
+  for (let i = 0; i < 6; i++) appendFileSync(path, line(`11111111-0000-4000-8000-${String(i).padStart(12, '0')}`))
+  const incremental = await reader.readTranscriptRecordIds(path)
+  reader._resetTranscriptRecordIdScansForTesting()
+  const whole = await reader.readTranscriptRecordIds(path)
+  const missing = [...whole].filter(id => !incremental.has(id))
+  check('a line cut from the scanned prefix, then the file grows past the old offset: the incremental scan holds every id a whole-file scan finds', missing.length === 0 && incremental.size === whole.size, j({ missing: missing.length, incremental: incremental.size, whole: whole.size }))
+}
+
 if (!existsSync(DIST) || NODE === '') {
   console.log(`\nFAIL ${!existsSync(DIST) ? `dist missing at ${DIST} — run \`bun run build.ts\` first` : 'no node on PATH'}`)
   failures++
@@ -263,6 +472,10 @@ const pointBoth = (target: string): void => {
 pointBoth('X')
 
 const FOLD_MARKER = 'Write the running record of this conversation'
+const AUTO_FOLD_PROBE = 'run the probe tool'
+;(await import(join(SRC, 'utils/config/globalConfig.ts'))).enableConfigs()
+const autoCompactMod = await import(join(SRC, 'services/compact/autoCompact.ts'))
+const HEAVY_INPUT_TOKENS = Math.floor((autoCompactMod.getAutoCompactThreshold('claude-sonnet-5') + autoCompactMod.getBlockingLimit('claude-sonnet-5')) / 2)
 const sse = (event: string, obj: unknown): string => `event: ${event}\ndata: ${JSON.stringify(obj)}\n\n`
 const usage = { input_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 10 }
 type Item = { role?: string; content?: unknown }
@@ -298,6 +511,23 @@ const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
     const last = [...items].reverse().find(m => m.role === 'user' && askOf(m.content) !== '')
     const ask = last === undefined ? '' : askOf(last.content)
     const fold = raw.includes(FOLD_MARKER)
+    const finalContent = items.at(-1)?.content
+    const afterTool = Array.isArray(finalContent) && (finalContent as Array<{ type?: string }>).some(part => part.type === 'tool_result')
+    if (!fold && !afterTool && ask.includes(AUTO_FOLD_PROBE)) {
+      const heavy = { ...usage, input_tokens: HEAVY_INPUT_TOKENS }
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+      res.end(
+        [
+          sse('message_start', { type: 'message_start', message: { id: `msg_sr_${n}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { ...heavy, output_tokens: 1 } } }),
+          sse('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: `toolu_sr_${n}`, name: 'Bash', input: {} } }),
+          sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ command: 'echo the probe tool ran', description: 'Print one line' }) } }),
+          sse('content_block_stop', { type: 'content_block_stop', index: 0 }),
+          sse('message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use', stop_sequence: null }, usage: heavy }),
+          sse('message_stop', { type: 'message_stop' }),
+        ].join(''),
+      )
+      return
+    }
     const text = fold
       ? '<analysis>the walk</analysis><summary>1. Operator Intent: the operator kept talking. 2. Technical Ground: none. 3. Files and Code Touched: none. 4. Errors and Corrections: none. 5. Problems Worked: none. 6. Operator Messages: the words so far. 7. Open Work: none. 8. Where Work Stands: idle. 9. Next Move (optional): none. 10. Agents in flight: none.</summary>'
       : `heard ${ask.trim().split('\n').pop()} (#${n})`
@@ -553,6 +783,15 @@ try {
   judgeScreen('a screen attaching after the daemon restart', afterDaemon.records(), transcript, finalWords)
   afterDaemon.detach()
   check('no record created twice across the whole scenario', createdTwice(transcript).length === 0, j(createdTwice(transcript).slice(0, 3)))
+
+  section('§G an automatic fold in the middle of a turn: the dedup memo drops while the turn\'s own rows are in flight, then the runner records its whole array through it')
+  const foldsBefore = boundariesOnDisk()
+  const probeSent = await dispatch(`the tenth words: ${AUTO_FOLD_PROBE}`, { targetSessionId: sid })
+  check('sent: a turn whose first reply calls a tool with the window nearly full', probeSent.ok === true, j(probeSent))
+  check('an automatic fold landed mid-turn and the turn settled', await untilAsync(() => boundariesOnDisk() > foldsBefore && facts(sid)?.busy === false && read(transcript).includes('the probe tool ran'), 90_000), j({ boundaries: boundariesOnDisk(), before: foldsBefore, busy: facts(sid)?.busy }))
+  check('no record created twice after the mid-turn fold', createdTwice(transcript).length === 0, j(createdTwice(transcript).slice(0, 3)))
+  await screenSettled(screen)
+  judgeScreen('the attached screen after the mid-turn fold', screen.records(), transcript, [])
 } finally {
   await cleanup()
 }

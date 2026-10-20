@@ -23,8 +23,12 @@ class TranscriptRows {
   private removals = new Map<UUID, UUID[]>()
   private structural = false
 
-  constructor(readonly rows: Map<UUID, TranscriptMessage>) {
-    for (const [id, row] of rows) this.set(id, row)
+  constructor(readonly rows: Map<UUID, TranscriptMessage>, order: Iterable<UUID> = []) {
+    for (const id of order) if (!this.positions.has(id)) this.positions.set(id, this.ordinal++)
+    for (const [id, row] of rows) {
+      if (!this.positions.has(id)) this.positions.set(id, this.ordinal++)
+      this.index(id, row)
+    }
   }
 
   get(id: UUID): TranscriptMessage | undefined { return this.rows.get(id) }
@@ -62,6 +66,11 @@ class TranscriptRows {
     else if (indexed) this.structural = true
     else this.positions.set(id, this.ordinal++)
     this.rows.set(id, row)
+    this.index(id, row)
+    return this
+  }
+
+  private index(id: UUID, row: TranscriptMessage): void {
     if (row.parentUuid) {
       this.group(this.children, row.parentUuid, id)
       this.terminals.delete(row.parentUuid)
@@ -76,7 +85,6 @@ class TranscriptRows {
       this.removals.set(id, removed)
       this.structural = true
     }
-    return this
   }
 
   delete(id: UUID): boolean {
@@ -107,6 +115,10 @@ class TranscriptRows {
     return [...ids].filter(id => this.has(id)).sort((a, b) => this.positionOf(a) - this.positionOf(b)).map(id => this.get(id)!)
   }
 
+  order(): UUID[] {
+    return [...this.positions].sort((a, b) => a[1] - b[1]).map(([id]) => id)
+  }
+
   childrenOf(id: UUID): TranscriptMessage[] {
     return this.ordered(this.children.get(id) ?? [])
   }
@@ -119,9 +131,7 @@ class TranscriptRows {
   }
 
   private boundariesOldestFirst(): BoundaryRow[] {
-    return this.ordered(this.boundaries)
-      .filter(compactRow)
-      .sort((a, b) => stampOf(a) - stampOf(b) || this.positionOf(a.uuid) - this.positionOf(b.uuid))
+    return this.ordered(this.boundaries).filter(compactRow)
   }
 
   newestBoundary(): BoundaryRow | undefined {
@@ -384,12 +394,16 @@ class TranscriptRows {
 
 const indexedRows = new WeakMap<Map<UUID, TranscriptMessage>, TranscriptRows>()
 
-export function createTranscriptRows(entries?: Iterable<readonly [UUID, TranscriptMessage]>): Map<UUID, TranscriptMessage> {
+export function createTranscriptRows(entries?: Iterable<readonly [UUID, TranscriptMessage]>, order?: Iterable<UUID>): Map<UUID, TranscriptMessage> {
   const messages = new Map(entries)
-  indexedRows.set(messages, new TranscriptRows(messages))
+  indexedRows.set(messages, new TranscriptRows(messages, order))
   return messages
 }
 
 export function transcriptRows(messages: Map<UUID, TranscriptMessage>): TranscriptRows {
   return indexedRows.get(messages) ?? new TranscriptRows(messages)
+}
+
+export function transcriptRowOrder(messages: Map<UUID, TranscriptMessage>): UUID[] {
+  return transcriptRows(messages).order()
 }

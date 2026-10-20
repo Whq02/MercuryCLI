@@ -76,10 +76,15 @@ const VERSION = typeof MACRO !== 'undefined' ? MACRO.VERSION : 'unknown'
 
 const MAX_TOMBSTONE_REWRITE_BYTES = 50 * 1024 * 1024
 
+const sessionRecordIds = new Map<string, Set<UUID>>()
+
 export const getSessionMessages = memoize(
   async (sessionId: UUID): Promise<Set<UUID>> => {
-    const ids = await readTranscriptRecordIds(sessionFilePath(sessionId))
-    return ids as Set<UUID>
+    const path = sessionFilePath(sessionId)
+    let known = sessionRecordIds.get(path)
+    if (known === undefined) sessionRecordIds.set(path, (known = new Set()))
+    for (const id of await readTranscriptRecordIds(path)) known.add(id as UUID)
+    return known
   },
   (sessionId: UUID) => sessionId,
 )

@@ -633,19 +633,22 @@ export function readTranscriptBytesAfter(path: string, cursor: TranscriptByteCur
 interface RecordIdScan {
   ino: number
   offset: number
-  carry: Buffer
+  window: Buffer
+  parts: Buffer[]
   ids: Set<string>
 }
 
 const recordIdScans = new Map<string, RecordIdScan>()
+const recordIdScanRuns = new Map<string, Promise<Set<string>>>()
 const RECORD_ID_SCAN_CHUNK = 1024 * 1024
 const RECORD_ID_HEAD = /^\{"schemaVersion":\d+,"recordId":"([^"]+)"/
+const RECORD_ID_HEAD_BYTES = 256
 
-function recordIdOfLine(line: string): string | null {
-  const head = RECORD_ID_HEAD.exec(line)
+function recordIdOfLine(line: Buffer): string | null {
+  const head = RECORD_ID_HEAD.exec(line.subarray(0, RECORD_ID_HEAD_BYTES).toString('latin1'))
   if (head !== null) return head[1]!
   try {
-    const parsed = JSON.parse(line) as { recordId?: unknown; uuid?: unknown; annotations?: { uuid?: unknown } }
+    const parsed = JSON.parse(line.toString('utf8')) as { recordId?: unknown; uuid?: unknown; annotations?: { uuid?: unknown } }
     if (typeof parsed.recordId === 'string') return parsed.recordId
     if (typeof parsed.annotations?.uuid === 'string') return parsed.annotations.uuid
     if (typeof parsed.uuid === 'string') return parsed.uuid
@@ -656,29 +659,37 @@ function recordIdOfLine(line: string): string | null {
 }
 
 function takeRecordIds(scan: RecordIdScan, bytes: Buffer): void {
-  const combined = scan.carry.length === 0 ? bytes : Buffer.concat([scan.carry, bytes])
-  const lastNewline = combined.lastIndexOf(NEWLINE)
-  if (lastNewline === -1) {
-    scan.carry = Buffer.from(combined)
-    return
+  let start = 0
+  for (let newline = bytes.indexOf(NEWLINE); newline !== -1; newline = bytes.indexOf(NEWLINE, start)) {
+    const piece = bytes.subarray(start, newline)
+    const line = scan.parts.length === 0 ? piece : Buffer.concat([...scan.parts, piece])
+    scan.parts = []
+    if (line.length > 0) {
+      const id = recordIdOfLine(line)
+      if (id !== null) scan.ids.add(id)
+    }
+    start = newline + 1
   }
-  scan.carry = Buffer.from(combined.subarray(lastNewline + 1))
-  for (const line of combined.subarray(0, lastNewline).toString('utf8').split('\n')) {
-    if (line === '') continue
-    const id = recordIdOfLine(line)
-    if (id !== null) scan.ids.add(id)
-  }
+  if (start < bytes.length) scan.parts.push(Buffer.from(bytes.subarray(start)))
 }
 
-export async function readTranscriptRecordIds(path: string): Promise<Set<string>> {
+function scanStillCovers(path: string, scan: RecordIdScan, st: { size: number; ino: number }): boolean {
+  if (scan.ino !== st.ino || st.size < scan.offset) return false
+  if (scan.window.length === 0) return true
+  const window = io.readRangeSync(path, scan.offset - scan.window.length, scan.offset)
+  transcriptReaderCensus.bytesRead += window.length
+  return window.equals(scan.window)
+}
+
+async function scanRecordIds(path: string): Promise<Set<string>> {
   const st = io.statSync(path)
   if (st === null) {
     recordIdScans.delete(path)
     return new Set()
   }
   let scan = recordIdScans.get(path)
-  if (scan === undefined || scan.ino !== st.ino || st.size < scan.offset) {
-    scan = { ino: st.ino, offset: 0, carry: EMPTY, ids: new Set() }
+  if (scan === undefined || !scanStillCovers(path, scan, st)) {
+    scan = { ino: st.ino, offset: 0, window: EMPTY, parts: [], ids: new Set() }
     recordIdScans.set(path, scan)
   }
   if (st.size > scan.offset) {
@@ -691,7 +702,9 @@ export async function readTranscriptRecordIds(path: string): Promise<Set<string>
         if (bytesRead === 0) break
         position += bytesRead
         transcriptReaderCensus.bytesRead += bytesRead
-        takeRecordIds(scan, chunk.subarray(0, bytesRead))
+        const bytes = chunk.subarray(0, bytesRead)
+        takeRecordIds(scan, bytes)
+        scan.window = tailWindow(scan.window, bytes)
       }
       scan.offset = position
     } finally {
@@ -701,8 +714,20 @@ export async function readTranscriptRecordIds(path: string): Promise<Set<string>
   return new Set(scan.ids)
 }
 
+export async function readTranscriptRecordIds(path: string): Promise<Set<string>> {
+  const prev = recordIdScanRuns.get(path) ?? Promise.resolve(new Set<string>())
+  const run = prev.catch(() => undefined).then(() => scanRecordIds(path))
+  recordIdScanRuns.set(path, run)
+  try {
+    return await run
+  } finally {
+    if (recordIdScanRuns.get(path) === run) recordIdScanRuns.delete(path)
+  }
+}
+
 export function _resetTranscriptRecordIdScansForTesting(): void {
   recordIdScans.clear()
+  recordIdScanRuns.clear()
 }
 
 export function readTranscriptTailSync(path: string, bytes: number): string {
