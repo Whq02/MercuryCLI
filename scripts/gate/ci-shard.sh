@@ -176,6 +176,22 @@ fi
 
 mkdir -p "$OUT"
 
+shm_root=""
+if [ -z "${MERCURY_GATE_SCRATCH_DISK:-}" ] && [ "$(uname -s)" = Linux ] && [ -d /dev/shm ] && [ -w /dev/shm ]; then
+  shm_free_kb=$(df -Pk /dev/shm 2>/dev/null | awk 'NR==2 {print $4}')
+  case "$shm_free_kb" in ('' | *[!0-9]*) shm_free_kb=0 ;; esac
+  if [ "$shm_free_kb" -ge $((6 * 1024 * 1024)) ] && shm_root=$(mktemp -d /dev/shm/mercury-gate.XXXXXX); then
+    printf '#!/bin/sh\nexit 0\n' > "$shm_root/exec-probe" && chmod +x "$shm_root/exec-probe"
+    if "$shm_root/exec-probe" 2>/dev/null; then
+      export TMPDIR="$shm_root"
+      printf '  proof scratch: tmpfs %s (%s GB free; set MERCURY_GATE_SCRATCH_DISK=1 to keep the disk)\n' "$shm_root" "$((shm_free_kb / 1024 / 1024))"
+    else
+      printf '  proof scratch: the disk (/dev/shm is mounted noexec here)\n'
+      rm -rf "$shm_root"; shm_root=""
+    fi
+  fi
+fi
+
 ambient_home="${MERCURY_CONFIG_DIR:-$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/mercury-proof-home.XXXXXX")}"
 export MERCURY_CONFIG_DIR="$ambient_home"
 "${BUN:-$HOME/.bun/bin/bun}" run scripts/lib/firstRunSeed.ts "$ambient_home" "$(pwd)"
@@ -183,7 +199,7 @@ export MERCURY_CONFIG_DIR="$ambient_home"
 dead_letter_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/mercury-dead-letter.XXXXXX")
 /usr/bin/python3 scripts/gate/dead-letter.py "$dead_letter_dir/port" &
 dead_letter_pid=$!
-trap 'kill "$dead_letter_pid" 2>/dev/null; rm -rf "$dead_letter_dir"' EXIT
+trap 'kill "$dead_letter_pid" 2>/dev/null; rm -rf "$dead_letter_dir"; [ -n "$shm_root" ] && rm -rf "$shm_root"' EXIT
 for _tick in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
   [ -s "$dead_letter_dir/port" ] && break
   sleep 0.5
