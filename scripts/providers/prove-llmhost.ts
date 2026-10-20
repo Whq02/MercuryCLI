@@ -34,6 +34,9 @@ try {
     assert.ok(!m.screen().includes(f.key), 'the typed key never paints')
   }
   const first = async (label: string) => { m.push(KEY.down); await until(`› ${label}`); m.push(KEY.enter) }
+  await until('Where should the model run?')
+  m.push(KEY.down); m.push(KEY.down); m.push(KEY.down)
+  await until('› A server that’s already running'); m.push(KEY.enter)
   await until('1 · the server address')
   capture('address')
   m.push(f.baseUrl)
@@ -95,6 +98,9 @@ try {
   m.push(KEY.esc)
   assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000))
   await command.call()
+  await until('Where should the model run?')
+  m.push(KEY.down); m.push(KEY.down); m.push(KEY.down)
+  await until('› A server that’s already running'); m.push(KEY.enter)
   await until('registered servers')
   capture('registered')
   m.push(KEY.down); m.push(KEY.down)
