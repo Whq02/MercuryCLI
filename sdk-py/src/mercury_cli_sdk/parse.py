@@ -2,11 +2,12 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass, field
-from typing import Any, Generic, Literal, NotRequired, TypedDict, TypeVar, cast
+from typing import Any, Generic, Literal, Mapping, NotRequired, TypedDict, TypeVar, cast
 from .generated import ROWS_SCHEMA, ROW_SCHEMAS, INPUT_ROW_SCHEMAS, Row, InputRow
 
 
 class UnknownRow(TypedDict):
+    """A row whose type this package does not know; ``raw`` keeps the whole row and the envelope fields are copied beside it."""
     type: Literal['unknown_row']
     original_type: str
     raw: dict[str, Any]
@@ -22,6 +23,7 @@ StreamRow = Row | UnknownRow
 
 @dataclass(frozen=True)
 class Issue:
+    """One validation failure: the JSON path and what was wrong there."""
     path: str
     message: str
 
@@ -31,6 +33,7 @@ T = TypeVar('T')
 
 @dataclass(frozen=True)
 class RowRead(Generic[T]):
+    """The reading of one row: ``row`` when ``ok``, otherwise ``reason`` (and ``issues`` for an invalid known type)."""
     ok: bool
     row: T | None = None
     reason: str | None = None
@@ -39,7 +42,8 @@ class RowRead(Generic[T]):
     schema: Any = None
 
 
-def validate(schema: dict, value: Any, path: str = '') -> list[Issue]:
+def validate(schema: Mapping[str, Any], value: Any, path: str = '') -> list[Issue]:
+    """Check a value against one of the generated JSON Schemas and return every issue found."""
     union = schema.get('oneOf', schema.get('anyOf'))
     if union is not None:
         attempts = [validate(s, value, path) for s in union]
@@ -104,14 +108,22 @@ def _read(value: Any, inputs: bool = False) -> RowRead[StreamRow | InputRow]:
 
 
 def row_of(value: Any) -> RowRead[StreamRow]:
+    """Read a decoded row object; an unfamiliar type becomes an ``UnknownRow`` rather than a failure."""
     return cast(RowRead[StreamRow], _read(value))
 
 
 def input_row_of(value: Any) -> RowRead[InputRow]:
+    """Read an input row (prompt, shell or note) with the wire's non-empty rules applied."""
     return cast(RowRead[InputRow], _read(value, True))
 
 
+def is_main_thread(row: StreamRow) -> bool:
+    """True for a row of the main conversation; a subagent's rows carry ``parent_call_id``."""
+    return 'parent_call_id' not in row
+
+
 def parse_row(line: str) -> RowRead[StreamRow]:
+    """Read one stdout line as a row."""
     try:
         return row_of(json.loads(line.lstrip('\ufeff')))
     except (ValueError, TypeError):

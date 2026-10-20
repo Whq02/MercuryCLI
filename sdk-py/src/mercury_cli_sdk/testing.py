@@ -4,16 +4,33 @@ import json
 import secrets
 import sys
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Mapping, NotRequired, Sequence, TypedDict
 from .generated import OUTCOME_EXIT_CODES
+
+
+class FixtureReply(TypedDict):
+    """One recorded answer to a host request: its ``result`` or ``error``, with messages sent ``before`` and ``after`` it."""
+    result: NotRequired[Any]
+    error: NotRequired[Mapping[str, Any]]
+    before: NotRequired[Sequence[Mapping[str, Any]]]
+    after: NotRequired[Sequence[Mapping[str, Any]]]
+
+
+class Fixture(TypedDict):
+    """A recording to replay: run-door ``rows`` (after ``inputCount`` stdin rows), and runner-door ``methods`` and ``answers``."""
+    rows: NotRequired[Sequence[Mapping[str, Any]]]
+    inputCount: NotRequired[int]
+    methods: NotRequired[Mapping[str, Sequence[FixtureReply]]]
+    answers: NotRequired[Mapping[str, Sequence[Mapping[str, Any]]]]
 
 
 @dataclass
 class FixtureServer:
+    """A loopback replay server; ``mercury`` is the executable array to pass to ``run()`` or ``connect()``."""
     mercury: list[str]
-    received: list[dict]
+    received: list[dict[str, Any]]
     _server: asyncio.Server
-    _writers: set = field(repr=False)
+    _writers: set[asyncio.StreamWriter] = field(repr=False)
 
     async def close(self) -> None:
         for writer in tuple(self._writers): writer.close()
@@ -25,10 +42,10 @@ class FixtureServer:
     async def __aexit__(self, *exc: Any) -> None: await self.close()
 
 
-async def start_fixture_server(fixture: dict) -> FixtureServer:
+async def start_fixture_server(fixture: Fixture) -> FixtureServer:
     """Replay recorded rows and RPC responses on loopback, without a model or CLI."""
-    received: list[dict] = []
-    writers: set = set()
+    received: list[dict[str, Any]] = []
+    writers: set[asyncio.StreamWriter] = set()
     token = secrets.token_hex(32)
 
     async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:

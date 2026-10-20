@@ -4,10 +4,11 @@ import { OUTCOME_EXIT_CODES } from './rows.js'
 import { createServer, type Socket } from 'node:net'
 import { createInterface } from 'node:readline'
 import { randomBytes } from 'node:crypto'
+import type { StreamRow } from './parse.js'
 
 export type FixtureMessage = Record<string, unknown>
-export type FixtureReply = { result?: unknown; error?: { code: number; message: string; data?: unknown }; before?: FixtureMessage[]; after?: FixtureMessage[] }
-export type Fixture = { rows?: FixtureMessage[]; inputCount?: number; methods?: Record<string, FixtureReply[]>; answers?: Record<string, FixtureMessage[]> }
+export type FixtureReply = { result?: unknown; error?: { code: number; message: string; data?: unknown }; before?: readonly FixtureMessage[]; after?: readonly FixtureMessage[] }
+export type Fixture = { rows?: readonly (StreamRow | FixtureMessage)[]; inputCount?: number; methods?: Readonly<Record<string, readonly FixtureReply[]>>; answers?: Readonly<Record<string, readonly FixtureMessage[]>> }
 
 export async function startFixtureServer(fixture: Fixture) {
   const received: FixtureMessage[] = []

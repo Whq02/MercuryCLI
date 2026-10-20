@@ -14,6 +14,7 @@ from .errors import RunExit
 
 @dataclass(frozen=True)
 class RunResult:
+    """What ``run_sync`` returns: the outcome row, every row received and how the process exited."""
     outcome: OutcomeRow
     rows: list[StreamRow]
     exit: RunExit
@@ -32,6 +33,7 @@ def run_sync(prompt: str | None = None, **options: Any) -> RunResult:
 
 
 class SyncSession:
+    """A ``MercurySession`` driven from synchronous code; every coroutine method is awaited on a background loop."""
     def __init__(self, **options: Any):
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._loop.run_forever, daemon=True)
@@ -81,4 +83,5 @@ class SyncSession:
 
 
 def connect_sync(**options: Any) -> SyncSession:
+    """``connect()`` for synchronous programs; use it as a context manager so the session is closed."""
     return SyncSession(**options)
