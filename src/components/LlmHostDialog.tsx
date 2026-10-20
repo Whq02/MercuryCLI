@@ -25,6 +25,10 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
   const [value, setValue] = useState('')
   const [offset, setOffset] = useState(0)
   const [cursor, setCursor] = useState<number | null>(null)
+  const [host, setHost] = useState<LlmHostEvent['host']>()
+  const [now, setNow] = useState(Date.now())
+  const hostRef = useRef<LlmHostEvent['host']>(undefined)
+  useEffect(() => { if (!host) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer) }, [host])
   const answerRef = useRef<((value: string | null) => void) | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
   useEffect(() => {
@@ -38,7 +42,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
       setCursor(null)
       setQuestion(plan)
       return new Promise(resolve => { answerRef.current = resolve })
-    }, event => { if (live) setHistory(rows => [...rows, event]) }, controller.signal).then(done => {
+    }, event => { if (live) { setHistory(rows => [...rows, event]); if (event.host) { hostRef.current = event.host; setHost(event.host) } } }, controller.signal).then(done => {
       if (live) { setQuestion(null); setResult(done) }
     }, error => {
       if (live) { setQuestion(null); setResult({ ok: false, words: error instanceof Error ? error.message : String(error) }) }
@@ -56,10 +60,11 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
     resolve?.(next)
   }
   const stop = (): void => {
+    if (!result && hostRef.current?.pause) { hostRef.current.pause(); answer(null); return }
     controllerRef.current?.abort()
     answer(null)
-    if (result || escapeFromOutsidePress()) onClose?.()
-    else setResult({ ok: false, words: words.stopped })
+    if (result || escapeFromOutsidePress() && !hostRef.current) onClose?.()
+    else setResult({ ok: false, words: hostRef.current ? hostRef.current.id + ' · remote pod kept · /llmhost → Pods I’m paying for → Stop or Terminate' : words.stopped })
   }
   useInput((_input, key, event) => {
     if (key.escape) { event.stopImmediatePropagation(); stop(); return }
@@ -73,14 +78,14 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
       if (pastOpenEvent() && cursor !== null && question.rows[cursor]) answer(question.rows[cursor]!.value)
     }
   })
-  const budget = Math.max(1, rowBudget)
+  const budget = Math.max(1, rowBudget - (host ? 2 : 0))
   const compact = budget < 7
-  const historyBudget = Math.max(0, Math.min(history.length, budget - (question ? 9 : 3)))
+  const historyBudget = Math.max(0, Math.min(history.length, budget - (question ? 7 + Math.min(question.rows?.length ?? 1, 8) : 3)))
   const shownHistory = history.slice(-historyBudget || history.length)
   const rows = question?.rows ?? []
   const choices = Math.max(1, budget - shownHistory.length - (compact ? Number(budget > 1) : 7))
   const window = settingsPopupWindow(cursor ?? 0, Math.max(0, (cursor ?? 0) - choices + 1), rows.length, choices)
-  return <Box flexDirection="column" width={width} flexShrink={0} maxHeight={budget} overflow="hidden">
+  return <Box flexDirection="column" width={width} flexShrink={0} maxHeight={rowBudget} overflow="hidden">
     {shownHistory.map((row, index) => <Text key={index} color={tokens.textMuted} wrap="truncate-end">{row.title} · {row.words}</Text>)}
     {question ? <>
       {budget > 1 ? <Text bold color={tokens.textPrimary} wrap="truncate-end">{question.title}</Text> : null}
@@ -96,5 +101,9 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
       <Text bold color={result.ok ? tokens.success : tokens.warning} wrap="truncate-end">{result.words}</Text>
       <Text color={tokens.textMuted}>{words.finished}</Text>
     </> : <Text color={tokens.textMuted}>{words.running}</Text>}
+    {host ? <>
+      <Text color={tokens.warning} wrap="truncate-end">{host.id} · {host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : '$' + host.price.toFixed(2) + '/hr × ' + (Math.max(0, now - Date.parse(host.startedAt)) / 3600_000).toFixed(2) + 'h = $' + (host.price * Math.max(0, now - Date.parse(host.startedAt)) / 3600_000).toFixed(2) + ' so far (estimate; storage extra)'}</Text>
+      <Text color={tokens.textMuted} wrap="truncate-end">{host.status === 'TERMINATED' ? '' : host.pause ? 'esc opens Stop / Terminate controls · closing never deletes this pod' : 'Closing keeps the pod · /llmhost → Pods I’m paying for → Stop or Terminate'}</Text>
+    </> : null}
   </Box>
 }

@@ -1,16 +1,86 @@
-# Connect a model server: `/llmhost`
+# Run or connect a model: `/llmhost`
 
-`/llmhost` connects Mercury to a model server you already run: a GPU server,
-a rented pod reached through an SSH tunnel, or a local OpenAI-compatible
-endpoint. It reads the models and their served context windows, checks a
-reply, and makes the server available in `/model` and `/logins`. You do not
-need to edit provider settings by hand.
+Open `/llmhost` in the foreground chat. Its popup asks **Where should the
+model run?** Choose a rented GPU, a box you can reach by SSH, or a server
+already running. Each road reads the served models and context windows,
+checks a reply, and makes the provider available in `/model` and `/logins`.
+You do not need to edit provider settings by hand.
 
-Open `/llmhost` in the foreground chat. It has its own popup, separate from
-`/localsetup`. It does not install an engine, download weights, start a server
-or rent hardware.
+## Rent a GPU (Runpod)
 
-## The steps
+1. **Enter your Runpod key once.** Create it in Runpod console → Settings →
+   API Keys, with Pods and Catalog access. The input is masked and uses the
+   same credential store as `/logins`, never a settings file or URL.
+2. **Choose a model and GPU.** Mercury reads current Secure Cloud stock and
+   hourly prices from Runpod. The price covers every GPU in the row, not
+   one card. Only documented recipes that fit the available hardware appear.
+   GLM-5.3-Flash choices come first, ordered by price; smaller models are
+   farther down the list. A community recipe is labelled as such.
+3. **Review the cost.** An optional budget shows approximately how many GPU
+   hours it buys. It is an estimate, not a spending limit or an account
+   balance reading. Storage is extra, and loading time is billed too.
+4. **Confirm the hourly price.** Nothing is rented until you select the
+   separate confirmation row and press Enter. If stock or price changes,
+   choose and confirm again.
+5. **Watch preparation.** Mercury creates a private SSH key, gives the pod
+   its public key, creates the pod, downloads weights and starts the engine.
+   It then opens an SSH tunnel and checks the model API. Downloading,
+   building and loading can take 20–90 minutes or longer; the meter starts
+   when the pod starts, not when the model is ready.
+6. **Pick the served model and name the provider.** Confirm the reply check,
+   then choose `compat/llmhost/<model>` in `/model`.
+
+The **llama.cpp (GGUF)** Flash choice uses the published UD-Q4_K_XL weights
+and builds the documented llama.cpp version. Its single-B300 fit is based
+on the published memory requirement, not a measured GPU throughput result.
+The SGLang four-B200 community choice states its 524,288-token context.
+The actual served window is read from the running server before registration.
+
+### Stop paying for a pod
+
+The meter shows hourly rate × elapsed time as an estimate; consult Runpod
+for the invoice. **Pods I’m paying for** is read from the account whenever
+you reopen `/llmhost`, including pods created elsewhere.
+
+- **Stop:** a separate confirmation releases compute but keeps the pod's
+  volume disk. Storage continues to bill while stopped.
+- **Terminate:** a separate confirmation deletes the pod and its volume
+  disk. Copy out anything you need first.
+- **Reconnect:** for a running pod prepared here, rebuild the private tunnel
+  and check the saved provider after restarting Mercury.
+
+During preparation, Escape opens the pod controls. Closing the popup or
+quitting Mercury never silently stops or terminates a pod. The remote
+engine keeps running, and its charges continue until you stop or terminate
+it. After a failed preparation, the pod remains named in the controls so
+that you can inspect it or end the rental.
+
+## A box I can reach by SSH
+
+Enter a host and user, or an alias from your SSH configuration. A blank user,
+port or key path uses the SSH configuration or agent. Mercury reads
+`nvidia-smi` and offers recipes for the GPUs it finds.
+
+Confirm before installing or starting anything. The SSH user needs a
+writable `/workspace` and enough free storage for the selected recipe.
+Mercury uses `tmux` and `curl`, installing them on root-accessible systems
+with `apt-get` when missing. A usable GPU container runtime runs the recipe's
+image; otherwise recipes with a documented Python install use an isolated
+Python environment. Preview-image recipes require that container runtime.
+
+Leave the bank field blank to download from Hugging Face, or name a complete
+local folder for the selected model. A local copy uses `rsync` over SSH;
+missing shards are refused. The engine stays on the box's loopback interface,
+and Mercury owns the local SSH tunnel. The final row names the remote tmux
+session. Closing Mercury closes the tunnel, not that remote session or any
+hardware rental arranged outside Mercury.
+
+## A server that’s already running
+
+Give a local endpoint, a direct HTTPS address, or the loopback address of an
+SSH tunnel you already opened. Nothing is installed or rented on this road.
+
+### Connection steps
 
 1. **The server address.** Enter the OpenAI-compatible API base, such as
    `http://127.0.0.1:30000/v1`. A bare server address gets `/v1` appended;
@@ -36,7 +106,8 @@ or rent hardware.
    has the provider's key row immediately. Registration leaves the current
    session model unchanged; choose the new model when you want to use it.
 
-Escape stops the current operation. Before registration, nothing is saved.
+On the existing-server road, Escape stops the current operation. Before
+registration, nothing is saved.
 After registration, the provider stays saved even if you stop the reply check
 or the server refuses it. A failed check remains marked as failed.
 
@@ -52,7 +123,7 @@ A supplied key uses the same auth-scoped credential store as `/logins`.
 name, the environment name uses underscores. A conflicting environment pin
 must be cleared before changing that endpoint's address or key.
 
-SGLang and vLLM requests retain assistant reasoning across tool turns.
+SGLang, vLLM and llama.cpp requests retain assistant reasoning across tool turns.
 SGLang requests also send `chat_template_kwargs: { clear_thinking: false }`.
 For SGLang's cache-aware router, configure the router to use `x-session-id`;
 Mercury sends the session identity in that header but does not configure the
@@ -78,7 +149,8 @@ entered in the masked key field, never embedded in the URL.
 
 ## Check, change or remove a server
 
-Open `/llmhost` again to see registered servers. Choose one to:
+Open `/llmhost`, choose **A server that’s already running**, then choose a
+registered server to:
 
 - **Check a reply again:** refresh its models and check a selected model with
   the saved endpoint and credential.

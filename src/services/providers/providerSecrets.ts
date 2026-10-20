@@ -192,6 +192,7 @@ type StoredKeyField =
   | 'braveSearchApiKey'
   | 'tavilyApiKey'
   | 'typesafeApiKey'
+  | 'runpodApiKey'
   | 'mistralApiKey'
   | 'minimaxApiKey'
   | 'togetherApiKey'
@@ -494,4 +495,12 @@ export function credentialEnvNames(): readonly string[] {
     'DASHSCOPE_API_KEY',
     ...Object.keys(process.env).filter(name => /^MERCURY_COMPAT_[A-Z0-9_]+_API_KEY$/.test(name)),
   ]
+}
+
+export function readStoredRunpodApiKey(): string | undefined {
+  return readStoredKey('runpodApiKey')
+}
+
+export function writeStoredRunpodApiKey(key: string | null): void {
+  writeStoredKey('runpodApiKey', key)
 }
