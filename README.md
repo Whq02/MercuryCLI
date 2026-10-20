@@ -55,9 +55,13 @@ platform, check its SHA-256 against `SHA256SUMS.txt`, unpack it, and run the
 archive's own `mercury install` command.
 
 Homebrew and the npm package are each pinned to a particular release and are
-republished after a tag, so they can lag behind the newest release. The npm
-package, `mercury-tech-cli`, is a launcher that downloads its pinned release;
-mise installs that same package.
+republished after a tag, so they can lag behind the newest release. Homebrew
+commands use the full tap name `Whq02/mercury/mercury` (bare `mercury` in
+`homebrew-core` is a different program). The npm package, `mercury-tech-cli`,
+is a launcher that downloads its pinned release; mise installs that same
+package. To remove the installed release and command shim while keeping your
+configuration and sessions, run `mercury install --uninstall` (and `npm
+uninstall -g mercury-tech-cli` if you installed the npm launcher).
 
 Mercury's installation is user-local and does not require administrator
 access. You can safely rerun an installation command.
@@ -364,10 +368,12 @@ Tool output; the setting is saved for later launches.
 Use `/model` and `/effort` to adjust the session. `/permissions` controls what
 can run without approval and what must ask first.
 
-Review changes with `/diff`, by source, file and hunk. `/runs` shows running
-shells and crewmates (`/tasks` still opens the same board), and `/crewmates`
-opens the live Crew view. When no turn is running, `/clear` saves the current
-chat for later and opens a fresh session; `/title` names the chat, and `/help`
+Review changes with `/diff`, by source, file and hunk. `! <command>` runs a
+shell command in the chat and streams a live output tail while it runs. `/runs`
+shows running shells and crewmates (`/tasks` still opens the same board), and
+`/crewmates` opens the live Crew view. When no turn is running, `/clear` saves
+the current chat for later and opens a fresh session; `/restart` moves the chat
+onto a newly installed Mercury build; `/title` names the chat, and `/help`
 lists the available commands.
 
 ### Moving between screens
@@ -429,12 +435,18 @@ or connect a running LM Studio, vLLM or llama.cpp server
 protocol, credentials and error handling. A request does not fall back from
 one provider to another. See [docs/ENGINES.md](docs/ENGINES.md).
 
-Open `/llmhost` to rent a Runpod GPU, use a machine reached by SSH, or connect
-a model server already running. Renting needs an explicit hourly-price
-confirmation; setup continues after the popup closes. The server's context
-window is read automatically; Mercury registers its named models in `/model`
-and checks a reply. A server with one model needs no model-selection step.
-[docs/LLM-HOST.md](docs/LLM-HOST.md) walks through the connection steps.
+Open `/llmhost` to choose a model and see where it can run right now: on a GPU
+rented from Runpod, Vast.ai or Lambda, on your own computer or a saved SSH
+computer (`mercury host`), or on a model server already running. Each model page
+shows quality variants, the GPU-memory budget split across parallel
+conversations (`conversations × context`), and the default thinking level
+(adjustable per request with `/effort`). Renting requires an explicit
+hourly-price confirmation, supports pre-rental or in-place `Tune` on Runpod,
+fast-load weights volumes and 5-second stock watches on Runpod, and continues
+setup in the background after the popup closes. Vast.ai and Lambda rentals are
+new in 1.0.0-beta.40 and verified against the vendors' published APIs on
+fixtures (live rental runs were not performed). [docs/LLM-HOST.md](docs/LLM-HOST.md)
+walks through every hosting option.
 
 New sessions use your most recently connected provider and the newest model
 available to that account. Models the account cannot access are skipped.
@@ -731,6 +743,11 @@ Available commands include:
   daemon hosts now is refused, and an unknown id is refused with a hint to the
   roster (`/sessions` inside Mercury). Saved sessions are otherwise never
   deleted on their own.
+- **`mercury host [status|start|stop|restart|logs|uninstall|add|recipes]`**:
+  run and manage a local or SSH computer as a persistent model server for every
+  session sharing the config home (`compat/box-<name>/<model>`), using a
+  verified local weight bank or a confirmed download. See
+  [docs/LLM-HOST.md](docs/LLM-HOST.md).
 - **`mercury lsp list`** and **`mercury lsp install <server>`**: the
   language-server catalogue, each server installed (with its binary) or
   absent (with its install remedy); `install` shows a server's remedy, asks,
@@ -894,9 +911,9 @@ commands.
 
 | Command | What it does |
 | --- | --- |
-| `/llmhost` | Rent a GPU, use SSH, or connect a running model server; register its models in `/model` and check a reply. |
+| `/llmhost` | Choose a model to rent on Runpod, Vast.ai or Lambda, run on your own computer, or connect an existing server. |
 | `/restart` | Move this chat to the installed Mercury build; running watches and background shells stop. |
-| `/mcp` | Inspect servers, browse each server’s tools and parameters, reconnect, or enable and disable a server for this chat. |
+| `/mcp` | Inspect servers, sign in, browse each server’s tools and parameters, reconnect, or toggle a server for this chat. |
 
 `/mouse off` returns the pointer to the terminal for native text selection
 and copying. The preference is saved and appears in `/config` as Mouse

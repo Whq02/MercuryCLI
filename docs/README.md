@@ -43,7 +43,7 @@ map and `/keybindings` opens your keybindings file.
 
 - [ENGINES.md](ENGINES.md): Mercury runs models across 20 sign-in provider families plus local servers and custom endpoints, with per-family credentials, model lists, usage meters and web tools.
 - [LOCAL-SETUP.md](LOCAL-SETUP.md): `/localsetup` finds or installs Ollama, asks which model, sets its window and checks a reply.
-- [LLM-HOST.md](LLM-HOST.md): `/llmhost` connects an existing model server or tunnelled pod, reads its models and served windows, stores a key when needed and checks a reply.
+- [LLM-HOST.md](LLM-HOST.md): `/llmhost` and `mercury host` choose a model to run on a rented GPU (Runpod, Vast.ai or Lambda), on your own computer, or on an existing model server, and register it in `/model`.
 - [ADVISOR.md](ADVISOR.md): a second model's notes for the working chat, the per-chat switch, model choice, interval and spend.
 
 ## Health and the runtime
@@ -68,7 +68,8 @@ map and `/keybindings` opens your keybindings file.
 - [templates/extension-source-README.md](templates/extension-source-README.md): the source README template written by `mercury extensions scaffold --source`.
 - Releases: [releases/README.md](releases/README.md) lists the release pages,
   each naming what was added and fixed. [1.0.0-beta.39](releases/1.0.0-beta.39.md)
-  is the newest tag; [1.0.0-beta.40](releases/1.0.0-beta.40.md) is queued.
+  is the newest tag; [1.0.0-beta.40](releases/1.0.0-beta.40.md) is ready for
+  the tag.
   `/update-notes` shows the running release's notes in the chat, with earlier
   releases behind the transcript key. `mercury run /update-notes` prints the
   full release history.
