@@ -27,6 +27,7 @@ export interface HostRecipe {
   pythonInstall?: string
   context?: number
   contextPerSlot?: number
+  kvBytesPerToken?: { bytes: number; conversationBytes?: number; maxContext: number; cacheType: string; verified: HostRecipeVerified }
   environment?: Record<string, string>
   files?: Record<string, string>
   engine?: 'llamacpp' | 'vllm'
@@ -56,6 +57,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     verified: { by: 'measured', on: '2026-10-20', note: '1× B300 · upstream llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 · 67 tok/s single-stream, ~23 tok/s per stream with two busy · 193 GB VRAM · 524,288 ctx across 4 slots (131,072 per slot)', source: 'https://unsloth.ai/docs/models/glm-5.3-flash' },
     efforts: { levels: ['low','high','max'], verified: { by: 'documented' as const, on: '2026-10-20', source: 'https://huggingface.co/zai-org/GLM-5.3-Flash/blob/main/chat_template.jinja', note: 'low and high are explicit; all other inputs use max' } },
     context: 131072, contextPerSlot: 131072,
+    kvBytesPerToken: { bytes: 11 * (512 + 0 + 3 * 128) * 34 / 32, conversationBytes: 34 * (3 * (4 - 1) * 64 * 128 + 128 * 128 * 64) * 4, maxContext: 1048576, cacheType: 'q8_0', verified: { by: 'documented', on: '2026-10-20', source: 'https://huggingface.co/zai-org/GLM-5.3-Flash/raw/main/config.json', note: 'Computed from config.json for llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 (glm5-next): per token, each of the 11 deepseek_sparse_attention layers caches a K-only latent (kv_lora_rank 512 + qk_rope_head_dim 0) and a k-pool indexer row (3 × index_head_dim 128) at q8_0, 34/32 bytes: 11 × 896 × 34/32 = 10,472 bytes. Per conversation, whatever its length, each of the 34 linear_attention layers keeps one f32 state (short_conv_kernel_size 4, 64 heads × head_dim 128): 34 × (3 × 3 × 64 × 128 + 128 × 128 × 64) × 4 = 152,633,344 bytes. At 4 × 131,072 that is 5,818 MiB beside 185,437 MiB of weights on the GPU (the GGUF less its skipped MTP block and its CPU-side token embedding).' } },
     install: llamaInstall,
     include: '*UD-Q4_K_XL*', weightFile: 'UD-Q4_K_XL/GLM-5.3-Flash-UD-Q4_K_XL-00001-of-00006.gguf',
     flags: ['--n-gpu-layers', 'all', '--jinja', '--ctx-size', '524288', '--parallel', '4', '--flash-attn', 'on', '--cache-type-k', 'q8_0', '--cache-type-v', 'q8_0', '--cache-reuse', '256', '--temp', '1.0', '--top-p', '0.95', '--chat-template-kwargs', '{"reasoning_effort":"max"}'],

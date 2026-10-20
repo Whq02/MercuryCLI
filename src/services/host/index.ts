@@ -49,11 +49,18 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       if (!pod || !api) return saved ?? stopped()
       for (;;) {
         record = readHostRecord(pod.id)
+        if (record?.retuning) { const { reconcileHostTune } = await import('./tune.js'); record = await reconcileHostTune(pod.id, runner, signal) }
         mark()
         const refresh = setInterval(() => { if (pod) { record = readHostRecord(pod.id); mark() } }, 1000)
         let action: string | null
-        try { action = await question({ step: 'pod-controls', title: words.manage, found: pod.name + ' · ' + pod.id + ' · ' + price(pod.cost), willRun: pod.family ? 'Cluster nodes and disks bill until termination; Runpod has no cluster Stop action.' : words.rentalStorage, rows: [...(record && !hostJobRunning(record) && pod.status === 'RUNNING' ? [{ value: 'resume', label: 'Resume setup' }] : []), ...(pod.family || pod.status === 'EXITED' ? [] : [{ value: 'stop', label: words.stopPod }]), { value: 'terminate', label: words.terminatePod }, { value: 'close', label: pod.status === 'EXITED' ? words.closePod : words.keepPod }] }) } finally { clearInterval(refresh) }
+        try { action = await question({ step: 'pod-controls', title: words.manage, found: pod.name + ' · ' + pod.id + ' · ' + price(pod.cost), willRun: pod.family ? 'Cluster nodes and disks bill until termination; Runpod has no cluster Stop action.' : words.rentalStorage, rows: [...(record?.provider && record.target && pod.status === 'RUNNING' && !pod.family ? [{ value: 'tune', label: 'Tune · quality, conversations × context, thinking' }] : []), ...(record && !hostJobRunning(record) && pod.status === 'RUNNING' ? [{ value: 'resume', label: 'Resume setup' }] : []), ...(pod.family || pod.status === 'EXITED' ? [] : [{ value: 'stop', label: words.stopPod }]), { value: 'terminate', label: words.terminatePod }, { value: 'close', label: pod.status === 'EXITED' ? words.closePod : words.keepPod }] }) } finally { clearInterval(refresh) }
         if (!action || action === 'close') return { ...(saved ?? { ok: true }), words: keepWords(pod) }
+        if (action === 'tune' && record) {
+          const { runTune } = await import('./tune.js')
+          const recipe = currentHostRecipes().find(row => row.id === record!.recipe)
+          if (recipe) await runTune(modelTitle(recipe), { recipes: currentHostRecipes(), pod: record, runner, signal, pauseMs, timeoutMs: options.readyTimeoutMs }, question, emit)
+          continue
+        }
         if (action === 'resume' && record) {
           if (!options.startJob) await requireHostJobOwner()
           record = queueHostSetup(record)
@@ -248,11 +255,21 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
             offer = modelOffers[Number(selectedShape)]
             if (!offer) throw new Error(words.inputError)
           }
-          const volume = await rentalVolume(api, offer.recipe, signal)
           const ctx = offer.recipe.contextPerSlot ?? offer.recipe.context
           emit({ title: 'Rental details', words: offer.recipe.verification + (ctx ? ' · ' + ctx.toLocaleString('en-US') + ' context' : '') + ' · billing starts on creation' })
-          const confirm = await question({ step: 'rent-confirm', lines: hostPriceLines(offer.recipe, offer.price), title: words.rentalConfirm + (volume?.state === 'kept' ? ' · weights kept · ~5 min' + (offer.recipe.install ? ' + engine build' : '') : ' · cold rental ~45 min'), found: offer.recipe.label + ' · ' + shape(offer.recipe) + ' · ' + price(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + (budget ? ' · ~' + (budget / offer.price).toFixed(1) + 'h for $' + budget : ''), willRun: hostRecipeVerificationWord(offer.recipe) + ' · ' + fastLoadEstimate(offer.recipe, volume) + ' · ' + hostStorageWords(offer.recipe, offer.price), rows: [{ value: 'rent', label: 'Confirm ' + price(offer.price) + (volume ? ' + ' + volumePrice(volume) + ' disk (bills without a pod)' : ' + storage') + ' · create this ' + hostResourceKind(offer.recipe) }, { value: 'cancel', label: words.cancel }] })
-          if (confirm !== 'rent' || signal.aborted) return stopped()
+          const { confirmTunedRental } = await import('./tune.js')
+          const client = api
+          offer = await confirmTunedRental(offer, offers, budget, question, emit, signal, async row => {
+            const kept = await rentalVolume(client, row.recipe, signal)
+            return {
+              titleSuffix: kept?.state === 'kept' ? ' · weights kept · ~5 min' + (row.recipe.install ? ' + engine build' : '') : ' · cold rental ~45 min',
+              willRun: fastLoadEstimate(row.recipe, kept) + ' · ' + hostStorageWords(row.recipe, row.price),
+              lines: hostPriceLines(row.recipe, row.price),
+              confirmLabel: 'Confirm ' + price(row.price) + (kept ? ' + ' + volumePrice(kept) + ' disk (bills without a pod)' : ' + storage') + ' · create this ' + hostResourceKind(row.recipe),
+            }
+          })
+          if (!offer) return stopped()
+          const volume = await rentalVolume(api, offer.recipe, signal)
           if (!options.startJob) await requireHostJobOwner()
           recipe = offer.recipe
           emit({ title: words.publicKey, words: 'ed25519 · private key stays in Mercury; public key is injected into this pod only.' })

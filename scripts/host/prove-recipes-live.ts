@@ -113,7 +113,7 @@ try {
     delete rest[field.name]
     return { field: field.name, typed: !hostRecipeSchema.safeParse({ ...fullRow, [field.name]: Symbol('not a recipe value') }).success, optional: hostRecipeSchema.safeParse(rest).success === field.optional }
   })
-  check('every HostRecipe field has a schema entry with the interface optionality, and the schema has no field the interface lacks', interfaceFields.length === 26 && interfaceFields.some(field => field.name === 'weightsGb' && !field.optional) && fullParsed.success && JSON.stringify(Object.keys(fullParsed.data).sort()) === JSON.stringify(interfaceFields.map(field => field.name).sort()) && parity.every(entry => entry.typed && entry.optional))
+  check('every HostRecipe field has a schema entry with the interface optionality, and the schema has no field the interface lacks', interfaceFields.length === 27 && interfaceFields.some(field => field.name === 'weightsGb' && !field.optional) && fullParsed.success && JSON.stringify(Object.keys(fullParsed.data).sort()) === JSON.stringify(interfaceFields.map(field => field.name).sort()) && parity.every(entry => entry.typed && entry.optional))
   check('effort levels and their dated template sources survive the recipe schema and exported file', HOST_RECIPES.every(entry => entry.efforts?.verified.on === '2026-10-20' && entry.efforts.verified.source.startsWith('https://')) && parsedShipped.recipes.every(entry => canonical(entry.efforts) === canonical(HOST_RECIPES.find(own => own.id === entry.id)!.efforts)))
   const extra = hostRecipeSchema.safeParse({ ...qwenRtx, futureField: 'from a newer file' })
   check('a row carrying an unknown extra field is accepted and the field is stripped', extra.success && !('futureField' in extra.data))

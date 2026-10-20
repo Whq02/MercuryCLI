@@ -16,6 +16,7 @@ import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord } from
 import { activeHostWatches, queueHostSetup, watchModel, watchRateWords } from './jobs.js'
 import { reconcileRecord } from '../projectServices/serviceManager.js'
 import { ensureHostKey, hostRunner, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
+import { hostRetuneLive, reconcileHostTune, tunedRecipe } from './tune.js'
 
 export async function runHostJob(id: string, generation: string, options: { runner?: HostRunner; pauseMs?: number; timeoutMs?: number; signal?: AbortSignal; keepAlive?: boolean } = {}): Promise<void> {
   const initial = readHostRecord(id)
@@ -43,7 +44,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
   let logBusy = false
   let target: SshTarget | undefined
   let offset = 0
-  const recipe = hostRecipeOfRecord(initial)
+  const originalRecipe = hostRecipeOfRecord(initial)
+  const recipe = originalRecipe && initial.tune ? tunedRecipe(originalRecipe, initial.tune) : originalRecipe
   patchHostRecord(id, { jobState: 'running', error: undefined })
   const timer = setInterval(() => {
     const current = readHostRecord(id)
@@ -255,7 +257,16 @@ export async function runHostJob(id: string, generation: string, options: { runn
     hostNotice(record, 'ready', recipe.label + ' is ready on ' + result.model + ' · $' + (record.price * Math.max(0, Date.now() - Date.parse(record.startedAt)) / 3600_000).toFixed(2) + ' so far (estimate; storage extra)')
     if (options.keepAlive !== false) while (!signal.aborted) {
       await delay(pause, undefined, { signal })
-      const response = await fetch('http://127.0.0.1:' + port + '/v1/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), redirect: 'error' })
+      const observed = readHostRecord(id)
+      if (observed?.retuning && (hostRetuneLive(observed) || (await reconcileHostTune(id, runner, signal))?.retuning)) continue
+      let response: Response
+      try { response = await fetch('http://127.0.0.1:' + port + '/v1/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), redirect: 'error' }) } catch (error) {
+        const current = readHostRecord(id)
+        if (current && hostRetuneLive(current) || current?.advancedAt !== observed?.advancedAt) continue
+        throw error
+      }
+      const after = readHostRecord(id)
+      if (after && hostRetuneLive(after)) { await response.body?.cancel(); continue }
       if (!response.ok) throw new Error('The SSH tunnel no longer answers: HTTP ' + response.status)
       await response.body?.cancel()
     }

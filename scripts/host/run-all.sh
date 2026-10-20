@@ -11,6 +11,7 @@
 # gate-watch: src/commands/host/** src/main.tsx src/services/concourse/workerModels.ts scripts/host/boxFixture.mjs scripts/host/boxDaemonProof.ts
 # gate-watch: scripts/lib/firstRunSeed.ts src/Tool.ts src/daemon/controlSocket.ts src/services/providers/credentialEnvSpellings.ts src/utils/config.ts src/utils/config/globalConfig.ts src/utils/messages.ts src/utils/sessionStorage/paths.ts src/utils/systemPromptType.ts
 # gate-watch: src/types/message.ts src/utils/messages/pairing.ts scripts/host/trillionKimiFixture.ts src/utils/settings/settingsCache.ts
+# gate-watch: src/utils/settings/modelFacts.ts src/utils/settings/settings.ts scripts/host/prove-host-tune.ts scripts/host/runpodFixture.mjs
 set -euo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -21,6 +22,7 @@ bun "$ROOT/scripts/host/prove-trillion-tier.ts"
 bun "$ROOT/scripts/host/prove-host-launch.ts"
 bun "$ROOT/scripts/host/prove-recipes-live.ts"
 bun "$ROOT/scripts/host/prove-fast-load-drive.ts"
+bun "$ROOT/scripts/host/prove-host-tune.ts"
 bun "$ROOT/scripts/host/prove-host-rent-drive.ts" --bundle "$ROOT/dist/mercury.mjs"
 bun "$ROOT/scripts/host/prove-rent-model-first-drive.ts" --bundle "$ROOT/dist/mercury.mjs"
 exec bun "$ROOT/scripts/host/prove-host-job-drive.ts" --bundle "$ROOT/dist/mercury.mjs"

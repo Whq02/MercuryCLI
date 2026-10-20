@@ -912,6 +912,18 @@
       },
       "context": 131072,
       "contextPerSlot": 131072,
+      "kvBytesPerToken": {
+        "bytes": 10472,
+        "conversationBytes": 152633344,
+        "maxContext": 1048576,
+        "cacheType": "q8_0",
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "Computed from config.json for llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 (glm5-next): per token, each of the 11 deepseek_sparse_attention layers caches a K-only latent (kv_lora_rank 512 + qk_rope_head_dim 0) and a k-pool indexer row (3 × index_head_dim 128) at q8_0, 34/32 bytes: 11 × 896 × 34/32 = 10,472 bytes. Per conversation, whatever its length, each of the 34 linear_attention layers keeps one f32 state (short_conv_kernel_size 4, 64 heads × head_dim 128): 34 × (3 × 3 × 64 × 128 + 128 × 128 × 64) × 4 = 152,633,344 bytes. At 4 × 131,072 that is 5,818 MiB beside 185,437 MiB of weights on the GPU (the GGUF less its skipped MTP block and its CPU-side token embedding).",
+          "source": "https://huggingface.co/zai-org/GLM-5.3-Flash/raw/main/config.json"
+        }
+      },
       "engine": "llamacpp",
       "imageSource": "https://hub.docker.com/layers/nvidia/cuda/13.0.2-devel-ubuntu24.04/images/sha256-5dc1bca23d05bd37b011be68ec470c03b403a5da07ec3a86e41af9470e9d0cc6",
       "install": "export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils build-essential cmake curl libcurl4-openssl-dev git python3-venv && python3 -m venv /workspace/mercury-host/hf && /workspace/mercury-host/hf/bin/pip install -U huggingface_hub && if ! test -d /workspace/mercury-host/llama.cpp; then git clone https://github.com/ggml-org/llama.cpp /workspace/mercury-host/llama.cpp; fi && git -C /workspace/mercury-host/llama.cpp checkout 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 && cmake /workspace/mercury-host/llama.cpp -B /workspace/mercury-host/llama.cpp/build -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=\"$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d .)\" && cmake --build /workspace/mercury-host/llama.cpp/build --config Release -j --target llama-server",

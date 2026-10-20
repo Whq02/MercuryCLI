@@ -91,9 +91,9 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
   const shownHistory = history.slice(-historyBudget || history.length)
   const rows = detailsFit ? question?.rows ?? [] : []
   const disclosure = !compact && question?.step === 'rent-confirm' ? question.lines ?? [] : []
-  const detailBudget = Math.max(0, budget - shownHistory.length - 4 - Math.min(rows.length, 2) - (rows.length > 2 ? 2 : 0))
+  const detailBudget = Math.max(0, budget - shownHistory.length - 4 - Math.min(rows.length, 3) - (rows.length > 3 ? 2 : 0))
   const shownDetails = disclosure.slice(0, detailBudget)
-  const choices = Math.max(1, budget - shownHistory.length - (question?.fullDetails ? detailRows + 5 : shownDetails.length ? 4 + shownDetails.length + (rows.length > 2 ? 2 : 0) : compact ? Number(budget > 1) : 7))
+  const choices = Math.max(1, budget - shownHistory.length - (question?.fullDetails ? detailRows + 5 : shownDetails.length ? 4 + shownDetails.length + (rows.length > 3 ? 2 : 0) : compact ? Number(budget > 1) : 7))
   const window = settingsPopupWindow(cursor ?? 0, Math.max(0, (cursor ?? 0) - choices + 1), rows.length, choices)
   return <Box flexDirection="column" width={width} flexShrink={0} maxHeight={rowBudget} overflow="hidden">
     {shownHistory.map((row, index) => <Text key={index} color={tokens.textMuted} wrap="truncate-end">{row.title} · {row.words}</Text>)}

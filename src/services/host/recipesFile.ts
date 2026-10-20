@@ -51,6 +51,7 @@ const hostRecipeObject = z.object({
   pythonInstall: z.string().optional(),
   context: z.number().int().positive().optional(),
   contextPerSlot: z.number().int().positive().optional(),
+  kvBytesPerToken: z.object({ bytes: z.number().positive(), conversationBytes: z.number().nonnegative().optional(), maxContext: z.number().int().positive(), cacheType: z.string().regex(printable), verified: hostRecipeVerifiedSchema }).optional(),
   environment: z.record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), z.string()).optional(),
   files: z.record(z.string().regex(/^(?!\.{1,2}$)[A-Za-z0-9._-]+$/), z.string()).optional(),
   engine: z.enum(['llamacpp', 'vllm']).optional(),

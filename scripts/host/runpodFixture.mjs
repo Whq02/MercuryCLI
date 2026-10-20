@@ -1,7 +1,8 @@
 import { createServer } from 'node:http'
 import { spawn, spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 const sample = name => JSON.parse(readFileSync(new URL('./fixtures/' + name + '.json', import.meta.url), 'utf8'))
 export const liveCatalogue = sample('catalog-gpus-secure-count1')
@@ -163,11 +164,13 @@ export async function runpodFixture() {
   return { baseUrl: 'http://127.0.0.1:' + server.address().port + '/v2', key, state, requests, close: () => new Promise(resolve => { server.closeAllConnections(); server.close(resolve) }) }
 }
 
-export function fakeSshRunner(modelBaseUrl, actualRunner) {
+export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
   assert.equal(new URL(modelBaseUrl).hostname, '127.0.0.1')
   const commands = []
   const children = new Set()
-  const state = { weights: new Map(), weightFetches: 0, sampledChecks: 0, fullChecks: 0, corruptWeights: false, stallDownload: 0, checkTransport: false, refuse: false, failEngine: false, holdHealth: false, docker: true, goneEngines: new Set(), log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
+  const local = modelState ? mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'ssh-engine-')) : undefined
+  const shell = text => { const parsed = spawnSync('python3', ['-c', 'import json, shlex, sys; print(json.dumps(shlex.split(sys.argv[1])))', text], { encoding: 'utf8' }); assert.equal(parsed.status, 0, parsed.stderr); return JSON.parse(parsed.stdout) }
+  const state = { weights: new Map(), weightFetches: 0, sampledChecks: 0, fullChecks: 0, corruptWeights: false, stallDownload: 0, checkTransport: false, refuse: false, failEngine: false, holdHealth: false, failRetune: false, failRestore: false, retuned: false, restored: false, restarts: 0, script: '', backup: '', gpus: null, docker: true, goneEngines: new Set(), log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
   const runner = {
     async run(command, args, signal, timeout) {
       commands.push({ command, args })
@@ -196,9 +199,35 @@ export function fakeSshRunner(modelBaseUrl, actualRunner) {
         const digest = createHash('sha256').update(JSON.stringify(manifest)).digest('hex')
         output = 'MERCURY_WEIGHTS ' + JSON.stringify({sha256: digest, sampleManifestSha256: digest, check: sampled ? 'sampled' : 'full', files: manifest.files.length, bytes: manifest.files.reduce((n,f)=>n+f.size,0), skipped: !downloading})
       }
-      if (remote.includes('nvidia-smi')) output = Array.from({ length: 4 }, () => 'NVIDIA B200, 196608').join('\n') + (state.docker ? '\nDOCKER_ENGINE_PRESENT' : '')
+      if (local && remote.includes('printf %s') && remote.includes('/engine.sh')) {
+        const parts = shell(remote); const at = parts.findIndex((value, index) => value === 'printf' && parts[index + 1] === '%s')
+        if (at >= 0) { state.script = parts[at + 2]; writeFileSync(join(local, 'engine.sh'), state.script) }
+      }
+      if (local && remote.startsWith('python3 -c ')) {
+        const source = shell(remote)[2].replace(/p = pathlib.Path\([^\n]+\)/, 'p = pathlib.Path(' + JSON.stringify(local) + ')').replace("engine_url = 'http://127.0.0.1:30000'", 'engine_url = ' + JSON.stringify(modelBaseUrl.replace(/\/v1$/, '')))
+        const rewritten = await new Promise(resolve => { const child = spawn('python3', ['-c', source], { stdio: ['ignore', 'pipe', 'pipe'] }); let stdout = ''; let stderr = ''; child.stdout.on('data', data => { stdout += data }); child.stderr.on('data', data => { stderr += data }); child.on('close', status => resolve({ status, stdout, stderr })) })
+        output = rewritten.stdout
+        if (rewritten.status !== 0) throw new Error('ssh exited ' + rewritten.status + '. ' + rewritten.stdout + rewritten.stderr)
+        if (remote.includes('engine.pre-tune')) {
+          state.script = readFileSync(join(local, 'engine.sh'), 'utf8')
+          state.backup = existsSync(join(local, 'engine.pre-tune.sh')) ? readFileSync(join(local, 'engine.pre-tune.sh'), 'utf8') : ''
+          state.restored = remote.includes('restore = True'); state.retuned = !state.restored
+        }
+      }
+      if (local && remote.includes('nohup setsid')) {
+        state.restarts++
+        const engine = state.script.split('\n').find(line => line.includes('/llama-server'))
+        if (engine) { const flags = shell(engine); modelState.slots = Number(flags[flags.indexOf('--parallel') + 1]); modelState.window = Number(flags[flags.indexOf('--ctx-size') + 1]) / modelState.slots }
+        if (state.engine) { try { process.kill(-state.engine.pid, 'SIGKILL') } catch {} children.delete(state.engine) }
+        state.engine = spawn('bash', ['-c', 'sleep 100000; true', join(local, 'engine.sh')], { detached: true, stdio: 'ignore' })
+        state.engine.unref()
+        children.add(state.engine)
+        writeFileSync(join(local, 'engine.pid'), String(state.engine.pid) + '\n')
+      }
+      if (remote.includes('/props')) output = JSON.stringify({ default_generation_settings: { n_ctx: modelState?.window }, total_slots: modelState?.slots })
+      if (remote.includes('nvidia-smi')) output = state.gpus ?? Array.from({ length: 4 }, () => 'NVIDIA B200, 196608').join('\n') + (state.docker ? '\nDOCKER_ENGINE_PRESENT' : '')
       if (remote.includes('/health')) {
-        if (state.holdHealth) throw new Error('fixture model loading')
+        if (state.holdHealth || state.failRetune && state.retuned || state.failRestore && state.restored) throw new Error('fixture model loading')
         assert.equal((await fetch(modelBaseUrl + '/models')).status, 200)
         output = 'healthy models'
       }
@@ -224,5 +253,5 @@ export function fakeSshRunner(modelBaseUrl, actualRunner) {
       return { stop: () => child.kill(), failed: () => failure }
     },
   }
-  return { runner, state, commands, close: () => { for (const child of children) child.kill(); children.clear() } }
+  return { runner, state, commands, close: () => { for (const child of children) { try { process.kill(-child.pid, 'SIGKILL') } catch { child.kill() } } children.clear(); if (local) rmSync(local, { recursive: true, force: true }) } }
 }
