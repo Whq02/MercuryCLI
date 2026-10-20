@@ -1,0 +1,31 @@
+FROM nvidia/cuda:13.0.2-devel-ubuntu24.04@sha256:5dc1bca23d05bd37b011be68ec470c03b403a5da07ec3a86e41af9470e9d0cc6 AS build
+
+ARG LLAMA_CPP_SHA=3bb63cbcbfb62056c84fe9e521b0f3d756d29c32
+ARG CUDA_ARCHITECTURES="100;103;120"
+ARG BUILD_JOBS=2
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential ca-certificates cmake git libssl-dev ninja-build && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/llama.cpp
+RUN git init && git remote add origin https://github.com/ggml-org/llama.cpp.git && git fetch --depth 1 origin "$LLAMA_CPP_SHA" && git checkout --detach FETCH_HEAD && test "$(git rev-parse HEAD)" = "$LLAMA_CPP_SHA"
+RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DGGML_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCHITECTURES" -DLLAMA_BUILD_COMMIT="$LLAMA_CPP_SHA" -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_APP=OFF && cmake --build build --config Release --parallel "$BUILD_JOBS" --target llama-server && /usr/local/cuda/bin/cuobjdump --list-elf build/bin/llama-server > build/cuda-architectures.txt && grep -q sm_100 build/cuda-architectures.txt && grep -q sm_103 build/cuda-architectures.txt && grep -q sm_120 build/cuda-architectures.txt
+
+FROM nvidia/cuda:13.0.2-runtime-ubuntu24.04@sha256:6a0e31b59e70890446f2c17356d6efc0d54260090a8c63d6ca7c2ad049db95d2
+
+ARG LLAMA_CPP_SHA=3bb63cbcbfb62056c84fe9e521b0f3d756d29c32
+ARG CUDA_ARCHITECTURES="100;103;120"
+ARG BUILD_DATE
+LABEL org.opencontainers.image.title="Mercury llama.cpp CUDA engine" \
+      org.opencontainers.image.revision="$LLAMA_CPP_SHA" \
+      org.opencontainers.image.created="$BUILD_DATE" \
+      org.opencontainers.image.url="https://github.com/ggml-org/llama.cpp" \
+      ai.mercury.cuda.version="13.0.2" \
+      ai.mercury.cuda.architectures="$CUDA_ARCHITECTURES"
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl libgomp1 libssl3t64 openssh-server python3-venv tmux util-linux && python3 -m venv /opt/mercury-hf && /opt/mercury-hf/bin/pip install --no-cache-dir huggingface_hub==2.2.0 && rm -f /etc/ssh/ssh_host_* && rm -rf /var/lib/apt/lists/*
+COPY --from=build /opt/llama.cpp/build/bin/llama-server /usr/local/bin/llama-server
+COPY --from=build /opt/llama.cpp/build/cuda-architectures.txt /usr/local/share/llama.cpp/cuda-architectures.txt
+COPY --from=build /opt/llama.cpp/LICENSE /usr/local/share/llama.cpp/LICENSE
+ENV PATH="/opt/mercury-hf/bin:${PATH}"
+RUN llama-server --version && hf version && ldd /usr/local/bin/llama-server
+EXPOSE 22
+CMD ["bash", "-lc", "sleep infinity"]

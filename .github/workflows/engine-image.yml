@@ -1,0 +1,90 @@
+name: engine-image
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_sha:
+        description: llama.cpp commit (full SHA)
+        required: true
+        default: 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32
+      arches:
+        description: CUDA architectures (semicolon-separated, including 100, 103 and 120)
+        required: true
+        default: '100;103;120'
+  push:
+    tags:
+      - 'engine-image/*'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: engine-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Validate image inputs
+        id: image
+        env:
+          UPSTREAM_SHA: ${{ inputs.upstream_sha || '3bb63cbcbfb62056c84fe9e521b0f3d756d29c32' }}
+          ARCHES: ${{ inputs.arches || '100;103;120' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$UPSTREAM_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$ARCHES" =~ ^(90\;)?100\;103\;120$ ]]
+          echo "sha=$UPSTREAM_SHA" >> "$GITHUB_OUTPUT"
+          echo "arches=$ARCHES" >> "$GITHUB_OUTPUT"
+          echo "tag=cuda13-${UPSTREAM_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish engine
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: scripts/host
+          file: scripts/host/Dockerfile.llamacpp
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/whq02/mercury-llamacpp:${{ steps.image.outputs.tag }}
+            ghcr.io/whq02/mercury-llamacpp:latest
+          build-args: |
+            LLAMA_CPP_SHA=${{ steps.image.outputs.sha }}
+            CUDA_ARCHITECTURES=${{ steps.image.outputs.arches }}
+            BUILD_DATE=${{ steps.image.outputs.date }}
+          cache-from: type=gha,scope=engine-image
+          cache-to: type=gha,mode=max,scope=engine-image
+          provenance: mode=min
+          sbom: true
+      - name: Record registry artifact
+        env:
+          IMAGE: ghcr.io/whq02/mercury-llamacpp
+          DIGEST: ${{ steps.build.outputs.digest }}
+          TAG: ${{ steps.image.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker buildx imagetools inspect "$IMAGE@$DIGEST" --raw > image-index.json
+          MANIFEST=$(jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest' image-index.json)
+          docker buildx imagetools inspect "$IMAGE@$MANIFEST" --raw > image-manifest.json
+          BYTES=$(jq '[.layers[].size] | add' image-manifest.json)
+          printf 'Image: `%s:%s`\n\nDigest: `%s`\n\nCompressed layer bytes: %s\n' "$IMAGE" "$TAG" "$DIGEST" "$BYTES" | tee image-receipt.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: engine-image-receipt
+          path: |
+            image-index.json
+            image-manifest.json
+            image-receipt.md
