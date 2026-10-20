@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -41,13 +41,21 @@ const until = async (pred: () => Promise<boolean> | boolean, ms: number): Promis
 const WALL_S = 420
 const startedAt = Date.now()
 let leg = 'the unit laws'
-const daemonLogs: { label: string; path: string }[] = []
+const daemonLogs: { label: string; path: string; debug: string }[] = []
+const tailOf = (path: string, keep: number, only?: RegExp): string => {
+  if (!existsSync(path)) return '(no log)'
+  const lines = readFileSync(path, 'utf8').split('\n').filter(l => l.trim() !== '' && (only === undefined || only.test(l)))
+  return lines.length === 0 ? '(nothing)' : lines.slice(-keep).join('\n    ')
+}
 const guard = setTimeout(() => {
   console.log(`\nTIMEOUT: the unattended-ask laws exceeded ${WALL_S}s — in the leg "${leg}" at ${Math.round((Date.now() - startedAt) / 1000)}s`)
-  for (const { label, path } of daemonLogs) {
-    const tail = existsSync(path) ? readFileSync(path, 'utf8').split('\n').filter(l => l.trim() !== '').slice(-12).join('\n    ') : '(no log)'
-    console.log(`  daemon log (${label}):\n    ${tail}`)
+  for (const { label, path, debug } of daemonLogs) {
+    console.log(`  daemon log (${label}):\n    ${tailOf(path, 12)}`)
+    console.log(`  daemon debug log (${label}), the runner and door lines:\n    ${tailOf(debug, 20, /runner|initialize|door|worker|spawn|concourse|boot/i)}`)
   }
+  const ps = spawnSync('ps', ['-eo', 'pid,ppid,etime,stat,args'], { encoding: 'utf8' })
+  const ours = (ps.stdout ?? '').split('\n').filter(l => /launcher\.ts|mercury|bun/.test(l) && !/ps -eo/.test(l)).map(l => l.slice(0, 200))
+  console.log(`  processes:\n    ${ours.join('\n    ') || '(none)'}`)
   process.exit(1)
 }, WALL_S * 1000)
 guard.unref?.()
@@ -263,9 +271,10 @@ async function bootSeatWorld(label: string, owned: boolean, turns: Turn[]): Prom
   const launcher = join(root, 'launcher.ts')
   writeFileSync(launcher, `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }\ndelete process.env.NODE_ENV\nawait import(${j(join(REPO, 'src', 'entrypoints', 'cli.tsx'))})\n`)
   const logPath = join(root, 'daemon.log')
-  daemonLogs.push({ label, path: logPath })
+  const debugPath = join(root, 'daemon-debug.txt')
+  daemonLogs.push({ label, path: logPath, debug: debugPath })
   const logFd = openSync(logPath, 'a')
-  const daemon = spawn(process.execPath, ['run', launcher, 'daemon', 'run', work], {
+  const daemon = spawn(process.execPath, ['run', launcher, 'daemon', 'run', work, '--log-file', debugPath], {
     cwd: work,
     env: {
       ...process.env,
