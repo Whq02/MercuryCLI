@@ -398,13 +398,14 @@
       "context": 131072,
       "contextPerSlot": 131072,
       "kvBytesPerToken": {
-        "bytes": 24480,
+        "bytes": 10472,
+        "conversationBytes": 152633344,
         "maxContext": 1048576,
         "cacheType": "q8_0",
         "verified": {
           "by": "documented",
           "on": "2026-10-20",
-          "note": "Conservative MLA allowance: num_hidden_layers=45 × (kv_lora_rank=512 + qk_rope_head_dim=0) × q8_0 34/32 bytes. The hybrid has 11 full-attention layers and 34 linear-attention layers; charging all 45 as MLA is an allowance, not measured cache usage.",
+          "note": "Computed from config.json for llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 (glm5-next): per token, each of the 11 deepseek_sparse_attention layers caches a K-only latent (kv_lora_rank 512 + qk_rope_head_dim 0) and a k-pool indexer row (3 × index_head_dim 128) at q8_0, 34/32 bytes: 11 × 896 × 34/32 = 10,472 bytes. Per conversation, whatever its length, each of the 34 linear_attention layers keeps one f32 state (short_conv_kernel_size 4, 64 heads × head_dim 128): 34 × (3 × 3 × 64 × 128 + 128 × 128 × 64) × 4 = 152,633,344 bytes. At 4 × 131,072 that is 5,818 MiB beside 185,437 MiB of weights on the GPU (the GGUF less its skipped MTP block and its CPU-side token embedding).",
           "source": "https://huggingface.co/zai-org/GLM-5.3-Flash/raw/main/config.json"
         }
       },

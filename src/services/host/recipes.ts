@@ -25,7 +25,7 @@ export interface HostRecipe {
   pythonInstall?: string
   context?: number
   contextPerSlot?: number
-  kvBytesPerToken?: { bytes: number; maxContext: number; cacheType: string; verified: HostRecipeVerified }
+  kvBytesPerToken?: { bytes: number; conversationBytes?: number; maxContext: number; cacheType: string; verified: HostRecipeVerified }
   environment?: Record<string, string>
   files?: Record<string, string>
   engine?: 'llamacpp'
@@ -49,7 +49,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     engine: 'llamacpp', image: 'nvidia/cuda:13.0.2-devel-ubuntu24.04', cuda: '13.0', imageSource: 'https://hub.docker.com/layers/nvidia/cuda/13.0.2-devel-ubuntu24.04/images/sha256-5dc1bca23d05bd37b011be68ec470c03b403a5da07ec3a86e41af9470e9d0cc6', source: 'https://unsloth.ai/docs/models/glm-5.3-flash', verification: 'llama.cpp (GGUF) · verified on 1× B300 (67 tok/s)',
     verified: { by: 'measured', on: '2026-10-20', note: '1× B300 · upstream llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 · 67 tok/s single-stream, ~23 tok/s per stream with two busy · 193 GB VRAM · 524,288 ctx across 4 slots (131,072 per slot)', source: 'https://unsloth.ai/docs/models/glm-5.3-flash' },
     context: 131072, contextPerSlot: 131072,
-    kvBytesPerToken: { bytes: 45 * (512 + 0) * (34 / 32), maxContext: 1048576, cacheType: 'q8_0', verified: { by: 'documented', on: '2026-10-20', source: 'https://huggingface.co/zai-org/GLM-5.3-Flash/raw/main/config.json', note: 'Conservative MLA allowance: num_hidden_layers=45 × (kv_lora_rank=512 + qk_rope_head_dim=0) × q8_0 34/32 bytes. The hybrid has 11 full-attention layers and 34 linear-attention layers; charging all 45 as MLA is an allowance, not measured cache usage.' } },
+    kvBytesPerToken: { bytes: 11 * (512 + 0 + 3 * 128) * 34 / 32, conversationBytes: 34 * (3 * (4 - 1) * 64 * 128 + 128 * 128 * 64) * 4, maxContext: 1048576, cacheType: 'q8_0', verified: { by: 'documented', on: '2026-10-20', source: 'https://huggingface.co/zai-org/GLM-5.3-Flash/raw/main/config.json', note: 'Computed from config.json for llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 (glm5-next): per token, each of the 11 deepseek_sparse_attention layers caches a K-only latent (kv_lora_rank 512 + qk_rope_head_dim 0) and a k-pool indexer row (3 × index_head_dim 128) at q8_0, 34/32 bytes: 11 × 896 × 34/32 = 10,472 bytes. Per conversation, whatever its length, each of the 34 linear_attention layers keeps one f32 state (short_conv_kernel_size 4, 64 heads × head_dim 128): 34 × (3 × 3 × 64 × 128 + 128 × 128 × 64) × 4 = 152,633,344 bytes. At 4 × 131,072 that is 5,818 MiB beside 185,437 MiB of weights on the GPU (the GGUF less its skipped MTP block and its CPU-side token embedding).' } },
     install: llamaInstall,
     include: '*UD-Q4_K_XL*', weightFile: 'UD-Q4_K_XL/GLM-5.3-Flash-UD-Q4_K_XL-00001-of-00006.gguf',
     flags: ['--n-gpu-layers', 'all', '--jinja', '--ctx-size', '524288', '--parallel', '4', '--flash-attn', 'on', '--cache-type-k', 'q8_0', '--cache-type-v', 'q8_0', '--cache-reuse', '256', '--temp', '1.0', '--top-p', '0.95', '--chat-template-kwargs', '{"reasoning_effort":"max"}'],

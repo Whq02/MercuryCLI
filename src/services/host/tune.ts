@@ -21,6 +21,8 @@ type Emit = Parameters<LlmHostRoad>[1]
 export const ENGINE_ALLOWANCE_GB = 12
 const titleOf = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const tokens = (n: number): string => n >= 1048576 && n % 1048576 === 0 ? n / 1048576 + 'M' : n % 1024 === 0 ? n / 1024 + 'k' : String(n)
+const about = (n: number): string => n >= 1048576 ? (n / 1048576).toFixed(1).replace(/\.0$/, '') + 'M' : Math.floor(n / 1024) + 'k'
+const gb = (n: number): string => n.toFixed(1).replace(/\.0$/, '')
 const rate = (n: number): string => '$' + n.toFixed(2) + '/hr'
 const positive = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0
 const flag = (recipe: HostRecipe, name: string): string | undefined => { const at = recipe.flags.indexOf(name); return at < 0 ? undefined : recipe.flags[at + 1] }
@@ -70,19 +72,22 @@ export function tuneBudget(recipe: HostRecipe, gpuMemoryGb: number, count: numbe
   const defaults = defaultTune(recipe)
   const weightsGb = positive(recipe.weightsGb) ? recipe.weightsGb : undefined
   const kv = recipe.kvBytesPerToken
-  const known = weightsGb !== undefined && positive(kv?.bytes) && kv?.verified.by !== 'unverified' && gpuMemoryGb > ENGINE_ALLOWANCE_GB && Number.isSafeInteger(count) && count > 0
-  const capacity = known ? Math.max(0, Math.floor(((gpuMemoryGb - ENGINE_ALLOWANCE_GB) * count - weightsGb!) * 1e9 / kv!.bytes)) : undefined
+  const cacheMatches = recipe.engine !== 'llamacpp' || ['--cache-type-k', '--cache-type-v'].every(name => flag(recipe, name) === kv?.cacheType)
+  const known = weightsGb !== undefined && positive(kv?.bytes) && kv?.verified.by !== 'unverified' && cacheMatches && gpuMemoryGb > ENGINE_ALLOWANCE_GB && Number.isSafeInteger(count) && count > 0
+  const stateGb = (conversations: number | null): number => (conversations ?? 1) * (kv?.conversationBytes ?? 0) / 1e9
+  const measuredTotal = defaults.conversations && defaults.contextPerConversation ? defaults.conversations * defaults.contextPerConversation : undefined
+  const capacity = known ? Math.max(0, Math.floor(((gpuMemoryGb - ENGINE_ALLOWANCE_GB) * count - weightsGb! - stateGb(defaults.conversations)) * 1e9 / kv!.bytes)) : undefined
   const memory = count + '× ' + recipe.gpu + ' · ' + gpuMemoryGb + ' GB/GPU'
-  const words = !known ? memory + ' · ' + (weightsGb === undefined ? 'weights size unknown' : 'KV size unknown') + ' — Mercury cannot promise what fits'
-    : memory + ' · weights ' + weightsGb + ' GB · ' + ENGINE_ALLOWANCE_GB + ' GB/GPU engine allowance'
+  const words = !known ? memory + ' · ' + (weightsGb === undefined ? 'weights size unknown' : 'context memory unknown') + ' — Mercury cannot promise what fits'
+    : memory + ' · weights ' + gb(weightsGb!) + ' GB · ' + ENGINE_ALLOWANCE_GB + ' GB/GPU engine allowance'
   const splits: Array<[number | null, number | null]> = known && recipe.engine === 'llamacpp'
     ? [[1, 1048576], [2, 524288], [4, 262144], [4, 131072], [8, 65536], [8, 131072], [4, 524288], [8, 1048576]] : [[defaults.conversations, defaults.contextPerConversation]]
   if (!splits.some(([n, ctx]) => n === defaults.conversations && ctx === defaults.contextPerConversation)) splits.push([defaults.conversations, defaults.contextPerConversation])
   const candidates = splits.filter(([, ctx]) => !known || ctx === null || ctx <= kv!.maxContext).map(([conversations, contextPerConversation]): TuneCandidate => {
     const totalTokens = conversations && contextPerConversation ? conversations * contextPerConversation : undefined
-    const requiredGb = known && totalTokens ? weightsGb! + totalTokens * kv!.bytes / 1e9 + count * ENGINE_ALLOWANCE_GB : undefined
+    const requiredGb = known && totalTokens ? weightsGb! + totalTokens * kv!.bytes / 1e9 + stateGb(conversations) + count * ENGINE_ALLOWANCE_GB : undefined
     const needsCount = requiredGb !== undefined ? Math.max(recipe.count, Math.ceil((requiredGb - count * ENGINE_ALLOWANCE_GB) / (gpuMemoryGb - ENGINE_ALLOWANCE_GB))) : undefined
-    const measured = known && recipe.id === 'glm53-flash-gguf-b300' && recipe.verified.by === 'measured' && gpuMemoryGb >= 288 && count >= 1 && totalTokens !== undefined && totalTokens <= 524288
+    const measured = known && recipe.verified.by === 'measured' && gpuMemoryGb >= recipe.vramGb && count >= recipe.count && conversations !== null && defaults.conversations !== null && conversations <= defaults.conversations && totalTokens !== undefined && measuredTotal !== undefined && totalTokens <= measuredTotal
     const fits = !known || measured || needsCount !== undefined && needsCount <= count
     const offer = offers.filter(row => row.recipe.id === recipe.id && row.recipe.count >= (needsCount ?? count)).sort((a, b) => a.price - b.price)[0]
     const split = (conversations ?? 'engine default') + ' × ' + (contextPerConversation ? tokens(contextPerConversation) : 'context unknown')
@@ -132,7 +137,7 @@ export async function runTune(modelTitle: string, options: { recipes: readonly H
   const memory = hardware ? Math.min(...hardware.gpus.map(gpu => gpu.memory)) : recipe.vramGb
   const budget = tuneBudget(recipe, memory, count, options.offers)
   const initial = budget.candidates.findIndex(row => row.conversations === previous.conversations && row.contextPerConversation === previous.contextPerConversation)
-  const choice = await question({ step: 'tune-context', title: 'CONVERSATIONS × CONTEXT', found: budget.words, willRun: (budget.totalTokens === undefined ? (!previous.conversations || !previous.contextPerConversation ? 'limit not documented for this recipe' : recipe.verification) : 'KV allowance · about ' + tokens(budget.totalTokens) + ' tokens total; per conversation ≤ ' + tokens(recipe.kvBytesPerToken!.maxContext)) + ' · esc closes', initial: String(Math.max(0, initial)), rows: budget.candidates.map((row, index) => ({ value: String(index), label: row.label })) })
+  const choice = await question({ step: 'tune-context', title: 'CONVERSATIONS × CONTEXT', found: budget.words, willRun: (budget.totalTokens === undefined ? (!previous.conversations || !previous.contextPerConversation ? 'limit not documented for this recipe' : recipe.verification) : budget.totalTokens < 1024 ? 'no room for context beside the weights' : 'room for about ' + about(budget.totalTokens) + ' tokens in all, up to ' + tokens(recipe.kvBytesPerToken!.maxContext) + ' each') + ' · esc closes', initial: String(Math.max(0, initial)), rows: budget.candidates.map((row, index) => ({ value: String(index), label: row.label })) })
   if (choice === null) return
   const candidate = budget.candidates[Number(choice)]
   if (!candidate || !candidate.fits) { emit({ title: 'Tune', words: candidate?.label ?? words.inputError }); return }

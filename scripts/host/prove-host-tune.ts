@@ -15,7 +15,9 @@ const glm = { ...HOST_RECIPES.find(row => row.id === 'glm53-flash-gguf-b300')!, 
 let checks = 0
 const check = (name: string, truth: unknown) => { assert.ok(truth, name); console.log('PASS ' + name); checks++ }
 const budget = tune.tuneBudget(glm, 288, 1)
-check('one long conversation and four medium ones have equal memory cost', budget.candidates.find(row => row.conversations === 1 && row.contextPerConversation === 1048576)?.requiredGb === budget.candidates.find(row => row.conversations === 4 && row.contextPerConversation === 262144)?.requiredGb)
+const split = (n: number, ctx: number) => budget.candidates.find(row => row.conversations === n && row.contextPerConversation === ctx)
+const stateGb = glm.kvBytesPerToken!.conversationBytes! / 1e9
+check('one long conversation and four medium ones hold the same context memory; each extra conversation adds only its fixed state', Math.abs(split(4, 262144)!.requiredGb! - split(1, 1048576)!.requiredGb! - 3 * stateGb) < 1e-9 && Math.abs(split(2, 524288)!.requiredGb! - split(1, 1048576)!.requiredGb! - stateGb) < 1e-9)
 check('weights are not confused with volume disk size', budget.weightsGb === 195)
 check('unknown sizes offer only the recipe default', tune.tuneBudget({ ...glm, weightsGb: undefined, kvBytesPerToken: undefined }, 288, 1).candidates.length === 1)
 check('unknown size words make no promise', tune.tuneBudget({ ...glm, weightsGb: undefined }, 288, 1).words.includes('weights size unknown'))
@@ -24,9 +26,15 @@ check('FP8 quality is explicit', tune.qualityWords({ ...glm, label: 'GLM-5.3-Fla
 check('NVFP4 quality carries community provenance', tune.qualityWords(HOST_RECIPES.find(row => row.id === 'glm53-flash-b200-community')!).includes('Fast crew · NVFP4'))
 check('unknown variant is never guessed', tune.qualityWords({ ...glm, label: 'Model · mystery' }) === 'mystery')
 
-check('the shipped config calculation is documented rather than invented', glm.kvBytesPerToken?.bytes === 45 * 512 * 34 / 32 && glm.kvBytesPerToken.verified.source.endsWith('/config.json'))
+check('per token the engine keeps the 11 attention layers\' latent and indexer row at q8_0, not all 45 layers', glm.kvBytesPerToken?.bytes === 10472 && glm.kvBytesPerToken.bytes === 11 * (512 + 3 * 128) * 34 / 32 && glm.kvBytesPerToken.verified.source.endsWith('/config.json'))
+check('the 34 linear-attention layers cost a fixed f32 state per conversation, whatever its length', glm.kvBytesPerToken?.conversationBytes === 152633344 && glm.kvBytesPerToken.conversationBytes === 34 * (3 * 3 * 64 * 128 + 128 * 128 * 64) * 4)
 check('engine overhead is a visible allowance', budget.words.includes('12 GB/GPU engine allowance'))
-check('measured default and 8 × 64k carry the measured qualifier', budget.candidates.filter(row => row.totalTokens === 524288).every(row => row.measured && row.label.includes('measured to fit')))
+check('the estimate for the measured launch sits above the 193,464 MiB the B300 run used and inside the GPU', split(4, 131072)!.requiredGb! >= 193464 * 2 ** 20 / 1e9 && split(4, 131072)!.requiredGb! <= 288)
+check('the measured launch carries the measured qualifier', split(4, 131072)!.measured && split(4, 131072)!.label.includes('measured to fit'))
+check('eight conversations of 64k hold eight states, more than the measured four, so the split is an estimate', !split(8, 65536)!.measured && split(8, 65536)!.label.includes('should fit (estimate)'))
+check('the room line counts the context the GPU holds after weights, states and allowance', budget.totalTokens === Math.floor(((288 - 12) * 1 - 195 - 4 * glm.kvBytesPerToken!.conversationBytes! / 1e9) * 1e9 / 10472))
+check('a weights size from the files reads as one decimal', tune.tuneBudget({ ...glm, weightsGb: 199.716751456 }, 288, 1).words.includes('weights 199.7 GB · '))
+check('a launch whose cache type is not the one the estimate assumed offers only the recipe default', tune.tuneBudget({ ...glm, flags: glm.flags.map(value => value === 'q8_0' ? 'f16' : value) }, 288, 1).candidates.length === 1 && tune.tuneBudget({ ...glm, flags: glm.flags.map(value => value === 'q8_0' ? 'f16' : value) }, 288, 1).words.includes('context memory unknown'))
 check('1M is an estimate not a measurement', budget.candidates.find(row => row.conversations === 1)?.label.includes('should fit (estimate)'))
 check('larger totals require another card', budget.candidates.find(row => row.conversations === 8 && row.contextPerConversation === 1048576)?.needsCount === 2)
 const offer = { recipe: glm, gpuId: 'NVIDIA B300 SXM6 AC', price: 7.99, dataCenter: 'EU-NL-1', availability: 'HIGH' }
@@ -93,6 +101,8 @@ try {
     const capture = (name: string) => {
       check(width + ' ' + name + ' paints its exit hint', m.screen().includes('esc') && !m.screen().includes('RENDER ERROR'))
       check(width + ' ' + name + ' keeps the GPU budget visible', m.screen().includes('288 GB/GPU'))
+      check(width + ' ' + name + ' names no engine internals', !/\bKV\b|\bslots?\b/i.test(m.screen()))
+      if (name === 'context') check(width + ' context names the room in words and keeps it whole', m.lines().some(row => row.includes('room for about 7.3M tokens in all, up to 1M each · esc closes')))
       if (!frames) return
       writeFileSync(join(frames, width + '-' + name + '.txt'), m.screen())
       const grid = m.lines().map((line, y) => Array.from(line.padEnd(width)).map((c, x) => { const style = m.styleAt(x, y); return { c, bg: style?.bg ?? 'default', fg: style?.fg ?? 'default', bold: style?.bold ?? false, rev: style?.inverse ?? false } }))
