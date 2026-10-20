@@ -72,3 +72,4 @@ prove-thinking-withheld-turns.ts
 prove-beta40-notices.ts
 prove-beta40-polish.ts
 prove-shell-live-tail.ts
+prove-beta40-help.ts

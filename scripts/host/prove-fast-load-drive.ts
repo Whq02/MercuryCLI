@@ -115,7 +115,7 @@ try {
   check('worker records verified sums, sizes, fill pod and private record permissions', Boolean(kept.verifiedSums?.sha256) && kept.verifiedSums!.bytes === Math.round(qwen.weightsGb * 1e9) && kept.filledBy === 'fixture-pod-1' && (statSync(join(f.home, 'host/volumes', kept.id + '.json')).mode & 0o777) === 0o600)
   check('preparation does not build or start an inference engine', ssh.state.weightFetches === 1 && !ssh.commands.some((r: any) => r.args.at(-1)?.includes('nohup setsid')))
   await close(); open(); await heading('Where should the model run?'); await choose('Fast-load'); await heading('Fast-load (keep weights'); await until('kept on ' + kept.id); await capture('04-kept-catalogue'); await close()
-  open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await heading('Optional spending budget'); m.push(KEY.enter); await until('Qwen3.8-27B'); await choose('Qwen3.8-27B'); await heading('Choose a GPU shape'); await choose('RTX PRO 6000'); await heading('Confirm the hourly price'); await capture('05-kept-rental-confirm')
+  open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await heading('Rent from which vendor?'); await choose('Runpod'); await heading('Optional spending budget'); m.push(KEY.enter); await until('Qwen3.8-27B'); await choose('Qwen3.8-27B'); await heading('Choose a GPU shape'); await choose('RTX PRO 6000'); await heading('Confirm the hourly price'); await capture('05-kept-rental-confirm')
   check('rental confirm gives per-step short estimate and monthly disk charge', m.screen().includes('weights kept ~0') && m.screen().includes('loads ~3 min') && m.screen().includes('$5.60/month'))
   await choose('Confirm $2.49/hr'); assert.ok(await waitFor(() => readHostRecord('fixture-pod-2')?.jobState === 'ready', 15000), 'kept model reaches ready')
   check('kept rental reattaches same disk and skips weight fetch', rp.state.createBodies[1].mounts.network[0].volumeId === kept.id && ssh.state.weightFetches === 1)
@@ -403,7 +403,7 @@ try {
   await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'pods'; if (q.step === 'paid-pods') paidRows = (q.rows ?? []).map(row => row.value); return null }, update => { paidWords.push(update.words) }, signal)
   check('an unreadable volume list still lists billed pods for Stop or Terminate and says disks are not shown', paidRows.includes(plainPod.id) && paidWords.some(words => words.includes('Volume list unavailable; weights disks are not shown and may still bill')))
   let reachedRentConfirm = false
-  await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'rent'; if (q.step === 'budget') return ''; if (q.step === 'models') return 'Qwen3.8-27B'; if (q.step === 'offers') return '0'; if (q.step === 'rent-confirm') reachedRentConfirm = true; return null }, () => {}, signal)
+  await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'rent'; if (q.step === 'rental-vendor') return 'runpod'; if (q.step === 'budget') return ''; if (q.step === 'models') return 'Qwen3.8-27B'; if (q.step === 'offers') return '0'; if (q.step === 'rent-confirm') reachedRentConfirm = true; return null }, () => {}, signal)
   check('renting a model without a weights disk needs no volume read, so a volume outage does not block it', reachedRentConfirm)
   rp.state.failVolumeRead = false
   await api.terminate(plainPod.id)

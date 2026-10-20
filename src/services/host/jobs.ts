@@ -6,6 +6,7 @@ import { selfScriptPath, nodeForBuild } from '../../daemon/daemonBuild.js'
 import { ownsControlPlaneSync, readDaemonState } from '../../daemon/controlSocket.js'
 import { isProcessAlive } from '../../daemon/ownerWatch.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { reconcileRecord, startService, stopService } from '../projectServices/serviceManager.js'
 import { hostDirectory, hostRecords, patchHostRecord, readHostRecord, writeHostRecord, type HostRecord } from './store.js'
 import { hostNotice } from './notices.js'
@@ -136,7 +137,7 @@ export function startHostJobSupervisor(): () => void {
   }
   let watcher: ReturnType<typeof watch> | undefined
   try {
-    watcher = watch(pods, () => schedule(250))
+    watcher = watch(resolveWatchRoot(pods), () => schedule(250))
     watcher.unref?.()
     watcher.on('error', () => { watcher?.close(); watcher = undefined; schedule(15_000) })
   } catch { watcher = undefined }

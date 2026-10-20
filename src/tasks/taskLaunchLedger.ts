@@ -2,7 +2,7 @@ import { readFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import { getProcessStartTokenAsync, isProcessAlive } from '../daemon/ownerWatch.js'
 import { tokenBinding } from '../daemon/processSweep.js'
-import { durableAtomicPublish } from '../substrate/durablePublish.js'
+import { publishAtomic } from '../substrate/fileStore.js'
 import { endProcessTree } from '../utils/processGroup.js'
 import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
 import { loadTaskOutcomes } from './taskOutcomeEnvelope.js'
@@ -65,7 +65,7 @@ function chained(sessionId: string, run: () => Promise<void>): Promise<void> {
 
 async function publish(sessionId: string, launches: TaskLaunchRecord[]): Promise<void> {
   const file: LedgerFile = { v: TASK_LAUNCH_LEDGER_VERSION, launches }
-  await durableAtomicPublish(taskLaunchesPath(sessionId), JSON.stringify(file, null, 1))
+  await publishAtomic(taskLaunchesPath(sessionId), JSON.stringify(file, null, 1))
 }
 
 export function recordTaskLaunch(sessionId: string, launch: Omit<TaskLaunchRecord, 'v' | 'startToken'>): Promise<void> {
