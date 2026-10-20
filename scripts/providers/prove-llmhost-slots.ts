@@ -40,8 +40,10 @@ const state = {
   slotsRequests: 0,
   processingSlot: -1,
   firstTokenDelayMs: 0,
-  mode: 'reply' as 'reply' | 'tools' | '5xx-once' | 'delayed-first-token' | 'slow-tool-stream',
+  slotsHang: false,
+  mode: 'reply' as 'reply' | 'tools' | '5xx-once' | 'delayed-first-token' | 'slow-tool-stream' | 'silent-after-headers' | 'no-headers',
 }
+const heldResponses = new Set<ServerResponse>()
 const model = 'Fixture/GLM-5.3-Flash-GGUF'
 
 function readRequestBody(req: IncomingMessage): Promise<string> {
@@ -81,6 +83,10 @@ const server = createServer(async (req, res) => {
   }
   if (path === '/slots' || path === '/health') {
     state.slotsRequests++
+    if (state.slotsHang) {
+      heldResponses.add(res)
+      return
+    }
     const slots = Array.from({ length: state.totalSlots }, (_, id) => ({
       id,
       is_processing: state.processingSlot === id,
@@ -104,6 +110,16 @@ const server = createServer(async (req, res) => {
   if (state.mode === '5xx-once') {
     state.mode = 'reply'
     sendJson(res, 503, { error: { message: 'slot table reloaded' } })
+    return
+  }
+  if (state.mode === 'silent-after-headers') {
+    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' })
+    res.flushHeaders()
+    heldResponses.add(res)
+    return
+  }
+  if (state.mode === 'no-headers') {
+    heldResponses.add(res)
     return
   }
   const chunk = (delta: unknown, finish: string | null = null, usage?: unknown) =>
@@ -272,13 +288,14 @@ try {
   }
 
   const llamaId = `compat/llmhost/${model}`
-  writeSettings({
-    compatProvider: {
-      llmhost: { baseUrl, dialect: 'llamacpp' },
-      hosted: { baseUrl, dialect: 'chat-completions' },
-      sglanghost: { baseUrl, dialect: 'sglang', sessionAffinityHeader: 'x-session-id' },
-    },
-  })
+  const llmoldId = `compat/llmold/${model}`
+  const endpoints = {
+    llmhost: { baseUrl, dialect: 'llamacpp' },
+    llmold: { baseUrl, dialect: 'llamacpp' },
+    hosted: { baseUrl, dialect: 'chat-completions' },
+    sglanghost: { baseUrl, dialect: 'sglang', sessionAffinityHeader: 'x-session-id' },
+  }
+  writeSettings({ compatProvider: endpoints })
 
   state.mode = 'tools'
   const firstUserA = createUserMessage({ content: 'conversation A turn 0' })
@@ -440,38 +457,27 @@ try {
       createUserMessage({ content: 'hosted turn 2 silent after headers' }),
     ]
     const cutHosted = await runTurn(hostedId, warmHostedHistory, { querySource: 'overload_probe' })
+    const hostedBody = captures.at(-1)!.body
     check(
-      'hosted-vendor compat route keeps the 30 s (scaled) silent-after-headers fence',
+      'hosted-vendor compat route keeps the 30 s (scaled) silent-after-headers fence and sends neither id_slot nor cache_prompt',
       cutHosted.some(row => row.isApiErrorMessage && row.errorDetails === 'silent-after-headers') &&
-        idle.silentAfterHeadersMsForRoute('openai-compat', 'chat-completions') === 300,
-      `hosted=${JSON.stringify(cutHosted.map(r => ({ err: r.isApiErrorMessage, details: r.errorDetails })))}`,
+        idle.silentAfterHeadersMsForRoute('openai-compat', 'chat-completions') === 300 &&
+        hostedBody.id_slot === undefined &&
+        hostedBody.cache_prompt === undefined,
+      `hosted=${JSON.stringify(cutHosted.map(r => ({ err: r.isApiErrorMessage, details: r.errorDetails })))} id_slot=${hostedBody.id_slot} cache_prompt=${hostedBody.cache_prompt}`,
     )
   } finally {
     delete process.env.MERCURY_SILENT_AFTER_HEADERS_MS
   }
 
-  writeSettings({
-    patience: { streamIdleSeconds: 1800, quietStreamIdleSeconds: 900 },
-    compatProvider: {
-      llmhost: { baseUrl, dialect: 'llamacpp' },
-      hosted: { baseUrl, dialect: 'chat-completions' },
-      sglanghost: { baseUrl, dialect: 'sglang', sessionAffinityHeader: 'x-session-id' },
-    },
-  })
+  writeSettings({ patience: { streamIdleSeconds: 1800, quietStreamIdleSeconds: 900 }, compatProvider: endpoints })
   check(
     'self-hosted compat dialect budget is never shorter than streamIdleMs',
     idle.streamIdleTimeoutMsForRoute('openai-compat', 'llamacpp') === 1_800_000,
     `idleMs=${idle.streamIdleTimeoutMsForRoute('openai-compat', 'llamacpp')}`,
   )
 
-  writeSettings({
-    patience: { streamIdleSeconds: 1, quietStreamIdleSeconds: 3 },
-    compatProvider: {
-      llmhost: { baseUrl, dialect: 'llamacpp' },
-      hosted: { baseUrl, dialect: 'chat-completions' },
-      sglanghost: { baseUrl, dialect: 'sglang', sessionAffinityHeader: 'x-session-id' },
-    },
-  })
+  writeSettings({ patience: { streamIdleSeconds: 1, quietStreamIdleSeconds: 3 }, compatProvider: endpoints })
   state.mode = 'delayed-first-token'
   state.firstTokenDelayMs = 1_400
   const quietReplies = await runTurn(llamaId, [createUserMessage({ content: 'prefill past streaming idle budget' })], {
@@ -500,6 +506,65 @@ try {
         state.slotsRequests > slotsBefore,
       `slotsRequestsDelta=${state.slotsRequests - slotsBefore} errors=${JSON.stringify(slotAliveReplies.filter(r => r.isApiErrorMessage))}`,
     )
+
+    state.propsAvailable = false
+    const unpinnedSlotsBefore = state.slotsRequests
+    state.firstTokenDelayMs = 1_450
+    const unpinned = await runTurn(llmoldId, [createUserMessage({ content: 'an older llama.cpp whose /props names no total_slots' })], {
+      querySource: 'overload_probe',
+    })
+    const unpinnedBody = captures.at(-1)!.body
+    state.propsAvailable = true
+    check(
+      'a llama.cpp server with no total_slots takes the old road: nothing pinned, /slots never asked, the idle budget cuts the silence',
+      unpinnedBody.id_slot === undefined &&
+        state.slotsRequests === unpinnedSlotsBefore &&
+        unpinned.some(row => row.isApiErrorMessage && row.errorDetails === 'idle-timeout'),
+      `id_slot=${unpinnedBody.id_slot} slotsDelta=${state.slotsRequests - unpinnedSlotsBefore} rows=${JSON.stringify(unpinned.map(r => r.errorDetails ?? 'reply'))}`,
+    )
+
+    const serverWords = `the llama.cpp server at http://127.0.0.1:${port}`
+    const errorText = (rows: any[]): string => rows.filter(row => row.isApiErrorMessage).map(row => JSON.stringify(row.message?.content ?? '')).join(' ')
+    state.mode = 'silent-after-headers'
+    state.processingSlot = -1
+    const idleStarted = Date.now()
+    const idleCut = await runTurn(llamaId, [createUserMessage({ content: 'the server took the request and then dropped it' })], {
+      querySource: 'overload_probe',
+    })
+    const idleElapsed = Date.now() - idleStarted
+    check(
+      'headers and then silence on an idle pinned slot ends in bounded time, the cut naming the server and the slot it read',
+      errorText(idleCut).includes(serverWords) && /reports slot \d+ idle/.test(errorText(idleCut)) && idleElapsed < 10_000,
+      `elapsedMs=${idleElapsed} text=${errorText(idleCut).slice(0, 400)}`,
+    )
+
+    state.slotsHang = true
+    const hangStarted = Date.now()
+    const hangCut = await runTurn(llamaId, [createUserMessage({ content: 'the server stopped answering everything' })], {
+      querySource: 'overload_probe',
+    })
+    const hangElapsed = Date.now() - hangStarted
+    state.slotsHang = false
+    check(
+      'a server that no longer answers GET /slots either is cut once the probe times out, the cut naming the server',
+      errorText(hangCut).includes(`${serverWords} did not answer GET /slots within 5 s`) && hangElapsed < 15_000,
+      `elapsedMs=${hangElapsed} text=${errorText(hangCut).slice(0, 400)}`,
+    )
+
+    state.mode = 'no-headers'
+    const headerlessStarted = Date.now()
+    const headerlessCut = await runTurn(llamaId, [createUserMessage({ content: 'the server accepted the connection and never answered' })], {
+      querySource: 'overload_probe',
+    })
+    const headerlessElapsed = Date.now() - headerlessStarted
+    check(
+      'no headers at all on an idle pinned slot ends at the first-byte budget, the cut naming the server and the slot it read',
+      /no first byte from/.test(errorText(headerlessCut)) &&
+        errorText(headerlessCut).includes(serverWords) &&
+        /reports slot \d+ idle/.test(errorText(headerlessCut)) &&
+        headerlessElapsed < 15_000,
+      `elapsedMs=${headerlessElapsed} text=${errorText(headerlessCut).slice(0, 400)}`,
+    )
   } finally {
     delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
     state.firstTokenDelayMs = 0
@@ -510,13 +575,28 @@ try {
   const sglangReplies = await runTurn(sglangId, [createUserMessage({ content: 'sglang affinity check' })])
   const sglangCapture = captures.at(-1)!
   check(
-    'the SGLang road keeps its sessionAffinityHeader and clear_thinking: false without id_slot',
+    'the SGLang road keeps its sessionAffinityHeader and clear_thinking: false without id_slot or cache_prompt',
     sglangReplies.every(row => !row.isApiErrorMessage) &&
       typeof sglangCapture.affinity === 'string' &&
       sglangCapture.affinity.length > 0 &&
       sglangCapture.body.chat_template_kwargs?.clear_thinking === false &&
-      sglangCapture.body.id_slot === undefined,
-    `affinity=${sglangCapture.affinity} id_slot=${sglangCapture.body.id_slot}`,
+      sglangCapture.body.id_slot === undefined &&
+      sglangCapture.body.cache_prompt === undefined,
+    `affinity=${sglangCapture.affinity} id_slot=${sglangCapture.body.id_slot} cache_prompt=${sglangCapture.body.cache_prompt}`,
+  )
+
+  process.env.MERCURY_COMPAT_BASE_URL = baseUrl
+  const propsBeforeLegacy = state.propsRequests
+  const legacyReplies = await runTurn(`compat/default/${model}`, [createUserMessage({ content: 'the legacy single endpoint from MERCURY_COMPAT_BASE_URL' })])
+  delete process.env.MERCURY_COMPAT_BASE_URL
+  const legacyBody = captures.at(-1)!.body
+  check(
+    'the legacy MERCURY_COMPAT_BASE_URL endpoint takes the chat-completions road: no /props read, no id_slot, no cache_prompt',
+    legacyReplies.every(row => !row.isApiErrorMessage) &&
+      state.propsRequests === propsBeforeLegacy &&
+      legacyBody.id_slot === undefined &&
+      legacyBody.cache_prompt === undefined,
+    `props=${state.propsRequests - propsBeforeLegacy} id_slot=${legacyBody.id_slot} cache_prompt=${legacyBody.cache_prompt}`,
   )
 
   const fastRow = HOST_RECIPES.find((row: any) => row.id === 'glm53-flash-b200-community')
@@ -774,6 +854,7 @@ try {
   console.log(`prove-llmhost-slots: ${checks} checks, ${failures} failures`)
   if (failures > 0) process.exitCode = 1
 } finally {
+  for (const held of heldResponses) held.destroy()
   server.close()
   rmSync(home, { recursive: true, force: true })
 }

@@ -20,6 +20,7 @@ const llamacppSlotsCache = new Map<string, number>()
 const llamacppSlotsInFlight = new Map<string, Promise<number | undefined>>()
 const llamacppSlotHolders = new Map<string, Map<string, { slot: number; crewmate: boolean }>>()
 const LLAMACPP_SLOT_HOLDERS_KEPT = 64
+const LLAMACPP_SLOT_PROBE_MS = 5_000
 
 function llamacppEndpointKey(endpoint: CompatEndpointSettings & { name?: string; baseUrl: string }): string {
   return `${endpoint.name ?? 'default'}:${compatServerBase(endpoint.baseUrl)}`
@@ -121,18 +122,20 @@ export async function resolveLlamacppTotalSlots(
   return work
 }
 
-export async function probeLlamacppSlotProcessing(
+export async function probeLlamacppSlot(
   endpoint: CompatEndpointSettings & { baseUrl: string },
-  slotId: number | undefined,
+  slotId: number,
   opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
-): Promise<boolean> {
+): Promise<{ alive: boolean; words: string }> {
   const controller = new AbortController()
   const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal
-  const timer = setTimeout(() => controller.abort(), 5_000)
+  const timer = setTimeout(() => controller.abort(), LLAMACPP_SLOT_PROBE_MS)
   timer.unref?.()
+  let server = 'the llama.cpp server'
   try {
     const root = compatServerBase(endpoint.baseUrl).replace(/\/v1$/, '')
-    const fetchUrl = async (path: string): Promise<unknown> => {
+    server = `the llama.cpp server at ${root}`
+    const read = async (path: string): Promise<{ status: number; body?: unknown }> => {
       const response = await (opts.fetchImpl ?? getApiFetch())(`${root}${path}`, {
         ...getProxyFetchOptions(),
         method: 'GET',
@@ -147,22 +150,38 @@ export async function probeLlamacppSlotProcessing(
       } as RequestInit)
       if (!response.ok) {
         await response.body?.cancel()
-        return undefined
+        return { status: response.status }
       }
-      return readJson(response)
-    }
-    const body = (await fetchUrl('/slots')) ?? (await fetchUrl('/health?include_slots=1'))
-    const list = Array.isArray(body) ? body : Array.isArray(record(body)?.slots) ? (record(body)!.slots as unknown[]) : undefined
-    if (list) {
-      if (slotId !== undefined) {
-        const matched = list.map(record).find(row => row?.id === slotId || row?.id_slot === slotId)
-        if (matched) return matched.is_processing === true
+      try {
+        return { status: response.status, body: await readJson(response) }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return { status: response.status }
       }
-      return list.some(row => record(row)?.is_processing === true)
     }
-    return typeof record(body)?.slots_processing === 'number' && record(body)!.slots_processing > 0
-  } catch {
-    return false
+    let answer = await read('/slots')
+    if (answer.body === undefined) {
+      const legacy = await read('/health?include_slots=1')
+      const slots = record(legacy.body)?.slots
+      if (Array.isArray(slots)) answer = { status: legacy.status, body: slots }
+    }
+    if (answer.body === undefined) return { alive: false, words: `${server} answered GET /slots with HTTP ${answer.status}, so slot ${slotId} cannot be read` }
+    const list = Array.isArray(answer.body) ? answer.body.map(record) : []
+    if (list.length === 0) return { alive: false, words: `${server} answered GET /slots without a slot list` }
+    const slot = slotId % list.length
+    const row = list.find(entry => entry?.id === slot)
+    if (row === undefined) return { alive: false, words: `${server} lists no slot ${slot}` }
+    return row.is_processing === true
+      ? { alive: true, words: `${server} reports slot ${slot} processing` }
+      : { alive: false, words: `${server} reports slot ${slot} idle: nothing on the server is working on this request` }
+  } catch (error) {
+    const timedOut = controller.signal.aborted && opts.signal?.aborted !== true
+    return {
+      alive: false,
+      words: timedOut
+        ? `${server} did not answer GET /slots within ${LLAMACPP_SLOT_PROBE_MS / 1000} s`
+        : `${server} could not be reached for GET /slots (${error instanceof Error ? error.message : String(error)})`,
+    }
   } finally {
     clearTimeout(timer)
   }

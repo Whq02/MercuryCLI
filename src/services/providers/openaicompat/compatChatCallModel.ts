@@ -83,6 +83,7 @@ import {
   type CompatDeferralFacts,
   type CompatFault,
   type CompatFinishReason,
+  type CompatSlotReading,
   type CompatStreamEvent,
   type CompatStreamOptions,
   type CompatUsage,
@@ -138,7 +139,7 @@ interface CompatCredential {
 export interface CompatLaneProfile {
   lane: CompatLaneId
   dialect?: string
-  isSlotProcessing?(slotId: number | undefined): Promise<boolean>
+  probeSlot?(slotId: number): Promise<CompatSlotReading>
   streamTransport?(options: CompatStreamOptions, messages: readonly Message[]): {
     events: AsyncGenerator<CompatStreamEvent>
     settle?(messages: readonly AssistantMessage[]): void
@@ -987,7 +988,7 @@ async function* streamOneCompatAttempt(ctx: {
     signal,
     idleTimeoutMs,
     silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: profile.lane, dialect: profile.dialect, cold, promptTokens, idleMs: idleTimeoutMs }),
-    ...(profile.isSlotProcessing ? { isSlotProcessing: () => profile.isSlotProcessing!(pinnedSlot) } : {}),
+    ...(profile.probeSlot !== undefined && pinnedSlot !== undefined ? { probeSlot: () => profile.probeSlot!(pinnedSlot) } : {}),
     ...(options.onStreamActivity ? { onStreamActivity: options.onStreamActivity } : {}),
     firstByte: {
       cold,

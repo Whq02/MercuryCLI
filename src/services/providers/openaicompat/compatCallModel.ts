@@ -6,7 +6,7 @@ import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { compatKeyEnvName, compatModelEndpoint, compatModelRefusal } from './compatAccounts.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { compatResponsesTransport } from './compatResponsesTransport.js'
-import { assignLlamacppSlot, invalidateLlamacppTotalSlots, probeLlamacppSlotProcessing, resolveLlamacppTotalSlots } from './compatProbe.js'
+import { assignLlamacppSlot, invalidateLlamacppTotalSlots, probeLlamacppSlot, resolveLlamacppTotalSlots } from './compatProbe.js'
 import { buildLocalExtras } from './compatWire.js'
 import {
   compatChatCallModel,
@@ -113,8 +113,8 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
       : {}),
     ...(dialect === 'llamacpp'
       ? {
-          isSlotProcessing: (slotId: number | undefined) =>
-            probeLlamacppSlotProcessing(endpoint, slotId, {
+          probeSlot: (slotId: number) =>
+            probeLlamacppSlot(endpoint, slotId, {
               key: resolveCompatApiKey(process.env, endpoint.name)?.key,
               signal: params.signal,
             }),

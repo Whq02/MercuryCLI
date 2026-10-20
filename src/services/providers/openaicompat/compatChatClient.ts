@@ -224,6 +224,11 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
 }
 
 
+export interface CompatSlotReading {
+  alive: boolean
+  words: string
+}
+
 export interface CompatStreamOptions {
   apiKey?: string
   url: string
@@ -232,7 +237,7 @@ export interface CompatStreamOptions {
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
   silentAfterHeadersMs?: number | null
-  isSlotProcessing?: () => Promise<boolean>
+  probeSlot?: () => Promise<CompatSlotReading>
   onStreamActivity?: (atMs: number) => void
   firstByte?: {
     cold: boolean
@@ -430,6 +435,8 @@ export async function* streamCompatChat(
     const publish = (next: RequestWaitV1 | null): void => options.firstByte?.onWait?.(next)
     publish(wait)
     let firstByteFired = false
+    let firstByteExtended = false
+    let slotWords: string | null = null
     let firstByteTimer: unknown = null
     let headersLanded = false
     let ingestStartedAt = timers.now()
@@ -447,24 +454,25 @@ export async function* streamCompatChat(
       const armFirstByteTimer = (): void => {
         firstByteTimer = timers.setTimeout(() => {
           if (headersLanded || options.signal?.aborted || cut.cap) return
-          if (options.isSlotProcessing !== undefined) {
-            void options.isSlotProcessing().then(alive => {
+          const probe = options.probeSlot
+          if (probe === undefined) {
+            firstByteFired = true
+            controller.abort()
+            return
+          }
+          void probe()
+            .catch((): CompatSlotReading => ({ alive: false, words: '' }))
+            .then(reading => {
               if (headersLanded || options.signal?.aborted || cut.cap) return
-              if (alive) {
+              if (reading.alive) {
+                firstByteExtended = true
                 armFirstByteTimer()
                 return
               }
-              firstByteFired = true
-              controller.abort()
-            }).catch(() => {
-              if (headersLanded) return
+              if (reading.words !== '') slotWords = reading.words
               firstByteFired = true
               controller.abort()
             })
-            return
-          }
-          firstByteFired = true
-          controller.abort()
         }, firstByteBudget)
         unrefTimer(firstByteTimer)
       }
@@ -554,9 +562,10 @@ export async function* streamCompatChat(
         return
       }
       if (!cancelled && firstByteFired) {
+        const waited = firstByteTimeoutLine(firstByteExtended ? { ...wait, budgetMs: Math.max(wait.budgetMs, timers.now() - wait.sinceMs) } : wait)
         yield {
           type: 'stream-fault',
-          fault: { kind: 'timeout', code: 'first-byte-timeout', message: firstByteTimeoutLine(wait), retryable: true },
+          fault: { kind: 'timeout', code: 'first-byte-timeout', message: slotWords !== null ? `${waited} — ${slotWords}` : waited, retryable: true },
         }
         return
       }
@@ -627,6 +636,8 @@ export async function* streamCompatChat(
     }
     const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
     let pendingRead: Promise<ReadableStreamReadResult<Uint8Array>> | null = null
+    let quietSinceMs = Date.now()
+    let quietExtended = false
 
     readLoop: for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
@@ -634,25 +645,29 @@ export async function* streamCompatChat(
         pendingRead ??= reader.read()
         chunk = await (watchdog !== null ? watchdog.guard(pendingRead) : pendingRead)
         pendingRead = null
-        if (!chunk.done && chunk.value.byteLength > 0) watchdog?.noteActivity()
+        if (!chunk.done && chunk.value.byteLength > 0) {
+          watchdog?.noteActivity()
+          quietSinceMs = Date.now()
+          quietExtended = false
+        }
         silenceWatch?.noteActivity()
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
-        if (
-          isIdle &&
-          !options.signal?.aborted &&
-          !cut.cap &&
-          options.isSlotProcessing !== undefined &&
-          (await options.isSlotProcessing().catch(() => false))
-        ) {
-          watchdog?.stop()
-          watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: null })
-          idleWatchdog = watchdog
-          continue readLoop
+        let reading: CompatSlotReading | null = null
+        if (isIdle && !options.signal?.aborted && !cut.cap && options.probeSlot !== undefined) {
+          reading = await options.probeSlot().catch((): CompatSlotReading => ({ alive: false, words: '' }))
+          if (reading.alive && !options.signal?.aborted && !cut.cap) {
+            watchdog?.stop()
+            watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: null })
+            idleWatchdog = watchdog
+            quietExtended = true
+            continue readLoop
+          }
         }
         pendingRead = null
         const noBytes = isIdle && error.noBytes
         const cancelled = options.signal?.aborted === true
+        const slotNote = reading !== null && reading.words !== '' ? ` — ${reading.words}` : ''
         yield {
           type: 'stream-fault',
           fault: cancelled
@@ -662,9 +677,9 @@ export async function* streamCompatChat(
               : local !== undefined && cut.cap
                 ? { kind: 'timeout', code: LOCAL_CAP_CODE, message: localCapLine(wait.model, timers.now() - requestStartedAt, 'writing'), retryable: false }
                 : noBytes
-                  ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, message: silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens), retryable: true }
+                  ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, message: `${silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens)}${slotNote}`, retryable: true }
                   : isIdle
-                    ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
+                    ? { kind: 'timeout', code: 'idle-timeout', message: `${streamIdleFaultWords(quietExtended ? Math.max(idleMs, Date.now() - quietSinceMs) : idleMs)}${slotNote}`, retryable: true }
                     : {
                       kind: 'transport-error',
                       code: 'read-failed',
