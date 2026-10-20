@@ -50,7 +50,7 @@ import {
   healWalkableForWire,
   normalizeContentFromAPI,
 } from '../../../utils/messages.js'
-import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
+import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { effortStampOf, type EffortStampV1, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { compatEffortWireFact, rejectedHostedEffortField, thinkingOffWireEffort, withoutHostedEffort } from './compatWire.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
@@ -576,6 +576,7 @@ export async function* compatChatCallModel(
     })
   let effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, effortFact)
   const withEffort = (message: AssistantMessage): AssistantMessage => ({ ...message, effort: effortOnWire })
+  let effortAdjusted: EffortAdjustedV1 | undefined
 
   if (profile.requestFitRefusal) {
     const requestBytes = JSON.stringify(request).length
@@ -634,6 +635,7 @@ export async function* compatChatCallModel(
       deferredUnadmitted: plan.isDeferredUnadmitted,
       callableTools,
       effort: effortOnWire,
+      ...(effortAdjusted !== undefined ? { effortAdjusted } : {}),
       ...(deferral !== undefined ? { deferral } : {}),
       ...(profile.leadingNotes !== undefined ? { leadingNotes: profile.leadingNotes } : {}),
       ...(busy !== undefined ? { busy } : {}),
@@ -656,9 +658,8 @@ export async function* compatChatCallModel(
       rejectedEffort = rejected
       request.extra = withoutHostedEffort(request.extra ?? {}, rejected)
       effortOnWire = effortStampOf(effortTruth.requested, { kind: 'omitted' })
-      const notice = createSystemAPIErrorMessage(new Error(`${profile.providerLabel} rejected ${rejected}; retrying once without the effort field — the server default applies.`), 0, 1, 1)
-      yield notice
-      options.onWait?.(retryNoticeWait(notice))
+      const asked = effortValue ?? (effortFact.kind === 'sent' ? String(effortFact.value) : undefined)
+      if (asked !== undefined) effortAdjusted = { model: modelId, name: wireModel, asked, fieldRejected: { server: profile.providerLabel, field: rejected } }
       attempt--
       continue
     }
@@ -828,6 +829,7 @@ async function* streamOneCompatAttempt(ctx: {
   deferredUnadmitted?: (name: string) => boolean
   callableTools?: readonly ApiShapedTool[]
   effort?: EffortStampV1
+  effortAdjusted?: EffortAdjustedV1
   deferral?: CompatDeferralFacts
   leadingNotes?: readonly string[]
   busy?: { ladder: BusyRetryLadder; fault: CompatFault }
@@ -875,6 +877,7 @@ async function* streamOneCompatAttempt(ctx: {
       timestamp: new Date().toISOString(),
       ...(busyRecovery !== undefined ? { busyRecovery } : {}),
       ...(ctx.effort !== undefined ? { effort: ctx.effort } : {}),
+      ...(ctx.effortAdjusted !== undefined ? { effortAdjusted: ctx.effortAdjusted } : {}),
     }
   }
 

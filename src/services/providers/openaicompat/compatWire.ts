@@ -214,8 +214,8 @@ export function buildXaiExtras(args: LaneExtrasArgs & { vocabulary: readonly str
 export function buildHostedExtras(args: LaneExtrasArgs & { dialect: import('./compatProbe.js').CompatDialect; vocabulary: readonly string[]; idSlot?: number }): Record<string, unknown> {
   const base = args.dialect === 'chat-completions' || args.dialect === 'responses'
     ? buildCompatSlotExtras(args)
-    : buildLocalExtras({ ...args, server: args.dialect, acceptsEffort: false })
-  const effort = args.effortValue !== undefined && args.vocabulary.length > 0 ? nearestSupportedWireEffort(args.effortValue, args.vocabulary) : undefined
+    : buildLocalExtras({ ...args, effortValue: undefined, server: args.dialect, acceptsEffort: true })
+  const effort = base.reasoning_effort === undefined && args.effortValue !== undefined && args.vocabulary.length > 0 ? nearestSupportedWireEffort(args.effortValue, args.vocabulary) : undefined
   if (effort === undefined) return base
   return args.dialect === 'llamacpp'
     ? { ...base, chat_template_kwargs: { reasoning_effort: effort } }

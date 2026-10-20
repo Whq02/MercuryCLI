@@ -13,7 +13,7 @@ try {
   f.state.slots = 4
   const { runLlmHost } = await import(`${f.root}/src/services/llmHost/index.ts`)
   const { updateSettingsForSource } = await import(`${f.root}/src/utils/settings/settings.ts`)
-  const { selectableEffortLevels, resolveEffortTruth } = await import(`${f.root}/src/utils/effort.ts`)
+  const { selectableEffortLevels, resolveEffortTruth, effortAdjustedReceiptLine } = await import(`${f.root}/src/utils/effort.ts`)
   const { effortPopupRows, EffortPopup, EffortApplyContext } = await import(`${f.root}/src/commands/effort/EffortPopup.tsx`)
   const { executeEffort } = await import(`${f.root}/src/commands/effort/effort.tsx`)
   const answers: Record<string, string> = { servers: '__add__', address: f.baseUrl, dialect: 'llamacpp', key: '', model: f.model, name: 'effort-host', confirm: 'run' }
@@ -126,7 +126,12 @@ try {
     const replies = await f.run(model, undefined, undefined, 'high')
     assert.equal(f.captures.length - before, 2, 'one retry without the rejected field')
     assert.ok(replies.every(row => !row.isApiErrorMessage))
-    assert.equal(f.events.slice(eventStart).filter(row => row.type === 'system' && row.error?.message?.includes('server default')).length, 1)
+    assert.equal(f.events.slice(eventStart).filter(row => row.type === 'system' && row.error?.message?.includes('server default')).length, 0, 'no error notice interrupts the reply; the settled message carries the adjustment for the turn receipt')
+    const adjusted = replies.at(-1).effortAdjusted
+    assert.ok(adjusted?.fieldRejected !== undefined, 'the settled reply stamps the rejected field')
+    assert.equal(adjusted.asked, 'high')
+    assert.equal(adjusted.name, f.model)
+    assert.match(effortAdjustedReceiptLine(adjusted), /^effort high: .+ rejected (reasoning_effort|chat_template_kwargs) for .+ — retried once without it; the server default applies$/)
     const first = f.captures[before]!.body
     const second = f.captures[before + 1]!.body
     assert.equal(second.reasoning_effort, undefined)

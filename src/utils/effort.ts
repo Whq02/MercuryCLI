@@ -392,9 +392,13 @@ export type EffortAdjustedV1 = {
   asked: string
   sent?: string
   wireRefused?: { road: string; reprobeAfter: string }
+  fieldRejected?: { server: string; field: string }
 }
 
 export function effortAdjustedReceiptLine(adjusted: EffortAdjustedV1): string {
+  if (adjusted.fieldRejected !== undefined) {
+    return `effort ${adjusted.asked}: ${adjusted.fieldRejected.server} rejected ${adjusted.fieldRejected.field} for ${adjusted.name} — retried once without it; the server default applies`
+  }
   if (adjusted.wireRefused !== undefined) {
     const sent =
       adjusted.sent !== undefined
