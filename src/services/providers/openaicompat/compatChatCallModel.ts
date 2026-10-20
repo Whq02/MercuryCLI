@@ -170,6 +170,7 @@ export interface CompatLaneProfile {
     maxOutputTokensOverride: number | undefined
     conversationKey?: string
     cacheDomainKey?: string
+    crewmate?: boolean
   }): Record<string, unknown>
   keepsReasoningHistory?(wireModel: string): boolean
   keepsReasoningOnContinuations?(wireModel: string): boolean
@@ -543,6 +544,7 @@ export async function* compatChatCallModel(
       maxOutputTokensOverride: fittedOutputOverride,
       conversationKey: slotKey,
       cacheDomainKey,
+      crewmate: options.agentId !== undefined,
     })
     return {
       ...(operatorEffort !== undefined && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined

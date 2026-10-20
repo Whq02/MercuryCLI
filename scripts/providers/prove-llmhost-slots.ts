@@ -321,23 +321,47 @@ try {
   )
 
   state.mode = 'reply'
-  const otherSlots = new Set<number>([expectedSlotA])
-  let allMatchRule = true
+  const crewSlots: number[] = []
+  let crewCachePrompt = true
   for (let i = 0; i < 8; i++) {
     const userB = createUserMessage({ content: `other conversation ${i}` })
-    const agentId = `agent-${i}`
-    const convBKey = `${String(processOwnerForLane(agentId))}|${userB.uuid}|${llamaId}`
-    const expectedB = expectedSlotFor(convBKey, 4)
-    const replies = await runTurn(llamaId, [userB], { agentId })
+    const replies = await runTurn(llamaId, [userB], { agentId: `agent-${i}` })
     assert.ok(replies.every(row => !row.isApiErrorMessage))
     const body = captures.at(-1)!.body
-    if (body.id_slot !== expectedB || body.cache_prompt !== true) allMatchRule = false
-    if (typeof body.id_slot === 'number') otherSlots.add(body.id_slot)
+    if (typeof body.id_slot === 'number') crewSlots.push(body.id_slot)
+    if (body.cache_prompt !== true) crewCachePrompt = false
   }
   check(
-    'different conversations derive id_slot deterministically by the same rule and span multiple slots',
-    allMatchRule && otherSlots.size > 1,
-    `allMatchRule=${allMatchRule} distinctSlots=${JSON.stringify([...otherSlots])}`,
+    'crewmate conversations each take a free slot of their own first, and none ever takes the main conversation\'s slot',
+    crewSlots.length === 8 &&
+      crewCachePrompt &&
+      new Set(crewSlots.slice(0, 3)).size === 3 &&
+      crewSlots.every(slot => slot >= 0 && slot < 4 && slot !== expectedSlotA),
+    `main=${expectedSlotA} crew=${JSON.stringify(crewSlots)}`,
+  )
+  let collider: { user: any; agentId: string } | undefined
+  for (let i = 0; i < 256 && collider === undefined; i++) {
+    const user = createUserMessage({ content: `crewmate hashing onto the main slot ${i}` })
+    const agentId = `agent-collide-${i}`
+    if (expectedSlotFor(`${String(processOwnerForLane(agentId))}|${user.uuid}|${llamaId}`, 4) === expectedSlotA) collider = { user, agentId }
+  }
+  const colliderReplies = collider === undefined ? [] : await runTurn(llamaId, [collider.user], { agentId: collider.agentId })
+  const colliderSlot = captures.at(-1)!.body.id_slot
+  check(
+    'a crewmate whose conversation hashes onto its parent\'s slot is given another slot',
+    collider !== undefined &&
+      colliderReplies.every(row => !row.isApiErrorMessage) &&
+      typeof colliderSlot === 'number' &&
+      colliderSlot !== expectedSlotA &&
+      colliderSlot < 4,
+    `main=${expectedSlotA} collider=${colliderSlot}`,
+  )
+  messagesA.push(createUserMessage({ content: 'the main conversation after its crewmates' }))
+  const againA = await runTurn(llamaId, messagesA)
+  check(
+    'the main conversation keeps its slot after nine crewmates came and went',
+    againA.every(row => !row.isApiErrorMessage) && captures.at(-1)!.body.id_slot === expectedSlotA,
+    `main=${expectedSlotA} seen=${captures.at(-1)!.body.id_slot}`,
   )
   check(
     'GET /props stayed cached across the other conversations on the same endpoint',
@@ -348,16 +372,30 @@ try {
   state.totalSlots = 7
   state.mode = '5xx-once'
   const userAfter5xx = createUserMessage({ content: 'after 5xx reload' })
-  const keyAfter5xx = `${String(processOwnerForLane('agent-5xx'))}|${userAfter5xx.uuid}|${llamaId}`
-  const expectedSlot7 = expectedSlotFor(keyAfter5xx, 7)
   const repliesAfter5xx = await runTurn(llamaId, [userAfter5xx], { agentId: 'agent-5xx' })
+  const retryBody = captures.at(-1)!.body
+  let wideUser: any
+  let wideSlot = -1
+  for (let i = 0; i < 256 && wideUser === undefined; i++) {
+    const user = createUserMessage({ content: `a conversation for the grown slot table ${i}` })
+    const slot = expectedSlotFor(`${String(processOwnerForLane('agent-wide'))}|${user.uuid}|${llamaId}`, 7)
+    if (slot >= 4) {
+      wideUser = user
+      wideSlot = slot
+    }
+  }
+  const wideReplies = await runTurn(llamaId, [wideUser], { agentId: 'agent-wide' })
+  const wideBody = captures.at(-1)!.body
   check(
-    'a 5xx response invalidates the cached slot count, re-reads GET /props, and applies the new total_slots on retry',
+    'a 5xx response invalidates the cached slot count, re-reads GET /props, and the new total_slots is applied',
     repliesAfter5xx.some(row => !row.isApiErrorMessage) &&
       state.propsRequests === 2 &&
-      captures.at(-1)!.body.id_slot === expectedSlot7 &&
-      captures.at(-1)!.body.cache_prompt === true,
-    `propsRequests=${state.propsRequests} id_slot=${captures.at(-1)!.body.id_slot} expected=${expectedSlot7}`,
+      typeof retryBody.id_slot === 'number' &&
+      retryBody.id_slot < 7 &&
+      retryBody.cache_prompt === true &&
+      wideReplies.every(row => !row.isApiErrorMessage) &&
+      wideBody.id_slot === wideSlot,
+    `propsRequests=${state.propsRequests} retry=${retryBody.id_slot} wide=${wideBody.id_slot} expected=${wideSlot}`,
   )
 
   state.propsAvailable = false

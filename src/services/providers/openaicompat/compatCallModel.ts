@@ -6,7 +6,7 @@ import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { compatKeyEnvName, compatModelEndpoint, compatModelRefusal } from './compatAccounts.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { compatResponsesTransport } from './compatResponsesTransport.js'
-import { invalidateLlamacppTotalSlots, probeLlamacppSlotProcessing, resolveLlamacppTotalSlots } from './compatProbe.js'
+import { assignLlamacppSlot, invalidateLlamacppTotalSlots, probeLlamacppSlotProcessing, resolveLlamacppTotalSlots } from './compatProbe.js'
 import { buildLocalExtras } from './compatWire.js'
 import {
   compatChatCallModel,
@@ -73,6 +73,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
   const dialect = endpoint.dialect ?? 'chat-completions'
   let observation: ReturnType<typeof captureSignInRequest>
   let totalSlots: number | undefined
+  let slotReads = 0
   const profile: CompatLaneProfile = {
     ...compatSlotLaneProfile,
     dialect,
@@ -85,6 +86,8 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
       if (!key && providerKeyCommandFailure(`compat:${endpoint.name}`)) return undefined
       if (endpoint.named) observation = captureSignInRequest(`compat-${endpoint.name}`, key?.key)
       if (dialect === 'llamacpp') {
+        if (slotReads > 0) invalidateLlamacppTotalSlots(endpoint)
+        slotReads += 1
         totalSlots = await resolveLlamacppTotalSlots(endpoint, { key: key?.key, signal: params.signal })
       }
       return key ? { apiKey: key.key } : {}
@@ -120,9 +123,12 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     extraHeaders: () => ({ ...endpoint.headers, ...(endpoint.sessionAffinityHeader ? { [endpoint.sessionAffinityHeader]: getSessionId() } : {}) }),
     ...(dialect === 'responses' ? { streamTransport: (options, messages) => compatResponsesTransport(options, messages, `${endpoint.name}:${endpoint.baseUrl}`) } : {}),
     ...(dialect === 'ollama' ? { omitsToolChoice: true } : {}),
-    buildExtras: args => dialect === 'chat-completions' || dialect === 'responses'
-      ? buildCompatSlotExtras(args)
-      : buildLocalExtras({ ...args, server: dialect, acceptsEffort: true, totalSlots }),
+    buildExtras: args => {
+      if (dialect === 'chat-completions' || dialect === 'responses') return buildCompatSlotExtras(args)
+      const slotKey = args.conversationKey ?? args.cacheDomainKey
+      const idSlot = dialect === 'llamacpp' && totalSlots !== undefined && slotKey ? assignLlamacppSlot(endpoint, slotKey, totalSlots, args.crewmate === true) : undefined
+      return buildLocalExtras({ ...args, server: dialect, acceptsEffort: true, ...(idSlot !== undefined ? { idSlot } : {}) })
+    },
   }
   yield* compatChatCallModel(profile, params)
 }
