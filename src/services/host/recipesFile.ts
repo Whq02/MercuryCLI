@@ -255,3 +255,8 @@ export async function loadHostRecipes(options: HostRecipesOptions = {}): Promise
   await refreshHostRecipes(options)
   return currentHostRecipes(options)
 }
+
+export function hostRecipeOfRecord(record: { recipe: string; recipeRow?: unknown }): HostRecipe | undefined {
+  const row = hostRecipeSchema.safeParse(record.recipeRow)
+  return row.success && row.data.id === record.recipe ? row.data : HOST_RECIPES.find(entry => entry.id === record.recipe)
+}

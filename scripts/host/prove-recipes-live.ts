@@ -10,6 +10,7 @@ import {
   SHIPPED_HOST_RECIPES_PATH,
   currentHostRecipes,
   exportHostRecipesJson,
+  hostRecipeOfRecord,
   hostRecipeSchema,
   hostRecipesCachePath,
   hostRecipesFileSchema,
@@ -19,7 +20,7 @@ import {
 } from '../../src/services/host/recipesFile.ts'
 import { repoSlugFromUrl, resolveChannelRepo } from '../../src/services/privateChannel/channelCore.ts'
 import { RunpodClient } from '../../src/services/host/runpod.ts'
-import { runpodFixture } from './runpodFixture.mjs'
+import { fakeSshRunner, runpodFixture } from './runpodFixture.mjs'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
@@ -76,6 +77,8 @@ const fetchAndRead = async (file: unknown, options: { now?: number; shipped?: un
 const realFetch = globalThis.fetch
 const exportScript = join(repo, 'scripts/host/export-recipes.ts')
 const shippedPath = join(repo, SHIPPED_HOST_RECIPES_PATH)
+let fixtureClose: (() => void) | undefined
+let sshClose: (() => void) | undefined
 
 try {
   check('shipped recipes JSON exists under assets/host/recipes.json', existsSync(shippedPath))
@@ -269,21 +272,48 @@ try {
   delete process.env.MERCURY_HOST_RECIPES_FILE
   check('MERCURY_HOST_RECIPES_FILE is registered and read through flagEnv, which refuses an unregistered spelling', readsRegistered && (() => { try { flagEnv('MERCURY_HOST_RECIPES_FILES'); return false } catch { return true } })())
 
-  freshHome('operator')
-  const overridePath = join(rootScratch, 'operator-recipes.json')
+  const { llmhostFixture } = await import('../providers/lib/llmhostFixture.ts')
+  const f = await llmhostFixture()
+  fixtureClose = f.close
+  f.state.dialect = 'sglang'; f.state.window = 524288
+  const { hostRunner, ensureHostKey } = await import('../../src/services/host/ssh.ts')
+  const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
+  const { runHostJob } = await import('../../src/services/host/worker.ts')
+  const { readHostRecord } = await import('../../src/services/host/store.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const ssh = fakeSshRunner(f.baseUrl, hostRunner)
+  sshClose = ssh.close
+  const overridePath = join(f.home, 'operator-recipes.json')
   const overrideRow: HostRecipe = { ...qwenRtx, id: 'operator-qwen-rtx-pro-6000', label: 'Operator Qwen · FP8', flags: [...qwenRtx.flags, '--operator-proof-flag'], verified: { by: 'unverified', source: qwenRtx.verified.source } }
   writeFileSync(overridePath, JSON.stringify(fileOf(1, [overrideRow])))
   process.env.MERCURY_HOST_RECIPES_FILE = overridePath
   const overrideOffers = await new RunpodClient(rp.key, rp.baseUrl).offers(new AbortController().signal)
   check('MERCURY_HOST_RECIPES_FILE replaces the fetched, shipped and built-in rows, may add a recipe and change its commands', ids(currentHostRecipes()) === overrideRow.id && overrideOffers.length > 0 && overrideOffers.every(offer => offer.recipe.id === overrideRow.id))
+  writeStoredRunpodApiKey(rp.key)
+  const sshKey = await ensureHostKey(ssh.runner, new AbortController().signal)
+  const pod = await new RunpodClient(rp.key, rp.baseUrl).create(overrideOffers[0]!, sshKey.publicKey, 'mercury-recipes-proof')
+  const queued = queueHostSetup({ id: pod.id, name: pod.name, recipe: overrideRow.id, price: overrideOffers[0]!.price, startedAt: pod.startedAt ?? pod.createdAt, status: pod.status, sessionId: 'recipes-proof', workspace: f.home, sshKey: sshKey.path, apiBaseUrl: rp.baseUrl })
   delete process.env.MERCURY_HOST_RECIPES_FILE
+  check('queueing the setup keeps the confirmed row in the pod record', canonical(readHostRecord(pod.id)?.recipeRow) === canonical(overrideRow))
+  await runHostJob(pod.id, queued.generation!, { runner: ssh.runner, pauseMs: 20, timeoutMs: 5000, keepAlive: false })
+  const engineCommand = (ssh.commands as Array<{ args: string[] }>).map(entry => entry.args.at(-1) ?? '').find(remote => remote.includes('nohup setsid')) ?? ''
+  check('the setup job runs the confirmed operator row although its own process has no MERCURY_HOST_RECIPES_FILE', readHostRecord(pod.id)?.jobState === 'ready' && engineCommand.includes('--operator-proof-flag') && engineCommand.includes('/workspace/mercury-host/' + overrideRow.id))
+  writeFileSync(overridePath, JSON.stringify(fileOf(1, [{ ...overrideRow, flags: [...qwenRtx.flags, '--operator-proof-flag-2'] }])))
+  process.env.MERCURY_HOST_RECIPES_FILE = overridePath
+  const resumed = queueHostSetup(readHostRecord(pod.id)!)
+  delete process.env.MERCURY_HOST_RECIPES_FILE
+  const resumedAgain = queueHostSetup(readHostRecord(pod.id)!)
+  check('a resume takes the operator\'s edited row, and keeps the recorded row once the file is gone', Boolean(resumed.recipeRow?.flags.includes('--operator-proof-flag-2') && resumedAgain.recipeRow?.flags.includes('--operator-proof-flag-2')) && hostRecipeOfRecord(resumedAgain)?.id === overrideRow.id)
+  check('a record with no kept row, or a kept row of another id, sets up with the built-in row of its recipe id', canonical(hostRecipeOfRecord({ recipe: 'qwen38-27b-h200' })) === canonical(qwenH200) && canonical(hostRecipeOfRecord({ recipe: 'qwen38-27b-h200', recipeRow: overrideRow })) === canonical(qwenH200))
   check('with no file and no cache the door rows are exactly the compiled table', canonical(currentHostRecipes()) === canonical(shippedRows))
 
   console.log('RECIPES LIVE GREEN — ' + checks + ' checks')
 } finally {
   globalThis.fetch = realFetch
   delete process.env.MERCURY_HOST_RECIPES_FILE
+  sshClose?.()
   server.stop(true)
   await rp.close()
+  fixtureClose?.()
   rmSync(rootScratch, { recursive: true, force: true })
 }

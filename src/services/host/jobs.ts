@@ -9,6 +9,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { reconcileRecord, startService, stopService } from '../projectServices/serviceManager.js'
 import { hostDirectory, hostRecords, patchHostRecord, readHostRecord, writeHostRecord, type HostRecord } from './store.js'
 import { hostNotice } from './notices.js'
+import { currentHostRecipes } from './recipesFile.js'
 
 const serviceName = (id: string): string => 'host-' + id.toLowerCase()
 const serviceHome = (): string => hostDirectory()
@@ -22,6 +23,7 @@ export async function requireHostJobOwner(): Promise<void> {
 }
 export function queueHostSetup(record: HostRecord): HostRecord {
   if (active(record)) return readHostRecord(record.id) ?? record
+  record = { ...record, recipeRow: currentHostRecipes().find(row => row.id === record.recipe) ?? record.recipeRow }
   const now = Date.now()
   const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })
   const queued: HostRecord = { ...record, generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step: 'waiting for SSH', error: undefined, log: join(logs, record.id + '.log'), steps: [{ step: 'waiting for SSH', at: now }] }
