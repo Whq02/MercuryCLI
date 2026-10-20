@@ -18,10 +18,10 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
-const DIST = join(REPO, 'dist', 'mercury.mjs')
+const DIST = process.env.MERCURY_PROOF_DIST ?? join(REPO, 'dist', 'mercury.mjs')
 if (!existsSync(DIST)) {
   console.error('dist/mercury.mjs missing — run `bun run build.ts` first')
   process.exit(1)
@@ -31,7 +31,7 @@ if (NODE === '') {
   console.error('no node on PATH')
   process.exit(1)
 }
-const PACK_NODE = join(REPO, 'dist', 'vendor', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
+const PACK_NODE = join(dirname(DIST), 'vendor', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
 const STANDALONE = existsSync(PACK_NODE)
 const KEEP = process.env.UPDATE_RESTART_KEEP === '1'
 let failures = 0
@@ -52,9 +52,9 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, ev
   return false
 }
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — prove-update-restart-told exceeded 180s')
+  console.log('\n❌ TIMEOUT — prove-update-restart-told exceeded 300s')
   process.exit(1)
-}, 180_000)
+}, 300_000)
 guard.unref?.()
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'update-restart-told-')))
@@ -98,15 +98,18 @@ seedFirstRun(home, [work])
 
 const TREE_X = '111122223333'.padEnd(40, '0')
 const TREE_Y = '999988887777'.padEnd(40, '0')
+const TREE_Z = '555566667777'.padEnd(40, '0')
 const SHORT_X = TREE_X.slice(0, 12)
 const SHORT_Y = TREE_Y.slice(0, 12)
+const SHORT_Z = TREE_Z.slice(0, 12)
 
-const mkBuild = (name: string, tree: string): string => {
+const mkBuild = (name: string, tree: string, buildTime: string): string => {
   const dir = join(builds, name)
   mkdirSync(join(dir, 'vendor', 'node', 'bin'), { recursive: true })
   copyFileSync(DIST, join(dir, 'mercury.mjs'))
-  const manifest = JSON.parse(readFileSync(join(REPO, 'dist', 'manifest.json'), 'utf8')) as Record<string, unknown>
+  const manifest = JSON.parse(readFileSync(join(dirname(DIST), 'manifest.json'), 'utf8')) as Record<string, unknown>
   manifest.buildTree = tree
+  manifest.buildTime = buildTime
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2))
   if (STANDALONE) {
     const nodeAt = join(dir, 'vendor', 'node', 'bin', 'node')
@@ -118,29 +121,42 @@ const mkBuild = (name: string, tree: string): string => {
   }
   return dir
 }
-mkBuild('X', TREE_X)
-mkBuild('Y', TREE_Y)
+const X = mkBuild('X', TREE_X, '2026-01-01T00:00:00.000Z')
+mkBuild('X2', TREE_X, '2026-01-01T00:00:00.000Z')
+const Y = mkBuild('Y', TREE_Y, '2026-02-01T00:00:00.000Z')
+mkBuild('Z', TREE_Z, '2026-03-01T00:00:00.000Z')
 const pointAt = (name: string, target: string): void => {
   const tmp = join(runtime, `.${name}.new`)
   rmSync(tmp, { force: true })
   symlinkSync(join('builds', target), tmp)
   renameSync(tmp, join(runtime, name))
 }
-pointAt('current', 'X')
-pointAt('dist', 'X')
+const pointBoth = (target: string): void => {
+  pointAt('current', target)
+  pointAt('dist', target)
+}
+pointBoth('X')
 
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const { isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
 const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
 const sup = await import('../../src/daemon/concourseWorkers.ts')
+const { composeRestartLine } = await import('../../src/tools/MonitorTool/watchReceipts.ts')
+const { restartSessionOnInstalledBuild } = await import('../../src/commands/restart/restart.ts')
 
+const SECRET = 'probe-secret-0123456789'
 const WATCH_NAME = 'stock watch'
-const WATCH_CMD = `tail -n0 -F ${watchedLog}`
+const WATCH_CMD = `tail -n0 -F '${watchedLog}' # token=${SECRET}`
+const WATCH_CMD_SHOWN = `tail -n0 -F '${watchedLog}' # token=[redacted]`
+const WATCH2_NAME = 'stock watch two'
+const WATCH2_CMD = `tail -n0 -F '${watchedLog}'`
 const SHELL_DESC = 'field channel watch'
 const SHELL_CMD = 'sleep 300'
 const ARM_PROMPT = 'arm the persistent stock watch and the background shell now'
-const AFTER_PROMPT = 'report after the update restart'
+const AFTER_PROMPT = 'report after the update restart and arm the second watch'
+const AFTER2_PROMPT = 'report after the daemon ended'
+const BEHIND_WORDS = 'Mercury build is installed'
 
 type Block = { type?: string; id?: string; name?: string; input?: unknown; tool_use_id?: string; content?: unknown; text?: string }
 type Item = { role?: string; content?: unknown }
@@ -216,10 +232,9 @@ const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
       res.end('{}')
       return
     }
-    const rawBody = Buffer.concat(chunks).toString('utf8')
     let body: Record<string, unknown> = {}
     try {
-      body = JSON.parse(rawBody) as Record<string, unknown>
+      body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>
     } catch {}
     const n = recordedReqs.length + 1
     const model = typeof body.model === 'string' ? body.model : 'claude-sonnet-5'
@@ -236,21 +251,13 @@ const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
     const results = items.filter(isToolResultItem).flatMap(it => resultTexts(it.content))
     recordedReqs.push({ n, at: Date.now(), items, ask, step, results })
     if (ask.includes(ARM_PROMPT)) {
-      if (step === 0) {
-        return answerTool(res, n, model, `toolu_mon_${n}`, 'Monitor', {
-          description: WATCH_NAME,
-          command: WATCH_CMD,
-          persistent: true,
-        })
-      }
-      if (step === 1) {
-        return answerTool(res, n, model, `toolu_sh_${n}`, 'Bash', {
-          description: SHELL_DESC,
-          command: SHELL_CMD,
-          run_in_background: true,
-        })
-      }
+      if (step === 0) return answerTool(res, n, model, `toolu_mon_${n}`, 'Monitor', { description: WATCH_NAME, command: WATCH_CMD, persistent: true })
+      if (step === 1) return answerTool(res, n, model, `toolu_sh_${n}`, 'Bash', { description: SHELL_DESC, command: SHELL_CMD, run_in_background: true })
       return answerText(res, n, model, 'watches and background shell armed')
+    }
+    if (ask.includes(AFTER_PROMPT)) {
+      if (step === 0) return answerTool(res, n, model, `toolu_mon_${n}`, 'Monitor', { description: WATCH2_NAME, command: WATCH2_CMD, persistent: true })
+      return answerText(res, n, model, 'second watch armed')
     }
     return answerText(res, n, model, `update-probe answer #${n}`)
   })
@@ -296,12 +303,12 @@ type Rec = {
   runnerId: string
   sessionId: string
   pid?: number
-  buildTree?: string | null
-  endedAt?: number
+  buildTree?: string
+  restartReason?: string
   stoppedAt?: number
-  parkedAt?: number
   crash?: { reason?: string; respawning: boolean }
 }
+type WorkRow = { id: string; kind: 'workflow' | 'agent' | 'shell' | 'monitor'; name: string; status: string; startTime: number; description?: string; command?: string }
 const records = (): Rec[] => {
   try {
     return Object.values((JSON.parse(read(join(daemonDir, 'concourse-workers.json'))) as { workers: Record<string, Rec> }).workers)
@@ -311,15 +318,24 @@ const records = (): Rec[] => {
 }
 const recOf = (sid: string): Rec | undefined => records().find(w => w.sessionId === sid)
 const transcriptOf = (sid: string): string => read(join(paths.getProjectDir(work), `${sid}.jsonl`))
-const facts = (sid: string): { busy?: boolean; buildTree?: string | null; queue?: Array<{ value: string; mode: string }> } | undefined => {
+const facts = (sid: string): { busy?: boolean; buildTree?: string | null; work?: WorkRow[] } | undefined => {
   try {
-    return JSON.parse(read(join(daemonDir, 'session-facts', `${sid}.json`))) as {
-      busy?: boolean
-      buildTree?: string | null
-      queue?: Array<{ value: string; mode: string }>
-    }
+    return JSON.parse(read(join(daemonDir, 'session-facts', `${sid}.json`))) as { busy?: boolean; buildTree?: string | null; work?: WorkRow[] }
   } catch {
     return undefined
+  }
+}
+const ps = (pid: number): { ppid: number; command: string } => {
+  const out = (spawnSync('ps', ['-o', 'ppid=,command=', '-p', String(pid)], { encoding: 'utf8' }).stdout ?? '').trim()
+  const m = /^(\d+)\s+(.*)$/.exec(out)
+  return m ? { ppid: Number(m[1]), command: m[2]! } : { ppid: 0, command: '' }
+}
+const bundleOf = (command: string): string => {
+  const script = command.split(/\s+/).find(part => part.endsWith('mercury.mjs')) ?? ''
+  try {
+    return realpathSync(script)
+  } catch {
+    return script
   }
 }
 const daemonPids = (): number[] =>
@@ -329,12 +345,14 @@ const daemonPids = (): number[] =>
     .map(l => Number(l.trim().split(/\s+/)[0]))
     .filter(n => Number.isInteger(n) && n > 0)
 
+const spawnDaemon = (log: string): ChildProcess =>
+  spawn(NODE, [join(runtime, 'current', 'mercury.mjs'), 'daemon', 'run', work], {
+    cwd: work,
+    env: { ...daemonEnv, MERCURY_DAEMON_OWNER_PID: String(process.pid) },
+    stdio: ['ignore', openSync(log, 'a'), openSync(log, 'a')],
+  })
 const logA = join(SCRATCH, 'daemon-A.log')
-const A: ChildProcess = spawn(NODE, [join(runtime, 'current', 'mercury.mjs'), 'daemon', 'run', work], {
-  cwd: work,
-  env: { ...daemonEnv, MERCURY_DAEMON_OWNER_PID: String(process.pid) },
-  stdio: ['ignore', openSync(logA, 'a'), openSync(logA, 'a')],
-})
+const A = spawnDaemon(logA)
 const Apid = A.pid ?? 0
 
 const hello = async (): Promise<{ pid: number; buildTree: string | null } | null> => {
@@ -343,15 +361,9 @@ const hello = async (): Promise<{ pid: number; buildTree: string | null } | null
     timeoutMs: 2000,
     protoRetry: false,
   })) as { ok?: boolean; op?: string; pid?: number; buildTree?: string | null }
-  return reply.ok === true && reply.op === 'hello' && typeof reply.pid === 'number'
-    ? { pid: reply.pid, buildTree: reply.buildTree ?? null }
-    : null
+  return reply.ok === true && reply.op === 'hello' && typeof reply.pid === 'number' ? { pid: reply.pid, buildTree: reply.buildTree ?? null } : null
 }
-const dispatch = async (
-  clientMessageId: string,
-  prompt: string,
-  extra: Record<string, unknown> = {},
-): Promise<{ ok?: boolean; sessionId?: string; error?: string }> =>
+const dispatch = async (clientMessageId: string, prompt: string, extra: Record<string, unknown> = {}): Promise<{ ok?: boolean; sessionId?: string; error?: string }> =>
   (await daemonControlRpc(
     {
       op: 'concourseDispatch',
@@ -366,6 +378,18 @@ const dispatch = async (
     } as never,
     { timeoutMs: 30_000 },
   )) as { ok?: boolean; sessionId?: string; error?: string }
+const askFacts = async (sid: string): Promise<void> => {
+  try {
+    await daemonControlRpc({ op: 'sessionControl', action: 'session-facts', sessionId: sid, by: 'probe' } as never, { timeoutMs: 5000 })
+  } catch {}
+}
+const resumeAsTheScreenDoes = async (sid: string): Promise<string | null> => {
+  const reply = (await daemonControlRpc(
+    { op: 'sessionAdmit', workspaceDir: work, resumeSessionId: sid, isolation: 'shared', by: 'operator', restartReason: 'update' } as never,
+    { timeoutMs: 60_000 },
+  )) as { ok?: boolean; error?: string }
+  return reply.ok === true ? null : (reply.error ?? 'the daemon refused the resume')
+}
 
 const cleanup = async (): Promise<void> => {
   try {
@@ -396,138 +420,225 @@ try {
   const allResults = recordedReqs.flatMap(r => r.results)
   const monitorTaskId = allResults.map(t => /Monitor started \(task (\S+?)[,)]/.exec(t)?.[1]).find(Boolean) ?? ''
   const shellTaskId = allResults.map(t => /Running in the background \(ID: (\S+?)\)/.exec(t)?.[1]).find(Boolean) ?? ''
-  const shellOutputMatch = allResults.map(t => /Output: (\S+\.output)/.exec(t)?.[1]).find(Boolean) ?? ''
-  const sessionTasksDir = shellOutputMatch ? join(shellOutputMatch, '..') : ''
-  check('Monitor and background shell task ids were minted', monitorTaskId !== '' && shellTaskId !== '', `mon=${monitorTaskId} sh=${shellTaskId}`)
+  const shellOutput = allResults.map(t => /Output: (\S+\.output)/.exec(t)?.[1]).find(Boolean) ?? ''
+  check('Monitor and background shell task ids were minted', monitorTaskId !== '' && shellTaskId !== '' && shellOutput !== '', `mon=${monitorTaskId} sh=${shellTaskId} out=${shellOutput}`)
   const pidBefore = recOf(sid)?.pid ?? 0
-  const itemsBeforeRestart = (recordedReqs[recordedReqs.length - 1]?.items.length ?? 0) + 1
   check(
-    'runner reports buildTree X before the update',
-    facts(sid)?.buildTree === SHORT_X && recOf(sid)?.buildTree === SHORT_X,
+    'the runner reports its own tree X and the record stamps X',
+    facts(sid)?.buildTree === SHORT_X && recOf(sid)?.buildTree === SHORT_X && bundleOf(ps(pidBefore).command) === join(X, 'mercury.mjs'),
+    JSON.stringify({ facts: facts(sid)?.buildTree, rec: recOf(sid)?.buildTree, cmd: ps(pidBefore).command }),
+  )
+  const projectDir = paths.getProjectDir(work)
+  const behindCount = (): { receipts: number; transcript: number } => ({
+    receipts: readSessionReceipts(projectDir, sid).filter(r => r.summary.includes(BEHIND_WORDS)).length,
+    transcript: (transcriptOf(sid).match(new RegExp(BEHIND_WORDS, 'g')) ?? []).length,
+  })
+  const askFactsFor = async (ms: number): Promise<void> => {
+    const t0 = Date.now()
+    while (Date.now() - t0 < ms) {
+      await askFacts(sid)
+      await sleep(700)
+    }
+  }
+
+  section('§2 the live session is told once that it is behind, and never on a false positive')
+  pointBoth('X2')
+  await askFactsFor(4500)
+  check('a redeploy of the same build (the pointer rewritten to the same tree) tells nothing', behindCount().receipts === 0 && behindCount().transcript === 0, JSON.stringify(behindCount()))
+  rmSync(join(runtime, 'current'), { force: true })
+  rmSync(join(runtime, 'dist'), { force: true })
+  await askFactsFor(4500)
+  pointBoth('X')
+  check('a pointer that briefly does not exist tells nothing', behindCount().receipts === 0 && behindCount().transcript === 0, JSON.stringify(behindCount()))
+  await sleep(2500)
+  pointBoth('Y')
+  await askFacts(sid)
+  await sleep(600)
+  pointBoth('X')
+  await askFactsFor(4500)
+  check('a pointer that moves away and back within the confirmation window tells nothing', behindCount().receipts === 0 && behindCount().transcript === 0, JSON.stringify(behindCount()))
+  pointBoth('Y')
+  const expectedBehindLine = `A newer Mercury build is installed (${SHORT_Y}) · this session still runs ${SHORT_X} · /restart moves it (watches and background shells end and are named)`
+  const gotBehind = await untilAsync(
+    async () => {
+      await askFacts(sid)
+      return readSessionReceipts(projectDir, sid).some(r => r.summary === expectedBehindLine) && transcriptOf(sid).includes(expectedBehindLine)
+    },
+    25_000,
+    700,
+  )
+  check('the live session receives the "newer Mercury build is installed" line in its receipts and its chat', gotBehind, JSON.stringify({ receipts: readSessionReceipts(projectDir, sid) }))
+  await askFactsFor(5000)
+  check('the line is told exactly once', behindCount().receipts === 1 && behindCount().transcript === 1, JSON.stringify(behindCount()))
+
+  section('§3 /restart names what ends before the stop and lands the session on the installed build through the existing doors')
+  const told: Array<{ line: string; oldRunnerAlive: boolean }> = []
+  const tell = (line: string): void => {
+    told.push({ line, oldRunnerAlive: isProcessAlive(pidBefore) })
+  }
+  const midTurn = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: true, work: [], tell, resume: resumeAsTheScreenDoes })
+  check(
+    '/restart refuses while a turn is running and touches nothing',
+    !midTurn.ok && /mid-turn/.test(midTurn.reason) && told.length === 0 && recOf(sid)?.pid === pidBefore && isProcessAlive(pidBefore) && daemonPids().length === 1,
+    JSON.stringify({ midTurn, pid: recOf(sid)?.pid, daemons: daemonPids() }),
+  )
+  const workRows = facts(sid)?.work ?? []
+  const reqsBeforeRestart = recordedReqs.length
+  const itemsBeforeRestart = (recordedReqs[recordedReqs.length - 1]?.items.length ?? 0) + 1
+  const restarted = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: facts(sid)?.busy === true, work: workRows, tell, resume: resumeAsTheScreenDoes })
+  check('/restart reports the move onto the installed build', restarted.ok && restarted.line.includes(`Restarted on the installed build (${SHORT_Y})`), JSON.stringify(restarted))
+  const toldLine = told[0]?.line ?? ''
+  check(
+    'its words name the watch and the background shell that end, with their commands, before the stop',
+    told.length === 1 &&
+      told[0]!.oldRunnerAlive &&
+      toldLine.includes(`Monitor «${WATCH_NAME}» (${WATCH_CMD_SHOWN})`) &&
+      toldLine.includes(`background shell «${shellTaskId}» "${SHELL_DESC}" (${SHELL_CMD})`),
+    JSON.stringify(told),
+  )
+  check('a token in a watch command never reaches the words (redacted the way exports are)', told.every(t => !t.line.includes(SECRET)) && (restarted.ok ? !restarted.line.includes(SECRET) : true), JSON.stringify(told))
+  const plane = await hello()
+  const Bpid = plane?.pid ?? 0
+  check('a daemon of the installed build now serves the plane (the existing daemon move)', Bpid !== 0 && Bpid !== Apid && plane?.buildTree?.slice(0, 12) === SHORT_Y, JSON.stringify(plane))
+  const pidAfter = recOf(sid)?.pid ?? 0
+  const after = ps(pidAfter)
+  check(
+    "the session's new runner is a child of the installed build's daemon and runs that build's bundle (its real tree, read from the process)",
+    pidAfter !== 0 && pidAfter !== pidBefore && isProcessAlive(pidAfter) && after.ppid === Bpid && bundleOf(after.command) === join(Y, 'mercury.mjs'),
+    JSON.stringify({ pidBefore, pidAfter, after, Bpid }),
+  )
+  check(
+    "the runner's own facts answer tree Y and the record stamps Y",
+    await untilAsync(
+      async () => {
+        await askFacts(sid)
+        return facts(sid)?.buildTree === SHORT_Y && recOf(sid)?.buildTree === SHORT_Y
+      },
+      20_000,
+      500,
+    ),
     JSON.stringify({ facts: facts(sid)?.buildTree, rec: recOf(sid)?.buildTree }),
   )
-
-  section('§2 the runtime pointer moves to build Y under the daemon → the live session learns it is behind once')
-  pointAt('current', 'Y')
-  pointAt('dist', 'Y')
-  const expectedBehindLine = `A newer Mercury build is installed (${SHORT_Y}) · this session still runs ${SHORT_X} · /restart moves it (watches and background shells end and are named)`
-  const projectDir = paths.getProjectDir(work)
-  const gotBehind = await untilAsync(
-    () =>
-      readSessionReceipts(projectDir, sid).some(r => r.summary === expectedBehindLine) &&
-      transcriptOf(sid).includes(expectedBehindLine),
-    15_000,
-  )
+  check('the old daemon left once its last session left — it never hosted a runner of another build', await untilAsync(() => !isProcessAlive(Apid), 30_000), read(logA).slice(-400))
+  const gotUpdateReceipt = await untilAsync(() => readSessionReceipts(projectDir, sid).some(r => r.kind === 'runner-restart' && r.summary.startsWith(`Mercury updated to ${SHORT_Y}`)), 20_000)
+  const updateSummary = readSessionReceipts(projectDir, sid).find(r => r.kind === 'runner-restart')?.summary ?? ''
   check(
-    'the live session receives the "newer Mercury build is installed" line',
-    gotBehind,
-    JSON.stringify({ receipts: readSessionReceipts(projectDir, sid) }),
-  )
-  await sleep(1200)
-  const behindReceiptCount = readSessionReceipts(projectDir, sid).filter(r => r.summary.includes('A newer Mercury build is installed')).length
-  const behindTranscriptCount = (transcriptOf(sid).match(/A newer Mercury build is installed/g) ?? []).length
-  check(
-    'the "newer Mercury build is installed" line is emitted exactly once',
-    behindReceiptCount === 1 && behindTranscriptCount === 1,
-    `receipts=${behindReceiptCount} transcript=${behindTranscriptCount}`,
-  )
-
-  section('§3 /restart moves the session onto the new build with the update reason, naming the build and ended watches with their commands')
-  const reqsBeforeRestart = recordedReqs.length
-  const restarted = await dispatch('urt-restart', '/restart', { targetSessionId: sid })
-  check('/restart dispatch was accepted', restarted.ok === true, JSON.stringify(restarted))
-  const movedToY = await untilAsync(
-    () => {
-      const r = recOf(sid)
-      const f = facts(sid)
-      return r !== undefined && r.pid !== undefined && r.pid !== pidBefore && isProcessAlive(r.pid) && f?.buildTree === SHORT_Y
-    },
-    45_000,
-  )
-  check("/restart lands the session on the new tree (the runner's reported tree changes to Y)", movedToY, JSON.stringify({ rec: recOf(sid), factsBuildTree: facts(sid)?.buildTree }))
-  check(
-    "the task record files under the session's tasks dir survive the runner restart",
-    sessionTasksDir !== '' &&
-      existsSync(join(sessionTasksDir, `${monitorTaskId}.json`)) &&
-      existsSync(join(sessionTasksDir, `${shellTaskId}.json`)),
-    `dir=${sessionTasksDir}`,
-  )
-
-  const gotUpdateReceipt = await untilAsync(
-    () => readSessionReceipts(projectDir, sid).some(r => r.summary.startsWith(`Mercury updated to ${SHORT_Y}`)),
-    15_000,
-  )
-  const updateReceipt = readSessionReceipts(projectDir, sid).find(r => r.summary.startsWith(`Mercury updated to ${SHORT_Y}`))
-  const updateSummary = updateReceipt?.summary ?? ''
-  check(
-    'the session receipt carries the update line naming the build, Monitor «name», background shell «id» (n), and re-arm',
+    'the session receipt carries the update line naming the build, the ended watch and shell with their commands, and the re-arm',
     gotUpdateReceipt &&
-      updateSummary.includes(`Mercury updated to ${SHORT_Y}`) &&
       updateSummary.includes("· this session's runner restarted · ended by the restart:") &&
-      updateSummary.includes(`Monitor «${WATCH_NAME}»`) &&
-      updateSummary.includes(WATCH_CMD) &&
-      updateSummary.includes(`background shell «${shellTaskId}»`) &&
-      updateSummary.includes(SHELL_CMD) &&
-      updateSummary.includes('(2) · re-arm what you still want'),
+      updateSummary.includes(`Monitor «${WATCH_NAME}» (${WATCH_CMD_SHOWN})`) &&
+      updateSummary.includes(`background shell «${shellTaskId}» "${SHELL_DESC}" (${SHELL_CMD})`) &&
+      updateSummary.includes('(2) · re-arm what you still want') &&
+      !updateSummary.includes(SECRET),
     updateSummary,
   )
-
+  const again = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: false, work: [], tell: () => {}, resume: resumeAsTheScreenDoes })
+  check('a second /restart says the session already runs the installed build and moves nothing', !again.ok && again.reason.includes('already runs the installed build') && recOf(sid)?.pid === pidAfter, JSON.stringify(again))
   const afterTurn = await dispatch('urt-after', AFTER_PROMPT, { targetSessionId: sid })
   check('post-restart prompt dispatched', afterTurn.ok === true, JSON.stringify(afterTurn))
   check(
-    'post-restart turn settled',
-    await untilAsync(() => recordedReqs.slice(reqsBeforeRestart).some(r => r.ask.includes(AFTER_PROMPT)) && facts(sid)?.busy === false, 45_000),
+    'post-restart turn settled (it re-armed a second watch)',
+    await untilAsync(() => transcriptOf(sid).includes('second watch armed') && facts(sid)?.busy === false, 45_000),
+    transcriptOf(sid).slice(-400),
   )
-  const newTurnItems = recordedReqs.slice(reqsBeforeRestart).flatMap(r => r.items.slice(itemsBeforeRestart))
-  const newTurnContextText = JSON.stringify(newTurnItems)
-  const postTranscript = transcriptOf(sid)
+  const newTurnContextText = JSON.stringify(recordedReqs.slice(reqsBeforeRestart).flatMap(r => r.items.slice(itemsBeforeRestart)))
   check(
-    "the next turn's context and chat carry the update line naming the build and ended watches",
-    newTurnContextText.includes(`Mercury updated to ${SHORT_Y}`) &&
-      newTurnContextText.includes("this session's runner restarted · ended by the restart:") &&
-      postTranscript.includes(`Mercury updated to ${SHORT_Y}`),
+    "the next turn's context and the chat carry the update line",
+    newTurnContextText.includes(`Mercury updated to ${SHORT_Y}`) && transcriptOf(sid).includes(`Mercury updated to ${SHORT_Y}`),
     newTurnContextText.slice(-600),
   )
   check(
-    'both the Monitor and the background shell armed before the restart are named afterwards with their commands in the post-restart context',
-    newTurnContextText.includes(WATCH_NAME) &&
-      newTurnContextText.includes(WATCH_CMD) &&
-      newTurnContextText.includes(shellTaskId) &&
-      newTurnContextText.includes(SHELL_CMD),
-    newTurnContextText.slice(-600),
+    'the ended shell is named with its command and its kept output file, which still stands',
+    newTurnContextText.includes(`[Background shell ${shellTaskId} \\"${SHELL_DESC}\\" did not survive the runner's restart after an update`) &&
+      newTurnContextText.includes(`what it printed until then stays in ${shellOutput}`) &&
+      existsSync(shellOutput),
+    newTurnContextText.slice(-900),
+  )
+  const watchLineAt = newTurnContextText.indexOf(`[Monitor \\"${WATCH_NAME}\\" (task ${monitorTaskId}) did not survive the runner's restart after an update`)
+  check(
+    'the ended watch is named with the update reason and its redacted command',
+    watchLineAt !== -1 && newTurnContextText.slice(watchLineAt, watchLineAt + 600).includes('token=[redacted]') && !newTurnContextText.slice(watchLineAt, watchLineAt + 600).includes(SECRET),
+    newTurnContextText.slice(-900),
+  )
+  await askFactsFor(3000)
+  check('the runner already on the installed tree is never told it is behind', behindCount().receipts === 1, JSON.stringify(behindCount()))
+  const many = Array.from({ length: 200 }, (_, i) => ({ toolUseId: `tu${i}`, taskId: `b${i}`, description: `shell ${i}`, command: 'sleep 1', outputPath: null, armedAt: i }))
+  const bounded = composeRestartLine({ reason: 'update', build: SHORT_Y, watches: [], shells: many })
+  check('a session with 200 ended shells gets one bounded line, not 200 names', bounded.includes(', and 194 more (200)') && bounded.length < 800, `${bounded.length} chars`)
+  const longCommand = `curl -H 'Authorization: Bearer ${SECRET}' https://example.invalid && printf '%s' ${'x'.repeat(5000)}`
+  const clamped = composeRestartLine({ reason: 'update', build: SHORT_Y, watches: [{ toolUseId: 'tu', taskId: 'm1', description: 'long one', command: longCommand, persistent: true, armedAt: 0 }], shells: [] })
+  check('a long watch command is clamped in the line and its bearer token is never shown', clamped.length < 400 && clamped.includes('…') && !clamped.includes(SECRET), `${clamped.length} chars`)
+
+  section('§4 crash stays crash; a runner found dead with its daemon across an install is "ended around an update", never update')
+  check(
+    'a runner killed by a signal while the pointer moved keeps its crash reason',
+    sup.runnerRestartReasonOf({ crash: { at: Date.now(), reason: 'crashed mid-run (exit none · signal SIGKILL)', respawning: false }, buildTree: SHORT_X } as never) === 'crash',
+    String(sup.runnerRestartReasonOf({ crash: { at: Date.now(), reason: 'x', respawning: false }, buildTree: SHORT_X } as never)),
+  )
+  const runnerY = recOf(sid)?.pid ?? 0
+  const BpidNow = (await hello())?.pid ?? 0
+  try {
+    process.kill(BpidNow, 'SIGKILL')
+  } catch {}
+  try {
+    process.kill(runnerY, 'SIGKILL')
+  } catch {}
+  check('the daemon of Y and its runner are gone', await untilAsync(() => !isProcessAlive(BpidNow) && !isProcessAlive(runnerY), 15_000))
+  pointBoth('Z')
+  const logC = join(SCRATCH, 'daemon-C.log')
+  const C = spawnDaemon(logC)
+  const Cpid = C.pid ?? 0
+  check('daemon C came up on build Z', await untilAsync(async () => (await hello())?.pid === Cpid, 45_000), read(logC).slice(-600))
+  await untilAsync(() => recOf(sid)?.crash !== undefined, 15_000)
+  const deadRec = recOf(sid)
+  check(
+    'the record found dead with its daemon after the install reads "ended … around an update", the cause unknown, never crash or update',
+    deadRec?.restartReason === 'ended' && (deadRec.crash?.reason ?? '').startsWith(`ended with its daemon around an update to ${SHORT_Z} — the cause is not known`),
+    JSON.stringify(deadRec),
+  )
+  const reqsBeforeEnded = recordedReqs.length
+  const itemsBeforeEnded = (recordedReqs[recordedReqs.length - 1]?.items.length ?? 0) + 1
+  const after2 = await dispatch('urt-after2', AFTER2_PROMPT, { targetSessionId: sid })
+  check('a message to the session revives it on C', after2.ok === true, JSON.stringify(after2))
+  check('the revived turn settled', await untilAsync(() => recordedReqs.slice(reqsBeforeEnded).some(r => r.ask.includes(AFTER2_PROMPT)) && facts(sid)?.busy === false, 45_000))
+  const endedContext = JSON.stringify(recordedReqs.slice(reqsBeforeEnded).flatMap(r => r.items.slice(itemsBeforeEnded)))
+  check(
+    'the revived runner names the re-armed watch as ended around an update, and its chat line says the cause is not known',
+    endedContext.includes(`[Monitor \\"${WATCH2_NAME}\\"`) &&
+      endedContext.includes("did not survive the runner's restart after it ended around an update") &&
+      endedContext.includes(`This session's runner ended with its daemon around an update to ${SHORT_Z} — the cause is not known`) &&
+      readSessionReceipts(projectDir, sid).some(r => r.kind === 'runner-restart' && r.summary.startsWith("This session's runner ended with its daemon around an update")),
+    endedContext.slice(-900),
+  )
+  check(
+    'nothing after the install calls it a crash or an update',
+    !endedContext.includes('after a crash') && !endedContext.includes(`Mercury updated to ${SHORT_Z}`),
+    endedContext.slice(-600),
   )
 
-  section('§4 an update never writes crash')
-  const reconcileDir = mkdtempSync(join(SCRATCH, 'reconcile-update-'))
-  sup.updateConcourseWorkers(workers => {
-    workers['concourse-w9'] = {
-      schema: 1,
-      runnerId: 'concourse-w9',
-      sessionId: '00000000-0000-4000-8000-000000000099',
-      workspaceId: work,
-      isolation: 'exclusive',
-      modelKey: 'claude-sonnet-5',
-      effort: 'high',
-      spawnedAt: Date.now() - 10_000,
-      lastLiveAt: Date.now() - 10_000,
-      lastDeliveryAt: Date.now() - 5_000,
-      lastTurnSettledAt: Date.now() - 4_000,
-      pid: 2_147_000_000,
-      buildTree: SHORT_X,
-    } as never
-  }, reconcileDir)
-  sup.reconcileConcourseWorkers(new Set(), reconcileDir)
-  const reconciledRec = sup.readSessionWorkers(reconcileDir)['concourse-w9']
-  const derivedReason = reconciledRec ? sup.runnerRestartReasonOf(reconciledRec as never) : 'unknown'
+  section('§5 a headless run never says a build is installed')
+  const headlessEnv: NodeJS.ProcessEnv = { ...daemonEnv }
+  delete headlessEnv.MERCURY_DAEMON_OWNER_PID
+  const headless = await new Promise<{ status: number | null; stdout: string; stderr: string }>(resolve => {
+    const child = spawn(NODE, [join(X, 'mercury.mjs'), 'run', 'a headless probe', '--format', 'rows'], { cwd: work, env: headlessEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+    let stdout = ''
+    let stderr = ''
+    child.stdout?.on('data', chunk => {
+      stdout += String(chunk)
+    })
+    child.stderr?.on('data', chunk => {
+      stderr += String(chunk)
+    })
+    const timer = setTimeout(() => child.kill('SIGKILL'), 90_000)
+    child.on('close', code => {
+      clearTimeout(timer)
+      resolve({ status: code, stdout, stderr })
+    })
+  })
   check(
-    'an update never writes crash: worker record, reconcile across builds, runnerRestartReasonOf, receipts, and transcript are free of crash',
-    recOf(sid)?.crash === undefined &&
-      reconciledRec?.crash === undefined &&
-      derivedReason === 'update' &&
-      !newTurnContextText.includes('after a crash') &&
-      !postTranscript.includes('after a crash') &&
-      readSessionReceipts(projectDir, sid).every(r => !r.summary.includes('crash')),
-    JSON.stringify({ liveCrash: recOf(sid)?.crash, reconciledCrash: reconciledRec?.crash, derivedReason }),
+    'a one-shot `mercury run` on build X with Z installed answers and says nothing about builds',
+    headless.status === 0 && !`${headless.stdout}${headless.stderr}`.includes(BEHIND_WORDS),
+    `${headless.status} ${(headless.stdout ?? '').slice(-200)} ${(headless.stderr ?? '').slice(-300)}`,
   )
 } finally {
   await cleanup()
