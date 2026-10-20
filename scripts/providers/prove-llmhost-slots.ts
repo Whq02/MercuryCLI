@@ -492,6 +492,151 @@ try {
     `verification=${fastRow?.verification ?? 'missing'}`,
   )
 
+  const { compatChatCallModel } = await import(`${root}/src/services/providers/openaicompat/compatChatCallModel.ts`)
+  const { compatSlotLaneProfile } = await import(`${root}/src/services/providers/openaicompat/compatCallModel.ts`)
+  async function scripted(attempts: any[][]): Promise<{ events: any[]; assistants: any[]; calls: number }> {
+    let calls = 0
+    const profile = {
+      ...compatSlotLaneProfile,
+      resolveCredential: () => ({}),
+      requestUrl: () => `${baseUrl}/chat/completions`,
+      streamTransport: () => {
+        const script = attempts[Math.min(calls, attempts.length - 1)]!
+        calls++
+        return {
+          events: (async function* () {
+            for (const event of script) yield event
+          })(),
+        }
+      },
+    }
+    const events: any[] = []
+    const assistants: any[] = []
+    for await (const item of compatChatCallModel(profile as never, {
+      messages: [createUserMessage({ content: 'scripted stream' })],
+      tools: [tool],
+      systemPrompt: asSystemPrompt(['Fixture system']),
+      thinkingConfig: { type: 'enabled', budgetTokens: 1024 },
+      signal: new AbortController().signal,
+      options: {
+        model: `compat/hosted/${model}`,
+        effortValue: 'max',
+        querySource: 'main_thread',
+        isNonInteractiveSession: true,
+        getToolPermissionContext: async () => ({}),
+        agents: [],
+        hasAppendSystemPrompt: false,
+        mcpTools: [],
+      },
+    } as never) as AsyncGenerator<any>) {
+      if (item.type === 'stream_event') events.push(item.event)
+      else if (item.type === 'assistant') assistants.push(item)
+    }
+    return { events, assistants, calls }
+  }
+  const blockStarts = (events: any[]) => events.filter(event => event.type === 'content_block_start')
+  const toolStartsFor = (events: any[], id: string) => blockStarts(events).filter(event => event.content_block?.type === 'tool_use' && event.content_block.id === id)
+  const paintedFor = (events: any[], id: string): string => {
+    const indices = new Set(toolStartsFor(events, id).map(event => event.index))
+    return events
+      .filter(event => event.type === 'content_block_delta' && event.delta?.type === 'input_json_delta' && indices.has(event.index))
+      .map(event => event.delta.partial_json)
+      .join('')
+  }
+  const streamOrder = (events: any[]): string => [...blockStarts(events)].sort((a, b) => a.index - b.index).map(event => event.content_block.type).join(',')
+  const settledOrder = (assistants: any[]): string => assistants.filter(row => !row.isApiErrorMessage).map(row => row.message.content[0]?.type).join(',')
+  const settledCall = (index: number, id: string, argumentsRaw: string, name = 'FixtureEcho') => ({ index, id, name, argumentsRaw, malformed: false })
+  const finishWith = (...toolCalls: any[]) => ({ type: 'finish', reason: 'tool_calls', rawReason: 'tool_calls', toolCalls })
+
+  const responsesShape = await scripted([[
+    { type: 'tool-call-fragment', index: 0, id: 'call-r', name: 'FixtureEcho', argumentsFragment: '' },
+    { type: 'tool-call-fragment', index: 0, argumentsFragment: '{"te' },
+    { type: 'tool-call-fragment', index: 0, argumentsFragment: 'xt":"hi' },
+    { type: 'tool-call-fragment', index: 0, argumentsFragment: '"}' },
+    finishWith(settledCall(0, 'call-r', '{"text":"hi"}')),
+  ]])
+  check(
+    'Responses-road fragments (id and name on the first only) paint one live block: one start, the arguments shown once as they stream, one tool_use settled',
+    toolStartsFor(responsesShape.events, 'call-r').length === 1 &&
+      paintedFor(responsesShape.events, 'call-r') === '{"text":"hi"}' &&
+      responsesShape.events.filter(event => event.delta?.type === 'input_json_delta').length === 3 &&
+      settledOrder(responsesShape.assistants) === 'tool_use' &&
+      responsesShape.assistants[0]?.message.content[0]?.input?.text === 'hi',
+    `starts=${toolStartsFor(responsesShape.events, 'call-r').length} painted=${paintedFor(responsesShape.events, 'call-r')} settled=${settledOrder(responsesShape.assistants)} errors=${JSON.stringify(responsesShape.assistants.filter(row => row.isApiErrorMessage).map(row => row.message?.content))}`,
+  )
+
+  const interleaved = await scripted([[
+    { type: 'tool-call-fragment', index: 0, id: 'call-a', name: 'FixtureEcho', argumentsFragment: '{"text":' },
+    { type: 'tool-call-fragment', index: 1, id: 'call-b', name: 'FixtureEcho', argumentsFragment: '{"text":"b"}' },
+    { type: 'tool-call-fragment', index: 0, id: 'call-a', name: 'FixtureEcho', argumentsFragment: '"a"}' },
+    finishWith(settledCall(0, 'call-a', '{"text":"a"}'), settledCall(1, 'call-b', '{"text":"b"}')),
+  ]])
+  check(
+    'interleaved fragments never reopen or replay a call: one start per call, no argument byte shown twice, both calls settle in stream order',
+    toolStartsFor(interleaved.events, 'call-a').length === 1 &&
+      toolStartsFor(interleaved.events, 'call-b').length === 1 &&
+      '{"text":"a"}'.startsWith(paintedFor(interleaved.events, 'call-a')) &&
+      paintedFor(interleaved.events, 'call-b') === '{"text":"b"}' &&
+      settledOrder(interleaved.assistants) === 'tool_use,tool_use' &&
+      interleaved.assistants.map(row => row.message.content[0]?.input?.text).join() === 'a,b',
+    `starts=${blockStarts(interleaved.events).length} a=${paintedFor(interleaved.events, 'call-a')} b=${paintedFor(interleaved.events, 'call-b')}`,
+  )
+
+  const doneCarried = await scripted([[
+    { type: 'tool-call-fragment', index: 0, id: 'call-t', name: 'FixtureEcho', argumentsFragment: '' },
+    finishWith(settledCall(0, 'call-t', '{"text":"tail"}')),
+  ]])
+  check(
+    'arguments the stream never painted are painted once into the still-open block at settlement, never as a second block',
+    toolStartsFor(doneCarried.events, 'call-t').length === 1 && paintedFor(doneCarried.events, 'call-t') === '{"text":"tail"}' && settledOrder(doneCarried.assistants) === 'tool_use',
+    `starts=${toolStartsFor(doneCarried.events, 'call-t').length} painted=${paintedFor(doneCarried.events, 'call-t')}`,
+  )
+
+  const ordered = await scripted([[
+    { type: 'reasoning-delta', text: 'thinking first' },
+    { type: 'tool-call-fragment', index: 0, id: 'call-o', name: 'FixtureEcho', argumentsFragment: '{"text":"o"}' },
+    { type: 'text-delta', text: 'words after the call' },
+    finishWith(settledCall(0, 'call-o', '{"text":"o"}')),
+  ]])
+  check(
+    'text after a live tool block settles after it: the settled messages keep the streamed block order, block for block',
+    streamOrder(ordered.events) === 'thinking,tool_use,text' && settledOrder(ordered.assistants) === 'thinking,tool_use,text',
+    `stream=${streamOrder(ordered.events)} settled=${settledOrder(ordered.assistants)}`,
+  )
+
+  const refusedPaint = await scripted([[
+    { type: 'tool-call-fragment', index: 0, id: 'call-x', name: 'NoSuchTool', argumentsFragment: '{"text":"x"}' },
+    finishWith(settledCall(0, 'call-x', '{"text":"x"}', 'NoSuchTool')),
+  ]])
+  check(
+    'a painted call the gate refuses settles its refusal note in the painted block\'s place: one block streamed, one message settled, nothing replayed',
+    blockStarts(refusedPaint.events).length === 1 &&
+      toolStartsFor(refusedPaint.events, 'call-x').length === 1 &&
+      refusedPaint.assistants.length === 1 &&
+      refusedPaint.assistants[0]?.message.content[0]?.type === 'text' &&
+      refusedPaint.assistants[0]?.refusedToolCalls?.[0]?.id === 'call-x',
+    `starts=${streamOrder(refusedPaint.events)} settled=${settledOrder(refusedPaint.assistants)}`,
+  )
+
+  const paintCut = await scripted([
+    [
+      { type: 'tool-call-fragment', index: 0, id: 'call-p', name: 'FixtureEcho', argumentsFragment: '{"text":"par' },
+      { type: 'stream-fault', fault: { kind: 'timeout', code: 'idle-timeout', message: 'the stream went quiet mid-arguments', retryable: true } },
+    ],
+    [
+      { type: 'tool-call-fragment', index: 0, id: 'call-p2', name: 'FixtureEcho', argumentsFragment: '{"text":"full"}' },
+      finishWith(settledCall(0, 'call-p2', '{"text":"full"}')),
+    ],
+  ])
+  check(
+    'a stream cut while only tool arguments were painting keeps the clean retry: the request goes again and the call settles once, no error row',
+    paintCut.calls === 2 &&
+      paintCut.assistants.every(row => !row.isApiErrorMessage) &&
+      settledOrder(paintCut.assistants) === 'tool_use' &&
+      paintCut.assistants[0]?.message.content[0]?.input?.text === 'full',
+    `calls=${paintCut.calls} settled=${settledOrder(paintCut.assistants)} errors=${paintCut.assistants.filter(row => row.isApiErrorMessage).length}`,
+  )
+
   await import(`${root}/src/tasks.ts`)
   const { runAgent } = await import(`${root}/src/tools/AgentTool/runAgent.ts`)
   const { getDefaultAppState } = await import(`${root}/src/state/AppStateStore.ts`)

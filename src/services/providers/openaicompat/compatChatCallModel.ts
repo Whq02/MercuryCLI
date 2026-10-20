@@ -863,18 +863,20 @@ async function* streamOneCompatAttempt(ctx: {
   }
 
   let messageStarted = false
+  let contentStarted = false
   let firstEventSeen = false
   const blocks = {
     index: -1,
     open: null as
       | { kind: 'thinking' | 'text'; value: string }
-      | { kind: 'tool'; toolIndex: number; id: string; name: string; bytes: number }
+      | { kind: 'tool'; toolIndex: number }
       | null,
   }
-  const livePaintedTools = new Map<number, { id: string; name: string; bytes: number }>()
-  const closedToolIndices = new Set<number>()
+  const toolPaints = new Map<number, { id: string; name: string; text: string; closed: boolean }>()
+  const paintSlots: Array<{ toolIndex: number; id: string; at: number }> = []
   const pendingToolFragments = new Map<number, string>()
   const minted: AssistantMessage[] = []
+  let released = 0
   let usageSeen: CompatUsage | undefined
   let served: string | undefined
   let finish:
@@ -891,19 +893,19 @@ async function* streamOneCompatAttempt(ctx: {
     messageStarted = true
     yield streamEvent({ type: 'message_start', message: { ...partial, content: [] } })
   }
+  function* releaseMinted(): Generator<AssistantMessage> {
+    const limit = Math.min(minted.length - 1, paintSlots[0]?.at ?? minted.length)
+    while (released < limit) yield minted[released++]!
+  }
+  function* pushMinted(message: AssistantMessage): Generator<AssistantMessage> {
+    minted.push(message)
+    yield* releaseMinted()
+  }
   function* closeOpenBlock(): Generator<StreamEvent | AssistantMessage> {
     if (!blocks.open) return
     if (blocks.open.kind === 'tool') {
-      if (!closedToolIndices.has(blocks.open.toolIndex)) {
-        livePaintedTools.set(blocks.open.toolIndex, {
-          id: blocks.open.id,
-          name: blocks.open.name,
-          bytes: blocks.open.bytes,
-        })
-        closedToolIndices.add(blocks.open.toolIndex)
-      } else {
-        livePaintedTools.delete(blocks.open.toolIndex)
-      }
+      const paint = toolPaints.get(blocks.open.toolIndex)
+      if (paint) paint.closed = true
       blocks.open = null
       yield streamEvent({ type: 'content_block_stop', index: blocks.index })
       return
@@ -914,10 +916,7 @@ async function* streamOneCompatAttempt(ctx: {
         : { type: 'text', text: blocks.open.value, citations: null }
     blocks.open = null
     yield streamEvent({ type: 'content_block_stop', index: blocks.index })
-    const m = mintBlock(settled)
-    const previous = minted.at(-1)
-    minted.push(m)
-    if (previous) yield previous
+    yield* pushMinted(mintBlock(settled))
   }
   function* openNewBlock(kind: 'thinking' | 'text'): Generator<StreamEvent | AssistantMessage> {
     yield* closeOpenBlock()
@@ -947,9 +946,17 @@ async function* streamOneCompatAttempt(ctx: {
     yield streamEvent({ type: 'content_block_stop', index: blocks.index })
     const m = mintBlock(block)
     decorate?.(m)
-    const previous = minted.at(-1)
-    minted.push(m)
-    if (previous) yield previous
+    yield* pushMinted(m)
+  }
+  function refusalNoteMessage(refusal: RefusedToolCall): { note: string; decorate: (message: AssistantMessage) => void } {
+    const note = toolCallRefusalNote(profile.lane, refusal)
+    logForDebugging(`[compat:${profile.lane}] ${toolCallRefusalDiagnostic(refusal)}`, { level: 'warn' })
+    return {
+      note,
+      decorate: message => {
+        message.refusedToolCalls = [refusal]
+      },
+    }
   }
   let leadingNotesEmitted = false
   function* emitLeadingNotes(): Generator<StreamEvent | AssistantMessage> {
@@ -1003,6 +1010,7 @@ async function* streamOneCompatAttempt(ctx: {
         served = event.model
         break
       case 'reasoning-delta': {
+        contentStarted = true
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
         if (blocks.open?.kind !== 'thinking') yield* openNewBlock('thinking')
@@ -1015,6 +1023,7 @@ async function* streamOneCompatAttempt(ctx: {
         break
       }
       case 'reasoning-withheld': {
+        contentStarted = true
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
         const withheld: ContentBlock = { type: 'thinking', thinking: '', signature: event.signature }
@@ -1022,6 +1031,7 @@ async function* streamOneCompatAttempt(ctx: {
         break
       }
       case 'text-delta': {
+        contentStarted = true
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
         if (blocks.open?.kind !== 'text') yield* openNewBlock('text')
@@ -1036,27 +1046,36 @@ async function* streamOneCompatAttempt(ctx: {
       case 'tool-call-fragment': {
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
-        if (!event.id || !event.name) {
+        const paint = toolPaints.get(event.index)
+        const id = event.id || paint?.id
+        const name = event.name || paint?.name
+        if (!id || !name) {
           if (event.argumentsFragment !== '') {
             pendingToolFragments.set(event.index, (pendingToolFragments.get(event.index) ?? '') + event.argumentsFragment)
           }
           break
         }
-        if (blocks.open?.kind !== 'tool' || blocks.open.toolIndex !== event.index) {
+        if (paint !== undefined && (paint.closed || paint.id !== id)) {
+          if (!paint.closed) yield* closeOpenBlock()
+          break
+        }
+        if (paint === undefined) {
           yield* closeOpenBlock()
           blocks.index += 1
-          blocks.open = { kind: 'tool', toolIndex: event.index, id: event.id, name: event.name, bytes: 0 }
+          toolPaints.set(event.index, { id, name, text: '', closed: false })
+          paintSlots.push({ toolIndex: event.index, id, at: minted.length })
+          blocks.open = { kind: 'tool', toolIndex: event.index }
           yield streamEvent({
             type: 'content_block_start',
             index: blocks.index,
-            content_block: { type: 'tool_use', id: event.id, name: event.name, input: {} },
+            content_block: { type: 'tool_use', id, name, input: {} },
           })
         }
-        const buffered = pendingToolFragments.get(event.index) ?? ''
-        if (buffered !== '') pendingToolFragments.delete(event.index)
-        const piece = buffered + event.argumentsFragment
+        const record = toolPaints.get(event.index)!
+        const piece = (pendingToolFragments.get(event.index) ?? '') + event.argumentsFragment
+        pendingToolFragments.delete(event.index)
         if (piece !== '') {
-          blocks.open.bytes += piece.length
+          record.text += piece
           yield streamEvent({
             type: 'content_block_delta',
             index: blocks.index,
@@ -1083,13 +1102,14 @@ async function* streamOneCompatAttempt(ctx: {
 
   if (fault?.kind === 'cancelled' || signal.aborted) {
     if (blocks.open?.kind === 'text' && blocks.open.value.length > 0) yield* closeOpenBlock()
-    const pending = minted.at(-1)
-    if (pending) yield pending
+    paintSlots.length = 0
+    while (released < minted.length) yield minted[released++]!
     return { kind: 'cancelled' }
   }
-  const nothingYielded = !messageStarted && minted.length === 0
+  const nothingYielded = !contentStarted && minted.length === 0
   const retryTemporary = fault !== undefined && isTemporaryStreamFault(fault) && (finish?.toolCalls.length ?? 0) === 0
   if (fault && nothingYielded && (!finish || retryTemporary)) {
+    if (blocks.open?.kind === 'tool') yield* closeOpenBlock()
     return { kind: 'fault', fault, retryEligible: !isLocalLivenessCut(fault) }
   }
   const typedEnd =
@@ -1117,11 +1137,24 @@ async function* streamOneCompatAttempt(ctx: {
       }
     }
   }
+  if (blocks.open?.kind === 'tool') {
+    const open = blocks.open
+    const paint = toolPaints.get(open.toolIndex)
+    const call = paint === undefined ? undefined : completed.find(entry => entry.index === open.toolIndex && entry.id === paint.id)
+    if (paint !== undefined && call !== undefined && call.argumentsRaw.length > paint.text.length && call.argumentsRaw.startsWith(paint.text)) {
+      const tail = call.argumentsRaw.slice(paint.text.length)
+      paint.text = call.argumentsRaw
+      yield streamEvent({
+        type: 'content_block_delta',
+        index: blocks.index,
+        delta: { type: 'input_json_delta', partial_json: tail },
+      })
+    }
+  }
   yield* closeOpenBlock()
   if (completed.length > 0) yield* emitLeadingNotes()
 
   const accepted: Array<{ call: CompatCompletedToolCall; input: Record<string, unknown> }> = []
-  const refused: RefusedToolCall[] = []
   const verdicts = gateToolCalls(
     tools,
     completed.map(call => ({
@@ -1135,33 +1168,45 @@ async function* streamOneCompatAttempt(ctx: {
   completed.forEach((call, index) => {
     const verdict = verdicts[index]!
     if (verdict.ok) accepted.push({ call, input: verdict.input })
-    else refused.push(verdict.refusal)
   })
-  for (const { call, input } of accepted) {
-    const painted = livePaintedTools.get(call.index)
-    if (painted !== undefined && painted.id === call.id && painted.name === call.name && painted.bytes === call.argumentsRaw.length) {
-      const m = mintBlock({ type: 'tool_use', id: call.id, name: call.name, input })
-      const previous = minted.at(-1)
-      minted.push(m)
-      if (previous) yield previous
-      continue
+  const paintedCalls = new Set<CompatCompletedToolCall>()
+  let inserted = 0
+  for (const slot of paintSlots) {
+    const at = completed.findIndex(entry => entry.index === slot.toolIndex && entry.id === slot.id && !paintedCalls.has(entry))
+    if (at < 0) continue
+    const call = completed[at]!
+    const verdict = verdicts[at]!
+    paintedCalls.add(call)
+    let message: AssistantMessage
+    if (verdict.ok) {
+      message = mintBlock({ type: 'tool_use', id: call.id, name: call.name, input: verdict.input })
+    } else {
+      const refusal = refusalNoteMessage(verdict.refusal)
+      message = mintBlock({ type: 'text', text: refusal.note, citations: null })
+      refusal.decorate(message)
     }
+    minted.splice(slot.at + inserted, 0, message)
+    inserted += 1
+  }
+  paintSlots.length = 0
+  yield* releaseMinted()
+  for (const { call, input } of accepted) {
+    if (paintedCalls.has(call)) continue
     yield* emitSettledBlock(
       { type: 'tool_use', id: call.id, name: call.name, input },
       [{ type: 'input_json_delta', partial_json: call.argumentsRaw }],
       { type: 'tool_use', id: call.id, name: call.name, input: {} },
     )
   }
-  for (const refusal of refused) {
-    const note = toolCallRefusalNote(profile.lane, refusal)
-    logForDebugging(`[compat:${profile.lane}] ${toolCallRefusalDiagnostic(refusal)}`, { level: 'warn' })
+  for (const [index, call] of completed.entries()) {
+    const verdict = verdicts[index]!
+    if (verdict.ok || paintedCalls.has(call)) continue
+    const refusal = refusalNoteMessage(verdict.refusal)
     yield* emitSettledBlock(
-      { type: 'text', text: note, citations: null },
-      [{ type: 'text_delta', text: note }],
+      { type: 'text', text: refusal.note, citations: null },
+      [{ type: 'text_delta', text: refusal.note }],
       { type: 'text', text: '', citations: null },
-      message => {
-        message.refusedToolCalls = [refusal]
-      },
+      refusal.decorate,
     )
   }
   const terminationNote = retryTemporary ? undefined : ((): string | undefined => {
