@@ -10,6 +10,7 @@ export type CompatDialect = NonNullable<CompatEndpointSettings['dialect']>
 export interface CompatServerReading {
   models: string[]
   contextWindows: Record<string, number>
+  efforts?: Record<string, string[]>
   dialect?: CompatDialect
 }
 
@@ -289,6 +290,7 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
     if (rows.some(row => typeof record(row)?.id !== 'string' || !record(row)!.id.trim())) throw new Error('models endpoint returned a row without a model id')
     const models = [...new Set(rows.map(row => record(row)!.id.trim() as string))]
     const contextWindows: Record<string, number> = Object.create(null)
+    const efforts: Record<string, string[]> = Object.create(null)
     for (const value of rows) {
       const row = record(value)!
       const tokens = windowTokens(row.max_model_len) ?? windowTokens(row.context_length)
@@ -321,9 +323,10 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
       const ps = await optional('/api/ps')
       for (const id of models) {
         const served = Array.isArray(ps?.models) ? ps.models.find((row: any) => row.name === id || row.model === id) : undefined
+        const info = await optional('/api/show', { model: id })
+        efforts[id] = Array.isArray(info?.thinking?.values) ? info.thinking.values.filter((value: unknown): value is string => typeof value === 'string') : []
         let tokens = windowTokens(served?.context_length)
         if (!tokens) {
-          const info = await optional('/api/show', { model: id })
           const explicit = typeof info?.parameters === 'string' ? info.parameters.match(/(?:^|\n)\s*num_ctx\s+(\d+)/)?.[1] : undefined
           tokens = explicit ? windowTokens(Number(explicit)) : undefined
         }
@@ -331,7 +334,7 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
       }
     }
     if (signal.aborted) throw new Error('Server discovery cancelled or timed out.')
-    return { models, contextWindows, ...(detected ? { dialect: detected } : {}) }
+    return { models, contextWindows, efforts, ...(detected ? { dialect: detected } : {}) }
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
     throw new CompatProbeError(opts.key ? detail.split(opts.key).join('[redacted]') : detail, error instanceof CompatProbeError ? error.status : undefined)

@@ -7,7 +7,8 @@ import { compatKeyEnvName, compatModelEndpoint, compatModelRefusal } from './com
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { compatResponsesTransport } from './compatResponsesTransport.js'
 import { assignLlamacppSlot, invalidateLlamacppTotalSlots, readSelfHostedLiveness, resolveLlamacppTotalSlots } from './compatProbe.js'
-import { buildLocalExtras } from './compatWire.js'
+import { buildHostedExtras } from './compatWire.js'
+import { compatModelEfforts } from './compatEffort.js'
 import {
   compatChatCallModel,
   compatLaneLiveProofState,
@@ -71,6 +72,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
   }
   const { endpoint, wireId } = resolved
   const dialect = endpoint.dialect ?? 'chat-completions'
+  const preservedReasoning = dialect === 'vllm' || dialect === 'sglang' || dialect === 'llamacpp' || ['kimi-k3', 'moonshotai/kimi-k3'].includes(wireId.toLowerCase())
   let observation: ReturnType<typeof captureSignInRequest>
   let totalSlots: number | undefined
   let slotReads = 0
@@ -78,8 +80,8 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     ...compatSlotLaneProfile,
     dialect,
     providerLabel: endpoint.label,
-    keepsReasoningHistory: () => dialect === 'vllm' || dialect === 'sglang' || dialect === 'llamacpp',
-    keepsReasoningOnContinuations: () => dialect === 'vllm' || dialect === 'sglang' || dialect === 'llamacpp',
+    keepsReasoningHistory: () => preservedReasoning,
+    keepsReasoningOnContinuations: () => preservedReasoning,
     ...(endpoint.named ? { authRemedy: `/logins compat/${endpoint.name} replaces this endpoint's key; ${compatKeyEnvName(endpoint.name)} takes precedence when set.` } : {}),
     resolveCredential: async () => {
       const key = resolveCompatApiKey(process.env, endpoint.name)
@@ -124,10 +126,9 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     ...(dialect === 'responses' ? { streamTransport: (options, messages) => compatResponsesTransport(options, messages, `${endpoint.name}:${endpoint.baseUrl}`) } : {}),
     ...(dialect === 'ollama' ? { omitsToolChoice: true } : {}),
     buildExtras: args => {
-      if (dialect === 'chat-completions' || dialect === 'responses') return buildCompatSlotExtras(args)
       const slotKey = args.conversationKey ?? args.cacheDomainKey
       const idSlot = dialect === 'llamacpp' && totalSlots !== undefined && slotKey ? assignLlamacppSlot(endpoint, slotKey, totalSlots, args.crewmate === true) : undefined
-      return buildLocalExtras({ ...args, server: dialect, acceptsEffort: true, ...(idSlot !== undefined ? { idSlot } : {}) })
+      return buildHostedExtras({ ...args, dialect, vocabulary: compatModelEfforts(params.options.model), ...(idSlot !== undefined ? { idSlot } : {}) })
     },
   }
   yield* compatChatCallModel(profile, params)

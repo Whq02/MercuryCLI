@@ -37,6 +37,19 @@
         "by": "documented",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "encoder maps low, high and max to 50, 75 and 100",
+          "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/blob/main/encoding/README.md"
+        }
       }
     },
     {
@@ -74,6 +87,19 @@
         "by": "documented",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "encoder maps low, high and max to 50, 75 and 100",
+          "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/blob/main/encoding/README.md"
+        }
       }
     },
     {
@@ -111,6 +137,19 @@
         "by": "documented",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "encoder maps low, high and max to 50, 75 and 100",
+          "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/blob/main/encoding/README.md"
+        }
       }
     },
     {
@@ -148,6 +187,19 @@
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3"
       },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "low and high are explicit; all other inputs use max",
+          "source": "https://huggingface.co/zai-org/GLM-5.3/blob/main/chat_template.jinja"
+        }
+      },
       "pythonInstall": "python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang"
     },
     {
@@ -184,6 +236,19 @@
         "by": "documented",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "low and high are explicit; all other inputs use max",
+          "source": "https://huggingface.co/zai-org/GLM-5.3/blob/main/chat_template.jinja"
+        }
       },
       "pythonInstall": "python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang"
     },
@@ -260,6 +325,19 @@
         "note": "community 4× B200 SGLang NVFP4 recipe · SGLang prefill in thousands of tok/s vs 1-GPU llama.cpp (not measured)",
         "source": "https://github.com/caiovicentino/glm-5.3-flash-sglang-4x-b200"
       },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "low and high are explicit; all other inputs use max",
+          "source": "https://huggingface.co/RadixArk/GLM-5.3-Flash-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
       "context": 524288,
       "environment": {
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"
@@ -309,6 +387,19 @@
         "note": "in-progress",
         "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3-Flash"
       },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "low and high are explicit; all other inputs use max",
+          "source": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/main/chat_template.jinja"
+        }
+      },
       "pythonInstall": "python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang"
     },
     {
@@ -351,6 +442,19 @@
         "by": "documented",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3-Flash"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "low and high are explicit; all other inputs use max",
+          "source": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/main/chat_template.jinja"
+        }
       },
       "pythonInstall": "python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang"
     },
@@ -395,6 +499,19 @@
         "note": "1× B300 · upstream llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 · 67 tok/s single-stream, ~23 tok/s per stream with two busy · 193 GB VRAM · 524,288 ctx across 4 slots (131,072 per slot)",
         "source": "https://unsloth.ai/docs/models/glm-5.3-flash"
       },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "low and high are explicit; all other inputs use max",
+          "source": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/main/chat_template.jinja"
+        }
+      },
       "context": 131072,
       "contextPerSlot": 131072,
       "engine": "llamacpp",
@@ -438,6 +555,19 @@
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3"
       },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "low and high are explicit; all other inputs use max",
+          "source": "https://huggingface.co/zai-org/GLM-5.3/blob/main/chat_template.jinja"
+        }
+      },
       "pythonInstall": "python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang"
     },
     {
@@ -474,6 +604,19 @@
         "by": "documented",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "low and high are explicit; all other inputs use max",
+          "source": "https://huggingface.co/zai-org/GLM-5.3/blob/main/chat_template.jinja"
+        }
       },
       "pythonInstall": "python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang"
     },
@@ -521,6 +664,15 @@
         "note": "NVIDIA's model card names llama.cpp for RTX PRO 6000; Unsloth's 96 GB minimum",
         "source": "https://unsloth.ai/docs/models/nemotron-3.5-super-vl"
       },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "enable_thinking and medium_effort are boolean controls, not named reasoning_effort levels",
+          "source": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/blob/main/chat_template.jinja"
+        }
+      },
       "context": 131072,
       "contextPerSlot": 131072,
       "engine": "llamacpp",
@@ -563,6 +715,19 @@
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-27B"
       },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "only low, medium and xhigh are accepted",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B-FP8/blob/main/chat_template.jinja"
+        }
+      },
       "pythonInstall": "python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang"
     },
     {
@@ -596,6 +761,19 @@
         "by": "documented",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-27B"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "only low, medium and xhigh are accepted",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B-FP8/blob/main/chat_template.jinja"
+        }
       },
       "pythonInstall": "python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang"
     }

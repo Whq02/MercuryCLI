@@ -144,6 +144,7 @@ export interface CompatFault {
   retryable: boolean
   inStream?: true
   status?: number
+  parameter?: string
   retryAfterMs?: number
   outage?: OutageCause
 }
@@ -218,6 +219,7 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
     kind: word !== undefined || vendor !== undefined ? 'api-error' : 'http-error',
     code: word !== undefined ? `api-${word}` : vendor?.code ?? `http-${status}`,
     message: refusalWords,
+    ...(typeof err?.param === 'string' ? { parameter: err.param } : {}),
     retryable: status === 429 || status === 408 || status >= 500 || vendor?.retryable === true,
     status,
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),

@@ -248,7 +248,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'operator' | 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen'
+      source: 'operator' | 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen' | 'compat'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -423,7 +423,11 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
       ? { kind: 'provider', source: 'gemini', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'gemini' }
   }
-  if (route === 'openai-compat') return { kind: 'none', source: 'compat' }
+  if (route === 'openai-compat') {
+    const { compatModelEfforts } = require('../../services/providers/openaicompat/compatEffort.js') as typeof import('../../services/providers/openaicompat/compatEffort.js')
+    const vocabulary = compatModelEfforts(model)
+    return vocabulary.length > 0 ? { kind: 'provider', source: 'compat', vocabulary, thinkingGated: false } : { kind: 'none', source: 'compat' }
+  }
   if (model.trim().toLowerCase().startsWith('local/')) {
     const { localRecordFor } =
       require('../../services/providers/local/localCatalogue.js') as typeof import('../../services/providers/local/localCatalogue.js')
@@ -1281,6 +1285,7 @@ export function modelReceivesImageBlocks(model: string): boolean {
 
 export function effortVocabularyFor(model: string): EffortVocabularyView {
   const base = baseEffortVocabularyFor(model)
+  if (declaredRouteOf(model) === 'openai-compat') return base
   const stated = operatorModelFacts(model)?.efforts
   if (stated === undefined || (base.kind === 'provider' && base.source === 'gpt-live')) return base
   const floor = modelHasRecordedFacts(model) ? ('vocabulary' in base ? base.vocabulary : base.kind === 'offered' ? EFFORT_LEVELS : []) : []

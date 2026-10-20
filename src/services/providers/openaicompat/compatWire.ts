@@ -34,6 +34,8 @@ export function compatEffortWireFact(
   if (typeof word === 'string' && word !== '') {
     return { kind: 'sent', parameter: 'reasoning_effort', value: word, ...(thinkingOff ? { applied: EFFORT_STAMP_THINKING_OFF } : {}) }
   }
+  const template = extra.chat_template_kwargs as Record<string, unknown> | undefined
+  if (typeof template?.reasoning_effort === 'string') return { kind: 'sent', parameter: 'chat_template_kwargs.reasoning_effort', value: template.reasoning_effort }
   const reasoning = extra.reasoning
   const nested = typeof reasoning === 'object' && reasoning !== null ? (reasoning as { effort?: unknown }).effort : undefined
   if (typeof nested === 'string' && nested !== '') {
@@ -207,4 +209,38 @@ export function buildXaiExtras(args: LaneExtrasArgs & { vocabulary: readonly str
     ...(effort !== undefined ? { reasoning_effort: effort } : {}),
     ...(args.maxOutputTokensOverride !== undefined ? { max_completion_tokens: args.maxOutputTokensOverride } : {}),
   }
+}
+
+export function buildHostedExtras(args: LaneExtrasArgs & { dialect: import('./compatProbe.js').CompatDialect; vocabulary: readonly string[]; idSlot?: number }): Record<string, unknown> {
+  const base = args.dialect === 'chat-completions' || args.dialect === 'responses'
+    ? buildCompatSlotExtras(args)
+    : buildLocalExtras({ ...args, server: args.dialect, acceptsEffort: false })
+  const effort = args.effortValue !== undefined && args.vocabulary.length > 0 ? nearestSupportedWireEffort(args.effortValue, args.vocabulary) : undefined
+  if (effort === undefined) return base
+  return args.dialect === 'llamacpp'
+    ? { ...base, chat_template_kwargs: { reasoning_effort: effort } }
+    : { ...base, reasoning_effort: effort }
+}
+
+export function rejectedHostedEffortField(extra: Record<string, unknown>, fault: { status?: number; message: string; parameter?: string }): 'reasoning_effort' | 'chat_template_kwargs' | undefined {
+  if (fault.status !== 400) return undefined
+  const template = extra.chat_template_kwargs as Record<string, unknown> | undefined
+  if (extra.reasoning_effort === undefined && template?.reasoning_effort === undefined) return undefined
+  const named = fault.parameter ?? fault.message
+  if (/\breasoning_effort\b/i.test(named)) return 'reasoning_effort'
+  if (template?.reasoning_effort !== undefined && /\bchat_template_kwargs\b/i.test(named)) return 'chat_template_kwargs'
+  return undefined
+}
+
+export function withoutHostedEffort(extra: Record<string, unknown>, field: 'reasoning_effort' | 'chat_template_kwargs'): Record<string, unknown> {
+  const next = { ...extra }
+  delete next.reasoning_effort
+  if (field === 'chat_template_kwargs') delete next.chat_template_kwargs
+  else if (typeof next.chat_template_kwargs === 'object' && next.chat_template_kwargs !== null) {
+    const template = { ...next.chat_template_kwargs } as Record<string, unknown>
+    delete template.reasoning_effort
+    if (Object.keys(template).length) next.chat_template_kwargs = template
+    else delete next.chat_template_kwargs
+  }
+  return next
 }

@@ -52,7 +52,7 @@ import {
 } from '../../../utils/messages.js'
 import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
 import { effortStampOf, type EffortStampV1, type EffortWireFact } from '../../../utils/effortStamp.js'
-import { compatEffortWireFact, thinkingOffWireEffort } from './compatWire.js'
+import { compatEffortWireFact, rejectedHostedEffortField, thinkingOffWireEffort, withoutHostedEffort } from './compatWire.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
@@ -536,6 +536,7 @@ export async function* compatChatCallModel(
             : nearestSupportedWireEffort(effortValue, effortView.vocabulary)
           : undefined
       : undefined
+  let rejectedEffort: 'reasoning_effort' | 'chat_template_kwargs' | undefined
   const slotKey = plan.conversationKey ?? cacheDomainKey
   const makeRequestExtra = (): Record<string, unknown> => {
     const builtExtras = profile.buildExtras({
@@ -547,12 +548,13 @@ export async function* compatChatCallModel(
       cacheDomainKey,
       crewmate: options.agentId !== undefined,
     })
-    return {
-      ...(operatorEffort !== undefined && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined
+    const extra = {
+      ...(profile.lane !== 'openai-compat' && operatorEffort !== undefined && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined
         ? { ...builtExtras, reasoning_effort: operatorEffort }
         : builtExtras),
       ...(profile.lane === 'openai-compat' || profile.lane === 'openrouter' ? { prompt_cache_key: cacheDomainKey } : {}),
     }
+    return rejectedEffort ? withoutHostedEffort(extra, rejectedEffort) : extra
   }
   const request: CompatChatRequest = {
     model: wireModel,
@@ -572,7 +574,7 @@ export async function* compatChatCallModel(
       thinkingEnabled,
       supported: effortTruth.supportsEffort,
     })
-  const effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, effortFact)
+  let effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, effortFact)
   const withEffort = (message: AssistantMessage): AssistantMessage => ({ ...message, effort: effortOnWire })
 
   if (profile.requestFitRefusal) {
@@ -649,6 +651,17 @@ export async function* compatChatCallModel(
       return
     }
     if (outcome.kind === 'cancelled') return
+    const rejected = profile.lane === 'openai-compat' && !rejectedEffort && outcome.retryEligible ? rejectedHostedEffortField(request.extra ?? {}, outcome.fault) : undefined
+    if (rejected) {
+      rejectedEffort = rejected
+      request.extra = withoutHostedEffort(request.extra ?? {}, rejected)
+      effortOnWire = effortStampOf(effortTruth.requested, { kind: 'omitted' })
+      const notice = createSystemAPIErrorMessage(new Error(`${profile.providerLabel} rejected ${rejected}; retrying once without the effort field — the server default applies.`), 0, 1, 1)
+      yield notice
+      options.onWait?.(retryNoticeWait(notice))
+      attempt--
+      continue
+    }
     observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     const typed = compatFaultToTypedError(outcome.fault)
     if (
