@@ -224,6 +224,20 @@ try {
   await stopBoxTunnel(remoteMachine, fixture.runner, signal, true, tunnelHome)
   await controlBoxService(remoteMachine, 'uninstall', fixture.runner, signal)
   assert.ok(fixture.commands.some((command: any) => command.command === 'ssh'))
+  const halfBox = { ...machine, name: 'window-fixture' }
+  const halfPort = await new Promise<number>(resolve => { const socket = createServer(); socket.listen(0, '127.0.0.1', () => { const chosen = (socket.address() as { port: number }).port; socket.close(() => resolve(chosen)) }) })
+  const began = Date.now()
+  await assert.rejects(() => startBoxEngine(halfBox, { ...recipe, id: 'half-window', model: 'Fixture/half-window' }, { destination: fixture.bank, bank: true, confirmed: true, runner: fixture.runner, port: halfPort, timeoutMs: 20000, pauseMs: 30 }), /served context differs from the requested 131072 tokens: 65536 · the service was stopped/)
+  assert.ok(Date.now() - began < 15000, 'a served window that differs from the recipe fails at once')
+  assert.equal(await boxServiceRunning(halfBox, fixture.runner, signal), false, 'a start that fails verification leaves no engine running')
+  assert.equal(readBoxService(halfBox.name)!.state, 'failed')
+  await controlBoxService(halfBox, 'uninstall', fixture.runner, signal)
+  const winGguf = { ...winBox, name: 'win-gguf', engines: [{ kind: 'llamacpp' as const, path: 'C:\\llama\\llama-server.exe', version: 'b1', port: 30000 }] }
+  winScripts.length = 0
+  await assert.rejects(() => startBoxEngine(winGguf, gguf, { destination: 'C:\\Models', bank: false, confirmed: true, runner: winRunner }), /verified bank/)
+  assert.equal(winScripts.length, 0, 'a refused Windows GGUF download runs nothing on the computer')
+  assert.equal(readBoxService('win-gguf'), undefined, 'and records nothing')
+  console.log('MERCURY HOST GREEN · a start that fails verification stops its engine at once; a refused plan changes nothing')
   const ollamaPort = await new Promise<number>(resolve => { const socket = createServer(); socket.listen(0, '127.0.0.1', () => { const chosen = (socket.address() as { port: number }).port; socket.close(() => resolve(chosen)) }) })
   const ollamaBox = { ...machine, name: 'ollama-fixture', engines: [{ kind: 'ollama' as const, path: join(fixture.bin, 'ollama'), version: 'fixture', port: ollamaPort }] }
   const ollamaRecipe = BOX_RECIPES.find(row => row.id === 'nemotron35-bolt')!

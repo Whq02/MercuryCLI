@@ -13,7 +13,7 @@ export function boxFixture(parent) {
 import { createServer } from 'node:http'
 const arg=(key)=>process.argv[process.argv.indexOf(key)+1]
 if(process.argv.includes('--version')) {console.log('fixture-llama');process.exit(0)}
-const model=arg('--alias'), slots=Number(arg('--parallel')), window=Number(arg('--ctx-size'))/slots
+const model=arg('--alias'), slots=Number(arg('--parallel')), window=Number(arg('--ctx-size'))/slots/(model.includes('half-window')?2:1)
 createServer(async(req,res)=>{
  const path=new URL(req.url,'http://localhost').pathname
  const json=x=>{res.setHeader('content-type','application/json');res.end(JSON.stringify(x))}

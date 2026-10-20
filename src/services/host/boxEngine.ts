@@ -54,6 +54,7 @@ export async function startBoxEngine(box: HostBox, recipe: BoxRecipe, options: B
   const signal = options.signal ?? new AbortController().signal
   const port = options.port ?? 30000
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Choose a service port between 1024 and 65535.')
+  if (box.os === 'windows' && recipe.engine === 'llamacpp' && !options.bank) throw new Error('Use a verified bank for a Windows GGUF service.')
   const previous = readBoxService(box.name)
   if (!previous || previous.state === 'uninstalled') {
     const files = boxServiceFiles(box)
@@ -67,15 +68,16 @@ export async function startBoxEngine(box: HostBox, recipe: BoxRecipe, options: B
   const executable = await engineBinary(box, recipe, runner, signal)
   const record: BoxServiceRecord = { name: box.name, recipe: recipe.id, model: recipe.model, engine: recipe.engine, destination, bank: options.bank, port, localPort: previous?.localPort, baseUrl: previous?.baseUrl, ...boxServiceFiles(box), state: 'starting' }
   writeBoxService(record)
+  let installed = Boolean(previous && previous.state !== 'uninstalled')
   try {
     if (previous && previous.state !== 'uninstalled') await controlBoxService(box, 'stop', runner, signal)
     if (!options.bank && recipe.engine === 'llamacpp') {
       const hf = boxJoin(box, box.home, '.local/share/mercury-host/hf/bin/hf')
       const script = 'python3 -m venv ' + shQuote(boxJoin(box, box.home, '.local/share/mercury-host/hf')) + '; ' + shQuote(boxJoin(box, box.home, '.local/share/mercury-host/hf/bin/pip')) + ' install huggingface_hub; ' + shQuote(hf) + ' download ' + shQuote(recipe.model) + (recipe.revision ? ' --revision ' + shQuote(recipe.revision) : '') + ' --include ' + recipe.files!.map(shQuote).join(' ') + ' --local-dir ' + shQuote(destination)
-      if (box.os === 'windows') throw new Error('Use a verified bank for a Windows GGUF service.')
       await runBoxScript(box, script, runner, signal, 12 * 3600_000)
       await sealDownloadedBank(box, recipe, destination, runner, signal)
     }
+    installed = true
     await installBoxService(box, boxEngineScript(box, recipe, executable, destination, port, options.bank), runner, signal)
     if (!options.bank && recipe.engine === 'ollama') {
       const deadline = Date.now() + (options.timeoutMs ?? 120_000)
@@ -88,6 +90,7 @@ export async function startBoxEngine(box: HostBox, recipe: BoxRecipe, options: B
     let last = ''
     for (;;) {
       signal.throwIfAborted()
+      let served: number | undefined
       try {
         if (!await boxServiceRunning(box, runner, signal)) throw new Error('The service is not running.')
         const list = await boxHttp(box, port, '/v1/models', runner, signal) as { data?: { id: string }[] }
@@ -95,13 +98,20 @@ export async function startBoxEngine(box: HostBox, recipe: BoxRecipe, options: B
         const facts = await boxHttp(box, port, recipe.engine === 'ollama' ? '/api/ps' : '/props', runner, signal) as { models?: { name: string; model: string; context_length: number }[]; default_generation_settings?: { n_ctx: number } }
         const context = recipe.engine === 'ollama' ? facts.models?.find(row => row.name === recipe.model || row.model === recipe.model)?.context_length : facts.default_generation_settings?.n_ctx
         if (!context || !Number.isSafeInteger(context) || context <= 0) throw new Error('The engine has not stated the served per-slot context.')
-        if (recipe.contextPerSlot && context !== recipe.contextPerSlot) throw new Error('The served context differs from the requested ' + recipe.contextPerSlot + ' tokens: ' + context)
-        record.contextPerSlot = context; record.state = 'running'; writeBoxService(record); return record
+        served = context
       } catch (error) { last = String(error) }
+      if (served !== undefined) {
+        if (recipe.contextPerSlot && served !== recipe.contextPerSlot) throw new Error('The served context differs from the requested ' + recipe.contextPerSlot + ' tokens: ' + served)
+        record.contextPerSlot = served; record.state = 'running'; writeBoxService(record); return record
+      }
       if (Date.now() >= deadline) throw new Error('Engine not ready: ' + last)
       await delay(options.pauseMs ?? 1000, undefined, { signal })
     }
-  } catch (error) { record.state = 'failed'; record.error = String(error); writeBoxService(record); throw new Error(String(error) + ' · the service may still be running; mercury host status ' + box.name + ' / stop ' + box.name) }
+  } catch (error) {
+    const stopped = installed && !signal.aborted && await controlBoxService(box, 'stop', runner, signal).then(() => true, () => false)
+    record.state = 'failed'; record.error = String(error); writeBoxService(record)
+    throw new Error(String(error) + (!installed ? '' : stopped ? ' · the service was stopped; mercury host logs ' + box.name + ' shows the engine output' : ' · the service may still be running; mercury host status ' + box.name + ' / stop ' + box.name))
+  }
 }
 
 export async function boxEngineStatus(box: HostBox, runner: HostRunner = hostRunner, signal: AbortSignal = new AbortController().signal): Promise<{ record?: BoxServiceRecord; words: string; busy?: number; slots?: number; tokensPerSecond?: number }> {
