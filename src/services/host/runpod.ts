@@ -30,7 +30,7 @@ export class RunpodClient {
         if (dc) offers.push({ recipe, gpuId: gpu.id, price: gpu.price.secure * recipe.count, dataCenter: dc.id })
       }
     }
-    return offers.sort((a, b) => Number(a.recipe.model.startsWith('Qwen/')) - Number(b.recipe.model.startsWith('Qwen/')) || Number(!a.recipe.id.startsWith('glm53-flash')) - Number(!b.recipe.id.startsWith('glm53-flash')) || a.price - b.price || a.recipe.id.localeCompare(b.recipe.id))
+    return offers.sort((a, b) => a.price - b.price || a.recipe.id.localeCompare(b.recipe.id))
   }
   async pods(signal?: AbortSignal): Promise<HostPod[]> {
     const pods: HostPod[] = []

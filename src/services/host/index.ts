@@ -111,7 +111,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         let offer: HostOffer | undefined
         for (;;) {
           const offers = await api.offers(signal)
-          const selected = await question({ step: 'offers', title: words.offers, found: offers.length ? 'GLM Flash first; smaller models below. Prices are for all GPUs, plus storage.' : words.noStock, willRun: '', rows: [...offers.map((row, index) => ({ value: String(index), label: row.recipe.label + ' · ' + shape(row.recipe) + ' · ' + price(row.price) + ' · Secure Cloud' + (budget ? ' · ~' + (budget / row.price).toFixed(1) + 'h for $' + budget : '') })), { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'cancel', label: words.cancel }] })
+          const selected = await question({ step: 'offers', title: words.offers, found: offers.length ? words.offersHelp : words.noStock, willRun: '', rows: [...offers.map((row, index) => ({ value: String(index), label: row.recipe.label + ' · ' + shape(row.recipe) + ' · ' + price(row.price) + ' · Secure Cloud' + (budget ? ' · ~' + (budget / row.price).toFixed(1) + 'h for $' + budget : '') })), { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'cancel', label: words.cancel }] })
           if (!selected || selected === 'cancel') return stopped()
           if (selected === 'refresh') continue
           offer = offers[Number(selected)]

@@ -78,6 +78,7 @@ export const LLM_HOST_WORDS = {
   failed: 'reply check failed',
   empty: 'The server completed without a text reply.',
   finished: 'esc closes',
+  offersHelp: 'Live stock and prices on Secure Cloud, cheapest first. A price covers every GPU in the shape; storage is billed on top.',
   podControls: 'esc opens Stop / Terminate controls · closing never deletes this pod',
   podKept: 'Closing keeps the pod · /llmhost → Pods I’m paying for → Stop or Terminate',
   podKeptAfterStop: 'remote pod kept · /llmhost → Pods I’m paying for → Stop or Terminate',
