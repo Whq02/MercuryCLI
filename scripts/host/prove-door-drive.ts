@@ -139,8 +139,10 @@ try {
   await close(); releaseFocusedSessionConnector()
   mounted!.unmount(); mounted = undefined
   open(); await mount(80); await heading('Which model?'); await capture('80-screen-1')
-  mounted!.push(KEY.enter); await heading('GLM-5.3-Flash'); await until('WHERE'); await capture('80-screen-2')
-  check('80-column details leave a reachable WHERE row', selected().includes('Already running'))
+  mounted!.push(KEY.enter); await heading('GLM-5.3-Flash'); await until('Details 1–'); await capture('80-screen-2')
+  check('80-column details page instead of pushing the rows off: the pager is on screen, WHERE is on its last page, the first row is reachable throughout', selected().includes('Already running'))
+  mounted!.push('\u001b[6~'); await until('WHERE'); await capture('80-screen-2b')
+  check('80-column WHERE heading reachable by pgdn with the first row still selected', mounted!.screen().includes('WHERE') && selected().includes('Already running'))
   await close()
   rp.state.customGpus = [{ ...gpu, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]
   open(); await heading('Which model?'); mounted!.push(KEY.enter); await heading('GLM-5.3-Flash'); await choose('Rent · Runpod'); await heading('Confirm the hourly price')
