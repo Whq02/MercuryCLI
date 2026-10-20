@@ -10,7 +10,8 @@ export async function runpodFixture() {
     { id: 'NVIDIA B200', name: 'B200', memory: 192, secure: true, price: { secure: 7.99 }, maxCount: { secure: 8 } },
     { id: 'NVIDIA B300', name: 'B300', memory: 288, secure: true, price: { secure: 8.99 }, maxCount: { secure: 8 } },
     { id: 'NVIDIA H200', name: 'H200', memory: 141, secure: true, price: { secure: 5.29 }, maxCount: { secure: 8 } },
-    { id: 'NVIDIA RTX PRO 6000 Blackwell', name: 'RTX PRO 6000 Blackwell', memory: 96, secure: true, price: { secure: 2.49 }, maxCount: { secure: 4 } },
+    { id: 'NVIDIA RTX PRO 6000 Blackwell Server Edition', name: 'RTX PRO 6000', memory: 96, secure: true, price: { secure: 2.49 }, maxCount: { secure: 4 } },
+    { id: 'NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 1g.24gb', name: 'PRO 6000 MIG 24GB', memory: 24, secure: true, price: { secure: 0.69 }, maxCount: { secure: 32 } },
     { id: 'no-stock', name: 'GB300', memory: 288, secure: true, price: { secure: 1.01 }, maxCount: { secure: 8 } },
     { id: 'NVIDIA A100-SXM4-40GB', name: 'A100 SXM 40GB', memory: 40, secure: false, price: { community: 1, secure: 0 }, maxCount: { community: 2, secure: 0 } },
   ]

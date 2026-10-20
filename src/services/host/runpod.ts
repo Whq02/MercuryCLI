@@ -25,7 +25,7 @@ export class RunpodClient {
       const response = await this.response('/catalog/gpus?include=AVAILABILITY&product=POD&cloud=SECURE&count=' + count + '&minCudaVersion=' + cuda, 'GET', undefined, signal)
       const { gpus } = z.object({ gpus: z.array(gpuSchema) }).parse(await response.json())
       for (const recipe of HOST_RECIPES.filter(recipe => recipe.count === Number(count) && recipe.cuda === cuda)) for (const gpu of gpus) {
-        if (!gpu.secure || gpu.price.secure <= 0 || !stock(gpu.availability) || !recipeFits(recipe, gpu.name, gpu.memory, gpu.maxCount.secure)) continue
+        if (!gpu.secure || gpu.price.secure <= 0 || !stock(gpu.availability) || !recipeFits(recipe, gpu.id, gpu.memory, gpu.maxCount.secure)) continue
         const dc = gpu.dataCenters?.find(dc => stock(dc.availability))
         if (dc) offers.push({ recipe, gpuId: gpu.id, price: gpu.price.secure * recipe.count, dataCenter: dc.id })
       }
