@@ -49,7 +49,7 @@ import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } f
 import { watchLiveMcpConfig } from '../services/mcp/liveConfig.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../services/mcp/dynamicMcpSeed.js'
 import { modelRefusalBeforeAnyRequest } from '../services/providers/callModelRouter.js'
-import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
+import { createRosterTransitionMessage, createSeatReceiptMessage } from '../utils/messages/systemMessages.js'
 import { isToolResultMessage } from '../utils/messages/merge.js'
 import { isLocalCommandCaveat } from '../utils/messages/apiPlan.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
@@ -1645,12 +1645,11 @@ export async function runHeadless(
     } catch (error) {
       logError(error)
     }
-    const row = createAttachmentMessage({ type: 'queued_command', prompt: wrapInSystemReminder(line), commandMode: 'task-notification', origin: { kind: 'build-behind' } })
+    const row = createSeatReceiptMessage(line, 'warning')
     messages.push(row)
     void recordTranscript([row], undefined, messages)
       .then(() => peekProject()?.flush())
       .catch(() => {})
-    enqueueRow(noticeRow(liveScope(), 'warning', line))
   }
   const buildBehindFloor = isConcourseWorker ? setInterval(() => void checkBuildBehind(true), BUILD_BEHIND_FLOOR_MS) : null
   buildBehindFloor?.unref?.()
