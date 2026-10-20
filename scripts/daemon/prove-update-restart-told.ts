@@ -537,8 +537,8 @@ try {
   }
   const midTurn = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: true, work: [], tell, resume: resumeAsTheScreenDoes })
   check(
-    '/restart refuses while a turn is running and touches nothing',
-    !midTurn.ok && /still working.*Press esc/.test(midTurn.reason) && told.length === 0 && recOf(sid)?.pid === pidBefore && isProcessAlive(pidBefore) && daemonPids().length === 1,
+    '/restart refuses while a turn is running without advising esc and touches nothing',
+    !midTurn.ok && /still working.*Wait for it to finish/.test(midTurn.reason) && !midTurn.reason.includes('Press esc') && told.length === 0 && recOf(sid)?.pid === pidBefore && isProcessAlive(pidBefore) && daemonPids().length === 1,
     JSON.stringify({ midTurn, pid: recOf(sid)?.pid, daemons: daemonPids() }),
   )
   const workRows = facts(sid)?.work ?? []

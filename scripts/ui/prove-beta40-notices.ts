@@ -59,7 +59,7 @@ try {
     ['idle-slot', idle.words],
     ['needs-key', loginsActionFor('openai-compat', 'x')],
   ] as const
-  check('busy refusal names the action without mid-turn jargon', busy.reason.includes('Press esc') && !busy.reason.includes('mid-turn'))
+  check('busy refusal names the safe wait action without mid-turn jargon or destructive esc advice', busy.reason.includes('Wait for it to finish, then run /restart.') && !busy.reason.includes('Press esc') && !busy.reason.includes('mid-turn'))
   check('current refusal is a complete sentence', current.reason.includes('Nothing needs restarting.'))
   check('notice wording avoids internal names', lines.every(([, text]) => !/\b(?:seat|kit|concourse|re-arm|receipt)\b/i.test(text)))
   check('build notice says what restarts will stop', lines[0][1].includes('watches and background shells') && lines[0][1].includes('/restart'))
