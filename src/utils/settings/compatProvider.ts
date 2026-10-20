@@ -18,6 +18,7 @@ const endpointShape = () => ({
   baseUrl: baseUrl().optional(),
   label: z.string().optional(),
   keyCommand: z.string().optional(),
+  hostPodId: z.string().regex(/^[a-zA-Z0-9_-]+$/).optional(),
   models: z.array(z.string().trim().min(1)).optional(),
   headers: z.record(headerName(), z.string().refine(value => !/[\r\n\0]/.test(value), 'header values cannot contain line breaks')).optional(),
   sessionAffinityHeader: headerName().optional(),
@@ -35,6 +36,7 @@ export interface CompatEndpointSettings {
   baseUrl?: string
   label?: string
   keyCommand?: string
+  hostPodId?: string
   models?: string[]
   headers?: Record<string, string>
   sessionAffinityHeader?: string

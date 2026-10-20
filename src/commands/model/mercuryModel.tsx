@@ -134,6 +134,8 @@ import { providerDoorAccount } from '../../services/providers/providerIdentityLi
 import { accountIdentityShown } from '../../services/wallet/identityWords.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
+import { configuredCompatEndpoints, isCompatEndpointCredentialed } from '../../services/providers/openaicompat/compatAccounts.js'
+import { cachedCompatCatalogue, compatCatalogueStatusWords, compatEndpointModelIds, compatEndpointPodTerminated, refreshCompatCatalogues } from '../../services/providers/openaicompat/compatCatalogue.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { getSubscriptionType } from '../../utils/auth.js'
 import { orderPickerRows, type ProviderHeading } from '../../utils/model/modelPickerGroups.js'
@@ -1125,6 +1127,12 @@ function MercuryModelWrapper({
           )
           return
         }
+        if (keyLane.startsWith('compat/')) {
+          if (retryNamedCompatRow(id, setNotice)) return
+          const name = keyLane.slice('compat/'.length)
+          onDone(`Custom endpoint '${name}' — running /logins ${keyLane}; the picker re-opens afterwards`, { nextInput: `/logins ${keyLane} --return=/model`, submitNextInput: true })
+          return
+        }
         if (keyLane === 'moonshot') {
           void (async () => {
             const { resolveMoonshotAccount } = await import('../../services/providers/moonshot/moonshotAccounts.js')
@@ -1352,7 +1360,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   function handleSelect(id: string, door?: string): void {
     if (isCatalogueDoorRow(id)) return
     if (isProviderActionRow(id)) {
-      onSignIn?.(signInFamilyOfRow(id))
+      if (!retryNamedCompatRow(id, setNotice)) onSignIn?.(signInFamilyOfRow(id))
       return
     }
     const saved = persistModelChoice(id)
@@ -1444,7 +1452,7 @@ export function MercurySessionModelPicker({
   function handleSelect(id: string, door?: string): void {
     if (isCatalogueDoorRow(id)) return
     if (isProviderActionRow(id)) {
-      onSignIn?.(signInFamilyOfRow(id))
+      if (!retryNamedCompatRow(id, setNotice)) onSignIn?.(signInFamilyOfRow(id))
       return
     }
     noteModelUse(id, door)
@@ -1544,7 +1552,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
       onSelect={id => {
         if (isCatalogueDoorRow(id)) return
         if (isProviderActionRow(id)) {
-          onSignIn?.(id)
+          if (!retryNamedCompatRow(id, setNotice)) onSignIn?.(id)
           return
         }
         onSelect(id)
@@ -1552,6 +1560,22 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
       onClose={onClose}
     />
   )
+}
+
+function retryNamedCompatRow(id: string, setNotice: (words: string) => void): boolean {
+  const lane = parseKeyConnectValue(id)
+  if (!lane?.startsWith('compat/')) return false
+  const name = lane.slice('compat/'.length)
+  const endpoint = configuredCompatEndpoints().find(endpoint => endpoint.name === name)
+  if (!endpoint) { setNotice(`Custom endpoint '${name}' is no longer registered — /llmhost connects it`); return true }
+  if (!isCompatEndpointCredentialed(endpoint)) return false
+  if (compatEndpointPodTerminated(endpoint)) { setNotice(compatCatalogueStatusWords(endpoint)); return true }
+  setNotice(`${endpoint.label} — refreshing the model list…`)
+  void refreshCompatCatalogues({ force: true, name }).then(() => {
+    const models = compatEndpointModelIds(endpoint)
+    setNotice(models.length && !cachedCompatCatalogue(endpoint)?.error ? `${endpoint.label} · ${models.length} models — pick one above` : compatCatalogueStatusWords(endpoint))
+  }).catch(error => setNotice(`${endpoint.label} · could not refresh the model list: ${error instanceof Error ? error.message : String(error)}`))
+  return true
 }
 
 function modelChoiceRowOf(options: ModelOption[], id: string): ModelOption | undefined {

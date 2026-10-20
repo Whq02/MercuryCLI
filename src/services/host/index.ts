@@ -62,6 +62,10 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           await api.terminate(pod.id)
           if ((await api.pods()).some(row => row.id === pod!.id)) throw new Error('Runpod accepted termination but still lists this pod. Check it again; deletion is not yet verified.')
           closeHostTunnel(pod.id)
+          if (record?.provider) {
+            const { removeLlmHostProvider } = await import('../llmHost/index.js')
+            removeLlmHostProvider(record.provider)
+          }
           removeHostRecord(pod.id)
           emit({ title: words.manage, words: words.terminatedPod, host: { id: pod.id, price: 0, startedAt: pod.createdAt, status: 'TERMINATED' } })
           return { ...(saved ?? { ok: true }), words: words.terminatedPod }

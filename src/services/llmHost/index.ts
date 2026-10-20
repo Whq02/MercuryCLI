@@ -40,6 +40,20 @@ function endpointMap(block: unknown): Record<string, CompatEndpointSettings> {
     : parsed as Record<string, CompatEndpointSettings>
 }
 
+export function linkLlmHostPod(name: string, hostPodId: string): void {
+  const existing = configuredCompatEndpoints().find(endpoint => endpoint.name === name)
+  if (!existing) return
+  const settings = endpointMap(getSettingsForSource('userSettings')?.compatProvider ?? getGlobalConfig().compatProvider)[name]
+  writeEndpoint(name, { ...settings, hostPodId }, existing)
+}
+
+export function removeLlmHostProvider(name: string): void {
+  const existing = configuredCompatEndpoints().find(endpoint => endpoint.name === name)
+  if (!existing) return
+  writeStoredCompatApiKey(null, name)
+  writeEndpoint(name, undefined, existing)
+}
+
 function writeEndpoint(name: string, endpoint: CompatEndpointSettings | undefined, existing?: CompatEndpoint): void {
   editable()
   if (existing && JSON.stringify(configuredCompatEndpoints().find(endpoint => endpoint.name === name)) !== JSON.stringify(existing)) throw new Error('The provider changed while this screen was open. Open /llmhost again.')
@@ -55,7 +69,10 @@ function writeEndpoint(name: string, endpoint: CompatEndpointSettings | undefine
     const patch: Record<string, unknown> = Object.fromEntries(Object.keys(previous).map(key => [key, undefined]))
     for (const [key, value] of Object.entries(next)) patch[key] = key === name && typeof previous[key] === 'object' && previous[key] !== null
       ? { ...Object.fromEntries(Object.keys(previous[key] as object).map(field => [field, undefined])), ...value } : value
-    return { compatProvider: patch as NonNullable<ReturnType<typeof getSettingsForSource>>['compatProvider'] }
+    return {
+      compatProvider: patch as NonNullable<ReturnType<typeof getSettingsForSource>>['compatProvider'],
+      ...(!endpoint ? { models: Object.fromEntries(Object.keys(raw.models ?? {}).filter(id => id.startsWith(`compat/${name}/`)).map(id => [id, undefined])) as unknown as NonNullable<ReturnType<typeof getSettingsForSource>>['models'] } : {}),
+    }
   })
   if (result.error) throw result.error
   bumpCatalogueEpoch()

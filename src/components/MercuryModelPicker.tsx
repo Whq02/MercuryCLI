@@ -527,7 +527,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       ? wrapPlain(ctxNotice, inner)
       : reasonLines !== null
         ? reasonLines
-        : [...(localWindowLine !== null ? wrapPlain(localWindowLine, inner) : []), ...(notice ? [notice] : [])]
+        : [...(localWindowLine !== null ? wrapPlain(localWindowLine, inner) : []), ...(notice ? wrapPlain(notice, inner) : [])]
   const chromePaint =
     2 + 1 + (compact ? 0 : 2) + (shedMeters ? 0 : 1) + 2 +
     (pendingLine !== null ? painted(pendingLine.map(part => part.text).join('')) : 0) +
@@ -628,11 +628,13 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
                 <Text color={FAINT}>{cell(m.id, columns.id)}</Text>
               </>
             ) : (
-              <Text bold color={m.gated ? SAND : IVORY}>{cell(m.name, columns.alias + columns.id)}</Text>
+              <Text bold color={m.gated ? SAND : IVORY}>{m.name}</Text>
             )}
-            <Text color={stateColor}>{cell(stateWord, columns.state)}</Text>
-            <Text color={FAINT}>{cell(ctxText, columns.ctx)}</Text>
-            <Text color={tokens.info}>{tail}</Text>
+            {model ? <>
+              <Text color={stateColor}>{cell(stateWord, columns.state)}</Text>
+              <Text color={FAINT}>{cell(ctxText, columns.ctx)}</Text>
+              <Text color={tokens.info}>{tail}</Text>
+            </> : null}
           </Text>
           {on && !compact && m.tag !== '' ? <Text color={SAND}>{m.tag}</Text> : null}
         </Box>
