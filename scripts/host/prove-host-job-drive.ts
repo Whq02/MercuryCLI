@@ -123,6 +123,7 @@ try {
   await choose('Confirm stop'); check('Stop releases compute but retains the pod disk', await waitFor(() => rp.state.stops === 1 && !m!.screen().includes('Confirm stop') && m!.screen().includes('Stopped · compute ended'), 15000) && rp.state.pods.has(id))
   await choose('Terminate'); await screen('Confirm terminate'); check('Terminate has a separate confirmation', rp.state.deletes === 0)
   await choose('Confirm terminate'); await screen('Pod terminated'); m.push(KEY.esc)
+  assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'the terminated pod window closes before the next rental opens')
   check('terminated pod is verified absent', !readHostRecord(id) && !rp.state.pods.has(id))
   const stalled = { ...ready, id: 'fixture-stalled', name: 'fixture-stalled', jobState: 'running' as const, generation: 'stall-generation', step: 'building llama.cpp', advancedAt: Date.now() - 250, error: undefined }
   const { writeHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')

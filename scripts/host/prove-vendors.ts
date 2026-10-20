@@ -110,7 +110,8 @@ try {
     await expectFailure(() => v.create({ ...b200 }, key, 'cloned'), /unchanged offer/)
     check('unbound copied offers cannot select a different paid resource', vast.state.creates === 2)
 
-    check('Lambda 180 GB B200 does not falsely satisfy shipped 183/192 GB recipes', (await l.offers(signal())).length === 0)
+    const shipped = await l.offers(signal())
+    check('Lambda 180 GB B200 instances satisfy only the shipped B200 rows that ask 180 GB on 4 or 8 GPUs, never a row asking more memory, more GPUs or more disk', shipped.length > 0 && shipped.every(row => row.recipe.gpu === 'B200' && row.recipe.vramGb <= 180 && (row.recipe.count === 4 || row.recipe.count === 8) && row.recipe.diskGb <= (row.recipe.count === 4 ? 11264 : 22528)) && HOST_RECIPES.some(row => row.vramGb > 180) && !shipped.some(row => row.recipe.vramGb > 180))
     override()
     const regional = await l.offers(signal())
     const first = regional[0]!

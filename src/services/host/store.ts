@@ -4,6 +4,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import type { SshTarget } from './ssh.js'
 import type { HostRecipe } from './recipes.js'
+import type { HostCluster, HostClusterPod } from './runpod.js'
 
 export interface HostRecord {
   id: string; name: string; recipe: string; price: number; startedAt: string; status: string
@@ -15,6 +16,8 @@ export interface HostRecord {
   steps?: { step: string; at: number }[]
   recipeRow?: HostRecipe
   volumeId?: string; prepareWeightsOnly?: boolean; verifyWeightsFully?: boolean; weightsCheck?: string
+  cluster?: HostCluster
+  nodes?: HostClusterPod[]
 }
 export function readHostRecord(id: string): HostRecord | undefined {
   try { return JSON.parse(readFileSync(recordPath(id), 'utf8')) as HostRecord } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error }

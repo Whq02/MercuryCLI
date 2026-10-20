@@ -82,7 +82,7 @@ export async function inspectSsh(target: SshTarget, runner: HostRunner, signal: 
   return { gpus, docker: output.includes('DOCKER_ENGINE_PRESENT') }
 }
 export function fitsSsh(recipe: HostRecipe, gpus: { name: string; memory: number }[]): boolean { return gpus.filter(gpu => recipeFits(recipe, gpu.name, gpu.memory, recipe.count)).length >= recipe.count }
-export async function startHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, docker: boolean, pod: boolean, bank?: string, keptWeights?: string): Promise<void> {
+export async function startHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, docker: boolean, pod: boolean, bank?: string, keptWeights?: string, cluster?: { nodes: number; rank: number; head: string; address: string }): Promise<void> {
   if (!pod && !docker && !recipe.pythonInstall) throw new Error('This recipe requires its preview Docker image. Install Docker with NVIDIA GPU access, or choose another recipe.')
   const dir = '/workspace/mercury-host/' + recipe.id
   const args = sshArguments(target)
@@ -108,12 +108,21 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
     await runner.run('rsync', ['-a', '-e', transport, '--', local + '/', remote], signal, 12 * 3600_000)
   }
   for (const [file, content] of Object.entries(recipe.files ?? {})) await runner.run('ssh', [...args, 'printf %s ' + quote(content) + ' > ' + quote(dir + '/' + file)], signal)
+  const localWeights = Boolean(bank || keptWeights || recipe.weightsGb || cluster)
+  const model = keptWeights ?? (localWeights ? dir + '/weights' : recipe.model)
+  const distributed = cluster ? recipe.engine === 'vllm'
+    ? ['--nnodes', String(cluster.nodes), '--node-rank', String(cluster.rank), '--master-addr', cluster.head, ...(cluster.rank > 0 ? ['--headless'] : [])]
+    : ['--nnodes', String(cluster.nodes), '--node-rank', String(cluster.rank), '--dist-init-addr', cluster.head + ':20000'] : []
   const engine = (recipe.engine === 'llamacpp'
     ? ['/workspace/mercury-host/llama.cpp/build/bin/llama-server', '--model', (keptWeights ?? dir + '/weights') + '/' + recipe.weightFile, '--alias', recipe.model + ':' + posix.dirname(recipe.weightFile!), ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']
-    : ['sglang', 'serve', '--model-path', keptWeights ?? (bank ? dir + '/weights' : recipe.model), ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']).map(quote).join(' ')
-  const download = keptWeights ? "echo 'MERCURY_STEP weights kept · verified · download skipped'" : bank ? 'true' : recipe.engine === 'llamacpp' ? '/workspace/mercury-host/hf/bin/hf download ' + quote(recipe.model) + ' --include ' + quote(recipe.include!) + ' --local-dir ' + quote(dir + '/weights') : 'hf download ' + quote(recipe.model)
+    : [...(recipe.engine === 'vllm' ? ['vllm', 'serve', model] : ['sglang', 'serve', '--model-path', model]), ...(localWeights ? ['--served-model-name', recipe.model] : []), ...recipe.flags, ...distributed, '--host', '127.0.0.1', '--port', '30000']).map(quote).join(' ')
+  const download = keptWeights ? "echo 'MERCURY_STEP weights kept · verified · download skipped'" : bank ? 'true' : recipe.engine === 'llamacpp' ? '/workspace/mercury-host/hf/bin/hf download ' + quote(recipe.model) + ' --include ' + quote(recipe.include!) + ' --local-dir ' + quote(dir + '/weights') : 'hf download ' + quote(recipe.model) + (localWeights ? ' --local-dir ' + quote(dir + '/weights') : '')
   const install = recipe.install?.replace(' && cmake ', " && echo 'MERCURY_STEP building llama.cpp' && cmake ")
   let script = 'set -e\nexport PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc\nexport HF_HOME=/workspace/huggingface\n' + Object.entries(recipe.environment ?? {}).map(([name, value]) => 'export ' + name + '=' + quote(value) + '\n').join('') + "echo 'MERCURY_STEP installing'\n" + (install ? '( ' + install + ' )\n' : '') + "echo 'MERCURY_STEP downloading weights'\n" + download + '\n' + "echo 'MERCURY_STEP starting engine'\n" + engine + '\nwait\n'
+  if (cluster) {
+    const network = 'export SGLANG_HOST_IP=' + quote(cluster.address) + '\nexport VLLM_HOST_IP=' + quote(cluster.address) + '\n' + 'export NCCL_SOCKET_IFNAME="$(ip -o -4 addr show | grep -F ' + quote(' ' + cluster.address + '/') + ' | awk ' + quote('{split($2,a,"@"); print a[1]; exit}') + ')"\ntest -n "$NCCL_SOCKET_IFNAME"\nexport GLOO_SOCKET_IFNAME="$NCCL_SOCKET_IFNAME"\n'
+    script = 'set -e\n' + network + script
+  }
   if (docker && !pod) script = 'docker run --rm --gpus all --ipc=host --network=host -v /workspace:/workspace -e HF_HOME=/workspace/huggingface --entrypoint bash ' + quote(recipe.image) + ' -c ' + quote(script) + '\nwait\n'
   else if (!pod) script = 'set -e\n' + recipe.pythonInstall + '\nexport PATH=/workspace/mercury-host/venv/bin:$PATH\n' + script
   const scriptPath = quote(dir + '/engine.sh')

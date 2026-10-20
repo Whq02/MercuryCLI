@@ -90,7 +90,10 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
   const historyBudget = question?.fullDetails ? 0 : Math.max(0, Math.min(history.length, budget - (question ? 7 + Math.min(question.rows?.length ?? 1, 8) : 3)))
   const shownHistory = history.slice(-historyBudget || history.length)
   const rows = detailsFit ? question?.rows ?? [] : []
-  const choices = Math.max(1, budget - shownHistory.length - (question?.fullDetails ? detailRows + 5 : compact ? Number(budget > 1) : 7))
+  const disclosure = !compact && question?.step === 'rent-confirm' ? question.lines ?? [] : []
+  const detailBudget = Math.max(0, budget - shownHistory.length - 4 - Math.min(rows.length, 2) - (rows.length > 2 ? 2 : 0))
+  const shownDetails = disclosure.slice(0, detailBudget)
+  const choices = Math.max(1, budget - shownHistory.length - (question?.fullDetails ? detailRows + 5 : shownDetails.length ? 4 + shownDetails.length + (rows.length > 2 ? 2 : 0) : compact ? Number(budget > 1) : 7))
   const window = settingsPopupWindow(cursor ?? 0, Math.max(0, (cursor ?? 0) - choices + 1), rows.length, choices)
   return <Box flexDirection="column" width={width} flexShrink={0} maxHeight={rowBudget} overflow="hidden">
     {shownHistory.map((row, index) => <Text key={index} color={tokens.textMuted} wrap="truncate-end">{row.title} · {row.words}</Text>)}
@@ -99,6 +102,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
       {!detailsFit ? <Text color={tokens.warning} wrap="wrap">Enlarge the terminal to see the full setup plan before confirming · esc closes</Text> : null}
       {!compact ? <Text color={tokens.textSecondary} wrap={question.fullDetails ? 'wrap' : 'truncate-end'}>{question.found}</Text> : null}
       {!compact && question.willRun ? <Text color={tokens.textSecondary} wrap={question.fullDetails ? 'wrap' : 'truncate-end'}>will run · {question.willRun}</Text> : null}
+      {shownDetails.map((detail, index) => <Text key={index} color={tokens.textSecondary} wrap="truncate-end">{detail}</Text>)}
       {!compact ? <Text color={tokens.textMuted}>{question.rows ? question.rows.some(row => row.value === question.initial) ? words.suggested : words.choose : words.input}</Text> : null}
       {question.rows ? <>
         {!compact && window.offset > 0 ? <Text color={tokens.textMuted}>↑ {window.offset} more</Text> : null}

@@ -11,7 +11,7 @@ const livePods = sample('pods-list')
 export async function runpodFixture() {
   const key = 'fixture-runpod-key-not-a-real-key'
   const requests = []
-  const state = { volumes: new Map(), volumeCreates: 0, volumeDeletes: 0, failVolumeDelete: false, volumeOutcomes: [], volumeBodies: [], volumePageSize: 100, repeatVolumeCursor: false, failVolumeRead: false, pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, catalogTimes: [], catalogFailures: [], creates: 0, createOutcomes: [], stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, failDelete: false, customGpus: null, policy: '"minute";q=60;w=60, "hour";q=3000;w=3600, "day";q=50000;w=86400' }
+  const state = { volumes: new Map(), volumeCreates: 0, volumeDeletes: 0, failVolumeDelete: false, volumeOutcomes: [], volumeBodies: [], volumePageSize: 100, repeatVolumeCursor: false, failVolumeRead: false, clusters: new Map(), clusterNodes: new Map(), clusterGpus: [], clusterCreateBodies: [], clusterCreateOutcomes: [], clusterCreates: 0, clusterDeletes: 0, clusterCatalogReads: 0, clusterReads: 0, holdClusterDelete: false, clusterCuda: '13.0', pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, catalogTimes: [], catalogFailures: [], creates: 0, createOutcomes: [], stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, failDelete: false, customGpus: null, policy: '"minute";q=60;w=60, "hour";q=3000;w=3600, "day";q=50000;w=86400' }
   const gpus = liveCatalogue.gpus
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
@@ -23,6 +23,14 @@ export async function runpodFixture() {
     if (req.headers.authorization !== 'Bearer ' + key) return send({ error: 'fixture key needed' }, 401)
     if (url.pathname === '/v2/catalog/gpus') {
       assert.equal(url.searchParams.get('include'), 'AVAILABILITY')
+      if (url.searchParams.get('product') === 'CLUSTER') {
+        state.clusterCatalogReads++
+        if (state.failClusterCatalogue) return problem(400, 'Bad Request', 'fixture: cluster catalogue refused this count')
+        assert.equal(url.searchParams.get('cloud'), 'SECURE')
+        assert.equal(url.searchParams.get('minCudaVersion'), '13.0')
+        assert.ok(Number(url.searchParams.get('count')) >= 2)
+        return send({ gpus: state.noStock ? state.clusterGpus.map(gpu => ({ ...gpu, availability: 'NONE', dataCenters: [] })) : state.clusterGpus })
+      }
       assert.equal(url.searchParams.get('product'), 'POD')
       assert.equal(url.searchParams.get('cloud'), 'SECURE')
       assert.equal(url.searchParams.get('minCudaVersion'), '13.0')
@@ -71,6 +79,40 @@ export async function runpodFixture() {
         state.volumeDeletes++; state.volumes.delete(id); return send(undefined, 204)
       }
     }
+    if (url.pathname === '/v2/clusters' && req.method === 'GET') return send({ clusters: [...state.clusters.values()], pagination: { hasNextPage: false, nextCursor: null } })
+    if (url.pathname === '/v2/clusters' && req.method === 'POST') {
+      const outcome = state.clusterCreateOutcomes.shift()
+      if (outcome === 'refuse') return problem(400, 'Bad Request', 'fixture: cluster shape unavailable')
+      if (outcome === 'refuse429') return problem(429, 'Too Many Requests', 'fixture: cluster rate limit', { 'Retry-After': '1' })
+      state.clusterCreates++; state.clusterCreateBodies.push(body)
+      assert.equal(body.type, 'APPLICATION')
+      assert.ok(body.compute.podCount >= 2)
+      assert.ok(body.compute.gpuCountPerPod >= 1 && body.compute.gpuCountPerPod <= 8)
+      assert.deepEqual(body.ports, ['22/tcp'])
+      assert.ok(body.env.PUBLIC_KEY.startsWith('ssh-ed25519 '))
+      assert.ok(body.mounts.persistent.size > 0)
+      assert.equal(body.gpu, undefined)
+      assert.equal(body.cloud, undefined)
+      const launch = JSON.parse(body.args)
+      assert.deepEqual(launch.entrypoint, ['bash', '-lc'])
+      assert.equal(launch.cmd.length, 1)
+      assert.equal(spawnSync('bash', ['-n', '-c', launch.cmd[0]]).status, 0)
+      const id = 'fixture-cluster-' + state.clusterCreates
+      const nodes = Array.from({ length: body.compute.podCount }, (_, rank) => ({ ...structuredClone(livePod), id: id + '-node-' + rank, name: body.name + '-' + rank, status: 'RUNNING', cudaVersion: state.clusterCuda, cost: Math.round((state.clusterGpus.find(gpu => gpu.id === body.compute.gpuTypeId)?.price.secure ?? 7.99) * body.compute.gpuCountPerPod * (state.clusterRatePremium ?? 1) * 10000) / 10000, cluster: { id, rank, ip: '10.65.0.' + (rank + 2) }, createdAt: new Date().toISOString(), ssh: { direct: { host: '127.0.0.1', port: 22000 + rank, username: 'root' } } }))
+      const cluster = { id, name: body.name, type: body.type, compute: body.compute, pods: { total: nodes.length, byStatus: { RUNNING: nodes.length } }, primary: { podId: nodes[0].id, status: 'RUNNING' }, createdAt: new Date().toISOString() }
+      state.clusters.set(id, cluster); state.clusterNodes.set(id, nodes)
+      if (outcome === 'lost') return req.socket.destroy()
+      if (outcome === 'http503' || outcome === 'http402') return problem(outcome === 'http503' ? 503 : 402, 'Gateway response', 'fixture: cluster create may have reached the account')
+      return send(cluster, 201)
+    }
+    const clusterMatch = /^\/v2\/clusters\/([^/]+)(\/pods)?$/.exec(url.pathname)
+    if (clusterMatch) {
+      const cluster = state.clusters.get(clusterMatch[1])
+      if (!cluster) return problem(404, 'Not Found', 'fixture: no such cluster')
+      if (req.method === 'DELETE') { state.clusterDeletes++; if (!state.holdClusterDelete) { state.clusters.delete(cluster.id); state.clusterNodes.delete(cluster.id) } return send(undefined, 204) }
+      state.clusterReads++
+      return send(clusterMatch[2] ? { pods: state.clusterNodes.get(cluster.id) } : cluster)
+    }
     if (url.pathname === '/v2/account/ssh-keys') { if (req.method === 'PUT') state.keys = body.keys; return send({ keys: state.keys }) }
     if (url.pathname === '/v2/pods' && req.method === 'GET') return send({ ...livePods, pods: [...state.pods.values()], pagination: { hasNextPage: false, nextCursor: null } })
     if (url.pathname === '/v2/pods' && req.method === 'POST') {
@@ -90,7 +132,14 @@ export async function runpodFixture() {
         assert.ok(volume)
         if (volume.kind === 'network') assert.deepEqual(body.dataCenterIds, [volume.dataCenter])
       }
-      const syntax = spawnSync('bash', ['-n', '-c', body.args], { encoding: 'utf8' })
+      let bootstrap = body.args
+      if (body.image.startsWith('vllm/')) {
+        const launch = JSON.parse(body.args)
+        assert.deepEqual(launch.entrypoint, ['bash', '-lc'])
+        assert.equal(launch.cmd.length, 1)
+        bootstrap = launch.cmd[0]
+      } else assert.ok(body.args.startsWith('bash -lc '))
+      const syntax = spawnSync('bash', ['-n', '-c', bootstrap], { encoding: 'utf8' })
       assert.equal(syntax.status, 0, syntax.stderr)
       const gpuEntry = (state.customGpus ?? gpus).find(gpu => gpu.id === body.gpu.id) ?? gpus.find(gpu => gpu.id === body.gpu.id)
       const pod = { ...structuredClone(livePod), id: 'fixture-pod-' + state.creates, name: body.name, mounts: body.mounts, status: 'PROVISIONING', cost: gpuEntry.price.secure * body.gpu.count, createdAt: new Date(Date.now() - 60000).toISOString(), startedAt: new Date(Date.now() - 60000).toISOString(), ssh: { direct: null, proxy: null } }
@@ -100,8 +149,9 @@ export async function runpodFixture() {
       return send(pod, 201)
     }
     const match = /^\/v2\/pods\/([^/]+)(\/action|\/logs)?$/.exec(url.pathname)
-    const pod = match && state.pods.get(match[1])
+    const pod = match && (state.pods.get(match[1]) ?? [...state.clusterNodes.values()].flat().find(node => node.id === match[1]))
     if (!pod) return send({ error: 'not found' }, 404)
+    if (pod.cluster && req.method !== 'GET') return problem(400, 'Bad Request', 'Member pods are managed through the cluster API')
     if (match[2] === '/logs') { res.writeHead(200, { 'Content-Type': 'text/event-stream' }); return res.end('data: {"source":"container","line":"fixture image pull pending"}\n\n') }
     if (req.method === 'DELETE') { if (state.failDelete) return problem(503, 'Service Unavailable', 'fixture terminate could not be verified'); state.deletes++; state.pods.delete(pod.id); return send(undefined, 204) }
     if (match[2] === '/action') { if (state.failStop) return send({ error: 'stop refused' }, 409); assert.equal(body.action, 'stop'); state.stops++; pod.status = 'EXITED'; pod.cost = 0; return send(pod) }
@@ -117,7 +167,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner) {
   assert.equal(new URL(modelBaseUrl).hostname, '127.0.0.1')
   const commands = []
   const children = new Set()
-  const state = { weights: new Map(), weightFetches: 0, sampledChecks: 0, fullChecks: 0, corruptWeights: false, stallDownload: 0, checkTransport: false, refuse: false, failEngine: false, holdHealth: false, docker: true, log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
+  const state = { weights: new Map(), weightFetches: 0, sampledChecks: 0, fullChecks: 0, corruptWeights: false, stallDownload: 0, checkTransport: false, refuse: false, failEngine: false, holdHealth: false, docker: true, goneEngines: new Set(), log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
   const runner = {
     async run(command, args, signal, timeout) {
       commands.push({ command, args })
@@ -155,6 +205,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner) {
       if (state.failEngine && remote.includes('launch.log')) throw new Error('launch.log: fixture outer launch permission denied')
       if (remote.includes('tail -n 8')) output = state.log
       if (remote.startsWith('dd if=')) { const offset = Number(/skip=(\d+)/.exec(remote)?.[1] ?? 0); output = state.log.slice(offset, offset + 8192) }
+      if (remote.includes('MERCURY_ENGINE_GONE')) output = state.goneEngines.has(Number(args[args.indexOf('-p') + 1])) ? 'MERCURY_ENGINE_GONE\nfixture worker engine exited: CUDA out of memory' : 'MERCURY_ENGINE_ALIVE'
       return actualRunner.run(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', output], signal)
     },
     tunnel(args) {

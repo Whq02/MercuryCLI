@@ -7,8 +7,9 @@ import { compatKeyEnvName, compatModelEndpoint, compatModelRefusal } from './com
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { compatResponsesTransport } from './compatResponsesTransport.js'
 import { assignLlamacppSlot, invalidateLlamacppTotalSlots, readSelfHostedLiveness, resolveLlamacppTotalSlots } from './compatProbe.js'
-import { buildHostedExtras } from './compatWire.js'
+import { buildHostedExtras, buildMoonshotExtras } from './compatWire.js'
 import { compatModelEfforts } from './compatEffort.js'
+import { isKimiK3WireModel } from './kimiReplay.js'
 import {
   compatChatCallModel,
   compatLaneLiveProofState,
@@ -126,6 +127,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     ...(dialect === 'responses' ? { streamTransport: (options, messages) => compatResponsesTransport(options, messages, `${endpoint.name}:${endpoint.baseUrl}`) } : {}),
     ...(dialect === 'ollama' ? { omitsToolChoice: true } : {}),
     buildExtras: args => {
+      if (dialect !== 'responses' && isKimiK3WireModel(wireId)) return { ...buildCompatSlotExtras(args), reasoning_effort: buildMoonshotExtras({ ...args, wireModel: 'kimi-k3', effortValue: args.effortValue ?? 'max' }).reasoning_effort, ...(dialect === 'sglang' ? { chat_template_kwargs: { clear_thinking: false } } : {}) }
       const slotKey = args.conversationKey ?? args.cacheDomainKey
       const idSlot = dialect === 'llamacpp' && totalSlots !== undefined && slotKey ? assignLlamacppSlot(endpoint, slotKey, totalSlots, args.crewmate === true) : undefined
       return buildHostedExtras({ ...args, dialect, vocabulary: compatModelEfforts(params.options.model), ...(idSlot !== undefined ? { idSlot } : {}) })
