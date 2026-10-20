@@ -281,9 +281,9 @@ try {
   const actionBlock = controlBlock.slice(controlBlock.indexOf('action:'), controlBlock.indexOf('sessionId'))
   const union = [...new Set([...actionBlock.matchAll(/'([a-z-]+)'/g)].map(m => m[1]))].join(' | ')
   check(
-    "the session-control union is EXACTLY the switchboard vocabulary (pause·resume·interrupt·attach·detach·grant/revoke-workflows·answer-permission·stop) + the seat doors (set-model·set-permission-mode·session-facts·set-title·focus·blur·park·park-all·set-effort·contract·set-kit·set-schedule·set-spawn-switch·stop-agent·resume-agent·withdraw-send·background-shell·pause-gate·leave — the .34 exit road: the cockpit asks the daemon-hosted runner for its closing note before the terminal comes back)",
+    "the session-control union is EXACTLY the switchboard vocabulary (pause·resume·interrupt·attach·detach·grant/revoke-workflows·answer-permission·stop) + the seat doors (set-model·set-permission-mode·session-facts·set-title·focus·blur·park·park-all·set-effort·contract·mcp-action·mcp-tools·set-spawn-switch·stop-agent·resume-agent·withdraw-send·background-shell·pause-gate·leave·set-kit·set-schedule — the exit road: the cockpit asks the daemon-hosted runner for its closing note before the terminal comes back)",
     union ===
-      'pause | resume | interrupt | attach | detach | grant-workflows | revoke-workflows | answer-permission | stop | set-model | set-permission-mode | session-facts | set-title | focus | blur | park | park-all | set-effort | contract | set-kit | set-schedule | set-spawn-switch | stop-agent | resume-agent | withdraw-send | background-shell | pause-gate | leave',
+      'pause | resume | interrupt | attach | detach | grant-workflows | revoke-workflows | answer-permission | stop | set-model | set-permission-mode | session-facts | set-title | focus | blur | park | park-all | set-effort | contract | mcp-action | mcp-tools | set-spawn-switch | stop-agent | resume-agent | withdraw-send | background-shell | pause-gate | leave | set-kit | set-schedule',
     union,
   )
   check(

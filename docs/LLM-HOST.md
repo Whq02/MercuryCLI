@@ -17,8 +17,8 @@ You do not need to edit provider settings by hand.
    GLM-5.3-Flash choices come first, ordered by price; smaller models are
    farther down the list. A community recipe is labelled as such.
 3. **Review the cost.** An optional budget shows approximately how many GPU
-   hours it buys. It is an estimate, not a spending limit or an account
-   balance reading. Storage is extra, and loading time is billed too.
+   hours it buys. This estimate does not set a spending limit or read the
+   account balance. Storage is extra, and loading time is billed too.
 4. **Confirm the hourly price.** Nothing is rented until you select the
    separate confirmation row and press Enter. If stock or price changes,
    choose and confirm again.
@@ -26,13 +26,13 @@ You do not need to edit provider settings by hand.
    its public key, creates the pod, downloads weights and starts the engine.
    It then opens an SSH tunnel and checks the model API. Downloading,
    building and loading can take 20–90 minutes or longer; the meter starts
-   when the pod starts, not when the model is ready.
+   when the pod starts and continues while the model loads.
 6. **Pick the served model and name the provider.** Confirm the reply check,
    then choose `compat/llmhost/<model>` in `/model`.
 
 The **llama.cpp (GGUF)** Flash choice uses the published UD-Q4_K_XL weights
 and builds the documented llama.cpp version. Its single-B300 fit is based
-on the published memory requirement, not a measured GPU throughput result.
+on the published memory requirement. GPU throughput has not been measured.
 The SGLang four-B200 community choice states its 524,288-token context.
 The actual served window is read from the running server before registration.
 
@@ -59,7 +59,7 @@ that you can inspect it or end the rental.
 
 Enter a host and user, or an alias from your SSH configuration. A blank user,
 port or key path uses the SSH configuration or agent. Mercury reads
-`nvidia-smi` and offers recipes for the GPUs it finds.
+`nvidia-smi` and lists recipes for the GPUs it finds.
 
 Confirm before installing or starting anything. The SSH user needs a
 writable `/workspace` and enough free storage for the selected recipe.
@@ -72,8 +72,8 @@ Leave the bank field blank to download from Hugging Face, or name a complete
 local folder for the selected model. A local copy uses `rsync` over SSH;
 missing shards are refused. The engine stays on the box's loopback interface,
 and Mercury owns the local SSH tunnel. The final row names the remote tmux
-session. Closing Mercury closes the tunnel, not that remote session or any
-hardware rental arranged outside Mercury.
+session. Closing Mercury closes the tunnel. The remote session and any
+hardware rental arranged outside Mercury keep running.
 
 ## A server that’s already running
 

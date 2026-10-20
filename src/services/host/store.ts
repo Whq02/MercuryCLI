@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { publishAtomicSync } from '../../substrate/fileStore.js'
 import type { SshTarget } from './ssh.js'
 import type { HostRecipe } from './recipes.js'
 
@@ -34,7 +34,7 @@ function recordPath(id: string): string {
   mkdirSync(dir, { recursive: true, mode: 0o700 })
   return join(dir, id + '.json')
 }
-export function writeHostRecord(record: HostRecord): void { durableAtomicPublishSync(recordPath(record.id), JSON.stringify(record) + '\n', { mode: 0o600 }) }
+export function writeHostRecord(record: HostRecord): void { publishAtomicSync(recordPath(record.id), JSON.stringify(record) + '\n', { mode: 0o600 }) }
 export function removeHostRecord(id: string): void { try { unlinkSync(recordPath(id)) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error } }
 export function hostRecords(): HostRecord[] {
   const dir = join(hostDirectory(), 'pods')

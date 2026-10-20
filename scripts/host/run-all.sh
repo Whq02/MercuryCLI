@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: drives
+# gate-class: pty
 # gate-watch: src/services/host/** src/commands/llmhost/** src/services/llmHost/** src/components/LlmHostDialog.tsx
 # gate-watch: src/services/providers/providerSecrets.ts src/services/providers/openaicompat/** docs/LLM-HOST.md
 # gate-watch: src/daemon/main.ts src/entrypoints/cli.tsx src/cli/run.ts src/services/projectServices/**
@@ -8,6 +8,7 @@
 # gate-watch: src/ink.ts src/state/AppState.tsx src/components/design-system/ThemeProvider.tsx src/components/SettingsPopupSlot.tsx src/utils/cockpit/settingsPopup.ts
 # gate-watch: assets/host/recipes.json src/substrate/flagRegistry.ts src/services/privateChannel/channelCore.ts package.json
 set -euo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 bun "$ROOT/scripts/host/prove-host-launch.ts"
 bun "$ROOT/scripts/host/prove-recipes-live.ts"

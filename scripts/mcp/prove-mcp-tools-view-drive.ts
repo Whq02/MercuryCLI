@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { McpServer, WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/server'
 import { z } from 'zod/v4'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { waitForRow } from '../switchboard/lib/waitForRow.ts'
 import { startCrossfamilyFixture } from '../lib/crossfamilyConcourseFixture.ts'
 import { runArtifactArena, grabScreens } from '../streaming/artifactArena.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
@@ -36,12 +37,10 @@ function check(label: string, ok: unknown, detail = ''): void {
 }
 
 async function until(pred: () => boolean | Promise<boolean>, ms = S(25_000)): Promise<boolean> {
-  const end = Date.now() + ms
-  while (Date.now() < end) {
-    try { if (await pred()) return true } catch {}
-    await new Promise(resolve => setTimeout(resolve, 100))
-  }
-  return false
+  const observed = await waitForRow(async () => {
+    try { return await pred() ? true : undefined } catch { return undefined }
+  }, ms)
+  return observed.row === true
 }
 
 const rpc = (request: Record<string, unknown>) => daemonControlRpc(request as never, { timeoutMs: 15_000 }) as Promise<Record<string, any>>

@@ -57,13 +57,13 @@ try {
   m = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 44 }, React.createElement(SettingsPopupSlot)))), 120, 44)
   const screen = async (text: string) => assert.ok(await waitFor(() => m!.screen().includes(text), 15000), text + '\n' + m!.screen() + '\n' + daemonLog)
   const choose = async (text: string) => {
-    for (let n = 0; n < 30; n++) {
-      const before = m!.lines().find(line => line.includes('› ')) ?? ''
-      if (before.includes(text)) { m!.push(KEY.enter); return }
+    assert.ok(await waitFor(() => {
+      const selected = m!.lines().find(line => line.includes('› ')) ?? ''
+      if (selected.includes(text)) return true
       m!.push(KEY.down)
-      assert.ok(await waitFor(() => (m!.lines().find(line => line.includes('› ')) ?? '') !== before, 3000), 'selection moves to ' + text + '\n' + m!.screen())
-    }
-    throw new Error('Choice not found: ' + text)
+      return false
+    }, 3000), 'selection reaches ' + text + '\n' + m!.screen())
+    m!.push(KEY.enter)
   }
   const capture = async (name: string) => {
     if (!frames) return

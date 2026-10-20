@@ -5,6 +5,7 @@ import { runLlmHost, type LlmHostRoad, type LlmHostResult } from '../llmHost/ind
 import { readStoredRunpodApiKey, writeStoredRunpodApiKey } from '../providers/providerSecrets.js'
 import { formatHostOfferLabel, hostRecipeVerificationWord, type HostRecipe } from './recipes.js'
 import { currentHostRecipes } from './recipesFile.js'
+import { compatModelEndpoint } from '../providers/openaicompat/compatAccounts.js'
 import { RunpodClient, cents, createRefusal, type HostOffer, type HostPod } from './runpod.js'
 import { closeHostTunnel, ensureHostKey, fitsSsh, hostRunner, inspectSsh, localKeyPath, openHostTunnel, sshAliases, sshArguments, startHostEngine, waitHostEngine, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRecords, readHostRecord, removeHostRecord, writeHostRecord, type HostRecord } from './store.js'
@@ -278,7 +279,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       const localPort = await openHostTunnel(pod?.id ?? target.host, target, runner, signal)
       if (record) { record.localPort = localPort; record.status = 'RUNNING'; writeHostRecord(record) }
       saved = await runLlmHost(plan => plan.step === 'servers' ? Promise.resolve('__add__') : plan.step === 'address' ? Promise.resolve('http://127.0.0.1:' + localPort + '/v1') : plan.step === 'dialect' ? Promise.resolve(recipe.engine ?? 'sglang') : plan.step === 'key' && plan.found === words.keyOptional ? Promise.resolve('') : question(plan), emit, signal)
-      if (record && saved.registered && saved.model) { record.provider = saved.model.split('/')[1]; writeHostRecord(record) }
+      if (record && saved.registered && saved.model) { record.provider = compatModelEndpoint(saved.model)?.endpoint.name; writeHostRecord(record) }
       emit({ title: words.done, words: saved.words })
       if (pod) return finish()
       return { ...saved, words: saved.words + ' · SSH engine keeps running; /workspace/mercury-host/' + recipe.id + '/engine.log on ' + target.host }

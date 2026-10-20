@@ -216,8 +216,8 @@ the session and resumes it on that build. The resumed chat, its next turn and
 its receipts get one line naming the build and every watch and background shell
 the restart ended. `/restart` refuses while a turn is running and when the
 session already runs the installed build. A runner found dead with its daemon
-after the installed build changed is recorded as ended around an update, not as
-a crash, because the cause is not known.
+after the installed build changed is recorded as ended around an update.
+Its cause remains unknown.
 
 The activation law:
 

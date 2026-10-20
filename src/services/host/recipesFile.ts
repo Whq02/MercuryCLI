@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { z } from 'zod/v4'
 import shippedRecipesFile from '../../../assets/host/recipes.json' with { type: 'json' }
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isEssentialTrafficOnly, isProofShapeRun } from '../../utils/privacyLevel.js'
@@ -228,7 +228,7 @@ async function fetchHostRecipes(url: string, cachePath: string, previous: unknow
     if (options.signal?.aborted) return
     logForDebugging('Host recipes fetch (' + url + ') failed: ' + String(error))
   }
-  durableAtomicPublishSync(cachePath, JSON.stringify({ checkedAt: now, url, ...(document === undefined ? {} : { document }) }) + '\n', { mode: 0o600 })
+  publishAtomicSync(cachePath, JSON.stringify({ checkedAt: now, url, ...(document === undefined ? {} : { document }) }) + '\n', { mode: 0o600 })
 }
 
 export async function refreshHostRecipes(options: HostRecipesOptions = {}): Promise<void> {

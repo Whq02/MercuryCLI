@@ -342,6 +342,7 @@
     "getMcpConfigsByScope",
     "getMcpServerSignature",
     "getMercuryMcpConfigs",
+    "getProjectMcpConfigs",
     "getProjectMcpConfigsFromCwd",
     "isMcpServerDisabled",
     "mcpServerSkippedForTrustLine",

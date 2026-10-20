@@ -2239,7 +2239,7 @@ async function runLaunch(args: {
 
   const { runHeadless } = await import('./cli/run.js')
   const { seedDynamicMcpConfig } = await import('./services/mcp/dynamicMcpSeed.js')
-  seedDynamicMcpConfig(Object.fromEntries(Object.entries(await args.mcpConfigPromise).filter(([, config]) => config.scope === 'dynamic')), Boolean(opts.onlyMcp) || isBareMode())
+  seedDynamicMcpConfig(Object.fromEntries(Object.entries(await args.mcpConfigPromise).filter(([, config]) => config.scope === 'dynamic' && config.extensionSource === undefined)), Boolean(opts.onlyMcp) || isBareMode())
   try {
     await runHeadless(
       args.prompt ?? '',

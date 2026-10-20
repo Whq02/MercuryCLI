@@ -5,6 +5,11 @@ import { createServer } from 'node:http'
 import { spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
 
+const needleAt = (source, needle) => {
+  const at = source.indexOf(needle)
+  assert.notEqual(at, -1, 'missing command needle: ' + needle)
+  return at
+}
 const home = process.env.MERCURY_CONFIG_DIR
 if (!home) throw new Error('A scratch config home is required')
 const config = JSON.parse(readFileSync(join(home, 'ssh-fixture.json'), 'utf8'))
@@ -29,8 +34,8 @@ if (args.includes('-N')) {
   const syntax = spawnSync('bash', ['-n', '-c', remote], { encoding: 'utf8' })
   assert.equal(syntax.status, 0, syntax.stderr)
   if (remote.includes('nohup setsid')) {
-    assert.ok(remote.indexOf('mkdir -p') < remote.indexOf('exec 2>>'))
-    assert.ok(remote.indexOf('exec 2>>') < remote.indexOf('nohup setsid'))
+    assert.ok(needleAt(remote, 'mkdir -p') < needleAt(remote, 'exec 2>>'))
+    assert.ok(needleAt(remote, 'exec 2>>') < needleAt(remote, 'nohup setsid'))
     assert.ok(remote.includes('sleep 5') && remote.includes('pgrep -f'))
     assert.ok(!remote.includes('bash -lc'))
     if (config.failLaunch) { console.error('launch.log: fixture outer launch permission denied'); process.exit(1) }
