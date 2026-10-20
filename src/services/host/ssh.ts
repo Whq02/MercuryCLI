@@ -102,12 +102,14 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
     await runner.run('rsync', ['-a', '-e', transport, '--', local + '/', remote], signal, 12 * 3600_000)
   }
   for (const [file, content] of Object.entries(recipe.files ?? {})) await runner.run('ssh', [...args, 'printf %s ' + quote(content) + ' > ' + quote(dir + '/' + file)], signal)
+  const probe = 'if command -v llama-server >/dev/null 2>&1; then echo MERCURY_PREBUILT_ENGINE; fi'
+  const prebuilt = recipe.engine === 'llamacpp' && (await runner.run('ssh', [...args, docker && !pod ? 'docker run --rm --entrypoint bash ' + quote(recipe.image) + ' -c ' + quote(probe) : probe], signal, 300_000)).split(/\r?\n/).includes('MERCURY_PREBUILT_ENGINE')
   const engine = (recipe.engine === 'llamacpp'
-    ? ['/workspace/mercury-host/llama.cpp/build/bin/llama-server', '--model', dir + '/weights/' + recipe.weightFile, '--alias', recipe.model + ':' + recipe.weightFile!.split('/')[0], ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']
+    ? [prebuilt ? 'llama-server' : '/workspace/mercury-host/llama.cpp/build/bin/llama-server', '--model', dir + '/weights/' + recipe.weightFile, '--alias', recipe.model + ':' + recipe.weightFile!.split('/')[0], ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']
     : ['sglang', 'serve', '--model-path', bank ? dir + '/weights' : recipe.model, ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']).map(quote).join(' ')
-  const download = bank ? 'true' : recipe.engine === 'llamacpp' ? '/workspace/mercury-host/hf/bin/hf download ' + quote(recipe.model) + ' --include ' + quote(recipe.include!) + ' --local-dir ' + quote(dir + '/weights') : 'hf download ' + quote(recipe.model)
-  const install = recipe.install?.replace(' && cmake ', " && echo 'MERCURY_STEP building llama.cpp' && cmake ")
-  let script = 'set -e\nexport PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc\nexport HF_HOME=/workspace/huggingface\n' + Object.entries(recipe.environment ?? {}).map(([name, value]) => 'export ' + name + '=' + quote(value) + '\n').join('') + "echo 'MERCURY_STEP installing'\n" + (install ? '( ' + install + ' )\n' : '') + "echo 'MERCURY_STEP downloading weights'\n" + download + '\n' + "echo 'MERCURY_STEP starting engine'\n" + engine + '\nwait\n'
+  const download = bank ? 'true' : recipe.engine === 'llamacpp' ? (prebuilt ? 'hf download ' : '/workspace/mercury-host/hf/bin/hf download ') + quote(recipe.model) + ' --include ' + quote(recipe.include!) + ' --local-dir ' + quote(dir + '/weights') : 'hf download ' + quote(recipe.model)
+  const install = prebuilt ? undefined : recipe.install?.replace(' && cmake ', " && echo 'MERCURY_STEP building llama.cpp' && cmake ")
+  let script = 'set -e\nexport PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc\nexport HF_HOME=/workspace/huggingface\n' + Object.entries(recipe.environment ?? {}).map(([name, value]) => 'export ' + name + '=' + quote(value) + '\n').join('') + (prebuilt ? "echo 'MERCURY_STEP using prebuilt engine'\n" : "echo 'MERCURY_STEP installing'\n") + (install ? '( ' + install + ' )\n' : '') + "echo 'MERCURY_STEP downloading weights'\n" + download + '\n' + "echo 'MERCURY_STEP starting engine'\n" + engine + '\nwait\n'
   if (docker && !pod) script = 'docker run --rm --gpus all --ipc=host --network=host -v /workspace:/workspace -e HF_HOME=/workspace/huggingface --entrypoint bash ' + quote(recipe.image) + ' -c ' + quote(script) + '\nwait\n'
   else if (!pod) script = 'set -e\n' + recipe.pythonInstall + '\nexport PATH=/workspace/mercury-host/venv/bin:$PATH\n' + script
   const scriptPath = quote(dir + '/engine.sh')

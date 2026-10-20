@@ -191,7 +191,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     }
     if (!target) throw new Error(last)
     patchHostRecord(id, { target, status: 'RUNNING' })
-    mark('installing')
+    mark(recipe.engine === 'llamacpp' ? 'checking engine' : 'installing')
     await startHostEngine(target, recipe, runner, signal, false, true)
     await waitHostEngine(target, recipe, runner, signal, pause, timeout)
     mark('starting engine')
