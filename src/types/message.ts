@@ -128,6 +128,7 @@ export type AssistantMessage = {
     projection: string
     refused?: Array<{ id: string; reason: string }>
   }
+  kimiProviderTurn?: { model: string; endpoint: string; projection: string; assistant: unknown }
   xaiProviderTurn?: { model: string; items: unknown[]; responseId?: string }
   zenProviderTurn?: { model: string; items: unknown[]; responseId?: string }
   compatProviderTurn?: { endpoint: string; model: string; items: unknown[]; responseId?: string }

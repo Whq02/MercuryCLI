@@ -5,7 +5,9 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { readStoredRunpodApiKey } from '../providers/providerSecrets.js'
 import { runLlmHost } from '../llmHost/index.js'
 import { LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
-import { RunpodClient, RunpodHttpError, createRefusal, type HostOffer, type HostPod } from './runpod.js'
+import { RunpodClient, RunpodHttpError, type HostOffer, type HostPod } from './runpod.js'
+import { createHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostShape, startHostCluster } from './cluster.js'
+import { hostSetupTimeout } from './costs.js'
 import { hostRecipeOfRecord } from './recipesFile.js'
 import { hostNotice } from './notices.js'
 import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord } from './store.js'
@@ -20,7 +22,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const signal = options.signal ? AbortSignal.any([controller.signal, options.signal]) : controller.signal
   const runner = options.runner ?? hostRunner
   const pause = options.pauseMs ?? 5000
-  const timeout = options.timeoutMs ?? 90 * 60_000
+  const timeout = options.timeoutMs ?? hostSetupTimeout(hostRecipeOfRecord(initial))
   const key = readStoredRunpodApiKey()
   const clean = (text: string): string => key ? text.split(key).join('[redacted]') : text
   const mark = (step: string): void => {
@@ -108,14 +110,14 @@ export async function runHostJob(id: string, generation: string, options: { runn
         if (afterPoll.rateLimit !== rateLimit) patchHostRecord(id, { rateLimit })
         if (!offer) { await rest(pollMs); continue }
         const podName = 'mercury-' + randomUUID().slice(0, 12)
-        const shapeWords = offer.recipe.count + '× ' + offer.recipe.gpu + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '')
+        const shapeWords = hostShape(offer.recipe) + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '')
         const marked = patchHostRecord(id, { creating: podName, step: 'creating ' + podName + ' · ' + shapeWords })
         if (!marked || marked.generation !== generation || marked.jobState === 'stopped') return
         let pod: HostPod
         try {
-          pod = await api.create(offer, sshKey.publicKey, podName)
+          pod = await createHostResource(api, offer, sshKey.publicKey, podName)
         } catch (error) {
-          const refusal = createRefusal(error)
+          const refusal = hostCreateRefusal(offer.recipe, error)
           if (!refusal) {
             const words = podName + ' may exist: Runpod gave no clear answer to the create · /llmhost → Pods I’m paying for · the watch stopped so it cannot rent twice · ' + clean(String(error))
             log(words)
@@ -126,7 +128,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           patchHostRecord(id, { creating: undefined })
           if (refusal.status !== 400 && refusal.status !== 429) throw error
           refused = 'Runpod could not place ' + shapeWords + (refusal.detail ? ' · ' + refusal.detail : '')
-          const step = 'Runpod could not place ' + shapeWords + ' · no pod was created · still watching' + (refusal.detail ? ' · ' + refusal.detail : '')
+          const step = 'Runpod could not place ' + shapeWords + ' · no ' + hostResourceKind(offer.recipe) + ' was created · still watching' + (refusal.detail ? ' · ' + refusal.detail : '')
           log(step)
           patchHostRecord(id, { step })
           await rest(Math.max(pollMs, (refusal.retryAfterSeconds ?? 0) * 1000))
@@ -136,6 +138,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         const rentedWords = 'Rented ' + model + ' · ' + shapeWords + ' · setting up'
         log(rentedWords)
         const setupRecord = queueHostSetup({
+          ...hostClusterRecord(pod),
           id: pod.id,
           name: pod.name,
           recipe: offer.recipe.id,
@@ -177,6 +180,9 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (!key) throw new Error('The saved Runpod key is unavailable.')
     if (!recipe) throw new Error('The saved host recipe is unavailable.')
     const api = new RunpodClient(key, initial.apiBaseUrl)
+    if (initial.cluster) {
+      target = await startHostCluster(api, initial, recipe, runner, signal, pause, timeout, mark)
+    } else {
     const deadline = Date.now() + timeout
     let last = 'SSH address not yet assigned'
     while (!signal.aborted && Date.now() < deadline) {
@@ -194,6 +200,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
     mark('installing')
     await startHostEngine(target, recipe, runner, signal, false, true)
     await waitHostEngine(target, recipe, runner, signal, pause, timeout)
+    }
+    patchHostRecord(id, { target, status: 'RUNNING' })
     mark('starting engine')
     const port = await openHostTunnel(id, target, runner, signal)
     patchHostRecord(id, { localPort: port })

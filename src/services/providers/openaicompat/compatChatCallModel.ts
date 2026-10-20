@@ -53,6 +53,7 @@ import {
 import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
 import { effortStampOf, type EffortStampV1, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { compatEffortWireFact, thinkingOffWireEffort } from './compatWire.js'
+import { isKimiK3WireModel, kimiReplayProjection, replayKimiHistory } from './kimiReplay.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
@@ -617,6 +618,7 @@ export async function* compatChatCallModel(
       request.extra = makeRequestExtra()
     }
     attemptStartedAtMs = Date.now()
+    if (!toolsInPrompt) request.messages = replayKimiHistory(mappedMessages, preparedMessages, wireModel, credential.requestUrl ?? profile.requestUrl())
     const signInRequest = captureSignInRequest(profile.lane, credential.apiKey)
     const outcome = yield* streamOneCompatAttempt({
       profile,
@@ -879,6 +881,9 @@ async function* streamOneCompatAttempt(ctx: {
   const paintSlots: Array<{ toolIndex: number; id: string; at: number }> = []
   const pendingToolFragments = new Map<number, string>()
   const minted: AssistantMessage[] = []
+  const preserveKimi = isKimiK3WireModel(request.model)
+  let kimiReasoning: string | undefined
+  let kimiContent = ''
   let released = 0
   let usageSeen: CompatUsage | undefined
   let served: string | undefined
@@ -1020,6 +1025,7 @@ async function* streamOneCompatAttempt(ctx: {
         served = event.model
         break
       case 'reasoning-delta': {
+        if (preserveKimi) kimiReasoning = (kimiReasoning ?? '') + event.text
         contentStarted = true
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
@@ -1041,6 +1047,7 @@ async function* streamOneCompatAttempt(ctx: {
         break
       }
       case 'text-delta': {
+        if (preserveKimi) kimiContent += event.text
         contentStarted = true
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
@@ -1277,6 +1284,13 @@ async function* streamOneCompatAttempt(ctx: {
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
+    if (preserveKimi && !fault && finish && accepted.length === completed.length) {
+      lastMessage.kimiProviderTurn = {
+        model: request.model, endpoint: requestUrl,
+        projection: kimiReplayProjection(minted.flatMap(message => message.message.content)),
+        assistant: { role: 'assistant', content: kimiContent || (accepted.length ? null : ''), ...(kimiReasoning === undefined ? {} : { reasoning_content: kimiReasoning }), ...(accepted.length ? { tool_calls: accepted.map(({ call }) => ({ id: call.id, type: 'function', function: { name: call.name, arguments: call.argumentsRaw } })) } : {}) },
+      }
+    }
     transport?.settle?.(minted)
     yield lastMessage
     void settleTranscriptMessage(lastMessage)
