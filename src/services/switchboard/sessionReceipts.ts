@@ -18,6 +18,16 @@ export interface SessionReceiptEntry {
   readonly details?: Readonly<Record<string, unknown>>
 }
 
+export function inheritBuildNotices(home: string, sessionId: string, previousSessionId: string): void {
+  const inherited = new Set(readSessionReceipts(home, sessionId).filter(row => row.kind === 'build-behind').map(row => row.details?.installedTree))
+  for (const row of readSessionReceipts(home, previousSessionId)) {
+    const tree = row.details?.installedTree
+    if (row.kind !== 'build-behind' || typeof tree !== 'string' || inherited.has(tree)) continue
+    appendSessionReceipt(home, sessionId, { at: row.at, by: 'clear-lineage', kind: 'build-behind', summary: 'Build notice already shown before /clear (' + tree + ')', details: { installedTree: tree, inheritedFrom: previousSessionId } })
+    inherited.add(tree)
+  }
+}
+
 function receiptsPathOf(home: string, sessionId: string): string {
   return join(home, `${sessionId}.receipts.jsonl`)
 }

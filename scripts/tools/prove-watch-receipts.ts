@@ -92,4 +92,47 @@ const messages = (...m: Msg[]): never => m as never
   resetCommandQueue()
 }
 
+{
+  const { createWatchMailbox } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
+  const { wrappedNoticeBlocks } = await import('../../src/utils/messages/noticeRows.ts')
+  const { UserNoticeMessage } = await import('../../src/components/messages/UserNoticeMessage.tsx')
+  const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  enableConfigs()
+  const React = await import('react')
+  let now = 0
+  type Timer = { at: number; call: () => void; live: boolean }
+  const timers: Timer[] = []
+  const delivered: Array<{ at: number; body: string; count?: number; last?: string }> = []
+  const mailbox = createWatchMailbox({
+    now: () => now, wall: () => ({ closed: false }),
+    deliver: (body, summary) => delivered.push({ at: now, body, ...summary }),
+    setTimer: (call, ms) => { const timer = { at: now + ms, call, live: true }; timers.push(timer); return timer },
+    clearTimer: handle => { (handle as Timer).live = false },
+  })
+  const advance = (ms: number) => {
+    const end = now + ms
+    for (;;) {
+      const next = timers.filter(t => t.live && t.at <= end).sort((a, b) => a.at - b.at)[0]
+      if (!next) break
+      now = next.at; next.live = false; next.call()
+    }
+    now = end
+  }
+  for (let i = 1; i <= 600; i++) { mailbox.push('tick' + i + '\n'); advance(1000) }
+  advance(30_000)
+  check('one line per second over ten minutes yields at most 21 deliveries, not 600 wakes', delivered.length > 1 && delivered.length <= 21, String(delivered.length))
+  check('no two deliveries are less than 30 seconds apart', delivered.every((row, i) => i === 0 || row.at - delivered[i - 1]!.at >= 30_000))
+  check('batch counts preserve all 600 lines and the last observed line', delivered.reduce((n, row) => n + (row.count ?? 0), 0) === 600 && delivered.at(-1)?.last === 'tick600', JSON.stringify(delivered.at(-1)))
+  const burst: Array<{ body: string; summary: unknown }> = []
+  const many = createWatchMailbox({ now: () => now, wall: () => ({ closed: false }), deliver: (body, summary) => burst.push({ body, summary }), setTimer: (call, ms) => { const timer = { at: now + ms, call, live: true }; timers.push(timer); return timer }, clearTimer: handle => { (handle as Timer).live = false } })
+  many.push(Array.from({ length: 600 }, (_, i) => 'tick' + (i + 1)).join('\n'))
+  advance(1000)
+  const block = monitorNoticeBlock('ticks', 'Tick watch', burst[0]?.body ?? '', burst[0]?.summary as never)
+  const parsed = wrappedNoticeBlocks(block)
+  const frame = await renderToAnsiString(React.createElement(UserNoticeMessage, { blocks: parsed ?? [], fold: true }), 100)
+  check('a folded 600-line row names the actual count and final line', frame.includes('600 lines') && frame.includes('last: tick600'), frame)
+  mailbox.dispose(); many.dispose()
+}
+
 process.exit(failures)

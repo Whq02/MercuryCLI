@@ -199,6 +199,7 @@ const coordinatorHead = (raw: string): string =>
 type Framing = (raw: string, origin: MessageOrigin) => string
 
 const FRAMINGS: Partial<Record<MessageOrigin['kind'], Framing>> = {
+  'build-behind': raw => `Mercury runtime notice:\n${raw}`,
   'task-notification': raw => `${taskNoticeHead(raw)}\n${raw}`,
   coordinator: raw => `${coordinatorHead(raw)}\n${raw}\n\nAddress this before completing your current task.`,
   channel: (raw, origin) => {

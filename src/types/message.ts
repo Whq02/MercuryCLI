@@ -52,6 +52,7 @@ export type PartialCompactDirection = 'from' | 'up_to'
 export type MessageOrigin =
   | { kind: 'human' }
   | { kind: 'task-notification' }
+  | { kind: 'build-behind' }
   | { kind: 'coordinator' }
   | { kind: 'channel'; server: string }
   | SaturnOrigin

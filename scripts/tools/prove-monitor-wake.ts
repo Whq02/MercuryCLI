@@ -196,7 +196,7 @@ function harness(wall: WatchWall) {
   const clampedText = (MonitorTool.mapToolResultToToolResultBlockParam({ taskId: 'b1', timeoutMs: 3_600_000, persistent: false, clamped: 'timeout_ms clamped to 3600000 ms (the maximum)' } as never, 'toolu_x') as { content: string }).content
   check('the tool result carries the clause beside the deadline it states', clampedText.includes('(task b1, timeout 3600000ms; timeout_ms clamped to 3600000 ms (the maximum))'), clampedText)
   const plainText = (MonitorTool.mapToolResultToToolResultBlockParam({ taskId: 'b1', timeoutMs: 60_000, persistent: false } as never, 'toolu_y') as { content: string }).content
-  check('a deadline inside the bounds renders byte for byte as before', plainText === 'Monitor started (task b1, timeout 60000ms). You will be notified on each event. Keep working — do not poll or sleep. Events may arrive while you are waiting for the user — an event is not their reply.', plainText)
+  check('a deadline inside the bounds carries the batch delivery law without a clamp', plainText === 'Monitor started (task b1, timeout 60000ms). You will receive batched events, at most once every 30 seconds during ongoing output. Keep working — do not poll or sleep. Events may arrive while you are waiting for the user — an event is not their reply.', plainText)
   const words = (MonitorTool.inputSchema as unknown as { shape: Record<string, { description?: string }> }).shape['timeout_ms']?.description ?? ''
   check("the timeout_ms parameter's own words name both bounds and say a value outside them is clamped", words.includes('max 3600000ms') && words.includes('min 1000ms') && /clamped/.test(words), words)
 }

@@ -472,15 +472,71 @@ try {
   await askFactsFor(5000)
   check('the line is told exactly once', behindCount().receipts === 1 && behindCount().transcript === 1, JSON.stringify(behindCount()))
 
+  section('§2b field: source builds refuse, and current runner facts win without a worker record')
+  for (const [name, buildTree, words] of [
+    ['source-only', null, 'this session runs a source build; /restart moves installed builds only'],
+    ['current-only', SHORT_Y, 'already runs the installed build'],
+  ] as const) {
+    const fakeSid = 'field-' + name
+    writeFileSync(join(daemonDir, 'session-facts', fakeSid + '.json'), JSON.stringify({ schema: 1, sessionId: fakeSid, model: { effective: 'fixture' }, usage: {}, queue: [], buildTree }))
+    let touched = false
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await restartSessionOnInstalledBuild({ sessionId: fakeSid, turnActive: false, work: [], tell: () => { touched = true }, resume: async () => { touched = true; return null } })
+      check(name + ': repeated /restart explains the running build and moves nothing', !result.ok && result.reason.includes(words) && !touched, JSON.stringify(result))
+    }
+  }
+
+  section('§2c field: a clear lineage keeps installed-build notices already shown')
+  const clearWork = join(SCRATCH, 'clear-work')
+  mkdirSync(clearWork)
+  seedFirstRun(home, [work, clearWork])
+  const firstClear = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: clearWork, isolation: 'shared', model: 'claude-sonnet-5', permissionMode: 'sovereign', by: 'operator', bornBlank: true } as never, { timeoutMs: 60_000 }) as { ok: boolean; sessionId?: string }
+  let previousSid = firstClear.sessionId ?? ''
+  const clearProject = paths.getProjectDir(clearWork)
+  const clearTranscript = (id: string) => read(join(clearProject, id + '.jsonl'))
+  check('an independent clear lineage was born', firstClear.ok && previousSid !== '', JSON.stringify(firstClear))
+  await dispatch('clear-first-turn', 'a turn before clear', { targetSessionId: previousSid, workspaceDir: clearWork })
+  check('the first lineage session receives its installed-build notice', await untilAsync(async () => { await askFacts(previousSid); return readSessionReceipts(clearProject, previousSid).some(row => row.summary.includes(BEHIND_WORDS)) }, 20_000), clearTranscript(previousSid).slice(-400))
+  const clearIds: string[] = [previousSid]
+  for (let count = 0; count < 2; count++) {
+    const born = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: clearWork, isolation: 'shared', vacatingSessionId: previousSid, model: 'claude-sonnet-5', permissionMode: 'sovereign', by: 'operator', bornBlank: true } as never, { timeoutMs: 60_000 }) as { ok: boolean; sessionId?: string }
+    const cleared = born.sessionId ?? ''
+    check('clear lineage birth ' + count + ' was admitted', born.ok && cleared !== '', JSON.stringify(born))
+    if (!cleared) break
+    clearIds.push(cleared)
+    await dispatch('clear-turn-' + count, 'a turn after clear', { targetSessionId: cleared, workspaceDir: clearWork })
+    check('the cleared runner still runs X', await untilAsync(() => facts(cleared)?.buildTree === SHORT_X && facts(cleared)?.busy === false, 20_000))
+    const until = Date.now() + 5_000
+    while (Date.now() < until) { await askFacts(cleared); await sleep(700) }
+    check('clear ' + count + ' has no repeated installed-build notice', !clearTranscript(cleared).includes(BEHIND_WORDS) && readSessionReceipts(clearProject, cleared).filter(row => row.kind === 'build-behind' && row.by === 'clear-lineage').length === 1, clearTranscript(cleared).slice(-400))
+    await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: previousSid, by: 'operator' } as never, { timeoutMs: 15_000 })
+    previousSid = cleared
+  }
+  for (const cleared of clearIds) await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId: cleared, by: 'operator' } as never, { timeoutMs: 15_000 })
+
+  section('§2d field: the installed-build notice paints its words without expanding')
+  const { recordToEntry } = await import('../../src/fabric/entryCodec.ts')
+  const rows = transcriptOf(sid).split('\n').filter(Boolean).flatMap(line => { try { const raw = JSON.parse(line); return [recordToEntry(raw) ?? raw] } catch { return [] } })
+  const notice = rows.find(row => row.type === 'attachment' && JSON.stringify(row).includes(BEHIND_WORDS))
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  enableConfigs()
+  const React = await import('react')
+  const { UserTextMessage } = await import('../../src/components/messages/UserTextMessage.tsx')
+  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
+  const painted = await renderToAnsiString(React.createElement(AppStateProvider, { initialState: getDefaultAppState() }, React.createElement(UserTextMessage, { addMargin: false, param: { type: 'text', text: notice?.attachment?.prompt ?? '' }, notice: true, origin: notice?.attachment?.origin, verbose: false })), 100)
+  check('notice words and /restart paint without ctrl+o', painted.includes(BEHIND_WORDS) && painted.includes('/restart moves it') && !painted.includes('1 line ›'), painted)
+
   section('§3 /restart names what ends before the stop and lands the session on the installed build through the existing doors')
-  const told: Array<{ line: string; oldRunnerAlive: boolean }> = []
+  const told: Array<{ line: string; oldRunnerAlive: boolean; daemonCount: number }> = []
   const tell = (line: string): void => {
-    told.push({ line, oldRunnerAlive: isProcessAlive(pidBefore) })
+    told.push({ line, oldRunnerAlive: isProcessAlive(pidBefore), daemonCount: daemonPids().length })
   }
   const midTurn = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: true, work: [], tell, resume: resumeAsTheScreenDoes })
   check(
     '/restart refuses while a turn is running and touches nothing',
-    !midTurn.ok && /mid-turn/.test(midTurn.reason) && told.length === 0 && recOf(sid)?.pid === pidBefore && isProcessAlive(pidBefore) && daemonPids().length === 1,
+    !midTurn.ok && /mid-turn/.test(midTurn.reason) && midTurn.reason.includes('wait for the turn to finish') && !midTurn.reason.includes('esc') && told.length === 0 && recOf(sid)?.pid === pidBefore && isProcessAlive(pidBefore) && daemonPids().length === 1,
     JSON.stringify({ midTurn, pid: recOf(sid)?.pid, daemons: daemonPids() }),
   )
   const workRows = facts(sid)?.work ?? []
@@ -488,6 +544,7 @@ try {
   const itemsBeforeRestart = (recordedReqs[recordedReqs.length - 1]?.items.length ?? 0) + 1
   const restarted = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: facts(sid)?.busy === true, work: workRows, tell, resume: resumeAsTheScreenDoes })
   check('/restart reports the move onto the installed build', restarted.ok && restarted.line.includes(`Restarted on the installed build (${SHORT_Y})`), JSON.stringify(restarted))
+  check('the work is named before any successor starts; the old session cannot hold up its own handover', told[0]?.daemonCount === 1, JSON.stringify(told))
   const toldLine = told[0]?.line ?? ''
   check(
     'its words name the watch and the background shell that end, with their commands, before the stop',
@@ -623,6 +680,24 @@ try {
     !endedContext.includes('after a crash') && !endedContext.includes(`Mercury updated to ${SHORT_Z}`),
     endedContext.slice(-600),
   )
+
+  section('§4b field: a successor that cannot serve returns a bounded refusal and resumes the session')
+  const sibling = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: clearWork, isolation: 'shared', model: 'claude-sonnet-5', permissionMode: 'sovereign', by: 'operator', bornBlank: true } as never, { timeoutMs: 60_000 }) as { ok: boolean; sessionId?: string }
+  check('a sibling keeps the existing daemon available during a failed handover', sibling.ok && Boolean(sibling.sessionId), JSON.stringify(sibling))
+  const broken = mkBuild('unavailable', 'abcdabcdabcd'.padEnd(40, '0'), '2026-04-01T00:00:00.000Z')
+  writeFileSync(join(broken, 'mercury.mjs'), 'process.exit(3)\n')
+  pointBoth('unavailable')
+  const began = Date.now()
+  let recovered = false
+  const failedMove = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: false, work: [], tell: () => {}, resume: async (id, reason) => {
+    recovered = reason === undefined
+    const reply = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: work, resumeSessionId: id, isolation: 'shared', by: 'operator' } as never, { timeoutMs: 60_000 }) as { ok: boolean; error?: string }
+    return reply.ok ? null : reply.error ?? 'resume refused'
+  } })
+  check('an unavailable successor returns within the handover bound and says the session resumed', !failedMove.ok && failedMove.reason.includes('within the handover wait') && failedMove.reason.includes('session resumed') && recovered && Date.now() - began < 90_000, JSON.stringify(failedMove))
+  check('the restored session stays on the original available daemon', recOf(sid)?.pid !== undefined && isProcessAlive(recOf(sid)!.pid!) && ps(recOf(sid)!.pid!).ppid === Cpid)
+  pointBoth('Z')
+  if (sibling.sessionId) await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId: sibling.sessionId, by: 'operator' } as never, { timeoutMs: 15_000 })
 
   section('§5 a headless run never says a build is installed')
   const headlessEnv: NodeJS.ProcessEnv = { ...daemonEnv }

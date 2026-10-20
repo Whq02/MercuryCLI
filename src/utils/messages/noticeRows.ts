@@ -24,7 +24,7 @@ export type AdvisorOrigin = {
 }
 
 export type NoticeBlock =
-  | { kind: 'monitor'; taskId: string; name: string; lines: string[] }
+  | { kind: 'monitor'; taskId: string; name: string; lines: string[]; count?: number; last?: string }
   | { kind: 'notice'; lines: string[] }
   | { kind: 'task'; plate: string; status: string; lines: string[] }
   | { kind: 'saturn'; origin: SaturnOrigin; lines: string[] }
@@ -63,6 +63,10 @@ export function isSaturnOrigin(origin: unknown): origin is SaturnOrigin {
   if (typeof origin !== 'object' || origin === null) return false
   const o = origin as Record<string, unknown>
   return o.kind === 'saturn' && (o.fire === 'wake' || o.fire === 'cron') && typeof o.firedAt === 'string'
+}
+
+export function isBuildNoticeOrigin(origin: unknown): boolean {
+  return typeof origin === 'object' && origin !== null && (origin as { kind?: unknown }).kind === 'build-behind'
 }
 
 export function isAdvisorOrigin(origin: unknown): origin is AdvisorOrigin {
@@ -152,7 +156,7 @@ export function advisorBlockOf(origin: AdvisorOrigin, text: string): NoticeBlock
   return { kind: 'advisor', origin, lines: advisorPromptLines(text) }
 }
 
-const MONITOR_OPEN = /^<monitor task=("(?:[^"\\]|\\.)*") name=("(?:[^"\\]|\\.)*")>/
+const MONITOR_OPEN = /^<monitor task=("(?:[^"\\]|\\.)*") name=("(?:[^"\\]|\\.)*")(?: lines=(\d+) last=("(?:[^"\\]|\\.)*"))?>/
 const MONITOR_CLOSE = '</monitor>'
 const REMINDER_OPEN = '<system-reminder>'
 const REMINDER_CLOSE = '</system-reminder>'
@@ -178,7 +182,7 @@ function foldSameWatch(blocks: NoticeBlock[]): NoticeBlock[] {
   for (const block of blocks) {
     const last = out[out.length - 1]
     if (block.kind === 'monitor' && last !== undefined && last.kind === 'monitor' && last.taskId === block.taskId && last.name === block.name) {
-      out[out.length - 1] = { ...last, lines: [...last.lines, ...block.lines] }
+      out[out.length - 1] = { ...last, lines: [...last.lines, ...block.lines], ...((last.count !== undefined || block.count !== undefined) ? { count: (last.count ?? last.lines.length) + (block.count ?? block.lines.length), last: block.last ?? block.lines.at(-1) ?? last.last } : {}) }
       continue
     }
     out.push(block)
@@ -198,7 +202,7 @@ export function wrappedNoticeBlocks(text: string): NoticeBlock[] | null {
     if (monitor !== null) {
       const closeAt = rest.indexOf(MONITOR_CLOSE, monitor[0].length)
       if (closeAt === -1) return null
-      blocks.push({ kind: 'monitor', taskId: unquote(monitor[1]!), name: unquote(monitor[2]!), lines: noticeLines(rest.slice(monitor[0].length, closeAt)) })
+      blocks.push({ kind: 'monitor', taskId: unquote(monitor[1]!), name: unquote(monitor[2]!), lines: noticeLines(rest.slice(monitor[0].length, closeAt)), ...(monitor[3] !== undefined ? { count: Number(monitor[3]), last: stripTerminalControls(unquote(monitor[4]!)).replace(/[\r\n]+/g, ' ') } : {}) })
       rest = rest.slice(closeAt + MONITOR_CLOSE.length).replace(/^\s+/, '')
       continue
     }
@@ -247,6 +251,7 @@ export function hasNoticeFold(row: { type?: string; isMeta?: boolean; origin?: u
   if (row.isMeta === true) return false
   const lane = isNotificationLaneRow(row)
   const origin = row.type === 'attachment' ? row.attachment?.origin : row.origin
+  if (isBuildNoticeOrigin(origin)) return false
   const content = row.type === 'attachment' ? row.attachment?.prompt : row.message?.content
   const texts = typeof content === 'string' ? [content] : Array.isArray(content) ? content.flatMap(block => block?.type === 'text' && typeof block.text === 'string' ? [block.text] : []) : []
   return texts.some(text => {

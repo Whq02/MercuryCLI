@@ -13,7 +13,7 @@ import {
   turnCutOfText,
   turnCutWhy,
 } from '../../utils/messages.js'
-import { advisorBlockOf, isAdvisorOrigin, isMonitorText, isSaturnOrigin, noticeOfText, ROW_SECOND_CLOCK_GAP_MS, saturnBlockOf, wrappedNoticeBlocks } from '../../utils/messages/noticeRows.js'
+import { advisorBlockOf, isAdvisorOrigin, isBuildNoticeOrigin, isMonitorText, isSaturnOrigin, noticeOfText, ROW_SECOND_CLOCK_GAP_MS, saturnBlockOf, wrappedNoticeBlocks } from '../../utils/messages/noticeRows.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { UserAgentNotificationMessage } from './UserAgentNotificationMessage.js'
@@ -79,7 +79,7 @@ export function UserTextMessage({
 
   if (notice && !head.startsWith(`<${TASK_NOTIFICATION_TAG}`)) {
     const blocks = noticeOfText(param.text, true)
-    if (blocks !== null) return <UserNoticeMessage addMargin={addMargin} blocks={blocks} arrivedAt={arrivedAt} expanded={expanded} fold />
+    if (blocks !== null) return <UserNoticeMessage addMargin={addMargin} blocks={blocks} arrivedAt={arrivedAt} expanded={expanded} fold={!isBuildNoticeOrigin(origin)} />
   }
 
   if (head.startsWith(`<${TICK_TAG}`) || head.startsWith(`<${LOCAL_COMMAND_CAVEAT_TAG}>`)) return null

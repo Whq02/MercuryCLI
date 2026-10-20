@@ -34,15 +34,17 @@ export function UserNoticeMessage({
         const plate = noticePlate(block, meta?.timestamp)
         const arrival = index === 0 && !noticeCarriesOwnClock(block) && arrivedAt ? ` · arrived ${arrivedAt}` : ''
         const delivery = index === 0 && !noticeCarriesOwnClock(block) && deliveredAt ? ` · delivered ${deliveredAt}` : ''
-        const suffix = `${fold ? ` · ${block.lines.length} line${block.lines.length === 1 ? '' : 's'}` : ''}${arrival}${delivery}${fold && block.lines.length > 0 ? expanded ? ' ⌄' : ' ›' : ''}`
+        const count = block.kind === 'monitor' ? block.count ?? block.lines.length : block.lines.length
+        const last = block.kind === 'monitor' && block.last !== undefined ? ` · last: ${block.last}` : ''
+        const suffix = `${fold ? ` · ${count} line${count === 1 ? '' : 's'}` : ''}${last}${arrival}${delivery}${fold && block.lines.length > 0 ? expanded ? ' ⌄' : ' ›' : ''}`
         return (
           <Box key={index} flexDirection="column">
             {fold && !expanded ? (
               <Box flexDirection="row">
                 <Box flexShrink={0}><Text>{clock}{dot}</Text></Box>
                 <Box flexShrink={1} minWidth={0}><Text dimColor wrap="truncate-end">{plate}</Text></Box>
-                <Box flexShrink={0}>
-                  <Text dimColor>{suffix}</Text>
+                <Box flexShrink={1} minWidth={0}>
+                  <Text dimColor wrap="truncate-end">{suffix}</Text>
                 </Box>
               </Box>
             ) : <Text>{clock}{dot}<Text dimColor>{plate}{suffix}</Text></Text>}

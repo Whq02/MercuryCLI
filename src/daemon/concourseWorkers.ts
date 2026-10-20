@@ -46,7 +46,7 @@ import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { scanTranscriptLinesBackward } from '../utils/sessionStorage/transcriptReader.js'
 import { splitAppendSystemPrompt } from '../services/switchboard/runnerArgv.js'
 import { backgroundWorkerDelegationSentence } from '../services/switchboard/backgroundLaunch.js'
-import { writeSessionCloseReceipts } from '../services/switchboard/sessionReceipts.js'
+import { inheritBuildNotices, writeSessionCloseReceipts } from '../services/switchboard/sessionReceipts.js'
 import { RetirementFence } from './runnerQuiescence.js'
 import type { RunnerDoor } from './runnerConnection.js'
 import { deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitStampOf, noteRecordlessResumeKit, restampSessionKit, type KitStampSource, type SessionKitV1 } from './sessionKit.js'
@@ -1129,6 +1129,12 @@ export function makeConcourseAdmitHandler(
       }
 
     const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)
+    const carryBuildNotices = (sessionId: string): void => {
+      if (req.vacatingSessionId === undefined || !Object.values(records).some(row => row.sessionId === req.vacatingSessionId && row.workspaceId === workspaceId)) return
+      const home = getProjectDir(workspaceId)
+      mkdirSync(home, { recursive: true })
+      inheritBuildNotices(home, sessionId, req.vacatingSessionId)
+    }
     if (
       deps.claimWarm !== undefined &&
       kind === 'oculus' &&
@@ -1138,6 +1144,7 @@ export function makeConcourseAdmitHandler(
       (req.runnerArgv === undefined || req.runnerArgv.length === 0)
     ) {
       const claimSessionId = randomUUID()
+      carryBuildNotices(claimSessionId)
       const claimEffort = req.effort ?? 'high'
       const claimPosture = seatInitialPermissionMode(req.permissionMode)
       const claimStartedAt = Date.now()
@@ -1318,6 +1325,7 @@ export function makeConcourseAdmitHandler(
       ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv } : {}),
       kind,
     })
+    carryBuildNotices(sessionId)
     const reg = roster.registerLongLived(runnerId, spec)
     if (!reg.ok) return { ok: false, code: 'spawn-failed', error: reg.error ?? 'registerLongLived refused' }
     updateConcourseWorkers(workers => {
