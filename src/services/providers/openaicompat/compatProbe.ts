@@ -4,6 +4,7 @@ import { deepestErrorDetail, isStaleSocketCode } from '../../api/transportEviden
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { CompatEndpointSchema, type CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'
+import type { CompatLivenessReading } from './compatChatClient.js'
 
 export type CompatDialect = NonNullable<CompatEndpointSettings['dialect']>
 export interface CompatServerReading {
@@ -124,12 +125,6 @@ export async function resolveLlamacppTotalSlots(
   return work
 }
 
-export interface SelfHostedLiveness {
-  state: 'working' | 'alive' | 'unknown' | 'dead'
-  answered: boolean
-  words: string
-}
-
 type LivenessAnswer =
   | { kind: 'answer'; status: number; body?: unknown }
   | { kind: 'timeout' }
@@ -144,7 +139,7 @@ export async function readSelfHostedLiveness(
   dialect: string,
   pinnedSlot: number | undefined,
   opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
-): Promise<SelfHostedLiveness> {
+): Promise<CompatLivenessReading> {
   const name = `the ${SELF_HOSTED_NAMES[dialect] ?? 'self-hosted'} server`
   let base: string
   try {
@@ -197,7 +192,7 @@ export async function readSelfHostedLiveness(
     const first = await attempt(url, json)
     return first.kind === 'reset' ? attempt(url, json) : first
   }
-  const unanswered = (answer: Exclude<LivenessAnswer, { kind: 'answer' }>, read: string): SelfHostedLiveness => {
+  const unanswered = (answer: Exclude<LivenessAnswer, { kind: 'answer' }>, read: string): CompatLivenessReading => {
     switch (answer.kind) {
       case 'timeout':
         return { state: 'unknown', answered: false, words: `${server} did not answer ${read} within ${LLAMACPP_SLOT_PROBE_MS / 1000} s` }
