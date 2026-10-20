@@ -3,9 +3,10 @@ import { HOST_RECIPES, recipeFits, type HostRecipe } from './recipes.js'
 
 const podSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name: z.string(), status: z.string(), cost: z.number().nonnegative(), createdAt: z.string(), startedAt: z.string().nullable().optional(), ssh: z.object({ direct: z.object({ host: z.string(), port: z.number().int().min(1).max(65535), username: z.string() }).nullable().optional() }).nullable().optional() })
 export type HostPod = z.infer<typeof podSchema>
-export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; dataCenter: string }
+export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; dataCenter?: string; availability?: string }
 const gpuSchema = z.object({ id: z.string(), name: z.string(), memory: z.number(), secure: z.boolean(), price: z.object({ secure: z.number().nonnegative() }), maxCount: z.object({ secure: z.number() }), availability: z.string().optional(), dataCenters: z.array(z.object({ id: z.string(), availability: z.string() })).optional() })
-const stock = (value?: string): boolean => ['LOW', 'MEDIUM', 'HIGH'].includes(value ?? '')
+const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === 'MEDIUM' ? 2 : value === 'LOW' ? 1 : 0
+const stock = (value?: string): boolean => stockRank(value) > 0
 
 export class RunpodClient {
   constructor(private key: string, private base = 'https://api.runpod.io/v2') {
@@ -26,11 +27,13 @@ export class RunpodClient {
       const { gpus } = z.object({ gpus: z.array(gpuSchema) }).parse(await response.json())
       for (const recipe of HOST_RECIPES.filter(recipe => recipe.count === Number(count) && recipe.cuda === cuda)) for (const gpu of gpus) {
         if (!gpu.secure || gpu.price.secure <= 0 || !stock(gpu.availability) || !recipeFits(recipe, gpu.id, gpu.memory, gpu.maxCount.secure)) continue
-        const dc = gpu.dataCenters?.find(dc => stock(dc.availability))
-        if (dc) offers.push({ recipe, gpuId: gpu.id, price: gpu.price.secure * recipe.count, dataCenter: dc.id })
+        const price = gpu.price.secure * recipe.count
+        if (gpu.dataCenters) {
+          for (const dc of gpu.dataCenters) if (stock(dc.availability)) offers.push({ recipe, gpuId: gpu.id, price, dataCenter: dc.id, availability: dc.availability })
+        } else offers.push({ recipe, gpuId: gpu.id, price, availability: gpu.availability })
       }
     }
-    return offers.sort((a, b) => a.price - b.price || a.recipe.id.localeCompare(b.recipe.id))
+    return offers.sort((a, b) => stockRank(b.availability) - stockRank(a.availability) || a.price - b.price || a.recipe.id.localeCompare(b.recipe.id) || (a.dataCenter ?? '').localeCompare(b.dataCenter ?? ''))
   }
   async pods(signal?: AbortSignal): Promise<HostPod[]> {
     const pods: HostPod[] = []
@@ -49,7 +52,7 @@ export class RunpodClient {
   async get(id: string, signal?: AbortSignal): Promise<HostPod> { return podSchema.parse(await (await this.response('/pods/' + encodeURIComponent(id), 'GET', undefined, signal)).json()) }
   async create(offer: HostOffer, publicKey: string, name: string): Promise<HostPod> {
     const args = 'bash -lc ' + JSON.stringify('apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server tmux curl && mkdir -p /root/.ssh /run/sshd && chmod 700 /root/.ssh && printf "%s\n" "$PUBLIC_KEY" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys && ssh-keygen -A && service ssh start && sleep infinity')
-    return podSchema.parse(await (await this.response('/pods', 'POST', { name, image: offer.recipe.image, args, disk: 30, cloud: 'SECURE', dataCenterIds: [offer.dataCenter], gpu: { id: offer.gpuId, count: offer.recipe.count, minCudaVersion: offer.recipe.cuda }, mounts: { persistent: { size: offer.recipe.diskGb, path: '/workspace' } }, ports: ['22/tcp'], env: { PUBLIC_KEY: publicKey, HF_HOME: '/workspace/huggingface' } })).json())
+    return podSchema.parse(await (await this.response('/pods', 'POST', { name, image: offer.recipe.image, args, disk: 30, cloud: 'SECURE', ...(offer.dataCenter ? { dataCenterIds: [offer.dataCenter] } : {}), gpu: { id: offer.gpuId, count: offer.recipe.count, minCudaVersion: offer.recipe.cuda }, mounts: { persistent: { size: offer.recipe.diskGb, path: '/workspace' } }, ports: ['22/tcp'], env: { PUBLIC_KEY: publicKey, HF_HOME: '/workspace/huggingface' } })).json())
   }
   async stop(id: string): Promise<HostPod> { return podSchema.parse(await (await this.response('/pods/' + encodeURIComponent(id) + '/action', 'POST', { action: 'stop' })).json()) }
   async terminate(id: string): Promise<void> { await this.response('/pods/' + encodeURIComponent(id), 'DELETE') }

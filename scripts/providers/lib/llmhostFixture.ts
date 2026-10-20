@@ -17,7 +17,7 @@ export async function llmhostFixture() {
   for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_MODELS', 'MERCURY_COMPAT_LABEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
   for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_.*_API_KEY$/.test(key)) delete process.env[key]
   const captures: Array<{ path: string; body: any; auth: string | null; affinity: string | null }> = []
-  const state = { dialect: 'vllm', window: 1_048_576, field: 'max_model_len', mode: 'reply', auth: false, listed: true, requests: 0 }
+  const state = { dialect: 'vllm', window: 1_048_576, slots: 1, field: 'max_model_len', mode: 'reply', auth: false, listed: true, requests: 0 }
   const model = 'Fixture/Reasoner'
   const key = 'proof-key-llmhost-fixture-not-a-real-key'
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
@@ -26,7 +26,7 @@ export async function llmhostFixture() {
     if (state.auth && req.headers.get('authorization') !== `Bearer ${key}`) return Response.json({ error: { message: 'fixture key required' } }, { status: 401 })
     if (path === '/v1/models') return Response.json({ data: state.listed ? [{ id: model, owned_by: state.dialect, ...(state.field ? { [state.field]: state.window } : {}) }] : [] })
     if (path === '/get_model_info' && state.dialect === 'sglang') return Response.json({ model_path: model, context_length: state.window })
-    if (path === '/props' && state.dialect === 'llamacpp') return Response.json({ default_generation_settings: { n_ctx: state.window } })
+    if (path === '/props' && state.dialect === 'llamacpp') return Response.json({ default_generation_settings: { n_ctx: state.window }, total_slots: state.slots })
     if (path === '/api/tags' && state.dialect === 'ollama') return Response.json({ models: [{ name: model }] })
     if (path === '/api/ps' && state.dialect === 'ollama') return Response.json({ models: [{ name: model, context_length: state.window }] })
     if (path === '/api/show' && state.dialect === 'ollama') return Response.json({ parameters: `num_ctx ${state.window}`, model_info: { 'fixture.context_length': 2_000_000 } })

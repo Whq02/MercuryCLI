@@ -80,7 +80,9 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
   if (!pod && !docker && !recipe.pythonInstall) throw new Error('This recipe requires its preview Docker image. Install Docker with NVIDIA GPU access, or choose another recipe.')
   const dir = '/workspace/mercury-host/' + recipe.id
   const args = sshArguments(target)
-  await runner.run('ssh', [...args, 'set -e; mkdir -p ' + quote(dir) + '; if ! command -v tmux >/dev/null || ! command -v curl >/dev/null; then if test "$(id -u)" = 0 && command -v apt-get >/dev/null; then apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y tmux curl; else echo "Install tmux and curl and make /workspace writable for this SSH user." >&2; exit 1; fi; fi'], signal, 300_000)
+  const launchLog = quote(dir + '/launch.log')
+  const prepare = 'mkdir -p ' + quote(dir) + ' || exit 1; exec 2>' + launchLog + '; trap ' + quote('cat ' + launchLog) + ' EXIT; set -e; if ! command -v setsid >/dev/null || ! command -v curl >/dev/null; then if test "$(id -u)" = 0 && command -v apt-get >/dev/null; then apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y util-linux curl; else echo "Install setsid and curl and make /workspace writable for this SSH user." >&2; exit 1; fi; fi'
+  try { await runner.run('ssh', [...args, prepare], signal, 300_000) } catch (error) { throw new Error('launch.log: ' + String(error)) }
   if (bank) {
     const local = resolve(bank)
     if (recipe.weightFile) {
@@ -104,19 +106,24 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
     ? ['/workspace/mercury-host/llama.cpp/build/bin/llama-server', '--model', dir + '/weights/' + recipe.weightFile, '--alias', recipe.model + ':' + recipe.weightFile!.split('/')[0], ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']
     : ['sglang', 'serve', '--model-path', bank ? dir + '/weights' : recipe.model, ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']).map(quote).join(' ')
   const download = bank ? 'true' : recipe.engine === 'llamacpp' ? '/workspace/mercury-host/hf/bin/hf download ' + quote(recipe.model) + ' --include ' + quote(recipe.include!) + ' --local-dir ' + quote(dir + '/weights') : 'hf download ' + quote(recipe.model)
-  let script = 'set -e; export HF_HOME=/workspace/huggingface; ' + Object.entries(recipe.environment ?? {}).map(([name, value]) => 'export ' + name + '=' + quote(value) + '; ').join('') + (recipe.install ? recipe.install + ' && ' : '') + download + ' && exec ' + engine
-  if (docker && !pod) script = 'exec docker run --rm --gpus all --ipc=host --network=host -v /workspace:/workspace -e HF_HOME=/workspace/huggingface --entrypoint bash ' + quote(recipe.image) + ' -lc ' + quote(script)
-  else if (!pod) script = 'set -e; ' + recipe.pythonInstall + ' && export PATH=/workspace/mercury-host/venv/bin:$PATH && ' + script
-  const job = 'mercury-' + recipe.id
-  const remote = 'set -e; if tmux has-session -t ' + quote(job) + ' 2>/dev/null; then echo "An engine job already exists: ' + job + '"; exit 1; fi; tmux new-session -d -s ' + quote(job) + ' ' + quote('bash -lc ' + quote(script + ' > ' + quote(dir + '/engine.log') + ' 2>&1'))
-  await runner.run('ssh', [...args, remote], signal)
+  const install = recipe.install?.replace(' && cmake ', " && echo 'MERCURY_STEP building llama.cpp' && cmake ")
+  let script = 'set -e\nexport PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc\nexport HF_HOME=/workspace/huggingface\n' + Object.entries(recipe.environment ?? {}).map(([name, value]) => 'export ' + name + '=' + quote(value) + '\n').join('') + "echo 'MERCURY_STEP installing'\n" + (install ? '( ' + install + ' )\n' : '') + "echo 'MERCURY_STEP downloading weights'\n" + download + '\n' + "echo 'MERCURY_STEP starting engine'\n" + engine + '\nwait\n'
+  if (docker && !pod) script = 'docker run --rm --gpus all --ipc=host --network=host -v /workspace:/workspace -e HF_HOME=/workspace/huggingface --entrypoint bash ' + quote(recipe.image) + ' -c ' + quote(script) + '\nwait\n'
+  else if (!pod) script = 'set -e\n' + recipe.pythonInstall + '\nexport PATH=/workspace/mercury-host/venv/bin:$PATH\n' + script
+  const scriptPath = quote(dir + '/engine.sh')
+  const pidPath = quote(dir + '/engine.pid')
+  const match = quote('[b]ash ' + dir + '/engine.sh')
+  const remote = 'mkdir -p ' + quote(dir) + ' || exit 1; exec 2>>' + launchLog + '; set -e; trap ' + quote('cat ' + launchLog) + ' EXIT; if test -s ' + pidPath + ' && kill -0 "$(cat ' + pidPath + ')" 2>/dev/null && pgrep -f -- ' + match + ' >/dev/null; then echo "Engine job already running"; exit 0; fi; printf %s ' + quote(script) + ' > ' + scriptPath + '; nohup setsid bash ' + scriptPath + ' > ' + quote(dir + '/engine.log') + ' 2>&1 < /dev/null & echo $! > ' + pidPath + '; sleep 5; if ! kill -0 "$(cat ' + pidPath + ')" 2>/dev/null || ! pgrep -f -- ' + match + ' >/dev/null; then echo "Engine launch failed; launch.log:"; cat ' + launchLog + '; tail -n 20 ' + quote(dir + '/engine.log') + '; exit 1; fi'
+  try { await runner.run('ssh', [...args, remote], signal) } catch (error) { throw new Error('launch.log: ' + String(error)) }
 }
-export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, pauseMs = 5000, timeoutMs = 90 * 60_000): Promise<void> {
+export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, pauseMs = 5000, timeoutMs = 90 * 60_000, onLog: (text: string) => void = () => {}): Promise<void> {
   const started = Date.now()
   let last = ''
   while (!signal.aborted && Date.now() - started < timeoutMs) {
     try { await runner.run('ssh', [...sshArguments(target), 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal); return } catch (error) { last = String(error) }
-    const log = await runner.run('ssh', [...sshArguments(target), 'tail -n 8 ' + quote('/workspace/mercury-host/' + recipe.id + '/engine.log') + '; tmux has-session -t ' + quote('mercury-' + recipe.id)], signal).catch(error => { throw new Error('The engine stopped. ' + String(error)) })
+    const dir = '/workspace/mercury-host/' + recipe.id
+    const log = await runner.run('ssh', [...sshArguments(target), 'tail -n 8 ' + quote(dir + '/engine.log') + '; if ! kill -0 "$(cat ' + quote(dir + '/engine.pid') + ')" 2>/dev/null; then echo "launch.log:"; cat ' + quote(dir + '/launch.log') + '; exit 1; fi'], signal).catch(error => { throw new Error('The engine stopped. ' + String(error)) })
+    onLog(log)
     last = log || last
     await delay(pauseMs, undefined, { signal })
   }

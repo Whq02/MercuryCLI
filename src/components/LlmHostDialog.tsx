@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Box, Text, useInput } from '../ink.js'
-import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import TextInput from './TextInput.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
@@ -27,7 +26,6 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
   const [cursor, setCursor] = useState<number | null>(null)
   const [host, setHost] = useState<LlmHostEvent['host']>()
   const [now, setNow] = useState(Date.now())
-  const hostRef = useRef<LlmHostEvent['host']>(undefined)
   useEffect(() => { if (!host) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer) }, [host])
   const answerRef = useRef<((value: string | null) => void) | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
@@ -42,7 +40,14 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
       setCursor(null)
       setQuestion(plan)
       return new Promise(resolve => { answerRef.current = resolve })
-    }, event => { if (live) { setHistory(rows => [...rows, event]); if (event.host) { hostRef.current = event.host; setHost(event.host) } } }, controller.signal).then(done => {
+    }, event => {
+      if (!live) return
+      setHistory(rows => event.host && rows.at(-1)?.host?.id === event.host.id ? [...rows.slice(0, -1), event] : [...rows, event])
+      if (event.host) {
+        setHost(event.host)
+        setQuestion(current => current?.step === 'pod-controls' ? { ...current, rows: [...(event.host?.canResume ? [{ value: 'resume', label: 'Resume setup' }] : []), ...(current.rows ?? []).filter(row => row.value !== 'resume')] } : current)
+      }
+    }, controller.signal).then(done => {
       if (live) { setQuestion(null); setResult(done) }
     }, error => {
       if (live) { setQuestion(null); setResult({ ok: false, words: error instanceof Error ? error.message : String(error) }) }
@@ -60,11 +65,9 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
     resolve?.(next)
   }
   const stop = (): void => {
-    if (!result && hostRef.current?.pause) { hostRef.current.pause(); answer(null); return }
     controllerRef.current?.abort()
     answer(null)
-    if (result || escapeFromOutsidePress() && !hostRef.current) onClose?.()
-    else setResult({ ok: false, words: hostRef.current ? hostRef.current.id + ' · ' + words.podKeptAfterStop : words.stopped })
+    onClose?.()
   }
   useInput((_input, key, event) => {
     if (key.escape) { event.stopImmediatePropagation(); stop(); return }
@@ -103,7 +106,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
     </> : <Text color={tokens.textMuted}>{words.running}</Text>}
     {host ? <>
       <Text color={tokens.warning} wrap="truncate-end">{host.id} · {host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : '$' + host.price.toFixed(2) + '/hr × ' + (Math.max(0, now - Date.parse(host.startedAt)) / 3600_000).toFixed(2) + 'h = $' + (host.price * Math.max(0, now - Date.parse(host.startedAt)) / 3600_000).toFixed(2) + ' so far (estimate; storage extra)'}</Text>
-      <Text color={tokens.textMuted} wrap="truncate-end">{host.status === 'TERMINATED' ? '' : host.pause ? words.podControls : words.podKept}</Text>
+      <Text color={tokens.textMuted} wrap="truncate-end">{host.status === 'TERMINATED' ? '' : host.step ?? words.podKept}</Text>
     </> : null}
   </Box>
 }

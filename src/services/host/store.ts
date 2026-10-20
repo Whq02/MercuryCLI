@@ -4,7 +4,22 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import type { SshTarget } from './ssh.js'
 
-export interface HostRecord { id: string; name: string; recipe: string; price: number; startedAt: string; status: string; target?: SshTarget; localPort?: number; provider?: string }
+export interface HostRecord {
+  id: string; name: string; recipe: string; price: number; startedAt: string; status: string
+  target?: SshTarget; localPort?: number; provider?: string
+  sessionId?: string; workspace?: string; sshKey?: string; apiBaseUrl?: string
+  jobState?: 'queued' | 'starting' | 'running' | 'ready' | 'failed' | 'stopped'
+  generation?: string; jobStartedAt?: number; advancedAt?: number; step?: string; log?: string; error?: string
+  steps?: { step: string; at: number }[]
+}
+export function readHostRecord(id: string): HostRecord | undefined {
+  try { return JSON.parse(readFileSync(recordPath(id), 'utf8')) as HostRecord } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error }
+}
+export function patchHostRecord(id: string, patch: Partial<HostRecord>): HostRecord | undefined {
+  const record = readHostRecord(id)
+  if (!record) return
+  const next = { ...record, ...patch }; writeHostRecord(next); return next
+}
 export function hostDirectory(): string {
   const dir = join(getMercuryHome(), 'host')
   mkdirSync(dir, { recursive: true, mode: 0o700 })

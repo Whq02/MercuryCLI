@@ -96,8 +96,10 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
       if (tokens) for (const id of models) if (models.length === 1 || id === sglang?.model_path || id === sglang?.served_model_name) contextWindows[id] = tokens
     }
     if (dialect === 'llamacpp' && models.length === 1) {
+      const slots = windowTokens(llama?.total_slots) ?? 1
       const tokens = windowTokens(llama?.default_generation_settings?.n_ctx)
-      if (tokens) contextWindows[models[0]!] = tokens
+      const perSlot = tokens ? windowTokens(Math.floor(tokens / slots)) : undefined
+      if (perSlot) contextWindows[models[0]!] = perSlot
     }
     if (dialect === 'ollama') {
       const ps = await optional('/api/ps')

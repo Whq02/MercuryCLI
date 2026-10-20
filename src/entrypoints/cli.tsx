@@ -150,6 +150,12 @@ async function main(): Promise<void> {
     const { runWebLspSidecarEntry } = await import('../services/lsp/webSidecar/entry.js')
     return runWebLspSidecarEntry()
   }
+  if (process.argv[2] === '--mercury-host-job') {
+    const { enableConfigs } = await import('../utils/config.js')
+    enableConfigs()
+    const { runHostJob } = await import('../services/host/worker.js')
+    return runHostJob(process.argv[3] ?? '', process.argv[4] ?? '')
+  }
   if (process.argv[2] === '--mercury-tcp-bridge') {
     profileCheckpoint('route_tcp_bridge')
     const { runTcpBridgeEntry } = await import('../services/tcpBridge/entry.js')
