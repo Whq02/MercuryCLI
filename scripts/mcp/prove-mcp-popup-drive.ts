@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { McpServer, WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/server'
 import { z } from 'zod/v4'
@@ -25,7 +25,7 @@ delete process.env.MERCURY_HOME
 const DIST = process.env.MERCURY_PROOF_DIST ?? join(ROOT, 'dist/mercury.mjs')
 const CAPTURES = process.env.MCP_POPUP_CAPTURE_DIR ?? join(SCRATCH, 'frames')
 mkdirSync(CAPTURES, { recursive: true })
-const daemonDir = '../daemon-popup'
+const daemonDir = realpathSync(mkdtempSync(join(SCRATCH, 'd-')))
 process.env.MERCURY_DAEMON_DIR = daemonDir
 process.env.MERCURY_CONCOURSE = 'always'
 let checks = 0
