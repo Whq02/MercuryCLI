@@ -131,6 +131,49 @@ try {
   assert.equal(windowsCall?.command, 'ssh')
   assert.match(windowsCall!.args.at(-1)!, /^powershell.exe -NoProfile -NonInteractive -EncodedCommand /)
   assert.match(Buffer.from(windowsCall!.args.at(-1)!.split(' ').at(-1)!, 'base64').toString('utf16le'), /Get-ScheduledTask/)
+  assert.match(Buffer.from(windowsCall!.args.at(-1)!.split(' ').at(-1)!, 'base64').toString('utf16le'), /^\$ErrorActionPreference='Stop'\n\$ProgressPreference='SilentlyContinue'\n/)
+  assert.ok(windows.startsWith('<?xml version="1.0"?>\n<Task '), 'the task XML declares no encoding: Register-ScheduledTask -Xml parses a UTF-16 string')
+  assert.match(windows, /<Priority>4<\/Priority>/)
+  assert.match(windows, /<Arguments>-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File &quot;/)
+  assert.match(boxServiceCommand({ ...machine, os: 'windows', home: 'C:\\Fixture\\Home' }, 'start'), /-Xml \(Get-Content -LiteralPath '[^']+task\.xml' -Raw -Encoding UTF8\)/)
+  const winBox = { ...machine, name: 'win-fixture', os: 'windows' as const, home: 'C:\\Fixture\\Home', arch: 'amd64', unifiedMemory: false, memoryGb: 64, gpus: [], engines: [] }
+  const winScripts: string[] = []
+  const winRunner = { ...runner, async run(_command: string, args: string[]) { const script = Buffer.from(args.at(-1)!, 'base64').toString('utf16le'); winScripts.push(script); if (script.includes('releases/download/v0.40.6')) throw new Error('install captured'); if (script.includes('Test-Path') || script.includes('WriteAllBytes') || script.includes('ScheduledTask')) return ''; throw new Error('not answering') } }
+  const { boxEngineScript } = await import('../../src/services/host/boxEngine.js')
+  const nemotron = BOX_RECIPES.find(row => row.id === 'nemotron35-bolt')!
+  await assert.rejects(() => startBoxEngine(winBox, nemotron, { destination: 'C:\\Models', bank: false, confirmed: true, runner: winRunner }), /install captured/)
+  assert.ok(winScripts.some(script => script.includes('RawContentStream') && script.includes('-UseBasicParsing')), 'Windows reads engine answers as raw UTF-8 without the Internet Explorer parser')
+  const winInstall = winScripts.find(script => script.includes('releases/download/v0.40.6'))!
+  assert.equal(winInstall.match(/Invoke-WebRequest -UseBasicParsing -Uri /g)?.length, 2)
+  assert.match(winInstall, /-OutFile \$sumsFile; \$line=Get-Content -LiteralPath \$sumsFile/)
+  const winLine = new RegExp(/-match '([^']+)'/.exec(winInstall)![1]!)
+  assert.ok(winLine.test('0'.repeat(64) + '  ./ollama-windows-amd64.zip') && !winLine.test('0'.repeat(64) + '  ./ollama-windows-amd64-rocm.zip'), 'the Windows checksum line is the archive the release lists')
+  assert.match(boxEngineScript(winBox, nemotron, 'C:\\ollama\\ollama.exe', 'C:\\Models', 30000), /-RedirectStandardError '[^']+' *\n\$null=\$p\.Handle\n/)
+  const { installBoxService } = await import('../../src/services/host/boxService.js')
+  winScripts.length = 0
+  await installBoxService(winBox, 'Write-Output engine', winRunner, signal)
+  const written = (script: string) => Buffer.from(/FromBase64String\('([^']+)'\)/.exec(script)![1]!, 'base64')
+  assert.deepEqual([...written(winScripts[0]!).subarray(0, 3)], [0xef, 0xbb, 0xbf], 'Windows PowerShell 5.1 reads the engine script as UTF-8 only with a byte-order mark')
+  assert.equal(written(winScripts[1]!).toString('utf8'), boxServiceDocument(winBox))
+  const linuxBox = { ...local, name: 'linux-ollama', os: 'linux' as const, arch: 'x86_64', unifiedMemory: false, memoryGb: 64, gpus: [], engines: [] }
+  let linuxInstall = ''
+  const linuxRunner = { ...runner, async run(_command: string, args: string[]) { const script = args.at(-1) ?? ''; if (script.includes('releases/download/v0.40.6')) { linuxInstall = script; throw new Error('install captured') } if (script.includes('if test -e')) return ''; throw new Error('not answering') } }
+  await assert.rejects(() => startBoxEngine(linuxBox, nemotron, { destination: '/srv/models', bank: false, confirmed: true, runner: linuxRunner }), /install captured/)
+  const archiveCheck = linuxInstall.slice(linuxInstall.indexOf('-o SHA256SUMS; ') + '-o SHA256SUMS; '.length, linuxInstall.indexOf('; tar --zstd'))
+  const release = join(process.env.MERCURY_CONFIG_DIR!, 'ollama-release')
+  mkdirSync(release, { recursive: true })
+  const asset = 'ollama-linux-amd64.tar.zst'
+  const releaseSums = (bytes: string) => ['ollama-linux-amd64-rocm.tar.zst', asset, 'ollama-linux-amd64-mlx.tar.zst'].map(file => createHash('sha256').update(file === asset ? bytes : file).digest('hex') + '  ./' + file).join('\n') + '\n'
+  const { spawnSync } = await import('node:child_process')
+  const checked = () => spawnSync('/bin/sh', ['-c', 'set -eu\n' + archiveCheck], { cwd: release, encoding: 'utf8' }).status
+  writeFileSync(join(release, asset), 'archive bytes')
+  writeFileSync(join(release, 'SHA256SUMS'), releaseSums('archive bytes'))
+  assert.equal(checked(), 0, 'the release lists its archives as ./name, and that line verifies the archive')
+  writeFileSync(join(release, asset), 'tampered bytes')
+  assert.notEqual(checked(), 0, 'a tampered archive is refused')
+  writeFileSync(join(release, 'SHA256SUMS'), releaseSums('archive bytes').split('\n').filter(row => !row.endsWith('./' + asset)).join('\n') + '\n')
+  assert.notEqual(checked(), 0, 'a release that does not list the archive is refused')
+  console.log('MERCURY HOST GREEN · the Windows task registers as written and runs hidden at normal priority; Ollama archives verify against the release checksum lines')
   assert.equal(plist, boxServiceDocument(machine))
   const serviceAt = process.argv.indexOf('--services')
   if (serviceAt >= 0) {
@@ -188,6 +231,7 @@ try {
   assert.equal(pulled.contextPerSlot, 262144)
   const ollamaModel = await registerBoxServer(ollamaBox, fixture.runner, signal)
   assert.equal(ollamaModel, 'compat/box-ollama-fixture/' + ollamaRecipe.model)
+  assert.equal(getContextWindowForModel(ollamaModel), 262144, 'the Ollama row takes its window from the served /api/ps context')
   assert.ok(fixture.commands.some((command: any) => command.args.at(-1)?.includes(' pull ')))
   const ollamaSettings = JSON.parse(readFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), 'utf8'))
   assert.equal(ollamaSettings.compatProvider['box-ollama-fixture'].dialect, 'ollama')

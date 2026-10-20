@@ -13,7 +13,7 @@ export async function runBoxScript(box: Pick<HostBox, 'os' | 'target'>, script: 
   const windows = box.os === 'windows'
   const executable = windows ? 'powershell.exe' : '/bin/sh'
   if (!windows) script = 'export PATH=$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin\n' + script
-  const args = windows ? ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from("$ErrorActionPreference='Stop'\n" + script, 'utf16le').toString('base64')] : ['-c', 'set -eu\n' + script]
+  const args = windows ? ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from("$ErrorActionPreference='Stop'\n$ProgressPreference='SilentlyContinue'\n" + script, 'utf16le').toString('base64')] : ['-c', 'set -eu\n' + script]
   return box.target ? runner.run('ssh', [...sshArguments(box.target), windows ? executable + ' ' + args.join(' ') : executable + ' -c ' + shQuote('set -eu\n' + script)], signal, timeoutMs) : runner.run(executable, args, signal, timeoutMs)
 }
 export async function writeBoxFile(box: HostBox, path: string, content: string, runner: HostRunner, signal: AbortSignal): Promise<void> {
