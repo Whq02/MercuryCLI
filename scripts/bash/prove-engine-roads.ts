@@ -276,7 +276,47 @@ section('§5 the source keeps the session road and its three exclusions; the per
   check('TERMINAL-RUNTIME names which process takes the three calls, the engine itself on a box with no bash.exe', runtime.includes('A call the long-lived process cannot take runs in a process of its own') && runtime.includes('Windows box with no `bash.exe` it is the engine itself') && !runtime.includes('still runs, in its own system shell'))
 }
 
-section('§6 the built bundle through the seam: a scripted model calls the Bash tool plain, inheriting and in the background, then the Monitor tool')
+section('§6 the Monitor mailbox delivers the first burst, holds later ticks, and delivers them together at 30 seconds')
+{
+  const { createWatchMailbox, BURST_WINDOW_MS, DELIVERY_INTERVAL_MS } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
+  let now = 0
+  let nextTimer = 0
+  const timers = new Map<number, { at: number; run: () => void }>()
+  const delivered: Array<{ at: number; text: string; count: number }> = []
+  const mailbox = createWatchMailbox({
+    now: () => now,
+    wall: () => ({ closed: false }),
+    deliver: (text, summary) => { delivered.push({ at: now, text, count: summary.count }) },
+    setTimer: (run, ms) => { const id = ++nextTimer; timers.set(id, { at: now + ms, run }); return id },
+    clearTimer: handle => { timers.delete(handle as number) },
+  })
+  const advance = (ms: number): void => {
+    const until = now + ms
+    for (;;) {
+      const due = [...timers].filter(([, timer]) => timer.at <= until).sort((a, b) => a[1].at - b[1].at)[0]
+      if (!due) break
+      timers.delete(due[0])
+      now = due[1].at
+      due[1].run()
+    }
+    now = until
+  }
+  mailbox.push('tick1')
+  advance(BURST_WINDOW_MS)
+  check('the first tick is delivered at the end of its initial 200 ms burst', delivered.length === 1 && delivered[0]?.at === 200 && delivered[0]?.text === 'tick1')
+  mailbox.push('tick2')
+  advance(BURST_WINDOW_MS)
+  mailbox.push('tick3')
+  advance(BURST_WINDOW_MS)
+  check('ticks two and three do not wake the model individually', delivered.length === 1)
+  advance(DELIVERY_INTERVAL_MS - 2 * BURST_WINDOW_MS - 1)
+  check('the later ticks remain held until the 30 second delivery window', DELIVERY_INTERVAL_MS === 30_000 && delivered.length === 1)
+  advance(1)
+  check('both held ticks arrive together at the next delivery window', delivered.length === 2 && delivered[1]?.at === 30_200 && delivered[1]?.text === 'tick2\ntick3' && delivered[1]?.count === 2)
+  mailbox.dispose()
+}
+
+section('§7 the built bundle through the seam: a scripted model calls the Bash tool plain, inheriting and in the background, then the Monitor tool')
 {
   const DIST = join(ROOT, 'dist', 'mercury.mjs')
   if (!existsSync(DIST)) {
@@ -291,7 +331,7 @@ section('§6 the built bundle through the seam: a scripted model calls the Bash 
       if (req.step === 1) return [{ type: 'tool_use' as const, name: 'Bash', input: { command: `echo "inherit:${SERVED}:\${ROADS_MARK:-none}"`, inherit_session_env: true, description: 'inheriting call' } }]
       if (req.step === 2) return [{ type: 'tool_use' as const, name: 'Bash', input: { command: `echo "background:${SERVED}:\${ROADS_MARK:-none}"`, run_in_background: true, description: 'background call' } }]
       if (req.step === 3) return [{ type: 'tool_use' as const, name: 'ToolSearch', input: { query: 'select:Monitor' } }]
-      if (req.step === 4) return [{ type: 'tool_use' as const, name: 'Monitor', input: { command: `for i in 1 2 3; do echo "tick$i:${SERVED}"; sleep 0.2; done`, description: 'engine roads ticks', timeout_ms: 60_000 } }]
+      if (req.step === 4) return [{ type: 'tool_use' as const, name: 'Monitor', input: { command: `printf '%s\\n' "tick1:${SERVED}" "tick2:${SERVED}" "tick3:${SERVED}"`, description: 'engine roads ticks', timeout_ms: 60_000 } }]
       if (req.step === 5) return [{ type: 'tool_use' as const, name: 'Bash', input: { command: `sleep 2; echo "after:${SERVED}:\${ROADS_MARK:-none}"`, description: 'let the watch speak' } }]
       return [{ type: 'text' as const, text: 'done' }]
     }
