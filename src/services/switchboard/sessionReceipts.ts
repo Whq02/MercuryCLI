@@ -13,7 +13,7 @@ import { AST_EDIT_TOOL_NAME } from '../../tools/AstEditTool/prompt.js'
 export interface SessionReceiptEntry {
   readonly at: string
   readonly by: string
-  readonly kind: 'agent-close' | 'machine-floor' | 'contract-close' | 'kit-restamp' | 'kit-refused' | 'kit-dial' | 'schedule-set' | 'schedule-fire' | 'schedule-held'
+  readonly kind: 'agent-close' | 'machine-floor' | 'contract-close' | 'kit-restamp' | 'kit-refused' | 'kit-dial' | 'schedule-set' | 'schedule-fire' | 'schedule-held' | 'runner-restart' | 'build-behind'
   readonly summary: string
   readonly details?: Readonly<Record<string, unknown>>
 }

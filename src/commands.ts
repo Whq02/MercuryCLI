@@ -76,6 +76,7 @@ import submodels from './commands/submodels/index.js'
 import palette from './commands/palette/index.js'
 import orient from './commands/orient/index.js'
 import voice from './commands/voice/index.js'
+import restart from './commands/restart/index.js'
 import { getBundledSkills } from './skills/bundledSkills.js'
 import { isKitGovernedSkillCommand, kitDropsCommand, noteBootSkillRoster, withKitSkillMark } from './skills/kitGovernance.js'
 import { sessionKitOf } from './services/mcp/sessionKitPin.js'
@@ -206,6 +207,7 @@ const COMMANDS = memoize((): Command[] => [
   palette,
   orient,
   voice,
+  restart,
 ])
 
 export function commandSeat(command: Command): CommandSeat {

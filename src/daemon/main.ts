@@ -877,6 +877,26 @@ async function daemonRun(args: string[]): Promise<void> {
                 : { outcome: out.outcome, detail: out.reason },
             )
           }
+          if (reason === 'update' && roster !== null) {
+            const waitStart = Date.now()
+            while (roster.isWorkerBusy(rec.runnerId) && Date.now() - waitStart < 3_000) {
+              await new Promise(resolve => setTimeout(resolve, 25))
+            }
+            if (roster.has(rec.runnerId).alive || (rec.pid !== undefined && isProcessAlive(rec.pid))) {
+              roster.kill(rec.runnerId)
+              const killStart = Date.now()
+              while ((roster.has(rec.runnerId).alive || (rec.pid !== undefined && isProcessAlive(rec.pid))) && Date.now() - killStart < 3_000) {
+                await new Promise(resolve => setTimeout(resolve, 25))
+              }
+            }
+            const rev = reviveConcourseWorker(sessionId, by, roster, { allowStopped: true, clearCrash: true, restartReason: 'update' })
+            if (rev.outcome === 'applied') onSeatSpawned(rev.runnerId, roster)
+            return settle(
+              rev.outcome === 'applied'
+                ? { outcome: 'applied' as const, detail: `restarted ${rec.runnerId} on the installed build${rev.pid !== undefined ? ` (pid ${rev.pid})` : ''}` }
+                : { outcome: 'refused' as const, detail: rev.outcome === 'refused' ? (rev.detail ?? rev.reason) : 'already-live' },
+            )
+          }
           const out = resumeConcourseWorker(rec.runnerId, by)
           if (out.outcome === 'refused') return settle({ outcome: 'refused' as const, detail: out.reason })
           const fresh = Object.values(readSessionWorkers()).find(

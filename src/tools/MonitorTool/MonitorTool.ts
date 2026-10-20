@@ -12,7 +12,7 @@ import { clampWait } from '../../utils/waitCeiling.js'
 import { MONITOR_TOOL_NAME } from './constants.js'
 import { sessionLaneWall } from './laneWall.js'
 import { BURST_WINDOW_MS, createWatchMailbox } from './watchMailbox.js'
-import { monitorNoticeBlock, WATCH_STARTED_LINE } from './watchReceipts.js'
+import { monitorNoticeBlock, WATCH_STARTED_LINE, writeSessionTaskRecord } from './watchReceipts.js'
 
 export { MONITOR_TOOL_NAME }
 
@@ -231,6 +231,15 @@ export const MonitorTool = buildTool({
         throw new ShellError('', result.preSpawnError, result.code, result.interrupted, false)
       }
     }
+    writeSessionTaskRecord({
+      taskId: handle.taskId,
+      toolUseId: toolUseId ?? '',
+      kind: 'monitor',
+      description,
+      command,
+      persistent: Boolean(persistent),
+      armedAt: Date.now(),
+    })
 
     let timer: ReturnType<typeof setTimeout> | undefined
     if (!persistent) {
