@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/ui/** scripts/ui-pure-1/** src/bootstrap/state*
+# gate-watch: scripts/host/runpodFixture.mjs scripts/providers/lib/llmhostFixture.ts scripts/ui/gridToPng.ts src/services/host/** src/commands/llmhost/** src/components/LlmHostDialog.tsx src/components/shell/** src/tools/BashTool/** src/commands/restart/**
 # gate-watch: src/commands/appearance/index* src/commands/health/HealthCertificate*
 # gate-watch: src/commands/run/runInspectorModel*
 # gate-watch: src/commands/crew/index* src/components/** src/context/overlayContext*

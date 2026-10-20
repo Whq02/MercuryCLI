@@ -69,3 +69,6 @@ prove-win32-size-reconcile.ts
 prove-crew-completion-stamp.ts
 prove-model-page-count.ts
 prove-thinking-withheld-turns.ts
+prove-beta40-notices.ts
+prove-beta40-polish.ts
+prove-shell-live-tail.ts

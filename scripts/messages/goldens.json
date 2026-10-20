@@ -68,6 +68,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -124,6 +125,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -233,12 +235,13 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u5»",
    "timestamp": "«t2»",
    "toolUseResult": {
     "ok": true
    },
    "type": "user",
-   "uuid": "«u5»"
+   "uuid": "«u6»"
   },
   {
    "message": {
@@ -257,12 +260,13 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u7»",
    "timestamp": "«t3»",
    "toolUseResult": {
     "ok": true
    },
    "type": "user",
-   "uuid": "«u6»"
+   "uuid": "«u8»"
   },
   {
    "isApiErrorMessage": false,
@@ -275,7 +279,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u7»",
+    "id": "«u9»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -302,7 +306,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u8»"
+   "uuid": "«u10»"
   }
  ],
  "normalizeMessages/interrupted": [
@@ -316,6 +320,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -374,6 +379,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u4»",
    "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u4»"
@@ -390,6 +396,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -475,6 +482,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u6»",
    "timestamp": "«t4»",
    "toolUseResult": {
     "ok": true
@@ -544,6 +552,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -682,6 +691,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -792,6 +802,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u3»",
    "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u3»"
@@ -848,6 +859,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -945,9 +957,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u1»"
+   "uuid": "«u2»"
   },
   {
    "message": {
@@ -963,9 +976,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u2»"
+   "uuid": "«u3»"
   },
   {
    "message": {
@@ -981,9 +995,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u3»"
+   "uuid": "«u4»"
   },
   {
    "isApiErrorMessage": false,
@@ -996,7 +1011,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u4»",
+    "id": "«u5»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -1023,7 +1038,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u5»"
+   "uuid": "«u6»"
   }
  ],
  "normalizeMessages/synthetic": [
@@ -1037,6 +1052,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -1091,6 +1107,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -1116,6 +1133,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u2»",
    "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
@@ -1132,6 +1150,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -1186,6 +1205,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -1295,12 +1315,13 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u7»",
    "timestamp": "«t2»",
    "toolUseResult": {
     "ok": true
    },
    "type": "user",
-   "uuid": "«u7»"
+   "uuid": "«u8»"
   },
   {
    "message": {
@@ -1319,12 +1340,13 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u9»",
    "timestamp": "«t3»",
    "toolUseResult": {
     "ok": true
    },
    "type": "user",
-   "uuid": "«u8»"
+   "uuid": "«u10»"
   },
   {
    "isApiErrorMessage": false,
@@ -1337,7 +1359,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u9»",
+    "id": "«u11»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -1364,7 +1386,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u10»"
+   "uuid": "«u12»"
   },
   {
    "message": {
@@ -1376,9 +1398,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u11»"
+   "uuid": "«u13»"
   },
   {
    "attachment": {
@@ -1387,7 +1410,7 @@
    },
    "timestamp": "«t4»",
    "type": "attachment",
-   "uuid": "«u12»"
+   "uuid": "«u14»"
   },
   {
    "isApiErrorMessage": false,
@@ -1404,7 +1427,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u13»",
+    "id": "«u15»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -1431,7 +1454,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u14»"
+   "uuid": "«u16»"
   },
   {
    "data": {
@@ -1442,7 +1465,7 @@
    "timestamp": "«t5»",
    "toolUseID": "toolu_0004",
    "type": "progress",
-   "uuid": "«u15»"
+   "uuid": "«u17»"
   },
   {
    "message": {
@@ -1461,12 +1484,13 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u18»",
    "timestamp": "«t6»",
    "toolUseResult": {
     "ok": true
    },
    "type": "user",
-   "uuid": "«u16»"
+   "uuid": "«u19»"
   },
   {
    "attachment": {
@@ -1476,7 +1500,7 @@
    },
    "timestamp": "«t7»",
    "type": "attachment",
-   "uuid": "«u17»"
+   "uuid": "«u20»"
   },
   {
    "isApiErrorMessage": false,
@@ -1489,102 +1513,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u18»",
-    "model": "<synthetic>",
-    "role": "assistant",
-    "stop_reason": "stop_sequence",
-    "stop_sequence": "",
-    "type": "message",
-    "usage": {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 0,
-     "inference_geo": null,
-     "input_tokens": 0,
-     "iterations": null,
-     "output_tokens": 0,
-     "server_tool_use": {
-      "web_fetch_requests": 0,
-      "web_search_requests": 0
-     },
-     "service_tier": null,
-     "speed": null
-    }
-   },
-   "timestamp": "«ts»",
-   "type": "assistant",
-   "uuid": "«u19»"
-  },
-  {
-   "message": {
-    "content": [
-     {
-      "text": "think hard",
-      "type": "text"
-     }
-    ],
-    "role": "user"
-   },
-   "timestamp": "«t1»",
-   "type": "user",
-   "uuid": "«u11»"
-  },
-  {
-   "isApiErrorMessage": false,
-   "message": {
-    "container": null,
-    "content": [
-     {
-      "signature": "sig-abc",
-      "thinking": "deep thought",
-      "type": "thinking"
-     }
-    ],
-    "context_management": null,
-    "id": "«u20»",
-    "model": "<synthetic>",
-    "role": "assistant",
-    "stop_reason": "stop_sequence",
-    "stop_sequence": "",
-    "type": "message",
-    "usage": {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 0,
-     "inference_geo": null,
-     "input_tokens": 0,
-     "iterations": null,
-     "output_tokens": 0,
-     "server_tool_use": {
-      "web_fetch_requests": 0,
-      "web_search_requests": 0
-     },
-     "service_tier": null,
-     "speed": null
-    }
-   },
-   "timestamp": "«ts»",
-   "type": "assistant",
-   "uuid": "«u21»"
-  },
-  {
-   "isApiErrorMessage": false,
-   "message": {
-    "container": null,
-    "content": [
-     {
-      "text": "the answer",
-      "type": "text"
-     }
-    ],
-    "context_management": null,
-    "id": "«u20»",
+    "id": "«u21»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -1614,13 +1543,28 @@
    "uuid": "«u22»"
   },
   {
+   "message": {
+    "content": [
+     {
+      "text": "think hard",
+      "type": "text"
+     }
+    ],
+    "role": "user"
+   },
+   "sourceUuid": "«u1»",
+   "timestamp": "«t1»",
+   "type": "user",
+   "uuid": "«u13»"
+  },
+  {
    "isApiErrorMessage": false,
    "message": {
     "container": null,
     "content": [
      {
-      "signature": "sig-def",
-      "thinking": "orphan tail thought",
+      "signature": "sig-abc",
+      "thinking": "deep thought",
       "type": "thinking"
      }
     ],
@@ -1655,6 +1599,87 @@
    "uuid": "«u24»"
   },
   {
+   "isApiErrorMessage": false,
+   "message": {
+    "container": null,
+    "content": [
+     {
+      "text": "the answer",
+      "type": "text"
+     }
+    ],
+    "context_management": null,
+    "id": "«u23»",
+    "model": "<synthetic>",
+    "role": "assistant",
+    "stop_reason": "stop_sequence",
+    "stop_sequence": "",
+    "type": "message",
+    "usage": {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "inference_geo": null,
+     "input_tokens": 0,
+     "iterations": null,
+     "output_tokens": 0,
+     "server_tool_use": {
+      "web_fetch_requests": 0,
+      "web_search_requests": 0
+     },
+     "service_tier": null,
+     "speed": null
+    }
+   },
+   "timestamp": "«ts»",
+   "type": "assistant",
+   "uuid": "«u25»"
+  },
+  {
+   "isApiErrorMessage": false,
+   "message": {
+    "container": null,
+    "content": [
+     {
+      "signature": "sig-def",
+      "thinking": "orphan tail thought",
+      "type": "thinking"
+     }
+    ],
+    "context_management": null,
+    "id": "«u26»",
+    "model": "<synthetic>",
+    "role": "assistant",
+    "stop_reason": "stop_sequence",
+    "stop_sequence": "",
+    "type": "message",
+    "usage": {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "inference_geo": null,
+     "input_tokens": 0,
+     "iterations": null,
+     "output_tokens": 0,
+     "server_tool_use": {
+      "web_fetch_requests": 0,
+      "web_search_requests": 0
+     },
+     "service_tier": null,
+     "speed": null
+    }
+   },
+   "timestamp": "«ts»",
+   "type": "assistant",
+   "uuid": "«u27»"
+  },
+  {
    "message": {
     "content": [
      {
@@ -1664,9 +1689,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u11»"
+   "uuid": "«u13»"
   },
   {
    "isApiErrorMessage": false,
@@ -1679,7 +1705,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u25»",
+    "id": "«u28»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -1706,7 +1732,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u26»"
+   "uuid": "«u29»"
   },
   {
    "isApiErrorMessage": false,
@@ -1719,7 +1745,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u27»",
+    "id": "«u30»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -1746,7 +1772,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u28»"
+   "uuid": "«u31»"
   },
   {
    "compactMetadata": {
@@ -1756,11 +1782,11 @@
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«u29»",
+   "logicalParentUuid": "«u32»",
    "subtype": "compact_boundary",
    "timestamp": "«t8»",
    "type": "system",
-   "uuid": "«u30»"
+   "uuid": "«u33»"
   },
   {
    "message": {
@@ -1772,9 +1798,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u11»"
+   "uuid": "«u13»"
   },
   {
    "isApiErrorMessage": false,
@@ -1787,7 +1814,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u31»",
+    "id": "«u34»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -1814,7 +1841,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u32»"
+   "uuid": "«u35»"
   },
   {
    "message": {
@@ -1826,9 +1853,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u11»"
+   "uuid": "«u13»"
   },
   {
    "isApiErrorMessage": false,
@@ -1842,7 +1870,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u33»",
+    "id": "«u36»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -1869,7 +1897,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u34»"
+   "uuid": "«u37»"
   },
   {
    "isApiErrorMessage": false,
@@ -1882,7 +1910,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u35»",
+    "id": "«u38»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -1909,7 +1937,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u36»"
+   "uuid": "«u39»"
   }
  ],
  "normalizeMessagesForAPI/basic": [
@@ -3157,6 +3185,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -3213,6 +3242,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -3278,12 +3308,13 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u4»",
    "timestamp": "«t2»",
    "toolUseResult": {
     "ok": true
    },
    "type": "user",
-   "uuid": "«u4»"
+   "uuid": "«u5»"
   },
   {
    "isApiErrorMessage": false,
@@ -3327,7 +3358,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u5»"
+   "uuid": "«u6»"
   },
   {
    "message": {
@@ -3346,12 +3377,13 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u7»",
    "timestamp": "«t3»",
    "toolUseResult": {
     "ok": true
    },
    "type": "user",
-   "uuid": "«u6»"
+   "uuid": "«u8»"
   },
   {
    "isApiErrorMessage": false,
@@ -3364,7 +3396,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u7»",
+    "id": "«u9»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -3391,7 +3423,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u8»"
+   "uuid": "«u10»"
   }
  ],
  "reorderMessagesInUI/interrupted": [
@@ -3405,6 +3437,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -3463,6 +3496,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u4»",
    "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u4»"
@@ -3479,6 +3513,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -3553,6 +3588,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u5»",
    "timestamp": "«t3»",
    "toolUseResult": {
     "ok": true
@@ -3633,6 +3669,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -3771,6 +3808,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -3881,6 +3919,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u3»",
    "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u3»"
@@ -3937,6 +3976,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -4034,9 +4074,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u1»"
+   "uuid": "«u2»"
   },
   {
    "message": {
@@ -4052,9 +4093,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u2»"
+   "uuid": "«u3»"
   },
   {
    "message": {
@@ -4070,9 +4112,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u3»"
+   "uuid": "«u4»"
   },
   {
    "isApiErrorMessage": false,
@@ -4085,7 +4128,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u4»",
+    "id": "«u5»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -4112,7 +4155,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u5»"
+   "uuid": "«u6»"
   }
  ],
  "reorderMessagesInUI/synthetic": [
@@ -4126,6 +4169,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -4180,6 +4224,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -4205,6 +4250,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u2»",
    "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
@@ -4221,6 +4267,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -4275,6 +4322,7 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
    "uuid": "«u1»"
@@ -4340,12 +4388,13 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u6»",
    "timestamp": "«t2»",
    "toolUseResult": {
     "ok": true
    },
    "type": "user",
-   "uuid": "«u6»"
+   "uuid": "«u7»"
   },
   {
    "isApiErrorMessage": false,
@@ -4389,7 +4438,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u7»"
+   "uuid": "«u8»"
   },
   {
    "message": {
@@ -4408,12 +4457,13 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u9»",
    "timestamp": "«t3»",
    "toolUseResult": {
     "ok": true
    },
    "type": "user",
-   "uuid": "«u8»"
+   "uuid": "«u10»"
   },
   {
    "isApiErrorMessage": false,
@@ -4426,7 +4476,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u9»",
+    "id": "«u11»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -4453,7 +4503,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u10»"
+   "uuid": "«u12»"
   },
   {
    "message": {
@@ -4465,9 +4515,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u11»"
+   "uuid": "«u13»"
   },
   {
    "attachment": {
@@ -4476,7 +4527,7 @@
    },
    "timestamp": "«t4»",
    "type": "attachment",
-   "uuid": "«u12»"
+   "uuid": "«u14»"
   },
   {
    "isApiErrorMessage": false,
@@ -4493,7 +4544,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u13»",
+    "id": "«u15»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -4520,7 +4571,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u14»"
+   "uuid": "«u16»"
   },
   {
    "message": {
@@ -4539,12 +4590,13 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u17»",
    "timestamp": "«t5»",
    "toolUseResult": {
     "ok": true
    },
    "type": "user",
-   "uuid": "«u15»"
+   "uuid": "«u18»"
   },
   {
    "data": {
@@ -4555,7 +4607,7 @@
    "timestamp": "«t6»",
    "toolUseID": "toolu_0004",
    "type": "progress",
-   "uuid": "«u16»"
+   "uuid": "«u19»"
   },
   {
    "attachment": {
@@ -4565,7 +4617,7 @@
    },
    "timestamp": "«t7»",
    "type": "attachment",
-   "uuid": "«u17»"
+   "uuid": "«u20»"
   },
   {
    "isApiErrorMessage": false,
@@ -4578,102 +4630,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u18»",
-    "model": "<synthetic>",
-    "role": "assistant",
-    "stop_reason": "stop_sequence",
-    "stop_sequence": "",
-    "type": "message",
-    "usage": {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 0,
-     "inference_geo": null,
-     "input_tokens": 0,
-     "iterations": null,
-     "output_tokens": 0,
-     "server_tool_use": {
-      "web_fetch_requests": 0,
-      "web_search_requests": 0
-     },
-     "service_tier": null,
-     "speed": null
-    }
-   },
-   "timestamp": "«ts»",
-   "type": "assistant",
-   "uuid": "«u19»"
-  },
-  {
-   "message": {
-    "content": [
-     {
-      "text": "think hard",
-      "type": "text"
-     }
-    ],
-    "role": "user"
-   },
-   "timestamp": "«t1»",
-   "type": "user",
-   "uuid": "«u11»"
-  },
-  {
-   "isApiErrorMessage": false,
-   "message": {
-    "container": null,
-    "content": [
-     {
-      "signature": "sig-abc",
-      "thinking": "deep thought",
-      "type": "thinking"
-     }
-    ],
-    "context_management": null,
-    "id": "«u20»",
-    "model": "<synthetic>",
-    "role": "assistant",
-    "stop_reason": "stop_sequence",
-    "stop_sequence": "",
-    "type": "message",
-    "usage": {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 0,
-     "inference_geo": null,
-     "input_tokens": 0,
-     "iterations": null,
-     "output_tokens": 0,
-     "server_tool_use": {
-      "web_fetch_requests": 0,
-      "web_search_requests": 0
-     },
-     "service_tier": null,
-     "speed": null
-    }
-   },
-   "timestamp": "«ts»",
-   "type": "assistant",
-   "uuid": "«u21»"
-  },
-  {
-   "isApiErrorMessage": false,
-   "message": {
-    "container": null,
-    "content": [
-     {
-      "text": "the answer",
-      "type": "text"
-     }
-    ],
-    "context_management": null,
-    "id": "«u20»",
+    "id": "«u21»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -4703,13 +4660,28 @@
    "uuid": "«u22»"
   },
   {
+   "message": {
+    "content": [
+     {
+      "text": "think hard",
+      "type": "text"
+     }
+    ],
+    "role": "user"
+   },
+   "sourceUuid": "«u1»",
+   "timestamp": "«t1»",
+   "type": "user",
+   "uuid": "«u13»"
+  },
+  {
    "isApiErrorMessage": false,
    "message": {
     "container": null,
     "content": [
      {
-      "signature": "sig-def",
-      "thinking": "orphan tail thought",
+      "signature": "sig-abc",
+      "thinking": "deep thought",
       "type": "thinking"
      }
     ],
@@ -4744,6 +4716,87 @@
    "uuid": "«u24»"
   },
   {
+   "isApiErrorMessage": false,
+   "message": {
+    "container": null,
+    "content": [
+     {
+      "text": "the answer",
+      "type": "text"
+     }
+    ],
+    "context_management": null,
+    "id": "«u23»",
+    "model": "<synthetic>",
+    "role": "assistant",
+    "stop_reason": "stop_sequence",
+    "stop_sequence": "",
+    "type": "message",
+    "usage": {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "inference_geo": null,
+     "input_tokens": 0,
+     "iterations": null,
+     "output_tokens": 0,
+     "server_tool_use": {
+      "web_fetch_requests": 0,
+      "web_search_requests": 0
+     },
+     "service_tier": null,
+     "speed": null
+    }
+   },
+   "timestamp": "«ts»",
+   "type": "assistant",
+   "uuid": "«u25»"
+  },
+  {
+   "isApiErrorMessage": false,
+   "message": {
+    "container": null,
+    "content": [
+     {
+      "signature": "sig-def",
+      "thinking": "orphan tail thought",
+      "type": "thinking"
+     }
+    ],
+    "context_management": null,
+    "id": "«u26»",
+    "model": "<synthetic>",
+    "role": "assistant",
+    "stop_reason": "stop_sequence",
+    "stop_sequence": "",
+    "type": "message",
+    "usage": {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "inference_geo": null,
+     "input_tokens": 0,
+     "iterations": null,
+     "output_tokens": 0,
+     "server_tool_use": {
+      "web_fetch_requests": 0,
+      "web_search_requests": 0
+     },
+     "service_tier": null,
+     "speed": null
+    }
+   },
+   "timestamp": "«ts»",
+   "type": "assistant",
+   "uuid": "«u27»"
+  },
+  {
    "message": {
     "content": [
      {
@@ -4753,9 +4806,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u11»"
+   "uuid": "«u13»"
   },
   {
    "isApiErrorMessage": false,
@@ -4768,7 +4822,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u25»",
+    "id": "«u28»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -4795,7 +4849,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u26»"
+   "uuid": "«u29»"
   },
   {
    "isApiErrorMessage": false,
@@ -4808,7 +4862,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u27»",
+    "id": "«u30»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -4835,7 +4889,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u28»"
+   "uuid": "«u31»"
   },
   {
    "compactMetadata": {
@@ -4845,11 +4899,11 @@
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«u29»",
+   "logicalParentUuid": "«u32»",
    "subtype": "compact_boundary",
    "timestamp": "«t8»",
    "type": "system",
-   "uuid": "«u30»"
+   "uuid": "«u33»"
   },
   {
    "message": {
@@ -4861,9 +4915,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u11»"
+   "uuid": "«u13»"
   },
   {
    "isApiErrorMessage": false,
@@ -4876,7 +4931,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u31»",
+    "id": "«u34»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -4903,7 +4958,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u32»"
+   "uuid": "«u35»"
   },
   {
    "message": {
@@ -4915,9 +4970,10 @@
     ],
     "role": "user"
    },
+   "sourceUuid": "«u1»",
    "timestamp": "«t1»",
    "type": "user",
-   "uuid": "«u11»"
+   "uuid": "«u13»"
   },
   {
    "isApiErrorMessage": false,
@@ -4931,7 +4987,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u33»",
+    "id": "«u36»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -4958,7 +5014,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u34»"
+   "uuid": "«u37»"
   },
   {
    "isApiErrorMessage": false,
@@ -4971,7 +5027,7 @@
      }
     ],
     "context_management": null,
-    "id": "«u35»",
+    "id": "«u38»",
     "model": "<synthetic>",
     "role": "assistant",
     "stop_reason": "stop_sequence",
@@ -4998,7 +5054,7 @@
    },
    "timestamp": "«ts»",
    "type": "assistant",
-   "uuid": "«u36»"
+   "uuid": "«u39»"
   }
  ],
  "reorderAttachmentsForAPI/basic": [
@@ -18750,12 +18806,13 @@
        ],
        "role": "user"
       },
+      "sourceUuid": "«u1»",
       "timestamp": "«t1»",
       "toolUseResult": {
        "ok": true
       },
       "type": "user",
-      "uuid": "«u1»"
+      "uuid": "«u2»"
      }
     ],
     [
@@ -18777,12 +18834,13 @@
        ],
        "role": "user"
       },
+      "sourceUuid": "«u3»",
       "timestamp": "«t2»",
       "toolUseResult": {
        "ok": true
       },
       "type": "user",
-      "uuid": "«u2»"
+      "uuid": "«u4»"
      }
     ]
    ]
@@ -18943,6 +19001,7 @@
        ],
        "role": "user"
       },
+      "sourceUuid": "«u2»",
       "timestamp": "«t2»",
       "toolUseResult": {
        "ok": true
@@ -19295,12 +19354,13 @@
        ],
        "role": "user"
       },
+      "sourceUuid": "«u2»",
       "timestamp": "«t2»",
       "toolUseResult": {
        "ok": true
       },
       "type": "user",
-      "uuid": "«u2»"
+      "uuid": "«u3»"
      }
     ],
     [
@@ -19322,12 +19382,13 @@
        ],
        "role": "user"
       },
+      "sourceUuid": "«u4»",
       "timestamp": "«t3»",
       "toolUseResult": {
        "ok": true
       },
       "type": "user",
-      "uuid": "«u3»"
+      "uuid": "«u5»"
      }
     ],
     [
@@ -19349,12 +19410,13 @@
        ],
        "role": "user"
       },
+      "sourceUuid": "«u6»",
       "timestamp": "«t4»",
       "toolUseResult": {
        "ok": true
       },
       "type": "user",
-      "uuid": "«u4»"
+      "uuid": "«u7»"
      }
     ]
    ]
@@ -19489,12 +19551,13 @@
         ],
         "role": "user"
        },
+       "sourceUuid": "«u1»",
        "timestamp": "«t1»",
        "toolUseResult": {
         "ok": true
        },
        "type": "user",
-       "uuid": "«u1»"
+       "uuid": "«u2»"
       }
      ],
      [
@@ -19516,12 +19579,13 @@
         ],
         "role": "user"
        },
+       "sourceUuid": "«u3»",
        "timestamp": "«t2»",
        "toolUseResult": {
         "ok": true
        },
        "type": "user",
-       "uuid": "«u2»"
+       "uuid": "«u4»"
       }
      ]
     ]
@@ -19659,6 +19723,7 @@
         ],
         "role": "user"
        },
+       "sourceUuid": "«u1»",
        "timestamp": "«t1»",
        "toolUseResult": {
         "ok": true
@@ -20007,12 +20072,13 @@
         ],
         "role": "user"
        },
+       "sourceUuid": "«u1»",
        "timestamp": "«t1»",
        "toolUseResult": {
         "ok": true
        },
        "type": "user",
-       "uuid": "«u1»"
+       "uuid": "«u2»"
       }
      ],
      [
@@ -20034,12 +20100,13 @@
         ],
         "role": "user"
        },
+       "sourceUuid": "«u3»",
        "timestamp": "«t2»",
        "toolUseResult": {
         "ok": true
        },
        "type": "user",
-       "uuid": "«u2»"
+       "uuid": "«u4»"
       }
      ],
      [
@@ -20061,12 +20128,13 @@
         ],
         "role": "user"
        },
+       "sourceUuid": "«u5»",
        "timestamp": "«t3»",
        "toolUseResult": {
         "ok": true
        },
        "type": "user",
-       "uuid": "«u3»"
+       "uuid": "«u6»"
       }
      ]
     ]

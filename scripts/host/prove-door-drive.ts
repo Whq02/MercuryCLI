@@ -86,7 +86,8 @@ try {
   const names = [...new Set(recipes.map(recipe => recipe.label.split(' · ')[0]!))]
   const screen1 = mounted!.screen()
   check('Screen 1 has one row per model, with no filenames', names.every(name => mounted!.lines().filter(line => line.includes(name.padEnd(Math.max(...names.map(name => name.length))) + ' · ')).length === 1) && !/\.gguf|UD-Q/.test(screen1))
-  check('running first, then cheapest stock, then no stock', screen1.indexOf('running on your pod') < screen1.indexOf('in stock') && screen1.indexOf('in stock') < screen1.indexOf('no stock'))
+  const at = (needle: string): number => { const index = screen1.indexOf(needle); assert.ok(index >= 0, 'Screen 1 carries ' + needle); return index }
+  check('running first, then cheapest stock, then no stock', at('running on your pod') < at('in stock') && at('in stock') < at('no stock'))
   check('cursor starts on the already-paid model', selected().includes('GLM-5.3-Flash'))
   check('account and own-computer rows follow a rule', screen1.includes('Pods I’m paying for · 1') && screen1.includes('so far') && screen1.includes('My computers · 0') && screen1.includes('────────────────'))
   check('opening the door never creates a pod', rp.state.creates === 0 && queued.length === 0)
