@@ -156,6 +156,8 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         let forceShapeList = false
         for (;;) {
           const offers = await api.offers(signal)
+          const clusterFailure = api.clusterReadError()
+          if (clusterFailure) emit({ title: words.offers, words: 'Cluster stock could not be read, so multi-node shapes are not offered this time · ' + clusterFailure })
           if (!chosenModel) {
             const table = currentHostRecipes()
             const modelGroups = [...new Set(table.map(modelTitle))].map(name => {

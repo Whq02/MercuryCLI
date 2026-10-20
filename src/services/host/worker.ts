@@ -6,7 +6,7 @@ import { readStoredRunpodApiKey } from '../providers/providerSecrets.js'
 import { runLlmHost } from '../llmHost/index.js'
 import { LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 import { RunpodClient, RunpodHttpError, type HostOffer, type HostPod } from './runpod.js'
-import { createHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostShape, startHostCluster } from './cluster.js'
+import { HostClusterEnded, createHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostShape, startHostCluster } from './cluster.js'
 import { hostSetupTimeout } from './costs.js'
 import { hostRecipeOfRecord } from './recipesFile.js'
 import { hostNotice } from './notices.js'
@@ -181,7 +181,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (!recipe) throw new Error('The saved host recipe is unavailable.')
     const api = new RunpodClient(key, initial.apiBaseUrl)
     if (initial.cluster) {
-      target = await startHostCluster(api, initial, recipe, runner, signal, pause, timeout, mark)
+      target = await startHostCluster(api, initial, recipe, runner, signal, pause, timeout, mark, head => { target = head })
     } else {
     const deadline = Date.now() + timeout
     let last = 'SSH address not yet assigned'
@@ -237,9 +237,12 @@ export async function runHostJob(id: string, generation: string, options: { runn
     const current = readHostRecord(id)
     if (current && current.generation === generation && current.jobState !== 'stopped') {
       const detail = clean(String(error))
-      const record = patchHostRecord(id, { jobState: 'failed', error: detail })!
+      const record = patchHostRecord(id, { jobState: 'failed', error: detail, ...(error instanceof HostClusterEnded ? { status: 'TERMINATED' } : {}) })!
       log(detail)
-      hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Pods I’m paying for → Resume or Terminate')
+      if (error instanceof HostClusterEnded) {
+        hostNotice(record, 'failed', record.name + ' · ' + detail)
+        removeHostRecord(id)
+      } else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Pods I’m paying for → Resume or Terminate')
     }
     closeHostTunnel(id)
   } finally { clearInterval(timer) }

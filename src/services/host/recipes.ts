@@ -97,45 +97,45 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
   })),
   ...[{ gpu: 'H200', count: 8, vramGb: 141 }, { gpu: 'B200', count: 8, vramGb: 180 }, { gpu: 'B300', count: 8, vramGb: 288 }, { gpu: 'GB300', count: 4, vramGb: 288 }].map(hw => ({
     id: 'glm53-' + hw.gpu.toLowerCase(), label: 'GLM-5.3 · FP8', model: 'zai-org/GLM-5.3', ...hw, weightsGb: 756, context: 1048576, contextPerSlot: 1048576, diskGb: 950,
-    image: 'lmsysorg/sglang:latest', cuda: '13.0', source: glmSource, verification: 'GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review',
+    image: 'lmsysorg/sglang:latest', cuda: '13.0', source: glmSource, verification: 'verified · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review',
     verified: { by: 'documented' as const, note: 'verified', source: glmSource },
     pythonInstall,
     flags: ['--tp', String(hw.count), ...mtp, '--mem-fraction-static', hw.count === 4 ? '0.85' : '0.8', '--reasoning-parser', 'auto', '--tool-call-parser', 'auto'],
   })),
-  ...[{ gpu: 'B300', count: 8, nodes: 1, vramGb: 288 }, { gpu: 'B200', count: 8, nodes: 2, vramGb: 180 }, { gpu: 'H200', count: 8, nodes: 2, vramGb: 141 }, { gpu: 'GB300', count: 4, nodes: 2, vramGb: 288 }].map(hw => ({
+  ...[{ gpu: 'B300', count: 8, nodes: 1, vramGb: 288, badge: 'verified' }, { gpu: 'B200', count: 8, nodes: 2, vramGb: 180, badge: 'in-progress' }, { gpu: 'H200', count: 8, nodes: 2, vramGb: 141, badge: 'in-progress' }, { gpu: 'GB300', count: 4, nodes: 2, vramGb: 288, badge: 'in-progress' }].map(({ badge, ...hw }) => ({
     id: 'kimi-k3-' + hw.gpu.toLowerCase(), label: 'Kimi K3 · MXFP4', model: 'moonshotai/Kimi-K3', ...hw, weightsGb: 1561, diskGb: 2000,
     image: 'lmsysorg/sglang:kimi-k3', cuda: '13.0', source: kimiSource, context: 1048576, contextPerSlot: 1048576,
-    verification: 'Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured',
-    verified: { by: 'documented' as const, on: '2026-10-20', note: 'Unified low-latency cookbook; GPU serving not measured by Mercury', source: kimiSource },
+    verification: badge + ' · Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured',
+    verified: { by: 'documented' as const, on: '2026-10-20', note: badge, source: kimiSource },
     ...(hw.gpu === 'H200' ? { environment: { NCCL_MNNVL_ENABLE: '1', NCCL_CUMEM_ENABLE: '1', SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK: '0' } } : hw.gpu === 'GB300' ? { environment: { SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK: '0' } } : {}),
     flags: ['--trust-remote-code', '--tp-size', hw.gpu === 'H200' ? '16' : '8', ...(hw.gpu === 'B200' ? ['--pp-size', '2', '--disable-flashinfer-autotune', '--watchdog-timeout', '3600', '--model-loader-extra-config', '{"enable_multithread_load":true}'] : []), ...(hw.gpu === 'H200' ? ['--ep-size', '16', '--moe-runner-backend', 'marlin', '--decode-attention-backend', 'flashmla', '--enable-symm-mem'] : []), '--mem-fraction-static', '0.85', '--reasoning-parser', 'kimi_k3', '--tool-call-parser', 'kimi_k3'],
   })),
   ...[{ gpu: 'H200', nodes: 4, vramGb: 141 }, { gpu: 'B200', nodes: 2, vramGb: 180 }, { gpu: 'B300', nodes: 2, vramGb: 288 }].map(hw => ({
     id: 'qwen38-24t-fp8-' + hw.gpu.toLowerCase(), label: 'Qwen3.8-2.4T-A95B · FP8', model: 'Qwen/Qwen3.8-2.4T-A95B-FP8', ...hw, count: 8, weightsGb: 2497, diskGb: 3000,
     image: 'lmsysorg/sglang:qwen38', cuda: '13.0', source: qwenMaxSource, context: 262144, contextPerSlot: 262144,
-    verification: 'Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt',
-    verified: { by: 'documented' as const, on: '2026-10-20', note: 'Balanced FP8 cookbook; GPU serving not measured by Mercury', source: qwenMaxSource },
+    verification: 'verified · Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt',
+    verified: { by: 'documented' as const, on: '2026-10-20', note: 'verified', source: qwenMaxSource },
     flags: ['--trust-remote-code', '--tp-size', '8', '--pp-size', String(hw.nodes), '--dist-timeout', '1800', '--mamba-full-memory-ratio', '0.95', '--mamba-ssm-dtype', 'bfloat16', ...(hw.gpu === 'H200' ? ['--linear-attn-prefill-backend', 'flashinfer', '--linear-attn-decode-backend', 'flashinfer', '--max-prefill-tokens', '8192', '--page-size', '64'] : hw.gpu === 'B300' ? ['--context-length', '262144', '--attention-backend', 'trtllm_mha', '--linear-attn-prefill-backend', 'flashinfer', '--linear-attn-decode-backend', 'flashinfer', '--moe-runner-backend', 'flashinfer_trtllm', '--moe-a2a-backend', 'none', '--mamba-radix-cache-strategy', 'extra_buffer', '--mem-fraction-static', '0.95', '--max-running-requests', '512', '--chunked-prefill-size', '8192', '--max-prefill-tokens', '8192', '--page-size', '64', '--cuda-graph-backend-decode', 'full', '--cuda-graph-max-bs-decode', '128', '--cuda-graph-bs-decode', '1', '2', '4', '8', '16', '32', '64', '128'] : ['--chunked-prefill-size', '8192']), '--reasoning-parser', 'qwen3', '--tool-call-parser', 'qwen3_coder'],
   })),
   {
     id: 'qwen38-24t-nvfp4-b300', label: 'Qwen3.8-2.4T-A95B · NVFP4', model: 'RadixArk/Qwen3.8-2.4T-A95B-NVFP4', gpu: 'B300', count: 8, weightsGb: 1485, vramGb: 288, diskGb: 1900,
     image: 'lmsysorg/sglang:qwen38', cuda: '13.0', source: qwenMaxSource, context: 262144, contextPerSlot: 262144,
-    verification: 'Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt',
-    verified: { by: 'documented', on: '2026-10-20', note: 'Balanced NVFP4 cookbook; GPU serving not measured by Mercury', source: qwenMaxSource },
+    verification: 'verified · Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt',
+    verified: { by: 'documented', on: '2026-10-20', note: 'verified', source: qwenMaxSource },
     environment: { SGLANG_FLASHINFER_MNNVL_CUTEDSL_AR_FUSION: '1' },
     flags: ['--trust-remote-code', '--tp-size', '8', '--moe-runner-backend', 'flashinfer_trtllm', '--mamba-radix-cache-strategy', 'extra_buffer', '--mamba-ssm-dtype', 'bfloat16', '--speculative-algorithm', 'NEXTN', '--speculative-num-steps', '3', '--speculative-eagle-topk', '1', '--speculative-num-draft-tokens', '4', '--enable-linear-replayssm-spec', '--mem-fraction-static', '0.90', '--chunked-prefill-size', '8192', '--max-prefill-tokens', '8192', '--reasoning-parser', 'qwen3', '--tool-call-parser', 'qwen3_coder'],
   },
-  ...[{ gpu: 'B200', count: 8, vramGb: 180 }, { gpu: 'B300', count: 8, vramGb: 288 }, { gpu: 'GB300', count: 4, vramGb: 288 }].map(hw => ({
+  ...[{ gpu: 'B200', count: 8, vramGb: 180, badge: 'in-progress' }, { gpu: 'B300', count: 8, vramGb: 288, badge: 'in-progress' }, { gpu: 'GB300', count: 4, vramGb: 288, badge: 'verified' }].map(({ badge, ...hw }) => ({
     id: 'deepseek-v4-pro-0813-' + hw.gpu.toLowerCase(), label: 'DeepSeek-V4-Pro-0813 · MXFP4', model: 'deepseek-ai/DeepSeek-V4-Pro-0813', ...hw, weightsGb: 893, diskGb: 1100,
-    image: 'lmsysorg/sglang:latest', cuda: '13.0', source: dsProSource, context: 1048576, contextPerSlot: 1048576, verification: 'MIT · configured 1M context, capacity not measured',
-    verified: { by: 'documented' as const, on: '2026-10-20', note: 'Official 0813 low-latency cookbook; GPU serving not measured by Mercury', source: dsProSource },
+    image: 'lmsysorg/sglang:latest', cuda: '13.0', source: dsProSource, context: 1048576, contextPerSlot: 1048576, verification: badge + ' · MIT · configured 1M context, capacity not measured',
+    verified: { by: 'documented' as const, on: '2026-10-20', note: badge, source: dsProSource },
     ...(hw.gpu === 'B200' ? { environment: { SGLANG_OPT_USE_JIT_NORM: '1', SGLANG_OPT_USE_TOPK_V2: '1' } } : {}),
     flags: ['--trust-remote-code', '--tp', String(hw.count), '--moe-runner-backend', 'flashinfer_mxfp4', '--speculative-algorithm', 'DSPARK', '--chunked-prefill-size', '8192', '--disable-flashinfer-autotune', '--swa-full-tokens-ratio', '0.1', '--mem-fraction-static', '0.90', '--reasoning-parser', 'deepseek-v4', '--tool-call-parser', 'deepseekv4'],
   })),
-  ...[{ gpu: 'B300', vramGb: 288 }, { gpu: 'H200', vramGb: 141 }].map(hw => ({
+  ...[{ gpu: 'B300', vramGb: 288, badge: 'verified' }, { gpu: 'H200', vramGb: 141, badge: 'in-progress' }].map(({ badge, ...hw }) => ({
     id: 'mimo26-pro-' + hw.gpu.toLowerCase(), label: 'MiMo-V2.6-Pro-RL · MXFP4', model: 'XiaomiMiMo/MiMo-V2.6-Pro-RL', ...hw, count: 8, weightsGb: 574, diskGb: 800,
-    image: 'lmsysorg/sglang:dev', cuda: '13.0', source: mimoSource, context: 1048576, contextPerSlot: 1048576, verification: 'MIT · configured 1M context, capacity not measured',
-    verified: { by: 'documented' as const, on: '2026-10-20', note: 'Pro MXFP4 cookbook; GPU serving not measured by Mercury', source: mimoSource },
+    image: 'lmsysorg/sglang:dev', cuda: '13.0', source: mimoSource, context: 1048576, contextPerSlot: 1048576, verification: badge + ' · MIT · configured 1M context, capacity not measured',
+    verified: { by: 'documented' as const, on: '2026-10-20', note: badge, source: mimoSource },
     flags: ['--tp', '8', '--trust-remote-code', '--reasoning-parser', 'mimo', '--tool-call-parser', 'mimo', ...(hw.gpu === 'H200' ? ['--moe-runner-backend', 'marlin'] : ['--ep', '8', '--dp', '1', '--pp-size', '1', '--moe-runner-backend', 'deep_gemm', '--moe-a2a-backend', 'deepep', '--deepep-mode', 'auto', '--moe-dense-tp-size', '1', '--enable-dp-lm-head', '--log-level-http', 'warning', '--enable-cache-report', '--page-size', '1', '--cuda-graph-max-bs-decode', '64', '--max-running-requests', '64', '--mem-fraction-static', '0.7', '--swa-full-tokens-ratio', '0.08', '--chunked-prefill-size', '49152', '--max-prefill-tokens', '65536', '--attention-backend', 'fa4', '--speculative-algorithm', 'DFLASH', '--speculative-draft-model-path', '/workspace/mercury-host/mimo26-pro-b300/weights/dflash', '--speculative-num-draft-tokens', '8', '--context-length', '1048576', '--cuda-graph-backend-prefill=disabled', '--mm-enable-dp-encoder', '--mm-attention-backend', 'fa4'])],
   })),
   ...[{ gpu: 'H200', vramGb: 141 }, { gpu: 'B200', vramGb: 180 }].map(hw => ({
@@ -144,11 +144,11 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     verified: { by: 'documented' as const, on: '2026-10-20', note: 'Vendor model-card vLLM recipe; GPU serving not measured by Mercury', source: mistralSource },
     flags: ['--max-model-len', '262144', '--tensor-parallel-size', '8', '--tokenizer_mode', 'mistral', '--config_format', 'mistral', '--load_format', 'mistral', '--enable-auto-tool-choice', '--tool-call-parser', 'mistral'],
   })),
-  ...[{ gpu: 'H200', count: 8, nodes: 2, vramGb: 141 }, { gpu: 'B200', count: 8, nodes: 2, vramGb: 180 }, { gpu: 'B300', count: 8, nodes: 1, vramGb: 288 }, { gpu: 'GB300', count: 4, nodes: 2, vramGb: 288 }].map(hw => ({
+  ...[{ gpu: 'H200', count: 8, nodes: 2, vramGb: 141, badge: 'in-progress' }, { gpu: 'B200', count: 8, nodes: 2, vramGb: 180, badge: 'in-progress' }, { gpu: 'B300', count: 8, nodes: 1, vramGb: 288, badge: 'verified' }, { gpu: 'GB300', count: 4, nodes: 2, vramGb: 288, badge: 'in-progress' }].map(({ badge, ...hw }) => ({
     id: 'glm53-bf16-' + hw.gpu.toLowerCase(), label: 'GLM-5.3 · BF16', model: 'zai-org/GLM-5.3-BF16', ...hw, weightsGb: 1507, diskGb: 1900,
     image: 'lmsysorg/sglang:latest', cuda: '13.0', source: glmSource, context: 1048576, contextPerSlot: 1048576,
-    verification: 'GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review',
-    verified: { by: 'documented' as const, on: '2026-10-20', note: 'BF16 low-latency cookbook; GPU serving not measured by Mercury', source: glmSource },
+    verification: badge + ' · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review',
+    verified: { by: 'documented' as const, on: '2026-10-20', note: badge, source: glmSource },
     flags: ['--tp', String(hw.count * hw.nodes), ...mtp, '--mem-fraction-static', hw.gpu === 'B300' ? '0.9' : '0.85', '--reasoning-parser', 'auto', '--tool-call-parser', 'auto'],
   })),
 ]

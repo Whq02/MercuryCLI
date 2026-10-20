@@ -24,6 +24,7 @@ export async function runpodFixture() {
       assert.equal(url.searchParams.get('include'), 'AVAILABILITY')
       if (url.searchParams.get('product') === 'CLUSTER') {
         state.clusterCatalogReads++
+        if (state.failClusterCatalogue) return problem(400, 'Bad Request', 'fixture: cluster catalogue refused this count')
         assert.equal(url.searchParams.get('cloud'), 'SECURE')
         assert.equal(url.searchParams.get('minCudaVersion'), '13.0')
         assert.ok(Number(url.searchParams.get('count')) >= 2)
@@ -65,7 +66,7 @@ export async function runpodFixture() {
       assert.equal(launch.cmd.length, 1)
       assert.equal(spawnSync('bash', ['-n', '-c', launch.cmd[0]]).status, 0)
       const id = 'fixture-cluster-' + state.clusterCreates
-      const nodes = Array.from({ length: body.compute.podCount }, (_, rank) => ({ ...structuredClone(livePod), id: id + '-node-' + rank, name: body.name + '-' + rank, status: 'RUNNING', cudaVersion: state.clusterCuda, cost: (state.clusterGpus.find(gpu => gpu.id === body.compute.gpuTypeId)?.price.secure ?? 7.99) * body.compute.gpuCountPerPod, cluster: { id, rank, ip: '10.65.0.' + (rank + 2) }, createdAt: new Date().toISOString(), ssh: { direct: { host: '127.0.0.1', port: 22000 + rank, username: 'root' } } }))
+      const nodes = Array.from({ length: body.compute.podCount }, (_, rank) => ({ ...structuredClone(livePod), id: id + '-node-' + rank, name: body.name + '-' + rank, status: 'RUNNING', cudaVersion: state.clusterCuda, cost: Math.round((state.clusterGpus.find(gpu => gpu.id === body.compute.gpuTypeId)?.price.secure ?? 7.99) * body.compute.gpuCountPerPod * (state.clusterRatePremium ?? 1) * 10000) / 10000, cluster: { id, rank, ip: '10.65.0.' + (rank + 2) }, createdAt: new Date().toISOString(), ssh: { direct: { host: '127.0.0.1', port: 22000 + rank, username: 'root' } } }))
       const cluster = { id, name: body.name, type: body.type, compute: body.compute, pods: { total: nodes.length, byStatus: { RUNNING: nodes.length } }, primary: { podId: nodes[0].id, status: 'RUNNING' }, createdAt: new Date().toISOString() }
       state.clusters.set(id, cluster); state.clusterNodes.set(id, nodes)
       if (outcome === 'lost') return req.socket.destroy()
@@ -127,7 +128,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner) {
   assert.equal(new URL(modelBaseUrl).hostname, '127.0.0.1')
   const commands = []
   const children = new Set()
-  const state = { refuse: false, failEngine: false, holdHealth: false, docker: true, log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
+  const state = { refuse: false, failEngine: false, holdHealth: false, docker: true, goneEngines: new Set(), log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
   const runner = {
     async run(command, args, signal, timeout) {
       commands.push({ command, args })
@@ -149,6 +150,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner) {
       if (state.failEngine && remote.includes('launch.log')) throw new Error('launch.log: fixture outer launch permission denied')
       if (remote.includes('tail -n 8')) output = state.log
       if (remote.startsWith('dd if=')) { const offset = Number(/skip=(\d+)/.exec(remote)?.[1] ?? 0); output = state.log.slice(offset, offset + 8192) }
+      if (remote.includes('MERCURY_ENGINE_GONE')) output = state.goneEngines.has(Number(args[args.indexOf('-p') + 1])) ? 'MERCURY_ENGINE_GONE\nfixture worker engine exited: CUDA out of memory' : 'MERCURY_ENGINE_ALIVE'
       return actualRunner.run(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', output], signal)
     },
     tunnel(args) {

@@ -34,11 +34,11 @@
         "deepseekv4"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4",
-      "verification": "MIT · configured 1M context, capacity not measured",
+      "verification": "in-progress · MIT · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Official 0813 low-latency cookbook; GPU serving not measured by Mercury",
+        "note": "in-progress",
         "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4"
       },
       "context": 1048576,
@@ -80,11 +80,11 @@
         "deepseekv4"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4",
-      "verification": "MIT · configured 1M context, capacity not measured",
+      "verification": "in-progress · MIT · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Official 0813 low-latency cookbook; GPU serving not measured by Mercury",
+        "note": "in-progress",
         "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4"
       },
       "context": 1048576,
@@ -122,11 +122,11 @@
         "deepseekv4"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4",
-      "verification": "MIT · configured 1M context, capacity not measured",
+      "verification": "verified · MIT · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Official 0813 low-latency cookbook; GPU serving not measured by Mercury",
+        "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4"
       },
       "context": 1048576,
@@ -273,7 +273,7 @@
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
-      "verification": "GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
+      "verification": "verified · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
       "verified": {
         "by": "documented",
         "note": "verified",
@@ -313,7 +313,7 @@
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
-      "verification": "GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
+      "verification": "verified · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
       "verified": {
         "by": "documented",
         "note": "verified",
@@ -354,11 +354,11 @@
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
-      "verification": "GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
+      "verification": "in-progress · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "BF16 low-latency cookbook; GPU serving not measured by Mercury",
+        "note": "in-progress",
         "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3"
       },
       "context": 1048576,
@@ -395,11 +395,11 @@
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
-      "verification": "GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
+      "verification": "verified · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "BF16 low-latency cookbook; GPU serving not measured by Mercury",
+        "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3"
       },
       "context": 1048576,
@@ -436,11 +436,11 @@
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
-      "verification": "GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
+      "verification": "in-progress · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "BF16 low-latency cookbook; GPU serving not measured by Mercury",
+        "note": "in-progress",
         "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3"
       },
       "context": 1048576,
@@ -477,11 +477,11 @@
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
-      "verification": "GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
+      "verification": "in-progress · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "BF16 low-latency cookbook; GPU serving not measured by Mercury",
+        "note": "in-progress",
         "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3"
       },
       "context": 1048576,
@@ -733,7 +733,7 @@
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
-      "verification": "GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
+      "verification": "verified · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
       "verified": {
         "by": "documented",
         "note": "verified",
@@ -773,7 +773,7 @@
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
-      "verification": "GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
+      "verification": "verified · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
       "verified": {
         "by": "documented",
         "note": "verified",
@@ -814,11 +814,11 @@
         "kimi_k3"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3",
-      "verification": "Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
+      "verification": "in-progress · Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Unified low-latency cookbook; GPU serving not measured by Mercury",
+        "note": "in-progress",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3"
       },
       "context": 1048576,
@@ -848,11 +848,11 @@
         "kimi_k3"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3",
-      "verification": "Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
+      "verification": "verified · Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Unified low-latency cookbook; GPU serving not measured by Mercury",
+        "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3"
       },
       "context": 1048576,
@@ -882,11 +882,11 @@
         "kimi_k3"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3",
-      "verification": "Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
+      "verification": "in-progress · Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Unified low-latency cookbook; GPU serving not measured by Mercury",
+        "note": "in-progress",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3"
       },
       "context": 1048576,
@@ -926,11 +926,11 @@
         "kimi_k3"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3",
-      "verification": "Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
+      "verification": "in-progress · Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Unified low-latency cookbook; GPU serving not measured by Mercury",
+        "note": "in-progress",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3"
       },
       "context": 1048576,
@@ -1008,11 +1008,11 @@
         "fa4"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.6",
-      "verification": "MIT · configured 1M context, capacity not measured",
+      "verification": "verified · MIT · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Pro MXFP4 cookbook; GPU serving not measured by Mercury",
+        "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.6"
       },
       "context": 1048576,
@@ -1041,11 +1041,11 @@
         "marlin"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.6",
-      "verification": "MIT · configured 1M context, capacity not measured",
+      "verification": "in-progress · MIT · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Pro MXFP4 cookbook; GPU serving not measured by Mercury",
+        "note": "in-progress",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.6"
       },
       "context": 1048576,
@@ -1211,11 +1211,11 @@
         "qwen3_coder"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8",
-      "verification": "Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
+      "verification": "verified · Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Balanced FP8 cookbook; GPU serving not measured by Mercury",
+        "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8"
       },
       "context": 262144,
@@ -1288,11 +1288,11 @@
         "qwen3_coder"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8",
-      "verification": "Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
+      "verification": "verified · Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Balanced FP8 cookbook; GPU serving not measured by Mercury",
+        "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8"
       },
       "context": 262144,
@@ -1336,11 +1336,11 @@
         "qwen3_coder"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8",
-      "verification": "Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
+      "verification": "verified · Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Balanced FP8 cookbook; GPU serving not measured by Mercury",
+        "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8"
       },
       "context": 262144,
@@ -1388,11 +1388,11 @@
         "qwen3_coder"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8",
-      "verification": "Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
+      "verification": "verified · Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
       "verified": {
         "by": "documented",
         "on": "2026-10-20",
-        "note": "Balanced NVFP4 cookbook; GPU serving not measured by Mercury",
+        "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8"
       },
       "context": 262144,

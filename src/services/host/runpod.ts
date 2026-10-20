@@ -27,6 +27,7 @@ export const cents = (amount: number): number => Math.round(amount * 100)
 export class RunpodClient {
   private lastShapes: HostOffer[] = []
   private policy: string | undefined
+  private clusterFailure: string | undefined
   constructor(private key: string, private base = 'https://api.runpod.io/v2') {
     const url = new URL(base)
     if (url.username || url.password || url.search || url.hash || !(url.origin === 'https://api.runpod.io' || url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname))) throw new Error('Runpod uses its official API or a loopback fixture only.')
@@ -49,6 +50,7 @@ export class RunpodClient {
   }
   rateLimitPolicy(): string | undefined { return this.policy }
   shapes(): readonly HostOffer[] { return this.lastShapes }
+  clusterReadError(): string | undefined { return this.clusterFailure }
   async offers(signal: AbortSignal): Promise<HostOffer[]> {
     void refreshHostRecipes()
     const allRecipes = currentHostRecipes()
@@ -70,7 +72,9 @@ export class RunpodClient {
         } else offers.push({ recipe, gpuId: gpu.id, price, availability: gpu.availability })
       }
     }
-    const clusters = await this.clusterOffers(allRecipes.filter(recipe => (recipe.nodes ?? 1) > 1), signal)
+    let clusters: { offers: HostOffer[]; shapes: HostOffer[] } = { offers: [], shapes: [] }
+    this.clusterFailure = undefined
+    try { clusters = await this.clusterOffers(allRecipes.filter(recipe => (recipe.nodes ?? 1) > 1), signal) } catch (error) { if (signal.aborted) throw error; this.clusterFailure = String(error) }
     offers.push(...clusters.offers)
     shapes.push(...clusters.shapes)
     this.lastShapes = shapes.sort((a, b) => unverifiedRank(a.recipe) - unverifiedRank(b.recipe) || a.price - b.price || a.recipe.id.localeCompare(b.recipe.id))

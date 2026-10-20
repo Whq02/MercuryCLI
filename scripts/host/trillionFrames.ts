@@ -31,7 +31,7 @@ export async function trillionFrames(question: LlmHostQuestion, check: (name: st
       }
       check(cols + '-column frame shows node count, total rate, disk and weight size', ['2 nodes × 8× B200', '$127.84/hr', '2 × 2 TB disk', 'weights 1.56 TB'].every(word => screen.includes(word)))
       check(cols + '-column frame shows download assumption and per-token alternative', ['30–60 min', '0.5–1 GB/s', 'per token by Kimi', 'https://platform.kimi.ai', 'only when kept busy'].every(word => screen.includes(word)))
-      check(cols + '-column frame retains billing warning, confirmation and cancel hint', ['stopped pod still bills its disk', 'Confirm $127.84/hr', 'keep things as they are', 'esc'].every(word => screen.includes(word)))
+      check(cols + '-column frame retains the cluster billing warning, confirmation and cancel hint', ['a cluster has no Stop', 'bills until Terminate', 'above this catalogue rate', 'Confirm $127.84/hr', 'keep things as they are', 'esc'].every(word => screen.includes(word)) && !screen.includes('stopped pod'))
       check(cols + '-column frame stays inside its width without render faults', m.lines().every(line => stringWidth(line) <= cols) && !screen.includes('RENDER ERROR'))
     } finally { popup.closeSettingsPopup(); m.unmount() }
     const { LlmHostDialog } = await import('../../src/components/LlmHostDialog.tsx')
