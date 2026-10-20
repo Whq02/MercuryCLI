@@ -86,7 +86,7 @@ section('§1 a server the session cannot list: the popup says why, inside its on
   answer = { server: 'runpod', state: 'unavailable', tools: [], omitted: 0, detail: OLDER_DAEMON }
   const m = await mounted()
   const unfolded = await press(m, KEY.enter, '  tools')
-  check('↵ unfolds the connected server with its tools row', unfolded, m.screen())
+  check('↵ unfolds the connected server with its tools row', unfolded && m.lines().some(line => /│\s+›?\s+tools\s*│/.test(line)), m.screen())
   await press(m, KEY.down, '›   tools')
   const reasonShown = await press(m, KEY.enter, 'tools not listed')
   const lines = m.lines()
@@ -130,6 +130,21 @@ section('§2 the marks of a bounded answer reach the screen: omitted tools, a he
   await press(m, KEY.down, 'deferred · schema loads on demand')
   const withheld = await press(m, KEY.enter, 'did not fit this view')
   check("a withheld schema says so with its size instead of an empty parameter list", withheld && m.screen().includes('The input schema (200 KB)') && !m.screen().includes('Parameters'), m.screen())
+  m.unmount()
+}
+
+section('§3 only a connected server offers its tools: a server the kit dial turned off unfolds its dials and nothing else')
+{
+  roster.clients = [{ name: 'offsrv', type: 'disabled', toolCount: 0 }]
+  answer = { server: 'offsrv', state: 'disabled', tools: [], omitted: 0, detail: 'offsrv is off for this session — its tools are not in the session' }
+  const m = await mountOffscreen(
+    h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(PopupFrameContext.Provider, { value: FRAME }, h(McpPopup, { onDone: () => {} }))),
+    100,
+    30,
+  )
+  await waitFor(() => m.screen().includes('offsrv · off'), 10_000)
+  const unfolded = await press(m, KEY.enter, 'enable for this session')
+  check('the off server unfolds enable and reconnect, and no tools row', unfolded && m.screen().includes('reconnect') && !m.lines().some(line => /│\s+›?\s+tools\s*│/.test(line)), m.screen())
   m.unmount()
 }
 
