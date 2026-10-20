@@ -25,3 +25,16 @@ export function hostStorageWords(recipe: HostRecipe, price?: number): string {
 }
 
 export const hostSetupTimeout = (recipe?: HostRecipe): number => 90 * 60_000 + Math.ceil((recipe?.weightsGb ?? 0) / 0.5) * 1000
+
+export function hostPriceLines(recipe: HostRecipe, price?: number): string[] | undefined {
+  if (!recipe.weightsGb) return undefined
+  const download = hostDownloadWords(recipe).split(' — ')[1]!.split(' assuming ')[0]!
+  const vendor = hostPerTokenWords(recipe, price).split(' — ')
+  return [
+    ((recipe.nodes ?? 1) > 1 ? recipe.nodes + ' × ' : '') + hostSize(recipe.diskGb) + ' disk (extra) · weights ' + hostSize(recipe.weightsGb),
+    download + '; assumes sustained 0.5–1 GB/s' + ((recipe.nodes ?? 1) > 1 ? ' per node' : ''),
+    'Loading is additional; a stopped pod still bills its disk.',
+    (recipe.nodes ?? 1) > 1 ? 'Billing starts now; clusters and networking bill until Terminate.' : 'Billing starts now, including while weights download.',
+    ...vendor.filter(Boolean),
+  ]
+}

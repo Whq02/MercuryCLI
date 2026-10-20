@@ -20,6 +20,7 @@ export interface LlmHostQuestion {
   title: string
   found: string
   willRun: string
+  lines?: string[]
   rows?: ReadonlyArray<{ value: string; label: string }>
   initial?: string
   secret?: boolean

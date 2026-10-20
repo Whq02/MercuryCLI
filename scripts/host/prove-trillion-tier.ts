@@ -75,6 +75,8 @@ try {
     check('single-machine price line computes the requested 8× B300 example', hostStorageWords(HOST_RECIPES.find(row => row.id === 'kimi-k3-b300')!, 8.99 * 8).includes('$71.92/hr'))
     const frameOut = process.argv.indexOf('--frames')
     if (frameOut >= 0) writeFileSync(process.argv[frameOut + 1]!, JSON.stringify(frames, null, 2) + '\n')
+    const { trillionFrames } = await import('./trillionFrames.ts')
+    await trillionFrames(confirm, check, process.argv.includes('--frame-dir') ? process.argv[process.argv.indexOf('--frame-dir') + 1] : undefined)
     await runHostJob(id, queued!.generation!, { runner: ssh.runner, pauseMs: 10, timeoutMs: 15000, keepAlive: false })
     const ready = readHostRecord(id)!
     check('setup dispatch reaches ready through the cluster head', ready.jobState === 'ready')

@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import stringWidth from 'string-width'
+import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
+import { gridToPng } from '../ui/gridToPng.ts'
+import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+
+export async function trillionFrames(question: LlmHostQuestion, check: (name: string, truth: unknown) => void, output?: string) {
+  const React = await import('react')
+  const { Box } = await import('../../src/ink.ts')
+  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
+  for (const [cols, rows] of [[120, 44], [80, 24]] as const) {
+    const road: LlmHostRoad = async ask => { await ask(question); return { ok: false, words: 'cancelled' } }
+    popup.openSettingsPopup(llmHostPopupRequest(road))
+    const m = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: cols, height: rows }, React.createElement(SettingsPopupSlot)))), cols, rows)
+    try {
+      assert.ok(await waitFor(() => m.screen().includes('Confirm the hourly price'), 5000), m.screen())
+      const screen = m.screen()
+      if (output) {
+        mkdirSync(output, { recursive: true })
+        const stem = join(output, 'price-' + cols)
+        writeFileSync(stem + '.txt', screen)
+        const grid = m.lines().map((line, y) => Array.from(line.padEnd(cols)).map((c, x) => { const s = m.styleAt(x, y); return { c, fg: s?.fg ?? 'default', bg: s?.bg ?? 'default', bold: s?.bold ?? false } }))
+        writeFileSync(stem + '.json', JSON.stringify({ grid, cols, rows }))
+        await gridToPng(stem + '.json', stem + '.png')
+      }
+      check(cols + '-column frame shows node count, total rate, disk and weight size', ['2 nodes × 8× B200', '$127.84/hr', '2 × 2 TB disk', 'weights 1.56 TB'].every(word => screen.includes(word)))
+      check(cols + '-column frame shows download assumption and per-token alternative', ['30–60 min', '0.5–1 GB/s', 'per token by Kimi', 'https://platform.kimi.ai', 'only when kept busy'].every(word => screen.includes(word)))
+      check(cols + '-column frame retains billing warning, confirmation and cancel hint', ['stopped pod still bills its disk', 'Confirm $127.84/hr', 'keep things as they are', 'esc'].every(word => screen.includes(word)))
+      check(cols + '-column frame stays inside its width without render faults', m.lines().every(line => stringWidth(line) <= cols) && !screen.includes('RENDER ERROR'))
+    } finally { popup.closeSettingsPopup(); m.unmount() }
+    const { LlmHostDialog } = await import('../../src/components/LlmHostDialog.tsx')
+    const renderOther = async (lines?: string[]) => {
+      const road: LlmHostRoad = async ask => { await ask({ step: 'models', title: 'Unchanged model picker', found: 'fixture', willRun: 'nothing paid', rows: [{ value: 'a', label: 'fixture-model' }], ...(lines ? { lines } : {}) }); return { ok: false, words: 'cancelled' } }
+      const view = await mountOffscreen(React.createElement(ThemeProvider, {}, React.createElement(LlmHostDialog, { width: cols, rowBudget: rows, road })), cols, rows)
+      try { assert.ok(await waitFor(() => view.screen().includes('fixture-model'), 5000)); return view.screen() } finally { view.unmount() }
+    }
+    check(cols + '-column non-confirmation frame is byte-identical with optional disclosure data', await renderOther() === await renderOther(['this belongs only on rent-confirm']))
+  }
+}
