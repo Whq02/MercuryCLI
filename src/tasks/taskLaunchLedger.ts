@@ -13,7 +13,7 @@ const MAX_COMMAND_CHARS = 512
 
 type TaskLaunchKind = 'monitor' | 'shell'
 
-export interface TaskLaunchRecord {
+interface TaskLaunchRecord {
   v: typeof TASK_LAUNCH_LEDGER_VERSION
   taskId: string
   kind: TaskLaunchKind

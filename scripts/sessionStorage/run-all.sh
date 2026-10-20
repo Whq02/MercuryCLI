@@ -41,6 +41,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-field-e004-p
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-torn-tail-heal.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-torn-tail-heal.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-store-not-cross-adopted.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-store-not-cross-adopted.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-concurrent-chain-fork.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-concurrent-chain-fork.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-single-envelope-attachments-on-chain.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-single-envelope-attachments-on-chain.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-decision-rows-thread.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-decision-rows-thread.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-insert-adversarial.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-insert-adversarial.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-discovery-scan-pool.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-discovery-scan-pool.ts" "$__t" "$__rc"
