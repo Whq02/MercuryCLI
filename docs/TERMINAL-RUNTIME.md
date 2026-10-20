@@ -209,8 +209,8 @@ pool are listed as `warm runner · pre-booted, unclaimed` (and summarized on the
 A session keeps the build its runner started on. Within a minute of an install,
 a live session on an older build says so once per installed build in its chat,
 including after `/clear`: `A newer Mercury
-build is installed (<tree>) · this session still runs <tree> · /restart moves
-it (watches and background shells end and are named)`. `/restart` in that chat
+build is installed (<tree>). This chat still uses <tree>. /restart switches to
+it; watches and background shells will stop and be listed.` `/restart` in that chat
 names the Monitor watches and background shells that will end, stops its own
 runner, moves the background daemon to the installed build if needed, then
 resumes the session on that build. The resumed chat, its next turn and

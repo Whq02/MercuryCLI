@@ -3,7 +3,7 @@ import { createServer } from 'node:http'
 export async function vastFixture() {
   const key = 'fixture-vast-key'
   const requests = []
-  const state = { noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, stops: 0, pods: new Map(), customOffers: null, createStatus: 0, holdTerminate: false, badRead: false, logUrl: null, keys: [], keyCreates: 0, ambiguousKey: false, mismatchKey: false, noDirect: false }
+  const state = { noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, stops: 0, pods: new Map(), customOffers: null, createStatus: 0, holdTerminate: false, badRead: false, logUrl: null, keys: [], keyCreates: 0, ambiguousKey: false, mismatchKey: false, noDirect: false, plainTextError: false, messageOnlyError: false, provisioningRead: false }
   const server = createServer(async (req, res) => {
     let raw = ''
     for await (const chunk of req) raw += chunk
@@ -14,6 +14,8 @@ export async function vastFixture() {
     const fail = (status, msg) => json({ success: false, error: 'invalid_args', msg: msg + ' ' + key }, status)
     if (url.pathname.startsWith('/fixture-logs/')) { res.writeHead(200); res.end('booted\n' + key + '\nready\n'); return }
     if (req.headers.authorization !== 'Bearer ' + key) { fail(401, 'Invalid user key'); return }
+    if (state.plainTextError) { res.writeHead(429, { 'content-type': 'text/plain' }); res.end('API requests too frequent: endpoint threshold=4.5 ' + key); return }
+    if (state.messageOnlyError) { json({ message: 'Offer unavailable ' + key }, 400); return }
     const create = req.method === 'PUT' && url.pathname.startsWith('/api/v0/asks/')
     if (create) state.creates++
     if (state.rateLimited) { if (state.rateLimited === 'once') state.rateLimited = false; fail(429, 'API requests too frequent endpoint threshold=4.5'); return }
@@ -50,7 +52,7 @@ export async function vastFixture() {
       if (state.ambiguousCreate) { fail(503, 'upstream failed after accepting'); return }
       json({ success: true, new_contract: id }); return
     }
-    const shown = pod => ({ ...pod, ports: state.noDirect ? {} : { '22/tcp': [{ HostIp: '0.0.0.0', HostPort: '2222' }] } })
+    const shown = pod => ({ ...pod, ...(state.provisioningRead ? { actual_status: 'loading', start_date: null } : {}), ports: state.noDirect ? {} : { '22/tcp': [{ HostIp: '0.0.0.0', HostPort: '2222' }] } })
     if (url.pathname === '/api/v0/instances/' && req.method === 'GET') { json({ instances_found: state.pods.size, instances: [...state.pods.values()].map(shown) }); return }
     const log = /^\/api\/v0\/instances\/request_logs\/(\d+)\/$/.exec(url.pathname)
     if (log && req.method === 'PUT') { json({ success: true, result_url: state.logUrl ?? origin + '/fixture-logs/' + log[1] }); return }
@@ -58,7 +60,7 @@ export async function vastFixture() {
     const id = Number(match?.[1])
     const pod = state.pods.get(id)
     if (!pod) { fail(404, 'Instance not found'); return }
-    if (req.method === 'GET') { json(state.badRead ? {} : { instances: shown(pod) }); return }
+    if (req.method === 'GET') { const payload = shown(pod); state.provisioningRead = false; json(state.badRead ? {} : { instances: payload }); return }
     if (req.method === 'PUT' && body.state === 'stopped') { state.stops++; pod.actual_status = 'stopped'; json({ success: true }); return }
     if (req.method === 'DELETE') { state.deletes++; if (!state.holdTerminate) state.pods.delete(id); json({ success: true }); return }
     fail(400, 'unknown request')
