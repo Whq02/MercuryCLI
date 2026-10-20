@@ -112,15 +112,15 @@ try {
   await close()
   rp.state.customGpus = [{ ...gpu, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]
   open(); await heading('Which model?'); mounted!.push(KEY.enter); await heading('GLM-5.3-Flash'); await choose('Rent · Runpod')
-  await heading('Confirm the rental'); await capture('120-screen-3')
+  await heading('Confirm the hourly price'); await capture('120-screen-3')
   const measuredConfirm = mounted!.screen().replace(/[│\s]+/g, ' ')
-  check('measured recipe confirmation carries its crew, context, effort, centre and engine estimates', ['Rent 1× B300 at $8.99/hr', 'in EU-NL-1', '4 conversations × 131,072 tokens', 'thinking max', 'loads ~3 min', 'min total'].every(word => measuredConfirm.includes(word)) && /(engine|SGLang|llama\.cpp) ~\d+ min|Engine from image/.test(measuredConfirm))
-  await choose('Keep things as they are'); await close(); rp.state.customGpus = null
+  check('measured recipe confirmation carries its crew, context, effort, centre and engine estimates', ['1× B300 · $8.99/hr', 'EU-NL-1', 'Tune: 4 × 128k', 'Balanced · 4-bit · max', 'loads ~3 min', 'min total'].every(word => measuredConfirm.includes(word)) && /(engine|SGLang|llama\.cpp) ~\d+ min|Engine from image/.test(measuredConfirm))
+  await choose('keep things as they are'); await close(); rp.state.customGpus = null
   open(); await heading('Which model?'); await choose('Qwen3.8-27B'); await heading('Qwen3.8-27B'); await choose('Rent · Runpod')
-  await heading('Confirm the rental')
+  await heading('Confirm the hourly price')
   await capture('120-fallback-confirm')
   const confirm = mounted!.screen().replace(/[│\s]+/g, ' ')
-  check('confirm names price, disk, centre honesty, recipe, thinking and per-step estimate', ['$2.49/hr', '80 GB disk', 'rate not supplied', 'Qwen3.8-27B', '8-bit FP8', 'conversation budget unknown', 'thinking engine default', 'downloads 30.89 GB ~5 min', 'https://huggingface.co/Qwen/Qwen3.8-27B-FP8', 'loads ~3 min', 'min total', '0.5–1 GB/s', 'Billing starts now.', 'Closing this window does not stop it.', 'Mercury tells you when it’s ready.'].every(text => confirm.includes(text)) && /(engine|SGLang|llama\.cpp) ~\d+ min|Engine from image/.test(confirm))
+  check('confirm names price, disk, centre honesty, recipe, thinking and per-step estimate', ['$2.49/hr', '80 GB disk', 'rate not supplied', 'Qwen3.8-27B', '8-bit FP8', 'engine default × context unknown', '8-bit FP8 · default', 'downloads 30.89 GB ~5 min', 'https://huggingface.co/Qwen/Qwen3.8-27B-FP8', 'loads ~3 min', 'min total', '0.5–1 GB/s', 'Billing starts now.', 'Closing this window does not stop it.', 'Mercury tells you when it’s ready.'].every(text => confirm.includes(text)) && /(engine|SGLang|llama\.cpp) ~\d+ min|Engine from image/.test(confirm))
   check('money confirmation preselects nothing and still has no create', !selected() && rp.state.creates === 0)
   await choose('Confirm $2.49/hr'); await heading('Pod controls')
   check('confirmation uses the existing create exactly once and queues setup', rp.state.creates === 1 && queued.length === 1 && readHostRecord(queued[0]!)?.jobState === 'queued' && readHostRecord(queued[0]!)?.recipe === 'qwen38-27b-rtx-pro-6000')
@@ -143,10 +143,10 @@ try {
   check('80-column details leave a reachable WHERE row', selected().includes('Already running'))
   await close()
   rp.state.customGpus = [{ ...gpu, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]
-  open(); await heading('Which model?'); mounted!.push(KEY.enter); await heading('GLM-5.3-Flash'); await choose('Rent · Runpod'); await heading('Confirm the rental')
+  open(); await heading('Which model?'); mounted!.push(KEY.enter); await heading('GLM-5.3-Flash'); await choose('Rent · Runpod'); await heading('Confirm the hourly price')
   await capture('80-screen-3')
-  check('80-column confirm keeps the full billing warning and cancel visible', mounted!.screen().replace(/[│\s]+/g, ' ').includes('Billing starts now.') && mounted!.screen().includes('Keep things as they are'))
-  await choose('Keep things as they are'); await until('stopped')
+  check('80-column confirm keeps the full billing warning and cancel visible', mounted!.screen().replace(/[│\s]+/g, ' ').includes('Billing starts now.') && mounted!.screen().includes('keep things as they are'))
+  await choose('keep things as they are'); await until('stopped')
   check('cancel never adds a create', rp.state.creates === 1)
   await close(); rp.state.customGpus = null
   const { modelDoorRoad, runModelDoor, hostRunModelRows } = await import('../../src/services/host/door.ts')

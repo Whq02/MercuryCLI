@@ -126,7 +126,7 @@ try {
   let job: Promise<void> | undefined
   let confirmWords = ''
   const road = createHostRoad({ apiBaseUrl: rp.baseUrl, runner: ssh.runner, pauseMs: 5, readyTimeoutMs: 3000, startJob: record => { job = runHostJob(record.id, record.generation!, { runner: ssh!.runner, pauseMs: 10, timeoutMs: 3000, keepAlive: false }) } })
-  const answers: Record<string, string> = { 'door-models': 'other', where: 'rent', budget: '', models: modelTitle, offers: '0' }
+  const answers: Record<string, string> = { 'door-models': 'other', where: 'rent', 'rental-vendor': 'runpod', budget: '', models: modelTitle, offers: '0' }
   const rented = await road(async question => {
     if (question.step === 'rent-confirm') { confirmWords = question.willRun; check('rent road exposes Tune', question.rows?.some(row => row.value === 'tune')); return 'rent' }
     if (question.step === 'pod-controls') return 'close'

@@ -14,6 +14,9 @@ if (driver.kind === 'unavailable') throw new Error(driver.reason)
 const captureArg = process.argv.indexOf('--capture-dir')
 const captureDir = captureArg < 0 ? null : process.argv[captureArg + 1]!
 if (captureDir) mkdirSync(captureDir, { recursive: true })
+const engineArg = process.argv.indexOf('--engine')
+const engine = engineArg < 0 ? undefined : process.argv[engineArg + 1]
+if (engine !== undefined && engine !== 'system' && engine !== 'brush') throw new Error('Choose system or brush for --engine')
 const recordBase = process.argv.includes('--record-base')
 const fixtures = join(import.meta.dir, 'fixtures', 'shell-live-tail')
 if (recordBase) mkdirSync(fixtures, { recursive: true })
@@ -46,6 +49,7 @@ for (const cols of [120, 80]) {
   const rows = cols === 80 ? 24 : 40
   const run = await runArtifactArena({
     cols, rows, turns: [], anchor: null, seconds: 75, keep: true,
+    extraEnv: engine ? { MERCURY_SHELL_ENGINE: engine } : undefined,
     seedCwd: {
       'progress.sh': "for n in 1 2 3 4 5; do printf '\\r%d%%' \"$n\"; sleep 1; done; sleep 4\n",
       'many.sh': "i=1; while [ $i -le 12 ]; do printf 'line-%02d\\n' $i; i=$((i+1)); done; sleep 6\n",

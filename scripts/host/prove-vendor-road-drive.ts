@@ -95,10 +95,11 @@ try {
   for (const [vendor, label, fixture] of [['vast', 'Vast.ai', vast], ['lambda', 'Lambda', lambda]] as const) {
     await choose('Connect ' + label); await until(label + ' API key'); mounted!.push(fixture.key); await until('********'); mounted!.push(KEY.enter)
     await until('Rent · ' + label); check(label + ' offers appear after key validation', mounted!.screen().includes('in stock'))
-    await choose('Rent · ' + label); await until('Confirm the rental')
-    check(label + ' confirms before creating', fixture.state.creates === 0 && mounted!.screen().includes('Billing starts'))
-    check(label + ' discloses key registration, storage and failure cleanup', mounted!.screen().includes('SSH public key') && mounted!.screen().includes('/workspace') && mounted!.screen().includes('setup fails'))
+    await choose('Rent · ' + label); await until('Confirm the hourly price')
     await capture('80-' + vendor + '-confirmation')
+    const confirmation = mounted!.screen().replace(/[│\s]+/g, ' ')
+    check(label + ' confirms before creating', fixture.state.creates === 0 && confirmation.includes('Billing starts now.'))
+    check(label + ' discloses key registration, storage and failure cleanup', confirmation.includes('SSH public key') && confirmation.includes('/workspace') && confirmation.includes('setup fails'))
     await choose('Confirm $'); await until('Pod controls')
     check(label + ' queues and reaches ready', await waitFor(() => hostRecords().some(record => record.vendor === vendor && record.jobState === 'ready'), 30000))
     const record = hostRecords().find(record => record.vendor === vendor)!
@@ -125,7 +126,7 @@ try {
     await close(); open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WHERE')
   }
   fail = true
-  await choose('Rent · Vast.ai'); await until('Confirm the rental'); await choose('Confirm $')
+  await choose('Rent · Vast.ai'); await until('Confirm the hourly price'); await choose('Confirm $')
   check('Failed Vast setup is terminated through Vast', await waitFor(() => vast.state.deletes === 2 && vast.state.pods.size === 0, 15000))
   await Promise.all(jobs)
   check('Failed Vast setup leaves a truthful terminated receipt', hostRecords().some(row => row.vendor === 'vast' && row.status === 'TERMINATED' && row.error?.includes('verified absent')))

@@ -319,6 +319,7 @@ async function spawnSession(binaryPath: string): Promise<LiveSession> {
   })
   live.child.stderr?.on('data', (chunk: Buffer) => {
     live.stderrBuf = live.stderrBuf.length === 0 ? Buffer.from(chunk) : Buffer.concat([live.stderrBuf, chunk])
+    live.reader?.()
   })
   live.child.stdin?.on('error', error => {
     logForDebugging(`engine stdin closed: ${errorMessage(error)}`)
@@ -408,6 +409,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   const owned = sessionFor(options.owner ?? MAIN_OWNER)
   const taskId = generateTaskId('local_bash')
   const taskOutput = new TaskOutput(taskId, options.onProgress ?? null, false)
+  taskOutput.mirrorToDisk()
 
   let resolveResult!: (result: ExecResult) => void
   const result = new Promise<ExecResult>(resolve => {
@@ -534,6 +536,10 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
 
       const tryComplete = (): void => {
         const frame = frameFromBuffer()
+        if (live.stderrBuf.length > 0) {
+          taskOutput.writeStdout(live.stderrBuf.toString('utf8'))
+          live.stderrBuf = Buffer.alloc(0)
+        }
         if (frame === null) return
         if (frame.cwd !== '') {
           const native = recordedCwdToNative(frame.cwd)

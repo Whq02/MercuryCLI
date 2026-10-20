@@ -38,6 +38,10 @@ console.log('§1 the predicate covers every sentinel spelling')
   }
 }
 
+const { isModelRow } = await import('../../src/utils/model/modelPickerGroups.ts')
+for (const id of ['host-run:Fixture Model', 'host-retry:fixture', 'host-remove:fixture']) {
+  check(id + ' is an action, never a model id', !isModelRow({ id, name: 'Fixture action', group: 'Run a model', tag: '', action: true, searchableAction: true }))
+}
 console.log('\n§2 the row paints the raw id only for a model row (call-shaped)')
 {
   const src = readFileSync(join(ROOT, 'src', 'components', 'MercuryModelPicker.tsx'), 'utf-8')
@@ -49,7 +53,7 @@ console.log('\n§2 the row paints the raw id only for a model row (call-shaped)'
   const painter = src.slice(src.indexOf('const model = isModelRow(m)'), src.indexOf('{on && !compact && m.tag !== \'\''))
   check(
     'the id column paints m.id only on the model arm; the action arm paints the name across both columns and never the value',
-    painter.includes('{model ? (') && painter.includes('cell(m.id, columns.id)') && painter.includes('cell(m.name, columns.alias + columns.id)') && !painter.slice(painter.indexOf('</>')).includes('cell(m.id'),
+    painter.includes('{model ? (') && painter.includes('cell(m.id, columns.id)') && painter.includes('<Text bold color={m.gated ? SAND : IVORY}>{m.name}</Text>') && !painter.slice(painter.indexOf('</>')).includes('cell(m.id'),
     painter.length > 0 ? '' : '(painter not found)',
   )
   check(

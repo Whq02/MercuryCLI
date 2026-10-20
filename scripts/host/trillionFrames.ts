@@ -29,9 +29,22 @@ export async function trillionFrames(question: LlmHostQuestion, check: (name: st
         writeFileSync(stem + '.json', JSON.stringify({ grid, cols, rows }))
         await gridToPng(stem + '.json', stem + '.png')
       }
-      check(cols + '-column frame shows node count, total rate, disk and weight size', ['2 nodes × 8× B200', '$127.84/hr', '2 × 2 TB disk', 'weights 1.56 TB'].every(word => screen.includes(word)))
-      check(cols + '-column frame shows download assumption and per-token alternative', ['30–60 min', '0.5–1 GB/s', 'per token by Kimi', 'https://platform.kimi.ai', 'only when kept busy'].every(word => screen.includes(word)))
-      check(cols + '-column frame retains the cluster billing warning, confirmation and cancel hint', ['a cluster has no Stop', 'bills until Terminate', 'above this catalogue rate', 'Confirm $127.84/hr', 'keep things as they are', 'esc'].every(word => screen.includes(word)) && !screen.includes('stopped pod'))
+      const first = screen.replace(/[│\s]+/g, ' ')
+      check(cols + '-column frame shows node count, total rate, disk and weight size', ['2 nodes × 8× B200', '$127.84/hr', '2 × 2 TB disk', 'weights 1.56 TB'].every(word => first.includes(word)))
+      check(cols + '-column first frame retains the cluster billing warning, confirmation and cancel hint', ['a cluster has no Stop', 'bills until Terminate', 'above this catalogue rate', 'Confirm $127.84/hr', 'keep things as they are', 'esc'].every(word => first.includes(word)) && !first.includes('stopped pod'))
+      let details = screen
+      for (;;) {
+        const marker = /Details (\d+)–(\d+) of (\d+)/.exec(m.screen())
+        if (!marker || marker[2] === marker[3]) break
+        const before = m.screen()
+        m.push('\x1b[6~')
+        assert.ok(await waitFor(() => m.screen() !== before, 5000), 'the remaining rental details can be paged')
+        details += '\n' + m.screen()
+        check(cols + '-column paged details keep both rental choices visible', m.screen().includes('Confirm $127.84/hr') && m.screen().includes('keep things as they are'))
+        if (output) writeFileSync(join(output, 'price-' + cols + '-paged.txt'), m.screen())
+      }
+      const all = details.replace(/[│\s]+/g, ' ')
+      check(cols + '-column details show download assumption and per-token alternative', ['30–60 min', '0.5–1 GB/s', 'per token by Kimi', 'https://platform.kimi.ai', 'only when kept busy'].every(word => all.includes(word)))
       check(cols + '-column frame stays inside its width without render faults', m.lines().every(line => stringWidth(line) <= cols) && !screen.includes('RENDER ERROR'))
     } finally { popup.closeSettingsPopup(); m.unmount() }
     const { LlmHostDialog } = await import('../../src/components/LlmHostDialog.tsx')

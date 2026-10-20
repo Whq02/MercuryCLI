@@ -198,6 +198,7 @@ export class TaskOutput {
       this.spillBuffers(data, isStderr)
       return
     }
+    if (this.diskWriter) this.writeToDisk(data, isStderr)
     if (isStderr) {
       this.stderrChunks.push(data)
       this.stderrLength += data.length
@@ -262,15 +263,18 @@ export class TaskOutput {
     this.spillBuffers(undefined, false)
   }
 
-  private spillBuffers(triggerChunk: string | undefined, triggerIsStderr: boolean): void {
+  mirrorToDisk(): void {
+    if (this.stdoutToFile || this.diskWriter) return
     this.diskWriter = acquireTaskOutputWriter(this.taskId)
     const bufferedStdout = this.stdoutChunks.join('')
     if (bufferedStdout.length > 0) this.diskWriter.append(bufferedStdout)
     const bufferedStderr = this.stderrChunks.join('')
     if (bufferedStderr.length > 0) this.diskWriter.append(`[stderr] ${bufferedStderr}`)
-    if (triggerChunk !== undefined) {
-      this.diskWriter.append(triggerIsStderr ? `[stderr] ${triggerChunk}` : triggerChunk)
-    }
+  }
+
+  private spillBuffers(triggerChunk: string | undefined, triggerIsStderr: boolean): void {
+    this.mirrorToDisk()
+    if (triggerChunk !== undefined) this.writeToDisk(triggerChunk, triggerIsStderr)
     this.stdoutChunks = []
     this.stdoutLength = 0
     this.stderrChunks = []
@@ -366,7 +370,7 @@ export class TaskOutput {
   }
 
   async flush(): Promise<void> {
-    if (this.spilled && this.diskWriter) await this.diskWriter.flush()
+    if (this.diskWriter) await this.diskWriter.flush()
   }
 
   async deleteOutputFile(): Promise<void> {

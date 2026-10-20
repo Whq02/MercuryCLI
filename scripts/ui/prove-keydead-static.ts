@@ -130,9 +130,9 @@ function hasBinding(text: string, token: string, file: string): boolean {
   const rendersNavPanes = /<NavigablePanes[\s\n<]/.test(text)
   const usesFlatList = /useFlatList[<(]/.test(text)
   const usesSpecimenNav = /useSpecimenNav[<(]/.test(text) || /useInteractiveList[<(]/.test(text)
-  const decodes = /decodeNavKey\(/.test(text)
+  const decodedNames = [...text.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*decodeNavKey\(/g)].map(match => match[1]!)
   const acts = (name: string): boolean =>
-    decodes && new RegExp(`(action|rowAxis|effortAxis|tabAxis|scrollAxis|a) === '${name}'`).test(text)
+    decodedNames.some(variable => new RegExp(`\\b${variable.replaceAll('$', '\\$')}\\s*===\\s*['\"]${name}['\"]`).test(text))
   const isFrameworkSelf = /(components|NavigablePanes|useFlatList)\.tsx?$/.test(file)
   switch (token) {
     case 'esc':
@@ -210,6 +210,9 @@ console.log('============================================================')
 console.log(' keydead-static — advertised keys must have a binder in scope')
 console.log('============================================================')
 
+check('semantic paging follows the decoded variable, not a fixed variable-name list', ['nav', 'navigation', 'pageAction'].every(name => hasBinding(`const ${name} = decodeNavKey(input, key, { pageKeys: true }); if (${name} === 'pageNext') scroll();`, 'paging', 'fixture.tsx')))
+check('a decoded navigation value without a paging arm does not bind paging', !hasBinding("const nav = decodeNavKey(input, key); if (nav === 'moveNext') move();", 'paging', 'fixture.tsx'))
+check('a paging comparison on another value cannot borrow the decoder binding', !hasBinding("const nav = decodeNavKey(input, key); if (other === 'pageNext') scroll();", 'paging', 'fixture.tsx'))
 const files: string[] = []
 for (const t of TREES) walk(join(ROOT, t), files)
 
