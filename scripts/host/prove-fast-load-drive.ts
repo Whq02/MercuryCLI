@@ -104,6 +104,11 @@ try {
   const kept = volumes.keptVolumes().find(row => row.model === qwen.model)!
   check('prepare now creates one volume and only the cheapest fitting pod', rp.state.volumeCreates === 1 && rp.state.creates === 1 && rp.state.createBodies[0].gpu.id.includes('RTX PRO 6000') && rp.state.pods.size === 0)
   check('network attachment uses documented create-time mounts and no persistent disk', rp.state.createBodies[0].mounts.network[0].volumeId === kept.id && !rp.state.createBodies[0].mounts.persistent)
+  rp.state.volumes.get(kept.id).size = 100
+  await volumes.reconcileVolumes(api, signal)
+  check('external disk resize updates its recorded monthly price', volumes.readKeptVolume(kept.id)?.price === 7 && volumes.volumeLabel(rp.state.volumes.get(kept.id)).includes('$7.00/month'))
+  rp.state.volumes.get(kept.id).size = 80
+  await volumes.reconcileVolumes(api, signal)
   check('worker records verified sums, sizes, fill pod and private record permissions', Boolean(kept.verifiedSums?.sha256) && kept.verifiedSums!.bytes === Math.round(qwen.weightsGb * 1e9) && kept.filledBy === 'fixture-pod-1' && (statSync(join(f.home, 'host/volumes', kept.id + '.json')).mode & 0o777) === 0o600)
   check('preparation does not build or start an inference engine', ssh.state.weightFetches === 1 && !ssh.commands.some((r: any) => r.args.at(-1)?.includes('nohup setsid')))
   await close(); open(); await heading('Where should'); await choose('Fast-load'); await heading('Fast-load (keep weights'); await until('kept on ' + kept.id); await capture('04-kept-catalogue'); await close()
@@ -255,6 +260,12 @@ try {
   check('missing shard is rejected rather than trusting an old SHA256SUMS', verify().status !== 0)
   const engineWords = volumes.fastLoadEstimate(gguf, { ...kept, state: 'kept' })
   check('GGUF estimate admits the retained build instead of promising image-only startup', engineWords.includes('builds the engine ~10 min') && engineWords.includes('weights kept ~0') && engineWords.includes('load ~3 min'))
+  rp.state.failVolumeRead = true
+  let sawUnavailable = false
+  let reachedSsh = false
+  await road(async q => { if (q.step === 'where') { sawUnavailable = Boolean(q.rows?.some(row => row.label.includes('volumes unread'))); return 'ssh' } if (q.step === 'ssh-host') reachedSsh = true; return null }, () => {}, signal)
+  check('volume-list failure admits the unknown count without blocking the SSH road', sawUnavailable && reachedSsh)
+  rp.state.failVolumeRead = false
   check('proof refused all non-loopback traffic and attempted none', external.length === 0)
   check('only opted-in models have records and no preparation pod remains', volumes.keptVolumes().every(row => [qwen.model, nemotron.model, gguf.model].includes(row.model)) && rp.state.pods.size === 0)
   console.log('FAST LOAD DRIVE GREEN — ' + checks + ' checks; catalogue, opt-in, prepare-now, kept rental, disk deletion, reconciliation, corruption, watch and failure cleanup; zero billable calls')

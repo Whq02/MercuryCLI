@@ -23,7 +23,7 @@ export function keptVolumes(): KeptVolume[] { return readdirSync(directory()).fi
 export function readKeptVolume(id: string): KeptVolume | undefined { try { return volumeRecordSchema.parse(JSON.parse(readFileSync(pathOf(id), 'utf8'))) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error } }
 export function writeKeptVolume(record: KeptVolume): void { durableAtomicPublishSync(pathOf(record.id), JSON.stringify(volumeRecordSchema.parse(record)) + '\n', { mode: 0o600 }) }
 const removeRecord = (id: string): void => { try { unlinkSync(pathOf(id)) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error } }
-export const networkMonthly = (size: number): number => Math.min(size, 1000) * 0.07 + Math.max(0, size - 1000) * 0.05
+export const networkMonthly = (size: number): number => Math.round((Math.min(size, 1000) * 0.07 + Math.max(0, size - 1000) * 0.05) * 100) / 100
 export const volumePrice = (record: Pick<KeptVolume, 'kind' | 'price'>): string => (record.kind === 'global' ? '~' : '') + '$' + record.price.toFixed(2) + '/month' + (record.kind === 'global' ? ' + IOPS (actual usage)' : '')
 export function volumeLabel(volume: HostVolume): string {
   const own = readKeptVolume(volume.id)
@@ -37,7 +37,7 @@ export async function reconcileVolumes(api: RunpodClient, signal?: AbortSignal):
     if (found.length > 1) throw new Error(record.name + ' has multiple matches in Runpod; inspect the account before retrying.')
     const row = found[0]
     if (row) {
-      const next = { ...record, id: row.id, size: row.size ?? record.size, dataCenter: row.dataCenter ?? 'any DC', ...(record.state === 'creating' || record.state === 'gone' ? { state: 'preparing' as const, verifiedSums: undefined, error: undefined } : {}) }
+      const next = { ...record, id: row.id, size: row.size ?? record.size, price: row.kind === 'network' && row.size ? networkMonthly(row.size) : record.price, dataCenter: row.dataCenter ?? 'any DC', ...(record.state === 'creating' || record.state === 'gone' ? { state: 'preparing' as const, verifiedSums: undefined, error: undefined } : {}) }
       writeKeptVolume(next)
       if (record.id !== row.id) removeRecord(record.id)
     } else if (record.state !== 'creating' && record.state !== 'gone') writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined })
