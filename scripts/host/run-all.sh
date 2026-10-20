@@ -7,9 +7,11 @@
 # gate-watch: src/utils/messageQueueManager.ts src/utils/model/capabilities.ts src/utils/settings/changeDetector.ts
 # gate-watch: src/ink.ts src/state/AppState.tsx src/components/design-system/ThemeProvider.tsx src/components/SettingsPopupSlot.tsx src/utils/cockpit/settingsPopup.ts
 # gate-watch: assets/host/recipes.json src/substrate/flagRegistry.ts src/services/privateChannel/channelCore.ts package.json
+# gate-watch: src/services/host/vendors/** scripts/host/vastFixture.mjs scripts/host/lambdaFixture.mjs scripts/host/prove-vendors.ts
 set -euo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+bun "$ROOT/scripts/host/prove-vendors.ts"
 bun "$ROOT/scripts/host/prove-host-launch.ts"
 bun "$ROOT/scripts/host/prove-recipes-live.ts"
 bun "$ROOT/scripts/host/prove-host-rent-drive.ts" --bundle "$ROOT/dist/mercury.mjs"
