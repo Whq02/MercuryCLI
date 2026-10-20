@@ -220,8 +220,19 @@ echo "shard $IDX/$TOTAL ($CLASS): ${#MINE[@]} suites — ${MINE[*]:-none}"
 printf '  box: %s · %s cores\n' "$(uname -sm 2>/dev/null || echo unknown)" "$( (getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo '?') | head -1)"
 export NODE_COMPILE_CACHE="${NODE_COMPILE_CACHE:-$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/mercury-node-compile-cache.XXXXXX")}"
 [ -f dist/mercury.mjs ] && node dist/mercury.mjs --version >/dev/null 2>&1 || true
+box_line() {
+  local mem='' procs
+  [ -r /proc/meminfo ] && mem=$(awk '/MemAvailable/ {printf "%d MB free", $2/1024} /SwapFree/ {printf " · swap free %d MB", $2/1024}' /proc/meminfo)
+  procs=$(ps -eo args= 2>/dev/null | grep -cE '(^|/)(bun|node)( |$)')
+  printf '  box before %s: load %s · %s · %s bun/node processes\n' "$1" "$(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null || sysctl -n vm.loadavg 2>/dev/null)" "${mem:-mem ?}" "$procs"
+}
+box_top() {
+  printf '      │ processes by memory after %s:\n' "$1"
+  ps -eo pid,ppid,rss,etime,stat,args 2>/dev/null | grep -E 'bun|node|mercury' | grep -v 'grep -E' | sort -k3 -rn | head -12 | cut -c1-220 | sed 's/^/      │   /'
+}
 for dom in ${MINE[@]+"${MINE[@]}"}; do
   cls=$(suite_class "$dom")
+  box_line "$dom"
   bash scripts/gate/run-suite.sh "$SUITES_DIR/$dom/run-all.sh" "$(budget_of "$dom")" "$OUT" "$(budget_note_of "$dom")" fixed >/dev/null 2>&1
   rc=$(cat "$OUT/$dom.rc" 2>/dev/null || echo 1)
   secs=$(cat "$OUT/$dom.secs" 2>/dev/null || echo 0)
@@ -267,6 +278,7 @@ for dom in ${MINE[@]+"${MINE[@]}"}; do
   else
     FAILED=1
     printf '  ❌ %-18s %3ss\n' "$dom" "$secs"
+    box_top "$dom"
     [ -n "$note" ] && printf '      │ first stuck send › %s\n' "$note"
     sed 's/^/      │ /' "$OUT/$dom.out" 2>/dev/null
     if [ "$retry_rc" != '-' ]; then

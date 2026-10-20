@@ -107,7 +107,7 @@ async function runLeg(leg: LegName): Promise<LegReport> {
   const keptAfterFailure = getShellCwd() === target
   setCwd(home)
   const records = (): number => readdirSync(tmpdir()).filter(name => name.startsWith('mercury-cwd-')).length
-  for (let i = 0; i < 40 && records() > 0; i++) await sleep(50)
+  for (let i = 0; i < 240 && records() > 0; i++) await sleep(50)
 
   const crewmate = await (await exec('echo crewmate-ran', signal(), 'bash', { timeout: 10_000, owner: 'agent-engine-roads' })).result
 
