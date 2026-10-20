@@ -16,8 +16,8 @@ const check = (name: string, truth: unknown): void => { assert.ok(truth, name); 
 const bundlePath = option('--bundle')
 const f = await llmhostFixture()
 const rp = await runpodFixture()
-const { hostRecords, readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
-const { queueHostWatch, stopHostSetup } = await import('../../src/services/host/jobs.ts')
+const { hostDirectory, hostRecords, patchHostRecord, readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
+const { queueHostWatch, stopHostSetup, sweepHostJobs } = await import('../../src/services/host/jobs.ts')
 let mounted: Mounted | undefined
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 const images: Promise<unknown>[] = []
@@ -32,20 +32,29 @@ try {
   const { createHostRoad } = await import('../../src/services/host/index.ts')
   const { hostRunner } = await import('../../src/services/host/ssh.ts')
   const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+  const { RunpodClient } = await import('../../src/services/host/runpod.ts')
   const { runHostJob } = await import('../../src/services/host/worker.ts')
   const { deliverHostNotices } = await import('../../src/services/host/notices.ts')
   const { getCommandQueue, resetCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
 
   f.state.dialect = 'llamacpp'; f.state.window = 524288; f.state.slots = 4
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
+  const jobOptions = { runner: ssh.runner, pauseMs: 25, timeoutMs: 30_000, keepAlive: false }
   const road = createHostRoad({
     apiBaseUrl: rp.baseUrl,
     runner: ssh.runner,
     pauseMs: 25,
     readyTimeoutMs: 5000,
     sessionId: 'rental-session',
-    startJob: record => { void runHostJob(record.id, record.generation!, { runner: ssh!.runner, pauseMs: 25, timeoutMs: 5000, keepAlive: false }) },
+    startJob: record => { void runHostJob(record.id, record.generation!, jobOptions) },
   })
+  const api = new RunpodClient(rp.key, rp.baseUrl)
+  const posts = () => rp.requests.filter((r: any) => r.method === 'POST' && r.path === '/v2/pods').length
+  const notices = () => { deliverHostNotices('rental-session'); return getCommandQueue().filter(row => row.mode === 'task-notification').map(row => String(row.value)) }
+  const watchLog = (id: string) => { try { return readFileSync(join(hostDirectory(), 'logs', id + '.log'), 'utf8') } catch { return '' } }
+  const watchRecord = (id: string, extra: Record<string, unknown> = {}) => queueHostWatch({ id, name: 'GLM-5.3-Flash · UD-Q4_K_XL', recipe: 'glm53-flash-gguf-b300', price: 8.99, maxPrice: 8.99, pollIntervalMs: 25, startedAt: new Date().toISOString(), status: 'WATCHING', sessionId: 'rental-session', workspace: process.cwd(), sshKey: join(hostDirectory(), 'keys', 'id_ed25519'), apiBaseUrl: rp.baseUrl, ...extra })
+  const stockNow = () => { rp.state.noStock = false; rp.state.stockAfterReads = rp.state.catalogReads }
+  const terminate = async (id: string) => { await stopHostSetup(id); await api.terminate(id); removeHostRecord(id) }
   const open = () => popup.openSettingsPopup(llmHostPopupRequest(road))
   open()
   mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 44 }, React.createElement(SettingsPopupSlot)))), 120, 44)
@@ -144,8 +153,7 @@ try {
   }, 15_000), 'watch job creates the pod once stock appears')
   check('watch job polls catalogue and creates pod on the first read that shows stock without a second read', readsAtCreate === readsBeforeWatch + 3 && rp.state.catalogReads === readsBeforeWatch + 3)
 
-  deliverHostNotices('rental-session')
-  check('chat receives the rented notice with model, shape, price and data centre', getCommandQueue().some(row => row.mode === 'task-notification' && String(row.value) === 'Rented GLM-5.3-Flash · 1× B300 · $8.99/hr in EU-NL-1 · setting up'))
+  check('chat receives the rented notice with model, shape, price and data centre', await waitFor(() => notices().includes('Rented GLM-5.3-Flash · 1× B300 · $8.99/hr in EU-NL-1 · setting up'), 5000))
   assert.ok(await waitFor(() => readHostRecord('fixture-pod-1')?.jobState === 'ready', 15_000), 'setup job handed off from watch reaches ready')
   check('watch job hands off to normal setup job which reaches ready', readHostRecord('fixture-pod-1')?.jobState === 'ready' && readHostRecord('fixture-pod-1')?.jobKind === 'setup')
   await close()
@@ -193,10 +201,10 @@ try {
   const postsBeforeConfirm = rp.requests.filter((r: any) => r.method === 'POST' && r.path === '/v2/pods').length
   await choose('Confirm $2.49/hr')
   await heading('Choose a GPU shape · live Runpod stock')
-  await until('Runpod refused creation (no stock at creation) · no pod was created and nothing was billed.')
+  await until('Runpod could not place 1× RTX PRO 6000 · no pod was created')
   await until('Qwen3.8-27B · FP8 · 1× RTX PRO 6000 · $2.49/hr')
   const postsAfterConfirm = rp.requests.filter((r: any) => r.method === 'POST' && r.path === '/v2/pods').length
-  check('confirm never re-reads stock before creating and create refusal returns to fresh offers with no pod created', postsAfterConfirm === postsBeforeConfirm + 1 && rp.state.creates === 1 && rp.state.catalogReads === readsBeforeConfirm + 3 && m.screen().includes('Choose a GPU shape · live Runpod stock'))
+  check('confirm never re-reads stock before creating and a 400 refusal returns to fresh offers with Runpod’s reason and no pod created', postsAfterConfirm === postsBeforeConfirm + 1 && rp.state.creates === 1 && rp.state.catalogReads === readsBeforeConfirm + 3 && m.screen().includes('Choose a GPU shape · live Runpod stock'))
   await close()
 
   rp.state.customGpus = [
@@ -216,9 +224,68 @@ try {
   rp.state.failCreate = false
   rp.state.customGpus = null
   await close()
+
+  rp.state.createOutcomes = ['http503']
+  open()
+  await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
+  await heading('Choose a model · live Runpod stock')
+  await choose('Qwen3.8-27B')
+  await heading('Confirm the hourly price')
+  const postsBeforeAmbiguous = posts()
+  const bodiesBeforeAmbiguous = rp.state.createBodies.length
+  await choose('Confirm $2.49/hr')
+  const ambiguousName = await waitFor(() => rp.state.createBodies.length === bodiesBeforeAmbiguous + 1, 10_000) ? rp.state.createBodies.at(-1).name : ''
+  await until(ambiguousName + ' may exist; check Pods I’m paying for before retrying')
+  check('a create Runpod answered with a 5xx says the pod may exist and points at Pods I’m paying for, never that no pod was created', !m.screen().includes('no pod was created') && !m.screen().includes('Choose a GPU shape') && posts() === postsBeforeAmbiguous + 1)
+  await close()
+  const ambiguousPod = [...rp.state.pods.values()].find((pod: any) => pod.name === ambiguousName)
+  open()
+  await heading('Where should the model run?'); await choose(ambiguousPod.id)
+  await heading('Pod controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Pod terminated')
+  check('the pod the ambiguous create made is in the live Pods list and can be terminated', !rp.state.pods.has(ambiguousPod.id) && posts() === postsBeforeAmbiguous + 1)
+  await close()
+
+  resetCommandQueue()
+  stockNow()
+  rp.state.createOutcomes = ['refuse']
+  const postsBeforeRefusal = posts()
+  const createsBeforeRefusal = rp.state.creates
+  const refusing = watchRecord('watch-refusal-probe')
+  void runHostJob(refusing.id, refusing.generation!, jobOptions)
+  assert.ok(await waitFor(() => hostRecords().some(row => row.watchedFrom === refusing.id && row.jobState === 'ready'), 15_000), 'the watch rents after a refused placement')
+  const rentedAfterRefusal = hostRecords().find(row => row.watchedFrom === refusing.id)!
+  check('a 400 placement refusal at create keeps the watch going and it rents on a later stocked read', posts() === postsBeforeRefusal + 2 && rp.state.creates === createsBeforeRefusal + 1 && watchLog(refusing.id).includes('Runpod could not place 1× B300 · $8.99/hr in EU-NL-1 · no pod was created · still watching · fixture: this GPU and data center combination could not be placed'))
+  check('a pod rented by the watch is recorded like a door rental: SSH key, session, workspace, setup job', rentedAfterRefusal.jobKind === 'setup' && rentedAfterRefusal.sshKey === join(hostDirectory(), 'keys', 'id_ed25519') && rentedAfterRefusal.sessionId === 'rental-session' && rentedAfterRefusal.workspace === process.cwd() && rentedAfterRefusal.apiBaseUrl === rp.baseUrl && rentedAfterRefusal.recipe === 'glm53-flash-gguf-b300' && rentedAfterRefusal.price === 8.99)
+  await terminate(rentedAfterRefusal.id)
+
+  stockNow()
+  rp.state.createOutcomes = ['lost']
+  const postsBeforeLost = posts()
+  const losing = watchRecord('watch-lost-probe')
+  await runHostJob(losing.id, losing.generation!, jobOptions)
+  const lostName = rp.state.createBodies.at(-1).name
+  const lostRecord = readHostRecord(losing.id)
+  await delay(300)
+  check('a create whose answer is lost stops the watch with words that the pod may exist, and it never rents twice', lostRecord?.jobState === 'failed' && lostRecord.creating === lostName && String(lostRecord.error).startsWith(lostName + ' may exist: Runpod gave no clear answer to the create') && String(lostRecord.error).includes('/llmhost → Pods I’m paying for') && posts() === postsBeforeLost + 1)
+  check('the may-exist words reach the renting session', notices().some(row => row.includes(lostName + ' may exist: Runpod gave no clear answer to the create')))
+  const lostPod = [...rp.state.pods.values()].find((pod: any) => pod.name === lostName)
+  await terminate(lostPod.id)
+  removeHostRecord(losing.id)
+
+  rp.state.noStock = true
+  const gone = watchRecord('watch-sweep-gone')
+  const inflight = queueHostWatch({ id: 'watch-sweep-inflight', name: 'DeepSeek-V4.1-Flash-1017', recipe: 'deepseek41-b200', price: 31.96, startedAt: new Date().toISOString(), status: 'WATCHING', sessionId: 'rental-session' })
+  patchHostRecord(gone.id, { jobState: 'running' })
+  patchHostRecord(inflight.id, { jobState: 'running', creating: 'mercury-sweep-inflight' })
+  await sweepHostJobs({ alive: row => !row.id.startsWith('watch-sweep-') })
+  check('a watch whose process ended is reported ended in watch words: no pod, or the pod it was creating may exist', readHostRecord(gone.id)?.error === 'stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again' && readHostRecord(inflight.id)?.error === 'mercury-sweep-inflight may exist: the stock watch stopped while creating it · /llmhost → Pods I’m paying for' && notices().some(row => row === 'GLM-5.3-Flash · UD-Q4_K_XL · stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again') && !notices().some(row => row.includes('watch-sweep') || row.includes('setup stalled at watching')))
+  removeHostRecord(gone.id); removeHostRecord(inflight.id)
+  rp.state.noStock = false
+  rp.state.stockAfterReads = 0
+
   if (bundlePath) {
     const bundleText = readFileSync(resolve(bundlePath), 'utf8')
-    check('built bundle carries model-first and watch-and-rent words', bundleText.includes('Watch for stock and rent at this price or less') && bundleText.includes('Choose a GPU shape · live Runpod stock') && bundleText.includes('5-second poll is 12 requests a minute against Runpod documented 60/min limit') && bundleText.includes('the cursor starts on a suggestion'))
+    check('built bundle carries model-first, watch-and-rent and money-safety words', ['Watch for stock and rent at this price or less', 'Choose a GPU shape · live Runpod stock', '5-second poll is 12 requests a minute against Runpod documented 60/min limit', 'the cursor starts on a suggestion', ' may exist: Runpod gave no clear answer to the create'].every(part => bundleText.includes(part)))
   }
 
   await Promise.all(images)

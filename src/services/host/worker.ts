@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { readStoredRunpodApiKey } from '../providers/providerSecrets.js'
 import { runLlmHost } from '../llmHost/index.js'
 import { LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
-import { RunpodClient } from './runpod.js'
+import { RunpodClient, createRefusal, type HostPod } from './runpod.js'
 import { HOST_RECIPES } from './recipes.js'
 import { hostNotice } from './notices.js'
 import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord } from './store.js'
@@ -59,6 +59,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       .finally(() => { logBusy = false })
   }, initial.jobKind === 'watch' ? Math.min(pause, 100) : pause)
   if (initial.jobKind === 'watch') {
+    let created: HostPod | undefined
     try {
       if (!key) throw new Error('The saved Runpod key is unavailable.')
       if (!recipe) throw new Error('The saved host recipe is unavailable.')
@@ -77,8 +78,31 @@ export async function runHostJob(id: string, generation: string, options: { runn
         if (!afterPoll || afterPoll.generation !== generation || afterPoll.jobState === 'stopped') return
         if (offer) {
           const podName = 'mercury-' + randomUUID().slice(0, 12)
-          const pod = await api.create(offer, sshKey.publicKey, podName)
-          const rentedWords = 'Rented ' + offer.recipe.label.split(' · ')[0] + ' · ' + offer.recipe.count + '× ' + offer.recipe.gpu + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '') + ' · setting up'
+          const shapeWords = offer.recipe.count + '× ' + offer.recipe.gpu + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '')
+          const marked = patchHostRecord(id, { creating: podName, step: 'creating ' + podName + ' · ' + shapeWords })
+          if (!marked || marked.generation !== generation || marked.jobState === 'stopped') return
+          let pod: HostPod
+          try {
+            pod = await api.create(offer, sshKey.publicKey, podName)
+          } catch (error) {
+            const refusal = createRefusal(error)
+            if (!refusal) {
+              const words = podName + ' may exist: Runpod gave no clear answer to the create · /llmhost → Pods I’m paying for · the watch stopped so it cannot rent twice · ' + clean(String(error))
+              log(words)
+              const failed = patchHostRecord(id, { jobState: 'failed', error: words, step: words })
+              if (failed) hostNotice(failed, 'failed', failed.name + ' · ' + words)
+              return
+            }
+            patchHostRecord(id, { creating: undefined })
+            if (refusal.status !== 400 && refusal.status !== 429) throw error
+            const step = 'Runpod could not place ' + shapeWords + ' · no pod was created · still watching' + (refusal.detail ? ' · ' + refusal.detail : '')
+            log(step)
+            patchHostRecord(id, { step })
+            await delay(Math.max(pollMs, (refusal.retryAfterSeconds ?? 0) * 1000), undefined, { signal })
+            continue
+          }
+          created = pod
+          const rentedWords = 'Rented ' + offer.recipe.label.split(' · ')[0] + ' · ' + shapeWords + ' · setting up'
           log(rentedWords)
           const setupRecord = queueHostSetup({
             id: pod.id,
@@ -111,9 +135,10 @@ export async function runHostJob(id: string, generation: string, options: { runn
       const current = readHostRecord(id)
       if (current && current.generation === generation && current.jobState !== 'stopped') {
         const detail = clean(String(error))
-        const failedRecord = patchHostRecord(id, { jobState: 'failed', error: detail })!
-        log(detail)
-        hostNotice(failedRecord, 'failed', failedRecord.name + ' · stock watch stopped · ' + detail)
+        const words = created ? created.id + ' was created but could not be recorded · ' + detail + ' · /llmhost → Pods I’m paying for' : 'stock watch stopped · ' + detail + (detail.includes('no pod was created') ? '' : ' · no pod was created')
+        const failedRecord = patchHostRecord(id, { jobState: 'failed', error: words })!
+        log(words)
+        hostNotice(failedRecord, 'failed', failedRecord.name + ' · ' + words)
       }
     } finally { clearInterval(timer) }
     return

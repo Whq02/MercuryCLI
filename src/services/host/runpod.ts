@@ -7,6 +7,12 @@ export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; d
 const gpuSchema = z.object({ id: z.string(), name: z.string(), memory: z.number(), secure: z.boolean(), price: z.object({ secure: z.number().nonnegative() }), maxCount: z.object({ secure: z.number() }), availability: z.string().optional(), dataCenters: z.array(z.object({ id: z.string(), availability: z.string() })).optional() })
 const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === 'MEDIUM' ? 2 : value === 'LOW' ? 1 : 0
 const stock = (value?: string): boolean => stockRank(value) > 0
+const refusalStatuses = [400, 401, 402, 403, 413, 422, 429]
+
+export class RunpodHttpError extends Error {
+  constructor(message: string, readonly status: number, readonly detail: string, readonly retryAfterSeconds?: number) { super(message) }
+}
+export const createRefusal = (error: unknown): RunpodHttpError | undefined => error instanceof RunpodHttpError && refusalStatuses.includes(error.status) ? error : undefined
 
 export class RunpodClient {
   private lastShapes: HostOffer[] = []
@@ -15,8 +21,16 @@ export class RunpodClient {
     if (url.username || url.password || url.search || url.hash || !(url.origin === 'https://api.runpod.io' || url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname))) throw new Error('Runpod uses its official API or a loopback fixture only.')
   }
   private async response(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<Response> {
-    const response = await fetch(this.base + path, { method, headers: { Authorization: 'Bearer ' + this.key, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000) })
-    if (!response.ok) throw new Error('Runpod ' + method + ' ' + path.split('?')[0] + ' returned HTTP ' + response.status + (response.status === 401 || response.status === 403 ? ' — check the key and its Pods, Catalog and billing read permissions.' : method === 'POST' && path === '/pods' ? ' — no retry was sent. Refresh pods before choosing another fitting shape; creation may have reached the account.' : ''))
+    const create = method === 'POST' && path === '/pods'
+    const response = await fetch(this.base + path, { method, headers: { Authorization: 'Bearer ' + this.key, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...(create ? { keepalive: false } : {}), redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000) })
+    if (!response.ok) {
+      const text = await response.text().catch(() => '')
+      let detail = ''
+      try { const problem = JSON.parse(text) as { detail?: unknown; error?: unknown; title?: unknown }; detail = String(problem.detail ?? problem.error ?? problem.title ?? '') } catch { detail = text.trimStart().startsWith('<') ? '' : text }
+      detail = detail.split(this.key).join('[redacted]').replace(/\s+/g, ' ').trim().slice(0, 240)
+      const wait = Number(response.headers.get('retry-after'))
+      throw new RunpodHttpError('Runpod ' + method + ' ' + path.split('?')[0] + ' returned HTTP ' + response.status + (detail ? ' · ' + detail : '') + (response.status === 401 || response.status === 403 ? ' — check the key and its Pods, Catalog and billing read permissions.' : create && refusalStatuses.includes(response.status) ? ' · Runpod refused it; no pod was created.' : create ? ' — no retry was sent. Refresh pods before choosing another fitting shape; creation may have reached the account.' : ''), response.status, detail, Number.isFinite(wait) && wait > 0 ? wait : undefined)
+    }
     return response
   }
   shapes(): readonly HostOffer[] { return this.lastShapes }

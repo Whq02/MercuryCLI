@@ -4,7 +4,7 @@ import { LLM_HOST_WORDS as words } from '../../commands/llmhost/words.js'
 import { runLlmHost, type LlmHostRoad, type LlmHostResult } from '../llmHost/index.js'
 import { readStoredRunpodApiKey, writeStoredRunpodApiKey } from '../providers/providerSecrets.js'
 import { HOST_RECIPES, type HostRecipe } from './recipes.js'
-import { RunpodClient, type HostOffer, type HostPod } from './runpod.js'
+import { RunpodClient, createRefusal, type HostOffer, type HostPod } from './runpod.js'
 import { closeHostTunnel, ensureHostKey, fitsSsh, hostRunner, inspectSsh, localKeyPath, openHostTunnel, sshAliases, sshArguments, startHostEngine, waitHostEngine, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRecords, readHostRecord, removeHostRecord, writeHostRecord, type HostRecord } from './store.js'
 import { hostJobRunning, hostLogTail, queueHostSetup, queueHostWatch, requireHostJobOwner, stopHostSetup } from './jobs.js'
@@ -74,10 +74,20 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       }
     }
     const cancelWatch = async (watchId: string): Promise<LlmHostResult> => {
-      await stopHostSetup(watchId)
+      const rentedBy = (): HostRecord | undefined => hostRecords().find(row => row.watchedFrom === watchId)
+      let rented = rentedBy()
+      if (!rented) { await stopHostSetup(watchId); rented = rentedBy() }
+      if (rented) {
+        emit({ title: words.paid, words: 'The stock watch already rented ' + rented.id + ' · billing has started' })
+        if (!api) return { ok: true, words: rented.id + ' · rented by the stock watch · /llmhost → Pods I’m paying for' }
+        pod = await api.get(rented.id, signal); record = rented
+        return finish()
+      }
+      const creating = readHostRecord(watchId)?.creating
       removeHostRecord(watchId)
-      emit({ title: words.paid, words: 'Stock watch cancelled · no pod was created.' })
-      return { ok: true, words: 'Stock watch cancelled · no pod was created.' }
+      const ended = creating ? 'Stock watch cancelled while creating ' + creating + ' · that pod may exist: /llmhost → Pods I’m paying for' : 'Stock watch cancelled · no pod was created.'
+      emit({ title: words.paid, words: ended })
+      return { ok: !creating, words: ended }
     }
     const finishWatch = async (watchId: string): Promise<LlmHostResult> => {
       for (;;) {
@@ -220,9 +230,11 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           try {
             pod = await api.create(offer, sshKey.publicKey, pendingName)
           } catch (error) {
+            const refusal = createRefusal(error)
+            if (!refusal) throw error
             pendingName = ''
-            if (signal.aborted || /HTTP 401|HTTP 403/.test(String(error))) throw error
-            emit({ title: words.creating, words: 'Runpod refused creation (no stock at creation) · no pod was created and nothing was billed.' })
+            if (signal.aborted || refusal.status !== 400) throw error
+            emit({ title: words.creating, words: 'Runpod could not place ' + shape(offer.recipe) + (offer.dataCenter ? ' in ' + offer.dataCenter : '') + ' · no pod was created' + (refusal.detail ? ' · ' + refusal.detail : '') })
             forceShapeList = true
             continue
           }
@@ -266,7 +278,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
     } catch (error) {
       const detail = key ? String(error).split(key).join('[redacted]') : String(error)
       if (pod) { saved = { ok: false, words: detail }; mark(); emit({ title: 'Set-up stopped', words: detail }); if (!lifetimeSignal.aborted) return finish() }
-      return { ok: false, words: (signal.aborted ? stopped().words : detail + (pod ? ' · ' + keepWords(pod) : pendingName ? ' · ' + pendingName + ' may exist; check Pods I’m paying for before retrying.' : '')) }
+      return { ok: false, words: (signal.aborted ? stopped().words : pod ? detail + ' · ' + keepWords(pod) : pendingName ? pendingName + ' may exist; check Pods I’m paying for before retrying · ' + detail : detail) }
     }
   }
 }

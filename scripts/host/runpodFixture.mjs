@@ -10,14 +10,15 @@ const livePods = sample('pods-list')
 export async function runpodFixture() {
   const key = 'fixture-runpod-key-not-a-real-key'
   const requests = []
-  const state = { pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, creates: 0, stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, customGpus: null }
+  const state = { pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, creates: 0, createOutcomes: [], stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, customGpus: null }
   const gpus = liveCatalogue.gpus
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
     let raw = ''; for await (const chunk of req) raw += chunk
     const body = raw ? JSON.parse(raw) : undefined
     requests.push({ method: req.method, path: url.pathname, search: url.search, body })
-    const send = (value, status = 200) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(value === undefined ? undefined : JSON.stringify(value)) }
+    const send = (value, status = 200, headers = {}) => { res.writeHead(status, { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json', ...headers }); res.end(value === undefined ? undefined : JSON.stringify(value)) }
+    const problem = (status, title, detail, headers) => send({ title, status, detail }, status, headers)
     if (req.headers.authorization !== 'Bearer ' + key) return send({ error: 'fixture key needed' }, 401)
     if (url.pathname === '/v2/catalog/gpus') {
       assert.equal(url.searchParams.get('include'), 'AVAILABILITY')
@@ -37,7 +38,9 @@ export async function runpodFixture() {
     if (url.pathname === '/v2/account/ssh-keys') { if (req.method === 'PUT') state.keys = body.keys; return send({ keys: state.keys }) }
     if (url.pathname === '/v2/pods' && req.method === 'GET') return send({ ...livePods, pods: [...state.pods.values()], pagination: { hasNextPage: false, nextCursor: null } })
     if (url.pathname === '/v2/pods' && req.method === 'POST') {
-      if (state.failCreate) return send({ error: 'fixture placement refused' }, 400)
+      const outcome = state.failCreate ? 'refuse' : state.createOutcomes.shift()
+      if (outcome === 'refuse') return problem(400, 'Bad Request', 'fixture: this GPU and data center combination could not be placed')
+      if (outcome === 'refuse402') return problem(402, 'Payment Required', 'fixture: insufficient balance')
       state.creates++; state.createBodies.push(body)
       assert.deepEqual(body.ports, ['22/tcp'])
       assert.equal(body.cloud, 'SECURE')
@@ -49,6 +52,8 @@ export async function runpodFixture() {
       const gpuEntry = (state.customGpus ?? gpus).find(gpu => gpu.id === body.gpu.id) ?? gpus.find(gpu => gpu.id === body.gpu.id)
       const pod = { ...structuredClone(livePod), id: 'fixture-pod-' + state.creates, name: body.name, status: 'PROVISIONING', cost: gpuEntry.price.secure * body.gpu.count, createdAt: new Date(Date.now() - 60000).toISOString(), startedAt: new Date(Date.now() - 60000).toISOString(), ssh: { direct: null, proxy: null } }
       state.pods.set(pod.id, pod)
+      if (outcome === 'lost') return req.socket.destroy()
+      if (outcome === 'http503') return problem(503, 'Service Unavailable', 'fixture: the gateway timed out after the create reached the account')
       return send(pod, 201)
     }
     const match = /^\/v2\/pods\/([^/]+)(\/action|\/logs)?$/.exec(url.pathname)

@@ -65,6 +65,7 @@ export function hostLogTail(record: HostRecord): string {
 export async function sweepHostJobs(options: { stallMs?: number; launch?: (record: HostRecord) => Promise<void>; alive?: (record: HostRecord) => boolean } = {}): Promise<void> {
   for (const record of hostRecords()) {
     if (!record.jobState || record.jobState === 'stopped') continue
+    const watch = record.jobKind === 'watch'
     const alive = options.alive?.(record) ?? active(record)
     if (record.jobState === 'queued' && !alive) {
       try {
@@ -77,13 +78,21 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
         }
       } catch (error) {
         patchHostRecord(record.id, { jobState: 'failed', error: String(error) })
-        hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + String(error) + ' · /llmhost → Pods I’m paying for → Resume or Terminate')
+        hostNotice(record, 'failed', record.name + (watch ? ' · stock watch could not start · ' + String(error) + ' · no pod was created' : ' · setup stalled at ' + record.step + ' · ' + String(error) + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
       }
+      continue
+    }
+    if (watch && ['running', 'starting'].includes(record.jobState) && !alive) {
+      const current = readHostRecord(record.id)
+      if (!current || current.generation !== record.generation || !['running', 'starting'].includes(current.jobState ?? '') || hostRecords().some(row => row.watchedFrom === record.id)) continue
+      const words = current.creating ? current.creating + ' may exist: the stock watch stopped while creating it · /llmhost → Pods I’m paying for' : 'stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again'
+      patchHostRecord(record.id, { jobState: 'failed', error: words })
+      hostNotice(current, 'failed', current.name + ' · ' + words)
       continue
     }
     if (['running', 'starting'].includes(record.jobState) && (!alive || Date.now() - (record.advancedAt ?? 0) >= (options.stallMs ?? 600_000)) || record.jobState === 'ready' && !alive) {
       if (!alive) patchHostRecord(record.id, { jobState: 'failed', error: 'The setup job process is gone.' })
-      hostNotice(record, 'stalled', record.name + ' · setup stalled at ' + record.step + ' · /llmhost → Pods I’m paying for → Resume or Terminate')
+      hostNotice(record, 'stalled', record.name + (watch ? ' · stock watch has not read Runpod since ' + new Date(record.advancedAt ?? 0).toISOString() + ' · /llmhost → Pods I’m paying for → Cancel' : ' · setup stalled at ' + record.step + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
     }
   }
 }
