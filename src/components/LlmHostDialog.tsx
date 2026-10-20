@@ -64,7 +64,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
     controllerRef.current?.abort()
     answer(null)
     if (result || escapeFromOutsidePress() && !hostRef.current) onClose?.()
-    else setResult({ ok: false, words: hostRef.current ? hostRef.current.id + ' · remote pod kept · /llmhost → Pods I’m paying for → Stop or Terminate' : words.stopped })
+    else setResult({ ok: false, words: hostRef.current ? hostRef.current.id + ' · ' + words.podKeptAfterStop : words.stopped })
   }
   useInput((_input, key, event) => {
     if (key.escape) { event.stopImmediatePropagation(); stop(); return }
@@ -103,7 +103,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
     </> : <Text color={tokens.textMuted}>{words.running}</Text>}
     {host ? <>
       <Text color={tokens.warning} wrap="truncate-end">{host.id} · {host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : '$' + host.price.toFixed(2) + '/hr × ' + (Math.max(0, now - Date.parse(host.startedAt)) / 3600_000).toFixed(2) + 'h = $' + (host.price * Math.max(0, now - Date.parse(host.startedAt)) / 3600_000).toFixed(2) + ' so far (estimate; storage extra)'}</Text>
-      <Text color={tokens.textMuted} wrap="truncate-end">{host.status === 'TERMINATED' ? '' : host.pause ? 'esc opens Stop / Terminate controls · closing never deletes this pod' : 'Closing keeps the pod · /llmhost → Pods I’m paying for → Stop or Terminate'}</Text>
+      <Text color={tokens.textMuted} wrap="truncate-end">{host.status === 'TERMINATED' ? '' : host.pause ? words.podControls : words.podKept}</Text>
     </> : null}
   </Box>
 }

@@ -78,6 +78,9 @@ export const LLM_HOST_WORDS = {
   failed: 'reply check failed',
   empty: 'The server completed without a text reply.',
   finished: 'esc closes',
+  podControls: 'esc opens Stop / Terminate controls · closing never deletes this pod',
+  podKept: 'Closing keeps the pod · /llmhost → Pods I’m paying for → Stop or Terminate',
+  podKeptAfterStop: 'remote pod kept · /llmhost → Pods I’m paying for → Stop or Terminate',
   ended: 'model server set-up · ended',
   stoppedSaved: 'stopped · provider saved · esc closes',
 } as const
