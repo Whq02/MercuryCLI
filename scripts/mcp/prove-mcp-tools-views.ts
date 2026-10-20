@@ -82,8 +82,8 @@ async function press(m: Awaited<ReturnType<typeof mountOffscreen>>, data: string
 }
 
 section('§1 a server the session cannot list: the popup says why, inside its one grant, and the way back stays on screen')
-{
-  answer = { server: 'runpod', state: 'unavailable', tools: [], omitted: 0, detail: OLDER_DAEMON }
+for (const detail of [OLDER_DAEMON, Array.from({ length: 20 }, (_, i) => `Failure detail ${i + 1}: the fixture tool list could not be read.`).join(' ')]) {
+  answer = { server: 'runpod', state: 'unavailable', tools: [], omitted: 0, detail }
   const m = await mounted()
   const unfolded = await press(m, KEY.enter, '  tools')
   check('↵ unfolds the connected server with its tools row', unfolded && m.lines().some(line => /│\s+›?\s+tools\s*│/.test(line)), m.screen())
@@ -91,11 +91,16 @@ section('§1 a server the session cannot list: the popup says why, inside its on
   const reasonShown = await press(m, KEY.enter, 'tools not listed')
   const lines = m.lines()
   const frame = frameOf(lines)
-  check("the reason replaces the list — never 'This server exposes no tools.'", reasonShown && lines.some(line => line.includes('the daemon is an older build (protocol 15')) && !m.screen().includes('This server exposes no tools.'), m.screen())
+  const plain = m.screen().replace(/[│\s]+/g, ' ')
+  check("the reason replaces the list — never 'This server exposes no tools.'", reasonShown && plain.includes(detail === OLDER_DAEMON ? 'This Mercury background process is too old to list tools.' : 'Failure detail 1:') && !plain.includes('This server exposes no tools.'), m.screen())
   check('the reason view stays inside the 12-row grant with its way back on the last row', frame !== null && frame.rows === FRAME.rows && frame.lastRow.includes('esc back to servers'), m.screen())
-  check('a reason longer than the grant is marked ↓, never pushed past the frame', frame !== null && frame.body.some(line => /↓ \d+ more/.test(line)), m.screen())
-  const scrolled = await press(m, KEY.down, '↑ 1 more')
-  check('↓ scrolls the reason and marks what scrolled off ↑', scrolled && frameOf(m.lines())?.lastRow.includes('esc back to servers') === true, m.screen())
+  if (detail === OLDER_DAEMON) {
+    check('an old daemon gives the user the supported update and restart road', plain.includes('Update Mercury. Run /restart, then open /mcp again.') && !plain.includes('protocol 15'))
+  } else {
+    check('a reason longer than the grant is marked ↓, never pushed past the frame', frame !== null && frame.body.some(line => /↓ \d+ more/.test(line)), m.screen())
+    const scrolled = await press(m, KEY.down, '↑ 1 more')
+    check('↓ scrolls the reason and marks what scrolled off ↑', scrolled && frameOf(m.lines())?.lastRow.includes('esc back to servers') === true, m.screen())
+  }
   const back = await press(m, KEY.esc, '1 servers · this session')
   check('esc steps back to the server list (the popup stays open)', back && m.screen().includes('esc or click outside closes'), m.screen())
   m.unmount()

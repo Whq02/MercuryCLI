@@ -345,16 +345,16 @@ section('§5 the box spans its band whatever the cursor\'s row: from the first s
   record(-1)
   check('Home moves the cursor to the first stop (the frame repaints)', await mounted.press('\x1b[H'))
   record(0)
-  let delivered = true
+  let reachedEnd = false
   let row = 0
-  while (row < total + 24) {
+  const walkDeadline = Date.now() + 60_000
+  while (Date.now() < walkDeadline) {
     row++
     const moved = await mounted.press('\x1b[B', false)
-    if (!moved) break
-    delivered = delivered && moved
+    if (!moved) { reachedEnd = true; break }
     record(row)
   }
-  check(`the walk stopped once per stop and reached the end (${row - 1} moves for ${total} rows plus the headings)`, delivered && row - 1 >= 4)
+  check(`the walk stopped once per stop and reached the end (${row - 1} moves for ${total} catalogue rows plus headings and actions)`, reachedEnd && row - 1 >= 4)
   check('End on the last stop changes nothing: the walk reached the end of the list', !(await mounted.press('\x1b[F', false)))
   const first = walk.find(stop => stop.row === 0)!
   const last = walk.at(-1)!
