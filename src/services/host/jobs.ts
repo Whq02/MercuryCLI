@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { closeSync, fstatSync, mkdirSync, openSync, readSync } from 'node:fs'
+import { closeSync, fstatSync, mkdirSync, openSync, readSync, watch } from 'node:fs'
 import { logForDebugging } from '../../utils/debug.js'
 import { dirname, join } from 'node:path'
 import { selfScriptPath, nodeForBuild } from '../../daemon/daemonBuild.js'
@@ -70,8 +70,8 @@ export function hostLogTail(record: HostRecord): string {
     return bytes.toString('utf8').replaceAll('MERCURY_STEP ', '').split(/[\r\n]/).filter(Boolean).slice(-3).join(' · ')
   } catch { return '' } finally { if (fd !== undefined) closeSync(fd) }
 }
-export async function sweepHostJobs(options: { stallMs?: number; launch?: (record: HostRecord) => Promise<void>; alive?: (record: HostRecord) => boolean } = {}): Promise<void> {
-  for (const record of hostRecords()) {
+export async function sweepHostJobs(options: { stallMs?: number; launch?: (record: HostRecord) => Promise<void>; alive?: (record: HostRecord) => boolean; records?: HostRecord[] } = {}): Promise<void> {
+  for (const record of options.records ?? hostRecords()) {
     if (!record.jobState || record.jobState === 'stopped') continue
     const watch = record.jobKind === 'watch'
     const alive = options.alive?.(record) ?? active(record)
@@ -106,7 +106,29 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
 }
 export function startHostJobSupervisor(): () => void {
   let busy = false
-  const tick = async (): Promise<void> => { if (busy || !ownsControlPlaneSync()) return; busy = true; try { await sweepHostJobs() } catch (error) { logForDebugging('Host job supervisor: ' + String(error)) } finally { busy = false } }
-  const timer = setInterval(() => { void tick() }, 1000); timer.unref(); void tick()
-  return () => clearInterval(timer)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let stopped = false
+  const pods = join(hostDirectory(), 'pods')
+  mkdirSync(pods, { recursive: true, mode: 0o700 })
+  const schedule = (ms: number): void => { if (stopped) return; if (timer) clearTimeout(timer); timer = setTimeout(() => { void tick() }, ms); timer.unref() }
+  const tick = async (): Promise<void> => {
+    if (stopped || busy) return
+    busy = true
+    let live = false
+    try {
+      const records = hostRecords()
+      live = records.some(record => ['queued', 'starting', 'running'].includes(record.jobState ?? ''))
+      if (records.length > 0 && ownsControlPlaneSync()) await sweepHostJobs({ records })
+    } catch (error) { logForDebugging('Host job supervisor: ' + String(error)) } finally { busy = false }
+    if (live) schedule(1000)
+    else if (!watcher) schedule(15_000)
+  }
+  let watcher: ReturnType<typeof watch> | undefined
+  try {
+    watcher = watch(pods, () => schedule(250))
+    watcher.unref?.()
+    watcher.on('error', () => { watcher?.close(); watcher = undefined; schedule(15_000) })
+  } catch { watcher = undefined }
+  void tick()
+  return () => { stopped = true; if (timer) clearTimeout(timer); watcher?.close() }
 }

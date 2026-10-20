@@ -23,16 +23,17 @@ export function patchHostRecord(id: string, patch: Partial<HostRecord>): HostRec
   if (!record) return
   const next = { ...record, ...patch }; writeHostRecord(next); return next
 }
-export function hostDirectory(): string {
-  const dir = join(getMercuryHome(), 'host')
-  mkdirSync(dir, { recursive: true, mode: 0o700 })
+const ensuredDirectories = new Set<string>()
+function ensureDirectory(dir: string): string {
+  if (!ensuredDirectories.has(dir)) { mkdirSync(dir, { recursive: true, mode: 0o700 }); ensuredDirectories.add(dir) }
   return dir
+}
+export function hostDirectory(): string {
+  return ensureDirectory(join(getMercuryHome(), 'host'))
 }
 function recordPath(id: string): string {
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error('Invalid host record id')
-  const dir = join(hostDirectory(), 'pods')
-  mkdirSync(dir, { recursive: true, mode: 0o700 })
-  return join(dir, id + '.json')
+  return join(ensureDirectory(join(hostDirectory(), 'pods')), id + '.json')
 }
 export function writeHostRecord(record: HostRecord): void { publishAtomicSync(recordPath(record.id), JSON.stringify(record) + '\n', { mode: 0o600 }) }
 export function removeHostRecord(id: string): void { try { unlinkSync(recordPath(id)) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error } }

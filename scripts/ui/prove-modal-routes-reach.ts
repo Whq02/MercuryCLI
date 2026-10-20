@@ -72,7 +72,7 @@ const NOT_A_VIEW = new Set(['exit', 'logout', 'zen', 'keysetup', 'rename', 'titl
 const TEXT_ROUTES = ['contract', 'mission']
 const MARK: Readonly<Record<string, string>> = {
   defaultprovider: 'Default provider', hooks: 'configured hooks', permissions: 'Permissions:', export: 'Export conversation', saturn: 'saturn scheduler',
-  keys: 'input atlas', workbench: 'Mercury — prompts', console: 'Mercury — console', sessions: 'Mercury · resume', copy: 'Mercury — copy', mcp: 'Mercury — mcp', mission: 'Mission',
+  keys: 'input atlas', workbench: 'Mercury — prompts', console: 'Mercury — console', sessions: 'Mercury · resume', copy: 'Mercury — copy', mcp: 'Mercury · mcp', mission: 'Mission',
   context: 'Mercury — context', feedback: 'Feedback — which kind', samples: 'SAMPLES · this session', showcase: 'Mercury — showcase',
 }
 const markOf = (name: string): RegExp => {

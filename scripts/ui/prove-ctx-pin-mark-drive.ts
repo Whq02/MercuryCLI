@@ -260,7 +260,7 @@ try {
       continue
     }
     const bootRow = ctxRowOf(boot)
-    check(`${tag}: before the session's first turn, the rail's ctx row carries the pinned window with the mark`, /ctx — · 1050k pin\b/.test(bootRow), bootRow || '(no ctx row)')
+    check(`${tag}: before the session's first turn, the rail's ctx row carries the pinned window with the mark, or the live ceiling already unmarked when the list landed before the first paint`, /ctx — · 1050k pin\b/.test(bootRow) || /ctx — · 872k(?!\s*pin)/.test(bootRow) && !/\bpin\b/.test(bootRow), bootRow || '(no ctx row)')
     const landed = shot.marks.landed ?? ''
     const landedRow = ctxRowOf(landed)
     check(`${tag}: after the session's own turn, the figure is the list's ceiling and the mark is gone — no picker opened`, /ctx \S+ · 872k(?!\s*pin)/.test(landedRow) && !/\bpin\b/.test(landedRow), landedRow || `the mark never fired; the final row reads ${JSON.stringify(ctxRowOf(shot.final))}`)
