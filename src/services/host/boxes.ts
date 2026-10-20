@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { hostDirectory } from './store.js'
 import { hostRunner, inspectBoxMachine, inspectSsh, type HostRunner, type SshTarget } from './ssh.js'
 
@@ -30,7 +30,7 @@ function boxPath(name: string): string {
 export function readBox(name: string): HostBox | undefined {
   try { return boxSchema.parse(JSON.parse(readFileSync(boxPath(name), 'utf8'))) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error }
 }
-export function writeBox(box: HostBox): void { durableAtomicPublishSync(boxPath(box.name), JSON.stringify(boxSchema.parse(box)) + '\n', { mode: 0o600 }) }
+export function writeBox(box: HostBox): void { publishAtomicSync(boxPath(box.name), JSON.stringify(boxSchema.parse(box)) + '\n', { mode: 0o600 }) }
 export function listBoxes(): HostBox[] {
   const dir = join(hostDirectory(), 'boxes')
   try { return readdirSync(dir).filter(file => file.endsWith('.json')).sort().map(file => readBox(file.slice(0, -5))!) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error }

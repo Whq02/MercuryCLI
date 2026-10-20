@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { hostDirectory } from './store.js'
 import { boxNameSchema, type HostBox } from './boxes.js'
 import { boxJoin, psQuote, runBoxScript, shQuote, writeBoxFile } from './boxExecution.js'
@@ -20,7 +20,7 @@ const recordPath = (name: string): string => {
 export function readBoxService(name: string): BoxServiceRecord | undefined {
   try { return JSON.parse(readFileSync(recordPath(name), 'utf8')) as BoxServiceRecord } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error }
 }
-export function writeBoxService(record: BoxServiceRecord): void { durableAtomicPublishSync(recordPath(record.name), JSON.stringify(record) + '\n', { mode: 0o600 }) }
+export function writeBoxService(record: BoxServiceRecord): void { publishAtomicSync(recordPath(record.name), JSON.stringify(record) + '\n', { mode: 0o600 }) }
 const xml = (text: string): string => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;')
 const unitQuote = (text: string): string => '"' + text.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('%', '%%').replaceAll('$', '$$') + '"'
 const boxServiceLabel = (name: string): string => 'ai.mercury-cli.host.' + boxNameSchema.parse(name)

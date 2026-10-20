@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { LLM_HOST_WORDS as words } from '../../commands/llmhost/words.js'
 import { isProcessAlive } from '../../daemon/ownerWatch.js'
 import { hostShape } from './cluster.js'
@@ -63,7 +63,7 @@ function saveTunePreferences(modelTitle: string, prefs: HostTunePreferences): vo
   const path = join(hostDirectory(), 'preferences.json')
   let previous: Record<string, unknown> = {}
   try { previous = z.record(z.string(), z.unknown()).parse(JSON.parse(readFileSync(path, 'utf8'))) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
-  durableAtomicPublishSync(path, JSON.stringify({ ...previous, [modelTitle]: preferenceSchema.parse({ ...prefs, updatedAt: new Date().toISOString() }) }) + '\n', { mode: 0o600 })
+  publishAtomicSync(path, JSON.stringify({ ...previous, [modelTitle]: preferenceSchema.parse({ ...prefs, updatedAt: new Date().toISOString() }) }) + '\n', { mode: 0o600 })
 }
 
 interface TuneCandidate {

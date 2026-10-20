@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import { acquirePidLock, noteLockRelease, releasePidLock } from '../../substrate/pidLock.js'
 import { z } from 'zod/v4'
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { hostDirectory } from './store.js'
 import type { HostRecipe } from './recipes.js'
 import { hostSetupEstimate } from '../../commands/llmhost/words.js'
@@ -22,7 +22,7 @@ export const volumeModel = (recipe: HostRecipe): string => recipe.model + '\n' +
 export const matchesVolume = (volume: KeptVolume, recipe: HostRecipe): boolean => volume.model === recipe.model && volume.include === (recipe.include ?? '')
 export function keptVolumes(): KeptVolume[] { return readdirSync(directory()).filter(name => name.endsWith('.json')).map(name => volumeRecordSchema.parse(JSON.parse(readFileSync(join(directory(), name), 'utf8')))) }
 export function readKeptVolume(id: string): KeptVolume | undefined { try { return volumeRecordSchema.parse(JSON.parse(readFileSync(pathOf(id), 'utf8'))) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error } }
-export function writeKeptVolume(record: KeptVolume): void { durableAtomicPublishSync(pathOf(record.id), JSON.stringify(volumeRecordSchema.parse(record)) + '\n', { mode: 0o600 }) }
+export function writeKeptVolume(record: KeptVolume): void { publishAtomicSync(pathOf(record.id), JSON.stringify(volumeRecordSchema.parse(record)) + '\n', { mode: 0o600 }) }
 const removeRecord = (id: string): void => { try { unlinkSync(pathOf(id)) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error } }
 export const networkMonthly = (size: number): number => Math.round((Math.min(size, 1000) * 0.07 + Math.max(0, size - 1000) * 0.05) * 100) / 100
 export const volumePrice = (record: Pick<KeptVolume, 'kind' | 'price'>): string => (record.kind === 'global' ? '~' : '') + '$' + record.price.toFixed(2) + '/month' + (record.kind === 'global' ? ' + IOPS (actual usage)' : '')
