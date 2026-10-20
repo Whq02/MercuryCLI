@@ -1,0 +1,286 @@
+import type { LlmHostResult, LlmHostRoad } from '../llmHost/index.js'
+import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
+import { configuredCompatEndpoints, resolveCompatApiKey } from '../providers/openaicompat/compatAccounts.js'
+import { inspectCompatServer } from '../providers/openaicompat/compatProbe.js'
+import { cachedCompatCatalogue, refreshCompatCatalogues, rememberCompatCatalogue } from '../providers/openaicompat/compatCatalogue.js'
+import { currentHostRecipes } from './recipesFile.js'
+import type { HostRecipe } from './recipes.js'
+import type { HostOffer, HostPod, RunpodClient } from './runpod.js'
+import { hostRecords, type HostRecord } from './store.js'
+
+type Ask = Parameters<LlmHostRoad>[0]
+type Emit = Parameters<LlmHostRoad>[1]
+export interface DoorBox {
+  name: string
+  kind: 'this-computer' | 'ssh'
+  os: string
+  memoryGb: number
+  unifiedMemory: boolean
+  engines: readonly { kind: string; version?: string; port?: number }[]
+}
+export interface DoorVendor extends Pick<RunpodClient, 'offers' | 'watchOffer' | 'create' | 'pods' | 'get' | 'stop' | 'terminate' | 'logs' | 'rateLimitPolicy' | 'shapes'> {
+  vendor: string
+  label: string
+}
+export interface ModelDoorDeps {
+  offers: () => Promise<readonly HostOffer[] | undefined>
+  pods: () => Promise<readonly HostPod[] | undefined>
+  records: () => readonly HostRecord[]
+  road: LlmHostRoad
+  connect?: () => Promise<boolean>
+  boxes?: () => readonly DoorBox[] | Promise<readonly DoorBox[]>
+  vendors?: readonly DoorVendor[]
+  rentVendor?: (vendor: DoorVendor, offer: HostOffer, ask: Ask, emit: Emit, signal: AbortSignal) => Promise<LlmHostResult>
+  startBox?: (box: DoorBox, recipe: HostRecipe, ask: Ask, emit: Emit, signal: AbortSignal) => Promise<LlmHostResult>
+  budgetLines?: typeof budgetLines
+  qualityWords?: (recipe: HostRecipe) => string
+  thinkingWords?: (recipe: HostRecipe) => string
+  confirmRental?: (offer: HostOffer, offers: readonly HostOffer[], ask: Ask, emit: Emit, signal: AbortSignal) => Promise<boolean>
+  initialModel?: string
+}
+type RecipeFacts = HostRecipe & { weightsGb?: number; setup?: { engineMinutes?: number; weightsMinutes?: number; loadMinutes?: number } }
+const legacyAsks = new WeakSet<Ask>()
+const initialModels = new WeakMap<Ask, string>()
+export const isHostDoorReentry = (ask: Ask): boolean => legacyAsks.has(ask)
+export const initialDoorModel = (ask: Ask): string | undefined => initialModels.get(ask)
+export const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
+const hourly = (price: number): string => '$' + price.toFixed(2) + '/hr'
+const shape = (recipe: HostRecipe): string => recipe.count + '× ' + recipe.gpu
+const flag = (recipe: HostRecipe, name: string): string | undefined => {
+  const at = recipe.flags.indexOf(name)
+  return at < 0 ? undefined : recipe.flags[at + 1]
+}
+const positive = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined
+const context = (recipe: HostRecipe): number | undefined => recipe.contextPerSlot ?? recipe.context
+const tokens = (value?: number): string => value === undefined ? 'context unknown' : value.toLocaleString('en-US') + ' tokens'
+const conversationWords = (recipe: HostRecipe): string => {
+  const count = positive(Number(flag(recipe, '--parallel')))
+  return count ? count + ' conversations × ' + tokens(context(recipe)) : 'conversation budget unknown · ' + tokens(context(recipe))
+}
+export function budgetLines(_recipe: HostRecipe, _gpuMemoryGb: number): readonly string[] {
+  return ['budget unknown for this recipe']
+}
+export function qualityWords(recipe: HostRecipe): string {
+  const variant = recipe.label.split(' · ').slice(1).join(' · ')
+  const bits = /(?:^|[-_])Q(\d+)/.exec(variant)?.[1]
+  if (bits) return 'Balanced · ' + bits + '-bit' + (recipe.verified.by === 'measured' ? ' (recommended)' : '')
+  if (variant === 'FP8') return 'Best quality · ' + variant.slice(2) + '-bit FP8'
+  if (variant === 'NVFP4') return 'Fast crew · NVFP4' + (recipe.verified.by === 'community' ? ' · community recipe' : '')
+  return variant || 'Original quality'
+}
+export function thinkingWords(recipe: HostRecipe): string {
+  const raw = flag(recipe, '--chat-template-kwargs')
+  if (raw) try {
+    const value = JSON.parse(raw) as { reasoning_effort?: unknown }
+    if (typeof value.reasoning_effort === 'string') return value.reasoning_effort
+  } catch {}
+  return 'engine default'
+}
+const requiredMemory = (recipe: HostRecipe): number => positive((recipe as RecipeFacts).weightsGb) ?? recipe.vramGb * recipe.count
+const fits = (box: DoorBox, recipe: HostRecipe): boolean => box.memoryGb >= requiredMemory(recipe)
+const boxName = (box: DoorBox): string => box.kind === 'this-computer' ? 'this computer' : box.name
+const verification = (recipe: HostRecipe): string => recipe.verified.by === 'measured'
+  ? 'verified ' + recipe.verified.on
+  : recipe.verified.by + (recipe.verified.on ? ' · ' + recipe.verified.on : '') + ' · not measured'
+const recipeFacts = (recipe: HostRecipe): string => [recipe.model.split('/')[0], /\b\d+(?:\.\d+)?B\b/i.exec(modelTitle(recipe))?.[0] ?? 'size unknown', 'tool calling and thinking', tokens(context(recipe)), verification(recipe)].join(' · ')
+export function readyWords(recipe: HostRecipe): string {
+  const facts = recipe as RecipeFacts
+  const engine = facts.setup?.engineMinutes ?? (recipe.install ? 10 : undefined)
+  const load = facts.setup?.loadMinutes ?? 3
+  const weights = facts.setup?.weightsMinutes
+  const total = engine !== undefined && weights !== undefined ? 'in ~' + (engine + weights + load) + ' min' : 'time unknown'
+  const source = 'https://huggingface.co/' + recipe.model
+  return 'Ready ' + total + ': engine ' + (engine === undefined ? 'image pull (time unknown)' : '~' + engine + ' min') + ' · weights ' + (facts.weightsGb === undefined ? 'size unknown' : facts.weightsGb + ' GB') + ' ' + (weights === undefined ? '(time unknown)' : '~' + weights + ' min') + ' at ' + source + ' · load ~' + load + ' min'
+}
+export function rentalSentence(offer: HostOffer, thinking = thinkingWords(offer.recipe)): string {
+  return 'Rent ' + shape(offer.recipe) + ' at ' + hourly(offer.price) + ' (+ ' + offer.recipe.diskGb + ' GB disk; rate not supplied by catalogue)' + (offer.dataCenter ? ' in ' + offer.dataCenter : ' · data centre not supplied') + ' · ' + modelTitle(offer.recipe) + ' · ' + qualityWords(offer.recipe) + ' · ' + conversationWords(offer.recipe) + ' · thinking ' + thinking + ' · ' + readyWords(offer.recipe) + ' · Billing starts now. Closing this window does not stop it. Mercury tells you when it’s ready.'
+}
+export function modelDoorRoad(road: LlmHostRoad, title: string): LlmHostRoad {
+  return async (ask, emit, signal) => {
+    const linked: Ask = plan => ask(plan)
+    initialModels.set(linked, title)
+    try { return await road(linked, emit, signal) } finally { initialModels.delete(linked) }
+  }
+}
+
+export function hostRunModelRows(boxes: readonly DoorBox[] = []): { id: string; name: string; tag: string; ctx: string; group: string; action: true; searchableAction: true }[] {
+  const records = hostRecords()
+  const endpoints = configuredCompatEndpoints()
+  const recipes = currentHostRecipes()
+  return [...new Set(recipes.map(modelTitle))].filter(title => !records.some(record => record.status === 'RUNNING' && record.provider && endpoints.some(endpoint => endpoint.name === record.provider) && recipes.some(recipe => recipe.id === record.recipe && modelTitle(recipe) === title))).map(title => ({ id: 'host-run:' + title, name: title, tag: 'run it → /llmhost' + (boxes.some(box => box.kind === 'this-computer' && /darwin|mac/i.test(box.os) && recipes.some(recipe => modelTitle(recipe) === title && fits(box, recipe))) ? ' · run it on this Mac →' : ''), ctx: '', group: 'Run a model', action: true, searchableAction: true }))
+}
+
+export function hostEndpointChoice<T extends { id: string; name: string; tag: string; action?: boolean }>(row: T): T {
+  if (!row.id.startsWith('__mercury_connect__:compat/')) return row
+  const name = row.id.slice('__mercury_connect__:compat/'.length)
+  const endpoint = configuredCompatEndpoints().find(item => item.name === name)
+  if (!endpoint) return row
+  const snapshot = cachedCompatCatalogue(endpoint)
+  return { ...row, id: 'host-retry:' + name, searchableAction: true, name: endpoint.label + (snapshot?.error ? ' · server is not answering' : ' · no models listed'), tag: 'Retry this server →', action: true }
+}
+export async function retryHostEndpoint(name: string): Promise<string> {
+  const endpoint = configuredCompatEndpoints().find(item => item.name === name)
+  if (!endpoint) return 'This endpoint is no longer registered.'
+  await refreshCompatCatalogues({ name, force: true })
+  const snapshot = cachedCompatCatalogue(endpoint)
+  return snapshot?.models.length && !snapshot.error ? endpoint.label + ' · ' + snapshot.models.length + ' models ready' : endpoint.label + ' · server is not answering or lists no models · retry when it is ready; the endpoint is still registered'
+}
+
+async function switchRunning(record: HostRecord, recipe: HostRecipe, ask: Ask, signal: AbortSignal): Promise<LlmHostResult | undefined> {
+  for (;;) {
+    const endpoint = configuredCompatEndpoints().find(row => row.name === record.provider)
+    if (!endpoint) return { ok: false, words: 'This pod’s endpoint is no longer registered. Open Pods I’m paying for to resume setup.' }
+    try {
+      const reading = await inspectCompatServer(endpoint, { key: resolveCompatApiKey(process.env, endpoint.name)?.key, signal })
+      const model = reading.models.find(name => name === recipe.model || name === modelTitle(recipe)) ?? (reading.models.length === 1 ? reading.models[0] : undefined)
+      if (!model) throw new Error('The registered server is not listing this model.')
+      signal.throwIfAborted()
+      rememberCompatCatalogue(endpoint, reading)
+      const id = 'compat/' + (endpoint.named ? endpoint.name + '/' : '') + model
+      const result = await getFocusedSessionConnector().setModel(id)
+      return result.state === 'refused'
+        ? { ok: false, words: 'Model switch refused: ' + result.detail }
+        : { ok: true, model: id, registered: true, words: (result.state === 'queued' ? 'Model switch queued for this session: ' : 'This session’s model: ') + modelTitle(recipe) + ' · pod ' + record.id + ' · no new rental' }
+    } catch {
+      if (signal.aborted) return
+      const choice = await ask({ step: 'door-retry', title: 'Server is not answering', found: 'The registered endpoint for pod ' + record.id + ' could not serve this model. It is still registered; no new rental was made.', willRun: 'Escape closes without changing the model.', rows: [{ value: 'retry', label: 'Retry this server' }, { value: 'back', label: 'Back to the model' }] })
+      if (choice !== 'retry') return
+    }
+  }
+}
+
+async function enterRoad(deps: ModelDoorDeps, ask: Ask, emit: Emit, signal: AbortSignal, route?: string, recipe?: HostRecipe, offer?: HostOffer, offers: readonly HostOffer[] = []): Promise<LlmHostResult> {
+  let selecting = Boolean(recipe)
+  let chosenOffer = offer
+  const bridge: Ask = async plan => {
+    if (plan.step === 'where' && route) return route
+    if (selecting && plan.step === 'budget') return ''
+    if (selecting && plan.step === 'models') return modelTitle(recipe!)
+    if (selecting && chosenOffer && plan.step === 'offers') {
+      const selected = plan.rows?.find(row => row.label.startsWith(chosenOffer!.recipe.label + ' · ' + shape(chosenOffer!.recipe) + ' · ' + hourly(chosenOffer!.price) + ' · Secure Cloud' + (chosenOffer!.dataCenter ? ' · ' + chosenOffer!.dataCenter : '')))
+      if (!selected) throw new Error('That offer changed. Open the model again for fresh stock and prices; no pod was created.')
+      return selected.value
+    }
+    if (plan.step === 'rent-confirm' && chosenOffer && selecting) {
+      const expected = chosenOffer.recipe.label + ' · ' + shape(chosenOffer.recipe) + ' · ' + hourly(chosenOffer.price) + (chosenOffer.dataCenter ? ' · ' + chosenOffer.dataCenter : '')
+      if (plan.found !== expected) throw new Error('That offer changed. Open the model again for fresh stock and prices; no pod was created.')
+      const picked = chosenOffer
+      selecting = false
+      chosenOffer = undefined
+      if (deps.confirmRental) return await deps.confirmRental(picked, offers, ask, emit, signal) ? 'rent' : 'cancel'
+      return ask({ step: 'door-confirm', title: 'Confirm the rental', found: rentalSentence(picked, (deps.thinkingWords ?? thinkingWords)(picked.recipe)), willRun: 'Escape keeps things as they are.', rows: [{ value: 'rent', label: 'Confirm ' + hourly(picked.price) + ' + storage' }, { value: 'cancel', label: 'Keep things as they are' }] })
+    }
+    if (selecting && plan.step === 'rent-confirm') selecting = false
+    return ask(plan)
+  }
+  legacyAsks.add(bridge)
+  try { return await deps.road(bridge, emit, signal) } finally { legacyAsks.delete(bridge) }
+}
+
+export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, deps: ModelDoorDeps): Promise<LlmHostResult> {
+  const stopped = (): LlmHostResult => ({ ok: false, words: 'Kept things as they are.' })
+  let title = deps.initialModel
+  while (!signal.aborted) {
+    let offerError = ''
+    let podError = ''
+    const [offers, pods, boxes] = await Promise.all([
+      deps.offers().catch(() => { offerError = 'Runpod stock could not be read'; return undefined }),
+      deps.pods().catch(() => { podError = 'Paid pods could not be read'; return undefined }),
+      Promise.resolve(deps.boxes?.() ?? []),
+    ])
+    const recipes = currentHostRecipes()
+    const records = deps.records()
+    const endpoints = configuredCompatEndpoints()
+    const running = records.filter(record => record.status === 'RUNNING' && record.provider && endpoints.some(endpoint => endpoint.name === record.provider) && (pods === undefined || pods.some(pod => pod.id === record.id && pod.status === 'RUNNING')))
+    const runningFor = (model: string) => running.filter(record => recipes.some(recipe => recipe.id === record.recipe && modelTitle(recipe) === model))
+    const groups = [...new Set(recipes.map(modelTitle))].map(name => {
+      const variants = recipes.filter(recipe => modelTitle(recipe) === name)
+      const live = runningFor(name)[0]
+      const own = boxes.find(box => variants.some(recipe => fits(box, recipe)))
+      const cheapest = offers?.filter(offer => modelTitle(offer.recipe) === name).sort((a, b) => a.price - b.price)[0]
+      const runningRecipe = live && recipes.find(recipe => recipe.id === live.recipe)
+      const where = live && runningRecipe ? 'running on your pod ' + live.id + ' · ' + hourly(live.price) + ' · ' + conversationWords(runningRecipe) + ' — switch →'
+        : own ? 'fits ' + boxName(own) + ' (' + own.memoryGb + ' GB) — start here →'
+        : cheapest ? 'Runpod ' + shape(cheapest.recipe) + ' · ' + hourly(cheapest.price) + ' · in stock'
+        : offers === undefined ? 'Runpod · ' + (offerError ? 'stock unavailable · retry →' : 'connect to check stock →') : 'no stock · watch →'
+      return { name, variants, where, rank: live ? 0 : own ? 1 : cheapest ? 2 : 3, price: cheapest?.price ?? Infinity }
+    }).sort((a, b) => a.rank - b.rank || a.price - b.price || a.name.localeCompare(b.name))
+    if (!title) {
+      const paid = pods ?? records.filter(row => row.jobKind !== 'watch').map(row => ({ cost: row.price, startedAt: row.startedAt, createdAt: row.startedAt, status: row.status }))
+      const spend = paid.filter(pod => pod.status === 'RUNNING' || pod.status === 'PROVISIONING').reduce((sum, pod) => sum + pod.cost * Math.max(0, Date.now() - Date.parse(pod.startedAt ?? pod.createdAt)) / 3600_000, 0)
+      const nameWidth = Math.max(0, ...groups.map(group => group.name.length))
+      const choice = await ask({ step: 'door-models', title: 'Which model?', found: 'Where each model can run right now. Nothing is rented until you confirm the price.', willRun: [offerError, podError].filter(Boolean).join(' · '), initial: groups[0]?.name, rows: [...groups.map(group => ({ value: group.name, label: group.name.padEnd(nameWidth) + ' · ' + group.where })), { value: 'pods', label: '────────────────────\nPods I’m paying for · ' + paid.length + ' ($' + spend.toFixed(2) + ' so far; compute estimate, storage extra)' + (podError ? ' · last known' : '') }, { value: 'boxes', label: 'My computers · ' + boxes.length }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'Other roads →' }] })
+      if (!choice) return stopped()
+      if (choice === 'refresh') continue
+      if (choice === 'other') return enterRoad(deps, ask, emit, signal)
+      if (choice === 'pods') return enterRoad(deps, ask, emit, signal, 'pods')
+      if (choice === 'boxes') return enterRoad(deps, ask, emit, signal, 'ssh')
+      if (!groups.some(group => group.name === choice)) return stopped()
+      title = choice
+    }
+    const group = groups.find(group => group.name === title)
+    if (!group) return { ok: false, words: 'That model no longer has a recipe. Open /llmhost for the current models.' }
+    const qualityKey = (row: HostRecipe): string => row.label.split(' · ').slice(1).join(' · ')
+    const variants = [...new Set(group.variants.map(qualityKey))].map(key => {
+      const candidates = group.variants.filter(row => qualityKey(row) === key)
+      return offers?.filter(offer => candidates.some(row => row.id === offer.recipe.id)).sort((a, b) => a.price - b.price)[0]?.recipe ?? candidates[0]!
+    }).sort((a, b) => Number(b.verified.by === 'measured') - Number(a.verified.by === 'measured'))
+    let recipe = variants.find(row => row.id === runningFor(title!)[0]?.recipe) ?? variants.find(row => offers?.some(offer => offer.recipe.id === row.id)) ?? variants[0]!
+    const vendorOffers = (await Promise.all((deps.vendors ?? []).map(async vendor => {
+      try { return (await vendor.offers(signal)).filter(offer => modelTitle(offer.recipe) === title).map(offer => ({ vendor, offer })) }
+      catch { emit({ title: vendor.label, words: 'Stock could not be read. Refresh to try again.' }); return [] }
+    }))).flat()
+    for (;;) {
+      const modelOffers = offers?.filter(offer => modelTitle(offer.recipe) === title && qualityKey(offer.recipe) === qualityKey(recipe)).sort((a, b) => a.price - b.price) ?? []
+      const live = runningFor(title)
+      const quality = deps.qualityWords ?? qualityWords
+      const facts = [recipeFacts(recipe), 'QUALITY', ...variants.map(variant => {
+        const cheapest = offers?.filter(offer => offer.recipe.id === variant.id).sort((a, b) => a.price - b.price)[0]
+        return (variant.id === recipe.id ? 'Selected: ' : '') + quality(variant) + ' · needs ' + shape(variant) + ' (' + requiredMemory(variant) + ' GB) · ' + (cheapest ? 'from ' + hourly(cheapest.price) : 'price unavailable') + ' · ' + tokens(context(variant))
+      }), 'CONVERSATIONS × CONTEXT', ...(deps.budgetLines ?? budgetLines)(recipe, recipe.vramGb * recipe.count), 'THINKING', (deps.thinkingWords ?? thinkingWords)(recipe) + ' (change any time with /effort)', 'WHERE'].join('\n')
+      const choice = await ask({ step: 'door-model', title, found: facts, willRun: '', initial: live.length ? 'running:0' : undefined, rows: [
+        ...live.map((record, i) => ({ value: 'running:' + i, label: 'Already running · pod ' + record.id + ' · switch now · nothing to pay' })),
+        ...modelOffers.map((offer, i) => ({ value: 'rent:' + i, label: 'Rent · Runpod ' + shape(offer.recipe) + ' · ' + hourly(offer.price) + ' · ' + (offer.dataCenter ?? 'data centre unknown') + ' in stock · ' + readyWords(offer.recipe).split(':')[0]!.replace('Ready', 'ready') })),
+        ...vendorOffers.filter(row => row.offer.recipe.id === recipe.id).map((row, i) => ({ value: 'vendor:' + i, label: 'Rent · ' + row.vendor.label + ' ' + shape(row.offer.recipe) + ' · ' + hourly(row.offer.price) + (row.offer.dataCenter ? ' · ' + row.offer.dataCenter : '') + ' · in stock' })),
+        ...boxes.map((box, i) => ({ value: 'box:' + i, label: boxName(box) + (fits(box, recipe) ? ' · fits (' + box.memoryGb + ' GB) — start here →' : ' · too small: ' + box.memoryGb + ' GB, needs ' + requiredMemory(recipe)) })),
+        ...(offers === undefined ? [{ value: 'connect', label: offerError ? 'Retry Runpod stock' : 'Connect Runpod to check stock and prices' }] : modelOffers.length ? [] : [{ value: 'watch', label: 'No stock · watch →' }]),
+        ...(variants.length > 1 ? [{ value: 'quality', label: 'Choose quality →' }] : []),
+        { value: 'back', label: 'Back to models · Escape closes' },
+      ] })
+      if (!choice || signal.aborted) return stopped()
+      if (choice === 'back') { title = undefined; break }
+      if (choice === 'connect') { if (offerError || await deps.connect?.()) break; continue }
+      if (choice === 'quality') {
+        const selected = await ask({ step: 'door-quality', title: 'Choose quality · ' + title, found: 'Each choice uses its recipe’s hardware and context. Escape closes without renting.', willRun: '', initial: recipe.id, rows: variants.map(row => ({ value: row.id, label: quality(row) + ' · ' + shape(row) + ' · ' + tokens(context(row)) })) })
+        if (!selected) return stopped()
+        recipe = variants.find(row => row.id === selected) ?? recipe
+        continue
+      }
+      if (choice.startsWith('running:')) {
+        const record = live[Number(choice.slice(8))]
+        if (!record) continue
+        const result = await switchRunning(record, recipes.find(row => row.id === record.recipe)!, ask, signal)
+        if (result) return result
+        continue
+      }
+      if (choice.startsWith('rent:')) {
+        const offer = modelOffers[Number(choice.slice(5))]
+        if (offer) return enterRoad(deps, ask, emit, signal, 'rent', offer.recipe, offer, offers)
+      }
+      if (choice === 'watch') return enterRoad(deps, ask, emit, signal, 'rent', recipe)
+      if (choice.startsWith('box:')) {
+        const box = boxes[Number(choice.slice(4))]
+        if (!box || !fits(box, recipe)) continue
+        if (deps.startBox) return deps.startBox(box, recipe, ask, emit, signal)
+        if (box.kind === 'ssh') return enterRoad(deps, ask, emit, signal, 'ssh')
+        emit({ title: 'This computer', words: 'Local startup is not available for this recipe yet. Nothing was started.' })
+      }
+      if (choice.startsWith('vendor:')) {
+        const row = vendorOffers.filter(row => row.offer.recipe.id === recipe.id)[Number(choice.slice(7))]
+        if (row && deps.rentVendor) return deps.rentVendor(row.vendor, row.offer, ask, emit, signal)
+        emit({ title: 'Rental unavailable', words: 'This vendor has no connected rental road. Nothing was rented.' })
+      }
+    }
+  }
+  return stopped()
+}

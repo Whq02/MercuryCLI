@@ -115,6 +115,23 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       }
     }
     try {
+      const { runModelDoor, isHostDoorReentry, initialDoorModel } = await import('./door.js')
+      if (!isHostDoorReentry(ask)) return await runModelDoor(question, emit, signal, {
+        initialModel: initialDoorModel(ask),
+        offers: () => key ? (api ??= new RunpodClient(key, options.apiBaseUrl)).offers(signal) : Promise.resolve(undefined),
+        pods: () => key ? (api ??= new RunpodClient(key, options.apiBaseUrl)).pods(signal) : Promise.resolve(undefined),
+        records: hostRecords,
+        road: createHostRoad(options),
+        connect: async () => {
+          const entered = await question({ step: 'runpod-key', title: words.runpodKey, found: words.runpodKeyHelp, willRun: words.runpodKeySave, secret: true })
+          if (!entered?.trim()) return false
+          const client = new RunpodClient(entered.trim(), options.apiBaseUrl)
+          await client.pods(signal)
+          key = entered.trim(); api = client
+          writeStoredRunpodApiKey(key)
+          return true
+        },
+      })
       let pods: HostPod[] = []
       if (key) { api = new RunpodClient(key, options.apiBaseUrl); try { pods = await api.pods(signal) } catch (error) { emit({ title: words.paid, words: String(error) }); if (/HTTP 401|HTTP 403/.test(String(error))) { key = undefined; api = undefined } } }
       const watches = activeWatches()

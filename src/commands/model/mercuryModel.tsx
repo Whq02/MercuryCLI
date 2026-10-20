@@ -1,4 +1,8 @@
 import * as React from 'react'
+import { hostEndpointChoice, hostRunModelRows, modelDoorRoad, retryHostEndpoint } from '../../services/host/door.js'
+import { runHostedModel } from '../../services/host/index.js'
+import { llmHostPopupRequest } from '../llmhost/llmhost.js'
+import { openSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
 import { isDeepStrictEqual } from 'node:util'
 import type { CommandResultDisplay } from '../../commands.js'
 import { MercuryModelPicker, fmtCtx as fmtCtxWindow, type ModelChoice } from '../../components/MercuryModelPicker.js'
@@ -897,12 +901,12 @@ function MercuryModelWrapper({
   }
 
   const options = getModelOptions()
-  const listedModels: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
+  const listedModels: ModelChoice[] = options.map(opt => hostEndpointChoice(modelChoiceOf(opt, betas)))
   const expandRows = (group: string): ModelChoice[] => expandRowsOf(group, betas)
   const labelOf = (id: string): string => pickLabelOf(options, id)
   const current = focusedSeat?.effective ?? engineModelForSession ?? engineModel ?? getEngineModel()
   const currentRowId = resolveCurrentRowId(listedModels, current)
-  const models = orderedModelChoices(listedModels, currentRowId)
+  const models = [...orderedModelChoices(listedModels, currentRowId), ...hostRunModelRows()]
   const topGroup = seatGroupOf(listedModels, currentRowId)
   const pendingSwitch = useAppState(s => s.pendingModelSwitch)
   const pendingNext =
@@ -962,6 +966,17 @@ function MercuryModelWrapper({
     return receipt === null ? '' : ` · ${receipt}`
   }
   function handleSelect(id: string, door?: string): void {
+    if (id.startsWith('host-retry:')) {
+      setNotice('Checking this server…')
+      void retryHostEndpoint(id.slice('host-retry:'.length)).then(setNotice)
+      return
+    }
+    if (id.startsWith('host-run:')) {
+      const title = id.slice('host-run:'.length)
+      onDone('Opening ' + title + ' in /llmhost', { display: 'system' })
+      openSettingsPopup(llmHostPopupRequest(modelDoorRoad(runHostedModel, title)))
+      return
+    }
     if (isCatalogueDoorRow(id)) return
     const otherDoor = door !== undefined && !isProviderActionRow(id) && headings[ANTHROPIC_MODEL_GROUP]?.doors.some(candidate => candidate.door === door && candidate.active !== true)
     const pick: PickRoad = { flip: otherDoor === true, ...(door !== undefined ? { door } : {}) }

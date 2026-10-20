@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Box, Text, useInput } from '../ink.js'
+import { Box, Text, useInput, wrapText } from '../ink.js'
+import { fitMeasuredWindow } from './mercury-ui/geometry.js'
 import TextInput from './TextInput.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
@@ -84,22 +85,38 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
   })
   const budget = Math.max(1, rowBudget - (host ? 2 : 0))
   const compact = budget < 7
-  const historyBudget = Math.max(0, Math.min(history.length, budget - (question ? 7 + Math.min(question.rows?.length ?? 1, 8) : 3)))
+  const modelDoor = question?.step.startsWith('door-') === true
+  const measured = (text: string, columns = width): number => wrapText(text, Math.max(1, columns), 'wrap').split('\n').length
+  const detailRows = modelDoor && !compact ? measured(question.found) + (question.willRun ? measured('will run · ' + question.willRun) : 0) : 2
+  const historyBudget = modelDoor ? 0 : Math.max(0, Math.min(history.length, budget - (question ? 7 + Math.min(question.rows?.length ?? 1, 8) : 3)))
   const shownHistory = history.slice(-historyBudget || history.length)
   const rows = question?.rows ?? []
-  const choices = Math.max(1, budget - shownHistory.length - (compact ? Number(budget > 1) : 7))
-  const window = settingsPopupWindow(cursor ?? 0, Math.max(0, (cursor ?? 0) - choices + 1), rows.length, choices)
+  const choices = Math.max(1, budget - shownHistory.length - (compact ? Number(budget > 1) : 5 + detailRows))
+  const windowFor = (span: number) => {
+    const { offset } = settingsPopupWindow(cursor ?? 0, Math.max(0, (cursor ?? 0) - span + 1), rows.length, span)
+    const end = Math.min(rows.length, offset + span)
+    return { start: offset, end, above: offset, below: rows.length - end }
+  }
+  const fitted = modelDoor ? fitMeasuredWindow(rows.length, choices, windowFor, view => rows.slice(view.start, view.end).reduce((sum, row) => sum + measured(row.label, width - 2), 0)) : windowFor(choices)
+  const window = { offset: fitted.start, visible: fitted.end - fitted.start }
   return <Box flexDirection="column" width={width} flexShrink={0} maxHeight={rowBudget} overflow="hidden">
     {shownHistory.map((row, index) => <Text key={index} color={tokens.textMuted} wrap="truncate-end">{row.title} · {row.words}</Text>)}
     {question ? <>
       {budget > 1 ? <Text bold color={tokens.textPrimary} wrap="truncate-end">{question.title}</Text> : null}
-      {!compact ? <Text color={tokens.textSecondary} wrap="truncate-end">{question.found}</Text> : null}
-      {!compact && question.willRun ? <Text color={tokens.textSecondary} wrap="truncate-end">will run · {question.willRun}</Text> : null}
+      {!compact ? <Text color={tokens.textSecondary} wrap={modelDoor ? "wrap" : "truncate-end"}>{question.found}</Text> : null}
+      {!compact && question.willRun ? <Text color={tokens.textSecondary} wrap={modelDoor ? "wrap" : "truncate-end"}>will run · {question.willRun}</Text> : null}
       {!compact ? <Text color={tokens.textMuted}>{question.rows ? question.rows.some(row => row.value === question.initial) ? words.suggested : words.choose : words.input}</Text> : null}
       {question.rows ? <>
         {!compact && window.offset > 0 ? <Text color={tokens.textMuted}>↑ {window.offset} more</Text> : null}
-        {rows.slice(window.offset, window.offset + choices).map((row, index) => <Text key={row.value} color={cursor === window.offset + index ? tokens.textPrimary : tokens.textSecondary} bold={cursor === window.offset + index} wrap="truncate-end">{cursor === window.offset + index ? '›' : ' '} {row.label}</Text>)}
-        {!compact && window.offset + choices < rows.length ? <Text color={tokens.textMuted}>↓ {rows.length - window.offset - choices} more</Text> : null}
+        {rows.slice(window.offset, window.offset + window.visible).map((row, index) => {
+          const divider = modelDoor && row.label.startsWith('─') ? row.label.split('\n')[0] : undefined
+          const label = divider ? row.label.slice(divider.length + 1) : row.label
+          return <Box key={row.value} flexDirection="column">
+            {divider ? <Text color={tokens.textMuted}>{divider}</Text> : null}
+            <Text color={cursor === window.offset + index ? tokens.textPrimary : tokens.textSecondary} bold={cursor === window.offset + index} wrap={modelDoor ? "wrap" : "truncate-end"}>{cursor === window.offset + index ? '›' : ' '} {label}</Text>
+          </Box>
+        })}
+        {!compact && window.offset + window.visible < rows.length ? <Text color={tokens.textMuted}>↓ {rows.length - window.offset - window.visible} more</Text> : null}
       </> : <TextInput key={question.step} value={value} onChange={setValue} cursorOffset={offset} onChangeCursorOffset={setOffset} columns={Math.max(1, width - 2)} maxVisibleLines={1} mask={question.secret ? '*' : undefined} multiline={false} onSubmit={text => { if (pastOpenEvent()) answer(text) }} onEscape={stop} disableEscapeDoublePress />}
     </> : result ? <>
       <Text bold color={result.ok ? tokens.success : tokens.warning} wrap="truncate-end">{result.words}</Text>

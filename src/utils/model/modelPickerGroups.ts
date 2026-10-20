@@ -11,6 +11,7 @@ export type PickerRow = {
   group: string
   door?: string
   action?: boolean
+  searchableAction?: boolean
   gated?: boolean
   choice?: string
   expand?: CatalogueDoorFacet
@@ -195,7 +196,7 @@ export function composePickerLines<T extends PickerRow>(
       const pool = [...group.rows.filter(row => !isModelRow(row) && row.expand === undefined), ...reachOf().filter(isModelRow)]
       const matches = pool.filter(row => matchesPickerFilter(row, filter))
       const models = matches.filter(isModelRow)
-      if (models.length === 0) continue
+      if (models.length === 0 && !matches.some(row => row.searchableAction)) continue
       out.push({ kind: 'heading', group: group.group, fold: 'full', live: liveCount(models), matched: models.length, total: pool.filter(isModelRow).length })
       if (group.doors.length >= 2) {
         out.push(...doorLines(group, models, filter, door => pool.filter(row => isModelRow(row) && (row.door ?? group.doors[0]) === door).length))
