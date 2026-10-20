@@ -8,8 +8,10 @@ import { LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 import { RunpodClient } from './runpod.js'
 import { HOST_RECIPES } from './recipes.js'
 import { hostNotice } from './notices.js'
-import { patchHostRecord, readHostRecord } from './store.js'
-import { hostRunner, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
+import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord } from './store.js'
+import { queueHostSetup } from './jobs.js'
+import { reconcileRecord } from '../projectServices/serviceManager.js'
+import { ensureHostKey, hostRunner, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
 
 export async function runHostJob(id: string, generation: string, options: { runner?: HostRunner; pauseMs?: number; timeoutMs?: number; signal?: AbortSignal; keepAlive?: boolean } = {}): Promise<void> {
   const initial = readHostRecord(id)
@@ -42,7 +44,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const timer = setInterval(() => {
     const current = readHostRecord(id)
     if (!current || current.generation !== generation || current.jobState === 'stopped') controller.abort()
-    if (!target || !recipe || logBusy || signal.aborted || current?.jobState === 'ready') return
+    if (initial.jobKind === 'watch' || !target || !recipe || logBusy || signal.aborted || current?.jobState === 'ready') return
     logBusy = true
     void runner.run('ssh', [...sshArguments(target), 'dd if=/workspace/mercury-host/' + recipe.id + '/engine.log bs=1 skip=' + offset + ' count=8192 status=none'], signal)
       .then(async text => {
@@ -55,7 +57,67 @@ export async function runHostJob(id: string, generation: string, options: { runn
       })
       .catch(() => {})
       .finally(() => { logBusy = false })
-  }, pause)
+  }, initial.jobKind === 'watch' ? Math.min(pause, 100) : pause)
+  if (initial.jobKind === 'watch') {
+    try {
+      if (!key) throw new Error('The saved Runpod key is unavailable.')
+      if (!recipe) throw new Error('The saved host recipe is unavailable.')
+      const api = new RunpodClient(key, initial.apiBaseUrl)
+      const sshKey = await ensureHostKey(runner, signal)
+      const pollMs = options.pauseMs ?? initial.pollIntervalMs ?? 5000
+      const watchWindowMs = options.timeoutMs ?? initial.pollWindowMs ?? 12 * 3600_000
+      const deadline = Date.now() + watchWindowMs
+      const maxPrice = initial.maxPrice ?? initial.price
+      while (!signal.aborted && Date.now() < deadline) {
+        const current = readHostRecord(id)
+        if (!current || current.generation !== generation || current.jobState === 'stopped') return
+        patchHostRecord(id, { advancedAt: Date.now() })
+        const offer = await api.watchOffer(recipe, maxPrice, signal)
+        const afterPoll = readHostRecord(id)
+        if (!afterPoll || afterPoll.generation !== generation || afterPoll.jobState === 'stopped') return
+        if (offer) {
+          const podName = 'mercury-' + randomUUID().slice(0, 12)
+          const pod = await api.create(offer, sshKey.publicKey, podName)
+          const rentedWords = 'Rented ' + offer.recipe.label.split(' · ')[0] + ' · ' + offer.recipe.count + '× ' + offer.recipe.gpu + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '') + ' · setting up'
+          log(rentedWords)
+          const setupRecord = queueHostSetup({
+            id: pod.id,
+            name: pod.name,
+            recipe: offer.recipe.id,
+            price: offer.price,
+            startedAt: pod.startedAt ?? pod.createdAt,
+            status: pod.status,
+            sessionId: afterPoll.sessionId,
+            workspace: afterPoll.workspace,
+            sshKey: sshKey.path,
+            watchedFrom: id,
+            ...(afterPoll.apiBaseUrl ? { apiBaseUrl: afterPoll.apiBaseUrl } : {}),
+          })
+          hostNotice(setupRecord, 'rented', rentedWords)
+          removeHostRecord(id)
+          if (!reconcileRecord(hostDirectory(), 'host-' + id.toLowerCase())) {
+            await runHostJob(setupRecord.id, setupRecord.generation!, options)
+          }
+          return
+        }
+        await delay(pollMs, undefined, { signal })
+      }
+      const ended = readHostRecord(id)
+      if (ended && ended.generation === generation && ended.jobState !== 'stopped') {
+        const stoppedRecord = patchHostRecord(id, { jobState: 'stopped', status: 'EXPIRED', step: 'watch ended after 12 hours without stock' })!
+        hostNotice(stoppedRecord, 'expired', stoppedRecord.name + ' · watch ended after 12 hours without stock ≤ $' + maxPrice.toFixed(2) + '/hr · no pod was created')
+      }
+    } catch (error) {
+      const current = readHostRecord(id)
+      if (current && current.generation === generation && current.jobState !== 'stopped') {
+        const detail = clean(String(error))
+        const failedRecord = patchHostRecord(id, { jobState: 'failed', error: detail })!
+        log(detail)
+        hostNotice(failedRecord, 'failed', failedRecord.name + ' · stock watch stopped · ' + detail)
+      }
+    } finally { clearInterval(timer) }
+    return
+  }
   try {
     if (!key) throw new Error('The saved Runpod key is unavailable.')
     if (!recipe) throw new Error('The saved host recipe is unavailable.')

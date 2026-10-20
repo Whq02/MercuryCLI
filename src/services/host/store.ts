@@ -8,6 +8,7 @@ export interface HostRecord {
   id: string; name: string; recipe: string; price: number; startedAt: string; status: string
   target?: SshTarget; localPort?: number; provider?: string
   sessionId?: string; workspace?: string; sshKey?: string; apiBaseUrl?: string
+  jobKind?: 'setup' | 'watch'; maxPrice?: number; pollIntervalMs?: number; pollWindowMs?: number; rateLimit?: string; watchedFrom?: string
   jobState?: 'queued' | 'starting' | 'running' | 'ready' | 'failed' | 'stopped'
   generation?: string; jobStartedAt?: number; advancedAt?: number; step?: string; log?: string; error?: string
   steps?: { step: string; at: number }[]

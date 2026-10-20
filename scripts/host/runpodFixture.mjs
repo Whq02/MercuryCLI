@@ -10,7 +10,7 @@ const livePods = sample('pods-list')
 export async function runpodFixture() {
   const key = 'fixture-runpod-key-not-a-real-key'
   const requests = []
-  const state = { pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, creates: 0, stops: 0, deletes: 0, noStock: false, stockLoss: false, price: 7.99, failCreate: false, stuck: false, failStop: false, customGpus: null }
+  const state = { pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, creates: 0, stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, customGpus: null }
   const gpus = liveCatalogue.gpus
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
@@ -25,7 +25,14 @@ export async function runpodFixture() {
       assert.equal(url.searchParams.get('cloud'), 'SECURE')
       assert.equal(url.searchParams.get('minCudaVersion'), '13.0')
       state.catalogReads++
-      return send(state.noStock || state.stockLoss && state.catalogReads > 3 ? { ...liveCatalogue, gpus: gpus.map(gpu => ({ ...gpu, availability: 'NONE' })) } : state.customGpus ? { ...liveCatalogue, gpus: state.customGpus } : liveCatalogue)
+      if (state.noStock || state.stockLoss && state.catalogReads > 3 || state.stockAfterReads > 0 && state.catalogReads <= state.stockAfterReads) {
+        return send({ ...liveCatalogue, gpus: gpus.map(gpu => ({ ...gpu, availability: 'NONE', dataCenters: [] })) })
+      }
+      if (state.customGpus) return send({ ...liveCatalogue, gpus: state.customGpus })
+      if (state.stockAfterReads > 0) {
+        return send({ ...liveCatalogue, gpus: gpus.map(gpu => gpu.id === 'NVIDIA B300 SXM6 AC' ? { ...gpu, availability: 'LOW', dataCenters: [{ id: 'EU-NL-1', name: 'EU-NL-1', availability: 'LOW' }] } : gpu) })
+      }
+      return send(liveCatalogue)
     }
     if (url.pathname === '/v2/account/ssh-keys') { if (req.method === 'PUT') state.keys = body.keys; return send({ keys: state.keys }) }
     if (url.pathname === '/v2/pods' && req.method === 'GET') return send({ ...livePods, pods: [...state.pods.values()], pagination: { hasNextPage: false, nextCursor: null } })
@@ -39,7 +46,8 @@ export async function runpodFixture() {
       assert.ok(body.mounts.persistent.size >= 80)
       const syntax = spawnSync('bash', ['-n', '-c', body.args], { encoding: 'utf8' })
       assert.equal(syntax.status, 0, syntax.stderr)
-      const pod = { ...structuredClone(livePod), id: 'fixture-pod-' + state.creates, name: body.name, status: 'PROVISIONING', cost: gpus.find(gpu => gpu.id === body.gpu.id).price.secure * body.gpu.count, createdAt: new Date(Date.now() - 60000).toISOString(), startedAt: new Date(Date.now() - 60000).toISOString(), ssh: { direct: null, proxy: null } }
+      const gpuEntry = (state.customGpus ?? gpus).find(gpu => gpu.id === body.gpu.id) ?? gpus.find(gpu => gpu.id === body.gpu.id)
+      const pod = { ...structuredClone(livePod), id: 'fixture-pod-' + state.creates, name: body.name, status: 'PROVISIONING', cost: gpuEntry.price.secure * body.gpu.count, createdAt: new Date(Date.now() - 60000).toISOString(), startedAt: new Date(Date.now() - 60000).toISOString(), ssh: { direct: null, proxy: null } }
       state.pods.set(pod.id, pod)
       return send(pod, 201)
     }

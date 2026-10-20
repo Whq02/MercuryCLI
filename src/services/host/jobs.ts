@@ -16,6 +16,10 @@ const active = (record: HostRecord): boolean => {
   const service = reconcileRecord(serviceHome(), serviceName(record.id))
   return Boolean(service && ['starting', 'running', 'ready'].includes(service.state))
 }
+const watchPollIntervalMs = 5000
+const watchPollWindowMs = 12 * 3600_000
+const watchRateLimit = '5-second poll is 12 requests a minute against Runpod documented 60/min limit'
+
 export async function requireHostJobOwner(): Promise<void> {
   const daemon = await readDaemonState()
   if (!daemon || !isProcessAlive(daemon.pid)) throw new Error('The Mercury daemon must be running before renting a pod. Reopen Mercury; no pod was created.')
@@ -24,7 +28,17 @@ export function queueHostSetup(record: HostRecord): HostRecord {
   if (active(record)) return readHostRecord(record.id) ?? record
   const now = Date.now()
   const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })
-  const queued: HostRecord = { ...record, generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step: 'waiting for SSH', error: undefined, log: join(logs, record.id + '.log'), steps: [{ step: 'waiting for SSH', at: now }] }
+  const queued: HostRecord = { ...record, jobKind: 'setup', generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step: 'waiting for SSH', error: undefined, log: join(logs, record.id + '.log'), steps: [{ step: 'waiting for SSH', at: now }] }
+  writeHostRecord(queued)
+  return queued
+}
+export function queueHostWatch(record: HostRecord): HostRecord {
+  if (active(record)) return readHostRecord(record.id) ?? record
+  const now = Date.now()
+  const ceiling = record.maxPrice ?? record.price
+  const step = 'watching for stock ≤ $' + ceiling.toFixed(2) + '/hr · ' + watchRateLimit
+  const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })
+  const queued: HostRecord = { ...record, jobKind: 'watch', maxPrice: ceiling, pollIntervalMs: record.pollIntervalMs ?? watchPollIntervalMs, pollWindowMs: record.pollWindowMs ?? watchPollWindowMs, rateLimit: watchRateLimit, generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step, error: undefined, log: join(logs, record.id + '.log'), steps: [{ step, at: now }] }
   writeHostRecord(queued)
   return queued
 }

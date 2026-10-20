@@ -9,6 +9,7 @@ const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === '
 const stock = (value?: string): boolean => stockRank(value) > 0
 
 export class RunpodClient {
+  private lastShapes: HostOffer[] = []
   constructor(private key: string, private base = 'https://api.runpod.io/v2') {
     const url = new URL(base)
     if (url.username || url.password || url.search || url.hash || !(url.origin === 'https://api.runpod.io' || url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname))) throw new Error('Runpod uses its official API or a loopback fixture only.')
@@ -18,22 +19,43 @@ export class RunpodClient {
     if (!response.ok) throw new Error('Runpod ' + method + ' ' + path.split('?')[0] + ' returned HTTP ' + response.status + (response.status === 401 || response.status === 403 ? ' — check the key and its Pods, Catalog and billing read permissions.' : method === 'POST' && path === '/pods' ? ' — no retry was sent. Refresh pods before choosing another fitting shape; creation may have reached the account.' : ''))
     return response
   }
+  shapes(): readonly HostOffer[] { return this.lastShapes }
   async offers(signal: AbortSignal): Promise<HostOffer[]> {
     const offers: HostOffer[] = []
+    const shapes: HostOffer[] = []
     const groups = [...new Set(HOST_RECIPES.map(recipe => recipe.count + ':' + recipe.cuda))]
     for (const group of groups) {
       const [count, cuda] = group.split(':')
       const response = await this.response('/catalog/gpus?include=AVAILABILITY&product=POD&cloud=SECURE&count=' + count + '&minCudaVersion=' + cuda, 'GET', undefined, signal)
       const { gpus } = z.object({ gpus: z.array(gpuSchema) }).parse(await response.json())
       for (const recipe of HOST_RECIPES.filter(recipe => recipe.count === Number(count) && recipe.cuda === cuda)) for (const gpu of gpus) {
-        if (!gpu.secure || gpu.price.secure <= 0 || !stock(gpu.availability) || !recipeFits(recipe, gpu.id, gpu.memory, gpu.maxCount.secure)) continue
+        if (!gpu.secure || gpu.price.secure <= 0 || !recipeFits(recipe, gpu.id, gpu.memory, gpu.maxCount.secure)) continue
         const price = gpu.price.secure * recipe.count
+        shapes.push({ recipe, gpuId: gpu.id, price, availability: gpu.availability })
+        if (!stock(gpu.availability)) continue
         if (gpu.dataCenters) {
           for (const dc of gpu.dataCenters) if (stock(dc.availability)) offers.push({ recipe, gpuId: gpu.id, price, dataCenter: dc.id, availability: dc.availability })
         } else offers.push({ recipe, gpuId: gpu.id, price, availability: gpu.availability })
       }
     }
+    this.lastShapes = shapes.sort((a, b) => a.price - b.price || a.recipe.id.localeCompare(b.recipe.id))
     return offers.sort((a, b) => stockRank(b.availability) - stockRank(a.availability) || a.price - b.price || a.recipe.id.localeCompare(b.recipe.id) || (a.dataCenter ?? '').localeCompare(b.dataCenter ?? ''))
+  }
+  async watchOffer(recipe: HostRecipe, maxPrice: number, signal?: AbortSignal): Promise<HostOffer | undefined> {
+    const response = await this.response('/catalog/gpus?include=AVAILABILITY&product=POD&cloud=SECURE&count=' + recipe.count + '&minCudaVersion=' + recipe.cuda, 'GET', undefined, signal)
+    const { gpus } = z.object({ gpus: z.array(gpuSchema) }).parse(await response.json())
+    const model = recipe.label.split(' · ')[0]
+    const candidates = HOST_RECIPES.filter(row => row.label.split(' · ')[0] === model && row.count === recipe.count && row.cuda === recipe.cuda)
+    const offers: HostOffer[] = []
+    for (const candidate of candidates.length ? candidates : [recipe]) for (const gpu of gpus) {
+      if (!gpu.secure || gpu.price.secure <= 0 || !stock(gpu.availability) || !recipeFits(candidate, gpu.id, gpu.memory, gpu.maxCount.secure)) continue
+      const price = gpu.price.secure * candidate.count
+      if (price > maxPrice) continue
+      if (gpu.dataCenters) {
+        for (const dc of gpu.dataCenters) if (stock(dc.availability)) offers.push({ recipe: candidate, gpuId: gpu.id, price, dataCenter: dc.id, availability: dc.availability })
+      } else offers.push({ recipe: candidate, gpuId: gpu.id, price, availability: gpu.availability })
+    }
+    return offers.sort((a, b) => Number(b.recipe.id === recipe.id) - Number(a.recipe.id === recipe.id) || stockRank(b.availability) - stockRank(a.availability) || a.price - b.price || (a.dataCenter ?? '').localeCompare(b.dataCenter ?? ''))[0]
   }
   async pods(signal?: AbortSignal): Promise<HostPod[]> {
     const pods: HostPod[] = []

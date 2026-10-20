@@ -37,7 +37,8 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
       if (!live || controller.signal.aborted) return Promise.resolve(null)
       setValue(plan.initial ?? '')
       setOffset(plan.initial?.length ?? 0)
-      setCursor(null)
+      const initialRow = plan.rows && plan.initial !== undefined ? plan.rows.findIndex(row => row.value === plan.initial) : -1
+      setCursor(initialRow >= 0 ? initialRow : null)
       setQuestion(plan)
       return new Promise(resolve => { answerRef.current = resolve })
     }, event => {
@@ -75,7 +76,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
     if (key.upArrow || key.downArrow || key.wheelUp || key.wheelDown) {
       event.stopImmediatePropagation()
       const down = key.downArrow || key.wheelDown
-      setCursor(current => current === null ? down ? 0 : question.rows!.length - 1 : Math.max(0, Math.min(question.rows!.length - 1, current + (down ? 1 : -1))))
+      setCursor(current => !question.rows!.length ? null : current === null ? down ? 0 : question.rows!.length - 1 : (current + (down ? 1 : question.rows!.length - 1)) % question.rows!.length)
     } else if (key.return) {
       event.stopImmediatePropagation()
       if (pastOpenEvent() && cursor !== null && question.rows[cursor]) answer(question.rows[cursor]!.value)
@@ -105,7 +106,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
       <Text color={tokens.textMuted}>{words.finished}</Text>
     </> : <Text color={tokens.textMuted}>{words.running}</Text>}
     {host ? <>
-      <Text color={tokens.warning} wrap="truncate-end">{host.id} · {host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : '$' + host.price.toFixed(2) + '/hr × ' + (Math.max(0, now - Date.parse(host.startedAt)) / 3600_000).toFixed(2) + 'h = $' + (host.price * Math.max(0, now - Date.parse(host.startedAt)) / 3600_000).toFixed(2) + ' so far (estimate; storage extra)'}</Text>
+      <Text color={tokens.warning} wrap="truncate-end">{host.id} · {host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : host.status === 'WATCHING' ? 'watching for stock ≤ $' + host.price.toFixed(2) + '/hr · $0.00 billed while watching' : '$' + host.price.toFixed(2) + '/hr × ' + (Math.max(0, now - Date.parse(host.startedAt)) / 3600_000).toFixed(2) + 'h = $' + (host.price * Math.max(0, now - Date.parse(host.startedAt)) / 3600_000).toFixed(2) + ' so far (estimate; storage extra)'}</Text>
       <Text color={tokens.textMuted} wrap="truncate-end">{host.status === 'TERMINATED' ? '' : host.step ?? words.podKept}</Text>
     </> : null}
   </Box>
