@@ -12,7 +12,7 @@ import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord } from
 import { activeHostWatches, queueHostSetup, watchModel, watchRateWords } from './jobs.js'
 import { reconcileRecord } from '../projectServices/serviceManager.js'
 import { ensureHostKey, hostRunner, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
-import { tunedRecipe } from './tune.js'
+import { hostRetuneLive, reconcileHostTune, tunedRecipe } from './tune.js'
 
 export async function runHostJob(id: string, generation: string, options: { runner?: HostRunner; pauseMs?: number; timeoutMs?: number; signal?: AbortSignal; keepAlive?: boolean } = {}): Promise<void> {
   const initial = readHostRecord(id)
@@ -224,14 +224,15 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (options.keepAlive !== false) while (!signal.aborted) {
       await delay(pause, undefined, { signal })
       const observed = readHostRecord(id)
-      if (observed?.retuning) continue
+      if (observed?.retuning && (hostRetuneLive(observed) || (await reconcileHostTune(id, runner, signal))?.retuning)) continue
       let response: Response
       try { response = await fetch('http://127.0.0.1:' + port + '/v1/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), redirect: 'error' }) } catch (error) {
         const current = readHostRecord(id)
-        if (current?.retuning || current?.advancedAt !== observed?.advancedAt) continue
+        if (current && hostRetuneLive(current) || current?.advancedAt !== observed?.advancedAt) continue
         throw error
       }
-      if (readHostRecord(id)?.retuning) { await response.body?.cancel(); continue }
+      const after = readHostRecord(id)
+      if (after && hostRetuneLive(after)) { await response.body?.cancel(); continue }
       if (!response.ok) throw new Error('The SSH tunnel no longer answers: HTTP ' + response.status)
       await response.body?.cancel()
     }

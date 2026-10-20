@@ -10,7 +10,7 @@ import { reconcileRecord, startService, stopService } from '../projectServices/s
 import { hostDirectory, hostRecords, patchHostRecord, readHostRecord, writeHostRecord, type HostRecord } from './store.js'
 import { hostNotice } from './notices.js'
 import { currentHostRecipes } from './recipesFile.js'
-import { readTunePreferences, tunedRecipe } from './tune.js'
+import { hostRetuneLive, readTunePreferences, tunedRecipe } from './tune.js'
 
 const serviceName = (id: string): string => 'host-' + id.toLowerCase()
 const serviceHome = (): string => hostDirectory()
@@ -31,10 +31,15 @@ export async function requireHostJobOwner(): Promise<void> {
 }
 export function queueHostSetup(record: HostRecord): HostRecord {
   if (active(record)) return readHostRecord(record.id) ?? record
+  const stored = readHostRecord(record.id)
+  if (stored && hostRetuneLive(stored)) throw new Error('This pod is reloading its engine; resume setup once the reload ends. Nothing was queued.')
   const recipe = currentHostRecipes().find(row => row.id === record.recipe) ?? record.recipeRow
-  const preference = record.tune ?? (recipe ? readTunePreferences(recipe.label.split(' · ')[0]!) : undefined)
-  const tune = preference?.quality === recipe?.id ? preference : undefined
-  if (recipe && tune) tunedRecipe(recipe, tune)
+  let tune: HostRecord['tune']
+  try {
+    const preference = record.tune ?? (recipe ? readTunePreferences(recipe.label.split(' · ')[0]!) : undefined)
+    tune = preference?.quality === recipe?.id ? preference : undefined
+    if (recipe && tune) tunedRecipe(recipe, tune)
+  } catch { tune = undefined }
   record = { ...record, recipeRow: recipe, tune }
   const now = Date.now()
   const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })

@@ -159,8 +159,8 @@ try {
   check('retune re-registers the per-slot window', getContextWindowForModel(model) === 65536 && getSettingsForSource('userSettings')?.models?.[model]?.contextWindow === 65536)
   check('retune never reduces the output ceiling', getSettingsForSource('userSettings')?.models?.[model]?.maxOutputTokens === 98765)
   check('retune invalidates and re-reads slot count', await resolveLlamacppTotalSlots(endpoint) === 8)
-  check('record carries the applied tune', readHostRecord(record.id)?.tune?.conversations === 8 && readHostRecord(record.id)?.retuning === false)
-  check('chat explains the reload time', notices.some(text => text.includes('retuned:') && text.includes('reloading ~3 min')))
+  check('record carries the applied tune and no reload claim', readHostRecord(record.id)?.tune?.conversations === 8 && readHostRecord(record.id)?.retuning === undefined)
+  check('chat explains the reload without promising a time', notices.some(text => text.includes('retuned:') && text.includes('reloading the engine; it answers again once the weights are loaded')) && !notices.some(text => text.includes('~3 min')))
   const savedPrefs = readFileSync(prefsPath, 'utf8')
   ssh.state.failRetune = true
   const failed = await tune.retuneHostEngine(readHostRecord(record.id)!, { ...next, conversations: 1, contextPerConversation: 1048576 }, ssh.runner, { pauseMs: 1, timeoutMs: 60, emit })

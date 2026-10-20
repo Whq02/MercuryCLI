@@ -145,66 +145,164 @@ export async function openHostTunnel(id: string, target: SshTarget, runner: Host
 }
 export function closeHostTunnel(id: string): void { tunnels.get(id)?.stop(); tunnels.delete(id) }
 
-export async function restartHostScript(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, restore: boolean): Promise<void> {
+export class HostTuneUnchanged extends Error {}
+const processTable = `def processes():
+    rows = []
+    if os.path.isdir('/proc'):
+        for entry in os.listdir('/proc'):
+            if not entry.isdigit():
+                continue
+            try:
+                stat = pathlib.Path('/proc', entry, 'stat').read_text()
+                argv = pathlib.Path('/proc', entry, 'cmdline').read_bytes().decode(errors='replace').split('\\0')
+            except OSError:
+                continue
+            fields = stat[stat.rfind(')') + 2:].split()
+            rows.append((int(entry), int(fields[2]), fields[0], [arg for arg in argv if arg]))
+    else:
+        listing = subprocess.run(['ps', '-A', '-o', 'pid=,pgid=,stat=,command='], capture_output=True, text=True).stdout
+        for line in listing.splitlines():
+            parts = line.split(None, 3)
+            if len(parts) >= 3:
+                rows.append((int(parts[0]), int(parts[1]), parts[2][:1], parts[3].split() if len(parts) > 3 else []))
+    return [row for row in rows if row[2] != 'Z']
+`
+export async function restartHostScript(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, mode: { restore: boolean; token: string }): Promise<void> {
   const dir = '/workspace/mercury-host/' + recipe.id
-  const rewrite = `import json, os, pathlib, shlex, shutil, signal, time
+  const rewrite = `import fcntl, json, os, pathlib, shlex, shutil, signal, subprocess, sys, time, urllib.request
 p = pathlib.Path(${JSON.stringify(dir)})
+engine_url = 'http://127.0.0.1:30000'
+restore = ${mode.restore ? 'True' : 'False'}
+token = ${JSON.stringify(mode.token)}
 script = p / 'engine.sh'
 backup = p / 'engine.pre-tune.sh'
-restore = ${restore ? 'True' : 'False'}
-if not restore:
-    shutil.copy2(script, backup)
-text = backup.read_text()
+marker = p / 'engine.pre-tune.id'
+weights = str(p / 'weights')
+${processTable}
+def unchanged(reason):
+    print('MERCURY_TUNE_UNCHANGED ' + reason)
+    sys.exit(3)
+def serving():
+    try:
+        with urllib.request.urlopen(engine_url + '/v1/models', timeout=10) as response:
+            return response.status == 200
+    except Exception:
+        return False
+lock = open(p / 'engine.lock', 'w')
+fcntl.flock(lock, fcntl.LOCK_EX)
+if restore and (not marker.exists() or marker.read_text() != token):
+    unchanged('this reload saved no launch script, so there is nothing to undo')
+try:
+    text = (backup if restore else script).read_text()
+except OSError as error:
+    unchanged('the launch script cannot be read: ' + str(error))
 engine = None
 for line in text.splitlines():
-    args = shlex.split(line)
-    if args and args[0] == 'exec':
+    try:
+        args = shlex.split(line)
+    except ValueError:
+        continue
+    if args[:1] == ['exec']:
         args = args[1:]
     if args and args[0].endswith('/llama-server'):
         engine = args
         break
 if engine is None:
-    raise RuntimeError('The saved script has no standalone llama-server command; nothing restarted')
+    unchanged('the launch script has no llama-server command')
 if not restore:
     flags = json.loads(${JSON.stringify(JSON.stringify(recipe.flags))})
     for name in ['--ctx-size', '--parallel', '--chat-template-kwargs']:
-        value = flags[flags.index(name) + 1]
-        if name in engine:
-            at = engine.index(name)
-            engine[at:at + 2] = [name, value]
-        else:
-            engine.extend([name, value])
-exports = [line for line in text.splitlines() if line.startswith('export ')]
-next_script = 'set -e\\n' + '\\n'.join(exports) + '\\nexec ' + shlex.join(engine) + '\\n'
+        if name in flags:
+            value = flags[flags.index(name) + 1]
+            if name in engine:
+                at = engine.index(name)
+                engine[at:at + 2] = [name, value]
+            else:
+                engine.extend([name, value])
+leader = None
+if (p / 'engine.pid').exists():
+    try:
+        pid = int((p / 'engine.pid').read_text().strip())
+    except ValueError:
+        unchanged('engine.pid does not hold a process id')
+    leader = next((row for row in processes() if row[0] == pid), None)
+group = None
+if leader is not None:
+    command = ' '.join(leader[3])
+    if leader[0] <= 1 or str(script) not in command and not ('/llama-server' in command and weights in command):
+        unchanged('engine.pid names a process that is not this engine')
+    if leader[1] != leader[0]:
+        unchanged('the engine is not its own process group')
+    group = leader[0]
+strays = [row[0] for row in processes() if row[1] != group and row[3][:1] and row[3][0].endswith('/llama-server') and weights in ' '.join(row[3])]
+if strays:
+    unchanged('another engine for these weights is running as process ' + str(strays[0]))
+if not restore and (group is None or not serving()):
+    unchanged('the engine is not serving; Tune reloads a running engine, and Resume setup starts a stopped one')
+next_script = 'set -e\\n' + ''.join(line + '\\n' for line in text.splitlines() if line.startswith('export ')) + shlex.join(engine) + '\\nwait\\n'
+if restore and group is not None and script.read_text() == next_script:
+    unchanged('the launch script was never changed')
+if not restore:
+    shutil.copy2(script, backup)
+    marker.write_text(token)
 staged = p / 'engine.tuning.sh'
 staged.write_text(next_script)
 staged.chmod(0o700)
 os.replace(staged, script)
-pidfile = p / 'engine.pid'
-if pidfile.exists():
-    pid = int(pidfile.read_text().strip())
-    if pid <= 1:
-        raise RuntimeError('Invalid engine PID; no process signalled')
+def stopped(sig, seconds):
     try:
-        cmd = pathlib.Path('/proc/' + str(pid) + '/cmdline').read_bytes().replace(b'\\0', b' ').decode()
-        if str(script) not in cmd and not ('/llama-server' in cmd and str(p / 'weights') in cmd):
-            raise RuntimeError('Engine PID belongs to another process; no process signalled')
-        if os.getpgid(pid) != pid:
-            raise RuntimeError('Engine is not its own setsid group; no process signalled')
-        os.killpg(pid, signal.SIGTERM)
-        for _ in range(300):
-            try:
-                os.kill(pid, 0)
-            except ProcessLookupError:
-                break
-            time.sleep(0.1)
-        else:
-            raise RuntimeError('Previous engine did not stop; no second engine launched')
-    except (FileNotFoundError, ProcessLookupError):
-        pass
-print('MERCURY_TUNE_FLAGS_RESTORED' if restore else 'MERCURY_TUNE_FLAGS_WRITTEN')
+        os.killpg(group, sig)
+    except ProcessLookupError:
+        return True
+    deadline = time.monotonic() + seconds
+    while any(row[1] == group for row in processes()):
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(0.2)
+    return True
+if group is not None and not stopped(signal.SIGTERM, 60) and not stopped(signal.SIGKILL, 15):
+    raise RuntimeError('the previous engine did not stop, so no second engine was started')
+print('MERCURY_TUNE_RESTORED' if restore else 'MERCURY_TUNE_WRITTEN')
 `
-  await runner.run('ssh', [...sshArguments(target), 'python3 -c ' + quote(rewrite)], signal, 60_000)
+  try { await runner.run('ssh', [...sshArguments(target), 'python3 -c ' + quote(rewrite)], signal, 120_000) } catch (error) {
+    const reason = /MERCURY_TUNE_UNCHANGED ([^\n]+)/.exec(String(error))?.[1]
+    if (reason) throw new HostTuneUnchanged(reason.trim())
+    throw error
+  }
   const remote = 'set -e; nohup setsid bash ' + quote(dir + '/engine.sh') + ' >> ' + quote(dir + '/engine.log') + ' 2>&1 < /dev/null & echo $! > ' + quote(dir + '/engine.pid') + '; sleep 1; kill -0 "$(cat ' + quote(dir + '/engine.pid') + ')"'
   await runner.run('ssh', [...sshArguments(target), remote], signal)
+}
+export async function readHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal): Promise<{ alive: boolean; conversations?: number; contextPerConversation?: number; effort?: string }> {
+  const dir = '/workspace/mercury-host/' + recipe.id
+  const read = `import json, os, pathlib, subprocess, urllib.request
+p = pathlib.Path(${JSON.stringify(dir)})
+engine_url = 'http://127.0.0.1:30000'
+${processTable}
+out = {'mark': 'MERCURY_ENGINE_READ', 'alive': False}
+try:
+    group = int((p / 'engine.pid').read_text().strip())
+    rows = [row for row in processes() if row[1] == group]
+    out['alive'] = bool(rows)
+    out['argv'] = next((row[3] for row in rows if row[3][:1] and row[3][0].endswith('/llama-server')), [])
+except (OSError, ValueError):
+    pass
+try:
+    with urllib.request.urlopen(engine_url + '/props', timeout=10) as response:
+        props = json.load(response)
+    out['slots'] = props.get('total_slots')
+    out['n_ctx'] = (props.get('default_generation_settings') or {}).get('n_ctx')
+except Exception as error:
+    out['error'] = str(error)
+print(json.dumps(out))
+`
+  const output = await runner.run('ssh', [...sshArguments(target), 'python3 -c ' + quote(read)], signal, 60_000)
+  const line = output.split('\n').find(row => row.includes('MERCURY_ENGINE_READ'))
+  if (!line) throw new Error('The pod did not report its engine.')
+  const reading = JSON.parse(line) as { alive?: unknown; slots?: unknown; n_ctx?: unknown; argv?: unknown }
+  const argv = Array.isArray(reading.argv) ? reading.argv.filter((arg): arg is string => typeof arg === 'string') : []
+  const at = argv.indexOf('--chat-template-kwargs')
+  let effort: string | undefined
+  try { const stated: unknown = at >= 0 ? (JSON.parse(argv[at + 1] ?? '') as { reasoning_effort?: unknown }).reasoning_effort : undefined; if (typeof stated === 'string') effort = stated } catch {}
+  const whole = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+  return { alive: reading.alive === true, ...(whole(reading.slots) && whole(reading.n_ctx) ? { conversations: reading.slots, contextPerConversation: reading.n_ctx } : {}), ...(effort ? { effort } : {}) }
 }

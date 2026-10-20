@@ -1,25 +1,28 @@
+import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { LLM_HOST_WORDS as words } from '../../commands/llmhost/words.js'
+import { isProcessAlive } from '../../daemon/ownerWatch.js'
+import { getSettingsForSource } from '../../utils/settings/settings.js'
 import type { LlmHostRoad } from '../llmHost/index.js'
 import { registerHostWindow } from '../llmHost/index.js'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
 import { inspectCompatServer, invalidateLlamacppTotalSlots } from '../providers/openaicompat/compatProbe.js'
-import { rememberCompatCatalogue } from '../providers/openaicompat/compatCatalogue.js'
+import { cachedCompatCatalogue, rememberCompatCatalogue } from '../providers/openaicompat/compatCatalogue.js'
 import type { HostRecipe } from './recipes.js'
 import { currentHostRecipes, hostRecipeOfRecord } from './recipesFile.js'
 import type { HostOffer } from './runpod.js'
-import { hostDirectory, patchHostRecord, type HostRecord } from './store.js'
-import { hostRunner, inspectSsh, restartHostScript, sshArguments, waitHostEngine, type HostRunner } from './ssh.js'
+import { hostDirectory, patchHostRecord, readHostRecord, type HostRecord } from './store.js'
+import { HostTuneUnchanged, hostRunner, inspectSsh, readHostEngine, restartHostScript, sshArguments, waitHostEngine, type HostRunner } from './ssh.js'
 
 const thinkingRank = ['max', 'xhigh', 'high', 'medium', 'low'] as const
 const preferenceSchema = z.object({ quality: z.string(), conversations: z.number().int().positive().nullable(), contextPerConversation: z.number().int().positive().nullable(), effort: z.enum([...thinkingRank, 'default']), updatedAt: z.string().datetime() })
 export type HostTunePreferences = z.infer<typeof preferenceSchema>
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
-export const ENGINE_ALLOWANCE_GB = 12
+const ENGINE_ALLOWANCE_GB = 12
 const titleOf = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const tokens = (n: number): string => n >= 1048576 && n % 1048576 === 0 ? n / 1048576 + 'M' : n % 1024 === 0 ? n / 1024 + 'k' : String(n)
 const about = (n: number): string => n >= 1048576 ? (n / 1048576).toFixed(1).replace(/\.0$/, '') + 'M' : Math.floor(n / 1024) + 'k'
@@ -34,7 +37,7 @@ export function qualityWords(recipe: HostRecipe): string {
   return table.find(([pattern]) => pattern.test(variant))?.[1] ?? (variant || recipe.label)
 }
 
-export function thinkingLevels(recipe: HostRecipe): HostTunePreferences['effort'][] {
+function thinkingLevels(recipe: HostRecipe): HostTunePreferences['effort'][] {
   return recipe.engine === 'llamacpp' ? thinkingRank.filter(level => recipe.efforts?.levels.includes(level)) : []
 }
 
@@ -47,7 +50,7 @@ export function defaultTune(recipe: HostRecipe): HostTunePreferences {
   return { quality: recipe.id, conversations, contextPerConversation, effort, updatedAt: new Date().toISOString() }
 }
 
-export function tuneSummary(prefs: HostTunePreferences, recipe: HostRecipe): string {
+function tuneSummary(prefs: HostTunePreferences, recipe: HostRecipe): string {
   return (prefs.conversations ?? 'engine default') + ' × ' + (prefs.contextPerConversation ? tokens(prefs.contextPerConversation) : 'context unknown') + ' · ' + qualityWords(recipe).replace(' (recommended)', '') + ' · ' + prefs.effort
 }
 
@@ -62,7 +65,7 @@ function saveTunePreferences(modelTitle: string, prefs: HostTunePreferences): vo
   durableAtomicPublishSync(path, JSON.stringify({ ...previous, [modelTitle]: preferenceSchema.parse({ ...prefs, updatedAt: new Date().toISOString() }) }) + '\n', { mode: 0o600 })
 }
 
-export interface TuneCandidate {
+interface TuneCandidate {
   conversations: number | null
   contextPerConversation: number | null
   totalTokens?: number
@@ -124,12 +127,13 @@ export function tunedRecipe(recipe: HostRecipe, prefs: HostTunePreferences): Hos
 export async function runTune(modelTitle: string, options: { recipes: readonly HostRecipe[]; offers?: readonly HostOffer[]; pod?: HostRecord; runner?: HostRunner; signal?: AbortSignal; pauseMs?: number; timeoutMs?: number }, ask: Ask, emit: Emit): Promise<HostTunePreferences | undefined> {
   const recipes = options.recipes.filter(row => titleOf(row) === modelTitle)
   if (!recipes.length) throw new Error('No recipes for ' + modelTitle)
-  const saved = options.pod?.tune ?? readTunePreferences(modelTitle)
-  let recipe = recipes.find(row => row.id === saved?.quality) ?? recipes[0]!
   const signal = options.signal ?? new AbortController().signal
+  const pod = options.pod ? await reconcileHostTune(options.pod.id, options.runner ?? hostRunner, signal) ?? options.pod : undefined
+  const saved = pod?.tune ?? readTunePreferences(modelTitle)
+  let recipe = recipes.find(row => row.id === saved?.quality) ?? recipes[0]!
   const question: Ask = plan => signal.aborted ? Promise.resolve(null) : ask(plan)
   const summary = (row: HostRecipe): string => tuneBudget(row, row.vramGb, row.count, options.offers).words
-  const quality = await question({ step: 'tune-quality', title: 'QUALITY · ' + modelTitle, found: summary(recipe), willRun: options.pod ? 'Different quality applies at the next rental · no download now · esc closes' : 'Choose weights · no changes until Confirm · esc closes', initial: recipe.id, rows: recipes.map(row => {
+  const quality = await question({ step: 'tune-quality', title: 'QUALITY · ' + modelTitle, found: summary(recipe), willRun: pod ? 'Different quality applies at the next rental · no download now · esc closes' : 'Choose weights · no changes until Confirm · esc closes', initial: recipe.id, rows: recipes.map(row => {
     const cheapest = options.offers?.filter(offer => offer.recipe.id === row.id).sort((a, b) => a.price - b.price)[0]
     const context = defaultTune(row).contextPerConversation
     return { value: row.id, label: qualityWords(row) + ' · ' + row.verified.by + ' · ' + row.count + '× ' + row.gpu + (cheapest ? ' · from ' + rate(cheapest.price) : ' · price unavailable') + (context ? ' · ' + tokens(context) + '/conversation' : ' · context unknown') }
@@ -138,7 +142,7 @@ export async function runTune(modelTitle: string, options: { recipes: readonly H
   recipe = recipes.find(row => row.id === quality)!
   if (!recipe) throw new Error(words.inputError)
   const previous = saved?.quality === recipe.id ? saved : defaultTune(recipe)
-  const hardware = options.pod?.target && recipe.id === options.pod.recipe ? await inspectSsh(options.pod.target, options.runner ?? hostRunner, signal) : undefined
+  const hardware = pod?.target && recipe.id === pod.recipe ? await inspectSsh(pod.target, options.runner ?? hostRunner, signal) : undefined
   const count = hardware?.gpus.length ?? recipe.count
   const memory = hardware ? Math.min(...hardware.gpus.map(gpu => gpu.memory)) : recipe.vramGb
   const budget = tuneBudget(recipe, memory, count, options.offers)
@@ -152,11 +156,11 @@ export async function runTune(modelTitle: string, options: { recipes: readonly H
   if (!effort) return
   if (!(levels.length ? levels : ['default']).includes(effort as HostTunePreferences['effort'])) throw new Error(words.inputError)
   const prefs = preferenceSchema.parse({ quality, conversations: candidate.conversations, contextPerConversation: candidate.contextPerConversation, effort, updatedAt: new Date().toISOString() })
-  const inPlace = options.pod?.recipe === recipe.id && recipe.engine === 'llamacpp'
-  const confirm = await question({ step: 'tune-confirm', title: 'Confirm tune · ' + modelTitle, found: budget.words, willRun: tuneSummary(prefs, recipe), rows: [{ value: 'confirm', label: inPlace ? 'Confirm · reload in place (~3 min), no download or new pod' : options.pod ? 'Confirm · applies at the next rental · no download now' : 'Confirm · save for the next rental' }, { value: 'cancel', label: words.cancel }] })
+  const inPlace = pod?.recipe === recipe.id && recipe.engine === 'llamacpp'
+  const confirm = await question({ step: 'tune-confirm', title: 'Confirm tune · ' + modelTitle, found: budget.words, willRun: tuneSummary(prefs, recipe), rows: [{ value: 'confirm', label: inPlace ? 'Confirm · reload in place, no download or new pod' : pod ? 'Confirm · applies at the next rental · no download now' : 'Confirm · save for the next rental' }, { value: 'cancel', label: words.cancel }] })
   if (confirm !== 'confirm' || signal.aborted) return
   if (inPlace) {
-    const result = await retuneHostEngine(options.pod!, prefs, options.runner ?? hostRunner, { signal, pauseMs: options.pauseMs, timeoutMs: options.timeoutMs, emit })
+    const result = await retuneHostEngine(pod!, prefs, options.runner ?? hostRunner, { signal, pauseMs: options.pauseMs, timeoutMs: options.timeoutMs, emit })
     if (!result.ok) { emit({ title: 'Tune failed', words: result.words }); return }
   }
   saveTunePreferences(modelTitle, prefs)
@@ -190,49 +194,110 @@ export async function confirmTunedRental(initial: HostOffer, offers: readonly Ho
 }
 
 const retuning = new Set<string>()
-export async function retuneHostEngine(record: HostRecord, prefs: HostTunePreferences, runner: HostRunner, options: { signal?: AbortSignal; pauseMs?: number; timeoutMs?: number; emit?: Emit } = {}): Promise<{ ok: boolean; words: string }> {
-  if (retuning.has(record.id)) return { ok: false, words: 'This pod is already reloading.' }
+const RELOAD_TIMEOUT_MS = 30 * 60_000
+const CLAIM_LIFETIME_MS = 2 * 3600_000
+export interface HostRetune { pid: number; at: number; from: HostTunePreferences; to: HostTunePreferences }
+type Endpoint = ReturnType<typeof configuredCompatEndpoints>[number]
+const modelIds = (endpoint: Endpoint, models: readonly string[]): string[] => models.map(id => 'compat/' + (endpoint.named ? endpoint.name + '/' : '') + id)
+const registeredModels = (endpoint: Endpoint): string[] => {
+  const cached = cachedCompatCatalogue(endpoint)?.models
+  if (cached?.length) return modelIds(endpoint, cached)
+  return endpoint.named ? Object.keys(getSettingsForSource('userSettings')?.models ?? {}).filter(id => id.startsWith('compat/' + endpoint.name + '/')) : []
+}
+
+export function hostRetuneLive(record: HostRecord): boolean {
+  const claim = record.retuning
+  if (!claim || typeof claim !== 'object' || !Number.isSafeInteger(claim.pid) || claim.pid <= 0 || !(Date.now() - claim.at < CLAIM_LIFETIME_MS)) return false
+  return claim.pid === process.pid ? retuning.has(record.id) : isProcessAlive(claim.pid)
+}
+
+export async function reconcileHostTune(id: string, runner: HostRunner, signal: AbortSignal): Promise<HostRecord | undefined> {
+  const record = readHostRecord(id)
+  if (!record?.retuning || hostRetuneLive(record)) return record
+  const claim = typeof record.retuning === 'object' ? record.retuning : undefined
   const recipe = hostRecipeOfRecord(record)
-  if (!recipe || recipe.engine !== 'llamacpp' || !record.target || !record.provider) return { ok: false, words: 'A registered llama.cpp pod with an SSH target is required; no pod changed.' }
+  let engine: Awaited<ReturnType<typeof readHostEngine>> | undefined
+  try { if (record.target && recipe) engine = await readHostEngine(record.target, recipe, runner, signal) } catch {}
+  if (signal.aborted) return record
+  if (engine?.alive && !engine.conversations) return patchHostRecord(id, { step: 'engine starting after an interrupted reload' })
+  if (!engine?.conversations || !engine.contextPerConversation) return patchHostRecord(id, { retuning: undefined, tune: claim?.from ?? record.tune, step: 'engine reload interrupted', error: 'Mercury stopped during an engine reload and the engine is not answering · Tune again, or Resume setup' })
+  const served = engine as { conversations: number; contextPerConversation: number; effort?: string }
+  const same = (tune?: HostTunePreferences): boolean => Boolean(tune && tune.conversations === served.conversations && tune.contextPerConversation === served.contextPerConversation && (served.effort === undefined || tune.effort === served.effort))
+  const base = claim?.from ?? record.tune ?? (recipe ? defaultTune(recipe) : undefined)
+  const observed = base ? preferenceSchema.safeParse({ ...base, conversations: served.conversations, contextPerConversation: served.contextPerConversation, ...(served.effort ? { effort: served.effort } : {}), updatedAt: new Date().toISOString() }).data : undefined
+  const tune = same(claim?.to) ? claim?.to : same(base) ? base : observed
+  const endpoint = configuredCompatEndpoints().find(row => row.name === record.provider)
+  if (endpoint) {
+    invalidateLlamacppTotalSlots(endpoint)
+    const ids = registeredModels(endpoint)
+    if (ids.length) registerHostWindow(ids, served.contextPerConversation)
+  }
+  return patchHostRecord(id, { retuning: undefined, tune, step: 'ready', error: undefined })
+}
+
+export async function retuneHostEngine(record: HostRecord, prefs: HostTunePreferences, runner: HostRunner, options: { signal?: AbortSignal; pauseMs?: number; timeoutMs?: number; emit?: Emit } = {}): Promise<{ ok: boolean; words: string }> {
   const signal = options.signal ?? new AbortController().signal
-  const next = tunedRecipe(recipe, prefs)
-  const oldPrefs = record.tune ?? defaultTune(recipe)
+  const busy = { ok: false, words: 'This pod is already reloading its engine; no change made.' }
+  if (retuning.has(record.id)) return busy
+  const current = await reconcileHostTune(record.id, runner, signal) ?? record
+  if (current.retuning) return busy
+  const recipe = hostRecipeOfRecord(current)
+  const target = current.target
+  if (!recipe || recipe.engine !== 'llamacpp' || !target || !current.provider) return { ok: false, words: 'A registered llama.cpp pod with an SSH target is required; no pod changed.' }
+  if (['queued', 'starting', 'running'].includes(current.jobState ?? '')) return { ok: false, words: 'Setup is still running on this pod; Tune reloads the engine once setup is ready. No change made.' }
+  let next: HostRecipe
+  try { next = tunedRecipe(recipe, prefs) } catch (error) { return { ok: false, words: String(error) + ' · no change made' } }
+  const endpoint = configuredCompatEndpoints().find(row => row.name === current.provider)
+  if (!endpoint) return { ok: false, words: 'The registered provider no longer exists; no change made.' }
+  try { await inspectCompatServer(endpoint, { signal }) } catch (error) { return { ok: false, words: 'The pod does not answer through its tunnel (' + String(error) + '); Resume setup reconnects it. No change made.' } }
+  const pause = options.pauseMs ?? 3000
+  const deadline = options.timeoutMs ?? RELOAD_TIMEOUT_MS
+  const oldPrefs = current.tune ?? defaultTune(recipe)
+  const claim: HostRetune = { pid: process.pid, at: Date.now(), from: oldPrefs, to: prefs }
+  const before = current.step
+  patchHostRecord(current.id, { retuning: claim, step: 'reloading engine in place', advancedAt: claim.at })
+  const claimed = readHostRecord(current.id)?.retuning
+  if (claimed?.pid !== claim.pid || claimed.at !== claim.at) return busy
+  retuning.add(current.id)
+  const token = randomUUID()
   let changed = false
-  retuning.add(record.id)
   try {
-    patchHostRecord(record.id, { step: 'reloading engine in place', retuning: true, advancedAt: Date.now() })
-    options.emit?.({ title: 'Tune', words: titleOf(recipe) + ' retuned: ' + tuneSummary(prefs, recipe) + ' · reloading ~3 min' })
+    options.emit?.({ title: 'Tune', words: titleOf(recipe) + ' retuned: ' + tuneSummary(prefs, recipe) + ' · reloading the engine; it answers again once the weights are loaded' })
+    try { await restartHostScript(target, next, runner, signal, { restore: false, token }) } catch (error) {
+      if (error instanceof HostTuneUnchanged) { patchHostRecord(current.id, { retuning: undefined, step: before }); return { ok: false, words: 'Tune made no change: ' + error.message } }
+      changed = true
+      throw error
+    }
     changed = true
-    await restartHostScript(record.target, next, runner, signal, false)
-    await waitHostEngine(record.target, next, runner, signal, options.pauseMs ?? 3000, options.timeoutMs ?? 10 * 60_000)
-    const props = JSON.parse(await runner.run('ssh', [...sshArguments(record.target), 'curl -fsS --max-time 10 http://127.0.0.1:30000/props'], signal)) as { default_generation_settings?: { n_ctx?: number }; total_slots?: number }
+    await waitHostEngine(target, next, runner, signal, pause, deadline)
+    const props = JSON.parse(await runner.run('ssh', [...sshArguments(target), 'curl -fsS --max-time 10 http://127.0.0.1:30000/props'], signal)) as { default_generation_settings?: { n_ctx?: number }; total_slots?: number }
     if (props.default_generation_settings?.n_ctx !== prefs.contextPerConversation || props.total_slots !== prefs.conversations) throw new Error('The engine returned a different context or conversation count.')
-    const endpoint = configuredCompatEndpoints().find(row => row.name === record.provider)
-    if (!endpoint) throw new Error('The registered provider no longer exists.')
     invalidateLlamacppTotalSlots(endpoint)
     const reading = await inspectCompatServer(endpoint, { signal })
     if (!reading.models.length || reading.models.some(id => reading.contextWindows[id] !== prefs.contextPerConversation)) throw new Error('The registered tunnel does not report the requested window.')
-    registerHostWindow(reading.models.map(id => `compat/${endpoint.named ? endpoint.name + '/' : ''}${id}`), prefs.contextPerConversation!)
+    registerHostWindow(modelIds(endpoint, reading.models), prefs.contextPerConversation!)
     rememberCompatCatalogue(endpoint, reading)
-    patchHostRecord(record.id, { tune: prefs, step: 'ready', retuning: false, error: undefined })
+    patchHostRecord(current.id, { tune: prefs, step: 'ready', retuning: undefined, error: undefined })
     return { ok: true, words: titleOf(recipe) + ' retuned · ready' }
   } catch (error) {
-    let restored = !changed
+    let restored = false
+    let untouched = false
     let healthy = false
     let rollbackError = ''
     if (changed) {
       const recovery = new AbortController().signal
       try {
-        await restartHostScript(record.target, recipe, runner, recovery, true)
-        restored = true
-        await waitHostEngine(record.target, recipe, runner, recovery, options.pauseMs ?? 3000, options.timeoutMs ?? 10 * 60_000)
+        try { await restartHostScript(target, recipe, runner, recovery, { restore: true, token }); restored = true } catch (failure) { if (!(failure instanceof HostTuneUnchanged)) throw failure; untouched = true }
+        await waitHostEngine(target, recipe, runner, recovery, pause, deadline)
         healthy = true
-        const endpoint = configuredCompatEndpoints().find(row => row.name === record.provider)
-        if (endpoint) { invalidateLlamacppTotalSlots(endpoint); const reading = await inspectCompatServer(endpoint, { signal: recovery }); rememberCompatCatalogue(endpoint, reading); if (oldPrefs.contextPerConversation) registerHostWindow(reading.models.map(id => `compat/${endpoint.named ? endpoint.name + '/' : ''}${id}`), oldPrefs.contextPerConversation) }
+        invalidateLlamacppTotalSlots(endpoint)
+        const reading = await inspectCompatServer(endpoint, { signal: recovery })
+        rememberCompatCatalogue(endpoint, reading)
+        for (const id of reading.models) { const window = reading.contextWindows[id]; if (window) registerHostWindow(modelIds(endpoint, [id]), window) }
       } catch (failure) { rollbackError = ' · ' + String(failure) }
     }
-    const message = 'Tune failed: ' + String(error) + ' · ' + (restored ? 'old flags restored' + (healthy ? '; previous engine healthy' : '; server did not come back') : 'old flags could not be restored; backup kept on pod') + rollbackError
-    patchHostRecord(record.id, { retuning: false, step: healthy ? 'ready' : 'engine reload failed', error: message })
+    const message = 'Tune failed: ' + String(error) + ' · ' + (!changed ? 'no change made' : untouched ? 'the launch script was never changed' + (healthy ? '; engine healthy' : '; server did not come back') : restored ? 'old flags restored' + (healthy ? '; previous engine healthy' : '; server did not come back') : 'old flags could not be restored; backup kept on pod') + rollbackError
+    patchHostRecord(current.id, { retuning: undefined, step: healthy ? 'ready' : changed ? 'engine reload failed' : before, error: message })
     return { ok: false, words: message }
-  } finally { retuning.delete(record.id) }
+  } finally { retuning.delete(current.id) }
 }

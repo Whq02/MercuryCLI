@@ -43,6 +43,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       if (!pod || !api) return saved ?? stopped()
       for (;;) {
         record = readHostRecord(pod.id)
+        if (record?.retuning) { const { reconcileHostTune } = await import('./tune.js'); record = await reconcileHostTune(pod.id, runner, signal) }
         mark()
         const refresh = setInterval(() => { if (pod) { record = readHostRecord(pod.id); mark() } }, 1000)
         let action: string | null
@@ -51,7 +52,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         if (action === 'tune' && record) {
           const { runTune } = await import('./tune.js')
           const recipe = currentHostRecipes().find(row => row.id === record!.recipe)
-          if (recipe) await runTune(modelTitle(recipe), { recipes: currentHostRecipes(), pod: record, runner, signal, pauseMs, timeoutMs }, question, emit)
+          if (recipe) await runTune(modelTitle(recipe), { recipes: currentHostRecipes(), pod: record, runner, signal, pauseMs, timeoutMs: options.readyTimeoutMs }, question, emit)
           continue
         }
         if (action === 'resume' && record) {

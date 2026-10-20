@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import { spawn, spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 const sample = name => JSON.parse(readFileSync(new URL('./fixtures/' + name + '.json', import.meta.url), 'utf8'))
 export const liveCatalogue = sample('catalog-gpus-secure-count1')
@@ -99,17 +99,25 @@ export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
         if (at >= 0) { state.script = parts[at + 2]; writeFileSync(join(local, 'engine.sh'), state.script) }
       }
       if (local && remote.startsWith('python3 -c ')) {
-        const source = shell(remote)[2].replace(/p = pathlib.Path\([^\n]+\)/, 'p = pathlib.Path(' + JSON.stringify(local) + ')')
-        const rewritten = spawnSync('python3', ['-c', source], { encoding: 'utf8' })
-        assert.equal(rewritten.status, 0, rewritten.stderr)
-        state.script = readFileSync(join(local, 'engine.sh'), 'utf8')
-        state.backup = readFileSync(join(local, 'engine.pre-tune.sh'), 'utf8')
-        state.restored = remote.includes('restore = True'); state.retuned = !state.restored
+        const source = shell(remote)[2].replace(/p = pathlib.Path\([^\n]+\)/, 'p = pathlib.Path(' + JSON.stringify(local) + ')').replace("engine_url = 'http://127.0.0.1:30000'", 'engine_url = ' + JSON.stringify(modelBaseUrl.replace(/\/v1$/, '')))
+        const rewritten = await new Promise(resolve => { const child = spawn('python3', ['-c', source], { stdio: ['ignore', 'pipe', 'pipe'] }); let stdout = ''; let stderr = ''; child.stdout.on('data', data => { stdout += data }); child.stderr.on('data', data => { stderr += data }); child.on('close', status => resolve({ status, stdout, stderr })) })
+        output = rewritten.stdout
+        if (rewritten.status !== 0) throw new Error('ssh exited ' + rewritten.status + '. ' + rewritten.stdout + rewritten.stderr)
+        if (remote.includes('engine.pre-tune')) {
+          state.script = readFileSync(join(local, 'engine.sh'), 'utf8')
+          state.backup = existsSync(join(local, 'engine.pre-tune.sh')) ? readFileSync(join(local, 'engine.pre-tune.sh'), 'utf8') : ''
+          state.restored = remote.includes('restore = True'); state.retuned = !state.restored
+        }
       }
       if (local && remote.includes('nohup setsid')) {
         state.restarts++
         const engine = state.script.split('\n').find(line => line.includes('/llama-server'))
         if (engine) { const flags = shell(engine); modelState.slots = Number(flags[flags.indexOf('--parallel') + 1]); modelState.window = Number(flags[flags.indexOf('--ctx-size') + 1]) / modelState.slots }
+        if (state.engine) { try { process.kill(-state.engine.pid, 'SIGKILL') } catch {} children.delete(state.engine) }
+        state.engine = spawn('bash', ['-c', 'sleep 100000; true', join(local, 'engine.sh')], { detached: true, stdio: 'ignore' })
+        state.engine.unref()
+        children.add(state.engine)
+        writeFileSync(join(local, 'engine.pid'), String(state.engine.pid) + '\n')
       }
       if (remote.includes('/props')) output = JSON.stringify({ default_generation_settings: { n_ctx: modelState?.window }, total_slots: modelState?.slots })
       if (remote.includes('nvidia-smi')) output = state.gpus ?? Array.from({ length: 4 }, () => 'NVIDIA B200, 196608').join('\n') + (state.docker ? '\nDOCKER_ENGINE_PRESENT' : '')
@@ -139,5 +147,5 @@ export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
       return { stop: () => child.kill(), failed: () => failure }
     },
   }
-  return { runner, state, commands, close: () => { for (const child of children) child.kill(); children.clear(); if (local) rmSync(local, { recursive: true, force: true }) } }
+  return { runner, state, commands, close: () => { for (const child of children) { try { process.kill(-child.pid, 'SIGKILL') } catch { child.kill() } } children.clear(); if (local) rmSync(local, { recursive: true, force: true }) } }
 }

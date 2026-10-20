@@ -4,7 +4,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import type { SshTarget } from './ssh.js'
 import type { HostRecipe } from './recipes.js'
-import type { HostTunePreferences } from './tune.js'
+import type { HostRetune, HostTunePreferences } from './tune.js'
 
 export interface HostRecord {
   id: string; name: string; recipe: string; price: number; startedAt: string; status: string
@@ -15,7 +15,7 @@ export interface HostRecord {
   generation?: string; jobStartedAt?: number; advancedAt?: number; step?: string; log?: string; error?: string
   steps?: { step: string; at: number }[]
   recipeRow?: HostRecipe
-  tune?: HostTunePreferences; retuning?: boolean
+  tune?: HostTunePreferences; retuning?: HostRetune
 }
 export function readHostRecord(id: string): HostRecord | undefined {
   try { return JSON.parse(readFileSync(recordPath(id), 'utf8')) as HostRecord } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error }
