@@ -21,11 +21,11 @@ LABEL org.opencontainers.image.title="Mercury llama.cpp CUDA engine" \
       ai.mercury.cuda.version="13.0.2" \
       ai.mercury.cuda.architectures="$CUDA_ARCHITECTURES"
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl libgomp1 libssl3t64 openssh-server python3-venv tmux util-linux && python3 -m venv /opt/mercury-hf && /opt/mercury-hf/bin/pip install --no-cache-dir huggingface_hub==2.2.0 && rm -f /etc/ssh/ssh_host_* && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl libgomp1 libssl3t64 openssh-server python3-venv tmux util-linux && python3 -m venv /opt/mercury-hf && /opt/mercury-hf/bin/pip install --no-cache-dir huggingface_hub==2.2.0 && ln -s /opt/mercury-hf/bin/hf /usr/local/bin/hf && rm -f /etc/ssh/ssh_host_* && rm -rf /var/lib/apt/lists/*
 COPY --from=build /opt/llama.cpp/build/bin/llama-server /usr/local/bin/llama-server
 COPY --from=build /opt/llama.cpp/build/cuda-architectures.txt /usr/local/share/llama.cpp/cuda-architectures.txt
 COPY --from=build /opt/llama.cpp/LICENSE /usr/local/share/llama.cpp/LICENSE
 ENV PATH="/opt/mercury-hf/bin:${PATH}"
-RUN --mount=type=bind,from=build,source=/usr/local/cuda/targets/x86_64-linux/lib/stubs,target=/opt/cuda-stubs mkdir -p /opt/cuda-driver && ln -s /opt/cuda-stubs/libcuda.so /opt/cuda-driver/libcuda.so.1 && LD_LIBRARY_PATH=/opt/cuda-driver:$LD_LIBRARY_PATH llama-server --version && hf version && LD_LIBRARY_PATH=/opt/cuda-driver:$LD_LIBRARY_PATH ldd /usr/local/bin/llama-server > /opt/runtime-libraries.txt && cat /opt/runtime-libraries.txt && ! grep -q "not found" /opt/runtime-libraries.txt && rm -rf /opt/cuda-driver /opt/runtime-libraries.txt
+RUN --mount=type=bind,from=build,source=/usr/local/cuda/targets/x86_64-linux/lib/stubs,target=/opt/cuda-stubs mkdir -p /opt/cuda-driver && ln -s /opt/cuda-stubs/libcuda.so /opt/cuda-driver/libcuda.so.1 && LD_LIBRARY_PATH=/opt/cuda-driver:$LD_LIBRARY_PATH llama-server --version && env PATH=/usr/local/bin:/usr/bin:/bin hf version && LD_LIBRARY_PATH=/opt/cuda-driver:$LD_LIBRARY_PATH ldd /usr/local/bin/llama-server > /opt/runtime-libraries.txt && cat /opt/runtime-libraries.txt && ! grep -q "not found" /opt/runtime-libraries.txt && rm -rf /opt/cuda-driver /opt/runtime-libraries.txt
 EXPOSE 22
 CMD ["bash", "-lc", "sleep infinity"]
