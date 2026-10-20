@@ -101,7 +101,7 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
   }
   for (const [file, content] of Object.entries(recipe.files ?? {})) await runner.run('ssh', [...args, 'printf %s ' + quote(content) + ' > ' + quote(dir + '/' + file)], signal)
   const engine = (recipe.engine === 'llamacpp'
-    ? ['/workspace/mercury-host/llama.cpp/build/bin/llama-server', '--model', dir + '/weights/' + recipe.weightFile, '--alias', recipe.model + ':UD-Q4_K_XL', ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']
+    ? ['/workspace/mercury-host/llama.cpp/build/bin/llama-server', '--model', dir + '/weights/' + recipe.weightFile, '--alias', recipe.model + ':' + recipe.weightFile!.split('/')[0], ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']
     : ['sglang', 'serve', '--model-path', bank ? dir + '/weights' : recipe.model, ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']).map(quote).join(' ')
   const download = bank ? 'true' : recipe.engine === 'llamacpp' ? '/workspace/mercury-host/hf/bin/hf download ' + quote(recipe.model) + ' --include ' + quote(recipe.include!) + ' --local-dir ' + quote(dir + '/weights') : 'hf download ' + quote(recipe.model)
   let script = 'set -e; export HF_HOME=/workspace/huggingface; ' + Object.entries(recipe.environment ?? {}).map(([name, value]) => 'export ' + name + '=' + quote(value) + '; ').join('') + (recipe.install ? recipe.install + ' && ' : '') + download + ' && exec ' + engine

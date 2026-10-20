@@ -38,6 +38,13 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     flags: ['--n-gpu-layers', 'all', '--jinja', '--temp', '1.0', '--top-p', '0.95', '--chat-template-kwargs', '{"reasoning_effort":"max"}'],
   },
   {
+    id: 'nemotron35-super-gguf-rtx-pro-6000', label: 'Nemotron 3.5 Super VL 120B · UD-Q3_K_XL', model: 'unsloth/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-GGUF', gpu: 'RTX PRO 6000', count: 1, vramGb: 96, diskGb: 120,
+    engine: 'llamacpp', image: 'nvidia/cuda:13.0.2-devel-ubuntu24.04', cuda: '13.0', imageSource: 'https://hub.docker.com/layers/nvidia/cuda/13.0.2-devel-ubuntu24.04/images/sha256-5dc1bca23d05bd37b011be68ec470c03b403a5da07ec3a86e41af9470e9d0cc6', source: 'https://unsloth.ai/docs/models/nemotron-3.5-super-vl', verification: 'llama.cpp (GGUF) · the road the model card names for RTX PRO 6000 · 65.8 GB, documented minimum 96 GB · GPU run not measured', context: 131072,
+    install: 'apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils build-essential cmake curl libcurl4-openssl-dev git python3-venv && python3 -m venv /workspace/mercury-host/hf && /workspace/mercury-host/hf/bin/pip install -U huggingface_hub && if ! test -d /workspace/mercury-host/llama.cpp; then git clone https://github.com/ggml-org/llama.cpp /workspace/mercury-host/llama.cpp; fi && git -C /workspace/mercury-host/llama.cpp checkout 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 && cmake /workspace/mercury-host/llama.cpp -B /workspace/mercury-host/llama.cpp/build -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON && cmake --build /workspace/mercury-host/llama.cpp/build --config Release -j --target llama-server',
+    include: '*UD-Q3_K_XL*', weightFile: 'UD-Q3_K_XL/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-UD-Q3_K_XL-00001-of-00003.gguf',
+    flags: ['--n-gpu-layers', 'all', '--jinja', '--ctx-size', '131072', '--parallel', '4', '--temp', '1.0', '--top-p', '0.95', '--top-k', '0', '--min-p', '0.0', '--reasoning-format', 'deepseek'],
+  },
+  {
     id: 'glm53-flash-b200-community', label: 'GLM-5.3-Flash · NVFP4', model: 'RadixArk/GLM-5.3-Flash-NVFP4', gpu: 'B200', count: 4, vramGb: 183, diskGb: 300,
     image: 'lmsysorg/sglang:glm-5.3-flash', cuda: '13.0', source: 'https://github.com/caiovicentino/glm-5.3-flash-sglang-4x-b200', verification: 'community recipe', context: 524288,
     environment: { PYTORCH_CUDA_ALLOC_CONF: 'expandable_segments:True' },
