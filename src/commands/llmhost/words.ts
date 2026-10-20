@@ -1,6 +1,6 @@
 export const LLM_HOST_WORDS = {
   command: '/llmhost',
-  description: 'Run a model on a rented GPU, an SSH box, or connect a server already running',
+  description: 'Rent a GPU, use SSH, or connect a running model server',
   where: 'Where should the model run?',
   rent: 'Rent a GPU (Runpod)',
   ssh: 'A box I can reach by SSH',

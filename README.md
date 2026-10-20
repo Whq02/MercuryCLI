@@ -429,12 +429,12 @@ or connect a running LM Studio, vLLM or llama.cpp server
 protocol, credentials and error handling. A request does not fall back from
 one provider to another. See [docs/ENGINES.md](docs/ENGINES.md).
 
-For a server you already run, open `/llmhost`: give its address, confirm the
-dialect, enter a key if needed, choose a listed model and check a reply. The
-server's context window is read automatically, and the named provider appears
-in `/model` and `/logins` without editing settings. This also works with a
-rented pod reached through an SSH tunnel; [docs/LLM-HOST.md](docs/LLM-HOST.md)
-walks through the steps.
+Open `/llmhost` to rent a Runpod GPU, use a machine reached by SSH, or connect
+a model server already running. Renting needs an explicit hourly-price
+confirmation; setup continues after the popup closes. The server's context
+window is read automatically; Mercury registers its named models in `/model`
+and checks a reply. A server with one model needs no model-selection step.
+[docs/LLM-HOST.md](docs/LLM-HOST.md) walks through the connection steps.
 
 New sessions use your most recently connected provider and the newest model
 available to that account. Models the account cannot access are skipped.
@@ -891,6 +891,12 @@ commands.
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
 | appearance & cockpit | `/appearance` `/critter` `/palette` `/zen` `/browse` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
+
+| Command | What it does |
+| --- | --- |
+| `/llmhost` | Rent a GPU, use SSH, or connect a running model server; register its models in `/model` and check a reply. |
+| `/restart` | Move this chat to the installed Mercury build; running watches and background shells stop. |
+| `/mcp` | Inspect servers, browse each server’s tools and parameters, reconnect, or enable and disable a server for this chat. |
 
 `/mouse off` returns the pointer to the terminal for native text selection
 and copying. The preference is saved and appears in `/config` as Mouse

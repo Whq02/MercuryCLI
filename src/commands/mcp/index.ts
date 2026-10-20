@@ -3,7 +3,7 @@ import type { Command } from '../../commands.js'
 const mcp = {
   type: 'local-jsx',
   name: 'mcp',
-  description: 'MCP servers — status, tools, and per-server enable/disable',
+  description: 'Browse server tools and parameters; reconnect, enable or disable',
   immediate: true,
   argumentHint: '[enable|disable|reconnect [server-name]]',
   load: () => import('./mcp.js'),
