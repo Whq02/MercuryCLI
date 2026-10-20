@@ -63,6 +63,13 @@ async def main():
             await asyncio.sleep(0)
             answers = [r for r in server.received if isinstance(r.get('id'), int) and r['id'] >= 1000 and 'result' in r]
             assert len(answers) == len(handlers), answers
+            close_errors = []
+            session.on('error', close_errors.append)
+            await session.close()
+            assert not close_errors
+            try:
+                while True: await session.__anext__()
+            except StopAsyncIteration: pass
         for name, spec in METHODS.items():
             if spec['from'] != 'runner' and spec['kind'] == 'notification': assert any(r.get('method') == name for r in server.received), name
     async with await start_fixture_server({'rows': rows}) as server:

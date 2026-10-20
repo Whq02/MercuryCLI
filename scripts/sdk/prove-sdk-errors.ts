@@ -28,6 +28,12 @@ try {
   try {
     await assert.rejects(session.setMode('wrong'), e => e instanceof sdk.MercuryRefusal && e.code === -32010)
     await assert.rejects(session.interrupt({ hard: 'yes' as any }), sdk.MercuryWireError)
+    let closeError = false
+    session.on('error', () => { closeError = true })
+    const end = session[Symbol.asyncIterator]().next()
+    await session.close()
+    assert.equal((await end).done, true)
+    assert.equal(closeError, false)
   } finally { await session.close() }
 } finally { await refused.close() }
 

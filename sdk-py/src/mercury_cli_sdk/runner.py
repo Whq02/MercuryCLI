@@ -37,6 +37,9 @@ class MercurySession:
         self._queue: asyncio.Queue = asyncio.Queue()
         self._next = 0
         self._prompting = False
+        self._closing = False
+        self._normal_end = False
+        self._prompt_error: Callable | None = None
         self._reader = asyncio.create_task(self._read())
 
     def on(self, type: str, listener: Callable) -> MercurySession:
@@ -166,19 +169,21 @@ class MercurySession:
         code = await self.child.wait()
         self.stderr = (await stderr).decode('utf-8', errors='replace')
         exit = RunExit(code if code >= 0 else None, signal.Signals(-code).name if code < 0 else None, self.stderr)
-        self._fail(MercuryExitError(exit))
+        self._fail(MercuryExitError(exit), self._closing)
         self.exit.set_result(exit)
 
-    def _fail(self, error: Exception) -> None:
+    def _fail(self, error: Exception, graceful: bool = False) -> None:
         if self._closed: return
         self._closed = error
+        self._normal_end = graceful
+        if self._prompt_error: self._prompt_error(error)
         for _, future in self._pending.values():
             if not future.done(): future.set_exception(error)
         for context, task in tuple(self._asks.values()):
             context.cancelled.set()
             task.cancel()
         self._queue.put_nowait(None)
-        self._emit('error', error)
+        if not graceful: self._emit('error', error)
 
     async def send(self, row: InputRow) -> dict:
         return await self.request('queue/add', row)
@@ -200,7 +205,8 @@ class MercurySession:
             if not future.done(): future.set_result(row)
         def fail(error: Exception) -> None:
             if not future.done(): future.set_exception(error)
-        self.on('outcome', done).on('error', fail)
+        self._prompt_error = fail
+        self.on('outcome', done)
         try:
             receipt = await self.send_prompt(content)
             if not receipt['accepted']: raise MercuryError('prompt was not accepted')
@@ -209,7 +215,8 @@ class MercurySession:
             return row
         finally:
             if future.done() and not future.cancelled(): future.exception()
-            self.off('outcome', done).off('error', fail)
+            self.off('outcome', done)
+            self._prompt_error = None
             self._prompting = False
 
     async def facts(self) -> dict: return await self.request('session/facts')
@@ -225,6 +232,7 @@ class MercurySession:
     async def claim(self, **params: Any) -> dict: return await self.request('session/claim', params)
 
     async def close(self) -> None:
+        self._closing = True
         self._stdin.close()
         try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
         except asyncio.TimeoutError:
@@ -238,9 +246,13 @@ class MercurySession:
     async def __aexit__(self, *exc: Any) -> None: await self.close()
     def __aiter__(self) -> AsyncIterator[StreamRow]: return self
     async def __anext__(self) -> StreamRow:
-        if self._closed and self._queue.empty(): raise self._closed
+        if self._closed and self._queue.empty():
+            if self._normal_end: raise StopAsyncIteration
+            raise self._closed
         row = await self._queue.get()
-        if row is None: raise self._closed or StopAsyncIteration()
+        if row is None:
+            if self._normal_end: raise StopAsyncIteration
+            raise self._closed or StopAsyncIteration()
         return row
 
 

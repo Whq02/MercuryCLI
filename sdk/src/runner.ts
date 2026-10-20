@@ -35,6 +35,9 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   #next = 0
   #handlers: HostHandlers
   #prompting = false
+  #closing = false
+  #normalEnd = false
+  #promptReject: ((error: Error) => void) | undefined
 
   constructor(options: ConnectOptions = {}) {
     const argv = argvOf({ ...options, sessionId: options.sessionId ?? randomUUID() })
@@ -52,7 +55,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     lines.on('line', line => { void this.#read(line).catch(e => this.#fail(e)) })
     this.exit = new Promise(resolve => this.child.once('close', (code, signal) => {
       const exit = { code, signal, stderr: this.stderr }
-      this.#fail(new MercuryExitError(exit))
+      this.#fail(new MercuryExitError(exit), this.#closing)
       lines.close()
       resolve(exit)
     }))
@@ -162,20 +165,22 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     } finally { this.#asks.delete(msg.id) }
   }
 
-  #fail(error: Error): void {
+  #fail(error: Error, graceful = false): void {
     if (this.#closed) return
     this.#closed = error
+    this.#normalEnd = graceful
+    this.#promptReject?.(error)
     for (const pending of this.#pending.values()) { pending.cleanup(); pending.reject(error) }
     this.#pending.clear()
     for (const ask of this.#asks.values()) ask.abort()
-    for (const waiter of this.#waiters.splice(0)) waiter.reject(error)
-    this.#emit('error', error)
+    for (const waiter of this.#waiters.splice(0)) { if (graceful) waiter.resolve({ value: undefined, done: true }); else waiter.reject(error) }
+    if (!graceful) this.#emit('error', error)
   }
   [Symbol.asyncIterator](): AsyncIterator<StreamRow> {
     return { next: () => {
       const row = this.#queue.shift()
       if (row) return Promise.resolve({ value: row, done: false })
-      if (this.#closed) return Promise.reject(this.#closed)
+      if (this.#closed) return this.#normalEnd ? Promise.resolve({ value: undefined, done: true }) : Promise.reject(this.#closed)
       return new Promise((resolve, reject) => this.#waiters.push({ resolve, reject }))
     } }
   }
@@ -202,17 +207,19 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     let fail!: (error: Error) => void
     const result = new Promise<OutcomeRow>((resolve, reject) => { done = resolve; fail = reject })
     result.catch(() => undefined)
-    this.on('outcome', done).on('error', fail)
+    this.#promptReject = fail
+    this.on('outcome', done)
     try {
       const receipt = await this.sendPrompt(content)
       if (!receipt.accepted) throw new MercuryError('prompt was not accepted', null)
       const row = await result
       if (row.status === 'refused') throw new MercuryRefusal(row, null)
       return row
-    } finally { this.off('outcome', done).off('error', fail); this.#prompting = false }
+    } finally { this.off('outcome', done); this.#promptReject = undefined; this.#prompting = false }
   }
 
   async close(): Promise<void> {
+    this.#closing = true
     this.child.stdin!.end()
     const terminate = setTimeout(() => this.child.kill('SIGTERM'), 5000)
     const kill = setTimeout(() => this.child.kill('SIGKILL'), 10000)
