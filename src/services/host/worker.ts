@@ -1,5 +1,5 @@
 import { appendFileSync } from 'node:fs'
-import { prepareKeptWeights } from './keptWeights.js'
+import { keptWeightsPath, prepareKeptWeights } from './keptWeights.js'
 import { rentalVolume, readKeptVolume, writeKeptVolume } from './volumes.js'
 import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
@@ -52,7 +52,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       .then(async text => {
         if (!current?.volumeId || current.weightsCheck) offset += Buffer.byteLength(text); log(text)
         if (readHostRecord(id)?.step?.startsWith('downloading weights')) {
-          const size = await runner.run('ssh', [...sshArguments(target!), 'du -sb /workspace/mercury-host/' + recipe.id + '/weights 2>/dev/null || true'], signal)
+          const size = await runner.run('ssh', [...sshArguments(target!), 'du -sb ' + (current?.volumeId ? keptWeightsPath(recipe) : '/workspace/mercury-host/' + recipe.id + '/weights') + ' 2>/dev/null || true'], signal)
           const bytes = Number(/^(\d+)/.exec(size)?.[1])
           if (Number.isFinite(bytes)) mark('downloading weights ' + (bytes / 1e9).toFixed(2) + ' GB')
         }
@@ -242,7 +242,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     let failure = error
     if (initial.prepareWeightsOnly && readHostRecord(id)) {
       const volume = initial.volumeId && readKeptVolume(initial.volumeId)
-      if (volume && volume.state !== 'kept') writeKeptVolume({ ...volume, state: 'failed', error: clean(String(error)), filledBy: id })
+      if (volume && volume.state !== 'kept') writeKeptVolume({ ...volume, state: 'failed', error: clean(String(error)), preparingPod: id })
       try {
         if (!key) throw new Error('The saved Runpod key is unavailable for cleanup.')
         const cleanupApi = new RunpodClient(key, initial.apiBaseUrl)

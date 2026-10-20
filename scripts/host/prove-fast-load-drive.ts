@@ -117,6 +117,7 @@ try {
   await choose('Confirm $2.49/hr'); assert.ok(await waitFor(() => readHostRecord('fixture-pod-2')?.jobState === 'ready', 15000), 'kept model reaches ready')
   check('kept rental reattaches same disk and skips weight fetch', rp.state.createBodies[1].mounts.network[0].volumeId === kept.id && ssh.state.weightFetches === 1)
   check('warm worker uses samples, records the method and shows it on the pod row', ssh.state.sampledChecks === 1 && readHostRecord('fixture-pod-2')?.weightsCheck === 'weights kept · sampled check passed' && volumes.readKeptVolume(kept.id)?.verifiedSums?.check === 'sampled')
+  check('warm verification preserves the original filling pod and records the checker separately', volumes.readKeptVolume(kept.id)?.filledBy === 'fixture-pod-1' && volumes.readKeptVolume(kept.id)?.checkedBy === 'fixture-pod-2')
   check('engine runs from verified kept path', ssh.commands.some((r: any) => r.args.at(-1)?.includes('nohup setsid') && r.args.at(-1).includes(keptWeightsPath(qwen))))
   await heading('Pod controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await heading('Keep the weights disk'); await capture('06-terminate-weights')
   check('terminate does not delete pod or disk before keep-or-delete answer', rp.state.deletes === 1 && rp.state.volumeDeletes === 0)

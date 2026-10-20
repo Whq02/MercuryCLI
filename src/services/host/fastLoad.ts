@@ -55,13 +55,13 @@ async function prepareVolume(api: RunpodClient, recipe: HostRecipe, volume: Kept
   try {
     const pod = await api.create(offer, sshKey.publicKey, name, volume)
     created = pod.id
-    writeKeptVolume({ ...volume, state: 'preparing', filledBy: pod.id, error: undefined })
+    writeKeptVolume({ ...volume, state: 'preparing', preparingPod: pod.id, error: undefined })
     const record = queueHostSetup({ id: pod.id, name: pod.name, recipe: offer.recipe.id, price: offer.price, startedAt: pod.startedAt ?? pod.createdAt, status: pod.status, sessionId: options.sessionId, workspace: process.cwd(), sshKey: sshKey.path, apiBaseUrl: options.apiBaseUrl, volumeId: volume.id, prepareWeightsOnly: true, verifyWeightsFully: fully })
     options.startJob?.(record)
     return record
   } catch (error) {
     const detail = created ? created + ' exists and may still bill; Pods I’m paying for → Terminate. ' : createRefusal(error) ? 'Runpod refused the preparation pod. ' : name + ' may exist and bill; inspect Pods I’m paying for before retrying. '
-    writeKeptVolume({ ...volume, state: 'failed', filledBy: created, error: detail + String(error) })
+    writeKeptVolume({ ...volume, state: 'failed', preparingPod: created, error: detail + String(error) })
     throw new Error(detail + 'The weights disk still bills ' + volumePrice(volume) + '. ' + String(error))
   }
 }

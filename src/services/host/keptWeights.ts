@@ -82,7 +82,8 @@ def full_check():
     sums = []
     sizes = []
     samples = []
-    for f in m['files']:
+    for index, f in enumerate(m['files']):
+        progress('full check running ~' + str(max(1, round(sum(row['size'] for row in m['files']) / 18000000000))) + ' min · file ' + str(index + 1) + '/' + str(len(m['files'])))
         p = valid_path(f)
         if p is None:
             return None
@@ -141,7 +142,7 @@ export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe,
     } catch (error) {
       signal.throwIfAborted()
       mark('downloading weights to kept disk')
-      writeKeptVolume({ ...volume, state: 'preparing', verifiedSums: undefined, error: undefined, filledBy: record.id })
+      writeKeptVolume({ ...volume, state: 'preparing', verifiedSums: undefined, error: undefined, preparingPod: record.id })
       const install = 'set -e; apt-get update; DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv; python3 -m venv /workspace/mercury-weights-hf; /workspace/mercury-weights-hf/bin/pip install --upgrade huggingface_hub; '
       output = await runner.run('ssh', [...sshArguments(target), install + '/workspace/mercury-weights-hf/bin/python -c ' + quote(weightCheckScript(manifest, directory, true, { progressPath }))], signal, 90 * 60_000)
     }
@@ -149,14 +150,14 @@ export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe,
     if (!line) throw new Error('No verified weight receipt returned from the pod.')
     const verified = JSON.parse(line.slice('MERCURY_WEIGHTS '.length)) as { sha256: string; sampleManifestSha256: string; files: number; bytes: number; skipped: boolean; check: 'sampled' | 'full' }
     if (!/^[a-f0-9]{64}$/.test(verified.sha256) || !/^[a-f0-9]{64}$/.test(verified.sampleManifestSha256) || !['sampled', 'full'].includes(verified.check) || verified.files !== manifest.files.length || verified.bytes !== manifest.files.reduce((n, file) => n + file.size, 0)) throw new Error('The weight receipt does not match the pinned manifest.')
-    writeKeptVolume({ ...volume, state: 'kept', filledBy: record.id, verifiedSums: { sha256: verified.sha256, sampleManifestSha256: verified.sampleManifestSha256, check: verified.check, files: verified.files, bytes: verified.bytes, at: new Date().toISOString() }, error: undefined })
+    writeKeptVolume({ ...volume, state: 'kept', filledBy: verified.skipped ? volume.filledBy : record.id, checkedBy: record.id, preparingPod: undefined, verifiedSums: { sha256: verified.sha256, sampleManifestSha256: verified.sampleManifestSha256, check: verified.check, files: verified.files, bytes: verified.bytes, at: new Date().toISOString() }, error: undefined })
     const status = 'weights kept · ' + (verified.check === 'sampled' ? 'sampled check passed' : 'full check passed')
     patchHostRecord(record.id, { weightsCheck: status, verifyWeightsFully: false })
     mark(status)
     return directory
   } catch (error) {
     failure = error
-    writeKeptVolume({ ...volume, state: 'failed', verifiedSums: undefined, filledBy: record.id, error: String(error) })
+    writeKeptVolume({ ...volume, state: 'failed', verifiedSums: undefined, preparingPod: record.id, error: String(error) })
     throw error
   } finally {
     if (record.prepareWeightsOnly) {

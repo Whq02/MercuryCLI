@@ -11,7 +11,7 @@ import { createRefusal, type RunpodClient, type HostVolume } from './runpod.js'
 const volumeRecordSchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9_-]+$/), name: z.string(), model: z.string(), include: z.string(),
   kind: z.enum(['network', 'global']), dataCenter: z.string(), size: z.number().positive(), price: z.number().nonnegative(), createdAt: z.string(),
-  state: z.enum(['creating', 'preparing', 'kept', 'gone', 'failed']), filledBy: z.string().optional(), error: z.string().optional(),
+  state: z.enum(['creating', 'preparing', 'kept', 'gone', 'failed']), filledBy: z.string().optional(), checkedBy: z.string().optional(), preparingPod: z.string().optional(), error: z.string().optional(),
   verifiedSums: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), sampleManifestSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), check: z.enum(['full', 'sampled']).optional(), files: z.number().int().positive(), bytes: z.number().positive(), at: z.string() }).optional(),
 })
 export type KeptVolume = z.infer<typeof volumeRecordSchema>
