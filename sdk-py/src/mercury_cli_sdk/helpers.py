@@ -82,7 +82,7 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
         def log_message(self, format: str, *args: Any) -> None: pass
         def do_GET(self) -> None: self.send_error(405)
         def do_DELETE(self) -> None:
-            if self.headers.get('Authorization') != f'Bearer {token}': self.send_error(403); return
+            if self.headers.get('Authorization') != f'Bearer {token}' or self.headers.get('Origin'): self.send_error(403); return
             self.send_response(200); self.end_headers()
         def do_POST(self) -> None:
             if self.headers.get('Authorization') != f'Bearer {token}' or self.headers.get('Origin'): self.send_error(403); return
@@ -97,8 +97,10 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
                 elif method == 'ping': result = {}
                 elif method == 'tools/list': result = {'tools': [{'name': t.name, 'description': t.description, 'inputSchema': t.input_schema} for t in tools]}
                 elif method == 'tools/call':
-                    tool = next(t for t in tools if t.name == params['name'])
-                    args = params.get('arguments', {})
+                    tool = next((t for t in tools if t.name == params.get('name')), None)
+                    if tool is None: raise ValueError('unknown tool')
+                    args = params.get('arguments')
+                    if args is None: args = {}
                     issues = validate(tool.input_schema, args)
                     if issues: raise ValueError(str(issues))
                     result = asyncio.run_coroutine_threadsafe(execute(tool, args), loop).result()

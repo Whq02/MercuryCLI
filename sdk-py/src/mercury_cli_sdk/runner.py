@@ -9,7 +9,7 @@ from dataclasses import dataclass, replace
 from typing import Any, Callable, AsyncIterator, cast
 from .client import RunOptions, argv_of
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryWireError, RunExit
-from .generated import METHODS, RUNNER_PROTOCOL, RPC_REFUSED, MAX_LINE_BYTES, InputRow, OutcomeRow
+from .generated import METHODS, RUNNER_PROTOCOL, RPC_REFUSED, MAX_LINE_BYTES, InputRow, OutcomeRow, InitializeResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .framing import read_lines
 from .parse import Issue, StreamRow, row_of, input_row_of, validate
 
@@ -33,10 +33,10 @@ class MercurySession:
         self._stdout = child.stdout
         self._stderr = child.stderr
         self.handlers = handlers
-        self.initialized: dict = {}
+        self.initialized: InitializeResult
         self.rows: list[StreamRow] = []
         self.stderr = ''
-        self.exit = asyncio.get_running_loop().create_future()
+        self.exit: asyncio.Future[RunExit] = asyncio.get_running_loop().create_future()
         self._closed: Exception | None = None
         self._pending: dict[int, tuple[str, asyncio.Future]] = {}
         self._asks: dict[int, tuple[RequestContext, asyncio.Task]] = {}
@@ -218,7 +218,7 @@ class MercurySession:
         self._queue.put_nowait(None)
         if not graceful: self._emit('error', error)
 
-    async def send(self, row: InputRow) -> dict:
+    async def send(self, row: InputRow) -> QueueAddResult:
         if row['type'] != 'prompt': return await self.request('queue/add', row)
         id = row.get('id') or str(uuid.uuid4())
         self._prompt_turns[id] = None
@@ -230,13 +230,13 @@ class MercurySession:
             self._prompt_turns.pop(id, None)
             raise
 
-    async def send_prompt(self, content: Any, **options: Any) -> dict:
+    async def send_prompt(self, content: Any, **options: Any) -> QueueAddResult:
         return await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content}))
 
-    async def send_shell(self, command: str, **options: Any) -> dict:
+    async def send_shell(self, command: str, **options: Any) -> QueueAddResult:
         return await self.send(cast(InputRow, {**options, 'type': 'shell', 'command': command}))
 
-    async def send_note(self, to: str, content: str, **options: Any) -> dict:
+    async def send_note(self, to: str, content: str, **options: Any) -> QueueAddResult:
         return await self.send(cast(InputRow, {**options, 'type': 'note', 'to': to, 'content': content}))
 
     async def prompt(self, content: Any) -> OutcomeRow:
@@ -263,17 +263,17 @@ class MercurySession:
             self._prompt_error = None
             self._prompting = False
 
-    async def facts(self) -> dict: return await self.request('session/facts')
-    async def interrupt(self, **options: Any) -> dict: return await self.request('turn/interrupt', options)
-    async def withdraw(self, id: str) -> dict: return await self.request('queue/withdraw', {'id': id})
-    async def set_model(self, model: str) -> dict: return await self.request('session/set_model', {'model': model})
-    async def set_effort(self, effort: str) -> dict: return await self.request('session/set_effort', {'effort': effort})
-    async def set_mode(self, mode: str) -> dict: return await self.request('session/set_mode', {'mode': mode})
-    async def set_kit(self, kit: Any) -> dict: return await self.request('session/set_kit', {'kit': kit})
-    async def rewind(self, user_message_id: str, mode: str, dry_run: bool = False) -> dict: return await self.request('session/rewind', {'user_message_id': user_message_id, 'mode': mode, 'dry_run': dry_run})
-    async def stop_agent(self, agent_id: str, note: str | None = None) -> dict: return await self.request('agent/stop', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
-    async def resume_agent(self, agent_id: str, note: str | None = None) -> dict: return await self.request('agent/resume', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
-    async def claim(self, **params: Any) -> dict: return await self.request('session/claim', params)
+    async def facts(self) -> SessionFactsResult: return await self.request('session/facts')
+    async def interrupt(self, **options: Any) -> TurnInterruptResult: return await self.request('turn/interrupt', options)
+    async def withdraw(self, id: str) -> QueueWithdrawResult: return await self.request('queue/withdraw', {'id': id})
+    async def set_model(self, model: str) -> SessionSetModelResult: return await self.request('session/set_model', {'model': model})
+    async def set_effort(self, effort: str) -> SessionSetEffortResult: return await self.request('session/set_effort', {'effort': effort})
+    async def set_mode(self, mode: str) -> SessionSetModeResult: return await self.request('session/set_mode', {'mode': mode})
+    async def set_kit(self, kit: Any) -> SessionSetKitResult: return await self.request('session/set_kit', {'kit': kit})
+    async def rewind(self, user_message_id: str, mode: str, dry_run: bool = False) -> SessionRewindResult: return await self.request('session/rewind', {'user_message_id': user_message_id, 'mode': mode, 'dry_run': dry_run})
+    async def stop_agent(self, agent_id: str, note: str | None = None) -> AgentStopResult: return await self.request('agent/stop', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
+    async def resume_agent(self, agent_id: str, note: str | None = None) -> AgentResumeResult: return await self.request('agent/resume', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
+    async def claim(self, **params: Any) -> SessionClaimResult: return await self.request('session/claim', params)
 
     async def close(self) -> None:
         self._closing = True

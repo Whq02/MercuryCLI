@@ -14,7 +14,7 @@ const argValue = (name: string): string | undefined => {
 }
 const ROOT = resolve(argValue('--root') ?? resolve(import.meta.dir, '..', '..'))
 const OUT_DIR = resolve(argValue('--out') ?? join(ROOT, 'sdk', 'src'))
-const PY_OUT = resolve(argValue('--python-out') ?? join(ROOT, 'sdk-py', 'src', 'mercury_cli_sdk'))
+const PY_OUT = resolve(argValue('--python-out') ?? (argValue('--out') ? join(OUT_DIR, 'python') : join(ROOT, 'sdk-py', 'src', 'mercury_cli_sdk')))
 const WIRE = 'src/runner/wire/methods.ts'
 const ERRORS = 'src/runner/wire/errors.ts'
 const VOCABULARY = 'src/rows/vocabulary.ts'
@@ -362,7 +362,7 @@ const methodSchemas = Object.fromEntries(Object.entries(wireSource.METHODS).map(
   ...(spec.capability ? { capability: spec.capability } : {}),
   params: jsonSchemaOf(spec.params, `${name}.params`), result: jsonSchemaOf(spec.result, `${name}.result`),
 }]))
-const wire = ["import type * as Rows from './rows.js'", "import type { JsonSchema } from './rows.js'", `export const RUNNER_PROTOCOL = ${wireSource.RUNNER_PROTOCOL} as const`]
+const wire = [`export const WIRE_GENERATED = '${MARK}'`, `export const WIRE_GENERATED_FROM = [${[WIRE, ERRORS, VOCABULARY].map(literal).join(', ')}] as const`, "import type * as Rows from './rows.js'", "import type { JsonSchema } from './rows.js'", `export const RUNNER_PROTOCOL = ${wireSource.RUNNER_PROTOCOL} as const`]
 for (const [name, value] of Object.entries(wireErrors)) if (/^(RPC_\w+|BAD_LINE_LIMIT|MAX_LINE_BYTES|REFUSAL_KINDS)$/.test(name) && typeof value !== 'function') wire.push(`export const ${name} = ${JSON.stringify(value)} as const`)
 const rowRefs = new Set([...named.values()].map(e => e.typeName))
 const wireType = (schema: Schema): string => typeOf(schema, '', true).replace(/\b[A-Za-z]\w*\b/g, word => rowRefs.has(word) ? `Rows.${word}` : word)
@@ -375,7 +375,8 @@ for (const [alias, side, kind] of [['HostRequestName', 'host', 'request'], ['Hos
 wire.push('export type MethodSchema = { from: string; kind: string; scope: string; deadlineMs: number | null; capability?: string; params: JsonSchema; result: JsonSchema }')
 wire.push(`export const METHODS: Record<MethodName, MethodSchema> = ${JSON.stringify(methodSchemas, null, 2)}`, '')
 const py = ['from __future__ import annotations', 'import json', 'from typing import Any, Literal, NotRequired, TypeAlias, TypedDict', '']
-const pyNames: string[] = []
+py.push(`GENERATED = ${JSON.stringify(MARK)}`, `GENERATED_BY = ${JSON.stringify(GENERATOR)}`, `GENERATED_FROM = ${JSON.stringify([VOCABULARY, WIRE, ERRORS, PERMISSIONS, EFFORT, MAIN])}`, '')
+const pyNames: string[] = ['GENERATED', 'GENERATED_BY', 'GENERATED_FROM']
 const pyLit = (value: unknown): string => value === null ? 'None' : value === true ? 'True' : value === false ? 'False' : JSON.stringify(value)
 function pyType(schema: Schema, name: string, top = false): string {
   if (!top) { const known = byText.get(JSON.stringify(schema)); if (known) return known }
@@ -421,7 +422,12 @@ const pyData = { ROWS_SCHEMA: rowsSchema, ...listValues, OUTCOME_EXIT_CODES: exi
   PERMISSION_MODES: permissions.PERMISSION_MODES, EFFORT_LEVELS: effort.EFFORT_LEVELS, RUN_OPTIONS: runOptions,
   RUNNER_PROTOCOL: wireSource.RUNNER_PROTOCOL, METHODS: methodSchemas,
   ...Object.fromEntries(Object.entries(wireErrors).filter(([n, v]) => /^(RPC_\w+|BAD_LINE_LIMIT|MAX_LINE_BYTES|REFUSAL_KINDS)$/.test(n) && typeof v !== 'function')) }
-for (const [name, value] of Object.entries(pyData)) py.push(`${name} = json.loads(${JSON.stringify(JSON.stringify(value))})`)
+py.push(`MethodSchema = TypedDict('MethodSchema', {'from': str, 'kind': str, 'scope': str, 'deadlineMs': int | None, 'capability': NotRequired[str], 'params': dict[str, Any], 'result': dict[str, Any]})`, '')
+pyNames.push('MethodSchema')
+for (const [name, value] of Object.entries(pyData)) {
+  const annotation = name === 'METHODS' ? 'dict[str, MethodSchema]' : typeof value === 'number' ? 'int' : Array.isArray(value) ? (value.every(v => typeof v === 'string') ? 'list[str]' : 'list[dict[str, Any]]') : name === 'OUTCOME_EXIT_CODES' ? 'dict[str, int]' : 'dict[str, Any]'
+  py.push(`${name}: ${annotation} = json.loads(${JSON.stringify(JSON.stringify(value))})`)
+}
 for (const [name, values] of Object.entries({ RowType: listValues.ROW_TYPES, PartialRowType: listValues.PARTIAL_ROW_TYPES, InputRowType: listValues.INPUT_ROW_TYPES, OutcomeStatus: listValues.OUTCOME_STATUSES, StopWord: listValues.STOP_WORDS, ErrorClass: listValues.ERROR_CLASSES, PermissionMode: permissions.PERMISSION_MODES, EffortLevel: effort.EFFORT_LEVELS, RunFormat: formatOption.choices! })) {
   py.push(`${name}: TypeAlias = Literal[${values.map(pyLit).join(', ')}]`)
   pyNames.push(name)

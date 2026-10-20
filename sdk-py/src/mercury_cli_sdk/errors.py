@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 from .generated import OutcomeRow
+from .parse import Issue
 
 
 @dataclass(frozen=True)
@@ -46,7 +47,7 @@ class MercurySpawnError(MercuryError):
 
 
 class MercuryWireError(MercuryError):
-    def __init__(self, line: str, reason: str, row_type: str | None = None, issues: list | None = None, exit: RunExit | None = None):
+    def __init__(self, line: str, reason: str, row_type: str | None = None, issues: list[Issue] | None = None, exit: RunExit | None = None):
         super().__init__(f'invalid wire frame ({reason}, {row_type}): {issues or []}', exit)
         self.line = line
         self.reason = reason

@@ -37,5 +37,11 @@
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "homepage": "https://mercury-cli.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Whq02/MercuryCLI.git",
+    "directory": "sdk"
   }
 }

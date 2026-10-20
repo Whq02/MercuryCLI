@@ -5,6 +5,7 @@ root="$(cd "$here/../.." && pwd)"
 push=false
 case "${1:-}" in '') ;; --push) push=true ;; *) echo 'usage: publish-npm.sh [--push]' >&2; exit 2;; esac
 [ "$#" -le 1 ] || exit 2
+rm -rf "$root/sdk/dist"
 node "$root/node_modules/typescript/bin/tsc" -p "$root/sdk/tsconfig.json"
 node --input-type=module - "$root/sdk/package.json" <<'JS'
 import fs from 'node:fs'

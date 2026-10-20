@@ -6,6 +6,7 @@ package="${MERCURY_SDK_PYTHON_PACKAGE:-$root/sdk-py}"
 push=false
 case "${1:-}" in '') ;; --push) push=true ;; *) echo 'usage: publish-pypi.sh [--push]' >&2; exit 2;; esac
 [ "$#" -le 1 ] || exit 2
+rm -rf "$package/dist"
 python3 "$package/build_backend.py" "$package/dist"
 python3 - "$package" <<'PY'
 import datetime, pathlib, sys, tomllib, urllib.error, urllib.request, zipfile

@@ -4,6 +4,7 @@ import sys
 import typing
 import mercury_cli_sdk.generated as generated
 import urllib.request
+import urllib.error
 from mercury_cli_sdk import *
 from mercury_cli_sdk.testing import start_fixture_server
 
@@ -82,11 +83,24 @@ async def main():
                 assert isinstance(session.facts(), dict)
         await asyncio.to_thread(synchronous)
     tool = define_tool('echo', 'Echo', {'type': 'object', 'properties': {'text': {'type': 'string'}}, 'required': ['text']}, lambda args: args['text'])
-    async with await serve_tools([tool]) as server:
+    async with await serve_tools([tool, define_tool('empty', 'Empty input', {'type': 'object'}, lambda args: json.dumps(args))]) as server:
         def invoke():
             request = urllib.request.Request(server.config['url'], json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': {'name': 'echo', 'arguments': {'text': 'python inline'}}}).encode(), headers={**server.config['headers'], 'Content-Type': 'application/json'})
             return json.load(urllib.request.urlopen(request))
         assert (await asyncio.to_thread(invoke))['result']['content'][0]['text'] == 'python inline'
+        def helper_errors():
+            def call(name, arguments):
+                payload = {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': {'name': name, 'arguments': arguments}}
+                request = urllib.request.Request(server.config['url'], json.dumps(payload).encode(), headers={**server.config['headers'], 'Content-Type': 'application/json'})
+                return json.load(urllib.request.urlopen(request))
+            assert call('missing', {})['error']['message'] == 'unknown tool'
+            assert call('empty', None)['result']['content'][0]['text'] == '{}'
+            request = urllib.request.Request(server.config['url'], method='DELETE', headers={**server.config['headers'], 'Origin': 'https://example.invalid'})
+            try: urllib.request.urlopen(request)
+            except urllib.error.HTTPError as error: assert error.code == 403
+            else: raise AssertionError('cross-origin delete accepted')
+        await asyncio.to_thread(helper_errors)
+        print('PASS Python helper unknown tool, null arguments and DELETE origin checks')
     assert define_agent({'description': 'reader', 'prompt': 'read only'})['prompt'] == 'read only'
     assert isinstance(input_row_of({'type': 'shell', 'command': 'echo'}), RowRead)
     print('PASS Python surface and sync wrappers')
