@@ -1,5 +1,6 @@
 import { z } from 'zod/v4'
-import { HOST_RECIPES, recipeFits, type HostRecipe } from './recipes.js'
+import { recipeFits, type HostRecipe } from './recipes.js'
+import { loadHostRecipes } from './recipesFile.js'
 
 const podSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name: z.string(), status: z.string(), cost: z.number().nonnegative(), createdAt: z.string(), startedAt: z.string().nullable().optional(), ssh: z.object({ direct: z.object({ host: z.string(), port: z.number().int().min(1).max(65535), username: z.string() }).nullable().optional() }).nullable().optional() })
 export type HostPod = z.infer<typeof podSchema>
@@ -7,6 +8,7 @@ export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; d
 const gpuSchema = z.object({ id: z.string(), name: z.string(), memory: z.number(), secure: z.boolean(), price: z.object({ secure: z.number().nonnegative() }), maxCount: z.object({ secure: z.number() }), availability: z.string().optional(), dataCenters: z.array(z.object({ id: z.string(), availability: z.string() })).optional() })
 const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === 'MEDIUM' ? 2 : value === 'LOW' ? 1 : 0
 const stock = (value?: string): boolean => stockRank(value) > 0
+const unverifiedRank = (recipe: HostRecipe): number => recipe.verified?.by === 'unverified' ? 1 : 0
 
 export class RunpodClient {
   constructor(private key: string, private base = 'https://api.runpod.io/v2') {
@@ -19,13 +21,14 @@ export class RunpodClient {
     return response
   }
   async offers(signal: AbortSignal): Promise<HostOffer[]> {
+    const recipes = await loadHostRecipes({ signal })
     const offers: HostOffer[] = []
-    const groups = [...new Set(HOST_RECIPES.map(recipe => recipe.count + ':' + recipe.cuda))]
+    const groups = [...new Set(recipes.map(recipe => recipe.count + ':' + recipe.cuda))].sort((a, b) => Number(a.split(':')[0]) - Number(b.split(':')[0]))
     for (const group of groups) {
       const [count, cuda] = group.split(':')
       const response = await this.response('/catalog/gpus?include=AVAILABILITY&product=POD&cloud=SECURE&count=' + count + '&minCudaVersion=' + cuda, 'GET', undefined, signal)
       const { gpus } = z.object({ gpus: z.array(gpuSchema) }).parse(await response.json())
-      for (const recipe of HOST_RECIPES.filter(recipe => recipe.count === Number(count) && recipe.cuda === cuda)) for (const gpu of gpus) {
+      for (const recipe of recipes.filter(recipe => recipe.count === Number(count) && recipe.cuda === cuda)) for (const gpu of gpus) {
         if (!gpu.secure || gpu.price.secure <= 0 || !stock(gpu.availability) || !recipeFits(recipe, gpu.id, gpu.memory, gpu.maxCount.secure)) continue
         const price = gpu.price.secure * recipe.count
         if (gpu.dataCenters) {
@@ -33,7 +36,7 @@ export class RunpodClient {
         } else offers.push({ recipe, gpuId: gpu.id, price, availability: gpu.availability })
       }
     }
-    return offers.sort((a, b) => stockRank(b.availability) - stockRank(a.availability) || a.price - b.price || a.recipe.id.localeCompare(b.recipe.id) || (a.dataCenter ?? '').localeCompare(b.dataCenter ?? ''))
+    return offers.sort((a, b) => unverifiedRank(a.recipe) - unverifiedRank(b.recipe) || stockRank(b.availability) - stockRank(a.availability) || a.price - b.price || a.recipe.id.localeCompare(b.recipe.id) || (a.dataCenter ?? '').localeCompare(b.dataCenter ?? ''))
   }
   async pods(signal?: AbortSignal): Promise<HostPod[]> {
     const pods: HostPod[] = []
