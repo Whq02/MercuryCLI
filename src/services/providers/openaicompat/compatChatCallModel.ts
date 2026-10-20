@@ -866,8 +866,14 @@ async function* streamOneCompatAttempt(ctx: {
   let firstEventSeen = false
   const blocks = {
     index: -1,
-    open: null as { kind: 'thinking' | 'text'; value: string } | null,
+    open: null as
+      | { kind: 'thinking' | 'text'; value: string }
+      | { kind: 'tool'; toolIndex: number; id: string; name: string; bytes: number }
+      | null,
   }
+  const livePaintedTools = new Map<number, { id: string; name: string; bytes: number }>()
+  const closedToolIndices = new Set<number>()
+  const pendingToolFragments = new Map<number, string>()
   const minted: AssistantMessage[] = []
   let usageSeen: CompatUsage | undefined
   let served: string | undefined
@@ -887,6 +893,21 @@ async function* streamOneCompatAttempt(ctx: {
   }
   function* closeOpenBlock(): Generator<StreamEvent | AssistantMessage> {
     if (!blocks.open) return
+    if (blocks.open.kind === 'tool') {
+      if (!closedToolIndices.has(blocks.open.toolIndex)) {
+        livePaintedTools.set(blocks.open.toolIndex, {
+          id: blocks.open.id,
+          name: blocks.open.name,
+          bytes: blocks.open.bytes,
+        })
+        closedToolIndices.add(blocks.open.toolIndex)
+      } else {
+        livePaintedTools.delete(blocks.open.toolIndex)
+      }
+      blocks.open = null
+      yield streamEvent({ type: 'content_block_stop', index: blocks.index })
+      return
+    }
     const settled: ContentBlock =
       blocks.open.kind === 'thinking'
         ? { type: 'thinking', thinking: blocks.open.value, signature: '' }
@@ -985,7 +1006,7 @@ async function* streamOneCompatAttempt(ctx: {
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
         if (blocks.open?.kind !== 'thinking') yield* openNewBlock('thinking')
-        blocks.open!.value += event.text
+        if (blocks.open?.kind === 'thinking') blocks.open.value += event.text
         yield streamEvent({
           type: 'content_block_delta',
           index: blocks.index,
@@ -1004,7 +1025,7 @@ async function* streamOneCompatAttempt(ctx: {
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
         if (blocks.open?.kind !== 'text') yield* openNewBlock('text')
-        blocks.open!.value += event.text
+        if (blocks.open?.kind === 'text') blocks.open.value += event.text
         yield streamEvent({
           type: 'content_block_delta',
           index: blocks.index,
@@ -1012,8 +1033,38 @@ async function* streamOneCompatAttempt(ctx: {
         })
         break
       }
-      case 'tool-call-fragment':
+      case 'tool-call-fragment': {
+        yield* ensureMessageStart()
+        yield* emitLeadingNotes()
+        if (!event.id || !event.name) {
+          if (event.argumentsFragment !== '') {
+            pendingToolFragments.set(event.index, (pendingToolFragments.get(event.index) ?? '') + event.argumentsFragment)
+          }
+          break
+        }
+        if (blocks.open?.kind !== 'tool' || blocks.open.toolIndex !== event.index) {
+          yield* closeOpenBlock()
+          blocks.index += 1
+          blocks.open = { kind: 'tool', toolIndex: event.index, id: event.id, name: event.name, bytes: 0 }
+          yield streamEvent({
+            type: 'content_block_start',
+            index: blocks.index,
+            content_block: { type: 'tool_use', id: event.id, name: event.name, input: {} },
+          })
+        }
+        const buffered = pendingToolFragments.get(event.index) ?? ''
+        if (buffered !== '') pendingToolFragments.delete(event.index)
+        const piece = buffered + event.argumentsFragment
+        if (piece !== '') {
+          blocks.open.bytes += piece.length
+          yield streamEvent({
+            type: 'content_block_delta',
+            index: blocks.index,
+            delta: { type: 'input_json_delta', partial_json: piece },
+          })
+        }
         break
+      }
       case 'usage':
         usageSeen = profile.usageForSettlement?.(event.usage) ?? event.usage
         break
@@ -1053,7 +1104,7 @@ async function* streamOneCompatAttempt(ctx: {
 
   yield* ensureMessageStart()
   let completed = finish?.toolCalls ?? []
-  if (profile.lane === 'local' && completed.length === 0 && blocks.open !== null && finish !== undefined) {
+  if (profile.lane === 'local' && completed.length === 0 && blocks.open !== null && blocks.open.kind !== 'tool' && finish !== undefined) {
     const extracted = extractToolCallMarkup(blocks.open.value, ctx.callableTools ?? [])
     if (extracted !== undefined) {
       logForDebugging(`[compat:local] ${extracted.calls.length} tool call(s) read from ${extracted.shape} markup the server left in the ${blocks.open.kind}`)
@@ -1087,6 +1138,14 @@ async function* streamOneCompatAttempt(ctx: {
     else refused.push(verdict.refusal)
   })
   for (const { call, input } of accepted) {
+    const painted = livePaintedTools.get(call.index)
+    if (painted !== undefined && painted.id === call.id && painted.name === call.name && painted.bytes === call.argumentsRaw.length) {
+      const m = mintBlock({ type: 'tool_use', id: call.id, name: call.name, input })
+      const previous = minted.at(-1)
+      minted.push(m)
+      if (previous) yield previous
+      continue
+    }
     yield* emitSettledBlock(
       { type: 'tool_use', id: call.id, name: call.name, input },
       [{ type: 'input_json_delta', partial_json: call.argumentsRaw }],

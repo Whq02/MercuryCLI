@@ -40,7 +40,7 @@ const state = {
   slotsRequests: 0,
   processingSlot: -1,
   firstTokenDelayMs: 0,
-  mode: 'reply' as 'reply' | 'tools' | '5xx-once' | 'delayed-first-token',
+  mode: 'reply' as 'reply' | 'tools' | '5xx-once' | 'delayed-first-token' | 'slow-tool-stream',
 }
 const model = 'Fixture/GLM-5.3-Flash-GGUF'
 
@@ -110,6 +110,51 @@ const server = createServer(async (req, res) => {
     `data: ${JSON.stringify({ model: body.model, choices: [{ index: 0, delta, finish_reason: finish }], ...(usage ? { usage } : {}) })}\n\n`
   const usage = { prompt_tokens: 20, completion_tokens: 6, prompt_tokens_details: { cached_tokens: 10 } }
   const count = body.messages.filter((row: any) => row.role === 'tool').length
+  if (state.mode === 'slow-tool-stream' && count === 0) {
+    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' })
+    res.flushHeaders()
+    res.write(chunk({ reasoning_content: 'planning long tool call' }))
+    let tick = 0
+    const totalTicks = 14
+    const interval = setInterval(() => {
+      if (res.writableEnded || res.destroyed) {
+        clearInterval(interval)
+        return
+      }
+      if (tick === 0) {
+        res.write(
+          chunk({
+            tool_calls: [
+              {
+                index: 0,
+                id: 'slow-call-0',
+                type: 'function',
+                function: { name: 'FixtureEcho', arguments: '{"text":"' },
+              },
+            ],
+          }),
+        )
+      } else if (tick < totalTicks) {
+        res.write(
+          chunk({
+            tool_calls: [
+              {
+                index: 0,
+                function: { arguments: tick === totalTicks - 1 ? 'end"}' : `part-${tick}-` },
+              },
+            ],
+          }),
+        )
+      } else {
+        clearInterval(interval)
+        res.end(chunk({}, 'tool_calls', usage) + 'data: [DONE]\n\n')
+        return
+      }
+      tick++
+    }, 250)
+    res.on('close', () => clearInterval(interval))
+    return
+  }
   const tools = state.mode === 'tools' && count < 2
   const payload =
     chunk({ reasoning_content: `reasoning-${count}` }) +
@@ -178,6 +223,12 @@ try {
     isReadOnly: () => true,
     isMcp: false,
     needsPermissions: () => false,
+    async call(input: { text: string }) {
+      return { data: `echoed:${input.text}` }
+    },
+    mapToolResultToToolResultBlockParam(result: unknown, toolUseId: string) {
+      return { type: 'tool_result', tool_use_id: toolUseId, content: JSON.stringify(result) }
+    },
   } as never
 
   function writeSettings(settings: Record<string, unknown>): void {
@@ -440,6 +491,102 @@ try {
       /not measured/i.test(fastRow.verification),
     `verification=${fastRow?.verification ?? 'missing'}`,
   )
+
+  await import(`${root}/src/tasks.ts`)
+  const { runAgent } = await import(`${root}/src/tools/AgentTool/runAgent.ts`)
+  const { getDefaultAppState } = await import(`${root}/src/state/AppStateStore.ts`)
+  const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/utils/fileStateCache.ts`)
+  const { runWithCwdOverride } = await import(`${root}/src/utils/cwd.ts`)
+  process.env.MERCURY_AGENT_IDLE_MINUTES = '0.03'
+  try {
+    state.mode = 'slow-tool-stream'
+    let appState = { ...getDefaultAppState(), effortValue: 'max' }
+    const owner = new AbortController()
+    const context = {
+      abortController: owner,
+      options: {
+        commands: [],
+        tools: [tool],
+        engineModel: llamaId,
+        thinkingConfig: { type: 'enabled', budgetTokens: 1024 },
+        mcpClients: [],
+        mcpResources: {},
+        isNonInteractiveSession: true,
+        debug: false,
+        verbose: false,
+        agentDefinitions: { activeAgents: [], allAgents: [] },
+      },
+      getAppState: () => appState,
+      setAppState: (update: any) => {
+        appState = typeof update === 'function' ? update(appState) : update
+      },
+      setAppStateForTasks: (update: any) => {
+        appState = typeof update === 'function' ? update(appState) : update
+      },
+      messages: [],
+      readFileState: createFileStateCacheWithSizeLimit(100),
+      setInProgressToolUseIDs: () => {},
+      setResponseLength: () => {},
+      updateFileHistoryState: () => {},
+      updateAttributionState: () => {},
+    }
+    const progressEvents: any[] = []
+    const agentRows: any[] = []
+    let agentError = ''
+    await runWithCwdOverride(home, async () => {
+      try {
+        for await (const row of runAgent({
+          agentDefinition: {
+            agentType: 'slow-tool-fixture',
+            source: 'projectSettings',
+            getSystemPrompt: () => 'Run the slow tool call.',
+          } as never,
+          promptMessages: [createUserMessage({ content: 'stream a slow tool call' })],
+          toolUseContext: context as never,
+          canUseTool: (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never,
+          isAsync: false,
+          querySource: 'agent:custom',
+          availableTools: [tool],
+          model: llamaId,
+          effortOverride: 'max',
+          onQueryProgress: (ev: any) => progressEvents.push(ev),
+          override: {
+            agentId: 'slow-tool-crewmate' as never,
+            userContext: {},
+            systemContext: {},
+            systemPrompt: ['Run the slow tool call.'],
+          },
+        })) {
+          agentRows.push(row)
+        }
+      } catch (caught) {
+        agentError = String(caught)
+      }
+    })
+    const streamActivities = progressEvents.filter(ev => ev?.type === 'stream_activity')
+    const inputJsonDeltas = progressEvents
+      .filter(ev => ev?.type === 'stream_event' && ev.event?.type === 'content_block_delta' && ev.event.delta?.type === 'input_json_delta')
+      .map(ev => ev.event.delta.partial_json as string)
+    const expectedJson = '{"text":"' + Array.from({ length: 12 }, (_, i) => `part-${i + 1}-`).join('') + 'end"}'
+    const finalText = agentRows
+      .filter(row => row.type === 'assistant')
+      .flatMap(row => row.message?.content ?? [])
+      .map((block: any) => block.text ?? '')
+      .join('')
+    check(
+      'crewmate survives a 3.5 s streaming tool call past the 1.8 s MERCURY_AGENT_IDLE_MINUTES limit and finishes',
+      agentError === '' && finalText.includes('LLMHOST-READY'),
+      `agentError=${agentError} finalText=${finalText}`,
+    )
+    check(
+      'stream_activity and progressive input_json_delta events are observed during the tool call without double-counting at settlement',
+      streamActivities.length > 0 && inputJsonDeltas.length === 14 && inputJsonDeltas.join('') === expectedJson,
+      `streamActivities=${streamActivities.length} deltas=${inputJsonDeltas.length} joined=${inputJsonDeltas.join('')}`,
+    )
+  } finally {
+    delete process.env.MERCURY_AGENT_IDLE_MINUTES
+    state.mode = 'reply'
+  }
 
   console.log(`prove-llmhost-slots: ${checks} checks, ${failures} failures`)
   if (failures > 0) process.exitCode = 1

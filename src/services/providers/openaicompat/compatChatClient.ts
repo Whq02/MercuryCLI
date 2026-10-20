@@ -678,9 +678,10 @@ export async function* streamCompatChat(
       if (!chunk.done && !sawEvent && rawHead.length < 4096) rawHead += Buffer.from(chunk.value!).toString('utf8').slice(0, 4096 - rawHead.length)
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))
       if (results.some(item => item.kind === 'event')) {
-        relay.noteEvent()
         sawEvent = true
       } else relay.noteChunk()
+      let chunkNotedEvent = false
+      let chunkHadEvent = false
       for (const item of results) {
         if (item.kind === 'fault') {
           yield {
@@ -694,6 +695,7 @@ export async function* streamCompatChat(
           }
           continue
         }
+        chunkHadEvent = true
         const payload = item.event.data
         if (payload.trim() === '[DONE]') {
           if (!finished) {
@@ -718,6 +720,9 @@ export async function* streamCompatChat(
           continue
         }
         for (const event of decodeChunk(parsed, toolAcc)) {
+          if (event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'reasoning-withheld' || event.type === 'finish') {
+            chunkNotedEvent = true
+          }
           if (event.type === 'served-model') {
             if (event.model === servedSeen) continue
             servedSeen = event.model
@@ -750,6 +755,8 @@ export async function* streamCompatChat(
           yield event
         }
       }
+      if (chunkNotedEvent) relay.noteEvent()
+      else if (chunkHadEvent) relay.noteChunk()
       if (chunk.done) break
     }
 
@@ -916,8 +923,8 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>)
     out.push({
       type: 'tool-call-fragment',
       index,
-      ...(id !== undefined ? { id } : {}),
-      ...(name !== undefined ? { name } : {}),
+      ...(existing.id !== undefined ? { id: existing.id } : {}),
+      ...(existing.name !== undefined ? { name: existing.name } : {}),
       argumentsFragment: fragment,
     })
   }

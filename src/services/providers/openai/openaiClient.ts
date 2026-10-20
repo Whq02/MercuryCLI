@@ -265,7 +265,8 @@ export async function* streamOpenaiResponses(
           continue
         }
         for (const event of fold.fold(parsed)) {
-          relay.noteEvent()
+          if (event.type === 'tool-args-delta') relay.noteChunk()
+          else relay.noteEvent()
           noteEvent(event)
           yield event
         }

@@ -375,7 +375,8 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
         }
         for (const event of fold.fold(parsed)) {
           for (const translated of translate(event, state, slots)) {
-            relay.noteEvent()
+            if (translated.type === 'tool-call-fragment') relay.noteChunk()
+            else relay.noteEvent()
             yield translated
           }
         }
