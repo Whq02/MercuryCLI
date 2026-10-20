@@ -1,6 +1,6 @@
 import { appendFileSync } from 'node:fs'
 import { keptWeightsPath, prepareKeptWeights } from './keptWeights.js'
-import { rentalVolume, readKeptVolume, writeKeptVolume } from './volumes.js'
+import { matchesVolume, rentalVolume, readKeptVolume, writeKeptVolume, type KeptVolume } from './volumes.js'
 import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -92,12 +92,23 @@ export async function runHostJob(id: string, generation: string, options: { runn
         }
         patchHostRecord(id, { advancedAt: Date.now() })
         let offer: HostOffer | undefined
+        let volume: KeptVolume | undefined
+        let outside: string | undefined
+        let stage = 'Runpod read failed'
         try {
           offer = await api.watchOffer(recipe, maxPrice, signal)
+          stage = 'weights disk not ready'
+          volume = offer ? await rentalVolume(api, offer.recipe, signal) : undefined
+          stage = 'Runpod read failed'
+          const disk = volume
+          if (offer && disk?.kind === 'network' && offer.dataCenter && offer.dataCenter !== disk.dataCenter) {
+            outside = offer.dataCenter
+            offer = (await api.offers(signal)).filter(row => matchesVolume(disk, row.recipe) && row.dataCenter === disk.dataCenter && cents(row.price) <= cents(maxPrice)).sort((a, b) => a.price - b.price)[0]
+          }
         } catch (error) {
           if (signal.aborted || error instanceof RunpodHttpError && (error.status === 401 || error.status === 403)) throw error
           wait = Math.max(Math.min(60_000, wait * 2), (error instanceof RunpodHttpError ? error.retryAfterSeconds ?? 0 : 0) * 1000)
-          const step = 'Runpod read failed · next read in ' + Math.ceil(wait / 1000) + ' s · ' + clean(String(error)).slice(0, 200)
+          const step = (error instanceof RunpodHttpError ? 'Runpod read failed' : stage) + ' · next read in ' + Math.ceil(wait / 1000) + ' s · ' + clean(String(error)).slice(0, 200)
           log(step)
           patchHostRecord(id, { step })
           await rest(wait)
@@ -108,16 +119,18 @@ export async function runHostJob(id: string, generation: string, options: { runn
         const afterPoll = readHostRecord(id)
         if (!afterPoll || afterPoll.generation !== generation || afterPoll.jobState === 'stopped') return
         if (afterPoll.rateLimit !== rateLimit) patchHostRecord(id, { rateLimit })
+        if (!offer && outside && volume) {
+          const step = 'stock only in ' + outside + ' · weights disk ' + volume.id + ' lives in ' + volume.dataCenter + ' · next read in ' + Math.ceil(pollMs * 12 / 1000) + ' s'
+          log(step)
+          patchHostRecord(id, { step })
+          await rest(pollMs * 12)
+          continue
+        }
         if (!offer) { await rest(pollMs); continue }
         const podName = 'mercury-' + randomUUID().slice(0, 12)
         const shapeWords = offer.recipe.count + '× ' + offer.recipe.gpu + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '')
         const marked = patchHostRecord(id, { creating: podName, step: 'creating ' + podName + ' · ' + shapeWords })
         if (!marked || marked.generation !== generation || marked.jobState === 'stopped') return
-        const volume = await rentalVolume(api, offer.recipe, signal)
-        if (volume?.kind === 'network' && offer.dataCenter && offer.dataCenter !== volume.dataCenter) {
-          offer = (await api.offers(signal)).filter(row => row.recipe.model === volume.model && (row.recipe.include ?? '') === volume.include && row.dataCenter === volume.dataCenter && cents(row.price) <= cents(maxPrice)).sort((a, b) => a.price - b.price)[0]
-          if (!offer) { patchHostRecord(id, { creating: undefined }); await rest(pollMs); continue }
-        }
         let pod: HostPod
         try {
           pod = await api.create(offer, sshKey.publicKey, podName, volume)

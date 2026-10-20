@@ -292,6 +292,27 @@ try {
   check('catalogue and paid list show the failed partial disk and its monthly price', fastLoadState(nemotron).startsWith('failed · ' + stalled.id) && fastLoadState(nemotron).includes('$8.40/month for its 120 GB') && volumes.volumeLabel(rp.state.volumes.get(stalled.id)).includes('failed · 11.20 GB downloaded'))
   check('a finished preparation leaves a notice naming the kept disk and the terminated pod', notices.some(words => words.includes('weights kept on ' + kept.id) && words.includes('temporary pod fixture-pod-1 terminated')))
   await volumes.deleteKeptVolume(api, stalled.id)
+  const watchDisk = await volumes.createKeptVolume(api, qwen, 'network', 'EU-NL-1', signal)
+  const stocked = rp.state.customGpus
+  rp.state.customGpus = [{ ...stocked[1], availability: 'HIGH', dataCenters: [{ id: 'US-CA-2', availability: 'HIGH' }] }]
+  const elsewhere = queueHostWatch({ id: 'watch-elsewhere', name: qwen.label, recipe: qwen.id, price: 5, maxPrice: 5, startedAt: new Date().toISOString(), status: 'WATCHING', apiBaseUrl: rp.baseUrl, sessionId: 'fast-load-proof' })
+  const createsBeforeWatch = rp.state.creates
+  const watching = runHostJob(elsewhere.id, elsewhere.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: 15000, keepAlive: false })
+  const outsideSeen = await waitFor(() => readHostRecord(elsewhere.id)?.step?.startsWith('stock only in US-CA-2 · weights disk ' + watchDisk.id + ' lives in EU-NL-1') ?? false, 4000)
+  check('a watch whose network disk lives elsewhere says where the stock is and announces no pod there', outsideSeen && rp.state.creates === createsBeforeWatch && !readHostRecord(elsewhere.id)?.creating)
+  check('the watch prefers its own shape, which here has stock only outside the disk’s data centre', readHostRecord(elsewhere.id)?.recipe === 'qwen38-27b-h200')
+  rp.state.failVolumeRead = true
+  const backedOff = await waitFor(() => readHostRecord(elsewhere.id)?.step?.startsWith('weights disk not ready · next read in') ?? false, 4000)
+  check('a volume-list outage during a watch backs off and keeps watching instead of ending it', backedOff && readHostRecord(elsewhere.id)?.jobState === 'running' && rp.state.creates === createsBeforeWatch)
+  rp.state.failVolumeRead = false
+  rp.state.customGpus = [rp.state.customGpus[0], { ...stocked[0], availability: 'LOW', dataCenters: [{ id: 'EU-NL-1', availability: 'LOW' }] }]
+  await watching
+  const rentedHere = hostRecords().find(row => row.watchedFrom === elsewhere.id)!
+  const rentedNotices = readdirSync(join(f.home, 'host/notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8')).words as string)
+  check('the watch rents in the disk’s data centre and its rented words name the shape and price it bought', rentedHere?.volumeId === watchDisk.id && rp.state.createBodies.at(-1).dataCenterIds[0] === 'EU-NL-1' && rp.state.createBodies.at(-1).gpu.id === 'NVIDIA RTX PRO 6000 Blackwell Server Edition' && rentedNotices.some(words => words.startsWith('Rented Qwen3.8-27B · 1× RTX PRO 6000 · $2.49/hr in EU-NL-1')) && !rentedNotices.some(words => words.startsWith('Rented Qwen3.8-27B · 1× H200 · $4.49/hr in US-CA-2')))
+  rp.state.customGpus = stocked
+  await api.terminate(rentedHere.id); removeHostRecord(rentedHere.id)
+  await volumes.deleteKeptVolume(api, watchDisk.id)
   const tiny = join(f.home, 'tiny-weights'); mkdirSync(tiny)
   const bytes = Buffer.from('verified weights')
   writeFileSync(join(tiny, 'model.gguf'), bytes)
