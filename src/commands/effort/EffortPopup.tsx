@@ -51,7 +51,7 @@ const LEAD_COLUMN = 2
 type EffortPopupRow = { value: EffortLevel | typeof EFFORT_POPUP_AUTO; word: string; description: string }
 
 export function effortPopupRows(model: string): EffortPopupRow[] {
-  const tiers: EffortPopupRow[] = selectableEffortLevels(model).map(level => ({ value: level, word: level, description: getEffortLevelDescription(level) }))
+  const tiers: EffortPopupRow[] = selectableEffortLevels(model).map(level => ({ value: level, word: level, description: model.startsWith('compat/') ? getEffortLevelDescription(level).split(' · ')[0]! : getEffortLevelDescription(level) }))
   return [{ value: EFFORT_POPUP_AUTO, word: EFFORT_POPUP_AUTO, description: `The model's own default — currently ${getDisplayedEffortLabel(model, undefined)}` }, ...tiers]
 }
 
@@ -139,8 +139,8 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
   const sentEffort = useFocusedSentEffort()
   const standingLabel = focusedEffortLabelOf(model, seatEffort, sentEffort, sessionEffortValue)
   const rows = React.useMemo(() => effortPopupRows(model), [model])
-  const currentLevel = effortPopupOpeningLevel(model, sessionEffortValue, undefined, seatEffort, sentEffort)
-  const [cursor, setCursor] = useState(() => effortPopupOpeningRow(model, sessionEffortValue, undefined, seatEffort, sentEffort))
+  const currentLevel = model.startsWith('compat/') && (standingLabel === 'default' || !modelSupportsEffort(model)) ? EFFORT_POPUP_AUTO : effortPopupOpeningLevel(model, sessionEffortValue, undefined, seatEffort, sentEffort)
+  const [cursor, setCursor] = useState(() => currentLevel === EFFORT_POPUP_AUTO ? 0 : effortPopupOpeningRow(model, sessionEffortValue, undefined, seatEffort, sentEffort))
   const cursorIndex = Math.min(cursor, Math.max(0, rows.length - 1))
   const envLine = effortPopupEnvLine()
   const layout = effortPopupLayout(frameRows, rows.length, envLine !== null)
@@ -201,8 +201,8 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
   }, { isActive: !done })
 
   const supported = modelSupportsEffort(model) && rows.length > 1
-  const ladder = supported ? `effort ${rows[1]!.word}…${rows[rows.length - 1]!.word}` : 'takes no effort setting'
-  const modelLine = supported ? `${renderModelName(model)} · ${ladder} · running ${standingLabel}` : `${renderModelName(model)} · ${ladder}`
+  const ladder = supported ? `effort ${rows[1]!.word}…${rows[rows.length - 1]!.word}` : model.startsWith('compat/') ? 'this server has no effort dial' : 'takes no effort setting'
+  const modelLine = supported ? `${renderModelName(model)} · ${ladder} · running ${standingLabel}` : model.startsWith('compat/') ? `${ladder} · ${renderModelName(model)}` : `${renderModelName(model)} · ${ladder}`
   const descriptionWidth = Math.max(1, inner - LEAD_COLUMN - WORD_COLUMN - STATE_COLUMN)
   const renderRow = (row: EffortPopupRow, index: number): React.ReactNode => {
     const selected = index === cursorIndex

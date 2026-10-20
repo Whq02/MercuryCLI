@@ -45,6 +45,7 @@ const hostRecipeObject = z.object({
   source: z.string().regex(httpsUrl),
   verification: z.string().regex(printable),
   verified: hostRecipeVerifiedSchema,
+  efforts: z.object({ levels: z.array(z.enum(['low', 'medium', 'high', 'xhigh', 'max'])), verified: hostRecipeVerifiedSchema }).optional(),
   pythonInstall: z.string().optional(),
   context: z.number().int().positive().optional(),
   contextPerSlot: z.number().int().positive().optional(),
@@ -60,7 +61,7 @@ const hostRecipeObject = z.object({
 export const hostRecipeSchema: z.ZodType<HostRecipe> = hostRecipeObject
 
 const HOST_RECIPE_FIELDS = Object.keys(hostRecipeObject.shape) as (keyof HostRecipe)[]
-const FETCHED_FACT_FIELDS: ReadonlySet<keyof HostRecipe> = new Set(['verified', 'verification', 'context', 'contextPerSlot'])
+const FETCHED_FACT_FIELDS: ReadonlySet<keyof HostRecipe> = new Set(['verified', 'verification', 'context', 'contextPerSlot', 'efforts'])
 
 interface HostRecipesFile {
   version: number

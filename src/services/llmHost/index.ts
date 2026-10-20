@@ -14,6 +14,8 @@ import { compatCallModel } from '../providers/openaicompat/compatCallModel.js'
 import { storeCompatApiKeyLogin } from '../providers/openaicompat/compatLogin.js'
 import { CompatProbeError, compatServerBase, inspectCompatServer, type CompatDialect, type CompatServerReading } from '../providers/openaicompat/compatProbe.js'
 import { writeStoredCompatApiKey } from '../providers/providerSecrets.js'
+import { hostModelEfforts } from '../providers/openaicompat/compatEffort.js'
+import { ModelFactsSchema } from '../../utils/settings/modelFacts.js'
 
 export interface LlmHostQuestion {
   step: string
@@ -188,6 +190,9 @@ export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {
     const fresh = cachedCompatCatalogue(endpoint)
     if (fresh?.error) throw new Error(fresh.error)
     const model = `compat/${endpoint.named ? `${name}/` : ''}${selected}`
+    const efforts = hostModelEfforts(selected, dialect, reading.efforts?.[selected])
+    const savedFacts = updateSettingsForSource('userSettings', raw => ({ models: ModelFactsSchema().parse({ [model]: { ...(raw.models as Record<string, object> | undefined)?.[model], efforts: [...efforts] } }) }))
+    if (savedFacts.error) throw savedFacts.error
     emit({ title: words.done, words: `${model} · available in /model and /logins` })
     const result = await checkLlmHostReply(model, signal)
     if (key) { result.words = result.words.split(key).join('[redacted]'); if (result.reply) result.reply = result.reply.split(key).join('[redacted]') }
