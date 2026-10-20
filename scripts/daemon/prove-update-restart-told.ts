@@ -338,12 +338,13 @@ const bundleOf = (command: string): string => {
     return script
   }
 }
-const daemonPids = (): number[] =>
+const pidsInWorld = (also: (line: string) => boolean = () => true): number[] =>
   (spawnSync('ps', ['-axo', 'pid=,command='], { encoding: 'utf8' }).stdout ?? '')
     .split('\n')
-    .filter(l => l.includes(' daemon run ') && l.includes(SCRATCH))
+    .filter(l => l.includes(SCRATCH) && also(l))
     .map(l => Number(l.trim().split(/\s+/)[0]))
-    .filter(n => Number.isInteger(n) && n > 0)
+    .filter(n => Number.isInteger(n) && n > 0 && n !== process.pid)
+const daemonPids = (): number[] => pidsInWorld(l => l.includes(' daemon run '))
 
 const spawnDaemon = (log: string): ChildProcess =>
   spawn(NODE, [join(runtime, 'current', 'mercury.mjs'), 'daemon', 'run', work], {
@@ -396,7 +397,7 @@ const cleanup = async (): Promise<void> => {
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never, { timeoutMs: 3000 })
   } catch {}
   await sleep(1000)
-  for (const pid of daemonPids()) {
+  for (const pid of [...daemonPids(), ...pidsInWorld()]) {
     try {
       process.kill(pid, 'SIGKILL')
     } catch {}
