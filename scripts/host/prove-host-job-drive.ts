@@ -120,7 +120,7 @@ try {
   deliverHostNotices('rental-session'); check('one ready notice, not one per popup open', getCommandQueue().length === 1)
   open(); await screen('Where should the model run?'); await choose(id); await screen('ready'); await capture('02-ready')
   await choose('Stop ·'); await screen('Confirm stop'); check('Stop has a separate confirmation', rp.state.stops === 0)
-  await choose('Confirm stop'); await screen('Stopped · compute ended'); check('Stop releases compute but retains the pod disk', rp.state.stops === 1 && rp.state.pods.has(id))
+  await choose('Confirm stop'); check('Stop releases compute but retains the pod disk', await waitFor(() => rp.state.stops === 1 && !m!.screen().includes('Confirm stop') && m!.screen().includes('Stopped · compute ended'), 15000) && rp.state.pods.has(id))
   await choose('Terminate'); await screen('Confirm terminate'); check('Terminate has a separate confirmation', rp.state.deletes === 0)
   await choose('Confirm terminate'); await screen('Pod terminated'); m.push(KEY.esc)
   check('terminated pod is verified absent', !readHostRecord(id) && !rp.state.pods.has(id))
