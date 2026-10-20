@@ -278,7 +278,6 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
   const HINT_ROSTER: Record<string, { reason: string; witness?: string }> = {
     'src/components/BaseTextInput.tsx': { reason: 'a primitive; the host prints the hint' },
     'src/components/HelpV2/Commands.tsx': { reason: 'the commands tab’s PageUp/PageDown handler — the help shell owns esc and prints the way out', witness: 'src/components/HelpV2/HelpV2.tsx' },
-    'src/components/LlmHostDialog.tsx': { reason: 'the popup renders exit words imported from its command vocabulary', witness: 'src/commands/llmhost/words.ts' },
     'src/components/PromptInput/useComposerRawKeys.ts': { reason: 'the composer’s raw key ladder; the composer’s footer prints the way out', witness: 'src/components/PromptInput/PromptInputFooterLeftSide.tsx' },
     'src/components/ScrollKeybindingHandler.tsx': { reason: 'renders nothing' },
     'src/components/SurfaceExitChord.tsx': { reason: 'renders nothing' },
@@ -315,6 +314,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
   check('every roster witness prints a hint itself', blindWitness.length === 0, blindWitness.join(' · '))
   const llmHost = read('src/components/LlmHostDialog.tsx')
   const llmHostWords = read('src/commands/llmhost/words.ts')
+  check('/llmhost sends its contextual running hint to the popup footer', llmHost.includes('esc closes · the setup keeps running') && llmHost.includes('onHint?.(hint)') && read('src/commands/llmhost/llmhost.tsx').includes('onHint={frame.setHint}'))
   check('/llmhost renders the imported running, input and finished exit hints', llmHost.includes("import { LLM_HOST_WORDS as words } from '../commands/llmhost/words.js'") && ['{words.running}', '{words.finished}', 'words.choose : words.input'].every(text => llmHost.includes(text)) && ["running: 'running… · esc closes'", "input: '↵ continue · esc closes'", "finished: 'esc closes'"].every(text => llmHostWords.includes(text)))
 }
 

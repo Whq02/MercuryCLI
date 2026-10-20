@@ -137,12 +137,21 @@ try {
     }
     assert.ifError(updateSettingsForSource('userSettings', { compatProvider: { orphan: { baseUrl: f.baseUrl, hostPodId: 'vanished-pod', label: 'Orphan GLM', models: [f.model] } } }).error)
     check('a known pod registration whose record is gone names termination instead of sign-in', namedCompatModelOptions().some(row => row.value === '__mercury_connect__:compat/orphan' && row.label === 'Orphan GLM · pod terminated — /llmhost rents again'))
+    f.state.auth = false
+    assert.ifError(updateSettingsForSource('userSettings', { compatProvider: { free: { baseUrl: f.baseUrl, label: 'Local GLM' } } }).error)
+    await refreshCompatCatalogues({ force: true, name: 'free' })
     for (const cols of [120, 80]) {
       const { MercuryModelChoicePicker } = await import('../../src/commands/model/mercuryModel.tsx')
       const orphan = await mountOffscreen(React.createElement(ThemeProvider, {}, React.createElement(MercuryModelChoicePicker, { current: '__mercury_connect__:compat/orphan', onSelect() {}, onSignIn() {}, onClose() {} })), cols, 40)
       try { assert.ok(await waitFor(() => orphan.screen().includes('pod terminated'), 5000), orphan.screen()); await saveFrame(orphan, cols, 'orphan') } finally { orphan.unmount() }
       const returned = await mountOffscreen(React.createElement(ThemeProvider, {}, React.createElement(MercuryModelChoicePicker, { current: 'compat/locked/' + f.model, onSelect() {}, onSignIn() {}, onClose() {} })), cols, 40)
       try { assert.ok(await waitFor(() => returned.screen().includes('compat/locked'), 5000), returned.screen()); await saveFrame(returned, cols, 'returned-after-key') } finally { returned.unmount() }
+      const free = await mountOffscreen(React.createElement(ThemeProvider, {}, React.createElement(MercuryModelChoicePicker, { current: 'compat/free/' + f.model, onSelect() {}, onSignIn() {}, onClose() {} })), cols, 40)
+      try {
+        assert.ok(await waitFor(() => free.screen().includes('no key (local/auth-free endpoint)'), 5000), free.screen())
+        check(cols + ': a live key-less endpoint shows its no-key badge and named group', free.screen().includes('LOCAL GLM (FREE)'))
+        await saveFrame(free, cols, 'no-key-badge')
+      } finally { free.unmount() }
     }
   } finally { await rp.close() }
   console.log('GHOST ENDPOINT ' + (failures ? 'RED' : 'GREEN') + ' — ' + failures + ' failures')
