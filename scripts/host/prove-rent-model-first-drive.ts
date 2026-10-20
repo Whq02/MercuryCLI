@@ -16,7 +16,7 @@ const check = (name: string, truth: unknown): void => { assert.ok(truth, name); 
 const bundlePath = option('--bundle')
 const f = await llmhostFixture()
 const rp = await runpodFixture()
-const { hostDirectory, hostRecords, patchHostRecord, readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
+const { hostDirectory, hostRecords, patchHostRecord, readHostRecord, removeHostRecord, writeHostRecord } = await import('../../src/services/host/store.ts')
 const { queueHostWatch, stopHostSetup, sweepHostJobs } = await import('../../src/services/host/jobs.ts')
 let mounted: Mounted | undefined
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
@@ -61,6 +61,7 @@ try {
   const m = mounted
   const until = async (needle: string) => assert.ok(await waitFor(() => m.screen().includes(needle), 15_000), 'screen reaches ' + needle + '\n' + m.screen())
   const heading = async (needle: string) => assert.ok(await waitFor(() => m.lines().slice(0, 10).join(' ').includes(needle), 15_000), 'active question reaches ' + needle + '\n' + m.screen())
+  const selected = () => m.lines().find(line => line.includes('› ')) ?? ''
   const capture = (name: string) => {
     check(name + ' paints without errors or a key', !m.screen().includes('RENDER ERROR') && !m.screen().includes(rp.key))
     if (frames) {
@@ -73,15 +74,16 @@ try {
   }
   const choose = async (needle: string) => {
     for (let n = 0; n < 40; n++) {
-      const selected = m.lines().find(line => line.includes('› ')) ?? ''
-      if (selected.includes(needle)) { m.push(KEY.enter); return }
+      const before = selected()
+      if (before.includes(needle)) { m.push(KEY.enter); return }
       m.push(KEY.down)
-      assert.ok(await waitFor(() => (m.lines().find(line => line.includes('› ')) ?? '') !== selected, 5000), 'selection moves toward ' + needle + '\n' + m.screen())
+      assert.ok(await waitFor(() => selected() !== before, 5000), 'selection moves toward ' + needle + '\n' + m.screen())
     }
     throw new Error('Missing choice ' + needle + '\n' + m.screen())
   }
   const text = async (title: string, value = '') => { await until(title); if (value) { m.push('\u0015'); m.push(value); await until(value) } m.push(KEY.enter) }
   const close = async () => { m.push(KEY.esc); if (!await waitFor(() => !popup.isSettingsPopupOpen(), 1000)) m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const rent = async () => { open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70'); await heading('Choose a model · live Runpod stock') }
 
   const distinctModels = [...new Set(HOST_RECIPES.map(row => row.label.split(' · ')[0]!))]
   await heading('Where should the model run?')
@@ -97,8 +99,7 @@ try {
   const stockedAt = modelLines.flatMap((line, index) => line.includes('no stock now') ? [] : [index])
   const emptyAt = modelLines.flatMap((line, index) => line.includes('no stock now') ? [index] : [])
   check('models in stock sort above the no-stock-now rows, cheapest first', stockedAt.length > 0 && emptyAt.length > 0 && Math.max(...stockedAt) < Math.min(...emptyAt))
-  const cursorLine = m.lines().find(line => line.includes('› ')) ?? ''
-  check('cursor starts on the cheapest model that has stock', cursorLine.includes('Nemotron 3.5 Super VL 120B') && cursorLine.includes('$2.49/hr'))
+  check('cursor starts on the cheapest model that has stock', selected().includes('Nemotron 3.5 Super VL 120B') && selected().includes('$2.49/hr'))
   check('a pre-chosen cursor says it starts on a suggestion, never that nothing is pre-chosen', m.screen().includes('↑↓ then ↵ · the cursor starts on a suggestion') && !m.screen().includes('nothing is pre-chosen'))
 
   rp.state.customGpus = [
@@ -107,7 +108,7 @@ try {
   ]
   await choose('Refresh stock and prices')
   await until('$5.29/hr')
-  check('when prices differ, cursor moves to the cheapest in-stock model', (m.lines().find(line => line.includes('› ')) ?? '').includes('Qwen3.8-27B') && (m.lines().find(line => line.includes('› ')) ?? '').includes('$5.29/hr'))
+  check('when prices differ, cursor moves to the cheapest in-stock model', selected().includes('Qwen3.8-27B') && selected().includes('$5.29/hr'))
   rp.state.customGpus = null
   await choose('Refresh stock and prices')
   await until('$2.49/hr')
@@ -116,7 +117,6 @@ try {
   await heading('Confirm the hourly price')
   await until('Qwen3.8-27B · FP8 · 1× RTX PRO 6000 · $2.49/hr')
   check('a model with one in-stock shape goes straight to confirm with the shape named', !m.screen().includes('Choose a GPU shape') && m.screen().includes('1× RTX PRO 6000'))
-  const selected = () => m.lines().find(line => line.includes('› ')) ?? ''
   check('the price confirmation pre-chooses nothing and says so', m.screen().includes('↑↓ then ↵ · nothing is pre-chosen') && !selected())
   for (let n = 0; n < 5; n++) { const before = selected(); m.push(KEY.down); await waitFor(() => selected() !== before, 300) }
   check('pressing ↓ repeatedly on the price confirmation settles on keep things as they are, never back on Confirm', selected().includes('keep things as they are') && rp.state.creates === 0)
@@ -124,14 +124,12 @@ try {
   await close()
 
   const defaultWatch = queueHostWatch({ id: 'watch-defaults-probe', name: 'GLM-5.3-Flash', recipe: 'glm53-flash-gguf-b300', price: 8.99, startedAt: new Date().toISOString(), status: 'WATCHING' })
-  check('watch job record states 5s poll is 12 requests/min against Runpod 60/min limit and 12h window', defaultWatch.jobKind === 'watch' && defaultWatch.pollIntervalMs === 5000 && defaultWatch.pollWindowMs === 12 * 3600_000 && defaultWatch.rateLimit === '5-second poll is 12 requests a minute against Runpod documented 60/min limit')
+  check('watch job record states one catalogue read every 5 s (12 a minute) within Runpod’s per-account metering, and a 12h window', defaultWatch.jobKind === 'watch' && defaultWatch.pollIntervalMs === 5000 && defaultWatch.pollWindowMs === 12 * 3600_000 && defaultWatch.rateLimit === 'one catalogue read every 5 s (12 a minute) · Runpod meters each account per minute, hour and day' && !JSON.stringify(defaultWatch).includes('60/min'))
   await stopHostSetup(defaultWatch.id)
   removeHostRecord(defaultWatch.id)
 
   resetCommandQueue()
-  open()
-  await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
-  await heading('Choose a model · live Runpod stock')
+  await rent()
   await choose('GLM-5.3-Flash')
   await heading('Confirm the hourly price')
   await until('Watch for stock and rent at this price or less ($8.99/hr)')
@@ -165,15 +163,22 @@ try {
 
   rp.state.stockAfterReads = 0
   rp.state.noStock = true
-  open()
-  await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
-  await heading('Choose a model · live Runpod stock')
+  await rent()
   await choose('GLM-5.3-Flash')
   await heading('Confirm the hourly price')
   const readsAtWatch2 = rp.state.catalogReads
   await choose('Watch for stock and rent at this price or less ($8.99/hr)')
   await heading('Pod controls')
   assert.ok(await waitFor(() => rp.state.catalogReads >= readsAtWatch2 + 2, 10_000), 'watch job polls while waiting')
+  const waiting = hostRecords().find(row => row.jobKind === 'watch')!
+  check('after a read, the watch record states the account’s quota from Runpod’s RateLimit-Policy header', await waitFor(() => readHostRecord(waiting.id)?.rateLimit === 'one catalogue read every 0.025 s (2400 a minute) · this account’s Runpod quota: 60 a minute, 3000 an hour, 50000 a day', 5000))
+  await close()
+
+  await rent()
+  await choose('GLM-5.3-Flash')
+  await until('A stock watch for GLM-5.3-Flash is already running · ' + waiting.id)
+  const duplicate = queueHostWatch({ id: 'watch-duplicate-probe', name: 'GLM-5.3-Flash · UD-Q4_K_XL', recipe: 'glm53-flash-gguf-b300', price: 7, startedAt: new Date().toISOString(), status: 'WATCHING' })
+  check('a second watch for a model already watched opens the running watch instead of starting another', m.screen().includes('Cancel · stop watching for stock') && duplicate.id === waiting.id && !readHostRecord('watch-duplicate-probe') && hostRecords().filter(row => row.jobKind === 'watch').length === 1)
   await close()
 
   open()
@@ -192,28 +197,23 @@ try {
 
   rp.state.noStock = false
   rp.state.failCreate = true
-  open()
-  await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
-  await heading('Choose a model · live Runpod stock')
+  await rent()
   await choose('Qwen3.8-27B')
   await heading('Confirm the hourly price')
   const readsBeforeConfirm = rp.state.catalogReads
-  const postsBeforeConfirm = rp.requests.filter((r: any) => r.method === 'POST' && r.path === '/v2/pods').length
+  const postsBeforeConfirm = posts()
   await choose('Confirm $2.49/hr')
   await heading('Choose a GPU shape · live Runpod stock')
   await until('Runpod could not place 1× RTX PRO 6000 · no pod was created')
   await until('Qwen3.8-27B · FP8 · 1× RTX PRO 6000 · $2.49/hr')
-  const postsAfterConfirm = rp.requests.filter((r: any) => r.method === 'POST' && r.path === '/v2/pods').length
-  check('confirm never re-reads stock before creating and a 400 refusal returns to fresh offers with Runpod’s reason and no pod created', postsAfterConfirm === postsBeforeConfirm + 1 && rp.state.creates === 1 && rp.state.catalogReads === readsBeforeConfirm + 3 && m.screen().includes('Choose a GPU shape · live Runpod stock'))
+  check('confirm never re-reads stock before creating and a 400 refusal returns to fresh offers with Runpod’s reason and no pod created', posts() === postsBeforeConfirm + 1 && rp.state.creates === 1 && rp.state.catalogReads === readsBeforeConfirm + 3 && m.screen().includes('Choose a GPU shape · live Runpod stock'))
   await close()
 
   rp.state.customGpus = [
     { ...liveCatalogue.gpus.find((g: any) => g.id === 'NVIDIA RTX PRO 6000 Blackwell Server Edition'), availability: 'HIGH' },
     { ...liveCatalogue.gpus.find((g: any) => g.id === 'NVIDIA H200'), availability: 'HIGH', price: { secure: 5.29 } },
   ]
-  open()
-  await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
-  await heading('Choose a model · live Runpod stock')
+  await rent()
   await choose('Nemotron 3.5 Super VL 120B')
   await heading('Confirm the hourly price')
   rp.state.customGpus = [{ ...liveCatalogue.gpus.find((g: any) => g.id === 'NVIDIA H200'), availability: 'HIGH', price: { secure: 5.29 } }]
@@ -226,15 +226,12 @@ try {
   await close()
 
   rp.state.createOutcomes = ['http503']
-  open()
-  await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
-  await heading('Choose a model · live Runpod stock')
+  await rent()
   await choose('Qwen3.8-27B')
   await heading('Confirm the hourly price')
   const postsBeforeAmbiguous = posts()
-  const bodiesBeforeAmbiguous = rp.state.createBodies.length
   await choose('Confirm $2.49/hr')
-  const ambiguousName = await waitFor(() => rp.state.createBodies.length === bodiesBeforeAmbiguous + 1, 10_000) ? rp.state.createBodies.at(-1).name : ''
+  const ambiguousName = await waitFor(() => rp.state.createBodies.length === 2, 10_000) ? rp.state.createBodies.at(-1).name : ''
   await until(ambiguousName + ' may exist; check Pods I’m paying for before retrying')
   check('a create Runpod answered with a 5xx says the pod may exist and points at Pods I’m paying for, never that no pod was created', !m.screen().includes('no pod was created') && !m.screen().includes('Choose a GPU shape') && posts() === postsBeforeAmbiguous + 1)
   await close()
@@ -273,6 +270,27 @@ try {
   removeHostRecord(losing.id)
 
   rp.state.noStock = true
+  rp.state.catalogFailures = [503, 503, 429]
+  const readsBeforeFailures = rp.state.catalogReads
+  const backingOff = watchRecord('watch-backoff-probe')
+  void runHostJob(backingOff.id, backingOff.generation!, jobOptions)
+  assert.ok(await waitFor(() => rp.state.catalogReads >= readsBeforeFailures + 5, 15_000), 'the watch keeps reading after failed reads')
+  const times = rp.state.catalogTimes.slice(readsBeforeFailures, readsBeforeFailures + 4)
+  const gaps = times.slice(1).map((at: number, index: number) => at - times[index]!)
+  check('failed reads back off (5xx doubles the wait, 429 waits its Retry-After) and the watch keeps watching', gaps[0]! >= 45 && gaps[1]! >= 90 && gaps[2]! >= 950 && readHostRecord(backingOff.id)?.jobState === 'running' && watchLog(backingOff.id).includes('Runpod read failed · next read in 1 s · Error: Runpod GET /catalog/gpus returned HTTP 429 · rate limit exceeded for the minute window'))
+  await stopHostSetup(backingOff.id)
+  removeHostRecord(backingOff.id)
+  await delay(150)
+  const readsAtStop = rp.state.catalogReads
+  await delay(200)
+  check('stopping the backed-off watch stops its reads', rp.state.catalogReads === readsAtStop)
+
+  const expiring = watchRecord('watch-window-probe', { pollWindowMs: 2000 })
+  await runHostJob(expiring.id, expiring.generation!, { runner: ssh.runner, pauseMs: 25, keepAlive: false })
+  const expired = readHostRecord(expiring.id)
+  check('the watch window ends with a stopped record and a notice that names the real window', expired?.jobState === 'stopped' && expired.status === 'EXPIRED' && expired.step === 'watch ended after 2 s without stock ≤ $8.99/hr · no pod was created' && notices().includes('GLM-5.3-Flash · UD-Q4_K_XL · watch ended after 2 s without stock ≤ $8.99/hr · no pod was created'))
+  removeHostRecord(expiring.id)
+
   const gone = watchRecord('watch-sweep-gone')
   const inflight = queueHostWatch({ id: 'watch-sweep-inflight', name: 'DeepSeek-V4.1-Flash-1017', recipe: 'deepseek41-b200', price: 31.96, startedAt: new Date().toISOString(), status: 'WATCHING', sessionId: 'rental-session' })
   patchHostRecord(gone.id, { jobState: 'running' })
@@ -280,16 +298,42 @@ try {
   await sweepHostJobs({ alive: row => !row.id.startsWith('watch-sweep-') })
   check('a watch whose process ended is reported ended in watch words: no pod, or the pod it was creating may exist', readHostRecord(gone.id)?.error === 'stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again' && readHostRecord(inflight.id)?.error === 'mercury-sweep-inflight may exist: the stock watch stopped while creating it · /llmhost → Pods I’m paying for' && notices().some(row => row === 'GLM-5.3-Flash · UD-Q4_K_XL · stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again') && !notices().some(row => row.includes('watch-sweep') || row.includes('setup stalled at watching')))
   removeHostRecord(gone.id); removeHostRecord(inflight.id)
+
+  stockNow()
+  const createsBeforeRivals = rp.state.creates
+  const first = watchRecord('watch-rival-a')
+  writeHostRecord({ ...first, id: 'watch-rival-b', jobStartedAt: first.jobStartedAt! + 1, log: join(hostDirectory(), 'logs', 'watch-rival-b.log') })
+  await Promise.all([runHostJob('watch-rival-b', first.generation!, jobOptions), runHostJob(first.id, first.generation!, jobOptions)])
+  await delay(300)
+  const rivalPods = hostRecords().filter(row => row.watchedFrom === first.id || row.watchedFrom === 'watch-rival-b')
+  check('two watches for the same model never both buy: the later one ends and names the earlier', rp.state.creates === createsBeforeRivals + 1 && rivalPods.length === 1 && rivalPods[0]!.watchedFrom === first.id && readHostRecord('watch-rival-b')?.step === 'stock watch ended: watch-rival-a already watches GLM-5.3-Flash · no pod was created')
+  await terminate(rivalPods[0]!.id)
+  removeHostRecord('watch-rival-b')
+
   rp.state.noStock = false
   rp.state.stockAfterReads = 0
+  rp.state.customGpus = [{ ...liveCatalogue.gpus.find((g: any) => g.id === 'NVIDIA H200'), availability: 'NONE' }]
+  await rent()
+  await choose('GLM-5.3-Flash')
+  await heading('Confirm the hourly price')
+  await until('no catalogue price now · set a price ceiling')
+  check('a model with no catalogue price asks for a ceiling instead of inventing one', !m.screen().includes('Watch for stock and rent at this price or less (') && !m.screen().includes('$8.99'))
+  await choose('Set a price ceiling')
+  await text('Price ceiling in USD/hr', '7.5')
+  await heading('Confirm the hourly price')
+  await until('Watch for stock and rent at this price or less ($7.50/hr)')
+  check('the entered ceiling is what the watch would rent at', m.screen().includes('ceiling $7.50/hr (no catalogue price now)'))
+  await choose('keep things as they are')
+  await close()
+  rp.state.customGpus = null
 
   if (bundlePath) {
     const bundleText = readFileSync(resolve(bundlePath), 'utf8')
-    check('built bundle carries model-first, watch-and-rent and money-safety words', ['Watch for stock and rent at this price or less', 'Choose a GPU shape · live Runpod stock', '5-second poll is 12 requests a minute against Runpod documented 60/min limit', 'the cursor starts on a suggestion', ' may exist: Runpod gave no clear answer to the create'].every(part => bundleText.includes(part)))
+    check('built bundle carries model-first, watch-and-rent and money-safety words', ['Watch for stock and rent at this price or less', 'Choose a GPU shape · live Runpod stock', 'one catalogue read every ', 'the cursor starts on a suggestion', ' may exist: Runpod gave no clear answer to the create'].every(part => bundleText.includes(part)))
   }
 
   await Promise.all(images)
-  console.log('RENT MODEL FIRST DRIVE GREEN — ' + checks + ' checks; model-first picker, one-shape direct confirm, watch-and-rent handoff, cancel watch stops polling, and create-on-confirm without pre-read; zero billable calls')
+  console.log('RENT MODEL FIRST DRIVE GREEN — ' + checks + ' checks; model-first picker, one-shape direct confirm, watch-and-rent handoff, cancel, one watch per model, refusal, ambiguous-create and backoff legs; zero billable calls')
 } finally {
   mounted?.unmount()
   for (const record of hostRecords()) await stopHostSetup(record.id)

@@ -13,9 +13,11 @@ export class RunpodHttpError extends Error {
   constructor(message: string, readonly status: number, readonly detail: string, readonly retryAfterSeconds?: number) { super(message) }
 }
 export const createRefusal = (error: unknown): RunpodHttpError | undefined => error instanceof RunpodHttpError && refusalStatuses.includes(error.status) ? error : undefined
+export const cents = (amount: number): number => Math.round(amount * 100)
 
 export class RunpodClient {
   private lastShapes: HostOffer[] = []
+  private policy: string | undefined
   constructor(private key: string, private base = 'https://api.runpod.io/v2') {
     const url = new URL(base)
     if (url.username || url.password || url.search || url.hash || !(url.origin === 'https://api.runpod.io' || url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname))) throw new Error('Runpod uses its official API or a loopback fixture only.')
@@ -23,6 +25,7 @@ export class RunpodClient {
   private async response(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<Response> {
     const create = method === 'POST' && path === '/pods'
     const response = await fetch(this.base + path, { method, headers: { Authorization: 'Bearer ' + this.key, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...(create ? { keepalive: false } : {}), redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000) })
+    this.policy = response.headers.get('ratelimit-policy') ?? undefined
     if (!response.ok) {
       const text = await response.text().catch(() => '')
       let detail = ''
@@ -33,6 +36,7 @@ export class RunpodClient {
     }
     return response
   }
+  rateLimitPolicy(): string | undefined { return this.policy }
   shapes(): readonly HostOffer[] { return this.lastShapes }
   async offers(signal: AbortSignal): Promise<HostOffer[]> {
     const offers: HostOffer[] = []
@@ -64,7 +68,7 @@ export class RunpodClient {
     for (const candidate of candidates.length ? candidates : [recipe]) for (const gpu of gpus) {
       if (!gpu.secure || gpu.price.secure <= 0 || !stock(gpu.availability) || !recipeFits(candidate, gpu.id, gpu.memory, gpu.maxCount.secure)) continue
       const price = gpu.price.secure * candidate.count
-      if (price > maxPrice) continue
+      if (cents(price) > cents(maxPrice)) continue
       if (gpu.dataCenters) {
         for (const dc of gpu.dataCenters) if (stock(dc.availability)) offers.push({ recipe: candidate, gpuId: gpu.id, price, dataCenter: dc.id, availability: dc.availability })
       } else offers.push({ recipe: candidate, gpuId: gpu.id, price, availability: gpu.availability })

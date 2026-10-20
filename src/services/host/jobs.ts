@@ -9,6 +9,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { reconcileRecord, startService, stopService } from '../projectServices/serviceManager.js'
 import { hostDirectory, hostRecords, patchHostRecord, readHostRecord, writeHostRecord, type HostRecord } from './store.js'
 import { hostNotice } from './notices.js'
+import { HOST_RECIPES } from './recipes.js'
 
 const serviceName = (id: string): string => 'host-' + id.toLowerCase()
 const serviceHome = (): string => hostDirectory()
@@ -18,7 +19,10 @@ const active = (record: HostRecord): boolean => {
 }
 const watchPollIntervalMs = 5000
 const watchPollWindowMs = 12 * 3600_000
-const watchRateLimit = '5-second poll is 12 requests a minute against Runpod documented 60/min limit'
+const quota = (policy: string): string => [...policy.matchAll(/"(minute|hour|day)";q=(\d+)/g)].map(([, window, allowed]) => allowed + (window === 'hour' ? ' an ' : ' a ') + window).join(', ')
+export const watchRateWords = (pollMs: number, policy?: string): string => 'one catalogue read every ' + pollMs / 1000 + ' s (' + Math.round(60_000 / pollMs) + ' a minute) · ' + (policy === undefined ? 'Runpod meters each account per minute, hour and day' : quota(policy) ? 'this account’s Runpod quota: ' + quota(policy) : 'Runpod sent no rate-limit policy for this account')
+export const watchModel = (record: HostRecord): string => (HOST_RECIPES.find(recipe => recipe.id === record.recipe)?.label ?? record.name).split(' · ')[0]!
+export const activeHostWatches = (): HostRecord[] => hostRecords().filter(row => row.jobKind === 'watch' && ['queued', 'starting', 'running'].includes(row.jobState ?? ''))
 
 export async function requireHostJobOwner(): Promise<void> {
   const daemon = await readDaemonState()
@@ -33,12 +37,15 @@ export function queueHostSetup(record: HostRecord): HostRecord {
   return queued
 }
 export function queueHostWatch(record: HostRecord): HostRecord {
+  const watching = activeHostWatches().find(row => row.id !== record.id && watchModel(row) === watchModel(record))
+  if (watching) return watching
   if (active(record)) return readHostRecord(record.id) ?? record
   const now = Date.now()
   const ceiling = record.maxPrice ?? record.price
-  const step = 'watching for stock ≤ $' + ceiling.toFixed(2) + '/hr · ' + watchRateLimit
+  const pollIntervalMs = record.pollIntervalMs ?? watchPollIntervalMs
+  const step = 'watching for stock ≤ $' + ceiling.toFixed(2) + '/hr'
   const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })
-  const queued: HostRecord = { ...record, jobKind: 'watch', maxPrice: ceiling, pollIntervalMs: record.pollIntervalMs ?? watchPollIntervalMs, pollWindowMs: record.pollWindowMs ?? watchPollWindowMs, rateLimit: watchRateLimit, generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step, error: undefined, log: join(logs, record.id + '.log'), steps: [{ step, at: now }] }
+  const queued: HostRecord = { ...record, jobKind: 'watch', maxPrice: ceiling, pollIntervalMs, pollWindowMs: record.pollWindowMs ?? watchPollWindowMs, rateLimit: watchRateWords(pollIntervalMs), generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step, error: undefined, creating: undefined, log: join(logs, record.id + '.log'), steps: [{ step, at: now }] }
   writeHostRecord(queued)
   return queued
 }

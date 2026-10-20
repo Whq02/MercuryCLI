@@ -10,14 +10,14 @@ const livePods = sample('pods-list')
 export async function runpodFixture() {
   const key = 'fixture-runpod-key-not-a-real-key'
   const requests = []
-  const state = { pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, creates: 0, createOutcomes: [], stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, customGpus: null }
+  const state = { pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, catalogTimes: [], catalogFailures: [], creates: 0, createOutcomes: [], stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, customGpus: null, policy: '"minute";q=60;w=60, "hour";q=3000;w=3600, "day";q=50000;w=86400' }
   const gpus = liveCatalogue.gpus
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
     let raw = ''; for await (const chunk of req) raw += chunk
     const body = raw ? JSON.parse(raw) : undefined
     requests.push({ method: req.method, path: url.pathname, search: url.search, body })
-    const send = (value, status = 200, headers = {}) => { res.writeHead(status, { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json', ...headers }); res.end(value === undefined ? undefined : JSON.stringify(value)) }
+    const send = (value, status = 200, headers = {}) => { res.writeHead(status, { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json', ...(state.policy ? { 'RateLimit-Policy': state.policy } : {}), ...headers }); res.end(value === undefined ? undefined : JSON.stringify(value)) }
     const problem = (status, title, detail, headers) => send({ title, status, detail }, status, headers)
     if (req.headers.authorization !== 'Bearer ' + key) return send({ error: 'fixture key needed' }, 401)
     if (url.pathname === '/v2/catalog/gpus') {
@@ -26,6 +26,10 @@ export async function runpodFixture() {
       assert.equal(url.searchParams.get('cloud'), 'SECURE')
       assert.equal(url.searchParams.get('minCudaVersion'), '13.0')
       state.catalogReads++
+      state.catalogTimes.push(Date.now())
+      const failure = state.catalogFailures.shift()
+      if (failure === 429) return problem(429, 'Too Many Requests', 'rate limit exceeded for the minute window', { 'Retry-After': '1' })
+      if (failure) return problem(failure, 'Service Unavailable', 'fixture upstream failure')
       if (state.noStock || state.stockLoss && state.catalogReads > 3 || state.stockAfterReads > 0 && state.catalogReads <= state.stockAfterReads) {
         return send({ ...liveCatalogue, gpus: gpus.map(gpu => ({ ...gpu, availability: 'NONE', dataCenters: [] })) })
       }
