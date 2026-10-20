@@ -20,7 +20,7 @@ export function sameBuildTree(a: string | null | undefined, b: string | null | u
   return a.slice(0, 12) === b.slice(0, 12)
 }
 
-export function decidePlaneBoot(facts: PlaneBootFactsV1): PlaneBootDecisionV1 {
+export function decidePlaneBoot(facts: PlaneBootFactsV1, platform: NodeJS.Platform = process.platform): PlaneBootDecisionV1 {
   const other = (pid: number | null | undefined): number | null => (typeof pid === 'number' && pid > 0 && pid !== facts.selfPid ? pid : null)
   const serverPid = other(facts.plane?.pid) ?? other(facts.record?.pid)
   const serverBuild = facts.plane !== null && other(facts.plane.pid) !== null ? facts.plane.buildTree : (facts.record?.buildTree ?? null)
@@ -29,6 +29,9 @@ export function decidePlaneBoot(facts: PlaneBootFactsV1): PlaneBootDecisionV1 {
     if (facts.handoverFrom !== null) {
       if (facts.handoverFrom !== serverPid) return { road: 'stand-down', why: `the plane moved to pid ${serverPid} since the handover from pid ${facts.handoverFrom} was asked` }
       if (sameBuildTree(serverBuild, facts.selfBuildTree)) return { road: 'stand-down', why: `the predecessor pid ${serverPid} already runs this build — nothing to move` }
+      if (platform === 'win32' && facts.plane !== null && other(facts.plane.pid) === serverPid) {
+        return { road: 'wait-lock', for: serverPid, why: `the predecessor pid ${serverPid} still holds the control pipe — on Windows it is taken once the predecessor leaves` }
+      }
       return { road: 'handover', from: serverPid, why: `the predecessor pid ${serverPid} serves the plane on another build` }
     }
     if (facts.successorOf !== null) {

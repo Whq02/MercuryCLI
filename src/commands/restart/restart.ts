@@ -12,6 +12,7 @@ export async function restartSessionOnInstalledBuild(args: {
   work: readonly WorkRowV1[]
   tell: (line: string) => void
   resume: (sessionId: string, reason?: 'update') => Promise<string | null>
+  platform?: NodeJS.Platform
 }): Promise<RestartOutcome> {
   if (args.turnActive) return { ok: false, reason: RESTART_DURING_TURN }
   const { readSessionFacts } = await import('../../services/engine-connector/seatProjections.js')
@@ -32,6 +33,15 @@ export async function restartSessionOnInstalledBuild(args: {
   if (typeof runningTree === 'string' && sameBuildTree(runningTree, tree)) return { ok: false, reason: restartAlreadyCurrentWords(tree) }
   if (rec === undefined) return { ok: false, reason: 'no daemon record owns this chat, so there is no runner to move' }
   if (runningTree == null) return { ok: false, reason: 'this session runs a source build; /restart moves installed builds only' }
+  const { moveDaemonToDeployedBuild, handshakeDaemon } = await import('../../daemon/handshake.js')
+  if ((args.platform ?? process.platform) === 'win32') {
+    const plane = await handshakeDaemon({ timeoutMs: 1500 })
+    const others = plane.daemon === null ? 0 : Math.max(0, plane.liveSessions - 1)
+    if (others > 0) {
+      const { pipeHeldWords } = await import('../../daemon/handover.js')
+      return { ok: false, reason: `this chat stays as it is — ${pipeHeldWords(others + 1)}; close the other ${others === 1 ? 'chat' : `${others} chats`} on this daemon, then /restart` }
+    }
+  }
   const { endingWorkWords } = await import('../../tools/MonitorTool/watchReceipts.js')
   const ending = endingWorkWords(args.work)
   args.tell(`Restarting this session on the installed build (${tree}) — this ends ${ending}`)
@@ -57,7 +67,6 @@ export async function restartSessionOnInstalledBuild(args: {
       return { ok: false, reason: `the stop did not settle within ${STOP_SETTLE_MS / 1000} s — the board's ↵ resumes the session once it reads stopped` }
     }
   }
-  const { moveDaemonToDeployedBuild, handshakeDaemon } = await import('../../daemon/handshake.js')
   const moved = await moveDaemonToDeployedBuild({ by: 'operator:/restart', runtime: installed, hosted: false }).catch(error => ({ state: 'unknown' as const, line: String(error) }))
   let serving = await handshakeDaemon({ timeoutMs: 1000 })
   if (serving.state === 'absent') {

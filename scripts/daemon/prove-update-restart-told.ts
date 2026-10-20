@@ -148,7 +148,8 @@ const sup = await import('../../src/daemon/concourseWorkers.ts')
 const { composeRestartLine } = await import('../../src/tools/MonitorTool/watchReceipts.ts')
 const { restartSessionOnInstalledBuild } = await import('../../src/commands/restart/restart.ts')
 const { moveDaemonToDeployedBuild } = await import('../../src/daemon/handshake.ts')
-const { deployedRuntime } = await import('../../src/daemon/handover.ts')
+const { deployedRuntime, decideHandover } = await import('../../src/daemon/handover.ts')
+const { decidePlaneBoot } = await import('../../src/daemon/planeBoot.ts')
 const { resetOwnedDaemonBreakerForTesting } = await import('../../src/daemon/ownedDaemon.ts')
 const freshProcess = (): void => resetOwnedDaemonBreakerForTesting()
 
@@ -592,6 +593,26 @@ try {
   const tell = (line: string): void => {
     told.push({ line, oldRunnerAlive: isProcessAlive(pidBefore), daemonCount: daemonPids().length })
   }
+  const onWindows = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: false, work: [], tell, resume: resumeAsTheScreenDoes, platform: 'win32' })
+  check(
+    'Windows: with another chat live on this daemon, /restart refuses before stopping anything and says the control pipe cannot be taken until that chat closes',
+    !onWindows.ok && onWindows.reason.includes('cannot take the control pipe while this daemon serves 2 live sessions') && onWindows.reason.includes('close the other chat on this daemon, then /restart') && told.length === 0 && recOf(sid)?.pid === pidBefore && isProcessAlive(pidBefore) && daemonPids().length === 1,
+    JSON.stringify({ onWindows, pid: recOf(sid)?.pid, daemons: daemonPids() }),
+  )
+  check(
+    'Windows: the handover decision never spawns a successor against a daemon that still serves a session; macOS and Linux hand over beside it',
+    decideHandover({ daemonBuildTree: SHORT_X, deployedBuildTree: SHORT_Y, healState: 'armed', live: 1, platform: 'win32' }).handover === false &&
+      decideHandover({ daemonBuildTree: SHORT_X, deployedBuildTree: SHORT_Y, healState: 'armed', live: 1, platform: 'win32' }).why.includes('control pipe') &&
+      decideHandover({ daemonBuildTree: SHORT_X, deployedBuildTree: SHORT_Y, healState: 'refused', live: 0, platform: 'win32' }).handover === true &&
+      decideHandover({ daemonBuildTree: SHORT_X, deployedBuildTree: SHORT_Y, healState: 'armed', live: 1, platform: 'darwin' }).handover === true &&
+      decideHandover({ daemonBuildTree: SHORT_X, deployedBuildTree: SHORT_Y, healState: 'armed', live: 1, platform: 'linux' }).handover === true,
+  )
+  const bootFacts = { selfPid: 4242, selfBuildTree: SHORT_Y, successorOf: null, handoverFrom: 1111, lockHolder: 1111, record: { pid: 1111, buildTree: SHORT_X }, plane: { pid: 1111, buildTree: SHORT_X } }
+  check(
+    'Windows: a successor booting while its predecessor still answers on the pipe waits for it to leave instead of dying on the pipe; elsewhere it takes the plane',
+    decidePlaneBoot(bootFacts, 'win32').road === 'wait-lock' && decidePlaneBoot(bootFacts, 'darwin').road === 'handover' && decidePlaneBoot(bootFacts, 'linux').road === 'handover' && decidePlaneBoot({ ...bootFacts, plane: null }, 'win32').road === 'handover',
+    JSON.stringify({ win32: decidePlaneBoot(bootFacts, 'win32'), darwin: decidePlaneBoot(bootFacts, 'darwin'), gone: decidePlaneBoot({ ...bootFacts, plane: null }, 'win32') }),
+  )
   const midTurn = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: true, work: [], tell, resume: resumeAsTheScreenDoes })
   check(
     '/restart refuses while a turn is running and touches nothing',
