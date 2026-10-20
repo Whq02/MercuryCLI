@@ -106,13 +106,28 @@ export function hostRunModelRows(boxes: readonly DoorBox[] = []): { id: string; 
   return [...new Set(recipes.map(modelTitle))].filter(title => !records.some(record => record.status === 'RUNNING' && record.provider && endpoints.some(endpoint => endpoint.name === record.provider) && recipes.some(recipe => recipe.id === record.recipe && modelTitle(recipe) === title))).map(title => ({ id: 'host-run:' + title, name: title, tag: 'run it → /llmhost' + (boxes.some(box => box.kind === 'this-computer' && /darwin|mac/i.test(box.os) && recipes.some(recipe => modelTitle(recipe) === title && fits(box, recipe))) ? ' · run it on this Mac →' : ''), ctx: '', group: 'Run a model', action: true, searchableAction: true }))
 }
 
-export function hostEndpointChoice<T extends { id: string; name: string; tag: string; action?: boolean }>(row: T): T {
-  if (!row.id.startsWith('__mercury_connect__:compat/')) return row
+export function hostEndpointChoice<T extends { id: string; name: string; tag: string; action?: boolean }>(row: T): T[] {
+  if (!row.id.startsWith('__mercury_connect__:compat/')) return [row]
   const name = row.id.slice('__mercury_connect__:compat/'.length)
   const endpoint = configuredCompatEndpoints().find(item => item.name === name)
-  if (!endpoint || !isCompatEndpointCredentialed(endpoint)) return row
+  if (!endpoint || !isCompatEndpointCredentialed(endpoint)) return [row]
   const snapshot = cachedCompatCatalogue(endpoint)
-  return { ...row, id: 'host-retry:' + name, searchableAction: true, name: endpoint.label + (snapshot?.error ? ' · server is not answering' : ' · no models listed'), tag: 'Retry this server →', action: true }
+  const retry = { ...row, id: 'host-retry:' + name, searchableAction: true, name: endpoint.label + ' · Retry this server →', tag: snapshot?.error ? 'server is not answering' : 'no models listed', action: true }
+  return snapshot?.error
+    ? [retry, { ...row, id: 'host-remove:' + name, searchableAction: true, name: endpoint.label + ' · Remove this endpoint →', tag: 'Delete only this endpoint and its stored key; the server is untouched.', action: true }]
+    : [retry]
+}
+export async function removeHostEndpoint(name: string): Promise<string> {
+  const endpoint = configuredCompatEndpoints().find(item => item.name === name)
+  if (!endpoint) return 'This endpoint is no longer registered.'
+  if (!cachedCompatCatalogue(endpoint)?.error) return 'This server is answering or has not been checked. Remove it in /llmhost → A server that’s already running → Remove.'
+  try {
+    const { removeLlmHostProvider } = await import('../llmHost/index.js')
+    removeLlmHostProvider(name)
+    return 'Removed custom endpoint ' + name + ' · nothing else changed'
+  } catch (error) {
+    return 'Could not remove custom endpoint ' + name + ' · ' + String(error)
+  }
 }
 export async function retryHostEndpoint(name: string): Promise<string> {
   const endpoint = configuredCompatEndpoints().find(item => item.name === name)

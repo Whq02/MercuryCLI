@@ -1,5 +1,6 @@
 
 import { configuredCompatEndpoints } from '../services/providers/openaicompat/compatAccounts.js'
+import { cachedCompatCatalogue, compatEndpointPodTerminated } from '../services/providers/openaicompat/compatCatalogue.js'
 export type LoginFamilyValue =
   | 'anthropic'
   | 'openai'
@@ -63,7 +64,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'Fireworks — API key (text models)', value: 'fireworks' as const },
           { label: 'Qwen — QwenCloud or Model Studio API key (Qwen3.8 Max, Qwen3.7 Plus)', value: 'qwen' as const },
           { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },
-          ...configuredCompatEndpoints().filter(endpoint => endpoint.named).map(endpoint => ({ label: `${endpoint.label} (${endpoint.name}) — endpoint API key`, value: `compat/${endpoint.name}` as const })),
+          ...configuredCompatEndpoints().filter(endpoint => endpoint.named).map(endpoint => ({ label: `${endpoint.label} (${endpoint.name}) — ${cachedCompatCatalogue(endpoint)?.error || compatEndpointPodTerminated(endpoint) ? 'server is not answering · retry or remove in /model' : 'endpoint API key'}`, value: `compat/${endpoint.name}` as const })),
         ]
       : []),
   ]

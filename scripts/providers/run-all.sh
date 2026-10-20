@@ -45,6 +45,8 @@
 # gate-watch: src/commands/effort/** src/services/providers/openaicompat/compatEffort.ts src/services/host/recipesFile.ts assets/host/recipes.json scripts/providers/prove-host-effort.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts scripts/providers/lib/llmhostFixture.ts scripts/providers/prove-llmhost-slots.ts src/services/host/recipes.ts src/services/llmHost/** src/commands/llmhost/** src/components/LlmHostDialog.tsx
 # gate-watch: scripts/host/fixtures/pod-get-running.json scripts/host/runpodFixture.mjs scripts/ui/gridToPng.ts
+# gate-watch: scripts/providers/prove-orphan-endpoints.ts src/services/host/index.ts src/services/host/door.ts src/services/host/store.ts src/services/host/jobs.ts src/services/host/cluster.ts
+# gate-watch: src/services/projectServices/serviceManager.ts src/services/projectServices/contracts.ts src/components/loginFamilyRows.ts src/components/SettingsPopupSlot.tsx src/components/design-system/ThemeProvider.tsx src/ink.ts src/state/store.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
