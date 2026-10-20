@@ -3,9 +3,9 @@ import type { Command } from '../../commands.js'
 const command = {
   type: 'local',
   name: 'restart',
-  description: 'Stop and resume this session on the installed build',
-  supportsNonInteractive: true,
-  isHidden: true,
+  description: 'Move this session onto the installed Mercury build (stops and resumes it)',
+  supportsNonInteractive: false,
+  seat: 'screen',
   load: () => import('./restart.js'),
 } satisfies Command
 
