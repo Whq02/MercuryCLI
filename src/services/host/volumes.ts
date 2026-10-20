@@ -6,7 +6,7 @@ import { z } from 'zod/v4'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { hostDirectory } from './store.js'
 import type { HostRecipe } from './recipes.js'
-import { createRefusal, type RunpodClient, type HostVolume } from './runpod.js'
+import { createRefusal, RunpodHttpError, type HostPod, type RunpodClient, type HostVolume } from './runpod.js'
 
 const volumeRecordSchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9_-]+$/), name: z.string(), model: z.string(), include: z.string(),
@@ -84,7 +84,13 @@ export async function createKeptVolume(api: RunpodClient, recipe: HostRecipe, ki
 export async function deleteKeptVolume(api: RunpodClient, id: string): Promise<void> {
   const record = readKeptVolume(id)
   if (!record || record.state === 'creating') throw new Error('This volume was created outside Mercury or its identity is not yet confirmed; it is read-only.')
-  await api.deleteVolume(record.kind, id)
+  try { await api.deleteVolume(record.kind, id) } catch (error) {
+    if (createRefusal(error) || error instanceof RunpodHttpError && error.status === 409) {
+      const mounting = (await api.pods().catch((): HostPod[] => [])).filter(pod => [...(pod.mounts?.network ?? []), ...(pod.mounts?.global ?? [])].some(row => row.volumeId === id))
+      throw new Error('Runpod refused to delete ' + id + (mounting.length ? ' while ' + mounting.map(pod => pod.id + ' (' + pod.status + ')').join(', ') + (mounting.length > 1 ? ' still mount it; terminate those pods first' : ' still mounts it; terminate that pod first') + (record.kind === 'global' ? ' (a stopped pod still counts).' : '.') : '.') + ' Nothing was deleted; the disk still bills ' + keptDiskPrice(record) + '. ' + (error as Error).message)
+    }
+    if (!(error instanceof RunpodHttpError && error.status === 404)) throw new Error('Runpod gave no clear answer to deleting ' + id + '; it may still exist and bill ' + keptDiskPrice(record) + '. Refresh Pods I’m paying for before trying again. ' + String(error))
+  }
   if ((await api.volumes()).some(row => row.id === id)) throw new Error('Runpod still lists the disk; deletion is not yet verified and storage may still bill.')
   writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined, error: undefined, partialBytes: undefined })
 }

@@ -35,7 +35,7 @@ export async function volumeDeleteDoor(api: RunpodClient, id: string, ask: Ask, 
   if (record.state === 'gone') return { ok: true, words: 'The disk is gone. The next rental downloads the weights again.' }
   const choice = await ask({ step: 'volume-delete', title: 'Delete weights disk?', found: id + ' · ' + volumePrice(record), willRun: 'The weights are gone after deletion; the next rental downloads them again.', rows: [{ value: 'delete', label: 'Confirm Delete weights disk' }, { value: 'cancel', label: 'Cancel' }] })
   if (choice !== 'delete' || signal.aborted) return cancelled()
-  await deleteKeptVolume(api, id)
+  try { await deleteKeptVolume(api, id) } catch (error) { return { ok: false, words: error instanceof Error ? error.message : String(error) } }
   return { ok: true, words: 'Weights disk deleted · next rental downloads the weights again.' }
 }
 export function keptDiskForPod(pod: HostPod, record?: HostRecord): string | undefined {

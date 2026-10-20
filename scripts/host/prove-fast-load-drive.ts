@@ -217,6 +217,13 @@ try {
   }, () => {}, signal)
   check('lost local pod record still asks about the owned disk using live mounts', liveMountAsked)
   check('disk delete refusal reports pod gone and surviving billed disk, never pod still running', !failedDelete.ok && failedDelete.words.includes('Pod terminated') && failedDelete.words.includes('may still bill') && !rp.state.pods.has(sharedPod.id) && rp.state.volumes.has(shared.id))
+  const deletesBeforeMounted = rp.state.volumeDeletes
+  const mountedDelete = await volumeDeleteDoor(api, shared.id, async q => q.step === 'volume-delete' ? 'delete' : null, signal)
+  check('Delete on a disk a pod still mounts names that pod, says terminate it first and that nothing was deleted', !mountedDelete.ok && mountedDelete.words.startsWith('Runpod refused to delete ' + shared.id + ' while ' + otherPod.id + ' (') && mountedDelete.words.includes('still mounts it; terminate that pod first (a stopped pod still counts).') && mountedDelete.words.includes('Nothing was deleted; the disk still bills ~$') && rp.state.volumes.has(shared.id) && rp.state.volumeDeletes === deletesBeforeMounted && volumes.readKeptVolume(shared.id)?.state !== 'gone')
+  rp.state.failVolumeDelete = true
+  const unclearDelete = await volumeDeleteDoor(api, shared.id, async q => q.step === 'volume-delete' ? 'delete' : null, signal)
+  rp.state.failVolumeDelete = false
+  check('a delete without a clear answer says the disk may still exist and bill, and keeps its record', !unclearDelete.ok && unclearDelete.words.startsWith('Runpod gave no clear answer to deleting ' + shared.id + '; it may still exist and bill') && volumes.readKeptVolume(shared.id)?.state !== 'gone')
   const cleanupFailure = queueHostSetup({ id: otherPod.id, name: otherPod.name, recipe: qwen.id, price: failOffer.price, startedAt: otherPod.createdAt, status: otherPod.status, apiBaseUrl: rp.baseUrl, sshKey: sshKey.path, volumeId: shared.id, prepareWeightsOnly: true })
   ssh.state.refuse = true; rp.state.failDelete = true
   await runHostJob(cleanupFailure.id, cleanupFailure.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: 60, keepAlive: false })

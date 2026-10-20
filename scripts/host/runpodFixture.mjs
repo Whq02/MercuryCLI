@@ -11,7 +11,7 @@ const livePods = sample('pods-list')
 export async function runpodFixture() {
   const key = 'fixture-runpod-key-not-a-real-key'
   const requests = []
-  const state = { volumes: new Map(), volumeCreates: 0, volumeDeletes: 0, volumeOutcomes: [], volumeBodies: [], volumePageSize: 100, repeatVolumeCursor: false, failVolumeRead: false, pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, catalogTimes: [], catalogFailures: [], creates: 0, createOutcomes: [], stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, failDelete: false, customGpus: null, policy: '"minute";q=60;w=60, "hour";q=3000;w=3600, "day";q=50000;w=86400' }
+  const state = { volumes: new Map(), volumeCreates: 0, volumeDeletes: 0, failVolumeDelete: false, volumeOutcomes: [], volumeBodies: [], volumePageSize: 100, repeatVolumeCursor: false, failVolumeRead: false, pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, catalogTimes: [], catalogFailures: [], creates: 0, createOutcomes: [], stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, failDelete: false, customGpus: null, policy: '"minute";q=60;w=60, "hour";q=3000;w=3600, "day";q=50000;w=86400' }
   const gpus = liveCatalogue.gpus
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
@@ -66,6 +66,7 @@ export async function runpodFixture() {
         return send(volume, 201)
       }
       if (req.method === 'DELETE') {
+        if (state.failVolumeDelete) return problem(503, 'Service Unavailable', 'fixture delete answer lost')
         if ([...state.pods.values()].some(pod => [...(pod.mounts?.network ?? []), ...(pod.mounts?.global ?? [])].some(row => row.volumeId === id))) return problem(409, 'Conflict', 'volume is attached to a pod')
         state.volumeDeletes++; state.volumes.delete(id); return send(undefined, 204)
       }
