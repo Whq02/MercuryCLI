@@ -5,9 +5,9 @@ import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { emptyFoldState, type TranscriptFoldState } from './fold.js'
-import { createTranscriptRows } from './rowGraph.js'
+import { createTranscriptRows, transcriptRowOrder } from './rowGraph.js'
 
-export const SNAPSHOT_SCHEMA = 4
+export const SNAPSHOT_SCHEMA = 5
 const DIGEST_TAIL_BYTES = 4096
 export const SNAPSHOT_MIN_BYTES = 256 * 1024
 
@@ -46,13 +46,13 @@ function serializeFold(st: TranscriptFoldState): SerializedFold {
   return out
 }
 
-function deserializeFold(raw: SerializedFold): TranscriptFoldState {
+function deserializeFold(raw: SerializedFold, order: string[]): TranscriptFoldState {
   const st = emptyFoldState() as unknown as Record<string, unknown>
   for (const [k, v] of Object.entries(raw)) {
     if (!(k in st)) continue
     if (v !== null && typeof v === 'object' && '«map»' in (v as object)) {
       const entries = (v as { '«map»': [unknown, unknown][] })['«map»']
-      st[k] = k === 'messages' ? createTranscriptRows(entries as Parameters<typeof createTranscriptRows>[0]) : new Map(entries)
+      st[k] = k === 'messages' ? createTranscriptRows(entries as Parameters<typeof createTranscriptRows>[0], order as Parameters<typeof createTranscriptRows>[1]) : new Map(entries)
     } else {
       st[k] = v
     }
@@ -71,6 +71,7 @@ export function writeResumeSnapshot(
       byteCursor,
       prefixDigest: digestPrefixTail(transcriptPath, byteCursor),
       fold: serializeFold(fold),
+      order: transcriptRowOrder(fold.messages),
     })
     durableAtomicPublishSync(snapshotPathFor(transcriptPath), payload)
   } catch {
@@ -94,10 +95,13 @@ export async function tryLoadResumeSnapshot(transcriptPath: string): Promise<Sna
       byteCursor?: number
       prefixDigest?: string
       fold?: SerializedFold
+      order?: unknown
     } | null
     if (!raw || raw.schemaVersion !== SNAPSHOT_SCHEMA) return null
     const cursor = raw.byteCursor
     if (typeof cursor !== 'number' || cursor <= 0 || !raw.fold || !raw.prefixDigest) return null
+    if (!Array.isArray(raw.order) || !raw.order.every(id => typeof id === 'string')) return null
+    const order = raw.order as string[]
     const { size } = statSync(transcriptPath)
     if (size < cursor) return null
     if (digestPrefixTail(transcriptPath, cursor) !== raw.prefixDigest) return null
@@ -116,7 +120,7 @@ export async function tryLoadResumeSnapshot(transcriptPath: string): Promise<Sna
     }
     if (read < tailLen) return null
     return {
-      fold: deserializeFold(raw.fold),
+      fold: deserializeFold(raw.fold, order),
       tail,
       byteCursor: cursor,
       fileSize: size,

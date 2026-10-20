@@ -73,10 +73,10 @@ function copyOfFold(fold: TranscriptFoldState): TranscriptFoldState {
   }
 }
 
+export function sessionFilePath(sessionId: UUID): string {
+  return join(getSessionProjectDir() ?? getProjectDir(getOriginalCwd()), `${sessionId}.jsonl`)
+}
+
 export async function loadSessionFile(sessionId: UUID): Promise<TranscriptLoadResult> {
-  const sessionFile = join(
-    getSessionProjectDir() ?? getProjectDir(getOriginalCwd()),
-    `${sessionId}.jsonl`,
-  )
-  return loadTranscriptFile(sessionFile)
+  return loadTranscriptFile(sessionFilePath(sessionId))
 }

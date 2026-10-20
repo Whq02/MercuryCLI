@@ -425,12 +425,6 @@ export async function lastSession(
   const fold = await loadSessionFile(sessionId)
   const { messages, summaries } = fold
   if (messages.size === 0) return null
-  if (!getSessionMessages.cache.has(sessionId)) {
-    getSessionMessages.cache.set(
-      sessionId,
-      Promise.resolve(new Set(messages.keys())),
-    )
-  }
   const leaf = findLatestMessage(messages.values(), m => !m.isSidechain)
   if (!leaf) return null
   const chain = buildConversationChain(messages, leaf)
