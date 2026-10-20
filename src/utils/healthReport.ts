@@ -1757,10 +1757,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: async () => {
             const d = daemonSnapshot()
             if (d.state === 'live') {
-              const { daemonHandshakeEvidence, daemonSkewLine, handshakeDaemon } = await import('../daemon/handshake.js')
+              const { daemonHandshakeEvidence, daemonSkewLine, handshakeDaemon, reopenWayOut } = await import('../daemon/handshake.js')
               const hs = await handshakeDaemon({ timeoutMs: 1000 })
               const evidence = `daemon.json: ${d.reason} · ${daemonHandshakeEvidence(hs)}`
-              if (hs.line !== null) return { status: 'warn', evidence, fix: hs.line, link: '/daemon' }
+              if (hs.line !== null) return { status: 'warn', evidence, fix: hs.heal === 'reopen' ? reopenWayOut(hs) : hs.line, link: '/daemon' }
               const skew = daemonSkewLine(hs)
               if (skew !== null) return { status: 'warn', evidence, fix: skew, link: '/daemon' }
               return { status: 'ok', evidence, link: '/daemon' }

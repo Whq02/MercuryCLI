@@ -410,9 +410,18 @@ section('F · the pure grammar: the newer mirror, the refused line, the evidence
     { buildTree: 'dddd', version: '1.6.0', buildTime: null },
   )
   check(
-    'F6 a daemon of an older protocol that IS the installed build, talking to a screen that is not: the line says this chat runs on the installed build and how to reopen — never "/daemon restart when ready" (the Air\'s 7R-04 words)',
-    installedOlderProto.state === 'older' && installedOlderProto.heal === 'reopen' && installedOlderProto.line !== null && installedOlderProto.line.includes("this chat runs on the installed build's engine (tree dddd), not this Mercury's (tree aaaa)") && !installedOlderProto.line.includes('/daemon restart'),
+    'F6 a daemon of an older protocol that IS the installed build, talking to a screen that is not: the line says the chat\'s engine is the installed build and where the way out is — never "/daemon restart when ready" (the Air\'s 7R-04 words)',
+    installedOlderProto.state === 'older' && installedOlderProto.heal === 'reopen' && installedOlderProto.line === "chat engine: the installed build dddd, not this Mercury's · /daemon" && !installedOlderProto.line.includes('/daemon restart'),
     String(installedOlderProto.line),
+  )
+  check(
+    'F6b the one line fits the notice row at 80 columns (its budget is the width less two) with a real 12-hex tree, in both reopen shapes; the full way out rides /health and the /daemon restart refusal',
+    hsMod.REOPEN_LINE_MAX_COLUMNS === 78 &&
+      hsMod.reopenLine({ ...installedOlderProto, daemon: { ...installedOlderProto.daemon!, buildTree: '548142321ff7' } }).length <= hsMod.REOPEN_LINE_MAX_COLUMNS &&
+      hsMod.reopenLine({ ...installedOlderProto, daemon: { ...installedOlderProto.daemon!, version: '1.0.0-beta.40', buildTree: '548142321ff7' } }).length <= hsMod.REOPEN_LINE_MAX_COLUMNS &&
+      hsMod.reopenWayOut(installedOlderProto).includes("this chat's engine is the installed build (tree dddd), not this Mercury's (tree aaaa) — to run on the installed build, close this window and open Mercury again; to run this build, `mercury daemon stop`") &&
+      hsMod.daemonBuildStatusWords(installedOlderProto) === 'engine: installed build dddd',
+    JSON.stringify({ line: hsMod.reopenLine({ ...installedOlderProto, daemon: { ...installedOlderProto.daemon!, buildTree: '548142321ff7' } }), wayOut: hsMod.reopenWayOut(installedOlderProto), chip: hsMod.daemonBuildStatusWords(installedOlderProto) }),
   )
   const sameVersionNewer = hsMod.decideHandshake(
     {
@@ -444,7 +453,7 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
   const repl = read('src/screens/Chat.tsx')
   check('G8 the Chat paints the one line and clears it on match', repl.includes('subscribeDaemonHandshake') && repl.includes("removeNotification(key)"))
   const health = read('src/utils/healthReport.ts')
-  check('G9 the certificate daemon row runs the handshake and the line IS the fix', health.includes('daemonHandshakeEvidence') && health.includes('fix: hs.line'))
+  check('G9 the certificate daemon row runs the handshake and the line IS the fix (the reopen case carries the full way out, which the notice row has no room for)', health.includes('daemonHandshakeEvidence') && health.includes("fix: hs.heal === 'reopen' ? reopenWayOut(hs) : hs.line"))
   const statusSrc = read('src/daemon/status.ts')
   check('G10 the status probe handshakes BEFORE the keyed ops (an old daemon still reports)', statusSrc.indexOf('snapshot.handshake = await handshakeDaemon') !== -1 && statusSrc.indexOf('snapshot.handshake = await handshakeDaemon') < statusSrc.indexOf("daemonControlRpc({ op: 'status'"))
   const hsSrc = read('src/daemon/handshake.ts')

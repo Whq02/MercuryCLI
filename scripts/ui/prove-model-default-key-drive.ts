@@ -28,6 +28,7 @@ const SHIFT_ARROW = keyHintLabel('⇧→')
 const CHAT_HINT = '>_ ready  ·  ↵ start  ·  ↑↓ choose'
 const FULL_HINT = '>_ ready  ·  ↵ start  ·  m menu  ·  ↑↓ choose'
 const DOOR = '▸ n starts a blank session in this project'
+const DOOR_FROM_COMPOSER = '▸ tab to the list, then n starts a blank session in this project'
 const CTRL_E = '\x05'
 const FOOTER_AS_SHIPPED = keyHintLabel('↑↓ browse · tab panes · ⌃g ground · n new session · / filter · s split · ? keys · esc boot face')
 const FOOTER_WITH_KEY = keyHintLabel(`↑↓ browse · tab panes · ⌃g ground · n new session · ${PHRASE} · / filter · s split · ? keys · esc boot face`)
@@ -229,7 +230,7 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   const picker = c.marks.get('picker') ?? []
   const picked = c.marks.get('picked') ?? []
   const typed = c.marks.get('typed') ?? []
-  check('with the coordinator panel focused, the door row reads as shipped and the bottom row carries no m phrase', rowWith(coord, DOOR) !== '' && !rowWith(coord, DOOR).includes(`${DOOR} · `) && rowWith(coord, 'esc boot face').includes('coordinator model') && !rowWith(coord, 'esc boot face').includes(PHRASE), `${trimmedRow(coord, DOOR)} / ${trimmedRow(coord, 'esc boot face')}`)
+  check('with the coordinator panel focused, the door row says the way to its key (tab to the list, then n), carries no pair, and the bottom row carries no m phrase', rowWith(coord, DOOR_FROM_COMPOSER) !== '' && rowWith(coord, DOOR) === '' && !rowWith(coord, DOOR_FROM_COMPOSER).includes(`${DOOR_FROM_COMPOSER} · `) && rowWith(coord, 'esc boot face').includes('coordinator model') && !rowWith(coord, 'esc boot face').includes(PHRASE), `${trimmedRow(coord, 'starts a blank session')} / ${trimmedRow(coord, 'esc boot face')}`)
   check('the door row reads the pair it starts on (Opus 5.5 · ● high)', rowWith(board, DOOR).includes(`${DOOR} · Opus 5.5 · ● high`), trimmedRow(board, DOOR))
   check('the bottom row names m between n and the filter', trimmedRow(board, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(board, 'esc boot face'))
   check('m opens the picker over the concourse (the plain title row)', rowWith(picker, 'Mercury · model') !== '' && rowWith(picker, 'CHOOSE A MODEL') === '', picker.slice(3, 8).join(' | '))

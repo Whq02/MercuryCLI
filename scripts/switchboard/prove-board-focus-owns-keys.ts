@@ -51,6 +51,9 @@ section('§1 the pure legend law — one resolver, every list state')
   check("the header's n prints exactly where the key fires: the rows, no filter typing", newSessionTabLabel({ region: 'list', filtering: false }) === '+ new session · n')
   check('…and not while the / filter captures', newSessionTabLabel({ region: 'list', filtering: true }) === '+ new session')
   check('…nor while a composer, the rail or the split pane holds focus (n is a letter there, or nothing)', ['live', 'coordinator', 'rail', 'chat'].every(r => newSessionTabLabel({ region: r, filtering: false }) === '+ new session'))
+  const { newSessionDoorWords, NEW_SESSION_DOOR_WORDS } = await import('../../src/components/concourse/ConcourseLayout.js')
+  check("the New Session line's words say where n fires: on the rows, 'n starts a blank session in this project'", newSessionDoorWords({ region: 'list', filtering: false }) === NEW_SESSION_DOOR_WORDS && NEW_SESSION_DOOR_WORDS === 'n starts a blank session in this project')
+  check("…and from a focused composer (the board's arrival focus), the rail, the split pane or under the filter: 'tab to the list, then n …' — never a key that types into a draft (the Air's 7R-05/8R-05)", ['live', 'coordinator', 'rail', 'chat'].every(r => newSessionDoorWords({ region: r, filtering: false }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`) && newSessionDoorWords({ region: 'list', filtering: true }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`)
   check('the atlas key fires from the rows, the rail and the split pane whatever the drafts hold', ['list', 'rail', 'chat'].every(r => helpKeyFiresFor(r, false) && helpKeyFiresFor(r, true)))
   check('…and from a composer only while its draft is empty', helpKeyFiresFor('live', true) && !helpKeyFiresFor('live', false) && helpKeyFiresFor('coordinator', true) && !helpKeyFiresFor('coordinator', false))
 }
@@ -59,6 +62,7 @@ section('§2 the screen carries the law — no yield, one gate, no implicit focu
 {
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   const layout = read('src/components/concourse/ConcourseLayout.tsx')
+  check('both New Session rows (the empty board and the line above the rows) print the focus-aware words through the one resolver', layout.split('newSessionDoorWords({ region, filtering })').length === 3 && !layout.includes('>{NEW_SESSION_DOOR_WORDS}<'))
   const GATE = "if (region !== 'coordinator' && region !== 'live') {"
   check('the letter-verb yield is gone from the screen (no module, no predicate)', !screen.includes('letterVerbsYield') && !screen.includes('verbsYield') && !existsSync(join(REPO, 'src', 'components', 'concourse', 'letterVerbYield.ts')))
   const listStart = screen.indexOf("if (region === 'list') {")

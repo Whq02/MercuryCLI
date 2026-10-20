@@ -689,6 +689,27 @@ try {
   )
   const again = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: false, work: [], tell: () => {}, resume: resumeAsTheScreenDoes })
   check('a second /restart says the session already runs the installed build and moves nothing', !again.ok && again.reason.includes('already uses the installed Mercury build') && recOf(sid)?.pid === pidAfter, JSON.stringify(again))
+  const factsPath = join(daemonDir, 'session-facts', `${sid}.json`)
+  const factsBefore = read(factsPath)
+  const factsWithoutTree = JSON.parse(factsBefore) as Record<string, unknown>
+  delete factsWithoutTree.buildTree
+  writeFileSync(factsPath, JSON.stringify(factsWithoutTree))
+  const runnerIdOfSid = recOf(sid)?.runnerId ?? ''
+  sup.updateConcourseWorkers(workersNow => {
+    const w = workersNow[runnerIdOfSid] as { buildTree?: string } | undefined
+    if (w !== undefined) w.buildTree = SHORT_X
+  })
+  const likeThePublishedBuild = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: false, work: [], tell: () => {}, resume: resumeAsTheScreenDoes })
+  check(
+    'a runner whose build writes no buildTree (the published .39) and whose record keeps the tree it was born with is still read as current from its own bundle — /restart refuses, nothing moves (Air 7R-02 / 8R-02)',
+    !likeThePublishedBuild.ok && likeThePublishedBuild.reason.includes('already uses the installed Mercury build') && recOf(sid)?.pid === pidAfter && isProcessAlive(pidAfter),
+    JSON.stringify({ likeThePublishedBuild, pid: recOf(sid)?.pid, pidAfter }),
+  )
+  writeFileSync(factsPath, factsBefore)
+  sup.updateConcourseWorkers(workersNow => {
+    const w = workersNow[runnerIdOfSid] as { buildTree?: string } | undefined
+    if (w !== undefined) w.buildTree = SHORT_Y
+  })
   const afterTurn = await dispatch('urt-after', AFTER_PROMPT, { targetSessionId: sid })
   check('post-restart prompt dispatched', afterTurn.ok === true, JSON.stringify(afterTurn))
   check('post-restart turn settled (it re-armed a second watch)', await turnSettled(sid, 'second watch armed'), transcriptOf(sid).slice(-400))
@@ -725,7 +746,10 @@ try {
   const clamped = composeRestartLine({ reason: 'update', build: SHORT_Y, watches: [{ toolUseId: 'tu', taskId: 'm1', description: 'long one', command: longCommand, persistent: true, armedAt: 0 }], shells: [] })
   check('a long watch command is clamped in the line and its bearer token is never shown', clamped.length < 400 && clamped.includes('…') && !clamped.includes(SECRET), `${clamped.length} chars`)
 
-  section('§3e `mercury update` lands while a turn is mid-flight: the daemon moves, the turn finishes on the old runner, no session is killed')
+  section('§3e `mercury update` lands while a turn is mid-flight: the daemon moves, the turn finishes on the old runner, no session is killed; a blank chat moves through the fresh-chat door')
+  const blankBorn = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: work, isolation: 'shared', model: 'claude-sonnet-5', permissionMode: 'sovereign', by: 'operator', bornBlank: true } as never, { timeoutMs: 60_000 }) as { ok: boolean; sessionId?: string }
+  const sidBlank = blankBorn.sessionId ?? ''
+  check('a blank chat (no turn yet, no transcript) stands on the old daemon beside the session', blankBorn.ok && sidBlank !== '' && !existsSync(join(projectDir, `${sidBlank}.jsonl`)) && ps(recOf(sidBlank)?.pid ?? 0).ppid === Bpid, JSON.stringify({ blankBorn, ps: ps(recOf(sidBlank)?.pid ?? 0) }))
   const slowSent = await dispatch('urt-slow', SLOW_PROMPT, { targetSessionId: sid })
   check('a slow turn is in flight on the session', slowSent.ok === true && (await untilAsync(() => facts(sid)?.busy === true, 15_000)), JSON.stringify(slowSent))
   const runnerDuringUpdate = recOf(sid)?.pid ?? 0
@@ -735,7 +759,7 @@ try {
   const moved = await moveDaemonToDeployedBuild({ by: 'operator:mercury update', runtime: deployedRuntime(), hosted: false })
   check(
     '`mercury update` moves the plane to a daemon of the new build while the old daemon keeps its live session',
-    moved.state === 'moved' && /takes new sessions; daemon v.* keeps its 1 live session/.test(moved.line),
+    moved.state === 'moved' && /takes new sessions; daemon v.* keeps its 2 live sessions/.test(moved.line),
     JSON.stringify({ moved, daemonsBeforeUpdate }),
   )
   const Cpid = (await hello())?.pid ?? 0
@@ -743,6 +767,35 @@ try {
   check('the mid-flight turn finishes on the same runner, under the old daemon, with its answer in the chat', await turnSettled(sid, 'the slow answer landed after the install', 60_000) && recOf(sid)?.pid === runnerDuringUpdate && ps(runnerDuringUpdate).ppid === Bpid, JSON.stringify({ runnerDuringUpdate, pid: recOf(sid)?.pid, ps: ps(runnerDuringUpdate) }))
   const zLine = `A newer Mercury build is installed (${SHORT_Z}). This chat still uses ${SHORT_Y}. /restart switches to it; watches and background shells will stop and be listed.`
   check('the session is told once, between turns, that build Z is installed', await untilAsync(() => transcriptOf(sid).includes(zLine), 15_000) && (transcriptOf(sid).match(new RegExp(zLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) ?? []).length === 1, transcriptOf(sid).slice(-500))
+  let freshBlank = ''
+  let parkReply: unknown = null
+  const blankMoved = await restartSessionOnInstalledBuild({
+    sessionId: sidBlank,
+    turnActive: false,
+    work: [],
+    tell: () => {},
+    resume: resumeAsTheScreenDoes,
+    clear: async () => {
+      const born = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: work, isolation: 'shared', model: 'claude-sonnet-5', permissionMode: 'sovereign', by: 'operator', bornBlank: true, vacatingSessionId: sidBlank } as never, { timeoutMs: 60_000 }) as { ok: boolean; sessionId?: string; error?: string }
+      if (!born.ok) return { ok: false, reason: born.error ?? 'the birth was refused' }
+      freshBlank = born.sessionId ?? ''
+      parkReply = await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: sidBlank, by: 'operator' } as never, { timeoutMs: 15_000 })
+      return { ok: true }
+    },
+  })
+  const freshRec = recOf(freshBlank)
+  check(
+    '/restart on a blank chat opens a fresh chat on the installed build in its place and says so — never a parked chat with "its transcript is gone" (Air 8R-03)',
+    blankMoved.ok && blankMoved.line.includes(`This chat had not started yet, so nothing was moved: a fresh chat opened on the installed build (${SHORT_Z})`) && freshBlank !== '' && freshRec?.pid !== undefined && ps(freshRec.pid).ppid === Cpid && bundleOf(ps(freshRec.pid).command) === join(Z, 'mercury.mjs'),
+    JSON.stringify({ blankMoved, freshBlank, ps: freshRec?.pid !== undefined ? ps(freshRec.pid) : null, Cpid }),
+  )
+  const oldBlankSettled = await untilAsync(() => {
+    const row = records().find(r => r.sessionId === sidBlank) as { parkedAt?: number; endedAt?: number } | undefined
+    return row === undefined || row.parkedAt !== undefined || row.endedAt !== undefined
+  }, 15_000)
+  const oldBlank = records().find(r => r.sessionId === sidBlank) as (Rec & { parkedAt?: number; parkReason?: string; endedAt?: number }) | undefined
+  check('the blank chat it replaced is released by the operator\'s own clear (a newborn with nothing to park), never stranded as transcript-lost', oldBlankSettled && !(oldBlank?.parkReason ?? '').includes('transcript is gone') && JSON.stringify(parkReply).includes('released newborn'), JSON.stringify({ parkReply, parkedAt: oldBlank?.parkedAt, endedAt: oldBlank?.endedAt, parkReason: oldBlank?.parkReason }))
+  if (freshBlank !== '') await stopSession(freshBlank)
   const movedOnto = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: facts(sid)?.busy === true, work: facts(sid)?.work ?? [], tell: () => {}, resume: resumeAsTheScreenDoes })
   check('/restart after the update moves the session onto the daemon the update started', movedOnto.ok && movedOnto.line.includes(`Restarted on the installed build (${SHORT_Z})`), JSON.stringify(movedOnto))
   const pidOnC = recOf(sid)?.pid ?? 0

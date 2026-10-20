@@ -31,6 +31,10 @@ export const ROW_PEEK_DESIRED_ROWS = 8
 export const NEW_SESSION_ROW_ID = 'new-session'
 export const NEW_SESSION_DOOR_WORDS = 'n starts a blank session in this project'
 
+export function newSessionDoorWords(opts: { region: string; filtering: boolean }): string {
+  return opts.region === 'list' && !opts.filtering ? NEW_SESSION_DOOR_WORDS : `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`
+}
+
 export function newSessionDoorTail(door: { modelLabel: string; effortLevel: string }): string {
   return ` · ${door.modelLabel} · ${isEffortLevel(door.effortLevel) ? effortLevelToSymbol(door.effortLevel) : EFFORT_HIGH} ${door.effortLevel}`
 }
@@ -564,7 +568,7 @@ export function ConcourseLayout({
                     {hover => (
                       <Text wrap="truncate-end">
                         <Text color={hover ? t.textPrimary : t.info}>{'▸ '}</Text>
-                        <Text color={hover ? t.textPrimary : t.info}>{NEW_SESSION_DOOR_WORDS}</Text>
+                        <Text color={hover ? t.textPrimary : t.info}>{newSessionDoorWords({ region, filtering })}</Text>
                         {door !== undefined ? (
                           <Text color={hover ? t.textPrimary : t.info}>{newSessionDoorTail(door)}</Text>
                         ) : null}
@@ -607,7 +611,7 @@ export function ConcourseLayout({
                 <Box flexGrow={1} overflow="hidden">
                   <Text wrap="truncate-end">
                     {lineSelected ? <Text color={region === 'list' ? t.info : t.textPrimary}>{'▸ '}</Text> : <Text>{'  '}</Text>}
-                    <Text color={t.info}>{NEW_SESSION_DOOR_WORDS}</Text>
+                    <Text color={t.info}>{newSessionDoorWords({ region, filtering })}</Text>
                     {door !== undefined ? <Text color={t.info}>{newSessionDoorTail(door)}</Text> : null}
                   </Text>
                 </Box>

@@ -270,12 +270,22 @@ function rebuiltWho(v: DaemonHandshakeVerdict): string {
 
 export const OTHER_BUILD_WAY_OUT = 'to run on the installed build, close this window and open Mercury again; to run this build, `mercury daemon stop`, then open this Mercury again and it starts its own daemon'
 
+export const REOPEN_LINE_MAX_COLUMNS = 78
+
 export function reopenLine(v: DaemonHandshakeVerdict): string {
   const d = v.daemon
   if (d !== null && d.version === v.client.version) {
-    return `this chat runs on the installed build's engine (tree ${d.buildTree ?? '?'}), not this Mercury's (tree ${v.client.buildTree ?? '?'}) — ${OTHER_BUILD_WAY_OUT}`
+    return `chat engine: the installed build ${d.buildTree ?? '?'}, not this Mercury's · /daemon`
   }
-  return `${REOPEN_WORDS} — a newer Mercury (v${d?.version ?? '?'}) is installed and the daemon runs it; this Mercury (v${v.client.version}) is the older build`
+  return `Mercury v${d?.version ?? '?'} is installed — ${REOPEN_WORDS}`
+}
+
+export function reopenWayOut(v: DaemonHandshakeVerdict): string {
+  const d = v.daemon
+  if (d !== null && d.version === v.client.version) {
+    return `this chat's engine is the installed build (tree ${d.buildTree ?? '?'}), not this Mercury's (tree ${v.client.buildTree ?? '?'}) — ${OTHER_BUILD_WAY_OUT}`
+  }
+  return `Mercury v${d?.version ?? '?'} is installed and the daemon runs it; this Mercury (v${v.client.version}) is the older build — ${REOPEN_WORDS}`
 }
 
 export function daemonSkewLine(v: DaemonHandshakeVerdict | null): string | null {
@@ -295,6 +305,7 @@ export function daemonBuildBesideScreen(v: DaemonHandshakeVerdict | null): strin
 
 export function daemonBuildStatusWords(v: DaemonHandshakeVerdict | null): string {
   if (v?.daemon == null || !['rebuilt', 'older', 'newer'].includes(v.state)) return ''
+  if (v.heal === 'reopen') return `engine: installed build ${v.daemon.buildTree ?? v.daemon.version}`
   return `daemon build ${v.daemon.buildTree ?? v.daemon.version} differs`
 }
 
@@ -568,7 +579,7 @@ export async function restartDaemon(opts: {
     return { state: 'refused', line: 'the daemon is still starting — try again in a moment' }
   }
   const d = first.daemon
-  if (first.heal === 'reopen') return { state: 'refused', line: first.line ?? reopenLine(first) }
+  if (first.heal === 'reopen') return { state: 'refused', line: reopenWayOut(first) }
   if (first.heal === 'operator') {
     if (first.live > 0) {
       return { state: 'refused', line: `daemon v${d.version} has ${liveNoun(first)} — finish or stop them, then /daemon restart` }

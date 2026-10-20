@@ -21,7 +21,8 @@ export const {
   stderr: BASH_STDERR_TAG,
   'exit-code': BASH_EXIT_CODE_TAG,
   'duration-ms': BASH_DURATION_MS_TAG,
-} = tagFamily('bash', ['input', 'stdout', 'stderr', 'exit-code', 'duration-ms'])
+  'background-task': BASH_BACKGROUND_TASK_TAG,
+} = tagFamily('bash', ['input', 'stdout', 'stderr', 'exit-code', 'duration-ms', 'background-task'])
 
 export const {
   stdout: LOCAL_COMMAND_STDOUT_TAG,

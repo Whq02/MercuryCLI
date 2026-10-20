@@ -4,6 +4,7 @@ import { hasSeatLive } from './seatLive.js'
 import { mainShellRunsNow, subscribeShellRuns } from '../../tools/BashTool/backgroundRequest.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import type { Message } from '../../types/message.js'
+import type { WorkRowV1 } from './types.js'
 
 export const BACKGROUND_HINT_AFTER_MS = 100_000
 export const BACKGROUND_HINT_ACTION = 'chat:backgroundShell'
@@ -35,11 +36,17 @@ export function shellToolRunning(records: readonly Message[], inProgress: Readon
   return false
 }
 
+export function foregroundShellInRoster(rows: ReadonlyArray<Pick<WorkRowV1, 'kind' | 'status' | 'foreground'>>): boolean {
+  return rows.some(row => row.kind === 'shell' && row.status === 'running' && row.foreground === true)
+}
+
 const subscribeFocusedShell = subscribeThroughFocused((connector, listener) => {
   const records = connector.subscribeRecords(listener)
+  const work = connector.subscribeWork(listener)
   const live = hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {}
   return () => {
     records()
+    work()
     live()
   }
 })
@@ -50,7 +57,7 @@ export function focusedShellRunning(): boolean {
   if (!hasSeatLive(connector)) return false
   const live = connector.live()
   if (!live.inFlight) return false
-  return shellToolRunning(connector.records(), live.inProgressToolUseIDs)
+  return shellToolRunning(connector.records(), live.inProgressToolUseIDs) || foregroundShellInRoster(connector.workRoster().rows)
 }
 
 export function focusedShellToolRunning(id: string): boolean {
