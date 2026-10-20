@@ -176,8 +176,7 @@ export const windowsBoxInspectionScript = `$ErrorActionPreference = 'Stop'
 'ARCH ' + $env:PROCESSOR_ARCHITECTURE
 'HOME ' + $HOME
 'MEMORY ' + (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory
-Get-CimInstance Win32_VideoController | ForEach-Object { 'GPU ' + $_.Name + ', ' + ([double]$_.AdapterRAM / 1MB) }
-if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) { & nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits | ForEach-Object { 'GPU ' + $_ } }
+if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) { & nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits | ForEach-Object { 'GPU ' + $_ } } else { Get-CimInstance Win32_VideoController | ForEach-Object { 'GPU ' + $_.Name + ', ' + ([double]$_.AdapterRAM / 1MB) } }
 foreach ($row in @(@('ollama','ollama',11434),@('llamacpp','llama-server',30000),@('lmstudio','lms',1234),@('vllm','vllm',8000),@('sglang','sglang',30000))) {
 $cmd = Get-Command $row[1] -ErrorAction SilentlyContinue
 if ($cmd) { $version = (& $cmd.Source --version 2>&1 | Select-Object -First 1); 'ENGINE ' + $row[0] + '|' + $cmd.Source + '|' + $version + '|' + $row[2] }

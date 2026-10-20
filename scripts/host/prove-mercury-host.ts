@@ -56,6 +56,13 @@ assert.equal(BOX_RECIPES.filter(row => row.verified.by === 'measured').length, 1
 assert.equal(BOX_RECIPES.find(row => row.id === 'nemotron35-bolt')!.verified.on, '2026-10-19')
 assert.match(boxWeightsWords(large, '/chosen/bank', false), /200 GB.*\/chosen\/bank/)
 assert.match(boxWeightsWords(large, '/chosen/bank', true), /verify SHA256SUMS/)
+const gpuBox = { ...local, name: 'gpu-fixture', os: 'linux' as const, arch: 'x86_64', unifiedMemory: false, memoryGb: 64, gpus: [{ name: 'NVIDIA GeForce RTX 4090', memory: 24 }] }
+const gguf = BOX_RECIPES.find(row => row.id === 'qwen38-27b-gguf')!
+assert.equal(fitsBox(gguf, gpuBox), false, 'llama.cpp loads every layer onto the GPU, so the GPU must hold the weights')
+assert.equal(boxFitWords(gguf, gpuBox), 'needs 26 GB of GPU memory; this box has 24')
+assert.equal(fitsBox(BOX_RECIPES.find(row => row.id === 'qwen38-27b')!, gpuBox), true, 'Ollama splits a model between the GPU and memory')
+assert.equal(fitsBox(gguf, { ...gpuBox, gpus: [] }), true, 'a box without a GPU runs llama.cpp from memory')
+console.log('MERCURY HOST GREEN · a llama.cpp recipe on a discrete-GPU box is fitted by GPU memory')
 console.log('MERCURY HOST GREEN · honest memory fits and download confirmation words')
 const { mkdirSync, writeFileSync } = await import('node:fs')
 const { createHash } = await import('node:crypto')
