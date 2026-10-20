@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto'
+import { outageCauseOfFetchFailure } from '../../api/reconnectLadder.js'
+import { deepestErrorDetail, isStaleSocketCode } from '../../api/transportEvidence.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { CompatEndpointSchema, type CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'
@@ -122,21 +124,43 @@ export async function resolveLlamacppTotalSlots(
   return work
 }
 
-export async function probeLlamacppSlot(
+export interface SelfHostedLiveness {
+  state: 'working' | 'alive' | 'unknown' | 'dead'
+  answered: boolean
+  words: string
+}
+
+type LivenessAnswer =
+  | { kind: 'answer'; status: number; body?: unknown }
+  | { kind: 'timeout' }
+  | { kind: 'unreachable'; words: string }
+  | { kind: 'reset'; words: string }
+  | { kind: 'error'; words: string }
+
+const SELF_HOSTED_NAMES: Readonly<Record<string, string>> = { llamacpp: 'llama.cpp', vllm: 'vLLM', sglang: 'SGLang', ollama: 'Ollama', lmstudio: 'LM Studio' }
+
+export async function readSelfHostedLiveness(
   endpoint: CompatEndpointSettings & { baseUrl: string },
-  slotId: number,
+  dialect: string,
+  pinnedSlot: number | undefined,
   opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
-): Promise<{ alive: boolean; words: string }> {
-  const controller = new AbortController()
-  const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal
-  const timer = setTimeout(() => controller.abort(), LLAMACPP_SLOT_PROBE_MS)
-  timer.unref?.()
-  let server = 'the llama.cpp server'
+): Promise<SelfHostedLiveness> {
+  const name = `the ${SELF_HOSTED_NAMES[dialect] ?? 'self-hosted'} server`
+  let base: string
   try {
-    const root = compatServerBase(endpoint.baseUrl).replace(/\/v1$/, '')
-    server = `the llama.cpp server at ${root}`
-    const read = async (path: string): Promise<{ status: number; body?: unknown }> => {
-      const response = await (opts.fetchImpl ?? getApiFetch())(`${root}${path}`, {
+    base = compatServerBase(endpoint.baseUrl)
+  } catch {
+    return { state: 'unknown', answered: false, words: `${name} has no readable address` }
+  }
+  const root = base.replace(/\/v1$/, '')
+  const server = `${name} at ${root}`
+  const attempt = async (url: string, json: boolean): Promise<LivenessAnswer> => {
+    const controller = new AbortController()
+    const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal
+    const timer = setTimeout(() => controller.abort(), LLAMACPP_SLOT_PROBE_MS)
+    timer.unref?.()
+    try {
+      const response = await (opts.fetchImpl ?? getApiFetch())(url, {
         ...getProxyFetchOptions(),
         method: 'GET',
         headers: {
@@ -148,43 +172,67 @@ export async function probeLlamacppSlot(
         signal,
         redirect: 'error',
       } as RequestInit)
-      if (!response.ok) {
+      if (!json || !response.ok) {
         await response.body?.cancel()
-        return { status: response.status }
+        return { kind: 'answer', status: response.status }
       }
       try {
-        return { status: response.status, body: await readJson(response) }
+        return { kind: 'answer', status: response.status, body: await readJson(response) }
       } catch (error) {
         if (signal.aborted) throw error
-        return { status: response.status }
+        return { kind: 'answer', status: response.status }
       }
+    } catch (error) {
+      if (controller.signal.aborted && opts.signal?.aborted !== true) return { kind: 'timeout' }
+      const outage = outageCauseOfFetchFailure(error)
+      if (outage !== null) return outage.words === 'connect timed out' ? { kind: 'timeout' } : { kind: 'unreachable', words: outage.words }
+      const deep = deepestErrorDetail(error)
+      if (isStaleSocketCode(deep.code)) return { kind: 'reset', words: deep.code ?? deep.message }
+      return { kind: 'error', words: deep.message }
+    } finally {
+      clearTimeout(timer)
     }
-    let answer = await read('/slots')
-    if (answer.body === undefined) {
-      const legacy = await read('/health?include_slots=1')
-      const slots = record(legacy.body)?.slots
-      if (Array.isArray(slots)) answer = { status: legacy.status, body: slots }
-    }
-    if (answer.body === undefined) return { alive: false, words: `${server} answered GET /slots with HTTP ${answer.status}, so slot ${slotId} cannot be read` }
-    const list = Array.isArray(answer.body) ? answer.body.map(record) : []
-    if (list.length === 0) return { alive: false, words: `${server} answered GET /slots without a slot list` }
-    const slot = slotId % list.length
-    const row = list.find(entry => entry?.id === slot)
-    if (row === undefined) return { alive: false, words: `${server} lists no slot ${slot}` }
-    return row.is_processing === true
-      ? { alive: true, words: `${server} reports slot ${slot} processing` }
-      : { alive: false, words: `${server} reports slot ${slot} idle: nothing on the server is working on this request` }
-  } catch (error) {
-    const timedOut = controller.signal.aborted && opts.signal?.aborted !== true
-    return {
-      alive: false,
-      words: timedOut
-        ? `${server} did not answer GET /slots within ${LLAMACPP_SLOT_PROBE_MS / 1000} s`
-        : `${server} could not be reached for GET /slots (${error instanceof Error ? error.message : String(error)})`,
-    }
-  } finally {
-    clearTimeout(timer)
   }
+  const ask = async (url: string, json: boolean): Promise<LivenessAnswer> => {
+    const first = await attempt(url, json)
+    return first.kind === 'reset' ? attempt(url, json) : first
+  }
+  const unanswered = (answer: Exclude<LivenessAnswer, { kind: 'answer' }>, read: string): SelfHostedLiveness => {
+    switch (answer.kind) {
+      case 'timeout':
+        return { state: 'unknown', answered: false, words: `${server} did not answer ${read} within ${LLAMACPP_SLOT_PROBE_MS / 1000} s` }
+      case 'unreachable':
+        return { state: 'dead', answered: false, words: `${server} could not be reached for ${read} (${answer.words})` }
+      case 'reset':
+        return { state: 'dead', answered: false, words: `${server} reset the connection twice for ${read} (${answer.words})` }
+      case 'error':
+        return { state: 'unknown', answered: false, words: `${server} could not be read with ${read} (${answer.words})` }
+    }
+  }
+  if (dialect === 'llamacpp' && pinnedSlot !== undefined) {
+    let answer = await ask(`${root}/slots`, true)
+    if (answer.kind !== 'answer') return unanswered(answer, 'GET /slots')
+    if (answer.body === undefined) {
+      const legacy = await attempt(`${root}/health?include_slots=1`, true)
+      const slots = legacy.kind === 'answer' ? record(legacy.body)?.slots : undefined
+      if (Array.isArray(slots)) answer = { kind: 'answer', status: answer.status, body: slots }
+    }
+    if (answer.body === undefined) {
+      return { state: 'unknown', answered: true, words: `${server} does not report slots (GET /slots answered HTTP ${answer.status}), so this silence runs to the idle budget` }
+    }
+    const list = Array.isArray(answer.body) ? answer.body.map(record) : []
+    if (list.length === 0) return { state: 'unknown', answered: true, words: `${server} answered GET /slots without a slot list, so this silence runs to the idle budget` }
+    const slot = pinnedSlot % list.length
+    const row = list.find(entry => entry?.id === slot)
+    if (row === undefined) return { state: 'unknown', answered: true, words: `${server} lists no slot ${slot}, so this silence runs to the idle budget` }
+    return row.is_processing === true
+      ? { state: 'working', answered: true, words: `${server} reports slot ${slot} processing` }
+      : { state: 'dead', answered: true, words: `${server} reports slot ${slot} idle: nothing on the server is working on this request` }
+  }
+  const path = dialect === 'ollama' ? '/' : dialect === 'lmstudio' ? '/v1/models' : '/health'
+  const answer = await ask(dialect === 'lmstudio' ? `${base}/models` : `${root}${path}`, false)
+  if (answer.kind !== 'answer') return unanswered(answer, `GET ${path}`)
+  return { state: 'alive', answered: true, words: `${server} answers GET ${path} (HTTP ${answer.status}): the process is up, though it does not say whether it is working on this request` }
 }
 
 export function compatServerBase(address: string): string {

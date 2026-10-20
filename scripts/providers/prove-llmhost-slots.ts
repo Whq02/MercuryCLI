@@ -38,9 +38,11 @@ const state = {
   propsAvailable: true,
   propsRequests: 0,
   slotsRequests: 0,
+  healthRequests: 0,
   processingSlot: -1,
   firstTokenDelayMs: 0,
   slotsHang: false,
+  slotsMissing: false,
   mode: 'reply' as 'reply' | 'tools' | '5xx-once' | 'delayed-first-token' | 'slow-tool-stream' | 'silent-after-headers' | 'no-headers',
 }
 const heldResponses = new Set<ServerResponse>()
@@ -81,21 +83,22 @@ const server = createServer(async (req, res) => {
     })
     return
   }
-  if (path === '/slots' || path === '/health') {
+  if (path === '/health') {
+    state.healthRequests++
+    sendJson(res, 200, { status: 'ok' })
+    return
+  }
+  if (path === '/slots') {
     state.slotsRequests++
     if (state.slotsHang) {
       heldResponses.add(res)
       return
     }
-    const slots = Array.from({ length: state.totalSlots }, (_, id) => ({
-      id,
-      is_processing: state.processingSlot === id,
-    }))
-    if (path === '/health') {
-      sendJson(res, 200, { status: 'ok', slots_processing: state.processingSlot >= 0 ? 1 : 0, slots })
+    if (state.slotsMissing) {
+      sendJson(res, 404, { error: { code: 404, message: 'File Not Found', type: 'not_found_error' } })
       return
     }
-    sendJson(res, 200, slots)
+    sendJson(res, 200, Array.from({ length: state.totalSlots }, (_, id) => ({ id, is_processing: state.processingSlot === id })))
     return
   }
   if (path !== '/v1/chat/completions') {
@@ -216,6 +219,44 @@ const port = await new Promise<number>((resolvePort, rejectPort) => {
 })
 
 const baseUrl = `http://127.0.0.1:${port}/v1`
+
+const vllm = { mode: 'delayed-reply' as 'delayed-reply' | 'stop-listening', delayMs: 0, healthRequests: 0 }
+const vllmServer = createServer(async (req, res) => {
+  const path = new URL(req.url ?? '/', 'http://127.0.0.1').pathname
+  if (path === '/health') {
+    vllm.healthRequests++
+    res.writeHead(200)
+    res.end()
+    return
+  }
+  if (path !== '/v1/chat/completions') {
+    res.writeHead(404, { 'content-type': 'text/plain' })
+    res.end('not found')
+    return
+  }
+  const body = JSON.parse(await readRequestBody(req)) as any
+  res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' })
+  res.flushHeaders()
+  if (vllm.mode === 'stop-listening') {
+    heldResponses.add(res)
+    vllmServer.close()
+    return
+  }
+  const vllmChunk = (delta: unknown, finish: string | null = null) =>
+    `data: ${JSON.stringify({ model: body.model, choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
+  const timer = setTimeout(() => {
+    if (!res.writableEnded && !res.destroyed) res.end(vllmChunk({ content: 'VLLM-READY' }) + vllmChunk({}, 'stop') + 'data: [DONE]\n\n')
+  }, vllm.delayMs)
+  res.on('close', () => clearTimeout(timer))
+})
+const vllmPort = await new Promise<number>((resolvePort, rejectPort) => {
+  vllmServer.once('error', rejectPort)
+  vllmServer.listen(0, '127.0.0.1', () => {
+    const addr = vllmServer.address()
+    resolvePort(typeof addr === 'object' && addr !== null ? addr.port : 0)
+  })
+})
+const vllmBaseUrl = `http://127.0.0.1:${vllmPort}/v1`
 try {
   const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
   enableConfigs()
@@ -294,8 +335,12 @@ try {
     llmold: { baseUrl, dialect: 'llamacpp' },
     hosted: { baseUrl, dialect: 'chat-completions' },
     sglanghost: { baseUrl, dialect: 'sglang', sessionAffinityHeader: 'x-session-id' },
+    vllmhost: { baseUrl: vllmBaseUrl, dialect: 'vllm' },
   }
   writeSettings({ compatProvider: endpoints })
+  const vllmId = `compat/vllmhost/${model}`
+  const serverWords = `the llama.cpp server at http://127.0.0.1:${port}`
+  const errorText = (rows: any[]): string => rows.filter(row => row.isApiErrorMessage).map(row => JSON.stringify(row.message?.content ?? '')).join(' ')
 
   state.mode = 'tools'
   const firstUserA = createUserMessage({ content: 'conversation A turn 0' })
@@ -491,6 +536,75 @@ try {
     `idleMs=${idle.streamIdleTimeoutMsForRoute('openai-compat', 'llamacpp')} replies=${JSON.stringify(quietReplies.map(r => r.isApiErrorMessage))}`,
   )
 
+  process.env.MERCURY_SILENT_AFTER_HEADERS_MS = '400'
+  try {
+    const fenceMs = 400
+    state.mode = 'silent-after-headers'
+    state.processingSlot = -1
+    const idleFenceStarted = Date.now()
+    const idleFence = await runTurn(llamaId, [createUserMessage({ content: 'headers, then nothing, on an idle slot' })], { querySource: 'overload_probe' })
+    const idleFenceElapsed = Date.now() - idleFenceStarted
+    check(
+      'headers then silence on an idle pinned slot is cut at the fence time, not at the 3 s idle budget, the words naming the slot',
+      idleFence.some(row => row.isApiErrorMessage && row.errorDetails === 'silent-after-headers') &&
+        errorText(idleFence).includes(serverWords) &&
+        /reports slot \d+ idle/.test(errorText(idleFence)) &&
+        idleFenceElapsed < 2_000,
+      `elapsedMs=${idleFenceElapsed} rows=${JSON.stringify(idleFence.map(r => r.errorDetails ?? 'reply'))} text=${errorText(idleFence).slice(0, 300)}`,
+    )
+
+    state.mode = 'delayed-first-token'
+    state.firstTokenDelayMs = 2 * fenceMs + 100
+    const slotsBeforeWorking = state.slotsRequests
+    const working = await runTurn(llamaId, [createUserMessage({ content: 'headers, then a long prefill on a busy slot' })], { querySource: 'overload_probe' })
+    check(
+      'headers then silence while the pinned slot reports processing is never cut: /slots is read at each fence and the stream completes after twice the fence',
+      working.length > 0 && working.every(row => !row.isApiErrorMessage) && state.slotsRequests - slotsBeforeWorking >= 2,
+      `slotsDelta=${state.slotsRequests - slotsBeforeWorking} errors=${errorText(working).slice(0, 300)}`,
+    )
+
+    state.mode = 'silent-after-headers'
+    state.slotsMissing = true
+    const missingStarted = Date.now()
+    const missing = await runTurn(llamaId, [createUserMessage({ content: 'headers, then nothing, on a server without /slots' })], { querySource: 'overload_probe' })
+    const missingElapsed = Date.now() - missingStarted
+    state.slotsMissing = false
+    check(
+      'a server whose /slots answers 404 is never cut at the fence: the cut lands at the 3 s idle budget and says the server does not report slots',
+      missing.some(row => row.isApiErrorMessage && row.errorDetails === 'idle-timeout') &&
+        errorText(missing).includes(`${serverWords} does not report slots (GET /slots answered HTTP 404)`) &&
+        missingElapsed >= 2_800 &&
+        missingElapsed < 6_000,
+      `elapsedMs=${missingElapsed} rows=${JSON.stringify(missing.map(r => r.errorDetails ?? 'reply'))} text=${errorText(missing).slice(0, 300)}`,
+    )
+
+    vllm.mode = 'delayed-reply'
+    vllm.delayMs = 2 * fenceMs + 100
+    const healthBefore = vllm.healthRequests
+    const vllmWorking = await runTurn(vllmId, [createUserMessage({ content: 'headers, then a long prefill on vLLM' })], { querySource: 'overload_probe' })
+    check(
+      'a vLLM stream silent after its headers while /health answers is not cut at the fence and completes',
+      vllmWorking.length > 0 && vllmWorking.every(row => !row.isApiErrorMessage) && vllm.healthRequests - healthBefore >= 1,
+      `healthDelta=${vllm.healthRequests - healthBefore} errors=${errorText(vllmWorking).slice(0, 300)}`,
+    )
+
+    vllm.mode = 'stop-listening'
+    const refusedStarted = Date.now()
+    const vllmRefused = await runTurn(vllmId, [createUserMessage({ content: 'headers, then the vLLM process goes away' })], { querySource: 'overload_probe' })
+    const refusedElapsed = Date.now() - refusedStarted
+    check(
+      'a vLLM server that refuses the connection for /health is cut at the fence time, the words naming the server',
+      vllmRefused.some(row => row.isApiErrorMessage && row.errorDetails === 'silent-after-headers') &&
+        errorText(vllmRefused).includes(`the vLLM server at http://127.0.0.1:${vllmPort} could not be reached for GET /health (connection refused)`) &&
+        refusedElapsed < 2_000,
+      `elapsedMs=${refusedElapsed} rows=${JSON.stringify(vllmRefused.map(r => r.errorDetails ?? 'reply'))} text=${errorText(vllmRefused).slice(0, 300)}`,
+    )
+  } finally {
+    delete process.env.MERCURY_SILENT_AFTER_HEADERS_MS
+    state.slotsMissing = false
+    state.firstTokenDelayMs = 0
+    state.mode = 'reply'
+  }
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '1000'
   try {
     const slotsBefore = state.slotsRequests
@@ -523,8 +637,6 @@ try {
       `id_slot=${unpinnedBody.id_slot} slotsDelta=${state.slotsRequests - unpinnedSlotsBefore} rows=${JSON.stringify(unpinned.map(r => r.errorDetails ?? 'reply'))}`,
     )
 
-    const serverWords = `the llama.cpp server at http://127.0.0.1:${port}`
-    const errorText = (rows: any[]): string => rows.filter(row => row.isApiErrorMessage).map(row => JSON.stringify(row.message?.content ?? '')).join(' ')
     state.mode = 'silent-after-headers'
     state.processingSlot = -1
     const idleStarted = Date.now()
@@ -855,6 +967,7 @@ try {
   if (failures > 0) process.exitCode = 1
 } finally {
   for (const held of heldResponses) held.destroy()
+  if (vllmServer.listening) vllmServer.close()
   server.close()
   rmSync(home, { recursive: true, force: true })
 }

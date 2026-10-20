@@ -1,4 +1,5 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
+import { logForDebugging } from '../../../utils/debug.js'
 import { sendWithCacheField } from '../cacheFieldRetry.js'
 import { wrapFetchWithWireDump } from '../../api/dumpPrompts.js'
 import type { ZaiContentPart } from '../zai/zaiClient.js'
@@ -224,8 +225,9 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
 }
 
 
-export interface CompatSlotReading {
-  alive: boolean
+export interface CompatLivenessReading {
+  state: 'working' | 'alive' | 'unknown' | 'dead'
+  answered: boolean
   words: string
 }
 
@@ -237,7 +239,7 @@ export interface CompatStreamOptions {
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
   silentAfterHeadersMs?: number | null
-  probeSlot?: () => Promise<CompatSlotReading>
+  liveness?: { fenceMs: number | null; read(): Promise<CompatLivenessReading> }
   onStreamActivity?: (atMs: number) => void
   firstByte?: {
     cold: boolean
@@ -406,6 +408,7 @@ export async function* streamCompatChat(
   unrefTimer(totalTimer)
   let idleWatchdog: StreamIdleWatchdog | null = null
   let silenceWatch: LocalSilenceWatch | null = null
+  let livenessTimer: unknown = null
   let ingestMs: number | null = null
 
   const toolAcc = new Map<number, ToolCallAccumulator>()
@@ -454,17 +457,18 @@ export async function* streamCompatChat(
       const armFirstByteTimer = (): void => {
         firstByteTimer = timers.setTimeout(() => {
           if (headersLanded || options.signal?.aborted || cut.cap) return
-          const probe = options.probeSlot
-          if (probe === undefined) {
+          const live = options.liveness
+          if (live === undefined) {
             firstByteFired = true
             controller.abort()
             return
           }
-          void probe()
-            .catch((): CompatSlotReading => ({ alive: false, words: '' }))
+          void live
+            .read()
+            .catch((): CompatLivenessReading => ({ state: 'unknown', answered: false, words: '' }))
             .then(reading => {
               if (headersLanded || options.signal?.aborted || cut.cap) return
-              if (reading.alive) {
+              if (reading.state === 'working') {
                 firstByteExtended = true
                 armFirstByteTimer()
                 return
@@ -638,6 +642,36 @@ export async function* streamCompatChat(
     let pendingRead: Promise<ReadableStreamReadResult<Uint8Array>> | null = null
     let quietSinceMs = Date.now()
     let quietExtended = false
+    let sawBytes = false
+    let livenessCut: string | null = null
+    let silencePublished = false
+    const fenceMs = local === undefined ? options.liveness?.fenceMs ?? null : null
+    const armLivenessProbe = (): void => {
+      const live = options.liveness
+      if (fenceMs === null || live === undefined) return
+      livenessTimer = timers.setTimeout(() => {
+        livenessTimer = null
+        if (sawBytes || options.signal?.aborted || cut.cap) return
+        void live
+          .read()
+          .catch((): CompatLivenessReading => ({ state: 'unknown', answered: false, words: '' }))
+          .then(reading => {
+            if (sawBytes || options.signal?.aborted || cut.cap) return
+            const silentMs = Date.now() - quietSinceMs
+            logForDebugging(`[compat] ${Math.round(silentMs / 1000)} s without a byte after the headers: ${reading.words || 'the liveness read failed'}`)
+            if (reading.state === 'dead') {
+              livenessCut = reading.words
+              controller.abort()
+              return
+            }
+            silencePublished = true
+            publish({ kind: 'silence', model: wait.model, silentMs, sinceMs: quietSinceMs, answered: reading.answered, ...(reading.answered ? {} : { askAtMs: silentMs + fenceMs }) })
+            armLivenessProbe()
+          })
+      }, fenceMs)
+      unrefTimer(livenessTimer)
+    }
+    armLivenessProbe()
 
     readLoop: for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
@@ -649,14 +683,25 @@ export async function* streamCompatChat(
           watchdog?.noteActivity()
           quietSinceMs = Date.now()
           quietExtended = false
+          if (!sawBytes) {
+            sawBytes = true
+            if (livenessTimer !== null) {
+              timers.clearTimeout(livenessTimer)
+              livenessTimer = null
+            }
+            if (silencePublished) {
+              silencePublished = false
+              publish(null)
+            }
+          }
         }
         silenceWatch?.noteActivity()
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
-        let reading: CompatSlotReading | null = null
-        if (isIdle && !options.signal?.aborted && !cut.cap && options.probeSlot !== undefined) {
-          reading = await options.probeSlot().catch((): CompatSlotReading => ({ alive: false, words: '' }))
-          if (reading.alive && !options.signal?.aborted && !cut.cap) {
+        let reading: CompatLivenessReading | null = null
+        if (isIdle && !options.signal?.aborted && !cut.cap && options.liveness !== undefined) {
+          reading = await options.liveness.read().catch((): CompatLivenessReading => ({ state: 'unknown', answered: false, words: '' }))
+          if (reading.state === 'working' && !options.signal?.aborted && !cut.cap) {
             watchdog?.stop()
             watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: null })
             idleWatchdog = watchdog
@@ -672,6 +717,8 @@ export async function* streamCompatChat(
           type: 'stream-fault',
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
+            : livenessCut !== null
+              ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, message: `${silentAfterHeadersFaultWords(wait.model, Date.now() - quietSinceMs, wait.promptTokens)} — ${livenessCut}`, retryable: true }
             : local !== undefined && cut.dead !== null
               ? { kind: 'timeout', code: LOCAL_DEAD_SERVER_CODE, message: localDeadServerLine(local.serverWords, cut.dead.unansweredMs, 'writing'), retryable: false }
               : local !== undefined && cut.cap
@@ -801,6 +848,7 @@ export async function* streamCompatChat(
     }
   } finally {
     timers.clearTimeout(totalTimer)
+    if (livenessTimer !== null) timers.clearTimeout(livenessTimer)
     idleWatchdog?.stop()
     silenceWatch?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
