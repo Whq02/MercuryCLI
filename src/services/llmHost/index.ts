@@ -25,6 +25,7 @@ export interface LlmHostQuestion {
   rows?: ReadonlyArray<{ value: string; label: string }>
   initial?: string
   secret?: boolean
+  fullDetails?: boolean
 }
 export interface LlmHostEvent { title: string; words: string; host?: { id: string; price: number; startedAt: string; status: string; step?: string; canResume?: boolean } }
 export interface LlmHostResult { ok: boolean; words: string; model?: string; reply?: string; elapsedMs?: number; registered?: boolean }
@@ -201,4 +202,19 @@ export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {
     const detail = error instanceof Error ? error.message : String(error)
     return signal.aborted ? stop() : { ok: false, registered, words: `${registered ? 'Provider saved · ' : ''}${key ? detail.split(key).join('[redacted]') : detail}` }
   }
+}
+
+export async function registerManagedLlmHost(name: string, baseUrl: string, dialect: CompatDialect, selected: string, previousBase: string | undefined, signal: AbortSignal): Promise<string> {
+  const existing = configuredCompatEndpoints().find(endpoint => endpoint.name === name)
+  if (existing && (!previousBase || existing.baseUrl !== previousBase)) throw new Error('Provider ' + name + ' is not the endpoint recorded for this computer; it was not replaced.')
+  if (resolveCompatApiKey(process.env, name)) throw new Error('A key controls provider ' + name + '; choose a different computer name for this key-less service.')
+  const reading = await inspectCompatServer({ baseUrl, dialect }, { signal })
+  if (!reading.models.includes(selected)) throw new Error('The computer did not serve the selected model: ' + selected)
+  if (!reading.contextWindows[selected]) throw new Error('The computer did not state the served model window.')
+  signal.throwIfAborted()
+  writeEndpoint(name, { baseUrl, label: 'box ' + name.slice(4), dialect, models: [selected] }, existing)
+  const endpoint = configuredCompatEndpoints().find(row => row.name === name)
+  if (!endpoint || endpoint.baseUrl !== baseUrl) throw new Error('The computer provider is overridden by another settings source.')
+  rememberCompatCatalogue(endpoint, reading)
+  return 'compat/' + name + '/' + selected
 }

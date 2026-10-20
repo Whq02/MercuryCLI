@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Box, Text, useInput } from '../ink.js'
 import TextInput from './TextInput.js'
+import wrapText from '../ink/wrap-text.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 import { settingsPopupWindow } from '../utils/cockpit/settingsPopup.js'
@@ -70,6 +71,8 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
     answer(null)
     onClose?.()
   }
+  const detailRows = question?.fullDetails ? wrapText(question.found + (question.willRun ? '\nwill run · ' + question.willRun : ''), Math.max(1, width), 'wrap').split('\n').length : 0
+  const detailsFit = !question?.fullDetails || rowBudget >= detailRows + 7
   useInput((_input, key, event) => {
     if (key.escape) { event.stopImmediatePropagation(); stop(); return }
     if (!question?.rows) return
@@ -79,22 +82,23 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onO
       setCursor(current => current === null ? down ? 0 : question.rows!.length - 1 : Math.max(0, Math.min(question.rows!.length - 1, current + (down ? 1 : -1))))
     } else if (key.return) {
       event.stopImmediatePropagation()
-      if (pastOpenEvent() && cursor !== null && question.rows[cursor]) answer(question.rows[cursor]!.value)
+      if (pastOpenEvent() && detailsFit && cursor !== null && question.rows[cursor]) answer(question.rows[cursor]!.value)
     }
   })
   const budget = Math.max(1, rowBudget - (host ? 2 : 0))
-  const compact = budget < 7
-  const historyBudget = Math.max(0, Math.min(history.length, budget - (question ? 7 + Math.min(question.rows?.length ?? 1, 8) : 3)))
+  const compact = budget < 7 || !detailsFit
+  const historyBudget = question?.fullDetails ? 0 : Math.max(0, Math.min(history.length, budget - (question ? 7 + Math.min(question.rows?.length ?? 1, 8) : 3)))
   const shownHistory = history.slice(-historyBudget || history.length)
-  const rows = question?.rows ?? []
-  const choices = Math.max(1, budget - shownHistory.length - (compact ? Number(budget > 1) : 7))
+  const rows = detailsFit ? question?.rows ?? [] : []
+  const choices = Math.max(1, budget - shownHistory.length - (question?.fullDetails ? detailRows + 5 : compact ? Number(budget > 1) : 7))
   const window = settingsPopupWindow(cursor ?? 0, Math.max(0, (cursor ?? 0) - choices + 1), rows.length, choices)
   return <Box flexDirection="column" width={width} flexShrink={0} maxHeight={rowBudget} overflow="hidden">
     {shownHistory.map((row, index) => <Text key={index} color={tokens.textMuted} wrap="truncate-end">{row.title} · {row.words}</Text>)}
     {question ? <>
       {budget > 1 ? <Text bold color={tokens.textPrimary} wrap="truncate-end">{question.title}</Text> : null}
-      {!compact ? <Text color={tokens.textSecondary} wrap="truncate-end">{question.found}</Text> : null}
-      {!compact && question.willRun ? <Text color={tokens.textSecondary} wrap="truncate-end">will run · {question.willRun}</Text> : null}
+      {!detailsFit ? <Text color={tokens.warning} wrap="wrap">Enlarge the terminal to see the full setup plan before confirming · esc closes</Text> : null}
+      {!compact ? <Text color={tokens.textSecondary} wrap={question.fullDetails ? 'wrap' : 'truncate-end'}>{question.found}</Text> : null}
+      {!compact && question.willRun ? <Text color={tokens.textSecondary} wrap={question.fullDetails ? 'wrap' : 'truncate-end'}>will run · {question.willRun}</Text> : null}
       {!compact ? <Text color={tokens.textMuted}>{question.rows ? question.rows.some(row => row.value === question.initial) ? words.suggested : words.choose : words.input}</Text> : null}
       {question.rows ? <>
         {!compact && window.offset > 0 ? <Text color={tokens.textMuted}>↑ {window.offset} more</Text> : null}

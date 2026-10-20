@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { boxEndpointNotice } from '../../host/boxService.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { configuredCompatEndpoints, compatModelEndpoint, isCompatEndpointCredentialed, resolveCompatApiKey, type CompatEndpoint } from './compatAccounts.js'
@@ -74,12 +75,13 @@ export function namedCompatModelOptions(): import('../../../utils/model/modelOpt
     const group = `Custom endpoint · ${endpoint.label} (${endpoint.name})`
     const snapshot = cachedCompatCatalogue(endpoint)
     const credentialed = isCompatEndpointCredentialed(endpoint)
+    const boxNotice = boxEndpointNotice(endpoint.name, endpoint.baseUrl, Boolean(snapshot?.error))
     return models.length ? models.map(id => ({
       value: `compat/${endpoint.name}/${id}`,
       label: id,
       description: '',
       group,
-      ...(credentialed ? {} : { unavailable: `the endpoint '${endpoint.name}' needs a key: /logins compat/${endpoint.name}` }),
+      ...(boxNotice ? { unavailable: boxNotice } : credentialed ? {} : { unavailable: `the endpoint '${endpoint.name}' needs a key: /logins compat/${endpoint.name}` }),
     })) : [{
       value: `__mercury_connect__:compat/${endpoint.name}`, label: `${endpoint.label} — no models listed`, group,
       description: snapshot?.error ?? 'The endpoint has not listed a model; /llmhost checks the server or refresh /model.',

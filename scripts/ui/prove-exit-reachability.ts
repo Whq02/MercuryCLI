@@ -278,7 +278,6 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
   const HINT_ROSTER: Record<string, { reason: string; witness?: string }> = {
     'src/components/BaseTextInput.tsx': { reason: 'a primitive; the host prints the hint' },
     'src/components/HelpV2/Commands.tsx': { reason: 'the commands tab’s PageUp/PageDown handler — the help shell owns esc and prints the way out', witness: 'src/components/HelpV2/HelpV2.tsx' },
-    'src/components/LlmHostDialog.tsx': { reason: 'the popup renders exit words imported from its command vocabulary', witness: 'src/commands/llmhost/words.ts' },
     'src/components/PromptInput/useComposerRawKeys.ts': { reason: 'the composer’s raw key ladder; the composer’s footer prints the way out', witness: 'src/components/PromptInput/PromptInputFooterLeftSide.tsx' },
     'src/components/ScrollKeybindingHandler.tsx': { reason: 'renders nothing' },
     'src/components/SurfaceExitChord.tsx': { reason: 'renders nothing' },

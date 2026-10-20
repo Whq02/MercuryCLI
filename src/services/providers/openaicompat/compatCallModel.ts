@@ -131,5 +131,14 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
       return buildHostedExtras({ ...args, dialect, vocabulary: compatModelEfforts(params.options.model), ...(idSlot !== undefined ? { idSlot } : {}) })
     },
   }
-  yield* compatChatCallModel(profile, params)
+  const startedAt = performance.now()
+  for await (const event of compatChatCallModel(profile, params)) {
+    if (endpoint.name.startsWith('box-') && event.type === 'assistant' && !event.isApiErrorMessage && event.message.stop_reason) {
+      try {
+        const { noteBoxTurn } = await import('../../host/boxService.js')
+        noteBoxTurn(endpoint.name, endpoint.baseUrl, wireId, event.message.usage.output_tokens, performance.now() - startedAt)
+      } catch {}
+    }
+    yield event
+  }
 }

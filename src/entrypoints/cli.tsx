@@ -108,7 +108,7 @@ async function main(): Promise<void> {
       runArgs.command === 'run' ||
       args.includes('-h') ||
       args.includes('--help') ||
-      ['daemon', 'acp', 'runner'].includes(args[0] ?? '')
+      ['daemon', 'acp', 'runner', 'host'].includes(args[0] ?? '')
     if (nonTakeover) {
       const { releaseLauncherAltHoldNow } = await import('../ink/launcherAltHold.js')
       releaseLauncherAltHoldNow()
@@ -160,6 +160,13 @@ async function main(): Promise<void> {
     profileCheckpoint('route_tcp_bridge')
     const { runTcpBridgeEntry } = await import('../services/tcpBridge/entry.js')
     return runTcpBridgeEntry(process.argv.slice(3))
+  }
+  if (args[0] === 'host') {
+    const { enableConfigs } = await import('../utils/config.js')
+    enableConfigs()
+    const { hostCommand } = await import('../commands/host/index.js')
+    process.exitCode = await hostCommand(args.slice(1))
+    return
   }
   if (args[0] === 'daemon') {
     profileCheckpoint('route_daemon')
