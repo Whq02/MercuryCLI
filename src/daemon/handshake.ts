@@ -487,7 +487,7 @@ export async function healDaemonVersion(
 }
 
 let healAskInFlight: { pid: number | null; answer: Promise<{ state: HealState; live: number; detail?: string }> } | null = null
-const handoverAsked = new Set<number>()
+const handoverAsked = new Map<number, number>()
 let handoverInFlight: number | null = null
 
 export function resetHandoverAsksForTesting(): void {
@@ -516,8 +516,8 @@ export async function handoverDaemonVersion(
     handoverInFlight = d.pid
     return `a successor (pid ${record.pid}) is taking the plane from daemon v${d.version} (pid ${d.pid}), which keeps its ${liveNoun({ live: heal.live, liveSessions: Math.min(v.liveSessions, heal.live) })} ${untilFinished(heal.live)}`
   }
-  if (handoverAsked.has(d.pid)) return null
-  handoverAsked.add(d.pid)
+  const earlier = handoverAsked.get(d.pid)
+  if (earlier !== undefined && isProcessAlive(earlier)) return null
   handoverInFlight = d.pid
   const dir = record?.dir ?? process.cwd()
   const ownsIt = d.ownerPid === process.pid
@@ -534,6 +534,7 @@ export async function handoverDaemonVersion(
     })
   const pid = await spawn(runtime.script, dir, env, ownsIt, !ownsIt, runtime.node)
   if (pid === undefined) return null
+  handoverAsked.set(d.pid, pid)
   logForDebugging(`[daemon] handover: ${decision.why} — successor pid ${pid} from ${runtime.script}`)
   return `handing over to the deployed build (tree ${runtime.buildTree ?? '?'}, pid ${pid}) — daemon v${d.version} keeps its ${liveNoun({ live: heal.live, liveSessions: Math.min(v.liveSessions, heal.live) })} ${untilFinished(heal.live)}`
 }

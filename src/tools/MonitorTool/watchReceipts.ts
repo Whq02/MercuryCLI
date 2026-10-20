@@ -1,5 +1,6 @@
 import { TASK_ID_TAG, TASK_NOTIFICATION_TAG, TOOL_USE_ID_TAG } from '../../constants/xml.js'
 import type { RunnerRestartReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
+import type { OrphanedLaunch, OrphanProcessFate } from '../../tasks/taskLaunchLedger.js'
 import type { Message } from '../../types/message.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { wrapInSystemReminder } from '../../utils/messages/text.js'
@@ -17,6 +18,7 @@ interface WatchReceipt {
   command: string
   persistent: boolean
   armedAt: number
+  process?: OrphanProcessFate
 }
 
 interface BackgroundShellReceipt {
@@ -26,6 +28,7 @@ interface BackgroundShellReceipt {
   command: string
   outputPath: string | null
   armedAt: number
+  process?: OrphanProcessFate
 }
 
 const COMMAND_WORDS_MAX = 200
@@ -198,16 +201,63 @@ export function settledWatchIds(messages: readonly Message[]): Set<string> {
   return settled
 }
 
-export function orphanedWatches(messages: readonly Message[], liveTaskIds: ReadonlySet<string>): WatchReceipt[] {
-  const settled = settledWatchIds(messages)
-  return watchReceipts(messages).filter(receipt => !settled.has(receipt.taskId) && !liveTaskIds.has(receipt.taskId))
+function fatesOf(ledger: readonly OrphanedLaunch[], ended: ReadonlySet<string>): Map<string, OrphanProcessFate> {
+  const fates = new Map<string, OrphanProcessFate>()
+  for (const taskId of ended) fates.set(taskId, 'gone')
+  for (const orphan of ledger) fates.set(orphan.record.taskId, orphan.process)
+  return fates
 }
 
-function orphanedBackgroundShells(messages: readonly Message[], liveTaskIds: ReadonlySet<string>): BackgroundShellReceipt[] {
+export function orphanedWatches(messages: readonly Message[], liveTaskIds: ReadonlySet<string>, ledger: readonly OrphanedLaunch[] = [], ended: ReadonlySet<string> = new Set()): WatchReceipt[] {
   const settled = settledWatchIds(messages)
-  return backgroundShellReceipts(messages).filter(
-    receipt => !settled.has(receipt.taskId) && !settled.has(receipt.toolUseId) && !liveTaskIds.has(receipt.taskId),
-  )
+  const fates = fatesOf(ledger, ended)
+  const fromTranscript = watchReceipts(messages)
+    .filter(receipt => !settled.has(receipt.taskId) && !liveTaskIds.has(receipt.taskId))
+    .map(receipt => (fates.has(receipt.taskId) ? { ...receipt, process: fates.get(receipt.taskId)! } : receipt))
+  const named = new Set(fromTranscript.map(receipt => receipt.taskId))
+  const fromLedger = ledger
+    .filter(orphan => orphan.record.kind === 'monitor' && !named.has(orphan.record.taskId) && !liveTaskIds.has(orphan.record.taskId))
+    .map(orphan => ({
+      toolUseId: orphan.record.toolUseId,
+      taskId: orphan.record.taskId,
+      description: orphan.record.description,
+      command: orphan.record.command,
+      persistent: orphan.record.persistent,
+      armedAt: orphan.record.armedAt,
+      process: orphan.process,
+    }))
+  return [...fromTranscript, ...fromLedger].sort((a, b) => a.armedAt - b.armedAt)
+}
+
+function orphanedBackgroundShells(messages: readonly Message[], liveTaskIds: ReadonlySet<string>, ledger: readonly OrphanedLaunch[] = [], ended: ReadonlySet<string> = new Set()): BackgroundShellReceipt[] {
+  const settled = settledWatchIds(messages)
+  const fates = fatesOf(ledger, ended)
+  const fromTranscript = backgroundShellReceipts(messages)
+    .filter(receipt => !settled.has(receipt.taskId) && !settled.has(receipt.toolUseId) && !liveTaskIds.has(receipt.taskId))
+    .map(receipt => (fates.has(receipt.taskId) ? { ...receipt, process: fates.get(receipt.taskId)! } : receipt))
+  const named = new Set(fromTranscript.map(receipt => receipt.taskId))
+  const fromLedger = ledger
+    .filter(orphan => orphan.record.kind === 'shell' && !named.has(orphan.record.taskId) && !liveTaskIds.has(orphan.record.taskId))
+    .map(orphan => ({
+      toolUseId: orphan.record.toolUseId,
+      taskId: orphan.record.taskId,
+      description: orphan.record.description,
+      command: orphan.record.command,
+      outputPath: orphan.record.outputPath,
+      armedAt: orphan.record.armedAt,
+      process: orphan.process,
+    }))
+  return [...fromTranscript, ...fromLedger].sort((a, b) => a.armedAt - b.armedAt)
+}
+
+function processFateWords(fate: OrphanProcessFate | undefined): string {
+  return fate === 'ended'
+    ? 'its process had outlived the session and was ended just now'
+    : fate === 'gone'
+      ? 'its process ended with the session'
+      : fate === 'unconfirmed'
+        ? 'a process still runs under its pid but could not be confirmed as this one and was left alone'
+        : 'its process is no longer attached to this chat'
 }
 
 function restartEndedWords(reason?: RunnerRestartReason): string {
@@ -228,14 +278,14 @@ function restartEndedWords(reason?: RunnerRestartReason): string {
 
 export function deadWatchLine(receipt: WatchReceipt, reason?: RunnerRestartReason): string {
   const cmd = commandWords(receipt.command)
-  return `[Monitor "${receipt.description}" (task ${receipt.taskId}) did not survive ${restartEndedWords(reason)}: its process ended with the session, so nothing it would have reported since then is known. Start it again by calling Monitor with the same command${cmd !== '' ? ` (${cmd})` : ''} if the watch is still wanted.]`
+  return `[Monitor "${receipt.description}" (task ${receipt.taskId}) did not survive ${restartEndedWords(reason)}: ${processFateWords(receipt.process)}, so nothing it would have reported since then is known. Start it again by calling Monitor with the same command${cmd !== '' ? ` (${cmd})` : ''} if the watch is still wanted.]`
 }
 
 function deadShellLine(receipt: BackgroundShellReceipt, reason?: RunnerRestartReason): string {
   const cmd = commandWords(receipt.command)
   const desc = labelWords(receipt.description)
   const kept = receipt.outputPath !== null ? `; what it printed until then stays in ${receipt.outputPath}` : ''
-  return `[Background shell ${receipt.taskId}${desc !== '' ? ` "${desc}"` : ''} did not survive ${restartEndedWords(reason)}: its process ended with the session${kept}. Start it again by running Bash with the same command${cmd !== '' ? ` (${cmd})` : ''} if it is still wanted.]`
+  return `[Background shell ${receipt.taskId}${desc !== '' ? ` "${desc}"` : ''} did not survive ${restartEndedWords(reason)}: ${processFateWords(receipt.process)}${kept}. Start it again by running Bash with the same command${cmd !== '' ? ` (${cmd})` : ''} if it is still wanted.]`
 }
 
 function moreShellsLine(receipts: readonly BackgroundShellReceipt[], reason?: RunnerRestartReason): string {
@@ -289,8 +339,10 @@ export function reconcileWatchesOnResume(
   messages: readonly Message[],
   liveTaskIds: ReadonlySet<string>,
   reason?: RunnerRestartReason,
+  ledger: readonly OrphanedLaunch[] = [],
+  ended: ReadonlySet<string> = new Set(),
 ): WatchReceipt[] {
-  const orphans = orphanedWatches(messages, liveTaskIds)
+  const orphans = orphanedWatches(messages, liveTaskIds, ledger, ended)
   for (const receipt of orphans) {
     enqueuePendingNotification({
       value: monitorNoticeBlock(receipt.taskId, receipt.description, deadWatchLine(receipt, reason)),
@@ -305,8 +357,10 @@ export function reconcileBackgroundShellsOnResume(
   messages: readonly Message[],
   liveTaskIds: ReadonlySet<string>,
   reason?: RunnerRestartReason,
+  ledger: readonly OrphanedLaunch[] = [],
+  ended: ReadonlySet<string> = new Set(),
 ): BackgroundShellReceipt[] {
-  const orphans = orphanedBackgroundShells(messages, liveTaskIds)
+  const orphans = orphanedBackgroundShells(messages, liveTaskIds, ledger, ended)
   const named = orphans.slice(-NAMED_MAX)
   const rest = orphans.slice(0, orphans.length - named.length)
   const lines = [...named.map(receipt => deadShellLine(receipt, reason)), ...(rest.length > 0 ? [moreShellsLine(rest, reason)] : [])]

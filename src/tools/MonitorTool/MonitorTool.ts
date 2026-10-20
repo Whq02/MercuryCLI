@@ -220,7 +220,7 @@ export const MonitorTool = buildTool({
       onStdout: onData,
     })
     const handle = await spawnShellTask(
-      { command, description, shellCommand, toolUseId, agentId, kind: 'monitor' },
+      { command, description, shellCommand, toolUseId, agentId, kind: 'monitor', persistent: persistent === true },
       { abortController, getAppState, setAppState },
     )
     taskId = handle.taskId

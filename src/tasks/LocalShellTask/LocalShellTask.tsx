@@ -21,6 +21,7 @@ import type { AppState } from '../../state/AppState.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
+import { recordTaskLaunch, settleTaskLaunch } from '../taskLaunchLedger.js'
 import { recordTaskOutcome, shellOutcomeState } from '../taskOutcomeEnvelope.js'
 import { backgroundAgentTask, isLocalAgentTask } from '../LocalAgentTask/LocalAgentTask.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -305,6 +306,7 @@ async function settleShellTask(args: {
     ...(killedBy !== undefined ? { killedBy } : {}),
     stderr: result.stderr,
   })
+  void settleTaskLaunch(getSessionId(), taskId)
   void recordTaskOutcome(getSessionId(), {
     taskId,
     taskType: 'local_bash',
@@ -442,6 +444,18 @@ export async function spawnShellTask(
           agentId: input.agentId,
         })
 
+  void recordTaskLaunch(getSessionId(), {
+    taskId,
+    kind: input.kind === 'monitor' ? 'monitor' : 'shell',
+    toolUseId: input.toolUseId ?? '',
+    description: input.description,
+    command: input.command,
+    persistent: input.persistent === true,
+    outputPath: input.kind === 'monitor' ? null : getTaskOutputPath(taskId),
+    pid: typeof shellCommand.pid === 'number' ? shellCommand.pid : null,
+    armedAt: state.startTime,
+  })
+
   void settleShellTask({
     taskId,
     shellCommand,
@@ -532,6 +546,17 @@ function backgroundRegisteredTask(
           toolUseId: task.toolUseId,
           agentId: task.agentId,
         })
+  void recordTaskLaunch(getSessionId(), {
+    taskId,
+    kind: task.kind === 'monitor' ? 'monitor' : 'shell',
+    toolUseId: task.toolUseId ?? '',
+    description: task.description ?? '',
+    command: task.command ?? '',
+    persistent: false,
+    outputPath: getTaskOutputPath(taskId),
+    pid: typeof shellCommand.pid === 'number' ? shellCommand.pid : null,
+    armedAt: task.startTime,
+  })
   void settleShellTask({
     taskId,
     shellCommand,
@@ -561,6 +586,17 @@ export function backgroundExistingForegroundTask(
     description,
     toolUseId,
     agentId: undefined,
+  })
+  void recordTaskLaunch(getSessionId(), {
+    taskId,
+    kind: launch?.kind === 'monitor' ? 'monitor' : 'shell',
+    toolUseId: toolUseId ?? launch?.toolUseId ?? '',
+    description,
+    command: launch?.command ?? '',
+    persistent: false,
+    outputPath: getTaskOutputPath(taskId),
+    pid: typeof shellCommand.pid === 'number' ? shellCommand.pid : null,
+    armedAt: launch?.startTime ?? Date.now(),
   })
   void settleShellTask({
     taskId,

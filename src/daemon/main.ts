@@ -12,7 +12,7 @@ import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import { MERCURY_DAEMON_PROTO } from './protocol.js'
 import { DaemonBreaker } from '../utils/daemonBreaker.js'
 import { logForDebugging } from '../utils/debug.js'
-import { isEnvTruthy } from '../utils/envUtils.js'
+import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
 import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
@@ -129,7 +129,7 @@ import {
 } from './controlSocket.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
-import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
+import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, releaseVersionsDir, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
 import { OTHER_BUILD_WAY_OUT, REOPEN_WORDS } from './handshake.js'
 import { holdBuild, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, sameBuildTree, type PlaneBootDecisionV1, type PlaneBootFactsV1 } from './planeBoot.js'
@@ -515,6 +515,17 @@ async function daemonRun(args: string[]): Promise<void> {
           if (w.short.startsWith('concourse-w')) liveSessions++
         }
         return { live, liveSessions }
+      }
+      const askLiveSessionsForFacts = (): number => {
+        if (!roster) return 0
+        const warm = new Set(warmRunnerShorts())
+        let asked = 0
+        for (const w of roster.liveWorkerFacts()) {
+          if (warm.has(w.short) || !w.short.startsWith('concourse-w')) continue
+          requestSessionFacts(w.short, roster, { immediate: true })
+          asked++
+        }
+        return asked
       }
       const bootStartToken = await getProcessStartTokenAsync(process.pid)
       const persistDaemonRecord = (owner: number | null): Promise<void> =>
@@ -973,6 +984,7 @@ async function daemonRun(args: string[]): Promise<void> {
             const detail = otherBuildInstalledDetail(other, live)
             // eslint-disable-next-line no-console
             console.error(`[daemon] restart asked by ${by} — ${detail}`)
+            askLiveSessionsForFacts()
             if (live > 0 || birthsInFlight > 0 || handover?.alive()) {
               restartArmed = true
               return { state: 'armed' as const, live }
@@ -1139,10 +1151,41 @@ async function daemonRun(args: string[]): Promise<void> {
             logForDebugging(`[daemon] plane watch on ${planeDir} did not arm (the floor keeps the heal): ${e}`)
           }
         }
+        let installedTreeSeen = deployedRuntime()?.buildTree ?? null
+        let installedSignal: ReturnType<typeof setTimeout> | undefined
+        const installedCheck = (): void => {
+          const tree = deployedRuntime()?.buildTree ?? null
+          if (tree === installedTreeSeen) return
+          installedTreeSeen = tree
+          if (tree === null) return
+          const asked = askLiveSessionsForFacts()
+          // eslint-disable-next-line no-console
+          console.error(`[daemon] the installed build moved to ${tree} — ${asked} live session(s) asked for their facts now`)
+        }
+        const installedWatchers: FSWatcher[] = []
+        for (const pointerDir of new Set([join(getMercuryHome(), 'runtime'), releaseVersionsDir()])) {
+          try {
+            const watcher = watchDir(pointerDir, { persistent: false }, (_event, name) => {
+              if (name !== null && name !== undefined && !INSTALLED_POINTER_NAMES.has(String(name))) return
+              if (installedSignal !== undefined) return
+              installedSignal = setTimeout(() => {
+                installedSignal = undefined
+                installedCheck()
+              }, PLANE_HEAL_COALESCE_MS)
+              installedSignal.unref?.()
+            })
+            watcher.on('error', e => logForDebugging(`[daemon] the installed-build watch on ${pointerDir} failed (the floor keeps the check): ${e}`))
+            installedWatchers.push(watcher)
+          } catch (e) {
+            logForDebugging(`[daemon] the installed-build watch on ${pointerDir} did not arm (the floor keeps the check): ${e}`)
+          }
+        }
         stopPlaneHeal = () => {
           clearInterval(planeHeal)
           if (healSignal !== undefined) clearTimeout(healSignal)
+          if (installedSignal !== undefined) clearTimeout(installedSignal)
           for (const watcher of planeWatchers) watcher.close()
+          for (const watcher of installedWatchers) watcher.close()
         }
       }
       {
@@ -1611,6 +1654,7 @@ async function planeBootFacts(stamps: { selfBuildTree: string | null; successorO
 }
 const PLANE_HEAL_FLOOR_MS = 30_000
 const PLANE_HEAL_COALESCE_MS = 250
+const INSTALLED_POINTER_NAMES = new Set(['current', 'dist', 'current.txt'])
 const RECONCILE_TICK_MS = 60_000
 
 function successorRuntime(): ReturnType<typeof deployedRuntime> {
