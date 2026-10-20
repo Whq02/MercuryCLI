@@ -242,7 +242,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     let failure = error
     if (initial.prepareWeightsOnly && readHostRecord(id)) {
       const volume = initial.volumeId && readKeptVolume(initial.volumeId)
-      if (volume && volume.state !== 'kept') writeKeptVolume({ ...volume, state: 'failed', error: clean(String(error)), preparingPod: id })
+      if (volume && volume.state !== 'kept' && volume.state !== 'failed') writeKeptVolume({ ...volume, state: 'failed', error: clean(String(error)), preparingPod: id })
       try {
         if (!key) throw new Error('The saved Runpod key is unavailable for cleanup.')
         const cleanupApi = new RunpodClient(key, initial.apiBaseUrl)

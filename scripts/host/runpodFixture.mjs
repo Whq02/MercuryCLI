@@ -115,7 +115,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner) {
   assert.equal(new URL(modelBaseUrl).hostname, '127.0.0.1')
   const commands = []
   const children = new Set()
-  const state = { weights: new Map(), weightFetches: 0, sampledChecks: 0, fullChecks: 0, corruptWeights: false, refuse: false, failEngine: false, holdHealth: false, docker: true, log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
+  const state = { weights: new Map(), weightFetches: 0, sampledChecks: 0, fullChecks: 0, corruptWeights: false, stallDownload: 0, checkTransport: false, refuse: false, failEngine: false, holdHealth: false, docker: true, log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
   const runner = {
     async run(command, args, signal, timeout) {
       commands.push({ command, args })
@@ -135,7 +135,9 @@ export function fakeSshRunner(modelBaseUrl, actualRunner) {
         const directory = JSON.parse(match[2])
         const kept = state.weights.has(directory) && !state.corruptWeights
         const downloading = remote.includes('if True:\n    progress(')
-        if (!kept && !downloading) throw new Error('fixture kept weights did not verify')
+        if (!downloading && state.checkTransport) throw new Error('ssh exited 255. Connection to fixture closed by remote host.')
+        if (!kept && !downloading) throw new Error('ssh exited 1. Traceback (most recent call last):\nRuntimeError: Kept weights failed pinned SHA256/sizes verification')
+        if (downloading && state.stallDownload) throw new Error('ssh exited 75. MERCURY_STEP download stopped · stall\nMERCURY_STALL ' + JSON.stringify({ reason: 'stall', bytes: state.stallDownload, seconds: 600 }))
         if (downloading) { state.weightFetches++; state.weights.set(directory, manifest); state.corruptWeights = false }
         const sampled = kept && !downloading && !remote.includes('verified = None if True') && !remote.includes('expected_sample = ""')
         if (sampled) state.sampledChecks++; else state.fullChecks++

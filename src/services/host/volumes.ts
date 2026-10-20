@@ -11,7 +11,7 @@ import { createRefusal, type RunpodClient, type HostVolume } from './runpod.js'
 const volumeRecordSchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9_-]+$/), name: z.string(), model: z.string(), include: z.string(),
   kind: z.enum(['network', 'global']), dataCenter: z.string(), size: z.number().positive(), price: z.number().nonnegative(), createdAt: z.string(),
-  state: z.enum(['creating', 'preparing', 'kept', 'gone', 'failed']), filledBy: z.string().optional(), checkedBy: z.string().optional(), preparingPod: z.string().optional(), error: z.string().optional(),
+  state: z.enum(['creating', 'preparing', 'kept', 'gone', 'failed']), filledBy: z.string().optional(), checkedBy: z.string().optional(), preparingPod: z.string().optional(), error: z.string().optional(), partialBytes: z.number().nonnegative().optional(),
   verifiedSums: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), sampleManifestSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), check: z.enum(['full', 'sampled']).optional(), files: z.number().int().positive(), bytes: z.number().positive(), at: z.string() }).optional(),
 })
 export type KeptVolume = z.infer<typeof volumeRecordSchema>
@@ -25,10 +25,13 @@ export function writeKeptVolume(record: KeptVolume): void { durableAtomicPublish
 const removeRecord = (id: string): void => { try { unlinkSync(pathOf(id)) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error } }
 export const networkMonthly = (size: number): number => Math.round((Math.min(size, 1000) * 0.07 + Math.max(0, size - 1000) * 0.05) * 100) / 100
 export const volumePrice = (record: Pick<KeptVolume, 'kind' | 'price'>): string => (record.kind === 'global' ? '~' : '') + '$' + record.price.toFixed(2) + '/month' + (record.kind === 'global' ? ' + IOPS (actual usage)' : '')
+export const gigabytes = (bytes: number): string => (bytes / 1e9).toFixed(2) + ' GB'
+export const fullCheckMinutes = (weightsGb: number): string => Math.max(1, Math.round(weightsGb / 24)) + '–' + Math.max(1, Math.ceil(weightsGb / 12)) + ' min'
+export const keptDiskPrice = (record: KeptVolume): string => record.kind === 'global' && record.partialBytes !== undefined ? '~$' + (record.partialBytes / 1e9 * 0.09).toFixed(2) + '/month for ' + gigabytes(record.partialBytes) + ' stored + IOPS' : volumePrice(record) + (record.kind === 'network' ? ' for its ' + record.size + ' GB' : '')
 export function volumeLabel(volume: HostVolume): string {
   const own = readKeptVolume(volume.id)
-  const amount = own ? volumePrice(own) : volume.kind === 'global' ? '$0.09/GB/month + IOPS · size not reported by Runpod' : volume.type === 'STANDARD' ? '$' + networkMonthly(volume.size!).toFixed(2) + '/month' : 'monthly price depends on storage tier; see Runpod billing'
-  return volume.name + ' · ' + volume.id + ' · ' + (volume.dataCenter ?? 'any DC') + ' · ' + amount + (own ? ' · weights disk' : ' · created outside Mercury · read-only')
+  const amount = own ? keptDiskPrice(own) : volume.kind === 'global' ? '$0.09/GB/month + IOPS · size not reported by Runpod' : volume.type === 'STANDARD' ? '$' + networkMonthly(volume.size!).toFixed(2) + '/month' : 'monthly price depends on storage tier; see Runpod billing'
+  return volume.name + ' · ' + volume.id + ' · ' + (volume.dataCenter ?? 'any DC') + ' · ' + amount + (own ? ' · weights disk' + (own.state === 'kept' ? '' : ' · ' + own.state + (own.partialBytes !== undefined ? ' · ' + gigabytes(own.partialBytes) + ' downloaded' : '')) : ' · created outside Mercury · read-only')
 }
 export async function reconcileVolumes(api: RunpodClient, signal?: AbortSignal): Promise<HostVolume[]> {
   const live = await api.volumes(signal)
@@ -84,5 +87,5 @@ export async function deleteKeptVolume(api: RunpodClient, id: string): Promise<v
   writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined })
 }
 export function fastLoadEstimate(recipe: HostRecipe, volume?: KeptVolume): string {
-  return (recipe.install ? 'builds the engine ~10 min' : 'image pull ~1 min') + ' · ' + (volume?.state === 'kept' ? 'weights kept ~0 download · sampled check' : 'weights ~' + Math.max(1, Math.ceil(recipe.weightsGb / 60)) + ' min at 1 GB/s') + ' · load ~3 min'
+  return (recipe.install ? 'builds the engine ~10 min' : 'image pull ~1 min') + ' · ' + (volume?.state === 'kept' ? 'weights kept ~0 download · ' + (volume.verifiedSums?.sampleManifestSha256 ? 'sampled check' : 'full check ' + fullCheckMinutes(recipe.weightsGb)) : 'weights ~' + Math.max(1, Math.ceil(recipe.weightsGb / 60)) + ' min at 1 GB/s') + ' · load ~3 min'
 }

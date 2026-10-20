@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, writeFileSync, statSync, unlinkSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, writeFileSync, statSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
@@ -237,8 +237,41 @@ try {
     }, () => {}, signal, options)
     await Promise.all(jobs)
     check('explicit full verification performs full check and terminates its temporary pod', ssh.state.fullChecks === fullBefore + 1 && volumes.readKeptVolume(winner.value.id)?.verifiedSums?.check === 'full' && rp.state.pods.size === 0)
+    const keptBefore = volumes.readKeptVolume(winner.value.id)!
+    const fetchesBefore = ssh.state.weightFetches
+    const transportPod = await api.create(failOffer, sshKey.publicKey, 'fixture-transport', winner.value)
+    const transportJob = queueHostSetup({ id: transportPod.id, name: transportPod.name, recipe: qwen.id, price: failOffer.price, status: transportPod.status, startedAt: transportPod.createdAt, apiBaseUrl: rp.baseUrl, sshKey: sshKey.path, volumeId: winner.value.id, prepareWeightsOnly: true, sessionId: 'fast-load-proof' })
+    ssh.state.checkTransport = true
+    await runHostJob(transportJob.id, transportJob.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: 3000, keepAlive: false })
+    ssh.state.checkTransport = false
+    const keptAfter = volumes.readKeptVolume(winner.value.id)!
+    check('a dropped SSH connection during a warm check neither downloads again nor discards the verified disk', keptAfter.state === 'kept' && keptAfter.verifiedSums?.sha256 === keptBefore.verifiedSums?.sha256 && ssh.state.weightFetches === fetchesBefore && !rp.state.pods.has(transportPod.id))
     await volumes.deleteKeptVolume(api, winner.value.id)
   }
+  const stallBefore = { creates: rp.state.creates, fetches: ssh.state.weightFetches }
+  let stallOpened = false
+  ssh.state.weights.delete(keptWeightsPath(nemotron))
+  ssh.state.stallDownload = 11.2e9
+  await fastLoadDoor(api, async q => {
+    if (q.step === 'fast-load') { if (stallOpened) return null; stallOpened = true; return fastLoadRecipes().find(row => row.model === nemotron.model)!.id }
+    if (q.step === 'fast-load-how') return 'network'
+    if (q.step === 'fast-load-where') return 'EU-NL-1'
+    if (q.step === 'fast-load-when') return 'now'
+    if (q.step === 'fast-load-confirm') { check('prepare-now confirm states the stall and deadline bound before any disk or pod exists', q.willRun.includes('A stalled download (under 1 GB in 10 min) or one past 41 min also terminates the pod and keeps the partial disk') && rp.state.creates === stallBefore.creates); return 'confirm' }
+    throw new Error('Unexpected stall step ' + q.step)
+  }, () => {}, signal, options)
+  await Promise.all(jobs)
+  ssh.state.stallDownload = 0
+  const stalled = volumes.keptVolumes().find(row => row.model === nemotron.model && row.state !== 'gone')!
+  const stallPodId = 'fixture-pod-' + rp.state.creates
+  check('a stalled download marks the kept disk failed with its partial bytes and the stall words', stalled?.state === 'failed' && stalled.partialBytes === 11.2e9 && stalled.error === 'Download stalled at 11.20 GB of 65.76 GB (under 1 GB in 10 min)')
+  const deleteAt = rp.requests.findIndex((r: any) => r.method === 'DELETE' && r.path === '/v2/pods/' + stallPodId)
+  check('the stalled temporary pod is terminated and the live list is read back before it counts as gone', rp.state.creates === stallBefore.creates + 1 && deleteAt >= 0 && rp.requests.slice(deleteAt + 1).some((r: any) => r.method === 'GET' && r.path === '/v2/pods') && !rp.state.pods.has(stallPodId) && !readHostRecord(stallPodId) && ssh.state.weightFetches === stallBefore.fetches)
+  const notices = readdirSync(join(f.home, 'host/notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8')).words as string)
+  check('the stall notice names the stall, the verified termination and the half-filled disk price', notices.some(words => words.includes('preparation stopped: Download stalled at 11.20 GB of 65.76 GB') && words.includes('temporary pod ' + stallPodId + ' terminated') && words.includes('with 11.20 GB downloaded') && words.includes('$8.40/month for its 120 GB')))
+  check('catalogue and paid list show the failed partial disk and its monthly price', fastLoadState(nemotron).startsWith('failed · ' + stalled.id) && fastLoadState(nemotron).includes('$8.40/month for its 120 GB') && volumes.volumeLabel(rp.state.volumes.get(stalled.id)).includes('failed · 11.20 GB downloaded'))
+  check('a finished preparation leaves a notice naming the kept disk and the terminated pod', notices.some(words => words.includes('weights kept on ' + kept.id) && words.includes('temporary pod fixture-pod-1 terminated')))
+  await volumes.deleteKeptVolume(api, stalled.id)
   const tiny = join(f.home, 'tiny-weights'); mkdirSync(tiny)
   const bytes = Buffer.from('verified weights')
   writeFileSync(join(tiny, 'model.gguf'), bytes)
@@ -259,6 +292,27 @@ try {
   check('same-size corruption triggers full verification and is rejected', verify(sampleOptions).status !== 0 && verify(sampleOptions).stdout.includes('full check running'))
   unlinkSync(join(tiny, 'model.gguf'))
   check('missing shard is rejected rather than trusting an old SHA256SUMS', verify().status !== 0)
+  const fakeHub = join(f.home, 'fake-hub', 'huggingface_hub'); mkdirSync(fakeHub, { recursive: true })
+  writeFileSync(join(fakeHub, '__init__.py'), ['import os, pathlib, time', 'def snapshot_download(repo_id, revision, allow_patterns, local_dir, force_download):', '    root = pathlib.Path(local_dir)', "    if os.environ['FAKE_HF_MODE'] == 'stall':", "        with open(root / 'partial.incomplete', 'wb') as out:", "            out.write(b'x' * 4096)", '        time.sleep(30)', '        return str(root)', "    source = pathlib.Path(os.environ['FAKE_HF_SOURCE'])", '    for name in allow_patterns:', '        data = (source / name).read_bytes()', "        with open(root / name, 'wb') as out:", '            for start in range(0, len(data), 2048):', '                out.write(data[start:start + 2048])', '                out.flush()', '                time.sleep(0.05)', '    return str(root)'].join('\n') + '\n')
+  const source = join(f.home, 'fake-hub-source'); mkdirSync(source)
+  const payload = Buffer.alloc(60 * 1024, 7)
+  writeFileSync(join(source, 'model.gguf'), payload)
+  const netDev = join(f.home, 'fake-net-dev')
+  writeFileSync(netDev, 'Inter-|   Receive\n face |bytes    packets\n  eth0: 1000 10 0 0 0 0 0 0 1000 10 0 0 0 0 0 0\n')
+  const fillManifest = { model: 'fixture/fill', include: '', revision: 'fixture', files: [{ path: 'model.gguf', size: payload.length, sha256: createHash('sha256').update(payload).digest('hex') }] }
+  const fill = (name: string, mode: string, extra: NonNullable<Parameters<typeof weightCheckScript>[3]>) => {
+    const started = Date.now()
+    const run = spawnSync('python3', ['-c', weightCheckScript(fillManifest, join(f.home, name), true, { stallSeconds: 0.5, stallBytes: 1000, stallPollSeconds: 0.05, netDevPath: netDev, ...extra })], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PYTHONPATH: join(f.home, 'fake-hub'), FAKE_HF_MODE: mode, FAKE_HF_SOURCE: source } })
+    return { status: run.status, stdout: run.stdout ?? '', seconds: (Date.now() - started) / 1000, report: JSON.parse(/MERCURY_STALL (\{.*\})/.exec(run.stdout ?? '')?.[1] ?? 'null') as { reason: string; bytes: number } | null }
+  }
+  const stopped = fill('fill-stall', 'stall', {})
+  check('a real download that stops growing exits 75 with its partial bytes long before the stalled transfer would return', stopped.status === 75 && stopped.report?.reason === 'stall' && stopped.report.bytes >= 4096 && stopped.seconds < 20)
+  const flowing = fill('fill-flowing', 'copy', {})
+  check('a real download still writing bytes past the stall window is never called stalled and verifies', flowing.status === 0 && !flowing.report && flowing.stdout.includes('full check passed') && flowing.seconds > 1)
+  const late = fill('fill-deadline', 'stall', { stallSeconds: 100, deadlineSeconds: 0.5 })
+  check('a real download past its deadline exits 75 and reports the deadline', late.status === 75 && late.report?.reason === 'deadline')
+  const blind = fill('fill-unmeasured', 'stall', { netDevPath: join(f.home, 'missing-net-dev'), deadlineSeconds: 2 })
+  check('without a readable transfer counter the stall rule stays off and only the deadline stops the download', blind.status === 75 && blind.report?.reason === 'deadline' && blind.seconds >= 2)
   const engineWords = volumes.fastLoadEstimate(gguf, { ...kept, state: 'kept' })
   check('GGUF estimate admits the retained build instead of promising image-only startup', engineWords.includes('builds the engine ~10 min') && engineWords.includes('weights kept ~0') && engineWords.includes('load ~3 min'))
   rp.state.failVolumeRead = true

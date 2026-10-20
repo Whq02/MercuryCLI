@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import type { LlmHostRoad, LlmHostResult } from '../llmHost/index.js'
 import { currentHostRecipes } from './recipesFile.js'
-import { weightManifest } from './keptWeights.js'
+import { keptDownloadMinutes, keptStallWords, weightManifest } from './keptWeights.js'
 import type { HostRecipe } from './recipes.js'
 import { createRefusal, type RunpodClient, type HostOffer, type HostPod } from './runpod.js'
 import { ensureHostKey, type HostRunner } from './ssh.js'
 import { queueHostSetup, requireHostJobOwner } from './jobs.js'
 import type { HostRecord } from './store.js'
-import { createKeptVolume, deleteKeptVolume, keptVolumes, matchesVolume, networkMonthly, readKeptVolume, reconcileVolumes, volumeModel, volumePrice, writeKeptVolume, type KeptVolume } from './volumes.js'
+import { createKeptVolume, deleteKeptVolume, fullCheckMinutes, keptDiskPrice, keptVolumes, matchesVolume, networkMonthly, readKeptVolume, reconcileVolumes, volumeModel, volumePrice, writeKeptVolume, type KeptVolume } from './volumes.js'
 
 export const FAST_LOAD_DOOR = 'Fast-load (keep weights near the GPU)'
 type Ask = Parameters<LlmHostRoad>[0]
@@ -20,8 +20,9 @@ export function fastLoadState(recipe: HostRecipe): string {
   if (!row) return 'not kept'
   if (row.state === 'gone') return 'not kept · disk gone'
   if (row.state === 'creating') return 'preparing · create answer unclear; disk may exist and bill'
-  if (row.state === 'kept') return 'kept on ' + row.id + ' in ' + row.dataCenter + ' since ' + row.createdAt.slice(0, 10) + ' · ' + volumePrice(row) + (row.verifiedSums?.check ? ' · ' + row.verifiedSums.check + ' check passed' : '')
-  return 'preparing · ' + row.id + ' in ' + row.dataCenter + ' · ' + volumePrice(row) + (row.error ? ' · ' + row.error : '')
+  if (row.state === 'kept') return 'kept on ' + row.id + ' in ' + row.dataCenter + ' since ' + row.createdAt.slice(0, 10) + ' · ' + volumePrice(row) + (row.verifiedSums?.check ? ' · ' + row.verifiedSums.check + ' check passed' : '') + (row.verifiedSums?.sampleManifestSha256 ? '' : ' · next check is full ' + fullCheckMinutes(recipe.weightsGb))
+  if (row.state === 'failed') return 'failed · ' + row.id + ' in ' + row.dataCenter + ' · ' + keptDiskPrice(row) + (row.error ? ' · ' + row.error : '') + ' · the next rental downloads again'
+  return 'preparing · ' + row.id + ' in ' + row.dataCenter + ' · ' + volumePrice(row) + (row.preparingPod ? ' · on pod ' + row.preparingPod : '')
 }
 export const volumeFitsOffer = (offer: HostOffer): boolean => {
   const volume = keptVolumes().find(row => matchesVolume(row, offer.recipe) && row.state !== 'gone')
@@ -81,7 +82,7 @@ export async function fastLoadDoor(api: RunpodClient, ask: Ask, emit: Emit, sign
       if (action === 'verify') {
         const offer = (await api.offers(signal)).filter(row => matchesVolume(existing, row.recipe) && (existing.kind === 'global' || !row.dataCenter || row.dataCenter === existing.dataCenter)).sort((a, b) => a.price - b.price)[0]
         if (!offer) { emit({ title: FAST_LOAD_DOOR, words: 'No fitting verification pod has stock. No pod was created; the kept disk still bills.' }); continue }
-        const confirm = await ask({ step: 'fast-load-verify-confirm', title: 'Verify fully · full SHA256', found: existing.id + ' · ' + volumePrice(existing) + ' · full check ~' + Math.max(1, Math.round(recipe.weightsGb / 18)) + ' min', willRun: 'Rent $' + offer.price.toFixed(2) + '/hr for verification, then terminate. The disk keeps billing without a pod.', rows: [{ value: 'verify', label: 'Confirm full verification · temporary pod $' + offer.price.toFixed(2) + '/hr' }, { value: 'cancel', label: 'Cancel' }] })
+        const confirm = await ask({ step: 'fast-load-verify-confirm', title: 'Verify fully · full SHA256', found: existing.id + ' · ' + volumePrice(existing) + ' · full check ' + fullCheckMinutes(recipe.weightsGb), willRun: 'Rent $' + offer.price.toFixed(2) + '/hr for verification, then terminate. A mismatch downloads the weights again on that pod first. The disk keeps billing without a pod.', rows: [{ value: 'verify', label: 'Confirm full verification · temporary pod $' + offer.price.toFixed(2) + '/hr' }, { value: 'cancel', label: 'Cancel' }] })
         if (confirm === 'verify' && !signal.aborted) await prepareVolume(api, recipe, existing, offer, options, signal, true)
       }
       if (action === 'delete') { const result = await volumeDeleteDoor(api, existing.id, ask, signal); emit({ title: FAST_LOAD_DOOR, words: result.words }) }
@@ -109,7 +110,7 @@ export async function fastLoadDoor(api: RunpodClient, ask: Ask, emit: Emit, sign
     const offer = when === 'now' ? (await api.offers(signal)).filter(row => volumeModel(row.recipe) === volumeModel(recipe) && (how === 'global' || !row.dataCenter || row.dataCenter === dataCenter)).sort((a, b) => a.price - b.price)[0] : undefined
     if (when === 'now' && !offer) { emit({ title: FAST_LOAD_DOOR, words: 'No fitting pod has stock here. Nothing was created; try another data centre or prepare at the next rental.' }); continue }
     const amount = volumePrice({ kind: how, price: how === 'global' ? recipe.weightsGb * 0.09 : networkMonthly(recipe.diskGb) })
-    const confirm = await ask({ step: 'fast-load-confirm', title: 'Confirm weights disk · ' + amount, found: recipe.label + ' · ' + (how === 'network' ? recipe.diskGb + ' GB disk' : recipe.weightsGb.toFixed(2) + ' GB estimated usage') + ' · ' + dataCenter, willRun: 'Disk bills whether or not a pod exists.' + (offer ? ' Prepare now: $' + offer.price.toFixed(2) + '/hr until download verifies; then terminate.' : ' No pod now; next rental downloads the weights.'), rows: [{ value: 'confirm', label: 'Confirm ' + amount + (offer ? ' + temporary pod $' + offer.price.toFixed(2) + '/hr' : '') }, { value: 'cancel', label: 'Cancel' }] })
+    const confirm = await ask({ step: 'fast-load-confirm', title: 'Confirm weights disk · ' + amount, found: recipe.label + ' · ' + (how === 'network' ? recipe.diskGb + ' GB disk' : recipe.weightsGb.toFixed(2) + ' GB estimated usage') + ' · ' + dataCenter, willRun: 'Disk bills whether or not a pod exists.' + (offer ? ' Prepare now: $' + offer.price.toFixed(2) + '/hr until download verifies; then terminate. A stalled download (' + keptStallWords + ') or one past ' + keptDownloadMinutes(recipe) + ' min also terminates the pod and keeps the partial disk.' : ' No pod now; next rental downloads the weights.'), rows: [{ value: 'confirm', label: 'Confirm ' + amount + (offer ? ' + temporary pod $' + offer.price.toFixed(2) + '/hr' : '') }, { value: 'cancel', label: 'Cancel' }] })
     if (confirm !== 'confirm' || signal.aborted) continue
     if (offer && !options.startJob) await requireHostJobOwner()
     const volume = await createKeptVolume(api, recipe, how, dataCenter, signal)
