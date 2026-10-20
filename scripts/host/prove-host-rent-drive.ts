@@ -73,6 +73,11 @@ try {
       return false
     }, 5000), 'selection reaches ' + needle + '\n' + m.screen())
     m.push(KEY.enter)
+    if (needle === 'Rent a GPU') {
+      await heading('Rent from which vendor?')
+      check('where-first rental offers all three vendors before the key', ['Runpod', 'Vast.ai', 'Lambda'].every(label => m.screen().includes(label)))
+      await choose('Runpod')
+    }
   }
   const text = async (title: string, value = '') => { await until(title); if (value) { m.push(value); await until(value) } m.push(KEY.enter) }
   const close = async () => { m.push(KEY.esc); if (!await waitFor(() => !popup.isSettingsPopupOpen(), 1000)) m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }

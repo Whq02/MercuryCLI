@@ -1,4 +1,7 @@
 import { isIP } from 'node:net'
+import { runpodOnly } from './vendors/client.js'
+import type { HostVendor } from './vendors/vendor.js'
+import { HostCreateError } from './vendors/http.js'
 import { setTimeout as delay } from 'node:timers/promises'
 import { RunpodClient, cents, clusterCreateRefusal, createRefusal, type HostCluster, type HostClusterPod, type HostOffer, type HostPod, type HostVolumeMount } from './runpod.js'
 import { recipeFits, type HostRecipe } from './recipes.js'
@@ -11,7 +14,7 @@ const clusterPlacementMs = 30 * 60_000
 const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
 
 export const hostShape = (recipe: HostRecipe): string => ((recipe.nodes ?? 1) > 1 ? recipe.nodes + ' nodes × ' : '') + recipe.count + '× ' + recipe.gpu
-export const hostCreateRefusal = (recipe: HostRecipe, error: unknown) => (recipe.nodes ?? 1) > 1 ? clusterCreateRefusal(error) : createRefusal(error)
+export const hostCreateRefusal = (recipe: HostRecipe, error: unknown) => error instanceof HostCreateError && error.outcome === 'refused' ? { status: error.status, detail: error.message, retryAfterSeconds: undefined } : (recipe.nodes ?? 1) > 1 ? clusterCreateRefusal(error) : createRefusal(error)
 export const hostResourceKind = (recipe: HostRecipe): string => (recipe.nodes ?? 1) > 1 ? 'cluster' : 'pod'
 export const hostClusterRecord = (pod: HostPod): Pick<HostRecord, 'cluster' | 'nodes'> => pod.family ? { cluster: pod.family, nodes: pod.nodes ?? [] } : {}
 export const hostResourceLabel = (pod: HostPod): string => pod.name + (pod.family ? ' · ' + pod.family.compute.podCount + ' nodes × ' + pod.family.compute.gpuCountPerPod + '× ' + pod.family.compute.gpuTypeId.replace(/^NVIDIA /, '') : '')
@@ -22,19 +25,23 @@ function familyPod(cluster: HostCluster, nodes: HostClusterPod[], price?: number
   return { id: cluster.id, name: cluster.name, status, cost: all ? nodes.reduce((sum, node) => sum + node.cost, 0) : price ?? nodes.reduce((sum, node) => sum + node.cost, 0), createdAt: cluster.createdAt, family: cluster, nodes }
 }
 
-export async function createHostResource(api: RunpodClient, offer: HostOffer, publicKey: string, name: string, volume?: HostVolumeMount): Promise<HostPod> {
+export async function createHostResource(api: RunpodClient | HostVendor, offer: HostOffer, publicKey: string, name: string, volume?: HostVolumeMount): Promise<HostPod> {
+  if (volume) runpodOnly(api, 'Network and global volumes')
   if ((offer.recipe.nodes ?? 1) === 1) return api.create(offer, publicKey, name, volume)
   if (volume) throw new Error('A kept weights disk mounts on one pod; a cluster downloads its weights on every node.')
-  const cluster = await api.createCluster(offer, publicKey, name)
-  const nodes = await api.clusterPods(cluster.id).catch(() => [])
+  const client = runpodOnly(api, 'Clusters')
+  const cluster = await client.createCluster(offer, publicKey, name)
+  const nodes = await client.clusterPods(cluster.id).catch(() => [])
   return familyPod(cluster, nodes, offer.price)
 }
 
-export async function listHostResources(api: RunpodClient, signal?: AbortSignal, onIncomplete?: (words: string) => void): Promise<HostPod[]> {
+export async function listHostResources(api: RunpodClient | HostVendor, signal?: AbortSignal, onIncomplete?: (words: string) => void): Promise<HostPod[]> {
   const pods = await api.pods(signal)
+  if ('vendor' in api && api.vendor !== 'runpod') return pods
   try {
-    const clusters = await api.clusters(signal)
-    const families = await Promise.all(clusters.map(async cluster => familyPod(cluster, await api.clusterPods(cluster.id, signal), readHostRecord(cluster.id)?.price)))
+    const client = runpodOnly(api, 'Clusters')
+    const clusters = await client.clusters(signal)
+    const families = await Promise.all(clusters.map(async cluster => familyPod(cluster, await client.clusterPods(cluster.id, signal), readHostRecord(cluster.id)?.price)))
     return [...pods.filter(pod => !families.some(family => family.nodes?.some(node => node.id === pod.id))), ...families]
   } catch (error) {
     if (!onIncomplete || signal?.aborted) throw error
@@ -43,19 +50,21 @@ export async function listHostResources(api: RunpodClient, signal?: AbortSignal,
   }
 }
 
-export async function getHostResource(api: RunpodClient, id: string, signal?: AbortSignal, family?: HostCluster): Promise<HostPod> {
+export async function getHostResource(api: RunpodClient | HostVendor, id: string, signal?: AbortSignal, family?: HostCluster): Promise<HostPod> {
   if (!family && !readHostRecord(id)?.cluster) return api.get(id, signal)
-  const [cluster, nodes] = await Promise.all([api.getCluster(id, signal), api.clusterPods(id, signal)])
+  const client = runpodOnly(api, 'Clusters')
+  const [cluster, nodes] = await Promise.all([client.getCluster(id, signal), client.clusterPods(id, signal)])
   return familyPod(cluster, nodes, readHostRecord(id)?.price)
 }
 
-export async function terminateHostResource(api: RunpodClient, pod: HostPod): Promise<void> {
+export async function terminateHostResource(api: RunpodClient | HostVendor, pod: HostPod): Promise<void> {
   if (pod.family) {
-    await api.terminateCluster(pod.id)
-    if ((await api.clusters()).some(row => row.id === pod.id)) throw new Error('Runpod accepted termination but still lists this cluster. Check it again; deletion is not yet verified.')
+    const client = runpodOnly(api, 'Clusters')
+    await client.terminateCluster(pod.id)
+    if ((await client.clusters()).some(row => row.id === pod.id)) throw new Error('Runpod accepted termination but still lists this cluster. Check it again; deletion is not yet verified.')
   } else {
     await api.terminate(pod.id)
-    if ((await api.pods()).some(row => row.id === pod.id)) throw new Error('Runpod accepted termination but still lists this pod. Check it again; deletion is not yet verified.')
+    if ((await api.pods()).some(row => row.id === pod.id)) throw new Error(('label' in api ? api.label : 'Runpod') + ' accepted termination but still lists this pod. Check it again; deletion is not yet verified.')
   }
 }
 

@@ -4,7 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
-import type { HostOffer, HostPod, HostVendor } from './vendor.js'
+import { HOST_VENDOR_INFO, type HostOffer, type HostPod, type HostVendor } from './vendor.js'
 import { HostCreateError, VendorApi, isOpenSshKey, keyMaterial, type VendorTiming } from './http.js'
 
 export const LAMBDA_STORAGE_NOTICE = '/workspace uses the instance root disk and survives a restart, not termination. Lambda has no stop; compute keeps billing until termination. No persistent filesystem is created or attached.'
@@ -35,8 +35,8 @@ export function lambdaGpu(description: string): { id: string; memory: number } |
 
 export class LambdaClient implements HostVendor {
   readonly vendor = 'lambda' as const
-  readonly label = 'Lambda'
-  readonly keyHelp = 'Create a Lambda Cloud API key at https://cloud.lambda.ai/api-keys.'
+  readonly label = HOST_VENDOR_INFO.lambda.label
+  readonly keyHelp = HOST_VENDOR_INFO.lambda.keyHelp
   readonly capabilities = { stop: false, dataCenters: true, persistentDisk: 'root' } as const
   private api: VendorApi
   private lastShapes: HostOffer[] = []

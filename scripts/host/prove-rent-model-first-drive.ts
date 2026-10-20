@@ -78,7 +78,15 @@ try {
   const choose = async (needle: string) => {
     for (let n = 0; n < 40; n++) {
       const before = selected()
-      if (before.includes(needle)) { m.push(KEY.enter); return }
+      if (before.includes(needle)) {
+        m.push(KEY.enter)
+        if (needle === 'Rent a GPU') {
+          await heading('Rent from which vendor?')
+          check('where-first rental offers all three vendors', ['Runpod', 'Vast.ai', 'Lambda'].every(label => m.screen().includes(label)))
+          await choose('Runpod')
+        }
+        return
+      }
       m.push(KEY.down)
       assert.ok(await waitFor(() => selected() !== before, 5000), 'selection moves toward ' + needle + '\n' + m.screen())
     }
