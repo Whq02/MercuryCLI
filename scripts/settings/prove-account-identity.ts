@@ -215,6 +215,14 @@ await stub('src/components/tasks/useFocusedWork.ts', {
 })
 await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null, workflowsDisk: [] }) })
 
+const activeUsageReads = new Set<Promise<void>>()
+const ownerRefresh = (await import(join(ROOT, 'src/services/providers/providerUsage.ts'))).refreshProviderUsage
+await stub('src/services/providers/providerUsage.ts', { refreshProviderUsage: (...args: Parameters<typeof ownerRefresh>) => {
+  const reading = ownerRefresh(...args)
+  activeUsageReads.add(reading)
+  void reading.then(() => activeUsageReads.delete(reading), () => activeUsageReads.delete(reading))
+  return reading
+} })
 const ink = await import(join(ROOT, 'src/ink.ts'))
 const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))
 const { InputEvent } = await import(join(ROOT, 'src/ink/events/input-event.ts'))
@@ -249,9 +257,13 @@ async function paint(content: React.ReactNode, columns: number, rows: number, wa
     let last = read()
     const deadline = performance.now() + 8000
     while (performance.now() < deadline) {
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('usage readings did not settle before the frame deadline')), Math.max(0, deadline - performance.now()))
+        void Promise.all([...activeUsageReads]).then(() => { clearTimeout(timer); resolve() }, error => { clearTimeout(timer); reject(error) })
+      })
       await settle()
       const next = read()
-      if (next !== '' && next === last) return next
+      if (activeUsageReads.size === 0 && next !== '' && next === last) return next
       last = next
     }
     throw new Error('the rendered frame never settled')
@@ -417,7 +429,11 @@ for (const leg of ['absent', 'shown', 'hidden'] as Leg[]) painted.set(leg, await
   check('absent: /usage shows the Hugging Face username and a key tail somewhere (the check below has teeth)', absent.popup.join('\n').includes(HF_USERNAME) && TAILS.some(tail => absent.popup.join('\n').includes(tail)))
   check('absent: the rail names the Claude email', railCells(absent.rails.get('anthropic')!).includes(ANTHROPIC_EMAIL), JSON.stringify(railCells(absent.rails.get('anthropic')!).slice(0, 4)))
   check('absent: the boot chip names the Claude email', lineWith(absent.face, 'Acct').includes(`Acct ${ANTHROPIC_EMAIL}`), lineWith(absent.face, 'Acct'))
-  check('true: every /usage frame is byte-identical to absent', JSON.stringify(shown.popup) === JSON.stringify(absent.popup), `${shown.popup.length} vs ${absent.popup.length} frames`)
+  const differentFrame = shown.popup.findIndex((frame, index) => frame !== absent.popup[index])
+  const shownLines = shown.popup[differentFrame]?.split('\n') ?? []
+  const absentLines = absent.popup[differentFrame]?.split('\n') ?? []
+  const differentLine = shownLines.findIndex((line, index) => line !== absentLines[index])
+  check('true: every /usage frame is byte-identical to absent', JSON.stringify(shown.popup) === JSON.stringify(absent.popup), `${shown.popup.length} vs ${absent.popup.length} frames; first difference ${differentFrame}:${differentLine} — ${JSON.stringify({ absent: absentLines[differentLine], shown: shownLines[differentLine] })}`)
   check('true: every rail frame is byte-identical to absent', RAIL_FAMILIES.every(family => shown.rails.get(family.id) === absent.rails.get(family.id)))
   check('true: the boot chip line is byte-identical to absent', lineWith(shown.face, 'Acct') === lineWith(absent.face, 'Acct'))
   check('true: the Logins frame is byte-identical to absent', shown.logins === absent.logins)
