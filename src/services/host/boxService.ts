@@ -75,7 +75,8 @@ export async function boxServiceRunning(box: HostBox, runner: HostRunner, signal
 
 export function boxEndpointNotice(name: string, baseUrl: string, unreachable = false): string | undefined {
   if (!name.startsWith('box-') || !boxNameSchema.safeParse(name.slice(4)).success) return
-  const record = readBoxService(name.slice(4))
+  let record: BoxServiceRecord | undefined
+  try { record = readBoxService(name.slice(4)) } catch { return }
   if (!record || record.baseUrl !== baseUrl) return
   if (record.state === 'stopped' || record.state === 'uninstalled') return 'box ' + record.name + ' · engine stopped — /llmhost starts it'
   if (record.state === 'starting') return 'box ' + record.name + ' · engine starting — /llmhost shows progress'

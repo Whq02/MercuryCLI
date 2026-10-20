@@ -187,10 +187,13 @@ function composeArms(
     return { session: refused, crew: refused }
   }
   if (route === 'openai-compat') {
-    const { compatModelEndpoint } = require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')
-    const { boxEndpointNotice } = require('../host/boxService.js') as typeof import('../host/boxService.js')
-    const endpoint = compatModelEndpoint(modelId)?.endpoint
-    const notice = endpoint && boxEndpointNotice(endpoint.name, endpoint.baseUrl)
+    let notice: string | undefined
+    try {
+      const { compatModelEndpoint } = require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')
+      const { boxEndpointNotice } = require('../host/boxService.js') as typeof import('../host/boxService.js')
+      const endpoint = compatModelEndpoint(modelId)?.endpoint
+      notice = endpoint && boxEndpointNotice(endpoint.name, endpoint.baseUrl)
+    } catch {}
     if (notice) {
       const refused: WorkerArmAvailabilityV1 = { availability: 'refused', refusal: 'unreachable:box', detail: notice, action: '/llmhost → One of my computers' }
       return { session: refused, crew: refused }

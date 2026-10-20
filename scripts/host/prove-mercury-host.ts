@@ -209,6 +209,13 @@ try {
   const refused = await validateWorkerModelChoice(model, 'session')
   assert.equal(refused.ok, false)
   if (!refused.ok) { assert.equal(refused.reason, 'unreachable:box'); assert.match(refused.detail!, /engine stopped/); assert.ok(!JSON.stringify(refused).includes('needs a key')) }
+  const recordFile = join(process.env.MERCURY_CONFIG_DIR!, 'host', 'services', machine.name + '.json')
+  const savedRecord = readFileSync(recordFile, 'utf8')
+  writeFileSync(recordFile, '{ not a record')
+  assert.ok(namedCompatModelOptions().some(row => row.value === model), 'an unreadable box record never breaks the model list')
+  await validateWorkerModelChoice(model, 'session')
+  writeFileSync(recordFile, savedRecord)
+  console.log('MERCURY HOST GREEN · an unreadable box record leaves the model list and admission standing')
   await controlBoxService(machine, 'start', fixture.runner, signal)
   assert.equal(await boxServiceRunning(machine, fixture.runner, signal), true)
   await controlBoxService(machine, 'uninstall', fixture.runner, signal)
