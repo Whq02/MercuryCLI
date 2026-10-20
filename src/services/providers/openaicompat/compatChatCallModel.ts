@@ -614,7 +614,11 @@ export async function* compatChatCallModel(
       }
       const refreshed = await profile.resolveCredential()
       if (refreshed) credential = refreshed
-      request.extra = makeRequestExtra()
+      if (profile.dialect === 'llamacpp') {
+        const slot = makeRequestExtra().id_slot
+        if (typeof slot === 'number') request.extra = { ...request.extra, id_slot: slot }
+        else if (request.extra) delete request.extra.id_slot
+      }
     }
     attemptStartedAtMs = Date.now()
     const signInRequest = captureSignInRequest(profile.lane, credential.apiKey)
@@ -1054,6 +1058,7 @@ async function* streamOneCompatAttempt(ctx: {
         break
       }
       case 'tool-call-fragment': {
+        if (profile.lane === 'gemini') break
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
         const paint = toolPaints.get(event.index)

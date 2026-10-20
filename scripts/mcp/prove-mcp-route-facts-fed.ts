@@ -51,60 +51,50 @@ section('§2 the roster line')
   check('§2 the line names the owner and the toggle door', line.includes("The session's runner owns them") && line.includes('/mcp enable|disable <name>'), line)
 }
 
-section('§3 the composer is a thin caller of the table (source pins)')
+section('§3 the composer leases the focused session popup on every seat')
 {
   const src = readFileSync(join(ROOT, 'src/commands/mcp/mcp.tsx'), 'utf8')
-  check('§3 imports the arm table', src.includes("from './route.js'") && src.includes('mcpRouteArm') && src.includes('mcpRosterLine'))
-  const rosterAt = src.indexOf('getFocusedSessionConnector().mcpRoster()')
-  const armAt = src.indexOf('mcpRouteArm(roster')
-  check('§3 the focused roster is read BEFORE the arm decides, unconditionally', rosterAt > 0 && armAt > rosterAt, `roster@${rosterAt} arm@${armAt}`)
-  check('§3 no screen-list-empty gate fronts the facts arm (the base shape)', !src.includes('screenClients.length === 0'))
-  check("§3 the panel arm survives for the screen's own clients", src.includes('<MCPSettings onComplete={onDone} />'))
-  const route = readFileSync(join(ROOT, 'src/commands/mcp/route.ts'), 'utf8')
-  check('§3 the line grammar has ONE owner (route.ts carries the sentences, the composer none)', route.includes("The session's MCP servers:") && !src.includes("The session's MCP servers:"))
+  check('§3 the focused roster determines the popup grant', src.includes('mcpPopupShapeFor(getFocusedSessionConnector().mcpRoster().clients.length)'))
+  check('§3 the composer returns the popup under its lease', src.includes('<CommandPopupLease token={token}><MCPSettings onComplete={onDone} /></CommandPopupLease>'))
+  check('§3 no screen-list-empty gate fronts the focused roster', !src.includes('screenClients.length === 0'))
+  const popup = readFileSync(join(ROOT, 'src/commands/mcp/McpPopup.tsx'), 'utf8')
+  check('§3 the popup subscribes to and reads the focused connector', popup.includes('subscribeThroughFocused') && popup.includes('mcpRosterRowsFailedFirst(connector.mcpRoster())'))
 }
 
-section('§4 the route driven through the composer')
+section('§4 the focused roster is painted through the composer')
 {
-  type Composer = { call: (onDone: (r?: string) => void, ctx: unknown, args: string) => Promise<unknown> }
-  let mod: Composer | null = null
-  let loadError = ''
-  try {
-    mod = (await import(join(ROOT, 'src/commands/mcp/mcp.tsx'))) as Composer
-  } catch (error) {
-    loadError = String(error)
-  }
-  if (mod === null) {
-    console.log(`  [SKIP] §4 the composer module did not load under bun — ${loadError.slice(0, 200)} (the §1–§3 pins are the floor; the live drive rides the pool's built-bundle capture)`)
-  } else {
-    const slot = await import(join(ROOT, 'src/services/engine-connector/focusedConnector.ts'))
-    const fakeConnector = (roster: Roster) => ({ carrier: 'daemon', sessionId: () => 'fake-session', mcpRoster: () => roster })
-    const ctxWith = (clients: unknown[]) => ({ getAppState: () => ({ mcp: { clients } }) })
-    const screenClients = [{ name: 'cockpit-a', type: 'connected' }, { name: 'cockpit-b', type: 'pending' }]
-
+  const React = await import('react')
+  const { App } = await import('../../src/components/App.js')
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
+  const mod = await import('../../src/commands/mcp/mcp.tsx')
+  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  enableConfigs()
+  const screenClients = [{ name: 'cockpit-a', type: 'connected' }, { name: 'cockpit-b', type: 'pending' }]
+  for (const [label, roster, clients] of [
+    ['populated beside screen clients', populated, screenClients],
+    ['empty beside screen clients', empty, screenClients],
+    ['empty beside an empty screen', empty, []],
+  ] as const) {
+    const connector = new Proxy({
+      carrier: 'daemon', sessionId: () => 'fake-session', mcpRoster: () => roster,
+      subscribeModel: () => () => {},
+    } as Record<string, unknown>, { get: (target, key) => typeof key === 'string' && key in target ? target[key] : () => undefined })
     slot._resetFocusedSessionConnectorForTesting()
-    slot.setFocusedSessionConnector(fakeConnector(populated))
+    slot.setFocusedSessionConnector(connector as never)
     let done: string | undefined
-    const element = await mod.call(r => { done = r }, ctxWith(screenClients), '')
-    const cardRoster = (element as { props?: { roster?: Roster } } | null)?.props?.roster
-    const cardNames = (cardRoster?.clients ?? []).map(c => c.name)
-    check("§4 populated roster beside screen clients: the composer returns the roster card (the card is the roster on every seat) and no line completes synchronously", element !== null && element !== undefined && done === undefined, String(done))
-    check("§4 … the card carries the session's roster", cardNames.includes('frozen') && cardNames.includes('docs'), cardNames.join(','))
-    check("§4 … and never the screen's own clients", !cardNames.includes('cockpit-a') && !cardNames.includes('cockpit-b'), cardNames.join(','))
-
-    slot._resetFocusedSessionConnectorForTesting()
-    slot.setFocusedSessionConnector(fakeConnector(empty))
-    let doneEmpty: string | undefined
-    const panel = await mod.call(r => { doneEmpty = r }, ctxWith(screenClients), '')
-    check('§4 empty roster beside screen clients: the panel element returns and no line completes', panel !== null && panel !== undefined && doneEmpty === undefined, String(doneEmpty))
-
-    slot._resetFocusedSessionConnectorForTesting()
-    slot.setFocusedSessionConnector(fakeConnector(empty))
-    let doneBlank: string | undefined
-    const blank = await mod.call(r => { doneBlank = r }, ctxWith([]), '')
-    check('§4 empty roster, empty screen: the honest empty line', blank === null && doneBlank === MCP_EMPTY_ROSTER_LINE, String(doneBlank))
-    slot._resetFocusedSessionConnectorForTesting()
+    const element = await mod.call(result => { done = result }, { getAppState: () => ({ mcp: { clients } }) } as never, '')
+    check('§4 ' + label + ': returns a popup without completing synchronously', element != null && done === undefined)
+    const mounted = await mountOffscreen(React.createElement(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, element), 100, 30)
+    try {
+      const needle = roster.clients.length ? 'docs · connected' : 'No MCP servers'
+      check('§4 ' + label + ': the popup carries the focused roster', await waitFor(() => mounted.screen().includes(needle), 10_000), mounted.screen())
+      check('§4 ' + label + ': never paints the screen clients', !mounted.screen().includes('cockpit-a') && !mounted.screen().includes('cockpit-b'), mounted.screen())
+      if (roster.clients.length) check('§4 the pending session server also paints', mounted.screen().includes('frozen'), mounted.screen())
+    } finally { mounted.unmount() }
   }
+  slot._resetFocusedSessionConnectorForTesting()
 }
 
 section("§5 the row speaks the deadline's honest reason (the panel's own words)")
@@ -122,9 +112,8 @@ section("§5 the row speaks the deadline's honest reason (the panel's own words)
   const line = mcpRosterLine({ clients: rows })
   check('§5 the face line carries the reason beside the failed state', line.includes(`frozen (failed) — ${REASON}`), line)
   check('§5 … and the healthy rows stay bare', line.includes('docs (connected) · slow (pending)'), line)
-  const stdioMenu = readFileSync(join(ROOT, 'src/components/mcp/MCPStdioServerMenu.tsx'), 'utf8')
-  const remoteMenu = readFileSync(join(ROOT, 'src/components/mcp/MCPRemoteServerMenu.tsx'), 'utf8')
-  check("§5 the panel's server menus print client.error verbatim (the same vocabulary)", stdioMenu.includes('{client.error}') && remoteMenu.includes('{client.error}'))
+  const { mcpServerState } = await import('../../src/commands/mcp/McpPopup.tsx')
+  check("§5 the popup carries the failed client's own reason", mcpServerState(failed as never) === 'failed: ' + REASON)
   const rosterSrc = readFileSync(join(ROOT, 'src/services/engine-connector/rosterTerms.ts'), 'utf8')
   check('§5 the projection forwards the reason only for a failed row', rosterSrc.includes("client.type === 'failed'") && rosterSrc.includes('error: client.error'))
 }

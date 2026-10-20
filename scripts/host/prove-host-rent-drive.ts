@@ -63,13 +63,13 @@ try {
     }
   }
   const choose = async (needle: string) => {
-    for (let n = 0; n < 40; n++) {
+    assert.ok(await waitFor(() => {
       const selected = m.lines().find(line => line.includes('› ')) ?? ''
-      if (selected.includes(needle)) { m.push(KEY.enter); return }
+      if (selected.includes(needle)) return true
       m.push(KEY.down)
-      assert.ok(await waitFor(() => (m.lines().find(line => line.includes('› ')) ?? '') !== selected, 5000), 'selection moves toward ' + needle + '\n' + m.screen())
-    }
-    throw new Error('Missing choice ' + needle)
+      return false
+    }, 5000), 'selection reaches ' + needle + '\n' + m.screen())
+    m.push(KEY.enter)
   }
   const text = async (title: string, value = '') => { await until(title); if (value) { m.push(value); await until(value) } m.push(KEY.enter) }
   const close = async () => { m.push(KEY.esc); if (!await waitFor(() => !popup.isSettingsPopupOpen(), 1000)) m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }

@@ -1,10 +1,11 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, posix, resolve } from 'node:path'
 import { createServer } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 import { hostDirectory } from './store.js'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { recipeFits, type HostRecipe } from './recipes.js'
 
 export interface SshTarget { host: string; user?: string; key?: string; port?: number }
@@ -19,7 +20,7 @@ export const hostRunner: HostRunner = {
   run(command, args, signal, timeoutMs = 30_000) {
     return new Promise((resolve, reject) => {
       if (signal.aborted) { reject(new Error('Stopped')); return }
-      const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] })
+      const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env: subprocessEnv() })
       children.add(child)
       let output = ''
       let settled = false
@@ -34,7 +35,7 @@ export const hostRunner: HostRunner = {
     })
   },
   tunnel(args) {
-    const child = spawn('ssh', args, { stdio: ['ignore', 'ignore', 'pipe'] })
+    const child = spawn('ssh', args, { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true, env: subprocessEnv() })
     children.add(child)
     let failure: string | undefined
     let tail = ''
@@ -103,7 +104,7 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
   }
   for (const [file, content] of Object.entries(recipe.files ?? {})) await runner.run('ssh', [...args, 'printf %s ' + quote(content) + ' > ' + quote(dir + '/' + file)], signal)
   const engine = (recipe.engine === 'llamacpp'
-    ? ['/workspace/mercury-host/llama.cpp/build/bin/llama-server', '--model', dir + '/weights/' + recipe.weightFile, '--alias', recipe.model + ':' + recipe.weightFile!.split('/')[0], ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']
+    ? ['/workspace/mercury-host/llama.cpp/build/bin/llama-server', '--model', dir + '/weights/' + recipe.weightFile, '--alias', recipe.model + ':' + posix.dirname(recipe.weightFile!), ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']
     : ['sglang', 'serve', '--model-path', bank ? dir + '/weights' : recipe.model, ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']).map(quote).join(' ')
   const download = bank ? 'true' : recipe.engine === 'llamacpp' ? '/workspace/mercury-host/hf/bin/hf download ' + quote(recipe.model) + ' --include ' + quote(recipe.include!) + ' --local-dir ' + quote(dir + '/weights') : 'hf download ' + quote(recipe.model)
   const install = recipe.install?.replace(' && cmake ', " && echo 'MERCURY_STEP building llama.cpp' && cmake ")

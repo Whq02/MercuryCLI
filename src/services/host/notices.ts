@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { hostDirectory, type HostRecord } from './store.js'
 
@@ -11,7 +11,7 @@ export function hostNotice(record: HostRecord, kind: string, words: string): voi
   mkdirSync(dir, { recursive: true, mode: 0o700 })
   const id = createHash('sha256').update([record.id, record.generation, kind].join(':')).digest('hex')
   const path = join(dir, id + '.json')
-  if (!existsSync(path)) durableAtomicPublishSync(path, JSON.stringify({ id, sessionId: record.sessionId, words }), { mode: 0o600 })
+  if (!existsSync(path)) publishAtomicSync(path, JSON.stringify({ id, sessionId: record.sessionId, words }), { mode: 0o600 })
 }
 export function deliverHostNotices(sessionId: string): void {
   const dir = join(hostDirectory(), 'notices')
@@ -21,7 +21,7 @@ export function deliverHostNotices(sessionId: string): void {
     const row = JSON.parse(readFileSync(path, 'utf8')) as { sessionId: string; words: string; id: string }
     if (row.sessionId !== sessionId || existsSync(path + '.delivered')) continue
     enqueuePendingNotification({ value: row.words, mode: 'task-notification', priority: 'next' })
-    writeFileSync(path + '.delivered', new Date().toISOString(), { mode: 0o600 })
+    publishAtomicSync(path + '.delivered', new Date().toISOString(), { mode: 0o600 })
   }
 }
 export function watchHostNotices(sessionId: () => string): () => void {

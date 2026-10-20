@@ -109,12 +109,15 @@ console.log('\n§4 the approval cards and the CLI label name the project file')
     'src/cli/handlers/mcp.tsx',
     'src/services/mcp/utils.ts',
     'src/commands/mcp/route.ts',
-    'src/components/mcp/MCPSettings.tsx',
   ]
   for (const rel of sources) {
     const text = readFileSync(join(ROOT, rel), 'utf8')
     check(`${rel} names .mercury/mcp.json and not the other file`, text.includes('.mercury/mcp.json') && !text.includes(otherName))
   }
+  const settings = readFileSync(join(ROOT, 'src/components/mcp/MCPSettings.tsx'), 'utf8')
+  check('the settings facade delegates to the session popup without a competing config path', settings.includes("import { McpPopup } from '../../commands/mcp/McpPopup.js'") && !settings.includes(otherName))
+  const popup = readFileSync(join(ROOT, 'src/commands/mcp/McpPopup.tsx'), 'utf8')
+  check('the empty popup directs configuration through mcp add', popup.includes('No MCP servers · mercury mcp add to add one') && !popup.includes(otherName))
   const approval = readFileSync(join(ROOT, 'src/services/mcpServerApproval.tsx'), 'utf8')
   check('the boot-time approval gate carries no name for the other file', !approval.includes(otherName) && !approval.includes(['Mcp', 'json'].join('')))
 }

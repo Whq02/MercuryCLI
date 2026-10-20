@@ -6,6 +6,7 @@ import { McpServer, WebStandardStreamableHTTPServerTransport } from '@modelconte
 import { z } from 'zod/v4'
 import { Client, StreamableHTTPClientTransport } from '../../src/services/mcp/sdk.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { waitForRow } from '../switchboard/lib/waitForRow.ts'
 import { startCrossfamilyFixture } from '../lib/crossfamilyConcourseFixture.ts'
 import { runArtifactArena, grabScreens } from '../streaming/artifactArena.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
@@ -36,12 +37,10 @@ function check(label: string, ok: unknown, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 async function until(pred: () => boolean | Promise<boolean>, ms = S(25_000)): Promise<boolean> {
-  const end = Date.now() + ms
-  while (Date.now() < end) {
-    try { if (await pred()) return true } catch {}
-    await new Promise(resolve => setTimeout(resolve, 100))
-  }
-  return false
+  const observed = await waitForRow(async () => {
+    try { return await pred() ? true : undefined } catch { return undefined }
+  }, ms)
+  return observed.row === true
 }
 const rpc = (request: Record<string, unknown>) => daemonControlRpc(request as never, { timeoutMs: 15_000 }) as Promise<Record<string, any>>
 const model = await startCrossfamilyFixture({ port: 0, gptId: 'gpt-6-astra' })
@@ -209,7 +208,7 @@ try {
         check('Enter starts the existing OAuth flow', auth)
         const authorizationUrl = facts()?.mcp.find(row => row.name === 'runpod')?.authorizationUrl
         if (authorizationUrl) {
-          await new Promise(resolve => setTimeout(resolve, 800))
+          check('the signing-in screen is painted before the callback', await until(() => driveText(drive).includes('signing in')))
           const response = await fetch(authorizationUrl)
           check('loopback OAuth callback completes', response.status === 200)
         } else check('loopback OAuth callback completes', false)

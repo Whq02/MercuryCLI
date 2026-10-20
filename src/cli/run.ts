@@ -1756,7 +1756,7 @@ export async function runHeadless(
   }
   const liveMcp = watchLiveMcpConfig({
     hosted: isConcourseWorker,
-    initial: Object.fromEntries(getAppState().mcp.clients.map(client => [client.name, client.config])),
+    initial: Object.fromEntries(getAppState().mcp.clients.filter(client => ['user', 'local', 'project', 'enterprise'].includes(client.config.scope) || client.config.extensionSource !== undefined).map(client => [client.name, client.config])),
     ready: () => !awaitingSessionClaim,
     approve: async (name, config) => {
       const target = 'url' in config ? config.url : config.command

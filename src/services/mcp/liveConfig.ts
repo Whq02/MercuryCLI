@@ -36,7 +36,7 @@ export function watchLiveMcpConfig(ports: LivePorts): { stop: () => void; refres
       if (checkHasTrustDialogAccepted() && !doesEnterpriseMcpConfigExist()) {
         const project = filterMcpServersByPolicy(getProjectMcpConfigs().servers).allowed
         for (const [name, config] of Object.entries(project)) {
-          if (refused.has(name) || getProjectMcpServerStatus(name, true) !== 'pending') continue
+          if (refused.has(name) || getProjectMcpServerStatus(name, ports.hosted) !== 'pending') continue
           if (known.has(name) && previous[name]?.scope === 'project' && JSON.stringify(previous[name]) === JSON.stringify(config)) continue
           const approved = await ports.approve(name, config)
           if (stopped) return
@@ -47,8 +47,10 @@ export function watchLiveMcpConfig(ports: LivePorts): { stop: () => void; refres
           if (!approved) refused.add(name)
         }
       }
-      const { servers } = await getMercuryMcpConfigs(dynamicMcpConfigSnapshot())
-      const next = Object.fromEntries(Object.entries(servers).filter(([name, config]) => config.scope !== 'project' || !refused.has(name)))
+      const dynamic = dynamicMcpConfigSnapshot() ?? {}
+      const { servers } = await getMercuryMcpConfigs(dynamic)
+      const { allowed } = filterMcpServersByPolicy({ ...servers, ...dynamic })
+      const next = Object.fromEntries(Object.entries(allowed).filter(([name, config]) => config.scope !== 'project' || !refused.has(name)))
       const names = Object.keys(next).filter(name => isKitMcpName(name) && !isMcpOrgan(name))
       const members = new Set(kit?.mcp ?? [])
       const born = names.filter(name => !known.has(name))

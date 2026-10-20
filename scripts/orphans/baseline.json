@@ -14,6 +14,41 @@
   ],
   "rows": [
     {
+      "file": "src/components/mcp/CapabilitiesSection.tsx",
+      "class": "proof-or-fixture-only",
+      "reason": "Count-line fixture imported by the stdio and remote menu specimens driven by scripts/mcp/prove-config-display-redaction.ts and prove-tool-discovery-retry.ts; the runtime uses commands/mcp/McpPopup.tsx."
+    },
+    {
+      "file": "src/components/mcp/MCPAgentServerMenu.tsx",
+      "class": "proof-or-fixture-only",
+      "reason": "Agent-server redaction specimen directly mounted by scripts/mcp/prove-config-display-redaction.ts; no runtime caller after the MCP popup fold."
+    },
+    {
+      "file": "src/components/mcp/MCPRemoteServerMenu.tsx",
+      "class": "proof-or-fixture-only",
+      "reason": "Remote-config redaction and discovery-error specimen mounted by scripts/mcp/prove-config-display-redaction.ts and prove-tool-discovery-retry.ts; runtime actions now use the runner-backed MCP popup."
+    },
+    {
+      "file": "src/components/mcp/MCPStdioServerMenu.tsx",
+      "class": "proof-or-fixture-only",
+      "reason": "Stdio-config redaction and discovery-error specimen mounted by scripts/mcp/prove-config-display-redaction.ts and prove-tool-discovery-retry.ts; runtime actions now use the runner-backed MCP popup."
+    },
+    {
+      "file": "src/components/mcp/types.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "View-model types used by the three MCP menu proof specimens; runtime roster and tool views use engine-connector/types.ts instead."
+    },
+    {
+      "file": "src/components/mcp/utils/reconnectHelpers.tsx",
+      "class": "proof-or-fixture-only",
+      "reason": "Outcome mapper imported by the stdio and remote menu proof specimens; runtime reconnect uses the focused connector and its typed receipt."
+    },
+    {
+      "file": "src/utils/screenshotClipboard.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "Clipboard dependency of MCPRemoteServerMenu, retained so the mounted redaction specimen has its complete module graph; the runtime MCP popup does not import it."
+    },
+    {
       "file": "src/constants/legalNotice.ts",
       "class": "metadata-or-generated",
       "reason": "The notice-slot owner: build.ts imports it dynamically at stamp time (stampNoticeOnSource/hasCurrentNoticeStamp) and the notices generator + prove-notice-stamp.ts consume CURRENT_NOTICE_SLOTS. A build-time owner is correctly outside the runtime import graph."
