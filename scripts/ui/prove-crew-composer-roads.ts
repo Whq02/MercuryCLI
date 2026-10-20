@@ -610,7 +610,8 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => scene.state().viewingAgentTaskId === entry.viewed, 4000)
     await sleep(400)
     const targetBefore = composerTargetTaskId(scene.state() as never)
-    const tasksBefore = JSON.stringify(scene.state().tasks)
+    const crewTasks = (): string => JSON.stringify(Object.fromEntries(Object.entries(scene.state().tasks as Record<string, { type: string }>).filter(([, task]) => task.type !== 'local_bash')))
+    const tasksBefore = crewTasks()
     const files = [
       join(getProjectDir(CWD), SESSION_ID, 'subagents', `agent-${ATLAS.id}.jsonl`),
       join(getProjectDir(CWD), SESSION_ID, 'subagents', `agent-${BIRCH.id}.jsonl`),
@@ -631,7 +632,7 @@ async function run(cols: number, rows: number): Promise<void> {
     await sleep(250)
     check(`${entry.label}: the bang entry is shell mode before Enter`, pending.mode() === 'bash' && pending.text().trim() === 'echo hi', `mode=${pending.mode()} text=${JSON.stringify(pending.text())}`)
     scene.push(ENTER)
-    await until(() => shellResults.length > resultsBefore || resumes().length > resumesBefore || JSON.stringify(scene.state().tasks) !== tasksBefore, 6000)
+    await until(() => shellResults.length > resultsBefore || resumes().length > resumesBefore || crewTasks() !== tasksBefore, 6000)
     await sleep(250)
     const leaked = resumes().slice(resumesBefore)
     const crewRows = centreOf(scene.lines(), railCols).filter(line => line.includes('echo hi'))
@@ -641,7 +642,7 @@ async function run(cols: number, rows: number): Promise<void> {
     const shellRows = result?.messages.flatMap(message => message.type === 'user' && typeof message.message.content === 'string' ? [message.message.content] : []) ?? []
     console.log(`${entry.label}: lead shell rows=${JSON.stringify(shellRows)}`)
     check(`${entry.label}: the real shell printed hi and exited zero without querying a model`, result?.shouldQuery === false && shellRows.includes('<bash-input>echo hi</bash-input>') && shellRows.some(row => row.startsWith('<bash-stdout>hi</bash-stdout>') && row.includes('<bash-exit-code>0</bash-exit-code>')), JSON.stringify(shellRows))
-    check(`${entry.label}: the crewmates' transcripts and queues are untouched`, crewRows.length === 0 && JSON.stringify(scene.state().tasks) === tasksBefore && files.every((file, index) => readFileSync(file, 'utf8') === transcriptsBefore[index]), crewRows.join(' | '))
+    check(`${entry.label}: the crewmates' transcripts and queues are untouched`, crewRows.length === 0 && crewTasks() === tasksBefore && files.every((file, index) => readFileSync(file, 'utf8') === transcriptsBefore[index]), crewRows.join(' | '))
     check(`${entry.label}: the viewed crewmate and pinned target are unchanged`, scene.state().viewingAgentTaskId === entry.viewed && scene.state().mainChatTaskId === entry.pinned && composerTargetTaskId(scene.state() as never) === targetBefore, `viewed=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)}`)
     check(`${entry.label}: the sent shell line has left the composer`, pending.text() === '', JSON.stringify(pending.text()))
     save(`07-${entry.input}-crewmate`, cols, rows, scene.lines())
