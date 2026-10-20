@@ -472,6 +472,7 @@ export async function* streamCompatChat(
               if (headersLanded || options.signal?.aborted || cut.cap) return
               if (reading.state === 'working') {
                 firstByteExtended = true
+                options.onStreamActivity?.(Date.now())
                 armFirstByteTimer()
                 return
               }
@@ -666,6 +667,7 @@ export async function* streamCompatChat(
               controller.abort()
               return
             }
+            if (reading.state === 'working') options.onStreamActivity?.(Date.now())
             silencePublished = true
             publish({ kind: 'silence', model: wait.model, silentMs, sinceMs: quietSinceMs, answered: reading.answered, ...(reading.answered ? {} : { askAtMs: silentMs + fenceMs }) })
             armLivenessProbe()
@@ -708,6 +710,7 @@ export async function* streamCompatChat(
             watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: null })
             idleWatchdog = watchdog
             quietExtended = true
+            options.onStreamActivity?.(Date.now())
             continue readLoop
           }
         }
