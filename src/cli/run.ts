@@ -191,6 +191,9 @@ import { clearSystemPromptSections } from '../constants/systemPromptSections.js'
 
 const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 const SIGNAL_SETTLE_MS = 5_000
+const BUILD_BEHIND_FLOOR_MS = 60_000
+const BUILD_BEHIND_THROTTLE_MS = 2_000
+const BUILD_BEHIND_CONFIRM_MS = 2_000
 import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { editOutcomeRows } from '../services/changeTransaction/editOutcomeLedger.js'
@@ -266,13 +269,12 @@ import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
 import { markSessionBootRules, markSessionNonInteractive, markSessionPermissionMode } from '../utils/cockpit/runtimePosture.js'
 import { consumeSessionKindPin } from '../utils/sessionKind.js'
-import { runningBuildTree } from '../utils/artifactIdentity.js'
-import { deployedRuntime } from '../daemon/handover.js'
-import { getProjectDir } from '../utils/sessionStorage/paths.js'
+import { describeArtifactIdentity, runningBuildTree } from '../utils/artifactIdentity.js'
+import { getTranscriptPath } from '../utils/sessionStorage/paths.js'
 import { appendSessionReceipt, readSessionReceipts } from '../services/switchboard/sessionReceipts.js'
 import { wrapInSystemReminder } from '../utils/messages/text.js'
 import { createAttachmentMessage } from '../utils/attachments/orchestrator.js'
-import { composeNewerBuildInstalledLine } from '../tools/MonitorTool/watchReceipts.js'
+import { composeBuildBehindLine } from '../tools/MonitorTool/watchReceipts.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainRows, subscribeRows } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
@@ -686,126 +688,111 @@ export async function runHeadless(
   }
 
   const hydrateResumedRun = async (): Promise<void> => {
-    if (messages.length === 0 && runnerRestartReason !== 'update') return
-    if (messages.length > 0) {
-      try {
-        const { runBootRecovery } = await import('../substrate/recoveryOrchestrator.js')
-        await runBootRecovery({
-          scope: 'session',
-          sessionId: getSessionId(),
-          projectDir: getCwd(),
-        })
-      } catch (error) {
-        logError(error)
-      }
-      try {
-        const owner = processMainOwner()
-        if (getRunSnapshot(owner) === null) {
-          await reconcileOnResume(owner, getCwd())
-        }
-      } catch (error) {
-        logError(error)
-      }
-      try {
-        const { coerceRestartReason: carriedReasonOf } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-        const carriedReason = carriedReasonOf(runnerRestartReason)
-        if (carriedReason === 'crash' || carriedReason === 'stop' || carriedReason === 'update') {
-          const { carryRunnerAcrossRestart } = await import('./headless/restartCarry.js')
-          const carried = await carryRunnerAcrossRestart({
-            reason: carriedReason,
-            messages,
-            getAppState,
-            setAppState,
-            canUseTool: asks.createCanUseTool(() => notifySessionStateChanged('requires_action')),
-            relaunchContext: async () => {
-              const { toolUseContext } = await buildSideQuestionFallbackParams({
-                tools,
-                commands,
-                mcpClients: [...getAppState().mcp.clients],
-                messages,
-                readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
-                getAppState,
-                setAppState,
-                customSystemPrompt: options.systemPrompt,
-                appendSystemPrompt: options.appendSystemPrompt,
-                agents,
-              })
-              return {
-                ...toolUseContext,
-                options: {
-                  ...toolUseContext.options,
-                  ...(peer !== null ? { hostHoldsAsks: true } : {}),
-                },
-              }
-            },
-          })
-          recoveredCommandIds = carried.recoveredCommandIds
-          logForDebugging(`[session-runner] resume after ${carriedReason}: ${carried.requeued} line(s) re-queued, ${carried.relaunched} agent(s) relaunched, ${carried.delivered} delivered from the queue log, ${carried.stopped} stopped`)
-        }
-      } catch (error) {
-        logError(error)
-      }
-      try {
-        const { reconcileBackgroundLaunchesOnResume, coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-        const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(runnerRestartReason))
-        if (settledLaunches.length > 0) {
-          logForDebugging(`[session-runner] resume: ${settledLaunches.length} background launch(es) without a live record — stop notices written`)
-        }
-      } catch (error) {
-        logError(error)
-      }
+    if (messages.length === 0) return
+    try {
+      const { runBootRecovery } = await import('../substrate/recoveryOrchestrator.js')
+      await runBootRecovery({
+        scope: 'session',
+        sessionId: getSessionId(),
+        projectDir: getCwd(),
+      })
+    } catch (error) {
+      logError(error)
     }
     try {
-      const {
-        reconcileWatchesOnResume,
-        reconcileBackgroundShellsOnResume,
-        composeUpdateRestartLine,
-      } = await import('../tools/MonitorTool/watchReceipts.js')
+      const owner = processMainOwner()
+      if (getRunSnapshot(owner) === null) {
+        await reconcileOnResume(owner, getCwd())
+      }
+    } catch (error) {
+      logError(error)
+    }
+    try {
+      const { coerceRestartReason: carriedReasonOf } = await import('../tasks/LocalAgentTask/launchReceipts.js')
+      const carriedReason = carriedReasonOf(runnerRestartReason)
+      if (carriedReason === 'crash' || carriedReason === 'stop' || carriedReason === 'update' || carriedReason === 'ended') {
+        const { carryRunnerAcrossRestart } = await import('./headless/restartCarry.js')
+        const carried = await carryRunnerAcrossRestart({
+          reason: carriedReason,
+          messages,
+          getAppState,
+          setAppState,
+          canUseTool: asks.createCanUseTool(() => notifySessionStateChanged('requires_action')),
+          relaunchContext: async () => {
+            const { toolUseContext } = await buildSideQuestionFallbackParams({
+              tools,
+              commands,
+              mcpClients: [...getAppState().mcp.clients],
+              messages,
+              readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
+              getAppState,
+              setAppState,
+              customSystemPrompt: options.systemPrompt,
+              appendSystemPrompt: options.appendSystemPrompt,
+              agents,
+            })
+            return {
+              ...toolUseContext,
+              options: {
+                ...toolUseContext.options,
+                ...(peer !== null ? { hostHoldsAsks: true } : {}),
+              },
+            }
+          },
+        })
+        recoveredCommandIds = carried.recoveredCommandIds
+        logForDebugging(`[session-runner] resume after ${carriedReason}: ${carried.requeued} line(s) re-queued, ${carried.relaunched} agent(s) relaunched, ${carried.delivered} delivered from the queue log, ${carried.stopped} stopped`)
+      }
+    } catch (error) {
+      logError(error)
+    }
+    try {
+      const { reconcileBackgroundLaunchesOnResume, coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
+      const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(runnerRestartReason))
+      if (settledLaunches.length > 0) {
+        logForDebugging(`[session-runner] resume: ${settledLaunches.length} background launch(es) without a live record — stop notices written`)
+      }
+    } catch (error) {
+      logError(error)
+    }
+    try {
+      const { reconcileWatchesOnResume, reconcileBackgroundShellsOnResume, composeRestartLine } = await import('../tools/MonitorTool/watchReceipts.js')
       const { coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-      const { enqueuePendingNotification } = await import('../utils/messageQueueManager.js')
       const reason = coerceRestartReason(runnerRestartReason)
       const liveIds = new Set(Object.keys(getAppState().tasks ?? {}))
-      const deadWatches = messages.length > 0 ? reconcileWatchesOnResume(messages, liveIds, reason) : []
-      const deadShells = messages.length > 0 ? reconcileBackgroundShellsOnResume(messages, liveIds, reason) : []
-      if (deadWatches.length > 0) {
-        logForDebugging(`[session-runner] resume: ${deadWatches.length} watch(es) without a live process — dead-watch notices written`)
+      const deadWatches = reconcileWatchesOnResume(messages, liveIds, reason)
+      const deadShells = reconcileBackgroundShellsOnResume(messages, liveIds, reason)
+      if (deadWatches.length > 0 || deadShells.length > 0) {
+        logForDebugging(`[session-runner] resume: ${deadWatches.length} watch(es) and ${deadShells.length} background shell(s) without a live process — dead notices written`)
       }
-      if (reason === 'update') {
+      if (reason === 'update' || reason === 'ended') {
         const build = runningBuildTree() ?? `v${MACRO.VERSION}`
-        const updateLine = composeUpdateRestartLine({ build, watches: deadWatches, shells: deadShells })
+        const line = composeRestartLine({ reason, build, watches: deadWatches, shells: deadShells })
         try {
-          const home = flagEnv('MERCURY_SESSION_HOME') || getProjectDir(getOriginalCwd())
-          const sid = String(getSessionId())
-          const existing = readSessionReceipts(home, sid)
-          if (!existing.some(r => r.kind === 'runner-restart' && r.summary === updateLine)) {
-            appendSessionReceipt(home, sid, {
-              at: new Date().toISOString(),
-              by: 'daemon',
-              kind: 'runner-restart',
-              summary: updateLine,
-              details: {
-                reason: 'update',
-                build,
-                watches: deadWatches.map(w => ({ taskId: w.taskId, description: w.description, command: w.command, persistent: w.persistent })),
-                shells: deadShells.map(s => ({ taskId: s.taskId, description: s.description, command: s.command })),
-              },
-            })
-          }
-        } catch {}
+          appendSessionReceipt(dirname(getTranscriptPath()), String(getSessionId()), {
+            at: new Date().toISOString(),
+            by: 'runner',
+            kind: 'runner-restart',
+            summary: line,
+            details: { reason, build, watches: deadWatches.length, shells: deadShells.length },
+          })
+        } catch (error) {
+          logError(error)
+        }
+        const { enqueuePendingNotification } = await import('../utils/messageQueueManager.js')
         enqueuePendingNotification({
-          value: wrapInSystemReminder(updateLine),
+          value: wrapInSystemReminder(line),
           mode: 'task-notification',
           priority: 'next',
           ridesNextWords: true,
         })
-        enqueueRow(noticeRow(liveScope(), 'warning', updateLine))
+        enqueueRow(noticeRow(liveScope(), 'warning', line))
       }
     } catch (error) {
       logError(error)
     }
   }
   if (options.continue || options.resume) await hydrateResumedRun()
-  else if (runnerRestartReason === 'update') await hydrateResumedRun()
 
   if (!options.agent && !getMainThreadAgentType() && loaded.agentSetting) {
     const restored = restoreAgentFromSession(loaded.agentSetting, undefined, {
@@ -1307,6 +1294,7 @@ export async function runHeadless(
         deferredAdvisorQuiet = []
         for (const quiet of quiets) landAdvisorQuiet(quiet)
       }
+      void checkBuildBehind(true)
     }
     if (turnWatchdog.fired) {
       throw new DeadlineExceededError('unattended turn', turnIdleLimitMs, turnIdleLimitMs, turnWatchdog.progressCount, 'no engine event for the whole limit — the turn was aborted; MERCURY_HEADLESS_IDLE_MINUTES tunes the limit (0 disables)')
@@ -1606,46 +1594,67 @@ export async function runHeadless(
   })
   markRunModeSignalsOwned()
   process.on('exit', () => saveCurrentSessionCosts())
-  let buildBehindTold = false
-  const checkBuildBehind = (): void => {
-    if (buildBehindTold || awaitingSessionClaim || inputClosed) return
+  let buildBehindToldFor: string | null = null
+  let buildBehindSeen: string | null = null
+  let buildBehindCheckedAt = 0
+  let buildBehindConfirm: ReturnType<typeof setTimeout> | null = null
+  const checkBuildBehind = async (now = false): Promise<void> => {
+    if (!isConcourseWorker || awaitingSessionClaim || inputClosed || inFlightAbort !== null) return
+    if (!now && Date.now() - buildBehindCheckedAt < BUILD_BEHIND_THROTTLE_MS) return
+    buildBehindCheckedAt = Date.now()
     const ownTree = runningBuildTree()
     if (ownTree === null) return
-    const installedTree = deployedRuntime()?.buildTree ?? null
-    if (installedTree === null || installedTree === ownTree) return
-    buildBehindTold = true
-    const line = composeNewerBuildInstalledLine(installedTree, ownTree)
-    try {
-      const home = flagEnv('MERCURY_SESSION_HOME') || getProjectDir(getOriginalCwd())
-      const sid = String(getSessionId())
-      const existing = readSessionReceipts(home, sid)
-      if (!existing.some(r => r.kind === 'build-behind' && r.summary === line)) {
-        appendSessionReceipt(home, sid, {
-          at: new Date().toISOString(),
-          by: 'runner',
-          kind: 'build-behind',
-          summary: line,
-          details: { installedTree, runningTree: ownTree },
-        })
+    const { deployedRuntime } = await import('../daemon/handover.js')
+    const installed = deployedRuntime()
+    const installedTree = installed?.buildTree ?? null
+    if (installed === null || installedTree === null || installedTree === ownTree || installedTree === buildBehindToldFor) {
+      buildBehindSeen = null
+      return
+    }
+    if (buildBehindSeen !== installedTree) {
+      buildBehindSeen = installedTree
+      if (buildBehindConfirm === null) {
+        buildBehindConfirm = setTimeout(() => {
+          buildBehindConfirm = null
+          void checkBuildBehind(true)
+        }, BUILD_BEHIND_CONFIRM_MS)
+        buildBehindConfirm.unref?.()
       }
-    } catch {}
-    const row = createAttachmentMessage({
-      type: 'queued_command',
-      prompt: wrapInSystemReminder(line),
-      commandMode: 'task-notification',
-    } as never)
+      return
+    }
+    if (inFlightAbort !== null || inputClosed) return
+    buildBehindToldFor = installedTree
+    const ownTime = describeArtifactIdentity('', process.argv[1] ?? null).buildTime
+    const installedTime = describeArtifactIdentity('', installed.script).buildTime
+    const line = composeBuildBehindLine(installedTree, ownTree, ownTime === null || installedTime === null || installedTime > ownTime)
+    const home = dirname(getTranscriptPath())
+    const sid = String(getSessionId())
+    try {
+      if (readSessionReceipts(home, sid).some(r => r.kind === 'build-behind' && r.summary === line)) return
+      appendSessionReceipt(home, sid, {
+        at: new Date().toISOString(),
+        by: 'runner',
+        kind: 'build-behind',
+        summary: line,
+        details: { installedTree, runningTree: ownTree },
+      })
+    } catch (error) {
+      logError(error)
+    }
+    const row = createAttachmentMessage({ type: 'queued_command', prompt: wrapInSystemReminder(line), commandMode: 'task-notification' })
     messages.push(row)
     void recordTranscript([row], undefined, messages)
       .then(() => peekProject()?.flush())
       .catch(() => {})
     enqueueRow(noticeRow(liveScope(), 'warning', line))
   }
-  const buildBehindTimer = isConcourseWorker ? setInterval(checkBuildBehind, 400) : null
-  buildBehindTimer?.unref?.()
+  const buildBehindFloor = isConcourseWorker ? setInterval(() => void checkBuildBehind(true), BUILD_BEHIND_FLOOR_MS) : null
+  buildBehindFloor?.unref?.()
 
   const { registerCleanup } = await import('../utils/cleanupRegistry.js')
   registerCleanup(async () => {
-    if (buildBehindTimer !== null) clearInterval(buildBehindTimer)
+    if (buildBehindFloor !== null) clearInterval(buildBehindFloor)
+    if (buildBehindConfirm !== null) clearTimeout(buildBehindConfirm)
     releaseHookRows?.()
     idleNudge.stop()
     stopHostNotices()
@@ -1992,7 +2001,7 @@ export async function runHeadless(
       return { effort: requestedEffort, at: SEAT_VERB_AT(false) }
     },
     'session/facts': async () => {
-      checkBuildBehind()
+      void checkBuildBehind()
       if (!sessionFactsHoldSpent) {
         sessionFactsHoldSpent = true
         const holdMs = Number.parseInt(flagEnv('MERCURY_SESSION_FACTS_HOLD_MS') ?? '', 10)

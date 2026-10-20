@@ -42,7 +42,6 @@ import type { AgentId } from '../../types/ids.js'
 import type { BashTaskKind, LocalShellTaskState, ShellKillSource } from './guards.js'
 import { isLocalShellTask } from './guards.js'
 import { killTask } from './killShellTasks.js'
-import { writeSessionTaskRecord } from '../../tools/MonitorTool/watchReceipts.js'
 
 
 export const BACKGROUND_BASH_SUMMARY_PREFIX = 'Background command '
@@ -451,18 +450,6 @@ export async function spawnShellTask(
     runCleanupAfterUpdate: false,
     launch,
   })
-
-  if (input.kind !== 'monitor') {
-    writeSessionTaskRecord({
-      taskId,
-      toolUseId: input.toolUseId ?? '',
-      kind: 'bash',
-      description: input.description ?? '',
-      command: input.command,
-      persistent: false,
-      armedAt: state.startTime,
-    })
-  }
 
   return { taskId, cleanup: unregister, accepted: true }
 }

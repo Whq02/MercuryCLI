@@ -1,19 +1,16 @@
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { getSessionId } from '../../bootstrap/state.js'
 import { TASK_ID_TAG, TASK_NOTIFICATION_TAG, TOOL_USE_ID_TAG } from '../../constants/xml.js'
 import type { RunnerRestartReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import type { Message } from '../../types/message.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { wrapInSystemReminder } from '../../utils/messages/text.js'
-import { getProjectTempDir } from '../../utils/permissions/filesystem.js'
+import { createSecretRedactor } from '../../utils/redactSecrets.js'
 import { SHELL_TOOL_NAMES } from '../../utils/shell/shellToolUtils.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { MONITOR_TOOL_NAME } from './constants.js'
 
 export const WATCH_STARTED_LINE = 'Monitor started (task '
 
-export interface WatchReceipt {
+interface WatchReceipt {
   toolUseId: string
   taskId: string
   description: string
@@ -22,63 +19,33 @@ export interface WatchReceipt {
   armedAt: number
 }
 
-export interface BackgroundShellReceipt {
+interface BackgroundShellReceipt {
   toolUseId: string
   taskId: string
   description: string
   command: string
+  outputPath: string | null
   armedAt: number
 }
 
-export interface SessionTaskRecordV1 {
-  taskId: string
-  toolUseId: string
-  kind: 'monitor' | 'bash'
-  description: string
-  command: string
-  persistent: boolean
-  armedAt: number
+const COMMAND_WORDS_MAX = 200
+const LABEL_WORDS_MAX = 60
+const NAMED_MAX = 6
+
+let redactCommandText: ((text: string) => string) | null = null
+
+function clampWords(text: string, max: number): string {
+  const chars = Array.from(text)
+  return chars.length > max ? `${chars.slice(0, max - 1).join('')}…` : text
 }
 
-export function sessionTasksDir(sessionId: string = String(getSessionId())): string {
-  return join(getProjectTempDir(), sessionId, 'tasks')
+function commandWords(command: string): string {
+  redactCommandText ??= createSecretRedactor()
+  return clampWords(redactCommandText(command).replace(/\s+/g, ' ').trim(), COMMAND_WORDS_MAX)
 }
 
-export function writeSessionTaskRecord(record: SessionTaskRecordV1, sessionId: string = String(getSessionId())): void {
-  try {
-    const dir = sessionTasksDir(sessionId)
-    mkdirSync(dir, { recursive: true })
-    writeFileSync(join(dir, `${record.taskId}.json`), `${JSON.stringify(record, null, 2)}\n`, 'utf8')
-  } catch {
-  }
-}
-
-export function readSessionTaskRecords(sessionId: string = String(getSessionId())): SessionTaskRecordV1[] {
-  try {
-    const dir = sessionTasksDir(sessionId)
-    const out: SessionTaskRecordV1[] = []
-    for (const name of readdirSync(dir)) {
-      if (!name.endsWith('.json')) continue
-      try {
-        const parsed = JSON.parse(readFileSync(join(dir, name), 'utf8')) as Partial<SessionTaskRecordV1>
-        if (typeof parsed.taskId === 'string' && (parsed.kind === 'monitor' || parsed.kind === 'bash')) {
-          out.push({
-            taskId: parsed.taskId,
-            toolUseId: typeof parsed.toolUseId === 'string' ? parsed.toolUseId : '',
-            kind: parsed.kind,
-            description: typeof parsed.description === 'string' ? parsed.description : '',
-            command: typeof parsed.command === 'string' ? parsed.command : '',
-            persistent: parsed.persistent === true,
-            armedAt: typeof parsed.armedAt === 'number' ? parsed.armedAt : 0,
-          })
-        }
-      } catch {
-      }
-    }
-    return out
-  } catch {
-    return []
-  }
+function labelWords(description: string): string {
+  return clampWords(description.replace(/\s+/g, ' ').replace(/"/g, "'").trim(), LABEL_WORDS_MAX)
 }
 
 export function monitorNoticeBlock(taskId: string, description: string, text: string): string {
@@ -105,6 +72,9 @@ const MONITOR_BLOCK = /<monitor task=("(?:[^"\\]|\\.)*")[^>]*>([\s\S]*?)<\/monit
 const ENDED_WORDS = ['[Monitor "', '[Monitor stopped']
 const SHELL_TOOL_SET = new Set<string>(SHELL_TOOL_NAMES)
 const STARTED_BACKGROUND_SHELL = /(?:Running in the background \(ID: (\S+?)\)|moved this command to the background as task (\S+?)[;.]|moved to the background with ID: (\S+?)[;.])/
+const SHELL_OUTPUT_PATH = /Output: (\S+\.output)/
+const DEAD_SHELL = /\[Background shell (\S+?)(?: "[^"\n]*")? did not survive/g
+const DEAD_SHELLS = /\[Background shells (\S+?(?:, \S+?)*) did not survive/g
 
 export function watchReceipts(messages: readonly Message[]): WatchReceipt[] {
   const launches = new Map<string, { description: string; command: string; persistent: boolean; armedAt: number }>()
@@ -139,7 +109,7 @@ export function watchReceipts(messages: readonly Message[]): WatchReceipt[] {
   return receipts
 }
 
-export function backgroundShellReceipts(messages: readonly Message[]): BackgroundShellReceipt[] {
+function backgroundShellReceipts(messages: readonly Message[]): BackgroundShellReceipt[] {
   const launches = new Map<string, { description: string; command: string; armedAt: number }>()
   const receipts: BackgroundShellReceipt[] = []
   const seenTaskIds = new Set<string>()
@@ -167,7 +137,7 @@ export function backgroundShellReceipts(messages: readonly Message[]): Backgroun
       const taskId = match?.[1] ?? match?.[2] ?? match?.[3]
       if (taskId === undefined || seenTaskIds.has(taskId)) continue
       seenTaskIds.add(taskId)
-      receipts.push({ toolUseId: block.tool_use_id, taskId, ...launch })
+      receipts.push({ toolUseId: block.tool_use_id, taskId, ...launch, outputPath: SHELL_OUTPUT_PATH.exec(text)?.[1] ?? null })
     }
   }
   return receipts
@@ -197,9 +167,11 @@ export function settledWatchIds(messages: readonly Message[]): Set<string> {
       } catch {
       }
     }
-    for (const match of text.matchAll(/\[Background shell (?:"[^"]*" \()?(\S+?)\)? did not survive/g)) {
-      const taskId = match[1]?.trim()
-      if (taskId) settled.add(taskId)
+    for (const match of text.matchAll(DEAD_SHELL)) {
+      if (match[1]) settled.add(match[1])
+    }
+    for (const match of text.matchAll(DEAD_SHELLS)) {
+      for (const taskId of (match[1] ?? '').split(', ')) if (taskId !== '') settled.add(taskId)
     }
   }
   for (const message of messages) {
@@ -230,7 +202,7 @@ export function orphanedWatches(messages: readonly Message[], liveTaskIds: Reado
   return watchReceipts(messages).filter(receipt => !settled.has(receipt.taskId) && !liveTaskIds.has(receipt.taskId))
 }
 
-export function orphanedBackgroundShells(messages: readonly Message[], liveTaskIds: ReadonlySet<string>): BackgroundShellReceipt[] {
+function orphanedBackgroundShells(messages: readonly Message[], liveTaskIds: ReadonlySet<string>): BackgroundShellReceipt[] {
   const settled = settledWatchIds(messages)
   return backgroundShellReceipts(messages).filter(
     receipt => !settled.has(receipt.taskId) && !settled.has(receipt.toolUseId) && !liveTaskIds.has(receipt.taskId),
@@ -248,46 +220,68 @@ function restartEndedWords(reason?: RunnerRestartReason): string {
           ? "the runner's restart after a relaunch"
           : reason === 'update'
             ? "the runner's restart after an update"
-            : "the session's pause"
+            : reason === 'ended'
+              ? "the runner's restart after it ended around an update"
+              : "the session's pause"
 }
 
 export function deadWatchLine(receipt: WatchReceipt, reason?: RunnerRestartReason): string {
-  const ended = restartEndedWords(reason)
-  const cmd = receipt.command.replace(/\s+/g, ' ').trim()
-  const cmdClause = cmd !== '' ? ` (${cmd})` : ''
-  return `[Monitor "${receipt.description}" (task ${receipt.taskId}) did not survive ${ended}: its process ended with the runner, so nothing it would have reported since then is known. Re-arm it by calling Monitor again with the same command${cmdClause} if the watch is still wanted.]`
+  const cmd = commandWords(receipt.command)
+  return `[Monitor "${receipt.description}" (task ${receipt.taskId}) did not survive ${restartEndedWords(reason)}: its process ended with the runner, so nothing it would have reported since then is known. Re-arm it by calling Monitor again with the same command${cmd !== '' ? ` (${cmd})` : ''} if the watch is still wanted.]`
 }
 
-export function deadShellLine(receipt: BackgroundShellReceipt, reason?: RunnerRestartReason): string {
-  const ended = restartEndedWords(reason)
-  const cmd = receipt.command.replace(/\s+/g, ' ').trim()
-  const cmdClause = cmd !== '' ? ` (${cmd})` : ''
-  const label = receipt.description !== '' ? `"${receipt.description}" (${receipt.taskId})` : receipt.taskId
-  return `[Background shell ${label} did not survive ${ended}: its process ended with the runner. Re-arm it by running Bash again with the same command${cmdClause} if it is still wanted.]`
+function deadShellLine(receipt: BackgroundShellReceipt, reason?: RunnerRestartReason): string {
+  const cmd = commandWords(receipt.command)
+  const desc = labelWords(receipt.description)
+  const kept = receipt.outputPath !== null ? `; what it printed until then stays in ${receipt.outputPath}` : ''
+  return `[Background shell ${receipt.taskId}${desc !== '' ? ` "${desc}"` : ''} did not survive ${restartEndedWords(reason)}: its process ended with the runner${kept}. Re-arm it by running Bash again with the same command${cmd !== '' ? ` (${cmd})` : ''} if it is still wanted.]`
 }
 
-export function composeUpdateRestartLine(opts: {
+function moreShellsLine(receipts: readonly BackgroundShellReceipt[], reason?: RunnerRestartReason): string {
+  return `[Background shells ${receipts.map(r => r.taskId).join(', ')} did not survive ${restartEndedWords(reason)} either (${receipts.length} more, named here by task id only). Re-arm any that is still wanted by running Bash again with its command.]`
+}
+
+export function composeRestartLine(opts: {
+  reason: 'update' | 'ended'
   build: string
   watches: readonly WatchReceipt[]
   shells: readonly BackgroundShellReceipt[]
 }): string {
   const items: string[] = []
   for (const w of opts.watches) {
-    const cmd = w.command.replace(/\s+/g, ' ').trim()
-    items.push(`Monitor «${w.description}»${cmd !== '' ? ` (${cmd})` : ''}`)
+    const cmd = commandWords(w.command)
+    items.push(`Monitor «${labelWords(w.description)}»${cmd !== '' ? ` (${cmd})` : ''}`)
   }
   for (const s of opts.shells) {
-    const cmd = s.command.replace(/\s+/g, ' ').trim()
-    const desc = s.description.replace(/\s+/g, ' ').trim()
+    const cmd = commandWords(s.command)
+    const desc = labelWords(s.description)
     items.push(`background shell «${s.taskId}»${desc !== '' ? ` "${desc}"` : ''}${cmd !== '' ? ` (${cmd})` : ''}`)
   }
-  const count = opts.watches.length + opts.shells.length
-  const endedText = count === 0 ? 'none (0)' : `${items.join(', ')} (${count})`
-  return `Mercury updated to ${opts.build} · this session's runner restarted · ended by the restart: ${endedText} · re-arm what you still want`
+  const shown = items.slice(0, NAMED_MAX)
+  const more = items.length - shown.length
+  const endedText = items.length === 0 ? 'none (0)' : `${shown.join(', ')}${more > 0 ? `, and ${more} more` : ''} (${items.length})`
+  return opts.reason === 'update'
+    ? `Mercury updated to ${opts.build} · this session's runner restarted · ended by the restart: ${endedText} · re-arm what you still want`
+    : `This session's runner ended with its daemon around an update to ${opts.build} — the cause is not known · ended with it: ${endedText} · re-arm what you still want`
 }
 
-export function composeNewerBuildInstalledLine(installedTree: string, runningTree: string): string {
-  return `A newer Mercury build is installed (${installedTree}) · this session still runs ${runningTree} · /restart moves it (watches and background shells end and are named)`
+export function endingWorkWords(rows: ReadonlyArray<{ id: string; kind: string; name: string; status: string; description?: string; command?: string }>): string {
+  const items: string[] = []
+  for (const row of rows) {
+    if (row.status !== 'running' && row.status !== 'pending') continue
+    const cmd = commandWords(row.command ?? row.name)
+    const desc = labelWords(row.description ?? '')
+    if (row.kind === 'monitor') items.push(`Monitor «${desc !== '' ? desc : row.id}»${cmd !== '' ? ` (${cmd})` : ''}`)
+    else if (row.kind === 'shell') items.push(`background shell «${row.id}»${desc !== '' ? ` "${desc}"` : ''}${cmd !== '' ? ` (${cmd})` : ''}`)
+  }
+  if (items.length === 0) return 'no watches or background shells'
+  const shown = items.slice(0, NAMED_MAX)
+  const more = items.length - shown.length
+  return `${shown.join(', ')}${more > 0 ? `, and ${more} more` : ''} (${items.length})`
+}
+
+export function composeBuildBehindLine(installedTree: string, runningTree: string, newer: boolean): string {
+  return `${newer ? 'A newer' : 'Another'} Mercury build is installed (${installedTree}) · this session still runs ${runningTree} · /restart moves it (watches and background shells end and are named)`
 }
 
 export function reconcileWatchesOnResume(
@@ -297,15 +291,6 @@ export function reconcileWatchesOnResume(
 ): WatchReceipt[] {
   const orphans = orphanedWatches(messages, liveTaskIds)
   for (const receipt of orphans) {
-    writeSessionTaskRecord({
-      taskId: receipt.taskId,
-      toolUseId: receipt.toolUseId,
-      kind: 'monitor',
-      description: receipt.description,
-      command: receipt.command,
-      persistent: receipt.persistent,
-      armedAt: receipt.armedAt,
-    })
     enqueuePendingNotification({
       value: monitorNoticeBlock(receipt.taskId, receipt.description, deadWatchLine(receipt, reason)),
       mode: 'task-notification',
@@ -321,18 +306,12 @@ export function reconcileBackgroundShellsOnResume(
   reason?: RunnerRestartReason,
 ): BackgroundShellReceipt[] {
   const orphans = orphanedBackgroundShells(messages, liveTaskIds)
-  for (const receipt of orphans) {
-    writeSessionTaskRecord({
-      taskId: receipt.taskId,
-      toolUseId: receipt.toolUseId,
-      kind: 'bash',
-      description: receipt.description,
-      command: receipt.command,
-      persistent: false,
-      armedAt: receipt.armedAt,
-    })
+  const named = orphans.slice(-NAMED_MAX)
+  const rest = orphans.slice(0, orphans.length - named.length)
+  const lines = [...named.map(receipt => deadShellLine(receipt, reason)), ...(rest.length > 0 ? [moreShellsLine(rest, reason)] : [])]
+  for (const line of lines) {
     enqueuePendingNotification({
-      value: wrapInSystemReminder(deadShellLine(receipt, reason)),
+      value: wrapInSystemReminder(line),
       mode: 'task-notification',
       priority: 'next',
       ridesNextWords: true,
