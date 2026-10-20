@@ -165,7 +165,7 @@ if command -v docker >/dev/null && docker info >/dev/null 2>&1; then echo DOCKER
 for pair in ollama:ollama:11434 llamacpp:llama-server:30000 lmstudio:lms:1234 vllm:vllm:8000 sglang:sglang:30000; do
 kind=$(printf %s "$pair" | cut -d: -f1); bin=$(printf %s "$pair" | cut -d: -f2); port=$(printf %s "$pair" | cut -d: -f3)
 path=$(command -v "$bin" || true)
-if test -n "$path"; then version=$("$path" --version 2>&1 | head -n 1 || true); printf 'ENGINE %s|%s|%s|%s\\n' "$kind" "$path" "$version" "$port"; fi
+if test -n "$path"; then out=$("$path" --version 2>&1 || true); version=$(printf '%s\\n' "$out" | grep -i -m 1 'version' || printf '%s\\n' "$out" | head -n 1); printf 'ENGINE %s|%s|%s|%s\\n' "$kind" "$path" "$(printf %s "$version" | tr '|' '/')" "$port"; fi
 done
 for bank in "$HOME/mercury-model-bank" "$HOME/models" /Volumes/*/mercury-model-bank /mnt/*/mercury-model-bank; do
 if test -d "$bank"; then printf 'BANK %s\\n' "$bank"; fi
@@ -179,7 +179,7 @@ export const windowsBoxInspectionScript = `$ErrorActionPreference = 'Stop'
 if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) { & nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits | ForEach-Object { 'GPU ' + $_ } } else { Get-CimInstance Win32_VideoController | ForEach-Object { 'GPU ' + $_.Name + ', ' + ([double]$_.AdapterRAM / 1MB) } }
 foreach ($row in @(@('ollama','ollama',11434),@('llamacpp','llama-server',30000),@('lmstudio','lms',1234),@('vllm','vllm',8000),@('sglang','sglang',30000))) {
 $cmd = Get-Command $row[1] -ErrorAction SilentlyContinue
-if ($cmd) { $version = (& $cmd.Source --version 2>&1 | Select-Object -First 1); 'ENGINE ' + $row[0] + '|' + $cmd.Source + '|' + $version + '|' + $row[2] }
+if ($cmd) { $ErrorActionPreference = 'Continue'; $lines = @(& $cmd.Source --version 2>&1 | ForEach-Object { "$_" }); $ErrorActionPreference = 'Stop'; $version = @(@($lines | Where-Object { $_ -match 'version' }) + $lines) | Select-Object -First 1; 'ENGINE ' + $row[0] + '|' + $cmd.Source + '|' + ("$version" -replace '\\|','/') + '|' + $row[2] }
 }
 foreach ($path in @((Join-Path $HOME 'mercury-model-bank'),(Join-Path $HOME 'models'))) { if (Test-Path -LiteralPath $path -PathType Container) { 'BANK ' + $path } }`
 
