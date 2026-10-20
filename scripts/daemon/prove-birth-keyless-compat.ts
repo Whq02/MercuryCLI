@@ -86,6 +86,8 @@ saveGlobalConfig(c => ({
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const { screenBirthModel } = await import('../../src/services/switchboard/bootBirthFacts.ts')
+const { dropCredentialMemos } = await import('../../src/utils/auth.ts')
+const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
 
 const ENDPOINT_NAME = 'llmhost'
 const WIRE_MODEL = 'unsloth/GLM-5.3-Flash-GGUF:UD-Q4_K_XL'
@@ -188,6 +190,7 @@ type WorkerRec = {
   sessionId: string
   workspaceId: string
   modelKey?: string
+  keyless?: boolean
   pid?: number
   parkedAt?: number
   endedAt?: number
@@ -465,6 +468,35 @@ try {
     daemonPid !== undefined && daemonKeyRuns === 1,
     `daemon pid ${String(daemonPid)} ran it ${daemonKeyRuns} time(s); ${runLines.length} run(s) across every process`,
   )
+
+  section('§6 A sign-out since: a saved engine.model nothing on the home can run births keyless, as before')
+  writeUserSettings({ engine: { model: FULL_MODEL } })
+  dropCredentialMemos()
+  resetComputedDefaultMemo()
+  const signedOutScreen = screenBirthModel()
+  check(
+    '(6a) the birth door carries no model when no credential on the home runs the saved engine.model',
+    signedOutScreen === undefined,
+    `screenBirthModel=${String(signedOutScreen)}`,
+  )
+  const signedOutBirth = await admitSession()
+  check(
+    '(6b) the model-less birth the door sends is admitted keyless',
+    signedOutBirth.ok === true && readWorkerRec(signedOutBirth.sessionId)?.keyless === true,
+    signedOutBirth.ok ? JSON.stringify(readWorkerRec(signedOutBirth.sessionId) ?? null) : (signedOutBirth.error ?? ''),
+  )
+  if (signedOutBirth.ok) {
+    await daemonControlRpc({ op: 'sessionRelease', runnerId: signedOutBirth.runnerId } as never, { timeoutMs: 10_000 }).catch(() => undefined)
+  }
+  const signedOutNamed = await admitSession({ model: FULL_MODEL })
+  check(
+    '(6c) the saved model spelled out on that home is refused naming its family',
+    !signedOutNamed.ok && (signedOutNamed.error ?? '').includes('no-credential:openai-compat'),
+    signedOutNamed.ok ? '(unexpectedly admitted)' : (signedOutNamed.error ?? ''),
+  )
+  if (signedOutNamed.ok) {
+    await daemonControlRpc({ op: 'sessionRelease', runnerId: signedOutNamed.runnerId } as never, { timeoutMs: 10_000 }).catch(() => undefined)
+  }
 } finally {
   await stopDaemon()
   server.stop(true)

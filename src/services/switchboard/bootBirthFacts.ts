@@ -97,10 +97,17 @@ export function screenBirthModel(): string | undefined {
   const { getEngineModel, getUserSpecifiedModelSetting } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
   const { getEngineModelOverride } = require('../../bootstrap/state.js') as typeof import('../../bootstrap/state.js')
   if (getEngineModelOverride() !== undefined) return getEngineModel()
-  if (getUserSpecifiedModelSetting() !== null) return getEngineModel()
   const { computedDefault } = require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
-  if (computedDefault().source === 'keyless') return undefined
-  return getEngineModel()
+  const decision = computedDefault()
+  if (decision.source !== 'keyless') return getEngineModel()
+  if (getUserSpecifiedModelSetting() === null) return undefined
+  const saved = getEngineModel()
+  const { declaredRouteOf } = require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
+  const family = declaredRouteOf(saved)
+  if (family === null || !decision.considered.some(credential => credential.family === family)) return undefined
+  if (family !== 'openai-compat') return saved
+  const { isCompatModelCredentialed } = require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')
+  return isCompatModelCredentialed(saved) ? saved : undefined
 }
 
 export function nextBirthModel(): string | undefined {
