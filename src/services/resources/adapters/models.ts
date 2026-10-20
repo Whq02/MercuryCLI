@@ -230,7 +230,7 @@ export async function liveModelsReference(ctx: Pick<ResourceContext, 'engineMode
           const list: LiveListFacts = endpoint.models.length > 0 ? { kind: 'static', words: 'the models named in settings' }
             : cached?.fetchedAtMs ? { kind: 'live', count: cached.models.length, readAt: stampLocal(new Date(cached.fetchedAtMs).toISOString()) }
               : { kind: 'unread', ...(cached?.error ? { error: cached.error } : {}) }
-          providers.push({ provider: `openai-compat/${endpoint.name}`, providerName: `${endpoint.label} (${endpoint.name})`, account: resolveCompatAccount(env, endpoint.name)?.label ?? 'keyless endpoint', list,
+          providers.push({ provider: `openai-compat/${endpoint.name}`, providerName: `${endpoint.label} (${endpoint.name})`, account: resolveCompatAccount(env, endpoint.name)?.label ?? `the endpoint '${endpoint.name}' needs a key: /logins compat/${endpoint.name}`, list,
             models: (byRoute.get(route) ?? []).filter(option => option.value.startsWith(`compat/${endpoint.name}/`)).map(option => rowOf(option, ctx.engineModel, familyWordHeads)) })
         }
         continue

@@ -88,6 +88,11 @@ const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts'
 const { screenBirthModel } = await import('../../src/services/switchboard/bootBirthFacts.ts')
 const { dropCredentialMemos } = await import('../../src/utils/auth.ts')
 const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
+const { compatModelEndpoint, compatSlotModelIds } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
+const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
+const { namedCompatModelOptions } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
+await import('../../src/services/resources/registry.ts')
+const { liveModelsReference } = await import('../../src/services/resources/adapters/models.ts')
 
 const ENDPOINT_NAME = 'llmhost'
 const WIRE_MODEL = 'unsloth/GLM-5.3-Flash-GGUF:UD-Q4_K_XL'
@@ -497,6 +502,49 @@ try {
   if (signedOutNamed.ok) {
     await daemonControlRpc({ op: 'sessionRelease', runnerId: signedOutNamed.runnerId } as never, { timeoutMs: 10_000 }).catch(() => undefined)
   }
+
+  section('§7 An env endpoint beside a named map keeps its documented spelling compat/default/<id>')
+  process.env.MERCURY_COMPAT_BASE_URL = baseUrl
+  process.env.MERCURY_COMPAT_MODELS = 'env-slot-model'
+  writeUserSettings({ compatProvider: { [ENDPOINT_NAME]: { baseUrl, dialect: 'llamacpp' } } })
+  try {
+    const listed = compatSlotModelIds()
+    check('(7a) the env endpoint lists its model as compat/default/<id> beside the named endpoint', listed.includes('compat/default/env-slot-model'), JSON.stringify(listed))
+    const resolvedDefault = compatModelEndpoint('compat/default/env-slot-model')
+    check('(7b) compat/default/<id> resolves to the env endpoint', resolvedDefault?.endpoint.name === 'default' && resolvedDefault.wireId === 'env-slot-model', JSON.stringify(resolvedDefault ?? null))
+    const compatRows = loginFamilyRows({ engineLegs: true }).map(row => row.value).filter(value => value.startsWith('compat/'))
+    check('(7c) /logins offers the env endpoint its own key row (compat/default)', compatRows.includes('compat/default'), JSON.stringify(compatRows))
+  } finally {
+    delete process.env.MERCURY_COMPAT_BASE_URL
+    delete process.env.MERCURY_COMPAT_MODELS
+  }
+
+  section('§8 One endpoint rule on every surface: a keyed endpoint without its key beside a keyless one')
+  writeUserSettings({
+    compatProvider: {
+      [ENDPOINT_NAME]: { baseUrl, dialect: 'llamacpp' },
+      keyed: { baseUrl: `${baseUrl}/keyed`, keyCommand: 'exit 1', models: ['keyed-model'] },
+    },
+  })
+  dropCredentialMemos()
+  resetComputedDefaultMemo()
+  const keyedDoor = "the endpoint 'keyed' needs a key: /logins compat/keyed"
+  const keyedRow = namedCompatModelOptions().find(option => option.value === 'compat/keyed/keyed-model')
+  check('(8a) the model picker marks the keyed row unavailable with its /logins door', keyedRow?.unavailable === keyedDoor, JSON.stringify(keyedRow ?? null))
+  const modelsPage = await liveModelsReference({ engineModel: FULL_MODEL }, { boundMs: 1_000 })
+  const keyedPage = modelsPage.providers.find(provider => provider.provider === 'openai-compat/keyed')
+  const keylessPage = modelsPage.providers.find(provider => provider.provider === `openai-compat/${ENDPOINT_NAME}`)
+  check('(8b) mercury://models names the same door for the keyed endpoint, never "keyless"', keyedPage?.account === keyedDoor, JSON.stringify(keyedPage?.account ?? null))
+  check('(8c) the same page reads the keyless endpoint as keyless', keylessPage?.account?.endsWith('no key (local/auth-free endpoint)') === true, JSON.stringify(keylessPage?.account ?? null))
+  const keyedEndpointBirth = await admitSession({ model: 'compat/keyed/keyed-model' })
+  if (keyedEndpointBirth.ok) {
+    await daemonControlRpc({ op: 'sessionRelease', runnerId: keyedEndpointBirth.runnerId } as never, { timeoutMs: 10_000 }).catch(() => undefined)
+  }
+  check(
+    '(8d) the birth on the keyed endpoint is refused naming the same door',
+    !keyedEndpointBirth.ok && (keyedEndpointBirth.error ?? '').includes(keyedDoor) && (keyedEndpointBirth.error ?? '').includes('MERCURY_COMPAT_KEYED_API_KEY'),
+    keyedEndpointBirth.ok ? '(unexpectedly admitted)' : (keyedEndpointBirth.error ?? ''),
+  )
 } finally {
   await stopDaemon()
   server.stop(true)

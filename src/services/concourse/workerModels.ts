@@ -37,17 +37,13 @@ export interface WorkerRegistryReads {
 const WORKER_MODEL_LEGACY_KEY_NAMES = new Set(['opus', 'sonnet', 'fable', 'fable51'])
 
 const LOGINS_FAMILY_WORDS = new Set(['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'])
-export function loginsActionFor(family: string, modelId?: string): string {
+export function loginsActionFor(family: string, compatEndpoint?: string): string {
   if (LOGINS_FAMILY_WORDS.has(family)) return `ask the operator to run /logins ${family}`
   if (family === 'openai-compat') {
-    try {
-      const { compatKeyEnvName, compatRefusalEndpointName } =
-        require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')
-      const endpoint = compatRefusalEndpointName(modelId)
-      if (endpoint !== undefined) {
-        return `the endpoint '${endpoint}' needs a key: /logins compat/${endpoint} (or set ${compatKeyEnvName(endpoint)})`
-      }
-    } catch {}
+    if (compatEndpoint !== undefined) {
+      const { compatKeyEnvName } = require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')
+      return `the endpoint '${compatEndpoint}' needs a key: /logins compat/${compatEndpoint} (or set ${compatKeyEnvName(compatEndpoint)})`
+    }
     return 'ask the operator to set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY if the endpoint needs one)'
   }
   if (family === 'local') return 'ask the operator to start a local server, or set MERCURY_LOCAL_BASE_URL'
@@ -94,8 +90,8 @@ function familySeatSetting(family: string): string | undefined {
   return seatFamilyChoices().find(c => c.family === family)?.setting
 }
 
-export function noCredentialAction(family: string, modelId?: string): string {
-  const door = loginsActionFor(family, modelId)
+export function noCredentialAction(family: string, compatEndpoint?: string): string {
+  const door = loginsActionFor(family, compatEndpoint)
   const other = seatFamilyChoices().find(c => c.family !== family)
   if (other === undefined) return door
   let name = other.family
@@ -148,6 +144,20 @@ async function readCredentialPresences(): Promise<CredentialReads> {
   return map
 }
 
+type CompatCredentialReader = ReturnType<typeof import('../providers/openaicompat/compatAccounts.js').compatCredentialReader>
+const UNREADABLE_COMPAT: CompatCredentialReader = { credentialed: () => false, refusalEndpoint: () => undefined }
+const compatReaders = new WeakMap<CredentialReads, CompatCredentialReader>()
+function compatReaderFor(credentials?: CredentialReads): CompatCredentialReader {
+  const held = credentials !== undefined ? compatReaders.get(credentials) : undefined
+  if (held !== undefined) return held
+  let reader = UNREADABLE_COMPAT
+  try {
+    reader = (require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')).compatCredentialReader()
+  } catch {}
+  if (credentials !== undefined) compatReaders.set(credentials, reader)
+  return reader
+}
+
 function unrecognisedRefusalAction(): string {
   const plain = 'pick a listed row from the model picker'
   try {
@@ -176,14 +186,9 @@ function composeArms(
     }
     return { session: refused, crew: refused }
   }
-  const credentialed =
-    route === 'openai-compat'
-      ? (require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')).isCompatModelCredentialed(modelId)
-      : credentials.get(route) === true
-  const compatEndpoint =
-    !credentialed && route === 'openai-compat'
-      ? (require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')).compatRefusalEndpointName(modelId)
-      : undefined
+  const compat = route === 'openai-compat' ? compatReaderFor(credentials) : undefined
+  const credentialed = compat !== undefined ? compat.credentialed(modelId) : credentials.get(route) === true
+  const compatEndpoint = compat !== undefined && !credentialed ? compat.refusalEndpoint(modelId) : undefined
   const session: WorkerArmAvailabilityV1 = credentialed
     ? { availability: 'available' }
     : route === 'local'
@@ -200,7 +205,7 @@ function composeArms(
             compatEndpoint !== undefined
               ? `the endpoint '${compatEndpoint}' (${route} family) holds no credential on this account`
               : `the ${route} family holds no credential on this account`,
-          action: noCredentialAction(route, modelId),
+          action: noCredentialAction(route, compatEndpoint),
         }
   return { session, crew: session }
 }
@@ -367,7 +372,7 @@ export async function validateWorkerModelChoice(
       ok: false,
       reason: `no-credential:${idOrKey}`,
       detail: `the ${idOrKey} family holds no usable sign-in on this account`,
-      action: noCredentialAction(idOrKey),
+      action: noCredentialAction(idOrKey, idOrKey === 'openai-compat' ? compatReaderFor().refusalEndpoint() : undefined),
     }
   }
   const registry = await composeWorkerModelRegistry(reads)

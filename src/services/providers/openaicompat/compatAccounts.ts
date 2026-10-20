@@ -39,15 +39,14 @@ export function configuredCompatEndpoints(env: NodeJS.ProcessEnv = process.env):
   if (named && !Object.hasOwn(block, 'default') && env.MERCURY_COMPAT_BASE_URL?.trim()) entries.unshift(['default', {}])
   const endpoints: CompatEndpoint[] = []
   for (const [name, entry] of entries) {
-    const entryNamed = named && Object.hasOwn(block, name)
     const baseUrl = (name === 'default' ? env.MERCURY_COMPAT_BASE_URL?.trim() || entry.baseUrl?.trim() : entry.baseUrl?.trim())?.replace(/\/+$/, '')
     if (!baseUrl) continue
     const validated = CompatProviderSchema().safeParse({ baseUrl })
     if (!validated.success) throw new Error(`compatProvider.${name}.baseUrl: must be an http(s) URL without credentials, query or fragment`)
-    const label = (name === 'default' ? env.MERCURY_COMPAT_LABEL?.trim() : undefined) || entry.label?.trim() || (entryNamed ? name : 'Custom endpoint')
+    const label = (name === 'default' ? env.MERCURY_COMPAT_LABEL?.trim() : undefined) || entry.label?.trim() || (named ? name : 'Custom endpoint')
     const envModels = name === 'default' ? env.MERCURY_COMPAT_MODELS?.trim() : undefined
     const models = envModels ? envModels.split(',').map(id => id.trim()).filter(Boolean) : (entry.models ?? []).map(id => id.trim()).filter(Boolean)
-    endpoints.push({ ...entry, name, named: entryNamed, baseUrl, label, models })
+    endpoints.push({ ...entry, name, named, baseUrl, label, models })
   }
   return endpoints
 }
@@ -57,26 +56,22 @@ export function resolveCompatSlotConfig(env: NodeJS.ProcessEnv = process.env, na
   return endpoint ? { baseUrl: endpoint.baseUrl, label: endpoint.label, models: endpoint.models } : undefined
 }
 
-export function compatModelEndpoint(model: string, env: NodeJS.ProcessEnv = process.env): { endpoint: CompatEndpoint; wireId: string } | undefined {
+export function compatModelEndpoint(model: string, env: NodeJS.ProcessEnv = process.env, known?: CompatEndpoint[]): { endpoint: CompatEndpoint; wireId: string } | undefined {
   const raw = model.trim().replace(/\[(?:[0-9]+m|served)\]/gi, '')
   if (!raw.toLowerCase().startsWith(COMPAT_MODEL_PREFIX)) return undefined
   const inner = raw.slice(COMPAT_MODEL_PREFIX.length)
-  const endpoints = configuredCompatEndpoints(env)
+  const endpoints = known ?? configuredCompatEndpoints(env)
   const named = endpoints.some(endpoint => endpoint.named)
   if (!named) {
     const endpoint = endpoints.find(entry => entry.name === 'default')
     return endpoint && inner ? { endpoint, wireId: inner } : undefined
   }
   const slash = inner.indexOf('/')
-  if (slash >= 1 && slash < inner.length - 1) {
-    const name = inner.slice(0, slash)
-    if (COMPAT_ENDPOINT_NAME.test(name)) {
-      const endpoint = endpoints.find(entry => entry.named && entry.name === name)
-      if (endpoint) return { endpoint, wireId: inner.slice(slash + 1) }
-    }
-  }
-  const legacy = endpoints.find(entry => !entry.named && entry.name === 'default')
-  return legacy && inner && !inner.includes('/') ? { endpoint: legacy, wireId: inner } : undefined
+  if (slash < 1 || slash === inner.length - 1) return undefined
+  const name = inner.slice(0, slash)
+  if (!COMPAT_ENDPOINT_NAME.test(name)) return undefined
+  const endpoint = endpoints.find(entry => entry.name === name)
+  return endpoint ? { endpoint, wireId: inner.slice(slash + 1) } : undefined
 }
 
 export function compatChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env, name = 'default'): string | undefined {
@@ -98,43 +93,58 @@ export function resolveCompatApiKey(env: Record<string, string | undefined> = pr
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export function compatEndpointRequiresKey(endpoint: Pick<CompatEndpoint, 'name' | 'keyCommand'>): boolean {
-  return Boolean(endpoint.keyCommand?.trim() || configuredProviderKeyCommand(`compat:${endpoint.name}`))
+function compatEndpointAccount(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv): { kind: 'api-key' | 'keyless'; label: string; keySource?: 'env' | 'stored' } | undefined {
+  const key = resolveCompatApiKey(env, endpoint.name)
+  if (key) {
+    const envName = endpoint.name === 'default' && env.MERCURY_COMPAT_API_KEY?.trim() ? 'MERCURY_COMPAT_API_KEY' : compatKeyEnvName(endpoint.name)
+    return { kind: 'api-key', label: key.source === 'env' ? `${endpoint.label} — ${envName} (env)` : `${endpoint.label} — API key (stored, auth-scoped)`, keySource: key.source }
+  }
+  if (configuredProviderKeyCommand(`compat:${endpoint.name}`)) return undefined
+  return { kind: 'keyless', label: `${endpoint.label} — no key (local/auth-free endpoint)` }
 }
 
 export function resolveCompatAccount(env: NodeJS.ProcessEnv = process.env, name?: string): { kind: 'api-key' | 'keyless'; label: string; keySource?: 'env' | 'stored' } | undefined {
-  const endpoints = configuredCompatEndpoints(env)
-  const candidates = name === undefined ? endpoints : endpoints.filter(entry => entry.name === name)
-  for (const config of candidates) {
-    const key = resolveCompatApiKey(env, config.name)
-    if (key) {
-      const envName = config.name === 'default' && env.MERCURY_COMPAT_API_KEY?.trim() ? 'MERCURY_COMPAT_API_KEY' : compatKeyEnvName(config.name)
-      return { kind: 'api-key', label: key.source === 'env' ? `${config.label} — ${envName} (env)` : `${config.label} — API key (stored, auth-scoped)`, keySource: key.source }
-    }
-    if (!compatEndpointRequiresKey(config)) {
-      return { kind: 'keyless', label: `${config.label} — no key (local/auth-free endpoint)` }
-    }
+  for (const endpoint of configuredCompatEndpoints(env)) {
+    if (name !== undefined && endpoint.name !== name) continue
+    const account = compatEndpointAccount(endpoint, env)
+    if (account) return account
   }
   return undefined
 }
 
-export function isCompatEndpointCredentialed(endpoint: CompatEndpoint | string, env: NodeJS.ProcessEnv = process.env): boolean {
-  const name = typeof endpoint === 'string' ? endpoint : endpoint.name
-  return resolveCompatAccount(env, name) !== undefined
+export function isCompatEndpointCredentialed(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv = process.env): boolean {
+  return compatEndpointAccount(endpoint, env) !== undefined
+}
+
+export function compatCredentialReader(env: NodeJS.ProcessEnv = process.env): { credentialed(model: string): boolean; refusalEndpoint(model?: string): string | undefined } {
+  const endpoints = configuredCompatEndpoints(env)
+  const verdicts = new Map<string, boolean>()
+  const endpointCredentialed = (endpoint: CompatEndpoint): boolean => {
+    let verdict = verdicts.get(endpoint.name)
+    if (verdict === undefined) {
+      verdict = compatEndpointAccount(endpoint, env) !== undefined
+      verdicts.set(endpoint.name, verdict)
+    }
+    return verdict
+  }
+  return {
+    credentialed(model) {
+      if (model === 'openai-compat') return endpoints.some(endpointCredentialed)
+      const resolved = compatModelEndpoint(model, env, endpoints)
+      return resolved !== undefined && endpointCredentialed(resolved.endpoint)
+    },
+    refusalEndpoint(model) {
+      if (model !== undefined && model !== 'openai-compat') {
+        const resolved = compatModelEndpoint(model, env, endpoints)
+        return resolved?.endpoint.named ? resolved.endpoint.name : undefined
+      }
+      return endpoints.find(endpoint => endpoint.named && !endpointCredentialed(endpoint))?.name
+    },
+  }
 }
 
 export function isCompatModelCredentialed(model: string, env: NodeJS.ProcessEnv = process.env): boolean {
-  if (model === 'openai-compat') return resolveCompatAccount(env) !== undefined
-  const resolved = compatModelEndpoint(model, env)
-  return resolved !== undefined && isCompatEndpointCredentialed(resolved.endpoint, env)
-}
-
-export function compatRefusalEndpointName(model?: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
-  if (model !== undefined && model !== 'openai-compat') {
-    const resolved = compatModelEndpoint(model, env)
-    return resolved?.endpoint.named ? resolved.endpoint.name : undefined
-  }
-  return configuredCompatEndpoints(env).find(entry => entry.named && !isCompatEndpointCredentialed(entry, env))?.name
+  return compatCredentialReader(env).credentialed(model)
 }
 
 export function compatSlotModelIds(env: NodeJS.ProcessEnv = process.env): string[] {
