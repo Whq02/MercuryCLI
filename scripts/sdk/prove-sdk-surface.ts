@@ -92,3 +92,5 @@ try {
   assert.equal(code, 0)
 } finally { rmSync(scratch, { recursive: true, force: true }) }
 console.log('PASS SDK surface: 25 row types, unknown rows, both replay servers, streaming input, every host request, host permission, inline tool, sync Python')
+
+await import('./review-blockers.ts')

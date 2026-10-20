@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
-import { connect, MercuryError } from '../../sdk/src/index.ts'
+import { connect, MercuryError, METHODS } from '../../sdk/src/index.ts'
 import { startFixtureServer } from '../../sdk/src/testing.ts'
 
 const failures: string[] = []
@@ -25,12 +25,20 @@ await check('B5 prompt correlation with queued and abandoned turns', async () =>
 const send=x=>console.log(JSON.stringify(x));
 const outcome=(n)=>({type:'outcome',seq:n,timestamp:'t',session_id:'s',turn:n,schema:1,turn_id:'turn-'+n,status:'completed',steps:1,wall_ms:1,usage:{input_tokens:0,cached_input_tokens:0,cache_write_input_tokens:0,output_tokens:0},models:{},denials:[]});
 rl.on('line',l=>{const m=JSON.parse(l); if(m.method==='initialize')send({jsonrpc:'2.0',id:m.id,result:${JSON.stringify(init)}});if(m.method==='queue/add'){const n=++turn; send({jsonrpc:'2.0',method:'row',params:{type:'turn',seq:n,timestamp:'t',session_id:'s',turn:n,state:'started',turn_id:'turn-'+n,message_ids:[m.params.id||'missing']}});send({jsonrpc:'2.0',id:m.id,result:{accepted:true}});if(n===2){send({jsonrpc:'2.0',method:'row',params:outcome(1)});send({jsonrpc:'2.0',method:'row',params:outcome(2)})}}});`
-  const session = await connect({ mercury: ['node', '-e', script, '--'] })
-  try {
-    await session.sendPrompt('previous turn')
-    const answer = await session.prompt('this turn')
-    assert.equal(answer.turn_id, 'turn-2')
-  } finally { await session.close() }
+  for (const timedOut of [false, true]) {
+    const source = timedOut ? script.replace("send({jsonrpc:'2.0',id:m.id,result:{accepted:true}});", "if(n>1)send({jsonrpc:'2.0',id:m.id,result:{accepted:true}});") : script
+    const session = await connect({ mercury: ['node', '-e', source, '--'] })
+    const deadline = METHODS['queue/add'].deadlineMs
+    try {
+      if (timedOut) {
+        METHODS['queue/add'].deadlineMs = 30
+        await assert.rejects(session.prompt('timed out earlier'), MercuryError)
+        METHODS['queue/add'].deadlineMs = deadline
+      } else await session.sendPrompt('previous turn')
+      const answer = await session.prompt('this turn')
+      assert.equal(answer.turn_id, 'turn-2')
+    } finally { METHODS['queue/add'].deadlineMs = deadline; await session.close() }
+  }
 })
 await check('B6 void handlers and invalid permission answer', async () => {
   const fixture = await startFixtureServer({ methods: { initialize: [{ result: init }], 'session/facts': [{ result: {}, before: [
