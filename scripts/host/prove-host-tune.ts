@@ -202,6 +202,17 @@ try {
   }, emit)
   check('SGLang thinking is informational rather than an unsupported launch choice', informational && defaults?.effort === 'default')
   check('undocumented limits stay unknown without invented launch flags', unknownLimit && defaults?.conversations === null && defaults?.contextPerConversation === null && JSON.stringify(tune.tunedRecipe(qwen, defaults).flags) === JSON.stringify(qwen.flags))
+  let glmLevels: string[] = []
+  await tune.runTune(modelTitle, { recipes: [glm] }, async question => { if (question.step === 'tune-thinking') { glmLevels = question.rows?.map(row => row.value) ?? []; return null } return question.step === 'tune-quality' ? glm.id : '0' }, emit)
+  check('GLM thinking offers only the levels its template honours: low and high by name, everything else as max', JSON.stringify(glmLevels) === JSON.stringify(['max', 'high', 'low']))
+  let refusedMedium = ''
+  try { tune.tunedRecipe(glm, { ...tune.defaultTune(glm), effort: 'medium' }) } catch (error) { refusedMedium = String(error) }
+  check('a level the template would quietly turn into max is refused, not launched', refusedMedium.includes('thinking levels max, high, low'))
+  const nemotron = HOST_RECIPES.find(row => row.id === 'nemotron35-super-gguf-rtx-pro-6000')!
+  let nemotronRows: string[] = []
+  await tune.runTune('Nemotron 3.5 Super VL 120B', { recipes: [nemotron] }, async question => { if (question.step === 'tune-thinking') { nemotronRows = question.rows?.map(row => row.label) ?? []; return null } return question.step === 'tune-quality' ? nemotron.id : '0' }, emit)
+  const nemotronLaunch = tune.tunedRecipe(nemotron, tune.defaultTune(nemotron))
+  check('a llama.cpp model whose template takes no named level shows thinking as information and launches without a reasoning_effort it would ignore', JSON.stringify(nemotronRows) === JSON.stringify(['default · this model has no named thinking levels']) && tune.defaultTune(nemotron).effort === 'default' && !nemotronLaunch.flags.includes('--chat-template-kwargs'))
   const beforeQuality = ssh.commands.length
   const alternative = HOST_RECIPES.find(row => row.id === 'glm53-flash-b200-community')!
   let nextRental = false

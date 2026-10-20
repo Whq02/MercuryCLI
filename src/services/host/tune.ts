@@ -14,7 +14,8 @@ import type { HostOffer } from './runpod.js'
 import { hostDirectory, patchHostRecord, type HostRecord } from './store.js'
 import { hostRunner, inspectSsh, restartHostScript, sshArguments, waitHostEngine, type HostRunner } from './ssh.js'
 
-const preferenceSchema = z.object({ quality: z.string(), conversations: z.number().int().positive().nullable(), contextPerConversation: z.number().int().positive().nullable(), effort: z.enum(['max', 'high', 'medium', 'low', 'default']), updatedAt: z.string().datetime() })
+const thinkingRank = ['max', 'xhigh', 'high', 'medium', 'low'] as const
+const preferenceSchema = z.object({ quality: z.string(), conversations: z.number().int().positive().nullable(), contextPerConversation: z.number().int().positive().nullable(), effort: z.enum([...thinkingRank, 'default']), updatedAt: z.string().datetime() })
 export type HostTunePreferences = z.infer<typeof preferenceSchema>
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
@@ -33,11 +34,16 @@ export function qualityWords(recipe: HostRecipe): string {
   return table.find(([pattern]) => pattern.test(variant))?.[1] ?? (variant || recipe.label)
 }
 
+export function thinkingLevels(recipe: HostRecipe): HostTunePreferences['effort'][] {
+  return recipe.engine === 'llamacpp' ? thinkingRank.filter(level => recipe.efforts?.levels.includes(level)) : []
+}
+
 export function defaultTune(recipe: HostRecipe): HostTunePreferences {
   const conversations = Number(flag(recipe, recipe.engine === 'llamacpp' ? '--parallel' : '--max-running-requests')) || null
   const contextPerConversation = (recipe.contextPerSlot ?? recipe.context ?? (recipe.engine === 'llamacpp' && conversations ? Number(flag(recipe, '--ctx-size')) / conversations : Number(flag(recipe, '--context-length')))) || null
-  let effort: HostTunePreferences['effort'] = recipe.engine === 'llamacpp' ? 'max' : 'default'
-  try { const parsed = preferenceSchema.shape.effort.safeParse(JSON.parse(flag(recipe, '--chat-template-kwargs') ?? '{}').reasoning_effort); if (parsed.success) effort = parsed.data } catch {}
+  const levels = thinkingLevels(recipe)
+  let effort: HostTunePreferences['effort'] = levels[0] ?? 'default'
+  try { const stated = JSON.parse(flag(recipe, '--chat-template-kwargs') ?? '{}').reasoning_effort; if (levels.includes(stated)) effort = stated } catch {}
   return { quality: recipe.id, conversations, contextPerConversation, effort, updatedAt: new Date().toISOString() }
 }
 
@@ -104,14 +110,14 @@ export function tunedRecipe(recipe: HostRecipe, prefs: HostTunePreferences): Hos
   const candidate = tuneBudget(recipe, recipe.vramGb, recipe.count).candidates.find(row => row.conversations === prefs.conversations && row.contextPerConversation === prefs.contextPerConversation && row.fits)
   if (!candidate) throw new Error('This tune is outside the known memory budget. Open Tune again.')
   if (recipe.engine !== 'llamacpp') return recipe
-  if (prefs.effort === 'default') throw new Error('Choose an explicit llama.cpp thinking effort.')
+  const levels = thinkingLevels(recipe)
+  if (levels.length ? !levels.includes(prefs.effort) : prefs.effort !== 'default') throw new Error('This model takes ' + (levels.length ? 'the thinking levels ' + levels.join(', ') : 'no named thinking level') + '; open Tune again.')
   if (!prefs.conversations || !prefs.contextPerConversation || !Number.isSafeInteger(prefs.conversations * prefs.contextPerConversation)) throw new Error('The recipe has no known conversation window.')
   const flags = [...recipe.flags]
   const set = (name: string, value: string): void => { const at = flags.indexOf(name); if (at >= 0) flags.splice(at, 2, name, value); else flags.push(name, value) }
   set('--ctx-size', String(prefs.conversations * prefs.contextPerConversation))
   set('--parallel', String(prefs.conversations))
-  const kwargs = JSON.parse(flag(recipe, '--chat-template-kwargs') ?? '{}') as Record<string, unknown>
-  set('--chat-template-kwargs', JSON.stringify({ ...kwargs, reasoning_effort: prefs.effort }))
+  if (levels.length) set('--chat-template-kwargs', JSON.stringify({ ...JSON.parse(flag(recipe, '--chat-template-kwargs') ?? '{}') as Record<string, unknown>, reasoning_effort: prefs.effort }))
   return { ...recipe, flags, context: prefs.contextPerConversation, contextPerSlot: prefs.contextPerConversation }
 }
 
@@ -141,8 +147,10 @@ export async function runTune(modelTitle: string, options: { recipes: readonly H
   if (choice === null) return
   const candidate = budget.candidates[Number(choice)]
   if (!candidate || !candidate.fits) { emit({ title: 'Tune', words: candidate?.label ?? words.inputError }); return }
-  const effort = await question({ step: 'tune-thinking', title: 'THINKING · change any time with /effort', found: budget.words, willRun: recipe.verification + ' · esc closes', initial: recipe.engine === 'llamacpp' ? previous.effort : 'default', rows: recipe.engine === 'llamacpp' ? ['max', 'high', 'medium', 'low'].map(value => ({ value, label: value + (value === 'max' ? ' (recommended)' : '') })) : [{ value: 'default', label: 'default · /effort changes it per request' }] })
+  const levels = thinkingLevels(recipe)
+  const effort = await question({ step: 'tune-thinking', title: 'THINKING · change any time with /effort', found: budget.words, willRun: recipe.verification + ' · esc closes', initial: levels.length ? (levels.includes(previous.effort) ? previous.effort : levels[0]) : 'default', rows: levels.length ? levels.map(value => ({ value, label: value + (value === levels[0] ? ' (recommended)' : '') })) : [{ value: 'default', label: recipe.efforts?.levels.length === 0 ? 'default · this model has no named thinking levels' : 'default · /effort changes it per request' }] })
   if (!effort) return
+  if (!(levels.length ? levels : ['default']).includes(effort as HostTunePreferences['effort'])) throw new Error(words.inputError)
   const prefs = preferenceSchema.parse({ quality, conversations: candidate.conversations, contextPerConversation: candidate.contextPerConversation, effort, updatedAt: new Date().toISOString() })
   const inPlace = options.pod?.recipe === recipe.id && recipe.engine === 'llamacpp'
   const confirm = await question({ step: 'tune-confirm', title: 'Confirm tune · ' + modelTitle, found: budget.words, willRun: tuneSummary(prefs, recipe), rows: [{ value: 'confirm', label: inPlace ? 'Confirm · reload in place (~3 min), no download or new pod' : options.pod ? 'Confirm · applies at the next rental · no download now' : 'Confirm · save for the next rental' }, { value: 'cancel', label: words.cancel }] })

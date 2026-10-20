@@ -22,6 +22,7 @@ export interface HostRecipe {
   source: string
   verification: string
   verified: HostRecipeVerified
+  efforts?: { levels: string[]; verified: HostRecipeVerified }
   pythonInstall?: string
   context?: number
   contextPerSlot?: number
@@ -48,6 +49,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     id: 'glm53-flash-gguf-b300', label: 'GLM-5.3-Flash · UD-Q4_K_XL', model: 'unsloth/GLM-5.3-Flash-GGUF', gpu: 'B300', count: 1, vramGb: 288, diskGb: 300,
     engine: 'llamacpp', image: 'nvidia/cuda:13.0.2-devel-ubuntu24.04', cuda: '13.0', imageSource: 'https://hub.docker.com/layers/nvidia/cuda/13.0.2-devel-ubuntu24.04/images/sha256-5dc1bca23d05bd37b011be68ec470c03b403a5da07ec3a86e41af9470e9d0cc6', source: 'https://unsloth.ai/docs/models/glm-5.3-flash', verification: 'llama.cpp (GGUF) · verified on 1× B300 (67 tok/s)',
     verified: { by: 'measured', on: '2026-10-20', note: '1× B300 · upstream llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 · 67 tok/s single-stream, ~23 tok/s per stream with two busy · 193 GB VRAM · 524,288 ctx across 4 slots (131,072 per slot)', source: 'https://unsloth.ai/docs/models/glm-5.3-flash' },
+    efforts: { levels: ['low','high','max'], verified: { by: 'documented' as const, on: '2026-10-20', source: 'https://huggingface.co/zai-org/GLM-5.3-Flash/blob/main/chat_template.jinja', note: 'low and high are explicit; all other inputs use max' } },
     context: 131072, contextPerSlot: 131072,
     kvBytesPerToken: { bytes: 11 * (512 + 0 + 3 * 128) * 34 / 32, conversationBytes: 34 * (3 * (4 - 1) * 64 * 128 + 128 * 128 * 64) * 4, maxContext: 1048576, cacheType: 'q8_0', verified: { by: 'documented', on: '2026-10-20', source: 'https://huggingface.co/zai-org/GLM-5.3-Flash/raw/main/config.json', note: 'Computed from config.json for llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 (glm5-next): per token, each of the 11 deepseek_sparse_attention layers caches a K-only latent (kv_lora_rank 512 + qk_rope_head_dim 0) and a k-pool indexer row (3 × index_head_dim 128) at q8_0, 34/32 bytes: 11 × 896 × 34/32 = 10,472 bytes. Per conversation, whatever its length, each of the 34 linear_attention layers keeps one f32 state (short_conv_kernel_size 4, 64 heads × head_dim 128): 34 × (3 × 3 × 64 × 128 + 128 × 128 × 64) × 4 = 152,633,344 bytes. At 4 × 131,072 that is 5,818 MiB beside 185,437 MiB of weights on the GPU (the GGUF less its skipped MTP block and its CPU-side token embedding).' } },
     install: llamaInstall,
@@ -58,6 +60,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     id: 'nemotron35-super-gguf-rtx-pro-6000', label: 'Nemotron 3.5 Super VL 120B · UD-Q3_K_XL', model: 'unsloth/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-GGUF', gpu: 'RTX PRO 6000', count: 1, vramGb: 96, diskGb: 120,
     engine: 'llamacpp', image: 'nvidia/cuda:13.0.2-devel-ubuntu24.04', cuda: '13.0', imageSource: 'https://hub.docker.com/layers/nvidia/cuda/13.0.2-devel-ubuntu24.04/images/sha256-5dc1bca23d05bd37b011be68ec470c03b403a5da07ec3a86e41af9470e9d0cc6', source: 'https://unsloth.ai/docs/models/nemotron-3.5-super-vl', verification: 'llama.cpp (GGUF) · the road the model card names for RTX PRO 6000 · 65.8 GB, documented minimum 96 GB · GPU run not measured',
     verified: { by: 'documented', note: "NVIDIA's model card names llama.cpp for RTX PRO 6000; Unsloth's 96 GB minimum", source: 'https://unsloth.ai/docs/models/nemotron-3.5-super-vl' },
+    efforts: { levels: [], verified: { by: 'documented' as const, on: '2026-10-20', source: 'https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/blob/main/chat_template.jinja', note: 'enable_thinking and medium_effort are boolean controls, not named reasoning_effort levels' } },
     context: 131072, contextPerSlot: 131072,
     install: llamaInstall,
     include: '*UD-Q3_K_XL*', weightFile: 'UD-Q3_K_XL/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-UD-Q3_K_XL-00001-of-00003.gguf',

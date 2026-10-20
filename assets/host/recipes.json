@@ -395,6 +395,19 @@
         "note": "1× B300 · upstream llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 · 67 tok/s single-stream, ~23 tok/s per stream with two busy · 193 GB VRAM · 524,288 ctx across 4 slots (131,072 per slot)",
         "source": "https://unsloth.ai/docs/models/glm-5.3-flash"
       },
+      "efforts": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "low and high are explicit; all other inputs use max",
+          "source": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/main/chat_template.jinja"
+        }
+      },
       "context": 131072,
       "contextPerSlot": 131072,
       "kvBytesPerToken": {
@@ -532,6 +545,15 @@
         "by": "documented",
         "note": "NVIDIA's model card names llama.cpp for RTX PRO 6000; Unsloth's 96 GB minimum",
         "source": "https://unsloth.ai/docs/models/nemotron-3.5-super-vl"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-20",
+          "note": "enable_thinking and medium_effort are boolean controls, not named reasoning_effort levels",
+          "source": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/blob/main/chat_template.jinja"
+        }
       },
       "context": 131072,
       "contextPerSlot": 131072,
