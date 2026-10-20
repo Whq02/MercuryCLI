@@ -1508,6 +1508,8 @@ export async function runHeadless(
       command => (command.queueId !== undefined && keys.has(command.queueId)) || (command.uuid !== undefined && keys.has(String(command.uuid))),
     )
   }
+  const { watchHostNotices } = await import('../services/host/notices.js')
+  const stopHostNotices = watchHostNotices(() => getSessionId())
   const idleNudge = startIdleNudge({
     recipient: agentId => {
       if (agentId !== MAIN_THREAD_AGENT) return agentRecipientState(getAppState().tasks, agentId)
@@ -1560,6 +1562,7 @@ export async function runHeadless(
   registerCleanup(async () => {
     releaseHookRows?.()
     idleNudge.stop()
+    stopHostNotices()
     logForDiagnosticsNoPII('info', 'headless_sigterm_state', {
       cycle_running: driver.isRunning(),
       phase: driver.phase(),

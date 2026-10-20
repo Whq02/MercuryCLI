@@ -1,20 +1,17 @@
 import { createServer } from 'node:http'
 import { spawn, spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+const sample = name => JSON.parse(readFileSync(new URL('./fixtures/' + name + '.json', import.meta.url), 'utf8'))
+export const liveCatalogue = sample('catalog-gpus-secure-count1')
+const livePod = sample('pod-get-running')
+const livePods = sample('pods-list')
 
 export async function runpodFixture() {
   const key = 'fixture-runpod-key-not-a-real-key'
   const requests = []
-  const state = { pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, creates: 0, stops: 0, deletes: 0, noStock: false, stockLoss: false, price: 7.99, failCreate: false, stuck: false, failStop: false }
-  const gpus = [
-    { id: 'NVIDIA B200', name: 'B200', memory: 192, secure: true, price: { secure: 7.99 }, maxCount: { secure: 8 } },
-    { id: 'NVIDIA B300', name: 'B300', memory: 288, secure: true, price: { secure: 8.99 }, maxCount: { secure: 8 } },
-    { id: 'NVIDIA H200', name: 'H200', memory: 141, secure: true, price: { secure: 5.29 }, maxCount: { secure: 8 } },
-    { id: 'NVIDIA RTX PRO 6000 Blackwell Server Edition', name: 'RTX PRO 6000', memory: 96, secure: true, price: { secure: 2.49 }, maxCount: { secure: 4 } },
-    { id: 'NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 1g.24gb', name: 'PRO 6000 MIG 24GB', memory: 24, secure: true, price: { secure: 0.69 }, maxCount: { secure: 32 } },
-    { id: 'no-stock', name: 'GB300', memory: 288, secure: true, price: { secure: 1.01 }, maxCount: { secure: 8 } },
-    { id: 'NVIDIA A100-SXM4-40GB', name: 'A100 SXM 40GB', memory: 40, secure: false, price: { community: 1, secure: 0 }, maxCount: { community: 2, secure: 0 } },
-  ]
+  const state = { pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, creates: 0, stops: 0, deletes: 0, noStock: false, stockLoss: false, price: 7.99, failCreate: false, stuck: false, failStop: false, customGpus: null }
+  const gpus = liveCatalogue.gpus
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
     let raw = ''; for await (const chunk of req) raw += chunk
@@ -28,10 +25,10 @@ export async function runpodFixture() {
       assert.equal(url.searchParams.get('cloud'), 'SECURE')
       assert.equal(url.searchParams.get('minCudaVersion'), '13.0')
       state.catalogReads++
-      return send({ gpus: gpus.map(gpu => ({ ...gpu, ...(gpu.name === 'B200' ? { price: { secure: state.price } } : {}), availability: state.noStock || state.stockLoss && state.catalogReads > 3 || gpu.id === 'no-stock' ? 'NONE' : 'HIGH', dataCenters: [{ id: 'FIXTURE-1', availability: state.noStock || gpu.id === 'no-stock' ? 'NONE' : 'HIGH' }] })) })
+      return send(state.noStock || state.stockLoss && state.catalogReads > 3 ? { ...liveCatalogue, gpus: gpus.map(gpu => ({ ...gpu, availability: 'NONE' })) } : state.customGpus ? { ...liveCatalogue, gpus: state.customGpus } : liveCatalogue)
     }
     if (url.pathname === '/v2/account/ssh-keys') { if (req.method === 'PUT') state.keys = body.keys; return send({ keys: state.keys }) }
-    if (url.pathname === '/v2/pods' && req.method === 'GET') return send({ pods: [...state.pods.values()], pagination: { hasNextPage: false, nextCursor: null } })
+    if (url.pathname === '/v2/pods' && req.method === 'GET') return send({ ...livePods, pods: [...state.pods.values()], pagination: { hasNextPage: false, nextCursor: null } })
     if (url.pathname === '/v2/pods' && req.method === 'POST') {
       if (state.failCreate) return send({ error: 'fixture placement refused' }, 400)
       state.creates++; state.createBodies.push(body)
@@ -42,7 +39,7 @@ export async function runpodFixture() {
       assert.ok(body.mounts.persistent.size >= 80)
       const syntax = spawnSync('bash', ['-n', '-c', body.args], { encoding: 'utf8' })
       assert.equal(syntax.status, 0, syntax.stderr)
-      const pod = { id: 'fixture-pod-' + state.creates, name: body.name, status: 'PROVISIONING', cost: (body.gpu.id.includes('B300') ? 8.99 : state.price) * body.gpu.count, createdAt: new Date(Date.now() - 60000).toISOString(), startedAt: new Date(Date.now() - 60000).toISOString(), ssh: { direct: null } }
+      const pod = { ...structuredClone(livePod), id: 'fixture-pod-' + state.creates, name: body.name, status: 'PROVISIONING', cost: gpus.find(gpu => gpu.id === body.gpu.id).price.secure * body.gpu.count, createdAt: new Date(Date.now() - 60000).toISOString(), startedAt: new Date(Date.now() - 60000).toISOString(), ssh: { direct: null, proxy: null } }
       state.pods.set(pod.id, pod)
       return send(pod, 201)
     }
@@ -53,7 +50,7 @@ export async function runpodFixture() {
     if (req.method === 'DELETE') { state.deletes++; state.pods.delete(pod.id); return send(undefined, 204) }
     if (match[2] === '/action') { if (state.failStop) return send({ error: 'stop refused' }, 409); assert.equal(body.action, 'stop'); state.stops++; pod.status = 'EXITED'; pod.cost = 0; return send(pod) }
     state.reads++
-    if (!state.stuck && pod.status === 'PROVISIONING') { pod.status = 'RUNNING'; pod.ssh.direct = { host: '127.0.0.1', port: 2222, username: 'root' } }
+    if (!state.stuck && pod.status === 'PROVISIONING') { pod.status = 'RUNNING'; pod.ssh = structuredClone(livePod.ssh) }
     return send(pod)
   })
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
@@ -64,7 +61,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner) {
   assert.equal(new URL(modelBaseUrl).hostname, '127.0.0.1')
   const commands = []
   const children = new Set()
-  const state = { refuse: false, failEngine: false, holdHealth: false, docker: true }
+  const state = { refuse: false, failEngine: false, holdHealth: false, docker: true, log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
   const runner = {
     async run(command, args, signal, timeout) {
       commands.push({ command, args })
@@ -83,7 +80,9 @@ export function fakeSshRunner(modelBaseUrl, actualRunner) {
         assert.equal((await fetch(modelBaseUrl + '/models')).status, 200)
         output = 'healthy models'
       }
-      if (state.failEngine && remote.includes('tmux has-session')) throw new Error('fixture engine boot failed')
+      if (state.failEngine && remote.includes('launch.log')) throw new Error('launch.log: fixture outer launch permission denied')
+      if (remote.includes('tail -n 8')) output = state.log
+      if (remote.startsWith('dd if=')) { const offset = Number(/skip=(\d+)/.exec(remote)?.[1] ?? 0); output = state.log.slice(offset, offset + 8192) }
       return actualRunner.run(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', output], signal)
     },
     tunnel(args) {

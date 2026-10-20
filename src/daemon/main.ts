@@ -339,6 +339,7 @@ async function daemonRun(args: string[]): Promise<void> {
   }
   let stopSessionlessBeat: (() => void) | null = null
   let stopSaturnTicker: (() => void) | null = null
+  let stopHostJobs: (() => void) | null = null
   let roster: TaskRoster | null = null
   let ownerWatch: OwnerWatchHandleV1 | undefined
   let ownerPipe: OwnerPipeHandleV1 | undefined
@@ -1264,6 +1265,8 @@ async function daemonRun(args: string[]): Promise<void> {
           stopLockBeat = null
         }
       }
+      const { startHostJobSupervisor } = await import('../services/host/jobs.js')
+      stopHostJobs = startHostJobSupervisor()
       ready = true
       wakeReady()
       // eslint-disable-next-line no-console
@@ -1404,6 +1407,7 @@ async function daemonRun(args: string[]): Promise<void> {
       stopLockBeat?.()
       stopSessionlessBeat?.()
       stopSaturnTicker?.()
+      stopHostJobs?.()
       const supersededBy = controlEnabled ? supersededByLivePlaneOwnerSync() : null
       if (supersededBy !== null && restartAfterTeardown) {
         restartAfterTeardown = false

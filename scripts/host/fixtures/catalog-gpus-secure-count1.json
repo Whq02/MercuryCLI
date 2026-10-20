@@ -1,0 +1,1181 @@
+{
+  "gpus": [
+    {
+      "availability": "NONE",
+      "community": false,
+      "id": "AMD Instinct MI300X OAM",
+      "manufacturer": "AMD",
+      "maxCount": {
+        "community": 0,
+        "secure": 8
+      },
+      "memory": 192,
+      "name": "MI300X",
+      "pool": null,
+      "price": {
+        "community": 0.5,
+        "secure": 2.39
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": false,
+      "id": "AMD Instinct MI350 OAM",
+      "manufacturer": "AMD",
+      "maxCount": {
+        "community": 0,
+        "secure": 8
+      },
+      "memory": 294,
+      "name": "MI350X",
+      "pool": null,
+      "price": {
+        "community": 0.5,
+        "secure": 5.49
+      },
+      "secure": true
+    },
+    {
+      "availability": "LOW",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": true,
+          "version": "13.2"
+        }
+      ],
+      "dataCenters": [
+        {
+          "availability": "LOW",
+          "id": "CA-MTL-3",
+          "name": "CA-MTL-3"
+        }
+      ],
+      "id": "NVIDIA A100 80GB PCIe",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 6,
+        "secure": 8
+      },
+      "memory": 80,
+      "name": "A100 PCIe",
+      "pool": "AMPERE_80",
+      "price": {
+        "community": 1.19,
+        "secure": 1.79,
+        "serverless": 2.72
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA A100-SXM4-40GB",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 2,
+        "secure": 0
+      },
+      "memory": 40,
+      "name": "A100 SXM 40GB",
+      "pool": null,
+      "price": {
+        "community": 1,
+        "secure": 0
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA A100-SXM4-80GB",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 8
+      },
+      "memory": 80,
+      "name": "A100 SXM",
+      "pool": "AMPERE_80",
+      "price": {
+        "community": 1.39,
+        "secure": 1.79,
+        "serverless": 2.72
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": false,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA A40",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 1,
+        "secure": 10
+      },
+      "memory": 48,
+      "name": "A40",
+      "pool": "AMPERE_48",
+      "price": {
+        "community": 0.35,
+        "secure": 0.59,
+        "serverless": 1.22
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA B200",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 0,
+        "secure": 8
+      },
+      "memory": 180,
+      "name": "B200",
+      "pool": "BLACKWELL_180",
+      "price": {
+        "community": 5.98,
+        "secure": 7.99,
+        "serverless": 8.64
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA B300 SXM6 AC",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 0,
+        "secure": 8
+      },
+      "memory": 288,
+      "name": "B300",
+      "pool": "BLACKWELL_288",
+      "price": {
+        "community": 6.94,
+        "secure": 8.99,
+        "serverless": 10.65
+      },
+      "secure": true
+    },
+    {
+      "availability": "LOW",
+      "community": false,
+      "cudaVersions": [
+        {
+          "available": true,
+          "version": "13.2"
+        }
+      ],
+      "dataCenters": [
+        {
+          "availability": "LOW",
+          "id": "US-WA-2",
+          "name": "US-WA-2"
+        }
+      ],
+      "id": "NVIDIA B300 SXM6 AC MIG 1g.34gb",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 0,
+        "secure": 56
+      },
+      "memory": 34,
+      "name": "B300 MIG 34GB",
+      "pool": "BLACKWELL_32",
+      "price": {
+        "community": 0.5,
+        "secure": 0.5,
+        "serverless": 1.15
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA GeForce RTX 3070",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 7,
+        "secure": 0
+      },
+      "memory": 8,
+      "name": "RTX 3070",
+      "pool": null,
+      "price": {
+        "community": 0.13,
+        "secure": 0
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA GeForce RTX 3080",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 2,
+        "secure": 0
+      },
+      "memory": 10,
+      "name": "RTX 3080",
+      "pool": null,
+      "price": {
+        "community": 0.17,
+        "secure": 0
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA GeForce RTX 3080 Ti",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 4,
+        "secure": 0
+      },
+      "memory": 12,
+      "name": "RTX 3080 Ti",
+      "pool": null,
+      "price": {
+        "community": 0.18,
+        "secure": 0
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        },
+        {
+          "available": false,
+          "version": "13.3"
+        }
+      ],
+      "id": "NVIDIA GeForce RTX 3090",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 6,
+        "secure": 8
+      },
+      "memory": 24,
+      "name": "RTX 3090",
+      "pool": "AMPERE_24",
+      "price": {
+        "community": 0.22,
+        "secure": 0.5,
+        "serverless": 0.69
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA GeForce RTX 3090 Ti",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 4,
+        "secure": 0
+      },
+      "memory": 24,
+      "name": "RTX 3090 Ti",
+      "pool": null,
+      "price": {
+        "community": 0.27,
+        "secure": 0.46
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA GeForce RTX 4070 Ti",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 5,
+        "secure": 0
+      },
+      "memory": 12,
+      "name": "RTX 4070 Ti",
+      "pool": null,
+      "price": {
+        "community": 0.19,
+        "secure": 0.5
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA GeForce RTX 4080",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 2,
+        "secure": 0
+      },
+      "memory": 16,
+      "name": "RTX 4080",
+      "pool": null,
+      "price": {
+        "community": 0.27,
+        "secure": 0.5
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA GeForce RTX 4080 SUPER",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 4,
+        "secure": 0
+      },
+      "memory": 16,
+      "name": "RTX 4080 SUPER",
+      "pool": null,
+      "price": {
+        "community": 0.28,
+        "secure": 0.5
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        },
+        {
+          "available": false,
+          "version": "13.3"
+        }
+      ],
+      "id": "NVIDIA GeForce RTX 4090",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 8
+      },
+      "memory": 24,
+      "name": "RTX 4090",
+      "pool": "ADA_24",
+      "price": {
+        "community": 0.34,
+        "secure": 0.89,
+        "serverless": 1.1
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA GeForce RTX 5080",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 0
+      },
+      "memory": 16,
+      "name": "RTX 5080",
+      "pool": null,
+      "price": {
+        "community": 0.39,
+        "secure": 0.59
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        },
+        {
+          "available": false,
+          "version": "13.3"
+        }
+      ],
+      "id": "NVIDIA GeForce RTX 5090",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 8
+      },
+      "memory": 32,
+      "name": "RTX 5090",
+      "pool": "ADA_32_PRO",
+      "price": {
+        "community": 0.69,
+        "secure": 1.19,
+        "serverless": 1.58
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA H100 80GB HBM3",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 1,
+        "secure": 8
+      },
+      "memory": 80,
+      "name": "H100 SXM",
+      "pool": "ADA_80_PRO",
+      "price": {
+        "community": 2.69,
+        "secure": 3.99,
+        "serverless": 4.79
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA H100 NVL",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 10,
+        "secure": 8
+      },
+      "memory": 94,
+      "name": "H100 NVL",
+      "pool": "ADA_80_PRO",
+      "price": {
+        "community": 2.59,
+        "secure": 3.19,
+        "serverless": 4.79
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA H200",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 8
+      },
+      "memory": 141,
+      "name": "H200 SXM",
+      "pool": "HOPPER_141",
+      "price": {
+        "community": 3.59,
+        "secure": 5.29,
+        "serverless": 5.93
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": false,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        }
+      ],
+      "id": "NVIDIA H200 NVL",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 0,
+        "secure": 8
+      },
+      "memory": 143,
+      "name": "H200 NVL",
+      "pool": null,
+      "price": {
+        "community": 0.5,
+        "secure": 3.79
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": false,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA L4",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 1,
+        "secure": 9
+      },
+      "memory": 24,
+      "name": "L4",
+      "pool": "AMPERE_24",
+      "price": {
+        "community": 0.44,
+        "secure": 0.59,
+        "serverless": 0.69
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA L40",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 10,
+        "secure": 1
+      },
+      "memory": 48,
+      "name": "L40",
+      "pool": "ADA_48_PRO",
+      "price": {
+        "community": 0.69,
+        "secure": 0.82,
+        "serverless": 1.75
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA L40S",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 8
+      },
+      "memory": 48,
+      "name": "L40S",
+      "pool": "ADA_48_PRO",
+      "price": {
+        "community": 0.79,
+        "secure": 1.09,
+        "serverless": 1.75
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": false,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA RTX 2000 Ada Generation",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 0,
+        "secure": 8
+      },
+      "memory": 16,
+      "name": "RTX 2000 Ada",
+      "pool": "AMPERE_16",
+      "price": {
+        "community": 0.5,
+        "secure": 0.24,
+        "serverless": 0.58
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA RTX 4000 Ada Generation",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 8
+      },
+      "memory": 20,
+      "name": "RTX 4000 Ada",
+      "pool": "AMPERE_16",
+      "price": {
+        "community": 0.2,
+        "secure": 0.28,
+        "serverless": 0.58
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA RTX 4000 SFF Ada Generation",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 7,
+        "secure": 0
+      },
+      "memory": 20,
+      "name": "RTX 4000 Ada SFF",
+      "pool": null,
+      "price": {
+        "community": 0.18,
+        "secure": 0.44
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA RTX 5000 Ada Generation",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 4,
+        "secure": 0
+      },
+      "memory": 32,
+      "name": "RTX 5000 Ada",
+      "pool": null,
+      "price": {
+        "community": 0.49,
+        "secure": 0.83
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA RTX 6000 Ada Generation",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 8
+      },
+      "memory": 48,
+      "name": "RTX 6000 Ada",
+      "pool": "ADA_48_PRO",
+      "price": {
+        "community": 0.74,
+        "secure": 0.99,
+        "serverless": 1.75
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA RTX A2000",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 4,
+        "secure": 0
+      },
+      "memory": 6,
+      "name": "RTX A2000",
+      "pool": null,
+      "price": {
+        "community": 0.12,
+        "secure": 0.5
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA RTX A4000",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 8
+      },
+      "memory": 16,
+      "name": "RTX A4000",
+      "pool": "AMPERE_16",
+      "price": {
+        "community": 0.17,
+        "secure": 0.25,
+        "serverless": 0.58
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA RTX A4500",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 4,
+        "secure": 4
+      },
+      "memory": 20,
+      "name": "RTX A4500",
+      "pool": "AMPERE_16",
+      "price": {
+        "community": 0.19,
+        "secure": 0.25,
+        "serverless": 0.58
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA RTX A5000",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 10,
+        "secure": 10
+      },
+      "memory": 24,
+      "name": "RTX A5000",
+      "pool": "AMPERE_24",
+      "price": {
+        "community": 0.16,
+        "secure": 0.27,
+        "serverless": 0.69
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA RTX A6000",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 3,
+        "secure": 10
+      },
+      "memory": 48,
+      "name": "RTX A6000",
+      "pool": "AMPERE_48",
+      "price": {
+        "community": 0.33,
+        "secure": 0.59,
+        "serverless": 1.22
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": false,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA RTX PRO 4000 Blackwell",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 0,
+        "secure": 4
+      },
+      "memory": 24,
+      "name": "RTX PRO 4000",
+      "pool": null,
+      "price": {
+        "community": 0.5,
+        "secure": 0.57
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": false,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA RTX PRO 4500 Blackwell",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 0,
+        "secure": 4
+      },
+      "memory": 32,
+      "name": "RTX PRO 4500",
+      "pool": "BLACKWELL_32",
+      "price": {
+        "community": 0.34,
+        "secure": 0.72,
+        "serverless": 1.15
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": false,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA RTX PRO 4500 Blackwell Server Edition",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 0,
+        "secure": 8
+      },
+      "memory": 32,
+      "name": "RTX PRO 4500 SE",
+      "pool": null,
+      "price": {
+        "community": 0.5,
+        "secure": 0.72
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA RTX PRO 5000 Blackwell",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 0
+      },
+      "memory": 48,
+      "name": "RTX PRO 5000",
+      "pool": null,
+      "price": {
+        "community": 0.82,
+        "secure": 0.96
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "NVIDIA RTX PRO 6000 Blackwell Max-Q Workstation Edition",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 2,
+        "secure": 0
+      },
+      "memory": 96,
+      "name": "RTX PRO 6000 MaxQ",
+      "pool": "BLACKWELL_96",
+      "price": {
+        "community": 1.64,
+        "secure": 0.5,
+        "serverless": 3.49
+      },
+      "secure": false
+    },
+    {
+      "availability": "LOW",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": true,
+          "version": "13.2"
+        },
+        {
+          "available": false,
+          "version": "13.3"
+        }
+      ],
+      "id": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 9,
+        "secure": 8
+      },
+      "memory": 96,
+      "name": "RTX PRO 6000",
+      "pool": "BLACKWELL_96",
+      "price": {
+        "community": 1.69,
+        "secure": 2.49,
+        "serverless": 3.49
+      },
+      "secure": true
+    },
+    {
+      "availability": "LOW",
+      "community": false,
+      "cudaVersions": [
+        {
+          "available": true,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "dataCenters": [
+        {
+          "availability": "LOW",
+          "id": "EUR-IS-2",
+          "name": "EUR-IS-2"
+        }
+      ],
+      "id": "NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 1g.24gb",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 0,
+        "secure": 32
+      },
+      "memory": 24,
+      "name": "PRO 6000 MIG 24GB",
+      "pool": "AMPERE_24",
+      "price": {
+        "community": 0.5,
+        "secure": 0.69,
+        "serverless": 0.69
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": false,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.0"
+        },
+        {
+          "available": false,
+          "version": "13.2"
+        }
+      ],
+      "id": "NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 2g.48gb",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 0,
+        "secure": 16
+      },
+      "memory": 48,
+      "name": "PRO 6000 MIG 48GB",
+      "pool": "ADA_48_PRO",
+      "price": {
+        "community": 1,
+        "secure": 1.29,
+        "serverless": 1.75
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "cudaVersions": [
+        {
+          "available": false,
+          "version": "13.2"
+        },
+        {
+          "available": false,
+          "version": "13.3"
+        }
+      ],
+      "id": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 4,
+        "secure": 8
+      },
+      "memory": 96,
+      "name": "RTX PRO 6000 WK",
+      "pool": "BLACKWELL_96",
+      "price": {
+        "community": 1.69,
+        "secure": 2.59,
+        "serverless": 3.49
+      },
+      "secure": true
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "Tesla V100-PCIE-16GB",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 0
+      },
+      "memory": 16,
+      "name": "Tesla V100",
+      "pool": null,
+      "price": {
+        "community": 0.19,
+        "secure": 0
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": true,
+      "id": "Tesla V100-SXM2-16GB",
+      "manufacturer": "NVIDIA",
+      "maxCount": {
+        "community": 8,
+        "secure": 0
+      },
+      "memory": 16,
+      "name": "V100 SXM2",
+      "pool": null,
+      "price": {
+        "community": 0.23,
+        "secure": 0
+      },
+      "secure": false
+    },
+    {
+      "availability": "NONE",
+      "community": false,
+      "id": "unknown",
+      "manufacturer": "UNKNOWN",
+      "maxCount": {
+        "community": 1,
+        "secure": 1
+      },
+      "memory": 0,
+      "name": "unknown",
+      "pool": null,
+      "price": {
+        "community": 0,
+        "secure": 0
+      },
+      "secure": false
+    }
+  ]
+}

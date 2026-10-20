@@ -32,6 +32,11 @@ try {
       await catalogue.refreshCompatCatalogues({ force: true })
       assert.equal(getContextWindowForModel(id), 1_048_576, `${dialect} native metadata reaches the budget`)
     }
+    f.state.dialect = 'llamacpp'; f.state.window = 524_288; f.state.slots = 4
+    configure('llamacpp')
+    await catalogue.refreshCompatCatalogues({ force: true })
+    assert.equal(getContextWindowForModel(id), 131_072, 'llama.cpp divides n_ctx by total_slots for the per-slot budget')
+    f.state.window = 1_048_576; f.state.slots = 1
     configure('ollama', { models: { [id]: { contextWindow: 1_200_000 } } })
     assert.equal(getContextWindowForModel(id), 1_200_000, 'the explicit model override wins')
     configure('ollama', { models: { [id]: { contextWindow: 65_536 } } })
