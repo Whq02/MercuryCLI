@@ -4,7 +4,7 @@ import { HOST_RECIPES, recipeFits, type HostRecipe } from './recipes.js'
 const podSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name: z.string(), status: z.string(), cost: z.number().nonnegative(), createdAt: z.string(), startedAt: z.string().nullable().optional(), ssh: z.object({ direct: z.object({ host: z.string(), port: z.number().int().min(1).max(65535), username: z.string() }).nullable().optional() }).nullable().optional() })
 export type HostPod = z.infer<typeof podSchema>
 export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; dataCenter: string }
-const gpuSchema = z.object({ id: z.string(), name: z.string(), memory: z.number(), secure: z.boolean(), price: z.object({ secure: z.number().positive() }), maxCount: z.object({ secure: z.number() }), availability: z.string().optional(), dataCenters: z.array(z.object({ id: z.string(), availability: z.string() })).optional() })
+const gpuSchema = z.object({ id: z.string(), name: z.string(), memory: z.number(), secure: z.boolean(), price: z.object({ secure: z.number().nonnegative() }), maxCount: z.object({ secure: z.number() }), availability: z.string().optional(), dataCenters: z.array(z.object({ id: z.string(), availability: z.string() })).optional() })
 const stock = (value?: string): boolean => ['LOW', 'MEDIUM', 'HIGH'].includes(value ?? '')
 
 export class RunpodClient {
@@ -25,7 +25,7 @@ export class RunpodClient {
       const response = await this.response('/catalog/gpus?include=AVAILABILITY&product=POD&cloud=SECURE&count=' + count + '&minCudaVersion=' + cuda, 'GET', undefined, signal)
       const { gpus } = z.object({ gpus: z.array(gpuSchema) }).parse(await response.json())
       for (const recipe of HOST_RECIPES.filter(recipe => recipe.count === Number(count) && recipe.cuda === cuda)) for (const gpu of gpus) {
-        if (!gpu.secure || !stock(gpu.availability) || !recipeFits(recipe, gpu.name, gpu.memory, gpu.maxCount.secure)) continue
+        if (!gpu.secure || gpu.price.secure <= 0 || !stock(gpu.availability) || !recipeFits(recipe, gpu.name, gpu.memory, gpu.maxCount.secure)) continue
         const dc = gpu.dataCenters?.find(dc => stock(dc.availability))
         if (dc) offers.push({ recipe, gpuId: gpu.id, price: gpu.price.secure * recipe.count, dataCenter: dc.id })
       }

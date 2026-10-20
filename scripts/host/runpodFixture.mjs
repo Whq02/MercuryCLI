@@ -12,6 +12,7 @@ export async function runpodFixture() {
     { id: 'NVIDIA H200', name: 'H200', memory: 141, secure: true, price: { secure: 5.29 }, maxCount: { secure: 8 } },
     { id: 'NVIDIA RTX PRO 6000 Blackwell', name: 'RTX PRO 6000 Blackwell', memory: 96, secure: true, price: { secure: 2.49 }, maxCount: { secure: 4 } },
     { id: 'no-stock', name: 'GB300', memory: 288, secure: true, price: { secure: 1.01 }, maxCount: { secure: 8 } },
+    { id: 'NVIDIA A100-SXM4-40GB', name: 'A100 SXM 40GB', memory: 40, secure: false, price: { community: 1, secure: 0 }, maxCount: { community: 2, secure: 0 } },
   ]
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
