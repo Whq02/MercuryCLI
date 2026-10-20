@@ -1,3 +1,4 @@
+/// <reference types="node" preserve="true" />
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { EffortLevel, PermissionMode } from './door.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'

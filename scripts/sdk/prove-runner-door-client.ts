@@ -27,7 +27,7 @@ try {
   ])
   try {
     let asks = 0
-    const session = await connect({ mercury, cwd: c.cwd, env: c.env, mode: 'default', ephemeral: true, onPermissionRequest: async ask => {
+    const session = await connect({ mercury, cwd: c.cwd, env: c.env, mode: 'default', ephemeral: true, partial: true, onPermissionRequest: async ask => {
       assert.equal(ask.tool_name, 'Write'); asks++; return { outcome: 'deny', message: 'SDK host refused this write' }
     } })
     try {
@@ -48,6 +48,23 @@ try {
     } finally { await session.close() }
     console.log('PASS TypeScript live runner initialize, permission, mid-turn prompt, withdrawal, interrupt, facts, typed refusal')
   } finally { await c.close() }
+
+  const identity = await context(() => [{ kind: 'text', text: 'Saved identity.' }])
+  try {
+    const saved = run({ mercury, cwd: identity.cwd, env: identity.env, prompt: 'save a session' })
+    await saved.outcome
+    const id = (await saved.session).session_id
+    for (const options of [{ resume: id }, { continue: true }]) {
+      const session = await connect({ mercury, cwd: identity.cwd, env: identity.env, ...options })
+      try { assert.equal(session.initialized.session_id, id) } finally { await session.close() }
+    }
+    const warm = await connect({ mercury, cwd: identity.cwd, env: { ...identity.env, MERCURY_CONCOURSE_WORKER: '1' } })
+    try {
+      assert.equal(warm.initialized.session_id, null)
+      await warm.claim({ session_id: '00000000-0000-4000-8000-000000000099' })
+    } finally { await warm.close() }
+    console.log('PASS TypeScript real runner partial, resume, continue and warm claim')
+  } finally { await identity.close() }
 
   const streaming = await context(() => [{ kind: 'text', text: 'Streaming input arrived.' }])
   try {
@@ -77,6 +94,7 @@ try {
     { kind: 'hang', deltas: ['python open'] },
     { kind: 'tool_use', name: 'mcp__sdktools__echo', input: { text: 'Python inline result' } },
     { kind: 'text', text: 'Python inline finished.' },
+    { kind: 'text', text: 'Saved Python identity.' },
   ])
   try {
     const child = spawn('python3', [join(root, 'scripts/sdk/python-live.py'), JSON.stringify(mercury), py.cwd], { env: { ...py.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })

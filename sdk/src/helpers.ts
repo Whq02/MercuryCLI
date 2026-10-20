@@ -1,3 +1,4 @@
+/// <reference lib="esnext.disposable" preserve="true" />
 import { createServer } from 'node:http'
 import { randomBytes } from 'node:crypto'
 import type { EffortLevel, PermissionMode } from './door.js'

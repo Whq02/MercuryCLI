@@ -1,3 +1,5 @@
+/// <reference types="node" preserve="true" />
+/// <reference lib="esnext.disposable" preserve="true" />
 import { createServer, type Socket } from 'node:net'
 import { createInterface } from 'node:readline'
 import { randomBytes } from 'node:crypto'

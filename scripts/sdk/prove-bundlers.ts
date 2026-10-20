@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, symlinkSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -24,6 +24,14 @@ const fixture=await startFixtureServer({methods:{initialize:[{result:{protocol:1
 try { const s=await connect({mercury:fixture.mercury}); try {if(!(await s.facts()).fixture) throw Error('facts')} finally {await s.close()} } finally {await fixture.close()}
 if(typeof run !== 'function'||Object.keys(ROW_SCHEMAS).length!==25)throw Error('exports');
 console.log('bundled consumer passed');`)
+  symlinkSync(join(root, 'node_modules/@types'), join(scratch, 'node_modules/@types'))
+  symlinkSync(join(root, 'node_modules/undici-types'), join(scratch, 'node_modules/undici-types'))
+  writeFileSync(join(scratch, 'package.json'), JSON.stringify({ type: 'module' }))
+  for (const resolution of ['Node16', 'NodeNext', 'Bundler']) {
+    writeFileSync(join(scratch, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2022', module: resolution === 'Bundler' ? 'ESNext' : resolution, moduleResolution: resolution, strict: true, skipLibCheck: false, noEmit: true }, files: ['consumer.ts'] }))
+    run('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(scratch, 'tsconfig.json')])
+    console.log(`PASS ES2022 consumer declarations: ${resolution}, skipLibCheck=false`)
+  }
   run('bun', ['build', consumer, '--compile', '--outfile', join(scratch, 'consumer-bin')])
   let esbuild = process.env.ESBUILD_BINARY_PATH ?? join(root, 'node_modules/esbuild/bin/esbuild')
   if (!existsSync(esbuild)) {

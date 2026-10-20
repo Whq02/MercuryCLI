@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from pathlib import Path
 import sys
 from mercury_cli_sdk import run, connect, MercuryRefusal, serve_tools, define_tool, define_agent
@@ -24,7 +25,7 @@ async def main():
     async def guard(ask, context):
         asks.append(ask)
         return {'outcome': 'deny', 'message': 'Python SDK host refused this write'}
-    async with await connect(mercury=mercury, cwd=cwd, ephemeral=True, on_permission_request=guard) as session:
+    async with await connect(mercury=mercury, cwd=cwd, ephemeral=True, partial=True, on_permission_request=guard) as session:
         assert session.initialized['protocol'] == 1
         first = await asyncio.wait_for(session.prompt('write the file'), 60)
         assert first['status'] == 'completed' and len(first['denials']) == 1
@@ -53,5 +54,16 @@ async def main():
         assert any(r['type'] == 'tool_result' and 'Python inline result' in r['output'] for r in task.rows)
         assert 'sdk-reader' in (await task.session)['agents']
     print('PASS Python live inline MCP callback and agent definition', flush=True)
+
+    task = await run('save identity', mercury=mercury, cwd=cwd)
+    await task.outcome
+    id = (await task.session)['session_id']
+    for options in ({'resume': id}, {'continue_': True}):
+        async with await connect(mercury=mercury, cwd=cwd, **options) as resumed:
+            assert resumed.initialized['session_id'] == id
+    async with await connect(mercury=mercury, cwd=cwd, env=dict(os.environ, MERCURY_CONCOURSE_WORKER='1')) as warm:
+        assert warm.initialized['session_id'] is None
+        await warm.claim(session_id='00000000-0000-4000-8000-000000000098')
+    print('PASS Python real runner resume, continue and warm claim', flush=True)
 
 asyncio.run(main())

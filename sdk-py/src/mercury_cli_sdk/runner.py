@@ -4,7 +4,7 @@ import inspect
 import json
 import signal
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Callable, AsyncIterator, cast
 from .client import RunOptions, argv_of
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryWireError, RunExit
@@ -37,6 +37,8 @@ class MercurySession:
         self._queue: asyncio.Queue = asyncio.Queue()
         self._next = 0
         self._prompting = False
+        self._prompt_turns: dict[str, str | None] = {}
+        self._correlated_turns = False
         self._closing = False
         self._normal_end = False
         self._prompt_error: Callable | None = None
@@ -108,6 +110,7 @@ class MercurySession:
             else:
                 await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': 'no host handler installed'}})
                 return
+            if value is None and not validate(spec['result'], {}): value = {}
             issues = validate(spec['result'], value)
             if issues: raise MercuryWireError(json.dumps(value), 'invalid', method, issues)
             if not context.cancelled.is_set(): await self._write({'jsonrpc': '2.0', 'id': id, 'result': value})
@@ -160,8 +163,15 @@ class MercurySession:
                     assert row is not None
                     self.rows.append(row)
                     self._queue.put_nowait(row)
+                    if row['type'] == 'turn' and 'parent_call_id' not in row and 'message_ids' in row:
+                        self._correlated_turns = True
+                        for id in row['message_ids']:
+                            if id in self._prompt_turns: self._prompt_turns[id] = row['turn_id']
                     self._emit('row', row)
                     self._emit(row['type'], row)
+                    if row['type'] == 'outcome' and 'parent_call_id' not in row:
+                        ids = [id for id, turn in self._prompt_turns.items() if turn == row['turn_id']] if self._correlated_turns else list(self._prompt_turns)[:1]
+                        for id in ids: self._prompt_turns.pop(id, None)
                 else: self._emit('notification', message)
         except Exception as error:
             self._fail(error if isinstance(error, MercuryError) else MercuryWireError('', 'invalid', issues=[str(error)]))
@@ -186,7 +196,16 @@ class MercurySession:
         if not graceful: self._emit('error', error)
 
     async def send(self, row: InputRow) -> dict:
-        return await self.request('queue/add', row)
+        if row['type'] != 'prompt': return await self.request('queue/add', row)
+        id = row.get('id') or str(uuid.uuid4())
+        self._prompt_turns[id] = None
+        try:
+            receipt = await self.request('queue/add', {**row, 'id': id})
+            if not receipt['accepted']: self._prompt_turns.pop(id, None)
+            return receipt
+        except (MercuryRefusal, MercuryWireError):
+            self._prompt_turns.pop(id, None)
+            raise
 
     async def send_prompt(self, content: Any, **options: Any) -> dict:
         return await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content}))
@@ -200,15 +219,17 @@ class MercurySession:
     async def prompt(self, content: Any) -> OutcomeRow:
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
         self._prompting = True
+        id = str(uuid.uuid4())
         future = asyncio.get_running_loop().create_future()
         def done(row: OutcomeRow) -> None:
-            if not future.done(): future.set_result(row)
+            matches = self._prompt_turns.get(id) == row['turn_id'] if self._correlated_turns else next(iter(self._prompt_turns), None) == id
+            if matches and 'parent_call_id' not in row and not future.done(): future.set_result(row)
         def fail(error: Exception) -> None:
             if not future.done(): future.set_exception(error)
         self._prompt_error = fail
         self.on('outcome', done)
         try:
-            receipt = await self.send_prompt(content)
+            receipt = await self.send_prompt(content, id=id)
             if not receipt['accepted']: raise MercuryError('prompt was not accepted')
             row = await future
             if row['status'] == 'refused': raise MercuryRefusal(row)
@@ -257,9 +278,8 @@ class MercurySession:
 
 
 async def connect(*, on_permission_request: Callable | None = None, on_elicitation: Callable | None = None, handlers: dict[str, Callable] | None = None, capabilities: dict | None = None, host: dict | None = None, options: RunOptions | None = None, **kwargs: Any) -> MercurySession:
-    opts = options or RunOptions(**kwargs)
-    if opts.session_id is None: opts.session_id = str(uuid.uuid4())
-    args = argv_of(opts)
+    opts = replace(options, **kwargs) if options is not None else RunOptions(**kwargs)
+    args = argv_of(replace(opts, partial=False, prompt=None, input=None, stdin=None))
     i = (1 if isinstance(opts.mercury, str) else len(opts.mercury)) + (2 if opts.project is not None else 0)
     args[i:i + 3] = ['runner']
     callbacks = dict(handlers or {})

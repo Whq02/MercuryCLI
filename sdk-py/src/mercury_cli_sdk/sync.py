@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any
 from .client import run
@@ -19,12 +20,15 @@ class RunResult:
 
 
 def run_sync(prompt: str | None = None, **options: Any) -> RunResult:
-    """Collect one run in a synchronous program; use run() inside an event loop."""
+    """Collect one run, using a worker when the caller has an active event loop."""
     async def collect() -> RunResult:
         async with await run(prompt, **options) as handle:
             outcome = await handle.outcome
             return RunResult(outcome, handle.rows, await handle.exit)
-    return asyncio.run(collect())
+    try: asyncio.get_running_loop()
+    except RuntimeError: return asyncio.run(collect())
+    with ThreadPoolExecutor(max_workers=1) as worker:
+        return worker.submit(lambda: asyncio.run(collect())).result()
 
 
 class SyncSession:
