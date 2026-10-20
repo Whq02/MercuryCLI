@@ -20,6 +20,7 @@ class TranscriptRows {
   private assistants = new Map<string, Set<UUID>>()
   private terminals = new Set<UUID>()
   private boundaries = new Set<UUID>()
+  private anchors = new Map<UUID, Set<UUID>>()
   private removals = new Map<UUID, UUID[]>()
   private structural = false
 
@@ -55,6 +56,7 @@ class TranscriptRows {
     }
     if (row.type === 'assistant' && row.message.id) this.ungroup(this.assistants, row.message.id, id)
     this.boundaries.delete(id)
+    if (compactRow(row) && row.compactMetadata?.preservedSegment !== undefined) this.ungroup(this.anchors, row.compactMetadata.preservedSegment.anchorUuid, id)
     this.removals.delete(id)
   }
 
@@ -74,12 +76,16 @@ class TranscriptRows {
     if (row.parentUuid) {
       this.group(this.children, row.parentUuid, id)
       this.terminals.delete(row.parentUuid)
+      if (this.anchors.has(row.parentUuid)) this.structural = true
     }
     if (this.children.has(id)) this.terminals.delete(id)
     else this.terminals.add(id)
     if (row.type === 'assistant' && row.message.id) this.group(this.assistants, row.message.id, id)
     if (row.type === 'system') this.structural = true
-    if (compactRow(row)) this.boundaries.add(id)
+    if (compactRow(row)) {
+      this.boundaries.add(id)
+      if (row.compactMetadata?.preservedSegment !== undefined) this.group(this.anchors, row.compactMetadata.preservedSegment.anchorUuid, id)
+    }
     const removed = snipped(row)
     if (removed) {
       this.removals.set(id, removed)
@@ -102,6 +108,7 @@ class TranscriptRows {
     this.assistants.clear()
     this.terminals.clear()
     this.boundaries.clear()
+    this.anchors.clear()
     this.removals.clear()
     this.ordinal = 0
     this.structural = false

@@ -35,17 +35,23 @@ export function UserNoticeMessage({
         const arrival = index === 0 && !noticeCarriesOwnClock(block) && arrivedAt ? ` · arrived ${arrivedAt}` : ''
         const delivery = index === 0 && !noticeCarriesOwnClock(block) && deliveredAt ? ` · delivered ${deliveredAt}` : ''
         const count = block.kind === 'monitor' ? block.count ?? block.lines.length : block.lines.length
+        const counted = fold ? ` · ${count} line${count === 1 ? '' : 's'}` : ''
         const last = block.kind === 'monitor' && block.last !== undefined ? ` · last: ${block.last}` : ''
-        const suffix = `${fold ? ` · ${count} line${count === 1 ? '' : 's'}` : ''}${last}${arrival}${delivery}${fold && block.lines.length > 0 ? expanded ? ' ⌄' : ' ›' : ''}`
+        const tail = `${arrival}${delivery}${fold && block.lines.length > 0 ? expanded ? ' ⌄' : ' ›' : ''}`
+        const suffix = `${counted}${last}${tail}`
         return (
           <Box key={index} flexDirection="column">
             {fold && !expanded ? (
               <Box flexDirection="row">
                 <Box flexShrink={0}><Text>{clock}{dot}</Text></Box>
                 <Box flexShrink={1} minWidth={0}><Text dimColor wrap="truncate-end">{plate}</Text></Box>
-                <Box flexShrink={1} minWidth={0}>
-                  <Text dimColor wrap="truncate-end">{suffix}</Text>
-                </Box>
+                <Box flexShrink={0}><Text dimColor>{counted}</Text></Box>
+                {last !== '' ? (
+                  <Box flexShrink={1} minWidth={0}>
+                    <Text dimColor wrap="truncate-end">{last}</Text>
+                  </Box>
+                ) : null}
+                <Box flexShrink={0}><Text dimColor>{tail}</Text></Box>
               </Box>
             ) : <Text>{clock}{dot}<Text dimColor>{plate}{suffix}</Text></Text>}
             {(!fold || expanded) && block.lines.map((line, at) => (

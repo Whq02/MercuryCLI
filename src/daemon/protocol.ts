@@ -38,7 +38,7 @@ export function verbBornAt(op: string, action?: string): number {
   return DAEMON_VERB_BORN_AT[op] ?? MIN_PROTO
 }
 
-export const DAEMON_PROTO_SHAPE = 'sha256:60475aca9ddfc62d4d02cfb1845ca410e21426e521156786f1b29b9abdeca17f'
+export const DAEMON_PROTO_SHAPE = 'sha256:787c4ed0f13bc58dff737e134529b94868446fd2cf3aa62e99295260c22c167c'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
@@ -236,7 +236,6 @@ export type DaemonRequest =
         | 'park'
         | 'park-all'
         | 'set-effort'
-        | 'contract'
         | 'mcp-action'
         | 'mcp-tools'
         | 'set-spawn-switch'
@@ -246,6 +245,7 @@ export type DaemonRequest =
         | 'background-shell'
         | 'pause-gate'
         | 'leave'
+        | 'contract'
         | 'set-kit'
         | 'set-schedule'
       sessionId: string
