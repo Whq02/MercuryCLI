@@ -33,13 +33,24 @@ try {
     const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
     const { readHostRecord, removeHostRecord, patchHostRecord } = await import('../../src/services/host/store.ts')
     const { queueHostSetup, queueHostWatch } = await import('../../src/services/host/jobs.ts')
+    const bootstrapFixture = await runpodFixture()
+    try {
+      const bootstrapApi = new RunpodClient(bootstrapFixture.key, bootstrapFixture.baseUrl)
+      const vllm = HOST_RECIPES.find(row => row.id === 'mistral-large3-b200')!
+      await bootstrapApi.create({ recipe: vllm, gpuId: 'NVIDIA B200', price: 63.92 }, 'ssh-ed25519 Zml4dHVyZQ==', 'entrypoint-proof')
+      const encoded = JSON.parse(bootstrapFixture.state.createBodies[0].args)
+      check('vLLM overrides its image entrypoint instead of appending bash to vllm serve', encoded.entrypoint.join(' ') === 'bash -lc' && encoded.cmd.length === 1 && encoded.cmd[0].includes('service ssh start'))
+      const sglang = HOST_RECIPES.find(row => row.id === 'glm53-b200')!
+      await bootstrapApi.create({ recipe: sglang, gpuId: 'NVIDIA B200', price: 63.92 }, 'ssh-ed25519 Zml4dHVyZQ==', 'sglang-bootstrap-proof')
+      check('SGLang retains its existing bare bootstrap byte shape', bootstrapFixture.state.createBodies[1].args.startsWith('bash -lc '))
+    } finally { await bootstrapFixture.close() }
     const recipe = HOST_RECIPES.find(row => row.id === 'kimi-k3-b200')!
-    check('a two-node recipe must not fit a single eight-GPU pod', !recipeFits(recipe, 'NVIDIA B200', 192, 8))
-    check('the same recipe fits the fixture two-node cluster shape', recipeFits(recipe, 'NVIDIA B200', 192, 8, 2))
-    check('fewer GPUs per node cannot be hidden by the total GPU count', !recipeFits(recipe, 'NVIDIA B200', 192, 4, 4))
+    check('a two-node recipe must not fit a single eight-GPU pod', !recipeFits(recipe, 'NVIDIA B200', 180, 8))
+    check('the same recipe fits the fixture two-node cluster shape', recipeFits(recipe, 'NVIDIA B200', 180, 8, 2))
+    check('fewer GPUs per node cannot be hidden by the total GPU count', !recipeFits(recipe, 'NVIDIA B200', 180, 4, 4))
     const gpu = (name: string, memory: number, price: number) => ({ id: 'NVIDIA ' + name, name, memory, secure: true, price: { secure: price }, maxCount: { secure: 8 }, availability: 'HIGH', dataCenters: [{ id: 'FIXTURE-DC', availability: 'HIGH' }] })
     rp.state.customGpus = [gpu('B300', 288, 18.99)]
-    rp.state.clusterGpus = [gpu('B200', 192, 7.99)]
+    rp.state.clusterGpus = [gpu('B200', 180, 7.99)]
     writeStoredRunpodApiKey(rp.key)
     const api = new RunpodClient(rp.key, rp.baseUrl)
     const offers = await api.offers(new AbortController().signal)

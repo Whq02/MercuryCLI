@@ -113,7 +113,8 @@ export class RunpodClient {
   }
   async get(id: string, signal?: AbortSignal): Promise<HostPod> { return podSchema.parse(await (await this.response('/pods/' + encodeURIComponent(id), 'GET', undefined, signal)).json()) }
   async create(offer: HostOffer, publicKey: string, name: string): Promise<HostPod> {
-    const args = 'bash -lc ' + JSON.stringify('apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server tmux curl && mkdir -p /root/.ssh /run/sshd && chmod 700 /root/.ssh && printf "%s\n" "$PUBLIC_KEY" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys && ssh-keygen -A && service ssh start && sleep infinity')
+    const script = 'apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server tmux curl && mkdir -p /root/.ssh /run/sshd && chmod 700 /root/.ssh && printf "%s\n" "$PUBLIC_KEY" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys && ssh-keygen -A && service ssh start && sleep infinity'
+    const args = offer.recipe.engine === 'vllm' ? JSON.stringify({ entrypoint: ['bash', '-lc'], cmd: [script] }) : 'bash -lc ' + JSON.stringify(script)
     return podSchema.parse(await (await this.response('/pods', 'POST', { name, image: offer.recipe.image, args, disk: 30, cloud: 'SECURE', ...(offer.dataCenter ? { dataCenterIds: [offer.dataCenter] } : {}), gpu: { id: offer.gpuId, count: offer.recipe.count, minCudaVersion: offer.recipe.cuda }, mounts: { persistent: { size: offer.recipe.diskGb, path: '/workspace' } }, ports: ['22/tcp'], env: { PUBLIC_KEY: publicKey, HF_HOME: '/workspace/huggingface' } })).json())
   }
   async stop(id: string): Promise<HostPod> { return podSchema.parse(await (await this.response('/pods/' + encodeURIComponent(id) + '/action', 'POST', { action: 'stop' })).json()) }
@@ -149,7 +150,7 @@ export class RunpodClient {
   }
   async createCluster(offer: HostOffer, publicKey: string, name: string): Promise<HostCluster> {
     if (!Number.isInteger(offer.recipe.nodes) || offer.recipe.nodes! < 2 || offer.recipe.nodes! > 250 || !offer.dataCenter) throw new Error('Choose a fitting cluster offer in one data center before creating it.')
-    const args = 'bash -lc ' + JSON.stringify('apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server tmux curl iproute2 && mkdir -p /root/.ssh /run/sshd && chmod 700 /root/.ssh && printf "%s\n" "$PUBLIC_KEY" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys && ssh-keygen -A && service ssh start && sleep infinity')
+    const args = JSON.stringify({ entrypoint: ['bash', '-lc'], cmd: ['apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server tmux curl iproute2 && mkdir -p /root/.ssh /run/sshd && chmod 700 /root/.ssh && printf "%s\n" "$PUBLIC_KEY" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys && ssh-keygen -A && service ssh start && sleep infinity'] })
     return clusterSchema.parse(await (await this.response('/clusters', 'POST', { name, type: 'APPLICATION', compute: { gpuTypeId: offer.gpuId, gpuCountPerPod: offer.recipe.count, podCount: offer.recipe.nodes }, image: offer.recipe.image, args, disk: 30, dataCenterIds: [offer.dataCenter], mounts: { persistent: { size: offer.recipe.diskGb, path: '/workspace' } }, ports: ['22/tcp'], env: { PUBLIC_KEY: publicKey, HF_HOME: '/workspace/huggingface' } })).json())
   }
   async clusters(signal?: AbortSignal): Promise<HostCluster[]> {

@@ -60,7 +60,10 @@ export async function runpodFixture() {
       assert.ok(body.mounts.persistent.size > 0)
       assert.equal(body.gpu, undefined)
       assert.equal(body.cloud, undefined)
-      assert.equal(spawnSync('bash', ['-n', '-c', body.args]).status, 0)
+      const launch = JSON.parse(body.args)
+      assert.deepEqual(launch.entrypoint, ['bash', '-lc'])
+      assert.equal(launch.cmd.length, 1)
+      assert.equal(spawnSync('bash', ['-n', '-c', launch.cmd[0]]).status, 0)
       const id = 'fixture-cluster-' + state.clusterCreates
       const nodes = Array.from({ length: body.compute.podCount }, (_, rank) => ({ ...structuredClone(livePod), id: id + '-node-' + rank, name: body.name + '-' + rank, status: 'RUNNING', cudaVersion: state.clusterCuda, cost: (state.clusterGpus.find(gpu => gpu.id === body.compute.gpuTypeId)?.price.secure ?? 7.99) * body.compute.gpuCountPerPod, cluster: { id, rank, ip: '10.65.0.' + (rank + 2) }, createdAt: new Date().toISOString(), ssh: { direct: { host: '127.0.0.1', port: 22000 + rank, username: 'root' } } }))
       const cluster = { id, name: body.name, type: body.type, compute: body.compute, pods: { total: nodes.length, byStatus: { RUNNING: nodes.length } }, primary: { podId: nodes[0].id, status: 'RUNNING' }, createdAt: new Date().toISOString() }
@@ -89,7 +92,14 @@ export async function runpodFixture() {
       assert.equal(body.gpu.minCudaVersion, '13.0')
       assert.ok(body.env.PUBLIC_KEY.startsWith('ssh-ed25519 '))
       assert.ok(body.mounts.persistent.size >= 80)
-      const syntax = spawnSync('bash', ['-n', '-c', body.args], { encoding: 'utf8' })
+      let bootstrap = body.args
+      if (body.image.startsWith('vllm/')) {
+        const launch = JSON.parse(body.args)
+        assert.deepEqual(launch.entrypoint, ['bash', '-lc'])
+        assert.equal(launch.cmd.length, 1)
+        bootstrap = launch.cmd[0]
+      } else assert.ok(body.args.startsWith('bash -lc '))
+      const syntax = spawnSync('bash', ['-n', '-c', bootstrap], { encoding: 'utf8' })
       assert.equal(syntax.status, 0, syntax.stderr)
       const gpuEntry = (state.customGpus ?? gpus).find(gpu => gpu.id === body.gpu.id) ?? gpus.find(gpu => gpu.id === body.gpu.id)
       const pod = { ...structuredClone(livePod), id: 'fixture-pod-' + state.creates, name: body.name, status: 'PROVISIONING', cost: gpuEntry.price.secure * body.gpu.count, createdAt: new Date(Date.now() - 60000).toISOString(), startedAt: new Date(Date.now() - 60000).toISOString(), ssh: { direct: null, proxy: null } }

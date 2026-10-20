@@ -68,7 +68,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     flags: ['--n-gpu-layers', 'all', '--jinja', '--ctx-size', '524288', '--parallel', '4', '--flash-attn', 'on', '--cache-type-k', 'q8_0', '--cache-type-v', 'q8_0', '--cache-reuse', '256', '--temp', '1.0', '--top-p', '0.95', '--top-k', '0', '--min-p', '0.0', '--reasoning-format', 'deepseek'],
   },
   {
-    id: 'glm53-flash-b200-community', label: 'GLM-5.3-Flash · NVFP4', model: 'RadixArk/GLM-5.3-Flash-NVFP4', gpu: 'B200', count: 4, vramGb: 183, diskGb: 300,
+    id: 'glm53-flash-b200-community', label: 'GLM-5.3-Flash · NVFP4', model: 'RadixArk/GLM-5.3-Flash-NVFP4', gpu: 'B200', count: 4, vramGb: 180, diskGb: 300,
     image: 'lmsysorg/sglang:glm-5.3-flash', cuda: '13.0', source: 'https://github.com/caiovicentino/glm-5.3-flash-sglang-4x-b200', verification: 'community recipe · SGLang prefill in thousands of tok/s vs 1-GPU llama.cpp (not measured)',
     verified: { by: 'community', note: 'community 4× B200 SGLang NVFP4 recipe · SGLang prefill in thousands of tok/s vs 1-GPU llama.cpp (not measured)', source: 'https://github.com/caiovicentino/glm-5.3-flash-sglang-4x-b200' },
     context: 524288,
@@ -89,20 +89,20 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     pythonInstall,
     flags: ['--tp-size', String(hw.count), '--dsa-prefill-backend', 'trtllm', '--dsa-decode-backend', 'trtllm', '--kv-cache-dtype', 'fp8_e4m3', '--moe-runner-backend', 'flashinfer_trtllm', ...mtp, '--reasoning-parser', 'glm45', '--tool-call-parser', 'glm47'],
   })),
-  ...[{ gpu: 'B200', vramGb: 192 }, { gpu: 'B300', vramGb: 288 }, { gpu: 'GB300', vramGb: 288 }].map(hw => ({
+  ...[{ gpu: 'B200', vramGb: 180 }, { gpu: 'B300', vramGb: 288 }, { gpu: 'GB300', vramGb: 288 }].map(hw => ({
     id: 'deepseek41-' + hw.gpu.toLowerCase(), label: 'DeepSeek-V4.1-Flash-1017', model: 'deepseek-ai/DeepSeek-V4.1-Flash-1017', ...hw, count: 4, diskGb: 650,
     image: 'lmsysorg/sglang:dev-dsv41', cuda: '13.0', source: dsSource, verification: 'verified',
     verified: { by: 'documented' as const, note: 'verified', source: dsSource },
     flags: ['--trust-remote-code', '--tp', '4', '--ep-size', '4', '--mem-fraction-static', '0.8', '--speculative-algorithm', 'DSPARK', '--speculative-dspark-block-size', '5', '--cuda-graph-max-bs-decode', '64', '--reasoning-parser', 'auto', '--tool-call-parser', 'auto'],
   })),
-  ...[{ gpu: 'H200', count: 8, vramGb: 141 }, { gpu: 'B200', count: 8, vramGb: 192 }, { gpu: 'B300', count: 8, vramGb: 288 }, { gpu: 'GB300', count: 4, vramGb: 288 }].map(hw => ({
+  ...[{ gpu: 'H200', count: 8, vramGb: 141 }, { gpu: 'B200', count: 8, vramGb: 180 }, { gpu: 'B300', count: 8, vramGb: 288 }, { gpu: 'GB300', count: 4, vramGb: 288 }].map(hw => ({
     id: 'glm53-' + hw.gpu.toLowerCase(), label: 'GLM-5.3 · FP8', model: 'zai-org/GLM-5.3', ...hw, weightsGb: 756, context: 1048576, contextPerSlot: 1048576, diskGb: 950,
     image: 'lmsysorg/sglang:latest', cuda: '13.0', source: glmSource, verification: 'GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review',
     verified: { by: 'documented' as const, note: 'verified', source: glmSource },
     pythonInstall,
     flags: ['--tp', String(hw.count), ...mtp, '--mem-fraction-static', hw.count === 4 ? '0.85' : '0.8', '--reasoning-parser', 'auto', '--tool-call-parser', 'auto'],
   })),
-  ...[{ gpu: 'B300', count: 8, nodes: 1, vramGb: 288 }, { gpu: 'B200', count: 8, nodes: 2, vramGb: 192 }, { gpu: 'H200', count: 8, nodes: 2, vramGb: 141 }, { gpu: 'GB300', count: 4, nodes: 2, vramGb: 288 }].map(hw => ({
+  ...[{ gpu: 'B300', count: 8, nodes: 1, vramGb: 288 }, { gpu: 'B200', count: 8, nodes: 2, vramGb: 180 }, { gpu: 'H200', count: 8, nodes: 2, vramGb: 141 }, { gpu: 'GB300', count: 4, nodes: 2, vramGb: 288 }].map(hw => ({
     id: 'kimi-k3-' + hw.gpu.toLowerCase(), label: 'Kimi K3 · MXFP4', model: 'moonshotai/Kimi-K3', ...hw, weightsGb: 1561, diskGb: 2000,
     image: 'lmsysorg/sglang:kimi-k3', cuda: '13.0', source: kimiSource, context: 1048576, contextPerSlot: 1048576,
     verification: 'Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured',
@@ -110,7 +110,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     ...(hw.gpu === 'H200' ? { environment: { NCCL_MNNVL_ENABLE: '1', NCCL_CUMEM_ENABLE: '1', SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK: '0' } } : hw.gpu === 'GB300' ? { environment: { SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK: '0' } } : {}),
     flags: ['--trust-remote-code', '--tp-size', hw.gpu === 'H200' ? '16' : '8', ...(hw.gpu === 'B200' ? ['--pp-size', '2', '--disable-flashinfer-autotune', '--watchdog-timeout', '3600', '--model-loader-extra-config', '{"enable_multithread_load":true}'] : []), ...(hw.gpu === 'H200' ? ['--ep-size', '16', '--moe-runner-backend', 'marlin', '--decode-attention-backend', 'flashmla', '--enable-symm-mem'] : []), '--mem-fraction-static', '0.85', '--reasoning-parser', 'kimi_k3', '--tool-call-parser', 'kimi_k3'],
   })),
-  ...[{ gpu: 'H200', nodes: 4, vramGb: 141 }, { gpu: 'B200', nodes: 2, vramGb: 192 }, { gpu: 'B300', nodes: 2, vramGb: 288 }].map(hw => ({
+  ...[{ gpu: 'H200', nodes: 4, vramGb: 141 }, { gpu: 'B200', nodes: 2, vramGb: 180 }, { gpu: 'B300', nodes: 2, vramGb: 288 }].map(hw => ({
     id: 'qwen38-24t-fp8-' + hw.gpu.toLowerCase(), label: 'Qwen3.8-2.4T-A95B · FP8', model: 'Qwen/Qwen3.8-2.4T-A95B-FP8', ...hw, count: 8, weightsGb: 2497, diskGb: 3000,
     image: 'lmsysorg/sglang:qwen38', cuda: '13.0', source: qwenMaxSource, context: 262144, contextPerSlot: 262144,
     verification: 'Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt',
@@ -125,7 +125,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     environment: { SGLANG_FLASHINFER_MNNVL_CUTEDSL_AR_FUSION: '1' },
     flags: ['--trust-remote-code', '--tp-size', '8', '--moe-runner-backend', 'flashinfer_trtllm', '--mamba-radix-cache-strategy', 'extra_buffer', '--mamba-ssm-dtype', 'bfloat16', '--speculative-algorithm', 'NEXTN', '--speculative-num-steps', '3', '--speculative-eagle-topk', '1', '--speculative-num-draft-tokens', '4', '--enable-linear-replayssm-spec', '--mem-fraction-static', '0.90', '--chunked-prefill-size', '8192', '--max-prefill-tokens', '8192', '--reasoning-parser', 'qwen3', '--tool-call-parser', 'qwen3_coder'],
   },
-  ...[{ gpu: 'B200', count: 8, vramGb: 192 }, { gpu: 'B300', count: 8, vramGb: 288 }, { gpu: 'GB300', count: 4, vramGb: 288 }].map(hw => ({
+  ...[{ gpu: 'B200', count: 8, vramGb: 180 }, { gpu: 'B300', count: 8, vramGb: 288 }, { gpu: 'GB300', count: 4, vramGb: 288 }].map(hw => ({
     id: 'deepseek-v4-pro-0813-' + hw.gpu.toLowerCase(), label: 'DeepSeek-V4-Pro-0813 · MXFP4', model: 'deepseek-ai/DeepSeek-V4-Pro-0813', ...hw, weightsGb: 893, diskGb: 1100,
     image: 'lmsysorg/sglang:latest', cuda: '13.0', source: dsProSource, context: 1048576, contextPerSlot: 1048576, verification: 'MIT · configured 1M context, capacity not measured',
     verified: { by: 'documented' as const, on: '2026-10-20', note: 'Official 0813 low-latency cookbook; GPU serving not measured by Mercury', source: dsProSource },
@@ -138,13 +138,13 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     verified: { by: 'documented' as const, on: '2026-10-20', note: 'Pro MXFP4 cookbook; GPU serving not measured by Mercury', source: mimoSource },
     flags: ['--tp', '8', '--trust-remote-code', '--reasoning-parser', 'mimo', '--tool-call-parser', 'mimo', ...(hw.gpu === 'H200' ? ['--moe-runner-backend', 'marlin'] : ['--ep', '8', '--dp', '1', '--pp-size', '1', '--moe-runner-backend', 'deep_gemm', '--moe-a2a-backend', 'deepep', '--deepep-mode', 'auto', '--moe-dense-tp-size', '1', '--enable-dp-lm-head', '--log-level-http', 'warning', '--enable-cache-report', '--page-size', '1', '--cuda-graph-max-bs-decode', '64', '--max-running-requests', '64', '--mem-fraction-static', '0.7', '--swa-full-tokens-ratio', '0.08', '--chunked-prefill-size', '49152', '--max-prefill-tokens', '65536', '--attention-backend', 'fa4', '--speculative-algorithm', 'DFLASH', '--speculative-draft-model-path', '/workspace/mercury-host/mimo26-pro-b300/weights/dflash', '--speculative-num-draft-tokens', '8', '--context-length', '1048576', '--cuda-graph-backend-prefill=disabled', '--mm-enable-dp-encoder', '--mm-attention-backend', 'fa4'])],
   })),
-  ...[{ gpu: 'H200', vramGb: 141 }, { gpu: 'B200', vramGb: 192 }].map(hw => ({
+  ...[{ gpu: 'H200', vramGb: 141 }, { gpu: 'B200', vramGb: 180 }].map(hw => ({
     id: 'mistral-large3-' + hw.gpu.toLowerCase(), label: 'Mistral Large 3 675B · FP8', model: 'mistralai/Mistral-Large-3-675B-Instruct-2512', ...hw, count: 8, weightsGb: 682, diskGb: 900, engine: 'vllm' as const,
     image: 'vllm/vllm-openai:latest', cuda: '13.0', source: mistralSource, context: 262144, contextPerSlot: 262144, verification: 'Apache-2.0 · vendor FP8 serving recipe',
     verified: { by: 'documented' as const, on: '2026-10-20', note: 'Vendor model-card vLLM recipe; GPU serving not measured by Mercury', source: mistralSource },
     flags: ['--max-model-len', '262144', '--tensor-parallel-size', '8', '--tokenizer_mode', 'mistral', '--config_format', 'mistral', '--load_format', 'mistral', '--enable-auto-tool-choice', '--tool-call-parser', 'mistral'],
   })),
-  ...[{ gpu: 'H200', count: 8, nodes: 2, vramGb: 141 }, { gpu: 'B200', count: 8, nodes: 2, vramGb: 192 }, { gpu: 'B300', count: 8, nodes: 1, vramGb: 288 }, { gpu: 'GB300', count: 4, nodes: 2, vramGb: 288 }].map(hw => ({
+  ...[{ gpu: 'H200', count: 8, nodes: 2, vramGb: 141 }, { gpu: 'B200', count: 8, nodes: 2, vramGb: 180 }, { gpu: 'B300', count: 8, nodes: 1, vramGb: 288 }, { gpu: 'GB300', count: 4, nodes: 2, vramGb: 288 }].map(hw => ({
     id: 'glm53-bf16-' + hw.gpu.toLowerCase(), label: 'GLM-5.3 · BF16', model: 'zai-org/GLM-5.3-BF16', ...hw, weightsGb: 1507, diskGb: 1900,
     image: 'lmsysorg/sglang:latest', cuda: '13.0', source: glmSource, context: 1048576, contextPerSlot: 1048576,
     verification: 'GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review',
