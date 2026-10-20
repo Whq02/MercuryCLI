@@ -576,6 +576,13 @@ try {
     sup.runnerRestartReasonOf({ crash: { at: Date.now(), reason: 'crashed mid-run (exit none · signal SIGKILL)', respawning: false }, buildTree: SHORT_X } as never) === 'crash',
     String(sup.runnerRestartReasonOf({ crash: { at: Date.now(), reason: 'x', respawning: false }, buildTree: SHORT_X } as never)),
   )
+  const raceDir = mkdtempSync(join(SCRATCH, 'crash-race-'))
+  sup.updateConcourseWorkers(workers => {
+    workers['concourse-w9'] = { schema: 1, runnerId: 'concourse-w9', sessionId: '00000000-0000-4000-8000-000000000099', workspaceId: work, isolation: 'shared', modelKey: 'claude-sonnet-5', effort: 'high', spawnedAt: 1, lastLiveAt: 1, buildTree: SHORT_X, restartReason: 'ended', crash: { at: 1, reason: 'ended with its daemon around an update', respawning: false } } as never
+  }, raceDir)
+  sup.markConcourseWorkerCrash('concourse-w9', { reason: 'crashed mid-run (exit none · signal SIGKILL)', respawning: true }, raceDir)
+  const raced = sup.readSessionWorkers(raceDir)['concourse-w9']
+  check('a crash a live daemon observes outranks a found-dead label stamped a moment before it', raced !== undefined && sup.runnerRestartReasonOf(raced) === 'crash', JSON.stringify(raced))
   const runnerY = recOf(sid)?.pid ?? 0
   const BpidNow = (await hello())?.pid ?? 0
   try {

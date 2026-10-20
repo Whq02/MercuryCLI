@@ -422,6 +422,7 @@ export function markConcourseWorkerCrash(
       const rec = workers[runnerId]
       if (rec && rec.endedAt === undefined) {
         rec.crash = { at: Date.now(), reason: crash.reason, respawning: crash.respawning }
+        delete rec.restartReason
       }
     }, dir)
   } catch {
