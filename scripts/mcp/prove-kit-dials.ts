@@ -320,7 +320,7 @@ section('§A the screen dial rides the connector; the panel estate dials its own
   t('A3a the roster line says SESSION and points at the boot menu', route.mcpRosterLine({ clients: [{ name: 'a', type: 'connected' }] } as never).includes('this session only, the boot menu sets the next session\'s'))
   t('A3b the empty line points at the boot menu', route.MCP_EMPTY_ROSTER_LINE.includes("boot menu's MCPs & Skills"))
   t('A3c the receipt lines: applied says session-only; queued speaks the turn\'s end; noop and refused carry the detail', route.kitDialLine({ outcome: 'applied' }, 'X').includes('this session only') && route.kitDialLine({ outcome: 'queued', detail: 'the dials apply when this turn ends' }, 'X').includes("turn ends") && route.kitDialLine({ outcome: 'noop', detail: 'd' }, 'X').includes('No change — d') && route.kitDialLine({ outcome: 'refused', detail: 'r' }, 'X').includes('refused — r'))
-  t('A4 the panel names its estate honestly', read('src/components/mcp/MCPSettings.tsx').includes("this screen's servers — sessions carry their own; the boot menu sets the next session's"))
+  t('A4 the panel names its estate honestly', read('src/commands/mcp/McpPopup.tsx').includes('servers · this session') && read('src/components/mcp/MCPSettings.tsx').includes('<McpPopup'))
 }
 
 section('§S the skills dial: session rows, off rows listed, tri-state words')

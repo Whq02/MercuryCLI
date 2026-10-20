@@ -202,7 +202,7 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   ]
   void kitTypes
   const biting = wearMod.resolvePresetWear(rows, { mcpOff: ['postgres'], skillStates: { deploy: 'invocable' }, extensionsOff: [] })
-  t('P3-7 a biting delta shapes the worn kit (postgres off; deploy invocable) with nothing unmatched', biting.ok && deepEq(biting.kit, { schema: 1, mcp: ['github', 'ext:orchard-tools:db'], skills: ['review'], invocable: ['deploy'], extensions: { 'orchard-tools': 'on' } }) && biting.unmatched.length === 0, JSON.stringify(biting))
+  t('P3-7 a biting delta shapes the worn kit (postgres off; deploy invocable) with nothing unmatched', biting.ok && deepEq(biting.kit, { schema: 1, mcp: ['github', 'ext:orchard-tools:db'], skills: ['review'], invocable: ['deploy'], mcpKnown: ['github', 'postgres', 'ext:orchard-tools:db'], extensions: { 'orchard-tools': 'on' } }) && biting.unmatched.length === 0, JSON.stringify(biting))
   const foreign = wearMod.resolvePresetWear(rows, { mcpOff: ['postgres', 'no-such-server'], skillStates: { 'ghost-skill': 'off' }, extensionsOff: ['no-such-ext'] })
   const plainOff = wearMod.resolvePresetWear(rows, { mcpOff: ['postgres'], skillStates: {}, extensionsOff: [] })
   t("P3-8 foreign OFF deltas are kept off by name; foreign MCP names don't bite; membership lists stay identical; all NAMED", foreign.ok && plainOff.ok && deepEq(foreign.kit.mcp, plainOff.kit.mcp) && deepEq(foreign.kit.skills, plainOff.kit.skills) && deepEq(foreign.kit.invocable, plainOff.kit.invocable) && deepEq(foreign.kit.skillsOff, ['ghost-skill']) && foreign.kit.extensions?.['no-such-ext'] === 'off' && plainOff.kit.skillsOff === undefined && deepEq(foreign.unmatched, ['no-such-server (MCP)']) && deepEq(foreign.keptOff, ['ghost-skill (skill)', 'no-such-ext (extension)']), JSON.stringify(foreign))
@@ -212,7 +212,7 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   store.saveKitPreset('writing', { mcpOff: ['postgres', 'no-such-server'], skillStates: { deploy: 'invocable' }, extensionsOff: [] })
   const worn = wearMod.wearPresetForNextSession('writing', rows)
   t("P3-10 the wear arms the one-shot with the one-shot receipt and the doesn't-bite census", worn.ok && worn.receipt === "next session wears preset 'writing' — one-shot: the menu's default resumes after · 1 of its 3 deltas names members this repo lacks (no-such-server (MCP)) — they don't bite", JSON.stringify(worn))
-  t('P3-11 the armed wear is the RESOLVED kit under the preset (closed membership, wire-valid)', deepEq(facts.peekWornPresetKit()?.kit, { schema: 1, mcp: ['github', 'ext:orchard-tools:db'], skills: ['review'], invocable: ['deploy'], extensions: { 'orchard-tools': 'on' } }))
+  t('P3-11 the armed wear is the RESOLVED kit under the preset (closed membership, wire-valid)', deepEq(facts.peekWornPresetKit()?.kit, { schema: 1, mcp: ['github', 'ext:orchard-tools:db'], skills: ['review'], invocable: ['deploy'], mcpKnown: ['github', 'postgres', 'ext:orchard-tools:db'], extensions: { 'orchard-tools': 'on' } }))
   t('P3-12 wearing NEVER mutates the store or the menu record (the preset resolves byte-equal after the wear)', (() => { const back = store.kitPresetDeltas('writing'); return back.ok && deepEq(back.deltas, { mcpOff: ['postgres', 'no-such-server'], skillStates: { deploy: 'invocable' }, extensionsOff: [] }) })())
   facts._resetBootBirthFactsForTesting()
   store.deleteKitPreset('writing')

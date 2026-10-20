@@ -4,6 +4,7 @@
 # gate-watch: src/utils/config/** src/utils/mcp/elicitationValidation*
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/mcp/_fixture-stdio-server.mjs
 # gate-watch: scripts/mcp/prove-mcp-live-connect.ts scripts/mcp/prove-mcp-popup-drive.ts scripts/mcp/prove-mcp-tools-view-drive.ts scripts/ui/vshot.py
+# gate-watch: scripts/switchboard/lib/waitForRow.ts
 # gate-watch: src/commands/mcp/* src/components/mcp/* src/daemon/sessionKit* src/daemon/sessionSeat.ts src/daemon/controlServer.ts src/cli/run.ts src/services/engine-connector/*
 # gate-watch: src/daemon/concourseWorkers.ts src/daemon/controlSocket.ts src/daemon/protocol.ts src/daemon/main.ts src/runner/wire/methods.ts src/utils/sessionStorage/paths.ts
 # gate-watch: scripts/lib/crossfamilyConcourseFixture.ts scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py
