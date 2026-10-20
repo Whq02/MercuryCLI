@@ -14,6 +14,7 @@ export interface HostRecipe {
   gpu: string
   count: number
   vramGb: number
+  weightsGb?: number
   diskGb: number
   image: string
   cuda: string
@@ -24,6 +25,7 @@ export interface HostRecipe {
   pythonInstall?: string
   context?: number
   contextPerSlot?: number
+  kvBytesPerToken?: { bytes: number; maxContext: number; cacheType: string; verified: HostRecipeVerified }
   environment?: Record<string, string>
   files?: Record<string, string>
   engine?: 'llamacpp'
@@ -47,6 +49,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     engine: 'llamacpp', image: 'nvidia/cuda:13.0.2-devel-ubuntu24.04', cuda: '13.0', imageSource: 'https://hub.docker.com/layers/nvidia/cuda/13.0.2-devel-ubuntu24.04/images/sha256-5dc1bca23d05bd37b011be68ec470c03b403a5da07ec3a86e41af9470e9d0cc6', source: 'https://unsloth.ai/docs/models/glm-5.3-flash', verification: 'llama.cpp (GGUF) · verified on 1× B300 (67 tok/s)',
     verified: { by: 'measured', on: '2026-10-20', note: '1× B300 · upstream llama.cpp 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 · 67 tok/s single-stream, ~23 tok/s per stream with two busy · 193 GB VRAM · 524,288 ctx across 4 slots (131,072 per slot)', source: 'https://unsloth.ai/docs/models/glm-5.3-flash' },
     context: 131072, contextPerSlot: 131072,
+    kvBytesPerToken: { bytes: 45 * (512 + 0) * (34 / 32), maxContext: 1048576, cacheType: 'q8_0', verified: { by: 'documented', on: '2026-10-20', source: 'https://huggingface.co/zai-org/GLM-5.3-Flash/raw/main/config.json', note: 'Conservative MLA allowance: num_hidden_layers=45 × (kv_lora_rank=512 + qk_rope_head_dim=0) × q8_0 34/32 bytes. The hybrid has 11 full-attention layers and 34 linear-attention layers; charging all 45 as MLA is an allowance, not measured cache usage.' } },
     install: llamaInstall,
     include: '*UD-Q4_K_XL*', weightFile: 'UD-Q4_K_XL/GLM-5.3-Flash-UD-Q4_K_XL-00001-of-00006.gguf',
     flags: ['--n-gpu-layers', 'all', '--jinja', '--ctx-size', '524288', '--parallel', '4', '--flash-attn', 'on', '--cache-type-k', 'q8_0', '--cache-type-v', 'q8_0', '--cache-reuse', '256', '--temp', '1.0', '--top-p', '0.95', '--chat-template-kwargs', '{"reasoning_effort":"max"}'],

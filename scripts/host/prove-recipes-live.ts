@@ -106,14 +106,14 @@ try {
   const qwenH200 = row('qwen38-27b-h200')
   const interfaceBody = /export interface HostRecipe \{([\s\S]*?)\n\}/.exec(readFileSync(join(repo, 'src/services/host/recipes.ts'), 'utf8'))![1]!
   const interfaceFields = [...interfaceBody.matchAll(/^\s+(\w+)(\?)?:/gm)].map(match => ({ name: match[1]! as keyof HostRecipe, optional: Boolean(match[2]) }))
-  const fullRow: Record<string, unknown> = { ...glmGguf, pythonInstall: 'true', environment: { HF_HUB_ENABLE_HF_TRANSFER: '1' }, files: { 'a.json': '{}' } }
+  const fullRow: Record<string, unknown> = { ...glmGguf, weightsGb: 195, pythonInstall: 'true', environment: { HF_HUB_ENABLE_HF_TRANSFER: '1' }, files: { 'a.json': '{}' } }
   const fullParsed = hostRecipeSchema.safeParse(fullRow)
   const parity = interfaceFields.map(field => {
     const rest = { ...fullRow }
     delete rest[field.name]
     return { field: field.name, typed: !hostRecipeSchema.safeParse({ ...fullRow, [field.name]: Symbol('not a recipe value') }).success, optional: hostRecipeSchema.safeParse(rest).success === field.optional }
   })
-  check('every HostRecipe field has a schema entry with the interface optionality, and the schema has no field the interface lacks', interfaceFields.length === 23 && fullParsed.success && JSON.stringify(Object.keys(fullParsed.data).sort()) === JSON.stringify(interfaceFields.map(field => field.name).sort()) && parity.every(entry => entry.typed && entry.optional))
+  check('every HostRecipe field has a schema entry with the interface optionality, and the schema has no field the interface lacks', interfaceFields.length === 25 && fullParsed.success && JSON.stringify(Object.keys(fullParsed.data).sort()) === JSON.stringify(interfaceFields.map(field => field.name).sort()) && parity.every(entry => entry.typed && entry.optional))
   const extra = hostRecipeSchema.safeParse({ ...qwenRtx, futureField: 'from a newer file' })
   check('a row carrying an unknown extra field is accepted and the field is stripped', extra.success && !('futureField' in extra.data))
   check('every compiled row validates, ids are unique, every source is https and every measured row carries its date', HOST_RECIPES.every(entry => hostRecipeSchema.safeParse(entry).success) && new Set(HOST_RECIPES.map(entry => entry.id)).size === HOST_RECIPES.length && HOST_RECIPES.every(entry => entry.source.startsWith('https://') && entry.verified.source.startsWith('https://') && (entry.verified.by !== 'measured' || /^\d{4}-\d{2}-\d{2}$/.test(entry.verified.on ?? ''))))

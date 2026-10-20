@@ -3,6 +3,7 @@ import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { LLM_HOST_DIALECTS, LLM_HOST_WORDS as words, hostReplyWords, hostWindowWords } from '../../commands/llmhost/words.js'
 import { getGlobalConfig } from '../../utils/config.js'
 import { getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
+import { ModelFactsSchema } from '../../utils/settings/modelFacts.js'
 import { COMPAT_ENDPOINT_NAME, CompatEndpointSchema, CompatProviderSchema, type CompatEndpointSettings } from '../../utils/settings/compatProvider.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
@@ -60,6 +61,17 @@ function writeEndpoint(name: string, endpoint: CompatEndpointSettings | undefine
   if (result.error) throw result.error
   bumpCatalogueEpoch()
 }
+export function registerHostWindow(models: readonly string[], contextWindow: number): void {
+  editable()
+  if (!Number.isSafeInteger(contextWindow) || contextWindow <= 0) throw new Error('The server did not report a valid context window.')
+  const result = updateSettingsForSource('userSettings', raw => {
+    const previous = ModelFactsSchema().parse(raw.models ?? {})
+    return { models: { ...previous, ...Object.fromEntries(models.map(id => [id, { ...previous[id], contextWindow }])) } }
+  })
+  if (result.error) throw result.error
+  bumpCatalogueEpoch()
+}
+
 
 async function checkLlmHostReply(model: string, signal: AbortSignal): Promise<LlmHostResult> {
   const started = performance.now()
@@ -187,6 +199,8 @@ export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {
     if (signal.aborted) return stop()
     const fresh = cachedCompatCatalogue(endpoint)
     if (fresh?.error) throw new Error(fresh.error)
+    const contextWindow = fresh?.contextWindows[selected] ?? reading.contextWindows[selected]
+    if (contextWindow) registerHostWindow([`compat/${endpoint.named ? `${name}/` : ''}${selected}`], contextWindow)
     const model = `compat/${endpoint.named ? `${name}/` : ''}${selected}`
     emit({ title: words.done, words: `${model} · available in /model and /logins` })
     const result = await checkLlmHostReply(model, signal)

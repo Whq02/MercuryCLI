@@ -144,3 +144,67 @@ export async function openHostTunnel(id: string, target: SshTarget, runner: Host
   } catch (error) { tunnel.stop(); throw error }
 }
 export function closeHostTunnel(id: string): void { tunnels.get(id)?.stop(); tunnels.delete(id) }
+
+export async function restartHostScript(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, restore: boolean): Promise<void> {
+  const dir = '/workspace/mercury-host/' + recipe.id
+  const rewrite = `import json, os, pathlib, shlex, shutil, signal, time
+p = pathlib.Path(${JSON.stringify(dir)})
+script = p / 'engine.sh'
+backup = p / 'engine.pre-tune.sh'
+restore = ${restore ? 'True' : 'False'}
+if not restore:
+    shutil.copy2(script, backup)
+text = backup.read_text()
+engine = None
+for line in text.splitlines():
+    args = shlex.split(line)
+    if args and args[0] == 'exec':
+        args = args[1:]
+    if args and args[0].endswith('/llama-server'):
+        engine = args
+        break
+if engine is None:
+    raise RuntimeError('The saved script has no standalone llama-server command; nothing restarted')
+if not restore:
+    flags = json.loads(${JSON.stringify(JSON.stringify(recipe.flags))})
+    for name in ['--ctx-size', '--parallel', '--chat-template-kwargs']:
+        value = flags[flags.index(name) + 1]
+        if name in engine:
+            at = engine.index(name)
+            engine[at:at + 2] = [name, value]
+        else:
+            engine.extend([name, value])
+exports = [line for line in text.splitlines() if line.startswith('export ')]
+next_script = 'set -e\\n' + '\\n'.join(exports) + '\\nexec ' + shlex.join(engine) + '\\n'
+staged = p / 'engine.tuning.sh'
+staged.write_text(next_script)
+staged.chmod(0o700)
+os.replace(staged, script)
+pidfile = p / 'engine.pid'
+if pidfile.exists():
+    pid = int(pidfile.read_text().strip())
+    if pid <= 1:
+        raise RuntimeError('Invalid engine PID; no process signalled')
+    try:
+        cmd = pathlib.Path('/proc/' + str(pid) + '/cmdline').read_bytes().replace(b'\\0', b' ').decode()
+        if str(script) not in cmd and not ('/llama-server' in cmd and str(p / 'weights') in cmd):
+            raise RuntimeError('Engine PID belongs to another process; no process signalled')
+        if os.getpgid(pid) != pid:
+            raise RuntimeError('Engine is not its own setsid group; no process signalled')
+        os.killpg(pid, signal.SIGTERM)
+        for _ in range(300):
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.1)
+        else:
+            raise RuntimeError('Previous engine did not stop; no second engine launched')
+    except (FileNotFoundError, ProcessLookupError):
+        pass
+print('MERCURY_TUNE_FLAGS_RESTORED' if restore else 'MERCURY_TUNE_FLAGS_WRITTEN')
+`
+  await runner.run('ssh', [...sshArguments(target), 'python3 -c ' + quote(rewrite)], signal, 60_000)
+  const remote = 'set -e; nohup setsid bash ' + quote(dir + '/engine.sh') + ' >> ' + quote(dir + '/engine.log') + ' 2>&1 < /dev/null & echo $! > ' + quote(dir + '/engine.pid') + '; sleep 1; kill -0 "$(cat ' + quote(dir + '/engine.pid') + ')"'
+  await runner.run('ssh', [...sshArguments(target), remote], signal)
+}
