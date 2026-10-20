@@ -2,7 +2,7 @@
 import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from './processSweep.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
-export const MERCURY_DAEMON_PROTO = 15
+export const MERCURY_DAEMON_PROTO = 16
 
 export const MIN_PROTO = 1
 
@@ -27,6 +27,7 @@ export const DAEMON_VERB_BORN_AT: Readonly<Record<string, number>> = {
   'sessionControl/pause-gate': 12,
   'sessionControl/leave': 14,
   'sessionControl/mcp-action': 15,
+  'sessionControl/mcp-tools': 16,
 }
 
 export function verbBornAt(op: string, action?: string): number {
@@ -37,7 +38,7 @@ export function verbBornAt(op: string, action?: string): number {
   return DAEMON_VERB_BORN_AT[op] ?? MIN_PROTO
 }
 
-export const DAEMON_PROTO_SHAPE = 'sha256:4a03b461beb4481ad5690d7c07af85b22e6f653e430b2388b43af86c76095da2'
+export const DAEMON_PROTO_SHAPE = 'sha256:7a984eb7cec2ca8982fedb082381e117a78b8e3c4eccd0cd6332f749a57a18eb'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
@@ -215,6 +216,7 @@ export type DaemonRequest =
         | 'contract'
         | 'set-kit'
         | 'mcp-action'
+        | 'mcp-tools'
         | 'set-schedule'
         | 'set-spawn-switch'
         | 'stop-agent'
@@ -244,6 +246,7 @@ export type DaemonRequest =
       contract?: { op: 'set' | 'ack' | 'amend' | 'close'; text?: string }
       kitEdit?: SessionKitEditV1
       mcpAction?: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' }
+      mcpServer?: string
       scheduleEdit?: import('./saturn.js').ScheduleOpRequestV1
       spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
       terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null
@@ -437,7 +440,7 @@ export type DaemonReply =
       presetNote?: string
     }
   | { ok: true; op: 'sessionRelease' | 'concourseRelease'; settled: boolean; killed: boolean }
-  | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true; withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown' }
+  | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true; withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown'; mcpTools?: { server: string; tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown>; deferred: boolean }> } }
   | ({ ok: true; op: 'sessionRewind' } & SessionRewindOutcomeV1)
   | { ok: true; op: 'concourseWithdraw'; withdrawn: boolean }
   | { ok: true; op: 'concourseWarm'; state: 'warmed' | 'kept' | 'refused'; detail?: string }

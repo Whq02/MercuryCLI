@@ -154,7 +154,7 @@ import { OAuthService } from '../services/oauth/index.js'
 import { installOAuthTokens } from './handlers/auth.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
-import type { Tool, ToolUseContext } from '../Tool.js'
+import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../Tool.js'
 import { noteHeadlessActivity } from '../utils/activityLedger.js'
 import { logForDebugging } from '../utils/debug.js'
 import { fileHistoryEnabled } from '../utils/fileHistory.js'
@@ -284,7 +284,8 @@ import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tool
 import { filterToolsByDenyRules, getAllBaseTools, getTools, toolsWithheldByDeny } from '../tools.js'
 import { ruleSourceWords, ruleSpelling, withheldByRuleWords } from '../utils/permissions/ruleReason.js'
 import { MCP_SERVER_FAILED_CODE, TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
-import { mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
+import { filterToolsByServer, mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
+import { isDeferredToolFor } from '../tools/ToolSearchTool/prompt.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { expandPath } from '../utils/path.js'
 import { getCwd } from '../utils/cwd.js'
@@ -2105,6 +2106,38 @@ export async function runHeadless(
         signal.removeEventListener('abort', cancel)
         mcpSignIns.delete(name)
       }
+    },
+    'mcp/tools': async params => {
+      const { name } = params
+      const state = getAppState()
+      const client = state.mcp.clients.find(entry => entry.name === name)
+      let tools = filterToolsByServer(state.mcp.tools, name)
+      if (client?.type === 'connected') {
+        fetchToolsForClient.cache.delete(name)
+        const fresh = await fetchToolsForClient(client)
+        if (fresh.length > 0 || tools.length === 0) tools = fresh
+      }
+      const entries = await Promise.all(
+        tools.map(async tool => {
+          const rawDescription = await tool
+            .description(
+              {},
+              {
+                isNonInteractiveSession: true,
+                toolPermissionContext: getEmptyToolPermissionContext(),
+                tools: [],
+              },
+            )
+            .catch(() => '')
+          return {
+            name: tool.mcpInfo?.toolName ?? tool.name.replace(getMcpPrefix(name), ''),
+            description: rawDescription.replace(/^\[mcp:[^\n]*\](?:\n+|$)/, '').trim(),
+            input_schema: ((tool.inputJSONSchema as Record<string, unknown> | undefined) ?? {}),
+            deferred: isDeferredToolFor(tool, getEngineModel(), state.toolPermissionContext.mode, messages),
+          }
+        }),
+      )
+      return { server: name, tools: entries }
     },
     'session/set_kit': params =>
       serializeMcpChange(async () => {

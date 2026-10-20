@@ -1455,6 +1455,34 @@ export async function actOnSessionMcp(sessionId: string, action: { name: string;
   }
 }
 
+export async function listSessionMcpTools(
+  sessionId: string,
+  name: string,
+  roster: SeatRosterPort,
+  dir?: string,
+): Promise<SeatVerbOutcome & { mcpTools?: { server: string; tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown>; deferred: boolean }> } }> {
+  const rec = liveRecordBySession(sessionId, dir)
+  const door = rec ? roster.door(rec.runnerId) : undefined
+  if (!rec || !door || door.closed) return { outcome: 'refused', detail: 'the session has no live runner' }
+  try {
+    const result = await door.request('mcp/tools', { name }, { deadlineMs: 30_000 })
+    return {
+      outcome: 'applied',
+      mcpTools: {
+        server: result.server,
+        tools: result.tools.map(tool => ({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.input_schema,
+          deferred: tool.deferred,
+        })),
+      },
+    }
+  } catch (error) {
+    return { outcome: 'refused', detail: error instanceof Error ? error.message : String(error) }
+  }
+}
+
 export function setSessionKitDial(
   sessionId: string,
   edit: SessionKitEditV1,

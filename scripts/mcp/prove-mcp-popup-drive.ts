@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { McpServer, WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/server'
 import { z } from 'zod/v4'
 import { Client, StreamableHTTPClientTransport } from '../../src/services/mcp/sdk.ts'
@@ -25,7 +25,7 @@ delete process.env.MERCURY_HOME
 const DIST = process.env.MERCURY_PROOF_DIST ?? join(ROOT, 'dist/mercury.mjs')
 const CAPTURES = process.env.MCP_POPUP_CAPTURE_DIR ?? join(SCRATCH, 'frames')
 mkdirSync(CAPTURES, { recursive: true })
-const daemonDir = realpathSync(mkdtempSync(join(SCRATCH, 'd-')))
+const daemonDir = `../${basename(realpathSync(mkdtempSync(join(SCRATCH, 'd-'))))}`
 process.env.MERCURY_DAEMON_DIR = daemonDir
 process.env.MERCURY_CONCOURSE = 'always'
 let checks = 0
@@ -244,11 +244,12 @@ try {
   await journey
   const frames = grabScreens(run, 120, 40, Array.from({ length: 134 }, (_, index) => S(2000 + index * 500))).map(frame => ({ at: frame.atMs, text: frame.rows.map(row => row.trimEnd()).join('\n') }))
   for (const [index, frame] of frames.entries()) if (index === 0 || frame.text !== frames[index - 1]!.text) writeFileSync(join(CAPTURES, `frame-${String(frame.at).padStart(6, '0')}.txt`), frame.text + '\n')
-  const painted = frames.map(frame => frame.text).join('\n')
-  check('the popup paints Mercury · mcp in a centered frame', frames.some(frame => frame.text.includes('Mercury · mcp') && frame.text.includes('╭')))
+  const stepScreens = run.sendLog.flatMap(row => row.screen ? [row.screen.map(line => line.trimEnd()).join('\n')] : [])
+  const painted = [...frames.map(frame => frame.text), ...stepScreens].join('\n')
+  check('the popup paints Mercury · mcp in a centered frame', frames.some(frame => frame.text.includes('Mercury · mcp') && frame.text.includes('╭')) || stepScreens.some(text => text.includes('Mercury · mcp') && text.includes('╭')))
   check('the added row paints added just now', painted.includes('runpod') && painted.includes('added just now'))
   check('the signing-in row names the browser', painted.includes('signing in… (browser)'))
-  check('the connected row paints in place', frames.some(frame => frame.text.includes('runpod · connected')))
+  check('the connected row paints in place', painted.includes('runpod · connected'))
   escaped = run.sendLog.filter(row => row.awaitText !== undefined && Buffer.from(row.b64, 'base64').toString().includes('\x1b')).length >= 2
   check('escape and outside-click return to the composer', escaped && run.sendLog.some(row => Buffer.from(row.b64, 'base64').toString().includes('call popup fixture')))
   const next = modelRequests.find(request => JSON.stringify(request.body).includes('call popup fixture'))

@@ -79,6 +79,7 @@ import type {
   LeaveReceiptV1,
   SpawnSwitchReceiptV1,
   McpRosterV1,
+  McpToolsV1,
   ModelFactsV1,
   ModelSwitchReceiptV1,
   PermissionModeReceiptV1,
@@ -2295,6 +2296,19 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         : { outcome: 'refused', detail: String(reply.detail ?? reply.error ?? 'the MCP action refused') }
     } catch (error) {
       return { outcome: 'refused', detail: error instanceof Error ? error.message : String(error) }
+    }
+  }
+
+  async mcpTools(serverName: string): Promise<McpToolsV1> {
+    try {
+      const reply = await this.rpc({ op: 'sessionControl', action: 'mcp-tools', sessionId: this.record.sessionId, by: 'operator', mcpServer: serverName }, 30_000)
+      const mcpTools = reply.mcpTools as McpToolsV1 | undefined
+      if (reply.ok === true && reply.outcome === 'applied' && mcpTools && typeof mcpTools.server === 'string' && Array.isArray(mcpTools.tools)) {
+        return mcpTools
+      }
+      return { server: serverName, tools: [] }
+    } catch {
+      return { server: serverName, tools: [] }
     }
   }
 

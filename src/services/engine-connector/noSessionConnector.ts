@@ -11,6 +11,8 @@ import type {
   LeaveReceiptV1,
   SpawnSwitchReceiptV1,
   McpRosterV1,
+  McpToolEntryV1,
+  McpToolsV1,
   ModelFactsV1,
   ModelSwitchReceiptV1,
   PermissionModeReceiptV1,
@@ -61,6 +63,7 @@ const NO_IDENTITY: SeatIdentityV1 = Object.freeze({
 })
 const NO_SKILLS: SkillsRosterV1 = Object.freeze({ skills: Object.freeze([]) as never })
 const NO_MCP: McpRosterV1 = Object.freeze({ clients: Object.freeze([]) as never })
+const EMPTY_MCP_TOOLS: readonly McpToolEntryV1[] = Object.freeze([])
 const NO_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'off' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })
 const NOOP_UNSUBSCRIBE = (): void => {}
 
@@ -153,6 +156,9 @@ export class NoSessionConnector implements EngineConnectorV1 {
   }
   async mcpAction(): Promise<KitDialReceiptV1> {
     return KIT_REFUSED_NO_CHAT
+  }
+  async mcpTools(serverName: string): Promise<McpToolsV1> {
+    return { server: serverName, tools: EMPTY_MCP_TOOLS }
   }
   async setKit(): Promise<KitDialReceiptV1> {
     return KIT_REFUSED_NO_CHAT

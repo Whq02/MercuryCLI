@@ -247,6 +247,18 @@ export type McpRosterV1 = {
   clients: readonly McpRosterEntryV1[]
 }
 
+export type McpToolEntryV1 = {
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+  deferred: boolean
+}
+
+export type McpToolsV1 = {
+  server: string
+  tools: readonly McpToolEntryV1[]
+}
+
 
 export type KitDialReceiptV1 = {
   outcome: 'applied' | 'queued' | 'noop' | 'refused'
@@ -435,6 +447,7 @@ export interface EngineConnectorV1 {
   skillsRoster(): SkillsRosterV1
   mcpRoster(): McpRosterV1
   mcpAction(name: string, action: 'authenticate' | 'reconnect' | 'cancel-auth'): Promise<KitDialReceiptV1>
+  mcpTools(serverName: string): Promise<McpToolsV1>
 
   setKit(edit: SessionKitEditV1): Promise<KitDialReceiptV1>
 

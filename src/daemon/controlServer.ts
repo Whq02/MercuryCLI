@@ -43,6 +43,7 @@ export type ControlOutcome = {
   withdrawn?: boolean
   text?: string
   reason?: 'taken' | 'unknown'
+  mcpTools?: { server: string; tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown>; deferred: boolean }> }
 }
 
 export type ShutdownReceipt = {
@@ -170,6 +171,7 @@ export interface ControlServerDeps {
       | 'contract'
       | 'set-kit'
       | 'mcp-action'
+      | 'mcp-tools'
       | 'set-schedule'
       | 'set-spawn-switch'
       | 'stop-agent'
@@ -196,6 +198,7 @@ export interface ControlServerDeps {
     contract?: { op: 'set' | 'ack' | 'amend' | 'close'; text?: string }
     kitEdit?: SessionKitEditV1
     mcpAction?: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' }
+    mcpServer?: string
     scheduleEdit?: ScheduleOpRequestV1
     spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
     terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null
@@ -270,7 +273,7 @@ const dispatchWhole: Whole<
 > = true
 
 type ControlResult = ControlOutcome
-const CONTROL_WIRE_KEYS = ['outcome', 'detail', 'respawned', 'withdrawn', 'text', 'reason'] as const satisfies readonly (keyof ControlResult)[]
+const CONTROL_WIRE_KEYS = ['outcome', 'detail', 'respawned', 'withdrawn', 'text', 'reason', 'mcpTools'] as const satisfies readonly (keyof ControlResult)[]
 const controlWhole: Whole<ControlResult, (typeof CONTROL_WIRE_KEYS)[number]> = true
 
 type WarmResult = Awaited<ReturnType<NonNullable<ControlServerDeps['concourseWarm']>>>
@@ -934,6 +937,7 @@ async function routeControlRequest(
         raw.action === 'contract' ||
         raw.action === 'set-kit' ||
         raw.action === 'mcp-action' ||
+        raw.action === 'mcp-tools' ||
         raw.action === 'set-schedule' ||
         raw.action === 'set-spawn-switch' ||
         raw.action === 'stop-agent' ||
@@ -988,6 +992,13 @@ async function routeControlRequest(
           return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'mcp-action requires { name, action: authenticate|reconnect|cancel-auth }' })
         }
         mcpAction = { name: m.name, action: m.action as 'authenticate' | 'reconnect' | 'cancel-auth' }
+      }
+      let mcpServer: string | undefined
+      if (raw.action === 'mcp-tools') {
+        if (typeof raw.mcpServer !== 'string' || raw.mcpServer.length === 0 || raw.mcpServer.length > 200) {
+          return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'mcp-tools requires { mcpServer }' })
+        }
+        mcpServer = raw.mcpServer
       }
       let kitEdit: SessionKitEditV1 | undefined
       if (raw.kitEdit !== undefined) {
@@ -1051,6 +1062,7 @@ async function routeControlRequest(
         ...(contract !== undefined ? { contract } : {}),
         ...(kitEdit !== undefined ? { kitEdit } : {}),
         ...(mcpAction !== undefined ? { mcpAction } : {}),
+        ...(mcpServer !== undefined ? { mcpServer } : {}),
         ...(scheduleEdit !== undefined ? { scheduleEdit } : {}),
         ...(spawnSwitch !== undefined ? { spawnSwitch } : {}),
         ...(terminalApplication !== undefined ? { terminalApplication } : {}),
