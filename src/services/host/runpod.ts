@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from './recipes.js'
-import { loadHostRecipes } from './recipesFile.js'
+import { currentHostRecipes, refreshHostRecipes } from './recipesFile.js'
 
 const podSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name: z.string(), status: z.string(), cost: z.number().nonnegative(), createdAt: z.string(), startedAt: z.string().nullable().optional(), ssh: z.object({ direct: z.object({ host: z.string(), port: z.number().int().min(1).max(65535), username: z.string() }).nullable().optional() }).nullable().optional() })
 export type HostPod = z.infer<typeof podSchema>
@@ -21,7 +21,8 @@ export class RunpodClient {
     return response
   }
   async offers(signal: AbortSignal): Promise<HostOffer[]> {
-    const recipes = await loadHostRecipes({ signal })
+    void refreshHostRecipes()
+    const recipes = currentHostRecipes()
     const offers: HostOffer[] = []
     const groups = [...new Set(recipes.map(recipe => recipe.count + ':' + recipe.cuda))].sort((a, b) => Number(a.split(':')[0]) - Number(b.split(':')[0]))
     for (const group of groups) {

@@ -1,6 +1,6 @@
-export type HostRecipeVerificationKind = 'measured' | 'documented' | 'community' | 'unverified'
+type HostRecipeVerificationKind = 'measured' | 'documented' | 'community' | 'unverified'
 
-export interface HostRecipeVerified {
+interface HostRecipeVerified {
   by: HostRecipeVerificationKind
   on?: string
   note?: string
@@ -110,5 +110,3 @@ export function recipeFits(recipe: HostRecipe, name: string, memoryGb: number, c
   const matches = recipe.gpu === 'RTX PRO 6000' ? hardware.includes('RTX PRO 6000') && hardware.includes('BLACKWELL') : new RegExp('(^|[^A-Z0-9])' + recipe.gpu + '([^A-Z0-9]|$)').test(hardware)
   return matches && memoryGb >= recipe.vramGb && count >= recipe.count
 }
-
-export { HOST_RECIPES_URL, loadHostRecipes, type HostRecipesFile } from './recipesFile.js'
