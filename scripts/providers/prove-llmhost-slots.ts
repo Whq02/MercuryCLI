@@ -961,8 +961,8 @@ try {
       `agentError=${agentError} finalText=${finalText}`,
     )
     check(
-      'stream_activity and progressive input_json_delta events are observed during the tool call without double-counting at settlement',
-      streamActivities.length > 0 && inputJsonDeltas.length === 14 && inputJsonDeltas.join('') === expectedJson,
+      'progressive input_json_delta events are observed during the tool call without double-counting at settlement, and they are the life: no heartbeat is minted for a painted argument delta (the Anthropic road\'s rule)',
+      streamActivities.length === 0 && inputJsonDeltas.length === 14 && inputJsonDeltas.join('') === expectedJson,
       `streamActivities=${streamActivities.length} deltas=${inputJsonDeltas.length} joined=${inputJsonDeltas.join('')}`,
     )
   } finally {

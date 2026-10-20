@@ -787,7 +787,7 @@ export async function* streamCompatChat(
           continue
         }
         for (const event of decodeChunk(parsed, toolAcc)) {
-          if (event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'reasoning-withheld' || event.type === 'finish') {
+          if (event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'reasoning-withheld' || event.type === 'finish' || event.type === 'tool-call-fragment') {
             chunkNotedEvent = true
           }
           if (event.type === 'served-model') {
