@@ -1,4 +1,5 @@
 import { parseArgs } from 'node:util'
+import { registerBoxServer, stopBoxTunnel } from '../../services/host/boxRegistration.js'
 import { discoverBox, listBoxes, readBox, type HostBox } from '../../services/host/boxes.js'
 import { BOX_RECIPES, boxFitWords, boxWeightsWords, fitsBox } from '../../services/host/boxRecipes.js'
 import { boxEngineLogs, boxEngineStatus, restartBoxEngine, startBoxEngine, stopBoxEngine } from '../../services/host/boxEngine.js'
@@ -43,9 +44,11 @@ export async function hostCommand(args: string[], options: { runner?: HostRunner
       await startBoxEngine(box, recipe, { destination, bank: Boolean(value.bank), confirmed: true, runner, signal })
     } else if (action === 'stop' || action === 'uninstall') {
       await stopBoxEngine(box, runner, signal, action === 'uninstall')
+      await stopBoxTunnel(box, runner, signal, action === 'uninstall')
       print(action === 'uninstall' ? 'Service uninstalled; weights kept.' : 'Engine stopped.'); return 0
     } else if (action === 'restart') await restartBoxEngine(box, runner, signal)
     else if (action === 'logs') { print(await boxEngineLogs(box, runner, signal)); return 0 }
+    if (action === 'start' || action === 'restart') print(await registerBoxServer(box, runner, signal) + ' · available in /model in every session')
     print((await boxEngineStatus(box, runner, signal)).words)
     return 0
   } catch (error) { print(error instanceof Error ? error.message : String(error)); return 1 }

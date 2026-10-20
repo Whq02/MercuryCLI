@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
@@ -28,8 +28,9 @@ createServer(async(req,res)=>{
   writeFileSync(join(bin, 'launchctl'), `#!/usr/bin/env node
 import {readFileSync,writeFileSync,existsSync,unlinkSync,openSync} from 'node:fs'
 import {spawn} from 'node:child_process'
-const path=${JSON.stringify(registry)}
 const args=process.argv.slice(2), action=args[0]
+const label=action==='bootstrap'?readFileSync(args[2],'utf8').split('<key>Label</key><string>')[1].split('</string>')[0]:args.at(-1).split('/').at(-1)
+const path=${JSON.stringify(registry)}+'.'+label
 const read=()=>{try{return JSON.parse(readFileSync(path,'utf8'))}catch{return {}}}
 const alive=p=>{try{process.kill(p,0);return true}catch{return false}}
 const stop=()=>{const r=read();if(r.pid&&alive(r.pid))process.kill(r.pid,'SIGTERM');try{unlinkSync(path)}catch{}}
@@ -45,6 +46,12 @@ stop()
 const fd=openSync(log,'a'), child=spawn('/bin/sh',[script],{stdio:['ignore',fd,fd],detached:true,env:process.env})
 writeFileSync(path,JSON.stringify({pid:child.pid,unit}));child.unref()
 `, { mode: 0o700 })
+  writeFileSync(join(bin, 'ssh'), `#!/usr/bin/env node
+import {createServer,connect} from 'node:net'
+if(!process.argv.includes('fixture.invalid')) throw new Error('No real SSH in a proof')
+const spec=process.argv[process.argv.indexOf('-L')+1].split(':')
+createServer(client=>{const remote=connect(Number(spec[3]),spec[2]);client.pipe(remote).pipe(client);remote.on('error',()=>client.destroy());client.on('error',()=>remote.destroy())}).listen(Number(spec[1]),spec[0])
+`, {mode:0o700})
   const bank = join(home, 'bank')
   mkdirSync(bank)
   const content = 'a fixture weight file, never a downloaded model'
@@ -71,7 +78,7 @@ writeFileSync(path,JSON.stringify({pid:child.pid,unit}));child.unref()
   }
   return { home, bank, bin, server, env, commands, runner,
     async close() {
-      if (existsSync(registry)) { const row=JSON.parse(readFileSync(registry,'utf8')); try { process.kill(row.pid,'SIGTERM') } catch {} }
+      for (const file of readdirSync(home).filter(name => name.startsWith('service.json.'))) { const row=JSON.parse(readFileSync(join(home,file),'utf8')); try { process.kill(row.pid,'SIGTERM') } catch {} }
       rmSync(home,{recursive:true,force:true})
     },
   }

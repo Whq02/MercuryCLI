@@ -8,7 +8,7 @@ import type { HostRunner } from './ssh.js'
 
 export interface BoxServiceRecord {
   name: string; recipe: string; model: string; engine: 'ollama' | 'llamacpp'; destination: string; bank: boolean
-  port: number; localPort?: number; unit: string; script: string; log: string
+  port: number; localPort?: number; baseUrl?: string; unit: string; script: string; log: string
   state: 'starting' | 'running' | 'stopped' | 'failed' | 'uninstalled'; error?: string
   contextPerSlot?: number; tokensPerSecond?: number
 }

@@ -3,6 +3,11 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.js')
+for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_HOME', 'MERCURY_MODEL', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_MODELS', 'MERCURY_COMPAT_LABEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
+for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_.*_API_KEY$/.test(key)) delete process.env[key]
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const root = new URL('../../', import.meta.url).pathname
 assert.ok(existsSync(join(root, 'src/services/host/boxes.ts')), 'own computers are first-class recorded targets')
 const { discoverBox, readBox, listBoxes } = await import('../../src/services/host/boxes.js')
@@ -77,6 +82,22 @@ try {
   const started = await startBoxEngine(machine, recipe, { destination: fixture.bank, bank: true, confirmed: true, runner: fixture.runner, port, timeoutMs: 10000, pauseMs: 30 })
   assert.equal(started.state, 'running')
   assert.equal(started.contextPerSlot, 131072)
+  assert.ok(existsSync(join(root, 'src/services/host/boxRegistration.ts')), 'own box service registers for every session')
+  const { enableConfigs } = await import('../../src/utils/config.js')
+  enableConfigs()
+  const { registerBoxServer } = await import('../../src/services/host/boxRegistration.js')
+  const model = 'compat/box-' + machine.name + '/' + recipe.model
+  const register = async () => { assert.equal(await registerBoxServer(machine, fixture.runner, signal), model) }
+  const bundleAt = process.argv.indexOf('--bundle')
+  if (bundleAt >= 0) { const { proveBoxDaemon } = await import('./boxDaemonProof.ts'); await proveBoxDaemon(process.argv[bundleAt + 1]!, process.env.MERCURY_CONFIG_DIR!, model, register) }
+  else await register()
+  const { namedCompatModelOptions } = await import('../../src/services/providers/openaicompat/compatCatalogue.js')
+  const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.js')
+  assert.ok(namedCompatModelOptions().some(row => row.value === model))
+  assert.equal(getContextWindowForModel(model), 131072)
+  const settings = JSON.parse(readFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), 'utf8'))
+  assert.equal(settings.compatProvider['box-' + machine.name].dialect, 'llamacpp')
+  assert.deepEqual(settings.compatProvider['box-' + machine.name].models, [recipe.model])
   assert.equal(await boxServiceRunning(machine, fixture.runner, signal), true)
   const plist = readFileSync(boxServiceFiles(machine).unit, 'utf8')
   assert.match(plist, /<key>RunAtLoad<\/key><true\/>/)
@@ -95,11 +116,29 @@ try {
   const lines: string[] = []
   assert.equal(await hostCommand(['status', machine.name], { runner: fixture.runner, print: text => lines.push(text) }), 0)
   assert.ok(lines.some(line => line.includes('0/2 slots busy') && line.includes('9.5 tokens/s')))
-  assert.equal(await hostCommand(['stop', machine.name], { runner: fixture.runner, print: text => lines.push(text) }), 0)
+  if (bundleAt >= 0) {
+    const status = await fixture.runner.run('node', [process.argv[bundleAt + 1]!, 'host', 'status', machine.name], signal)
+    assert.match(status, /slots busy/)
+    const stopped = await fixture.runner.run('node', [process.argv[bundleAt + 1]!, 'host', 'stop', machine.name], signal)
+    assert.match(stopped, /Engine stopped/)
+    console.log('MERCURY HOST GREEN · built host status and stop use the fixture service')
+  } else assert.equal(await hostCommand(['stop', machine.name], { runner: fixture.runner, print: text => lines.push(text) }), 0)
   assert.equal(await boxServiceRunning(machine, fixture.runner, signal), false)
   await controlBoxService(machine, 'start', fixture.runner, signal)
   assert.equal(await boxServiceRunning(machine, fixture.runner, signal), true)
   await controlBoxService(machine, 'uninstall', fixture.runner, signal)
   assert.equal(existsSync(boxServiceFiles(machine).unit), false)
+  const remoteMachine = { ...machine, name: 'remote-fixture', kind: 'ssh' as const, target: { host: 'fixture.invalid' } }
+  const remotePort = await new Promise<number>(resolve => { const socket = createServer(); socket.listen(0, '127.0.0.1', () => { const chosen = (socket.address() as { port: number }).port; socket.close(() => resolve(chosen)) }) })
+  await startBoxEngine(remoteMachine, recipe, { destination: fixture.bank, bank: true, confirmed: true, runner: fixture.runner, port: remotePort, timeoutMs: 10000, pauseMs: 30 })
+  const tunnelHome = { ...machine, name: 'link-fixture' }
+  const remoteModel = await registerBoxServer(remoteMachine, fixture.runner, signal, tunnelHome)
+  assert.equal(remoteModel, 'compat/box-remote-fixture/Fixture/Box')
+  assert.match(readFileSync(boxServiceFiles(tunnelHome).script, 'utf8'), /ExitOnForwardFailure/)
+  const { stopBoxTunnel } = await import('../../src/services/host/boxRegistration.js')
+  await stopBoxTunnel(remoteMachine, fixture.runner, signal, true, tunnelHome)
+  await controlBoxService(remoteMachine, 'uninstall', fixture.runner, signal)
+  assert.ok(fixture.commands.some((command: any) => command.command === 'ssh'))
+  console.log('MERCURY HOST GREEN · fixture SSH service and persistent private tunnel register the remote model')
   console.log('MERCURY HOST GREEN · real fixture binary start, served window, stop/restart/uninstall; plist/unit/task pinned')
 } finally { await fixture.close() }

@@ -65,7 +65,7 @@ export async function startBoxEngine(box: HostBox, recipe: BoxRecipe, options: B
   }
   if (options.bank) await verifyBoxBank(box, recipe, destination, runner, signal)
   const executable = await engineBinary(box, recipe, runner, signal)
-  const record: BoxServiceRecord = { name: box.name, recipe: recipe.id, model: recipe.model, engine: recipe.engine, destination, bank: options.bank, port, ...boxServiceFiles(box), state: 'starting' }
+  const record: BoxServiceRecord = { name: box.name, recipe: recipe.id, model: recipe.model, engine: recipe.engine, destination, bank: options.bank, port, localPort: previous?.localPort, baseUrl: previous?.baseUrl, ...boxServiceFiles(box), state: 'starting' }
   writeBoxService(record)
   try {
     if (previous && previous.state !== 'uninstalled') await controlBoxService(box, 'stop', runner, signal)
