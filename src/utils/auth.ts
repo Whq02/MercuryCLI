@@ -635,8 +635,6 @@ export function clearOAuthTokenCache(): void {
 export function dropCredentialMemos(): void {
   const { resetSettingsCache } = require('./settings/settingsCache.js') as typeof import('./settings/settingsCache.js')
   resetSettingsCache()
-  const { invalidateProviderKeyCommand } = require('../services/providers/providerKeyCommand.js') as typeof import('../services/providers/providerKeyCommand.js')
-  invalidateProviderKeyCommand()
   clearOAuthTokenCache()
   signedOutOAuthMemoStamp = null
   signedOutKeyMemoStamp = null

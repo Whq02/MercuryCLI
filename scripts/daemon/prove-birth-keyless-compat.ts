@@ -426,6 +426,45 @@ try {
       legacyText.includes('the openai-compat family holds no credential on this account'),
     legacyText,
   )
+
+  section('§5 A keyCommand endpoint: each admission re-reads settings and never re-runs the key command')
+  const keyRuns = join(SCRATCH, 'key-command-runs.txt')
+  writeFileSync(keyRuns, '')
+  writeUserSettings({
+    compatProvider: {
+      [ENDPOINT_NAME]: {
+        baseUrl,
+        dialect: 'llamacpp',
+        keyCommand: `echo $PPID >> '${keyRuns}'; echo fixture-llmhost-key-not-a-real-key`,
+      },
+    },
+    engine: { model: FULL_MODEL },
+  })
+  const keyedBirths: AdmitReply[] = []
+  for (let i = 0; i < 3; i++) {
+    const birth = await admitSession({ model: FULL_MODEL })
+    keyedBirths.push(birth)
+    if (birth.ok) await daemonControlRpc({ op: 'sessionRelease', runnerId: birth.runnerId } as never, { timeoutMs: 10_000 }).catch(() => undefined)
+  }
+  const daemonPid = ((): number | undefined => {
+    try {
+      return (JSON.parse(readFileSync(join(daemonDir, 'daemon.json'), 'utf8')) as { pid?: number }).pid
+    } catch {
+      return undefined
+    }
+  })()
+  const runLines = readFileSync(keyRuns, 'utf8').split('\n').map(line => line.trim()).filter(line => line !== '')
+  const daemonKeyRuns = runLines.filter(line => Number(line) === daemonPid).length
+  check(
+    '(5a) three births on the keyCommand endpoint are admitted on its model',
+    keyedBirths.every(b => b.ok === true && b.modelId === FULL_MODEL),
+    JSON.stringify(keyedBirths.map(b => (b.ok ? b.modelId : b.error))),
+  )
+  check(
+    '(5b) the daemon runs the key command once across the three admissions',
+    daemonPid !== undefined && daemonKeyRuns === 1,
+    `daemon pid ${String(daemonPid)} ran it ${daemonKeyRuns} time(s); ${runLines.length} run(s) across every process`,
+  )
 } finally {
   await stopDaemon()
   server.stop(true)
