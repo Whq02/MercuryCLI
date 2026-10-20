@@ -1598,7 +1598,7 @@ export async function runHeadless(
   })
   markRunModeSignalsOwned()
   process.on('exit', () => saveCurrentSessionCosts())
-  let buildBehindToldFor: string | null = null
+  const buildBehindToldFor = new Set<string>()
   let buildBehindSeen: string | null = null
   let buildBehindCheckedAt = 0
   let buildBehindConfirm: ReturnType<typeof setTimeout> | null = null
@@ -1611,7 +1611,7 @@ export async function runHeadless(
     const { deployedRuntime } = await import('../daemon/handover.js')
     const installed = deployedRuntime()
     const installedTree = installed?.buildTree ?? null
-    if (installed === null || installedTree === null || installedTree === ownTree || installedTree === buildBehindToldFor) {
+    if (installed === null || installedTree === null || installedTree === ownTree || buildBehindToldFor.has(installedTree)) {
       buildBehindSeen = null
       return
     }
@@ -1627,14 +1627,14 @@ export async function runHeadless(
       return
     }
     if (inFlightAbort !== null || inputClosed) return
-    buildBehindToldFor = installedTree
+    buildBehindToldFor.add(installedTree)
     const ownTime = describeArtifactIdentity('', process.argv[1] ?? null).buildTime
     const installedTime = describeArtifactIdentity('', installed.script).buildTime
     const line = composeBuildBehindLine(installedTree, ownTree, ownTime === null || installedTime === null || installedTime > ownTime)
     const home = dirname(getTranscriptPath())
     const sid = String(getSessionId())
     try {
-      if (readSessionReceipts(home, sid).some(r => r.kind === 'build-behind' && r.summary === line)) return
+      if (readSessionReceipts(home, sid).some(r => r.kind === 'build-behind' && (r.details?.installedTree === installedTree || r.summary === line))) return
       appendSessionReceipt(home, sid, {
         at: new Date().toISOString(),
         by: 'runner',
@@ -1645,7 +1645,7 @@ export async function runHeadless(
     } catch (error) {
       logError(error)
     }
-    const row = createAttachmentMessage({ type: 'queued_command', prompt: wrapInSystemReminder(line), commandMode: 'task-notification' })
+    const row = createAttachmentMessage({ type: 'queued_command', prompt: wrapInSystemReminder(line), commandMode: 'task-notification', origin: { kind: 'build-behind' } })
     messages.push(row)
     void recordTranscript([row], undefined, messages)
       .then(() => peekProject()?.flush())
@@ -2113,7 +2113,7 @@ export async function runHeadless(
           return edits.length > 0 ? { pendingScheduleEdits: edits } : {}
         })(),
         streamIdleTimeoutMs: streamIdleTimeoutMsForRoute(providerFamilyOfSetting(activeModel ?? getEngineModel())),
-        ...(runningBuildTree() !== null ? { buildTree: runningBuildTree() } : {}),
+        buildTree: runningBuildTree(),
         fileCheckpoints: {
           capture: fileHistoryEnabled(),
           restorable: state.fileHistory.snapshots.map(snapshot => String(snapshot.messageId)),

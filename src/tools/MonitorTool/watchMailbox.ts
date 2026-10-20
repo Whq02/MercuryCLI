@@ -1,4 +1,5 @@
 export const BURST_WINDOW_MS = 200
+export const DELIVERY_INTERVAL_MS = 30_000
 export const WALL_RECHECK_MS = 60_000
 export const REOPEN_GRACE_MS = 1_000
 export const LISTED_LINES_CAP = 40
@@ -9,7 +10,7 @@ export type WatchWall = { closed: boolean; reopensAtMs?: number }
 type WatchMailboxDeps = {
   now: () => number
   wall: () => WatchWall
-  deliver: (text: string) => void
+  deliver: (text: string, summary: { count: number; last: string }) => void
   setTimer: (fn: () => void, ms: number) => unknown
   clearTimer: (handle: unknown) => void
 }
@@ -47,9 +48,14 @@ export function createWatchMailbox(deps: WatchMailboxDeps): WatchMailbox {
   let burstTimer: unknown = null
   let recheckTimer: unknown = null
   let disposed = false
+  let pending: string[] = []
+  let lastHeld = ''
+  let lastDeliveredAt: number | null = null
+  let deliveryTimer: unknown = null
 
   const hold = (lines: string[]): void => {
     for (const line of lines) {
+      lastHeld = line
       if (held.length < HELD_LINES_CAP) held.push(line)
       else dropped++
     }
@@ -61,11 +67,28 @@ export function createWatchMailbox(deps: WatchMailboxDeps): WatchMailbox {
     held = []
     dropped = 0
     if (waited.length === 0 && fresh.length === 0) return
+    const summary = { count: waited.length + waitedDropped + fresh.length, last: fresh.at(-1) ?? lastHeld }
+    lastHeld = ''
+    lastDeliveredAt = deps.now()
     if (waited.length === 0) {
-      deps.deliver(listLines(fresh, 0))
+      deps.deliver(listLines(fresh, 0), summary)
       return
     }
-    deps.deliver(`${heldHeader(waited.length + waitedDropped)}\n${listLines([...waited, ...fresh], waitedDropped)}`)
+    deps.deliver(`${heldHeader(waited.length + waitedDropped)}\n${listLines([...waited, ...fresh], waitedDropped)}`, summary)
+  }
+
+  const deliverWhenDue = (lines: string[]): void => {
+    pending.push(...lines)
+    const delay = lastDeliveredAt === null ? 0 : Math.max(0, lastDeliveredAt + DELIVERY_INTERVAL_MS - deps.now())
+    if (delay > 0) {
+      if (deliveryTimer === null) deliveryTimer = deps.setTimer(() => { deliveryTimer = null; deliverWhenDue([]) }, delay)
+      return
+    }
+    const fresh = pending
+    pending = []
+    const wall = deps.wall()
+    if (wall.closed) { hold(fresh); armRecheck(wall); return }
+    deliverAll(fresh)
   }
 
   const armRecheck = (wall: WatchWall): void => {
@@ -78,21 +101,25 @@ export function createWatchMailbox(deps: WatchMailboxDeps): WatchMailbox {
         armRecheck(now)
         return
       }
-      deliverAll([])
+      deliverWhenDue([])
     }, wait)
   }
 
   const flushBurst = (): void => {
     burstTimer = null
-    const lines = burst
+    let lines = burst
     burst = []
     const wall = deps.wall()
     if (wall.closed) {
+      lines = [...pending, ...lines]
+      pending = []
+      if (deliveryTimer !== null) deps.clearTimer(deliveryTimer)
+      deliveryTimer = null
       hold(lines)
       armRecheck(wall)
       return
     }
-    deliverAll(lines)
+    deliverWhenDue(lines)
   }
 
   return {
@@ -108,6 +135,8 @@ export function createWatchMailbox(deps: WatchMailboxDeps): WatchMailbox {
       disposed = true
       if (burstTimer !== null) deps.clearTimer(burstTimer)
       if (recheckTimer !== null) deps.clearTimer(recheckTimer)
+      if (deliveryTimer !== null) deps.clearTimer(deliveryTimer)
+      pending = []
       burstTimer = null
       recheckTimer = null
     },

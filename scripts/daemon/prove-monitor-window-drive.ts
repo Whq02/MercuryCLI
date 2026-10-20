@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep } from './dupline-world.ts'
 
 const { check, section, finish } = makeTally('prove-monitor-window-drive')
-section('a persistent watch beside a usage-window note: each new line reaches the provider in its own request at once, the provider refuses while closed, and the reopen never replays a line')
+section('a persistent watch beside a usage-window note: each new line reaches the provider on the batch cadence, the provider refuses while closed, and the reopen never replays a line')
 
 const HOME = join(SCRATCH_ROOT, `mercury-monitor-window-${process.pid}`)
 const CWD = join(HOME, 'fixture-repo')
@@ -16,7 +16,8 @@ const HELLO_ASK = 'hello there'
 const DONE_ASK = 'that is all'
 const ARMED = 'the watch is armed'
 const LINES = ['first line landed while the window was closed', 'second line landed while the window was closed', 'third line landed while the window was closed']
-const WALL_SECONDS = 40
+const DELIVERY_MS = 30_000
+const WALL_SECONDS = DELIVERY_MS / 1000 * 3 + 10
 const LINE_GAP_MS = 2_500
 
 type Block = { type?: string; text?: string }
@@ -166,10 +167,10 @@ if (!existsSync(DIST)) {
     const before = runner.frames.length
     appendFileSync(WATCHED, `${line}\n`)
     appendedAt.push(Date.now())
-    const delivery = await waitWire(`delivery of watch line ${i + 1}`, w => w.inAsk[i] === 1, bound(10_000))
+    const delivery = await waitWire(`delivery of watch line ${i + 1}`, w => w.inAsk[i] === 1, bound(DELIVERY_MS + 10_000))
     deliveries.push(delivery)
     const outcome = await runner.waitFor(`the provider refuses watch line ${i + 1}`, rateLimited, bound(20_000), before)
-    check(`watch line ${i + 1} opens its own request before the reset and receives a typed provider refusal`, delivery !== null && delivery.kind === 'walled' && delivery.at >= appendedAt[i]! && delivery.at - appendedAt[i]! <= bound(10_000) && delivery.at < wallUntilMs && outcome !== null && j(outcome).includes('Rate limit exceeded'), j({ delivery, outcome, appendedAt: appendedAt[i], wallUntilMs }))
+    check(`watch line ${i + 1} opens its own request before the reset and receives a typed provider refusal`, delivery !== null && delivery.kind === 'walled' && delivery.at >= appendedAt[i]! && delivery.at - appendedAt[i]! <= bound(DELIVERY_MS + 10_000) && (i === 0 || delivery.at - (deliveries[i - 1]?.at ?? 0) >= DELIVERY_MS - 1000) && delivery.at < wallUntilMs && outcome !== null && j(outcome).includes('Rate limit exceeded'), j({ delivery, outcome, appendedAt: appendedAt[i], wallUntilMs }))
     await sleep(LINE_GAP_MS)
   }
   check('the three lines landed while the window was still closed', appendedAt[appendedAt.length - 1]! < wallUntilMs, j({ lastAppend: appendedAt[appendedAt.length - 1], wallUntilMs }))

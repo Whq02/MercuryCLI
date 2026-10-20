@@ -48,8 +48,9 @@ function labelWords(description: string): string {
   return clampWords(description.replace(/\s+/g, ' ').replace(/"/g, "'").trim(), LABEL_WORDS_MAX)
 }
 
-export function monitorNoticeBlock(taskId: string, description: string, text: string): string {
-  return `<monitor task=${JSON.stringify(taskId)} name=${JSON.stringify(description)}>\n${text}\n</monitor>`
+export function monitorNoticeBlock(taskId: string, description: string, text: string, summary?: { count: number; last: string }): string {
+  const detail = summary === undefined || summary.count <= 1 ? '' : ` lines=${JSON.stringify(summary.count)} last=${JSON.stringify(summary.last)}`
+  return `<monitor task=${JSON.stringify(taskId)} name=${JSON.stringify(description)}${detail}>\n${text}\n</monitor>`
 }
 
 type Block = { type?: string; id?: string; name?: string; input?: unknown; tool_use_id?: string; content?: unknown; text?: string }

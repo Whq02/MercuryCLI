@@ -11,7 +11,7 @@ import { ShellError } from '../../utils/errors.js'
 import { clampWait } from '../../utils/waitCeiling.js'
 import { MONITOR_TOOL_NAME } from './constants.js'
 import { sessionLaneWall } from './laneWall.js'
-import { BURST_WINDOW_MS, createWatchMailbox } from './watchMailbox.js'
+import { BURST_WINDOW_MS, DELIVERY_INTERVAL_MS, createWatchMailbox } from './watchMailbox.js'
 import { monitorNoticeBlock, WATCH_STARTED_LINE } from './watchReceipts.js'
 
 export { MONITOR_TOOL_NAME }
@@ -33,7 +33,7 @@ Pick by how many notifications you need:
 - **One per occurrence, indefinitely** ("tell me every time an ERROR line appears", "wake me on every line another agent appends to this file") → Monitor with an unbounded command (\`tail -f\`, \`inotifywait -m\`, \`while true\`) and \`persistent: true\`, so the watch runs until you stop it with TaskStop or the session ends.
 - **One per occurrence, until a known end** ("emit each CI step result, stop when the run finishes") → Monitor with a command that exits when the watch is over.
 
-A monitor without \`persistent\` expires after \`timeout_ms\` (default 5 minutes, at most 1 hour): it is killed and you get one expiry notice that says how to re-arm it. Lines that arrive within ${BURST_WINDOW_MS}ms fold into one notification. Events that land while the session's usage window is closed are held by the watch and delivered together, in one notification, on your first turn after the window reopens — they are not lost, and they never wake a session the provider would refuse once the session has met the closed window.`
+A monitor without \`persistent\` expires after \`timeout_ms\` (default 5 minutes, at most 1 hour): it is killed and you get one expiry notice that says how to re-arm it. Lines that arrive within ${BURST_WINDOW_MS}ms fold into one notification; ongoing output is delivered at most once every ${DELIVERY_INTERVAL_MS / 1000} seconds, with its line count and last line. Events that land while the session's usage window is closed are held by the watch and delivered together, in one notification, on your first turn after the window reopens — they are not lost, and they never wake a session the provider would refuse once the session has met the closed window.`
 
 const COMMAND_DESCRIPTION =
   'Shell command or script. Each stdout line is an event; exit ends the watch.'
@@ -132,7 +132,7 @@ export const MonitorTool = buildTool({
         output.persistent
           ? 'persistent — runs until TaskStop or session end'
           : `timeout ${output.timeoutMs}ms${output.clamped ? `; ${output.clamped}` : ''}`
-      }). You will be notified on each event. Keep working — do not poll or sleep. Events may arrive while you are waiting for the user — an event is not their reply.`,
+      }). You will receive batched events, at most once every 30 seconds during ongoing output. Keep working — do not poll or sleep. Events may arrive while you are waiting for the user — an event is not their reply.`,
     }
   },
   renderToolUseMessage(input) {
@@ -166,9 +166,9 @@ export const MonitorTool = buildTool({
       return false
     }
 
-    function emit(text: string): void {
+    function emit(text: string, summary: { count: number; last: string }): void {
       enqueuePendingNotification({
-        value: monitorNoticeBlock(taskId ?? '', description, text),
+        value: monitorNoticeBlock(taskId ?? '', description, text, summary),
         mode: 'task-notification',
         priority: 'next',
         agentId,

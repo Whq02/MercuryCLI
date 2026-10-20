@@ -180,6 +180,13 @@ if (!existsSync(DIST)) {
   check('a line appended while the session is live wakes it through the watch', before !== null)
   check("the watch's process is alive while the session is", tailAlive() !== '')
 
+  const ticks = Array.from({ length: 600 }, (_, i) => 'tick' + (i + 1))
+  const ticksAt = Date.now()
+  appendFileSync(WATCHED, ticks.join('\n') + '\n')
+  const batch = await waitWire('the tick batch before park', w => w.ask.includes('last="tick600"'), bound(45_000))
+  check('600 appended lines arrive as one batch with the true count and last line', batch !== null && batch.ask.includes('lines=600') && wire.filter(w => w.at >= ticksAt && w.ask.includes('last="tick600"')).length === 1, j(batch))
+  check('the watch does not wake again inside the delivery interval', batch !== null && before !== null && batch.at - before.at >= 29_000, j({ before: before?.at, batch: batch?.at }))
+
   const parkedAt = Date.now()
   const exit = await park(runner)
   await sleep(1_000)
