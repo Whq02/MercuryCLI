@@ -21,8 +21,10 @@ const daemonDir = join(SCRATCH, 'daemon')
 const work = join(SCRATCH, 'work')
 for (const d of [home, daemonDir, work]) mkdirSync(d, { recursive: true })
 
+const previousCwd = process.cwd()
+process.chdir(work)
 process.env.MERCURY_CONFIG_DIR = home
-process.env.MERCURY_DAEMON_DIR = daemonDir
+process.env.MERCURY_DAEMON_DIR = '../daemon'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.BROWSER = '/usr/bin/true'
@@ -163,7 +165,7 @@ function bootDaemon(): void {
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: home,
-      MERCURY_DAEMON_DIR: daemonDir,
+      MERCURY_DAEMON_DIR: '../daemon',
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_CACHE_CLOCK: '0',
@@ -529,8 +531,9 @@ try {
   dropCredentialMemos()
   resetComputedDefaultMemo()
   const keyedDoor = "the endpoint 'keyed' needs a key: /logins compat/keyed"
-  const keyedRow = namedCompatModelOptions().find(option => option.value === 'compat/keyed/keyed-model')
-  check('(8a) the model picker marks the keyed row unavailable with its /logins door', keyedRow?.unavailable === keyedDoor, JSON.stringify(keyedRow ?? null))
+  const keyedOptions = namedCompatModelOptions()
+  const keyedRow = keyedOptions.find(option => option.value === '__mercury_connect__:compat/keyed')
+  check('(8a) the model picker offers the keyed endpoint its /logins door instead of a runnable model', keyedRow?.description?.toLowerCase() === keyedDoor && keyedRow.label.includes('/logins compat/keyed') && !keyedOptions.some(option => option.value === 'compat/keyed/keyed-model'), JSON.stringify(keyedRow ?? null))
   const modelsPage = await liveModelsReference({ engineModel: FULL_MODEL }, { boundMs: 1_000 })
   const keyedPage = modelsPage.providers.find(provider => provider.provider === 'openai-compat/keyed')
   const keylessPage = modelsPage.providers.find(provider => provider.provider === `openai-compat/${ENDPOINT_NAME}`)
@@ -548,6 +551,7 @@ try {
 } finally {
   await stopDaemon()
   server.stop(true)
+  process.chdir(previousCwd)
   rmSync(SCRATCH, { recursive: true, force: true })
 }
 
