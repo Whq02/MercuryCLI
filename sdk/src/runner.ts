@@ -1,13 +1,15 @@
 /// <reference lib="esnext.disposable" preserve="true" />
 import { spawn, type ChildProcess } from 'node:child_process'
 import { readLines } from './framing.js'
+import { endChild, missingCwd, track } from './lifecycle.js'
 import { randomUUID } from 'node:crypto'
 import { argvOf, type RunOptions } from './client.js'
-import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryWireError, type RunExit } from './errors.js'
+import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
 import { inputRowOf, rowOf, type StreamRow } from './parse.js'
 import type { InputRow, OutcomeRow, PromptRow, ShellRow, NoteRow } from './rows.js'
 import { METHODS, RUNNER_PROTOCOL, RPC_REFUSED, type HostRequestName, type HostNotificationName, type RunnerRequestName, type MethodName, type ParamsOf, type ResultOf } from './wire.js'
 import { validate } from './validate.js'
+import { VERSION } from './version.js'
 
 export type RequestContext = { signal: AbortSignal; id: number }
 export type HostHandlers = { [M in RunnerRequestName]?: (params: ParamsOf<M>, context: RequestContext) => ResultOf<M> | (keyof ResultOf<M> extends never ? void : never) | Promise<ResultOf<M> | (keyof ResultOf<M> extends never ? void : never)> }
@@ -19,6 +21,7 @@ export interface ConnectOptions extends Omit<RunOptions, 'prompt' | 'stdin' | 'i
   onElicitation?: HostHandlers['elicitation/request']
 }
 export type RequestOptions = { signal?: AbortSignal; deadlineMs?: number | null }
+export type PromptOptions = { signal?: AbortSignal }
 type Pending = { method: HostRequestName; resolve: (value: unknown) => void; reject: (error: Error) => void; cleanup: () => void }
 
 export class MercurySession implements AsyncIterable<StreamRow> {
@@ -51,14 +54,16 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     this.#handlers = { ...options.handlers }
     if (options.onPermissionRequest) this.#handlers['permission/request'] = options.onPermissionRequest
     if (options.onElicitation) this.#handlers['elicitation/request'] = options.onElicitation
+    const cwdProblem = missingCwd(options.cwd)
     this.child = spawn(argv.command, argv.args, { cwd: options.cwd, env: options.env ?? process.env, stdio: 'pipe', windowsHide: true })
+    track(this.child)
     this.child.stderr!.setEncoding('utf8').on('data', (s: string) => { this.stderr += s })
     this.child.stdin!.on('error', e => this.#fail(new MercuryError(e.message, null, { cause: e })))
-    this.child.on('error', e => this.#fail(new MercurySpawnError(argv.command, e)))
+    this.child.on('error', e => this.#fail(new MercurySpawnError(argv.command, cwdProblem ?? e)))
     readLines(this.child.stdout!, line => { if (!this.#closed) void this.#read(line).catch(e => this.#fail(e)) }, error => this.#fail(error))
     this.exit = new Promise(resolve => this.child.once('close', (code, signal) => {
       const exit = { code, signal, stderr: this.stderr }
-      this.#fail(new MercuryExitError(exit), this.#closing)
+      this.#fail(code === 2 && (this.initialized as ResultOf<'initialize'> | undefined) === undefined ? new MercuryUsageError(exit, 'runner') : new MercuryExitError(exit, 'runner'), this.#closing)
       clearTimeout(this.#stopTimer)
       resolve(exit)
     }))
@@ -240,14 +245,17 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   resumeAgent(agent_id: string, note?: string) { return this.request('agent/resume', { agent_id, note }) }
   claim(params: ParamsOf<'session/claim'>) { return this.request('session/claim', params) }
 
-  async prompt(content: PromptRow['content']): Promise<OutcomeRow> {
+  async prompt(content: PromptRow['content'], options: PromptOptions = {}): Promise<OutcomeRow> {
     if (this.#prompting) throw new MercuryError('prompt already pending; use sendPrompt for mid-turn input', null)
+    if (options.signal?.aborted) throw new MercuryError('prompt: cancelled', null)
     this.#prompting = true
     const id = randomUUID()
     let done!: (row: OutcomeRow) => void
     let fail!: (error: Error) => void
     const result = new Promise<OutcomeRow>((resolve, reject) => { done = row => { if (row.parent_call_id === undefined && (this.#correlatedTurns ? this.#promptTurns.get(id) === row.turn_id : this.#promptTurns.keys().next().value === id)) resolve(row) }; fail = reject })
     result.catch(() => undefined)
+    const abort = () => fail(new MercuryError('prompt: cancelled', null))
+    options.signal?.addEventListener('abort', abort, { once: true })
     this.#promptReject = fail
     this.on('outcome', done)
     try {
@@ -256,15 +264,12 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       const row = await result
       if (row.status === 'refused') throw new MercuryRefusal(row, null)
       return row
-    } finally { this.off('outcome', done); this.#promptReject = undefined; this.#prompting = false }
+    } finally { options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#prompting = false }
   }
 
-  async close(): Promise<void> {
+  close(): Promise<void> {
     this.#closing = true
-    this.child.stdin!.end()
-    const terminate = setTimeout(() => this.child.kill('SIGTERM'), 5000)
-    const kill = setTimeout(() => this.child.kill('SIGKILL'), 10000)
-    try { await this.exit } finally { clearTimeout(terminate); clearTimeout(kill) }
+    return endChild(this.child, this.exit)
   }
   async [Symbol.asyncDispose](): Promise<void> { await this.close() }
 }
@@ -273,7 +278,7 @@ export async function connect(options: ConnectOptions = {}): Promise<MercurySess
   const session = new MercurySession(options)
   try {
     session.initialized = await session.request('initialize', {
-      protocol: RUNNER_PROTOCOL, host: options.host ?? { name: 'mercury-cli-sdk', version: '0.1.0' },
+      protocol: RUNNER_PROTOCOL, host: options.host ?? { name: 'mercury-cli-sdk', version: VERSION },
       capabilities: { holds_asks: Boolean(options.onPermissionRequest || options.handlers?.['permission/request']), elicitation: Boolean(options.onElicitation || options.handlers?.['elicitation/request']), partial_rows: options.partial ?? false, ...options.capabilities },
     })
     return session

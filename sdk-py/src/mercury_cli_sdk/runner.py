@@ -6,12 +6,13 @@ import signal
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass, replace
-from typing import Any, Callable, AsyncIterator, cast
-from .client import RunOptions, argv_of
-from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryWireError, RunExit
-from .generated import METHODS, RUNNER_PROTOCOL, RPC_REFUSED, MAX_LINE_BYTES, InputRow, OutcomeRow, InitializeResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
+from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, cast
+from .client import Listener, RunOptions, argv_of, end_child, spawn, untrack
+from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
+from .generated import METHODS, RUNNER_PROTOCOL, RPC_REFUSED, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .framing import read_lines
 from .parse import Issue, StreamRow, row_of, input_row_of, validate
+from .version import __version__
 
 
 class _DefaultTimeout: pass
@@ -20,42 +21,50 @@ _DEFAULT_TIMEOUT = _DefaultTimeout()
 
 @dataclass
 class RequestContext:
+    """Handed to every host handler: the request id, an event set when the runner cancels the ask, and its reason."""
     id: int
     cancelled: asyncio.Event
     reason: str | None = None
 
 
+HostHandler = Callable[[Any, RequestContext], Any]
+PermissionHandler = Callable[[PermissionRequestParams, RequestContext], PermissionRequestResult | Awaitable[PermissionRequestResult]]
+ElicitationHandler = Callable[[ElicitationRequestParams, RequestContext], ElicitationRequestResult | Awaitable[ElicitationRequestResult]]
+
+
 class MercurySession:
-    def __init__(self, child: asyncio.subprocess.Process, handlers: dict[str, Callable]):
+    """One ``mercury runner`` process hosted over JSON-RPC: prompts go in, rows stream out, asks are answered by your handlers."""
+    def __init__(self, child: asyncio.subprocess.Process, handlers: Mapping[str, HostHandler]):
         self.child = child
         assert child.stdin is not None and child.stdout is not None and child.stderr is not None
         self._stdin = child.stdin
         self._stdout = child.stdout
         self._stderr = child.stderr
-        self.handlers = handlers
+        self.handlers: dict[str, HostHandler] = dict(handlers)
         self.initialized: InitializeResult
         self.rows: list[StreamRow] = []
         self.stderr = ''
         self.exit: asyncio.Future[RunExit] = asyncio.get_running_loop().create_future()
         self._closed: Exception | None = None
-        self._pending: dict[int, tuple[str, asyncio.Future]] = {}
-        self._asks: dict[int, tuple[RequestContext, asyncio.Task]] = {}
-        self._listeners: dict[str, list[Callable]] = {}
-        self._queue: asyncio.Queue = asyncio.Queue()
+        self._pending: dict[int, tuple[str, asyncio.Future[Any]]] = {}
+        self._asks: dict[int, tuple[RequestContext, asyncio.Task[None]]] = {}
+        self._listeners: dict[str, list[Listener]] = {}
+        self._queue: asyncio.Queue[StreamRow | None] = asyncio.Queue()
         self._next = 0
         self._prompting = False
         self._prompt_turns: dict[str, str | None] = {}
         self._correlated_turns = False
         self._closing = False
         self._normal_end = False
-        self._prompt_error: Callable | None = None
+        self._prompt_error: Callable[[Exception], None] | None = None
         self._reader = asyncio.create_task(self._read())
 
-    def on(self, type: str, listener: Callable) -> MercurySession:
+    def on(self, type: str, listener: Listener) -> MercurySession:
+        """Listen for one row type, ``'row'`` (every row), ``'notification'`` or ``'error'``."""
         self._listeners.setdefault(type, []).append(listener)
         return self
 
-    def off(self, type: str, listener: Callable) -> MercurySession:
+    def off(self, type: str, listener: Listener) -> MercurySession:
         if listener in self._listeners.get(type, []): self._listeners[type].remove(listener)
         return self
 
@@ -71,6 +80,7 @@ class MercurySession:
         except OSError as error: raise MercuryError(str(error), self.exit.result() if self.exit.done() else None) from error
 
     async def request(self, method: str, params: Any = None, *, timeout: float | None | _DefaultTimeout = _DEFAULT_TIMEOUT) -> Any:
+        """Send one host request and await its validated result; ``timeout`` in seconds overrides the method's declared deadline (``None`` disables it)."""
         spec = METHODS.get(method)
         if not spec or spec['kind'] != 'request' or spec['from'] == 'runner': raise MercuryError(f'not a host request: {method}')
         if self._closed: raise self._closed
@@ -82,7 +92,7 @@ class MercurySession:
         if issues: raise MercuryWireError(json.dumps(params), 'invalid', method, issues)
         self._next += 1
         id = self._next
-        future = asyncio.get_running_loop().create_future()
+        future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
         self._pending[id] = (method, future)
         limit = (None if spec['deadlineMs'] is None else spec['deadlineMs'] / 1000) if isinstance(timeout, _DefaultTimeout) else timeout
         try:
@@ -97,6 +107,7 @@ class MercurySession:
             self._pending.pop(id, None)
 
     async def notify(self, method: str, params: Any = None) -> None:
+        """Send one host notification after validating its params."""
         spec = METHODS.get(method)
         if not spec or spec['kind'] != 'notification' or spec['from'] == 'runner': raise MercuryError(f'not a host notification: {method}')
         params = {} if params is None else params
@@ -104,7 +115,7 @@ class MercurySession:
         if issues: raise MercuryWireError(json.dumps(params), 'invalid', method, issues)
         await self._write({'jsonrpc': '2.0', 'method': method, 'params': params})
 
-    async def _answer(self, message: dict, context: RequestContext) -> None:
+    async def _answer(self, message: dict[str, Any], context: RequestContext) -> None:
         id, method = message['id'], message['method']
         try:
             spec = METHODS.get(method)
@@ -144,7 +155,7 @@ class MercurySession:
                 if not isinstance(message, dict) or message.get('jsonrpc') != '2.0': raise MercuryWireError(line, 'invalid')
                 method, id = message.get('method'), message.get('id')
                 if 'method' in message and not isinstance(method, str): raise MercuryWireError(line, 'invalid')
-                params: dict = message['params'] if isinstance(message.get('params'), dict) else {}
+                params: dict[str, Any] = message['params'] if isinstance(message.get('params'), dict) else {}
                 if method is None:
                     if id is None and 'id' in message and 'result' not in message and isinstance(message.get('error'), dict):
                         error = message['error']
@@ -198,11 +209,13 @@ class MercurySession:
                 else: self._emit('notification', {'method': method, 'params': message.get('params')})
         except Exception as error:
             self._fail(error if isinstance(error, MercuryError) else MercuryWireError('', 'invalid', issues=[Issue('', str(error))]))
-            if self.child.returncode is None: self.child.terminate()
+            self._stdin.close()
+            await end_child(self.child)
         code = await self.child.wait()
+        untrack(self.child)
         self.stderr = (await stderr).decode('utf-8', errors='replace')
         exit = RunExit(code if code >= 0 else None, signal.Signals(-code).name if code < 0 else None, self.stderr)
-        self._fail(MercuryExitError(exit), self._closing)
+        self._fail(MercuryUsageError(exit, 'runner') if code == 2 and not hasattr(self, 'initialized') else MercuryExitError(exit, 'runner'), self._closing)
         self.exit.set_result(exit)
 
     def _fail(self, error: Exception, graceful: bool = False) -> None:
@@ -219,6 +232,7 @@ class MercurySession:
         if not graceful: self._emit('error', error)
 
     async def send(self, row: InputRow) -> QueueAddResult:
+        """Queue one input row (``queue/add``); a prompt row is given an id so its outcome can be matched."""
         if row['type'] != 'prompt': return await self.request('queue/add', row)
         id = row.get('id') or str(uuid.uuid4())
         self._prompt_turns[id] = None
@@ -240,10 +254,11 @@ class MercurySession:
         return await self.send(cast(InputRow, {**options, 'type': 'note', 'to': to, 'content': content}))
 
     async def prompt(self, content: Any) -> OutcomeRow:
+        """Queue a prompt and await the outcome of the turn it starts; cancelling the await stops waiting, not the turn."""
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
         self._prompting = True
         id = str(uuid.uuid4())
-        future = asyncio.get_running_loop().create_future()
+        future: asyncio.Future[OutcomeRow] = asyncio.get_running_loop().create_future()
         def done(row: OutcomeRow) -> None:
             matches = self._prompt_turns.get(id) == row['turn_id'] if self._correlated_turns else next(iter(self._prompt_turns), None) == id
             if matches and 'parent_call_id' not in row and not future.done(): future.set_result(row)
@@ -276,6 +291,7 @@ class MercurySession:
     async def claim(self, **params: Any) -> SessionClaimResult: return await self.request('session/claim', params)
 
     async def close(self) -> None:
+        """End stdin and wait for the runner to exit; SIGTERM after five seconds, SIGKILL after ten."""
         self._closing = True
         self._stdin.close()
         try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
@@ -300,20 +316,20 @@ class MercurySession:
         return row
 
 
-async def connect(*, on_permission_request: Callable | None = None, on_elicitation: Callable | None = None, handlers: dict[str, Callable] | None = None, capabilities: dict | None = None, host: dict | None = None, options: RunOptions | None = None, **kwargs: Any) -> MercurySession:
+async def connect(*, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, options: RunOptions | None = None, **kwargs: Any) -> MercurySession:
+    """Start ``mercury runner`` and complete ``initialize``; the keyword arguments are ``RunOptions`` fields."""
     opts = replace(options, **kwargs) if options is not None else RunOptions(**kwargs)
     args = argv_of(replace(opts, partial=False, prompt=None, input=None, stdin=None))
     i = (1 if isinstance(opts.mercury, str) else len(opts.mercury)) + (2 if opts.project is not None else 0)
     args[i:i + 3] = ['runner']
-    callbacks = dict(handlers or {})
+    callbacks: dict[str, HostHandler] = dict(handlers or {})
     if on_permission_request: callbacks['permission/request'] = on_permission_request
     if on_elicitation: callbacks['elicitation/request'] = on_elicitation
-    try:
-        child = await asyncio.create_subprocess_exec(*args, cwd=opts.cwd, env=opts.env, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, limit=MAX_LINE_BYTES)
-    except OSError as error: raise MercurySpawnError(args[0], error) from error
+    child = await spawn(args, opts)
     session = MercurySession(child, callbacks)
     try:
-        session.initialized = await session.request('initialize', {'protocol': RUNNER_PROTOCOL, 'host': host or {'name': 'mercury-cli-sdk', 'version': '0.1.0'}, 'capabilities': {'holds_asks': 'permission/request' in callbacks, 'elicitation': 'elicitation/request' in callbacks, 'partial_rows': opts.partial, **(capabilities or {})}})
+        declared: InitializeParamsCapabilities = {'holds_asks': 'permission/request' in callbacks, 'elicitation': 'elicitation/request' in callbacks, 'partial_rows': opts.partial}
+        session.initialized = await session.request('initialize', {'protocol': RUNNER_PROTOCOL, 'host': host or {'name': 'mercury-cli-sdk', 'version': __version__}, 'capabilities': {**declared, **(capabilities or {})}})
         return session
     except BaseException:
         await session.close()

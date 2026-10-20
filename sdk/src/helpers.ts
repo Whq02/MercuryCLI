@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto'
 import type { EffortLevel, PermissionMode } from './door.js'
 import type { JsonSchema } from './rows.js'
 import { validate } from './validate.js'
+import { VERSION } from './version.js'
 
 export type AgentDefinition = { description: string; prompt: string; model?: string; effort?: EffortLevel | number; tools?: string[]; disallowedTools?: string[]; permissionMode?: PermissionMode; instructionProfile?: 'auto' | 'native'; mcpServers?: unknown[]; hooks?: unknown; maxTurns?: number; skills?: string[]; initialPrompt?: string; standingRule?: string; memory?: 'user' | 'project' | 'local'; background?: boolean; isolation?: 'worktree' }
 export function defineAgent(definition: AgentDefinition): AgentDefinition {
@@ -32,7 +33,7 @@ export async function serveTools(tools: readonly ToolDefinition<any>[], name = '
       id = message.id
       if (id === undefined) { res.writeHead(202).end(); return }
       let result: unknown
-      if (message.method === 'initialize') result = { protocolVersion: message.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name, version: '0.1.0' } }
+      if (message.method === 'initialize') result = { protocolVersion: message.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name, version: VERSION } }
       else if (message.method === 'ping') result = {}
       else if (message.method === 'tools/list') result = { tools: tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) }
       else if (message.method === 'tools/call') {

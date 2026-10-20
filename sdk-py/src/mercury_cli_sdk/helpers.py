@@ -6,12 +6,14 @@ import secrets
 import threading
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Callable, NotRequired, TypedDict
+from typing import Any, Awaitable, Callable, Mapping, NotRequired, TypedDict
 from .parse import validate
 from .generated import PermissionMode, EffortLevel
+from .version import __version__
 
 
 class AgentDefinition(TypedDict):
+    """An inline agent for ``agent_defs``: the same keys as an agent definition file."""
     description: str
     prompt: str
     model: NotRequired[str]
@@ -32,26 +34,39 @@ class AgentDefinition(TypedDict):
 
 
 def define_agent(definition: AgentDefinition) -> AgentDefinition:
+    """Check an inline agent definition has a description and a prompt and return a copy."""
     if not definition['description'].strip() or not definition['prompt'].strip(): raise ValueError('an agent needs description and prompt')
     return definition.copy()
 
 
+class ToolResult(TypedDict):
+    """What an inline tool returns when it needs more than a string: MCP text content and an optional error flag."""
+    content: list[dict[str, Any]]
+    isError: NotRequired[bool]
+
+
+ToolExecute = Callable[[dict[str, Any]], str | ToolResult | Awaitable[str | ToolResult]]
+
+
 @dataclass(frozen=True)
 class ToolDefinition:
+    """An inline tool: its MCP name, description, JSON Schema for the input, and the function that runs it."""
     name: str
     description: str
-    input_schema: dict
-    execute: Callable
+    input_schema: dict[str, Any]
+    execute: ToolExecute
 
 
-def define_tool(name: str, description: str, input_schema: dict, execute: Callable) -> ToolDefinition:
+def define_tool(name: str, description: str, input_schema: dict[str, Any], execute: ToolExecute) -> ToolDefinition:
+    """Build a ``ToolDefinition``; ``execute`` may be sync or async and return a string or a ``ToolResult``."""
     if not name.strip(): raise ValueError('a tool needs a name')
     return ToolDefinition(name, description, input_schema, execute)
 
 
 @dataclass
 class ToolServer:
-    config: dict
+    """A loopback MCP server for inline tools; pass ``mcp`` to ``run(mcp=[...])`` and ``close()`` it when done."""
+    config: dict[str, Any]
     mcp: str
     _server: ThreadingHTTPServer
     _thread: threading.Thread
@@ -66,11 +81,12 @@ class ToolServer:
 
 
 async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> ToolServer:
+    """Serve inline tools over bearer-authenticated loopback MCP HTTP; the event loop must keep running while tools execute."""
     if len({t.name for t in tools}) != len(tools): raise ValueError('duplicate tool name')
     token = secrets.token_hex(32)
     loop = asyncio.get_running_loop()
 
-    async def execute(tool: ToolDefinition, params: dict) -> Any:
+    async def execute(tool: ToolDefinition, params: dict[str, Any]) -> Any:
         try:
             value = tool.execute(params)
             if inspect.isawaitable(value): value = await value
@@ -93,7 +109,7 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
                 if id is None:
                     self.send_response(202); self.end_headers(); return
                 method, params = message['method'], message.get('params', {})
-                if method == 'initialize': result = {'protocolVersion': params['protocolVersion'], 'capabilities': {'tools': {}}, 'serverInfo': {'name': name, 'version': '0.1.0'}}
+                if method == 'initialize': result = {'protocolVersion': params['protocolVersion'], 'capabilities': {'tools': {}}, 'serverInfo': {'name': name, 'version': __version__}}
                 elif method == 'ping': result = {}
                 elif method == 'tools/list': result = {'tools': [{'name': t.name, 'description': t.description, 'inputSchema': t.input_schema} for t in tools]}
                 elif method == 'tools/call':
@@ -109,7 +125,7 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
                 self.reply({'jsonrpc': '2.0', 'id': id, 'result': result})
             except Exception as error:
                 self.reply({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32602, 'message': str(error)}})
-        def reply(self, value: dict) -> None:
+        def reply(self, value: Mapping[str, Any]) -> None:
             data = json.dumps(value).encode()
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -121,5 +137,5 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
     server.daemon_threads = True
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    config = {'type': 'http', 'url': f'http://127.0.0.1:{server.server_port}', 'headers': {'Authorization': f'Bearer {token}'}}
+    config: dict[str, Any] = {'type': 'http', 'url': f'http://127.0.0.1:{server.server_port}', 'headers': {'Authorization': f'Bearer {token}'}}
     return ToolServer(config, json.dumps({'mcpServers': {name: config}}), server, thread)

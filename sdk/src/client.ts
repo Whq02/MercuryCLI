@@ -1,5 +1,7 @@
 /// <reference types="node" preserve="true" />
+/// <reference lib="esnext.disposable" preserve="true" />
 import { readLines } from './framing.js'
+import { endChild, missingCwd, track } from './lifecycle.js'
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { EffortLevel, PermissionMode } from './door.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
@@ -166,12 +168,14 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
     })
     this.outcome.catch(() => undefined)
     this.session.catch(() => undefined)
+    const cwdProblem = missingCwd(options.cwd)
     this.child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env ?? process.env,
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     })
+    track(this.child)
     this.child.stderr!.setEncoding('utf8')
     readLines(this.child.stdout!, line => this.#line(line), error => this.#fatal(error))
     this.child.stderr!.on('data', (chunk: string) => {
@@ -179,7 +183,7 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
     })
     this.child.stdin!.on('error', () => undefined)
     this.child.on('error', (error: unknown) => {
-      this.#spawnFailure = error
+      this.#spawnFailure = cwdProblem ?? error
       if (this.child.pid === undefined) this.#settle(null, null)
     })
     this.child.on('close', (code, signal) => this.#settle(code, signal))
@@ -237,6 +241,9 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
   kill(): boolean {
     return this.child.kill('SIGKILL')
   }
+
+  close(): Promise<void> { return endChild(this.child, this.exit) }
+  async [Symbol.asyncDispose](): Promise<void> { await this.close() }
 
   get error(): MercuryError | null {
     return this.#error
