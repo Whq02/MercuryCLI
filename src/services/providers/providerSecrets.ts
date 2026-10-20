@@ -193,6 +193,8 @@ type StoredKeyField =
   | 'tavilyApiKey'
   | 'typesafeApiKey'
   | 'runpodApiKey'
+  | 'vastApiKey'
+  | 'lambdaApiKey'
   | 'mistralApiKey'
   | 'minimaxApiKey'
   | 'togetherApiKey'
@@ -503,4 +505,20 @@ export function readStoredRunpodApiKey(): string | undefined {
 
 export function writeStoredRunpodApiKey(key: string | null): void {
   writeStoredKey('runpodApiKey', key)
+}
+
+export function readStoredVastApiKey(): string | undefined {
+  return readStoredKey('vastApiKey')
+}
+
+export function writeStoredVastApiKey(key: string | null): void {
+  writeStoredKey('vastApiKey', key)
+}
+
+export function readStoredLambdaApiKey(): string | undefined {
+  return readStoredKey('lambdaApiKey')
+}
+
+export function writeStoredLambdaApiKey(key: string | null): void {
+  writeStoredKey('lambdaApiKey', key)
 }
