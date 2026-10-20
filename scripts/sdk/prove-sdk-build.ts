@@ -36,7 +36,7 @@ try {
 } catch (error) {
   if (error instanceof MercuryRefusal) console.log(error.outcome?.status, error.errorClass, error.detail, error.code)
 } finally { await session.close() }
-const tools = await serveTools([defineTool({ name: 'greeting', description: 'Return a greeting', inputSchema: { type: 'object', properties: {} }, execute: () => 'Hello' })])
+const tools = await serveTools([defineTool({ name: 'greeting', description: 'Return a greeting', inputSchema: { type: 'object', properties: {} }, execute: () => 'Hello' }), defineTool({ name: 'echo', description: 'Echo', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, execute: (input: { text: string }) => ({ content: [{ type: 'text', text: input.text }] }) })])
 try {
   const agent = defineAgent({ description: 'Reviewer', prompt: 'Review.', tools: ['Read'] })
   console.log(run({ prompt: 'Review', agent: 'reviewer', agentDefs: { reviewer: agent }, mcp: [tools.mcp] }).args)

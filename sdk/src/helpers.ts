@@ -12,13 +12,13 @@ export function defineAgent(definition: AgentDefinition): AgentDefinition {
   return { ...definition }
 }
 export type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean }
-export type ToolDefinition<T = Record<string, unknown>> = { name: string; description: string; inputSchema: JsonSchema; execute: (input: T) => ToolResult | string | Promise<ToolResult | string> }
+export type ToolDefinition<T = Record<string, unknown>> = { name: string; description: string; inputSchema: JsonSchema; execute(input: T): ToolResult | string | Promise<ToolResult | string> }
 export function defineTool<T = Record<string, unknown>>(definition: ToolDefinition<T>): ToolDefinition<T> {
   if (!definition.name.trim()) throw new Error('a tool needs a name')
   return definition
 }
 
-export async function serveTools(tools: readonly ToolDefinition<any>[], name = 'sdk-tools') {
+export async function serveTools(tools: readonly ToolDefinition[], name = 'sdk-tools') {
   if (new Set(tools.map(t => t.name)).size !== tools.length) throw new Error('duplicate tool name')
   const token = randomBytes(32).toString('hex')
   const server = createServer(async (req, res) => {

@@ -78,7 +78,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     this.#listeners.get(type)!.add(listener)
     return this
   }
-  off(type: string, listener: (value: any) => void): this { this.#listeners.get(type)?.delete(listener); return this }
+  off(type: string, listener: (value: never) => void): this { this.#listeners.get(type)?.delete(listener as (value: unknown) => void); return this }
   #emit(type: string, value: unknown): void { for (const fn of this.#listeners.get(type) ?? []) fn(value) }
   #write(value: unknown): void {
     if (this.#closed) throw this.#closed
