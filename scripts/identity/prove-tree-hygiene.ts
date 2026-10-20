@@ -67,7 +67,7 @@ const slugMatch = repoUrl.match(/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]
 check('§2 package.json repository.url names a GitHub repository', slugMatch !== null, repoUrl)
 const owner = slugMatch?.[1] ?? ''
 const repo = slugMatch?.[2] ?? ''
-const published = new Set([repo.toLowerCase(), `homebrew-${repo.toLowerCase()}`, 'homebrew-mercury', 'mercury', 'mercury-llamacpp'])
+const published = new Set([repo.toLowerCase(), `homebrew-${repo.toLowerCase()}`, 'homebrew-mercury', 'mercury', 'mercury-llamacpp', 'packages'])
 const repoRefRe = owner ? new RegExp('(?<![A-Za-z0-9_.-])' + escapeRe(owner) + '/([A-Za-z0-9_.-]+)', 'gi') : null
 const privateRepoHits = (paths: ReadonlyArray<string>, contentOf: (p: string) => string | null): string[] => {
   const hits: string[] = []

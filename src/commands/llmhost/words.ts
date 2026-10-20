@@ -106,9 +106,13 @@ export function hostReplyWords(model: string, reply: string, elapsedMs: number, 
   return `${model} · ${JSON.stringify(reply)} · ${seconds.toFixed(2)} s${outputTokens === undefined ? '' : ` · ${outputTokens} output tokens · ${(outputTokens / seconds).toFixed(1)} tokens/s (whole turn)`}`
 }
 
+function prebuiltEngineImage(engine: string | undefined, image: string | undefined): boolean {
+  return engine === 'llamacpp' && /^ghcr\.io\/whq02\/mercury-llamacpp[:@]/.test(image ?? '')
+}
+
 export function hostSetupEstimate(recipe: { engine?: string; pythonInstall?: string; install?: string; image?: string; diskGb: number; weightsGb?: number }, kept?: { check: string }): string {
   const size = recipe.weightsGb
-  const engineMinutes = recipe.engine === 'llamacpp' && /^ghcr\.io\/whq02\/mercury-llamacpp[:@]/.test(recipe.image ?? '') ? 1 : recipe.engine === 'llamacpp' || recipe.pythonInstall ? 10 : 5
+  const engineMinutes = prebuiltEngineImage(recipe.engine, recipe.image) ? 1 : recipe.engine === 'llamacpp' || recipe.pythonInstall ? 10 : 5
   const engine = engineMinutes === 1 ? 'Engine from image ~1 min · no engine build' : recipe.engine === 'llamacpp' ? 'builds llama.cpp ~10 min' : recipe.pythonInstall ? 'installs SGLang ~10 min' : 'starts the engine ~5 min'
   if (size === undefined || !Number.isFinite(size) || size <= 0) return `${engine} · downloads weights (size unknown) · loads model (time unknown). Total depends on the download; ${recipe.diskGb} GB is disk space, not download size`
   const fast = Math.max(5, Math.ceil(size / 60 / 5) * 5)

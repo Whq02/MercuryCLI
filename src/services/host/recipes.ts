@@ -178,8 +178,6 @@ export function formatHostOfferLabel(recipe: HostRecipe, detail: string): string
   return `${recipe.label} · ${detail} · ${recipe.verified.by}`
 }
 
-export const prebuiltEngine = (recipe: HostRecipe): boolean => recipe.engine === 'llamacpp' && /^ghcr\.io\/whq02\/mercury-llamacpp[:@]/.test(recipe.image)
-
 export function recipeFits(recipe: HostRecipe, name: string, memoryGb: number, count: number, nodes = 1): boolean {
   const hardware = name.toUpperCase().replaceAll('NVIDIA', '').trim()
   const matches = recipe.gpu === 'RTX PRO 6000' ? hardware.includes('RTX PRO 6000') && hardware.includes('BLACKWELL') : new RegExp('(^|[^A-Z0-9])' + recipe.gpu + '([^A-Z0-9]|$)').test(hardware)
