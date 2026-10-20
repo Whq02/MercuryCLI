@@ -66,8 +66,15 @@ try {
     const path = join(frames, name + '.json'); writeFileSync(path, JSON.stringify({ grid, cols, rows })); images.push(gridToPng(path, join(frames, name + '.png')))
   }
   const choose = async (text: string) => {
-    for (let i = 0; i < 30; i++) { const before = m.lines().find(line => line.includes('› ')) ?? ''; if (before.includes(text)) { m.push(KEY.enter); return } m.push(KEY.down); assert.ok(await waitFor(() => (m.lines().find(line => line.includes('› ')) ?? '') !== before, 3000), 'selection moves toward ' + text + '\n' + m.screen()) }
-    throw new Error('choice absent: ' + text)
+    let before: string | undefined
+    let moves = 0
+    assert.ok(await waitFor(() => {
+      const selected = m.lines().find(line => line.includes('› ')) ?? ''
+      if (selected.includes(text)) return true
+      if (selected !== before && moves < 30) { before = selected; moves++; m.push(KEY.down) }
+      return false
+    }, 20000), 'selection reaches ' + text + '\n' + m.screen())
+    m.push(KEY.enter)
   }
   const close = async () => { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
   await heading('Where should the model run?'); await until('One of my computers'); capture('01-four-doors'); await choose('One of my computers')

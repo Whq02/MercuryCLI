@@ -74,12 +74,14 @@ try {
       await waitFor(() => attempts > before || dispatched.length > 0, 5000)
       check(cols + ': Enter retries the catalogue rather than /logins', attempts > before && dispatched.length === 0)
       await capture('ghost-retry')
-      for (let n = 0; n < 8 && !m.screen().includes('│ │ Locked GLM'); n++) {
-        const before = m.screen()
-        m.push(KEY.down)
-        assert.ok(await waitFor(() => m.screen() !== before, 3000), m.screen())
-      }
-      assert.ok(m.screen().includes('│ │ Locked GLM'), m.screen())
+      let previous: string | undefined
+      let moves = 0
+      assert.ok(await waitFor(() => {
+        const selected = m.lines().find(line => line.includes('│ │ ')) ?? ''
+        if (selected.includes('Locked GLM')) return true
+        if (selected !== previous && moves < 8) { previous = selected; moves++; m.push(KEY.down) }
+        return false
+      }, 6000), m.screen())
       await capture('needs-key')
       m.push(KEY.enter)
       await waitFor(() => dispatched.some(row => row.options?.nextInput?.includes('compat/locked')), 5000)
@@ -117,13 +119,15 @@ try {
       const m = await mountOffscreen(React.createElement(AppStoreContext.Provider, { value: store }, React.createElement(ThemeProvider, {}, React.createElement(Box, { width: cols, height: 40 }, React.createElement(SettingsPopupSlot)))), cols, 40)
       const until = async (text: string) => assert.ok(await waitFor(() => m.screen().includes(text), 6000), m.screen())
       const choose = async (text: string) => {
-        for (let n = 0; n < 25; n++) {
+        let previous: string | undefined
+        let moves = 0
+        assert.ok(await waitFor(() => {
           const selected = m.lines().find(line => line.includes('› ')) ?? ''
-          if (selected.includes(text)) { m.push(KEY.enter); return }
-          m.push(KEY.down)
-          assert.ok(await waitFor(() => (m.lines().find(line => line.includes('› ')) ?? '') !== selected, 3000), m.screen())
-        }
-        throw new Error('Choice not found: ' + text + '\n' + m.screen())
+          if (selected.includes(text)) return true
+          if (selected !== previous && moves < 25) { previous = selected; moves++; m.push(KEY.down) }
+          return false
+        }, 6000), 'selection reaches ' + text + '\n' + m.screen())
+        m.push(KEY.enter)
       }
       try {
         await until('Which model?'); await choose('Pods I’m paying for'); await until(podId); await choose(podId); await until('Pod controls'); await choose('Terminate'); await until('Confirm terminate')
