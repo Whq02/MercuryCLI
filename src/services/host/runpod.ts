@@ -145,5 +145,5 @@ export class RunpodClient {
 const volumeId = z.string().regex(/^[A-Za-z0-9_-]+$/)
 const networkVolumeSchema = z.object({ id: volumeId, name: z.string(), size: z.number().int().positive(), dataCenter: z.string(), type: z.string() })
 const globalVolumeSchema = z.object({ id: volumeId, name: z.string(), createdAt: z.string() })
-export interface HostVolumeMount { id: string; kind: 'network' | 'global'; dataCenter?: string }
+interface HostVolumeMount { id: string; kind: 'network' | 'global'; dataCenter?: string }
 export interface HostVolume extends HostVolumeMount { name: string; size?: number; type?: string; createdAt?: string }

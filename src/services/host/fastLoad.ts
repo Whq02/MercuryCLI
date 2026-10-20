@@ -12,7 +12,7 @@ import { createKeptVolume, deleteKeptVolume, fullCheckMinutes, keptDiskPrice, ke
 export const FAST_LOAD_DOOR = 'Fast-load (keep weights near the GPU)'
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
-export interface FastLoadOptions { runner: HostRunner; sessionId: string; apiBaseUrl?: string; startJob?: (record: HostRecord) => void }
+interface FastLoadOptions { runner: HostRunner; sessionId: string; apiBaseUrl?: string; startJob?: (record: HostRecord) => void }
 const cancelled = (): LlmHostResult => ({ ok: true, words: 'Fast-load closed. Existing weights disks keep billing until deleted.' })
 export const fastLoadRecipes = (): HostRecipe[] => [...new Map(currentHostRecipes().map(row => [volumeModel(row), row])).values()]
 export function fastLoadState(recipe: HostRecipe): string {

@@ -8,11 +8,11 @@ import { fullCheckMinutes, gigabytes, keptDiskPrice, readKeptVolume, volumePrice
 import { sshArguments, type HostRunner, type SshTarget } from './ssh.js'
 import { RunpodHttpError, type RunpodClient } from './runpod.js'
 
-export interface WeightManifest { model: string; include: string; revision: string; files: { path: string; size: number; sha256?: string; git?: string }[] }
-export interface WeightScriptOptions { fully?: boolean; sampleManifestSha256?: string; progressPath?: string; fullWords?: string; deadlineSeconds?: number; stallSeconds?: number; stallBytes?: number; stallPollSeconds?: number; netDevPath?: string }
+interface WeightManifest { model: string; include: string; revision: string; files: { path: string; size: number; sha256?: string; git?: string }[] }
+interface WeightScriptOptions { fully?: boolean; sampleManifestSha256?: string; progressPath?: string; fullWords?: string; deadlineSeconds?: number; stallSeconds?: number; stallBytes?: number; stallPollSeconds?: number; netDevPath?: string }
 const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
-export const KEPT_MISMATCH = 'Kept weights failed pinned SHA256/sizes verification'
-export const keptStall = { seconds: 600, bytes: 1e9, pollSeconds: 30 }
+const KEPT_MISMATCH = 'Kept weights failed pinned SHA256/sizes verification'
+const keptStall = { seconds: 600, bytes: 1e9, pollSeconds: 30 }
 export const keptStallWords = 'under ' + keptStall.bytes / 1e9 + ' GB in ' + keptStall.seconds / 60 + ' min'
 export const keptDownloadMinutes = (recipe: HostRecipe): number => 30 + Math.ceil(recipe.weightsGb / 6)
 const keptRunMs = (recipe: HostRecipe): number => (90 + Math.ceil(recipe.weightsGb / 4)) * 60_000
