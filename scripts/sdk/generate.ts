@@ -374,7 +374,7 @@ wire.push('}', 'export type MethodName = keyof MethodParams', 'export type Param
 for (const [alias, side, kind] of [['HostRequestName', 'host', 'request'], ['HostNotificationName', 'host', 'notification'], ['RunnerRequestName', 'runner', 'request'], ['RunnerNotificationName', 'runner', 'notification']]) wire.push(`export type ${alias} = ${Object.entries(methodSchemas).filter(([, s]) => (s.from === side || s.from === 'both') && s.kind === kind).map(([n]) => JSON.stringify(n)).join(' | ')}`)
 wire.push('export type MethodSchema = { from: string; kind: string; scope: string; deadlineMs: number | null; capability?: string; params: JsonSchema; result: JsonSchema }')
 wire.push(`export const METHODS: Record<MethodName, MethodSchema> = ${JSON.stringify(methodSchemas, null, 2)}`, '')
-const py = ['from __future__ import annotations', 'import json', 'from typing import Any, Literal, NotRequired, TypeAlias, TypedDict', '']
+const py = ['from __future__ import annotations', 'import json', 'from typing import Any, Literal, NotRequired, TypeAlias, TypedDict, overload', '']
 py.push(`GENERATED = ${JSON.stringify(MARK)}`, `GENERATED_BY = ${JSON.stringify(GENERATOR)}`, `GENERATED_FROM = ${JSON.stringify([VOCABULARY, WIRE, ERRORS, PERMISSIONS, EFFORT, MAIN])}`, '')
 const pyNames: string[] = ['GENERATED', 'GENERATED_BY', 'GENERATED_FROM']
 const pyLit = (value: unknown): string => value === null ? 'None' : value === true ? 'True' : value === false ? 'False' : JSON.stringify(value)
@@ -432,6 +432,23 @@ for (const [name, values] of Object.entries({ RowType: listValues.ROW_TYPES, Par
   py.push(`${name}: TypeAlias = Literal[${values.map(pyLit).join(', ')}]`)
   pyNames.push(name)
 }
+const methodsOf = (side: string, kind: string): string[] => Object.entries(methodSchemas).filter(([, s]) => (s.from === side || s.from === 'both') && s.kind === kind).map(([n]) => n)
+const pyPrefix = (method: string): string => method.replace(/[^a-z0-9]+/gi, '_').split('_').filter(Boolean).map(s => s[0]!.toUpperCase() + s.slice(1)).join('')
+for (const [alias, side, kind] of [['HostRequestName', 'host', 'request'], ['HostNotificationName', 'host', 'notification'], ['RunnerRequestName', 'runner', 'request'], ['RunnerNotificationName', 'runner', 'notification']] as const) {
+  py.push(`${alias}: TypeAlias = Literal[${methodsOf(side, kind).map(pyLit).join(', ')}]`)
+  pyNames.push(alias)
+}
+py.push('', 'class DefaultTimeout: pass', 'DEFAULT_TIMEOUT = DefaultTimeout()', '', '', 'class TypedRequests:')
+const optionalParams = (method: string): boolean => ((methodSchemas[method]!.params.required as string[] | undefined) ?? []).length === 0
+for (const method of methodsOf('host', 'request')) py.push('    @overload', `    async def request(self, method: Literal[${pyLit(method)}], params: ${pyPrefix(method)}Params${optionalParams(method) ? ' | None = None' : ''}, *, timeout: float | None | DefaultTimeout = ...) -> ${pyPrefix(method)}Result: ...`)
+py.push('    @overload', '    async def request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = ...) -> Any: ...')
+py.push('    async def request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = DEFAULT_TIMEOUT) -> Any:', '        return await self._request(method, params, timeout=timeout)', '')
+for (const method of methodsOf('host', 'notification')) py.push('    @overload', `    async def notify(self, method: Literal[${pyLit(method)}], params: ${pyPrefix(method)}Params${optionalParams(method) ? ' | None = None' : ''}) -> None: ...`)
+py.push('    @overload', '    async def notify(self, method: str, params: Any = None) -> None: ...')
+py.push('    async def notify(self, method: str, params: Any = None) -> None:', '        await self._notify(method, params)', '')
+py.push('    async def _request(self, method: str, params: Any, *, timeout: float | None | DefaultTimeout) -> Any:', '        raise NotImplementedError', '')
+py.push('    async def _notify(self, method: str, params: Any) -> None:', '        raise NotImplementedError', '')
+pyNames.push('DefaultTimeout', 'DEFAULT_TIMEOUT', 'TypedRequests')
 py.push(`__all__ = ${JSON.stringify([...pyNames, ...Object.keys(pyData)])}`, '')
 
 const outputs: Array<[string, string]> = [

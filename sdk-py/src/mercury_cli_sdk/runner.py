@@ -9,14 +9,10 @@ from dataclasses import dataclass, replace
 from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, cast
 from .client import Listener, RunOptions, argv_of, end_child, spawn, untrack
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
-from .generated import METHODS, RUNNER_PROTOCOL, RPC_REFUSED, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
+from .generated import DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .framing import read_lines
 from .parse import Issue, StreamRow, row_of, input_row_of, validate
 from .version import __version__
-
-
-class _DefaultTimeout: pass
-_DEFAULT_TIMEOUT = _DefaultTimeout()
 
 
 @dataclass
@@ -32,8 +28,10 @@ PermissionHandler = Callable[[PermissionRequestParams, RequestContext], Permissi
 ElicitationHandler = Callable[[ElicitationRequestParams, RequestContext], ElicitationRequestResult | Awaitable[ElicitationRequestResult]]
 
 
-class MercurySession:
-    """One ``mercury runner`` process hosted over JSON-RPC: prompts go in, rows stream out, asks are answered by your handlers."""
+class MercurySession(TypedRequests):
+    """One ``mercury runner`` process hosted over JSON-RPC: prompts go in, rows stream out, asks are answered by your handlers.
+
+    ``request(method, params, timeout=...)`` and ``notify(method, params)`` are typed per method by the generated overloads."""
     def __init__(self, child: asyncio.subprocess.Process, handlers: Mapping[str, HostHandler]):
         self.child = child
         assert child.stdin is not None and child.stdout is not None and child.stderr is not None
@@ -79,8 +77,7 @@ class MercurySession:
             await self._stdin.drain()
         except OSError as error: raise MercuryError(str(error), self.exit.result() if self.exit.done() else None) from error
 
-    async def request(self, method: str, params: Any = None, *, timeout: float | None | _DefaultTimeout = _DEFAULT_TIMEOUT) -> Any:
-        """Send one host request and await its validated result; ``timeout`` in seconds overrides the method's declared deadline (``None`` disables it)."""
+    async def _request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = DEFAULT_TIMEOUT) -> Any:
         spec = METHODS.get(method)
         if not spec or spec['kind'] != 'request' or spec['from'] == 'runner': raise MercuryError(f'not a host request: {method}')
         if self._closed: raise self._closed
@@ -94,7 +91,7 @@ class MercurySession:
         id = self._next
         future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
         self._pending[id] = (method, future)
-        limit = (None if spec['deadlineMs'] is None else spec['deadlineMs'] / 1000) if isinstance(timeout, _DefaultTimeout) else timeout
+        limit = (None if spec['deadlineMs'] is None else spec['deadlineMs'] / 1000) if isinstance(timeout, DefaultTimeout) else timeout
         try:
             await self._write({'jsonrpc': '2.0', 'id': id, 'method': method, 'params': params})
             return await asyncio.wait_for(future, limit)
@@ -106,8 +103,7 @@ class MercurySession:
         finally:
             self._pending.pop(id, None)
 
-    async def notify(self, method: str, params: Any = None) -> None:
-        """Send one host notification after validating its params."""
+    async def _notify(self, method: str, params: Any = None) -> None:
         spec = METHODS.get(method)
         if not spec or spec['kind'] != 'notification' or spec['from'] == 'runner': raise MercuryError(f'not a host notification: {method}')
         params = {} if params is None else params
