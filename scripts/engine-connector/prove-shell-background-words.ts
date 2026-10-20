@@ -15,7 +15,7 @@ const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const bar = await import('../../src/components/SwitchboardTagBar.tsx')
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const { shellToolRunning } = await import('../../src/services/engine-connector/shellRunning.ts')
+const { shellToolRunning, foregroundShellInRoster } = await import('../../src/services/engine-connector/shellRunning.ts')
 const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const { registerShellRun, requestShellBackground, mainShellRunsNow, subscribeShellRuns } = await import('../../src/tools/BashTool/backgroundRequest.ts')
 const { ACTION_GRAPH } = await import('../../src/keybindings/actionGraph.ts')
@@ -35,7 +35,7 @@ check('interrupting: esc again re-sends the interrupt · ⇧← back, the backgr
 check('hard-stopping: ⇧← back alone', bar.escBackHint(live(true), status(true, true), true) === keyHintLabel('⇧← back'))
 check('idle: ⇧← back alone whatever the shell fact says', bar.escBackHint(live(false), status(), true) === keyHintLabel('⇧← back'))
 
-section('§2 the shell fact — an unresolved Bash tool_use on the canvas, nothing else')
+section('§2 the shell fact — an unresolved Bash tool_use on the canvas, or the operator\'s own `!` line holding the turn (the roster\'s foreground shell)')
 const row = (name: string, id: string): unknown => ({ type: 'assistant', message: { content: [{ type: 'tool_use', id, name, input: {} }] } })
 type Records = Parameters<typeof shellToolRunning>[0]
 check('an in-progress Bash tool_use reads as a running shell', shellToolRunning([row('Bash', 'toolu_1')] as Records, new Set(['toolu_1'])))
@@ -43,6 +43,15 @@ check('an in-progress Read tool_use does not', !shellToolRunning([row('Read', 't
 check('a Bash tool_use already resolved does not', !shellToolRunning([row('Bash', 'toolu_1')] as Records, new Set(['toolu_2'])))
 check('nothing in progress reads as no shell', !shellToolRunning([row('Bash', 'toolu_1')] as Records, new Set()))
 check('the newest unresolved Bash row wins over older resolved ones', shellToolRunning([row('Bash', 'toolu_0'), row('Read', 'toolu_1'), row('Bash', 'toolu_2')] as Records, new Set(['toolu_1', 'toolu_2'])))
+check('a `!` line: the roster\'s running shell row stamped foreground reads as a running shell (no tool_use row exists for it)', foregroundShellInRoster([{ kind: 'shell', status: 'running', foreground: true }]))
+check('a shell already in the background (no stamp) does not — the key stands down once the command moved', !foregroundShellInRoster([{ kind: 'shell', status: 'running' }]))
+check('a finished shell, a monitor: never', !foregroundShellInRoster([{ kind: 'shell', status: 'completed', foreground: true }, { kind: 'monitor', status: 'running', foreground: true }]))
+const shellFact = read('src/services/engine-connector/shellRunning.ts')
+check('the focused fact reads the roster beside the canvas and subscribes to the work feed', shellFact.includes('shellToolRunning(connector.records(), live.inProgressToolUseIDs) || foregroundShellInRoster(connector.workRoster().rows)') && shellFact.includes('const work = connector.subscribeWork(listener)'))
+const roster = read('src/utils/task/workRoster.ts')
+check('the runner stamps foreground on a running shell task that is not backgrounded (the `!` line, the model\'s foreground Bash call)', roster.includes("...(task.isBackgrounded === false && task.status === 'running' ? { foreground: true as const } : {})"))
+const bashLine = read('src/utils/processUserInput/processBashCommand.tsx')
+check('a `!` line moved to the background writes the task id into its output row, under its own tag', bashLine.includes('outputMessage(data.stdout, data.stderr, settledShell(data.code, startedAt), data.backgroundTaskId)') && bashLine.includes('<${BASH_BACKGROUND_TASK_TAG}>${escapeXml(backgroundTaskId)}</${BASH_BACKGROUND_TASK_TAG}>'))
 
 section('§3 the request registry — the main conversation\'s running commands take the request, a sub-agent\'s never')
 {
@@ -91,6 +100,7 @@ const tag = read('src/components/SwitchboardTagBar.tsx')
 check('the ready line reads the shell fact through the same setting', tag.includes('escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false)'))
 const cancel = read('src/hooks/useCancelRequest.ts')
 check('the chord rides the Chat context, armed only while a shell runs and the key is on, and lets a draft keep its letter', cancel.includes("'chat:backgroundShell',") && cancel.includes("if (pendingInput.text() !== '') return false") && cancel.includes('isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false'))
+check('the help\'s ctrl+b (task:background) drives the same road on a hosted chat, under the same gate, and leaves the classic in-process hint its own key', cancel.includes("'task:background',") && cancel.includes('if (!hasSeatLive(getFocusedSessionConnector())) return false') && cancel.includes('return backgroundFocusedShell()') && cancel.split('isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false').length === 3)
 const settings = read('src/utils/settings/types.ts')
 check('the setting is declared in the settings store under view', /view: z\.object\(\{[\s\S]{0,600}backgroundKey: z\.boolean\(\)\.optional\(\)/.test(settings))
 

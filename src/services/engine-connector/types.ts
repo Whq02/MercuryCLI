@@ -323,6 +323,7 @@ export type WorkRowV1 = {
   cwd?: string
   worktree?: string
   outputFile?: string
+  foreground?: true
 }
 
 export type NoticeKind = 'completion' | 'message' | 'wake'

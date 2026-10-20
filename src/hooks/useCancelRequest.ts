@@ -172,22 +172,31 @@ export function CancelRequestHandler({
 
   const shellRunning = useFocusedShellRunning()
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
+  const backgroundFocusedShell = (): false | undefined => {
+    if (compactWork !== undefined && compactWork.read() !== 'composer') return false
+    if (pendingInput.text() !== '') return false
+    const focused = getFocusedSessionConnector()
+    if (hasSeatLive(focused)) {
+      void focused.backgroundShell().then(receipt => {
+        const notice = backgroundShellNotice(receipt)
+        if (notice !== null) addNotification(notice)
+      })
+      return
+    }
+    if (requestShellBackground() === 0) return false
+  }
   useKeybinding(
     'chat:backgroundShell',
-    () => {
-      if (compactWork !== undefined && compactWork.read() !== 'composer') return false
-      if (pendingInput.text() !== '') return false
-      const focused = getFocusedSessionConnector()
-      if (hasSeatLive(focused)) {
-        void focused.backgroundShell().then(receipt => {
-          const notice = backgroundShellNotice(receipt)
-          if (notice !== null) addNotification(notice)
-        })
-        return
-      }
-      if (requestShellBackground() === 0) return false
-    },
+    backgroundFocusedShell,
     { context: 'Chat', isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false },
+  )
+  useKeybinding(
+    'task:background',
+    () => {
+      if (!hasSeatLive(getFocusedSessionConnector())) return false
+      return backgroundFocusedShell()
+    },
+    { context: 'Task', isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false },
   )
 
   const interruptActive =

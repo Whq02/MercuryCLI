@@ -198,6 +198,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...(task.verifyCwd !== undefined ? { cwd: task.verifyCwd } : {}),
         ...(task.result !== undefined ? { exitCode: task.result.code } : {}),
         outputFile: task.outputFile,
+        ...(task.isBackgrounded === false && task.status === 'running' ? { foreground: true as const } : {}),
       })
     } else {
       rows.push(plainRow(task, 'monitor', task.description))

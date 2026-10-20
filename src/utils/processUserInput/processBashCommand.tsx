@@ -2,7 +2,7 @@
 import * as React from 'react'
 import { Box } from '../../ink.js'
 import type { SetToolJSXFn } from '../../Tool.js'
-import { BASH_DURATION_MS_TAG, BASH_EXIT_CODE_TAG, BASH_INPUT_TAG } from '../../constants/xml.js'
+import { BASH_BACKGROUND_TASK_TAG, BASH_DURATION_MS_TAG, BASH_EXIT_CODE_TAG, BASH_INPUT_TAG } from '../../constants/xml.js'
 import { escapeXml } from '../xml.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { AttachmentMessage, Message, UserMessage } from '../../types/message.js'
@@ -44,13 +44,14 @@ function settledShell(code: number | undefined, startedAt: number): SettledShell
   return typeof code === 'number' ? { code, durationMs: Math.max(0, Date.now() - startedAt) } : null
 }
 
-function outputMessage(stdout: string, stderr: string, settled: SettledShell | null): UserMessage {
+function outputMessage(stdout: string, stderr: string, settled: SettledShell | null, backgroundTaskId?: string): UserMessage {
   const exit =
     settled === null
       ? ''
       : `<${BASH_EXIT_CODE_TAG}>${settled.code}</${BASH_EXIT_CODE_TAG}><${BASH_DURATION_MS_TAG}>${settled.durationMs}</${BASH_DURATION_MS_TAG}>`
+  const background = backgroundTaskId === undefined ? '' : `<${BASH_BACKGROUND_TASK_TAG}>${escapeXml(backgroundTaskId)}</${BASH_BACKGROUND_TASK_TAG}>`
   return createUserMessage({
-    content: `<${BASH_STDOUT_TAG}>${stdout}</${BASH_STDOUT_TAG}><${BASH_STDERR_TAG}>${escapeXml(stderr)}</${BASH_STDERR_TAG}>${exit}`,
+    content: `<${BASH_STDOUT_TAG}>${stdout}</${BASH_STDOUT_TAG}><${BASH_STDERR_TAG}>${escapeXml(stderr)}</${BASH_STDERR_TAG}>${exit}${background}`,
   })
 }
 
@@ -127,7 +128,7 @@ export async function processBashCommand(
         caveat,
         commandMessage,
         ...attachmentMessages,
-        outputMessage(data.stdout, data.stderr, settledShell(data.code, startedAt)),
+        outputMessage(data.stdout, data.stderr, settledShell(data.code, startedAt), data.backgroundTaskId),
       ],
       shouldQuery: false,
     }

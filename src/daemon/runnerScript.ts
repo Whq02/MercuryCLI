@@ -38,7 +38,7 @@ function powerShellPath(): string {
   return powerShellCached
 }
 
-export function bundleArgumentOf(commandLine: string): string | null {
+function bundleArgumentOf(commandLine: string): string | null {
   const quoted = /"([^"]*mercury\.mjs)"/.exec(commandLine)
   if (quoted !== null) return quoted[1]!
   const part = commandLine.split(/\s+/).find(piece => piece.endsWith('mercury.mjs'))
