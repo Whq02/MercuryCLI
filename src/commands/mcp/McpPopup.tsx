@@ -124,7 +124,7 @@ function mcpToolDetailLines(tool: McpToolEntryV1, width: number): DetailLine[] {
   return lines
 }
 
-export function mcpToolsFailureWords(server: string, detail: string): string {
+function mcpToolsFailureWords(server: string, detail: string): string {
   if (/older|too old/i.test(detail)) return 'This Mercury background process is too old to list tools. Update Mercury. Run /restart, then open /mcp again.'
   if (/not connected/i.test(detail)) return `The MCP server '${inertLine(server)}' is not connected. Reconnect it from the servers list, then open tools again.`
   if (/no chat is open/i.test(detail)) return 'No chat is open. Choose New Session from the boot menu, then open /mcp.'
