@@ -105,3 +105,28 @@ export function hostReplyWords(model: string, reply: string, elapsedMs: number, 
   const seconds = Math.max(0.001, elapsedMs / 1000)
   return `${model} · ${JSON.stringify(reply)} · ${seconds.toFixed(2)} s${outputTokens === undefined ? '' : ` · ${outputTokens} output tokens · ${(outputTokens / seconds).toFixed(1)} tokens/s (whole turn)`}`
 }
+
+export function hostSetupEstimate(recipe: { engine?: string; pythonInstall?: string; diskGb: number; weightsGb?: number }): string {
+  const buildMinutes = recipe.engine === 'llamacpp' || recipe.pythonInstall ? 10 : 5
+  const engine = recipe.engine === 'llamacpp' ? 'builds llama.cpp' : recipe.pythonInstall ? 'installs SGLang' : 'starts the engine'
+  const size = recipe.weightsGb
+  if (size === undefined || !Number.isFinite(size) || size <= 0) return `${engine} ~${buildMinutes} min · downloads weights (size unknown) · loads model (time unknown). Total depends on the download; ${recipe.diskGb} GB is disk space, not download size`
+  const downloadMinutes = Math.max(5, Math.ceil(size / 10 / 5) * 5)
+  const loadMinutes = Math.max(1, Math.ceil(size / 70))
+  const total = Math.ceil((buildMinutes + downloadMinutes + loadMinutes) / 5) * 5
+  return `${engine} ~${buildMinutes} min · downloads ${size} GB ~${downloadMinutes} min · loads ~${loadMinutes} min · ~${total} min total (estimate at ~10 GB/min; stock and network can add time)`
+}
+
+export function hostPaidPodWords(pod: { id: string; name: string; status: string; cost: number; startedAt?: string | null; createdAt: string }, record?: { step?: string; startedAt: string }, now = Date.now()): string {
+  if (pod.status === 'EXITED') return `${pod.name} · ${pod.id} · stopped · storage still bills`
+  const started = Date.parse(record?.startedAt ?? pod.startedAt ?? pod.createdAt)
+  const hours = Number.isFinite(started) ? Math.max(0, now - started) / 3600_000 : undefined
+  const cost = hours === undefined ? 'elapsed time and cost unknown' : `${Math.floor(hours * 60)} min · $${(pod.cost * hours).toFixed(2)} so far (estimate; storage extra)`
+  return `${pod.name} · ${pod.id} · ${record?.step ?? pod.status.toLowerCase()} · $${pod.cost.toFixed(2)}/hr · ${cost}`
+}
+
+export function hostReadyWords(label: string, model: string, record: { price: number; startedAt: string }): string {
+  const [, provider, ...wire] = model.split('/')
+  const hours = Math.max(0, Date.now() - Date.parse(record.startedAt)) / 3600_000
+  return `${label} is ready. In /model, choose ${wire.join('/')} under Custom endpoint · ${provider}.\nOr run /model ${model}.\n$${(record.price * hours).toFixed(2)} so far (estimate; storage extra).`
+}

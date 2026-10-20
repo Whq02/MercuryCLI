@@ -74,8 +74,8 @@ try {
   const text = async (title: string, value = '') => { await until(title); if (value) { m.push(value); await until(value) } m.push(KEY.enter) }
   const close = async () => { m.push(KEY.esc); if (!await waitFor(() => !popup.isSettingsPopupOpen(), 1000)) m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
   const tail = async (name?: string) => {
-    await heading('4 · choose the model'); await until('524,288 tokens'); await choose(f.model)
-    await heading('5 · name the provider')
+    await heading('5 · name the provider'); await until('524,288 tokens')
+    check('the single served model is selected without a question', m.screen().includes(f.model))
     if (name) { m.push('\u0015'); m.push(name); await until(name) }
     m.push(KEY.enter)
     await heading('5 · register and check a reply'); await choose('register and check')

@@ -4,7 +4,7 @@ import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccou
 import { setTimeout as delay } from 'node:timers/promises'
 import { readStoredRunpodApiKey } from '../providers/providerSecrets.js'
 import { linkLlmHostPod, runLlmHost } from '../llmHost/index.js'
-import { LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
+import { hostReadyWords, LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 import { RunpodClient, RunpodHttpError, createRefusal, type HostOffer, type HostPod } from './runpod.js'
 import { hostRecipeOfRecord } from './recipesFile.js'
 import { hostNotice } from './notices.js'
@@ -221,7 +221,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (!result.ok || !result.registered || !result.model) throw new Error(result.words)
     mark('ready')
     const record = patchHostRecord(id, { jobState: 'ready' })!
-    hostNotice(record, 'ready', recipe.label + ' is ready on ' + result.model + ' · $' + (record.price * Math.max(0, Date.now() - Date.parse(record.startedAt)) / 3600_000).toFixed(2) + ' so far (estimate; storage extra)')
+    hostNotice(record, 'ready', hostReadyWords(recipe.label, result.model, record))
     if (options.keepAlive !== false) while (!signal.aborted) {
       await delay(pause, undefined, { signal })
       const response = await fetch('http://127.0.0.1:' + port + '/v1/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), redirect: 'error' })

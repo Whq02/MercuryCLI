@@ -9,13 +9,13 @@ import { LLM_HOST_WORDS } from './words.js'
 
 export function LlmHostPopupBody({ geometry, road }: { geometry: SettingsPopupGeometry; road?: LlmHostRoad }): React.ReactNode {
   const frame = useSettingsPopupFrame()
-  return <LlmHostDialog width={geometry.inner} rowBudget={geometry.rowBudget} road={road ?? runHostedModel} onLine={frame.setLine} onOwnsEscape={frame.setOwnsEscape} onClose={frame.close} />
+  return <LlmHostDialog width={geometry.inner} rowBudget={geometry.rowBudget} road={road ?? runHostedModel} onLine={frame.setLine} onHint={frame.setHint} onOwnsEscape={frame.setOwnsEscape} onClose={frame.close} />
 }
 
 export function llmHostPopupRequest(road?: LlmHostRoad): SettingsPopupRequest {
   return {
     view: 'llmhost',
-    width: hostColumns => Math.min(120, hostColumns),
+    width: hostColumns => hostColumns,
     rows: 33,
     line: LLM_HOST_WORDS.opening,
     hint: LLM_HOST_WORDS.hint,
