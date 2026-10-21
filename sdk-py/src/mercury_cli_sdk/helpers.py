@@ -81,7 +81,7 @@ def _schema(annotation: Any) -> dict[str, Any]:
 
 def tool_schema(value: Mapping[str, Any] | type) -> dict[str, Any]:
     if isinstance(value, Mapping):
-        if isinstance(value.get('type'), (str, list)) or any(key in value for key in ('properties', 'anyOf', 'oneOf', '$ref')): return dict(value)
+        if value and not all(isinstance(item, type) or get_origin(item) is not None or item is Any for item in value.values()): return dict(value)
         return {'type': 'object', 'properties': {key: _schema(item) for key, item in value.items()}, 'required': list(value), 'additionalProperties': False}
     return _schema(value)
 
@@ -152,6 +152,7 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
         def do_GET(self) -> None: self.send_error(405)
         def do_DELETE(self) -> None:
             if self.headers.get('Authorization') != f'Bearer {token}' or self.headers.get('Origin'): self.send_error(403); return
+            loop.call_soon_threadsafe(lambda: [context.cancelled.set() for context in list(pending.values())])
             self.send_response(200); self.end_headers()
         def do_POST(self) -> None:
             if self.headers.get('Authorization') != f'Bearer {token}' or self.headers.get('Origin'): self.send_error(403); return
