@@ -12,6 +12,7 @@ import { validate } from './validate.js'
 import { VERSION } from './version.js'
 import { MercurySchemaError, StructuredSchema, schemaObject, schemaRefusal, validateOutcome, type OutputSchema } from './structured.js'
 import { serveTools, withTools, type ToolServer } from './helpers.js'
+import { runnerSupport, unsupportedFeature, type RunnerSupport } from './support.js'
 
 export type RequestContext = { signal: AbortSignal; id: number }
 export type HostHandlers = { [M in RunnerRequestName]?: (params: ParamsOf<M>, context: RequestContext) => ResultOf<M> | (keyof ResultOf<M> extends never ? void : never) | Promise<ResultOf<M> | (keyof ResultOf<M> extends never ? void : never)> }
@@ -42,6 +43,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   initialized!: ResultOf<'initialize'>
   get sessionId(): string | null { return this.initialized?.session_id ?? null }
   get fileCheckpoints(): ResultOf<'initialize'>['file_checkpoints'] { return (this.initialized as ResultOf<'initialize'> | undefined)?.file_checkpoints }
+  get runnerVersion(): string | undefined { return (this.initialized as ResultOf<'initialize'> | undefined)?.runner.version }
+  get supports(): RunnerSupport { return runnerSupport(this.initialized as ResultOf<'initialize'> | undefined) }
   stderr = ''
   lastPromptId: string | undefined
   #pending = new Map<number, Pending>()
@@ -243,6 +246,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   async send(row: InputRow) {
     if (row.type !== 'prompt') return this.request('queue/add', row)
     if (this.sessionId === null) throw new MercuryError('session is unclaimed; call claim() before prompting', null)
+    if (row.schema !== undefined && !this.supports.perTurnSchema) throw unsupportedFeature('perTurnSchema', this.runnerVersion ?? 'unknown')
     const id = row.id ?? randomUUID()
     this.#promptTurns.set(id, undefined)
     try {
@@ -295,6 +299,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     if (this.#prompting) throw new MercuryError('prompt already pending; use sendPrompt for mid-turn input', null)
     if (options.signal?.aborted) throw new MercuryError('prompt: cancelled', null)
     const turnSchema = options.schema === undefined ? undefined : schemaObject(options.schema, this.options.cwd)
+    if (turnSchema !== undefined && !this.supports.perTurnSchema) throw unsupportedFeature('perTurnSchema', this.runnerVersion ?? 'unknown')
     this.#prompting = true
     const id = randomUUID()
     let accepted = false

@@ -88,7 +88,7 @@ for (const language of ['ts', 'py']) {
           assert(shapes.includes(JSON.stringify(count)) && shapes.includes(JSON.stringify(name)) && shapes.includes('null'), `each turn's schema reaches the model as that turn's StructuredOutput tool, and the plain turn has none: ${shapes.join(' | ')}`)
         } finally { await session.close() }
         const boot = await connect({ mercury, cwd: c.cwd, env: c.env, schema: structuredSchema(count, value => (value as { count: number }).count * 2) })
-        try { assert(!boot.child.spawnargs.includes('--schema'), 'the boot schema travels on initialize, not argv'); assert.equal((await boot.prompt('the boot schema turn')).structured, 18) } finally { await boot.close() }
+        try { assert(boot.child.spawnargs.includes('--schema'), 'the boot schema travels on initialize and as --schema, the road every Mercury version honours'); assert.equal((await boot.prompt('the boot schema turn')).structured, 18) } finally { await boot.close() }
         await assert.rejects(connect({ mercury, cwd: c.cwd, env: c.env, schema: malformed }), (e: unknown) => e instanceof MercurySchemaError && e.code === -32602 && e.issues[0]?.path === 'schema')
       } else {
         const session = await sdk.prewarm({ mercury, cwd: c.cwd, env: c.env })

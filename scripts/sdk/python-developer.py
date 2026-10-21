@@ -320,7 +320,8 @@ async def structured():
     async with await testing.start_fixture_server({'methods': {'initialize': [init], 'queue/add': replies}}) as fixture:
         async with await sdk.connect(mercury=fixture.mercury, schema={'type': 'object'}) as session:
             assert fixture.received[0]['params']['schema'] == {'type': 'object'}
-            assert '--schema' not in sdk.argv_of(sdk.RunOptions(mercury=fixture.mercury, schema={'type': 'object'}), 'runner')
+            argv = sdk.argv_of(sdk.RunOptions(mercury=fixture.mercury, schema={'type': 'object'}), 'runner')
+            assert json.loads(argv[argv.index('--schema') + 1]) == {'type': 'object'}, 'the runner door also carries --schema, the road every Mercury version honours'
             try: await session.prompt('test', schema=schema)
             except sdk.MercurySchemaError as error: assert error.outcome is not None
             else: raise AssertionError('invalid prompt output resolved')
@@ -330,6 +331,38 @@ async def structured():
                 assert error.code == -32602 and error.outcome is None and [issue.path for issue in error.issues] == ['schema'] and str(error) == error.issues[0].message and 'not a JSON schema' in str(error), error
             else: raise AssertionError('a refused schema resolved')
             assert (await session.prompt('again', schema=schema))['structured'] == {'count': 4}
+
+
+async def version_floors():
+    assert sdk.FEATURE_FLOORS == {'per_turn_schema': '1.0.0-beta.41', 'file_checkpoints': '1.0.0-beta.41'}
+    assert [sdk.compare_versions(a, b) for a, b in [('1.0.0-beta.40', '1.0.0-beta.41'), ('1.0.0-beta.9', '1.0.0-beta.41'), ('1.0.0-beta.41', '1.0.0'), ('1.0.0-beta.41', '1.0.0-beta.41'), ('1.0.1', '1.0.0-beta.41'), ('1.0.0-rc.1', '1.0.0-beta.41')]] == [-1, -1, -1, 0, 1, 1]
+    assert sdk.compare_versions('fixture', '1.0.0-beta.41') is None
+    schema = {'type': 'object', 'properties': {'count': {'type': 'integer'}}}
+    words = 'per-turn schema needs Mercury 1.0.0-beta.41 or newer; this runner is 1.0.0-beta.40 — run `mercury update`'
+    def answered(version, **extra): return {'result': {**init['result'], 'runner': {'version': version, 'pid': 1}, **extra}}
+    accepted = {'result': {'accepted': True}, 'after': [{'jsonrpc': '2.0', 'method': 'row', 'params': {**outcome, 'structured': {'count': 1}}}]}
+    async with await testing.start_fixture_server({'methods': {'initialize': [answered('1.0.0-beta.40')], 'queue/add': [accepted]}}) as fixture:
+        async with await sdk.connect(mercury=fixture.mercury) as old:
+            assert old.runner_version == '1.0.0-beta.40'
+            assert old.supports == {'per_turn_schema': False, 'file_checkpoints': False}
+            assert old.file_checkpoints is None, 'a runner that answers no file_checkpoints reads None, with supports file_checkpoints False beside it'
+            for send in (lambda: old.prompt('x', schema=schema), lambda: old.steer('x', schema=schema), lambda: old.follow_up('x', schema=schema), lambda: old.send_prompt('x', schema=schema), lambda: old.send({'type': 'prompt', 'content': 'x', 'schema': schema})):
+                try: await send()
+                except sdk.MercuryError as error: assert type(error) is sdk.MercuryError and str(error) == words and error.code is None, repr(error)
+                else: raise AssertionError('a per-turn schema was sent to a runner below the floor')
+            assert not any(m.get('method') == 'queue/add' for m in fixture.received), 'a refused per-turn schema never reaches the wire'
+            assert (await old.prompt('plain'))['status'] == 'completed', 'the session still prompts without a per-turn schema'
+    for label, reply in (('at the floor', answered('1.0.0-beta.41')), ('below the floor but answering the .41 wire', answered('1.0.0-beta.40', file_checkpoints={'capture': True, 'source': 'initialize'})), ('a release above the floor', answered('1.0.0'))):
+        async with await testing.start_fixture_server({'methods': {'initialize': [reply], 'queue/add': [accepted]}}) as fixture:
+            async with await sdk.connect(mercury=fixture.mercury) as session:
+                assert session.supports == {'per_turn_schema': True, 'file_checkpoints': True}, label
+                assert (await session.prompt('x', schema=schema))['structured'] == {'count': 1}, label
+                assert next(m for m in fixture.received if m.get('method') == 'queue/add')['params']['schema'] == schema, label
+    with prompt_fixture() as (mercury, received):
+        def consume():
+            with sdk.connect_sync(mercury=mercury) as session:
+                assert session.runner_version == 'fixture' and session.supports == {'per_turn_schema': True, 'file_checkpoints': True}
+        await asyncio.to_thread(consume)
 
 
 async def rich():
@@ -552,7 +585,7 @@ async def discovery_deeper():
 
 
 async def main():
-    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('input answered with an error uncorrelated', lambda: prompt_error_reply(False)), ('input answered with an error correlated', lambda: prompt_error_reply(True)), ('a schema refused before sending leaves the session free', prompt_schema_refused_locally), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('input answered with an error uncorrelated', lambda: prompt_error_reply(False)), ('input answered with an error correlated', lambda: prompt_error_reply(True)), ('a schema refused before sending leaves the session free', prompt_schema_refused_locally), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 11 version floors: a runner below 1.0.0-beta.41 refuses a per-turn schema before sending and reads no file checkpoints; at the floor, or answering the .41 wire, the field is sent', version_floors), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
     await check('discovery one layer deeper: Windows env keys read without regard to case, the Homebrew wrapper to the keg bundle on its vendored node, a relative executable bound to cwd, a missing MERCURY_NODE refused by name', discovery_deeper)
 

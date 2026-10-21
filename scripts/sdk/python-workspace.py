@@ -54,7 +54,7 @@ async def main():
             else: raise AssertionError('a malformed per-turn schema was accepted')
             assert isinstance(session.last_prompt_id, str)
         async with await connect(mercury=mercury, cwd=cwd, schema=structured_schema(count, lambda value: value['count'] * 2)) as boot:
-            assert '--schema' not in sdk.argv_of(sdk.RunOptions(mercury=mercury, cwd=cwd, schema=count), 'runner')
+            assert '--schema' in sdk.argv_of(sdk.RunOptions(mercury=mercury, cwd=cwd, schema=count), 'runner'), 'the boot schema travels on initialize and as --schema, the road every Mercury version honours'
             assert (await boot.prompt('the boot schema turn'))['structured'] == 18
         try: await connect(mercury=mercury, cwd=cwd, schema=malformed)
         except MercurySchemaError as error: assert error.code == -32602 and error.issues[0].path == 'schema', error

@@ -156,7 +156,6 @@ def argv_of(options: RunOptions, door: Literal['run', 'runner'] = 'run') -> list
         if getattr(options, name): args += ['--' + name.replace('_', '-'), *getattr(options, name)]
     for name in ['schema', 'config', 'agent_defs']:
         value = getattr(options, name)
-        if name == 'schema' and door == 'runner': continue
         if name == 'schema' and value is not None: value = schema_object(value, options.cwd)
         if value is not None: args += ['--' + name.replace('_', '-'), value if isinstance(value, str) else json.dumps(value)]
     if options.config_layers is not None: args += ['--config-layers', ','.join(options.config_layers)]

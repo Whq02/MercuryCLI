@@ -157,12 +157,39 @@ try {
     const session = await sdk.connect({ mercury: fixture.mercury, schema: { type: 'object' } })
     try {
       assert.deepEqual((fixture.received[0]!.params as { schema?: unknown }).schema, { type: 'object' }, 'connect sends its schema on initialize')
-      assert(!session.child.spawnargs.includes('--schema'), 'the runner door carries no --schema argument')
+      assert.deepEqual(JSON.parse(session.child.spawnargs[session.child.spawnargs.indexOf('--schema') + 1]!), { type: 'object' }, 'the runner door also carries --schema, the road every Mercury version honours')
       await assert.rejects(session.prompt('test', { schema }), e => e instanceof Error && e.name === 'MercurySchemaError' && (e as sdk.MercurySchemaError).outcome !== null)
       assert.deepEqual((fixture.received.find(r => r.method === 'queue/add')!.params as { schema?: unknown }).schema, schema, 'prompt sends the turn schema on its row')
       await assert.rejects(session.prompt('refused', { schema }), e => e instanceof sdk.MercurySchemaError && e.code === -32602 && e.outcome === null && e.issues.length === 1 && e.issues[0]!.path === 'schema' && e.message === e.issues[0]!.message && /not a JSON schema/.test(e.message))
       assert.deepEqual((await session.prompt('again', { schema })).structured, { count: 4 }, 'the session prompts again after a refused schema')
     } finally { await session.close(); await fixture.close() }
+  })
+  await check('row 11 version floors: a runner below 1.0.0-beta.41 refuses a per-turn schema before sending and reads no file checkpoints; a runner at the floor, or one whose answer carries file_checkpoints, is sent the field', async () => {
+    assert.deepEqual(sdk.FEATURE_FLOORS, { perTurnSchema: '1.0.0-beta.41', fileCheckpoints: '1.0.0-beta.41' })
+    assert.deepEqual([['1.0.0-beta.40', '1.0.0-beta.41'], ['1.0.0-beta.9', '1.0.0-beta.41'], ['1.0.0-beta.41', '1.0.0'], ['1.0.0-beta.41', '1.0.0-beta.41'], ['1.0.1', '1.0.0-beta.41'], ['1.0.0-rc.1', '1.0.0-beta.41']].map(([a, b]) => sdk.compareVersions(a!, b!)), [-1, -1, -1, 0, 1, 1])
+    assert.equal(sdk.compareVersions('fixture', '1.0.0-beta.41'), undefined)
+    const schema = { type: 'object', properties: { count: { type: 'integer' } } }
+    const words = 'per-turn schema needs Mercury 1.0.0-beta.41 or newer; this runner is 1.0.0-beta.40 — run `mercury update`'
+    const answered = (version: string, extra: Record<string, unknown> = {}) => ({ result: { ...init.result, runner: { version, pid: 1 }, ...extra } })
+    const refusing = await testing.startFixtureServer({ methods: { initialize: [answered('1.0.0-beta.40')], 'queue/add': [{ result: { accepted: true }, after: [{ jsonrpc: '2.0', method: 'row', params: outcome }] }] } })
+    const old = await sdk.connect({ mercury: refusing.mercury })
+    try {
+      assert.equal(old.runnerVersion, '1.0.0-beta.40')
+      assert.deepEqual(old.supports, { perTurnSchema: false, fileCheckpoints: false })
+      assert.equal(old.fileCheckpoints, undefined, 'a runner that answers no file_checkpoints reads undefined, with supports.fileCheckpoints false beside it')
+      for (const send of [() => old.prompt('x', { schema }), () => old.steer('x', { schema }), () => old.followUp('x', { schema }), () => old.sendPrompt('x', { schema }), () => old.send({ type: 'prompt', content: 'x', schema })]) await assert.rejects(send(), (e: unknown) => e instanceof sdk.MercuryError && !(e instanceof sdk.MercurySchemaError) && e.message === words && e.code === undefined)
+      assert.equal(refusing.received.filter(r => r.method === 'queue/add').length, 0, 'a refused per-turn schema never reaches the wire')
+      assert.equal((await old.prompt('plain')).status, 'completed', 'the session still prompts without a per-turn schema')
+    } finally { await old.close(); await refusing.close() }
+    for (const [label, reply] of [['at the floor', answered('1.0.0-beta.41')], ['below the floor but answering the .41 wire', answered('1.0.0-beta.40', { file_checkpoints: { capture: true, source: 'initialize' } })], ['a release above the floor', answered('1.0.0')]] as const) {
+      const fixture = await testing.startFixtureServer({ methods: { initialize: [reply], 'queue/add': [{ result: { accepted: true }, after: [{ jsonrpc: '2.0', method: 'row', params: { ...outcome, structured: { count: 1 } } }] }] } })
+      const session = await sdk.connect({ mercury: fixture.mercury })
+      try {
+        assert.deepEqual(session.supports, { perTurnSchema: true, fileCheckpoints: true }, label)
+        assert.deepEqual((await session.prompt('x', { schema })).structured, { count: 1 }, label)
+        assert.deepEqual((fixture.received.find(r => r.method === 'queue/add')!.params as { schema?: unknown }).schema, schema, `${label}: the per-turn schema is sent`)
+      } finally { await session.close(); await fixture.close() }
+    }
   })
   await check('row 7 blocks and image bytes feed input rows', async () => {
     const fixture = await testing.startFixtureServer({ rows: [sessionRow, outcome], inputCount: 1 })

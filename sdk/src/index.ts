@@ -10,3 +10,4 @@ export { allowPermission, denyPermission, textBlock, imageBlock, defineAgent, de
 export type { StreamRow, UnknownRow } from './parse.js'
 export { VERSION } from './version.js'
 export { StructuredSchema, structuredSchema, MercurySchemaError, schemaRefusal, validateOutcome, type OutputSchema } from './structured.js'
+export { FEATURE_FLOORS, compareVersions, parseVersion, runnerSupport, type RunnerFeature, type RunnerSupport } from './support.js'

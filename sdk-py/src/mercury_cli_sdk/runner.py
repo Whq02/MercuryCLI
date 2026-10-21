@@ -11,6 +11,7 @@ from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsage
 from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimParams, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult
 from .framing import read_lines
 from .structured import MercurySchemaError, StructuredSchema, schema_object, schema_refusal, validate_outcome
+from .support import RunnerSupport, runner_support, unsupported_feature
 
 T = TypeVar('T')
 from .helpers import ToolServer
@@ -246,6 +247,7 @@ class MercurySession(TypedRequests):
         """Queue one input row (``queue/add``); a prompt row is given an id so its outcome can be matched."""
         if row['type'] != 'prompt': return await self.request('queue/add', row)
         if self.session_id is None: raise MercuryError('session is unclaimed; call claim() before prompting')
+        if row.get('schema') is not None and not self.supports['per_turn_schema']: raise unsupported_feature('per_turn_schema', self.runner_version or 'unknown')
         id = row.get('id') or str(uuid.uuid4())
         self._prompt_turns[id] = None
         try:
@@ -280,6 +282,7 @@ class MercurySession(TypedRequests):
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
         if cancel is not None and cancel.is_set(): raise MercuryError('prompt: cancelled')
         turn_schema = None if schema is None else schema_object(schema, self.options.cwd)
+        if turn_schema is not None and not self.supports['per_turn_schema']: raise unsupported_feature('per_turn_schema', self.runner_version or 'unknown')
         self._prompting = True
         id = str(uuid.uuid4())
         accepted = False
@@ -327,6 +330,16 @@ class MercurySession(TypedRequests):
     def file_checkpoints(self) -> InitializeResultFile_checkpoints | None:
         """What the CLI answered on ``initialize``: whether file checkpoints are captured and why (``source``)."""
         return getattr(self, 'initialized', {}).get('file_checkpoints')
+
+    @property
+    def runner_version(self) -> str | None:
+        """The connected Mercury's version, from the ``initialize`` answer."""
+        return getattr(self, 'initialized', {}).get('runner', {}).get('version')
+
+    @property
+    def supports(self) -> RunnerSupport:
+        """Which version-gated requests this runner honours (``FEATURE_FLOORS``); a request it cannot honour is refused before it is sent."""
+        return runner_support(getattr(self, 'initialized', None))
 
     async def facts(self) -> SessionFactsResult: return await self.request('session/facts')
     async def interrupt(self, **options: Any) -> TurnInterruptResult:

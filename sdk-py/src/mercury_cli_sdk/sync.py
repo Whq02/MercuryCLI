@@ -11,6 +11,7 @@ from .generated import InitializeResultFile_checkpoints, TypedSyncRequests, DEFA
 from .parse import PromptContent, StreamRow
 from .errors import MercuryError, RunExit
 from .structured import RunResult as RunResult, StructuredSchema, TypedRunResult as TypedRunResult
+from .support import RunnerSupport
 
 T = TypeVar('T')
 
@@ -72,6 +73,10 @@ class SyncSession(TypedSyncRequests):
     def initialized(self) -> InitializeResult: return self.session.initialized
     @property
     def file_checkpoints(self) -> InitializeResultFile_checkpoints | None: return self.session.file_checkpoints
+    @property
+    def runner_version(self) -> str | None: return self.session.runner_version
+    @property
+    def supports(self) -> RunnerSupport: return self.session.supports
     @property
     def rows(self) -> list[StreamRow]: return self.session.rows
     @property
