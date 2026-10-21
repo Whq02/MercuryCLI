@@ -4,7 +4,6 @@ import { z } from 'zod/v4'
 import { buildTool, type ToolEffect, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { readImageWithTokenBudget } from '../FileReadTool/FileReadTool.js'
 import { imageDimensionsFromHeader } from '../FileReadTool/imageProcessorJs.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
@@ -26,6 +25,8 @@ import type {
   DesktopModifier,
   DesktopPoint,
   DesktopTree,
+  DesktopTreeLimits,
+  DesktopBounds,
 } from '../../services/desktop/driver.js'
 import {
   DESKTOP_SHOTS_KEEP,
@@ -66,7 +67,7 @@ import {
 } from './screenMap.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { regionRefusal, sameWindow, settledCapture, targetMatches, targetPoint, targetWords, type CaptureRegion } from './fastRoad.js'
+import { regionRefusal, sameWindow, settledCapture, targetMatches, targetPoint, targetWords, treeObservation, verificationWords, pageContentNote, type CaptureRegion } from './fastRoad.js'
 import { CAPTCHA_HANDOFF, namesCaptcha, treeNamesCaptcha } from './captcha.js'
 import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from './operatorPause.js'
 
@@ -136,7 +137,7 @@ export function computerToolEnabled(): boolean {
 }
 
 const targetSchema = lazySchema(() => z.strictObject({ role: z.string().optional(), name: z.string().optional(), text: z.string().optional() }))
-const inputSchema = lazySchema(() =>
+const baseSchema = lazySchema(() =>
   z.strictObject({
     action: z.enum(ACTIONS),
     x: z.number().optional(),
@@ -160,13 +161,15 @@ const inputSchema = lazySchema(() =>
     until: targetSchema().optional(),
     count: z.number().optional(),
     region: z.strictObject({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }).optional(),
-    steps: z.array(z.record(z.string(), z.unknown())).optional().describe('sequence: ordered act inputs; no nested sequence'),
+    scope: z.enum(['window', 'app']).optional(),
+    verify: z.boolean().optional(),
     captcha: z.boolean().optional(),
   }),
 )
 
-type SchemaType = ReturnType<typeof inputSchema>
-export type Input = z.infer<SchemaType>
+export type Input = z.infer<ReturnType<typeof baseSchema>> & { steps?: Input[] }
+type SchemaType = z.ZodType<Input>
+const inputSchema = lazySchema((): SchemaType => baseSchema().extend({ steps: z.array(z.lazy(() => inputSchema())).optional() }))
 
 export type Output = {
   action: Input['action']
@@ -178,7 +181,7 @@ export type Output = {
   screen?: ScreenMap
 }
 
-const ACT_FIELDS = ['settleMs', 'capture', 'region']
+const ACT_FIELDS = ['settleMs', 'capture', 'region', 'label', 'verify']
 const TARGET_FIELDS = ['target', 'depth', 'limit']
 const ACTION_FIELDS: Readonly<Record<ComputerAction, readonly string[]>> = {
   screenshot: ['display', 'label', 'region'],
@@ -191,13 +194,13 @@ const ACTION_FIELDS: Readonly<Record<ComputerAction, readonly string[]>> = {
   type: ['text', ...ACT_FIELDS],
   key: ['key', ...ACT_FIELDS],
   hold: ['key', 'durationMs', ...ACT_FIELDS],
-  wait: ['durationMs', 'until', 'depth', 'limit', 'capture', 'region'],
+  wait: ['durationMs', 'until', 'depth', 'limit', 'scope', 'capture', 'region'],
   cursor: [],
   displays: [],
   frontmost: [],
-  tree: ['depth', 'limit'],
-  find: ['target', 'depth', 'limit'],
-  sequence: ['steps', ...ACT_FIELDS],
+  tree: ['depth', 'limit', 'scope'],
+  find: ['target', 'depth', 'limit', 'scope'],
+  sequence: ['steps', 'settleMs', 'capture', 'region'],
 }
 
 function permissionAction(input: Input): ComputerAction {
@@ -258,7 +261,7 @@ function tableRefusal(input: Input): string | null {
     if (!input.steps?.length) return 'sequence requires nonempty steps'
     for (const [index, step] of input.steps.entries()) {
       const parsed = inputSchema().safeParse(step)
-      if (!parsed.success || !ACT_ACTIONS.has(parsed.data.action)) return `sequence step ${index + 1} must be a valid act input, not a read or sequence`
+      if (!parsed.success || (!ACT_ACTIONS.has(parsed.data.action) && !['tree', 'find', 'wait'].includes(parsed.data.action))) return `sequence step ${index + 1} must be an act, tree, find or wait; no nested sequence`
       if (parsed.data.capture !== undefined || parsed.data.region !== undefined || parsed.data.settleMs !== undefined) return `sequence step ${index + 1}: put capture, region and settleMs on the sequence`
       const refusal = tableRefusal(parsed.data)
       if (refusal !== null) return `sequence step ${index + 1}: ${refusal}`
@@ -317,6 +320,8 @@ interface ActPlan {
   target: DesktopPoint | null
   chord: KeyChord | null
   modifiers: DesktopModifier[]
+  beforeTree?: DesktopTree
+  observe?: DesktopBounds
 }
 
 type Framed = { ok: true; point: DesktopPoint } | { ok: false; text: string }
@@ -328,7 +333,7 @@ function framePixel(map: ScreenMap | null, messages: readonly Message[], x: numb
   if (isPixelOutside(point)) {
     return {
       ok: false,
-      text: `(${x}, ${y}) is outside the last screenshot (${point.imageWidth}×${point.imageHeight} px) — take a screenshot and use its pixels`,
+      text: `(${x}, ${y}) is outside the last screenshot (${point.imageWidth}×${point.imageHeight} px) — ${map.region ? `coordinates refer to this region (origin ${map.originX},${map.originY} pt); take a full screenshot to return` : 'take a screenshot and use its pixels'}`,
     }
   }
   return { ok: true, point }
@@ -358,20 +363,24 @@ function planOf(owner: OwnerKey, context: ToolUseContext, input: Input): ActPlan
     chord = parsed
   }
   const modifiers = (input.modifiers ?? []).map(modifier => MODIFIER_KEYS[modifier])
-  return { point, target, chord, modifiers }
+  return { point, target, chord, modifiers, ...(point ? { observe: { x: point.x - 24, y: point.y - 24, width: 48, height: 48 } } : {}) }
 }
 
 async function resolveActTargets(driver: DesktopDriver, input: Input, front: DesktopApplication, plan: ActPlan, signal: AbortSignal): Promise<string | null> {
   if (namesCaptcha(front.title ?? '')) return CAPTCHA_HANDOFF
   if (plan.chord !== null && isAppSwitchChord(plan.chord)) return null
-  const tree = await driver.accessibilityTree(front, treeLimitsOf(input), signal)
+  const fullReach = input.target !== undefined || input.toTarget !== undefined || input.verify === true
+  const tree = await driver.accessibilityTree(front, { depth: input.depth ?? (fullReach ? TREE_DEPTH_CAP : TREE_DEPTH_DEFAULT), count: input.limit ?? (fullReach ? TREE_LIMIT_CAP : TREE_LIMIT_DEFAULT), scope: 'window' }, signal)
   if (!tree.ok) return input.target !== undefined || input.toTarget !== undefined ? faultText(input.action, tree.error) : null
   if (treeNamesCaptcha(tree.value)) return CAPTCHA_HANDOFF
+  plan.beforeTree = tree.value
   for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
     if (selector === undefined) continue
     const point = targetPoint(tree.value, selector)
-    if ('refusal' in point) return `${input.action} refused: ${point.refusal}`
+    if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(tree.value) ? `; ${pageContentNote(tree.value)}` : ''}`
     plan[field] = point
+    const frame = targetMatches(tree.value, selector)[0]?.frame
+    if (field === 'point' && frame) plan.observe = frame
   }
   return null
 }
@@ -618,8 +627,9 @@ async function frontmostWords(driver: DesktopDriver): Promise<string> {
   return `frontmost ${applicationWords(front.value)}`
 }
 
-function treeLimitsOf(input: Input): { depth: number; count: number } {
-  return { depth: input.depth ?? TREE_DEPTH_DEFAULT, count: input.limit ?? TREE_LIMIT_DEFAULT }
+function treeLimitsOf(input: Input): DesktopTreeLimits {
+  const targeted = input.action === 'find' || input.until !== undefined
+  return { depth: input.depth ?? (targeted ? TREE_DEPTH_CAP : TREE_DEPTH_DEFAULT), count: input.limit ?? (targeted ? TREE_LIMIT_CAP : TREE_LIMIT_DEFAULT), scope: input.scope ?? 'window' }
 }
 
 function treeWords(app: DesktopApplication, tree: DesktopTree, limits: { depth: number; count: number }, map: ScreenMap | null): string {
@@ -632,6 +642,7 @@ function treeWords(app: DesktopApplication, tree: DesktopTree, limits: { depth: 
     if (element.title !== null) parts.push(JSON.stringify(element.title))
     if (element.value !== null) parts.push(`value=${JSON.stringify(element.value)}`)
     const frame = element.frame
+    if (element.focused === true) parts.push('[focused]')
     if (frame !== null) {
       parts.push(`@${Math.round(frame.x)},${Math.round(frame.y)} ${Math.round(frame.width)}×${Math.round(frame.height)}`)
       if (map !== null) {
@@ -641,6 +652,9 @@ function treeWords(app: DesktopApplication, tree: DesktopTree, limits: { depth: 
     }
     lines.push(`${'  '.repeat(element.depth)}${parts.join(' ')}`)
   }
+  lines.push(tree.scope === undefined ? 'scope not reported by this driver' : `scope ${tree.scope}`)
+  const pageNote = pageContentNote(tree)
+  if (pageNote) lines.push(pageNote)
   if (tree.truncated) {
     lines.push(`truncated: the tree goes on past ${tree.reason !== null ? tree.reason : `the limit of ${limits.count} elements or depth ${limits.depth}`} — raise limit or depth to read more, or act on what is shown`)
   }
@@ -675,6 +689,7 @@ async function takeScreenshot(
   signal: AbortSignal,
   region?: CaptureRegion,
   settleMs = 0,
+  observe?: DesktopBounds,
 ): Promise<Shot> {
   const displays = await driver.displays()
   if (!displays.ok) return { ok: false, aborted: false, text: faultText('screenshot', displays.error) }
@@ -702,7 +717,7 @@ async function takeScreenshot(
   }
   let captured: Awaited<ReturnType<typeof settledCapture>>
   try {
-    captured = await settledCapture(driver, display, signal, settleMs, region, map)
+    captured = await settledCapture(driver, display, signal, settleMs, region, map, observe)
   } catch (error) {
     return { ok: false, aborted: signal.aborted, text: `screenshot failed: ${error instanceof Error ? error.message : String(error)}` }
   }
@@ -716,9 +731,7 @@ async function takeScreenshot(
   const model = context.options?.engineModel ?? getEngineModel()
   if (modelReceivesImageBlocks(model)) {
     try {
-      const inlined = await readImageWithTokenBudget(file)
-      const budgeted = Buffer.from(inlined.file.base64, 'base64')
-      const resized = await maybeResizeAndDownsampleImageBuffer(budgeted, budgeted.length, inlined.file.type.split('/')[1] ?? 'png', { role: 'tool-result', model })
+      const resized = await maybeResizeAndDownsampleImageBuffer(capture.png, capture.png.length, 'png', { role: 'tool-result', model })
       const bytes = resized.buffer
       const header = imageDimensionsFromHeader(bytes)
       if (header === null) throw new Error('the inline screenshot has no readable dimensions')
@@ -734,9 +747,13 @@ async function takeScreenshot(
     }
   }
   const screen = screenMapOfCapture(toolUseId, capture, captured.points, image)
+  if (region) screen.region = true
+  const changedFrame = map !== null && ['displayId', 'originX', 'originY', 'pointWidth', 'pointHeight', 'imageWidth', 'imageHeight'].some(key => map[key as keyof ScreenMap] !== screen[key as keyof ScreenMap])
+  const scale = `scale ${(screen.imageWidth / screen.pointWidth).toFixed(3)} px/pt${image.width !== capture.width || image.height !== capture.height ? ' (resized for the model route)' : ' (native capture pixels)'}`
+  const frameWords = `${scale}${changedFrame ? '; frame changed: display, region or route image limits changed — previous coordinates do not apply' : ''}${region ? `; coordinates now refer to this region (origin ${screen.originX},${screen.originY} pt); take a full screenshot to return` : ''}`
   setScreen(owner, screen)
   noteScreenshot(owner, screen.toolUseId, file)
-  const line = `screenshot: ${file} — display ${display.index} (${screenMapSizeWords(screen)}) · ${await factsLine(driver, screen)}${captured.settled ? ` · ${captured.settled}` : ''}`
+  const line = `screenshot: ${file} — display ${display.index} (${screenMapSizeWords(screen)}) · ${frameWords} · ${await factsLine(driver, screen)}${captured.settled ? ` · ${captured.settled}` : ''}`
   return {
     ok: true,
     line,
@@ -814,18 +831,18 @@ export const ComputerTool = buildTool({
     return "Drive the operator's screen: screenshot, click, type, press keys, scroll and drag in the application in front, on every model route that receives images"
   },
   async prompt() {
-    return `Drive the operator's screen. Read tree first for exact controls; screenshot when pixels matter. Coordinates are pixels of the last screenshot: renew it after compaction. target:{role?,name?,text?} uses the current tree: role/name exact, text substring, one match required. Never guess a target.
+    return `Drive the operator's screen. Read tree first; screenshot for pixels. Coordinates are pixels of the last screenshot; renew after compaction or a frame change. target:{role?,name?,text?}: role/name exact, text substring, one match required. Acts resolve at the tree caps unless depth/limit is given.
 
-screenshot(display?,label?,region?) captures the display under the cursor; region:{x,y,width,height} crops pixels of the last screenshot and becomes the new coordinate frame.
-click(x,y OR target,count? 1–3,modifiers?) · doubleClick · rightClick · move (hover) use the same target forms. drag also takes toX,toY OR toTarget. scroll takes dx/dy wheel notches (positive down/right). Modifiers: Shift/Control/Alt/Meta.
-type(text) takes ${TYPE_TEXT_CAP} characters; only newline/tab control characters. key(key) taps one chord; hold(key,durationMs) holds it for 50–${HOLD_CAP_MS}ms. Keys: ${KEY_CHORD_VOCABULARY}.
-action:"tree" (depth?, limit?) — read-only: role, title, value and frame; a cut is said; no clipboard, no input. Defaults ${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}, caps ${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}. find(target,depth?,limit?) filters it without an image.
-wait(durationMs?) pauses then captures (default ${WAIT_DEFAULT_MS}, cap ${WAIT_CAP_MS}); until:target polls the tree instead. capture:false skips the image. cursor/displays/frontmost are cheap facts.
-sequence(steps:[act inputs],capture?,region?,settleMs?) runs known steps in order, checking each just as alone; first refusal stops it. No nesting. One final screenshot; put capture/region/settleMs on the sequence, not steps.
-Acts settle until consecutive frames match; settleMs is the cap (default ${SETTLE_DEFAULT_MS}, max ${SETTLE_CAP_MS}); capture:false skips capture and settle. region reduces image size.
+screenshot(display?,label?,region?) captures under the cursor. region:{x,y,width,height} crops the last screenshot's pixels and becomes the coordinate frame; a full screenshot returns.
+click(x,y OR target,count? 1–3,modifiers?) · doubleClick · rightClick · move (hover). drag also takes toX,toY OR toTarget. scroll takes dx/dy wheel notches, positive down/right. Modifiers: Shift/Control/Alt/Meta.
+type(text): up to ${TYPE_TEXT_CAP} chars; only newline/tab controls. key(key) taps; hold(key,durationMs) holds 50–${HOLD_CAP_MS}ms. Keys: ${KEY_CHORD_VOCABULARY}.
+action:"tree" (depth?, limit?) — read-only: role, title, value and frame; a cut is said; no clipboard, no input. Marks focus. scope:window by default; scope:app includes other windows/menus. Budgets ${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}, caps ${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}. find(target) filters it.
+wait(durationMs?,until?) pauses or polls the tree for a target (default ${WAIT_DEFAULT_MS}, cap ${WAIT_CAP_MS}ms). capture:false skips the image. cursor/displays/frontmost are cheap facts.
+sequence(steps:[acts,tree,find,wait]) checks each step just as alone; first failure stops; no nesting. Set capture/region/settleMs on the sequence, not steps; one final screenshot.
+Acts take label and verify:true for a tree change check (not task confirmation; no blind retry). capture:false skips capture/settle. settleMs caps matching-frame waits (${SETTLE_DEFAULT_MS} default, ${SETTLE_CAP_MS} max); target-local stability is not whole-page readiness. Use wait-until for that.
 
-The first act in an application asks by name; later acts ride its grant. Another application asks afresh. Other reads never ask; tree asks like an act. find/wait-until use tree's permission. Sovereign runs without asks as usual. One session drives at a time. Never type into this session's terminal; there only the application-switch chord is allowed and clicks must be outside its window. esc/ctrl+c interrupts and releases held input. Acts wait briefly for operator typing to pause, then refuse if it continues.
-Never solve a captcha. If a screenshot shows one, send captcha:true and hand it to the operator; named tree challenges also refuse. Screenshots leave saved history.`
+The first act in an application asks; later acts ride its grant. Other reads never ask; tree asks like an act. find/wait-until use tree's permission. Sovereign runs without asks. One session drives at a time. Never type into this session's terminal: only the application-switch chord is allowed there; clicks stay outside its window. esc/ctrl+c interrupts and releases input. Acts pause for operator typing, refusing if it continues.
+Never solve a captcha: send captcha:true for a visual challenge and hand it to the operator; named tree challenges also refuse. Screenshots leave saved history.`
   },
   userFacingName,
   shouldDefer: true,
@@ -852,7 +869,7 @@ Never solve a captcha. If a screenshot shows one, send captcha:true and hand it 
       return refuse("the Computer tool is off — MERCURY_COMPUTER_USE=0 in this session's environment removes it; unset it before the session starts")
     }
     const posture = desktopPostureRefusal(context)
-    if (posture !== null) return refuse(posture)
+    if (posture !== null && context.agentId) return refuse(posture)
     const model = context?.options?.engineModel ?? getEngineModel()
     const route = await routeRefusal(model)
     if (route !== null) return refuse(route)
@@ -865,6 +882,8 @@ Never solve a captcha. If a screenshot shows one, send captcha:true and hand it 
     return { result: true as const }
   },
   async checkPermissions(input: Input, context: ToolUseContext) {
+    const posture = desktopPostureRefusal(context)
+    if (posture !== null && !context.agentId) return denied(posture, 'desktop session policy')
     if (input.captcha === true) return denied(CAPTCHA_HANDOFF, 'captcha handoff')
     if (!ASK_ACTIONS.has(permissionAction(input))) return { behavior: 'allow' as const, updatedInput: input }
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
@@ -924,6 +943,12 @@ Never solve a captcha. If a screenshot shows one, send captcha:true and hand it 
     let inlineMediaType: string | undefined
     let screen: ScreenMap | undefined
     let claimedForAct = false
+    const posture = desktopPostureRefusal(context)
+    if (posture !== null) {
+      result = `policy denial: ${posture}`
+      outcome = 'failed'
+      return finish()
+    }
     const resolution = resolveDesktopDriver()
     if (resolution.state === 'unavailable') {
       result = `no desktop driver: ${resolution.note}${resolution.remedy ? ` — ${resolution.remedy}` : ''}`
@@ -933,8 +958,8 @@ Never solve a captcha. If a screenshot shows one, send captcha:true and hand it 
     const driver = resolution.driver
     const permissions = await driver.permissions()
     if (permissions.ok) rememberDesktopPermissions(permissions.value)
-    const takeShot = (wanted: number | undefined, label: string | undefined, settleMs = 0): Promise<Shot> =>
-      takeScreenshot(owner, driver, context, toolUseId, wanted, label, signal, input.region, settleMs)
+    const takeShot = (wanted: number | undefined, label: string | undefined, settleMs = 0, observe?: DesktopBounds): Promise<Shot> =>
+      takeScreenshot(owner, driver, context, toolUseId, wanted, label, signal, input.region, settleMs, observe)
     const adoptShot = (shot: Extract<Shot, { ok: true }>): void => {
       imagePath = shot.imagePath
       inlinePath = shot.inlinePath
@@ -974,7 +999,7 @@ Never solve a captcha. If a screenshot shows one, send captcha:true and hand it 
             outcome = 'failed'
             return finish()
           }
-          const answer = await ComputerTool.call({ ...step, capture: false }, context, canUseTool, parentAssistantMessage)
+          const answer = await ComputerTool.call(ACT_ACTIONS.has(step.action) || step.action === 'wait' ? { ...step, capture: false } : step, context, canUseTool, parentAssistantMessage)
           lines.push(answer.data.result)
           if (answer.data.outcome !== 'succeeded') {
             result = `sequence ${completed}/${steps.length} completed\n${lines.join('\n')}`
@@ -1083,6 +1108,18 @@ Never solve a captcha. If a screenshot shows one, send captcha:true and hand it 
         }
         if (!viaGrant) approveApp(owner, judged ?? live)
         outcome = 'succeeded'
+        let observed = treeObservation(plan.beforeTree)
+        if (input.verify) {
+          const after = await driver.frontmostApplication()
+          if (!after.ok || !sameWindow(after.value, front.value)) observed += ' · verification: front window changed — read tree in the application now in front'
+          else {
+            const tree = await driver.accessibilityTree(after.value, { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: 'window' }, signal)
+            const current = await driver.frontmostApplication()
+            observed = !current.ok || !sameWindow(current.value, after.value) ? 'verification unknown: front window changed while reading — take a screenshot' : verificationWords(plan.beforeTree, tree.ok ? tree.value : undefined)
+          }
+        }
+        if (observed) act.words += ` · ${observed}`
+        if (input.label) act.words += ` · ${input.label}`
         if (input.capture === false) {
           result = `${act.words} · ${await factsLine(driver, screenOf(owner))}`
           return finish()
@@ -1093,7 +1130,7 @@ Never solve a captcha. If a screenshot shows one, send captcha:true and hand it 
           outcome = 'failed'
           return finish()
         }
-        const shot = await takeShot(undefined, undefined, clamp(input.settleMs ?? SETTLE_DEFAULT_MS, 0, SETTLE_CAP_MS))
+        const shot = await takeShot(undefined, input.label, clamp(input.settleMs ?? SETTLE_DEFAULT_MS, 0, SETTLE_CAP_MS), input.region ? undefined : plan.observe)
         if (!shot.ok) {
           if (shot.aborted) {
             await driver.releaseAll()
@@ -1136,6 +1173,7 @@ Never solve a captcha. If a screenshot shows one, send captcha:true and hand it 
             const deadline = Date.now() + pause
             const waitingSignal = AbortSignal.any([signal, AbortSignal.timeout(Math.ceil(pause))])
             let matched = false
+            let pageNote = ''
             while (!waitingSignal.aborted) {
               const before = await driver.frontmostApplication()
               if (!before.ok || !sameWindow(before.value, app)) {
@@ -1159,12 +1197,13 @@ Never solve a captcha. If a screenshot shows one, send captcha:true and hand it 
                 outcome = 'failed'
                 return finish()
               }
+              pageNote = pageContentNote(tree.value)
               if (targetMatches(tree.value, input.until).length > 0) { matched = true; break }
               if (Date.now() >= deadline) break
               await sleep(Math.min(100, Math.max(0, deadline - Date.now())), signal)
             }
             if (!matched) {
-              result = signal.aborted ? interruptedText('wait') : `wait timed out after ${pause}ms: ${targetWords(input.until)} not found — read tree and check the target`
+              result = signal.aborted ? interruptedText('wait') : `wait timed out after ${pause}ms: ${targetWords(input.until)} not found — ${pageNote || 'read tree and check the target'}`
               outcome = 'failed'
               break
             }

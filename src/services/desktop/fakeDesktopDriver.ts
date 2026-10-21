@@ -37,6 +37,7 @@ interface FakeTreeNode {
   value?: string | null
   frame?: DesktopBounds | null
   children?: FakeTreeNode[]
+  focused?: boolean
 }
 
 interface FakeSceneSwitch {
@@ -296,7 +297,7 @@ function flattenTree(root: FakeTreeNode, limits: DesktopTreeLimits): DesktopTree
       break
     }
     const frame = node.frame ?? null
-    elements.push({ depth, role: node.role, title: isText(node.title) && node.title !== '' ? node.title : null, value: isText(node.value) && node.value !== '' ? node.value : null, frame: frame ? { ...frame } : null })
+    elements.push({ depth, role: node.role, title: isText(node.title) && node.title !== '' ? node.title : null, value: isText(node.value) && node.value !== '' ? node.value : null, frame: frame ? { ...frame } : null, ...(typeof node.focused === 'boolean' ? { focused: node.focused } : {}) })
     const children = node.children ?? []
     if (depth < limits.depth) {
       for (let i = children.length - 1; i >= 0; i--) stack.push({ node: children[i]!, depth: depth + 1 })
@@ -552,7 +553,13 @@ export class FakeDesktopDriver implements DesktopDriver {
       this.record('accessibilityTree', 'aborted', { app: app.identity, ...limits })
       return desktopAbortedAnswer()
     }
-    const tree = flattenTree({ role: 'AXApplication', title: app.name, children: this.scene.tree }, limits)
+    const focused = this.scene.tree.find(node => node.role === 'AXWindow' && node.focused === true)
+    const window = focused ?? this.scene.tree.find(node => node.role === 'AXWindow' && node.title === app.title)
+    let children = this.scene.tree
+    if (limits.scope === 'window' && window) children = [window]
+    else if (limits.scope === 'app' && window) children = [window, ...children.filter(node => node !== window && node.role !== 'AXMenuBar'), ...children.filter(node => node.role === 'AXMenuBar')]
+    const tree = flattenTree({ role: 'AXApplication', title: app.name, children }, limits)
+    if (limits.scope === 'window' && window) tree.scope = 'window'
     this.record('accessibilityTree', 'done', { app: app.identity, ...limits, elements: tree.elements.length, truncated: tree.truncated })
     return answer(tree)
   }

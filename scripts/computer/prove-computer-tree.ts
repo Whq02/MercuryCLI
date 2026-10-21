@@ -36,7 +36,7 @@ function fakeDriver(): FakeDesktopDriver {
 type Verdict = { behavior: string; message?: string; suggestions?: unknown; decisionReason?: { type?: string; operatorOnly?: boolean } }
 const permission = async (input: Record<string, unknown>, context: ToolUseContext): Promise<Verdict> => (await ComputerTool.checkPermissions(input as never, context)) as Verdict
 let calls = 0
-const call = async (input: Record<string, unknown>, context: ToolUseContext) => resultOf(await ComputerTool.call(input as never, context, allowEverything, toolUseTurn(`toolu_tree_${++calls}`, 'Computer', input)))
+const call = async (input: Record<string, unknown>, context: ToolUseContext) => resultOf(await ComputerTool.call({ scope: 'app', ...input } as never, context, allowEverything, toolUseTurn(`toolu_tree_${++calls}`, 'Computer', input)))
 const inputActs = (): string[] => fakeDriver().acts.filter(a => a.act !== 'capture' && a.act !== 'accessibilityTree' && a.act !== 'releaseAll').map(a => a.act)
 
 async function fresh(name: string, scene: Record<string, unknown> | null, options: Parameters<typeof toolContext>[0] = {}): Promise<{ context: ToolUseContext; owner: ReturnType<typeof ownerOf>; screen: Record<string, unknown> }> {
