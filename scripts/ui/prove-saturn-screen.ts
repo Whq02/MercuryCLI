@@ -298,7 +298,7 @@ t.section('§5 — THE FORM (seven facts · the verdict verbatim · honest previ
     t.check('§5 OS-3 a canned mission survives the wire validator whole', validated.ok)
   }
 
-  t.check('§5 the form legends (the submit verb lives beside its writer)', saturnFormLegendOf({ prompt: false, pick: false }) === '↑↓ move · ↵ edit · ⌫ clear · s schedule it · esc back' && saturnFormLegendOf({ prompt: true, pick: false }) === 'type · ↵ set · esc cancel' && saturnFormLegendOf({ prompt: false, pick: true }) === '↑↓ move · ↵ pick · esc back')
+  t.check('§5 the form legends (the submit verb lives beside its writer)', saturnFormLegendOf({ prompt: false, pick: false }) === '↑↓ move · pgup/pgdn page · ↵ edit · ⌫ clear · s schedule it · esc back' && saturnFormLegendOf({ prompt: true, pick: false }) === 'type · ↵ set · esc cancel' && saturnFormLegendOf({ prompt: false, pick: true }) === '↑↓ move · pgup/pgdn page · ↵ pick · esc back')
   const { saturnLegendOf } = await import('../../src/components/BootSaturnScreen.js')
   t.check("§5 the board legend teaches 'a schedule birth…'", saturnLegendOf({ busy: false }).includes('a schedule birth…'))
 
