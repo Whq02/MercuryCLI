@@ -177,6 +177,27 @@ for (const cols of [80, 120]) {
       scene.push(keys.enter)
       await settledFrame(scene)
       check(cols + ' ' + name + ': Enter acts on that surface', name === 'mcp' ? scene.screen().includes('tools') : picked !== '', picked || scene.screen())
+      if (name === 'mcp') {
+        scene.push(keys.down)
+        await settledFrame(scene)
+        scene.push(keys.enter)
+        await settledFrame(scene, frame => frame.includes('tool-00'))
+        const toolsFirst = focus()
+        scene.push(keys.pgdn)
+        check(cols + ' mcp tools: page keys move the tool highlight', await waitFor(() => focus() !== toolsFirst, 1800), scene.screen())
+        check(cols + ' mcp tools: markers and guide remain visible', scene.screen().includes('pgup/pgdn') && scene.lines().some(line => line.includes('↓') && !line.includes('↑↓')), scene.screen())
+        await save(scene, 'mcp-tools-paged', cols)
+        scene.push(keys.enter)
+        await settledFrame(scene, frame => frame.includes('esc back to tools'))
+        const detail = scene.screen()
+        scene.push(keys.pgdn)
+        check(cols + ' mcp detail: PageDown scrolls the description', await waitFor(() => scene.screen() !== detail, 1800), scene.screen())
+        await save(scene, 'mcp-detail-paged', cols)
+        scene.push(keys.esc)
+        await settledFrame(scene, frame => frame.includes('tool-'))
+        scene.push(keys.esc)
+        await settledFrame(scene, frame => frame.includes('server-'))
+      }
       if (name !== 'effort') {
         scene.push(keys.esc)
         check(cols + ' ' + name + ': Escape closes or clears one filter level', await waitFor(() => done || (name === 'model' && !scene.screen().includes('/ fixture')), 1600))
@@ -367,7 +388,7 @@ for (const cols of [80, 120]) {
 
 const { mock } = await import('bun:test')
 const daemonModule = await import('../../src/daemon/status.ts')
-const daemonStatus = { daemon: { pid: 1, version: 'fixture', uptimeSec: 10, dir: fixtureRoot }, controlReachable: true, breakerOpen: false, leaseCount: 0, fireOutcomes: null, handshake: null, versionLine: null, workers: Array.from({ length: 30 }, (_, index) => ({ short: 'worker-' + String(index).padStart(2, '0'), state: 'idle', model: 'fixture-model', effort: 'max' })) }
+const daemonStatus = { daemon: { pid: 1, version: 'fixture', uptimeSec: 10, dir: '/fixture/daemon' }, controlReachable: true, breakerOpen: false, leaseCount: 0, fireOutcomes: null, handshake: null, versionLine: null, workers: Array.from({ length: 30 }, (_, index) => ({ short: 'worker-' + String(index).padStart(2, '0'), state: 'idle', model: 'fixture-model', effort: 'max' })) }
 mock.module('../../src/daemon/status.ts', () => ({ ...daemonModule, getMercuryDaemonStatus: async () => daemonStatus }))
 const sessionModel = await import('../../src/components/mercury-ui/screens/sessionPickerModel.ts')
 const sessions = options.map((row, index) => ({ sessionId: '00000000-0000-4000-8000-' + String(index).padStart(12, '0'), projectPath: fixtureRoot, cwd: fixtureRoot, modified: new Date().toISOString(), created: new Date().toISOString(), firstPrompt: row.label, customTitle: row.label, messageCount: 2, fullPath: join(fixtureRoot, row.value + '.jsonl') }))
@@ -477,6 +498,77 @@ for (const cols of [80, 120]) {
     scene.push(keys.esc)
     check(cols + ' popup reader: Escape closes', await waitFor(() => closed, 1800))
   } finally { scene.unmount() }
+}
+
+
+const bootFactsModule = await import('../../src/utils/bootCardFacts.ts')
+mock.module('../../src/utils/bootCardFacts.ts', () => ({ ...bootFactsModule, workedInProjects: () => options.map(row => ({ dir: '/fixture/' + row.value, base: 'ground-' + row.label, ageMs: 0 })) }))
+const subModelsModule = await import('../../src/utils/model/subModelSlots.ts')
+const registryEntries = options.map(row => ({ kind: 'model', source: 'openai', modelId: 'fixture-' + row.value, displayName: row.label, state: 'selectable', availability: 'ready', description: 'Fixture model' }))
+let subPicked = ''
+mock.module('../../src/utils/model/subModelSlots.ts', () => ({ ...subModelsModule, composeSubModelRegistry: () => ({ families: [{ source: 'openai', label: 'OpenAI', credentialed: true, credentialLabel: 'fixture' }], entries: registryEntries }), resolveSubModel: () => ({ origin: 'unset', model: '' }), setSubModel: (_container: string, value: string | null) => { subPicked = value ?? 'unset'; return { ok: true, receipt: 'Fixture selection saved' } } }))
+const coordinatorModule = await import('../../src/services/concourse/coordinatorModels.ts')
+mock.module('../../src/services/concourse/coordinatorModels.ts', () => ({ ...coordinatorModule, composeCoordinatorModelRegistry: async () => ({ entries: registryEntries, selectable: true }), canonicalCoordinatorModelId: async (id: string) => id }))
+const coordinatorLane = await import('../../src/services/concourse/coordinatorLane.ts')
+mock.module('../../src/services/concourse/coordinatorLane.ts', () => ({ ...coordinatorLane, resolveEffectiveCoordinator: async () => ({ resolution: { requested: 'off', effective: 'off' } }) }))
+const { GroundPicker } = await import('../../src/components/concourse/GroundPicker.tsx')
+const { CoordinatorModelPicker } = await import('../../src/components/concourse/CoordinatorModelPicker.tsx')
+const { SubModelPicker } = await import('../../src/components/SubModelPicker.tsx')
+const { LocalSetupDialog, LOCAL_SETUP_POPUP_HINT } = await import('../../src/components/LocalSetupDialog.tsx')
+const { MercuryHealthCertificate } = await import('../../src/commands/health/HealthCertificate.tsx')
+for (const cols of [80, 120]) {
+  for (const name of ['ground', 'coordinator', 'submodels', 'localsetup', 'health']) {
+    let closed = false
+    let picked = ''
+    subPicked = ''
+    const close = () => { closed = true }
+    const callback = async (value: string) => { picked = value; return { ok: true, receipt: 'Fixture selection saved', outcome: 'applied' } }
+    const setupRoad = async function* (ask: (question: unknown) => Promise<unknown>) {
+      picked = JSON.stringify(await ask({ step: '4', found: 'Fixture models', willRun: 'Select a fixture', rows: options.map(row => ({ tag: row.label, words: 'Fixture model' })) }))
+      yield { kind: 'done', summary: { stopped: false, done: [], notDone: [] } }
+    }
+    const report = async () => ({ verdict: 'certified', ranAt: new Date().toISOString(), head: { sha: 'fixture', branch: 'fixture', dirty: false }, version: 'fixture', durationMs: 1, depth: 'fast', sections: [{ id: 'fixture', title: 'FIXTURE', checks: options.map(row => ({ id: row.value, label: row.label, status: 'ok', evidence: 'Fixture evidence ' + row.label })) }] })
+    const body = name === 'ground' ? h(GroundPicker, { currentGround: '/fixture/boot', bootGround: '/fixture/boot', onPick: value => { picked = value ?? 'boot' }, onClose: close })
+      : name === 'coordinator' ? h(CoordinatorModelPicker, { callbacks: { switchCoordinatorModel: callback, switchCoordinatorMode: callback, switchCoordinatorEffort: callback } as never, onClose: close, allottedRows: 18, allottedWidth: cols - 8 })
+      : name === 'submodels' ? h(SubModelPicker, { onClose: close, onRoute: noAction })
+      : name === 'localsetup' ? h(Box, { flexDirection: 'column' }, h(LocalSetupDialog, { road: setupRoad as never, width: cols - 8, rowBudget: 10, onClose: close }), h(Text, {}, LOCAL_SETUP_POPUP_HINT))
+      : h(MercuryHealthCertificate, { report: report as never, onClose: close })
+    const scene = await mount(h(ModalContext.Provider, { value: { rows: 22, columns: cols, scrollRef: null } }, h(PopupFrameContext.Provider, { value: { rows: 20, width: cols - 4 } }, body)), cols, 26)
+    const focus = () => {
+      const lines = scene.lines()
+      if (name === 'ground' || name === 'submodels' || name === 'coordinator') {
+        const position = scene.cursor()
+        const line = lines[position.y] ?? ''
+        return /choice \d\d|fixture-\d+|Unset|ground-|boot|Mode/.test(line) ? line.trim() : ''
+      }
+      return lines.find(line => /[❯›▸] /.test(line) && !/↑↓|pgup/.test(line))?.trim() ?? ''
+    }
+    try {
+      await settledFrame(scene, frame => frame.includes(name === 'localsetup' ? 'Fixture model' : name === 'health' ? 'FIXTURE' : name === 'ground' ? 'ground-' : name === 'coordinator' ? 'choice 01' : 'CONSOLE'))
+      if (name === 'localsetup' && focus() === '') {
+        scene.push(keys.down)
+        await waitFor(() => focus() !== '', 1800)
+      }
+      const first = focus()
+      scene.push(keys.down)
+      check(cols + ' ' + name + ': Down reaches a row', await waitFor(() => focus() !== first && focus() !== '', 1800), scene.screen())
+      scene.push(keys.up)
+      check(cols + ' ' + name + ': Up restores the selected row', await waitFor(() => focus() === first, 1800), scene.screen())
+      scene.push(keys.pgdn)
+      const previous = focus()
+      check(cols + ' ' + name + ': PageDown changes the selected row', await waitFor(() => focus() !== previous && focus() !== '', 1800), scene.screen())
+      check(cols + ' ' + name + ': paging guide stays visible', /pgup\/pgdn|⇞⇟ page/.test(scene.screen()), scene.screen())
+      await save(scene, name + '-paged', cols, 26)
+      const paged = focus()
+      scene.push(keys.pgup)
+      check(cols + ' ' + name + ': PageUp moves back a window', await waitFor(() => focus() !== paged, 1800), scene.screen())
+      scene.push(keys.enter)
+      check(cols + ' ' + name + ': Enter selects or unfolds', await waitFor(() => picked !== '' || subPicked !== '' || name === 'health' && scene.screen().includes('Fixture evidence'), 2500), scene.screen())
+      scene.push(keys.esc)
+      check(cols + ' ' + name + ': Escape closes', await waitFor(() => closed, 2000))
+    } catch (error) { check(cols + ' ' + name + ': drive completes', false, String(error) + '\n' + scene.screen()) }
+    finally { scene.unmount() }
+  }
 }
 
 console.log(`popup-contract: ${checks} checks, ${failures} failed`)

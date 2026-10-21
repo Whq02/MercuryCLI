@@ -405,6 +405,7 @@ function ContainerList({
           </Text>
         )}
       </Box>
+      {strip === null ? <Text color={t.textMuted} wrap="truncate-end">↑↓ move · pgup/pgdn page · ↵ select · esc close</Text> : null}
     </Box>
   )
 }
@@ -439,7 +440,7 @@ export function SubModelPicker({
   )
 
   const width = Math.max(56, Math.min(100, columns - 6))
-  const listRows = Math.max(4, termRows - 12 - (SUB_MODEL_CONTAINERS.length - 1))
+  const listRows = Math.max(4, termRows - 13 - (SUB_MODEL_CONTAINERS.length - 1))
   const mainModel = renderModelName(focusedSessionModelFacts()?.effective ?? getEngineModel())
 
   return (

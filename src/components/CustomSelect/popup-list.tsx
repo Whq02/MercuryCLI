@@ -15,7 +15,8 @@ export function popupListWindow(total: number, cursor: number, rows: number): Pa
 
 export function popupListMotion(input: string, key: Key, cursor: number, total: number, rows: number): number | null {
   const action = decodeNavKey(input, key, { orientation: 'vertical', pageKeys: true })
-  return action === null ? null : applyNavMotion(action, cursor, total, { orientation: 'vertical', pageSize: Math.max(1, rows) })
+  const origin = cursor < 0 && action === 'movePrevious' ? total : cursor
+  return action === null ? null : applyNavMotion(action, origin, total, { orientation: 'vertical', pageSize: Math.max(1, rows) })
 }
 
 export function PopupListViewport({ above, below, rows, children }: {

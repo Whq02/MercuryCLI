@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'reac
 import { Box, Text, useInput, wrapText } from '../../ink.js'
 import type { DOMElement } from '../../ink.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
+import { PopupScrollViewport } from '../../components/CustomSelect/popup-list.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mercuryPalette.js'
@@ -560,6 +561,7 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
           <FixCard flow={fixFlow} />
         </Box>
       ) : null}
+      <PopupScrollViewport scrollRef={scrollRef}>{scrolls => (
       <ScrollBox ref={scrollRef} height={layout.listRows} flexShrink={0} flexDirection="column">
         {layout.compact && statusLine !== null ? <Text color={loading ? FAINT : AMBER} wrap="truncate-end">{statusLine}</Text> : null}
         {actions.length > 0 ? (
@@ -584,7 +586,7 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
                   check={c}
                   active={selId === c.id}
                   open={openId === c.id}
-                  width={innerW}
+                  width={Math.max(1, innerW - (scrolls ? 1 : 0))}
                   rowRef={selId === c.id ? selRowRef : undefined}
                   onSelect={() => moveTo(index)}
                   onActivate={() => toggleOpen(index)}
@@ -594,6 +596,7 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
           </Box>
         ))}
       </ScrollBox>
+      )}</PopupScrollViewport>
       {layout.legend ? (
         <Box height={1}>
           <Text color={FAINT} wrap="truncate-end">
