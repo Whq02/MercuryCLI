@@ -1,4 +1,4 @@
-import { accessSync, closeSync, constants, existsSync, openSync, readFileSync, readSync } from 'node:fs'
+import { accessSync, closeSync, constants, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { MercuryError } from './errors.js'
@@ -13,7 +13,7 @@ export function executableOf(executable: string | readonly string[] | undefined,
   const parts = executable === undefined ? [variable('MERCURY_BIN') || 'mercury'] : typeof executable === 'string' ? [executable] : [...executable]
   const command = parts.shift()
   if (!command) throw new MercuryError('the mercury executable is empty', null)
-  const runnable = (path: string): boolean => { try { accessSync(path, win ? constants.F_OK : constants.X_OK); return true } catch { return false } }
+  const runnable = (path: string): boolean => { try { if (!statSync(path).isFile()) return false; accessSync(path, win ? constants.F_OK : constants.X_OK); return true } catch { return false } }
   const extensions = win ? (variable('PATHEXT') ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(ext => ext !== '') : ['']
   const spellings = (name: string): string[] => win ? [...(/\.[^\\/.]+$/.test(name) ? [name] : []), ...extensions.map(ext => name + ext.toLowerCase())] : [name]
   const onPath = (name: string): string | undefined => (variable('PATH') ?? '').split(win ? ';' : ':').filter(dir => dir !== '').flatMap(dir => spellings(name).map(spelling => resolve(cwd, dir, spelling))).find(runnable)

@@ -433,6 +433,18 @@ try {
     assert.equal(installed.command, binary, 'the command found on PATH is named in full')
     assert.deepEqual(installed.args.slice(0, 5), ['--project', '/p', 'run', '--format', 'rows'])
   })
+  await check('row 9 a directory is never an executable: a directory named mercury on a PATH entry is walked past to the next rung on every platform, a directory named node is not the runtime, and MERCURY_NODE naming a directory is refused by name', () => {
+    const dirs = join(scratch, 'dirs'); const pathdir = join(dirs, 'pathdir'); const home = join(dirs, 'home'); const stable = join(home, '.local', 'bin')
+    for (const dir of [join(pathdir, 'mercury'), join(pathdir, 'mercury.cmd'), join(pathdir, 'node'), stable]) mkdirSync(dir, { recursive: true })
+    writeFileSync(join(stable, 'mercury'), '#!/bin/sh\nexit 0\n'); chmodSync(join(stable, 'mercury'), 0o755)
+    const posix = executableOf(undefined, { HOME: home, PATH: pathdir }, scratch, 'linux')
+    assert.deepEqual(posix, [join(stable, 'mercury')], `a directory named mercury on PATH is not the executable, the stable command is; got ${JSON.stringify(posix)}`)
+    const windows = executableOf(undefined, { USERPROFILE: home, LOCALAPPDATA: join(dirs, 'nowhere'), PATH: pathdir, PATHEXT: '.COM;.EXE;.BAT;.CMD' }, scratch, 'win32')
+    assert.deepEqual(windows, ['mercury'], `nor is a directory named mercury.cmd on Path; got ${JSON.stringify(windows)}`)
+    const entry = join(dirs, 'entry.mjs'); writeFileSync(entry, '')
+    assert.throws(() => executableOf(entry, { HOME: home, PATH: '', MERCURY_NODE: pathdir }), (error: unknown) => error instanceof sdk.MercuryError && error.message.includes(`MERCURY_NODE names no executable file: ${pathdir}`), 'MERCURY_NODE naming a directory is refused by name')
+    assert.deepEqual(executableOf(entry, { HOME: home, PATH: pathdir }, scratch, 'linux'), ['node', entry], 'a directory named node on PATH is not the runtime: the bare name is left to the spawn')
+  })
   await check('row 9 the managed install resolves to its bundle on its vendored runtime: the Windows layout driven on this host, the POSIX layout live', async () => {
     const layout = await import('../../src/services/privateChannel/installLayout.ts')
     const templates = await import('../../scripts/release/launcherTemplates.mjs')
