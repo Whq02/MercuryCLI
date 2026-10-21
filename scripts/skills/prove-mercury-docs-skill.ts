@@ -139,23 +139,34 @@ const surfaceLinks = [...surfaceIndexSection.matchAll(/\]\(([^)]+\.md)\)/g)]
   .map(link => (link === '../README.md' ? 'README.md' : `docs/${link}`))
 check("every surface docs/README.md's index names has a page in the map", surfaceLinks.length > 0 && surfaceLinks.every(p => mapPaths.includes(p)), surfaceLinks.filter(p => !mapPaths.includes(p)).join(', '))
 check('each map row carries the page title and a one-line summary from the page itself', mapLines.every(line => / — .+: .+/.test(line)) && mapLines.some(line => line.startsWith('- docs/SATURN.md — Saturn: session schedules: Saturn is Mercury\'s scheduler.')))
-const STOP_WORDS = new Set(['mercury', 'from', 'with', 'that', 'this', 'what', 'when', 'where', 'does', 'into', 'over', 'under', 'after', 'before', 'each', 'your', 'tool', 'tools'])
-const silentPages: string[] = []
-const droppedTitleTokens: string[] = []
-for (const rel of expected) {
-  const pageText = pages[rel]!
-  const { title, summary } = docsSkill.describeDocPage(pageText)
-  const titleWords = [...title.toLowerCase().matchAll(/[a-z0-9]{4,}/g)].map(m => m[0]).filter(w => !STOP_WORDS.has(w))
-  const pageCmds = [...new Set([...pageText.matchAll(/`(\/[a-z][a-z0-9-]*|mercury\s+(?:run|runner|host|update|install|health|auth|models|mcp|extensions|roster|usage|daemon|sessions|lsp|acp|bridge|godot)|(?:Ast|Lsp)[A-Z][A-Za-z]+|ChangeSet)(?:\s+[^`]*)?`/g)].map(m => m[1]!.replace(/\s+/g, ' ')))]
-  const lower = summary.toLowerCase()
-  if (!titleWords.some(w => lower.includes(w)) && !pageCmds.some(c => summary.includes(c))) silentPages.push(rel)
-  const titleCode = [...title.matchAll(/`([^`]+)`|\b(AstSearch|AstEdit)\b/g)].map(m => (m[1] ?? m[2])!)
-  if (!titleCode.every(tok => summary.includes(tok))) droppedTitleTokens.push(`${rel} (${titleCode.join(', ')})`)
-}
-check("the map summary of each page names at least one word from the page's own title or commands", silentPages.length === 0, silentPages.join(', '))
-check("every command or tool named in a page's # title survives into its map summary", droppedTitleTokens.length === 0, droppedTitleTokens.join(', '))
+const flat = (value: string): string => value.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/\s+/g, ' ')
+const quotesPage = (page: string, summary: string): boolean => flat(page).includes(flat(summary.replace(/…$/, '')))
+const complete = (summary: string): boolean => (summary.match(/`/g)?.length ?? 0) % 2 === 0 && (summary.match(/\(/g)?.length ?? 0) <= (summary.match(/\)/g)?.length ?? 0) && /[.?!…)`]$/.test(summary)
+const aboutThePage = (summary: string): boolean => !/^Measured in\b|\bin the README\b/.test(summary)
+const described = expected.map(rel => ({ rel, ...docsSkill.describeDocPage(pages[rel]!) }))
+check("every map row's summary is the page's own words, nothing added and nothing paraphrased", described.every(row => quotesPage(pages[row.rel]!, row.summary)), described.filter(row => !quotesPage(pages[row.rel]!, row.summary)).map(row => row.rel).join(', '))
+check('poison control: a summary with words the page never says fails the own-words predicate', !quotesPage(pages['docs/VOICE.md'] ?? '', `${described.find(row => row.rel === 'docs/VOICE.md')?.summary ?? ''} (\`/voice\`).`))
+check('every map summary is complete: no open backtick or parenthesis, and it ends on a sentence end', described.every(row => complete(row.summary)), described.filter(row => !complete(row.summary)).map(row => row.rel).join(', '))
+check('poison control: a summary cut inside a code span or a parenthesis, or never ended, fails the completeness predicate', !complete('Run it with `mercury run --format') && !complete('Run it with the flag (which is long') && !complete('Run it with the flag and then stop reading'))
+check('every map row is at most 330 characters', mapLines.every(line => line.length <= 330), mapLines.filter(line => line.length > 330).map(line => line.slice(0, 40)).join(', '))
+check('no map summary opens on a version stamp or points at another page instead of describing its own', described.every(row => aboutThePage(row.summary)), described.filter(row => !aboutThePage(row.summary)).map(row => row.rel).join(', '))
+check('poison control: the base summaries of the Windows source guide and the memory study fail the about-the-page predicate', !aboutThePage('The release route on Windows is one line in PowerShell 7 (`irm … | iex` in the README\'s Install section) and needs Git and nothing else.') && !aboutThePage('Measured in Mercury 1.0.0-beta.32. Mercury 1.0.0-beta.33 shortened the note to one orienting note; the numbers below are for the .32 shape.'))
 check('the Windows source-install map line describes building from source rather than the README release route', /building Mercury from source on a Windows machine/.test(docsSkill.describeDocPage(pages['docs/INSTALL-WINDOWS-FROM-SOURCE.md']!).summary))
-check('the memory-findings map line states the session-note study question rather than a bare version stamp', /what the note changes in the next session's behaviour/.test(docsSkill.describeDocPage(pages['docs/MEMORY-FINDINGS.md']!).summary))
+const words = 'word '.repeat(28)
+const SHAPES: ReadonlyArray<readonly [string, string, (summary: string) => boolean]> = [
+  ['a plain page gives its first sentence', '# Foo\n\nFoo does one clear thing for the user on every machine it runs on. A second sentence follows.\n', summary => summary === 'Foo does one clear thing for the user on every machine it runs on.'],
+  ['an abbreviation does not end the sentence', '# Foo\n\nUse it to pick the model for the session on this machine, e.g. `/model grok`, or leave the choice to Mercury. More follows.\n', summary => summary.endsWith('leave the choice to Mercury.')],
+  ['a fenced sample before the prose is not the summary', '# Foo\n\n```sh\nmercury run --format rows --input rows --partial --a-very-long-flag-name-for-the-test\n```\n\nThe tool runs a prompt without a terminal interface and writes rows to standard output.\n', summary => summary.startsWith('The tool runs a prompt')],
+  ['a cut inside a code span drops the whole span', `# Foo\n\nRun ${words}\`mercury run --format rows --input rows --partial\` and then it goes on for a while longer than that.\n`, summary => summary.endsWith('…') && !summary.includes('`')],
+  ['a cut inside a parenthetical drops the whole aside', `# Foo\n\nRun ${words}(this aside is long enough to cross the cut and then some more words follow it here) and on.\n`, summary => summary.endsWith('…') && !summary.includes('(')],
+  ['link markup is reduced to its text', '# Foo\n\nSee [the guide](GUIDE.md) for the full list of everything this tool can do for you on every machine.\n', summary => summary.startsWith('See the guide for the full list')],
+  ['an answers line below the first heading is not an answer', '# Foo\n\nA first paragraph that is certainly over sixty characters long for the test.\n\n## Later\n\n<!-- answers: nope -->\n', summary => summary.startsWith('A first paragraph')],
+  ['a page whose only long paragraph points elsewhere still gets a row', '# Foo\n\nThe whole story is told in the README, under Install, for every release route there is.\n', summary => summary.startsWith('The whole story')],
+]
+for (const [label, page, holds] of SHAPES) {
+  const { summary } = docsSkill.describeDocPage(page)
+  check(`describeDocPage on an ordinary page: ${label}`, holds(summary), summary)
+}
 check('describeDocPage honours an explicit <!-- answers: … --> line when a page carries one', docsSkill.describeDocPage('# Sample\n\n<!-- answers: custom routing line for the page -->\n\nA first paragraph that is over sixty characters long so the fallback would have chosen it.').summary === 'custom routing line for the page')
 check('the question rides last under its own heading', text.endsWith('## The question\nhow do i schedule a prompt in mercury'))
 const bare = await promptText(docs!, '')

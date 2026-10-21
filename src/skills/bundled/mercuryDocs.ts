@@ -5,24 +5,21 @@ export const MERCURY_DOCS_SKILL_NAME = 'mercury-docs'
 export const MERCURY_DOCS_SITE = 'https://mercury-cli.ai/'
 export const MERCURY_DOCS_MAP_URL = 'https://mercury-cli.ai/llms.txt'
 
-const SUMMARY_CHARS = 190
+const SUMMARY_CHARS = 180
 const SHORT_PARAGRAPH = 60
-const GENERIC_INTRO_CMDS = new Set([
-  '/health',
-  'mercury health',
-  '/config',
-  '/model',
-  '/effort',
-  '/permissions',
-  '/memory',
-  '/logins',
-  '/accounts',
-  '/usage',
-  '/clear',
-  '/exit',
-  'mercury run',
-  'mercury runner',
-])
+const NOT_ABOUT_THE_PAGE = /\bin the README\b|^Measured in\b/
+const SENTENCE_BREAK = /(?<=[.?!])(?<!\b(?:e\.g|i\.e|vs)\.)\s+(?=[A-Z`"'(])/
+
+const occurrences = (text: string, mark: string): number => text.split(mark).length - 1
+const balanced = (text: string): boolean => occurrences(text, '`') % 2 === 0 && occurrences(text, '(') <= occurrences(text, ')')
+
+function clip(text: string): string {
+  if (text.length <= SUMMARY_CHARS) return text
+  const space = text.lastIndexOf(' ', SUMMARY_CHARS)
+  let cut = text.slice(0, space > 0 ? space : SUMMARY_CHARS)
+  while (!balanced(cut)) cut = cut.slice(0, occurrences(cut, '`') % 2 === 1 ? cut.lastIndexOf('`') : cut.lastIndexOf('('))
+  return `${cut.replace(/[\s,;:(]+$/, '')}…`
+}
 
 const PAGES: Readonly<Record<string, string>> = Object.freeze(bundledDocPages())
 
@@ -32,120 +29,31 @@ export function mercuryDocPages(): Readonly<Record<string, string>> {
 
 export function describeDocPage(text: string): { title: string; summary: string } {
   const lines = text.split('\n')
-  const heading = lines.find(line => line.startsWith('# '))
-  const title = heading ? heading.slice(2).trim() : ''
-  const answersMatch = /<!--\s*answers:\s*([\s\S]*?)-->/i.exec(text)
-  if (answersMatch?.[1]?.trim()) {
-    return { title, summary: answersMatch[1].trim().replace(/\s+/g, ' ') }
-  }
-  const start = heading ? lines.indexOf(heading) + 1 : 0
-  const firstH2 = lines.findIndex((line, index) => index >= start && line.startsWith('## '))
-  const introEnd = firstH2 === -1 ? lines.length : firstH2
+  const h1 = lines.findIndex(line => line.startsWith('# '))
+  const title = h1 === -1 ? '' : lines[h1]!.slice(2).trim()
+  const h2 = lines.findIndex((line, index) => index > h1 && line.startsWith('## '))
+  const opening = lines.slice(0, h2 === -1 ? undefined : h2)
+  const answers = /<!--\s*answers:\s*([\s\S]*?)-->/i.exec(opening.join('\n'))?.[1]?.trim()
+  if (answers) return { title, summary: answers.replace(/\s+/g, ' ') }
   const paragraphs: string[] = []
-  let paragraph: string[] = []
-  for (const line of [...lines.slice(start, introEnd), '']) {
+  let current: string[] = []
+  let fenced = false
+  for (const line of [...opening.slice(h1 + 1), '']) {
     const trimmed = line.trim()
-    if (trimmed !== '' && !/^(#|[-*] |\d+\. |\||!\[|```|<|---)/.test(line.trimStart())) {
-      paragraph.push(trimmed)
+    if (trimmed.startsWith('```')) fenced = !fenced
+    if (!fenced && trimmed !== '' && !/^(#|[-*] |\d+\. |\||!\[|```|<|---)/.test(trimmed)) {
+      current.push(trimmed)
       continue
     }
-    if (paragraph.length > 0) {
-      paragraphs.push(paragraph.join(' '))
-      paragraph = []
-    }
+    if (current.length > 0) paragraphs.push(current.join(' '))
+    current = []
   }
-  const firstPara = paragraphs[0] ?? ''
-  const chosen =
-    (/in the README|^Measured in\b/.test(firstPara) &&
-      paragraphs.find((p, i) => i > 0 && /^(?:This (?:page|guide)|The question was)\b/i.test(p))) ||
-    paragraphs.find(p => p.length >= SHORT_PARAGRAPH) ||
-    firstPara
-  const cleaned = chosen
+  const prose = paragraphs.filter(paragraph => paragraph.length >= SHORT_PARAGRAPH)
+  const chosen = (prose.find(paragraph => !NOT_ABOUT_THE_PAGE.test(paragraph)) ?? prose[0] ?? paragraphs[0] ?? '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\s*\([^)]{28,}\)/g, '')
-    .replace(/\s+the way the `[^`]+` tool drives a running [A-Za-z]+ editor/g, '')
-    .replace(
-      /Run `\/llmhost` in the foreground chat\.\s*Its popup opens on Which model\?, which lists the supported models and where each one can run right now:/g,
-      '`/llmhost` lists where each model can run:',
-    )
-  const sentences = cleaned
-    .split(/(?<=[.?!])\s+(?=[A-Z`"'(])/)
-    .map(s => s.trim())
-    .filter(Boolean)
-  let summary = sentences[0] ?? cleaned
-  if (summary.length < SHORT_PARAGRAPH && sentences[1]) {
-    summary = `${summary} ${sentences[1]}`
-  }
-  if (summary.length > SUMMARY_CHARS) {
-    const cut = summary.slice(0, SUMMARY_CHARS)
-    const clauseCut = Math.max(cut.lastIndexOf('; '), cut.lastIndexOf(', and '))
-    const spaceCut = Math.max(cut.lastIndexOf(' '), SUMMARY_CHARS - 30)
-    const cutAt = clauseCut >= 110 ? clauseCut : spaceCut
-    summary = `${cut.slice(0, cutAt).trimEnd().replace(/[,;:]$/, '')}…`
-  }
-  const h2s = lines.filter(line => line.startsWith('## ')).join('\n')
-  const introBlock = lines.slice(start, introEnd).join('\n').replace(/\s+/g, ' ')
-  const proseLines = lines
-    .filter(line => !line.trimStart().startsWith('- ['))
-    .join('\n')
-    .replace(/\s+/g, ' ')
-  const sigCandidates: string[] = []
-  const seen = new Set<string>()
-  const addCandidate = (tok: string): void => {
-    if (!tok || seen.has(tok)) return
-    seen.add(tok)
-    if (!summary.includes(tok)) sigCandidates.push(tok)
-  }
-  const pageStem = title.toLowerCase()
-  for (const match of proseLines.matchAll(
-    /`(\/(?:restart|samples|mcp|skills|concourse|sessions|saturn|loop|voice|advise|submodels|hooks|extensions|lsp|localsetup|llmhost|realms|bug))(?:\s+[^`]*)?`/g,
-  )) {
-    const tok = match[1]!
-    const stem = tok.slice(1)
-    if (
-      pageStem.includes(stem) ||
-      (tok === '/advise' && pageStem.includes('advisor')) ||
-      (tok === '/submodels' && pageStem.includes('advisor')) ||
-      (tok === '/restart' && pageStem.includes('runtime')) ||
-      ((tok === '/mcp' || tok === '/skills') && pageStem.includes('mcp')) ||
-      ((tok === '/concourse' || tok === '/sessions') && pageStem.includes('session')) ||
-      (tok === '/loop' && pageStem.includes('schedule')) ||
-      (tok === '/lsp' && pageStem.includes('language'))
-    ) {
-      addCandidate(tok)
-    }
-  }
-  for (const src of [title, introBlock, h2s]) {
-    for (const match of src.matchAll(
-      /`(\/[a-z][a-z0-9-]*|mercury\s+(?:run|runner|host|update|install|health|auth|models|mcp|extensions|roster|usage|daemon|sessions|lsp|acp|bridge|godot)|(?:Ast|Lsp)[A-Z][A-Za-z]+|ChangeSet)(?:\s+[^`]*)?`/g,
-    )) {
-      const tok = match[1]!.replace(/\s+/g, ' ')
-      if (tok === '/name' || tok === '/something') continue
-      const stem = tok.replace(/^\/|^mercury\s+/, '').toLowerCase()
-      if (src !== title && GENERIC_INTRO_CMDS.has(tok) && !pageStem.includes(stem)) continue
-      addCandidate(tok)
-    }
-    for (const match of src.matchAll(/\b(AstSearch|AstEdit|ChangeSet)\b/g)) {
-      addCandidate(match[1]!)
-    }
-  }
-  const titleWords = [...title.toLowerCase().matchAll(/[a-z0-9]{4,}/g)]
-    .map(m => m[0])
-    .filter(w => w !== 'mercury')
-  const summaryLower = summary.toLowerCase()
-  if (sigCandidates.length === 0 && !titleWords.some(w => summaryLower.includes(w))) {
-    for (const match of proseLines.matchAll(
-      /`(\/[a-z][a-z0-9-]*|mercury\s+(?:run|runner|host|update|install|health|auth|models|mcp|extensions|roster|usage|daemon|sessions|lsp|acp|bridge|godot))(?:\s+[^`]*)?`/g,
-    )) {
-      const tok = match[1]!.replace(/\s+/g, ' ')
-      if (tok !== '/name' && tok !== '/something') addCandidate(tok)
-    }
-  }
-  if (sigCandidates.length > 0) {
-    const tags = sigCandidates.slice(0, 3).map(t => `\`${t}\``).join(', ')
-    summary = `${summary.replace(/\.$/, '')} (${tags}).`
-  }
-  return { title, summary }
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+  const [first = '', second] = chosen.split(SENTENCE_BREAK)
+  return { title, summary: clip(first.length < SHORT_PARAGRAPH && second ? `${first} ${second}` : first) }
 }
 
 export function mercuryDocsMap(pages: Readonly<Record<string, string>> = mercuryDocPages()): string {
