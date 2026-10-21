@@ -285,14 +285,16 @@ class MercurySession(TypedRequests):
         self._prompt_error = fail
         self.on('outcome', done)
         turn_schema = None if schema is None else schema_object(schema, self.options.cwd)
+        accepted = False
         try:
             receipt = await self.send_prompt(content, id=id, **({} if turn_schema is None else {'schema': turn_schema}))
             if not receipt['accepted']: raise MercuryError('prompt was not accepted')
+            accepted = True
             row = await future
             if row['status'] == 'refused': raise MercuryRefusal(row)
             return validate_outcome(row, schema if schema is not None else self.options.schema, self.options.cwd)
         finally:
-            if self._prompt_turns.get(id) is None: self._prompt_turns.pop(id, None)
+            if self._prompt_turns.get(id) is None and (not accepted or self._correlated_turns): self._prompt_turns.pop(id, None)
             if future.done() and not future.cancelled(): future.exception()
             self.off('outcome', done)
             self._prompt_error = None

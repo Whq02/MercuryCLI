@@ -117,6 +117,7 @@ const { createInterface } = require('node:readline')
 const { appendFileSync } = require('node:fs')
 const emit = message => process.stdout.write(JSON.stringify(message) + '\n')
 let claimed = CLAIMED
+const cancelled = []
 createInterface({ input: process.stdin }).on('line', line => {
   const message = JSON.parse(line)
   appendFileSync(RECORD, line + '\n')
@@ -129,8 +130,12 @@ createInterface({ input: process.stdin }).on('line', line => {
   } else if (method === 'queue/withdraw') reply(params.id === 'keep' ? { withdrawn: false, reason: 'taken' } : { withdrawn: true, text: 'queued' })
   else if (method === 'queue/add' && claimed) {
     reply(params.content === 'reject' ? { accepted: false, reason: 'duplicate' } : { accepted: true })
-    if (params.content === 'cancel') emit({ jsonrpc: '2.0', method: 'fixture/queued', params: { id: params.id } })
+    if (params.content === 'cancel') { cancelled.push(params.id); emit({ jsonrpc: '2.0', method: 'fixture/queued', params: { id: params.id } }) }
     if (params.content === 'resolve') {
+      for (const queued of cancelled.splice(0)) {
+        if (CORRELATED) emit({ jsonrpc: '2.0', method: 'row', params: { ...TURN, turn_id: 'cancelled-turn', message_ids: [queued] } })
+        emit({ jsonrpc: '2.0', method: 'row', params: { ...OUTCOME, turn_id: 'cancelled-turn', answer: 'cancelled' } })
+      }
       if (CORRELATED) emit({ jsonrpc: '2.0', method: 'row', params: { ...TURN, message_ids: [params.id] } })
       emit({ jsonrpc: '2.0', method: 'row', params: OUTCOME })
     }
@@ -187,8 +192,8 @@ async def prompt_cancellation(correlated):
                 task.cancel()
                 with suppress(asyncio.CancelledError): await task
                 assert task.cancelled(), 'the prompt wait was cancelled'
-                assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved'
-                assert not session._prompt_turns, 'an uncorrelated cancelled wait leaves no turn entry'
+                assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved', "the cancelled turn's outcome is not the next prompt's answer"
+                assert not session._prompt_turns, "the cancelled turn's own outcome retires its entry"
                 assert not any(row['method'] == 'turn/interrupt' for row in received()), 'cancellation still cancels only the wait'
             finally:
                 task.cancel()

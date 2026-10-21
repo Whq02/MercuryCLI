@@ -280,22 +280,21 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     let fail!: (error: Error) => void
     const result = new Promise<OutcomeRow>((resolve, reject) => { done = row => { if (row.parent_call_id === undefined && (this.#correlatedTurns ? this.#promptTurns.get(id) === row.turn_id : this.#promptTurns.keys().next().value === id)) resolve(row) }; fail = reject })
     result.catch(() => undefined)
-    const abort = () => {
-      if (this.#promptTurns.get(id) === undefined) this.#promptTurns.delete(id)
-      fail(new MercuryError('prompt: cancelled', null))
-    }
+    const abort = () => fail(new MercuryError('prompt: cancelled', null))
     options.signal?.addEventListener('abort', abort, { once: true })
     this.#promptReject = fail
     this.on('outcome', done)
     const turnSchema = options.schema === undefined ? undefined : schemaObject(options.schema, this.options.cwd)
+    let accepted = false
     try {
       const receipt = await this.sendPrompt(content, { id, ...(turnSchema === undefined ? {} : { schema: turnSchema }) })
       if (!receipt.accepted) throw new MercuryError('prompt was not accepted', null)
+      accepted = true
       const row = await result
       if (row.status === 'refused') throw new MercuryRefusal(row, null)
       return validateOutcome<T>(row, options.schema ?? this.options.schema as OutputSchema<T> | undefined, this.options.cwd)
     } finally {
-      if (this.#promptTurns.get(id) === undefined) this.#promptTurns.delete(id)
+      if (this.#promptTurns.get(id) === undefined && (!accepted || this.#correlatedTurns)) this.#promptTurns.delete(id)
       options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#prompting = false
     }
   }
