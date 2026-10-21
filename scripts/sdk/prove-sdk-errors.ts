@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { PYTHON } from './runtime.ts'
 import * as sdk from '../../sdk/src/index.ts'
 import { startFixtureServer } from '../../sdk/src/testing.ts'
 
@@ -55,7 +56,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'sdk-errors-'))
 try {
   const code = `import asyncio,json,sys\nfrom mercury_cli_sdk import *\nfrom mercury_cli_sdk.testing import start_fixture_server\nasync def main():\n for script,error in [('import sys;sys.stderr.write("usage");sys.exit(2)',MercuryUsageError),('raise SystemExit(3)',MercuryExitError),('print("{broken")',MercuryWireError)]:\n  task=await run('hi',mercury=[sys.executable,'-c',script])\n  try: await task.outcome\n  except error: pass\n  else: raise AssertionError(error)\n  await task.exit\n try: await run('hi',mercury='mercury-sdk-no-such-binary-proof')\n except MercurySpawnError: pass\n else: raise AssertionError('spawn')\n async with await start_fixture_server({'methods':{'initialize':[{'result':{'protocol':1,'runner':{'version':'fixture','pid':1},'session_id':'s'}}],'session/set_mode':[{'error':{'code':-32010,'message':'no mode','data':{'kind':'mode'}}}]}}) as server:\n  async with await connect(mercury=[*server.mercury,'run']) as session:\n   try: await session.set_mode('wrong')\n   except MercuryRefusal as error: assert error.code==-32010\n   else: raise AssertionError('refusal')\n print('PASS Python five errors and command-prefix handling')\nasyncio.run(main())\n`
   writeFileSync(join(scratch, 'errors.py'), code)
-  const child = spawn('python3', [join(scratch, 'errors.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(resolve(import.meta.dir, '../..'), 'sdk-py/src') }, stdio: 'inherit' })
+  const child = spawn(PYTHON, [join(scratch, 'errors.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(resolve(import.meta.dir, '../..'), 'sdk-py/src') }, stdio: 'inherit' })
   assert.equal(await new Promise(r => child.once('close', r)), 0)
 } finally { rmSync(scratch, { recursive: true, force: true }) }
 console.log('PASS typed errors, invalid params, command prefixes and host ask cancellation')

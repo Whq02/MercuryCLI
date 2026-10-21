@@ -1,7 +1,7 @@
 /// <reference lib="esnext.disposable" preserve="true" />
 import { spawn, type ChildProcess } from 'node:child_process'
 import { readLines } from './framing.js'
-import { endChild, missingCwd, track } from './lifecycle.js'
+import { capRows, endChild, missingCwd, track, unlimitedSignal } from './lifecycle.js'
 import { randomUUID } from 'node:crypto'
 import { argvOf, warmOptions, type RunOptions } from './client.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
@@ -15,6 +15,10 @@ import { serveTools, withTools, type ToolServer } from './helpers.js'
 
 export type RequestContext = { signal: AbortSignal; id: number }
 export type HostHandlers = { [M in RunnerRequestName]?: (params: ParamsOf<M>, context: RequestContext) => ResultOf<M> | (keyof ResultOf<M> extends never ? void : never) | Promise<ResultOf<M> | (keyof ResultOf<M> extends never ? void : never)> }
+export type PermissionHandler = NonNullable<HostHandlers['permission/request']>
+export type ElicitationHandler = NonNullable<HostHandlers['elicitation/request']>
+export type ReadTextFileHandler = NonNullable<HostHandlers['fs/read_text_file']>
+export type WriteTextFileHandler = NonNullable<HostHandlers['fs/write_text_file']>
 export interface ConnectOptions extends Omit<RunOptions, 'prompt' | 'stdin' | 'input' | 'signal'> {
   signal?: AbortSignal
   warm?: boolean
@@ -28,7 +32,7 @@ export interface ConnectOptions extends Omit<RunOptions, 'prompt' | 'stdin' | 'i
   onWriteTextFile?: HostHandlers['fs/write_text_file']
 }
 export type RequestOptions = { signal?: AbortSignal; deadlineMs?: number | null }
-export type PromptOptions<T = unknown> = { signal?: AbortSignal; schema?: OutputSchema<T> }
+export type PromptOptions<T = unknown> = { signal?: AbortSignal; timeoutMs?: number | null; interruptOnAbort?: boolean; schema?: OutputSchema<T> }
 type Pending = { method: HostRequestName; resolve: (value: unknown) => void; reject: (error: Error) => void; cleanup: () => void }
 
 export class MercurySession implements AsyncIterable<StreamRow> {
@@ -36,6 +40,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   readonly exit: Promise<RunExit>
   readonly rows: StreamRow[] = []
   initialized!: ResultOf<'initialize'>
+  get sessionId(): string | null { return this.initialized?.session_id ?? null }
   get fileCheckpoints(): ResultOf<'initialize'>['file_checkpoints'] { return (this.initialized as ResultOf<'initialize'> | undefined)?.file_checkpoints }
   stderr = ''
   lastPromptId: string | undefined
@@ -123,6 +128,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       const ms = options.deadlineMs === undefined ? spec.deadlineMs : options.deadlineMs
       if (ms !== null) timer = setTimeout(() => cancel(`${method}: no answer within ${ms} ms`), ms)
       if (options.signal?.aborted) { abort(); return }
+      unlimitedSignal(options.signal)
       options.signal?.addEventListener('abort', abort, { once: true })
       try { this.#write({ jsonrpc: '2.0', id, method, params }) } catch (error) { this.#pending.delete(id); cleanup(); reject(error) }
     })
@@ -170,8 +176,9 @@ export class MercurySession implements AsyncIterable<StreamRow> {
         const read = rowOf(msg.params)
         if (!read.ok) throw new MercuryWireError(line, read.reason, read.type, read.issues, null)
         this.rows.push(read.row)
+        capRows(this.rows, this.options.maxRows)
         const waiter = this.#waiters.shift()
-        if (waiter) waiter.resolve({ value: read.row, done: false }); else this.#queue.push(read.row)
+        if (waiter) waiter.resolve({ value: read.row, done: false }); else { this.#queue.push(read.row); capRows(this.#queue, this.options.maxRows) }
         const row = read.row
         if (row.type === 'turn' && row.parent_call_id === undefined && row.message_ids !== undefined) {
           this.#correlatedTurns = true
@@ -234,11 +241,13 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   }
   async send(row: InputRow) {
     if (row.type !== 'prompt') return this.request('queue/add', row)
+    if (this.sessionId === null) throw new MercuryError('session is unclaimed; call claim() before prompting', null)
     const id = row.id ?? randomUUID()
     this.#promptTurns.set(id, undefined)
     try {
       const receipt = await this.request('queue/add', { ...row, id })
-      if (!receipt.accepted) this.#promptTurns.delete(id)
+      if (receipt.accepted) this.lastPromptId = id
+      else this.#promptTurns.delete(id)
       return receipt
     } catch (error) {
       if (error instanceof MercuryRefusal || error instanceof MercuryWireError || error instanceof MercurySchemaError) this.#promptTurns.delete(id)
@@ -246,11 +255,15 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     }
   }
   sendPrompt(content: PromptRow['content'], options: Omit<PromptRow, 'type' | 'content'> = {}) { return this.send({ ...options, type: 'prompt', content }) }
-  steer(content: PromptRow['content']) { return this.sendPrompt(content, { priority: 'now' }) }
-  followUp(content: PromptRow['content']) { return this.sendPrompt(content, { priority: 'later' }) }
+  steer(content: PromptRow['content'], options: Pick<PromptRow, 'id' | 'schema'> = {}) { return this.sendPrompt(content, { ...options, priority: 'now' }) }
+  followUp(content: PromptRow['content'], options: Pick<PromptRow, 'id' | 'schema'> = {}) { return this.sendPrompt(content, { ...options, priority: 'later' }) }
   sendShell(command: string, options: Omit<ShellRow, 'type' | 'command'> = {}) { return this.send({ ...options, type: 'shell', command }) }
   sendNote(to: string, content: string, options: Omit<NoteRow, 'type' | 'to' | 'content'> = {}) { return this.send({ ...options, type: 'note', to, content }) }
-  withdraw(id: string) { return this.request('queue/withdraw', { id }) }
+  async withdraw(id: string) {
+    const receipt = await this.request('queue/withdraw', { id })
+    if (receipt.withdrawn) this.#promptTurns.delete(id)
+    return receipt
+  }
   interrupt(options: ParamsOf<'turn/interrupt'> = {}) { this.toolServer?.cancel(); return this.request('turn/interrupt', options) }
   facts() { return this.request('session/facts', {}) }
   setModel(model: string) { return this.request('session/set_model', { model }) }
@@ -260,31 +273,61 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   rewind(options: ParamsOf<'session/rewind'>) { return this.request('session/rewind', options) }
   stopAgent(agent_id: string, note?: string) { return this.request('agent/stop', { agent_id, note }) }
   resumeAgent(agent_id: string, note?: string) { return this.request('agent/resume', { agent_id, note }) }
-  claim(params: ParamsOf<'session/claim'>) { return this.request('session/claim', params) }
+  mcpTools(name: string) { return this.request('mcp/tools', { name }) }
+  mcpAction(name: string, action: ParamsOf<'mcp/action'>['action']) { return this.request('mcp/action', { name, action }) }
+  pauseGate(paused: boolean) { return this.request('session/pause_gate', { paused }) }
+  quiesce(action: ParamsOf<'session/quiesce'>['action'], token: string) { return this.request('session/quiesce', { action, token }) }
+  leave() { return this.request('session/leave', {}) }
+  setSpawnSwitch(kind: ParamsOf<'session/set_spawn_switch'>['switch'], on: boolean) { return this.request('session/set_spawn_switch', { switch: kind, on }) }
+  backgroundShell() { return this.request('shell/background', {}) }
+  notifyCredentialsChanged(params: ParamsOf<'credentials/changed'> = {}) { this.notify('credentials/changed', params) }
+  async claim(params: ParamsOf<'session/claim'>) {
+    const receipt = await this.request('session/claim', params)
+    this.initialized.session_id = receipt.session_id
+    return receipt
+  }
 
   async prompt<T = unknown>(content: PromptRow['content'], options: PromptOptions<T> = {}): Promise<OutcomeRow<T>> {
     if (this.#prompting) throw new MercuryError('prompt already pending; use sendPrompt for mid-turn input', null)
     if (options.signal?.aborted) throw new MercuryError('prompt: cancelled', null)
     this.#prompting = true
     const id = randomUUID()
+    let accepted = false
+    let aborted = false
+    let timer: ReturnType<typeof setTimeout> | undefined
     let done!: (row: OutcomeRow) => void
     let fail!: (error: Error) => void
     const result = new Promise<OutcomeRow>((resolve, reject) => { done = row => { if (row.parent_call_id === undefined && (this.#correlatedTurns ? this.#promptTurns.get(id) === row.turn_id : this.#promptTurns.keys().next().value === id)) resolve(row) }; fail = reject })
     result.catch(() => undefined)
-    const abort = () => fail(new MercuryError('prompt: cancelled', null))
+    const cancel = (message: string) => {
+      aborted = true
+      if (this.#promptTurns.get(id) === undefined) this.#promptTurns.delete(id)
+      if (options.interruptOnAbort && accepted && !this.#closed) void this.interrupt().catch(() => undefined)
+      fail(new MercuryError(message, null))
+    }
+    const abort = () => cancel('prompt: cancelled')
+    unlimitedSignal(options.signal)
     options.signal?.addEventListener('abort', abort, { once: true })
+    if (options.timeoutMs !== undefined && options.timeoutMs !== null) timer = setTimeout(() => cancel(`prompt: no answer within ${options.timeoutMs} ms`), options.timeoutMs)
     this.#promptReject = fail
     this.on('outcome', done)
     const turnSchema = options.schema === undefined ? undefined : schemaObject(options.schema, this.options.cwd)
     try {
       const receipt = await this.sendPrompt(content, { id, ...(turnSchema === undefined ? {} : { schema: turnSchema }) })
       if (!receipt.accepted) throw new MercuryError('prompt was not accepted', null)
-      this.lastPromptId = id
+      accepted = true
+      if (aborted && options.interruptOnAbort && !this.#closed) void this.interrupt().catch(() => undefined)
       const row = await result
       if (row.status === 'refused') throw new MercuryRefusal(row, null)
       return validateOutcome<T>(row, options.schema ?? this.options.schema as OutputSchema<T> | undefined, this.options.cwd)
-    } finally { options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#prompting = false }
+    } finally {
+      clearTimeout(timer)
+      if (this.#promptTurns.get(id) === undefined) this.#promptTurns.delete(id)
+      options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#prompting = false
+    }
   }
+
+  clearRows(): void { this.rows.length = 0; this.#queue.length = 0 }
 
   close(): Promise<void> {
     this.#closing = true
@@ -309,6 +352,7 @@ export async function connect(options: ConnectOptions = {}): Promise<MercurySess
     }, { signal: options.signal })
     if (options.signal) {
       const signal = options.signal
+      unlimitedSignal(signal)
       const end = () => void session.close()
       signal.addEventListener('abort', end, { once: true })
       void session.exit.then(() => signal.removeEventListener('abort', end))

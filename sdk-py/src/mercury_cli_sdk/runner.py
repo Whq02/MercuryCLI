@@ -5,16 +5,16 @@ import json
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass, replace
-from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, TypeVar, Unpack, cast, overload
+from typing import Any, Awaitable, Callable, AsyncIterator, Literal, Mapping, TypeVar, Unpack, cast, overload
 from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, read_stderr, send_signal, spawn, untrack, warm_options
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
-from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
+from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimParams, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult
 from .framing import read_lines
 from .structured import MercurySchemaError, StructuredSchema, schema_object, schema_refusal, validate_outcome
 
 T = TypeVar('T')
 from .helpers import ToolServer
-from .parse import Issue, StreamRow, row_of, input_row_of, validate
+from .parse import Issue, PromptContent, StreamRow, cap_queue, cap_rows, clear_queue, row_of, input_row_of, validate
 from .version import __version__
 
 
@@ -127,11 +127,11 @@ class MercurySession(TypedRequests):
         try:
             spec = METHODS.get(method)
             if not spec or spec['kind'] != 'request' or spec['from'] == 'host':
-                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': 'unknown host method'}})
+                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': f'unknown host method {method}'}})
                 return
             issues = validate(spec['params'], message.get('params', {}))
             if issues:
-                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32602, 'message': 'invalid request params'}})
+                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32602, 'message': 'invalid request params', 'data': [{'path': i.path, 'message': i.message} for i in issues]}})
                 return
             handler = self.handlers.get(method)
             if handler:
@@ -140,11 +140,11 @@ class MercurySession(TypedRequests):
             elif method == 'permission/request': value = {'outcome': 'deny', 'message': 'No permission handler installed'}
             elif method == 'elicitation/request': value = {'action': 'decline'}
             else:
-                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': 'no host handler installed'}})
+                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': f'no handler for {method}'}})
                 return
             if value is None and not validate(spec['result'], {}): value = {}
             issues = validate(spec['result'], value)
-            if issues: raise MercuryWireError(json.dumps(value), 'invalid', method, issues)
+            if issues: raise MercuryError(f"invalid host answer: {json.dumps([{'path': i.path, 'message': i.message} for i in issues])}")
             if not context.cancelled.is_set(): await self._write({'jsonrpc': '2.0', 'id': id, 'result': value})
         except Exception as error:
             if not context.cancelled.is_set() and not self._closed:
@@ -203,7 +203,9 @@ class MercurySession(TypedRequests):
                     row = read.row
                     assert row is not None
                     self.rows.append(row)
+                    cap_rows(self.rows, self.options.max_rows)
                     self._queue.put_nowait(row)
+                    cap_queue(self._queue, self.options.max_rows)
                     if row['type'] == 'turn' and 'parent_call_id' not in row and 'message_ids' in row:
                         self._correlated_turns = True
                         for id in row['message_ids']:
@@ -242,21 +244,25 @@ class MercurySession(TypedRequests):
     async def send(self, row: InputRow) -> QueueAddResult:
         """Queue one input row (``queue/add``); a prompt row is given an id so its outcome can be matched."""
         if row['type'] != 'prompt': return await self.request('queue/add', row)
+        if self.session_id is None: raise MercuryError('session is unclaimed; call claim() before prompting')
         id = row.get('id') or str(uuid.uuid4())
         self._prompt_turns[id] = None
         try:
             receipt = await self.request('queue/add', {**row, 'id': id})
-            if not receipt['accepted']: self._prompt_turns.pop(id, None)
+            if receipt['accepted']: self.last_prompt_id = id
+            else: self._prompt_turns.pop(id, None)
             return receipt
         except (MercuryRefusal, MercuryWireError, MercurySchemaError):
             self._prompt_turns.pop(id, None)
             raise
 
-    async def send_prompt(self, content: Any, **options: Any) -> QueueAddResult:
-        return await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content}))
+    async def send_prompt(self, content: PromptContent, **options: Any) -> QueueAddResult:
+        return await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content if isinstance(content, str) else list(content)}))
 
-    async def steer(self, content: Any) -> QueueAddResult: return await self.send_prompt(content, priority='now')
-    async def follow_up(self, content: Any) -> QueueAddResult: return await self.send_prompt(content, priority='later')
+    async def steer(self, content: PromptContent, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult:
+        return await self.send_prompt(content, priority='now', **({} if id is None else {'id': id}), **({} if schema is None else {'schema': schema}))
+    async def follow_up(self, content: PromptContent, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult:
+        return await self.send_prompt(content, priority='later', **({} if id is None else {'id': id}), **({} if schema is None else {'schema': schema}))
 
     async def send_shell(self, command: str, **options: Any) -> QueueAddResult:
         return await self.send(cast(InputRow, {**options, 'type': 'shell', 'command': command}))
@@ -265,35 +271,55 @@ class MercurySession(TypedRequests):
         return await self.send(cast(InputRow, {**options, 'type': 'note', 'to': to, 'content': content}))
 
     @overload
-    async def prompt(self, content: Any, *, schema: StructuredSchema[T]) -> TypedOutcome[T]: ...
+    async def prompt(self, content: PromptContent, *, schema: StructuredSchema[T], timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> TypedOutcome[T]: ...
     @overload
-    async def prompt(self, content: Any, *, schema: str | dict[str, Any] | None = None) -> OutcomeRow: ...
-    async def prompt(self, content: Any, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None) -> OutcomeRow:
+    async def prompt(self, content: PromptContent, *, schema: str | dict[str, Any] | None = None, timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> OutcomeRow: ...
+    async def prompt(self, content: PromptContent, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> OutcomeRow:
         """Queue a prompt and await the outcome of the turn it starts; cancelling the await stops waiting, not the turn."""
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
+        if cancel is not None and cancel.is_set(): raise MercuryError('prompt: cancelled')
         self._prompting = True
         id = str(uuid.uuid4())
+        accepted = False
         future: asyncio.Future[OutcomeRow] = asyncio.get_running_loop().create_future()
         def done(row: OutcomeRow) -> None:
             matches = self._prompt_turns.get(id) == row['turn_id'] if self._correlated_turns else next(iter(self._prompt_turns), None) == id
             if matches and 'parent_call_id' not in row and not future.done(): future.set_result(row)
         def fail(error: Exception) -> None:
             if not future.done(): future.set_exception(error)
+        async def watch_cancel() -> None:
+            assert cancel is not None
+            await cancel.wait()
+            if self._prompt_turns.get(id) is None: self._prompt_turns.pop(id, None)
+            fail(MercuryError('prompt: cancelled'))
+        cancel_task = asyncio.create_task(watch_cancel()) if cancel is not None else None
         self._prompt_error = fail
         self.on('outcome', done)
         turn_schema = None if schema is None else schema_object(schema, self.options.cwd)
         try:
             receipt = await self.send_prompt(content, id=id, **({} if turn_schema is None else {'schema': turn_schema}))
             if not receipt['accepted']: raise MercuryError('prompt was not accepted')
-            self.last_prompt_id = id
-            row = await future
+            accepted = True
+            try:
+                row = await (future if timeout is None else asyncio.wait_for(future, timeout))
+            except asyncio.TimeoutError as error:
+                raise MercuryError(f'prompt: no answer within {timeout} seconds') from error
             if row['status'] == 'refused': raise MercuryRefusal(row)
             return validate_outcome(row, schema if schema is not None else self.options.schema, self.options.cwd)
+        except BaseException:
+            if accepted and interrupt_on_cancel and not self._closed:
+                with suppress(Exception): await asyncio.shield(self.interrupt())
+            raise
         finally:
+            if cancel_task is not None: cancel_task.cancel()
+            if self._prompt_turns.get(id) is None: self._prompt_turns.pop(id, None)
             if future.done() and not future.cancelled(): future.exception()
             self.off('outcome', done)
             self._prompt_error = None
             self._prompting = False
+
+    @property
+    def session_id(self) -> str | None: return self.initialized['session_id'] if hasattr(self, 'initialized') else None
 
     @property
     def file_checkpoints(self) -> InitializeResultFile_checkpoints | None:
@@ -304,7 +330,10 @@ class MercurySession(TypedRequests):
     async def interrupt(self, **options: Any) -> TurnInterruptResult:
         if self._tools: self._tools.cancel()
         return await self.request('turn/interrupt', options)
-    async def withdraw(self, id: str) -> QueueWithdrawResult: return await self.request('queue/withdraw', {'id': id})
+    async def withdraw(self, id: str) -> QueueWithdrawResult:
+        receipt = await self.request('queue/withdraw', {'id': id})
+        if receipt['withdrawn']: self._prompt_turns.pop(id, None)
+        return receipt
     async def set_model(self, model: str) -> SessionSetModelResult: return await self.request('session/set_model', {'model': model})
     async def set_effort(self, effort: str) -> SessionSetEffortResult: return await self.request('session/set_effort', {'effort': effort})
     async def set_mode(self, mode: str) -> SessionSetModeResult: return await self.request('session/set_mode', {'mode': mode})
@@ -312,7 +341,29 @@ class MercurySession(TypedRequests):
     async def rewind(self, user_message_id: str, mode: str, dry_run: bool = False) -> SessionRewindResult: return await self.request('session/rewind', {'user_message_id': user_message_id, 'mode': mode, 'dry_run': dry_run})
     async def stop_agent(self, agent_id: str, note: str | None = None) -> AgentStopResult: return await self.request('agent/stop', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
     async def resume_agent(self, agent_id: str, note: str | None = None) -> AgentResumeResult: return await self.request('agent/resume', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
-    async def claim(self, **params: Any) -> SessionClaimResult: return await self.request('session/claim', params)
+    async def mcp_tools(self, name: str) -> McpToolsResult: return await self.request('mcp/tools', {'name': name})
+    async def mcp_action(self, name: str, action: Literal['authenticate', 'reconnect', 'cancel-auth']) -> McpActionResult: return await self.request('mcp/action', {'name': name, 'action': action})
+    async def pause_gate(self, paused: bool) -> SessionPauseGateResult: return await self.request('session/pause_gate', {'paused': paused})
+    async def quiesce(self, action: Literal['prepare', 'commit', 'cancel'], token: str) -> SessionQuiesceResult: return await self.request('session/quiesce', {'action': action, 'token': token})
+    async def leave(self) -> SessionLeaveResult: return await self.request('session/leave')
+    async def set_spawn_switch(self, switch: Literal['subagents', 'workflows'], on: bool) -> SessionSetSpawnSwitchResult: return await self.request('session/set_spawn_switch', {'switch': switch, 'on': on})
+    async def background_shell(self) -> ShellBackgroundResult: return await self.request('shell/background')
+    async def notify_credentials_changed(self, params: dict[str, Any] | None = None) -> None: await self.notify('credentials/changed', params)
+    async def claim(self, *, session_id: str, model: str | None = None, mode: str | None = None, effort: str | None = None, resume: bool | None = None, restart_reason: str | None = None, openai_catalogue: Any = None) -> SessionClaimResult:
+        params: SessionClaimParams = {'session_id': session_id}
+        if model is not None: params['model'] = model
+        if mode is not None: params['mode'] = mode
+        if effort is not None: params['effort'] = effort
+        if resume is not None: params['resume'] = resume
+        if restart_reason is not None: params['restart_reason'] = restart_reason
+        if openai_catalogue is not None: params['openai_catalogue'] = openai_catalogue
+        receipt = await self.request('session/claim', params)
+        self.initialized['session_id'] = receipt['session_id']
+        return receipt
+
+    def clear_rows(self) -> None:
+        self.rows.clear()
+        clear_queue(self._queue)
 
     async def close(self) -> None:
         """End stdin and wait for the runner to exit; SIGTERM after five seconds, SIGKILL after ten. Asks still in flight are cancelled, so nothing is written to the closed input."""

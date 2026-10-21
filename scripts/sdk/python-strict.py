@@ -70,31 +70,86 @@ async def main() -> None:
 asyncio.run(main())
 
 
-from typing import Any, assert_type
-from mercury_cli_sdk import InitializeResultFile_checkpoints, SessionFactsResult, SessionRewindResult, AgentStopResult, AgentResumeResult, QueueAddResult, TypedOutcome, structured_schema, prewarm
+from typing import Any, NotRequired, assert_type
+from mercury_cli_sdk import (
+    InitializeResultFile_checkpoints, SessionFactsResult, SessionRewindResult, AgentStopResult, AgentResumeResult, QueueAddResult, TypedOutcome, TypedRunResult,
+    McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult,
+    PromptContent, PromptInput, StepRow, TurnRow, RowType, PartialRowType, InputRowType,
+    is_outcome, is_session_row, turn_opened, turn_waiting, main_thread_step, is_main_thread, outcome_failed, outcome_error_text, is_row_type, is_input_row_type,
+    is_retryable_outcome, assert_completed, allow_permission, deny_permission,
+    text_block, image_block, structured_schema, prewarm,
+)
 
 
 async def typed_output_and_warm() -> None:
     def decode(value: Any) -> int: return int(value['count'])
     descriptor = structured_schema({'type': 'object', 'properties': {'count': {'type': 'integer'}}}, decode)
-    task = await run('typed', schema=descriptor)
+    blocks = [text_block('hi'), image_block(b'x', 'image/png')]
+    content: PromptContent = blocks
+    prompt_input: PromptInput = content
+    task = await run(prompt_input, schema=descriptor)
     assert_type(await task.outcome, TypedOutcome[int])
+    sync_typed = run_sync(blocks, schema=descriptor)
+    assert_type(sync_typed, TypedRunResult[int])
+    assert_type(sync_typed.outcome, TypedOutcome[int])
+    opt_tool = define_tool('opt', 'Optional mapping field', {'q': str, 'limit': NotRequired[int]}, lambda _: 'ok')
+    assert opt_tool.input_schema['required'] == ['q']
     session = await connect()
-    assert_type(await session.prompt('typed', schema=descriptor), TypedOutcome[int])
+    assert_type(await session.prompt(blocks, schema=descriptor), TypedOutcome[int])
+    await session.send_prompt(blocks)
+    await session.steer(blocks)
+    await session.follow_up(blocks)
     warm = await prewarm()
     assert_type(warm, MercurySession)
     await warm.close()
 
 
+def typed_predicates(row: StreamRow | None, kind: str, typed_result: TypedRunResult[int]) -> None:
+    assert_type(typed_result.outcome, TypedOutcome[int])
+    if is_row_type(kind):
+        assert_type(kind, RowType | PartialRowType)
+    if is_input_row_type(kind):
+        assert_type(kind, InputRowType)
+    if is_outcome(row):
+        assert_type(row, OutcomeRow)
+        assert_type(outcome_failed(row), bool)
+        assert_type(outcome_error_text(row), str | None)
+    if is_session_row(row):
+        assert_type(row, SessionRow)
+    if turn_opened(row):
+        assert_type(row, TurnRow)
+    if turn_waiting(row):
+        assert_type(row, TurnRow)
+    if main_thread_step(row):
+        assert_type(row, StepRow)
+        assert_type(is_main_thread(row), bool)
+
+
 def typed_sync() -> None:
+    from typing import Literal
     with connect_sync() as session:
         assert_type(session.prompt('test'), OutcomeRow)
+        assert_type(assert_completed(session.prompt('test')), OutcomeRow)
+        assert_type(is_retryable_outcome(session.prompt('test')), bool)
+        assert_type(allow_permission()['outcome'], Literal['allow'])
+        assert_type(deny_permission('no')['outcome'], Literal['deny'])
         assert_type(session.facts(), SessionFactsResult)
         assert_type(session.request('session/facts'), SessionFactsResult)
         assert_type(session.rewind('id', 'code'), SessionRewindResult)
         assert_type(session.stop_agent('a'), AgentStopResult)
         assert_type(session.resume_agent('a'), AgentResumeResult)
+        assert_type(session.mcp_tools('s'), McpToolsResult)
+        assert_type(session.mcp_action('s', 'reconnect'), McpActionResult)
+        assert_type(session.pause_gate(False), SessionPauseGateResult)
+        assert_type(session.quiesce('prepare', 't'), SessionQuiesceResult)
+        assert_type(session.leave(), SessionLeaveResult)
+        assert_type(session.set_spawn_switch('subagents', True), SessionSetSpawnSwitchResult)
+        assert_type(session.background_shell(), ShellBackgroundResult)
+        session.notify_credentials_changed()
         assert_type(session.send_prompt('test'), QueueAddResult)
+        assert_type(session.send_prompt([text_block('hi')]), QueueAddResult)
+        assert_type(session.steer([text_block('hi')]), QueueAddResult)
+        assert_type(session.follow_up([text_block('hi')]), QueueAddResult)
         assert_type(session.last_prompt_id, str | None)
         assert_type(session.file_checkpoints, InitializeResultFile_checkpoints | None)
         assert_type(next(iter(session)), StreamRow)

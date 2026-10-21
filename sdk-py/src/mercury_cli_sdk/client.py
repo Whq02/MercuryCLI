@@ -15,7 +15,7 @@ from .framing import read_lines
 from .executable import executable_of
 from .structured import StructuredSchema, schema_object, validate_outcome
 from .helpers import ToolDefinition, ToolServer, serve_tools
-from .parse import Issue, StreamRow, parse_row, input_row_of
+from .parse import Issue, StreamRow, cap_queue, cap_rows, clear_queue, parse_row, input_row_of
 
 Listener = Callable[[Any], object]
 
@@ -57,6 +57,7 @@ class RunOptions:
     brief_add: str | None = None
     schema: str | dict[str, Any] | StructuredSchema[Any] | None = None
     max_turns: int | None = None
+    max_rows: int | None = None
     max_time: str | None = None
     budget_usd: float | None = None
     partial: bool = False
@@ -109,6 +110,7 @@ class ConnectKwargs(TypedDict, total=False):
     brief: str | None
     brief_add: str | None
     max_turns: int | None
+    max_rows: int | None
     max_time: str | None
     budget_usd: float | None
     partial: bool
@@ -170,10 +172,19 @@ def argv_of(options: RunOptions, door: Literal['run', 'runner'] = 'run') -> list
 
 _live: dict[int, asyncio.subprocess.Process] = {}
 _sent: dict[int, str] = {}
+_owner_pid = os.getpid()
 WINDOWS = os.name == 'nt'
 
 
+def _reset_after_fork() -> None:
+    global _owner_pid
+    _owner_pid = os.getpid()
+    _live.clear()
+    _sent.clear()
+
+
 def _end_live_children() -> None:
+    if os.getpid() != _owner_pid: return
     for pid, child in list(_live.items()):
         if child.returncode is None:
             try: os.kill(pid, signal.SIGTERM)
@@ -181,6 +192,7 @@ def _end_live_children() -> None:
 
 
 atexit.register(_end_live_children)
+if hasattr(os, 'register_at_fork'): os.register_at_fork(after_in_child=_reset_after_fork)
 
 
 def track(child: asyncio.subprocess.Process) -> None:
@@ -228,6 +240,10 @@ def interrupted_outcome(rows: list[StreamRow], started_at: float, now: float | N
         for key in _USAGE_KEYS:
             usage[key] += int(step['usage'][key])
             model[key] += int(step['usage'][key])
+        if 'reasoning_output_tokens' in step['usage']:
+            reasoning = int(step['usage']['reasoning_output_tokens'])
+            usage['reasoning_output_tokens'] = usage.get('reasoning_output_tokens', 0) + reasoning
+            model['reasoning_output_tokens'] = model.get('reasoning_output_tokens', 0) + reasoning
     last = rows[-1] if rows else None
     started = datetime.fromisoformat(str(turn['timestamp']).replace('Z', '+00:00')).timestamp() if turn else started_at
     row = {'type': 'outcome', 'seq': int(last.get('seq', 0) if last else 0) + 1, 'timestamp': datetime.fromtimestamp(at, timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'), 'session_id': str(last.get('session_id', '')) if last else '', 'turn': int(turn.get('turn', max(1, len(opened)))) if turn else max(1, len(opened)), 'schema': 1, 'turn_id': str(turn['turn_id']) if turn else '', 'status': 'interrupted', 'error': {'message': 'Interrupted', 'class': 'interrupt'}, 'steps': len(steps), 'wall_ms': max(0, int((at - started) * 1000)), 'usage': usage, 'models': models, 'denials': []}
@@ -323,11 +339,13 @@ class MercuryRun:
                 row = read.row
                 assert row is not None
                 self.rows.append(row)
+                cap_rows(self.rows, self.options.max_rows)
                 if row['type'] == 'session' and not self.session.done():
                     self.session.set_result(row)
                     if self._interrupt_requested: self.interrupt()
                 if row['type'] == 'outcome': last = row
                 self._queue.put_nowait(row)
+                cap_queue(self._queue, self.options.max_rows)
                 self._emit('row', row)
                 self._emit(row['type'], row)
         except Exception as error:
@@ -406,6 +424,10 @@ class MercuryRun:
     def close_input(self) -> None:
         """End stdin; the run finishes its queued work and exits."""
         self._stdin.close()
+
+    def clear_rows(self) -> None:
+        self.rows.clear()
+        clear_queue(self._queue)
 
     def interrupt(self) -> None:
         """End the running turn with SIGINT; before the session row arrives the signal waits for it, so the turn ends as ``interrupted`` rather than killing a booting CLI."""

@@ -6,6 +6,8 @@ import shutil
 import tempfile
 import sys
 import json
+import time
+from contextlib import contextmanager, suppress
 from urllib.request import Request, urlopen
 from typing import TypedDict, Annotated, NotRequired
 import mercury_cli_sdk as sdk
@@ -103,6 +105,150 @@ async def capabilities():
                 assert session.last_prompt_id is None
                 assert (await session.prompt('accepted'))['status'] == 'completed'
                 assert isinstance(session.last_prompt_id, str)
+
+
+@contextmanager
+def prompt_fixture(correlated=False, warm=False):
+    with tempfile.TemporaryDirectory(prefix='sdk-prompts-') as directory:
+        record = Path(directory, 'received.jsonl')
+        record.write_text('')
+        script = r'''
+const { createInterface } = require('node:readline')
+const { appendFileSync } = require('node:fs')
+const emit = message => process.stdout.write(JSON.stringify(message) + '\n')
+let claimed = CLAIMED
+createInterface({ input: process.stdin }).on('line', line => {
+  const message = JSON.parse(line)
+  appendFileSync(RECORD, line + '\n')
+  const { id, method, params } = message
+  const reply = result => emit({ jsonrpc: '2.0', id, result })
+  if (method === 'initialize') reply({ protocol: 1, runner: { version: 'fixture', pid: 1 }, session_id: claimed ? 'fixture-session' : null })
+  else if (method === 'session/claim') {
+    if (params.session_id === 'rejected') emit({ jsonrpc: '2.0', id, error: { code: -32602, message: 'claim rejected' } })
+    else { claimed = true; reply({ session_id: 'claimed-session' }) }
+  } else if (method === 'queue/withdraw') reply(params.id === 'keep' ? { withdrawn: false, reason: 'taken' } : { withdrawn: true, text: 'queued' })
+  else if (method === 'queue/add' && claimed) {
+    reply(params.content === 'reject' ? { accepted: false, reason: 'duplicate' } : { accepted: true })
+    if (params.content === 'cancel') emit({ jsonrpc: '2.0', method: 'fixture/queued', params: { id: params.id } })
+    if (params.content === 'resolve') {
+      if (CORRELATED) emit({ jsonrpc: '2.0', method: 'row', params: { ...TURN, message_ids: [params.id] } })
+      emit({ jsonrpc: '2.0', method: 'row', params: OUTCOME })
+    }
+  }
+})
+'''
+        script = script.replace('CLAIMED', json.dumps(not warm)).replace('CORRELATED', json.dumps(correlated)).replace('RECORD', json.dumps(str(record))).replace('TURN', json.dumps(testing.fixture_turn()[0])).replace('OUTCOME', json.dumps(testing.fixture_outcome_row(answer='resolved')))
+        yield ['node', '-e', script, '--'], lambda: [json.loads(line) for line in record.read_text().splitlines()]
+
+
+async def prompt_ids():
+    with prompt_fixture() as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            await session.steer('x')
+            assert isinstance(session.last_prompt_id, str), 'steer exposes its generated prompt id'
+            assert (await session.withdraw(session.last_prompt_id))['withdrawn']
+            assert not session._prompt_turns, 'withdraw removes the turn entry'
+            schema = {'type': 'object'}
+            await session.steer('now', id='steered', schema=schema)
+            assert session.last_prompt_id == 'steered'
+            await session.follow_up('later', id='followed', schema=schema)
+            assert session.last_prompt_id == 'followed'
+            await session.send_prompt('sent', id='sent')
+            assert session.last_prompt_id == 'sent'
+            await session.send({'type': 'prompt', 'content': 'direct', 'id': 'direct'})
+            assert session.last_prompt_id == 'direct'
+            assert not (await session.send_prompt('reject', id='rejected'))['accepted']
+            assert session.last_prompt_id == 'direct'
+            rows = [row['params'] for row in received() if row['method'] == 'queue/add']
+            assert [(row['id'], row['priority'], row['schema']) for row in rows[1:3]] == [('steered', 'now', schema), ('followed', 'later', schema)]
+            await session.send_prompt('kept', id='keep')
+            assert not (await session.withdraw('keep'))['withdrawn']
+            assert 'keep' in session._prompt_turns, 'an unsuccessful withdrawal preserves the entry'
+
+
+async def prompt_withdrawal(correlated):
+    with prompt_fixture(correlated) as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            await session.steer('x')
+            queued = next(row['params']['id'] for row in received() if row['method'] == 'queue/add')
+            assert (await session.withdraw(session.last_prompt_id or queued))['withdrawn']
+            assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved'
+            assert not session._prompt_turns, 'withdrawn prompts leave no turn entries'
+
+
+async def prompt_cancellation(correlated):
+    with prompt_fixture(correlated) as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            queued = asyncio.Event()
+            session.on('notification', lambda message: queued.set() if message['method'] == 'fixture/queued' else None)
+            task = asyncio.create_task(session.prompt('cancel'))
+            try:
+                await asyncio.wait_for(queued.wait(), 1)
+                task.cancel()
+                with suppress(asyncio.CancelledError): await task
+                assert task.cancelled(), 'the prompt wait was cancelled'
+                assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved'
+                assert not session._prompt_turns, 'an uncorrelated cancelled wait leaves no turn entry'
+                assert not any(row['method'] == 'turn/interrupt' for row in received()), 'cancellation still cancels only the wait'
+            finally:
+                task.cancel()
+                with suppress(asyncio.CancelledError): await task
+
+
+async def sync_prompt_ids():
+    with prompt_fixture() as (mercury, received):
+        def consume():
+            with sdk.connect_sync(mercury=mercury) as session:
+                session.steer('x')
+                assert isinstance(session.last_prompt_id, str)
+                assert session.withdraw(session.last_prompt_id)['withdrawn']
+                assert not session.session._prompt_turns
+                schema = {'type': 'object'}
+                session.steer('now', id='steered', schema=schema)
+                assert session.last_prompt_id == 'steered'
+                session.follow_up('later', id='followed', schema=schema)
+                assert session.last_prompt_id == 'followed'
+                rows = [row['params'] for row in received() if row['method'] == 'queue/add']
+                assert [(row['id'], row['priority'], row['schema']) for row in rows[1:]] == [('steered', 'now', schema), ('followed', 'later', schema)]
+        await asyncio.to_thread(consume)
+
+
+async def warm_identity():
+    message = 'session is unclaimed; call claim() before prompting'
+    for warm in (False, True):
+        with prompt_fixture(True, True) as (mercury, received):
+            async with await (sdk.connect(mercury=mercury, warm=True) if warm else sdk.prewarm(mercury=mercury)) as session:
+                assert session.initialized['session_id'] is None
+                for send in (lambda: session.prompt('unclaimed'), lambda: session.send_prompt('unclaimed'), lambda: session.steer('unclaimed'), lambda: session.follow_up('unclaimed'), lambda: session.send({'type': 'prompt', 'content': 'unclaimed'})):
+                    start = time.perf_counter()
+                    try: await send()
+                    except sdk.MercuryError as error: assert str(error) == message, str(error)
+                    else: raise AssertionError('unclaimed prompt was accepted')
+                    elapsed = time.perf_counter() - start
+                    assert elapsed < 0.05, f'an unclaimed prompt took {elapsed * 1000} ms'
+                    print(f'PASS Python warm prompt refused locally in {elapsed * 1000:.2f} ms', flush=True)
+                assert not any(row['method'] == 'queue/add' for row in received())
+                assert session.last_prompt_id is None and session.session_id is None and not session._prompt_turns
+                try: await session.claim(session_id='rejected')
+                except sdk.MercuryError as error: assert str(error) == 'claim rejected'
+                else: raise AssertionError('a rejected claim resolved')
+                assert session.session_id is None
+                receipt = await session.claim(session_id='requested-session', model='fixture', mode='default', effort='high', resume=False)
+                assert session.session_id == receipt['session_id'] == session.initialized['session_id'] == 'claimed-session'
+                assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved'
+    with prompt_fixture(True, True) as (mercury, received):
+        def consume():
+            with sdk.connect_sync(mercury=mercury, warm=True) as session:
+                assert session.session_id is None and session.initialized['session_id'] is None
+                start = time.perf_counter()
+                try: session.prompt('unclaimed')
+                except sdk.MercuryError as error: assert str(error) == message, str(error)
+                else: raise AssertionError('unclaimed sync prompt was accepted')
+                assert time.perf_counter() - start < 0.05
+                receipt = session.claim(session_id='requested-session', model='fixture', mode='default', effort='high', resume=False)
+                assert session.session_id == receipt['session_id'] == session.initialized['session_id'] == 'claimed-session'
+                assert session.prompt('resolve')['answer'] == 'resolved'
+        await asyncio.to_thread(consume)
 
 
 async def structured():
@@ -359,10 +505,38 @@ async def discovery_deeper():
 
 
 async def main():
-    for name, function in [('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
     await check('discovery one layer deeper: Windows env keys read without regard to case, the Homebrew wrapper to the keg bundle on its vendored node, a relative executable bound to cwd, a missing MERCURY_NODE refused by name', discovery_deeper)
 
 
 asyncio.run(main())
+
+
+async def item9_property_names_and_interrupt_fold():
+    from mercury_cli_sdk.client import interrupted_outcome
+    issues = sdk.validate({'type': 'object', 'propertyNames': {'enum': ['a', 'b']}}, {'a': 1, 'c': 2})
+    assert [i.path for i in issues] == ['c'], issues
+    issues2 = sdk.validate({'type': 'object', 'propertyNames': {'minLength': 2}}, {'ok': 1, 'x': 2})
+    assert [i.path for i in issues2] == ['x'], issues2
+    turn, _ = testing.fixture_turn({'session_id': 's', 'turn': 1, 'turn_id': 't1'})
+    step1 = {'type': 'step', 'seq': 2, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': 's', 'message_id': 'm1', 'model': 'm', 'usage': {'input_tokens': 10, 'cached_input_tokens': 0, 'cache_write_input_tokens': 0, 'output_tokens': 5, 'reasoning_output_tokens': 12}}
+    step2 = {'type': 'step', 'seq': 3, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': 's', 'message_id': 'm2', 'model': 'm', 'usage': {'input_tokens': 20, 'cached_input_tokens': 0, 'cache_write_input_tokens': 0, 'output_tokens': 8, 'reasoning_output_tokens': 18}}
+    folded = interrupted_outcome([testing.fixture_session_row(session_id='s'), {**turn, 'seq': 1}, step1, step2], 0.0, 1.0)
+    assert folded['usage'].get('reasoning_output_tokens') == 30, folded['usage']
+    assert folded['models']['m'].get('reasoning_output_tokens') == 30, folded['models']
+    asks = [
+        {'jsonrpc': '2.0', 'id': 70, 'method': 'not/a_method', 'params': {}},
+        {'jsonrpc': '2.0', 'id': 71, 'method': 'fs/read_text_file', 'params': {'path': '/x'}},
+        {'jsonrpc': '2.0', 'id': 72, 'method': 'permission/request', 'params': {'kind': 'tool', 'tool_use_id': 'u', 'tool_name': 'Read', 'input': {}}},
+    ]
+    async with await testing.start_fixture_server({'validate': False, 'methods': {'initialize': [init], 'session/facts': [{'result': {}, 'before': asks}]}}) as fixture:
+        async with await sdk.connect(mercury=fixture.mercury, on_permission_request=lambda ask, ctx: {'outcome': 'wrong'}) as session:
+            await session.facts()
+        assert next(m for m in fixture.received if m.get('id') == 70)['error']['message'] == 'unknown host method not/a_method'
+        assert next(m for m in fixture.received if m.get('id') == 71)['error']['message'] == 'no handler for fs/read_text_file'
+        assert next(m for m in fixture.received if m.get('id') == 72)['error']['message'].startswith('invalid host answer: ')
+
+
+asyncio.run(check('item 9 propertyNames validation and reasoning_output_tokens fold', item9_property_names_and_interrupt_fold))
 if failures: raise SystemExit(1)

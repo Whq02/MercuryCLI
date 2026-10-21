@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Annotated, Any, Awaitable, Callable, Literal, Mapping, NotRequired, Required, TypedDict, Union, get_args, get_origin, get_type_hints, is_typeddict, cast
 from types import UnionType
 from .parse import validate
-from .generated import InputBlock, PermissionMode, EffortLevel
+from .generated import InputBlock, PermissionMode, EffortLevel, PermissionRequestResultChoice0, PermissionRequestResultChoice1
 from .version import __version__
 
 
@@ -71,7 +71,7 @@ def _schema(annotation: Any) -> dict[str, Any]:
     if is_typeddict(annotation):
         hints = get_type_hints(annotation, include_extras=True)
         def required(key: str, value: Any) -> bool:
-            if get_origin(value) is Annotated: value = get_args(value)[0]
+            while get_origin(value) is Annotated: value = get_args(value)[0]
             if get_origin(value) is NotRequired: return False
             if get_origin(value) is Required: return True
             return key in annotation.__required_keys__
@@ -79,10 +79,15 @@ def _schema(annotation: Any) -> dict[str, Any]:
     raise ValueError(f'unsupported tool annotation: {annotation}')
 
 
+def _not_required(value: Any) -> bool:
+    while get_origin(value) is Annotated: value = get_args(value)[0]
+    return get_origin(value) is NotRequired
+
+
 def tool_schema(value: Mapping[str, Any] | type) -> dict[str, Any]:
     if isinstance(value, Mapping):
         if value and not all(isinstance(item, type) or get_origin(item) is not None or item is Any for item in value.values()): return dict(value)
-        return {'type': 'object', 'properties': {key: _schema(item) for key, item in value.items()}, 'required': list(value), 'additionalProperties': False}
+        return {'type': 'object', 'properties': {key: _schema(item) for key, item in value.items()}, 'required': [key for key, item in value.items() if not _not_required(item)], 'additionalProperties': False}
     return _schema(value)
 
 
@@ -109,10 +114,16 @@ class ToolServer:
     _server: ThreadingHTTPServer
     _thread: threading.Thread
     _pending: dict[Any, ToolContext]
+    _loop: asyncio.AbstractEventLoop | None = None
     _closed: bool = False
 
     def cancel(self) -> None:
-        for context in self._pending.values(): context.cancelled.set()
+        def _set() -> None:
+            for context in list(self._pending.values()): context.cancelled.set()
+        try: same_loop = asyncio.get_running_loop() is self._loop
+        except RuntimeError: same_loop = False
+        if not same_loop and self._loop is not None and self._loop.is_running(): self._loop.call_soon_threadsafe(_set)
+        else: _set()
 
     async def close(self) -> None:
         if self._closed: return
@@ -161,8 +172,8 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
                 message = json.loads(self.rfile.read(int(self.headers.get('Content-Length', '0'))))
                 id = message.get('id')
                 if message.get('method') == 'notifications/cancelled':
-                    context = pending.get(message.get('params', {}).get('requestId'))
-                    if context: loop.call_soon_threadsafe(context.cancelled.set)
+                    request_id = message.get('params', {}).get('requestId')
+                    loop.call_soon_threadsafe(lambda: context.cancelled.set() if (context := pending.get(request_id)) else None)
                 if id is None:
                     self.send_response(202); self.end_headers(); return
                 method, params = message['method'], message.get('params', {})
@@ -198,7 +209,7 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     config: dict[str, Any] = {'type': 'http', 'url': f'http://127.0.0.1:{server.server_port}', 'headers': {'Authorization': f'Bearer {token}'}}
-    return ToolServer(config, json.dumps({'mcpServers': {name: config}}), server, thread, pending)
+    return ToolServer(config, json.dumps({'mcpServers': {name: config}}), server, thread, pending, loop)
 
 
 def text_block(text: str) -> InputBlock:
@@ -207,3 +218,17 @@ def text_block(text: str) -> InputBlock:
 
 def image_block(data: bytes | Path | str, media_type: str) -> InputBlock:
     return {'type': 'image', 'media_type': media_type, 'data': data if isinstance(data, str) else base64.b64encode(data.read_bytes() if isinstance(data, Path) else data).decode('ascii')}
+
+
+def allow_permission(*, input: dict[str, Any] | None = None, rules: list[Any] | None = None) -> PermissionRequestResultChoice0:
+    result: PermissionRequestResultChoice0 = {'outcome': 'allow'}
+    if input is not None: result['input'] = input
+    if rules is not None: result['rules'] = rules
+    return result
+
+
+def deny_permission(message: str | None = None, *, stop: bool | None = None) -> PermissionRequestResultChoice1:
+    result: PermissionRequestResultChoice1 = {'outcome': 'deny'}
+    if message is not None: result['message'] = message
+    if stop is not None: result['stop'] = stop
+    return result

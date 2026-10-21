@@ -63,9 +63,12 @@ export function validate(schema: JsonSchema, value: unknown, path = '', issues: 
   if (Array.isArray(value) && schema.items !== undefined) {
     value.forEach((item, index) => validate(schema.items!, item, `${path}[${index}]`, issues))
   }
-  if (value !== null && typeof value === 'object' && !Array.isArray(value) && (schema.properties !== undefined || schema.required !== undefined || schema.additionalProperties !== undefined)) {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value) && (schema.properties !== undefined || schema.required !== undefined || schema.additionalProperties !== undefined || schema.propertyNames !== undefined)) {
     const record = value as Record<string, unknown>
     const properties = schema.properties ?? {}
+    if (schema.propertyNames !== undefined) {
+      for (const key of Object.keys(record)) validate(schema.propertyNames, key, path ? `${path}.${key}` : key, issues)
+    }
     for (const key of schema.required ?? []) {
       if (record[key] === undefined) issues.push({ path: path ? `${path}.${key}` : key, message: 'required' })
     }

@@ -1,4 +1,5 @@
 import { INPUT_ROW_SCHEMAS, INPUT_ROW_TYPES, PARTIAL_ROW_TYPES, ROW_SCHEMAS, ROW_TYPES, ROWS_SCHEMA, type InputRow, type InputRowType, type OutcomeRow, type PartialRowType, type Row, type RowType, type SessionRow, type StepRow, type TurnRow } from './rows.js'
+import { MercuryError, MercuryRefusal } from './errors.js'
 import { validate, type Issue } from './validate.js'
 
 export type UnknownRow = { type: 'unknown_row'; original_type: string; session_id?: string; turn?: number; raw: Record<string, unknown>; seq?: number; timestamp?: string; parent_call_id?: string }
@@ -67,3 +68,13 @@ export const mainThreadStep = (row: StreamRow | null | undefined): row is StepRo
 export const isMainThread = (row: StreamRow): boolean => row.parent_call_id === undefined
 export const outcomeFailed = (row: OutcomeRow): boolean => row.status !== 'completed'
 export const outcomeErrorText = (row: OutcomeRow): string | undefined => row.error?.message
+
+const RETRYABLE_ERROR_CLASSES: ReadonlySet<string> = new Set<string>(['rate_limit', 'server', 'idle_timeout', 'cut', 'model'])
+
+export const isRetryableOutcome = (row: OutcomeRow): boolean => row.status === 'failed' && row.error !== undefined && RETRYABLE_ERROR_CLASSES.has(row.error.class)
+
+export function assertCompleted<T = unknown>(row: OutcomeRow<T>): OutcomeRow<T> & { status: 'completed' } {
+  if (row.status === 'refused') throw new MercuryRefusal(row, null)
+  if (row.status !== 'completed') throw new MercuryError(row.error?.message ?? `turn ended with status ${row.status}`, null)
+  return row as OutcomeRow<T> & { status: 'completed' }
+}

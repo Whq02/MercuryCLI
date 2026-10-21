@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { PYTHON } from './runtime.ts'
 import * as sdk from '../../sdk/src/index.ts'
 const { connect, structuredSchema, MercurySchemaError } = sdk
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -48,7 +49,7 @@ for (const language of ['ts', 'py']) {
     writeFileSync(join(c.cwd, 'saved.txt'), 'original\n')
     try {
       if (language === 'py') {
-        const child = spawn('python3', [join(root, 'scripts/sdk/python-workspace.py'), scenario, JSON.stringify(mercury), c.cwd], { env: { ...c.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
+        const child = spawn(PYTHON, [join(root, 'scripts/sdk/python-workspace.py'), scenario, JSON.stringify(mercury), c.cwd], { env: { ...c.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
         assert.equal(await new Promise(r => child.once('close', r)), 0)
       } else if (scenario === 'capabilities') {
         let value = 'virtual original'; let reads = 0; let writes = 0

@@ -2,8 +2,11 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass, field
-from typing import Any, Generic, Literal, Mapping, NotRequired, TypedDict, TypeVar, cast
-from .generated import ROWS_SCHEMA, ROW_SCHEMAS, INPUT_ROW_SCHEMAS, Row, InputRow
+from typing import Any, AsyncIterable, Generic, Literal, Mapping, NotRequired, Sequence, TypeAlias, TypedDict, TypeGuard, TypeVar, cast
+from .generated import ROWS_SCHEMA, ROW_SCHEMAS, INPUT_ROW_SCHEMAS, ROW_TYPES, PARTIAL_ROW_TYPES, INPUT_ROW_TYPES, Row, InputRow, InputBlock, RowType, PartialRowType, InputRowType, OutcomeRow, SessionRow, TurnRow, StepRow, TypedOutcome
+
+PromptContent: TypeAlias = str | Sequence[InputBlock]
+PromptInput: TypeAlias = str | Sequence[InputBlock] | AsyncIterable[str | InputRow]
 
 
 class UnknownRow(TypedDict):
@@ -78,6 +81,7 @@ def validate(schema: Mapping[str, Any], value: Any, path: str = '') -> list[Issu
             if key not in value: issues.append(Issue(f'{path}.{key}'.lstrip('.'), 'required'))
         for key, item in value.items():
             p = f'{path}.{key}'.lstrip('.')
+            if 'propertyNames' in schema: issues.extend(validate(schema['propertyNames'], key, p))
             if key in props: issues.extend(validate(props[key], item, p))
             elif schema.get('additionalProperties') is False: issues.append(Issue(p, 'not a declared key'))
             elif isinstance(schema.get('additionalProperties'), dict): issues.extend(validate(schema['additionalProperties'], item, p))
@@ -122,9 +126,93 @@ def is_main_thread(row: StreamRow) -> bool:
     return 'parent_call_id' not in row
 
 
+_ROW_TYPE_SET: frozenset[str] = frozenset([*ROW_TYPES, *PARTIAL_ROW_TYPES])
+_INPUT_TYPE_SET: frozenset[str] = frozenset(INPUT_ROW_TYPES)
+
+
+def is_row_type(type: str) -> TypeGuard[RowType | PartialRowType]:
+    return type in _ROW_TYPE_SET
+
+
+def is_input_row_type(type: str) -> TypeGuard[InputRowType]:
+    return type in _INPUT_TYPE_SET
+
+
+def is_outcome(row: StreamRow | None) -> TypeGuard[OutcomeRow]:
+    return row is not None and row['type'] == 'outcome'
+
+
+def is_session_row(row: StreamRow | None) -> TypeGuard[SessionRow]:
+    return row is not None and row['type'] == 'session'
+
+
+def turn_opened(row: StreamRow | None) -> TypeGuard[TurnRow]:
+    return row is not None and row['type'] == 'turn' and row.get('state') == 'started'
+
+
+def turn_waiting(row: StreamRow | None) -> TypeGuard[TurnRow]:
+    return row is not None and row['type'] == 'turn' and row.get('state') == 'waiting'
+
+
+def main_thread_step(row: StreamRow | None) -> TypeGuard[StepRow]:
+    return row is not None and row['type'] == 'step' and 'parent_call_id' not in row
+
+
+def outcome_failed(row: OutcomeRow) -> bool:
+    return row['status'] != 'completed'
+
+
+def outcome_error_text(row: OutcomeRow) -> str | None:
+    error = row.get('error')
+    return error.get('message') if isinstance(error, Mapping) else None
+
+
+_RETRYABLE_ERROR_CLASSES: frozenset[str] = frozenset({'rate_limit', 'server', 'idle_timeout', 'cut', 'model'})
+
+
+def is_retryable_outcome(row: OutcomeRow) -> bool:
+    error = row.get('error')
+    return row['status'] == 'failed' and isinstance(error, Mapping) and error.get('class') in _RETRYABLE_ERROR_CLASSES
+
+
+def assert_completed(row: TypedOutcome[T]) -> TypedOutcome[T]:
+    from .errors import MercuryError, MercuryRefusal
+    if row['status'] == 'refused': raise MercuryRefusal(row)
+    if row['status'] != 'completed':
+        raise MercuryError(outcome_error_text(row) or f"turn ended with status {row['status']}")
+    return row
+
+
 def parse_row(line: str) -> RowRead[StreamRow]:
     """Read one stdout line as a row."""
     try:
         return row_of(json.loads(line.lstrip('\ufeff')))
     except (ValueError, TypeError):
         return RowRead(False, reason='not_json')
+
+
+def cap_rows(rows: list[StreamRow], max_rows: int | None) -> None:
+    if max_rows is None: return
+    if max_rows <= 0:
+        rows.clear()
+        return
+    drop = 1 if len(rows) > 1 and rows[0]['type'] == 'session' and max_rows > 1 else 0
+    while len(rows) > max_rows: del rows[drop]
+
+
+def cap_queue(queue: Any, max_rows: int | None) -> None:
+    if max_rows is None or queue.qsize() <= max(0, max_rows): return
+    items = [queue.get_nowait() for _ in range(queue.qsize())]
+    if max_rows <= 0:
+        for item in items:
+            if item is None: queue.put_nowait(None)
+        return
+    drop = 1 if len(items) > 1 and items[0] is not None and items[0]['type'] == 'session' and max_rows > 1 else 0
+    while len(items) > max_rows: del items[drop]
+    for item in items: queue.put_nowait(item)
+
+
+def clear_queue(queue: Any) -> None:
+    items = [queue.get_nowait() for _ in range(queue.qsize())]
+    for item in items:
+        if item is None: queue.put_nowait(None)

@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { BUN, PYTHON } from './runtime.ts'
 import { run } from '../../sdk/src/index.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
@@ -74,7 +75,7 @@ export const connect = (options: Record<string, unknown> = {}) => realConnect({ 
           code = code.replace(/'mercury-cli-sdk\/testing'/g, JSON.stringify(join(root, 'sdk/src/testing.ts'))).replace(/'mercury-cli-sdk'/g, "'./shim.ts'")
           if (/recordedRows/.test(code)) code = `const recordedRows = ${JSON.stringify(recordedRows)}\n${code}`
           writeFileSync(join(c.home, 'example.ts'), code)
-          result = await execute('bun', [join(c.home, 'example.ts')], c.cwd, { ...process.env, ...c.env })
+          result = await execute(BUN, [join(c.home, 'example.ts')], c.cwd, { ...process.env, ...c.env })
         } else {
           if (/async def review\(\)/.test(code)) code += '\nasyncio.run(review())\n'
           if (/async def test\(recorded_rows\)/.test(code)) code += `\nimport json\nasyncio.run(test(json.loads(${JSON.stringify(JSON.stringify(recordedRows))})))\n`
@@ -88,7 +89,7 @@ for name in ('run', 'connect', 'run_sync', 'connect_sync'):
     setattr(mercury_cli_sdk, name, functools.wraps(original)(lambda *args, _original=original, **kwargs: _original(*args, **{**defaults, **kwargs})))
 runpy.run_path(sys.argv[1], run_name='__main__')
 `)
-          result = await execute('python3', [join(c.home, 'wrapper.py'), join(c.home, 'example.py')], c.cwd, { ...process.env, ...c.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') })
+          result = await execute(PYTHON, [join(c.home, 'wrapper.py'), join(c.home, 'example.py')], c.cwd, { ...process.env, ...c.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') })
         }
         const out = `${result.stdout}${result.stderr}`
         assert.equal(result.status, 0, out)

@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { PYTHON } from './runtime.ts'
 import * as sdk from '../../sdk/src/index.ts'
 import { warmOptions } from '../../sdk/src/client.ts'
 import { executableOf } from '../../sdk/src/executable.ts'
@@ -31,6 +32,37 @@ const init = { result: { protocol: 1, runner: { version: 'fixture', pid: 1 }, se
 async function check(name: string, run: () => Promise<void> | void) {
   try { await run(); console.log('PASS ' + name) }
   catch (error) { failures++; console.error('FAIL ' + name + ': ' + String(error)) }
+}
+let promptFixtures = 0
+function promptFixture(correlated = false, warm = false) {
+  const record = join(scratch, `prompt-${++promptFixtures}.jsonl`)
+  writeFileSync(record, '')
+  const script = `
+    const { createInterface } = require('node:readline')
+    const { appendFileSync } = require('node:fs')
+    const emit = message => process.stdout.write(JSON.stringify(message) + '\\n')
+    let claimed = ${!warm}
+    createInterface({ input: process.stdin }).on('line', line => {
+      const message = JSON.parse(line)
+      appendFileSync(${JSON.stringify(record)}, line + '\\n')
+      const { id, method, params } = message
+      const reply = result => emit({ jsonrpc: '2.0', id, result })
+      if (method === 'initialize') reply({ ...${JSON.stringify(init.result)}, session_id: claimed ? 'fixture-session' : null })
+      else if (method === 'session/claim') {
+        if (params.session_id === 'rejected') emit({ jsonrpc: '2.0', id, error: { code: -32602, message: 'claim rejected' } })
+        else { claimed = true; reply({ session_id: 'claimed-session' }) }
+      } else if (method === 'queue/withdraw') reply(params.id === 'keep' ? { withdrawn: false, reason: 'taken' } : { withdrawn: true, text: 'queued' })
+      else if (method === 'queue/add' && claimed) {
+        reply(params.content === 'reject' ? { accepted: false, reason: 'duplicate' } : { accepted: true })
+        if (params.content === 'cancel') emit({ jsonrpc: '2.0', method: 'fixture/queued', params: { id: params.id } })
+        if (params.content === 'resolve') {
+          if (${correlated}) emit({ jsonrpc: '2.0', method: 'row', params: { ...${JSON.stringify(testing.fixtureTurn()[0])}, message_ids: [params.id] } })
+          emit({ jsonrpc: '2.0', method: 'row', params: ${JSON.stringify(testing.fixtureOutcomeRow({ answer: 'resolved' }))} })
+        }
+      }
+    })
+  `
+  return { mercury: ['node', '-e', script, '--'], received: () => readFileSync(record, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) }
 }
 try {
   await check('row 1 automatic grants preserve options and servers close on exit', async () => {
@@ -160,6 +192,77 @@ try {
     try { await session.steer('now'); await session.followUp('later'); assert.deepEqual(fixture.received.filter(r => r.method === 'queue/add').map(r => (r.params as any).priority), ['now', 'later']) }
     finally { await session.close(); await fixture.close() }
   })
+  await check('prompt ids: every accepted send and convenience call is available for withdrawal', async () => {
+    const fixture = promptFixture()
+    const session = await sdk.connect({ mercury: fixture.mercury })
+    try {
+      await session.steer('x')
+      assert.equal(typeof session.lastPromptId, 'string', 'steer exposes its generated prompt id')
+      assert.equal((await session.withdraw(session.lastPromptId!)).withdrawn, true)
+      const schema = { type: 'object' }
+      await session.steer('now', { id: 'steered', schema })
+      assert.equal(session.lastPromptId, 'steered')
+      await session.followUp('later', { id: 'followed', schema })
+      assert.equal(session.lastPromptId, 'followed')
+      await session.sendPrompt('sent', { id: 'sent' })
+      assert.equal(session.lastPromptId, 'sent')
+      await session.send({ type: 'prompt', content: 'direct', id: 'direct' })
+      assert.equal(session.lastPromptId, 'direct')
+      assert.equal((await session.sendPrompt('reject', { id: 'rejected' })).accepted, false)
+      assert.equal(session.lastPromptId, 'direct', 'a rejected prompt does not replace the accepted id')
+      const rows = fixture.received().filter(row => row.method === 'queue/add').map(row => row.params)
+      assert.deepEqual(rows.slice(1, 3).map(row => [row.id, row.priority, row.schema]), [['steered', 'now', schema], ['followed', 'later', schema]])
+    } finally { await session.close() }
+  })
+  for (const correlated of [false, true]) {
+    await check(`prompt withdrawal: the next ${correlated ? 'correlated' : 'uncorrelated'} turn resolves`, async () => {
+      const fixture = promptFixture(correlated)
+      const session = await sdk.connect({ mercury: fixture.mercury })
+      try {
+        await session.steer('x')
+        const queued = fixture.received().find(row => row.method === 'queue/add')!.params.id
+        assert.equal((await session.withdraw(session.lastPromptId ?? queued)).withdrawn, true)
+        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'a withdrawn prompt cannot block the next outcome')
+      } finally { await session.close() }
+    })
+    await check(`prompt cancellation: the next ${correlated ? 'correlated' : 'uncorrelated'} turn resolves`, async () => {
+      const fixture = promptFixture(correlated)
+      const session = await sdk.connect({ mercury: fixture.mercury })
+      const controller = new AbortController()
+      session.on('notification', message => { if (message.method === 'fixture/queued') controller.abort() })
+      try {
+        await assert.rejects(session.prompt('cancel', { signal: controller.signal }), /prompt: cancelled/)
+        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'an uncorrelated cancelled wait cannot block the next outcome')
+        assert.equal(fixture.received().some(row => row.method === 'turn/interrupt'), false, 'cancellation still cancels only the wait')
+      } finally { await session.close() }
+    })
+  }
+  await check('unclaimed warm prompts fail locally within 50 ms and claim updates both identities', async () => {
+    const message = 'session is unclaimed; call claim() before prompting'
+    for (const open of [sdk.prewarm, (options: sdk.ConnectOptions) => sdk.connect({ ...options, warm: true })]) {
+      const fixture = promptFixture(true, true)
+      const session = await open({ mercury: fixture.mercury })
+      try {
+        assert.equal(session.initialized.session_id, null)
+        for (const send of [() => session.prompt('unclaimed'), () => session.sendPrompt('unclaimed'), () => session.steer('unclaimed'), () => session.followUp('unclaimed'), () => session.send({ type: 'prompt', content: 'unclaimed' })]) {
+          const start = performance.now()
+          await assert.rejects(send(), error => error instanceof sdk.MercuryError && error.message === message)
+          const elapsed = performance.now() - start
+          assert(elapsed < 50, `an unclaimed prompt took ${elapsed} ms`)
+          console.log(`PASS warm prompt refused locally in ${elapsed.toFixed(2)} ms`)
+        }
+        assert.equal(fixture.received().some(row => row.method === 'queue/add'), false, 'unclaimed prompts never enter the wire queue')
+        assert.equal(session.lastPromptId, undefined)
+        assert.equal(session.sessionId, null)
+        await assert.rejects(session.claim({ session_id: 'rejected' }), /claim rejected/)
+        assert.equal(session.sessionId, null)
+        const receipt = await session.claim({ session_id: 'requested-session', model: 'fixture', mode: 'default', effort: 'high', resume: false })
+        assert.equal(session.sessionId, receipt.session_id)
+        assert.equal(session.initialized.session_id, 'claimed-session', 'identity comes from the successful claim reply')
+        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved')
+      } finally { await session.close() }
+    }
+  })
   await check('row 8 fixture builders return valid rows', async () => {
     const rows = [testing.fixtureSessionRow(), ...testing.fixtureTurn({ answer: 'fixture works' })]
     const fixture = await testing.startFixtureServer({ rows })
@@ -265,7 +368,7 @@ try {
     assert.equal((await sdk.run({ mercury: entry, prompt: 'x' }).outcome).status, 'completed')
     assert.throws(() => sdk.argvOf({ mercury: join(scratch, 'missing.mjs') }), /JavaScript entry point that does not exist/)
   })
-  const child = spawn('python3', [join(root, 'scripts/sdk/python-developer.py')], { env: { ...process.env, PYTHONPATH: join(root, 'sdk-py/src'), PYTHONDONTWRITEBYTECODE: '1' }, stdio: 'inherit' })
+  const child = spawn(PYTHON, [join(root, 'scripts/sdk/python-developer.py')], { env: { ...process.env, PYTHONPATH: join(root, 'sdk-py/src'), PYTHONDONTWRITEBYTECODE: '1' }, stdio: 'inherit' })
   await check('Python developer API mirrors', async () => { assert.equal(await new Promise(r => child.once('close', r)), 0) })
   await check('discovery one layer deeper: Windows env keys are read without regard to case, the Homebrew wrapper resolves to the keg bundle on its vendored node, a relative executable with a slash binds to cwd, a missing MERCURY_NODE refuses by name', async () => {
     const deeper = join(scratch, 'deeper'); mkdirSync(deeper, { recursive: true })
@@ -321,4 +424,28 @@ try {
     assert.equal((await relative.outcome).status, 'completed'); assert.equal(relative.command, join(sub, 'my-mercury'))
   })
 } finally { clearTimeout(guard); rmSync(scratch, { recursive: true, force: true }) }
+await check('item 9 propertyNames validation and reasoning_output_tokens fold on interruptedOutcome', async () => {
+  const { interruptedOutcome } = await import('../../sdk/src/client.ts')
+  assert.deepEqual(sdk.validate({ type: 'object', propertyNames: { enum: ['a', 'b'] } }, { a: 1, c: 2 }), [{ path: 'c', message: 'expected one of "a", "b", found "c"' }])
+  assert.deepEqual(sdk.validate({ type: 'object', propertyNames: { minLength: 2 } }, { ok: 1, x: 2 }), [{ path: 'x', message: 'string too short' }])
+  const [turn] = testing.fixtureTurn({ session_id: 's', turn: 1, turn_id: 't1' })
+  const step1: sdk.StepRow = { type: 'step', seq: 2, timestamp: '2000-01-01T00:00:00.000Z', session_id: 's', message_id: 'm1', model: 'm', usage: { input_tokens: 10, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 5, reasoning_output_tokens: 12 } }
+  const step2: sdk.StepRow = { type: 'step', seq: 3, timestamp: '2000-01-01T00:00:00.000Z', session_id: 's', message_id: 'm2', model: 'm', usage: { input_tokens: 20, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 8, reasoning_output_tokens: 18 } }
+  const folded = interruptedOutcome([testing.fixtureSessionRow({ session_id: 's' }), { ...turn, seq: 1 }, step1, step2], 0, 1000)
+  assert.equal(folded.usage.reasoning_output_tokens, 30)
+  assert.equal(folded.models.m?.reasoning_output_tokens, 30)
+  const asks = [
+    { jsonrpc: '2.0', id: 70, method: 'not/a_method', params: {} },
+    { jsonrpc: '2.0', id: 71, method: 'fs/read_text_file', params: { path: '/x' } },
+    { jsonrpc: '2.0', id: 72, method: 'permission/request', params: { kind: 'tool', tool_use_id: 'u', tool_name: 'Read', input: {} } },
+  ]
+  const fixture = await testing.startFixtureServer({ validate: false, methods: { initialize: [init], 'session/facts': [{ result: {}, before: asks }] } })
+  try {
+    const session = await sdk.connect({ mercury: fixture.mercury, onPermissionRequest: (() => ({ outcome: 'wrong' })) as any })
+    try { await session.facts() } finally { await session.close() }
+    assert.equal((fixture.received.find(m => m.id === 70)?.error as any)?.message, 'unknown host method not/a_method')
+    assert.equal((fixture.received.find(m => m.id === 71)?.error as any)?.message, 'no handler for fs/read_text_file')
+    assert(String((fixture.received.find(m => m.id === 72)?.error as any)?.message).startsWith('invalid host answer: '))
+  } finally { await fixture.close() }
+})
 if (failures) process.exitCode = 1

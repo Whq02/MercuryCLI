@@ -8,7 +8,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit, connect, connect_sync, row_of, run, __version__
+from urllib.request import Request, urlopen
+from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit, connect, connect_sync, define_tool, row_of, run, serve_tools, __version__
 from mercury_cli_sdk.testing import fixture_outcome_row, fixture_session_row, fixture_turn, start_fixture_server
 
 WINDOWS = os.name == 'nt'
@@ -62,6 +63,32 @@ async def boot_timeout():
     try: await asyncio.wait_for(connect(mercury=silent), 0.1)
     except asyncio.TimeoutError: pass
     else: raise AssertionError('a cancelled connect returned')
+    from mercury_cli_sdk import connect_sync, run_sync
+    from mercury_cli_sdk.testing import start_fixture_server
+    methods = {'initialize': [{'result': init}, {'result': init}], 'queue/add': [{'result': {'accepted': True}} for _ in range(6)], 'turn/interrupt': [{'result': {'interrupted': True}} for _ in range(3)]}
+    async with await start_fixture_server({'methods': methods}) as fixture:
+        async with await connect(mercury=fixture.mercury) as session:
+            await expect(session.prompt('timed', timeout=0.05), MercuryError, lambda e: str(e) == 'prompt: no answer within 0.05 seconds')
+            assert not any(m.get('method') == 'turn/interrupt' for m in fixture.received)
+            pre = asyncio.Event(); pre.set()
+            await expect(session.prompt('pre', cancel=pre), MercuryError, lambda e: str(e) == 'prompt: cancelled')
+            ev = asyncio.Event()
+            asyncio.get_running_loop().call_later(0.05, ev.set)
+            await expect(session.prompt('cancel-int', cancel=ev, interrupt_on_cancel=True), MercuryError, lambda e: str(e) == 'prompt: cancelled')
+            await expect(session.prompt('timeout-int', timeout=0.05, interrupt_on_cancel=True), MercuryError, lambda e: str(e) == 'prompt: no answer within 0.05 seconds')
+            assert sum(1 for m in fixture.received if m.get('method') == 'turn/interrupt') == 2
+        def sync_check():
+            with connect_sync(mercury=fixture.mercury) as sync_session:
+                try: sync_session.prompt('sync-timeout', timeout=0.05, interrupt_on_timeout=True)
+                except MercuryError as e: assert str(e) == 'prompt: no answer within 0.05 seconds'
+                else: raise AssertionError('sync prompt timeout resolved')
+        await asyncio.to_thread(sync_check)
+        assert sum(1 for m in fixture.received if m.get('method') == 'turn/interrupt') == 3
+    session_row = fixture_session_row(session_id='sync-int')
+    idle_session = child('import signal,sys,time\nsignal.signal(signal.SIGINT, signal.SIG_DFL)\nprint(' + json.dumps(json.dumps(session_row)) + ', flush=True)\nwhile True: time.sleep(1)')
+    res = await asyncio.to_thread(lambda: run_sync('x', mercury=idle_session, timeout=0.1, interrupt_on_timeout=True))
+    assert res.outcome['status'] == 'interrupted'
+    await expect(asyncio.to_thread(lambda: run_sync('x', mercury=idle_session, timeout=0.05)), MercuryError, lambda e: str(e) == 'run: no outcome within 0.05 seconds')
 
 async def escalation():
     stubborn = child("import signal,sys,time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nprint('{bad', flush=True)\nwhile True: time.sleep(1)")
@@ -178,6 +205,88 @@ asyncio.run(main())
         await asyncio.sleep(0.05)
     assert not [p for p in pids if alive(p)], 'children outlived the host'
 
+
+async def fork_and_thread_cancel():
+    if hasattr(os, 'fork'):
+        script = f'''import asyncio, json, os, sys, time
+sys.path.insert(0, {json.dumps(str(Path(__file__).resolve().parents[2] / 'sdk-py/src'))})
+from mercury_cli_sdk import run
+from mercury_cli_sdk.runner import MercurySession
+from mercury_cli_sdk.client import spawn, RunOptions
+idle = [sys.executable, '-c', 'import time\\nwhile True: time.sleep(1)']
+async def start():
+    task = await run(input='rows', mercury=idle)
+    session = MercurySession(await spawn([*idle, 'runner'], RunOptions()), {{}})
+    return task, session
+async def stop(task, session):
+    task.terminate()
+    await task.exit
+    await session.close()
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+task, session = loop.run_until_complete(start())
+pid = os.fork()
+if pid == 0:
+    sys.exit(0)
+_, status = os.waitpid(pid, 0)
+assert os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0, status
+time.sleep(0.1)
+os.kill(task.child.pid, 0)
+os.kill(session.child.pid, 0)
+loop.run_until_complete(stop(task, session))
+loop.close()
+'''
+        result = await asyncio.to_thread(subprocess.run, [sys.executable, '-c', script], capture_output=True, text=True, timeout=20)
+        assert result.returncode == 0, result.stderr
+    began = asyncio.Event()
+    async def wait_tool(_params, context):
+        began.set()
+        await context.cancelled.wait()
+        return 'cancelled'
+    tool = define_tool('wait', 'Wait', {}, wait_tool)
+    async with await serve_tools([tool]) as server:
+        def post(body):
+            req = Request(server.config['url'], json.dumps(body).encode(), {**server.config['headers'], 'Content-Type': 'application/json'})
+            with urlopen(req, timeout=10) as resp: return resp.read()
+        call1 = asyncio.create_task(asyncio.to_thread(post, {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': {'name': 'wait', 'arguments': {}}}))
+        await asyncio.wait_for(began.wait(), 5)
+        await asyncio.to_thread(post, {'jsonrpc': '2.0', 'method': 'notifications/cancelled', 'params': {'requestId': 1}})
+        assert json.loads(await asyncio.wait_for(call1, 5))['result']['content'][0]['text'] == 'cancelled'
+        began.clear()
+        call2 = asyncio.create_task(asyncio.to_thread(post, {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call', 'params': {'name': 'wait', 'arguments': {}}}))
+        await asyncio.wait_for(began.wait(), 5)
+        await asyncio.to_thread(server.cancel)
+        assert json.loads(await asyncio.wait_for(call2, 5))['result']['content'][0]['text'] == 'cancelled'
+
+
+async def bounded_rows():
+    from mercury_cli_sdk import connect_sync
+    from mercury_cli_sdk.testing import start_fixture_server
+    s_row = fixture_session_row(seq=1)
+    deltas = [{'type': 'text_delta', 'seq': i + 2, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': s_row['session_id'], 'message_id': 'm1', 'block': 0, 'text': f'd{i}'} for i in range(18)]
+    _, out_row = fixture_turn({'seq': 20})
+    rows = [s_row, *deltas, out_row]
+    rpc_rows = [{'jsonrpc': '2.0', 'method': 'row', 'params': r} for r in rows]
+    async with await start_fixture_server({'rows': rows, 'methods': {'initialize': [{'result': init}, {'result': init}], 'queue/add': [{'result': {'accepted': True}, 'after': rpc_rows}, {'result': {'accepted': True}, 'after': rpc_rows}]}}) as fixture:
+        task = await run('x', mercury=fixture.mercury, max_rows=5)
+        await task.outcome
+        assert len(task.rows) == 5 and task.rows[0]['type'] == 'session'
+        assert [r['seq'] for r in task.rows] == [1, 17, 18, 19, 20]
+        task.clear_rows()
+        assert len(task.rows) == 0
+        async with await connect(mercury=fixture.mercury, max_rows=5) as session:
+            await session.prompt('x')
+            assert len(session.rows) == 5 and session.rows[0]['type'] == 'session'
+            assert [r['seq'] for r in session.rows] == [1, 17, 18, 19, 20]
+            session.clear_rows()
+            assert len(session.rows) == 0
+        def sync_bounded():
+            with connect_sync(mercury=fixture.mercury, max_rows=5) as sync_session:
+                sync_session.prompt('x')
+                assert len(sync_session.rows) == 5 and sync_session.rows[0]['type'] == 'session'
+                sync_session.clear_rows()
+                assert len(sync_session.rows) == 0
+        await asyncio.to_thread(sync_bounded)
 async def fixture_close():
     big = [fixture_session_row(), fixture_outcome_row(answer='x' * 1_000_000)] * 8
     for shape, rows, inputs in (('a bridge holding the socket open with its hello sent and nothing more', [], 1), ('a bridge that stopped reading an 8 MB replay', big, 1)):
@@ -281,7 +390,10 @@ async def main():
     await check('Python interrupt the package sent settles as an interrupted outcome when the child ends by the signal; a foreign signal and terminate() stay errors', interrupted)
     await check('Python Windows road' + ('' if WINDOWS else ' driven on this host') + ': cancel ends the child and settles interrupted, terminate and the wire escalation report the signal sent, a natural exit 1 stays exit 1', windows_road)
     await check('Python host exit terminates live children', host_exit)
-    assert __version__ in Path(__file__).resolve().parents[2].joinpath('sdk-py/pyproject.toml').read_text()
+    await check('Python fork safety and thread-safe tool cancellation', fork_and_thread_cancel)
+    await check('Python max_rows cap and clear_rows()', bounded_rows)
+    pyproject = Path(__file__).resolve().parents[2].joinpath('sdk-py/pyproject.toml').read_text()
+    assert __version__ in pyproject and 'Programming Language :: Python :: 3.14' in pyproject
     assert not failures, failures
     print('PASS Python lifecycle')
 
