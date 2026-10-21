@@ -39,11 +39,12 @@ const h = React.createElement
 let failures = 0
 let checks = 0
 const check = (name: string, good: boolean, detail = '') => { checks++; if (!good) failures++; console.log(`[${good ? 'PASS' : 'FAIL'}] ${name}${!good ? ' — ' + detail : ''}`) }
-for (const cols of [80, 120]) {
+for (const modal of [true, false]) for (const cols of [80, 120]) {
   let closed = false
   switched = ''
   const body = await call(() => { closed = true }, {} as never, '')
-  const scene = await mountOffscreen(h(ThemeProvider, {}, h(AppStateProvider, {}, h(KeybindingSetup, {}, h(ModalContext.Provider, { value: { rows: 20, columns: cols - 4, scrollRef: null } }, h(Box, { width: cols - 4, height: 20, flexDirection: 'column' }, body))))), cols, 24)
+  const host = modal ? h(ModalContext.Provider, { value: { rows: 20, columns: cols - 4, scrollRef: null } }, h(Box, { width: cols - 4, height: 20, flexDirection: 'column' }, body)) : h(Box, { width: cols, height: 24, flexDirection: 'column' }, body)
+  const scene = await mountOffscreen(h(ThemeProvider, {}, h(AppStateProvider, {}, h(KeybindingSetup, {}, host))), cols, 24)
   const focus = () => scene.lines()[scene.cursor().y]?.trim() ?? ''
   try {
     await settledFrame(scene, text => text.includes('Default provider'))
@@ -61,7 +62,7 @@ for (const cols of [80, 120]) {
     await settledFrame(scene)
     check(`${cols}: the final provider and close guide remain reachable`, /not connected/.test(focus()) && scene.screen().includes('esc closes'), scene.screen())
     if (frames) {
-      const name = join(frames, `defaultprovider-${cols}`)
+      const name = join(frames, `defaultprovider-${modal ? 'modal' : 'standalone'}-${cols}`)
       writeFileSync(name + '.txt', scene.screen())
       const grid = scene.lines().map((line, y) => Array.from(line.padEnd(cols)).map((c, x) => { const style = scene.styleAt(x, y); return { c, fg: style?.fg ?? 'default', bg: style?.bg ?? 'default', bold: style?.bold ?? false, rev: style?.inverse ?? false } }))
       writeFileSync(name + '.json', JSON.stringify({ grid, cols, rows: 24 }))

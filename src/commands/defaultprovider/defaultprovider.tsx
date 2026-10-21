@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Box, Text, wrapText } from '../../ink.js'
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
+import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { PopupForm } from '../../components/PopupForm.js'
 import { Select } from '../../components/CustomSelect/index.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
@@ -121,7 +122,7 @@ function currentLine(decision: ComputedDefault): string {
 
 function DefaultProviderPicker({ onDone }: { onDone: LocalJSXCommandOnDone }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const { rows, columns } = useModalOrTerminalSize()
+  const { rows, columns } = useModalOrTerminalSize(useTerminalSize())
   const width = Math.max(1, columns - 1)
   const decision = computedDefault()
   const current = decision.provider ?? undefined
