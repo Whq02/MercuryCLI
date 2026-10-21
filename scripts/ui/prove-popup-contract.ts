@@ -18,6 +18,7 @@ const previousCwd = process.cwd()
 mkdirSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true })
 const fixtureRoot = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR!, 'popup-contract-'))
 process.chdir(fixtureRoot)
+process.env.MERCURY_CLIPBOARD_FILE = join(process.env.MERCURY_CONFIG_DIR!, 'popup-clipboard.txt')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 for (const name of Object.keys(process.env)) if (/(?:API_KEY|AUTH_TOKEN|ACCESS_TOKEN|REFRESH_TOKEN|CLIENT_SECRET|HF_TOKEN|GH_TOKEN)$/.test(name)) delete process.env[name]
@@ -442,7 +443,8 @@ for (const cols of [80, 120]) {
         const y = lines.findIndex((line, at) => /choice-\d\d/.test(line) && scene.styleAt(Math.max(0, line.indexOf('choice-')), at)?.bg !== ground)
         return y < 0 ? '' : lines[y]!.trim()
       }
-      return lines.find(line => /[❯›▸] /.test(line) && !/↑↓|fixture panes/.test(line))?.trim() ?? ''
+      const line = lines.find(line => /[❯›▸] /.test(line) && !/↑↓|fixture panes/.test(line)) ?? ''
+      return line.match(/choice \d\d|worker-\d+|shell-\d+/)?.[0] ?? line.trim()
     }
     try {
       await settledFrame(scene, frame => frame.includes(name === 'daemon' ? 'worker-00' : name === 'skills' ? 'choice-01' : name === 'tasks' ? 'shell-00' : 'choice 01'))
@@ -566,6 +568,73 @@ for (const cols of [80, 120]) {
       check(cols + ' ' + name + ': Enter selects or unfolds', await waitFor(() => picked !== '' || subPicked !== '' || name === 'health' && scene.screen().includes('Fixture evidence'), 2500), scene.screen())
       scene.push(keys.esc)
       check(cols + ' ' + name + ': Escape closes', await waitFor(() => closed, 2000))
+    } catch (error) { check(cols + ' ' + name + ': drive completes', false, String(error) + '\n' + scene.screen()) }
+    finally { scene.unmount() }
+  }
+}
+
+
+const { LogSelector } = await import('../../src/components/LogSelector.tsx')
+const { MercuryCommandPalette } = await import('../../src/components/MercuryCommandPalette.tsx')
+const { SelectEventMode } = await import('../../src/components/hooks/SelectEventMode.tsx')
+const { SelectMatcherMode } = await import('../../src/components/hooks/SelectMatcherMode.tsx')
+const { SelectHookMode } = await import('../../src/components/hooks/SelectHookMode.tsx')
+const ruleModule = await import('../../src/utils/permissions/decision/rules.ts')
+const rules = options.map(row => ({ ruleBehavior: 'allow', source: 'userSettings', ruleValue: { toolName: 'Read', ruleContent: 'choice-' + row.value } }))
+mock.module('../../src/utils/permissions/decision/rules.ts', () => ({ ...ruleModule, getAllowRules: () => rules, getAskRules: () => [], getDenyRules: () => [] }))
+const { PermissionRuleList } = await import('../../src/components/permissions/rules/PermissionRuleList.tsx')
+const logs = sessions.map((log, index) => ({ ...log, value: index, date: new Date().toISOString(), created: new Date(), modified: new Date(), messages: [], isSidechain: false }))
+const hooks = options.map(row => ({ entry: { run: 'printf fixture', name: row.label }, source: { kind: 'extension', name: 'fixture' }, match: row.label, event: 'beforeTool' }))
+for (const cols of [80, 120]) {
+  for (const name of ['log-selector', 'palette', 'hook-events', 'hook-matchers', 'hook-list', 'permissions']) {
+    let closed = false
+    let picked = ''
+    const close = () => { closed = true }
+    const pick = (value: unknown) => { picked = String(value) }
+    const body = name === 'log-selector' ? h(LogSelector, { logs: logs as never, maxHeight: 18, forceWidth: cols - 4, onCancel: close, onSelect: pick })
+      : name === 'palette' ? h(MercuryCommandPalette, { commands: options.map(row => ({ name: row.label.replace(' ', '-'), description: 'Fixture command', type: 'local', isEnabled: () => true, userFacingName: () => row.label.replace(' ', '-') })) as never, onRun: pick, onClose: close })
+      : name === 'hook-events' ? h(SelectEventMode, { events: options.map(row => row.label) as never, moments: {}, countsByEvent: {}, totalCount: 24, onSelect: pick, onExit: close })
+      : name === 'hook-matchers' ? h(SelectMatcherMode, { event: 'beforeTool' as never, card: { moment: 'Fixture moment', match: 'tool' } as never, matches: options.map(row => row.label), hooksByMatch: {}, onSelect: pick, onBack: close })
+      : name === 'hook-list' ? h(SelectHookMode, { event: 'beforeTool' as never, match: '', hasMatch: false, hooks: hooks as never, onSelect: pick, onBack: close })
+      : h(PermissionRuleList, { onExit: close })
+    const scene = await mount(body, cols, 30)
+    const focus = () => {
+      const lines = scene.lines()
+      if (name === 'palette') return lines.find(line => line.includes('❯ ') && /choice/.test(line))?.trim() ?? ''
+      const position = scene.cursor()
+      return lines[position.y]?.trim() ?? ''
+    }
+    try {
+      await settledFrame(scene, frame => /choice/.test(frame))
+      if (name === 'permissions') {
+        scene.push(keys.down)
+        await waitFor(() => /Add a new rule|Read\(/.test(focus()), 1800)
+      }
+      const first = focus()
+      scene.push(keys.down)
+      check(cols + ' ' + name + ': Down moves the selection', await waitFor(() => focus() !== first && focus() !== '', 1800), scene.screen())
+      scene.push(keys.up)
+      check(cols + ' ' + name + ': Up restores it', await waitFor(() => focus() === first, 1800), scene.screen())
+      scene.push(keys.pgdn)
+      check(cols + ' ' + name + ': PageDown changes the visible selection', await waitFor(() => focus() !== first && focus() !== '', 1800), scene.screen())
+      check(cols + ' ' + name + ': page and close guides are present', scene.screen().includes('pgup/pgdn') && scene.screen().includes('esc'), scene.screen())
+      check(cols + ' ' + name + ': overflow is marked inside the list', scene.lines().some(line => /[↑↓]/.test(line) && !/↑↓|pgup/.test(line)), scene.screen())
+      await save(scene, name + '-paged', cols, 30)
+      const paged = focus()
+      scene.push(keys.pgup)
+      check(cols + ' ' + name + ': PageUp returns toward the first window', await waitFor(() => focus() !== paged, 1800), scene.screen())
+      if (name === 'permissions') {
+        scene.push('choice-1')
+        check(cols + ' permissions: typing starts the filter', await waitFor(() => scene.screen().includes('/ choice-1'), 1800))
+        scene.push(keys.enter)
+        check(cols + ' permissions: Enter hands the filtered list back its keys', await waitFor(() => /Read\(choice-1/.test(focus()) && scene.screen().includes('pgup/pgdn'), 1800), scene.screen())
+      }
+      const before = scene.screen()
+      scene.push(keys.enter)
+      check(cols + ' ' + name + ': Enter activates the selected item', await waitFor(() => picked !== '' || name === 'permissions' && scene.screen() !== before, 2000), scene.screen())
+      if (!closed) scene.push(keys.esc)
+      if (name === 'permissions') { await settledFrame(scene); if (!closed) scene.push(keys.esc) }
+      check(cols + ' ' + name + ': Escape closes or backs out once', await waitFor(() => closed, 2000))
     } catch (error) { check(cols + ' ' + name + ': drive completes', false, String(error) + '\n' + scene.screen()) }
     finally { scene.unmount() }
   }

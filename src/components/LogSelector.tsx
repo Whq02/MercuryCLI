@@ -361,7 +361,7 @@ export function LogSelector({
   if (searchMode) {
     hints.push('↵ to list', query !== '' ? 'esc clear' : 'esc back', 'ctrl+n exit search')
   } else {
-    hints.push('↑↓ select', '↵ resume', '/ search')
+    hints.push('↑↓ select', 'pgup/pgdn page', '↵ resume', '/ search')
     if (onToggleAllProjects) hints.push('ctrl+a all projects')
     hints.push('ctrl+b branch')
     if (multipleWorktrees) hints.push('ctrl+w worktrees')

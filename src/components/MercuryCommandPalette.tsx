@@ -5,6 +5,7 @@ import type { Command } from '../commands.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { Box, Text, useInput } from '../ink.js'
+import { PopupListViewport } from './CustomSelect/popup-list.js'
 import { ACTION_GRAPH } from '../keybindings/actionGraph.js'
 import { actionAffordance } from '../keybindings/atlas.js'
 import { useOptionalKeybindingContext } from '../keybindings/KeybindingContext.js'
@@ -220,8 +221,8 @@ export function MercuryCommandPalette({
     items.length === 0
       ? 'no commands'
       : recentCount > 0
-        ? `${filtered.length} ${noun} · ${recentCount} recent · ↑↓ · ↵ ${selVerb}`
-        : `${filtered.length} ${noun} · ↑↓ move · ↵ ${selVerb}`
+        ? `${filtered.length} ${noun} · ${recentCount} recent · ↑↓ · pgup/pgdn page · ↵ ${selVerb}`
+        : `${filtered.length} ${noun} · ↑↓ move · pgup/pgdn page · ↵ ${selVerb}`
 
   const pastOpenEvent = useOpenEventGate()
 
@@ -303,6 +304,7 @@ export function MercuryCommandPalette({
         </Box>
       ) : (
         <Box marginTop={1} flexDirection="column">
+          <PopupListViewport above={winStart} below={filtered.length - winStart - shown.length} rows={shown.length}>
           {shown.map((it, i) => {
             const abs = winStart + i
             const here = abs === sel
@@ -339,6 +341,7 @@ export function MercuryCommandPalette({
               </InteractiveRow>
             )
           })}
+          </PopupListViewport>
           {filtered.length > listRows ? (
             <Text color={tokens.textMuted}>  {sel + 1}/{filtered.length} · ↑↓ walks the full list</Text>
           ) : null}
