@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const GENERATOR = 'scripts/sdk/generate.ts'
-const OUTPUTS = ['rows.ts', 'door.ts'] as const
+const OUTPUTS = ['rows.ts', 'door.ts', 'wire.ts'] as const
 const COMMITTED = join(ROOT, 'sdk', 'src')
 const PLANTED = process.argv.includes('--planted-only')
 let failures = 0
@@ -19,6 +19,8 @@ function section(t: string): void {
 }
 const env = { ...process.env, MERCURY_CONFIG_DIR: process.env.MERCURY_CONFIG_DIR ?? mkdtempSync(join(tmpdir(), 'sdk-drift-home-')), MERCURY_LOCAL_PROBE_TARGETS: 'none' }
 const generate = (args: string[]): { status: number | null; out: string } => {
+  const outIndex = args.indexOf('--out')
+  if (outIndex >= 0) args.push('--python-out', join(args[outIndex + 1]!, 'python'))
   const result = spawnSync(process.execPath, ['run', join(ROOT, GENERATOR), ...args], { cwd: ROOT, encoding: 'utf8', env, timeout: 180_000 })
   return { status: result.status, out: `${result.stdout}${result.stderr}` }
 }
@@ -37,6 +39,10 @@ try {
       const firstDifference = [...committed].findIndex((char, i) => char !== generated[i])
       check(`sdk/src/${name} is byte-identical to the generator's output (${committed.length} bytes)`, committed === generated, firstDifference >= 0 ? `first difference at byte ${firstDifference}: committed ${JSON.stringify(committed.slice(firstDifference, firstDifference + 60))} vs generated ${JSON.stringify(generated.slice(firstDifference, firstDifference + 60))}` : `lengths ${committed.length} vs ${generated.length}`)
     }
+    check('Python schema is byte-identical from the same generation', readFileSync(join(ROOT, 'sdk-py/src/mercury_cli_sdk/generated.py'), 'utf8') === readFileSync(join(fresh, 'python/generated.py'), 'utf8'))
+    writeFileSync(join(fresh, 'python/generated.py'), 'planted Python drift')
+    const pyDrift = generate(['--out', fresh, '--check'])
+    check('Python-only drift makes --check refuse', pyDrift.status === 1 && pyDrift.out.includes(`DRIFT ${join(fresh, 'python/generated.py')}`))
     const checkMode = generate(['--check'])
     check('the generator\'s own --check mode agrees (exit 0, SAME for every output)', checkMode.status === 0 && OUTPUTS.every(name => checkMode.out.includes(`SAME ${join(COMMITTED, name)}`)), checkMode.out.slice(0, 600))
     const header = readFileSync(join(COMMITTED, 'rows.ts'), 'utf8')
@@ -49,7 +55,8 @@ try {
   const tree = join(scratch, 'tree')
   mkdirSync(tree)
   cpSync(join(ROOT, 'src'), join(tree, 'src'), { recursive: true })
-  symlinkSync(join(ROOT, 'node_modules'), join(tree, 'node_modules'))
+  cpSync(join(ROOT, 'tsconfig.json'), join(tree, 'tsconfig.json'))
+  symlinkSync(join(ROOT, 'node_modules'), join(tree, 'node_modules'), 'junction')
   const vocabularyPath = join(tree, 'src', 'rows', 'vocabulary.ts')
   const vocabulary = readFileSync(vocabularyPath, 'utf8')
   const needle = 'cached_input_tokens: z.number().int().min(0),'
@@ -58,8 +65,11 @@ try {
   const planted = join(scratch, 'planted')
   mkdirSync(planted)
   for (const name of OUTPUTS) cpSync(join(COMMITTED, name), join(planted, name))
+  mkdirSync(join(planted, 'python'))
+  cpSync(join(ROOT, 'sdk-py/src/mercury_cli_sdk/generated.py'), join(planted, 'python/generated.py'))
   const checkPlanted = generate(['--root', tree, '--out', planted, '--check'])
   check('--check against the planted tree exits 1 and names rows.ts as DRIFT', checkPlanted.status === 1 && checkPlanted.out.includes(`DRIFT ${join(planted, 'rows.ts')}`), checkPlanted.out.slice(0, 600))
+  check('the same vocabulary plant moves Python', checkPlanted.out.includes(`DRIFT ${join(planted, 'python/generated.py')}`))
   check('the door file, untouched by the plant, still reads SAME', checkPlanted.out.includes(`SAME ${join(planted, 'door.ts')}`), checkPlanted.out.slice(0, 600))
   const regenerated = generate(['--root', tree, '--out', planted])
   const moved = readFileSync(join(planted, 'rows.ts'), 'utf8')
@@ -70,6 +80,21 @@ try {
   writeFileSync(vocabularyPath, vocabulary.replace("timestamp: z.string(),", "timestamp: z.string().regex(/^\\d/),"))
   const refused = generate(['--root', tree, '--out', keyword])
   check('a construct outside the interpreter\'s keyword set refuses to generate (a regex check on the envelope)', refused.status !== 0 && /keyword "pattern" is outside the set/.test(refused.out), refused.out.slice(0, 400))
+  section('D3 product reply declarations and wire codecs generate both SDKs')
+  writeFileSync(vocabularyPath, vocabulary)
+  const wirePath = join(tree, 'src/services/engine-connector/seatWire.ts')
+  writeFileSync(wirePath, readFileSync(wirePath, 'utf8').replace("filesChanged: 'files_changed'", "filesChanged: 'changed_files'"))
+  const factsPath = join(tree, 'src/services/engine-connector/types.ts')
+  writeFileSync(factsPath, readFileSync(factsPath, 'utf8').replace('totalCostUSD: number', 'totalCostUSD: string'))
+  const resultDir = join(scratch, 'result-shapes')
+  const resultRun = generate(['--root', tree, '--out', resultDir])
+  check('reply generation exits zero on the scratch declarations', resultRun.status === 0, resultRun.out.slice(0, 800))
+  if (resultRun.status === 0) {
+    const ts = readFileSync(join(resultDir, 'wire.ts'), 'utf8')
+    const py = readFileSync(join(resultDir, 'python/generated.py'), 'utf8')
+    check('TypeScript follows the product reply type and key codec', ts.includes('total_cost_usd: string') && ts.includes('changed_files: string[]') && !ts.includes('files_changed: string[]'))
+    check('Python follows the same product reply type and key codec', py.includes('"total_cost_usd": "str"') && py.includes('"changed_files": "list[str]"') && !py.includes('"files_changed": "list[str]"'))
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

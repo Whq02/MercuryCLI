@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import ts from 'typescript'
+import { resultSchemas } from './result-schemas.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0' }
 process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'sdk-generate-'))
@@ -14,16 +15,20 @@ const argValue = (name: string): string | undefined => {
 }
 const ROOT = resolve(argValue('--root') ?? resolve(import.meta.dir, '..', '..'))
 const OUT_DIR = resolve(argValue('--out') ?? join(ROOT, 'sdk', 'src'))
+const PY_OUT = resolve(argValue('--python-out') ?? (argValue('--out') ? join(OUT_DIR, 'python') : join(ROOT, 'sdk-py', 'src', 'mercury_cli_sdk')))
+const WIRE = 'src/runner/wire/methods.ts'
+const ERRORS = 'src/runner/wire/errors.ts'
+const RESULT_SOURCES = ['src/services/engine-connector/seatProjections.ts', 'src/services/engine-connector/types.ts', 'src/services/engine-connector/seatWire.ts', 'src/daemon/protocol.ts', 'src/cli/run.ts', 'scripts/sdk/result-schemas.ts']
 const VOCABULARY = 'src/rows/vocabulary.ts'
 const PERMISSIONS = 'src/types/permissions.ts'
 const EFFORT = 'src/utils/effortLadder.ts'
 const MAIN = 'src/main.tsx'
 const GENERATOR = 'scripts/sdk/generate.ts'
 const ROW = {
-  assets: 'sdk/src/rows.ts sdk/src/door.ts',
+  assets: 'sdk/src/rows.ts sdk/src/door.ts sdk/src/wire.ts sdk-py/src/mercury_cli_sdk/generated.py sdk/README.md sdk-py/README.md',
   generator: `bun ${GENERATOR}`,
   check: 'bun scripts/sdk/prove-rows-drift.ts',
-  sources: `${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN}`,
+  sources: `${RESULT_SOURCES.join(' ')} ${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN} ${WIRE} ${ERRORS} src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts src/types/message.ts src/utils/deadline.ts src/utils/lazySchema.ts src/components/mercury-ui/glyphs.ts src/ink/stringWidth.ts src/ink/wrap-text.ts src/ink/wrapAnsi.ts src/utils/intl.ts src/utils/sliceAnsi.ts src/utils/truncate.ts`,
 }
 if (argv.includes('--register')) {
   const { registerGeneratedAsset } = (await import(join(ROOT, 'scripts/lib/generated-assets-map.mjs'))) as { registerGeneratedAsset: (row: typeof ROW) => { action: string; line: string } }
@@ -38,7 +43,7 @@ const permissions = (await import(join(ROOT, PERMISSIONS))) as { PERMISSION_MODE
 const effort = (await import(join(ROOT, EFFORT))) as { EFFORT_LEVELS: readonly string[] }
 
 type Schema = Record<string, unknown>
-const KEYWORDS = new Set(['type', 'const', 'enum', 'properties', 'required', 'additionalProperties', 'propertyNames', 'items', 'oneOf', 'anyOf', 'minimum', 'maximum'])
+const KEYWORDS = new Set(['type', 'const', 'enum', 'properties', 'required', 'additionalProperties', 'propertyNames', 'items', 'oneOf', 'anyOf', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength'])
 const TYPES = new Set(['object', 'array', 'string', 'number', 'integer', 'boolean', 'null'])
 
 function fail(message: string): never {
@@ -312,10 +317,11 @@ rows.push('  oneOf?: readonly JsonSchema[]')
 rows.push('  anyOf?: readonly JsonSchema[]')
 rows.push('  minimum?: number')
 rows.push('  maximum?: number')
+for (const key of ['exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength']) rows.push(`  ${key}?: number`)
 rows.push('}')
 for (const [, entry] of named) {
-  const body = typeOf(entry.schema, '', true)
-  if (entry.schema.type === 'object' && entry.schema.properties !== undefined) rows.push(`export interface ${entry.typeName} ${body}`)
+  const body = typeOf(entry.schema, '', true).replace(entry.typeName === 'OutcomeRow' ? 'structured?: unknown' : '\0', 'structured?: T')
+  if (entry.schema.type === 'object' && entry.schema.properties !== undefined) rows.push(`export interface ${entry.typeName}${entry.typeName === 'OutcomeRow' ? '<T = unknown>' : ''} ${body}`)
   else rows.push(`export type ${entry.typeName} = ${body}`)
 }
 rows.push(`export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>> = {`)
@@ -350,10 +356,135 @@ door.push('] as const satisfies readonly RunOption[]')
 door.push("export type RunOptionFlag = (typeof RUN_OPTIONS)[number]['flag']")
 door.push('')
 
+
+const wireSource = await import(join(ROOT, WIRE))
+const wireErrors = await import(join(ROOT, ERRORS))
+const methodSchemas = Object.fromEntries(Object.entries(wireSource.METHODS).map(([name, spec]: [string, any]) => [name, {
+  from: spec.from, kind: spec.kind, scope: spec.scope, deadlineMs: spec.deadlineMs,
+  ...(spec.capability ? { capability: spec.capability } : {}),
+  params: jsonSchemaOf(spec.params, `${name}.params`), result: jsonSchemaOf(spec.result, `${name}.result`),
+}]))
+const resultShapes = await resultSchemas(ROOT)
+for (const [method, schema] of Object.entries(resultShapes)) audit(schema, method)
+const wire = [`export const WIRE_GENERATED = '${MARK}'`, `export const WIRE_GENERATED_FROM = [${[WIRE, ERRORS, VOCABULARY, ...RESULT_SOURCES].map(literal).join(', ')}] as const`, "import type * as Rows from './rows.js'", "import type { JsonSchema } from './rows.js'", `export const RUNNER_PROTOCOL = ${wireSource.RUNNER_PROTOCOL} as const`]
+for (const [name, value] of Object.entries(wireErrors)) if (/^(RPC_\w+|BAD_LINE_LIMIT|MAX_LINE_BYTES|REFUSAL_KINDS)$/.test(name) && typeof value !== 'function') wire.push(`export const ${name} = ${JSON.stringify(value)} as const`)
+const rowRefs = new Set([...named.values()].map(e => e.typeName))
+const wireType = (schema: Schema): string => typeOf(schema, '', true).replace(/\b[A-Za-z]\w*\b/g, word => rowRefs.has(word) ? `Rows.${word}` : word)
+for (const method of Object.keys(resultShapes)) wire.push(`export type ${method.split('/').map(s => s[0]!.toUpperCase() + s.slice(1)).join('')}Result = ${wireType(resultShapes[method]!)}`)
+wire.push('export interface MethodParams {')
+for (const [name, spec] of Object.entries(methodSchemas)) wire.push(`  ${JSON.stringify(name)}: ${wireType(spec.params)}`)
+wire.push('}', 'export interface MethodResults {')
+for (const [name, spec] of Object.entries(methodSchemas)) wire.push(`  ${JSON.stringify(name)}: ${resultShapes[name] ? name.split('/').map(s => s[0]!.toUpperCase() + s.slice(1)).join('') + 'Result' : wireType(spec.result)}`)
+wire.push('}', 'export type MethodName = keyof MethodParams', 'export type ParamsOf<M extends MethodName> = MethodParams[M]', 'export type ResultOf<M extends MethodName> = MethodResults[M]')
+for (const [alias, side, kind] of [['HostRequestName', 'host', 'request'], ['HostNotificationName', 'host', 'notification'], ['RunnerRequestName', 'runner', 'request'], ['RunnerNotificationName', 'runner', 'notification']]) wire.push(`export type ${alias} = ${Object.entries(methodSchemas).filter(([, s]) => (s.from === side || s.from === 'both') && s.kind === kind).map(([n]) => JSON.stringify(n)).join(' | ')}`)
+wire.push('export type MethodSchema = { from: string; kind: string; scope: string; deadlineMs: number | null; capability?: string; params: JsonSchema; result: JsonSchema }')
+wire.push(`export const METHODS: Record<MethodName, MethodSchema> = ${JSON.stringify(methodSchemas, null, 2)}`, '')
+const py = ['from __future__ import annotations', 'import json', 'from typing import Any, Callable, Generic, Literal, NotRequired, TypeAlias, TypeVar, TypedDict, overload', '']
+py.push(`GENERATED = ${JSON.stringify(MARK)}`, `GENERATED_BY = ${JSON.stringify(GENERATOR)}`, `GENERATED_FROM = ${JSON.stringify([VOCABULARY, WIRE, ERRORS, PERMISSIONS, EFFORT, MAIN, ...RESULT_SOURCES])}`, '')
+const pyNames: string[] = ['GENERATED', 'GENERATED_BY', 'GENERATED_FROM']
+const pyLit = (value: unknown): string => value === null ? 'None' : value === true ? 'True' : value === false ? 'False' : JSON.stringify(value)
+function pyType(schema: Schema, name: string, top = false): string {
+  if (!top) { const known = byText.get(JSON.stringify(schema)); if (known) return known }
+  const union = (schema.oneOf ?? schema.anyOf) as Schema[] | undefined
+  if (union) return union.map((s, i) => pyType(s, `${name}Choice${i}`)).join(' | ')
+  if (schema.const !== undefined) return `Literal[${pyLit(schema.const)}]`
+  if (schema.enum) return `Literal[${(schema.enum as unknown[]).map(pyLit).join(', ')}]`
+  const type = schema.type
+  if (Array.isArray(type)) return type.map(t => pyType({ ...schema, type: t }, name)).join(' | ')
+  if (type === 'string') return 'str'
+  if (type === 'integer') return 'int'
+  if (type === 'number') return 'float'
+  if (type === 'boolean') return 'bool'
+  if (type === 'null') return 'None'
+  if (type === 'array') return `list[${pyType(schema.items as Schema, name + 'Item')}]`
+  if (type !== 'object') return 'Any'
+  const props = (schema.properties ?? {}) as Record<string, Schema>
+  if (Object.keys(props).length === 0) return `dict[str, ${typeof schema.additionalProperties === 'object' ? pyType(schema.additionalProperties as Schema, name + 'Value') : 'Any'}]`
+  const required = new Set((schema.required ?? []) as string[])
+  const fields = Object.entries(props).map(([key, value]) => {
+    const t = pyType(value, name + key.replace(/[^a-z0-9]/gi, '_').replace(/^./, c => c.toUpperCase()))
+    return `    ${JSON.stringify(key)}: ${JSON.stringify(required.has(key) ? t : `NotRequired[${t}]`)},`
+  })
+  py.push(`${name} = TypedDict(${JSON.stringify(name)}, {`, ...fields, '})', '')
+  pyNames.push(name)
+  return name
+}
+for (const [, entry] of named) {
+  if (entry.typeName === 'OutcomeRow') {
+    const required = new Set(entry.schema.required as string[])
+    const fields = Object.entries(entry.schema.properties as Record<string, Schema>).map(([key, value]) => {
+      const t = key === 'structured' ? '_Structured' : pyType(value, 'OutcomeRow' + key.replace(/[^a-z0-9]/gi, '_').replace(/^./, c => c.toUpperCase()))
+      return '    ' + key + ': ' + (required.has(key) ? t : 'NotRequired[' + t + ']')
+    })
+    py.push("_Structured = TypeVar('_Structured')", 'class TypedOutcome(TypedDict, Generic[_Structured]):', ...fields, '', 'OutcomeRow: TypeAlias = TypedOutcome[Any]', '')
+    pyNames.push('TypedOutcome', 'OutcomeRow')
+    continue
+  }
+  const t = pyType(entry.schema, entry.typeName, true)
+  if (t !== entry.typeName) { py.push(`${entry.typeName}: TypeAlias = ${t}`, ''); pyNames.push(entry.typeName) }
+}
+for (const [method, spec] of Object.entries(methodSchemas)) {
+  const prefix = method.replace(/[^a-z0-9]+/gi, '_').split('_').filter(Boolean).map(s => s[0]!.toUpperCase() + s.slice(1)).join('')
+  for (const [suffix, schema] of [['Params', spec.params], ['Result', resultShapes[method] ?? spec.result]] as const) {
+    const name = prefix + suffix
+    const t = pyType(schema, name, true)
+    if (t !== name) { py.push(`${name}: TypeAlias = ${t}`, ''); pyNames.push(name) }
+  }
+}
+const pyData = { ROWS_SCHEMA: rowsSchema, ...listValues, OUTCOME_EXIT_CODES: exitCodes,
+  ROW_SCHEMAS: Object.fromEntries([...rowSchemas].map(([type, name]) => [type, named.get(name)!.schema])),
+  INPUT_ROW_SCHEMAS: Object.fromEntries([...inputSchemas].map(([type, name]) => [type, named.get(name)!.schema])),
+  PERMISSION_MODES: permissions.PERMISSION_MODES, EFFORT_LEVELS: effort.EFFORT_LEVELS, RUN_OPTIONS: runOptions,
+  RUNNER_PROTOCOL: wireSource.RUNNER_PROTOCOL, METHODS: methodSchemas,
+  ...Object.fromEntries(Object.entries(wireErrors).filter(([n, v]) => /^(RPC_\w+|BAD_LINE_LIMIT|MAX_LINE_BYTES|REFUSAL_KINDS)$/.test(n) && typeof v !== 'function')) }
+py.push(`MethodSchema = TypedDict('MethodSchema', {'from': str, 'kind': str, 'scope': str, 'deadlineMs': int | None, 'capability': NotRequired[str], 'params': dict[str, Any], 'result': dict[str, Any]})`, '')
+pyNames.push('MethodSchema')
+for (const [name, value] of Object.entries(pyData)) {
+  const annotation = name === 'METHODS' ? 'dict[str, MethodSchema]' : typeof value === 'number' ? 'int' : Array.isArray(value) ? (value.every(v => typeof v === 'string') ? 'list[str]' : 'list[dict[str, Any]]') : name === 'OUTCOME_EXIT_CODES' ? 'dict[str, int]' : 'dict[str, Any]'
+  py.push(`${name}: ${annotation} = json.loads(${JSON.stringify(JSON.stringify(value))})`)
+}
+for (const [name, values] of Object.entries({ RowType: listValues.ROW_TYPES, PartialRowType: listValues.PARTIAL_ROW_TYPES, InputRowType: listValues.INPUT_ROW_TYPES, OutcomeStatus: listValues.OUTCOME_STATUSES, StopWord: listValues.STOP_WORDS, ErrorClass: listValues.ERROR_CLASSES, PermissionMode: permissions.PERMISSION_MODES, EffortLevel: effort.EFFORT_LEVELS, RunFormat: formatOption.choices! })) {
+  py.push(`${name}: TypeAlias = Literal[${values.map(pyLit).join(', ')}]`)
+  pyNames.push(name)
+}
+const methodsOf = (side: string, kind: string): string[] => Object.entries(methodSchemas).filter(([, s]) => (s.from === side || s.from === 'both') && s.kind === kind).map(([n]) => n)
+const pyPrefix = (method: string): string => method.replace(/[^a-z0-9]+/gi, '_').split('_').filter(Boolean).map(s => s[0]!.toUpperCase() + s.slice(1)).join('')
+for (const [alias, side, kind] of [['HostRequestName', 'host', 'request'], ['HostNotificationName', 'host', 'notification'], ['RunnerRequestName', 'runner', 'request'], ['RunnerNotificationName', 'runner', 'notification']] as const) {
+  py.push(`${alias}: TypeAlias = Literal[${methodsOf(side, kind).map(pyLit).join(', ')}]`)
+  pyNames.push(alias)
+}
+py.push('', 'class DefaultTimeout: pass', 'DEFAULT_TIMEOUT = DefaultTimeout()', '', '', 'class TypedRequests:')
+const optionalParams = (method: string): boolean => ((methodSchemas[method]!.params.required as string[] | undefined) ?? []).length === 0
+for (const method of methodsOf('host', 'request')) py.push('    @overload', `    async def request(self, method: Literal[${pyLit(method)}], params: ${pyPrefix(method)}Params${optionalParams(method) ? ' | None = None' : ''}, *, timeout: float | None | DefaultTimeout = ...) -> ${pyPrefix(method)}Result: ...`)
+py.push('    @overload', '    async def request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = ...) -> Any: ...')
+py.push('    async def request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = DEFAULT_TIMEOUT) -> Any:', '        return await self._request(method, params, timeout=timeout)', '')
+for (const method of methodsOf('host', 'notification')) py.push('    @overload', `    async def notify(self, method: Literal[${pyLit(method)}], params: ${pyPrefix(method)}Params${optionalParams(method) ? ' | None = None' : ''}) -> None: ...`)
+py.push('    @overload', '    async def notify(self, method: str, params: Any = None) -> None: ...')
+py.push('    async def notify(self, method: str, params: Any = None) -> None:', '        await self._notify(method, params)', '')
+py.push('    async def _request(self, method: str, params: Any, *, timeout: float | None | DefaultTimeout) -> Any:', '        raise NotImplementedError', '')
+py.push('    async def _notify(self, method: str, params: Any) -> None:', '        raise NotImplementedError', '')
+py.push('', 'class TypedSyncRequests:', '    def __init__(self, request: Callable[..., Any], notify: Callable[..., None]):', '        self._sync_request = request', '        self._sync_notify = notify', '')
+for (const method of methodsOf('host', 'request')) py.push('    @overload', '    def request(self, method: Literal[' + pyLit(method) + '], params: ' + pyPrefix(method) + 'Params' + (optionalParams(method) ? ' | None = None' : '') + ', *, timeout: float | None | DefaultTimeout = ...) -> ' + pyPrefix(method) + 'Result: ...')
+py.push('    @overload', '    def request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = ...) -> Any: ...', '    def request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = DEFAULT_TIMEOUT) -> Any:', '        return self._sync_request(method, params, timeout=timeout)', '')
+for (const method of methodsOf('host', 'notification')) py.push('    @overload', '    def notify(self, method: Literal[' + pyLit(method) + '], params: ' + pyPrefix(method) + 'Params' + (optionalParams(method) ? ' | None = None' : '') + ') -> None: ...')
+py.push('    @overload', '    def notify(self, method: str, params: Any = None) -> None: ...', '    def notify(self, method: str, params: Any = None) -> None:', '        self._sync_notify(method, params)', '')
+pyNames.push('DefaultTimeout', 'DEFAULT_TIMEOUT', 'TypedRequests', 'TypedSyncRequests')
+py.push(`__all__ = ${JSON.stringify([...pyNames, ...Object.keys(pyData)])}`, '')
+
 const outputs: Array<[string, string]> = [
+  [join(OUT_DIR, 'wire.ts'), wire.join('\n')],
+  [join(PY_OUT, 'generated.py'), py.join('\n')],
   [join(OUT_DIR, 'rows.ts'), rows.join('\n')],
   [join(OUT_DIR, 'door.ts'), door.join('\n')],
 ]
+if (!argValue('--out') && !argValue('--python-out')) {
+  const table = ['| Row | Required fields |', '| --- | --- |', ...[...rowSchemas].map(([type, name]) => `| \`${type}\` | ${(named.get(name)!.schema.required as string[]).map(key => `\`${key}\``).join(', ')} |`)].join('\n')
+  for (const dir of ['sdk', 'sdk-py']) {
+    const path = join(ROOT, dir, 'README.md')
+    const readme = readFileSync(path, 'utf8')
+    outputs.push([path, readme.replace(/<!-- vocabulary:start -->[\s\S]*?<!-- vocabulary:end -->/, `<!-- vocabulary:start -->\n${table}\n<!-- vocabulary:end -->`)])
+  }
+}
 if (argv.includes('--check')) {
   if (!existsSync(OUT_DIR)) {
     console.log('PARKED the SDK is not on this tree (the published lineage carries no sdk/): nothing to check')
@@ -375,6 +506,7 @@ if (argv.includes('--check')) {
   process.exit(drift === 0 ? 0 : 1)
 }
 for (const [path, content] of outputs) {
+  mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, content)
   console.log(`wrote ${path} (${content.length} bytes)`)
 }

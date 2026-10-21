@@ -50,7 +50,13 @@ export function validate(schema: JsonSchema, value: unknown, path = '', issues: 
     issues.push({ path, message: `expected one of ${schema.enum.map(item => JSON.stringify(item)).join(', ')}, found ${JSON.stringify(value)}` })
     return issues
   }
+  if (typeof value === 'string') {
+    if (schema.minLength !== undefined && [...value].length < schema.minLength) issues.push({ path, message: 'string too short' })
+    if (schema.maxLength !== undefined && [...value].length > schema.maxLength) issues.push({ path, message: 'string too long' })
+  }
   if (typeof value === 'number') {
+    if (schema.exclusiveMinimum !== undefined && value <= schema.exclusiveMinimum) issues.push({ path, message: 'number too small' })
+    if (schema.exclusiveMaximum !== undefined && value >= schema.exclusiveMaximum) issues.push({ path, message: 'number too large' })
     if (schema.minimum !== undefined && value < schema.minimum) issues.push({ path, message: `expected at least ${schema.minimum}, found ${value}` })
     if (schema.maximum !== undefined && value > schema.maximum) issues.push({ path, message: `expected at most ${schema.maximum}, found ${value}` })
   }

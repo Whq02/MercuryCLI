@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -42,6 +43,7 @@ async function openDoor(turns: ScriptedTurn[]): Promise<Door> {
 }
 const mercury = ['node', dist] as const
 const withTimeout = <T>(promise: Promise<T>, ms: number, what: string): Promise<T> => Promise.race([promise, new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${what} did not settle within ${ms} ms`)), ms).unref?.())])
+const interrupted = (exit: sdk.RunExit): boolean => process.platform === 'win32' ? exit.signal === 'SIGINT' : exit.code === 130
 
 section('C1 a tool turn with partial rows through the package: every row parses, the core rows arrive in order, the outcome resolves')
 {
@@ -129,15 +131,19 @@ section('C2 every declared row type has a parser: the product\'s own writers pro
   const everyType = [...sdk.ROW_TYPES, ...sdk.PARTIAL_ROW_TYPES]
   check(`${everyType.length} declared row types, each with a schema in ROW_SCHEMAS and a projector arm here`, everyType.every(type => sdk.ROW_SCHEMAS[type] !== undefined && (projected[type]?.length ?? 0) > 0), everyType.filter(type => sdk.ROW_SCHEMAS[type] === undefined || (projected[type]?.length ?? 0) === 0).join(','))
   check('no projector arm names a type outside the generated vocabulary', Object.keys(projected).every(type => (everyType as readonly string[]).includes(type)))
+  const pythonRows: unknown[] = []
   for (const type of everyType) {
     for (const draft of projected[type] ?? []) {
       const stamped = stamper.stamp(draft as never) as Record<string, unknown>
+      pythonRows.push(stamped)
       const read = sdk.rowOf(stamped)
       check(`${type} row written by the product parses through the package's ${type} schema`, read.ok && read.row.type === type, read.ok ? '' : j({ reason: read.reason, issues: read.issues.slice(0, 3) }))
       const line = sdk.parseRow(JSON.stringify(stamped))
       check(`${type} row round-trips through parseRow`, line.ok && JSON.stringify(line.row) === JSON.stringify(stamped))
     }
   }
+  const py = spawnSync('python3', ['-c', 'import json,sys; from mercury_cli_sdk import parse_row; rows=json.load(sys.stdin); assert all(parse_row(json.dumps(r)).ok and parse_row(json.dumps(r)).row==r for r in rows); print(len(rows))'], { input: JSON.stringify(pythonRows), encoding: 'utf8', env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(ROOT, 'sdk-py/src') } })
+  check('every product-projected row round-trips in Python too', py.status === 0, py.stderr)
   const closeStored = sdk.rowOf(stamper.stamp(projected.close![0] as never))
   const closeNone = sdk.rowOf(stamper.stamp(projected.close![2] as never))
   check('the close row lands typed with the state, the note length and the folded usage the writer spelled; a close with nothing stored carries the state alone', closeStored.ok && closeStored.row.type === 'close' && closeStored.row.state === 'stored' && closeStored.row.note_chars === 142 && closeStored.row.usage?.input_tokens === 18 && closeStored.row.usage.cached_input_tokens === 5 && closeStored.row.usage.cache_write_input_tokens === 3 && closeStored.row.usage.output_tokens === 7 && closeStored.row.usage.reasoning_output_tokens === 2 && closeNone.ok && closeNone.row.type === 'close' && closeNone.row.state === 'none' && !('note_chars' in closeNone.row) && !('usage' in closeNone.row), j({ closeStored, closeNone }))
@@ -150,7 +156,7 @@ section('C2 every declared row type has a parser: the product\'s own writers pro
   check('a row with a key the vocabulary does not declare still parses (the product accepts and strips unknown keys; the package accepts them too)', extra.ok)
   const broken = sdk.rowOf({ ...stamper.stamp(project.noticeRow(scope, 'warning', 'x')), level: 'loud' })
   check('a row whose field breaks its schema is refused with the path and the message', !broken.ok && broken.reason === 'invalid' && broken.issues.some(issue => issue.path === 'level' && issue.message.includes('expected one of')), j(broken))
-  check('a frame of another kind reads unknown_type; a non-object reads not_an_object; a torn line reads not_json', (() => { const a = sdk.rowOf({ type: 'assistant' }); const b = sdk.rowOf('text'); const c = sdk.parseRow(JSON.stringify(session).slice(0, 20)); return !a.ok && a.reason === 'unknown_type' && !b.ok && b.reason === 'not_an_object' && !c.ok && c.reason === 'not_json' })())
+  check('a future frame is delivered as unknown_row; a non-object reads not_an_object; a torn line reads not_json', (() => { const a = sdk.rowOf({ type: 'assistant' }); const b = sdk.rowOf('text'); const c = sdk.parseRow(JSON.stringify(session).slice(0, 20)); return a.ok && a.row.type === 'unknown_row' && a.row.original_type === 'assistant' && !b.ok && b.reason === 'not_an_object' && !c.ok && c.reason === 'not_json' })())
   const prompt = sdk.inputRowOf({ type: 'prompt', content: [{ type: 'text', text: 'hi' }, { type: 'image', media_type: 'image/png', data: 'AA==' }], priority: 'next' })
   const badPriority = sdk.inputRowOf({ type: 'prompt', content: 'hi', priority: 'soon' })
   check('the input rows parse through the generated input schemas and an unknown priority is refused', prompt.ok && !badPriority.ok && badPriority.reason === 'invalid')
@@ -210,7 +216,7 @@ section('C4 a turn the model fails and a turn the caller interrupts resolve as o
     void hang.api.messageRequestStarted(1).then(() => run.interrupt())
     const outcome = await withTimeout(run.outcome, 90_000, 'the interrupted turn')
     const exit = await run.exit
-    check('interrupt() sends SIGINT: the door flushes an interrupted outcome and exits 130', outcome.status === 'interrupted' && exit.code === 130, j({ status: outcome.status, exit }))
+    check(process.platform === 'win32' ? 'interrupt() ends the child (Windows has no SIGINT to deliver): the package settles the turn as interrupted' : 'interrupt() sends SIGINT: the door flushes an interrupted outcome and exits 130', outcome.status === 'interrupted' && interrupted(exit), j({ status: outcome.status, exit }))
     check('the interrupted outcome is the last row and the iterator would have ended cleanly', run.rows.at(-1) === outcome && run.error === null)
   } finally {
     await hang.close()
@@ -221,7 +227,7 @@ section('C4 a turn the model fails and a turn the caller interrupts resolve as o
     const run = sdk.run({ prompt: 'hello', mercury, cwd: aborted.home, env: aborted.env, signal: controller.signal })
     void aborted.api.messageRequestStarted(1).then(() => controller.abort())
     const outcome = await withTimeout(run.outcome, 90_000, 'the aborted turn')
-    check('an AbortSignal interrupts the same way', outcome.status === 'interrupted' && (await run.exit).code === 130, j({ status: outcome.status }))
+    check('an AbortSignal interrupts the same way', outcome.status === 'interrupted' && interrupted(await run.exit), j({ status: outcome.status }))
   } finally {
     await aborted.close()
   }
@@ -230,6 +236,7 @@ section('C4 a turn the model fails and a turn the caller interrupts resolve as o
 section('C5 the argv builder spells only options the door declares, with the value shape the door reads')
 {
   const everything = sdk.argvOf({
+    env: { HOME: process.env.MERCURY_CONFIG_DIR!, PATH: '' },
     prompt: 'the prompt',
     project: '/p',
     model: 'm',

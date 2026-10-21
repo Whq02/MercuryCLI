@@ -1,0 +1,31 @@
+[build-system]
+requires = []
+build-backend = "build_backend"
+backend-path = ["."]
+
+[project]
+name = "mercury-cli-sdk"
+version = "0.1.0"
+description = "Mercury CLI clients for Python: typed run streams, hosted sessions and zero-cost fixtures."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["mercury-cli", "mercury"]
+dependencies = []
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Framework :: AsyncIO",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://mercury-cli.ai"
+Repository = "https://github.com/Whq02/MercuryCLI"
