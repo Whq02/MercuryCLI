@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import sys
+from typing import TypedDict, Annotated, NotRequired
 from mercury_cli_sdk import run, connect, MercuryRefusal, serve_tools, define_tool, define_agent
 
 from mercury_cli_sdk.testing import start_fixture_server
@@ -46,13 +47,20 @@ async def main():
         assert (await session.interrupt())['interrupted']
         assert (await asyncio.wait_for(second, 60))['status'] == 'interrupted'
     print('PASS Python live runner initialize, host permission, mid-turn queue/add, withdrawal, interrupt, facts and refusal', flush=True)
-    tool = define_tool('echo', 'Echo', {'type': 'object', 'properties': {'text': {'type': 'string'}}, 'required': ['text']}, lambda p: p['text'])
-    async with await serve_tools([tool], 'sdktools') as tools:
-        agent = define_agent({'description': 'SDK reader', 'prompt': 'Use echo.'})
-        task = await run('Use echo', mercury=mercury, cwd=cwd, mode='sovereign', ephemeral=True, mcp=[tools.mcp], agent='sdk-reader', agent_defs={'sdk-reader': agent})
-        assert (await task.outcome)['status'] == 'completed'
-        assert any(r['type'] == 'tool_result' and 'Python inline result' in r['output'] for r in task.rows)
-        assert 'sdk-reader' in (await task.session)['agents']
+    class Echo(TypedDict):
+        text: Annotated[str, 'The text to echo']
+        count: NotRequired[int]
+    def execute(p, context):
+        assert not context.cancelled.is_set()
+        return p['text']
+    tool = define_tool('echo', 'Echo', Echo, execute)
+    assert tool.input_schema['required'] == ['text']
+    assert tool.input_schema['properties']['text']['description'] == 'The text to echo'
+    agent = define_agent({'description': 'SDK reader', 'prompt': 'Use echo.'})
+    task = await run('Use echo', mercury=mercury, cwd=cwd, mode='default', ephemeral=True, tools=[tool], agent='sdk-reader', agent_defs={'sdk-reader': agent})
+    assert (await task.outcome)['status'] == 'completed'
+    assert any(r['type'] == 'tool_result' and 'Python inline result' in r['output'] for r in task.rows)
+    assert 'sdk-reader' in (await task.session)['agents']
     print('PASS Python live inline MCP callback and agent definition', flush=True)
 
     task = await run('save identity', mercury=mercury, cwd=cwd)

@@ -77,15 +77,15 @@ try {
     console.log('PASS TypeScript live streaming input')
   } finally { await streaming.close() }
 
-  const inline = await context(() => [{ kind: 'tool_use', name: 'mcp__sdktools__echo', input: { text: 'inline result' } }, { kind: 'text', text: 'Inline finished.' }])
-  const tools = await serveTools([defineTool({ name: 'echo', description: 'Echo', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, execute: (p: { text: string }) => p.text })], 'sdktools')
+  const inline = await context(() => [{ kind: 'tool_use', name: 'mcp__sdk-tools__echo', input: { text: 'inline result' } }, { kind: 'text', text: 'Inline finished.' }])
+  const echo = defineTool({ name: 'echo', description: 'Echo', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, execute: (p: { text: string }, context) => { assert(context.signal instanceof AbortSignal); return p.text } })
   try {
-    const task = run({ mercury, cwd: inline.cwd, env: inline.env, prompt: 'Use echo', mode: 'sovereign', ephemeral: true, mcp: [tools.mcp], agent: 'sdk-reader', agentDefs: { 'sdk-reader': defineAgent({ description: 'SDK reader', prompt: 'Use the echo tool.' }) } })
+    const task = run({ mercury, cwd: inline.cwd, env: inline.env, prompt: 'Use echo', mode: 'default', ephemeral: true, tools: [echo], agent: 'sdk-reader', agentDefs: { 'sdk-reader': defineAgent({ description: 'SDK reader', prompt: 'Use the echo tool.' }) } })
     assert.equal((await task.outcome).status, 'completed')
     assert(task.rows.some(r => r.type === 'tool_result' && r.output.includes('inline result')))
     assert((await task.session).agents.includes('sdk-reader'))
     console.log('PASS live inline MCP tool and inline agent definition')
-  } finally { await tools.close(); await inline.close() }
+  } finally { await inline.close() }
 
   const cancelled = await context(() => [{ kind: 'hang', deltas: ['open'] }])
   try {
@@ -102,7 +102,7 @@ try {
     { kind: 'tool_use', name: 'Write', input: { file_path: join(cwd, 'denied-python.txt'), content: 'never' } },
     { kind: 'text', text: 'Python host answered.' },
     { kind: 'hang', deltas: ['python open'] },
-    { kind: 'tool_use', name: 'mcp__sdktools__echo', input: { text: 'Python inline result' } },
+    { kind: 'tool_use', name: 'mcp__sdk-tools__echo', input: { text: 'Python inline result' } },
     { kind: 'text', text: 'Python inline finished.' },
     { kind: 'text', text: 'Saved Python identity.' },
   ])

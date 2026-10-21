@@ -10,6 +10,7 @@ import type { InputRow, OutcomeRow, PromptRow, ShellRow, NoteRow } from './rows.
 import { METHODS, RUNNER_PROTOCOL, RPC_REFUSED, type HostRequestName, type HostNotificationName, type RunnerRequestName, type MethodName, type ParamsOf, type ResultOf } from './wire.js'
 import { validate } from './validate.js'
 import { VERSION } from './version.js'
+import { serveTools, withTools, type ToolServer } from './helpers.js'
 
 export type RequestContext = { signal: AbortSignal; id: number }
 export type HostHandlers = { [M in RunnerRequestName]?: (params: ParamsOf<M>, context: RequestContext) => ResultOf<M> | (keyof ResultOf<M> extends never ? void : never) | Promise<ResultOf<M> | (keyof ResultOf<M> extends never ? void : never)> }
@@ -46,7 +47,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   #normalEnd = false
   #promptReject: ((error: Error) => void) | undefined
 
-  constructor(options: ConnectOptions = {}) {
+  constructor(options: ConnectOptions = {}, private readonly toolServer?: ToolServer) {
     const argv = argvOf({ ...options, partial: false, prompt: undefined, input: undefined, stdin: undefined })
     const lead = Array.isArray(options.mercury) ? options.mercury.length - 1 : 0
     const door = lead + (options.project !== undefined ? 2 : 0)
@@ -61,10 +62,11 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     this.child.stdin!.on('error', e => this.#fail(new MercuryError(e.message, null, { cause: e })))
     this.child.on('error', e => this.#fail(new MercurySpawnError(argv.command, cwdProblem ?? e)))
     readLines(this.child.stdout!, line => { if (!this.#closed) void this.#read(line).catch(e => this.#fail(e)) }, error => this.#fail(error))
-    this.exit = new Promise(resolve => this.child.once('close', (code, signal) => {
+    this.exit = new Promise(resolve => this.child.once('close', async (code, signal) => {
       const exit = { code, signal, stderr: this.stderr }
       this.#fail(code === 2 && (this.initialized as ResultOf<'initialize'> | undefined) === undefined ? new MercuryUsageError(exit, 'runner') : new MercuryExitError(exit, 'runner'), this.#closing)
       clearTimeout(this.#stopTimer)
+      await this.toolServer?.close()
       resolve(exit)
     }))
   }
@@ -234,7 +236,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   sendShell(command: string, options: Omit<ShellRow, 'type' | 'command'> = {}) { return this.send({ ...options, type: 'shell', command }) }
   sendNote(to: string, content: string, options: Omit<NoteRow, 'type' | 'to' | 'content'> = {}) { return this.send({ ...options, type: 'note', to, content }) }
   withdraw(id: string) { return this.request('queue/withdraw', { id }) }
-  interrupt(options: ParamsOf<'turn/interrupt'> = {}) { return this.request('turn/interrupt', options) }
+  interrupt(options: ParamsOf<'turn/interrupt'> = {}) { this.toolServer?.cancel(); return this.request('turn/interrupt', options) }
   facts() { return this.request('session/facts', {}) }
   setModel(model: string) { return this.request('session/set_model', { model }) }
   setEffort(effort: string) { return this.request('session/set_effort', { effort }) }
@@ -275,7 +277,10 @@ export class MercurySession implements AsyncIterable<StreamRow> {
 }
 
 export async function connect(options: ConnectOptions = {}): Promise<MercurySession> {
-  const session = new MercurySession(options)
+  const tools = options.tools?.length ? await serveTools(options.tools) : undefined
+  let session: MercurySession
+  try { session = new MercurySession(tools ? withTools(options, tools) : options, tools) }
+  catch (error) { await tools?.close(); throw error }
   try {
     session.initialized = await session.request('initialize', {
       protocol: RUNNER_PROTOCOL, host: options.host ?? { name: 'mercury-cli-sdk', version: VERSION },

@@ -6,7 +6,8 @@ import secrets
 import threading
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Awaitable, Callable, Mapping, NotRequired, TypedDict
+from typing import Annotated, Any, Awaitable, Callable, Literal, Mapping, NotRequired, Required, TypedDict, Union, get_args, get_origin, get_type_hints, is_typeddict, cast
+from types import UnionType
 from .parse import validate
 from .generated import PermissionMode, EffortLevel
 from .version import __version__
@@ -45,7 +46,42 @@ class ToolResult(TypedDict):
     isError: NotRequired[bool]
 
 
-ToolExecute = Callable[[dict[str, Any]], str | ToolResult | Awaitable[str | ToolResult]]
+@dataclass
+class ToolContext:
+    cancelled: asyncio.Event
+
+
+ToolExecute = Callable[[dict[str, Any]], str | ToolResult | Awaitable[str | ToolResult]] | Callable[[dict[str, Any], ToolContext], str | ToolResult | Awaitable[str | ToolResult]]
+
+
+def _schema(annotation: Any) -> dict[str, Any]:
+    origin, args = get_origin(annotation), get_args(annotation)
+    if origin in (Required, NotRequired): return _schema(args[0])
+    if origin is Annotated:
+        return {**_schema(args[0]), **({'description': next(x for x in args[1:] if isinstance(x, str))} if any(isinstance(x, str) for x in args[1:]) else {})}
+    if annotation is Any: return {}
+    primitives = {str: 'string', int: 'integer', float: 'number', bool: 'boolean', type(None): 'null'}
+    if annotation in primitives: return {'type': primitives[annotation]}
+    if origin in (Union, UnionType): return {'anyOf': [_schema(x) for x in args]}
+    if origin is Literal: return {'enum': list(args)}
+    if origin is list: return {'type': 'array', 'items': _schema(args[0])}
+    if origin is dict and args[0] is str: return {'type': 'object', 'additionalProperties': _schema(args[1])}
+    if is_typeddict(annotation):
+        hints = get_type_hints(annotation, include_extras=True)
+        def required(key: str, value: Any) -> bool:
+            if get_origin(value) is Annotated: value = get_args(value)[0]
+            if get_origin(value) is NotRequired: return False
+            if get_origin(value) is Required: return True
+            return key in annotation.__required_keys__
+        return {'type': 'object', 'properties': {key: _schema(value) for key, value in hints.items()}, 'required': [key for key, value in hints.items() if required(key, value)], 'additionalProperties': False}
+    raise ValueError(f'unsupported tool annotation: {annotation}')
+
+
+def tool_schema(value: Mapping[str, Any] | type) -> dict[str, Any]:
+    if isinstance(value, Mapping):
+        if isinstance(value.get('type'), (str, list)) or any(key in value for key in ('properties', 'anyOf', 'oneOf', '$ref')): return dict(value)
+        return {'type': 'object', 'properties': {key: _schema(item) for key, item in value.items()}, 'required': list(value), 'additionalProperties': False}
+    return _schema(value)
 
 
 @dataclass(frozen=True)
@@ -57,10 +93,10 @@ class ToolDefinition:
     execute: ToolExecute
 
 
-def define_tool(name: str, description: str, input_schema: dict[str, Any], execute: ToolExecute) -> ToolDefinition:
+def define_tool(name: str, description: str, input_schema: Mapping[str, Any] | type, execute: ToolExecute) -> ToolDefinition:
     """Build a ``ToolDefinition``; ``execute`` may be sync or async and return a string or a ``ToolResult``."""
     if not name.strip(): raise ValueError('a tool needs a name')
-    return ToolDefinition(name, description, input_schema, execute)
+    return ToolDefinition(name, description, tool_schema(input_schema), execute)
 
 
 @dataclass
@@ -70,8 +106,16 @@ class ToolServer:
     mcp: str
     _server: ThreadingHTTPServer
     _thread: threading.Thread
+    _pending: dict[Any, ToolContext]
+    _closed: bool = False
+
+    def cancel(self) -> None:
+        for context in self._pending.values(): context.cancelled.set()
 
     async def close(self) -> None:
+        if self._closed: return
+        self._closed = True
+        self.cancel()
         await asyncio.to_thread(self._server.shutdown)
         self._server.server_close()
         self._thread.join()
@@ -86,13 +130,20 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
     token = secrets.token_hex(32)
     loop = asyncio.get_running_loop()
 
-    async def execute(tool: ToolDefinition, params: dict[str, Any]) -> Any:
+    pending: dict[Any, ToolContext] = {}
+
+    async def execute(tool: ToolDefinition, params: dict[str, Any], id: Any) -> Any:
+        context = ToolContext(asyncio.Event())
+        pending[id] = context
         try:
-            value = tool.execute(params)
+            try: inspect.signature(tool.execute).bind(params, context)
+            except TypeError: value = cast(Callable[[dict[str, Any]], Any], tool.execute)(params)
+            else: value = cast(Callable[[dict[str, Any], ToolContext], Any], tool.execute)(params, context)
             if inspect.isawaitable(value): value = await value
             return {'content': [{'type': 'text', 'text': value}]} if isinstance(value, str) else value
         except Exception as error:
             return {'content': [{'type': 'text', 'text': str(error)}], 'isError': True}
+        finally: pending.pop(id, None)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: Any) -> None: pass
@@ -106,6 +157,9 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
             try:
                 message = json.loads(self.rfile.read(int(self.headers.get('Content-Length', '0'))))
                 id = message.get('id')
+                if message.get('method') == 'notifications/cancelled':
+                    context = pending.get(message.get('params', {}).get('requestId'))
+                    if context: loop.call_soon_threadsafe(context.cancelled.set)
                 if id is None:
                     self.send_response(202); self.end_headers(); return
                 method, params = message['method'], message.get('params', {})
@@ -119,7 +173,7 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
                     if args is None: args = {}
                     issues = validate(tool.input_schema, args)
                     if issues: raise ValueError(str(issues))
-                    result = asyncio.run_coroutine_threadsafe(execute(tool, args), loop).result()
+                    result = asyncio.run_coroutine_threadsafe(execute(tool, args, id), loop).result()
                 else:
                     self.reply({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': 'unknown method'}}); return
                 self.reply({'jsonrpc': '2.0', 'id': id, 'result': result})
@@ -138,4 +192,4 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     config: dict[str, Any] = {'type': 'http', 'url': f'http://127.0.0.1:{server.server_port}', 'headers': {'Authorization': f'Bearer {token}'}}
-    return ToolServer(config, json.dumps({'mcpServers': {name: config}}), server, thread)
+    return ToolServer(config, json.dumps({'mcpServers': {name: config}}), server, thread, pending)

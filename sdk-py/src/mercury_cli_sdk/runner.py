@@ -7,10 +7,11 @@ import uuid
 from contextlib import suppress
 from dataclasses import dataclass, replace
 from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, cast
-from .client import Listener, RunOptions, argv_of, end_child, spawn, untrack
+from .client import Listener, RunOptions, argv_of, end_child, prepare_tools, spawn, untrack
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
 from .generated import DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .framing import read_lines
+from .helpers import ToolServer
 from .parse import Issue, StreamRow, row_of, input_row_of, validate
 from .version import __version__
 
@@ -32,7 +33,8 @@ class MercurySession(TypedRequests):
     """One ``mercury runner`` process hosted over JSON-RPC: prompts go in, rows stream out, asks are answered by your handlers.
 
     ``request(method, params, timeout=...)`` and ``notify(method, params)`` are typed per method by the generated overloads."""
-    def __init__(self, child: asyncio.subprocess.Process, handlers: Mapping[str, HostHandler]):
+    def __init__(self, child: asyncio.subprocess.Process, handlers: Mapping[str, HostHandler], tools: ToolServer | None = None):
+        self._tools = tools
         self.child = child
         assert child.stdin is not None and child.stdout is not None and child.stderr is not None
         self._stdin = child.stdin
@@ -209,6 +211,7 @@ class MercurySession(TypedRequests):
             await end_child(self.child)
         code = await self.child.wait()
         untrack(self.child)
+        if self._tools: await self._tools.close()
         self.stderr = (await stderr).decode('utf-8', errors='replace')
         exit = RunExit(code if code >= 0 else None, signal.Signals(-code).name if code < 0 else None, self.stderr)
         self._fail(MercuryUsageError(exit, 'runner') if code == 2 and not hasattr(self, 'initialized') else MercuryExitError(exit, 'runner'), self._closing)
@@ -315,14 +318,18 @@ class MercurySession(TypedRequests):
 async def connect(*, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, options: RunOptions | None = None, **kwargs: Any) -> MercurySession:
     """Start ``mercury runner`` and complete ``initialize``; the keyword arguments are ``RunOptions`` fields."""
     opts = replace(options, **kwargs) if options is not None else RunOptions(**kwargs)
+    opts, tools = await prepare_tools(opts)
     args = argv_of(replace(opts, partial=False, prompt=None, input=None, stdin=None))
     i = (1 if isinstance(opts.mercury, str) else len(opts.mercury)) + (2 if opts.project is not None else 0)
     args[i:i + 3] = ['runner']
     callbacks: dict[str, HostHandler] = dict(handlers or {})
     if on_permission_request: callbacks['permission/request'] = on_permission_request
     if on_elicitation: callbacks['elicitation/request'] = on_elicitation
-    child = await spawn(args, opts)
-    session = MercurySession(child, callbacks)
+    try: child = await spawn(args, opts)
+    except BaseException:
+        if tools: await tools.close()
+        raise
+    session = MercurySession(child, callbacks, tools)
     try:
         declared: InitializeParamsCapabilities = {'holds_asks': 'permission/request' in callbacks, 'elicitation': 'elicitation/request' in callbacks, 'partial_rows': opts.partial}
         session.initialized = await session.request('initialize', {'protocol': RUNNER_PROTOCOL, 'host': host or {'name': 'mercury-cli-sdk', 'version': __version__}, 'capabilities': {**declared, **(capabilities or {})}})

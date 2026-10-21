@@ -6,6 +6,6 @@ export { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, Merc
 export { argvOf, MercuryRun, run, type ConfigLayer, type RunArgv, type RunOptions } from './client.js'
 export * from './wire.js'
 export { connect, MercurySession, type ConnectOptions, type HostHandlers, type PromptOptions, type RequestContext, type RequestOptions } from './runner.js'
-export { defineAgent, defineTool, serveTools, type AgentDefinition, type ToolDefinition, type ToolResult } from './helpers.js'
+export { defineAgent, defineTool, serveTools, type AgentDefinition, type ToolDefinition, type ToolResult, type ToolContext, type ToolServer } from './helpers.js'
 export type { StreamRow, UnknownRow } from './parse.js'
 export { VERSION } from './version.js'
