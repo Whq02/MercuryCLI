@@ -312,7 +312,7 @@ function autoLineTone(line: string): SampleLineTone {
   if (/^(\[PASS\]|✓|✔|\+ )/.test(t)) return 'add'
   if (/^(\[FAIL\]|×|✗|✘|- |ERROR\b)/.test(t)) return 'del'
   if (/^(#|RUN |>>>|──)/.test(t)) return 'dim'
-  if (/^(WARN\b|❌)/.test(t) || /^\d+ passed · [1-9]\d* failed/.test(t)) return 'warn'
+  if (/^(WARN\b|\u274C)/.test(t) || /^\d+ passed · [1-9]\d* failed/.test(t)) return 'warn'
   return 'default'
 }
 

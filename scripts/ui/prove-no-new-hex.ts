@@ -15,6 +15,7 @@ const EXEMPT_DIRS: string[] = []
 const ALLOW: Record<string, string> = {
   'src/utils/cockpit/critterData.ts': 'critter art-data hues (sibling to sessionAccent CRITTERS); EYE_BG annotated == IVORY',
   'src/commands/insights.ts': 'CSS hex inside a generated HTML report string — not a TUI token',
+  'src/services/samples/docTheme.ts': 'the samples page is a browser document: its CSS variables and canvas fills are hex inside the generated HTML string — not a TUI token',
 }
 
 const HEX = /['"]#[0-9a-fA-F]{6}['"]/
