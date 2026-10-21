@@ -61,6 +61,8 @@ class SyncSession(TypedSyncRequests):
             raise
 
     @property
+    def session_id(self) -> str | None: return self.session.session_id
+    @property
     def initialized(self) -> InitializeResult: return self.session.initialized
     @property
     def file_checkpoints(self) -> InitializeResultFile_checkpoints | None: return self.session.file_checkpoints
@@ -86,8 +88,8 @@ class SyncSession(TypedSyncRequests):
     def send_prompt(self, content: Any, **options: Any) -> QueueAddResult: return self._wait(self.session.send_prompt(content, **options))
     def send_shell(self, command: str, **options: Any) -> QueueAddResult: return self._wait(self.session.send_shell(command, **options))
     def send_note(self, to: str, content: str, **options: Any) -> QueueAddResult: return self._wait(self.session.send_note(to, content, **options))
-    def steer(self, content: Any) -> QueueAddResult: return self._wait(self.session.steer(content))
-    def follow_up(self, content: Any) -> QueueAddResult: return self._wait(self.session.follow_up(content))
+    def steer(self, content: Any, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult: return self._wait(self.session.steer(content, id=id, schema=schema))
+    def follow_up(self, content: Any, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult: return self._wait(self.session.follow_up(content, id=id, schema=schema))
     def facts(self) -> SessionFactsResult: return self._wait(self.session.facts())
     def interrupt(self, **options: Any) -> TurnInterruptResult: return self._wait(self.session.interrupt(**options))
     def withdraw(self, id: str) -> QueueWithdrawResult: return self._wait(self.session.withdraw(id))
@@ -98,7 +100,8 @@ class SyncSession(TypedSyncRequests):
     def rewind(self, user_message_id: str, mode: str, dry_run: bool = False) -> SessionRewindResult: return self._wait(self.session.rewind(user_message_id, mode, dry_run))
     def stop_agent(self, agent_id: str, note: str | None = None) -> AgentStopResult: return self._wait(self.session.stop_agent(agent_id, note))
     def resume_agent(self, agent_id: str, note: str | None = None) -> AgentResumeResult: return self._wait(self.session.resume_agent(agent_id, note))
-    def claim(self, **params: Any) -> SessionClaimResult: return self._wait(self.session.claim(**params))
+    def claim(self, *, session_id: str, model: str | None = None, mode: str | None = None, effort: str | None = None, resume: bool | None = None, restart_reason: str | None = None, openai_catalogue: Any = None) -> SessionClaimResult:
+        return self._wait(self.session.claim(session_id=session_id, model=model, mode=mode, effort=effort, resume=resume, restart_reason=restart_reason, openai_catalogue=openai_catalogue))
     def _request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = DEFAULT_TIMEOUT) -> Any: return self._wait(self.session.request(method, params, timeout=timeout))
     def _notify(self, method: str, params: Any = None) -> None: self._wait(self.session.notify(method, params))
 
