@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
 import { Box, Text, useInput, wrapText } from '../../ink.js'
+import { PopupForm } from '../PopupForm.js'
+import { usePopupListPaging } from '../CustomSelect/popup-list.js'
 import {
   jevMaxCallUsd,
   jevRoadWords,
@@ -40,7 +42,7 @@ import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
 import TextInput from '../TextInput.js'
 
 export const JEV_POPUP_WIDTH = 120
-export const JEV_POPUP_HINT = '↑↓ select · ←→ change · ↵ act · ⌫ default · esc or click outside closes'
+export const JEV_POPUP_HINT = '↑↓ select · pgup/pgdn page · ←→ change · ↵ act · ⌫ default · esc or click outside closes'
 export const JEV_SPEND_LABEL = "Mercury's count — the provider publishes no balance"
 export const JEV_ALLOWANCE_RUNGS: readonly number[] = [1, 2, 5, 10, 20, 50, 100, 200]
 export const JEV_CEILING_RUNGS: readonly number[] = [10, 20, 50, 100, 200, 500]
@@ -431,13 +433,15 @@ export function Jev({
     promptRows: promptLine === null ? null : jevTextRows(promptLine, width),
   })
   const compact = plan.compact
+  usePopupListPaging(selected, JEV_ROWS.length, Math.max(1, rowBudget - 2), moveTo, entry === null)
   const whole = (text: string, color: string, bold = false): React.ReactNode => (
     <Box flexShrink={0}>
       <Text color={color} bold={bold} wrap={compact ? 'truncate-end' : 'wrap'}>{text}</Text>
     </Box>
   )
   return (
-    <Box flexDirection="column" width={width} flexShrink={0} maxHeight={Math.max(1, rowBudget)} overflow="hidden">
+    <PopupForm width={width} rows={Math.max(1, rowBudget)} bodyOwnsPageKeys={entry === null}>
+    <Box flexDirection="column" width={width} flexShrink={0}>
       {plan.status ? whole(statusLine, statusColor, true) : null}
       {plan.status && !compact ? <Box height={1} /> : null}
       {JEV_ROWS.map((id, index) => {
@@ -502,5 +506,6 @@ export function Jev({
       {plan.note ? whole(noteLine, tokens.textSecondary) : null}
       {plan.receipt && receipt !== null && receiptLine !== null ? whole(receiptLine, receipt.refused ? tokens.warning : tokens.success) : null}
     </Box>
+    </PopupForm>
   )
 }

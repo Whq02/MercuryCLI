@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Box, Text, useInput } from '../../ink.js'
 import { InkInstanceContext } from '../../ink/components/InkInstanceContext.js'
 import type { DOMElement } from '../../ink.js'
+import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import type { Key } from '../../ink/events/input-event.js'
 import { paneWindow, type PaneWindow } from '../mercury-ui/paneWindow.js'
 import { applyNavMotion, decodeNavKey } from '../mercury-ui/navSemantics.js'
@@ -53,4 +54,23 @@ export function usePopupListPaging(cursor: number, total: number, rows: number |
     event.stopImmediatePropagation()
     if (target !== null) move(target)
   }, { isActive: active })
+}
+
+export function usePopupScrollWindow(ref: React.RefObject<ScrollBoxHandle | null>): { top: number; total: number; rows: number } {
+  const ink = React.useContext(InkInstanceContext)
+  const [view, setView] = React.useState({ top: 0, total: 0, rows: 0 })
+  const measure = React.useCallback(() => {
+    const body = ref.current
+    if (!body) return
+    const next = { top: body.getScrollTop(), total: body.getFreshScrollHeight(), rows: body.getViewportHeight() }
+    setView(current => current.top === next.top && current.total === next.total && current.rows === next.rows ? current : next)
+  }, [ref])
+  React.useLayoutEffect(measure)
+  React.useEffect(() => ink?.subscribeFrame(measure), [ink, measure])
+  return view
+}
+
+export function PopupScrollViewport({ scrollRef, children }: { scrollRef: React.RefObject<ScrollBoxHandle | null>; children: React.ReactNode | ((scrolls: boolean) => React.ReactNode) }): React.ReactNode {
+  const view = usePopupScrollWindow(scrollRef)
+  return <PopupListViewport above={view.top} below={Math.max(0, view.total - view.top - view.rows)} rows={view.rows}>{typeof children === 'function' ? children(view.total > view.rows) : children}</PopupListViewport>
 }

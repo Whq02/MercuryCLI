@@ -4,6 +4,7 @@ import * as React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PrimitiveSchemaDefinition } from '../../services/mcp/sdk.js'
 import { Box, Text } from '../../ink.js'
+import { PopupListViewport, popupListWindow, usePopupListPaging } from '../CustomSelect/popup-list.js'
 import Link from '../../ink/components/Link.js'
 import useInput from '../../ink/hooks/use-input.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
@@ -637,22 +638,14 @@ function FormElicitationDialog({
     }
   })
 
-  const maxVisible = Math.max(
-    2,
-    Math.floor((rows - DIALOG_OVERHEAD_LINES) / FIELD_LINE_ESTIMATE),
-  )
-  let windowStart = 0
-  if (fields.length > maxVisible) {
-    if (buttonFocused) {
-      windowStart = fields.length - maxVisible
-    } else {
-      windowStart = Math.min(
-        Math.max(0, cursor - Math.floor(maxVisible / 2)),
-        fields.length - maxVisible,
-      )
-    }
-  }
-  const windowEnd = Math.min(fields.length, windowStart + maxVisible)
+  const maxVisible = accordionOpen ? 1 : Math.max(1, Math.floor((rows - DIALOG_OVERHEAD_LINES) / FIELD_LINE_ESTIMATE))
+  const fieldWindow = popupListWindow(fields.length, buttonFocused ? fields.length - 1 : cursor, maxVisible)
+  const windowStart = fieldWindow.start
+  const windowEnd = fieldWindow.end
+  const accordionValues = focusedField?.kind === 'multi' ? getMultiSelectValues(focusedField.schema) : focusedField?.kind === 'enum' ? getEnumValues(focusedField.schema) : []
+  const accordionWindow = popupListWindow(accordionValues.length, accordionIndex, Math.max(1, rows - DIALOG_OVERHEAD_LINES - FIELD_LINE_ESTIMATE))
+  usePopupListPaging(cursor, fields.length + 2, maxVisible, target => { commitOnLeave(cursor); setCursor(target) }, !accordionOpen)
+  usePopupListPaging(accordionIndex, accordionValues.length, accordionWindow.end - accordionWindow.start, setAccordionIndex, accordionOpen)
 
   const statusCell = (field: FieldState, focused: boolean) => {
     if (field.resolving) {
@@ -722,7 +715,7 @@ function FormElicitationDialog({
   }
 
   const footerHint = (() => {
-    const parts = ['esc cancel', '↑↓ move']
+    const parts = ['esc cancel', '↑↓ move', 'pgup/pgdn page']
     if (focusedField) {
       parts.push('⌫ unset')
       if (focusedField.kind === 'boolean') parts.push('space toggle')
@@ -792,7 +785,9 @@ function FormElicitationDialog({
               ) : null}
               {focused && accordionOpen ? (
                 <Box flexDirection="column" paddingLeft={4}>
-                  {values.map((value, optionIndex) => {
+                  <PopupListViewport above={accordionWindow.above} below={accordionWindow.below} rows={accordionWindow.end - accordionWindow.start}>
+                  {values.slice(accordionWindow.start, accordionWindow.end).map((value, sliceOptionIndex) => {
+                    const optionIndex = accordionWindow.start + sliceOptionIndex
                     const selectedValues = Array.isArray(field.value)
                       ? field.value
                       : []
@@ -816,6 +811,7 @@ function FormElicitationDialog({
                       </Text>
                     )
                   })}
+                  </PopupListViewport>
                 </Box>
               ) : null}
               {

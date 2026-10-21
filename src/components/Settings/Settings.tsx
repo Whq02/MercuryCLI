@@ -3,7 +3,7 @@ import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { useNotifications, type Notification } from '../../context/notifications.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useExitOnCtrlCD } from '../../hooks/useExitOnCtrlCD.js'
-import { Box, Text } from '../../ink.js'
+import { Box, Text, wrapText } from '../../ink.js'
 import { useKeybinding, useKeybindings } from '../../keybindings/useKeybinding.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { Message } from '../../types/message.js'
@@ -111,6 +111,9 @@ export function Settings({
   const tight = fixed && geometry.rows! <= SETTINGS_POPUP_COMPACT_CHROME_ROWS
   const compact = compactFrame.compact
   const folded = tight || compact
+  const hintText = hint ?? request.hint
+  const hintRows = tight ? 0 : Math.min(Math.max(1, geometry.rowBudget), wrapText(hintText, Math.max(1, inner + 1), 'wrap').split('\n').length)
+  const bodyBudget = Math.max(1, geometry.rowBudget - Math.max(0, hintRows - (compact ? 0 : 1)))
   return (
     <Box
       ref={surfaceRef}
@@ -141,13 +144,13 @@ export function Settings({
       <Box flexDirection="column" width={inner + 2} marginLeft={-1} marginRight={-1} paddingX={1} overflow="hidden" {...(fixed ? { flexGrow: 1, flexShrink: 1, minHeight: 0 } : { flexShrink: 0, maxHeight: geometry.rowBudget })}>
         <SettingsPopupFrameContext.Provider value={frame}>
           <PopupCompactContext.Provider value={compactFrame}>
-            <Suspense fallback={null}>{request.body({ ...geometry, compact })}</Suspense>
+            <Suspense fallback={null}>{request.body({ ...geometry, rowBudget: bodyBudget, compact })}</Suspense>
           </PopupCompactContext.Provider>
         </SettingsPopupFrameContext.Provider>
       </Box>
       <Box height={folded ? 0 : 1} flexShrink={0} />
-      <Box height={compact ? 0 : 1} flexShrink={0} width={inner + 1} marginRight={-1} overflow="hidden">
-        <Text color={tok.textMuted}>{cutToWidth(hint ?? request.hint, inner + 1)}</Text>
+      <Box height={hintRows} flexShrink={0} width={inner + 1} marginRight={-1} overflow="hidden">
+        <Text color={tok.textMuted} wrap="wrap">{hintText}</Text>
       </Box>
     </Box>
   )

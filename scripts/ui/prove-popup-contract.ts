@@ -8,6 +8,8 @@ import { gridToPng } from './gridToPng.ts'
 if (!process.env.MERCURY_CONFIG_DIR || process.env.MERCURY_HOME) throw new Error('Use a scratch MERCURY_CONFIG_DIR with MERCURY_HOME unset')
 pinSourceRef()
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
+for (const name of Object.keys(process.env)) if (/(?:API_KEY|AUTH_TOKEN|ACCESS_TOKEN|REFRESH_TOKEN|CLIENT_SECRET|HF_TOKEN|GH_TOKEN)$/.test(name)) delete process.env[name]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BOOT_PREFLIGHT = '0'
 process.env.MERCURY_LIVE_CLOCK = '0'
@@ -172,6 +174,72 @@ for (const cols of [80, 120]) {
   }
 }
 setFocusedSessionConnector(originalConnector)
+
+
+const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
+const { openSettingsPopup, closeSettingsPopup, isSettingsPopupOpen } = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { Config, CONFIG_POPUP_HINT } = await import('../../src/components/Settings/Config.tsx')
+const { Jev, JEV_POPUP_HINT } = await import('../../src/components/Settings/Jev.tsx')
+const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { ElicitationDialog } = await import('../../src/components/mcp/ElicitationDialog.tsx')
+for (const cols of [80, 120]) {
+  for (const view of ['config', 'jev'] as const) {
+    const request = { view, width: cols - 4, rows: 12, line: 'fixture', hint: view === 'config' ? CONFIG_POPUP_HINT : JEV_POPUP_HINT, body: (geometry: { inner: number; rowBudget: number; compact: boolean }) => view === 'config'
+      ? h(Config, { onClose: closeSettingsPopup, context: { messages: [], options: { commands: [], tools: [], agents: [] }, getAppState: getDefaultAppState, setAppState() {} } as never, width: geometry.inner, contentHeight: geometry.rowBudget, compact: geometry.compact })
+      : h(Jev, { width: geometry.inner, rowBudget: geometry.rowBudget }) }
+    openSettingsPopup(request)
+    const scene = await mount(h(SettingsPopupSlot, { overlay: false }), cols)
+    try {
+      await settledFrame(scene, frame => frame.includes('Mercury · ' + view))
+      const row = () => scene.lines().find(line => /[❯›] /.test(line))?.trim() ?? ''
+      const first = row()
+      scene.push(keys.down)
+      await settledFrame(scene)
+      check(cols + ' ' + view + ': Down moves a visible control', row() !== first && row() !== '', scene.screen())
+      scene.push(keys.up)
+      await settledFrame(scene)
+      check(cols + ' ' + view + ': Up restores the control', row() === first, row())
+      scene.push(keys.pgdn)
+      await settledFrame(scene)
+      const page = row()
+      check(cols + ' ' + view + ': PageDown follows the selected control', page !== first && page !== '', scene.screen())
+      check(cols + ' ' + view + ': guide survives the small popup', scene.screen().includes('pgup/pgdn') && scene.screen().includes('esc'), scene.screen())
+      await save(scene, view + '-paged', cols)
+      scene.push(keys.pgup)
+      await settledFrame(scene)
+      check(cols + ' ' + view + ': PageUp returns toward the top', row() !== page, scene.screen())
+      const before = scene.screen()
+      scene.push(keys.enter)
+      check(cols + ' ' + view + ': Enter operates the selected control', await waitFor(() => scene.screen() !== before, 2500), scene.screen())
+      if (isSettingsPopupOpen()) {
+        scene.push(keys.esc)
+        await settledFrame(scene, frame => !isSettingsPopupOpen() || frame.trim() !== '')
+      }
+      if (isSettingsPopupOpen()) scene.push(keys.esc)
+      check(cols + ' ' + view + ': Escape leaves the popup', await waitFor(() => !isSettingsPopupOpen(), 2500))
+    } catch (error) { check(cols + ' ' + view + ': drive completes', false, String(error) + '\n' + scene.screen()) }
+    finally { scene.unmount(); closeSettingsPopup() }
+  }
+  let answer = ''
+  const event = { serverName: 'fixture', signal: new AbortController().signal, params: { mode: 'form', message: 'Choose a value', requestedSchema: { type: 'object', properties: { choice: { type: 'string', enum: options.map(row => row.label) } } } } }
+  const scene = await mount(h(ElicitationDialog, { event: event as never, onResponse: action => { answer = action }, onWaitingDismiss() {} }), cols)
+  try {
+    await settledFrame(scene, frame => frame.includes('Choose a value'))
+    scene.push('\x1b[C')
+    await settledFrame(scene, frame => frame.includes('choice 01'))
+    check(cols + ' elicitation: enum is windowed', !scene.screen().includes('choice 24'), scene.screen())
+    scene.push(keys.pgdn)
+    await settledFrame(scene)
+    check(cols + ' elicitation: PageDown reveals later choices', !scene.screen().includes('choice 01') && /choice \d\d/.test(scene.screen()), scene.screen())
+    check(cols + ' elicitation: page guide and edge markers are present', scene.screen().includes('pgup/pgdn') && scene.lines().some(line => line.includes('↓') && !line.includes('↑↓')), scene.screen())
+    await save(scene, 'elicitation-enum', cols)
+    scene.push(keys.enter)
+    await settledFrame(scene, frame => frame.includes('Accept') && !frame.includes('→ expand'))
+    scene.push(keys.esc)
+    check(cols + ' elicitation: Escape cancels after a picked value', await waitFor(() => answer === 'cancel', 1800), answer)
+  } catch (error) { check(cols + ' elicitation: drive completes', false, String(error) + '\n' + scene.screen()) }
+  finally { scene.unmount() }
+}
 
 console.log(`popup-contract: ${checks} checks, ${failures} failed`)
 process.exit(failures ? 1 : 0)
