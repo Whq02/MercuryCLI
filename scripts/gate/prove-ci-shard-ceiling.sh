@@ -162,9 +162,10 @@ fi
 outC1=$(shard_class outC1 release MERCURY_SUITE_CEILING=20); rcC1=$?
 tsvC1="$work/outC1/results.tsv"
 if [ "$rcC1" != "0" ] && [ "$(cut -f1 "$tsvC1" | sort | paste -sd' ' -)" = "r1 r2 x1" ] \
-   && grep -q '^r2	cpu	3	[0-9]*	-	-$' "$tsvC1" && ! printf '%s' "$outC1" | grep -q 'recorded solo re-run' \
+   && grep -q '^r2	cpu	3	[0-9]*	3	[0-9]*$' "$tsvC1" && printf '%s' "$outC1" | grep -q 'recorded solo re-run' \
+   && printf '%s' "$outC1" | grep -q 're-run still RED — genuine' \
    && printf '%s' "$outC1" | grep -q 'shard 0/1 (release): 3 suites'; then
-  echo "  ✓ release run: rows r1 r2 x1 only · the cpu red failed directly (rc 3, retry '-') · the banner names the class · shard red"
+  echo "  ✓ release run: rows r1 r2 x1 only · the cpu red re-ran solo once and stayed red (rc 3 / retry 3) · the banner names the class · shard red"
 else
   echo "  ✗ release run: rc=$rcC1 rows='$(cut -f1 "$tsvC1" 2>/dev/null | paste -sd' ' -)'"; printf '%s\n' "$outC1" | sed 's/^/      /' | head -12; fail=1
 fi

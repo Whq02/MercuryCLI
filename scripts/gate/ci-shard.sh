@@ -252,9 +252,9 @@ for dom in ${MINE[@]+"${MINE[@]}"}; do
   [ "$rc" -ne 0 ] && [ -f "$OUT/$dom.hang" ] && hung=1
   if [ "$hung" -eq 1 ]; then
     printf '  ⛔ %-18s HANG — tree-killed at %ss; solo re-run SKIPPED (a timeout is not a flake)\n' "$dom" "$secs"
-  elif [ "$rc" -ne 0 ] && { [ "$cls" = "pty" ] || [ "$cls" = "undeclared" ]; } && [ "$secs" -gt "$RETRY_MAX" ]; then
+  elif [ "$rc" -ne 0 ] && [ "$secs" -gt "$RETRY_MAX" ]; then
     printf '  ❌ %-18s RED (rc %s, %ss) — solo re-run SKIPPED (first attempt beyond the %ss retry budget; a long red on an uncontended runner is a verdict, not a flake)\n' "$dom" "$rc" "$secs" "$RETRY_MAX"
-  elif [ "$rc" -ne 0 ] && { [ "$cls" = "pty" ] || [ "$cls" = "undeclared" ]; }; then
+  elif [ "$rc" -ne 0 ]; then
     printf '  ⚠  %-18s RED (rc %s, %ss) — recorded solo re-run, once…\n' "$dom" "$rc" "$secs"
     mkdir -p "$OUT/retry"
     bash scripts/gate/run-suite.sh "$SUITES_DIR/$dom/run-all.sh" "$(budget_of "$dom")" "$OUT/retry" "$(budget_note_of "$dom")" fixed >/dev/null 2>&1
