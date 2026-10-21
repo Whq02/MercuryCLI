@@ -141,7 +141,9 @@ const pointBoth = (target: string): void => {
 }
 pointBoth('X')
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc, readControlKey } = await import('../../src/daemon/controlSocket.ts')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
+const { sessionParkDrainMs } = await import('../../src/daemon/idleRetirement.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const { isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
 const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
@@ -149,7 +151,7 @@ const sup = await import('../../src/daemon/concourseWorkers.ts')
 const { composeRestartLine } = await import('../../src/tools/MonitorTool/watchReceipts.ts')
 const { restartSessionOnInstalledBuild } = await import('../../src/commands/restart/restart.ts')
 const { moveDaemonToDeployedBuild } = await import('../../src/daemon/handshake.ts')
-const { deployedRuntime, decideHandover } = await import('../../src/daemon/handover.ts')
+const { deployedRuntime, decideHandover, forwardFrame, predecessorSockPath } = await import('../../src/daemon/handover.ts')
 const { decidePlaneBoot } = await import('../../src/daemon/planeBoot.ts')
 const { resetOwnedDaemonBreakerForTesting } = await import('../../src/daemon/ownedDaemon.ts')
 const freshProcess = (): void => resetOwnedDaemonBreakerForTesting()
@@ -326,6 +328,7 @@ for (const [k, v] of Object.entries(daemonEnv)) {
 process.env.MERCURY_DAEMON_OWNER_PID = String(process.pid)
 process.execPath = NODE
 process.chdir(work)
+;(await import('../../src/utils/Shell.ts')).setCwd(work)
 
 const read = (p: string): string => {
   try {
@@ -382,12 +385,16 @@ const pidsInWorld = (also: (line: string) => boolean = () => true): number[] =>
 const daemonPids = (): number[] => pidsInWorld(l => l.includes(' daemon run '))
 const watchPids = (marker: string): number[] => pidsInWorld(l => l.includes('tail -n0 -F') && l.includes(marker))
 
-const spawnDaemon = (log: string): ChildProcess =>
-  spawn(NODE, [join(runtime, 'current', 'mercury.mjs'), 'daemon', 'run', work], {
+const exitedDaemons = new Set<number>()
+const spawnDaemon = (log: string): ChildProcess => {
+  const child = spawn(NODE, [join(runtime, 'current', 'mercury.mjs'), 'daemon', 'run', work], {
     cwd: work,
     env: { ...daemonEnv, MERCURY_DAEMON_OWNER_PID: String(process.pid) },
     stdio: ['ignore', openSync(log, 'a'), openSync(log, 'a')],
   })
+  child.once('exit', () => { if (child.pid !== undefined) exitedDaemons.add(child.pid) })
+  return child
+}
 const logA = join(SCRATCH, 'daemon-A.log')
 const A = spawnDaemon(logA)
 const Apid = A.pid ?? 0
@@ -963,7 +970,16 @@ try {
   check('/restart moves the session onto the older installed build and names the watch armed before the compaction as ending', ontoOlder.ok && ontoOlder.line.includes(`Restarted on the installed build (${SHORT_X})`) && toldOlder.some(line => line.includes(`Monitor «${WATCH4_NAME}»`)), JSON.stringify({ ontoOlder, toldOlder }))
   const pidOnX = recOf(sid)?.pid ?? 0
   const Epid = (await hello())?.pid ?? 0
-  check('the session runs the older build (the X2 bundle, tree X) under the daemon that took the plane, and the daemon of W leaves once empty', pidOnX !== 0 && Epid !== 0 && Epid !== Dpid && ps(pidOnX).ppid === Epid && bundleOf(ps(pidOnX).command) === join(builds, 'X2', 'mercury.mjs') && (await untilAsync(() => !isProcessAlive(Dpid), 60_000)), JSON.stringify({ pidOnX, Epid, Dpid, ps: ps(pidOnX) }))
+  let remainingOnW: number | null = null
+  const drainedW = await untilAsync(async () => {
+    if (exitedDaemons.has(Dpid)) return true
+    const reply = await forwardFrame(predecessorSockPath(Dpid), JSON.stringify({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null, auth: await readControlKey() }), 3000)
+    if (reply?.ok !== true || reply.op !== 'hello' || reply.pid !== Dpid) return false
+    remainingOnW = reply.live
+    return remainingOnW === 0
+  }, sessionParkDrainMs())
+  check('the daemon of W drains its remaining workers before its exit is expected', drainedW, JSON.stringify({ Dpid, remainingOnW }))
+  check('the session runs the older build (the X2 bundle, tree X) under the daemon that took the plane, and the daemon of W leaves once empty', pidOnX !== 0 && Epid !== 0 && Epid !== Dpid && ps(pidOnX).ppid === Epid && bundleOf(ps(pidOnX).command) === join(builds, 'X2', 'mercury.mjs') && (await untilAsync(() => exitedDaemons.has(Dpid), 60_000)), JSON.stringify({ pidOnX, Epid, Dpid, ps: ps(pidOnX) }))
   const updateToX = await untilAsync(() => readSessionReceipts(projectDir, sid).some(r => r.kind === 'runner-restart' && r.summary.startsWith(`Mercury updated to ${SHORT_X}`) && r.summary.includes(`Monitor «${WATCH4_NAME}»`)), 20_000)
   check('the update receipt names the watch that was armed before the compaction (the transcript no longer carries its launch)', updateToX, JSON.stringify(readSessionReceipts(projectDir, sid).filter(r => r.kind === 'runner-restart').map(r => r.summary)))
   const afterOlder = await dispatch('urt-after-older', 'report after the move onto the older build', { targetSessionId: sid })
