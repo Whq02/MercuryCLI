@@ -45,7 +45,7 @@ import type { PermissionMode as WirePermissionMode } from '../types/permissions.
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
 import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
-import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
+import { declareLawfulPrefixChange, declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { watchLiveMcpConfig } from '../services/mcp/liveConfig.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../services/mcp/dynamicMcpSeed.js'
 import { modelRefusalBeforeAnyRequest } from '../services/providers/callModelRouter.js'
@@ -99,7 +99,7 @@ import {
   type PromptValue,
   type TurnDriver,
 } from './headless/turnDriver.js'
-import { emptyInputRow, INPUT_REFUSED_CODE, isBrokenPipeError, isRowLine, StructuredIO, type OutboundLine } from './structuredIO.js'
+import { emptyInputRow, INPUT_REFUSED_CODE, isBrokenPipeError, isRowLine, promptSchemaRefusal, StructuredIO, type OutboundLine } from './structuredIO.js'
 import { createRuleOnlyAsks, createRunnerAsks, type AskHost } from './headless/runnerAsks.js'
 import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResultOf, type RequestRef, type RunnerArms } from './headless/runnerMethods.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
@@ -289,14 +289,15 @@ function missionLedgerOf(metadata: Record<string, unknown> | undefined): string 
   return undefined
 }
 import type { ThinkingConfig } from '../utils/thinking.js'
-import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
+import { createSyntheticOutputTool, isSyntheticOutputToolEnabled, SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
+import { compileJsonSchema } from '../services/schema/jsonSchemaEngine.js'
 import { filterToolsByDenyRules, getAllBaseTools, getTools, toolsWithheldByDeny } from '../tools.js'
 import { ruleSourceWords, ruleSpelling, withheldByRuleWords } from '../utils/permissions/ruleReason.js'
 import { MCP_SERVER_FAILED_CODE, TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
 import { filterToolsByServer, mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
 import { withoutMcpToolCardHeader } from '../services/mcp/toolCard.js'
 import { mcpToolsAnswerOf, mcpToolsUnlistedAnswer } from '../services/mcp/toolsAnswer.js'
-import { heldToolsAtLastPlan } from '../services/providers/toolEconomy.js'
+import { clearToolRosterLatches, clearToolRosterRestore, heldToolsAtLastPlan } from '../services/providers/toolEconomy.js'
 import { isDeferredToolFor } from '../tools/ToolSearchTool/prompt.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { expandPath } from '../utils/path.js'
@@ -533,6 +534,11 @@ export async function runHeadless(
       checkProtocol(params)
       capabilities = params.capabilities
       await bootReady
+      if (params.schema !== undefined) {
+        const compiled = compileJsonSchema(params.schema)
+        if (!compiled.ok) throw invalidParams('initialize', [{ path: ['schema'], message: `not a JSON schema — ${compiled.error}` }])
+        initializeJsonSchema = params.schema
+      }
       return initializeResultOf(awaitingSessionClaim ? null : String(getSessionId()))
     })
     bindRunnerMethods(peer, () => arms)
@@ -889,6 +895,7 @@ export async function runHeadless(
   saveSessionModel(activeModel ?? getEngineModel())
   let thinkingConfig: ThinkingConfig | undefined = options.thinkingConfig
   let initializeJsonSchema: Record<string, unknown> | undefined
+  let lastAnswerSchemaKey: string | null = null
   let activeCommands = commands
   let activeAgents: AgentDefinition[] = agents
   const receivedUuids = new BoundedUuidSet(RECEIVED_UUID_CAP)
@@ -1008,7 +1015,8 @@ export async function runHeadless(
   }
 
   const baseToolNames = new Set(getAllBaseTools().map(tool => tool.name))
-  const assembleTools = (state: AppState): Tool[] => {
+  const answerSchemaOf = (turnSchema: Record<string, unknown> | undefined): Record<string, unknown> | undefined => turnSchema ?? initializeJsonSchema ?? options.jsonSchema
+  const assembleTools = (state: AppState, turnSchema?: Record<string, unknown>): Tool[] => {
     const mcpPartition = filterToolsByDenyRules(
       state.mcp.tools as Tool[],
       state.toolPermissionContext,
@@ -1025,16 +1033,14 @@ export async function runHeadless(
       seen.add(tool.name)
       deduped.push(tool)
     }
-    if (initializeJsonSchema && !options.jsonSchema) {
-      if (isSyntheticOutputToolEnabled({ isNonInteractiveSession: true })) {
-        try {
-          const synthetic = createSyntheticOutputTool(initializeJsonSchema)
-          if ('tool' in synthetic) deduped.push(synthetic.tool)
-        } catch {
-        }
-      }
-    }
-    return deduped
+    const answerSchema = answerSchemaOf(turnSchema)
+    if (answerSchema === undefined || !isSyntheticOutputToolEnabled({ isNonInteractiveSession: true })) return deduped
+    const synthetic = createSyntheticOutputTool(answerSchema)
+    if (!('tool' in synthetic)) return deduped
+    const at = deduped.findIndex(tool => tool.name === SYNTHETIC_OUTPUT_TOOL_NAME)
+    if (at === -1) return [...deduped, synthetic.tool]
+    if (deduped[at] === synthetic.tool) return deduped
+    return deduped.map((tool, index) => (index === at ? synthetic.tool : tool))
   }
 
   const savedDefaultModel = (): string | null => {
@@ -1179,7 +1185,16 @@ export async function runHeadless(
           ...state.mcp.clients,
         ]
         registerPerTurnHandlers(turnClients)
-        const assembledTools = assembleTools(state)
+        const answerSchema = answerSchemaOf(command.schema)
+        const answerSchemaKey = answerSchema === undefined ? '' : JSON.stringify(answerSchema)
+        if (lastAnswerSchemaKey !== null && answerSchemaKey !== lastAnswerSchemaKey) {
+          const owner = String(processMainOwner())
+          clearToolRosterLatches(owner)
+          clearToolRosterRestore()
+          declareLawfulPrefixChange(owner, answerSchema === undefined ? 'this turn asked for no structured output' : 'this turn asked for its own structured-output schema')
+        }
+        lastAnswerSchemaKey = answerSchemaKey
+        const assembledTools = assembleTools(state, command.schema)
         const mcpCommands = state.mcp.commands
         const dedupedCommands = [
           ...activeCommands,
@@ -1224,7 +1239,7 @@ export async function runHeadless(
           ...(peer !== null ? { hostHoldsAsks: true } : {}),
           userSpecifiedModel: activeModel,
           fallbackModel: options.fallbackModel,
-          jsonSchema: initializeJsonSchema ?? options.jsonSchema,
+          jsonSchema: answerSchema,
           mutableMessages: messages,
           contentReplacementState,
           getReadFileCache,
@@ -1800,7 +1815,7 @@ export async function runHeadless(
   const SEAT_VERB_AT = (held: boolean): 'now' | 'turn_end' => (held ? 'turn_end' : 'now')
   const acceptInput = async (
     input:
-      | { kind: 'prompt'; content: string | ContentBlockParam[]; id?: string; priority?: 'now' | 'next' | 'later'; sentAt?: string; origin?: unknown }
+      | { kind: 'prompt'; content: string | ContentBlockParam[]; schema?: Record<string, unknown>; id?: string; priority?: 'now' | 'next' | 'later'; sentAt?: string; origin?: unknown }
       | { kind: 'shell'; command: string; id?: string; priority?: 'now' | 'next' | 'later'; sentAt?: string; origin?: unknown }
       | { kind: 'note'; to: string; content: string; id?: string },
   ): Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }> => {
@@ -1841,6 +1856,7 @@ export async function runHeadless(
       sentAt,
       ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
       ...(input.priority !== undefined ? { priority: input.priority } : {}),
+      ...(input.kind === 'prompt' && input.schema !== undefined ? { schema: input.schema } : {}),
       ...saturnQueueStamp(input.origin),
     })
     if (input.kind === 'prompt' && input.priority !== 'later' && !('origin' in saturnQueueStamp(input.origin)) && driver.isRunning() && !queuedWordsWaitForTurnEnd()) {
@@ -1861,6 +1877,8 @@ export async function runHeadless(
   const acceptInputRow = async (row: InputRow): Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }> => {
     const empty = emptyInputRow(row)
     if (empty !== null) throw invalidParams('queue/add', [{ path: [row.type === 'shell' ? 'command' : 'content'], message: empty }])
+    const schemaRefusal = promptSchemaRefusal(row)
+    if (schemaRefusal !== null) throw invalidParams('queue/add', [{ path: ['schema'], message: schemaRefusal }])
     if (row.type === 'note') return acceptInput({ kind: 'note', to: row.to, content: row.content, ...(row.id !== undefined ? { id: row.id } : {}) })
     const stamp = {
       ...(row.id !== undefined ? { id: row.id } : {}),
@@ -1869,7 +1887,7 @@ export async function runHeadless(
       ...(row.origin !== undefined ? { origin: row.origin } : {}),
     }
     if (row.type === 'shell') return acceptInput({ kind: 'shell', command: row.command, ...stamp })
-    return acceptInput({ kind: 'prompt', content: promptContentOf(row.content), ...stamp })
+    return acceptInput({ kind: 'prompt', content: promptContentOf(row.content), ...(row.schema !== undefined ? { schema: row.schema } : {}), ...stamp })
   }
 
   const arms: RunnerArms = {

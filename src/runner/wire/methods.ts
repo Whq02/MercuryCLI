@@ -51,6 +51,7 @@ export const InitializeParamsSchema = lazySchema(() =>
     protocol: z.literal(RUNNER_PROTOCOL),
     host: z.object({ name: z.string(), version: z.string() }),
     capabilities: CapabilitiesSchema(),
+    schema: z.record(z.string(), z.unknown()).optional(),
   }),
 )
 export type InitializeParams = z.infer<ReturnType<typeof InitializeParamsSchema>>
