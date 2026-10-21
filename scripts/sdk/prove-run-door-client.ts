@@ -43,6 +43,7 @@ async function openDoor(turns: ScriptedTurn[]): Promise<Door> {
 }
 const mercury = ['node', dist] as const
 const withTimeout = <T>(promise: Promise<T>, ms: number, what: string): Promise<T> => Promise.race([promise, new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${what} did not settle within ${ms} ms`)), ms).unref?.())])
+const interrupted = (exit: sdk.RunExit): boolean => process.platform === 'win32' ? exit.signal === 'SIGINT' : exit.code === 130
 
 section('C1 a tool turn with partial rows through the package: every row parses, the core rows arrive in order, the outcome resolves')
 {
@@ -215,7 +216,7 @@ section('C4 a turn the model fails and a turn the caller interrupts resolve as o
     void hang.api.messageRequestStarted(1).then(() => run.interrupt())
     const outcome = await withTimeout(run.outcome, 90_000, 'the interrupted turn')
     const exit = await run.exit
-    check('interrupt() sends SIGINT: the door flushes an interrupted outcome and exits 130', outcome.status === 'interrupted' && exit.code === 130, j({ status: outcome.status, exit }))
+    check(process.platform === 'win32' ? 'interrupt() ends the child (Windows has no SIGINT to deliver): the package settles the turn as interrupted' : 'interrupt() sends SIGINT: the door flushes an interrupted outcome and exits 130', outcome.status === 'interrupted' && interrupted(exit), j({ status: outcome.status, exit }))
     check('the interrupted outcome is the last row and the iterator would have ended cleanly', run.rows.at(-1) === outcome && run.error === null)
   } finally {
     await hang.close()
@@ -226,7 +227,7 @@ section('C4 a turn the model fails and a turn the caller interrupts resolve as o
     const run = sdk.run({ prompt: 'hello', mercury, cwd: aborted.home, env: aborted.env, signal: controller.signal })
     void aborted.api.messageRequestStarted(1).then(() => controller.abort())
     const outcome = await withTimeout(run.outcome, 90_000, 'the aborted turn')
-    check('an AbortSignal interrupts the same way', outcome.status === 'interrupted' && (await run.exit).code === 130, j({ status: outcome.status }))
+    check('an AbortSignal interrupts the same way', outcome.status === 'interrupted' && interrupted(await run.exit), j({ status: outcome.status }))
   } finally {
     await aborted.close()
   }
@@ -235,8 +236,8 @@ section('C4 a turn the model fails and a turn the caller interrupts resolve as o
 section('C5 the argv builder spells only options the door declares, with the value shape the door reads')
 {
   const everything = sdk.argvOf({
-    prompt: 'the prompt',
     env: { HOME: process.env.MERCURY_CONFIG_DIR!, PATH: '' },
+    prompt: 'the prompt',
     project: '/p',
     model: 'm',
     effort: 'max',

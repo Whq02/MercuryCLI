@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import * as sdk from '../../sdk/src/index.ts'
 import { connect, run, MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError } from '../../sdk/src/index.ts'
-import { startFixtureServer } from '../../sdk/src/testing.ts'
+import { fixtureSessionRow, fixtureTurn, startFixtureServer } from '../../sdk/src/testing.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const fake = (source: string) => ['node', '-e', source, '--']
@@ -76,6 +76,43 @@ try {
     } finally { await fixture.close() }
   })
   await check('a host that exits terminates the children it still has', async () => {
+  await check('an interrupt the package sent settles as an interrupted outcome when the child dies by the signal before writing one (the Windows shape); a signal the package did not send, and terminate(), stay errors', async () => {
+    const session = fixtureSessionRow({ session_id: 'interrupt-session' })
+    const [turn] = fixtureTurn({ session_id: 'interrupt-session', turn: 2, turn_id: 'turn-two' })
+    const step = { type: 'step', seq: 3, timestamp: '2000-01-01T00:00:00.000Z', session_id: 'interrupt-session', message_id: 'm1', model: 'fixture-model', usage: { input_tokens: 25, cached_input_tokens: 2, cache_write_input_tokens: 1, output_tokens: 4 } }
+    assert(sdk.rowOf(step).ok && sdk.rowOf(turn).ok)
+    const idle = (rows: unknown[], onSigint = '') => fake(`${rows.map(row => `console.log(${JSON.stringify(JSON.stringify(row))})`).join(';')};${onSigint};setInterval(()=>{},1000)`)
+    const first = run({ mercury: idle([session]), prompt: 'x' })
+    await first.session; assert.equal(first.interrupt(), true)
+    const outcome = await first.outcome
+    assert.equal(outcome.status, 'interrupted'); assert.deepEqual(outcome.error, { message: 'Interrupted', class: 'interrupt' })
+    const exit = await first.exit
+    assert(exit.signal === 'SIGINT' || exit.code === 130, JSON.stringify(exit))
+    assert.equal(first.rows.at(-1), outcome); assert.equal(first.error, null); assert.equal(outcome.seq, 2); assert.equal(outcome.session_id, 'interrupt-session'); assert.equal(outcome.turn, 1); assert.equal(outcome.steps, 0)
+    const folded = run({ mercury: idle([session, { ...turn, seq: 2, turn: 2 }, step]), prompt: 'x' })
+    const seen: string[] = []; folded.on('outcome', row => seen.push(row.status))
+    const iterated: string[] = []; const iteration = (async () => { for await (const row of folded) iterated.push(row.type) })()
+    while (!folded.rows.some(row => row.type === 'step')) await sleep(10)
+    folded.interrupt()
+    const synthesized = await folded.outcome; await iteration
+    assert.equal(synthesized.turn, 2); assert.equal(synthesized.turn_id, 'turn-two'); assert.equal(synthesized.steps, 1); assert.equal(synthesized.seq, 4)
+    assert.deepEqual(synthesized.usage, { input_tokens: 25, cached_input_tokens: 2, cache_write_input_tokens: 1, output_tokens: 4 }); assert.deepEqual(synthesized.models, { 'fixture-model': { input_tokens: 25, cached_input_tokens: 2, cache_write_input_tokens: 1, output_tokens: 4, web_searches: 0 } })
+    assert(synthesized.wall_ms >= 0); assert.deepEqual(seen, ['interrupted']); assert.deepEqual(iterated, ['session', 'turn', 'step', 'outcome'])
+    assert(sdk.rowOf(synthesized).ok, 'the synthesized row is a valid outcome row')
+    const exiting = run({ mercury: idle([session], "process.on('SIGINT',()=>process.exit(130))"), prompt: 'x' })
+    await exiting.session; exiting.interrupt()
+    assert.equal((await exiting.outcome).status, 'interrupted', 'a child that exits 130 on the interrupt without an outcome row settles the same way')
+    const controller = new AbortController()
+    const aborted = run({ mercury: idle([session]), prompt: 'x', signal: controller.signal })
+    await aborted.session; controller.abort()
+    assert.equal((await aborted.outcome).status, 'interrupted', 'the signal option takes the same road')
+    const foreign = run({ mercury: idle([session]), prompt: 'x' })
+    await foreign.session; process.kill(foreign.child.pid!, 'SIGINT')
+    await assert.rejects(foreign.outcome, (e: unknown) => e instanceof MercuryExitError && (process.platform === 'win32' ? e.exit?.code === 1 : e.message === 'mercury run ended by SIGINT before an outcome row'))
+    const terminated = run({ mercury: idle([session]), prompt: 'x' })
+    await terminated.session; terminated.terminate()
+    await assert.rejects(terminated.outcome, (e: unknown) => e instanceof MercuryExitError && e.message === 'mercury run ended by SIGTERM before an outcome row')
+  })
     const host = join(scratch, 'host.mjs')
     writeFileSync(host, `import { run, connect } from ${JSON.stringify(join(root, 'sdk/src/index.ts'))}
 const child = ['node', '-e', "process.stdin.resume();setInterval(()=>{},1000)", '--']

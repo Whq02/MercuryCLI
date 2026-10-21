@@ -9,8 +9,8 @@ import { randomUUID } from 'node:crypto'
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { EffortLevel, PermissionMode } from './door.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
-import { inputRowOf, parseRow, type StreamRow } from './parse.js'
-import type { InputBlock, InputRow, PromptRow, ShellRow, NoteRow, OutcomeRow, SessionRow } from './rows.js'
+import { inputRowOf, isMainThread, mainThreadStep, parseRow, turnOpened, type StreamRow } from './parse.js'
+import type { InputBlock, InputRow, ModelUsageRow, PromptRow, ShellRow, NoteRow, OutcomeRow, SessionRow, TurnRow, Usage } from './rows.js'
 
 export type ConfigLayer = 'user' | 'project' | 'local'
 
@@ -140,6 +140,23 @@ export function argvOf(options: RunOptions, door: 'run' | 'runner' = 'run'): Run
 type RowListener<T extends StreamRow['type']> = (row: Extract<StreamRow, { type: T }>) => void
 type Listener = (payload: never) => void
 
+const USAGE_KEYS = ['input_tokens', 'cached_input_tokens', 'cache_write_input_tokens', 'output_tokens'] as const
+
+export function interruptedOutcome(rows: readonly StreamRow[], startedAt: number, now = Date.now()): OutcomeRow {
+  const opened = rows.filter((row): row is TurnRow => turnOpened(row) && isMainThread(row))
+  const turn = opened.at(-1)
+  const steps = rows.filter(mainThreadStep).filter(step => turn === undefined || step.seq > turn.seq)
+  const zero = (): Usage => ({ input_tokens: 0, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 0 })
+  const usage = zero()
+  const models: Record<string, ModelUsageRow> = {}
+  for (const step of steps) {
+    const model = models[step.model] ?? (models[step.model] = { ...zero(), web_searches: 0 })
+    for (const key of USAGE_KEYS) { usage[key] += step.usage[key]; model[key] += step.usage[key] }
+  }
+  const last = rows.at(-1)
+  return { type: 'outcome', seq: (last?.seq ?? 0) + 1, timestamp: new Date(now).toISOString(), session_id: last?.session_id ?? '', turn: turn?.turn ?? Math.max(1, opened.length), schema: 1, turn_id: turn?.turn_id ?? '', status: 'interrupted', error: { message: 'Interrupted', class: 'interrupt' }, steps: steps.length, wall_ms: Math.max(0, now - (turn === undefined ? startedAt : Date.parse(turn.timestamp))), usage, models, denials: [] }
+}
+
 export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
   command: string
   args: readonly string[]
@@ -156,6 +173,8 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
   #listeners = new Map<string, Set<Listener>>()
   #stopTimer: ReturnType<typeof setTimeout> | undefined
   #abortRequested = false
+  #interruptSent = false
+  #startedAt = Date.now()
   #stderr = ''
   #settled = false
   #error: MercuryError | null = null
@@ -216,6 +235,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     this.command = command
     this.args = args
     const cwdProblem = missingCwd(options.cwd)
+    this.#startedAt = Date.now()
     this.child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env ?? process.env,
@@ -303,7 +323,9 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     this.#tools?.cancel()
     if (this.#settled) return false
     if (!this.child || this.#sessionRow === null) { this.#abortRequested = true; return true }
-    return this.child.kill('SIGINT')
+    const sent = this.child.kill('SIGINT')
+    if (sent) this.#interruptSent = true
+    return sent
   }
 
   terminate(): boolean {
@@ -364,7 +386,10 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
       this.#fatal(new MercuryWireError(line, read.reason, read.type, read.issues, null))
       return
     }
-    const row = read.row
+    this.#deliver(read.row)
+  }
+
+  #deliver(row: StreamRow): void {
     this.rows.push(row)
     if (row.type === 'session' && this.#sessionRow === null) {
       this.#sessionRow = row
@@ -386,6 +411,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     this.#abortCleanup?.()
     clearTimeout(this.#stopTimer)
     const exit: RunExit = { code, signal, stderr: this.#stderr }
+    if (this.#error === null && this.#outcomeRow === null && this.#spawnFailure === undefined && this.#interruptSent && (signal === 'SIGINT' || code === 130)) this.#deliver(interruptedOutcome(this.rows, this.#startedAt))
     if (this.#error === null) {
       if (this.#spawnFailure !== undefined && this.#outcomeRow === null) this.#error = new MercurySpawnError(this.command, this.#spawnFailure)
       else if (this.#outcomeRow !== null && this.#outcomeRow.status === 'refused') this.#error = new MercuryRefusal(this.#outcomeRow, exit)
