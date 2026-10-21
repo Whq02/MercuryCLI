@@ -547,7 +547,7 @@ async def managed_install():
     pointer.write_bytes(b'..\\outside\r\n')
     refused(env, str(pointer))
     pointer.write_bytes(b'1.0.0-beta.40\r\n')
-    task = await sdk.run('x', mercury=executable_of(None, env, windows, 'win32'))
+    task = await sdk.run('x', mercury=executable_of(None, env, windows, 'win32'), cwd=windows)
     assert (await task.outcome)['status'] == 'completed'
     entry = Path(windows, 'entry.mjs')
     named = executable_of(str(entry), {'PATH': str(Path(windows, 'nodejs')), 'PATHEXT': '.COM;.EXE'}, windows, 'win32')
@@ -560,7 +560,7 @@ async def managed_install():
     expected = [str(active / 'vendor' / 'node' / 'bin' / 'node'), str(active / 'mercury.mjs')]
     assert sdk.argv_of(sdk.RunOptions(env=posix_env))[:2] == expected, sdk.argv_of(sdk.RunOptions(env=posix_env))
     assert executable_of(None, {**posix_env, 'MERCURY_BIN': str(stable / 'mercury')}, windows) == expected, 'the POSIX managed shim resolves the way it resolves itself'
-    task = await sdk.run('x', env=posix_env)
+    task = await sdk.run('x', env=posix_env, cwd=str(home))
     assert (await task.outcome)['status'] == 'completed'
 
 

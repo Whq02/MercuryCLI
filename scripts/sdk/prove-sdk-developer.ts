@@ -445,12 +445,12 @@ try {
     assert.throws(() => executableOf(entry, { HOME: home, PATH: '', MERCURY_NODE: pathdir }), (error: unknown) => error instanceof sdk.MercuryError && error.message.includes(`MERCURY_NODE names no executable file: ${pathdir}`), 'MERCURY_NODE naming a directory is refused by name')
     assert.deepEqual(executableOf(entry, { HOME: home, PATH: pathdir }, scratch, 'linux'), ['node', entry], 'a directory named node on PATH is not the runtime: the bare name is left to the spawn')
   })
-  await check('row 9 the managed install resolves to its bundle on its vendored runtime: the Windows layout driven on this host, the POSIX layout live', async () => {
+  await check('row 9 the managed install resolves to its bundle on its vendored runtime, under a path with a space and a non-ASCII letter: the Windows layout driven on this host, the POSIX layout live', async () => {
     const layout = await import('../../src/services/privateChannel/installLayout.ts')
     const templates = await import('../../scripts/release/launcherTemplates.mjs')
     const engines = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).engines.node
     const stub = `console.log(${JSON.stringify(JSON.stringify(sessionRow))});console.log(${JSON.stringify(JSON.stringify(outcome))})`
-    const windows = join(scratch, 'windows'); const profile = join(windows, 'Users', 'Dev'); const localAppData = join(profile, 'AppData', 'Local')
+    const windows = join(scratch, 'win dows ü'); const profile = join(windows, 'Users', 'Dev'); const localAppData = join(profile, 'AppData', 'Local')
     const bin = join(localAppData, 'Mercury', 'bin'); const versions = join(profile, '.mercury', 'versions'); const version = join(versions, '1.0.0-beta.40')
     for (const dir of [bin, join(version, 'vendor', 'node'), join(windows, 'nodejs')]) mkdirSync(dir, { recursive: true })
     writeFileSync(join(versions, 'current.txt'), '1.0.0-beta.40\r\n')
@@ -459,7 +459,7 @@ try {
     for (const runtime of [join(version, 'vendor', 'node', 'node.exe'), join(windows, 'nodejs', 'node.exe')]) runtimeStandIn(runtime)
     writeFileSync(join(bin, 'mercury.cmd'), layout.shimContent(true)); writeFileSync(join(bin, 'mercury'), layout.shimContent(false)); writeFileSync(join(bin, 'mercury.ps1'), layout.powershellEntryContent())
     assert(readFileSync(join(bin, 'mercury.cmd'), 'utf8').includes(layout.SHIM_MARKER_FAMILY) && !/%~dp0/.test(readFileSync(join(bin, 'mercury.cmd'), 'utf8')), 'the managed shim carries its marker and no npm pattern')
-    const posix = join(scratch, 'posix'); const home = join(posix, 'home'); const stable = join(home, '.local', 'bin'); const active = join(home, '.mercury', 'versions', '1.0.0-beta.40')
+    const posix = join(scratch, 'po six ü'); const home = join(posix, 'home'); const stable = join(home, '.local', 'bin'); const active = join(home, '.mercury', 'versions', '1.0.0-beta.40')
     for (const dir of [stable, join(active, 'vendor', 'node', 'bin')]) mkdirSync(dir, { recursive: true })
     writeFileSync(join(home, '.mercury', 'versions', 'current.txt'), '1.0.0-beta.40\n'); writeFileSync(join(active, 'mercury.mjs'), stub)
     runtimeStandIn(join(active, 'vendor', 'node', 'bin', 'node'))
@@ -483,7 +483,7 @@ try {
     writeFileSync(join(versions, 'current.txt'), '..\\outside\r\n')
     refused(env, join(versions, 'current.txt'))
     writeFileSync(join(versions, 'current.txt'), '1.0.0-beta.40\r\n')
-    const live = sdk.run({ mercury: executableOf(undefined, env, scratch, 'win32'), prompt: 'x' })
+    const live = sdk.run({ mercury: executableOf(undefined, env, scratch, 'win32'), cwd: windows, prompt: 'x' })
     assert.equal((await live.outcome).status, 'completed'); assert.equal(live.command, resolved[0])
     const entry = join(windows, 'entry.mjs')
     const named = executableOf(entry, { PATH: join(windows, 'nodejs'), PATHEXT: '.COM;.EXE' }, scratch, 'win32')
@@ -495,7 +495,7 @@ try {
     const expected = [join(active, 'vendor', 'node', 'bin', 'node'), join(active, 'mercury.mjs')]
     assert.deepEqual(sdk.argvOf({ env: posixEnv }).command, expected[0]); assert.deepEqual(sdk.argvOf({ env: posixEnv }).args.slice(0, 1), [expected[1]])
     assert.deepEqual(executableOf(undefined, { ...posixEnv, MERCURY_BIN: join(stable, 'mercury') }, scratch), expected, 'the POSIX managed shim resolves the way it resolves itself')
-    assert.equal((await sdk.run({ env: posixEnv, prompt: 'x' }).outcome).status, 'completed')
+    assert.equal((await sdk.run({ env: posixEnv, cwd: home, prompt: 'x' }).outcome).status, 'completed')
   })
   await check('row 9 a JavaScript entry point runs on the runtime bundled beside it, else node', async () => {
     const entry = join(scratch, 'entry.mjs')
