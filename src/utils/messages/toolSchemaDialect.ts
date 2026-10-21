@@ -104,7 +104,7 @@ function countStrings(values: unknown[], budget: Budget): void {
 }
 
 function convert(raw: unknown, path: string, depth: number, budget: Budget, relaxed: string[]): SchemaNode {
-  if (raw === true) return {}
+  if (raw === true) throw new StrictViolation('G1', 'a schema that admits any value (no type) cannot be sent strict', path)
   if (raw === false) throw new StrictViolation('G1', 'a schema that admits no value cannot be sent strict', path)
   if (!isRecord(raw)) throw new StrictViolation('G1', 'a schema node must be an object', path)
   if (depth > OPENAI_STRICT_LIMITS.nestingDepth) throw new StrictViolation('G5', `nesting deeper than ${OPENAI_STRICT_LIMITS.nestingDepth} levels`, path)
@@ -137,6 +137,9 @@ function convert(raw: unknown, path: string, depth: number, budget: Budget, rela
   const types = typeof out.type === 'string' ? [out.type] : Array.isArray(out.type) ? out.type : []
   for (const t of types) {
     if (typeof t !== 'string' || !OPENAI_STRICT_TYPES.has(t)) throw new StrictViolation('G1', `type ${JSON.stringify(t)} is outside the strict subset`, path)
+  }
+  if (types.length === 0 && !Array.isArray(out.anyOf) && !Array.isArray(out.enum) && !('const' in out) && !isRecord(out.properties) && !hasObjectShape(out)) {
+    throw new StrictViolation('G1', 'a schema that admits any value (no type) cannot be sent strict', path)
   }
   if (out.default === null) delete out.default
   if (typeof out.format === 'string' && !OPENAI_STRICT_FORMATS.has(out.format)) {

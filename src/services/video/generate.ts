@@ -76,13 +76,14 @@ export async function prepareVideo(input: VideoInput, project: string): Promise<
   if (frameMode && ratio !== 'adaptive') throw new Error('MiniMax first/last-frame generation uses the image aspect; use aspect: adaptive.')
   const duration = input.duration ?? 5
   const resolution = input.resolution ?? '768P'
+  const extra = input.extra?.prompt_expansion_mode === undefined ? undefined : input.extra
   if (selection.model === 'MiniMax-H3' && resolution === '480P') throw new Error('MiniMax-H3 supports 768P or 2K.')
   if (selection.model === 'MiniMax-H3-Max' && (duration < 5 || resolution === '2K')) throw new Error('MiniMax-H3-Max supports 5–15 seconds and 480P or 768P.')
-  if (input.extra && selection.model === 'MiniMax-H3') throw new Error('MiniMax documents extra.prompt_expansion_mode for MiniMax-H3-Max only.')
+  if (extra && selection.model === 'MiniMax-H3') throw new Error('MiniMax documents extra.prompt_expansion_mode for MiniMax-H3-Max only.')
   return {
     selection, outputDir, references,
     job: { model: selection.model, content: [{ type: 'text', text: input.prompt }], duration, resolution, ratio,
-      ...(input.extra ? { extra: input.extra } : {}), ...(input.callback_url ? { callback_url: input.callback_url } : {}) },
+      ...(extra ? { extra } : {}), ...(input.callback_url ? { callback_url: input.callback_url } : {}) },
   }
 }
 

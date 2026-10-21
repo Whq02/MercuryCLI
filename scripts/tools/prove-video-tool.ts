@@ -33,6 +33,7 @@ const { writeStoredMinimaxApiKey } = await import(`${source}/services/providers/
 const { hasPermissionsToUseTool } = await import(`${source}/utils/permissions/permissions.ts`)
 const { setCwdState, setOriginalCwd } = await import(`${source}/bootstrap/state.ts`)
 const { prepareVideo } = await import(`${source}/services/video/generate.ts`)
+const { gateToolCall } = await import(`${source}/services/providers/toolCallGate.ts`)
 enableConfigs()
 setCwdState(project)
 setOriginalCwd(project)
@@ -105,6 +106,12 @@ try {
   check('reference and callback disclosure rides the ask', referenceAsk.message.includes('reference.png') && referenceAsk.message.includes('https://callbacks.example/video'))
   const plan = await prepareVideo({ prompt: 'multimodal', references: [{ path: 'reference.png' }, { path: 'reference.mp4' }, { path: 'reference.wav' }] }, project)
   check('image video and audio paths keep documented roles', plan.references.map((ref: any) => ref.role).join(',') === 'reference_image,reference_video,reference_audio')
+  const strictAnswer = { prompt: 'every unused box null', provider: null, references: [{ path: 'reference.png', role: null }], duration: null, aspect: null, ratio: null, resolution: null, extra: { prompt_expansion_mode: null }, callback_url: null, outputDir: null, timeoutSeconds: null }
+  const gated = gateToolCall([VideoTool], { id: 'strict', name: 'Video', argumentsRaw: JSON.stringify(strictAnswer), malformed: false })
+  check('a strict-dialect answer with null in every unused box passes the gate with the nested nulls gone', gated.ok && !('role' in gated.input.references[0]) && !('prompt_expansion_mode' in (gated.input.extra ?? {})))
+  const unasked = await prepareVideo(gated.ok ? gated.input : strictAnswer, project)
+  check('an extra object whose only box the model left empty is no extra: MiniMax-H3 accepts the call and the job carries none', !('extra' in unasked.job))
+  check('a named prompt_expansion_mode on MiniMax-H3 is still refused as the H3-Max option it is', await prepareVideo({ prompt: 'mode', extra: { prompt_expansion_mode: 'quality' } }, project).then(() => false, (error: Error) => error.message.includes('MiniMax-H3-Max only')))
   for (const bad of [
     { prompt: 'escape', outputDir: '../outside' },
     { prompt: 'escape', references: [{ path: '../outside.png' }] },
