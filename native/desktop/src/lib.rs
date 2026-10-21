@@ -121,6 +121,7 @@ pub struct TreeElement {
     pub title: Option<String>,
     pub value: Option<String>,
     pub frame: Option<BoundsRecord>,
+    pub focused: Option<bool>,
 }
 
 #[napi(object)]
@@ -128,14 +129,34 @@ pub struct TreeAnswer {
     pub elements: Vec<TreeElement>,
     pub truncated: bool,
     pub reason: Option<String>,
+    pub scope: Option<String>,
+    pub web_content: Option<String>,
+    pub web_accessibility: Option<bool>,
 }
 
 impl TreeAnswer {
     pub fn refused(reason: &str) -> TreeAnswer {
-        TreeAnswer { elements: Vec::new(), truncated: false, reason: Some(reason.to_string()) }
+        TreeAnswer { elements: Vec::new(), truncated: false, reason: Some(reason.to_string()), scope: None, web_content: None, web_accessibility: None }
     }
 }
 
+pub fn tree_child_order(children: &[(bool, bool)], window_only: bool) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..children.len()).filter(|i| !window_only || children[*i].0).collect();
+    order.sort_by_key(|i| (!children[*i].0, children[*i].1));
+    order
+}
+
+#[cfg(test)]
+mod tree_order_tests {
+    use super::tree_child_order;
+    #[test]
+    fn focused_window_precedes_other_windows_and_menus() {
+        let children = [(false, true), (false, false), (true, false), (false, false)];
+        assert_eq!(tree_child_order(&children, false), vec![2, 1, 3, 0]);
+        assert_eq!(tree_child_order(&children, true), vec![2]);
+        assert!(tree_child_order(&[(false, false)], true).is_empty());
+    }
+}
 #[napi(object)]
 pub struct CursorAnswer {
     pub x: Option<f64>,
@@ -343,8 +364,14 @@ pub fn own_terminal_application(identity: Option<String>, tty: Option<String>, f
 }
 
 #[napi]
-pub fn accessibility_tree(pid: u32, max_depth: u32, max_count: u32) -> TreeAnswer {
-    imp::accessibility_tree(pid as i32, max_depth, max_count)
+pub fn accessibility_tree(pid: u32, max_depth: u32, max_count: u32, scope: Option<String>, request_web_accessibility: Option<bool>) -> TreeAnswer {
+    #[cfg(target_os = "macos")]
+    { imp::accessibility_tree(pid as i32, max_depth, max_count, scope.as_deref().unwrap_or("app"), request_web_accessibility.unwrap_or(false)) }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (scope, request_web_accessibility);
+        imp::accessibility_tree(pid as i32, max_depth, max_count)
+    }
 }
 
 #[napi]

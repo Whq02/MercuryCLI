@@ -8,7 +8,7 @@ use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_foundation::NSString;
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, TreeAnswer, TreeElement, TREE_BUDGET_MS, TREE_VALUE_CHARS};
+use crate::{tree_child_order, ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, TreeAnswer, TreeElement, TREE_BUDGET_MS, TREE_VALUE_CHARS};
 
 type CFTypeRef = *const c_void;
 type CGEventRef = *mut c_void;
@@ -24,6 +24,7 @@ extern "C" {}
 #[link(name = "CoreFoundation", kind = "framework")]
 extern "C" {
     fn CFRelease(cf: CFTypeRef);
+    fn CFEqual(a: CFTypeRef, b: CFTypeRef) -> u8;
     fn CFArrayGetCount(array: CFTypeRef) -> isize;
     fn CFArrayGetValueAtIndex(array: CFTypeRef, index: isize) -> CFTypeRef;
     fn CFDictionaryGetValue(dict: CFTypeRef, key: CFTypeRef) -> CFTypeRef;
@@ -94,6 +95,7 @@ extern "C" {
     fn AXUIElementCreateApplication(pid: i32) -> CFTypeRef;
     fn AXUIElementSetMessagingTimeout(element: CFTypeRef, timeout: f32) -> i32;
     fn AXUIElementCopyAttributeValue(element: CFTypeRef, attribute: CFTypeRef, value: *mut CFTypeRef) -> i32;
+    fn AXUIElementSetAttributeValue(element: CFTypeRef, attribute: CFTypeRef, value: CFTypeRef) -> i32;
     fn AXUIElementGetAttributeValueCount(element: CFTypeRef, attribute: CFTypeRef, count: *mut isize) -> i32;
     fn AXValueGetValue(value: CFTypeRef, kind: u32, output: *mut c_void) -> bool;
     static kAXTrustedCheckOptionPrompt: CFTypeRef;
@@ -585,17 +587,17 @@ unsafe fn ax_child_count(element: CFTypeRef) -> isize {
     if status == 0 { count } else { 0 }
 }
 
-unsafe fn tree_element(element: CFTypeRef, depth: u32) -> TreeElement {
+unsafe fn tree_element(element: CFTypeRef, depth: u32, focused: CFTypeRef) -> TreeElement {
     let mut role = ax_string(element, "AXRole").unwrap_or_else(|| "AXUnknown".to_string());
     if let Some(subrole) = ax_string(element, "AXSubrole") {
         role = format!("{role} ({subrole})");
     }
     let title = ax_string(element, "AXTitle").or_else(|| ax_string(element, "AXDescription")).map(|text| clipped(text, TREE_VALUE_CHARS));
     let value = ax_string(element, "AXValue").map(|text| clipped(text, TREE_VALUE_CHARS));
-    TreeElement { depth, role, title, value, frame: ax_frame(element) }
+    TreeElement { depth, role, title, value, frame: ax_frame(element), focused: if focused.is_null() { None } else { Some(CFEqual(element, focused) != 0) } }
 }
 
-pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32) -> TreeAnswer {
+pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str, request_web: bool) -> TreeAnswer {
     autoreleasepool(|_| unsafe {
         if !AXIsProcessTrusted() {
             return TreeAnswer::refused("Accessibility is not granted to the responsible process (the terminal application that started Mercury)");
@@ -608,6 +610,21 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32) -> TreeAnswe
         if ax_string(app, "AXRole").is_none() {
             CFRelease(app);
             return TreeAnswer::refused("the application answered no accessibility element (no such process, or it is not responding)");
+        }
+        let mut requested = false;
+        if request_web {
+            for attribute in ["AXEnhancedUserInterface", "AXManualAccessibility"] {
+                let key = cf_string(attribute);
+                requested |= AXUIElementSetAttributeValue(app, key, kCFBooleanTrue) == 0;
+                CFRelease(key);
+            }
+        }
+        let focused = ax_attribute(app, "AXFocusedUIElement");
+        let window = ax_attribute(app, "AXFocusedWindow");
+        if scope == "window" && window.is_null() {
+            if !focused.is_null() { CFRelease(focused); }
+            CFRelease(app);
+            return TreeAnswer::refused("the focused window is unavailable — use scope:app to read the application's tree or take a screenshot");
         }
         let started = std::time::Instant::now();
         let budget = std::time::Duration::from_millis(TREE_BUDGET_MS);
@@ -629,13 +646,18 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32) -> TreeAnswe
                 }
                 break;
             }
-            elements.push(tree_element(element, depth));
+            elements.push(tree_element(element, depth, focused));
             if depth < max_depth {
                 let mut children = ax_children(element);
                 if depth == 0 {
-                    let mut ordered: Vec<(bool, CFTypeRef)> = children.drain(..).map(|child| (ax_string(child, "AXRole").as_deref() == Some("AXMenuBar"), child)).collect();
-                    ordered.sort_by_key(|(menu_bar, _)| *menu_bar);
-                    children = ordered.into_iter().map(|(_, child)| child).collect();
+                    if !window.is_null() && !children.iter().any(|child| CFEqual(*child, window) != 0) {
+                        children.push(CFRetain(window));
+                    }
+                    let kinds: Vec<(bool, bool)> = children.iter().map(|child| (!window.is_null() && CFEqual(*child, window) != 0, ax_string(*child, "AXRole").as_deref() == Some("AXMenuBar"))).collect();
+                    let order = tree_child_order(&kinds, scope == "window");
+                    let selected: Vec<CFTypeRef> = order.iter().map(|i| CFRetain(children[*i])).collect();
+                    for child in children { CFRelease(child); }
+                    children = selected;
                 }
                 for child in children.into_iter().rev() {
                     stack.push((child, depth + 1));
@@ -645,7 +667,10 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32) -> TreeAnswe
             }
             CFRelease(element);
         }
-        TreeAnswer { elements, truncated, reason }
+        if !focused.is_null() { CFRelease(focused); }
+        if !window.is_null() { CFRelease(window); }
+        let web_content = if elements.iter().any(|element| element.role.starts_with("AXWebArea")) { Some("available") } else if requested { Some("pending") } else if truncated { None } else { Some("absent") };
+        TreeAnswer { elements, truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: Some(requested) }
     })
 }
 

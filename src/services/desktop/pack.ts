@@ -232,12 +232,16 @@ interface DesktopAddonTreeElement {
   title?: string | null
   value?: string | null
   frame?: DesktopAddonBounds | null
+  focused?: boolean | null
 }
 
 export interface DesktopAddonTree {
   elements: DesktopAddonTreeElement[]
   truncated: boolean
   reason?: string | null
+  scope?: string | null
+  webContent?: string | null
+  webAccessibility?: boolean | null
 }
 
 export interface DesktopAddon {
@@ -249,7 +253,7 @@ export interface DesktopAddon {
   capture(display: number): Promise<DesktopAddonCapture>
   frontmostApplication(): DesktopAddonApplication
   ownTerminalApplication(identity?: string, tty?: string, front?: number): DesktopAddonApplication
-  accessibilityTree(pid: number, maxDepth: number, maxCount: number): DesktopAddonTree
+  accessibilityTree(pid: number, maxDepth: number, maxCount: number, scope?: string, requestWebAccessibility?: boolean): DesktopAddonTree
   cursor(): DesktopAddonCursor
   mouseMove(x: number, y: number): void
   mouseDown(button: string): void

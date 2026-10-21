@@ -27,13 +27,43 @@ export function targetMatches(tree: DesktopTree, target: ElementTarget): Desktop
 
 export function targetPoint(tree: DesktopTree, target: ElementTarget): { x: number; y: number } | { refusal: string } {
   const matches = targetMatches(tree, target)
-  if (matches.length !== 1) return { refusal: `${targetWords(target)}: ${matches.length} matches${tree.truncated ? ' in a truncated tree' : ''} — read tree and use a unique role/name/text or screenshot pixels` }
+  if (matches.length !== 1) return { refusal: `${targetWords(target)}: ${matches.length} matches${matches.length > 1 ? ' (ambiguous)' : ''}${tree.truncated ? ' in a truncated tree' : ''} — read tree and use a unique role/name/text or screenshot pixels` }
   if (tree.truncated) return { refusal: `${targetWords(target)}: the tree is truncated, so uniqueness is unknown — raise depth/limit or use screenshot pixels` }
   const frame = matches[0]!.frame
   if (frame === null || ![frame.x, frame.y, frame.width, frame.height].every(Number.isFinite) || frame.width <= 0 || frame.height <= 0) {
     return { refusal: `${targetWords(target)} has no usable bounds — take a screenshot and use its pixels` }
   }
   return { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
+}
+
+export function pageContentNote(tree?: DesktopTree): string {
+  if (tree?.webContent === 'absent') return 'this application exposes no page content to the tree — use a screenshot; a missing page element is not a confirmed absence'
+  if (tree?.webContent === 'pending') return 'web accessibility requested; page content is still starting — wait until the element appears with durationMs:5000, or take a screenshot'
+  return ''
+}
+
+export function treeObservation(tree?: DesktopTree): string {
+  const focused = tree?.elements.find(element => element.focused === true && !element.role.includes('Window'))
+  return focused ? `focus before input: ${focused.role}${focused.title ? ` ${JSON.stringify(focused.title)}` : ''}` : 'focus before input unknown'
+}
+
+export function verificationWords(before?: DesktopTree, after?: DesktopTree): string {
+  const focused = after?.elements.find(element => element.focused === true && !element.role.includes('Window'))
+  const focus = focused ? `focused ${focused.role}${focused.title ? ` ${JSON.stringify(focused.title)}` : ''}` : 'focus unknown'
+  if (!before || !after || before.truncated || after.truncated) return `verification unknown: a complete tree was not available · ${focus} — take a screenshot`
+  return `${JSON.stringify(before.elements) === JSON.stringify(after.elements) ? 'no observed change in the tree — take a screenshot to check visibility or use wait-until before another act' : 'tree changed; this is not confirmation of the task outcome — read find for the expected result'} · ${focus}`
+}
+
+async function observationPixels(capture: DesktopCapture, display: { width: number; height: number }, bounds: DesktopBounds): Promise<Buffer | null> {
+  const sx = capture.width / display.width
+  const sy = capture.height / display.height
+  const left = Math.max(0, Math.floor((bounds.x - capture.originX - 16) * sx))
+  const top = Math.max(0, Math.floor((bounds.y - capture.originY - 16) * sy))
+  const right = Math.min(capture.width, Math.ceil((bounds.x + bounds.width - capture.originX + 16) * sx))
+  const bottom = Math.min(capture.height, Math.ceil((bounds.y + bounds.height - capture.originY + 16) * sy))
+  if (right <= left || bottom <= top) return null
+  const sharp = await getImageProcessor()
+  return sharp(capture.png).extract({ left, top, width: right - left, height: bottom - top }).png().toBuffer()
 }
 
 export function sameWindow(a: DesktopApplication, b: DesktopApplication): boolean {
@@ -67,7 +97,7 @@ export async function cropCapture(capture: DesktopCapture, display: { width: num
   return { capture: { ...capture, png, width, height, originX: capture.originX + left / scaleX, originY: capture.originY + top / scaleY }, points: { width: width / scaleX, height: height / scaleY } }
 }
 
-export async function settledCapture(driver: DesktopDriver, display: { index: number; width: number; height: number }, signal: AbortSignal, settleMs: number, region?: CaptureRegion, map?: ScreenMap | null): Promise<{ capture: DesktopCapture; points: { width: number; height: number }; settled: string }> {
+export async function settledCapture(driver: DesktopDriver, display: { index: number; width: number; height: number }, signal: AbortSignal, settleMs: number, region?: CaptureRegion, map?: ScreenMap | null, observe?: DesktopBounds): Promise<{ capture: DesktopCapture; points: { width: number; height: number }; settled: string }> {
   const deadline = Date.now() + settleMs
   let previous: Buffer | undefined
   for (;;) {
@@ -78,9 +108,12 @@ export async function settledCapture(driver: DesktopDriver, display: { index: nu
     const frame = await cropCapture(answer.value, display, region, map)
     if (signal.aborted) throw new Error('interrupted')
     if (settleMs === 0) return { ...frame, settled: '' }
-    if (previous?.equals(frame.capture.png)) return { ...frame, settled: 'screen stable' }
-    if (Date.now() >= deadline) return { ...frame, settled: 'settle cap reached' }
-    previous = frame.capture.png
+    const local = observe && !region ? await observationPixels(answer.value, display, observe) : null
+    const pixels = local ?? frame.capture.png
+    const where = local ? 'target region' : region ? 'capture region' : 'screen'
+    if (previous?.equals(pixels)) return { ...frame, settled: local ? 'screen stable in target region (target region stable; other regions not checked)' : `${where} stable` }
+    if (Date.now() >= deadline) return { ...frame, settled: `settle cap reached: ${where} kept changing — use wait-until for the expected element` }
+    previous = pixels
     await sleep(Math.min(50, Math.max(0, deadline - Date.now())), signal)
   }
 }

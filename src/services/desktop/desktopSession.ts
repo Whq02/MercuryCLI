@@ -24,6 +24,7 @@ export interface ScreenMap {
   imageWidth: number
   imageHeight: number
   capturedAt: number
+  region?: boolean
 }
 
 export interface DesktopJudgedApp {
@@ -303,7 +304,7 @@ export function publishDesktopIdle(): void {
 const AGENT_COMPUTER_REFUSAL =
   "the Computer tool drives the operator's own screen; a crewmate never carries it in this release — the main session does"
 const HEADLESS_COMPUTER_REFUSAL =
-  'the Computer tool drives the screen of an interactive session; this headless run has no operator at the screen'
+  'the Computer tool drives the screen of an interactive session; this headless run has no operator at the screen — open an interactive session to use Computer; this run cannot take the desktop'
 
 export function desktopPostureRefusal(context: {
   agentId?: string

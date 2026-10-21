@@ -160,6 +160,7 @@ function pngSigned(png: unknown): png is Uint8Array {
 class NativeDesktopDriver implements DesktopDriver {
   private closed = false
   private grantsRequested = false
+  private readonly webRequests = new Map<string, number>()
 
   constructor(
     private readonly addon: DesktopAddon,
@@ -402,11 +403,14 @@ class NativeDesktopDriver implements DesktopDriver {
     if (!permissions.ok) return fail(permissions.error)
     const refusal = inputRefusal(permissions.value)
     if (refusal !== null) return this.refuseAndRequestGrants(refusal)
+    const requestKey = `${app.identity}:${app.pid}`
+    const requestWeb = !this.webRequests.has(requestKey)
+    const scope = limits.scope ?? 'app'
     let raw: DesktopAddonTree
     try {
       raw = process.platform === 'darwin'
         ? await new Promise<DesktopAddonTree>((resolve, reject) => {
-            const args = ['-e', 'const a=require(process.argv[1]); process.stdout.write(JSON.stringify(a.accessibilityTree(Number(process.argv[2]),Number(process.argv[3]),Number(process.argv[4]))))', this.addonPath, String(app.pid), String(limits.depth), String(limits.count)]
+            const args = ['-e', 'const a=require(process.argv[1]); process.stdout.write(JSON.stringify(a.accessibilityTree(Number(process.argv[2]),Number(process.argv[3]),Number(process.argv[4]),process.argv[5],process.argv[6]==="true")))', this.addonPath, String(app.pid), String(limits.depth), String(limits.count), scope, String(requestWeb)]
             const child = execFile(process.execPath, args, { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
               signal.removeEventListener('abort', onAbort)
               if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
@@ -424,7 +428,8 @@ class NativeDesktopDriver implements DesktopDriver {
             }
             signal.addEventListener('abort', onAbort, { once: true })
           })
-        : this.addon.accessibilityTree(app.pid, limits.depth, limits.count)
+        : this.addon.accessibilityTree(app.pid, limits.depth, limits.count, scope, requestWeb)
+      if (requestWeb && raw.webAccessibility === true) this.webRequests.set(requestKey, Date.now())
     } catch (error) {
       return fail(classifyThrown(error))
     }
@@ -436,9 +441,14 @@ class NativeDesktopDriver implements DesktopDriver {
       if (typeof e.role !== 'string' || typeof e.depth !== 'number' || !Number.isInteger(e.depth)) return fail(contractDefect('element', JSON.stringify(e)))
       const f = e.frame
       const frame: DesktopBounds | null = f && [f.x, f.y, f.width, f.height].every(n => Number.isFinite(n)) ? { x: f.x, y: f.y, width: f.width, height: f.height } : null
-      elements.push({ depth: e.depth, role: e.role, title: typeof e.title === 'string' && e.title !== '' ? e.title : null, value: typeof e.value === 'string' && e.value !== '' ? e.value : null, frame })
+      elements.push({ depth: e.depth, role: e.role, title: typeof e.title === 'string' && e.title !== '' ? e.title : null, value: typeof e.value === 'string' && e.value !== '' ? e.value : null, frame, ...(typeof e.focused === 'boolean' ? { focused: e.focused } : {}) })
     }
-    return { ok: true, value: { elements, truncated: raw.truncated === true, reason: typeof raw.reason === 'string' && raw.reason !== '' ? raw.reason : null } }
+    const webContent = raw.webContent === 'absent' && Date.now() - (this.webRequests.get(requestKey) ?? 0) < 2000 ? 'pending' : raw.webContent
+    return { ok: true, value: {
+      elements, truncated: raw.truncated === true, reason: typeof raw.reason === 'string' && raw.reason !== '' ? raw.reason : null,
+      ...(raw.scope === 'window' || raw.scope === 'app' ? { scope: raw.scope } : {}),
+      ...(webContent === 'available' || webContent === 'absent' || webContent === 'pending' ? { webContent } : {}),
+    } }
   }
 
   async cursor(): Promise<DesktopAnswer<DesktopCursor>> {

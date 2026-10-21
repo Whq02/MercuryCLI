@@ -91,17 +91,21 @@ export interface DesktopTreeElement {
   title: string | null
   value: string | null
   frame: DesktopBounds | null
+  focused?: boolean
 }
 
 export interface DesktopTree {
   elements: DesktopTreeElement[]
   truncated: boolean
   reason: string | null
+  scope?: 'window' | 'app'
+  webContent?: 'available' | 'absent' | 'pending'
 }
 
 export interface DesktopTreeLimits {
   depth: number
   count: number
+  scope?: 'window' | 'app'
 }
 
 export type DesktopGrant = 'granted' | 'denied' | 'not-required' | 'unknown'

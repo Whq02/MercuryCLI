@@ -393,9 +393,9 @@ function hasNullAt(value: unknown, path: string[]): boolean {
 const EXPECTED_NON_STRICT: Record<string, RegExp> = {
   Crewmate: /propertyNames/, AskUserQuestion: /propertyNames/, Service: /propertyNames/, Git: /propertyNames/, Journey: /propertyNames/,
   Godot: /propertyNames/, Unity: /propertyNames/, Blender: /propertyNames/, Aseprite: /propertyNames/, JevEval: /additionalProperties/,
-  StructuredOutput: /additionalProperties/, TaskCreate: /propertyNames/, TaskUpdate: /propertyNames/, Computer: /propertyNames.*steps\.items/,
+  StructuredOutput: /additionalProperties/, TaskCreate: /propertyNames/, TaskUpdate: /propertyNames/,
 }
-const MUST_BE_STRICT = ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep', 'ChangeSet', 'WebFetch', 'WebSearch', 'NotebookEdit', 'Skill', 'ToolSearch', 'Monitor', 'Sleep']
+const MUST_BE_STRICT = ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep', 'ChangeSet', 'WebFetch', 'WebSearch', 'NotebookEdit', 'Skill', 'ToolSearch', 'Monitor', 'Sleep', 'Computer']
 
 function makeContext(): unknown {
   return {
