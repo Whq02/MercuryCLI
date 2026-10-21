@@ -71,7 +71,7 @@ check('every carried page is the tree\'s page, byte for byte', identical === exp
 check('no release page, template or media file rides along', !Object.keys(pages).some(k => k.includes('releases/') || k.includes('templates/') || k.includes('media/')))
 check('the Saturn page the scheduling question needs is carried and names /saturn, CronCreate and the /loop skill', typeof pages['docs/SATURN.md'] === 'string' && /`\/saturn`/.test(pages['docs/SATURN.md']) && /CronCreate/.test(pages['docs/SATURN.md']) && /`\/loop`/.test(pages['docs/SATURN.md']))
 const TOPIC_PAGES: Readonly<Record<string, ReadonlyArray<readonly [string, RegExp]>>> = {
-  settings: [['docs/SETTINGS.md', /settings\.json/]],
+  commands: [['README.md', /^## Slash commands/m]],
   scheduling: [['docs/SATURN.md', /`\/saturn`/]],
   providers: [['docs/ENGINES.md', /sign-in provider families/], ['README.md', /^## Providers and models: sign-ins/m]],
   hosting: [['docs/LLM-HOST.md', /`\/llmhost`/], ['docs/LLM-HOST.md', /mercury\s+host/]],

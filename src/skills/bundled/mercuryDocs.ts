@@ -170,7 +170,7 @@ export function registerMercuryDocsSkill(): void {
   registerBundledSkill({
     name: MERCURY_DOCS_SKILL_NAME,
     description:
-      'Use when the user asks how to use Mercury itself (settings, scheduling, providers, hosting, headless runs, voice, restart): answered from the documentation that ships with this install, never from memory, even when a skill that does the thing exists.',
+      'Use when the user asks how to use Mercury itself (commands, scheduling, providers, hosting, headless runs, voice, restart): answered from the documentation that ships with this install, never from memory, even when a skill that does the thing exists.',
     argumentHint: '<question about using Mercury>',
     allowedTools: ['Read', 'Grep', 'Glob'],
     files: { ...mercuryDocPages() },
