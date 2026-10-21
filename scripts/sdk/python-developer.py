@@ -1,6 +1,7 @@
 import asyncio
 import os
 from pathlib import Path
+import re
 import tempfile
 import sys
 import json
@@ -8,6 +9,7 @@ from urllib.request import Request, urlopen
 from typing import TypedDict, Annotated, NotRequired
 import mercury_cli_sdk as sdk
 from mercury_cli_sdk import testing
+from mercury_cli_sdk.executable import executable_of
 
 failures = []
 
@@ -174,7 +176,49 @@ async def flags():
         target.chmod(0o755)
         assert sdk.argv_of(sdk.RunOptions(env={'HOME': str(path), 'PATH': ''}))[0] == str(target)
         installed = sdk.argv_of(sdk.RunOptions(env={'HOME': str(path), 'PATH': str(target.parent)}, project='/p'))
-        assert installed[:6] == ['mercury', '--project', '/p', 'run', '--format', 'rows']
+        assert installed[:6] == [str(target), '--project', '/p', 'run', '--format', 'rows'], installed
+
+
+async def managed_install():
+    windows, posix = os.environ.get('SDK_WINDOWS_FIXTURE'), os.environ.get('SDK_POSIX_FIXTURE')
+    if not windows or not posix:
+        print('SKIP Python row 9 managed install: the layout fixtures are written by prove-sdk-developer.ts, which runs this mirror', flush=True)
+        return
+    profile = Path(windows, 'Users', 'Dev'); local = profile / 'AppData' / 'Local'; bin = local / 'Mercury' / 'bin'
+    version = profile / '.mercury' / 'versions' / '1.0.0-beta.40'
+    env = {'USERPROFILE': str(profile), 'LOCALAPPDATA': str(local), 'PATH': ';'.join(['C:\\Windows\\system32', str(Path(windows, 'nodejs')), str(bin)]), 'PATHEXT': '.COM;.EXE;.BAT;.CMD'}
+    resolved = [str(version / 'vendor' / 'node' / 'node.exe'), str(version / 'mercury.mjs')]
+    discovered = executable_of(None, env, windows, 'win32')
+    assert discovered == resolved, f'discovery reads current.txt and runs the bundle on the vendored node.exe; got {discovered}'
+    for shim in ('mercury.cmd', 'mercury', 'mercury.ps1'): assert executable_of(None, {**env, 'MERCURY_BIN': str(bin / shim)}, windows, 'win32') == resolved, shim
+    assert executable_of(str(version / 'mercury.cmd'), env, windows, 'win32') == resolved, 'the versioned launcher resolves to the bundle beside it'
+    elsewhere = str(Path(windows, 'elsewhere'))
+    def refused(environment, pointer):
+        try: executable_of(None, environment, windows, 'win32')
+        except sdk.MercuryError as error: assert 'managed command' in str(error) and pointer in str(error), str(error)
+        else: raise AssertionError(f'no refusal naming {pointer}')
+    refused({**env, 'MERCURY_CONFIG_DIR': elsewhere}, str(Path(elsewhere, 'versions', 'current.txt')))
+    refused({**env, 'MERCURY_VERSIONS_DIR': elsewhere}, str(Path(elsewhere, 'current.txt')))
+    refused({**env, 'MERCURY_CONFIG_DIR': elsewhere, 'PATH': ''}, str(Path(elsewhere, 'versions', 'current.txt')))
+    assert executable_of(None, {**env, 'MERCURY_CONFIG_DIR': elsewhere, 'PATH': '', 'LOCALAPPDATA': elsewhere}, windows, 'win32') == ['mercury']
+    pointer = version.parent / 'current.txt'
+    pointer.write_bytes(b'\r\n"1.0.0-beta.40"  \r\nprevious-line-ignored\r\n')
+    assert executable_of(None, env, windows, 'win32') == resolved, 'current.txt is read as the shim reads it: first non-blank line, quotes stripped, trailing space trimmed'
+    pointer.write_bytes(b'..\\outside\r\n')
+    refused(env, str(pointer))
+    pointer.write_bytes(b'1.0.0-beta.40\r\n')
+    task = await sdk.run('x', mercury=executable_of(None, env, windows, 'win32'))
+    assert (await task.outcome)['status'] == 'completed'
+    entry = Path(windows, 'entry.mjs')
+    named = executable_of(str(entry), {'PATH': str(Path(windows, 'nodejs')), 'PATHEXT': '.COM;.EXE'}, windows, 'win32')
+    assert named[1] == str(entry) and re.search(r'node(\.exe)?$', named[0], re.IGNORECASE) and named[0] == str(Path(windows, 'nodejs', 'node.exe')), named
+    home = Path(posix, 'home'); stable = home / '.local' / 'bin'; active = home / '.mercury' / 'versions' / '1.0.0-beta.40'
+    posix_env = {**{key: value for key, value in os.environ.items() if key not in ('MERCURY_CONFIG_DIR', 'MERCURY_HOME', 'MERCURY_VERSIONS_DIR')}, 'HOME': str(home), 'PATH': f'{stable}:{os.environ.get("PATH", "")}'}
+    expected = [str(active / 'vendor' / 'node' / 'bin' / 'node'), str(active / 'mercury.mjs')]
+    assert sdk.argv_of(sdk.RunOptions(env=posix_env))[:2] == expected, sdk.argv_of(sdk.RunOptions(env=posix_env))
+    assert executable_of(None, {**posix_env, 'MERCURY_BIN': str(stable / 'mercury')}, windows) == expected, 'the POSIX managed shim resolves the way it resolves itself'
+    task = await sdk.run('x', env=posix_env)
+    assert (await task.outcome)['status'] == 'completed'
 
 
 async def entry_point():
@@ -225,7 +269,7 @@ async def sync():
 
 
 async def main():
-    for name, function in [('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
 
 

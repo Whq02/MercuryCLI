@@ -236,6 +236,7 @@ section('C5 the argv builder spells only options the door declares, with the val
 {
   const everything = sdk.argvOf({
     prompt: 'the prompt',
+    env: { HOME: process.env.MERCURY_CONFIG_DIR!, PATH: '' },
     project: '/p',
     model: 'm',
     effort: 'max',
