@@ -8,6 +8,39 @@ import { paneWindow, type PaneWindow } from '../mercury-ui/paneWindow.js'
 import { applyNavMotion, decodeNavKey } from '../mercury-ui/navSemantics.js'
 
 export const POPUP_PAGE_HINT = 'pgup/pgdn page'
+export const PopupPageOwners = React.createContext<Set<object> | null>(null)
+
+export function usePopupPageOwner(active = true): void {
+  const owners = React.useContext(PopupPageOwners)
+  const owner = React.useRef({})
+  React.useLayoutEffect(() => {
+    if (!owners || !active) return
+    const token = owner.current
+    owners.add(token)
+    return () => { owners.delete(token) }
+  }, [owners, active])
+}
+
+export function popupPageRows(nodes: Iterable<DOMElement>): number {
+  let count = 0
+  for (const node of nodes) {
+    let current: DOMElement | undefined = node
+    let top = 0
+    const height = node.layoutNode?.getComputedHeight() ?? 0
+    let visible = height > 0
+    while (current && visible) {
+      top += current.layoutNode?.getComputedTop() ?? 0
+      const parent: DOMElement | undefined = current.parentNode
+      if (parent?.scroll) {
+        top -= parent.scroll.scrollTop ?? 0
+        visible = top + height > 0 && top < (parent.scroll.scrollViewportHeight ?? 0)
+      }
+      current = parent
+    }
+    if (visible) count++
+  }
+  return count
+}
 
 export function popupListWindow(total: number, cursor: number, rows: number): PaneWindow {
   return paneWindow(total, cursor, Math.max(1, rows))

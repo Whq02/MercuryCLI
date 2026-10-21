@@ -15,6 +15,8 @@ const framesAt = process.argv.indexOf('--frames')
 const frames = framesAt < 0 ? undefined : process.argv[framesAt + 1]
 if (frames) mkdirSync(frames, { recursive: true })
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
+for (const name of Object.keys(process.env)) if (/(?:API_KEY|AUTH_TOKEN|ACCESS_TOKEN|REFRESH_TOKEN|CLIENT_SECRET|HF_TOKEN|GH_TOKEN)$/.test(name)) delete process.env[name]
 process.env.MERCURY_BOOT_PREFLIGHT = '0'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'

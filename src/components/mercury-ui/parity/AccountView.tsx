@@ -342,7 +342,7 @@ export function AccountView({
   })
 
   return (
-    <CommandCenter view="accounts" onClose={onClose} captureInput={false} footer={hints}>
+    <CommandCenter view="accounts" onClose={onClose} captureInput={false} footer={`↑↓ move · ${hints ?? ''}`}>
       <Box marginTop={1}>
         <Text>
           <StateBadge state="excluded" label="tokens never shown" />
@@ -390,9 +390,9 @@ export function AccountView({
                 <Text color={AMBER}>{`${GLYPH.warn} ${healthLine}`}</Text>
               </Box>
             ) : null}
-            {hiddenAbove > 0 ? <Text color={FAINT}>{`  +${hiddenAbove} above`}</Text> : null}
+            {hiddenAbove > 0 ? <Text color={FAINT}>{`  ↑ +${hiddenAbove} above`}</Text> : null}
             {shown.map((row, i) => renderRow(row, start + winStart + i))}
-            {hiddenBelow > 0 ? <Text color={FAINT}>{`  +${hiddenBelow} below — ↓ reaches them`}</Text> : null}
+            {hiddenBelow > 0 ? <Text color={FAINT}>{`  ↓ +${hiddenBelow} below — ↓ reaches them`}</Text> : null}
           </React.Fragment>
         )
       })}

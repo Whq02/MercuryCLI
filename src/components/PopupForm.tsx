@@ -7,17 +7,20 @@ import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
 import { ModalContext } from '../context/modalContext.js'
 import { PopupFormContext } from '../context/popupFormContext.js'
 import { useCursorFollow } from './mercury-ui/useCursorFollow.js'
-import { PopupScrollViewport } from './CustomSelect/popup-list.js'
+import { PopupPageOwners, PopupScrollViewport, usePopupPageOwner } from './CustomSelect/popup-list.js'
+import { topOverlayOwnsPageKeys } from '../context/overlayStack.js'
 
 const REST_ON_CLEAR = { restOnClear: true }
 
 export function PopupForm({ width, rows, children, scrollRef: hostScrollRef, bodyOwnsPageKeys = false }: { width: number; rows: number; children: React.ReactNode; scrollRef?: React.RefObject<ScrollBoxHandle | null>; bodyOwnsPageKeys?: boolean }): React.ReactNode {
+  usePopupPageOwner(rows > 0)
+  const pageOwners = useRef(new Set<object>())
   const ownScrollRef = useRef<ScrollBoxHandle | null>(null)
   const scrollRef = hostScrollRef ?? ownScrollRef
   const setCursor = useCursorFollow(scrollRef, { rows, width }, REST_ON_CLEAR)
   useInput((_input, key, event) => {
     const body = scrollRef.current
-    if (bodyOwnsPageKeys || !body || !(key.pageUp || key.pageDown)) return
+    if (bodyOwnsPageKeys || pageOwners.current.size > 0 || topOverlayOwnsPageKeys() || !body || !(key.pageUp || key.pageDown)) return
     event.stopImmediatePropagation()
     body.scrollBy((key.pageUp ? -1 : 1) * Math.max(1, body.getViewportHeight() - 1))
   })
@@ -26,6 +29,7 @@ export function PopupForm({ width, rows, children, scrollRef: hostScrollRef, bod
     <ModalContext.Provider value={{ ...size, scrollRef }}>
       <TerminalSizeContext.Provider value={size}>
         <PopupFormContext.Provider value={true}>
+          <PopupPageOwners.Provider value={pageOwners.current}>
           <CursorDeclarationContext.Provider value={setCursor}>
             <PopupScrollViewport scrollRef={scrollRef}>{scrolls => (
               <ScrollBox ref={scrollRef} flexDirection="column" height={rows} minHeight={0} width={Math.max(1, width - (scrolls ? 1 : 0))}>
@@ -33,6 +37,7 @@ export function PopupForm({ width, rows, children, scrollRef: hostScrollRef, bod
               </ScrollBox>
             )}</PopupScrollViewport>
           </CursorDeclarationContext.Provider>
+          </PopupPageOwners.Provider>
         </PopupFormContext.Provider>
       </TerminalSizeContext.Provider>
     </ModalContext.Provider>

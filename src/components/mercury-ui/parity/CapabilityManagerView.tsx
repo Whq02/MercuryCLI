@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useMemo, useRef, useState } from 'react'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import { Box, Text, useInput } from '../../../ink.js'
+import { usePopupListNavigation } from '../../CustomSelect/popup-list.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import {
   collectReadiness,
@@ -135,6 +136,7 @@ export function CapabilityManagerView({ onClose }: { onClose: () => void }): Rea
   const visible = Math.max(4, Math.min(rows.length, (termRows || 24) - chrome))
   const winStart = Math.max(0, Math.min(clampedSel - Math.floor(visible / 2), rows.length - visible))
   const windowRows = rows.slice(winStart, winStart + visible)
+  usePopupListNavigation(clampedSel, rows.length, visible, setSel, !filterMode)
 
   const mountedAt = useRef(Date.now())
   const pastBuffer = (): boolean => Date.now() - mountedAt.current > 150
@@ -163,14 +165,6 @@ export function CapabilityManagerView({ onClose }: { onClose: () => void }): Rea
         return
       }
       onClose()
-      return
-    }
-    if (key.upArrow) {
-      setSel(s => Math.max(0, s - 1))
-      return
-    }
-    if (key.downArrow) {
-      setSel(s => Math.min(Math.max(0, rows.length - 1), s + 1))
       return
     }
     if (key.ctrl && input === 'u') {
@@ -246,7 +240,8 @@ export function CapabilityManagerView({ onClose }: { onClose: () => void }): Rea
       view="capabilities"
       onClose={onClose}
       captureInput={false}
-      footer={`↑↓ move · 1-6 section · / filter · ↵ detail · r refresh`}
+      bodyOwnsPageKeys
+      footer={`↑↓ move · pgup/pgdn page · 1-6 section · / filter · ↵ detail · r refresh`}
     >
       <Box marginTop={1} flexDirection="column">
         <Text>

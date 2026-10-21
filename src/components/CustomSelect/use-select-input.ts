@@ -17,6 +17,7 @@ import {
   type OptionWithDescription,
 } from './option-map.js'
 import type { SelectState } from './use-select-state.js'
+import { usePopupPageOwner } from './popup-list.js'
 
 export function letterOrdinalOf(option: {
   indexLabel?: string
@@ -56,7 +57,8 @@ export function useSelectInput<T>({
   tryEnterImageSelectionMode,
   isImageSelectionModeActive = false,
 }: UseSelectProps<T>): void {
-  const overlayToken = useRegisterOverlay('select', Boolean(onCancel))
+  usePopupPageOwner(!isDisabled)
+  const overlayToken = useRegisterOverlay('select', Boolean(onCancel), { ownsPageKeys: !isDisabled })
   const tokenRef = useRef(overlayToken)
   tokenRef.current = overlayToken
 

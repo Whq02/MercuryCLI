@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Box, Text, useInput, wrapText } from '../../../ink.js'
+import { usePopupListPaging } from '../../CustomSelect/popup-list.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import {
   CREW_EMPTY_DOOR,
@@ -110,6 +111,7 @@ export function CrewView({
   const pauseChip = crewPauseChipWords(agents, carrier === 'in-process' ? gateState : hostedGate)
   const pauseDoor = crewPauseDoorKey(pauseChip !== null)
 
+  usePopupListPaging(sel, rows.length, () => win.end - win.start, cursor.select, listMode)
   useInput((input, key) => {
     const selected = rows[sel]
     const target: CrewAgentFacts | null =
@@ -230,6 +232,7 @@ export function CrewView({
     ? [crewStopHint(armedTarget.name), 'esc close']
     : [
         '↑↓ move',
+        'pgup/pgdn page',
         rows.length > 0 ? (popup ? CREW_OPEN_IN_VIEW_KEY : '↵ open') : undefined,
         selectedRow?.kind === 'agent' ? (mainChatTaskId === selectedRow.facts.id ? `${CREW_MAIN_CHAT_KEY} (this one)` : CREW_MAIN_CHAT_KEY) : undefined,
         ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null),
@@ -239,8 +242,7 @@ export function CrewView({
     .join(' · ')
 
   return (
-    <CommandCenter elevated view="crew" subtitle={crewCountLabel(crewmates)} onClose={onClose} footer={footer} captureInput={false}>
-      <Box marginTop={rowRoom <= 0 ? 0 : 1} flexDirection="column">
+    <CommandCenter elevated view="crew" subtitle={crewCountLabel(crewmates)} onClose={onClose} footer={footer} bodyOwnsPageKeys captureInput={false}><Box marginTop={rowRoom <= 0 ? 0 : 1} flexDirection="column">
         {presence === 'blank' ? (
           <Text color={tokens.textMuted}>no chat is focused — a session's crewmates list here</Text>
         ) : null}
@@ -279,8 +281,7 @@ export function CrewView({
           </>
         )}
         {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted} wrap="truncate-middle">· {doorNote.text}</Text> : null}
-      </Box>
-    </CommandCenter>
+      </Box></CommandCenter>
   )
 }
 

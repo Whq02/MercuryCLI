@@ -53,7 +53,7 @@ export function LoginAccountCard({ family, onSignIn, onBack, onChanged }: { fami
         {compact ? <Text wrap={state.refusal ? 'wrap' : 'truncate-end'}>{heading}</Text> : detail.map((line, index) => <Text key={index}>{line || ' '}</Text>)}
       </Box>
       <Select
-        visibleOptionCount={compact ? Math.max(1, Math.min(rows - headingRows, slots.length + 2)) : slots.length + 2}
+        visibleOptionCount={Math.max(1, Math.min(rows - headingRows, slots.length + 2))}
         options={[
           { label: 'Sign in / re-login', value: 'sign-in' },
           ...(switchable ? [{ label: 'Switch active slot', value: 'switch' }] : []),

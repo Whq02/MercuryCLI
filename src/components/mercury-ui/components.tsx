@@ -2,7 +2,7 @@
 import * as React from 'react'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useElevatedSurface } from './useElevatedSurface.js'
-import { Box, MotionParkContext, Text, useInput, useTheme } from '../../ink.js'
+import { Box, MotionParkContext, Text, useInput, useTheme, wrapText } from '../../ink.js'
 import { useCwdState } from '../../hooks/useCwdState.js'
 import { formatFreshness, freshnessTone } from '../../utils/cockpit/freshness.js'
 import { quantizedNow, subscribeUiClock } from '../../utils/cockpit/uiClock.js'
@@ -124,10 +124,10 @@ export function CommandCenter({
   const groundCwd = useCwdState()
   const dir = groundCwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || groundCwd
   const cols = useTerminalSize().columns
-  const footerText = packFooter(
-    composeFooterHint(footer ?? dir, { closeKeys, captureInput }),
-    Math.max(0, cols - 4),
-  )
+  const footerWords = composeFooterHint(footer ?? dir, { closeKeys, captureInput })
+  const fullKeyGuide = footerWords.includes('pgup/pgdn')
+  const guideRows = fullKeyGuide ? wrapText(footerWords, Math.max(1, cols - 4), 'wrap').split('\n').length : 1
+  const footerText = fullKeyGuide ? footerWords : packFooter(footerWords, Math.max(0, cols - 4))
   const insideModal = useIsInsideModal()
   const chrome = useLayoutChrome()
   const popup = React.useContext(PopupFrameContext)
@@ -135,8 +135,8 @@ export function CommandCenter({
   const termRows = useTerminalSize().rows
   const slotRows = useModalOrTerminalSize({ rows: termRows, columns: cols }).rows
   const compactHeaderRows = slotRows > 1 ? 1 : 0
-  const compactFooterRows = slotRows > 2 ? 1 : 0
-  const bodyCap = isCompact ? Math.max(0, slotRows - compactHeaderRows - compactFooterRows) : Math.max(1, slotRows - (5 + (specimen ? 1 : 0)))
+  const compactFooterRows = slotRows > 2 ? Math.min(guideRows, slotRows - 2) : 0
+  const bodyCap = isCompact ? Math.max(0, slotRows - compactHeaderRows - compactFooterRows) : Math.max(1, slotRows - (5 + (specimen ? 1 : 0)) - (guideRows - 1))
   const bodyRef = React.useRef<ScrollBoxHandle | null>(null)
   const modalScrollRef = useModalScrollRef()
   const declaredRow = React.useRef<unknown>(null)
@@ -191,7 +191,7 @@ export function CommandCenter({
       <CursorDeclarationContext.Provider value={followCursor}>
         <PopupScrollViewport scrollRef={bodyRef}><ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap} minHeight={0}>{children}</ScrollBox></PopupScrollViewport>
       </CursorDeclarationContext.Provider>
-      {compactFooterRows > 0 ? <Box height={1} flexShrink={0} onClick={closable ? onClose : undefined}><Text dimColor wrap="truncate-end">{bodyFooterText}</Text></Box> : null}
+      {compactFooterRows > 0 ? <Box height={compactFooterRows} flexShrink={0} onClick={closable ? onClose : undefined}><Text dimColor wrap={fullKeyGuide ? 'wrap' : 'truncate-end'}>{bodyFooterText}</Text></Box> : null}
     </Box>
   )
   return (

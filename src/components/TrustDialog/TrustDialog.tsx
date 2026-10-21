@@ -103,7 +103,7 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
         <Select options={[{ label: "Yes, I trust this folder", value: "enable_all" }, { label: "No, exit", value: "exit" }]} onChange={(value: string) => onChange(value as 'enable_all' | 'exit')} onCancel={() => onChange("exit")} />
         {
 }
-        <Text dimColor={true}>{exitState.pending ? <>{exitChordNoticeText(exitState.keyName ?? null)}</> : <><KeyboardShortcutHint shortcut="Enter" action="confirm" /> · <KeyboardShortcutHint shortcut="Esc" action="exits" /></>}</Text>
+        <Text dimColor={true}>{exitState.pending ? <>{exitChordNoticeText(exitState.keyName ?? null)}</> : <>↑↓ move · <KeyboardShortcutHint shortcut="Enter" action="confirm" /> · <KeyboardShortcutHint shortcut="Esc" action="exits" /></>}</Text>
       </Box>
     </PermissionDialog>
   );

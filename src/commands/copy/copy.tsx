@@ -222,7 +222,7 @@ function CopyPicker({
     <CommandCenter
       view="copy"
       subtitle={`${turnLabel} · ${blockCountLabel}`}
-      footer="enter copy · w write to file · esc cancel"
+      footer="↑↓ move · pgup/pgdn page · ↵ copy · w write to file · esc cancel"
       captureInput={false}
       onClose={() => finish('Copy cancelled.', true)}
     >

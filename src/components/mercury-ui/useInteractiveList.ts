@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
-import { useInput } from '../../ink.js'
+import { useInput, type DOMElement } from '../../ink.js'
 import {
   applyNavMotion,
   decodeNavKey,
@@ -9,6 +9,7 @@ import {
 } from './navSemantics.js'
 import { useOpenEventGate } from './useOpenEventGate.js'
 import { useStableSelection } from './useStableSelection.js'
+import { popupPageRows } from '../CustomSelect/popup-list.js'
 
 
 export type AsyncListNote = { pending: string; result: Promise<string | null | undefined> }
@@ -27,6 +28,7 @@ type InteractiveListRowProps = {
   reasonUnavailable?: string
   onSelect: () => void
   onActivate: () => void
+  rowRef: (node: DOMElement | null) => void
 }
 
 export function useInteractiveList<Row>({
@@ -64,8 +66,10 @@ export function useInteractiveList<Row>({
   activate: (i: number) => void
   rowProps: (row: Row, i: number) => InteractiveListRowProps
 } {
+  const rowNodes = useRef(new Map<number, DOMElement>())
   const renderedRows = useRef(new Set<number>())
   renderedRows.current = new Set()
+  const visibleRowCount = (): number => Math.max(1, popupPageRows([...rowNodes.current].filter(([index]) => renderedRows.current.has(index)).map(([,node]) => node)) || renderedRows.current.size)
   const clampIndex = (i: number): number => Math.min(Math.max(0, i), Math.max(0, rows.length - 1))
   const initialIndex = ((): number => {
     if (rows.length === 0) return 0
@@ -150,7 +154,7 @@ export function useInteractiveList<Row>({
         return
       }
       if (action !== null && action !== 'activate') {
-        const target = applyNavMotion(action, liveIndexRef.current, rows.length, { orientation, pageSize: pageSize ?? Math.max(1, renderedRows.current.size) })
+        const target = applyNavMotion(action, liveIndexRef.current, rows.length, { orientation, pageSize: pageSize ?? visibleRowCount() })
         if (target !== null) {
           event.stopImmediatePropagation()
           select(
@@ -202,6 +206,7 @@ export function useInteractiveList<Row>({
     reasonUnavailable: isUnavailable(row) ? reasonUnavailable?.(row) : undefined,
     onSelect: () => select(i),
     onActivate: () => activate(i),
+    rowRef: node => { if (node) rowNodes.current.set(i, node); else rowNodes.current.delete(i) },
     })
   }
 

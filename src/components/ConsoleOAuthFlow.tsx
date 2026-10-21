@@ -10,6 +10,7 @@ import wrapText from '../ink/wrap-text.js'
 import { SetupFrameBody } from './MercurySetupFrame.js'
 import { Select } from './CustomSelect/index.js'
 import TextInput from './TextInput.js'
+import { useSettingsPopupFrameIfAny } from './Settings/Settings.js'
 import { Spinner } from './Spinner.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -172,6 +173,13 @@ export function ConsoleOAuthFlow({
   }, [walkHost])
   const localRoad = walkHost ? localDiscoverySummary() : null
   const menuUp = leg === null && accountFamily === null && state.name === 'idle'
+  const settingsFrame = useSettingsPopupFrameIfAny()
+  const listUp = menuUp || accountFamily !== null || leg === 'anthropic' || leg === 'openai'
+  React.useLayoutEffect(() => {
+    if (listUp) settingsFrame?.setHint('↑↓ move · pgup/pgdn page · ↵ select · esc back · click outside closes')
+    else settingsFrame?.setHint(null)
+    return () => settingsFrame?.setHint(null)
+  }, [listUp, settingsFrame])
   const menuCount = loginFamilyRows({ engineLegs: onOpenaiDone !== undefined }).length + (onSkip !== undefined ? 1 : 0)
   usePopupMarker(compact && menuUp ? settingsPopupMarker(menuFocus + 1, menuCount) : null)
   const [code, setCodeState] = useState('')

@@ -18,6 +18,8 @@ const previousCwd = process.cwd()
 mkdirSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true })
 const fixtureRoot = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR!, 'popup-contract-'))
 process.chdir(fixtureRoot)
+process.env.HOME = process.env.MERCURY_CONFIG_DIR
+process.env.USERPROFILE = process.env.MERCURY_CONFIG_DIR
 process.env.MERCURY_CLIPBOARD_FILE = join(process.env.MERCURY_CONFIG_DIR!, 'popup-clipboard.txt')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
@@ -298,7 +300,7 @@ for (const cols of [80, 120]) {
     const props = { onClose: () => { closed = true }, fullScene: { columns: cols, rows: terminalRows } }
     const element = name === 'boot-logins' ? h(BootLoginsScreen, { ...props, facts: mixedFacts() })
       : name === 'kit' ? h(KitMenuScreen, { ...props, catalogue: kitCatalogue as never, store: store as never, workspaceDir: fixtureRoot })
-      : h(BootSaturnScreen, { ...props, facts: saturnFacts, nowMs: FIXED_NOW, receiptsOf: () => [], modelOptionsOf: () => ['fixture-model'], presetsOf: () => [], projectsOf: () => [] })
+      : h(BootSaturnScreen, { ...props, facts: saturnFacts, nowMs: FIXED_NOW, receiptsOf: () => [], modelOptionsOf: () => ['fixture-model'], presetsOf: () => [], projectsOf: () => ['/fixture/project'] })
     const scene = await mount(element, cols, terminalRows)
     const focus = () => scene.lines().find(line => /❯ /.test(line))?.trim() ?? ''
     try {
@@ -336,6 +338,14 @@ for (const cols of [80, 120]) {
       } else {
         scene.push('a')
         check(cols + ' saturn: its advertised birth-form door opens', await waitFor(() => /schedule it|schedule birth/i.test(scene.screen()) && !scene.screen().includes('x delete'), 2000))
+        scene.push('\x1b[H')
+        scene.push(keys.down)
+        scene.push(keys.down)
+        await settledFrame(scene, frame => frame.includes('❯ Workspace'))
+        scene.push(keys.enter)
+        await settledFrame(scene, frame => frame.includes('/fixture/project'))
+        scene.push(keys.enter)
+        await settledFrame(scene, frame => frame.includes('Workspace') && frame.includes('/fixture/project'))
         await save(scene, 'saturn-form', cols, terminalRows)
         scene.push(keys.esc)
         await settledFrame(scene)
@@ -638,6 +648,392 @@ for (const cols of [80, 120]) {
     } catch (error) { check(cols + ' ' + name + ': drive completes', false, String(error) + '\n' + scene.screen()) }
     finally { scene.unmount() }
   }
+}
+
+
+const { Usage } = await import('../../src/components/Settings/Usage.tsx')
+for (const cols of [80, 120]) {
+  for (const compact of [false, true]) {
+    const request = { view: 'usage' as const, width: cols - 4, rows: 18, line: 'Fixture usage', hint: 'esc closes', body: (geometry: { inner: number; rowBudget: number }) => h(Usage, { width: geometry.inner, rowBudget: geometry.rowBudget, compact }) }
+    openSettingsPopup(request)
+    const scene = await mount(h(SettingsPopupSlot, { overlay: false }), cols)
+    const label = cols + ' usage ' + (compact ? 'compact' : 'cards')
+    try {
+      await settledFrame(scene, frame => frame.includes('Mercury · usage') && frame.includes('pgup/pgdn'))
+      const first = scene.screen()
+      scene.push(keys.down)
+      check(label + ': Down scrolls the body', await waitFor(() => scene.screen() !== first, 1800), scene.screen())
+      scene.push(keys.up)
+      check(label + ': Up returns to the first position', await waitFor(() => scene.screen() === first, 1800), scene.screen())
+      scene.push(keys.pgdn)
+      check(label + ': PageDown advances a page', await waitFor(() => scene.screen() !== first, 1800), scene.screen())
+      const page = scene.screen()
+      await save(scene, 'usage-' + (compact ? 'compact' : 'cards') + '-paged', cols)
+      scene.push(keys.pgup)
+      check(label + ': PageUp returns toward the top', await waitFor(() => scene.screen() !== page, 1800), scene.screen())
+      scene.push(keys.esc)
+      check(label + ': Escape closes', await waitFor(() => !isSettingsPopupOpen(), 1800))
+    } catch (error) { check(label + ': drive completes', false, String(error) + '\n' + scene.screen()) }
+    finally { scene.unmount(); closeSettingsPopup() }
+  }
+}
+const diffModule = await import('../../src/hooks/useDiffData.ts')
+const diffFiles = options.map(row => ({ path: 'choice-' + row.value + '.ts', linesAdded: 1, linesRemoved: 1, isBinary: false, isLargeFile: false, isTruncated: false }))
+const diffData = { files: diffFiles, loading: false, stats: { filesChanged: diffFiles.length, insertions: 24, deletions: 24 }, hunks: new Map(diffFiles.map(file => [file.path, [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: ['-before', '+after'] }]])) }
+mock.module('../../src/hooks/useDiffData.ts', () => ({ ...diffModule, useDiffData: () => diffData }))
+const diffSourcesModule = await import('../../src/components/diff/diffSources.ts')
+mock.module('../../src/components/diff/diffSources.ts', () => ({ ...diffSourcesModule, enumerateExtraSources: async () => [] }))
+const { DiffDialog } = await import('../../src/components/diff/DiffDialog.tsx')
+const copyCommand = await import('../../src/commands/copy/copy.tsx')
+const cachingCommand = await import('../../src/commands/caching/caching.tsx')
+const response = options.map(row => '\x60\x60\x60ts\n' + row.label + '\n\x60\x60\x60').join('\n\n')
+for (const cols of [80, 120]) {
+  for (const name of ['diff', 'copy', 'caching']) {
+    let closed = false
+    const close = () => { closed = true }
+    const context = { messages: [{ type: 'assistant', uuid: 'fixture', message: { role: 'assistant', content: [{ type: 'text', text: response }] } }], options: { tools: [], commands: [], agents: [] }, getAppState: getDefaultAppState, setAppState() {} }
+    const body = name === 'diff' ? h(DiffDialog, { messages: [], onDone: close }) : name === 'copy' ? await copyCommand.call(close, context as never, '') : await cachingCommand.call(close, context as never, '')
+    const scene = await mount(h(ModalContext.Provider, { value: { rows: 24, columns: cols, scrollRef: null } }, body), cols)
+    const selected = () => {
+      const at = scene.cursor()
+      const line = scene.lines()[at.y] ?? ''
+      return name === 'diff' ? line.match(/choice-\d+\.ts/)?.[0] ?? '' : line.trim()
+    }
+    try {
+      await settledFrame(scene, frame => frame.includes(name === 'diff' ? 'choice-' : name === 'copy' ? 'Whole response' : 'caching'))
+      const first = selected()
+      scene.push(keys.down)
+      check(cols + ' ' + name + ': Down moves selection', await waitFor(() => selected() !== first && selected() !== '', 1800), scene.screen())
+      scene.push(keys.up)
+      check(cols + ' ' + name + ': Up restores it', await waitFor(() => selected() === first, 1800), scene.screen())
+      scene.push(keys.pgdn)
+      check(cols + ' ' + name + ': PageDown moves the selection', await waitFor(() => selected() !== first && selected() !== '', 1800), scene.screen())
+      check(cols + ' ' + name + ': guide names paging', scene.screen().includes('pgup/pgdn'), scene.screen())
+      await save(scene, name + '-paged', cols)
+      scene.push(keys.pgup)
+      await waitFor(() => selected() === first, 1800)
+      const before = scene.screen()
+      scene.push(keys.enter)
+      check(cols + ' ' + name + ': Enter takes its existing action', await waitFor(() => closed || scene.screen() !== before, 2000), scene.screen())
+      if (!closed) { scene.push(keys.esc); await settledFrame(scene, frame => closed || frame.trim() !== ''); if (!closed) scene.push(keys.esc) }
+      check(cols + ' ' + name + ': Escape returns to the opener', await waitFor(() => closed, 2000))
+    } catch (error) { check(cols + ' ' + name + ': drive completes', false, String(error) + '\n' + scene.screen()) }
+    finally { scene.unmount() }
+  }
+}
+
+
+const readinessModule = await import('../../src/utils/readiness.ts')
+const readinessRows = options.map(row => ({ id: row.value, kind: 'tool', label: 'capability-' + row.value, state: 'ready', detail: 'Fixture capability ' + row.value, source: 'fixture', remedy: '', lastCheckedAt: Date.now() }))
+mock.module('../../src/utils/readiness.ts', () => ({ ...readinessModule, collectReadiness: () => ({ records: readinessRows }) }))
+const realmsModule = await import('../../src/utils/realmRegistry.ts')
+const realms = options.map(row => ({ id: row.value, name: 'realm-' + row.value, dir: '/fixture/realm-' + row.value, issuedCount: 0 }))
+let realmPicked = ''
+mock.module('../../src/utils/realmRegistry.ts', () => ({ ...realmsModule, readRealmRegistry: () => ({ state: 'ready', realms, ledger: [] }), realmGitBranch: () => null, realmRegistryPath: () => '/fixture/realms.json', recordRealmLaunchIssued: (id: string) => { realmPicked = id; return { ok: true, message: 'mercury /fixture/realm-' + id } } }))
+const osModule = await import('node:os')
+mock.module('node:os', () => ({ ...osModule, homedir: () => process.env.MERCURY_CONFIG_DIR! }))
+const accountsModule = await import('../../src/services/providers/accountSlots.ts')
+const accountGroups = [{ family: { id: 'openai', available: true, credentialed: false }, slots: options.map(row => ({ family: 'openai', id: row.value, name: 'account-' + row.value, kind: 'api-key', kindLabel: 'API key', identity: 'fixture-' + row.value, active: false, signedIn: false, envPinned: false, removal: { route: 'owner', note: 'fixture' } })) }]
+mock.module('../../src/services/providers/accountSlots.ts', () => ({ ...accountsModule, deriveFamilySlotGroups: () => accountGroups }))
+const discoveryModule = await import('../../src/services/providers/providerDiscovery.ts')
+mock.module('../../src/services/providers/providerDiscovery.ts', () => ({ ...discoveryModule, refreshProviderDiscovery: async () => undefined }))
+const { CapabilityManagerView } = await import('../../src/components/mercury-ui/parity/CapabilityManagerView.tsx')
+const { RealmsView } = await import('../../src/components/mercury-ui/parity/RealmsView.tsx')
+const { AccountView } = await import('../../src/components/mercury-ui/parity/AccountView.tsx')
+for (const cols of [80, 120]) {
+  for (const name of ['capabilities', 'realms', 'accounts']) {
+    let closed = false
+    const close = () => { closed = true }
+    realmPicked = ''
+    const body = name === 'capabilities' ? h(CapabilityManagerView, { onClose: close }) : name === 'realms' ? h(RealmsView, { onClose: close }) : h(AccountView, { onClose: close })
+    const scene = await mount(h(ModalContext.Provider, { value: { rows: 28, columns: cols, scrollRef: null } }, body), cols, 28)
+    const selected = () => scene.lines().find(line => /[▸❯›] /.test(line) && /capability-|realm-|account-/.test(line))?.match(/capability-\d+|realm-\d+|account-\d+/)?.[0] ?? ''
+    try {
+      await settledFrame(scene, frame => frame.includes(name === 'capabilities' ? 'capability-0' : name === 'realms' ? 'realm-0' : 'account-0'))
+      const first = selected()
+      scene.push(keys.down)
+      check(cols + ' ' + name + ': Down moves selection', await waitFor(() => selected() !== first && selected() !== '', 1800), scene.screen())
+      scene.push(keys.up)
+      check(cols + ' ' + name + ': Up restores selection', await waitFor(() => selected() === first, 1800), scene.screen())
+      scene.push(keys.pgdn)
+      check(cols + ' ' + name + ': PageDown moves the visible window', await waitFor(() => selected() !== first && selected() !== '', 1800), scene.screen())
+      check(cols + ' ' + name + ': paging is taught in the footer', scene.screen().includes('pgup/pgdn'), scene.screen())
+      await save(scene, name + '-paged', cols, 28)
+      const page = selected()
+      scene.push(keys.pgup)
+      check(cols + ' ' + name + ': PageUp returns toward the top', await waitFor(() => selected() !== page, 1800), scene.screen())
+      const before = scene.screen()
+      scene.push(keys.enter)
+      check(cols + ' ' + name + ': Enter opens its existing detail or route', await waitFor(() => closed || realmPicked !== '' || scene.screen() !== before, 2500), scene.screen())
+      if (!closed) scene.push(keys.esc)
+      check(cols + ' ' + name + ': Escape closes', await waitFor(() => closed, 1800))
+    } catch (error) { check(cols + ' ' + name + ': drive completes', false, String(error) + '\n' + scene.screen()) }
+    finally { scene.unmount() }
+  }
+}
+
+
+const crewRoster = { rows: options.map((row, index) => ({ id: 'crew-' + String(index).padStart(2, '0'), name: 'crew-' + String(index).padStart(2, '0'), kind: 'agent', status: 'completed', model: 'fixture-model', effort: 'max', startTime: 1000, endTime: 2000, description: 'Fixture crewmate' })), mission: [], samples: [], reported: true }
+const emptyAsks: never[] = []
+setFocusedSessionConnector(new Proxy(originalConnector, { get(target, property) {
+  if (property === 'workRoster') return () => crewRoster
+  if (property === 'asks') return () => emptyAsks
+  if (property === 'sessionId') return () => 'fixture-session'
+  const value = Reflect.get(target, property)
+  return typeof value === 'function' ? value.bind(target) : value
+} }))
+const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
+const agentStore = await import('../../src/services/agents/store.ts')
+const trash = options.map(row => ({ id: row.value, agentType: 'trash-' + String(Number(row.value)).padStart(2, '0'), deletedAt: new Date().toISOString(), originalPath: '/fixture/agents/' + row.value + '.md', source: 'project' }))
+let restored = ''
+mock.module('../../src/services/agents/store.ts', () => ({ ...agentStore, listAgentTrash: () => trash, restoreAgentFromTrash: async (id: string) => { restored = id; return { path: '/fixture/restored.md' } } }))
+const { AgentStudio } = await import('../../src/components/agents/studio/AgentStudio.tsx')
+const runModule = await import('../../src/services/run/runCoordinator.ts')
+const runSnapshot = { objective: 'Fixture run', runId: 'fixture', lifecycle: 'completed', phase: 'done', phaseReason: 'fixture', substantive: true, startedAt: 1000, updatedAt: 2000, continuationCount: 0, deliverables: [{ id: 'one', title: 'Fixture item', state: 'done' }], nextAction: 'Fixture next action', blocker: null, recentEffects: [], changedPaths: [], pendingTools: [], totalChangedPaths: 0, unresolvedBadEffects: 0, verification: { state: 'verified', detail: 'Fixture evidence' }, contextEpoch: 1, lastContextTransition: null, ideFeedback: { state: 'clean', detail: 'Fixture diagnostics' }, totalEvents: 0, recentEvents: [] }
+mock.module('../../src/services/run/runCoordinator.ts', () => ({ ...runModule, getRunSnapshot: () => runSnapshot, subscribeRuns: () => () => {} }))
+const runCommand = await import('../../src/commands/run/run.tsx')
+for (const cols of [80, 120]) {
+  for (const name of ['crew', 'agent-trash', 'run-inspector']) {
+    let closed = false
+    const close = () => { closed = true }
+    restored = ''
+    const body = name === 'crew' ? h(CrewView, { onClose: close }) : name === 'agent-trash' ? h(AgentStudio, { tools: [] as never, onExit: close }) : await runCommand.call(close, {} as never, '')
+    const scene = await mount(h(ModalContext.Provider, { value: { rows: name === 'run-inspector' ? 14 : 24, columns: cols, scrollRef: null } }, body), cols)
+    const focus = () => {
+      const lines = scene.lines()
+      const line = name === 'run-inspector' ? lines[scene.cursor().y] ?? '' : lines.find(line => /[▸❯›]/.test(line) && /crew-\d|trash-\d/.test(line)) ?? ''
+      return line.match(/crew-\d+|trash-\d+|RUN|DELIVERABLES|NEXT|EFFECTS|EVIDENCE|CONTEXT|IDE|TIMELINE/)?.[0] ?? ''
+    }
+    try {
+      if (name === 'agent-trash') {
+        await settledFrame(scene, frame => frame.includes('U trash'))
+        scene.push('U')
+      }
+      await settledFrame(scene, frame => frame.includes(name === 'crew' ? 'crew-00' : name === 'agent-trash' ? 'trash-00' : 'Fixture run'))
+      const first = focus()
+      scene.push(keys.down)
+      check(cols + ' ' + name + ': Down moves the visible selection', await waitFor(() => focus() !== first && focus() !== '', 1800), scene.screen())
+      scene.push(keys.up)
+      check(cols + ' ' + name + ': Up restores selection', await waitFor(() => focus() === first, 1800), scene.screen())
+      scene.push(keys.pgdn)
+      check(cols + ' ' + name + ': PageDown follows the selection', await waitFor(() => focus() !== first && focus() !== '', 1800), scene.screen())
+      check(cols + ' ' + name + ': page guide is visible', scene.screen().includes('pgup/pgdn'), scene.screen())
+      await save(scene, name + '-paged', cols)
+      const page = focus()
+      scene.push(keys.pgup)
+      check(cols + ' ' + name + ': PageUp returns toward the top', await waitFor(() => focus() !== page, 1800), scene.screen())
+      const before = scene.screen()
+      scene.push(keys.enter)
+      check(cols + ' ' + name + ': Enter uses its existing detail or restore door', await waitFor(() => restored !== '' || closed || scene.screen() !== before, 2000), scene.screen())
+      if (!closed) {
+        scene.push(keys.esc)
+        await settledFrame(scene, frame => closed || frame.trim() !== '')
+        if (!closed) scene.push(keys.esc)
+      }
+      check(cols + ' ' + name + ': Escape closes or backs out once', await waitFor(() => closed, 1800))
+    } catch (error) { check(cols + ' ' + name + ': drive completes', false, String(error) + '\n' + scene.screen()) }
+    finally { scene.unmount() }
+  }
+}
+setFocusedSessionConnector(originalConnector)
+
+
+const { createUserMessage } = await import('../../src/utils/messages.ts')
+const workbenchRecords = options.map(row => createUserMessage({ content: 'prompt-' + row.value }))
+const workflowRoster = { rows: options.map(row => ({ id: 'workflow-' + row.value, runId: 'workflow-' + row.value, name: 'workflow-' + row.value, kind: 'workflow', status: 'completed', startTime: 1000, endTime: 2000 })), mission: [], samples: [], reported: true }
+setFocusedSessionConnector(new Proxy(originalConnector, { get(target, property) {
+  if (property === 'workRoster') return () => workflowRoster
+  if (property === 'records') return () => workbenchRecords
+  if (property === 'sessionId') return () => 'fixture-session'
+  const value = Reflect.get(target, property)
+  return typeof value === 'function' ? value.bind(target) : value
+} }))
+const { PromptsPanel } = await import('../../src/components/prompts-panel/PromptsPanel.tsx')
+const { WorkflowsBoard } = await import('../../src/components/tasks/WorkflowsBoard.tsx')
+for (const cols of [80, 120]) {
+  for (const name of ['workbench', 'workflows']) {
+    let closed = false
+    const body = name === 'workbench' ? h(PromptsPanel, { onClose: () => { closed = true } }) : h(WorkflowsBoard, { onClose: () => { closed = true } })
+    const scene = await mount(h(ModalContext.Provider, { value: { rows: 24, columns: cols, scrollRef: null } }, body), cols)
+    const focus = () => {
+      const line = scene.lines()[scene.cursor().y] ?? ''
+      return line.match(/prompt-\d+|workflow-\d+/)?.[0] ?? ''
+    }
+    try {
+      await settledFrame(scene, frame => frame.includes(name === 'workbench' ? 'prompts' : name))
+      if (name === 'workflows') scene.push('2')
+      scene.push('\x1b[H')
+      await settledFrame(scene, frame => /prompt-0|workflow-0/.test(frame))
+      const first = focus()
+      scene.push(keys.down)
+      check(cols + ' ' + name + ': Down selects a visible row', await waitFor(() => focus() !== first && focus() !== '', 1800), scene.screen())
+      scene.push(keys.up)
+      check(cols + ' ' + name + ': Up returns to it', await waitFor(() => focus() === first, 1800), scene.screen())
+      scene.push(keys.pgdn)
+      check(cols + ' ' + name + ': PageDown moves a page', await waitFor(() => focus() !== first && focus() !== '', 1800), scene.screen())
+      check(cols + ' ' + name + ': page guide and markers paint', scene.screen().includes('pgup/pgdn') && scene.lines().some(line => /[↑↓]/.test(line) && !line.includes('↑↓')), scene.screen())
+      await save(scene, name + '-paged', cols)
+      const page = focus()
+      scene.push(keys.pgup)
+      check(cols + ' ' + name + ': PageUp moves back', await waitFor(() => focus() !== page, 1800), scene.screen())
+      const before = scene.screen()
+      scene.push(keys.enter)
+      check(cols + ' ' + name + ': Enter opens the selected row', await waitFor(() => scene.screen() !== before, 2500), scene.screen())
+      scene.push(keys.esc)
+      await settledFrame(scene, frame => closed || frame.trim() !== '')
+      if (!closed) scene.push(keys.esc)
+      check(cols + ' ' + name + ': Escape returns then closes', await waitFor(() => closed, 1800))
+    } catch (error) { check(cols + ' ' + name + ': drive completes', false, String(error) + '\n' + scene.screen()) }
+    finally { scene.unmount() }
+  }
+}
+setFocusedSessionConnector(originalConnector)
+
+
+const { ConsoleOAuthFlow } = await import('../../src/components/ConsoleOAuthFlow.tsx')
+const { FilePermissionDialog } = await import('../../src/components/permissions/FilePermissionDialog/FilePermissionDialog.tsx')
+for (const cols of [80, 120]) {
+  const request = { view: 'logins' as const, width: cols - 4, rows: 18, line: 'Fixture logins', hint: 'esc closes', bodyOwnsEscape: true, body: (geometry: { inner: number; rowBudget: number }) => h(PopupForm, { width: geometry.inner, rows: geometry.rowBudget }, h(ConsoleOAuthFlow, { onDone: closeSettingsPopup, onCancel: closeSettingsPopup, onOpenaiDone: noAction })) }
+  openSettingsPopup(request)
+  const scene = await mount(h(SettingsPopupSlot, { overlay: false }), cols)
+  const focus = () => scene.lines()[scene.cursor().y]?.trim() ?? ''
+  try {
+    await settledFrame(scene, frame => frame.includes('pgup/pgdn') && frame.includes('Anthropic'))
+    const first = focus()
+    scene.push(keys.down)
+    check(cols + ' login roster: Down moves selection', await waitFor(() => focus() !== first && focus() !== '', 1800), scene.screen())
+    scene.push(keys.up)
+    check(cols + ' login roster: Up restores it', await waitFor(() => focus() === first, 1800), scene.screen())
+    scene.push(keys.pgdn)
+    check(cols + ' login roster: PageDown follows the roster, not its wrapper', await waitFor(() => focus() !== first, 1800), scene.screen())
+    await save(scene, 'login-roster-paged', cols)
+    scene.push('\x1b[H')
+    await settledFrame(scene)
+    scene.push(keys.enter)
+    check(cols + ' login roster: Enter opens the account card, not a network sign-in', await waitFor(() => scene.screen().includes('Sign in / re-login'), 2500), scene.screen())
+    const accountFirst = focus()
+    scene.push(keys.pgdn)
+    check(cols + ' login account card: PageDown follows a bounded choice window', await waitFor(() => focus() !== accountFirst && /Remove key/.test(focus()), 1800), scene.screen())
+    await save(scene, 'login-account-paged', cols)
+    scene.push('\x1b[H')
+    await waitFor(() => focus().includes('Sign in / re-login'), 1800)
+    scene.push(keys.enter)
+    check(cols + ' login account card: Enter opens credential choices without authentication', await waitFor(() => scene.screen().includes('pick the credential'), 1800), scene.screen())
+    scene.push(keys.esc)
+    await settledFrame(scene)
+    scene.push(keys.esc)
+    check(cols + ' login roster: Escape returns then closes', await waitFor(() => !isSettingsPopupOpen(), 1800))
+  } catch (error) { check(cols + ' login roster: drive completes', false, String(error) + '\n' + scene.screen()) }
+  finally { scene.unmount(); closeSettingsPopup() }
+  let allowed = false
+  const confirm = { toolUseID: 'fixture', input: {}, permissionResult: { behavior: 'ask' }, onAllow() { allowed = true }, onReject() {}, onUserInteraction() {}, onAbort() {}, tool: { name: 'Read' }, toolUseContext: {}, assistantMessage: {} }
+  const permission = await mount(h(FilePermissionDialog, { toolUseConfirm: confirm as never, onDone() {}, onReject() {}, title: 'Fixture file permission', path: null, parseInput: input => input as Record<string, unknown>, operationType: 'read', content: h(Text, {}, 'Fixture content') }), cols)
+  try {
+    await settledFrame(permission, frame => frame.includes('Fixture file permission'))
+    check(cols + ' file permission: guide names movement paging confirmation and cancellation', permission.screen().includes('↑↓') && permission.screen().includes('pgup/pgdn') && permission.screen().includes('↵ confirm') && permission.screen().includes('esc cancel'), permission.screen())
+    await save(permission, 'file-permission-guide', cols)
+    permission.push(keys.enter)
+    check(cols + ' file permission: Enter calls only its supplied allow callback', await waitFor(() => allowed, 1800))
+  } finally { permission.unmount() }
+}
+const fsModule = await import('../../src/utils/fsOperations.ts')
+const fixtureFs = fsModule.getFsImplementation()
+mock.module('../../src/utils/fsOperations.ts', () => ({ ...fsModule, getFsImplementation: () => new Proxy(fixtureFs, { get(target, key) { if (key === 'cwd') return () => '/fixture/project'; const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value } }) }))
+const configModule = await import('../../src/utils/config.ts')
+mock.module('../../src/utils/config.ts', () => ({ ...configModule, getProjectPathForConfig: () => '/fixture/project', checkHasTrustDialogAccepted: () => false }))
+const { TrustDialog } = await import('../../src/components/TrustDialog/TrustDialog.tsx')
+for (const cols of [80, 120]) {
+  const scene = await mount(h(TrustDialog, { onDone() {} }), cols, 30)
+  try {
+    await settledFrame(scene, frame => frame.includes('Trust this folder?'))
+    check(cols + ' trust: guide preserves the exit meaning', scene.screen().includes('↑↓ move') && scene.screen().includes('↵ confirm') && scene.screen().includes('esc exits'), scene.screen())
+    await save(scene, 'trust-guide', cols, 30)
+  } finally { scene.unmount() }
+}
+
+
+const { useInput: useFixtureInput } = await import('../../src/ink.ts')
+for (const cols of [80, 120]) {
+  let focused = ''
+  function LateSelector(): React.ReactNode {
+    const [open, setOpen] = React.useState(false)
+    useFixtureInput(input => { if (input === 'r') setOpen(true) })
+    return h(PopupForm, { width: cols - 4, rows: 8 }, open
+      ? h(Select, { options, visibleOptionCount: 3, onFocus: value => { focused = String(value) } })
+      : h(Text, {}, 'r opens the list'))
+  }
+  const scene = await mount(h(LateSelector), cols)
+  try {
+    await settledFrame(scene, frame => frame.includes('r opens the list'))
+    scene.push('r')
+    await settledFrame(scene, frame => frame.includes('choice 01'))
+    scene.push(keys.pgdn)
+    check(cols + ' late selector: a mounted form yields PageDown even without a cancel callback', await waitFor(() => focused === '3', 1800), focused)
+    scene.push(keys.pgup)
+    check(cols + ' late selector: PageUp returns to the first choice', await waitFor(() => focused === '0', 1800), focused)
+    await save(scene, 'late-selector', cols)
+  } finally { scene.unmount() }
+}
+
+
+const instructionsModule = await import('../../src/services/instructions/engine.ts')
+const instructionFiles = Promise.resolve(options.map(row => ({ path: '/fixture/instruction-' + row.value + '.md', content: '', family: 'native', type: 'Project' })))
+mock.module('../../src/services/instructions/engine.ts', () => ({ ...instructionsModule, getInstructionFiles: () => instructionFiles }))
+const libraryModule = await import('../../src/mneme/mnemeLibrary.ts')
+const topicDocs = options.map((row, index) => ({ id: 'topic-fixture-' + String.fromCharCode(97 + index), slug: 'fixture-' + String.fromCharCode(97 + index), summary: 'topic ' + row.value, tokenCount: 100, created: new Date().toISOString(), updated: new Date().toISOString(), updateLog: [], history: [], sections: [{ heading: 'Facts', entries: Array.from({ length: 20 }, (_, i) => ({ text: 'Fixture fact ' + row.value + '-' + i + ' with enough words to wrap inside the reader.', seq: index * 20 + i + 1, time: new Date().toISOString(), source: 'operator:fixture' })) }] }))
+mock.module('../../src/mneme/mnemeLibrary.ts', () => ({ ...libraryModule, listTopicDocs: () => topicDocs, listArchiveDocs: () => [] }))
+const maintenanceModule = await import('../../src/mneme/mnemeMaintenance.ts')
+mock.module('../../src/mneme/mnemeMaintenance.ts', () => ({ ...maintenanceModule, mnemeStatus: () => ({ enabled: true, entryCount: 480, buffered: 0, pendingConsuming: 0, historyCount: 0, topicCount: 24, due: false, dueReason: '', running: false, degraded: false, lastConsolidatedAt: null }) }))
+const { MemoryCentreView } = await import('../../src/components/memory/MemoryCentreView.tsx')
+const { MemoryFileSelector } = await import('../../src/components/memory/MemoryFileSelector.tsx')
+const { memoryFooter } = await import('../../src/components/memory/memoryCentreLayout.ts')
+const { useSettingsPopupFrame } = await import('../../src/components/Settings/Settings.tsx')
+function MemoryFixture({ width, rows }: { width: number; rows: number }): React.ReactNode {
+  const frame = useSettingsPopupFrame()
+  return h(MemoryCentreView, { width, rowBudget: rows, initialRow: 'topics', onClose: closeSettingsPopup, onHint: frame.setHint })
+}
+for (const cols of [80, 120]) {
+  const request = { view: 'memory' as const, width: cols - 4, rows: 20, line: 'Fixture memory', hint: 'esc closes', bodyOwnsEscape: true, body: (geometry: { inner: number; rowBudget: number }) => h(MemoryFixture, { width: geometry.inner, rows: geometry.rowBudget }) }
+  openSettingsPopup(request)
+  const scene = await mount(h(SettingsPopupSlot, { overlay: false }), cols)
+  try {
+    await settledFrame(scene, frame => frame.includes('list the topics'))
+    scene.push(keys.enter)
+    await settledFrame(scene, frame => frame.includes('fixture-'))
+    const first = scene.screen()
+    scene.push(keys.pgdn)
+    check(cols + ' memory topics: PageDown moves the window', await waitFor(() => scene.screen() !== first, 1800), scene.screen())
+    check(cols + ' memory topics: guide includes paging', scene.screen().includes('pgup/pgdn'), scene.screen())
+    await save(scene, 'memory-topics-paged', cols)
+    scene.push(keys.enter)
+    await settledFrame(scene, frame => frame.includes('Fixture fact'))
+    const page = scene.screen()
+    scene.push(keys.pgdn)
+    check(cols + ' memory reader: PageDown scrolls the actual topic', await waitFor(() => scene.screen() !== page, 1800), scene.screen())
+    await save(scene, 'memory-reader-paged', cols)
+    scene.push(keys.esc)
+    await settledFrame(scene, frame => !frame.includes('Fixture fact'))
+    scene.push(keys.esc)
+    await settledFrame(scene, frame => frame.includes('topics'))
+    scene.push(keys.esc)
+    check(cols + ' memory: Escape leaves one level at a time', await waitFor(() => !isSettingsPopupOpen(), 1800))
+  } catch (error) { check(cols + ' memory: drive completes', false, String(error) + '\n' + scene.screen()) }
+  finally { scene.unmount(); closeSettingsPopup() }
+  let picked = ''
+  let closed = false
+  const fileScene = await mount(h(Dialog, { title: 'Memory files', onCancel: () => { closed = true }, inputGuide: () => h(Text, {}, memoryFooter({ kind: 'files', direct: true })) }, h(React.Suspense, { fallback: null }, h(MemoryFileSelector, { onSelect: value => { picked = value }, onCancel: () => { closed = true } }))), cols)
+  try {
+    await settledFrame(fileScene, frame => frame.includes('/fixture/instruction-'))
+    const first = fileScene.lines()[fileScene.cursor().y] ?? ''
+    fileScene.push(keys.pgdn)
+    check(cols + ' memory files: PageDown follows an overflowing Select', await waitFor(() => (fileScene.lines()[fileScene.cursor().y] ?? '') !== first, 1800), fileScene.screen())
+    await save(fileScene, 'memory-files-paged', cols)
+    fileScene.push(keys.enter)
+    check(cols + ' memory files: Enter chooses a file without opening an editor', await waitFor(() => picked !== '', 1800))
+    fileScene.push(keys.esc)
+    check(cols + ' memory files: Escape closes', await waitFor(() => closed, 1800))
+  } catch (error) { check(cols + ' memory files: drive completes', false, String(error) + '\n' + fileScene.screen()) }
+  finally { fileScene.unmount() }
 }
 
 console.log(`popup-contract: ${checks} checks, ${failures} failed`)

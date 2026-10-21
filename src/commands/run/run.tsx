@@ -4,9 +4,13 @@ import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mer
 import { CommandCenter, SectionHeader } from '../../components/mercury-ui/components.js'
 import { padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
 import { CursorCell } from '../../components/mercury-ui/LiveGlyphs.js'
+import { CursorRow } from '../../components/mercury-ui/CursorRow.js'
 import { useSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
+import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { Box, Text, useInput } from '../../ink.js'
+import { usePopupListNavigation } from '../../components/CustomSelect/popup-list.js'
+import { useOpenEventGate } from '../../components/mercury-ui/useOpenEventGate.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import {
   flushRun,
@@ -40,7 +44,7 @@ const SECTION_W = 13
 
 function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactNode {
   const accent = useSessionAccent().accent
-  const { columns } = useTerminalSize()
+  const { columns, rows: terminalRows } = useModalOrTerminalSize(useTerminalSize())
   const owner = React.useMemo(() => processMainOwner(), [])
   const [snapshot, setSnapshot] = useState<RunSnapshot | null>(() => getRunSnapshot(owner))
   const [sel, setSel] = useState(0)
@@ -48,8 +52,7 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
   const [confirmCancel, setConfirmCancel] = useState(false)
   const confirmRef = React.useRef(false)
   confirmRef.current = confirmCancel
-  const mountedAt = React.useRef(Date.now())
-  const pastEnterBuffer = () => Date.now() - mountedAt.current > 150
+  const pastEnterBuffer = useOpenEventGate()
 
   useEffect(() => {
     const unsubscribe = subscribeRuns(changed => {
@@ -95,6 +98,7 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
     })()
   }, [owner])
 
+  usePopupListNavigation(sel, rows.length, Math.max(1, terminalRows - 8), next => { selRef.current = next; setSel(next) }, !confirmCancel)
   useInput((input, key) => {
     if (confirmRef.current) {
       if (input === 'y') {
@@ -107,16 +111,6 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
     }
     if (key.escape) {
       onClose()
-      return
-    }
-    if (key.upArrow) {
-      selRef.current = Math.max(0, selRef.current - 1)
-      setSel(selRef.current)
-      return
-    }
-    if (key.downArrow) {
-      selRef.current = Math.min(Math.max(0, rowsRef.current.length - 1), selRef.current + 1)
-      setSel(selRef.current)
       return
     }
     if (!pastEnterBuffer()) return
@@ -152,14 +146,14 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
   const innerW = Math.max(40, columns - 4)
   const snap = snapshot
   const controls: string[] =
-    snap && rows.length > 0 ? ['↑↓ select', '↵ evidence', 'g reconcile'] : ['g reconcile']
+    snap && rows.length > 0 ? ['↑↓ select', 'pgup/pgdn page', '↵ evidence', 'g reconcile'] : ['g reconcile']
   if (snap?.lifecycle === 'active') controls.push('p pause')
   if (snap?.lifecycle === 'paused' || snap?.lifecycle === 'blocked') controls.push('o resume')
   if (snap && !['completed', 'cancelled', 'failed'].includes(snap.lifecycle)) controls.push('c cancel')
   controls.push('esc close')
 
   return (
-    <CommandCenter view="run" subtitle="live run inspector" onClose={onClose} captureInput={false} footer={controls.join(' · ')}>
+    <CommandCenter view="run" subtitle="live run inspector" onClose={onClose} captureInput={false} bodyOwnsPageKeys footer={controls.join(' · ')}>
       <Box marginTop={1} flexDirection="column">
         {!snap ? (
           <Box flexDirection="column">
@@ -195,7 +189,7 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
               </Box>
             ) : null}
             {rows.map((row, i) => (
-              <Box key={`${row.section}-${i}`} flexDirection="column">
+              <CursorRow key={`${row.section}-${i}`} selected={i === sel} flexDirection="column">
                 <Text wrap="truncate-end">
                   <CursorCell focused={i === sel} color={accent} />
                   <Text color={FAINT}>{padTo(row.section, SECTION_W)}</Text>
@@ -215,7 +209,7 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
                     ) : null}
                   </Box>
                 ) : null}
-              </Box>
+              </CursorRow>
             ))}
             <Box marginTop={1}>
               <SectionHeader>ONE TRUTH</SectionHeader>

@@ -126,7 +126,7 @@ export function RealmsView({ onClose }: { onClose: () => void }): React.ReactNod
   const realmWin = paneWindow(realms.length, sel, Math.max(4, availRows - 21))
 
   return (
-    <CommandCenter view="realms" onClose={onClose} captureInput={false} footer={hints}>
+    <CommandCenter view="realms" onClose={onClose} captureInput={false} footer={`↑↓ move · ${hints ?? ''}`}>
       <Box marginTop={1} flexDirection="column">
         {snap.state === 'unavailable' ? (
           <WarningBanner tone="warn" title="realm registry unreadable" detail={snap.reason ?? 'registry unreadable'} />
