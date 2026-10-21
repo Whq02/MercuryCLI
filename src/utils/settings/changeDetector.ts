@@ -25,12 +25,14 @@ type TimingOverrides = {
   pollIntervalMs?: number
   internalWriteWindowMs?: number
   mdmPollIntervalMs?: number
+  bunPollIntervalMs?: number
 }
 
 let stabilityThresholdMs = 1000
 let pollIntervalMs = 500
 let internalWriteWindowMs = 5000
 let mdmPollIntervalMs = 30 * 60 * 1000
+let bunPollIntervalMs = 1000
 
 let initialized = false
 let disposed = false
@@ -177,6 +179,7 @@ async function initialize(): Promise<void> {
     awaitWriteFinish: { stabilityThreshold: stabilityThresholdMs, pollInterval: pollIntervalMs },
     ignorePermissionErrors: true,
     atomic: true,
+    ...(typeof Bun !== 'undefined' ? { usePolling: true, interval: bunPollIntervalMs } : {}),
     ignored: ignoringSpecialFiles((candidatePath: string) => {
       const normalized = normalizeEventPath(candidatePath)
       if (normalized.split(sep).includes('.git')) return true
@@ -250,6 +253,7 @@ async function resetForTesting(overrides?: TimingOverrides): Promise<void> {
   if (overrides?.pollIntervalMs !== undefined) pollIntervalMs = overrides.pollIntervalMs
   if (overrides?.internalWriteWindowMs !== undefined) internalWriteWindowMs = overrides.internalWriteWindowMs
   if (overrides?.mdmPollIntervalMs !== undefined) mdmPollIntervalMs = overrides.mdmPollIntervalMs
+  if (overrides?.bunPollIntervalMs !== undefined) bunPollIntervalMs = overrides.bunPollIntervalMs
   const closing = watcher?.close() ?? Promise.resolve()
   watcher = null
   await closing

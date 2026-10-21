@@ -9,7 +9,7 @@ const readProc = (path: string): string => {
   }
 }
 
-export function threadTable(pid: number): string[] {
+function threadTable(pid: number): string[] {
   if (process.platform !== 'linux') return []
   let tids: string[] = []
   try {
@@ -27,7 +27,7 @@ export function threadTable(pid: number): string[] {
   })
 }
 
-export function nativeStacks(pid: number): string {
+function nativeStacks(pid: number): string {
   if (process.platform !== 'linux') return ''
   const gdb = (spawnSync('which', ['gdb'], { encoding: 'utf8', timeout: 5_000 }).stdout ?? '').trim()
   if (gdb === '') return 'no gdb on this box'
