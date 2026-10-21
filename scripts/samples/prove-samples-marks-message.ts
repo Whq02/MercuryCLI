@@ -112,7 +112,7 @@ section('T the Eval tool lists the sample it kept and its prompt says when')
   let out: { data: import('../../src/tools/EvalTool/EvalTool.js').EvalToolOutput }
   try {
     out = (await (EvalTool as { call: Function }).call(
-      { language: 'js', code: "await sample({ name: 'Hero card', html: '<h1>hero</h1>', ask: 'show me the hero card' });\n'kept'" },
+      { language: 'js', code: "await sample({ name: 'Hero card', doc: { parts: [{ kind: 'section', heading: 'Hero', prose: 'hero' }] }, ask: 'show me the hero card' });\n'kept'" },
       ctx,
       ALLOW,
       PARENT,
@@ -129,7 +129,7 @@ section('T the Eval tool lists the sample it kept and its prompt says when')
     line,
   )
   const prompt = await (EvalTool as { prompt: () => Promise<string> }).prompt()
-  check('T3 the prompt names sample under the bridge', prompt.includes('sample({name, title?, html, ask?})'))
+  check('T3 the prompt names sample under the bridge, taking doc and never html', prompt.includes('sample({name, title?, doc, ask?})') && !prompt.includes('sample({name, title?, html, ask?})') && prompt.includes('Raw `html` is refused'))
   check('T4 the prompt says when: only when asked, never unasked, never to decorate', /ONLY when the operator asked to see something/.test(prompt) && /never unasked, never to decorate an answer/.test(prompt) && /"show me"/.test(prompt))
   check('T5 the prompt says the same name is the next version and variables survive', /The same name publishes the next version/.test(prompt) && /Variables, imports, functions and classes survive/.test(prompt))
   check('T6 the search hint names samples', String((EvalTool as { searchHint?: string }).searchHint).includes('sample'))
@@ -149,7 +149,7 @@ section('G the gate')
   const ownerOff = makeOwnerKey({ workspace: workDir, sessionId: 'gate-off', lane: 'main' } as never)
   const off = await runEvalCell({ owner: ownerOff, cwd: workDir, cell: { language: 'js', code: 'typeof sample' } })
   check('G3 the helper remains present while its host gate refuses publishing', off.status === 'ok' && off.resultRepr === "'function'", JSON.stringify(off).slice(0, 200))
-  const refused = await runEvalCell({ owner: ownerOn, cwd: workDir, cell: { language: 'js', code: "await sample({ name: 'late', html: '<p>late</p>' })" } })
+  const refused = await runEvalCell({ owner: ownerOn, cwd: workDir, cell: { language: 'js', code: "await sample({ name: 'late', doc: { parts: [{ kind: 'section', prose: 'late' }] } })" } })
   check('G4 a runtime made while on cannot keep a sample once it is off: the host refuses the call', refused.status === 'error' && /samples are off/.test(refused.error?.value ?? '') && refused.samples === undefined, JSON.stringify(refused).slice(0, 300))
   const promptOff = await (EvalTool as { prompt: () => Promise<string> }).prompt()
   check('G5 the prompt has no sample line while off', !promptOff.includes('sample'))

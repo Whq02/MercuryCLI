@@ -16,6 +16,7 @@ const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts'
 const store = await import('../../src/services/samples/store.ts')
 const listener = await import('../../src/services/samples/listener.ts')
 const { getCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
+const { normalizeSampleDoc, renderSampleDoc } = await import('../../src/services/samples/renderDoc.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -66,8 +67,9 @@ function call(port: number, method: string, path: string, body?: string): Promis
 const firstLine = (cell: { stdout: { text: string } }): string => cell.stdout.text.split('\n')[0] || '{}'
 
 section('B the bridge call keeps the page and answers its address')
-const V1 = '<!doctype html><h1 id="price">Pricing — one</h1>'
-const c1 = await run(`const kept = await sample({ name: 'Pricing table', html: ${JSON.stringify(V1)}, ask: 'show me the pricing table' })\nconsole.log(JSON.stringify(kept))`)
+const D1 = { parts: [{ kind: 'section', heading: 'Pricing — one', prose: 'Three plans, billed monthly.' }] }
+const V1 = renderSampleDoc(normalizeSampleDoc(D1), { title: 'Pricing table' })
+const c1 = await run(`const kept = await sample({ name: 'Pricing table', doc: ${JSON.stringify(D1)}, ask: 'show me the pricing table' })\nconsole.log(JSON.stringify(kept))`)
 check('B1 the cell succeeds', c1.status === 'ok', JSON.stringify(c1).slice(0, 400))
 const kept1 = JSON.parse(firstLine(c1)) as { id: string; version: number; url: string }
 check(
@@ -87,9 +89,10 @@ check(
 )
 check('B4 the sample call counts as one bridge call', c1.nestedCalls === 1)
 const record1 = store.getSample(SESSION, kept1.id)
-check('B5 the record sits under the cell\'s session with the html as written', record1 !== null && record1.latestVersion === 1 && store.readVersion(SESSION, kept1.id, 1) === V1)
-const V2 = '<!doctype html><h1 id="price">Pricing — two</h1>'
-const c2 = await run(`const again = await sample({ name: 'pricing table', title: 'Pricing', html: ${JSON.stringify(V2)} })\nconsole.log(JSON.stringify(again))`)
+check('B5 the record sits under the cell\'s session with the page Mercury rendered from the doc', record1 !== null && record1.latestVersion === 1 && store.readVersion(SESSION, kept1.id, 1) === V1 && V1.includes('<h2 class="section-title" id="part-1-heading">Pricing — one</h2>'))
+const D2 = { parts: [{ kind: 'section', heading: 'Pricing — two', prose: 'Three plans, billed yearly.' }] }
+const V2 = renderSampleDoc(normalizeSampleDoc(D2), { title: 'Pricing' })
+const c2 = await run(`const again = await sample({ name: 'pricing table', title: 'Pricing', doc: ${JSON.stringify(D2)} })\nconsole.log(JSON.stringify(again))`)
 const kept2 = JSON.parse(firstLine(c2)) as { id: string; version: number; url: string }
 check(
   'B6 the same name from a later cell is version 2 of the same sample, at the same address',
@@ -97,9 +100,11 @@ check(
   JSON.stringify(c2).slice(0, 400),
 )
 const c3 = await run("await sample({ name: 'no page' })")
-check('B7 a call without html fails the cell with a plain reason and keeps nothing', c3.status === 'error' && /needs the page as html/.test(c3.error?.value ?? '') && store.listSamples(SESSION).length === 1, c3.error?.value)
+check('B7 a call without doc fails the cell with a plain reason and keeps nothing', c3.status === 'error' && /needs doc: \{ parts: \[\.\.\.\] \}/.test(c3.error?.value ?? '') && store.listSamples(SESSION).length === 1, c3.error?.value)
 const c3b = await run("await sample('just a string')")
 check('B7b a call without the object fails the same way', c3b.status === 'error' && /takes one object/.test(c3b.error?.value ?? ''), c3b.error?.value)
+const c3c = await run("await sample({ name: 'raw page', html: '<h1>raw</h1>' })")
+check('B7c raw html from the cell is refused with the teaching line and keeps nothing', c3c.status === 'error' && /sample\(\) takes doc: \{ parts: \[\.\.\.\] \} — raw html is retired/.test(c3c.error?.value ?? '') && store.listSamples(SESSION).length === 1, c3c.error?.value)
 
 section('L1 the listener')
 const address = listener.sampleListenerAddress()
@@ -135,8 +140,8 @@ check('L3d the shell\'s own addresses carry the token', shell.text.includes(`/s/
 section('L4 versions as written')
 const v1 = await call(port, 'GET', `/s/${id}/v/1.html?t=${token}`)
 const v2 = await call(port, 'GET', `/s/${id}/v/2.html?t=${token}`)
-check('L4a v1 is served as written, as html', v1.status === 200 && v1.text === V1 && /^text\/html/.test(String(v1.headers['content-type'])))
-check('L4b v2 is served as written', v2.status === 200 && v2.text === V2)
+check('L4a v1 is served as rendered, as html', v1.status === 200 && v1.text === V1 && /^text\/html/.test(String(v1.headers['content-type'])))
+check('L4b v2 is served as rendered', v2.status === 200 && v2.text === V2)
 const v3 = await call(port, 'GET', `/s/${id}/v/3.html?t=${token}`)
 check('L4c a missing version → 404, empty', v3.status === 404 && v3.text === '')
 const v1NoToken = await call(port, 'GET', `/s/${id}/v/1.html`)
@@ -216,7 +221,7 @@ try {
   refused = true
 }
 check('L8b the port no longer answers', refused)
-const c4 = await run("const third = await sample({ name: 'pricing table', html: '<p>three</p>' })\nconsole.log(JSON.stringify(third))")
+const c4 = await run("const third = await sample({ name: 'pricing table', doc: { parts: [{ kind: 'section', prose: 'three' }] } })\nconsole.log(JSON.stringify(third))")
 const kept3 = JSON.parse(firstLine(c4)) as { id: string; version: number; url: string }
 const again = listener.sampleListenerAddress()
 check(
