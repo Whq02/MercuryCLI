@@ -16,6 +16,7 @@ const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
 const { compileJsonSchema } = await import('../../src/services/schema/jsonSchemaEngine.ts')
 const { mapToolsToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
 const { mapToolsToOpenai } = await import('../../src/services/providers/openai/responsesBridge.ts')
+const { toOpenaiStrictToolSchema } = await import('../../src/utils/messages/toolSchemaDialect.ts')
 const { buildGeminiRequest } = await import('../../src/services/providers/gemini/geminiCodec.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
@@ -101,8 +102,11 @@ section('§4 every road sends the same plain-root schema')
 const shaped = [{ name: 'Edit', description: 'd', input_schema: wire }]
 const chat = mapToolsToZai(shaped)[0] as { function: { parameters: unknown } }
 check('the chat-completions family (Z.AI, Moonshot, DeepSeek, OpenRouter, Hugging Face, local servers) carries the root as the function parameters', JSON.stringify(chat.function.parameters) === JSON.stringify(wire))
-const responses = mapToolsToOpenai(shaped)[0] as { parameters: unknown }
-check('the OpenAI Responses road carries the same parameters, flat, no strict flag', JSON.stringify(responses.parameters) === JSON.stringify(wire) && !('strict' in responses))
+const responses = mapToolsToOpenai(shaped)[0] as { parameters: unknown; strict?: boolean }
+const strictEdit = toOpenaiStrictToolSchema(wire)
+check('the OpenAI Responses road carries the strict-dialect derivation of the same root, flat, with strict: true (every optional "its type or null", every key required, the object closed)', strictEdit.strict && responses.strict === true && JSON.stringify(responses.parameters) === JSON.stringify(strictEdit.schema), JSON.stringify(responses))
+const strictRoot = responses.parameters as { required?: string[]; properties?: Record<string, { type?: unknown; anyOf?: unknown }> }
+check('the strict root names every Edit key as required and spells old_string as "string or null" (optional on the plain root)', JSON.stringify(strictRoot.required) === JSON.stringify(Object.keys(strictRoot.properties ?? {})) && JSON.stringify(strictRoot.properties?.old_string?.type) === '["string","null"]', JSON.stringify(strictRoot.properties?.old_string))
 const gemini = buildGeminiRequest({ model: 'gemini-2.5-pro', messages: [], tools: mapToolsToZai(shaped) as never } as never, []) as { tools?: Array<{ functionDeclarations: Array<{ parametersJsonSchema: unknown }> }> }
 check('the Gemini road carries the same schema as parametersJsonSchema', JSON.stringify(gemini.tools?.[0]?.functionDeclarations[0]?.parametersJsonSchema) === JSON.stringify(wire))
 const again = zodToJsonSchema(FileEditTool.inputSchema as never)

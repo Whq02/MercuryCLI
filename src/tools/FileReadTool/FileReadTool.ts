@@ -168,6 +168,11 @@ function selectedPages(pages: string | undefined): string | undefined {
   return pages && pages.trim() !== '' ? pages : undefined
 }
 
+function selectedCrop(crop: readonly number[] | undefined): CropBox | undefined {
+  if (crop === undefined || (crop.length === 4 && crop.every(value => value === 0))) return undefined
+  return crop as unknown as CropBox
+}
+
 export type Input = z.infer<WidestReadSchema>
 
 
@@ -1765,7 +1770,7 @@ export const FileReadTool = buildTool({
     const ignoredParameterNotes = (): Message[] => {
       const kind = ext === '' ? 'a file with no extension' : `.${ext}`
       const notes: string[] = []
-      if (effectiveInput.crop !== undefined && !IMAGE_EXTENSIONS.has(ext)) notes.push(`crop ignored — ${kind} is not an image; the file was read as usual. Send crop only for an image file.`)
+      if (selectedCrop(effectiveInput.crop) !== undefined && !IMAGE_EXTENSIONS.has(ext)) notes.push(`crop ignored — ${kind} is not an image; the file was read as usual. Send crop only for an image file.`)
       if (selectedPages(effectiveInput.pages) !== undefined && !isPDFExtension(ext)) notes.push(`pages ignored — ${kind} is not a PDF; the file was read as usual. Send pages only for a PDF.`)
       return notes.map(content => createUserMessage({ content, isMeta: true }))
     }
@@ -1883,7 +1888,7 @@ export const FileReadTool = buildTool({
 
     const dispatch = async (resolvedPath: string): Promise<LaneResult> => {
       if (ext === 'ipynb') return readNotebookLane(resolvedPath, resolvedPath, effectiveInput, context, declaredLimits, reserve)
-      if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, resolvedPath, context, reserve(), effectiveInput.crop === undefined ? undefined : (effectiveInput.crop as [number, number, number, number]))
+      if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, resolvedPath, context, reserve(), selectedCrop(effectiveInput.crop))
       if (isPDFExtension(ext)) return readPdfLane(resolvedPath, resolvedPath, effectiveInput, context)
       if (richTarget !== null) {
         return readRichFormatLane(

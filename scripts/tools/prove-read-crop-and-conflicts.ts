@@ -153,6 +153,20 @@ section('B. refusals: outside the image, inverted, malformed, or on a text file'
   check('B9 the refusals wrote nothing and the image is intact', readFileSync(small).length > 0 && imageDimensionsFromHeader(readFileSync(small))?.width === 8)
 }
 
+section('D. the zero box [0, 0, 0, 0] is no crop at all (the placeholder a model fills an unused box with)')
+{
+  const zeroOnImage = await read({ file_path: small, crop: [0, 0, 0, 0] })
+  check('D1 on an image the zero box reads the whole image, no refusal, no crop note (8x4 as the control)', zeroOnImage.ok && sizeOf(zeroOnImage.data)?.width === 8 && sizeOf(zeroOnImage.data)?.height === 4 && !zeroOnImage.notes.some(note => note.includes('the crop [')), messageOf(zeroOnImage))
+  const text = join(fixtures, 'zero.txt')
+  writeFileSync(text, 'plain\n')
+  const zeroOnText = await read({ file_path: text, crop: [0, 0, 0, 0] })
+  check('D2 on a text file the zero box reads the file with no "crop ignored" note (there was no crop to ignore)', zeroOnText.ok && (zeroOnText.data as unknown as { type: string }).type === 'text' && !zeroOnText.notes.some(note => note.includes('crop ignored')), messageOf(zeroOnText))
+  const threeZeros = await read({ file_path: small, crop: [0, 0, 0] })
+  check('D3 three zeros are not the zero box: still refused (the box is four numbers)', !threeZeros.ok, messageOf(threeZeros))
+  const emptyNonZero = await read({ file_path: small, crop: [2, 2, 2, 4] })
+  check('D4 an empty box with real coordinates is still refused (B4 holds: only the all-zero box is a placeholder)', !emptyNonZero.ok && emptyNonZero.message.includes('is inverted or empty'), messageOf(emptyNonZero))
+}
+
 section('C. unresolved merge-conflict blocks in the lines returned are counted in one line, the bytes untouched')
 {
   const conflicted = join(fixtures, 'merge.ts')

@@ -77,7 +77,17 @@ export type JevEvalFileItem = z.infer<ReturnType<typeof fileItemSchema>>
 export type JevEvalTableItem = z.infer<ReturnType<typeof tableItemSchema>>
 export type JevEvalRecordItem = { id?: string } & Record<string, string>
 
-const questionSchema = lazySchema(() =>
+function withoutMeaninglessEmpties(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return value
+  const question = { ...(value as Record<string, unknown>) }
+  if (Array.isArray(question.levels) && question.levels.length === 0) delete question.levels
+  if (question.none_means === '') delete question.none_means
+  if (question.allow_none === false && question.kind !== 'choice') delete question.allow_none
+  if (typeof question.options === 'object' && question.options !== null && !Array.isArray(question.options) && Object.keys(question.options).length === 0 && question.kind !== 'choice') delete question.options
+  return question
+}
+
+const questionFields = () =>
   z.strictObject({
     id: idSchema().describe('Your handle for this answer column (letters, digits, _ and -); never sent to Jev'),
     kind: z
@@ -106,10 +116,11 @@ const questionSchema = lazySchema(() =>
       .min(1)
       .optional()
       .describe('choice with allow_none true: what `none` stands for, phrased positively'),
-  }),
-)
+  })
 
-export type JevEvalQuestion = z.infer<ReturnType<typeof questionSchema>>
+const questionSchema = lazySchema(() => z.preprocess(withoutMeaninglessEmpties, questionFields()))
+
+export type JevEvalQuestion = z.infer<ReturnType<typeof questionFields>>
 
 export const jevEvalInputSchema = lazySchema(() =>
   z
