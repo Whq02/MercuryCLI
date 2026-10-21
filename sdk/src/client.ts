@@ -67,6 +67,7 @@ export interface RunOptions<T = unknown> {
   logFile?: string
   extraArgs?: readonly string[]
   signal?: AbortSignal
+  onStderr?: (chunk: string) => void
 }
 
 export type RunArgv = { command: string; args: string[] }
@@ -249,6 +250,8 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     readLines(this.child.stdout!, line => this.#line(line), error => this.#fatal(error))
     this.child.stderr!.on('data', (chunk: string) => {
       this.#stderr += chunk
+      this.#emit('stderr', chunk)
+      options.onStderr?.(chunk)
     })
     this.child.stdin!.on('error', () => undefined)
     this.child.on('error', (error: unknown) => {
@@ -292,6 +295,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
 
   on<T extends StreamRow['type']>(type: T, listener: RowListener<T>): this
   on(type: 'row', listener: (row: StreamRow) => void): this
+  on(type: 'stderr', listener: (chunk: string) => void): this
   on(type: 'error', listener: (error: MercuryError) => void): this
   on(type: 'end', listener: (exit: RunExit) => void): this
   on(type: string, listener: (payload: never) => void): this {

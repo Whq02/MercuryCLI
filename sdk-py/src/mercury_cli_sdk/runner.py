@@ -6,7 +6,7 @@ import uuid
 from contextlib import suppress
 from dataclasses import dataclass, replace
 from typing import Any, Awaitable, Callable, AsyncIterator, Literal, Mapping, TypeVar, Unpack, cast, overload
-from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, send_signal, spawn, untrack, warm_options
+from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, read_stderr, send_signal, spawn, untrack, warm_options
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
 from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimParams, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult
 from .framing import read_lines
@@ -81,6 +81,7 @@ class MercurySession(TypedRequests):
 
     async def _write(self, value: Any) -> None:
         if self._closed: raise self._closed
+        if self._closing: return
         if self.child.returncode is not None or self._stdin.is_closing(): raise MercuryError('runner input is not open', self.exit.result() if self.exit.done() else None)
         try:
             self._stdin.write((json.dumps(value) + '\n').encode())
@@ -152,7 +153,7 @@ class MercurySession(TypedRequests):
             self._asks.pop(id, None)
 
     async def _read(self) -> None:
-        stderr = asyncio.create_task(self._stderr.read())
+        stderr = asyncio.create_task(read_stderr(self))
         try:
             async for line in read_lines(self._stdout):
                 if not line.strip(): continue
@@ -222,7 +223,7 @@ class MercurySession(TypedRequests):
         code = await self.child.wait()
         untrack(self.child)
         if self._tools: await self._tools.close()
-        self.stderr = (await stderr).decode('utf-8', errors='replace')
+        await stderr
         exit = exit_of(self.child, code, self.stderr)
         self._fail(MercuryUsageError(exit, 'runner') if code == 2 and not hasattr(self, 'initialized') else MercuryExitError(exit, 'runner'), self._closing)
         self.exit.set_result(exit)
@@ -365,9 +366,12 @@ class MercurySession(TypedRequests):
         clear_queue(self._queue)
 
     async def close(self) -> None:
-        """End stdin and wait for the runner to exit; SIGTERM after five seconds, SIGKILL after ten."""
+        """End stdin and wait for the runner to exit; SIGTERM after five seconds, SIGKILL after ten. Asks still in flight are cancelled, so nothing is written to the closed input."""
         self._closing = True
         if self._tools: self._tools.cancel()
+        for context, task in tuple(self._asks.values()):
+            context.cancelled.set()
+            task.cancel()
         self._stdin.close()
         try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
         except asyncio.TimeoutError:

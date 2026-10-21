@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import atexit
+import codecs
 from datetime import datetime, timezone
 import json
 import os
@@ -75,6 +76,7 @@ class RunOptions:
     provider_preview: list[str] = field(default_factory=list)
     log_file: str | None = None
     extra_args: list[str] = field(default_factory=list)
+    on_stderr: Callable[[str], object] | None = None
 
 
 class ConnectKwargs(TypedDict, total=False):
@@ -127,6 +129,7 @@ class ConnectKwargs(TypedDict, total=False):
     provider_preview: list[str]
     log_file: str | None
     extra_args: list[str]
+    on_stderr: Callable[[str], object] | None
 
 
 class RunKwargs(ConnectKwargs, total=False):
@@ -266,6 +269,18 @@ async def spawn(args: list[str], options: RunOptions) -> asyncio.subprocess.Proc
     return child
 
 
+async def read_stderr(handle: Any) -> None:
+    """Append the child's standard error to ``handle.stderr`` as it arrives, emitting each decoded chunk as ``'stderr'`` and to ``on_stderr``."""
+    decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
+    def deliver(text: str) -> None:
+        if not text: return
+        handle.stderr += text
+        handle._emit('stderr', text)
+        if handle.options.on_stderr is not None: handle.options.on_stderr(text)
+    while chunk := await handle._stderr.read(65536): deliver(decoder.decode(chunk))
+    deliver(decoder.decode(b'', final=True))
+
+
 class MercuryRun:
     """One ``mercury run`` process: an async iterator of its rows, with ``outcome``, ``session`` and ``exit`` awaitable."""
     def __init__(self, child: asyncio.subprocess.Process, options: RunOptions, tools: ToolServer | None = None):
@@ -313,7 +328,7 @@ class MercuryRun:
         except asyncio.CancelledError: pass
 
     async def _read(self) -> None:
-        stderr = asyncio.create_task(self._stderr.read())
+        stderr = asyncio.create_task(read_stderr(self))
         last: OutcomeRow | None = None
         try:
             async for line in read_lines(self._stdout):
@@ -340,7 +355,7 @@ class MercuryRun:
         code = await self.child.wait()
         untrack(self.child)
         if self._tools: await self._tools.close()
-        self.stderr = (await stderr).decode('utf-8', errors='replace')
+        await stderr
         exit = exit_of(self.child, code, self.stderr)
         if self.error is None and last is None and self._interrupt_sent and (exit.signal == 'SIGINT' or exit.code == 130):
             last = interrupted_outcome(self.rows, self._started_at)

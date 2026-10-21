@@ -174,6 +174,62 @@ setTimeout(() => process.exit(0), 200)
         assert.deepEqual(warnings, [])
       } finally { process.off('warning', onWarning) }
     } finally { await fixture.close() }
+  await check('closing a session while a runner ask is in flight stays graceful under node: no error event, no write after stdin ended, exit 0', async () => {
+    const built = spawnSync('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(root, 'sdk/tsconfig.json')], { encoding: 'utf8', timeout: 120000 })
+    assert.equal(built.status, 0, built.stdout + built.stderr)
+    const host = join(scratch, 'close-mid-ask.mjs')
+    writeFileSync(host, `import { connect } from ${JSON.stringify(pathToFileURL(join(root, 'sdk/dist/index.js')).href)}
+import { startFixtureServer } from ${JSON.stringify(pathToFileURL(join(root, 'sdk/dist/testing.js')).href)}
+const ask = { jsonrpc: '2.0', id: 1000, method: 'permission/request', params: { kind: 'tool', tool_use_id: 'u1', tool_name: 'Read', input: {} } }
+const fixture = await startFixtureServer({ methods: { initialize: [{ result: ${JSON.stringify(init)}, after: [ask] }] } })
+let rejections = 0
+process.on('unhandledRejection', () => { rejections++ })
+let open
+const gate = new Promise(resolve => { open = resolve })
+let asked = 0
+const session = await connect({ mercury: fixture.mercury, onPermissionRequest: async () => { asked++; await gate; return { outcome: 'deny' } } })
+while (asked === 0) await new Promise(resolve => setTimeout(resolve, 5))
+const errors = []
+session.on('error', error => errors.push(error.message))
+const closing = session.close()
+open()
+await closing
+const exit = await session.exit
+await new Promise(resolve => setTimeout(resolve, 50))
+await fixture.close()
+console.log(JSON.stringify({ errors, exit, rejections }))
+`)
+    const result = spawnSync('node', [host], { encoding: 'utf8', timeout: 20000 })
+    assert.equal(result.status, 0, result.stderr)
+    const report = JSON.parse(result.stdout.trim().split('\n').at(-1)!)
+    assert.deepEqual(report.errors, [], `the graceful close raised an error event: ${JSON.stringify(report)}`)
+    assert.equal(report.exit.code, 0, `the close escalated to a signal: ${JSON.stringify(report.exit)}`)
+    assert.equal(report.rejections, 0, 'an unhandled rejection escaped the close')
+    assert.doesNotMatch(result.stderr, /write after end|ERR_STREAM_WRITE_AFTER_END/, result.stderr)
+  })
+  await check('stderr is live on both doors: onStderr and the stderr event see a line while the child still runs, and stderr at exit is the whole text', async () => {
+    const rows = [fixtureSessionRow(), ...fixtureTurn()]
+    const noisy = fake(`process.stderr.write('booting\\n');${rows.map(row => `console.log(${JSON.stringify(JSON.stringify(row))})`).join(';')};setTimeout(()=>{process.stderr.write('tail\\n');process.exit(0)},300)`)
+    const seen: string[] = []; const events: string[] = []
+    const task = run({ mercury: noisy, prompt: 'x', onStderr: chunk => seen.push(chunk) })
+    task.on('stderr', chunk => events.push(chunk))
+    await task.session
+    for (let i = 0; i < 100 && !events.join('').includes('booting'); i++) await sleep(10)
+    assert(events.join('').includes('booting'), `no stderr event fired while the child ran: ${JSON.stringify({ stderr: task.stderr, seen, events })}`)
+    assert(seen.join('').includes('booting') && task.stderr.includes('booting'), `onStderr and stderr while the child ran: ${JSON.stringify({ stderr: task.stderr, seen })}`)
+    assert(task.child.exitCode === null && task.child.signalCode === null, 'the child had already exited when its stderr line was first observed')
+    const exit = await task.exit
+    assert.equal(exit.stderr, 'booting\ntail\n'); assert.equal(task.stderr, exit.stderr); assert.equal(seen.join(''), exit.stderr); assert.equal(events.join(''), exit.stderr)
+    const sessionSeen: string[] = []; const sessionEvents: string[] = []
+    const session = await connect({ mercury: fake(`process.stderr.write('runner up\\n');setInterval(()=>process.stderr.write('tick\\n'),20);const rl=require('node:readline').createInterface({input:process.stdin});rl.on('line',l=>{const m=JSON.parse(l);if(m.method==='initialize')console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:${JSON.stringify(init)}}))});rl.on('close',()=>process.exit(0))`), onStderr: chunk => sessionSeen.push(chunk) })
+    try {
+      session.on('stderr', chunk => sessionEvents.push(chunk))
+      for (let i = 0; i < 100 && !sessionEvents.join('').includes('tick'); i++) await sleep(10)
+      assert(session.child.exitCode === null && session.child.signalCode === null, 'the runner is still running')
+      assert(sessionSeen.join('').startsWith('runner up\n') && session.stderr.startsWith('runner up\n') && sessionEvents.join('').includes('tick'), `runner stderr while running: ${JSON.stringify({ stderr: session.stderr, sessionSeen, sessionEvents })}`)
+    } finally { await session.close() }
+    const ended = await session.exit
+    assert.equal(ended.stderr, session.stderr); assert.equal(sessionSeen.join(''), session.stderr)
   })
   await check('the package version is the manifest version', async () => {
     const pkg = JSON.parse(await Bun.file(join(root, 'sdk/package.json')).text())
