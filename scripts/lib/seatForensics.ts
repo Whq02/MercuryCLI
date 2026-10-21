@@ -29,7 +29,7 @@ export function threadTable(pid: number): string[] {
 
 export function nativeStacks(pid: number): string {
   if (process.platform !== 'linux') return ''
-  const gdb = (spawnSync('sh', ['-c', 'command -v gdb'], { encoding: 'utf8', timeout: 5_000 }).stdout ?? '').trim()
+  const gdb = (spawnSync('which', ['gdb'], { encoding: 'utf8', timeout: 5_000 }).stdout ?? '').trim()
   if (gdb === '') return 'no gdb on this box'
   const asRoot = spawnSync('sudo', ['-n', 'true'], { encoding: 'utf8', timeout: 5_000 }).status === 0
   const argv = [...(asRoot ? ['-n', gdb] : []), '-p', String(pid), '-batch', '-ex', 'set pagination off', '-ex', 'thread apply all bt 40']
