@@ -30,8 +30,8 @@ const fixture=await startFixtureServer({methods:{initialize:[{result:{protocol:1
 try { const s=await connect({mercury:fixture.mercury}); try {if((await s.facts()).model.effective !== facts.model.effective) throw Error('facts')} finally {await s.close()} } finally {await fixture.close()}
 if(typeof run !== 'function'||Object.keys(ROW_SCHEMAS).length!==25)throw Error('exports');
 console.log('bundled consumer passed');`)
-  symlinkSync(join(root, 'node_modules/@types'), join(scratch, 'node_modules/@types'))
-  symlinkSync(join(root, 'node_modules/undici-types'), join(scratch, 'node_modules/undici-types'))
+  symlinkSync(join(root, 'node_modules/@types'), join(scratch, 'node_modules/@types'), 'junction')
+  symlinkSync(join(root, 'node_modules/undici-types'), join(scratch, 'node_modules/undici-types'), 'junction')
   writeFileSync(join(scratch, 'package.json'), JSON.stringify({ type: 'module' }))
   for (const resolution of ['Node16', 'NodeNext', 'Bundler']) {
     writeFileSync(join(scratch, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2022', module: resolution === 'Bundler' ? 'ESNext' : resolution, moduleResolution: resolution, strict: true, skipLibCheck: false, noEmit: true }, files: ['consumer.ts'] }))

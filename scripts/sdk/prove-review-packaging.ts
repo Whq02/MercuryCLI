@@ -37,7 +37,7 @@ try {
   } else console.log('SKIP pip editable install: the running python3 carries no pip (the backend road above stands)')
   mkdirSync(join(scratch, 'scripts/sdk'), { recursive: true })
   for (const name of ['publish-npm.sh', 'publish-pypi.sh']) cpSync(join(root, 'scripts/sdk', name), join(scratch, 'scripts/sdk', name))
-  symlinkSync(join(root, 'node_modules'), join(scratch, 'node_modules'))
+  symlinkSync(join(root, 'node_modules'), join(scratch, 'node_modules'), 'junction')
   for (const dir of ['sdk', 'sdk-py']) { mkdirSync(join(scratch, dir, 'dist')); writeFileSync(join(scratch, dir, 'dist/stale.file'), 'stale') }
   writeFileSync(join(scratch, 'registry.mjs'), `globalThis.fetch=async url=>{if(!String(url).startsWith('https://registry.npmjs.org/'))throw Error('unexpected network');return new Response('',{status:404})}`)
   writeFileSync(join(scratch, 'sitecustomize.py'), `import urllib.request,urllib.error\ndef local(url,*args,**kwargs):\n assert url=='https://pypi.org/pypi/mercury-cli-sdk/json'\n raise urllib.error.HTTPError(url,404,'fixture',{},None)\nurllib.request.urlopen=local\n`)

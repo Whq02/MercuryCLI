@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import * as sdk from '../../sdk/src/index.ts'
 import { connect, run, MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError } from '../../sdk/src/index.ts'
 import { fixtureSessionRow, fixtureTurn, startFixtureServer } from '../../sdk/src/testing.ts'
@@ -75,7 +76,6 @@ try {
       assert.equal((await session.exit).code, 0)
     } finally { await fixture.close() }
   })
-  await check('a host that exits terminates the children it still has', async () => {
   await check('an interrupt the package sent settles as an interrupted outcome when the child dies by the signal before writing one (the Windows shape); a signal the package did not send, and terminate(), stay errors', async () => {
     const session = fixtureSessionRow({ session_id: 'interrupt-session' })
     const [turn] = fixtureTurn({ session_id: 'interrupt-session', turn: 2, turn_id: 'turn-two' })
@@ -113,15 +113,18 @@ try {
     await terminated.session; terminated.terminate()
     await assert.rejects(terminated.outcome, (e: unknown) => e instanceof MercuryExitError && e.message === 'mercury run ended by SIGTERM before an outcome row')
   })
+  await check('a host that exits terminates the children it still has', async () => {
+    const built = spawnSync('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(root, 'sdk/tsconfig.json')], { encoding: 'utf8', timeout: 120000 })
+    assert.equal(built.status, 0, built.stdout + built.stderr)
     const host = join(scratch, 'host.mjs')
-    writeFileSync(host, `import { run, connect } from ${JSON.stringify(join(root, 'sdk/src/index.ts'))}
+    writeFileSync(host, `import { run, MercurySession } from ${JSON.stringify(pathToFileURL(join(root, 'sdk/dist/index.js')).href)}
 const child = ['node', '-e', "process.stdin.resume();setInterval(()=>{},1000)", '--']
 const task = run({ mercury: child, input: 'rows' })
-const session = new (await import(${JSON.stringify(join(root, 'sdk/src/runner.ts'))})).MercurySession({ mercury: child })
+const session = new MercurySession({ mercury: child })
 console.log(task.child.pid, session.child.pid)
 setTimeout(() => process.exit(0), 200)
 `)
-    const result = spawnSync('bun', [host], { encoding: 'utf8', timeout: 20000 })
+    const result = spawnSync('node', [host], { encoding: 'utf8', timeout: 20000 })
     assert.equal(result.status, 0, result.stderr)
     const pids = result.stdout.trim().split(/\s+/).map(Number)
     assert.equal(pids.length, 2)

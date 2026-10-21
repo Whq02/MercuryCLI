@@ -56,7 +56,7 @@ try {
   mkdirSync(tree)
   cpSync(join(ROOT, 'src'), join(tree, 'src'), { recursive: true })
   cpSync(join(ROOT, 'tsconfig.json'), join(tree, 'tsconfig.json'))
-  symlinkSync(join(ROOT, 'node_modules'), join(tree, 'node_modules'))
+  symlinkSync(join(ROOT, 'node_modules'), join(tree, 'node_modules'), 'junction')
   const vocabularyPath = join(tree, 'src', 'rows', 'vocabulary.ts')
   const vocabulary = readFileSync(vocabularyPath, 'utf8')
   const needle = 'cached_input_tokens: z.number().int().min(0),'
