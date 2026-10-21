@@ -7,7 +7,7 @@ import { BUN, PYTHON, resolvePython } from './runtime.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'sdk-build-'))
-const STRICT_CONSUMER = String.raw`import { run, connect, prewarm, textBlock, imageBlock, structuredSchema, defineAgent, defineTool, serveTools, MercuryRefusal, argvOf, rowOf, parseRow, validate, type StreamRow, type OutcomeRow, type SessionRow, type RunOptions, type ConnectOptions, type HostHandlers, type MercuryRun, type MercurySession } from 'mercury-cli-sdk'
+const STRICT_CONSUMER = String.raw`import { run, connect, prewarm, textBlock, imageBlock, structuredSchema, defineAgent, defineTool, serveTools, MercuryRefusal, argvOf, rowOf, parseRow, validate, isOutcome, isSessionRow, turnOpened, turnWaiting, mainThreadStep, isMainThread, outcomeFailed, outcomeErrorText, isRowType, isInputRowType, type StreamRow, type OutcomeRow, type SessionRow, type RunOptions, type ConnectOptions, type HostHandlers, type MercuryRun, type MercurySession } from 'mercury-cli-sdk'
 import { startFixtureServer } from 'mercury-cli-sdk/testing'
 
 const descriptor = structuredSchema({ type: 'object' }, value => ({ count: (value as { count: number }).count }))
@@ -57,9 +57,12 @@ try {
 const fixture = await startFixtureServer({ rows: task.rows })
 try { console.log((await run({ mercury: fixture.mercury, prompt: 'test' }).outcome).status, fixture.received.length) } finally { await fixture.close() }
 const read = parseRow('{}')
-if (read.ok) console.log(read.row.type)
+if (read.ok) {
+  console.log(read.row.type, isMainThread(read.row), isOutcome(read.row), isSessionRow(read.row), turnOpened(read.row), turnWaiting(read.row), mainThreadStep(read.row))
+  if (isOutcome(read.row)) console.log(outcomeFailed(read.row), outcomeErrorText(read.row))
+}
 else console.log(read.reason, read.issues)
-console.log(rowOf({ type: 'x' }).ok, validate({ type: 'string' }, 1))
+console.log(rowOf({ type: 'x' }).ok, validate({ type: 'string' }, 1), isRowType('session'), isInputRowType('prompt'))
 await using disposable = await connect()
 console.log(disposable.initialized.protocol)
 `
@@ -129,7 +132,7 @@ try {
   console.log('PASS a strict TypeScript consumer of the whole public surface compiles under Node16, NodeNext and Bundler with exactOptionalPropertyTypes')
   command(PYTHON, ['-I', '-S', join(scratch, 'sdk-py/build_backend.py'), join(scratch, 'artifacts')], scratch)
   const wheel = readdirSync(join(scratch, 'artifacts')).find(f => f.endsWith('.whl'))!
-  command(PYTHON, ['-I', '-S', '-c', `import sys,zipfile;sys.path.insert(0,${JSON.stringify(join(scratch, 'artifacts', wheel))});import mercury_cli_sdk as s;assert s.__version__=='0.1.0';assert len(s.ROW_SCHEMAS)==25;assert callable(s.connect_sync);z=zipfile.ZipFile(sys.path[0]);assert 'mercury_cli_sdk/py.typed' in z.namelist();assert b'Requires-Dist:' not in z.read('mercury_cli_sdk-0.1.0.dist-info/METADATA')`], scratch)
+  command(PYTHON, ['-I', '-S', '-c', `import sys,zipfile;from typing import NotRequired;sys.path.insert(0,${JSON.stringify(join(scratch, 'artifacts', wheel))});import mercury_cli_sdk as s;assert s.__version__=='0.1.0';assert len(s.ROW_SCHEMAS)==25;assert callable(s.connect_sync);assert s.is_row_type('session') and not s.is_row_type('nope');assert s.is_input_row_type('prompt') and not s.is_input_row_type('session');assert s.is_outcome({'type':'outcome'}) and s.is_session_row({'type':'session'}) and s.turn_opened({'type':'turn','state':'started'}) and s.turn_waiting({'type':'turn','state':'waiting'}) and s.main_thread_step({'type':'step'});assert s.outcome_failed({'status':'failed'}) and s.outcome_error_text({'status':'failed','error':{'message':'m'}})=='m';assert s.define_tool('t','d',{'q':str,'n':NotRequired[int]},lambda _:'ok').input_schema['required']==['q'];z=zipfile.ZipFile(sys.path[0]);assert 'mercury_cli_sdk/py.typed' in z.namelist();assert b'Requires-Dist:' not in z.read('mercury_cli_sdk-0.1.0.dist-info/METADATA')`], scratch)
   const sdist = readdirSync(join(scratch, 'artifacts')).find(f => f.endsWith('.tar.gz'))!
   mkdirSync(join(scratch, 'unpack'))
   command(PYTHON, ['-I', '-S', '-c', `import tarfile;tarfile.open(${JSON.stringify(join(scratch, 'artifacts', sdist))}).extractall(${JSON.stringify(join(scratch, 'unpack'))},**({'filter':'data'} if hasattr(tarfile,'data_filter') else {}))`], scratch)

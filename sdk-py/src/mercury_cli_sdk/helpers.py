@@ -71,7 +71,7 @@ def _schema(annotation: Any) -> dict[str, Any]:
     if is_typeddict(annotation):
         hints = get_type_hints(annotation, include_extras=True)
         def required(key: str, value: Any) -> bool:
-            if get_origin(value) is Annotated: value = get_args(value)[0]
+            while get_origin(value) is Annotated: value = get_args(value)[0]
             if get_origin(value) is NotRequired: return False
             if get_origin(value) is Required: return True
             return key in annotation.__required_keys__
@@ -79,10 +79,15 @@ def _schema(annotation: Any) -> dict[str, Any]:
     raise ValueError(f'unsupported tool annotation: {annotation}')
 
 
+def _not_required(value: Any) -> bool:
+    while get_origin(value) is Annotated: value = get_args(value)[0]
+    return get_origin(value) is NotRequired
+
+
 def tool_schema(value: Mapping[str, Any] | type) -> dict[str, Any]:
     if isinstance(value, Mapping):
         if value and not all(isinstance(item, type) or get_origin(item) is not None or item is Any for item in value.values()): return dict(value)
-        return {'type': 'object', 'properties': {key: _schema(item) for key, item in value.items()}, 'required': list(value), 'additionalProperties': False}
+        return {'type': 'object', 'properties': {key: _schema(item) for key, item in value.items()}, 'required': [key for key, item in value.items() if not _not_required(item)], 'additionalProperties': False}
     return _schema(value)
 
 

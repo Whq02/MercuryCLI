@@ -70,20 +70,50 @@ async def main() -> None:
 asyncio.run(main())
 
 
-from typing import Any, assert_type
-from mercury_cli_sdk import InitializeResultFile_checkpoints, SessionFactsResult, SessionRewindResult, AgentStopResult, AgentResumeResult, QueueAddResult, TypedOutcome, structured_schema, prewarm
+from typing import Any, NotRequired, assert_type
+from mercury_cli_sdk import (
+    InitializeResultFile_checkpoints, SessionFactsResult, SessionRewindResult, AgentStopResult, AgentResumeResult, QueueAddResult, TypedOutcome, TypedRunResult,
+    PromptContent, PromptInput, StepRow, TurnRow, RowType, PartialRowType, InputRowType,
+    is_outcome, is_session_row, turn_opened, turn_waiting, main_thread_step, is_main_thread, outcome_failed, outcome_error_text, is_row_type, is_input_row_type,
+    text_block, image_block, structured_schema, prewarm,
+)
 
 
 async def typed_output_and_warm() -> None:
     def decode(value: Any) -> int: return int(value['count'])
     descriptor = structured_schema({'type': 'object', 'properties': {'count': {'type': 'integer'}}}, decode)
-    task = await run('typed', schema=descriptor)
+    content: PromptContent = [text_block('hi'), image_block(b'x', 'image/png')]
+    prompt_input: PromptInput = content
+    task = await run(prompt_input, schema=descriptor)
     assert_type(await task.outcome, TypedOutcome[int])
+    opt_tool = define_tool('opt', 'Optional mapping field', {'q': str, 'limit': NotRequired[int]}, lambda _: 'ok')
+    assert opt_tool.input_schema['required'] == ['q']
     session = await connect()
     assert_type(await session.prompt('typed', schema=descriptor), TypedOutcome[int])
     warm = await prewarm()
     assert_type(warm, MercurySession)
     await warm.close()
+
+
+def typed_predicates(row: StreamRow | None, kind: str, typed_result: TypedRunResult[int]) -> None:
+    assert_type(typed_result.outcome, TypedOutcome[int])
+    if is_row_type(kind):
+        assert_type(kind, RowType | PartialRowType)
+    if is_input_row_type(kind):
+        assert_type(kind, InputRowType)
+    if is_outcome(row):
+        assert_type(row, OutcomeRow)
+        assert_type(outcome_failed(row), bool)
+        assert_type(outcome_error_text(row), str | None)
+    if is_session_row(row):
+        assert_type(row, SessionRow)
+    if turn_opened(row):
+        assert_type(row, TurnRow)
+    if turn_waiting(row):
+        assert_type(row, TurnRow)
+    if main_thread_step(row):
+        assert_type(row, StepRow)
+        assert_type(is_main_thread(row), bool)
 
 
 def typed_sync() -> None:

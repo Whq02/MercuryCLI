@@ -3,11 +3,18 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Generic, Mapping, TypeVar, cast, overload
-from .errors import MercuryError
+from .errors import MercuryError, RunExit
 from .generated import OutcomeRow, TypedOutcome
-from .parse import Issue, validate
+from .parse import Issue, StreamRow, validate
 
 T = TypeVar('T')
+
+
+@dataclass(frozen=True)
+class TypedRunResult(Generic[T]):
+    outcome: TypedOutcome[T]
+    rows: list[StreamRow]
+    exit: RunExit
 
 
 @dataclass(frozen=True)

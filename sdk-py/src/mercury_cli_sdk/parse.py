@@ -2,8 +2,11 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass, field
-from typing import Any, Generic, Literal, Mapping, NotRequired, TypedDict, TypeVar, cast
-from .generated import ROWS_SCHEMA, ROW_SCHEMAS, INPUT_ROW_SCHEMAS, Row, InputRow
+from typing import Any, AsyncIterable, Generic, Literal, Mapping, NotRequired, Sequence, TypeAlias, TypedDict, TypeGuard, TypeVar, cast
+from .generated import ROWS_SCHEMA, ROW_SCHEMAS, INPUT_ROW_SCHEMAS, ROW_TYPES, PARTIAL_ROW_TYPES, INPUT_ROW_TYPES, Row, InputRow, InputBlock, RowType, PartialRowType, InputRowType, OutcomeRow, SessionRow, TurnRow, StepRow
+
+PromptContent: TypeAlias = str | Sequence[InputBlock]
+PromptInput: TypeAlias = str | Sequence[InputBlock] | AsyncIterable[str | InputRow]
 
 
 class UnknownRow(TypedDict):
@@ -120,6 +123,47 @@ def input_row_of(value: Any) -> RowRead[InputRow]:
 def is_main_thread(row: StreamRow) -> bool:
     """True for a row of the main conversation; a subagent's rows carry ``parent_call_id``."""
     return 'parent_call_id' not in row
+
+
+_ROW_TYPE_SET: frozenset[str] = frozenset([*ROW_TYPES, *PARTIAL_ROW_TYPES])
+_INPUT_TYPE_SET: frozenset[str] = frozenset(INPUT_ROW_TYPES)
+
+
+def is_row_type(type: str) -> TypeGuard[RowType | PartialRowType]:
+    return type in _ROW_TYPE_SET
+
+
+def is_input_row_type(type: str) -> TypeGuard[InputRowType]:
+    return type in _INPUT_TYPE_SET
+
+
+def is_outcome(row: StreamRow | None) -> TypeGuard[OutcomeRow]:
+    return row is not None and row['type'] == 'outcome'
+
+
+def is_session_row(row: StreamRow | None) -> TypeGuard[SessionRow]:
+    return row is not None and row['type'] == 'session'
+
+
+def turn_opened(row: StreamRow | None) -> TypeGuard[TurnRow]:
+    return row is not None and row['type'] == 'turn' and row.get('state') == 'started'
+
+
+def turn_waiting(row: StreamRow | None) -> TypeGuard[TurnRow]:
+    return row is not None and row['type'] == 'turn' and row.get('state') == 'waiting'
+
+
+def main_thread_step(row: StreamRow | None) -> TypeGuard[StepRow]:
+    return row is not None and row['type'] == 'step' and 'parent_call_id' not in row
+
+
+def outcome_failed(row: OutcomeRow) -> bool:
+    return row['status'] != 'completed'
+
+
+def outcome_error_text(row: OutcomeRow) -> str | None:
+    error = row.get('error')
+    return error.get('message') if isinstance(error, Mapping) else None
 
 
 def parse_row(line: str) -> RowRead[StreamRow]:
