@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import { execSync, spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { BUN, PYTHON, resolvePython } from './runtime.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'sdk-build-'))
@@ -106,6 +107,14 @@ try {
   assert.equal(negative.status, 1, negative.stdout)
   for (const expected of ['"Literal[\'yolo\']" cannot be assigned to parameter "mode"', 'No overloads for "run" match', 'No parameter named "prompt"', '"Literal[\'extreme\']" cannot be assigned to parameter "effort"', 'No parameter named "warm"', 'cannot be assigned to parameter "max_turns"', 'cannot be assigned to parameter "mercury"']) assert(negative.stdout.includes(expected), `pyright must report ${expected}:\n${negative.stdout}`)
   assert(negative.stdout.includes('7 errors'), negative.stdout)
+  command(PYTHON, [join(scratch, 'negative.py')], scratch, { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(scratch, 'sdk-py/src') })
+  assert.equal(BUN, process.execPath)
+  if (process.platform !== 'win32') {
+    const fakeBin = join(scratch, 'fake-bin'); mkdirSync(fakeBin, { recursive: true })
+    writeFileSync(join(fakeBin, 'python3'), '#!/bin/sh\nexit 9009\n'); chmodSync(join(fakeBin, 'python3'), 0o755)
+    writeFileSync(join(fakeBin, 'python'), '#!/bin/sh\nexit 0\n'); chmodSync(join(fakeBin, 'python'), 0o755)
+    assert.equal(resolvePython({ ...process.env, PATH: fakeBin }), 'python')
+  }
   console.log('PASS pyright strict refuses seven wrong keyword options on run, run_sync, connect, connect_sync and prewarm')
   mkdirSync(join(scratch, 'consumer/node_modules'), { recursive: true })
   cpSync(join(scratch, 'sdk'), join(scratch, 'consumer/node_modules/mercury-cli-sdk'), { recursive: true, filter: p => !p.includes('/src/') })
@@ -118,13 +127,13 @@ try {
     command('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(scratch, 'consumer/tsconfig.json')], scratch)
   }
   console.log('PASS a strict TypeScript consumer of the whole public surface compiles under Node16, NodeNext and Bundler with exactOptionalPropertyTypes')
-  command('python3', ['-I', '-S', join(scratch, 'sdk-py/build_backend.py'), join(scratch, 'artifacts')], scratch)
+  command(PYTHON, ['-I', '-S', join(scratch, 'sdk-py/build_backend.py'), join(scratch, 'artifacts')], scratch)
   const wheel = readdirSync(join(scratch, 'artifacts')).find(f => f.endsWith('.whl'))!
-  command('python3', ['-I', '-S', '-c', `import sys,zipfile;sys.path.insert(0,${JSON.stringify(join(scratch, 'artifacts', wheel))});import mercury_cli_sdk as s;assert s.__version__=='0.1.0';assert len(s.ROW_SCHEMAS)==25;assert callable(s.connect_sync);z=zipfile.ZipFile(sys.path[0]);assert 'mercury_cli_sdk/py.typed' in z.namelist();assert b'Requires-Dist:' not in z.read('mercury_cli_sdk-0.1.0.dist-info/METADATA')`], scratch)
+  command(PYTHON, ['-I', '-S', '-c', `import sys,zipfile;sys.path.insert(0,${JSON.stringify(join(scratch, 'artifacts', wheel))});import mercury_cli_sdk as s;assert s.__version__=='0.1.0';assert len(s.ROW_SCHEMAS)==25;assert callable(s.connect_sync);z=zipfile.ZipFile(sys.path[0]);assert 'mercury_cli_sdk/py.typed' in z.namelist();assert b'Requires-Dist:' not in z.read('mercury_cli_sdk-0.1.0.dist-info/METADATA')`], scratch)
   const sdist = readdirSync(join(scratch, 'artifacts')).find(f => f.endsWith('.tar.gz'))!
   mkdirSync(join(scratch, 'unpack'))
-  command('python3', ['-I', '-S', '-c', `import tarfile;tarfile.open(${JSON.stringify(join(scratch, 'artifacts', sdist))}).extractall(${JSON.stringify(join(scratch, 'unpack'))},**({'filter':'data'} if hasattr(tarfile,'data_filter') else {}))`], scratch)
-  command('python3', ['-I', '-S', join(scratch, 'unpack/mercury_cli_sdk-0.1.0/build_backend.py'), join(scratch, 'rebuilt')], scratch)
+  command(PYTHON, ['-I', '-S', '-c', `import tarfile;tarfile.open(${JSON.stringify(join(scratch, 'artifacts', sdist))}).extractall(${JSON.stringify(join(scratch, 'unpack'))},**({'filter':'data'} if hasattr(tarfile,'data_filter') else {}))`], scratch)
+  command(PYTHON, ['-I', '-S', join(scratch, 'unpack/mercury_cli_sdk-0.1.0/build_backend.py'), join(scratch, 'rebuilt')], scratch)
   assert.deepEqual(readFileSync(join(scratch, 'artifacts', wheel)), readFileSync(join(scratch, 'rebuilt', wheel)))
   assert(!loaded.includes('error'))
   console.log('PASS clean-copy TypeScript build; dependency-free Node import; Python stdlib-only wheel, sdist and identical rebuild; py.typed')

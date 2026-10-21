@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { PYTHON } from './runtime.ts'
 import * as sdk from '../../sdk/src/index.ts'
 import { executableOf } from '../../sdk/src/executable.ts'
 import * as testing from '../../sdk/src/testing.ts'
@@ -264,7 +265,7 @@ try {
     assert.equal((await sdk.run({ mercury: entry, prompt: 'x' }).outcome).status, 'completed')
     assert.throws(() => sdk.argvOf({ mercury: join(scratch, 'missing.mjs') }), /JavaScript entry point that does not exist/)
   })
-  const child = spawn('python3', [join(root, 'scripts/sdk/python-developer.py')], { env: { ...process.env, PYTHONPATH: join(root, 'sdk-py/src'), PYTHONDONTWRITEBYTECODE: '1' }, stdio: 'inherit' })
+  const child = spawn(PYTHON, [join(root, 'scripts/sdk/python-developer.py')], { env: { ...process.env, PYTHONPATH: join(root, 'sdk-py/src'), PYTHONDONTWRITEBYTECODE: '1' }, stdio: 'inherit' })
   await check('Python developer API mirrors', async () => { assert.equal(await new Promise(r => child.once('close', r)), 0) })
 } finally { clearTimeout(guard); rmSync(scratch, { recursive: true, force: true }) }
 if (failures) process.exitCode = 1

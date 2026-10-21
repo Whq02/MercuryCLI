@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { PYTHON } from './runtime.ts'
 import * as sdk from '../../sdk/src/index.ts'
 import { connect, run, MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError } from '../../sdk/src/index.ts'
 import { fixtureSessionRow, fixtureTurn, startFixtureServer } from '../../sdk/src/testing.ts'
@@ -138,10 +139,10 @@ setTimeout(() => process.exit(0), 200)
     assert(pyproject.includes(`version = "${sdk.VERSION}"`))
     assert((await Bun.file(join(root, 'sdk-py/src/mercury_cli_sdk/version.py')).text()).includes(`'${sdk.VERSION}'`))
   })
-  const python = spawnSync('python3', [resolve(import.meta.dir, 'python-lifecycle.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 60000 })
+  const python = spawnSync(PYTHON, [resolve(import.meta.dir, 'python-lifecycle.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 60000 })
   console.log(python.stdout.trim()); if (python.status !== 0) { failures.push('Python lifecycle'); console.error(python.stderr) }
   await check('a Python consumer exits 0 with no fatal error: the fixture bridge with stdin still open, an unclosed sync session, an unclosed tool server', async () => {
-    const consumer = spawnSync('python3', [resolve(import.meta.dir, 'python-clean-exit.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 60000 })
+    const consumer = spawnSync(PYTHON, [resolve(import.meta.dir, 'python-clean-exit.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 60000 })
     assert.equal(consumer.signal, null, `the consumer died by ${consumer.signal}: ${consumer.stderr}`)
     assert(!/Fatal Python error/.test(consumer.stderr), `a Python process wrote a fatal error:\n${consumer.stderr}`)
     assert.equal(consumer.status, 0, consumer.stdout + consumer.stderr)

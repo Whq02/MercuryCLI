@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { PYTHON } from './runtime.ts'
 import * as sdk from '../../sdk/src/index.ts'
 import { startFixtureServer } from '../../sdk/src/testing.ts'
 
@@ -87,7 +88,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'sdk-surface-'))
 try {
   writeFileSync(join(scratch, 'fixture.json'), JSON.stringify({ rows, outcome, session, future, methods }))
   const root = resolve(import.meta.dir, '../..')
-  const child = spawn('python3', [join(root, 'scripts/sdk/python-surface.py'), join(scratch, 'fixture.json')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
+  const child = spawn(PYTHON, [join(root, 'scripts/sdk/python-surface.py'), join(scratch, 'fixture.json')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
   const code = await new Promise<number | null>(r => child.on('close', r))
   assert.equal(code, 0)
 } finally { rmSync(scratch, { recursive: true, force: true }) }

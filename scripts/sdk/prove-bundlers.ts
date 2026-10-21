@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, symlinkSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { BUN } from './runtime.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'sdk-bundlers-'))
@@ -38,7 +39,7 @@ console.log('bundled consumer passed');`)
     run('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(scratch, 'tsconfig.json')])
     console.log(`PASS ES2022 consumer declarations: ${resolution}, skipLibCheck=false`)
   }
-  run('bun', ['build', consumer, '--compile', '--outfile', join(scratch, 'consumer-bin')])
+  run(BUN, ['build', consumer, '--compile', '--outfile', join(scratch, 'consumer-bin')])
   let esbuild = process.env.ESBUILD_BINARY_PATH ?? join(root, 'node_modules/esbuild/bin/esbuild')
   if (!existsSync(esbuild)) {
     run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', join(scratch, 'build-tools'), '--cache', join(scratch, 'npm-cache'), 'esbuild@0.28.2'])
