@@ -24,6 +24,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
 const { getBundledSkills, getBundledSkillExtractDir } = await import('../../src/skills/bundledSkills.ts')
+const { formatCommandsWithinBudgetDetailed } = await import('../../src/tools/SkillTool/prompt.ts')
 const docsSkill = await import('../../src/skills/bundled/mercuryDocs.ts')
 type Command = import('../../src/types/command.ts').Command
 
@@ -35,13 +36,52 @@ const promptText = async (command: Command, args: string): Promise<string> => {
   return out.map(b => ((b as { type?: string; text?: string }).type === 'text' ? (b as { text: string }).text : '')).join('')
 }
 
-section('§1 the mercury-docs skill — registered, user- and model-invocable, inline')
+const SURFACE_CUES: ReadonlyArray<{ surface: string; ask: RegExp; listed: RegExp; question: string }> = [
+  { surface: 'hosting a model', ask: /\b(?:host|runpod|llmhost)\b/i, listed: /\bhosting\b/i, question: 'How do I host a model on Runpod or with mercury host?' },
+  { surface: 'the SDK', ask: /\b(?:sdk|runner)\b/i, listed: /\bSDK\b/, question: 'How do I drive Mercury from the SDK or mercury runner?' },
+  { surface: 'voice', ask: /\b(?:voice|dictat|whisper)\b/i, listed: /\bvoice\b/i, question: 'How do I turn on voice dictation in Mercury?' },
+  { surface: 'restarting', ask: /\brestart\b/i, listed: /\brestart\b/i, question: 'How do I restart my Mercury session onto a new build?' },
+  { surface: 'scheduling', ask: /\bschedul/i, listed: /\bscheduling\b/i, question: 'How do I schedule a recurring prompt in Mercury?' },
+  { surface: 'a provider sign-in', ask: /\b(?:provider|sign in|login)\b/i, listed: /\bproviders\b/i, question: 'How do I sign in to a model provider in Mercury?' },
+]
+
+const DO_IT_REQUESTS: ReadonlyArray<string> = [
+  'Schedule a cron job every weekday at 9am to check CI',
+  'Allow npm test in settings.json without asking',
+  'Rebind ctrl+k to undo in my keybindings',
+  'Run the tests and fix the failing assertion in src/parser.ts',
+  'Loop every 10m on /health',
+  'Restart the dev server and check the logs',
+]
+
+const matchesDocsListing = (listingLine: string, userPrompt: string): boolean => {
+  const hasQuestionTrigger = /asks how to use Mercury itself/i.test(listingLine)
+  const hasDoingExclusion = /\bnot (?:to do it|for doing|when asked to do)\b/i.test(listingLine)
+  const hasGroundingLaw = /never from memory/i.test(listingLine)
+  if (!hasQuestionTrigger || !hasDoingExclusion || !hasGroundingLaw) return false
+  if (!/^\s*(?:how do i|how can i|how to|what does|what is|where is)\b/i.test(userPrompt)) return false
+  const cues = SURFACE_CUES.filter(cue => cue.ask.test(userPrompt))
+  return cues.length > 0 && cues.every(cue => cue.listed.test(listingLine))
+}
+
+section('§1 the mercury-docs skill — registered, user- and model-invocable, inline, trigger-complete')
 const docs = byName.get(docsSkill.MERCURY_DOCS_SKILL_NAME)
 check('the skill registers under its name', docs !== undefined, [...byName.keys()].join(' '))
 check('a prompt command the user may invoke and the model may invoke', docs?.type === 'prompt' && docs.userInvocable !== false && docs.isHidden !== true && docs.disableModelInvocation === false)
 check('it runs inline — no fork, no agent type', docs?.context === undefined && (docs as { agent?: string } | undefined)?.agent === undefined)
 check('the description sends every how-do-I-use-Mercury question here, names the shipped documentation as the source and keeps a doing skill for doing', /how to use Mercury itself/.test(String(docs?.description)) && /ships with this install/.test(String(docs?.description)) && /never from memory/.test(String(docs?.description)) && /even when a skill that does the thing exists/.test(String(docs?.description)))
 check('the argument hint asks for the question', docs?.argumentHint === '<question about using Mercury>')
+const renderedListing = formatCommandsWithinBudgetDetailed(skills).content
+const docsListingLine = renderedListing.split('\n').find(line => line.startsWith(`- ${docsSkill.MERCURY_DOCS_SKILL_NAME}: `)) ?? ''
+check('the rendered 250-char skill-listing line preserves the trigger, the doing exclusion, never-from-memory, and today\'s surfaces', SURFACE_CUES.every(cue => cue.listed.test(docsListingLine)) && /never from memory/.test(docsListingLine) && /\bnot to do it\b/.test(docsListingLine), docsListingLine)
+for (const cue of SURFACE_CUES) {
+  check(`discovery fires on "how do I …" for ${cue.surface}`, matchesDocsListing(docsListingLine, cue.question), docsListingLine)
+}
+for (const req of DO_IT_REQUESTS) {
+  check(`discovery stays quiet on "do it" request: "${req}"`, !matchesDocsListing(docsListingLine, req))
+}
+check('poison control: a listing line missing a surface fails the how-to predicate', !matchesDocsListing(docsListingLine.replace(/\bvoice\b/i, ''), 'How do I turn on voice dictation in Mercury?'))
+check('poison control: a listing line whose doing exclusion was truncated fails the discovery predicate', !matchesDocsListing(docsListingLine.replace(/,?\s*not to do it/i, ''), 'How do I schedule a recurring prompt in Mercury?'))
 
 section('§2 the pages — README.md and every docs/*.md page of this tree, byte for byte, nothing else')
 const pages = docsSkill.mercuryDocPages()
@@ -79,8 +119,34 @@ check('the guidance answers from the shipped documentation and names the Read an
 check("the guidance names Mercury's own site and llms.txt as the map, and no other site", text.includes(docsSkill.MERCURY_DOCS_SITE) && text.includes(docsSkill.MERCURY_DOCS_MAP_URL) && /fetch no other site/.test(text))
 check('an uncovered question is answered plainly, never guessed', /say so and name the nearest page instead of guessing/.test(text))
 const mapLines = text.split('\n').filter(line => line.startsWith('- README.md') || line.startsWith('- docs/'))
+const mapPaths = mapLines.map(line => /^- ([^\s—]+)/.exec(line)?.[1] ?? '')
 check('the map lists every carried page, README first', mapLines.length === expected.length && mapLines[0]!.startsWith('- README.md — Mercury CLI:'), `${mapLines.length} map rows`)
+check('every docs/*.md in the tree is in the map and every path the map names exists', expected.every(p => mapPaths.includes(p)) && mapPaths.every(p => existsSync(join(ROOT, p))), mapPaths.filter(p => !existsSync(join(ROOT, p))).join(', '))
+const surfaceIndexSection = index.split('## Reference')[0] ?? index
+const surfaceLinks = [...surfaceIndexSection.matchAll(/\]\(([^)]+\.md)\)/g)]
+  .map(m => m[1]!)
+  .filter(link => link === '../README.md' || !link.startsWith('../'))
+  .map(link => (link === '../README.md' ? 'README.md' : `docs/${link}`))
+check("every surface docs/README.md's index names has a page in the map", surfaceLinks.length > 0 && surfaceLinks.every(p => mapPaths.includes(p)), surfaceLinks.filter(p => !mapPaths.includes(p)).join(', '))
 check('each map row carries the page title and a one-line summary from the page itself', mapLines.every(line => / — .+: .+/.test(line)) && mapLines.some(line => line.startsWith('- docs/SATURN.md — Saturn: session schedules: Saturn is Mercury\'s scheduler.')))
+const STOP_WORDS = new Set(['mercury', 'from', 'with', 'that', 'this', 'what', 'when', 'where', 'does', 'into', 'over', 'under', 'after', 'before', 'each', 'your', 'tool', 'tools'])
+const silentPages: string[] = []
+const droppedTitleTokens: string[] = []
+for (const rel of expected) {
+  const pageText = pages[rel]!
+  const { title, summary } = docsSkill.describeDocPage(pageText)
+  const titleWords = [...title.toLowerCase().matchAll(/[a-z0-9]{4,}/g)].map(m => m[0]).filter(w => !STOP_WORDS.has(w))
+  const pageCmds = [...new Set([...pageText.matchAll(/`(\/[a-z][a-z0-9-]*|mercury\s+(?:run|runner|host|update|install|health|auth|models|mcp|extensions|roster|usage|daemon|sessions|lsp|acp|bridge|godot)|(?:Ast|Lsp)[A-Z][A-Za-z]+|ChangeSet)(?:\s+[^`]*)?`/g)].map(m => m[1]!.replace(/\s+/g, ' ')))]
+  const lower = summary.toLowerCase()
+  if (!titleWords.some(w => lower.includes(w)) && !pageCmds.some(c => summary.includes(c))) silentPages.push(rel)
+  const titleCode = [...title.matchAll(/`([^`]+)`|\b(AstSearch|AstEdit)\b/g)].map(m => (m[1] ?? m[2])!)
+  if (!titleCode.every(tok => summary.includes(tok))) droppedTitleTokens.push(`${rel} (${titleCode.join(', ')})`)
+}
+check("the map summary of each page names at least one word from the page's own title or commands", silentPages.length === 0, silentPages.join(', '))
+check("every command or tool named in a page's # title survives into its map summary", droppedTitleTokens.length === 0, droppedTitleTokens.join(', '))
+check('the Windows source-install map line describes building from source rather than the README release route', /building Mercury from source on a Windows machine/.test(docsSkill.describeDocPage(pages['docs/INSTALL-WINDOWS-FROM-SOURCE.md']!).summary))
+check('the memory-findings map line states the session-note study question rather than a bare version stamp', /what the note changes in the next session's behaviour/.test(docsSkill.describeDocPage(pages['docs/MEMORY-FINDINGS.md']!).summary))
+check('describeDocPage honours an explicit <!-- answers: … --> line when a page carries one', docsSkill.describeDocPage('# Sample\n\n<!-- answers: custom routing line for the page -->\n\nA first paragraph that is over sixty characters long so the fallback would have chosen it.').summary === 'custom routing line for the page')
 check('the question rides last under its own heading', text.endsWith('## The question\nhow do i schedule a prompt in mercury'))
 const bare = await promptText(docs!, '')
 check('no question ⇒ no question heading', !bare.includes('## The question'))
