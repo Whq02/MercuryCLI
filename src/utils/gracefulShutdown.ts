@@ -46,6 +46,10 @@ export function terminalGoneReadLine(code: string): string {
   return `terminal gone: stdin read ${code} — the session closes like a hangup (exit ${TERMINAL_GONE_EXIT_CODE})`
 }
 
+export function editorHandoverStdinFaultLine(code: string, syscall: string): string {
+  return `stdin ${syscall} ${code} while the terminal was lent to an editor — the terminal is still here, so the session stays and input is re-armed (never a hangup)`
+}
+
 function resolveRestorationSync(): ShutdownRestorationModule | undefined {
   if (!restorationModule) {
     try {
@@ -333,6 +337,9 @@ export const setupGracefulShutdown = (): void => {
         stdinReadError: code,
       })
       gracefulShutdownSync(TERMINAL_GONE_EXIT_CODE)
+    }, (code, syscall) => {
+      logForDebugging(editorHandoverStdinFaultLine(code, syscall), { level: 'warn' })
+      logForDiagnosticsNoPII('warn', 'stdin_fault_after_editor', { stdoutWritable: Boolean(process.stdout.writable), stdinError: code, syscall })
     })
   }
 

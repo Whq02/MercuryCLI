@@ -25,7 +25,7 @@ console.log('§1 w32-02 + ctr-6 — the v opener rides utils/editor')
   check('the no-editor advice speaks the platform (no $EDITOR on cmd/PowerShell)', repl.includes('set EDITOR (or VISUAL) to open it') && repl.includes('set $EDITOR to open it') && repl.includes("process.platform === 'win32'"))
   const editor = read('src/utils/editor.ts')
   check('the door quotes every win32 token and listens for the launch error', editor.includes('quoteForWindowsShell(executable)') && editor.includes("child.on('error'"))
-  check('the door answers whether an editor is configured (false ⇒ the honest written-to line)', editor.includes('export function openFileInExternalEditor(filePath: string, line?: number): boolean') && editor.includes('if (!editor) return false'))
+  check('the door answers whether an editor is configured and usable (false ⇒ the honest written-to line; a no-op or missing value is refused before any spawn)', editor.includes('export function openFileInExternalEditor(filePath: string, line?: number): boolean') && /const resolved = resolveExternalEditor\(\)\s*\n\s*if \(!resolved\.ok\) \{[\s\S]{0,200}return false/.test(editor))
 }
 
 process.exit(failures === 0 ? 0 : 1)
