@@ -1432,7 +1432,9 @@ export function Config({
   const listRows = Math.max(1, contentHeight - (compact ? (searchRowUp ? 1 : 0) : CONFIG_LIST_CHROME_ROWS))
   const windowFor = (index: number): number => {
     const warning = searchMode || compact ? undefined : filtered[index]?.warning
-    return Math.max(1, listRows - (warning === undefined ? 0 : configWarningRows(warning, width)))
+    if (warning === undefined) return listRows
+    const beside = Math.max(1, listRows - configWarningRows(warning, width - 1))
+    return filtered.length > beside ? beside : Math.max(1, listRows - configWarningRows(warning, width))
   }
   const win = configListWindow(selected, offset, filtered.length, windowFor(Math.max(0, Math.min(selected, filtered.length - 1))))
   useEffect(() => {
