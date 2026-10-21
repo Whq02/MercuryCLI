@@ -35,8 +35,7 @@ An incomplete tree never establishes that a target is unique or absent.
 `find` and `wait` with `until` default to the full depth/count caps; explicit
 `depth` and `limit` still take precedence.
 
-`settleMs` is the maximum settling time, not a fixed pause: consecutive matching
-frames end it early. Its default is 300 ms and its cap is 5000 ms. A mouse act
+`settleMs` caps the settling time; consecutive matching frames end it early. Its default is 300 ms and its cap is 5000 ms. A mouse act
 checks its target region, so animation elsewhere need not delay it; the final
 screenshot still shows the requested display or capture region. The result names
 what was checked and whether it stayed stable or kept changing at the cap.
@@ -85,8 +84,8 @@ the same permission and safety checks as an individual call, including each read
 A refusal, timeout or interruption stops the sequence and reports how many steps
 completed; completed acts are not undone. One screenshot follows the final step.
 Set `capture: false` on the sequence to keep the interaction image-free. Set
-`capture`, `region` and `settleMs` on the sequence, not its steps. Nested sequences
-are refused.
+`capture`, `region` and `settleMs` on the sequence itself; steps do not take them.
+Nested sequences are refused.
 
 `find` and `wait` with `until` read the tree and therefore ask like `tree`.
 A timed wait without `until` remains a never-ask read. Targeted mouse actions
