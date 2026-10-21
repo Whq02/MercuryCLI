@@ -243,7 +243,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       else this.#promptTurns.delete(id)
       return receipt
     } catch (error) {
-      if (error instanceof MercuryRefusal || error instanceof MercuryWireError || error instanceof MercurySchemaError) this.#promptTurns.delete(id)
+      if (error instanceof MercuryRefusal || error instanceof MercuryWireError || error instanceof MercurySchemaError || (error instanceof MercuryError && error.code !== undefined)) this.#promptTurns.delete(id)
       throw error
     }
   }

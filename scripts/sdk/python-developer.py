@@ -129,6 +129,7 @@ createInterface({ input: process.stdin }).on('line', line => {
     else { claimed = true; reply({ session_id: 'claimed-session' }) }
   } else if (method === 'queue/withdraw') reply(params.id === 'keep' ? { withdrawn: false, reason: 'taken' } : { withdrawn: true, text: 'queued' })
   else if (method === 'queue/add' && claimed) {
+    if (params.content === 'error') { emit({ jsonrpc: '2.0', id, error: { code: -32603, message: 'queue failed' } }); return }
     reply(params.content === 'reject' ? { accepted: false, reason: 'duplicate' } : { accepted: true })
     if (params.content === 'cancel') { cancelled.push(params.id); emit({ jsonrpc: '2.0', method: 'fixture/queued', params: { id: params.id } }) }
     if (params.content === 'resolve') {
@@ -198,6 +199,17 @@ async def prompt_withdrawn_wait(correlated):
             finally:
                 task.cancel()
                 with suppress(asyncio.CancelledError, sdk.MercuryError): await task
+
+
+async def prompt_error_reply(correlated):
+    with prompt_fixture(correlated) as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            for send in (lambda: session.send_prompt('error'), lambda: session.steer('error'), lambda: session.follow_up('error'), lambda: session.send({'type': 'prompt', 'content': 'error'})):
+                try: await send()
+                except sdk.MercuryError as error: assert error.code == -32603 and str(error) == 'queue failed', repr(error)
+                else: raise AssertionError('input the runner answered with an error was accepted')
+            assert not session._prompt_turns, 'input the runner answered with an error leaves no turn entry'
+            assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved', 'input the runner refused cannot hold the next outcome'
 
 
 async def prompt_cancellation(correlated):
@@ -467,7 +479,7 @@ async def sync():
 
 
 async def main():
-    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('input answered with an error uncorrelated', lambda: prompt_error_reply(False)), ('input answered with an error correlated', lambda: prompt_error_reply(True)), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
 
 

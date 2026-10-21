@@ -52,6 +52,7 @@ function promptFixture(correlated = false, warm = false) {
         else { claimed = true; reply({ session_id: 'claimed-session' }) }
       } else if (method === 'queue/withdraw') reply(params.id === 'keep' ? { withdrawn: false, reason: 'taken' } : { withdrawn: true, text: 'queued' })
       else if (method === 'queue/add' && claimed) {
+        if (params.content === 'error') { emit({ jsonrpc: '2.0', id, error: { code: -32603, message: 'queue failed' } }); return }
         reply(params.content === 'reject' ? { accepted: false, reason: 'duplicate' } : { accepted: true })
         if (params.content === 'cancel') { cancelled.push(params.id); emit({ jsonrpc: '2.0', method: 'fixture/queued', params: { id: params.id } }) }
         if (params.content === 'resolve') {
@@ -238,6 +239,14 @@ try {
         assert.equal((await session.withdraw(session.lastPromptId!)).withdrawn, true)
         await assert.rejects(Promise.race([waiting, new Promise((_, reject) => setTimeout(() => reject(new Error('the withdrawn wait never settled')), 500))]), (error: unknown) => error instanceof sdk.MercuryError && error.message === 'prompt: withdrawn')
         assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'the session takes the next prompt')
+      } finally { await session.close() }
+    })
+    await check(`prompt ids: input the runner answers with an error leaves no ${correlated ? 'correlated' : 'uncorrelated'} turn entry behind`, async () => {
+      const fixture = promptFixture(correlated)
+      const session = await sdk.connect({ mercury: fixture.mercury })
+      try {
+        for (const send of [() => session.sendPrompt('error'), () => session.steer('error'), () => session.followUp('error'), () => session.send({ type: 'prompt', content: 'error' })]) await assert.rejects(send(), (error: unknown) => error instanceof sdk.MercuryError && error.code === -32603 && error.message === 'queue failed')
+        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'input the runner refused cannot hold the next outcome')
       } finally { await session.close() }
     })
     await check(`prompt cancellation: the cancelled turn still ends first and the next ${correlated ? 'correlated' : 'uncorrelated'} prompt resolves with its own turn`, async () => {

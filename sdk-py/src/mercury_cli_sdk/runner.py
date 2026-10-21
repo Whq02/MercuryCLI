@@ -250,8 +250,8 @@ class MercurySession(TypedRequests):
             if receipt['accepted']: self.last_prompt_id = id
             else: self._prompt_turns.pop(id, None)
             return receipt
-        except (MercuryRefusal, MercuryWireError, MercurySchemaError):
-            self._prompt_turns.pop(id, None)
+        except MercuryError as error:
+            if isinstance(error, (MercuryRefusal, MercuryWireError, MercurySchemaError)) or error.code is not None: self._prompt_turns.pop(id, None)
             raise
 
     async def send_prompt(self, content: Any, **options: Any) -> QueueAddResult:
