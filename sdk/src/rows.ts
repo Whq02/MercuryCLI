@@ -443,6 +443,7 @@ export type InputBlock = {
 export interface PromptRow {
   type: 'prompt'
   content: string | InputBlock[]
+  schema?: Record<string, unknown>
   id?: string
   priority?: 'now' | 'next' | 'later'
   sent_at?: string
@@ -2407,6 +2408,13 @@ export const INPUT_ROW_SCHEMAS: Readonly<Record<InputRowType, JsonSchema>> = {
             }
           }
         ]
+      },
+      "schema": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {}
       },
       "id": {
         "type": "string"

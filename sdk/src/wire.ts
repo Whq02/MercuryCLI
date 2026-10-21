@@ -290,6 +290,7 @@ export type SessionFactsResult = {
   }>
   file_checkpoints?: {
     capture: boolean
+    source?: 'seat' | 'interactive' | 'initialize' | 'setting' | 'headless'
     restorable: string[]
   }
   stream_idle_timeout_ms?: number
@@ -411,6 +412,8 @@ export interface MethodParams {
     fs_write_text_file?: boolean
     terminal?: boolean
   }
+  schema?: Record<string, unknown>
+  file_checkpoints?: boolean
 }
   "session/claim": {
   session_id: string
@@ -602,6 +605,10 @@ export interface MethodResults {
     pid: number
   }
   session_id: string | null
+  file_checkpoints?: {
+    capture: boolean
+    source: 'interactive' | 'seat' | 'initialize' | 'setting' | 'headless'
+  }
 }
   "session/claim": {
   session_id: string
@@ -848,6 +855,16 @@ export const METHODS: Record<MethodName, MethodSchema> = {
             "elicitation",
             "partial_rows"
           ]
+        },
+        "schema": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "file_checkpoints": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -884,6 +901,28 @@ export const METHODS: Record<MethodName, MethodSchema> = {
           "type": [
             "string",
             "null"
+          ]
+        },
+        "file_checkpoints": {
+          "type": "object",
+          "properties": {
+            "capture": {
+              "type": "boolean"
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "interactive",
+                "seat",
+                "initialize",
+                "setting",
+                "headless"
+              ]
+            }
+          },
+          "required": [
+            "capture",
+            "source"
           ]
         }
       },
@@ -1529,6 +1568,13 @@ export const METHODS: Record<MethodName, MethodSchema> = {
                   }
                 }
               ]
+            },
+            "schema": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
             },
             "id": {
               "type": "string"
