@@ -263,7 +263,7 @@ async function paint(content: React.ReactNode, columns: number, rows: number, wa
       })
       await settle()
       const next = read()
-      if (activeUsageReads.size === 0 && next !== '' && next === last) return next
+      if (activeUsageReads.size === 0 && next !== '' && !next.includes('loading usage…') && next === last) return next
       last = next
     }
     throw new Error('the rendered frame never settled')
