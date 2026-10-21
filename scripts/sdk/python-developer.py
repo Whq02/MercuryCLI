@@ -296,9 +296,71 @@ async def sync():
         await asyncio.to_thread(consume)
 
 
+async def discovery_deeper():
+    from mercury_cli_sdk.client import warm_options
+    import mercury_cli_sdk.executable as executable
+    stub = 'console.log(' + repr(json.dumps(session_row)) + '); console.log(' + repr(json.dumps(outcome)) + ')'
+    with tempfile.TemporaryDirectory(prefix='sdk-deeper-') as directory:
+        deeper = Path(directory).resolve()
+        hermetic = {'HOME': str(deeper), 'PATH': ''}
+        npm = deeper / 'npm'; npm.mkdir()
+        (npm / 'entry.cjs').write_text(stub); (npm / 'mercury.cmd').write_text('@echo off\n"node" "%~dp0\\entry.cjs" %*\n'); runtime_stand_in(npm / 'node.exe')
+        spread = {'UserProfile': str(deeper), 'Path': ';'.join(['C:\\Windows\\system32', str(npm)]), 'Pathext': '.COM;.EXE;.BAT;.CMD'}
+        via_shim = [str(npm / 'node.exe'), str(npm / 'entry.cjs')]
+        assert executable_of(None, spread, str(deeper), 'win32') == via_shim, executable_of(None, spread, str(deeper), 'win32')
+        warmed = warm_options(sdk.RunOptions(env=spread)).env
+        assert warmed is not None and executable_of(None, warmed, str(deeper), 'win32') == via_shim, 'warm_options spreads the env and keeps it findable'
+        assert executable_of(None, {**spread, 'Mercury_Bin': str(npm / 'mercury.cmd')}, str(deeper), 'win32') == via_shim, 'MERCURY_BIN is read the same way'
+        assert executable_of(None, {**spread, 'PATH': ''}, str(deeper), 'win32') == ['mercury'], 'an exact-case key wins over its other spelling'
+        entry = deeper / 'entry.mjs'; entry.write_text(stub)
+        def named(call):
+            try: call()
+            except sdk.MercuryError as error: assert 'MERCURY_NODE names no executable file: /no/such/node' in str(error), str(error)
+            else: raise AssertionError('a missing MERCURY_NODE was accepted')
+        named(lambda: executable_of(str(entry), {**hermetic, 'MERCURY_NODE': '/no/such/node'}))
+        named(lambda: executable_of(str(entry), {**hermetic, 'mercury_node': '/no/such/node'}, str(deeper), 'win32'))
+        assert executable_of(str(entry), {**hermetic, 'mercury_node': '/no/such/node'}) == ['node', str(entry)], 'on POSIX the keys stay case-sensitive'
+        named(lambda: sdk.argv_of(sdk.RunOptions(mercury=str(entry), env={**hermetic, 'MERCURY_NODE': '/no/such/node'})))
+        assert executable_of(str(entry), {**hermetic, 'MERCURY_NODE': ''}) == ['node', str(entry)], 'an empty MERCURY_NODE is unset'
+        if WINDOWS_HOST:
+            print('SKIP Python the Homebrew keg and the relative executable live: this host is Windows (sh wrappers and symlinks)', flush=True)
+            return
+        node = shutil.which('node'); assert node, 'node on PATH'
+        keg = deeper / 'brew' / 'Cellar' / 'mercury' / '1.0.0-beta.40'; libexec = keg / 'libexec'; brew_bin = deeper / 'brew' / 'bin'
+        for folder in (libexec / 'vendor' / 'node' / 'bin', keg / 'bin', brew_bin): folder.mkdir(parents=True)
+        (libexec / 'mercury.mjs').write_text(stub)
+        (libexec / 'mercury').write_text(f'#!/bin/sh\nexec "{node}" "$(dirname "$0")/mercury.mjs" "$@"\n'); (libexec / 'mercury').chmod(0o755)
+        (keg / 'bin' / 'mercury').write_text(f'#!/bin/bash\nexec "{libexec / "mercury"}" "$@"\n'); (keg / 'bin' / 'mercury').chmod(0o755)
+        os.symlink(os.path.join('..', 'Cellar', 'mercury', '1.0.0-beta.40', 'bin', 'mercury'), brew_bin / 'mercury')
+        prefixed = {**hermetic, 'HOMEBREW_PREFIX': str(deeper / 'brew')}
+        assert executable_of(None, prefixed) == [str(brew_bin / 'mercury')], 'a keg without its vendored runtime runs through its wrapper'
+        (libexec / 'vendor' / 'node' / 'bin' / 'node').write_text(f'#!/bin/sh\nexec "{node}" "$@"\n'); (libexec / 'vendor' / 'node' / 'bin' / 'node').chmod(0o755)
+        bundle = [str(libexec / 'vendor' / 'node' / 'bin' / 'node'), str(libexec / 'mercury.mjs')]
+        assert list(getattr(executable, 'HOMEBREW_COMMANDS', [])) == ['/opt/homebrew/bin/mercury', '/usr/local/bin/mercury', '/home/linuxbrew/.linuxbrew/bin/mercury'], 'the fixed Homebrew and Linuxbrew commands'
+        assert executable_of(None, prefixed) == bundle, executable_of(None, prefixed)
+        assert executable_of(None, {**hermetic, 'PATH': str(brew_bin)}) == bundle, 'the wrapper found on PATH resolves the same way'
+        assert executable_of(str(brew_bin / 'mercury'), hermetic) == bundle, 'and the wrapper named outright'
+        assert executable_of(None, {**hermetic, 'MERCURY_BIN': str(brew_bin / 'mercury')}) == bundle, 'and MERCURY_BIN naming it'
+        named(lambda: executable_of(None, {**prefixed, 'MERCURY_NODE': '/no/such/node'}))
+        inherited = {key: value for key, value in os.environ.items() if key not in ('MERCURY_CONFIG_DIR', 'MERCURY_HOME', 'MERCURY_VERSIONS_DIR', 'MERCURY_BIN')}
+        stripped = await sdk.run('x', env={**inherited, **prefixed})
+        assert (await stripped.outcome)['status'] == 'completed'
+        home_bin = deeper / '.mercury' / 'bin'; home_bin.mkdir(parents=True); (home_bin / 'mercury').write_text('#!/bin/sh\nexit 0\n'); (home_bin / 'mercury').chmod(0o755)
+        assert executable_of(None, prefixed)[0] == str(home_bin / 'mercury'), 'the home rungs still come before Homebrew'
+        sub = deeper / 'sub'; sub.mkdir()
+        (sub / 'my-mercury').write_text(f'#!/bin/sh\nexec "{node}" "{entry}" "$@"\n'); (sub / 'my-mercury').chmod(0o755)
+        assert Path.cwd() != sub
+        assert executable_of('./my-mercury', hermetic, str(sub)) == [str(sub / 'my-mercury')], executable_of('./my-mercury', hermetic, str(sub))
+        assert executable_of('./my-mercury', hermetic, str(sub), 'win32') == [str(sub / 'my-mercury')], 'on every platform'
+        assert executable_of('my-mercury', hermetic, str(sub)) == ['my-mercury'], 'a bare name is left to the PATH search of the spawn'
+        relative = await sdk.run('x', mercury='./my-mercury', cwd=str(sub), env={**inherited, **hermetic})
+        assert (await relative.outcome)['status'] == 'completed'
+
+
 async def main():
     for name, function in [('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
+    await check('discovery one layer deeper: Windows env keys read without regard to case, the Homebrew wrapper to the keg bundle on its vendored node, a relative executable bound to cwd, a missing MERCURY_NODE refused by name', discovery_deeper)
 
 
 asyncio.run(main())

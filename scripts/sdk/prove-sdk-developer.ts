@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import * as sdk from '../../sdk/src/index.ts'
+import { warmOptions } from '../../sdk/src/client.ts'
 import { executableOf } from '../../sdk/src/executable.ts'
 import * as testing from '../../sdk/src/testing.ts'
 
@@ -266,5 +267,57 @@ try {
   })
   const child = spawn('python3', [join(root, 'scripts/sdk/python-developer.py')], { env: { ...process.env, PYTHONPATH: join(root, 'sdk-py/src'), PYTHONDONTWRITEBYTECODE: '1' }, stdio: 'inherit' })
   await check('Python developer API mirrors', async () => { assert.equal(await new Promise(r => child.once('close', r)), 0) })
+  await check('discovery one layer deeper: Windows env keys are read without regard to case, the Homebrew wrapper resolves to the keg bundle on its vendored node, a relative executable with a slash binds to cwd, a missing MERCURY_NODE refuses by name', async () => {
+    const deeper = join(scratch, 'deeper'); mkdirSync(deeper, { recursive: true })
+    const stub = `console.log(${JSON.stringify(JSON.stringify(sessionRow))});console.log(${JSON.stringify(JSON.stringify(outcome))})`
+    const hermetic = { HOME: deeper, PATH: '' }
+    const npm = join(deeper, 'npm'); mkdirSync(npm)
+    writeFileSync(join(npm, 'entry.cjs'), stub); writeFileSync(join(npm, 'mercury.cmd'), '@echo off\n"node" "%~dp0\\entry.cjs" %*\n'); runtimeStandIn(join(npm, 'node.exe'))
+    const spread = { UserProfile: deeper, Path: ['C:\\Windows\\system32', npm].join(';'), Pathext: '.COM;.EXE;.BAT;.CMD' }
+    const viaShim = [join(npm, 'node.exe'), join(npm, 'entry.cjs')]
+    assert.deepEqual(executableOf(undefined, spread, deeper, 'win32'), viaShim, `Path and Pathext as a spread of process.env spells them on Windows still find mercury.cmd; got ${JSON.stringify(executableOf(undefined, spread, deeper, 'win32'))}`)
+    assert.deepEqual(executableOf(undefined, warmOptions({ env: spread }).env, deeper, 'win32'), viaShim, 'warmOptions spreads the env and keeps it findable')
+    assert.deepEqual(executableOf(undefined, { ...spread, Mercury_Bin: join(npm, 'mercury.cmd') }, deeper, 'win32'), viaShim, 'MERCURY_BIN is read the same way')
+    assert.deepEqual(executableOf(undefined, { ...spread, PATH: '' }, deeper, 'win32'), ['mercury'], 'an exact-case key wins over its other spelling')
+    const entry = join(deeper, 'entry.mjs'); writeFileSync(entry, stub)
+    const named = (error: unknown) => error instanceof sdk.MercuryError && error.message.includes('MERCURY_NODE names no executable file: /no/such/node')
+    assert.throws(() => executableOf(entry, { ...hermetic, MERCURY_NODE: '/no/such/node' }), named, 'a pinned-but-missing MERCURY_NODE refuses by name, as the launcher does')
+    assert.throws(() => executableOf(entry, { ...hermetic, mercury_node: '/no/such/node' }, deeper, 'win32'), named, 'on Windows any spelling of the key is read')
+    assert.deepEqual(executableOf(entry, { ...hermetic, mercury_node: '/no/such/node' }), ['node', entry], 'on POSIX the keys stay case-sensitive')
+    assert.throws(() => sdk.argvOf({ mercury: entry, env: { ...hermetic, MERCURY_NODE: '/no/such/node' } }), named, 'argvOf carries the refusal')
+    assert.deepEqual(executableOf(entry, { ...hermetic, MERCURY_NODE: '' }), ['node', entry], 'an empty MERCURY_NODE is unset')
+    if (WINDOWS_HOST) { console.log('SKIP the Homebrew keg and the relative executable live: this host is Windows (sh wrappers and symlinks)'); return }
+    const node = Bun.which('node'); assert(node, 'node on PATH')
+    const keg = join(deeper, 'brew', 'Cellar', 'mercury', '1.0.0-beta.40'); const libexec = join(keg, 'libexec'); const brewBin = join(deeper, 'brew', 'bin')
+    for (const dir of [join(libexec, 'vendor', 'node', 'bin'), join(keg, 'bin'), brewBin]) mkdirSync(dir, { recursive: true })
+    writeFileSync(join(libexec, 'mercury.mjs'), stub)
+    writeFileSync(join(libexec, 'mercury'), `#!/bin/sh\nexec ${JSON.stringify(node)} "$(dirname "$0")/mercury.mjs" "$@"\n`); chmodSync(join(libexec, 'mercury'), 0o755)
+    writeFileSync(join(keg, 'bin', 'mercury'), `#!/bin/bash\nexec ${JSON.stringify(join(libexec, 'mercury'))} "$@"\n`); chmodSync(join(keg, 'bin', 'mercury'), 0o755)
+    symlinkSync(join('..', 'Cellar', 'mercury', '1.0.0-beta.40', 'bin', 'mercury'), join(brewBin, 'mercury'))
+    const prefixed = { ...hermetic, HOMEBREW_PREFIX: join(deeper, 'brew') }
+    assert.deepEqual(executableOf(undefined, prefixed), [join(brewBin, 'mercury')], 'a keg without its vendored runtime runs through its wrapper')
+    writeFileSync(join(libexec, 'vendor', 'node', 'bin', 'node'), `#!/bin/sh\nexec ${JSON.stringify(node)} "$@"\n`); chmodSync(join(libexec, 'vendor', 'node', 'bin', 'node'), 0o755)
+    const bundle = [join(libexec, 'vendor', 'node', 'bin', 'node'), join(libexec, 'mercury.mjs')]
+    const { HOMEBREW_COMMANDS } = await import('../../sdk/src/executable.ts') as { HOMEBREW_COMMANDS?: readonly string[] }
+    assert.deepEqual(HOMEBREW_COMMANDS && [...HOMEBREW_COMMANDS], ['/opt/homebrew/bin/mercury', '/usr/local/bin/mercury', '/home/linuxbrew/.linuxbrew/bin/mercury'], 'the fixed Homebrew and Linuxbrew commands')
+    assert.deepEqual(executableOf(undefined, prefixed), bundle, `with PATH empty the Homebrew wrapper is found and resolved to the keg bundle on its vendored node; got ${JSON.stringify(executableOf(undefined, prefixed))}`)
+    assert.deepEqual(executableOf(undefined, { ...hermetic, PATH: brewBin }), bundle, 'the wrapper found on PATH resolves the same way')
+    assert.deepEqual(executableOf(join(brewBin, 'mercury'), hermetic), bundle, 'and the wrapper named outright')
+    assert.deepEqual(executableOf(undefined, { ...hermetic, MERCURY_BIN: join(brewBin, 'mercury') }), bundle, 'and MERCURY_BIN naming it')
+    assert.throws(() => executableOf(undefined, { ...prefixed, MERCURY_NODE: '/no/such/node' }), named, 'the MERCURY_NODE refusal holds on the discovery road')
+    const { MERCURY_CONFIG_DIR: _config, MERCURY_HOME: _home, MERCURY_VERSIONS_DIR: _versions, MERCURY_BIN: _bin, ...inherited } = process.env
+    const stripped = sdk.run({ env: { ...inherited, ...prefixed }, prompt: 'x' })
+    assert.equal((await stripped.outcome).status, 'completed'); assert.equal(stripped.command, bundle[0])
+    const homeBin = join(deeper, '.mercury', 'bin'); mkdirSync(homeBin, { recursive: true }); writeFileSync(join(homeBin, 'mercury'), '#!/bin/sh\nexit 0\n'); chmodSync(join(homeBin, 'mercury'), 0o755)
+    assert.equal(executableOf(undefined, prefixed)[0], join(homeBin, 'mercury'), 'the home rungs still come before Homebrew')
+    const sub = join(deeper, 'sub'); mkdirSync(sub)
+    writeFileSync(join(sub, 'my-mercury'), `#!/bin/sh\nexec ${JSON.stringify(node)} ${JSON.stringify(entry)} "$@"\n`); chmodSync(join(sub, 'my-mercury'), 0o755)
+    assert.notEqual(process.cwd(), sub)
+    assert.deepEqual(executableOf('./my-mercury', hermetic, sub), [join(sub, 'my-mercury')], `a relative executable with a slash is bound to cwd before the spawn; got ${JSON.stringify(executableOf('./my-mercury', hermetic, sub))}`)
+    assert.deepEqual(executableOf('./my-mercury', hermetic, sub, 'win32'), [join(sub, 'my-mercury')], 'on every platform')
+    assert.deepEqual(executableOf('my-mercury', hermetic, sub), ['my-mercury'], 'a bare name is left to the PATH search of the spawn')
+    const relative = sdk.run({ mercury: './my-mercury', cwd: sub, env: { ...inherited, ...hermetic }, prompt: 'x' })
+    assert.equal((await relative.outcome).status, 'completed'); assert.equal(relative.command, join(sub, 'my-mercury'))
+  })
 } finally { clearTimeout(guard); rmSync(scratch, { recursive: true, force: true }) }
 if (failures) process.exitCode = 1
