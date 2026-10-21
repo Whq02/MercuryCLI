@@ -167,6 +167,7 @@ class MercuryRun:
         self._listeners: dict[str, list[Listener]] = {}
         self._queue: asyncio.Queue[StreamRow | None] = asyncio.Queue()
         self._input_task: asyncio.Task[None] | None = None
+        self._interrupt_requested = False
         self._reader = asyncio.create_task(self._read())
         self._cancel_task = asyncio.create_task(self._watch_cancel(options.cancel)) if options.cancel is not None else None
 
@@ -185,9 +186,8 @@ class MercuryRun:
     async def _watch_cancel(self, event: asyncio.Event) -> None:
         try:
             await event.wait()
-            await asyncio.shield(self.session)
             self.interrupt()
-        except (MercuryError, asyncio.CancelledError): pass
+        except asyncio.CancelledError: pass
 
     async def _read(self) -> None:
         stderr = asyncio.create_task(self._stderr.read())
@@ -201,7 +201,9 @@ class MercuryRun:
                 row = read.row
                 assert row is not None
                 self.rows.append(row)
-                if row['type'] == 'session' and not self.session.done(): self.session.set_result(row)
+                if row['type'] == 'session' and not self.session.done():
+                    self.session.set_result(row)
+                    if self._interrupt_requested: self.interrupt()
                 if row['type'] == 'outcome': last = row
                 self._queue.put_nowait(row)
                 self._emit('row', row)
@@ -277,7 +279,12 @@ class MercuryRun:
         self._stdin.close()
 
     def interrupt(self) -> None:
+        """End the running turn with SIGINT; before the session row arrives the signal waits for it, so the turn ends as ``interrupted`` rather than killing a booting CLI."""
         if self._tools: self._tools.cancel()
+        if self.exit.done(): return
+        if not self.session.done():
+            self._interrupt_requested = True
+            return
         if self.child.returncode is None: self.child.send_signal(signal.SIGINT)
 
     def terminate(self) -> None:

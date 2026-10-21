@@ -300,7 +300,8 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
 
   interrupt(): boolean {
     this.#tools?.cancel()
-    if (!this.child) { this.#abortRequested = true; return true }
+    if (this.#settled) return false
+    if (!this.child || this.#sessionRow === null) { this.#abortRequested = true; return true }
     return this.child.kill('SIGINT')
   }
 
