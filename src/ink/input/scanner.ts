@@ -23,10 +23,6 @@ type ScanState =
   | 'osc'
   | 'dcs'
   | 'apc'
-  | 'resync'
-  | 'resync-head'
-  | 'resync-csi'
-  | 'resync-x10'
 
 type ScannerOptions = {
   x10Mouse?: boolean
@@ -55,24 +51,30 @@ export function createScanner(options?: ScannerOptions): Scanner {
   let carry = ''
   let sealedFlushes = 0
   let fedSinceFlush = false
-  let x10Owed = 0
   let flushedHead = ''
   let terminatorOwed = false
+  let heldRun = false
+  let provisionalBracket = false
+  let escapeAlone = false
 
   const run = (input: string, flush: boolean): ScanToken[] => {
     const head = flushedHead
-    const reanchor = head !== '' && !flush && state === 'ground' && isReplyBody(head, input)
+    const reanchor = head !== '' && !flush && state === 'ground' && isReplyBody(head, input, x10Mouse)
+    if (!flush) escapeAlone = input === ESC && STRING_INTRODUCER[state] !== undefined
     const result = scan((reanchor ? head : '') + carry + input, state, flush, x10Mouse, {
       sealedFlushes,
       fedSinceFlush,
-      x10Owed,
       stringReplyOwed: flush && stringReplyOwed?.() === true,
       terminatorOwed,
+      heldRun,
+      provisionalBracket,
+      escapeAlone,
     })
     state = result.state
     carry = result.carry
-    x10Owed = result.x10Owed ?? 0
     terminatorOwed = result.terminatorOwed === true
+    heldRun = result.heldRun === true
+    provisionalBracket = reanchor && head === ESC && input === '[' && state === 'csi'
     flushedHead = flush ? result.flushedHead ?? (result.tokens.length === 0 ? head : '') : input === '' ? head : ''
     if (flush) {
       sealedFlushes = result.sealed ? sealedFlushes + 1 : 0
@@ -92,9 +94,11 @@ export function createScanner(options?: ScannerOptions): Scanner {
       carry = ''
       sealedFlushes = 0
       fedSinceFlush = false
-      x10Owed = 0
       flushedHead = ''
       terminatorOwed = false
+      heldRun = false
+      provisionalBracket = false
+      escapeAlone = false
     },
     buffer: () => carry,
   }
@@ -103,10 +107,14 @@ export function createScanner(options?: ScannerOptions): Scanner {
 type FlushPolicy = {
   sealedFlushes: number
   fedSinceFlush: boolean
-  x10Owed: number
   stringReplyOwed: boolean
   terminatorOwed: boolean
+  heldRun: boolean
+  provisionalBracket: boolean
+  escapeAlone: boolean
 }
+
+const CSI_HOLD_FLUSHES = 2
 
 const STRING_INTRODUCER: Partial<Record<ScanState, number>> = {
   osc: ESC_TYPE.OSC,
@@ -114,19 +122,24 @@ const STRING_INTRODUCER: Partial<Record<ScanState, number>> = {
   apc: ESC_TYPE.APC,
 }
 
-function isResponseHead(s: string): boolean {
-  return /^\x1b\[[?>]/.test(s)
+const CSI_HEAD = ESC + '['
+
+function isCsiByte(code: number): boolean {
+  return code >= 0x20 && code <= 0x7e
 }
 
-const REPLY_BODY_AFTER_HEAD: Record<string, RegExp> = {
-  [ESC]: /^(?:\[[?>]|\[\d+;\d+R|\]\d|P>)/,
-  [ESC + ']']: /^\d/,
-  [ESC + 'P']: /^>/,
+function isX10Head(head: string): boolean {
+  return head.length >= 3 && head.length <= 5 && head.charCodeAt(2) === 0x4d
 }
 
-function isReplyBody(head: string, s: string): boolean {
+function isReplyBody(head: string, s: string, x10Mouse: boolean): boolean {
   if (head.length > 2 && head.endsWith(ESC)) return s.startsWith('\\')
-  return REPLY_BODY_AFTER_HEAD[head]?.test(s) === true
+  if (head === ESC) return /^(?:\[[\x20-\x7e]|\]\d|P>)/.test(s)
+  if (head === ESC + ']') return /^\d/.test(s)
+  if (head === ESC + 'P') return s.startsWith('>')
+  if (!head.startsWith(CSI_HEAD) || s === '') return false
+  const code = s.charCodeAt(0)
+  return x10Mouse && isX10Head(head) ? code >= 0x20 && code !== 0x7f : isCsiByte(code)
 }
 
 const REPLY_STRING_HEAD = /^\x1b(?:\]\d+(?:;|$)|P>(?:\||$))/
@@ -151,23 +164,16 @@ function isMouseReportHead(data: string, at: number, x10Mouse: boolean): boolean
 
 const DOUBLE_ESC = ESC + ESC
 
-function isPartialMouseHead(s: string, x10Mouse: boolean): boolean {
-  if (/^\x1b\[<[\d;]*$/.test(s)) return true
-  if (s === '\x1b[') return true
-  if (x10Mouse && /^\x1b\[M[\s\S]{0,2}$/.test(s)) return true
-  return false
-}
-
 function scan(
   data: string,
   initial: ScanState,
   flush: boolean,
   x10Mouse: boolean,
   policy: FlushPolicy,
-): { tokens: ScanToken[]; state: ScanState; carry: string; sealed?: boolean; x10Owed?: number; flushedHead?: string; terminatorOwed?: boolean } {
+): { tokens: ScanToken[]; state: ScanState; carry: string; sealed?: boolean; flushedHead?: string; terminatorOwed?: boolean; heldRun?: boolean } {
   const tokens: ScanToken[] = []
   let state = initial
-  let x10Owed = initial === 'resync-x10' ? policy.x10Owed : 0
+  let heldRun = policy.heldRun
   let i = 0
   let textStart = 0
   let seqStart = 0
@@ -197,6 +203,7 @@ function scan(
     }
     state = 'ground'
     textStart = i
+    heldRun = false
   }
 
   const releaseStringBody = (): void => {
@@ -212,6 +219,13 @@ function scan(
   const revertToText = (): void => {
     state = 'ground'
     textStart = seqStart
+  }
+
+  const dropHeldRun = (at: number): void => {
+    state = 'ground'
+    textStart = at
+    i = at
+    heldRun = false
   }
 
   const emitString = (): void => {
@@ -249,58 +263,6 @@ function scan(
           break
         }
         i++
-        break
-
-      case 'resync':
-        if (code === 0x3c || (code >= 0x30 && code <= 0x39) || code === 0x3b) {
-          i++
-          textStart = i
-        } else if (code === 0x4d || code === 0x6d) {
-          i++
-          textStart = i
-          state = 'ground'
-        } else {
-          state = 'ground'
-          textStart = i
-        }
-        break
-
-      case 'resync-head':
-        if (x10Mouse && code === 0x4d) {
-          i++
-          textStart = i
-          x10Owed = 3
-          state = 'resync-x10'
-        } else {
-          state = code === 0x3c ? 'resync' : 'resync-csi'
-        }
-        break
-
-      case 'resync-csi':
-        if (isCSIParam(code) || isCSIIntermediate(code)) {
-          i++
-          textStart = i
-        } else if (isCSIFinal(code)) {
-          i++
-          textStart = i
-          state = 'ground'
-        } else {
-          state = 'ground'
-          textStart = i
-        }
-        break
-
-      case 'resync-x10':
-        if (x10Owed > 0 && code >= 0x20 && code !== 0x7f) {
-          i++
-          textStart = i
-          x10Owed--
-          if (x10Owed === 0) state = 'ground'
-        } else {
-          state = 'ground'
-          textStart = i
-          x10Owed = 0
-        }
         break
 
       case 'escape':
@@ -360,27 +322,38 @@ function scan(
         break
 
       case 'csi':
-        if (
-          x10Mouse &&
-          code === 0x4d  &&
-          i - seqStart === 2 &&
-          (i + 1 >= data.length || data.charCodeAt(i + 1) >= 0x20) &&
-          (i + 2 >= data.length || data.charCodeAt(i + 2) >= 0x20) &&
-          (i + 3 >= data.length || data.charCodeAt(i + 3) >= 0x20)
-        ) {
-          if (i + 4 <= data.length) {
-            i += 4
-            emit('x10-mouse')
-          } else {
-            i = data.length
+        if (x10Mouse && code === 0x4d  && i - seqStart === 2) {
+          const payloadEnd = Math.min(i + 4, data.length)
+          let control = -1
+          for (let at = i + 1; at < payloadEnd && control === -1; at++) {
+            const slot = data.charCodeAt(at)
+            if (slot < 0x20 || (heldRun && slot === 0x7f)) control = at
           }
-          break
+          if (control === -1) {
+            if (i + 4 <= data.length) {
+              i += 4
+              emit('x10-mouse')
+            } else {
+              i = data.length
+            }
+            break
+          }
+          if (heldRun) {
+            dropHeldRun(control)
+            break
+          }
         }
         if (isCSIFinal(code)) {
+          if (heldRun && data.charCodeAt(seqStart + 2) === 0x3c && code !== 0x4d && code !== 0x6d) {
+            dropHeldRun(i)
+            break
+          }
           i++
           emit('csi')
         } else if (isCSIParam(code) || isCSIIntermediate(code)) {
           i++
+        } else if (heldRun && i > seqStart) {
+          dropHeldRun(i)
         } else {
           revertToText()
         }
@@ -408,7 +381,11 @@ function scan(
         ) {
           i += 2
           emitString()
-        } else if (code === C0.ESC && i + 1 >= data.length && !flush) {
+        } else if (
+          code === C0.ESC &&
+          i + 1 >= data.length &&
+          (!flush || (x10Mouse && !policy.escapeAlone && isReplyStringHead(data.slice(seqStart, i))))
+        ) {
           i++
         } else if (code === C0.ESC || !isStringBodyByte(code)) {
           releaseStringBody()
@@ -423,23 +400,9 @@ function scan(
     return { tokens, state, carry: '', terminatorOwed: terminatorOwed || terminatorOwedNow }
   }
   const owed = terminatorOwed || terminatorOwedNow
-  if (state === 'resync' || state === 'resync-head' || state === 'resync-csi') {
-    return { tokens, state, carry: '', terminatorOwed: owed }
-  }
-  if (state === 'resync-x10') {
-    return { tokens, state, carry: '', x10Owed, terminatorOwed: owed }
-  }
   const remaining = data.slice(seqStart)
   if (!flush) {
-    return { tokens, state, carry: remaining, terminatorOwed: owed }
-  }
-  if (remaining && isPartialMouseHead(remaining, x10Mouse)) {
-    if (remaining.length > 2 && remaining.charCodeAt(2) === 0x4d) {
-      return { tokens, state: 'resync-x10', carry: '', x10Owed: 6 - remaining.length, terminatorOwed: owed }
-    }
-    if (x10Mouse && remaining === '\x1b[') return { tokens, state: 'resync-head', carry: '', terminatorOwed: owed }
-    const next: ScanState = /^\x1b\[<?[\d;]*$/.test(remaining) ? 'resync' : 'ground'
-    return { tokens, state: next, carry: '', terminatorOwed: owed }
+    return { tokens, state, carry: remaining, terminatorOwed: owed, heldRun }
   }
   if (remaining && (state === 'osc' || state === 'dcs' || state === 'apc')) {
     if (remaining.length <= 2 && remaining.charCodeAt(0) === C0.ESC) {
@@ -451,11 +414,16 @@ function scan(
     if (!policy.fedSinceFlush) return { tokens, state, carry: '', sealed: true, terminatorOwed: owed }
     return { tokens, state: 'ground', carry: '', terminatorOwed: owed }
   }
-  if (remaining && state === 'csi' && policy.sealedFlushes === 0 && isResponseHead(remaining)) {
-    return { tokens, state, carry: remaining, sealed: true, terminatorOwed: owed }
-  }
   if (remaining && state === 'csi' && x10Mouse) {
-    return { tokens, state: 'resync-csi', carry: '', terminatorOwed: owed }
+    if (policy.provisionalBracket && remaining === CSI_HEAD) {
+      tokens.push({ kind: 'text', value: '[' })
+      return { tokens, state: 'ground', carry: '', terminatorOwed: owed }
+    }
+    if (policy.sealedFlushes < CSI_HOLD_FLUSHES) {
+      return { tokens, state, carry: remaining, sealed: true, terminatorOwed: owed, heldRun: true }
+    }
+    tokens.push({ kind: 'csi', value: remaining })
+    return { tokens, state: 'ground', carry: '', flushedHead: remaining, terminatorOwed: owed }
   }
   if (remaining === DOUBLE_ESC) {
     tokens.push({ kind: 'esc', value: ESC }, { kind: 'esc', value: ESC })
