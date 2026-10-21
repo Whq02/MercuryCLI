@@ -2233,13 +2233,13 @@ async function runLaunch(args: {
   await connectAnthropicConnectors(store)
   profileCheckpoint('after_connectMcp_claudeai')
 
+  const { runHeadless } = await import('./cli/run.js')
+  const { seedDynamicMcpConfig } = await import('./services/mcp/dynamicMcpSeed.js')
+
   if (!isBareMode()) {
     startDeferredPrefetches()
     startBackgroundHousekeeping()
   }
-
-  const { runHeadless } = await import('./cli/run.js')
-  const { seedDynamicMcpConfig } = await import('./services/mcp/dynamicMcpSeed.js')
   seedDynamicMcpConfig(Object.fromEntries(Object.entries(await args.mcpConfigPromise).filter(([, config]) => config.scope === 'dynamic' && config.extensionSource === undefined)), Boolean(opts.onlyMcp) || isBareMode())
   try {
     await runHeadless(
