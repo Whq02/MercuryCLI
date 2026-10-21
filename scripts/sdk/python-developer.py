@@ -212,6 +212,17 @@ async def prompt_error_reply(correlated):
             assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved', 'input the runner refused cannot hold the next outcome'
 
 
+async def prompt_schema_refused_locally():
+    with prompt_fixture() as (mercury, received), tempfile.TemporaryDirectory(prefix='sdk-schema-missing-') as directory:
+        async with await sdk.connect(mercury=mercury) as session:
+            for schema, words in (('{not json', 'invalid schema JSON'), (str(Path(directory, 'no-such-schema.json')), 'could not read schema file: ')):
+                try: await session.prompt('resolve', schema=schema)
+                except sdk.MercuryError as error: assert str(error).startswith(words), str(error)
+                else: raise AssertionError('a refused schema was sent')
+            assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved', 'a refused schema leaves no prompt pending'
+            assert len([row for row in received() if row['method'] == 'queue/add']) == 1, 'a refused schema never reaches the wire'
+
+
 async def prompt_cancellation(correlated):
     with prompt_fixture(correlated) as (mercury, received):
         async with await sdk.connect(mercury=mercury) as session:
@@ -479,7 +490,7 @@ async def sync():
 
 
 async def main():
-    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('input answered with an error uncorrelated', lambda: prompt_error_reply(False)), ('input answered with an error correlated', lambda: prompt_error_reply(True)), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('input answered with an error uncorrelated', lambda: prompt_error_reply(False)), ('input answered with an error correlated', lambda: prompt_error_reply(True)), ('a schema refused before sending leaves the session free', prompt_schema_refused_locally), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
 
 

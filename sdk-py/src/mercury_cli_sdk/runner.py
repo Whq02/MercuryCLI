@@ -275,6 +275,7 @@ class MercurySession(TypedRequests):
     async def prompt(self, content: Any, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None) -> OutcomeRow:
         """Queue a prompt and await the outcome of the turn it starts; cancelling the await stops waiting, not the turn."""
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
+        turn_schema = None if schema is None else schema_object(schema, self.options.cwd)
         self._prompting = True
         id = str(uuid.uuid4())
         future: asyncio.Future[OutcomeRow] = asyncio.get_running_loop().create_future()
@@ -286,7 +287,6 @@ class MercurySession(TypedRequests):
         self._prompt_error = fail
         self._prompt_id = id
         self.on('outcome', done)
-        turn_schema = None if schema is None else schema_object(schema, self.options.cwd)
         accepted = False
         try:
             receipt = await self.send_prompt(content, id=id, **({} if turn_schema is None else {'schema': turn_schema}))

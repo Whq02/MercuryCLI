@@ -261,6 +261,16 @@ try {
       } finally { await session.close() }
     })
   }
+  await check('prompt ids: a schema the package refuses before sending leaves the session free for the next prompt', async () => {
+    const fixture = promptFixture()
+    const session = await sdk.connect({ mercury: fixture.mercury })
+    try {
+      await assert.rejects(session.prompt('resolve', { schema: '{not json' }), (error: unknown) => error instanceof sdk.MercuryError && error.message === 'invalid schema JSON')
+      await assert.rejects(session.prompt('resolve', { schema: join(scratch, 'no-such-schema.json') }), (error: unknown) => error instanceof sdk.MercuryError && error.message.startsWith('could not read schema file: '))
+      assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'a refused schema leaves no prompt pending')
+      assert.equal(fixture.received().filter(row => row.method === 'queue/add').length, 1, 'a refused schema never reaches the wire')
+    } finally { await session.close() }
+  })
   await check('unclaimed warm prompts fail locally within 50 ms and claim updates both identities', async () => {
     const message = 'session is unclaimed; call claim() before prompting'
     for (const open of [sdk.prewarm, (options: sdk.ConnectOptions) => sdk.connect({ ...options, warm: true })]) {

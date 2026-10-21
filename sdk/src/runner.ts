@@ -278,6 +278,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   async prompt<T = unknown>(content: PromptRow['content'], options: PromptOptions<T> = {}): Promise<OutcomeRow<T>> {
     if (this.#prompting) throw new MercuryError('prompt already pending; use sendPrompt for mid-turn input', null)
     if (options.signal?.aborted) throw new MercuryError('prompt: cancelled', null)
+    const turnSchema = options.schema === undefined ? undefined : schemaObject(options.schema, this.options.cwd)
     this.#prompting = true
     const id = randomUUID()
     let done!: (row: OutcomeRow) => void
@@ -289,7 +290,6 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     this.#promptReject = fail
     this.#promptId = id
     this.on('outcome', done)
-    const turnSchema = options.schema === undefined ? undefined : schemaObject(options.schema, this.options.cwd)
     let accepted = false
     try {
       const receipt = await this.sendPrompt(content, { id, ...(turnSchema === undefined ? {} : { schema: turnSchema }) })
