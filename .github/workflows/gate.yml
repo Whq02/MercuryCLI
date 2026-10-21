@@ -68,6 +68,8 @@ jobs:
           ~/.bun/bin/bun run scripts/vendor/fetch-brush.ts
       - name: Build dist (Phase 0 — once for every shard)
         run: ~/.bun/bin/bun run build.ts
+      - name: Seal the vocabulary (the tracked tree and the fresh bundle speak the product's words — a red here ends the gate before any shard starts)
+        run: ~/.bun/bin/bun scripts/gate/prove-vocabulary-seal.ts
       - name: Pack dist (+ the vendor cache — prove-pyright-vendor's loud-skip DEMANDS it wherever it runs)
         run: tar -czf dist.tar.gz dist vendor
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
