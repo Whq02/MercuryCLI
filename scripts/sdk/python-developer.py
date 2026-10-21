@@ -162,6 +162,8 @@ async def flags():
         target.write_text('#!/bin/sh\nexit 0\n')
         target.chmod(0o755)
         assert sdk.argv_of(sdk.RunOptions(env={'HOME': directory, 'PATH': ''}))[0] == str(target)
+        installed = sdk.argv_of(sdk.RunOptions(env={'HOME': directory, 'PATH': str(target.parent)}, project='/p'))
+        assert installed[:6] == ['mercury', '--project', '/p', 'run', '--format', 'rows']
 
 
 async def sync():

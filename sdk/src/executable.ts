@@ -12,7 +12,9 @@ export function executableOf(executable: string | readonly string[] | undefined,
   const onPath = (name: string): string | undefined => (env.PATH ?? '').split(process.platform === 'win32' ? ';' : ':').flatMap(dir => extensions.map(ext => resolve(cwd, dir, name + ext))).find(runnable)
   if (command === 'mercury') {
     const home = env.HOME ?? env.USERPROFILE ?? homedir()
-    command = onPath(command) ?? [join(home, '.mercury', 'bin', 'mercury'), join(home, '.local', 'bin', 'mercury')].find(runnable) ?? command
+    const installed = onPath(command)
+    if (installed) { if (/\.(cmd|bat)$/i.test(installed)) command = installed }
+    else command = [join(home, '.mercury', 'bin', 'mercury'), join(home, '.local', 'bin', 'mercury')].find(runnable) ?? command
   } else if (/\.(cmd|bat)$/i.test(command) && !isAbsolute(command) && !command.includes('/') && !command.includes('\\')) command = onPath(command) ?? command
   if (/\.(cmd|bat)$/i.test(command)) {
     const path = resolve(cwd, command)

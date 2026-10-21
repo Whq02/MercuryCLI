@@ -14,7 +14,10 @@ def executable_of(executable: str | list[str] | None, env: dict[str, str] | None
     if command == 'mercury':
         home = Path(environment.get('HOME') or environment.get('USERPROFILE') or Path.home())
         candidates = [home / '.mercury/bin/mercury', home / '.local/bin/mercury']
-        command = shutil.which(command, path=environment.get('PATH', '')) or next((str(path) for path in candidates if path.is_file() and os.access(path, os.X_OK)), command)
+        installed = shutil.which(command, path=environment.get('PATH', ''))
+        if installed:
+            if installed.lower().endswith(('.cmd', '.bat')): command = installed
+        else: command = next((str(path) for path in candidates if path.is_file() and os.access(path, os.X_OK)), command)
     elif command.lower().endswith(('.cmd', '.bat')) and '/' not in command and '\\' not in command:
         command = shutil.which(command, path=environment.get('PATH', '')) or command
     if command.lower().endswith(('.cmd', '.bat')):
