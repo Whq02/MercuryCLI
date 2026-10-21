@@ -88,7 +88,7 @@ console.log('§1 — the table: every family, every cause, both postures — one
   check("a key past its cap stays the key wall even on a sign-in credential (the provider's words outrank the fact)", classifyCredentialWall(403, 'Key limit exceeded', 'sign-in') === 'key-limit')
 }
 
-console.log("§2 — the owner's wire: the first-party presenter paints the shared line with the account, never a sentence about an organisation")
+console.log("§2 — the owner's wire: the first-party presenter paints the shared line — the family and the door, never the account's address, never a sentence about an organisation")
 {
   const { APIError } = await import('../../src/services/api/sdkErrors.js')
   const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
@@ -117,7 +117,7 @@ console.log("§2 — the owner's wire: the first-party presenter paints the shar
   const row = getAssistantMessageFromError(owner403, 'claude-opus-5')
   const painted = textOf(row as never)
   console.log(`        interactive: ${painted}`)
-  check('the 403 paints the shared sign-in line with the account, under the error-row prefix', painted === `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine('anthropic', 'sign-in')} · account ${EMAIL}`, painted)
+  check('the 403 paints the shared sign-in line under the error-row prefix, and never the address (an error line reaches stderr and logs — the round-14 Windows row F39W-14B-03)', painted === `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine('anthropic', 'sign-in')}` && !painted.includes('@') && !painted.includes(EMAIL), painted)
   check('never the word organization (nor account-has-no-access, nor contact-your-administrator)', !/organi[sz]ation|does not have access|administrator/i.test(painted), painted)
   check('POISON: no brace, no quote, no envelope word, no status on the row', !/[{}"]/.test(painted) && !painted.includes('permission_error') && !painted.includes('403'))
   check('typed authentication_failed, no errorDetails (the wire goes to the debug log only)', (row as { error?: string }).error === 'authentication_failed' && (row as { errorDetails?: unknown }).errorDetails === undefined)
@@ -127,7 +127,7 @@ console.log("§2 — the owner's wire: the first-party presenter paints the shar
   setIsInteractive(false)
   const headless = textOf(getAssistantMessageFromError(owner403, 'claude-opus-5') as never)
   console.log(`        headless:    ${headless}`)
-  check('headless: the shared headless spelling with the account', headless === `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine('anthropic', 'sign-in', { nonInteractive: true })} · account ${EMAIL}`, headless)
+  check('headless: the shared headless spelling, never the address', headless === `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine('anthropic', 'sign-in', { nonInteractive: true })}` && !headless.includes('@'), headless)
   check('headless: never the word organization', !/organi[sz]ation|does not have access|administrator/i.test(headless), headless)
   setIsInteractive(true)
 
