@@ -1313,8 +1313,8 @@ async function daemonRun(args: string[]): Promise<void> {
           stopLockBeat = null
         }
       }
-      const { startHostJobSupervisor } = await import('../services/host/jobs.js')
-      stopHostJobs = startHostJobSupervisor()
+      const { startHostJobSweep } = await import('../services/host/jobs.js')
+      stopHostJobs = startHostJobSweep()
       ready = true
       wakeReady()
       // eslint-disable-next-line no-console

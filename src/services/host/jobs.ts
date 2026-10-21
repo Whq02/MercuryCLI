@@ -116,7 +116,7 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
     }
   }
 }
-export function startHostJobSupervisor(): () => void {
+export function startHostJobSweep(): () => void {
   let busy = false
   let timer: ReturnType<typeof setTimeout> | undefined
   let stopped = false
@@ -131,7 +131,7 @@ export function startHostJobSupervisor(): () => void {
       const records = hostRecords()
       live = records.some(record => ['queued', 'starting', 'running'].includes(record.jobState ?? ''))
       if (records.length > 0 && ownsControlPlaneSync()) await sweepHostJobs({ records })
-    } catch (error) { logForDebugging('Host job supervisor: ' + String(error)) } finally { busy = false }
+    } catch (error) { logForDebugging('Host job sweep: ' + String(error)) } finally { busy = false }
     if (live) schedule(1000)
     else if (!watcher) schedule(15_000)
   }
