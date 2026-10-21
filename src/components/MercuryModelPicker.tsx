@@ -530,11 +530,13 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       : reasonLines !== null
         ? reasonLines
         : [...(localWindowLine !== null ? wrapPlain(localWindowLine, inner) : []), ...(notice ? wrapPlain(notice, inner) : [])]
-  const chromePaint =
-    2 + 1 + (compact ? 0 : 2) + (shedMeters ? 0 : 1) + 3 +
+  const chromeBase =
+    2 + 1 + (compact ? 0 : 2) + (shedMeters ? 0 : 1) + 2 +
     (pendingLine !== null ? painted(pendingLine.map(part => part.text).join('')) : 0) +
     noticeLines.length + (localOffer ? 1 : 0)
   const effortPaint = hasEffort ? (compact ? 1 : painted(effortStripText(efforts!, effort))) : 0
+  const shedPageHint = compact && availRows - chromeBase - 1 - effortPaint < 4
+  const chromePaint = chromeBase + (shedPageHint ? 0 : 1)
   const shedEffort = compact && effortPaint > 0 && availRows - chromePaint - effortPaint < 4
   const room = availRows - chromePaint - (shedEffort ? 0 : effortPaint)
   const paintBudget = Math.max(1, room)
@@ -694,7 +696,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         )
       })}
       <Text color={FAINT} wrap="truncate-end">{footer}</Text>
-      <Text color={FAINT} wrap="truncate-end">pgup/pgdn page</Text>
+      {shedPageHint ? null : <Text color={FAINT} wrap="truncate-end">pgup/pgdn page</Text>}
     </Box>
     </Box>
   )

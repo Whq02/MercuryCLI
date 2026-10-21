@@ -188,9 +188,11 @@ for (const [columns, height] of [[80, 24], [100, 30], [120, 40], [178, 51], [200
   const problems: string[] = []
   let stops = 0
   const kinds = new Set<string>()
+  let oddSeen = ''
   for (let step = 0; step < 40; step++) {
     const lines = board.lines()
     problems.push(...auditBox(`${columns}x${height} step ${step}`, lines, columns))
+    if (oddSeen === '') oddSeen = lineWith(lines, 'x/y·z')
     const on = cursorLine(lines)
     kinds.add(on.startsWith('❯ ') ? 'heading' : 'row')
     stops++
@@ -213,8 +215,8 @@ for (const [columns, height] of [[80, 24], [100, 30], [120, 40], [178, 51], [200
   if (columns >= 100) check(`${columns}x${height}: the longest OpenRouter id stands whole with its ctx`, /nvidia\/nemotron-3-ultra:free\s{2,}1M ctx/.test(nemotron), inner(nemotron))
   const sixty = lineWith(lines, 'vendor-with-a-lo')
   check(`${columns}x${height}: the sixty-character id is cut with the ellipsis and its 1.31M ctx cell stands`, columns < 60 || (sixty.includes('…') && (columns < 100 || sixty.includes('1.31M ctx'))), inner(sixty))
-  const odd = lineWith(lines, 'x/y·z')
-  check(`${columns}x${height}: an id holding · and │ paints in its cell without breaking the row`, columns < 60 || (odd !== '' && auditBox('odd', [lines[0]!, ...lines.slice(1)], columns).length === 0), inner(odd))
+  const odd = lineWith(lines, 'x/y·z') || oddSeen
+  check(`${columns}x${height}: an id holding · and │ paints in its cell without breaking the row (in the final frame or one the walk audited)`, columns < 60 || (odd !== '' && problems.length === 0 && auditBox('odd', [lines[0]!, ...lines.slice(1)], columns).length === 0), inner(odd))
   board.close()
 }
 

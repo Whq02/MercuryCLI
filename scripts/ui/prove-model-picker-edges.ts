@@ -252,8 +252,8 @@ for (const [columns, rows] of SIZES) {
   board.close()
 }
 
-section('§4 the floor: ten rows hold every line the compact tier paints (the chrome, the effort row, a window of ↑ · pinned heading · cursor row · ↓); under ten the box paints the rows there are — the effort row gives way first, then the pinned heading, then the markers, the cursor row last — never one line more than the slot; at ten and above nothing changes')
-type FloorRead = { box: string[]; effort: boolean; markers: number; pinned: boolean; windowLines: number; cursor: string }
+section('§4 the floor: eleven rows hold every line the compact tier paints (the chrome with its page keys row, the effort row, a window of ↑ · pinned heading · cursor row · ↓); under eleven the box paints the rows there are — the page keys row gives way first, then the effort row, then the pinned heading, then the markers, the cursor row last — never one line more than the slot; at eleven and above nothing changes')
+type FloorRead = { box: string[]; effort: boolean; pageKeys: boolean; markers: number; pinned: boolean; windowLines: number; cursor: string }
 const floorCase = async (columns: number, rows: number, slotRows: number | undefined, label: string): Promise<FloorRead> => {
   const board = await mount({ columns, rows, ...(slotRows !== undefined ? { slotRows } : {}) })
   const lines = board.lines()
@@ -261,34 +261,37 @@ const floorCase = async (columns: number, rows: number, slotRows: number | undef
   const slot = slotRows ?? rows
   const hint = box.find(line => /esc (?:or click outside )?closes/.test(line)) ?? ''
   const effort = box.some(line => line.includes('ctrl+e changes it'))
+  const pageKeys = box.some(line => inner(line).trim() === 'pgup/pgdn page')
   const markers = box.filter(line => /[↑↓] \d+ more/.test(line)).length
   const aboveAt = box.findIndex(line => /↑ \d+ more/.test(line))
   const pinned = aboveAt >= 0 && /[▾▸] [A-Z]/.test(box[aboveAt + 1] ?? '')
-  const windowLines = box.length - 2 - 1 - 1 - 1 - (effort ? 1 : 0)
-  const read: FloorRead = { box, effort, markers, pinned, windowLines, cursor: cursorLine(lines) }
+  const windowLines = box.length - 2 - 1 - 1 - 1 - (effort ? 1 : 0) - (pageKeys ? 1 : 0)
+  const read: FloorRead = { box, effort, pageKeys, markers, pinned, windowLines, cursor: cursorLine(lines) }
   check(`${label}: the box paints ${slot} lines at most — ${box.length}`, box.length > 0 && box.length <= slot, `${box.length} lines: ${box.map(inner).map(line => line.trim()).join(' | ')}`)
   check(`${label}: the title, the filter line, the hint row with the exit words and the cursor row all stand`, box.some(line => line.includes('Mercury · model')) && box.some(line => line.includes('/ type to search by name or id')) && hint !== '' && read.cursor.startsWith('❯ '), box.map(inner).map(line => line.trim()).join(' | '))
   check(`${label}: nothing crosses the border`, auditBox(label, lines, columns).length === 0, auditBox(label, lines, columns).join(' | '))
   board.close()
   return read
 }
-const describe = (read: FloorRead): string => `${read.box.length} lines · effort ${read.effort} · markers ${read.markers} · pinned heading ${read.pinned} · window ${read.windowLines} · cursor "${read.cursor}"`
+const describe = (read: FloorRead): string => `${read.box.length} lines · effort ${read.effort} · page keys ${read.pageKeys} · markers ${read.markers} · pinned heading ${read.pinned} · window ${read.windowLines} · cursor "${read.cursor}"`
 for (const [columns, rows] of SIZES) {
   const board = await mount({ columns, rows, slotRows: 8 })
   save('q4-floor-slot8', columns, rows, board.frame())
   board.close()
   const twelve = await floorCase(columns, rows, 12, `${columns}x${rows} in a 12-row slot`)
-  check(`${columns}x${rows} in a 12-row slot: the compact tier as before — twelve lines, the effort row, a six-line window`, twelve.box.length === 12 && twelve.effort && twelve.windowLines === 6, describe(twelve))
+  check(`${columns}x${rows} in a 12-row slot: the compact tier whole — twelve lines, the effort row, the page keys row, a five-line window`, twelve.box.length === 12 && twelve.effort && twelve.pageKeys && twelve.windowLines === 5, describe(twelve))
+  const eleven = await floorCase(columns, rows, 11, `${columns}x${rows} in an 11-row slot`)
+  check(`${columns}x${rows} in an 11-row slot: eleven lines — the effort row, the page keys row, both markers, the pinned heading, the cursor row (the smallest slot that holds every line the tier paints)`, eleven.box.length === 11 && eleven.effort && eleven.pageKeys && eleven.markers === 2 && eleven.pinned && eleven.windowLines === 4, describe(eleven))
   const ten = await floorCase(columns, rows, 10, `${columns}x${rows} in a 10-row slot`)
-  check(`${columns}x${rows} in a 10-row slot: ten lines — the effort row, both markers, the pinned heading, the cursor row (the smallest slot that holds every line the tier paints)`, ten.box.length === 10 && ten.effort && ten.markers === 2 && ten.pinned && ten.windowLines === 4, describe(ten))
+  check(`${columns}x${rows} in a 10-row slot: the page keys row gives way first; ten lines — the effort row, both markers, the pinned heading, the cursor row`, ten.box.length === 10 && ten.effort && !ten.pageKeys && ten.markers === 2 && ten.pinned && ten.windowLines === 4, describe(ten))
   const nine = await floorCase(columns, rows, 9, `${columns}x${rows} in a 9-row slot`)
-  check(`${columns}x${rows} in a 9-row slot: the effort row gives way first; the window keeps its markers, the pinned heading and the cursor row`, nine.box.length === 9 && !nine.effort && nine.markers === 2 && nine.pinned && nine.windowLines === 4, describe(nine))
+  check(`${columns}x${rows} in a 9-row slot: the effort row gives way next; the window keeps its markers, the pinned heading and the cursor row`, nine.box.length === 9 && !nine.effort && !nine.pageKeys && nine.markers === 2 && nine.pinned && nine.windowLines === 4, describe(nine))
   const eight = await floorCase(columns, rows, 8, `${columns}x${rows} in an 8-row slot`)
-  check(`${columns}x${rows} in an 8-row slot: no effort row; the pinned heading gives way; the markers and the cursor row stand`, eight.box.length === 8 && !eight.effort && eight.markers === 2 && !eight.pinned && eight.windowLines === 3, describe(eight))
+  check(`${columns}x${rows} in an 8-row slot: no effort row; the pinned heading gives way; the markers and the cursor row stand`, eight.box.length === 8 && !eight.effort && !eight.pageKeys && eight.markers === 2 && !eight.pinned && eight.windowLines === 3, describe(eight))
   const seven = await floorCase(columns, rows, 7, `${columns}x${rows} in a 7-row slot`)
-  check(`${columns}x${rows} in a 7-row slot: the markers give way; two rows paint, the cursor row among them`, seven.box.length === 7 && seven.markers === 0 && seven.windowLines === 2, describe(seven))
+  check(`${columns}x${rows} in a 7-row slot: the markers give way; two rows paint, the cursor row among them`, seven.box.length === 7 && !seven.pageKeys && seven.markers === 0 && seven.windowLines === 2, describe(seven))
   const six = await floorCase(columns, rows, 6, `${columns}x${rows} in a 6-row slot`)
-  check(`${columns}x${rows} in a 6-row slot: the cursor row alone between the title and the filter line`, six.box.length === 6 && six.windowLines === 1 && six.markers === 0 && !six.pinned, describe(six))
+  check(`${columns}x${rows} in a 6-row slot: the cursor row alone between the title and the filter line`, six.box.length === 6 && !six.pageKeys && six.windowLines === 1 && six.markers === 0 && !six.pinned, describe(six))
 }
 {
   const board = await mount({ columns: 60, rows: 8 })
