@@ -1,9 +1,11 @@
 from __future__ import annotations
 import asyncio
 import atexit
+from datetime import datetime, timezone
 import json
 import os
 import signal
+import time
 import uuid
 from dataclasses import dataclass, field, replace
 from typing import Any, Callable, AsyncIterable, AsyncIterator, Literal, Generic, TypedDict, TypeVar, Unpack, cast, overload
@@ -166,6 +168,8 @@ def argv_of(options: RunOptions, door: Literal['run', 'runner'] = 'run') -> list
 
 
 _live: dict[int, asyncio.subprocess.Process] = {}
+_sent: dict[int, str] = {}
+WINDOWS = os.name == 'nt'
 
 
 def _end_live_children() -> None:
@@ -179,19 +183,62 @@ atexit.register(_end_live_children)
 
 
 def track(child: asyncio.subprocess.Process) -> None:
-    if child.pid is not None: _live[child.pid] = child
+    if child.pid is not None:
+        _live[child.pid] = child
+        _sent.pop(child.pid, None)
 
 
 def untrack(child: asyncio.subprocess.Process) -> None:
     _live.pop(child.pid, None)
 
 
+def send_signal(child: asyncio.subprocess.Process, name: Literal['SIGINT', 'SIGTERM', 'SIGKILL']) -> None:
+    """Send the named signal; on Windows, which delivers none, end the process as Node's child_process does and report the name in the exit receipt."""
+    if child.returncode is not None: return
+    try:
+        if not WINDOWS: child.send_signal(getattr(signal, name))
+        elif name == 'SIGKILL': child.kill()
+        else: child.terminate()
+    except ProcessLookupError: return
+    if child.pid is not None: _sent[child.pid] = name
+
+
+def exit_of(child: asyncio.subprocess.Process, code: int, stderr: str) -> RunExit:
+    """The exit receipt: the signal that ended the child, or its code; on Windows a child the package ended reports the signal it sent."""
+    sent = _sent.pop(child.pid, None) if child.pid is not None else None
+    if code < 0 and not WINDOWS: return RunExit(None, signal.Signals(-code).name, stderr)
+    if WINDOWS and sent is not None and code == 1: return RunExit(None, sent, stderr)
+    return RunExit(code, None, stderr)
+
+
+_USAGE_KEYS = ('input_tokens', 'cached_input_tokens', 'cache_write_input_tokens', 'output_tokens')
+
+
+def interrupted_outcome(rows: list[StreamRow], started_at: float, now: float | None = None) -> OutcomeRow:
+    """The outcome row of a turn the package interrupted when the child ended by the signal before writing its own."""
+    at = time.time() if now is None else now
+    opened = [row for row in rows if row['type'] == 'turn' and row.get('state') == 'started' and 'parent_call_id' not in row]
+    turn = opened[-1] if opened else None
+    steps = [row for row in rows if row['type'] == 'step' and 'parent_call_id' not in row and (turn is None or row.get('seq', 0) > turn.get('seq', 0))]
+    usage: dict[str, int] = dict.fromkeys(_USAGE_KEYS, 0)
+    models: dict[str, dict[str, int]] = {}
+    for step in steps:
+        model = models.setdefault(str(step.get('model')), {**dict.fromkeys(_USAGE_KEYS, 0), 'web_searches': 0})
+        for key in _USAGE_KEYS:
+            usage[key] += int(step['usage'][key])
+            model[key] += int(step['usage'][key])
+    last = rows[-1] if rows else None
+    started = datetime.fromisoformat(str(turn['timestamp']).replace('Z', '+00:00')).timestamp() if turn else started_at
+    row = {'type': 'outcome', 'seq': int(last.get('seq', 0) if last else 0) + 1, 'timestamp': datetime.fromtimestamp(at, timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'), 'session_id': str(last.get('session_id', '')) if last else '', 'turn': int(turn.get('turn', max(1, len(opened)))) if turn else max(1, len(opened)), 'schema': 1, 'turn_id': str(turn['turn_id']) if turn else '', 'status': 'interrupted', 'error': {'message': 'Interrupted', 'class': 'interrupt'}, 'steps': len(steps), 'wall_ms': max(0, int((at - started) * 1000)), 'usage': usage, 'models': models, 'denials': []}
+    return cast(OutcomeRow, row)
+
+
 async def end_child(child: asyncio.subprocess.Process) -> int:
     """Terminate a child that must not go on, escalating to SIGKILL after a second, and return its exit code."""
-    if child.returncode is None: child.terminate()
+    send_signal(child, 'SIGTERM')
     try: return await asyncio.wait_for(asyncio.shield(child.wait()), 1)
     except asyncio.TimeoutError:
-        if child.returncode is None: child.kill()
+        send_signal(child, 'SIGKILL')
         return await child.wait()
 
 
@@ -227,6 +274,8 @@ class MercuryRun:
         self._queue: asyncio.Queue[StreamRow | None] = asyncio.Queue()
         self._input_task: asyncio.Task[None] | None = None
         self._interrupt_requested = False
+        self._interrupt_sent = False
+        self._started_at = time.time()
         self._sent = 0
         self._reader = asyncio.create_task(self._read())
         self._cancel_task = asyncio.create_task(self._watch_cancel(options.cancel)) if options.cancel is not None else None
@@ -276,7 +325,13 @@ class MercuryRun:
         untrack(self.child)
         if self._tools: await self._tools.close()
         self.stderr = (await stderr).decode('utf-8', errors='replace')
-        exit = RunExit(code if code >= 0 else None, signal.Signals(-code).name if code < 0 else None, self.stderr)
+        exit = exit_of(self.child, code, self.stderr)
+        if self.error is None and last is None and self._interrupt_sent and (exit.signal == 'SIGINT' or exit.code == 130):
+            last = interrupted_outcome(self.rows, self._started_at)
+            self.rows.append(last)
+            self._queue.put_nowait(last)
+            self._emit('row', last)
+            self._emit('outcome', last)
         if self.error is None:
             if last and last['status'] == 'refused': self.error = MercuryRefusal(last, exit)
             elif last is None: self.error = MercuryUsageError(exit) if code == 2 else MercuryExitError(exit, 'run', 'no input row was sent before stdin was closed' if self.options.input == 'rows' and self._sent == 0 and not self.rows else None)
@@ -346,13 +401,17 @@ class MercuryRun:
         if not self.session.done():
             self._interrupt_requested = True
             return
-        if self.child.returncode is None: self.child.send_signal(signal.SIGINT)
+        if self.child.returncode is None:
+            send_signal(self.child, 'SIGINT')
+            self._interrupt_sent = True
 
     def terminate(self) -> None:
-        if self.child.returncode is None: self.child.terminate()
+        """End the process with SIGTERM (on Windows, terminate it); returns at once, the exit is awaited through ``exit``."""
+        send_signal(self.child, 'SIGTERM')
 
     def kill(self) -> None:
-        if self.child.returncode is None: self.child.kill()
+        """End the process with SIGKILL (on Windows, terminate it); returns at once, the exit is awaited through ``exit``."""
+        send_signal(self.child, 'SIGKILL')
 
     async def close(self) -> None:
         """End stdin and wait for the exit; SIGTERM after five seconds, SIGKILL after ten."""

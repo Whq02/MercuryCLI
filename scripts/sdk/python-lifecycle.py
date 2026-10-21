@@ -7,12 +7,23 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError, MercuryWireError, connect, run, __version__
+from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit, connect, row_of, run, __version__
+from mercury_cli_sdk.testing import fixture_session_row, fixture_turn
 
+WINDOWS = os.name == 'nt'
 init = {'protocol': 1, 'runner': {'version': 'fixture', 'pid': 1}, 'session_id': 's'}
 failures = []
 def child(script): return [sys.executable, '-u', '-c', script]
 def alive(pid):
+    if WINDOWS:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)
+        if not handle: return False
+        code = ctypes.c_ulong()
+        queried = kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+        kernel32.CloseHandle(handle)
+        return bool(queried) and code.value == 259
     try: os.kill(pid, 0); return True
     except OSError: return False
 
@@ -57,10 +68,92 @@ async def escalation():
     task = await run('x', mercury=stubborn)
     await expect(task.outcome, MercuryWireError, lambda e: e.reason == 'not_json')
     exit = await asyncio.wait_for(task.exit, 5)
-    assert exit.signal == 'SIGKILL' and time.monotonic() - started < 4, exit
+    ended = 'SIGTERM' if WINDOWS else 'SIGKILL'
+    assert exit.signal == ended and exit.code is None and time.monotonic() - started < 4, (exit, ended)
+    assert not alive(task.child.pid), 'the child is gone'
     started = time.monotonic()
     await expect(connect(mercury=stubborn), MercuryWireError, lambda e: e.reason == 'not_json')
     assert time.monotonic() - started < 4
+
+
+async def interrupted():
+    session = fixture_session_row(session_id='interrupt-session')
+    turn, _ = fixture_turn({'session_id': 'interrupt-session', 'turn': 2, 'turn_id': 'turn-two'})
+    turn = {**turn, 'seq': 2, 'turn': 2}
+    step = {'type': 'step', 'seq': 3, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': 'interrupt-session', 'message_id': 'm1', 'model': 'fixture-model', 'usage': {'input_tokens': 25, 'cached_input_tokens': 2, 'cache_write_input_tokens': 1, 'output_tokens': 4}}
+    assert row_of(step).ok and row_of(turn).ok
+    def idle(rows, on_sigint='signal.signal(signal.SIGINT, signal.SIG_DFL)'):
+        return child('import signal,sys,time\n' + on_sigint + '\n' + ''.join(f'print({json.dumps(json.dumps(row))}, flush=True)\n' for row in rows) + 'while True: time.sleep(1)')
+    first = await run('x', mercury=idle([session]))
+    await first.session
+    first.interrupt()
+    outcome = await first.outcome
+    assert outcome['status'] == 'interrupted' and outcome['error'] == {'message': 'Interrupted', 'class': 'interrupt'}, outcome
+    exit = await first.exit
+    assert exit.signal == 'SIGINT' or exit.code == 130, exit
+    assert first.rows[-1] is outcome and first.error is None and outcome['seq'] == 2 and outcome['session_id'] == 'interrupt-session' and outcome['turn'] == 1 and outcome['steps'] == 0, outcome
+    folded = await run('x', mercury=idle([session, turn, step]))
+    seen = []
+    folded.on('outcome', lambda row: seen.append(row['status']))
+    iterated = []
+    async def iterate():
+        async for row in folded: iterated.append(row['type'])
+    iteration = asyncio.create_task(iterate())
+    while not any(row['type'] == 'step' for row in folded.rows): await asyncio.sleep(0.01)
+    folded.interrupt()
+    synthesized = await folded.outcome
+    await iteration
+    assert synthesized['turn'] == 2 and synthesized['turn_id'] == 'turn-two' and synthesized['steps'] == 1 and synthesized['seq'] == 4, synthesized
+    assert synthesized['usage'] == {'input_tokens': 25, 'cached_input_tokens': 2, 'cache_write_input_tokens': 1, 'output_tokens': 4}
+    assert synthesized['models'] == {'fixture-model': {'input_tokens': 25, 'cached_input_tokens': 2, 'cache_write_input_tokens': 1, 'output_tokens': 4, 'web_searches': 0}}
+    assert synthesized['wall_ms'] >= 0 and seen == ['interrupted'] and iterated == ['session', 'turn', 'step', 'outcome'], (seen, iterated)
+    assert row_of(synthesized).ok, 'the synthesized row is a valid outcome row'
+    exiting = await run('x', mercury=idle([session], 'signal.signal(signal.SIGINT, lambda *a: sys.exit(130))'))
+    await exiting.session
+    exiting.interrupt()
+    assert (await exiting.outcome)['status'] == 'interrupted', 'a child that exits 130 on the interrupt without an outcome row settles the same way'
+    event = asyncio.Event()
+    cancelled = await run('x', mercury=idle([session]), cancel=event)
+    await cancelled.session
+    event.set()
+    assert (await cancelled.outcome)['status'] == 'interrupted', 'the cancel event takes the same road'
+    foreign = await run('x', mercury=idle([session]))
+    await foreign.session
+    if WINDOWS: foreign.child.terminate()
+    else: os.kill(foreign.child.pid, signal.SIGINT)
+    await expect(foreign.outcome, MercuryExitError, lambda e: (e.exit.code == 1 and e.exit.signal is None) if WINDOWS else str(e) == 'mercury run ended by SIGINT before an outcome row')
+    terminated = await run('x', mercury=idle([session]))
+    await terminated.session
+    assert terminated.terminate() is None, 'terminate() is synchronous'
+    await expect(terminated.outcome, MercuryExitError, lambda e: str(e) == 'mercury run ended by SIGTERM before an outcome row')
+
+
+async def windows_road():
+    import mercury_cli_sdk.client as client
+    was = client.WINDOWS
+    client.WINDOWS = True
+    try:
+        session = fixture_session_row(session_id='windows-session')
+        def ends_with_code_1(first_line):
+            return child('import signal,sys,time\nsignal.signal(signal.SIGTERM, lambda *a: sys.exit(1))\nprint(' + first_line + ', flush=True)\nwhile True: time.sleep(1)')
+        event = asyncio.Event()
+        cancelled = await run('x', mercury=ends_with_code_1(json.dumps(json.dumps(session))), cancel=event)
+        await cancelled.session
+        event.set()
+        outcome = await cancelled.outcome
+        assert outcome['status'] == 'interrupted' and cancelled.rows[-1] is outcome, outcome
+        assert await cancelled.exit == RunExit(None, 'SIGINT', ''), await cancelled.exit
+        terminated = await run('x', mercury=ends_with_code_1(json.dumps(json.dumps(session))))
+        await terminated.session
+        terminated.terminate()
+        await expect(terminated.outcome, MercuryExitError, lambda e: str(e) == 'mercury run ended by SIGTERM before an outcome row' and e.exit.code is None)
+        wire = await run('x', mercury=ends_with_code_1(repr('{bad')))
+        await expect(wire.outcome, MercuryWireError, lambda e: e.reason == 'not_json')
+        assert (await wire.exit).signal == 'SIGTERM', await wire.exit
+        natural = await run('x', mercury=child('import sys\nprint(' + json.dumps(json.dumps(session)) + ', flush=True)\nsys.exit(1)'))
+        await expect(natural.outcome, MercuryExitError, lambda e: str(e) == 'mercury run exited 1 before an outcome row' and e.exit.signal is None)
+    finally: client.WINDOWS = was
+
 
 async def host_exit():
     script = f'''import asyncio, sys
@@ -87,7 +180,9 @@ asyncio.run(main())
 async def main():
     await check('Python cwd and executable words, door-aware exits', words)
     await check('Python connect timeout and cancellation end a silent boot', boot_timeout)
-    await check('Python SIGKILL escalation after a fatal wire failure', escalation)
+    await check('Python termination after a fatal wire failure: the child is gone within the bound and the receipt names ' + ('SIGTERM (Windows: the first step ends it)' if WINDOWS else 'the SIGKILL escalation'), escalation)
+    await check('Python interrupt the package sent settles as an interrupted outcome when the child ends by the signal; a foreign signal and terminate() stay errors', interrupted)
+    await check('Python Windows road' + ('' if WINDOWS else ' driven on this host') + ': cancel ends the child and settles interrupted, terminate and the wire escalation report the signal sent, a natural exit 1 stays exit 1', windows_road)
     await check('Python host exit terminates live children', host_exit)
     assert __version__ in Path(__file__).resolve().parents[2].joinpath('sdk-py/pyproject.toml').read_text()
     assert not failures, failures
