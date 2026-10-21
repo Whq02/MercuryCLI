@@ -36,34 +36,6 @@ const promptText = async (command: Command, args: string): Promise<string> => {
   return out.map(b => ((b as { type?: string; text?: string }).type === 'text' ? (b as { text: string }).text : '')).join('')
 }
 
-const SURFACE_CUES: ReadonlyArray<{ surface: string; ask: RegExp; listed: RegExp; question: string }> = [
-  { surface: 'hosting a model', ask: /\b(?:host|runpod|llmhost)\b/i, listed: /\bhosting\b/i, question: 'How do I host a model on Runpod or with mercury host?' },
-  { surface: 'the SDK', ask: /\b(?:sdk|runner)\b/i, listed: /\bSDK\b/, question: 'How do I drive Mercury from the SDK or mercury runner?' },
-  { surface: 'voice', ask: /\b(?:voice|dictat|whisper)\b/i, listed: /\bvoice\b/i, question: 'How do I turn on voice dictation in Mercury?' },
-  { surface: 'restarting', ask: /\brestart\b/i, listed: /\brestart\b/i, question: 'How do I restart my Mercury session onto a new build?' },
-  { surface: 'scheduling', ask: /\bschedul/i, listed: /\bscheduling\b/i, question: 'How do I schedule a recurring prompt in Mercury?' },
-  { surface: 'a provider sign-in', ask: /\b(?:provider|sign in|login)\b/i, listed: /\bproviders\b/i, question: 'How do I sign in to a model provider in Mercury?' },
-]
-
-const DO_IT_REQUESTS: ReadonlyArray<string> = [
-  'Schedule a cron job every weekday at 9am to check CI',
-  'Allow npm test in settings.json without asking',
-  'Rebind ctrl+k to undo in my keybindings',
-  'Run the tests and fix the failing assertion in src/parser.ts',
-  'Loop every 10m on /health',
-  'Restart the dev server and check the logs',
-]
-
-const matchesDocsListing = (listingLine: string, userPrompt: string): boolean => {
-  const hasQuestionTrigger = /asks how to use Mercury itself/i.test(listingLine)
-  const hasDoingExclusion = /\bnot (?:to do it|for doing|when asked to do)\b/i.test(listingLine)
-  const hasGroundingLaw = /never from memory/i.test(listingLine)
-  if (!hasQuestionTrigger || !hasDoingExclusion || !hasGroundingLaw) return false
-  if (!/^\s*(?:how do i|how can i|how to|what does|what is|where is)\b/i.test(userPrompt)) return false
-  const cues = SURFACE_CUES.filter(cue => cue.ask.test(userPrompt))
-  return cues.length > 0 && cues.every(cue => cue.listed.test(listingLine))
-}
-
 section('§1 the mercury-docs skill — registered, user- and model-invocable, inline, trigger-complete')
 const docs = byName.get(docsSkill.MERCURY_DOCS_SKILL_NAME)
 check('the skill registers under its name', docs !== undefined, [...byName.keys()].join(' '))
@@ -71,17 +43,23 @@ check('a prompt command the user may invoke and the model may invoke', docs?.typ
 check('it runs inline — no fork, no agent type', docs?.context === undefined && (docs as { agent?: string } | undefined)?.agent === undefined)
 check('the description sends every how-do-I-use-Mercury question here, names the shipped documentation as the source and keeps a doing skill for doing', /how to use Mercury itself/.test(String(docs?.description)) && /ships with this install/.test(String(docs?.description)) && /never from memory/.test(String(docs?.description)) && /even when a skill that does the thing exists/.test(String(docs?.description)))
 check('the argument hint asks for the question', docs?.argumentHint === '<question about using Mercury>')
+const LISTING_CAP = 250
+const description = String(docs?.description)
 const renderedListing = formatCommandsWithinBudgetDetailed(skills).content
 const docsListingLine = renderedListing.split('\n').find(line => line.startsWith(`- ${docsSkill.MERCURY_DOCS_SKILL_NAME}: `)) ?? ''
-check('the rendered 250-char skill-listing line preserves the trigger, the doing exclusion, never-from-memory, and today\'s surfaces', SURFACE_CUES.every(cue => cue.listed.test(docsListingLine)) && /never from memory/.test(docsListingLine) && /\bnot to do it\b/.test(docsListingLine), docsListingLine)
-for (const cue of SURFACE_CUES) {
-  check(`discovery fires on "how do I …" for ${cue.surface}`, matchesDocsListing(docsListingLine, cue.question), docsListingLine)
-}
-for (const req of DO_IT_REQUESTS) {
-  check(`discovery stays quiet on "do it" request: "${req}"`, !matchesDocsListing(docsListingLine, req))
-}
-check('poison control: a listing line missing a surface fails the how-to predicate', !matchesDocsListing(docsListingLine.replace(/\bvoice\b/i, ''), 'How do I turn on voice dictation in Mercury?'))
-check('poison control: a listing line whose doing exclusion was truncated fails the discovery predicate', !matchesDocsListing(docsListingLine.replace(/,?\s*not to do it/i, ''), 'How do I schedule a recurring prompt in Mercury?'))
+const listingLineOf = (candidate: string): string => formatCommandsWithinBudgetDetailed([{ ...docs, description: candidate } as Command]).content
+const hasTrigger = (line: string): boolean => line.startsWith(`- ${docsSkill.MERCURY_DOCS_SKILL_NAME}: Use when the user asks how to use Mercury itself`)
+const hasTopics = (line: string): boolean => /\([a-z ,]+\)/i.test(line)
+const hasGrounding = (line: string): boolean => line.includes('answered from the documentation that ships with this install, never from memory')
+const hasBoundary = (line: string): boolean => line.endsWith('even when a skill that does the thing exists.')
+const readsAsDocsTrigger = (line: string): boolean => hasTrigger(line) && hasTopics(line) && hasGrounding(line) && hasBoundary(line)
+check(`the description fits the ${LISTING_CAP}-character skill-listing cap, so no tail of it is cut`, description.length <= LISTING_CAP, `${description.length} characters`)
+check('the real rendered listing line is the whole description, with no ellipsis', docsListingLine === `- ${docsSkill.MERCURY_DOCS_SKILL_NAME}: ${description}` && !docsListingLine.endsWith('…'), docsListingLine)
+check('the listing line the model reads carries the trigger, the topics, the grounding law and the doing boundary', readsAsDocsTrigger(docsListingLine), docsListingLine)
+check('poison control: a description whose tail is pushed past the cap fails the listing predicate', !readsAsDocsTrigger(listingLineOf(description.replace('): answered', `): ${'at some considerable length, '.repeat(6)}answered`))))
+check('poison control: a listing line without the doing boundary fails the listing predicate', !readsAsDocsTrigger(docsListingLine.replace(', even when a skill that does the thing exists', '')))
+check('poison control: a listing line without the grounding law fails the listing predicate', !readsAsDocsTrigger(docsListingLine.replace('never from memory', 'from memory')))
+check('poison control: a listing line without the topic list fails the listing predicate', !readsAsDocsTrigger(docsListingLine.replace(/ \([^)]+\)/, '')))
 
 section('§2 the pages — README.md and every docs/*.md page of this tree, byte for byte, nothing else')
 const pages = docsSkill.mercuryDocPages()
@@ -92,6 +70,23 @@ for (const rel of expected) if (pages[rel] === readFileSync(join(ROOT, rel), 'ut
 check('every carried page is the tree\'s page, byte for byte', identical === expected.length, `${identical} of ${expected.length}`)
 check('no release page, template or media file rides along', !Object.keys(pages).some(k => k.includes('releases/') || k.includes('templates/') || k.includes('media/')))
 check('the Saturn page the scheduling question needs is carried and names /saturn, CronCreate and the /loop skill', typeof pages['docs/SATURN.md'] === 'string' && /`\/saturn`/.test(pages['docs/SATURN.md']) && /CronCreate/.test(pages['docs/SATURN.md']) && /`\/loop`/.test(pages['docs/SATURN.md']))
+const TOPIC_PAGES: Readonly<Record<string, ReadonlyArray<readonly [string, RegExp]>>> = {
+  settings: [['docs/SETTINGS.md', /settings\.json/]],
+  scheduling: [['docs/SATURN.md', /`\/saturn`/]],
+  providers: [['docs/ENGINES.md', /sign-in provider families/], ['README.md', /^## Providers and models: sign-ins/m]],
+  hosting: [['docs/LLM-HOST.md', /`\/llmhost`/], ['docs/LLM-HOST.md', /mercury\s+host/]],
+  'headless runs': [['docs/AUTOMATION.md', /`mercury run/], ['docs/AUTOMATION.md', /`mercury runner`/], ['README.md', /^## The headless CLI/m]],
+  voice: [['docs/VOICE.md', /`\/voice on`/]],
+  restart: [['README.md', /`\/restart`/], ['docs/TERMINAL-RUNTIME.md', /`\/restart`/]],
+}
+const topicsNamed = (/\(([^)]+)\)/.exec(description)?.[1] ?? '').split(',').map(topic => topic.trim()).filter(Boolean)
+const topicsPinned = (carried: Readonly<Record<string, string>>, named: ReadonlyArray<string> = topicsNamed): boolean =>
+  named.length > 0 &&
+  JSON.stringify([...named].sort()) === JSON.stringify(Object.keys(TOPIC_PAGES).sort()) &&
+  Object.values(TOPIC_PAGES).every(pins => pins.every(([page, anchor]) => anchor.test(carried[page] ?? '')))
+check('each topic the description names is documented by shipped pages that carry its command or section', topicsPinned(pages), `named: ${topicsNamed.join(', ')}`)
+check('poison control: a topic named without a pinned page fails the topic predicate', !topicsPinned(pages, [...topicsNamed, 'sdk']))
+check('poison control: a page that lost the command the topic rests on fails the topic predicate', !topicsPinned({ ...pages, 'docs/VOICE.md': (pages['docs/VOICE.md'] ?? '').replaceAll('/voice on', '') }))
 const index = pages['docs/README.md'] ?? ''
 const pageLinks = [...index.matchAll(/\]\(([^)]+\.md)\)/g)].map(match => match[1]!)
 const guideNames = expected.filter(path => path.startsWith('docs/') && path !== 'docs/README.md').map(path => path.slice(5))
@@ -118,6 +113,21 @@ check('the prompt opens on the base-directory line naming the extract dir', text
 check('the guidance answers from the shipped documentation and names the Read and Grep road', /Answer the question from Mercury's own documentation/.test(text) && /read it with the Read tool/.test(text) && /Grep across the folder/.test(text))
 check("the guidance names Mercury's own site and llms.txt as the map, and no other site", text.includes(docsSkill.MERCURY_DOCS_SITE) && text.includes(docsSkill.MERCURY_DOCS_MAP_URL) && /fetch no other site/.test(text))
 check('an uncovered question is answered plainly, never guessed', /say so and name the nearest page instead of guessing/.test(text))
+const guidance = text.slice(text.indexOf("Answer the question"), text.indexOf('## The pages'))
+const README_CLAIMS: ReadonlyArray<readonly [string, RegExp]> = [
+  ['install', /^## Install/m],
+  ['updates', /^### Updates/m],
+  ['provider sign-ins', /^## Providers and models: sign-ins/m],
+  ['headless', /^## The headless CLI/m],
+  ['slash-command table', /^## Slash commands/m],
+]
+const readmeClaimsPinned = (readme: string): boolean => README_CLAIMS.every(([phrase, heading]) => guidance.includes(phrase) && heading.test(readme))
+check('every README section the guidance names is a heading of the README', readmeClaimsPinned(pages['README.md'] ?? ''))
+check('poison control: a README without its slash-command table heading fails the README predicate', !readmeClaimsPinned((pages['README.md'] ?? '').replace('## Slash commands', '## Commands')))
+check('the guidance states no count that could go stale', !/\d/.test(guidance), guidance.match(/\d+/g)?.join(',') ?? '')
+check('poison control: a guidance with a provider count in it fails the no-count predicate', /\d/.test(guidance.replace('provider sign-ins', '20 provider sign-ins')))
+check('the guidance sends a long page to a Grep and a window read, not a whole-file read', /Grep across the folder first/.test(guidance) && /only the lines the match points at/.test(guidance))
+check('the guidance stays within its 900-character size budget', guidance.length <= 900, `${guidance.length} characters`)
 const mapLines = text.split('\n').filter(line => line.startsWith('- README.md') || line.startsWith('- docs/'))
 const mapPaths = mapLines.map(line => /^- ([^\s—]+)/.exec(line)?.[1] ?? '')
 check('the map lists every carried page, README first', mapLines.length === expected.length && mapLines[0]!.startsWith('- README.md — Mercury CLI:'), `${mapLines.length} map rows`)

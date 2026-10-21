@@ -158,7 +158,7 @@ export function mercuryDocsMap(pages: Readonly<Record<string, string>> = mercury
     .join('\n')
 }
 
-const GUIDANCE = `Answer the question from Mercury's own documentation under the base directory above: README.md (install, updates, 20 provider sign-ins, headless \`mercury run\`/\`runner\`/CLI verbs, and the slash-command table) and docs/*.md, one guide per surface. Choose the target page from the map below before reading: Grep across the folder first when the map does not settle the page or to locate a section in a long guide, then read it with the Read tool. State the exact command, setting, flag, skill, tool or screen from the page in a few plain sentences, with a short example when useful, naming the page path. The same docs publish at ${MERCURY_DOCS_SITE} (map: ${MERCURY_DOCS_MAP_URL}); fetch there only if the local pages leave the question open, and fetch no other site. If the documentation does not cover the question, say so and name the nearest page instead of guessing.`
+const GUIDANCE = `Answer the question from Mercury's own documentation under the base directory above: README.md (install, updates, provider sign-ins, headless \`mercury run\`/\`runner\`/CLI verbs, and the slash-command table) and docs/*.md, one guide per surface. Pick the page from the map below. When the map does not settle it, or the page is long, Grep across the folder first, then read it with the Read tool, only the lines the match points at. State the exact command, setting, flag, skill, tool or screen the page names in a few plain sentences, with a short example when one helps, and name the page path. The same docs publish at ${MERCURY_DOCS_SITE} (map: ${MERCURY_DOCS_MAP_URL}); fetch there only if the local pages leave the question open, and fetch no other site. If the documentation does not cover the question, say so and name the nearest page instead of guessing.`
 
 export function mercuryDocsPrompt(question: string): string {
   const parts = [GUIDANCE, `## The pages\n${mercuryDocsMap()}`]
@@ -170,7 +170,7 @@ export function registerMercuryDocsSkill(): void {
   registerBundledSkill({
     name: MERCURY_DOCS_SKILL_NAME,
     description:
-      'Use when the user asks how to use Mercury itself, not to do it (commands, settings, flags, modes, sessions, agents, scheduling, providers, hosting, SDK, voice, restart): answered from the documentation that ships with this install, never from memory, even when a skill that does the thing exists.',
+      'Use when the user asks how to use Mercury itself (settings, scheduling, providers, hosting, headless runs, voice, restart): answered from the documentation that ships with this install, never from memory, even when a skill that does the thing exists.',
     argumentHint: '<question about using Mercury>',
     allowedTools: ['Read', 'Grep', 'Glob'],
     files: { ...mercuryDocPages() },
