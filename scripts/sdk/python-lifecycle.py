@@ -39,6 +39,15 @@ async def words():
     task = await run('x', mercury=child('raise SystemExit(3)'))
     await expect(task.outcome, MercuryExitError, lambda e: e.door == 'run' and str(e) == 'mercury run exited 3 before an outcome row')
 
+async def boot_timeout():
+    silent = child('import sys\nsys.stdin.read()')
+    started = time.monotonic()
+    await expect(connect(mercury=silent, timeout=0.1), MercuryError, lambda e: str(e) == 'initialize: no answer within 0.1 seconds')
+    assert time.monotonic() - started < 5, 'the timed-out boot must end without waiting on an escalation'
+    try: await asyncio.wait_for(connect(mercury=silent), 0.1)
+    except asyncio.TimeoutError: pass
+    else: raise AssertionError('a cancelled connect returned')
+
 async def escalation():
     stubborn = child("import signal,sys,time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nprint('{bad', flush=True)\nwhile True: time.sleep(1)")
     started = time.monotonic()
@@ -74,6 +83,7 @@ asyncio.run(main())
 
 async def main():
     await check('Python cwd and executable words, door-aware exits', words)
+    await check('Python connect timeout and cancellation end a silent boot', boot_timeout)
     await check('Python SIGKILL escalation after a fatal wire failure', escalation)
     await check('Python host exit terminates live children', host_exit)
     assert __version__ in Path(__file__).resolve().parents[2].joinpath('sdk-py/pyproject.toml').read_text()

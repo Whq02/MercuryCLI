@@ -58,6 +58,20 @@ try {
       await assert.rejects(second, (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
     } finally { await session.close() }
   })
+  await check('connect() takes an AbortSignal: a runner that never answers initialize is cancelled and ended, and an abort after connecting closes the session', async () => {
+    const silent = fake('process.stdin.resume()')
+    const started = Date.now()
+    await assert.rejects(connect({ mercury: silent, signal: AbortSignal.timeout(100) }), (e: unknown) => e instanceof MercuryError && e.message === 'initialize: cancelled')
+    assert(Date.now() - started < 5000, 'the cancelled boot must end without waiting on an escalation')
+    await assert.rejects(connect({ mercury: silent, signal: AbortSignal.abort() }), (e: unknown) => e instanceof MercuryError && e.message === 'initialize: cancelled')
+    const fixture = await startFixtureServer({ methods: { initialize: [{ result: init }] } })
+    try {
+      const controller = new AbortController()
+      const session = await connect({ mercury: fixture.mercury, signal: controller.signal })
+      controller.abort()
+      assert.equal((await session.exit).code, 0)
+    } finally { await fixture.close() }
+  })
   await check('a host that exits terminates the children it still has', async () => {
     const host = join(scratch, 'host.mjs')
     writeFileSync(host, `import { run, connect } from ${JSON.stringify(join(root, 'sdk/src/index.ts'))}

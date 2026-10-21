@@ -16,6 +16,7 @@ import { serveTools, withTools, type ToolServer } from './helpers.js'
 export type RequestContext = { signal: AbortSignal; id: number }
 export type HostHandlers = { [M in RunnerRequestName]?: (params: ParamsOf<M>, context: RequestContext) => ResultOf<M> | (keyof ResultOf<M> extends never ? void : never) | Promise<ResultOf<M> | (keyof ResultOf<M> extends never ? void : never)> }
 export interface ConnectOptions extends Omit<RunOptions, 'prompt' | 'stdin' | 'input' | 'signal'> {
+  signal?: AbortSignal
   warm?: boolean
   host?: { name: string; version: string }
   capabilities?: Partial<ParamsOf<'initialize'>['capabilities']>
@@ -297,7 +298,13 @@ export async function connect(options: ConnectOptions = {}): Promise<MercurySess
     session.initialized = await session.request('initialize', {
       protocol: RUNNER_PROTOCOL, host: options.host ?? { name: 'mercury-cli-sdk', version: VERSION },
       capabilities: { holds_asks: Boolean(options.onPermissionRequest || options.handlers?.['permission/request']), elicitation: Boolean(options.onElicitation || options.handlers?.['elicitation/request']), partial_rows: options.partial ?? false, fs_read_text_file: Boolean(options.onReadTextFile || options.handlers?.['fs/read_text_file']), fs_write_text_file: Boolean(options.onWriteTextFile || options.handlers?.['fs/write_text_file']), terminal: ['terminal/create', 'terminal/output', 'terminal/wait_for_exit', 'terminal/kill', 'terminal/release'].every(method => Boolean(options.handlers?.[method as RunnerRequestName])), ...options.capabilities },
-    })
+    }, { signal: options.signal })
+    if (options.signal) {
+      const signal = options.signal
+      const end = () => void session.close()
+      signal.addEventListener('abort', end, { once: true })
+      void session.exit.then(() => signal.removeEventListener('abort', end))
+    }
     return session
   } catch (error) { await session.close(); throw error }
 }

@@ -335,8 +335,8 @@ class MercurySession(TypedRequests):
         return row
 
 
-async def connect(*, warm: bool = False, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, options: RunOptions | None = None, **kwargs: Any) -> MercurySession:
-    """Start ``mercury runner`` and complete ``initialize``; the keyword arguments are ``RunOptions`` fields."""
+async def connect(*, warm: bool = False, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, options: RunOptions | None = None, **kwargs: Any) -> MercurySession:
+    """Start ``mercury runner`` and complete ``initialize`` (within ``timeout`` seconds when given); the keyword arguments are ``RunOptions`` fields."""
     opts = replace(options, **kwargs) if options is not None else RunOptions(**kwargs)
     if warm and (opts.session_id or opts.resume or opts.continue_ or opts.fork): raise MercuryError('warm cannot be combined with session identity options')
     opts = checkpoint_options(opts, warm)
@@ -355,7 +355,7 @@ async def connect(*, warm: bool = False, on_read_text_file: ReadTextFileHandler 
     session = MercurySession(child, callbacks, tools, opts)
     try:
         declared: InitializeParamsCapabilities = {'holds_asks': 'permission/request' in callbacks, 'elicitation': 'elicitation/request' in callbacks, 'partial_rows': opts.partial, 'fs_read_text_file': 'fs/read_text_file' in callbacks, 'fs_write_text_file': 'fs/write_text_file' in callbacks, 'terminal': all(name in callbacks for name in ('terminal/create', 'terminal/output', 'terminal/wait_for_exit', 'terminal/kill', 'terminal/release'))}
-        session.initialized = await session.request('initialize', {'protocol': RUNNER_PROTOCOL, 'host': host or {'name': 'mercury-cli-sdk', 'version': __version__}, 'capabilities': {**declared, **(capabilities or {})}})
+        session.initialized = await session.request('initialize', {'protocol': RUNNER_PROTOCOL, 'host': host or {'name': 'mercury-cli-sdk', 'version': __version__}, 'capabilities': {**declared, **(capabilities or {})}}, timeout=timeout)
         return session
     except BaseException:
         await session.close()

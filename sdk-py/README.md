@@ -46,7 +46,7 @@ async def main():
 asyncio.run(main())
 ```
 
-`prompt` awaits its own correlated turn. Only one prompt wait may be active; `steer(content)` queues priority `now` and `follow_up(content)` queues `later`. `send_prompt`, `send_shell` and `send_note` expose ids and all priorities; `withdraw(id)` removes queued input. Cancelling the awaiting task cancels the wait, not the turn; `interrupt()` ends the turn. Typed `request(method, params, timeout=seconds)` and `notify` cover protocol 1, including pause, quiesce, leave, MCP and schedules. `timeout=None` disables its timer.
+`prompt` awaits its own correlated turn. Only one prompt wait may be active; `steer(content)` queues priority `now` and `follow_up(content)` queues `later`. `send_prompt`, `send_shell` and `send_note` expose ids and all priorities; `withdraw(id)` removes queued input. Cancelling the awaiting task cancels the wait, not the turn; `interrupt()` ends the turn. Typed `request(method, params, timeout=seconds)` and `notify` cover protocol 1, including pause, quiesce, leave, MCP and schedules. `timeout=None` disables its timer. `connect(timeout=seconds)` bounds a boot that never answers; cancelling the awaiting task ends the child too.
 
 `on_permission_request` and `on_elicitation` receive `RequestContext` with `id` and a `cancelled` event; absent handlers deny and decline respectively. `on_read_text_file` and `on_write_text_file` route native file tools to host buffers and infer their capabilities. The equivalent `handlers` entries work too. Supplying all five `terminal/*` handlers infers terminal support; partial terminal sets do not. Explicit `capabilities` override inference.
 
